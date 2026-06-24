@@ -557,7 +557,8 @@ TEST_EXTRA_ENV ?=
 
 ### DDTrace tests ###
 TESTS_ROOT = ./tests
-COMPOSER = $(if $(ASAN), ASAN_OPTIONS=detect_leaks=0) COMPOSER_MEMORY_LIMIT=-1 composer --no-interaction
+# Note: We disable composer's security blocking so that pinned dependency versions flagged by a security advisory (e.g. Laravel/framework PKSA-mdq4-51ck-6kdq / CVE-2026-48019) still resolve.
+COMPOSER = $(if $(ASAN), ASAN_OPTIONS=detect_leaks=0) COMPOSER_NO_SECURITY_BLOCKING=1 COMPOSER_MEMORY_LIMIT=-1 composer --no-interaction
 DDPROF_IDENTIFIER ?=
 PHPUNIT_OPTS ?=
 PHPUNIT_JUNIT ?=
@@ -1215,7 +1216,6 @@ FILTER ?= .
 MAX_RETRIES := 3
 RUN_WEB_BENCHES_WITH_DDPROF ?=
 
-# Note: The "composer show" command below outputs a csv with pairs of dependency;version such as "phpunit/phpunit;9.6.17"
 define run_composer_with_retry
 	for i in $$(seq 1 $(MAX_RETRIES)); do \
 		echo "Attempting composer update (attempt $$i of $(MAX_RETRIES))..."; \
