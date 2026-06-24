@@ -148,6 +148,12 @@ variables:
   variables:
     DDCI_CONFIGURE_OTEL_EXPORTER: "true"
     GIT_STRATEGY: none
+    # The host docker config uses the ecr-login credsStore; its `list` errors
+    # with MissingRegion (e.g. on the anonymous mcr.microsoft.com base pull).
+    # Give the helper a region so it stops failing; leaves the rest of the
+    # host config (and its ambient registry.ddbuild.io auth) untouched.
+    AWS_REGION: "us-east-1"
+    AWS_DEFAULT_REGION: "us-east-1"
   script: |
     # Kill leftover containers; a previous run may still hold php_ddtrace.dll open.
     $containers = docker ps -aq 2>$null
