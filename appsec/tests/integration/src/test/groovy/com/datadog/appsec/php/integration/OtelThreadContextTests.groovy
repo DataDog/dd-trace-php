@@ -4,7 +4,6 @@ import com.datadog.appsec.php.docker.AppSecContainer
 import com.datadog.appsec.php.docker.InspectContainerHelper
 import groovy.json.JsonSlurper
 import groovy.util.logging.Slf4j
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.DisabledIf
 import org.testcontainers.containers.Container.ExecResult
@@ -27,8 +26,7 @@ class OtelThreadContextTests {
     private static final String GDB_SCRIPT =
             '/project/appsec/tests/integration/src/test/resources/otel_context_gdb.py'
     private static final String GDB_TIMEOUT = '20s'
-    private static final String EXPECTED_PROCESS_CONTEXT_SIGNATURE = 'OTEL_CTX'
-    private static final String EXPECTED_PROCESS_CONTEXT_VERSION = '2'
+    private static final String LOCAL_ROOT_SPAN_ID_ATTRIBUTE_KEY = 'datadog.local_root_span_id'
 
     static boolean disabled = phpVersion != '8.3'
 
@@ -40,31 +38,26 @@ class OtelThreadContextTests {
                     phpVersion: phpVersion,
                     phpVariant: variant,
                     www: 'base',
-            )
+            ).withEnv('DD_TRACE_REPORT_HOSTNAME', 'true')
 
     static void main(String[] args) {
         InspectContainerHelper.run(CONTAINER)
     }
 
-    @AfterEach
-    void afterEach() {
-        CONTAINER.clearTraces()
-    }
-
     @Test
     void 'otel thread context matches trace ids during regular request lifecycle'() {
         PausedRequest pausedRequest = startPausedRequest('/otel_context_regular.php')
-        boolean released = false
+        boolean requestContinued = false
 
         try {
             Map<String, String> threadContext = inspectThreadLocalAndContinue(pausedRequest.pid)
-            released = true
+            requestContinued = true
             HttpResponse<String> response = awaitResponse(pausedRequest)
             Map responseBody = parseJsonResponse(response)
 
             assertThreadContextMatchesResponse(threadContext, responseBody)
         } finally {
-            if (!released) {
+            if (!requestContinued) {
                 continuePausedRequestQuietly(pausedRequest.pid)
             }
         }
@@ -73,47 +66,48 @@ class OtelThreadContextTests {
     @Test
     void 'otel thread context matches trace ids during user request lifecycle'() {
         PausedRequest pausedRequest = startPausedRequest('/otel_context_user_request.php')
-        boolean released = false
+        boolean requestContinued = false
 
         try {
             Map<String, String> threadContext = inspectThreadLocalAndContinue(pausedRequest.pid)
-            released = true
+            requestContinued = true
             HttpResponse<String> response = awaitResponse(pausedRequest)
             Map responseBody = parseJsonResponse(response)
 
             assert responseBody.outer_span_id != responseBody.span_id
             assertThreadContextMatchesResponse(threadContext, responseBody)
         } finally {
-            if (!released) {
+            if (!requestContinued) {
                 continuePausedRequestQuietly(pausedRequest.pid)
             }
         }
     }
 
     @Test
-    void 'otel process context shared memory has expected threadlocal schema and version'() {
+    void 'otel process context shared memory has expected metadata and threadlocal attributes'() {
         PausedRequest pausedRequest = startPausedRequest('/otel_context_regular.php')
-        boolean released = false
+        boolean requestContinued = false
 
         try {
             Map<String, String> processContext = inspectProcessContext(pausedRequest.pid)
             continuePausedRequest(pausedRequest.pid)
-            released = true
+            requestContinued = true
 
             HttpResponse<String> response = awaitResponse(pausedRequest)
             parseJsonResponse(response)
 
             assert processContext.present == 'true'
-            assert processContext.signature == EXPECTED_PROCESS_CONTEXT_SIGNATURE
-            assert processContext.version == EXPECTED_PROCESS_CONTEXT_VERSION
+            assert processContext.signature == 'OTEL_CTX'
+            assert processContext.version == '2'
             assert processContext.payload_size.toInteger() > 0
             assert processContext.published_at.toBigInteger() > 0
-            assert processContext.has_threadlocal_schema_key == 'true'
-            assert processContext.has_threadlocal_schema_value == 'true'
-            assert processContext.has_threadlocal_attribute_key_map == 'true'
-            assert processContext.has_local_root_span_key == 'true'
+            assert processContext['telemetry.sdk.language'] == 'php'
+            assert processContext['telemetry.sdk.version'] == expectedTracerVersion()
+            assert processContext['host.name'] == expectedContainerHostname()
+            assert processContext['threadlocal.schema_version'] == 'tlsdesc_v1_dev'
+            assert processContext['threadlocal.attribute_key_map'] == LOCAL_ROOT_SPAN_ID_ATTRIBUTE_KEY
         } finally {
-            if (!released) {
+            if (!requestContinued) {
                 continuePausedRequestQuietly(pausedRequest.pid)
             }
         }
@@ -125,11 +119,9 @@ class OtelThreadContextTests {
         assert threadContext.ctx != '0x0'
         assert threadContext.valid == '1'
         assert threadContext.attrs_data_size.toInteger() >= 18
-        assert threadContext.attr0_key == '0'
-        assert threadContext.attr0_len == '16'
         assert threadContext.trace_id == responseBody.trace_id
         assert threadContext.span_id == responseBody.span_id
-        assert threadContext.local_root_span_id == responseBody.local_root_span_id
+        assert threadContext[LOCAL_ROOT_SPAN_ID_ATTRIBUTE_KEY] == responseBody.local_root_span_id
     }
 
     private static Map parseJsonResponse(HttpResponse<String> response) {
@@ -243,10 +235,22 @@ class OtelThreadContextTests {
         parseKeyValueOutput(res.stdout)
     }
 
+    private static String expectedTracerVersion() {
+        ExecResult res = CONTAINER.execInContainer('bash', '-lc', 'cat /project/VERSION')
+        assert res.exitCode == 0
+        res.stdout.trim()
+    }
+
+    private static String expectedContainerHostname() {
+        ExecResult res = CONTAINER.execInContainer('hostname')
+        assert res.exitCode == 0
+        res.stdout.trim()
+    }
+
     private static Map<String, String> parseKeyValueOutput(String output) {
         Map<String, String> result = [:]
         output.readLines().each { String line ->
-            if (line ==~ /^[A-Za-z_][A-Za-z0-9_]*=.*/) {
+            if (line ==~ /^[A-Za-z_][A-Za-z0-9_.]*=.*/) {
                 int idx = line.indexOf('=')
                 result[line.substring(0, idx).trim()] = line.substring(idx + 1).trim()
             }

@@ -39,7 +39,7 @@ static ddtrace_profiling_context (*datadog_php_profiling_get_legacy_context)(voi
 typedef struct datadog_php_profiling_otel_thread_context_record {
     uint8_t trace_id[16];
     uint8_t span_id[8];
-    _Atomic uint8_t valid;
+    uint8_t valid;
     uint8_t reserved;
     uint16_t attrs_data_size;
     uint8_t attrs_data[DATADOG_PHP_PROFILING_OTEL_ATTRS_DATA_SIZE];
@@ -105,12 +105,34 @@ static bool datadog_php_profiling_parse_u64_hex(const uint8_t hex[16], uint64_t 
 
 static uint64_t datadog_php_profiling_otel_context_local_root_span_id(
     const datadog_php_profiling_otel_thread_context_record *record) {
-    if (record->attrs_data_size < 18 || record->attrs_data[0] != 0 || record->attrs_data[1] != 16) {
+    enum {
+        attr_key_index_offset = 0,
+        attr_value_len_offset = 1,
+        attr_value_offset = 2,
+        local_root_span_key_index = 0,
+        local_root_span_hex_len = 16,
+        local_root_span_attr_size = attr_value_offset + local_root_span_hex_len,
+    };
+
+    /*
+     * span_id is a fixed record field, but local_root_span_id is published as the first packed
+     * attrs_data entry. We rely on libdd-otel-thread-ctx publishing it at key index 0, matching
+     * the first value in the process context's threadlocal.attribute_key_map:
+     *
+     *   attrs_data[0]     = key index
+     *   attrs_data[1]     = value length
+     *   attrs_data[2..18] = 16 lowercase ASCII hex bytes
+     */
+    if (record->attrs_data_size < local_root_span_attr_size ||
+        record->attrs_data[attr_key_index_offset] != local_root_span_key_index ||
+        record->attrs_data[attr_value_len_offset] != local_root_span_hex_len) {
         return 0;
     }
 
     uint64_t local_root_span_id = 0;
-    if (!datadog_php_profiling_parse_u64_hex(record->attrs_data + 2, &local_root_span_id)) {
+    if (!datadog_php_profiling_parse_u64_hex(
+            record->attrs_data + attr_value_offset,
+            &local_root_span_id)) {
         return 0;
     }
 
@@ -125,7 +147,12 @@ static ddtrace_profiling_context datadog_php_profiling_read_otel_context(void) {
 
     datadog_php_profiling_otel_thread_context_record *record =
         (datadog_php_profiling_otel_thread_context_record *)*datadog_php_profiling_otel_thread_ctx_slot;
-    if (!record || atomic_load_explicit(&record->valid, memory_order_relaxed) != 1) {
+    /*
+     * The writer is stopped while this signal-handler-style reader runs on the same thread, so
+     * valid only has to guard against compiler reordering. The writer fences before/after field
+     * updates; this reader fences after observing valid=1 so field reads stay after the guard.
+     */
+    if (!record || record->valid != 1) {
         return context;
     }
 
@@ -133,12 +160,6 @@ static ddtrace_profiling_context datadog_php_profiling_read_otel_context(void) {
 
     context.span_id = datadog_php_profiling_read_u64_be(record->span_id);
     context.local_root_span_id = datadog_php_profiling_otel_context_local_root_span_id(record);
-
-    atomic_signal_fence(memory_order_acquire);
-
-    if (atomic_load_explicit(&record->valid, memory_order_relaxed) != 1) {
-        return (ddtrace_profiling_context){0, 0};
-    }
 
     return context;
 }

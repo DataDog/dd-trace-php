@@ -23,7 +23,7 @@ use http::uri::{PathAndQuery, Scheme};
 use http::Uri;
 use libdd_common::entity_id::{get_container_id, set_cgroup_file};
 use libdd_common::{parse_uri, Endpoint};
-use libdd_common_ffi::slice::AsBytes;
+use libdd_common_ffi::slice::{AsBytes, CharSlice};
 use std::borrow::Cow;
 use std::ffi::{c_char, OsStr};
 use std::ptr::null_mut;
@@ -101,14 +101,20 @@ pub extern "C" fn datadog_format_runtime_id(buf: &mut [u8; 36]) {
 
 #[cfg(target_os = "linux")]
 #[no_mangle]
-pub extern "C" fn datadog_publish_otel_process_context() -> bool {
+pub extern "C" fn datadog_publish_otel_process_context(hostname: CharSlice<'_>) -> bool {
     let runtime_id = unsafe {
         (!datadog_runtime_id.is_nil()).then(|| datadog_runtime_id.as_hyphenated().to_string())
     };
 
+    // This minimal process context exists only to satisfy OTEP-4947 requirements
+    // for publishing OTel thread context: threadlocal.schema_version and
+    // threadlocal.attribute_key_map. Do not publish PHP service/env/service version
+    // here; those are request/runtime state owned by the PHP tracer.
     let metadata = TracerMetadata {
         runtime_id,
+        hostname: hostname.to_utf8_lossy().into_owned(),
         tracer_language: "php".to_owned(),
+        tracer_version: include_str!("../VERSION").trim().to_owned(),
         threadlocal_attribute_keys: Some(std::vec::Vec::new()),
         ..Default::default()
     };
@@ -124,7 +130,7 @@ pub extern "C" fn datadog_publish_otel_process_context() -> bool {
 
 #[cfg(not(target_os = "linux"))]
 #[no_mangle]
-pub extern "C" fn datadog_publish_otel_process_context() -> bool {
+pub extern "C" fn datadog_publish_otel_process_context(_hostname: CharSlice<'_>) -> bool {
     false
 }
 
