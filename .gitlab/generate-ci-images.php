@@ -11,8 +11,8 @@
  * matrix value; the `image:` tag (with env vars resolved) is the published tag.
  * Per Linux image the template emits one build matrix job over PHP versions
  * (bake builds and pushes the multi-arch image) plus a manual publish matrix job
- * that mirrors the tags to Docker Hub. The static preamble (templates) and
- * Windows jobs live in ci-images.static.yml (Windows is single-arch).
+ * that mirrors the tags to Docker Hub. The template's literal preamble holds the
+ * job templates and the (single-arch) Windows jobs.
  */
 
 $root = dirname(__DIR__);
