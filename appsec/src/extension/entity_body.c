@@ -201,7 +201,7 @@ static bool _assume_utf8(const char *ct, size_t ct_len)
             for (; c < end && *c == ' '; c++) {}
             if (c < end && *c == '=') {
                 for (c++; (size_t)(end - c) > LSTRLEN("utf-8") && *c == ' ';
-                     c++) {}
+                    c++) {}
                 if ((size_t)(end - c) >= LSTRLEN("utf-8") &&
                     tolower(*c) == 'u' && tolower(*(c + 1)) == 't' &&
                     tolower(*(c + 2)) == 'f' && *(c + 3) == '-' &&
