@@ -1515,6 +1515,39 @@ foreach ($arch_targets as $arch) {
     paths:
       - packages/datadog-setup.php
 
+"publish docker image for system tests":
+  stage: release
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
+  tags: [ "docker-in-docker:amd64" ]
+  rules:
+    - when: on_success
+  needs:
+    - job: "datadog-setup.php"
+      artifacts: true
+    - job: "package extension: [x86_64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
+  variables:
+    GIT_STRATEGY: none
+  script: |
+    set -e
+    NORMALIZED_BRANCH=$(echo "$CI_COMMIT_REF_NAME" | sed 's/\//_/g')
+    IMAGE="ghcr.io/datadog/dd-trace-php/dd-library-php:${NORMALIZED_BRANCH}"
+
+    GITHUB_TOKEN=$(dd-octo-sts token \
+        --scope DataDog/dd-trace-php \
+        --policy gitlab-ci-publish-packages)
+    echo "$GITHUB_TOKEN" | docker login ghcr.io \
+        -u DataDog --password-stdin
+
+    printf 'FROM scratch\nCOPY packages/dd-library-php-*-x86_64-linux-gnu.tar.gz /\nCOPY packages/datadog-setup.php /\n' \
+        > Dockerfile.system-tests
+    docker build -f Dockerfile.system-tests -t "$IMAGE" .
+    docker push "$IMAGE"
+    echo "Pushed $IMAGE"
+
 "bundle for reliability env":
   stage: shared-pipeline
   image: registry.ddbuild.io/ci/libdatadog-build/ci_docker_base:67145216
