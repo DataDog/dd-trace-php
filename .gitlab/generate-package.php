@@ -1524,7 +1524,7 @@ foreach ($arch_targets as $arch) {
   needs:
     - job: "datadog-setup.php"
       artifacts: true
-    - job: "package extension: [x86_64, x86_64-unknown-linux-gnu]"
+    - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
