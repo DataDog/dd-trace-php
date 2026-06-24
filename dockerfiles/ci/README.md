@@ -14,11 +14,11 @@ repo.
   service name is the `buildx bake` target, and its `image:` tag (with `.env`
   vars resolved) is the published tag. PHP versions live here and nowhere else.
 * **Pipeline generation:** `.gitlab/generate-ci-images.php` reads those compose
-  files and renders `.gitlab/ci-images.yml.tpl` into a GitLab child pipeline.
-  The template's literal preamble holds the job templates and the hand-written
-  Windows jobs; its PHP loops generate the per-OS Linux build/publish jobs. The
-  generator runs inside the `generate-templates` job; the manual `ci-images` job
-  (stage `ci-build`) launches the generated child pipeline.
+  files and emits a GitLab child pipeline — a literal preamble (stages, job
+  templates, and the hand-written Windows jobs) followed by the per-OS Linux
+  build/publish jobs it generates from the compose services. The generator runs
+  inside the `generate-templates` job; the manual `ci-images` job (stage
+  `ci-build`) launches the generated child pipeline.
 * **Build:** `docker buildx bake --no-cache --pull --push` builds the multi-arch
   (`amd64` + `arm64`) image — the platforms come from the `x-bake` block in the
   compose file — and pushes a single multi-arch manifest to the internal
