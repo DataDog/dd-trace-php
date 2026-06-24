@@ -1,10 +1,9 @@
 <?php echo file_get_contents(__DIR__ . '/ci-images.static.yml'); ?>
 <?php foreach ($osList as ['name' => $os, 'dir' => $dir, 'services' => $services]): ?>
 <?php /*
-  One build job per PHP version. buildx bake reads the per-service x-bake
-  platforms from docker-compose.yml and builds BOTH arches on the amd64 runner's
-  managed "ci" builder, pushing a multi-arch manifest straight to the tag in the
-  compose `image:` field. No per-arch split, no manifest fuse job.
+  One build job per PHP version. buildx bake reads the x-bake platforms from
+  docker-compose.yml and builds both arches on the amd64 runner's "ci" builder,
+  pushing a multi-arch manifest to the tag in the compose `image:` field.
 */ ?>
 
 <?= $os ?> build:
@@ -20,10 +19,8 @@
     - cd <?= $dir, "\n" ?>
     - docker buildx bake --no-cache --pull --push "${PHP_VERSION}"
 <?php /*
-  Mirror to Docker Hub, one matrix job per OS (grouped in the UI like the
-  builds). Independent (needs: [] via .linux_publish): just syncs whatever is
-  already in registry.ddbuild.io, so it can run without rebuilding. IMG_SOURCES
-  / IMG_DESTINATIONS are built from $TAG in .linux_publish.
+  Mirror to Docker Hub: one matrix job per OS, independent (needs: [] via
+  .linux_publish) so it can sync existing images without rebuilding.
 */ ?>
 
 <?= $os ?> publish:

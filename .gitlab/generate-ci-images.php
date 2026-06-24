@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Generates the CI image build/manifest/publish pipeline from ci-images.yml.tpl.
+ * Generates the CI image build + publish pipeline from ci-images.yml.tpl.
  *
  * Source of truth (NO duplication):
  *   - dockerfiles/ci/<os>/docker-compose.yml : service name -> image:TAG
@@ -10,9 +10,9 @@
  * The compose service name is the `docker buildx bake` target and the build
  * matrix value; the `image:` tag (with env vars resolved) is the published tag.
  * Per Linux image the template emits one build matrix job over PHP versions
- * (bake builds the multi-arch image and pushes it) plus a manual mirror/publish
- * job per service. The static preamble (templates) and Windows jobs live in
- * ci-images.static.yml (Windows is single-arch).
+ * (bake builds and pushes the multi-arch image) plus a manual publish matrix job
+ * that mirrors the tags to Docker Hub. The static preamble (templates) and
+ * Windows jobs live in ci-images.static.yml (Windows is single-arch).
  */
 
 $root = dirname(__DIR__);
