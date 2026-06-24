@@ -13,14 +13,6 @@ include:
     file: '.gitlab/ci-php-wordpress-parallel.yml'
     ref: 'leiyks/LANGPLAT-883-php-competitor-benchmarks'
 
-stages:
-  - php-laravel-realworld-parallel
-  - php-laravel-realworld-parallel-slo
-  - php-symfony-realworld-parallel
-  - php-symfony-realworld-parallel-slo
-  - php-wordpress-parallel
-  - php-wordpress-parallel-slo
-
 linux-php-laravel-realworld-parallel:
   needs:
     - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
