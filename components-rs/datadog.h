@@ -41,7 +41,7 @@ void datadog_generate_session_id(void);
 
 void datadog_format_runtime_id(uint8_t (*buf)[36]);
 
-bool datadog_publish_otel_process_context(void);
+bool datadog_publish_otel_process_context(ddog_CharSlice hostname);
 
 ddog_CharSlice ddtrace_get_container_id(void);
 
