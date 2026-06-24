@@ -3,32 +3,18 @@
 
 #include <zend.h>
 
+typedef struct ddtrace_root_span_data ddtrace_root_span_data;
+
 BEGIN_EXTERN_C()
 
 /**
- * Prefer this root span when publishing OTel thread context. UserRequest uses
- * this to keep the context aligned with the notified request root.
- *
- * While this override is set, the published trace id and local root span id
- * come from this root span. The published active span id follows
- * DDTRACE_G(active_stack)->active only when that active span belongs to this
- * root. If the active stack points at another trace/root, the active span id
- * falls back to this root span id.
- *
- * When this changes the override, it calls ddtrace_update_otel_thread_context();
- * callers need not call it again after setting the override.
+ * Compatibility no-op for the UserRequest lifecycle. AppSec-specific
+ * entrypoint context is not published through this generic OTel context path.
  */
 void ddtrace_set_otel_thread_context_root_span(zend_object *root_span);
 
 /**
- * Stop preferring the current root span override.
- *
- * When this clears an existing override, it calls
- * ddtrace_update_otel_thread_context(); callers need not call it again after
- * clearing the override.
- *
- * Call also when cleaning up other globals (e.g. on request shutdown), as a
- * defensive measure in case the normal UserRequest finish path is skipped.
+ * Compatibility no-op for the UserRequest lifecycle.
  */
 void ddtrace_clear_otel_thread_context_root_span(void);
 
@@ -40,15 +26,24 @@ void ddtrace_clear_otel_thread_context_root_span(void);
  *
  * Call this after changing which tracer span should be visible to OTel:
  * opening a span, closing or dropping the active span, switching the active
- * span stack, switching fibers, or setting/clearing the root span override.
- * When there is no selected tracer span/root, this detaches the OTel thread
- * context instead.
+ * span stack, switching fibers, root id changes, or service/env/version
+ * changes. When there is no selected tracer span/root, this detaches the OTel
+ * thread context instead.
  */
 void ddtrace_update_otel_thread_context(void);
 
 /**
- * Detach and release the current OTel thread context. This also clears the root
- * span override set by ddtrace_set_otel_thread_context_root_span(), if any.
+ * Publish only the current active span id through the selected root span's
+ * embedded OTel context record.
+ *
+ * On non-Linux builds this is a no-op. This path uses the spec's atomic span
+ * id update rule; callers must use ddtrace_update_otel_thread_context() when
+ * trace id, local root id, or attributes may have changed.
+ */
+void ddtrace_update_otel_thread_context_span_id(void);
+
+/**
+ * Detach the current OTel thread context.
  *
  * On non-Linux builds this is a no-op.
  *
@@ -58,6 +53,14 @@ void ddtrace_update_otel_thread_context(void);
  * ddtrace_update_otel_thread_context() finds no selected tracer span/root.
  */
 void ddtrace_detach_otel_thread_context(void);
+
+/**
+ * Detach the current OTel thread context if it points at this root span's
+ * embedded record.
+ *
+ * On non-Linux builds this is a no-op.
+ */
+void ddtrace_detach_otel_thread_context_for_root(ddtrace_root_span_data *root_span);
 
 END_EXTERN_C()
 

@@ -15,6 +15,7 @@
 #include <ext/startup_logging.h>
 #include "handlers_http.h"
 #include "ip_extraction.h"
+#include "otel_context.h"
 #include "tracer_telemetry.h"
 #include "tracer_tag_propagation/tracer_tag_propagation.h"
 #include <ext/agent_info.h>
@@ -417,6 +418,11 @@ static zend_object *ddtrace_span_stack_clone_obj(zend_object *old_obj) {
 }
 
 static void ddtrace_span_data_free_storage(zend_object *object) {
+#ifdef __linux__
+    if (object->ce == ddtrace_ce_root_span_data) {
+        ddtrace_detach_otel_thread_context_for_root(ROOTSPANDATA(object));
+    }
+#endif
     zend_object_std_dtor(object);
     // Prevent use after free after zend_objects_store_free_object_storage is called (e.g. preloading) [PHP < 8.1]
     memset(object->properties_table, 0, sizeof(ddtrace_span_data) - XtOffsetOf(ddtrace_span_data, std.properties_table));
@@ -583,6 +589,7 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
 #endif
     if (root_span_data_changed) {
         ddtrace_sidecar_submit_root_span_data();
+        ddtrace_update_otel_thread_context();
     }
 #if PHP_VERSION_ID >= 70400
     return ret;

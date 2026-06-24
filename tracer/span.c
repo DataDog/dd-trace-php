@@ -310,7 +310,11 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
     span->root = DDTRACE_G(active_stack)->root_span;
 
     ddtrace_set_global_span_properties(span);
-    ddtrace_update_otel_thread_context();
+    if (root_span) {
+        ddtrace_update_otel_thread_context();
+    } else {
+        ddtrace_update_otel_thread_context_span_id();
+    }
 
     if (root_span) {
         ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
@@ -954,7 +958,7 @@ void ddtrace_close_top_span_without_stack_swap(ddtrace_span_data *span) {
     } else {
         ZVAL_NULL(&stack->property_active);
     }
-    ddtrace_update_otel_thread_context();
+    ddtrace_update_otel_thread_context_span_id();
 #if PHP_VERSION_ID < 70400
     // On PHP 7.3 and prior PHP will just destroy all unchanged references in cycle collection, in particular given that it does not appear in get_gc
     // Artificially increase refcount here thus.
@@ -1082,7 +1086,7 @@ void ddtrace_drop_span(ddtrace_span_data *span) {
     } else {
         ZVAL_NULL(&stack->property_active);
     }
-    ddtrace_update_otel_thread_context();
+    ddtrace_update_otel_thread_context_span_id();
 
     ++DDTRACE_G(dropped_spans_count);
     --DDTRACE_G(open_spans_count);

@@ -27,6 +27,18 @@ class OtelThreadContextTests {
             '/project/appsec/tests/integration/src/test/resources/otel_context_gdb.py'
     private static final String GDB_TIMEOUT = '20s'
     private static final String LOCAL_ROOT_SPAN_ID_ATTRIBUTE_KEY = 'datadog.local_root_span_id'
+    private static final String SERVICE_NAME_ATTRIBUTE_KEY = 'service.name'
+    private static final String SERVICE_VERSION_ATTRIBUTE_KEY = 'service.version'
+    private static final String DEPLOYMENT_ENV_ATTRIBUTE_KEY = 'deployment.environment.name'
+    private static final String EXPECTED_SERVICE_NAME = 'appsec_int_tests'
+    private static final String EXPECTED_SERVICE_VERSION = 'otel-context-test'
+    private static final String EXPECTED_ENV = 'integration'
+    private static final String EXPECTED_ATTRIBUTE_KEY_MAP = [
+            LOCAL_ROOT_SPAN_ID_ATTRIBUTE_KEY,
+            SERVICE_NAME_ATTRIBUTE_KEY,
+            SERVICE_VERSION_ATTRIBUTE_KEY,
+            DEPLOYMENT_ENV_ATTRIBUTE_KEY,
+    ].join(',')
 
     static boolean disabled = phpVersion != '8.3'
 
@@ -39,6 +51,7 @@ class OtelThreadContextTests {
                     phpVariant: variant,
                     www: 'base',
             ).withEnv('DD_TRACE_REPORT_HOSTNAME', 'true')
+                    .withEnv('DD_VERSION', EXPECTED_SERVICE_VERSION)
 
     static void main(String[] args) {
         InspectContainerHelper.run(CONTAINER)
@@ -75,7 +88,12 @@ class OtelThreadContextTests {
             Map responseBody = parseJsonResponse(response)
 
             assert responseBody.outer_span_id != responseBody.span_id
-            assertThreadContextMatchesResponse(threadContext, responseBody)
+            assertThreadContextMatchesResponse(threadContext, [
+                    waited: responseBody.waited,
+                    trace_id: responseBody.outer_trace_id,
+                    span_id: responseBody.outer_span_id,
+                    local_root_span_id: responseBody.outer_local_root_span_id,
+            ])
         } finally {
             if (!requestContinued) {
                 continuePausedRequestQuietly(pausedRequest.pid)
@@ -105,7 +123,7 @@ class OtelThreadContextTests {
             assert processContext['telemetry.sdk.version'] == expectedTracerVersion()
             assert processContext['host.name'] == expectedContainerHostname()
             assert processContext['threadlocal.schema_version'] == 'tlsdesc_v1_dev'
-            assert processContext['threadlocal.attribute_key_map'] == LOCAL_ROOT_SPAN_ID_ATTRIBUTE_KEY
+            assert processContext['threadlocal.attribute_key_map'] == EXPECTED_ATTRIBUTE_KEY_MAP
         } finally {
             if (!requestContinued) {
                 continuePausedRequestQuietly(pausedRequest.pid)
@@ -122,6 +140,9 @@ class OtelThreadContextTests {
         assert threadContext.trace_id == responseBody.trace_id
         assert threadContext.span_id == responseBody.span_id
         assert threadContext[LOCAL_ROOT_SPAN_ID_ATTRIBUTE_KEY] == responseBody.local_root_span_id
+        assert threadContext[SERVICE_NAME_ATTRIBUTE_KEY] == EXPECTED_SERVICE_NAME
+        assert threadContext[SERVICE_VERSION_ATTRIBUTE_KEY] == EXPECTED_SERVICE_VERSION
+        assert threadContext[DEPLOYMENT_ENV_ATTRIBUTE_KEY] == EXPECTED_ENV
     }
 
     private static Map parseJsonResponse(HttpResponse<String> response) {

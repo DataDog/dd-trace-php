@@ -2,6 +2,8 @@
 
 #include "ddtrace.h"
 #include "span.h"
+#include "tracer_api.h"
+#include <ext/ffi_utils.h>
 
 #ifdef __linux__
 #include "configuration.h"
@@ -12,44 +14,39 @@
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
 #ifdef __linux__
-static ddtrace_root_span_data *ddtrace_root_span_from_zobj(zend_object *root_span);
-static DDOG_CHECK_RETURN ddtrace_root_span_data *ddtrace_replace_otel_context_root_span_override(
-    ddtrace_root_span_data *root);
+_Static_assert(sizeof(ddog_ThreadContextRecord) == 640, "unexpected OTel thread context record size");
+_Static_assert(_Alignof(ddog_ThreadContextRecord) == 8, "unexpected OTel thread context record alignment");
+
 static ddtrace_span_data *ddtrace_otel_context_span(void);
 static inline void ddtrace_write_u64_be(uint8_t dest[8], uint64_t value);
 static void ddtrace_trace_id_to_otel_bytes(datadog_trace_id trace_id, uint8_t dest[16]);
 
 void ddtrace_set_otel_thread_context_root_span(zend_object *root_span) {
-    ddtrace_root_span_data *root = ddtrace_root_span_from_zobj(root_span);
-    if (DDTRACE_G(otel_context_root_span_override) == root) {
-        return;
-    }
-
-    ddtrace_root_span_data *old = ddtrace_replace_otel_context_root_span_override(root);
-    ddtrace_update_otel_thread_context();
-    if (old) {
-        OBJ_RELEASE(&old->std);
-    }
+    (void) root_span;
 }
-
-void ddtrace_clear_otel_thread_context_root_span(void) {
-    ddtrace_root_span_data *old = ddtrace_replace_otel_context_root_span_override(NULL);
-    if (!old) {
-        return;
-    }
-    ddtrace_update_otel_thread_context();
-    OBJ_RELEASE(&old->std);
-}
+void ddtrace_clear_otel_thread_context_root_span(void) {}
 
 void ddtrace_detach_otel_thread_context(void) {
-    ddtrace_root_span_data *old = ddtrace_replace_otel_context_root_span_override(NULL);
-    struct ddog_ThreadContextHandle *ctx = ddog_otel_thread_ctx_detach();
-    if (ctx) {
-        ddog_otel_thread_ctx_free(ctx);
+    ddog_otel_thread_ctx_detach_record();
+}
+
+void ddtrace_detach_otel_thread_context_for_root(ddtrace_root_span_data *root_span) {
+    if (root_span) {
+        ddog_otel_thread_ctx_detach_record_if_current(&root_span->otel_context);
     }
-    if (old) {
-        OBJ_RELEASE(&old->std);
+}
+
+void ddtrace_update_otel_thread_context_span_id(void) {
+    ddtrace_span_data *span = ddtrace_otel_context_span();
+    if (!span || !span->root) {
+        ddtrace_detach_otel_thread_context();
+        return;
     }
+
+    uint8_t span_id[8];
+    ddtrace_write_u64_be(span_id, span->span_id);
+    ddog_otel_thread_ctx_record_update_span_id(&span->root->otel_context, &span_id);
+    ddog_otel_thread_ctx_attach_record(&span->root->otel_context);
 }
 
 void ddtrace_update_otel_thread_context(void) {
@@ -69,43 +66,54 @@ void ddtrace_update_otel_thread_context(void) {
     ddtrace_write_u64_be(span_id, span->span_id);
     ddtrace_write_u64_be(local_root_span_id, root->span_id);
 
-    ddog_otel_thread_ctx_update(&trace_id, &span_id, &local_root_span_id);
-}
+    zend_string *service = NULL, *env = NULL, *version = NULL;
+    ddtrace_populate_span_data(span, &service, &env, &version);
 
-static ddtrace_root_span_data *ddtrace_root_span_from_zobj(zend_object *root_span) {
-    if (!root_span || root_span->ce != ddtrace_ce_root_span_data) {
-        return NULL;
+    enum {
+        DDTRACE_OTEL_THREAD_CONTEXT_SERVICE_NAME_INDEX = 1,
+        DDTRACE_OTEL_THREAD_CONTEXT_SERVICE_VERSION_INDEX = 2,
+        DDTRACE_OTEL_THREAD_CONTEXT_DEPLOYMENT_ENV_INDEX = 3,
+    };
+
+    ddog_OtelThreadContextAttribute attrs[3];
+    size_t attrs_len = 0;
+
+    if (service && ZSTR_LEN(service)) {
+        attrs[attrs_len++] = (ddog_OtelThreadContextAttribute){
+            .key_index = DDTRACE_OTEL_THREAD_CONTEXT_SERVICE_NAME_INDEX,
+            .value = dd_zend_string_to_CharSlice(service),
+        };
+    }
+    if (version && ZSTR_LEN(version)) {
+        attrs[attrs_len++] = (ddog_OtelThreadContextAttribute){
+            .key_index = DDTRACE_OTEL_THREAD_CONTEXT_SERVICE_VERSION_INDEX,
+            .value = dd_zend_string_to_CharSlice(version),
+        };
+    }
+    if (env && ZSTR_LEN(env)) {
+        attrs[attrs_len++] = (ddog_OtelThreadContextAttribute){
+            .key_index = DDTRACE_OTEL_THREAD_CONTEXT_DEPLOYMENT_ENV_INDEX,
+            .value = dd_zend_string_to_CharSlice(env),
+        };
     }
 
-    return ROOTSPANDATA(root_span);
-}
+    ddog_otel_thread_ctx_record_update(&root->otel_context, &trace_id, &span_id, &local_root_span_id, attrs, attrs_len);
+    ddog_otel_thread_ctx_attach_record(&root->otel_context);
 
-static DDOG_CHECK_RETURN ddtrace_root_span_data *ddtrace_replace_otel_context_root_span_override(
-    ddtrace_root_span_data *root) {
-    ddtrace_root_span_data *old = DDTRACE_G(otel_context_root_span_override);
-    if (root) {
-        GC_ADDREF(&root->std);
+    if (service) {
+        zend_string_release(service);
     }
-    DDTRACE_G(otel_context_root_span_override) = root;
-    return old;
+    if (env) {
+        zend_string_release(env);
+    }
+    if (version) {
+        zend_string_release(version);
+    }
 }
 
 static ddtrace_span_data *ddtrace_otel_context_span(void) {
     if (!get_DD_TRACE_ENABLED()) {
         return NULL;
-    }
-
-    if (DDTRACE_G(otel_context_root_span_override)) {
-        ddtrace_root_span_data *root = DDTRACE_G(otel_context_root_span_override);
-
-        if (DDTRACE_G(active_stack) && DDTRACE_G(active_stack)->active) {
-            ddtrace_span_data *active = SPANDATA(DDTRACE_G(active_stack)->active);
-            if (active->root == root) {
-                return active;
-            }
-        }
-
-        return &root->span;
     }
 
     if (DDTRACE_G(active_stack) && DDTRACE_G(active_stack)->root_span && DDTRACE_G(active_stack)->active) {
@@ -136,5 +144,7 @@ static void ddtrace_trace_id_to_otel_bytes(datadog_trace_id trace_id, uint8_t de
 void ddtrace_set_otel_thread_context_root_span(zend_object *root_span) {}
 void ddtrace_clear_otel_thread_context_root_span(void) {}
 void ddtrace_detach_otel_thread_context(void) {}
+void ddtrace_detach_otel_thread_context_for_root(ddtrace_root_span_data *root_span) {}
+void ddtrace_update_otel_thread_context_span_id(void) {}
 void ddtrace_update_otel_thread_context(void) {}
 #endif

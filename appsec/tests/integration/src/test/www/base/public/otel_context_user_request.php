@@ -24,7 +24,9 @@ $response = [
     'trace_id' => $userRequestSpan->traceId,
     'span_id' => $userRequestSpan->hexId(),
     'local_root_span_id' => $userRequestSpan->hexId(),
+    'outer_trace_id' => $outerSpan ? $outerSpan->traceId : null,
     'outer_span_id' => $outerSpan ? $outerSpan->hexId() : null,
+    'outer_local_root_span_id' => $outerSpan ? $outerSpan->hexId() : null,
 ];
 
 \DDTrace\switch_stack($userRequestSpan);
