@@ -23,7 +23,7 @@ class TelemetryHandler implements Handler {
             ctx.bodyInputStream().withCloseable {
                 message = readTelemetryMessage(it)
             }
-            log.debug("Read telemetry message: ${message['request_type']}")
+            log.debug("Read telemetry message: ${describeTelemetryMessage(message)}")
         } catch (AssertionError e) {
             log.error("Error reading traces: $e.message")
             error = e
@@ -50,6 +50,48 @@ class TelemetryHandler implements Handler {
 
     private static Object readTelemetryMessage(InputStream is) {
         jsonSlurper.parse(is)
+    }
+
+    private static String describeTelemetryMessage(Object message) {
+        def application = message['application'] ?: [:]
+        def requestType = message['request_type']
+        def payload = message['payload']
+        def details = [
+                "request_type=${requestType}",
+                "seq_id=${message['seq_id']}",
+                "service=${application['service_name']}",
+                "runtime_id=${application['runtime_id']}",
+        ]
+        def payloadSummary = describeTelemetryPayload(requestType, payload)
+        if (payloadSummary) {
+            details << "payload=${payloadSummary}"
+        }
+        details.join(', ')
+    }
+
+    private static String describeTelemetryPayload(String requestType, Object payload) {
+        if (requestType == 'message-batch' && payload instanceof List) {
+            return payload.collect { describeTelemetryPayload(it['request_type'], it['payload']) }
+                    .findAll { it }
+                    .join('; ')
+        }
+
+        if (!(payload instanceof Map)) {
+            return null
+        }
+
+        def fields = []
+        if (payload['integrations'] instanceof List) {
+            fields << "integrations=${payload['integrations'].collect { it['name'] }}"
+        }
+        if (payload['dependencies'] instanceof List) {
+            fields << "dependencies=${payload['dependencies'].size()}"
+        }
+        if (payload['configuration'] instanceof List) {
+            fields << "configuration=${payload['configuration'].size()}"
+        }
+
+        return "${requestType}{${fields.join(', ')}}"
     }
 
     List<Object> drain(long timeoutInMs) {
