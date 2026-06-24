@@ -39,7 +39,7 @@ static ddtrace_profiling_context (*datadog_php_profiling_get_legacy_context)(voi
 
 typedef struct datadog_php_profiling_otel_thread_context_record {
     uint8_t trace_id[16];
-    uint64_t span_id;
+    uint8_t span_id[8];
     uint8_t valid;
     uint8_t reserved;
     uint16_t attrs_data_size;
@@ -48,7 +48,7 @@ typedef struct datadog_php_profiling_otel_thread_context_record {
 
 _Static_assert(sizeof(datadog_php_profiling_otel_thread_context_record) == 640,
     "unexpected OTel thread context record size");
-_Static_assert(_Alignof(datadog_php_profiling_otel_thread_context_record) == 8,
+_Static_assert(_Alignof(datadog_php_profiling_otel_thread_context_record) == 2,
     "unexpected OTel thread context record alignment");
 _Static_assert(offsetof(datadog_php_profiling_otel_thread_context_record, trace_id) == 0,
     "unexpected OTel thread context trace_id offset");
@@ -60,6 +60,8 @@ _Static_assert(offsetof(datadog_php_profiling_otel_thread_context_record, reserv
     "unexpected OTel thread context reserved offset");
 _Static_assert(offsetof(datadog_php_profiling_otel_thread_context_record, attrs_data_size) == 26,
     "unexpected OTel thread context attrs_data_size offset");
+_Static_assert(offsetof(datadog_php_profiling_otel_thread_context_record, attrs_data_size) % _Alignof(uint16_t) == 0,
+    "unexpected OTel thread context attrs_data_size alignment");
 _Static_assert(offsetof(datadog_php_profiling_otel_thread_context_record, attrs_data) == 28,
     "unexpected OTel thread context attrs_data offset");
 
@@ -96,7 +98,7 @@ bool datadog_php_profiling_read_otel_context(datadog_php_profiling_otel_context 
 
     atomic_signal_fence(memory_order_acquire);
 
-    context->span_id = datadog_php_profiling_read_u64_be((const uint8_t *)&record->span_id);
+    context->span_id = datadog_php_profiling_read_u64_be(record->span_id);
     context->attrs_data_size = record->attrs_data_size;
     if (context->attrs_data_size > DATADOG_PHP_PROFILING_OTEL_ATTRS_DATA_SIZE) {
         return false;

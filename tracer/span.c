@@ -32,6 +32,18 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
+#ifdef __linux__
+static inline void ddtrace_update_otel_thread_context_span_id(ddtrace_span_data *span) {
+    if (span && span->root) {
+        ddtrace_store_otel_thread_context_span_id(&span->root->otel_context, span->span_id);
+    }
+}
+#else
+static inline void ddtrace_update_otel_thread_context_span_id(ddtrace_span_data *span) {
+    (void) span;
+}
+#endif
+
 static void dd_reset_span_counters(void) {
     DDTRACE_G(open_spans_count) = 0;
     DDTRACE_G(dropped_spans_count) = 0;
@@ -313,7 +325,7 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
     if (root_span) {
         ddtrace_update_otel_thread_context();
     } else {
-        ddtrace_update_otel_thread_context_span_id();
+        ddtrace_update_otel_thread_context_span_id(span);
     }
 
     if (root_span) {
@@ -591,7 +603,7 @@ void ddtrace_switch_span_stack(ddtrace_span_stack *target_stack) {
     GC_ADDREF(&target_stack->std);
     ddtrace_span_stack *active_stack = DDTRACE_G(active_stack);
     DDTRACE_G(active_stack) = target_stack;
-    ddtrace_update_otel_thread_context();
+    ddtrace_switch_otel_thread_context();
     OBJ_RELEASE(&active_stack->std);
 }
 
@@ -950,15 +962,17 @@ void ddtrace_close_top_span_without_stack_swap(ddtrace_span_data *span) {
 
     stack->active = span->parent;
     // The top span is always referenced by the span stack
+    ddtrace_span_data *active_span = NULL;
     if (stack->active) {
-        ddtrace_span_data *parent = SPANDATA(stack->active);
+        active_span = SPANDATA(stack->active);
+        ddtrace_span_data *parent = active_span;
         GC_ADDREF(&parent->std);
         parent->flags |= DDTRACE_SPAN_FLAG_NOT_DROPPABLE;
         --parent->active_child_spans;
     } else {
         ZVAL_NULL(&stack->property_active);
     }
-    ddtrace_update_otel_thread_context_span_id();
+    ddtrace_update_otel_thread_context_span_id(active_span);
 #if PHP_VERSION_ID < 70400
     // On PHP 7.3 and prior PHP will just destroy all unchanged references in cycle collection, in particular given that it does not appear in get_gc
     // Artificially increase refcount here thus.
@@ -1081,12 +1095,14 @@ void ddtrace_drop_span(ddtrace_span_data *span) {
 
     stack->active = span->parent;
     // The top span is always referenced by the span stack
+    ddtrace_span_data *active_span = NULL;
     if (stack->active) {
+        active_span = SPANDATA(stack->active);
         GC_ADDREF(&stack->active->std);
     } else {
         ZVAL_NULL(&stack->property_active);
     }
-    ddtrace_update_otel_thread_context_span_id();
+    ddtrace_update_otel_thread_context_span_id(active_span);
 
     ++DDTRACE_G(dropped_spans_count);
     --DDTRACE_G(open_spans_count);
