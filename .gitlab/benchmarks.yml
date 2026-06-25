@@ -44,6 +44,9 @@ linux-php-wordpress-parallel:
     DD_TRACER_ARTIFACT_DIR: "$CI_PROJECT_DIR/packages"
 
 variables:
+  # Drop once apm-sdks-benchmarks PR #115 merges to main and ships the PHP
+  # threshold files + bp-runner path fix.
+  APM_SDKS_BENCHMARKS_BRANCH: "leiyks/LANGPLAT-883-php-competitor-benchmarks"
   BASE_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-php-82-dev
   # The Dockerfile to this image is located at:
   # https://github.com/DataDog/benchmarking-platform/tree/dd-trace-php
