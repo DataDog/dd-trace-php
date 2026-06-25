@@ -9,6 +9,7 @@
 #include "ffe.h"
 #include "handlers_exception.h"
 #include "memory_limit.h"
+#include "otel_context.h"
 #include "random.h"
 #include "serializer.h"
 #include "weak_resources.h"
@@ -536,6 +537,7 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
 #endif
     ddtrace_root_span_data *span = ROOTSPANDATA(obj);
     zval zv;
+    bool trace_id_changed = false;
     bool root_span_data_changed = false;
     if (zend_string_equals_literal(prop_name, "parentId")) {
         if (Z_TYPE_P(value) == IS_LONG && Z_LVAL_P(value)) {
@@ -551,6 +553,7 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
                 value = &zv;
             }
         }
+        // parentId is not part of the OTel thread-context record.
         cache_slot = NULL;
     } else if (zend_string_equals_literal(prop_name, "traceId")) {
         span->trace_id = Z_TYPE_P(value) == IS_STRING ? ddtrace_parse_hex_trace_id(Z_STRVAL_P(value), Z_STRLEN_P(value)) : (datadog_trace_id){ 0 };
@@ -561,6 +564,7 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
             };
             value = &span->property_id;
         }
+        trace_id_changed = true;
         cache_slot = NULL;
     } else if (zend_string_equals_literal(prop_name, "service")) {
         if (ddtrace_span_is_entrypoint_root(&span->span) && !zend_is_identical(&span->property_service, value)) {
@@ -587,9 +591,12 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
 #else
     ddtrace_span_data_readonly(object, member, value, cache_slot);
 #endif
+    if (trace_id_changed) {
+        ddtrace_otel_update_trace_id(span);
+    }
     if (root_span_data_changed) {
+        ddtrace_otel_update_attribute_values(span);
         ddtrace_sidecar_submit_root_span_data();
-        ddtrace_update_otel_thread_context();
     }
 #if PHP_VERSION_ID >= 70400
     return ret;
@@ -2639,6 +2646,7 @@ PHP_FUNCTION(DDTrace_set_distributed_tracing_context) {
             root_span->trace_id = new_trace_id;
         }
         ddtrace_update_root_id_properties(root_span);
+        ddtrace_otel_update_trace_id(root_span);
     } else {
         DDTRACE_G(distributed_trace_id) = new_trace_id;
         DDTRACE_G(distributed_parent_trace_id) = new_parent_id;

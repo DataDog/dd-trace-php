@@ -1,5 +1,6 @@
 #include "distributed_tracing_headers.h"
 #include "configuration.h"
+#include "otel_context.h"
 #include "random.h"
 #include "tracer_tag_propagation/tracer_tag_propagation.h"
 #include "serializer.h"
@@ -668,6 +669,7 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
             span->trace_id = result->trace_id;
             span->parent_id = result->parent_id;
             ddtrace_update_root_id_properties(span);
+            ddtrace_otel_update_trace_id(span);
         }
     } else {
         zend_hash_destroy(&DDTRACE_G(propagated_root_span_tags));

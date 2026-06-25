@@ -11,10 +11,7 @@
 #include <ext/datadog_export.h>
 #include "priority_sampling/priority_sampling.h"
 #include "inferred_proxy_headers.h"
-
-#ifdef __linux__
-#include <components-rs/otel-thread-ctx.h>
-#endif
+#include "otel_context.h"
 
 #define DDTRACE_DROPPED_SPAN (-1ull)
 #define DDTRACE_SILENTLY_DROPPED_SPAN (-2ull)
@@ -126,6 +123,9 @@ struct ddtrace_root_span_data {
     datadog_trace_id trace_id;
     uint64_t parent_id;
     ddtrace_rule_result sampling_rule;
+#ifdef __linux__
+    datadog_otel_thr_ctx_rec otel_context;
+#endif
     bool explicit_sampling_priority;
     bool asm_event_emitted;
     enum ddtrace_trace_limited trace_is_limited;
@@ -145,9 +145,6 @@ struct ddtrace_root_span_data {
     zval property_trace_id;
     zval property_git_metadata;
     zval property_inferred_span;
-#ifdef __linux__
-    ddog_ThreadContextRecord otel_context;
-#endif
 };
 
 static inline ddtrace_root_span_data *ROOTSPANDATA(zend_object *obj) {
