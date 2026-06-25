@@ -111,6 +111,17 @@ shared-trigger:
   variables:
     PARENT_PIPELINE_ID: $CI_PIPELINE_ID
 
+apm-sdks-benchmarks-trigger:
+  stage: tests
+  needs: []
+  allow_failure: true
+  trigger:
+    include:
+      - local: .gitlab/apm-sdks-benchmarks.yml
+    strategy: depend
+    forward:
+      pipeline_variables: true
+
 package-trigger:
   stage: build
   needs: [ "generate-templates" ]
