@@ -2,6 +2,7 @@
 
 #include "ddtrace.h"
 #include "span.h"
+#include <ext/target_metadata.h>
 
 #ifdef __linux__
 #include "configuration.h"
@@ -36,24 +37,27 @@ _Static_assert(
 static void ddtrace_otel_record_begin_update(datadog_otel_thr_ctx_rec *record);
 static void ddtrace_otel_record_end_update(datadog_otel_thr_ctx_rec *record);
 static void ddtrace_otel_attach(datadog_otel_thr_ctx_rec *record);
-static void ddtrace_otel_record_init(datadog_otel_thr_ctx_rec *record, ddtrace_root_span_data *root, uint64_t span_id);
+static ddtrace_span_data *ddtrace_otel_entrypoint_span(void);
+static ddtrace_span_data *ddtrace_otel_attr_source_span(ddtrace_root_span_data *source_root);
 static void ddtrace_otel_record_set_trace_id(datadog_otel_thr_ctx_rec *record, datadog_trace_id trace_id);
 static void ddtrace_otel_record_set_span_id(datadog_otel_thr_ctx_rec *record, uint64_t span_id);
 static void ddtrace_otel_record_set_attrs(datadog_otel_thr_ctx_rec *record, ddtrace_root_span_data *root);
+static void ddtrace_otel_record_set_attrs_from_values(datadog_otel_thr_ctx_rec *record, ddtrace_root_span_data *root, zend_string *service, zend_string *env, zend_string *version);
 static size_t ddtrace_otel_record_write_attr_zstr(datadog_otel_thr_ctx_rec *record, size_t offset, uint8_t key_index, zend_string *value);
-static zend_string *ddtrace_otel_attr_zstr(zval *value);
+static zend_string *ddtrace_otel_attr_zstr(zend_string *value);
 static inline uint64_t ddtrace_u64_be(uint64_t value);
 
-void ddtrace_otel_update_trace_id(ddtrace_root_span_data *root) {
-    if (!root) {
-        return;
-    }
-
+void ddtrace_otel_init_root_span(ddtrace_root_span_data *root) {
     datadog_otel_thr_ctx_rec *record = &root->otel_context;
-    if (!record->attrs_data_size) {
-        return;
-    }
+    ddtrace_span_data *span = &root->span;
+    ddtrace_otel_record_set_trace_id(record, root->trace_id);
+    ddtrace_otel_record_set_span_id(record, span->span_id);
+    ddtrace_otel_record_set_attrs(record, root);
+    atomic_store_explicit(&record->valid, 1, memory_order_relaxed);
+}
 
+void ddtrace_otel_update_trace_id(ddtrace_root_span_data *root) {
+    datadog_otel_thr_ctx_rec *record = &root->otel_context;
     ddtrace_otel_record_begin_update(record);
     ddtrace_otel_record_set_trace_id(record, root->trace_id);
     ddtrace_otel_record_end_update(record);
@@ -65,10 +69,6 @@ void ddtrace_otel_update_span_id(ddtrace_root_span_data *root, uint64_t span_id)
     }
 
     datadog_otel_thr_ctx_rec *record = &root->otel_context;
-    if (!record->attrs_data_size) {
-        return;
-    }
-
     ddtrace_otel_record_set_span_id(record, span_id);
 }
 
@@ -77,19 +77,7 @@ void ddtrace_otel_update_attribute_values(ddtrace_root_span_data *root) {
         return;
     }
 
-    if (!root) {
-        ddtrace_span_stack *stack = DDTRACE_G(active_stack);
-        if (!stack || !stack->root_span) {
-            return;
-        }
-        root = stack->root_span;
-    }
-
     datadog_otel_thr_ctx_rec *record = &root->otel_context;
-    if (!record->attrs_data_size) {
-        return;
-    }
-
     ddtrace_otel_record_begin_update(record);
     ddtrace_otel_record_set_attrs(record, root);
     ddtrace_otel_record_end_update(record);
@@ -103,15 +91,10 @@ void ddtrace_otel_attach_stack(ddtrace_span_stack *stack) {
 
     ddtrace_root_span_data *root = stack->root_span;
     datadog_otel_thr_ctx_rec *record = &root->otel_context;
-    if (!record->attrs_data_size) {
-        ddtrace_otel_record_init(record, root, SPANDATA(stack->active)->span_id);
-    } else {
-        ddtrace_otel_record_begin_update(record);
-        ddtrace_otel_record_set_span_id(record, SPANDATA(stack->active)->span_id);
-        ddtrace_otel_record_set_attrs(record, root);
-        ddtrace_otel_record_end_update(record);
-    }
-
+    ddtrace_otel_record_begin_update(record);
+    ddtrace_otel_record_set_span_id(record, SPANDATA(stack->active)->span_id);
+    ddtrace_otel_record_set_attrs(record, root);
+    ddtrace_otel_record_end_update(record);
     ddtrace_otel_attach(record);
 }
 
@@ -141,12 +124,22 @@ static void ddtrace_otel_attach(datadog_otel_thr_ctx_rec *record) {
     otel_thread_ctx_v1 = record;
 }
 
-static void ddtrace_otel_record_init(datadog_otel_thr_ctx_rec *record, ddtrace_root_span_data *root, uint64_t span_id) {
-    ddtrace_otel_record_begin_update(record);
-    ddtrace_otel_record_set_trace_id(record, root->trace_id);
-    ddtrace_otel_record_set_span_id(record, span_id);
-    ddtrace_otel_record_set_attrs(record, root);
-    ddtrace_otel_record_end_update(record);
+static ddtrace_span_data *ddtrace_otel_entrypoint_span(void) {
+    for (ddtrace_span_stack *stack = DDTRACE_G(active_stack); stack; stack = stack->parent_stack) {
+        if (stack->root_span && ddtrace_span_is_entrypoint_root(&stack->root_span->span)) {
+            return &stack->root_span->span;
+        }
+    }
+
+    return NULL;
+}
+
+static ddtrace_span_data *ddtrace_otel_attr_source_span(ddtrace_root_span_data *source_root) {
+    if (source_root && ddtrace_span_is_entrypoint_root(&source_root->span)) {
+        return &source_root->span;
+    }
+
+    return ddtrace_otel_entrypoint_span();
 }
 
 static void ddtrace_otel_record_set_trace_id(datadog_otel_thr_ctx_rec *record, datadog_trace_id trace_id) {
@@ -158,7 +151,7 @@ static void ddtrace_otel_record_set_span_id(datadog_otel_thr_ctx_rec *record, ui
     atomic_store_explicit(&record->span_id, ddtrace_u64_be(span_id), memory_order_relaxed);
 }
 
-static void ddtrace_otel_record_set_attrs(datadog_otel_thr_ctx_rec *record, ddtrace_root_span_data *root) {
+static void ddtrace_otel_record_set_attrs_from_values(datadog_otel_thr_ctx_rec *record, ddtrace_root_span_data *root, zend_string *service, zend_string *env, zend_string *version) {
     static const uint8_t hex_digits[] = "0123456789abcdef";
 
     uint64_t span_id = root->span_id;
@@ -171,10 +164,32 @@ static void ddtrace_otel_record_set_attrs(datadog_otel_thr_ctx_rec *record, ddtr
     }
 
     size_t offset = DDTRACE_OTEL_LOCAL_ROOT_SPAN_ID_ATTR_SIZE;
-    offset = ddtrace_otel_record_write_attr_zstr(record, offset, DDTRACE_OTEL_ATTR_SERVICE_NAME, ddtrace_otel_attr_zstr(&root->property_service));
-    offset = ddtrace_otel_record_write_attr_zstr(record, offset, DDTRACE_OTEL_ATTR_SERVICE_VERSION, ddtrace_otel_attr_zstr(&root->property_version));
-    offset = ddtrace_otel_record_write_attr_zstr(record, offset, DDTRACE_OTEL_ATTR_DEPLOYMENT_ENVIRONMENT_NAME, ddtrace_otel_attr_zstr(&root->property_env));
+    offset = ddtrace_otel_record_write_attr_zstr(record, offset, DDTRACE_OTEL_ATTR_SERVICE_NAME, ddtrace_otel_attr_zstr(service));
+    offset = ddtrace_otel_record_write_attr_zstr(record, offset, DDTRACE_OTEL_ATTR_SERVICE_VERSION, ddtrace_otel_attr_zstr(version));
+    offset = ddtrace_otel_record_write_attr_zstr(record, offset, DDTRACE_OTEL_ATTR_DEPLOYMENT_ENVIRONMENT_NAME, ddtrace_otel_attr_zstr(env));
     record->attrs_data_size = (uint16_t)offset;
+}
+
+static void ddtrace_otel_record_set_attrs(datadog_otel_thr_ctx_rec *record, ddtrace_root_span_data *root) {
+    zend_string *cfg_service = get_DD_SERVICE(),
+                *cfg_env = get_DD_ENV(),
+                *cfg_version = get_DD_VERSION();
+    zend_string *service = NULL, *env = NULL, *version = NULL;
+
+    ddtrace_span_data *span_for_service_env = ddtrace_otel_attr_source_span(root);
+    datadog_populate_target_data_with_defaults(span_for_service_env, &service, &env, &version, cfg_service, cfg_env, cfg_version);
+
+    ddtrace_otel_record_set_attrs_from_values(record, root, service, env, version);
+
+    if (service) {
+        zend_string_release(service);
+    }
+    if (env) {
+        zend_string_release(env);
+    }
+    if (version) {
+        zend_string_release(version);
+    }
 }
 
 static size_t ddtrace_otel_record_write_attr_zstr(datadog_otel_thr_ctx_rec *record, size_t offset, uint8_t key_index, zend_string *value) {
@@ -192,9 +207,8 @@ static size_t ddtrace_otel_record_write_attr_zstr(datadog_otel_thr_ctx_rec *reco
     return offset + 2 + value_len;
 }
 
-static zend_string *ddtrace_otel_attr_zstr(zval *value) {
-    ZVAL_DEREF(value);
-    return Z_TYPE_P(value) == IS_STRING ? Z_STR_P(value) : ZSTR_EMPTY_ALLOC();
+static zend_string *ddtrace_otel_attr_zstr(zend_string *value) {
+    return value ? value : ZSTR_EMPTY_ALLOC();
 }
 
 static inline uint64_t ddtrace_u64_be(uint64_t value) {
@@ -208,6 +222,10 @@ static inline uint64_t ddtrace_u64_be(uint64_t value) {
 }
 
 #else // !__linux__
+
+void ddtrace_otel_init_root_span(ddtrace_root_span_data *root) {
+    UNUSED(root);
+}
 
 void ddtrace_otel_update_trace_id(ddtrace_root_span_data *root) {
     UNUSED(root);
