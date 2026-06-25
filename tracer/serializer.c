@@ -604,7 +604,6 @@ void ddtrace_update_root_id_properties(ddtrace_root_span_data *span) {
         ZVAL_UNDEF(&zv);
     }
     datadog_assign_variable(&span->property_parent_id, &zv);
-    ddtrace_update_otel_thread_context();
 }
 
 struct superglob_equiv {
