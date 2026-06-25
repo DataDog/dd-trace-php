@@ -310,8 +310,23 @@ if test "$PHP_DDTRACE" != "no"; then
   if test "$ext_shared" = "yes"; then
     dnl Only export symbols defined in datadog.sym, which should all be marked as
     dnl DATADOG_PUBLIC in their source files as well.
+    DDTRACE_EXPORT_SYMBOLS="$ext_srcdir/datadog.sym"
+    case $host_os in
+      linux*)
+        AX_CHECK_COMPILE_FLAG([-mtls-dialect=gnu2],
+          [EXTRA_CFLAGS="$EXTRA_CFLAGS -mtls-dialect=gnu2"],
+          [],
+          [],
+          [])
+      ;;
+      *)
+        dnl otel_thread_ctx_v1 is a Linux-only TLS symbol; omit it where tls_shim.c is not compiled.
+        DDTRACE_EXPORT_SYMBOLS="$ext_builddir/datadog.sym"
+        $GREP -v '^otel_thread_ctx_v1$' "$ext_srcdir/datadog.sym" > "$DDTRACE_EXPORT_SYMBOLS"
+      ;;
+    esac
     EXTRA_CFLAGS="$EXTRA_CFLAGS -fvisibility=hidden"
-    EXTRA_LDFLAGS="$EXTRA_LDFLAGS -export-symbols $ext_srcdir/datadog.sym -flto -fuse-linker-plugin"
+    EXTRA_LDFLAGS="$EXTRA_LDFLAGS -export-symbols $DDTRACE_EXPORT_SYMBOLS -flto -fuse-linker-plugin"
 
     dnl On Linux: set the ELF entry point so ddtrace.so can be exec'd directly by ld.so
     dnl for sidecar spawning (no trampoline binary, no memfd, no temp files).

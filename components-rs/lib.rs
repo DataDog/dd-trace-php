@@ -26,7 +26,7 @@ use http::uri::{PathAndQuery, Scheme};
 use http::Uri;
 use libdd_common::entity_id::{get_container_id, set_cgroup_file};
 use libdd_common::{parse_uri, Endpoint};
-use libdd_common_ffi::slice::AsBytes;
+use libdd_common_ffi::slice::{AsBytes, CharSlice};
 use std::borrow::Cow;
 use std::ffi::{c_char, OsStr};
 use std::ptr::null_mut;
@@ -38,12 +38,7 @@ use libdd_common::connector::uds::socket_path_to_uri;
 use std::path::Path;
 
 #[cfg(target_os = "linux")]
-use libdd_library_config::otel_process_ctx;
-#[cfg(target_os = "linux")]
-use libdd_trace_protobuf::opentelemetry::proto::{
-    common::v1::{any_value, AnyValue, ArrayValue, KeyValue, ProcessContext},
-    resource::v1::Resource,
-};
+use libdd_library_config::tracer_metadata::{store_tracer_metadata, TracerMetadata};
 
 #[no_mangle]
 #[allow(non_upper_case_globals)]
@@ -111,61 +106,24 @@ pub extern "C" fn datadog_publish_otel_process_context(hostname: CharSlice<'_>) 
         (!datadog_runtime_id.is_nil()).then(|| datadog_runtime_id.as_hyphenated().to_string())
     };
 
-    fn key_value(key: &'static str, value: String) -> KeyValue {
-        KeyValue {
-            key: key.to_owned(),
-            value: Some(AnyValue {
-                value: Some(any_value::Value::StringValue(value)),
-            }),
-            key_ref: 0,
-        }
-    }
-
-    let mut attributes = vec![
-        key_value("telemetry.sdk.language", "php".to_owned()),
-        key_value(
-            "telemetry.sdk.version",
-            include_str!("../VERSION").trim().to_owned(),
-        ),
-        key_value("telemetry.sdk.name", "libdatadog".to_owned()),
-        key_value("host.name", hostname.to_utf8_lossy().into_owned()),
-        key_value("threadlocal.schema_version", "tlsdesc_v1_dev".to_owned()),
-        KeyValue {
-            key: "threadlocal.attribute_key_map".to_owned(),
-            value: Some(AnyValue {
-                value: Some(any_value::Value::ArrayValue(ArrayValue {
-                    values: [
-                        "datadog.local_root_span_id",
-                        "service.name",
-                        "service.version",
-                        "deployment.environment.name",
-                    ]
-                    .into_iter()
-                    .map(|value| AnyValue {
-                        value: Some(any_value::Value::StringValue(value.to_owned())),
-                    })
-                    .collect(),
-                })),
-            }),
-            key_ref: 0,
-        },
-    ];
-
-    if let Some(runtime_id) = runtime_id {
-        attributes.push(key_value("service.instance.id", runtime_id));
-    }
-
-    let context = ProcessContext {
-        resource: Some(Resource {
-            attributes,
-            dropped_attributes_count: 0,
-            entity_refs: vec![],
-        }),
-        // The generated protobuf still uses the old OTEP name for field 2.
-        extra_attributes: vec![],
+    // This process context publishes the PHP-provided thread-local attribute
+    // key map. libdatadog prepends datadog.local_root_span_id automatically;
+    // request/runtime values for all keys are stored in the thread-local
+    // context record itself.
+    let metadata = TracerMetadata {
+        runtime_id,
+        hostname: hostname.to_utf8_lossy().into_owned(),
+        tracer_language: "php".to_owned(),
+        tracer_version: include_str!("../VERSION").trim().to_owned(),
+        threadlocal_attribute_keys: Some(vec![
+            "service.name".to_owned(),
+            "service.version".to_owned(),
+            "deployment.environment.name".to_owned(),
+        ]),
+        ..Default::default()
     };
 
-    match otel_process_ctx::linux::publish(&context) {
+    match store_tracer_metadata(&metadata) {
         Ok(_) => true,
         Err(error) => {
             tracing::debug!("failed to publish OTel process context: {error}");

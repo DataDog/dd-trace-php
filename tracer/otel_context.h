@@ -2,92 +2,74 @@
 #define DDTRACE_OTEL_CONTEXT_H
 
 #include <stdint.h>
-#include <string.h>
 #include <zend.h>
-
-#ifdef __linux__
-#include <stdatomic.h>
-#include <components-rs/otel-thread-ctx.h>
-#endif
-
-typedef struct ddtrace_root_span_data ddtrace_root_span_data;
-
-#ifdef __linux__
-static inline void ddtrace_write_otel_context_u64_be(uint8_t dest[8], uint64_t value) {
-    uint64_t be_value =
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-        __builtin_bswap64(value);
-#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-        value;
-#else
-#error "Unsupported byte order"
-#endif
-    memcpy(dest, &be_value, sizeof(be_value));
-}
-
-static inline void ddtrace_store_otel_thread_context_span_id(ddog_ThreadContextRecord *ctx, uint64_t span_id) {
-    uint8_t span_id_bytes[8];
-    ddtrace_write_otel_context_u64_be(span_id_bytes, span_id);
-
-    // OTEP 4947 only guarantees 2-byte record alignment, so span_id is bytes, not a uint64_t.
-    // Guard even this small update with valid because readers may interrupt between byte stores.
-    volatile uint8_t *valid = (volatile uint8_t *)&ctx->valid;
-    *valid = 0;
-    atomic_signal_fence(memory_order_seq_cst);
-    memcpy(ctx->span_id, span_id_bytes, sizeof(ctx->span_id));
-    atomic_signal_fence(memory_order_seq_cst);
-    *valid = 1;
-}
-#endif
 
 BEGIN_EXTERN_C()
 
-/**
- * Compatibility no-op for the UserRequest lifecycle. AppSec-specific
- * entrypoint context is not published through this generic OTel context path.
- */
-void ddtrace_set_otel_thread_context_root_span(zend_object *root_span);
+typedef struct ddtrace_root_span_data ddtrace_root_span_data;
+typedef struct ddtrace_span_stack ddtrace_span_stack;
+
+#ifdef __linux__
+#define DATADOG_PHP_PROFILING_OTEL_ATTRS_DATA_SIZE 612
+
+typedef struct {
+    uint64_t trace_id[2];
+    _Atomic(uint64_t) span_id;
+    _Atomic(uint8_t) valid;
+    uint8_t reserved;
+    uint16_t attrs_data_size;
+    uint8_t attrs_data[DATADOG_PHP_PROFILING_OTEL_ATTRS_DATA_SIZE];
+} datadog_otel_thr_ctx_rec;
+
+extern __thread void *otel_thread_ctx_v1;
+#endif // __linux__
 
 /**
- * Compatibility no-op for the UserRequest lifecycle.
+ * Update only the trace id in an already-initialized OTel thread-context record
+ * owned by root. This is used when distributed tracing or RootSpanData::traceId
+ * changes the root trace id after the record was published.
+ *
+ * On non-Linux builds, or when the root record has not been initialized yet,
+ * this is a no-op.
  */
-void ddtrace_clear_otel_thread_context_root_span(void);
+void ddtrace_otel_update_trace_id(ddtrace_root_span_data *root);
 
 /**
- * Publish the active tracer root's OTel context record and attach it to Linux's
- * OTel thread-context TLS slot.
+ * Update only the active span id in an already-initialized OTel thread-context
+ * record owned by root. This is used for in-trace active span changes where
+ * the root trace id and root-scoped attributes are unchanged.
+ *
+ * On non-Linux builds, or when the root record has not been initialized yet,
+ * this is a no-op.
+ */
+void ddtrace_otel_update_span_id(ddtrace_root_span_data *root, uint64_t span_id);
+
+/**
+ * Rewrite the root-scoped attribute values in an already-initialized OTel
+ * thread-context record. Passing NULL selects the current active stack root.
+ *
+ * On non-Linux builds, when tracing is disabled, or when no suitable initialized
+ * root record exists, this is a no-op.
+ */
+void ddtrace_otel_update_attribute_values(ddtrace_root_span_data *root);
+
+/**
+ * Publish the OTel thread-context record for stack's active span. The record is
+ * initialized on first publication and otherwise updated with the active span id
+ * and latest root-scoped attribute values.
+ *
+ * If stack has no active root/span, this detaches the current OTel thread
+ * context instead. On non-Linux builds this is a no-op.
+ */
+void ddtrace_otel_attach_stack(ddtrace_span_stack *stack);
+
+/**
+ * Clear the current thread's OTel TLS context pointer so no stale tracer context
+ * remains visible to external OTel readers.
  *
  * On non-Linux builds this is a no-op.
- *
- * Call this when rebuilding the root record is required: opening a root span,
- * changing trace/local-root ids, or changing service/env/version attributes.
- * When there is no selected tracer span/root, this detaches the OTel thread
- * context instead.
  */
-void ddtrace_update_otel_thread_context(void);
-
-/**
- * Attach the active tracer root's OTel context record to Linux's TLS slot, or
- * detach when the selected stack has no active tracer context.
- *
- * On non-Linux builds this is a no-op.
- *
- * Call this when switching span stacks or fibers. It only changes which root
- * record is selected; it does not rebuild the record.
- */
-void ddtrace_switch_otel_thread_context(void);
-
-/**
- * Detach the current OTel thread context.
- *
- * On non-Linux builds this is a no-op.
- *
- * Call this at hard context boundaries where nothing from the previous tracer
- * context should remain visible to OTel: request start, span-stack cleanup
- * during request shutdown or tracing disable, or when a context update/switch
- * finds no selected tracer span/root.
- */
-void ddtrace_detach_otel_thread_context(void);
+void ddtrace_otel_detach(void);
 
 /**
  * Detach the current OTel thread context if it points at this root span's
