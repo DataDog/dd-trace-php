@@ -104,9 +104,9 @@
     ],
     "DD_APPSEC_HELPER_RUST_REDIRECTION": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "boolean",
-        "default": "false"
+        "default": "true"
       }
     ],
     "DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML": [
