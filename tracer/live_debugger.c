@@ -62,10 +62,14 @@ void dd_start_debugger_timeout(void) {
     DDTRACE_G(capture_deadline_ns) = now_ns + (uint64_t)ms * 1000000ULL;
     DDTRACE_G(debugger_capture_timed_out) = 0;
 #ifdef __linux__
+    // musl exposes it, but glibc doesn't always. Define the glibc variant here.
+#ifndef sigev_notify_thread_id
+#define sigev_notify_thread_id _sigev_un._tid
+#endif
     struct sigevent sev = {0};
     sev.sigev_notify = SIGEV_THREAD_ID;
     sev.sigev_signo = SIGVTALRM;
-    sev._sigev_un._tid = (pid_t)syscall(SYS_gettid); // gettid() is glibc 2.30 only
+    sev.sigev_notify_thread_id = (pid_t)syscall(SYS_gettid); // gettid() is glibc 2.30 only
     if (timer_create(CLOCK_THREAD_CPUTIME_ID, &sev, &DDTRACE_G(capture_timer)) == 0) {
         struct itimerspec it = {
             .it_value = { .tv_sec = ms / 1000, .tv_nsec = (ms % 1000) * 1000000LL },
