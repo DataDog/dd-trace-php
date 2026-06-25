@@ -29,12 +29,11 @@ await_probe_installation(function() {
     \DDTrace\start_span();
 });
 
-// 2-level array: 100 outer x 100 inner strings (100-char each)
-// ~10,000 capture operations: reliably exceeds the 1ms CPU-time timeout
-// Sentinel is at the very last position [99][99]
+// 3-level array: 10 outer x 100 mid x 100 inner strings (100-char each)
+// ~100,000 capture operations: reliably exceeds the 1ms CPU-time timeout
 $data = [];
 for ($i = 0; $i < 99; $i++) {
-    $data[] = array_fill(0, 100, str_repeat('x', 100));
+    $data[] = array_fill(0, 10, array_fill(0, 100, str_repeat('x', 100)));
 }
 $last = array_fill(0, 99, str_repeat('x', 100));
 $last[] = 'LAST_SENTINEL';
