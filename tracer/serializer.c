@@ -1585,12 +1585,9 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
                 zend_array *root_meta = ddtrace_property_array(&span->root->property_meta);
                 if (!zend_hash_str_exists(root_meta, ZEND_STRL("_dd.svc_src"))) {
                     zval root_svc;
-                    ZVAL_UNDEF(&root_svc);
                     datadog_convert_to_string(&root_svc, &span->root->property_service);
                     if (Z_TYPE(root_svc) == IS_STRING && Z_STRLEN(root_svc) > 0) {
-                        normalized_default = ddog_normalize_process_tag_value((ddog_CharSlice){
-                            .ptr = Z_STRVAL(root_svc), .len = Z_STRLEN(root_svc)
-                        });
+                        normalized_default = ddog_normalize_process_tag_value(dd_zend_string_to_CharSlice(Z_STR(root_svc)));
                     }
                     zval_ptr_dtor(&root_svc);
                 }

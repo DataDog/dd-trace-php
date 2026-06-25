@@ -157,9 +157,7 @@ void datadog_sidecar_update_process_tags(void) {
     // Session-bound, process-stable: the tracer's auto-resolved default name.
     zend_string *default_svc = datadog_default_service_name();
     if (default_svc) {
-        const char *normalized = ddog_normalize_process_tag_value((ddog_CharSlice){
-            .ptr = ZSTR_VAL(default_svc), .len = ZSTR_LEN(default_svc)
-        });
+        const char *normalized = ddog_normalize_process_tag_value(dd_zend_string_to_CharSlice(default_svc));
         if (normalized) {
             datadog_ffi_try("Failed updating sidecar default service name",
                 ddog_sidecar_session_set_default_service_name(&DATADOG_G(sidecar),
