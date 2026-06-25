@@ -167,29 +167,44 @@ class OtelThreadContextTests {
     @Test
     void 'otel thread context keeps entrypoint root service env on nested root changes'() {
         PausedRequest pausedRequest = startPausedRequest('/otel_context/nested_root_service_env_changes.php')
+        String cleanupPid = pausedRequest.pid
         boolean requestContinued = false
 
         try {
-            Map<String, String> threadContext = inspectThreadLocalAndContinue(pausedRequest.pid)
+            Map<String, String> entrypointUpdatedContext =
+                    inspectThreadLocalAndContinue(pausedRequest.pid)
+
+            String nestedRestoredPid = waitForPausedPid(
+                    pausedRequest.responseFuture,
+                    'nested-restored')
+            cleanupPid = nestedRestoredPid
+            Map<String, String> nestedRestoredContext =
+                    inspectThreadLocalAndContinue(nestedRestoredPid)
+
             requestContinued = true
             HttpResponse<String> response = awaitResponse(pausedRequest)
             Map responseBody = parseJsonResponse(response)
 
+            assert responseBody.entrypoint_updated_waited == true
+            assert responseBody.nested_restored_waited == true
             assert responseBody.original_service_name != responseBody.entrypoint_service_name
             assert responseBody.original_deployment_environment_name != responseBody.entrypoint_deployment_environment_name
             assert responseBody.nested_service_name != responseBody.entrypoint_service_name
             assert responseBody.nested_deployment_environment_name != responseBody.entrypoint_deployment_environment_name
-            assert threadContext['service.name'] == responseBody.entrypoint_service_name
-            assert threadContext['service.name'] != responseBody.original_service_name
-            assert threadContext['service.name'] != responseBody.nested_service_name
-            assert threadContext['deployment.environment.name'] == responseBody.entrypoint_deployment_environment_name
-            assert threadContext['deployment.environment.name'] != responseBody.original_deployment_environment_name
-            assert threadContext['deployment.environment.name'] != responseBody.nested_deployment_environment_name
 
-            assertThreadContextMatchesResponse(threadContext, responseBody)
+            [entrypointUpdatedContext, nestedRestoredContext].each { threadContext ->
+                assert threadContext['service.name'] == responseBody.entrypoint_service_name
+                assert threadContext['service.name'] != responseBody.original_service_name
+                assert threadContext['service.name'] != responseBody.nested_service_name
+                assert threadContext['deployment.environment.name'] == responseBody.entrypoint_deployment_environment_name
+                assert threadContext['deployment.environment.name'] != responseBody.original_deployment_environment_name
+                assert threadContext['deployment.environment.name'] != responseBody.nested_deployment_environment_name
+
+                assertThreadContextMatchesResponse(threadContext, responseBody)
+            }
         } finally {
             if (!requestContinued) {
-                continuePausedRequestQuietly(pausedRequest.pid)
+                continuePausedRequestQuietly(cleanupPid)
             }
         }
     }

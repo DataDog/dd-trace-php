@@ -11,10 +11,6 @@ $originalService = $entrypointRoot->service;
 $originalVersion = $entrypointRoot->version;
 $originalEnv = $entrypointRoot->env;
 
-$entrypointRoot->service = 'otel-thread-context-entrypoint-service';
-$entrypointRoot->version = '4.5.6';
-$entrypointRoot->env = 'otel-thread-context-entrypoint-env';
-
 $nestedRoot = \DDTrace\start_trace_span();
 if (!$nestedRoot) {
     http_response_code(500);
@@ -26,11 +22,24 @@ $nestedRoot->service = 'otel-thread-context-nested-service';
 $nestedRoot->version = '7.8.9';
 $nestedRoot->env = 'otel-thread-context-nested-env';
 
-$waited = \datadog\appsec\testing\wait_for_debugger();
+$entrypointRoot->service = 'otel-thread-context-entrypoint-service';
+$entrypointRoot->version = '4.5.6';
+$entrypointRoot->env = 'otel-thread-context-entrypoint-env';
+
+file_put_contents('/tmp/otel_context_phase', 'entrypoint-updated-while-nested');
+$entrypointUpdatedWaited = \datadog\appsec\testing\wait_for_debugger();
+
+\DDTrace\switch_stack($entrypointRoot);
+\DDTrace\switch_stack($nestedRoot);
+
+file_put_contents('/tmp/otel_context_phase', 'nested-restored');
+$nestedRestoredWaited = \datadog\appsec\testing\wait_for_debugger();
 
 header('Content-Type: application/json');
 echo json_encode([
-    'waited' => $waited,
+    'waited' => $nestedRestoredWaited,
+    'entrypoint_updated_waited' => $entrypointUpdatedWaited,
+    'nested_restored_waited' => $nestedRestoredWaited,
     'trace_id' => $nestedRoot->traceId,
     'span_id' => $nestedRoot->hexId(),
     'local_root_span_id' => $nestedRoot->hexId(),
