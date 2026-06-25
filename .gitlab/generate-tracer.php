@@ -114,7 +114,7 @@ stages:
   needs: []
   parallel:
     matrix:
-      - PHP_MAJOR_MINOR: <?= json_encode($windows_minor_major_targets) ?>
+      - PHP_MAJOR_MINOR: <?= json_encode(["7.2", "7.3"]) /* DEBUG: verify SKIPIF ini_set log_level=off fix on the two hanging versions */ ?>
 
   variables:
     CONTAINER_NAME: $CI_JOB_NAME_SLUG
