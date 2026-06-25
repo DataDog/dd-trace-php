@@ -3,6 +3,11 @@
 if (-not $env:ChocolateyInstall) { $env:ChocolateyInstall = 'C:\ProgramData\chocolatey' }
 Import-Module $env:ChocolateyInstall\helpers\chocolateyProfile.psm1
 
+# install.ps1 only adds choco to the session PATH on a FRESH install. On runners where
+# Chocolatey is already present it short-circuits, leaving `choco` unresolvable in this
+# session. Prepend the known bin dir so the command resolves regardless of runner state.
+$env:Path = "$env:ChocolateyInstall\bin;$env:Path"
+
 choco install -y php
 choco install -y 7zip
 refreshenv
