@@ -310,6 +310,7 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
 
     ddtrace_set_global_span_properties(span);
     if (root_span) {
+        ddtrace_otel_init_root_span(ROOTSPANDATA(&span->std));
         ddtrace_otel_attach_stack(DDTRACE_G(active_stack));
     } else {
         ddtrace_otel_update_span_id(span->root, span->span_id);

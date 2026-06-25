@@ -595,7 +595,9 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
         ddtrace_otel_update_trace_id(span);
     }
     if (root_span_data_changed) {
-        ddtrace_otel_update_attribute_values(span);
+        ddtrace_span_stack *stack = DDTRACE_G(active_stack);
+        ddtrace_root_span_data *root = stack && stack->root_span ? stack->root_span : span;
+        ddtrace_otel_update_attribute_values(root);
         ddtrace_sidecar_submit_root_span_data();
     }
 #if PHP_VERSION_ID >= 70400
