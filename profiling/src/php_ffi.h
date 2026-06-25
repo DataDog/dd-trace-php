@@ -20,6 +20,8 @@
 #include <elf.h>
 #endif
 
+#define DATADOG_PHP_PROFILING_OTEL_ATTRS_DATA_SIZE 612
+
 // Needed for `zend_observer_error_register` starting from PHP 8
 #if CFG_ZEND_ERROR_OBSERVER // defined by build.rs
 #include <Zend/zend_errors.h>
@@ -73,18 +75,26 @@ zend_module_entry *datadog_get_module_entry(const char *str, uintptr_t len);
 void *datadog_php_profiling_vm_interrupt_addr(void);
 
 /**
- * For Code Hotspots, we need the tracer's local root span id and the current
- * span id. This is a cross-product struct, so keep it in sync with tracer's
- * version of this struct.
+ * For Code Hotspots, we need the local root span id and the current span id.
+ * The legacy ddtrace_get_profiling_context ABI also uses this struct, so keep
+ * it in sync with tracer's version.
  * todo: re-use the tracer's header?
  */
 typedef struct ddtrace_profiling_context_s {
     uint64_t local_root_span_id, span_id;
 } ddtrace_profiling_context;
 
+typedef struct datadog_php_profiling_otel_context_s {
+    uint64_t span_id;
+    uint16_t attrs_data_size;
+    uint8_t attrs_data[DATADOG_PHP_PROFILING_OTEL_ATTRS_DATA_SIZE];
+} datadog_php_profiling_otel_context;
+
 /**
- * A pointer to the tracer's ddtrace_get_profiling_context function if it was
- * found, otherwise points to a function which just returns {0, 0}.
+ * A pointer to the profiling-context function. On Linux it first reads the
+ * OTel thread-context ABI directly when available, then falls back to the
+ * tracer's legacy ddtrace_get_profiling_context function if it was found.
+ * Otherwise it returns {0, 0}.
  */
 extern ddtrace_profiling_context (*datadog_php_profiling_get_profiling_context)(void);
 
@@ -100,6 +110,24 @@ extern zend_string *(*datadog_php_profiling_get_process_tags_serialized)(void);
  * registry and finding the ddtrace_get_profiling_context function.
  */
 void datadog_php_profiling_startup(zend_extension *extension);
+
+/**
+ * Called by this zend_extension's .activate handler to initialize per-thread
+ * profiler FFI state.
+ */
+void datadog_php_profiling_rinit(void);
+
+/**
+ * Copies the current OTel thread context for Rust-side decoding. Returns false
+ * when the OTel TLS slot is unavailable, empty, or currently invalid.
+ */
+bool datadog_php_profiling_read_otel_context(datadog_php_profiling_otel_context *context);
+
+/**
+ * Returns the profiling context API selected for this request, or "none" when
+ * no provider was found.
+ */
+zai_str datadog_php_profiling_context_api_name(void);
 
 /**
  * Used to hold information for overwriting the internal function handler

@@ -10,6 +10,7 @@
 #include "configuration.h"
 #include "excluded_modules.h"
 #include "agent_info.h"
+#include "ffi_utils.h"
 #include "logging.h"
 #include "phpinfo.h"
 #include "process_tags.h"
@@ -21,11 +22,13 @@
 #include "zend_hrtime.h"
 #ifndef _WIN32
 #include <pthread.h>
+#include <unistd.h>
 #else
 #include <components/pthread_polyfill.h>
 #include "crashtracking_windows.h"
 #endif
 #include <hook/hook.h>
+#include <string.h>
 #if PHP_VERSION_ID < 80000
 #include <interceptor/php7/interceptor.h>
 #endif
@@ -152,11 +155,37 @@ static void datadog_shutdown(zend_extension *extension) {
 #endif
 }
 
+static ddog_CharSlice datadog_otel_process_context_hostname(void) {
+    if (!get_DD_TRACE_REPORT_HOSTNAME()) {
+        return DDOG_CHARSLICE_C("");
+    }
+
+    if (ZSTR_LEN(get_DD_HOSTNAME())) {
+        return dd_zend_string_to_CharSlice(get_DD_HOSTNAME());
+    }
+
+    // Match tracer/serializer.c hostname publishing: DD_HOSTNAME wins, then gethostname().
+#ifdef __linux__
+#ifndef HOST_NAME_MAX
+#define HOST_NAME_MAX 255
+#endif
+    static char hostname[HOST_NAME_MAX + 1];
+    if (gethostname(hostname, sizeof(hostname)) != 0) {
+        return DDOG_CHARSLICE_C("");
+    }
+    hostname[HOST_NAME_MAX] = '\0';
+    return (ddog_CharSlice){.ptr = hostname, .len = strlen(hostname)};
+#else
+    return DDOG_CHARSLICE_C("");
+#endif
+}
+
 static void dd_activate_once(void) {
     datadog_config_first_rinit();
     if (dd_main_pid != getpid()) { // equal to session id if not a fork
         datadog_generate_runtime_id();
     }
+    datadog_publish_otel_process_context(datadog_otel_process_context_hostname());
 
     // must run before the first zai_hook_activate as tracer telemetry setup installs a global hook
     if (!datadog_disable) {

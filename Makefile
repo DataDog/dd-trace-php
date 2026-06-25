@@ -48,7 +48,7 @@ RUN_TESTS_CMD := DD_SERVICE= DD_ENV= DD_TRACE_RETRY_INTERVAL=1 REPORT_EXIT_STATU
 
 C_FILES = $(shell find components components-rs ext src/dogstatsd tracer zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES = $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name '*.yaml' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-RUST_FILES = $(BUILD_DIR)/Cargo.toml $(BUILD_DIR)/Cargo.lock $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{build-common,datadog-ffe,datadog-ipc,datadog-ipc-macros,datadog-live-debugger,datadog-live-debugger-ffi,libdd-remote-config,datadog-sidecar,datadog-sidecar-ffi,datadog-sidecar-macros,libdd-alloc,libdd-capabilities,libdd-capabilities-impl,libdd-common,libdd-common-ffi,libdd-crashtracker,libdd-crashtracker-ffi,libdd-data-pipeline,libdd-ddsketch,libdd-dogstatsd-client,libdd-library-config,libdd-library-config-ffi,libdd-log,libdd-shared-runtime,libdd-telemetry,libdd-telemetry-ffi,libdd-tinybytes,libdd-trace-*,spawn_worker,tools/{cc_utils,sidecar_mockgen},libdd-trace-*,Cargo.toml} \( -type l -o -type f \) \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/datadog-ipc/build.rs" -not -path "*/datadog-sidecar-ffi/build.rs")
+RUST_FILES = $(BUILD_DIR)/Cargo.toml $(BUILD_DIR)/Cargo.lock $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{build-common,datadog-ffe,datadog-ipc,datadog-ipc-macros,datadog-live-debugger,datadog-live-debugger-ffi,libdd-remote-config,datadog-sidecar,datadog-sidecar-ffi,datadog-sidecar-macros,libdd-alloc,libdd-capabilities,libdd-capabilities-impl,libdd-common,libdd-common-ffi,libdd-crashtracker,libdd-crashtracker-ffi,libdd-data-pipeline,libdd-ddsketch,libdd-dogstatsd-client,libdd-library-config,libdd-library-config-ffi,libdd-log,libdd-otel-thread-ctx*,libdd-shared-runtime,libdd-telemetry,libdd-telemetry-ffi,libdd-tinybytes,libdd-trace-*,spawn_worker,tools/{cc_utils,sidecar_mockgen},libdd-trace-*,Cargo.toml} \( -type l -o -type f \) \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" -o -name "tls-dynamic-list.txt" \) -not -path "*/datadog-ipc/build.rs" -not -path "*/datadog-sidecar-ffi/build.rs")
 ALL_OBJECT_FILES = $(C_FILES) $(RUST_FILES) $(BUILD_DIR)/Makefile
 TEST_OPCACHE_FILES = $(shell find tests/opcache -name '*.php*' -o -name '.gitkeep' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_STUB_FILES = $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
@@ -423,9 +423,9 @@ clang_format_fix:
 cbindgen: remove_cbindgen generate_cbindgen
 
 remove_cbindgen:
-	rm -f components-rs/datadog.h components-rs/live-debugger.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h components-rs/crashtracker.h components-rs/library-config.h
+	rm -f components-rs/datadog.h components-rs/live-debugger.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h components-rs/crashtracker.h components-rs/library-config.h components-rs/otel-thread-ctx.h
 
-generate_cbindgen: cbindgen_binary # Regenerate components-rs/datadog.h components-rs/live-debugger.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h components-rs/crashtracker.h components-rs/library-config.h
+generate_cbindgen: cbindgen_binary # Regenerate components-rs/datadog.h components-rs/live-debugger.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h components-rs/crashtracker.h components-rs/library-config.h components-rs/otel-thread-ctx.h
 	( \
 		$(command rustup && echo run nightly --) cbindgen --crate datadog-php  \
 			--config cbindgen.toml \
@@ -449,11 +449,14 @@ generate_cbindgen: cbindgen_binary # Regenerate components-rs/datadog.h componen
 		$(command rustup && echo run nightly --) cbindgen --crate libdd-library-config-ffi  \
 			--config libdd-library-config-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/library-config.h; \
+		$(command rustup && echo run nightly --) cbindgen --crate libdd-otel-thread-ctx-ffi  \
+			--config libdd-otel-thread-ctx-ffi/cbindgen.toml \
+			--output $(PROJECT_ROOT)/components-rs/otel-thread-ctx.h; \
 		if test -d $(PROJECT_ROOT)/tmp; then \
 			mkdir -pv "$(BUILD_DIR)"; \
 			export CARGO_TARGET_DIR="$(BUILD_DIR)/target"; \
 		fi; \
-		cargo run -p tools --bin dedup_headers -- $(PROJECT_ROOT)/components-rs/common.h $(PROJECT_ROOT)/components-rs/datadog.h $(PROJECT_ROOT)/components-rs/live-debugger.h $(PROJECT_ROOT)/components-rs/telemetry.h $(PROJECT_ROOT)/components-rs/sidecar.h $(PROJECT_ROOT)/components-rs/crashtracker.h $(PROJECT_ROOT)/components-rs/library-config.h \
+		cargo run -p tools --bin dedup_headers -- $(PROJECT_ROOT)/components-rs/common.h $(PROJECT_ROOT)/components-rs/datadog.h $(PROJECT_ROOT)/components-rs/live-debugger.h $(PROJECT_ROOT)/components-rs/telemetry.h $(PROJECT_ROOT)/components-rs/sidecar.h $(PROJECT_ROOT)/components-rs/crashtracker.h $(PROJECT_ROOT)/components-rs/library-config.h $(PROJECT_ROOT)/components-rs/otel-thread-ctx.h \
 	)
 
 cbindgen_binary:

@@ -1325,11 +1325,14 @@ dependencies = [
  "libdd-common-ffi",
  "libdd-crashtracker-ffi",
  "libdd-data-pipeline",
+ "libdd-library-config",
  "libdd-library-config-ffi",
+ "libdd-otel-thread-ctx-ffi",
  "libdd-remote-config",
  "libdd-telemetry",
  "libdd-telemetry-ffi",
  "libdd-tinybytes",
+ "libdd-trace-protobuf",
  "libdd-trace-stats",
  "libdd-trace-utils",
  "log",
@@ -1372,6 +1375,7 @@ dependencies = [
  "libc 0.2.177",
  "libdd-alloc",
  "libdd-common",
+ "libdd-library-config",
  "libdd-library-config-ffi",
  "libdd-profiling",
  "log",
@@ -3012,6 +3016,23 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "libdd-otel-thread-ctx"
+version = "1.0.0"
+dependencies = [
+ "build_common",
+ "cc",
+]
+
+[[package]]
+name = "libdd-otel-thread-ctx-ffi"
+version = "1.0.0"
+dependencies = [
+ "build_common",
+ "libdd-common-ffi",
+ "libdd-otel-thread-ctx",
 ]
 
 [[package]]

@@ -41,6 +41,7 @@
 #endif
 #include "config/config.h"
 #include "configuration.h"
+#include "otel_context.h"
 #ifndef _WIN32
 #include "dogstatsd_client.h"
 #endif
@@ -57,6 +58,7 @@
 #include "live_debugger.h"
 #include "standalone_limiter.h"
 #include "priority_sampling/priority_sampling.h"
+#include "otel_context.h"
 #include "random.h"
 #include "autoload_php_files.h"
 #include "serializer.h"
@@ -148,6 +150,10 @@ static inline void dd_alter_prop(size_t prop_offset, zval *old_value, zval *new_
 
 bool datadog_alter_dd_service(zval *old_value, zval *new_value, zend_string *new_str) {
     dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_service), old_value, new_value, new_str);
+    ddtrace_span_stack *stack = DDTRACE_G(active_stack);
+    if (stack && stack->root_span) {
+        ddtrace_otel_update_attribute_values(stack->root_span);
+    }
     if (DATADOG_G(request_initialized)) {
         ddtrace_sidecar_submit_span_data_direct(&DATADOG_G(sidecar), NULL, new_str, get_DD_ENV(), get_DD_VERSION());
     }
@@ -155,6 +161,10 @@ bool datadog_alter_dd_service(zval *old_value, zval *new_value, zend_string *new
 }
 bool datadog_alter_dd_env(zval *old_value, zval *new_value, zend_string *new_str) {
     dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_env), old_value, new_value, new_str);
+    ddtrace_span_stack *stack = DDTRACE_G(active_stack);
+    if (stack && stack->root_span) {
+        ddtrace_otel_update_attribute_values(stack->root_span);
+    }
     if (DATADOG_G(request_initialized)) {
         ddtrace_sidecar_submit_span_data_direct(&DATADOG_G(sidecar), NULL, get_DD_SERVICE(), new_str, get_DD_VERSION());
     }
@@ -162,6 +172,10 @@ bool datadog_alter_dd_env(zval *old_value, zval *new_value, zend_string *new_str
 }
 bool datadog_alter_dd_version(zval *old_value, zval *new_value, zend_string *new_str) {
     dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_version), old_value, new_value, new_str);
+    ddtrace_span_stack *stack = DDTRACE_G(active_stack);
+    if (stack && stack->root_span) {
+        ddtrace_otel_update_attribute_values(stack->root_span);
+    }
     if (DATADOG_G(request_initialized)) {
         ddtrace_sidecar_submit_span_data_direct(&DATADOG_G(sidecar), NULL, get_DD_SERVICE(), get_DD_ENV(), new_str);
     }

@@ -9,12 +9,14 @@
 #include "ffe.h"
 #include "handlers_exception.h"
 #include "memory_limit.h"
+#include "otel_context.h"
 #include "random.h"
 #include "serializer.h"
 #include "weak_resources.h"
 #include <ext/startup_logging.h>
 #include "handlers_http.h"
 #include "ip_extraction.h"
+#include "otel_context.h"
 #include "tracer_telemetry.h"
 #include "tracer_tag_propagation/tracer_tag_propagation.h"
 #include <ext/agent_info.h>
@@ -417,6 +419,11 @@ static zend_object *ddtrace_span_stack_clone_obj(zend_object *old_obj) {
 }
 
 static void ddtrace_span_data_free_storage(zend_object *object) {
+#ifdef __linux__
+    if (object->ce == ddtrace_ce_root_span_data) {
+        ddtrace_detach_otel_thread_context_for_root(ROOTSPANDATA(object));
+    }
+#endif
     zend_object_std_dtor(object);
     // Prevent use after free after zend_objects_store_free_object_storage is called (e.g. preloading) [PHP < 8.1]
     memset(object->properties_table, 0, sizeof(ddtrace_span_data) - XtOffsetOf(ddtrace_span_data, std.properties_table));
@@ -530,6 +537,7 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
 #endif
     ddtrace_root_span_data *span = ROOTSPANDATA(obj);
     zval zv;
+    bool trace_id_changed = false;
     bool root_span_data_changed = false;
     if (zend_string_equals_literal(prop_name, "parentId")) {
         if (Z_TYPE_P(value) == IS_LONG && Z_LVAL_P(value)) {
@@ -545,6 +553,7 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
                 value = &zv;
             }
         }
+        // parentId is not part of the OTel thread-context record.
         cache_slot = NULL;
     } else if (zend_string_equals_literal(prop_name, "traceId")) {
         span->trace_id = Z_TYPE_P(value) == IS_STRING ? ddtrace_parse_hex_trace_id(Z_STRVAL_P(value), Z_STRLEN_P(value)) : (datadog_trace_id){ 0 };
@@ -555,6 +564,7 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
             };
             value = &span->property_id;
         }
+        trace_id_changed = true;
         cache_slot = NULL;
     } else if (zend_string_equals_literal(prop_name, "service")) {
         if (ddtrace_span_is_entrypoint_root(&span->span) && !zend_is_identical(&span->property_service, value)) {
@@ -581,7 +591,13 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
 #else
     ddtrace_span_data_readonly(object, member, value, cache_slot);
 #endif
+    if (trace_id_changed) {
+        ddtrace_otel_update_trace_id(span);
+    }
     if (root_span_data_changed) {
+        ddtrace_span_stack *stack = DDTRACE_G(active_stack);
+        ddtrace_root_span_data *root = stack && stack->root_span ? stack->root_span : span;
+        ddtrace_otel_update_attribute_values(root);
         ddtrace_sidecar_submit_root_span_data();
     }
 #if PHP_VERSION_ID >= 70400
@@ -2632,6 +2648,7 @@ PHP_FUNCTION(DDTrace_set_distributed_tracing_context) {
             root_span->trace_id = new_trace_id;
         }
         ddtrace_update_root_id_properties(root_span);
+        ddtrace_otel_update_trace_id(root_span);
     } else {
         DDTRACE_G(distributed_trace_id) = new_trace_id;
         DDTRACE_G(distributed_parent_trace_id) = new_parent_id;
