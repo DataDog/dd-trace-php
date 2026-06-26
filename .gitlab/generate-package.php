@@ -1523,8 +1523,6 @@ foreach ($arch_targets as $arch) {
   stage: release
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
   tags: [ "arch:amd64" ]
-  rules:
-    - when: on_success
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
       aud: dd-octo-sts
@@ -1543,8 +1541,6 @@ foreach ($arch_targets as $arch) {
   stage: release
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   tags: [ "docker-in-docker:amd64" ]
-  rules:
-    - when: on_success
   needs:
     - job: "publish docker image for system tests (token)"
       artifacts: true
@@ -1567,6 +1563,8 @@ foreach ($arch_targets as $arch) {
     docker build -f Dockerfile.system-tests -t "$IMAGE" .
     docker push "$IMAGE"
     echo "Pushed $IMAGE"
+  after_script:
+    - rm -f github_token_system_tests.txt
 
 "bundle for reliability env":
   stage: shared-pipeline
