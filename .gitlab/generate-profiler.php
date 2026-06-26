@@ -13,20 +13,10 @@ foreach ($profiler_minor_major_targets as $version) {
 }
 ?>
 
-# PHP 8.5 has a known tailcall VM crash; re-enable once PHP 8.5.8 is available.
-.php_language_profiler_targets: &php_language_profiler_targets
-<?php
-foreach ($profiler_minor_major_targets as $version) {
-    if (version_compare($version, "8.5", "<")) {
-        echo "  - \"{$version}\"\n";
-    }
-}
-?>
-
 "profiling tests":
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:${IMAGE_PREFIX}${PHP_MAJOR_MINOR}${IMAGE_SUFFIX}
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:${IMAGE_PREFIX}${PHP_MAJOR_MINOR}${IMAGE_SUFFIX}
   # Setting the *_REQUEST and *_LIMIT variables to be the same, and setting
   # them for both the build and helper allows using Guaranteed QoS instead of
   # Burstable. This means nproc and similar tools will work as expected.
@@ -95,7 +85,7 @@ foreach ($profiler_minor_major_targets as $version) {
 "clippy NTS":
   stage: test
   tags: [ "arch:amd64" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-8
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-9
   variables:
     KUBERNETES_CPU_REQUEST: 5
     KUBERNETES_CPU_LIMIT: 5
@@ -119,7 +109,7 @@ foreach ($profiler_minor_major_targets as $version) {
 "Cargo test":
   stage: test
   tags: [ "arch:amd64" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.5_bookworm-8
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.5_bookworm-9
   variables:
     KUBERNETES_CPU_REQUEST: 5
     KUBERNETES_CPU_LIMIT: 5
@@ -139,7 +129,7 @@ foreach ($profiler_minor_major_targets as $version) {
 "PHP language tests":
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-8
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-9
   variables:
     KUBERNETES_CPU_REQUEST: 5
     KUBERNETES_CPU_LIMIT: 5
@@ -157,7 +147,7 @@ foreach ($profiler_minor_major_targets as $version) {
     XFAIL_LIST: dockerfiles/ci/xfail_tests/${PHP_MAJOR_MINOR}.list
   parallel:
     matrix:
-      - PHP_MAJOR_MINOR: *php_language_profiler_targets
+      - PHP_MAJOR_MINOR: *all_profiler_targets
         ARCH: amd64
         FLAVOUR: [nts, zts]
   script:
