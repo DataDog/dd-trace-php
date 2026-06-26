@@ -686,6 +686,8 @@ static inline zend_string *zend_ini_str(const char *name, size_t name_length, bo
     return return_value;
 }
 
+#define tsrm_is_managed_thread() (tsrm_get_ls_cache() != NULL)
+
 #define zend_zval_value_name zend_zval_type_name
 
 #define Z_PARAM_ZVAL_OR_NULL(dest) Z_PARAM_ZVAL_EX(dest, 1, 0)
