@@ -3,8 +3,62 @@ include:
     file: 'images/templates/gitlab/check-slo-breaches.template.yml'
   - project: 'DataDog/benchmarking-platform-tools'
     file: 'images/templates/gitlab/notify-slo-breaches.template.yml'
+  - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
+    file: '.gitlab/ci-php-laravel-realworld-parallel.yml'
+    ref: 'leiyks/LANGPLAT-883-php-competitor-benchmarks'
+  - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
+    file: '.gitlab/ci-php-symfony-realworld-parallel.yml'
+    ref: 'leiyks/LANGPLAT-883-php-competitor-benchmarks'
+  - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
+    file: '.gitlab/ci-php-wordpress-parallel.yml'
+    ref: 'leiyks/LANGPLAT-883-php-competitor-benchmarks'
+
+linux-php-laravel-realworld-parallel:
+  needs:
+    - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+    - job: datadog-setup.php
+      artifacts: true
+  variables:
+    APM_SDKS_BENCHMARKS_BRANCH: "leiyks/LANGPLAT-883-php-competitor-benchmarks"
+    DD_TRACER_ARTIFACT_DIR: "$CI_PROJECT_DIR/packages"
+
+linux-php-symfony-realworld-parallel:
+  needs:
+    - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+    - job: datadog-setup.php
+      artifacts: true
+  variables:
+    APM_SDKS_BENCHMARKS_BRANCH: "leiyks/LANGPLAT-883-php-competitor-benchmarks"
+    DD_TRACER_ARTIFACT_DIR: "$CI_PROJECT_DIR/packages"
+
+linux-php-wordpress-parallel:
+  needs:
+    - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+    - job: datadog-setup.php
+      artifacts: true
+  variables:
+    APM_SDKS_BENCHMARKS_BRANCH: "leiyks/LANGPLAT-883-php-competitor-benchmarks"
+    DD_TRACER_ARTIFACT_DIR: "$CI_PROJECT_DIR/packages"
+
+php-laravel-realworld-parallel-check-slo-breaches:
+  variables:
+    APM_SDKS_BENCHMARKS_BRANCH: "leiyks/LANGPLAT-883-php-competitor-benchmarks"
+
+php-symfony-realworld-parallel-check-slo-breaches:
+  variables:
+    APM_SDKS_BENCHMARKS_BRANCH: "leiyks/LANGPLAT-883-php-competitor-benchmarks"
+
+php-wordpress-parallel-check-slo-breaches:
+  variables:
+    APM_SDKS_BENCHMARKS_BRANCH: "leiyks/LANGPLAT-883-php-competitor-benchmarks"
 
 variables:
+  # Drop once apm-sdks-benchmarks PR #115 merges to main and ships the PHP
+  # threshold files + bp-runner path fix.
+  APM_SDKS_BENCHMARKS_BRANCH: "leiyks/LANGPLAT-883-php-competitor-benchmarks"
   BASE_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-php-82-dev
   # The Dockerfile to this image is located at:
   # https://github.com/DataDog/benchmarking-platform/tree/dd-trace-php
