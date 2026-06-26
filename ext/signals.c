@@ -13,6 +13,7 @@
 #include <dogstatsd_client/client.h>
 #include <php.h>
 #include <signal.h>
+#include <unistd.h>  // getpid / geteuid for crashtracker role selection
 
 #include "configuration.h"
 #include "datadog.h"
@@ -26,6 +27,7 @@
 #include <components-rs/common.h>
 #include <components-rs/datadog.h>
 #include <components-rs/crashtracker.h>
+#include <components-rs/sidecar.h>
 
 #if PHP_VERSION_ID >= 80000
 #include <SAPI.h>
@@ -53,7 +55,6 @@
 // true globals; only modify in MINIT/MSHUTDOWN
 static stack_t dd_altstack;
 static struct sigaction dd_sigsegv_sigaction;
-static char crashtracker_socket_path[100] = {0};
 static char *dd_signal_async_stack;
 static size_t dd_signal_async_stack_size;
 
@@ -112,17 +113,6 @@ static void dd_sigsegv_handler(int sig) {
 
     // _Exit to avoid atexit() handlers, they may crash in this SIGSEGV signal handler...
     _Exit(128 + sig);
-}
-
-static bool dd_crashtracker_check_result(ddog_VoidResult result, const char *msg) {
-    if (result.tag != DDOG_VOID_RESULT_OK) {
-        ddog_CharSlice error_msg = ddog_Error_message(&result.err);
-        LOG(ERROR, "%s : %.*s", msg, (int) error_msg.len, error_msg.ptr);
-        ddog_Error_drop(&result.err);
-        return false;
-    }
-
-    return true;
 }
 
 #if PHP_VERSION_ID >= 80000
@@ -235,54 +225,17 @@ opcache_disabled:
 #endif
 }
 
-typedef struct {
-    ddog_crasht_Config config;
-    ddog_crasht_Metadata metadata;
-} dd_crasht_init_args;
-
-static void dd_crasht_do_init(ddog_crasht_EndpointConfig endpoint_config, void *userdata) {
-    dd_crasht_init_args *args = (dd_crasht_init_args *)userdata;
-    args->config.endpoint = endpoint_config;
-    dd_crashtracker_check_result(
-            ddog_crasht_init_without_receiver(args->config, args->metadata),
-            "Cannot initialize CrashTracker"
-    );
-}
-
 static void dd_init_crashtracker() {
-    ddog_CharSlice socket_path = ddog_sidecar_get_crashtracker_unix_socket_path();
-    if (socket_path.len > sizeof(crashtracker_socket_path) - 1) {
-        LOG(ERROR, "Cannot initialize CrashTracker : the socket path is too long.");
-        free((void *) socket_path.ptr);
-        return;
-    }
-
-    // Copy the string to a global buffer to avoid a use-after-free error
-    memcpy(crashtracker_socket_path, socket_path.ptr, socket_path.len);
-    crashtracker_socket_path[socket_path.len] = '\0';
-    free((void *) socket_path.ptr);
-    socket_path.ptr = crashtracker_socket_path;
-
     if (!datadog_endpoint) {
         return;
     }
 
     ddog_Vec_Tag tags = ddog_Vec_Tag_new();
     dd_crasht_add_opcache_inis(&tags);
+    ddog_crasht_Metadata metadata = datadog_setup_crashtracking_metadata(&tags);
 
-    dd_crasht_init_args args = {
-        .config = {
-            .timeout_ms = 5000,
-            .resolve_frames = DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_INPROCESS_SYMBOLS,
-            .optional_unix_socket_filename = socket_path,
-            .additional_files = {0},
-            .collect_all_threads = true,
-            .max_threads = 0, // uses libdatadog default, which is 256
-        },
-        .metadata = datadog_setup_crashtracking_metadata(&tags),
-    };
-
-    datadog_endpoint_as_crashtracker_config(datadog_endpoint, dd_crasht_do_init, &args);
+    datadog_ffi_try("Cannot initialize CrashTracker",
+                    datadog_crashtracker_init(datadog_endpoint, metadata, datadog_sidecar_master_pid));
 
     datadog_register_crashtracking_frames_collection();
 
