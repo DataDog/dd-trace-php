@@ -1,3 +1,16 @@
+:: ===== TEMP DIAG: why is mc.exe not found at configure? =====
+echo ===== DIAG mc.exe / Windows SDK =====
+where mc.exe
+echo --- mc.exe anywhere under Windows Kits\10\bin ---
+dir /s /b "C:\Program Files (x86)\Windows Kits\10\bin\mc.exe" 2>NUL
+echo --- installed SDK versions (Windows Kits\10\bin) ---
+dir /b "C:\Program Files (x86)\Windows Kits\10\bin" 2>NUL
+echo --- WindowsSdkVerBinPath=%WindowsSdkVerBinPath% ---
+echo --- WindowsSDKVersion=%WindowsSDKVersion% ---
+echo --- PATH ---
+echo %PATH%
+echo ===== END DIAG =====
+
 cd php-src
 
 cmd /c buildconf.bat --force
