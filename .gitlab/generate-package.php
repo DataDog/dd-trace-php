@@ -1518,6 +1518,7 @@ foreach ($arch_targets as $arch) {
     paths:
       - packages/datadog-setup.php
 
+# Runs on every branch so system tests can be run against any in-progress branch.
 "publish docker image for system tests (token)":
   stage: release
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
@@ -1529,10 +1530,9 @@ foreach ($arch_targets as $arch) {
       aud: dd-octo-sts
   variables:
     GIT_STRATEGY: none
+    GITHUB_TOKEN: "[MASKED]"
   script:
     - dd-octo-sts token --scope DataDog/dd-trace-php --policy gitlab-ci-publish-packages > github_token_system_tests.txt
-  after_script:
-    - if [[ -f github_token_system_tests.txt ]]; then dd-octo-sts revoke -t "$(cat github_token_system_tests.txt)" || true; fi
   artifacts:
     paths:
       - github_token_system_tests.txt
