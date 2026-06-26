@@ -35,7 +35,10 @@ services:
       dockerfile: basetools.Dockerfile
       args:
         vsVersion: "vc15"
-        sdkVersion: "2.7.1"
+        # Stay on the old SDK: php-sdk 2.7.1's php.exe needs VC runtime 14.29, but
+        # the VS2015/vc15 image ships 14.15. vc15 builds PHP 7.x, which don't
+        # need the newer deps (no zstd/curl) anyway.
+        sdkVersion: "2.2.0"
 
   vs16:
     image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:windows-vs16
