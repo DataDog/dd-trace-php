@@ -191,22 +191,44 @@ variables:
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     Write-Host "Git setup complete."
 
+    # Download docker-compose to the workspace.
+    Write-Host "Downloading docker-compose..."
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    $dockerCompose = "$PWD\docker-compose.exe"
+    Start-BitsTransfer -Source "https://github.com/docker/compose/releases/download/v2.36.0/docker-compose-windows-x86_64.exe" -Destination $dockerCompose
+
+    # Scope Docker auth to this job: CI Identities for registry.ddbuild.io only,
+    # no ECR catch-all that would fail without AWS_DEFAULT_REGION. Docker calls
+    # `list` on the default credsStore (ecr-login) during compose init regardless
+    # of which registries the Dockerfiles reference, so override the config here.
+    $env:DOCKER_CONFIG = "$env:TEMP\docker-config-job"
+    New-Item -ItemType Directory -Path $env:DOCKER_CONFIG -Force | Out-Null
+    [IO.File]::WriteAllText(
+        "$env:DOCKER_CONFIG\config.json",
+        '{"credHelpers":{"registry.ddbuild.io":"ci-identities"}}'
+    )
+
     cd dockerfiles\ci\windows
 
     docker version
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-    docker buildx version
+    & $dockerCompose version
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-    # buildx bake reads docker-compose.yml and builds + pushes in one step.
-    # Unlike `docker compose` (which shells out and drops the runner identity),
-    # bake runs through the docker CLI, so the registry credential helpers
-    # (e.g. ECR for the base image) are used as configured.
-    $targets = ($env:WINDOWS_IMAGE_TARGETS -split ' ') | Where-Object { $_ }
-    Write-Host "Building & pushing Windows CI image target(s): $targets"
-    docker buildx bake --no-cache --pull --push $targets
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    foreach ($target in ($env:WINDOWS_IMAGE_TARGETS -split ' ')) {
+      if ([string]::IsNullOrWhiteSpace($target)) { continue }
+
+      # Pass CI_REGISTRY_IMAGE so the Dockerfile FROM (ARG default
+      # datadog/dd-trace-ci) matches the registry.ddbuild.io image: push target.
+      Write-Host "Building Windows CI image target $target..."
+      & $dockerCompose build --pull --no-cache --build-arg CI_REGISTRY_IMAGE=$env:CI_REGISTRY_IMAGE $target
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      Write-Host "Pushing Windows CI image target $target..."
+      & $dockerCompose push $target
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
 
 <?php /*
   Windows: single matrix over every compose service (base tools + tools + php).
