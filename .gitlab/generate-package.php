@@ -1518,6 +1518,51 @@ foreach ($arch_targets as $arch) {
     paths:
       - packages/datadog-setup.php
 
+# Runs on every branch so system tests can be run against any in-progress branch.
+"publish docker image for system tests (token)":
+  stage: release
+  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
+  tags: [ "arch:amd64" ]
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - dd-octo-sts token --scope DataDog/dd-trace-php --policy gitlab-ci-publish-packages > github_token_system_tests.txt
+  artifacts:
+    paths:
+      - github_token_system_tests.txt
+    expire_in: 1 hour
+    when: on_success
+
+"publish docker image for system tests":
+  stage: release
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
+  tags: [ "docker-in-docker:amd64" ]
+  needs:
+    - job: "publish docker image for system tests (token)"
+      artifacts: true
+    - job: "datadog-setup.php"
+      artifacts: true
+    - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+  variables:
+    GIT_STRATEGY: none
+  script: |
+    set -e
+    IMAGE="ghcr.io/datadog/dd-trace-php/dd-library-php:${CI_COMMIT_REF_SLUG}"
+
+    docker login ghcr.io -u DataDog --password-stdin < github_token_system_tests.txt
+
+    printf 'FROM scratch\nCOPY packages/dd-library-php-*-x86_64-linux-gnu.tar.gz /\nCOPY packages/datadog-setup.php /\n' \
+        > Dockerfile.system-tests
+    docker build -f Dockerfile.system-tests -t "$IMAGE" .
+    docker push "$IMAGE"
+    echo "Pushed $IMAGE"
+  after_script:
+    - rm -f github_token_system_tests.txt
+
 "bundle for reliability env":
   stage: shared-pipeline
   image: registry.ddbuild.io/ci/libdatadog-build/ci_docker_base:67145216
