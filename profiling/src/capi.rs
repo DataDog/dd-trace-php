@@ -43,7 +43,10 @@ extern "C" fn ddog_php_prof_trigger_time_sample() {
     use std::sync::atomic::Ordering;
 
     let result = super::REQUEST_LOCALS.try_with_borrow(|locals| {
-        if locals.system_settings().profiling_enabled {
+        let system_settings = locals.system_settings();
+        if system_settings.profiling_wall_time_enabled
+            | system_settings.profiling_experimental_cpu_time_enabled
+        {
             // Safety: only vm interrupts are stored there, or possibly null (edges only).
             if let Some(vm_interrupt) = unsafe { locals.vm_interrupt_addr.as_ref() } {
                 locals.interrupt_count.fetch_add(1, Ordering::SeqCst);
