@@ -57,7 +57,9 @@ services:
       dockerfile: basetools.Dockerfile
       args:
         vsVersion: "vs17"
-        sdkVersion: "2.3.0"
+        # 2.7.1: needed so phpsdk_deps pulls the current 8.5 deps set incl.
+        # libzstd (curl links zstd now); 2.3.0 predates the current deps index.
+        sdkVersion: "2.7.1"
 
   php-8.5:
     image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.5_windows
