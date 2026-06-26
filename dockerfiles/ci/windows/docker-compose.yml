@@ -35,7 +35,7 @@ services:
       dockerfile: basetools.Dockerfile
       args:
         vsVersion: "vc15"
-        sdkVersion: "2.2.0"
+        sdkVersion: "2.7.1"
 
   vs16:
     image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:windows-vs16
@@ -46,7 +46,7 @@ services:
       dockerfile: basetools.Dockerfile
       args:
         vsVersion: "vs16"
-        sdkVersion: "2.2.0"
+        sdkVersion: "2.7.1"
 
   vs17:
     image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:windows-vs17
