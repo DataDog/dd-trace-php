@@ -1528,7 +1528,6 @@ foreach ($arch_targets as $arch) {
       aud: dd-octo-sts
   variables:
     GIT_STRATEGY: none
-    GITHUB_TOKEN: "[MASKED]"
   script:
     - dd-octo-sts token --scope DataDog/dd-trace-php --policy gitlab-ci-publish-packages > github_token_system_tests.txt
   artifacts:
@@ -1552,11 +1551,9 @@ foreach ($arch_targets as $arch) {
     GIT_STRATEGY: none
   script: |
     set -e
-    NORMALIZED_BRANCH=$(echo "$CI_COMMIT_REF_NAME" | sed 's/\//_/g')
-    IMAGE="ghcr.io/datadog/dd-trace-php/dd-library-php:${NORMALIZED_BRANCH}"
+    IMAGE="ghcr.io/datadog/dd-trace-php/dd-library-php:${CI_COMMIT_REF_SLUG}"
 
-    cat github_token_system_tests.txt | docker login ghcr.io \
-        -u DataDog --password-stdin
+    docker login ghcr.io -u DataDog --password-stdin < github_token_system_tests.txt
 
     printf 'FROM scratch\nCOPY packages/dd-library-php-*-x86_64-linux-gnu.tar.gz /\nCOPY packages/datadog-setup.php /\n' \
         > Dockerfile.system-tests
