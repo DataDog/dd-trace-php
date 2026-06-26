@@ -149,13 +149,7 @@ fn build_fixed_key<'a>(span: &'a PhpSpanStats<'a>) -> FixedAggregationKey<&'a st
         http_endpoint: extract_http_endpoint(span),
         http_status_code: extract_http_status_code(span),
         is_synthetics_request: is_synthetics_request(span),
-        // `is_trace_root` became a three-valued `Trilean` in libdatadog; the PHP
-        // side only ever knows true/false, so map the bool onto True/False.
-        is_trace_root: if span.is_trace_root {
-            Trilean::True
-        } else {
-            Trilean::False
-        },
+        is_trace_root: if span.is_trace_root { Trilean::True } else { Trilean::False },
         grpc_status_code: extract_grpc_status_code(span),
         service_source: char_slice_str(span.service_source),
     }

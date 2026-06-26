@@ -650,9 +650,6 @@ pub extern "C" fn ddog_remote_configs_service_env_change(
     tags: &libdd_common_ffi::Vec<Tag>,
     process_tags: &libdd_common_ffi::Vec<Tag>,
 ) -> bool {
-    // libdatadog now hides `Target`'s fields and exposes a constructor. `tags`
-    // and `process_tags` are stored as already-formatted "key:value" strings,
-    // so convert the incoming `Tag`s via their `Display` impl.
     let new_target = Target::new(
         service.to_utf8_lossy().to_string(),
         env.to_utf8_lossy().to_string(),

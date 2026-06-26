@@ -22,7 +22,7 @@ use std::ffi::{c_char, OsStr};
 use std::path::Path;
 use std::ptr::null_mut;
 use uuid::Uuid;
-
+use datadog_sidecar::crashtracker::crashtracker_receiver_request_bytes;
 pub use libdd_crashtracker_ffi::*;
 pub use libdd_library_config_ffi::*;
 pub use datadog_sidecar_ffi::*;
@@ -196,26 +196,144 @@ pub unsafe extern "C" fn datadog_otel_metrics_endpoint_from_agent_url(url: CharS
     }
 }
 
-#[no_mangle]
+/// Initialize crashtracking, selecting the receiver strategy for this process:
+///   - Linux, sidecar host (`master_pid == getpid()`): the in-process thread-mode sidecar can't
+///     serve its own crash, so spawn a fork+exec subprocess receiver (like the standalone daemon),
+///     resolving frames there since a crashing process can't reliably symbolize itself.
+///   - Linux, worker/collector: connect to the sidecar IPC socket and upgrade it to a crashtracker
+///     receiver on crash (`SOCK_SEQPACKET` + `enter_crashtracker_receiver`), streaming the report
+///     over that single socket and resolving frames in-process.
+///   - other unix (macOS): no sidecar upgrade; the default connector reaches the socket path.
+///
+/// `master_pid` is the thread-mode master listener PID (0 if none): it keys the IPC socket and, on
+/// Linux, distinguishes the host from a worker.
+///
+/// # Safety
+/// `endpoint` must point to a valid `Endpoint`; `metadata`'s borrowed strings/tags must outlive the
+/// call (they are copied into owned storage before it returns).
 #[cfg(unix)]
-pub unsafe extern "C" fn datadog_endpoint_as_crashtracker_config(
+#[no_mangle]
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn datadog_crashtracker_init(
     endpoint: &Endpoint,
-    callback: unsafe extern "C" fn(EndpointConfig<'_>, *mut std::ffi::c_void),
-    userdata: *mut std::ffi::c_void,
-) {
-    let url_str = endpoint.url.to_string();
-    unsafe {
-        callback(
-            EndpointConfig {
-                url: CharSlice::from(url_str.as_str()),
-                api_key: CharSlice::from(endpoint.api_key.as_deref().unwrap_or("")),
-                test_token: CharSlice::from(endpoint.test_token.as_deref().unwrap_or("")),
-                timeout: endpoint.timeout_ms,
-                use_system_resolver: endpoint.use_system_resolver,
-            },
-            userdata,
-        );
+    metadata: Metadata,
+    master_pid: i32,
+) -> MaybeError {
+    use libdd_crashtracker::{CrashtrackerConfiguration, StacktraceCollection};
+
+    let result = (|| -> anyhow::Result<()> {
+        let metadata: libdd_crashtracker::Metadata = metadata.try_into()?;
+
+        let mut builder = CrashtrackerConfiguration::builder()
+            .collect_all_threads(true)
+            .timeout(std::time::Duration::from_millis(5000))
+            .endpoint_use_system_resolver(endpoint.use_system_resolver)
+            .endpoint_url(&endpoint.url.to_string());
+        if let Some(api_key) = endpoint.api_key.as_deref() {
+            builder = builder.endpoint_api_key(api_key);
+        }
+        if let Some(test_token) = endpoint.test_token.as_deref() {
+            builder = builder.endpoint_test_token(test_token);
+        }
+        if endpoint.timeout_ms != 0 {
+            builder = builder.endpoint_timeout_ms(endpoint.timeout_ms);
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            // Worker/collector: open a fresh connection to the sidecar IPC socket, upgrade it with
+            // the SEQPACKET connector, and resolve frames in-process.
+            if master_pid == 0 || master_pid != std::process::id() as i32 {
+                let socket_path = datadog_sidecar::crashtracker::crashtracker_ipc_socket_path(
+                    master_pid as u32,
+                    datadog_sidecar::config::FromEnv::ipc_mode(),
+                );
+                // Prime the request bytes outside the crash handler so the connector never
+                // allocates in signal context.
+                let _ = crashtracker_receiver_request_bytes();
+                let config = builder
+                    .resolve_frames(StacktraceCollection::EnabledWithInprocessSymbols)
+                    .unix_socket_path(socket_path.to_string_lossy().into_owned())
+                    .unix_socket_connector(
+                        datadog_sidecar::crashtracker::connect_to_sidecar_receiver,
+                    )
+                    .build()?;
+                return libdd_crashtracker::init(
+                    config,
+                    libdd_crashtracker::CrashtrackerReceiverConfig::default(),
+                    metadata,
+                );
+            }
+            // Thread-mode host: its in-process sidecar can't serve its own crash, so spawn a
+            // transient fork+exec subprocess receiver and resolve frames there.
+            let config = builder
+                .resolve_frames(StacktraceCollection::EnabledWithSymbolsInReceiver)
+                .build()?;
+            let receiver_config =
+                datadog_sidecar::build_crashtracker_receiver_config(None, None)?;
+            libdd_crashtracker::init(config, receiver_config, metadata)
+        }
+
+        // macOS can't open a fresh SOCK_SEQPACKET connection signal-safely, so reuse the
+        // already-open sidecar fd and upgrade it at crash time (no-op if there's no connection).
+        // The path is a placeholder the connector ignores; it just has to be non-empty so the
+        // crashtracker takes the connector path.
+        #[cfg(target_os = "macos")]
+        {
+            // Prime the request bytes outside the crash handler so the connector never
+            // allocates in signal context.
+            let _ = crashtracker_receiver_request_bytes();
+            let config = builder
+                .resolve_frames(StacktraceCollection::EnabledWithInprocessSymbols)
+                .unix_socket_path("datadog-sidecar-crashtracker".to_string())
+                .unix_socket_connector(reuse_sidecar_fd_connector)
+                .build()?;
+            libdd_crashtracker::init(
+                config,
+                libdd_crashtracker::CrashtrackerReceiverConfig::default(),
+                metadata,
+            )
+        }
+
+        #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+        {
+            let _ = (master_pid, builder, metadata);
+            Ok(())
+        }
+    })();
+    match result {
+        Ok(()) => MaybeError::None,
+        Err(e) => {
+            MaybeError::Some(Error::from(format!("{e:?}")))
+        }
     }
+}
+
+/// On macos we cannot easily create a new signal safe connection to the sidecar, so we reuse the
+/// already open fd from datadog_sidecar_for_signal.
+#[cfg(target_os = "macos")]
+fn reuse_sidecar_fd_connector(_unix_socket_path: &str) -> std::os::fd::RawFd {
+    extern "C" {
+        // Set by the sidecar connect path (sidecar.c) to the live transport for best-effort
+        // signal-handler use; null when there is no connection. The transport pointer is stable
+        // across transparent reconnects (only its inner sender is swapped), so reading the fd
+        // through it stays current. Typed as an opaque pointer to keep the `extern` block FFI-safe;
+        // cast to the real type below.
+        static mut datadog_sidecar_for_signal: *mut std::ffi::c_void;
+    }
+
+    // Best-effort, signal context: read the transport pointer and get its current fd via
+    // SidecarTransport::signal_fd (which uses get_mut, never locking). Going through the raw
+    // pointer knowingly bypasses aliasing checks — the crashing thread is the only realistic
+    // accessor.
+    let transport = unsafe { datadog_sidecar_for_signal }
+        as *mut datadog_sidecar::service::blocking::SidecarTransport;
+    if transport.is_null() {
+        return -1;
+    }
+    let fd = unsafe { (*transport).as_raw_fd() };
+    let bytes = crashtracker_receiver_request_bytes();
+    let sent = unsafe { libc::send(dup, bytes.as_ptr() as *const libc::c_void, bytes.len(), 0) };
 }
 
 // Hack: Without this, the PECL build of the tracer does not contain the ddog_library_* functions
