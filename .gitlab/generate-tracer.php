@@ -295,7 +295,7 @@ foreach ($asan_minor_major_targets as $major_minor):
     ARCH: "amd64"
     KUBERNETES_POD_CPU_REQUEST: 4
     KUBERNETES_POD_MEMORY_REQUEST: 5Gi
-    KUBERNETES_POD_MEMORY_LIMIT: 5Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 7Gi
     TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
   script:
     - mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
@@ -524,13 +524,13 @@ foreach ($all_minor_major_targets as $major_minor):
 <?php if (version_compare($major_minor, "7.4", ">=")): ?>
     KUBERNETES_POD_CPU_REQUEST: 9
     KUBERNETES_POD_CPU_LIMIT: 9
-    KUBERNETES_POD_MEMORY_REQUEST: 8Gi
-    KUBERNETES_POD_MEMORY_LIMIT: 8Gi
+    KUBERNETES_POD_MEMORY_REQUEST: 10Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 10Gi
 <?php else: ?>
     KUBERNETES_POD_CPU_REQUEST: 2
     KUBERNETES_POD_CPU_LIMIT: 2
-    KUBERNETES_POD_MEMORY_REQUEST: 5Gi
-    KUBERNETES_POD_MEMORY_LIMIT: 5Gi
+    KUBERNETES_POD_MEMORY_REQUEST: 6Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 6Gi
 <?php endif; ?>
     KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
 <?php if (version_compare($major_minor, "7.2", ">=")): /* too expensive */ ?>
