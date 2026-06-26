@@ -73,14 +73,10 @@ stages:
   extends: .appsec_test
   image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-9
   variables:
-    KUBERNETES_CPU_REQUEST: 3
-    KUBERNETES_CPU_LIMIT: 3
-    KUBERNETES_MEMORY_REQUEST: 6Gi
-    KUBERNETES_MEMORY_LIMIT: 6Gi
-    KUBERNETES_HELPER_CPU_REQUEST: 1
-    KUBERNETES_HELPER_CPU_LIMIT: 1
-    KUBERNETES_HELPER_MEMORY_REQUEST: 3Gi
-    KUBERNETES_HELPER_MEMORY_LIMIT: 3Gi
+    KUBERNETES_POD_CPU_REQUEST: 3
+    KUBERNETES_POD_CPU_LIMIT: 3
+    KUBERNETES_POD_MEMORY_REQUEST: 6Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 6Gi
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *all_minor_major_targets
@@ -107,9 +103,9 @@ stages:
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble # TODO: use a proper docker image with java pre-installed?
   tags: [ "docker-in-docker:amd64" ]
   variables:
-    KUBERNETES_CPU_REQUEST: 8
-    KUBERNETES_MEMORY_REQUEST: 24Gi
-    KUBERNETES_MEMORY_LIMIT: 30Gi
+    KUBERNETES_POD_CPU_REQUEST: 8
+    KUBERNETES_POD_MEMORY_REQUEST: 24Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 30Gi
     DOCKER_LOOPBACK_SIZE: 30G
     ARCH: amd64
     HELPER_FLAG: ""
@@ -203,9 +199,9 @@ stages:
       interruptible: false
     - when: on_success
   variables:
-    KUBERNETES_CPU_REQUEST: 4
-    KUBERNETES_MEMORY_REQUEST: 8Gi
-    KUBERNETES_MEMORY_LIMIT: 10Gi
+    KUBERNETES_POD_CPU_REQUEST: 4
+    KUBERNETES_POD_MEMORY_REQUEST: 8Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 10Gi
     ARCH: amd64
   before_script:
 <?php echo $ecrLoginSnippet, "\n"; ?>
@@ -238,9 +234,9 @@ stages:
       interruptible: false
     - when: on_success
   variables:
-    KUBERNETES_CPU_REQUEST: 4
-    KUBERNETES_MEMORY_REQUEST: 8Gi
-    KUBERNETES_MEMORY_LIMIT: 10Gi
+    KUBERNETES_POD_CPU_REQUEST: 4
+    KUBERNETES_POD_MEMORY_REQUEST: 8Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 10Gi
     ARCH: amd64
   before_script:
 <?php echo $ecrLoginSnippet, "\n"; ?>
@@ -312,9 +308,9 @@ stages:
       interruptible: false
     - when: on_success
   variables:
-    KUBERNETES_CPU_REQUEST: 8
-    KUBERNETES_MEMORY_REQUEST: 24Gi
-    KUBERNETES_MEMORY_LIMIT: 30Gi
+    KUBERNETES_POD_CPU_REQUEST: 8
+    KUBERNETES_POD_MEMORY_REQUEST: 24Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 30Gi
     ARCH: amd64
     DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED: "0"
   before_script:
@@ -394,9 +390,9 @@ stages:
   extends: .appsec_test
   image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.3_bookworm-9
   variables:
-    KUBERNETES_CPU_REQUEST: 3
-    KUBERNETES_MEMORY_REQUEST: 3Gi
-    KUBERNETES_MEMORY_LIMIT: 4Gi
+    KUBERNETES_POD_CPU_REQUEST: 3
+    KUBERNETES_POD_MEMORY_REQUEST: 3Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 4Gi
     ARCH: amd64
   script:
     - |
@@ -481,9 +477,9 @@ stages:
   extends: .docker_push_job
   tags: [ "docker-in-docker:${ARCH}" ]
   variables:
-    KUBERNETES_CPU_REQUEST: 8
-    KUBERNETES_MEMORY_REQUEST: 16Gi
-    KUBERNETES_MEMORY_LIMIT: 24Gi
+    KUBERNETES_POD_CPU_REQUEST: 8
+    KUBERNETES_POD_MEMORY_REQUEST: 16Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 24Gi
   parallel:
     matrix:
 # XXX: docker-in-docker:arm64 is not supported yet
@@ -499,9 +495,9 @@ stages:
 "push appsec docker images multiarch":
   extends: .docker_push_job
   variables:
-    KUBERNETES_CPU_REQUEST: 2
-    KUBERNETES_MEMORY_REQUEST: 4Gi
-    KUBERNETES_MEMORY_LIMIT: 6Gi
+    KUBERNETES_POD_CPU_REQUEST: 2
+    KUBERNETES_POD_MEMORY_REQUEST: 4Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 6Gi
     ARCH: amd64
   rules:
     - when: on_success
@@ -516,9 +512,9 @@ stages:
   extends: .appsec_test
   image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.3_bookworm-9
   variables:
-    KUBERNETES_CPU_REQUEST: 3
-    KUBERNETES_MEMORY_REQUEST: 9Gi
-    KUBERNETES_MEMORY_LIMIT: 10Gi
+    KUBERNETES_POD_CPU_REQUEST: 3
+    KUBERNETES_POD_MEMORY_REQUEST: 9Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 10Gi
     ARCH: amd64
   script:
     - sudo apt install -y clang-format-20
@@ -538,9 +534,9 @@ stages:
   extends: .appsec_test
   image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:bookworm-9
   variables:
-    KUBERNETES_CPU_REQUEST: 3
-    KUBERNETES_MEMORY_REQUEST: 3Gi
-    KUBERNETES_MEMORY_LIMIT: 4Gi
+    KUBERNETES_POD_CPU_REQUEST: 3
+    KUBERNETES_POD_MEMORY_REQUEST: 3Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 4Gi
   parallel:
     matrix:
       - ARCH: *arch_targets
@@ -564,9 +560,9 @@ stages:
 #  extends: .appsec_test
 #  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:bookworm-9
 #  variables:
-#    KUBERNETES_CPU_REQUEST: 3
-#    KUBERNETES_MEMORY_REQUEST: 5Gi
-#    KUBERNETES_MEMORY_LIMIT: 6Gi
+#    KUBERNETES_POD_CPU_REQUEST: 3
+#    KUBERNETES_POD_MEMORY_REQUEST: 5Gi
+#    KUBERNETES_POD_MEMORY_LIMIT: 6Gi
 #  parallel:
 #    matrix:
 #      - ARCH: *arch_targets
