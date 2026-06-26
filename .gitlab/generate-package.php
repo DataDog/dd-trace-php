@@ -1518,6 +1518,27 @@ foreach ($arch_targets as $arch) {
     paths:
       - packages/datadog-setup.php
 
+"publish docker image for system tests (token)":
+  stage: release
+  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
+  tags: [ "arch:amd64" ]
+  rules:
+    - when: on_success
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - dd-octo-sts token --scope DataDog/dd-trace-php --policy gitlab-ci-publish-packages > github_token_system_tests.txt
+  after_script:
+    - if [[ -f github_token_system_tests.txt ]]; then dd-octo-sts revoke -t "$(cat github_token_system_tests.txt)" || true; fi
+  artifacts:
+    paths:
+      - github_token_system_tests.txt
+    expire_in: 1 hour
+    when: on_success
+
 "publish docker image for system tests":
   stage: release
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
@@ -1525,13 +1546,12 @@ foreach ($arch_targets as $arch) {
   rules:
     - when: on_success
   needs:
+    - job: "publish docker image for system tests (token)"
+      artifacts: true
     - job: "datadog-setup.php"
       artifacts: true
     - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
-  id_tokens:
-    DDOCTOSTS_ID_TOKEN:
-      aud: dd-octo-sts
   variables:
     GIT_STRATEGY: none
   script: |
@@ -1539,10 +1559,7 @@ foreach ($arch_targets as $arch) {
     NORMALIZED_BRANCH=$(echo "$CI_COMMIT_REF_NAME" | sed 's/\//_/g')
     IMAGE="ghcr.io/datadog/dd-trace-php/dd-library-php:${NORMALIZED_BRANCH}"
 
-    GITHUB_TOKEN=$(dd-octo-sts token \
-        --scope DataDog/dd-trace-php \
-        --policy gitlab-ci-publish-packages)
-    echo "$GITHUB_TOKEN" | docker login ghcr.io \
+    cat github_token_system_tests.txt | docker login ghcr.io \
         -u DataDog --password-stdin
 
     printf 'FROM scratch\nCOPY packages/dd-library-php-*-x86_64-linux-gnu.tar.gz /\nCOPY packages/datadog-setup.php /\n' \
