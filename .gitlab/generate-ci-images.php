@@ -191,31 +191,22 @@ variables:
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     Write-Host "Git setup complete."
 
-    # Download docker-compose to the workspace.
-    Write-Host "Downloading docker-compose..."
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    $dockerCompose = "$PWD\docker-compose.exe"
-    Start-BitsTransfer -Source "https://github.com/docker/compose/releases/download/v2.36.0/docker-compose-windows-x86_64.exe" -Destination $dockerCompose
-
     cd dockerfiles\ci\windows
 
     docker version
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-    & $dockerCompose version
+    docker buildx version
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-    foreach ($target in ($env:WINDOWS_IMAGE_TARGETS -split ' ')) {
-      if ([string]::IsNullOrWhiteSpace($target)) { continue }
-
-      Write-Host "Building Windows CI image target $target..."
-      & $dockerCompose build --pull --no-cache $target
-      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-      Write-Host "Pushing Windows CI image target $target..."
-      & $dockerCompose push $target
-      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    }
+    # buildx bake reads docker-compose.yml and builds + pushes in one step.
+    # Unlike `docker compose` (which shells out and drops the runner identity),
+    # bake runs through the docker CLI, so the registry credential helpers
+    # (e.g. ECR for the base image) are used as configured.
+    $targets = ($env:WINDOWS_IMAGE_TARGETS -split ' ') | Where-Object { $_ }
+    Write-Host "Building & pushing Windows CI image target(s): $targets"
+    docker buildx bake --no-cache --pull --push $targets
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 <?php /*
   Windows: single matrix over every compose service (base tools + tools + php).
