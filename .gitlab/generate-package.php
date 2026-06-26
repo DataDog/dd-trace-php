@@ -966,9 +966,9 @@ endforeach;
   services:
     - !reference [.services, request-replayer]
   variables:
-    KUBERNETES_POD_CPU_REQUEST: 2
-    KUBERNETES_POD_MEMORY_REQUEST: 2Gi
-    KUBERNETES_POD_MEMORY_LIMIT: 4Gi
+    KUBERNETES_POD_CPU_REQUEST: 4
+    KUBERNETES_POD_MEMORY_REQUEST: 3Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 5Gi
     DD_AGENT_HOST: request-replayer
     DD_TRACE_AGENT_PORT: 80
     DD_TRACE_AGENT_FLUSH_INTERVAL: 1000
@@ -1163,9 +1163,9 @@ endforeach;
     - !reference [.services, request-replayer]
     - !reference [.services, httpbin-integration]
   variables:
-    KUBERNETES_POD_CPU_REQUEST: 4
-    KUBERNETES_POD_MEMORY_REQUEST: 3Gi
-    KUBERNETES_POD_MEMORY_LIMIT: 5Gi
+    KUBERNETES_POD_CPU_REQUEST: 6
+    KUBERNETES_POD_MEMORY_REQUEST: 5Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 7Gi
   parallel:
     matrix:
       - PHP_VERSION: <?= json_encode($all_minor_major_targets), "\n" ?>
@@ -1197,6 +1197,9 @@ endforeach;
     DDAGENT_HOSTNAME: 127.0.0.1
     DD_AGENT_HOST: 127.0.0.1
     DATADOG_HAVE_DEV_ENV: 1
+    KUBERNETES_POD_CPU_REQUEST: 10
+    KUBERNETES_POD_MEMORY_REQUEST: 5Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 6Gi
   needs:
     - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
