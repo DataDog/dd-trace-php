@@ -17,6 +17,7 @@ use std::ffi::{c_char, c_void};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{LazyLock, RwLock};
 use tracing::trace;
+use libdd_trace_protobuf::pb::Trilean;
 
 /// Number of gRPC status-code keys checked by the stats aggregation (must match
 /// `GRPC_STATUS_CODE_FIELD` in libdd-trace-stats/src/span_concentrator/aggregation.rs).
@@ -148,7 +149,7 @@ fn build_fixed_key<'a>(span: &'a PhpSpanStats<'a>) -> FixedAggregationKey<&'a st
         http_endpoint: extract_http_endpoint(span),
         http_status_code: extract_http_status_code(span),
         is_synthetics_request: is_synthetics_request(span),
-        is_trace_root: span.is_trace_root,
+        is_trace_root: if span.is_trace_root { Trilean::True } else { Trilean::False },
         grpc_status_code: extract_grpc_status_code(span),
         service_source: char_slice_str(span.service_source),
     }

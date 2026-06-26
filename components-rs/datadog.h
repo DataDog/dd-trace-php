@@ -55,9 +55,26 @@ struct ddog_Endpoint *datadog_otel_metrics_endpoint_from_url(ddog_CharSlice url)
 
 struct ddog_Endpoint *datadog_otel_metrics_endpoint_from_agent_url(ddog_CharSlice url);
 
-void datadog_endpoint_as_crashtracker_config(const struct ddog_Endpoint *endpoint,
-                                             void (*callback)(ddog_crasht_EndpointConfig, void*),
-                                             void *userdata);
+/**
+ * Initialize crashtracking, selecting the receiver strategy for this process:
+ *   - Linux, sidecar host (`master_pid == getpid()`): the in-process thread-mode sidecar can't
+ *     serve its own crash, so spawn a fork+exec subprocess receiver (like the standalone daemon),
+ *     resolving frames there since a crashing process can't reliably symbolize itself.
+ *   - Linux, worker/collector: connect to the sidecar IPC socket and upgrade it to a crashtracker
+ *     receiver on crash (`SOCK_SEQPACKET` + `enter_crashtracker_receiver`), streaming the report
+ *     over that single socket and resolving frames in-process.
+ *   - other unix (macOS): no sidecar upgrade; the default connector reaches the socket path.
+ *
+ * `master_pid` is the thread-mode master listener PID (0 if none): it keys the IPC socket and, on
+ * Linux, distinguishes the host from a worker.
+ *
+ * # Safety
+ * `endpoint` must point to a valid `Endpoint`; `metadata`'s borrowed strings/tags must outlive the
+ * call (they are copied into owned storage before it returns).
+ */
+ddog_MaybeError datadog_crashtracker_init(const struct ddog_Endpoint *endpoint,
+                                          ddog_crasht_Metadata metadata,
+                                          int32_t master_pid);
 
 ddog_Configurator *ddog_library_configurator_new_dummy(bool debug_logs, ddog_CharSlice language);
 

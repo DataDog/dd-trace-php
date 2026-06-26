@@ -639,13 +639,13 @@ pub extern "C" fn ddog_remote_configs_service_env_change(
     tags: &libdd_common_ffi::Vec<Tag>,
     process_tags: &libdd_common_ffi::Vec<Tag>,
 ) -> bool {
-    let new_target = Target {
-        service: service.to_utf8_lossy().to_string(),
-        env: env.to_utf8_lossy().to_string(),
-        app_version: version.to_utf8_lossy().to_string(),
-        tags: tags.as_slice().to_vec(),
-        process_tags: process_tags.as_slice().to_vec(),
-    };
+    let new_target = Target::new(
+        service.to_utf8_lossy().to_string(),
+        env.to_utf8_lossy().to_string(),
+        version.to_utf8_lossy().to_string(),
+        tags.iter().map(|t| t.to_string()).collect(),
+        process_tags.iter().map(|t| t.to_string()).collect(),
+    );
 
     if let Some(target) = remote_config.manager.get_target() {
         if **target == new_target {
@@ -781,7 +781,7 @@ pub unsafe extern "C" fn ddog_send_debugger_diagnostics<'a>(
         remote_config_state
             .manager
             .get_target()
-            .map_or("", |t| t.service.as_str()),
+            .map_or("", |t| t.service()),
     );
     let mut payload = ddog_debugger_diagnostics_create_unboxed(
         probe,

@@ -24,6 +24,7 @@ rename_types = "PascalCase"
 "ZendString" = "_zend_string"
 "FILE" = "FILE"
 "EndpointConfig" = "ddog_crasht_EndpointConfig"
+"Metadata" = "ddog_crasht_Metadata"
 "MaybeOwnedZendString" = "_zend_string *"
 
 [enum]
