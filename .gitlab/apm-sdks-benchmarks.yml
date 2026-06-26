@@ -1,11 +1,3 @@
-stages:
-  - php-laravel-realworld-parallel
-  - php-laravel-realworld-parallel-slo
-  - php-symfony-realworld-parallel
-  - php-symfony-realworld-parallel-slo
-  - php-wordpress-parallel
-  - php-wordpress-parallel-slo
-
 include:
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-php-laravel-realworld-parallel.yml'
