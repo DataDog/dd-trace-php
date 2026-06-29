@@ -121,7 +121,7 @@ class TelemetryTests {
         TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
             def allSeries = messages.collectMany { it.series }
             wafInit = allSeries.find { it.name == 'waf.init' }
-            def useRust = System.getProperty('USE_HELPER_RUST') != null
+            def useRust = TestParams.usesHelperRust()
             if (useRust) {
                 // RFC-1012: all boolean tags must be emitted unconditionally, so distinguish
                 // requests by tag value rather than tag count.
@@ -152,7 +152,7 @@ class TelemetryTests {
         assert wafReq1.tags.find { it.startsWith('waf_version:') } != null
         assert wafReq1.type == 'count'
         // RFC-1012: boolean tags must be present even when false (Rust helper only)
-        if (System.getProperty('USE_HELPER_RUST') != null) {
+        if (TestParams.usesHelperRust()) {
             assert 'rule_triggered:false' in wafReq1.tags
             assert 'request_blocked:false' in wafReq1.tags
             assert 'waf_timeout:false' in wafReq1.tags
@@ -175,7 +175,7 @@ class TelemetryTests {
         assert workerCount.points[0][1] >= 1.0
 
         // Check helper_runtime tag: only Rust helper should have it
-        if (System.getProperty('USE_HELPER_RUST') != null) {
+        if (TestParams.usesHelperRust()) {
             assert 'helper_runtime:rust' in wafInit.tags
             assert 'helper_runtime:rust' in wafReq1.tags
             assert 'helper_runtime:rust' in wafReq2.tags
@@ -287,7 +287,7 @@ class TelemetryTests {
         series.each {
             assert 'event_rules_version:1.1.1' in it.tags
             assert 'scope:item' in it.tags
-            if (System.getProperty('USE_HELPER_RUST') != null) {
+            if (TestParams.usesHelperRust()) {
                 assert 'action:update' in it.tags
             }
         }
@@ -323,7 +323,7 @@ class TelemetryTests {
         assert wafUpdates.type == 'count'
 
         // Check helper_runtime tag: only Rust helper should have it
-        if (System.getProperty('USE_HELPER_RUST') != null) {
+        if (TestParams.usesHelperRust()) {
             assert 'helper_runtime:rust' in wafUpdates.tags
             series.each { assert 'helper_runtime:rust' in it.tags }
         } else {
@@ -474,7 +474,7 @@ class TelemetryTests {
         TelemetryHelpers.Metric lfiTimeout
         TelemetryHelpers.Metric ssrfTimeout
 
-        def useRust = System.getProperty('USE_HELPER_RUST') != null
+        def useRust = TestParams.usesHelperRust()
         TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
             def allSeries = messages.collectMany { it.series }
             if (useRust) {
@@ -538,7 +538,7 @@ class TelemetryTests {
 
         // Check helper_runtime tag: only Rust helper should have it
         def raspMetrics = [wafReq1, lfiEval, lfiMatch, lfiTimeout, ssrfEval, ssrfMatch, ssrfTimeout]
-        if (System.getProperty('USE_HELPER_RUST') != null) {
+        if (TestParams.usesHelperRust()) {
             raspMetrics.each { assert 'helper_runtime:rust' in it.tags }
             // RFC-1012: event_rules_version must be present on all RASP per-rule metrics
             def raspRuleMetrics = [lfiEval, lfiMatch, lfiTimeout, ssrfEval, ssrfMatch, ssrfTimeout]
@@ -668,7 +668,7 @@ class TelemetryTests {
         assert wafReqTruncated.type == 'count'
 
         // Check helper_runtime tag: only Rust helper should have it
-        if (System.getProperty('USE_HELPER_RUST') != null) {
+        if (TestParams.usesHelperRust()) {
             assert 'helper_runtime:rust' in wafReqTruncated.tags
         } else {
             // C++ helper should NOT have the helper_runtime tag in telemetry
@@ -687,7 +687,7 @@ class TelemetryTests {
     @Test
     @Order(7)
     void 'waf duration span metrics and distributions are consistent'() {
-        Assumptions.assumeTrue(System.getProperty('USE_HELPER_RUST') != null,
+        Assumptions.assumeTrue(TestParams.usesHelperRust(),
                 'appsec.waf.duration distributions are only implemented on the Rust helper')
 
         Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
@@ -754,12 +754,12 @@ class TelemetryTests {
      * with backtraces. It sends an invalid message to the helper which triggers
      * an error with backtrace.
      *
-     * This test only runs when USE_HELPER_RUST is set (Rust helper implementation).
+     * This test only runs with the Rust helper implementation.
      */
     @Test
     @Order(8)
     void 'helper error telemetry includes backtrace'() {
-        Assumptions.assumeTrue(System.getProperty('USE_HELPER_RUST') != null)
+        Assumptions.assumeTrue(TestParams.usesHelperRust())
 
         Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
                 'datadog/2/ASM_FEATURES/asm_features_activation/config': [
@@ -871,7 +871,7 @@ class TelemetryTests {
     @Test
     @Order(9)
     void 'waf requests boolean tags are emitted unconditionally'() {
-        Assumptions.assumeTrue(System.getProperty('USE_HELPER_RUST') != null,
+        Assumptions.assumeTrue(TestParams.usesHelperRust(),
                 'RFC-1012 boolean tag compliance is only enforced on the Rust helper')
 
         Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
@@ -921,7 +921,7 @@ class TelemetryTests {
     @Test
     @Order(10)
     void 'waf requests request_blocked tag is true on blocking attack'() {
-        Assumptions.assumeTrue(System.getProperty('USE_HELPER_RUST') != null,
+        Assumptions.assumeTrue(TestParams.usesHelperRust(),
                 'request_blocked tag is only emitted unconditionally by the Rust helper')
 
         Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
@@ -984,7 +984,7 @@ class TelemetryTests {
     @Test
     @Order(11)
     void 'rasp duration span metrics and distributions are consistent'() {
-        Assumptions.assumeTrue(System.getProperty('USE_HELPER_RUST') != null,
+        Assumptions.assumeTrue(TestParams.usesHelperRust(),
                 'appsec.rasp.duration distributions are only implemented on the Rust helper')
 
         Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
@@ -1059,7 +1059,7 @@ class TelemetryTests {
     @Test
     @Order(12)
     void 'telemetry log redacts WafString contents'() {
-        Assumptions.assumeTrue(System.getProperty('USE_HELPER_RUST') != null)
+        Assumptions.assumeTrue(TestParams.usesHelperRust())
 
         Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
                 'datadog/2/ASM_FEATURES/asm_features_activation/config': [
@@ -1131,7 +1131,7 @@ class TelemetryTests {
     @Test
     @Order(13)
     void 'rasp rule match has block tag'() {
-        Assumptions.assumeTrue(System.getProperty('USE_HELPER_RUST') != null,
+        Assumptions.assumeTrue(TestParams.usesHelperRust(),
                 'block tag on rasp.rule.match is only implemented on the Rust helper')
 
         try {
@@ -1239,7 +1239,7 @@ class TelemetryTests {
     @Test
     @Order(20)
     void 'waf requests rate_limited tag is emitted'() {
-        Assumptions.assumeTrue(System.getProperty('USE_HELPER_RUST') != null,
+        Assumptions.assumeTrue(TestParams.usesHelperRust(),
                 'rate_limited tag is only implemented on the Rust helper')
 
         // Restart php-fpm with a rate limit of 1 trace/sec.
@@ -1337,7 +1337,7 @@ class TelemetryTests {
             assert resp.statusCode() == 200
         }
 
-        boolean useRust = System.getProperty('USE_HELPER_RUST') != null
+        boolean useRust = TestParams.usesHelperRust()
         TelemetryHelpers.Metric configError = null
         TelemetryHelpers.Log bundledDiagLog = null
 
