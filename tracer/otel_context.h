@@ -10,6 +10,8 @@ typedef struct ddtrace_root_span_data ddtrace_root_span_data;
 typedef struct ddtrace_span_stack ddtrace_span_stack;
 
 #ifdef __linux__
+#include <ext/datadog_export.h>
+
 #define DATADOG_PHP_PROFILING_OTEL_ATTRS_DATA_SIZE 612
 
 typedef struct {
@@ -21,7 +23,7 @@ typedef struct {
     uint8_t attrs_data[DATADOG_PHP_PROFILING_OTEL_ATTRS_DATA_SIZE];
 } datadog_otel_thr_ctx_rec;
 
-extern __thread void *otel_thread_ctx_v1;
+DATADOG_PUBLIC extern __thread void *otel_thread_ctx_v1;
 #endif // __linux__
 
 /**

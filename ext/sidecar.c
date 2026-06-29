@@ -435,8 +435,10 @@ void datadog_sidecar_minit(void) {
     }
 }
 
-void datadog_sidecar_handle_fork(void) {
+void datadog_sidecar_handle_fork(bool *runtime_id_changed) {
 #ifndef _WIN32
+    *runtime_id_changed = false;
+
     ddog_RemoteConfigFlags flags = {0};
     bool enable_sidecar = datadog_sidecar_should_enable(&flags);
 
@@ -444,6 +446,7 @@ void datadog_sidecar_handle_fork(void) {
         return;
     }
 
+    *runtime_id_changed = datadog_sidecar_instance_id != NULL;
     datadog_force_new_instance_id();
 
     // After fork only one thread (the one that called fork) survives, so we only
@@ -493,6 +496,8 @@ void datadog_sidecar_handle_fork(void) {
     if (DATADOG_G(sidecar)) {
         datadog_sidecar_for_signal = DATADOG_G(sidecar);
     }
+#else
+    *runtime_id_changed = false;
 #endif
 }
 

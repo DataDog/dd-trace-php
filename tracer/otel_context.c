@@ -5,10 +5,13 @@
 #include <ext/target_metadata.h>
 
 #ifdef __linux__
-#include "configuration.h"
-#include <stddef.h>
 #include <stdatomic.h>
+#include <stddef.h>
 #include <string.h>
+
+#include <ext/datadog_export.h>
+
+#include "configuration.h"
 #endif
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
@@ -33,6 +36,8 @@ _Static_assert(offsetof(ddtrace_root_span_data, otel_context) % 8 == 0, "unexpec
 _Static_assert(
     (offsetof(ddtrace_root_span_data, otel_context) + offsetof(datadog_otel_thr_ctx_rec, span_id)) % 8 == 0,
     "unexpected OTel thread context span_id placement");
+
+DATADOG_PUBLIC __thread void *otel_thread_ctx_v1 = NULL;
 
 static void ddtrace_otel_record_begin_update(datadog_otel_thr_ctx_rec *record);
 static void ddtrace_otel_record_end_update(datadog_otel_thr_ctx_rec *record);

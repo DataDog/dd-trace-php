@@ -19,9 +19,6 @@ pub use libdd_common_ffi::*;
 pub use libdd_library_config_ffi::*;
 pub use libdd_telemetry_ffi::*;
 
-#[cfg(target_os = "linux")]
-pub use libdd_otel_thread_ctx_ffi::*;
-
 use http::uri::{PathAndQuery, Scheme};
 use http::Uri;
 use libdd_common::entity_id::{get_container_id, set_cgroup_file};

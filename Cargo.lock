@@ -1327,7 +1327,6 @@ dependencies = [
  "libdd-data-pipeline",
  "libdd-library-config",
  "libdd-library-config-ffi",
- "libdd-otel-thread-ctx-ffi",
  "libdd-remote-config",
  "libdd-telemetry",
  "libdd-telemetry-ffi",
@@ -3016,23 +3015,6 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
-]
-
-[[package]]
-name = "libdd-otel-thread-ctx"
-version = "1.0.0"
-dependencies = [
- "build_common",
- "cc",
-]
-
-[[package]]
-name = "libdd-otel-thread-ctx-ffi"
-version = "1.0.0"
-dependencies = [
- "build_common",
- "libdd-common-ffi",
- "libdd-otel-thread-ctx",
 ]
 
 [[package]]
