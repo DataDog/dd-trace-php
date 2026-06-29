@@ -46,7 +46,7 @@ echo "baggage: " . ($headers['baggage'] ?? 'none') . "\n";
 // upstream _dd.p.foo not in outbound tags
 $dd_headers = DDTrace\generate_distributed_tracing_headers(['datadog']);
 $tags = $dd_headers['x-datadog-tags'] ?? '';
-echo "foo_in_tags: " . (str_contains($tags, '_dd.p.foo') ? "yes" : "no") . "\n";
+echo "foo_in_tags: " . (strpos($tags, '_dd.p.foo') !== false ? "yes" : "no") . "\n";
 
 DDTrace\close_span();
 ?>
