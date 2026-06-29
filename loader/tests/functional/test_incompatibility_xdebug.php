@@ -54,7 +54,8 @@ assertTelemetry($telemetryLogPath, <<<EOS
         }
     ]
 }
-EOS);
+EOS
+);
 
 $output = runCLI('-dzend_extension='.getenv("XDEBUG_SO_NAME").' -v', true, ['DD_TRACE_DEBUG=1', 'DD_INJECT_FORCE=1']);
 assertContains($output, 'Found extension file');
