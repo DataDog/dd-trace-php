@@ -79,14 +79,14 @@ class ProcessTagsWebTest extends WebFrameworkTestCase
             return $this->call(new RequestSpec(__FUNCTION__ . '_user', 'GET', '/set_service', []));
         });
         $userTags = $tracesUser[0][0]['meta']['_dd.tags.process'];
-        $this->assertStringContainsString('svc.user:true', $userTags);
-        $this->assertStringNotContainsString('svc.auto:', $userTags);
+        $this->assertStringContains('svc.user:true', $userTags);
+        $this->assertStringNotContains('svc.auto:', $userTags);
 
         $tracesAuto = $this->tracesFromWebRequest(function () {
             return $this->call(new RequestSpec(__FUNCTION__ . '_auto', 'GET', '/simple', []));
         });
         $autoTags = $tracesAuto[0][0]['meta']['_dd.tags.process'];
-        $this->assertStringNotContainsString('svc.user', $autoTags);
-        $this->assertStringContainsString('svc.auto:', $autoTags);
+        $this->assertStringNotContains('svc.user', $autoTags);
+        $this->assertStringContains('svc.auto:', $autoTags);
     }
 }
