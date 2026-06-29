@@ -1,0 +1,10 @@
+include:
+  - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
+    file: '.gitlab/ci-php-laravel-realworld-parallel.yml'
+    ref: 'main'
+  - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
+    file: '.gitlab/ci-php-symfony-realworld-parallel.yml'
+    ref: 'main'
+  - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
+    file: '.gitlab/ci-php-wordpress-parallel.yml'
+    ref: 'main'

@@ -3,6 +3,12 @@ stages:
   - tests
   - deploy
   - ci-build
+  - php-laravel-realworld-parallel
+  - php-laravel-realworld-parallel-slo
+  - php-symfony-realworld-parallel
+  - php-symfony-realworld-parallel-slo
+  - php-wordpress-parallel
+  - php-wordpress-parallel-slo
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
@@ -18,6 +24,7 @@ include:
     ref: 5826819695d93286569e70ed087ae6bf906ce2c3
     file: templates/ci_authenticated_job.yml
   - local: .gitlab/ci-images.yml
+  - local: .gitlab/apm-sdks-benchmarks.yml
 
 generate-templates:
   stage: build
