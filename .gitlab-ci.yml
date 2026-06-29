@@ -6,8 +6,8 @@ stages:
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
-  # Only clone libdatadog submodule by default
-  GIT_SUBMODULE_PATHS: libdatadog
+  # Only clone submodules required by default test jobs
+  GIT_SUBMODULE_PATHS: libdatadog tests/FeatureFlags/ffe-system-test-data
   RELIABILITY_ENV_BRANCH:
     value: "master"
     description: "Run a specific datadog-reliability-env branch downstream"
@@ -45,6 +45,9 @@ generate-templates:
       elif [ "${CI_COMMIT_BRANCH:-}" = "bot/libdatadog-latest" ]; then
         # Feedback run after a bot commit: the submodule already points to the tested SHA.
         # Don't export — generate-common.php must not inject fetch/checkout (no-op anyway).
+        set -x
+        apt update
+        apt install -y git
         LIBDATADOG_SHA=$(git ls-tree HEAD libdatadog | awk '{print $3}')
         printf 'LIBDATADOG_OVERRIDE_SHA=%s\nLIBDATADOG_FEEDBACK_RUN=true\n' "$LIBDATADOG_SHA" >> libdatadog.env
       fi
@@ -71,6 +74,8 @@ tracer-trigger:
     strategy: depend
   variables:
     PARENT_PIPELINE_ID: $CI_PIPELINE_ID
+    GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_PATHS: libdatadog tests/FeatureFlags/ffe-system-test-data
 
 appsec-trigger:
   stage: tests
@@ -119,7 +124,7 @@ package-trigger:
       pipeline_variables: true
   variables:
     PARENT_PIPELINE_ID: $CI_PIPELINE_ID
-    GIT_SUBMODULE_PATHS: libdatadog appsec/third_party/libddwaf-rust
+    GIT_SUBMODULE_PATHS: libdatadog tests/FeatureFlags/ffe-system-test-data appsec/third_party/libddwaf-rust
     NIGHTLY_BUILD: $NIGHTLY_BUILD
 
 # Runs after the full CI completes.  Triggered in two situations:

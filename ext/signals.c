@@ -3,10 +3,10 @@
 #include "crashtracking_frames.h"
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
-#include "php_config.h"
+#include <php_config.h>
 
 #if HAVE_SIGACTION
 
@@ -15,16 +15,16 @@
 #include <signal.h>
 
 #include "configuration.h"
-#include "ddtrace.h"
+#include "datadog.h"
+#include "ffi_utils.h"
 #include "sidecar.h"
-#include "auto_flush.h"
-#include "ext/version.h"
+#include "version.h"
 #include <components/log/log.h>
 #include "logging.h"
-#undef ddtrace_bgs_logf
+#undef datadog_signal_safe_logf
 
 #include <components-rs/common.h>
-#include <components-rs/ddtrace.h>
+#include <components-rs/datadog.h>
 #include <components-rs/crashtracker.h>
 
 #if PHP_VERSION_ID >= 80000
@@ -33,12 +33,12 @@
 #endif
 
 #if defined HAVE_EXECINFO_H && defined backtrace_size_t && defined HAVE_BACKTRACE
-#define DDTRACE_HAVE_BACKTRACE 1
+#define DATADOG_HAVE_BACKTRACE 1
 #else
-#define DDTRACE_HAVE_BACKTRACE 0
+#define DATADOG_HAVE_BACKTRACE 0
 #endif
 
-#if DDTRACE_HAVE_BACKTRACE
+#if DATADOG_HAVE_BACKTRACE
 #include <execinfo.h>
 #endif
 
@@ -57,38 +57,39 @@ static char crashtracker_socket_path[100] = {0};
 static char *dd_signal_async_stack;
 static size_t dd_signal_async_stack_size;
 
-ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
+ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
 static void dd_sigsegv_handler(int sig) {
-    if (!DDTRACE_G(backtrace_handler_already_run)) {
-        DDTRACE_G(backtrace_handler_already_run) = true;
-        ddtrace_bgs_logf("[crash] Segmentation fault encountered");
+    if (!DATADOG_G(backtrace_handler_already_run)) {
+        DATADOG_G(backtrace_handler_already_run) = true;
+        datadog_signal_safe_logf("[crash] Segmentation fault encountered");
 
-#if HAVE_SIGACTION
+#if HAVE_SIGACTION && defined(DDTRACE)
         bool health_metrics_enabled = get_DD_TRACE_HEALTH_METRICS_ENABLED();
         if (health_metrics_enabled) {
+            // TODO: emit in sidecar
             dogstatsd_client *client = &DDTRACE_G(dogstatsd_client);
             const char *metric = "datadog.tracer.uncaught_exceptions";
             const char *tags = "class:sigsegv";
             dogstatsd_client_status status = dogstatsd_client_count(client, metric, "1", tags);
 
             if (status == DOGSTATSD_CLIENT_OK) {
-                ddtrace_bgs_logf("[crash] sigsegv health metric sent");
+                datadog_signal_safe_logf("[crash] sigsegv health metric sent");
             }
         }
 #endif
 
-#if DDTRACE_HAVE_BACKTRACE
-        ddtrace_bgs_logf("Datadog PHP Trace extension (DEBUG MODE)");
-        ddtrace_bgs_logf("Received Signal %d", sig);
+#if DATADOG_HAVE_BACKTRACE
+        datadog_signal_safe_logf("Datadog PHP Trace extension (DEBUG MODE)");
+        datadog_signal_safe_logf("Received Signal %d", sig);
         void *array[MAX_STACK_SIZE];
         backtrace_size_t size = backtrace(array, MAX_STACK_SIZE);
         if (size == MAX_STACK_SIZE) {
-            ddtrace_bgs_logf("Note: max stacktrace size reached");
+            datadog_signal_safe_logf("Note: max stacktrace size reached");
         }
 
-        ddtrace_bgs_logf("Note: Backtrace below might be incomplete and have wrong entries due to optimized runtime");
-        ddtrace_bgs_logf("Backtrace:");
+        datadog_signal_safe_logf("Note: Backtrace below might be incomplete and have wrong entries due to optimized runtime");
+        datadog_signal_safe_logf("Backtrace:");
 
         char **backtraces = backtrace_symbols(array, size);
         if (backtraces) {
@@ -100,7 +101,7 @@ static void dd_sigsegv_handler(int sig) {
 #endif
     }
 
-    int error_log_fd = atomic_load(&ddtrace_error_log_fd);
+    int error_log_fd = atomic_load(&datadog_error_log_fd);
     if (error_log_fd != -1) {
 #ifndef _WIN32
         fsync(error_log_fd);
@@ -182,11 +183,22 @@ const ddog_CharSlice PHP_OPCACHE_ENABLE = DDOG_CHARSLICE_C("php.opcache.enable")
 // Fetches certain opcache tags and adds them with the pattern of php.opcache.*.
 static void dd_crasht_add_opcache_inis(ddog_Vec_Tag *tags) {
 #if PHP_VERSION_ID >= 80000
-    // We'll push php.opcache.enabled:0 whenever we detect we're disabled.
-
     bool loaded = zend_get_extension("Zend OPcache");
     if (UNEXPECTED(!loaded)) {
         goto opcache_disabled;
+    }
+
+    // The CLI SAPI has an additional configuration for being enabled. This is
+    // INI_SYSTEM so we can check it here.
+    bool is_cli_sapi = strcmp("cli", sapi_module.name) == 0;
+    if (is_cli_sapi) {
+        ddog_CharSlice tag = DDOG_CHARSLICE_C("php.opcache.enable_cli");
+        zend_string *value = dd_crasht_find_ini_by_tag(tag);
+        if (EXPECTED(value)) {
+            bool is_enabled = zend_ini_parse_bool(value);
+            ddog_CharSlice val = is_enabled ? ONE : ZERO;
+            dd_crasht_push_tag(tags, tag, val);
+        }
     }
 
     // opcache.jit_buffer_size is INI_SYSTEM, so we can check it now. If it's
@@ -208,25 +220,6 @@ static void dd_crasht_add_opcache_inis(ddog_Vec_Tag *tags) {
                 ? dd_zend_string_to_CharSlice(value)
                 : ZERO;
             dd_crasht_push_tag(tags, tag, val);
-            if (UNEXPECTED(!is_positive)) {
-                goto opcache_disabled;
-            }
-        }
-    }
-
-    // The CLI SAPI has an additional configuration for being enabled. This is
-    // INI_SYSTEM so we can check it here.
-    bool is_cli_sapi = strcmp("cli", sapi_module.name) == 0;
-    if (is_cli_sapi) {
-        ddog_CharSlice tag = DDOG_CHARSLICE_C("php.opcache.enable_cli");
-        zend_string *value = dd_crasht_find_ini_by_tag(tag);
-        if (EXPECTED(value)) {
-            bool is_enabled = zend_ini_parse_bool(value);
-            ddog_CharSlice val = is_enabled ? ONE : ZERO;
-            dd_crasht_push_tag(tags, tag, val);
-            if (UNEXPECTED(!is_enabled)) {
-                goto opcache_disabled;
-            }
         }
     }
 
@@ -270,7 +263,7 @@ static void dd_init_crashtracker() {
     free((void *) socket_path.ptr);
     socket_path.ptr = crashtracker_socket_path;
 
-    if (!ddtrace_endpoint) {
+    if (!datadog_endpoint) {
         return;
     }
 
@@ -286,12 +279,12 @@ static void dd_init_crashtracker() {
             .collect_all_threads = true,
             .max_threads = 0, // uses libdatadog default, which is 256
         },
-        .metadata = ddtrace_setup_crashtracking_metadata(&tags),
+        .metadata = datadog_setup_crashtracking_metadata(&tags),
     };
 
-    ddtrace_endpoint_as_crashtracker_config(ddtrace_endpoint, dd_crasht_do_init, &args);
+    datadog_endpoint_as_crashtracker_config(datadog_endpoint, dd_crasht_do_init, &args);
 
-    ddtrace_register_crashtracking_frames_collection();
+    datadog_register_crashtracking_frames_collection();
 
     ddog_Vec_Tag_drop(tags);
 }
@@ -303,18 +296,18 @@ static void dd_signals_init_async_stack() {
     }
 }
 
-void ddtrace_signals_first_rinit(void) {
-    DDTRACE_G(backtrace_handler_already_run) = false;
+void datadog_signals_first_rinit(void) {
+    DATADOG_G(backtrace_handler_already_run) = false;
 
     // Signal handlers are causing issues with FrankenPHP.
-    if (ddtrace_active_sapi == DATADOG_PHP_SAPI_FRANKENPHP) {
+    if (datadog_active_sapi == DATADOG_PHP_SAPI_FRANKENPHP) {
         return;
     }
 
     bool install_crashtracker = get_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_CRASHTRACKING_ENABLED();
 
     bool install_backtrace_handler = get_DD_TRACE_HEALTH_METRICS_ENABLED();
-#if DDTRACE_HAVE_BACKTRACE
+#if DATADOG_HAVE_BACKTRACE
     install_backtrace_handler |= get_DD_LOG_BACKTRACE();
 #endif
 
@@ -365,7 +358,7 @@ static int dd_call_prev_handler(bool flush) {
     }
 
     if (flush) {
-        ddog_sidecar_flush(&ddtrace_sidecar_for_signal, (ddog_SidecarFlushOptions){.traces_and_stats = true});
+        ddog_sidecar_flush(&datadog_sidecar_for_signal, (ddog_SidecarFlushOptions){.traces_and_stats = true});
     }
 
     if (prev_handler == SIG_DFL) {
@@ -405,7 +398,7 @@ static void dd_sigint_sigterm_handler(int sig, siginfo_t *si, void *uc) {
     memcpy(&dd_signal_data.si, si, sizeof(*si));
     dd_signal_data.uc = uc;
 
-    if (ddtrace_sidecar_for_signal) {
+    if (datadog_sidecar_for_signal) {
         // Spawn a thread using clone() to perform sidecar cleanup asynchronously to avoid async unsafeness in the signal handler
         void *stack_top = dd_signal_async_stack + dd_signal_async_stack_size;
         int flags = CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD;
@@ -416,7 +409,7 @@ static void dd_sigint_sigterm_handler(int sig, siginfo_t *si, void *uc) {
 }
 #endif
 
-void ddtrace_signals_minit(void) {
+void datadog_signals_minit(void) {
 #if __linux
     dd_sigint_sigterm_sigaction.sa_sigaction = dd_sigint_sigterm_handler;
     dd_sigint_sigterm_sigaction.sa_flags = SA_SIGINFO;
@@ -432,7 +425,7 @@ void ddtrace_signals_minit(void) {
 #endif
 }
 
-void ddtrace_signals_mshutdown(void) {
+void datadog_signals_mshutdown(void) {
 #if __linux
     if (dd_sigint_sigterm_sigaction.sa_sigaction) {
         if (get_global_DD_TRACE_FORCE_FLUSH_ON_SIGTERM()) {
@@ -451,12 +444,12 @@ void ddtrace_signals_mshutdown(void) {
 }
 
 #else
-void ddtrace_signals_first_rinit(void) {}
-void ddtrace_signals_mshutdown(void) {}
+void datadog_signals_first_rinit(void) {}
+void datadog_signals_mshutdown(void) {}
 #endif
 
 // This allows us to include the executing php binary and extensions themselves in the core dump too
-void ddtrace_set_coredumpfilter(void) {
+void datadog_set_coredumpfilter(void) {
     FILE *fp = fopen("/proc/self/coredump_filter", "r+");
     if (!fp) {
         return;

@@ -13,6 +13,9 @@ effort: max
 
 Systematically analyze a dd-trace-php crash report to identify the root cause.
 
+> **Schema note:** The event file you receive is the **backend-enriched** form,
+> not the one libdatadog emits.
+
 ## Input
 
 The user provides a crash event JSON file (path via `$ARGUMENTS`, or pasted
@@ -25,23 +28,58 @@ file. Do all extractions in parallel where possible.
 
 | Field | Command |
 |-------|---------|
-| Library version | `jq -c .metadata.library_version $EVENT` |
+| Library version | `jq -r '.tracer_version // (.library_version \| "\(.major).\(.minor).\(.patch)")' $EVENT` |
 | Signal | `jq -c .sig_info $EVENT` |
-| Native stacktrace | `jq -c .error.stack.frames $EVENT` |
+| Error summary | `jq -r '"\(.error.type // "") \(.error.message // "")"' $EVENT` |
+| Crash diagnosis | `jq -c .crash_diagnosis $EVENT` |
+| Native stacktrace | `jq -c '.error.stack.frames' $EVENT` |
 | PHP stacktrace | `jq -c .experimental.runtime_stack.frames $EVENT` |
 | Mapped files | `jq -c '.files["/proc/self/maps"]' $EVENT` |
 | Registers | `jq -c '.ucontext // .experimental.ucontext' $EVENT \| .claude/parse_ucontext.py` |
-| PHP version | `jq -r '.language_version // (.metadata.tags[] \| select(startswith("runtime_version:")) \| split(":")[1])' $EVENT` |
+| PHP version | `jq -r '.language_version // .runtime_version // (.metadata.tags[] \| select(startswith("runtime_version:")) \| split(":")[1])' $EVENT` |
+| OS / arch | `jq -r '(.os_info.os_type // .host.os) + " " + (.os_info.architecture // .host.arch // "unknown") + " (kernel " + (.host.version // "?") + ")"' $EVENT` |
 
-> **Note:** `parse_ucontext.py` only supports amd64. On aarch64, skip this step
-> and read register values directly from `.ucontext` (or `.experimental.ucontext`
-> in older events).
+> **Note:** `parse_ucontext.py` only supports amd64. Check `.ucontext.arch`
+> first; on aarch64, skip the script and read register values directly from
+> `.ucontext.raw`.
 
-From the mapped files, determine:
-- **Products loaded**: look for `ddtrace.so`, `ddappsec.so`, `datadog-profiling.so`
-- **SSI mode**: check for `libddtrace_php.so` and `dd_library_loader.so` — if present, the process is running the SSI (Single-Step Instrumentation) package. See [SSI architecture](#ssi-architecture) below.
-- **OS/arch**: architecture (x86_64 or aarch64)
-- **libc**: GNU (`ld-linux-x86-64.so`) or musl (`ld-musl-x86-64.so`)
+### crash_diagnosis (schema 1.8+)
+
+`crash_diagnosis` is computed **server-side by the Datadog errors-worker**
+(DataDog/dd-source,
+`domains/evp-workers/apps/errors-worker/src/crashtracking/`), not by
+libdatadog. It consumes `sig_info`, `ucontext.registers`, and `/proc/self/maps`
+from the event; if any is absent, the field is omitted. Use it to confirm (not
+skip!) manual triage steps:
+
+| Field | Meaning |
+|-------|---------|
+| `category` | Crash category — see enum below |
+| `summary` | One-line human-readable description |
+| `details` | Extended description with signal/address details and analysis rationale |
+| `crashLocation` | Optional. The memory mapping containing the instruction pointer at crash time |
+| `crashLocation.path` | Binary where the crashing instruction lives |
+| `crashLocation.offsetInMapping` | Offset within that binary's mapped region (hex) |
+| `crashLocation.permissions` | Mapping permissions (`r-xp` = executable code) |
+| `faultAddressMapped` | Optional. `true` = fault address is in a mapped region; `false` = not mapped (wild pointer); absent if `si_addr` unavailable |
+| `faultAddressMapping` | If `faultAddressMapped` is `true`, the mapping containing the fault address |
+| `nullRegisters` | Registers whose value was < 0x1000 (null page threshold) at crash time — these are the likely null pointer sources for a `NullPointerDereference` |
+| `stackPointerValid` | Optional. `false` = SP is outside the `[stack]` mapping; stack is corrupt; makes native stacktrace unreliable |
+
+#### DiagnosisCategory enum (complete)
+
+| Value | Signal | Condition |
+|-------|--------|-----------|
+| `NullPointerDereference` | SIGSEGV/SEGV_MAPERR | fault addr < 0x1000 (null page) |
+| `StackOverflow` | SIGSEGV/SEGV_MAPERR | fault addr within 8 KB of stack guard page |
+| `UseAfterFree` | SIGSEGV/SEGV_MAPERR | fault addr within 1 MB past heap end |
+| `WildPointer` | SIGSEGV/SEGV_MAPERR | unmapped address, no recognizable pattern |
+| `WriteToReadOnly` | SIGSEGV/SEGV_ACCERR | faulting mapping is non-writable |
+| `ExecuteNonExecutable` | SIGSEGV/SEGV_ACCERR or SIGILL | fault addr == IP and mapping is non-executable |
+| `MisalignedAccess` | SIGBUS/BUS_ADRALN | misaligned memory access (BUS_ADRALN only — BUS_ADRERR, e.g. file-mapped access beyond EOF, maps to `Unknown`) |
+| `IllegalInstruction` | SIGILL | invalid opcode in executable region |
+| `IntentionalAbort` | SIGABRT | assert(), panic!(), or allocator corruption |
+| `Unknown` | any | no pattern matched |
 
 ### SSI architecture
 
@@ -50,7 +88,7 @@ When the Datadog SSI package is installed, the process loads **four** binaries i
 | Binary | Typical text size | Role |
 |--------|------------------|------|
 | `dd_library_loader.so` | ~28 KiB | Zend extension (loaded via `zend_extension=`); bootstraps everything else |
-| `libddtrace_php.so` | ~10 MiB | Shared library with sidecar, crashtracker, and Rust components; loaded by the loader with `RTLD_GLOBAL` |
+| `libdatadog_php.so` | ~10 MiB | Shared library with sidecar, crashtracker, and Rust components; loaded by the loader with `RTLD_GLOBAL` |
 | `ddtrace.so` (SSI standalone) | ~750 KiB | PHP extension with most tracer logic; much smaller than monolithic ddtrace.so |
 | `ddappsec.so` | ~630 KiB | AppSec extension; same binary for SSI and non-SSI |
 
@@ -58,7 +96,7 @@ When the Datadog SSI package is installed, the process loads **four** binaries i
 
 Loading order (the loader is a Zend extension and fires before any `extension=` module):
 1. `dd_library_loader.so` MINIT fires
-2. Loader calls `dlopen(libddtrace_php.so, RTLD_NOW|RTLD_GLOBAL)`
+2. Loader calls `dlopen(libdatadog_php.so, RTLD_NOW|RTLD_GLOBAL)`
 3. Loader calls `zend_register_internal_module` for the SSI `ddtrace.so`
 4. PHP processes `extension=` directives; any `extension=ddtrace.so` pointing elsewhere is rejected as duplicate
 
@@ -76,16 +114,17 @@ crash and understand context:
 | `profiler_unwinding` | `0` | `counters.rs` | Nonzero = profiler was unwinding the stack at crash time. |
 | `profiler_serializing` | `0` | `counters.rs` | Nonzero = profiler was serializing data at crash time. |
 | `si_signo` | `11` | `sig_info.rs` | Raw signal number (`11` = `SIGSEGV`). |
-| `si_signo_human_readable` | `sigsegv` | `sig_info.rs` | Signal name (`SIGSEGV`, `SIGBUS`, `SIGILL`, `SIGFPE`, …). Older versions may be lowercase. |
+| `si_signo_human_readable` | `SIGSEGV` | `sig_info.rs` | Signal name (`SIGSEGV`, `SIGBUS`, `SIGILL`, `SIGFPE`, …). Always uppercase. |
 | `si_code` | `1` | `sig_info.rs` | Raw signal code; meaning is signal-dependent. |
-| `si_code_human_readable` | `segv_maperr` | `sig_info.rs` | Signal code name (`SEGV_MAPERR`, `SEGV_ACCERR`, `BUS_ADRALN`, `ILL_ILLOPC`, …). |
+| `si_code_human_readable` | `SEGV_MAPERR` | `sig_info.rs` | Signal code name (`SEGV_MAPERR`, `SEGV_ACCERR`, `BUS_ADRALN`, `ILL_ILLOPC`, …). |
 | `si_addr` | `0x00007ff894af86c8` | `sig_info.rs` | Fault address from `siginfo_t.si_addr`. |
 | `is_crash` | `true` | `errors_intake.rs` / `sidecar.c` | Always `true` for crash reports. |
 | `incomplete` | `false` | `errors_intake.rs` | `true` = stack trace is truncated / could not fully unwind. |
-| `data_schema_version` | `1.4` | `errors_intake.rs` | JSON schema version; current is `1.5`. |
+| `language` | `php` | `sidecar.c` | Language identifier pushed as `language:php`. |
+| `runtime` | `php` | `sidecar.c` | Runtime identifier pushed as `runtime:php`. |
+| `data_schema_version` | `1.8` | `errors_intake.rs` | JSON schema version; current is `1.8`. |
 | `uuid` | `2f530826-…` | `errors_intake.rs` | RFC 4122 UUID shared between crash ping and crash report. |
 | `version` | `1.16.0` | `sidecar.c` | Service version from `DD_VERSION` or the active APM span. |
-| `source` | `php` | `sidecar.c` | Language/runtime identifier (`"php"`). |
 | `team` | `telemetry-and-analytics` | Datadog backend | Internal routing tag injected by the intake pipeline. Not from PHP code. |
 | `instrumented_service` | `web.request` | Datadog Agent/backend | Resource/span type at crash time. Not from PHP code. |
 | `datacenter` | `us1.prod.dog` | Datadog backend | Intake datacenter/region tag. Not from PHP code. |
@@ -96,13 +135,29 @@ Check whether any profiler counter (`profiler_collecting_sample`,
 `profiler_unwinding`, `profiler_serializing`) is nonzero — this attributes the
 crash to profiler activity.
 
-Print the triage summary before continuing.
+From the mapped files, determine:
+- **Products loaded**: look for `ddtrace.so`, `ddappsec.so`,
+  `datadog-profiling.so`
+- **SSI mode**: check for `libdatadog_php.so` and `dd_library_loader.so` — if
+  present, the process is running the SSI (Single-Step Instrumentation)
+  package. See [SSI architecture](#ssi-architecture) below.
+- **OS/arch**: prefer `os_info.architecture` (schema 1.8+) over `host.arch`
+  (which may be empty), but fall back to reading the mapped ld-linux file name
+- **libc**: GNU (`ld-linux-x86-64.so`) or musl (`ld-musl-x86-64.so`)
+
+Finally, print the triage summary before continuing.
 
 ## Phase 2 — Stacktrace correlation
 
 Checkout the matching version tag in a worktree (tags are like `1.16.0`).
 For PHP source, use the `php-src` repository next to this checkout; PHP tags
 are like `PHP-8.1.33`.
+
+PHP runtime frames (`experimental.runtime_stack.frames`, format: `"Datadog
+Runtime Callback 1.0"`) contain:
+- `file` / `function` / `line` — source location
+- `type_name` — class name when the frame is a method call (e.g.
+  `"Couchbase\\Collection"`)
 
 > **Note:** Ondřej Surý packages for Debian may be slightly modified relative to
 > upstream PHP. If discrepancies appear, use `apt-get source` inside an
@@ -132,6 +187,18 @@ If frames land in unknown binaries, note them but focus on Datadog frames first.
 **If you can identify the root cause at this point, stop and report.** Only
 continue to Phase 3/4 if the analysis is ambiguous or low-confidence.
 
+Note: the authoritative native stacktrace for the crashing thread is
+**`.error.stack.frames`** (format: `"Datadog Crashtracker 1.0"`, always
+populated when a stack could be captured). The crashing thread name is in
+`.error.thread_name`.
+
+`error.threads` is a per-thread snapshot array present in schema 1.8+. Each
+element carries a `crashed` boolean flag, `name`, `state`, and `stack.{frames,
+incomplete}`. In practice, `crashed` is often `false` on every thread and
+`stack.frames` is `null` with `incomplete: true` — the per-thread stacks are
+frequently unavailable. Use them as supplementary context only; do not rely on
+them as the primary frame source.
+
 ## Phase 3 — Binary verification (if needed)
 
 If the stacktrace correlation is ambiguous or the crash is in Datadog code:
@@ -139,7 +206,7 @@ If the stacktrace correlation is ambiguous or the crash is in Datadog code:
 ### Datadog binaries
 
 1. Download the release binaries:
-   - **SSI** (`libddtrace_php.so` in maps): fetches from ECR public, no credentials needed:
+   - **SSI** (`libdatadog_php.so` in maps): fetches from ECR public, no credentials needed:
      ```
      .claude/dd_php_release_url --ssi '<version>' '<arch>'
      ```
@@ -148,7 +215,8 @@ If the stacktrace correlation is ambiguous or the crash is in Datadog code:
      .claude/dd_php_release_url '<version>' '<php_minor>' '<arch>' '<gnu|musl>'
      ```
    Both print a temp directory with the extracted package. Use the version
-   exactly as it appears in `metadata.library_version`.
+   exactly as it appears in `tracer_version` (or reconstructed from
+   `library_version`).
 
 2. Verify the binary matches the crash by comparing:
    - Size of first mapped region (from `/proc/self/maps`) vs. `p_memsz` of the

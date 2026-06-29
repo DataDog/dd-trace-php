@@ -100,6 +100,7 @@ class QueueTestNotDistributed extends WebFrameworkTestCase
             Tag::SPAN_KIND                  => 'client',
             Tag::COMPONENT                  => 'laravelqueue',
 
+            '_dd.svc_src' => 'laravelqueue',
             Tag::MQ_SYSTEM                  => 'laravel',
             Tag::MQ_DESTINATION_KIND        => 'queue',
 

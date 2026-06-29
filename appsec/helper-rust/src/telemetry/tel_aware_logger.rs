@@ -107,7 +107,7 @@ fn submit_error_to_telemetry(record: &Record) {
         tags.add("module", module);
     }
 
-    let message = format!("{}", record.args());
+    let message = redact_waf_strings(&format!("{}", record.args())).into_owned();
 
     let location = if let (Some(module), Some(line)) = (record.module_path(), record.line()) {
         Cow::Owned(format!("{}:{}", module, line))
@@ -153,6 +153,53 @@ impl<'kvs> VisitSource<'kvs> for BacktraceExtractor {
         }
         Ok(())
     }
+}
+
+/// Replace every `WafString("…")` span with `WafString("<REDACTED>")`.
+///
+/// The Debug impl of libddwaf `WafString` escapes `"` as `\"` and `\` as `\\`
+/// inside the delimiters, so the closing `")` can only be an unescaped `"`
+/// followed by `)`. Returns `Cow::Borrowed` when no replacement is needed.
+pub(crate) fn redact_waf_strings(msg: &str) -> Cow<'_, str> {
+    const OPEN: &str = "WafString(\"";
+    const REPLACEMENT: &str = "WafString(\"<REDACTED>\")";
+
+    if !msg.contains(OPEN) {
+        return Cow::Borrowed(msg);
+    }
+
+    let mut out = String::with_capacity(msg.len());
+    let mut rest = msg;
+
+    while let Some(open_at) = rest.find(OPEN) {
+        let content = &rest[open_at + OPEN.len()..];
+        let Some(end) = find_waf_string_end(content) else {
+            break;
+        };
+        out.push_str(&rest[..open_at]);
+        out.push_str(REPLACEMENT);
+        rest = &content[end..];
+    }
+
+    out.push_str(rest);
+    Cow::Owned(out)
+}
+
+/// Given the bytes right after the opening `WafString("`, return the offset
+/// just past the closing `")`, treating `\\` and `\"` as escapes inside the
+/// quoted content. Returns `None` if the string is unterminated.
+fn find_waf_string_end(content: &str) -> Option<usize> {
+    let bytes = content.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'\\' if i + 1 < bytes.len() => i += 2, // skip escaped char
+            b'"' if bytes.get(i + 1) == Some(&b')') => return Some(i + 2),
+            b'"' => return None, // bare `"` not followed by `)` — malformed
+            _ => i += 1,
+        }
+    }
+    None
 }
 
 fn extract_anyhow_backtrace(record: &Record) -> Option<String> {
@@ -299,6 +346,61 @@ mod tests {
 
         let extracted = extract_anyhow_backtrace(&record);
         assert!(extracted.is_none());
+    }
+
+    #[test]
+    fn test_redact_waf_strings_no_match_is_borrowed() {
+        let input = "no waf data here, just text";
+        let out = redact_waf_strings(input);
+        assert!(matches!(out, Cow::Borrowed(_)));
+        assert_eq!(out, input);
+    }
+
+    #[test]
+    fn test_redact_waf_strings_single() {
+        let input = r#"error: WafString("Mozilla/5.0 secret")"#;
+        let out = redact_waf_strings(input);
+        assert_eq!(out, r#"error: WafString("<REDACTED>")"#);
+    }
+
+    #[test]
+    fn test_redact_waf_strings_escaped_quote_not_treated_as_close() {
+        let input = r#"WafString("say \"hi\"")"#;
+        let out = redact_waf_strings(input);
+        assert_eq!(out, r#"WafString("<REDACTED>")"#);
+    }
+
+    #[test]
+    fn test_redact_waf_strings_escaped_backslash_before_close() {
+        let input = r#"WafString("trailing backslash\\")"#;
+        let out = redact_waf_strings(input);
+        assert_eq!(out, r#"WafString("<REDACTED>")"#);
+    }
+
+    #[test]
+    fn test_primary_delegate_receives_unredacted_error_message() {
+        let logs = Arc::new(Mutex::new(Vec::new()));
+        let primary = Box::new(TestLogger { logs: logs.clone() });
+        let composite = TelemetryAwareLogger::new(primary);
+
+        let record = log::Record::builder()
+            .args(format_args!(
+                r#"error in request loop: unexpected command WafString("ORIGINAL_SECRET")"#
+            ))
+            .level(Level::Error)
+            .build();
+
+        composite.log(&record);
+
+        let captured = logs.lock().unwrap();
+        assert_eq!(captured.len(), 1);
+        // Delegate must see the original, unredacted message.
+        assert!(
+            captured[0].contains("ORIGINAL_SECRET"),
+            "delegate did not receive the original message, got: {}",
+            captured[0]
+        );
+        assert!(!captured[0].contains("<REDACTED>"));
     }
 
     #[test]

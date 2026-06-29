@@ -280,9 +280,13 @@ EOD;
         $this->assertEquals(["env" => "test", "bKey"  => "", "dKey"  => "", "dVal"  => "", "cKey"  => ""], \dd_trace_env_config("DD_TAGS"));
     }
 
-    public function testHttpHeadersDefaultsToEmpty()
+    public function testHttpHeadersDefaultsToSecurityTestingHeaders()
     {
-        $this->assertEmpty(\dd_trace_env_config("DD_TRACE_HEADER_TAGS"));
+        // x-datadog-endpoint-scan and x-datadog-security-test are always present (APPSEC-62412)
+        $this->assertSame(
+            ['x-datadog-endpoint-scan' => '', 'x-datadog-security-test' => ''],
+            \dd_trace_env_config("DD_TRACE_HEADER_TAGS")
+        );
     }
 
     public function testHttpHeadersCanSetOne()
@@ -290,7 +294,11 @@ EOD;
         $this->putEnvAndReloadConfig([
             'DD_TRACE_HEADER_TAGS=A-Header',
         ]);
-        $this->assertSame(['a-header'], array_keys(\dd_trace_env_config("DD_TRACE_HEADER_TAGS")));
+        // Security-testing headers are always present alongside user-configured ones
+        $this->assertSame(
+            ['a-header', 'x-datadog-endpoint-scan', 'x-datadog-security-test'],
+            array_keys(\dd_trace_env_config("DD_TRACE_HEADER_TAGS"))
+        );
     }
 
     public function testHttpHeadersCanSetMultiple()
@@ -298,7 +306,13 @@ EOD;
         $this->putEnvAndReloadConfig([
             'DD_TRACE_HEADER_TAGS=A-Header   ,Any-Name    ,    cOn7aining-!spe_cial?:ch/ars    , valueless:, Some-Header:with-colon-Key',
         ]);
-        $this->assertSame(['a-header', 'any-name', 'con7aining-!spe_cial?', 'valueless', 'some-header'], array_keys(\dd_trace_env_config("DD_TRACE_HEADER_TAGS")));
-        $this->assertEquals(['a-header' => '', 'any-name' => '', 'con7aining-!spe_cial?' => 'ch/ars', 'valueless' => '', 'some-header' => 'with-colon-Key'], \dd_trace_env_config("DD_TRACE_HEADER_TAGS"));
+        $this->assertSame(
+            ['a-header', 'any-name', 'con7aining-!spe_cial?', 'valueless', 'some-header', 'x-datadog-endpoint-scan', 'x-datadog-security-test'],
+            array_keys(\dd_trace_env_config("DD_TRACE_HEADER_TAGS"))
+        );
+        $this->assertEquals(
+            ['a-header' => '', 'any-name' => '', 'con7aining-!spe_cial?' => 'ch/ars', 'valueless' => '', 'some-header' => 'with-colon-Key', 'x-datadog-endpoint-scan' => '', 'x-datadog-security-test' => ''],
+            \dd_trace_env_config("DD_TRACE_HEADER_TAGS")
+        );
     }
 }

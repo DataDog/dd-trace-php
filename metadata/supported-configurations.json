@@ -270,6 +270,13 @@
         "default": "true"
       }
     ],
+    "DD_DBM_ALWAYS_APPEND_SQL_COMMENT": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
     "DD_DBM_INJECT_SQL_BASEHASH": [
       {
         "implementation": "A",
@@ -362,6 +369,13 @@
       }
     ],
     "DD_EXCEPTION_REPLAY_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED": [
       {
         "implementation": "A",
         "type": "boolean",
@@ -2140,6 +2154,13 @@
         "default": "false"
       }
     ],
+    "DD_TRACE_RETRY_INTERVAL": [
+      {
+        "implementation": "B",
+        "type": "int",
+        "default": "100"
+      }
+    ],
     "DD_TRACE_ROADRUNNER_ANALYTICS_ENABLED": [
       {
         "implementation": "A",
@@ -2615,6 +2636,20 @@
     "DD_VERSION": [
       {
         "implementation": "A",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "OTEL_EXPORTER_OTLP_ENDPOINT": [
+      {
+        "implementation": "D",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT": [
+      {
+        "implementation": "D",
         "type": "string",
         "default": ""
       }

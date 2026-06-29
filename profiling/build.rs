@@ -36,6 +36,7 @@ fn main() {
     let post_startup_cb = cfg_post_startup_cb(vernum);
     let preload = cfg_preload(vernum);
     let fibers = cfg_fibers(vernum);
+    let frameless = cfg_frameless(vernum);
     let run_time_cache = cfg_run_time_cache(vernum);
     let trigger_time_sample = cfg_trigger_time_sample();
     let zend_error_observer = cfg_zend_error_observer(vernum);
@@ -47,6 +48,7 @@ fn main() {
         preload,
         run_time_cache,
         fibers,
+        frameless,
         trigger_time_sample,
         zend_error_observer,
     );
@@ -54,6 +56,7 @@ fn main() {
     cfg_php_major_version(vernum);
     cfg_php_feature_flags(vernum);
     cfg_zts();
+    cfg_php_debug();
     apple_linker_flags();
 }
 
@@ -103,6 +106,7 @@ fn build_zend_php_ffis(
     preload: bool,
     run_time_cache: bool,
     fibers: bool,
+    frameless: bool,
     trigger_time_sample: bool,
     zend_error_observer: bool,
 ) {
@@ -143,6 +147,7 @@ fn build_zend_php_ffis(
     let post_startup_cb = if post_startup_cb { "1" } else { "0" };
     let preload = if preload { "1" } else { "0" };
     let fibers = if fibers { "1" } else { "0" };
+    let frameless = if frameless { "1" } else { "0" };
     let run_time_cache = if run_time_cache { "1" } else { "0" };
     let trigger_time_sample = if trigger_time_sample { "1" } else { "0" };
     let zend_error_observer = if zend_error_observer { "1" } else { "0" };
@@ -159,6 +164,7 @@ fn build_zend_php_ffis(
         .define("CFG_POST_STARTUP_CB", post_startup_cb)
         .define("CFG_PRELOAD", preload)
         .define("CFG_FIBERS", fibers)
+        .define("CFG_FRAMELESS", frameless)
         .define("CFG_RUN_TIME_CACHE", run_time_cache)
         .define("CFG_STACK_WALKING_TESTS", stack_walking_tests)
         .define("CFG_TRIGGER_TIME_SAMPLE", trigger_time_sample)
@@ -373,6 +379,16 @@ fn cfg_fibers(vernum: u64) -> bool {
     }
 }
 
+fn cfg_frameless(vernum: u64) -> bool {
+    println!("cargo::rustc-check-cfg=cfg(php_frameless)");
+    if vernum >= 80400 {
+        println!("cargo:rustc-cfg=php_frameless");
+        true
+    } else {
+        false
+    }
+}
+
 fn cfg_php_feature_flags(vernum: u64) {
     println!("cargo::rustc-check-cfg=cfg(php_gc_status, php_zend_compile_string_has_position, php_gc_status_extended, php_frameless, php_opcache_restart_hook, php_zend_mm_set_custom_handlers_ex)");
 
@@ -386,7 +402,6 @@ fn cfg_php_feature_flags(vernum: u64) {
         println!("cargo:rustc-cfg=php_gc_status_extended");
     }
     if vernum >= 80400 {
-        println!("cargo:rustc-cfg=php_frameless");
         println!("cargo:rustc-cfg=php_opcache_restart_hook");
         println!("cargo:rustc-cfg=php_zend_mm_set_custom_handlers_ex");
     }
@@ -462,6 +477,71 @@ int main() {
     }
 }
 
+fn cfg_php_debug() {
+    println!("cargo::rustc-check-cfg=cfg(php_debug)");
+
+    let output = Command::new("php-config")
+        .arg("--include-dir")
+        .output()
+        .expect("Unable to run `php-config`. Is it in your PATH?");
+
+    if !output.status.success() {
+        match String::from_utf8(output.stderr) {
+            Ok(stderr) => panic!("`php-config --include-dir` failed: {stderr}"),
+            Err(err) => panic!("`php-config --include-dir` failed, not utf8: {err}"),
+        }
+    }
+
+    let include_dir = std::str::from_utf8(output.stdout.as_slice())
+        .expect("`php-config`'s stdout to be valid utf8")
+        .trim();
+
+    let out_dir = env::var("OUT_DIR").unwrap();
+    let probe_path = Path::new(&out_dir).join("php_debug_probe.c");
+    fs::write(
+        &probe_path,
+        r#"
+#include "main/php_config.h"
+#include <stdio.h>
+int main() {
+#if ZEND_DEBUG
+    printf("1");
+#else
+    printf("0");
+#endif
+    return 0;
+}
+"#,
+    )
+    .expect("Failed to write PHP debug probe file");
+
+    let compiler = cc::Build::new().get_compiler();
+    let probe_exe = Path::new(&out_dir).join("php_debug_probe");
+    let compile_status = Command::new(compiler.path())
+        .arg(format!("-I{}", include_dir))
+        .arg(&probe_path)
+        .arg("-o")
+        .arg(&probe_exe)
+        .status()
+        .expect("Failed to compile PHP debug probe");
+
+    if !compile_status.success() {
+        panic!("Failed to compile PHP debug probe");
+    }
+
+    let probe_output = Command::new(&probe_exe)
+        .output()
+        .expect("Failed to run PHP debug probe");
+
+    let debug_value = std::str::from_utf8(&probe_output.stdout)
+        .expect("PHP debug probe output not UTF-8")
+        .trim();
+
+    if debug_value == "1" {
+        println!("cargo:rustc-cfg=php_debug");
+    }
+}
+
 /// On macOS (Apple targets), the cdylib has undefined symbols that are
 /// resolved at load time by the PHP process. In debug builds, LTO is off
 /// which produces more unresolved symbols--we fall back to
@@ -495,6 +575,8 @@ fn apple_linker_flags() {
         // Debug builds: allow all undefined symbols.
         println!("cargo:rustc-cdylib-link-arg=-undefined");
         println!("cargo:rustc-cdylib-link-arg=dynamic_lookup");
+        println!("cargo:rustc-link-arg=-undefined");
+        println!("cargo:rustc-link-arg=dynamic_lookup");
         return;
     }
 
@@ -510,6 +592,7 @@ fn apple_linker_flags() {
     const ALLOWED_UNDEFINED_SYMBOLS: &[&str] = &[
         // Zend memory allocator
         "___zend_malloc",
+        "___zend_strdup",
         "__efree",
         "__emalloc",
         "__emalloc_40",
@@ -541,6 +624,7 @@ fn apple_linker_flags() {
         "_zend_empty_string",
         "_zend_extensions",
         "_zend_flf_functions",
+        "_zend_flf_handlers",
         "_zend_gc_get_status",
         "_zend_generator_check_placeholder_frame",
         "_zend_get_executed_filename_ex",

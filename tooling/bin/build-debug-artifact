@@ -115,7 +115,7 @@ case "$php_version" in
 esac
 
 # ─── Docker image selection ───────────────────────────────────────────────────
-BOOKWORM_VERSION=6
+BOOKWORM_VERSION=8
 if [[ "$libc" == "musl" ]]; then
     DOCKER_IMAGE="datadog/dd-trace-ci:php-compile-extension-alpine-${php_version}"
 else
@@ -133,7 +133,10 @@ fi
 
 # ─── Build cache management ───────────────────────────────────────────────────
 CACHE_VOLUME="ddtrace-build-cache"
-CACHE_TAG="${libc}-${arch}-${php_version}-${thread_safety}"
+# The persistent build cache contains copied source files under tmp/build_extension.
+# Keep sibling worktrees from reusing stale copied headers for the same PHP target.
+CACHE_SOURCE_KEY="$(printf '%s' "$REPO_ROOT" | cksum | awk '{print $1}')"
+CACHE_TAG="${libc}-${arch}-${php_version}-${thread_safety}-${CACHE_SOURCE_KEY}"
 CACHE_TAG_LABEL="ddtrace.build.target"
 
 if docker volume inspect "$CACHE_VOLUME" &>/dev/null; then
@@ -200,8 +203,8 @@ fi
 echo "Building ddtrace ${php_version} ${thread_safety} [${libc}/${arch}]..."
 echo "Image: ${DOCKER_IMAGE}"
 
-TMP_OUT=$(mktemp -d)
-TMP_PKG=$(mktemp -d)
+TMP_OUT=$(mktemp -d "${OUTPUT_DIR%/}/.build-debug-artifact-out.XXXXXX")
+TMP_PKG=$(mktemp -d "${OUTPUT_DIR%/}/.build-debug-artifact-pkg.XXXXXX")
 trap 'rm -rf "$TMP_OUT" "$TMP_PKG"' EXIT
 
 # ─── Build script construction ────────────────────────────────────────────────
@@ -244,30 +247,17 @@ cp tmp/build_extension/modules/ddtrace.so /output/ddtrace.so")"
 
 if [[ "$BUILD_PROFILER" == "1" ]]; then
     PROFILER_SCRIPT="$(_preamble "if [ -f /sbin/apk ] && [ \$(uname -m) = 'aarch64' ]; then
-    ln -sf ../lib/llvm19/bin/clang /usr/bin/clang
+    ln -sf ../lib/llvm20/bin/clang /usr/bin/clang
 fi
 (cd profiling && CARGO_TARGET_DIR=${HOME_DIR}/tmp/build_profiler cargo build --profile dev)
 cp ${HOME_DIR}/tmp/build_profiler/debug/libdatadog_php_profiling.so /output/datadog-profiling${EXT_SUFFIX}.so")"
 fi
 
 if [[ "$BUILD_APPSEC" == "1" ]]; then
-    # Resolve libddwaf commit on the host (avoids git inside the container,
-    # which fails in worktrees where the .git pointer doesn't resolve).
-    LIBDDWAF_COMMIT=$(git -C "${REPO_ROOT}/appsec/third_party/libddwaf" rev-parse HEAD 2>/dev/null || echo "")
-
     # Use a per-variant cmake build dir in the cache volume (nts and zts need separate builds).
     APPSEC_SCRIPT="$(_preamble "git config --global --add safe.directory '*' 2>/dev/null || true
 mkdir -p tmp/build_appsec${EXT_SUFFIX}
-(cd tmp/build_appsec${EXT_SUFFIX} && cmake ${HOME_DIR}/appsec -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_HELPER=OFF -DDD_APPSEC_TESTING=OFF -DDD_APPSEC_EXTENSION_STATIC_LIBSTDCXX=ON -DGIT_COMMIT=${LIBDDWAF_COMMIT} && make -j \$(nproc) && cp ddappsec.so /output/ddappsec${EXT_SUFFIX}.so)")"
-
-    # C++ helper — musl-statically-linked, works on both gnu and musl systems.
-    HELPER_IMAGE="registry.ddbuild.io/images/mirror/b1o7r7e0/nginx_musl_toolchain"
-    HELPER_CPP_SCRIPT="set -e
-mkdir -p /repo/tmp/build_helper
-cd /repo/tmp/build_helper
-cmake /repo/appsec -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DDD_APPSEC_ENABLE_PATCHELF_LIBC=ON -DGIT_COMMIT=${LIBDDWAF_COMMIT} -DCMAKE_TOOLCHAIN_FILE=/sysroot/\$(uname -m)-none-linux-musl/Toolchain.cmake
-make -j \$(nproc)
-cp libddappsec-helper.so /output/libddappsec-helper.so"
+(cd tmp/build_appsec${EXT_SUFFIX} && cmake ${HOME_DIR}/appsec -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_HELPER=OFF -DDD_APPSEC_TESTING=OFF -DDD_APPSEC_EXTENSION_STATIC_LIBSTDCXX=ON && make -j \$(nproc) && cp ddappsec.so /output/ddappsec${EXT_SUFFIX}.so)")"
 
     # Rust helper — debug build (no --release)
     HELPER_RUST_SCRIPT='set -e
@@ -280,7 +270,7 @@ BINARY_PATH="/repo/tmp/cargo-target-helper-rust/$RUST_TARGET/debug/libddappsec_h
 ARCH=$(uname -m)
 [ "$ARCH" = x86_64 ] && patchelf --remove-needed libc.musl-x86_64.so.1 "$BINARY_PATH" 2>/dev/null || true
 [ "$ARCH" = aarch64 ] && patchelf --remove-needed libc.musl-aarch64.so.1 "$BINARY_PATH" 2>/dev/null || true
-cp -v "$BINARY_PATH" /output/libddappsec-helper-rust.so'
+cp -v "$BINARY_PATH" /output/libddappsec-helper.so'
 fi
 
 # ─── Launch all builds in parallel ────────────────────────────────────────────
@@ -319,16 +309,6 @@ _launch "trace"   docker run -w "${HOME_DIR}" --rm "${_common_volumes[@]}" "$DOC
 
 if [[ "$BUILD_APPSEC" == "1" ]]; then
     _launch "appsec" docker run -w "${HOME_DIR}" --rm "${_common_volumes[@]}" "$DOCKER_IMAGE" "$DOCKER_SHELL" -c "$APPSEC_SCRIPT"
-
-    # C++ helper — musl-statically-linked, works on both gnu and musl systems.
-    _launch "helper-cpp" docker run --rm \
-        --platform "$DOCKER_PLATFORM" \
-        -v "${REPO_ROOT}:/repo" \
-        -w "/repo" \
-        -v "${CACHE_VOLUME}:/repo/tmp" \
-        -v "${TMP_OUT}:/output" \
-        "$HELPER_IMAGE" \
-        sh -c "$HELPER_CPP_SCRIPT"
 
     # Rust helper
     RUST_HELPER_IMAGE="datadog/dd-appsec-php-ci:nginx-fpm-php-8.5-release-musl"
@@ -378,9 +358,6 @@ if [[ "$BUILD_APPSEC" == "1" ]]; then
     cp "${TMP_OUT}/ddappsec${EXT_SUFFIX}.so" "${APPSEC_BASE}/ext/${php_api}/ddappsec${EXT_SUFFIX}.so"
     if [[ -f "${TMP_OUT}/libddappsec-helper.so" ]]; then
         cp "${TMP_OUT}/libddappsec-helper.so" "${APPSEC_BASE}/lib/libddappsec-helper.so"
-    fi
-    if [[ -f "${TMP_OUT}/libddappsec-helper-rust.so" ]]; then
-        cp "${TMP_OUT}/libddappsec-helper-rust.so" "${APPSEC_BASE}/lib/libddappsec-helper-rust.so"
     fi
     if [[ -f "${REPO_ROOT}/appsec/recommended.json" ]]; then
         cp "${REPO_ROOT}/appsec/recommended.json" "${APPSEC_BASE}/etc/recommended.json"

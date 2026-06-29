@@ -9,6 +9,8 @@ if (PHP_VERSION_ID >= 80100) {
     echo "nocache\n";
 }
 // Set agent /info BEFORE the test process starts so the sidecar fetches our data on first poll.
+require __DIR__ . '/remote_config/remote_config.inc';
+reset_request_replayer();
 file_get_contents('http://request-replayer/set-agent-info', false, stream_context_create([
     'http' => [
         'method'  => 'PUT',
@@ -28,7 +30,7 @@ DD_TRACE_AGENT_PORT=80
 DD_TRACE_AGENT_FLUSH_INTERVAL=333
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
-DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=0.01
+DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=0.1
 DD_TRACE_SIDECAR_TRACE_SENDER=1
 DD_DYNAMIC_INSTRUMENTATION_ENABLED=1
 DD_TRACE_IGNORE_AGENT_SAMPLING_RATES=0
@@ -42,7 +44,6 @@ datadog.trace.agent_test_session_token=remote-config/shm_data_internal_fns
 require __DIR__ . '/remote_config/remote_config.inc';
 include __DIR__ . '/includes/request_replayer.inc';
 
-reset_request_replayer();
 $rr = new RequestReplayer();
 $rr->replayRequest(); // consume any leftover traces from startup
 
@@ -72,7 +73,7 @@ var_dump(is_array($sampling));
 var_dump(isset($sampling['rate_by_service']));
 var_dump((float)($sampling['rate_by_service']['service:shm_data_test,env:test'] ?? -1));
 
-$apmPath = put_dynamic_config_file(['tracing_sample_rate' => 0.5], 'shm_data_test', 'test');
+$apmPath = put_dynamic_config_file(['tracing_sampling_rate' => 0.5], 'shm_data_test', 'test');
 $probeId = "log1a2b3c4d-0000-0000-0000-000000000001";
 put_rc_file(
     "datadog/2/LIVE_DEBUGGING/logProbe_{$probeId}/config",

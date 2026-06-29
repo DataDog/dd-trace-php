@@ -23,4 +23,12 @@ Notice: PHP Startup: [ddappsec] Request lifecycle matches PHP's in Unknown on li
 
 Notice: PHP Startup: [ddappsec] Successfully initialized static libxml2 in Unknown on line %d
 
+Notice: PHP Shutdown: [ddappsec] Finished GSHUTDOWN actions (thread %s) in Unknown on line %d
+
+Notice: PHP Shutdown: [ddappsec] Running tshutdown (thread %s) in Unknown on line %d
+
+Notice: PHP Shutdown: [ddappsec] Finished tshutdown (thread %s) in Unknown on line %d
+
+Notice: PHP Shutdown: [ddappsec] Not connected; nothing to do in dd_helper_gshutdown in Unknown on line %d
+
 Notice: PHP Shutdown: [ddappsec] Shutting down the file logging in Unknown on line %d

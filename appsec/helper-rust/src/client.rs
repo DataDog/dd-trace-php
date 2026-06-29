@@ -230,9 +230,7 @@ async fn do_client_entrypoint(
                 let fatal_error = err
                     .downcast::<FatalRequestError>()
                     .expect("is fatal request error"); // until if let can be used instead of if err.is
-                let inner_error = fatal_error
-                    .0
-                    .context("fatal error while processing request");
+                let inner_error = fatal_error.0.context("error in request loop");
                 send_fatal_reinitialize(fatal_error.1)
                     .context("failed to send fatal reinitialize response to client")?;
                 return Err(inner_error);
@@ -403,7 +401,7 @@ async fn do_request_loop_iter(
 ) -> anyhow::Result<()> {
     // wait for any number of config_syncs, followed by request_init.
     // client_shutdown may be gotten at any time
-    let mut req_ctx = match recv_command(cmd_stream, cancel_token).await? {
+    let (req_init_args, response_tx) = match recv_command(cmd_stream, cancel_token).await? {
         (protocol::Command::ClientShutdown(args), response_tx) => {
             return handle_client_shutdown(response_tx, *args);
         }
@@ -421,20 +419,7 @@ async fn do_request_loop_iter(
                 return Ok(());
             }
 
-            let mut req_ctx = ReqContext::new(service, config_snapshot.clone());
-            let result = match req_ctx.run_waf(req.data, &protocol::RequestExecOptions::regular()) {
-                Ok(r) => r,
-                Err(e) => return Err(FatalRequestError(e, response_tx).into()),
-            };
-
-            let resp = protocol::CommandResponse::RequestInit(protocol::RequestInitResp {
-                triggers: &result.triggers,
-                actions: &result.actions,
-                force_keep: req_ctx.should_force_keep(service, result.waf_keep),
-                settings: req_ctx.settings(),
-            });
-            send_command_resp(response_tx, resp)?;
-            req_ctx
+            (req, response_tx)
         }
 
         (protocol::Command::ConfigSync(args), response_tx) => {
@@ -461,6 +446,49 @@ async fn do_request_loop_iter(
             ));
         }
     };
+
+    let mut req_ctx = {
+        let service = client.get_service();
+        ReqContext::new(service, service.config_snapshot().clone())
+    };
+
+    let result = run_request(
+        client,
+        cmd_stream,
+        cancel_token,
+        &mut req_ctx,
+        req_init_args,
+        response_tx,
+    )
+    .await;
+
+    // Submit unconditionally: even if a fatal error occurs.
+    submit_context_telemetry_metrics(client, &mut req_ctx);
+    submit_service_telemetry(client, client.get_service());
+
+    result
+}
+
+async fn run_request(
+    client: &mut Client,
+    cmd_stream: &mut CommandStream,
+    cancel_token: &CancellationToken,
+    req_ctx: &mut ReqContext,
+    req_init: Box<protocol::RequestInitArgs>,
+    response_tx: oneshot::Sender<sidecar_msg::HelperResponse>,
+) -> anyhow::Result<()> {
+    let result = match req_ctx.run_waf(req_init.data, &protocol::RequestExecOptions::regular()) {
+        Ok(r) => r,
+        Err(e) => return Err(FatalRequestError(e, response_tx).into()),
+    };
+
+    let resp = protocol::CommandResponse::RequestInit(protocol::RequestInitResp {
+        triggers: &result.triggers,
+        actions: &result.actions,
+        force_keep: req_ctx.should_force_keep(client.get_service(), result.waf_keep),
+        settings: req_ctx.settings(),
+    });
+    send_command_resp(response_tx, resp)?;
 
     loop {
         match recv_command(cmd_stream, cancel_token).await? {
@@ -532,8 +560,7 @@ async fn do_request_loop_iter(
                 req_ctx.generate_span_metrics(&mut span_submitter);
                 req_ctx.generate_meta(&mut span_submitter);
 
-                let service = client.get_service();
-                let force_keep = req_ctx.should_force_keep(service, result.waf_keep);
+                let force_keep = req_ctx.should_force_keep(client.get_service(), result.waf_keep);
 
                 let resp =
                     protocol::CommandResponse::RequestShutdown(protocol::RequestShutdownResp {
@@ -545,9 +572,6 @@ async fn do_request_loop_iter(
                         metrics: span_submitter.take_metrics(),
                     });
                 send_command_resp(response_tx, resp)?;
-
-                submit_context_telemetry_metrics(client, &mut req_ctx);
-                submit_service_telemetry(client, service);
 
                 break;
             }
@@ -645,6 +669,22 @@ impl ReqContext {
         }
     }
 
+    /// Records a WAF evaluation error against the appropriate metric: appsec.waf.error
+    /// for non-RASP runs, appsec.rasp.error for RASP runs (RFC-1012).
+    fn record_eval_error(&mut self, error_code: i32, options: &protocol::RequestExecOptions) {
+        match &options.run_type {
+            WafRunType::NonRasp => self.waf_metrics.record_non_rasp_error_eval(error_code),
+            WafRunType::RaspRule {
+                rule_type,
+                rule_variant,
+            } => self.waf_metrics.record_rasp_error_eval(
+                error_code,
+                rule_type,
+                rule_variant.as_deref().unwrap_or(""),
+            ),
+        }
+    }
+
     fn run_waf(
         &mut self,
         data: libddwaf::object::WafMap,
@@ -659,7 +699,13 @@ impl ReqContext {
         let res = match maybe_res {
             Ok(res) => res,
             Err(err) => {
-                self.waf_metrics.record_non_rasp_error_eval();
+                let error_code = match err {
+                    libddwaf::RunError::InternalError => -3i32,
+                    libddwaf::RunError::InvalidObject => -2i32,
+                    libddwaf::RunError::InvalidArgument => -1i32,
+                    _ => -127i32,
+                };
+                self.record_eval_error(error_code, options);
                 anyhow::bail!("WAF evaluation error: {}", err);
             }
         };

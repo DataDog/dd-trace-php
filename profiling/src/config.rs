@@ -46,6 +46,7 @@ pub struct SystemSettings {
     pub profiling_experimental_cpu_time_enabled: bool,
     pub profiling_allocation_enabled: bool,
     pub profiling_allocation_sampling_distance: NonZeroU32,
+    pub profiling_experimental_heap_live_enabled: bool,
     pub profiling_timeline_enabled: bool,
     pub profiling_exception_enabled: bool,
     pub profiling_exception_message_enabled: bool,
@@ -70,6 +71,7 @@ impl SystemSettings {
             profiling_experimental_cpu_time_enabled: false,
             profiling_allocation_enabled: false,
             profiling_allocation_sampling_distance: NonZeroU32::MAX,
+            profiling_experimental_heap_live_enabled: false,
             profiling_timeline_enabled: false,
             profiling_exception_enabled: false,
             profiling_exception_message_enabled: false,
@@ -99,6 +101,7 @@ impl SystemSettings {
             profiling_experimental_cpu_time_enabled: profiling_experimental_cpu_time_enabled(),
             profiling_allocation_enabled: profiling_allocation_enabled(),
             profiling_allocation_sampling_distance: profiling_allocation_sampling_distance(),
+            profiling_experimental_heap_live_enabled: profiling_experimental_heap_live_enabled(),
             profiling_timeline_enabled: profiling_timeline_enabled(),
             profiling_exception_enabled: profiling_exception_enabled(),
             profiling_exception_message_enabled: profiling_exception_message_enabled(),
@@ -140,11 +143,13 @@ impl SystemSettings {
                 error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT or upgrade PHP to at least version 8.1.21 or 8.2.8. See https://github.com/DataDog/dd-trace-php/pull/2088");
             }
             system_settings.profiling_allocation_enabled = false;
+            system_settings.profiling_experimental_heap_live_enabled = false;
         }
         #[cfg(php_zend_mm_set_custom_handlers_ex)]
         if allocation::allocation_ge84::first_rinit_should_disable_due_to_jit() {
             error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT or upgrade PHP to at least version 8.4.7. See https://github.com/DataDog/dd-trace-php/pull/3199");
             system_settings.profiling_allocation_enabled = false;
+            system_settings.profiling_experimental_heap_live_enabled = false;
         }
 
         SystemSettings::log_state(
@@ -406,6 +411,7 @@ pub(crate) enum ConfigId {
     ProfilingExperimentalCpuTimeEnabled,
     ProfilingAllocationEnabled,
     ProfilingAllocationSamplingDistance,
+    ProfilingExperimentalHeapLiveEnabled,
     ProfilingTimelineEnabled,
     ProfilingExceptionEnabled,
     ProfilingExceptionMessageEnabled,
@@ -438,6 +444,9 @@ impl ConfigId {
             ProfilingExperimentalCpuTimeEnabled => b"DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED\0",
             ProfilingAllocationEnabled => b"DD_PROFILING_ALLOCATION_ENABLED\0",
             ProfilingAllocationSamplingDistance => b"DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE\0",
+            ProfilingExperimentalHeapLiveEnabled => {
+                b"DD_PROFILING_EXPERIMENTAL_HEAP_LIVE_ENABLED\0"
+            }
             ProfilingTimelineEnabled => b"DD_PROFILING_TIMELINE_ENABLED\0",
             ProfilingExceptionEnabled => b"DD_PROFILING_EXCEPTION_ENABLED\0",
             ProfilingExceptionMessageEnabled => b"DD_PROFILING_EXCEPTION_MESSAGE_ENABLED\0",
@@ -475,7 +484,8 @@ static DEFAULT_SYSTEM_SETTINGS: SystemSettings = SystemSettings {
     profiling_experimental_cpu_time_enabled: true,
     profiling_allocation_enabled: true,
     // SAFETY: value is > 0.
-    profiling_allocation_sampling_distance: unsafe { NonZeroU32::new_unchecked(1024 * 4096) },
+    profiling_allocation_sampling_distance: NonZeroU32::new(1024 * 4096).unwrap(),
+    profiling_experimental_heap_live_enabled: false,
     profiling_timeline_enabled: true,
     profiling_exception_enabled: true,
     profiling_exception_message_enabled: false,
@@ -557,6 +567,21 @@ unsafe fn profiling_allocation_sampling_distance() -> NonZeroU32 {
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
+///
+/// Honors the umbrella `DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED` flag the
+/// same way `profiling_experimental_cpu_time_enabled` does.
+unsafe fn profiling_experimental_heap_live_enabled() -> bool {
+    profiling_allocation_enabled()
+        && (profiling_experimental_features_enabled()
+            || get_system_bool(
+                ProfilingExperimentalHeapLiveEnabled,
+                DEFAULT_SYSTEM_SETTINGS.profiling_experimental_heap_live_enabled,
+            ))
+}
+
+/// # Safety
+/// This function must only be called after config has been initialized in
+/// rinit, and before it is uninitialized in mshutdown.
 unsafe fn profiling_timeline_enabled() -> bool {
     profiling_enabled()
         && get_system_bool(
@@ -624,6 +649,39 @@ unsafe fn profiling_wall_time_enabled() -> bool {
 
 unsafe fn get_system_bool(id: ConfigId, default: bool) -> bool {
     get_system_value(id).try_into().unwrap_or(default)
+}
+
+unsafe fn get_bool(id: ConfigId, default: bool) -> bool {
+    get_value(id).try_into().unwrap_or(default)
+}
+
+unsafe fn profiling_enabled_current() -> bool {
+    get_bool(ProfilingEnabled, DEFAULT_SYSTEM_SETTINGS.profiling_enabled)
+}
+
+unsafe fn profiling_experimental_features_enabled_current() -> bool {
+    profiling_enabled_current()
+        && get_bool(
+            ProfilingExperimentalFeaturesEnabled,
+            DEFAULT_SYSTEM_SETTINGS.profiling_experimental_features_enabled,
+        )
+}
+
+unsafe fn profiling_allocation_enabled_current() -> bool {
+    profiling_enabled_current()
+        && get_bool(
+            ProfilingAllocationEnabled,
+            DEFAULT_SYSTEM_SETTINGS.profiling_allocation_enabled,
+        )
+}
+
+pub(crate) unsafe fn profiling_experimental_heap_live_enabled_current() -> bool {
+    profiling_allocation_enabled_current()
+        && (profiling_experimental_features_enabled_current()
+            || get_bool(
+                ProfilingExperimentalHeapLiveEnabled,
+                DEFAULT_SYSTEM_SETTINGS.profiling_experimental_heap_live_enabled,
+            ))
 }
 
 #[track_caller]
@@ -1019,6 +1077,18 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: Some(parse_sampling_distance_filter),
+                    displayer: None,
+                    env_config_fallback: None,
+                },
+                zai_config_entry {
+                    id: transmute::<ConfigId, u16>(ProfilingExperimentalHeapLiveEnabled),
+                    name: ProfilingExperimentalHeapLiveEnabled.env_var_name(),
+                    type_: ZAI_CONFIG_TYPE_BOOL,
+                    default_encoded_value: ZaiStr::literal(b"0\0"),
+                    aliases: ptr::null_mut(),
+                    aliases_count: 0,
+                    ini_change: Some(zai_config_system_ini_change),
+                    parser: None,
                     displayer: None,
                     env_config_fallback: None,
                 },

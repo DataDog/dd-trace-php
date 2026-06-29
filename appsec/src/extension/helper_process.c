@@ -5,7 +5,7 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 
 // NOLINTNEXTLINE(misc-header-include-cycle)
-#include <components-rs/ddtrace.h>
+#include <components-rs/datadog.h>
 #include <php.h>
 #include <stdatomic.h>
 #include <stdbool.h>
@@ -494,6 +494,45 @@ static PHP_FUNCTION(datadog_appsec_testing_backoff_status)
         return_value, ZEND_STRL("next_retry"), (double)s.suppressed_until_ms);
 }
 
+static PHP_FUNCTION(datadog_appsec_testing_close_helper_connection)
+{
+    if (zend_parse_parameters_none() == FAILURE) {
+        RETURN_FALSE;
+    }
+
+    if (!dd_conn_connected(&DDAPPSEC_G(conn))) {
+        RETURN_FALSE;
+    }
+
+    // Mirror what GSHUTDOWN does (without the connection-backoff accounting):
+    // send the client_shutdown goodbye and drop the connection. The test
+    // harness calls this during teardown so the (still-running) mock helper
+    // receives the goodbye, acks it and exits cleanly -- exactly as the real
+    // helper would at GSHUTDOWN in production.
+    struct client_shutdown_data data = {.clean = true, .error = NULL};
+    int res = dd_client_shutdown(&DDAPPSEC_G(conn), &data);
+    dd_conn_destroy(&DDAPPSEC_G(conn));
+    RETURN_BOOL(res == dd_success);
+}
+
+// Clears the connection-retry backoff (shared + per-thread) so a test can make
+// each scenario reconnect from a clean slate, independent of an earlier
+// scenario that closed the connection and tripped the backoff.
+static PHP_FUNCTION(datadog_appsec_testing_reset_backoff)
+{
+    if (zend_parse_parameters_none() == FAILURE) {
+        RETURN_FALSE;
+    }
+
+    if (_shared_state) {
+        atomic_store_explicit(
+            _shared_state, (dd_helper_shared_state){0}, memory_order_relaxed);
+    }
+    _mgr.hss = (dd_helper_shared_state){0};
+    _mgr.connected_this_req = false;
+    RETURN_TRUE;
+}
+
 // clang-format off
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(set_string_arginfo, 0, 1, IS_VOID, 0)
     ZEND_ARG_TYPE_INFO(0, value, IS_STRING, 0)
@@ -509,6 +548,8 @@ static const zend_function_entry functions[] = {
     ZEND_RAW_FENTRY(DD_TESTING_NS "set_helper_path", PHP_FN(datadog_appsec_testing_set_helper_path), set_string_arginfo, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_TESTING_NS "is_connected_to_helper", PHP_FN(datadog_appsec_testing_is_connected_to_helper), void_ret_bool_arginfo, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_TESTING_NS "backoff_status", PHP_FN(datadog_appsec_testing_backoff_status), void_ret_array_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "close_helper_connection", PHP_FN(datadog_appsec_testing_close_helper_connection), void_ret_bool_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "reset_backoff", PHP_FN(datadog_appsec_testing_reset_backoff), void_ret_bool_arginfo, 0, NULL, NULL)
     PHP_FE_END
 };
 // clang-format on

@@ -10,14 +10,12 @@ COPY php-8.5/suppr.txt /home/circleci/suppr.txt
 FROM --platform=$BUILDPLATFORM $BUILD_BASE AS src
 ARG phpTarGzUrl
 ARG phpSha256Hash
-COPY php-8.5/0001-Disable-preserve_none-under-ASan.patch /home/circleci
 RUN set -eux; \
     curl -fsSL -o /tmp/php.tar.gz "${phpTarGzUrl}"; \
     (echo "${phpSha256Hash} /tmp/php.tar.gz" | sha256sum -c -); \
     tar xf /tmp/php.tar.gz -C "${PHP_SRC_DIR}" --strip-components=1; \
     rm -f /tmp/php.tar.gz; \
     cd ${PHP_SRC_DIR}; \
-    git apply /home/circleci/0001-Disable-preserve_none-under-ASan.patch; \
     # We need to remove the dl() calls from run-tests as some extensions don't properly switch interned string storage for INIs. \
     sed -i 's/\bdl(/(bool)(/' run-tests.php; \
     ./buildconf --force;
@@ -28,6 +26,8 @@ ENV PHP_VERSION=${phpVersion}
 ENV PHP_INSTALL_DIR=${PHP_INSTALL_DIR}
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
+ARG MAKE_JOBS=
+ENV MAKE_JOBS=${MAKE_JOBS}
 # install cross-compiling packages
 RUN if [ "$BUILDPLATFORM" != "$TARGETPLATFORM" ]; then \
         sudo dpkg --add-architecture ${TARGETPLATFORM#linux/}; \

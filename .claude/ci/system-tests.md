@@ -140,9 +140,8 @@ in `binaries/`.
 | File in `binaries/` | What it replaces |
 |---------------------|-----------------|
 | `ddtrace.so` | The installed `ddtrace.so` (searched under `/root`, `/opt`, `/usr/lib/php`) |
-| `ddappsec.so` + `libddappsec-helper.so` | Both required together; replaces appsec extension and C++ helper |
-| `libddappsec-helper-rust.so` | Placed alongside the C++ helper (enables `DD_APPSEC_HELPER_RUST_REDIRECTION`) |
-| `libddwaf.so` | Placed alongside the C++ helper |
+| `ddappsec.so` | The installed appsec extension |
+| `libddappsec-helper.so` | The installed Rust appsec helper |
 
 **Hard constraints — this approach only works if all three hold:**
 

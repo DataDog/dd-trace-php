@@ -24,8 +24,8 @@ $id2 = DDTrace\active_span()->id;
 DDTrace\close_span();
 
 // IDs must be valid non-zero numeric strings.
-var_dump(ctype_digit($id1) && $id1 !== '0');
-var_dump(ctype_digit($id2) && $id2 !== '0');
+var_dump(preg_match('/^\d+$/', $id1) === 1 && $id1 !== '0');
+var_dump(preg_match('/^\d+$/', $id2) === 1 && $id2 !== '0');
 
 // CSPRNG output must not be equal across calls; this fails deterministically
 // under the MT because seed 42 would produce the same first two values every run.

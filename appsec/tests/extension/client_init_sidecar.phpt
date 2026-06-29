@@ -23,7 +23,7 @@ include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createRun([
     response_list(response_request_init([[['ok', []]]]))
-]);
+], ['no_wait_shutdown' => true]);
 
 var_dump(rinit());
 

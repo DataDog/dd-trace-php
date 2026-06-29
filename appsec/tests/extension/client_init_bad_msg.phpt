@@ -12,7 +12,7 @@ include __DIR__ . '/inc/logging.php';
 
 $helper = Helper::createRun([
     response_list(response_client_init(['msg' => ['y' => 'ok']]))
-]);
+], ['no_wait_shutdown' => true]);
 
 sleep(1);
 var_dump(rinit());

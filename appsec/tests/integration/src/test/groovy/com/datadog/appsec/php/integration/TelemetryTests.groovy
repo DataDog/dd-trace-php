@@ -58,6 +58,7 @@ class TelemetryTests {
         org.testcontainers.containers.Container.ExecResult res = CONTAINER.execInContainer(
                 'bash', '-c',
                 '''sed -e '/appsec.enabled/d' -e '/appsec.rules=/d' /etc/php/php.ini > /etc/php/php-rc.ini;
+                   sed -i 's/pm.max_children = .*/pm.max_children = 1/' /etc/php-fpm.d/www.conf;
                    kill -9 `pgrep php-fpm`;
                    export  DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=1;
                    php-fpm -y /etc/php-fpm.conf -c /etc/php/php-rc.ini''')
@@ -116,7 +117,6 @@ class TelemetryTests {
         TelemetryHelpers.Metric wafReq2
         TelemetryHelpers.Metric connSuccess
         TelemetryHelpers.Metric workerCount
-
 
         TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
             def allSeries = messages.collectMany { it.series }
@@ -642,7 +642,6 @@ class TelemetryTests {
     @Test
     @Order(7)
     void 'waf duration span metrics and distributions are consistent'() {
-
         Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
                 'datadog/2/ASM_FEATURES/asm_features_activation/config': [
                         asm: [enabled: true]
@@ -826,7 +825,6 @@ class TelemetryTests {
     @Test
     @Order(9)
     void 'waf requests boolean tags are emitted unconditionally'() {
-
         Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
                 'datadog/2/ASM_FEATURES/asm_features_activation/config': [
                         asm: [enabled: true]
@@ -874,7 +872,6 @@ class TelemetryTests {
     @Test
     @Order(10)
     void 'waf requests request_blocked tag is true on blocking attack'() {
-
         Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
                 'datadog/2/ASM_FEATURES/asm_features_activation/config': [
                         asm: [enabled: true]
@@ -935,7 +932,6 @@ class TelemetryTests {
     @Test
     @Order(11)
     void 'rasp duration span metrics and distributions are consistent'() {
-
         Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
                 'datadog/2/ASM_FEATURES/asm_features_activation/config': [
                         asm: [enabled: true]
@@ -998,31 +994,17 @@ class TelemetryTests {
     }
 
     /**
-     * RFC-1012: appsec.waf.requests must include the rate_limited boolean tag.
-     * The rate limiter must only be consulted when the WAF triggered (waf_keep=true),
-     * matching C++ semantics: `event.keep && limiter_.allow()`. Clean requests must
-     * not consume a limiter slot.
+     * Verifies that WafString(...) contents in helper error messages are redacted before
+     * being submitted to telemetry, while the local helper file log retains the original
+     * unredacted contents.
      *
-     * This test verifies:
-     * 1. Clean requests do not consume the limiter slot.
-     * 2. The first attack request gets rate_limited:false (slot was preserved).
-     * 3. The second attack request gets rate_limited:true (slot now exhausted).
-     *
-     * Only applies to the Rust helper. Ordered last because it restarts php-fpm
-     * with a different rate limit configuration.
+     * The scenario triggers `unexpected command {:?}` in the helper request loop by
+    * sending a request_exec when the helper is waiting for request_init.
      */
     @Test
-    @Order(20)
-    void 'waf requests rate_limited tag is emitted'() {
-
-        // Restart php-fpm with a rate limit of 1 trace/sec.
-        org.testcontainers.containers.Container.ExecResult res = CONTAINER.execInContainer(
-                'bash', '-c',
-                '''kill -9 `pgrep php-fpm`;
-                   export DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=1;
-                   export DD_APPSEC_TRACE_RATE_LIMIT=1;
-                   php-fpm -y /etc/php-fpm.conf -c /etc/php/php-rc.ini''')
-        assert res.exitCode == 0
+    @Order(12)
+    void 'telemetry log redacts WafString contents'() {
+        Assumptions.assumeTrue(TestParams.usesHelperRust())
 
         Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
                 'datadog/2/ASM_FEATURES/asm_features_activation/config': [
@@ -1030,65 +1012,53 @@ class TelemetryTests {
                 ]
         ])
 
-        // First request: starts helper. May or may not be covered by appsec depending on RC timing.
-        CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+        // warm-up request to start helper and apply RC
+        Trace trace = CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
         }
+        assert trace.traceId != null
         assert requestSup.get() != null
 
-        // Several clean requests: these must NOT consume the rate-limiter slot.
-        // With correct behavior (matching C++), the limiter is only consulted when
-        // the WAF triggered, so clean requests leave the slot untouched.
-        for (int i = 0; i < 3; i++) {
-            CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
-                assert resp.statusCode() == 200
-            }
+        // another covered request to ensure the connection is established
+        trace = CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert trace.traceId != null
+
+        // trigger the error path with a known sentinel value embedded as a WafString
+        CONTAINER.traceFromRequest('/send_request_exec_before_init.php', ofString()) {
+            HttpResponse<String> resp -> assert resp.statusCode() == 200
         }
 
-        // Send a burst of attack requests. With rate_limit=1, all requests within the
-        // same second share a single slot: the first gets rate_limited:false and the
-        // rest get rate_limited:true. Sending several increases the chance that at
-        // least two land within the same second even under CI timing variance.
-        HttpRequest attackReq = CONTAINER.buildReq('/hello.php')
-                .header('User-Agent', 'Arachni/v1').GET().build()
-        for (int i = 0; i < 5; i++) {
-            CONTAINER.traceFromRequest(attackReq, ofString()) { HttpResponse<String> resp ->
-                assert resp.body().size() > 0
+        def messages = TelemetryHelpers.waitForLogs(CONTAINER, 30) { List<TelemetryHelpers.Logs> logs ->
+            def relevantLogs = logs.collectMany {
+                it.logs.findAll {
+                    it.tags?.contains('log_type:helper::logged_error') &&
+                            it.message?.contains('error in request loop')
+                }
             }
+            !relevantLogs.empty
+        }.collectMany { it.logs }
+
+        def errorLog = messages.find {
+            it.tags?.contains('log_type:helper::logged_error') &&
+                    it.message?.contains('error in request loop')
         }
+        assert errorLog != null : "Expected to find an 'error in request loop' telemetry log. " +
+                "All logs: ${messages.collect { [tags: it.tags, message: it.message] }}"
 
-        TelemetryHelpers.Metric wafReqRateLimited
-        TelemetryHelpers.Metric wafReqNotRateLimited
+        // The telemetry log must NOT leak the original WafString payload
+        assert !errorLog.message.contains('APPSEC_REDACT_TEST_SENTINEL_XYZ') :
+                "Telemetry log leaked unredacted WafString contents: ${errorLog.message}"
 
-        TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
-            def allSeries = messages.collectMany { it.series }
-            // Both must be attack requests (rule_triggered:true) to verify the limiter
-            // only fires for WAF-triggered requests, not clean ones.
-            wafReqRateLimited = allSeries.find {
-                it.name == 'waf.requests' &&
-                        'rule_triggered:true' in it.tags &&
-                        'rate_limited:true' in it.tags
-            }
-            wafReqNotRateLimited = allSeries.find {
-                it.name == 'waf.requests' &&
-                        'rule_triggered:true' in it.tags &&
-                        'rate_limited:false' in it.tags
-            }
-            wafReqRateLimited != null && wafReqNotRateLimited != null
-        }
+        // And the WafString(...) span must have been replaced with the redacted marker
+        assert errorLog.message.contains('WafString("<REDACTED>")') :
+                "Telemetry log is missing redacted WafString marker; got: ${errorLog.message}"
 
-        assert wafReqNotRateLimited != null
-        assert wafReqNotRateLimited.namespace == 'appsec'
-        assert wafReqNotRateLimited.type == 'count'
-        assert 'rule_triggered:true' in wafReqNotRateLimited.tags
-        assert 'rate_limited:false' in wafReqNotRateLimited.tags
-
-        assert wafReqRateLimited != null
-        assert wafReqRateLimited.namespace == 'appsec'
-        assert wafReqRateLimited.type == 'count'
-        assert wafReqRateLimited.points[0][1] >= 1.0
-        assert 'rule_triggered:true' in wafReqRateLimited.tags
-        assert 'rate_limited:true' in wafReqRateLimited.tags
+        // The local helper file log must still contain the original unredacted contents
+        def helperLog = CONTAINER.execInContainer('bash', '-c', 'cat /tmp/logs/helper.log').stdout
+        assert helperLog.contains('APPSEC_REDACT_TEST_SENTINEL_XYZ') :
+                "Expected helper.log to contain the original (unredacted) WafString contents"
     }
 
     /**
@@ -1104,9 +1074,8 @@ class TelemetryTests {
      * Only applies to the Rust helper.
      */
     @Test
-    @Order(12)
+    @Order(13)
     void 'rasp rule match has block tag'() {
-
         try {
             // Phase 1: non-blocking RASP rule match (recommended.json lfi/ssrf rules have
             // on_match: ["stack_trace"], so a match does not block). Expect block:irrelevant.
@@ -1194,6 +1163,103 @@ class TelemetryTests {
         }
     }
 
+
+    /**
+     * RFC-1012: appsec.waf.requests must include the rate_limited boolean tag.
+     * The rate limiter must only be consulted when the WAF triggered (waf_keep=true),
+     * matching C++ semantics: `event.keep && limiter_.allow()`. Clean requests must
+     * not consume a limiter slot.
+     *
+     * This test verifies:
+     * 1. Clean requests do not consume the limiter slot.
+     * 2. The first attack request gets rate_limited:false (slot was preserved).
+     * 3. The second attack request gets rate_limited:true (slot now exhausted).
+     *
+     * Only applies to the Rust helper. Ordered last because it restarts php-fpm
+     * with a different rate limit configuration.
+     */
+    @Test
+    @Order(20)
+    void 'waf requests rate_limited tag is emitted'() {
+        Assumptions.assumeTrue(TestParams.usesHelperRust(),
+                'rate_limited tag is only implemented on the Rust helper')
+
+        // Restart php-fpm with a rate limit of 1 trace/sec.
+        org.testcontainers.containers.Container.ExecResult res = CONTAINER.execInContainer(
+                'bash', '-c',
+                '''kill -9 `pgrep php-fpm`;
+                   export DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=1;
+                   export DD_APPSEC_TRACE_RATE_LIMIT=1;
+                   php-fpm -y /etc/php-fpm.conf -c /etc/php/php-rc.ini''')
+        assert res.exitCode == 0
+
+        Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                        asm: [enabled: true]
+                ]
+        ])
+
+        // First request: starts helper. May or may not be covered by appsec depending on RC timing.
+        CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert requestSup.get() != null
+
+        // Several clean requests: these must NOT consume the rate-limiter slot.
+        // With correct behavior (matching C++), the limiter is only consulted when
+        // the WAF triggered, so clean requests leave the slot untouched.
+        for (int i = 0; i < 3; i++) {
+            CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+                assert resp.statusCode() == 200
+            }
+        }
+
+        // Send a burst of attack requests. With rate_limit=1, all requests within the
+        // same second share a single slot: the first gets rate_limited:false and the
+        // rest get rate_limited:true. Sending several increases the chance that at
+        // least two land within the same second even under CI timing variance.
+        HttpRequest attackReq = CONTAINER.buildReq('/hello.php')
+                .header('User-Agent', 'Arachni/v1').GET().build()
+        for (int i = 0; i < 5; i++) {
+            CONTAINER.traceFromRequest(attackReq, ofString()) { HttpResponse<String> resp ->
+                assert resp.body().size() > 0
+            }
+        }
+
+        TelemetryHelpers.Metric wafReqRateLimited
+        TelemetryHelpers.Metric wafReqNotRateLimited
+
+        TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
+            def allSeries = messages.collectMany { it.series }
+            // Both must be attack requests (rule_triggered:true) to verify the limiter
+            // only fires for WAF-triggered requests, not clean ones.
+            wafReqRateLimited = allSeries.find {
+                it.name == 'waf.requests' &&
+                        'rule_triggered:true' in it.tags &&
+                        'rate_limited:true' in it.tags
+            }
+            wafReqNotRateLimited = allSeries.find {
+                it.name == 'waf.requests' &&
+                        'rule_triggered:true' in it.tags &&
+                        'rate_limited:false' in it.tags
+            }
+            wafReqRateLimited != null && wafReqNotRateLimited != null
+        }
+
+        assert wafReqNotRateLimited != null
+        assert wafReqNotRateLimited.namespace == 'appsec'
+        assert wafReqNotRateLimited.type == 'count'
+        assert 'rule_triggered:true' in wafReqNotRateLimited.tags
+        assert 'rate_limited:false' in wafReqNotRateLimited.tags
+
+        assert wafReqRateLimited != null
+        assert wafReqRateLimited.namespace == 'appsec'
+        assert wafReqRateLimited.type == 'count'
+        assert wafReqRateLimited.points[0][1] >= 1.0
+        assert 'rule_triggered:true' in wafReqRateLimited.tags
+        assert 'rate_limited:true' in wafReqRateLimited.tags
+    }
+
     @Test
     @Order(21)
     void 'waf config errors emitted with action init for bad init rules'() {
@@ -1252,4 +1318,5 @@ class TelemetryTests {
         assert bundledDiagLog.tags?.contains('rc_config_id:bundled_rules')
         assert bundledDiagLog.message == "{\"missing key 'conditions'\":[\"bad-rule\"]}"
     }
+
 }

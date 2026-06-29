@@ -28,13 +28,7 @@ Before any build, ensure the relevant submodules are initialised
 # Tracer extension (ddtrace.so) — needs libdatadog
 git submodule update --init libdatadog
 
-# Appsec extension or helper — needs these additionally
-git submodule update --init \
-  appsec/third_party/libddwaf \
-  appsec/third_party/msgpack-c \
-  appsec/third_party/cpp-base64
-
-# Appsec helper rust — needs libddwaf-rust
+# Appsec extension/helper — needs libddwaf-rust
 git submodule update --init --recursive \
   appsec/third_party/libddwaf-rust
 ```
@@ -181,15 +175,14 @@ make -j$(nproc) xtest
 For ASAN, add `-DENABLE_ASAN=ON` to cmake. See
 [appsec-native-tests.md](appsec-native-tests.md) for full details.
 
-## Appsec Helpers
+## Appsec Helper
 
-The tarball needs two helper binaries in `appsec_$(uname -m)/`:
-`libddappsec-helper.so` (C++) and `libddappsec-helper-rust.so`
-(Rust), plus `appsec/recommended.json`.
+The tarball needs the Rust helper binary in `appsec_$(uname -m)/` as
+`libddappsec-helper.so`, plus `appsec/recommended.json`.
 
 ### Rust helper
 
-Image is on Docker Hub. Output: `appsec_$(uname -m)/libddappsec-helper-rust.so`.
+Image is on Docker Hub. Output: `appsec_$(uname -m)/libddappsec-helper.so`.
 
 ```bash
 git submodule update --init --recursive \
@@ -200,27 +193,6 @@ git submodule update --init --recursive \
     -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
     -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
     -- bash .gitlab/build-appsec-helper-rust.sh
-```
-
-### C++ helper
-
-The CI image (`nginx_musl_toolchain`) lives at
-`registry.ddbuild.io/images/mirror/b1o7r7e0/nginx_musl_toolchain`
-(not on Docker Hub). Transfer it via
-`docker save ... | ssh HOST docker load` if needed. Output:
-`appsec_$(uname -m)/libddappsec-helper.so` + `recommended.json`.
-
-```bash
-git submodule update --init \
-  appsec/third_party/libddwaf \
-  appsec/third_party/msgpack-c \
-  appsec/third_party/cpp-base64
-
-.claude/ci/dockerh --cache compile-appsec-helper-cpp --overlayfs \
-    registry.ddbuild.io/images/mirror/b1o7r7e0/nginx_musl_toolchain \
-    -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
-    -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
-    -- bash .gitlab/build-appsec-helper.sh
 ```
 
 ## Profiler Extension
@@ -313,8 +285,7 @@ compiled `.so` files:
 - `extensions_$(uname -m)/` — ddtrace extensions
   (`ddtrace-{API}[-zts|-debug|-debug-zts].so`)
 - `appsec_$(uname -m)/` — appsec extensions (`ddappsec-{API}[-zts].so`) +
-  helpers (`libddappsec-helper.so` and `libddappsec-helper-rust.so`) +
-  `recommended.json`
+  Rust helper (`libddappsec-helper.so`) + `recommended.json`
 - `datadog-profiling/{triplet}/lib/php/{API}/` — profiler
   extensions
 

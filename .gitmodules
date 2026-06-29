@@ -9,3 +9,6 @@
 	path = appsec/third_party/libddwaf-rust
 	url = https://github.com/DataDog/libddwaf-rust.git
 	branch = glopes/v2
+[submodule "tests/FeatureFlags/ffe-system-test-data"]
+	path = tests/FeatureFlags/ffe-system-test-data
+	url = https://github.com/DataDog/ffe-system-test-data

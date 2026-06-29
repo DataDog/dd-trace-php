@@ -131,7 +131,7 @@ static void ddappsec_sort_modules(void *base, size_t count, size_t siz,
 
     // Reorder ddappsec to ensure it's always after ddtrace
     for (Bucket *module = base, *end = module + count, *ddappsec_module = NULL;
-         module < end; ++module) {
+        module < end; ++module) {
         zend_module_entry *m = (zend_module_entry *)Z_PTR(module->val);
         if (m->name == ddappsec_module_entry.name) {
             ddappsec_module = module;
@@ -201,19 +201,19 @@ static PHP_GINIT_FUNCTION(ddappsec)
 static void _tshutdown_handler(void *unspecnull ptr)
 {
     UNUSED(ptr);
-    mlog_g(dd_log_debug, "Running tshutdown (thread %0lx" PRIxPTR ")",
+    mlog_g(dd_log_debug, "Running tshutdown (thread %" PRIxPTR ")",
         (uintptr_t)pthread_self());
 
     dd_entity_body_tshutdown();
     dd_telemetry_tshutdown();
 
-    mlog_g(dd_log_debug, "Finished tshutdown (thread %0lx" PRIxPTR ")",
+    mlog_g(dd_log_debug, "Finished tshutdown (thread %" PRIxPTR ")",
         (uintptr_t)pthread_self());
 }
 
 static PHP_GSHUTDOWN_FUNCTION(ddappsec)
 {
-    mlog_g(dd_log_debug, "Finished GSHUTDOWN actions (thread %0lx" PRIxPTR ")",
+    mlog_g(dd_log_debug, "Finished GSHUTDOWN actions (thread %" PRIxPTR ")",
         (uintptr_t)pthread_self());
 
 #ifndef ZTS
@@ -609,6 +609,12 @@ PHP_FUNCTION(datadog_appsec_push_addresses)
         RETURN_FALSE;
     }
 
+    if (!dd_req_lifecycle_is_active()) {
+        mlog_g(dd_log_info,
+            "Not running inside a tracked request; skipping push_addresses");
+        RETURN_FALSE;
+    }
+
     zval *addresses;
     zend_string *rasp_rule = NULL;
     zend_string *rule_variant = NULL;
@@ -657,12 +663,16 @@ ZEND_ARG_TYPE_INFO(0, data, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
 // clang-format off
-static const zend_function_entry testing_functions[] = {
+// Available under either DD_APPSEC_TESTING or DD_APPSEC_TESTING_INVALID_COMMAND
+static const zend_function_entry testing_request_control_functions[] = {
     ZEND_RAW_FENTRY(DD_TESTING_NS "rinit", PHP_FN(datadog_appsec_testing_rinit), void_ret_bool_arginfo, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_TESTING_NS "rshutdown", PHP_FN(datadog_appsec_testing_rshutdown), void_ret_bool_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "request_exec", PHP_FN(datadog_appsec_testing_request_exec), request_exec_arginfo, 0, NULL, NULL)
+    PHP_FE_END
+};
+static const zend_function_entry testing_functions[] = {
     ZEND_RAW_FENTRY(DD_TESTING_NS "helper_mgr_acquire_conn", PHP_FN(datadog_appsec_testing_helper_mgr_acquire_conn), void_ret_bool_arginfo, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_TESTING_NS "stop_for_debugger", PHP_FN(datadog_appsec_testing_stop_for_debugger), void_ret_bool_arginfo, 0, NULL, NULL)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "request_exec", PHP_FN(datadog_appsec_testing_request_exec), request_exec_arginfo, 0, NULL, NULL)
     PHP_FE_END
 };
 static const zend_function_entry testing_invalid_command_functions[] = {
@@ -673,13 +683,18 @@ static const zend_function_entry testing_invalid_command_functions[] = {
 
 static void _register_testing_objects(void)
 {
-    if (get_global_DD_APPSEC_TESTING_INVALID_COMMAND()) {
+    bool invalid_command = get_global_DD_APPSEC_TESTING_INVALID_COMMAND();
+    bool full_testing = get_global_DD_APPSEC_TESTING();
+
+    if (invalid_command) {
         dd_phpobj_reg_funcs(testing_invalid_command_functions);
     }
 
-    if (!get_global_DD_APPSEC_TESTING()) {
-        return;
+    if (invalid_command || full_testing) {
+        dd_phpobj_reg_funcs(testing_request_control_functions);
     }
 
-    dd_phpobj_reg_funcs(testing_functions);
+    if (full_testing) {
+        dd_phpobj_reg_funcs(testing_functions);
+    }
 }

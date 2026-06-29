@@ -182,6 +182,7 @@ class SQLSRVIntegration extends Integration
         if (\dd_trace_env_config("DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE")) {
             if ($targetName !== "<default>") {
                 $span->service .= '-' . \DDTrace\Util\Normalizer::normalizeHostUdsAsService($targetName);
+                $span->meta['_dd.svc_src'] = 'opt.db_client_split_by_instance';
             }
         }
     }

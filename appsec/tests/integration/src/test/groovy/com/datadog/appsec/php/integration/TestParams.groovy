@@ -20,6 +20,9 @@ class TestParams {
     static String getVariant() {
         System.getProperty('VARIANT') ?: ''
     }
+    static boolean usesHelperRust() {
+        true
+    }
     static String getTracerVersion() {
         System.getProperty('TRACER_VERSION') ?: ''
     }

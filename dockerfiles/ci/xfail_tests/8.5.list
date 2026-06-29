@@ -13,8 +13,9 @@ Zend/tests/bug72038.phpt
 Zend/tests/bug75921.phpt
 Zend/tests/bug78182.phpt
 Zend/tests/bug81104.phpt
-Zend/tests/fibers/gh10496-001.phpt
 Zend/tests/fibers/destructors_005.phpt
+Zend/tests/fibers/gh10496-001.phpt
+Zend/tests/fibers/gh19983.phpt
 Zend/tests/fibers/out-of-memory-in-fiber.phpt
 Zend/tests/fibers/out-of-memory-in-nested-fiber.phpt
 Zend/tests/fibers/out-of-memory-in-recursive-fiber.phpt

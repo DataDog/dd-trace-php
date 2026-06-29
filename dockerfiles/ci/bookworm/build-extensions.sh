@@ -7,8 +7,9 @@ PHP_VERSION_ID=$(php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;')
 PHP_ZTS=$(php -r 'echo PHP_ZTS;')
 EXTENSION_DIR=$(php-config --extension-dir)
 
-# This make `pecl install` use all available cores
-export MAKEFLAGS="-s -j $(nproc)"
+if [[ -z "${MAKE_JOBS:-}" || "${MAKE_JOBS}" == "0" ]]; then
+  MAKE_JOBS="$(nproc)"
+fi
 
 XDEBUG_VERSIONS=(-3.1.2)
 if [[ $PHP_VERSION_ID -le 70 ]]; then
@@ -89,7 +90,7 @@ if [[ $SHARED_BUILD -ne 0 ]]; then
     tar -xf curl.tar.gz && rm curl.tar.gz
     cd curl-${curlVer}
     ./configure --with-openssl --prefix=/opt/curl/${curlVer}
-    make -j "$((`nproc`+1))"
+    make -j "$MAKE_JOBS"
     make install
   done
 
@@ -100,14 +101,14 @@ if [[ $SHARED_BUILD -ne 0 ]]; then
   cd ${PHP_SRC_DIR}/ext/curl
   phpize
   ./configure
-  make -j "$((`nproc`+1))"
+  make -j "$MAKE_JOBS"
   mv ./modules/*.so $EXTENSION_DIR
   make clean
 
   for curlVer in ${CURL_VERSIONS}; do
     PKG_CONFIG_PATH=/opt/curl/${curlVer}/lib/pkgconfig/
     ./configure
-    make -j "$((`nproc`+1))"
+    make -j "$MAKE_JOBS"
     mv ./modules/curl.so $EXTENSION_DIR/curl-${curlVer}.so
     make clean
   done
@@ -117,7 +118,7 @@ if [[ $SHARED_BUILD -ne 0 ]]; then
   cd ${PHP_SRC_DIR}/ext/pdo
   phpize
   ./configure
-  make -j "$((`nproc`+1))"
+  make -j "$MAKE_JOBS"
   mv ./modules/*.so $(php-config --extension-dir)
   make clean;
   phpize --clean
@@ -149,13 +150,13 @@ else
     # memcached master version
     git clone https://github.com/php-memcached-dev/php-memcached.git
     cd php-memcached
-    phpize && ./configure && make -j"$(nproc)" && make install && echo "extension=memcached.so" >> ${iniDir}/memcached.ini;
+    phpize && ./configure && make -j"$MAKE_JOBS" && make install && echo "extension=memcached.so" >> ${iniDir}/memcached.ini;
     cd ..
 
     # memcache master version
     git clone https://github.com/websupport-sk/pecl-memcache.git
     cd pecl-memcache
-    phpize && ./configure && make -j"$(nproc)" && make install && echo "extension=memcache.so" >> ${iniDir}/memcache.ini;
+    phpize && ./configure && make -j"$MAKE_JOBS" && make install && echo "extension=memcache.so" >> ${iniDir}/memcache.ini;
     cd ..
 
     pecl install mongodb$MONGODB_VERSION; echo "extension=mongodb.so" >> ${iniDir}/mongodb.ini;
@@ -163,7 +164,7 @@ else
     # Xdebug master version (disabled by default)
     git clone https://github.com/xdebug/xdebug.git
     cd xdebug
-    phpize && ./configure && make -j"$(nproc)" && make install;
+    phpize && ./configure && make -j"$MAKE_JOBS" && make install;
     cd ..
   fi
   pecl install rdkafka; echo "extension=rdkafka.so" >> ${iniDir}/rdkafka.ini;
@@ -190,7 +191,7 @@ else
     fi
     phpize
     ./configure --host=$HOST_ARCH-linux-gnu
-    make -j "$((`nproc`+1))"
+    make -j "$MAKE_JOBS"
     make install
     popd
   fi
@@ -222,7 +223,7 @@ else
     if [[ $PHP_VERSION_ID -ge 85 ]]; then
       git clone https://github.com/phpredis/phpredis.git
       cd phpredis
-      phpize && ./configure && make -j"$(nproc)" && make install
+      phpize && ./configure && make -j"$MAKE_JOBS" && make install
     else
       pecl install redis-6.1.0
     fi

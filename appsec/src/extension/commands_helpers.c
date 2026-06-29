@@ -174,7 +174,10 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn,
         mlog(dd_log_warning,
             "Response message for %.*s does not have the expected form",
             NAME_L);
-        return dd_error;
+        // A response we cannot parse means the helper is misbehaving; abandon
+        // the connection (a goodbye can still be sent over the sidecar) rather
+        // than keep issuing commands over it.
+        return dd_helper_say_goobye;
     }
     if (cb_res != dd_success && cb_res != dd_should_block &&
         cb_res != dd_should_redirect && cb_res != dd_should_record) {
@@ -792,7 +795,7 @@ static void _dump_out_msg(dd_log_level_t lvl, zend_llist *iovecs)
     zend_llist_position pos;
     int i = 1;
     for (struct iovec *iov = zend_llist_get_first_ex(iovecs, &pos); iov;
-         iov = zend_llist_get_next_ex(iovecs, &pos), i++) {
+        iov = zend_llist_get_next_ex(iovecs, &pos), i++) {
         zend_string *zstr = php_base64_encode(iov->iov_base, iov->iov_len);
         if (ZSTR_LEN(zstr) > INT_MAX) {
             return;

@@ -44,6 +44,7 @@ stages:
         fi
         return 1
       }
+      set +x
       BTI_JWT=$(_vault_jwt sdm) || {
         echo "ERROR: Could not obtain a BTI JWT (VAULT_ADDR=${VAULT_ADDR:-unset}, DD_DATACENTER=${DD_DATACENTER:-unset})." >&2
         exit 1
@@ -52,6 +53,7 @@ stages:
         -H "Authorization: Bearer ${BTI_JWT}" \
         "https://bti-ci-api.us1.ddbuild.io/internal/ci/gitlab/token?owner=DataDog&repository=dd-trace-php" \
         | jq -r '.token')
+      set -x
       GITLAB_API="https://gitlab.ddbuild.io/api/v4"
 
       mkdir -p tmp/artifacts/traces
@@ -65,7 +67,7 @@ stages:
             "${GITLAB_API}/projects/${CI_PROJECT_ID}/pipelines/${child_id}/jobs?per_page=100&page=${page}" \
             || echo "[]")
           page_failed=$(echo "${page_data}" | jq '[.[] | select(.status == "failed")]')
-          failed_jobs=$(jq -n --argjson a "${failed_jobs}" --argjson b "${page_failed}" '$a + $b')
+          failed_jobs=$(jq -n --slurpfile a <(printf '%s' "${failed_jobs}") --slurpfile b <(printf '%s' "${page_failed}") '$a[0] + $b[0]')
           [ "$(echo "${page_data}" | jq 'length')" -lt 100 ] && break
         done
         echo "${failed_jobs}" | jq --arg t "${trigger_name}" '[.[] | . + {trigger: $t}]'
@@ -108,7 +110,7 @@ stages:
         echo "  Failed jobs (${count}):"
         echo "${failures}" | jq -r '.[] | "    - \(.name)"'
         all=$(cat tmp/artifacts/all_failures.json)
-        jq -n --argjson a "${all}" --argjson b "${failures}" '$a + $b' > tmp/artifacts/all_failures.json
+        jq -n --slurpfile a <(printf '%s' "${all}") --slurpfile b <(printf '%s' "${failures}") '$a[0] + $b[0]' > tmp/artifacts/all_failures.json
       done < <(jq -r '.[] | select(.downstream_pipeline != null)
                       | [(.downstream_pipeline.id | tostring),
                         (.downstream_pipeline.status // "unknown"),
@@ -157,7 +159,7 @@ stages:
           if [ "${status}" = "failed" ]; then
             entry=$(echo "${job_data}" | jq --arg t "${trigger}" '. + {trigger: $t}')
             all=$(cat tmp/artifacts/all_failures.json)
-            jq -n --argjson a "${all}" --argjson b "[${entry}]" '$a + $b' > tmp/artifacts/all_failures.json
+            jq -n --slurpfile a <(printf '%s' "${all}") --argjson b "[${entry}]" '$a[0] + $b' > tmp/artifacts/all_failures.json
           fi
         done < tmp/artifacts/retried_jobs.tsv
 
@@ -198,25 +200,25 @@ stages:
           if [ "${is_compile}" = "true" ]; then
             safe=$(echo "${jname_lower}" | tr '/ ' '-_' | cut -c1-60)
             trace_file="tmp/artifacts/traces/${safe}_${job_id}.txt"
-            echo "" && echo "--- trace: ${job_name} (${trigger}) ---"
-            trace=$(curl -sf -H "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
-              "${GITLAB_API}/projects/${CI_PROJECT_ID}/jobs/${job_id}/trace" \
-              || echo "[trace unavailable]")
-            { echo "=== ${job_name} (trigger: ${trigger}) ==="; echo "${trace}" | tail -c 15360; } \
-              > "${trace_file}"
-            echo "${trace}" | tail -c 2000
+            echo ""
+            {
+              echo "=== ${job_name} (trigger: ${trigger}) ==="
+              (curl -sf -H "PRIVATE-TOKEN: ${GITLAB_TOKEN}" "${GITLAB_API}/projects/${CI_PROJECT_ID}/jobs/${job_id}/trace" || echo "[trace unavailable]") | tail -c 15360
+            } > "${trace_file}"
+            tail -c 2000 "${trace_file}"
           fi
         done < <(jq -c '.[]' tmp/artifacts/all_failures.json)
 
         # Install Claude (nvm — no root required)
         if ! command -v claude &>/dev/null; then
           export NVM_DIR="${HOME}/.nvm"
-          curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash - 2>&1
-          . "${NVM_DIR}/nvm.sh"
-          nvm install --lts --no-progress 2>&1
-          npm install -g @anthropic-ai/claude-code 2>&1
+          curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash - >/dev/null 2>&1
+          . "${NVM_DIR}/nvm.sh" >/dev/null 2>&1
+          nvm install --lts --no-progress >/dev/null 2>&1
+          npm install -g @anthropic-ai/claude-code >/dev/null 2>&1
         fi
 
+        set +x
         AI_GATEWAY_TOKEN=$(_vault_jwt rapid-ai-platform) || {
           echo "ERROR: Could not obtain an AI Gateway token (VAULT_ADDR=${VAULT_ADDR:-unset}, DD_DATACENTER=${DD_DATACENTER:-unset})." >&2
           exit 1
@@ -230,6 +232,7 @@ stages:
           "provider: anthropic" \
           "claude-code: true" \
           "Authorization: Bearer ${AI_GATEWAY_TOKEN}")"
+        set -x
 
         PROMPT_CONTEXT="## Environment
         - dd-trace-php source: ${CI_PROJECT_DIR}
@@ -242,7 +245,7 @@ stages:
         - CI pipeline: ${CI_PIPELINE_URL}"
         PROMPT_BODY=$(cat .gitlab/libdatadog-latest-prompt.md)
 
-        set +e
+        set +ex
         claude \
           --allowedTools "Read,Glob,Grep,Edit,Write" \
           --permission-mode bypassPermissions \
@@ -251,15 +254,17 @@ stages:
 
         ${PROMPT_BODY}" 2>&1 | tee tmp/artifacts/claude_output.txt
         CLAUDE_EXIT=$?
-        set -e
+        set -ex
         echo "Claude exit code: ${CLAUDE_EXIT}"
       fi
 
       # Get GitHub token via dd-octo-sts
       dd-octo-sts debug --scope DataDog/dd-trace-php --policy gitlab-ci-libdatadog-latest
       dd-octo-sts token --scope DataDog/dd-trace-php --policy gitlab-ci-libdatadog-latest > tmp/github_token.txt
+      set +x
       GITHUB_TOKEN=$(cat tmp/github_token.txt)
       export GITHUB_TOKEN GH_TOKEN="${GITHUB_TOKEN}"
+      set -x
 
       # Commit: submodule pointer + any Claude edits
       TARGET_BRANCH="bot/libdatadog-latest"
@@ -269,7 +274,7 @@ stages:
 
       # Feedback runs append [no-ci-feedback] so the next push doesn't trigger
       # another analyze-and-create-pr, breaking the potential infinite loop.
-      FEEDBACK_MARKER="${LIBDATADOG_FEEDBACK_RUN:+' [no-ci-feedback]'}"
+      FEEDBACK_MARKER=$(if [ "${LIBDATADOG_FEEDBACK_RUN:-}" == "true" ]; then echo " [no-ci-feedback]"; fi)
       COMMIT_MSG="libdatadog update to ${LIBDATADOG_SHA:0:8}${FEEDBACK_MARKER}
 
       Automated update by CI pipeline ${CI_PIPELINE_URL}
@@ -279,16 +284,20 @@ stages:
       if ! git diff --cached --quiet; then
         git commit -m "${COMMIT_MSG}" \
           --author="github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+        set +x
         git push --force \
           "https://x-access-token:${GITHUB_TOKEN}@github.com/DataDog/dd-trace-php.git" \
           "HEAD:${TARGET_BRANCH}"
-      elif [ -z "${LIBDATADOG_FEEDBACK_RUN:-}" ]; then
+        set -x
+      elif [ "${LIBDATADOG_FEEDBACK_RUN:-}" == "true" ]; then
         # Original schedule run with no code changes: still push the submodule bump.
         git commit --allow-empty -m "${COMMIT_MSG}" \
           --author="github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+        set +x
         git push --force \
           "https://x-access-token:${GITHUB_TOKEN}@github.com/DataDog/dd-trace-php.git" \
           "HEAD:${TARGET_BRANCH}"
+        set -x
       else
         echo "Feedback run with no code changes — updating PR description only."
       fi

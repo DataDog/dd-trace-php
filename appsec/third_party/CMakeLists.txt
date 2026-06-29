@@ -22,7 +22,7 @@ endif()
 option(MPACK_DEBUG "Compile mpack with MPACK_DEBUG=1 and min buffer size" ${MPACK_DEBUG_DEFAULT})
 
 if(DD_APPSEC_BUILD_EXTENSION)
-    file(GLOB_RECURSE MPACK_C_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../../ext/vendor/mpack/*.c)
+    file(GLOB_RECURSE MPACK_C_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../../tracer/vendor/mpack/*.c)
     add_library(mpack OBJECT ${MPACK_C_SOURCES})
     set_target_properties(mpack PROPERTIES
         POSITION_INDEPENDENT_CODE 1
@@ -30,7 +30,7 @@ if(DD_APPSEC_BUILD_EXTENSION)
 
     target_include_directories(mpack
         PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/../../ext/vendor/mpack/
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../tracer/vendor/mpack/
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/extension/mpack/)
     target_link_libraries(mpack PUBLIC PhpConfig) # for the allocation functions
     target_compile_definitions(mpack PUBLIC MPACK_HAS_CONFIG=1)
@@ -42,7 +42,7 @@ if(DD_APPSEC_BUILD_EXTENSION)
 
     if(DD_APPSEC_TESTING)
         add_library(mpack_malloc OBJECT ${MPACK_C_SOURCES})
-        target_include_directories(mpack_malloc PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../../ext/vendor/mpack/)
+        target_include_directories(mpack_malloc PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../../tracer/vendor/mpack/)
         target_compile_definitions(mpack_malloc PUBLIC MPACK_STDIO=0 MPACK_WRITE_TRACKING=1 MPACK_BUFFER_SIZE=131072)
     endif()
 endif()
@@ -51,7 +51,7 @@ endif()
 FetchContent_Declare(
     spdlog
     GIT_REPOSITORY https://github.com/gabime/spdlog.git
-    GIT_TAG 5fd32e1a70871e2f6a52734e36bc33cb7ac022a5)
+    GIT_TAG 79524ddd08a4ec981b7fea76afd08ee05f83755d)
 FetchContent_MakeAvailable(spdlog)
 set_target_properties(spdlog PROPERTIES POSITION_INDEPENDENT_CODE 1)
 

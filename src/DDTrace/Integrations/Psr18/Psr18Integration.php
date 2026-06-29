@@ -57,6 +57,7 @@ class Psr18Integration extends Integration
 
         if (\dd_trace_env_config("DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN")) {
             $span->service = Urls::hostnameForTag($url);
+            $span->meta['_dd.svc_src'] = 'opt.http_client_split_by_domain';
         }
 
         $span->meta[Tag::HTTP_METHOD] = $request->getMethod();

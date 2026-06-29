@@ -55,6 +55,10 @@ using boost::system::error_code;
 // NOLINTNEXTLINE(cert-err58-cpp,fuchsia-statically-constructed-objects)
 asio::io_context iocontext;
 bool continuous_mode;
+// When set, exit as soon as the scripted responses are exhausted instead of
+// waiting for the client_shutdown goodbye. Used by tests where the extension
+// abandons the connection (e.g. a failed client_init) and so never sends one.
+bool no_wait_shutdown;
 
 MsgpackToJson::MsgpackToJson(const char *buffer, size_t size)
 {
@@ -337,6 +341,54 @@ private:
     rapidjson::Document &doc_; // NOLINT
 };
 
+// Returns true if the (already deframed) message is a client_shutdown command,
+// i.e. an array whose first element is the string "client_shutdown".
+static bool message_is_client_shutdown(const std::vector<std::byte> &data)
+{
+    mpack_tree_t tree;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    mpack_tree_init_data(
+        &tree, reinterpret_cast<const char *>(data.data()), data.size());
+    mpack_tree_parse(&tree);
+    bool result = false;
+    if (mpack_tree_error(&tree) == mpack_ok) {
+        mpack_node_t const root = mpack_tree_root(&tree);
+        if (mpack_node_type(root) == mpack_type_array &&
+            mpack_node_array_length(root) >= 1) {
+            mpack_node_t const name = mpack_node_array_at(root, 0);
+            if (mpack_node_type(name) == mpack_type_str) {
+                static constexpr char kName[] = "client_shutdown";
+                const std::size_t len = mpack_node_strlen(name);
+                result = len == sizeof(kName) - 1 &&
+                         std::memcmp(mpack_node_str(name), kName, len) == 0;
+            }
+        }
+    }
+    mpack_tree_destroy(&tree);
+    return result;
+}
+
+// Encodes the ack the real helper sends for client_shutdown:
+// [["client_shutdown", null]] (see CommandResponse::ClientShutdown).
+static OwningBuffer encode_client_shutdown_ack()
+{
+    char *out = nullptr;
+    std::size_t out_size = 0;
+    mpack_writer_t writer;
+    mpack_writer_init_growable(&writer, &out, &out_size);
+    mpack_start_array(&writer, 1);
+    mpack_start_array(&writer, 2);
+    mpack_write_cstr(&writer, "client_shutdown");
+    mpack_write_nil(&writer);
+    mpack_finish_array(&writer);
+    mpack_finish_array(&writer);
+    if (mpack_writer_destroy(&writer) != mpack_ok) {
+        std::free(out); // NOLINT
+        throw std::runtime_error{"Failed to encode client_shutdown ack"};
+    }
+    return OwningBuffer{out, out_size};
+}
+
 class Client {
 private:
     struct Header {
@@ -362,21 +414,38 @@ public:
         bool exited = false;
         while (!exited && next_response_ != responses_.end()) {
             SPDLOG_INFO("Will read message #{}", ++count);
-            exited = run_loop_body(yield);
-            next_response_++;
+            exited = run_loop_body(yield, /*scripted=*/true);
+            if (!exited) {
+                next_response_++;
+            }
         }
         if (continuous_mode) {
-            next_response_--;
+            if (next_response_ != responses_.begin()) {
+                next_response_--;
+            }
             while (!exited) {
                 SPDLOG_INFO("Will read message #{} (continuous mode)", ++count);
-                exited = run_loop_body(yield);
+                exited = run_loop_body(yield, /*scripted=*/true);
+            }
+        } else if (!no_wait_shutdown) {
+            // All scripted responses were consumed.  The extension still sends
+            // a client_shutdown goodbye when it tears the connection down (the
+            // test harness triggers this before reaping us); keep serving so we
+            // can ack it and exit cleanly instead of the extension hitting a
+            // premature EOF.  run_loop_body() handles client_shutdown specially.
+            while (!exited) {
+                SPDLOG_INFO("Waiting for client_shutdown (message #{})", ++count);
+                exited = run_loop_body(yield, /*scripted=*/false);
             }
         }
         SPDLOG_INFO("All responses given; exiting");
     }
 
 private:
-    bool run_loop_body(const asio::yield_context &yield)
+    // When scripted is true a queued response (*next_response_) is sent for the
+    // message read; when false (after the scripted responses are exhausted) we
+    // only expect a client_shutdown goodbye (or EOF) and exit afterwards.
+    bool run_loop_body(const asio::yield_context &yield, bool scripted)
     {
         SPDLOG_INFO("Waiting for client message...");
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
@@ -421,12 +490,47 @@ private:
 
         SPDLOG_INFO("Handling gotten message of size {}", data.size());
 
+        // The client_shutdown goodbye is not part of the scripted exchange and
+        // does not consume a response: ack it (mirroring the real helper) and
+        // signal the loop to exit.  It is not echoed to the command pipe.
+        //
+        // Only in non-continuous mode: a continuous mock doubles as the
+        // long-lived mock trace agent for the test, which may keep using it
+        // (e.g. flushing traces) after the appsec connection is torn down. There
+        // we let client_shutdown fall through and be answered like any other
+        // message, and rely on EOF to stop the loop, so the agent stays up.
+        if (!continuous_mode && message_is_client_shutdown(data)) {
+            SPDLOG_INFO("Received client_shutdown; acking and exiting");
+            send_client_shutdown_ack(yield);
+            return true;
+        }
+
+        if (!scripted) {
+            SPDLOG_INFO("Unexpected non-shutdown message after all scripted "
+                        "responses were consumed; exiting");
+            return true;
+        }
+
         MsgpackToJson msgpack2json{data.data(), data.size()};
         msgpack2json.convert();
 
         echo_pipe_.write(msgpack2json.asio_buffer(), yield);
         handle_client_data(*next_response_, yield);
         return false;
+    }
+
+    void send_client_shutdown_ack(const asio::yield_context &yield)
+    {
+        OwningBuffer const buf = encode_client_shutdown_ack();
+        Header h{};
+        memcpy(&h.marker, "dds", 4);
+        h.size = static_cast<std::uint32_t>(buf.len_);
+        std::array const buffers = {
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+            asio::const_buffer(reinterpret_cast<char *>(&h), sizeof(h)),
+            asio::const_buffer(buf.buf_, buf.len_),
+        };
+        async_write(sock_, buffers, yield);
     }
 
     void handle_client_data(rapidjson::Document &doc, asio::yield_context yield)
@@ -564,6 +668,10 @@ int main(int argc, char *argv[])
                        "The responses to send")
         ("continuous", po::bool_switch(&continuous_mode)->default_value(false),
                        "Keep answering with the last payload")
+        ("no-wait-shutdown",
+                       po::bool_switch(&no_wait_shutdown)->default_value(false),
+                       "Exit after the last scripted response instead of "
+                       "waiting for the client_shutdown goodbye")
         ("lock",       po::value<std::string>(), "Location of the lock file");
     // clang-format on
 

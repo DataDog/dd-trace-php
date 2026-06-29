@@ -2,11 +2,14 @@
 Test remote config request payload
 --SKIPIF--
 <?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
+<?php
+if (PHP_VERSION_ID < 70400) die("skip: Before PHP 7.4, the skip-task would cause the sidecar to fetch the info already.");
+?>
 --ENV--
 DD_AGENT_HOST=request-replayer
 DD_TRACE_AGENT_PORT=80
 DD_TRACE_GENERATE_ROOT_SPAN=0
-DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=0.01
+DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=0.1
 DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED=1
 --INI--
 datadog.trace.agent_test_session_token=remote-config/check_payload

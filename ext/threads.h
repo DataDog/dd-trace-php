@@ -1,15 +1,15 @@
-#ifndef DD_THREADS_H
-#define DD_THREADS_H
+#ifndef DATADOG_THREADS_H
+#define DATADOG_THREADS_H
 
 #include <TSRM/TSRM.h>
 #include <Zend/zend_types.h>
 
 #if ZTS
-extern HashTable ddtrace_tls_bases;
-extern MUTEX_T ddtrace_threads_mutex;
+extern HashTable datadog_tls_bases;
+extern MUTEX_T datadog_threads_mutex;
 
-void ddtrace_thread_ginit(void);
-void ddtrace_thread_gshutdown(void);
+void datadog_thread_ginit(void);
+void datadog_thread_gshutdown(void);
 #else
 
 // Taken from TSRM.h
@@ -26,4 +26,4 @@ TSRM_API int tsrm_mutex_lock(MUTEX_T mutexp);
 TSRM_API int tsrm_mutex_unlock(MUTEX_T mutexp);
 #endif
 
-#endif // DD_THREADS_H
+#endif // DATADOG_THREADS_H

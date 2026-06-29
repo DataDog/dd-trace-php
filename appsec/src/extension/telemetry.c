@@ -73,9 +73,9 @@ void dd_telemetry_note_helper_string_meta(const char *nonnull key,
 void dd_telemetry_add_metric(zend_string *nonnull name_zstr, double value,
     zend_string *nonnull tags_zstr, ddtrace_metric_type type)
 {
-    ddtrace_metric_register_buffer(
+    datadog_metric_register_buffer(
         name_zstr, type, DDTRACE_METRIC_NAMESPACE_APPSEC);
-    ddtrace_metric_add_point(name_zstr, value, tags_zstr);
+    datadog_metric_add_point(name_zstr, value, tags_zstr);
     mlog_g(dd_log_debug,
         "Telemetry metric %.*s added with tags %.*s and value %f",
         (int)ZSTR_LEN(name_zstr), ZSTR_VAL(name_zstr), (int)ZSTR_LEN(tags_zstr),
@@ -152,8 +152,8 @@ void dd_telemetry_helper_conn_close(void)
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 void dd_telemetry_submit_duration_ext(double waf_ext_us, double rasp_ext_us)
 {
-    if (!dd_trace_loaded() || ddtrace_metric_register_buffer == NULL ||
-        ddtrace_metric_add_point == NULL) {
+    if (!dd_trace_loaded() || datadog_metric_register_buffer == NULL ||
+        datadog_metric_add_point == NULL) {
         return;
     }
 
@@ -163,16 +163,16 @@ void dd_telemetry_submit_duration_ext(double waf_ext_us, double rasp_ext_us)
     }
 
     if (waf_ext_us > 0.0) {
-        ddtrace_metric_register_buffer(_waf_duration_ext_tel_zstr,
+        datadog_metric_register_buffer(_waf_duration_ext_tel_zstr,
             DDTRACE_METRIC_TYPE_DISTRIBUTION, DDTRACE_METRIC_NAMESPACE_APPSEC);
-        ddtrace_metric_add_point(
+        datadog_metric_add_point(
             _waf_duration_ext_tel_zstr, waf_ext_us, tags_zstr);
     }
 
     if (rasp_ext_us > 0.0) {
-        ddtrace_metric_register_buffer(_rasp_duration_ext_tel_zstr,
+        datadog_metric_register_buffer(_rasp_duration_ext_tel_zstr,
             DDTRACE_METRIC_TYPE_DISTRIBUTION, DDTRACE_METRIC_NAMESPACE_APPSEC);
-        ddtrace_metric_add_point(
+        datadog_metric_add_point(
             _rasp_duration_ext_tel_zstr, rasp_ext_us, tags_zstr);
     }
 

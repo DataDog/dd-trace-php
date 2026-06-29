@@ -6,7 +6,7 @@
 #ifndef DD_HELPER_MGR_H
 #define DD_HELPER_MGR_H
 
-#include <components-rs/ddtrace.h>
+#include <components-rs/datadog.h>
 #include <stdbool.h>
 
 #include "attributes.h"

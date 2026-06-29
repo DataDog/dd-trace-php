@@ -91,8 +91,8 @@ $rr->waitForRequest(function ($request) {
             }
 
             $error   = $payload["message"]["error"] ?? null;
-            $threads = $error["threads"]["threads"] ?? null;
-            $count   = $threads !== null ? count($threads) : 0;
+            $threads = $error["threads"] ?? null;
+            $count   = is_array($threads) ? count($threads) : 0;
 
             echo "collect_all_threads enabled: ", ($count > 0 ? "yes" : "no"), PHP_EOL;
             echo "thread count: ", $count, PHP_EOL;

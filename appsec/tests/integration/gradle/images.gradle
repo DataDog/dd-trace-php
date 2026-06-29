@@ -307,6 +307,48 @@ tasks.register('pushMultiArch') {
     dependsOn allMultiArchTasks
 }
 
+// Build a JSON-parsing closure backed by a private copy of groovy-json loaded
+// in an isolated, child-first classloader. FastStringUtils' daemon-global
+// static service cache can otherwise be poisoned permanently by a worker
+// thread whose context classloader lacks the groovy-json service.
+def makeIsolatedJsonParser = {
+    URL jsonJar = groovy.json.JsonSlurper.protectionDomain.codeSource.location
+    ClassLoader parent = groovy.json.JsonSlurper.classLoader
+    def isolated = new URLClassLoader([jsonJar] as URL[], parent) {
+        @Override
+        protected Class<?> loadClass(String name, boolean resolve) {
+            // Define groovy-json's own classes locally so they get fresh
+            // static state; delegate everything else (groovy runtime, JDK,
+            // ...) to the parent so types stay mutually compatible.
+            if (name.startsWith('groovy.json.') || name.startsWith('org.apache.groovy.json.')) {
+                synchronized (getClassLoadingLock(name)) {
+                    Class<?> c = findLoadedClass(name) ?: findClass(name)
+                    if (resolve) {
+                        resolveClass(c)
+                    }
+                    return c
+                }
+            }
+            super.loadClass(name, resolve)
+        }
+    }
+    Class<?> slurperClass = isolated.loadClass('groovy.json.JsonSlurper')
+    def ctor = slurperClass.getDeclaredConstructor()
+    def parseText = slurperClass.getMethod('parseText', String)
+    return { String text ->
+        // ServiceLoader (inside the isolated FastStringUtils) uses the thread
+        // context classloader; point it at our loader so the service resolves
+        // regardless of which thread runs the parse.
+        def prev = Thread.currentThread().contextClassLoader
+        Thread.currentThread().contextClassLoader = isolated
+        try {
+            parseText.invoke(ctor.newInstance(), text)
+        } finally {
+            Thread.currentThread().contextClassLoader = prev
+        }
+    }
+}
+
 task generateTagMappings {
     description = "Generate tag_mappings.gradle file with SHA256 hashes for all pushed images"
     def outputFile = file("${project.rootDir}/gradle/tag_mappings.gradle")
@@ -318,6 +360,7 @@ task generateTagMappings {
             pushTask.name - ~/\ApushImage-/
         }
 
+        def parseJson = makeIsolatedJsonParser()
         def tagMappings = new java.util.concurrent.ConcurrentHashMap<String, String>()
         def customThreadPool = new java.util.concurrent.ForkJoinPool(10)
 
@@ -336,7 +379,7 @@ task generateTagMappings {
                             proc.waitForOrKill(10_000)
 
                             if (proc.exitValue() == 0) {
-                                String sha256 = new groovy.json.JsonSlurper().parseText(proc.text)
+                                String sha256 = parseJson(proc.text)
                                 tagMappings[tag] = sha256
                                 println "${imageRef} → ${sha256}"
                                 success = true

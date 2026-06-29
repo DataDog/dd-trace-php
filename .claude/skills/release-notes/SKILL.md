@@ -36,7 +36,7 @@ Create a `CHANGED-PRs.md` detailing the categorization for each PR with an one s
 
 Compare the pinned commit of libdatadog against the libdatadog commit from the latest release.
 Find all libdatadog changes and assess whether they're meaningfully adding to a feature.
-Important: Ignore those commits which are clearly not related to functionalities exposed by ddtrace. Outright ignore everything not a dependency of the sidecar.
+Important: Ignore those commits which are clearly not related to functionalities exposed by ddtrace. Outright ignore everything not a dependency of the sidecar. Skip changes categorized as internal, unless they directly affect the sidecar / ipc.
 
 Add a secondary section to `CHANGED-PRs.md`, which includes all non-ignored commits.
 Do the same categorization than in Phase 1, and mark those which are clearly encompassed by other PRs from Phase 1.

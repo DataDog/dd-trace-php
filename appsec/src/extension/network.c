@@ -33,7 +33,7 @@ static size_t _iovecs_total_size(zend_llist *nonnull iovecs)
     zend_llist_position pos;
     size_t total = 0;
     for (struct iovec *iov = zend_llist_get_first_ex(iovecs, &pos); iov;
-         iov = zend_llist_get_next_ex(iovecs, &pos)) {
+        iov = zend_llist_get_next_ex(iovecs, &pos)) {
         total += iov->iov_len;
     }
     return total;
@@ -73,7 +73,7 @@ dd_result dd_conn_roundtripv(dd_conn *nonnull conn, zend_llist *nonnull iovecs,
     char *writep = req + sizeof(out_h);
     zend_llist_position pos;
     for (struct iovec *iov = zend_llist_get_first_ex(iovecs, &pos); iov;
-         iov = zend_llist_get_next_ex(iovecs, &pos)) {
+        iov = zend_llist_get_next_ex(iovecs, &pos)) {
         memcpy(writep, iov->iov_base, iov->iov_len);
         writep += iov->iov_len;
     }

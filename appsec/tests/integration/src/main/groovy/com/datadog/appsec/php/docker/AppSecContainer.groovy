@@ -411,6 +411,16 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         traceFromRequest(req, HttpResponse.BodyHandlers.ofInputStream(), doWithConn, ignoreOtherRequests)
     }
 
+    <T> Trace traceFromRequest(String path,
+                               HttpResponse.BodyHandler<T> bodyHandler,
+                               @ClosureParams(value = FromString,
+                                       options = 'java.net.http.HttpResponse<T>')
+                                       Closure<Void> doWithResp = null,
+                               boolean ignoreOtherRequests = false) {
+        HttpRequest req = buildReq(path).GET().build()
+        traceFromRequest(req, bodyHandler, doWithResp, ignoreOtherRequests)
+    }
+
     @CompileStatic(TypeCheckingMode.SKIP)
     <T> Trace traceFromRequest(HttpRequest req,
                                HttpResponse.BodyHandler<T> bodyHandler,

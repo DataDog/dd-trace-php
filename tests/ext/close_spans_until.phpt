@@ -48,7 +48,7 @@ int(2)
 [ddtrace] [span] [%d] Switching to different SpanStack: %d
 int(1)
 int(0)
-[ddtrace] [span] [%d] Encoding span: Span { service: close_spans_until.php, name: close_spans_until.php, resource: close_spans_until.php, type: cli, trace_id: %d, span_id: %d, parent_id: 0, start: %d, duration: %d, error: 0, meta: %s, metrics: %s, meta_struct: {}, span_links: [], span_events: [] }
+[ddtrace] [span] [%d] Encoding span: Span { service: close_spans_until.php, name: close_spans_until.php, resource: close_spans_until.php, type: cli, trace_id: %d, span_id: %d, parent_id: 0, start: %d, duration: %d, error: 0, meta: %s, metrics: %s, meta_struct: %s, span_links: [], span_events: [] }
 [ddtrace] [span] [%d] Encoding span: Span { service: close_spans_until.php, name: traced, resource: traced, type: cli, trace_id: %d, span_id: %d, parent_id: %d, start: %d, duration: %d, error: %d, meta: %s, metrics: %s, meta_struct: %s, span_links: %s, span_events: %s }
 [ddtrace] [span] [%d] Encoding span: Span { service: close_spans_until.php, name: , resource: , type: cli, trace_id: %d, span_id: %d, parent_id: %d, start: %d, duration: %d, error: %d, meta: %s, metrics: %s, meta_struct: %s, span_links: %s, span_events: %s }
 [ddtrace] [span] [%d] Encoding span: Span { service: close_spans_until.php, name: , resource: , type: cli, trace_id: %d, span_id: %d, parent_id: %d, start: %d, duration: %d, error: %d, meta: %s, metrics: %s, meta_struct: %s, span_links: %s, span_events: %s }

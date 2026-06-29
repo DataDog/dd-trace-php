@@ -12,7 +12,11 @@ pub fn log_init(level_filter: LevelFilter) {
      */
 
     // Safety: this is safe, it's just "unsafe" because it's a call into C.
-    let fd = unsafe { libc::dup(libc::STDERR_FILENO) };
+    // F_DUPFD_CLOEXEC (not plain dup) so the duplicate is not inherited by
+    // child processes spawned via proc_open()/exec(). A leaked stderr dup
+    // keeps pipes open and hangs. Observable in `run-tests.php` in PHP
+    // (e.g. ext/curl/tests/curl_setopt_ssl.phpt spawning `openssl s_server`).
+    let fd = unsafe { libc::fcntl(libc::STDERR_FILENO, libc::F_DUPFD_CLOEXEC, 0) };
     if fd != -1 {
         // Safety: the fd is a valid and open file descriptor, and the File has sole ownership.
         let target = Box::new(unsafe { File::from_raw_fd(fd) });

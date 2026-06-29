@@ -193,7 +193,7 @@ static bool _assume_utf8(const char *ct, size_t ct_len)
         return true;
     }
     for (const char *end = ct + ct_len, *c = psemi + 1;
-         c < end - LSTRLEN("charset=utf-8") + 1; c++) {
+        (size_t)(end - c) >= LSTRLEN("charset=utf-8"); c++) {
         if (tolower(*c) == 'c' && tolower(*(c + 1)) == 'h' &&
             tolower(*(c + 2)) == 'a' && tolower(*(c + 3)) == 'r' &&
             tolower(*(c + 4)) == 's' && tolower(*(c + 5)) == 'e' && // NOLINT
@@ -201,10 +201,12 @@ static bool _assume_utf8(const char *ct, size_t ct_len)
             c += LSTRLEN("charset");
             for (; c < end && *c == ' '; c++) {}
             if (c < end && *c == '=') {
-                for (c++; c < end - LSTRLEN("utf-8") && *c == ' '; c++) {}
-                if (tolower(*c) == 'u' && tolower(*(c + 1)) == 't' &&
-                    tolower(*(c + 2)) == 'f' && tolower(*(c + 3)) == '-' &&
-                    tolower(*(c + 4)) == '8') {
+                for (c++; (size_t)(end - c) > LSTRLEN("utf-8") && *c == ' ';
+                    c++) {}
+                if ((size_t)(end - c) >= LSTRLEN("utf-8") &&
+                    tolower(*c) == 'u' && tolower(*(c + 1)) == 't' &&
+                    tolower(*(c + 2)) == 'f' && *(c + 3) == '-' &&
+                    *(c + 4) == '8') {
                     return true;
                 }
                 return false;
@@ -215,7 +217,7 @@ static bool _assume_utf8(const char *ct, size_t ct_len)
     return true;
 }
 
-#define MAX_XML_DEPTH 30
+enum { MAX_XML_DEPTH = 30 };
 static zval _convert_xml(const char *nonnull entity, size_t entity_len,
     const char *nonnull content_type, size_t content_type_len)
 {
@@ -245,7 +247,7 @@ PHP_FUNCTION(datadog_appsec_convert_xml)
 PHP_FUNCTION(datadog_appsec_convert_json)
 {
     zend_string *entity;
-#define MAX_DEPTH_DEFAULT 30
+    enum { MAX_DEPTH_DEFAULT = 30 };
     zend_long max_depth = MAX_DEPTH_DEFAULT;
     ZEND_PARSE_PARAMETERS_START(1, 2) // NOLINT
     Z_PARAM_STR(entity)

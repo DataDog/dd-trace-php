@@ -99,11 +99,6 @@ def creationDateOf(String image) {
     Date volumeDate = Date.from(OffsetDateTime.parse(imageModifiedStr).toInstant())
     volumeDate.time
 }
-def libddwafCommit() {
-    def proc = ['git', '-C', "${projectDir}/../../third_party/libddwaf", 'rev-parse', 'HEAD'].execute()
-    proc.waitForOrKill(5_000)
-    proc.text.trim()
-}
 
 def createVolumeTask = { String volumeName ->
     String taskName = "createVolume-$volumeName"
@@ -345,7 +340,7 @@ def buildTracerTask = { String version, String variant, altBaseTag = null ->
                             '../../../ext',
                             '../../../zend_abstract_interface',
                             '../../../libdatadog',
-                            '../../../ddtrace.sym',
+                            '../../../datadog.sym',
                     ],
             ],
             outputs: [
@@ -378,7 +373,7 @@ def buildTracerCmakeTask = { String version, String variant, altBaseTag = null -
                             '../../../zend_abstract_interface',
                             '../../../components-rs',
                             '../../../libdatadog',
-                            '../../../ddtrace.sym',
+                            '../../../datadog.sym',
                             '../../cmake',
                     ],
                     files: ['../../CMakeLists.txt', '../../cmake/ddtrace.cmake'],
@@ -427,12 +422,12 @@ def buildTracerSsiTask = { String version, String variant ->
                             '../../../zend_abstract_interface',
                             '../../../components-rs',
                             '../../../libdatadog',
-                            '../../../ddtrace.sym',
+                            '../../../datadog.sym',
                     ],
             ],
             outputs: [
                     volume: 'php-tracer-ssi',
-                    files: ['ddtrace.so', 'libddtrace_php.so'],
+                    files: ['ddtrace.so', 'libdatadog_php.so'],
             ],
             volumes: [
                     ("php-tracer-ssi-${version}-${variant}"): [mountPoint: '/tracer-ssi'],
@@ -446,12 +441,12 @@ def buildTracerSsiTask = { String version, String variant ->
                         make /project/tmp/build_extension/modules/ddtrace.so
                     cp /project/tmp/build_extension/modules/ddtrace.so /tracer-ssi/ddtrace.so
 
-                    # Build libddtrace_php.so (cdylib) via compile_rust.sh.
+                    # Build libdatadog_php.so (cdylib) via compile_rust.sh.
                     CARGO_TARGET_DIR=/project/tmp/target \\
                         SHARED=1 PROFILE=${cargoProfile} host_os=linux ./compile_rust.sh
-                    cp /project/tmp/target/${cargoProfile}/libddtrace_php.so /tracer-ssi/libddtrace_php.so
+                    cp /project/tmp/target/${cargoProfile}/libdatadog_php.so /tracer-ssi/libdatadog_php.so
 
-                    touch /tracer-ssi/ddtrace.so /tracer-ssi/libddtrace_php.so
+                    touch /tracer-ssi/ddtrace.so /tracer-ssi/libdatadog_php.so
                     """
             ]
     )
@@ -474,14 +469,14 @@ def buildTracerSsiCmakeTask = { String version, String variant ->
                             '../../../zend_abstract_interface',
                             '../../../components-rs',
                             '../../../libdatadog',
-                            '../../../ddtrace.sym',
+                            '../../../datadog.sym',
                             '../../cmake',
                     ],
                     files: ['../../CMakeLists.txt', '../../cmake/ddtrace.cmake'],
             ],
             outputs: [
                     volume: 'php-tracer-ssi-cmake',
-                    files: ['ddtrace.so', 'libddtrace_php.so'],
+                    files: ['ddtrace.so', 'libdatadog_php.so'],
             ],
             volumes: [
                     ("php-tracer-ssi-cmake-${version}-${variant}"): [mountPoint: '/tracer-ssi'],
@@ -499,8 +494,8 @@ def buildTracerSsiCmakeTask = { String version, String variant ->
                               -DDD_APPSEC_TESTING=OFF \\
                               /project/appsec
                     make -j ddtrace
-                    cp components_rs/${cargoSubdir}/libddtrace_php.so .
-                    touch ddtrace.so libddtrace_php.so
+                    cp components_rs/${cargoSubdir}/libdatadog_php.so .
+                    touch ddtrace.so libdatadog_php.so
                     """
             ]
     )
@@ -575,7 +570,6 @@ def buildAppSecTask = { String version, String variant, altBaseTag = null ->
                         cmake -DCMAKE_BUILD_TYPE=$buildType \\
                               -DCMAKE_INSTALL_PREFIX=/appsec \\
                               -DDD_APPSEC_ENABLE_PATCHELF_LIBC=ON \\
-                              -DGIT_COMMIT=${libddwafCommit()} \\
                               -DDD_APPSEC_TESTING=ON \\
                               -DDD_APPSEC_BUILD_HELPER=OFF \\
                               -DBOOST_CACHE_PREFIX=/var/boost-cache /project/appsec
@@ -750,9 +744,19 @@ if (project.hasProperty('testClass')) {
             if (project.hasProperty('helperBinary')) {
                 systemProperty 'HELPER_BINARY_PATH', project.getProperty('helperBinary')
             }
+            if (project.hasProperty('useHelperRustCoverage')) {
+                systemProperty 'USE_HELPER_RUST_COVERAGE', '1'
+            }
             dependsOn project.hasProperty('useCmake') ? "buildTracerSsiCmake-8.3-${variant}" : "buildTracerSsi-8.3-${variant}"
             dependsOn "buildLoader-8.3-${variant}"
             dependsOn "buildAppsec-8.3-${variant}"
+            if (project.hasProperty('helperBinary')) {
+                // Skip building helper-rust when explicit binary path is provided
+            } else if (project.hasProperty('useHelperRustCoverage')) {
+                dependsOn 'buildHelperRustWithCoverage'
+            } else {
+                dependsOn 'buildHelperRust'
+            }
             dependsOn downloadComposer
         }
     }
@@ -794,6 +798,9 @@ if (project.hasProperty('testClass')) {
         if (project.hasProperty('helperBinary')) {
             it.systemProperty 'HELPER_BINARY_PATH', project.getProperty('helperBinary')
         }
+        if (project.hasProperty('useHelperRustCoverage')) {
+            it.systemProperty 'USE_HELPER_RUST_COVERAGE', '1'
+        }
 
         it.systemProperty 'DOCKER_MIRROR', dockerMirror
         if (!project.hasProperty('floatingImageTags')) {
@@ -806,6 +813,13 @@ if (project.hasProperty('testClass')) {
         dependsOn project.hasProperty('useCmake') ? "buildTracerSsiCmake-8.3-${variant}" : "buildTracerSsi-8.3-${variant}"
         dependsOn "buildLoader-8.3-${variant}"
         dependsOn "buildAppsec-8.3-${variant}"
+        if (project.hasProperty('helperBinary')) {
+            // Skip building helper-rust when explicit binary path is provided
+        } else if (project.hasProperty('useHelperRustCoverage')) {
+            dependsOn 'buildHelperRustWithCoverage'
+        } else {
+            dependsOn 'buildHelperRust'
+        }
         dependsOn downloadComposer
     }
 }
@@ -844,40 +858,6 @@ task saveCaches(type: Exec) {
               -C /caches php-tracer-cargo-cache php-tracer-cargo-cache-git php-appsec-boost-cache && \
               chown \$UUID /build/php-appsec-volume-caches-${arch}.tar.gz"""
 }
-
-// libddwaf shared library build (for helper-rust)
-buildRunInDockerTask(
-        baseName: 'buildLibddwaf',
-        imageTag: 'php-deps',
-        description: 'Build libddwaf shared library',
-        needsBoostCache: false,
-        needsCargoCache: false,
-        inputs: [
-                dirs: ['../../third_party/libddwaf'],
-        ],
-        outputs: [
-                volume: 'php-libddwaf',
-                files: ['lib/libddwaf.so', 'include/ddwaf.h'],
-        ],
-        volumes: [
-                'php-libddwaf': [mountPoint: '/libddwaf-prefix'],
-        ],
-        command: [
-                '-e', '-c',
-                """
-                mkdir -p /tmp/libddwaf-build
-                cd /tmp/libddwaf-build
-                cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo \\
-                      -DCMAKE_INSTALL_PREFIX=/libddwaf-prefix \\
-                      -DLIBDDWAF_BUILD_SHARED=ON \\
-                      -DLIBDDWAF_BUILD_STATIC=OFF \\
-                      -DLIBDDWAF_TESTING=OFF \\
-                      /project/appsec/third_party/libddwaf
-                make -j install
-                touch /libddwaf-prefix/lib/libddwaf.so /libddwaf-prefix/include/ddwaf.h
-                """
-        ]
-)
 
 // Shared configuration for helper-rust tasks
 def helperRustInputs = [
@@ -1079,14 +1059,8 @@ buildRunInDockerTask(
                     echo 'Found profraw files:'
                     ls -la *.profraw
 
-                    # Detect the architecture-specific toolchain path
-                    ARCH=\$(uname -m)
-                    if [ "\$ARCH" = "aarch64" ]; then
-                        RUST_TARGET="aarch64-unknown-linux-gnu"
-                    else
-                        RUST_TARGET="x86_64-unknown-linux-gnu"
-                    fi
-                    LLVM_TOOLS="/root/.rustup/toolchains/1.84.1-\${RUST_TARGET}/lib/rustlib/\${RUST_TARGET}/bin"
+                    RUST_TARGET_LIBDIR="\$(rustc --print target-libdir)"
+                    LLVM_TOOLS="\${RUST_TARGET_LIBDIR%/lib}/bin"
 
                     \${LLVM_TOOLS}/llvm-profdata merge -sparse *.profraw -o merged.profdata
                     \${LLVM_TOOLS}/llvm-cov export \\

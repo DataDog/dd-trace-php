@@ -150,7 +150,7 @@ pub extern "C" fn ddog_sidecar_connect_php(
 }
 
 #[no_mangle]
-pub extern "C" fn ddtrace_sidecar_reconnect(
+pub extern "C" fn datadog_sidecar_reconnect(
     transport: &mut Box<SidecarTransport>,
     factory: unsafe extern "C" fn() -> Option<Box<SidecarTransport>>,
 ) {

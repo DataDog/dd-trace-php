@@ -14,10 +14,10 @@
 const char *datadog_extension_build_id(void) { return ZEND_EXTENSION_BUILD_ID; }
 const char *datadog_module_build_id(void) { return ZEND_MODULE_BUILD_ID; }
 
-uint8_t *ddtrace_runtime_id = NULL;
+uint8_t *datadog_runtime_id = NULL;
 
-static void locate_ddtrace_runtime_id(const zend_extension *extension) {
-    ddtrace_runtime_id = DL_FETCH_SYMBOL(extension->handle, "ddtrace_runtime_id");
+static void locate_datadog_runtime_id(const zend_extension *extension) {
+    datadog_runtime_id = DL_FETCH_SYMBOL(extension->handle, "datadog_runtime_id");
 }
 
 static void locate_ddtrace_get_profiling_context(const zend_extension *extension) {
@@ -28,9 +28,9 @@ static void locate_ddtrace_get_profiling_context(const zend_extension *extension
     }
 }
 
-static void locate_ddtrace_process_tags_get_serialized(const zend_extension *extension) {
+static void locate_datadog_process_tags_get_serialized(const zend_extension *extension) {
     zend_string *(*get_process_tags)(void) =
-        DL_FETCH_SYMBOL(extension->handle, "ddtrace_process_tags_get_serialized");
+        DL_FETCH_SYMBOL(extension->handle, "datadog_process_tags_get_serialized");
     if (EXPECTED(get_process_tags)) {
         datadog_php_profiling_get_process_tags_serialized = get_process_tags;
     }
@@ -121,6 +121,10 @@ bool ddog_php_prof_is_post_startup(void) {
 static post_startup_cb_result (*orig_post_startup_cb)(void) = NULL;
 
 static post_startup_cb_result ddog_php_prof_post_startup_cb(void) {
+#if CFG_FRAMELESS
+    ddog_php_prof_post_startup(); // before preload+JIT (which may hardcode the flf handlers)
+#endif
+
     if (orig_post_startup_cb) {
         post_startup_cb_result (*cb)(void) = orig_post_startup_cb;
 
@@ -163,8 +167,8 @@ void datadog_php_profiling_startup(zend_extension *extension) {
         const zend_extension *maybe_ddtrace = (zend_extension *)item->data;
         if (maybe_ddtrace != extension && is_ddtrace_extension(maybe_ddtrace)) {
             locate_ddtrace_get_profiling_context(maybe_ddtrace);
-            locate_ddtrace_runtime_id(maybe_ddtrace);
-            locate_ddtrace_process_tags_get_serialized(maybe_ddtrace);
+            locate_datadog_runtime_id(maybe_ddtrace);
+            locate_datadog_process_tags_get_serialized(maybe_ddtrace);
             break;
         }
     }
@@ -229,9 +233,9 @@ void ddog_php_prof_copy_long_into_zval(zval *dest, long num) {
 }
 
 void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap,
-                                               void* (*_malloc)(size_t),
-                                               void  (*_free)(void*),
-                                               void* (*_realloc)(void*, size_t)) {
+                                               ddog_php_prof_zend_mm_malloc _malloc,
+                                               ddog_php_prof_zend_mm_free _free,
+                                               ddog_php_prof_zend_mm_realloc _realloc) {
     zend_mm_set_custom_handlers(heap, _malloc, _free, _realloc);
 #if PHP_VERSION_ID < 70300
     if (!_malloc && !_free && !_realloc) {
@@ -557,9 +561,6 @@ void ddog_php_test_free_fake_zend_function(zend_function *func) {
     free(func);
 }
 
-// Stub for zend_flf_functions (PHP 8.4+ frameless calls) to allow tests to link
-// without the real PHP runtime. The test doesn't exercise frameless code paths.
-__attribute__((weak)) zend_function **zend_flf_functions;
 #endif // CFG_STACK_WALKING_TESTS || CFG_TEST
 
 void *opcache_handle = NULL;

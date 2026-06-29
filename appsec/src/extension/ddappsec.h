@@ -37,6 +37,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddappsec)
     bool to_be_configured : 1;
 
     bool skip_rshutdown : 1;
+    // used to avoid a bailout during request shutdown
     bool during_request_shutdown : 1;
 
     dd_conn conn;

@@ -5,10 +5,10 @@
 // (https://www.datadoghq.com/). Copyright 2025 Datadog, Inc.
 #pragma once
 
+#include "attributes.h"
 #include <php.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include "attributes.h"
 
 bool dd_xml_parser_startup(void);
 void dd_xml_parser_shutdown(void);

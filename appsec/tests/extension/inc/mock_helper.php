@@ -34,8 +34,9 @@ class Helper {
 
     static function createRun($responses, $opts = array()) {
         $continuous = key_exists('continuous', $opts) && $opts['continuous'];
+        $no_wait_shutdown = key_exists('no_wait_shutdown', $opts) && $opts['no_wait_shutdown'];
         $helper = new static($opts);
-        $helper->run($responses, $continuous);
+        $helper->run($responses, $continuous, $no_wait_shutdown);
         return $helper;
     }
 
@@ -48,7 +49,7 @@ class Helper {
         return self::createRun($responses, $opts);
     }
 
-    function run($responses, $continuous = false) {
+    function run($responses, $continuous = false, $no_wait_shutdown = false) {
         // Register the extension-side socket with the mock transport before
         // mock_helper starts, so rinit() finds the fd already set.
         \datadog\appsec\testing\set_mock_helper_fd($this->ext_sock);
@@ -59,7 +60,8 @@ class Helper {
         }
 
         $cmd = "'{$this->mock_helper_path}' --lock {$this->lock_path}" .
-            ($continuous ? ' --continuous ' : '') . ' ' . $esc_resp;
+            ($continuous ? ' --continuous ' : '') .
+            ($no_wait_shutdown ? ' --no-wait-shutdown ' : '') . ' ' . $esc_resp;
 
         $this->process = proc_open($cmd, $this->descriptors, $pipes, null,
             array('GLOG_logtostderr' => '1', 'GLOG_v' => '1'));
@@ -76,6 +78,20 @@ class Helper {
         $this->ensure_running();
 
         $this->wait_for_daemon_ready();
+
+        // The extension only sends its client_shutdown goodbye at GSHUTDOWN,
+        // which runs after object destructors -- and destructors are skipped
+        // entirely when a request aborts via a fatal error (e.g. a blocking or
+        // redirecting verdict).  A shutdown function runs early in request
+        // shutdown in all cases (including after a fatal error), while the mock
+        // is still alive, so we use it to deliver the goodbye and let the mock
+        // ack it and exit cleanly.  Does not capture $this, so it doesn't keep
+        // the Helper alive.
+        register_shutdown_function(function () {
+            if (function_exists('datadog\\appsec\\testing\\close_helper_connection')) {
+                @\datadog\appsec\testing\close_helper_connection();
+            }
+        });
     }
 
     function __destruct() {

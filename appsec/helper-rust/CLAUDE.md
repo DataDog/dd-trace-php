@@ -15,25 +15,11 @@ This project is a Rust rewrite of the Datadog AppSec helper for PHP, which provi
 
 - **PHP extension**: `../src/extension` (integration point)
 
-- **libddwaf Rust bindings**: `../third_party/libddwaf-rust/` (path dependency)
-
-- **libddwaf C++ library**: `../third_party/libddwaf/` (linked statically into `libddappsec-helper.so`)
+- **libddwaf Rust bindings and native library**: `../third_party/libddwaf-rust/` (path dependency)
 
 ## Architecture
 
-### Current Architecture (Standalone Binary)
-
-```
-PHP Extension
-    ↓ (Unix socket + msgpack)
-helper-rust (loaded by sidecar)
-    ↓ (FFI)
-libddwaf
-```
-
-### Target Architecture (Sidecar Integration)
-
-Eventually, we'll move to:
+### Current Architecture
 
 ```
 PHP Extension
@@ -47,7 +33,7 @@ libddwaf
 
 Core modules:
 - **src/lib.rs** - C FFI entry point (`appsec_helper_main()`), initialization, runtime management
-- **src/server.rs** - Unix socket server that accepts client connections
+- **src/server.rs** - Sidecar AppSec message handler registration and client task management
 - **src/client.rs** - Client connection handler, request processing, WAF execution orchestration
 - **src/service.rs** - Service management, maintains WAF instances per service configuration
 - **src/config.rs** - Configuration management (from environment variables)
@@ -55,7 +41,6 @@ Core modules:
 - **src/rc_notify.rs** - Remote configuration callback system to receive updates from sidecar
 - **src/telemetry.rs** - Telemetry traits and definitions for metrics and logs
 - **src/ffi.rs** - FFI helpers and symbol resolution for calling sidecar functions
-- **src/lock.rs** - Lock file and abstract socket uniqueness enforcement
 
 Client sub-modules:
 - **src/client/protocol.rs** - Msgpack protocol codec for PHP extension communication

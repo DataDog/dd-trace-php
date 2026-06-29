@@ -5,9 +5,14 @@ on:
   schedule:
     - cron: '0 0 * * *'
 
+permissions:
+  contents: read
+
 jobs:
   prof-correctness:
     runs-on: ubuntu-24.04
+    env:
+      LLVM_VERSION: "20"
     strategy:
       fail-fast: false
       matrix:
@@ -25,7 +30,7 @@ jobs:
           submodules: true
 
       - name: Setup PHP
-        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f # v2.37.0
+        uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc # v2.37.1
         with:
           php-version: ${{ matrix.php-version }}
           coverage: none
@@ -35,7 +40,7 @@ jobs:
           fail-fast: true
 
       - name: Restore build cache
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: |
             ~/.cargo/bin/
@@ -43,27 +48,41 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ matrix.php-version }}-${{ matrix.phpts }}
+          key: ${{ runner.os }}-cargo-llvm-${{ env.LLVM_VERSION }}-${{ hashFiles('**/Cargo.lock', 'profiling/rust-toolchain.toml') }}-${{ matrix.php-version }}-${{ matrix.phpts }}
 
       - name: Build profiler
         run: |
           codename="$(lsb_release -cs)"
           curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/llvm-archive-keyring.gpg
-          echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/${codename}/ llvm-toolchain-${codename}-19 main" | sudo tee /etc/apt/sources.list.d/llvm.list
+          echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/${codename}/ llvm-toolchain-${codename}-${LLVM_VERSION} main" | sudo tee /etc/apt/sources.list.d/llvm.list
           sudo apt-get update
-          sudo apt-get install -y clang-19 lld-19
-          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-19 100
-          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-19 100
-          sudo update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/ld.lld-19 100
+          llvm18_packages="$(dpkg-query -W -f='${binary:Package}\n' \
+            '*clang*18*' '*llvm*18*' '*lld*18*' '*libomp*18*' \
+            '*libc++*18*' '*libc++abi*18*' '*mlir*18*' '*flang*18*' \
+            '*bolt*18*' '*polly*18*' 2>/dev/null || true)"
+          if [ -n "$llvm18_packages" ]; then
+            sudo apt-get purge -y $llvm18_packages
+            sudo apt-get autoremove -y
+          fi
+          sudo apt-get install -y clang-${LLVM_VERSION} lld-${LLVM_VERSION} llvm-${LLVM_VERSION}-dev libclang-${LLVM_VERSION}-dev libclang-rt-${LLVM_VERSION}-dev
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${LLVM_VERSION} 100
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-${LLVM_VERSION} 100
+          sudo update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/ld.lld-${LLVM_VERSION} 100
+          export CC=clang-${LLVM_VERSION}
+          export CXX=clang++-${LLVM_VERSION}
+          export LLVM_CONFIG_PATH=/usr/bin/llvm-config-${LLVM_VERSION}
+          export LIBCLANG_PATH=/usr/lib/llvm-${LLVM_VERSION}/lib
+          export LD_LIBRARY_PATH="${LIBCLANG_PATH}:${LD_LIBRARY_PATH:-}"
           clang --version
           ld.lld --version
+          "$LLVM_CONFIG_PATH" --version
           cd profiling
           version_number=$(awk -F' = ' '$1 == "channel" { gsub(/"/, "", $2); print $2 }' rust-toolchain.toml)
           curl https://sh.rustup.rs -sSf | sh -s -- --profile minimal -y --default-toolchain "$version_number"
           cargo rustc --features="trigger_time_sample" --profile profiler-release --crate-type=cdylib
 
       - name: Cache build dependencies
-        uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: |
             ~/.cargo/bin/
@@ -71,7 +90,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ matrix.php-version }}-${{ matrix.phpts }}
+          key: ${{ runner.os }}-cargo-llvm-${{ env.LLVM_VERSION }}-${{ hashFiles('**/Cargo.lock', 'profiling/rust-toolchain.toml') }}-${{ matrix.php-version }}-${{ matrix.phpts }}
 
       - name: Run no profile test
         run: |
@@ -84,8 +103,9 @@ jobs:
               mkdir -p profiling/tests/correctness/"$test_case"/
               export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/"$test_case"/test.pprof
               php -d extension="${PWD}/target/profiler-release/libdatadog_php_profiling.so" "profiling/tests/correctness/${test_case}.php"
-              if [ -f "$DD_PROFILING_OUTPUT_PPROF".1.lz4 ]; then
-                echo "File $DD_PROFILING_OUTPUT_PPROF.1.lz4 should not exist!"
+              if compgen -G "$DD_PROFILING_OUTPUT_PPROF.*" > /dev/null; then
+                echo "Profile output should not exist:"
+                ls -l "$DD_PROFILING_OUTPUT_PPROF".*
                 exit 1;
               fi
           done

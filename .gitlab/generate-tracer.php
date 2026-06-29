@@ -67,7 +67,7 @@ stages:
 "compile extension: debug":
   stage: compile
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-7
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-8
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *all_minor_major_targets
@@ -186,7 +186,7 @@ stages:
 .base_test:
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-7
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-8
   timeout: 60m
   interruptible: true
   rules:
@@ -365,6 +365,7 @@ foreach ($all_minor_major_targets as $major_minor):
     MAX_TEST_PARALLELISM: 4
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
+    KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
   timeout: 120m
   script:
     - make test_extension_ci
@@ -385,6 +386,26 @@ foreach ($all_minor_major_targets as $major_minor):
   script:
     - make test_unit PHPUNIT_JUNIT="artifacts/tests/php-tests.xml" <?= ASSERT_NO_MEMLEAKS ?>
 <?php after_script(); ?>
+
+<?php if (version_compare($major_minor, "8.0", ">=")): ?>
+"Feature flags tests: [<?= $major_minor ?>]":
+  extends: .debug_test
+  needs:
+    - job: "compile extension: debug"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+    - job: "Prepare code"
+      artifacts: true
+  variables:
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "amd64"
+  script:
+    - make test_featureflags PHPUNIT_JUNIT="artifacts/tests/php-tests.xml" <?= ASSERT_NO_MEMLEAKS ?>
+<?php after_script(); ?>
+<?php endif; ?>
 
 "API unit tests: [<?= $major_minor ?>]":
   extends: .debug_test

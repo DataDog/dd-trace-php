@@ -141,6 +141,9 @@
         <testsuite name="unit">
             <directory>./Unit/</directory>
         </testsuite>
+        <testsuite name="featureflags">
+            <directory phpVersion="8.0.0" phpVersionOperator="&gt;=">./OpenFeature/</directory>
+        </testsuite>
     </testsuites>
 
     <coverage includeUncoveredFiles="false">

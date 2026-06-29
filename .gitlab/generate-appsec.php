@@ -52,8 +52,7 @@ stages:
     - when: on_success
   before_script:
 <?php unset_dd_runner_env_vars() ?>
-    - git config --global --add safe.directory "$(pwd)/appsec/third_party/libddwaf"
-    - sudo apt install -y clang-tidy-17 libc++-17-dev libc++abi-17-dev
+    - sudo apt install -y clang-tidy-20 libc++-20-dev libc++abi-20-dev
     - mkdir -p appsec/build boost-cache boost-cache
   cache:
     - key: "appsec boost cache"
@@ -71,7 +70,7 @@ stages:
 "test appsec extension":
   stage: test
   extends: .appsec_test
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-6
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-8
   variables:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_CPU_LIMIT: 3
@@ -238,7 +237,7 @@ stages:
     - apt update && apt install -y openjdk-17-jre
     - |
       echo "Installing codecov CLI"
-      curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+      curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&options=mr&search=0x27034E7FDB850E0BBC2C62FF806BB28AED779869" | gpg --no-default-keyring --keyring trustedkeys.gpg --import
       CODECOV_VERSION=0.6.1
       curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/linux/codecov
       curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/linux/codecov.SHA256SUM
@@ -271,7 +270,15 @@ stages:
     - |
       echo "Uploading helper-rust unit test coverage to codecov"
       cd "$CI_PROJECT_DIR"
-      CODECOV_TOKEN=$(vault kv get --format=json kv/k8s/gitlab-runner/dd-trace-php/codecov | jq -r .data.data.token)
+      if ! VAULT_OUTPUT=$(vault kv get --format=json kv/k8s/gitlab-runner/dd-trace-php/codecov); then
+        echo "ERROR: vault unreachable while fetching CODECOV_TOKEN; exiting 75 so GitLab auto-retries (see default retry.exit_codes in generate-common.php)"
+        exit 75
+      fi
+      CODECOV_TOKEN=$(echo "$VAULT_OUTPUT" | jq -r .data.data.token)
+      if [ -z "$CODECOV_TOKEN" ] || [ "$CODECOV_TOKEN" = "null" ]; then
+        echo "ERROR: CODECOV_TOKEN empty/null after vault fetch; exiting 75 so GitLab auto-retries"
+        exit 75
+      fi
       codecov -t "$CODECOV_TOKEN" -n helper-rust-unit -F helper-rust-unit -v -f appsec/helper-rust/coverage-unit.lcov
   artifacts:
     paths:
@@ -305,7 +312,7 @@ stages:
     - apt update && apt install -y openjdk-17-jre
     - |
       echo "Installing codecov CLI"
-      curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+      curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&options=mr&search=0x27034E7FDB850E0BBC2C62FF806BB28AED779869" | gpg --no-default-keyring --keyring trustedkeys.gpg --import
       CODECOV_VERSION=0.6.1
       curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/linux/codecov
       curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/linux/codecov.SHA256SUM
@@ -342,7 +349,15 @@ stages:
     - |
       echo "Uploading helper-rust integration test coverage to codecov"
       cd "$CI_PROJECT_DIR"
-      CODECOV_TOKEN=$(vault kv get --format=json kv/k8s/gitlab-runner/dd-trace-php/codecov | jq -r .data.data.token)
+      if ! VAULT_OUTPUT=$(vault kv get --format=json kv/k8s/gitlab-runner/dd-trace-php/codecov); then
+        echo "ERROR: vault unreachable while fetching CODECOV_TOKEN; exiting 75 so GitLab auto-retries (see default retry.exit_codes in generate-common.php)"
+        exit 75
+      fi
+      CODECOV_TOKEN=$(echo "$VAULT_OUTPUT" | jq -r .data.data.token)
+      if [ -z "$CODECOV_TOKEN" ] || [ "$CODECOV_TOKEN" = "null" ]; then
+        echo "ERROR: CODECOV_TOKEN empty/null after vault fetch; exiting 75 so GitLab auto-retries"
+        exit 75
+      fi
       codecov -t "$CODECOV_TOKEN" -n helper-rust-integration -F helper-rust-integration -v -f appsec/helper-rust/coverage-integration.lcov
   after_script:
     - mkdir -p "${CI_PROJECT_DIR}/artifacts"
@@ -365,7 +380,7 @@ stages:
 "appsec code coverage":
   stage: test
   extends: .appsec_test
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.3_bookworm-6
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.3_bookworm-8
   variables:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 3Gi
@@ -380,14 +395,14 @@ stages:
       sudo cp -v vault /usr/local/bin
       cd -
       sudo sed -i 's|http://deb.debian.org/debian|http://archive.debian.org/debian|g; s|http://security.debian.org/debian-security|http://archive.debian.org/debian-security|g' /etc/apt/sources.list
-      sudo apt-get update && sudo apt-get install -y jq gcovr llvm-17 clang-17
+      sudo apt-get update && sudo apt-get install -y jq gcovr llvm-20 clang-20
 
       echo "Installing codecov"
 
       CODECOV_TOKEN=$(vault kv get --format=json kv/k8s/gitlab-runner/dd-trace-php/codecov | jq -r .data.data.token)
       CODECOV_VERSION=0.6.1
       CODECOV_ARCH=linux
-      curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+      curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&options=mr&search=0x27034E7FDB850E0BBC2C62FF806BB28AED779869" | gpg --no-default-keyring --keyring trustedkeys.gpg --import
       curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/${CODECOV_ARCH}/codecov
       curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/${CODECOV_ARCH}/codecov.SHA256SUM
       curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/${CODECOV_ARCH}/codecov.SHA256SUM.sig
@@ -400,7 +415,7 @@ stages:
     - |
       cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=ON \
         -DDD_APPSEC_TESTING=ON -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
-        -DCMAKE_C_COMPILER=/usr/bin/clang-17 -DCMAKE_CXX_COMPILER=/usr/bin/clang++-17 \
+        -DCMAKE_C_COMPILER=/usr/bin/clang-20 -DCMAKE_CXX_COMPILER=/usr/bin/clang++-20 \
         -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" \
         -DBOOST_CACHE_PREFIX="$CI_PROJECT_DIR/boost-cache"
     - |
@@ -409,8 +424,8 @@ stages:
         VERBOSE=1 make -j 4 xtest
     - |
       cd /tmp/cov-ext
-      llvm-profdata-17 merge -sparse *.profraw -o default.profdata
-      llvm-cov-17 export "$CI_PROJECT_DIR"/appsec/build/ddappsec.so \
+      llvm-profdata-20 merge -sparse *.profraw -o default.profdata
+      llvm-cov-20 export "$CI_PROJECT_DIR"/appsec/build/ddappsec.so \
         -format=lcov -instr-profile=default.profdata \
         > "$CI_PROJECT_DIR"/appsec/build/coverage-ext.lcov
       echo "Uploading extension coverage to codecov"
@@ -473,25 +488,24 @@ stages:
 "appsec lint":
   stage: test
   extends: .appsec_test
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.3_bookworm-6
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.3_bookworm-8
   variables:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 9Gi
     KUBERNETES_MEMORY_LIMIT: 10Gi
     ARCH: amd64
   script:
-    - sudo apt install -y clang-format-17
+    - sudo apt install -y clang-format-20
     - cd appsec/build
     - |
       cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=OFF \
         -DDD_APPSEC_TESTING=OFF -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
         -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" \
         -DBOOST_CACHE_PREFIX="$CI_PROJECT_DIR/boost-cache" \
-        -DCLANG_TIDY=/usr/bin/run-clang-tidy-17 \
-        -DCLANG_FORMAT=/usr/bin/clang-format-17
+        -DCLANG_TIDY=/usr/bin/run-clang-tidy-20 \
+        -DCLANG_FORMAT=/usr/bin/clang-format-20
     - make -j 4 extension
     - make format tidy
-
 "check libxml2 version":
   stage: test
   image: registry.ddbuild.io/images/mirror/python:3.12-slim-bullseye

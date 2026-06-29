@@ -35,8 +35,12 @@ pub struct WafMetrics {
     // Ruleset version (context for tag generation)
     rules_version: Option<String>,
 
-    /// Whether a non-RASP evaluation hit an error
-    waf_hit_error: bool,
+    /// The error code of the last non-RASP evaluation that hit an error, if any
+    waf_error_code: Option<i32>,
+
+    /// The RASP evaluation that hit an error, if any. RASP errors are reported
+    /// separately from non-RASP ones (appsec.rasp.error vs appsec.waf.error)
+    rasp_error: Option<RaspError>,
 
     /// Total WAF execution time in milliseconds (non-RASP calls only)
     waf_duration: Duration,
@@ -74,6 +78,14 @@ pub struct WafMetrics {
     rate_limited: bool,
 }
 
+#[derive(Debug)]
+struct RaspError {
+    /// The numeric error returned by ddwaf_run, or -127 if from the bindings.
+    code: i32,
+    rule_type: String,
+    rule_variant: String,
+}
+
 #[derive(Default, Debug, Clone)]
 pub struct RaspRuleMetrics {
     /// Total number of RASP rule evaluations, whether they matched or not
@@ -95,7 +107,8 @@ impl WafMetrics {
     pub fn new(rules_version: Option<String>) -> Self {
         Self {
             rules_version,
-            waf_hit_error: false,
+            waf_error_code: None,
+            rasp_error: None,
             waf_duration: Duration::ZERO,
             waf_hit_timeout: false,
             rasp_duration: Duration::ZERO,
@@ -117,8 +130,22 @@ impl WafMetrics {
         self.rate_limited = rate_limited;
     }
 
-    pub fn record_non_rasp_error_eval(&mut self) {
-        self.waf_hit_error = true;
+    pub fn record_non_rasp_error_eval(&mut self, error_code: i32) {
+        self.waf_error_code = Some(error_code);
+    }
+
+    pub fn record_rasp_error_eval(&mut self, error_code: i32, rule_type: &str, rule_variant: &str) {
+        self.rasp_error = Some(RaspError {
+            code: error_code,
+            rule_type: rule_type.to_string(),
+            rule_variant: rule_variant.to_string(),
+        });
+        // questionable but we still count towards these metrics even with error
+        self.rasp_rule_evals += 1;
+        self.rasp_per_rule
+            .entry((rule_type.to_string(), rule_variant.to_string()))
+            .or_default()
+            .evals += 1;
     }
 
     pub fn record_non_rasp_eval(&mut self, run_output: &libddwaf::RunOutput) {
@@ -193,68 +220,63 @@ impl telemetry::TelemetryMetricsGenerator for WafMetrics {
         &'_ self,
         submitter: &mut dyn telemetry::TelemetryMetricSubmitter,
     ) {
+        let base_tags = {
+            let mut tags = telemetry::TelemetryTags::new();
+            tags.add("waf_version", crate::service::Service::waf_version());
+            tags.add(
+                "event_rules_version",
+                self.rules_version.as_deref().unwrap_or("unknown"),
+            );
+            tags
+        };
+
         // waf.requests metrics
         // RFC-1012: all boolean tags must be emitted regardless of value.
-        let mut tags = telemetry::TelemetryTags::new();
-        tags.add("waf_version", crate::service::Service::waf_version());
-        tags.add(
-            "event_rules_version",
-            self.rules_version.as_deref().unwrap_or("unknown"),
-        );
+        let mut tags = base_tags.clone();
         tags.add("rule_triggered", bool_tag(self.had_triggers));
         // block_failure is not tracked: the PHP layer is assumed to always succeed at blocking.
         // Therefore request_blocked == "WAF requested a block" == "block succeeded".
         // request_excluded is not tracked: libddwaf applies exclusion filters internally and
         // does not expose whether a request was excluded in RunOutput.
         tags.add("request_blocked", bool_tag(self.request_blocked));
-        tags.add("waf_error", bool_tag(self.waf_hit_error));
+        tags.add("waf_error", bool_tag(self.waf_error_code.is_some()));
         tags.add("waf_timeout", bool_tag(self.waf_hit_timeout));
         tags.add("input_truncated", bool_tag(self.input_truncated));
         tags.add("rate_limited", bool_tag(self.rate_limited));
         submitter.submit_metric(telemetry::WAF_REQUESTS, 1.0, tags);
 
+        // waf.error
+        if let Some(error_code) = self.waf_error_code {
+            let mut err_tags = base_tags.clone();
+            err_tags.add("waf_error", error_code.to_string());
+            submitter.submit_metric(telemetry::WAF_ERROR, 1.0, err_tags);
+        }
+
         // waf.duration distribution: one observation per request, value in microseconds
         if !self.waf_duration.is_zero() {
-            let mut dur_tags = telemetry::TelemetryTags::new();
-            dur_tags.add("waf_version", crate::service::Service::waf_version());
-            dur_tags.add(
-                "event_rules_version",
-                self.rules_version.as_deref().unwrap_or("unknown"),
-            );
             submitter.submit_metric(
                 telemetry::WAF_DURATION_DIST,
                 self.waf_duration.as_micros() as f64,
-                dur_tags,
+                base_tags.clone(),
             );
         }
 
         // rasp.duration distribution: cumulative internal libddwaf runtime per request, in microseconds
         if !self.rasp_duration.is_zero() {
-            let mut dur_tags = telemetry::TelemetryTags::new();
-            dur_tags.add("waf_version", crate::service::Service::waf_version());
-            dur_tags.add(
-                "event_rules_version",
-                self.rules_version.as_deref().unwrap_or("unknown"),
-            );
             submitter.submit_metric(
                 telemetry::RASP_DURATION_DIST,
                 self.rasp_duration.as_micros() as f64,
-                dur_tags,
+                base_tags.clone(),
             );
         }
 
         // Rasp rule metrics
         for ((rule_type, rule_variant), metrics) in &self.rasp_per_rule {
-            let mut tags = telemetry::TelemetryTags::new();
+            let mut tags = base_tags.clone();
             tags.add("rule_type", rule_type);
             if !rule_variant.is_empty() {
                 tags.add("rule_variant", rule_variant);
             }
-            tags.add("waf_version", crate::service::Service::waf_version());
-            tags.add(
-                "event_rules_version",
-                self.rules_version.as_deref().unwrap_or("unknown"),
-            );
 
             if metrics.evals > 0 {
                 submitter.submit_metric(
@@ -286,6 +308,17 @@ impl telemetry::TelemetryMetricsGenerator for WafMetrics {
 
             // tests expect this to always be sent, even if 0
             submitter.submit_metric(telemetry::RASP_TIMEOUT, metrics.timeouts as f64, tags);
+        }
+
+        // rasp.error
+        if let Some(ref err) = self.rasp_error {
+            let mut err_tags = base_tags.clone();
+            err_tags.add("rule_type", &err.rule_type);
+            if !err.rule_variant.is_empty() {
+                err_tags.add("rule_variant", &err.rule_variant);
+            }
+            err_tags.add("waf_error", err.code.to_string());
+            submitter.submit_metric(telemetry::RASP_ERROR, 1.0, err_tags);
         }
     }
 }
