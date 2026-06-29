@@ -60,7 +60,7 @@ class RoadRunnerTests implements WorkerStrategyTests {
      */
     @Test
     void 'no unexpected RequestExec in outer loop after post-respond fopen'() {
-        Assumptions.assumeTrue(System.getProperty('USE_HELPER_RUST') != null,
+        Assumptions.assumeTrue(TestParams.usesHelperRust(),
                 'This bug only manifests on the Rust helper (strict outer/inner loop state machine).')
 
         LogFile helperLog = new LogFile(CONTAINER, 'helper.log')
@@ -98,7 +98,7 @@ class RoadRunnerTests implements WorkerStrategyTests {
      */
     @Test
     void 'no unexpected RequestExec in outer loop after post-respond track_user_login'() {
-        Assumptions.assumeTrue(System.getProperty('USE_HELPER_RUST') != null,
+        Assumptions.assumeTrue(TestParams.usesHelperRust(),
                 'This bug only manifests on the Rust helper (strict outer/inner loop state machine).')
 
         LogFile helperLog = new LogFile(CONTAINER, 'helper.log')

@@ -112,7 +112,7 @@ stages:
     KUBERNETES_MEMORY_LIMIT: 30Gi
     DOCKER_LOOPBACK_SIZE: 30G
     ARCH: amd64
-    HELPER_RUST_FLAG: ""
+    HELPER_FLAG: ""
     GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle-home"
     DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED: "0"
   before_script:
@@ -129,7 +129,7 @@ stages:
         TERM=dumb ./gradlew loadCaches --info
       fi
 
-      TERM=dumb ./gradlew $targets --info -Pbuildscan --scan -PcheckCoreDumps $HELPER_RUST_FLAG
+      TERM=dumb ./gradlew $targets --info -Pbuildscan --scan -PcheckCoreDumps $HELPER_FLAG
       TERM=dumb ./gradlew saveCaches --info
   after_script:
     - mkdir -p "${CI_PROJECT_DIR}/artifacts"
@@ -183,16 +183,15 @@ stages:
       - targets:
           - test8.3-release-ssi
 
-"appsec integration tests (helper-rust)":
+"appsec integration tests (helper-cpp)":
   extends: .appsec_integration_tests
   variables:
-    HELPER_RUST_FLAG: "-PuseHelperRust"
+    HELPER_FLAG: "-PuseHelperCpp"
   parallel:
     matrix:
       - targets:
-          - test7.4-release
-          - test8.1-release
-          - test8.3-debug
+          - test8.3-release
+          - test8.3-release-zts
 
 "helper-rust build and test":
   stage: test
