@@ -11,6 +11,7 @@ if (PHP_MAJOR_VERSION === 8 && PHP_MINOR_VERSION === 0 && php_uname('m') === 'aa
 
 $msg_disabled = "OPcache JIT is enabled and may cause instability. ddtrace will be disabled unless the environment DD_INJECT_FORCE is set to '1', 'true', 'yes' or 'on'";
 $msg_forced = "OPcache JIT is enabled and may cause instability. Ignoring as DD_INJECT_FORCE is enabled";
+$jitTelemetryLogPath = tempnam(sys_get_temp_dir(), 'test_loader_');
 
 $tests = [
     // OPcache disabled in CLI
@@ -73,6 +74,10 @@ EOT
     // JIT enabled
     [
         "config" => "-dzend_extension=opcache -dopcache.enable_cli=1 -ddatadog.trace.cli_enabled=1 -dopcache.jit_buffer_size=32M -dopcache.jit=tracing",
+        "env" => [
+            'FAKE_FORWARDER_LOG_PATH='.$jitTelemetryLogPath,
+            'DD_TELEMETRY_FORWARDER_PATH='.__DIR__.'/../../bin/fake_forwarder.sh',
+        ],
         "must_not_contain" => [],
         "must_contain" => [
             $msg_disabled,
@@ -94,8 +99,8 @@ Author => Datadog
 
   => ddtrace
 Version => %s
-Injection success => true
-Injection error =>
+Injection success => false
+Injection error => Incompatible runtime
 Extra config => datadog.trace.sources_path=%s/trace/src
 ddtrace.disable=1
 
@@ -104,6 +109,34 @@ OPcache JIT is enabled and may cause instability. ddtrace will be disabled unles
 %A
 EOT
         ],
+        "telemetry_log_path" => $jitTelemetryLogPath,
+        "telemetry" => <<<EOS
+{
+    "metadata": {
+        "runtime_name": "php",
+        "runtime_version": "%d.%d.%d%S",
+        "language_name": "php",
+        "language_version": "%d.%d.%d%S",
+        "tracer_version": "%s",
+        "pid": %d,
+        "result": "abort",
+        "result_reason": "The PHP tracer was disabled because OPcache JIT is enabled. Set DD_INJECT_FORCE to force tracing.",
+        "result_class": "incompatible_runtime"
+    },
+    "points": [
+        {
+            "name": "library_entrypoint.abort",
+            "tags": [
+                "reason:incompatible_runtime",
+                "product:ddtrace"
+            ]
+        },
+        {
+            "name": "library_entrypoint.abort.runtime"
+        }
+    ]
+}
+EOS
     ],
     // JIT enabled + force injection via ENV
     [
@@ -197,5 +230,10 @@ foreach ($tests as $data) {
 
     foreach ($data['must_match'] as $pattern) {
         assertMatchesFormat($output, $pattern);
+    }
+    if (isset($data['telemetry'])) {
+        // Let time to the fork to write the telemetry log
+        usleep(5000);
+        assertTelemetry($data['telemetry_log_path'], $data['telemetry']);
     }
 }
