@@ -1,6 +1,5 @@
 #include "php_ffi.h"
 
-#include <assert.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -11,7 +10,6 @@
 #include <dlfcn.h> // for dlsym
 #endif
 #ifdef __linux__
-#include <stdatomic.h>
 #include <stddef.h>
 #endif
 
@@ -87,16 +85,9 @@ bool datadog_php_profiling_read_otel_context(datadog_php_profiling_otel_context 
 
     datadog_php_profiling_otel_thread_context_record *record =
         (datadog_php_profiling_otel_thread_context_record *)*datadog_php_profiling_otel_thread_ctx_slot;
-    /*
-     * The writer is stopped while this signal-handler-style reader runs on the same thread, so
-     * valid only has to guard against compiler reordering. The writer fences before/after field
-     * updates; this reader fences after observing valid=1 so field reads stay after the guard.
-     */
     if (!record || record->valid != 1) {
         return false;
     }
-
-    atomic_signal_fence(memory_order_acquire);
 
     context->span_id = datadog_php_profiling_read_u64_be(record->span_id);
     context->attrs_data_size = record->attrs_data_size;
@@ -121,33 +112,7 @@ static ddtrace_profiling_context datadog_php_profiling_read_otel_profiling_conte
 }
 
 static void *datadog_php_profiling_find_otel_thread_ctx_symbol(void) {
-    void *tls_symbol = dlsym(RTLD_DEFAULT, DATADOG_PHP_PROFILING_OTEL_TLS_SYMBOL);
-    if (tls_symbol) {
-        return tls_symbol;
-    }
-
-    const zend_llist *extensions = &zend_extensions;
-    for (const zend_llist_element *item = extensions->head; item; item = item->next) {
-        const zend_extension *extension = (zend_extension *)item->data;
-        if (extension && extension->handle) {
-            tls_symbol = DL_FETCH_SYMBOL(extension->handle, DATADOG_PHP_PROFILING_OTEL_TLS_SYMBOL);
-            if (tls_symbol) {
-                return tls_symbol;
-            }
-        }
-    }
-
-    zend_module_entry *module;
-    ZEND_HASH_FOREACH_PTR(&module_registry, module) {
-        if (module && module->handle) {
-            tls_symbol = DL_FETCH_SYMBOL(module->handle, DATADOG_PHP_PROFILING_OTEL_TLS_SYMBOL);
-            if (tls_symbol) {
-                return tls_symbol;
-            }
-        }
-    } ZEND_HASH_FOREACH_END();
-
-    return NULL;
+    return dlsym(RTLD_DEFAULT, DATADOG_PHP_PROFILING_OTEL_TLS_SYMBOL);
 }
 #else
 bool datadog_php_profiling_read_otel_context(datadog_php_profiling_otel_context *context) {

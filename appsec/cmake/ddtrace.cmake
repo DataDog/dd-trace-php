@@ -1,4 +1,5 @@
 include(ExternalProject)
+include(CheckCCompilerFlag)
 
 set(CARGO_BUILD_CMD "cargo build")
 set(CARGO_BUILD_ENV "") # Initialize to empty
@@ -34,7 +35,7 @@ add_custom_target(ddtrace_exports
 elseif(APPLE)
 set(EXPORTS_FILE "${CMAKE_BINARY_DIR}/datadog_exports.sym")
 add_custom_target(ddtrace_exports
-    # otel_thread_ctx_v1 is a Linux-only TLS symbol; omit it on macOS where tls_shim.c is not compiled
+    # otel_thread_ctx_v1 is a Linux-only TLS symbol.
     COMMAND bash -c "grep -v ^otel_thread_ctx_v1$ '${CMAKE_SOURCE_DIR}'/../datadog.sym | sed 's/^/_/' > '${EXPORTS_FILE}'"
     BYPRODUCTS ${EXPORTS_FILE}
     DEPENDS ${CMAKE_SOURCE_DIR}/../datadog.sym
@@ -167,6 +168,12 @@ if(CURL_DEFINITIONS)
     target_compile_definitions(ddtrace PRIVATE ${CURL_DEFINITIONS})
 endif()
 target_compile_definitions(ddtrace PRIVATE ZEND_ENABLE_STATIC_TSRMLS_CACHE=1 COMPILE_DL_DDTRACE=1 DDTRACE)
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64)$")
+    check_c_compiler_flag("-mtls-dialect=gnu2" DDTRACE_HAS_GNU2_TLS_DIALECT)
+    if(DDTRACE_HAS_GNU2_TLS_DIALECT)
+        target_compile_options(ddtrace PRIVATE -mtls-dialect=gnu2)
+    endif()
+endif()
 target_include_directories(ddtrace PRIVATE
     ${CURL_INCLUDE_DIRS}
     ${CMAKE_SOURCE_DIR}/..

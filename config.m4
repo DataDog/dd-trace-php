@@ -320,7 +320,7 @@ if test "$PHP_DDTRACE" != "no"; then
           [])
       ;;
       *)
-        dnl otel_thread_ctx_v1 is a Linux-only TLS symbol; omit it where tls_shim.c is not compiled.
+        dnl otel_thread_ctx_v1 is a Linux-only TLS symbol.
         DDTRACE_EXPORT_SYMBOLS="$ext_builddir/datadog.sym"
         $GREP -v '^otel_thread_ctx_v1$' "$ext_srcdir/datadog.sym" > "$DDTRACE_EXPORT_SYMBOLS"
       ;;
