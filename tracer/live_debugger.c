@@ -27,7 +27,7 @@ ZEND_EXTERN_MODULE_GLOBALS(datadog);
 #ifdef __linux__
 #include <sys/syscall.h>
 #elif defined(ZTS)
-uint64_t dd_find_lowest_dealine_timer(void) {
+uint64_t dd_find_lowest_deadline_timer(void) {
     uint64_t usec = 0;
     uint64_t next_deadline = ~0ull;
     tsrm_mutex_lock(datadog_threads_mutex);
@@ -55,6 +55,9 @@ void dd_start_debugger_timeout(void) {
     if (ms <= 0) {
         return;
     }
+    if (DDTRACE_G(capture_deadline_ns)) {
+        LOG(WARN, "Starting debugger timeout when it was already active. Last timeout was not stopped properly?");
+    }
     struct timespec now;
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &now);
     uint64_t now_ns = (uint64_t)now.tv_sec * 1000000000ULL + (uint64_t)now.tv_nsec;
@@ -80,10 +83,10 @@ void dd_start_debugger_timeout(void) {
 #else
     uint64_t usec = (uint64_t)ms * 1000ULL;
 #ifdef ZTS
-    usec = dd_find_lowest_dealine_timer();
+    usec = dd_find_lowest_deadline_timer();
 #endif
     struct itimerval it = {
-        .it_value    = { .tv_sec = usec / 10000000, .tv_usec = usec % 1000000 },
+        .it_value    = { .tv_sec = usec / 1000000, .tv_usec = usec % 1000000 },
         .it_interval = { 0, 0 },
     };
     setitimer(ITIMER_VIRTUAL, &it, NULL);
@@ -102,10 +105,10 @@ void dd_stop_debugger_timeout(void) {
     // Reset timer to zero - on ZTS check other threads for timeouts first
     uint64_t usec = 0;
 #ifdef ZTS
-    usec = dd_find_lowest_dealine_timer();
+    usec = dd_find_lowest_deadline_timer();
 #endif
     struct itimerval it = {
-        .it_value    = { .tv_sec = usec / 10000000, .tv_usec = usec % 1000000 },
+        .it_value    = { .tv_sec = usec / 1000000, .tv_usec = usec % 1000000 },
         .it_interval = { 0, 0 },
     };
     setitimer(ITIMER_VIRTUAL, &it, NULL);
@@ -125,6 +128,9 @@ void dd_start_debugger_timeout(void) {
     if (ms <= 0) {
         return;
     }
+    if (DDTRACE_G(capture_timer_handle)) {
+        LOG(WARN, "Starting debugger timeout when it was already active. Last timeout was not stopped properly?");
+    }
     DDTRACE_G(debugger_capture_timed_out) = 0;
     HANDLE timer = NULL;
     // Pass a stable pointer to this thread's flag; the callback writes it from the timer-pool thread.
@@ -137,7 +143,7 @@ void dd_start_debugger_timeout(void) {
 
 void dd_stop_debugger_timeout(void) {
     if (DDTRACE_G(capture_timer_handle)) {
-        DeleteTimerQueueTimer(NULL, DDTRACE_G(capture_timer_handle), NULL);
+        DeleteTimerQueueTimer(NULL, DDTRACE_G(capture_timer_handle), INVALID_HANDLE_VALUE);
         DDTRACE_G(capture_timer_handle) = NULL;
     }
     DDTRACE_G(debugger_capture_timed_out) = 0;

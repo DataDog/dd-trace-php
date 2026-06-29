@@ -103,7 +103,7 @@ static void dd_sigvtalarm_handler(int signal, siginfo_t *siginfo, void *ctx) {
     if (next_deadline != ~0ull) { // re-arm the timer, for ZTS concurrency
         uint64_t usec = (next_deadline - now_ns) / 1000ull;
         struct itimerval it = {
-            .it_value    = { .tv_sec = usec / 10000000, .tv_usec = usec % 1000000 },
+            .it_value    = { .tv_sec = usec / 1000000, .tv_usec = usec % 1000000 },
             .it_interval = { 0, 0 },
         };
         setitimer(ITIMER_VIRTUAL, &it, NULL);
