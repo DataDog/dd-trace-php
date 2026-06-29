@@ -28,7 +28,7 @@ assertContains($output, 'with ddtrace v');
 // Let time to the fork to write the telemetry log
 usleep(5000);
 
-assertTelemetry($telemetryLogPath, <<<EOS
+$metrics = [<<<EOS
 {
     "metadata": {
         "runtime_name": "php",
@@ -55,7 +55,39 @@ assertTelemetry($telemetryLogPath, <<<EOS
     ]
 }
 EOS
-);
+];
+
+if ('7.0' === php_minor_version()) {
+    $metrics[] = <<<EOS
+{
+    "metadata": {
+        "runtime_name": "php",
+        "runtime_version": "%d.%d.%d%S",
+        "language_name": "php",
+        "language_version": "%d.%d.%d%S",
+        "tracer_version": "%s",
+        "pid": %d,
+        "result": "abort",
+        "result_reason": "%s",
+        "result_class": "incompatible_runtime"
+    },
+    "points": [
+        {
+            "name": "library_entrypoint.abort",
+            "tags": [
+                "reason:incompatible_runtime",
+                "product:datadog-profiling"
+            ]
+        },
+        {
+            "name": "library_entrypoint.abort.runtime"
+        }
+    ]
+}
+EOS;
+}
+
+assertTelemetry($telemetryLogPath, $metrics);
 
 $output = runCLI('-dzend_extension='.getenv("XDEBUG_SO_NAME").' -v', true, ['DD_TRACE_DEBUG=1', 'DD_INJECT_FORCE=1']);
 assertContains($output, 'Found extension file');
