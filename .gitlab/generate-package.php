@@ -85,6 +85,12 @@ stages:
   - notify
   - verify
   - shared-pipeline # OCI packaging
+  - php-laravel-realworld-parallel
+  - php-laravel-realworld-parallel-slo
+  - php-symfony-realworld-parallel
+  - php-symfony-realworld-parallel-slo
+  - php-wordpress-parallel
+  - php-wordpress-parallel-slo
   - pre-release
   - release
 
