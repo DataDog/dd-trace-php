@@ -44,7 +44,7 @@ TRACER_SOURCES_INI := -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR)
 RUN_TESTS_IS_PARALLEL ?= $(shell test $(PHP_MAJOR_MINOR) -ge 74 && echo 1)
 
 # shuffle parallel tests to evenly distribute test load, avoiding a batch of 32 tests being request-replayer tests
-RUN_TESTS_CMD := DD_SERVICE= DD_ENV= DD_TRACE_RETRY_INTERVAL=1 DD_TRACE_AGENT_TIMEOUT=5000 REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKED_ALLOC=1 php -n -d 'memory_limit=-1' $(BUILD_DIR)/run-tests.php $(if $(QUIET_TESTS),,-g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP) $(if $(ASAN), --asan) --show-diff -n -p $(shell which php) -q $(if $(RUN_TESTS_IS_PARALLEL), --shuffle -j$(MAX_TEST_PARALLELISM))
+RUN_TESTS_CMD := DD_SERVICE= DD_ENV= REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKED_ALLOC=1 php -n -d 'memory_limit=-1' $(BUILD_DIR)/run-tests.php $(if $(QUIET_TESTS),,-g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP) $(if $(ASAN), --asan) --show-diff -n -p $(shell which php) -q $(if $(RUN_TESTS_IS_PARALLEL), --shuffle -j$(MAX_TEST_PARALLELISM))
 
 C_FILES = $(shell find components components-rs ext src/dogstatsd tracer zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES = $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name '*.yaml' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
@@ -165,10 +165,10 @@ install_appsec:
 install_all: install install_ini
 
 run_tests: $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
-	$(ALL_TEST_ENV_OVERRIDE) $(RUN_TESTS_CMD) $(TESTS)
+	$(ALL_TEST_ENV_OVERRIDE) DD_TRACE_AGENT_TIMEOUT=1000 $(RUN_TESTS_CMD) $(TESTS)
 
 test_c: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
-	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1 LSAN_OPTIONS=fast_unwind_on_malloc=0$${LSAN_OPTIONS:+$(,)$${LSAN_OPTIONS}}) $(ALL_TEST_ENV_OVERRIDE) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(subst $(BUILD_DIR_NAME)/,,$(TESTS))
+	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1 LSAN_OPTIONS=fast_unwind_on_malloc=0$${LSAN_OPTIONS:+$(,)$${LSAN_OPTIONS}}) $(ALL_TEST_ENV_OVERRIDE) DD_TRACE_AGENT_TIMEOUT=1000 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(subst $(BUILD_DIR_NAME)/,,$(TESTS))
 
 test_c_coverage: dist_clean
 	DD_TRACE_DOCKER_DEBUG=1 EXTRA_CFLAGS="-fprofile-arcs -ftest-coverage" $(MAKE) test_c || exit 0
@@ -207,11 +207,11 @@ test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-
 	set -xe; \
 	export PATH="$(PROJECT_ROOT)/tests/ext/valgrind:$$PATH"; \
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/normal-extension-test.xml; \
-	$(ALL_TEST_ENV_OVERRIDE) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS); \
+	$(ALL_TEST_ENV_OVERRIDE) DD_TRACE_AGENT_TIMEOUT=1000 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS); \
 	\
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/valgrind-extension-test.xml; \
 	export TEST_PHP_OUTPUT=$(JUNIT_RESULTS_DIR)/valgrind-run-tests.out; \
-	DD_SPAWN_WORKER_STABLE_TRAMPOLINE=1 $(ALL_TEST_ENV_OVERRIDE) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m -s $$TEST_PHP_OUTPUT $(BUILD_DIR)/$(TESTS) && ! grep -e '^LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
+	DD_SPAWN_WORKER_STABLE_TRAMPOLINE=1 $(ALL_TEST_ENV_OVERRIDE) DD_TRACE_AGENT_TIMEOUT=5000 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m -s $$TEST_PHP_OUTPUT $(BUILD_DIR)/$(TESTS) && ! grep -e '^LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
 	)
 
 build_tea: TEA_BUILD_TESTS=ON
