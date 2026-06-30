@@ -8,6 +8,8 @@ if (PHP_OS === "WINNT" && PHP_VERSION_ID < 70400) die("skip: Windows on PHP 7.2 
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
+DD_TRACE_AGENT_TIMEOUT=200
+DD_TRACE_RETRY_INTERVAL=1
 --INI--
 datadog.trace.agent_url="file://{PWD}/disabled-telemetry.out"
 --FILE--
