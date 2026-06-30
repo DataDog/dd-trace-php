@@ -10,6 +10,7 @@
 #include "configuration.h"
 #include "excluded_modules.h"
 #include "agent_info.h"
+#include "ffi_utils.h"
 #include "logging.h"
 #include "phpinfo.h"
 #include "process_tags.h"
@@ -21,11 +22,13 @@
 #include "zend_hrtime.h"
 #ifndef _WIN32
 #include <pthread.h>
+#include <unistd.h>
 #else
 #include <components/pthread_polyfill.h>
 #include "crashtracking_windows.h"
 #endif
 #include <hook/hook.h>
+#include <string.h>
 #if PHP_VERSION_ID < 80000
 #include <interceptor/php7/interceptor.h>
 #endif
@@ -152,11 +155,14 @@ static void datadog_shutdown(zend_extension *extension) {
 #endif
 }
 
+static void datadog_publish_configured_otel_process_context(void);
+
 static void dd_activate_once(void) {
     datadog_config_first_rinit();
     if (dd_main_pid != getpid()) { // equal to session id if not a fork
         datadog_generate_runtime_id();
     }
+    datadog_publish_configured_otel_process_context();
 
     // must run before the first zai_hook_activate as tracer telemetry setup installs a global hook
     if (!datadog_disable) {
@@ -170,6 +176,35 @@ static void dd_activate_once(void) {
         ddtrace_activate_once();
 #endif
     }
+}
+
+static void datadog_publish_configured_otel_process_context(void) {
+    ddog_CharSlice hostname = DDOG_CHARSLICE_C("");
+
+    if (!get_DD_TRACE_REPORT_HOSTNAME()) {
+        datadog_publish_otel_process_context(hostname);
+        return;
+    }
+
+    if (ZSTR_LEN(get_DD_HOSTNAME())) {
+        hostname = dd_zend_string_to_CharSlice(get_DD_HOSTNAME());
+        datadog_publish_otel_process_context(hostname);
+        return;
+    }
+
+    // Match tracer/serializer.c hostname publishing: DD_HOSTNAME wins, then gethostname().
+#ifndef HOST_NAME_MAX
+#define HOST_NAME_MAX 255
+#endif
+    char hostname_buf[HOST_NAME_MAX + 1];
+    if (gethostname(hostname_buf, sizeof(hostname_buf)) == 0) {
+        hostname_buf[HOST_NAME_MAX] = '\0';
+        hostname = (ddog_CharSlice){.ptr = hostname_buf, .len = strlen(hostname_buf)};
+        datadog_publish_otel_process_context(hostname);
+        return;
+    }
+
+    datadog_publish_otel_process_context(hostname);
 }
 
 static pthread_once_t dd_activate_once_control = PTHREAD_ONCE_INIT;
@@ -704,7 +739,11 @@ static PHP_MINFO_FUNCTION(datadog) {
 
 void datadog_internal_handle_fork(void) {
     // CHILD PROCESS
-    datadog_sidecar_handle_fork();
+    bool runtime_id_changed = false;
+    datadog_sidecar_handle_fork(&runtime_id_changed);
+    if (runtime_id_changed) {
+        datadog_publish_configured_otel_process_context();
+    }
 
 #ifdef DDTRACE
     ddtrace_internal_handle_fork();

@@ -85,6 +85,12 @@ pub unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
     #[cfg(php_zts)]
     crate::timeline::timeline_ginit();
 
+    #[cfg(target_os = "linux")]
+    {
+        // SAFETY: this is called by PHP's module globals ctor for the current PHP thread.
+        unsafe { crate::bindings::ddog_php_prof_otel_thread_ctx_ginit() };
+    }
+
     // Initialize ZendMMState in PHP globals for ZTS builds. For NTS builds,
     // this was already done in its const initializer.
     #[cfg(php_zts)]

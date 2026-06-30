@@ -580,6 +580,15 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     // values to the ones in the configuration.
     let system_settings = SystemSettings::get();
 
+    #[cfg(target_os = "linux")]
+    {
+        // SAFETY: we are in rinit on a PHP thread.
+        if !unsafe { zend::ddog_php_prof_otel_thread_ctx_rinit() } {
+            error!("failed to initialize profiler OTel thread context state");
+            return ZendResult::Failure;
+        }
+    }
+
     // initialize the thread local storage and cache some items
     let result = REQUEST_LOCALS.try_with_borrow_mut(|locals| {
         // SAFETY: we are in rinit on a PHP thread.
@@ -663,6 +672,13 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     let once = unsafe { &*ptr::addr_of!(RINIT_ONCE) };
     once.call_once(|| {
         if system_settings.profiling_enabled {
+            // SAFETY: this returns a view of a static string owned by php_ffi.c.
+            let context_api = unsafe { bindings::datadog_php_profiling_context_api_name() };
+            info!(
+                "Profiling context API selected: {}.",
+                context_api.to_string_lossy()
+            );
+
             // SAFETY: sapi_module is initialized by rinit and shouldn't be
             // modified at this point (safe to read values).
             let sapi_module = unsafe { &*ptr::addr_of!(zend::sapi_module) };
