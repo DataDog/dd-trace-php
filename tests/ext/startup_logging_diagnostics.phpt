@@ -11,6 +11,8 @@ $args = [
 ];
 $env = [
     'DD_TRACE_DEBUG' => '1',
+    'DD_TRACE_AGENT_TIMEOUT' => 200,
+    'DD_TRACE_RETRY_INTERVAL' => 1,
     'DD_AGENT_HOST' => 'invalid_host',
     'DD_SERVICE' => 'foo_service',
     'DD_TAGS' => 'foo:tag',

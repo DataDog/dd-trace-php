@@ -18,6 +18,8 @@ copy(__DIR__.'/local_config.yaml', '/tmp/test_c_local_config.yaml');
 _DD_TEST_LIBRARY_CONFIG_FLEET_FILE=/foo
 _DD_TEST_LIBRARY_CONFIG_LOCAL_FILE=/tmp/test_c_local_config.yaml
 DD_TRACE_SPANS_LIMIT=42
+DD_TRACE_AGENT_TIMEOUT=200
+DD_TRACE_RETRY_INTERVAL=1
 --INI--
 datadog.trace.agent_url="file://{PWD}/local-config-telemetry.out"
 --FILE--

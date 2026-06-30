@@ -9,6 +9,8 @@ include_once __DIR__ . '/../startup_logging.inc';
 $logs = dd_get_startup_logs([], [
     'DD_AGENT_HOST' => '::1',
     'DD_TRACE_DEBUG' => 1,
+    'DD_TRACE_AGENT_TIMEOUT' => 200,
+    'DD_TRACE_RETRY_INTERVAL' => 1,
 ]);
 
 dd_dump_startup_logs($logs, [

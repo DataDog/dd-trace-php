@@ -10,6 +10,8 @@ require __DIR__ . '/../includes/clear_skipif_telemetry.inc'
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
+DD_TRACE_AGENT_TIMEOUT=200
+DD_TRACE_RETRY_INTERVAL=1
 --INI--
 datadog.trace.agent_url="file://{PWD}/composer-telemetry.out"
 --FILE--
