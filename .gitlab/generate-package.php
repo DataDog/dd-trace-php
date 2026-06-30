@@ -538,17 +538,19 @@ foreach ($windows_build_platforms as $platform) {
     # Start the container
     docker run -v ${pwd}:C:\Users\ContainerAdministrator\app -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
 
-    # Build nts (fail fast on any step)
-    docker exec ${CONTAINER_NAME} powershell.exe -Command "`$ErrorActionPreference='Stop'; `$PSNativeCommandUseErrorActionPreference=`$true; cd app; switch-php nts; & 'C:\\php\\SDK\\phpize.bat'; if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }; .\\configure.bat --enable-debug-pack; if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }; nmake; if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }; Move-Item x64\\Release\\php_ddtrace.dll extensions_x86_64\\php_ddtrace-${ABI_NO}.dll -ErrorAction Stop; Move-Item x64\\Release\\php_ddtrace.pdb extensions_x86_64_debugsymbols\\php_ddtrace-${ABI_NO}.pdb -ErrorAction Stop"
-    if ($LASTEXITCODE -ne 0) { exit 75 }  # compile job: exit 75 so GitLab auto-retries transient failures (e.g. crates.io DNS); see default retry.exit_codes in generate-common.php
+    # Build nts (fail fast on any step); tee output so we can classify failures below.
+    docker exec ${CONTAINER_NAME} powershell.exe -Command "`$ErrorActionPreference='Stop'; `$PSNativeCommandUseErrorActionPreference=`$true; cd app; switch-php nts; & 'C:\\php\\SDK\\phpize.bat'; if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }; .\\configure.bat --enable-debug-pack; if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }; nmake; if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }; Move-Item x64\\Release\\php_ddtrace.dll extensions_x86_64\\php_ddtrace-${ABI_NO}.dll -ErrorAction Stop; Move-Item x64\\Release\\php_ddtrace.pdb extensions_x86_64_debugsymbols\\php_ddtrace-${ABI_NO}.pdb -ErrorAction Stop" 2>&1 | Tee-Object -FilePath nts-build.log
+    # Only transient network failures (e.g. crates.io DNS) get exit 75 for GitLab auto-retry; real compile breaks keep their native code and fail fast.
+    if ($LASTEXITCODE -ne 0) { if (Select-String -Path nts-build.log -Pattern 'Could not resolve host','Could not resolve hostname','spurious network error','failed to download','Temporary failure in name resolution','Connection timed out' -Quiet) { Write-Host "Transient network failure during nts build; exiting 75 so GitLab auto-retries (see default retry.exit_codes in generate-common.php)"; exit 75 } else { exit $LASTEXITCODE } }
 
     # Reuse libdatadog build (fail if move fails)
     docker exec ${CONTAINER_NAME} powershell.exe -Command "`$ErrorActionPreference='Stop'; `$PSNativeCommandUseErrorActionPreference=`$true; New-Item -ItemType Directory -Force -Path 'app\\x64\\Release_TS' | Out-Null; Move-Item 'app\\x64\\Release\\target' 'app\\x64\\Release_TS\\target' -ErrorAction Stop"
-    if ($LASTEXITCODE -ne 0) { exit 75 }  # compile job: exit 75 so GitLab auto-retries transient failures (e.g. crates.io DNS); see default retry.exit_codes in generate-common.php
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }  # local file move, not network — fail fast (no retry)
 
-    # Build zts (fail fast on any step)
-    docker exec ${CONTAINER_NAME} powershell.exe -Command "`$ErrorActionPreference='Stop'; `$PSNativeCommandUseErrorActionPreference=`$true; cd app; switch-php zts; & 'C:\\php\\SDK\\phpize.bat'; if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }; .\\configure.bat --enable-debug-pack; if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }; nmake; if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }; Move-Item x64\\Release_TS\\php_ddtrace.dll extensions_x86_64\\php_ddtrace-${ABI_NO}-zts.dll -ErrorAction Stop; Move-Item x64\\Release_TS\\php_ddtrace.pdb extensions_x86_64_debugsymbols\\php_ddtrace-${ABI_NO}-zts.pdb -ErrorAction Stop"
-    if ($LASTEXITCODE -ne 0) { exit 75 }  # compile job: exit 75 so GitLab auto-retries transient failures (e.g. crates.io DNS); see default retry.exit_codes in generate-common.php
+    # Build zts (fail fast on any step); tee output so we can classify failures below.
+    docker exec ${CONTAINER_NAME} powershell.exe -Command "`$ErrorActionPreference='Stop'; `$PSNativeCommandUseErrorActionPreference=`$true; cd app; switch-php zts; & 'C:\\php\\SDK\\phpize.bat'; if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }; .\\configure.bat --enable-debug-pack; if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }; nmake; if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }; Move-Item x64\\Release_TS\\php_ddtrace.dll extensions_x86_64\\php_ddtrace-${ABI_NO}-zts.dll -ErrorAction Stop; Move-Item x64\\Release_TS\\php_ddtrace.pdb extensions_x86_64_debugsymbols\\php_ddtrace-${ABI_NO}-zts.pdb -ErrorAction Stop" 2>&1 | Tee-Object -FilePath zts-build.log
+    # Only transient network failures (e.g. crates.io DNS) get exit 75 for GitLab auto-retry; real compile breaks keep their native code and fail fast.
+    if ($LASTEXITCODE -ne 0) { if (Select-String -Path zts-build.log -Pattern 'Could not resolve host','Could not resolve hostname','spurious network error','failed to download','Temporary failure in name resolution','Connection timed out' -Quiet) { Write-Host "Transient network failure during zts build; exiting 75 so GitLab auto-retries (see default retry.exit_codes in generate-common.php)"; exit 75 } else { exit $LASTEXITCODE } }
 
     # Try to stop the container, don't care if we fail
     try { docker stop -t 5 ${CONTAINER_NAME} } catch { }
