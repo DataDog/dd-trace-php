@@ -10,6 +10,7 @@
 #include <dlfcn.h> // for dlsym
 #endif
 #ifdef __linux__
+#include <stdatomic.h>
 #include <stddef.h>
 #endif
 
@@ -19,7 +20,7 @@ const char *datadog_module_build_id(void) { return ZEND_MODULE_BUILD_ID; }
 uint8_t *datadog_runtime_id = NULL;
 static const zai_str datadog_php_profiling_context_api_none = ZAI_STRL("none");
 #ifdef __linux__
-static const zai_str datadog_php_profiling_context_api_otel = ZAI_STRL("otel_thread_ctx_v1");
+static const zai_str ddog_php_prof_context_api_otel = ZAI_STRL("otel_thread_ctx_v1");
 #endif
 static const zai_str datadog_php_profiling_context_api_legacy = ZAI_STRL("ddtrace_get_profiling_context");
 
@@ -33,39 +34,40 @@ static ddtrace_profiling_context (*datadog_php_profiling_get_legacy_context)(voi
     noop_get_profiling_context;
 
 #ifdef __linux__
-#define DATADOG_PHP_PROFILING_OTEL_TLS_SYMBOL "otel_thread_ctx_v1"
+#define DDOG_PHP_PROF_OTEL_TLS_SYMBOL "otel_thread_ctx_v1"
 
-typedef struct datadog_php_profiling_otel_thread_context_record {
+typedef struct ddog_php_prof_otel_thread_context_record {
     uint8_t trace_id[16];
     uint8_t span_id[8];
     uint8_t valid;
     uint8_t reserved;
     uint16_t attrs_data_size;
-    uint8_t attrs_data[DATADOG_PHP_PROFILING_OTEL_ATTRS_DATA_SIZE];
-} datadog_php_profiling_otel_thread_context_record;
+    uint8_t attrs_data[DDOG_PHP_PROF_OTEL_ATTRS_DATA_SIZE];
+} ddog_php_prof_otel_thread_context_record;
 
-_Static_assert(sizeof(datadog_php_profiling_otel_thread_context_record) == 640,
+_Static_assert(sizeof(ddog_php_prof_otel_thread_context_record) == 640,
     "unexpected OTel thread context record size");
-_Static_assert(_Alignof(datadog_php_profiling_otel_thread_context_record) == 2,
+_Static_assert(_Alignof(ddog_php_prof_otel_thread_context_record) == 2,
     "unexpected OTel thread context record alignment");
-_Static_assert(offsetof(datadog_php_profiling_otel_thread_context_record, trace_id) == 0,
+_Static_assert(offsetof(ddog_php_prof_otel_thread_context_record, trace_id) == 0,
     "unexpected OTel thread context trace_id offset");
-_Static_assert(offsetof(datadog_php_profiling_otel_thread_context_record, span_id) == 16,
+_Static_assert(offsetof(ddog_php_prof_otel_thread_context_record, span_id) == 16,
     "unexpected OTel thread context span_id offset");
-_Static_assert(offsetof(datadog_php_profiling_otel_thread_context_record, valid) == 24,
+_Static_assert(offsetof(ddog_php_prof_otel_thread_context_record, valid) == 24,
     "unexpected OTel thread context valid offset");
-_Static_assert(offsetof(datadog_php_profiling_otel_thread_context_record, reserved) == 25,
+_Static_assert(offsetof(ddog_php_prof_otel_thread_context_record, reserved) == 25,
     "unexpected OTel thread context reserved offset");
-_Static_assert(offsetof(datadog_php_profiling_otel_thread_context_record, attrs_data_size) == 26,
+_Static_assert(offsetof(ddog_php_prof_otel_thread_context_record, attrs_data_size) == 26,
     "unexpected OTel thread context attrs_data_size offset");
-_Static_assert(offsetof(datadog_php_profiling_otel_thread_context_record, attrs_data_size) % _Alignof(uint16_t) == 0,
+_Static_assert(offsetof(ddog_php_prof_otel_thread_context_record, attrs_data_size) % _Alignof(uint16_t) == 0,
     "unexpected OTel thread context attrs_data_size alignment");
-_Static_assert(offsetof(datadog_php_profiling_otel_thread_context_record, attrs_data) == 28,
+_Static_assert(offsetof(ddog_php_prof_otel_thread_context_record, attrs_data) == 28,
     "unexpected OTel thread context attrs_data offset");
 
-static __thread void **datadog_php_profiling_otel_thread_ctx_slot = NULL;
+static __thread void **ddog_php_prof_otel_thread_ctx_slot = NULL;
+static atomic_bool ddog_php_prof_otel_thread_ctx_symbol_available = false;
 
-static inline uint64_t datadog_php_profiling_read_u64_be(const uint8_t src[8]) {
+static uint64_t ddog_php_prof_read_u64_be(const uint8_t src[8]) {
     uint64_t be_value;
     memcpy(&be_value, src, sizeof(be_value));
 
@@ -78,20 +80,20 @@ static inline uint64_t datadog_php_profiling_read_u64_be(const uint8_t src[8]) {
 #endif
 }
 
-bool datadog_php_profiling_read_otel_context(datadog_php_profiling_otel_context *context) {
-    if (!datadog_php_profiling_otel_thread_ctx_slot) {
+bool ddog_php_prof_read_otel_context(ddog_php_prof_otel_context *context) {
+    if (!ddog_php_prof_otel_thread_ctx_slot) {
         return false;
     }
 
-    datadog_php_profiling_otel_thread_context_record *record =
-        (datadog_php_profiling_otel_thread_context_record *)*datadog_php_profiling_otel_thread_ctx_slot;
+    ddog_php_prof_otel_thread_context_record *record =
+        (ddog_php_prof_otel_thread_context_record *)*ddog_php_prof_otel_thread_ctx_slot;
     if (!record || record->valid != 1) {
         return false;
     }
 
-    context->span_id = datadog_php_profiling_read_u64_be(record->span_id);
+    context->span_id = ddog_php_prof_read_u64_be(record->span_id);
     context->attrs_data_size = record->attrs_data_size;
-    if (context->attrs_data_size > DATADOG_PHP_PROFILING_OTEL_ATTRS_DATA_SIZE) {
+    if (context->attrs_data_size > DDOG_PHP_PROF_OTEL_ATTRS_DATA_SIZE) {
         return false;
     }
     memcpy(context->attrs_data, record->attrs_data, context->attrs_data_size);
@@ -99,10 +101,10 @@ bool datadog_php_profiling_read_otel_context(datadog_php_profiling_otel_context 
     return true;
 }
 
-static ddtrace_profiling_context datadog_php_profiling_read_otel_profiling_context(void) {
+static ddtrace_profiling_context ddog_php_prof_read_otel_profiling_context(void) {
     ddtrace_profiling_context context = {0, 0};
-    datadog_php_profiling_otel_context otel_context;
-    if (!datadog_php_profiling_read_otel_context(&otel_context)) {
+    ddog_php_prof_otel_context otel_context;
+    if (!ddog_php_prof_read_otel_context(&otel_context)) {
         return context;
     }
 
@@ -111,11 +113,45 @@ static ddtrace_profiling_context datadog_php_profiling_read_otel_profiling_conte
     return context;
 }
 
-static void *datadog_php_profiling_find_otel_thread_ctx_symbol(void) {
-    return dlsym(RTLD_DEFAULT, DATADOG_PHP_PROFILING_OTEL_TLS_SYMBOL);
+static void *ddog_php_prof_find_otel_thread_ctx_symbol(void) {
+    return dlsym(RTLD_DEFAULT, DDOG_PHP_PROF_OTEL_TLS_SYMBOL);
+}
+
+static void ddog_php_prof_init_otel_thread_ctx_slot(void) {
+    if (ddog_php_prof_otel_thread_ctx_slot) {
+        return;
+    }
+
+    ddog_php_prof_otel_thread_ctx_slot =
+        (void **)ddog_php_prof_find_otel_thread_ctx_symbol();
+    if (ddog_php_prof_otel_thread_ctx_slot) {
+        atomic_store_explicit(
+            &ddog_php_prof_otel_thread_ctx_symbol_available,
+            true,
+            memory_order_relaxed
+        );
+    }
+}
+
+static bool ddog_php_prof_otel_thread_ctx_slot_is_valid(void) {
+    if (!atomic_load_explicit(
+            &ddog_php_prof_otel_thread_ctx_symbol_available,
+            memory_order_relaxed
+        )) {
+        return true;
+    }
+
+    if (ddog_php_prof_otel_thread_ctx_slot) {
+        return true;
+    }
+
+    php_log_err(
+        "Datadog Profiling failed to initialize the OTel thread context TLS slot for this PHP thread"
+    );
+    return false;
 }
 #else
-bool datadog_php_profiling_read_otel_context(datadog_php_profiling_otel_context *context) {
+bool ddog_php_prof_read_otel_context(ddog_php_prof_otel_context *context) {
     (void) context;
     return false;
 }
@@ -235,6 +271,10 @@ static post_startup_cb_result ddog_php_prof_post_startup_cb(void) {
         }
     }
 
+#ifdef __linux__
+    ddog_php_prof_init_otel_thread_ctx_slot();
+#endif
+
     _is_post_startup = true;
 
     return SUCCESS;
@@ -283,17 +323,20 @@ void datadog_php_profiling_startup(zend_extension *extension) {
 #endif
 }
 
-void datadog_php_profiling_rinit(void) {
 #ifdef __linux__
-    datadog_php_profiling_otel_thread_ctx_slot =
-        (void **)datadog_php_profiling_find_otel_thread_ctx_symbol();
-#endif
+void ddog_php_prof_otel_thread_ctx_ginit(void) {
+    ddog_php_prof_init_otel_thread_ctx_slot();
 }
+
+bool ddog_php_prof_otel_thread_ctx_rinit(void) {
+    return ddog_php_prof_otel_thread_ctx_slot_is_valid();
+}
+#endif
 
 zai_str datadog_php_profiling_context_api_name(void) {
 #ifdef __linux__
-    if (datadog_php_profiling_otel_thread_ctx_slot) {
-        return datadog_php_profiling_context_api_otel;
+    if (ddog_php_prof_otel_thread_ctx_slot) {
+        return ddog_php_prof_context_api_otel;
     }
 #endif
     if (datadog_php_profiling_get_legacy_context != noop_get_profiling_context) {
@@ -310,7 +353,7 @@ zend_module_entry *datadog_get_module_entry(const char *str, uintptr_t len) {
 
 static ddtrace_profiling_context datadog_php_profiling_get_context(void) {
 #ifdef __linux__
-    ddtrace_profiling_context otel_context = datadog_php_profiling_read_otel_profiling_context();
+    ddtrace_profiling_context otel_context = ddog_php_prof_read_otel_profiling_context();
     if (otel_context.local_root_span_id || otel_context.span_id) {
         return otel_context;
     }

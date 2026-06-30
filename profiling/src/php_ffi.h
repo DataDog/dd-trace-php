@@ -20,7 +20,7 @@
 #include <elf.h>
 #endif
 
-#define DATADOG_PHP_PROFILING_OTEL_ATTRS_DATA_SIZE 612
+#define DDOG_PHP_PROF_OTEL_ATTRS_DATA_SIZE 612
 
 // Needed for `zend_observer_error_register` starting from PHP 8
 #if CFG_ZEND_ERROR_OBSERVER // defined by build.rs
@@ -84,11 +84,11 @@ typedef struct ddtrace_profiling_context_s {
     uint64_t local_root_span_id, span_id;
 } ddtrace_profiling_context;
 
-typedef struct datadog_php_profiling_otel_context_s {
+typedef struct ddog_php_prof_otel_context_s {
     uint64_t span_id;
     uint16_t attrs_data_size;
-    uint8_t attrs_data[DATADOG_PHP_PROFILING_OTEL_ATTRS_DATA_SIZE];
-} datadog_php_profiling_otel_context;
+    uint8_t attrs_data[DDOG_PHP_PROF_OTEL_ATTRS_DATA_SIZE];
+} ddog_php_prof_otel_context;
 
 /**
  * A pointer to the profiling-context function. On Linux it first reads the
@@ -111,17 +111,26 @@ extern zend_string *(*datadog_php_profiling_get_process_tags_serialized)(void);
  */
 void datadog_php_profiling_startup(zend_extension *extension);
 
+#ifdef __linux__
 /**
- * Called by this zend_extension's .activate handler to initialize per-thread
- * profiler FFI state.
+ * Called from the PHP module globals ctor to initialize per-thread profiler FFI
+ * state.
  */
-void datadog_php_profiling_rinit(void);
+void ddog_php_prof_otel_thread_ctx_ginit(void);
+
+/**
+ * Called by this zend_extension's .activate handler to verify per-thread
+ * profiler FFI state. Returns false if a provider was found for the process but
+ * not initialized for this PHP thread.
+ */
+bool ddog_php_prof_otel_thread_ctx_rinit(void);
+#endif
 
 /**
  * Copies the current OTel thread context for Rust-side decoding. Returns false
  * when the OTel TLS slot is unavailable, empty, or currently invalid.
  */
-bool datadog_php_profiling_read_otel_context(datadog_php_profiling_otel_context *context);
+bool ddog_php_prof_read_otel_context(ddog_php_prof_otel_context *context);
 
 /**
  * Returns the profiling context API selected for this request, or "none" when

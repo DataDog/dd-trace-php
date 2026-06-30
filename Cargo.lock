@@ -2782,7 +2782,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-common"
-version = "4.2.0"
+version = "5.0.0"
 dependencies = [
  "anyhow",
  "bytes",
@@ -2926,6 +2926,7 @@ dependencies = [
  "libdd-trace-protobuf",
  "libdd-trace-stats",
  "libdd-trace-utils",
+ "prost",
  "rand 0.8.5",
  "regex",
  "rmp-serde",
@@ -3074,7 +3075,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-remote-config"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -3234,7 +3235,9 @@ dependencies = [
  "libdd-capabilities-impl",
  "libdd-common",
  "libdd-ddsketch",
+ "libdd-dogstatsd-client",
  "libdd-shared-runtime",
+ "libdd-telemetry",
  "libdd-trace-obfuscation",
  "libdd-trace-protobuf",
  "libdd-trace-utils",
@@ -3260,6 +3263,7 @@ dependencies = [
  "flate2",
  "futures",
  "getrandom 0.2.15",
+ "hex",
  "http",
  "http-body",
  "http-body-util",
@@ -3280,6 +3284,7 @@ dependencies = [
  "rmpv",
  "rustc-hash 2.1.2",
  "serde",
+ "serde-transcode",
  "serde_json",
  "tempfile",
  "thin-vec",
@@ -5046,6 +5051,15 @@ name = "serde-bool"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fdd050c9c2ed5ae1fb29e71be0a6efdd9df43c7cb13ea5826528cfe10c51db0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "serde-transcode"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "590c0e25c2a5bb6e85bf5c1bce768ceb86b316e7a01bdf07d2cb4ec2271990e2"
 dependencies = [
  "serde",
 ]
