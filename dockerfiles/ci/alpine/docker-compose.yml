@@ -16,6 +16,7 @@ services:
     build:
       context: ./php-8.0
       args:
+        CI_REGISTRY_IMAGE: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}
         phpVersion: 8.0
         phpTarGzUrl: https://www.php.net/distributions/php-8.0.15.tar.gz
         phpSha256Hash: 47f0be6188b05390bb457eb1968ea19463acada79650afc35ec763348d5c2370
