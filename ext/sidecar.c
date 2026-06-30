@@ -153,6 +153,31 @@ void datadog_sidecar_update_process_tags(void) {
     }
 
     ddog_sidecar_session_set_process_tags(&DATADOG_G(sidecar), process_tags);
+
+    // Session-bound, process-stable: the tracer's auto-resolved default name.
+    zend_string *default_svc = datadog_default_service_name();
+    if (default_svc) {
+        const char *normalized = ddog_normalize_process_tag_value(dd_zend_string_to_CharSlice(default_svc));
+        if (normalized) {
+            datadog_ffi_try("Failed updating sidecar default service name",
+                ddog_sidecar_session_set_default_service_name(&DATADOG_G(sidecar),
+                    (ddog_CharSlice){ .ptr = normalized, .len = strlen(normalized) }));
+            ddog_free_normalized_tag_value(normalized);
+        }
+        zend_string_release(default_svc);
+    }
+
+    datadog_sidecar_refresh_user_service_defined();
+}
+
+void datadog_sidecar_refresh_user_service_defined(void) {
+    if (!DATADOG_G(sidecar)) {
+        return;
+    }
+    zend_string *dd_service = get_DD_SERVICE();
+    bool is_defined = dd_service && ZSTR_LEN(dd_service) > 0;
+    datadog_ffi_try("Failed updating sidecar user-service-defined flag",
+        ddog_sidecar_session_set_user_service_defined(&DATADOG_G(sidecar), is_defined));
 }
 
 static void datadog_sidecar_setup_thread_mode(void);
@@ -799,6 +824,10 @@ void datadog_sidecar_rinit(void) {
     }
 
     ddtrace_sidecar_submit_span_data_direct_defaults(&DATADOG_G(sidecar), NULL);
+
+    if (get_global_DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED()) {
+        datadog_sidecar_refresh_user_service_defined();
+    }
 }
 
 void datadog_sidecar_rshutdown(void) {

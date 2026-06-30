@@ -16,7 +16,7 @@ RUN apk add --no-cache \
     clang-dev
 
 # Download and extract LLVM source
-ARG LLVM_VERSION=17.0.6
+ARG LLVM_VERSION=20.1.8
 WORKDIR /src
 RUN wget -q https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}/llvm-project-${LLVM_VERSION}.src.tar.xz && \
     tar -xf llvm-project-${LLVM_VERSION}.src.tar.xz && \
