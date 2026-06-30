@@ -580,12 +580,19 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     // values to the ones in the configuration.
     let system_settings = SystemSettings::get();
 
+    #[cfg(target_os = "linux")]
+    {
+        // SAFETY: we are in rinit on a PHP thread.
+        if !unsafe { zend::ddog_php_prof_otel_thread_ctx_rinit() } {
+            error!("failed to initialize profiler OTel thread context state");
+            return ZendResult::Failure;
+        }
+    }
+
     // initialize the thread local storage and cache some items
     let result = REQUEST_LOCALS.try_with_borrow_mut(|locals| {
         // SAFETY: we are in rinit on a PHP thread.
         locals.vm_interrupt_addr = unsafe { zend::datadog_php_profiling_vm_interrupt_addr() };
-        // SAFETY: we are in rinit on a PHP thread.
-        unsafe { zend::datadog_php_profiling_rinit() };
 
         // SAFETY: We are after first rinit and before mshutdown.
         unsafe {

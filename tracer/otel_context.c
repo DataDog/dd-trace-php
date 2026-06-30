@@ -50,7 +50,7 @@ static void ddtrace_otel_record_set_attrs(datadog_otel_thr_ctx_rec *record, ddtr
 static void ddtrace_otel_record_set_attrs_from_values(datadog_otel_thr_ctx_rec *record, ddtrace_root_span_data *root, zend_string *service, zend_string *env, zend_string *version);
 static size_t ddtrace_otel_record_write_attr_zstr(datadog_otel_thr_ctx_rec *record, size_t offset, uint8_t key_index, zend_string *value);
 static zend_string *ddtrace_otel_attr_zstr(zend_string *value);
-static inline uint64_t ddtrace_u64_be(uint64_t value);
+static uint64_t ddtrace_u64_be(uint64_t value);
 
 void ddtrace_otel_init_root_span(ddtrace_root_span_data *root) {
     datadog_otel_thr_ctx_rec *record = &root->otel_context;
@@ -216,7 +216,7 @@ static zend_string *ddtrace_otel_attr_zstr(zend_string *value) {
     return value ? value : ZSTR_EMPTY_ALLOC();
 }
 
-static inline uint64_t ddtrace_u64_be(uint64_t value) {
+static uint64_t ddtrace_u64_be(uint64_t value) {
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
     return __builtin_bswap64(value);
 #elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__

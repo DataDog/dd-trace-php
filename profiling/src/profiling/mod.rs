@@ -223,9 +223,8 @@ fn parse_u64_hex(value: &str) -> Option<u64> {
 
 #[cfg(target_os = "linux")]
 fn current_otel_sample_context() -> Option<OTelSampleContext> {
-    let mut context: crate::bindings::datadog_php_profiling_otel_context =
-        unsafe { std::mem::zeroed() };
-    if !unsafe { crate::bindings::datadog_php_profiling_read_otel_context(&mut context) } {
+    let mut context: crate::bindings::ddog_php_prof_otel_context = unsafe { std::mem::zeroed() };
+    if !unsafe { crate::bindings::ddog_php_prof_read_otel_context(&mut context) } {
         return None;
     }
 
