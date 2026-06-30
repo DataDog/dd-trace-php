@@ -1677,6 +1677,12 @@ void ddtrace_live_debugger_rinit(void) {
 
 void ddtrace_live_debugger_rshutdown(void) {
     zend_hash_destroy(&DDTRACE_G(active_live_debugger_hooks));
+    // The probe hooks (and their def->probe shallow copies borrowing into retired
+    // parsed configs) are now fully torn down, so it is finally safe to free the
+    // configs retired during this request.
+    if (DATADOG_G(remote_config_state)) {
+        ddog_live_debugger_free_retired(DATADOG_G(remote_config_state));
+    }
 }
 
 bool ddtrace_alter_dynamic_instrumentation_config(zval *old_value, zval *new_value, zend_string *new_str) {

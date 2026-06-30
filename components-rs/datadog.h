@@ -187,6 +187,8 @@ void ddog_set_dynamic_instrumentation_enabled(struct ddog_RemoteConfigState *rem
 
 void ddog_rshutdown_remote_config(struct ddog_RemoteConfigState *remote_config);
 
+void ddog_live_debugger_free_retired(struct ddog_RemoteConfigState *remote_config);
+
 void ddog_shutdown_remote_config(struct ddog_RemoteConfigState*);
 
 void ddog_log_debugger_data(const struct ddog_Vec_DebuggerPayload *payloads);
