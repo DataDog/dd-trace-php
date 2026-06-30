@@ -1,0 +1,33 @@
+diff --git a/libunwind/src/AddressSpace.hpp b/libunwind/src/AddressSpace.hpp
+--- a/libunwind/src/AddressSpace.hpp
++++ b/libunwind/src/AddressSpace.hpp
+@@ -99,6 +99,29 @@
+ 
+ #include <link.h>
+ 
++#if defined(__linux__) && defined(_LIBUNWIND_SUPPORT_DWARF_INDEX) &&          \
++    defined(_LIBUNWIND_USE_DL_ITERATE_PHDR) &&                                \
++    !defined(DLFO_STRUCT_HAS_EH_DBASE) &&                                     \
++    (defined(__x86_64__) || defined(__aarch64__))
++// glibc 2.35 added _dl_find_object, and LLVM libunwind already probes for it
++// with dlsym at runtime. musl's <link.h> does not declare the glibc-only ABI,
++// so provide the compatible public layout and keep the runtime fallback to
++// dl_iterate_phdr when _dl_find_object is absent.
++#define DLFO_STRUCT_HAS_EH_DBASE 0
++#define DLFO_STRUCT_HAS_EH_COUNT 0
++#define DLFO_EH_SEGMENT_TYPE PT_GNU_EH_FRAME
++struct dl_find_object {
++  unsigned long long int dlfo_flags;
++  void *dlfo_map_start;
++  void *dlfo_map_end;
++  struct link_map *dlfo_link_map;
++  void *dlfo_eh_frame;
++  unsigned long long int __dlfo_reserved[7];
++};
++
++extern "C" int _dl_find_object(void *, struct dl_find_object *);
++#endif
++
+ #endif
+ 
+ namespace libunwind {
