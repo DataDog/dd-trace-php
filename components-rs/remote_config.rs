@@ -111,6 +111,13 @@ pub struct LiveDebuggerCallbacks {
 pub struct LiveDebuggerState {
     pub spans_map: HashMap<String, i64>,
     pub active: HashMap<String, Box<(RemoteConfigParsed, MaybeShmLimiter)>>, // Box<> for stable heap address!
+    // Parsed configs removed (or replaced) from `active` whose probe hooks may still be
+    // installed: the C side stores shallow `ddog_Probe` copies that borrow `CharSlice`s
+    // (probe id, capture config, shm limiter, ...) into these boxes, and `zai_hook_remove`
+    // can defer the actual teardown of those hooks past this point. Dropping the box here
+    // would free the borrowed strings while a deferred hook can still fire and read them
+    // (use-after-free). Keep them alive until request shutdown, when all hooks are gone.
+    pub retired: Vec<Box<(RemoteConfigParsed, MaybeShmLimiter)>>,
     pub config_id: String,
     pub allow_dfa: Option<Regex>,
     pub deny_dfa: Option<Regex>,
@@ -392,10 +399,13 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                         RemoteConfigProduct::LiveDebugger => {
                             let val = Box::new((data, MaybeShmLimiter::open(limiter_index)));
                             let rc_ref: &mut RemoteConfigState = unsafe { mem::transmute(remote_config as *mut _) }; // sigh, borrow checker
+                            let mut retired_old = None;
                             let entry = remote_config.live_debugger.active.entry(value.config_id);
                             let (parsed, limiter) = match entry {
                                 Entry::Occupied(mut e) => {
-                                    e.insert(val);
+                                    // Retire (don't drop) the replaced box: an orphaned hook may
+                                    // still borrow its strings until request shutdown.
+                                    retired_old = Some(e.insert(val));
                                     let r = e.into_mut();
                                     (&r.0, &r.1)
                                 }
@@ -406,6 +416,9 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                             };
                             if let Some(debugger) = parsed.downcast::<LiveDebuggingData>() {
                                 apply_config(rc_ref, debugger, limiter);
+                            }
+                            if let Some(old) = retired_old {
+                                rc_ref.live_debugger.retired.push(old);
                             }
                         }
                         RemoteConfigProduct::ApmTracing => {
@@ -442,6 +455,9 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                         if let Some(debugger) = boxed.0.downcast::<LiveDebuggingData>() {
                             remove_config(remote_config, debugger);
                         }
+                        // Don't drop `boxed` here: a deferred hook teardown can still borrow
+                        // its strings. Retire it until request shutdown instead.
+                        remote_config.live_debugger.retired.push(boxed);
                     }
                 }
                 RemoteConfigProduct::ApmTracing => {
@@ -738,6 +754,9 @@ pub extern "C" fn ddog_set_dynamic_instrumentation_enabled(
 #[no_mangle]
 pub extern "C" fn ddog_rshutdown_remote_config(remote_config: &mut RemoteConfigState) {
     remote_config.live_debugger.spans_map.clear();
+    // All probe hooks are torn down by request shutdown, so the borrowed strings in
+    // retired parsed configs are no longer referenced and can be freed.
+    remote_config.live_debugger.retired.clear();
     remote_config.dynamic_config.old_config_values.clear();
     remote_config.dynamic_config.active_configs.clear();
     remote_config.dynamic_config.merged_configs.clear();
