@@ -116,7 +116,9 @@ pub struct LiveDebuggerState {
     // (probe id, capture config, shm limiter, ...) into these boxes, and `zai_hook_remove`
     // can defer the actual teardown of those hooks past this point. Dropping the box here
     // would free the borrowed strings while a deferred hook can still fire and read them
-    // (use-after-free). Keep them alive until request shutdown, when all hooks are gone.
+    // (use-after-free). Keep them alive until the probe hooks are torn down, then free
+    // them via `ddog_live_debugger_free_retired` (called from ddtrace_live_debugger_rshutdown,
+    // after zai_hook_clean), which bounds growth to a single request's config churn.
     pub retired: Vec<Box<(RemoteConfigParsed, MaybeShmLimiter)>>,
     pub config_id: String,
     pub allow_dfa: Option<Regex>,
@@ -754,9 +756,6 @@ pub extern "C" fn ddog_set_dynamic_instrumentation_enabled(
 #[no_mangle]
 pub extern "C" fn ddog_rshutdown_remote_config(remote_config: &mut RemoteConfigState) {
     remote_config.live_debugger.spans_map.clear();
-    // All probe hooks are torn down by request shutdown, so the borrowed strings in
-    // retired parsed configs are no longer referenced and can be freed.
-    remote_config.live_debugger.retired.clear();
     remote_config.dynamic_config.old_config_values.clear();
     remote_config.dynamic_config.active_configs.clear();
     remote_config.dynamic_config.merged_configs.clear();
@@ -764,6 +763,19 @@ pub extern "C" fn ddog_rshutdown_remote_config(remote_config: &mut RemoteConfigS
         RemoteConfigProduct::ApmTracing,
         RemoteConfigProduct::LiveDebugger,
     ]);
+}
+
+/// Free the parsed configs retired during this request (see `LiveDebuggerState::retired`).
+///
+/// MUST be called only after all live debugger probe hooks have been torn down for the
+/// request (i.e. after `zai_hook_clean`), since those hooks hold C-side `def->probe`
+/// shallow copies whose `CharSlice`s / limiter pointer borrow into these boxes. It is
+/// invoked from `ddtrace_live_debugger_rshutdown()` right after the hook table is
+/// destroyed — NOT from `ddog_rshutdown_remote_config`, which runs at the very start of
+/// RSHUTDOWN, before the shutdown-time flush that can still fire (and tear down) probes.
+#[no_mangle]
+pub extern "C" fn ddog_live_debugger_free_retired(remote_config: &mut RemoteConfigState) {
+    remote_config.live_debugger.retired.clear();
 }
 
 #[no_mangle]
