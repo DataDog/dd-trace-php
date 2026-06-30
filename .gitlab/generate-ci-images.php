@@ -134,7 +134,7 @@ variables:
   variables:
     IMG_REGISTRIES: "dockerhub"
     IMG_SIGNING: false
-    IMG_SOURCES: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:${TAG}"
+    IMG_SOURCES: "${CI_REGISTRY_IMAGE}:${TAG}"
     IMG_DESTINATIONS: "dd-trace-ci:${TAG}"
 
 .windows_image_build:
