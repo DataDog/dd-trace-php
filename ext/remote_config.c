@@ -7,7 +7,8 @@
 #include "threads.h"
 #include <tracer/tracer_api.h>
 #ifndef _WIN32
-#include <signal.h>
+#include <sys/time.h>
+#include <tracer/ddtrace_globals.h>
 #endif
 
 #if PHP_VERSION_ID < 70100
@@ -65,6 +66,50 @@ void datadog_check_for_new_config_now(void) {
 static void dd_sigvtalarm_handler(int signal, siginfo_t *siginfo, void *ctx) {
     UNUSED(signal, siginfo, ctx);
     datadog_set_all_thread_vm_interrupt();
+
+#if defined(__linux__) && defined(ZTS)
+    if (!tsrm_is_managed_thread()) {
+        return;
+    }
+#endif
+
+    uint64_t now_ns = 0;
+#if !defined(__linux__) && defined(ZTS)
+    // On macOS ZTS, setitimer is per-process; the signal may land on any thread - iterate all threads to check for expirations
+    uint64_t next_deadline = ~0ull;
+    tsrm_mutex_lock(datadog_threads_mutex);
+    void *TSRMLS_CACHE;
+    ZEND_HASH_FOREACH_PTR(&datadog_tls_bases, TSRMLS_CACHE) {
+#endif
+    // On Linux the signal gets delivered to the thread that set the timer, so we don't need to iterate all threads
+    uint64_t deadline = DDTRACE_G(capture_deadline_ns);
+    if (deadline) {
+        if (!now_ns) {
+            struct timespec now;
+            clock_gettime(CLOCK_THREAD_CPUTIME_ID, &now);
+            now_ns = (uint64_t)now.tv_sec * 1000000000ULL + (uint64_t)now.tv_nsec;
+        }
+        if (now_ns >= deadline) {
+            DDTRACE_G(debugger_capture_timed_out) = 1;
+        }
+#if !defined(__linux__) && defined(ZTS)
+        else {
+            next_deadline = MIN(deadline, next_deadline);
+        }
+#endif
+    }
+#if !defined(__linux__) && defined(ZTS)
+    } ZEND_HASH_FOREACH_END();
+    if (next_deadline != ~0ull) { // re-arm the timer, for ZTS concurrency
+        uint64_t usec = (next_deadline - now_ns) / 1000ull;
+        struct itimerval it = {
+            .it_value    = { .tv_sec = usec / 1000000, .tv_usec = usec % 1000000 },
+            .it_interval = { 0, 0 },
+        };
+        setitimer(ITIMER_VIRTUAL, &it, NULL);
+    }
+    tsrm_mutex_unlock(datadog_threads_mutex);
+#endif
 }
 #endif
 

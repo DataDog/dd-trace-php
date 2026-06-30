@@ -1,7 +1,9 @@
 #ifndef DDTRACE_GLOBALS_H
 #define DDTRACE_GLOBALS_H
+#include <signal.h>
 #ifndef _WIN32
 #include <dogstatsd_client/client.h>
+#include <time.h>
 #endif
 
 #include <ext/datadog.h>
@@ -71,6 +73,16 @@ typedef struct {
 
     dd_capture_arena debugger_capture_arena;
     ddog_Vec_DebuggerPayload exception_debugger_buffer;
+    volatile sig_atomic_t debugger_capture_timed_out;
+#ifndef _WIN32
+    volatile uint64_t capture_deadline_ns;
+#ifdef __linux__
+    timer_t capture_timer;
+    int capture_timer_active;
+#endif
+#else
+    HANDLE capture_timer_handle;
+#endif
     HashTable active_live_debugger_hooks;
     HashTable *agent_rate_by_service;
 
