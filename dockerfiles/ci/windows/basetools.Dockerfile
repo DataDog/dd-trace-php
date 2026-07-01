@@ -1,5 +1,6 @@
+ARG CI_REGISTRY_IMAGE=datadog/dd-trace-ci
 ARG vsVersion
-FROM datadog/dd-trace-ci:windows-base-$vsVersion
+FROM ${CI_REGISTRY_IMAGE}:windows-base-$vsVersion
 
 RUN powershell.exe "Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; $Env:chocolateyVersion = '0.10.15'; $Env:chocolateyUseWindowsCompression = 'false'; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1')); ''"
 
