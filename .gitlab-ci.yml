@@ -3,6 +3,7 @@ stages:
   - tests
   - deploy
   - ci-build
+  - merge-gate
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
@@ -110,6 +111,17 @@ shared-trigger:
     strategy: depend
   variables:
     PARENT_PIPELINE_ID: $CI_PIPELINE_ID
+
+merge-gate:
+  stage: merge-gate
+  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
+  tags: [ "arch:amd64" ]
+  when: always
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+    GIT_DEPTH: "1"
+  script:
+    - .gitlab/merge-gate.sh
 
 package-trigger:
   stage: build
