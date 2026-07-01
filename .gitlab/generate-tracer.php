@@ -524,8 +524,8 @@ foreach ($all_minor_major_targets as $major_minor):
 <?php if (version_compare($major_minor, "7.4", ">=")): ?>
     KUBERNETES_POD_CPU_REQUEST: 9
     KUBERNETES_POD_CPU_LIMIT: 9
-    KUBERNETES_POD_MEMORY_REQUEST: 10Gi
-    KUBERNETES_POD_MEMORY_LIMIT: 10Gi
+    KUBERNETES_POD_MEMORY_REQUEST: 12Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 12Gi
 <?php else: ?>
     KUBERNETES_POD_CPU_REQUEST: 2
     KUBERNETES_POD_CPU_LIMIT: 2

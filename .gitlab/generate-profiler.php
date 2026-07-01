@@ -85,8 +85,8 @@ foreach ($profiler_minor_major_targets as $version) {
   variables:
     KUBERNETES_POD_CPU_REQUEST: 5
     KUBERNETES_POD_CPU_LIMIT: 5
-    KUBERNETES_POD_MEMORY_REQUEST: 3Gi
-    KUBERNETES_POD_MEMORY_LIMIT: 3Gi
+    KUBERNETES_POD_MEMORY_REQUEST: 5Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 5Gi
     # CARGO_TARGET_DIR: /mnt/ramdisk/cargo # ramdisk??
     libdir: /tmp/datadog-profiling
   parallel:
@@ -105,8 +105,8 @@ foreach ($profiler_minor_major_targets as $version) {
   variables:
     KUBERNETES_POD_CPU_REQUEST: 5
     KUBERNETES_POD_CPU_LIMIT: 5
-    KUBERNETES_POD_MEMORY_REQUEST: 3Gi
-    KUBERNETES_POD_MEMORY_LIMIT: 3Gi
+    KUBERNETES_POD_MEMORY_REQUEST: 5Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 5Gi
     # CARGO_TARGET_DIR: /mnt/ramdisk/cargo # ramdisk??
     libdir: /tmp/datadog-profiling
   script:
@@ -121,8 +121,8 @@ foreach ($profiler_minor_major_targets as $version) {
   variables:
     KUBERNETES_POD_CPU_REQUEST: 5
     KUBERNETES_POD_CPU_LIMIT: 5
-    KUBERNETES_POD_MEMORY_REQUEST: 3Gi
-    KUBERNETES_POD_MEMORY_LIMIT: 3Gi
+    KUBERNETES_POD_MEMORY_REQUEST: 5Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 5Gi
     CARGO_TARGET_DIR: /tmp/cargo
     libdir: /tmp/datadog-profiling
     SKIP_ONLINE_TESTS: "1"

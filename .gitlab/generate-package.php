@@ -810,8 +810,8 @@ endforeach;
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble # TODO: use a proper docker image with make, php and git pre-installed
   variables:
     KUBERNETES_POD_CPU_REQUEST: 7
-    KUBERNETES_POD_MEMORY_REQUEST: 30Gi
-    KUBERNETES_POD_MEMORY_LIMIT: 40Gi
+    KUBERNETES_POD_MEMORY_REQUEST: 52Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 52Gi
     RUST_BACKTRACE: 1
     DOCKER_COMPOSE_DOWNLOAD_NAME: docker-compose-linux-x86_64
   before_script:
@@ -893,8 +893,8 @@ endforeach;
       artifacts: true
   variables:
     KUBERNETES_POD_CPU_REQUEST: 2
-    KUBERNETES_POD_MEMORY_REQUEST: 2Gi
-    KUBERNETES_POD_MEMORY_LIMIT: 4Gi
+    KUBERNETES_POD_MEMORY_REQUEST: 52Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 52Gi
     RUST_BACKTRACE: 1
   before_script:
 <?php dockerhub_login() ?>
@@ -935,8 +935,8 @@ endforeach;
   tags: [ "docker-in-docker:amd64" ]
   variables:
     KUBERNETES_POD_CPU_REQUEST: 2
-    KUBERNETES_POD_MEMORY_REQUEST: 2Gi
-    KUBERNETES_POD_MEMORY_LIMIT: 4Gi
+    KUBERNETES_POD_MEMORY_REQUEST: 52Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 52Gi
   needs:
     - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
@@ -1246,8 +1246,8 @@ endforeach;
     TEST_LIBRARY: php
     KUBERNETES_POD_CPU_REQUEST: 8
     PYTEST_XDIST_AUTO_NUM_WORKERS: 8
-    KUBERNETES_POD_MEMORY_REQUEST: 3Gi
-    KUBERNETES_POD_MEMORY_LIMIT: 4Gi
+    KUBERNETES_POD_MEMORY_REQUEST: 52Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 52Gi
     RUST_BACKTRACE: 1
     BUILD_SH_ARGS: php
     PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
