@@ -72,6 +72,26 @@ $windows_build_platforms = [
     ],
 ];
 
+$appsec_helper_rust_image_tag = "nginx-fpm-php-8.5-release-musl";
+$appsec_helper_rust_image = appsec_image_from_tag_mapping($appsec_helper_rust_image_tag);
+
+function appsec_image_from_tag_mapping(string $tag): string
+{
+    $tag_mappings_file = __DIR__ . "/../appsec/tests/integration/gradle/tag_mappings.gradle";
+    $tag_mappings = file_get_contents($tag_mappings_file);
+    if ($tag_mappings === false) {
+        throw new RuntimeException("Failed to read $tag_mappings_file");
+    }
+
+    if (!preg_match("/['\"]" . preg_quote($tag, "/") . "['\"]\\s*:\\s*['\"]([^'\"]+)['\"]/", $tag_mappings, $matches)) {
+        throw new RuntimeException("Tag $tag not found in $tag_mappings_file");
+    }
+
+    $repo = "registry.ddbuild.io/images/mirror/datadog/dd-appsec-php-ci";
+    $image_ref = $matches[1];
+    return str_starts_with($image_ref, "sha256:") ? "$repo@$image_ref" : "$repo:$image_ref";
+}
+
 ?>
 
 stages:
@@ -303,7 +323,7 @@ if ($suffix == "-alpine") {
 
 "compile appsec helper rust":
   stage: appsec
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-appsec-php-ci:nginx-fpm-php-8.5-release-musl"
+  image: "<?= $appsec_helper_rust_image ?>"
   tags: [ "arch:$ARCH" ]
   needs: [ "prepare code" ]
   parallel:
