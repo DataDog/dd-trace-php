@@ -66,6 +66,7 @@ namespace DDTrace {
         public int $reason = 0;
         public int $errorCode = 0;
         public bool $doLog = false;
+        public ?int $serialId = null;
         public array $providerState = [];
         public ?string $errorMessage = null;
         public ?bool $hasConfig = null;
@@ -1091,6 +1092,29 @@ namespace DDTrace\Internal {
      * @internal
      */
     function flush_ffe_evaluation_metrics(): bool {}
+
+    /**
+     * Stage the encoded APM feature-flag span enrichment tags in native
+     * request-local memory. The values are written onto the root span's meta
+     * when the root span closes and cleared afterwards (request-scoped). Passing
+     * null/empty for a tag clears that slot. This is gated by
+     * DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED; the provider
+     * only calls it when the gate is on (DG-004 inline accumulation / DG-005).
+     *
+     * @internal
+     */
+    function set_ffe_span_enrichment_tags(?string $flagsEnc, ?string $subjectsEnc, ?string $runtimeDefaults): void {}
+
+    /**
+     * Identity (spl_object_id) of the active root span, or null when there is
+     * none. Unlike \DDTrace\root_span(), this NEVER creates a root span as a
+     * side effect (it does not call dd_ensure_root_span()). Used by APM
+     * feature-flag span enrichment to detect a root-span boundary while merely
+     * evaluating a flag, without forcing autoroot creation.
+     *
+     * @internal
+     */
+    function peek_root_span_id(): ?int {}
 
 }
 
