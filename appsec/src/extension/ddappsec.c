@@ -49,6 +49,9 @@
 
 #if ZTS
 static atomic_int _thread_count;
+#    if PHP_VERSION_ID < 70200
+static atomic_bool _ginit_called_once;
+#    endif
 #endif
 
 static void _check_enabled(void);
@@ -184,7 +187,12 @@ static PHP_GINIT_FUNCTION(ddappsec)
     // We don't really need to call _tshutdown_handler on the main thread,
     // though I guess we could do it maybe on MSHUTDOWN or GSHUTDOWN if we
     // detected it was running for the main thread globals there.
-    if (!tsrm_is_main_thread()) {
+#    if PHP_VERSION_ID >= 70200
+    bool is_main_thread = tsrm_is_main_thread();
+#    else
+    bool is_main_thread = !atomic_exchange(&_ginit_called_once, true);
+#    endif
+    if (!is_main_thread) {
 #    if defined(__linux__)
         extern void *__dso_handle;
         extern int __cxa_thread_atexit_impl(
@@ -232,6 +240,9 @@ static PHP_GSHUTDOWN_FUNCTION(ddappsec)
         dd_log_shutdown();
         zai_config_mshutdown();
         zai_json_shutdown_bindings();
+#    if PHP_VERSION_ID < 70200
+        atomic_store(&_ginit_called_once, false);
+#    endif
     }
 #else
     dd_log_shutdown();
