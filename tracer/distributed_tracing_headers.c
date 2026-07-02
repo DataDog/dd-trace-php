@@ -3,6 +3,7 @@
 #include "random.h"
 #include "tracer_tag_propagation/tracer_tag_propagation.h"
 #include "serializer.h"
+#include "zend_string.h"
 #include <config/config_ini.h>
 #include <headers/headers.h>
 
@@ -643,10 +644,6 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
             result->parent_id = 0;
             result->priority_sampling = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
 
-            zend_hash_clean(&result->meta_tags);
-            zend_hash_clean(&result->propagated_tags);
-            zend_hash_clean(&result->tracestate_unknown_dd_keys);
-
             zval reason_str;
             ZVAL_STR(&reason_str, zend_string_init(ZEND_STRL("propagation_behavior_extract"), 0));
             zend_hash_str_update(Z_ARR(link->property_attributes), ZEND_STRL("reason"), &reason_str);
@@ -664,6 +661,13 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
                 zval_ptr_dtor(&DDTRACE_G(pending_upstream_span_link));
                 ZVAL_COPY_VALUE(&DDTRACE_G(pending_upstream_span_link), &link_zv);
             }
+
+            zend_hash_clean(&result->meta_tags);
+            zend_hash_clean(&result->propagated_tags);
+            zend_hash_clean(&result->tracestate_unknown_dd_keys);
+            if (result->origin) { zend_string_release(result->origin); }
+            if (result->tracestate) { zend_string_release(result->tracestate); }
+            if (result->context_headers) { zend_string_release(result->context_headers); }
         }
         break;
     // behavior=continue: inherit upstream context normally
