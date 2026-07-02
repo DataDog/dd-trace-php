@@ -114,6 +114,10 @@ final class CurlIntegration extends Integration
                 return;
             }
 
+            if (\dd_trace_tracer_is_limited()) {
+                return;
+            }
+
             \DDTrace\create_stack();
             $span = start_span();
 
