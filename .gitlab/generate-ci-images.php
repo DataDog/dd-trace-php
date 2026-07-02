@@ -18,7 +18,7 @@
 
 $root = dirname(__DIR__);
 
-// Resolve $VAR / ${VAR} from a key=value .env file.
+// Load KEY=VALUE pairs from a .env file (used by substitute()).
 function parse_env(string $path): array
 {
     $env = [];
@@ -172,7 +172,6 @@ variables:
     # PS 5.1 ignores $PSNativeCommandUseErrorActionPreference; use $LASTEXITCODE checks instead.
     $ErrorActionPreference = 'Stop'
 
-    # Manual git clone with proper config.
     Write-Host "Cloning repository..."
     git config --global core.longpaths true
     git config --global core.symlinks true
@@ -185,13 +184,11 @@ variables:
     git checkout $env:CI_COMMIT_SHA
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-    # Initialize submodules.
     Write-Host "Initializing submodules..."
     git submodule update --init --recursive
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     Write-Host "Git setup complete."
 
-    # Download docker-compose to the workspace.
     Write-Host "Downloading docker-compose..."
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     $dockerCompose = "$PWD\docker-compose.exe"
