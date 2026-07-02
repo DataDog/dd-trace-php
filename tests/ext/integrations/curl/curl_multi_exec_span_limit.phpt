@@ -10,16 +10,9 @@ DD_TRACE_SPANS_LIMIT=20
 DD_TRACE_LOG_LEVEL=error
 --FILE--
 <?php
-// Do NOT include curl_helper.inc here: its stub CurlIntegration class shadows the
-// real integration and prevents the curl_multi_exec parent span from being created.
-
 $port = getenv('HTTPBIN_PORT') ?: '80';
 $url = 'http://' . getenv('HTTPBIN_HOSTNAME') . ':' . $port . '/';
 
-// Far exceed DD_TRACE_SPANS_LIMIT (20). Before the fix, curl_multi_exec opened
-// one parent span per call via the user-facing start_span(), bypassing the limit;
-// distributed-header injection then flagged each span NOT_DROPPABLE, so they
-// accumulated 1:1 with iterations (the reported OOM). The limit must cap them.
 $iterations = 100;
 for ($i = 0; $i < $iterations; $i++) {
     $ch = curl_init($url);
@@ -43,9 +36,6 @@ foreach ($spans as $span) {
     }
 }
 
-// With the limit enforced, the retained curl_multi_exec spans are capped near the
-// span limit instead of scaling 1:1 with the iteration count. Without the fix this
-// is $iterations (100); with the fix it stays around the limit (20).
 echo ($multiCount <= $iterations / 2 ? 'BOUNDED' : 'LEAK') . "\n";
 ?>
 --EXPECT--
