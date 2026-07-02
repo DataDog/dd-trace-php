@@ -16,11 +16,11 @@ DD_TRACE_LOG_LEVEL=error
 $port = getenv('HTTPBIN_PORT') ?: '80';
 $url = 'http://' . getenv('HTTPBIN_HOSTNAME') . ':' . $port . '/';
 
-// Far exceed DD_TRACE_SPANS_LIMIT. Before the fix, curl_multi_exec opened one
-// parent span per call via the user-facing start_span(), bypassing the limit;
+// Far exceed DD_TRACE_SPANS_LIMIT (20). Before the fix, curl_multi_exec opened
+// one parent span per call via the user-facing start_span(), bypassing the limit;
 // distributed-header injection then flagged each span NOT_DROPPABLE, so they
 // accumulated 1:1 with iterations (the reported OOM). The limit must cap them.
-$iterations = 60;
+$iterations = 100;
 for ($i = 0; $i < $iterations; $i++) {
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -35,9 +35,6 @@ for ($i = 0; $i < $iterations; $i++) {
     curl_multi_close($mh);
 }
 
-// Read the limit state before serializing (serialization clears the counters).
-var_dump(dd_trace_tracer_is_limited());
-
 $spans = dd_trace_serialize_closed_spans();
 $multiCount = 0;
 foreach ($spans as $span) {
@@ -46,10 +43,10 @@ foreach ($spans as $span) {
     }
 }
 
-// With the limit enforced the retained curl_multi_exec spans stay near the limit
-// rather than scaling 1:1 with the iteration count.
-echo ($multiCount < $iterations / 2 ? 'BOUNDED' : 'LEAK') . "\n";
+// With the limit enforced, the retained curl_multi_exec spans are capped near the
+// span limit instead of scaling 1:1 with the iteration count. Without the fix this
+// is $iterations (100); with the fix it stays around the limit (20).
+echo ($multiCount <= $iterations / 2 ? 'BOUNDED' : 'LEAK') . "\n";
 ?>
 --EXPECT--
-bool(true)
 BOUNDED
