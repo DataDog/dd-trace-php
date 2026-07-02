@@ -73,9 +73,9 @@ function windows_git_setup() {
     git config --global core.symlinks true
     git clone --branch $env:CI_COMMIT_REF_NAME $env:CI_REPOSITORY_URL .
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "ERROR: git clone failed. Remaining workspace contents:"
+        Write-Host "ERROR: git clone failed (likely transient network); exiting 75 so GitLab auto-retries. Remaining workspace contents:"
         Get-ChildItem -Force | Select-Object Name
-        exit $LASTEXITCODE
+        exit 75
     }
     git checkout $env:CI_COMMIT_SHA
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -83,7 +83,7 @@ function windows_git_setup() {
     # Initialize submodules
     Write-Host "Initializing submodules..."
     git submodule update --init --recursive
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    if ($LASTEXITCODE -ne 0) { exit 75 }  # transient network (submodule fetch); 75 triggers default retry
     Write-Host "Git setup complete."
 <?php
 }
