@@ -67,14 +67,6 @@ anything. It is up to you to ensure the image you publish actually exists in
   `COPY php-<minor>/...` paths). The generator picks the new service up
   automatically — no pipeline edits needed.
 
-### Troubleshooting: Docker Hub `UNAUTHORIZED` on publish
-
-If a `publish` job reaches Docker Hub but fails with `UNAUTHORIZED` pushing to
-`datadog/dd-trace-ci`, the dd-trace-php side is usually correct — it means the
-`public-images` Docker Hub service account is not allowed to push to that repo.
-Ask the `public-images` / Agent Delivery owners to grant it write access; there
-is nothing to change in this repo.
-
 ## Building locally
 
 Build and push a specific image (or all of them) from the OS directory:
