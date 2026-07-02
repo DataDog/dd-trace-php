@@ -645,6 +645,7 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
 
             zend_hash_clean(&result->meta_tags);
             zend_hash_clean(&result->propagated_tags);
+            zend_hash_clean(&result->tracestate_unknown_dd_keys);
 
             zval reason_str;
             ZVAL_STR(&reason_str, zend_string_init(ZEND_STRL("propagation_behavior_extract"), 0));
