@@ -130,6 +130,7 @@ variables:
   trigger:
     project: DataDog/public-images
     branch: main
+    strategy: depend
   # $TAG is supplied per matrix entry by the generated publish jobs.
   variables:
     IMG_REGISTRIES: "dockerhub"
