@@ -8,9 +8,9 @@ file.
 
 | CI Job | Image | What it does |
 |--------|-------|-------------|
-| `appsec integration tests: [{target}]` | `docker:29.4.0-noble` | Gradle integration tests with C++ helper (release/zts variants) |
-| `appsec integration tests (helper-rust): [{target}]` | same | Same tests with Rust helper (`-PuseHelperRust`); includes `debug` variant |
-| `appsec integration tests (ssi): [{target}]` | same | SSI mode (PHP 8.3 only) |
+| `appsec integration tests: [{target}]` | `docker:29.4.0-noble` | Gradle integration tests with Rust helper by default (release/zts/musl variants) |
+| `appsec integration tests (helper-cpp): [{target}]` | same | Same tests with Rust helper redirection disabled (`-PuseHelperCpp`); PHP 8.3 release and release-zts |
+| `appsec integration tests (ssi): [{target}]` | same | SSI mode (PHP 8.3 only), Rust helper by default |
 | `helper-rust build and test` | same | `cargo fmt --check` + build + unit tests |
 | `helper-rust code coverage` | same | Unit test coverage via `cargo-llvm-cov` |
 | `helper-rust integration coverage` | same | Integration coverage collection (not needed locally) |
@@ -60,18 +60,25 @@ The `--tests` filter accepts:
 - Class only: `"*Apache2FpmTests*"` or `"com.datadog.appsec.php.integration.Apache2FpmTests"`
 - Wildcard: `"*FpmTests*"`
 
-### With helper-rust (instead of C++ helper)
+### Rust helper (default)
 
 ```bash
-./gradlew test8.3-debug -PuseHelperRust --info \
+./gradlew test8.3-debug --info \
     --tests "com.datadog.appsec.php.integration.Apache2FpmTests.Pool environment"
 ```
 
-This builds the Rust helper via the `buildHelperRust` task (musl build, works on both glibc and musl targets) and stores the binary in the `php-helper-rust` Docker volume.
+This builds the Rust helper via the `buildHelperRust` task (musl build, works on both glibc and musl targets), stores the binary in the `php-helper-rust` Docker volume, and mounts it alongside the C++ helper so `DD_APPSEC_HELPER_RUST_REDIRECTION` can select it.
 
-### C++ helper (default)
+### C++ helper opt-out
 
-Omit `-PuseHelperRust` and `-PhelperBinary`. The C++ helper is built via the `buildAppsec-*` task.
+Add `-PuseHelperCpp` to disable Rust helper redirection:
+
+```bash
+./gradlew test8.3-debug -PuseHelperCpp --info \
+    --tests "com.datadog.appsec.php.integration.Apache2FpmTests.Pool environment"
+```
+
+This sets `DD_APPSEC_HELPER_RUST_REDIRECTION=false` in the test container. The Rust helper may still be built and mounted, but the extension uses the C++ helper from the `buildAppsec-*` task.
 
 ## Image Tags
 
@@ -135,7 +142,7 @@ Start a test container without running tests (for manual debugging):
 ./gradlew runMain8.3-release -PtestClass=com.datadog.appsec.php.integration.Apache2FpmTests
 ```
 
-The `-PtestClass` property is required (the task is not created without it). Add `-PuseHelperRust` or `-PhelperBinary=...` as needed.
+The `-PtestClass` property is required (the task is not created without it). Add `-PuseHelperCpp` to opt out of Rust helper redirection, or `-PhelperBinary=...` to bind-mount an explicit helper binary.
 
 SSI variant:
 
@@ -173,7 +180,7 @@ To distinguish which helper ran, check `helper.log`:
 The `test8.5-release-musl` target uses an Alpine-based nginx+fpm image. Tests tagged with `@Tag("musl")` are included; untagged tests are excluded.
 
 ```bash
-./gradlew test8.5-release-musl -PuseHelperRust --info
+./gradlew test8.5-release-musl --info
 ```
 
 The `buildHelperRust` task already produces a musl-linked binary (built on Alpine with `cargo +nightly`, using LLVM libunwind). The `patchelf --remove-needed libc.musl-*` step makes it load on both musl and glibc systems.
@@ -183,7 +190,8 @@ The `buildHelperRust` task already produces a musl-linked binary (built on Alpin
 | CI Job | Gradle Command |
 |---|---|
 | `appsec integration tests: [test8.3-release]` | `./gradlew test8.3-release` |
-| `appsec integration tests (helper-rust): [test8.3-debug]` | `./gradlew test8.3-debug -PuseHelperRust` |
+| `appsec integration tests (helper-cpp): [test8.3-release]` | `./gradlew test8.3-release -PuseHelperCpp` |
+| `appsec integration tests (helper-cpp): [test8.3-release-zts]` | `./gradlew test8.3-release-zts -PuseHelperCpp` |
 | `appsec integration tests (ssi): [test8.3-release-ssi]` | `./gradlew test8.3-release-ssi` |
 | `helper-rust build and test` | `./gradlew testHelperRust` |
 | `helper-rust code coverage` | `./gradlew coverageHelperRust` |
