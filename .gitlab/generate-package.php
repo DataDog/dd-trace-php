@@ -1536,6 +1536,119 @@ foreach ($arch_targets as $arch) {
     paths:
       - packages/datadog-setup.php
 
+# Runs on every non-default branch so system tests can be run against any (non-default) in-progress branch.
+"publish docker image for system tests (token)":
+  stage: release
+  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
+  tags: [ "arch:amd64" ]
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: never
+    - when: on_success
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - dd-octo-sts token --scope DataDog/dd-trace-php --policy gitlab-ci-publish-packages > github_token_system_tests.txt
+  artifacts:
+    paths:
+      - github_token_system_tests.txt
+    expire_in: 1 hour
+    when: on_success
+
+"publish docker image for system tests":
+  stage: release
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
+  tags: [ "docker-in-docker:amd64" ]
+  resource_group: "publish-system-tests-image-${CI_COMMIT_REF_SLUG}"
+  interruptible: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: never
+    - when: on_success
+  needs:
+    - job: "publish docker image for system tests (token)"
+      artifacts: true
+    - job: "datadog-setup.php"
+      artifacts: true
+    - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+    - job: "package extension: [arm64, aarch64-unknown-linux-gnu]"
+      artifacts: true
+  variables:
+    GIT_STRATEGY: none
+  allow_failure:
+    exit_codes: 3
+  script: |
+    set -e
+    IMAGE="ghcr.io/datadog/dd-trace-php/dd-library-php:${CI_COMMIT_REF_SLUG}"
+    VERSIONS_URL="https://api.github.com/orgs/DataDog/packages/container/dd-trace-php%2Fdd-library-php/versions"
+    GITHUB_TOKEN=$(<github_token_system_tests.txt)
+
+    apt-get update -qq && apt-get install -y -qq curl jq > /dev/null
+
+    STATUS=$(curl -s -o /tmp/pulls.json -w "%{http_code}" -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" \
+        "https://api.github.com/repos/DataDog/dd-trace-php/pulls?head=DataDog:${CI_COMMIT_BRANCH}&state=open")
+    if [ "${STATUS}" != "200" ]; then
+      echo "ERROR: failed to check for an open PR on branch ${CI_COMMIT_BRANCH} (HTTP ${STATUS}):"; cat /tmp/pulls.json
+      exit 1
+    fi
+    PR_COUNT=$(jq 'length' /tmp/pulls.json)
+    if [ "${PR_COUNT}" -eq 0 ]; then
+      echo "No open PR for branch ${CI_COMMIT_BRANCH}; skipping system-tests image publish."
+      exit 3
+    fi
+    echo "Found open PR(s) on branch ${CI_COMMIT_BRANCH}, continuing"
+
+    docker login ghcr.io -u DataDog --password-stdin < github_token_system_tests.txt
+    echo "Docker login to ghcr.io succeeded"
+
+    gh_api() { curl -s -o /tmp/resp.json -w "%{http_code}" -X "$1" \
+        -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" "$2"; }
+
+    # delete any pre-existing image with the same tag so pushing with the same tag doesn't pile up untagged versions.
+    echo "== Checking token and existing image tagged ${CI_COMMIT_REF_SLUG} =="
+    STATUS=$(gh_api GET "$VERSIONS_URL")
+    if [ "$STATUS" != "200" ]; then
+      echo "WARNING: token check failed (HTTP ${STATUS}), skipping pre-delete:"; cat /tmp/resp.json
+    else
+      echo "Token OK (HTTP 200): listed package versions for dd-trace-php/dd-library-php"
+      VERSION_ID=$(jq -r --arg TAG "${CI_COMMIT_REF_SLUG}" \
+          '.[] | select(.metadata.container.tags[]? == $TAG) | .id' /tmp/resp.json | head -n1)
+      if [ -z "$VERSION_ID" ]; then
+        echo "No pre-existing image tagged ${CI_COMMIT_REF_SLUG} found, nothing to delete"
+      else
+        STATUS=$(gh_api DELETE "${VERSIONS_URL}/${VERSION_ID}")
+        if [ "$STATUS" = "204" ]; then
+          echo "Deleted existing image version ${VERSION_ID} (HTTP 204)"
+        else
+          echo "WARNING: failed to delete existing image version ${VERSION_ID} (HTTP ${STATUS}), continuing anyway:"
+          cat /tmp/resp.json
+        fi
+      fi
+    fi
+
+    echo "== Building and pushing ${IMAGE} (linux/amd64, linux/arm64) =="
+    # stage each arch's tarball under its own dir so the Dockerfile can pick the right one via buildx's TARGETARCH arg.
+    mkdir -p packages/amd64 packages/arm64
+    cp packages/dd-library-php-*-x86_64-linux-gnu.tar.gz packages/amd64/
+    cp packages/dd-library-php-*-aarch64-linux-gnu.tar.gz packages/arm64/
+    cp packages/datadog-setup.php packages/amd64/
+    cp packages/datadog-setup.php packages/arm64/
+
+    printf 'FROM scratch\nARG TARGETARCH\nCOPY packages/${TARGETARCH}/dd-library-php-*-linux-gnu.tar.gz /\nCOPY packages/${TARGETARCH}/datadog-setup.php /\n' \
+        > Dockerfile.system-tests
+    BUILDER="system-tests-builder-${CI_JOB_ID}"
+    docker buildx create --name "$BUILDER" --driver docker-container
+    docker buildx build --builder "$BUILDER" --platform linux/amd64,linux/arm64 \
+        -f Dockerfile.system-tests -t "$IMAGE" --push .
+    echo "Pushed $IMAGE"
+  after_script:
+    - rm -f github_token_system_tests.txt
+    - docker buildx rm "system-tests-builder-${CI_JOB_ID}" || true
+
 "bundle for reliability env":
   stage: shared-pipeline
   image: registry.ddbuild.io/ci/libdatadog-build/ci_docker_base:67145216
