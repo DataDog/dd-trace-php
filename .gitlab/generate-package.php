@@ -1575,6 +1575,8 @@ foreach ($arch_targets as $arch) {
       artifacts: true
     - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
+    - job: "package extension: [arm64, aarch64-unknown-linux-gnu]"
+      artifacts: true
   variables:
     GIT_STRATEGY: none
   script: |
@@ -1613,14 +1615,24 @@ foreach ($arch_targets as $arch) {
       fi
     fi
 
-    echo "== Building and pushing ${IMAGE} =="
-    printf 'FROM scratch\nCOPY packages/dd-library-php-*-x86_64-linux-gnu.tar.gz /\nCOPY packages/datadog-setup.php /\n' \
+    echo "== Building and pushing ${IMAGE} (linux/amd64, linux/arm64) =="
+    # stage each arch's tarball under its own dir so the Dockerfile can pick the right one via buildx's TARGETARCH arg.
+    mkdir -p packages/amd64 packages/arm64
+    cp packages/dd-library-php-*-x86_64-linux-gnu.tar.gz packages/amd64/
+    cp packages/dd-library-php-*-aarch64-linux-gnu.tar.gz packages/arm64/
+    cp packages/datadog-setup.php packages/amd64/
+    cp packages/datadog-setup.php packages/arm64/
+
+    printf 'FROM scratch\nARG TARGETARCH\nCOPY packages/${TARGETARCH}/dd-library-php-*-linux-gnu.tar.gz /\nCOPY packages/${TARGETARCH}/datadog-setup.php /\n' \
         > Dockerfile.system-tests
-    docker build -f Dockerfile.system-tests -t "$IMAGE" .
-    docker push "$IMAGE"
+    BUILDER="system-tests-builder-${CI_JOB_ID}"
+    docker buildx create --name "$BUILDER" --driver docker-container
+    docker buildx build --builder "$BUILDER" --platform linux/amd64,linux/arm64 \
+        -f Dockerfile.system-tests -t "$IMAGE" --push .
     echo "Pushed $IMAGE"
   after_script:
     - rm -f github_token_system_tests.txt
+    - docker buildx rm "system-tests-builder-${CI_JOB_ID}" || true
 
 "bundle for reliability env":
   stage: shared-pipeline
