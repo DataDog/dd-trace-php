@@ -25,6 +25,9 @@ $proxy = RequestReplayer::launchUnixProxy(str_replace("unix://", "", getenv("DD_
 \DDTrace\start_span();
 \DDTrace\close_span();
 
+// ensure the response also is received by the sender first, to avoid retries holding up other tests
+dd_trace_internal_fn("synchronous_flush");
+
 echo PHP_EOL;
 $headers = $rr->replayHeaders([
     'content-type',

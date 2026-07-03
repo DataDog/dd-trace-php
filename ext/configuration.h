@@ -28,7 +28,7 @@ enum datadog_sidecar_connection_mode {
  * A user hit an issue with the userland time of 100.
  */
 #define DD_TRACE_AGENT_CONNECT_TIMEOUT_VAL 100
-#define DD_TRACE_AGENT_TIMEOUT_VAL 1000
+#define DD_TRACE_AGENT_TIMEOUT_VAL 3000
 #define DD_TRACE_AGENT_FLUSH_INTERVAL_VAL 1001
 
 #define DD_CFG_STR(str) #str

@@ -806,8 +806,10 @@ void ddtrace_coms_curl_shutdown(void) {
 
 static long dd_max_long(long a, long b) { return a >= b ? a : b; }
 
+// Shorter time for in-process timeout
 void ddtrace_curl_set_timeout(CURL *curl) {
-    long timeout = dd_max_long(get_global_DD_TRACE_BGS_TIMEOUT(), get_global_DD_TRACE_AGENT_TIMEOUT());
+    long agent_timeout = zai_config_memoized_entries[DATADOG_CONFIG_DD_TRACE_AGENT_TIMEOUT].name_index == ZAI_CONFIG_ORIGIN_DEFAULT ? 500 : get_global_DD_TRACE_AGENT_TIMEOUT();
+    long timeout = dd_max_long(get_global_DD_TRACE_BGS_TIMEOUT(), agent_timeout);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, timeout);
 }
 

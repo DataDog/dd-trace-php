@@ -781,7 +781,7 @@
       {
         "implementation": "B",
         "type": "int",
-        "default": "500"
+        "default": "3000"
       }
     ],
     "DD_TRACE_AGENT_URL": [
