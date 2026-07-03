@@ -165,10 +165,10 @@ install_appsec:
 install_all: install install_ini
 
 run_tests: $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
-	$(ALL_TEST_ENV_OVERRIDE) DD_TRACE_AGENT_TIMEOUT=2000 $(RUN_TESTS_CMD) $(TESTS)
+	$(ALL_TEST_ENV_OVERRIDE) $(RUN_TESTS_CMD) $(TESTS)
 
 test_c: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
-	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1 LSAN_OPTIONS=fast_unwind_on_malloc=0$${LSAN_OPTIONS:+$(,)$${LSAN_OPTIONS}}) $(ALL_TEST_ENV_OVERRIDE) DD_TRACE_AGENT_TIMEOUT=2000 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(subst $(BUILD_DIR_NAME)/,,$(TESTS))
+	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1 LSAN_OPTIONS=fast_unwind_on_malloc=0$${LSAN_OPTIONS:+$(,)$${LSAN_OPTIONS}}) $(ALL_TEST_ENV_OVERRIDE) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(subst $(BUILD_DIR_NAME)/,,$(TESTS))
 
 test_c_coverage: dist_clean
 	DD_TRACE_DOCKER_DEBUG=1 EXTRA_CFLAGS="-fprofile-arcs -ftest-coverage" $(MAKE) test_c || exit 0
@@ -207,7 +207,7 @@ test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-
 	set -xe; \
 	export PATH="$(PROJECT_ROOT)/tests/ext/valgrind:$$PATH"; \
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/normal-extension-test.xml; \
-	$(ALL_TEST_ENV_OVERRIDE) DD_TRACE_AGENT_TIMEOUT=2000 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS); \
+	$(ALL_TEST_ENV_OVERRIDE) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS); \
 	\
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/valgrind-extension-test.xml; \
 	export TEST_PHP_OUTPUT=$(JUNIT_RESULTS_DIR)/valgrind-run-tests.out; \
