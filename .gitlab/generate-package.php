@@ -1570,9 +1570,40 @@ foreach ($arch_targets as $arch) {
   script: |
     set -e
     IMAGE="ghcr.io/datadog/dd-trace-php/dd-library-php:${CI_COMMIT_REF_SLUG}"
+    VERSIONS_URL="https://api.github.com/orgs/DataDog/packages/container/dd-trace-php%2Fdd-library-php/versions"
+    GITHUB_TOKEN=$(<github_token_system_tests.txt)
+
+    apt-get update -qq && apt-get install -y -qq curl jq > /dev/null
 
     docker login ghcr.io -u DataDog --password-stdin < github_token_system_tests.txt
+    echo "Docker login to ghcr.io succeeded"
 
+    gh_api() { curl -s -o /tmp/resp.json -w "%{http_code}" -X "$1" \
+        -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" "$2"; }
+
+    # delete any pre-existing image with the same tag so pushing with the same tag doesn't pile up untagged versions.
+    echo "== Checking token and existing image tagged ${CI_COMMIT_REF_SLUG} =="
+    STATUS=$(gh_api GET "$VERSIONS_URL")
+    if [ "$STATUS" != "200" ]; then
+      echo "WARNING: token check failed (HTTP ${STATUS}), skipping pre-delete:"; cat /tmp/resp.json
+    else
+      echo "Token OK (HTTP 200): listed package versions for dd-trace-php/dd-library-php"
+      VERSION_ID=$(jq -r --arg TAG "${CI_COMMIT_REF_SLUG}" \
+          '.[] | select(.metadata.container.tags[]? == $TAG) | .id' /tmp/resp.json | head -n1)
+      if [ -z "$VERSION_ID" ]; then
+        echo "No pre-existing image tagged ${CI_COMMIT_REF_SLUG} found, nothing to delete"
+      else
+        STATUS=$(gh_api DELETE "${VERSIONS_URL}/${VERSION_ID}")
+        if [ "$STATUS" = "204" ]; then
+          echo "Deleted existing image version ${VERSION_ID} (HTTP 204)"
+        else
+          echo "WARNING: failed to delete existing image version ${VERSION_ID} (HTTP ${STATUS}), continuing anyway:"
+          cat /tmp/resp.json
+        fi
+      fi
+    fi
+
+    echo "== Building and pushing ${IMAGE} =="
     printf 'FROM scratch\nCOPY packages/dd-library-php-*-x86_64-linux-gnu.tar.gz /\nCOPY packages/datadog-setup.php /\n' \
         > Dockerfile.system-tests
     docker build -f Dockerfile.system-tests -t "$IMAGE" .
