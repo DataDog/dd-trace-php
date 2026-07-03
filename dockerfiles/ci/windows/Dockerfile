@@ -1,5 +1,6 @@
+ARG CI_REGISTRY_IMAGE=datadog/dd-trace-ci
 ARG vsVersion
-FROM datadog/dd-trace-ci:windows-$vsVersion AS base
+FROM ${CI_REGISTRY_IMAGE}:windows-$vsVersion AS base
 
 ARG phpTarGzUrl
 ARG phpVersion
