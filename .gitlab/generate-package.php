@@ -1536,7 +1536,7 @@ foreach ($arch_targets as $arch) {
     paths:
       - packages/datadog-setup.php
 
-# Runs on every branch so system tests can be run against any in-progress branch.
+# Runs on every non-default branch so system tests can be run against any (non-default) in-progress branch.
 "publish docker image for system tests (token)":
   stage: release
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
@@ -1544,6 +1544,10 @@ foreach ($arch_targets as $arch) {
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
       aud: dd-octo-sts
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: never
+    - when: on_success
   variables:
     GIT_STRATEGY: none
   script:
@@ -1558,6 +1562,12 @@ foreach ($arch_targets as $arch) {
   stage: release
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   tags: [ "docker-in-docker:amd64" ]
+  resource_group: "publish-system-tests-image-${CI_COMMIT_REF_SLUG}"
+  interruptible: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: never
+    - when: on_success
   needs:
     - job: "publish docker image for system tests (token)"
       artifacts: true
