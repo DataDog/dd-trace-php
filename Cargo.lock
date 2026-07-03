@@ -118,9 +118,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.98"
+version = "1.0.103"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
+checksum = "2a4385e2e34eb35d6b3efe798b9eb88096925d87726c0798709bf56d9ed84af3"
 
 [[package]]
 name = "arbitrary"
@@ -2814,6 +2814,7 @@ dependencies = [
  "rustls",
  "rustls-native-certs",
  "rustls-platform-verifier",
+ "rustls-webpki",
  "serde",
  "static_assertions",
  "tempfile",
@@ -2971,6 +2972,7 @@ version = "2.0.0"
 dependencies = [
  "anyhow",
  "libc 0.2.177",
+ "libdd-alloc",
  "libdd-trace-protobuf",
  "memfd",
  "prost",
@@ -2981,6 +2983,7 @@ dependencies = [
  "serde_yaml",
  "serial_test",
  "tempfile",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -4860,9 +4863,9 @@ checksum = "f87165f0995f63a9fbeea62b64d10b4d9d8e78ec6d7d51fb2125fda7bb36788f"
 
 [[package]]
 name = "rustls-webpki"
-version = "0.103.9"
+version = "0.103.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7df23109aa6c1567d1c575b9952556388da57401e4ace1d15f79eedad0d8f53"
+checksum = "61c429a8649f110dddef65e2a5ad240f747e85f7758a6bccc7e5777bd33f756e"
 dependencies = [
  "aws-lc-rs",
  "ring",

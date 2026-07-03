@@ -35,7 +35,23 @@ use libdd_common::connector::uds::socket_path_to_uri;
 use std::path::Path;
 
 #[cfg(target_os = "linux")]
-use libdd_library_config::tracer_metadata::{store_tracer_metadata, TracerMetadata};
+use libdd_library_config::otel_process_ctx::{self, ProcessContextHandle};
+#[cfg(target_os = "linux")]
+use libdd_library_config::tracer_metadata::{ThreadLocalMetadata, TracerMetadata};
+#[cfg(target_os = "linux")]
+use std::sync::Mutex;
+
+/// Process-wide owner of the published OTel process context. Holding the handle keeps the mapping
+/// alive for the process lifetime; the mapping base/length are cached per-thread in the `datadog`
+/// module globals for readers (see [`datadog_otel_process_context_mapping`]). libdatadog no longer
+/// keeps this state itself — the runtime owns "where the mapping is" and passes it back to
+/// [`otel_process_ctx::read`].
+// NOTE: `Option` is fully qualified because this crate glob-imports `libdd_common_ffi::*`, which
+// shadows the prelude `Option` type (its `Some`/`None` variants are not glob-imported, so those
+// still resolve to the prelude).
+#[cfg(target_os = "linux")]
+static OTEL_PROCESS_CTX_HANDLE: Mutex<std::option::Option<ProcessContextHandle>> =
+    Mutex::new(None);
 
 #[no_mangle]
 #[allow(non_upper_case_globals)]
@@ -112,16 +128,34 @@ pub extern "C" fn datadog_publish_otel_process_context(hostname: CharSlice<'_>) 
         hostname: hostname.to_utf8_lossy().into_owned(),
         tracer_language: "php".to_owned(),
         tracer_version: include_str!("../VERSION").trim().to_owned(),
-        threadlocal_attribute_keys: Some(vec![
-            "service.name".to_owned(),
-            "service.version".to_owned(),
-            "deployment.environment.name".to_owned(),
-        ]),
+        threadlocal_metadata: Some(ThreadLocalMetadata {
+            attribute_keys: vec![
+                "service.name".to_owned(),
+                "service.version".to_owned(),
+                "deployment.environment.name".to_owned(),
+            ],
+            ..Default::default()
+        }),
         ..Default::default()
     };
 
-    match store_tracer_metadata(&metadata) {
-        Ok(_) => true,
+    let context = metadata.to_otel_process_ctx();
+
+    // Publish (first call) or update (subsequent calls / after fork) and retain the owning handle
+    // at process scope so the mapping outlives requests and threads. `update` transparently
+    // republishes into a fresh mapping if it detects a fork.
+    let mut guard = OTEL_PROCESS_CTX_HANDLE
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let result = match guard.as_mut() {
+        Some(handle) => handle.update(&context),
+        None => otel_process_ctx::publish(&context).map(|handle| {
+            *guard = Some(handle);
+        }),
+    };
+
+    match result {
+        Ok(()) => true,
         Err(error) => {
             tracing::debug!("failed to publish OTel process context: {error}");
             false
@@ -132,6 +166,49 @@ pub extern "C" fn datadog_publish_otel_process_context(hostname: CharSlice<'_>) 
 #[cfg(not(target_os = "linux"))]
 #[no_mangle]
 pub extern "C" fn datadog_publish_otel_process_context(_hostname: CharSlice<'_>) -> bool {
+    false
+}
+
+/// Writes the base pointer and length of the currently-published OTel process context mapping into
+/// `base_out`/`len_out`, for the caller to cache (e.g. in the `datadog` module globals) and pass to
+/// [`otel_process_ctx::read`]. Returns `false` (leaving the out-params untouched) if no context is
+/// currently published.
+///
+/// # Safety
+/// `base_out` and `len_out` must be valid, non-null, writable pointers.
+#[cfg(target_os = "linux")]
+#[no_mangle]
+pub unsafe extern "C" fn datadog_otel_process_context_mapping(
+    base_out: *mut *const u8,
+    len_out: *mut usize,
+) -> bool {
+    if base_out.is_null() || len_out.is_null() {
+        return false;
+    }
+    let guard = OTEL_PROCESS_CTX_HANDLE
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    // `current_mapping` returns None for a stale post-fork handle whose mapping is MADV_DONTFORK'd,
+    // so a reader never dereferences a base that isn't mapped in this (child) process.
+    match guard.as_ref().and_then(|handle| handle.current_mapping()) {
+        Some((base, len)) => {
+            // SAFETY: caller guarantees the out-params are valid and writable.
+            unsafe {
+                *base_out = base;
+                *len_out = len;
+            }
+            true
+        }
+        None => false,
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+#[no_mangle]
+pub unsafe extern "C" fn datadog_otel_process_context_mapping(
+    _base_out: *mut *const u8,
+    _len_out: *mut usize,
+) -> bool {
     false
 }
 

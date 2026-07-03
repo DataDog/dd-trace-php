@@ -1,10 +1,19 @@
 #include "profiling.h"
 
+#include <components-rs/datadog.h>
+
 #include "configuration.h"
 #include "ddtrace.h"
 #include "span.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
+
+DATADOG_PUBLIC bool ddtrace_get_otel_process_ctx_mapping(const uint8_t **base_out, uintptr_t *len_out) {
+    // `datadog_otel_process_context_mapping` (components-rs, linked into this shared object) reads
+    // the live, process-scope handle, so the returned base is fork-safe (it is cleared until the
+    // child republishes). On non-Linux it always returns false.
+    return datadog_otel_process_context_mapping(base_out, len_out);
+}
 
 DATADOG_PUBLIC struct ddtrace_profiling_context ddtrace_get_profiling_context(void) {
     struct ddtrace_profiling_context context = {0, 0};

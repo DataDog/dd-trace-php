@@ -191,24 +191,80 @@ struct OTelSampleContext {
     tag_overrides: ProfileTagOverrides,
 }
 
+extern "C" {
+    /// Provided by the `datadog` extension (see `ddtrace_get_otel_process_ctx_mapping` in
+    /// tracer/profiling.c): writes the base pointer/length of the currently-published OTel process
+    /// context mapping into the out-params and returns `true`, or returns `false` when nothing is
+    /// published or the handle is a stale post-`fork()` copy (so we never read a `MADV_DONTFORK`'d
+    /// base). This lives in the extension so it reads the live, process-scope handle rather than a
+    /// pointer cached across the profiler's separate shared object.
+    fn ddtrace_get_otel_process_ctx_mapping(base_out: *mut *const u8, len_out: *mut usize) -> bool;
+}
+
+/// The current process context mapping pointer/length, or `None` if nothing is published yet (or
+/// the publisher forked and hasn't republished).
 #[cfg(target_os = "linux")]
-static OTEL_THREAD_ATTRIBUTE_KEY_MAP: OnceLock<Vec<String>> = OnceLock::new();
+fn otel_process_ctx_mapping() -> Option<(*const u8, usize)> {
+    let mut base: *const u8 = std::ptr::null();
+    let mut len: usize = 0;
+    // SAFETY: `base`/`len` are valid, writable out-params.
+    if unsafe { ddtrace_get_otel_process_ctx_mapping(&mut base, &mut len) } && !base.is_null() {
+        Some((base, len))
+    } else {
+        None
+    }
+}
+
+/// Thread-local cache of the process context's append-only attribute key map, keyed by the
+/// `monotonic_published_at_ns` it was read at so it can be invalidated when the map grows (the
+/// `OnceLock` this replaces cached the map forever and silently dropped attributes whose key index
+/// was appended after the first read).
+#[cfg(target_os = "linux")]
+struct KeyMapCache {
+    published_at_ns: u64,
+    keys: Vec<String>,
+}
 
 #[cfg(target_os = "linux")]
-fn otel_thread_attribute_key_map() -> Option<&'static [String]> {
-    if let Some(key_map) = OTEL_THREAD_ATTRIBUTE_KEY_MAP.get() {
-        return Some(key_map.as_slice());
+thread_local! {
+    static OTEL_THREAD_ATTRIBUTE_KEY_MAP: std::cell::RefCell<Option<KeyMapCache>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+/// Ensures the cached key map covers `max_index`, re-reading the process context (and replacing the
+/// cache if its timestamp changed) when the cache is empty or an unknown key index is seen.
+#[cfg(target_os = "linux")]
+fn ensure_key_map_covers(
+    cache: &std::cell::RefCell<Option<KeyMapCache>>,
+    base: *const u8,
+    len: usize,
+    max_index: usize,
+) {
+    let covered = cache
+        .borrow()
+        .as_ref()
+        .is_some_and(|c| max_index < c.keys.len());
+    if covered {
+        return;
     }
 
-    match libdd_library_config::otel_process_ctx::linux::read_threadlocal_attribute_key_map() {
-        Ok(Some(key_map)) => {
-            let _ = OTEL_THREAD_ATTRIBUTE_KEY_MAP.set(key_map);
-            OTEL_THREAD_ATTRIBUTE_KEY_MAP.get().map(Vec::as_slice)
+    match libdd_library_config::otel_process_ctx::read_threadlocal_attribute_key_map(base, len) {
+        Ok((keys, published_at_ns)) => {
+            let mut slot = cache.borrow_mut();
+            // Only replace when the map actually changed (timestamp differs), so an out-of-range
+            // index with an unchanged timestamp doesn't churn the cache.
+            let changed = slot
+                .as_ref()
+                .is_none_or(|c| c.published_at_ns != published_at_ns);
+            if changed {
+                *slot = Some(KeyMapCache {
+                    published_at_ns,
+                    keys: keys.unwrap_or_default(),
+                });
+            }
         }
-        Ok(None) => None,
         Err(err) => {
             trace!("failed to read OTel process context key map: {err}");
-            None
         }
     }
 }
@@ -234,7 +290,8 @@ fn current_otel_sample_context() -> Option<OTelSampleContext> {
         tag_overrides: ProfileTagOverrides::default(),
     };
 
-    let Some(key_map) = otel_thread_attribute_key_map() else {
+    // Without a published process context we can't map key indices to attribute names.
+    let Some((base, len)) = otel_process_ctx_mapping() else {
         return Some(sample_context);
     };
 
@@ -242,40 +299,63 @@ fn current_otel_sample_context() -> Option<OTelSampleContext> {
     if attrs_data_size > context.attrs_data.len() {
         return Some(sample_context);
     }
-
     let attrs_data = &context.attrs_data[..attrs_data_size];
+
+    // The largest key index referenced by this record; used to detect a stale (too-short) cache.
+    let mut max_index = 0usize;
     let mut offset = 0;
     while offset + 2 <= attrs_data.len() {
-        let key_index = attrs_data[offset] as usize;
-        let value_len = attrs_data[offset + 1] as usize;
-        let value_start = offset + 2;
-        let value_end = value_start + value_len;
+        let value_end = offset + 2 + attrs_data[offset + 1] as usize;
         if value_end > attrs_data.len() {
             break;
         }
-
-        if let Some(key) = key_map.get(key_index) {
-            if let Ok(value) = str::from_utf8(&attrs_data[value_start..value_end]) {
-                match key.as_str() {
-                    "datadog.local_root_span_id" => {
-                        sample_context.local_root_span_id = parse_u64_hex(value);
-                    }
-                    "service.name" if !value.is_empty() => {
-                        sample_context.tag_overrides.service = Some(value.to_owned());
-                    }
-                    "service.version" if !value.is_empty() => {
-                        sample_context.tag_overrides.version = Some(value.to_owned());
-                    }
-                    "deployment.environment.name" if !value.is_empty() => {
-                        sample_context.tag_overrides.env = Some(value.to_owned());
-                    }
-                    _ => {}
-                }
-            }
-        }
-
+        max_index = max_index.max(attrs_data[offset] as usize);
         offset = value_end;
     }
+
+    OTEL_THREAD_ATTRIBUTE_KEY_MAP.with(|cache| {
+        // Refresh the cached key map if it's missing or doesn't cover an index we're about to use
+        // (the map is append-only; a grown map bumps the published timestamp).
+        ensure_key_map_covers(cache, base, len, max_index);
+
+        let borrow = cache.borrow();
+        let Some(key_map) = borrow.as_ref().map(|c| c.keys.as_slice()) else {
+            return;
+        };
+
+        let mut offset = 0;
+        while offset + 2 <= attrs_data.len() {
+            let key_index = attrs_data[offset] as usize;
+            let value_len = attrs_data[offset + 1] as usize;
+            let value_start = offset + 2;
+            let value_end = value_start + value_len;
+            if value_end > attrs_data.len() {
+                break;
+            }
+
+            if let Some(key) = key_map.get(key_index) {
+                if let Ok(value) = str::from_utf8(&attrs_data[value_start..value_end]) {
+                    match key.as_str() {
+                        "datadog.local_root_span_id" => {
+                            sample_context.local_root_span_id = parse_u64_hex(value);
+                        }
+                        "service.name" if !value.is_empty() => {
+                            sample_context.tag_overrides.service = Some(value.to_owned());
+                        }
+                        "service.version" if !value.is_empty() => {
+                            sample_context.tag_overrides.version = Some(value.to_owned());
+                        }
+                        "deployment.environment.name" if !value.is_empty() => {
+                            sample_context.tag_overrides.env = Some(value.to_owned());
+                        }
+                        _ => {}
+                    }
+                }
+            }
+
+            offset = value_end;
+        }
+    });
 
     Some(sample_context)
 }
