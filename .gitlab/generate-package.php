@@ -5,7 +5,7 @@ include "generate-common.php";
 $build_platforms = [
     [
         "triplet" => "x86_64-alpine-linux-musl",
-        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-compile-extension-alpine-%s",
+        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-compile-extension-alpine-%s",
         "arch" => "amd64",
         "host_os" => "linux-musl",
         "targets" => [
@@ -14,7 +14,7 @@ $build_platforms = [
     ],
     [
       "triplet" => "aarch64-alpine-linux-musl",
-        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-compile-extension-alpine-%s",
+        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-compile-extension-alpine-%s",
         "arch" => "arm64",
         "host_os" => "linux-musl",
         "targets" => [
@@ -23,7 +23,7 @@ $build_platforms = [
     ],
     [
         "triplet" => "x86_64-unknown-linux-gnu",
-        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_centos-7",
+        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_centos-7",
         "arch" => "amd64",
         "host_os" => "linux-gnu",
         "targets" => [
@@ -34,7 +34,7 @@ $build_platforms = [
     ],
     [
         "triplet" => "aarch64-unknown-linux-gnu",
-        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_centos-7",
+        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_centos-7",
         "arch" => "arm64",
         "host_os" => "linux-gnu",
         "targets" => [
@@ -48,13 +48,13 @@ $build_platforms = [
 $asan_build_platforms = [
     [
         "triplet" => "x86_64-unknown-linux-gnu",
-        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_bookworm-8",
+        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_bookworm-9",
         "arch" => "amd64",
         "host_os" => "linux-gnu",
     ],
     [
         "triplet" => "aarch64-unknown-linux-gnu",
-        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_bookworm-8",
+        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_bookworm-9",
         "arch" => "arm64",
         "host_os" => "linux-gnu",
     ]
@@ -63,7 +63,7 @@ $asan_build_platforms = [
 $windows_build_platforms = [
     [
         "triplet" => "x86_64-pc-windows-msvc",
-        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_windows",
+        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_windows",
         "arch" => "amd64",
         "host_os" => "windows-msvc",
         "targets" => [
@@ -327,7 +327,7 @@ if ($suffix == "-alpine") {
 
 "pecl build":
   stage: tracing
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-7.4_bookworm-8"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-7.4_bookworm-9"
   tags: [ "arch:amd64" ]
   needs: [ "prepare code" ]
   script:
@@ -377,7 +377,7 @@ foreach ($build_platforms as $platform) {
 <?php foreach ($arch_targets as $arch): ?>
 "aggregate tracing extension: [<?= $arch ?>]":
   stage: tracing
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-7.4_bookworm-8"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-7.4_bookworm-9"
   tags: [ "arch:amd64" ]
   script: ls ./
   variables:
@@ -788,7 +788,7 @@ endforeach;
 
 "x-profiling phpt tests on Alpine":
   stage: verify
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-compile-extension-alpine-$PHP_VERSION"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-compile-extension-alpine-$PHP_VERSION"
   tags: [ "arch:amd64" ]
   parallel:
     matrix:
@@ -1175,7 +1175,7 @@ endforeach;
 
 "pecl tests":
   stage: verify
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_VERSION}_bookworm-8"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_VERSION}_bookworm-9"
   tags: [ "arch:amd64" ]
   services:
     - !reference [.services, request-replayer]
@@ -1208,7 +1208,7 @@ endforeach;
 
 "min install tests":
   stage: verify
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.0-shared-ext-8
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.0-shared-ext-9
   tags: [ "arch:amd64" ]
   variables:
     MAX_TEST_PARALLELISM: 8
@@ -1386,12 +1386,12 @@ $system_tests_weblogs = [
 <?php foreach ($arch_targets as $arch): ?>
 "Loader test on <?= $arch ?> libc":
   stage: verify
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${MAJOR_MINOR}_${CONTAINER_SUFFIX}"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${MAJOR_MINOR}_${CONTAINER_SUFFIX}"
   tags: [ "arch:$ARCH" ]
   variables:
     VALGRIND: false
     ARCH: "<?= $arch ?>"
-    CONTAINER_SUFFIX: bookworm-8
+    CONTAINER_SUFFIX: bookworm-9
   needs:
     - job: "package loader: [<?= $arch ?>]"
       artifacts: true

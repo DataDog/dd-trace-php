@@ -3,7 +3,7 @@ version: '3.7'
 services:
 
   vc15-base:
-    image: datadog/dd-trace-ci:windows-base-vc15
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:windows-base-vc15
     build:
       platforms:
         - windows/amd64
@@ -11,7 +11,7 @@ services:
       dockerfile: vc15.Dockerfile
 
   vs16-base:
-    image: datadog/dd-trace-ci:windows-base-vs16
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:windows-base-vs16
     build:
       platforms:
         - windows/amd64
@@ -19,7 +19,7 @@ services:
       dockerfile: vs16.Dockerfile
 
   vs17-base:
-    image: datadog/dd-trace-ci:windows-base-vs17
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:windows-base-vs17
     build:
       platforms:
         - windows/amd64
@@ -27,7 +27,7 @@ services:
       dockerfile: vs17.Dockerfile
 
   vc15:
-    image: datadog/dd-trace-ci:windows-vc15
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:windows-vc15
     build:
       platforms:
         - windows/amd64
@@ -35,10 +35,13 @@ services:
       dockerfile: basetools.Dockerfile
       args:
         vsVersion: "vc15"
+        # Stay on the old SDK: php-sdk 2.7.1's php.exe needs VC runtime 14.29, but
+        # the VS2015/vc15 image ships 14.15. vc15 builds PHP 7.x, which don't
+        # need the newer deps (no zstd/curl) anyway.
         sdkVersion: "2.2.0"
 
   vs16:
-    image: datadog/dd-trace-ci:windows-vs16
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:windows-vs16
     build:
       platforms:
         - windows/amd64
@@ -46,10 +49,10 @@ services:
       dockerfile: basetools.Dockerfile
       args:
         vsVersion: "vs16"
-        sdkVersion: "2.2.0"
+        sdkVersion: "2.7.1"
 
   vs17:
-    image: datadog/dd-trace-ci:windows-vs17
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:windows-vs17
     build:
       platforms:
         - windows/amd64
@@ -57,10 +60,12 @@ services:
       dockerfile: basetools.Dockerfile
       args:
         vsVersion: "vs17"
-        sdkVersion: "2.3.0"
+        # 2.7.1: needed so phpsdk_deps pulls the current 8.5 deps set incl.
+        # libzstd (curl links zstd now); 2.3.0 predates the current deps index.
+        sdkVersion: "2.7.1"
 
   php-8.5:
-    image: datadog/dd-trace-ci:php-8.5_windows
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.5_windows
     build:
       platforms:
         - windows/amd64
@@ -72,7 +77,7 @@ services:
         phpSha256Hash: "e5eba93fd6dd3241d0e61e932eb99a3783b40568553fb0e511b660ecd863a049"
 
   php-8.4:
-    image: datadog/dd-trace-ci:php-8.4_windows
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.4_windows
     build:
       platforms:
         - windows/amd64
@@ -84,7 +89,7 @@ services:
         phpSha256Hash: "a012c2c9724baf214a70b41b40a7e130906b8855e54268afa5bc4ae17bc9d823"
 
   php-8.3:
-    image: datadog/dd-trace-ci:php-8.3_windows
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.3_windows
     build:
       platforms:
         - windows/amd64
@@ -96,7 +101,7 @@ services:
         phpSha256Hash: "4e7baaf0a690e954a20e7ced3dd633ce8cb8094e2b6b612a55e703ecbbdcbf4f"
 
   php-8.2:
-    image: datadog/dd-trace-ci:php-8.2_windows
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.2_windows
     build:
       platforms:
         - windows/amd64
@@ -108,7 +113,7 @@ services:
         phpSha256Hash: "083c2f61cc5f527eb293c4c468a91af46a9678785957e023b2796a9db290d870"
 
   php-8.1:
-    image: datadog/dd-trace-ci:php-8.1_windows
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.1_windows
     build:
       platforms:
         - windows/amd64
@@ -120,7 +125,7 @@ services:
         phpSha256Hash: "4846836d1de27dbd28e89180f073531087029a77e98e8e019b7b2eddbdb1baff"
 
   php-8.0:
-    image: datadog/dd-trace-ci:php-8.0_windows
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.0_windows
     build:
       platforms:
         - windows/amd64
@@ -132,7 +137,7 @@ services:
         phpSha256Hash: "449d2048fcb20a314d8c218097c6d1047a9f1c5bb72aa54d5d3eba0a27a4c80c"
 
   php-7.4:
-    image: datadog/dd-trace-ci:php-7.4_windows
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-7.4_windows
     build:
       platforms:
         - windows/amd64
@@ -144,7 +149,7 @@ services:
         phpSha256Hash: 5a2337996f07c8a097e03d46263b5c98d2c8e355227756351421003bea8f463e
 
   php-7.3:
-    image: datadog/dd-trace-ci:php-7.3_windows
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-7.3_windows
     build:
       platforms:
         - windows/amd64
@@ -156,7 +161,7 @@ services:
         phpSha256Hash: 9a369c32c6f52036b0a890f290327f148a1904ee66aa56e2c9a7546da6525ec8
 
   php-7.2:
-    image: datadog/dd-trace-ci:php-7.2_windows
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-7.2_windows
     build:
       platforms:
         - windows/amd64
