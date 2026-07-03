@@ -100,7 +100,7 @@ final class CurlIntegration extends Integration
         ]);
 
         \DDTrace\install_hook('curl_multi_exec', static function (HookData $hook) {
-            if (\count($hook->args) < 2) {
+            if (\count($hook->args) < 2 || \dd_trace_tracer_is_limited()) {
                 return;
             }
             $data = null;
@@ -111,10 +111,6 @@ final class CurlIntegration extends Integration
             }
             if ($data) {
                 $hook->data = $data;
-                return;
-            }
-
-            if (\dd_trace_tracer_is_limited()) {
                 return;
             }
 
