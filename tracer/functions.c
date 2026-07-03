@@ -234,7 +234,9 @@ PHP_METHOD(DDTrace_SpanLink, jsonSerialize) {
 void ddtrace_build_span_link_from_result(ddtrace_distributed_tracing_result *result, ddtrace_span_link *link) {
     ZVAL_STR(&link->property_trace_id, datadog_trace_id_as_hex_string(result->trace_id));
     ZVAL_STR(&link->property_span_id, ddtrace_span_id_as_hex_string(result->parent_id));
+
     array_init(&link->property_attributes);
+    zend_hash_copy(Z_ARR(link->property_attributes), &result->meta_tags, (copy_ctor_func_t)zval_add_ref);
 
     zend_string *propagated_tags = ddtrace_format_propagated_tags(&result->propagated_tags, &result->meta_tags);
     zend_string *full_tracestate = ddtrace_format_tracestate(result->tracestate, 0, result->origin, result->priority_sampling, propagated_tags, &result->tracestate_unknown_dd_keys);
