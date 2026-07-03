@@ -4,3 +4,4 @@ subject_pattern: "project_path:DataDog/apm-reliability/dd-trace-php:ref_type:(br
 
 permissions:
   packages: write
+  pull_requests: read

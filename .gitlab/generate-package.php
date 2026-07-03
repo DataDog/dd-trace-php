@@ -1579,6 +1579,8 @@ foreach ($arch_targets as $arch) {
       artifacts: true
   variables:
     GIT_STRATEGY: none
+  allow_failure:
+    exit_codes: 3
   script: |
     set -e
     IMAGE="ghcr.io/datadog/dd-trace-php/dd-library-php:${CI_COMMIT_REF_SLUG}"
@@ -1586,6 +1588,19 @@ foreach ($arch_targets as $arch) {
     GITHUB_TOKEN=$(<github_token_system_tests.txt)
 
     apt-get update -qq && apt-get install -y -qq curl jq > /dev/null
+
+    STATUS=$(curl -s -o /tmp/pulls.json -w "%{http_code}" -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" \
+        "https://api.github.com/repos/DataDog/dd-trace-php/pulls?head=DataDog:${CI_COMMIT_BRANCH}&state=open")
+    if [ "${STATUS}" != "200" ]; then
+      echo "ERROR: failed to check for an open PR on branch ${CI_COMMIT_BRANCH} (HTTP ${STATUS}):"; cat /tmp/pulls.json
+      exit 1
+    fi
+    PR_COUNT=$(jq 'length' /tmp/pulls.json)
+    if [ "${PR_COUNT}" -eq 0 ]; then
+      echo "No open PR for branch ${CI_COMMIT_BRANCH}; skipping system-tests image publish."
+      exit 3
+    fi
+    echo "Found open PR(s) on branch ${CI_COMMIT_BRANCH}, continuing"
 
     docker login ghcr.io -u DataDog --password-stdin < github_token_system_tests.txt
     echo "Docker login to ghcr.io succeeded"
