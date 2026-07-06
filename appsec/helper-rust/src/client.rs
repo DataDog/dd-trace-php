@@ -709,6 +709,17 @@ impl ReqContext {
                     RunnableCtx::Owned(ctx) => ctx.run(data, timeout),
                 }
             }
+
+            fn run_batches(
+                &mut self,
+                data: libddwaf::object::WafArray,
+                timeout: Duration,
+            ) -> Result<libddwaf::RunResult, libddwaf::RunError> {
+                match self {
+                    RunnableCtx::Borrowed(ctx) => ctx.run_batches(data, timeout),
+                    RunnableCtx::Owned(ctx) => ctx.run_batches(data, timeout),
+                }
+            }
         }
         match options.subctx_id.as_ref() {
             None => Ok(RunnableCtx::Borrowed(&mut self.waf_ctx)),
