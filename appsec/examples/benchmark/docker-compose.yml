@@ -1,0 +1,29 @@
+services:
+  web:
+    build:
+      context: .
+    ports:
+      - "${HOST_PORT:-8080}:80"
+    environment:
+      DD_TRACE_AGENT_URL: http://agent:8126
+      DD_APPSEC_ENABLED: "true"
+      DD_REMOTE_CONFIG_ENABLED: "false"
+      DD_APPSEC_CLI_START_ON_RINIT: "false"
+      DD_APPSEC_HELPER_LOG_FILE: /tmp/ddappsec.log
+      DD_ENV: benchmark
+      DD_SERVICE: php-appsec-benchmark
+    depends_on:
+      - agent
+
+  agent:
+    image: datadog/agent:latest
+    environment:
+      DD_API_KEY: ${DD_API_KEY:-00000000000000000000000000000000}
+      DD_SITE: ${DD_SITE:-datadoghq.com}
+      DD_APM_ENABLED: "true"
+      DD_APM_NON_LOCAL_TRAFFIC: "true"
+      DD_REMOTE_CONFIGURATION_ENABLED: "false"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro

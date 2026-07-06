@@ -1,0 +1,4 @@
+results/
+packages/*
+!packages/datadog-setup.php
+!packages/dd-library-php-*-linux-gnu-20250925-zts.tar.gz
