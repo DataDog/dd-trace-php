@@ -229,9 +229,9 @@ static PHP_GSHUTDOWN_FUNCTION(ddappsec)
     // the thread that owns it. Run it here only if (a) no thread-local
     // destructor was registered to run it (main thread, or a platform without a
     // thread-exit destructor mechanism) and (b) GSHUTDOWN is actually executing
-    // on the owning thread rather than on the main thread cleaning up an already
-    // exited thread's globals -- in which case its TLS is out of reach and
-    // there is nothing we can do.
+    // on the owning thread rather than on the main thread cleaning up an
+    // already exited thread's globals -- in which case its TLS is out of reach
+    // and there is nothing we can do.
     if (!ddappsec_globals->registered_thread_local_dtor &&
         ddappsec_globals->ts_ls_cache == tsrm_get_ls_cache()) {
         _tshutdown_handler(NULL);
