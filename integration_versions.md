@@ -4,7 +4,7 @@
 | drupal/drupal               | 8.9.21                 | 10.1.3                 |
 | elasticsearch/elasticsearch | 1.2.2                  | 9.1.0                  |
 | ext-PDO                     | 7.0.33                 | 8.5.8                  |
-| ext-curl                    | 7.0.33                 | 8.4.22                 |
+| ext-curl                    | 7.0.33                 | 8.5.8                  |
 | ext-memcache                | 4.0.5                  | 8.2                    |
 | ext-memcached               | 3.4.0                  | 3.4.1                  |
 | ext-mysqli                  | 7.0.33                 | 8.5.8                  |
