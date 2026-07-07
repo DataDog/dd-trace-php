@@ -49,9 +49,6 @@
 
 #if ZTS
 static atomic_int _thread_count;
-#    if PHP_VERSION_ID < 70200
-static atomic_bool _ginit_called_once;
-#    endif
 #endif
 
 static void _check_enabled(void);
@@ -167,15 +164,19 @@ static PHP_GINIT_FUNCTION(ddappsec)
     // then fully initialized in the first RINIT.
 #if ZTS
     TSRMLS_CACHE = tsrm_get_ls_cache();
-    atomic_fetch_add(&_thread_count, 1);
+    ATTR_UNUSED __auto_type count = atomic_fetch_add(&_thread_count, 1);
 #endif
 
     memset(ddappsec_globals, '\0', sizeof(*ddappsec_globals)); // NOLINT
     ddappsec_globals->to_be_configured = true;
 
-#if defined(ZTS) && (defined(__linux__) || defined(__APPLE__))
+#if ZTS
+    // Record which thread these globals belong to so GSHUTDOWN can tell whether
+    // it is running on the owning thread (see GSHUTDOWN).
     ddappsec_globals->ts_ls_cache = TSRMLS_CACHE;
+#endif
 
+#if defined(ZTS) && (defined(__linux__) || defined(__APPLE__))
     // Because GSHUTDOWN may run for all exited threads on the main thread,
     // we register a thread-local destructor for this thread (GINIT runs for the
     // main thread and for worker threads).
@@ -183,14 +184,12 @@ static PHP_GINIT_FUNCTION(ddappsec)
     // We skip registering the destructor on the main thread because the main
     // thread never exits, so the TLS destructor would pin ddappsec.so via
     // l_tls_dtor_count, which blocks DSO unload on apache graceful reload.
-    //
-    // We don't really need to call _tshutdown_handler on the main thread,
-    // though I guess we could do it maybe on MSHUTDOWN or GSHUTDOWN if we
-    // detected it was running for the main thread globals there.
+    // GSHUTDOWN calls _tshutdown_handler() directly for the main thread
+    // instead (see registered_thread_local_dtor below).
 #    if PHP_VERSION_ID >= 70200
     bool is_main_thread = tsrm_is_main_thread();
 #    else
-    bool is_main_thread = !atomic_exchange(&_ginit_called_once, true);
+    bool is_main_thread = count == 0;
 #    endif
     if (!is_main_thread) {
 #    if defined(__linux__)
@@ -202,6 +201,7 @@ static PHP_GINIT_FUNCTION(ddappsec)
         extern void _tlv_atexit(void (*termFunc)(void *), void *objAddr);
         _tlv_atexit(_tshutdown_handler, NULL);
 #    endif
+        ddappsec_globals->registered_thread_local_dtor = true;
     }
 #endif
 }
@@ -224,7 +224,19 @@ static PHP_GSHUTDOWN_FUNCTION(ddappsec)
     mlog_g(dd_log_debug, "Finished GSHUTDOWN actions (thread %" PRIxPTR ")",
         (uintptr_t)pthread_self());
 
-#ifndef ZTS
+#if ZTS
+    // _tshutdown_handler() frees native thread-local storage, so it must run on
+    // the thread that owns it. Run it here only if (a) no thread-local
+    // destructor was registered to run it (main thread, or a platform without a
+    // thread-exit destructor mechanism) and (b) GSHUTDOWN is actually executing
+    // on the owning thread rather than on the main thread cleaning up an already
+    // exited thread's globals -- in which case its TLS is out of reach and
+    // there is nothing we can do.
+    if (!ddappsec_globals->registered_thread_local_dtor &&
+        ddappsec_globals->ts_ls_cache == tsrm_get_ls_cache()) {
+        _tshutdown_handler(NULL);
+    }
+#else
     // In non-ZTS mode there is a single thread, so GSHUTDOWN is the right place
     // to run tshutdown actions.
     _tshutdown_handler(NULL);
@@ -240,9 +252,6 @@ static PHP_GSHUTDOWN_FUNCTION(ddappsec)
         dd_log_shutdown();
         zai_config_mshutdown();
         zai_json_shutdown_bindings();
-#    if PHP_VERSION_ID < 70200
-        atomic_store(&_ginit_called_once, false);
-#    endif
     }
 #else
     dd_log_shutdown();

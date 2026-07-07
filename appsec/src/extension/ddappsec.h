@@ -40,6 +40,13 @@ ZEND_BEGIN_MODULE_GLOBALS(ddappsec)
     // used to avoid a bailout during request shutdown
     bool during_request_shutdown : 1;
 
+#ifdef ZTS
+    // true if a thread-local destructor was registered for this thread via
+    // __cxa_thread_atexit_impl() or _tlv_atexit(); when set, that destructor
+    // runs _tshutdown_handler() on thread exit, so GSHUTDOWN must not.
+    bool registered_thread_local_dtor : 1;
+#endif
+
     dd_conn conn;
 
 #ifdef ZTS
