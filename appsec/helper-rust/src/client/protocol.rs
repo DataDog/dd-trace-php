@@ -616,6 +616,7 @@ mod tests {
         let huge = CommandResponse::ClientInit(ClientInitResp {
             status: "x".repeat(5 * 1024 * 1024),
             version: "1.0.0",
+            client_id: 12345,
             errors: vec![],
             meta: HashMap::new(),
             metrics: HashMap::new(),
