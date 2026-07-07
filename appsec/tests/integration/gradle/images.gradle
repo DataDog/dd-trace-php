@@ -212,6 +212,7 @@ tasks.register('buildNginxFpm-8.5-release-musl', Exec) {
     description = "Build the musl-nginx image for Alpine testing"
     inputs.file file('src/docker/nginx-fpm-musl/Dockerfile')
     inputs.file file('src/docker/nginx-fpm-musl/nginx.conf')
+    inputs.dir 'src/docker/nginx-fpm-musl/llvm-runtimes'
     outputs.upToDateWhen imageUpToDate(inputs, image)
 
     commandLine(*dockerBuildCommand, *dockerMirrorArgs,

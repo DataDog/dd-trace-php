@@ -280,11 +280,8 @@ The appsec child pipeline IID can be found in the parent pipeline's downstream p
 The GitLab MCP tools don't include a job trace/log reader. To read job logs via the API:
 
 ```bash
-# Extract the token from MCP config (project ID 355 = DataDog/apm-reliability/dd-trace-php)
-jq -r '.mcpServers.gitlab.env.GITLAB_PERSONAL_ACCESS_TOKEN' ~/.claude.json
-
-# Then fetch job trace using the token
-curl -s -H "PRIVATE-TOKEN: <TOKEN>" "https://gitlab.ddbuild.io/api/v4/projects/355/jobs/<JOB_ID>/trace" > /tmp/...
+# project ID 355 = DataDog/apm-reliability/dd-trace-php
+curl -s -H "PRIVATE-TOKEN: $GITLAB_PERSONAL_ACCESS_TOKEN" "https://gitlab.ddbuild.io/api/v4/projects/355/jobs/<JOB_ID>/trace" > /tmp/...
 ```
 
 ### Monitoring CI Jobs

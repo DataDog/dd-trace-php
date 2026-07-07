@@ -228,6 +228,23 @@ ddog_MaybeError ddog_sidecar_session_set_process_tags(struct ddog_SidecarTranspo
                                                       const struct ddog_Vec_Tag *process_tags);
 
 /**
+ * Records the tracer's auto-resolved default service name for the session
+ * (process-bound; sidecar emits `svc.auto:<name>` when `DD_SERVICE` is not
+ * currently set for the active request). Pass an empty `CharSlice` to clear.
+ */
+ddog_MaybeError ddog_sidecar_session_set_default_service_name(struct ddog_SidecarTransport **transport,
+                                                              ddog_CharSlice default_service_name);
+
+/**
+ * Records whether `DD_SERVICE` is currently set for the session (per-request
+ * mutable; refresh on each RINIT). When `true` the sidecar emits
+ * `svc.user:true`; when `false` it falls back to the previously-recorded
+ * `svc.auto:<name>` (if any).
+ */
+ddog_MaybeError ddog_sidecar_session_set_user_service_defined(struct ddog_SidecarTransport **transport,
+                                                              bool is_user_defined);
+
+/**
  * Enqueues a telemetry log action to be processed internally.
  * Non-blocking. Logs might be dropped if the internal queue is full.
  *

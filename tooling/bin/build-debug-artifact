@@ -115,7 +115,7 @@ case "$php_version" in
 esac
 
 # ─── Docker image selection ───────────────────────────────────────────────────
-BOOKWORM_VERSION=8
+BOOKWORM_VERSION=9
 if [[ "$libc" == "musl" ]]; then
     DOCKER_IMAGE="datadog/dd-trace-ci:php-compile-extension-alpine-${php_version}"
 else

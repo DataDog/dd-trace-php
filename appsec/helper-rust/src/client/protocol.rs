@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::io;
 use std::path::{Path, PathBuf};
-use tokio_util::bytes::{Buf, BytesMut};
+use tokio_util::bytes::{Buf, BufMut, BytesMut};
 use tokio_util::codec::{Decoder, Encoder};
 
 use crate::client::log::{fmt_bin, trace};
@@ -483,17 +483,29 @@ impl Encoder<CommandResponse<'_>> for CommandCodec {
     type Error = io::Error;
 
     fn encode(&mut self, item: CommandResponse<'_>, dst: &mut BytesMut) -> Result<(), Self::Error> {
-        let mut buf = Vec::new();
-        let mut serializer = rmp_serde::Serializer::new(&mut buf);
+        let start = dst.len();
+        let header_len = std::mem::size_of::<Header>();
+        let header = Header {
+            marker: Header::VALID_MARKER,
+            size: 0,
+        };
+
+        dst.extend_from_slice(header.as_slice());
 
         // The protocol supports responding with several messages, but actually
         // only one message is ever sent (see command_helpers.c)
-        [item]
-            .serialize(&mut serializer)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        {
+            let mut writer = (&mut *dst).writer();
+            let mut serializer = rmp_serde::Serializer::new(&mut writer);
+            if let Err(e) = [item].serialize(&mut serializer) {
+                dst.truncate(start);
+                return Err(io::Error::new(io::ErrorKind::InvalidData, e));
+            }
+        }
 
-        let size = buf.len();
+        let size = dst.len() - start - header_len;
         if size > MAX_MESSAGE_SIZE as usize {
+            dst.truncate(start);
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!(
@@ -508,12 +520,13 @@ impl Encoder<CommandResponse<'_>> for CommandCodec {
             marker: Header::VALID_MARKER,
             size,
         };
+        dst[start..start + header_len].copy_from_slice(header.as_slice());
 
-        trace!("Encoding message with size {}: {:?}", size, fmt_bin(&buf));
-
-        dst.extend_from_slice(header.as_slice());
-        dst.reserve(size as usize);
-        dst.extend_from_slice(&buf);
+        trace!(
+            "Encoding message with size {}: {:?}",
+            size,
+            fmt_bin(&dst[start + header_len..])
+        );
 
         Ok(())
     }
@@ -589,6 +602,31 @@ mod tests {
         let mut buf = BytesMut::new();
         let mut encoder = CommandCodec;
         encoder.encode(resp, &mut buf).unwrap();
+    }
+
+    #[test]
+    fn test_encode_oversized_truncates_and_preserves_prior_frame() {
+        let mut buf = BytesMut::new();
+        let mut encoder = CommandCodec;
+        encoder
+            .encode(CommandResponse::ConfigSync, &mut buf)
+            .unwrap();
+        let good_frame = buf.clone();
+
+        let huge = CommandResponse::ClientInit(ClientInitResp {
+            status: "x".repeat(5 * 1024 * 1024),
+            version: "1.0.0",
+            errors: vec![],
+            meta: HashMap::new(),
+            metrics: HashMap::new(),
+            helper_runtime: None,
+        });
+        let res = encoder.encode(huge, &mut buf);
+        assert!(res.is_err());
+        assert_eq!(
+            buf, good_frame,
+            "oversized-message error must not corrupt already-buffered data"
+        );
     }
 
     fn serialize_message<T: serde::Serialize>(command: &T) -> Vec<u8> {
