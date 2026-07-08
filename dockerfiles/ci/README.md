@@ -26,6 +26,14 @@ repo.
   build never needs a separate arm64 runner. The job pod only orchestrates;
   the actual compile happens on the builder, and `MAKE_JOBS` sets its
   parallelism.
+* **Signing:** every pushed image is signed with
+  [`ddsign`](https://datadoghq.atlassian.net/wiki/spaces/SECENG/pages/2744681107/Image+Integrity+User+Guide),
+  required for it to be pullable in Kubernetes clusters that enforce image
+  signature verification. Linux images sign right after the `buildx bake`
+  push, using the build's `--metadata-file`. Windows images are built with
+  plain `docker build` on a native Windows runner that has no `ddsign` binary
+  (ddsign only ships for Linux/Mac), so they're signed by a separate `Windows
+  sign` job that runs on Linux and looks up the pushed tag's digest instead.
 * **Publish:** a `trigger` to the `DataDog/public-images` service mirrors the
   internal image to Docker Hub. It has no dependency on the build (see below).
 
@@ -39,12 +47,16 @@ manually start the `ci-images` job (stage `ci-build`) to spawn the child
 pipeline. Per OS it has two kinds of jobs:
 
 1. **`<OS> build: [<version>]`** (manual) — multi-arch build + push to
-   `registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:<tag>`. Run the version(s)
-   you need. Authentication to the internal registry is automatic via the
-   runner's native credentials.
+   `registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:<tag>`, then signs it with
+   `ddsign`. Run the version(s) you need. Authentication to the internal
+   registry is automatic via the runner's native credentials.
 2. **`<OS> publish`** (manual, a matrix with one instance per tag) — mirrors
    `…:<tag>` from the internal registry to the public Docker Hub
    (`datadog/dd-trace-ci`) via a downstream `public-images` pipeline.
+
+Windows has an extra manual job, **`Windows sign`** (a matrix with one
+instance per tag), since `Windows build` can't sign its own images (see
+above). Run it after `Windows build`, before `Windows publish`.
 
 ### Publishing is independent of building
 
