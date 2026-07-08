@@ -91,8 +91,7 @@ generated with cbindgen. Toolchain is pinned — see `Cargo.toml`
 - Operating rules: [general.md](general.md)
 - Building any artifact locally: [ci/building-locally.md](ci/building-locally.md)
 - Reproducing CI jobs locally: [ci/index.md](ci/index.md)
-- Debugging (gdb / appsec integration / system tests):
-  [debugging.md](debugging.md), [gdb.md](gdb.md),
-  [debugging-system-tests.md](debugging-system-tests.md)
+- Debugging (gdb, appsec integration, system tests):
+  [debugging/index.md](debugging/index.md)
 - Version is in `VERSION`; supported framework versions in
   `integration_versions.md`; libdatadog updates in `LIBDATADOG.md`.

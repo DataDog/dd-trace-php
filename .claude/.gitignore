@@ -1,7 +1,7 @@
 # Per-developer personal Claude config — never committed.
 #
-# Everything committed under .claude/ is the *shared* team config. Keep your
-# own memory, notes, commands, scripts, and skills out of git using the
+# Everything else committed under .claude/ is the *shared* team config. Keep
+# your own memory, notes, commands, scripts, and skills out of git using the
 # locations below. See personal/README.md.
 
 # Free-form personal config, notes, and memory. CLAUDE.md optionally imports
@@ -9,10 +9,17 @@
 /personal/*
 !/personal/README.md
 
-# Personal slash-commands and helper scripts (these must live in their
-# canonical locations to be discovered, so they are ignored in place).
-/commands/
-/scripts/
+# Slash-commands are PERSONAL by default so each dev keeps their own. Claude
+# Code's commands/ dir is flat and discovered regardless of git status, so we
+# ignore it by default. To SHARE a command with the team, un-ignore it here and
+# commit it, e.g.:  !/commands/some-shared-command.md
+/commands/*
+
+# Helper scripts: shared ones live in scripts/ (committed); personal ones go in
+# scripts/local/ (git-ignored). Scripts aren't auto-discovered, so subfolders
+# are fine.
+/scripts/local/
+__pycache__/
 
 # Personal skills that are not part of the shared set.
 /skills/omc-reference/
