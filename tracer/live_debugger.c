@@ -128,11 +128,9 @@ static bool dd_probe_file_mismatch(dd_probe_def *def, zend_execute_data *execute
 
 static void dd_probe_dtor(void *data) {
     dd_probe_def *def = data;
-    if (def->probe.probe.tag == DDOG_PROBE_TYPE_SPAN_DECORATION) {
-        ddog_drop_span_decoration_probe(def->probe.probe.span_decoration);
-    } else if (def->probe.probe.tag == DDOG_PROBE_TYPE_LOG) {
-        ddog_drop_log_probe_capture_expressions(def->probe.probe.log);
-    }
+    // Frees all FFI-owned allocations in the probe copy: the tags CharSliceVec
+    // and the nested span-decoration / log allocations.
+    ddog_drop_probe(def->probe);
     if (def->file) {
         zend_string_release(def->file);
     }

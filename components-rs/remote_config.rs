@@ -756,6 +756,16 @@ pub extern "C" fn ddog_rshutdown_remote_config(remote_config: &mut RemoteConfigS
 #[no_mangle]
 pub extern "C" fn ddog_shutdown_remote_config(_: Box<RemoteConfigState>) {}
 
+/// Free the FFI allocations owned by a [`Probe`] produced via `probe.into()`.
+///
+/// The C side keeps a shallow copy of the probe (`def->probe`) and must release
+/// the FFI-owned allocations when the probe is uninstalled. Consuming the probe
+/// by value runs its drop glue, freeing the `tags` `CharSliceVec` and the nested
+/// span-decoration / log allocations in one shot. Borrowed `CharSlice` string
+/// data (id, status, ...) points into the parsed config and is not touched.
+#[no_mangle]
+pub extern "C" fn ddog_drop_probe(_: Probe) {}
+
 #[no_mangle]
 pub extern "C" fn ddog_log_debugger_data(payloads: &Vec<DebuggerPayload>) {
     if !payloads.is_empty() {
