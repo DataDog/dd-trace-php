@@ -30,14 +30,16 @@ put_dynamic_config_file([
 // independently. A spans_map keyed by probe id (instead of per-config) would let
 // the second install overwrite the first, orphaning a hook whose backing config
 // is freed on removal -> use-after-free when it later fires.
-function put_span_probe_id1($tag) {
+function put_span_probe_id1($variant) {
     return put_live_debugger_file([
         "id" => "1",
         "language" => "php",
         "evaluateAt" => "EXIT",
         "type" => "SPAN_PROBE",
         "where" => ["methodName" => "foo"],
-        "tags" => [$tag],
+        // Unknown field (ignored by the parser) only to make the two configs live
+        // at distinct remote-config paths while carrying the same probe id.
+        "_variant" => $variant,
     ]);
 }
 
