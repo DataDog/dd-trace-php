@@ -307,7 +307,12 @@ Windows sign:
     - cd <?= $dir, "\n" ?>
     - METADATA_FILE=$(mktemp)
     - docker buildx bake --no-cache --pull --push --metadata-file "${METADATA_FILE}" "${PHP_VERSION}"
-    - ddsign sign "${CI_REGISTRY_IMAGE}:${TAG}" --docker-metadata-file "${METADATA_FILE}"
+    # Unlike `docker buildx build`, `bake` nests its metadata under the target
+    # name instead of writing it flat, so reslice it to what
+    # `ddsign --docker-metadata-file` expects. Safe since we only ever bake
+    # one target here.
+    - jq ".\"${PHP_VERSION}\"" "${METADATA_FILE}" > "${METADATA_FILE}.flat"
+    - ddsign sign "${CI_REGISTRY_IMAGE}:${TAG}" --docker-metadata-file "${METADATA_FILE}.flat"
 <?php /*
   Mirror to Docker Hub: one matrix job per OS, independent (needs: [] via
   .image_publish) so it can sync existing images without rebuilding.
