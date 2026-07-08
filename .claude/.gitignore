@@ -1,0 +1,23 @@
+# Per-developer personal Claude config — never committed.
+#
+# Everything committed under .claude/ is the *shared* team config. Keep your
+# own memory, notes, commands, scripts, and skills out of git using the
+# locations below. See personal/README.md.
+
+# Free-form personal config, notes, and memory. CLAUDE.md optionally imports
+# personal/CLAUDE.md if you create one.
+/personal/*
+!/personal/README.md
+
+# Personal slash-commands and helper scripts (these must live in their
+# canonical locations to be discovered, so they are ignored in place).
+/commands/
+/scripts/
+
+# Personal skills that are not part of the shared set.
+/skills/omc-reference/
+
+# Local settings and runtime artifacts.
+/settings.local.json
+/worktrees/
+/.omc/
