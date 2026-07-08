@@ -31,9 +31,9 @@ repo.
   required for it to be pullable in Kubernetes clusters that enforce image
   signature verification. Linux images sign right after the `buildx bake`
   push, using the build's `--metadata-file`. Unlike plain `docker buildx
-  build`, `bake` nests that file's contents under the target name instead of
-  writing it flat, so it's resliced with `jq` first to the shape `ddsign
-  --docker-metadata-file` expects. Windows images are built with plain
+  build`, `bake` nests that file's contents under a (sanitized) target name
+  instead of writing it flat, so it's resliced with `jq` first to the shape
+  `ddsign --docker-metadata-file` expects. Windows images are built with plain
   `docker build` on a native Windows runner that has no `ddsign` binary
   (ddsign only ships for Linux/Mac), so they're signed by a separate `Windows
   sign` job that runs on Linux and looks up the pushed tag's digest with

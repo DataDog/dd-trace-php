@@ -309,9 +309,11 @@ Windows sign:
     - docker buildx bake --no-cache --pull --push --metadata-file "${METADATA_FILE}" "${PHP_VERSION}"
     # Unlike `docker buildx build`, `bake` nests its metadata under the target
     # name instead of writing it flat, so reslice it to what
-    # `ddsign --docker-metadata-file` expects. Safe since we only ever bake
-    # one target here.
-    - jq ".\"${PHP_VERSION}\"" "${METADATA_FILE}" > "${METADATA_FILE}.flat"
+    # `ddsign --docker-metadata-file` expects. Take the (only) top-level key
+    # rather than looking up "${PHP_VERSION}" directly: bake sanitizes target
+    # names for the metadata file (e.g. "7.0-alpine" -> "7_0-alpine"), so the
+    # literal name doesn't always match.
+    - jq 'keys[0] as $k | .[$k]' "${METADATA_FILE}" > "${METADATA_FILE}.flat"
     - ddsign sign "${CI_REGISTRY_IMAGE}:${TAG}" --docker-metadata-file "${METADATA_FILE}.flat"
 <?php /*
   Mirror to Docker Hub: one matrix job per OS, independent (needs: [] via
