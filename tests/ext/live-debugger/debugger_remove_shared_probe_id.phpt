@@ -25,11 +25,9 @@ put_dynamic_config_file([
     "dynamic_instrumentation_enabled" => true,
 ]);
 
-// Two live-debugger configs at different paths that carry the SAME probe id.
-// Each config gets its own installed hook; the tracer must track and remove them
-// independently. A spans_map keyed by probe id (instead of per-config) would let
-// the second install overwrite the first, orphaning a hook whose backing config
-// is freed on removal -> use-after-free when it later fires.
+// Two configs at different paths sharing the SAME probe id. Keying the hook map
+// by probe id would orphan a hook on removal (use-after-free); distinct non-empty
+// tags also make the paths differ and exercise the tags allocation freed on drop.
 function put_span_probe_id1($tag) {
     return put_live_debugger_file([
         "id" => "1",
@@ -37,9 +35,6 @@ function put_span_probe_id1($tag) {
         "evaluateAt" => "EXIT",
         "type" => "SPAN_PROBE",
         "where" => ["methodName" => "foo"],
-        // Distinct tags make the two configs live at different paths and, being
-        // non-empty, also exercise the probe tags allocation freed by
-        // ddog_drop_probe (a leak of that CharSliceVec would show under LSan).
         "tags" => [$tag],
     ]);
 }
@@ -47,19 +42,18 @@ function put_span_probe_id1($tag) {
 $p1 = put_span_probe_id1("a");
 $p2 = put_span_probe_id1("b");
 
-// Wait for installation WITHOUT calling foo(), so the probe stays pre-EMITTING
-// and the diagnostics read of the probe id is deferred to the first call below.
-await_probe_installation(function () {}, 1);
+// Wait for BOTH probes to install, without calling foo() (keeps them pre-EMITTING
+// so the diagnostics read of the probe id happens on the first call, after removal).
+await_probe_installation(function () {}, 2);
 
-// Remove both configs, then let the remote-config poll process the removals.
+// Remove both configs and let the remote-config poll process the removals.
 del_rc_file($p1);
 del_rc_file($p2);
 for ($i = 0; $i < 300; $i++) {
     usleep(10000);
 }
 
-// With the configs gone, no hook must remain: foo() runs its (now uninstalled)
-// probe exactly once here. If a hook was orphaned, this reads freed memory.
+// No hook must remain: an orphaned one would read freed memory here.
 var_dump(foo());
 
 ?>

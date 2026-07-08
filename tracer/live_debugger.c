@@ -128,8 +128,7 @@ static bool dd_probe_file_mismatch(dd_probe_def *def, zend_execute_data *execute
 
 static void dd_probe_dtor(void *data) {
     dd_probe_def *def = data;
-    // Frees all FFI-owned allocations in the probe copy: the tags CharSliceVec
-    // and the nested span-decoration / log allocations.
+    // Frees the probe's FFI-owned allocations (tags + span-decoration/log).
     ddog_drop_probe(def->probe);
     if (def->file) {
         zend_string_release(def->file);

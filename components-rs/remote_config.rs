@@ -482,11 +482,17 @@ fn apply_config(
             LiveDebuggingData::Probe(probe) => {
                 debug!("Applying live debugger probe {probe:?}");
                 if remote_config.live_debugger.di_enabled {
+                    // Tear down any hook already installed for this config before
+                    // replacing it, so it isn't left dangling into the dropped config.
+                    if let Some(old_hook_id) =
+                        remote_config.live_debugger.spans_map.remove(config_id)
+                    {
+                        (callbacks.remove_probe)(old_hook_id);
+                    }
                     let hook_id = (callbacks.set_probe)(probe.into(), limiter);
                     if hook_id >= 0 {
-                        // Key by config_id, not probe.id: distinct configs may carry the same
-                        // probe id, and the hook must be tracked per-config so remove_config
-                        // tears down the right one (a probe.id key would orphan a hook -> UAF).
+                        // Key by config_id, not probe.id: distinct configs can share a
+                        // probe id, so a probe.id key would orphan a hook on removal (UAF).
                         remote_config
                             .live_debugger
                             .spans_map
@@ -724,8 +730,7 @@ pub extern "C" fn ddog_set_dynamic_instrumentation_enabled(
                 (callbacks.remove_probe)(hook_id);
             }
         } else {
-            // Reinstall all probes currently stored in `active`, keyed by config_id
-            // (the `active` key) -- consistent with apply_config / remove_config.
+            // Reinstall all probes in `active`, keyed by config_id (like apply/remove).
             for (config_id, boxed) in remote_config.live_debugger.active.iter() {
                 if let Some(LiveDebuggingData::Probe(probe)) = boxed.0.downcast::<LiveDebuggingData>() {
                     let hook_id = (callbacks.set_probe)(probe.into(), &boxed.1);
@@ -756,13 +761,9 @@ pub extern "C" fn ddog_rshutdown_remote_config(remote_config: &mut RemoteConfigS
 #[no_mangle]
 pub extern "C" fn ddog_shutdown_remote_config(_: Box<RemoteConfigState>) {}
 
-/// Free the FFI allocations owned by a [`Probe`] produced via `probe.into()`.
-///
-/// The C side keeps a shallow copy of the probe (`def->probe`) and must release
-/// the FFI-owned allocations when the probe is uninstalled. Consuming the probe
-/// by value runs its drop glue, freeing the `tags` `CharSliceVec` and the nested
-/// span-decoration / log allocations in one shot. Borrowed `CharSlice` string
-/// data (id, status, ...) points into the parsed config and is not touched.
+/// Free the FFI-owned allocations in a `Probe` (the `tags` vec and the nested
+/// span-decoration / log allocations) by consuming it; borrowed `CharSlice`s are
+/// left untouched. Called from `dd_probe_dtor` when a probe is uninstalled.
 #[no_mangle]
 pub extern "C" fn ddog_drop_probe(_: Probe) {}
 
