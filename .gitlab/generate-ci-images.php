@@ -11,9 +11,11 @@
  * matrix value; the `image:` tag (with env vars resolved) is the published tag.
  * This script prints a literal preamble (stages, job templates), then loops
  * over the parsed compose services to emit, per Linux OS, one build matrix job
- * over PHP versions (bake builds and pushes the multi-arch image) plus a manual
- * publish matrix job that mirrors the tags to Docker Hub. Windows is emitted the
- * same way but single-arch (no manifest) with its own build runner/script.
+ * over PHP versions (bake builds and pushes the multi-arch image, then ddsign
+ * signs it) plus a manual publish matrix job that mirrors the tags to Docker
+ * Hub. Windows is emitted the same way but single-arch (no manifest) with its
+ * own build runner/script; its images are signed by a separate Linux job
+ * (ddsign has no Windows binary), see .image_sign.
  */
 
 $root = dirname(__DIR__);
@@ -113,6 +115,11 @@ variables:
   needs: []
   timeout: 4h
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
+  # Requested so `ddsign sign` (run after the push, see script below) can
+  # authenticate as this CI job. https://datadoghq.atlassian.net/wiki/spaces/SECENG/pages/2744681107
+  id_tokens:
+    DDSIGN_ID_TOKEN:
+      aud: image-integrity
   variables:
     DDCI_CONFIGURE_OTEL_EXPORTER: "true"
     # Compile runs on the buildx "ci" builder instance, not this job pod, so the
@@ -137,6 +144,27 @@ variables:
     IMG_SIGNING: false
     IMG_SOURCES: "${CI_REGISTRY_IMAGE}:${TAG}"
     IMG_DESTINATIONS: "dd-trace-ci:${TAG}"
+
+# Signs an already-pushed tag in registry.ddbuild.io. Used for the Windows
+# images: they're built without buildx (see .windows_image_build), so unlike
+# the Linux builds they can't sign via `ddsign --docker-metadata-file` right
+# after the push. Runs on Linux regardless of build platform: it only needs
+# network access to inspect the pushed manifest, not the build runner itself.
+.image_sign:
+  stage: ci-publish
+  rules:
+    - when: manual
+      allow_failure: true
+  needs: []
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
+  tags: ["arch:amd64"]
+  id_tokens:
+    DDSIGN_ID_TOKEN:
+      aud: image-integrity
+  # $TAG is supplied per matrix entry by the generated sign jobs.
+  script:
+    - DIGEST=$(docker buildx imagetools inspect "${CI_REGISTRY_IMAGE}:${TAG}" --format '{{.Manifest.Digest}}')
+    - ddsign sign "${CI_REGISTRY_IMAGE}:${TAG}@${DIGEST}"
 
 .windows_image_build:
   stage: ci-build
@@ -250,6 +278,15 @@ Windows publish:
 <?php foreach ($winServices as $tag): ?>
         - "<?= $tag ?>"
 <?php endforeach; ?>
+
+Windows sign:
+  extends: .image_sign
+  parallel:
+    matrix:
+      - TAG:
+<?php foreach ($winServices as $tag): ?>
+        - "<?= $tag ?>"
+<?php endforeach; ?>
 <?php foreach ($osList as ['name' => $os, 'dir' => $dir, 'services' => $services]): ?>
 <?php /*
   One build job per PHP version. buildx bake reads the x-bake platforms from
@@ -262,13 +299,15 @@ Windows publish:
   tags: ["arch:amd64"]
   parallel:
     matrix:
-      - PHP_VERSION:
-<?php foreach (array_keys($services) as $svc): ?>
-          - <?= $svc, "\n" ?>
+<?php foreach ($services as $svc => $tag): ?>
+      - PHP_VERSION: "<?= $svc ?>"
+        TAG: "<?= $tag ?>"
 <?php endforeach; ?>
   script:
     - cd <?= $dir, "\n" ?>
-    - docker buildx bake --no-cache --pull --push "${PHP_VERSION}"
+    - METADATA_FILE=$(mktemp)
+    - docker buildx bake --no-cache --pull --push --metadata-file "${METADATA_FILE}" "${PHP_VERSION}"
+    - ddsign sign "${CI_REGISTRY_IMAGE}:${TAG}" --docker-metadata-file "${METADATA_FILE}"
 <?php /*
   Mirror to Docker Hub: one matrix job per OS, independent (needs: [] via
   .image_publish) so it can sync existing images without rebuilding.
