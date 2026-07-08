@@ -1,4 +1,13 @@
-See [.claude/general.md](.claude/general.md), [.claude/project.md](.claude/project.md) and [.claude/ci/index.md](.claude/ci/index.md).
+# Datadog PHP tracer — Claude config
 
-<!-- Personal, per-developer config (git-ignored; see .claude/personal/README.md). -->
+Always-loaded shared config (imported into context):
+
+@.claude/general.md
+@.claude/project.md
+
+On-demand reference (read when reproducing CI jobs), not auto-loaded:
+[.claude/ci/index.md](.claude/ci/index.md).
+
+<!-- Personal, per-developer config (git-ignored; see .claude/personal/README.md).
+     Create .claude/personal/CLAUDE.md for your own instructions. -->
 @.claude/personal/CLAUDE.md
