@@ -1,8 +1,0 @@
-# Everything committed under .claude/ is shared team config. Personal Claude
-# config is NOT kept in this repo — it lives in ~/.claude (global): your
-# ~/.claude/CLAUDE.md, ~/.claude/skills/, ~/.claude/commands/, etc.
-#
-# Only local/runtime artifacts are ignored here:
-/settings.local.json
-/worktrees/
-/.omc/
