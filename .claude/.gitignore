@@ -1,15 +1,8 @@
-# Per-developer personal Claude config — never committed.
+# Everything committed under .claude/ is shared team config. Personal Claude
+# config is NOT kept in this repo — it lives in ~/.claude (global): your
+# ~/.claude/CLAUDE.md, ~/.claude/skills/, ~/.claude/commands/, etc.
 #
-# Everything else committed under .claude/ is the *shared* team config. Keep
-# your own memory, notes, commands, scripts, and skills out of git using the
-# locations below. See personal/README.md.
-
-/personal/*
-!/personal/README.md
-
-/scripts/local/
-
-# Local settings and runtime artifacts.
+# Only local/runtime artifacts are ignored here:
 /settings.local.json
 /worktrees/
 /.omc/

@@ -8,6 +8,5 @@ Always-loaded shared config (imported into context):
 On-demand reference (read when reproducing CI jobs), not auto-loaded:
 [.claude/ci/index.md](.claude/ci/index.md).
 
-<!-- Personal, per-developer config (git-ignored; see .claude/personal/README.md).
-     Create .claude/personal/CLAUDE.md for your own instructions. -->
-@.claude/personal/CLAUDE.md
+Personal config is not kept in this repo — put it in `~/.claude` (global):
+`~/.claude/CLAUDE.md`, `~/.claude/skills/`, etc.
