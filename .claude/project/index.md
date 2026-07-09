@@ -62,11 +62,11 @@ differences (see [components.md](components.md)). Common C is gradually
 extracted into PHP-agnostic `components/`.
 
 **Trace sender.** Traces are encoded with msgpack and uploaded asynchronously
-so PHP request threads never block. On Linux this is routed through the
-sidecar (see below); the legacy in-process background sender (`tracer/coms.c`)
-remains as fallback. See [tracer.md](tracer.md) and
-[../../architecture.md](../../architecture.md) for the background-sender
-design.
+so PHP request threads never block. The default sender is version-gated: the
+sidecar (below) on PHP 8.3+/Windows, the in-process `tracer/coms.c` sender on
+PHP 7.0–8.2 (`DD_SIDECAR_TRACE_SENDER_DEFAULT`); either is overridable. See
+[tracer.md](tracer.md) and [../../architecture.md](../../architecture.md) for
+the background-sender design.
 
 **Sidecar.** A Rust background service (`libdatadog/datadog-sidecar*`, driven
 from `ext/sidecar.{c,h}`) that offloads I/O off request threads: telemetry,

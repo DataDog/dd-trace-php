@@ -13,8 +13,8 @@ matches tag spans via `asm_event`.
   `commands/{client_init,request_init,request_exec,request_shutdown}.c`,
   `helper_process.c`, `configuration.c`, `msgpack_helpers.c`,
   `ip_extraction.c`.
-- `appsec/src/helper/` — C++ helper: `main.cpp`,
-  `client/`, `runner/`, `engine/`, `service/`, `remote_config/`,
+- `appsec/src/helper/` — C++ helper: `main.cpp`, `client`/`runner`/`engine`/
+  `service` (`.cpp`/`.hpp`), and dirs `network/`, `remote_config/`,
   `subscriber/`.
 - `appsec/helper-rust/` — Rust helper:
   `src/{lib,server,client,service,config,rc,telemetry}.rs`, `build.rs`,
@@ -23,11 +23,13 @@ matches tag spans via `asm_event`.
 
 ## How it fits
 
-Extension MINIT/RINIT spawns the helper (subprocess) and connects over a
-Unix socket. Per request, the extension sends headers/body/query via
-msgpack; the helper runs the WAF and returns block/redirect decisions plus
-matched rules. Matches emit `asm_event`, which [tracer/](tracer.md) attaches
-to the root span on serialize.
+AppSec is enabled through the sidecar: during sidecar setup `ext/sidecar.c`
+calls the appsec module's `dd_appsec_maybe_enable_helper` →
+`ddog_sidecar_enable_appsec` with the resolved helper path (Rust helper if
+present, else C++), before ddappsec's first RINIT. Per request the extension
+sends headers/body/query to the helper via msgpack; the helper runs the WAF
+and returns block/redirect decisions + matched rules. Matches emit
+`asm_event`, which [tracer/](tracer.md) attaches to the root span on serialize.
 
 Two decoupled `.so` files (can be disabled independently); talks to the
 helper over msgpack; integrates with the tracer via `asm_event` and reads

@@ -34,10 +34,12 @@ Auto-flush triggers when the open-span threshold is hit or on RSHUTDOWN:
 serialize → sidecar or background sender.
 
 Sits above [ext/](ext.md) infra and ZAI hooks (see
-[components.md](components.md)); consumes libdatadog Rust. The sidecar (see
-[sidecar.md](sidecar.md)) is the default sender; `coms.c` is the legacy
-fallback (not on Windows). [PHP userland](userland.md) (`src/DDTrace`) wraps
-these hooks as objects.
+[components.md](components.md)); consumes libdatadog Rust. The sender default
+is version-gated (`DD_SIDECAR_TRACE_SENDER_DEFAULT`, `tracer/configuration.h`):
+the sidecar (see [sidecar.md](sidecar.md)) on PHP 8.3+/Windows, the in-process
+`coms.c` sender on PHP 7.0–8.2 (coms.c isn't built on Windows); either is
+overridable. [PHP userland](userland.md) (`src/DDTrace`) wraps these hooks as
+objects.
 
 ## Data flow
 
@@ -51,7 +53,7 @@ Span→upload path, in order:
 - `tracer/priority_sampling/`: sampling decided at close.
 - `tracer/serializer.c`: PHP spans → libdatadog spans (msgpack in libdatadog).
 - `tracer/auto_flush.c`: flush on threshold or RSHUTDOWN, then handoff →
-  `ext/sidecar.c` (default) or `tracer/coms.c` (legacy) → agent.
+  `ext/sidecar.c` (PHP 8.3+/Windows) or `tracer/coms.c` (PHP ≤8.2) → agent.
 
 See [../../architecture.md](../../architecture.md) for the background sender
 design.

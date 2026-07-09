@@ -11,8 +11,7 @@
 
 ## Key files & dirs
 
-- `components/{string_view,log,sapi,stack-sample,container_id}/` (+
-  polyfill headers).
+- `components/{string_view,log,sapi,stack-sample}/` (+ polyfill headers).
 - `components-rs/lib.rs` — modules: `agent_info`, `log`, `remote_config`,
   `sidecar`, `stats`, `telemetry`, `trace_filter`, `bytes`.
 - `components-rs/{common,datadog,sidecar,telemetry,crashtracker,
@@ -37,6 +36,8 @@ checks.
 ## Gotchas
 
 - No Zend API allowed in `components/`.
+- `components/container_id/` is a stale build-artifact dir (no source);
+  container ID access is in the Rust bridge (`ddtrace_get_container_id`).
 - Version gating is concentrated in ZAI (`hook.c`, `sandbox/php{7,8}`,
   `interceptor/php{7,8}`) — put new version-dependent logic there, not in
   scattered `PHP_VERSION_ID` checks elsewhere.
