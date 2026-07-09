@@ -9,7 +9,7 @@ tracing, profiling, and application security to PHP. Multi-language:
 - **PHP** userland (`src/`) — high-level instrumentation.
 
 User docs: <https://docs.datadoghq.com/tracing/languages/php/>.
-For build/test/CI, see the pointers at the bottom — do not duplicate them here.
+For build/test/CI, see the pointers below — do not duplicate them here.
 
 ## Layout
 
@@ -42,23 +42,36 @@ dockerfiles/             Dev/CI images and package verification.
 > `ext/hook/`, `ext/integrations/` etc. are build artifacts, not sources —
 > the tracked sources live under `tracer/`.
 
+## Subsystem map
+
+| Area | What | Guide |
+|---|---|---|
+| `ext/` | Shared runtime infra: config, sidecar IPC, telemetry, remote config, signals | [ext.md](ext.md) |
+| `tracer/` | Instrumentation engine: spans, sampling, serialization, hooks, trace sender | [tracer.md](tracer.md) |
+| `src/` | PHP userland: Tracer/Span API, propagators, ~40 integrations | [userland.md](userland.md) |
+| `components/`, `components-rs/`, ZAI | PHP-agnostic C, Rust FFI bridge, Zend version abstraction | [components.md](components.md) |
+| sidecar | Rust background service for async I/O (trace/telemetry/RC upload) | [sidecar.md](sidecar.md) |
+| `appsec/` | Application security extension + WAF helper process | [appsec.md](appsec.md) |
+| `profiling/` | Rust profiler extension (CPU/wall/alloc/exception) | [profiling.md](profiling.md) |
+
 ## Architecture
 
 **PHP version support.** PHP 7.0 → 8.5+. Version-specific behavior gates on
-`PHP_VERSION_ID` macros (e.g. `PHP_VERSION_ID >= 80500`); the
-`zend_abstract_interface/` layer (ZAI) absorbs Zend API differences. Common C
-is gradually extracted into PHP-agnostic `components/`.
+`PHP_VERSION_ID` macros; `zend_abstract_interface/` (ZAI) absorbs Zend API
+differences (see [components.md](components.md)). Common C is gradually
+extracted into PHP-agnostic `components/`.
 
 **Trace sender.** Traces are encoded with msgpack and uploaded asynchronously
-so PHP request threads never block. On Linux this is routed through the sidecar
-(see below); the legacy in-process background sender remains as fallback. See
-`architecture.md` for the full design.
+so PHP request threads never block. On Linux this is routed through the
+sidecar (see below); the legacy in-process background sender (`tracer/coms.c`)
+remains as fallback. See [tracer.md](tracer.md).
 
-**Sidecar.** A Rust background service (in `libdatadog/datadog-sidecar*`,
-driven from `ext/sidecar.{c,h}`) that offloads I/O off request threads:
-telemetry, trace upload, crashtracking, DogStatsD, remote config, live
-debugger, and appsec data. PHP ↔ sidecar over IPC (`ddog_SidecarTransport`).
-It survives request crashes and is shared across language tracers.
+**Sidecar.** A Rust background service (`libdatadog/datadog-sidecar*`, driven
+from `ext/sidecar.{c,h}`) that offloads I/O off request threads: telemetry,
+trace upload, crashtracking, DogStatsD, remote config, live debugger, and
+appsec data. PHP ↔ sidecar over IPC (`ddog_SidecarTransport`). It survives
+request crashes and is shared across language tracers. See
+[sidecar.md](sidecar.md).
 
 - `DD_TRACE_SIDECAR_CONNECTION_MODE` = `auto` (default) | `subprocess` |
   `thread`. `auto` tries subprocess, falls back to thread.
@@ -66,15 +79,17 @@ It survives request crashes and is shared across language tracers.
   subprocess mode. There is no `docs/SIDECAR_CONNECTION_MODES.md`; the modes
   are documented in comments in `ext/sidecar.c`.
 
-**Rust integration.** `libdatadog/` compiles into the extension; `compile_rust.sh`
-(invoked from the Makefile) drives it. Minimize FFI surface; headers are
-generated with cbindgen. Toolchain is pinned — see `Cargo.toml`
-(`rust-version`) and `profiling/rust-toolchain.toml`, not a hardcoded version.
+**Rust integration.** `libdatadog/` compiles into the extension;
+`compile_rust.sh` (invoked from the Makefile) drives it. Minimize FFI surface;
+headers are generated with cbindgen (see [components.md](components.md)).
+Toolchain is pinned — see `Cargo.toml` (`rust-version`) and
+`profiling/rust-toolchain.toml`, not a hardcoded version.
 
 ## Configuration & INI
 
-- Runtime config: `DD_*` env vars and `datadog.*` INI keys, defined in
-  `ext/configuration.h` (x-macro table).
+- Runtime config: `DD_*` env vars and `datadog.*` INI keys, in two x-macro
+  tables — `ext/configuration.h` (shared/infra) and `tracer/configuration.h`
+  (tracer-specific, the majority of keys).
 - System INI is installed as `.../conf.d/98-ddtrace.ini`.
 - Inspect: `php --ri ddtrace`, or `php -i | grep -E 'datadog\.|ddtrace\.'`.
 
@@ -88,10 +103,11 @@ generated with cbindgen. Toolchain is pinned — see `Cargo.toml`
 
 ## Pointers (don't duplicate these here)
 
-- Operating rules: [general.md](general.md)
-- Building any artifact locally: [ci/building-locally.md](ci/building-locally.md)
-- Reproducing CI jobs locally: [ci/index.md](ci/index.md)
+- Operating rules: [../general.md](../general.md)
+- Building any artifact locally:
+  [../ci/building-locally.md](../ci/building-locally.md)
+- Reproducing CI jobs locally: [../ci/index.md](../ci/index.md)
 - Debugging (gdb, appsec integration, system tests):
-  [debugging/index.md](debugging/index.md)
+  [../debugging/index.md](../debugging/index.md)
 - Version is in `VERSION`; supported framework versions in
   `integration_versions.md`; libdatadog updates in `LIBDATADOG.md`.

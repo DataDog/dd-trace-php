@@ -1,0 +1,49 @@
+# tracer/ — tracer-specific C core
+
+## What it is
+
+The instrumentation engine (split from [ext/](ext.md) in #3912). Creates and
+manages span lifecycles, sampling, metadata, msgpack serialization, and sends
+traces (via the sidecar or the legacy in-process background sender).
+
+## Key files & dirs
+
+- `tracer/ddtrace.c` — tracer lifecycle hooks (`ddtrace_startup`/rinit/…)
+  invoked from `ext/datadog.c`; routes sidecar vs in-process sender.
+- `tracer/span.c` — span alloc/close stacks, ring buffer.
+- `tracer/serializer.c` — msgpack encode → libdatadog.
+- `tracer/auto_flush.c` — flush orchestration.
+- `tracer/coms.c` + `tracer/comms_php.c` — legacy in-process background
+  sender (Linux-only).
+- `tracer/hook/` — `uhook*.c` userland hooks (`trace_function`/
+  `trace_method`, sandboxed).
+- `tracer/integrations/` — 40+ framework hooks.
+- `tracer/priority_sampling/`, `tracer/limiter/` (token-bucket on closed
+  spans), `tracer/tracer_tag_propagation/` (W3C + Datadog headers).
+- `tracer/distributed_tracing_headers.c`, `tracer/code_origins.c`,
+  `tracer/asm_event.c` (appsec events on spans), `tracer/collect_backtrace.c`,
+  `tracer/endpoint_guessing.c`, `tracer/inferred_proxy_headers.c`,
+  `tracer/live_debugger.c`, `tracer/dogstatsd_client.c`.
+
+## How it fits
+
+Startup registers the ZAI interceptor and the profiling symbol. RINIT reads
+distributed headers and optionally creates a root span. A hook on function
+entry allocates a span; on return it closes the span and applies sampling.
+Auto-flush triggers when the open-span threshold is hit or on RSHUTDOWN:
+serialize → sidecar or background sender.
+
+Sits above [ext/](ext.md) infra and ZAI hooks (see
+[components.md](components.md)); consumes libdatadog Rust. The sidecar (see
+[sidecar.md](sidecar.md)) is the default sender; `coms.c` is the legacy
+fallback (not on Windows). [PHP userland](userland.md) (`src/DDTrace`) wraps
+these hooks as objects.
+
+## Gotchas
+
+- Per-request span stacks, no locks; PHP 8.1+ fibers get separate span
+  stacks.
+- Sampling is decided at span close time, not open time.
+- Userland hooks are sandboxed (exceptions in hook code don't crash the
+  request).
+- The root span closes last.
