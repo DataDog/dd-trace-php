@@ -25,10 +25,18 @@ Tracer-specific C was split out into [tracer/](tracer.md) (#3912); stray
 
 ## How it fits
 
-MINIT registers INI, config, sidecar, remote_config, signals. RINIT runs
-remote_config + a one-time `dd_rinit_once` (process tags, startup diagnostics,
-signals) + agent_info + sidecar + tracer init. MSHUTDOWN tears down in
-reverse.
+MINIT: logging init first, then config, `zend_extension` registration,
+sidecar, remote_config, signals (tracer pre/early/late phases interleave).
+
+RINIT: remote_config → one-time `dd_rinit_once` (process tags, signals,
+startup diagnostics, tracer first-rinit) → agent_info → sidecar → tracer.
+
+RSHUTDOWN: remote_config → tracer → sidecar (finalize) → telemetry →
+sidecar (rshutdown) → git.
+
+MSHUTDOWN is **not** a reverse of MINIT — notably the sidecar shuts down
+late (after config is freed). Order: tracer → remote_config → signals → log
+→ config → sidecar → process_tags.
 
 `ext/configuration.h` holds the shared/infra x-macro config table (tracer-
 specific config lives in `tracer/configuration.h`). ext/ exposes the

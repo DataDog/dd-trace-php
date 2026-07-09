@@ -33,6 +33,23 @@ Traces, telemetry, remote config (via shared memory), DogStatsD,
 crashtracking, live debugger, and appsec data all flow through the sidecar —
 request threads never block on network I/O.
 
+## Submit → upload
+
+- Closed spans serialize in `tracer/span.c` → `ddog_TracesBytes`.
+- At end-of-request `ddtrace_flush_tracer` (`tracer/auto_flush.c`) calls
+  `ddog_send_traces_to_sidecar`, passing the batch over the
+  `ddog_SidecarTransport` IPC (Unix socket / shared memory).
+- Sidecar side: `TraceFlusher`
+  (`libdatadog/datadog-sidecar/src/service/tracing/trace_flusher.rs`)
+  enqueues incoming send-data, batches (by endpoint), and flushes on
+  interval (~5s) or size threshold (~1MB), then uploads to the agent (or
+  Datadog directly if agentless).
+- Telemetry, remote config, DogStatsD, live debugger, and appsec enqueue
+  separately and are multiplexed to the shared endpoint.
+- Fork: the child drops the inherited transport, regenerates instance/runtime
+  IDs (the session ID is preserved across fork), and reconnects
+  (`datadog_sidecar_handle_fork` in `ext/sidecar.c`).
+
 ## Gotchas
 
 - `DD_TRACE_SIDECAR_CONNECTION_MODE` = `auto` | `subprocess` | `thread`.

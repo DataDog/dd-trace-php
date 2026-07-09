@@ -11,7 +11,7 @@ traces (via the sidecar or the legacy in-process background sender).
 - `tracer/ddtrace.c` — tracer lifecycle hooks (`ddtrace_startup`/rinit/…)
   invoked from `ext/datadog.c`; routes sidecar vs in-process sender.
 - `tracer/span.c` — span alloc/close stacks, ring buffer.
-- `tracer/serializer.c` — msgpack encode → libdatadog.
+- `tracer/serializer.c` — PHP spans → libdatadog spans (msgpack in libdatadog).
 - `tracer/auto_flush.c` — flush orchestration.
 - `tracer/coms.c` + `tracer/comms_php.c` — legacy in-process background
   sender (Linux-only).
@@ -38,6 +38,23 @@ Sits above [ext/](ext.md) infra and ZAI hooks (see
 [sidecar.md](sidecar.md)) is the default sender; `coms.c` is the legacy
 fallback (not on Windows). [PHP userland](userland.md) (`src/DDTrace`) wraps
 these hooks as objects.
+
+## Data flow
+
+Span→upload path, in order:
+
+- RINIT (`tracer/ddtrace.c`): init per-request span stacks.
+- `tracer/distributed_tracing_headers.c`: extract trace context from headers.
+- `tracer/span.c`: create root span (inherit trace/parent IDs if enabled).
+- `tracer/hook/uhook.c`: on function entry a ZAI hook fires → allocate span.
+- `tracer/span.c`: on return → close span.
+- `tracer/priority_sampling/`: sampling decided at close.
+- `tracer/serializer.c`: PHP spans → libdatadog spans (msgpack in libdatadog).
+- `tracer/auto_flush.c`: flush on threshold or RSHUTDOWN, then handoff →
+  `ext/sidecar.c` (default) or `tracer/coms.c` (legacy) → agent.
+
+See [../../architecture.md](../../architecture.md) for the background sender
+design.
 
 ## Gotchas
 

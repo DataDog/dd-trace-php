@@ -64,7 +64,9 @@ extracted into PHP-agnostic `components/`.
 **Trace sender.** Traces are encoded with msgpack and uploaded asynchronously
 so PHP request threads never block. On Linux this is routed through the
 sidecar (see below); the legacy in-process background sender (`tracer/coms.c`)
-remains as fallback. See [tracer.md](tracer.md).
+remains as fallback. See [tracer.md](tracer.md) and
+[../../architecture.md](../../architecture.md) for the background-sender
+design.
 
 **Sidecar.** A Rust background service (`libdatadog/datadog-sidecar*`, driven
 from `ext/sidecar.{c,h}`) that offloads I/O off request threads: telemetry,
@@ -109,5 +111,9 @@ Toolchain is pinned — see `Cargo.toml` (`rust-version`) and
 - Reproducing CI jobs locally: [../ci/index.md](../ci/index.md)
 - Debugging (gdb, appsec integration, system tests):
   [../debugging/index.md](../debugging/index.md)
+- Component design + background sender + PHP-version code:
+  [../../architecture.md](../../architecture.md)
+- Contributor setup / linting / local testing:
+  [../../CONTRIBUTING.md](../../CONTRIBUTING.md)
 - Version is in `VERSION`; supported framework versions in
   `integration_versions.md`; libdatadog updates in `LIBDATADOG.md`.
