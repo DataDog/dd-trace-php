@@ -1547,7 +1547,7 @@ foreach ($arch_targets as $arch) {
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       when: never
-    - when: manual
+    - when: always
   allow_failure: true
   variables:
     GIT_STRATEGY: none
@@ -1568,7 +1568,7 @@ foreach ($arch_targets as $arch) {
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       when: never
-    - when: manual
+    - when: always
   needs:
     - job: "publish docker image for system tests (token)"
       artifacts: true
