@@ -4,25 +4,10 @@
 # your own memory, notes, commands, scripts, and skills out of git using the
 # locations below. See personal/README.md.
 
-# Free-form personal config, notes, and memory. CLAUDE.md optionally imports
-# personal/CLAUDE.md if you create one.
 /personal/*
 !/personal/README.md
 
-# Slash-commands are PERSONAL by default so each dev keeps their own. Claude
-# Code's commands/ dir is flat and discovered regardless of git status, so we
-# ignore it by default. To SHARE a command with the team, un-ignore it here and
-# commit it, e.g.:  !/commands/some-shared-command.md
-/commands/*
-
-# Helper scripts: shared ones live in scripts/ (committed); personal ones go in
-# scripts/local/ (git-ignored). Scripts aren't auto-discovered, so subfolders
-# are fine.
 /scripts/local/
-__pycache__/
-
-# Personal skills that are not part of the shared set.
-/skills/omc-reference/
 
 # Local settings and runtime artifacts.
 /settings.local.json
