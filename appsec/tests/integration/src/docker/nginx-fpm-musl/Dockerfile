@@ -3,10 +3,10 @@ FROM php:8.5-fpm-alpine
 # doubles as php/toolchain image for musl
 
 RUN apk add --no-cache \
-    autoconf automake bash bison clang clang-dev cmake curl curl-dev \
-    g++ gcc gdb git libc-dev linux-headers llvm-libunwind-static make \
-    musl-dev nginx oniguruma-dev openssl-dev patchelf pkgconf re2c libtool \
-    libxml2-dev libzip-dev xz-static zlib-dev \
+    abuild autoconf automake bash bison clang clang-dev cmake curl curl-dev \
+    build-base g++ gcc gdb git libc-dev linux-headers llvm22-dev llvm22-static make \
+    musl-dev nginx oniguruma-dev openssl-dev patch patchelf pkgconf re2c libtool \
+    libxml2-dev libzip-dev python3 samurai xz xz-static zlib-dev \
     vim
 
 
@@ -23,6 +23,19 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
     ln -sf /usr/local/cargo/bin/{cargo,rustc} /usr/local/bin/ && \
     rustup toolchain install nightly-$(uname -m)-unknown-linux-musl && \
     rustup component add rust-src --toolchain nightly-$(uname -m)-unknown-linux-musl
+
+COPY llvm-runtimes /tmp/llvm-runtimes
+RUN RUST_TARGET="$(uname -m)-unknown-linux-musl" && \
+    RUST_TOOLCHAIN="/usr/local/rustup/toolchains/nightly-${RUST_TARGET}" && \
+    apk update && \
+    cd /tmp/llvm-runtimes && \
+    abuild-keygen -an && \
+    cp /root/.abuild/*.rsa.pub /etc/apk/keys/ && \
+    abuild -F -r && \
+    package="$(find /root/packages -name 'llvm-libunwind-static-patched-*.apk' -print -quit)" && \
+    apk add --allow-untrusted "$package" && \
+    cp /usr/lib/libunwind.a "${RUST_TOOLCHAIN}/lib/rustlib/${RUST_TARGET}/lib/self-contained/libunwind.a" && \
+    rm -rf /tmp/llvm-runtimes /root/packages /var/cache/distfiles/*
 
 RUN mkdir -p /run/nginx && \
     mkdir -p /var/www/public && \

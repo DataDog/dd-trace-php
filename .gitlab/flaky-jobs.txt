@@ -1,0 +1,152 @@
+# flaky-jobs.txt — glob patterns for CI jobs EXCLUDED from the merge gate.
+
+aggregate tested versions
+Amazon_Linux_2023_amd64.SI94:*
+Amazon_Linux_2023_amd64.SID0:*
+Amazon_Linux_2_arm64.SI94:*
+Amazon_Linux_2_arm64.SID0:*
+API unit tests:*
+appsec integration tests (helper-rust):*
+appsec integration tests (ssi):*
+appsec integration tests:*
+ASAN test_c with multiple observers:*
+ASAN test_c:*
+Cargo test
+compile extension windows:*
+compile extension: debug-zts-asan:*
+compile extension: debug:*
+compile tracing extension asan:*
+compile tracing extension:*
+compile tracing sidecar:*
+create-multiarch-lib-injection-image
+Debian_11_amd64.SID0:*
+Debian_12_amd64.SID0:*
+deploy-s3
+Disabled test_c run:*
+Extension Tea Tests:*
+framework test:*
+generate-lib-init-pinned-tag-values
+helper-rust integration coverage
+installer tests
+K8S_LIB_INJECTION_UDS:*
+linux-php-laravel-realworld-parallel
+linux-php-symfony-realworld-parallel
+Loader test on amd64 libc:*
+macrobenchmarks:*
+min install tests
+package-oci:*
+pecl tests:*
+PHP Language Tests:*
+PHP language tests:*
+php-app.amd64.DOC:*
+php-app.arm64.DOC:*
+php-laravel-realworld-parallel-check-slo-breaches
+php-symfony-realworld-parallel-check-slo-breaches
+php-symfony-realworld-parallel-generate-slos
+php-symfony-realworld-parallel-upload-to-bp-api
+PHP: FrankePHP Demo
+PHP: Laravel Release
+PHP: Shopware Demo
+PHP: Symfony Demo
+profiling tests:*
+randomized tests:*
+RedHat_8_6_arm64.SID0:*
+System Tests:*
+test appsec extension:*
+test early PHP 8.1
+test_auto_instrumentation:*
+test_composer:*
+test_distributed_tracing:*
+test_extension_ci:*
+test_integrations_amqp2:*
+test_integrations_curl:*
+test_integrations_deferred_loading:*
+test_integrations_elasticsearch8:*
+test_integrations_elasticsearch_latest:*
+test_integrations_frankenphp:*
+test_integrations_googlespanner_latest:*
+test_integrations_guzzle_latest:*
+test_integrations_kafka:*
+test_integrations_memcached:*
+test_integrations_monolog2:*
+test_integrations_mysqli:*
+test_integrations_openai_latest:*
+test_integrations_pcntl:*
+test_integrations_predis_2:*
+test_integrations_sqlsrv:*
+test_integrations_swoole_5:*
+test_metrics:*
+test_opentelemetry_1:*
+test_opentelemetry_beta:*
+test_opentracing_10:*
+test_web_cakephp_28:*
+test_web_cakephp_310:*
+test_web_cakephp_45:*
+test_web_cakephp_latest:*
+test_web_codeigniter_22:*
+test_web_codeigniter_31:*
+test_web_custom:*
+test_web_drupal_101:*
+test_web_drupal_89:*
+test_web_drupal_95:*
+test_web_laminas_mvc_33:*
+test_web_laminas_mvc_latest:*
+test_web_laminas_rest_latest:*
+test_web_laravel_10x:*
+test_web_laravel_11x:*
+test_web_laravel_42:*
+test_web_laravel_57:*
+test_web_laravel_58:*
+test_web_laravel_8x:*
+test_web_laravel_9x:*
+test_web_laravel_latest:*
+test_web_laravel_octane_latest:*
+test_web_lumen_100:*
+test_web_lumen_52:*
+test_web_lumen_56:*
+test_web_lumen_58:*
+test_web_lumen_81:*
+test_web_lumen_90:*
+test_web_magento_23:*
+test_web_magento_24:*
+test_web_nette_24:*
+test_web_nette_31:*
+test_web_nette_latest:*
+test_web_slim_312:*
+test_web_slim_48:*
+test_web_slim_latest:*
+test_web_symfony_23:*
+test_web_symfony_28:*
+test_web_symfony_30:*
+test_web_symfony_33:*
+test_web_symfony_34:*
+test_web_symfony_40:*
+test_web_symfony_42:*
+test_web_symfony_44:*
+test_web_symfony_50:*
+test_web_symfony_51:*
+test_web_symfony_52:*
+test_web_symfony_62:*
+test_web_symfony_73:*
+test_web_symfony_latest:*
+test_web_wordpress_48:*
+test_web_wordpress_55:*
+test_web_wordpress_59:*
+test_web_wordpress_61:*
+test_web_yii_2049:*
+test_web_yii_latest:*
+test_web_zend_1:*
+test_web_zend_1_21:*
+Ubuntu_20_amd64.SID0:*
+Ubuntu_22_arm64.SI94:*
+Ubuntu_22_arm64.SID0:*
+Ubuntu_23_10_arm64.SI94:*
+Ubuntu_23_10_arm64.SID0:*
+Ubuntu_23_10_arm64.SIM:*
+Ubuntu_24_10_amd64.SID0:*
+Ubuntu_24_amd64.SID0:*
+Unit tests:*
+update-latest-versions
+verify windows
+windows test_c:*
+Zend Abstract Interface Tests:*

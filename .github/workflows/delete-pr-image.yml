@@ -1,0 +1,31 @@
+name: "Delete Docker image on PR close"
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  delete-pr-image:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write   # required to delete GHCR container versions
+      contents: read
+
+    steps:
+      - name: Sanitize branch name to match image tag (CI_COMMIT_REF_SLUG from gitlab)
+        id: sanitize
+        env:
+          PR_REF: ${{ github.event.pull_request.head.ref }}
+        run: | # Match GitLab's CI_COMMIT_REF_SLUG: lowercase, non-alphanumeric → '-', collapse and trim
+          TAG=$(echo -n "$PR_REF" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g' | cut -c1-63 | sed -E 's/^-+//; s/-+$//')
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Delete image by tag from GHCR
+        env:
+          CI_COMMIT_REF_SLUG: ${{ steps.sanitize.outputs.tag }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api "orgs/DataDog/packages/container/dd-trace-php%2Fdd-library-php/versions" \
+            --jq ".[] | select(.metadata.container.tags[]? == \"${CI_COMMIT_REF_SLUG}\") | .id" \
+            | xargs -r -I {} gh api "orgs/DataDog/packages/container/dd-trace-php%2Fdd-library-php/versions/{}" -X DELETE
+          echo "Deleted version with tag: ${CI_COMMIT_REF_SLUG}"

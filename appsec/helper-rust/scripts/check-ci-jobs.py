@@ -13,7 +13,6 @@ Exit codes:
 """
 
 import argparse
-import json
 import os
 import subprocess
 import sys
@@ -50,18 +49,12 @@ ARTIFACT_JOBS: dict[str, str] = {
 
 
 def get_token() -> str:
-    config_path = Path.home() / ".claude.json"
-    config = json.loads(config_path.read_text())
-    token = (
-        config.get("mcpServers", {})
-        .get("gitlab", {})
-        .get("env", {})
-        .get("GITLAB_PERSONAL_ACCESS_TOKEN")
-    )
-    if not token or token == "null":
-        print("ERROR: Could not extract GitLab token from ~/.claude.json", file=sys.stderr)
-        sys.exit(1)
-    return token
+    token = os.environ.get("GITLAB_PERSONAL_ACCESS_TOKEN")
+    if token and token != "null":
+        return token
+
+    print("ERROR: GITLAB_PERSONAL_ACCESS_TOKEN is not set", file=sys.stderr)
+    sys.exit(1)
 
 
 def api_get(token: str, path: str, params: dict | None = None) -> list | dict:

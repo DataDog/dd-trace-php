@@ -108,9 +108,9 @@ impl AllocationProfilingStats {
             next_sample: 0,
             poisson,
             #[cfg(php_zts)]
-            rng: rand::thread_rng(),
+            rng: rand::rng(),
             #[cfg(not(php_zts))]
-            rng: StdRng::from_entropy(),
+            rng: StdRng::from_os_rng(),
         };
         stats.next_sampling_interval();
         stats

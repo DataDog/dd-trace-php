@@ -924,6 +924,7 @@ def helperRustInputs = [
                 '../../helper-rust/coverage_init.c',
                 '../../helper-rust/outline_atomics.c',
                 '../../helper-rust/.cargo/config.toml',
+                '../../recommended.json',
         ],
 ]
 
