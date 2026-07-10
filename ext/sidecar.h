@@ -43,7 +43,7 @@ ddog_SidecarTransport *datadog_sidecar_connect(bool is_fork);
 // Lifecycle functions
 void datadog_sidecar_minit(void);
 void datadog_sidecar_setup(ddog_RemoteConfigFlags flags);
-void datadog_sidecar_handle_fork(bool *runtime_id_changed);
+void datadog_sidecar_handle_fork(void);
 bool datadog_sidecar_should_enable(ddog_RemoteConfigFlags *flags);
 void datadog_sidecar_ensure_active(void);
 void datadog_sidecar_update_process_tags(void);

@@ -739,11 +739,8 @@ static PHP_MINFO_FUNCTION(datadog) {
 
 void datadog_internal_handle_fork(void) {
     // CHILD PROCESS
-    bool runtime_id_changed = false;
-    datadog_sidecar_handle_fork(&runtime_id_changed);
-    if (runtime_id_changed) {
-        datadog_publish_configured_otel_process_context();
-    }
+    datadog_sidecar_handle_fork();
+    datadog_publish_configured_otel_process_context();
 
 #ifdef DDTRACE
     ddtrace_internal_handle_fork();
