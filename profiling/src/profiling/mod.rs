@@ -38,9 +38,10 @@ use libdd_profiling::api::{
 };
 use libdd_profiling::internal::Profile as InternalProfile;
 use log::{debug, info, trace, warn};
+use rustc_hash::FxBuildHasher;
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::hash::{BuildHasherDefault, Hash};
+use std::hash::Hash;
 use std::num::NonZeroI64;
 use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Barrier, OnceLock};
@@ -70,8 +71,8 @@ const UPLOAD_CHANNEL_CAPACITY: usize = 8;
 /// FxHasher's multiply-rotate mix fully avalanches bits, spreading sequential
 /// ZendMM bump-allocator addresses evenly across DashMap's 16 shards and
 /// avoiding lock hot-spots under concurrent ZTS workloads.
-/// BuildHasherDefault<FxHasher> satisfies Clone, which DashMap requires.
-type HeapTracker = DashMap<usize, LiveHeapSample, BuildHasherDefault<rustc_hash::FxHasher>>;
+/// FxBuildHasher satisfies Clone, which DashMap requires.
+type HeapTracker = DashMap<usize, LiveHeapSample, FxBuildHasher>;
 
 /// The global profiler. Profiler gets made during the first rinit after an
 /// minit, and is destroyed on mshutdown.
@@ -836,7 +837,7 @@ impl Profiler {
         let interrupt_manager = Arc::new(InterruptManager::new());
         let (message_sender, message_receiver) = crossbeam_channel::bounded(100);
         let (upload_sender, upload_receiver) = crossbeam_channel::bounded(UPLOAD_CHANNEL_CAPACITY);
-        let live_heap_tracker = Arc::new(DashMap::with_hasher(BuildHasherDefault::default()));
+        let live_heap_tracker = Arc::new(DashMap::with_hasher(FxBuildHasher));
         let live_heap_tracker_count = Arc::new(AtomicUsize::new(0));
         let sample_types_filter = SampleTypeFilter::new(system_settings);
         let time_collector = TimeCollector {
