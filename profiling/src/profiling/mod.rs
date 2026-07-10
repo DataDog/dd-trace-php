@@ -38,11 +38,12 @@ use libdd_profiling::api::{
 };
 use libdd_profiling::internal::Profile as InternalProfile;
 use log::{debug, info, trace, warn};
+use rustc_hash::FxBuildHasher;
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::hash::{BuildHasherDefault, Hash};
+use std::hash::Hash;
 use std::num::NonZeroI64;
-use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Barrier, OnceLock};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -70,8 +71,8 @@ const UPLOAD_CHANNEL_CAPACITY: usize = 8;
 /// FxHasher's multiply-rotate mix fully avalanches bits, spreading sequential
 /// ZendMM bump-allocator addresses evenly across DashMap's 16 shards and
 /// avoiding lock hot-spots under concurrent ZTS workloads.
-/// BuildHasherDefault<FxHasher> satisfies Clone, which DashMap requires.
-type HeapTracker = DashMap<usize, LiveHeapSample, BuildHasherDefault<rustc_hash::FxHasher>>;
+/// FxBuildHasher satisfies Clone, which DashMap requires.
+type HeapTracker = DashMap<usize, LiveHeapSample, FxBuildHasher>;
 
 /// The global profiler. Profiler gets made during the first rinit after an
 /// minit, and is destroyed on mshutdown.
@@ -275,21 +276,6 @@ pub(crate) struct LiveHeapSample {
 /// Maximum number of allocations to track for live heap profiling.
 /// This bounds memory usage. When full, new allocations are not tracked.
 pub(crate) const LIVE_HEAP_TRACKER_MAX_SIZE: usize = 4096;
-
-pub struct Globals {
-    pub interrupt_count: AtomicU32,
-    pub last_interrupt: SystemTime,
-    // todo: current_profile
-}
-
-impl Default for Globals {
-    fn default() -> Self {
-        Self {
-            interrupt_count: AtomicU32::new(0),
-            last_interrupt: SystemTime::now(),
-        }
-    }
-}
 
 pub struct Profiler {
     fork_barrier: Arc<Barrier>,
@@ -851,7 +837,7 @@ impl Profiler {
         let interrupt_manager = Arc::new(InterruptManager::new());
         let (message_sender, message_receiver) = crossbeam_channel::bounded(100);
         let (upload_sender, upload_receiver) = crossbeam_channel::bounded(UPLOAD_CHANNEL_CAPACITY);
-        let live_heap_tracker = Arc::new(DashMap::with_hasher(BuildHasherDefault::default()));
+        let live_heap_tracker = Arc::new(DashMap::with_hasher(FxBuildHasher));
         let live_heap_tracker_count = Arc::new(AtomicUsize::new(0));
         let sample_types_filter = SampleTypeFilter::new(system_settings);
         let time_collector = TimeCollector {
@@ -984,15 +970,6 @@ impl Profiler {
             self.live_heap_tracker_count.fetch_sub(1, Ordering::Relaxed);
         }
         result
-    }
-
-    pub fn send_sample(
-        &self,
-        message: SampleMessage,
-    ) -> Result<(), Box<TrySendError<ProfilerMessage>>> {
-        self.message_sender
-            .try_send(ProfilerMessage::Sample(message))
-            .map_err(Box::new)
     }
 
     pub fn send_local_root_span_resource(

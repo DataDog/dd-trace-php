@@ -1,10 +1,7 @@
-use core::hash;
 use core::ops::Deref;
 use libdd_alloc::{AllocError, Allocator, ChainAllocator, VirtualAllocator};
 use libdd_profiling::profiles::collections::ThinStr;
-
-type Hasher = hash::BuildHasherDefault<rustc_hash::FxHasher>;
-type HashSet<K> = std::collections::HashSet<K, Hasher>;
+use rustc_hash::FxHashSet;
 
 /// Allocates and constructs a [`ThinStr`] in one step.
 ///
@@ -32,7 +29,7 @@ pub struct StringSet {
     /// References to the underlying strings should generally not be handed,
     /// but if they are, they should be bound to the string set's lifetime or
     /// the lending iterator's lifetime.
-    strings: HashSet<ThinStr<'static>>,
+    strings: FxHashSet<ThinStr<'static>>,
 }
 
 impl Default for StringSet {
@@ -51,7 +48,7 @@ impl StringSet {
         const SIZE_HINT: usize = 2 * 1024 * 1024;
         let arena = ChainAllocator::new_in(SIZE_HINT, VirtualAllocator {});
 
-        let mut strings = HashSet::with_hasher(Hasher::default());
+        let mut strings = FxHashSet::default();
         // The initial capacities for Rust's hash map (and set) currently go
         // like this: 3, 7, 14, 28.
         // The smaller values definitely can cause too much reallocation when
@@ -66,13 +63,6 @@ impl StringSet {
         strings.insert(ThinStr::new());
 
         Self { arena, strings }
-    }
-
-    /// Returns the number of strings currently held in the string set.
-    #[inline]
-    #[allow(clippy::len_without_is_empty, unused)]
-    pub fn len(&self) -> usize {
-        self.strings.len()
     }
 
     /// Adds the string to the string set if it isn't present already, and

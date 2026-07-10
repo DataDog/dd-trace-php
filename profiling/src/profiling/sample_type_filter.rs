@@ -141,6 +141,16 @@ mod tests {
     use super::*;
     use crate::profiling::tests::{get_samples, get_system_settings};
 
+    fn assert_filter(
+        settings: &SystemSettings,
+        expected_types: Vec<ValueType>,
+        expected_values: Vec<i64>,
+    ) {
+        let filter = SampleTypeFilter::new(settings);
+        assert_eq!(filter.sample_types(), expected_types);
+        assert_eq!(filter.filter(get_samples()), expected_values);
+    }
+
     #[test]
     fn filter_with_profiling_disabled() {
         let mut settings = get_system_settings();
@@ -149,12 +159,7 @@ mod tests {
         settings.profiling_allocation_enabled = false;
         settings.profiling_experimental_cpu_time_enabled = false;
 
-        let sample_type_filter = SampleTypeFilter::new(&settings);
-        let values = sample_type_filter.filter(get_samples());
-        let types = sample_type_filter.sample_types();
-
-        assert_eq!(types, Vec::<ValueType>::new());
-        assert_eq!(values, Vec::<i64>::new());
+        assert_filter(&settings, Vec::<ValueType>::new(), Vec::<i64>::new());
     }
 
     #[test]
@@ -165,18 +170,14 @@ mod tests {
         settings.profiling_allocation_enabled = false;
         settings.profiling_experimental_cpu_time_enabled = false;
 
-        let sample_type_filter = SampleTypeFilter::new(&settings);
-        let values = sample_type_filter.filter(get_samples());
-        let types = sample_type_filter.sample_types();
-
-        assert_eq!(
-            types,
+        assert_filter(
+            &settings,
             vec![
                 ValueType::new("sample", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
-            ]
+            ],
+            vec![10, 20],
         );
-        assert_eq!(values, vec![10, 20]);
     }
 
     #[test]
@@ -186,19 +187,15 @@ mod tests {
         settings.profiling_allocation_enabled = false;
         settings.profiling_experimental_cpu_time_enabled = true;
 
-        let sample_type_filter = SampleTypeFilter::new(&settings);
-        let values = sample_type_filter.filter(get_samples());
-        let types = sample_type_filter.sample_types();
-
-        assert_eq!(
-            types,
+        assert_filter(
+            &settings,
             vec![
                 ValueType::new("sample", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
                 ValueType::new("cpu-time", "nanoseconds"),
-            ]
+            ],
+            vec![10, 20, 30],
         );
-        assert_eq!(values, vec![10, 20, 30]);
     }
 
     #[test]
@@ -208,20 +205,16 @@ mod tests {
         settings.profiling_allocation_enabled = true;
         settings.profiling_experimental_cpu_time_enabled = false;
 
-        let sample_type_filter = SampleTypeFilter::new(&settings);
-        let values = sample_type_filter.filter(get_samples());
-        let types = sample_type_filter.sample_types();
-
-        assert_eq!(
-            types,
+        assert_filter(
+            &settings,
             vec![
                 ValueType::new("sample", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
                 ValueType::new("alloc-samples", "count"),
                 ValueType::new("alloc-size", "bytes"),
-            ]
+            ],
+            vec![10, 20, 40, 50],
         );
-        assert_eq!(values, vec![10, 20, 40, 50]);
     }
 
     #[test]
@@ -231,21 +224,17 @@ mod tests {
         settings.profiling_allocation_enabled = true;
         settings.profiling_experimental_cpu_time_enabled = true;
 
-        let sample_type_filter = SampleTypeFilter::new(&settings);
-        let values = sample_type_filter.filter(get_samples());
-        let types = sample_type_filter.sample_types();
-
-        assert_eq!(
-            types,
+        assert_filter(
+            &settings,
             vec![
                 ValueType::new("sample", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
                 ValueType::new("cpu-time", "nanoseconds"),
                 ValueType::new("alloc-samples", "count"),
                 ValueType::new("alloc-size", "bytes"),
-            ]
+            ],
+            vec![10, 20, 30, 40, 50],
         );
-        assert_eq!(values, vec![10, 20, 30, 40, 50]);
     }
 
     #[test]
@@ -255,20 +244,16 @@ mod tests {
         settings.profiling_experimental_cpu_time_enabled = true;
         settings.profiling_exception_enabled = true;
 
-        let sample_type_filter = SampleTypeFilter::new(&settings);
-        let values = sample_type_filter.filter(get_samples());
-        let types = sample_type_filter.sample_types();
-
-        assert_eq!(
-            types,
+        assert_filter(
+            &settings,
             vec![
                 ValueType::new("sample", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
                 ValueType::new("cpu-time", "nanoseconds"),
                 ValueType::new("exception-samples", "count"),
-            ]
+            ],
+            vec![10, 20, 30, 70],
         );
-        assert_eq!(values, vec![10, 20, 30, 70]);
     }
 
     #[test]
@@ -279,12 +264,8 @@ mod tests {
         settings.profiling_experimental_heap_live_enabled = true;
         settings.profiling_experimental_cpu_time_enabled = false;
 
-        let sample_type_filter = SampleTypeFilter::new(&settings);
-        let values = sample_type_filter.filter(get_samples());
-        let types = sample_type_filter.sample_types();
-
-        assert_eq!(
-            types,
+        assert_filter(
+            &settings,
             vec![
                 ValueType::new("sample", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
@@ -292,9 +273,9 @@ mod tests {
                 ValueType::new("alloc-size", "bytes"),
                 ValueType::new("heap-live-samples", "count"),
                 ValueType::new("heap-live-size", "bytes"),
-            ]
+            ],
+            vec![10, 20, 40, 50, 55, 56],
         );
-        assert_eq!(values, vec![10, 20, 40, 50, 55, 56]);
     }
 
     #[test]
@@ -305,19 +286,15 @@ mod tests {
         settings.profiling_experimental_heap_live_enabled = true;
         settings.profiling_experimental_cpu_time_enabled = false;
 
-        let sample_type_filter = SampleTypeFilter::new(&settings);
-        let values = sample_type_filter.filter(get_samples());
-        let types = sample_type_filter.sample_types();
-
         // heap-live should NOT be included when allocation profiling is disabled
-        assert_eq!(
-            types,
+        assert_filter(
+            &settings,
             vec![
                 ValueType::new("sample", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
-            ]
+            ],
+            vec![10, 20],
         );
-        assert_eq!(values, vec![10, 20]);
     }
 
     #[test]
@@ -328,12 +305,8 @@ mod tests {
         settings.profiling_experimental_heap_live_enabled = true;
         settings.profiling_experimental_cpu_time_enabled = true;
 
-        let sample_type_filter = SampleTypeFilter::new(&settings);
-        let values = sample_type_filter.filter(get_samples());
-        let types = sample_type_filter.sample_types();
-
-        assert_eq!(
-            types,
+        assert_filter(
+            &settings,
             vec![
                 ValueType::new("sample", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
@@ -342,9 +315,9 @@ mod tests {
                 ValueType::new("alloc-size", "bytes"),
                 ValueType::new("heap-live-samples", "count"),
                 ValueType::new("heap-live-size", "bytes"),
-            ]
+            ],
+            vec![10, 20, 30, 40, 50, 55, 56],
         );
-        assert_eq!(values, vec![10, 20, 30, 40, 50, 55, 56]);
     }
 
     #[test]
@@ -353,12 +326,8 @@ mod tests {
         settings.profiling_enabled = true;
         settings.profiling_io_enabled = true;
 
-        let sample_type_filter = SampleTypeFilter::new(&settings);
-        let values = sample_type_filter.filter(get_samples());
-        let types = sample_type_filter.sample_types();
-
-        assert_eq!(
-            types,
+        assert_filter(
+            &settings,
             vec![
                 ValueType::new("sample", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
@@ -378,13 +347,10 @@ mod tests {
                 ValueType::new("file-io-read-size-samples", "count"),
                 ValueType::new("file-io-write-size", "bytes"),
                 ValueType::new("file-io-write-size-samples", "count"),
-            ]
-        );
-        assert_eq!(
-            values,
+            ],
             vec![
-                10, 20, 80, 81, 90, 91, 100, 101, 110, 111, 120, 121, 130, 131, 140, 141, 150, 151
-            ]
+                10, 20, 80, 81, 90, 91, 100, 101, 110, 111, 120, 121, 130, 131, 140, 141, 150, 151,
+            ],
         );
     }
 }
