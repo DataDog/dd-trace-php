@@ -749,26 +749,23 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
         );
 
         if let Some(profiler) = Profiler::get() {
-            cfg_if::cfg_if! {
-                if #[cfg(php_gc_status)] {
-                    profiler.collect_garbage_collection(
-                        // Safety: checked for `is_err()` above
-                        now.unwrap().as_nanos() as i64,
-                        duration.as_nanos() as i64,
-                        reason,
-                        collected as i64,
-                        status.runs as i64,
-                    );
-                } else {
-                    profiler.collect_garbage_collection(
-                        // Safety: checked for `is_err()` above
-                        now.unwrap().as_nanos() as i64,
-                        duration.as_nanos() as i64,
-                        reason,
-                        collected as i64,
-                    );
-                }
-            }
+            #[cfg(php_gc_status)]
+            profiler.collect_garbage_collection(
+                // Safety: checked for `is_err()` above
+                now.unwrap().as_nanos() as i64,
+                duration.as_nanos() as i64,
+                reason,
+                collected as i64,
+                status.runs as i64,
+            );
+            #[cfg(not(php_gc_status))]
+            profiler.collect_garbage_collection(
+                // Safety: checked for `is_err()` above
+                now.unwrap().as_nanos() as i64,
+                duration.as_nanos() as i64,
+                reason,
+                collected as i64,
+            );
         }
         collected
     } else {

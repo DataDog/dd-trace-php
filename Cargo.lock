@@ -1356,7 +1356,6 @@ dependencies = [
  "anyhow",
  "bindgen",
  "cc",
- "cfg-if",
  "chrono",
  "cpu-time",
  "criterion",

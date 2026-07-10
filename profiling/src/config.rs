@@ -1324,13 +1324,10 @@ pub(crate) fn minit(module_number: libc::c_int) {
         let mut system_settings = SystemSettings::new();
 
         // Initialize logging before allocation's rinit, as it logs.
-        cfg_if::cfg_if! {
-            if #[cfg(debug_assertions)] {
-                log::set_max_level(system_settings.profiling_log_level);
-            } else {
-                crate::logging::log_init(system_settings.profiling_log_level);
-            }
-        }
+        #[cfg(debug_assertions)]
+        log::set_max_level(system_settings.profiling_log_level);
+        #[cfg(not(debug_assertions))]
+        crate::logging::log_init(system_settings.profiling_log_level);
 
         SystemSettings::log_state(
             (*ptr::addr_of!(SYSTEM_SETTINGS)).state,
