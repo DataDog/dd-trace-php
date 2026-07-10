@@ -192,81 +192,66 @@ struct OTelSampleContext {
     tag_overrides: ProfileTagOverrides,
 }
 
-extern "C" {
-    /// Provided by the `datadog` extension (see `ddtrace_get_otel_process_ctx_mapping` in
-    /// tracer/profiling.c): writes the base pointer/length of the currently-published OTel process
-    /// context mapping into the out-params and returns `true`, or returns `false` when nothing is
-    /// published or the handle is a stale post-`fork()` copy (so we never read a `MADV_DONTFORK`'d
-    /// base). This lives in the extension so it reads the live, process-scope handle rather than a
-    /// pointer cached across the profiler's separate shared object.
-    fn ddtrace_get_otel_process_ctx_mapping(base_out: *mut *const u8, len_out: *mut usize) -> bool;
-}
-
-/// The current process context mapping pointer/length, or `None` if nothing is published yet (or
-/// the publisher forked and hasn't republished).
-#[cfg(target_os = "linux")]
-fn otel_process_ctx_mapping() -> Option<(*const u8, usize)> {
-    let mut base: *const u8 = std::ptr::null();
-    let mut len: usize = 0;
-    // SAFETY: `base`/`len` are valid, writable out-params.
-    if unsafe { ddtrace_get_otel_process_ctx_mapping(&mut base, &mut len) } && !base.is_null() {
-        Some((base, len))
-    } else {
-        None
-    }
-}
-
-/// Thread-local cache of the process context's append-only attribute key map, keyed by the
-/// `monotonic_published_at_ns` it was read at so it can be invalidated when the map grows (the
-/// `OnceLock` this replaces cached the map forever and silently dropped attributes whose key index
-/// was appended after the first read).
+/// Thread-local cache of the process context reader and its append-only attribute key map.
 #[cfg(target_os = "linux")]
 struct KeyMapCache {
-    published_at_ns: u64,
+    reader: Option<libdd_library_config::otel_process_ctx::ProcessContextSelfReader>,
     keys: Vec<String>,
 }
 
 #[cfg(target_os = "linux")]
-thread_local! {
-    static OTEL_THREAD_ATTRIBUTE_KEY_MAP: std::cell::RefCell<Option<KeyMapCache>> =
-        const { std::cell::RefCell::new(None) };
+impl KeyMapCache {
+    const fn new() -> Self {
+        Self {
+            reader: None,
+            keys: Vec::new(),
+        }
+    }
+
+    fn refresh(&mut self) -> std::io::Result<()> {
+        if self.reader.is_none() {
+            self.reader =
+                Some(libdd_library_config::otel_process_ctx::ProcessContextSelfReader::new()?);
+        }
+
+        let result = self
+            .reader
+            .as_ref()
+            .ok_or_else(|| std::io::Error::other("process context reader was not initialized"))?
+            .read();
+        match result {
+            Ok(context) => {
+                self.keys = libdd_library_config::otel_process_ctx::ProcessContextSelfReader::threadlocal_attribute_key_map(&context)
+                    .unwrap_or_default();
+                Ok(())
+            }
+            Err(error) => {
+                // A reader becomes stale after fork or if the publisher replaces its header.
+                // Rediscover after any failed read; this also handles an update racing this read.
+                self.reader = None;
+                Err(error)
+            }
+        }
+    }
 }
 
-/// Ensures the cached key map covers `max_index`, re-reading the process context (and replacing the
-/// cache if its timestamp changed) when the cache is empty or an unknown key index is seen.
 #[cfg(target_os = "linux")]
-fn ensure_key_map_covers(
-    cache: &std::cell::RefCell<Option<KeyMapCache>>,
-    base: *const u8,
-    len: usize,
-    max_index: usize,
-) {
-    let covered = cache
-        .borrow()
-        .as_ref()
-        .is_some_and(|c| max_index < c.keys.len());
+thread_local! {
+    static OTEL_THREAD_ATTRIBUTE_KEY_MAP: std::cell::RefCell<KeyMapCache> =
+        const { std::cell::RefCell::new(KeyMapCache::new()) };
+}
+
+/// Ensures the cached key map covers `max_index`, re-reading the process context when the cache is
+/// empty or an unknown key index is seen.
+#[cfg(target_os = "linux")]
+fn ensure_key_map_covers(cache: &std::cell::RefCell<KeyMapCache>, max_index: usize) {
+    let covered = max_index < cache.borrow().keys.len();
     if covered {
         return;
     }
 
-    match libdd_library_config::otel_process_ctx::read_threadlocal_attribute_key_map(base, len) {
-        Ok((keys, published_at_ns)) => {
-            let mut slot = cache.borrow_mut();
-            // Only replace when the map actually changed (timestamp differs), so an out-of-range
-            // index with an unchanged timestamp doesn't churn the cache.
-            let changed = slot
-                .as_ref()
-                .is_none_or(|c| c.published_at_ns != published_at_ns);
-            if changed {
-                *slot = Some(KeyMapCache {
-                    published_at_ns,
-                    keys: keys.unwrap_or_default(),
-                });
-            }
-        }
-        Err(err) => {
-            trace!("failed to read OTel process context key map: {err}");
-        }
+    if let Err(error) = cache.borrow_mut().refresh() {
+        trace!("failed to read OTel process context key map: {error}");
     }
 }
 
@@ -291,11 +276,6 @@ fn current_otel_sample_context() -> Option<OTelSampleContext> {
         tag_overrides: ProfileTagOverrides::default(),
     };
 
-    // Without a published process context we can't map key indices to attribute names.
-    let Some((base, len)) = otel_process_ctx_mapping() else {
-        return Some(sample_context);
-    };
-
     let attrs_data_size = context.attrs_data_size as usize;
     if attrs_data_size > context.attrs_data.len() {
         return Some(sample_context);
@@ -316,13 +296,14 @@ fn current_otel_sample_context() -> Option<OTelSampleContext> {
 
     OTEL_THREAD_ATTRIBUTE_KEY_MAP.with(|cache| {
         // Refresh the cached key map if it's missing or doesn't cover an index we're about to use
-        // (the map is append-only; a grown map bumps the published timestamp).
-        ensure_key_map_covers(cache, base, len, max_index);
+        // (the map is append-only).
+        ensure_key_map_covers(cache, max_index);
 
         let borrow = cache.borrow();
-        let Some(key_map) = borrow.as_ref().map(|c| c.keys.as_slice()) else {
+        let key_map = borrow.keys.as_slice();
+        if key_map.is_empty() {
             return;
-        };
+        }
 
         let mut offset = 0;
         while offset + 2 <= attrs_data.len() {

@@ -49,22 +49,6 @@ bool datadog_publish_otel_process_context(ddog_CharSlice hostname);
 bool datadog_publish_otel_process_context(ddog_CharSlice _hostname);
 #endif
 
-/**
- * Writes the base pointer and length of the currently-published OTel process context mapping into
- * `base_out`/`len_out` and returns `true`; returns `false` (leaving the out-params untouched) if
- * no context is published or the publisher has forked and not yet republished.
- *
- * # Safety
- * `base_out` and `len_out` must be valid, non-null, writable pointers.
- */
-#if defined(__linux__)
-bool datadog_otel_process_context_mapping(const uint8_t **base_out, uintptr_t *len_out);
-#endif
-
-#if !defined(__linux__)
-bool datadog_otel_process_context_mapping(const uint8_t **_base_out, uintptr_t *_len_out);
-#endif
-
 ddog_CharSlice ddtrace_get_container_id(void);
 
 void ddtrace_set_container_cgroup_path(ddog_CharSlice path);

@@ -144,49 +144,6 @@ pub extern "C" fn datadog_publish_otel_process_context(_hostname: CharSlice<'_>)
     false
 }
 
-/// Writes the base pointer and length of the currently-published OTel process context mapping into
-/// `base_out`/`len_out`, for the caller to cache (e.g. in the `datadog` module globals) and pass to
-/// [`otel_process_ctx::read`]. Returns `false` (leaving the out-params untouched) if no context is
-/// currently published.
-///
-/// # Safety
-/// `base_out` and `len_out` must be valid, non-null, writable pointers.
-#[cfg(target_os = "linux")]
-#[no_mangle]
-pub unsafe extern "C" fn datadog_otel_process_context_mapping(
-    base_out: *mut *const u8,
-    len_out: *mut usize,
-) -> bool {
-    if base_out.is_null() || len_out.is_null() {
-        return false;
-    }
-    let guard = OTEL_PROCESS_CTX_HANDLE
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-    // `current_mapping` returns None for a stale post-fork handle whose mapping is MADV_DONTFORK'd,
-    // so a reader never dereferences a base that isn't mapped in this (child) process.
-    match guard.as_ref().and_then(|handle| handle.current_mapping()) {
-        Some((base, len)) => {
-            // SAFETY: caller guarantees the out-params are valid and writable.
-            unsafe {
-                *base_out = base;
-                *len_out = len;
-            }
-            true
-        }
-        None => false,
-    }
-}
-
-#[cfg(not(target_os = "linux"))]
-#[no_mangle]
-pub unsafe extern "C" fn datadog_otel_process_context_mapping(
-    _base_out: *mut *const u8,
-    _len_out: *mut usize,
-) -> bool {
-    false
-}
-
 #[must_use]
 #[no_mangle]
 pub extern "C" fn ddtrace_get_container_id() -> CharSlice<'static> {
