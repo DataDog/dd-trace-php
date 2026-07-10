@@ -24,11 +24,11 @@ $rr = new RequestReplayer();
 // Org-level: sets sample_rate=0.3 and log_injection=true.
 // Specific service+env: overrides sample_rate=0.7, does not set log_injection.
 $org_path = put_wildcard_dynamic_config_file([
-    "tracing_sample_rate" => 0.3,
+    "tracing_sampling_rate" => 0.3,
     "log_injection_enabled" => true,
 ]);
 $specific_path = put_dynamic_config_file([
-    "tracing_sample_rate" => 0.7,
+    "tracing_sampling_rate" => 0.7,
 ]);
 
 dd_trace_internal_fn("await_remote_config");

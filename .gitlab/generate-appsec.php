@@ -71,7 +71,7 @@ stages:
 "test appsec extension":
   stage: test
   extends: .appsec_test
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-8
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-9
   variables:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_CPU_LIMIT: 3
@@ -112,7 +112,7 @@ stages:
     KUBERNETES_MEMORY_LIMIT: 30Gi
     DOCKER_LOOPBACK_SIZE: 30G
     ARCH: amd64
-    HELPER_RUST_FLAG: ""
+    HELPER_FLAG: ""
     GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle-home"
     DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED: "0"
   before_script:
@@ -129,7 +129,7 @@ stages:
         TERM=dumb ./gradlew loadCaches --info
       fi
 
-      TERM=dumb ./gradlew $targets --info -Pbuildscan --scan -PcheckCoreDumps $HELPER_RUST_FLAG
+      TERM=dumb ./gradlew $targets --info -Pbuildscan --scan -PcheckCoreDumps $HELPER_FLAG
       TERM=dumb ./gradlew saveCaches --info
   after_script:
     - mkdir -p "${CI_PROJECT_DIR}/artifacts"
@@ -183,16 +183,15 @@ stages:
       - targets:
           - test8.3-release-ssi
 
-"appsec integration tests (helper-rust)":
+"appsec integration tests (helper-cpp)":
   extends: .appsec_integration_tests
   variables:
-    HELPER_RUST_FLAG: "-PuseHelperRust"
+    HELPER_FLAG: "-PuseHelperCpp"
   parallel:
     matrix:
       - targets:
-          - test7.4-release
-          - test8.1-release
-          - test8.3-debug
+          - test8.3-release
+          - test8.3-release-zts
 
 "helper-rust build and test":
   stage: test
@@ -393,7 +392,7 @@ stages:
 "appsec code coverage":
   stage: test
   extends: .appsec_test
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.3_bookworm-8
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.3_bookworm-9
   variables:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 3Gi
@@ -515,7 +514,7 @@ stages:
 "appsec lint":
   stage: test
   extends: .appsec_test
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.3_bookworm-8
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.3_bookworm-9
   variables:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 9Gi
@@ -537,7 +536,7 @@ stages:
 "test appsec helper asan":
   stage: test
   extends: .appsec_test
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:bookworm-8
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:bookworm-9
   variables:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 3Gi
@@ -563,7 +562,7 @@ stages:
 #"fuzz appsec helper":
 #  stage: test
 #  extends: .appsec_test
-#  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:bookworm-8
+#  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:bookworm-9
 #  variables:
 #    KUBERNETES_CPU_REQUEST: 3
 #    KUBERNETES_MEMORY_REQUEST: 5Gi

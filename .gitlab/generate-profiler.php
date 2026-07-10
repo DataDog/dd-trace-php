@@ -16,7 +16,7 @@ foreach ($profiler_minor_major_targets as $version) {
 "profiling tests":
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:${IMAGE_PREFIX}${PHP_MAJOR_MINOR}${IMAGE_SUFFIX}
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:${IMAGE_PREFIX}${PHP_MAJOR_MINOR}${IMAGE_SUFFIX}
   # Setting the *_REQUEST and *_LIMIT variables to be the same, and setting
   # them for both the build and helper allows using Guaranteed QoS instead of
   # Burstable. This means nproc and similar tools will work as expected.
@@ -44,6 +44,8 @@ foreach ($profiler_minor_major_targets as $version) {
   script:
     - if [ -d '/opt/rh/devtoolset-7' ]; then set +eo pipefail; source scl_source enable devtoolset-7; set -eo pipefail; fi
     - if [ -d '/opt/rh/devtoolset-7' ] && [ "$(uname -m)" = "aarch64" ]; then export BINDGEN_EXTRA_CLANG_ARGS="-I$(clang --print-resource-dir)/include"; fi
+    - if [ -f /sbin/apk ] && [ $(uname -m) = "aarch64" ]; then ln -sf ../lib/llvm17/bin/clang /usr/bin/clang; fi
+    - export DD_PROFILING_OUTPUT_PPROF=/tmp/
 
     - cd profiling
     - 'echo "nproc: $(nproc)"'
@@ -83,11 +85,16 @@ foreach ($profiler_minor_major_targets as $version) {
 "clippy NTS":
   stage: test
   tags: [ "arch:amd64" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-8
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-9
   variables:
     KUBERNETES_CPU_REQUEST: 5
+    KUBERNETES_CPU_LIMIT: 5
     KUBERNETES_MEMORY_REQUEST: 3Gi
-    KUBERNETES_MEMORY_LIMIT: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 3Gi
+    KUBERNETES_HELPER_CPU_REQUEST: 1
+    KUBERNETES_HELPER_CPU_LIMIT: 1
+    KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
+    KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
     # CARGO_TARGET_DIR: /mnt/ramdisk/cargo # ramdisk??
     libdir: /tmp/datadog-profiling
   parallel:
@@ -102,14 +109,59 @@ foreach ($profiler_minor_major_targets as $version) {
 "Cargo test":
   stage: test
   tags: [ "arch:amd64" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.5_bookworm-8
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.5_bookworm-9
   variables:
     KUBERNETES_CPU_REQUEST: 5
+    KUBERNETES_CPU_LIMIT: 5
     KUBERNETES_MEMORY_REQUEST: 3Gi
-    KUBERNETES_MEMORY_LIMIT: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 3Gi
+    KUBERNETES_HELPER_CPU_REQUEST: 1
+    KUBERNETES_HELPER_CPU_LIMIT: 1
+    KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
+    KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
     # CARGO_TARGET_DIR: /mnt/ramdisk/cargo # ramdisk??
     libdir: /tmp/datadog-profiling
   script:
     - switch-php nts # not compatible with debug
     - cd profiling
     - cargo test --all-features
+
+"PHP language tests":
+  stage: test
+  tags: [ "arch:${ARCH}" ]
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-9
+  variables:
+    KUBERNETES_CPU_REQUEST: 5
+    KUBERNETES_CPU_LIMIT: 5
+    KUBERNETES_MEMORY_REQUEST: 3Gi
+    KUBERNETES_MEMORY_LIMIT: 3Gi
+    KUBERNETES_HELPER_CPU_REQUEST: 1
+    KUBERNETES_HELPER_CPU_LIMIT: 1
+    KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
+    KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
+    CARGO_TARGET_DIR: /tmp/cargo
+    libdir: /tmp/datadog-profiling
+    SKIP_ONLINE_TESTS: "1"
+    REPORT_EXIT_STATUS: "1"
+    DD_PROFILING_OUTPUT_PPROF: /tmp/
+    XFAIL_LIST: dockerfiles/ci/xfail_tests/${PHP_MAJOR_MINOR}.list
+  parallel:
+    matrix:
+      - PHP_MAJOR_MINOR: *all_profiler_targets
+        ARCH: amd64
+        FLAVOUR: [nts, zts]
+  script:
+    - unset DD_SERVICE; unset DD_ENV
+    - command -v switch-php && switch-php "${FLAVOUR}"
+    - cd profiling
+    - cargo build --profile profiler-release
+    - cd ..
+    - echo "extension=/tmp/cargo/profiler-release/libdatadog_php_profiling.so" > /opt/php/${FLAVOUR}/conf.d/profiling.ini
+    - php -v
+    # Fail loudly if the profiler did not load: otherwise the language tests
+    # would run profiler-less and pass, giving a false green.
+    - php -m | grep -qx 'datadog-profiling' || { echo 'ERROR datadog-profiling extension is not loaded'; exit 1; }
+    - cat "${XFAIL_LIST}" profiling/tests/php-language-xfail.list > /tmp/profiler-php-language-xfail.list
+    - "if php -r 'exit(PHP_VERSION_ID < 80400 ? 0 : 1);'; then cat profiling/tests/php-language-xfail-pre84.list >> /tmp/profiler-php-language-xfail.list; fi"
+    - export XFAIL_LIST=/tmp/profiler-php-language-xfail.list
+    - .gitlab/run_php_language_tests.sh

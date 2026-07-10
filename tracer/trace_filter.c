@@ -77,30 +77,20 @@ static const char *ddtrace_root_tag_value(const void *ctx, const char *key, uint
     return NULL;
 }
 
-// Slow-path iterator for regex-key filter entries: walks every string meta entry.
-static void ddtrace_meta_iter(const void *ctx, void *iter_ctx,
-                               bool (*cb)(void *, const char *, uintptr_t, const char *, uintptr_t)) {
-    ddtrace_span_data *root = (ddtrace_span_data *)ctx;
-    zend_array *meta = ddtrace_property_array(&root->property_meta);
-    if (!meta) {
-        return;
-    }
-    zend_string *key;
-    zval *val;
-    ZEND_HASH_FOREACH_STR_KEY_VAL(meta, key, val) {
-        if (key && Z_TYPE_P(val) == IS_STRING) {
-            if (!cb(iter_ctx, ZSTR_VAL(key), ZSTR_LEN(key), Z_STRVAL_P(val), Z_STRLEN_P(val))) {
-                break;
-            }
-        }
-    } ZEND_HASH_FOREACH_END();
-}
-
 bool ddtrace_trace_passes_filter(ddtrace_span_data *span) {
     zval *root_resource_zv = &span->root->property_resource;
     ZVAL_DEREF(root_resource_zv);
     ddog_CharSlice resource = Z_TYPE_P(root_resource_zv) == IS_STRING
         ? dd_zend_string_to_CharSlice(Z_STR_P(root_resource_zv))
         : DDOG_CHARSLICE_C("");
-    return ddog_check_stats_trace_filter(resource, span, ddtrace_root_tag_value, ddtrace_meta_iter);
+    // Temp normalize resource: if it's empty use the name instead
+    if (resource.len == 0) {
+      zval* root_name_zv = &span->root->property_name;
+      ZVAL_DEREF(root_name_zv);
+      resource =
+          Z_TYPE_P(root_name_zv) == IS_STRING
+              ? dd_zend_string_to_CharSlice(Z_STR_P(root_name_zv))
+              : DDOG_CHARSLICE_C("");
+    }
+    return ddog_check_stats_trace_filter(resource, span, ddtrace_root_tag_value);
 }

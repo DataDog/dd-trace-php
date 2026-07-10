@@ -108,11 +108,11 @@ The helper-rust is built via Gradle for integration testing. From `tests/integra
 Integration tests run via Gradle from `tests/integration/`:
 
 ```bash
-./gradlew :test8.3-debug -PuseHelperRust --info \
+./gradlew :test8.3-debug --info \
     --tests "com.datadog.appsec.php.integration.Apache2FpmTests.test sampling priority"
 ```
 
-(if omitting -PuseHelperRust, the C++ helper implementation will be used)
+(use `-PuseHelperCpp` to disable the Rust helper redirection and run with the C++ helper)
 
 Logs for the helper are available at `tests/integration/build/test-logs/{helper,appsec}.log`
 
@@ -123,10 +123,10 @@ Logs for the helper are available at `tests/integration/build/test-logs/{helper,
 The helper-rust binary is built to work universally on both platforms. Example:
 ```bash
 # Test on glibc
-./gradlew test8.3-debug --tests "*NginxFpmTests*" -PuseHelperRust
+./gradlew test8.3-debug --tests "*NginxFpmTests*"
 
 # Test on musl
-./gradlew test8.5-release-musl --tests "*NginxFpmTests*" -PuseHelperRust
+./gradlew test8.5-release-musl --tests "*NginxFpmTests*"
 ```
 
 ### Test Targets by PHP Version/Variant
@@ -305,24 +305,21 @@ The appsec child pipeline (generated from `generate-appsec.php`) includes these 
 | `helper-rust build and test` | Builds helper-rust and runs `cargo test` + format check |
 | `helper-rust code coverage` | Runs unit tests with coverage, uploads to codecov |
 | `helper-rust integration coverage` | Runs integration tests with coverage-instrumented binary |
-| `appsec integration tests (helper-rust)` | Integration tests using the Rust helper (PHP 7.4, 8.1, 8.3, 8.4-zts) |
+| `appsec integration tests (helper-cpp)` | Integration tests disabling Rust helper redirection (PHP 8.3, 8.3-zts) |
 
 ### Checking Pipeline Status
 
 The appsec child pipeline IID can be found in the parent pipeline's downstream pipelines. Key jobs to monitor:
 - Jobs with `helper-rust` in the name for Rust-specific CI
-- Jobs with `(helper-rust)` suffix run integration tests with the Rust implementation
+- Jobs with `(helper-cpp)` suffix run integration tests with Rust helper redirection disabled
 
 ### Reading Job Logs
 
 The GitLab MCP tools don't include a job trace/log reader. To read job logs via the API:
 
 ```bash
-# Extract the token from MCP config (project ID 355 = DataDog/apm-reliability/dd-trace-php)
-jq -r '.mcpServers.gitlab.env.GITLAB_PERSONAL_ACCESS_TOKEN' ~/.claude.json
-
-# Then fetch job trace using the token
-curl -s -H "PRIVATE-TOKEN: <TOKEN>" "https://gitlab.ddbuild.io/api/v4/projects/355/jobs/<JOB_ID>/trace" > /tmp/...
+# project ID 355 = DataDog/apm-reliability/dd-trace-php
+curl -s -H "PRIVATE-TOKEN: $GITLAB_PERSONAL_ACCESS_TOKEN" "https://gitlab.ddbuild.io/api/v4/projects/355/jobs/<JOB_ID>/trace" > /tmp/...
 ```
 
 ### Monitoring CI Jobs

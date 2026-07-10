@@ -67,7 +67,7 @@ stages:
 "compile extension: debug":
   stage: compile
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-8
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-9
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *all_minor_major_targets
@@ -119,7 +119,7 @@ stages:
   variables:
     CONTAINER_NAME: $CI_JOB_NAME_SLUG
     GIT_STRATEGY: none
-    IMAGE: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_windows"
+    IMAGE: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_windows"
   script: |
 <?php windows_git_setup() ?>
 
@@ -140,6 +140,13 @@ stages:
 
     # Set test environment variables
     docker exec ${CONTAINER_NAME} powershell.exe "setx DD_AUTOLOAD_NO_COMPILE true; setx DATADOG_HAVE_DEV_ENV 1; setx DD_TRACE_GIT_METADATA_ENABLED 0"
+
+    # Exclude tests that deadlock the php-cgi SKIPIF skip-task on Windows.
+<?php foreach ([
+        "tests/ext/sandbox/hook_function/hook_does_not_leak_error.phpt",
+    ] as $win_excluded_test): ?>
+    docker exec ${CONTAINER_NAME} powershell.exe "Remove-Item -Force -ErrorAction SilentlyContinue C:\Users\ContainerAdministrator\app\<?= str_replace('/', '\\', $win_excluded_test) ?>"
+<?php endforeach ?>
 
     # Run extension tests
     docker exec ${CONTAINER_NAME} powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_LEVEL=trace; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\Release\php_ddtrace.dll" "${pwd}\tests\ext"'
@@ -186,7 +193,7 @@ stages:
 .base_test:
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-8
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-9
   timeout: 60m
   interruptible: true
   rules:

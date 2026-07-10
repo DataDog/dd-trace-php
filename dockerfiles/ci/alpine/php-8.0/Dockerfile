@@ -1,4 +1,5 @@
-FROM datadog/dd-trace-ci:alpine AS base
+ARG CI_REGISTRY_IMAGE=datadog/dd-trace-ci
+FROM ${CI_REGISTRY_IMAGE}:alpine AS base
 
 ARG phpVersion
 ENV PHP_INSTALL_DIR_DEBUG_ZTS=${PHP_INSTALL_DIR}/${phpVersion}-debug-zts

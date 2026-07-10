@@ -11,6 +11,8 @@ if [[ -z "${MAKE_JOBS:-}" || "${MAKE_JOBS}" == "0" ]]; then
   MAKE_JOBS="$(nproc)"
 fi
 
+export MAKEFLAGS="-j$MAKE_JOBS"
+
 XDEBUG_VERSIONS=(-3.1.2)
 if [[ $PHP_VERSION_ID -le 70 ]]; then
   XDEBUG_VERSIONS=(-2.7.2)

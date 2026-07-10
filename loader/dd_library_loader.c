@@ -40,6 +40,8 @@ static void *libdatadog_php_handle = NULL;
 static unsigned int php_api_no = 0;
 static const char *runtime_version = "unknown";
 static bool injection_forced = false;
+static bool ddtrace_disabled_by_incompatible_runtime = false;
+static char ddtrace_disabled_result_reason[384] = {0};
 
 static bool already_done = false;
 
@@ -72,6 +74,19 @@ PHP_INI_END()
 
 
 static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, const char *error, const char *format, ...);
+
+static void ddloader_set_ddtrace_disabled_by_incompatible_runtime(const char *format, ...) {
+    if (ddtrace_disabled_by_incompatible_runtime) {
+        return;
+    }
+
+    ddtrace_disabled_by_incompatible_runtime = true;
+
+    va_list va;
+    va_start(va, format);
+    vsnprintf(ddtrace_disabled_result_reason, sizeof(ddtrace_disabled_result_reason), format, va);
+    va_end(va);
+}
 
 static char *ddtrace_pre_load_hook(injected_ext *config) {
     // Load libdatadog_php.so, on which ddtrace.so implicitly depends. Implicit
@@ -225,8 +240,6 @@ static void ddtrace_pre_minit_hook(injected_ext *config, zend_module_entry *modu
     }
 
     // Load, but disable the tracer if runtime configuration is not safe for auto-injection
-    bool disable_tracer = false;
-
     char *incompatible_exts[] = {"Xdebug", "the ionCube PHP Loader", "ionCube Loader", "the ionCube PHP Loader + ionCube24", "newrelic", "blackfire", "pcov"};
     for (size_t i = 0; i < sizeof(incompatible_exts) / sizeof(incompatible_exts[0]); ++i) {
         if (ddloader_is_ext_loaded(incompatible_exts[i])) {
@@ -234,7 +247,10 @@ static void ddtrace_pre_minit_hook(injected_ext *config, zend_module_entry *modu
                 LOG(config, WARN, "Potentially incompatible extension detected: %s. Ignoring as DD_INJECT_FORCE is enabled", incompatible_exts[i]);
             } else {
                 LOG(config, WARN, "Potentially incompatible extension detected: %s. ddtrace will be disabled unless the environment DD_INJECT_FORCE is set to '1', 'true', 'yes' or 'on'", incompatible_exts[i]);
-                disable_tracer = true;
+                ddloader_set_ddtrace_disabled_by_incompatible_runtime(
+                    "The PHP tracer was disabled because potentially incompatible extension '%s' is loaded. Set DD_INJECT_FORCE to force tracing.",
+                    incompatible_exts[i]
+                );
             }
         }
     }
@@ -244,11 +260,13 @@ static void ddtrace_pre_minit_hook(injected_ext *config, zend_module_entry *modu
             LOG(config, WARN, "OPcache JIT is enabled and may cause instability. Ignoring as DD_INJECT_FORCE is enabled");
         } else {
             LOG(config, WARN, "OPcache JIT is enabled and may cause instability. ddtrace will be disabled unless the environment DD_INJECT_FORCE is set to '1', 'true', 'yes' or 'on'");
-            disable_tracer = true;
+            ddloader_set_ddtrace_disabled_by_incompatible_runtime(
+                "The PHP tracer was disabled because OPcache JIT is enabled. Set DD_INJECT_FORCE to force tracing."
+            );
         }
     }
 
-    if (disable_tracer) {
+    if (ddtrace_disabled_by_incompatible_runtime) {
         ddloader_ini_set_configuration(config, ZEND_STRL("ddtrace.disable"), ZEND_STRL("1"));
     }
 
@@ -728,6 +746,8 @@ static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
     zend_result ret = module->module_startup_func(INIT_FUNC_ARGS_PASSTHRU);
     if (ret == FAILURE) {
         TELEMETRY(REASON_ERROR, config, "error_minit", "'%s' MINIT function failed", config->ext_name);
+    } else if (strcmp(config->ext_name, "ddtrace") == 0 && ddtrace_disabled_by_incompatible_runtime) {
+        TELEMETRY(REASON_INCOMPATIBLE_RUNTIME, config, NULL, "%s", ddtrace_disabled_result_reason)
     } else {
         TELEMETRY(REASON_COMPLETE, config, NULL, "Application instrumentation bootstrapping complete ('%s')", config->ext_name)
     }
@@ -1028,6 +1048,8 @@ static void ddloader_zend_extension_shutdown(zend_extension *ext) {
     }
 
     injection_forced = false;
+    ddtrace_disabled_by_incompatible_runtime = false;
+    *ddtrace_disabled_result_reason = 0;
     already_done = false;
 }
 
