@@ -44,7 +44,7 @@ impl ExceptionProfilingStats {
         let mut stats = ExceptionProfilingStats {
             next_sample: 0,
             poisson,
-            rng: rand::thread_rng(),
+            rng: rand::rng(),
         };
         stats.next_sampling_interval();
         stats

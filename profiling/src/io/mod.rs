@@ -574,7 +574,7 @@ impl IOProfilingStats {
         let mut stats = IOProfilingStats {
             next_sample: 0,
             poisson,
-            rng: rand::thread_rng(),
+            rng: rand::rng(),
         };
         stats.next_sampling_interval();
         stats
