@@ -1,13 +1,14 @@
 cmake_minimum_required(VERSION 3.14)
 # Called at build time via cmake -P with HELPER_RUST_DIR and STAMP_FILE
-# defined on the command line. Touches STAMP_FILE only when at least one Rust
-# source file (*.rs, Cargo.toml, Cargo.lock) is newer than the stamp, so that
-# cargo is not re-run on every build when nothing has changed.
+# defined on the command line. Touches STAMP_FILE only when at least one helper
+# input is newer than the stamp, so that cargo is not re-run on every build when
+# nothing has changed.
 set(_LIBDDWAF_RUST_DIR "${HELPER_RUST_DIR}/../third_party/libddwaf-rust")
 file(GLOB_RECURSE _sources
     "${HELPER_RUST_DIR}/*.rs"
     "${HELPER_RUST_DIR}/Cargo.toml"
     "${HELPER_RUST_DIR}/Cargo.lock"
+    "${HELPER_RUST_DIR}/../recommended.json"
     "${_LIBDDWAF_RUST_DIR}/*.rs"
     "${_LIBDDWAF_RUST_DIR}/Cargo.toml"
     "${_LIBDDWAF_RUST_DIR}/Cargo.lock"
