@@ -1354,7 +1354,6 @@ name = "datadog-php-profiling"
 version = "0.0.0"
 dependencies = [
  "ahash",
- "allocator-api2",
  "anyhow",
  "bindgen",
  "cc",
