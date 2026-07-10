@@ -1353,7 +1353,6 @@ dependencies = [
 name = "datadog-php-profiling"
 version = "0.0.0"
 dependencies = [
- "ahash",
  "anyhow",
  "bindgen",
  "cc",
