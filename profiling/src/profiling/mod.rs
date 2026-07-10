@@ -42,7 +42,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::hash::{BuildHasherDefault, Hash};
 use std::num::NonZeroI64;
-use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Barrier, OnceLock};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -275,21 +275,6 @@ pub(crate) struct LiveHeapSample {
 /// Maximum number of allocations to track for live heap profiling.
 /// This bounds memory usage. When full, new allocations are not tracked.
 pub(crate) const LIVE_HEAP_TRACKER_MAX_SIZE: usize = 4096;
-
-pub struct Globals {
-    pub interrupt_count: AtomicU32,
-    pub last_interrupt: SystemTime,
-    // todo: current_profile
-}
-
-impl Default for Globals {
-    fn default() -> Self {
-        Self {
-            interrupt_count: AtomicU32::new(0),
-            last_interrupt: SystemTime::now(),
-        }
-    }
-}
 
 pub struct Profiler {
     fork_barrier: Arc<Barrier>,
@@ -984,15 +969,6 @@ impl Profiler {
             self.live_heap_tracker_count.fetch_sub(1, Ordering::Relaxed);
         }
         result
-    }
-
-    pub fn send_sample(
-        &self,
-        message: SampleMessage,
-    ) -> Result<(), Box<TrySendError<ProfilerMessage>>> {
-        self.message_sender
-            .try_send(ProfilerMessage::Sample(message))
-            .map_err(Box::new)
     }
 
     pub fn send_local_root_span_resource(

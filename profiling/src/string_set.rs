@@ -68,13 +68,6 @@ impl StringSet {
         Self { arena, strings }
     }
 
-    /// Returns the number of strings currently held in the string set.
-    #[inline]
-    #[allow(clippy::len_without_is_empty, unused)]
-    pub fn len(&self) -> usize {
-        self.strings.len()
-    }
-
     /// Adds the string to the string set if it isn't present already, and
     /// returns a reference to the newly inserted string.
     ///
