@@ -25,7 +25,7 @@ http = { version = "1.4" }
 libdd-alloc = { path = "../libdatadog/libdd-alloc" }
 libdd-profiling = { path = "../libdatadog/libdd-profiling" }
 libdd-common = {  path = "../libdatadog/libdd-common" }
-libdd-library-config = { path = "../libdatadog/libdd-library-config" }
+libdd-library-config = { path = "../libdatadog/libdd-library-config", default-features = false, features = ["process-context-reader"] }
 libdd-library-config-ffi = { path = "../libdatadog/libdd-library-config-ffi" }
 env_logger = { version = "0.11", default-features = false }
 libc = "0.2"

@@ -24,8 +24,9 @@ libdd-tinybytes = { path = "../libdatadog/libdd-tinybytes" }
 libdd-trace-utils = { path = "../libdatadog/libdd-trace-utils" }
 libdd-trace-stats = { path = "../libdatadog/libdd-trace-stats" }
 libdd-trace-protobuf = { path = "../libdatadog/libdd-trace-protobuf" }
+libdd-crashtracker = { path = "../libdatadog/libdd-crashtracker" }
 libdd-crashtracker-ffi = { path = "../libdatadog/libdd-crashtracker-ffi", default-features = false, features = ["collector"] }
-libdd-library-config = { path = "../libdatadog/libdd-library-config", features = ["otel-thread-ctx"] }
+libdd-library-config = { path = "../libdatadog/libdd-library-config", default-features = false, features = ["otel-thread-ctx"] }
 libdd-library-config-ffi = { path = "../libdatadog/libdd-library-config-ffi", default-features = false }
 spawn_worker = { path = "../libdatadog/spawn_worker" }
 anyhow = { version = "1.0" }
