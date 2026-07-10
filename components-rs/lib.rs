@@ -34,24 +34,10 @@ use libdd_common::connector::uds::socket_path_to_uri;
 #[cfg(unix)]
 use std::path::Path;
 
-#[cfg(target_os = "linux")]
-use libdd_library_config::otel_process_ctx::{self, ProcessContextHandle};
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+use libdd_library_config::otel_process_ctx;
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
 use libdd_library_config::tracer_metadata::{ThreadLocalMetadata, TracerMetadata};
-#[cfg(target_os = "linux")]
-use std::sync::Mutex;
-
-/// Process-wide owner of the published OTel process context. Holding the handle keeps the mapping
-/// alive for the process lifetime; the mapping base/length are cached per-thread in the `datadog`
-/// module globals for readers (see [`datadog_otel_process_context_mapping`]). libdatadog no longer
-/// keeps this state itself — the runtime owns "where the mapping is" and passes it back to
-/// [`otel_process_ctx::read`].
-// NOTE: `Option` is fully qualified because this crate glob-imports `libdd_common_ffi::*`, which
-// shadows the prelude `Option` type (its `Some`/`None` variants are not glob-imported, so those
-// still resolve to the prelude).
-#[cfg(target_os = "linux")]
-static OTEL_PROCESS_CTX_HANDLE: Mutex<std::option::Option<ProcessContextHandle>> =
-    Mutex::new(None);
 
 #[no_mangle]
 #[allow(non_upper_case_globals)]
@@ -112,7 +98,7 @@ pub extern "C" fn datadog_format_runtime_id(buf: &mut [u8; 36]) {
     unsafe { datadog_runtime_id.as_hyphenated().encode_lower(buf) };
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
 #[no_mangle]
 pub extern "C" fn datadog_publish_otel_process_context(hostname: CharSlice<'_>) -> bool {
     let runtime_id = unsafe {
@@ -141,20 +127,9 @@ pub extern "C" fn datadog_publish_otel_process_context(hostname: CharSlice<'_>) 
 
     let context = metadata.to_otel_process_ctx();
 
-    // Publish (first call) or update (subsequent calls / after fork) and retain the owning handle
-    // at process scope so the mapping outlives requests and threads. `update` transparently
-    // republishes into a fresh mapping if it detects a fork.
-    let mut guard = OTEL_PROCESS_CTX_HANDLE
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-    let result = match guard.as_mut() {
-        Some(handle) => handle.update(&context),
-        None => otel_process_ctx::publish(&context).map(|handle| {
-            *guard = Some(handle);
-        }),
-    };
-
-    match result {
+    // libdatadog owns the process-wide writer and transparently updates an existing publication or
+    // creates a fresh platform-specific publication after a fork.
+    match otel_process_ctx::publish(&context) {
         Ok(()) => true,
         Err(error) => {
             tracing::debug!("failed to publish OTel process context: {error}");
@@ -163,7 +138,7 @@ pub extern "C" fn datadog_publish_otel_process_context(hostname: CharSlice<'_>) 
     }
 }
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
 #[no_mangle]
 pub extern "C" fn datadog_publish_otel_process_context(_hostname: CharSlice<'_>) -> bool {
     false

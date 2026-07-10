@@ -36,7 +36,7 @@ elseif(APPLE)
 set(EXPORTS_FILE "${CMAKE_BINARY_DIR}/datadog_exports.sym")
 add_custom_target(ddtrace_exports
     # otel_thread_ctx_v1 is a Linux-only TLS symbol.
-    COMMAND bash -c "grep -v ^otel_thread_ctx_v1$ '${CMAKE_SOURCE_DIR}'/../datadog.sym | sed 's/^/_/' > '${EXPORTS_FILE}'"
+    COMMAND bash -c "{ grep -v ^otel_thread_ctx_v1$ '${CMAKE_SOURCE_DIR}'/../datadog.sym | sed 's/^/_/'; echo _otel_process_ctx_v2; } > '${EXPORTS_FILE}'"
     BYPRODUCTS ${EXPORTS_FILE}
     DEPENDS ${CMAKE_SOURCE_DIR}/../datadog.sym
     VERBATIM

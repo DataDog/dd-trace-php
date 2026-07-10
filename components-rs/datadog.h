@@ -41,11 +41,11 @@ void datadog_generate_session_id(void);
 
 void datadog_format_runtime_id(uint8_t (*buf)[36]);
 
-#if defined(__linux__)
+#if (defined(__linux__) || defined(__APPLE__) || defined(_WIN32))
 bool datadog_publish_otel_process_context(ddog_CharSlice hostname);
 #endif
 
-#if !defined(__linux__)
+#if !(defined(__linux__) || defined(__APPLE__) || defined(_WIN32))
 bool datadog_publish_otel_process_context(ddog_CharSlice _hostname);
 #endif
 

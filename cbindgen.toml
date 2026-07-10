@@ -13,6 +13,8 @@ includes = ["common.h", "telemetry.h", "sidecar.h"]
 
 [defines]
 "target_os = linux" = "__linux__"
+"target_os = macos" = "__APPLE__"
+"target_os = windows" = "_WIN32"
 
 [export]
 prefix = "ddog_"
