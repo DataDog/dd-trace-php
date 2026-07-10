@@ -284,6 +284,12 @@ ddog_MaybeError ddog_send_debugger_diagnostics(const struct ddog_RemoteConfigSta
                                                const struct ddog_Probe *probe,
                                                uint64_t timestamp);
 
+#if (defined(__linux__) || defined(__APPLE__))
+struct ddog_VoidResult datadog_crasht_init_without_receiver(struct ddog_crasht_Config config,
+                                                            ddog_crasht_Metadata metadata,
+                                                            uint32_t sidecar_master_pid);
+#endif
+
 void ddog_sidecar_enable_appsec(ddog_CharSlice shared_lib_path,
                                 ddog_CharSlice socket_file_path,
                                 ddog_CharSlice lock_file_path,
