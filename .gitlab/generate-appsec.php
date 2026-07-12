@@ -260,12 +260,6 @@ stages:
       chmod +x codecov
       mv codecov /usr/local/bin/codecov
     - |
-      echo "Installing vault for codecov token"
-      curl -o vault.zip https://releases.hashicorp.com/vault/1.20.0/vault_1.20.0_linux_amd64.zip
-      unzip vault.zip
-      mv vault /usr/local/bin/vault
-      rm vault.zip
-    - |
       cd appsec/tests/integration
       CACHE_PATH=build/php-appsec-volume-caches-${ARCH}.tar.gz
       if [ -f "$CACHE_PATH" ]; then
@@ -282,7 +276,7 @@ stages:
     - |
       echo "Uploading helper-rust unit test coverage to codecov"
       cd "$CI_PROJECT_DIR"
-      if ! VAULT_OUTPUT=$(vault kv get --format=json kv/k8s/gitlab-runner/dd-trace-php/codecov); then
+      if ! VAULT_OUTPUT=$(curl -sf -H "X-Vault-Token:$VAULT_TOKEN" "$VAULT_ADDR/v1/kv/data/k8s/gitlab-runner/dd-trace-php/codecov"); then
         echo "ERROR: vault unreachable while fetching CODECOV_TOKEN; exiting 75 so GitLab auto-retries (see default retry.exit_codes in generate-common.php)"
         exit 75
       fi
@@ -335,12 +329,6 @@ stages:
       chmod +x codecov
       mv codecov /usr/local/bin/codecov
     - |
-      echo "Installing vault for codecov token"
-      curl -o vault.zip https://releases.hashicorp.com/vault/1.20.0/vault_1.20.0_linux_amd64.zip
-      unzip vault.zip
-      mv vault /usr/local/bin/vault
-      rm vault.zip
-    - |
       cd appsec/tests/integration
       CACHE_PATH=build/php-appsec-volume-caches-${ARCH}.tar.gz
       if [ -f "$CACHE_PATH" ]; then
@@ -361,7 +349,7 @@ stages:
     - |
       echo "Uploading helper-rust integration test coverage to codecov"
       cd "$CI_PROJECT_DIR"
-      if ! VAULT_OUTPUT=$(vault kv get --format=json kv/k8s/gitlab-runner/dd-trace-php/codecov); then
+      if ! VAULT_OUTPUT=$(curl -sf -H "X-Vault-Token:$VAULT_TOKEN" "$VAULT_ADDR/v1/kv/data/k8s/gitlab-runner/dd-trace-php/codecov"); then
         echo "ERROR: vault unreachable while fetching CODECOV_TOKEN; exiting 75 so GitLab auto-retries (see default retry.exit_codes in generate-common.php)"
         exit 75
       fi
@@ -401,17 +389,12 @@ stages:
   script:
     - |
       echo "Installing dependencies"
-      cd /tmp
-      curl -o vault.zip https://releases.hashicorp.com/vault/1.20.0/vault_1.20.0_linux_amd64.zip
-      unzip vault.zip
-      sudo cp -v vault /usr/local/bin
-      cd -
       sudo sed -i 's|http://deb.debian.org/debian|http://archive.debian.org/debian|g; s|http://security.debian.org/debian-security|http://archive.debian.org/debian-security|g' /etc/apt/sources.list
       sudo apt-get update && sudo apt-get install -y jq gcovr llvm-20 clang-20
 
       echo "Installing codecov"
 
-      CODECOV_TOKEN=$(vault kv get --format=json kv/k8s/gitlab-runner/dd-trace-php/codecov | jq -r .data.data.token)
+      CODECOV_TOKEN=$(curl -sf -H "X-Vault-Token:$VAULT_TOKEN" "$VAULT_ADDR/v1/kv/data/k8s/gitlab-runner/dd-trace-php/codecov" | jq -r .data.data.token)
       CODECOV_VERSION=0.6.1
       CODECOV_ARCH=linux
       curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&options=mr&search=0x27034E7FDB850E0BBC2C62FF806BB28AED779869" | gpg --no-default-keyring --keyring trustedkeys.gpg --import
@@ -461,7 +444,7 @@ stages:
       echo "Uploading coverage to Datadog"
       cd "$CI_PROJECT_DIR"
 
-      DATADOG_API_KEY=$(vault kv get --format=json kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key | jq -r .data.data.key)
+      DATADOG_API_KEY=$(curl -sf -H "X-Vault-Token:$VAULT_TOKEN" "$VAULT_ADDR/v1/kv/data/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key" | jq -r .data.data.key)
       export DATADOG_API_KEY
       export DD_SITE="datadoghq.com"
 
