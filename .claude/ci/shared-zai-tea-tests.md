@@ -7,13 +7,13 @@ child pipeline; all job definitions and matrices are inline.
 
 | CI Job | Image | What it does |
 |--------|-------|-------------|
-| `Build & Test Tea` | `dd-trace-ci:php-{ver}_bookworm-6` | Builds the TEA (Test Execution Abstraction) library from `tea/`, runs its ctest suite, installs artifacts for downstream jobs |
-| `Zend Abstract Interface Tests: [{ver}, {variant}]` | `dd-trace-ci:php-{ver}_bookworm-6` | Builds and tests the ZAI library (`zend_abstract_interface/`) against a specific PHP variant |
-| `Extension Tea Tests: [{ver}, {variant}]` | `dd-trace-ci:php-{ver}_bookworm-6` | Builds ddtrace.so via `make install`, then builds and runs the extension-level TEA tests in `tests/tea/` |
+| `Build & Test Tea` | `dd-trace-ci:php-{ver}_bookworm-9` | Builds the TEA (Test Execution Abstraction) library from `tea/`, runs its ctest suite, installs artifacts for downstream jobs |
+| `Zend Abstract Interface Tests: [{ver}, {variant}]` | `dd-trace-ci:php-{ver}_bookworm-9` | Builds and tests the ZAI library (`zend_abstract_interface/`) against a specific PHP variant |
+| `Extension Tea Tests: [{ver}, {variant}]` | `dd-trace-ci:php-{ver}_bookworm-9` | Builds ddtrace.so via `make install`, then builds and runs the extension-level TEA tests in `tests/tea/` |
 | `ZAI Shared Tests: [{ver}]` | `dd-trace-ci:php-{ver}-shared-ext` | Runs ZAI tests with shared extensions (curl, json) on a special image; only PHP 7.4 and 8.0 |
-| `C components ASAN` | `dd-trace-ci:centos-7`, `dd-trace-ci:php-compile-extension-alpine`, `dd-trace-ci:bookworm-6` | Builds C components (`components/`) with ASAN (on Debian) or plain Debug (on CentOS/Alpine), runs ctest |
-| `C components UBSAN` | `dd-trace-ci:bookworm-6` | Builds C components with UBSAN, runs ctest with `--repeat until-fail:10` |
-| `Configuration Consistency` | `dd-trace-ci:php-{latest}_bookworm-6` | Runs `tooling/generate-supported-configurations.sh` and verifies `metadata/supported-configurations.json` is up-to-date |
+| `C components ASAN` | `dd-trace-ci:centos-7`, `dd-trace-ci:php-compile-extension-alpine`, `dd-trace-ci:bookworm-9` | Builds C components (`components/`) with ASAN (on Debian) or plain Debug (on CentOS/Alpine), runs ctest |
+| `C components UBSAN` | `dd-trace-ci:bookworm-9` | Builds C components with UBSAN, runs ctest with `--repeat until-fail:10` |
+| `Configuration Consistency` | `dd-trace-ci:php-{latest}_bookworm-9` | Runs `tooling/generate-supported-configurations.sh` and verifies `metadata/supported-configurations.json` is up-to-date |
 
 Runner: `arch:amd64` (all jobs in this pipeline are amd64-only)
 
@@ -26,9 +26,9 @@ Matrix:
 - **Extension Tea Tests**: PHP 7.0+ x {debug, debug-zts-asan
   (7.4+), nts, zts}. Pre-7.4 skips `debug-zts-asan`.
 - **ZAI Shared Tests**: PHP 7.4, 8.0 only, `nts` variant only.
-- **C components ASAN**: three images (centos-7, alpine, bookworm-6);
+- **C components ASAN**: three images (centos-7, alpine, bookworm-9);
   ASAN toolchain only on Debian (bookworm).
-- **C components UBSAN**: bookworm-6 only.
+- **C components UBSAN**: bookworm-9 only.
 - **Configuration Consistency**: latest PHP version, single run.
 
 ## What It Tests
@@ -68,7 +68,7 @@ script produces from current source. Fails if they diverge.
 
 ```bash
 .claude/ci/dockerh --cache tea-8.3-debug --overlayfs --php debug \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-9 -- bash -c '
 set -e
 mkdir -p tmp/build-tea-debug
 cd tmp/build-tea-debug
@@ -91,7 +91,7 @@ For ASAN, add `-DCMAKE_TOOLCHAIN_FILE=../../cmake/asan.cmake` and use
 
 ```bash
 .claude/ci/dockerh --cache tea-8.3-debug --overlayfs --php debug \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-9 -- bash -c '
 cd tmp/build-tea-debug
 make test ARGS="--output-on-failure -R tea_sapi"
 '
@@ -115,7 +115,7 @@ Requires TEA artifacts from the previous step to exist at
 
 ```bash
 .claude/ci/dockerh --cache tea-8.3-debug --overlayfs --php debug \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-9 -- bash -c '
 set -e
 mkdir -p tmp/build_zai && cd tmp/build_zai
 CMAKE_PREFIX_PATH=/opt/catch2 Tea_ROOT=../../tmp/tea/debug \
@@ -136,7 +136,7 @@ use `--php debug-zts-asan`, and a separate cache name.
 
 ```bash
 .claude/ci/dockerh --cache tea-8.3-debug --overlayfs --php debug \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-9 -- bash -c '
 cd tmp/build_zai
 ctest --output-on-failure -R config
 '
@@ -150,7 +150,7 @@ Requires TEA artifacts at `tmp/tea/{variant}/`.
 
 ```bash
 .claude/ci/dockerh --cache ext-tea-8.3-debug --overlayfs --php debug \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-9 -- bash -c '
 set -e
 make install
 mkdir -p tmp/build_ext-tea && cd tmp/build_ext-tea
@@ -170,7 +170,7 @@ source tree (see [index.md](index.md) for details).
 
 ```bash
 .claude/ci/dockerh --cache ext-tea-8.3-debug --overlayfs --php debug \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-9 -- bash -c '
 cd tmp/build_ext-tea
 ctest --output-on-failure -R "<test_name>"
 '
@@ -182,7 +182,7 @@ ctest --output-on-failure -R "<test_name>"
 
 ```bash
 .claude/ci/dockerh --cache components-asan \
-  datadog/dd-trace-ci:bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:bookworm-9 -- bash -c '
 set -e
 mkdir -p tmp/build_php_components_asan && cd tmp/build_php_components_asan
 CMAKE_PREFIX_PATH=/opt/catch2 cmake \
@@ -238,7 +238,7 @@ local reproduction, but if needed:
 ```bash
 .claude/ci/dockerh --cache config-consistency --overlayfs \
   --php nts \
-  datadog/dd-trace-ci:php-8.5_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.5_bookworm-9 -- bash -c '
 bash tooling/generate-supported-configurations.sh
 '
 ```
@@ -268,7 +268,7 @@ running the script locally and committing the result.
   tested. This image is not easily reproducible locally since the
   shared-ext images are custom CI builds.
 
-- **C components tests do not require PHP.** The `bookworm-6` base
+- **C components tests do not require PHP.** The `bookworm-9` base
   image (no PHP version suffix) is sufficient. The centos-7 and alpine
   images need the `PKG_CONFIG_PATH` / `CMAKE_PREFIX_PATH` env vars
   for libuv and Catch2 respectively.

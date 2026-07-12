@@ -28,7 +28,7 @@ in the `verify` stage of the **package-trigger** child pipeline and use native r
 | `Loader test on {arch} libc: [{ver}, {flavour}]` | `dd-trace-ci:php-{ver}_{suffix}` | Extracts SSI loader package, runs `loader/bin/test.sh` phpt tests; optionally runs `check_glibc_version.sh` |
 | `Loader test on {arch} alpine` | `alpine:3.20` | Installs PHP 8.3 from apk, extracts SSI loader musl package, runs `loader/bin/test.sh` |
 | `min install tests` | `dd-trace-ci:php-8.0-shared-ext` | Installs `.deb` package via `dpkg`, runs `make run_tests` + `make test_c` against the installed extension |
-| `pecl tests: [{ver}]` | `dd-trace-ci:php-{ver}_bookworm-6` | Installs ddtrace from PECL `.tgz`, runs `pecl run-tests` against the installed extension |
+| `pecl tests: [{ver}]` | `dd-trace-ci:php-{ver}_bookworm-9` | Installs ddtrace from PECL `.tgz`, runs `pecl run-tests` against the installed extension |
 | `test early PHP 8.1` | `ubuntu:jammy` | Installs stock Ubuntu 22.04 PHP 8.1 (no sury), installs ddtrace via `datadog-setup.php`, runs `pecl run-tests` |
 | `x-profiling phpt tests on Alpine: [{ver}]` | `dd-trace-ci:php-compile-extension-alpine-{ver}` | Installs full package on Alpine via `datadog-setup.php --enable-profiling`, runs profiling phpt tests |
 
@@ -274,7 +274,7 @@ Runs as non-root (no `--root`).
 
 ```bash
 .claude/ci/dockerh --cache pecl-8.3 --overlayfs --php nts \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- \
+  datadog/dd-trace-ci:php-8.3_bookworm-9 -- \
   bash -c '
     cp /project/dd-trace-php/pecl/datadog_trace-*.tgz ./datadog_trace.tgz
     pecl install datadog_trace.tgz
@@ -293,7 +293,7 @@ first.
 
 ```bash
 .claude/ci/dockerh --cache loader-8.3 --overlayfs --php nts \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 \
+  datadog/dd-trace-ci:php-8.3_bookworm-9 \
   -v /path/to/packages:/artifacts:ro \
   -- bash -c '
     export XDEBUG_SO_NAME=xdebug-3.3.2.so

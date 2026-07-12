@@ -77,7 +77,7 @@ Used before running tracer unit tests, .phpt tests, etc.:
 
 ```bash
 .claude/ci/dockerh --cache tracer-8.3-debug --overlayfs --php debug \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-9 -- bash -c '
 set -e
 git submodule update --init libdatadog
 make -j$(nproc) all
@@ -123,7 +123,7 @@ Reproduces the `compile extension: debug` CI job exactly:
 
 ```bash
 .claude/ci/dockerh --cache tracer-8.3-debug --overlayfs --root \
-    datadog/dd-trace-ci:php-8.3_bookworm-6 \
+    datadog/dd-trace-ci:php-8.3_bookworm-9 \
     -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
     -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
     -e SHARED=1 \
@@ -141,7 +141,7 @@ enables `-fsanitize=address` in the Rust sidecar.
 ```bash
 .claude/ci/dockerh --cache tracer-8.3-asan --overlayfs \
   --php debug-zts-asan \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-9 -- bash -c '
 set -e
 export COMPILE_ASAN=1
 make -j$(nproc) all
@@ -232,7 +232,7 @@ git submodule update --init \
 
 ```bash
 dockerh --cache profiler-8.3-nts --php nts \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-9 -- bash -c '
 export CARGO_TARGET_DIR=/project/dd-trace-php/target
 cd profiling && cargo rustc --features=trigger_time_sample \
   --profile profiler-release --crate-type=cdylib

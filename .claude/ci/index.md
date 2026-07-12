@@ -122,7 +122,7 @@ in CI scripts are mirrors of `datadog/dd-trace-ci:TAG` on Docker Hub. Pull them
 directly without authentication — no registry login or image export/import needed:
 
 ```bash
-docker pull datadog/dd-trace-ci:php-8.3_bookworm-6
+docker pull datadog/dd-trace-ci:php-8.3_bookworm-9
 ```
 
 (The exception is registry.ddbuild.io/images/mirror/b1o7r7e0/nginx_musl_toolchain,
@@ -243,7 +243,7 @@ this file instead of duplicating build commands.
 ### Group A — Native Linux unit / extension / helper tests
 
 Runner: `arch:amd64` + `arch:arm64`
-Image: `datadog/dd-trace-ci:php-{version}_bookworm-6` or `datadog/dd-trace-ci:bookworm-6`
+Image: `datadog/dd-trace-ci:php-{version}_bookworm-9` or `datadog/dd-trace-ci:bookworm-9`
 No Docker daemon — tests run directly in the container.
 
 → **[appsec-native-tests.md](appsec-native-tests.md)**
@@ -263,7 +263,7 @@ Covers: `Unit tests`, `PHP Language Tests`, `test_c`, `ASAN test_c`, `Opcache te
 ### Group B — Native Linux web framework tests
 
 Runner: `arch:amd64`
-Image: `datadog/dd-trace-ci:php-{version}_bookworm-6`
+Image: `datadog/dd-trace-ci:php-{version}_bookworm-9`
 GitLab service containers: test-agent, httpbin, request-replayer
 
 → **[tracer-web-tests.md](tracer-web-tests.md)**
@@ -278,7 +278,7 @@ Covers: `test_web_laravel_*`, `test_web_symfony_*`, `test_web_wordpress_*`,
 ### Group C — Native Linux service integration tests
 
 Runner: `arch:amd64`
-Image: `datadog/dd-trace-ci:php-{version}_bookworm-6`
+Image: `datadog/dd-trace-ci:php-{version}_bookworm-9`
 GitLab service containers: MySQL, Redis, Kafka, Elasticsearch, MongoDB, etc.
 
 → **[tracer-integration-tests.md](tracer-integration-tests.md)**
@@ -297,7 +297,7 @@ Covers: `test_integrations_amqp*`, `test_integrations_curl`, `test_integrations_
 ### Group D — Native Linux compile / artifact build
 
 Runner: `arch:amd64` + `arch:arm64`
-Image: `datadog/dd-trace-ci:php-{version}_bookworm-6`
+Image: `datadog/dd-trace-ci:php-{version}_bookworm-9`
 Produces `.so` artifacts consumed by Groups B, C, H.
 
 → **[compile-artifacts.md](compile-artifacts.md)**

@@ -15,7 +15,7 @@ If you need to run this step outside a build script and your host lacks `binutil
 
 ```bash
 .claude/ci/dockerh --cache tracer-8.3-debug \
-    datadog/dd-trace-ci:php-8.3_bookworm-6 -- \
+    datadog/dd-trace-ci:php-8.3_bookworm-9 -- \
     objcopy --compress-debug-sections /project/dd-trace-php/tmp/build_extension/modules/ddtrace.so
 ```
 
@@ -43,8 +43,8 @@ If you need to run this step outside a build script and your host lacks `binutil
 
 | CI Job | Image | What it does |
 |--------|-------|--------------|
-| `compile extension: debug` | `dd-trace-ci:php-{ver}_bookworm-6` | Runs `append-build-id.sh` to stamp VERSION; compiles Rust (`compile_rust.sh`, debug profile) and C (`make -j static`) in parallel; `make static` also builds `php_sidecar_mockgen` (a secondary Rust build generating `mock_php.c` stubs); rewrites ldflags via `sed -i`; links `ddtrace.a` + `libdatadog_php.a` → `ddtrace.so` with `-soname ddtrace.so`. Sets `SHARED=1` (adds `--cfg php_shared_build` to `RUSTFLAGS`). |
-| `compile extension: debug-zts-asan` | `dd-trace-ci:php-{ver}_bookworm-6` | Same as `compile extension: debug` (inherits `SHARED=1` via `extends:`) but with `WITH_ASAN=1` (sets `ASAN=1`+`COMPILE_ASAN=1`) and `SWITCH_PHP_VERSION=debug-zts-asan`; produces `ddtrace.so` instrumented with AddressSanitizer for ASAN test jobs |
+| `compile extension: debug` | `dd-trace-ci:php-{ver}_bookworm-9` | Runs `append-build-id.sh` to stamp VERSION; compiles Rust (`compile_rust.sh`, debug profile) and C (`make -j static`) in parallel; `make static` also builds `php_sidecar_mockgen` (a secondary Rust build generating `mock_php.c` stubs); rewrites ldflags via `sed -i`; links `ddtrace.a` + `libdatadog_php.a` → `ddtrace.so` with `-soname ddtrace.so`. Sets `SHARED=1` (adds `--cfg php_shared_build` to `RUSTFLAGS`). |
+| `compile extension: debug-zts-asan` | `dd-trace-ci:php-{ver}_bookworm-9` | Same as `compile extension: debug` (inherits `SHARED=1` via `extends:`) but with `WITH_ASAN=1` (sets `ASAN=1`+`COMPILE_ASAN=1`) and `SWITCH_PHP_VERSION=debug-zts-asan`; produces `ddtrace.so` instrumented with AddressSanitizer for ASAN test jobs |
 | `Prepare code` | `php:8.2-cli` | Runs `composer update` + `make generate` to produce `src/bridge/_generated_*.php` |
 
 Runner: `arch:{amd64,arm64}`
@@ -72,15 +72,15 @@ files via `classpreloader`: `_generated_api.php`, `_generated_tracer.php`, and
 | `compile tracing extension: [{ver}, {arch}, {triplet}]` | `dd-trace-ci:php-{ver}_{platform}` | Builds NTS + debug + ZTS static archives (`.a`) and standalone `.so` via `build-tracing.sh` (debug skipped on alpine); outputs `ddtrace-{PHP_API}{suffix}[-debug\|-zts].{a,so}` under `extensions_{arch}/` and `standalone_{arch}/` |
 | `compile tracing sidecar: [{arch}, {triplet}]` | `dd-trace-ci:php-8.1_{platform}` | Builds `libdatadog_php.{a,so}` (FFI bridge library; `datadog-php` crate in `components-rs/`) via `build-sidecar.sh` → `compile_rust.sh` → `cargo build`; profile `tracer-release` (LTO, 1 codegen unit, panic=abort); `RUSTFLAGS=--cfg tokio_unstable --cfg php_shared_build`; `SIDECAR_VERSION` embedded from `VERSION` file |
 | `link tracing extension: [{arch}, {triplet}]` | `dd-trace-ci:php-8.1_{platform}` | Rewrites `-export-symbols` → `-Wl,--retain-symbols-file` in the `.ldflags` file via `sed -i`; links each per-version `.a` in `extensions_$(uname -m)/` against `libdatadog_php_$(uname -m)${suffix}.a` with `-whole-archive` and the rewritten ldflags, setting `-soname ddtrace.so`; all links run in parallel background processes; post-processes each `.so` with `objcopy --compress-debug-sections` |
-| `aggregate tracing extension: [{arch}]` | `dd-trace-ci:php-7.4_bookworm-6` | No-op `ls` that aggregates artifacts from all `compile tracing extension` jobs for one arch into a single artifact set |
-| `compile tracing extension asan: [{ver}, {arch}, {triplet}]` | `dd-trace-ci:php-{ver}_bookworm-6` | Switches to `debug-zts-asan` PHP; builds `ddtrace.so` directly with `RUST_DEBUG_BUILD=1` (Rust debug profile, no `.a` intermediate); copies to `extensions_$(uname -m)/ddtrace-${ABI_NO}-debug-zts.so`; post-processes with `objcopy --compress-debug-sections` |
+| `aggregate tracing extension: [{arch}]` | `dd-trace-ci:php-7.4_bookworm-9` | No-op `ls` that aggregates artifacts from all `compile tracing extension` jobs for one arch into a single artifact set |
+| `compile tracing extension asan: [{ver}, {arch}, {triplet}]` | `dd-trace-ci:php-{ver}_bookworm-9` | Switches to `debug-zts-asan` PHP; builds `ddtrace.so` directly with `RUST_DEBUG_BUILD=1` (Rust debug profile, no `.a` intermediate); copies to `extensions_$(uname -m)/ddtrace-${ABI_NO}-debug-zts.so`; post-processes with `objcopy --compress-debug-sections` |
 | `compile appsec extension: [{ver}, {arch}, {triplet}]` | `dd-trace-ci:php-{ver}_{platform}` | Builds NTS and ZTS appsec extensions sequentially via cmake+make in `appsec/build/` and `appsec/build-zts/`; cmake flags: `-DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_HELPER=OFF -DDD_APPSEC_TESTING=OFF -DDD_APPSEC_EXTENSION_STATIC_LIBSTDCXX=ON`; outputs `appsec_$(uname -m)/ddappsec-$PHP_API${suffix}[-zts].so`; post-processes with `objcopy --compress-debug-sections` |
 | `compile appsec helper` | `registry.ddbuild.io/images/mirror/b1o7r7e0/nginx_musl_toolchain` (original gone) | Builds `libddappsec-helper.so` via cmake+make with musl toolchain (`-DCMAKE_TOOLCHAIN_FILE=/sysroot/$(arch)-none-linux-musl/Toolchain.cmake`); `DD_APPSEC_ENABLE_PATCHELF_LIBC=ON` strips musl libc dependency via patchelf; runs gtest suite (`make ddappsec_helper_test && ./tests/helper/ddappsec_helper_test`); copies `recommended.json` to `appsec_$(uname -m)/` |
 | `compile appsec helper rust` | `dd-appsec-php-ci:nginx-fpm-php-8.5-release-musl` | Builds `libddappsec-helper-rust.so` via `cargo +nightly-$RUST_TARGET` with `--release -Zhost-config -Ztarget-applies-to-host --target $(uname -m)-unknown-linux-musl`; removes musl libc dep with `patchelf --remove-needed`; runs `cargo +nightly-$RUST_TARGET test --release` after build; output in `appsec_$(uname -m)/` |
 | `compile profiler extension: [{ver}, {arch}, {triplet}]` | `dd-trace-ci:php-{ver}_{platform}` | Builds NTS and ZTS profiler extensions via `cargo build --profile profiler-release` in `profiling/`; for ZTS, `touch build.rs` forces the build script to re-run after `switch-php` to pick up ZTS headers; outputs `datadog-profiling[-zts].so` under a prefix dir; on alpine+aarch64 symlinks clang17 over clang20 to work around a bindgen incompatibility |
 | `compile loader: [{host_os}, {arch}]` | `dd-trace-ci:php-8.3_{platform}` (alpine: `php-compile-extension-alpine-8.3`) | Builds `dd_library_loader-$(uname -m)-${HOST_OS}.so` (SSI loader) via `phpize`+`configure`+`make` in `loader/`; on musl installs build deps via `apk add`; embeds `PHP_DD_LIBRARY_LOADER_VERSION` from `VERSION` file in CFLAGS |
 | `compile extension windows: [{ver}]` | `dd-trace-ci:php-{ver}_windows` | Runs a long-lived container via `docker run -d` + `docker exec`; builds NTS then ZTS via `phpize.bat` + `configure.bat --enable-debug-pack` + `nmake`; reuses NTS Rust `target/` for ZTS by moving it; outputs `extensions_x86_64/php_ddtrace-${ABI_NO}[-zts].dll` and `.pdb` debug symbols |
-| `pecl build` | `dd-trace-ci:php-7.4_bookworm-6` | Runs `tooling/bin/pecl-build` via `make build_pecl_package`; regenerates PHP bridge files via `composer -dtooling/generation`; mutates `package.xml` (version, date, file list) and `Cargo.toml` (strips profiling workspace member) in-place; produces `datadog_trace-*.tgz` via `pear package`; requires a clean tree to re-run |
+| `pecl build` | `dd-trace-ci:php-7.4_bookworm-9` | Runs `tooling/bin/pecl-build` via `make build_pecl_package`; regenerates PHP bridge files via `composer -dtooling/generation`; mutates `package.xml` (version, date, file list) and `Cargo.toml` (strips profiling workspace member) in-place; produces `datadog_trace-*.tgz` via `pear package`; requires a clean tree to re-run |
 
 Runner: `arch:{amd64,arm64}` (Linux jobs) or `windows-v2:2019` (Windows)
 Matrix (tracing/appsec extension): PHP 7.0+ x 4 build platforms (x86_64-alpine-linux-musl, aarch64-alpine-linux-musl, x86_64-unknown-linux-gnu, aarch64-unknown-linux-gnu)
@@ -332,7 +332,7 @@ build dependencies.
 ```bash
 # compile extension: debug (tracer pipeline, PHP 8.3)
 .claude/ci/dockerh --cache tracer-8.3-debug --overlayfs --root \
-    datadog/dd-trace-ci:php-8.3_bookworm-6 \
+    datadog/dd-trace-ci:php-8.3_bookworm-9 \
     -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
     -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
     -e SHARED=1 \
@@ -340,7 +340,7 @@ build dependencies.
 
 # compile extension: debug-zts-asan (tracer pipeline, PHP 8.3)
 .claude/ci/dockerh --cache tracer-8.3-debug-zts-asan --overlayfs --root \
-    datadog/dd-trace-ci:php-8.3_bookworm-6 \
+    datadog/dd-trace-ci:php-8.3_bookworm-9 \
     -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
     -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
     -e WITH_ASAN=1 \
@@ -411,7 +411,7 @@ build dependencies.
 
 # pecl build
 .claude/ci/dockerh --cache compile-pecl --overlayfs \
-    datadog/dd-trace-ci:php-7.4_bookworm-6 \
+    datadog/dd-trace-ci:php-7.4_bookworm-9 \
     -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
     -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
     -- make build_pecl_package

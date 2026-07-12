@@ -63,13 +63,13 @@ overlaid `/project/dd-trace-php/target` fixes it.
 
 ```bash
 # NTS example (PHP 8.3)
-dockerh --cache profiler-8.3-nts --php nts datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+dockerh --cache profiler-8.3-nts --php nts datadog/dd-trace-ci:php-8.3_bookworm-9 -- bash -c '
 export CARGO_TARGET_DIR=/project/dd-trace-php/target
 cd profiling && cargo rustc --features=trigger_time_sample --profile profiler-release --crate-type=cdylib
 '
 
 # ZTS example (PHP 8.1) — note --php zts, matching image version, and separate cache name
-dockerh --cache profiler-8.1-zts --php zts datadog/dd-trace-ci:php-8.1_bookworm-6 -- bash -c '
+dockerh --cache profiler-8.1-zts --php zts datadog/dd-trace-ci:php-8.1_bookworm-9 -- bash -c '
 export CARGO_TARGET_DIR=/project/dd-trace-php/target
 cd profiling && cargo rustc --features=trigger_time_sample --profile profiler-release --crate-type=cdylib
 '
@@ -88,7 +88,7 @@ write pprof output there — no extra mounts needed:
 
 ```bash
 dockerh --cache profiler-8.3-nts --php nts \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-9 -- bash -c '
 export CARGO_TARGET_DIR=/project/dd-trace-php/target
 export DD_PROFILING_LOG_LEVEL=warn   # use "trace" only when debugging — trace is verbose and slows execution
 export DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=1
@@ -134,7 +134,7 @@ The pprof files are zstd-compressed protobuf. Use `go tool pprof` (available in 
 dd-trace-ci image) to inspect them. Pass `--user root` so `apt-get install` works:
 
 ```bash
-dockerh --cache profiler-8.3-nts --php nts datadog/dd-trace-ci:php-7.3_bookworm-6 --user root -- bash -c '
+dockerh --cache profiler-8.3-nts --php nts datadog/dd-trace-ci:php-7.3_bookworm-9 --user root -- bash -c '
 apt-get update -qq > /dev/null 2>&1 && apt-get install -y -qq zstd > /dev/null 2>&1
 
 PPROF_DIR=/project/dd-trace-php/tmp/correctness/allocations
@@ -231,7 +231,7 @@ and clang-17, then runs the `.phpt` test suite with `--asan`.
 
 ```bash
 dockerh --cache profiler-asan-8.3-nts --php nts-asan \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 --user root --privileged -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-9 --user root --privileged -- bash -c '
 export CARGO_TARGET_DIR=/project/dd-trace-php/target
 export CC=clang-17
 export CFLAGS="-fsanitize=address -fno-omit-frame-pointer"

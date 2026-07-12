@@ -15,7 +15,7 @@
 
 | CI Job | Image | What it does |
 |--------|-------|-------------|
-| `test_web_laravel_{ver}: [{php}, {sapi}]` | `datadog/dd-trace-ci:php-{php}_bookworm-6` | Laravel integration tests (4.2, 5.7, 5.8, 8.x, 9.x, 10.x, 11.x, latest, octane) |
+| `test_web_laravel_{ver}: [{php}, {sapi}]` | `datadog/dd-trace-ci:php-{php}_bookworm-9` | Laravel integration tests (4.2, 5.7, 5.8, 8.x, 9.x, 10.x, 11.x, latest, octane) |
 | `test_web_symfony_{ver}: [{php}, {sapi}]` | same | Symfony integration tests (2.3--latest) |
 | `test_web_wordpress_{ver}: [{php}, {sapi}]` | same | WordPress integration tests (4.8, 5.5, 5.9, 6.1) |
 | `test_web_drupal_{ver}: [{php}, {sapi}]` | same | Drupal integration tests (8.9, 9.5, 10.1) |
@@ -94,7 +94,7 @@ between the compile and test containers:
 
 ```bash
 .claude/ci/dockerh --cache tracer-web-83 --overlayfs \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 \
+  datadog/dd-trace-ci:php-8.3_bookworm-9 \
   -e CI_COMMIT_TAG=local \
   -e SHARED=1 \
   -- bash -c '
@@ -178,7 +178,7 @@ the toplevel `Makefile`.
 ```bash
 PROJECT=tracer-web-83-laravel-latest
 .claude/ci/dockerh --cache tracer-web-83 --overlayfs --php <variant> \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 \
+  datadog/dd-trace-ci:php-8.3_bookworm-9 \
   --network ${PROJECT}_default \
   -e COMPOSER_MEMORY_LIMIT=-1 \
   -e DD_TRACE_ASSUME_COMPILED=1 \
