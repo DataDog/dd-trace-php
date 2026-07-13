@@ -41,5 +41,5 @@ checks.
 - Version gating is concentrated in ZAI (`hook.c`, `sandbox/php{7,8}`,
   `interceptor/php{7,8}`) — put new version-dependent logic there, not in
   scattered `PHP_VERSION_ID` checks elsewhere.
-- Keep the FFI surface small: don't leak libdatadog structs into C.
-- Regenerate cbindgen headers whenever `lib.rs` changes.
+- Regenerate cbindgen headers whenever `components-rs` or `libdatadog`
+  sources change.
