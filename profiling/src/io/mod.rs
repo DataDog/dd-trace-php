@@ -5,10 +5,10 @@ pub mod got_macho;
 
 use crate::profiling::Profiler;
 use crate::{zend, RefCellExt, REQUEST_LOCALS};
-use ahash::{HashMap, HashMapExt};
 use libc::{c_int, c_void, fstat, stat, S_IFMT, S_IFSOCK};
 use rand::rngs::ThreadRng;
 use rand_distr::{Distribution, Poisson};
+use rustc_hash::FxHashMap;
 use std::cell::RefCell;
 use std::mem::MaybeUninit;
 use std::os::unix::io::RawFd;
@@ -408,19 +408,19 @@ static mut ORIG_CLOSE: unsafe extern "C" fn(i32) -> i32 = libc::close;
 unsafe extern "C" fn observed_close(fd: i32) -> i32 {
     let ret = ORIG_CLOSE(fd);
     let _errno_backup = ErrnoBackup::new();
-    let cache = FD_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    let cache = FD_CACHE.get_or_init(|| Mutex::new(FxHashMap::default()));
     let mut cache = cache.lock().unwrap();
     cache.remove(&fd);
     ret
 }
 
 /// "Is socket"-cache for `read()`/`write()` calls
-static FD_CACHE: OnceLock<Mutex<HashMap<RawFd, bool>>> = OnceLock::new();
+static FD_CACHE: OnceLock<Mutex<FxHashMap<RawFd, bool>>> = OnceLock::new();
 
 /// Returns `true` if the given `fd` is a socket. It could also be a regular file, directory, pipe,
 /// character or block device, in which case we declare this as file I/O and not socket I/O.
 fn fd_is_socket(fd: RawFd) -> bool {
-    let cache = FD_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    let cache = FD_CACHE.get_or_init(|| Mutex::new(FxHashMap::default()));
     if let Some(&is_socket) = cache.lock().unwrap().get(&fd) {
         return is_socket;
     }
@@ -574,7 +574,7 @@ impl IOProfilingStats {
         let mut stats = IOProfilingStats {
             next_sample: 0,
             poisson,
-            rng: rand::thread_rng(),
+            rng: rand::rng(),
         };
         stats.next_sampling_interval();
         stats

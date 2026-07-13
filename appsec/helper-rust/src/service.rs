@@ -258,8 +258,7 @@ impl Service {
             waf_ruleset::WafRuleset::from_file(PathBuf::from(path))
                 .with_context(|| format!("Error loading WAF ruleset from file {:?}", path))
         } else {
-            waf_ruleset::WafRuleset::from_default_file()
-                .with_context(|| "Error loading WAF ruleset from default file")
+            Ok(waf_ruleset::WafRuleset::from_default())
         };
 
         let ruleset = match maybe_ruleset {
