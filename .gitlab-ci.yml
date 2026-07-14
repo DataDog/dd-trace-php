@@ -9,7 +9,9 @@ stages:
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
   # Only clone submodules required by default test jobs
-  GIT_SUBMODULE_PATHS: libdatadog tests/FeatureFlags/ffe-system-test-data
+  # libddwaf-rust is needed because the root Cargo workspace includes
+  # appsec/helper-rust, which depends on it (see 3f893e263)
+  GIT_SUBMODULE_PATHS: libdatadog tests/FeatureFlags/ffe-system-test-data appsec/third_party/libddwaf-rust
   RELIABILITY_ENV_BRANCH:
     value: "master"
     description: "Run a specific datadog-reliability-env branch downstream"
@@ -77,7 +79,7 @@ tracer-trigger:
   variables:
     PARENT_PIPELINE_ID: $CI_PIPELINE_ID
     GIT_SUBMODULE_STRATEGY: recursive
-    GIT_SUBMODULE_PATHS: libdatadog tests/FeatureFlags/ffe-system-test-data
+    GIT_SUBMODULE_PATHS: libdatadog tests/FeatureFlags/ffe-system-test-data appsec/third_party/libddwaf-rust
 
 appsec-trigger:
   stage: tests
