@@ -9,7 +9,7 @@ path = "src/lib.rs"
 
 [dependencies]
 # Tokio runtime with all features enabled
-tokio = { version = "1.0", features = ["full"] }
+tokio = { version = "1.0", features = ["full", "tracing"] }
 
 serde = { version = "1.0", features = ["derive"] }
 serde_tuple = { version = "1.0" }

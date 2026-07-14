@@ -42,17 +42,21 @@ pub fn accept_appsec_messages(
 
             let cancel_token = cancel_token.clone();
 
-            let client_future = client.entrypoint(rx, cancel_token);
-            task_tracker.spawn_on(
-                async move {
-                    client_future.await;
-                    log::debug!(
-                        "Client future for {client_key:?} completed; removing client bookkeeping"
-                    );
-                    client::remove_client_bookkeeping(&client_key);
-                },
-                &runtime_handle,
-            );
+            let client_future = task_tracker.track_future(async move {
+                client.entrypoint(rx, cancel_token).await;
+                log::debug!(
+                    "Client future for {client_key:?} completed; removing client bookkeeping"
+                );
+                client::remove_client_bookkeeping(&client_key);
+            });
+
+            #[cfg(tokio_unstable)]
+            let _ = tokio::task::Builder::new()
+                .name(&format!("appsec-client-{client_id}"))
+                .spawn_on(client_future, &runtime_handle)
+                .expect("failed to spawn AppSec client task");
+            #[cfg(not(tokio_unstable))]
+            runtime_handle.spawn(client_future);
 
             (tx, client_id)
         }),
