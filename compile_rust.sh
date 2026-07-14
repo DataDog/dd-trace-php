@@ -22,6 +22,10 @@ if test -n "$COMPILE_ASAN"; then
   # We need -lresolv due to https://github.com/llvm/llvm-project/issues/59007
   export LDFLAGS="-fsanitize=address $(if cc -v 2>&1 | grep -q clang; then echo "-shared-libsan -lresolv"; fi)"
   export CFLAGS="$LDFLAGS -fno-omit-frame-pointer" # the cc buildtools will only pick up CFLAGS it seems
+  # rustc's own link step doesn't read LDFLAGS, so build-script/test binaries
+  # that link ASan-instrumented C objects (e.g. libddwaf-sys) end up with
+  # undefined __asan_* symbols unless we also tell rustc to link the runtime.
+  RUSTFLAGS="$RUSTFLAGS -Clink-arg=-fsanitize=address"
 fi
 
 if test "${PROFILE:-debug}" = "debug"; then
