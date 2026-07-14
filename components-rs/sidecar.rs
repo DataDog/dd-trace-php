@@ -2,6 +2,8 @@ use std::ffi::{c_char, CStr, OsStr};
 use std::ops::DerefMut;
 #[cfg(unix)]
 use std::os::unix::ffi::OsStrExt;
+#[cfg(target_os = "macos")]
+use std::sync::atomic::{AtomicI32, Ordering};
 use lazy_static::{lazy_static, LazyStatic};
 use tracing::warn;
 use std::sync::Mutex;
@@ -47,6 +49,82 @@ fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
 
 lazy_static! {
     static ref APPSEC_CONFIG: Mutex<Option<AppSecConfig>> = Mutex::new(None);
+}
+
+#[cfg(target_os = "macos")]
+static CRASHTRACKER_SIDECAR_FD: AtomicI32 = AtomicI32::new(-1);
+
+#[cfg(target_os = "macos")]
+fn connect_crashtracker_to_sidecar(_: &str) -> std::os::fd::RawFd {
+    let fd = unsafe { libc::dup(CRASHTRACKER_SIDECAR_FD.load(Ordering::Relaxed)) };
+    if fd < 0 {
+        return -1;
+    }
+
+    let request = datadog_sidecar::crashtracker::crashtracker_receiver_request_bytes();
+    let sent = unsafe { libc::send(fd, request.as_ptr().cast(), request.len(), 0) };
+    if sent != request.len() as isize {
+        unsafe { libc::close(fd) };
+        return -1;
+    }
+    fd
+}
+
+#[cfg(unix)]
+#[no_mangle]
+pub unsafe extern "C" fn datadog_crasht_init_with_sidecar(
+    ffi_config: libdd_crashtracker_ffi::Config<'_>,
+    metadata: libdd_crashtracker_ffi::Metadata<'_>,
+    transport: *mut SidecarTransport,
+    sidecar_master_pid: i32,
+) -> ffi::VoidResult {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> anyhow::Result<()> {
+        let mut crashtracker_config: libdd_crashtracker::CrashtrackerConfiguration =
+            ffi_config.try_into()?;
+
+        // The connector is called from the crash signal handler, so initialize its request bytes
+        // while allocations are still safe.
+        datadog_sidecar::crashtracker::crashtracker_receiver_request_bytes();
+
+        #[cfg(target_os = "linux")]
+        {
+            let socket_path = datadog_sidecar::crashtracker::crashtracker_ipc_socket_path(
+                sidecar_master_pid.max(0) as u32,
+                config::FromEnv::ipc_mode(),
+            );
+            crashtracker_config.set_unix_socket_path(socket_path.to_string_lossy().into_owned());
+            crashtracker_config.set_unix_socket_connector(
+                datadog_sidecar::crashtracker::connect_to_sidecar_receiver,
+            );
+            let _ = transport;
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            let transport = transport
+                .as_mut()
+                .ok_or_else(|| anyhow::anyhow!("sidecar transport is not initialized"))?;
+            CRASHTRACKER_SIDECAR_FD.store(transport.as_raw_fd(), Ordering::Relaxed);
+            crashtracker_config.set_unix_socket_path("sidecar".to_string());
+            crashtracker_config.set_unix_socket_connector(connect_crashtracker_to_sidecar);
+            let _ = sidecar_master_pid;
+        }
+
+        libdd_crashtracker::init(
+            crashtracker_config,
+            libdd_crashtracker::CrashtrackerReceiverConfig::default(),
+            metadata.try_into()?,
+        )
+    }))
+    .map_or_else(
+        |error| {
+            ffi::VoidResult::Err(ffi::utils::handle_panic_error(
+                error,
+                "datadog_crasht_init_with_sidecar",
+            ))
+        },
+        Into::into,
+    )
 }
 
 // must be called prior to ddog_sidecar_connect

@@ -59,6 +59,14 @@ void datadog_endpoint_as_crashtracker_config(const struct ddog_Endpoint *endpoin
                                              void (*callback)(ddog_crasht_EndpointConfig, void*),
                                              void *userdata);
 
+#ifndef _WIN32
+struct ddog_VoidResult datadog_crasht_init_with_sidecar(
+    struct ddog_crasht_Config config,
+    struct ddog_crasht_Metadata metadata,
+    struct ddog_SidecarTransport *transport,
+    int32_t sidecar_master_pid);
+#endif
+
 ddog_Configurator *ddog_library_configurator_new_dummy(bool debug_logs, ddog_CharSlice language);
 
 int posix_spawn_file_actions_addchdir_np(void *file_actions, const char *path);
