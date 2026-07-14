@@ -883,10 +883,11 @@ class TelemetryTests {
         }
         assert requestSup.get() != null
 
-        // Blocking request: 80.80.80.80 hits the recommended.json IP blocklist rule
-        // (on_match: ["block"]). The WAF returns a block_request action.
+        // Blocking request: this User-Agent hits the recommended.json Datadog test
+        // scanner rule (ua0-600-56x, on_match: ["block"]). The WAF returns a
+        // block_request action.
         HttpRequest req = CONTAINER.buildReq('/hello.php')
-                .header('X-Forwarded-For', '80.80.80.80').GET().build()
+                .header('User-Agent', 'dd-test-scanner-log-block').GET().build()
         CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
             assert resp.statusCode() == 403
         }
@@ -1105,7 +1106,7 @@ class TelemetryTests {
                     ],
                     'datadog/2/ASM/rasp_lfi_block_override/config': [
                             rules_override: [[
-                                                     rules_target: [[rule_id: 'rasp-001-001']],
+                                                     rules_target: [[rule_id: 'rasp-930-100']],
                                                      on_match: ['block']
                                              ]]
                     ]
