@@ -19,7 +19,7 @@ anyhow = { version = "1.0", features = ["backtrace"] }
 thiserror = "1.0"
 futures = "0.3"
 log = { version = "0.4", features = ["kv", "kv_std"] }  # Logging facade with key-value support
-tokio-util = { version = "0.7", features = ["codec"] }
+tokio-util = { version = "0.7", features = ["codec", "rt"] }
 tokio-stream = "0.1"
 libc = "0.2"
 arc-swap = "1.7"

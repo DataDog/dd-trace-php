@@ -2,7 +2,7 @@
 #![deny(clippy::disallowed_macros)]
 
 use std::time::{Duration, Instant};
-use tokio_util::sync::CancellationToken;
+use tokio_util::{sync::CancellationToken, task::TaskTracker};
 
 mod client;
 pub mod config;
@@ -19,7 +19,7 @@ pub use client::{on_disconnect, on_message, MessageResponse};
 
 pub struct AppSecHelper {
     cancel_token: CancellationToken,
-    client_task_set: server::ClientTaskSet,
+    client_task_tracker: TaskTracker,
 }
 
 pub fn start(
@@ -46,25 +46,29 @@ pub fn start(
     }
 
     let cancel_token = CancellationToken::new();
-    let client_task_set = server::accept_appsec_messages(runtime_handle, cancel_token.clone());
+    let client_task_tracker = server::accept_appsec_messages(runtime_handle, cancel_token.clone());
 
     log::info!("AppSec helper started successfully");
     Ok(AppSecHelper {
         cancel_token,
-        client_task_set,
+        client_task_tracker,
     })
 }
 
 impl AppSecHelper {
-    pub async fn shutdown(mut self) {
+    pub async fn shutdown(self) {
         log::info!("AppSec helper shutdown initiated");
         self.cancel_token.cancel();
         log::info!("Cancellation signal sent to all tasks");
         server::stop_accepting_appsec_messages();
+        self.client_task_tracker.close();
 
         let start = Instant::now();
         let grace_timeout = Duration::from_millis(1000);
-        if !self.client_task_set.wait_empty(grace_timeout).await {
+        if tokio::time::timeout(grace_timeout, self.client_task_tracker.wait())
+            .await
+            .is_err()
+        {
             log::warn!(
                 "Could not determine that all tasks completed within grace period of {:?}",
                 grace_timeout
