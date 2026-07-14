@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestMethodOrder
 import org.junit.jupiter.api.condition.DisabledIf
+import org.testcontainers.containers.BindMode
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 
@@ -49,6 +50,12 @@ class TelemetryTests {
                 void configure() {
                     super.configure()
                     withEnv('RUST_LIB_BACKTRACE', '1')
+                    // This class strips appsec.rules from php.ini (see beforeAll) to exercise
+                    // the helpers' default-ruleset path, so both helpers must see the real
+                    // production ruleset here instead of the test fixture at
+                    // src/test/waf/recommended.json.
+                    setBinds(binds.findAll { it.volume.path != '/etc/recommended.json' })
+                    withFileSystemBind('../../recommended.json', '/etc/recommended.json', BindMode.READ_ONLY)
                 }
             }
 

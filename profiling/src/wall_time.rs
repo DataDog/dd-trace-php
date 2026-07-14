@@ -200,7 +200,7 @@ mod frameless {
                         ; ldr x16, >interrupt_label
                         ; br x16  // tail call
                         ; .align 8
-                        ; orig_label: ; .qword *orig as i64
+                        ; orig_label: ; .i64 *orig as i64
                     );
                 }
                 #[cfg(target_arch = "x86_64")]
@@ -216,7 +216,7 @@ mod frameless {
             #[cfg(target_arch = "aarch64")]
             dynasm!(assembler
                 ; .align 8
-                ; interrupt_label: ; .qword interrupt_addr as i64 );
+                ; interrupt_label: ; .i64 interrupt_addr as i64 );
 
             // Allocate enough space for all frameless_function_infos including trailing NULLs
             let mut infos = Vec::with_capacity(originals.len() * 2);

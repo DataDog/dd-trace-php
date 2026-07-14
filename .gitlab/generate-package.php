@@ -1326,12 +1326,13 @@ $system_tests_weblogs = [
 <?php foreach ($arch_targets as $arch): ?>
 "Loader test on <?= $arch ?> libc":
   stage: verify
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${MAJOR_MINOR}_${CONTAINER_SUFFIX}"
+  image: "${LOADER_IMAGE_REPO}:php-${MAJOR_MINOR}_${CONTAINER_SUFFIX}"
   tags: [ "arch:$ARCH" ]
   variables:
     VALGRIND: false
     ARCH: "<?= $arch ?>"
     CONTAINER_SUFFIX: bookworm-9
+    LOADER_IMAGE_REPO: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci"
   needs:
     - job: "package loader: [<?= $arch ?>]"
       artifacts: true
@@ -1342,6 +1343,7 @@ $system_tests_weblogs = [
           - "5.6"
         PHP_FLAVOUR: nts
         CONTAINER_SUFFIX: buster
+        LOADER_IMAGE_REPO: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci"
       - MAJOR_MINOR:
           - "7.0"
           - "7.1"
