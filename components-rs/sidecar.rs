@@ -26,12 +26,12 @@ fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
         && std::env::var_os("DD_SPAWN_WORKER_USE_EXEC").map(|s| s.is_empty()).unwrap_or(true) {
         cfg.spawn_without_trampoline = true;
     }
-    datadog_sidecar::start_or_connect_to_sidecar(cfg)
+    ddtrace_sidecar::start_or_connect_to_sidecar(cfg)
 }
 
 #[cfg(not(any(windows, php_shared_build)))]
 fn run_sidecar(cfg: config::Config) -> anyhow::Result<SidecarTransport> {
-    datadog_sidecar::start_or_connect_to_sidecar(cfg)
+    ddtrace_sidecar::start_or_connect_to_sidecar(cfg)
 }
 
 #[no_mangle]
@@ -42,7 +42,7 @@ pub static mut DDOG_PHP_FUNCTION: *const u8 = std::ptr::null();
 fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
     let php_dll = get_trampoline_target_data(unsafe { DDOG_PHP_FUNCTION })?;
     cfg.library_dependencies.push(LibDependency::Path(php_dll.into()));
-    datadog_sidecar::start_or_connect_to_sidecar(cfg)
+    ddtrace_sidecar::start_or_connect_to_sidecar(cfg)
 }
 
 lazy_static! {
@@ -51,29 +51,21 @@ lazy_static! {
 
 // must be called prior to ddog_sidecar_connect
 #[no_mangle]
-pub extern "C" fn ddog_sidecar_enable_appsec(
-    shared_lib_path: CharSlice,
-    log_file_path: CharSlice,
-    log_level: CharSlice,
-) -> () {
+pub extern "C" fn ddog_sidecar_enable_appsec(log_file_path: CharSlice, log_level: CharSlice) -> () {
     let mut appsec_config_guard = APPSEC_CONFIG.lock().unwrap();
-    let shared_lib_path_os: std::ffi::OsString;
     let log_file_path_os: std::ffi::OsString;
 
     #[cfg(unix)]
     {
-        shared_lib_path_os = OsStr::from_bytes(shared_lib_path.as_bytes()).to_owned();
         log_file_path_os = OsStr::from_bytes(log_file_path.as_bytes()).to_owned();
     }
 
     #[cfg(windows)]
     {
-        shared_lib_path_os = OsStr::new(&*shared_lib_path.to_utf8_lossy()).to_owned();
         log_file_path_os = OsStr::new(&*log_file_path.to_utf8_lossy()).to_owned();
     }
 
     appsec_config_guard.deref_mut().replace(AppSecConfig {
-        shared_lib_path: shared_lib_path_os,
         log_file_path: log_file_path_os,
         log_level: log_level.to_utf8_lossy().to_string(),
     });

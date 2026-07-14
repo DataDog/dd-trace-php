@@ -397,46 +397,44 @@ void dd_mpack_write_zval_lim(
     _mpack_write_zval_lim(w, zv, limits);
 }
 
-static void _iovec_writer_flush(
+static void _buffer_writer_flush(
     mpack_writer_t *w, const char *data, size_t count);
 
-static void _iovec_writer_teardown(mpack_writer_t *w);
+static void _buffer_writer_teardown(mpack_writer_t *w);
 
-typedef struct {
-    zend_llist *list;
-} may_alias iovec_list_t;
-
-static void _iovec_list_destroy(void *ptr)
+void dd_mpack_writer_init_buffer(mpack_writer_t *nonnull writer,
+    dd_mpack_buffer *nonnull buffer, size_t prefix_size)
 {
-    struct iovec *iov = ptr;
-    MPACK_FREE(iov->iov_base);
-    iov->iov_base = NULL;
-    iov->iov_len = 0;
-}
-
-void dd_mpack_writer_init_iov(
-    mpack_writer_t *nonnull writer, zend_llist *nonnull iovec_list)
-{
-    MPACK_STATIC_ASSERT(sizeof(iovec_list_t) <= sizeof(writer->reserved),
-        "not enough reserved space for growable writer!");
-    iovec_list_t *iovecl = (iovec_list_t *)writer->reserved;
-
-    iovecl->list = iovec_list;
-    zend_llist_init(iovec_list, sizeof(struct iovec), _iovec_list_destroy, 0);
+    *buffer = (dd_mpack_buffer){.prefix_size = prefix_size};
 
     const size_t capacity = MPACK_BUFFER_SIZE;
-    char *buffer = MPACK_MALLOC(capacity);
-    if (buffer == NULL) {
-        mpack_writer_init_error(writer, mpack_error_memory);
+    if (prefix_size > SIZE_MAX - capacity) {
+        mpack_writer_init_error(writer, mpack_error_too_big);
         return;
     }
 
-    mpack_writer_init(writer, buffer, capacity);
-    mpack_writer_set_flush(writer, _iovec_writer_flush);
-    mpack_writer_set_teardown(writer, _iovec_writer_teardown);
+    buffer->data = MPACK_MALLOC(prefix_size + capacity);
+    if (buffer->data == NULL) {
+        mpack_writer_init_error(writer, mpack_error_memory);
+        return;
+    }
+    memset(buffer->data, 0, prefix_size);
+
+    mpack_writer_init(writer, buffer->data + prefix_size, capacity);
+    writer->context = buffer;
+    mpack_writer_set_flush(writer, _buffer_writer_flush);
+    mpack_writer_set_teardown(writer, _buffer_writer_teardown);
 }
 
-static void _iovec_writer_flush(
+void dd_mpack_buffer_destroy(dd_mpack_buffer *nonnull buffer)
+{
+    if (buffer->data != NULL) {
+        MPACK_FREE(buffer->data);
+    }
+    *buffer = (dd_mpack_buffer){0};
+}
+
+static void _buffer_writer_flush(
     mpack_writer_t *w, const char *data, size_t count)
 {
     // There are three ways flush can be called:
@@ -447,78 +445,86 @@ static void _iovec_writer_flush(
     //   - flushing during teardown (used and count are both all flushed data,
     //   data is buffer)
     //
-    // Unfortunately, this is ambiguous in the case we're flushing during
-    // writing, but count is zero.
-
-    iovec_list_t *giovec = (iovec_list_t *)w->reserved;
+    // A zero-length buffer flush can only happen during writing, before MPack
+    // follows it with a flush of the extra data; teardown skips empty buffers.
 
     if (w->buffer == NULL) {
         mlog(dd_log_error, "w->buffer is NULL (flush called after teardown)");
         return;
     }
 
-    if (data == w->buffer) {
-        // in this case, we can use the buffer without copying
-        if (count > 0) {
-            zend_llist_add_element(giovec->list, &(struct iovec){
-                                                     .iov_base = w->buffer,
-                                                     .iov_len = count,
-                                                 });
-        }
-
-        size_t used = mpack_writer_buffer_used(w);
-        if (used) {
-            // teardown, no allocation of new buffer
-            w->buffer = NULL;
-            w->position = NULL;
-            w->end = NULL;
+    bool buffer_was_flushed = data == w->buffer;
+    if (buffer_was_flushed) {
+        if (mpack_writer_buffer_used(w) == count) {
+            // teardown; the buffer is transferred by _buffer_writer_teardown
             return;
         }
+        w->position = w->buffer + count;
+        count = 0;
+    }
 
-        if (used == count && count == 0) {
-            // could be a teardown or a normal write... don't do anything
-            return;
-        }
-
-        char *new_buffer = MPACK_MALLOC(MPACK_BUFFER_SIZE);
-        if (!new_buffer) {
-            mpack_writer_init_error(w, mpack_error_memory);
-            return;
-        }
-        w->buffer = new_buffer;
-        w->position = new_buffer;
-        w->end = new_buffer + MPACK_BUFFER_SIZE;
+    size_t used = mpack_writer_buffer_used(w);
+    if (count > SIZE_MAX - used) {
+        mpack_writer_flag_error(w, mpack_error_too_big);
+        return;
+    }
+    dd_mpack_buffer *buffer = w->context;
+    size_t max_capacity = SIZE_MAX - buffer->prefix_size;
+    size_t required = used + count;
+    if (required > max_capacity) {
+        mpack_writer_flag_error(w, mpack_error_too_big);
         return;
     }
 
-    // else we're flusing data not in w->buffer, so we need to allocate
-    if (count == 0) {
+    size_t capacity = mpack_writer_buffer_size(w);
+    size_t new_capacity = capacity;
+    if (buffer_was_flushed) {
+        // The current contents fit, but MPack flushed because it needs room
+        // for another write of unknown size.
+        if (capacity == max_capacity) {
+            mpack_writer_flag_error(w, mpack_error_too_big);
+            return;
+        }
+        new_capacity =
+            capacity > max_capacity / 2 ? max_capacity : capacity * 2;
+    }
+    while (new_capacity < required) {
+        if (new_capacity > max_capacity / 2) {
+            new_capacity = required;
+            break;
+        }
+        new_capacity *= 2;
+    }
+
+    char *new_data = mpack_realloc(buffer->data, buffer->prefix_size + used,
+        buffer->prefix_size + new_capacity);
+    if (new_data == NULL) {
+        mpack_writer_flag_error(w, mpack_error_memory);
         return;
     }
 
-    char *iovec_buffer = MPACK_MALLOC(count);
-    if (!iovec_buffer) {
-        mpack_writer_init_error(w, mpack_error_memory);
-        return;
-    }
+    buffer->data = new_data;
+    w->buffer = new_data + buffer->prefix_size;
+    w->position = w->buffer + used;
+    w->end = w->buffer + new_capacity;
 
-    memcpy(iovec_buffer, data, count); // NOLINT
-    zend_llist_add_element(giovec->list, &(struct iovec){
-                                             .iov_base = iovec_buffer,
-                                             .iov_len = count,
-                                         });
+    if (count > 0) {
+        memcpy(w->position, data, count); // NOLINT
+        w->position += count;
+    }
 }
 
-static void _iovec_writer_teardown(mpack_writer_t *w)
+static void _buffer_writer_teardown(mpack_writer_t *w)
 {
-    iovec_list_t *giovec = (iovec_list_t *)w->reserved;
+    dd_mpack_buffer *buffer = w->context;
 
     if (mpack_writer_error(w) != mpack_ok) {
-        zend_llist_clean(giovec->list);
-    }
-
-    if (w->buffer) {
-        MPACK_FREE(w->buffer);
+        MPACK_FREE(buffer->data);
+        buffer->data = NULL;
+        buffer->final_msg_size = 0;
+    } else {
+        buffer->final_msg_size =
+            buffer->prefix_size + mpack_writer_buffer_used(w);
     }
     w->buffer = NULL;
     w->context = NULL;

@@ -199,15 +199,12 @@ __attribute__((visibility("default"))) bool dd_appsec_maybe_enable_helper(
         return false;
     }
 
-    ddog_CharSlice helper_path = to_char_slice(get_DD_APPSEC_HELPER_PATH());
-    mlog(dd_log_debug, "Helper path is %.*s", (int)helper_path.len,
-        helper_path.ptr);
     ddog_CharSlice log_path =
         to_char_slice(get_global_DD_APPSEC_HELPER_LOG_FILE());
     ddog_CharSlice log_level =
         to_char_slice(get_global_DD_APPSEC_HELPER_LOG_LEVEL());
 
-    enable_appsec(helper_path, log_path, log_level);
+    enable_appsec(log_path, log_level);
 
     *appsec_activation = DDAPPSEC_G(enabled) == APPSEC_ENABLED_VIA_REMCFG;
     // only enable ASM / ASM_DD / ASM_DATA if no rules file is specified

@@ -9,7 +9,6 @@
 
 #include <stdint.h>
 #include <string.h>
-#include <sys/uio.h>
 
 #define HELPER_PROCESS_C_INCLUDES
 #include "ddappsec.h"
@@ -26,18 +25,10 @@ struct PACKED _dd_header { // NOLINT
 
 typedef struct PACKED _dd_header dd_header;
 
-static const uint32_t MAX_RECV_MESSAGE_SIZE = 4 * 1024 * 1024;
+_Static_assert(sizeof(dd_header) == DD_CONN_REQUEST_HEADER_SIZE,
+    "unexpected AppSec request header size");
 
-static size_t _iovecs_total_size(zend_llist *nonnull iovecs)
-{
-    zend_llist_position pos;
-    size_t total = 0;
-    for (struct iovec *iov = zend_llist_get_first_ex(iovecs, &pos); iov;
-        iov = zend_llist_get_next_ex(iovecs, &pos)) {
-        total += iov->iov_len;
-    }
-    return total;
-}
+static const uint32_t MAX_RECV_MESSAGE_SIZE = 4 * 1024 * 1024;
 
 void dd_conn_init(dd_conn *nonnull conn)
 {
@@ -45,8 +36,8 @@ void dd_conn_init(dd_conn *nonnull conn)
     conn->client_id = 0;
 }
 
-dd_result dd_conn_roundtripv(dd_conn *nonnull conn, zend_llist *nonnull iovecs,
-    dd_helper_response *nonnull response_out)
+dd_result dd_conn_roundtrip(dd_conn *nonnull conn, char *nonnull request,
+    size_t request_len, dd_helper_response *nonnull response_out)
 {
     if (conn == NULL) {
         return dd_error;
@@ -57,36 +48,28 @@ dd_result dd_conn_roundtripv(dd_conn *nonnull conn, zend_llist *nonnull iovecs,
         return dd_error;
     }
 
-    size_t data_len_out = _iovecs_total_size(iovecs);
+    if (request_len < sizeof(dd_header)) {
+        return dd_error;
+    }
+
+    size_t data_len_out = request_len - sizeof(dd_header);
     if (data_len_out > UINT32_MAX) {
         mlog(dd_log_warning, "Outgoing appsec message too large: %zu",
             data_len_out);
         return dd_helper_say_goobye;
     }
 
-    size_t total_len = sizeof(dd_header) + data_len_out;
-    char *req = emalloc(total_len);
-
     dd_header out_h = {"dds", (uint32_t)data_len_out};
-    memcpy(req, &out_h, sizeof(out_h));
-
-    char *writep = req + sizeof(out_h);
-    zend_llist_position pos;
-    for (struct iovec *iov = zend_llist_get_first_ex(iovecs, &pos); iov;
-        iov = zend_llist_get_next_ex(iovecs, &pos)) {
-        memcpy(writep, iov->iov_base, iov->iov_len);
-        writep += iov->iov_len;
-    }
+    memcpy(request, &out_h, sizeof(out_h));
 
 #ifdef ZTS
     ddog_AppsecCResponse response =
         dd_trace_send_appsec_message(conn->client_id, DDAPPSEC_G(ts_ls_cache),
-            (const uint8_t *)req, total_len);
+            (const uint8_t *)request, request_len);
 #else
     ddog_AppsecCResponse response = dd_trace_send_appsec_message(
-        conn->client_id, (const uint8_t *)req, total_len);
+        conn->client_id, (const uint8_t *)request, request_len);
 #endif
-    efree(req);
 
     dd_result ret;
 

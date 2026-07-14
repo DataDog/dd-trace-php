@@ -11,6 +11,9 @@ case "${host_os}" in
   darwin*)
     RUSTFLAGS="$RUSTFLAGS -Clink-arg=-undefined -Clink-arg=dynamic_lookup";
     ;;
+  *musl*)
+    RUSTFLAGS="$RUSTFLAGS -C target-feature=-crt-static";
+    ;;
 esac
 
 set -x
@@ -21,4 +24,23 @@ if test -n "$COMPILE_ASAN"; then
   export CFLAGS="$LDFLAGS -fno-omit-frame-pointer" # the cc buildtools will only pick up CFLAGS it seems
 fi
 
-SIDECAR_VERSION=$(cat ../VERSION) RUSTFLAGS="$RUSTFLAGS" RUSTC_BOOTSTRAP=1 "${DDTRACE_CARGO:-cargo}" build $(test "${PROFILE:-debug}" = "debug" || echo --profile "$PROFILE") "$@"
+if test "${PROFILE:-debug}" = "debug"; then
+  set -- build "$@"
+else
+  set -- build --profile "$PROFILE" "$@"
+fi
+
+case "${host_os}" in
+  *musl*)
+    # Bindgen's build script needs dynamic CRT to load libclang. Configure its
+    # host rustflags separately from the target's (whatever it is)
+    target=$("${RUSTC:-rustc}" -vV | sed -n 's/^host: //p')
+    artifact_dir="${CARGO_TARGET_DIR:-../target}/${PROFILE:-debug}"
+    set -- -Zhost-config -Ztarget-applies-to-host -Zunstable-options \
+      --config target-applies-to-host=false \
+      --config 'host.rustflags=["-C", "target-feature=-crt-static"]' \
+      "$@" --target "$target" --artifact-dir "$artifact_dir"
+    ;;
+esac
+
+SIDECAR_VERSION=$(cat ../VERSION) RUSTFLAGS="$RUSTFLAGS" RUSTC_BOOTSTRAP=1 "${DDTRACE_CARGO:-cargo}" "$@"

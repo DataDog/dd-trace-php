@@ -61,7 +61,11 @@ pub fn log_error_with_backtrace_at(
         Box::new(EmptSource)
     };
 
-    log::logger().log(
+    let submit_and_log = |record: &log::Record<'_>| {
+        crate::telemetry::submit_error_to_telemetry(record);
+        log::logger().log(record);
+    };
+    submit_and_log(
         &log::Record::builder()
             .args(format_args!("{}", formatted_msg))
             .level(log::Level::Error)

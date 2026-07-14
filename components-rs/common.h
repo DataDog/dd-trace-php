@@ -1305,11 +1305,10 @@ typedef enum ddog_crasht_BuildIdType {
 } ddog_crasht_BuildIdType;
 
 /**
- * Raw response returned by the AppSec `on_message` C callback.
+ * Raw AppSec response returned by `ddog_sidecar_send_appsec_message`.
  *
- * When `ptr` is non-null the buffer must be freed by calling the `free_response`
- * function registered via `ddog_appsec_register_message_handler`, which uses
- * the allocator that created the buffer (helper-rust's allocator).
+ * When `ptr` is non-null, the response must be freed by calling
+ * `ddog_sidecar_appsec_response_drop`.
  */
 typedef struct ddog_AppsecCResponse {
   uint8_t *ptr;
@@ -1320,16 +1319,6 @@ typedef struct ddog_AppsecCResponse {
    */
   bool disconnect;
 } ddog_AppsecCResponse;
-
-typedef struct ddog_AppsecCResponse (*ddog_OnMessageFn)(const char*,
-                                                        uintptr_t,
-                                                        uint64_t*,
-                                                        const uint8_t*,
-                                                        uintptr_t);
-
-typedef void (*ddog_OnDisconnectFn)(const char*, uintptr_t, uint64_t);
-
-typedef void (*ddog_FreeResponseFn)(uint8_t*, uintptr_t, uintptr_t);
 
 /**
  * Result type for runtime callback registration

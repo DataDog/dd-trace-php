@@ -1,5 +1,12 @@
 [workspace]
-members = ["components-rs", "components-rs/php_sidecar_mockgen", "profiling"]
+members = [
+  "components-rs",
+  "components-rs/php_sidecar_mockgen",
+  "profiling",
+  "sidecar",
+  "appsec/helper-rust",
+]
+exclude = ["appsec/third_party/libddwaf-rust"]
 resolver = "2"
 
 [workspace.package]

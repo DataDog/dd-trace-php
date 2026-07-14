@@ -20,7 +20,7 @@
 #include <stdatomic.h>
 
 typedef struct _dd_omsg {
-    zend_llist iovecs;
+    dd_mpack_buffer buffer;
     mpack_writer_t writer;
 } dd_omsg;
 
@@ -31,7 +31,7 @@ static inline ATTR_WARN_UNUSED mpack_error_t _omsg_finish(
 static inline void _omsg_destroy(dd_omsg *nonnull omsg);
 static void _dump_in_msg(
     dd_log_level_t lvl, const char *nonnull data, size_t data_len);
-static void _dump_out_msg(dd_log_level_t lvl, zend_llist *iovecs);
+static void _dump_out_msg(dd_log_level_t lvl, const dd_mpack_buffer *buffer);
 
 typedef struct _dd_imsg {
     dd_helper_response _response;
@@ -40,8 +40,8 @@ typedef struct _dd_imsg {
 } dd_imsg;
 
 // if and only if this returns success, _imsg_destroy must be called
-static dd_result ATTR_WARN_UNUSED _imsg_recv(
-    dd_imsg *nonnull imsg, dd_conn *nonnull conn, zend_llist *nonnull iovecs);
+static dd_result ATTR_WARN_UNUSED _imsg_recv(dd_imsg *nonnull imsg,
+    dd_conn *nonnull conn, dd_mpack_buffer *nonnull buffer);
 
 static inline ATTR_WARN_UNUSED mpack_error_t _imsg_destroy(
     dd_imsg *nonnull imsg);
@@ -84,8 +84,8 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn,
     }
 
     dd_imsg imsg = {0};
-    res = _imsg_recv(&imsg, conn, &omsg.iovecs);
-    _dump_out_msg(dd_log_trace, &omsg.iovecs);
+    res = _imsg_recv(&imsg, conn, &omsg.buffer);
+    _dump_out_msg(dd_log_trace, &omsg.buffer);
     _omsg_destroy(&omsg);
     if (res) {
         mlog(dd_log_warning, "Error in message exchange for command %.*s: %s",
@@ -212,7 +212,8 @@ static inline void _omsg_init(dd_omsg *nonnull omsg, const char *nonnull cmd,
 {
     mlog(dd_log_debug, "Creating message of type %.*s", (int)cmd_len, cmd);
 
-    dd_mpack_writer_init_iov(&omsg->writer, &omsg->iovecs);
+    dd_mpack_writer_init_buffer(
+        &omsg->writer, &omsg->buffer, DD_CONN_REQUEST_HEADER_SIZE);
 
     // [ cmd, [arguments...] ]
     mpack_start_array(&omsg->writer, 2);
@@ -234,17 +235,18 @@ static inline void _omsg_destroy(dd_omsg *nonnull omsg)
         omsg->writer.flush = NULL; // no point flushing
         UNUSED(mpack_writer_destroy(&omsg->writer));
     }
-    zend_llist_destroy(&omsg->iovecs);
+    dd_mpack_buffer_destroy(&omsg->buffer);
 }
 
 // incoming
-static ATTR_WARN_UNUSED dd_result _imsg_recv(
-    dd_imsg *nonnull imsg, dd_conn *nonnull conn, zend_llist *nonnull iovecs)
+static ATTR_WARN_UNUSED dd_result _imsg_recv(dd_imsg *nonnull imsg,
+    dd_conn *nonnull conn, dd_mpack_buffer *nonnull buffer)
 {
     mlog(dd_log_debug, "Will exchange message with helper");
 
     dd_helper_response response;
-    dd_result res = dd_conn_roundtripv(conn, iovecs, &response);
+    dd_result res = dd_conn_roundtrip(
+        conn, buffer->data, buffer->final_msg_size, &response);
     if (res) {
         return res;
     }
@@ -787,23 +789,20 @@ static void _dump_in_msg(
     zend_string_release(zstr);
 }
 
-static void _dump_out_msg(dd_log_level_t lvl, zend_llist *iovecs)
+static void _dump_out_msg(dd_log_level_t lvl, const dd_mpack_buffer *buffer)
 {
     if (!mlog_should_log(lvl)) {
         return;
     }
-    zend_llist_position pos;
-    int i = 1;
-    for (struct iovec *iov = zend_llist_get_first_ex(iovecs, &pos); iov;
-        iov = zend_llist_get_next_ex(iovecs, &pos), i++) {
-        zend_string *zstr = php_base64_encode(iov->iov_base, iov->iov_len);
-        if (ZSTR_LEN(zstr) > INT_MAX) {
-            return;
-        }
-        mlog(lvl, "Contents of message (base64 encoded) (part %d): %.*s", i,
-            (int)ZSTR_LEN(zstr), ZSTR_VAL(zstr));
-        zend_string_release(zstr);
+    zend_string *zstr = php_base64_encode(
+        (const unsigned char *)buffer->data + buffer->prefix_size,
+        buffer->final_msg_size - buffer->prefix_size);
+    if (ZSTR_LEN(zstr) > INT_MAX) {
+        return;
     }
+    mlog(lvl, "Contents of message (base64 encoded) (part 1): %.*s",
+        (int)ZSTR_LEN(zstr), ZSTR_VAL(zstr));
+    zend_string_release(zstr);
 }
 
 dd_result dd_command_process_config_features(

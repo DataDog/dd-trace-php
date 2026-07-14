@@ -1,11 +1,14 @@
 use crate::client::log;
 use std::{
     fs::File,
-    io::{BufRead, BufReader, Read, Seek},
-    path::{Path, PathBuf},
+    io::{BufReader, Read, Seek},
+    path::Path,
 };
 
-use anyhow::{anyhow, Context};
+use anyhow::Context;
+
+const DEFAULT_RULESET: &[u8] =
+    include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/../recommended.json"));
 
 pub struct WafRuleset {
     doc: libddwaf::object::WafObject,
@@ -36,9 +39,13 @@ impl WafRuleset {
         Ok(WafRuleset::new(doc, rules_version))
     }
 
-    pub fn from_default_file() -> anyhow::Result<WafRuleset> {
-        let file = get_default_rules_file()?;
-        WafRuleset::from_file(&file)
+    pub fn from_default() -> WafRuleset {
+        let ruleset = WafRuleset::from_slice(DEFAULT_RULESET)
+            .expect("embedded default ruleset is valid JSON");
+
+        log::info!("Loaded embedded default WAF ruleset");
+
+        ruleset
     }
 
     pub fn from_slice(slice: &[u8]) -> anyhow::Result<WafRuleset> {
@@ -72,59 +79,17 @@ fn extract_rules_version<R: Read>(reader: R) -> Option<String> {
     parsed.metadata?.rules_version
 }
 
-fn get_default_rules_file() -> anyhow::Result<PathBuf> {
-    let helper_path = get_helper_path();
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    let base_path: PathBuf = if let Ok(helper_path) = helper_path {
-        helper_path
-            .parent()
-            .ok_or_else(|| anyhow!("No parent for {:?}", helper_path))?
-            .to_path_buf()
-    } else {
-        get_self_path().with_context(|| "Could find neither lib path nor self exe path")?
-    };
+    #[test]
+    fn default_ruleset_is_embedded() {
+        let ruleset = WafRuleset::from_default();
+        let rules_version = ruleset
+            .rules_version()
+            .expect("default ruleset should expose its version");
 
-    let file = base_path.join("../etc/recommended.json");
-    if file.exists() {
-        return Ok(file);
+        assert!(!rules_version.is_empty());
     }
-
-    let file_legacy = base_path.join("../etc/dd-appsec/recommended.json");
-    if file_legacy.exists() {
-        return Ok(file_legacy);
-    }
-
-    Err(anyhow!(
-        "Could not find recommended.json in either ../etc/ or ../etc/dd-appsec/"
-    ))
-}
-
-fn get_helper_path() -> anyhow::Result<PathBuf> {
-    const LIBNAME_PREFIX: &str = "/libddappsec-helper";
-    const MAPS_PATH: &str = "/proc/self/maps";
-
-    let file = File::open(MAPS_PATH)?;
-    let reader = BufReader::new(file);
-
-    for line in reader.lines() {
-        let line = line?;
-        if line.contains(LIBNAME_PREFIX) {
-            if let Some(pos) = line.find('/') {
-                return Ok(PathBuf::from(&line[pos..]));
-            } else {
-                return Err(anyhow!("Should not happen"));
-            }
-        }
-    }
-
-    Err(anyhow!(
-        "Could not find libddappsec-helper*.so in /proc/self/maps"
-    ))
-}
-
-pub fn get_self_path() -> anyhow::Result<PathBuf> {
-    const SELF_EXE: &str = "/proc/self/exe";
-
-    let path = std::fs::read_link(SELF_EXE)?;
-    Ok(path)
 }

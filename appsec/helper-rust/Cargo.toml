@@ -3,12 +3,9 @@ name = "helper-rust"
 version = "0.1.0"
 edition = "2021"
 
-[workspace]
-
 [lib]
 name = "ddappsec_helper"
 path = "src/lib.rs"
-crate-type = ["cdylib"]
 
 [dependencies]
 # Tokio runtime with all features enabled
@@ -22,10 +19,8 @@ anyhow = { version = "1.0", features = ["backtrace"] }
 thiserror = "1.0"
 futures = "0.3"
 log = { version = "0.4", features = ["kv", "kv_std"] }  # Logging facade with key-value support
-simplelog = "0.12"     # Simple logger with file support
 tokio-util = { version = "0.7", features = ["codec"] }
 tokio-stream = "0.1"
-stderrlog = "0.6.0"
 libc = "0.2"
 arc-swap = "1.7"
 crossbeam-epoch = "0.9"  # Epoch-based memory reclamation
@@ -42,6 +37,3 @@ cc = "1.0"
 
 [dev-dependencies]
 serial_test = "3"
-
-[profile.dev]
-debug = 2

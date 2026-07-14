@@ -32,7 +32,6 @@ if(POLICY CMP0153)
     cmake_policy(SET CMP0153 OLD) # allow exec_program
 endif()
 
-option(DD_APPSEC_BUILD_HELPER "Whether to builder the helper" ON)
 option(DD_APPSEC_BUILD_EXTENSION "Whether to builder the extension" ON)
 option(DD_APPSEC_ENABLE_COVERAGE "Whether to enable coverage calculation" OFF)
 option(DD_APPSEC_TESTING "Whether to enable testing" ON)
@@ -56,16 +55,6 @@ endif()
 
 if(DD_APPSEC_BUILD_EXTENSION)
     include("cmake/extension.cmake")
-endif()
-
-if(DD_APPSEC_BUILD_HELPER)
-    find_program(CARGO_EXECUTABLE cargo)
-    find_program(RUSTC_EXECUTABLE rustc)
-    if(CARGO_EXECUTABLE AND RUSTC_EXECUTABLE)
-        include("cmake/helper_rust.cmake")
-    else()
-        message(STATUS "cargo/rustc not found; skipping helper-rust build")
-    endif()
 endif()
 
 if(DD_APPSEC_DDTRACE_ALT)

@@ -128,8 +128,6 @@ class CrashDetectionTests {
 
         assert helperLog.contains('All client tasks completed gracefully'):
                 "Expected 'All client tasks completed gracefully' in helper.log"
-        assert helperLog.contains('Runtime shutdown complete'):
-                "Expected 'Runtime shutdown complete' in helper.log"
         assert helperLog.contains('AppSec helper shutdown complete'):
                 "Expected 'AppSec helper shutdown complete' in helper.log"
     }

@@ -3,12 +3,10 @@ use tokio::time::{timeout, Duration};
 
 use crate::client::log::{debug, info, warning};
 use crate::client::protocol::{self, CommandResponse};
-use crate::{error, sidecar_symbol};
+use crate::error;
 
-use crate::ffi::sidecar_ffi::{self, ddog_sidecar_appsec_register_message_handler};
-use core::ffi::c_char;
 use std::collections::HashMap;
-use std::sync::{LazyLock, OnceLock, RwLock};
+use std::sync::{LazyLock, RwLock};
 use thiserror::Error;
 
 type ClientId = u64;
@@ -25,60 +23,26 @@ pub(crate) struct ClientKey {
 static CLIENTS: LazyLock<std::sync::Mutex<HashMap<ClientKey, mpsc::Sender<HelperRequest>>>> =
     LazyLock::new(|| std::sync::Mutex::new(HashMap::new()));
 static NEW_CLIENT: RwLock<Option<NewClientFn>> = RwLock::new(None);
-static CALLBACK_RT_HANDLE: OnceLock<tokio::runtime::Handle> = OnceLock::new();
 
-pub fn register_appsec_message_handlers(
-    runtime_handle: tokio::runtime::Handle,
-    new_client: NewClientFn,
-) -> anyhow::Result<()> {
-    SIDECAR_APPSEC_REGISTER_MESSAGE_HANDLER.resolve()?;
-    CALLBACK_RT_HANDLE.get_or_init(|| runtime_handle);
+pub fn start_accepting_messages(new_client: NewClientFn) {
     NEW_CLIENT
         .write()
         .expect("NEW_CLIENT not initialized")
         .replace(new_client);
-    unsafe {
-        SIDECAR_APPSEC_REGISTER_MESSAGE_HANDLER(
-            Some(on_message),
-            Some(on_disconnect),
-            Some(free_response),
-        );
-    }
-
-    Ok(())
 }
 
-pub fn unregister_appsec_message_handlers() -> anyhow::Result<()> {
-    SIDECAR_APPSEC_REGISTER_MESSAGE_HANDLER.resolve()?;
-    unsafe {
-        SIDECAR_APPSEC_REGISTER_MESSAGE_HANDLER(None, None, Some(free_response));
-    }
-
+pub fn stop_accepting_messages() {
     CLIENTS.lock().expect("CLIENTS not initialized").clear();
-
     NEW_CLIENT
         .write()
         .expect("NEW_CLIENT not initialized")
         .take();
-    Ok(())
 }
-
-type DdogSidecarAppsecRegisterMessageHandlerFn = unsafe extern "C" fn(
-    on_message: sidecar_ffi::ddog_OnMessageFn,
-    on_disconnect: sidecar_ffi::ddog_OnDisconnectFn,
-    free_response: sidecar_ffi::ddog_FreeResponseFn,
-);
-
-sidecar_symbol!(
-    static SIDECAR_APPSEC_REGISTER_MESSAGE_HANDLER = DdogSidecarAppsecRegisterMessageHandlerFn : ddog_sidecar_appsec_register_message_handler
-);
 
 /// A single framed message arriving from sidecar on behalf of the extension,
 /// paired with the one-shot channel to send the response back.
 pub struct HelperRequest {
-    // owned by sidecar. Call is synchronous, so we can keep a static reference
-    // and not copy the bytes
-    pub command: &'static [u8],
+    pub command: Vec<u8>,
     pub response_tx: oneshot::Sender<HelperResponse>,
 }
 
@@ -91,54 +55,34 @@ pub enum HelperResponse {
     Reinitialize(Vec<u8>),
 }
 
-extern "C" fn on_message(
-    session_id_ptr: *const libc::c_char,
-    session_id_len: usize,
-    client_id: *mut ClientId,
-    data_ptr: *const u8,
-    data_len: usize,
-) -> sidecar_ffi::ddog_AppsecCResponse {
-    // SAFETY: sidecar guarantees client_id is valid and aligned for the duration of this call
-    let orig_client_id = unsafe { *client_id };
-    let session_id =
-        unsafe { std::slice::from_raw_parts(session_id_ptr as *const u8, session_id_len) };
-    let data = unsafe { std::slice::from_raw_parts(data_ptr, data_len) };
-    let res = on_message_impl(session_id, orig_client_id, data);
-    match res {
-        Ok((resolved_id, HelperResponse::Data(data))) => {
-            if orig_client_id == 0 {
-                // SAFETY: same guarantee as above
-                unsafe { *client_id = resolved_id };
-            }
+pub struct MessageResponse {
+    pub client_id: ClientId,
+    pub data: Vec<u8>,
+    pub disconnect: bool,
+}
 
-            let mut data = std::mem::ManuallyDrop::new(data);
-            let (ptr, len, capacity) = (data.as_mut_ptr(), data.len(), data.capacity());
-            sidecar_ffi::ddog_AppsecCResponse {
-                ptr,
-                len,
-                capacity,
-                disconnect: false,
-            }
-        }
-        Ok((_, HelperResponse::Reinitialize(data))) => {
-            // The extension will redo client init on next request.
-            // Destroy our client task as well by destroying the sender
-            // task will get an eof
-            // In general, the task will also exit, and deregister itself from
-            // the client list, so this is just a safety fallback
-            if orig_client_id != 0 {
+pub async fn on_message(session_id: &[u8], client_id: ClientId, data: Vec<u8>) -> MessageResponse {
+    let res = on_message_impl(session_id, client_id, data).await;
+    match res {
+        Ok((resolved_id, HelperResponse::Data(data))) => MessageResponse {
+            client_id: resolved_id,
+            data,
+            disconnect: false,
+        },
+        Ok((resolved_id, HelperResponse::Reinitialize(data))) => {
+            // Reinitialize is only produced on fatal paths that make the client task
+            // return. Its task wrapper also removes this bookkeeping on exit, so this
+            // eager cleanup may safely race with it.
+            if client_id != 0 {
                 remove_client_bookkeeping(&ClientKey {
                     session_id: session_id.to_vec(),
-                    client_id: orig_client_id,
+                    client_id,
                 });
             }
 
-            let mut data = std::mem::ManuallyDrop::new(data);
-            let (ptr, len, capacity) = (data.as_mut_ptr(), data.len(), data.capacity());
-            sidecar_ffi::ddog_AppsecCResponse {
-                ptr,
-                len,
-                capacity,
+            MessageResponse {
+                client_id: resolved_id,
+                data,
                 disconnect: true,
             }
         }
@@ -148,7 +92,7 @@ extern "C" fn on_message(
                 Some(OnMessageError::ShuttingDown) => {
                     info!(
                         "Dropping message during shutdown (session={session}, \
-                        client_id={orig_client_id})"
+                        client_id={client_id})"
                     );
                 }
                 Some(
@@ -159,27 +103,21 @@ extern "C" fn on_message(
                 ) => {
                     error!(
                         "Could not obtain response from client task (session={}, thread={}): {:#}",
-                        session, orig_client_id, e
-                    );
-                }
-                Some(OnMessageError::RuntimeHandleUnavailable) => {
-                    error!(
-                        "Callback runtime not initialized (session={}, client_id={})",
-                        session, orig_client_id
+                        session, client_id, e
                     );
                 }
                 None => {
                     error!(
                         "Could not obtain response from client task (session={}, thread={}): {:#}",
-                        session, orig_client_id, e
+                        session, client_id, e
                     );
                 }
             }
 
-            if orig_client_id != 0 {
+            if client_id != 0 {
                 remove_client_bookkeeping(&ClientKey {
                     session_id: session_id.to_vec(),
-                    client_id: orig_client_id,
+                    client_id,
                 });
             }
 
@@ -187,7 +125,7 @@ extern "C" fn on_message(
             let encoded = {
                 let mut buf = tokio_util::bytes::BytesMut::new();
                 match protocol::CommandCodec.encode(CommandResponse::FatalError, &mut buf) {
-                    Ok(()) => buf.to_vec(),
+                    Ok(()) => buf.into(),
                     Err(encode_err) => {
                         error!(
                             "Could not encode fatal response after client failure: {:#}",
@@ -197,22 +135,19 @@ extern "C" fn on_message(
                     }
                 }
             };
-            let mut encoded = std::mem::ManuallyDrop::new(encoded);
-            let (ptr, len, capacity) = (encoded.as_mut_ptr(), encoded.len(), encoded.capacity());
-            sidecar_ffi::ddog_AppsecCResponse {
-                ptr,
-                len,
-                capacity,
+            MessageResponse {
+                client_id,
+                data: encoded,
                 disconnect: true,
             }
         }
     }
 }
 
-fn on_message_impl(
+async fn on_message_impl(
     session_id: &[u8],
     client_id: ClientId,
-    command: &'static [u8],
+    command: Vec<u8>,
 ) -> anyhow::Result<(ClientId, HelperResponse)> {
     let (request_tx, resolved_id) = sender_for_client(ClientKey {
         session_id: session_id.to_vec(),
@@ -227,43 +162,62 @@ fn on_message_impl(
         response_tx,
     };
 
-    let runtime_handle = callback_runtime_handle()
-        .ok_or_else(|| anyhow::Error::new(OnMessageError::RuntimeHandleUnavailable))?;
-    runtime_handle.block_on(async move {
-        // send the request to the client task (wait max 750 ms for it to be queued)
-        timeout(Duration::from_millis(750), request_tx.send(request))
-            .await
-            .map_err(|_| {
-                anyhow::Error::new(OnMessageError::SendTimeout {
-                    session_id: session_id_prod(),
-                })
-            })?
-            .map_err(|_| {
-                anyhow::Error::new(OnMessageError::SendClosed {
-                    session_id: session_id_prod(),
-                })
-            })?;
+    timeout(Duration::from_millis(750), request_tx.send(request))
+        .await
+        .map_err(|_| {
+            anyhow::Error::new(OnMessageError::SendTimeout {
+                session_id: session_id_prod(),
+            })
+        })?
+        .map_err(|_| {
+            anyhow::Error::new(OnMessageError::SendClosed {
+                session_id: session_id_prod(),
+            })
+        })?;
 
-        // wait for the response from the client task (wait max 3 seconds)
-        let response = timeout(Duration::from_millis(3000), response_rx)
-            .await
-            .map_err(|_| {
-                anyhow::Error::new(OnMessageError::RecvTimeout {
-                    session_id: session_id_prod(),
-                })
-            })?
-            .map_err(|_| {
-                anyhow::Error::new(OnMessageError::RecvClosed {
-                    session_id: session_id_prod(),
-                })
-            })?;
+    let response = timeout(Duration::from_millis(3000), response_rx)
+        .await
+        .map_err(|_| {
+            anyhow::Error::new(OnMessageError::RecvTimeout {
+                session_id: session_id_prod(),
+            })
+        })?
+        .map_err(|_| {
+            anyhow::Error::new(OnMessageError::RecvClosed {
+                session_id: session_id_prod(),
+            })
+        })?;
 
-        Ok((resolved_id, response))
-    })
+    Ok((resolved_id, response))
 }
 
-fn callback_runtime_handle() -> Option<&'static tokio::runtime::Handle> {
-    CALLBACK_RT_HANDLE.get()
+pub fn on_disconnect(session_id: &[u8], client_id: ClientId) {
+    debug!(
+        "Disconnect notification from sidecar: session={}, client_id={}",
+        String::from_utf8_lossy(session_id),
+        client_id,
+    );
+    if client_id == 0 {
+        debug!(
+            "Session-wide sweep: removing all clients for session {}",
+            String::from_utf8_lossy(session_id)
+        );
+        let keys_to_remove: Vec<ClientKey> = CLIENTS
+            .lock()
+            .expect("CLIENTS not initialized")
+            .keys()
+            .filter(|key| key.session_id == session_id)
+            .cloned()
+            .collect();
+        for key in &keys_to_remove {
+            remove_client_bookkeeping(key);
+        }
+        return;
+    }
+    remove_client_bookkeeping(&ClientKey {
+        session_id: session_id.to_vec(),
+        client_id,
+    });
 }
 
 fn sender_for_client(key: ClientKey) -> Option<(mpsc::Sender<HelperRequest>, ClientId)> {
@@ -319,56 +273,10 @@ pub(crate) fn remove_client_bookkeeping(key: &ClientKey) {
     }
 }
 
-extern "C" fn on_disconnect(
-    session_id_ptr: *const c_char,
-    session_id_len: usize,
-    client_id: ClientId,
-) {
-    let session_id =
-        unsafe { std::slice::from_raw_parts(session_id_ptr as *const u8, session_id_len) };
-    debug!(
-        "Disconnect notification from sidecar: session={}, client_id={}",
-        String::from_utf8_lossy(session_id),
-        client_id,
-    );
-    if client_id == 0 {
-        debug!(
-            "Session-wide sweep: removing all clients for session {}",
-            String::from_utf8_lossy(session_id)
-        );
-        // Session-wide sweep: remove all clients for this session.
-        // Sent by the sidecar as a failsafe when the session is torn down,
-        // catching any client entries that per-client notifications missed.
-        // Collect keys first and release the lock before calling
-        // remove_client_bookkeeping, which also needs to acquire CLIENTS.
-        let keys_to_remove: Vec<ClientKey> = CLIENTS
-            .lock()
-            .expect("CLIENTS not initialized")
-            .keys()
-            .filter(|key| key.session_id == session_id)
-            .cloned()
-            .collect();
-        for key in &keys_to_remove {
-            remove_client_bookkeeping(key);
-        }
-        return;
-    }
-    remove_client_bookkeeping(&ClientKey {
-        session_id: session_id.to_vec(),
-        client_id,
-    });
-}
-
-extern "C" fn free_response(ptr: *mut u8, len: usize, capacity: usize) {
-    drop(unsafe { Vec::from_raw_parts(ptr, len, capacity) });
-}
-
 #[derive(Debug, Error)]
 enum OnMessageError {
     #[error("No new clients accepted (we're shutting down)")]
     ShuttingDown,
-    #[error("callback runtime handle not initialized")]
-    RuntimeHandleUnavailable,
     #[error("timeout sending request to helper client (session={session_id})")]
     SendTimeout { session_id: String },
     #[error("channel closed sending request to helper client (session={session_id})")]
@@ -414,11 +322,6 @@ mod tests {
         })
     }
 
-    fn ensure_callback_runtime_handle() {
-        let handle = test_runtime().handle().clone();
-        CALLBACK_RT_HANDLE.get_or_init(|| handle);
-    }
-
     fn reset_test_state() {
         CLIENTS.lock().expect("CLIENTS not initialized").clear();
         NEW_CLIENT
@@ -432,14 +335,6 @@ mod tests {
             .write()
             .expect("NEW_CLIENT not initialized")
             .replace(factory);
-    }
-
-    fn read_response(resp: &sidecar_ffi::ddog_AppsecCResponse) -> Vec<u8> {
-        if resp.ptr.is_null() || resp.len == 0 {
-            Vec::new()
-        } else {
-            unsafe { std::slice::from_raw_parts(resp.ptr, resp.len) }.to_vec()
-        }
     }
 
     #[test]
@@ -531,7 +426,6 @@ mod tests {
     #[serial]
     fn on_message_impl_roundtrip_success() {
         reset_test_state();
-        ensure_callback_runtime_handle();
 
         let rt = test_runtime().handle().clone();
         set_new_client(Box::new(move |_session| {
@@ -545,7 +439,9 @@ mod tests {
             (tx, 1u64)
         }));
 
-        let (_, response) = on_message_impl(b"sess", 0, b"cmd").expect("message should succeed");
+        let (_, response) = test_runtime()
+            .block_on(on_message_impl(b"sess", 0, b"cmd".to_vec()))
+            .expect("message should succeed");
         match response {
             HelperResponse::Data(bytes) => assert_eq!(bytes, vec![1, 2, 3]),
             HelperResponse::Reinitialize(_) => panic!("expected normal data response"),
@@ -560,7 +456,7 @@ mod tests {
         // without NEW_CLIENT set, the error is ShuttingDown
         reset_test_state();
 
-        let err = match on_message_impl(b"sess", 0, b"cmd") {
+        let err = match test_runtime().block_on(on_message_impl(b"sess", 0, b"cmd".to_vec())) {
             Ok(_) => panic!("should fail in shutdown mode"),
             Err(err) => err,
         };
@@ -574,7 +470,6 @@ mod tests {
     #[serial]
     fn on_message_impl_returns_typed_send_closed_error() {
         reset_test_state();
-        ensure_callback_runtime_handle();
 
         set_new_client(Box::new(move |_session| {
             let (tx, rx) = mpsc::channel::<HelperRequest>(1);
@@ -582,7 +477,7 @@ mod tests {
             (tx, 1u64)
         }));
 
-        let err = match on_message_impl(b"sess", 0, b"cmd") {
+        let err = match test_runtime().block_on(on_message_impl(b"sess", 0, b"cmd".to_vec())) {
             Ok(_) => panic!("send should fail on closed channel"),
             Err(err) => err,
         };
@@ -600,7 +495,6 @@ mod tests {
     #[serial]
     fn on_message_impl_returns_typed_recv_closed_error() {
         reset_test_state();
-        ensure_callback_runtime_handle();
 
         let rt = test_runtime().handle().clone();
         set_new_client(Box::new(move |_session| {
@@ -613,7 +507,7 @@ mod tests {
             (tx, 1u64)
         }));
 
-        let err = match on_message_impl(b"sess", 0, b"cmd") {
+        let err = match test_runtime().block_on(on_message_impl(b"sess", 0, b"cmd".to_vec())) {
             Ok(_) => panic!("recv should fail when response channel closes"),
             Err(err) => err,
         };
@@ -629,7 +523,6 @@ mod tests {
     #[serial]
     fn on_message_success_data_sets_disconnect_false() {
         reset_test_state();
-        ensure_callback_runtime_handle();
 
         let rt = test_runtime().handle().clone();
         set_new_client(Box::new(move |_session| {
@@ -644,18 +537,10 @@ mod tests {
 
         let session = b"sess";
         let payload = b"cmd";
-        let mut cid = 0u64;
-        let resp = on_message(
-            session.as_ptr() as *const c_char,
-            session.len(),
-            &mut cid as *mut u64,
-            payload.as_ptr(),
-            payload.len(),
-        );
+        let resp = test_runtime().block_on(on_message(session, 0, payload.to_vec()));
 
         assert!(!resp.disconnect);
-        assert_eq!(read_response(&resp), vec![7, 8]);
-        free_response(resp.ptr, resp.len, resp.capacity);
+        assert_eq!(resp.data, vec![7, 8]);
 
         reset_test_state();
     }
@@ -664,7 +549,6 @@ mod tests {
     #[serial]
     fn on_message_success_reinitialize_sets_disconnect_true() {
         reset_test_state();
-        ensure_callback_runtime_handle();
 
         let rt = test_runtime().handle().clone();
         set_new_client(Box::new(move |_session| {
@@ -679,18 +563,10 @@ mod tests {
 
         let session = b"sess";
         let payload = b"cmd";
-        let mut cid = 0u64;
-        let resp = on_message(
-            session.as_ptr() as *const c_char,
-            session.len(),
-            &mut cid as *mut u64,
-            payload.as_ptr(),
-            payload.len(),
-        );
+        let resp = test_runtime().block_on(on_message(session, 0, payload.to_vec()));
 
         assert!(resp.disconnect);
-        assert_eq!(read_response(&resp), vec![9]);
-        free_response(resp.ptr, resp.len, resp.capacity);
+        assert_eq!(resp.data, vec![9]);
 
         reset_test_state();
     }
@@ -699,20 +575,11 @@ mod tests {
     #[serial]
     fn on_message_error_path_sets_disconnect_true() {
         reset_test_state();
-        ensure_callback_runtime_handle();
 
         let session = b"sess";
         let payload = b"cmd";
-        let mut cid = 0u64;
-        let resp = on_message(
-            session.as_ptr() as *const c_char,
-            session.len(),
-            &mut cid as *mut u64,
-            payload.as_ptr(),
-            payload.len(),
-        );
+        let resp = test_runtime().block_on(on_message(session, 0, payload.to_vec()));
 
         assert!(resp.disconnect);
-        free_response(resp.ptr, resp.len, resp.capacity);
     }
 }

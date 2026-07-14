@@ -119,8 +119,7 @@ for architecture in "${architectures[@]}"; do
 
     # AppSec
     mkdir -p "${root}/appsec/lib" "${root}/appsec/etc"
-    stripto "./appsec_${architecture}/libddappsec-helper.so" "${root}/appsec/lib/libddappsec-helper.so"
-    cp "./appsec_${architecture}/recommended.json"  "${root}/appsec/etc/recommended.json"
+    cp "./appsec/recommended.json" "${root}/appsec/etc/recommended.json"
 
     ########################
     # Final archives

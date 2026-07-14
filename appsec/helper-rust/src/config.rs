@@ -22,28 +22,27 @@ impl fmt::Debug for Config {
 impl Config {
     const DEFAULT_LOG_LEVEL: log::Level = log::Level::Info;
 
+    pub fn new(log_file_path: Option<PathBuf>, log_level: &str) -> Self {
+        let log_level = if log_level.eq_ignore_ascii_case("warning") {
+            "warn"
+        } else {
+            log_level
+        };
+
+        Self {
+            log_file_path,
+            log_level: log::Level::from_str(log_level).unwrap_or(Self::DEFAULT_LOG_LEVEL),
+        }
+    }
+
     /// Load configuration from environment variables
     pub fn from_env() -> Result<Self> {
         let log_file_path = env::var("_DD_SIDECAR_APPSEC_LOG_FILE_PATH")
             .ok()
             .map(PathBuf::from);
+        let log_level = env::var("_DD_SIDECAR_APPSEC_LOG_LEVEL").unwrap_or_default();
 
-        let log_level = env::var("_DD_SIDECAR_APPSEC_LOG_LEVEL")
-            .map(|s| {
-                if s.to_lowercase() == "warning" {
-                    "warn".into()
-                } else {
-                    s
-                }
-            })
-            .ok()
-            .and_then(|s| log::Level::from_str(&s).ok())
-            .unwrap_or(Self::DEFAULT_LOG_LEVEL);
-
-        Ok(Config {
-            log_file_path,
-            log_level,
-        })
+        Ok(Self::new(log_file_path, &log_level))
     }
 }
 

@@ -18,11 +18,7 @@ use protocol::{ClientInitResp, CommandResponse, ConfigFeaturesResp};
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::{wrappers::ReceiverStream, StreamExt};
-use tokio_util::{
-    bytes::BytesMut,
-    codec::{Decoder, Encoder},
-    sync::CancellationToken,
-};
+use tokio_util::{bytes::BytesMut, codec::Encoder, sync::CancellationToken};
 
 use crate::{
     client::{
@@ -41,7 +37,9 @@ use crate::{
     },
 };
 
-pub use sidecar_msg::{register_appsec_message_handlers, unregister_appsec_message_handlers};
+pub use sidecar_msg::{
+    on_disconnect, on_message, start_accepting_messages, stop_accepting_messages, MessageResponse,
+};
 pub(crate) use sidecar_msg::{remove_client_bookkeeping, ClientKey};
 
 mod attributes;
@@ -245,25 +243,21 @@ async fn do_client_entrypoint(
 fn make_command_stream(rx: mpsc::Receiver<HelperRequest>) -> CommandStream {
     let cmd_stream = ReceiverStream::new(rx);
     let cmd_stream = StreamExt::map(cmd_stream, |msg| {
-        let mut codec = protocol::CommandCodec;
         (
-            codec.decode_eof(&mut BytesMut::from(msg.command)),
+            protocol::CommandCodec::decode_message(&msg.command),
             msg.response_tx,
         )
     });
-    let cmd_stream = cmd_stream
-        .take_while(|r| matches!(r, (Ok(Some(_)), _) | (Err(_), _)))
-        .map(|r| match r {
-            (Ok(Some(cmd)), response_tx) => Ok((cmd, response_tx)),
-            (Err(e), response_tx) => {
-                let fatal_error = FatalRequestError(
-                    anyhow::Error::new(e).context("Error decoding command"),
-                    response_tx,
-                );
-                Err(fatal_error)
-            }
-            (Ok(None), _) => unreachable!(),
-        });
+    let cmd_stream = cmd_stream.map(|r| match r {
+        (Ok(cmd), response_tx) => Ok((cmd, response_tx)),
+        (Err(e), response_tx) => {
+            let fatal_error = FatalRequestError(
+                anyhow::Error::new(e).context("Error decoding command"),
+                response_tx,
+            );
+            Err(fatal_error)
+        }
+    });
     Box::pin(cmd_stream)
 }
 
@@ -1070,7 +1064,7 @@ fn send_command_resp(
                     )
                 });
             }
-            let resp = sidecar_msg::HelperResponse::Reinitialize(err_buf.to_vec());
+            let resp = sidecar_msg::HelperResponse::Reinitialize(err_buf.into());
             response_tx.send(resp).map_err(|_| {
                 anyhow::anyhow!(
                     "Error sending fatal error after failing to encode response command"
@@ -1082,7 +1076,7 @@ fn send_command_resp(
         }
     }
 
-    let resp = sidecar_msg::HelperResponse::Data(buf.to_vec());
+    let resp = sidecar_msg::HelperResponse::Data(buf.into());
     response_tx
         .send(resp)
         .map_err(|_| anyhow::anyhow!("Error sending response command"))
@@ -1096,7 +1090,7 @@ fn send_fatal_reinitialize(
         .encode(CommandResponse::FatalError, &mut buf)
         .context("Error encoding fatal error response command")?;
     response_tx
-        .send(sidecar_msg::HelperResponse::Reinitialize(buf.to_vec()))
+        .send(sidecar_msg::HelperResponse::Reinitialize(buf.into()))
         .map_err(|_| anyhow::anyhow!("Error sending fatal reinitialize response"))
 }
 
@@ -1370,10 +1364,6 @@ mod tests {
     mod recv_command_errors {
         use super::*;
 
-        fn leak_message(bytes: Vec<u8>) -> &'static [u8] {
-            Box::leak(bytes.into_boxed_slice())
-        }
-
         fn make_channel() -> (mpsc::Sender<HelperRequest>, mpsc::Receiver<HelperRequest>) {
             mpsc::channel(5)
         }
@@ -1382,7 +1372,7 @@ mod tests {
             for command in messages {
                 let (response_tx, _response_rx) = oneshot::channel();
                 tx.try_send(HelperRequest {
-                    command: leak_message(command),
+                    command,
                     response_tx,
                 })
                 .expect("test setup should enqueue message");

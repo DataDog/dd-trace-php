@@ -41,8 +41,6 @@ const PRESET_JOBS = [
     'link-tracing-aarch64-gnu'  => 'link tracing extension: [arm64, aarch64-unknown-linux-gnu]',
     'link-tracing-amd64-musl'   => 'link tracing extension: [amd64, x86_64-alpine-linux-musl]',
     'link-tracing-aarch64-musl' => 'link tracing extension: [arm64, aarch64-alpine-linux-musl]',
-    'appsec-helper-rust-amd64'  => 'compile appsec helper rust: [amd64]',
-    'appsec-helper-rust-aarch64'=> 'compile appsec helper rust: [arm64]',
 ];
 
 const PIPELINE_DISCOVERY_TIMEOUT = 300;

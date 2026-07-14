@@ -551,22 +551,6 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
                 : "php-tracer-$phpVersion-$phpVariant"
             addVolumeMount(tracerVol, '/project/tmp')
         }
-        String helperBinaryPath = System.getProperty('HELPER_BINARY_PATH')
-        if (helperBinaryPath) {
-            File helperFile = new File(helperBinaryPath)
-            if (!helperFile.isAbsolute()) {
-                helperFile = new File(System.getProperty('user.dir'), helperBinaryPath)
-            }
-            withFileSystemBind(helperFile.absolutePath,
-                    '/helper-rust/libddappsec-helper.so', BindMode.READ_ONLY)
-        } else {
-            String helperVolume = System.getProperty('USE_HELPER_RUST_COVERAGE') ?
-                'php-helper-rust-coverage' : 'php-helper-rust'
-            addVolumeMount(helperVolume, '/helper-rust')
-            if (System.getProperty('USE_HELPER_RUST_COVERAGE')) {
-                withEnv 'LLVM_PROFILE_FILE', '/helper-rust/coverage/default-%m-%p.profraw'
-            }
-        }
         withEnv 'RUST_BACKTRACE', '1'
 
         String fullWorkVolume = "php-workvol-$workVolume-$phpVersion-$phpVariant"

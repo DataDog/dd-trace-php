@@ -94,7 +94,9 @@ $(BUILD_DIR)/Cargo.toml: Cargo.toml
 	$(Q) echo Copying Cargo.toml to $@
 	$(Q) mkdir -p $(dir $@)
 	$(Q) cp -a Cargo.toml $@
-	$(SED_I) -E 's/, "profiling",?//' $@
+	$(SED_I) -E \
+		-e '/^[[:space:]]*"(profiling|sidecar|appsec\/helper-rust)",?[[:space:]]*$$/d' \
+		-e 's/, "(profiling|sidecar|appsec\/helper-rust)"//g' $@
 
 $(BUILD_DIR)/%: %
 	$(Q) echo Copying $* to $@

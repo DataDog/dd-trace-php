@@ -23,7 +23,6 @@ docker run --init --rm \
         command -v bindgen >/dev/null 2>&1 || cargo install bindgen-cli --locked -q
         cd $COMPONENTS_RS_INNER
         bindgen sidecar.h \
-            --allowlist-function 'ddog_sidecar_appsec_register_message_handler' \
             --allowlist-function 'ddog_sidecar_enqueue_telemetry_log' \
             --allowlist-function 'ddog_sidecar_enqueue_telemetry_point' \
             --allowlist-function 'ddog_sidecar_enqueue_telemetry_metric' \
@@ -52,12 +51,6 @@ docker run --init --rm \
             --raw-line '//!' \
             --raw-line '//! Only includes types/functions needed for helper-rust as telemetry sender.' \
             --raw-line '#![allow(non_camel_case_types, non_upper_case_globals, dead_code)]' \
-            --allowlist-function 'ddog_sidecar_send_appsec_message' \
-            --allowlist-function 'ddog_sidecar_appsec_response_drop' \
-            --allowlist-type 'ddog_AppsecCResponse' \
-            --allowlist-type 'ddog_OnMessageFn' \
-            --allowlist-type 'ddog_OnDisconnectFn' \
-            --allowlist-type 'ddog_FreeResponseFn' \
             --allowlist-type 'ddog_MetricType' \
             --output $OUTPUT_FILE_INNER \
             -- -I.

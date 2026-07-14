@@ -1,5 +1,5 @@
 use log::kv::{Key, VisitSource};
-use log::{Level, Log, Metadata, Record};
+use log::Record;
 use std::backtrace::Backtrace;
 use std::borrow::Cow;
 use std::cell::Cell;
@@ -7,38 +7,6 @@ use std::cell::Cell;
 use super::{LogLevel, TelemetryLog, TelemetryLogSubmitter, TelemetryTags};
 use crate::client::log::ANYHOW_BACKTRACE_KEY;
 use crate::telemetry::error_tel_ctx::get_context_log_submitter;
-
-/// A composite logger that dispatches to the primary logger
-/// and submits error-level logs to telemetry.
-pub struct TelemetryAwareLogger {
-    delegate: Box<dyn Log>,
-}
-
-impl TelemetryAwareLogger {
-    pub fn new(delegate: Box<dyn Log>) -> Self {
-        Self { delegate }
-    }
-}
-
-impl Log for TelemetryAwareLogger {
-    fn enabled(&self, metadata: &Metadata) -> bool {
-        self.delegate.enabled(metadata)
-    }
-
-    fn log(&self, record: &Record) {
-        self.delegate.log(record);
-
-        if record.level() != Level::Error {
-            return;
-        }
-
-        submit_error_to_telemetry(record);
-    }
-
-    fn flush(&self) {
-        self.delegate.flush();
-    }
-}
 
 // Recursion guard: prevents infinite loops if telemetry submission logs an error
 thread_local! {
@@ -88,7 +56,7 @@ fn should_rate_limit() -> bool {
     })
 }
 
-fn submit_error_to_telemetry(record: &Record) {
+pub(crate) fn submit_error_to_telemetry(record: &Record) {
     let Some(_guard) = RecursionGuard::enter() else {
         return;
     };
@@ -211,26 +179,7 @@ fn extract_anyhow_backtrace(record: &Record) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::{Arc, Mutex};
-
-    struct TestLogger {
-        logs: Arc<Mutex<Vec<String>>>,
-    }
-
-    impl Log for TestLogger {
-        fn enabled(&self, _metadata: &Metadata) -> bool {
-            true
-        }
-
-        fn log(&self, record: &Record) {
-            self.logs
-                .lock()
-                .unwrap()
-                .push(format!("[{}] {}", record.level(), record.args()));
-        }
-
-        fn flush(&self) {}
-    }
+    use log::Level;
 
     #[test]
     fn test_recursion_guard() {
@@ -261,50 +210,6 @@ mod tests {
         });
 
         assert!(!should_rate_limit());
-    }
-
-    #[test]
-    fn test_composite_logger_delegates_to_primary() {
-        let logs = Arc::new(Mutex::new(Vec::new()));
-        let primary = Box::new(TestLogger { logs: logs.clone() });
-        let composite = TelemetryAwareLogger::new(primary);
-
-        let record = log::Record::builder()
-            .args(format_args!("test message"))
-            .level(Level::Info)
-            .build();
-
-        composite.log(&record);
-
-        let captured = logs.lock().unwrap();
-        assert_eq!(captured.len(), 1);
-        assert_eq!(captured[0], "[INFO] test message");
-    }
-
-    #[test]
-    fn test_composite_logger_handles_all_levels() {
-        let logs = Arc::new(Mutex::new(Vec::new()));
-        let primary = Box::new(TestLogger { logs: logs.clone() });
-        let composite = TelemetryAwareLogger::new(primary);
-
-        macro_rules! log_level {
-            ($level:expr, $msg:literal) => {{
-                let record = log::Record::builder()
-                    .args(format_args!($msg))
-                    .level($level)
-                    .build();
-                composite.log(&record);
-            }};
-        }
-
-        log_level!(Level::Trace, "trace message");
-        log_level!(Level::Debug, "debug message");
-        log_level!(Level::Info, "info message");
-        log_level!(Level::Warn, "warn message");
-        log_level!(Level::Error, "error message");
-
-        let captured = logs.lock().unwrap();
-        assert_eq!(captured.len(), 5);
     }
 
     #[test]
@@ -375,32 +280,6 @@ mod tests {
         let input = r#"WafString("trailing backslash\\")"#;
         let out = redact_waf_strings(input);
         assert_eq!(out, r#"WafString("<REDACTED>")"#);
-    }
-
-    #[test]
-    fn test_primary_delegate_receives_unredacted_error_message() {
-        let logs = Arc::new(Mutex::new(Vec::new()));
-        let primary = Box::new(TestLogger { logs: logs.clone() });
-        let composite = TelemetryAwareLogger::new(primary);
-
-        let record = log::Record::builder()
-            .args(format_args!(
-                r#"error in request loop: unexpected command WafString("ORIGINAL_SECRET")"#
-            ))
-            .level(Level::Error)
-            .build();
-
-        composite.log(&record);
-
-        let captured = logs.lock().unwrap();
-        assert_eq!(captured.len(), 1);
-        // Delegate must see the original, unredacted message.
-        assert!(
-            captured[0].contains("ORIGINAL_SECRET"),
-            "delegate did not receive the original message, got: {}",
-            captured[0]
-        );
-        assert!(!captured[0].contains("<REDACTED>"));
     }
 
     #[test]

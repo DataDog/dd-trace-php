@@ -17,7 +17,13 @@ typedef struct dd_mpack_limits {
     size_t elements_remaining;
 } dd_mpack_limits;
 
-#define DD_MPACK_DEF_STRING_LIMIT 4096
+typedef struct dd_mpack_buffer {
+    char *nullable data;
+    size_t final_msg_size; // including prefix (header size)
+    size_t prefix_size;
+} dd_mpack_buffer;
+
+enum { DD_MPACK_DEF_STRING_LIMIT = 4096 };
 #define dd_mpack_def_limits                                                    \
     ((dd_mpack_limits){                                                        \
         .max_string_length = DD_MPACK_DEF_STRING_LIMIT,                        \
@@ -68,8 +74,9 @@ void dd_mpack_write_array_lim(mpack_writer_t *nonnull w,
 void dd_mpack_write_zval(mpack_writer_t *nonnull w, zval *nullable zv);
 void dd_mpack_write_zval_lim(mpack_writer_t *nonnull w, zval *nullable zv,
     dd_mpack_limits *nonnull limits);
-void dd_mpack_writer_init_iov(
-    mpack_writer_t *nonnull writer, zend_llist *nonnull iovec_list);
+void dd_mpack_writer_init_buffer(mpack_writer_t *nonnull writer,
+    dd_mpack_buffer *nonnull buffer, size_t prefix_size);
+void dd_mpack_buffer_destroy(dd_mpack_buffer *nonnull buffer);
 
 void dd_msgpack_helpers_startup(void);
 void dd_msgpack_helpers_rinit(void);

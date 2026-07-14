@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This project is a Rust rewrite of the Datadog AppSec helper for PHP, which provides application security monitoring and runtime protection capabilities. The helper is a library loaded into sidecar that:
+This project is a Rust rewrite of the Datadog AppSec helper for PHP, which provides application security monitoring and runtime protection capabilities. The helper is a library embedded into the dd-trace-php sidecar (`../../sidecar`) that:
 
 - Executes the Datadog WAF (Web Application Firewall) on request data
 - Handles remote configuration updates for security rules
@@ -15,6 +15,8 @@ This project is a Rust rewrite of the Datadog AppSec helper for PHP, which provi
 
 - **PHP extension**: `../src/extension` (integration point)
 
+- **Sidecar integration**: `../../sidecar` (depends on both helper-rust and libdatadog)
+
 - **libddwaf Rust bindings and native library**: `../third_party/libddwaf-rust/` (path dependency)
 
 ## Architecture
@@ -24,16 +26,17 @@ This project is a Rust rewrite of the Datadog AppSec helper for PHP, which provi
 ```
 PHP Extension
     ↓ (sidecar protocol)
-Sidecar ← helper-rust (embedded)
-    ↓ (FFI)
-libddwaf
+dd-trace-php Sidecar (`sidecar`)
+    ├── libdatadog Sidecar
+    └── helper-rust
+        └── libddwaf (FFI)
 ```
 
 ## Key Components
 
 Core modules:
-- **src/lib.rs** - C FFI entry point (`appsec_helper_main()`), initialization, runtime management
-- **src/server.rs** - Sidecar AppSec message handler registration and client task management
+- **src/lib.rs** - Library entry point, initialization, and shutdown on the sidecar runtime
+- **src/server.rs** - AppSec message acceptance and client task management
 - **src/client.rs** - Client connection handler, request processing, WAF execution orchestration
 - **src/service.rs** - Service management, maintains WAF instances per service configuration
 - **src/config.rs** - Configuration management (from environment variables)
@@ -66,13 +69,10 @@ Telemetry sub-modules:
 
 ### Using Gradle (Integration Tests)
 
-The helper-rust is built via Gradle for integration testing. From `tests/integration/`:
+The helper-rust crate is built as part of the dd-trace-php sidecar. From `tests/integration/`:
 
 ```bash
-./gradlew buildHelperRust --info
-
-# The output file is in the php-helper-rust Docker volume:
-# - libddappsec-helper.so  (libddwaf is statically linked in)
+./gradlew buildTracer-8.3-debug --info
 ```
 
 ## Development Notes
@@ -96,7 +96,7 @@ Logs for the helper are available at `tests/integration/build/test-logs/{helper,
 - Glibc (Debian): `test8.3-debug` or other standard test targets
 - Musl (Alpine): `test8.5-release-musl`
 
-The helper-rust binary is built to work universally on both platforms. Example:
+The embedded helper-rust library is built to work on both platforms. Example:
 ```bash
 # Test on glibc
 ./gradlew test8.3-debug --tests "*NginxFpmTests*"
@@ -132,17 +132,11 @@ System tests are located in `../../../system-tests/` (relative to dd-trace-php r
 
 ### Setting Up Binaries for System Tests
 
-Before running system tests with the Rust helper, copy the required binaries:
+Before running system tests, copy the required extension binaries:
 
 ```bash
-# Build helper-rust via Gradle
-cd tests/integration
-./gradlew buildHelperRust --info
-
-# Extract binary from Docker volume (libddwaf is statically linked in)
-docker run -i --rm -v php-helper-rust:/vol alpine cat /vol/libddappsec-helper.so > ../../system-tests/binaries/libddappsec-helper.so
-
 # If there were modifications in ddtrace or the extension relative to the latest origin/master:
+cd tests/integration
 ./gradlew buildAppsec-8.0-release buildTracer-8.0-release --info
 
 docker run -i --rm  -v php-appsec-8.0-release:/appsec alpine cat /appsec/ddappsec.so > ../system-tests/binaries/ddappsec.so
@@ -266,7 +260,6 @@ The appsec child pipeline (generated from `generate-appsec.php`) includes these 
 |-----|-------------|
 | `helper-rust build and test` | Builds helper-rust and runs `cargo test` + format check |
 | `helper-rust code coverage` | Runs unit tests with coverage, uploads to codecov |
-| `helper-rust integration coverage` | Runs integration tests with coverage-instrumented binary |
 | `appsec integration tests` | Integration tests across all PHP versions |
 
 ### Checking Pipeline Status

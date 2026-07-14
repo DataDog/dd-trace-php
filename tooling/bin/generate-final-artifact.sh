@@ -86,8 +86,8 @@ for architecture in "${architectures[@]}"; do
                     if [[ -f ${appsec_ext_path} ]]; then
                         appsec_base_dir=${tmp_folder_final}/dd-library-php/appsec
                         cp_with_dir ${appsec_ext_path} ${appsec_base_dir}/ext/$php_api/ddappsec${config}.${ext}
-                        cp_with_dir ./appsec_${architecture}/libddappsec-helper.so ${appsec_base_dir}/lib/libddappsec-helper.so
-                        cp_with_dir ./appsec_${architecture}/recommended.json ${appsec_base_dir}/etc/recommended.json
+                        mkdir -p ${appsec_base_dir}/lib
+                        cp_with_dir ./appsec/recommended.json ${appsec_base_dir}/etc/recommended.json
                     fi
 
                     echo "$release_version" > ${tmp_folder_final}/dd-library-php/VERSION
@@ -273,7 +273,7 @@ for architecture in "${architectures[@]}"; do
             done
         done
 
-        # Helper (C++ and Rust) + Recommended rules
+        # Recommended rules
         for full_target in "${targets[@]}"; do
             target=${full_target#*-}
 
@@ -281,10 +281,7 @@ for architecture in "${architectures[@]}"; do
                 mkdir -p "${tmp_folder_final_gnu_appsec}/lib"
                 mkdir -p "${tmp_folder_final_gnu_appsec}/etc"
                 cp \
-                    "./appsec_${architecture}/libddappsec-helper.so" \
-                    "${tmp_folder_final_gnu_appsec}/lib/libddappsec-helper.so"
-                cp \
-                    "./appsec_${architecture}/recommended.json" \
+                    "./appsec/recommended.json" \
                     "${tmp_folder_final_gnu_appsec}/etc/recommended.json"
             fi
 
@@ -292,10 +289,7 @@ for architecture in "${architectures[@]}"; do
                 mkdir -p "${tmp_folder_final_musl_appsec}/lib"
                 mkdir -p "${tmp_folder_final_musl_appsec}/etc"
                 cp \
-                    "./appsec_${architecture}/libddappsec-helper.so" \
-                    "${tmp_folder_final_musl_appsec}/lib/libddappsec-helper.so"
-                cp \
-                    "./appsec_${architecture}/recommended.json" \
+                    "./appsec/recommended.json" \
                     "${tmp_folder_final_musl_appsec}/etc/recommended.json"
             fi
         done

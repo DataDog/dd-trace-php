@@ -27,8 +27,10 @@ typedef struct _dd_helper_response {
     size_t _capacity; // private
 } dd_helper_response;
 
-dd_result dd_conn_roundtripv(dd_conn *nonnull conn, zend_llist *nonnull iovecs,
-    dd_helper_response *nonnull response_out);
+enum { DD_CONN_REQUEST_HEADER_SIZE = 8 };
+
+dd_result dd_conn_roundtrip(dd_conn *nonnull conn, char *nonnull request,
+    size_t request_len, dd_helper_response *nonnull response_out);
 void dd_helper_response_destroy(dd_helper_response *nonnull response);
 
 // for helper_process

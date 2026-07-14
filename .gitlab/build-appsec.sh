@@ -13,7 +13,7 @@ suffix="${1:-}"
 echo "Build nts extension"
 switch-php "${PHP_VERSION}"
 mkdir -p appsec/build ; cd appsec/build
-cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_HELPER=OFF -DDD_APPSEC_TESTING=OFF -DDD_APPSEC_EXTENSION_STATIC_LIBSTDCXX=ON
+cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_TESTING=OFF -DDD_APPSEC_EXTENSION_STATIC_LIBSTDCXX=ON
 make -j $MAKE_JOBS
 cp -v ddappsec.so "../../appsec_$(uname -m)/ddappsec-$PHP_API${suffix}.so"
 cd "../../"
@@ -21,7 +21,7 @@ cd "../../"
 echo "Build zts extension"
 switch-php "${PHP_VERSION}-zts"
 mkdir -p appsec/build-zts ; cd appsec/build-zts
-cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_HELPER=OFF -DDD_APPSEC_TESTING=OFF -DDD_APPSEC_EXTENSION_STATIC_LIBSTDCXX=ON
+cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_TESTING=OFF -DDD_APPSEC_EXTENSION_STATIC_LIBSTDCXX=ON
 make -j $MAKE_JOBS
 cp -v ddappsec.so "../../appsec_$(uname -m)/ddappsec-$PHP_API${suffix}-zts.so"
 cd "../../"

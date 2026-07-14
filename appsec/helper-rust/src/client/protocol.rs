@@ -369,15 +369,10 @@ impl Header {
 }
 
 pub struct CommandCodec;
-impl Decoder for CommandCodec {
-    type Item = Command;
-
-    type Error = io::Error;
-
-    fn decode(
-        &mut self,
-        src: &mut tokio_util::bytes::BytesMut,
-    ) -> Result<Option<Self::Item>, Self::Error> {
+impl CommandCodec {
+    /// Returns the full size (including header) of the next message in the
+    /// buffer, or None if this can't be determined without more data.
+    fn frame_size(src: &[u8]) -> Result<Option<usize>, io::Error> {
         if src.len() < std::mem::size_of::<Header>() {
             return Ok(None);
         }
@@ -401,26 +396,63 @@ impl Decoder for CommandCodec {
             ));
         }
 
-        let total_size = std::mem::size_of::<Header>() + header.size as usize;
+        Ok(Some(std::mem::size_of::<Header>() + header.size as usize))
+    }
+
+    fn deserialize_message(src: &[u8], total_size: usize) -> Result<Command, io::Error> {
+        let data = &src[std::mem::size_of::<Header>()..total_size];
+
+        trace!(
+            "Decoding message with size {}: {:?}",
+            data.len(),
+            fmt_bin(data)
+        );
+
+        let mut de = Deserializer::from_read_ref(data);
+        Command::deserialize(&mut de).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+    }
+
+    /// Decodes one complete framed command without copying its bytes into a streaming buffer.
+    pub fn decode_message(src: &[u8]) -> Result<Command, io::Error> {
+        let frame_size = Self::frame_size(src)?.ok_or_else(|| {
+            io::Error::new(io::ErrorKind::UnexpectedEof, "Incomplete command header")
+        })?;
+        if src.len() < frame_size {
+            return Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                "Incomplete command message",
+            ));
+        }
+
+        Self::deserialize_message(src, frame_size)
+    }
+}
+
+impl Decoder for CommandCodec {
+    type Item = Command;
+
+    type Error = io::Error;
+
+    fn decode(
+        &mut self,
+        src: &mut tokio_util::bytes::BytesMut,
+    ) -> Result<Option<Self::Item>, Self::Error> {
+        let Some(total_size) = Self::frame_size(src)? else {
+            // not enough data, not even to determine the frame size
+            return Ok(None);
+        };
 
         if src.len() < total_size {
+            // not enough data, but we already know how big the frame is,
+            // so we can reserve the necessary capacity
+            // (frame_size() caps this to 4 MB)
             if src.capacity() < total_size {
                 src.reserve(total_size - src.capacity());
             }
             return Ok(None);
         }
 
-        let data = &src[std::mem::size_of::<Header>()..total_size];
-
-        trace!(
-            "Decoding message with size {}: {:?}",
-            header.size,
-            fmt_bin(data)
-        );
-
-        let mut de = Deserializer::from_read_ref(data);
-        let cmd = Command::deserialize(&mut de)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let cmd = Self::deserialize_message(src, total_size)?;
 
         src.advance(total_size);
 

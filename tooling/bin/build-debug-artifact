@@ -257,20 +257,7 @@ if [[ "$BUILD_APPSEC" == "1" ]]; then
     # Use a per-variant cmake build dir in the cache volume (nts and zts need separate builds).
     APPSEC_SCRIPT="$(_preamble "git config --global --add safe.directory '*' 2>/dev/null || true
 mkdir -p tmp/build_appsec${EXT_SUFFIX}
-(cd tmp/build_appsec${EXT_SUFFIX} && cmake ${HOME_DIR}/appsec -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_HELPER=OFF -DDD_APPSEC_TESTING=OFF -DDD_APPSEC_EXTENSION_STATIC_LIBSTDCXX=ON && make -j \$(nproc) && cp ddappsec.so /output/ddappsec${EXT_SUFFIX}.so)")"
-
-    # Rust helper — debug build (no --release)
-    HELPER_RUST_SCRIPT='set -e
-cd appsec/helper-rust
-export CARGO_TARGET_DIR=/repo/tmp/cargo-target-helper-rust
-RUST_TARGET=$(uname -m)-unknown-linux-musl
-cargo +nightly-$RUST_TARGET build \
-    -Zhost-config -Ztarget-applies-to-host --target $RUST_TARGET
-BINARY_PATH="/repo/tmp/cargo-target-helper-rust/$RUST_TARGET/debug/libddappsec_helper_rust.so"
-ARCH=$(uname -m)
-[ "$ARCH" = x86_64 ] && patchelf --remove-needed libc.musl-x86_64.so.1 "$BINARY_PATH" 2>/dev/null || true
-[ "$ARCH" = aarch64 ] && patchelf --remove-needed libc.musl-aarch64.so.1 "$BINARY_PATH" 2>/dev/null || true
-cp -v "$BINARY_PATH" /output/libddappsec-helper.so'
+(cd tmp/build_appsec${EXT_SUFFIX} && cmake ${HOME_DIR}/appsec -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_TESTING=OFF -DDD_APPSEC_EXTENSION_STATIC_LIBSTDCXX=ON && make -j \$(nproc) && cp ddappsec.so /output/ddappsec${EXT_SUFFIX}.so)")"
 fi
 
 # ─── Launch all builds in parallel ────────────────────────────────────────────
@@ -309,17 +296,6 @@ _launch "trace"   docker run -w "${HOME_DIR}" --rm "${_common_volumes[@]}" "$DOC
 
 if [[ "$BUILD_APPSEC" == "1" ]]; then
     _launch "appsec" docker run -w "${HOME_DIR}" --rm "${_common_volumes[@]}" "$DOCKER_IMAGE" "$DOCKER_SHELL" -c "$APPSEC_SCRIPT"
-
-    # Rust helper
-    RUST_HELPER_IMAGE="datadog/dd-appsec-php-ci:nginx-fpm-php-8.5-release-musl"
-    _launch "helper-rust" docker run --rm \
-        --platform "$DOCKER_PLATFORM" \
-        -v "${REPO_ROOT}:/repo" \
-        -w "/repo" \
-        -v "${CACHE_VOLUME}:/repo/tmp" \
-        -v "${TMP_OUT}:/output" \
-        "$RUST_HELPER_IMAGE" \
-        bash -c "$HELPER_RUST_SCRIPT"
 fi
 
 # ─── Wait for all builds ──────────────────────────────────────────────────────
@@ -356,9 +332,6 @@ if [[ "$BUILD_APPSEC" == "1" ]]; then
     APPSEC_BASE="${TMP_PKG}/dd-library-php/appsec"
     mkdir -p "${APPSEC_BASE}/ext/${php_api}" "${APPSEC_BASE}/lib" "${APPSEC_BASE}/etc"
     cp "${TMP_OUT}/ddappsec${EXT_SUFFIX}.so" "${APPSEC_BASE}/ext/${php_api}/ddappsec${EXT_SUFFIX}.so"
-    if [[ -f "${TMP_OUT}/libddappsec-helper.so" ]]; then
-        cp "${TMP_OUT}/libddappsec-helper.so" "${APPSEC_BASE}/lib/libddappsec-helper.so"
-    fi
     if [[ -f "${REPO_ROOT}/appsec/recommended.json" ]]; then
         cp "${REPO_ROOT}/appsec/recommended.json" "${APPSEC_BASE}/etc/recommended.json"
     fi

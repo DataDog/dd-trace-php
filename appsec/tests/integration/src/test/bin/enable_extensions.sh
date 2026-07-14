@@ -24,7 +24,6 @@ if [[ -n $USE_SSI ]]; then
   ln -s /tracer-ssi/libdatadog_php.so "$PKG/loader/libdatadog_php.so"
   ln -s /tracer-ssi/ddtrace.so "$PKG/trace/ext/$PHP_API/ddtrace${EXT_SUFFIX}.so"
   ln -s /appsec/ddappsec.so "$PKG/appsec/ext/$PHP_API/ddappsec${EXT_SUFFIX}.so"
-  ln -s /helper-rust/libddappsec-helper.so "$PKG/appsec/lib/libddappsec-helper.so"
   ln -s /project/src "$PKG/trace/src"
   HELPER_PATH=/tmp/dd-package/appsec/lib/libddappsec-helper.so
   {
