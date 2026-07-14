@@ -2365,8 +2365,9 @@ function get_ini_settings($sourcesDir, $appsecHelperPath, $appsecRulesPath)
             'default' => $appsecRulesPath,
             'commented' => true,
             'description' => [
-                'The path to the rules json file. The sidecar process must be able to read the',
-                'file. This ini setting is configured by the installer',
+                'Optional path to a custom rules json file. When this setting is not configured,',
+                'the Rust helper uses its embedded default rules and the C++ helper uses the',
+                'default rules file installed next to the helper.',
             ],
         ],
         [

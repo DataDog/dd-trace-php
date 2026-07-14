@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestMethodOrder
 import org.junit.jupiter.api.condition.DisabledIf
+import org.testcontainers.containers.BindMode
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 
@@ -49,6 +50,12 @@ class TelemetryTests {
                 void configure() {
                     super.configure()
                     withEnv('RUST_LIB_BACKTRACE', '1')
+                    // This class strips appsec.rules from php.ini (see beforeAll) to exercise
+                    // the helpers' default-ruleset path, so both helpers must see the real
+                    // production ruleset here instead of the test fixture at
+                    // src/test/waf/recommended.json.
+                    setBinds(binds.findAll { it.volume.path != '/etc/recommended.json' })
+                    withFileSystemBind('../../recommended.json', '/etc/recommended.json', BindMode.READ_ONLY)
                 }
             }
 
@@ -935,10 +942,11 @@ class TelemetryTests {
         }
         assert requestSup.get() != null
 
-        // Blocking request: 80.80.80.80 hits the recommended.json IP blocklist rule
-        // (on_match: ["block"]). The WAF returns a block_request action.
+        // Blocking request: this User-Agent hits the recommended.json Datadog test
+        // scanner rule (ua0-600-56x, on_match: ["block"]). The WAF returns a
+        // block_request action.
         HttpRequest req = CONTAINER.buildReq('/hello.php')
-                .header('X-Forwarded-For', '80.80.80.80').GET().build()
+                .header('User-Agent', 'dd-test-scanner-log-block').GET().build()
         CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
             assert resp.statusCode() == 403
         }
@@ -1163,7 +1171,7 @@ class TelemetryTests {
                     ],
                     'datadog/2/ASM/rasp_lfi_block_override/config': [
                             rules_override: [[
-                                                     rules_target: [[rule_id: 'rasp-001-001']],
+                                                     rules_target: [[rule_id: 'rasp-930-100']],
                                                      on_match: ['block']
                                              ]]
                     ]
