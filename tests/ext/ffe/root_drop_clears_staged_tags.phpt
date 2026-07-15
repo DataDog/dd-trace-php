@@ -30,12 +30,15 @@ $span->onClose[] = function ($span) {
 // A second, unrelated root opens and closes normally. Pre-fix, the tags
 // staged for the dropped root above would still be sitting in the native
 // globals and would get flushed onto THIS span instead of being discarded.
-\DDTrace\start_span();
+// Inspect ->meta directly on the held object rather than via
+// dd_trace_serialize_closed_spans(): auto_flush_enabled=1 (required above so
+// try_drop_span() takes the real-drop branch rather than the refcount>2
+// safe-reject-via-normal-close fallback) drains the closed-span buffer as
+// soon as this span closes, so serialize_closed_spans() would see nothing.
+$secondRoot = \DDTrace\start_span();
 \DDTrace\close_span();
 
-foreach (dd_trace_serialize_closed_spans() as $span) {
-    var_dump(array_key_exists("ffe_flags_enc", $span["meta"]));
-}
+var_dump(array_key_exists("ffe_flags_enc", $secondRoot->meta));
 ?>
 --EXPECT--
 bool(true)
