@@ -6,8 +6,8 @@ if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not supp
 ?>
 --INI--
 datadog.trace.generate_root_span=0
+datadog.trace.auto_flush_enabled=1
 --ENV--
-DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED=1
 --FILE--
 <?php
@@ -15,12 +15,15 @@ DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED=1
 // later dropped (e.g. via \DDTrace\try_drop_span()) rather than closed
 // normally. A dropped root never reaches the native close-span flush, so
 // pre-fix these staged tags would still be sitting in the request-global
-// slots afterward.
+// slots afterward. Mirrors the proven try_drop_span_root.phpt pattern (same
+// INI/refcount shape) so try_drop_span() actually takes the real-drop branch
+// in tracer/span.c rather than the refcount>2 safe-reject-via-normal-close
+// fallback.
 \DDTrace\Internal\set_ffe_span_enrichment_tags("ZAgUAg==", null, null);
 
-$extraRef = $droppedRoot = \DDTrace\start_span();
-$droppedRoot->onClose[] = function ($span) {
-    \DDTrace\try_drop_span($span);
+$extraRef = $span = \DDTrace\start_span();
+$span->onClose[] = function ($span) {
+    var_dump(\DDTrace\try_drop_span($span));
 };
 \DDTrace\close_span();
 
@@ -35,4 +38,5 @@ foreach (dd_trace_serialize_closed_spans() as $span) {
 }
 ?>
 --EXPECT--
+bool(true)
 bool(false)
