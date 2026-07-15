@@ -572,7 +572,10 @@ static void dd_log_probe_add_capture_fields(ddog_DebuggerCapture *capture, dd_lo
         ddog_ValueEvaluationResult result = ddog_evaluate_value(exprs[i].expr, &ctx);
 
         if (result.tag == DDOG_VALUE_EVALUATION_RESULT_ERROR) {
-            ddog_evaluation_error_drop(result.error);
+            // Surface per-expression evaluation failures instead of dropping them,
+            // matching the metric-probe path and the other tracers (which report
+            // failed capture expressions rather than silently omitting them).
+            dd_submit_probe_eval_error_snapshot(&def->parent.probe, result.error);
             continue;
         }
 
