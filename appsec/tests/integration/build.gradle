@@ -817,7 +817,7 @@ def helperRustInputs = [
         dirs: ['../../helper-rust/src', '../../third_party/libddwaf-rust'],
         files: [
                 '../../helper-rust/Cargo.toml',
-                '../../helper-rust/Cargo.lock',
+                '../../../Cargo.lock',
                 '../../helper-rust/clippy.toml',
                 '../../helper-rust/build.rs',
                 '../../helper-rust/coverage_init.c',
