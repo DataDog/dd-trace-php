@@ -151,6 +151,47 @@ final class SpanEnrichmentRegistryTest extends TestCase
         $this->assertSame(array(), $registry->stagedTags());
     }
 
+    /**
+     * Regression for the reset-ordering bug (PR review): tracer/span.c fires
+     * $root->onClose in REVERSE registration order. If the registry's reset
+     * were simply appended, it would run BEFORE an earlier-registered onClose
+     * callback that itself evaluates a flag during root close -- wiping the
+     * PHP-side bookkeeping mid-close and losing that evaluation from the
+     * union. prependOnCloseReset() must guarantee the reset is the LAST
+     * onClose callback to fire regardless of registration order.
+     */
+    public function testPrependOnCloseResetRunsLastUnderReverseIteration()
+    {
+        $method = new \ReflectionMethod(SpanEnrichmentRegistry::class, 'prependOnCloseReset');
+        $method->setAccessible(true);
+
+        $order = array();
+        $appCallback = function () use (&$order) {
+            $order[] = 'app';
+        };
+        $reset = function () use (&$order) {
+            $order[] = 'reset';
+        };
+
+        // Simulate: app code registers its onClose callback BEFORE the first
+        // flag evaluation schedules the registry's reset.
+        $onClose = array($appCallback);
+        $onClose = $method->invoke(null, $onClose, $reset);
+
+        // A later integration registers another callback after ours is bound.
+        $laterCallback = function () use (&$order) {
+            $order[] = 'later';
+        };
+        $onClose[] = $laterCallback;
+
+        // Mirror tracer/span.c's ZEND_HASH_REVERSE_FOREACH_VAL: last element first.
+        foreach (array_reverse($onClose) as $callback) {
+            $callback();
+        }
+
+        $this->assertSame(array('later', 'app', 'reset'), $order);
+    }
+
     private function registryBoundToRoot($rootId)
     {
         $registry = SpanEnrichmentRegistry::instance();

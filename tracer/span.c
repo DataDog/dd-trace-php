@@ -1089,6 +1089,10 @@ void ddtrace_drop_span(ddtrace_span_data *span) {
     --DDTRACE_G(open_spans_count);
 
     if (&stack->root_span->span == span) {
+        // A dropped root never reaches ddtrace_ffe_flush_span_enrichment_tags(), so any
+        // staged ffe_* tags for this root must be discarded here -- otherwise they would
+        // be flushed onto whichever root span closes next (PR review: FFE span leakage).
+        ddtrace_ffe_clear_span_enrichment_tags();
         ddtrace_switch_span_stack(stack->parent_stack);
         stack->root_span = NULL;
     } else if (!stack->active || SPANDATA(stack->active)->stack != stack) {

@@ -282,9 +282,35 @@ final class SpanEnrichmentRegistry
             return;
         }
 
-        $root->onClose[] = static function () use ($reset) {
+        $root->onClose = self::prependOnCloseReset($root->onClose, $reset);
+    }
+
+    /**
+     * Prepend, not append, the reset closure to $onClose: the native close
+     * path (tracer/span.c) runs $onClose in REVERSE registration order (last
+     * registered runs first), so prepending guarantees this reset is the LAST
+     * callback to run for this root regardless of how many other callbacks get
+     * registered after it. If it instead ran before an earlier-registered
+     * callback that itself evaluates a flag during root close, this reset would
+     * look like a root-boundary crossing to that evaluation and wipe out the
+     * union already staged for this root (PR review: reset ordering vs. other
+     * onClose callbacks). Kept as its own method so the ordering guarantee is
+     * directly testable without a real root span / native extension.
+     *
+     * @param mixed $onClose
+     * @param callable $reset
+     * @return array<int, callable>
+     */
+    private static function prependOnCloseReset($onClose, $reset)
+    {
+        if (!\is_array($onClose)) {
+            $onClose = array();
+        }
+        \array_unshift($onClose, static function () use ($reset) {
             $reset();
-        };
+        });
+
+        return $onClose;
     }
 
     /**

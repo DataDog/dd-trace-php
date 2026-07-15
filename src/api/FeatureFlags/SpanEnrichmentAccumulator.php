@@ -287,21 +287,46 @@ final class SpanEnrichmentAccumulator
             return mb_substr($value, 0, $maxLength, 'UTF-8');
         }
 
+        return $this->truncateUtf8ByteFallback($value, $maxLength);
+    }
+
+    /**
+     * mbstring-free fallback for truncateUtf8(). Walks codepoint-by-codepoint
+     * (via UTF-8 leading-byte length) so the $maxLength cutoff counts
+     * characters, not bytes -- a byte cutoff would truncate multi-byte text
+     * (e.g. CJK, emoji) far below $maxLength chars. Kept as its own method so
+     * it is directly testable regardless of whether ext-mbstring is loaded in
+     * the environment running the tests.
+     */
+    private function truncateUtf8ByteFallback($value, $maxLength)
+    {
         if (strlen($value) <= $maxLength) {
             return $value;
         }
 
-        $truncated = substr($value, 0, $maxLength);
-        // Drop a trailing partial multi-byte sequence (bytes with 0x80 bit set
-        // that do not form a complete code point).
-        $i = strlen($truncated);
-        while ($i > 0 && (ord($truncated[$i - 1]) & 0xC0) === 0x80) {
-            $i--;
-        }
-        if ($i > 0 && (ord($truncated[$i - 1]) & 0x80) !== 0) {
-            $i--;
+        $len = strlen($value);
+        $offset = 0;
+        $count = 0;
+        while ($offset < $len && $count < $maxLength) {
+            $byte = ord($value[$offset]);
+            if ($byte < 0x80) {
+                $seqLen = 1;
+            } elseif (($byte & 0xE0) === 0xC0) {
+                $seqLen = 2;
+            } elseif (($byte & 0xF0) === 0xE0) {
+                $seqLen = 3;
+            } elseif (($byte & 0xF8) === 0xF0) {
+                $seqLen = 4;
+            } else {
+                $seqLen = 1;
+            }
+            if ($offset + $seqLen > $len) {
+                break;
+            }
+            $offset += $seqLen;
+            $count++;
         }
 
-        return substr($truncated, 0, $i);
+        return substr($value, 0, $offset);
     }
 }

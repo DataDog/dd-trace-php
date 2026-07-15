@@ -194,6 +194,41 @@ final class SpanEnrichmentAccumulatorTest extends TestCase
         self::assertSame(64, mb_strlen($defaults['flag'], 'UTF-8'));
     }
 
+    /**
+     * Regression for the mbstring-free fallback path (PR review: byte vs.
+     * character truncation): without ext-mbstring, a naive substr($value, 0,
+     * 64) cuts at 64 BYTES, which truncates multi-byte text far below 64
+     * characters (e.g. ~21 chars for 3-byte CJK). Invoked directly via
+     * Reflection so this test exercises the fallback regardless of whether
+     * ext-mbstring happens to be loaded in the environment running the suite.
+     *
+     * @dataProvider utf8FallbackTruncationCases
+     */
+    public function testTruncateUtf8ByteFallbackCountsCharactersNotBytes(string $input, int $expectedChars): void
+    {
+        $acc = new SpanEnrichmentAccumulator();
+        $method = new \ReflectionMethod(SpanEnrichmentAccumulator::class, 'truncateUtf8ByteFallback');
+        $method->setAccessible(true);
+
+        $truncated = $method->invoke($acc, $input, 64);
+
+        self::assertTrue(mb_check_encoding($truncated, 'UTF-8'), 'fallback must not split a multi-byte sequence');
+        self::assertSame($expectedChars, mb_strlen($truncated, 'UTF-8'));
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: int}>
+     */
+    public static function utf8FallbackTruncationCases(): array
+    {
+        return [
+            'ascii (1 byte/char)'          => [str_repeat('a', 100), 64],
+            'CJK (3 bytes/char)'           => [str_repeat("\u{3042}", 100), 64],
+            'emoji (4 bytes/char)'         => [str_repeat("\u{1F600}", 100), 64],
+            'shorter than limit unchanged' => [str_repeat("\u{3042}", 10), 10],
+        ];
+    }
+
     // ---- Case 5: JSON / object default ------------------------------------
 
     public function testObjectDefaultIsJsonStringified(): void
