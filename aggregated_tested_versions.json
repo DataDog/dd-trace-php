@@ -1,7 +1,7 @@
 {
   "cakephp/cakephp": [
     "3.10.5",
-    "4.6.4",
+    "4.6.5",
     "5.2.8"
   ],
   "drupal/drupal": [
