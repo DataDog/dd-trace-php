@@ -154,12 +154,9 @@ install_appsec:
 	cmake -S $(APPSEC_SOURCE_DIR) -DCMAKE_BUILD_TYPE=RelWithDebInfo -B $(BUILD_DIR_APPSEC)
 	$(MAKE) -C $(BUILD_DIR_APPSEC) extension
 	cp -v $(BUILD_DIR_APPSEC)/ddappsec.so $(PHP_EXTENSION_DIR)/ddappsec.so
-	cd $(APPSEC_SOURCE_DIR)/helper-rust; cargo build --release
-	cp $(APPSEC_SOURCE_DIR)/helper-rust/target/release/libddappsec_helper.so $(PHP_EXTENSION_DIR)/libddappsec-helper.so
 	cp $(APPSEC_SOURCE_DIR)/recommended.json /tmp/recommended.json
 	$(Q) echo "extension=ddappsec.so" | $(SUDO) tee -a $(INI_FILE)
 	$(Q) echo "datadog.appsec.cli_start_on_rinit=true" | $(SUDO) tee -a $(INI_FILE)
-	$(Q) echo "datadog.appsec.helper_path=$(PHP_EXTENSION_DIR)/libddappsec-helper.so" | $(SUDO) tee -a $(INI_FILE)
 	$(Q) echo "datadog.appsec.rules=/tmp/recommended.json" | $(SUDO) tee -a $(INI_FILE)
 	$(Q) echo "datadog.appsec.log_file=/tmp/logs/appsec.log" | $(SUDO) tee -a $(INI_FILE)
 	$(Q) echo "datadog.appsec.helper_log_file=/tmp/logs/helper.log" | $(SUDO) tee -a $(INI_FILE)
