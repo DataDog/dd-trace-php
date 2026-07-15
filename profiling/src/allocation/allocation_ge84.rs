@@ -14,7 +14,8 @@ use libc::{c_char, c_uint};
 #[cfg(feature = "debug_stats")]
 use crate::allocation::{ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE};
 
-const PREFIX_SIZE: usize = core::mem::size_of::<usize>();
+// Preserve the alignment guaranteed by the allocator we wrap.
+const PREFIX_SIZE: usize = core::mem::align_of::<libc::max_align_t>();
 const PREFIX_MAGIC: usize = 0xdd0f_cafe;
 
 #[derive(Copy, Clone)]
@@ -661,6 +662,16 @@ unsafe fn alloc_prof_orig_shutdown(full: bool, silent: bool) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn prefix_preserves_allocator_alignment() {
+        let base = unsafe { libc::malloc(PREFIX_SIZE + 1) };
+        let ptr = unsafe { add_prefix(base) };
+
+        assert_eq!(ptr as usize % PREFIX_SIZE, 0);
+        assert_eq!(unsafe { remove_prefix(ptr) }, base);
+        unsafe { libc::free(base) };
+    }
 
     #[test]
     fn free_handler_tracks_only_when_heap_live_is_enabled() {

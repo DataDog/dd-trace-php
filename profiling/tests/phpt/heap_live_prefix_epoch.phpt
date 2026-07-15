@@ -1,5 +1,5 @@
 --TEST--
-[profiling] heap-live prefix survives object-store and string reallocations
+[profiling] heap-live prefix preserves allocations and alignment
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID < 80400)
@@ -29,8 +29,11 @@ for ($i = 0; $i < 32; $i++) {
 }
 
 unset($objects, $string);
+
+echo hash('xxh3', 'aligned', options: ['seed' => 42]), "\n";
 echo "Done.\n";
 
 ?>
 --EXPECT--
+f2d7e898c1df340a
 Done.
