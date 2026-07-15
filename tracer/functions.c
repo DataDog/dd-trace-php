@@ -2126,13 +2126,51 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             } else {
                 array_init(return_value);
             }
+        } else if (FUNCTION_NAME_MATCHES("process_remote_config_now")) {
+            // Single, immediate, non-blocking attempt to apply any already-fetched
+            // remote config without waiting for a VM-interrupt checkpoint. Lets test
+            // helpers actively drive RC application from within their own poll loops
+            // (see await_probe_installation() in tests/ext/live-debugger/live_debugger.inc),
+            // instead of depending on timing-sensitive signal/interrupt delivery.
+            datadog_check_for_new_config_now();
+            RETVAL_TRUE;
         } else if (FUNCTION_NAME_MATCHES("await_remote_config")) {
+            // Block until a pending remote config update has actually been applied.
+            // Remote config is normally applied at a Zend VM-interrupt checkpoint
+            // (dd_vm_interrupt -> ddog_process_remote_configs(), ext/remote_config.c),
+            // which is only reached between opcode dispatches. A single blind
+            // php_sleep() never yields such a checkpoint: PHP's sleep() retries
+            // internally on EINTR for the remaining duration, so even if the
+            // SIGVTALRM poll signal fires mid-sleep, the interrupt is not
+            // processed until the full timeout has elapsed (confirmed by tracing
+            // -- reread_remote_configuration can already be set *before* the
+            // sleep starts and still not be processed until it returns).
+            // Mirror await_agent_info's pattern instead: actively drive the
+            // RC-apply entry point each iteration.
+            // Note: unlike dd_sigvtalarm_handler, this intentionally does not
+            // call datadog_set_all_thread_vm_interrupt() to broadcast to other
+            // threads -- each waiter drains its own thread-local remote_config_state
+            // directly via ddog_process_remote_configs(), so no cross-thread
+            // notification is needed here.
             uint32_t timeout_sec = 10;
             if (params_count == 1) {
                 timeout_sec = (uint32_t)Z_LVAL_P(ZVAL_VARARG_PARAM(params, 0));
             }
-            php_sleep(timeout_sec);
-            RETURN_BOOL(DATADOG_G(reread_remote_configuration));
+            uint32_t waited_ms = 0, timeout_ms = timeout_sec * 1000;
+            bool rc_updated = false;
+            while (!rc_updated && waited_ms < timeout_ms) {
+                if (DATADOG_G(remote_config_state)) {
+                    rc_updated = ddog_process_remote_configs(DATADOG_G(remote_config_state));
+                }
+                if (!rc_updated) {
+                    usleep(10000); // 10ms
+                    waited_ms += 10;
+                }
+            }
+            if (rc_updated) {
+                DATADOG_G(reread_remote_configuration) = 0;
+            }
+            RETURN_BOOL(rc_updated);
         } else if (FUNCTION_NAME_MATCHES("get_agent_info")) {
             // Returns a PHP array decoded from the agent /info JSON payload.
             if (DATADOG_G(agent_info_reader)) {

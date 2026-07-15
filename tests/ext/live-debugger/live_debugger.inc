@@ -123,20 +123,59 @@ class DebuggerLogReplayer {
 function await_probe_installation($trigger, $num = 1) {
     ini_set("datadog.trace.hook_limit", "0");
 
+    // The hook-install counter only proves \DDtrace\install_hook() allocated an
+    // ID (synchronous, request-local bookkeeping); it does not prove the
+    // RC-pushed probe was actually applied end-to-end (RC entry loaded +
+    // hook wired). Cross-check against the RC-applied probe count so we don't
+    // race ahead of the probe becoming observably active.
+    $count_loaded_probes = function () {
+        $configs = dd_trace_internal_fn("get_loaded_remote_configs");
+        $count = 0;
+        foreach ($configs as $entry) {
+            if (($entry["type"] ?? null) === "probe") {
+                ++$count;
+            }
+        }
+        return $count;
+    };
+
     $last_id = \DDtrace\install_hook("_dummy", function () {});
+    $probes_before = $count_loaded_probes();
     $ret = $trigger();
 
+    $installed = 0;
     for ($i = 0; $i < 15000; ++$i) {
+        // Actively drive RC application each iteration instead of relying on
+        // a VM-interrupt checkpoint happening to land inside this loop (the
+        // same class of race as the blind-sleep issue in
+        // dd_trace_internal_fn("await_remote_config"): usleep() alone doesn't
+        // guarantee a pending update gets applied promptly).
+        dd_trace_internal_fn("process_remote_config_now");
         usleep(1000);
 
         $id = \DDtrace\install_hook("_dummy", function () {});
         if ($last_id + 1 != $id) {
+            $installed += $id - $last_id - 1;
             $num -= $id - $last_id - 1;
-            if ($num <= 0) {
-                return $ret;
-            }
         }
         $last_id = $id;
+
+        if ($num <= 0) {
+            // The hook counter says all expected probes were requested; confirm
+            // the RC-applied state reflects the same number of newly-loaded
+            // probes before declaring installation complete. Give it a short
+            // additional grace window if it hasn't caught up yet. This settle
+            // window is best-effort and self-limiting (bounded to 2000 * 1ms):
+            // it cannot recover from a probe that is genuinely never applied.
+            for ($j = 0; $j < 2000; ++$j) {
+                if ($count_loaded_probes() - $probes_before >= $installed) {
+                    return $ret;
+                }
+                dd_trace_internal_fn("process_remote_config_now");
+                usleep(1000);
+            }
+            return $ret;
+        }
     }
 
     return $ret;
