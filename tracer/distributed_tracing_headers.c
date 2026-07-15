@@ -666,9 +666,18 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
             zend_hash_clean(&result->meta_tags);
             zend_hash_clean(&result->propagated_tags);
             zend_hash_clean(&result->tracestate_unknown_dd_keys);
-            if (result->origin) { zend_string_release(result->origin); }
-            if (result->tracestate) { zend_string_release(result->tracestate); }
-            if (result->context_headers) { zend_string_release(result->context_headers); }
+            if (result->origin) {
+                zend_string_release(result->origin);
+                result->origin = NULL;
+            }
+            if (result->tracestate) {
+                zend_string_release(result->tracestate);
+                result->tracestate = NULL;
+            }
+            if (result->context_headers) {
+                zend_string_release(result->context_headers);
+                result->context_headers = NULL;
+            }
         }
         break;
     // behavior=continue: inherit upstream context normally
