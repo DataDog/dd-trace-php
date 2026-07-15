@@ -443,11 +443,6 @@ void ddog_sidecar_reconnect(struct ddog_SidecarTransport **transport,
                             struct ddog_SidecarTransport *(*factory)(void));
 
 /**
- * Return the path of the crashtracker unix domain socket.
- */
-ddog_CharSlice ddog_sidecar_get_crashtracker_unix_socket_path(void);
-
-/**
  * Gets an agent info reader.
  */
 struct ddog_AgentInfoReader *ddog_get_agent_info_reader(const struct ddog_Endpoint *endpoint);
@@ -472,6 +467,24 @@ void ddog_send_traces_to_sidecar(ddog_TracesBytes *traces,
 void ddog_drop_agent_info_reader(struct ddog_AgentInfoReader*);
 
 void ddog_sidecar_send_garbage(struct ddog_SidecarTransport **transport);
+
+/**
+ * Sends an AppSec message from the PHP extension through the sidecar to the registered helper.
+ *
+ * The response is allocated by the sidecar and must be freed with
+ * `ddog_sidecar_appsec_response_drop` when the caller is done with it.
+ *
+ * Returns a zeroed `ddog_AppsecCResponse` (null ptr) on transport errors.
+ */
+struct ddog_AppsecCResponse ddog_sidecar_send_appsec_message(struct ddog_SidecarTransport **transport,
+                                                             ddog_CharSlice session_id,
+                                                             uint64_t client_id,
+                                                             ddog_CharSlice data);
+
+/**
+ * Frees an `AppsecCResponse` that was returned by `ddog_sidecar_send_appsec_message`.
+ */
+void ddog_sidecar_appsec_response_drop(struct ddog_AppsecCResponse response);
 
 ddog_TracesBytes *ddog_get_traces(void);
 

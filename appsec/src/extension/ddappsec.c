@@ -8,7 +8,6 @@
 #include <ext/standard/info.h>
 #include <php.h>
 
-// for open(2)
 #include <dlfcn.h>
 #include <fcntl.h>
 #include <string.h>
@@ -36,7 +35,7 @@
 #include "logging.h"
 #include "msgpack_helpers.h"
 #include "network.h"
-#include "php_compat.h"
+#include "php_compat.h" // NOLINT (must come before ddappsec_arginfo.h)
 #include "php_objects.h"
 #include "request_abort.h"
 #include "request_lifecycle.h"
@@ -63,6 +62,7 @@ static PHP_RINIT_FUNCTION(ddappsec);
 static PHP_RSHUTDOWN_FUNCTION(ddappsec);
 static PHP_MINFO_FUNCTION(ddappsec);
 static PHP_GINIT_FUNCTION(ddappsec);
+static void _tshutdown_handler(void *unspecnull ptr);
 static PHP_GSHUTDOWN_FUNCTION(ddappsec);
 static int ddappsec_startup(zend_extension *extension);
 #if PHP_VERSION_ID < 80000
@@ -160,22 +160,90 @@ static int ddappsec_startup(zend_extension *extension)
 // GINIT/GSHUTDOWN run before/after MINIT/MSHUTDOWN
 static PHP_GINIT_FUNCTION(ddappsec)
 {
-#if defined(ZTS)
-    TSRMLS_CACHE = tsrm_get_ls_cache();
-#endif
-
+    // Don't log here; the logging subsystem is only initialized in MINIT, and
+    // then fully initialized in the first RINIT.
 #if ZTS
-    atomic_fetch_add(&_thread_count, 1);
+    TSRMLS_CACHE = tsrm_get_ls_cache();
+    ATTR_UNUSED __auto_type count = atomic_fetch_add(&_thread_count, 1);
 #endif
 
     memset(ddappsec_globals, '\0', sizeof(*ddappsec_globals)); // NOLINT
     ddappsec_globals->to_be_configured = true;
+
+#if ZTS
+    // Record which thread these globals belong to so GSHUTDOWN can tell whether
+    // it is running on the owning thread (see GSHUTDOWN).
+    ddappsec_globals->ts_ls_cache = TSRMLS_CACHE;
+#endif
+
+#if defined(ZTS) && (defined(__linux__) || defined(__APPLE__))
+    // Because GSHUTDOWN may run for all exited threads on the main thread,
+    // we register a thread-local destructor for this thread (GINIT runs for the
+    // main thread and for worker threads).
+    //
+    // We skip registering the destructor on the main thread because the main
+    // thread never exits, so the TLS destructor would pin ddappsec.so via
+    // l_tls_dtor_count, which blocks DSO unload on apache graceful reload.
+    // GSHUTDOWN calls _tshutdown_handler() directly for the main thread
+    // instead (see registered_thread_local_dtor below).
+#    if PHP_VERSION_ID >= 70200
+    bool is_main_thread = tsrm_is_main_thread();
+#    else
+    bool is_main_thread = count == 0;
+#    endif
+    if (!is_main_thread) {
+#    if defined(__linux__)
+        extern void *__dso_handle;
+        extern int __cxa_thread_atexit_impl(
+            void (*func)(void *), void *arg, void *dso_handle);
+        __cxa_thread_atexit_impl(_tshutdown_handler, NULL, __dso_handle);
+#    elif defined(__APPLE__)
+        extern void _tlv_atexit(void (*termFunc)(void *), void *objAddr);
+        _tlv_atexit(_tshutdown_handler, NULL);
+#    endif
+        ddappsec_globals->registered_thread_local_dtor = true;
+    }
+#endif
+}
+
+static void _tshutdown_handler(void *unspecnull ptr)
+{
+    UNUSED(ptr);
+    mlog_g(dd_log_debug, "Running tshutdown (thread %" PRIxPTR ")",
+        (uintptr_t)pthread_self());
+
+    dd_entity_body_tshutdown();
+    dd_telemetry_tshutdown();
+
+    mlog_g(dd_log_debug, "Finished tshutdown (thread %" PRIxPTR ")",
+        (uintptr_t)pthread_self());
 }
 
 static PHP_GSHUTDOWN_FUNCTION(ddappsec)
 {
-    dd_entity_body_gshutdown();
-    dd_helper_gshutdown();
+    mlog_g(dd_log_debug, "Finished GSHUTDOWN actions (thread %" PRIxPTR ")",
+        (uintptr_t)pthread_self());
+
+#if ZTS
+    // _tshutdown_handler() frees native thread-local storage, so it must run on
+    // the thread that owns it. Run it here only if (a) no thread-local
+    // destructor was registered to run it (main thread, or a platform without a
+    // thread-exit destructor mechanism) and (b) GSHUTDOWN is actually executing
+    // on the owning thread rather than on the main thread cleaning up an
+    // already exited thread's globals -- in which case its TLS is out of reach
+    // and there is nothing we can do.
+    if (!ddappsec_globals->registered_thread_local_dtor &&
+        ddappsec_globals->ts_ls_cache == tsrm_get_ls_cache()) {
+        _tshutdown_handler(NULL);
+    }
+#else
+    // In non-ZTS mode there is a single thread, so GSHUTDOWN is the right place
+    // to run tshutdown actions.
+    _tshutdown_handler(NULL);
+#endif
+
+    dd_helper_gshutdown(ddappsec_globals);
+
     // delay log shutdown until the last possible moment, so that TSRM
     // destructors can run with logging
 #if ZTS
@@ -243,7 +311,6 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
     // no other thread is running now. reset config to global config only.
     runtime_config_first_init = false;
 
-    dd_telemetry_mshutdown();
     dd_duration_shutdown();
     dd_tags_shutdown();
     dd_request_abort_shutdown();
@@ -365,23 +432,8 @@ static PHP_MINFO_FUNCTION(ddappsec)
         : DDAPPSEC_G(to_be_configured) ? "Not configured"
                                        : "Disabled");
     php_info_print_table_row(2, "Version", PHP_DDAPPSEC_VERSION);
-    const char *connected_str;
-    if (!dd_helper_mgr_cur_conn()) {
-        connected_str = "No";
-    } else {
-        switch (dd_helper_get_runtime()) {
-        case HELPER_RUNTIME_RUST:
-            connected_str = "Yes (Rust)";
-            break;
-        case HELPER_RUNTIME_CPP:
-            connected_str = "Yes (C++)";
-            break;
-        default:
-            connected_str = "Yes";
-            break;
-        }
-    }
-    php_info_print_table_row(2, "Connected to helper?", connected_str);
+    php_info_print_table_row(
+        2, "Connected to helper?", dd_helper_mgr_cur_conn() ? "Yes" : "No");
     php_info_print_table_end();
 
     DISPLAY_INI_ENTRIES();
@@ -560,7 +612,11 @@ static PHP_FUNCTION(datadog_appsec_testing_send_invalid_command)
     if (res == dd_success) {
         RETURN_TRUE;
     } else {
-        dd_helper_close_conn();
+        char *error = NULL;
+        size_t error_len = spprintf(&error, 0,
+            "Failed to send invalid command: %s", dd_result_to_string(res));
+        dd_helper_close_conn(res == dd_helper_say_goobye, error, error_len);
+        efree(error);
         RETURN_FALSE;
     }
 }

@@ -137,7 +137,7 @@ which does not exist anymore in its original location)
 - **Alpine compile images:** `php-compile-extension-alpine-{ver}` (e.g.
   `php-compile-extension-alpine-8.3`). No bookworm/centos suffix.
 - **Appsec helper rust image:** `dd-appsec-php-ci:nginx-fpm-php-8.5-release-musl`
-  (on Docker Hub, unlike the defunct C++ helper image).
+  (on Docker Hub).
 
 **`switch-php` variant naming differs between images.** On centos-7 images,
 PHP variants under `/opt/php/` are version-prefixed: `8.3`, `8.3-debug`,
@@ -243,11 +243,11 @@ this file instead of duplicating build commands.
 ### Group A — Native Linux unit / extension / helper tests
 
 Runner: `arch:amd64` + `arch:arm64`
-Image: `datadog/dd-trace-ci:php-{version}_bookworm-6` or `datadog/dd-trace-ci:bookworm-6`
+Image: `datadog/dd-trace-ci:php-{version}_bookworm-6`
 No Docker daemon — tests run directly in the container.
 
 → **[appsec-native-tests.md](appsec-native-tests.md)**
-Covers: `test appsec extension`, `test appsec helper asan`, `appsec lint`, `appsec code coverage`
+Covers: `test appsec extension`, `appsec lint`, `appsec code coverage`
 
 → **[shared-zai-tea-tests.md](shared-zai-tea-tests.md)**
 Covers: `Build & Test Tea`, `Extension Tea Tests`, `Zend Abstract Interface Tests`,
@@ -303,7 +303,7 @@ Produces `.so` artifacts consumed by Groups B, C, H.
 → **[compile-artifacts.md](compile-artifacts.md)**
 Covers: `compile extension: debug/release/zts/...` (tracer pipeline),
 `compile tracing extension / sidecar / loader / asan` (package pipeline),
-`compile appsec extension`, `compile appsec helper`, `compile appsec helper rust`,
+`compile appsec extension`, `compile appsec helper rust`,
 `compile profiler extension`, `compile extension windows`, `link tracing extension`,
 `aggregate tracing extension`, `pecl build`, `prepare code`, `cache cargo deps`
 

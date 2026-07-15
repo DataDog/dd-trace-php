@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This project is a Rust rewrite of the Datadog AppSec helper for PHP, which provides application security monitoring and runtime protection capabilities. The helper is a library loaded into sidecar that:
+This project is a Rust rewrite of the Datadog AppSec helper for PHP, which provides application security monitoring and runtime protection capabilities. The helper is a library embedded into the dd-trace-php sidecar (`../../sidecar`) that:
 
 - Executes the Datadog WAF (Web Application Firewall) on request data
 - Handles remote configuration updates for security rules
@@ -13,48 +13,30 @@ This project is a Rust rewrite of the Datadog AppSec helper for PHP, which provi
 
 ## Related Code
 
-- **C++ helper (original)**: `../src/helper/`
-  - Reference implementation for all features
-  - Telemetry definitions: `../src/helper/telemetry.hpp`, `tags.hpp`, `metrics.hpp`
-  - Remote config: `../src/helper/remote_config/`
-  - WAF integration: `../src/helper/subscriber/waf.cpp`
-  - Protocol: `../src/helper/network/proto.hpp`
-
 - **PHP extension**: `../src/extension` (integration point)
 
-- **libddwaf Rust bindings**: `../third_party/libddwaf-rust/` (path dependency)
+- **Sidecar integration**: `../../sidecar` (depends on both helper-rust and libdatadog)
 
-- **libddwaf C++ library**: `../third_party/libddwaf/` (linked statically into `libddappsec-helper.so`)
+- **libddwaf Rust bindings and native library**: `../third_party/libddwaf-rust/` (path dependency)
 
 ## Architecture
 
-### Current Architecture (Standalone Binary)
-
-```
-PHP Extension
-    ↓ (Unix socket + msgpack)
-helper-rust (loaded by sidecar)
-    ↓ (FFI)
-libddwaf
-```
-
-### Target Architecture (Sidecar Integration)
-
-Eventually, we'll move to:
+### Current Architecture
 
 ```
 PHP Extension
     ↓ (sidecar protocol)
-Sidecar ← helper-rust (embedded)
-    ↓ (FFI)
-libddwaf
+dd-trace-php Sidecar (`sidecar`)
+    ├── libdatadog Sidecar
+    └── helper-rust
+        └── libddwaf (FFI)
 ```
 
 ## Key Components
 
 Core modules:
-- **src/lib.rs** - C FFI entry point (`appsec_helper_main()`), initialization, runtime management
-- **src/server.rs** - Unix socket server that accepts client connections
+- **src/lib.rs** - Library entry point, initialization, and shutdown on the sidecar runtime
+- **src/server.rs** - AppSec message acceptance and client task management
 - **src/client.rs** - Client connection handler, request processing, WAF execution orchestration
 - **src/service.rs** - Service management, maintains WAF instances per service configuration
 - **src/config.rs** - Configuration management (from environment variables)
@@ -62,7 +44,6 @@ Core modules:
 - **src/rc_notify.rs** - Remote configuration callback system to receive updates from sidecar
 - **src/telemetry.rs** - Telemetry traits and definitions for metrics and logs
 - **src/ffi.rs** - FFI helpers and symbol resolution for calling sidecar functions
-- **src/lock.rs** - Lock file and abstract socket uniqueness enforcement
 
 Client sub-modules:
 - **src/client/protocol.rs** - Msgpack protocol codec for PHP extension communication
@@ -88,13 +69,10 @@ Telemetry sub-modules:
 
 ### Using Gradle (Integration Tests)
 
-The helper-rust is built via Gradle for integration testing. From `tests/integration/`:
+The helper-rust crate is built as part of the dd-trace-php sidecar. From `tests/integration/`:
 
 ```bash
-./gradlew buildHelperRust --info
-
-# The output file is in the php-helper-rust Docker volume:
-# - libddappsec-helper.so  (libddwaf is statically linked in)
+./gradlew buildTracer-8.3-debug --info
 ```
 
 ## Development Notes
@@ -112,15 +90,13 @@ Integration tests run via Gradle from `tests/integration/`:
     --tests "com.datadog.appsec.php.integration.Apache2FpmTests.test sampling priority"
 ```
 
-(use `-PuseHelperCpp` to disable the Rust helper redirection and run with the C++ helper)
-
 Logs for the helper are available at `tests/integration/build/test-logs/{helper,appsec}.log`
 
 **Important**: When validating changes, run tests on **both glibc and musl** systems:
 - Glibc (Debian): `test8.3-debug` or other standard test targets
 - Musl (Alpine): `test8.5-release-musl`
 
-The helper-rust binary is built to work universally on both platforms. Example:
+The embedded helper-rust library is built to work on both platforms. Example:
 ```bash
 # Test on glibc
 ./gradlew test8.3-debug --tests "*NginxFpmTests*"
@@ -156,17 +132,11 @@ System tests are located in `../../../system-tests/` (relative to dd-trace-php r
 
 ### Setting Up Binaries for System Tests
 
-Before running system tests with the Rust helper, copy the required binaries:
+Before running system tests, copy the required extension binaries:
 
 ```bash
-# Build helper-rust via Gradle
-cd tests/integration
-./gradlew buildHelperRust --info
-
-# Extract binary from Docker volume (libddwaf is statically linked in)
-docker run -i --rm -v php-helper-rust:/vol alpine cat /vol/libddappsec-helper.so > ../../system-tests/binaries/libddappsec-helper.so
-
 # If there were modifications in ddtrace or the extension relative to the latest origin/master:
+cd tests/integration
 ./gradlew buildAppsec-8.0-release buildTracer-8.0-release --info
 
 docker run -i --rm  -v php-appsec-8.0-release:/appsec alpine cat /appsec/ddappsec.so > ../system-tests/binaries/ddappsec.so
@@ -253,20 +223,10 @@ Scenario groups (run all scenarios in a group):
 - `REMOTE_CONFIG_SCENARIOS` - Remote configuration tests
 - `ESSENTIALS_SCENARIOS` - Essential/core tests
 
-### Verifying Which Helper is Running
+### Verifying Helper is Running
 
-After running a test, check `logs_<scenario>/docker/weblog/logs/helper.log` to determine which helper was used:
+After running a test, check `logs_<scenario>/docker/weblog/logs/helper.log` for helper log messages:
 
-**C++ helper** log messages:
-```
-[timestamp][info][pid] Sending log messages to binding, min level info
-[timestamp][info][pid] Started listening on abstract socket: @/ddappsec/...
-[timestamp][info][pid] starting runner on new thread
-[timestamp][info][pid] Runner running
-[timestamp][info][pid] DDAS-0014-00: AppSec has started
-```
-
-**Rust helper** log messages:
 ```
 2026-01-15T19:41:20.269325053Z [INFO] AppSec helper starting
 2026-01-15T19:41:20.269907428Z [INFO] Configuration: Config { socket_path: ...
@@ -274,10 +234,6 @@ After running a test, check `logs_<scenario>/docker/weblog/logs/helper.log` to d
 2026-01-15T19:41:20.277760178Z [INFO] Starting server on socket: ...
 2026-01-15T19:41:20.277871261Z [INFO] Listening for connections
 ```
-
-Key differences:
-- C++ uses `[timestamp][level][pid]` format and messages like "Runner running", "starting runner on new thread"
-- Rust uses `ISO8601_TIMESTAMP [LEVEL]` format and messages like "AppSec helper starting", "Listening for connections"
 
 ## GitLab CI
 
@@ -304,14 +260,13 @@ The appsec child pipeline (generated from `generate-appsec.php`) includes these 
 |-----|-------------|
 | `helper-rust build and test` | Builds helper-rust and runs `cargo test` + format check |
 | `helper-rust code coverage` | Runs unit tests with coverage, uploads to codecov |
-| `helper-rust integration coverage` | Runs integration tests with coverage-instrumented binary |
-| `appsec integration tests (helper-cpp)` | Integration tests disabling Rust helper redirection (PHP 8.3, 8.3-zts) |
+| `appsec integration tests` | Integration tests across all PHP versions |
 
 ### Checking Pipeline Status
 
 The appsec child pipeline IID can be found in the parent pipeline's downstream pipelines. Key jobs to monitor:
 - Jobs with `helper-rust` in the name for Rust-specific CI
-- Jobs with `(helper-cpp)` suffix run integration tests with Rust helper redirection disabled
+- `appsec integration tests` for integration tests across all PHP versions
 
 ### Reading Job Logs
 

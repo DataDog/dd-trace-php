@@ -9,7 +9,6 @@ file.
 | CI Job | Image | What it does |
 |--------|-------|-------------|
 | `appsec integration tests: [{target}]` | `docker:29.4.0-noble` | Gradle integration tests with Rust helper by default (release/zts/musl variants) |
-| `appsec integration tests (helper-cpp): [{target}]` | same | Same tests with Rust helper redirection disabled (`-PuseHelperCpp`); PHP 8.3 release and release-zts |
 | `appsec integration tests (ssi): [{target}]` | same | SSI mode (PHP 8.3 only), Rust helper by default |
 | `helper-rust build and test` | same | `cargo fmt --check` + build + unit tests |
 | `helper-rust code coverage` | same | Unit test coverage via `cargo-llvm-cov` |
@@ -67,18 +66,10 @@ The `--tests` filter accepts:
     --tests "com.datadog.appsec.php.integration.Apache2FpmTests.Pool environment"
 ```
 
-This builds the Rust helper via the `buildHelperRust` task (musl build, works on both glibc and musl targets), stores the binary in the `php-helper-rust` Docker volume, and mounts it alongside the C++ helper so `DD_APPSEC_HELPER_RUST_REDIRECTION` can select it.
-
-### C++ helper opt-out
-
-Add `-PuseHelperCpp` to disable Rust helper redirection:
-
-```bash
-./gradlew test8.3-debug -PuseHelperCpp --info \
-    --tests "com.datadog.appsec.php.integration.Apache2FpmTests.Pool environment"
-```
-
-This sets `DD_APPSEC_HELPER_RUST_REDIRECTION=false` in the test container. The Rust helper may still be built and mounted, but the extension uses the C++ helper from the `buildAppsec-*` task.
+This builds the Rust helper via the `buildHelperRust` task (musl build,
+works on both glibc and musl targets), stores the binary in the
+`php-helper-rust` Docker volume, and mounts it as
+`/helper-rust/libddappsec-helper.so`.
 
 ## Image Tags
 
@@ -142,7 +133,8 @@ Start a test container without running tests (for manual debugging):
 ./gradlew runMain8.3-release -PtestClass=com.datadog.appsec.php.integration.Apache2FpmTests
 ```
 
-The `-PtestClass` property is required (the task is not created without it). Add `-PuseHelperCpp` to opt out of Rust helper redirection, or `-PhelperBinary=...` to bind-mount an explicit helper binary.
+The `-PtestClass` property is required (the task is not created without
+it). Add `-PhelperBinary=...` to bind-mount an explicit helper binary.
 
 SSI variant:
 
@@ -165,15 +157,11 @@ build/test-logs/com.datadog.appsec.php.integration.Apache2FpmTests-8.3-debug/
 ├── access.log
 ├── appsec.log         # PHP extension appsec log
 ├── error.log          # Apache error log
-├── helper.log         # Helper process log (C++ or Rust)
+├── helper.log         # Rust helper process log
 ├── php_error.log
 ├── php_fpm_error.log
 └── sidecar.log
 ```
-
-To distinguish which helper ran, check `helper.log`:
-- Rust: starts with `[INFO] AppSec helper starting`
-- C++: starts with `[info]` lines like `Started listening on abstract socket`
 
 ## Musl/Alpine Target
 
@@ -190,8 +178,6 @@ The `buildHelperRust` task already produces a musl-linked binary (built on Alpin
 | CI Job | Gradle Command |
 |---|---|
 | `appsec integration tests: [test8.3-release]` | `./gradlew test8.3-release` |
-| `appsec integration tests (helper-cpp): [test8.3-release]` | `./gradlew test8.3-release -PuseHelperCpp` |
-| `appsec integration tests (helper-cpp): [test8.3-release-zts]` | `./gradlew test8.3-release-zts -PuseHelperCpp` |
 | `appsec integration tests (ssi): [test8.3-release-ssi]` | `./gradlew test8.3-release-ssi` |
 | `helper-rust build and test` | `./gradlew testHelperRust` |
 | `helper-rust code coverage` | `./gradlew coverageHelperRust` |
@@ -207,7 +193,7 @@ Gradle uses named Docker volumes for build artifacts and caches. Key volumes:
 |---|---|
 | `php-helper-rust` | `libddappsec-helper.so` (Rust helper binary) |
 | `php-tracer-{v}-{var}` | Built `ddtrace.so` |
-| `php-appsec-{v}-{var}` | Built `ddappsec.so` + C++ helper |
+| `php-appsec-{v}-{var}` | Built `ddappsec.so` |
 | `php-tracer-cargo-cache` | Cargo registry cache |
 | `php-tracer-cargo-cache-git` | Cargo git cache |
 | `php-appsec-boost-cache` | Boost build cache |

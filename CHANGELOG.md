@@ -31,7 +31,7 @@ Changelog for older versions can be found in our [release page](https://github.c
 
 ## AppSec
 ### Changed
-- Enable Rust helper by default for all PHP versions (can be disabled with `DD_APPSEC_HELPER_RUST_REDIRECTION=false`) #3991
+- Use the Rust helper for all PHP versions #3991
 
 ### Internal
 - Implement `waf.error` and `rasp.error` error tracking metrics #3963

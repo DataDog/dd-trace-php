@@ -163,7 +163,9 @@ if (PHP_DDTRACE != 'no') {
 		return files;
 	}
 
-	var rust_files = recursivelySearchRustFiles(configure_module_dirname + "/libdatadog").concat(recursivelySearchRustFiles(configure_module_dirname + "/components-rs"));
+	var rust_files = recursivelySearchRustFiles(configure_module_dirname + "/libdatadog")
+		.concat(recursivelySearchRustFiles(configure_module_dirname + "/components-rs"))
+		.concat(recursivelySearchRustFiles(configure_module_dirname + "/sidecar"));
 
 	var cargo_lib = "$(BUILD_DIR)/target/" + ddtrace_cargo_profile + "/datadog_php.lib";
 
@@ -180,7 +182,8 @@ if (PHP_DDTRACE != 'no') {
 	// Not supported yet on Windows: --cfg tokio_unstable --cfg tokio_taskdump
 	frag_out.WriteLine("!endif");
 	frag_out.WriteLine(cargo_lib + ": " + rust_files.join(" "));
-	var build_cargo = "\t$(CARGO) build --package datadog-php " + (ddtrace_cargo_profile == "release" ? "--profile tracer-release" : "");
+	// The Windows extension links the Rust static library; the cdylib is only used by Unix SSI builds.
+	var build_cargo = "\t$(CARGO) rustc --package datadog-php --lib --crate-type staticlib " + (ddtrace_cargo_profile == "release" ? "--profile tracer-release" : "");
 	if (configure_module_dirname.match(/^[A-Z]:/)) {
 		frag_out.WriteLine(build_cargo);
 	} else {
@@ -199,6 +202,9 @@ if (PHP_DDTRACE != 'no') {
 	deffile.WriteLine("EXPORTS");
 	var contents = FSO.OpenTextFile(configure_module_dirname + "/datadog.sym", 1).ReadAll();
 	contents = contents.replace(/ddog_crashtracker_entry_point\s*/, ""); // unix-only symbol
+	contents = contents.replace(/ddtrace_sidecar_entry_point\s*/, ""); // unix-only symbol
+	contents = contents.replace(/ddog_sidecar_send_appsec_message\s*/, ""); // unix-only (appsec not supported on Windows)
+	contents = contents.replace(/ddog_sidecar_appsec_response_drop\s*/, ""); // unix-only (appsec not supported on Windows)
     contents = contents + "\n" + FSO.OpenTextFile(configure_module_dirname + "/datadog-windows.sym", 1).ReadAll();
 	if (!PHP_DDTRACE_SHARED) {
 		contents = contents.replace(/get_module\s*/, "");

@@ -12,8 +12,7 @@
 #include <php.h>
 #include <stdbool.h>
 
-#include "attributes.h"
-#include "php_compat.h"
+#include "network.h"
 
 typedef enum _enabled_configuration {
     APPSEC_UNSET_STATE = 0,
@@ -40,6 +39,22 @@ ZEND_BEGIN_MODULE_GLOBALS(ddappsec)
     bool skip_rshutdown : 1;
     // used to avoid a bailout during request shutdown
     bool during_request_shutdown : 1;
+
+#ifdef ZTS
+    // true if a thread-local destructor was registered for this thread via
+    // __cxa_thread_atexit_impl() or _tlv_atexit(); when set, that destructor
+    // runs _tshutdown_handler() on thread exit, so GSHUTDOWN must not.
+    bool registered_thread_local_dtor : 1;
+#endif
+
+    dd_conn conn;
+
+#ifdef ZTS
+    // The TSRM ls cache of the thread these globals belong to. Set in GINIT
+    // (which runs on the actual thread). Used by GSHUTDOWN, because global
+    // destructors run on the main thread after the corresponding thread has exited.
+    void *unspecnull ts_ls_cache;
+#endif
 ZEND_END_MODULE_GLOBALS(ddappsec)
 // clang-format on
 

@@ -53,7 +53,6 @@
 // true globals; only modify in MINIT/MSHUTDOWN
 static stack_t dd_altstack;
 static struct sigaction dd_sigsegv_sigaction;
-static char crashtracker_socket_path[100] = {0};
 static char *dd_signal_async_stack;
 static size_t dd_signal_async_stack_size;
 
@@ -244,25 +243,18 @@ static void dd_crasht_do_init(ddog_crasht_EndpointConfig endpoint_config, void *
     dd_crasht_init_args *args = (dd_crasht_init_args *)userdata;
     args->config.endpoint = endpoint_config;
     dd_crashtracker_check_result(
-            ddog_crasht_init_without_receiver(args->config, args->metadata),
+            datadog_crasht_init_with_sidecar(
+                args->config,
+                args->metadata,
+                DATADOG_G(sidecar),
+                datadog_sidecar_active_mode == DD_SIDECAR_CONNECTION_THREAD
+                    ? datadog_sidecar_master_pid
+                    : 0),
             "Cannot initialize CrashTracker"
     );
 }
 
 static void dd_init_crashtracker() {
-    ddog_CharSlice socket_path = ddog_sidecar_get_crashtracker_unix_socket_path();
-    if (socket_path.len > sizeof(crashtracker_socket_path) - 1) {
-        LOG(ERROR, "Cannot initialize CrashTracker : the socket path is too long.");
-        free((void *) socket_path.ptr);
-        return;
-    }
-
-    // Copy the string to a global buffer to avoid a use-after-free error
-    memcpy(crashtracker_socket_path, socket_path.ptr, socket_path.len);
-    crashtracker_socket_path[socket_path.len] = '\0';
-    free((void *) socket_path.ptr);
-    socket_path.ptr = crashtracker_socket_path;
-
     if (!datadog_endpoint) {
         return;
     }
@@ -274,7 +266,7 @@ static void dd_init_crashtracker() {
         .config = {
             .timeout_ms = 5000,
             .resolve_frames = DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_INPROCESS_SYMBOLS,
-            .optional_unix_socket_filename = socket_path,
+            .optional_unix_socket_filename = {0},
             .additional_files = {0},
             .collect_all_threads = true,
             .max_threads = 0, // uses libdatadog default, which is 256

@@ -25,7 +25,7 @@ extern "C" fn rc_notify_callback(invariants: *const c_void, target: *const c_voi
     let path = match RemoteConfigPath::new(invariants, target) {
         Ok(path) => path,
         Err(e) => {
-            log::error!("Failed to get remote config path: {}", e);
+            crate::error!("Failed to get remote config path: {}", e);
             return;
         }
     };

@@ -1305,6 +1305,22 @@ typedef enum ddog_crasht_BuildIdType {
 } ddog_crasht_BuildIdType;
 
 /**
+ * Raw AppSec response returned by `ddog_sidecar_send_appsec_message`.
+ *
+ * When `ptr` is non-null, the response must be freed by calling
+ * `ddog_sidecar_appsec_response_drop`.
+ */
+typedef struct ddog_AppsecCResponse {
+  uint8_t *ptr;
+  uintptr_t len;
+  uintptr_t capacity;
+  /**
+   * If true, the extension session should be disconnected after this response.
+   */
+  bool disconnect;
+} ddog_AppsecCResponse;
+
+/**
  * Result type for runtime callback registration
  */
 typedef enum ddog_crasht_CallbackResult {

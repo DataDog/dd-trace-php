@@ -95,20 +95,6 @@
         "default": "/opt/datadog-php/bin/libddappsec-helper.so"
       }
     ],
-    "DD_APPSEC_HELPER_RUNTIME_PATH": [
-      {
-        "implementation": "A",
-        "type": "string",
-        "default": "/tmp"
-      }
-    ],
-    "DD_APPSEC_HELPER_RUST_REDIRECTION": [
-      {
-        "implementation": "B",
-        "type": "boolean",
-        "default": "true"
-      }
-    ],
     "DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML": [
       {
         "implementation": "C",

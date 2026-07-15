@@ -34,8 +34,7 @@ If you need to run this step outside a build script and your host lacks `binutil
 - `.gitlab/build-sidecar.sh` -- builds `libdatadog_php.{a,so}` (Rust sidecar)
 - `.gitlab/link-tracing-extension.sh` -- links `.a` archives with the sidecar into final `.so` files
 - `.gitlab/build-appsec.sh` -- builds `ddappsec-{ABI}.so` (NTS + ZTS)
-- `.gitlab/build-appsec-helper.sh` -- builds `libddappsec-helper.so` (C++ helper, musl toolchain)
-- `.gitlab/build-appsec-helper-rust.sh` -- builds `libddappsec-helper-rust.so` (Rust helper, musl nightly)
+- `.gitlab/build-appsec-helper-rust.sh` -- builds `libddappsec-helper.so` (Rust helper, musl nightly)
 - `.gitlab/build-loader.sh` -- builds `dd_library_loader.so` (SSI loader)
 - `.gitlab/build-profiler.sh` -- builds profiler extension (NTS + ZTS)
 
@@ -75,8 +74,7 @@ files via `classpreloader`: `_generated_api.php`, `_generated_tracer.php`, and
 | `aggregate tracing extension: [{arch}]` | `dd-trace-ci:php-7.4_bookworm-6` | No-op `ls` that aggregates artifacts from all `compile tracing extension` jobs for one arch into a single artifact set |
 | `compile tracing extension asan: [{ver}, {arch}, {triplet}]` | `dd-trace-ci:php-{ver}_bookworm-6` | Switches to `debug-zts-asan` PHP; builds `ddtrace.so` directly with `RUST_DEBUG_BUILD=1` (Rust debug profile, no `.a` intermediate); copies to `extensions_$(uname -m)/ddtrace-${ABI_NO}-debug-zts.so`; post-processes with `objcopy --compress-debug-sections` |
 | `compile appsec extension: [{ver}, {arch}, {triplet}]` | `dd-trace-ci:php-{ver}_{platform}` | Builds NTS and ZTS appsec extensions sequentially via cmake+make in `appsec/build/` and `appsec/build-zts/`; cmake flags: `-DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_HELPER=OFF -DDD_APPSEC_TESTING=OFF -DDD_APPSEC_EXTENSION_STATIC_LIBSTDCXX=ON`; outputs `appsec_$(uname -m)/ddappsec-$PHP_API${suffix}[-zts].so`; post-processes with `objcopy --compress-debug-sections` |
-| `compile appsec helper` | `registry.ddbuild.io/images/mirror/b1o7r7e0/nginx_musl_toolchain` (original gone) | Builds `libddappsec-helper.so` via cmake+make with musl toolchain (`-DCMAKE_TOOLCHAIN_FILE=/sysroot/$(arch)-none-linux-musl/Toolchain.cmake`); `DD_APPSEC_ENABLE_PATCHELF_LIBC=ON` strips musl libc dependency via patchelf; runs gtest suite (`make ddappsec_helper_test && ./tests/helper/ddappsec_helper_test`); copies `recommended.json` to `appsec_$(uname -m)/` |
-| `compile appsec helper rust` | `dd-appsec-php-ci:nginx-fpm-php-8.5-release-musl` | Builds `libddappsec-helper-rust.so` via `cargo +nightly-$RUST_TARGET` with `--release -Zhost-config -Ztarget-applies-to-host --target $(uname -m)-unknown-linux-musl`; removes musl libc dep with `patchelf --remove-needed`; runs `cargo +nightly-$RUST_TARGET test --release` after build; output in `appsec_$(uname -m)/` |
+| `compile appsec helper rust` | `dd-appsec-php-ci:nginx-fpm-php-8.5-release-musl` | Builds `libddappsec-helper.so` via `cargo +nightly-$RUST_TARGET` with `--release -Zhost-config -Ztarget-applies-to-host --target $(uname -m)-unknown-linux-musl`; removes musl libc dep with `patchelf --remove-needed`; runs `cargo +nightly-$RUST_TARGET test --release` after build; output in `appsec_$(uname -m)/` |
 | `compile profiler extension: [{ver}, {arch}, {triplet}]` | `dd-trace-ci:php-{ver}_{platform}` | Builds NTS and ZTS profiler extensions via `cargo build --profile profiler-release` in `profiling/`; for ZTS, `touch build.rs` forces the build script to re-run after `switch-php` to pick up ZTS headers; outputs `datadog-profiling[-zts].so` under a prefix dir; on alpine+aarch64 symlinks clang17 over clang20 to work around a bindgen incompatibility |
 | `compile loader: [{host_os}, {arch}]` | `dd-trace-ci:php-8.3_{platform}` (alpine: `php-compile-extension-alpine-8.3`) | Builds `dd_library_loader-$(uname -m)-${HOST_OS}.so` (SSI loader) via `phpize`+`configure`+`make` in `loader/`; on musl installs build deps via `apk add`; embeds `PHP_DD_LIBRARY_LOADER_VERSION` from `VERSION` file in CFLAGS |
 | `compile extension windows: [{ver}]` | `dd-trace-ci:php-{ver}_windows` | Runs a long-lived container via `docker run -d` + `docker exec`; builds NTS then ZTS via `phpize.bat` + `configure.bat --enable-debug-pack` + `nmake`; reuses NTS Rust `target/` for ZTS by moving it; outputs `extensions_x86_64/php_ddtrace-${ABI_NO}[-zts].dll` and `.pdb` debug symbols |
@@ -143,7 +141,6 @@ prepare code          cache cargo deps: [{arch}, {triplet}]
   |
   +-- compile tracing extension asan: [{ver}, {arch}, {triplet}]
   +-- compile appsec extension: [{ver}, {arch}, {triplet}]
-  +-- compile appsec helper
   +-- compile appsec helper rust
   +-- compile loader: [{host_os}, {arch}]
   +-- compile extension windows: [{ver}]
@@ -171,10 +168,6 @@ prepare code          cache cargo deps: [{arch}, {triplet}]
 - `compile appsec helper rust` uses `cargo +nightly` with `-Zhost-config
   -Ztarget-applies-to-host` to cross-compile for musl, then `patchelf --remove-needed`
   to strip the musl libc dependency, making the binary work on both musl and glibc systems.
-
-- `compile appsec helper` (C++) runs its gtest suite as part of the build (`make
-  ddappsec_helper_test && ./tests/helper/ddappsec_helper_test`). A test failure will
-  fail the compile job.
 
 - `compile tracing sidecar` on alpine: the `-alpine` suffix variant force-installs
   `bindgen-cli` via `cargo install --force --locked` before building, as a workaround
@@ -248,9 +241,8 @@ prepare code          cache cargo deps: [{arch}, {triplet}]
 
 - **`compile appsec extension` is pure C/C++ — no Rust/Cargo.** Unlike
   tracing and profiler compile jobs, this build has no Cargo dependency and
-  no cache block. `DD_APPSEC_BUILD_HELPER=OFF` skips the heavy helper
-  dependencies (libddwaf, googletest, etc.); only the extension `.so` is
-  built.
+  no cache block. `DD_APPSEC_BUILD_HELPER=OFF` skips the Rust helper build;
+  only the extension `.so` is built.
 
 - **`compile appsec helper rust` sets `CARGO_TARGET_DIR` explicitly.**
   Unlike `compile_rust.sh` (where `CARGO_TARGET_DIR` must NOT be set),

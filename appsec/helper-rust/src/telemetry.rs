@@ -12,8 +12,7 @@ mod sidecar;
 mod tel_aware_logger;
 
 pub use sidecar::{resolve_symbols, TelemetrySidecarLogSubmitter, TelemetrySidecarMetricSubmitter};
-pub use sidecar::{SidecarReadyFuture, SidecarStatus};
-pub use tel_aware_logger::TelemetryAwareLogger;
+pub(crate) use tel_aware_logger::submit_error_to_telemetry;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct MetricName(pub &'static str);

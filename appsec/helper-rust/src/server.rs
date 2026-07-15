@@ -1,82 +1,71 @@
-use anyhow::Context;
-use tokio::net::UnixListener;
-use tokio_util::future::FutureExt;
-use tokio_util::sync::CancellationToken;
+use tokio::sync::mpsc;
+use tokio_util::{sync::CancellationToken, task::TaskTracker};
 
-use crate::client::Client;
-use crate::config::Config;
+use crate::client::{self, Client};
 use crate::rc_notify;
 use crate::service::ServiceManager;
-use crate::telemetry::SidecarReadyFuture;
 
-/// Run the Unix socket server that accepts client connections
+/// Start accepting helper messages from sidecar.
 ///
-/// This function:
-/// - Binds to the configured Unix socket
-/// - Accepts incoming client connections
-/// - Spawns a task for each client
-/// - Monitors the cancellation token for shutdown
-///
-/// Returns when the cancellation token is triggered
-pub async fn run_server(config: Config, cancel_token: CancellationToken) -> anyhow::Result<()> {
-    let socket_path = config.socket_path_as_path();
-
-    log::info!("Starting server on socket: {:?}", socket_path);
-
-    #[cfg(not(target_os = "linux"))]
-    if config.is_abstract_socket() {
-        anyhow::bail!("Abstract namespace sockets are only supported on Linux");
-    }
-
-    // tokio handles abstract namespace sockets on Linux
-    let listener = UnixListener::bind(&socket_path)
-        .with_context(|| format!("binding unix socket {:?}", &socket_path))?;
-
-    log::info!("Listening for connections");
+/// Returns a tracker that can be closed and awaited during shutdown.
+pub fn accept_appsec_messages(
+    runtime_handle: tokio::runtime::Handle,
+    cancel_token: CancellationToken,
+) -> TaskTracker {
+    log::info!("Starting to listen for helper messages from sidecar");
 
     // Create service manager with 'static lifetime
     // We leak it since it needs to live for the entire process lifetime
     let service_manager: &'static ServiceManager = Box::leak(Box::new(ServiceManager::new()));
+    let client_task_tracker = TaskTracker::new();
+    let task_tracker = client_task_tracker.clone();
 
     // Register for RC update callbacks from the sidecar
     rc_notify::register_for_rc_notifications(service_manager);
 
-    // telemetry can only be submitted after the sidecar is ready, so we need to wait for it
-    let sidecar_ready = SidecarReadyFuture::create();
+    client::start_accepting_messages(
+        // new_client callback:
+        Box::new(move |session_id: Vec<u8>| {
+            let client = Client::new(service_manager);
+            log::info!(
+                "Created client for session {}: id {}",
+                String::from_utf8_lossy(&session_id),
+                client.id
+            );
+            let client_id = client.id;
+            let client_key = client::ClientKey {
+                session_id,
+                client_id,
+            };
 
-    loop {
-        match listener
-            .accept()
-            .with_cancellation_token(&cancel_token)
-            .await
-        {
-            Some(Ok((stream, addr))) => {
-                log::debug!("Accepted new client {:?}", addr);
+            let (tx, rx) = mpsc::channel(5);
 
-                let client = Client::new(service_manager);
-                let sidecar_ready = sidecar_ready.clone();
-                let token = cancel_token.clone();
+            let cancel_token = cancel_token.clone();
 
-                tokio::spawn(async move { client.entrypoint(stream, sidecar_ready, token).await });
-            }
-            Some(Err(err)) => {
-                log::warn!("Error in accept() call: {}", err);
-            }
-            None => {
-                log::info!("Server received cancellation signal, shutting down");
-                break;
-            }
-        }
-    }
+            let client_future = task_tracker.track_future(async move {
+                client.entrypoint(rx, cancel_token).await;
+                log::debug!(
+                    "Client future for {client_key:?} completed; removing client bookkeeping"
+                );
+                client::remove_client_bookkeeping(&client_key);
+            });
 
-    if !config.is_abstract_socket() {
-        if let Err(e) = std::fs::remove_file(&socket_path) {
-            log::warn!("Failed to remove socket file: {}", e);
-        }
-    }
+            #[cfg(tokio_unstable)]
+            let _ = tokio::task::Builder::new()
+                .name(&format!("appsec-client-{client_id}"))
+                .spawn_on(client_future, &runtime_handle)
+                .expect("failed to spawn AppSec client task");
+            #[cfg(not(tokio_unstable))]
+            runtime_handle.spawn(client_future);
 
+            (tx, client_id)
+        }),
+    );
+
+    client_task_tracker
+}
+
+pub fn stop_accepting_appsec_messages() {
     rc_notify::unregister_for_rc_notifications();
-
-    log::info!("Server shutdown complete");
-    Ok(())
+    client::stop_accepting_messages();
 }

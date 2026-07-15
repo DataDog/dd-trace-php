@@ -20,7 +20,7 @@
 #include <stdatomic.h>
 
 typedef struct _dd_omsg {
-    zend_llist iovecs;
+    dd_mpack_buffer buffer;
     mpack_writer_t writer;
 } dd_omsg;
 
@@ -29,26 +29,23 @@ static inline void _omsg_init(dd_omsg *nonnull omsg, const char *nonnull cmd,
 static inline ATTR_WARN_UNUSED mpack_error_t _omsg_finish(
     dd_omsg *nonnull omsg);
 static inline void _omsg_destroy(dd_omsg *nonnull omsg);
-static inline dd_result _omsg_send(
-    dd_conn *nonnull conn, dd_omsg *nonnull omsg);
 static void _dump_in_msg(
     dd_log_level_t lvl, const char *nonnull data, size_t data_len);
-static void _dump_out_msg(dd_log_level_t lvl, zend_llist *iovecs);
+static void _dump_out_msg(dd_log_level_t lvl, const dd_mpack_buffer *buffer);
 
 typedef struct _dd_imsg {
-    char *unspecnull _data;
-    size_t _size;
+    dd_helper_response _response;
     mpack_tree_t _tree;
     mpack_node_t root;
 } dd_imsg;
 
 // if and only if this returns success, _imsg_destroy must be called
-static dd_result ATTR_WARN_UNUSED _imsg_recv(
-    dd_imsg *nonnull imsg, dd_conn *nonnull conn);
+static dd_result ATTR_WARN_UNUSED _imsg_recv(dd_imsg *nonnull imsg,
+    dd_conn *nonnull conn, dd_mpack_buffer *nonnull buffer);
 
 static inline ATTR_WARN_UNUSED mpack_error_t _imsg_destroy(
     dd_imsg *nonnull imsg);
-static void _imsg_cleanup(dd_imsg *nullable *imsg);
+static void _imsg_cleanup(dd_imsg *nullable *nonnull imsg);
 
 static void _set_redirect_code_and_location(
     struct block_params *nonnull block_params,
@@ -67,132 +64,132 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn,
 #define NAME_L (int)spec->name_len, spec->name
     mlog(dd_log_debug, "Will start command %.*s with helper", NAME_L);
 
-    // out
-    {
-        dd_omsg omsg;
-        _omsg_init(&omsg, spec->name, spec->name_len, spec->num_args);
-        dd_result res = spec->outgoing_cb(&omsg.writer, ctx);
-        if (res) {
-            mlog(dd_log_warning, "Error creating message for command %.*s: %s",
-                NAME_L, dd_result_to_string(res));
-            _omsg_destroy(&omsg);
-            return res;
-        }
+    dd_omsg omsg;
+    _omsg_init(&omsg, spec->name, spec->name_len, spec->num_args);
 
-        mpack_error_t err = _omsg_finish(&omsg);
-        if (err != mpack_ok) {
-            mlog(dd_log_warning,
-                "Error serializing message for command %.*s: %s", NAME_L,
-                mpack_error_to_string(err));
-            _omsg_destroy(&omsg);
-            return dd_network;
-        }
-
-        res = _omsg_send(conn, &omsg);
-        _dump_out_msg(dd_log_trace, &omsg.iovecs);
+    dd_result res = spec->outgoing_cb(&omsg.writer, ctx);
+    if (res) {
+        mlog(dd_log_warning, "Error creating message for command %.*s: %s",
+            NAME_L, dd_result_to_string(res));
         _omsg_destroy(&omsg);
-        if (res) {
-            mlog(dd_log_warning, "Error sending message for command %.*s: %s",
-                NAME_L, dd_result_to_string(res));
-            return res;
-        }
+        return res;
     }
 
-    // in
-    dd_result res;
-    {
-        dd_imsg imsg = {0};
-        res = _imsg_recv(&imsg, conn);
-        if (res) {
-            mlog(dd_log_warning, "Error receiving reply for command %.*s: %s",
-                NAME_L, dd_result_to_string(res));
-            return res;
-        }
+    mpack_error_t err = _omsg_finish(&omsg);
+    if (err != mpack_ok) {
+        mlog(dd_log_warning, "Error serializing message for command %.*s: %s",
+            NAME_L, mpack_error_to_string(err));
+        _omsg_destroy(&omsg);
+        return dd_helper_say_goobye;
+    }
 
-        // automatic cleanup of imsg on error branches
-        // set to NULL before calling _imsg_destroy
-        // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
-        __attribute__((cleanup(_imsg_cleanup))) dd_imsg *nullable destroy_imsg =
-            &imsg;
+    dd_imsg imsg = {0};
+    res = _imsg_recv(&imsg, conn, &omsg.buffer);
+    _dump_out_msg(dd_log_trace, &omsg.buffer);
+    _omsg_destroy(&omsg);
+    if (res) {
+        mlog(dd_log_warning, "Error in message exchange for command %.*s: %s",
+            NAME_L, dd_result_to_string(res));
+        return res;
+    }
 
-        // TODO: it seems we only look at the first response? Why even support
-        //       several responses then?
-        mpack_node_t first_response = mpack_node_array_at(imsg.root, 0);
-        mpack_error_t err = mpack_node_error(first_response);
-        if (err != mpack_ok) {
-            mlog(dd_log_error, "Array of responses could not be retrieved - %s",
-                mpack_error_to_string(err));
-            return dd_error;
-        }
-        if (mpack_node_type(first_response) != mpack_type_array) {
-            mlog(dd_log_error, "Invalid response. Expected array but got %s",
-                mpack_type_to_string(mpack_node_type(first_response)));
-            return dd_error;
-        }
-        mpack_node_t first_message = mpack_node_array_at(first_response, 1);
-        err = mpack_node_error(first_message);
-        if (err != mpack_ok) {
-            mlog(dd_log_error,
-                "Message on first response could not be retrieved - %s",
-                mpack_error_to_string(err));
-        }
+    // automatic cleanup of imsg on error branches
+    // set to NULL before calling _imsg_destroy
+    // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
+    __attribute__((cleanup(_imsg_cleanup))) dd_imsg *nullable destroy_imsg =
+        &imsg;
 
-        mpack_node_t type = mpack_node_array_at(first_response, 0);
-        err = mpack_node_error(type);
-        if (err != mpack_ok) {
-            mlog(dd_log_error, "Response type could not be retrieved - %s",
-                mpack_error_to_string(err));
-            return dd_error;
-        }
-        if (mpack_node_type(type) != mpack_type_str) {
-            mlog(dd_log_error,
-                "Unexpected type field. Expected string but got %s",
-                mpack_type_to_string(mpack_node_type(type)));
-            return dd_error;
-        }
-        if (dd_mpack_node_lstr_eq(type, "config_features")) {
-            res = spec->config_features_cb(first_message, ctx);
-        } else if (dd_mpack_node_str_eq(type, spec->name, spec->name_len)) {
-            res = spec->incoming_cb(first_message, ctx);
-        } else if (dd_mpack_node_lstr_eq(type, "error")) {
-            mlog(dd_log_info,
-                "Helper responded with an error. Check helper logs");
-            return dd_helper_error;
-        } else {
-            mlog(dd_log_debug,
-                "Received message for command %.*s unexpected: \"%.*s\". "
-                "Expected \"config_features\", \"error\" or \"%.*s\"",
-                NAME_L, (int)mpack_node_strlen(type), mpack_node_str(type),
-                NAME_L);
-            return dd_error;
-        }
+    // TODO: it seems we only look at the first response? Why even support
+    //       several responses then?
+    mpack_node_t first_response = mpack_node_array_at(imsg.root, 0);
+    err = mpack_node_error(first_response);
+    if (err != mpack_ok) {
+        mlog(dd_log_error, "Array of responses could not be retrieved - %s",
+            mpack_error_to_string(err));
+        return dd_error;
+    }
+    if (mpack_node_type(first_response) != mpack_type_array) {
+        mlog(dd_log_error, "Invalid response. Expected array but got %s",
+            mpack_type_to_string(mpack_node_type(first_response)));
+        return dd_error;
+    }
+    mpack_node_t first_message = mpack_node_array_at(first_response, 1);
+    err = mpack_node_error(first_message);
+    if (err != mpack_ok) {
+        mlog(dd_log_error,
+            "Message on first response could not be retrieved - %s",
+            mpack_error_to_string(err));
+    }
 
-        mlog(dd_log_debug, "Processing for command %.*s returned %s", NAME_L,
-            dd_result_to_string(res));
-        err = imsg.root.tree->error;
-        _dump_in_msg(err == mpack_ok ? dd_log_trace : dd_log_debug, imsg._data,
-            imsg._size);
-        destroy_imsg = NULL;
-        err = _imsg_destroy(&imsg);
-        if (err != mpack_ok) {
-            mlog(dd_log_warning,
-                "Response message for %.*s does not have the expected form",
-                NAME_L);
+    mpack_node_t type = mpack_node_array_at(first_response, 0);
+    err = mpack_node_error(type);
+    if (err != mpack_ok) {
+        mlog(dd_log_error, "Response type could not be retrieved - %s",
+            mpack_error_to_string(err));
+        return dd_error;
+    }
+    if (mpack_node_type(type) != mpack_type_str) {
+        mlog(dd_log_error, "Unexpected type field. Expected string but got %s",
+            mpack_type_to_string(mpack_node_type(type)));
+        return dd_error;
+    }
 
-            return dd_network;
+    dd_result cb_res = dd_error;
+    if (dd_mpack_node_lstr_eq(type, "config_features")) {
+        zend_try { cb_res = spec->config_features_cb(first_message, ctx); }
+        zend_catch
+        {
+            UNUSED(_imsg_destroy(&imsg));
+            zend_bailout();
         }
-        if (res != dd_success && res != dd_should_block &&
-            res != dd_should_redirect && res != dd_should_record) {
-            mlog(dd_log_warning, "Processing for command %.*s failed: %s",
-                NAME_L, dd_result_to_string(res));
-            return res;
+        zend_end_try();
+    } else if (dd_mpack_node_str_eq(type, spec->name, spec->name_len)) {
+        zend_try { cb_res = spec->incoming_cb(first_message, ctx); }
+        zend_catch
+        {
+            UNUSED(_imsg_destroy(&imsg));
+            zend_bailout();
         }
+        zend_end_try();
+    } else if (dd_mpack_node_lstr_eq(type, "error")) {
+        mlog(dd_log_warning, "Helper responded with an error and removed this "
+                             "client. Check helper logs");
+        return dd_helper_fatal;
+    } else {
+        mlog(dd_log_debug,
+            "Received message for command %.*s unexpected: \"%.*s\". "
+            "Expected \"config_features\", \"error\" or \"%.*s\"",
+            NAME_L, (int)mpack_node_strlen(type), mpack_node_str(type), NAME_L);
+        return dd_helper_say_goobye;
+    }
+
+    mlog(dd_log_debug, "Processing for command %.*s returned %s", NAME_L,
+        dd_result_to_string(cb_res));
+    err = imsg.root.tree->error;
+    _dump_in_msg(err == mpack_ok ? dd_log_trace : dd_log_debug,
+        imsg._response.data, imsg._response.data_len);
+    destroy_imsg = NULL;
+    err = _imsg_destroy(&imsg);
+    if (err != mpack_ok) {
+        mlog(dd_log_warning,
+            "Response message for %.*s does not have the expected form",
+            NAME_L);
+        // A response we cannot parse means the helper is misbehaving; abandon
+        // the connection (a goodbye can still be sent over the sidecar) rather
+        // than keep issuing commands over it.
+        return dd_helper_say_goobye;
+    }
+    if (cb_res != dd_success && cb_res != dd_should_block &&
+        cb_res != dd_should_redirect && cb_res != dd_should_record) {
+        mlog(dd_log_warning, "Processing for command %.*s failed: %s", NAME_L,
+            dd_result_to_string(cb_res));
+        return cb_res;
     }
 
     mlog(dd_log_info, "%.*s succeed and told to %s", NAME_L,
-        dd_result_to_string(res));
+        dd_result_to_string(cb_res));
 
-    return res;
+    return cb_res;
 }
 
 dd_result ATTR_WARN_UNUSED dd_command_exec(dd_conn *nonnull conn,
@@ -208,17 +205,6 @@ dd_result ATTR_WARN_UNUSED dd_command_exec_req_info(dd_conn *nonnull conn,
     return _dd_command_exec(conn, spec, ctx);
 }
 
-dd_result ATTR_WARN_UNUSED dd_command_exec_cred(dd_conn *nonnull conn,
-    const dd_command_spec *nonnull spec, void *unspecnull ctx)
-{
-    dd_result res = dd_conn_check_credentials(conn);
-    if (res) {
-        return res;
-    }
-
-    return _dd_command_exec(conn, spec, ctx);
-}
-
 // outgoing
 static inline void _omsg_init(dd_omsg *nonnull omsg, const char *nonnull cmd,
     size_t cmd_len, // NOLINT(bugprone-easily-swappable-parameters)
@@ -226,7 +212,8 @@ static inline void _omsg_init(dd_omsg *nonnull omsg, const char *nonnull cmd,
 {
     mlog(dd_log_debug, "Creating message of type %.*s", (int)cmd_len, cmd);
 
-    dd_mpack_writer_init_iov(&omsg->writer, &omsg->iovecs);
+    dd_mpack_writer_init_buffer(
+        &omsg->writer, &omsg->buffer, DD_CONN_REQUEST_HEADER_SIZE);
 
     // [ cmd, [arguments...] ]
     mpack_start_array(&omsg->writer, 2);
@@ -248,35 +235,34 @@ static inline void _omsg_destroy(dd_omsg *nonnull omsg)
         omsg->writer.flush = NULL; // no point flushing
         UNUSED(mpack_writer_destroy(&omsg->writer));
     }
-    zend_llist_destroy(&omsg->iovecs);
-}
-
-static inline dd_result _omsg_send(dd_conn *nonnull conn, dd_omsg *nonnull omsg)
-{
-    return dd_conn_sendv(conn, &omsg->iovecs);
+    dd_mpack_buffer_destroy(&omsg->buffer);
 }
 
 // incoming
-static ATTR_WARN_UNUSED dd_result _imsg_recv(
-    dd_imsg *nonnull imsg, dd_conn *nonnull conn)
+static ATTR_WARN_UNUSED dd_result _imsg_recv(dd_imsg *nonnull imsg,
+    dd_conn *nonnull conn, dd_mpack_buffer *nonnull buffer)
 {
-    mlog(dd_log_debug, "Will receive response from helper");
+    mlog(dd_log_debug, "Will exchange message with helper");
 
-    dd_result res = dd_conn_recv(conn, &imsg->_data, &imsg->_size);
+    dd_helper_response response;
+    dd_result res = dd_conn_roundtrip(
+        conn, buffer->data, buffer->final_msg_size, &response);
     if (res) {
         return res;
     }
+    imsg->_response = response;
 
-    mpack_tree_init(&imsg->_tree, imsg->_data, imsg->_size);
+    mpack_tree_init(&imsg->_tree, response.data, response.data_len);
     mpack_tree_parse(&imsg->_tree);
     imsg->root = mpack_tree_root(&imsg->_tree);
     mpack_error_t err = mpack_tree_error(&imsg->_tree);
     if (err != mpack_ok) {
         mlog(dd_log_warning, "Error parsing msgpack message: %s",
             mpack_error_to_string(err));
-        _dump_in_msg(dd_log_debug, imsg->_data, imsg->_size);
+        _dump_in_msg(dd_log_debug, response.data, response.data_len);
+        dd_helper_response_destroy(&response);
         UNUSED(_imsg_destroy(imsg));
-        return dd_error;
+        return dd_helper_say_goobye;
     }
 
     return dd_success;
@@ -285,13 +271,11 @@ static ATTR_WARN_UNUSED dd_result _imsg_recv(
 static inline ATTR_WARN_UNUSED mpack_error_t _imsg_destroy(
     dd_imsg *nonnull imsg)
 {
-    efree(imsg->_data);
-    imsg->_data = NULL;
-    imsg->_size = 0;
+    dd_helper_response_destroy(&imsg->_response);
     return mpack_tree_destroy(&imsg->_tree);
 }
 
-static void _imsg_cleanup(dd_imsg *nullable *imsg)
+static void _imsg_cleanup(dd_imsg *nullable *nonnull imsg)
 {
     dd_imsg **imsg_c = imsg;
     if (*imsg_c) {
@@ -805,23 +789,20 @@ static void _dump_in_msg(
     zend_string_release(zstr);
 }
 
-static void _dump_out_msg(dd_log_level_t lvl, zend_llist *iovecs)
+static void _dump_out_msg(dd_log_level_t lvl, const dd_mpack_buffer *buffer)
 {
     if (!mlog_should_log(lvl)) {
         return;
     }
-    zend_llist_position pos;
-    int i = 1;
-    for (struct iovec *iov = zend_llist_get_first_ex(iovecs, &pos); iov;
-        iov = zend_llist_get_next_ex(iovecs, &pos), i++) {
-        zend_string *zstr = php_base64_encode(iov->iov_base, iov->iov_len);
-        if (ZSTR_LEN(zstr) > INT_MAX) {
-            return;
-        }
-        mlog(lvl, "Contents of message (base64 encoded) (part %d): %.*s", i,
-            (int)ZSTR_LEN(zstr), ZSTR_VAL(zstr));
-        zend_string_release(zstr);
+    zend_string *zstr = php_base64_encode(
+        (const unsigned char *)buffer->data + buffer->prefix_size,
+        buffer->final_msg_size - buffer->prefix_size);
+    if (ZSTR_LEN(zstr) > INT_MAX) {
+        return;
     }
+    mlog(lvl, "Contents of message (base64 encoded) (part 1): %.*s",
+        (int)ZSTR_LEN(zstr), ZSTR_VAL(zstr));
+    zend_string_release(zstr);
 }
 
 dd_result dd_command_process_config_features(

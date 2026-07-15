@@ -2,17 +2,10 @@ use std::env;
 use std::path::PathBuf;
 
 fn main() {
+    println!("cargo::rustc-check-cfg=cfg(tokio_unstable)");
+
     let target = env::var("TARGET").expect("TARGET environment variable not set");
     let has_coverage = env::var("CARGO_FEATURE_COVERAGE").is_ok();
-
-    // Compile and link glibc compatibility shim for musl targets
-    if target.contains("musl") {
-        cc::Build::new()
-            .file("glibc_compat.c")
-            .compile("glibc_compat");
-
-        println!("cargo::rerun-if-changed=glibc_compat.c");
-    }
 
     // When building with coverage instrumentation, compile coverage initialization code
     // that configures LLVM profiling runtime at library load time
@@ -47,23 +40,6 @@ fn main() {
 
         println!("cargo::rerun-if-changed=coverage_init.c");
     }
-
-    // Add $ORIGIN (Linux) or @loader_path (macOS) to allow finding libraries
-    // in the same directory as the binary/library
-    if target.contains("linux") {
-        println!("cargo::rustc-link-arg=-Wl,-rpath,$ORIGIN");
-    } else if target.contains("darwin") || target.contains("apple") {
-        println!("cargo::rustc-link-arg=-Wl,-rpath,@loader_path");
-    }
-
-    // If LIBDDWAF_PREFIX is set, add that library path to rpath as well
-    // This matches the behavior in libddwaf-sys build.rs
-    if let Ok(prefix) = env::var("LIBDDWAF_PREFIX") {
-        let lib_dir = PathBuf::from(prefix).join("lib");
-        println!("cargo::rustc-link-arg=-Wl,-rpath,{}", lib_dir.display());
-    }
-
-    println!("cargo::rerun-if-env-changed=LIBDDWAF_PREFIX");
 
     set_ddappsec_version();
     build_test_sidecar_lib();

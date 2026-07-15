@@ -2366,8 +2366,7 @@ function get_ini_settings($sourcesDir, $appsecHelperPath, $appsecRulesPath)
             'commented' => true,
             'description' => [
                 'Optional path to a custom rules json file. When this setting is not configured,',
-                'the Rust helper uses its embedded default rules and the C++ helper uses the',
-                'default rules file installed next to the helper.',
+                'the helper uses its embedded default rules.',
             ],
         ],
         [
@@ -2378,17 +2377,6 @@ function get_ini_settings($sourcesDir, $appsecHelperPath, $appsecRulesPath)
                 'The directory where to place the lock file and the UNIX socket that the',
                 'extension uses communicate with the helper inside sidecar. Ultimately,',
                 'the paths include the version of the extension and uid/gid.',
-            ],
-        ],
-        [
-            'name' => 'datadog.appsec.helper_rust_redirection',
-            'default' => 'false',
-            'commented' => true,
-            'description' => [
-                'Whether to use the new implementation of the AppSec helper.',
-                'This is trying by looking for a file named libddappsec-helper-rust.so',
-                'next to the value specified in datadog.appsec.helper_runtime_path.',
-                'Defaults to  true on PHP 8.5.',
             ],
         ],
         [

@@ -99,6 +99,24 @@ DATADOG_PUBLIC uint64_t datadog_get_sidecar_queue_id(void) {
     return DATADOG_G(sidecar_queue_id);
 }
 
+#ifdef ZTS
+DATADOG_PUBLIC ddog_SidecarTransport **ddtrace_get_sidecar_transport(void *tsrm_ls) {
+    if (tsrm_ls) {
+        void *saved = TSRMLS_CACHE;
+        TSRMLS_CACHE = tsrm_ls;
+        ddog_SidecarTransport **result = &TSRMG_STATIC(
+            datadog_globals_id, zend_datadog_globals *, sidecar);
+        TSRMLS_CACHE = saved;
+        return result;
+    }
+    return &DATADOG_G(sidecar);
+}
+#else
+DATADOG_PUBLIC ddog_SidecarTransport **ddtrace_get_sidecar_transport(void) {
+    return &DATADOG_G(sidecar);
+}
+#endif
+
 static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_fork, const char *logpath) {
     ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) datadog_formatted_session_id, .len = sizeof(datadog_formatted_session_id)};
     ddog_CharSlice root_session_id = datadog_is_empty_session_id(datadog_formatted_root_session_id) ? DDOG_CHARSLICE_C("") : (ddog_CharSlice) {.ptr = (char *) datadog_formatted_root_session_id, .len = sizeof(datadog_formatted_root_session_id)};

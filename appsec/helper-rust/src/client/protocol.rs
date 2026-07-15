@@ -22,6 +22,7 @@ pub enum Command {
     RequestInit(Box<RequestInitArgs>),
     RequestExec(Box<RequestExecArgs>),
     RequestShutdown(Box<RequestShutdownArgs>),
+    ClientShutdown(Box<ClientShutdownArgs>),
 }
 
 #[derive(Debug)]
@@ -33,6 +34,22 @@ pub enum CommandResponse<'a> {
     RequestInit(RequestInitResp<'a>),
     RequestExec(RequestExecResp),
     RequestShutdown(RequestShutdownResp),
+    ClientShutdown,
+}
+
+// ClientShutdown has a single argument, which is a map with two keys:
+// - clean: a boolean indicating if the client shutdown was clean (i.e. the client is exiting normally)
+// - error: an optional string indicating the error that caused the client to shutdown
+#[derive(Debug, Deserialize_tuple)]
+pub struct ClientShutdownArgs {
+    pub inner: ClientShutdownArgsInner,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct ClientShutdownArgsInner {
+    pub clean: bool,
+    #[serde(default)]
+    pub error: Option<String>,
 }
 
 #[derive(Debug, Deserialize_tuple)]
@@ -127,6 +144,7 @@ impl RemoteConfigSettings {
 pub struct ClientInitResp {
     pub status: String,
     pub version: &'static str,
+    pub client_id: u64,
     pub errors: Vec<String>,
     pub meta: HashMap<String, String>,
     pub metrics: HashMap<String, f64>,
@@ -299,6 +317,12 @@ impl<'de> Deserialize<'de> for Command {
                         })?;
                         Ok(Command::RequestShutdown(Box::new(args)))
                     }
+                    "client_shutdown" => {
+                        let args: ClientShutdownArgs = seq.next_element()?.ok_or_else(|| {
+                            serde::de::Error::custom("Missing arguments for ClientShutdown")
+                        })?;
+                        Ok(Command::ClientShutdown(Box::new(args)))
+                    }
                     v => Err(serde::de::Error::custom(format!(
                         "Got unknown command name {}",
                         v
@@ -345,15 +369,10 @@ impl Header {
 }
 
 pub struct CommandCodec;
-impl Decoder for CommandCodec {
-    type Item = Command;
-
-    type Error = io::Error;
-
-    fn decode(
-        &mut self,
-        src: &mut tokio_util::bytes::BytesMut,
-    ) -> Result<Option<Self::Item>, Self::Error> {
+impl CommandCodec {
+    /// Returns the full size (including header) of the next message in the
+    /// buffer, or None if this can't be determined without more data.
+    fn frame_size(src: &[u8]) -> Result<Option<usize>, io::Error> {
         if src.len() < std::mem::size_of::<Header>() {
             return Ok(None);
         }
@@ -377,26 +396,63 @@ impl Decoder for CommandCodec {
             ));
         }
 
-        let total_size = std::mem::size_of::<Header>() + header.size as usize;
+        Ok(Some(std::mem::size_of::<Header>() + header.size as usize))
+    }
+
+    fn deserialize_message(src: &[u8], total_size: usize) -> Result<Command, io::Error> {
+        let data = &src[std::mem::size_of::<Header>()..total_size];
+
+        trace!(
+            "Decoding message with size {}: {:?}",
+            data.len(),
+            fmt_bin(data)
+        );
+
+        let mut de = Deserializer::from_read_ref(data);
+        Command::deserialize(&mut de).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+    }
+
+    /// Decodes one complete framed command without copying its bytes into a streaming buffer.
+    pub fn decode_message(src: &[u8]) -> Result<Command, io::Error> {
+        let frame_size = Self::frame_size(src)?.ok_or_else(|| {
+            io::Error::new(io::ErrorKind::UnexpectedEof, "Incomplete command header")
+        })?;
+        if src.len() < frame_size {
+            return Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                "Incomplete command message",
+            ));
+        }
+
+        Self::deserialize_message(src, frame_size)
+    }
+}
+
+impl Decoder for CommandCodec {
+    type Item = Command;
+
+    type Error = io::Error;
+
+    fn decode(
+        &mut self,
+        src: &mut tokio_util::bytes::BytesMut,
+    ) -> Result<Option<Self::Item>, Self::Error> {
+        let Some(total_size) = Self::frame_size(src)? else {
+            // not enough data, not even to determine the frame size
+            return Ok(None);
+        };
 
         if src.len() < total_size {
+            // not enough data, but we already know how big the frame is,
+            // so we can reserve the necessary capacity
+            // (frame_size() caps this to 4 MB)
             if src.capacity() < total_size {
                 src.reserve(total_size - src.capacity());
             }
             return Ok(None);
         }
 
-        let data = &src[std::mem::size_of::<Header>()..total_size];
-
-        trace!(
-            "Decoding message with size {}: {:?}",
-            header.size,
-            fmt_bin(data)
-        );
-
-        let mut de = Deserializer::from_read_ref(data);
-        let cmd = Command::deserialize(&mut de)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let cmd = Self::deserialize_message(src, total_size)?;
 
         src.advance(total_size);
 
@@ -444,6 +500,11 @@ impl Serialize for CommandResponse<'_> {
             CommandResponse::RequestShutdown(resp) => {
                 state.serialize_element("request_shutdown")?;
                 state.serialize_element(resp)?;
+                state.end()
+            }
+            CommandResponse::ClientShutdown => {
+                state.serialize_element("client_shutdown")?;
+                state.serialize_element(&())?;
                 state.end()
             }
         }
@@ -563,6 +624,7 @@ mod tests {
         let resp = CommandResponse::ClientInit(ClientInitResp {
             status: "ok".to_string(),
             version: "1.0.0",
+            client_id: 12345,
             errors: vec![],
             meta: HashMap::new(),
             metrics: HashMap::new(),
@@ -586,6 +648,7 @@ mod tests {
         let huge = CommandResponse::ClientInit(ClientInitResp {
             status: "x".repeat(5 * 1024 * 1024),
             version: "1.0.0",
+            client_id: 12345,
             errors: vec![],
             meta: HashMap::new(),
             metrics: HashMap::new(),
