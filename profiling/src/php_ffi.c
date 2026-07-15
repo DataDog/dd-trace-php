@@ -11,6 +11,33 @@
 #include <dlfcn.h> // for dlsym
 #endif
 
+#if PHP_VERSION_ID >= 80400 && defined(ZTS)
+static tsrm_thread_end_func_t ddog_php_prof_prev_new_thread_end_handler;
+static bool ddog_php_prof_new_thread_end_handler_installed;
+
+static void ddog_php_prof_new_thread_end_handler(THREAD_T thread_id) {
+    if (ddog_php_prof_prev_new_thread_end_handler) {
+        ddog_php_prof_prev_new_thread_end_handler(thread_id);
+    }
+    if (ddog_php_prof_new_thread_end_should_reset()) {
+        /* The CWD GINIT retains an emalloc() pointer. Mirror module startup's
+         * cleanup so it is not mistaken for a prefixed request allocation. */
+        virtual_cwd_deactivate();
+        shutdown_memory_manager(true, false);
+        virtual_cwd_activate();
+    }
+}
+
+void ddog_php_prof_install_new_thread_end_handler(void) {
+    if (!ddog_php_prof_new_thread_end_handler_installed) {
+        ddog_php_prof_prev_new_thread_end_handler =
+            (tsrm_thread_end_func_t) tsrm_set_new_thread_end_handler(
+                ddog_php_prof_new_thread_end_handler);
+        ddog_php_prof_new_thread_end_handler_installed = true;
+    }
+}
+#endif
+
 const char *datadog_extension_build_id(void) { return ZEND_EXTENSION_BUILD_ID; }
 const char *datadog_module_build_id(void) { return ZEND_MODULE_BUILD_ID; }
 
