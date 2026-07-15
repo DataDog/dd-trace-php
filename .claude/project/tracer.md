@@ -2,7 +2,7 @@
 
 ## What it is
 
-The instrumentation engine (split from [ext/](ext.md) in #3912). Creates and
+The instrumentation engine which creates and
 manages span lifecycles, sampling, metadata, msgpack serialization, and sends
 traces (via the sidecar or the legacy in-process background sender).
 
