@@ -4,7 +4,7 @@ description: >-
   Monitor GitLab CI and GitHub Actions for this repo: start check-ci, tail
   results with ci-watch, investigate failures, and report. Use when the user
   asks to check, watch, or monitor CI, or to see whether a pipeline passed.
-argument-hint: "[--commit <ref> | --pipeline <id>] [--list-jobs]"
+argument-hint: "[--commit <ref> | --pipeline <id>] [--jobs <pat1,pat2>] [--list-jobs]"
 allowed-tools: Bash Read Grep Glob Agent TaskCreate TaskUpdate TaskStop mcp__speak_when_done__speak
 effort: high
 ---
@@ -26,6 +26,12 @@ skips GitHub.
 - `--commit <ref>` — git ref to resolve (default: HEAD); monitors GitLab +
   GitHub
 - `--pipeline <id>` — specific GitLab pipeline ID (skips GitHub monitoring)
+- `--jobs <pat1,pat2>` — comma-separated substring patterns (case-insensitive);
+  monitor ONLY the jobs whose name contains any pattern. In monitoring mode the
+  run finishes as soon as the matched subset is terminal (rather than waiting for
+  the whole pipeline); with `--list-jobs` the snapshot shows only matched jobs.
+  Applies to both GitLab jobs and GitHub Actions workflow jobs. Omit for
+  whole-pipeline monitoring (the default).
 - `--list-jobs` — quick snapshot mode (no monitoring)
 
 If no `--commit` or `--pipeline` is given, default to `--commit HEAD`.
@@ -59,6 +65,14 @@ PYTHONUNBUFFERED=1 .claude/ci/check-ci [OPTIONS]
 - Default options if the user provided none: `--commit HEAD`.
 - You may also pass `--max-failures 50` (default) and
   `--timeout 7200` (default, 2 h).
+- To watch only a named subset of jobs, add `--jobs "<pat1>,<pat2>,..."`. The
+  run then finishes as soon as those matched jobs are terminal, instead of
+  waiting for the whole pipeline. Example — watch the three Windows `test_c`
+  version variants:
+  ```bash
+  PYTHONUNBUFFERED=1 .claude/ci/check-ci \
+    --jobs "windows test_c: [7.2],windows test_c: [7.3],windows test_c: [7.4]"
+  ```
 
 ### Step 2 — Start ci-watch in the background
 

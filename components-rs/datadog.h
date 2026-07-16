@@ -257,6 +257,8 @@ void ddog_rshutdown_remote_config(struct ddog_RemoteConfigState *remote_config);
 
 void ddog_shutdown_remote_config(struct ddog_RemoteConfigState*);
 
+void ddog_drop_probe(struct ddog_Probe probe);
+
 void ddog_log_debugger_data(const struct ddog_Vec_DebuggerPayload *payloads);
 
 void ddog_log_debugger_datum(const struct ddog_DebuggerPayload *payload);
