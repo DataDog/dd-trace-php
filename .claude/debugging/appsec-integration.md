@@ -8,7 +8,7 @@ The appsec Gradle integration tests run inside Docker containers. Use
 attach gdb to processes inside the container (PHP-FPM workers, sidecar).
 
 See [gdb.md](gdb.md) for gdb-specific instructions.
-See [ci/appsec-gradle-integration.md](ci/appsec-gradle-integration.md) for
+See [ci/appsec-gradle-integration.md](../ci/appsec-gradle-integration.md) for
 Gradle test details.
 
 ## Workflow
