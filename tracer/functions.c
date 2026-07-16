@@ -2005,6 +2005,11 @@ PHP_FUNCTION(dd_trace_internal_fn) {
                 datadog_metric_add_point(Z_STR_P(metric_name), zval_get_double(metric_value), Z_STR_P(tags));
                 RETVAL_TRUE;
             }
+        } else if (FUNCTION_NAME_MATCHES("live_debugger_installed_probe_count")) {
+            // Number of live-debugger probes currently installed (hooked and not
+            // removed). Used by tests to reliably wait for probe installation to
+            // settle across remote-config remove/re-add churn.
+            RETVAL_LONG(zend_hash_num_elements(&DDTRACE_G(active_live_debugger_hooks)));
         } else if (FUNCTION_NAME_MATCHES("dump_sidecar")) {
             if (!DATADOG_G(sidecar)) {
                 RETURN_FALSE;
