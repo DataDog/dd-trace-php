@@ -2162,15 +2162,32 @@ PHP_FUNCTION(dd_trace_internal_fn) {
                 timeout_sec = (uint32_t)Z_LVAL_P(ZVAL_VARARG_PARAM(params, 0));
             }
             uint32_t waited_ms = 0, timeout_ms = timeout_sec * 1000;
+            // Poll until remote-config application has *settled*, not merely
+            // until the first update is seen. A per-request reader created
+            // against a warm/shared sidecar can observe a stale, empty,
+            // partial, or unrelated shm generation left by the persistent
+            // fetcher (e.g. under the retry harness's second window or under
+            // parallel load). Returning on the first ddog_process_remote_configs()
+            // == true would then race ahead of the config the caller just
+            // published, applying it one poll-cycle late. Instead, keep
+            // draining updates and only return once at least one update has
+            // been applied and a subsequent quiet period observes no further
+            // change (or the overall timeout elapses).
             bool rc_updated = false;
-            while (!rc_updated && waited_ms < timeout_ms) {
-                if (DATADOG_G(remote_config_state)) {
-                    rc_updated = ddog_process_remote_configs(DATADOG_G(remote_config_state));
+            uint32_t stable_ms = 0;
+            const uint32_t settle_ms = 500;
+            while (waited_ms < timeout_ms) {
+                if (DATADOG_G(remote_config_state) && ddog_process_remote_configs(DATADOG_G(remote_config_state))) {
+                    rc_updated = true;
+                    stable_ms = 0;
+                } else if (rc_updated) {
+                    stable_ms += 10;
+                    if (stable_ms >= settle_ms) {
+                        break;
+                    }
                 }
-                if (!rc_updated) {
-                    usleep(10000); // 10ms
-                    waited_ms += 10;
-                }
+                usleep(10000); // 10ms
+                waited_ms += 10;
             }
             if (rc_updated) {
                 DATADOG_G(reread_remote_configuration) = 0;
