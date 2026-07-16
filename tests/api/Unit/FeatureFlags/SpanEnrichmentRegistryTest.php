@@ -107,6 +107,24 @@ final class SpanEnrichmentRegistryTest extends TestCase
         $this->assertSame(array(200), $this->decodeFlags($registry->stagedTags()));
     }
 
+    public function testAccumulateWithoutAnActiveRootIsSkippedRatherThanStaged()
+    {
+        // PR review: an evaluation made with no active root span (rootIdResolver
+        // returns null) must not be staged -- otherwise it would leak onto
+        // whichever root span opens next.
+        SpanEnrichmentRegistry::reset();
+        $registry = SpanEnrichmentRegistry::instance();
+        $registry->setRootSpanSeams(function () {
+            return null;
+        }, function ($id, $reset) {
+        });
+
+        $binder = new SpanEnrichmentBinder();
+        $binder->accumulate('flag-a', $this->detailsWithSerialId(100), null);
+
+        $this->assertSame(array(), $registry->stagedTags());
+    }
+
     public function testRootCloseSchedulerIsBoundAtMostOncePerRootAcrossManyBinders()
     {
         // The lifecycle fix: a long-lived root with many short-lived binders must

@@ -968,6 +968,20 @@ void ddtrace_close_top_span_without_stack_swap(ddtrace_span_data *span) {
         stack->closed_ring = span;
     }
 
+    if (span->std.ce == ddtrace_ce_root_span_data) {
+        ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
+
+        // APM feature-flag span enrichment (PHP-01): flush any staged ffe_*
+        // tags into the root's meta BEFORE the sampling decision below runs,
+        // so span-level sampling rules that match against ffe_* tags can
+        // actually see them (PR review: this used to run after the sampling
+        // decision, so such rules could never match). Gated and a no-op
+        // (cheap early-return) when the feature is off or nothing was staged
+        // (DG-005). The accumulator is request-scoped and cleared here so it
+        // never leaks across requests.
+        ddtrace_ffe_flush_span_enrichment_tags(ddtrace_property_array(&root->property_meta));
+    }
+
     ddtrace_decide_on_closed_span_sampling(span);
     if (span->notify_user_req_end) {
         ddtrace_user_req_notify_finish(span);
@@ -977,13 +991,6 @@ void ddtrace_close_top_span_without_stack_swap(ddtrace_span_data *span) {
     if (span->std.ce == ddtrace_ce_root_span_data) {
         ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
         LOG(SPAN_TRACE, "Closing root span: trace_id=%s, span_id=%" PRIu64, Z_STRVAL(root->property_trace_id), span->span_id);
-
-        // APM feature-flag span enrichment (PHP-01): when the root span closes,
-        // flush any staged ffe_* tags into its meta. This is gated and a no-op
-        // (cheap early-return) when the feature is off or nothing was staged
-        // (DG-005). The accumulator is request-scoped and cleared here so it
-        // never leaks across requests.
-        ddtrace_ffe_flush_span_enrichment_tags(ddtrace_property_array(&root->property_meta));
     } else {
         LOG(SPAN_TRACE, "Closing span: trace_id=%s, span_id=%" PRIu64, Z_STRVAL(span->root->property_trace_id), span->span_id);
     }

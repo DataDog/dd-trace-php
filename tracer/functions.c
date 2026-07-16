@@ -2873,14 +2873,16 @@ PHP_FUNCTION(DDTrace_Internal_peek_root_span_id) {
     // Non-creating root accessor: read the active root span directly WITHOUT
     // dd_ensure_root_span(), so resolving the root id while merely evaluating a
     // feature flag never creates an autoroot span as a side effect. Returns the
-    // span object's identity (spl_object_id == its zend object handle), matching
-    // what PHP's spl_object_id(\DDTrace\root_span()) would yield, so the
-    // PHP-side accumulator can detect a root-span boundary consistently.
+    // root's own span_id (a random 64-bit id, never reused within the process)
+    // rather than the zend object handle: handles are recycled by the engine's
+    // object store once a span object is destroyed (e.g. a dropped root), so a
+    // handle-based identity could alias a later, unrelated root and make the
+    // PHP-side accumulator wrongly treat it as still bound to the old one.
     if (!get_DD_TRACE_ENABLED() || !DDTRACE_G(active_stack) || !DDTRACE_G(active_stack)->root_span) {
         RETURN_NULL();
     }
 
-    RETURN_LONG((zend_long) DDTRACE_G(active_stack)->root_span->std.handle);
+    RETURN_LONG((zend_long) DDTRACE_G(active_stack)->root_span->span_id);
 }
 
 /* {{{ proto array generate_distributed_tracing_headers() */

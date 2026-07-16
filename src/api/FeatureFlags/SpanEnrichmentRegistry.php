@@ -30,6 +30,19 @@ namespace DDTrace\FeatureFlags;
  * gate is off -- the accumulator is allocated lazily on first use and only when
  * the gate is on, so there is no idle per-evaluation or per-span overhead.
  *
+ * KNOWN LIMITATION (PR review, not fixed here): this registry tracks exactly
+ * ONE active root at a time via a flat $rootId/$accumulator pair, and the
+ * native staging bridge (tracer/ffe.c set_ffe_span_enrichment_tags) mirrors
+ * that with a single set of request-global slots. When two roots are
+ * genuinely open concurrently (fibers, multiple span stacks) and evaluations
+ * interleave across them, switching the active root discards the other
+ * root's accumulated data, and flushing can attach staged tags to the wrong
+ * root. Fixing this properly requires per-root-keyed storage on BOTH sides
+ * (PHP accumulators keyed by root id, AND the native slots keyed the same
+ * way) -- a native wire-contract-adjacent change, not a PHP-only patch.
+ * Deferred as a follow-up given the feature is experimental and gated off by
+ * default.
+ *
  * PHP 7 compatible (lives in src/api alongside Client / SpanEnrichmentAccumulator
  * and is consumed by the PHP 8-only DataDogProvider).
  */
@@ -43,7 +56,7 @@ final class SpanEnrichmentRegistry
 
     /** @var SpanEnrichmentAccumulator|null Allocated lazily, only when the gate is on. */
     private $accumulator = null;
-    /** @var int|null Identity (spl_object_id) of the root span currently bound. */
+    /** @var int|null Identity (root span_id) of the root span currently bound. */
     private $rootId = null;
     /**
      * Identity of the root span we have already bound a one-shot close reset to.
@@ -129,6 +142,12 @@ final class SpanEnrichmentRegistry
         try {
             $this->resetForRootBoundary();
 
+            if ($this->rootId === null) {
+                // No active root span: nothing to attach this evaluation to, and
+                // staging it now would leak into whichever root opens next.
+                return;
+            }
+
             if ($this->accumulator === null) {
                 $this->accumulator = new SpanEnrichmentAccumulator();
             }
@@ -163,6 +182,12 @@ final class SpanEnrichmentRegistry
      * requests. Fires on ANY transition (new root, or losing the active root) so
      * a dropped/abandoned root -- which never runs its $onClose handler -- cannot
      * leak into the next root or request.
+     *
+     * KNOWN LIMITATION: this is where the single-active-root assumption bites.
+     * If root A is still open when root B becomes active (concurrent roots via
+     * fibers / multiple span stacks), this discards A's accumulated data on
+     * the A->B transition, and switching back to A later starts it fresh
+     * rather than resuming. See the class docblock.
      */
     private function resetForRootBoundary()
     {
@@ -214,6 +239,16 @@ final class SpanEnrichmentRegistry
      * active root span WITHOUT calling dd_ensure_root_span(); we fall back to
      * the (creating) DDTrace\root_span() only on older extensions that predate
      * the peek helper, preserving behaviour there.
+     *
+     * peek_root_span_id() returns the root's own span_id, not spl_object_id():
+     * object handles are recycled by the engine once a span object is
+     * destroyed (e.g. a dropped root), so a handle-based identity could alias a
+     * later, unrelated root and make resetForRootBoundary() wrongly skip its
+     * reset (PR review, handle-reuse finding). span_id is a random 64-bit value
+     * that is never reused within the process, so it does not have this
+     * problem. The spl_object_id() fallback below (old extensions without the
+     * peek helper) keeps the theoretical handle-reuse exposure, but that path
+     * only exists for pre-peek-helper extensions.
      *
      * @return int|null
      */

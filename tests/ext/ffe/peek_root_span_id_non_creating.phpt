@@ -1,9 +1,8 @@
 --TEST--
-FFE span enrichment: DDTrace\Internal\peek_root_span_id() is non-creating and matches spl_object_id(root_span())
+FFE span enrichment: DDTrace\Internal\peek_root_span_id() is non-creating and stable/unique per root
 --SKIPIF--
 <?php
 if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support %r");
-if (PHP_VERSION_ID < 70200) die("skip: spl_object_id() requires PHP 7.2+");
 ?>
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
@@ -26,14 +25,20 @@ show('peek_fn_exists', function_exists('DDTrace\\Internal\\peek_root_span_id'));
 show('peek_before', \DDTrace\Internal\peek_root_span_id());
 show('active_span_still_null_after_peek', \DDTrace\active_span() === null);
 
-// Now open a real span. peek_root_span_id() must return its identity, and that
-// identity must equal spl_object_id(\DDTrace\root_span()) — the value the
-// PHP-side accumulator previously used to detect a root-span boundary.
+// Now open a real span. peek_root_span_id() must return an identity that is
+// stable for the lifetime of that root (not derived from a recyclable zend
+// object handle, which a dropped-and-replaced root could alias).
 $span = \DDTrace\start_span();
 $peeked = \DDTrace\Internal\peek_root_span_id();
-$root = \DDTrace\root_span();
+$peekedAgain = \DDTrace\Internal\peek_root_span_id();
 show('peek_is_int', is_int($peeked));
-show('peek_matches_spl_object_id', $peeked === \spl_object_id($root));
+show('peek_stable_within_same_root', $peeked === $peekedAgain);
+\DDTrace\close_span();
+
+// A second, distinct root must get a distinct identity.
+$span2 = \DDTrace\start_span();
+$peeked2 = \DDTrace\Internal\peek_root_span_id();
+show('peek_distinct_across_roots', $peeked !== $peeked2);
 \DDTrace\close_span();
 
 ?>
@@ -42,4 +47,5 @@ peek_fn_exists=true
 peek_before=null
 active_span_still_null_after_peek=true
 peek_is_int=true
-peek_matches_spl_object_id=true
+peek_stable_within_same_root=true
+peek_distinct_across_roots=true

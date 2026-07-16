@@ -266,11 +266,36 @@ final class SpanEnrichmentAccumulator
             $valueStr = $value ? 'true' : 'false';
         } elseif ($value === null) {
             $valueStr = 'null';
+        } elseif (is_float($value)) {
+            $valueStr = $this->stringifyFloat($value);
         } else {
             $valueStr = (string) $value;
         }
 
         return $this->truncateUtf8($valueStr, self::MAX_DEFAULT_VALUE_LENGTH);
+    }
+
+    /**
+     * Match Node's String(number) form for floats. PHP's plain (string) cast
+     * diverges from it in three ways: uppercase "E" exponents (Node: lowercase
+     * "e"), a signed zero that renders "-0" (Node: "0"), and (via json_encode,
+     * used below to get a round-trip-shortest mantissa like Node's) a
+     * trailing ".0" before the exponent that Node's formatter omits.
+     */
+    private function stringifyFloat($value)
+    {
+        if (is_nan($value)) {
+            return 'NaN';
+        }
+        if (is_infinite($value)) {
+            return $value > 0 ? 'Infinity' : '-Infinity';
+        }
+        if ($value === 0.0) {
+            return '0';
+        }
+
+        $encoded = json_encode($value);
+        return preg_replace('/\.0(?=e)/', '', $encoded);
     }
 
     /**

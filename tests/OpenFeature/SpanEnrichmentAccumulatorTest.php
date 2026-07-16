@@ -274,6 +274,13 @@ final class SpanEnrichmentAccumulatorTest extends TestCase
             'float => string'       => [4.5, '4.5'],
             'string passthrough'    => ['plain', 'plain'],
             'stdClass => JSON'      => [(object) ['a' => 1], '{"a":1}'],
+            // PHP's plain (string) cast diverges from Node's String(number) for
+            // these: uppercase "E" exponents, a "-0" for negative zero, and (via
+            // (string)'s default precision) a differently-rounded mantissa.
+            'float exponent lowercase e' => [1.0e-7, '1e-7'],
+            'float exponent with sign'   => [1.5e21, '1.5e+21'],
+            'negative zero => "0"'       => [-0.0, '0'],
+            'whole float => no decimal'  => [100.0, '100'],
         ];
     }
 
@@ -725,7 +732,7 @@ final class SpanEnrichmentTestEvaluator implements Evaluator
  * lives in the SHARED SpanEnrichmentRegistry, so this drives the REGISTRY's two
  * root-span seams (setRootSpanSeams) rather than the provider's:
  *  - rootIdResolver: returns the current simulated root id, standing in for the
- *    native peek_root_span_id() / spl_object_id(\DDTrace\root_span()).
+ *    native peek_root_span_id() (the root span's own span_id).
  *  - rootCloseScheduler: records the one-shot accumulator reset that the
  *    registry binds to $root->onClose; closeRootSpan() fires it, mirroring
  *    span.c invoking the onClose handlers before the native flush.
