@@ -973,25 +973,6 @@ namespace DDTrace\System {
     function process_tags_base_hash(): string|null {}
 }
 
-namespace DDTrace\Config {
-
-    /**
-     * Check if the app analytics of an app is enabled for a given integration
-     *
-     * @param string $integrationName The name of the integration (e.g., mysqli)
-     * @return bool The status of the app analytics of the integration
-     */
-    function integration_analytics_enabled(string $integrationName): bool {}
-
-    /**
-     * Check the app analytics sample rate of a given integration
-     *
-     * @param string $integrationName The name of the integration (e.g., mysqli)
-     * @return float The sample rate of the app analytics of the integration
-     */
-    function integration_analytics_sample_rate(string $integrationName): float {}
-}
-
 namespace DDTrace\UserRequest {
     /**
      * If there are any listeners of user request events.
