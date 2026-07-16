@@ -123,20 +123,40 @@ class DebuggerLogReplayer {
 function await_probe_installation($trigger, $num = 1) {
     ini_set("datadog.trace.hook_limit", "0");
 
-    $last_id = \DDtrace\install_hook("_dummy", function () {});
     $ret = $trigger();
 
-    for ($i = 0; $i < 15000; ++$i) {
+    // Wait until the expected number of live-debugger probes are actually
+    // installed AND the count has *stabilised*. Remote config delivery is not
+    // atomic: when the request replayer is reset and the probe configs are
+    // (re-)uploaded, the sidecar can transiently publish an empty / partial
+    // config set, which makes the extension remove all probes and then re-add
+    // them ("churn"). Counting install events (as this helper used to do) can
+    // return in the middle of that churn, before the last probe (e.g. a
+    // targetSpan=ROOT probe used at the very end of a test) has been
+    // re-installed — leaving that probe inactive when the test body runs.
+    //
+    // Instead we poll the *net* number of installed probes and only return once
+    // it has been >= $num continuously for a stability window, so any churn dip
+    // (count dropping below $num) resets the wait.
+    $stable_since = null;
+    for ($i = 0; $i < 30000; ++$i) {
+        // Actively drive RC application each iteration instead of relying on a
+        // VM-interrupt checkpoint happening to land inside this loop (usleep()
+        // alone doesn't guarantee a pending update gets applied promptly).
+        dd_trace_internal_fn("process_remote_config_now");
         usleep(1000);
 
-        $id = \DDtrace\install_hook("_dummy", function () {});
-        if ($last_id + 1 != $id) {
-            $num -= $id - $last_id - 1;
-            if ($num <= 0) {
+        $count = (int)\dd_trace_internal_fn('live_debugger_installed_probe_count');
+        if ($count >= $num) {
+            if ($stable_since === null) {
+                $stable_since = microtime(true);
+            } elseif (microtime(true) - $stable_since >= 1.0) {
                 return $ret;
             }
+        } else {
+            // churn in progress (a probe was (transiently) removed): keep waiting
+            $stable_since = null;
         }
-        $last_id = $id;
     }
 
     return $ret;

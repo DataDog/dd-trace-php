@@ -2005,6 +2005,11 @@ PHP_FUNCTION(dd_trace_internal_fn) {
                 datadog_metric_add_point(Z_STR_P(metric_name), zval_get_double(metric_value), Z_STR_P(tags));
                 RETVAL_TRUE;
             }
+        } else if (FUNCTION_NAME_MATCHES("live_debugger_installed_probe_count")) {
+            // Number of live-debugger probes currently installed (hooked and not
+            // removed). Used by tests to reliably wait for probe installation to
+            // settle across remote-config remove/re-add churn.
+            RETVAL_LONG(zend_hash_num_elements(&DDTRACE_G(active_live_debugger_hooks)));
         } else if (FUNCTION_NAME_MATCHES("dump_sidecar")) {
             if (!DATADOG_G(sidecar)) {
                 RETURN_FALSE;
@@ -2126,13 +2131,68 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             } else {
                 array_init(return_value);
             }
+        } else if (FUNCTION_NAME_MATCHES("process_remote_config_now")) {
+            // Single, immediate, non-blocking attempt to apply any already-fetched
+            // remote config without waiting for a VM-interrupt checkpoint. Lets test
+            // helpers actively drive RC application from within their own poll loops
+            // (see await_probe_installation() in tests/ext/live-debugger/live_debugger.inc),
+            // instead of depending on timing-sensitive signal/interrupt delivery.
+            datadog_check_for_new_config_now();
+            RETVAL_TRUE;
         } else if (FUNCTION_NAME_MATCHES("await_remote_config")) {
+            // Block until a pending remote config update has actually been applied.
+            // Remote config is normally applied at a Zend VM-interrupt checkpoint
+            // (dd_vm_interrupt -> ddog_process_remote_configs(), ext/remote_config.c),
+            // which is only reached between opcode dispatches. A single blind
+            // php_sleep() never yields such a checkpoint: PHP's sleep() retries
+            // internally on EINTR for the remaining duration, so even if the
+            // SIGVTALRM poll signal fires mid-sleep, the interrupt is not
+            // processed until the full timeout has elapsed (confirmed by tracing
+            // -- reread_remote_configuration can already be set *before* the
+            // sleep starts and still not be processed until it returns).
+            // Mirror await_agent_info's pattern instead: actively drive the
+            // RC-apply entry point each iteration.
+            // Note: unlike dd_sigvtalarm_handler, this intentionally does not
+            // call datadog_set_all_thread_vm_interrupt() to broadcast to other
+            // threads -- each waiter drains its own thread-local remote_config_state
+            // directly via ddog_process_remote_configs(), so no cross-thread
+            // notification is needed here.
             uint32_t timeout_sec = 10;
             if (params_count == 1) {
                 timeout_sec = (uint32_t)Z_LVAL_P(ZVAL_VARARG_PARAM(params, 0));
             }
-            php_sleep(timeout_sec);
-            RETURN_BOOL(DATADOG_G(reread_remote_configuration));
+            uint32_t waited_ms = 0, timeout_ms = timeout_sec * 1000;
+            // Poll until remote-config application has *settled*, not merely
+            // until the first update is seen. A per-request reader created
+            // against a warm/shared sidecar can observe a stale, empty,
+            // partial, or unrelated shm generation left by the persistent
+            // fetcher (e.g. under the retry harness's second window or under
+            // parallel load). Returning on the first ddog_process_remote_configs()
+            // == true would then race ahead of the config the caller just
+            // published, applying it one poll-cycle late. Instead, keep
+            // draining updates and only return once at least one update has
+            // been applied and a subsequent quiet period observes no further
+            // change (or the overall timeout elapses).
+            bool rc_updated = false;
+            uint32_t stable_ms = 0;
+            const uint32_t settle_ms = 500;
+            while (waited_ms < timeout_ms) {
+                if (DATADOG_G(remote_config_state) && ddog_process_remote_configs(DATADOG_G(remote_config_state))) {
+                    rc_updated = true;
+                    stable_ms = 0;
+                } else if (rc_updated) {
+                    stable_ms += 10;
+                    if (stable_ms >= settle_ms) {
+                        break;
+                    }
+                }
+                usleep(10000); // 10ms
+                waited_ms += 10;
+            }
+            if (rc_updated) {
+                DATADOG_G(reread_remote_configuration) = 0;
+            }
+            RETURN_BOOL(rc_updated);
         } else if (FUNCTION_NAME_MATCHES("get_agent_info")) {
             // Returns a PHP array decoded from the agent /info JSON payload.
             if (DATADOG_G(agent_info_reader)) {

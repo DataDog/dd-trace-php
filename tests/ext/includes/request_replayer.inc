@@ -44,7 +44,16 @@ class RequestReplayer
             ? (int) getenv('DD_TRACE_AGENT_FLUSH_INTERVAL') * 100
             : 50000;
 
-        $this->maxIteration = 500;
+        // 500 iterations (~16.65s at the 33.3ms flush interval used by tests that
+        // set DD_TRACE_AGENT_FLUSH_INTERVAL=333) is not a synchronization bug --
+        // the mock agent single-threadedly serves all concurrent test-worker
+        // sessions, and under test_extension_ci's valgrind lane the sidecar's
+        // trace flusher has been observed to stall ~18s across all sessions
+        // before draining its backlog, arriving ~1s after the old budget
+        // expired. Data provably arrives, just later than 16.65s under
+        // contention. Widen the budget to comfortably exceed that observed
+        // worst case (~17.7s) with margin.
+        $this->maxIteration = 900; // ~30s at the 33.3ms flush interval
     }
 
     public function waitForFlush()
