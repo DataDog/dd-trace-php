@@ -51,8 +51,6 @@ typedef union ddtrace_span_properties {
         zval property_name;
         zval property_resource;
         zval property_service;
-        zval property_env;
-        zval property_version;
         zval property_meta_struct;
         zval property_type;
         zval property_meta;
@@ -75,6 +73,11 @@ typedef union ddtrace_span_properties {
         };
         zval property_on_close;
         zval property_baggage;
+        zval property_env;
+        zval property_version;
+        zval property_component;
+        zval property_span_kind;
+        zval property_attributes;
     };
 } ddtrace_span_properties;
 
@@ -148,6 +151,7 @@ struct ddtrace_root_span_data {
     zval property_origin;
     zval property_propagated_tags;
     zval property_sampling_priority;
+    zval property_sampling_mechanism;
     zval property_propagated_sampling_priority;
     zval property_tracestate;
     zval property_tracestate_tags;
@@ -155,6 +159,7 @@ struct ddtrace_root_span_data {
     zval property_trace_id;
     zval property_git_metadata;
     zval property_inferred_span;
+    zval property_hostname;
 };
 
 static inline ddtrace_root_span_data *ROOTSPANDATA(zend_object *obj) {
@@ -175,6 +180,7 @@ struct ddtrace_span_stack {
                 ddtrace_span_properties *active;
             };
             zval property_span_creation_observers;
+            zval property_attributes;
         };
     };
     struct ddtrace_root_span_data *root_span;
