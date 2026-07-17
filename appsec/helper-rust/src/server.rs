@@ -1,6 +1,8 @@
 use tokio::sync::mpsc;
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 
+use datadog_sidecar::service::telemetry::InProcessTelemetryClientFactory;
+
 use crate::client::{self, Client};
 use crate::rc_notify;
 use crate::service::ServiceManager;
@@ -11,6 +13,7 @@ use crate::service::ServiceManager;
 pub fn accept_appsec_messages(
     runtime_handle: tokio::runtime::Handle,
     cancel_token: CancellationToken,
+    telemetry: InProcessTelemetryClientFactory,
 ) -> TaskTracker {
     log::info!("Starting to listen for helper messages from sidecar");
 
@@ -26,7 +29,7 @@ pub fn accept_appsec_messages(
     client::start_accepting_messages(
         // new_client callback:
         Box::new(move |session_id: Vec<u8>| {
-            let client = Client::new(service_manager);
+            let client = Client::new(service_manager, telemetry.clone());
             log::info!(
                 "Created client for session {}: id {}",
                 String::from_utf8_lossy(&session_id),

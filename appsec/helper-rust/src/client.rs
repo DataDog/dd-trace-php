@@ -11,6 +11,10 @@ use std::{
 };
 
 use anyhow::{anyhow, Context};
+use datadog_sidecar::service::{
+    telemetry::{InProcessTelemetryClient, InProcessTelemetryClientFactory},
+    InstanceId,
+};
 use futures::stream::Stream;
 use libddwaf::{object::WafObjectType, RunnableContext};
 use log::{debug, error, info, warning as warn};
@@ -92,19 +96,24 @@ pub struct Client {
     pub id: u64,
     service_manager: &'static ServiceManager,
     service: Option<TrackedService>,
-    sidecar_settings: Option<protocol::SidecarSettings>,
+    telemetry_client_factory: InProcessTelemetryClientFactory,
+    telemetry_client: Option<InProcessTelemetryClient>,
     metrics_last_registered: Cell<Option<Instant>>,
 }
 
 static CLIENT_SERIAL: AtomicU64 = AtomicU64::new(1);
 impl Client {
-    pub fn new(service_manager: &'static ServiceManager) -> Self {
+    pub fn new(
+        service_manager: &'static ServiceManager,
+        telemetry_client_factory: InProcessTelemetryClientFactory,
+    ) -> Self {
         Self {
             id: CLIENT_SERIAL.fetch_add(1, atomic::Ordering::Relaxed),
             service_manager,
             service: None,
-            sidecar_settings: None,
-            metrics_last_registered: Default::default(),
+            telemetry_client_factory,
+            telemetry_client: None,
+            metrics_last_registered: Cell::new(None),
         }
     }
 
@@ -273,20 +282,25 @@ fn handle_client_init(
         args.telemetry_settings,
     );
 
-    client.sidecar_settings = Some(args.sidecar_settings.clone());
-
-    update_error_telemetry_context(args.sidecar_settings.clone(), telemetry_settings.clone());
-
-    let last_registration_time = &client.metrics_last_registered;
-    let mut tel_metric_submitter = TelemetrySidecarMetricSubmitter::create(
-        &args.sidecar_settings,
-        &telemetry_settings,
-        last_registration_time,
+    let telemetry_client = client.telemetry_client_factory.create_client(
+        InstanceId::new(
+            args.sidecar_settings.session_id.clone(),
+            args.sidecar_settings.runtime_id.clone(),
+        ),
+        telemetry_settings.service_name.clone(),
+        telemetry_settings.env_name.clone(),
     );
+
+    update_error_telemetry_context(telemetry_client.clone());
+
+    let mut tel_metric_submitter =
+        TelemetrySidecarMetricSubmitter::create(&telemetry_client, &client.metrics_last_registered);
 
     let service = client
         .service_manager
         .get_service(&sd, tel_metric_submitter.as_mut());
+
+    drop(tel_metric_submitter);
 
     let mut cir = ClientInitResp {
         version: protocol::VERSION_FOR_PROTO,
@@ -307,10 +321,12 @@ fn handle_client_init(
             cir.helper_runtime = Some("rust".to_string());
 
             client.service = Some(TrackedService::new(service));
+            client.telemetry_client = Some(telemetry_client);
             cir.status = "ok".to_string();
             Ok(CommandResponse::ClientInit(cir))
         }
         Err(err) => {
+            clear_error_telemetry_context();
             error!("client init handling error: {:?}", err);
             Err(err).context("client init handling error")
         }
@@ -352,37 +368,40 @@ fn handle_config_sync(client: &mut Client, args: protocol::ConfigSyncArgs) {
         submit_service_telemetry(client, service);
     }
 
-    // potentially we have new telemetry settings, update the error telemetry context
-    if let Some(ref sidecar_settings) = client.sidecar_settings {
-        update_error_telemetry_context(sidecar_settings.clone(), telemetry_settings.clone());
-    } else {
+    let Some(new_telemetry) = client.telemetry_client.as_ref().map(|telemetry| {
+        telemetry.with_new_service_env(
+            telemetry_settings.service_name.clone(),
+            telemetry_settings.env_name.clone(),
+        )
+    }) else {
+        error!("Cannot update telemetry client: client_init telemetry is missing");
         clear_error_telemetry_context();
-    }
+        return;
+    };
+    client.metrics_last_registered.set(None);
+    update_error_telemetry_context(new_telemetry.clone());
 
     // ... and create a new telemetry metrics submitter because creating a new
     // service generates telemetry (more likely we're not creating a new
     // service though, we're just fetching the existing one)
-    let mut tel_metric_submitter = match client.sidecar_settings {
-        Some(ref sidecar_settings) => TelemetrySidecarMetricSubmitter::create(
-            sidecar_settings,
-            &telemetry_settings,
-            &client.metrics_last_registered,
-        ),
-        None => {
-            // this should have been set in client_init
-            error!("Cannot submit telemetry metrics: sidecar_settings unexpectadly not set");
-            TelemetrySidecarMetricSubmitter::noop()
-        }
-    };
+    let mut tel_metric_submitter =
+        TelemetrySidecarMetricSubmitter::create(&new_telemetry, &client.metrics_last_registered);
 
-    match client
+    let new_service = client
         .service_manager
-        .get_service(&new_disc, &mut *tel_metric_submitter)
-    {
+        .get_service(&new_disc, &mut *tel_metric_submitter);
+
+    drop(tel_metric_submitter);
+
+    match new_service {
         Ok(new_service) => {
             client.service = Some(TrackedService::new(new_service));
+            client.telemetry_client = Some(new_telemetry);
         }
         Err(e) => {
+            if let Some(telemetry) = &client.telemetry_client {
+                update_error_telemetry_context(telemetry.clone());
+            }
             error!("Failed to get service with new RC path: {}; will continue running with old service!", e);
         }
     }
@@ -582,42 +601,26 @@ async fn run_request(
 }
 
 fn submit_service_telemetry(client: &Client, service: &Service) {
-    if let (Some(sidecar_settings), telemetry_settings) =
-        (&client.sidecar_settings, &service.telemetry_settings())
-    {
+    if let Some(telemetry) = &client.telemetry_client {
         debug!("Submitting service telemetry to sidecar");
-        let mut submitter =
-            TelemetrySidecarLogSubmitter::create(sidecar_settings, telemetry_settings);
+        let mut submitter = TelemetrySidecarLogSubmitter::create(telemetry);
         service.generate_telemetry_logs(&mut *submitter);
 
-        let mut submitter = TelemetrySidecarMetricSubmitter::create(
-            sidecar_settings,
-            telemetry_settings,
-            &client.metrics_last_registered,
-        );
+        let mut submitter =
+            TelemetrySidecarMetricSubmitter::create(telemetry, &client.metrics_last_registered);
         service.generate_telemetry_metrics(&mut *submitter);
     } else {
-        debug!(
-            "Cannot submit service telemetry: sidecar_settings={:?}, telemetry_settings={:?}",
-            client.sidecar_settings,
-            service.telemetry_settings()
-        );
+        debug!("Cannot submit service telemetry: telemetry client is not bound");
     }
 }
 
 fn submit_context_telemetry_metrics(client: &Client, req_ctx: &mut ReqContext) {
-    let Some(ref sidecar_settings) = client.sidecar_settings else {
-        warn!("Cannot submit context telemetry metrics: sidecar_settings not set");
+    let Some(telemetry) = &client.telemetry_client else {
+        warn!("Cannot submit context telemetry metrics: telemetry client is not bound");
         return;
     };
-    let service = client.get_service();
-    let telemetry_settings = service.telemetry_settings();
-
-    let mut tel_metric_submitter = TelemetrySidecarMetricSubmitter::create(
-        sidecar_settings,
-        telemetry_settings,
-        &client.metrics_last_registered,
-    );
+    let mut tel_metric_submitter =
+        TelemetrySidecarMetricSubmitter::create(telemetry, &client.metrics_last_registered);
 
     let waf_metrics = req_ctx.take_waf_metrics();
     waf_metrics.generate_telemetry_metrics(&mut *tel_metric_submitter);

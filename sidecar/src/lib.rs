@@ -31,12 +31,16 @@ fn register_backend() {
 fn register_backend() {}
 
 #[cfg(unix)]
-fn create_backend(config: &AppSecConfig) -> anyhow::Result<AppSecBackend> {
+fn create_backend(
+    config: &AppSecConfig,
+    telemetry: datadog_sidecar::service::telemetry::InProcessTelemetryClientFactory,
+) -> anyhow::Result<AppSecBackend> {
     let helper_config = ddappsec_helper::config::Config::new(
         Some(config.log_file_path.clone().into()),
         &config.log_level,
     );
-    let helper = ddappsec_helper::start(tokio::runtime::Handle::current(), helper_config)?;
+    let helper =
+        ddappsec_helper::start(tokio::runtime::Handle::current(), helper_config, telemetry)?;
     Ok(AppSecBackend::new(
         send_message,
         disconnect,
