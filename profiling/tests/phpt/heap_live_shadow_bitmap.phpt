@@ -1,9 +1,7 @@
 --TEST--
-[profiling] heap-live prefix preserves allocations and alignment
+[profiling] heap-live shadow bitmap tracks allocation churn
 --SKIPIF--
 <?php
-if (PHP_VERSION_ID < 80400)
-    echo "skip: prefix epoch PoC requires PHP 8.4+\n";
 if (!extension_loaded('datadog-profiling'))
     echo "skip: test requires Datadog Continuous Profiler\n";
 ?>
@@ -29,11 +27,8 @@ for ($i = 0; $i < 32; $i++) {
 }
 
 unset($objects, $string);
-
-echo hash('xxh3', 'aligned', options: ['seed' => 42]), "\n";
 echo "Done.\n";
 
 ?>
 --EXPECT--
-f2d7e898c1df340a
 Done.

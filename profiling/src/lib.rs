@@ -216,12 +216,6 @@ pub unsafe extern "C" fn get_module() -> *mut zend::ModuleEntry {
     module
 }
 
-#[cfg(all(php_zts, php_zend_mm_set_custom_handlers_ex))]
-#[no_mangle]
-pub unsafe extern "C" fn ddog_php_prof_new_thread_end_should_reset() -> bool {
-    allocation::allocation_ge84::new_thread_end_should_reset()
-}
-
 // Important note on the PHP lifecycle:
 // Based on how some SAPIs work and the documentation, one might expect that
 // MINIT is called once per process, but this is only sort-of true. Some SAPIs
@@ -235,11 +229,6 @@ pub unsafe extern "C" fn ddog_php_prof_new_thread_end_should_reset() -> bool {
 // mechanisms like std::sync::Once::call_once may not be suitable.
 // Be careful out there!
 extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
-    #[cfg(all(php_zts, php_zend_mm_set_custom_handlers_ex))]
-    unsafe {
-        bindings::ddog_php_prof_install_new_thread_end_handler();
-    }
-
     // todo: merge these lifecycle things to tracing feature?
     // When developing the extension, it's useful to see log messages that
     // occur before the user can configure the log level. However, if we

@@ -1,9 +1,7 @@
 --TEST--
-[profiling] heap-live prefix epoch is established for ext-parallel threads
+[profiling] heap-live shadow bitmap tracks ext-parallel threads
 --SKIPIF--
 <?php
-if (PHP_VERSION_ID < 80400)
-    echo "skip: prefix epoch PoC requires PHP 8.4+\n";
 if (!PHP_ZTS)
     echo "skip: test requires PHP ZTS\n";
 if (!extension_loaded('parallel'))

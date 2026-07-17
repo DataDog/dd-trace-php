@@ -2,21 +2,18 @@ use crate::allocation::{
     allocation_profiling_stats_should_collect, collect_allocation, untrack_allocation,
 };
 use crate::bindings as zend;
+use crate::PROFILER_NAME;
 use core::ptr;
-use libc::{c_int, c_void, size_t};
-use log::{debug, trace};
+use libc::{c_char, c_int, c_void, size_t};
+use log::{debug, trace, warn};
 use std::sync::atomic::Ordering::Relaxed;
 use std::sync::LazyLock;
 
 #[cfg(php_debug)]
-use libc::{c_char, c_uint};
+use libc::c_uint;
 
 #[cfg(feature = "debug_stats")]
 use crate::allocation::{ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE};
-
-// Preserve the alignment guaranteed by the allocator we wrap.
-const PREFIX_SIZE: usize = core::mem::align_of::<libc::max_align_t>();
-const PREFIX_MAGIC: usize = 0xdd0f_cafe;
 
 #[derive(Copy, Clone)]
 pub struct ZendMMState {
@@ -60,13 +57,6 @@ pub struct ZendMMState {
     /// `ZEND_MM_STATE.prev_custom_mm_shutdown` is initialised to a valid function
     /// pointer, otherwise there will be dragons.
     shutdown: unsafe fn(bool, bool),
-    /// Whether the original allocator is ZendMM and can provide a clean reset.
-    uses_zend_mm: bool,
-    /// Whether the startup heap reset has established a clean prefix epoch.
-    prefix_allocations: bool,
-    /// Request-local gates. Pointer translation remains active outside requests.
-    allocation_profiling_enabled: bool,
-    heap_live_enabled: bool,
 }
 
 unsafe fn alloc_prof_panic_gc() -> size_t {
@@ -92,10 +82,6 @@ impl ZendMMState {
             free: super::alloc_prof_panic_free,
             gc: alloc_prof_panic_gc,
             shutdown: alloc_prof_panic_shutdown,
-            uses_zend_mm: false,
-            prefix_allocations: false,
-            allocation_profiling_enabled: false,
-            heap_live_enabled: false,
         }
     }
 }
@@ -112,7 +98,6 @@ static JIT_ENABLED: LazyLock<bool> = LazyLock::new(|| unsafe { zend::ddog_php_ji
 
 pub fn alloc_prof_ginit() {
     unsafe { zend::ddog_php_opcache_init_handle() };
-    alloc_prof_install();
 }
 
 pub fn first_rinit_should_disable_due_to_jit() -> bool {
@@ -121,7 +106,7 @@ pub fn first_rinit_should_disable_due_to_jit() -> bool {
         && *JIT_ENABLED
 }
 
-fn alloc_prof_install() {
+pub fn alloc_prof_rinit(heap_live_enabled: bool) {
     let zend_mm_state_init = |mut zend_mm_state: ZendMMState| -> ZendMMState {
         // Safety: `zend_mm_get_heap()` always returns a non-null pointer to a valid heap structure
         let heap = unsafe { zend::zend_mm_get_heap() };
@@ -147,7 +132,6 @@ fn alloc_prof_install() {
             zend_mm_state.gc = alloc_prof_prev_gc;
             zend_mm_state.shutdown = alloc_prof_prev_shutdown;
         } else {
-            zend_mm_state.uses_zend_mm = true;
             zend_mm_state.alloc = alloc_prof_orig_alloc;
             zend_mm_state.free = alloc_prof_orig_free;
             zend_mm_state.realloc = alloc_prof_orig_realloc;
@@ -165,8 +149,8 @@ fn alloc_prof_install() {
             zend_mm_state.prev_custom_mm_shutdown = None;
         }
 
-        let free_handler = alloc_prof_free_handler(true);
-        let realloc_handler = alloc_prof_realloc_handler(true);
+        let free_handler = alloc_prof_free_handler(heap_live_enabled);
+        let realloc_handler = alloc_prof_realloc_handler(heap_live_enabled);
 
         // install our custom handler to ZendMM
         unsafe {
@@ -191,38 +175,86 @@ fn alloc_prof_install() {
         // setting, not per-request.
         panic!("Memory allocation profiling could not be enabled. Please feel free to fill an issue stating the PHP version and installed modules. Most likely the reason is your PHP binary was compiled with `ZEND_MM_CUSTOM` being disabled.");
     }
-    trace!("Memory allocation profiling hooks installed in passthrough mode.")
+    trace!("Memory allocation profiling enabled.")
 }
 
-pub fn alloc_prof_rinit(allocation_enabled: bool, heap_live_enabled: bool) {
-    let mut state = tls_zend_mm_state_copy!();
-    state.allocation_profiling_enabled = allocation_enabled;
-    state.heap_live_enabled = heap_live_enabled;
-    tls_zend_mm_state_set!(state);
-}
-
-pub fn alloc_prof_rshutdown() {
-    let mut state = tls_zend_mm_state_copy!();
-    state.allocation_profiling_enabled = false;
-    state.heap_live_enabled = false;
-    tls_zend_mm_state_set!(state);
-}
-
-/// Restores the previous handlers before PHP destroys this thread's module
-/// globals. Allocator globals are destroyed later and must not call back into
-/// profiler globals after their GSHUTDOWN.
-pub unsafe fn alloc_prof_gshutdown() {
-    let state = tls_zend_mm_state_copy!();
-    if let Some(heap) = state.heap {
-        zend::zend_mm_set_custom_handlers_ex(
-            heap,
-            state.prev_custom_mm_alloc,
-            state.prev_custom_mm_free,
-            state.prev_custom_mm_realloc,
-            state.prev_custom_mm_gc,
-            state.prev_custom_mm_shutdown,
-        );
+#[allow(unknown_lints, unpredictable_function_pointer_comparisons)]
+pub fn alloc_prof_rshutdown(heap_live_enabled: bool) {
+    // If `is_zend_mm()` is true, the custom handlers have already been reset
+    // to `None`. This is unexpected, therefore we will not touch the ZendMM
+    // handlers anymore as resetting to prev handlers might result in segfaults
+    // and other undefined behavior.
+    if unsafe { zend::is_zend_mm() } {
+        return;
     }
+
+    let zend_mm_state_shutdown = |mut zend_mm_state: ZendMMState| -> ZendMMState {
+        let mut custom_mm_malloc: Option<zend::VmMmCustomAllocFn> = None;
+        let mut custom_mm_free: Option<zend::VmMmCustomFreeFn> = None;
+        let mut custom_mm_realloc: Option<zend::VmMmCustomReallocFn> = None;
+        let mut custom_mm_gc: Option<zend::VmMmCustomGcFn> = None;
+        let mut custom_mm_shutdown: Option<zend::VmMmCustomShutdownFn> = None;
+
+        // SAFETY: UnsafeCell::get() ensures non-null, and the object should
+        // be valid for reads during rshutdown.
+        let Some(heap) = zend_mm_state.heap else {
+            // The heap can be None if a fork happens outside the request.
+            return zend_mm_state;
+        };
+
+        unsafe {
+            zend::zend_mm_get_custom_handlers_ex(
+                heap,
+                &mut custom_mm_malloc,
+                &mut custom_mm_free,
+                &mut custom_mm_realloc,
+                &mut custom_mm_gc,
+                &mut custom_mm_shutdown,
+            );
+        }
+        let free_handler = alloc_prof_free_handler(heap_live_enabled);
+        let realloc_handler = alloc_prof_realloc_handler(heap_live_enabled);
+        if custom_mm_free != Some(free_handler)
+            || custom_mm_malloc != Some(alloc_prof_malloc)
+            || custom_mm_realloc != Some(realloc_handler)
+            || custom_mm_gc != Some(alloc_prof_gc)
+            || custom_mm_shutdown != Some(alloc_prof_shutdown)
+        {
+            // Custom handlers are installed, but it's not us. Someone, somewhere might have
+            // function pointers to our custom handlers. Best bet to avoid segfaults is to not
+            // touch custom handlers in ZendMM and make sure our extension will not be
+            // `dlclose()`-ed so the pointers stay valid
+            let zend_extension =
+                unsafe { zend::zend_get_extension(PROFILER_NAME.as_ptr() as *const c_char) };
+            if !zend_extension.is_null() {
+                // Safety: Checked for null pointer above.
+                unsafe { ptr::addr_of_mut!((*zend_extension).handle).write(ptr::null_mut()) };
+            }
+            warn!("Found another extension using the custom heap which is unexpected at this point, so the extension handle was `null`'ed to avoid being `dlclose()`'ed.");
+        } else {
+            // This is the happy path. Restore previously installed custom handlers or
+            // NULL-pointers to the ZendMM. In case all pointers are NULL, the ZendMM will reset
+            // the `use_custom_heap` flag to `None`, in case we restore a neighbouring extension
+            // custom handlers, ZendMM will call those for future allocations. In either way, we
+            // have unregistered and we'll not receive any allocation calls anymore.
+            unsafe {
+                zend::zend_mm_set_custom_handlers_ex(
+                    heap,
+                    zend_mm_state.prev_custom_mm_alloc,
+                    zend_mm_state.prev_custom_mm_free,
+                    zend_mm_state.prev_custom_mm_realloc,
+                    zend_mm_state.prev_custom_mm_gc,
+                    zend_mm_state.prev_custom_mm_shutdown,
+                );
+            }
+            trace!("Memory allocation profiling shutdown gracefully.");
+        }
+        zend_mm_state.heap = None;
+        zend_mm_state
+    };
+
+    let mm_state = tls_zend_mm_state_copy!();
+    tls_zend_mm_state_set!(zend_mm_state_shutdown(mm_state));
 }
 
 /// Overrides the ZendMM heap's `use_custom_heap` flag with the default
@@ -245,36 +277,6 @@ unsafe fn prepare_zend_heap(heap: *mut zend::_zend_mm_heap) -> c_int {
 /// Restore the ZendMM heap's `use_custom_heap` flag, see `prepare_zend_heap` for details
 unsafe fn restore_zend_heap(heap: *mut zend::_zend_mm_heap, custom_heap: c_int) {
     ptr::write(heap as *mut c_int, custom_heap);
-}
-
-#[inline(always)]
-unsafe fn add_prefix(ptr: *mut c_void) -> *mut c_void {
-    if ptr.is_null() {
-        return ptr;
-    }
-    ptr.cast::<usize>().write(PREFIX_MAGIC);
-    ptr.cast::<u8>().add(PREFIX_SIZE).cast()
-}
-
-#[inline(always)]
-unsafe fn remove_prefix(ptr: *mut c_void) -> *mut c_void {
-    if ptr.is_null() {
-        return ptr;
-    }
-    let base = ptr.cast::<u8>().sub(PREFIX_SIZE).cast::<usize>();
-    if base.read() != PREFIX_MAGIC {
-        ddog_php_prof_prefix_header_missing();
-    }
-    base.cast()
-}
-
-#[no_mangle]
-#[cold]
-#[inline(never)]
-unsafe extern "C" fn ddog_php_prof_prefix_header_missing() -> ! {
-    const MESSAGE: &[u8] = b"datadog prefix PoC: pointer predates clean heap epoch\n";
-    libc::write(libc::STDERR_FILENO, MESSAGE.as_ptr().cast(), MESSAGE.len());
-    libc::abort();
 }
 
 #[cfg(not(php_debug))]
@@ -300,19 +302,7 @@ unsafe fn alloc_prof_malloc_impl(len: size_t) -> *mut c_void {
     #[cfg(feature = "debug_stats")]
     ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, Relaxed);
 
-    let prefix_allocations = tls_zend_mm_state_get!(prefix_allocations);
-    let alloc_len = if prefix_allocations {
-        len.checked_add(PREFIX_SIZE)
-            .unwrap_or_else(|| libc::abort())
-    } else {
-        len
-    };
-    let ptr = tls_zend_mm_state_get!(alloc)(alloc_len);
-    let ptr = if prefix_allocations {
-        add_prefix(ptr)
-    } else {
-        ptr
-    };
+    let ptr = tls_zend_mm_state_get!(alloc)(len);
 
     // during startup, minit, rinit, ... current_execute_data is null
     // we are only interested in allocations during userland operations
@@ -320,9 +310,7 @@ unsafe fn alloc_prof_malloc_impl(len: size_t) -> *mut c_void {
         return ptr;
     }
 
-    if tls_zend_mm_state_get!(allocation_profiling_enabled)
-        && allocation_profiling_stats_should_collect(len)
-    {
+    if allocation_profiling_stats_should_collect(len) {
         collect_allocation(ptr, len);
     }
 
@@ -386,7 +374,7 @@ fn alloc_prof_free_handler(heap_live_enabled: bool) -> zend::VmMmCustomFreeFn {
 
 #[cfg(not(php_debug))]
 unsafe extern "C" fn alloc_prof_free_noop(ptr: *mut c_void) {
-    alloc_prof_free_impl(ptr);
+    tls_zend_mm_state_get!(free)(ptr);
 }
 
 #[cfg(php_debug)]
@@ -397,23 +385,15 @@ unsafe extern "C" fn alloc_prof_free_noop(
     _orig_file: *const c_char,
     _orig_line: c_uint,
 ) {
-    alloc_prof_free_impl(ptr);
+    tls_zend_mm_state_get!(free)(ptr);
 }
 
 #[inline(always)]
 unsafe fn alloc_prof_free_impl(ptr: *mut c_void) {
-    // Full custom-heap shutdown passes the heap itself to the free callback.
-    if tls_zend_mm_state_get!(heap).is_some_and(|heap| heap.cast() == ptr) {
-        return;
-    }
-    if !ptr.is_null() && tls_zend_mm_state_get!(heap_live_enabled) {
+    // Heap-live is enabled when this handler is registered.
+    if !ptr.is_null() {
         untrack_allocation(ptr);
     }
-    let ptr = if tls_zend_mm_state_get!(prefix_allocations) {
-        remove_prefix(ptr)
-    } else {
-        ptr
-    };
     tls_zend_mm_state_get!(free)(ptr);
 }
 
@@ -496,30 +476,13 @@ unsafe fn alloc_prof_realloc_impl(prev_ptr: *mut c_void, len: size_t) -> *mut c_
     #[cfg(feature = "debug_stats")]
     ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, Relaxed);
 
-    let prefix_allocations = tls_zend_mm_state_get!(prefix_allocations);
-    let alloc_len = if prefix_allocations {
-        len.checked_add(PREFIX_SIZE)
-            .unwrap_or_else(|| libc::abort())
-    } else {
-        len
-    };
-    let base = if prefix_allocations {
-        remove_prefix(prev_ptr)
-    } else {
-        prev_ptr
-    };
-    let ptr = tls_zend_mm_state_get!(realloc)(base, alloc_len);
-    let ptr = if prefix_allocations {
-        add_prefix(ptr)
-    } else {
-        ptr
-    };
+    let ptr = tls_zend_mm_state_get!(realloc)(prev_ptr, len);
 
     // ZendMM allocation failures raise a fatal error and bail out instead of
     // returning NULL. If realloc returns, prev_ptr has been consumed: untrack it
     // before any userland-only early return, then let the new allocation be
     // re-sampled at the reported size.
-    if !prev_ptr.is_null() && tls_zend_mm_state_get!(heap_live_enabled) {
+    if !prev_ptr.is_null() {
         untrack_allocation(prev_ptr);
     }
 
@@ -533,24 +496,7 @@ unsafe fn alloc_prof_realloc_no_untrack_impl(prev_ptr: *mut c_void, len: size_t)
     #[cfg(feature = "debug_stats")]
     ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, Relaxed);
 
-    let prefix_allocations = tls_zend_mm_state_get!(prefix_allocations);
-    let alloc_len = if prefix_allocations {
-        len.checked_add(PREFIX_SIZE)
-            .unwrap_or_else(|| libc::abort())
-    } else {
-        len
-    };
-    let base = if prefix_allocations {
-        remove_prefix(prev_ptr)
-    } else {
-        prev_ptr
-    };
-    let ptr = tls_zend_mm_state_get!(realloc)(base, alloc_len);
-    let ptr = if prefix_allocations {
-        add_prefix(ptr)
-    } else {
-        ptr
-    };
+    let ptr = tls_zend_mm_state_get!(realloc)(prev_ptr, len);
 
     alloc_prof_realloc_sample(ptr, len)
 }
@@ -567,9 +513,7 @@ unsafe fn alloc_prof_realloc_sample(ptr: *mut c_void, len: size_t) -> *mut c_voi
         return ptr;
     }
 
-    if tls_zend_mm_state_get!(allocation_profiling_enabled)
-        && allocation_profiling_stats_should_collect(len)
-    {
+    if allocation_profiling_stats_should_collect(len) {
         collect_allocation(ptr, len);
     }
 
@@ -625,20 +569,8 @@ unsafe fn alloc_prof_orig_gc() -> size_t {
     size
 }
 
-#[cfg(php_zts)]
-pub unsafe fn new_thread_end_should_reset() -> bool {
-    tls_zend_mm_state_get!(uses_zend_mm) && !tls_zend_mm_state_get!(prefix_allocations)
-}
-
 unsafe extern "C" fn alloc_prof_shutdown(full: bool, silent: bool) {
-    tls_zend_mm_state_get!(shutdown)(full, silent);
-
-    if !full && tls_zend_mm_state_get!(uses_zend_mm) && !tls_zend_mm_state_get!(prefix_allocations)
-    {
-        let mut state = tls_zend_mm_state_copy!();
-        state.prefix_allocations = true;
-        tls_zend_mm_state_set!(state);
-    }
+    tls_zend_mm_state_get!(shutdown)(full, silent)
 }
 
 unsafe fn alloc_prof_prev_shutdown(full: bool, silent: bool) {
@@ -654,24 +586,12 @@ unsafe fn alloc_prof_orig_shutdown(full: bool, silent: bool) {
     let heap = tls_zend_mm_state_get!(heap).unwrap_unchecked();
     let custom_heap = prepare_zend_heap(heap);
     zend::zend_mm_shutdown(heap, full, silent);
-    if !full {
-        restore_zend_heap(heap, custom_heap);
-    }
+    restore_zend_heap(heap, custom_heap);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn prefix_preserves_allocator_alignment() {
-        let base = unsafe { libc::malloc(PREFIX_SIZE + 1) };
-        let ptr = unsafe { add_prefix(base) };
-
-        assert_eq!(ptr as usize % PREFIX_SIZE, 0);
-        assert_eq!(unsafe { remove_prefix(ptr) }, base);
-        unsafe { libc::free(base) };
-    }
 
     #[test]
     fn free_handler_tracks_only_when_heap_live_is_enabled() {

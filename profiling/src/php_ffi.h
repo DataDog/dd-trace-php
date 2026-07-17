@@ -187,15 +187,3 @@ bool ddog_php_jit_enabled();
  * Returns true if the thread was spawned by the parallel extension.
  */
 bool ddog_php_prof_is_parallel_thread();
-
-#if PHP_VERSION_ID >= 80400 && defined(ZTS)
-/**
- * Installs a wrapper around TSRM's new-thread-end handler. The wrapper calls
- * into Rust after every resource constructor has completed for a new thread.
- */
-void ddog_php_prof_install_new_thread_end_handler(void);
-
-/* Implemented in Rust. */
-bool ddog_php_prof_new_thread_end_should_reset(void);
-
-#endif

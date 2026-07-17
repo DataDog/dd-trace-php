@@ -5,10 +5,55 @@ reallocates it. The source of truth is currently a `DashMap` keyed by the
 allocation pointer. Looking up every freed pointer in that map adds overhead to
 the common case where the allocation was not sampled.
 
-The allocation-prefix PoC makes sampled state cheap to query, but relocating
-pointers requires a clean epoch after which every pointer passed to the custom
-handlers has that prefix. This document describes two fallback alternatives
-that preserve the pointer returned by ZendMM if that epoch cannot be guaranteed.
+A prefix makes sampled state cheap to query, but relocating pointers requires a
+clean epoch after which every pointer passed to the custom handlers has that
+prefix. All designs below preserve the pointer returned by ZendMM.
+
+## Shadow bitmap
+
+### Design
+
+Use the allocation address as an exact index into a thread-local sparse bitmap.
+ZendMM pointers are at least eight-byte aligned, so each possible allocation
+start needs one bit. Within a four-kilobyte application page:
+
+```text
+page = pointer >> 12
+slot = (pointer & 0xfff) >> 3
+word = slot >> 6
+mask = 1 << (slot & 63)
+```
+
+A page has 512 possible eight-byte-aligned starts, represented by eight `u64`
+words, or 64 bytes. A six-level radix tree keyed by `page` allocates those page
+bitmaps lazily and covers the full pointer address space without reserving a
+multi-terabyte flat shadow mapping.
+
+After a sampled allocation is successfully inserted into the existing
+`DashMap`, set its shadow bit. On free or successful realloc, test and clear
+the bit. A clear bit skips the `DashMap`; a set bit removes the known
+live sample. The pointer passed to the underlying allocator is never changed.
+
+The bitmap is thread-local because ZendMM heaps are thread-local. Cross-thread
+freeing would already forward a pointer to the wrong ZendMM heap.
+
+### Benefits
+
+* No pointer relocation or per-allocation size increase.
+* Pre-hook allocations naturally have clear bits.
+* The common free path uses address arithmetic and radix loads, without hashing.
+* No clean epoch, startup reset, or late-ZTS-thread hook is required.
+* The design does not depend on private ZendMM layouts.
+* It can filter the existing heap-live tracker on every supported PHP version.
+
+### Costs and open questions
+
+* The first tracked address along a new radix path allocates metadata nodes.
+* Each application page containing a tracked allocation needs a 64-byte bitmap.
+* Empty radix leaves are currently retained until thread teardown. They can be
+  pruned if long-lived heaps show unbounded metadata growth.
+* The `DashMap` remains the source of full `LiveHeapSample` metadata; the bitmap
+  only makes its negative free-path lookup cheap.
 
 ## Allocation footer
 
@@ -157,17 +202,18 @@ when the expected map layout is unavailable.
 
 ## Comparison
 
-| Property | Footer | Chunk-map filter |
-|---|---|---|
-| Pointer relocation | None | None |
-| Per-allocation memory | At least 8 bytes | None |
-| Common free path | Block-size query and footer load | Page-map load |
-| Private ZendMM layout | Debug trailer only | Chunk map and bin layout |
-| Pre-hook allocations | Safe false positives | Naturally unmarked |
-| Huge allocations | Supported with block size | Falls back to `DashMap` |
-| Neighboring allocators | Requires fallback | Requires fallback |
+| Property | Shadow bitmap | Footer | Chunk-map filter |
+|---|---|---|---|
+| Pointer relocation | None | None | None |
+| Per-allocation memory | None | At least 8 bytes | None |
+| Common free path | Radix and bit lookup | Block size and footer | Page-map load |
+| Private ZendMM layout | None | Debug trailer only | Chunk map and bins |
+| Pre-hook allocations | Naturally unmarked | Safe false positives | Naturally unmarked |
+| Huge allocations | Supported | Supported | Falls back to `DashMap` |
+| Neighboring allocators | Supported | Requires fallback | Requires fallback |
 
-The footer is the simpler extension-owned design. The chunk-map filter has the
-better expected hot-path and memory cost, but it carries substantially more
-compatibility risk unless PHP exposes the required metadata through a supported
-API.
+The shadow bitmap is the preferred extension-owned design. The footer is
+simpler than modifying ZendMM internals but adds allocation overhead. The
+chunk-map filter has the cheapest expected hot path, but it carries
+substantially more compatibility risk unless PHP exposes the required metadata
+through a supported API.
