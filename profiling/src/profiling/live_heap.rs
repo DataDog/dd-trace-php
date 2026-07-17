@@ -1,5 +1,9 @@
+#[path = "live_heap/shadow.rs"]
+mod shadow;
+
 use dashmap::DashMap;
 use rustc_hash::FxBuildHasher;
+use shadow::ShadowMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Maximum number of allocations to track for live heap profiling.
@@ -67,19 +71,30 @@ impl<T> Default for LiveHeapTracker<T> {
     }
 }
 
-pub(crate) struct LocalLiveHeapTracker;
+pub(crate) struct LocalLiveHeapTracker {
+    shadow: ShadowMap,
+}
 
 impl LocalLiveHeapTracker {
     pub(crate) const fn new() -> Self {
-        Self
+        Self {
+            shadow: ShadowMap::new(),
+        }
     }
 
     pub(crate) fn track<T>(&mut self, tracker: &LiveHeapTracker<T>, ptr: usize, sample: T) -> bool {
-        tracker.track(ptr, sample)
+        if !tracker.track(ptr, sample) {
+            return false;
+        }
+        self.shadow.set(ptr);
+        true
     }
 
     pub(crate) fn untrack<T>(&mut self, tracker: &LiveHeapTracker<T>, ptr: usize) -> Option<T> {
-        tracker.untrack(ptr)
+        self.shadow
+            .take(ptr)
+            .then(|| tracker.untrack(ptr))
+            .flatten()
     }
 }
 

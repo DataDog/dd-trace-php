@@ -4,7 +4,7 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use std::time::Instant;
 
 // Compile the production tracker without linking the PHP extension executable.
-#[allow(dead_code)]
+#[allow(dead_code, unused_imports)]
 #[path = "../src/profiling/live_heap.rs"]
 mod live_heap;
 use live_heap::{LiveHeapTracker, LocalLiveHeapTracker};
