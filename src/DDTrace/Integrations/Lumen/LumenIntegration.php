@@ -14,14 +14,6 @@ class LumenIntegration extends Integration
     const NAME = 'lumen';
 
     /**
-     * {@inheritdoc}
-     */
-    public static function requiresExplicitTraceAnalyticsEnabling(): bool
-    {
-        return false;
-    }
-
-    /**
      * @return int
      */
     public static function init(): int
@@ -49,7 +41,6 @@ class LumenIntegration extends Integration
                 $rootSpan->name = 'lumen.request';
                 $rootSpan->service = \ddtrace_config_app_name(self::NAME);
                 Integration::tagFrameworkServiceSource($rootSpan, LumenIntegration::NAME);
-                self::addTraceAnalyticsIfEnabled($rootSpan);
                 if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
                     $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($request->getUri());
                 }

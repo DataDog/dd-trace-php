@@ -19,14 +19,6 @@ class SwooleIntegration extends Integration
 {
     const NAME = 'swoole';
 
-    /**
-     * {@inheritdoc}
-     */
-    public static function requiresExplicitTraceAnalyticsEnabling(): bool
-    {
-        return false;
-    }
-
     public static function instrumentRequestStart(callable $callback, Server $server)
     {
         $scheme = $server->ssl ? 'https://' : 'http://';
@@ -40,7 +32,6 @@ class SwooleIntegration extends Integration
                 $rootSpan->type = Type::WEB_SERVLET;
                 $rootSpan->meta[Tag::COMPONENT] = self::NAME;
                 $rootSpan->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_SERVER;
-                self::addTraceAnalyticsIfEnabled($rootSpan);
 
                 $args = $hook->args;
                 /** @var Request $request */
