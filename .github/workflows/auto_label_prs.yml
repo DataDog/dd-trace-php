@@ -1,16 +1,16 @@
 name: Label PRs
 
 on:
-- pull_request
+  - pull_request
 
 jobs:
   add-labels:
-
     runs-on: ubuntu-24.04
     permissions:
       contents: read
       issues: write # Update labels on PRs (might not be necessary, but we call the UpdateIssue API so...)
       pull-requests: write # Update labels on PRs
+      id-token: write
 
     steps:
       - name: Checkout
@@ -18,10 +18,17 @@ jobs:
 
       - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
         with:
-          dotnet-version: '7.0.101'
+          dotnet-version: "7.0.101"
+
+      - name: Get GitHub Token via dd-octo-sts
+        id: generate-token
+        uses: DataDog/dd-octo-sts-action@96a25462dbcb10ebf0bfd6e2ccc917d2ab235b9a # v1.0.4
+        with:
+          scope: DataDog/dd-trace-php
+          policy: self.auto-label-prs
 
       - name: "Add labels"
         run: ./github-actions-helpers/build.sh AssignLabelsToPullRequest
         env:
-          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          GITHUB_TOKEN: "${{ steps.generate-token.outputs.token }}"
           PullRequestNumber: "${{ github.event.pull_request.number }}"
