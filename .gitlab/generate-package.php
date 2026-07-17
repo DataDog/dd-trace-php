@@ -1709,7 +1709,10 @@ deploy_to_reliability_env:
   needs:
     - job: "bundle for reliability env"
   rules:
-   - when: on_success
+    - if: $NIGHTLY_BUILD
+      when: on_success
+    - when: manual
+      allow_failure: true
   trigger:
     project: DataDog/apm-reliability/datadog-reliability-env
     branch: $RELIABILITY_ENV_BRANCH
