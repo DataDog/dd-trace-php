@@ -223,10 +223,11 @@ final class SpanBuilder implements API\SpanBuilderInterface
         } elseif ($parentSpanContext->isValid() && $behaviorExtract === 1) {
             // RESTART: pass upstream W3C context so C code creates a span link and starts fresh trace
             $parentId = $parentSpanContext->getSpanId();
-            $traceParent = "00-{$parentSpanContext->getTraceId()}-$parentId-01";
+            $traceFlags = $parentSpanContext->isSampled() ? '01' : '00';
+            $traceParent = "00-{$parentSpanContext->getTraceId()}-$parentId-$traceFlags";
             \DDTrace\consume_distributed_tracing_headers([
                 'traceparent' => $traceParent,
-                'tracestate' => (string) $samplingResultTraceState,
+                'tracestate' => (string) $parentSpanContext->getTraceState(),
             ]);
         } elseif ($samplingResultTraceState) {
             $samplingResultTraceState = $samplingResultTraceState->without('dd');
