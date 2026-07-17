@@ -653,20 +653,13 @@ pub extern "C" fn ddog_remote_configs_service_env_change(
     process_tags: &libdd_common_ffi::Vec<Tag>,
 ) -> bool {
     let service = service.to_utf8_lossy().into_owned();
-    let new_target = Target::new(
-        service.clone(),
-        env.to_utf8_lossy().into_owned(),
-        version.to_utf8_lossy().into_owned(),
-        tags.as_slice()
-            .iter()
-            .map(|tag| tag.as_ref().to_owned())
-            .collect(),
-        process_tags
-            .as_slice()
-            .iter()
-            .map(|tag| tag.as_ref().to_owned())
-            .collect(),
-    );
+    let new_target = Target {
+        service: service.clone(),
+        env: env.to_utf8_lossy().into_owned(),
+        app_version: version.to_utf8_lossy().into_owned(),
+        tags: tags.as_slice().to_vec(),
+        process_tags: process_tags.as_slice().to_vec(),
+    };
 
     if let Some(target) = remote_config.manager.get_target() {
         if **target == new_target {

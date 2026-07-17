@@ -192,50 +192,79 @@ struct OTelSampleContext {
     tag_overrides: ProfileTagOverrides,
 }
 
-/// Thread-local cache of the process context reader and its append-only attribute key map.
-#[cfg(target_os = "linux")]
+/// Thread-local cache of the append-only process-context attribute key map.
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 struct KeyMapCache {
-    reader: Option<libdd_library_config::otel_process_ctx::ProcessContextSelfReader>,
     keys: Vec<String>,
+    // Linux discovers the process context independently, so it matches the
+    // OTel TLS symbol selected by the dynamic linker rather than assuming
+    // ddtrace supplied that symbol.
+    #[cfg(target_os = "linux")]
+    self_reader: Option<libdd_library_config::otel_process_ctx::ProcessContextSelfReader>,
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 impl KeyMapCache {
     const fn new() -> Self {
         Self {
-            reader: None,
             keys: Vec::new(),
+            #[cfg(target_os = "linux")]
+            self_reader: None,
         }
+    }
+
+    #[cfg(target_os = "macos")]
+    fn read_tracer_process_context(&self) -> std::io::Result<Vec<String>> {
+        let globals = unsafe { &*crate::module_globals::get_profiler_globals() };
+        if globals.otel_process_context_base.is_null() || globals.otel_process_context_len == 0 {
+            return Err(std::io::Error::other(
+                "tracer process context mapping was not initialized",
+            ));
+        }
+        libdd_library_config::otel_process_ctx::read(
+            globals.otel_process_context_base,
+            globals.otel_process_context_len,
+        )
+        .map(|(context, _)| {
+            libdd_library_config::otel_process_ctx::threadlocal_attribute_key_map(&context)
+                .unwrap_or_default()
+        })
+    }
+
+    #[cfg(target_os = "linux")]
+    fn read_discovered_process_context(&mut self) -> std::io::Result<Vec<String>> {
+        if let Some(reader) = &self.self_reader {
+            if let Ok(context) = reader.read() {
+                return Ok(
+                    libdd_library_config::otel_process_ctx::threadlocal_attribute_key_map(&context)
+                        .unwrap_or_default(),
+                );
+            }
+        }
+
+        let reader = libdd_library_config::otel_process_ctx::ProcessContextSelfReader::new()?;
+        let context = reader.read()?;
+        self.self_reader = Some(reader);
+        Ok(
+            libdd_library_config::otel_process_ctx::threadlocal_attribute_key_map(&context)
+                .unwrap_or_default(),
+        )
     }
 
     fn refresh(&mut self) -> std::io::Result<()> {
-        if self.reader.is_none() {
-            self.reader =
-                Some(libdd_library_config::otel_process_ctx::ProcessContextSelfReader::new()?);
+        #[cfg(target_os = "linux")]
+        {
+            self.keys = self.read_discovered_process_context()?;
         }
-
-        let result = self
-            .reader
-            .as_ref()
-            .ok_or_else(|| std::io::Error::other("process context reader was not initialized"))?
-            .read();
-        match result {
-            Ok(context) => {
-                self.keys = libdd_library_config::otel_process_ctx::ProcessContextSelfReader::threadlocal_attribute_key_map(&context)
-                    .unwrap_or_default();
-                Ok(())
-            }
-            Err(error) => {
-                // A reader becomes stale after fork or if the publisher replaces its header.
-                // Rediscover after any failed read; this also handles an update racing this read.
-                self.reader = None;
-                Err(error)
-            }
+        #[cfg(target_os = "macos")]
+        {
+            self.keys = self.read_tracer_process_context()?;
         }
+        Ok(())
     }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 thread_local! {
     static OTEL_THREAD_ATTRIBUTE_KEY_MAP: std::cell::RefCell<KeyMapCache> =
         const { std::cell::RefCell::new(KeyMapCache::new()) };
@@ -243,7 +272,7 @@ thread_local! {
 
 /// Ensures the cached key map covers `max_index`, re-reading the process context when the cache is
 /// empty or an unknown key index is seen.
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 fn ensure_key_map_covers(cache: &std::cell::RefCell<KeyMapCache>, max_index: usize) {
     let covered = max_index < cache.borrow().keys.len();
     if covered {
@@ -255,7 +284,7 @@ fn ensure_key_map_covers(cache: &std::cell::RefCell<KeyMapCache>, max_index: usi
     }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 fn parse_u64_hex(value: &str) -> Option<u64> {
     if value.len() != 16 {
         return None;
@@ -263,7 +292,7 @@ fn parse_u64_hex(value: &str) -> Option<u64> {
     u64::from_str_radix(value, 16).ok()
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 fn current_otel_sample_context() -> Option<OTelSampleContext> {
     let mut context: crate::bindings::ddog_php_prof_otel_context = unsafe { std::mem::zeroed() };
     if !unsafe { crate::bindings::ddog_php_prof_read_otel_context(&mut context) } {
@@ -342,7 +371,7 @@ fn current_otel_sample_context() -> Option<OTelSampleContext> {
     Some(sample_context)
 }
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
 fn current_otel_sample_context() -> Option<OTelSampleContext> {
     None
 }

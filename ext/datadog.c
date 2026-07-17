@@ -182,13 +182,13 @@ static void datadog_publish_configured_otel_process_context(void) {
     ddog_CharSlice hostname = DDOG_CHARSLICE_C("");
 
     if (!get_DD_TRACE_REPORT_HOSTNAME()) {
-        datadog_publish_otel_process_context(hostname);
+        DATADOG_G(otel_process_context) = datadog_publish_otel_process_context(DATADOG_G(otel_process_context), hostname);
         return;
     }
 
     if (ZSTR_LEN(get_DD_HOSTNAME())) {
         hostname = dd_zend_string_to_CharSlice(get_DD_HOSTNAME());
-        datadog_publish_otel_process_context(hostname);
+        DATADOG_G(otel_process_context) = datadog_publish_otel_process_context(DATADOG_G(otel_process_context), hostname);
         return;
     }
 
@@ -200,11 +200,16 @@ static void datadog_publish_configured_otel_process_context(void) {
     if (gethostname(hostname_buf, sizeof(hostname_buf)) == 0) {
         hostname_buf[HOST_NAME_MAX] = '\0';
         hostname = (ddog_CharSlice){.ptr = hostname_buf, .len = strlen(hostname_buf)};
-        datadog_publish_otel_process_context(hostname);
+        DATADOG_G(otel_process_context) = datadog_publish_otel_process_context(DATADOG_G(otel_process_context), hostname);
         return;
     }
 
-    datadog_publish_otel_process_context(hostname);
+    DATADOG_G(otel_process_context) = datadog_publish_otel_process_context(DATADOG_G(otel_process_context), hostname);
+}
+
+DATADOG_PUBLIC bool datadog_get_otel_process_context(const uint8_t **mapping_base, uintptr_t *mapping_len) {
+    return datadog_otel_process_context_mapping(
+        DATADOG_G(otel_process_context), mapping_base, mapping_len);
 }
 
 static pthread_once_t dd_activate_once_control = PTHREAD_ONCE_INIT;
@@ -385,6 +390,10 @@ static PHP_GSHUTDOWN_FUNCTION(datadog) {
 #if ZTS
     datadog_thread_gshutdown();
 #endif
+    if (datadog_globals->otel_process_context) {
+        datadog_drop_otel_process_context(datadog_globals->otel_process_context);
+        datadog_globals->otel_process_context = NULL;
+    }
     if (datadog_globals->remote_config_state) {
         ddog_shutdown_remote_config(datadog_globals->remote_config_state);
     }

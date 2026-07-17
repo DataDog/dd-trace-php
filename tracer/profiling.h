@@ -14,14 +14,6 @@ struct ddtrace_profiling_context {
 
 BEGIN_EXTERN_C()
 
-/**
- * Provide the active trace information for the profiler.
- * If there isn’t an active context, return 0 for both values.
- * This needs to be safe to call even if tracing is disabled, but only needs
- * to support being called from a PHP thread.
- */
-DATADOG_PUBLIC struct ddtrace_profiling_context ddtrace_get_profiling_context(void);
-
 END_EXTERN_C()
 
 #endif  // DDTRACE_PROFILING_H

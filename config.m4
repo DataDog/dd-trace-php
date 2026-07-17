@@ -320,12 +320,11 @@ if test "$PHP_DDTRACE" != "no"; then
           [])
       ;;
       darwin*)
-        dnl otel_thread_ctx_v1 is a Linux-only TLS symbol.
         DDTRACE_EXPORT_SYMBOLS="$ext_builddir/datadog-darwin.sym"
-        { $GREP -v '^otel_thread_ctx_v1$' "$ext_srcdir/datadog.sym"; echo otel_process_ctx_v2; } > "$DDTRACE_EXPORT_SYMBOLS"
+        cp "$ext_srcdir/datadog.sym" "$DDTRACE_EXPORT_SYMBOLS"
       ;;
       *)
-        dnl otel_thread_ctx_v1 is a Linux-only TLS symbol.
+        dnl otel_thread_ctx_v1 is unavailable on platforms without supported TLS publication.
         DDTRACE_EXPORT_SYMBOLS="$ext_builddir/datadog.sym"
         $GREP -v '^otel_thread_ctx_v1$' "$ext_srcdir/datadog.sym" > "$DDTRACE_EXPORT_SYMBOLS"
       ;;

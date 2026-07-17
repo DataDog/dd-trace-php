@@ -343,13 +343,13 @@ extern "C" {
     /// Initializes per-thread profiler FFI state.
     /// # Safety
     /// Must be called from a PHP thread during GINIT.
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
     pub fn ddog_php_prof_otel_thread_ctx_ginit();
 
     /// Verifies per-thread profiler FFI state.
     /// # Safety
     /// Must be called from a PHP thread during a request.
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
     pub fn ddog_php_prof_otel_thread_ctx_rinit() -> bool;
 
     /// Returns the profiling context API selected for this request.

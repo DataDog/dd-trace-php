@@ -9,7 +9,7 @@ BEGIN_EXTERN_C()
 typedef struct ddtrace_root_span_data ddtrace_root_span_data;
 typedef struct ddtrace_span_stack ddtrace_span_stack;
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 #include <ext/datadog_export.h>
 
 #define DATADOG_PHP_PROFILING_OTEL_ATTRS_DATA_SIZE 612
@@ -24,13 +24,13 @@ typedef struct {
 } datadog_otel_thr_ctx_rec;
 
 DATADOG_PUBLIC extern __thread void *otel_thread_ctx_v1;
-#endif // __linux__
+#endif // Linux or macOS
 
 /**
  * Initialize the OTel thread-context record embedded in root after root span
  * ids and effective service/env/version data have been populated.
  *
- * On non-Linux builds this is a no-op.
+ * On platforms without the OTel thread context this is a no-op.
  */
 void ddtrace_otel_init_root_span(ddtrace_root_span_data *root);
 

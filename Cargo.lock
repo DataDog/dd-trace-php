@@ -2770,7 +2770,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-capabilities"
-version = "2.1.0"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "bytes",
@@ -2780,7 +2780,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-capabilities-impl"
-version = "3.0.0"
+version = "2.0.0"
 dependencies = [
  "bytes",
  "http",
@@ -2792,7 +2792,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-common"
-version = "5.1.0"
+version = "5.0.0"
 dependencies = [
  "anyhow",
  "bytes",
@@ -2909,7 +2909,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-data-pipeline"
-version = "7.0.0"
+version = "6.0.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -2953,7 +2953,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-ddsketch"
-version = "1.1.0"
+version = "1.0.1"
 dependencies = [
  "criterion",
  "prost",
@@ -2965,7 +2965,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-dogstatsd-client"
-version = "4.0.0"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "cadence",
@@ -2978,10 +2978,11 @@ dependencies = [
 
 [[package]]
 name = "libdd-library-config"
-version = "3.0.0"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "libc 0.2.186",
+ "libdd-alloc",
  "libdd-trace-protobuf",
  "memfd",
  "prost",
@@ -2992,6 +2993,7 @@ dependencies = [
  "serde_yaml",
  "serial_test",
  "tempfile",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -3086,7 +3088,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-remote-config"
-version = "2.0.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -3117,7 +3119,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-shared-runtime"
-version = "2.0.0"
+version = "1.0.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -3133,7 +3135,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-telemetry"
-version = "6.0.0"
+version = "5.0.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3190,7 +3192,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-normalization"
-version = "3.0.0"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -3202,7 +3204,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-obfuscation"
-version = "5.0.0"
+version = "4.0.0"
 dependencies = [
  "anyhow",
  "criterion",
@@ -3219,7 +3221,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-protobuf"
-version = "4.0.0"
+version = "3.0.2"
 dependencies = [
  "bolero",
  "prost",
@@ -3233,13 +3235,12 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-stats"
-version = "6.0.0"
+version = "5.0.0"
 dependencies = [
  "anyhow",
  "arc-swap",
  "async-trait",
  "criterion",
- "futures",
  "hashbrown 0.15.2",
  "http",
  "httpmock",
@@ -3263,7 +3264,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-utils"
-version = "9.0.0"
+version = "8.0.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",

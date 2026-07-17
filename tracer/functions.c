@@ -419,7 +419,7 @@ static zend_object *ddtrace_span_stack_clone_obj(zend_object *old_obj) {
 }
 
 static void ddtrace_span_data_free_storage(zend_object *object) {
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
     if (object->ce == ddtrace_ce_root_span_data) {
         ddtrace_detach_otel_thread_context_for_root(ROOTSPANDATA(object));
     }

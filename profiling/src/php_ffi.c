@@ -6,10 +6,10 @@
 #include <string.h>
 #include "SAPI.h"
 
-#if CFG_STACK_WALKING_TESTS || defined(__linux__)
+#if CFG_STACK_WALKING_TESTS || defined(__linux__) || defined(__APPLE__)
 #include <dlfcn.h> // for dlsym
 #endif
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 #include <stdatomic.h>
 #include <stddef.h>
 #endif
@@ -19,21 +19,15 @@ const char *datadog_module_build_id(void) { return ZEND_MODULE_BUILD_ID; }
 
 uint8_t *datadog_runtime_id = NULL;
 static const zai_str datadog_php_profiling_context_api_none = ZAI_STRL("none");
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 static const zai_str ddog_php_prof_context_api_otel = ZAI_STRL("otel_thread_ctx_v1");
 #endif
-static const zai_str datadog_php_profiling_context_api_legacy = ZAI_STRL("ddtrace_get_profiling_context");
-
-static ddtrace_profiling_context noop_get_profiling_context(void) {
-    return (ddtrace_profiling_context){0, 0};
-}
 
 static ddtrace_profiling_context datadog_php_profiling_get_context(void);
 
-static ddtrace_profiling_context (*datadog_php_profiling_get_legacy_context)(void) =
-    noop_get_profiling_context;
+static bool (*ddog_php_prof_get_otel_process_context)(const uint8_t **, uintptr_t *) = NULL;
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 #define DDOG_PHP_PROF_OTEL_TLS_SYMBOL "otel_thread_ctx_v1"
 
 typedef struct ddog_php_prof_otel_thread_context_record {
@@ -114,7 +108,22 @@ static ddtrace_profiling_context ddog_php_prof_read_otel_profiling_context(void)
 }
 
 static void *ddog_php_prof_find_otel_thread_ctx_symbol(void) {
-    return dlsym(RTLD_DEFAULT, DDOG_PHP_PROF_OTEL_TLS_SYMBOL);
+    void *symbol = dlsym(RTLD_DEFAULT, DDOG_PHP_PROF_OTEL_TLS_SYMBOL);
+
+#ifdef __APPLE__
+    // Darwin returns a TLS descriptor from dlsym(). Resolve it to the current
+    // thread's address before treating it as the TLS slot.
+    typedef struct {
+        void *(*thunk)(void *descriptor);
+        unsigned long key;
+        unsigned long offset;
+    } ddog_php_prof_tls_descriptor;
+
+    ddog_php_prof_tls_descriptor *descriptor = symbol;
+    return descriptor && descriptor->thunk ? descriptor->thunk(descriptor) : NULL;
+#else
+    return symbol;
+#endif
 }
 
 static void ddog_php_prof_init_otel_thread_ctx_slot(void) {
@@ -145,9 +154,6 @@ static bool ddog_php_prof_otel_thread_ctx_slot_is_valid(void) {
         return true;
     }
 
-    php_log_err(
-        "Datadog Profiling failed to initialize the OTel thread context TLS slot for this PHP thread"
-    );
     return false;
 }
 #else
@@ -161,20 +167,17 @@ static void locate_datadog_runtime_id(const zend_extension *extension) {
     datadog_runtime_id = DL_FETCH_SYMBOL(extension->handle, "datadog_runtime_id");
 }
 
-static void locate_ddtrace_get_profiling_context(const zend_extension *extension) {
-    ddtrace_profiling_context (*get_profiling)(void) =
-        DL_FETCH_SYMBOL(extension->handle, "ddtrace_get_profiling_context");
-    if (EXPECTED(get_profiling)) {
-        datadog_php_profiling_get_legacy_context = get_profiling;
-    }
-}
-
 static void locate_datadog_process_tags_get_serialized(const zend_extension *extension) {
     zend_string *(*get_process_tags)(void) =
         DL_FETCH_SYMBOL(extension->handle, "datadog_process_tags_get_serialized");
     if (EXPECTED(get_process_tags)) {
         datadog_php_profiling_get_process_tags_serialized = get_process_tags;
     }
+}
+
+static void locate_datadog_otel_process_context(const zend_extension *extension) {
+    ddog_php_prof_get_otel_process_context =
+        DL_FETCH_SYMBOL(extension->handle, "datadog_get_otel_process_context");
 }
 
 static bool is_ddtrace_extension(const zend_extension *ext) {
@@ -271,7 +274,7 @@ static post_startup_cb_result ddog_php_prof_post_startup_cb(void) {
         }
     }
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
     ddog_php_prof_init_otel_thread_ctx_slot();
 #endif
 
@@ -297,7 +300,6 @@ void datadog_php_profiling_startup(zend_extension *extension) {
 #endif
 
     datadog_php_profiling_get_profiling_context = datadog_php_profiling_get_context;
-    datadog_php_profiling_get_legacy_context = noop_get_profiling_context;
     datadog_php_profiling_get_process_tags_serialized = noop_get_process_tags_serialized;
 
     /* Due to the optional dependency on ddtrace, the profiling module will be
@@ -308,9 +310,9 @@ void datadog_php_profiling_startup(zend_extension *extension) {
     for (const zend_llist_element *item = list->head; item; item = item->next) {
         const zend_extension *maybe_ddtrace = (zend_extension *)item->data;
         if (maybe_ddtrace != extension && is_ddtrace_extension(maybe_ddtrace)) {
-            locate_ddtrace_get_profiling_context(maybe_ddtrace);
             locate_datadog_runtime_id(maybe_ddtrace);
             locate_datadog_process_tags_get_serialized(maybe_ddtrace);
+            locate_datadog_otel_process_context(maybe_ddtrace);
             break;
         }
     }
@@ -323,7 +325,7 @@ void datadog_php_profiling_startup(zend_extension *extension) {
 #endif
 }
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 void ddog_php_prof_otel_thread_ctx_ginit(void) {
     ddog_php_prof_init_otel_thread_ctx_slot();
 }
@@ -331,17 +333,26 @@ void ddog_php_prof_otel_thread_ctx_ginit(void) {
 bool ddog_php_prof_otel_thread_ctx_rinit(void) {
     return ddog_php_prof_otel_thread_ctx_slot_is_valid();
 }
+
+
 #endif
 
+bool ddog_php_prof_otel_process_ctx_rinit(const uint8_t **mapping_base, size_t *mapping_len) {
+    if (!mapping_base || !mapping_len) {
+        return false;
+    }
+    *mapping_base = NULL;
+    *mapping_len = 0;
+    return ddog_php_prof_get_otel_process_context &&
+        ddog_php_prof_get_otel_process_context(mapping_base, mapping_len);
+}
+
 zai_str datadog_php_profiling_context_api_name(void) {
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
     if (ddog_php_prof_otel_thread_ctx_slot) {
         return ddog_php_prof_context_api_otel;
     }
 #endif
-    if (datadog_php_profiling_get_legacy_context != noop_get_profiling_context) {
-        return datadog_php_profiling_context_api_legacy;
-    }
     return datadog_php_profiling_context_api_none;
 }
 
@@ -352,13 +363,11 @@ zend_module_entry *datadog_get_module_entry(const char *str, uintptr_t len) {
 }
 
 static ddtrace_profiling_context datadog_php_profiling_get_context(void) {
-#ifdef __linux__
-    ddtrace_profiling_context otel_context = ddog_php_prof_read_otel_profiling_context();
-    if (otel_context.local_root_span_id || otel_context.span_id) {
-        return otel_context;
-    }
+#if defined(__linux__) || defined(__APPLE__)
+    return ddog_php_prof_read_otel_profiling_context();
+#else
+    return (ddtrace_profiling_context){0, 0};
 #endif
-    return datadog_php_profiling_get_legacy_context();
 }
 
 ddtrace_profiling_context (*datadog_php_profiling_get_profiling_context)(void) =

@@ -42,11 +42,17 @@ void datadog_generate_session_id(void);
 void datadog_format_runtime_id(uint8_t (*buf)[36]);
 
 #if (defined(__linux__) || defined(__APPLE__) || defined(_WIN32))
-bool datadog_publish_otel_process_context(ddog_CharSlice hostname);
+struct ddog_ProcessContextHandle;
+struct ddog_ProcessContextHandle *datadog_publish_otel_process_context(
+    struct ddog_ProcessContextHandle *handle, ddog_CharSlice hostname);
+bool datadog_otel_process_context_mapping(const struct ddog_ProcessContextHandle *handle,
+                                          const uint8_t **mapping_base,
+                                          uintptr_t *mapping_len);
+void datadog_drop_otel_process_context(struct ddog_ProcessContextHandle *handle);
 #endif
 
 #if !(defined(__linux__) || defined(__APPLE__) || defined(_WIN32))
-bool datadog_publish_otel_process_context(ddog_CharSlice _hostname);
+void *datadog_publish_otel_process_context(void *handle, ddog_CharSlice _hostname);
 #endif
 
 ddog_CharSlice ddtrace_get_container_id(void);

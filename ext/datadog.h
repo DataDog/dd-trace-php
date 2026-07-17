@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <components-rs/common.h>
 #include <components/sapi/sapi.h>
+#include <ext/datadog_export.h>
 
 #include "version.h"
 #include "compatibility.h"
@@ -28,6 +29,7 @@ extern ddog_CharSlice php_version_rt;
 #endif
 
 void datadog_internal_handle_fork(void);
+DATADOG_PUBLIC bool datadog_get_otel_process_context(const uint8_t **mapping_base, uintptr_t *mapping_len);
 #ifdef CXA_THREAD_ATEXIT_WRAPPER
 void dd_run_rust_thread_destructors(void *unused);
 #endif
@@ -65,6 +67,7 @@ ZEND_BEGIN_MODULE_GLOBALS(datadog)
     zend_string *last_env_name;
     zend_string *last_version;
     ddog_Vec_Tag active_global_tags;
+    struct ddog_ProcessContextHandle *otel_process_context;
 
     bool request_initialized;
     ddog_SidecarActionsBuffer *telemetry_buffer;

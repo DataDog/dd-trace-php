@@ -76,9 +76,7 @@ void *datadog_php_profiling_vm_interrupt_addr(void);
 
 /**
  * For Code Hotspots, we need the local root span id and the current span id.
- * The legacy ddtrace_get_profiling_context ABI also uses this struct, so keep
- * it in sync with tracer's version.
- * todo: re-use the tracer's header?
+ * This is populated exclusively from the OTel Thread Context.
  */
 typedef struct ddtrace_profiling_context_s {
     uint64_t local_root_span_id, span_id;
@@ -91,10 +89,8 @@ typedef struct ddog_php_prof_otel_context_s {
 } ddog_php_prof_otel_context;
 
 /**
- * A pointer to the profiling-context function. On Linux it first reads the
- * OTel thread-context ABI directly when available, then falls back to the
- * tracer's legacy ddtrace_get_profiling_context function if it was found.
- * Otherwise it returns {0, 0}.
+ * A pointer to the profiling-context function. It reads the OTel Thread
+ * Context directly on supported platforms and otherwise returns {0, 0}.
  */
 extern ddtrace_profiling_context (*datadog_php_profiling_get_profiling_context)(void);
 
@@ -107,11 +103,11 @@ extern zend_string *(*datadog_php_profiling_get_process_tags_serialized)(void);
 /**
  * Called by this zend_extension's .startup handler. Does things that are
  * burdensome in Rust, like locating the ddtrace extension in the module
- * registry and finding the ddtrace_get_profiling_context function.
+ * registry and resolving its OTel Process Context accessor.
  */
 void datadog_php_profiling_startup(zend_extension *extension);
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 /**
  * Called from the PHP module globals ctor to initialize per-thread profiler FFI
  * state.
@@ -125,6 +121,9 @@ void ddog_php_prof_otel_thread_ctx_ginit(void);
  */
 bool ddog_php_prof_otel_thread_ctx_rinit(void);
 #endif
+
+/** Refreshes the process-context mapping retained in the profiler module globals. */
+bool ddog_php_prof_otel_process_ctx_rinit(const uint8_t **mapping_base, size_t *mapping_len);
 
 /**
  * Copies the current OTel thread context for Rust-side decoding. Returns false

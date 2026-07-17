@@ -4,7 +4,7 @@
 #include "span.h"
 #include <ext/target_metadata.h>
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 #include <stdatomic.h>
 #include <stddef.h>
 #include <string.h>
@@ -16,7 +16,7 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 
 #define DDTRACE_OTEL_ATTR_LOCAL_ROOT_SPAN_ID 0
 #define DDTRACE_OTEL_ATTR_SERVICE_NAME 1
@@ -226,7 +226,7 @@ static uint64_t ddtrace_u64_be(uint64_t value) {
 #endif
 }
 
-#else // !__linux__
+#else // neither Linux nor macOS
 
 void ddtrace_otel_init_root_span(ddtrace_root_span_data *root) {
     UNUSED(root);

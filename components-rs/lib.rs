@@ -37,6 +37,8 @@ use std::path::Path;
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
 use libdd_library_config::otel_process_ctx;
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+use libdd_library_config::otel_process_ctx::ProcessContextHandle;
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
 use libdd_library_config::tracer_metadata::{ThreadLocalMetadata, TracerMetadata};
 
 #[no_mangle]
@@ -100,7 +102,10 @@ pub extern "C" fn datadog_format_runtime_id(buf: &mut [u8; 36]) {
 
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
 #[no_mangle]
-pub extern "C" fn datadog_publish_otel_process_context(hostname: CharSlice<'_>) -> bool {
+pub unsafe extern "C" fn datadog_publish_otel_process_context(
+    handle: *mut ProcessContextHandle,
+    hostname: CharSlice<'_>,
+) -> *mut ProcessContextHandle {
     let runtime_id = unsafe {
         (!datadog_runtime_id.is_nil()).then(|| datadog_runtime_id.as_hyphenated().to_string())
     };
@@ -127,21 +132,62 @@ pub extern "C" fn datadog_publish_otel_process_context(hostname: CharSlice<'_>) 
 
     let context = metadata.to_otel_process_ctx();
 
-    // libdatadog owns the process-wide writer and transparently updates an existing publication or
+    // The tracer retains the returned handle in its module globals. Updating that handle also
     // creates a fresh platform-specific publication after a fork.
+    if let Some(handle) = unsafe { handle.as_mut() } {
+        let handle_ptr = handle as *mut ProcessContextHandle;
+        if let Err(error) = handle.update(&context) {
+            tracing::debug!("failed to update OTel process context: {error}");
+        }
+        return handle_ptr;
+    }
+
     match otel_process_ctx::publish(&context) {
-        Ok(()) => true,
+        Ok(handle) => Box::into_raw(Box::new(handle)),
         Err(error) => {
             tracing::debug!("failed to publish OTel process context: {error}");
-            false
+            std::ptr::null_mut()
         }
+    }
+}
+
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+#[no_mangle]
+pub unsafe extern "C" fn datadog_otel_process_context_mapping(
+    handle: *const ProcessContextHandle,
+    mapping_base: *mut *const u8,
+    mapping_len: *mut usize,
+) -> bool {
+    let (Some(handle), Some(mapping_base), Some(mapping_len)) = (
+        unsafe { handle.as_ref() },
+        unsafe { mapping_base.as_mut() },
+        unsafe { mapping_len.as_mut() },
+    ) else {
+        return false;
+    };
+    let Some((base, len)) = handle.current_mapping() else {
+        return false;
+    };
+    *mapping_base = base;
+    *mapping_len = len;
+    true
+}
+
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+#[no_mangle]
+pub unsafe extern "C" fn datadog_drop_otel_process_context(handle: *mut ProcessContextHandle) {
+    if !handle.is_null() {
+        drop(unsafe { Box::from_raw(handle) });
     }
 }
 
 #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
 #[no_mangle]
-pub extern "C" fn datadog_publish_otel_process_context(_hostname: CharSlice<'_>) -> bool {
-    false
+pub unsafe extern "C" fn datadog_publish_otel_process_context(
+    _handle: *mut std::ffi::c_void,
+    _hostname: CharSlice<'_>,
+) -> *mut std::ffi::c_void {
+    std::ptr::null_mut()
 }
 
 #[must_use]

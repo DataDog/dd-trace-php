@@ -123,7 +123,7 @@ struct ddtrace_root_span_data {
     datadog_trace_id trace_id;
     uint64_t parent_id;
     ddtrace_rule_result sampling_rule;
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
     datadog_otel_thr_ctx_rec otel_context;
 #endif
     bool explicit_sampling_priority;
