@@ -61,6 +61,10 @@ perfcnt = "0.8.0"
 name = "stack_walking"
 harness = false
 
+[[bench]]
+name = "heap_live_tracking"
+harness = false
+
 [features]
 default = ["io_profiling"]
 debug_stats = []
