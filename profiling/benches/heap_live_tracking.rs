@@ -1,5 +1,7 @@
-use core::cell::{Cell, UnsafeCell};
-use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion};
+use core::cell::UnsafeCell;
+use core::time::Duration;
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use std::time::Instant;
 
 // Compile the production tracker without linking the PHP extension executable.
 #[allow(dead_code)]
@@ -10,6 +12,7 @@ use live_heap::{LiveHeapTracker, LocalLiveHeapTracker};
 const BASE_ADDRESS: usize = 0x1000_0000;
 const TRACKED_ALLOCATIONS: usize = 2048;
 const ADDRESS_STRIDE: usize = 64;
+const BATCH_SIZE: u64 = 256;
 
 fn address(index: usize) -> usize {
     BASE_ADDRESS + index % TRACKED_ALLOCATIONS * ADDRESS_STRIDE
@@ -33,7 +36,7 @@ impl Tracker {
     }
 
     fn track(&self, ptr: usize, sample: [usize; 4]) -> bool {
-        // Criterion invokes setup and measured routines sequentially.
+        // SAFETY: Criterion invokes setup and measured routines sequentially.
         unsafe { (&mut *self.local.get()).track(&self.shared, ptr, sample) }
     }
 
@@ -51,60 +54,94 @@ fn populated_tracker() -> Tracker {
     tracker
 }
 
+fn measure_batched(
+    iterations: u64,
+    mut setup: impl FnMut(usize),
+    mut routine: impl FnMut(usize),
+    mut cleanup: impl FnMut(usize),
+) -> Duration {
+    let mut elapsed = Duration::ZERO;
+    let mut completed = 0;
+
+    while completed < iterations {
+        let count = BATCH_SIZE.min(iterations - completed);
+        for offset in 0..count {
+            setup((completed + offset) as usize);
+        }
+
+        let start = Instant::now();
+        for offset in 0..count {
+            routine((completed + offset) as usize);
+        }
+        elapsed += start.elapsed();
+
+        for offset in 0..count {
+            cleanup((completed + offset) as usize);
+        }
+        completed += count;
+    }
+
+    elapsed
+}
+
 fn benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("heap_live_tracking");
 
     {
         let tracker = populated_tracker();
-        let next = Cell::new(0);
         group.bench_function("allocate_tracked", |b| {
-            b.iter_batched(
-                || {
-                    let index = next.get();
-                    next.set(index + 1);
-                    let ptr = untracked_address(index);
-                    let _ = tracker.untrack(ptr);
-                    (ptr, [0; 4])
-                },
-                |(ptr, sample)| black_box(tracker.track(ptr, sample)),
-                BatchSize::PerIteration,
-            )
+            b.iter_custom(|iterations| {
+                measure_batched(
+                    iterations,
+                    |index| {
+                        let _ = tracker.untrack(untracked_address(index));
+                    },
+                    |index| {
+                        black_box(tracker.track(untracked_address(index), [0; 4]));
+                    },
+                    |index| {
+                        let _ = tracker.untrack(untracked_address(index));
+                    },
+                )
+            })
         });
     }
 
     {
         let tracker = populated_tracker();
-        let next = Cell::new(0);
         group.bench_function("free_tracked", |b| {
-            b.iter_batched(
-                || {
-                    let index = next.get();
-                    next.set(index + 1);
-                    let ptr = untracked_address(index);
-                    assert!(tracker.track(ptr, [0; 4]));
-                    ptr
-                },
-                |ptr| black_box(tracker.untrack(ptr)),
-                BatchSize::PerIteration,
-            )
+            b.iter_custom(|iterations| {
+                measure_batched(
+                    iterations,
+                    |index| {
+                        assert!(tracker.track(untracked_address(index), [0; 4]));
+                    },
+                    |index| {
+                        black_box(tracker.untrack(untracked_address(index)));
+                    },
+                    |index| {
+                        let _ = tracker.untrack(untracked_address(index));
+                    },
+                )
+            })
         });
     }
 
     {
         let tracker = populated_tracker();
-        let next = Cell::new(0);
         group.bench_function("free_untracked", |b| {
-            b.iter_batched(
-                || {
-                    let index = next.get();
-                    next.set(index + 1);
-                    let ptr = untracked_address(index);
-                    let _ = tracker.untrack(ptr);
-                    ptr
-                },
-                |ptr| black_box(tracker.untrack(ptr)),
-                BatchSize::PerIteration,
-            )
+            b.iter_custom(|iterations| {
+                measure_batched(
+                    iterations,
+                    |index| {
+                        let _ = tracker.untrack(untracked_address(index));
+                    },
+                    |index| {
+                        black_box(tracker.untrack(untracked_address(index)));
+                    },
+                    |_| {},
+                )
+            })
         });
     }
 
