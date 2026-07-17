@@ -108,7 +108,6 @@ class MysqliIntegration extends Integration
             $span = $hook->span();
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             self::setDefaultAttributes($span, 'mysqli_query', $query);
-            self::addTraceAnalyticsIfEnabled($span);
             self::setConnectionInfo($span, $mysqli);
 
             DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
@@ -133,7 +132,6 @@ class MysqliIntegration extends Integration
             $span = $hook->span();
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             self::setDefaultAttributes($span, 'mysqli_real_query', $query);
-            self::addTraceAnalyticsIfEnabled($span);
             self::setConnectionInfo($span, $mysqli);
 
             DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
@@ -178,7 +176,6 @@ class MysqliIntegration extends Integration
             $span = $hook->span();
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             MysqliIntegration::setDefaultAttributes($span, 'mysqli.query', $query);
-            MysqliIntegration::addTraceAnalyticsIfEnabled($span);
             MysqliIntegration::setConnectionInfo($span, $hook->instance);
 
             DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql');
@@ -205,7 +202,6 @@ class MysqliIntegration extends Integration
             $span = $hook->span();
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             MysqliIntegration::setDefaultAttributes($span, 'mysqli.real_query', $query);
-            MysqliIntegration::addTraceAnalyticsIfEnabled($span);
             MysqliIntegration::setConnectionInfo($span, $hook->instance);
 
             DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql');
@@ -262,7 +258,6 @@ class MysqliIntegration extends Integration
                 $span = $hook->span();
                 $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
                 self::setDefaultAttributes($span, 'mysqli_execute_query', $query);
-                self::addTraceAnalyticsIfEnabled($span);
 
                 DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
                 self::handleRasp($span);
@@ -287,7 +282,6 @@ class MysqliIntegration extends Integration
                 $span = $hook->span();
                 $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
                 self::setDefaultAttributes($span, 'mysqli.execute_query', $query);
-                self::addTraceAnalyticsIfEnabled($span);
 
                 DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql');
                 self::handleRasp($span);
@@ -366,7 +360,6 @@ class MysqliIntegration extends Integration
         \DDTrace\trace_method('mysqli_stmt', 'execute', function (SpanData $span) {
             $resource = MysqliCommon::retrieveQuery($this, 'mysqli_stmt.execute');
             MysqliIntegration::setDefaultAttributes($span, 'mysqli_stmt.execute', $resource);
-            MysqliIntegration::addTraceAnalyticsIfEnabled($span);
             MysqliIntegration::setConnectionInfo($span, ObjectKVStore::get($this, MysqliIntegration::KEY_MYSQLI_INSTANCE));
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
         });

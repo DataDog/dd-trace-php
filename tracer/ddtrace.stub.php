@@ -163,11 +163,17 @@ namespace DDTrace {
     }
 
     class SpanKind {
+        /** @var int */
         const UNSPECIFIED = 0;
+        /** @var int */
         const INTERNAL = 1;
+        /** @var int */
         const SERVER = 2;
+        /** @var int */
         const CLIENT = 3;
+        /** @var int */
         const PRODUCER = 4;
+        /** @var int */
         const CONSUMER = 5;
     }
 

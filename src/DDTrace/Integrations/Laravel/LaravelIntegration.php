@@ -23,14 +23,6 @@ class LaravelIntegration extends Integration
      */
     public static $serviceName;
 
-    /**
-     * {@inheritdoc}
-     */
-    public static function requiresExplicitTraceAnalyticsEnabling(): bool
-    {
-        return false;
-    }
-
     public static function isArtisanQueueCommand(): bool
     {
         $artisanCommand = isset($_SERVER['argv'][1]) ? $_SERVER['argv'][1] : '';
@@ -54,7 +46,6 @@ class LaravelIntegration extends Integration
             ini_set("datadog.trace.generate_root_span", 0);
         }
 
-
         \DDTrace\trace_method(
             'Illuminate\Foundation\Application',
             'handle',
@@ -70,7 +61,6 @@ class LaravelIntegration extends Integration
 
                 // Overwriting the default web integration
                 $rootSpan->name = 'laravel.request';
-                self::addTraceAnalyticsIfEnabled($rootSpan);
                 if (\method_exists($response, 'getStatusCode')) {
                     $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
                 }
@@ -120,7 +110,6 @@ class LaravelIntegration extends Integration
                 list($request) = $args;
 
                 // Overwriting the default web integration
-                self::addTraceAnalyticsIfEnabled($rootSpan);
                 $routeName = self::normalizeRouteName($route->getName());
 
                 if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {

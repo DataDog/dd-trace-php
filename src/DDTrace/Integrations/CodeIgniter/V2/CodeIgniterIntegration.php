@@ -39,7 +39,6 @@ class CodeIgniterIntegration extends Integration
 
     public static function registerIntegration(\CI_Router $router, SpanData $rootSpan, $service)
     {
-        self::addTraceAnalyticsIfEnabled($rootSpan);
         $rootSpan->name = 'codeigniter.request';
         $rootSpan->service = $service;
         $rootSpan->type = Type::WEB_SERVLET;

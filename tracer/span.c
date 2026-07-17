@@ -232,7 +232,10 @@ ddtrace_inferred_span_data *ddtrace_open_inferred_span(ddtrace_inferred_proxy_re
 
     ZVAL_LONG(&zv, 1);
     zend_hash_str_add_new(ddtrace_property_array(&span->property_metrics), ZEND_STRL("_dd.inferred_span"), &zv);
-    add_assoc_string(&span->property_meta, "component", (char *)proxy_info->component);
+    // component is carried on the span property; the serializer translates it back into
+    // meta["component"] at serialization time.
+    zval_ptr_dtor(&span->property_component);
+    ZVAL_STRING(&span->property_component, (char *)proxy_info->component);
     ZVAL_STR(&span->property_type, zend_string_init(ZEND_STRL("web"), 0));
 
     free_inferred_proxy_result(result);

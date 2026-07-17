@@ -16,14 +16,6 @@ class YiiIntegration extends Integration
     /**
      * {@inheritdoc}
      */
-    public static function requiresExplicitTraceAnalyticsEnabling(): bool
-    {
-        return false;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
     public static function init(): int
     {
         if (!Versions::versionMatches('2.0', \Yii::getVersion())) {
@@ -38,7 +30,6 @@ class YiiIntegration extends Integration
                 if ($rootSpan !== null) {
                     $rootSpan->meta[Tag::COMPONENT] = self::NAME;
                     $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-                    self::addTraceAnalyticsIfEnabled($rootSpan);
                 }
             }
         );

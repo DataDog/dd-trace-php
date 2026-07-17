@@ -21,7 +21,6 @@ class TraceRequest extends Zend_Controller_Plugin_Abstract
             return;
         }
         // Overwriting the default web integration
-        ZendFrameworkIntegration::addTraceAnalyticsIfEnabled($span);
         $controller = $request->getControllerName();
         $action = $request->getActionName();
         $route = Zend_Controller_Front::getInstance()->getRouter()->getCurrentRouteName();

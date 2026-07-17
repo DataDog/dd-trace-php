@@ -14,14 +14,6 @@ class NetteIntegration extends Integration
     /**
      * {@inheritdoc}
      */
-    public static function requiresExplicitTraceAnalyticsEnabling(): bool
-    {
-        return false;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
     public static function init(): int
     {
         $service = \ddtrace_config_app_name(self::NAME);
@@ -34,14 +26,12 @@ class NetteIntegration extends Integration
 
             $rootSpan->meta[Tag::SPAN_KIND] = 'server';
 
-            self::addTraceAnalyticsIfEnabled($rootSpan);
             $rootSpan->service = $service;
             $rootSpan->meta[Tag::COMPONENT] = self::NAME;
         };
 
         \DDTrace\hook_method('Nette\Configurator', '__construct', $setRootSpanFn);
         \DDTrace\hook_method('Nette\Bootstrap\Configurator', '__construct', $setRootSpanFn);
-
 
         \DDTrace\trace_method(
             'Nette\Configurator',

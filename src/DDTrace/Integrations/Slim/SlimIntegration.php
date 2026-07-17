@@ -30,7 +30,6 @@ class SlimIntegration extends Integration
 
                 // Overwrite root span info
                 $rootSpan = \DDTrace\root_span();
-                SlimIntegration::addTraceAnalyticsIfEnabled($rootSpan);
                 $rootSpan->name = 'slim.request';
                 $rootSpan->service = \ddtrace_config_app_name(SlimIntegration::NAME);
                 Integration::tagFrameworkServiceSource($rootSpan, SlimIntegration::NAME);

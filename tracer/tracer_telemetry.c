@@ -155,13 +155,21 @@ void ddtrace_telemetry_notify_integration_version(const char *name, size_t name_
 }
 
 void ddtrace_telemetry_inc_spans_created(ddtrace_span_data *span) {
+    // The $span->component property is the source of truth (the serializer mirrors it into
+    // meta["component"] at serialization time, which happens after this close-time hook). Fall
+    // back to meta["component"] for spans that still set it directly (e.g. userland integrations).
+    zval *component_prop = &span->property_component;
+    ZVAL_DEREF(component_prop);
     zval *component = NULL;
-    if (Z_TYPE(span->property_meta) == IS_ARRAY) {
+    if (!(Z_TYPE_P(component_prop) == IS_STRING && Z_STRLEN_P(component_prop) > 0) &&
+        Z_TYPE(span->property_meta) == IS_ARRAY) {
         component = zend_hash_str_find(Z_ARRVAL(span->property_meta), ZEND_STRL("component"));
     }
 
     zend_string *integration = NULL;
-    if (component && Z_TYPE_P(component) == IS_STRING) {
+    if (Z_TYPE_P(component_prop) == IS_STRING && Z_STRLEN_P(component_prop) > 0) {
+        integration = zend_string_copy(Z_STR_P(component_prop));
+    } else if (component && Z_TYPE_P(component) == IS_STRING) {
         integration = zend_string_copy(Z_STR_P(component));
     } else if (span->flags & DDTRACE_SPAN_FLAG_OPENTELEMETRY) {
         integration = zend_string_init(ZEND_STRL("otel"), 0);

@@ -82,7 +82,6 @@ class MemcacheIntegration extends Integration
         \DDTrace\trace_method('Memcache', 'cas', $memcache_cas);
         \DDTrace\trace_function('memcache_cas', self::wrapClosureForTraceFunction($memcache_cas));
 
-
         return Integration::LOADED;
     }
 
@@ -100,7 +99,6 @@ class MemcacheIntegration extends Integration
                 $span->meta['memcache.query'] = $command . ' ' . $queryParams;
             }
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-            MemcacheIntegration::markForTraceAnalytics($span, $command);
         };
         \DDTrace\trace_method('Memcache', $command, $trace);
         \DDTrace\trace_function("memcache_$command", self::wrapClosureForTraceFunction($trace));
@@ -160,21 +158,4 @@ class MemcacheIntegration extends Integration
         }
     }
 
-    /**
-     * @param SpanData $span
-     * @param string $command
-     */
-    public static function markForTraceAnalytics(SpanData $span, $command)
-    {
-        $commandsForAnalytics = [
-            'add',
-            'delete',
-            'get',
-            'set',
-        ];
-
-        if (in_array($command, $commandsForAnalytics)) {
-            self::addTraceAnalyticsIfEnabled($span);
-        }
-    }
 }
