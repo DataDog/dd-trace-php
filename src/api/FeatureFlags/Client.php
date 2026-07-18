@@ -28,11 +28,11 @@ final class Client
         // gate-off must allocate no binder and read no per-evaluation config),
         // construct the binder ONLY when the experimental span-enrichment gate
         // is on; when it is off $spanEnrichmentBinder stays null and evaluate()
-        // skips the enrichment call entirely.
-        require_once __DIR__ . '/SpanEnrichmentBinder.php';
+        // skips the enrichment call entirely. SpanEnrichmentBinder/Accumulator/
+        // Registry live in this same PSR-4 autoloaded namespace as Client
+        // itself, so referencing them here loads nothing more than autoloading
+        // Client already did -- no explicit require_once needed.
         if (SpanEnrichmentBinder::gateEnabled()) {
-            require_once __DIR__ . '/SpanEnrichmentAccumulator.php';
-            require_once __DIR__ . '/SpanEnrichmentRegistry.php';
             $this->spanEnrichmentBinder = new SpanEnrichmentBinder();
         }
     }

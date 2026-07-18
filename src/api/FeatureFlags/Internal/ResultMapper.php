@@ -276,8 +276,12 @@ final class ResultMapper
 
         // serialId is the selected split's serial id, surfaced from the native
         // bridge for APM span enrichment. It is only present when the native
-        // result actually carried one; a null/absent value must be left out so
-        // downstream consumers can treat "no serialId" as a runtime default.
+        // result actually carried one; a null/absent value must be left out
+        // entirely rather than defaulted to 0/false. Absence alone does NOT
+        // mean a runtime default was used -- a waterfall-assigned variant can
+        // also have no serial id. SpanEnrichmentRegistry::accumulate() only
+        // treats an evaluation as a runtime default when BOTH serialId AND the
+        // variant are absent.
         $serialId = $this->read($rawResult, array('serial_id', 'serialId'), null);
         if ($serialId !== null) {
             $exposureData['serialId'] = (int) $serialId;
