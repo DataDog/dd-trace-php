@@ -4,6 +4,7 @@
 #include "random.h"
 #include "tracer_tag_propagation/tracer_tag_propagation.h"
 #include "serializer.h"
+#include "trace_context.h"
 #include <config/config_ini.h>
 #include <headers/headers.h>
 
@@ -349,15 +350,18 @@ static ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids_t
         };
         uint64_t parent_id = ddtrace_parse_hex_span_id_str(tracedata->parent_id, 16);
 
-        zend_string_release(traceparent);
-
         if ((!trace_id.low && !trace_id.high) || !parent_id) {
+            zend_string_release(traceparent);
             return result;
         }
 
+        result.trace_flags = (uint8_t)ddtrace_parse_hex_span_id_str(tracedata->trace_flags, 2)
+            & DDTRACE_TRACE_FLAGS_SUPPORTED;
         result.trace_id = trace_id;
         result.parent_id = parent_id;
-        result.priority_sampling = (tracedata->trace_flags[1] & 1) == (tracedata->trace_flags[1] <= '9'); // ('a' & 1) == 1
+        result.priority_sampling = (result.trace_flags & DDTRACE_TRACE_FLAG_SAMPLED) != 0;
+
+        zend_string_release(traceparent);
 
         zend_string *span_parent_key = zend_string_init("_dd.parent_id", strlen("_dd.parent_id"), 0);
 
@@ -536,6 +540,7 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
             ddtrace_distributed_tracing_result new_result = func(read_header, data);
 
             if (result.trace_id.low == new_result.trace_id.low && result.trace_id.high == new_result.trace_id.high) {
+                result.trace_flags |= new_result.trace_flags & DDTRACE_TRACE_FLAG_RANDOM;
                 if (!result.tracestate && new_result.tracestate) {
                     result.tracestate = new_result.tracestate;
                     new_result.tracestate = NULL;
@@ -668,6 +673,7 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         if (result->trace_id.low || result->trace_id.high) {
             span->trace_id = result->trace_id;
             span->parent_id = result->parent_id;
+            span->trace_flags = result->trace_flags & DDTRACE_TRACE_FLAG_RANDOM;
             ddtrace_update_root_id_properties(span);
             ddtrace_otel_update_trace_id(span);
         }
@@ -698,6 +704,7 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         if (result->trace_id.low || result->trace_id.high) {
             DDTRACE_G(distributed_trace_id) = result->trace_id;
             DDTRACE_G(distributed_parent_trace_id) = result->parent_id;
+            DDTRACE_G(distributed_trace_flags) = result->trace_flags & DDTRACE_TRACE_FLAG_RANDOM;
         }
     }
 

@@ -226,6 +226,7 @@ class OtelThreadContextTests {
 
             assert responseBody.original_trace_id != DISTRIBUTED_TRACE_ID
             assert threadContext.trace_id == DISTRIBUTED_TRACE_ID
+            assert threadContext.trace_flags == '3'
             assertThreadContextMatchesResponse(threadContext, responseBody)
         } finally {
             if (!requestContinued) {
@@ -252,6 +253,7 @@ class OtelThreadContextTests {
             assert responseBody.original_trace_id != DISTRIBUTED_TRACE_ID
             assert responseBody.trace_id == DISTRIBUTED_TRACE_ID
             assert threadContext.trace_id == DISTRIBUTED_TRACE_ID
+            assert (threadContext.trace_flags.toInteger() & 2) == 0
             assertThreadContextMatchesResponse(threadContext, responseBody)
         } finally {
             if (!requestContinued) {
@@ -277,10 +279,39 @@ class OtelThreadContextTests {
 
             assert responseBody.original_trace_id != DISTRIBUTED_TRACE_ID
             assert threadContext.trace_id == DISTRIBUTED_TRACE_ID
+            assert (threadContext.trace_flags.toInteger() & 2) == 0
             assertThreadContextMatchesResponse(threadContext, responseBody)
         } finally {
             if (!requestContinued) {
                 continuePausedRequestQuietly(pausedRequest.pid)
+            }
+        }
+    }
+
+    /** Sampling decisions update the sampled bit without losing local random provenance. */
+    @Test
+    void 'otel thread context publishes sampled and random trace flags'() {
+        PausedRequest pausedRequest = startPausedRequest('/otel_context/trace_flags.php')
+        String cleanupPid = pausedRequest.pid
+        boolean requestContinued = false
+
+        try {
+            Map<String, String> keptContext = inspectThreadLocalAndContinue(pausedRequest.pid)
+            assert keptContext.trace_flags == '3'
+
+            String rejectedPid = waitForPausedPid(pausedRequest.responseFuture, 'rejected')
+            cleanupPid = rejectedPid
+            Map<String, String> rejectedContext = inspectThreadLocalAndContinue(rejectedPid)
+            assert rejectedContext.trace_flags == '2'
+
+            requestContinued = true
+            HttpResponse<String> response = awaitResponse(pausedRequest)
+            Map responseBody = parseJsonResponse(response)
+            assert rejectedContext.trace_id == responseBody.trace_id
+            assert rejectedContext.span_id == responseBody.span_id
+        } finally {
+            if (!requestContinued) {
+                continuePausedRequestQuietly(cleanupPid)
             }
         }
     }

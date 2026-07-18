@@ -58,6 +58,7 @@
 #include "live_debugger.h"
 #include "standalone_limiter.h"
 #include "priority_sampling/priority_sampling.h"
+#include "trace_context.h"
 #include "otel_context.h"
 #include "random.h"
 #include "autoload_php_files.h"
@@ -439,6 +440,7 @@ void ddtrace_first_rinit(void) {
 static void dd_initialize_request(void) {
     DDTRACE_G(distributed_trace_id) = (datadog_trace_id){0};
     DDTRACE_G(distributed_parent_trace_id) = 0;
+    DDTRACE_G(distributed_trace_flags) = 0;
     DDTRACE_G(additional_global_tags) = zend_new_array(0);
     DDTRACE_G(default_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
     DDTRACE_G(propagated_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNSET;
@@ -723,9 +725,12 @@ void ddtrace_internal_handle_fork() {
         if (get_DD_DISTRIBUTED_TRACING()) {
             DDTRACE_G(distributed_parent_trace_id) = ddtrace_peek_span_id();
             DDTRACE_G(distributed_trace_id) = ddtrace_peek_trace_id();
+            ddtrace_root_span_data *root = DDTRACE_G(active_stack) ? DDTRACE_G(active_stack)->root_span : NULL;
+            DDTRACE_G(distributed_trace_flags) = root ? root->trace_flags : 0;
         } else {
             DDTRACE_G(distributed_parent_trace_id) = 0;
             DDTRACE_G(distributed_trace_id) = (datadog_trace_id){ 0 };
+            DDTRACE_G(distributed_trace_flags) = 0;
         }
         ddtrace_free_span_stacks(true);
         ddtrace_init_span_stacks();

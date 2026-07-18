@@ -66,6 +66,7 @@ typedef struct {
     int64_t compile_time_microseconds;
     datadog_trace_id distributed_trace_id;
     uint64_t distributed_parent_trace_id;
+    uint8_t distributed_trace_flags;
     zend_string *dd_origin;
     zend_reference *curl_multi_injecting_spans;
 

@@ -38,6 +38,7 @@ class OtelThreadContext(gdb.Command):
         print_kv("trace_id", data[0:16].hex())
         print_kv("span_id", data[16:24].hex())
         print_kv("valid", data[24])
+        print_kv("trace_flags", data[25])
         print_kv("attrs_data_size", attrs_data_size)
         for key, value in attrs.items():
             print_kv(key, value)

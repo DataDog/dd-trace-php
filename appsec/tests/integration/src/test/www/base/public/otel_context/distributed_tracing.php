@@ -9,7 +9,7 @@ if (!$rootSpan) {
 
 $originalTraceId = $rootSpan->traceId;
 \DDTrace\consume_distributed_tracing_headers([
-    'traceparent' => '00-11111111111111112222222222222222-3333333333333333-01',
+    'traceparent' => '00-11111111111111112222222222222222-3333333333333333-03',
 ]);
 
 $waited = \datadog\appsec\testing\wait_for_debugger();

@@ -18,7 +18,7 @@ typedef struct {
     uint64_t trace_id[2];
     _Atomic(uint64_t) span_id;
     _Atomic(uint8_t) valid;
-    uint8_t reserved;
+    uint8_t trace_flags;
     uint16_t attrs_data_size;
     uint8_t attrs_data[DATADOG_PHP_PROFILING_OTEL_ATTRS_DATA_SIZE];
 } datadog_otel_thr_ctx_rec;
@@ -42,6 +42,9 @@ void ddtrace_otel_init_root_span(ddtrace_root_span_data *root);
  * On non-Linux builds this is a no-op.
  */
 void ddtrace_otel_update_trace_id(ddtrace_root_span_data *root);
+
+/** Update the W3C trace flags in root's OTel thread-context record. */
+void ddtrace_otel_update_trace_flags(ddtrace_root_span_data *root);
 
 /**
  * Update only the active span id in the OTel thread-context record owned by

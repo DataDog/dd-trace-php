@@ -3,6 +3,7 @@
 #include <SAPI.h>
 #include "components-rs/sidecar.h"
 #include "priority_sampling/priority_sampling.h"
+#include "trace_context.h"
 #include <time.h>
 #include <ext/zend_hrtime.h>
 
@@ -286,12 +287,14 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
         if (primary_stack && (DDTRACE_G(distributed_trace_id).low || DDTRACE_G(distributed_trace_id).high)) {
             root->trace_id = DDTRACE_G(distributed_trace_id);
             root->parent_id = DDTRACE_G(distributed_parent_trace_id);
+            root->trace_flags = DDTRACE_G(distributed_trace_flags) & DDTRACE_TRACE_FLAG_RANDOM;
         } else {
             root->trace_id = (datadog_trace_id) {
                     .low = span->span_id,
                     .time = get_DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED() ? span->start / ZEND_NANO_IN_SEC : 0,
             };
             root->parent_id = 0;
+            root->trace_flags = DDTRACE_TRACE_FLAG_RANDOM;
         }
 
         ZVAL_NULL(&span->property_parent);
@@ -805,6 +808,7 @@ static void dd_mark_closed_spans_flushable(ddtrace_span_stack *stack) {
                         ZVAL_LONG(&priority, PRIORITY_SAMPLING_AUTO_REJECT);
                         datadog_assign_variable(&root_span->property_sampling_priority, &priority);
                         root_span->explicit_sampling_priority = true;
+                        ddtrace_otel_update_trace_flags(root_span);
                     }
                 }
             } else {
