@@ -2490,13 +2490,6 @@
         "default": "true"
       }
     ],
-    "DD_TRACE_WARN_LEGACY_DD_TRACE": [
-      {
-        "implementation": "A",
-        "type": "boolean",
-        "default": "true"
-      }
-    ],
     "DD_TRACE_WEBSOCKET_MESSAGES_ENABLED": [
       {
         "implementation": "A",
