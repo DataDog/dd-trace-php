@@ -1021,18 +1021,6 @@ static zend_class_entry *register_class_DDTrace_RootSpanData(zend_class_entry *c
 	zend_declare_typed_property(class_entry, property_inferredSpan_name, &property_inferredSpan_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_inferredSpan_class_DDTrace_InferredSpanData, 0, MAY_BE_NULL));
 	zend_string_release(property_inferredSpan_name);
 
-	zval property_env_default_value;
-	ZVAL_EMPTY_STRING(&property_env_default_value);
-	zend_string *property_env_name = zend_string_init("env", sizeof("env") - 1, 1);
-	zend_declare_typed_property(class_entry, property_env_name, &property_env_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING));
-	zend_string_release(property_env_name);
-
-	zval property_version_default_value;
-	ZVAL_EMPTY_STRING(&property_version_default_value);
-	zend_string *property_version_name = zend_string_init("version", sizeof("version") - 1, 1);
-	zend_declare_typed_property(class_entry, property_version_name, &property_version_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING));
-	zend_string_release(property_version_name);
-
 	zval property_hostname_default_value;
 	ZVAL_EMPTY_STRING(&property_hostname_default_value);
 	zend_string *property_hostname_name = zend_string_init("hostname", sizeof("hostname") - 1, 1);
