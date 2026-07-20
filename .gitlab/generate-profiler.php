@@ -21,14 +21,10 @@ foreach ($profiler_minor_major_targets as $version) {
   # them for both the build and helper allows using Guaranteed QoS instead of
   # Burstable. This means nproc and similar tools will work as expected.
   variables:
-    KUBERNETES_CPU_REQUEST: 3
-    KUBERNETES_CPU_LIMIT: 3
-    KUBERNETES_MEMORY_REQUEST: 6Gi
-    KUBERNETES_MEMORY_LIMIT: 6Gi
-    KUBERNETES_HELPER_CPU_REQUEST: 1
-    KUBERNETES_HELPER_CPU_LIMIT: 1
-    KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
-    KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
+    KUBERNETES_POD_CPU_REQUEST: 3
+    KUBERNETES_POD_CPU_LIMIT: 3
+    KUBERNETES_POD_MEMORY_REQUEST: 6Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 6Gi
     CARGO_TARGET_DIR: /mnt/ramdisk/cargo # ramdisk??
     libdir: /tmp/datadog-profiling
   parallel:
@@ -49,7 +45,7 @@ foreach ($profiler_minor_major_targets as $version) {
 
     - cd profiling
     - 'echo "nproc: $(nproc)"'
-    - 'echo "KUBERNETES_CPU_REQUEST: ${KUBERNETES_CPU_REQUEST:-<unset>}"'
+    - 'echo "KUBERNETES_POD_CPU_REQUEST: ${KUBERNETES_POD_CPU_REQUEST:-<unset>}"'
     - export TEST_PHP_EXECUTABLE=$(which php)
     - run_tests_php=$(find $(php-config --prefix) -name run-tests.php) # don't anticipate there being more than one
     - cp -v "${run_tests_php}" tests
@@ -87,14 +83,10 @@ foreach ($profiler_minor_major_targets as $version) {
   tags: [ "arch:amd64" ]
   image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-9
   variables:
-    KUBERNETES_CPU_REQUEST: 5
-    KUBERNETES_CPU_LIMIT: 5
-    KUBERNETES_MEMORY_REQUEST: 3Gi
-    KUBERNETES_MEMORY_LIMIT: 3Gi
-    KUBERNETES_HELPER_CPU_REQUEST: 1
-    KUBERNETES_HELPER_CPU_LIMIT: 1
-    KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
-    KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
+    KUBERNETES_POD_CPU_REQUEST: 5
+    KUBERNETES_POD_CPU_LIMIT: 5
+    KUBERNETES_POD_MEMORY_REQUEST: 5Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 5Gi
     # CARGO_TARGET_DIR: /mnt/ramdisk/cargo # ramdisk??
     libdir: /tmp/datadog-profiling
   parallel:
@@ -111,14 +103,10 @@ foreach ($profiler_minor_major_targets as $version) {
   tags: [ "arch:amd64" ]
   image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.5_bookworm-9
   variables:
-    KUBERNETES_CPU_REQUEST: 5
-    KUBERNETES_CPU_LIMIT: 5
-    KUBERNETES_MEMORY_REQUEST: 3Gi
-    KUBERNETES_MEMORY_LIMIT: 3Gi
-    KUBERNETES_HELPER_CPU_REQUEST: 1
-    KUBERNETES_HELPER_CPU_LIMIT: 1
-    KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
-    KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
+    KUBERNETES_POD_CPU_REQUEST: 5
+    KUBERNETES_POD_CPU_LIMIT: 5
+    KUBERNETES_POD_MEMORY_REQUEST: 5Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 5Gi
     # CARGO_TARGET_DIR: /mnt/ramdisk/cargo # ramdisk??
     libdir: /tmp/datadog-profiling
   script:
@@ -131,14 +119,10 @@ foreach ($profiler_minor_major_targets as $version) {
   tags: [ "arch:${ARCH}" ]
   image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-9
   variables:
-    KUBERNETES_CPU_REQUEST: 5
-    KUBERNETES_CPU_LIMIT: 5
-    KUBERNETES_MEMORY_REQUEST: 3Gi
-    KUBERNETES_MEMORY_LIMIT: 3Gi
-    KUBERNETES_HELPER_CPU_REQUEST: 1
-    KUBERNETES_HELPER_CPU_LIMIT: 1
-    KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
-    KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
+    KUBERNETES_POD_CPU_REQUEST: 5
+    KUBERNETES_POD_CPU_LIMIT: 5
+    KUBERNETES_POD_MEMORY_REQUEST: 5Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 5Gi
     CARGO_TARGET_DIR: /tmp/cargo
     libdir: /tmp/datadog-profiling
     SKIP_ONLINE_TESTS: "1"

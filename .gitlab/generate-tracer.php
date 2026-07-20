@@ -77,9 +77,9 @@ stages:
     WITH_ASAN: "0"
     CARGO_HOME: "/rust/cargo/"
     SWITCH_PHP_VERSION: "debug"
-    KUBERNETES_CPU_REQUEST: 12
-    KUBERNETES_MEMORY_REQUEST: 4Gi
-    KUBERNETES_MEMORY_LIMIT: 8Gi
+    KUBERNETES_POD_CPU_REQUEST: 12
+    KUBERNETES_POD_MEMORY_REQUEST: 4Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 8Gi
   script: .gitlab/compile_extension.sh
   after_script: |
     export out_dir="modules/${PHP_MAJOR_MINOR}-${SWITCH_PHP_VERSION}-${host_os}-${ARCH}/"
@@ -178,8 +178,8 @@ stages:
   tags: [ "arch:amd64" ]
   needs: []
   variables:
-    KUBERNETES_CPU_REQUEST: 1
-    KUBERNETES_MEMORY_REQUEST: 2Gi
+    KUBERNETES_POD_CPU_REQUEST: 1
+    KUBERNETES_POD_MEMORY_REQUEST: 2Gi
   before_script:
     - apt update && apt install -y unzip
     - php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" && php composer-setup.php && mv composer.phar /usr/local/bin/composer
@@ -240,10 +240,10 @@ foreach ($asan_minor_major_targets as $major_minor):
   retry: 2
   variables:
     WAIT_FOR: test-agent:9126
-    KUBERNETES_CPU_REQUEST: 6
-    KUBERNETES_CPU_LIMIT: 6
-    KUBERNETES_MEMORY_REQUEST: 4Gi
-    KUBERNETES_MEMORY_LIMIT: 4Gi
+    KUBERNETES_POD_CPU_REQUEST: 9
+    KUBERNETES_POD_CPU_LIMIT: 9
+    KUBERNETES_POD_MEMORY_REQUEST: 6Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 6Gi
     MAX_TEST_PARALLELISM: 2
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "<?= $arch ?>"
@@ -293,6 +293,9 @@ foreach ($asan_minor_major_targets as $major_minor):
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
+    KUBERNETES_POD_CPU_REQUEST: 4
+    KUBERNETES_POD_MEMORY_REQUEST: 5Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 7Gi
     TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
   script:
     - mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
@@ -313,7 +316,9 @@ foreach ($asan_minor_major_targets as $major_minor):
       artifacts: true
   variables:
     WAIT_FOR: test-agent:9126
-    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_POD_CPU_REQUEST: 15
+    KUBERNETES_POD_MEMORY_REQUEST: 6Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 6Gi
     MAX_TEST_PARALLELISM: 4
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
@@ -368,7 +373,9 @@ foreach ($all_minor_major_targets as $major_minor):
       artifacts: true
   variables:
     WAIT_FOR: test-agent:9126
-    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_POD_CPU_REQUEST: 15
+    KUBERNETES_POD_MEMORY_REQUEST: 6Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 6Gi
     MAX_TEST_PARALLELISM: 4
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
@@ -445,10 +452,10 @@ foreach ($all_minor_major_targets as $major_minor):
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
 <?php if (version_compare($major_minor, "7.4", ">=")): ?>
-    KUBERNETES_CPU_REQUEST: 8
+    KUBERNETES_POD_CPU_REQUEST: 8
     MAX_TEST_PARALLELISM: 16
 <?php else: /* no test parallelism */ ?>
-    KUBERNETES_CPU_REQUEST: 1
+    KUBERNETES_POD_CPU_REQUEST: 1
   timeout: 40m
 <?php endif; ?>
   script:
@@ -515,20 +522,16 @@ foreach ($all_minor_major_targets as $major_minor):
     SKIP_ONLINE_TESTS: "1"
     WAIT_FOR: test-agent:9126
 <?php if (version_compare($major_minor, "7.4", ">=")): ?>
-    KUBERNETES_CPU_REQUEST: 8
-    KUBERNETES_CPU_LIMIT: 8
-    KUBERNETES_MEMORY_REQUEST: 7Gi
-    KUBERNETES_MEMORY_LIMIT: 7Gi
+    KUBERNETES_POD_CPU_REQUEST: 9
+    KUBERNETES_POD_CPU_LIMIT: 9
+    KUBERNETES_POD_MEMORY_REQUEST: 12Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 12Gi
 <?php else: ?>
-    KUBERNETES_CPU_REQUEST: 1
-    KUBERNETES_CPU_LIMIT: 1
-    KUBERNETES_MEMORY_REQUEST: 4Gi
-    KUBERNETES_MEMORY_LIMIT: 4Gi
+    KUBERNETES_POD_CPU_REQUEST: 2
+    KUBERNETES_POD_CPU_LIMIT: 2
+    KUBERNETES_POD_MEMORY_REQUEST: 6Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 6Gi
 <?php endif; ?>
-    KUBERNETES_HELPER_CPU_REQUEST: 1
-    KUBERNETES_HELPER_CPU_LIMIT: 1
-    KUBERNETES_HELPER_MEMORY_REQUEST: 1Gi
-    KUBERNETES_HELPER_MEMORY_LIMIT: 1Gi
     KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
 <?php if (version_compare($major_minor, "7.2", ">=")): /* too expensive */ ?>
     DD_INSTRUMENTATION_TELEMETRY_ENABLED: 0
@@ -559,9 +562,9 @@ endforeach;
   variables:
     DD_TRACE_TEST_SAPI: cli-server
     COMPOSER_PROCESS_TIMEOUT: 0
-    KUBERNETES_CPU_REQUEST: 2 # generally one for PHP and one for the webserver
-    KUBERNETES_MEMORY_REQUEST: 4Gi
-    KUBERNETES_MEMORY_LIMIT: 4Gi
+    KUBERNETES_POD_CPU_REQUEST: 5 # generally one for PHP and one for the webserver
+    KUBERNETES_POD_MEMORY_REQUEST: 6Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 6Gi
     SWITCH_PHP_VERSION: debug
     COMPOSER_VERSION: 2
   before_script:
@@ -653,9 +656,32 @@ foreach ($services as $part => $service) {
     COMPOSER_VERSION: 2.2
 <?php endif; ?>
 <?php if (preg_match("(test_web_laravel_octane)", $target)): ?>
-    KUBERNETES_MEMORY_REQUEST: 6Gi
-    KUBERNETES_MEMORY_LIMIT: 6Gi
+    KUBERNETES_POD_MEMORY_REQUEST: 8Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 8Gi
 <?php endif; ?>
+<?php
+$extra_cpu = 0;
+$extra_mem_mib = 0;
+foreach ($services as $part => $service) {
+    if (str_contains($target, $part)) {
+        foreach ((array)$service as $svc) {
+            if ($svc === "elasticsearch7") { $extra_cpu += 1; $extra_mem_mib += 2048; }
+            elseif ($svc === "elasticsearch2") { $extra_mem_mib += 512; }
+            elseif ($svc === "kafka") { $extra_cpu += 1; $extra_mem_mib += 1024; }
+            elseif ($svc === "zookeeper") { $extra_mem_mib += 256; }
+            elseif ($svc === "sqlsrv") { $extra_cpu += 1; $extra_mem_mib += 2048; }
+        }
+    }
+}
+if ($extra_cpu > 0) {
+    echo "    KUBERNETES_POD_CPU_REQUEST: " . (5 + $extra_cpu) . "\n";
+}
+if ($extra_mem_mib > 0) {
+    $total_mem_gi = (int)ceil((6 * 1024 + $extra_mem_mib) / 1024);
+    echo "    KUBERNETES_POD_MEMORY_REQUEST: {$total_mem_gi}Gi\n";
+    echo "    KUBERNETES_POD_MEMORY_LIMIT: {$total_mem_gi}Gi\n";
+}
+?>
 
 <?php
             endforeach;
@@ -686,6 +712,8 @@ foreach ($all_minor_major_targets as $major_minor):
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     MAKE_TARGET: "<?= $test ?>"
     ARCH: "amd64"
+    KUBERNETES_POD_MEMORY_REQUEST: 7Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 7Gi
 <?php
     endforeach;
 ?>
@@ -709,6 +737,8 @@ foreach ($all_minor_major_targets as $major_minor):
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     MAKE_TARGET: "test_distributed_tracing"
     ARCH: "amd64"
+    KUBERNETES_POD_MEMORY_REQUEST: 7Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 7Gi
 <?php if ($sapi == "cgi-fcgi"): ?>
     DD_DISTRIBUTED_TRACING: "false"
 <?php endif; ?>
@@ -751,6 +781,9 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
+    KUBERNETES_POD_CPU_REQUEST: 4
+    KUBERNETES_POD_MEMORY_REQUEST: 6Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 6Gi
     REPORT_EXIT_STATUS: "1"
   script:
     - make install_all
