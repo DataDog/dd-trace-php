@@ -104,7 +104,9 @@ stages:
   - gate
   - notify
   - verify
-  - shared-pipeline # OCI packaging
+  - shared-pipeline-build # OCI packaging
+  - shared-pipeline-test
+  - shared-pipeline-publish
   - php-laravel-realworld-parallel
   - php-laravel-realworld-parallel-slo
   - php-symfony-realworld-parallel
