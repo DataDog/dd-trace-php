@@ -1709,7 +1709,7 @@ deploy_to_reliability_env:
   needs:
     - job: "bundle for reliability env"
   rules:
-    - if: $NIGHTLY_BUILD
+    - if: $NIGHTLY_BUILD == "true"
       when: on_success
     - when: manual
       allow_failure: true
