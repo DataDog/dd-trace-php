@@ -151,6 +151,12 @@ static ddtrace_span_data *ddtrace_init_span(enum ddtrace_span_dataype type, zend
     object_init_ex(&fci_zv, ce);
     ddtrace_span_data *span = OBJ_SPANDATA(Z_OBJ(fci_zv));
     span->type = type;
+#if PHP_VERSION_ID < 80000
+    // On PHP 7 array-typed properties default to null (see the ZVAL_EMPTY_ARRAY
+    // shim in functions.c); materialize `attributes` to an empty array so it is
+    // consistent with its `= []` stub default across all supported versions.
+    ddtrace_property_array(&span->property_attributes);
+#endif
     return span;
 }
 
@@ -600,6 +606,10 @@ static ddtrace_span_stack *dd_alloc_span_stack(void) {
     zval fci_zv;
     object_init_ex(&fci_zv, ddtrace_ce_span_stack);
     ddtrace_span_stack *span_stack = (ddtrace_span_stack *)Z_OBJ(fci_zv);
+#if PHP_VERSION_ID < 80000
+    // See ddtrace_init_span: materialize `attributes` to an empty array on PHP 7.
+    ddtrace_property_array(&span_stack->property_attributes);
+#endif
     return span_stack;
 }
 
