@@ -46,7 +46,23 @@ def parse_args():
     parser.add_argument("--max-failures", type=int, default=50, help="Stop after this many failures (default: 50)")
     parser.add_argument("--timeout", type=int, default=7200, help="Overall timeout in seconds (default: 7200 = 2 hours)")
     parser.add_argument("--list-jobs", action="store_true", help="List all jobs grouped by pipeline and exit")
+    parser.add_argument("--jobs", type=str, default=None, help="Comma-separated substring patterns; monitor only matching jobs (case-insensitive)")
     return parser.parse_args()
+
+
+def parse_job_patterns(spec: str | None) -> list[str]:
+    """Split a comma-separated --jobs spec into lowercased substring patterns."""
+    if not spec:
+        return []
+    return [p.strip().lower() for p in spec.split(",") if p.strip()]
+
+
+def job_name_matches(name: str, patterns: list[str]) -> bool:
+    """Return True if name contains any pattern (case-insensitive substring). Empty patterns match all."""
+    if not patterns:
+        return True
+    lname = name.lower()
+    return any(p in lname for p in patterns)
 
 
 def resolve_sha(ref: str) -> str:
@@ -383,8 +399,9 @@ async def gh_download_job_log(session: aiohttp.ClientSession, job_id: int, log_d
 # list-jobs mode
 # ---------------------------------------------------------------------------
 
-async def list_jobs(session: aiohttp.ClientSession, root_id: int):
-    """List all GitLab jobs grouped by pipeline, then exit."""
+async def list_jobs(session: aiohttp.ClientSession, root_id: int, patterns: list[str] | None = None):
+    """List all GitLab jobs grouped by pipeline, then exit. Filtered to matched jobs when patterns given."""
+    patterns = patterns or []
     pipeline_ids, pipeline_names, jobs_by_pipeline, pipeline_statuses = await discover_pipelines_and_jobs(session, root_id)
 
     for pid in pipeline_ids:
@@ -394,6 +411,10 @@ async def list_jobs(session: aiohttp.ClientSession, root_id: int):
         info = pipeline_statuses.get(pid, {"status": "unknown", "name": str(pid)})
         display_name = pipeline_names.get(pid, info["name"])
         jobs = jobs_by_pipeline.get(pid, [])
+        if patterns:
+            jobs = [j for j in jobs if job_name_matches(j.get("name", ""), patterns)]
+            if not jobs:
+                continue
         print(f"\nPipeline {pid} '{display_name}' (status: {info['status']}):")
         for job in jobs:
             job_status = job.get("status", "unknown")
@@ -402,8 +423,9 @@ async def list_jobs(session: aiohttp.ClientSession, root_id: int):
             print(f"  {job_status:<10}({job_id}) {job_name}")
 
 
-async def list_github_jobs(session: aiohttp.ClientSession, sha: str):
-    """List GitHub Actions workflow runs and their jobs for a SHA."""
+async def list_github_jobs(session: aiohttp.ClientSession, sha: str, patterns: list[str] | None = None):
+    """List GitHub Actions workflow runs and their jobs for a SHA. Filtered to matched jobs when patterns given."""
+    patterns = patterns or []
     try:
         runs = await gh_discover_runs(session, sha, timeout=15)
     except GitHubAuthError:
@@ -420,6 +442,10 @@ async def list_github_jobs(session: aiohttp.ClientSession, sha: str):
         run_conclusion = run.get("conclusion") or ""
         status_str = run_status if not run_conclusion else f"{run_status}, conclusion: {run_conclusion}"
         jobs = await gh_get_run_jobs(session, run_id)
+        if patterns:
+            jobs = [j for j in jobs if job_name_matches(j.get("name", ""), patterns)]
+            if not jobs:
+                continue
         print(f"\nGitHub Actions run {run_id} '{run_name}' (status: {status_str}):")
         for job in sorted(jobs, key=lambda j: j.get("name", "")):
             job_status = job.get("status", "unknown")
@@ -493,10 +519,14 @@ async def _monitor(args, sha: str | None, gl_session: aiohttp.ClientSession, gh_
     else:
         root_id = await discover_pipeline(gl_session, sha, args.discovery_timeout)
 
+    patterns = parse_job_patterns(args.jobs)
+    if patterns:
+        print(f"Filtering to jobs matching (any of): {patterns}")
+
     if args.list_jobs:
-        await list_jobs(gl_session, root_id)
+        await list_jobs(gl_session, root_id, patterns)
         if gh_session and sha:
-            await list_github_jobs(gh_session, sha)
+            await list_github_jobs(gh_session, sha, patterns)
         return
 
     # Set up working directory
@@ -557,6 +587,8 @@ async def _monitor(args, sha: str | None, gl_session: aiohttp.ClientSession, gh_
 
         pipeline_ids, _, jobs_by_pipeline, pipeline_statuses = gl_result
         all_jobs = [job for jobs in jobs_by_pipeline.values() for job in jobs]
+        if patterns:
+            all_jobs = [job for job in all_jobs if job_name_matches(job.get("name", ""), patterns)]
 
         # Phase 2: fetch GH run-jobs while we can (no GL dependency); process GL jobs locally.
         if gh_monitoring:
@@ -609,6 +641,7 @@ async def _monitor(args, sha: str | None, gl_session: aiohttp.ClientSession, gh_
         gh_passed = 0
         gh_failed_count = 0
         gh_all_done = True
+        gh_matched_total = 0
         gh_new_failures: list[tuple[dict, dict]] = []
         gh_fail_log_dir = wdir / "gh_fail_logs"
 
@@ -618,6 +651,9 @@ async def _monitor(args, sha: str | None, gl_session: aiohttp.ClientSession, gh_
             if run.get("status", "unknown") != "completed":
                 gh_all_done = False
             for job in run_jobs:
+                if patterns and not job_name_matches(job.get("name", ""), patterns):
+                    continue
+                gh_matched_total += 1
                 jid = job["id"]
                 job_status = job.get("status", "unknown")
                 conclusion = job.get("conclusion") or ""
@@ -695,7 +731,15 @@ async def _monitor(args, sha: str | None, gl_session: aiohttp.ClientSession, gh_
             print(f"[{now}] pipelines={len(pipeline_ids)}  jobs={len(all_jobs)}  running={gl_running_count}  passed={passed}  failed={failed}  allow_fail={allow_fail}")
 
         # Check completion
-        all_done = all_gl_done and (gl_running_count == 0) and (not gh_monitoring or gh_all_done)
+        if patterns:
+            # Finish as soon as the MATCHED subset is terminal (no matched job still
+            # running), regardless of the rest of the pipeline. Require at least one
+            # matched job to exist so we keep polling while jobs are still being created.
+            matched_total = len(all_jobs) + gh_matched_total
+            matched_running = gl_running_count + gh_running
+            all_done = matched_total > 0 and matched_running == 0
+        else:
+            all_done = all_gl_done and (gl_running_count == 0) and (not gh_monitoring or gh_all_done)
 
         if all_done:
             total_failures = failure_count

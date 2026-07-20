@@ -392,6 +392,7 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                         RemoteConfigProduct::LiveDebugger => {
                             let val = Box::new((data, MaybeShmLimiter::open(limiter_index)));
                             let rc_ref: &mut RemoteConfigState = unsafe { mem::transmute(remote_config as *mut _) }; // sigh, borrow checker
+                            let config_id = value.config_id.clone();
                             let entry = remote_config.live_debugger.active.entry(value.config_id);
                             let (parsed, limiter) = match entry {
                                 Entry::Occupied(mut e) => {
@@ -405,7 +406,7 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                                 }
                             };
                             if let Some(debugger) = parsed.downcast::<LiveDebuggingData>() {
-                                apply_config(rc_ref, debugger, limiter);
+                                apply_config(rc_ref, &config_id, debugger, limiter);
                             }
                         }
                         RemoteConfigProduct::ApmTracing => {
@@ -440,7 +441,7 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                 RemoteConfigProduct::LiveDebugger => {
                     if let Some(boxed) = remote_config.live_debugger.active.remove(&path.config_id) {
                         if let Some(debugger) = boxed.0.downcast::<LiveDebuggingData>() {
-                            remove_config(remote_config, debugger);
+                            remove_config(remote_config, &path.config_id, debugger);
                         }
                     }
                 }
@@ -472,6 +473,7 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
 
 fn apply_config(
     remote_config: &mut RemoteConfigState,
+    config_id: &str,
     debugger: &LiveDebuggingData,
     limiter: &MaybeShmLimiter,
 ) {
@@ -480,12 +482,21 @@ fn apply_config(
             LiveDebuggingData::Probe(probe) => {
                 debug!("Applying live debugger probe {probe:?}");
                 if remote_config.live_debugger.di_enabled {
+                    // Tear down any hook already installed for this config before
+                    // replacing it, so it isn't left dangling into the dropped config.
+                    if let Some(old_hook_id) =
+                        remote_config.live_debugger.spans_map.remove(config_id)
+                    {
+                        (callbacks.remove_probe)(old_hook_id);
+                    }
                     let hook_id = (callbacks.set_probe)(probe.into(), limiter);
                     if hook_id >= 0 {
+                        // Key by config_id, not probe.id: distinct configs can share a
+                        // probe id, so a probe.id key would orphan a hook on removal (UAF).
                         remote_config
                             .live_debugger
                             .spans_map
-                            .insert(probe.id.clone(), hook_id);
+                            .insert(config_id.to_string(), hook_id);
                     }
                 }
                 // If di_enabled is false, probe is stored in `active` but hook is not installed.
@@ -522,12 +533,12 @@ fn apply_config(
     }
 }
 
-fn remove_config(remote_config: &mut RemoteConfigState, debugger: &LiveDebuggingData) {
+fn remove_config(remote_config: &mut RemoteConfigState, config_id: &str, debugger: &LiveDebuggingData) {
     if let Some(callbacks) = unsafe { &LIVE_DEBUGGER_CALLBACKS } {
         match debugger {
             LiveDebuggingData::Probe(probe) => {
-                if let Some(id) = remote_config.live_debugger.spans_map.remove(&probe.id) {
-                    debug!("Removing live debugger probe {}", probe.id);
+                if let Some(id) = remote_config.live_debugger.spans_map.remove(config_id) {
+                    debug!("Removing live debugger probe {} (config {})", probe.id, config_id);
                     (callbacks.remove_probe)(id);
                 }
             }
@@ -719,15 +730,15 @@ pub extern "C" fn ddog_set_dynamic_instrumentation_enabled(
                 (callbacks.remove_probe)(hook_id);
             }
         } else {
-            // Reinstall all probes currently stored in `active`.
-            for (probe_id, boxed) in remote_config.live_debugger.active.iter() {
+            // Reinstall all probes in `active`, keyed by config_id (like apply/remove).
+            for (config_id, boxed) in remote_config.live_debugger.active.iter() {
                 if let Some(LiveDebuggingData::Probe(probe)) = boxed.0.downcast::<LiveDebuggingData>() {
                     let hook_id = (callbacks.set_probe)(probe.into(), &boxed.1);
                     if hook_id >= 0 {
                         remote_config
                             .live_debugger
                             .spans_map
-                            .insert(probe_id.clone(), hook_id);
+                            .insert(config_id.clone(), hook_id);
                     }
                 }
             }
@@ -749,6 +760,12 @@ pub extern "C" fn ddog_rshutdown_remote_config(remote_config: &mut RemoteConfigS
 
 #[no_mangle]
 pub extern "C" fn ddog_shutdown_remote_config(_: Box<RemoteConfigState>) {}
+
+/// Free the FFI-owned allocations in a `Probe` (the `tags` vec and the nested
+/// span-decoration / log allocations) by consuming it; borrowed `CharSlice`s are
+/// left untouched. Called from `dd_probe_dtor` when a probe is uninstalled.
+#[no_mangle]
+pub extern "C" fn ddog_drop_probe(_: Probe) {}
 
 #[no_mangle]
 pub extern "C" fn ddog_log_debugger_data(payloads: &Vec<DebuggerPayload>) {
