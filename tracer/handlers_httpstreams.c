@@ -72,8 +72,7 @@ static php_stream *dd_stream_opener(
             zend_array *meta = ddtrace_property_array(&span->property_meta);
             zval zv;
 
-            // component / span.kind are carried on the span properties; the serializer translates
-            // them back into meta["component"] / meta["span.kind"] at serialization time.
+            // Set on the properties; the serializer mirrors them into meta at serialization time.
             zval_ptr_dtor(&span->property_component);
             ZVAL_STRING(&span->property_component, "php.stream");
             ZVAL_LONG(&span->property_span_kind, 3 /* DDTrace\SpanKind::CLIENT */);

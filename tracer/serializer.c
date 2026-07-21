@@ -641,9 +641,7 @@ static void dd_set_entrypoint_root_span_props(struct superglob_equiv *data, ddtr
         zend_hash_str_add_new(meta, ZEND_STRL("http.method"), &http_method);
 
         // Mark HTTP server entry spans with span.kind=server for client-side stats aggregation.
-        // Only add if not already set (e.g. by an OTel or framework integration). This span.kind
-        // is written straight to meta (add-if-absent): unlike the internal producers, the entry
-        // root must not clobber a value provided by userland, so it does not use the property.
+        // Written to meta add-if-absent (not via the property) so a userland/OTel value wins.
         zval span_kind_server;
         ZVAL_STRING(&span_kind_server, "server");
         if (!zend_hash_str_add(meta, ZEND_STRL("span.kind"), &span_kind_server)) {
@@ -934,8 +932,7 @@ static void dd_serialize_json(zend_array *arr, smart_str *buf, int options) {
     smart_str_0(buf);
 }
 
-// Maps the integer DDTrace\SpanKind constant to the string previously stored in meta["span.kind"].
-// Returns NULL for UNSPECIFIED (0) or unknown values, in which case no meta key is emitted.
+// Maps a DDTrace\SpanKind integer constant to its meta["span.kind"] string; NULL means emit nothing.
 static const char *dd_span_kind_to_meta_str(zend_long kind) {
     switch (kind) {
         case 1: return "internal";  // DDTrace\SpanKind::INTERNAL
@@ -947,12 +944,8 @@ static const char *dd_span_kind_to_meta_str(zend_long kind) {
     }
 }
 
-// Translate the $span->component / $span->spanKind properties back into meta["component"] /
-// meta["span.kind"] so that the wire meta stays byte-identical to the pre-property behaviour.
-// The properties are the source of truth and supersede meta (clobber), matching the original
-// producers which used zend_hash_str_update / add_assoc_string. Spans that do not set the
-// properties (property empty / spanKind==0 — e.g. userland integrations, which write meta
-// directly, and the entrypoint root span) are left untouched, so their meta is preserved.
+// Mirror the $span->component / $span->spanKind properties into meta (clobbering) so the wire meta
+// matches the pre-property behaviour. Empty component / spanKind==0 is a no-op, leaving meta intact.
 static void dd_translate_span_kind_component_to_meta(ddtrace_span_data *span, zend_array *meta) {
     zval *component = &span->property_component;
     ZVAL_DEREF(component);
@@ -974,8 +967,7 @@ static void dd_translate_span_kind_component_to_meta(ddtrace_span_data *span, ze
     }
 }
 
-// Serialize an array of DDTrace\SpanEvent objects to the exact JSON shape previously produced by
-// DDTrace\SpanEvent::jsonSerialize() (invoked via json_encode over the array of objects).
+// Convert a DDTrace\SpanEvent to the array shape SpanEvent::jsonSerialize() used to return.
 static zend_array *dd_span_event_to_array(ddtrace_span_event *event) {
     zval array;
     array_init(&array);
@@ -1021,8 +1013,7 @@ static zend_array *dd_span_event_to_array(ddtrace_span_event *event) {
     return Z_ARR(array);
 }
 
-// Serialize a DDTrace\SpanLink object to the exact JSON shape previously produced by
-// DDTrace\SpanLink::jsonSerialize() (invoked via json_encode over the array of objects).
+// Convert a DDTrace\SpanLink to the array shape SpanLink::jsonSerialize() used to return.
 static zend_array *dd_span_link_to_array(ddtrace_span_link *link) {
     zend_array *array = zend_new_array(5);
 
@@ -1052,9 +1043,8 @@ static zend_array *dd_span_link_to_array(ddtrace_span_link *link) {
     return array;
 }
 
-// Build a JSON array from a list of span links, converting each SpanLink object into the array
-// shape that DDTrace\SpanLink::jsonSerialize() used to return, then json-encode it. This preserves
-// byte-identical output while removing the reliance on JsonSerializable.
+// JSON-encode a list of span links, converting each SpanLink object via dd_span_link_to_array
+// (replaces the former JsonSerializable path, byte-identical output).
 static void dd_serialize_span_links(zend_array *links, smart_str *buf) {
     zval tmp;
     array_init_size(&tmp, zend_hash_num_elements(links));
@@ -1079,8 +1069,7 @@ static void dd_serialize_span_links(zend_array *links, smart_str *buf) {
     zval_ptr_dtor(&tmp);
 }
 
-// Build a JSON array from a list of span events, converting each SpanEvent object into the array
-// shape that DDTrace\SpanEvent::jsonSerialize() used to return, then json-encode it.
+// JSON-encode a list of span events, converting each SpanEvent object via dd_span_event_to_array.
 static void dd_serialize_span_events(zend_array *events, smart_str *buf) {
     zval tmp;
     array_init_size(&tmp, zend_hash_num_elements(events));
@@ -1506,9 +1495,7 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
     zend_array *meta = ddtrace_property_array(&span->property_meta);
     zend_array *metrics = ddtrace_property_array(&span->property_metrics);
 
-    // The component / span.kind properties are the source of truth (populated by the C producers).
-    // Translate them back into the meta blob (add-if-absent) so the wire meta is unchanged and any
-    // meta-based consumer (e.g. client-side stats via the precomputed span_kind) keeps working.
+    // Mirror the component / span.kind properties into meta so meta-based consumers keep working.
     dd_translate_span_kind_component_to_meta(span, meta);
 
     // Remap OTel's status code (metric, http.status_code) to DD's status code (meta, http.status_code)
