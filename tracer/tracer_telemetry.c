@@ -155,9 +155,8 @@ void ddtrace_telemetry_notify_integration_version(const char *name, size_t name_
 }
 
 void ddtrace_telemetry_inc_spans_created(ddtrace_span_data *span) {
-    // The $span->component property is the source of truth (the serializer mirrors it into
-    // meta["component"] at serialization time, which happens after this close-time hook). Fall
-    // back to meta["component"] for spans that still set it directly (e.g. userland integrations).
+    // Prefer the $span->component property; the meta mirror only happens later at serialization,
+    // so fall back to meta["component"] for spans (e.g. userland integrations) that set it directly.
     zval *component_prop = &span->property_component;
     ZVAL_DEREF(component_prop);
     zval *component = NULL;

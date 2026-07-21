@@ -152,9 +152,8 @@ static ddtrace_span_data *ddtrace_init_span(enum ddtrace_span_dataype type, zend
     ddtrace_span_data *span = OBJ_SPANDATA(Z_OBJ(fci_zv));
     span->type = type;
 #if PHP_VERSION_ID < 80000
-    // On PHP 7 array-typed properties default to null (see the ZVAL_EMPTY_ARRAY
-    // shim in functions.c); materialize `attributes` to an empty array so it is
-    // consistent with its `= []` stub default across all supported versions.
+    // PHP 7 array-typed properties default to null; materialize `attributes` to match its
+    // `= []` stub default (as on PHP 8).
     ddtrace_property_array(&span->property_attributes);
 #endif
     return span;
@@ -238,8 +237,7 @@ ddtrace_inferred_span_data *ddtrace_open_inferred_span(ddtrace_inferred_proxy_re
 
     ZVAL_LONG(&zv, 1);
     zend_hash_str_add_new(ddtrace_property_array(&span->property_metrics), ZEND_STRL("_dd.inferred_span"), &zv);
-    // component is carried on the span property; the serializer translates it back into
-    // meta["component"] at serialization time.
+    // Set on the property; the serializer mirrors it into meta["component"] at serialization time.
     zval_ptr_dtor(&span->property_component);
     ZVAL_STRING(&span->property_component, (char *)proxy_info->component);
     ZVAL_STR(&span->property_type, zend_string_init(ZEND_STRL("web"), 0));
