@@ -44,7 +44,9 @@ pub static mut DDOG_PHP_FUNCTION: *const u8 = std::ptr::null();
 fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
     let php_dll = get_trampoline_target_data(unsafe { DDOG_PHP_FUNCTION })?;
     cfg.library_dependencies.push(LibDependency::Path(php_dll.into()));
-    ddtrace_sidecar::start_or_connect_to_sidecar(cfg)
+    // On Windows there is no appsec backend to register, so use libdatadog's plain
+    // `ddog_daemon_entry_point` directly.
+    datadog_sidecar::start_or_connect_to_sidecar(cfg)
 }
 
 lazy_static! {
@@ -199,7 +201,7 @@ pub extern "C" fn ddog_sidecar_connect_php(
             let log_level = OsStr::from_bytes(log_level.as_bytes()).into();
         cfg.child_env.insert(OsStr::new("DD_TRACE_LOG_LEVEL").into(), log_level);
     }
-    
+
     cfg.pipe_buffer_size = backpressure_bytes as usize;
 
     let reconnect_fn = on_reconnect.map(|on_reconnect| {
@@ -210,7 +212,7 @@ pub extern "C" fn ddog_sidecar_connect_php(
             Some(transport)
         }) as Box<dyn Fn() -> _>
     });
-    
+
     let mut stream = try_c!(sidecar_connect(cfg));
     stream.reconnect_fn = reconnect_fn;
     let _ = stream.set_backpressure(backpressure_bytes as usize, backpressure_queue);
