@@ -12,7 +12,8 @@
         "composer/installers": "^1.9",
         "drupal/core": "self.version",
         "drupal/core-project-message": "self.version",
-        "drupal/core-vendor-hardening": "self.version"
+        "drupal/core-vendor-hardening": "self.version",
+        "symfony/deprecation-contracts": "^2.5"
     },
     "require-dev": {
         "behat/mink": "^1.8",
