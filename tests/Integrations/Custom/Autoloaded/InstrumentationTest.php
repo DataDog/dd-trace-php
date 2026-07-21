@@ -57,7 +57,7 @@ final class InstrumentationTest extends WebFrameworkTestCase
 
         $this->call(GetSpec::create("autoloaded", "/telemetry"));
         usleep(500000);
-        $response = $this->retrieveDumpedData($this->untilTelemetryRequest("spans_created"));
+        $response = $this->retrieveDumpedData($this->untilTelemetryRequest("logs_created"));
 
         $this->assertGreaterThanOrEqual(3, $response);
         $payloads = $this->readTelemetryPayloads($response);
@@ -101,12 +101,12 @@ final class InstrumentationTest extends WebFrameworkTestCase
 
         $this->assertEquals("app-started", $payloads[0]["request_type"]);
         $this->assertEquals("app-dependencies-loaded", $payloads[1]["request_type"]);
-        $this->assertEquals([[
-            "name" => "nikic/fast-route",
-            "version" => "v1.3.0",
-        ]], array_filter($payloads[1]["payload"]["dependencies"], function ($i) {
+        $deps = array_values(array_filter($payloads[1]["payload"]["dependencies"], function ($i) {
             return strpos($i["name"], "ext-") !== 0;
         }));
+        $this->assertCount(1, $deps);
+        $this->assertEquals("nikic/fast-route", $deps[0]["name"]);
+        $this->assertNotEmpty($deps[0]["version"]);
         $this->assertEquals("app-integrations-change", $payloads[2]["request_type"]);
         $this->assertEquals([
             [

@@ -128,11 +128,8 @@ static bool dd_probe_file_mismatch(dd_probe_def *def, zend_execute_data *execute
 
 static void dd_probe_dtor(void *data) {
     dd_probe_def *def = data;
-    if (def->probe.probe.tag == DDOG_PROBE_TYPE_SPAN_DECORATION) {
-        ddog_drop_span_decoration_probe(def->probe.probe.span_decoration);
-    } else if (def->probe.probe.tag == DDOG_PROBE_TYPE_LOG) {
-        ddog_drop_log_probe_capture_expressions(def->probe.probe.log);
-    }
+    // Frees the probe's FFI-owned allocations (tags + span-decoration/log).
+    ddog_drop_probe(def->probe);
     if (def->file) {
         zend_string_release(def->file);
     }
@@ -854,16 +851,28 @@ static void dd_remove_live_debugger_probe(int64_t id) {
         zend_string *scope = def->scope ? zend_string_copy(def->scope) : NULL;
         zend_string *func = def->function ? zend_string_copy(def->function) : NULL;
         def->removed = true;
-        zai_hook_remove(
-                def->scope ? (zai_str)ZAI_STR_FROM_ZSTR(def->scope) : (zai_str)ZAI_STR_EMPTY,
-                def->function ? (zai_str)ZAI_STR_FROM_ZSTR(def->function) : (zai_str)ZAI_STR_EMPTY,
-                id);
+        // Use explicit if-guards, not an inline ternary in the call args:
+        // MSVC 2017 (PHP 7.x Windows) if-converts
+        // `def->scope ? ZAI_STR_FROM_ZSTR(def->scope) : ZAI_STR_EMPTY` into an
+        // unconditional ZSTR_LEN(def->scope) — a NULL deref for global functions
+        // (scope == NULL). See PR #4036.
+        zai_str scope_str = ZAI_STR_EMPTY, func_str = ZAI_STR_EMPTY;
+        if (def->scope) {
+            scope_str = (zai_str) ZAI_STR_FROM_ZSTR(def->scope);
+        }
+        if (def->function) {
+            func_str = (zai_str) ZAI_STR_FROM_ZSTR(def->function);
+        }
+        zai_hook_remove(scope_str, func_str, id);
         if (scope) {
             zend_string_release(scope);
         }
         if (func) {
             zend_string_release(func);
         }
+        // zai_hook_remove freed `def` via the hook's aux dtor; drop the now-stale
+        // map entry so a later lookup of the same id can't use-after-free it.
+        zend_hash_index_del(&DDTRACE_G(active_live_debugger_hooks), (zend_ulong)id);
     }
 }
 

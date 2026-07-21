@@ -2,7 +2,7 @@
 
 Combines Python debugging (pytest `--pdb`) with gdb inside the weblog
 container. For build/run instructions see
-[ci/system-tests.md](ci/system-tests.md). For gdb fundamentals see
+[ci/system-tests.md](../ci/system-tests.md). For gdb fundamentals see
 [gdb.md](gdb.md).
 
 ## arm64-specific build notes
@@ -20,7 +20,7 @@ emulation is too slow.
 
 ## Building ddtrace.so with Rust linked
 
-See [ci/building-locally.md](ci/building-locally.md#for-system-tests-centos-7-release-like-build)
+See [ci/building-locally.md](../ci/building-locally.md#for-system-tests-centos-7-release-like-build)
 for the build command, CARGO_HOME workaround, and `make` vs
 `make static` explanation.
 

@@ -86,3 +86,14 @@ docker stop -t 5 $CONTAINER && docker rm -f $CONTAINER
 
 - **Windows `switch-php` is a PowerShell script**, not the Linux bash version —
   it configures `C:\php\` rather than symlinking into `/usr/local/bin/`.
+
+- **CGI-SAPI `.phpt` tests can hang the whole job on PHP 7.2/7.3.** CGI tests
+  (`--GET--`/`--POST--`) run their SKIPIF/CLEAN under `php-cgi`, not the CLI. On
+  PHP 7.2/7.3, a ddtrace log line emitted during a CGI request blocks forever on
+  a synchronous buffered stderr write, because the Windows CGI stderr pipe is
+  never drained ("On Windows cgi skips stderr output"). Only tests that enable
+  ddtrace logging (e.g. raising `datadog.trace.log_level` above the default
+  `error`) hit it; the job then dies at the full timeout instead of a FAIL.
+  7.4+ are unaffected. When `windows test_c` fails on 7.2/7.3, check duration
+  before the FAIL lines — see
+  [diagnosing-failures.md](diagnosing-failures.md#determine-the-failure-mode-first-hang-vs-test-failure).

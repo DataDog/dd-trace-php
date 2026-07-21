@@ -69,6 +69,21 @@ This is needed for `build-appsec.sh` on centos-7 but not on bookworm
 the package pipeline's two-phase build). For local testing, always use
 `make` unless you specifically need the split build.
 
+### Linting the libdatadog submodule (fmt + clippy)
+
+To validate Rust changes in the `libdatadog/` submodule, run from inside it:
+
+```bash
+cd libdatadog
+cargo +nightly fmt --all --quiet && \
+  cargo clippy --workspace --all-targets --all-features -- -D warnings
+```
+
+A rustc ≥1.87 toolchain override is active in the repo, so plain `cargo clippy`
+picks up the correct toolchain — do NOT force `+stable` (the default stable is
+older) or a pinned `+1.87.0`, and do not lint per-crate with `-p`. Only `fmt`
+needs `+nightly`.
+
 ## Tracer Extension (ddtrace.so)
 
 ### For test jobs (bookworm, debug build)

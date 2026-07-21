@@ -229,6 +229,17 @@ tooling/bin/download-artifacts --job-id 98765 -o /tmp/artifacts
 
 ---
 
+## Diagnosing failures & flakiness
+
+→ **[diagnosing-failures.md](diagnosing-failures.md)**
+Triage techniques to apply before proposing a fix: distinguishing a hang from a
+test failure (duration + `-v`), spotting a mutable-image republish behind an
+all-versions flip, seeing through retry-trait cascades, root-causing sidecar
+error logs instead of silencing them, and the `merge-gate` / `flaky-jobs.txt`
+mechanism (no `allow_failure`).
+
+---
+
 ## Building artifacts locally
 
 → **[building-locally.md](building-locally.md)**
