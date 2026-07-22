@@ -106,7 +106,7 @@ JUNIT_RESULTS_DIR := $(shell pwd)
 
 all: $(BUILD_DIR)/configure $(SO_FILE)
 
-$(BUILD_DIR)/configure: $(M4_FILES) $(BUILD_DIR)/datadog.sym $(BUILD_DIR)/VERSION
+$(BUILD_DIR)/configure: $(M4_FILES) $(BUILD_DIR)/datadog.sym $(BUILD_DIR)/datadog-linux.sym $(BUILD_DIR)/VERSION
 	$(Q) (cd $(BUILD_DIR); phpize && $(SED_I) 's/\/FAILED/\/\\bFAILED/' $(BUILD_DIR)/run-tests.php) # Fix PHP 5.4 exit code bug when running selected tests (FAILED vs XFAILED)
 
 $(BUILD_DIR)/run-tests.php: $(if $(ASSUME_COMPILED),, $(BUILD_DIR)/configure)

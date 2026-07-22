@@ -36,9 +36,11 @@ bool datadog_otel_process_context_publish(struct ddog_PhpOtelProcessContext *sto
                                           ddog_CharSlice version,
                                           ddog_CharSlice process_tags);
 
+#if !defined(__linux__)
 bool datadog_otel_process_context_mapping(const struct ddog_PhpOtelProcessContext *storage,
                                           const uint8_t **base,
                                           uintptr_t *len);
+#endif
 
 void datadog_otel_process_context_drop(struct ddog_PhpOtelProcessContext *storage);
 

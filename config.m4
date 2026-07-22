@@ -311,7 +311,11 @@ if test "$PHP_DDTRACE" != "no"; then
     dnl Only export symbols defined in datadog.sym, which should all be marked as
     dnl DATADOG_PUBLIC in their source files as well.
     EXTRA_CFLAGS="$EXTRA_CFLAGS -fvisibility=hidden"
-    EXTRA_LDFLAGS="$EXTRA_LDFLAGS -export-symbols $ext_srcdir/datadog.sym -flto -fuse-linker-plugin"
+    case $host_os in
+      linux*) DDTRACE_EXPORT_SYMBOLS="$ext_srcdir/datadog-linux.sym" ;;
+      *) DDTRACE_EXPORT_SYMBOLS="$ext_srcdir/datadog.sym" ;;
+    esac
+    EXTRA_LDFLAGS="$EXTRA_LDFLAGS -export-symbols $DDTRACE_EXPORT_SYMBOLS -flto -fuse-linker-plugin"
 
     dnl On Linux: set the ELF entry point so ddtrace.so can be exec'd directly by ld.so
     dnl for sidecar spawning (no trampoline binary, no memfd, no temp files).

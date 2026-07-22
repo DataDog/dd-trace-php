@@ -26,7 +26,9 @@ static const zai_str ddog_php_prof_context_api_otel = ZAI_STRL("otel_thread_ctx_
 
 static ddtrace_profiling_context datadog_php_profiling_get_context(void);
 
+#if defined(__APPLE__)
 static ddog_php_context_discovery ddog_php_prof_context_discovery = {0};
+#endif
 
 #if defined(__linux__) || defined(__APPLE__)
 typedef struct ddog_php_prof_otel_thread_context_record {
@@ -174,10 +176,12 @@ static void locate_datadog_process_tags_get_serialized(const zend_extension *ext
     }
 }
 
+#if defined(__APPLE__)
 static void locate_datadog_otel_process_context(const zend_extension *extension) {
     ddog_php_context_discovery_resolve_ddtrace(
         &ddog_php_prof_context_discovery, extension->handle);
 }
+#endif
 
 static bool is_ddtrace_extension(const zend_extension *ext) {
     return ext && ext->name && strcmp(ext->name, "ddtrace") == 0;
@@ -311,7 +315,9 @@ void datadog_php_profiling_startup(zend_extension *extension) {
         if (maybe_ddtrace != extension && is_ddtrace_extension(maybe_ddtrace)) {
             locate_datadog_runtime_id(maybe_ddtrace);
             locate_datadog_process_tags_get_serialized(maybe_ddtrace);
+#if defined(__APPLE__)
             locate_datadog_otel_process_context(maybe_ddtrace);
+#endif
             break;
         }
     }
@@ -336,6 +342,7 @@ bool ddog_php_prof_otel_thread_ctx_rinit(void) {
 
 #endif
 
+#if defined(__APPLE__)
 bool ddog_php_prof_otel_process_ctx_rinit(const uint8_t **mapping_base, size_t *mapping_len) {
     if (!mapping_base || !mapping_len) {
         return false;
@@ -348,6 +355,7 @@ bool ddog_php_prof_otel_process_ctx_rinit(const uint8_t **mapping_base, size_t *
     *mapping_len = mapping.length;
     return mapping.address && mapping.length;
 }
+#endif
 
 zai_str datadog_php_profiling_context_api_name(void) {
 #if defined(__linux__) || defined(__APPLE__)

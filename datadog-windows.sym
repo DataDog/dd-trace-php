@@ -2,5 +2,3 @@ ddog_setup_crashtracking
 OutOfProcessExceptionEventCallback
 OutOfProcessExceptionEventSignatureCallback
 OutOfProcessExceptionEventDebuggerLaunchCallback
-ddog_process_ctx_v1
-ddog_thread_ctx_v1
