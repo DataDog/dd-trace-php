@@ -65,6 +65,7 @@ ZEND_BEGIN_MODULE_GLOBALS(datadog)
     zend_string *last_env_name;
     zend_string *last_version;
     ddog_Vec_Tag active_global_tags;
+    void *otel_process_context;
 
     bool request_initialized;
     ddog_SidecarActionsBuffer *telemetry_buffer;

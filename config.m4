@@ -224,6 +224,7 @@ if test "$PHP_DDTRACE" != "no"; then
     tracer/live_debugger.c \
     tracer/limiter/limiter.c \
     tracer/memory_limit.c \
+    tracer/otel_context.c \
     tracer/tracer_otel_config.c \
     tracer/priority_sampling/priority_sampling.c \
     tracer/profiling.c \

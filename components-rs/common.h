@@ -437,6 +437,10 @@ typedef enum ddog_SpanProbeTarget {
 
 typedef struct ddog_AgentInfoReader ddog_AgentInfoReader;
 
+typedef struct ddog_crasht_Config ddog_crasht_Config;
+
+typedef struct ddog_Configurator ddog_Configurator;
+
 typedef struct ddog_DebuggerPayload ddog_DebuggerPayload;
 
 typedef struct ddog_DslString ddog_DslString;
@@ -449,6 +453,8 @@ typedef struct ddog_HashMap_ShmCacheKey__ShmCache ddog_HashMap_ShmCacheKey__ShmC
 typedef struct ddog_InstanceId ddog_InstanceId;
 
 typedef struct ddog_MaybeShmLimiter ddog_MaybeShmLimiter;
+
+typedef struct ddog_PhpOtelProcessContext ddog_PhpOtelProcessContext;
 
 typedef struct ddog_ProbeCondition ddog_ProbeCondition;
 
@@ -479,6 +485,8 @@ typedef struct ddog_SidecarTransport ddog_SidecarTransport;
  * next call once the SHM becomes available.
  */
 typedef struct ddog_SpanConcentrator ddog_SpanConcentrator;
+
+typedef struct _zend_string *ddog_OwnedZendString;
 
 typedef struct ddog_FfeResult {
   _zend_string * value_json;
@@ -527,8 +535,6 @@ typedef struct ddog_Tag {
   ddog_CharSlice name;
   const struct ddog_DslString *value;
 } ddog_Tag;
-
-typedef struct _zend_string *ddog_OwnedZendString;
 
 typedef struct _zend_string *(*ddog_DynamicConfigUpdate)(ddog_CharSlice config,
                                                          ddog_OwnedZendString value,
@@ -713,6 +719,24 @@ typedef struct ddog_Vec_DebuggerPayload {
  * It contains a single field, `inner`, which is a 64-bit unsigned integer.
  */
 typedef uint64_t ddog_QueueId;
+
+/**
+ * A generic result type for when an operation may fail,
+ * but there's nothing to return in the case of success.
+ */
+typedef enum ddog_VoidResult_Tag {
+  DDOG_VOID_RESULT_OK,
+  DDOG_VOID_RESULT_ERR,
+} ddog_VoidResult_Tag;
+
+typedef struct ddog_VoidResult {
+  ddog_VoidResult_Tag tag;
+  union {
+    struct {
+      struct ddog_Error err;
+    };
+  };
+} ddog_VoidResult;
 
 /**
  * A (key, value) pair for peer-service tags, borrowed from PHP/concentrator memory.
@@ -1463,24 +1487,6 @@ typedef struct ddog_crasht_StackFrame ddog_crasht_StackFrame;
 
 typedef struct ddog_crasht_StackTrace ddog_crasht_StackTrace;
 
-/**
- * A generic result type for when an operation may fail,
- * but there's nothing to return in the case of success.
- */
-typedef enum ddog_VoidResult_Tag {
-  DDOG_VOID_RESULT_OK,
-  DDOG_VOID_RESULT_ERR,
-} ddog_VoidResult_Tag;
-
-typedef struct ddog_VoidResult {
-  ddog_VoidResult_Tag tag;
-  union {
-    struct {
-      struct ddog_Error err;
-    };
-  };
-} ddog_VoidResult;
-
 typedef struct ddog_crasht_Slice_CharSlice {
   /**
    * Should be non-null and suitably aligned for the underlying type. It is
@@ -1861,8 +1867,6 @@ typedef enum ddog_MetadataKind {
   DDOG_METADATA_KIND_PROCESS_TAGS = 7,
   DDOG_METADATA_KIND_CONTAINER_ID = 8,
 } ddog_MetadataKind;
-
-typedef struct ddog_Configurator ddog_Configurator;
 
 /**
  * This struct MUST be backward compatible.

@@ -13,6 +13,8 @@ pub struct ProfilerGlobals {
     /// Wrapped in `Cell` to prevent torn reads/writes when allocation hooks
     /// are called re-entrantly during `rinit()`/`rshutdown()`.
     pub zend_mm_state: Cell<ZendMMState>,
+    pub otel_process_context_base: *const u8,
+    pub otel_process_context_len: usize,
 }
 
 /// We need TSRM to call into GINIT and GSHUTDOWN to observe spawning and
@@ -29,6 +31,8 @@ pub static mut GLOBALS_ID: i32 = 0;
 #[cfg(not(php_zts))]
 pub static mut GLOBALS: ProfilerGlobals = ProfilerGlobals {
     zend_mm_state: Cell::new(ZendMMState::new()),
+    otel_process_context_base: ptr::null(),
+    otel_process_context_len: 0,
 };
 
 #[cfg(php_zts)]
@@ -85,12 +89,20 @@ pub unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
     #[cfg(php_zts)]
     crate::timeline::timeline_ginit();
 
-    // Initialize ZendMMState in PHP globals for ZTS builds. For NTS builds,
-    // this was already done in its const initializer.
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    {
+        // SAFETY: this is called by PHP's module globals ctor for the current PHP thread.
+        unsafe { crate::bindings::ddog_php_prof_otel_thread_ctx_ginit() };
+    }
+
+    // Initialize PHP globals for ZTS builds. For NTS builds, the static
+    // globals were already initialized in their const initializer.
     #[cfg(php_zts)]
     {
         let globals = _globals_ptr.cast::<ProfilerGlobals>();
         (*globals).zend_mm_state = Cell::new(ZendMMState::new());
+        (*globals).otel_process_context_base = ptr::null();
+        (*globals).otel_process_context_len = 0;
     }
 
     // SAFETY: this is called in thread ginit as expected, and no other places.

@@ -9,6 +9,7 @@
 
 #include "configuration.h"
 #include "excluded_modules.h"
+#include "ffi_utils.h"
 #include "agent_info.h"
 #include "logging.h"
 #include "phpinfo.h"
@@ -267,6 +268,10 @@ static PHP_GINIT_FUNCTION(datadog) {
     ZEND_TSRMLS_CACHE_UPDATE();
 #endif
     php_datadog_init_globals(datadog_globals);
+    datadog_globals->otel_process_context = datadog_otel_process_context_new();
+    if (!datadog_globals->otel_process_context) {
+        LOG(ERROR, "Failed to allocate the OTel process context; context sharing is disabled");
+    }
 #if ZTS
     datadog_thread_ginit();
 #endif
@@ -350,6 +355,10 @@ static PHP_GSHUTDOWN_FUNCTION(datadog) {
 #if ZTS
     datadog_thread_gshutdown();
 #endif
+    if (datadog_globals->otel_process_context) {
+        datadog_otel_process_context_drop(datadog_globals->otel_process_context);
+        datadog_globals->otel_process_context = NULL;
+    }
     if (datadog_globals->remote_config_state) {
         ddog_shutdown_remote_config(datadog_globals->remote_config_state);
     }
@@ -566,6 +575,18 @@ static void dd_rinit_once(void) {
 
 static pthread_once_t dd_rinit_once_control = PTHREAD_ONCE_INIT;
 
+typedef struct {
+    const uint8_t *address;
+    uintptr_t length;
+} ddog_process_ctx_mapping;
+
+DATADOG_PUBLIC ddog_process_ctx_mapping ddog_process_ctx_v1(void) {
+    ddog_process_ctx_mapping mapping = {0};
+    datadog_otel_process_context_mapping(
+        DATADOG_G(otel_process_context), &mapping.address, &mapping.length);
+    return mapping;
+}
+
 static PHP_RINIT_FUNCTION(datadog) {
     UNUSED(module_number, type);
 
@@ -580,6 +601,22 @@ static PHP_RINIT_FUNCTION(datadog) {
 
     // Things that should only run on the first RINIT after each minit.
     pthread_once(&dd_rinit_once_control, dd_rinit_once);
+
+    // Module globals are thread-local in ZTS builds, so each thread owns and publishes its fixed
+    // mapping. In NTS this updates the single process mapping on each request.
+    if (DATADOG_G(otel_process_context)) {
+        zend_string *process_tags = datadog_process_tags_get_serialized();
+        bool published = datadog_otel_process_context_publish(
+            DATADOG_G(otel_process_context),
+            dd_zend_string_to_CharSlice(get_DD_HOSTNAME()),
+            dd_zend_string_to_CharSlice(get_DD_SERVICE()),
+            dd_zend_string_to_CharSlice(get_DD_ENV()),
+            dd_zend_string_to_CharSlice(get_DD_VERSION()),
+            dd_zend_string_to_CharSlice(process_tags));
+        if (!published) {
+            LOG(ERROR, "Failed to publish the OTel process context; tracing will continue without context sharing");
+        }
+    }
 
     datadog_log_rinit(PG(error_log));
 

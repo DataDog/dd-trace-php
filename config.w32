@@ -66,6 +66,7 @@ if (PHP_DDTRACE != 'no') {
 	DDTRACE_TRACER_SOURCES += " ip_extraction.c";
 	DDTRACE_TRACER_SOURCES += " live_debugger.c";
 	DDTRACE_TRACER_SOURCES += " memory_limit.c";
+	DDTRACE_TRACER_SOURCES += " otel_context.c";
 	DDTRACE_TRACER_SOURCES += " tracer_otel_config.c";
 	DDTRACE_TRACER_SOURCES += " profiling.c";
 	DDTRACE_TRACER_SOURCES += " random.c";

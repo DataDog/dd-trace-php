@@ -25,6 +25,7 @@
 #include "standalone_limiter.h"
 #include "code_origins.h"
 #include "endpoint_guessing.h"
+#include "otel_context.h"
 
 #define USE_REALTIME_CLOCK 0
 #define USE_MONOTONIC_CLOCK 1
@@ -87,6 +88,7 @@ void ddtrace_free_span_stacks(bool silent) {
     while (DDTRACE_G(active_stack)->root_span && DDTRACE_G(active_stack) == DDTRACE_G(active_stack)->root_span->stack) {
         ddtrace_switch_span_stack(DDTRACE_G(active_stack)->parent_stack);
     }
+    ddtrace_otel_detach();
 
     zend_objects_store *objects = &EG(objects_store);
     zend_object **end = objects->object_buckets + 1;
@@ -316,6 +318,12 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
     span->root = DDTRACE_G(active_stack)->root_span;
 
     ddtrace_set_global_span_properties(span);
+    if (root_span) {
+        ddtrace_otel_init_root_span(ROOTSPANDATA(&span->std));
+        ddtrace_otel_attach_stack(DDTRACE_G(active_stack));
+    } else {
+        ddtrace_otel_update_span_id(span->root, span->span_id);
+    }
 
     if (root_span) {
         ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
@@ -592,6 +600,7 @@ void ddtrace_switch_span_stack(ddtrace_span_stack *target_stack) {
     GC_ADDREF(&target_stack->std);
     ddtrace_span_stack *active_stack = DDTRACE_G(active_stack);
     DDTRACE_G(active_stack) = target_stack;
+    ddtrace_otel_attach_stack(target_stack);
     OBJ_RELEASE(&active_stack->std);
 }
 
@@ -958,6 +967,13 @@ void ddtrace_close_top_span_without_stack_swap(ddtrace_span_data *span) {
     } else {
         ZVAL_NULL(&stack->property_active);
     }
+    if (stack == DDTRACE_G(active_stack)) {
+        if (stack->active) {
+            ddtrace_otel_update_span_id(stack->root_span, SPANDATA(stack->active)->span_id);
+        } else {
+            ddtrace_otel_detach();
+        }
+    }
 #if PHP_VERSION_ID < 70400
     // On PHP 7.3 and prior PHP will just destroy all unchanged references in cycle collection, in particular given that it does not appear in get_gc
     // Artificially increase refcount here thus.
@@ -1084,6 +1100,11 @@ void ddtrace_drop_span(ddtrace_span_data *span) {
         GC_ADDREF(&stack->active->std);
     } else {
         ZVAL_NULL(&stack->property_active);
+    }
+    if (stack->active) {
+        ddtrace_otel_update_span_id(stack->root_span, SPANDATA(stack->active)->span_id);
+    } else {
+        ddtrace_otel_detach();
     }
 
     ++DDTRACE_G(dropped_spans_count);
