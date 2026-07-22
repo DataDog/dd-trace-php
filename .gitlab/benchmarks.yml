@@ -208,7 +208,7 @@ check-big-regressions:
   stage: gate
   needs: [ "benchmarks-tracer" ]
   tags: [ "arch:amd64" ]
-  image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:latest
+  image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:newest
   script: |
     if [ -f "reports/skip-reason.txt" ]; then
       echo "Benchmarks were skipped (no relevant file changes) - regression check not needed"
