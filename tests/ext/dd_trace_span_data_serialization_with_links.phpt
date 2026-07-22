@@ -16,6 +16,8 @@ DDTrace\trace_function('foo',
         $span->name = 'foo';
 
         $firstLink = $span->getLink();
+        // Drive the link through the real serialization path (produces meta["_dd.span_links"]).
+        $span->links = [$firstLink];
     }
 );
 
@@ -24,6 +26,8 @@ DDTrace\trace_function('bar',
         $span->name = 'bar';
 
         $secondLink = $span->getLink();
+        // Drive the link through the real serialization path (produces meta["_dd.span_links"]).
+        $span->links = [$secondLink];
     }
 );
 
@@ -39,28 +43,15 @@ foo();
 bar();
 baz();
 
-var_dump(json_encode($firstLink));
-var_dump($firstLink->jsonSerialize());
-var_dump(json_encode($secondLink));
-var_dump($secondLink->jsonSerialize());
-var_dump(dd_clean_spans()[0]);
+$spans = dd_clean_spans();
+// baz carries both links; foo and bar each carry their own self-link. All are asserted through
+// the actual span serialization (meta["_dd.span_links"]), which is the real wire path.
+var_dump($spans[0]);
+var_dump($spans[1]['name'], $spans[1]['meta']['_dd.span_links']);
+var_dump($spans[2]['name'], $spans[2]['meta']['_dd.span_links']);
 
 ?>
 --EXPECTF--
-string(76) "{"trace_id":"%sc151df7d6ee5e2d6","span_id":"a3978fb9b92502a8"}"
-array(5) {
-  ["trace_id"]=>
-  string(32) "%sc151df7d6ee5e2d6"
-  ["span_id"]=>
-  string(16) "a3978fb9b92502a8"
-}
-string(76) "{"trace_id":"%sc151df7d6ee5e2d6","span_id":"c08c967f0e5e7b0a"}"
-array(5) {
-  ["trace_id"]=>
-  string(32) "%sc151df7d6ee5e2d6"
-  ["span_id"]=>
-  string(16) "c08c967f0e5e7b0a"
-}
 array(10) {
   ["trace_id"]=>
   string(20) "13930160852258120406"
@@ -86,3 +77,7 @@ array(10) {
     string(155) "[{"trace_id":"%sc151df7d6ee5e2d6","span_id":"a3978fb9b92502a8"},{"trace_id":"%sc151df7d6ee5e2d6","span_id":"c08c967f0e5e7b0a"}]"
   }
 }
+string(3) "bar"
+string(78) "[{"trace_id":"%sc151df7d6ee5e2d6","span_id":"c08c967f0e5e7b0a"}]"
+string(3) "foo"
+string(78) "[{"trace_id":"%sc151df7d6ee5e2d6","span_id":"a3978fb9b92502a8"}]"

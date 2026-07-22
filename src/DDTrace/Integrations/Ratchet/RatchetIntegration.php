@@ -45,14 +45,6 @@ class RatchetIntegration extends Integration
     const NAME = 'ratchet';
 
     /**
-     * {@inheritdoc}
-     */
-    public static function requiresExplicitTraceAnalyticsEnabling(): bool
-    {
-        return false;
-    }
-
-    /**
      * @return int
      */
     public static function init(): int
@@ -183,7 +175,6 @@ class RatchetIntegration extends Integration
             $activeSpan->type = Type::WEB_SERVLET;
             $activeSpan->meta[Tag::COMPONENT] = self::NAME;
             $activeSpan->meta[Tag::SPAN_KIND] = 'server';
-            RatchetIntegration::addTraceAnalyticsIfEnabled($activeSpan);
 
             ObjectKVStore::put($parentConn, "handshake", $activeSpan);
 

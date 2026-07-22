@@ -16,14 +16,6 @@ class ZendFrameworkIntegration extends Integration
     const NAME = 'zendframework';
 
     /**
-     * {@inheritdoc}
-     */
-    public static function requiresExplicitTraceAnalyticsEnabling(): bool
-    {
-        return false;
-    }
-
-    /**
      * Loads the zend framework integration.
      *
      * @return int
@@ -48,7 +40,6 @@ class ZendFrameworkIntegration extends Integration
                 try {
                     /** @var Zend_Controller_Request_Abstract $request */
                     list($request) = $args;
-                    self::addTraceAnalyticsIfEnabled($rootSpan);
                     $rootSpan->name = self::getOperationName();
                     // For backward compatibility with the legacy API we are not using the integration
                     // name 'zendframework', we are instead using the 'zf1' prefix.

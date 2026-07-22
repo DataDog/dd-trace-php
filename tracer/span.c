@@ -151,6 +151,11 @@ static ddtrace_span_data *ddtrace_init_span(enum ddtrace_span_dataype type, zend
     object_init_ex(&fci_zv, ce);
     ddtrace_span_data *span = OBJ_SPANDATA(Z_OBJ(fci_zv));
     span->type = type;
+#if PHP_VERSION_ID < 80000
+    // PHP 7 array-typed properties default to null; materialize `attributes` to match its
+    // `= []` stub default (as on PHP 8).
+    ddtrace_property_array(&span->property_attributes);
+#endif
     return span;
 }
 
@@ -232,7 +237,9 @@ ddtrace_inferred_span_data *ddtrace_open_inferred_span(ddtrace_inferred_proxy_re
 
     ZVAL_LONG(&zv, 1);
     zend_hash_str_add_new(ddtrace_property_array(&span->property_metrics), ZEND_STRL("_dd.inferred_span"), &zv);
-    add_assoc_string(&span->property_meta, "component", (char *)proxy_info->component);
+    // Set on the property; the serializer mirrors it into meta["component"] at serialization time.
+    zval_ptr_dtor(&span->property_component);
+    ZVAL_STRING(&span->property_component, (char *)proxy_info->component);
     ZVAL_STR(&span->property_type, zend_string_init(ZEND_STRL("web"), 0));
 
     free_inferred_proxy_result(result);
@@ -597,6 +604,10 @@ static ddtrace_span_stack *dd_alloc_span_stack(void) {
     zval fci_zv;
     object_init_ex(&fci_zv, ddtrace_ce_span_stack);
     ddtrace_span_stack *span_stack = (ddtrace_span_stack *)Z_OBJ(fci_zv);
+#if PHP_VERSION_ID < 80000
+    // See ddtrace_init_span: materialize `attributes` to an empty array on PHP 7.
+    ddtrace_property_array(&span_stack->property_attributes);
+#endif
     return span_stack;
 }
 

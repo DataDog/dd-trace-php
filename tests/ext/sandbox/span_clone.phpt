@@ -27,17 +27,13 @@ var_dump(dd_clean_spans());
 
 ?>
 --EXPECTF--
-object(DDTrace\RootSpanData)#%d (24) {
+object(DDTrace\RootSpanData)#%d (29) {
   ["name"]=>
   string(3) "foo"
   ["resource"]=>
   string(3) "abc"
   ["service"]=>
   string(14) "span_clone.php"
-  ["env"]=>
-  string(0) ""
-  ["version"]=>
-  string(0) ""
   ["meta_struct"]=>
   array(0) {
   }
@@ -69,14 +65,17 @@ object(DDTrace\RootSpanData)#%d (24) {
   ["parent"]=>
   NULL
   ["stack"]=>
-  object(DDTrace\SpanStack)#%d (3) {
+  object(DDTrace\SpanStack)#%d (4) {
     ["parent"]=>
-    object(DDTrace\SpanStack)#%d (3) {
+    object(DDTrace\SpanStack)#%d (4) {
       ["parent"]=>
       NULL
       ["active"]=>
       NULL
       ["spanCreationObservers"]=>
+      array(0) {
+      }
+      ["attributes"]=>
       array(0) {
       }
     }
@@ -85,18 +84,34 @@ object(DDTrace\RootSpanData)#%d (24) {
     ["spanCreationObservers"]=>
     array(0) {
     }
+    ["attributes"]=>
+    array(0) {
+    }
   }
   ["onClose"]=>
   array(0) {
   }
   ["baggage"]=>
   array(0) {
+  }
+  ["env"]=>
+  string(0) ""
+  ["version"]=>
+  string(0) ""
+  ["component"]=>
+  string(0) ""
+  ["spanKind"]=>
+  int(0)
+  ["attributes"]=>
+  array(0) {
   }%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
   ["propagatedTags"]=>
   array(0) {
   }
   ["samplingPriority"]=>
-  int(1073741824)%r(\s*\["propagatedSamplingPriority"\]=>\s+uninitialized\(int\)\s*\["tracestate"\]=>\s+uninitialized\(string\))?%r
+  int(1073741824)
+  ["samplingMechanism"]=>
+  int(0)%r(\s*\["propagatedSamplingPriority"\]=>\s+uninitialized\(int\)\s*\["tracestate"\]=>\s+uninitialized\(string\))?%r
   ["tracestateTags"]=>
   array(0) {
   }%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
@@ -106,18 +121,16 @@ object(DDTrace\RootSpanData)#%d (24) {
   NULL
   ["inferredSpan"]=>
   NULL
+  ["hostname"]=>
+  string(0) ""
 }
-object(DDTrace\RootSpanData)#%d (24) {
+object(DDTrace\RootSpanData)#%d (29) {
   ["name"]=>
   string(5) "dummy"
   ["resource"]=>
   string(3) "abc"
   ["service"]=>
   string(14) "span_clone.php"
-  ["env"]=>
-  string(0) ""
-  ["version"]=>
-  string(0) ""
   ["meta_struct"]=>
   array(0) {
   }
@@ -149,9 +162,9 @@ object(DDTrace\RootSpanData)#%d (24) {
   ["parent"]=>
   NULL
   ["stack"]=>
-  object(DDTrace\SpanStack)#%d (3) {
+  object(DDTrace\SpanStack)#%d (4) {
     ["parent"]=>
-    object(DDTrace\SpanStack)#%d (3) {
+    object(DDTrace\SpanStack)#%d (4) {
       ["parent"]=>
       NULL
       ["active"]=>
@@ -159,19 +172,18 @@ object(DDTrace\RootSpanData)#%d (24) {
       ["spanCreationObservers"]=>
       array(0) {
       }
+      ["attributes"]=>
+      array(0) {
+      }
     }
     ["active"]=>
-    object(DDTrace\RootSpanData)#%d (24) {
+    object(DDTrace\RootSpanData)#%d (29) {
       ["name"]=>
       string(3) "foo"
       ["resource"]=>
       string(3) "abc"
       ["service"]=>
       string(14) "span_clone.php"
-      ["env"]=>
-      string(0) ""
-      ["version"]=>
-      string(0) ""
       ["meta_struct"]=>
       array(0) {
       }
@@ -209,12 +221,25 @@ object(DDTrace\RootSpanData)#%d (24) {
       }
       ["baggage"]=>
       array(0) {
+      }
+      ["env"]=>
+      string(0) ""
+      ["version"]=>
+      string(0) ""
+      ["component"]=>
+      string(0) ""
+      ["spanKind"]=>
+      int(0)
+      ["attributes"]=>
+      array(0) {
       }%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
       ["propagatedTags"]=>
       array(0) {
       }
       ["samplingPriority"]=>
-      int(1073741824)%r(\s*\["propagatedSamplingPriority"\]=>\s+uninitialized\(int\)\s*\["tracestate"\]=>\s+uninitialized\(string\))?%r
+      int(1073741824)
+      ["samplingMechanism"]=>
+      int(0)%r(\s*\["propagatedSamplingPriority"\]=>\s+uninitialized\(int\)\s*\["tracestate"\]=>\s+uninitialized\(string\))?%r
       ["tracestateTags"]=>
       array(0) {
       }%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
@@ -224,8 +249,13 @@ object(DDTrace\RootSpanData)#%d (24) {
       NULL
       ["inferredSpan"]=>
       NULL
+      ["hostname"]=>
+      string(0) ""
     }
     ["spanCreationObservers"]=>
+    array(0) {
+    }
+    ["attributes"]=>
     array(0) {
     }
   }
@@ -234,12 +264,25 @@ object(DDTrace\RootSpanData)#%d (24) {
   }
   ["baggage"]=>
   array(0) {
+  }
+  ["env"]=>
+  string(0) ""
+  ["version"]=>
+  string(0) ""
+  ["component"]=>
+  string(0) ""
+  ["spanKind"]=>
+  int(0)
+  ["attributes"]=>
+  array(0) {
   }%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
   ["propagatedTags"]=>
   array(0) {
   }
   ["samplingPriority"]=>
-  int(1073741824)%r(\s*\["propagatedSamplingPriority"\]=>\s+uninitialized\(int\)\s*\["tracestate"\]=>\s+uninitialized\(string\))?%r
+  int(1073741824)
+  ["samplingMechanism"]=>
+  int(0)%r(\s*\["propagatedSamplingPriority"\]=>\s+uninitialized\(int\)\s*\["tracestate"\]=>\s+uninitialized\(string\))?%r
   ["tracestateTags"]=>
   array(0) {
   }%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
@@ -249,6 +292,8 @@ object(DDTrace\RootSpanData)#%d (24) {
   NULL
   ["inferredSpan"]=>
   NULL
+  ["hostname"]=>
+  string(0) ""
 }
 array(1) {
   [0]=>

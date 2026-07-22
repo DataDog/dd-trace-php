@@ -116,7 +116,6 @@ class MongoIntegration extends Integration
 
         \DDTrace\trace_method('MongoCollection', 'distinct', static function (SpanData $span, $args) {
             self::addSpanDefaultMetadata($span, 'MongoCollection', 'distinct');
-            self::addTraceAnalyticsIfEnabled($span);
             if (isset($args[1])) {
                 $span->meta[Tag::MONGODB_QUERY] = json_encode($args[1]);
             }
@@ -133,11 +132,11 @@ class MongoIntegration extends Integration
             }
         );
 
-        self::traceMongoQuery('MongoCollection', 'count', false);
+        self::traceMongoQuery('MongoCollection', 'count');
         self::traceMongoQuery('MongoCollection', 'find');
         self::traceMongoQuery('MongoCollection', 'findAndModify');
         self::traceMongoQuery('MongoCollection', 'findOne');
-        self::traceMongoQuery('MongoCollection', 'remove', false);
+        self::traceMongoQuery('MongoCollection', 'remove');
         self::traceMongoQuery('MongoCollection', 'update');
 
         self::traceMongoMethod('MongoCollection', 'aggregate');
@@ -253,23 +252,16 @@ class MongoIntegration extends Integration
 
     /**
      * Utility method to trace all query methods that have the query as the first argument.
-     * If the param {$isTraceAnalithicsCandidate} is set to true (default behavior) the span
-     * generated is also marked as trace analytics candidate.
-     *
      * @param string $class
      * @param string $method
-     * @param boolean $isTraceAnalyticsCandidate [default: `true`]
      */
-    public static function traceMongoQuery($class, $method, $isTraceAnalyticsCandidate = true)
+    public static function traceMongoQuery($class, $method)
     {
         \DDTrace\trace_method(
             $class,
             $method,
-            static function (SpanData $span, $args) use ($class, $method, $isTraceAnalyticsCandidate) {
+            static function (SpanData $span, $args) use ($class, $method) {
                 self::addSpanDefaultMetadata($span, $class, $method);
-                if ($isTraceAnalyticsCandidate) {
-                    self::addTraceAnalyticsIfEnabled($span);
-                }
                 if (isset($args[0])) {
                     $span->meta[Tag::MONGODB_QUERY] = json_encode($args[0]);
                 }

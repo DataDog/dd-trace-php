@@ -132,7 +132,6 @@ class ElasticSearchIntegration extends Integration
                     $span->name = "Elasticsearch.Client.$name";
 
                     if ($isTraceAnalyticsCandidate) {
-                        self::addTraceAnalyticsIfEnabled($span);
                         self::$logNextBody = true;
                     }
 

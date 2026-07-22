@@ -204,7 +204,6 @@ class WordPressIntegrationLoader
             // Overwrite the default web integration
             $rootSpan = \DDTrace\root_span();
             if ($rootSpan) {
-                WordPressIntegration::addTraceAnalyticsIfEnabled($rootSpan);
                 $rootSpan->name = 'wordpress.request';
                 $rootSpan->service = \ddtrace_config_app_name(WordPressIntegration::NAME);;
                 $rootSpan->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
@@ -231,7 +230,6 @@ class WordPressIntegrationLoader
                 );
             }
         });
-
 
         hook_function('wp_templating_constants', null, static function () {
             global $wp_theme_directories;
