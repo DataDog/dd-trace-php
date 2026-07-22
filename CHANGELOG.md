@@ -14,6 +14,7 @@ Changelog for older versions can be found in our [release page](https://github.c
 ## Tracer
 ### Fixed
 - Fix unbounded memory growth (leading to OOM) from `curl_multi_exec` parent spans when the span limit is already reached #4030
+- Fix a Live Debugger probe-removal use-after-free, tags leak, and PHP 7.x Windows crash #4036
 
 ### Internal
 - Signal whether the service name was user-set or auto-resolved via new `svc.user`/`svc.auto` process tags #3921, DataDog/libdatadog#2053
