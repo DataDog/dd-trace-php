@@ -575,6 +575,7 @@ static void dd_rinit_once(void) {
 
 static pthread_once_t dd_rinit_once_control = PTHREAD_ONCE_INIT;
 
+#if !defined(__linux__)
 typedef struct {
     const uint8_t *address;
     uintptr_t length;
@@ -586,6 +587,7 @@ DATADOG_PUBLIC ddog_process_ctx_mapping ddog_process_ctx_v1(void) {
         DATADOG_G(otel_process_context), &mapping.address, &mapping.length);
     return mapping;
 }
+#endif
 
 static PHP_RINIT_FUNCTION(datadog) {
     UNUSED(module_number, type);

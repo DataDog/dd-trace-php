@@ -13,7 +13,9 @@ pub struct ProfilerGlobals {
     /// Wrapped in `Cell` to prevent torn reads/writes when allocation hooks
     /// are called re-entrantly during `rinit()`/`rshutdown()`.
     pub zend_mm_state: Cell<ZendMMState>,
+    #[cfg(target_os = "macos")]
     pub otel_process_context_base: *const u8,
+    #[cfg(target_os = "macos")]
     pub otel_process_context_len: usize,
 }
 
@@ -31,7 +33,9 @@ pub static mut GLOBALS_ID: i32 = 0;
 #[cfg(not(php_zts))]
 pub static mut GLOBALS: ProfilerGlobals = ProfilerGlobals {
     zend_mm_state: Cell::new(ZendMMState::new()),
+    #[cfg(target_os = "macos")]
     otel_process_context_base: ptr::null(),
+    #[cfg(target_os = "macos")]
     otel_process_context_len: 0,
 };
 
@@ -101,7 +105,9 @@ pub unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
     {
         let globals = _globals_ptr.cast::<ProfilerGlobals>();
         (*globals).zend_mm_state = Cell::new(ZendMMState::new());
+        #[cfg(target_os = "macos")]
         (*globals).otel_process_context_base = ptr::null();
+        #[cfg(target_os = "macos")]
         (*globals).otel_process_context_len = 0;
     }
 

@@ -28,7 +28,9 @@ typedef struct {
 } datadog_otel_thr_ctx_rec;
 
 /** Return the address of this thread's active OTel context pointer. */
+#if !defined(__linux__)
 DATADOG_PUBLIC void **ddog_thread_ctx_v1(void);
+#endif
 
 /**
  * Initialize the OTel thread-context record embedded in root after root span

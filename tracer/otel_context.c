@@ -53,26 +53,38 @@ _Static_assert(
 #if defined(__linux__)
 extern __thread void *otel_thread_ctx_v1;
 
-DATADOG_PUBLIC void **ddog_thread_ctx_v1(void) {
+static void **ddtrace_otel_thread_ctx_slot(void) {
     return &otel_thread_ctx_v1;
 }
 #elif defined(__APPLE__)
 DATADOG_PUBLIC __thread void *otel_thread_ctx_v1 = NULL;
 
-DATADOG_PUBLIC void **ddog_thread_ctx_v1(void) {
+static void **ddtrace_otel_thread_ctx_slot(void) {
     return &otel_thread_ctx_v1;
+}
+
+DATADOG_PUBLIC void **ddog_thread_ctx_v1(void) {
+    return ddtrace_otel_thread_ctx_slot();
 }
 #elif defined(_WIN32)
 static __declspec(thread) void *ddog_php_thread_ctx_v1 = NULL;
 
-DATADOG_PUBLIC void **ddog_thread_ctx_v1(void) {
+static void **ddtrace_otel_thread_ctx_slot(void) {
     return &ddog_php_thread_ctx_v1;
+}
+
+DATADOG_PUBLIC void **ddog_thread_ctx_v1(void) {
+    return ddtrace_otel_thread_ctx_slot();
 }
 #else
 static __thread void *ddog_php_thread_ctx_v1 = NULL;
 
-DATADOG_PUBLIC void **ddog_thread_ctx_v1(void) {
+static void **ddtrace_otel_thread_ctx_slot(void) {
     return &ddog_php_thread_ctx_v1;
+}
+
+DATADOG_PUBLIC void **ddog_thread_ctx_v1(void) {
+    return ddtrace_otel_thread_ctx_slot();
 }
 #endif
 
@@ -147,11 +159,11 @@ void ddtrace_otel_attach_stack(ddtrace_span_stack *stack) {
 
 void ddtrace_otel_detach(void) {
     atomic_signal_fence(memory_order_release);
-    *ddog_thread_ctx_v1() = NULL;
+    *ddtrace_otel_thread_ctx_slot() = NULL;
 }
 
 void ddtrace_detach_otel_thread_context_for_root(ddtrace_root_span_data *root_span) {
-    if (root_span && *ddog_thread_ctx_v1() == &root_span->otel_context) {
+    if (root_span && *ddtrace_otel_thread_ctx_slot() == &root_span->otel_context) {
         ddtrace_otel_detach();
     }
 }
@@ -168,7 +180,7 @@ static void ddtrace_otel_record_end_update(datadog_otel_thr_ctx_rec *record) {
 
 static void ddtrace_otel_attach(datadog_otel_thr_ctx_rec *record) {
     atomic_signal_fence(memory_order_release);
-    *ddog_thread_ctx_v1() = record;
+    *ddtrace_otel_thread_ctx_slot() = record;
 }
 
 static ddtrace_span_data *ddtrace_otel_entrypoint_span(void) {

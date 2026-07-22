@@ -17,7 +17,9 @@ use http::uri::{PathAndQuery, Scheme};
 use http::Uri;
 use libdd_alloc::{Allocator, VirtualAllocator};
 use libdd_common::entity_id::{get_container_id, set_cgroup_file};
-use libdd_library_config::otel_process_ctx::{self, ProcessContextMapping};
+use libdd_library_config::otel_process_ctx;
+#[cfg(not(target_os = "linux"))]
+use libdd_library_config::otel_process_ctx::ProcessContextMapping;
 use libdd_library_config::tracer_metadata::{ThreadLocalMetadata, TracerMetadata};
 use std::borrow::Cow;
 use std::ffi::{c_char, OsStr};
@@ -75,6 +77,7 @@ fn allocate_otel_process_context(
 }
 
 impl PhpOtelProcessContext {
+    #[cfg(not(target_os = "linux"))]
     fn mapping(&self) -> std::io::Result<ProcessContextMapping> {
         let allocation = self.allocation.ok_or_else(|| {
             std::io::Error::new(std::io::ErrorKind::NotFound, "no caller-owned mapping")
@@ -90,6 +93,7 @@ impl PhpOtelProcessContext {
 
 impl Drop for PhpOtelProcessContext {
     fn drop(&mut self) {
+        #[cfg(not(target_os = "linux"))]
         if self.initialized {
             if let Ok(mapping) = self.mapping() {
                 otel_process_ctx::invalidate(mapping);
@@ -209,6 +213,7 @@ pub unsafe extern "C" fn datadog_otel_process_context_publish(
 }
 
 #[no_mangle]
+#[cfg(not(target_os = "linux"))]
 pub unsafe extern "C" fn datadog_otel_process_context_mapping(
     storage: *const PhpOtelProcessContext,
     base: *mut *const u8,

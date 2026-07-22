@@ -8,6 +8,7 @@
 #include <dlfcn.h>
 #endif
 
+#if !defined(__linux__)
 typedef ddog_php_process_ctx_mapping (*ddog_php_process_ctx_fn)(void);
 typedef void **(*ddog_php_thread_ctx_fn)(void);
 
@@ -18,6 +19,7 @@ static void *ddog_php_context_symbol(void *module_handle, const char *name) {
     return module_handle ? dlsym(module_handle, name) : NULL;
 #endif
 }
+#endif
 
 void *ddog_php_context_discovery_resolve_tls(void *symbol) {
 #ifdef __APPLE__
@@ -34,6 +36,7 @@ void *ddog_php_context_discovery_resolve_tls(void *symbol) {
 #endif
 }
 
+#if !defined(__linux__)
 void ddog_php_context_discovery_reset(ddog_php_context_discovery *discovery) {
     if (discovery) {
         memset(discovery, 0, sizeof(*discovery));
@@ -57,6 +60,7 @@ ddog_php_process_ctx_mapping ddog_php_context_discovery_process_mapping(const dd
 void **ddog_php_context_discovery_thread_slot(const ddog_php_context_discovery *discovery) {
     return discovery && discovery->thread_ctx ? discovery->thread_ctx() : NULL;
 }
+#endif
 
 void **ddog_php_context_discovery_otel_thread_slot(void) {
 #if defined(__linux__) || defined(__APPLE__)

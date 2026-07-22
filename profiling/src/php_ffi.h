@@ -123,7 +123,9 @@ bool ddog_php_prof_otel_thread_ctx_rinit(void);
 #endif
 
 /** Refreshes the process-context mapping retained in the profiler module globals. */
+#if defined(__APPLE__)
 bool ddog_php_prof_otel_process_ctx_rinit(const uint8_t **mapping_base, size_t *mapping_len);
+#endif
 
 /**
  * Copies the current OTel thread context for Rust-side decoding. Returns false
