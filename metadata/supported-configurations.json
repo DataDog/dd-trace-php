@@ -36,6 +36,13 @@
         "default": "true"
       }
     ],
+    "DD_APPSEC_AGENTIC_ONBOARDING": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": ""
+      }
+    ],
     "DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING_ENABLED": [
       {
         "implementation": "A",
