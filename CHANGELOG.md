@@ -1,38 +1,36 @@
 Changelog for older versions can be found in our [release page](https://github.com/DataDog/dd-trace-php/releases).
 
+## All products
+### Fixed
+- Surface SSI incompatible runtime (Xdebug, OPcache JIT) as `incompatible_runtime` injection metadata, so diagnostics can explain why profiles appear but traces are missing #4021
+- Sanitize crash report type and message for unhandled exceptions DataDog/libdatadog#2148
+
+### Changed
+- Crash reports for unhandled exceptions now include native stacks for every thread, including the crashing thread DataDog/libdatadog#2155
+
+### Internal
+- Exclude PHP build PRs from the config telemetry monitor #3982
+
 ## Tracer
 ### Fixed
-- Fix `SpanStack::$active` unset corruption #3962
-- Fix sandbox not saving/restoring `jit_trace_num` #3964
-- Fix `SpanStack` state corruption when tracing objects with deep clone operations #3976
-- Fix `request_exec` being issued between requests #3939
-- Fix Azure Functions instance name resolution DataDog/libdatadog#2077
-- Fix remote config `tracing_sample_rate` missing/null deserialization DataDog/libdatadog#2102
+- Fix unbounded memory growth (leading to OOM) from `curl_multi_exec` parent spans when the span limit is already reached #4030
 
 ### Internal
-- Fix crashtracker metadata: correctly distinguish JIT disabled vs opcache disabled, and correct system INI classification #3965
-- Use libdatadog's CSS trace filter implementation, aligning filtering behavior with the agent #3986, DataDog/libdatadog#1985
-- Add configurable sidecar connection retry interval #3977, DataDog/libdatadog#2106
-- Emit `_dd.svc_src` span tag per Service Override Source Attribution RFC #3948
-- Fix duplicate span serialization in the sidecar DataDog/libdatadog#2107
+- Signal whether the service name was user-set or auto-resolved via new `svc.user`/`svc.auto` process tags #3921, DataDog/libdatadog#2053
+- Correct published type/default metadata for `OTEL_*` SDK-sourced configs #4005
+- Avoid redundant sidecar notifications when updating per-request Dynamic Instrumentation config DataDog/libdatadog#2146
 
 ## Profiling
-### Added
-- Add trampoline for frameless functions (FLF) to correctly capture timings on aarch64 and x86_64 #3595
-- Add experimental heap-live profiling for memory leak detection, enabled via `DD_PROFILING_EXPERIMENTAL_HEAP_LIVE_ENABLED` (requires allocation profiling to be active) #3623
-
 ### Fixed
-- Fix profiler crashes and hangs: stderr fd leak (`O_CLOEXEC` missing) causing child processes to hang, NULL file dereference in timeline error observer on PHP 8.0, and async signal delivery to helper threads causing a segfault on ZTS builds #3364
-- Fix macOS release builds for the profiler #3987
+- Fix an illegal-instruction crash on Apple AArch64 in generated PHP frameless-call trampolines #4038
 
-### Internal
-- Replace `lazy_static` with `std::sync::LazyLock` and optimize `Sapi`/`RefCellExt` #3990
-- Simplify profiler name/version string constants to compile-time values #3998
+### Changed
+- Faster string hashing and 3.7-5.3x faster statistical (Poisson) sampling via updated Rust dependencies #4038
 
 ## AppSec
-### Changed
-- Enable Rust helper by default for all PHP versions (can be disabled with `DD_APPSEC_HELPER_RUST_REDIRECTION=false`) #3991
+### Fixed
+- Avoid occasional "ruleset not found" errors after redeploys/upgrades by embedding a default ruleset in the Rust helper #4037
+- Pick up an upstream libddwaf fix avoiding an exception during user-resource comparison (bump to 2.0.1) #4033
 
 ### Internal
-- Implement `waf.error` and `rasp.error` error tracking metrics #3963
-- Harden `_assume_utf8` against potential out-of-bounds access #4009
+- Avoid an extra buffer copy in the Rust helper's client protocol #4029
