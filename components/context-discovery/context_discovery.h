@@ -23,7 +23,7 @@ void **ddog_php_context_discovery_thread_slot(const ddog_php_context_discovery *
 #endif
 void *ddog_php_context_discovery_resolve_tls(void *symbol);
 #if defined(__linux__)
-void **ddog_php_ctx_find_otel_thread_ctx(void);
+void **ddog_php_otel_thread_ctx_find(void);
 #endif
 
 #endif
