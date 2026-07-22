@@ -192,11 +192,13 @@ final class SpanBuilder implements API\SpanBuilderInterface
             ? $parentSpanContext->getTraceId()
             : \DDTrace\root_span()->traceId;
 
+        $samplingContext = $restartOrIgnore ? Context::getRoot() : $parentContext;
+
         $samplingResult = $this
             ->tracerSharedState
             ->getSampler()
             ->shouldSample(
-                $parentContext,
+                $samplingContext,
                 $traceId,
                 $this->spanName,
                 $this->spanKind,
