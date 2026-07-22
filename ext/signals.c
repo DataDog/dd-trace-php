@@ -307,7 +307,6 @@ void datadog_signals_first_rinit(void) {
     bool install_crashtracker = get_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_CRASHTRACKING_ENABLED();
 
     bool install_backtrace_handler = get_DD_TRACE_HEALTH_METRICS_ENABLED();
-    // TODO: Remove this since we have crashtracking now
 #if DATADOG_HAVE_BACKTRACE
     install_backtrace_handler |= get_DD_LOG_BACKTRACE();
 #endif
