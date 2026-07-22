@@ -22,6 +22,8 @@ ddog_php_process_ctx_mapping ddog_php_context_discovery_process_mapping(const dd
 void **ddog_php_context_discovery_thread_slot(const ddog_php_context_discovery *discovery);
 #endif
 void *ddog_php_context_discovery_resolve_tls(void *symbol);
-void **ddog_php_context_discovery_otel_thread_slot(void);
+#if defined(__linux__)
+void **ddog_php_ctx_find_otel_thread_ctx(void);
+#endif
 
 #endif
