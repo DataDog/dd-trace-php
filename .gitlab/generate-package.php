@@ -311,7 +311,7 @@ if ($suffix == "-alpine") {
 
 "compile appsec helper":
   stage: appsec
-  image: "registry.ddbuild.io/images/mirror/b1o7r7e0/nginx_musl_toolchain"
+  image: "registry.ddbuild.io/images/mirror/b1o7r7e0/nginx_musl_toolchain@sha256:54dcb1180d439b8e77df1caad55259401051b358448c9bb13f742b1c106dd1eb"
   tags: [ "arch:$ARCH" ]
   needs: [ "prepare code" ]
   parallel:
@@ -1037,7 +1037,7 @@ endforeach;
           - alpine:3.16
           - alpine:3.17
           - alpine:3.20
-          - alpine:latest
+          - alpine@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
         INSTALL_TYPE: *verify_install_types
       - IMAGE: <?= json_encode(array_map(function ($v) { return "php:$v-fpm-alpine"; }, $all_minor_major_targets)), "\n" ?>
         INSTALL_TYPE: *verify_install_types
