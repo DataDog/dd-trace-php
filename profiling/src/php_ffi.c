@@ -123,7 +123,7 @@ static ddtrace_profiling_context ddog_php_prof_read_otel_profiling_context(void)
 
 static void **ddog_php_prof_find_thread_ctx(void) {
 #ifdef __linux__
-    return ddog_php_ctx_find_otel_thread_ctx();
+    return ddog_php_otel_thread_ctx_find();
 #else
     return ddog_php_context_discovery_thread_slot(&ddog_php_prof_context_discovery);
 #endif
