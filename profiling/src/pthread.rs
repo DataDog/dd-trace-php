@@ -1,4 +1,4 @@
-use crate::allocation::alloc_prof_rshutdown;
+use crate::allocation::{alloc_prof_rshutdown, post_fork_child};
 use crate::{config, Profiler};
 use log::trace;
 
@@ -33,6 +33,7 @@ unsafe extern "C" fn child() {
         return;
     }
     trace!("Shutting down profiler for child process after fork");
+    post_fork_child();
     // Disable the profiler because this is the child, and we don't support this yet.
     // And then leak the old profiler. Its drop method is not safe to run in these situations.
     Profiler::kill();
