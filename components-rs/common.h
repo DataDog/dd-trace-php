@@ -412,8 +412,11 @@ typedef enum ddog_RemoteConfigCapabilities {
   DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_ENABLE_LIVE_DEBUGGING = 41,
   DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_DD_MULTICONFIG = 42,
   DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_TRACE_TAGGING_RULES = 43,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_EXTENDED_DATA_COLLECTION = 44,
   DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_MULTICONFIG = 45,
   DDOG_REMOTE_CONFIG_CAPABILITIES_FFE_FLAG_CONFIGURATION_RULES = 46,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_DD_DATA_STREAMS_TRANSACTION_EXTRACTORS = 47,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_LLM_OBS_ACTIVATION = 48,
 } ddog_RemoteConfigCapabilities;
 
 typedef enum ddog_RemoteConfigProduct {
@@ -426,6 +429,7 @@ typedef enum ddog_RemoteConfigProduct {
   DDOG_REMOTE_CONFIG_PRODUCT_ASM_FEATURES,
   DDOG_REMOTE_CONFIG_PRODUCT_FFE_FLAGS,
   DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGER,
+  DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGER_SYMBOL_DB,
 } ddog_RemoteConfigProduct;
 
 typedef enum ddog_SpanProbeTarget {
@@ -434,6 +438,10 @@ typedef enum ddog_SpanProbeTarget {
 } ddog_SpanProbeTarget;
 
 typedef struct ddog_AgentInfoReader ddog_AgentInfoReader;
+
+typedef struct ddog_crasht_Config ddog_crasht_Config;
+
+typedef struct ddog_Configurator ddog_Configurator;
 
 typedef struct ddog_DebuggerPayload ddog_DebuggerPayload;
 
@@ -447,6 +455,8 @@ typedef struct ddog_HashMap_ShmCacheKey__ShmCache ddog_HashMap_ShmCacheKey__ShmC
 typedef struct ddog_InstanceId ddog_InstanceId;
 
 typedef struct ddog_MaybeShmLimiter ddog_MaybeShmLimiter;
+
+typedef struct ddog_PhpOtelProcessContext ddog_PhpOtelProcessContext;
 
 typedef struct ddog_ProbeCondition ddog_ProbeCondition;
 
@@ -477,6 +487,8 @@ typedef struct ddog_SidecarTransport ddog_SidecarTransport;
  * next call once the SHM becomes available.
  */
 typedef struct ddog_SpanConcentrator ddog_SpanConcentrator;
+
+typedef struct _zend_string *ddog_OwnedZendString;
 
 typedef struct ddog_FfeResult {
   _zend_string * value_json;
@@ -523,8 +535,6 @@ typedef struct ddog_Tag {
   ddog_CharSlice name;
   const struct ddog_DslString *value;
 } ddog_Tag;
-
-typedef struct _zend_string *ddog_OwnedZendString;
 
 typedef struct _zend_string *(*ddog_DynamicConfigUpdate)(ddog_CharSlice config,
                                                          ddog_OwnedZendString value,
@@ -709,6 +719,24 @@ typedef struct ddog_Vec_DebuggerPayload {
  * It contains a single field, `inner`, which is a 64-bit unsigned integer.
  */
 typedef uint64_t ddog_QueueId;
+
+/**
+ * A generic result type for when an operation may fail,
+ * but there's nothing to return in the case of success.
+ */
+typedef enum ddog_VoidResult_Tag {
+  DDOG_VOID_RESULT_OK,
+  DDOG_VOID_RESULT_ERR,
+} ddog_VoidResult_Tag;
+
+typedef struct ddog_VoidResult {
+  ddog_VoidResult_Tag tag;
+  union {
+    struct {
+      struct ddog_Error err;
+    };
+  };
+} ddog_VoidResult;
 
 /**
  * A (key, value) pair for peer-service tags, borrowed from PHP/concentrator memory.
@@ -1110,9 +1138,10 @@ typedef struct ddog_TelemetryWorkerBuilder ddog_TelemetryWorkerBuilder;
  * The worker won't send data to the agent until you call `TelemetryWorkerHandle::send_start`
  *
  * To stop the worker, call `TelemetryWorkerHandle::send_stop` which trigger flush asynchronously
- * then `TelemetryWorkerHandle::wait_for_shutdown`
+ * then `TelemetryWorkerHandle::wait_for_shutdown` (native only — wasm callers rely on the
+ * SharedRuntime worker JoinHandle instead).
  */
-typedef struct ddog_TelemetryWorkerHandle ddog_TelemetryWorkerHandle;
+typedef struct ddog_TelemetryWorkerHandle_NativeCapabilities ddog_TelemetryWorkerHandle_NativeCapabilities;
 
 typedef enum ddog_Option_U64_Tag {
   DDOG_OPTION_U64_SOME_U64,
@@ -1127,6 +1156,12 @@ typedef struct ddog_Option_U64 {
     };
   };
 } ddog_Option_U64;
+
+/**
+ * FFI-facing alias: the C ABI surface is native-only, so the worker handle is
+ * always pinned to [`NativeCapabilities`].
+ */
+typedef struct ddog_TelemetryWorkerHandle_NativeCapabilities ddog_TelemetryWorkerHandle;
 
 typedef enum ddog_Option_Bool_Tag {
   DDOG_OPTION_BOOL_SOME_BOOL,
@@ -1451,24 +1486,6 @@ typedef struct ddog_crasht_CrashInfoBuilder ddog_crasht_CrashInfoBuilder;
 typedef struct ddog_crasht_StackFrame ddog_crasht_StackFrame;
 
 typedef struct ddog_crasht_StackTrace ddog_crasht_StackTrace;
-
-/**
- * A generic result type for when an operation may fail,
- * but there's nothing to return in the case of success.
- */
-typedef enum ddog_VoidResult_Tag {
-  DDOG_VOID_RESULT_OK,
-  DDOG_VOID_RESULT_ERR,
-} ddog_VoidResult_Tag;
-
-typedef struct ddog_VoidResult {
-  ddog_VoidResult_Tag tag;
-  union {
-    struct {
-      struct ddog_Error err;
-    };
-  };
-} ddog_VoidResult;
 
 typedef struct ddog_crasht_Slice_CharSlice {
   /**
@@ -1850,8 +1867,6 @@ typedef enum ddog_MetadataKind {
   DDOG_METADATA_KIND_PROCESS_TAGS = 7,
   DDOG_METADATA_KIND_CONTAINER_ID = 8,
 } ddog_MetadataKind;
-
-typedef struct ddog_Configurator ddog_Configurator;
 
 /**
  * This struct MUST be backward compatible.

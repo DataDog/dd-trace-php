@@ -10,8 +10,9 @@
 use crate::trace_filter;
 use datadog_ipc::shm_stats::{OwnedShmSpanInput, ShmSpanConcentrator, ShmSpanInput, MAX_PEER_TAGS};
 use datadog_sidecar::service::blocking::{add_span_to_concentrator, SidecarTransport};
-use libdd_trace_stats::span_concentrator::FixedAggregationKey;
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
+use libdd_trace_protobuf::pb;
+use libdd_trace_stats::span_concentrator::FixedAggregationKey;
 use std::collections::HashMap;
 use std::ffi::{c_char, c_void};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -64,7 +65,6 @@ pub struct PhpSpanStats<'a> {
     /// Value of the `_dd.svc_src` meta tag; empty slice when absent.
     pub service_source: CharSlice<'a>,
 
-
     /// gRPC meta values in order: rpc.grpc.status_code, grpc.code, rpc.grpc.status.code,
     /// grpc.status.code.  Empty slice = absent.
     pub grpc_meta: [CharSlice<'a>; PHP_GRPC_KEY_COUNT],
@@ -101,7 +101,11 @@ fn extract_grpc_status_code(span: &PhpSpanStats<'_>) -> Option<u8> {
         .iter()
         .find_map(|m| {
             let s = char_slice_str(*m);
-            if s.is_empty() { None } else { s.parse::<u8>().ok() }
+            if s.is_empty() {
+                None
+            } else {
+                s.parse::<u8>().ok()
+            }
         })
         .or_else(|| {
             span.grpc_metrics
@@ -114,7 +118,11 @@ fn extract_grpc_status_code(span: &PhpSpanStats<'_>) -> Option<u8> {
 #[inline]
 fn extract_http_endpoint<'a>(span: &'a PhpSpanStats<'a>) -> &'a str {
     let ep = char_slice_str(span.http_endpoint);
-    if !ep.is_empty() { ep } else { char_slice_str(span.http_route) }
+    if !ep.is_empty() {
+        ep
+    } else {
+        char_slice_str(span.http_route)
+    }
 }
 
 /// Decode the raw peer-tags pointer into a slice.
@@ -148,7 +156,11 @@ fn build_fixed_key<'a>(span: &'a PhpSpanStats<'a>) -> FixedAggregationKey<&'a st
         http_endpoint: extract_http_endpoint(span),
         http_status_code: extract_http_status_code(span),
         is_synthetics_request: is_synthetics_request(span),
-        is_trace_root: span.is_trace_root,
+        is_trace_root: if span.is_trace_root {
+            pb::Trilean::True
+        } else {
+            pb::Trilean::False
+        },
         grpc_status_code: extract_grpc_status_code(span),
         service_source: char_slice_str(span.service_source),
     }
@@ -226,7 +238,8 @@ impl SpanConcentrator {
     }
 }
 
-static SPAN_CONCENTRATORS: LazyLock<RwLock<HashMap<String, SpanConcentrator>>> = LazyLock::new(|| RwLock::default());
+static SPAN_CONCENTRATORS: LazyLock<RwLock<HashMap<String, SpanConcentrator>>> =
+    LazyLock::new(|| RwLock::default());
 
 /// Set to true once `apply_concentrator_config` has been called at least once,
 /// i.e. the sidecar has received and applied the agent's /info response.
@@ -238,10 +251,14 @@ static AGENT_INFO_RECEIVED: AtomicBool = AtomicBool::new(false);
 static STATS_COMPUTATION_READY: AtomicBool = AtomicBool::new(false);
 
 fn agent_version_ge(version: Option<&str>, req_major: u32, req_minor: u32, req_patch: u32) -> bool {
-    let Some(v) = version else { return false; };
+    let Some(v) = version else {
+        return false;
+    };
     let v = v.split('-').next().unwrap_or(v); // strip agent version suffixes
     let mut parts = v.split('.').filter_map(|p| p.parse::<u32>().ok());
-    let (Some(major), Some(minor), Some(patch)) = (parts.next(), parts.next(), parts.next()) else { return false; };
+    let (Some(major), Some(minor), Some(patch)) = (parts.next(), parts.next(), parts.next()) else {
+        return false;
+    };
     (major, minor, patch) >= (req_major, req_minor, req_patch)
 }
 
@@ -287,7 +304,11 @@ pub(crate) fn apply_concentrator_config(
     version: Option<&str>,
 ) {
     let compiled = trace_filter::compile_trace_filter(
-        &tags_require, &tags_reject, &regex_require, &regex_reject, &ignore_resources,
+        &tags_require,
+        &tags_reject,
+        &regex_require,
+        &regex_reject,
+        &ignore_resources,
     );
     trace_filter::set_trace_filter(compiled);
     AGENT_INFO_RECEIVED.store(true, Ordering::Release);
@@ -354,7 +375,11 @@ pub unsafe extern "C" fn ddog_span_concentrator_with(
         let refresh = wg.get(&map_key).map_or(true, |c| c.needs_refresh());
         if refresh {
             wg.remove(&map_key);
-            let path = datadog_sidecar::service::stats_flusher::env_stats_shm_path(&env_key, &version_key, &service_key);
+            let path = datadog_sidecar::service::stats_flusher::env_stats_shm_path(
+                &env_key,
+                &version_key,
+                &service_key,
+            );
             let (shm, has_shm) = match ShmSpanConcentrator::open(path.as_c_str()) {
                 Ok(s) => (Some(s), true),
                 Err(e) => {
@@ -472,7 +497,12 @@ unsafe fn php_span_to_owned_input(span: &PhpSpanStats<'_>) -> OwnedShmSpanInput 
     let peer_tags = peer_tags_slice(span)
         .iter()
         .take(MAX_PEER_TAGS)
-        .map(|pt| (char_slice_str(pt.key).to_owned(), char_slice_str(pt.value).to_owned()))
+        .map(|pt| {
+            (
+                char_slice_str(pt.key).to_owned(),
+                char_slice_str(pt.value).to_owned(),
+            )
+        })
         .collect();
     let fixed = build_fixed_key(span);
 
@@ -521,4 +551,3 @@ pub unsafe extern "C" fn ddog_sidecar_add_php_span_to_concentrator(
         trace!("Failed to send span to concentrator via IPC: {e}");
     }
 }
-

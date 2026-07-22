@@ -23,8 +23,13 @@ libdd-data-pipeline = { path = "../libdatadog/libdd-data-pipeline" }
 libdd-tinybytes = { path = "../libdatadog/libdd-tinybytes" }
 libdd-trace-utils = { path = "../libdatadog/libdd-trace-utils" }
 libdd-trace-stats = { path = "../libdatadog/libdd-trace-stats" }
+libdd-crashtracker = { path = "../libdatadog/libdd-crashtracker" }
 libdd-crashtracker-ffi = { path = "../libdatadog/libdd-crashtracker-ffi", default-features = false, features = ["collector"] }
 libdd-library-config-ffi = { path = "../libdatadog/libdd-library-config-ffi", default-features = false }
+libdd-library-config = { path = "../libdatadog/libdd-library-config", default-features = false, features = ["otel-thread-ctx"] }
+libdd-trace-protobuf = { path = "../libdatadog/libdd-trace-protobuf" }
+libdd-otel-thread-ctx-ffi = { path = "../libdatadog/libdd-otel-thread-ctx-ffi", default-features = false, features = ["tls-storage"] }
+libdd-alloc = { path = "../libdatadog/libdd-alloc" }
 spawn_worker = { path = "../libdatadog/spawn_worker" }
 anyhow = { version = "1.0" }
 const-str = "0.5.6"

@@ -39,6 +39,7 @@
 #include "engine_hooks.h"
 #include "git_metadata.h"
 #include "ip_extraction.h"
+#include "otel_context.h"
 #include <components/log/log.h>
 #include "priority_sampling/priority_sampling.h"
 #include "span.h"
@@ -2212,4 +2213,3 @@ void ddtrace_serializer_startup()
 {
     ddtrace_user_req_add_listeners(&ser_user_req_listeners);
 }
-

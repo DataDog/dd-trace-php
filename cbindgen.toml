@@ -24,6 +24,9 @@ rename_types = "PascalCase"
 "ZendString" = "_zend_string"
 "FILE" = "FILE"
 "EndpointConfig" = "ddog_crasht_EndpointConfig"
+"Config" = "ddog_crasht_Config"
+"Metadata" = "ddog_crasht_Metadata"
+"AtomicU8" = "uint8_t"
 "MaybeOwnedZendString" = "_zend_string *"
 
 [enum]
@@ -43,5 +46,8 @@ include = [
     "datadog-live-debugger",
     "datadog-live-debugger-ffi",
     "libdd-remote-config",
+    "libdd-library-config",
+    "libdd-otel-thread-ctx",
+    "libdd-otel-thread-ctx-ffi",
     "uuid"
 ]

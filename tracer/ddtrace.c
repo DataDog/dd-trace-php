@@ -41,6 +41,7 @@
 #endif
 #include "config/config.h"
 #include "configuration.h"
+#include "otel_context.h"
 #ifndef _WIN32
 #include "dogstatsd_client.h"
 #endif
@@ -134,8 +135,8 @@ bool ddtrace_alter_sampling_rules_file_config(zval *old_value, zval *new_value, 
     return dd_save_sampling_rules_file_config(Z_STR_P(new_value), PHP_INI_USER, PHP_INI_STAGE_RUNTIME);
 }
 
-static inline void dd_alter_prop(size_t prop_offset, zval *old_value, zval *new_value, zend_string *new_str) {
-    UNUSED(old_value, new_str);
+static inline void dd_alter_prop(size_t prop_offset, zval *old_value, zval *new_value) {
+    UNUSED(old_value);
 
     ddtrace_span_properties *pspan = ddtrace_active_span_props();
     while (pspan) {
@@ -144,24 +145,29 @@ static inline void dd_alter_prop(size_t prop_offset, zval *old_value, zval *new_
         zval_ptr_dtor(&garbage);
         pspan = pspan->parent;
     }
+
+    ddtrace_span_stack *stack = DDTRACE_G(active_stack);
+    if (stack && stack->root_span) {
+        ddtrace_otel_update_attribute_values(stack->root_span);
+    }
 }
 
 bool datadog_alter_dd_service(zval *old_value, zval *new_value, zend_string *new_str) {
-    dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_service), old_value, new_value, new_str);
+    dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_service), old_value, new_value);
     if (DATADOG_G(request_initialized)) {
         ddtrace_sidecar_submit_span_data_direct(&DATADOG_G(sidecar), NULL, new_str, get_DD_ENV(), get_DD_VERSION());
     }
     return true;
 }
 bool datadog_alter_dd_env(zval *old_value, zval *new_value, zend_string *new_str) {
-    dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_env), old_value, new_value, new_str);
+    dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_env), old_value, new_value);
     if (DATADOG_G(request_initialized)) {
         ddtrace_sidecar_submit_span_data_direct(&DATADOG_G(sidecar), NULL, get_DD_SERVICE(), new_str, get_DD_VERSION());
     }
     return true;
 }
 bool datadog_alter_dd_version(zval *old_value, zval *new_value, zend_string *new_str) {
-    dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_version), old_value, new_value, new_str);
+    dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_version), old_value, new_value);
     if (DATADOG_G(request_initialized)) {
         ddtrace_sidecar_submit_span_data_direct(&DATADOG_G(sidecar), NULL, get_DD_SERVICE(), get_DD_ENV(), new_str);
     }

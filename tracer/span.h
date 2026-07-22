@@ -11,6 +11,7 @@
 #include <ext/datadog_export.h>
 #include "priority_sampling/priority_sampling.h"
 #include "inferred_proxy_headers.h"
+#include "otel_context.h"
 
 #define DDTRACE_DROPPED_SPAN (-1ull)
 #define DDTRACE_SILENTLY_DROPPED_SPAN (-2ull)
@@ -122,6 +123,7 @@ struct ddtrace_root_span_data {
     datadog_trace_id trace_id;
     uint64_t parent_id;
     ddtrace_rule_result sampling_rule;
+    datadog_otel_thr_ctx_rec otel_context;
     bool explicit_sampling_priority;
     bool asm_event_emitted;
     enum ddtrace_trace_limited trace_is_limited;

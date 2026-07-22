@@ -51,6 +51,7 @@ set_target_properties(zai PROPERTIES POSITION_INDEPENDENT_CODE 1)
 include(cmake/pcre2.cmake)
 
 file(GLOB_RECURSE EXT_SOURCE ${EXT_SOURCE_DIR}/*.c ${EXT_SOURCE_DIR}/*.cpp)
+list(APPEND EXT_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/../components/context-discovery/context_discovery.c)
 add_library(extension SHARED ${EXT_SOURCE})
 set_target_properties(extension PROPERTIES
     C_VISIBILITY_PRESET hidden
