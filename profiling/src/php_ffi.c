@@ -20,8 +20,10 @@ const char *datadog_module_build_id(void) { return ZEND_MODULE_BUILD_ID; }
 
 uint8_t *datadog_runtime_id = NULL;
 static const zai_str datadog_php_profiling_context_api_none = ZAI_STRL("none");
-#if defined(__linux__) || defined(__APPLE__)
+#if defined(__linux__)
 static const zai_str ddog_php_prof_context_api_otel = ZAI_STRL("otel_thread_ctx_v1");
+#elif defined(__APPLE__)
+static const zai_str ddog_php_prof_context_api_otel = ZAI_STRL("ddog_thread_ctx_v1");
 #endif
 
 static ddtrace_profiling_context datadog_php_profiling_get_context(void);

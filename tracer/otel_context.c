@@ -57,10 +57,10 @@ static void **ddtrace_otel_thread_ctx_slot(void) {
     return &otel_thread_ctx_v1;
 }
 #elif defined(__APPLE__)
-DATADOG_PUBLIC __thread void *otel_thread_ctx_v1 = NULL;
+static __thread void *ddog_php_thread_ctx_v1 = NULL;
 
 static void **ddtrace_otel_thread_ctx_slot(void) {
-    return &otel_thread_ctx_v1;
+    return &ddog_php_thread_ctx_v1;
 }
 
 DATADOG_PUBLIC void **ddog_thread_ctx_v1(void) {
