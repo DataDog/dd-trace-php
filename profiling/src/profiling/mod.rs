@@ -976,6 +976,7 @@ impl Profiler {
         result
     }
 
+    #[cfg(php_zend_mm_set_custom_handlers_ex)]
     pub(crate) fn live_heap_allocation_pointers(&self) -> Vec<usize> {
         self.live_heap_tracker
             .iter()
