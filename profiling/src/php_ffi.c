@@ -121,9 +121,9 @@ static ddtrace_profiling_context ddog_php_prof_read_otel_profiling_context(void)
     return context;
 }
 
-static void *ddog_php_prof_find_otel_thread_ctx_symbol(void) {
+static void **ddog_php_prof_find_thread_ctx(void) {
 #ifdef __linux__
-    return ddog_php_context_discovery_otel_thread_slot();
+    return ddog_php_ctx_find_otel_thread_ctx();
 #else
     return ddog_php_context_discovery_thread_slot(&ddog_php_prof_context_discovery);
 #endif
@@ -134,8 +134,7 @@ static void ddog_php_prof_init_otel_thread_ctx_slot(void) {
         return;
     }
 
-    ddog_php_prof_otel_thread_ctx_slot =
-        (void **)ddog_php_prof_find_otel_thread_ctx_symbol();
+    ddog_php_prof_otel_thread_ctx_slot = ddog_php_prof_find_thread_ctx();
     if (ddog_php_prof_otel_thread_ctx_slot) {
         atomic_store_explicit(
             &ddog_php_prof_otel_thread_ctx_symbol_available,

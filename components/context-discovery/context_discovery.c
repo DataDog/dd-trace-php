@@ -62,10 +62,8 @@ void **ddog_php_context_discovery_thread_slot(const ddog_php_context_discovery *
 }
 #endif
 
-void **ddog_php_context_discovery_otel_thread_slot(void) {
-#if defined(__linux__) || defined(__APPLE__)
+#if defined(__linux__)
+void **ddog_php_ctx_find_otel_thread_ctx(void) {
     return (void **)ddog_php_context_discovery_resolve_tls(dlsym(RTLD_DEFAULT, "otel_thread_ctx_v1"));
-#else
-    return NULL;
-#endif
 }
+#endif
