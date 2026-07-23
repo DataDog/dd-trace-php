@@ -1,5 +1,11 @@
 --TEST--
 FFE span enrichment: evaluations aggregate onto the active root span's meta
+--SKIPIF--
+<?php
+if (getenv('PHP_PEAR_RUNTESTS') === '1') {
+    die('skip: the src/ PHP API is not shipped in the PECL test package');
+}
+?>
 --INI--
 datadog.experimental_flagging_provider_span_enrichment_enabled=1
 --FILE--

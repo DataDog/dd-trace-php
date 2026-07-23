@@ -1,5 +1,11 @@
 --TEST--
 FFE span enrichment: gate off writes no ffe_* tags onto the root span
+--SKIPIF--
+<?php
+if (getenv('PHP_PEAR_RUNTESTS') === '1') {
+    die('skip: the src/ PHP API is not shipped in the PECL test package');
+}
+?>
 --INI--
 datadog.experimental_flagging_provider_span_enrichment_enabled=0
 --FILE--

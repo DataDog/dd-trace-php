@@ -1,5 +1,11 @@
 --TEST--
 FFE span enrichment: concurrently-open root spans each keep their own tags
+--SKIPIF--
+<?php
+if (getenv('PHP_PEAR_RUNTESTS') === '1') {
+    die('skip: the src/ PHP API is not shipped in the PECL test package');
+}
+?>
 --INI--
 datadog.trace.generate_root_span=0
 datadog.experimental_flagging_provider_span_enrichment_enabled=1
@@ -34,16 +40,14 @@ function show($label, $value) {
 
 $codec = new SpanEnrichmentAccumulator();
 
-// Root A on the initial stack.
-\DDTrace\start_span();
-$rootA = \DDTrace\root_span();
+// Trace A: start_trace_span() creates a NEW root span on its own stack.
+$rootA = \DDTrace\start_trace_span();
 $a = new EvaluationDetails('on', EvaluationType::STRING, EvaluationReason::SPLIT, 'a', null, null, array(), array('serialId' => 100, 'doLog' => false));
 SpanEnrichmentRegistry::record('flag.a', $a, null);
 
-// Root B on a second, independent stack (models concurrent roots / fibers).
-\DDTrace\create_stack();
-\DDTrace\start_span();
-$rootB = \DDTrace\root_span();
+// Trace B: a second, concurrently-open root on its own stack (A stays open
+// underneath). Models the fibers / multiple-span-stacks case.
+$rootB = \DDTrace\start_trace_span();
 $b = new EvaluationDetails('off', EvaluationType::STRING, EvaluationReason::SPLIT, 'b', null, null, array(), array('serialId' => 200, 'doLog' => false));
 SpanEnrichmentRegistry::record('flag.b', $b, null);
 
