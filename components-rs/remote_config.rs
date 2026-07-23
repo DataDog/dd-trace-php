@@ -90,6 +90,7 @@ fn compute_merged_configs(active_configs: &HashMap<String, ActiveDynamicConfig>)
 
 pub struct RemoteConfigState {
     manager: RemoteConfigManager,
+    service: String,
     live_debugger: LiveDebuggerState,
     dynamic_config: DynamicConfig,
 }
@@ -218,6 +219,7 @@ pub unsafe extern "C" fn ddog_init_remote_config_state(
             tracer_version: include_str!("../VERSION").trim().into(),
             endpoint: endpoint.clone(),
         }, registry),
+        service: String::new(),
         live_debugger: LiveDebuggerState {
             di_enabled,
             ..Default::default()
@@ -650,13 +652,21 @@ pub extern "C" fn ddog_remote_configs_service_env_change(
     tags: &libdd_common_ffi::Vec<Tag>,
     process_tags: &libdd_common_ffi::Vec<Tag>,
 ) -> bool {
-    let new_target = Target {
-        service: service.to_utf8_lossy().to_string(),
-        env: env.to_utf8_lossy().to_string(),
-        app_version: version.to_utf8_lossy().to_string(),
-        tags: tags.as_slice().to_vec(),
-        process_tags: process_tags.as_slice().to_vec(),
-    };
+    let service = service.to_utf8_lossy().into_owned();
+    let new_target = Target::new(
+        service.clone(),
+        env.to_utf8_lossy().into_owned(),
+        version.to_utf8_lossy().into_owned(),
+        tags.as_slice()
+            .iter()
+            .map(|tag| tag.as_ref().to_owned())
+            .collect(),
+        process_tags
+            .as_slice()
+            .iter()
+            .map(|tag| tag.as_ref().to_owned())
+            .collect(),
+    );
 
     if let Some(target) = remote_config.manager.get_target() {
         if **target == new_target {
@@ -664,6 +674,7 @@ pub extern "C" fn ddog_remote_configs_service_env_change(
         }
     }
 
+    remote_config.service = service;
     remote_config.manager.track_target(&Arc::new(new_target));
     // Caller must call ddog_process_remote_configs if true.
     // We don't call it here to allow the caller delaying the call as necessary.
@@ -794,12 +805,7 @@ pub unsafe extern "C" fn ddog_send_debugger_diagnostics<'a>(
     probe: &'a Probe,
     timestamp: u64,
 ) -> MaybeError {
-    let service = Cow::Borrowed(
-        remote_config_state
-            .manager
-            .get_target()
-            .map_or("", |t| t.service.as_str()),
-    );
+    let service = Cow::Borrowed(remote_config_state.service.as_str());
     let mut payload = ddog_debugger_diagnostics_create_unboxed(
         probe,
         service,

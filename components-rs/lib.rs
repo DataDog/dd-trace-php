@@ -13,25 +13,31 @@ pub mod telemetry;
 pub mod trace_filter;
 pub mod bytes;
 
-use libdd_common::entity_id::{get_container_id, set_cgroup_file};
+pub use datadog_sidecar_ffi::*;
+pub use libdd_crashtracker_ffi::*;
+pub use libdd_common_ffi::*;
+pub use libdd_library_config_ffi::*;
+pub use libdd_telemetry_ffi::*;
+
 use http::uri::{PathAndQuery, Scheme};
 use http::Uri;
+use libdd_common::entity_id::{get_container_id, set_cgroup_file};
+use libdd_common::{parse_uri, Endpoint};
+use libdd_common_ffi::slice::{AsBytes, CharSlice};
 use std::borrow::Cow;
 use std::ffi::{c_char, OsStr};
-#[cfg(unix)]
-use std::path::Path;
 use std::ptr::null_mut;
 use uuid::Uuid;
 
-pub use libdd_crashtracker_ffi::*;
-pub use libdd_library_config_ffi::*;
-pub use datadog_sidecar_ffi::*;
-use libdd_common::{parse_uri, Endpoint};
 #[cfg(unix)]
 use libdd_common::connector::uds::socket_path_to_uri;
-use libdd_common_ffi::slice::AsBytes;
-pub use libdd_common_ffi::*;
-pub use libdd_telemetry_ffi::*;
+#[cfg(unix)]
+use std::path::Path;
+
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+use libdd_library_config::otel_process_ctx;
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+use libdd_library_config::tracer_metadata::{ThreadLocalMetadata, TracerMetadata};
 
 #[no_mangle]
 #[allow(non_upper_case_globals)]
@@ -90,6 +96,52 @@ pub extern "C" fn datadog_format_runtime_id(buf: &mut [u8; 36]) {
     // Safety: datadog_runtime_id is only supposed to be mutated from single-
     // threaded contexts, so reads should always be safe.
     unsafe { datadog_runtime_id.as_hyphenated().encode_lower(buf) };
+}
+
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+#[no_mangle]
+pub extern "C" fn datadog_publish_otel_process_context(hostname: CharSlice<'_>) -> bool {
+    let runtime_id = unsafe {
+        (!datadog_runtime_id.is_nil()).then(|| datadog_runtime_id.as_hyphenated().to_string())
+    };
+
+    // This process context publishes the PHP-provided thread-local attribute
+    // key map. libdatadog prepends datadog.local_root_span_id automatically;
+    // request/runtime values for all keys are stored in the thread-local
+    // context record itself.
+    let metadata = TracerMetadata {
+        runtime_id,
+        hostname: hostname.to_utf8_lossy().into_owned(),
+        tracer_language: "php".to_owned(),
+        tracer_version: include_str!("../VERSION").trim().to_owned(),
+        threadlocal_metadata: Some(ThreadLocalMetadata {
+            attribute_keys: vec![
+                "service.name".to_owned(),
+                "service.version".to_owned(),
+                "deployment.environment.name".to_owned(),
+            ],
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+
+    let context = metadata.to_otel_process_ctx();
+
+    // libdatadog owns the process-wide writer and transparently updates an existing publication or
+    // creates a fresh platform-specific publication after a fork.
+    match otel_process_ctx::publish(&context) {
+        Ok(()) => true,
+        Err(error) => {
+            tracing::debug!("failed to publish OTel process context: {error}");
+            false
+        }
+    }
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+#[no_mangle]
+pub extern "C" fn datadog_publish_otel_process_context(_hostname: CharSlice<'_>) -> bool {
+    false
 }
 
 #[must_use]

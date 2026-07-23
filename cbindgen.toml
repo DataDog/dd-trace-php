@@ -11,6 +11,11 @@ no_includes = true
 sys_includes = ["stdbool.h", "stddef.h", "stdint.h"]
 includes = ["common.h", "telemetry.h", "sidecar.h"]
 
+[defines]
+"target_os = linux" = "__linux__"
+"target_os = macos" = "__APPLE__"
+"target_os = windows" = "_WIN32"
+
 [export]
 prefix = "ddog_"
 renaming_overrides_prefixing = true
@@ -24,6 +29,8 @@ rename_types = "PascalCase"
 "ZendString" = "_zend_string"
 "FILE" = "FILE"
 "EndpointConfig" = "ddog_crasht_EndpointConfig"
+"Config" = "ddog_crasht_Config"
+"Metadata" = "ddog_crasht_Metadata"
 "MaybeOwnedZendString" = "_zend_string *"
 
 [enum]

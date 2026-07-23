@@ -14,6 +14,7 @@ use core::ptr;
 use core::str::FromStr;
 pub use http::Uri;
 use libc::{c_char, c_int};
+use libdd_common::parse_uri;
 use libdd_common::tag::{parse_tags, Tag};
 use log::{debug, error, warn, LevelFilter};
 use std::borrow::Cow;
@@ -297,7 +298,7 @@ fn detect_uri_from_config(
                 );
             }
         } else {
-            match Uri::from_str(trace_agent_url.as_ref()) {
+            match parse_uri(trace_agent_url.as_ref()) {
                 Ok(uri) => return AgentEndpoint::Uri(uri),
                 Err(err) => warn!("DD_TRACE_AGENT_URL was not a valid URL: {err}"),
             }
@@ -1478,6 +1479,15 @@ mod tests {
         let endpoint =
             detect_uri_from_config(Some(Cow::Owned("http://[::1]:8126".to_owned())), None, None);
         let expected = AgentEndpoint::Uri(Uri::from_static("http://[::1]:8126"));
+        assert_eq!(endpoint, expected);
+
+        // file dump endpoint
+        let endpoint = detect_uri_from_config(
+            Some(Cow::Owned("file:///tmp/profile-http.bin".to_owned())),
+            None,
+            None,
+        );
+        let expected = AgentEndpoint::Uri(parse_uri("file:///tmp/profile-http.bin").unwrap());
         assert_eq!(endpoint, expected);
 
         // fallback on non existing UDS

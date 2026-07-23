@@ -66,6 +66,7 @@ if (PHP_DDTRACE != 'no') {
 	DDTRACE_TRACER_SOURCES += " ip_extraction.c";
 	DDTRACE_TRACER_SOURCES += " live_debugger.c";
 	DDTRACE_TRACER_SOURCES += " memory_limit.c";
+	DDTRACE_TRACER_SOURCES += " otel_context.c";
 	DDTRACE_TRACER_SOURCES += " tracer_otel_config.c";
 	DDTRACE_TRACER_SOURCES += " profiling.c";
 	DDTRACE_TRACER_SOURCES += " random.c";
@@ -199,6 +200,7 @@ if (PHP_DDTRACE != 'no') {
 	deffile.WriteLine("EXPORTS");
 	var contents = FSO.OpenTextFile(configure_module_dirname + "/datadog.sym", 1).ReadAll();
 	contents = contents.replace(/ddog_crashtracker_entry_point\s*/, ""); // unix-only symbol
+	contents = contents.replace(/otel_thread_ctx_v1\s*/, ""); // linux-only TLS variable
     contents = contents + "\n" + FSO.OpenTextFile(configure_module_dirname + "/datadog-windows.sym", 1).ReadAll();
 	if (!PHP_DDTRACE_SHARED) {
 		contents = contents.replace(/get_module\s*/, "");

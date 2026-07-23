@@ -65,11 +65,21 @@ ddog_MaybeError ddog_telemetry_builder_run(struct ddog_TelemetryWorkerBuilder *b
 ddog_MaybeError ddog_telemetry_builder_run_metric_logs(struct ddog_TelemetryWorkerBuilder *builder,
                                                        struct ddog_TelemetryWorkerHandle **out_handle);
 
+/**
+ * Sets the telemetry endpoint from its component parts.
+ *
+ * * `api_key` / `test_token`: ignored when empty.
+ * * `timeout_ms`: pass 0 to keep the existing/default timeout.
+ */
 ddog_MaybeError ddog_telemetry_builder_with_endpoint_config_endpoint(struct ddog_TelemetryWorkerBuilder *telemetry_builder,
-                                                                     const struct ddog_Endpoint *endpoint);
+                                                                     ddog_CharSlice url,
+                                                                     ddog_CharSlice api_key,
+                                                                     uint64_t timeout_ms,
+                                                                     ddog_CharSlice test_token,
+                                                                     bool use_system_resolver);
 
 /**
- * Sets a property from it's string value.
+ * Sets the endpoint property from its component parts.
  *
  * Available properties:
  *
@@ -77,10 +87,14 @@ ddog_MaybeError ddog_telemetry_builder_with_endpoint_config_endpoint(struct ddog
  */
 ddog_MaybeError ddog_telemetry_builder_with_property_endpoint(struct ddog_TelemetryWorkerBuilder *telemetry_builder,
                                                               enum ddog_TelemetryWorkerBuilderEndpointProperty _property,
-                                                              const struct ddog_Endpoint *endpoint);
+                                                              ddog_CharSlice url,
+                                                              ddog_CharSlice api_key,
+                                                              uint64_t timeout_ms,
+                                                              ddog_CharSlice test_token,
+                                                              bool use_system_resolver);
 
 /**
- * Sets a property from it's string value.
+ * Sets a named endpoint property from its component parts.
  *
  * Available properties:
  *
@@ -88,7 +102,11 @@ ddog_MaybeError ddog_telemetry_builder_with_property_endpoint(struct ddog_Teleme
  */
 ddog_MaybeError ddog_telemetry_builder_with_endpoint_named_property(struct ddog_TelemetryWorkerBuilder *telemetry_builder,
                                                                     ddog_CharSlice property,
-                                                                    const struct ddog_Endpoint *endpoint);
+                                                                    ddog_CharSlice url,
+                                                                    ddog_CharSlice api_key,
+                                                                    uint64_t timeout_ms,
+                                                                    ddog_CharSlice test_token,
+                                                                    bool use_system_resolver);
 
 ddog_MaybeError ddog_telemetry_builder_with_str_application_service_version(struct ddog_TelemetryWorkerBuilder *telemetry_builder,
                                                                             ddog_CharSlice param);

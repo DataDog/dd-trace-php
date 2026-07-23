@@ -41,6 +41,14 @@ void datadog_generate_session_id(void);
 
 void datadog_format_runtime_id(uint8_t (*buf)[36]);
 
+#if (defined(__linux__) || defined(__APPLE__) || defined(_WIN32))
+bool datadog_publish_otel_process_context(ddog_CharSlice hostname);
+#endif
+
+#if !(defined(__linux__) || defined(__APPLE__) || defined(_WIN32))
+bool datadog_publish_otel_process_context(ddog_CharSlice _hostname);
+#endif
+
 ddog_CharSlice ddtrace_get_container_id(void);
 
 void ddtrace_set_container_cgroup_path(ddog_CharSlice path);
@@ -61,7 +69,9 @@ void datadog_endpoint_as_crashtracker_config(const struct ddog_Endpoint *endpoin
 
 ddog_Configurator *ddog_library_configurator_new_dummy(bool debug_logs, ddog_CharSlice language);
 
+#if defined(__linux__)
 int posix_spawn_file_actions_addchdir_np(void *file_actions, const char *path);
+#endif
 
 uint64_t dd_fnv1a_64(const uint8_t *data, uintptr_t len);
 
@@ -109,6 +119,64 @@ void ddog_agent_info_json_free(char *ptr);
  * `reader` must be a valid pointer to an `AgentInfoReader`.
  */
 void ddog_apply_agent_info_concentrator_config(struct ddog_AgentInfoReader *reader);
+
+void ddog_init_span_func(void (*free_func)(ddog_OwnedZendString),
+                         void (*addref_func)(struct _zend_string*),
+                         ddog_OwnedZendString (*init_func)(ddog_CharSlice));
+
+void ddog_set_span_service_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
+
+void ddog_set_span_name_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
+
+void ddog_set_span_resource_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
+
+void ddog_set_span_type_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
+
+void ddog_add_span_meta_zstr(ddog_SpanBytes *ptr,
+                             struct _zend_string *key,
+                             struct _zend_string *val);
+
+void ddog_add_CharSlice_span_meta_zstr(ddog_SpanBytes *ptr,
+                                       ddog_CharSlice key,
+                                       struct _zend_string *val);
+
+void ddog_add_zstr_span_meta_str(ddog_SpanBytes *ptr, struct _zend_string *key, const char *val);
+
+void ddog_add_str_span_meta_str(ddog_SpanBytes *ptr, const char *key, const char *val);
+
+void ddog_add_str_span_meta_zstr(ddog_SpanBytes *ptr, const char *key, struct _zend_string *val);
+
+void ddog_add_str_span_meta_CharSlice(ddog_SpanBytes *ptr, const char *key, ddog_CharSlice val);
+
+void ddog_del_span_meta_zstr(ddog_SpanBytes *ptr, struct _zend_string *key);
+
+void ddog_del_span_meta_str(ddog_SpanBytes *ptr, const char *key);
+
+bool ddog_has_span_meta_zstr(ddog_SpanBytes *ptr, struct _zend_string *key);
+
+bool ddog_has_span_meta_str(ddog_SpanBytes *ptr, const char *key);
+
+ddog_CharSlice ddog_get_span_meta_str(ddog_SpanBytes *span, const char *key);
+
+void ddog_add_span_metrics_zstr(ddog_SpanBytes *ptr, struct _zend_string *key, double val);
+
+bool ddog_has_span_metrics_zstr(ddog_SpanBytes *ptr, struct _zend_string *key);
+
+void ddog_del_span_metrics_zstr(ddog_SpanBytes *ptr, struct _zend_string *key);
+
+void ddog_add_span_metrics_str(ddog_SpanBytes *ptr, const char *key, double val);
+
+bool ddog_get_span_metrics_str(ddog_SpanBytes *ptr, const char *key, double *result);
+
+void ddog_del_span_metrics_str(ddog_SpanBytes *ptr, const char *key);
+
+void ddog_add_span_meta_struct_zstr(ddog_SpanBytes *ptr,
+                                    struct _zend_string *key,
+                                    struct _zend_string *val);
+
+void ddog_add_zstr_span_meta_struct_CharSlice(ddog_SpanBytes *ptr,
+                                              struct _zend_string *key,
+                                              ddog_CharSlice val);
 
 bool ddog_ffe_load_config(ddog_CharSlice json);
 
@@ -201,6 +269,12 @@ ddog_MaybeError ddog_send_debugger_diagnostics(const struct ddog_RemoteConfigSta
                                                ddog_QueueId queue_id,
                                                const struct ddog_Probe *probe,
                                                uint64_t timestamp);
+
+#if (defined(__linux__) || defined(__APPLE__))
+struct ddog_VoidResult datadog_crasht_init_without_receiver(struct ddog_crasht_Config config,
+                                                            ddog_crasht_Metadata metadata,
+                                                            uint32_t sidecar_master_pid);
+#endif
 
 void ddog_sidecar_enable_appsec(ddog_CharSlice shared_lib_path,
                                 ddog_CharSlice socket_file_path,
@@ -416,63 +490,5 @@ bool ddog_sidecar_telemetry_are_endpoints_collected(ddog_ShmCacheMap *cache,
 bool ddog_check_stats_trace_filter(ddog_CharSlice resource,
                                    const void *root_span,
                                    ddog_RootTagLookupFn lookup_fn);
-
-void ddog_init_span_func(void (*free_func)(ddog_OwnedZendString),
-                         void (*addref_func)(struct _zend_string*),
-                         ddog_OwnedZendString (*init_func)(ddog_CharSlice));
-
-void ddog_set_span_service_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
-
-void ddog_set_span_name_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
-
-void ddog_set_span_resource_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
-
-void ddog_set_span_type_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
-
-void ddog_add_span_meta_zstr(ddog_SpanBytes *ptr,
-                             struct _zend_string *key,
-                             struct _zend_string *val);
-
-void ddog_add_CharSlice_span_meta_zstr(ddog_SpanBytes *ptr,
-                                       ddog_CharSlice key,
-                                       struct _zend_string *val);
-
-void ddog_add_zstr_span_meta_str(ddog_SpanBytes *ptr, struct _zend_string *key, const char *val);
-
-void ddog_add_str_span_meta_str(ddog_SpanBytes *ptr, const char *key, const char *val);
-
-void ddog_add_str_span_meta_zstr(ddog_SpanBytes *ptr, const char *key, struct _zend_string *val);
-
-void ddog_add_str_span_meta_CharSlice(ddog_SpanBytes *ptr, const char *key, ddog_CharSlice val);
-
-void ddog_del_span_meta_zstr(ddog_SpanBytes *ptr, struct _zend_string *key);
-
-void ddog_del_span_meta_str(ddog_SpanBytes *ptr, const char *key);
-
-bool ddog_has_span_meta_zstr(ddog_SpanBytes *ptr, struct _zend_string *key);
-
-bool ddog_has_span_meta_str(ddog_SpanBytes *ptr, const char *key);
-
-ddog_CharSlice ddog_get_span_meta_str(ddog_SpanBytes *span, const char *key);
-
-void ddog_add_span_metrics_zstr(ddog_SpanBytes *ptr, struct _zend_string *key, double val);
-
-bool ddog_has_span_metrics_zstr(ddog_SpanBytes *ptr, struct _zend_string *key);
-
-void ddog_del_span_metrics_zstr(ddog_SpanBytes *ptr, struct _zend_string *key);
-
-void ddog_add_span_metrics_str(ddog_SpanBytes *ptr, const char *key, double val);
-
-bool ddog_get_span_metrics_str(ddog_SpanBytes *ptr, const char *key, double *result);
-
-void ddog_del_span_metrics_str(ddog_SpanBytes *ptr, const char *key);
-
-void ddog_add_span_meta_struct_zstr(ddog_SpanBytes *ptr,
-                                    struct _zend_string *key,
-                                    struct _zend_string *val);
-
-void ddog_add_zstr_span_meta_struct_CharSlice(ddog_SpanBytes *ptr,
-                                              struct _zend_string *key,
-                                              ddog_CharSlice val);
 
 #endif  /* DDTRACE_PHP_H */

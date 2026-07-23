@@ -274,6 +274,9 @@ fn generate_bindings(php_config_includes: &str, fibers: bool, zend_error_observe
         .raw_line("pub type zend_vm_opcode_handler_func_t = *const ::std::ffi::c_void;")
         // Block a few of functions that we'll provide defs for manually
         .blocklist_item("datadog_php_profiling_vm_interrupt_addr")
+        .blocklist_item("ddog_php_prof_otel_thread_ctx_ginit")
+        .blocklist_item("ddog_php_prof_otel_thread_ctx_rinit")
+        .blocklist_item("datadog_php_profiling_context_api_name")
         // I had to block these for some reason *shrug*
         .blocklist_item("FP_INFINITE")
         .blocklist_item("FP_INT_DOWNWARD")

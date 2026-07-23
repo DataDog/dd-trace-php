@@ -1,4 +1,5 @@
 include(ExternalProject)
+include(CheckCCompilerFlag)
 
 set(CARGO_BUILD_CMD "cargo build")
 set(CARGO_BUILD_ENV "") # Initialize to empty
@@ -34,9 +35,11 @@ add_custom_target(ddtrace_exports
 elseif(APPLE)
 set(EXPORTS_FILE "${CMAKE_BINARY_DIR}/datadog_exports.sym")
 add_custom_target(ddtrace_exports
-    COMMAND sed "s/^/_/" "${CMAKE_SOURCE_DIR}/../datadog.sym" > "${EXPORTS_FILE}"
+    # otel_thread_ctx_v1 is a Linux-only TLS symbol.
+    COMMAND bash -c "{ grep -v ^otel_thread_ctx_v1$ '${CMAKE_SOURCE_DIR}'/../datadog.sym | sed 's/^/_/'; echo _otel_process_ctx_v2; } > '${EXPORTS_FILE}'"
     BYPRODUCTS ${EXPORTS_FILE}
     DEPENDS ${CMAKE_SOURCE_DIR}/../datadog.sym
+    VERBATIM
 )
 endif()
 
@@ -92,6 +95,8 @@ file(GLOB_RECURSE FILES_DDTRACE
     CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/../ext/*.c"
     "${CMAKE_SOURCE_DIR}/../ext/**/*.c"
+    "${CMAKE_SOURCE_DIR}/../tracer/*.c"
+    "${CMAKE_SOURCE_DIR}/../tracer/**/*.c"
     "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/*.c"
     "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/**/*.c"
 )
@@ -103,14 +108,14 @@ list(APPEND FILES_DDTRACE
     "${CMAKE_SOURCE_DIR}/../components/string_view/string_view.c"
 )
 if (PhpConfig_VERNUM GREATER_EQUAL 80000)
-    list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../ext/handlers_curl_php7.c"
+    list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../tracer/handlers_curl_php7.c"
         "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/interceptor/php7/interceptor.c"
         "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/interceptor/php7/resolver.c"
         "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/sandbox/php7/sandbox.c")
 else() # PHP 7
-    list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../ext/handlers_curl.c"
-        "${CMAKE_SOURCE_DIR}/../ext/hook/uhook_attributes.c"
-        "${CMAKE_SOURCE_DIR}/../ext/hook/uhook_otel.c"
+    list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../tracer/handlers_curl.c"
+        "${CMAKE_SOURCE_DIR}/../tracer/hook/uhook_attributes.c"
+        "${CMAKE_SOURCE_DIR}/../tracer/hook/uhook_otel.c"
         "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/interceptor/php8/interceptor.c"
         "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/interceptor/php8/resolver.c"
         "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/interceptor/php8/resolver_pre-8_2.c"
@@ -118,13 +123,13 @@ else() # PHP 7
         "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/sandbox/php8/sandbox.c")
 endif()
 if (PhpConfig_VERNUM LESS 80200)
-    list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../ext/weakrefs.c")
+    list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../tracer/weakrefs.c")
     list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/interceptor/php8/resolver.c")
 else() # PHP 8.2+
     list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/interceptor/php8/resolver_pre-8_2.c")
 endif()
 if (PhpConfig_VERNUM LESS 80100)
-    list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../ext/handlers_fiber.c")
+    list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../tracer/handlers_fiber.c")
 endif()
 list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../ext/crashtracking_windows.c")
 
@@ -162,7 +167,13 @@ endif()
 if(CURL_DEFINITIONS)
     target_compile_definitions(ddtrace PRIVATE ${CURL_DEFINITIONS})
 endif()
-target_compile_definitions(ddtrace PRIVATE ZEND_ENABLE_STATIC_TSRMLS_CACHE=1 COMPILE_DL_DDTRACE=1)
+target_compile_definitions(ddtrace PRIVATE ZEND_ENABLE_STATIC_TSRMLS_CACHE=1 COMPILE_DL_DDTRACE=1 DDTRACE)
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64)$")
+    check_c_compiler_flag("-mtls-dialect=gnu2" DDTRACE_HAS_GNU2_TLS_DIALECT)
+    if(DDTRACE_HAS_GNU2_TLS_DIALECT)
+        target_compile_options(ddtrace PRIVATE -mtls-dialect=gnu2)
+    endif()
+endif()
 target_include_directories(ddtrace PRIVATE
     ${CURL_INCLUDE_DIRS}
     ${CMAKE_SOURCE_DIR}/..
@@ -171,6 +182,8 @@ target_include_directories(ddtrace PRIVATE
     ${CMAKE_SOURCE_DIR}/../ext
     ${CMAKE_SOURCE_DIR}/../ext/vendor
     ${CMAKE_SOURCE_DIR}/../ext/vendor/mt19937
+    ${CMAKE_SOURCE_DIR}/../tracer
+    ${CMAKE_SOURCE_DIR}/../tracer/vendor
     ${CMAKE_BINARY_DIR}/gen_ddtrace
 )
 add_dependencies(ddtrace ddtrace_exports update_version_h)

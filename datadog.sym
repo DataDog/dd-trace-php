@@ -1,6 +1,7 @@
 ddtrace_close_all_spans_and_flush
 datadog_get_formatted_session_id
 ddtrace_get_profiling_context
+otel_thread_ctx_v1
 ddtrace_get_root_span
 datadog_process_tags_get_serialized
 datadog_get_sidecar_queue_id
