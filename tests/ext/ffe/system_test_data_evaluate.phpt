@@ -112,6 +112,8 @@ function require_feature_flag_api($root)
         'EvaluationReason',
         'EvaluationErrorCode',
         'EvaluationDetails',
+        'SpanEnrichmentAccumulator',
+        'SpanEnrichmentRegistry',
     ) as $classFile) {
         require_once $apiRoot . '/' . $classFile . '.php';
     }

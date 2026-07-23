@@ -227,4 +227,59 @@ final class ResultMapperTest extends TestCase
             $details->getProviderState()
         );
     }
+
+    public function testThreadsSerialIdIntoExposureDataWhenPresent()
+    {
+        $details = (new ResultMapper())->map(array(
+            'value_json' => '"blue"',
+            'variant' => 'variant-a',
+            'allocation_key' => 'alloc-1',
+            'reason' => ResultMapper::BRIDGE_REASON_SPLIT,
+            'error_code' => ResultMapper::BRIDGE_ERROR_NONE,
+            'do_log' => true,
+            'serial_id' => 4242,
+        ), EvaluationType::STRING, 'red');
+
+        $this->assertSame(
+            array('allocationKey' => 'alloc-1', 'doLog' => true, 'serialId' => 4242),
+            $details->getExposureData()
+        );
+        // assertSame above already enforces the strict int type (4242 !== "4242");
+        // avoid assertIsInt()/assertInternalType() which are unavailable on the
+        // PHP 7.0 PHPUnit and removed in PHPUnit 9 respectively.
+        $this->assertTrue(is_int($details->getExposureData()['serialId']));
+    }
+
+    public function testThreadsCamelCaseSerialIdFromObjectResult()
+    {
+        $rawResult = new \stdClass();
+        $rawResult->valueJson = '"green"';
+        $rawResult->variant = 'variant-b';
+        $rawResult->allocationKey = 'alloc-2';
+        $rawResult->reason = ResultMapper::BRIDGE_REASON_SPLIT;
+        $rawResult->errorCode = ResultMapper::BRIDGE_ERROR_NONE;
+        $rawResult->doLog = true;
+        $rawResult->serialId = 7;
+
+        $details = (new ResultMapper())->map($rawResult, EvaluationType::STRING, 'fallback');
+
+        $this->assertSame(
+            array('allocationKey' => 'alloc-2', 'doLog' => true, 'serialId' => 7),
+            $details->getExposureData()
+        );
+    }
+
+    public function testOmitsSerialIdFromExposureDataWhenAbsent()
+    {
+        $details = (new ResultMapper())->map(array(
+            'value_json' => '"blue"',
+            'variant' => 'variant-a',
+            'allocation_key' => 'alloc-1',
+            'reason' => ResultMapper::BRIDGE_REASON_SPLIT,
+            'error_code' => ResultMapper::BRIDGE_ERROR_NONE,
+            'do_log' => true,
+        ), EvaluationType::STRING, 'red');
+
+        $this->assertArrayNotHasKey('serialId', $details->getExposureData());
+    }
 }

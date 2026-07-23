@@ -111,12 +111,15 @@ final class DataDogProvider extends AbstractProvider
         mixed $defaultValue,
         ?EvaluationContext $context
     ): ResolutionDetailsInterface {
-        $details = $this->evaluate($flagKey, $expectedType, $defaultValue, $this->normalizeContext($context));
+        $normalizedContext = $this->normalizeContext($context);
+        $details = $this->evaluate($flagKey, $expectedType, $defaultValue, $normalizedContext);
         $this->warnIfNonProductionRuntime($details);
         // The PHP OpenFeature SDK does not pass ResolutionDetails to finally
         // hooks, so PHP records metrics here after native evaluation has the
         // final provider result.
         $this->recordEvaluationMetric($flagKey, $details);
+        // APM span enrichment is recorded inside NativeEvaluator::evaluate()
+        // (the shared choke point), so there is nothing to do here.
 
         $builder = (new ResolutionDetailsBuilder())
             ->withValue($details->getValue())

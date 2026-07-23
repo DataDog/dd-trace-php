@@ -66,6 +66,7 @@ namespace DDTrace {
         public int $reason = 0;
         public int $errorCode = 0;
         public bool $doLog = false;
+        public ?int $serialId = null;
         public array $providerState = [];
         public ?string $errorMessage = null;
         public ?bool $hasConfig = null;

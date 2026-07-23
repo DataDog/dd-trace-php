@@ -109,7 +109,8 @@ enum datadog_sidecar_connection_mode {
     CONFIG(DOUBLE, DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS, "5.0", .ini_change = zai_config_system_ini_change)  \
     CONFIG(BOOL, DD_REMOTE_CONFIG_ENABLED, "true", .ini_change = zai_config_system_ini_change)                 \
     CONFIG(INT, DD_TRACE_RETRY_INTERVAL, "100", .ini_change = zai_config_system_ini_change)                    \
-    CONFIG(BOOL, DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
+    CONFIG(BOOL, DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")                                       \
+    CONFIG(BOOL, DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED, "false")
 
 #define DD_CONFIGURATIONS_ONLY
 #ifdef DDTRACE
