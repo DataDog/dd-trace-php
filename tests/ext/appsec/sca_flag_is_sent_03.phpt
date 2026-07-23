@@ -13,6 +13,8 @@ require __DIR__ . '/../includes/clear_skipif_telemetry.inc'
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
 DD_APPSEC_SCA_ENABLED=false
+DD_TRACE_AGENT_TIMEOUT=200
+DD_TRACE_RETRY_INTERVAL=1
 --INI--
 datadog.trace.agent_url="file://{PWD}/sca_flag_is_sent_03-telemetry.out"
 --FILE_EXTERNAL--

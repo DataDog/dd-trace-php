@@ -2790,7 +2790,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-common"
-version = "4.2.0"
+version = "5.0.0"
 dependencies = [
  "anyhow",
  "bytes",
@@ -2934,6 +2934,7 @@ dependencies = [
  "libdd-trace-protobuf",
  "libdd-trace-stats",
  "libdd-trace-utils",
+ "prost",
  "rand 0.8.5",
  "regex",
  "rmp-serde",
@@ -3082,7 +3083,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-remote-config"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -3268,6 +3269,7 @@ dependencies = [
  "flate2",
  "futures",
  "getrandom 0.2.15",
+ "hex",
  "http",
  "http-body",
  "http-body-util",
