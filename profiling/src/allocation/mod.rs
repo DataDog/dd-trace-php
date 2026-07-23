@@ -5,6 +5,7 @@ pub use profiling_stats::*;
 use crate::bindings::{self as zend};
 use crate::config::SystemSettings;
 use crate::module_globals;
+use crate::profiling::live_heap::LocalLiveHeapTracker;
 use crate::profiling::Profiler;
 use crate::{RefCellExt, REQUEST_LOCALS};
 use core::cell::Cell;
@@ -98,6 +99,7 @@ pub struct AllocationProfilingStats {
     rng: ThreadRng,
     #[cfg(not(php_zts))]
     rng: StdRng,
+    live_heap: LocalLiveHeapTracker,
 }
 
 impl AllocationProfilingStats {
@@ -111,6 +113,7 @@ impl AllocationProfilingStats {
             rng: rand::rng(),
             #[cfg(not(php_zts))]
             rng: StdRng::from_os_rng(),
+            live_heap: LocalLiveHeapTracker::new(),
         };
         stats.next_sampling_interval();
         stats
