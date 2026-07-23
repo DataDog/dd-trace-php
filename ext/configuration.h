@@ -70,6 +70,7 @@ enum datadog_sidecar_connection_mode {
     CONFIG(BOOL, DD_TRACE_FORCE_FLUSH_ON_SIGINT, "false") /* true if pid == 1 || ppid == 1 */                  \
     CONFIG(BOOL, DD_APPSEC_ENABLED, "false", .ini_change = zai_config_system_ini_change)                       \
     CONFIG(BOOL, DD_APPSEC_RASP_ENABLED , "true")                                                              \
+    CONFIG(STRING, DD_APPSEC_AGENTIC_ONBOARDING, "")                                                           \
     CONFIG(INT, DD_TRACE_AGENT_TIMEOUT, DD_CFG_EXPSTR(DD_TRACE_AGENT_TIMEOUT_VAL),                             \
            .ini_change = zai_config_system_ini_change)                                                         \
     CONFIG(INT, DD_TRACE_AGENT_CONNECT_TIMEOUT, DD_CFG_EXPSTR(DD_TRACE_AGENT_CONNECT_TIMEOUT_VAL),             \
