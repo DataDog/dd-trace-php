@@ -2002,6 +2002,13 @@
         "default": "false"
       }
     ],
+    "DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT": [
+      {
+        "implementation": "B",
+        "type": "string",
+        "default": "continue"
+      }
+    ],
     "DD_TRACE_PROPAGATION_STYLE": [
       {
         "implementation": "D",
