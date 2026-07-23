@@ -12,9 +12,9 @@ namespace DDTrace\FeatureFlags;
  * system-tests assert exact parity, so any divergence (signed varint, wrong
  * sort, `[object Object]` defaults, bare-vs-JSON tag shape) breaks the chain.
  *
- * Lifecycle: one instance per root span, request-scoped. The DataDogProvider
- * constructs it lazily only when the span-enrichment gate is on (DG-005), and
- * the native close-span path flushes + clears it on root-span finish.
+ * Lifecycle: one instance per root span. SpanEnrichmentRegistry::record()
+ * lazily attaches it to the root span (via ObjectKVStore) on first evaluation
+ * and encodes its state onto the root span's meta; it is released with the span.
  */
 final class SpanEnrichmentAccumulator
 {
@@ -55,8 +55,8 @@ final class SpanEnrichmentAccumulator
 
     /**
      * Associate a serial id with a (hashed) subject. The targeting key is
-     * SHA256-hashed before storage (privacy contract DG-003) and is only ever
-     * called by the provider when `do_log` authorizes it.
+     * SHA256-hashed before storage (privacy: raw targeting keys are never
+     * emitted) and is only recorded when `do_log` authorizes it.
      */
     public function addSubject($targetingKey, $id)
     {
@@ -114,7 +114,7 @@ final class SpanEnrichmentAccumulator
     /**
      * Encode the accumulated state into the frozen `ffe_*` span tag set.
      *
-     * Output-shape contract (Pattern F):
+     * Output-shape contract (frozen):
      *  - ffe_flags_enc        => BARE base64 string
      *  - ffe_subjects_enc     => JSON-stringified object {sha256hex: base64}
      *  - ffe_runtime_defaults => JSON-stringified object {flagKey: valueStr}

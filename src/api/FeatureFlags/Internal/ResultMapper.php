@@ -279,7 +279,7 @@ final class ResultMapper
         // result actually carried one; a null/absent value must be left out
         // entirely rather than defaulted to 0/false. Absence alone does NOT
         // mean a runtime default was used -- a waterfall-assigned variant can
-        // also have no serial id. SpanEnrichmentRegistry::accumulate() only
+        // also have no serial id. SpanEnrichmentRegistry::record() only
         // treats an evaluation as a runtime default when BOTH serialId AND the
         // variant are absent.
         $serialId = $this->read($rawResult, array('serial_id', 'serialId'), null);
