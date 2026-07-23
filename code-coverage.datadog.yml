@@ -3,6 +3,11 @@ ignore:
   - "appsec/build/"
   - "appsec/tests/"
   - "appsec/third_party/"
+flags:
+  helper-rust-unit:
+    carryforward: true
+  helper-rust-integration:
+    carryforward: true
 gates:
   - type: total_coverage_percentage
     config:
