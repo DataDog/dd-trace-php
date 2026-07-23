@@ -12,7 +12,6 @@ use DDTrace\FeatureFlags\Internal\Evaluator;
 use DDTrace\FeatureFlags\Internal\Metric\EvaluationMetric;
 use DDTrace\FeatureFlags\Internal\Metric\EvaluationMetricRecorder;
 use DDTrace\FeatureFlags\Internal\NativeEvaluator;
-use DDTrace\FeatureFlags\SpanEnrichmentBinder;
 use DDTrace\Log\LoggerInterface;
 use DDTrace\Log\TriggerErrorLogger;
 use OpenFeature\implementation\provider\AbstractProvider;
@@ -34,16 +33,6 @@ final class DataDogProvider extends AbstractProvider
     private LoggerInterface $warningLogger;
     private bool $warnedAboutNonProductionRuntime = false;
     private EvaluationMetricRecorder $metricRecorder;
-    /**
-     * Gate-gated adapter to the SHARED request-scoped span-enrichment
-     * accumulator (SpanEnrichmentRegistry). Null unless the experimental
-     * span-enrichment gate is on (DG-005: gate off => no binder, no per-span
-     * overhead). Routing through the shared registry rather than a per-provider
-     * accumulator is what lets multiple providers / native clients / mixed
-     * evaluations under one root span AGGREGATE rather than OVERWRITE one
-     * another's tags (PR review blocker).
-     */
-    private ?SpanEnrichmentBinder $spanEnrichmentBinder = null;
 
     public function __construct(?LoggerInterface $logger = null)
     {
@@ -52,14 +41,6 @@ final class DataDogProvider extends AbstractProvider
         $this->evaluator = NativeEvaluator::create(false);
         $this->warningLogger = $logger ?: new TriggerErrorLogger();
         $this->metricRecorder = EvaluationMetricRecorder::createDefault();
-
-        // DG-005: only construct the binder when the experimental span-enrichment
-        // feature is opted in. With the gate off we construct nothing and never
-        // accumulate/stage anything, so the close-span write path stays a cheap
-        // no-op and there is no idle per-span overhead.
-        if (SpanEnrichmentBinder::gateEnabled()) {
-            $this->spanEnrichmentBinder = new SpanEnrichmentBinder();
-        }
     }
 
     /**
@@ -137,19 +118,8 @@ final class DataDogProvider extends AbstractProvider
         // hooks, so PHP records metrics here after native evaluation has the
         // final provider result.
         $this->recordEvaluationMetric($flagKey, $details);
-        // DG-004: PHP has no finally hook with ResolutionDetails, so APM span
-        // enrichment is accumulated INLINE here, on the same code path and from
-        // the same $details, immediately after the metrics hook. Skipped entirely
-        // with the gate off (no binder was constructed); when on, it feeds the
-        // SHARED registry so this provider's tags aggregate with any other
-        // evaluation path active on the same root span.
-        if ($this->spanEnrichmentBinder !== null) {
-            $this->spanEnrichmentBinder->accumulate(
-                $flagKey,
-                $details,
-                $normalizedContext['targetingKey'] ?? null
-            );
-        }
+        // APM span enrichment is recorded inside NativeEvaluator::evaluate()
+        // (the shared choke point), so there is nothing to do here.
 
         $builder = (new ResolutionDetailsBuilder())
             ->withValue($details->getValue())
