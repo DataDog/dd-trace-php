@@ -62,6 +62,7 @@ extern bool runtime_config_first_init;
     CONFIG(STRING, DD_AGENT_HOST, "localhost")                                                                                        \
     CONFIG(INT, DD_TRACE_AGENT_PORT, "0")                                                                                             \
     CONFIG(INT, DD_APPSEC_MAX_BODY_BUFF_SIZE, "524288")                                                                               \
+    SYSCFG(BOOL, DD_APPSEC_RAW_RESPONSE_BODY_ENABLED, "false")                                                                        \
     CONFIG(STRING, DD_TRACE_AGENT_URL, "")                                                                                            \
     CONFIG(BOOL, DD_TRACE_ENABLED, "true")                                                                                            \
     CALIAS(CUSTOM(STRING), DD_APPSEC_AUTO_USER_INSTRUMENTATION_MODE, "ident",                                                         \
