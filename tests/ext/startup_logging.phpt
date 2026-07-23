@@ -53,4 +53,7 @@ enabled_from_env: true
 opcache.file_cache: null
 dynamic_instrumentation_enabled: false
 exception_replay_enabled: false
+otlp_traces_export_enabled: false
+otlp_metrics_export_enabled: false
+otlp_logs_export_enabled: false
 loaded_by_ssi: false
