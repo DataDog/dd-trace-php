@@ -347,7 +347,6 @@ stages:
   script:
     - |
       echo "Installing dependencies"
-      sudo sed -i 's|http://deb.debian.org/debian|http://archive.debian.org/debian|g; s|http://security.debian.org/debian-security|http://archive.debian.org/debian-security|g' /etc/apt/sources.list
       sudo apt-get update && sudo apt-get install -y jq gcovr llvm-20 clang-20
     - cd appsec/build
     - |
