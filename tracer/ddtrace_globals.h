@@ -100,16 +100,6 @@ typedef struct {
     size_t ffe_metric_buffer_len;
     size_t ffe_metric_buffer_cap;
 
-    // Request-scoped, gate-gated staging area for the APM feature-flag span
-    // enrichment tags (ffe_flags_enc / ffe_subjects_enc / ffe_runtime_defaults).
-    // The OpenFeature provider stages the latest encoded values here while
-    // evaluating; the root-span close path flushes them into the root span meta
-    // and clears them. All three are NULL when the gate is off (DG-005: no idle
-    // allocation) or when nothing has been accumulated yet.
-    zend_string *ffe_span_flags_enc;
-    zend_string *ffe_span_subjects_enc;
-    zend_string *ffe_span_runtime_defaults;
-
 } ddtrace_globals;
 
 #define DDTRACE_G(v) (DATADOG_G(ddtrace).v)

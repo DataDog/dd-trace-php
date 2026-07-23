@@ -25,7 +25,6 @@
 #include "standalone_limiter.h"
 #include "code_origins.h"
 #include "endpoint_guessing.h"
-#include "ffe.h"
 
 #define USE_REALTIME_CLOCK 0
 #define USE_MONOTONIC_CLOCK 1
@@ -968,20 +967,6 @@ void ddtrace_close_top_span_without_stack_swap(ddtrace_span_data *span) {
         stack->closed_ring = span;
     }
 
-    if (span->std.ce == ddtrace_ce_root_span_data) {
-        ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
-
-        // APM feature-flag span enrichment (PHP-01): flush any staged ffe_*
-        // tags into the root's meta BEFORE the sampling decision below runs,
-        // so span-level sampling rules that match against ffe_* tags can
-        // actually see them (PR review: this used to run after the sampling
-        // decision, so such rules could never match). Gated and a no-op
-        // (cheap early-return) when the feature is off or nothing was staged
-        // (DG-005). The accumulator is request-scoped and cleared here so it
-        // never leaks across requests.
-        ddtrace_ffe_flush_span_enrichment_tags(ddtrace_property_array(&root->property_meta));
-    }
-
     ddtrace_decide_on_closed_span_sampling(span);
     if (span->notify_user_req_end) {
         ddtrace_user_req_notify_finish(span);
@@ -1096,10 +1081,6 @@ void ddtrace_drop_span(ddtrace_span_data *span) {
     --DDTRACE_G(open_spans_count);
 
     if (&stack->root_span->span == span) {
-        // A dropped root never reaches ddtrace_ffe_flush_span_enrichment_tags(), so any
-        // staged ffe_* tags for this root must be discarded here -- otherwise they would
-        // be flushed onto whichever root span closes next (PR review: FFE span leakage).
-        ddtrace_ffe_clear_span_enrichment_tags();
         ddtrace_switch_span_stack(stack->parent_stack);
         stack->root_span = NULL;
     } else if (!stack->active || SPANDATA(stack->active)->stack != stack) {

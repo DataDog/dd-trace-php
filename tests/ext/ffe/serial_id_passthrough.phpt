@@ -65,9 +65,6 @@ show('no_serial_id', $noSerial->serialId);
 // Errors / unknown flags also carry a null serial id.
 $missing = \DDTrace\ffe_evaluate('missing.flag', 0, 'user-1', array());
 show('missing_serial', $missing->serialId);
-
-// The native staging entrypoint used by the provider is registered.
-show('stage_fn_exists', function_exists('DDTrace\\Internal\\set_ffe_span_enrichment_tags'));
 ?>
 --EXPECT--
 not_ready_serial=null
@@ -78,4 +75,3 @@ with_serial_id_is_int=true
 no_serial_variant="green"
 no_serial_id=null
 missing_serial=null
-stage_fn_exists=true

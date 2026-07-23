@@ -258,15 +258,6 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_flush_ffe_evaluation_metrics, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_set_ffe_span_enrichment_tags, 0, 3, IS_VOID, 0)
-	ZEND_ARG_TYPE_INFO(0, flagsEnc, IS_STRING, 1)
-	ZEND_ARG_TYPE_INFO(0, subjectsEnc, IS_STRING, 1)
-	ZEND_ARG_TYPE_INFO(0, runtimeDefaults, IS_STRING, 1)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_peek_root_span_id, 0, 0, IS_LONG, 1)
-ZEND_END_ARG_INFO()
-
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_datadog_appsec_v2_track_user_login_success, 0, 1, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO(0, login, IS_STRING, 0)
 	ZEND_ARG_TYPE_MASK(0, user, MAY_BE_STRING|MAY_BE_ARRAY|MAY_BE_NULL, "null")
@@ -454,8 +445,6 @@ ZEND_FUNCTION(DDTrace_Internal_add_span_flag);
 ZEND_FUNCTION(DDTrace_Internal_handle_fork);
 ZEND_FUNCTION(DDTrace_Internal_record_ffe_evaluation_metric);
 ZEND_FUNCTION(DDTrace_Internal_flush_ffe_evaluation_metrics);
-ZEND_FUNCTION(DDTrace_Internal_set_ffe_span_enrichment_tags);
-ZEND_FUNCTION(DDTrace_Internal_peek_root_span_id);
 ZEND_FUNCTION(datadog_appsec_v2_track_user_login_success);
 ZEND_FUNCTION(datadog_appsec_v2_track_user_login_failure);
 ZEND_FUNCTION(dd_trace_env_config);
@@ -558,8 +547,6 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "handle_fork"), zif_DDTrace_Internal_handle_fork, arginfo_DDTrace_Internal_handle_fork, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "record_ffe_evaluation_metric"), zif_DDTrace_Internal_record_ffe_evaluation_metric, arginfo_DDTrace_Internal_record_ffe_evaluation_metric, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "flush_ffe_evaluation_metrics"), zif_DDTrace_Internal_flush_ffe_evaluation_metrics, arginfo_DDTrace_Internal_flush_ffe_evaluation_metrics, 0, NULL, NULL)
-	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "set_ffe_span_enrichment_tags"), zif_DDTrace_Internal_set_ffe_span_enrichment_tags, arginfo_DDTrace_Internal_set_ffe_span_enrichment_tags, 0, NULL, NULL)
-	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "peek_root_span_id"), zif_DDTrace_Internal_peek_root_span_id, arginfo_DDTrace_Internal_peek_root_span_id, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("datadog\\appsec\\v2", "track_user_login_success"), zif_datadog_appsec_v2_track_user_login_success, arginfo_datadog_appsec_v2_track_user_login_success, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("datadog\\appsec\\v2", "track_user_login_failure"), zif_datadog_appsec_v2_track_user_login_failure, arginfo_datadog_appsec_v2_track_user_login_failure, 0, NULL, NULL)
 	ZEND_FE(dd_trace_env_config, arginfo_dd_trace_env_config)

@@ -2121,14 +2121,11 @@ PHP_FUNCTION(dd_trace_internal_fn) {
                 waited += 10;
             }
             RETVAL_BOOL(ddog_is_agent_info_ready());
-#ifdef DD_TEST_HELPERS
-        // await_ffe_config is a TEST-ONLY helper: it actively pumps Remote
-        // Config and can block for up to 5s. It exists solely so long-running
-        // CLI test servers (the system-tests parametric app / ffe-dogfooding
-        // harness) can deterministically wait for the pushed UFC before
-        // evaluating. It is compiled in only when DD_TEST_HELPERS is defined
-        // (the standard CI/test/package builds; see config.m4) so it has no
-        // production effect in a hardened build that drops the flag.
+        // await_ffe_config is a test/debug helper (like the other
+        // dd_trace_internal_fn helpers): it actively pumps Remote Config and can
+        // block for up to 5s, so long-running CLI test servers (the system-tests
+        // parametric app / ffe-dogfooding harness) can deterministically wait for
+        // the pushed UFC before evaluating.
         } else if (FUNCTION_NAME_MATCHES("await_ffe_config")) {
             // Block until the sidecar has delivered an FFE (FFE_FLAGS) Remote Config update and the
             // worker has applied it. In long-running CLI servers (e.g. the parametric apps) the
@@ -2149,7 +2146,6 @@ PHP_FUNCTION(dd_trace_internal_fn) {
                 waited += 10;
             }
             RETVAL_BOOL(ddog_ffe_has_config());
-#endif
         } else if (FUNCTION_NAME_MATCHES("get_loaded_remote_configs")) {
             // Returns a PHP array mapping loaded RC config IDs to their content summary.
             // e.g. ["datadog/2/LIVE_DEBUGGING/logProbe_log.../config" => ["type"=>"probe","id"=>"log..."]]
@@ -2849,40 +2845,6 @@ PHP_FUNCTION(DDTrace_Internal_flush_ffe_evaluation_metrics) {
     ZEND_PARSE_PARAMETERS_NONE();
 
     RETURN_BOOL(ddtrace_ffe_flush_evaluation_metrics());
-}
-
-PHP_FUNCTION(DDTrace_Internal_set_ffe_span_enrichment_tags) {
-    zend_string *flags_enc = NULL;
-    zend_string *subjects_enc = NULL;
-    zend_string *runtime_defaults = NULL;
-
-    ZEND_PARSE_PARAMETERS_START(3, 3)
-        Z_PARAM_STR_OR_NULL(flags_enc)
-        Z_PARAM_STR_OR_NULL(subjects_enc)
-        Z_PARAM_STR_OR_NULL(runtime_defaults)
-    ZEND_PARSE_PARAMETERS_END();
-
-    ddtrace_ffe_set_span_enrichment_tags(flags_enc, subjects_enc, runtime_defaults);
-}
-
-PHP_FUNCTION(DDTrace_Internal_peek_root_span_id) {
-    if (zend_parse_parameters_none() == FAILURE) {
-        RETURN_THROWS();
-    }
-
-    // Non-creating root accessor: read the active root span directly WITHOUT
-    // dd_ensure_root_span(), so resolving the root id while merely evaluating a
-    // feature flag never creates an autoroot span as a side effect. Returns the
-    // root's own span_id (a random 64-bit id, never reused within the process)
-    // rather than the zend object handle: handles are recycled by the engine's
-    // object store once a span object is destroyed (e.g. a dropped root), so a
-    // handle-based identity could alias a later, unrelated root and make the
-    // PHP-side accumulator wrongly treat it as still bound to the old one.
-    if (!get_DD_TRACE_ENABLED() || !DDTRACE_G(active_stack) || !DDTRACE_G(active_stack)->root_span) {
-        RETURN_NULL();
-    }
-
-    RETURN_LONG((zend_long) DDTRACE_G(active_stack)->root_span->span_id);
 }
 
 /* {{{ proto array generate_distributed_tracing_headers() */

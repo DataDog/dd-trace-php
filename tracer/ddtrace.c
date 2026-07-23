@@ -612,10 +612,6 @@ void ddtrace_rshutdown(bool fast_shutdown) {
 
     ddtrace_ffe_flush_exposures();
     ddtrace_ffe_flush_evaluation_metrics();
-    // Drop any APM feature-flag span enrichment tags that were staged but never
-    // flushed (e.g. the root span was dropped, or the request ended without a
-    // root close). Request-scoped: prevents cross-request leakage (DG-005).
-    ddtrace_ffe_clear_span_enrichment_tags();
 
     ddtrace_clean_git_object();
     ddtrace_weak_resources_rshutdown();
