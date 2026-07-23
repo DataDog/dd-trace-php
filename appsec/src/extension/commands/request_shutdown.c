@@ -6,6 +6,7 @@
 
 #include "request_shutdown.h"
 #include "../commands_helpers.h"
+#include "../configuration.h"
 #include "../ddappsec.h"
 #include "../ddtrace.h"
 #include "../entity_body.h"
@@ -62,7 +63,11 @@ static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx)
         }
     }
 
-    mpack_start_map(w, 2 + (Z_TYPE(resp_body) != IS_NULL ? 1 : 0));
+    bool send_raw_body = get_global_DD_APPSEC_RAW_RESPONSE_BODY_ENABLED() &&
+                         req_info->entity != NULL && req_info->entity->len > 0;
+
+    mpack_start_map(w, 2 + (Z_TYPE(resp_body) != IS_NULL ? 1 : 0) +
+                           (send_raw_body ? 1 : 0));
 
     // 1.1.
     {
@@ -92,6 +97,13 @@ static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx)
         if (dd_mpack_limits_reached(&limits)) {
             mlog(dd_log_info, "Limits reched when serializing response body");
         }
+    }
+
+    // 1.4.?
+    if (send_raw_body) {
+        dd_mpack_write_lstr(w, "server.response.body.raw");
+        mpack_write_str(w, ZSTR_VAL(req_info->entity),
+            (uint32_t)ZSTR_LEN(req_info->entity));
     }
 
     mpack_finish_map(w);
