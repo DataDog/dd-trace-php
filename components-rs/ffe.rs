@@ -103,7 +103,7 @@ pub struct FfeResult {
     // presence separately via has_serial_id. Consumers MUST gate on
     // has_serial_id (the Pattern B "missing variant => default" semantic) and
     // never treat serial_id == 0 as "absent".
-    pub serial_id: i64,
+    pub serial_id: i32,
     pub has_serial_id: bool,
     pub do_log: bool,
     pub valid: bool,
@@ -228,7 +228,7 @@ fn result_from_assignment(assignment: Result<ffe::Assignment, EvaluationError>) 
                     AssignmentReason::Default => REASON_DEFAULT,
                 },
                 error_code: ERROR_NONE,
-                serial_id: assignment.serial_id.unwrap_or(0) as i64,
+                serial_id: assignment.serial_id.unwrap_or(0),
                 has_serial_id: assignment.serial_id.is_some(),
                 do_log: assignment.do_log,
                 valid: true,

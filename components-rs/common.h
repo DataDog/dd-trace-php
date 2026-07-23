@@ -484,7 +484,7 @@ typedef struct ddog_FfeResult {
   _zend_string * allocation_key;
   int32_t reason;
   int32_t error_code;
-  int64_t serial_id;
+  int32_t serial_id;
   bool has_serial_id;
   bool do_log;
   bool valid;
