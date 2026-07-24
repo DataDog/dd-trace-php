@@ -184,14 +184,21 @@ final class SpanBuilder implements API\SpanBuilderInterface
         $parentSpan = Span::fromContext($parentContext);
         $parentSpanContext = $parentSpan->getContext();
 
-        $span = $parentSpanContext->isValid() ? null : \DDTrace\start_trace_span($this->startEpochNanos);
-        $traceId = $parentSpanContext->isValid() ? $parentSpanContext->getTraceId() : \DDTrace\root_span()->traceId;
+        $behaviorExtract = \dd_trace_env_config('DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT');
+        $restartOrIgnore = $parentSpanContext->isValid() && ($behaviorExtract === 1 || $behaviorExtract === 2);
+
+        $span = ($parentSpanContext->isValid() && !$restartOrIgnore) ? null : \DDTrace\start_trace_span($this->startEpochNanos);
+        $traceId = ($parentSpanContext->isValid() && !$restartOrIgnore)
+            ? $parentSpanContext->getTraceId()
+            : \DDTrace\root_span()->traceId;
+
+        $samplingContext = $restartOrIgnore ? Context::getRoot() : $parentContext;
 
         $samplingResult = $this
             ->tracerSharedState
             ->getSampler()
             ->shouldSample(
-                $parentContext,
+                $samplingContext,
                 $traceId,
                 $this->spanName,
                 $this->spanKind,
@@ -205,7 +212,7 @@ final class SpanBuilder implements API\SpanBuilderInterface
         $sampled = SamplingResult::RECORD_AND_SAMPLE === $samplingDecision;
         $samplingResultTraceState = $samplingResult->getTraceState();
 
-        if ($parentSpanContext->isValid()) {
+        if ($parentSpanContext->isValid() && !$restartOrIgnore) {
             // Traceparent: {2:version}-{32:hex trace id}-{16:hex parent id}-{2:trace_flags}, version always being '00'
             // Since parentSpanContext is valid, the trace identifiers are guaranteed to be in hexadecimal format
             $parentId = $parentSpanContext->getSpanId();
@@ -214,6 +221,15 @@ final class SpanBuilder implements API\SpanBuilderInterface
             \DDTrace\consume_distributed_tracing_headers([
                 'traceparent' => $traceParent,
                 'tracestate' => (string) $samplingResultTraceState, // __toString() is implemented in TraceState
+            ]);
+        } elseif ($parentSpanContext->isValid() && $behaviorExtract === 1) {
+            // RESTART: pass upstream W3C context so C code creates a span link and starts fresh trace
+            $parentId = $parentSpanContext->getSpanId();
+            $traceFlags = $parentSpanContext->isSampled() ? '01' : '00';
+            $traceParent = "00-{$parentSpanContext->getTraceId()}-$parentId-$traceFlags";
+            \DDTrace\consume_distributed_tracing_headers([
+                'traceparent' => $traceParent,
+                'tracestate' => (string) $parentSpanContext->getTraceState(),
             ]);
         } elseif ($samplingResultTraceState) {
             $samplingResultTraceState = $samplingResultTraceState->without('dd');
@@ -234,10 +250,13 @@ final class SpanBuilder implements API\SpanBuilderInterface
             $this->attributes[$key] = $value;
         }
 
-        $parentSpanContextBaggage = $parentContext->get(ContextKeys::baggage());
-        if ($parentSpanContextBaggage) {
-            foreach($parentSpanContextBaggage->getAll() as $baggageKey => $baggageEntry) {
-                $span->baggage[$baggageKey] = $baggageEntry->getValue();
+        if ($behaviorExtract !== 2) {
+            // `restart` or `continue` : propagate baggage
+            $parentSpanContextBaggage = $parentContext->get(ContextKeys::baggage());
+            if ($parentSpanContextBaggage) {
+                foreach ($parentSpanContextBaggage->getAll() as $baggageKey => $baggageEntry) {
+                    $span->baggage[$baggageKey] = $baggageEntry->getValue();
+                }
             }
         }
 
@@ -249,7 +268,7 @@ final class SpanBuilder implements API\SpanBuilderInterface
             $parentSpan,
             $parentContext,
             $this->tracerSharedState->getSpanProcessor(),
-            $parentSpanContext->isValid() ? ResourceInfoFactory::emptyResource() : $this->tracerSharedState->getResource(),
+            ($parentSpanContext->isValid() && !$restartOrIgnore) ? ResourceInfoFactory::emptyResource() : $this->tracerSharedState->getResource(),
             $this->attributes,
             $this->links,
             $this->totalNumberOfLinksAdded,

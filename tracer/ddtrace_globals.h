@@ -89,6 +89,7 @@ typedef struct {
     zend_object *git_object;
 
     bool inferred_span_created;
+    zval pending_upstream_span_link; // span link queued by PROPAGATION_BEHAVIOR_EXTRACT=restart; consumed on root span open
 
     HashTable resource_weak_storage;
     dtor_func_t resource_dtor_func;
