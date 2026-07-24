@@ -39,8 +39,7 @@ final class SpanEnrichmentRegistry
     const CONFIG_KEY = 'DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED';
 
     /**
-     * Whether the experimental span-enrichment gate is on. Process-level env
-     * config; cannot toggle mid-request.
+     * Whether the experimental span-enrichment gate is on.
      *
      * @return bool
      */
@@ -80,11 +79,12 @@ final class SpanEnrichmentRegistry
                 ObjectKVStore::put($root, self::ACCUMULATOR_KEY, $accumulator);
             }
 
+            // getExposureData() always returns an array (EvaluationDetails types it).
             $exposure = $details->getExposureData();
-            $serialId = is_array($exposure) && array_key_exists(self::SERIAL_ID_METADATA_KEY, $exposure)
+            $serialId = array_key_exists(self::SERIAL_ID_METADATA_KEY, $exposure)
                 ? $exposure[self::SERIAL_ID_METADATA_KEY]
                 : null;
-            $doLog = is_array($exposure) && !empty($exposure[self::DO_LOG_METADATA_KEY]);
+            $doLog = !empty($exposure[self::DO_LOG_METADATA_KEY]);
 
             if ($serialId !== null) {
                 $accumulator->addSerialId((int) $serialId);
@@ -98,11 +98,13 @@ final class SpanEnrichmentRegistry
                 }
             }
 
-            // Write (overwrite) the encoded union onto the root span's meta. Safe
-            // to do on every evaluation: toSpanTags() re-encodes the accumulator's
-            // full state, so the latest write is always the complete union.
-            foreach ($accumulator->toSpanTags() as $key => $value) {
-                $root->meta[$key] = $value;
+            // Only re-encode + rewrite the tags when this evaluation actually
+            // changed the accumulated state; a repeated/duplicate evaluation adds
+            // nothing new and the meta already holds the current union.
+            if ($accumulator->consumeDirty()) {
+                foreach ($accumulator->toSpanTags() as $key => $value) {
+                    $root->meta[$key] = $value;
+                }
             }
         } catch (\Throwable $e) {
             // Enrichment must never break flag evaluation.

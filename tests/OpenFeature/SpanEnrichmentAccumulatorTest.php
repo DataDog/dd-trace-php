@@ -308,17 +308,4 @@ final class SpanEnrichmentAccumulatorTest extends TestCase
         self::assertSame($flags, base64_encode(base64_decode($flags, true)));
     }
 
-    public function testClearResetsState(): void
-    {
-        $acc = new SpanEnrichmentAccumulator();
-        $acc->addSerialId(1);
-        $acc->addDefault('flag', 'value');
-        $acc->addSubject('user', 1);
-
-        $acc->clear();
-
-        self::assertFalse($acc->hasData());
-        self::assertSame([], $acc->toSpanTags());
-    }
-
 }

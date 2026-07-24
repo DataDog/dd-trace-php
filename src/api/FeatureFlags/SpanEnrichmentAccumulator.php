@@ -37,13 +37,15 @@ final class SpanEnrichmentAccumulator
     /** @var array<string, string> flagKey => stringified default value. */
     private $defaults = array();
 
+    /** @var bool Whether the state changed since the last toSpanTags() encode. */
+    private $dirty = false;
+
     /**
      * Record a serial id seen during evaluation. Deduped via a set; dropped
      * (with no error) once the frozen cap is reached.
      */
-    public function addSerialId($id)
+    public function addSerialId(int $id)
     {
-        $id = (int) $id;
         if (isset($this->serialIds[$id])) {
             return;
         }
@@ -51,6 +53,7 @@ final class SpanEnrichmentAccumulator
             return;
         }
         $this->serialIds[$id] = true;
+        $this->dirty = true;
     }
 
     /**
@@ -58,10 +61,9 @@ final class SpanEnrichmentAccumulator
      * SHA256-hashed before storage (privacy: raw targeting keys are never
      * emitted) and is only recorded when `do_log` authorizes it.
      */
-    public function addSubject($targetingKey, $id)
+    public function addSubject(string $targetingKey, int $id)
     {
-        $id = (int) $id;
-        $hashed = $this->hashTargetingKey((string) $targetingKey);
+        $hashed = $this->hashTargetingKey($targetingKey);
 
         if (isset($this->subjects[$hashed])) {
             if (isset($this->subjects[$hashed][$id])) {
@@ -71,6 +73,7 @@ final class SpanEnrichmentAccumulator
                 return;
             }
             $this->subjects[$hashed][$id] = true;
+            $this->dirty = true;
             return;
         }
 
@@ -78,6 +81,7 @@ final class SpanEnrichmentAccumulator
             return;
         }
         $this->subjects[$hashed] = array($id => true);
+        $this->dirty = true;
     }
 
     /**
@@ -88,9 +92,8 @@ final class SpanEnrichmentAccumulator
      *
      * @param mixed $value
      */
-    public function addDefault($flagKey, $value)
+    public function addDefault(string $flagKey, $value)
     {
-        $flagKey = (string) $flagKey;
         if (array_key_exists($flagKey, $this->defaults)) {
             return;
         }
@@ -99,6 +102,19 @@ final class SpanEnrichmentAccumulator
         }
 
         $this->defaults[$flagKey] = $this->stringifyDefault($value);
+        $this->dirty = true;
+    }
+
+    /**
+     * Whether the accumulated state changed since the last call, consuming the
+     * flag. Lets the caller skip re-encoding and re-writing the span tags when
+     * an evaluation added nothing new.
+     */
+    public function consumeDirty(): bool
+    {
+        $wasDirty = $this->dirty;
+        $this->dirty = false;
+        return $wasDirty;
     }
 
     /**
@@ -146,17 +162,6 @@ final class SpanEnrichmentAccumulator
         }
 
         return $tags;
-    }
-
-    /**
-     * Reset all accumulated state. Called after the tags are flushed onto the
-     * root span so a reused accumulator never leaks across spans/requests.
-     */
-    public function clear()
-    {
-        $this->serialIds = array();
-        $this->subjects = array();
-        $this->defaults = array();
     }
 
     /**
@@ -300,16 +305,15 @@ final class SpanEnrichmentAccumulator
 
     /**
      * Truncate to at most $maxLength characters without splitting a multi-byte
-     * UTF-8 sequence. Falls back to a byte-safe trim if the multibyte helpers
-     * are unavailable.
+     * UTF-8 sequence. Matches up to $maxLength code points from the start: /u
+     * treats the subject as UTF-8 and /s lets '.' span newlines. If the subject
+     * is not valid UTF-8 (preg_match returns false), falls back to a
+     * codepoint-safe byte walk.
      */
     private function truncateUtf8($value, $maxLength)
     {
-        if (function_exists('mb_substr') && function_exists('mb_strlen')) {
-            if (mb_strlen($value, 'UTF-8') <= $maxLength) {
-                return $value;
-            }
-            return mb_substr($value, 0, $maxLength, 'UTF-8');
+        if (preg_match('/\A.{0,' . (int) $maxLength . '}/su', $value, $m)) {
+            return $m[0];
         }
 
         return $this->truncateUtf8ByteFallback($value, $maxLength);
