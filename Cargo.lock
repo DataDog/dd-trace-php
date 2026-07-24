@@ -1284,7 +1284,8 @@ dependencies = [
  "constcat",
  "futures",
  "http",
- "http-body-util",
+ "libdd-capabilities",
+ "libdd-capabilities-impl",
  "libdd-common",
  "libdd-data-pipeline",
  "libdd-remote-config",
@@ -2772,6 +2773,8 @@ version = "2.1.0"
 dependencies = [
  "anyhow",
  "bytes",
+ "futures-channel",
+ "futures-util",
  "http",
  "thiserror 1.0.69",
 ]
