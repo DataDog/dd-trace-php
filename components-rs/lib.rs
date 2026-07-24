@@ -22,6 +22,7 @@ use std::ffi::{c_char, OsStr};
 use std::path::Path;
 use std::ptr::null_mut;
 use uuid::Uuid;
+#[cfg(unix)]
 use datadog_sidecar::crashtracker::crashtracker_receiver_request_bytes;
 pub use libdd_crashtracker_ffi::*;
 pub use libdd_library_config_ffi::*;
