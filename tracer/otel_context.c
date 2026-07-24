@@ -1,7 +1,9 @@
 #include "otel_context.h"
 
 #include "ddtrace.h"
+#include "priority_sampling/priority_sampling.h"
 #include "span.h"
+#include "trace_context.h"
 #include <ext/target_metadata.h>
 
 #ifndef _WIN32
@@ -42,7 +44,7 @@ _Static_assert(_Alignof(datadog_otel_thr_ctx_rec) == 2, "unexpected OTel thread 
 _Static_assert(offsetof(datadog_otel_thr_ctx_rec, trace_id) == 0, "unexpected OTel thread context trace_id offset");
 _Static_assert(offsetof(datadog_otel_thr_ctx_rec, span_id) == 16, "unexpected OTel thread context span_id offset");
 _Static_assert(offsetof(datadog_otel_thr_ctx_rec, valid) == 24, "unexpected OTel thread context valid offset");
-_Static_assert(offsetof(datadog_otel_thr_ctx_rec, reserved) == 25, "unexpected OTel thread context reserved offset");
+_Static_assert(offsetof(datadog_otel_thr_ctx_rec, trace_flags) == 25, "unexpected OTel thread context trace_flags offset");
 _Static_assert(offsetof(datadog_otel_thr_ctx_rec, attrs_data_size) == 26, "unexpected OTel thread context attrs_data_size offset");
 _Static_assert(offsetof(datadog_otel_thr_ctx_rec, attrs_data) == 28, "unexpected OTel thread context attrs_data offset");
 _Static_assert(offsetof(ddtrace_root_span_data, otel_context) % 8 == 0, "unexpected OTel thread context placement");
@@ -95,6 +97,7 @@ static ddtrace_span_data *ddtrace_otel_entrypoint_span(void);
 static ddtrace_span_data *ddtrace_otel_attr_source_span(ddtrace_root_span_data *source_root);
 static void ddtrace_otel_record_set_trace_id(datadog_otel_thr_ctx_rec *record, datadog_trace_id trace_id);
 static void ddtrace_otel_record_set_span_id(datadog_otel_thr_ctx_rec *record, uint64_t span_id);
+static void ddtrace_otel_record_set_trace_flags(datadog_otel_thr_ctx_rec *record, ddtrace_root_span_data *root);
 static void ddtrace_otel_record_set_attrs(datadog_otel_thr_ctx_rec *record, ddtrace_root_span_data *root);
 static void ddtrace_otel_record_set_attrs_from_values(datadog_otel_thr_ctx_rec *record, ddtrace_root_span_data *root, zend_string *service, zend_string *env, zend_string *version);
 static size_t ddtrace_otel_record_write_attr_zstr(datadog_otel_thr_ctx_rec *record, size_t offset, uint8_t key_index, zend_string *value);
@@ -109,14 +112,27 @@ void ddtrace_otel_init_root_span(ddtrace_root_span_data *root) {
     ddtrace_span_data *span = &root->span;
     ddtrace_otel_record_set_trace_id(record, root->trace_id);
     ddtrace_otel_record_set_span_id(record, span->span_id);
+    ddtrace_otel_record_set_trace_flags(record, root);
     ddtrace_otel_record_set_attrs(record, root);
     atomic_store_explicit(&record->valid, 1, memory_order_relaxed);
+}
+
+void ddtrace_otel_update_trace_flags(ddtrace_root_span_data *root) {
+    if (!root) {
+        return;
+    }
+
+    datadog_otel_thr_ctx_rec *record = &root->otel_context;
+    ddtrace_otel_record_begin_update(record);
+    ddtrace_otel_record_set_trace_flags(record, root);
+    ddtrace_otel_record_end_update(record);
 }
 
 void ddtrace_otel_update_trace_id(ddtrace_root_span_data *root) {
     datadog_otel_thr_ctx_rec *record = &root->otel_context;
     ddtrace_otel_record_begin_update(record);
     ddtrace_otel_record_set_trace_id(record, root->trace_id);
+    ddtrace_otel_record_set_trace_flags(record, root);
     ddtrace_otel_record_end_update(record);
 }
 
@@ -152,6 +168,7 @@ void ddtrace_otel_attach_stack(ddtrace_span_stack *stack) {
     datadog_otel_thr_ctx_rec *record = &root->otel_context;
     ddtrace_otel_record_begin_update(record);
     ddtrace_otel_record_set_span_id(record, SPANDATA(stack->active)->span_id);
+    ddtrace_otel_record_set_trace_flags(record, root);
     ddtrace_otel_record_set_attrs(record, root);
     ddtrace_otel_record_end_update(record);
     ddtrace_otel_attach(record);
@@ -209,6 +226,16 @@ static void ddtrace_otel_record_set_trace_id(datadog_otel_thr_ctx_rec *record, d
 static void ddtrace_otel_record_set_span_id(datadog_otel_thr_ctx_rec *record, uint64_t span_id) {
     uint64_t big_endian = ddtrace_u64_be(span_id);
     ddtrace_otel_store_bytes(record->span_id, (const uint8_t *)&big_endian, sizeof(big_endian));
+}
+
+static void ddtrace_otel_record_set_trace_flags(datadog_otel_thr_ctx_rec *record, ddtrace_root_span_data *root) {
+    zend_long sampling_priority = Z_TYPE(root->property_sampling_priority) == IS_UNDEF
+        ? DDTRACE_PRIORITY_SAMPLING_UNKNOWN
+        : zval_get_long(&root->property_sampling_priority);
+    atomic_store_explicit(
+        &record->trace_flags,
+        ddtrace_compute_trace_flags(root->trace_flags, sampling_priority),
+        memory_order_relaxed);
 }
 
 static void ddtrace_otel_record_set_attrs_from_values(datadog_otel_thr_ctx_rec *record, ddtrace_root_span_data *root, zend_string *service, zend_string *env, zend_string *version) {

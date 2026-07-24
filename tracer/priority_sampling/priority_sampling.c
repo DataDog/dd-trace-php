@@ -323,6 +323,7 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
             zval priority_zv;
             ZVAL_LONG(&priority_zv, PRIORITY_SAMPLING_AUTO_REJECT);
             datadog_assign_variable(&span->property_sampling_priority, &priority_zv);
+            ddtrace_otel_update_trace_flags(span);
         }
         zend_hash_str_del(ddtrace_property_array(&span->property_meta), ZEND_STRL("_dd.p.ksr"));
         return;
@@ -386,6 +387,7 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
     zval priority_zv;
     ZVAL_LONG(&priority_zv, priority);
     datadog_assign_variable(&span->property_sampling_priority, &priority_zv);
+    ddtrace_otel_update_trace_flags(span);
     dd_update_decision_maker_tag(span, mechanism);
 }
 
@@ -434,6 +436,7 @@ void ddtrace_set_priority_sampling_on_span(ddtrace_root_span_data *root_span, ze
     zval zv;
     ZVAL_LONG(&zv, priority);
     datadog_assign_variable(&root_span->property_sampling_priority, &zv);
+    ddtrace_otel_update_trace_flags(root_span);
 
     if (priority != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
         dd_update_decision_maker_tag(root_span, mechanism);

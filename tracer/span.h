@@ -122,6 +122,7 @@ static inline ddtrace_inferred_span_data *INFERRED_SPANDATA(zend_object *obj) {
 struct ddtrace_root_span_data {
     datadog_trace_id trace_id;
     uint64_t parent_id;
+    uint8_t trace_flags;
     ddtrace_rule_result sampling_rule;
     datadog_otel_thr_ctx_rec otel_context;
     bool explicit_sampling_priority;

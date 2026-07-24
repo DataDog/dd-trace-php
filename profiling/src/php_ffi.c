@@ -37,7 +37,7 @@ typedef struct ddog_php_prof_otel_thread_context_record {
     _Atomic(uint8_t) trace_id[16];
     _Atomic(uint8_t) span_id[8];
     _Atomic(uint8_t) valid;
-    uint8_t reserved;
+    uint8_t trace_flags;
     _Atomic(uint16_t) attrs_data_size;
     _Atomic(uint8_t) attrs_data[DDOG_PHP_PROF_OTEL_ATTRS_DATA_SIZE];
 } ddog_php_prof_otel_thread_context_record;
@@ -52,8 +52,8 @@ _Static_assert(offsetof(ddog_php_prof_otel_thread_context_record, span_id) == 16
     "unexpected OTel thread context span_id offset");
 _Static_assert(offsetof(ddog_php_prof_otel_thread_context_record, valid) == 24,
     "unexpected OTel thread context valid offset");
-_Static_assert(offsetof(ddog_php_prof_otel_thread_context_record, reserved) == 25,
-    "unexpected OTel thread context reserved offset");
+_Static_assert(offsetof(ddog_php_prof_otel_thread_context_record, trace_flags) == 25,
+    "unexpected OTel thread context trace_flags offset");
 _Static_assert(offsetof(ddog_php_prof_otel_thread_context_record, attrs_data_size) == 26,
     "unexpected OTel thread context attrs_data_size offset");
 _Static_assert(offsetof(ddog_php_prof_otel_thread_context_record, attrs_data_size) % _Alignof(uint16_t) == 0,

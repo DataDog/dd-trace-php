@@ -6,6 +6,7 @@
 #include "random.h"
 #include "tracer_tag_propagation/tracer_tag_propagation.h"
 #include "span.h"
+#include "trace_context.h"
 #include <Zend/zend_smart_str.h>
 #include <components/log/log.h>
 
@@ -387,11 +388,14 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
                 ADD_HEADER("x-b3-spanid", "%016" PRIx64, span_id);
             }
             if (send_tracestate) {
+                uint8_t trace_flags = ddtrace_compute_trace_flags(
+                    root_span ? root_span->trace_flags : DDTRACE_G(distributed_trace_flags),
+                    sampling_priority);
                 ADD_HEADER("traceparent", "00-%016" PRIx64 "%016" PRIx64 "-%016" PRIx64 "-%02" PRIx8,
                            trace_id.high,
                            trace_id.low,
                            span_id,
-                           sampling_priority > 0);
+                           trace_flags);
 
                 uint64_t propagated_span_id = 0;
                 zval *old_parent_id;
