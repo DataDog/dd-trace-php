@@ -60,6 +60,13 @@ void ddtrace_populate_startup_config(HashTable *ht) {
     dd_add_assoc_bool(ht, ZEND_STRL("sidecar_trace_sender"), get_global_DD_TRACE_SIDECAR_TRACE_SENDER());
     dd_add_assoc_bool(ht, ZEND_STRL("dynamic_instrumentation_enabled"), get_global_DD_DYNAMIC_INSTRUMENTATION_ENABLED());
     dd_add_assoc_bool(ht, ZEND_STRL("exception_replay_enabled"), get_global_DD_EXCEPTION_REPLAY_ENABLED());
+
+    // OTLP telemetry export status (cross-language schema). PHP exports traces natively via the
+    // Datadog Agent (never over OTLP), so otlp_traces_export_enabled is always false; the metrics
+    // and logs flags mirror DD_METRICS_OTEL_ENABLED / DD_LOGS_OTEL_ENABLED (request-scoped).
+    dd_add_assoc_bool(ht, ZEND_STRL("otlp_traces_export_enabled"), false);
+    dd_add_assoc_bool(ht, ZEND_STRL("otlp_metrics_export_enabled"), get_DD_METRICS_OTEL_ENABLED());
+    dd_add_assoc_bool(ht, ZEND_STRL("otlp_logs_export_enabled"), get_DD_LOGS_OTEL_ENABLED());
 }
 
 static bool dd_file_exists(const char *file) {
