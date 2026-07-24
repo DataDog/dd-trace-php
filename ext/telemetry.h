@@ -28,6 +28,7 @@ const char *ddtrace_telemetry_redact_file(const char *file);
 void datadog_telemetry_rinit(void);
 void datadog_telemetry_rshutdown(void);
 void datadog_telemetry_finalize(void);
+void datadog_telemetry_commit_user_request_metrics(void);
 void datadog_telemetry_lifecycle_end(void);
 void datadog_telemetry_register_services(ddog_SidecarTransport **sidecar);
 
