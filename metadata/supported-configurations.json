@@ -12,7 +12,8 @@
       {
         "implementation": "C",
         "type": "string",
-        "default": ""
+        "default": "",
+        "sensitive": true
       }
     ],
     "DD_API_SECURITY_ENABLED": [
@@ -1110,7 +1111,8 @@
       {
         "implementation": "A",
         "type": "boolean",
-        "default": "true"
+        "default": "true",
+        "sensitive": true
       }
     ],
     "DD_TRACE_EXEC_ANALYTICS_ENABLED": [
