@@ -66,8 +66,9 @@ static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx)
     bool send_raw_body = get_global_DD_APPSEC_RAW_RESPONSE_BODY_ENABLED() &&
                          req_info->entity != NULL && req_info->entity->len > 0;
 
-    mpack_start_map(w, 2 + (Z_TYPE(resp_body) != IS_NULL ? 1 : 0) +
-                           (send_raw_body ? 1 : 0));
+    uint32_t num_entries =
+        2 + (Z_TYPE(resp_body) != IS_NULL ? 1 : 0) + (send_raw_body ? 1 : 0);
+    mpack_start_map(w, num_entries);
 
     // 1.1.
     {

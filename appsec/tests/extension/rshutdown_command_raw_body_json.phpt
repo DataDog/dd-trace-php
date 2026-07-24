@@ -17,9 +17,9 @@ $helper = Helper::createInitedRun([
     response_list(response_request_shutdown([[['ok', []]], new ArrayObject(), new ArrayObject()]))
 ]);
 
-var_dump(rinit());
 header('content-type: application/json');
 http_response_code(200);
+var_dump(rinit());
 echo '{"key":"value"}', "\n";
 $helper->get_commands(); // ignore
 

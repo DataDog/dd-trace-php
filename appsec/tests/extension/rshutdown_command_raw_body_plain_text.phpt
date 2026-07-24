@@ -17,9 +17,9 @@ $helper = Helper::createInitedRun([
     response_list(response_request_shutdown([[['ok', []]], new ArrayObject(), new ArrayObject()]))
 ]);
 
-var_dump(rinit());
 header('content-type: text/plain');
 http_response_code(200);
+var_dump(rinit());
 echo "plain text body\n";
 $helper->get_commands(); // ignore
 
