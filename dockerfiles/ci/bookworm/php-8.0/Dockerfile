@@ -94,4 +94,6 @@ RUN sudo sed -i "s/VERSIONS/$(ls $PHP_INSTALL_DIR | xargs)/" /etc/motd
 
 USER circleci
 
+COPY --chown=circleci:circleci cert.pem $PHP_SRC_DIR/ext/ftp/tests/cert.pem
+
 CMD ["php-fpm", "-F"]
