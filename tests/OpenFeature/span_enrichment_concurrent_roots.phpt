@@ -1,11 +1,5 @@
 --TEST--
 FFE span enrichment: concurrently-open root spans each keep their own tags
---SKIPIF--
-<?php
-if (getenv('PHP_PEAR_RUNTESTS') === '1') {
-    die('skip: the src/ PHP API is not shipped in the PECL test package');
-}
-?>
 --INI--
 datadog.trace.generate_root_span=0
 datadog.experimental_flagging_provider_span_enrichment_enabled=1
@@ -18,11 +12,10 @@ use DDTrace\FeatureFlags\EvaluationType;
 use DDTrace\FeatureFlags\SpanEnrichmentAccumulator;
 use DDTrace\FeatureFlags\SpanEnrichmentRegistry;
 
-$root = getenv('TEST_PHP_SRCDIR');
-if (!is_string($root) || $root === '') {
-    $root = dirname(dirname(dirname(__DIR__)));
-}
-require_once $root . '/src/DDTrace/Util/ObjectKVStore.php';
+// Runs under the PHPUnit `featureflags` suite (PHP 8.0+), CWD = repo root. The
+// DDTrace API classes are plain PHP under src/; load them explicitly (the
+// OpenFeature composer autoload does not map the DDTrace namespace).
+require_once './src/DDTrace/Util/ObjectKVStore.php';
 foreach (array(
     'EvaluationType',
     'EvaluationReason',
@@ -31,7 +24,7 @@ foreach (array(
     'SpanEnrichmentAccumulator',
     'SpanEnrichmentRegistry',
 ) as $classFile) {
-    require_once $root . '/src/api/FeatureFlags/' . $classFile . '.php';
+    require_once './src/api/FeatureFlags/' . $classFile . '.php';
 }
 
 function show($label, $value) {
