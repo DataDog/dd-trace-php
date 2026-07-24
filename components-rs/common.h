@@ -52,8 +52,6 @@
 
 typedef struct ddog_Endpoint ddog_Endpoint;
 
-typedef struct ddog_Tag ddog_Tag;
-
 /**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,
  * never from C.
@@ -412,8 +410,11 @@ typedef enum ddog_RemoteConfigCapabilities {
   DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_ENABLE_LIVE_DEBUGGING = 41,
   DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_DD_MULTICONFIG = 42,
   DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_TRACE_TAGGING_RULES = 43,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_EXTENDED_DATA_COLLECTION = 44,
   DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_MULTICONFIG = 45,
   DDOG_REMOTE_CONFIG_CAPABILITIES_FFE_FLAG_CONFIGURATION_RULES = 46,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_DD_DATA_STREAMS_TRANSACTION_EXTRACTORS = 47,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_LLM_OBS_ACTIVATION = 48,
 } ddog_RemoteConfigCapabilities;
 
 typedef enum ddog_RemoteConfigProduct {
@@ -426,6 +427,7 @@ typedef enum ddog_RemoteConfigProduct {
   DDOG_REMOTE_CONFIG_PRODUCT_ASM_FEATURES,
   DDOG_REMOTE_CONFIG_PRODUCT_FFE_FLAGS,
   DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGER,
+  DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGER_SYMBOL_DB,
 } ddog_RemoteConfigProduct;
 
 typedef enum ddog_SpanProbeTarget {
@@ -1110,9 +1112,10 @@ typedef struct ddog_TelemetryWorkerBuilder ddog_TelemetryWorkerBuilder;
  * The worker won't send data to the agent until you call `TelemetryWorkerHandle::send_start`
  *
  * To stop the worker, call `TelemetryWorkerHandle::send_stop` which trigger flush asynchronously
- * then `TelemetryWorkerHandle::wait_for_shutdown`
+ * then `TelemetryWorkerHandle::wait_for_shutdown` (native only — wasm callers rely on the
+ * SharedRuntime worker JoinHandle instead).
  */
-typedef struct ddog_TelemetryWorkerHandle ddog_TelemetryWorkerHandle;
+typedef struct ddog_TelemetryWorkerHandle_NativeCapabilities ddog_TelemetryWorkerHandle_NativeCapabilities;
 
 typedef enum ddog_Option_U64_Tag {
   DDOG_OPTION_U64_SOME_U64,
@@ -1127,6 +1130,12 @@ typedef struct ddog_Option_U64 {
     };
   };
 } ddog_Option_U64;
+
+/**
+ * FFI-facing alias: the C ABI surface is native-only, so the worker handle is
+ * always pinned to [`NativeCapabilities`].
+ */
+typedef struct ddog_TelemetryWorkerHandle_NativeCapabilities ddog_TelemetryWorkerHandle;
 
 typedef enum ddog_Option_Bool_Tag {
   DDOG_OPTION_BOOL_SOME_BOOL,

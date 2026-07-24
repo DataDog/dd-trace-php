@@ -19,7 +19,7 @@ DDTrace\close_span();
 dd_trace_internal_fn("finalize_telemetry");
 
 usleep(100000);
-var_dump(file_exists(__DIR__ . '/disabled-telemetry.out'));
+var_dump(strpos(@file_get_contents(__DIR__ . '/disabled-telemetry.out') ?: "", "app-started"));
 
 ?>
 --EXPECT--
