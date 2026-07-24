@@ -42,7 +42,7 @@ for ($i = 0; $i < 100; ++$i) {
     ("us" . "leep")(100000);
     if (file_exists(__DIR__ . '/local-config-telemetry.out')) {
         foreach (file(__DIR__ . '/local-config-telemetry.out') as $l) {
-            if ($l) {
+            if ($l && $l[0] == '{') {
                 $json = json_decode($l, true);
                 $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
                 foreach ($batch as $json) {
