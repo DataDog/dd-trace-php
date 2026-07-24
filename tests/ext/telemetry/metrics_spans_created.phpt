@@ -84,7 +84,7 @@ namespace
         ("us" . "leep")(100000);
         if (file_exists(__DIR__ . '/metrics-spans_created-telemetry.out')) {
             foreach (file(__DIR__ . '/metrics-spans_created-telemetry.out') as $l) {
-                if ($l) {
+                if ($l && $l[0] == '{') {
                     $json = json_decode($l, true);
                     if (($json["application"]["language_version"] ?? "") == "SIDECAR") {
                         continue;

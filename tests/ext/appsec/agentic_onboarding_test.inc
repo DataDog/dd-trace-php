@@ -19,7 +19,7 @@ for ($i = 0; $i < 300; ++$i) {
     if (file_exists(__DIR__ . '/'.$id.'-telemetry.out')) {
         $batches = [];
         foreach (file(__DIR__ . '/'.$id.'-telemetry.out') as $l) {
-            if ($l) {
+            if ($l && $l[0] == '{') {
                 $json = json_decode($l, true);
                 if ($json) {
                     if ($json["application"]["service_name"] == "background_sender-php-service" || $json["application"]["service_name"] == "datadog-ipc-helper") {

@@ -248,24 +248,6 @@ stages:
   script:
     - apt update && apt install -y openjdk-17-jre
     - |
-      echo "Installing codecov CLI"
-      curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&options=mr&search=0x27034E7FDB850E0BBC2C62FF806BB28AED779869" | gpg --no-default-keyring --keyring trustedkeys.gpg --import
-      CODECOV_VERSION=0.6.1
-      curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/linux/codecov
-      curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/linux/codecov.SHA256SUM
-      curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/linux/codecov.SHA256SUM.sig
-      gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
-      shasum -a 256 -c codecov.SHA256SUM
-      rm codecov.SHA256SUM.sig codecov.SHA256SUM
-      chmod +x codecov
-      mv codecov /usr/local/bin/codecov
-    - |
-      echo "Installing vault for codecov token"
-      curl -o vault.zip https://releases.hashicorp.com/vault/1.20.0/vault_1.20.0_linux_amd64.zip
-      unzip vault.zip
-      mv vault /usr/local/bin/vault
-      rm vault.zip
-    - |
       cd appsec/tests/integration
       CACHE_PATH=build/php-appsec-volume-caches-${ARCH}.tar.gz
       if [ -f "$CACHE_PATH" ]; then
@@ -280,18 +262,9 @@ stages:
       mkdir -p "$CI_PROJECT_DIR"/appsec/helper-rust
       docker run --rm -v php-helper-rust-coverage:/vol alpine cat /vol/coverage-unit.lcov > "$CI_PROJECT_DIR"/appsec/helper-rust/coverage-unit.lcov
     - |
-      echo "Uploading helper-rust unit test coverage to codecov"
       cd "$CI_PROJECT_DIR"
-      if ! VAULT_OUTPUT=$(vault kv get --format=json kv/k8s/gitlab-runner/dd-trace-php/codecov); then
-        echo "ERROR: vault unreachable while fetching CODECOV_TOKEN; exiting 75 so GitLab auto-retries (see default retry.exit_codes in generate-common.php)"
-        exit 75
-      fi
-      CODECOV_TOKEN=$(echo "$VAULT_OUTPUT" | jq -r .data.data.token)
-      if [ -z "$CODECOV_TOKEN" ] || [ "$CODECOV_TOKEN" = "null" ]; then
-        echo "ERROR: CODECOV_TOKEN empty/null after vault fetch; exiting 75 so GitLab auto-retries"
-        exit 75
-      fi
-      codecov -t "$CODECOV_TOKEN" -n helper-rust-unit -F helper-rust-unit -v -f appsec/helper-rust/coverage-unit.lcov
+      DD_COVERAGE_FLAGS=helper-rust-unit \
+        .gitlab/upload-code-coverage-to-datadog.sh appsec/helper-rust/coverage-unit.lcov
   artifacts:
     paths:
       - appsec/helper-rust/coverage-unit.lcov
@@ -323,24 +296,6 @@ stages:
   script:
     - apt update && apt install -y openjdk-17-jre
     - |
-      echo "Installing codecov CLI"
-      curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&options=mr&search=0x27034E7FDB850E0BBC2C62FF806BB28AED779869" | gpg --no-default-keyring --keyring trustedkeys.gpg --import
-      CODECOV_VERSION=0.6.1
-      curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/linux/codecov
-      curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/linux/codecov.SHA256SUM
-      curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/linux/codecov.SHA256SUM.sig
-      gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
-      shasum -a 256 -c codecov.SHA256SUM
-      rm codecov.SHA256SUM.sig codecov.SHA256SUM
-      chmod +x codecov
-      mv codecov /usr/local/bin/codecov
-    - |
-      echo "Installing vault for codecov token"
-      curl -o vault.zip https://releases.hashicorp.com/vault/1.20.0/vault_1.20.0_linux_amd64.zip
-      unzip vault.zip
-      mv vault /usr/local/bin/vault
-      rm vault.zip
-    - |
       cd appsec/tests/integration
       CACHE_PATH=build/php-appsec-volume-caches-${ARCH}.tar.gz
       if [ -f "$CACHE_PATH" ]; then
@@ -359,18 +314,9 @@ stages:
       mkdir -p "$CI_PROJECT_DIR"/appsec/helper-rust
       docker run --rm -v php-helper-rust-coverage:/vol alpine cat /vol/coverage-integration.lcov > "$CI_PROJECT_DIR"/appsec/helper-rust/coverage-integration.lcov
     - |
-      echo "Uploading helper-rust integration test coverage to codecov"
       cd "$CI_PROJECT_DIR"
-      if ! VAULT_OUTPUT=$(vault kv get --format=json kv/k8s/gitlab-runner/dd-trace-php/codecov); then
-        echo "ERROR: vault unreachable while fetching CODECOV_TOKEN; exiting 75 so GitLab auto-retries (see default retry.exit_codes in generate-common.php)"
-        exit 75
-      fi
-      CODECOV_TOKEN=$(echo "$VAULT_OUTPUT" | jq -r .data.data.token)
-      if [ -z "$CODECOV_TOKEN" ] || [ "$CODECOV_TOKEN" = "null" ]; then
-        echo "ERROR: CODECOV_TOKEN empty/null after vault fetch; exiting 75 so GitLab auto-retries"
-        exit 75
-      fi
-      codecov -t "$CODECOV_TOKEN" -n helper-rust-integration -F helper-rust-integration -v -f appsec/helper-rust/coverage-integration.lcov
+      DD_COVERAGE_FLAGS=helper-rust-integration \
+        .gitlab/upload-code-coverage-to-datadog.sh appsec/helper-rust/coverage-integration.lcov
   after_script:
     - mkdir -p "${CI_PROJECT_DIR}/artifacts"
     - find appsec/tests/integration/build/test-results -name "*.xml" -exec cp --parents '{}' "${CI_PROJECT_DIR}/artifacts/" \; || true
@@ -401,28 +347,7 @@ stages:
   script:
     - |
       echo "Installing dependencies"
-      cd /tmp
-      curl -o vault.zip https://releases.hashicorp.com/vault/1.20.0/vault_1.20.0_linux_amd64.zip
-      unzip vault.zip
-      sudo cp -v vault /usr/local/bin
-      cd -
-      sudo sed -i 's|http://deb.debian.org/debian|http://archive.debian.org/debian|g; s|http://security.debian.org/debian-security|http://archive.debian.org/debian-security|g' /etc/apt/sources.list
       sudo apt-get update && sudo apt-get install -y jq gcovr llvm-20 clang-20
-
-      echo "Installing codecov"
-
-      CODECOV_TOKEN=$(vault kv get --format=json kv/k8s/gitlab-runner/dd-trace-php/codecov | jq -r .data.data.token)
-      CODECOV_VERSION=0.6.1
-      CODECOV_ARCH=linux
-      curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&options=mr&search=0x27034E7FDB850E0BBC2C62FF806BB28AED779869" | gpg --no-default-keyring --keyring trustedkeys.gpg --import
-      curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/${CODECOV_ARCH}/codecov
-      curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/${CODECOV_ARCH}/codecov.SHA256SUM
-      curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/${CODECOV_ARCH}/codecov.SHA256SUM.sig
-      gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
-      shasum -a 256 -c codecov.SHA256SUM
-      rm codecov.SHA256SUM.sig codecov.SHA256SUM
-      sudo mv codecov /usr/local/bin/codecov
-      sudo chmod +x /usr/local/bin/codecov
     - cd appsec/build
     - |
       cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=ON \
@@ -445,36 +370,17 @@ stages:
       llvm-cov-20 export "$CI_PROJECT_DIR"/appsec/build/ddappsec.so \
         -format=lcov -instr-profile=default.profdata \
         > "$CI_PROJECT_DIR"/appsec/build/coverage-ext.lcov
-      echo "Uploading extension coverage to codecov"
-      cd "$CI_PROJECT_DIR"
-      codecov -t "$CODECOV_TOKEN" -n appsec-extension -v -f appsec/build/coverage-ext.lcov
     - |
       cd /tmp/cov-helper
       llvm-profdata-20 merge -sparse *.profraw -o default.profdata
       llvm-cov-20 export "$CI_PROJECT_DIR"/appsec/build/tests/helper/ddappsec_helper_test \
         -format=lcov -instr-profile=default.profdata \
         > "$CI_PROJECT_DIR/appsec/build/coverage-helper.lcov"
-      echo "Uploading helper coverage to codecov"
-      cd "$CI_PROJECT_DIR"
-      codecov -t "$CODECOV_TOKEN" -n appsec-helper -v -f appsec/build/coverage-helper.lcov
     - |
-      echo "Uploading coverage to Datadog"
       cd "$CI_PROJECT_DIR"
-
-      DATADOG_API_KEY=$(vault kv get --format=json kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key | jq -r .data.data.key)
-      export DATADOG_API_KEY
-      export DD_SITE="datadoghq.com"
-
-      # Install datadog-ci
-      DATADOG_CI_VERSION="v5.9.1"
-      curl -L --fail "https://github.com/DataDog/datadog-ci/releases/download/${DATADOG_CI_VERSION}/datadog-ci_linux-x64" --output "/tmp/datadog-ci"
-      chmod +x /tmp/datadog-ci
-
-      echo "Uploading extension coverage to Datadog"
-      /tmp/datadog-ci coverage upload --format=lcov appsec/build/coverage-ext.lcov || true
-
-      echo "Uploading helper coverage to Datadog"
-      /tmp/datadog-ci coverage upload --format=lcov appsec/build/coverage-helper.lcov || true
+      .gitlab/upload-code-coverage-to-datadog.sh \
+        appsec/build/coverage-ext.lcov \
+        appsec/build/coverage-helper.lcov
 
 
 "push appsec images":

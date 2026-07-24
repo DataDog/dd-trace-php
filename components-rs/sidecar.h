@@ -443,11 +443,6 @@ void ddog_sidecar_reconnect(struct ddog_SidecarTransport **transport,
                             struct ddog_SidecarTransport *(*factory)(void));
 
 /**
- * Return the path of the crashtracker unix domain socket.
- */
-ddog_CharSlice ddog_sidecar_get_crashtracker_unix_socket_path(void);
-
-/**
  * Gets an agent info reader.
  */
 struct ddog_AgentInfoReader *ddog_get_agent_info_reader(const struct ddog_Endpoint *endpoint);

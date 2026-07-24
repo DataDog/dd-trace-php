@@ -33,7 +33,15 @@ inherits = "release"
 # These are to satistfy the build with libdatadog as a path dependency inside
 # components-rs. There may be a better way to fix this, but I'm alreday two
 # tasks removed from what I'm trying to do, so pushing forward.
+#
+# Every dependency that a libdatadog crate inherits via `{ workspace = true }`
+# must be declared here, because those crates resolve their workspace
+# inheritance against this manifest when built as path dependencies. Keep this
+# list in sync with libdatadog's own `[workspace.dependencies]`; libdatadog
+# #2253 consolidated `anyhow`, `serde`, `tokio` and `tracing` to the workspace
+# level, so they are mirrored here too.
 [workspace.dependencies]
+anyhow = { version = "1.0", default-features = false }
 arc-swap = "1.7.1"
 hyper = { version = "1.6", features = [
   "http1",
@@ -44,6 +52,9 @@ hyper-util = { version = "0.1.10", features = [
   "client",
   "client-legacy",
 ] }
+serde = { version = "1.0", default-features = false }
+tokio = { version = "1.36", default-features = false }
+tracing = { version = "0.1", default-features = false }
 
 [workspace.lints]
 # empty for compat with libdatadog

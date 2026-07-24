@@ -303,8 +303,8 @@ The appsec child pipeline (generated from `generate-appsec.php`) includes these 
 | Job | Description |
 |-----|-------------|
 | `helper-rust build and test` | Builds helper-rust and runs `cargo test` + format check |
-| `helper-rust code coverage` | Runs unit tests with coverage, uploads to codecov |
-| `helper-rust integration coverage` | Runs integration tests with coverage-instrumented binary |
+| `helper-rust code coverage` | Runs unit tests with coverage, uploads to Datadog |
+| `helper-rust integration coverage` | Runs integration tests with coverage-instrumented binary, uploads to Datadog |
 | `appsec integration tests (helper-cpp)` | Integration tests disabling Rust helper redirection (PHP 8.3, 8.3-zts) |
 
 ### Checking Pipeline Status
