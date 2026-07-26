@@ -240,6 +240,18 @@ static ddog_CharSlice dd_persist_str_eval_arena(struct eval_ctx *eval_ctx, zend_
     return dd_zend_string_to_CharSlice(Z_STR(zv));
 }
 
+// Per captured value serialization overhead: the JSON scaffolding around it plus its (field) name.
+#define DD_CAPTURE_VALUE_OVERHEAD 48
+
+// Accounts for bytes about to be added to the current snapshot; aborts the capture once it grew too large.
+void ddtrace_increase_capture_size(size_t bytes) {
+    DDTRACE_G(debugger_capture_arena).captured_size += bytes;
+    if (UNEXPECTED(DDTRACE_G(debugger_capture_arena).captured_size > DD_MAX_CAPTURE_SIZE)) {
+        // Reuse the timeout flag: every capture loop already bails out on it.
+        DDTRACE_G(debugger_capture_timed_out) = 1;
+    }
+}
+
 typedef struct {
     ddtrace_span_data *span;
 } dd_span_probe_dynamic;
@@ -729,6 +741,7 @@ static void dd_log_probe_add_capture_fields(ddog_DebuggerCapture *capture, dd_lo
                 char *buf = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena).arena, iv.string.len);
                 memcpy(buf, iv.string.ptr, iv.string.len);
                 capture_value.value = (ddog_CharSlice){ .ptr = buf, .len = iv.string.len };
+                ddtrace_increase_capture_size(iv.string.len);
                 break;
             }
             case DDOG_INTERMEDIATE_VALUE_NUMBER: {

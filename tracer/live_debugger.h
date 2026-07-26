@@ -29,4 +29,10 @@ void ddtrace_sidecar_send_debugger_datum(ddog_DebuggerPayload *payload);
 void dd_start_debugger_timeout(void);
 void dd_stop_debugger_timeout(void);
 
+// The capture is aborted once its approximate serialized size exceeds this; larger snapshots are of
+// little use and risk being rejected by the intake.
+#define DD_MAX_CAPTURE_SIZE (1024 * 1024)
+
+void ddtrace_increase_capture_size(size_t bytes);
+
 #endif // DD_LIVE_DEBUGGER_H
