@@ -155,10 +155,9 @@ void zai_interceptor_op_array_pass_two(zend_op_array *op_array) {
             // To not interfere with live range calculation, the temporary must be defined as a result
             opcodes[i].result_type = IS_TMP_VAR;
             opcodes[i].result.var = op_array->T++;
-        } else if (CG(compiler_options) & ZEND_COMPILE_EXTENDED_INFO) {
-            // We don't need it, Optimizer, feel free to optimize it away
-            opcodes[i].opcode = ZEND_NOP;
         }
+        // Do not downgrade to ZEND_NOP under ZEND_COMPILE_EXTENDED_INFO: the Optimizer would drop the marker and
+        // zai_interceptor_ext_nop_handler would then never run for this op_array, silently losing all interception.
     }
 }
 
