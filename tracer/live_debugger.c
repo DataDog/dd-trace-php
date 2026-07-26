@@ -240,6 +240,15 @@ static ddog_CharSlice dd_persist_str_eval_arena(struct eval_ctx *eval_ctx, zend_
     return dd_zend_string_to_CharSlice(Z_STR(zv));
 }
 
+// Accounts for bytes about to be added to the current snapshot; aborts the capture once it grew too large.
+void ddtrace_increase_capture_size(size_t bytes) {
+    DDTRACE_G(debugger_capture_arena).captured_size += bytes;
+    if (UNEXPECTED(DDTRACE_G(debugger_capture_arena).captured_size > DD_MAX_CAPTURE_SIZE)) {
+        // Reuse the timeout flag: every capture loop already bails out on it.
+        DDTRACE_G(debugger_capture_timed_out) = 1;
+    }
+}
+
 typedef struct {
     ddtrace_span_data *span;
 } dd_span_probe_dynamic;
@@ -726,9 +735,11 @@ static void dd_log_probe_add_capture_fields(ddog_DebuggerCapture *capture, dd_lo
                 break;
             case DDOG_INTERMEDIATE_VALUE_STRING: {
                 capture_value.type = DDOG_CHARSLICE_C("string");
-                char *buf = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena).arena, iv.string.len);
-                memcpy(buf, iv.string.ptr, iv.string.len);
-                capture_value.value = (ddog_CharSlice){ .ptr = buf, .len = iv.string.len };
+                ddog_CharSlice str = ddtrace_capture_bound_charslice(iv.string, exprs[i].capture->max_length);
+                char *buf = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena).arena, str.len);
+                memcpy(buf, str.ptr, str.len);
+                capture_value.value = (ddog_CharSlice){ .ptr = buf, .len = str.len };
+                ddtrace_increase_capture_size(str.len);
                 break;
             }
             case DDOG_INTERMEDIATE_VALUE_NUMBER: {
