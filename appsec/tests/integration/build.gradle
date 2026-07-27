@@ -343,6 +343,9 @@ def buildTracerTask = { String version, String variant, altBaseTag = null ->
             inputs: [
                     dirs: [
                             '../../../ext',
+                            '../../../tracer',
+                            '../../../components',
+                            '../../../components-rs',
                             '../../../zend_abstract_interface',
                             '../../../libdatadog',
                             '../../../datadog.sym',
@@ -375,8 +378,10 @@ def buildTracerCmakeTask = { String version, String variant, altBaseTag = null -
             inputs: [
                     dirs: [
                             '../../../ext',
-                            '../../../zend_abstract_interface',
+                            '../../../tracer',
+                            '../../../components',
                             '../../../components-rs',
+                            '../../../zend_abstract_interface',
                             '../../../libdatadog',
                             '../../../datadog.sym',
                             '../../cmake',
@@ -471,8 +476,10 @@ def buildTracerSsiCmakeTask = { String version, String variant ->
             inputs: [
                     dirs: [
                             '../../../ext',
-                            '../../../zend_abstract_interface',
+                            '../../../tracer',
+                            '../../../components',
                             '../../../components-rs',
+                            '../../../zend_abstract_interface',
                             '../../../libdatadog',
                             '../../../datadog.sym',
                             '../../cmake',
