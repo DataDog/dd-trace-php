@@ -138,6 +138,11 @@ stages:
     # Build nts
     docker exec ${CONTAINER_NAME} powershell.exe "cd app; switch-php nts; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake"
 
+    # Harden the phpize-provided run-tests.php: tree-kill a timed-out test and
+    # make its retry-run file write resilient to a briefly-held Windows lock, so
+    # one hung test cannot abort the whole suite (see the script for details).
+    docker exec ${CONTAINER_NAME} powershell.exe "cd app; C:\php\php.exe .gitlab\patch-run-tests-windows.php run-tests.php"
+
     # Set test environment variables
     docker exec ${CONTAINER_NAME} powershell.exe "setx DD_AUTOLOAD_NO_COMPILE true; setx DATADOG_HAVE_DEV_ENV 1; setx DD_TRACE_GIT_METADATA_ENABLED 0"
 
@@ -149,7 +154,11 @@ stages:
 <?php endforeach ?>
 
     # Run extension tests
-    docker exec ${CONTAINER_NAME} powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_LEVEL=trace; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\Release\php_ddtrace.dll" "${pwd}\tests\ext"'
+    # _DD_TEST_HANG_WATCHDOG_SEC arms an in-extension teardown watchdog: if a
+    # request's teardown wedges, it dumps the main-thread stack and aborts the
+    # child before run-tests.php's 60s timeout, turning a silent hang into an
+    # actionable stack and a plain failure (no suite-killing timeout+retry).
+    docker exec ${CONTAINER_NAME} powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_LEVEL=trace; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; $env:_DD_TEST_HANG_WATCHDOG_SEC=40; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\Release\php_ddtrace.dll" "${pwd}\tests\ext"'
   after_script:
     - |
         docker exec ${CONTAINER_NAME} cmd.exe /s /c xcopy /y /c /s /e C:\ProgramData\Microsoft\Windows\WER\ReportQueue .\app\dumps\

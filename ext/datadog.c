@@ -17,6 +17,7 @@
 #include "sidecar.h"
 #include "signals.h"
 #include "startup_logging.h"
+#include "hang_watchdog_windows.h"
 #include "telemetry.h"
 #include "zend_hrtime.h"
 #ifndef _WIN32
@@ -627,6 +628,10 @@ static void dd_shutdown_observer() {
 
 static PHP_RSHUTDOWN_FUNCTION(datadog) {
     UNUSED(module_number, type);
+
+    // CI-only (opt-in via _DD_TEST_HANG_WATCHDOG_SEC): guard against a teardown
+    // hang wedging the whole request. No-op elsewhere.
+    ddtrace_arm_teardown_hang_watchdog();
 
     // We deliberately select to not free some data structures, as to avoid the overhead of freeing them.
     // Just proper destruction can have significant and easily measurable overhead on applications.
