@@ -164,4 +164,24 @@ foreach ($profiler_minor_major_targets as $version) {
     - cat "${XFAIL_LIST}" profiling/tests/php-language-xfail.list > /tmp/profiler-php-language-xfail.list
     - "if php -r 'exit(PHP_VERSION_ID < 80400 ? 0 : 1);'; then cat profiling/tests/php-language-xfail-pre84.list >> /tmp/profiler-php-language-xfail.list; fi"
     - export XFAIL_LIST=/tmp/profiler-php-language-xfail.list
+    - ulimit -c unlimited
     - .gitlab/run_php_language_tests.sh
+  after_script:
+    - |
+      core=/usr/local/src/php/core
+      if [ -f "${core}" ]; then
+        output="${CI_PROJECT_DIR}/artifacts/php-language-tests"
+        mkdir -p "${output}"
+        gdb --batch \
+          -ex "set pagination off" \
+          -ex "info threads" \
+          -ex "thread apply all bt full" \
+          -ex "thread apply all info registers" \
+          -ex "info sharedlibrary" \
+          /usr/local/bin/php "${core}" > "${output}/gdb-backtrace.txt" 2>&1 || true
+        mv "${core}" "${output}/core"
+      fi
+  artifacts:
+    when: on_failure
+    paths:
+      - artifacts/php-language-tests/
