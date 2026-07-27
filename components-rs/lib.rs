@@ -29,15 +29,80 @@ use std::ffi::{c_char, OsStr};
 use std::ptr::null_mut;
 use uuid::Uuid;
 
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+use std::sync::atomic::{AtomicPtr, Ordering};
+
 #[cfg(unix)]
 use libdd_common::connector::uds::socket_path_to_uri;
 #[cfg(unix)]
 use std::path::Path;
 
-#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+#[cfg(target_os = "linux")]
 use libdd_library_config::otel_process_ctx;
-#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+#[cfg(target_os = "linux")]
 use libdd_library_config::tracer_metadata::{ThreadLocalMetadata, TracerMetadata};
+
+/// Borrowed byte string stored in an immutable process-context snapshot.
+///
+/// Every view returned by [`ddtrace_get_process_context_v1`] remains valid for the lifetime of the
+/// process. The bytes are UTF-8 but are not NUL-terminated.
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+pub struct ProcessContextStringView {
+    pub ptr: *const c_char,
+    pub len: usize,
+}
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+impl ProcessContextStringView {
+    const EMPTY: Self = Self {
+        ptr: std::ptr::null(),
+        len: 0,
+    };
+
+    fn new(value: &str) -> Self {
+        Self {
+            ptr: value.as_ptr().cast(),
+            len: value.len(),
+        }
+    }
+}
+
+/// Immutable, process-wide metadata corresponding to the OTel process context published on Linux.
+///
+/// All pointed-to data remains valid for the lifetime of the process.
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+#[repr(C)]
+#[derive(Debug)]
+pub struct ProcessContextV1 {
+    pub publisher_pid: u32,
+    pub reserved: u32,
+    pub service_name: ProcessContextStringView,
+    pub service_instance_id: ProcessContextStringView,
+    pub service_version: ProcessContextStringView,
+    pub deployment_environment_name: ProcessContextStringView,
+    pub telemetry_sdk_language: ProcessContextStringView,
+    pub telemetry_sdk_version: ProcessContextStringView,
+    pub telemetry_sdk_name: ProcessContextStringView,
+    pub host_name: ProcessContextStringView,
+    pub container_id: ProcessContextStringView,
+    pub datadog_process_tags: ProcessContextStringView,
+    pub threadlocal_schema_version: ProcessContextStringView,
+    pub threadlocal_attribute_keys: *const ProcessContextStringView,
+    pub threadlocal_attribute_key_count: usize,
+}
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+struct OwnedProcessContextV1 {
+    public: ProcessContextV1,
+    _service_instance_id: Box<str>,
+    _host_name: Box<str>,
+    _threadlocal_attribute_keys: Box<[ProcessContextStringView]>,
+}
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+static PROCESS_CONTEXT: AtomicPtr<ProcessContextV1> = AtomicPtr::new(std::ptr::null_mut());
 
 #[no_mangle]
 #[allow(non_upper_case_globals)]
@@ -98,7 +163,7 @@ pub extern "C" fn datadog_format_runtime_id(buf: &mut [u8; 36]) {
     unsafe { datadog_runtime_id.as_hyphenated().encode_lower(buf) };
 }
 
-#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+#[cfg(target_os = "linux")]
 #[no_mangle]
 pub extern "C" fn datadog_publish_otel_process_context(hostname: CharSlice<'_>) -> bool {
     let runtime_id = unsafe {
@@ -136,6 +201,92 @@ pub extern "C" fn datadog_publish_otel_process_context(hostname: CharSlice<'_>) 
             false
         }
     }
+}
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+#[no_mangle]
+pub extern "C" fn datadog_publish_otel_process_context(hostname: CharSlice<'_>) -> bool {
+    let service_instance_id = unsafe {
+        (!datadog_runtime_id.is_nil()).then(|| datadog_runtime_id.as_hyphenated().to_string())
+    }
+    .unwrap_or_default();
+
+    publish_process_context_v1(
+        service_instance_id.into_boxed_str(),
+        hostname.to_utf8_lossy().into_owned().into_boxed_str(),
+    );
+    true
+}
+
+/// Returns the latest immutable process-context snapshot for this process.
+///
+/// The returned snapshot and all data referenced by it remain valid for the lifetime of the
+/// process. A null pointer means no context has been published, or that the inherited context is
+/// stale after `fork()` and the child has not republished yet.
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+#[no_mangle]
+pub extern "C" fn ddtrace_get_process_context_v1() -> *const ProcessContextV1 {
+    get_process_context_v1_for_pid(std::process::id())
+}
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+fn get_process_context_v1_for_pid(pid: u32) -> *const ProcessContextV1 {
+    let context = PROCESS_CONTEXT.load(Ordering::Acquire);
+    if context.is_null() {
+        return std::ptr::null();
+    }
+
+    // SAFETY: published snapshots are fully initialized before the release store and deliberately
+    // leaked, so an acquire-loaded pointer remains valid for the process lifetime.
+    if unsafe { (*context).publisher_pid } != pid {
+        return std::ptr::null();
+    }
+
+    context.cast_const()
+}
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+fn publish_process_context_v1(service_instance_id: Box<str>, host_name: Box<str>) {
+    let threadlocal_attribute_keys: Box<[ProcessContextStringView]> = [
+        ProcessContextStringView::new("datadog.local_root_span_id"),
+        ProcessContextStringView::new("service.name"),
+        ProcessContextStringView::new("service.version"),
+        ProcessContextStringView::new("deployment.environment.name"),
+    ]
+    .into();
+    let threadlocal_attribute_keys_ptr = threadlocal_attribute_keys.as_ptr();
+    let threadlocal_attribute_key_count = threadlocal_attribute_keys.len();
+    let mut owned = Box::new(OwnedProcessContextV1 {
+        public: ProcessContextV1 {
+            publisher_pid: std::process::id(),
+            reserved: 0,
+            service_name: ProcessContextStringView::EMPTY,
+            service_instance_id: ProcessContextStringView::EMPTY,
+            service_version: ProcessContextStringView::EMPTY,
+            deployment_environment_name: ProcessContextStringView::EMPTY,
+            telemetry_sdk_language: ProcessContextStringView::new("php"),
+            telemetry_sdk_version: ProcessContextStringView::new(include_str!("../VERSION").trim()),
+            telemetry_sdk_name: ProcessContextStringView::new("libdatadog"),
+            host_name: ProcessContextStringView::EMPTY,
+            container_id: ProcessContextStringView::EMPTY,
+            datadog_process_tags: ProcessContextStringView::EMPTY,
+            threadlocal_schema_version: ProcessContextStringView::new("tlsdesc_v1_dev"),
+            threadlocal_attribute_keys: threadlocal_attribute_keys_ptr,
+            threadlocal_attribute_key_count,
+        },
+        _service_instance_id: service_instance_id,
+        _host_name: host_name,
+        _threadlocal_attribute_keys: threadlocal_attribute_keys,
+    });
+
+    owned.public.service_instance_id = ProcessContextStringView::new(&owned._service_instance_id);
+    owned.public.host_name = ProcessContextStringView::new(&owned._host_name);
+
+    // Published snapshots are immutable and retained permanently. Publication is rare (initial
+    // activation and child-side fork handling), and retaining prior snapshots lets readers race
+    // updates without locks, reference counting, or use-after-free hazards.
+    let leaked = Box::leak(owned);
+    PROCESS_CONTEXT.store(std::ptr::from_mut(&mut leaked.public), Ordering::Release);
 }
 
 #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
@@ -368,5 +519,101 @@ pub extern "C" fn ddog_free_normalized_tag_value(ptr: *const c_char) {
     }
     unsafe {
         drop(std::ffi::CString::from_raw(ptr as *mut c_char));
+    }
+}
+
+#[cfg(all(test, any(target_os = "macos", target_os = "windows")))]
+mod process_context_tests {
+    use super::*;
+
+    fn view_to_string(view: ProcessContextStringView) -> String {
+        if view.len == 0 {
+            return String::new();
+        }
+
+        // SAFETY: process-context views point into immutable allocations retained for the process
+        // lifetime, and a non-empty view always has a non-null pointer to `len` initialized bytes.
+        let bytes = unsafe { std::slice::from_raw_parts(view.ptr.cast(), view.len) };
+        std::str::from_utf8(bytes)
+            .expect("process-context values must be UTF-8")
+            .to_owned()
+    }
+
+    #[test]
+    fn immutable_process_context_publication_is_race_free() {
+        publish_process_context_v1("first".into(), "first".into());
+        let first = ddtrace_get_process_context_v1();
+        assert!(!first.is_null());
+
+        // SAFETY: the getter returned a non-null, process-lifetime snapshot.
+        let first_snapshot = unsafe { &*first };
+        assert_eq!(view_to_string(first_snapshot.service_instance_id), "first");
+        assert_eq!(view_to_string(first_snapshot.host_name), "first");
+        assert_eq!(view_to_string(first_snapshot.telemetry_sdk_language), "php");
+        assert_eq!(
+            view_to_string(first_snapshot.telemetry_sdk_name),
+            "libdatadog"
+        );
+
+        // SAFETY: the key array is part of the immutable snapshot retained for the process lifetime.
+        let keys = unsafe {
+            std::slice::from_raw_parts(
+                first_snapshot.threadlocal_attribute_keys,
+                first_snapshot.threadlocal_attribute_key_count,
+            )
+        };
+        assert_eq!(
+            keys.iter()
+                .copied()
+                .map(view_to_string)
+                .collect::<std::vec::Vec<_>>(),
+            [
+                "datadog.local_root_span_id",
+                "service.name",
+                "service.version",
+                "deployment.environment.name",
+            ]
+        );
+
+        publish_process_context_v1("second".into(), "second".into());
+        let second = ddtrace_get_process_context_v1();
+        assert_ne!(first, second);
+        // The old snapshot remains readable after replacement.
+        assert_eq!(view_to_string(first_snapshot.service_instance_id), "first");
+        // SAFETY: the getter returned a non-null, process-lifetime snapshot.
+        assert_eq!(
+            view_to_string(unsafe { &*second }.service_instance_id),
+            "second"
+        );
+        let wrong_pid = std::process::id().wrapping_add(1);
+        assert!(get_process_context_v1_for_pid(wrong_pid).is_null());
+
+        let writer = std::thread::spawn(|| {
+            for i in 0..250 {
+                let value = format!("snapshot-{i}").into_boxed_str();
+                publish_process_context_v1(value.clone(), value);
+            }
+        });
+        let readers: std::vec::Vec<_> = (0..4)
+            .map(|_| {
+                std::thread::spawn(|| {
+                    for _ in 0..2_000 {
+                        let snapshot = ddtrace_get_process_context_v1();
+                        assert!(!snapshot.is_null());
+                        // SAFETY: the getter returned a non-null, process-lifetime snapshot.
+                        let snapshot = unsafe { &*snapshot };
+                        assert_eq!(
+                            view_to_string(snapshot.service_instance_id),
+                            view_to_string(snapshot.host_name)
+                        );
+                    }
+                })
+            })
+            .collect();
+
+        writer.join().expect("writer thread should not panic");
+        for reader in readers {
+            reader.join().expect("reader thread should not panic");
+        }
     }
 }

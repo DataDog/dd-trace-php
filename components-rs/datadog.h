@@ -9,6 +9,42 @@ struct _zend_string;
 #include "telemetry.h"
 #include "sidecar.h"
 
+#if (defined(__APPLE__) || defined(_WIN32))
+/**
+ * A borrowed UTF-8 byte string in an immutable process-context snapshot. The
+ * bytes are not NUL-terminated; ptr may be NULL when len is zero.
+ */
+typedef struct ddog_ProcessContextStringView {
+  const char *ptr;
+  uintptr_t len;
+} ddog_ProcessContextStringView;
+
+/**
+ * Immutable process-wide metadata corresponding to the OTel process context
+ * published on Linux.
+ *
+ * A snapshot and all memory referenced by it remain valid for the lifetime of
+ * the process.
+ */
+typedef struct ddog_ProcessContextV1 {
+  uint32_t publisher_pid;
+  uint32_t reserved;
+  ddog_ProcessContextStringView service_name;
+  ddog_ProcessContextStringView service_instance_id;
+  ddog_ProcessContextStringView service_version;
+  ddog_ProcessContextStringView deployment_environment_name;
+  ddog_ProcessContextStringView telemetry_sdk_language;
+  ddog_ProcessContextStringView telemetry_sdk_version;
+  ddog_ProcessContextStringView telemetry_sdk_name;
+  ddog_ProcessContextStringView host_name;
+  ddog_ProcessContextStringView container_id;
+  ddog_ProcessContextStringView datadog_process_tags;
+  ddog_ProcessContextStringView threadlocal_schema_version;
+  const ddog_ProcessContextStringView *threadlocal_attribute_keys;
+  uintptr_t threadlocal_attribute_key_count;
+} ddog_ProcessContextV1;
+#endif
+
 extern ddog_Uuid datadog_runtime_id;
 
 extern ddog_Uuid datadog_session_id;
@@ -43,6 +79,14 @@ void datadog_format_runtime_id(uint8_t (*buf)[36]);
 
 #if (defined(__linux__) || defined(__APPLE__) || defined(_WIN32))
 bool datadog_publish_otel_process_context(ddog_CharSlice hostname);
+#endif
+
+#if (defined(__APPLE__) || defined(_WIN32))
+/**
+ * Returns the latest immutable process-context snapshot, or NULL before the
+ * first publication and after fork until the child republishes.
+ */
+const ddog_ProcessContextV1 *ddtrace_get_process_context_v1(void);
 #endif
 
 #if !(defined(__linux__) || defined(__APPLE__) || defined(_WIN32))

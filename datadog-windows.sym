@@ -2,4 +2,4 @@ ddog_setup_crashtracking
 OutOfProcessExceptionEventCallback
 OutOfProcessExceptionEventSignatureCallback
 OutOfProcessExceptionEventDebuggerLaunchCallback
-otel_process_ctx_v2
+ddtrace_get_process_context_v1
