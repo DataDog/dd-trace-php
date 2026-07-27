@@ -107,6 +107,10 @@ stages:
 variables:
   CI_REGISTRY_IMAGE: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci"
 
+# These manual jobs intentionally run on development branches so image changes
+# can be built and validated before merge. Do not add protected/default-branch
+# rules here. The parent pipeline is private to Datadog GitLab, where project
+# membership and settings control who can run manual jobs.
 .linux_image_build:
   stage: ci-build
   rules:

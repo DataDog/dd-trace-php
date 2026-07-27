@@ -45,6 +45,16 @@ repo.
 
 This is the preferred way of building the images.
 
+> [!IMPORTANT]
+> Image jobs are intentionally available from development branches. Maintainers
+> must be able to build and validate an image change before merging it, so do
+> not restrict `ci-images` or its generated jobs with
+> `CI_COMMIT_REF_PROTECTED` or `CI_DEFAULT_BRANCH`. The pipeline runs only in
+> Datadog's private GitLab: external pull requests cannot trigger it, and
+> access to its manual jobs is governed by the GitLab project's membership and
+> settings. A protected-ref rule identifies the ref, not whether the person
+> starting a manual job has the Maintainer role.
+
 In your pipeline
 ([GitLab-CI](https://gitlab.ddbuild.io/DataDog/apm-reliability/dd-trace-php/-/pipelines)),
 manually start the `ci-images` job (stage `ci-build`) to spawn the child

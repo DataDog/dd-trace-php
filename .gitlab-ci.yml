@@ -94,6 +94,12 @@ appsec-trigger:
 # Manual maintenance pipeline that (re)builds the CI Docker images. Generated
 # from dockerfiles/ci/*/docker-compose.yml + .env so versions live in one place.
 # No strategy: depend — the parent must not wait on these manual jobs.
+#
+# This job MUST remain available on development branches: image changes are
+# built and validated from their branch before merge. Do not restrict it with
+# CI_COMMIT_REF_PROTECTED or CI_DEFAULT_BRANCH. This pipeline runs only in the
+# private Datadog GitLab; external pull requests cannot trigger it. Access to
+# manual jobs is controlled by that GitLab project's membership and settings.
 ci-images:
   stage: ci-build
   rules:
