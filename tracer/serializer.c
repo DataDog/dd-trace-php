@@ -908,13 +908,6 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
             DATADOG_G(asm_event_emitted) = false; // we attach this to the first root span after the asm event was detected (if there was none while emitted)
         }
 
-        ddtrace_integration *web_integration = &ddtrace_integrations[DDTRACE_INTEGRATION_WEB];
-        if (get_DD_TRACE_ANALYTICS_ENABLED() || web_integration->is_analytics_enabled()) {
-            zval sample_rate;
-            ZVAL_DOUBLE(&sample_rate, web_integration->get_sample_rate());
-            zend_hash_str_add_new(metrics, ZEND_STRL("_dd1.sr.eausr"), &sample_rate);
-        }
-
         if (get_DD_TRACE_GIT_METADATA_ENABLED()) {
             ddtrace_inject_git_metadata(&span->property_git_metadata);
         }
@@ -1431,46 +1424,6 @@ void ddtrace_shutdown_span_sampling_limiter(void) {
     zend_hash_destroy(&dd_span_sampling_limiters);
 }
 
-// ParseBool returns the boolean value represented by the string.
-// It accepts 1, t, T, TRUE, true, True, 0, f, F, FALSE, false, False.
-// Any other value returns -1.
-static zend_always_inline double strconv_parse_bool(zend_string *str) {
-    // See Go's strconv.ParseBool
-    // https://cs.opensource.google/go/go/+/refs/tags/go1.21.5:src/strconv/atob.go;drc=1f137052e4a20dbd302f947b1cf34cdf4b427d65;l=10
-    size_t len = ZSTR_LEN(str);
-    if (len == 0) {
-        return -1;
-    }
-
-    char *s = ZSTR_VAL(str);
-    switch (len) {
-        case 1:
-            switch (s[0]) {
-                case '1':
-                case 't':
-                case 'T':
-                    return 1;
-                case '0':
-                case 'f':
-                case 'F':
-                    return 0;
-            }
-            break;
-        case 4:
-            if (strcmp(s, "TRUE") == 0 || strcmp(s, "True") == 0 || strcmp(s, "true") == 0) {
-                return 1;
-            }
-            break;
-        case 5:
-            if (strcmp(s, "FALSE") == 0 || strcmp(s, "False") == 0 || strcmp(s, "false") == 0) {
-                return 0;
-            }
-            break;
-    }
-
-    return -1;
-}
-
 void transfer_meta_data(ddog_SpanBytes *source, ddog_SpanBytes *destination, const char *key, bool delete_source) {
     ddog_CharSlice value = ddog_get_span_meta_str(source, key);
     if (value.len > 0) {
@@ -1811,18 +1764,7 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
         zend_hash_str_del(meta, ZEND_STRL("span.type"));
     }
 
-    zval *analytics_event = zend_hash_str_find(meta, ZEND_STRL("analytics.event"));
-    if (analytics_event) {
-        if (Z_TYPE_P(analytics_event) == IS_STRING) {
-            double parsed_analytics_event = strconv_parse_bool(Z_STR_P(analytics_event));
-            if (parsed_analytics_event >= 0) {
-                ddog_add_span_metrics_str(rust_span, "_dd1.sr.eausr", parsed_analytics_event);
-            }
-        } else {
-            ddog_add_span_metrics_str(rust_span, "_dd1.sr.eausr", zval_get_double(analytics_event));
-        }
-        zend_hash_str_del(meta, ZEND_STRL("analytics.event"));
-    }
+    zend_hash_str_del(meta, ZEND_STRL("analytics.event"));
 
     if (span_sampling_applied) {
         ddog_add_span_metrics_str(rust_span, "_dd.span_sampling.mechanism", 8.0);
@@ -1984,7 +1926,8 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
     zend_string *str_key;
     zval *val;
     ZEND_HASH_FOREACH_STR_KEY_VAL_IND(metrics, str_key, val) {
-        if (str_key && !ddog_has_span_metrics_zstr(rust_span, str_key)) {
+        if (str_key && !zend_string_equals_literal(str_key, "_dd1.sr.eausr") &&
+            !ddog_has_span_metrics_zstr(rust_span, str_key)) {
             dd_serialize_array_metrics_recursively(rust_span, str_key, val);
         }
     } ZEND_HASH_FOREACH_END();
