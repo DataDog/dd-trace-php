@@ -155,6 +155,16 @@ function run_fixture_case($client, $fileName, $index, array $case, array &$failu
         $context
     );
 
+    $providerState = $details->getProviderState();
+    if (($providerState['productionRuntime'] ?? null) !== true) {
+        $failures[] = $fileName . '#' . $index . ': productionRuntime must be true';
+    }
+    if (($providerState['reason'] ?? null) !== 'ready') {
+        $failures[] = $fileName . '#' . $index
+            . ': runtime reason got=' . encode_value($providerState['reason'] ?? null)
+            . ' want="ready"';
+    }
+
     if (!array_key_exists('value', $case['result'])) {
         $failures[] = $fileName . '#' . $index . ': result must include value';
         return;

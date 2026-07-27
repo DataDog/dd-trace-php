@@ -9,7 +9,6 @@ use DDTrace\FeatureFlags\EvaluationErrorCode;
 use DDTrace\FeatureFlags\EvaluationReason;
 use DDTrace\FeatureFlags\EvaluationType;
 use DDTrace\FeatureFlags\Internal\Evaluator;
-use DDTrace\FeatureFlags\Internal\NativeEvaluator;
 use DDTrace\FeatureFlags\Internal\UnavailableEvaluator;
 use DDTrace\Log\LoggerInterface;
 use DDTrace\Log\LogLevel;
@@ -101,7 +100,7 @@ final class DataDogProviderTest extends TestCase
     public function testUnavailableRuntimeReturnsDefaultDetailsAndOneWarning(): void
     {
         $logger = new OpenFeatureRecordingLogger();
-        $client = $this->openFeatureClientFor(new DataDogProvider($logger));
+        $client = $this->openFeatureClientFor($this->providerForEvaluator(new UnavailableEvaluator(), $logger));
 
         $value = $client->getBooleanValue('checkout.enabled', true);
         $details = $client->getStringDetails('checkout.copy', 'fallback');
@@ -110,10 +109,7 @@ final class DataDogProviderTest extends TestCase
         self::assertSame('fallback', $details->getValue());
         self::assertSame(Reason::ERROR, $details->getReason());
         self::assertSame(ErrorCode::PROVIDER_NOT_READY()->getValue(), $details->getError()->getResolutionErrorCode()->getValue());
-        self::assertContains($details->getError()->getResolutionErrorMessage(), [
-            NativeEvaluator::WARNING_MESSAGE,
-            UnavailableEvaluator::WARNING_MESSAGE,
-        ]);
+        self::assertSame(UnavailableEvaluator::WARNING_MESSAGE, $details->getError()->getResolutionErrorMessage());
         self::assertSame([$details->getError()->getResolutionErrorMessage()], $logger->warnings());
     }
 
@@ -133,27 +129,23 @@ final class DataDogProviderTest extends TestCase
         self::assertSame(['temporary unavailable'], $logger->warnings());
     }
 
-    public function testThrowingLoggerDoesNotChangeSuccessfulEvaluation(): void
+    public function testThrowingLoggerDoesNotChangeProviderNotReadyEvaluation(): void
     {
         $evaluator = new OpenFeatureTestEvaluator();
-        $evaluator->setSuccess(
-            'preview.flag',
-            true,
-            EvaluationReason::STATIC_REASON,
-            'on',
-            ['productionRuntime' => false]
-        );
+        $evaluator->setUnavailable('preview.flag', false, 'runtime unavailable');
         $logger = new OpenFeatureThrowingLogger();
         $client = $this->openFeatureClientFor($this->providerForEvaluator($evaluator, $logger));
 
         $firstDetails = $client->getBooleanDetails('preview.flag', false);
         $secondDetails = $client->getBooleanDetails('preview.flag', false);
 
-        self::assertTrue($firstDetails->getValue());
-        self::assertSame(EvaluationReason::STATIC_REASON, $firstDetails->getReason());
-        self::assertSame('on', $firstDetails->getVariant());
-        self::assertNull($firstDetails->getError());
-        self::assertTrue($secondDetails->getValue());
+        self::assertFalse($firstDetails->getValue());
+        self::assertSame(Reason::ERROR, $firstDetails->getReason());
+        self::assertSame(
+            ErrorCode::PROVIDER_NOT_READY()->getValue(),
+            $firstDetails->getError()->getResolutionErrorCode()->getValue()
+        );
+        self::assertFalse($secondDetails->getValue());
         self::assertSame(1, $logger->warningCount());
     }
 

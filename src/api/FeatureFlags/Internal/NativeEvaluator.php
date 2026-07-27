@@ -103,9 +103,9 @@ final class NativeEvaluator implements Evaluator
             'ready' => $hasConfig,
             'hasConfig' => $hasConfig,
             'configVersion' => $configVersion,
-            'productionRuntime' => false,
+            'productionRuntime' => true,
             'mode' => 'native_remote_config',
-            'reason' => $hasConfig ? 'metrics_delivery_pending' : 'configuration_missing',
+            'reason' => $hasConfig ? 'ready' : 'configuration_missing',
         );
 
         if (is_array($rawResult)) {
