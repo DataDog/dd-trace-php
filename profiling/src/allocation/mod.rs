@@ -80,6 +80,23 @@ pub mod allocation_ge84;
 #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
 pub mod allocation_le83;
 
+// Handler-selection tests retain the free callbacks in a binary that is not loaded by PHP.
+#[cfg(all(test, not(php_debug)))]
+#[no_mangle]
+unsafe extern "C" fn _zend_mm_free(_heap: *mut zend::_zend_mm_heap, _ptr: *mut c_void) {}
+
+#[cfg(all(test, php_debug))]
+#[no_mangle]
+unsafe extern "C" fn _zend_mm_free(
+    _heap: *mut zend::_zend_mm_heap,
+    _ptr: *mut c_void,
+    _file: *const libc::c_char,
+    _line: libc::c_uint,
+    _orig_file: *const libc::c_char,
+    _orig_line: libc::c_uint,
+) {
+}
+
 /// Default sampling interval in bytes (4 MiB).
 pub const DEFAULT_ALLOCATION_SAMPLING_INTERVAL: NonZeroU32 = NonZero::new(1024 * 4096).unwrap();
 
