@@ -6885,6 +6885,28 @@
       "transformers": []
     },
     {
+      "id": "poison-in-raw-response-body",
+      "name": "poison-in-raw-response-body",
+      "tags": {
+        "type": "security_scanner",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.response.body.raw"
+              }
+            ],
+            "regex": "(?i)raw-body-poison"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": []
+    },
+    {
       "id": "rasp-942-100",
       "name": "SQL injection exploit",
       "tags": {

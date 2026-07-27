@@ -192,6 +192,7 @@ pub unsafe extern "C" fn ddog_init_remote_config(flags: RemoteConfigFlags) {
             RemoteConfigCapabilities::AsmHeaderFingerprint,
             RemoteConfigCapabilities::AsmProcessorOverrides,
             RemoteConfigCapabilities::AsmCustomDataScanners,
+            RemoteConfigCapabilities::AsmRawResponseBody,
         ]
         .iter()
         .for_each(|c| DATADOG_REMOTE_CONFIG_CAPABILITIES.push(*c));
