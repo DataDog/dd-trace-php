@@ -101,7 +101,8 @@ function require_feature_flag_api($root)
         'AbstractLogger',
         'NullLogger',
         'InterpolateTrait',
-        'TriggerErrorLogger',
+        'ErrorLogLogger',
+        'Logger',
         'NonThrowingLogger',
     ) as $classFile) {
         require_once $logRoot . '/' . $classFile . '.php';

@@ -129,7 +129,7 @@ final class ClientTest extends TestCase
         $this->assertCount(1, $logger->warnings());
     }
 
-    public function testWarningExceptionDoesNotChangeSuccessfulEvaluation()
+    public function testThrowingLoggerDoesNotChangeSuccessfulEvaluation()
     {
         $evaluator = new ClientTestEvaluator();
         $evaluator->setSuccess(
@@ -141,30 +141,18 @@ final class ClientTest extends TestCase
             array(),
             array('productionRuntime' => false)
         );
-        $client = $this->clientForEvaluator($evaluator);
-        $warningCount = 0;
+        $logger = new ThrowingLogger();
+        $client = $this->clientForEvaluator($evaluator, $logger);
 
-        set_error_handler(
-            static function ($severity, $message, $file, $line) use (&$warningCount) {
-                ++$warningCount;
-                throw new \ErrorException($message, 0, $severity, $file, $line);
-            },
-            E_USER_WARNING
-        );
-
-        try {
-            $firstDetails = $client->getBooleanDetails('preview.flag', false);
-            $secondDetails = $client->getBooleanDetails('preview.flag', false);
-        } finally {
-            restore_error_handler();
-        }
+        $firstDetails = $client->getBooleanDetails('preview.flag', false);
+        $secondDetails = $client->getBooleanDetails('preview.flag', false);
 
         $this->assertTrue($firstDetails->getValue());
         $this->assertSame(EvaluationReason::STATIC_REASON, $firstDetails->getReason());
         $this->assertSame('on', $firstDetails->getVariant());
         $this->assertNull($firstDetails->getErrorCode());
         $this->assertTrue($secondDetails->getValue());
-        $this->assertSame(1, $warningCount);
+        $this->assertSame(1, $logger->warningCount());
     }
 
     /**
@@ -302,5 +290,34 @@ final class RecordingLogger implements LoggerInterface
     public function warnings()
     {
         return $this->warnings;
+    }
+}
+
+final class ThrowingLogger implements LoggerInterface
+{
+    private $warningCount = 0;
+
+    public function debug($message, array $context = array())
+    {
+    }
+
+    public function warning($message, array $context = array())
+    {
+        ++$this->warningCount;
+        throw new \ErrorException($message);
+    }
+
+    public function error($message, array $context = array())
+    {
+    }
+
+    public function isLevelActive($level)
+    {
+        return true;
+    }
+
+    public function warningCount()
+    {
+        return $this->warningCount;
     }
 }

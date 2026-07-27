@@ -133,7 +133,7 @@ final class DataDogProviderTest extends TestCase
         self::assertSame(['temporary unavailable'], $logger->warnings());
     }
 
-    public function testProviderWarningExceptionDoesNotChangeSuccessfulEvaluation(): void
+    public function testThrowingLoggerDoesNotChangeSuccessfulEvaluation(): void
     {
         $evaluator = new OpenFeatureTestEvaluator();
         $evaluator->setSuccess(
@@ -143,30 +143,18 @@ final class DataDogProviderTest extends TestCase
             'on',
             ['productionRuntime' => false]
         );
-        $client = $this->openFeatureClientFor(DataDogProvider::createWithDependencies($evaluator));
-        $warningCount = 0;
+        $logger = new OpenFeatureThrowingLogger();
+        $client = $this->openFeatureClientFor($this->providerForEvaluator($evaluator, $logger));
 
-        set_error_handler(
-            static function ($severity, $message, $file, $line) use (&$warningCount): void {
-                ++$warningCount;
-                throw new \ErrorException($message, 0, $severity, $file, $line);
-            },
-            E_USER_WARNING
-        );
-
-        try {
-            $firstDetails = $client->getBooleanDetails('preview.flag', false);
-            $secondDetails = $client->getBooleanDetails('preview.flag', false);
-        } finally {
-            restore_error_handler();
-        }
+        $firstDetails = $client->getBooleanDetails('preview.flag', false);
+        $secondDetails = $client->getBooleanDetails('preview.flag', false);
 
         self::assertTrue($firstDetails->getValue());
         self::assertSame(EvaluationReason::STATIC_REASON, $firstDetails->getReason());
         self::assertSame('on', $firstDetails->getVariant());
         self::assertNull($firstDetails->getError());
         self::assertTrue($secondDetails->getValue());
-        self::assertSame(1, $warningCount);
+        self::assertSame(1, $logger->warningCount());
     }
 
     public function testProviderErrorsMapToOpenFeatureDetails(): void
@@ -376,6 +364,35 @@ final class OpenFeatureRecordingLogger implements LoggerInterface
     public function warnings(): array
     {
         return $this->warnings;
+    }
+}
+
+final class OpenFeatureThrowingLogger implements LoggerInterface
+{
+    private int $warningCount = 0;
+
+    public function debug($message, array $context = [])
+    {
+    }
+
+    public function warning($message, array $context = [])
+    {
+        ++$this->warningCount;
+        throw new \ErrorException($message);
+    }
+
+    public function error($message, array $context = [])
+    {
+    }
+
+    public function isLevelActive($level)
+    {
+        return true;
+    }
+
+    public function warningCount(): int
+    {
+        return $this->warningCount;
     }
 }
 }

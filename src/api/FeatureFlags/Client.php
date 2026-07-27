@@ -3,14 +3,14 @@
 namespace DDTrace\FeatureFlags;
 
 use DDTrace\FeatureFlags\Internal\NativeEvaluator;
+use DDTrace\Log\Logger as GlobalLogger;
 use DDTrace\Log\LoggerInterface;
 use DDTrace\Log\NonThrowingLogger;
-use DDTrace\Log\TriggerErrorLogger;
 
 final class Client
 {
     private $evaluator;
-    /** @var NonThrowingLogger */
+    /** @var LoggerInterface */
     private $logger;
     private $warnedAboutNonProductionRuntime = false;
 
@@ -21,7 +21,7 @@ final class Client
         }
 
         $this->evaluator = NativeEvaluator::create();
-        $this->logger = new NonThrowingLogger($logger ?: new TriggerErrorLogger());
+        $this->logger = new NonThrowingLogger($logger ?: GlobalLogger::get());
     }
 
     /**
