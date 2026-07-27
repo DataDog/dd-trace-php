@@ -13,6 +13,7 @@ use DDTrace\FeatureFlags\Internal\Metric\EvaluationMetric;
 use DDTrace\FeatureFlags\Internal\Metric\EvaluationMetricRecorder;
 use DDTrace\FeatureFlags\Internal\NativeEvaluator;
 use DDTrace\Log\LoggerInterface;
+use DDTrace\Log\NonThrowingLogger;
 use DDTrace\Log\TriggerErrorLogger;
 use OpenFeature\implementation\provider\AbstractProvider;
 use OpenFeature\implementation\provider\ResolutionDetailsBuilder;
@@ -30,7 +31,7 @@ final class DataDogProvider extends AbstractProvider
     protected static string $NAME = 'Datadog';
 
     private Evaluator $evaluator;
-    private LoggerInterface $warningLogger;
+    private NonThrowingLogger $safeLogger;
     private bool $warnedAboutNonProductionRuntime = false;
     private EvaluationMetricRecorder $metricRecorder;
 
@@ -39,7 +40,7 @@ final class DataDogProvider extends AbstractProvider
         // Native evaluation metrics are disabled here because OpenFeature owns
         // the final provider outcome, including OF-level type mismatch mapping.
         $this->evaluator = NativeEvaluator::create(false);
-        $this->warningLogger = $logger ?: new TriggerErrorLogger();
+        $this->safeLogger = new NonThrowingLogger($logger ?: new TriggerErrorLogger());
         $this->metricRecorder = EvaluationMetricRecorder::createDefault();
     }
 
@@ -231,12 +232,7 @@ final class DataDogProvider extends AbstractProvider
         }
 
         $this->warnedAboutNonProductionRuntime = true;
-
-        try {
-            $this->warningLogger->warning($message);
-        } catch (\Throwable $ignored) {
-            // Diagnostic logging must not change the feature flag result.
-        }
+        $this->safeLogger->warning($message);
     }
 
     private function mapReason(string $reason): string

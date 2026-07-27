@@ -129,6 +129,44 @@ final class ClientTest extends TestCase
         $this->assertCount(1, $logger->warnings());
     }
 
+    public function testWarningExceptionDoesNotChangeSuccessfulEvaluation()
+    {
+        $evaluator = new ClientTestEvaluator();
+        $evaluator->setSuccess(
+            'preview.flag',
+            true,
+            EvaluationReason::STATIC_REASON,
+            'on',
+            array(),
+            array(),
+            array('productionRuntime' => false)
+        );
+        $client = $this->clientForEvaluator($evaluator);
+        $warningCount = 0;
+
+        set_error_handler(
+            static function ($severity, $message, $file, $line) use (&$warningCount) {
+                ++$warningCount;
+                throw new \ErrorException($message, 0, $severity, $file, $line);
+            },
+            E_USER_WARNING
+        );
+
+        try {
+            $firstDetails = $client->getBooleanDetails('preview.flag', false);
+            $secondDetails = $client->getBooleanDetails('preview.flag', false);
+        } finally {
+            restore_error_handler();
+        }
+
+        $this->assertTrue($firstDetails->getValue());
+        $this->assertSame(EvaluationReason::STATIC_REASON, $firstDetails->getReason());
+        $this->assertSame('on', $firstDetails->getVariant());
+        $this->assertNull($firstDetails->getErrorCode());
+        $this->assertTrue($secondDetails->getValue());
+        $this->assertSame(1, $warningCount);
+    }
+
     /**
      * @dataProvider invalidDefaultProvider
      */
@@ -151,7 +189,7 @@ final class ClientTest extends TestCase
         );
     }
 
-    private function clientForEvaluator(Evaluator $evaluator, LoggerInterface $logger)
+    private function clientForEvaluator(Evaluator $evaluator, $logger = null)
     {
         $client = new Client($logger);
         (function () use ($evaluator) {

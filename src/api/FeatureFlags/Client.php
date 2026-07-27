@@ -4,11 +4,13 @@ namespace DDTrace\FeatureFlags;
 
 use DDTrace\FeatureFlags\Internal\NativeEvaluator;
 use DDTrace\Log\LoggerInterface;
+use DDTrace\Log\NonThrowingLogger;
 use DDTrace\Log\TriggerErrorLogger;
 
 final class Client
 {
     private $evaluator;
+    /** @var NonThrowingLogger */
     private $logger;
     private $warnedAboutNonProductionRuntime = false;
 
@@ -19,7 +21,7 @@ final class Client
         }
 
         $this->evaluator = NativeEvaluator::create();
-        $this->logger = $logger ?: new TriggerErrorLogger();
+        $this->logger = new NonThrowingLogger($logger ?: new TriggerErrorLogger());
     }
 
     /**
@@ -155,8 +157,8 @@ final class Client
             $message = 'Datadog-backed PHP feature flag evaluation is running without exposure and metric reporting in this milestone.';
         }
 
-        $this->logger->warning($message);
         $this->warnedAboutNonProductionRuntime = true;
+        $this->logger->warning($message);
     }
 
     private function expectFlagKey($flagKey)
