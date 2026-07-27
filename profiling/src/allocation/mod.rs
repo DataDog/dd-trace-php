@@ -275,16 +275,6 @@ fn initialization_panic() -> ! {
     panic!("Allocation profiler was not initialized properly. Please fill an issue stating the PHP version and the backtrace from this panic.");
 }
 
-#[cfg(not(php_zend_mm_set_custom_handlers_ex))]
-unsafe fn alloc_prof_panic_alloc(_len: size_t) -> *mut c_void {
-    initialization_panic();
-}
-
 unsafe fn alloc_prof_panic_realloc(_prev_ptr: *mut c_void, _len: size_t) -> *mut c_void {
-    initialization_panic();
-}
-
-#[cfg(not(php_zend_mm_set_custom_handlers_ex))]
-unsafe fn alloc_prof_panic_free(_ptr: *mut c_void) {
     initialization_panic();
 }

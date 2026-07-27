@@ -36,20 +36,10 @@ pub struct ZendMMState {
     prev_custom_mm_free: Option<zend::VmMmCustomFreeFn>,
     prepare_restore_zend_heap: (ZendHeapPrepareFn, ZendHeapRestoreFn),
     /// Safety: this function pointer is only allowed to point to
-    /// `alloc_prof_prev_alloc()` when at the same time the
-    /// `ZEND_MM_STATE.prev_custom_mm_alloc` is initialised to a valid function
-    /// pointer, otherwise there will be dragons.
-    alloc: unsafe fn(size_t) -> *mut c_void,
-    /// Safety: this function pointer is only allowed to point to
     /// `alloc_prof_prev_realloc()` when at the same time the
     /// `ZEND_MM_STATE.prev_custom_mm_realloc` is initialised to a valid
     /// function pointer, otherwise there will be dragons.
     realloc: unsafe fn(*mut c_void, size_t) -> *mut c_void,
-    /// Safety: this function pointer is only allowed to point to
-    /// `alloc_prof_prev_free()` when at the same time the
-    /// `ZEND_MM_STATE.prev_custom_mm_free` is initialised to a valid function
-    /// pointer, otherwise there will be dragons.
-    free: unsafe fn(*mut c_void),
 }
 
 impl ZendMMState {
@@ -61,9 +51,7 @@ impl ZendMMState {
             prev_custom_mm_realloc: None,
             prev_custom_mm_free: None,
             prepare_restore_zend_heap: (prepare_zend_heap, restore_zend_heap),
-            alloc: super::alloc_prof_panic_alloc,
             realloc: super::alloc_prof_panic_realloc,
-            free: super::alloc_prof_panic_free,
         }
     }
 }
@@ -108,14 +96,10 @@ pub fn alloc_prof_rinit(heap_live_enabled: bool) {
                     ptr::addr_of_mut!(zend_mm_state.prev_custom_mm_realloc),
                 );
             }
-            zend_mm_state.alloc = alloc_prof_prev_alloc;
-            zend_mm_state.free = alloc_prof_prev_free;
             zend_mm_state.realloc = alloc_prof_prev_realloc;
             zend_mm_state.prepare_restore_zend_heap =
                 (prepare_zend_heap_none, restore_zend_heap_none);
         } else {
-            zend_mm_state.alloc = alloc_prof_orig_alloc;
-            zend_mm_state.free = alloc_prof_orig_free;
             zend_mm_state.realloc = alloc_prof_orig_realloc;
             zend_mm_state.prepare_restore_zend_heap = (prepare_zend_heap, restore_zend_heap);
 
@@ -297,7 +281,7 @@ unsafe extern "C" fn alloc_prof_malloc(len: size_t) -> *mut c_void {
     #[cfg(feature = "debug_stats")]
     ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, Relaxed);
 
-    let ptr = tls_zend_mm_state_get!(alloc)(len);
+    let ptr = alloc_prof_forward_alloc(len);
 
     // during startup, minit, rinit, ... current_execute_data is null
     // we are only interested in allocations during userland operations
@@ -312,19 +296,17 @@ unsafe extern "C" fn alloc_prof_malloc(len: size_t) -> *mut c_void {
     ptr
 }
 
-unsafe fn alloc_prof_prev_alloc(len: size_t) -> *mut c_void {
-    // Safety: `ZEND_MM_STATE.prev_custom_mm_alloc` will be initialised in
-    // `alloc_prof_rinit()` and only point to this function when
-    // `prev_custom_mm_alloc` is also initialised
-    let alloc = tls_zend_mm_state_get!(prev_custom_mm_alloc).unwrap();
-    alloc(len)
-}
+#[inline(always)]
+unsafe fn alloc_prof_forward_alloc(len: size_t) -> *mut c_void {
+    let state = tls_zend_mm_state_copy!();
+    if let Some(alloc) = state.prev_custom_mm_alloc {
+        return alloc(len);
+    }
 
-unsafe fn alloc_prof_orig_alloc(len: size_t) -> *mut c_void {
-    // Safety: `ZEND_MM_STATE.heap` will be initialised in `alloc_prof_rinit()` and custom ZendMM
-    // handlers are only installed and pointing to this function if initialization was succesful.
-    let heap = tls_zend_mm_state_get!(heap).unwrap_unchecked();
-    let (prepare, restore) = tls_zend_mm_state_get!(prepare_restore_zend_heap);
+    // SAFETY: this callback is only invoked after rinit stores the heap and
+    // before rshutdown clears it.
+    let heap = state.heap.unwrap_unchecked();
+    let (prepare, restore) = state.prepare_restore_zend_heap;
     let custom_heap = prepare(heap);
     #[cfg(php_debug)]
     let ptr: *mut c_void = zend::_zend_mm_alloc(heap, len, ptr::null(), 0, ptr::null(), 0);
@@ -344,7 +326,7 @@ unsafe extern "C" fn alloc_prof_free(ptr: *mut c_void) {
         untrack_allocation(ptr);
     }
 
-    tls_zend_mm_state_get!(free)(ptr);
+    alloc_prof_forward_free(ptr);
 }
 
 fn alloc_prof_free_handler(heap_live_enabled: bool) -> zend::VmMmCustomFreeFn {
@@ -356,21 +338,19 @@ fn alloc_prof_free_handler(heap_live_enabled: bool) -> zend::VmMmCustomFreeFn {
 }
 
 unsafe extern "C" fn alloc_prof_free_noop(ptr: *mut c_void) {
-    tls_zend_mm_state_get!(free)(ptr);
+    alloc_prof_forward_free(ptr);
 }
 
-unsafe fn alloc_prof_prev_free(ptr: *mut c_void) {
-    // Safety: `ZEND_MM_STATE.prev_custom_mm_free` will be initialised in
-    // `alloc_prof_rinit()` and only point to this function when
-    // `prev_custom_mm_free` is also initialised
-    let free = tls_zend_mm_state_get!(prev_custom_mm_free).unwrap();
-    free(ptr)
-}
+#[inline(always)]
+unsafe fn alloc_prof_forward_free(ptr: *mut c_void) {
+    let state = tls_zend_mm_state_copy!();
+    if let Some(free) = state.prev_custom_mm_free {
+        return free(ptr);
+    }
 
-unsafe fn alloc_prof_orig_free(ptr: *mut c_void) {
-    // Safety: `ZEND_MM_STATE.heap` will be initialised in `alloc_prof_rinit()` and custom ZendMM
-    // handlers are only installed and pointing to this function if initialization was succesful.
-    let heap = tls_zend_mm_state_get!(heap).unwrap_unchecked();
+    // SAFETY: this callback is only invoked after rinit stores the heap and
+    // before rshutdown clears it.
+    let heap = state.heap.unwrap_unchecked();
     #[cfg(php_debug)]
     zend::_zend_mm_free(heap, ptr, core::ptr::null(), 0, core::ptr::null(), 0);
     #[cfg(not(php_debug))]
