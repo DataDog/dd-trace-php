@@ -27,7 +27,7 @@ namespace
         usleep(100000);
         if (file_exists($file )) {
             foreach (file($file) as $l) {
-                if ($l) {
+                if ($l && $l[0] == '{') {
                     $json = json_decode($l, true);
                     $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
                     foreach ($batch as $json) {

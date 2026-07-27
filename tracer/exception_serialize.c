@@ -111,6 +111,10 @@ static void ddtrace_capture_long_value(zend_long num, struct ddog_CaptureValue *
 }
 
 void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, const ddog_CaptureConfiguration *config, int remaining_nesting) {
+    if (UNEXPECTED(DDTRACE_G(debugger_capture_timed_out))) {
+        value->not_captured_reason = DDOG_CHARSLICE_C("timeout");
+        return;
+    }
     ZVAL_DEREF(zv);
     switch (Z_TYPE_P(zv)) {
         case IS_FALSE:
@@ -158,6 +162,10 @@ void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, con
             if (zend_array_is_list(Z_ARR_P(zv))) {
                 int remaining_fields = config->max_collection_size;
                 ZEND_HASH_FOREACH_VAL(Z_ARR_P(zv), val) {
+                    if (UNEXPECTED(DDTRACE_G(debugger_capture_timed_out))) {
+                        value->not_captured_reason = DDOG_CHARSLICE_C("timeout");
+                        break;
+                    }
                     if (remaining_fields-- == 0) {
                         value->not_captured_reason = DDOG_CHARSLICE_C("collectionSize");
                         break;
@@ -172,6 +180,10 @@ void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, con
                 zend_string *key;
                 int remaining_fields = config->max_collection_size;
                 ZEND_HASH_FOREACH_KEY_VAL(Z_ARR_P(zv), idx, key, val) {
+                    if (UNEXPECTED(DDTRACE_G(debugger_capture_timed_out))) {
+                        value->not_captured_reason = DDOG_CHARSLICE_C("timeout");
+                        break;
+                    }
                     if (remaining_fields-- == 0) {
                         value->not_captured_reason = DDOG_CHARSLICE_C("collectionSize");
                         break;
@@ -224,6 +236,10 @@ void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, con
                 break;
             }
             ZEND_HASH_REVERSE_FOREACH_STR_KEY_VAL(ht, key, val) {
+                if (UNEXPECTED(DDTRACE_G(debugger_capture_timed_out))) {
+                    value->not_captured_reason = DDOG_CHARSLICE_C("timeout");
+                    break;
+                }
                 if (!key) {
                     continue;
                 }
@@ -401,6 +417,8 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_ob
 
     memset(&DDTRACE_G(exception_debugger_buffer), 0, sizeof(DDTRACE_G(exception_debugger_buffer)));
 
+    dd_start_debugger_timeout();
+
     zval *frame;
     int frame_num = 0;
     ZEND_HASH_FOREACH_NUM_KEY_VAL(Z_ARR_P(trace), frame_num, frame) {
@@ -479,6 +497,8 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_ob
                 dd_zend_string_to_CharSlice(last_ex_msg));
         }
     }
+
+    dd_stop_debugger_timeout();
 
     // Note: We MUST immediately send this, and not defer, as stuff may be freed during span processing. Including stuff potentially contained within the exception debugger payload.
     ddtrace_sidecar_send_debugger_data(DDTRACE_G(exception_debugger_buffer));

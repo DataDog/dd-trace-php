@@ -300,7 +300,7 @@ cd /path/to/system-tests
   architecture in the filename. CI always sets this variable.
   Alternatively, build an arm64 `.so` with `make` (not `make static`)
   and use the `.so` override path — see
-  [../debugging-system-tests.md](../debugging-system-tests.md).
+  [../debugging/system-tests.md](../debugging/system-tests.md).
 
 - Artifacts are collected from `system-tests/logs_parametric/` and
   `system-tests/logs/` -- these directories are always uploaded

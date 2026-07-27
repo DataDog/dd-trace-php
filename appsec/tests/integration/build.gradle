@@ -1039,7 +1039,9 @@ buildRunInDockerTask(
                 curl -LsSf "https://github.com/taiki-e/cargo-llvm-cov/releases/download/v0.6.23/cargo-llvm-cov-\${LLVM_COV_ARCH}.tar.gz" | tar xzf - -C /root/.cargo/bin
 
                 echo '=== Running cargo test with coverage ==='
-                cargo llvm-cov test --release --lcov --output-path /helper-rust-build/coverage-unit.lcov
+                cargo llvm-cov test --release --lcov \\
+                    --ignore-filename-regex='appsec/third_party/' \\
+                    --output-path /helper-rust-build/coverage-unit.lcov
 
                 echo '=== Coverage data generated ==='
                 """
@@ -1122,6 +1124,7 @@ buildRunInDockerTask(
                         /helper-rust-build/libddappsec-helper.so \\
                         -format=lcov \\
                         -instr-profile=merged.profdata \\
+                        -ignore-filename-regex='(/root/\\.cargo/|/project/appsec/third_party/|^/rustc/|^/helper-rust-build/)' \\
                         > /helper-rust-build/coverage-integration.lcov
                     echo 'Coverage report generated'
                 else

@@ -84,7 +84,7 @@ reset_request_replayer();
 before=false
 loaded=true
 has_config_after_add=true
-success={"valueJson":"\"blue\"","variant":"blue","allocationKey":"alloc-string","reason":0,"errorCode":0,"doLog":true,"providerState":[],"errorMessage":null,"hasConfig":null,"configVersion":null}
+success={"valueJson":"\"blue\"","variant":"blue","allocationKey":"alloc-string","reason":0,"errorCode":0,"doLog":true,"serialId":7,"providerState":[],"errorMessage":null,"hasConfig":null,"configVersion":null}
 removed=true
 has_config_after_remove=false
 version_increased=true

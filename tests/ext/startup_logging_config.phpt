@@ -27,6 +27,8 @@ $env = [
     'DD_TRACE_REPORT_HOSTNAME' => '1',
     'DD_TRACE_TRACED_INTERNAL_FUNCTIONS' => 'array_sum,mt_rand,DateTime::add',
     'DD_TRACE_ENABLED' => '1',
+    'DD_METRICS_OTEL_ENABLED' => '1',
+    'DD_LOGS_OTEL_ENABLED' => '1',
 ];
 $logs = dd_get_startup_logs($ini, $env);
 
@@ -53,6 +55,9 @@ dd_dump_startup_logs($logs, [
     'report_hostname_on_root_span',
     'traced_internal_functions',
     'enabled_from_env',
+    'otlp_traces_export_enabled',
+    'otlp_metrics_export_enabled',
+    'otlp_logs_export_enabled',
 ]);
 ?>
 --EXPECT--
@@ -76,3 +81,6 @@ measure_compile_time: false
 report_hostname_on_root_span: true
 traced_internal_functions: "array_sum,mt_rand,DateTime::add"
 enabled_from_env: true
+otlp_traces_export_enabled: false
+otlp_metrics_export_enabled: true
+otlp_logs_export_enabled: true

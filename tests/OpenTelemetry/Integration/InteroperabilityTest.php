@@ -609,6 +609,76 @@ final class InteroperabilityTest extends BaseTestCase
         ], true, false);
     }
 
+    public function testW3CInteroperabilityWithPropagationBehaviorRestart()
+    {
+        self::putEnvAndReloadConfig(['DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT=restart']);
+        try {
+            $this->isolateTracer(function () {
+                $tracer = self::getTracer();
+                $propagator = TraceContextPropagator::getInstance();
+
+                $carrier = [
+                    TraceContextPropagator::TRACEPARENT => '00-ff0000000000051791e0000000000041-ff00051791e00041-01',
+                ];
+
+                $context = $propagator->extract($carrier);
+
+                $OTelRootSpan = $tracer->spanBuilder("otel.root.span")
+                    ->setParent($context)
+                    ->startSpan();
+
+                $root = \DDTrace\root_span();
+
+                // Fresh trace: different from upstream trace ID
+                $this->assertNotSame('ff0000000000051791e0000000000041', $root->traceId);
+
+                // Span link capturing the upstream context
+                $this->assertCount(1, $root->links);
+                $link = $root->links[0];
+                $this->assertSame('ff0000000000051791e0000000000041', $link->traceId);
+                $this->assertSame('ff00051791e00041', $link->spanId);
+                $this->assertSame('propagation_behavior_extract', $link->attributes['reason'] ?? null);
+
+                $OTelRootSpan->end();
+            });
+        } finally {
+            self::putEnvAndReloadConfig(['DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT=continue']);
+        }
+    }
+
+    public function testW3CInteroperabilityWithPropagationBehaviorIgnore()
+    {
+        self::putEnvAndReloadConfig(['DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT=ignore']);
+        try {
+            $this->isolateTracer(function () {
+                $tracer = self::getTracer();
+                $propagator = TraceContextPropagator::getInstance();
+
+                $carrier = [
+                    TraceContextPropagator::TRACEPARENT => '00-ff0000000000051791e0000000000041-ff00051791e00041-01',
+                ];
+
+                $context = $propagator->extract($carrier);
+
+                $OTelRootSpan = $tracer->spanBuilder("otel.root.span")
+                    ->setParent($context)
+                    ->startSpan();
+
+                $root = \DDTrace\root_span();
+
+                // Fresh trace: no parent ID
+                $this->assertSame(0, $root->parentId ?? 0);
+
+                // No span links
+                $this->assertCount(0, $root->links);
+
+                $OTelRootSpan->end();
+            });
+        } finally {
+            self::putEnvAndReloadConfig(['DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT=continue']);
+        }
+    }
+
     public function testW3CInteroperability()
     {
         $traces = $this->isolateTracer(function () {

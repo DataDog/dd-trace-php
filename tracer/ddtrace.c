@@ -436,6 +436,7 @@ static void dd_initialize_request(void) {
     DDTRACE_G(default_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
     DDTRACE_G(propagated_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNSET;
     DDTRACE_G(inferred_span_created) = false;
+    ZVAL_NULL(&DDTRACE_G(pending_upstream_span_link));
     zend_hash_init(&DDTRACE_G(root_span_tags_preset), 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&DDTRACE_G(propagated_root_span_tags), 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, ZVAL_PTR_DTOR, 0);
@@ -527,6 +528,8 @@ static void dd_clean_globals(void) {
     zend_hash_destroy(&DDTRACE_G(tracestate_unknown_dd_keys));
     zend_hash_destroy(&DDTRACE_G(propagated_root_span_tags));
     zend_hash_destroy(&DDTRACE_G(baggage));
+    zval_ptr_dtor(&DDTRACE_G(pending_upstream_span_link));
+    ZVAL_NULL(&DDTRACE_G(pending_upstream_span_link));
 
     if (DDTRACE_G(curl_multi_injecting_spans)) {
         if (GC_DELREF(DDTRACE_G(curl_multi_injecting_spans)) == 0) {

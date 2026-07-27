@@ -31,7 +31,7 @@ for ($i = 0; $i < 300; ++$i) {
     ("us" . "leep")(100000);
     if (file_exists(__DIR__ . '/process-tags-telemetry.out')) {
         foreach (file(__DIR__ . '/process-tags-telemetry.out') as $l) {
-            if ($l) {
+            if ($l && $l[0] == '{') {
                 $json = json_decode($l, true);
                 var_dump($json["application"]["process_tags"]);
                 break 2;

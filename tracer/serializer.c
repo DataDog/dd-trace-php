@@ -1832,9 +1832,10 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
             }
             ddog_add_span_metrics_str(rust_span, "_sampling_priority_v1", sampling_priority);
         }
-        if(!get_global_DD_APM_TRACING_ENABLED()) {
-            ddog_add_span_metrics_str(rust_span, "_dd.apm.enabled", 0);
-        }
+    }
+
+    if (!get_global_DD_APM_TRACING_ENABLED()) {
+        ddog_add_span_metrics_str(rust_span, "_dd.apm.enabled", 0);
     }
 
     if (DATADOG_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED() && !is_inferred_span) {

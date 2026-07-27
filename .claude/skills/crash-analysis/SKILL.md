@@ -35,7 +35,7 @@ file. Do all extractions in parallel where possible.
 | Native stacktrace | `jq -c '.error.stack.frames' $EVENT` |
 | PHP stacktrace | `jq -c .experimental.runtime_stack.frames $EVENT` |
 | Mapped files | `jq -c '.files["/proc/self/maps"]' $EVENT` |
-| Registers | `jq -c '.ucontext // .experimental.ucontext' $EVENT \| .claude/parse_ucontext.py` |
+| Registers | `jq -c '.ucontext // .experimental.ucontext' $EVENT \| .claude/scripts/parse_ucontext.py` |
 | PHP version | `jq -r '.language_version // .runtime_version // (.metadata.tags[] \| select(startswith("runtime_version:")) \| split(":")[1])' $EVENT` |
 | OS / arch | `jq -r '(.os_info.os_type // .host.os) + " " + (.os_info.architecture // .host.arch // "unknown") + " (kernel " + (.host.version // "?") + ")"' $EVENT` |
 
@@ -164,7 +164,7 @@ Runtime Callback 1.0"`) contain:
 > appropriate Docker container to obtain the exact source.
 
 Map each native stacktrace frame to source code:
-1. Use `.claude/find_map_region.py <address> <event.json>` to identify which
+1. Use `.claude/scripts/find_map_region.py <address> <event.json>` to identify which
    binary each instruction pointer belongs to. In schema 1.6+ events, frames
    include a `module_base_address` field that already identifies the binary —
    cross-check against the mapped files to confirm the binary name.
@@ -208,11 +208,11 @@ If the stacktrace correlation is ambiguous or the crash is in Datadog code:
 1. Download the release binaries:
    - **SSI** (`libdatadog_php.so` in maps): fetches from ECR public, no credentials needed:
      ```
-     .claude/dd_php_release_url --ssi '<version>' '<arch>'
+     .claude/scripts/dd_php_release_url --ssi '<version>' '<arch>'
      ```
    - **Monolithic**: fetches from GitHub releases:
      ```
-     .claude/dd_php_release_url '<version>' '<php_minor>' '<arch>' '<gnu|musl>'
+     .claude/scripts/dd_php_release_url '<version>' '<php_minor>' '<arch>' '<gnu|musl>'
      ```
    Both print a temp directory with the extracted package. Use the version
    exactly as it appears in `tracer_version` (or reconstructed from

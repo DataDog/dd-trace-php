@@ -36,6 +36,13 @@
         "default": "true"
       }
     ],
+    "DD_APPSEC_AGENTIC_ONBOARDING": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": ""
+      }
+    ],
     "DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING_ENABLED": [
       {
         "implementation": "A",
@@ -333,6 +340,13 @@
         "default": "http://localhost:8125"
       }
     ],
+    "DD_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT_MS": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "15"
+      }
+    ],
     "DD_DYNAMIC_INSTRUMENTATION_ENABLED": [
       {
         "implementation": "A",
@@ -390,6 +404,13 @@
       }
     ],
     "DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED": [
       {
         "implementation": "A",
         "type": "boolean",
@@ -1993,6 +2014,13 @@
         "implementation": "A",
         "type": "boolean",
         "default": "false"
+      }
+    ],
+    "DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT": [
+      {
+        "implementation": "B",
+        "type": "string",
+        "default": "continue"
       }
     ],
     "DD_TRACE_PROPAGATION_STYLE": [
