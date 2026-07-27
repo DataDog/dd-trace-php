@@ -230,8 +230,13 @@ final class DataDogProvider extends AbstractProvider
             $message = 'Datadog-backed PHP OpenFeature evaluation is not fully enabled yet.';
         }
 
-        $this->warningLogger->warning($message);
         $this->warnedAboutNonProductionRuntime = true;
+
+        try {
+            $this->warningLogger->warning($message);
+        } catch (\Throwable $ignored) {
+            // Diagnostic logging must not change the feature flag result.
+        }
     }
 
     private function mapReason(string $reason): string

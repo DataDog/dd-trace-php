@@ -133,6 +133,42 @@ final class DataDogProviderTest extends TestCase
         self::assertSame(['temporary unavailable'], $logger->warnings());
     }
 
+    public function testProviderWarningExceptionDoesNotChangeSuccessfulEvaluation(): void
+    {
+        $evaluator = new OpenFeatureTestEvaluator();
+        $evaluator->setSuccess(
+            'preview.flag',
+            true,
+            EvaluationReason::STATIC_REASON,
+            'on',
+            ['productionRuntime' => false]
+        );
+        $client = $this->openFeatureClientFor(DataDogProvider::createWithDependencies($evaluator));
+        $warningCount = 0;
+
+        set_error_handler(
+            static function ($severity, $message, $file, $line) use (&$warningCount): void {
+                ++$warningCount;
+                throw new \ErrorException($message, 0, $severity, $file, $line);
+            },
+            E_USER_WARNING
+        );
+
+        try {
+            $firstDetails = $client->getBooleanDetails('preview.flag', false);
+            $secondDetails = $client->getBooleanDetails('preview.flag', false);
+        } finally {
+            restore_error_handler();
+        }
+
+        self::assertTrue($firstDetails->getValue());
+        self::assertSame(EvaluationReason::STATIC_REASON, $firstDetails->getReason());
+        self::assertSame('on', $firstDetails->getVariant());
+        self::assertNull($firstDetails->getError());
+        self::assertTrue($secondDetails->getValue());
+        self::assertSame(1, $warningCount);
+    }
+
     public function testProviderErrorsMapToOpenFeatureDetails(): void
     {
         $evaluator = new OpenFeatureTestEvaluator();
@@ -186,13 +222,19 @@ final class OpenFeatureTestEvaluator implements Evaluator
         string $flagKey,
         mixed $value,
         string $reason = EvaluationReason::STATIC_REASON,
-        ?string $variant = null
+        ?string $variant = null,
+        array $providerState = []
     ): self {
         $this->details[$flagKey] = new EvaluationDetails(
             $value,
             $this->typeForValue($value),
             $reason,
-            $variant
+            $variant,
+            null,
+            null,
+            [],
+            [],
+            $providerState
         );
 
         return $this;
