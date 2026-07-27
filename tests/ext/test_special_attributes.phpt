@@ -33,7 +33,7 @@ var_dump(dd_clean_spans());
 --EXPECTF--
 array(1) {
   [0]=>
-  array(11) {
+  array(10) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -58,11 +58,6 @@ array(1) {
       string(27) "test_special_attributes.php"
       ["_dd.svc_src"]=>
       string(1) "m"
-    }
-    ["metrics"]=>
-    array(1) {
-      ["_dd1.sr.eausr"]=>
-      float(1)
     }
   }
 }
