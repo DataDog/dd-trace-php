@@ -1882,6 +1882,13 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     ddtrace_ffe_update_long_property(return_value, ZEND_STRL("reason"), ddtrace_ffe_effective_reason(result.reason, result.error_code));
     ddtrace_ffe_update_long_property(return_value, ZEND_STRL("errorCode"), result.error_code);
     ddtrace_ffe_update_bool_property(return_value, ZEND_STRL("doLog"), result.do_log);
+    // serialId is only populated when the native result actually carried one
+    // (has_serial_id). It stays null otherwise so the PHP accumulator can use
+    // the Pattern B "missing variant => runtime default" branch, rather than
+    // mistaking a 0 sentinel for a real serial id.
+    if (result.has_serial_id) {
+        ddtrace_ffe_update_long_property(return_value, ZEND_STRL("serialId"), (zend_long)result.serial_id);
+    }
     ddtrace_ffe_update_empty_array_property(return_value, ZEND_STRL("providerState"));
 }
 
@@ -2120,6 +2127,31 @@ PHP_FUNCTION(dd_trace_internal_fn) {
                 waited += 10;
             }
             RETVAL_BOOL(ddog_is_agent_info_ready());
+        // await_ffe_config is a test/debug helper (like the other
+        // dd_trace_internal_fn helpers): it actively pumps Remote Config and can
+        // block for up to 5s, so long-running CLI test servers (the system-tests
+        // parametric app / ffe-dogfooding harness) can deterministically wait for
+        // the pushed UFC before evaluating.
+        } else if (FUNCTION_NAME_MATCHES("await_ffe_config")) {
+            // Block until the sidecar has delivered an FFE (FFE_FLAGS) Remote Config update and the
+            // worker has applied it. In long-running CLI servers (e.g. the parametric apps) the
+            // SIGVTALRM-driven remote-config refresh is starved because the process spends most of
+            // its time blocked in IO rather than burning CPU time, so an evaluation issued right
+            // after the agent ACKnowledges the config would otherwise still see no config and fall
+            // back to defaults. Actively pump remote configs here (same shape as await_agent_info)
+            // so feature-flag evaluation observes the pushed UFC. Times out after 5 seconds.
+            uint32_t timeout_ms = 5000;
+            if (params_count == 1) {
+                timeout_ms = (uint32_t)Z_LVAL_P(ZVAL_VARARG_PARAM(params, 0));
+            }
+            uint32_t waited = 0;
+            while (!ddog_ffe_has_config() && waited < timeout_ms) {
+                // Actively read the SHM so we pick up the update the sidecar wrote.
+                datadog_check_for_new_config_now();
+                usleep(10000); // 10ms
+                waited += 10;
+            }
+            RETVAL_BOOL(ddog_ffe_has_config());
         } else if (FUNCTION_NAME_MATCHES("get_loaded_remote_configs")) {
             // Returns a PHP array mapping loaded RC config IDs to their content summary.
             // e.g. ["datadog/2/LIVE_DEBUGGING/logProbe_log.../config" => ["type"=>"probe","id"=>"log..."]]

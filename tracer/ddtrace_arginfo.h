@@ -673,6 +673,12 @@ static zend_class_entry *register_class_DDTrace_FfeResult(void)
 	zend_declare_typed_property(class_entry, property_doLog_name, &property_doLog_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_BOOL));
 	zend_string_release_ex(property_doLog_name, true);
 
+	zval property_serialId_default_value;
+	ZVAL_NULL(&property_serialId_default_value);
+	zend_string *property_serialId_name = zend_string_init("serialId", sizeof("serialId") - 1, true);
+	zend_declare_typed_property(class_entry, property_serialId_name, &property_serialId_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG|MAY_BE_NULL));
+	zend_string_release_ex(property_serialId_name, true);
+
 	zval property_providerState_default_value;
 	ZVAL_EMPTY_ARRAY(&property_providerState_default_value);
 	zend_string *property_providerState_name = zend_string_init("providerState", sizeof("providerState") - 1, true);
