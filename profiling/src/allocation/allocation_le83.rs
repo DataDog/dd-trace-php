@@ -2,10 +2,14 @@ use crate::allocation::{
     allocation_profiling_stats_should_collect, collect_allocation, current_execute_data,
     untrack_allocation,
 };
+#[cfg(php_zts)]
+use crate::allocation::{current_execute_data_from_cache, get_zend_mm_state_from_cache};
 use crate::bindings::{
     self as zend, datadog_php_install_handler, datadog_php_zif_handler,
     ddog_php_prof_copy_long_into_zval,
 };
+#[cfg(php_zts)]
+use crate::module_globals;
 use crate::{RefCellExt, PROFILER_NAME, REQUEST_LOCALS};
 use core::ptr;
 use libc::{c_char, c_int, c_void, size_t};
@@ -281,11 +285,22 @@ unsafe extern "C" fn alloc_prof_malloc(len: size_t) -> *mut c_void {
     #[cfg(feature = "debug_stats")]
     ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, Relaxed);
 
-    let ptr = alloc_prof_forward_alloc(len);
+    #[cfg(php_zts)]
+    let ls_cache = module_globals::get_tsrm_ls_cache();
+    #[cfg(php_zts)]
+    let state = (*get_zend_mm_state_from_cache(ls_cache)).get();
+    #[cfg(not(php_zts))]
+    let state = tls_zend_mm_state_copy!();
+
+    let ptr = alloc_prof_forward_alloc(state, len);
 
     // during startup, minit, rinit, ... current_execute_data is null
     // we are only interested in allocations during userland operations
-    if current_execute_data().is_null() {
+    #[cfg(php_zts)]
+    let execute_data = current_execute_data_from_cache(ls_cache);
+    #[cfg(not(php_zts))]
+    let execute_data = current_execute_data();
+    if execute_data.is_null() {
         return ptr;
     }
 
@@ -297,8 +312,7 @@ unsafe extern "C" fn alloc_prof_malloc(len: size_t) -> *mut c_void {
 }
 
 #[inline(always)]
-unsafe fn alloc_prof_forward_alloc(len: size_t) -> *mut c_void {
-    let state = tls_zend_mm_state_copy!();
+unsafe fn alloc_prof_forward_alloc(state: ZendMMState, len: size_t) -> *mut c_void {
     if let Some(alloc) = state.prev_custom_mm_alloc {
         return alloc(len);
     }

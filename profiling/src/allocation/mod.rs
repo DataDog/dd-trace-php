@@ -39,6 +39,25 @@ pub(crate) unsafe fn get_zend_mm_state() -> *mut Cell<ZendMMState> {
     ptr::addr_of_mut!((*globals).zend_mm_state)
 }
 
+#[cfg(php_zts)]
+#[inline]
+pub(crate) unsafe fn get_zend_mm_state_from_cache(ls_cache: *mut c_void) -> *mut Cell<ZendMMState> {
+    let globals = module_globals::get_profiler_globals_from_cache(ls_cache);
+    ptr::addr_of_mut!((*globals).zend_mm_state)
+}
+
+#[cfg(php_zts)]
+#[inline(always)]
+pub(crate) unsafe fn current_execute_data_from_cache(
+    ls_cache: *mut c_void,
+) -> *mut zend::zend_execute_data {
+    let offset = ptr::addr_of!(zend::executor_globals_offset).read();
+    let globals = ls_cache
+        .byte_add(offset)
+        .cast::<zend::zend_executor_globals>();
+    ptr::addr_of!((*globals).current_execute_data).read()
+}
+
 #[inline(always)]
 pub(crate) unsafe fn current_execute_data() -> *mut zend::zend_execute_data {
     #[cfg(not(php_zts))]

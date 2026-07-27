@@ -40,15 +40,34 @@ mod zts {
     }
 
     #[inline]
-    pub unsafe fn tsrmg_bulk(id: i32) -> *mut c_void {
-        let tls = tsrm_get_ls_cache() as *mut *mut *mut c_void;
-        let storage = *tls; // void** storage
+    pub unsafe fn get_ls_cache() -> *mut c_void {
+        tsrm_get_ls_cache()
+    }
+
+    #[inline]
+    pub unsafe fn tsrmg_bulk(ls_cache: *mut c_void, id: i32) -> *mut c_void {
+        let storage = *(ls_cache as *mut *mut *mut c_void); // void** storage
 
         // TSRM_UNSHUFFLE_RSRC_ID(id) is just `id - 1`.
         let idx = (id - 1) as usize;
         let slot = storage.add(idx);
         *slot
     }
+}
+
+#[cfg(php_zts)]
+#[inline]
+pub unsafe fn get_tsrm_ls_cache() -> *mut c_void {
+    zts::get_ls_cache()
+}
+
+#[cfg(php_zts)]
+#[inline]
+pub unsafe fn get_profiler_globals_from_cache(ls_cache: *mut c_void) -> *mut ProfilerGlobals {
+    // SAFETY: As long as this is called during the times documented by
+    // get_profiler_globals(), GLOBALS_ID will be set by PHP.
+    let id = ptr::addr_of!(GLOBALS_ID).read();
+    zts::tsrmg_bulk(ls_cache, id).cast()
 }
 
 /// Returns a pointer to the profiler globals for the current thread.
@@ -64,10 +83,7 @@ mod zts {
 pub unsafe fn get_profiler_globals() -> *mut ProfilerGlobals {
     #[cfg(php_zts)]
     {
-        // SAFETY: As long as this is called during the times documented by
-        // our own safety requirements, GLOBALS_ID will be set by PHP.
-        let id = ptr::addr_of!(GLOBALS_ID).read();
-        zts::tsrmg_bulk(id).cast()
+        get_profiler_globals_from_cache(get_tsrm_ls_cache())
     }
 
     #[cfg(not(php_zts))]
