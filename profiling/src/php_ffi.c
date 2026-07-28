@@ -248,6 +248,14 @@ zend_execute_data* ddog_php_prof_get_current_execute_data() {
     return EG(current_execute_data);
 }
 
+bool ddog_php_prof_vm_interrupt_pending() {
+#if PHP_VERSION_ID >= 80000
+    return zend_atomic_bool_load_ex(&EG(vm_interrupt));
+#else
+    return EG(vm_interrupt);
+#endif
+}
+
 #if CFG_FIBERS // defined by build.rs
 zend_fiber* ddog_php_prof_get_active_fiber()
 {
