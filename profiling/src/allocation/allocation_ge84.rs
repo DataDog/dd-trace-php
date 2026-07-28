@@ -297,6 +297,7 @@ unsafe fn alloc_prof_malloc_impl(len: size_t) -> *mut c_void {
 #[inline(always)]
 unsafe fn alloc_prof_forward_alloc(len: size_t) -> *mut c_void {
     let state = tls_zend_mm_state_copy!();
+    // Compatibility path for another extension's previously installed custom allocator.
     if let Some(alloc) = state.prev_custom_mm_alloc {
         #[cfg(php_debug)]
         return alloc(len, ptr::null(), 0, ptr::null(), 0);
