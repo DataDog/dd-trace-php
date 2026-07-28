@@ -249,7 +249,7 @@ zend_execute_data* ddog_php_prof_get_current_execute_data() {
 }
 
 bool ddog_php_prof_vm_interrupt_pending() {
-#if PHP_VERSION_ID >= 80000
+#if PHP_VERSION_ID >= 80200
     return zend_atomic_bool_load_ex(&EG(vm_interrupt));
 #else
     return EG(vm_interrupt);
