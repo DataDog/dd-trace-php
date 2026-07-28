@@ -39,6 +39,15 @@ pub(crate) unsafe fn get_zend_mm_state() -> *mut Cell<ZendMMState> {
     ptr::addr_of_mut!((*globals).zend_mm_state)
 }
 
+#[inline(always)]
+pub(crate) unsafe fn current_execute_data() -> *mut zend::zend_execute_data {
+    #[cfg(not(php_zts))]
+    return ptr::addr_of!(zend::executor_globals.current_execute_data).read();
+
+    #[cfg(php_zts)]
+    zend::ddog_php_prof_get_current_execute_data()
+}
+
 /// Macros for accessing ZendMMState from PHP globals.
 /// These are shared between PHP 8.3- and 8.4+ implementations.
 /// They are exported at the crate root and can be used in submodules.
