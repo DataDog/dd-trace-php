@@ -194,10 +194,25 @@ DATADOG_PUBLIC bool datadog_metric_add_point(zend_string *name, double value, ze
     return true;
 }
 
-static void dd_commit_metrics() {
+void datadog_telemetry_commit_user_request_metrics(void) {
     if (!DATADOG_G(metrics_buffer)) {
         return;
     }
+
+    if (!DATADOG_G(sidecar) || !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
+        ddog_sidecar_telemetry_buffer_drop(DATADOG_G(metrics_buffer));
+        DATADOG_G(metrics_buffer) = NULL;
+        return;
+    }
+
+    dd_commit_metrics();
+}
+
+static void dd_commit_metrics(void) {
+    if (!DATADOG_G(metrics_buffer)) {
+        return;
+    }
+
     ddog_sidecar_telemetry_buffer_flush(
         &DATADOG_G(sidecar), datadog_sidecar_instance_id, &DATADOG_G(sidecar_queue_id), DATADOG_G(metrics_buffer));
     DATADOG_G(metrics_buffer) = NULL;
