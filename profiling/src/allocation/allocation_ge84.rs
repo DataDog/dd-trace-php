@@ -34,11 +34,6 @@ pub struct ZendMMState {
     /// The engine's previous custom shutdown function, if there is one.
     prev_custom_mm_shutdown: Option<zend::VmMmCustomShutdownFn>,
     /// Safety: this function pointer is only allowed to point to
-    /// `alloc_prof_prev_realloc()` when at the same time the
-    /// `ZEND_MM_STATE.prev_custom_mm_realloc` is initialised to a valid
-    /// function pointer, otherwise there will be dragons.
-    realloc: unsafe fn(*mut c_void, size_t) -> *mut c_void,
-    /// Safety: this function pointer is only allowed to point to
     /// `alloc_prof_prev_gc()` when at the same time the
     /// `ZEND_MM_STATE.prev_custom_mm_gc` is initialised to a valid function
     /// pointer, otherwise there will be dragons.
@@ -68,7 +63,6 @@ impl ZendMMState {
             prev_custom_mm_free: None,
             prev_custom_mm_gc: None,
             prev_custom_mm_shutdown: None,
-            realloc: super::alloc_prof_panic_realloc,
             gc: alloc_prof_panic_gc,
             shutdown: alloc_prof_panic_shutdown,
         }
@@ -115,11 +109,9 @@ pub fn alloc_prof_rinit(heap_live_enabled: bool) {
                     ptr::addr_of_mut!(zend_mm_state.prev_custom_mm_shutdown),
                 );
             }
-            zend_mm_state.realloc = alloc_prof_prev_realloc;
             zend_mm_state.gc = alloc_prof_prev_gc;
             zend_mm_state.shutdown = alloc_prof_prev_shutdown;
         } else {
-            zend_mm_state.realloc = alloc_prof_orig_realloc;
             zend_mm_state.gc = alloc_prof_orig_gc;
             zend_mm_state.shutdown = alloc_prof_orig_shutdown;
 
@@ -445,7 +437,7 @@ unsafe fn alloc_prof_realloc_impl(prev_ptr: *mut c_void, len: size_t) -> *mut c_
     #[cfg(feature = "debug_stats")]
     ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, Relaxed);
 
-    let ptr = tls_zend_mm_state_get!(realloc)(prev_ptr, len);
+    let ptr = alloc_prof_forward_realloc(prev_ptr, len);
 
     // ZendMM allocation failures raise a fatal error and bail out instead of
     // returning NULL. If realloc returns, prev_ptr has been consumed: untrack it
@@ -465,7 +457,7 @@ unsafe fn alloc_prof_realloc_no_untrack_impl(prev_ptr: *mut c_void, len: size_t)
     #[cfg(feature = "debug_stats")]
     ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, Relaxed);
 
-    let ptr = tls_zend_mm_state_get!(realloc)(prev_ptr, len);
+    let ptr = alloc_prof_forward_realloc(prev_ptr, len);
 
     alloc_prof_realloc_sample(ptr, len)
 }
@@ -489,27 +481,19 @@ unsafe fn alloc_prof_realloc_sample(ptr: *mut c_void, len: size_t) -> *mut c_voi
     ptr
 }
 
-unsafe fn alloc_prof_prev_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
-    // Safety: `ZEND_MM_STATE.prev_custom_mm_realloc` will be initialised in
-    // `alloc_prof_rinit()` and only point to this function when
-    // `prev_custom_mm_realloc` is also initialised.
-    // Note: We use `.unwrap()` instead of `.unwrap_unchecked()` here because a
-    // neighboring extension could misbehave. If that happens, we want a proper
-    // panic with backtrace for debugging rather than undefined behavior.
-    let realloc = tls_zend_mm_state_get!(prev_custom_mm_realloc).unwrap();
-    #[cfg(php_debug)]
-    {
-        realloc(prev_ptr, len, ptr::null(), 0, ptr::null(), 0)
+#[inline(always)]
+unsafe fn alloc_prof_forward_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
+    let state = tls_zend_mm_state_copy!();
+    if let Some(realloc) = state.prev_custom_mm_realloc {
+        #[cfg(php_debug)]
+        return realloc(prev_ptr, len, ptr::null(), 0, ptr::null(), 0);
+        #[cfg(not(php_debug))]
+        return realloc(prev_ptr, len);
     }
-    #[cfg(not(php_debug))]
-    realloc(prev_ptr, len)
-}
 
-unsafe fn alloc_prof_orig_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
-    // Safety: `ZEND_MM_STATE.heap` will be initialised in `alloc_prof_rinit()` and custom ZendMM
-    // handlers only point to this function after successful init. Using `unwrap_unchecked()` is
-    // safe here as we have full control over ZendMM with no neighboring extensions.
-    let heap = tls_zend_mm_state_get!(heap).unwrap_unchecked();
+    // SAFETY: this callback is only invoked after rinit stores the heap and
+    // before rshutdown clears it.
+    let heap = state.heap.unwrap_unchecked();
     #[cfg(php_debug)]
     return zend::_zend_mm_realloc(heap, prev_ptr, len, ptr::null(), 0, ptr::null(), 0);
     #[cfg(not(php_debug))]
