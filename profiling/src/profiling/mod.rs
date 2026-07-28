@@ -942,6 +942,10 @@ impl Profiler {
         self.fork_barrier.wait();
     }
 
+    pub(crate) fn live_heap_tracker_has_capacity(&self) -> bool {
+        self.live_heap_tracker_count.load(Ordering::Relaxed) < LIVE_HEAP_TRACKER_MAX_SIZE
+    }
+
     /// Track an allocation for live heap profiling.
     /// Returns true if tracked, false if tracking is disabled or limit reached.
     pub(crate) fn track_allocation(&self, ptr: usize, sample: LiveHeapSample) -> bool {
@@ -949,7 +953,7 @@ impl Profiler {
         // the map can briefly exceed LIVE_HEAP_TRACKER_MAX_SIZE. A single
         // Relaxed load is equivalent correctness-wise to the former
         // DashMap::len() but avoids 16 shard read-locks per sampled alloc.
-        if self.live_heap_tracker_count.load(Ordering::Relaxed) >= LIVE_HEAP_TRACKER_MAX_SIZE {
+        if !self.live_heap_tracker_has_capacity() {
             return false;
         }
 
@@ -970,6 +974,14 @@ impl Profiler {
             self.live_heap_tracker_count.fetch_sub(1, Ordering::Relaxed);
         }
         result
+    }
+
+    #[cfg(php_zend_mm_set_custom_handlers_ex)]
+    pub(crate) fn live_heap_allocation_pointers(&self) -> Vec<usize> {
+        self.live_heap_tracker
+            .iter()
+            .map(|entry| *entry.key())
+            .collect()
     }
 
     pub fn send_local_root_span_resource(

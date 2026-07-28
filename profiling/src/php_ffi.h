@@ -161,6 +161,16 @@ void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap,
                                                ddog_php_prof_zend_mm_free _free,
                                                ddog_php_prof_zend_mm_realloc _realloc);
 
+#if PHP_VERSION_ID >= 80400
+zend_mm_heap *ddog_php_prof_zend_mm_tracked_heap_startup(zend_mm_heap *primary_heap);
+void ddog_php_prof_zend_mm_tracked_heap_shutdown(zend_mm_heap *heap);
+void ddog_php_prof_zend_mm_tracked_heap_refresh_after_fork(zend_mm_heap *heap);
+bool ddog_php_prof_zend_mm_heap_contains(zend_mm_heap *heap, const void *ptr);
+bool ddog_php_prof_zend_mm_heap_contains_slow(zend_mm_heap *heap, const void *ptr);
+void *ddog_php_prof_zend_mm_move(zend_mm_heap *from, zend_mm_heap *to,
+                                void *ptr, size_t size);
+#endif
+
 zend_execute_data* ddog_php_prof_get_current_execute_data();
 
 #if CFG_FRAMELESS

@@ -244,6 +244,90 @@ void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap,
 #endif
 }
 
+#if PHP_VERSION_ID >= 80400
+typedef struct {
+    zend_mm_heap *primary_heap;
+} ddog_php_prof_tracked_heap_data;
+
+static void *ddog_php_prof_tracked_chunk_alloc(zend_mm_storage *storage,
+                                                size_t size,
+                                                size_t alignment) {
+    ddog_php_prof_tracked_heap_data *data = storage->data;
+    ZEND_ASSERT(alignment == ZEND_MM_CHUNK_SIZE);
+    void *chunk = zend_mm_alloc(data->primary_heap, size);
+    ZEND_ASSERT(((uintptr_t) chunk & (alignment - 1)) == 0);
+    return chunk;
+}
+
+static void ddog_php_prof_tracked_chunk_free(zend_mm_storage *storage,
+                                              void *chunk,
+                                              size_t size) {
+    ddog_php_prof_tracked_heap_data *data = storage->data;
+    (void) size;
+    zend_mm_free(data->primary_heap, chunk);
+}
+
+zend_mm_heap *ddog_php_prof_zend_mm_tracked_heap_startup(zend_mm_heap *primary_heap) {
+    const zend_mm_handlers handlers = {
+        ddog_php_prof_tracked_chunk_alloc,
+        ddog_php_prof_tracked_chunk_free,
+        NULL,
+        NULL,
+    };
+    ddog_php_prof_tracked_heap_data data = {primary_heap};
+    return zend_mm_startup_ex(&handlers, &data, sizeof(data));
+}
+
+void ddog_php_prof_zend_mm_tracked_heap_shutdown(zend_mm_heap *heap) {
+    zend_mm_shutdown(heap, true, true);
+}
+
+void ddog_php_prof_zend_mm_tracked_heap_refresh_after_fork(zend_mm_heap *heap) {
+#if PHP_VERSION_ID >= 80500
+    zend_mm_refresh_key_child(heap);
+#else
+    (void) heap;
+#endif
+}
+
+bool ddog_php_prof_zend_mm_heap_contains(zend_mm_heap *heap, const void *ptr) {
+    uintptr_t address = (uintptr_t) ptr;
+    uintptr_t chunk_offset = address & (ZEND_MM_CHUNK_SIZE - 1);
+    if (EXPECTED(chunk_offset != 0)) {
+        /* The owning heap is the first field of ZendMM's private chunk header. */
+        zend_mm_heap *owner;
+        memcpy(&owner, (void *)(address - chunk_offset), sizeof(owner));
+        return owner == heap;
+    }
+
+    /* Huge allocations have no chunk header. */
+    return ddog_php_prof_zend_mm_heap_contains_slow(heap, ptr);
+}
+
+bool ddog_php_prof_zend_mm_heap_contains_slow(zend_mm_heap *heap, const void *ptr) {
+    zend_mm_heap *previous = zend_mm_set_heap(heap);
+    bool contains = is_zend_ptr(ptr);
+    zend_mm_set_heap(previous);
+    return contains;
+}
+
+void *ddog_php_prof_zend_mm_move(zend_mm_heap *from, zend_mm_heap *to,
+                                void *ptr, size_t size) {
+    int custom_heap;
+    memcpy(&custom_heap, from, sizeof(custom_heap));
+    memset(from, ZEND_MM_CUSTOM_HEAP_NONE, sizeof(custom_heap));
+    size_t old_size = zend_mm_block_size(from, ptr);
+    memcpy(from, &custom_heap, sizeof(custom_heap));
+#if ZEND_DEBUG
+    old_size -= ZEND_MM_OVERHEAD;
+#endif
+    void *new_ptr = zend_mm_alloc(to, size);
+    memcpy(new_ptr, ptr, MIN(old_size, size));
+    zend_mm_free(from, ptr);
+    return new_ptr;
+}
+#endif
+
 zend_execute_data* ddog_php_prof_get_current_execute_data() {
     return EG(current_execute_data);
 }
