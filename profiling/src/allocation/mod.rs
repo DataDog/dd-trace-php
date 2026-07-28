@@ -287,11 +287,8 @@ pub fn alloc_prof_rshutdown() {
     allocation_ge84::alloc_prof_rshutdown(heap_live_enabled);
 }
 
+#[cfg(php_zend_mm_set_custom_handlers_ex)]
 #[track_caller]
 fn initialization_panic() -> ! {
     panic!("Allocation profiler was not initialized properly. Please fill an issue stating the PHP version and the backtrace from this panic.");
-}
-
-unsafe fn alloc_prof_panic_realloc(_prev_ptr: *mut c_void, _len: size_t) -> *mut c_void {
-    initialization_panic();
 }
