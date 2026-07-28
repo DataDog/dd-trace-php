@@ -51,10 +51,20 @@ pub(crate) unsafe fn get_zend_mm_state_from_cache(ls_cache: *mut c_void) -> *mut
 pub(crate) unsafe fn current_execute_data_from_cache(
     ls_cache: *mut c_void,
 ) -> *mut zend::zend_execute_data {
-    let offset = ptr::addr_of!(zend::executor_globals_offset).read();
-    let globals = ls_cache
-        .byte_add(offset)
-        .cast::<zend::zend_executor_globals>();
+    // PHP 7.4 introduced fast globals offsets. Older versions use the TSRM resource ID.
+    #[cfg(php_zts_fast_globals)]
+    let globals = {
+        let offset = ptr::addr_of!(zend::executor_globals_offset).read();
+        ls_cache
+            .byte_add(offset)
+            .cast::<zend::zend_executor_globals>()
+    };
+    #[cfg(not(php_zts_fast_globals))]
+    let globals = {
+        let id = ptr::addr_of!(zend::executor_globals_id).read();
+        module_globals::get_tsrm_resource_from_cache(ls_cache, id)
+            .cast::<zend::zend_executor_globals>()
+    };
     ptr::addr_of!((*globals).current_execute_data).read()
 }
 

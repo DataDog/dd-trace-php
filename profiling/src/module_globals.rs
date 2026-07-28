@@ -31,6 +31,12 @@ pub static mut GLOBALS: ProfilerGlobals = ProfilerGlobals {
     zend_mm_state: Cell::new(ZendMMState::new()),
 };
 
+#[cfg(all(test, php_zts))]
+#[no_mangle]
+unsafe extern "C" fn tsrm_get_ls_cache() -> *mut c_void {
+    ptr::null_mut()
+}
+
 #[cfg(php_zts)]
 mod zts {
     use core::ffi::c_void;
@@ -63,11 +69,17 @@ pub unsafe fn get_tsrm_ls_cache() -> *mut c_void {
 
 #[cfg(php_zts)]
 #[inline]
+pub unsafe fn get_tsrm_resource_from_cache(ls_cache: *mut c_void, id: i32) -> *mut c_void {
+    zts::tsrmg_bulk(ls_cache, id)
+}
+
+#[cfg(php_zts)]
+#[inline]
 pub unsafe fn get_profiler_globals_from_cache(ls_cache: *mut c_void) -> *mut ProfilerGlobals {
     // SAFETY: As long as this is called during the times documented by
     // get_profiler_globals(), GLOBALS_ID will be set by PHP.
     let id = ptr::addr_of!(GLOBALS_ID).read();
-    zts::tsrmg_bulk(ls_cache, id).cast()
+    get_tsrm_resource_from_cache(ls_cache, id).cast()
 }
 
 /// Returns a pointer to the profiler globals for the current thread.
