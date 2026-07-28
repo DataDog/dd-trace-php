@@ -8,7 +8,6 @@ use DDTrace\FeatureFlags\EvaluationErrorCode;
 use DDTrace\FeatureFlags\EvaluationReason;
 use DDTrace\FeatureFlags\EvaluationType;
 use DDTrace\FeatureFlags\Internal\Evaluator;
-use DDTrace\FeatureFlags\Internal\NativeEvaluator;
 use DDTrace\FeatureFlags\Internal\UnavailableEvaluator;
 use DDTrace\Log\LoggerInterface;
 use PHPUnit\Framework\TestCase;
@@ -93,7 +92,7 @@ final class ClientTest extends TestCase
     public function testUnavailableRuntimeReturnsDefaultWithProviderNotReadyDetailsAndWarning()
     {
         $logger = new RecordingLogger();
-        $client = new Client($logger);
+        $client = $this->clientForEvaluator(new UnavailableEvaluator(), $logger);
 
         $value = $client->getBooleanValue('checkout-redesign', true);
         $details = $client->getStringDetails('checkout-copy', 'fallback');
@@ -102,31 +101,41 @@ final class ClientTest extends TestCase
         $this->assertSame('fallback', $details->getValue());
         $this->assertSame(EvaluationReason::ERROR, $details->getReason());
         $this->assertSame(EvaluationErrorCode::PROVIDER_NOT_READY, $details->getErrorCode());
-        $this->assertContains($details->getErrorMessage(), array(
-            NativeEvaluator::WARNING_MESSAGE,
-            UnavailableEvaluator::WARNING_MESSAGE,
-        ));
+        $this->assertSame(UnavailableEvaluator::WARNING_MESSAGE, $details->getErrorMessage());
 
         $providerState = $details->getProviderState();
         $this->assertSame(false, $providerState['ready']);
         $this->assertSame(false, $providerState['productionRuntime']);
-        $this->assertTrue(in_array($providerState['reason'], array(
-            'configuration_missing',
-            'runtime_unavailable',
-        ), true));
+        $this->assertSame('runtime_unavailable', $providerState['reason']);
         $this->assertSame(array($details->getErrorMessage()), $logger->warnings());
     }
 
     public function testWarningIsEmittedOncePerClientNotOncePerEvaluation()
     {
         $logger = new RecordingLogger();
-        $client = new Client($logger);
+        $client = $this->clientForEvaluator(new ClientTestEvaluator(), $logger);
 
         $client->getBooleanValue('flag-1', false);
         $client->getBooleanValue('flag-2', false);
         $client->getStringDetails('flag-3', 'fallback');
 
         $this->assertCount(1, $logger->warnings());
+    }
+
+    public function testThrowingLoggerDoesNotChangeProviderNotReadyEvaluation()
+    {
+        $evaluator = new ClientTestEvaluator();
+        $logger = new ThrowingLogger();
+        $client = $this->clientForEvaluator($evaluator, $logger);
+
+        $firstDetails = $client->getBooleanDetails('preview.flag', false);
+        $secondDetails = $client->getBooleanDetails('preview.flag', false);
+
+        $this->assertFalse($firstDetails->getValue());
+        $this->assertSame(EvaluationReason::ERROR, $firstDetails->getReason());
+        $this->assertSame(EvaluationErrorCode::PROVIDER_NOT_READY, $firstDetails->getErrorCode());
+        $this->assertFalse($secondDetails->getValue());
+        $this->assertSame(1, $logger->warningCount());
     }
 
     /**
@@ -151,7 +160,7 @@ final class ClientTest extends TestCase
         );
     }
 
-    private function clientForEvaluator(Evaluator $evaluator, LoggerInterface $logger)
+    private function clientForEvaluator(Evaluator $evaluator, $logger = null)
     {
         $client = new Client($logger);
         (function () use ($evaluator) {
@@ -264,5 +273,34 @@ final class RecordingLogger implements LoggerInterface
     public function warnings()
     {
         return $this->warnings;
+    }
+}
+
+final class ThrowingLogger implements LoggerInterface
+{
+    private $warningCount = 0;
+
+    public function debug($message, array $context = array())
+    {
+    }
+
+    public function warning($message, array $context = array())
+    {
+        ++$this->warningCount;
+        throw new \ErrorException($message);
+    }
+
+    public function error($message, array $context = array())
+    {
+    }
+
+    public function isLevelActive($level)
+    {
+        return true;
+    }
+
+    public function warningCount()
+    {
+        return $this->warningCount;
     }
 }
