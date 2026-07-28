@@ -41,6 +41,33 @@ class TelemetryHelpers {
         payloads.collect { type.newInstance([it] as Object[]) }
     }
 
+    /**
+     * Synthetic service the in-process background sender reports its own metrics under
+     * (see dd_bgs_register_application() in tracer/tracer_telemetry.c). The counters describe
+     * the sender, not the application being traced, so they are deliberately not attributed to
+     * the request's service.
+     */
+    static final String BGS_SERVICE = 'background_sender-php-service'
+
+    /**
+     * Drains telemetry and returns the {@code generate-metrics} series submitted under the
+     * given service.
+     *
+     * <p>{@link #filterMessages} only tells the sidecar's own telemetry apart from everything
+     * else; this keys on the enclosing message's service name, which is what separates the
+     * background sender's synthetic application ({@link #BGS_SERVICE}) from the traced ones.
+     */
+    static List<Metric> drainMetricSeries(AppSecContainer container, String service, int timeoutInMs = 500) {
+        List<Metric> series = []
+        for (msg in container.drainTelemetry(timeoutInMs)) {
+            if (msg.application?.service_name != service) continue
+            for (GenerateMetrics metrics in filterMessages([msg], GenerateMetrics, false)) {
+                series.addAll(metrics.series)
+            }
+        }
+        series
+    }
+
     static class GenerateMetrics {
         static names = ['generate-metrics']
         List<Metric> series

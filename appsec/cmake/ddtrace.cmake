@@ -92,6 +92,8 @@ file(GLOB_RECURSE FILES_DDTRACE
     CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/../ext/*.c"
     "${CMAKE_SOURCE_DIR}/../ext/**/*.c"
+    "${CMAKE_SOURCE_DIR}/../tracer/*.c"
+    "${CMAKE_SOURCE_DIR}/../tracer/**/*.c"
     "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/*.c"
     "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/**/*.c"
 )
@@ -101,30 +103,38 @@ list(APPEND FILES_DDTRACE
     "${CMAKE_SOURCE_DIR}/../components/log/log.c"
     "${CMAKE_SOURCE_DIR}/../components/sapi/sapi.c"
     "${CMAKE_SOURCE_DIR}/../components/string_view/string_view.c"
+    "${CMAKE_SOURCE_DIR}/../tracer/vendor/mpack/mpack.c"
+    "${CMAKE_SOURCE_DIR}/../tracer/vendor/mt19937/mt19937-64.c"
 )
 if (PhpConfig_VERNUM GREATER_EQUAL 80000)
-    list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../ext/handlers_curl_php7.c"
+    list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../tracer/handlers_curl_php7.c"
         "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/interceptor/php7/interceptor.c"
         "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/interceptor/php7/resolver.c"
         "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/sandbox/php7/sandbox.c")
 else() # PHP 7
-    list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../ext/handlers_curl.c"
-        "${CMAKE_SOURCE_DIR}/../ext/hook/uhook_attributes.c"
-        "${CMAKE_SOURCE_DIR}/../ext/hook/uhook_otel.c"
+    list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../tracer/handlers_curl.c"
+        "${CMAKE_SOURCE_DIR}/../tracer/hook/uhook_attributes.c"
+        "${CMAKE_SOURCE_DIR}/../tracer/hook/uhook_otel.c"
         "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/interceptor/php8/interceptor.c"
         "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/interceptor/php8/resolver.c"
         "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/interceptor/php8/resolver_pre-8_2.c"
         "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/jit_utils/jit_blacklist.c"
         "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/sandbox/php8/sandbox.c")
 endif()
+if (PhpConfig_VERNUM GREATER_EQUAL 70300)
+    list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../ext/zend_hrtime.c")
+endif()
+if (PhpConfig_VERNUM LESS 80000 OR PhpConfig_VERNUM GREATER_EQUAL 80200)
+    list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../ext/patch_zend_call_known_function.c")
+endif()
 if (PhpConfig_VERNUM LESS 80200)
-    list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../ext/weakrefs.c")
     list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/interceptor/php8/resolver.c")
 else() # PHP 8.2+
-    list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/interceptor/php8/resolver_pre-8_2.c")
+    list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../tracer/weakrefs.c"
+        "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/interceptor/php8/resolver_pre-8_2.c")
 endif()
 if (PhpConfig_VERNUM LESS 80100)
-    list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../ext/handlers_fiber.c")
+    list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../tracer/handlers_fiber.c")
 endif()
 list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../ext/crashtracking_windows.c")
 
@@ -162,16 +172,20 @@ endif()
 if(CURL_DEFINITIONS)
     target_compile_definitions(ddtrace PRIVATE ${CURL_DEFINITIONS})
 endif()
-target_compile_definitions(ddtrace PRIVATE ZEND_ENABLE_STATIC_TSRMLS_CACHE=1 COMPILE_DL_DDTRACE=1)
+target_compile_definitions(ddtrace PRIVATE ZEND_ENABLE_STATIC_TSRMLS_CACHE=1 COMPILE_DL_DDTRACE=1 DDTRACE=1)
 target_include_directories(ddtrace PRIVATE
     ${CURL_INCLUDE_DIRS}
     ${CMAKE_SOURCE_DIR}/..
     ${CMAKE_SOURCE_DIR}/../src/dogstatsd
     ${CMAKE_SOURCE_DIR}/../zend_abstract_interface
     ${CMAKE_SOURCE_DIR}/../ext
-    ${CMAKE_SOURCE_DIR}/../ext/vendor
-    ${CMAKE_SOURCE_DIR}/../ext/vendor/mt19937
+    ${CMAKE_SOURCE_DIR}/../tracer
+    ${CMAKE_SOURCE_DIR}/../tracer/integrations
+    ${CMAKE_SOURCE_DIR}/../tracer/vendor
+    ${CMAKE_SOURCE_DIR}/../tracer/vendor/mpack
+    ${CMAKE_SOURCE_DIR}/../tracer/vendor/mt19937
     ${CMAKE_BINARY_DIR}/gen_ddtrace
+    ${CMAKE_BINARY_DIR}/gen_ddtrace/ext
 )
 add_dependencies(ddtrace ddtrace_exports update_version_h)
 
