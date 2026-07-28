@@ -1,5 +1,6 @@
 use crate::allocation::{
-    allocation_profiling_stats_should_collect, collect_allocation, untrack_allocation,
+    allocation_profiling_stats_should_collect, collect_allocation, current_execute_data,
+    untrack_allocation,
 };
 use crate::bindings as zend;
 use crate::PROFILER_NAME;
@@ -306,7 +307,7 @@ unsafe fn alloc_prof_malloc_impl(len: size_t) -> *mut c_void {
 
     // during startup, minit, rinit, ... current_execute_data is null
     // we are only interested in allocations during userland operations
-    if zend::ddog_php_prof_get_current_execute_data().is_null() {
+    if current_execute_data().is_null() {
         return ptr;
     }
 
@@ -505,7 +506,7 @@ unsafe fn alloc_prof_realloc_no_untrack_impl(prev_ptr: *mut c_void, len: size_t)
 unsafe fn alloc_prof_realloc_sample(ptr: *mut c_void, len: size_t) -> *mut c_void {
     // during startup, minit, rinit, ... current_execute_data is null
     // we are only interested in allocations during userland operations
-    if zend::ddog_php_prof_get_current_execute_data().is_null() {
+    if current_execute_data().is_null() {
         return ptr;
     }
 
