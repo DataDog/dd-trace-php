@@ -324,7 +324,7 @@ fn reuse_sidecar_fd_connector(_unix_socket_path: &str) -> std::os::fd::RawFd {
     }
 
     // Best-effort, signal context: read the transport pointer and get its current fd via
-    // SidecarTransport::signal_fd (which uses get_mut, never locking). Going through the raw
+    // SidecarTransport::as_raw_fd (which uses get_mut, never locking). Going through the raw
     // pointer knowingly bypasses aliasing checks — the crashing thread is the only realistic
     // accessor.
     let transport = unsafe { datadog_sidecar_for_signal }
@@ -334,7 +334,19 @@ fn reuse_sidecar_fd_connector(_unix_socket_path: &str) -> std::os::fd::RawFd {
     }
     let fd = unsafe { (*transport).as_raw_fd() };
     let bytes = crashtracker_receiver_request_bytes();
-    let sent = unsafe { libc::send(dup, bytes.as_ptr() as *const libc::c_void, bytes.len(), 0) };
+    let sent = unsafe {
+        libc::send(
+            fd,
+            bytes.as_ptr().cast::<libc::c_void>(),
+            bytes.len(),
+            0,
+        )
+    };
+    if sent == bytes.len() as isize {
+        fd
+    } else {
+        -1
+    }
 }
 
 // Hack: Without this, the PECL build of the tracer does not contain the ddog_library_* functions

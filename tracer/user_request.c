@@ -2,6 +2,7 @@
 #include <main/SAPI.h>
 #include "configuration.h"
 #include "ddtrace.h"
+#include <ext/telemetry.h>
 #include "span.h"
 
 #define NS "DDTrace\\UserRequest\\"
@@ -196,6 +197,8 @@ void ddtrace_user_req_notify_finish(ddtrace_span_data *span)
         ddtrace_user_req_listeners *listener = reg_listeners.listeners[i];
         listener->finish_user_req(listener, &span->std);
     }
+
+    datadog_telemetry_commit_user_request_metrics();
 }
 
 PHP_FUNCTION(DDTrace_UserRequest_set_blocking_function);
