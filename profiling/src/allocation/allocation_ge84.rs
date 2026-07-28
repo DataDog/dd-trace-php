@@ -126,6 +126,8 @@ pub fn alloc_prof_rinit(heap_live_enabled: bool) {
             zend_mm_state.prev_custom_mm_shutdown = None;
         }
 
+        let malloc_handler =
+            alloc_prof_malloc_handler(zend_mm_state.prev_custom_mm_alloc.is_some());
         let free_handler = alloc_prof_free_handler(heap_live_enabled);
         let realloc_handler = alloc_prof_realloc_handler(heap_live_enabled);
 
@@ -133,7 +135,7 @@ pub fn alloc_prof_rinit(heap_live_enabled: bool) {
         unsafe {
             zend::zend_mm_set_custom_handlers_ex(
                 heap,
-                Some(alloc_prof_malloc),
+                Some(malloc_handler),
                 Some(free_handler),
                 Some(realloc_handler),
                 Some(alloc_prof_gc),
@@ -189,10 +191,12 @@ pub fn alloc_prof_rshutdown(heap_live_enabled: bool) {
                 &mut custom_mm_shutdown,
             );
         }
+        let malloc_handler =
+            alloc_prof_malloc_handler(zend_mm_state.prev_custom_mm_alloc.is_some());
         let free_handler = alloc_prof_free_handler(heap_live_enabled);
         let realloc_handler = alloc_prof_realloc_handler(heap_live_enabled);
         if custom_mm_free != Some(free_handler)
-            || custom_mm_malloc != Some(alloc_prof_malloc)
+            || custom_mm_malloc != Some(malloc_handler)
             || custom_mm_realloc != Some(realloc_handler)
             || custom_mm_gc != Some(alloc_prof_gc)
             || custom_mm_shutdown != Some(alloc_prof_shutdown)
@@ -256,9 +260,17 @@ unsafe fn restore_zend_heap(heap: *mut zend::_zend_mm_heap, custom_heap: c_int) 
     ptr::write(heap as *mut c_int, custom_heap);
 }
 
+fn alloc_prof_malloc_handler(has_previous_allocator: bool) -> zend::VmMmCustomAllocFn {
+    if has_previous_allocator {
+        alloc_prof_malloc_custom
+    } else {
+        alloc_prof_malloc
+    }
+}
+
 #[cfg(not(php_debug))]
 unsafe extern "C" fn alloc_prof_malloc(len: size_t) -> *mut c_void {
-    alloc_prof_malloc_impl(len)
+    alloc_prof_malloc_impl::<false>(len)
 }
 
 #[cfg(php_debug)]
@@ -269,17 +281,53 @@ unsafe extern "C" fn alloc_prof_malloc(
     _orig_file: *const c_char,
     _orig_line: c_uint,
 ) -> *mut c_void {
-    alloc_prof_malloc_impl(len)
+    alloc_prof_malloc_impl::<false>(len)
+}
+
+// Compatibility path for another extension's previously installed custom allocator.
+#[cold]
+#[cfg(not(php_debug))]
+unsafe extern "C" fn alloc_prof_malloc_custom(len: size_t) -> *mut c_void {
+    alloc_prof_malloc_impl::<true>(len)
+}
+
+#[cold]
+#[cfg(php_debug)]
+unsafe extern "C" fn alloc_prof_malloc_custom(
+    len: size_t,
+    _file: *const c_char,
+    _line: c_uint,
+    _orig_file: *const c_char,
+    _orig_line: c_uint,
+) -> *mut c_void {
+    alloc_prof_malloc_impl::<true>(len)
 }
 
 #[inline(always)]
-unsafe fn alloc_prof_malloc_impl(len: size_t) -> *mut c_void {
+unsafe fn alloc_prof_malloc_impl<const CUSTOM: bool>(len: size_t) -> *mut c_void {
     #[cfg(feature = "debug_stats")]
     ALLOCATION_PROFILING_COUNT.fetch_add(1, Relaxed);
     #[cfg(feature = "debug_stats")]
     ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, Relaxed);
 
-    let ptr = alloc_prof_forward_alloc(len);
+    let state = tls_zend_mm_state_copy!();
+    let ptr = if CUSTOM {
+        let alloc = state.prev_custom_mm_alloc.unwrap();
+        #[cfg(php_debug)]
+        let ptr = alloc(len, ptr::null(), 0, ptr::null(), 0);
+        #[cfg(not(php_debug))]
+        let ptr = alloc(len);
+        ptr
+    } else {
+        // SAFETY: this callback is only invoked after rinit stores the heap and
+        // before rshutdown clears it.
+        let heap = state.heap.unwrap_unchecked();
+        #[cfg(php_debug)]
+        let ptr = zend::_zend_mm_alloc(heap, len, ptr::null(), 0, ptr::null(), 0);
+        #[cfg(not(php_debug))]
+        let ptr = zend::_zend_mm_alloc(heap, len);
+        ptr
+    };
 
     // during startup, minit, rinit, ... current_execute_data is null
     // we are only interested in allocations during userland operations
@@ -292,26 +340,6 @@ unsafe fn alloc_prof_malloc_impl(len: size_t) -> *mut c_void {
     }
 
     ptr
-}
-
-#[inline(always)]
-unsafe fn alloc_prof_forward_alloc(len: size_t) -> *mut c_void {
-    let state = tls_zend_mm_state_copy!();
-    // Compatibility path for another extension's previously installed custom allocator.
-    if let Some(alloc) = state.prev_custom_mm_alloc {
-        #[cfg(php_debug)]
-        return alloc(len, ptr::null(), 0, ptr::null(), 0);
-        #[cfg(not(php_debug))]
-        return alloc(len);
-    }
-
-    // SAFETY: this callback is only invoked after rinit stores the heap and
-    // before rshutdown clears it.
-    let heap = state.heap.unwrap_unchecked();
-    #[cfg(php_debug)]
-    return zend::_zend_mm_alloc(heap, len, ptr::null(), 0, ptr::null(), 0);
-    #[cfg(not(php_debug))]
-    zend::_zend_mm_alloc(heap, len)
 }
 
 /// This function exists because when calling `zend_mm_set_custom_handlers()`,
