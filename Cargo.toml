@@ -52,7 +52,10 @@ hyper-util = { version = "0.1.10", features = [
   "client",
   "client-legacy",
 ] }
+prost-build = { version = "0.14.1", default-features = false }
+protoc-bin-vendored = { version = "3.0.0", default-features = false }
 serde = { version = "1.0", default-features = false }
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 tokio = { version = "1.36", default-features = false }
 tracing = { version = "0.1", default-features = false }
 
