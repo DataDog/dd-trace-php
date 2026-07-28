@@ -109,7 +109,12 @@ pub mod allocation_ge84;
 #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
 pub mod allocation_le83;
 
-// Handler-selection tests retain the free callbacks in a binary that is not loaded by PHP.
+// Handler-selection tests retain callbacks in a binary that is not loaded by PHP.
+#[cfg(all(test, not(php_zts)))]
+#[export_name = "executor_globals"]
+static mut TEST_EXECUTOR_GLOBALS: core::mem::MaybeUninit<zend::zend_executor_globals> =
+    core::mem::MaybeUninit::zeroed();
+
 #[cfg(all(test, not(php_debug)))]
 #[no_mangle]
 unsafe extern "C" fn _zend_mm_free(_heap: *mut zend::_zend_mm_heap, _ptr: *mut c_void) {}
@@ -124,6 +129,30 @@ unsafe extern "C" fn _zend_mm_free(
     _orig_file: *const libc::c_char,
     _orig_line: libc::c_uint,
 ) {
+}
+
+#[cfg(all(test, not(php_debug)))]
+#[no_mangle]
+unsafe extern "C" fn _zend_mm_realloc(
+    _heap: *mut zend::_zend_mm_heap,
+    _ptr: *mut c_void,
+    _len: size_t,
+) -> *mut c_void {
+    ptr::null_mut()
+}
+
+#[cfg(all(test, php_debug))]
+#[no_mangle]
+unsafe extern "C" fn _zend_mm_realloc(
+    _heap: *mut zend::_zend_mm_heap,
+    _ptr: *mut c_void,
+    _len: size_t,
+    _file: *const libc::c_char,
+    _line: libc::c_uint,
+    _orig_file: *const libc::c_char,
+    _orig_line: libc::c_uint,
+) -> *mut c_void {
+    ptr::null_mut()
 }
 
 /// Default sampling interval in bytes (4 MiB).
