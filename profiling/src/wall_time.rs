@@ -2,10 +2,9 @@
 //! implementation reasons, it has cpu-time code as well.
 
 use crate::bindings::{zend_execute_data, zend_interrupt_function, VmInterruptFn};
-use crate::config::SystemSettings;
-use crate::module_globals::{self, ProfilerGlobals};
-use crate::profiling::Profiler;
+use crate::{profiling::Profiler, RefCellExt, RequestLocals, REQUEST_LOCALS};
 use core::ptr;
+use log::debug;
 use std::sync::atomic::Ordering;
 
 #[cfg(not(php_frameless))]
@@ -110,12 +109,16 @@ static mut PREV_INTERRUPT_FUNCTION: Option<VmInterruptFn> = None;
 #[no_mangle]
 #[inline(never)]
 pub extern "C" fn ddog_php_prof_interrupt_function(execute_data: *mut zend_execute_data) {
-    // SAFETY: interrupt callbacks run while the current PHP thread's module globals are valid.
-    let globals = unsafe { &*module_globals::get_profiler_globals() };
-    interrupt_function(globals, execute_data);
+    if let Err(err) =
+        REQUEST_LOCALS.try_with_borrow(|locals| interrupt_function(locals, execute_data))
+    {
+        debug!("ddog_php_prof_interrupt_function failed to borrow request locals: {err}");
+    }
 }
 
-fn interrupt_function(globals: &ProfilerGlobals, execute_data: *mut zend_execute_data) {
+fn interrupt_function(locals: &RequestLocals, execute_data: *mut zend_execute_data) {
+    let profiling_disabled = !locals.system_settings().profiling_enabled;
+
     /* Other extensions/modules or the engine itself may trigger an
      * interrupt, but given how expensive it is to gather a stack trace,
      * it should only be done if we triggered it ourselves. So
@@ -123,15 +126,8 @@ fn interrupt_function(globals: &ProfilerGlobals, execute_data: *mut zend_execute
      *  1. Track how many interrupts there were.
      *  2. Ensure we don't collect on someone else's interrupt.
      */
-    let interrupt_count = globals.interrupt_count.swap(0, Ordering::SeqCst);
-    if interrupt_count == 0 {
-        return;
-    }
-
-    // SAFETY: `SystemSettings::get()` points to an initialized process
-    // lifetime static. Lifecycle updates happen in synchronized startup, fork,
-    // or shutdown phases, and this reference is short-lived.
-    if !unsafe { SystemSettings::get().as_ref() }.profiling_enabled {
+    let interrupt_count = locals.interrupt_count.swap(0, Ordering::SeqCst);
+    if profiling_disabled | (interrupt_count == 0) {
         return;
     }
 
@@ -153,23 +149,26 @@ fn interrupt_function(globals: &ProfilerGlobals, execute_data: *mut zend_execute
 #[no_mangle]
 #[inline(never)]
 pub extern "C" fn ddog_php_prof_interrupt_function_unlikely(execute_data: *mut zend_execute_data) {
-    // SAFETY: interrupt checks run while the current PHP thread's module globals are valid.
-    let globals = unsafe { &*module_globals::get_profiler_globals() };
+    let result = REQUEST_LOCALS.try_with_borrow(|locals| {
+        // Optimize here with the expectation there isn't an interrupt, because
+        // overwhelmingly, there will not be one. The relaxed load avoids the
+        // more expensive atomic read-modify-write in `interrupt_function` on
+        // the idle path. It is only a fast-path hint: `interrupt_function` does
+        // the authoritative swap. If another consumer clears the count between
+        // the load and swap, the swap simply observes zero; if a producer adds
+        // an interrupt after this load observes zero, the count remains pending
+        // and the corresponding VM interrupt will provide another opportunity
+        // to handle it.
+        if locals.interrupt_count.load(Ordering::Relaxed) == 0 {
+            return;
+        }
 
-    // Optimize here with the expectation there isn't an interrupt, because
-    // overwhelmingly, there will not be one. The relaxed load avoids the
-    // more expensive atomic read-modify-write in `interrupt_function` on
-    // the idle path. It is only a fast-path hint: `interrupt_function` does
-    // the authoritative swap. If another consumer clears the count between
-    // the load and swap, the swap simply observes zero; if a producer adds
-    // an interrupt after this load observes zero, the count remains pending
-    // and the corresponding VM interrupt will provide another opportunity
-    // to handle it.
-    if globals.interrupt_count.load(Ordering::Relaxed) == 0 {
-        return;
+        interrupt_function(locals, execute_data);
+    });
+
+    if let Err(err) = result {
+        debug!("ddog_php_prof_interrupt_function_unlikely failed to borrow request locals: {err}");
     }
-
-    interrupt_function(globals, execute_data);
 }
 
 #[cfg(php_frameless)]
@@ -179,9 +178,8 @@ mod frameless {
         use crate::bindings::{
             zend_flf_functions, zend_flf_handlers, zend_frameless_function_info,
         };
-        use crate::module_globals;
-        use crate::wall_time::interrupt_function;
-        use crate::zend;
+        use crate::wall_time::ddog_php_prof_interrupt_function;
+        use crate::{zend, RefCellExt, REQUEST_LOCALS};
         use dynasmrt::{dynasm, DynasmApi, ExecutableBuffer};
         use log::error;
         use std::ffi::c_void;
@@ -307,16 +305,18 @@ mod frameless {
         #[no_mangle]
         #[inline(never)]
         pub extern "C" fn ddog_php_prof_icall_trampoline_target() {
-            // SAFETY: frameless handlers run while the current PHP thread's module globals are
-            // valid. Retain the pointer so the authoritative swap reuses the same TSRM lookup.
-            let globals = unsafe { &*module_globals::get_profiler_globals() };
-            if globals.interrupt_count.load(Ordering::Relaxed) == 0 {
+            let interrupt_count = REQUEST_LOCALS
+                .try_with_borrow(|locals| locals.interrupt_count.load(Ordering::Relaxed))
+                .unwrap_or(0);
+
+            if interrupt_count == 0 {
                 return;
             }
 
-            // Fetching execute data is intentionally delayed until a profiler interrupt is pending.
+            // Fetching the execute data is intentionally delayed until we know
+            // that the interrupt count is greater than 0 for perf.
             let execute_data = unsafe { zend::ddog_php_prof_get_current_execute_data() };
-            interrupt_function(globals, execute_data);
+            ddog_php_prof_interrupt_function(execute_data);
         }
     }
 

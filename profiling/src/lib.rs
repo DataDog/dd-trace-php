@@ -425,6 +425,7 @@ pub struct RequestLocals {
     pub system_settings: ptr::NonNull<SystemSettings>,
     pub profiling_experimental_heap_live_enabled: bool,
 
+    pub interrupt_count: AtomicU32,
     pub vm_interrupt_addr: *const AtomicBool,
 }
 
@@ -449,6 +450,7 @@ impl Default for RequestLocals {
             tags: vec![],
             system_settings: SystemSettings::get(),
             profiling_experimental_heap_live_enabled: false,
+            interrupt_count: AtomicU32::new(0),
             vm_interrupt_addr: ptr::null_mut(),
         }
     }
@@ -736,11 +738,8 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
             }
 
             if let Some(profiler) = Profiler::get() {
-                // SAFETY: PHP module globals are initialized for this request thread.
-                let globals = unsafe { module_globals::get_profiler_globals() };
                 let interrupt = VmInterrupt {
-                    // SAFETY: `globals` is valid until this thread's GSHUTDOWN.
-                    interrupt_count_ptr: unsafe { ptr::addr_of!((*globals).interrupt_count) },
+                    interrupt_count_ptr: &locals.interrupt_count as *const AtomicU32,
                     engine_ptr: locals.vm_interrupt_addr,
                 };
                 profiler.add_interrupt(interrupt);
@@ -796,11 +795,8 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
         // and we don't need to optimize for that.
         if system_settings.profiling_enabled {
             if let Some(profiler) = Profiler::get() {
-                // SAFETY: PHP module globals remain initialized through RSHUTDOWN.
-                let globals = unsafe { module_globals::get_profiler_globals() };
                 let interrupt = VmInterrupt {
-                    // SAFETY: `globals` remains valid until this thread's GSHUTDOWN.
-                    interrupt_count_ptr: unsafe { ptr::addr_of!((*globals).interrupt_count) },
+                    interrupt_count_ptr: &locals.interrupt_count,
                     engine_ptr: locals.vm_interrupt_addr,
                 };
                 profiler.remove_interrupt(interrupt);

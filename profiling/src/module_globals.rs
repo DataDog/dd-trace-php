@@ -2,7 +2,6 @@ use crate::allocation;
 use core::cell::Cell;
 use core::ffi::c_void;
 use core::ptr;
-use core::sync::atomic::AtomicU32;
 
 #[cfg(php_zend_mm_set_custom_handlers_ex)]
 use crate::allocation::allocation_ge84::ZendMMState;
@@ -14,12 +13,6 @@ pub struct ProfilerGlobals {
     /// Wrapped in `Cell` to prevent torn reads/writes when allocation hooks
     /// are called re-entrantly during `rinit()`/`rshutdown()`.
     pub zend_mm_state: Cell<ZendMMState>,
-    /// Number of profiler time interrupts pending for this PHP thread.
-    ///
-    /// The profiler timer thread updates this through a pointer registered by
-    /// the PHP thread, so the value must remain atomic despite living in
-    /// thread-local PHP module globals.
-    pub interrupt_count: AtomicU32,
 }
 
 /// We need TSRM to call into GINIT and GSHUTDOWN to observe spawning and
@@ -36,16 +29,7 @@ pub static mut GLOBALS_ID: i32 = 0;
 #[cfg(not(php_zts))]
 pub static mut GLOBALS: ProfilerGlobals = ProfilerGlobals {
     zend_mm_state: Cell::new(ZendMMState::new()),
-    interrupt_count: AtomicU32::new(0),
 };
-
-// Unit tests are not loaded by PHP, so provide the TSRM symbol needed to link
-// tests that retain the ZTS module-global accessors.
-#[cfg(all(test, php_zts))]
-#[no_mangle]
-unsafe extern "C" fn tsrm_get_ls_cache() -> *mut c_void {
-    ptr::null_mut()
-}
 
 #[cfg(php_zts)]
 mod zts {
@@ -56,40 +40,15 @@ mod zts {
     }
 
     #[inline]
-    pub unsafe fn get_ls_cache() -> *mut c_void {
-        tsrm_get_ls_cache()
-    }
-
-    #[inline]
-    pub unsafe fn tsrmg_bulk(ls_cache: *mut c_void, id: i32) -> *mut c_void {
-        let storage = *(ls_cache as *mut *mut *mut c_void); // void** storage
+    pub unsafe fn tsrmg_bulk(id: i32) -> *mut c_void {
+        let tls = tsrm_get_ls_cache() as *mut *mut *mut c_void;
+        let storage = *tls; // void** storage
 
         // TSRM_UNSHUFFLE_RSRC_ID(id) is just `id - 1`.
         let idx = (id - 1) as usize;
         let slot = storage.add(idx);
         *slot
     }
-}
-
-#[cfg(php_zts)]
-#[inline]
-pub unsafe fn get_tsrm_ls_cache() -> *mut c_void {
-    zts::get_ls_cache()
-}
-
-#[cfg(php_zts)]
-#[inline]
-pub unsafe fn get_tsrm_resource_from_cache(ls_cache: *mut c_void, id: i32) -> *mut c_void {
-    zts::tsrmg_bulk(ls_cache, id)
-}
-
-#[cfg(php_zts)]
-#[inline]
-pub unsafe fn get_profiler_globals_from_cache(ls_cache: *mut c_void) -> *mut ProfilerGlobals {
-    // SAFETY: As long as this is called during the times documented by
-    // get_profiler_globals(), GLOBALS_ID will be set by PHP.
-    let id = ptr::addr_of!(GLOBALS_ID).read();
-    get_tsrm_resource_from_cache(ls_cache, id).cast()
 }
 
 /// Returns a pointer to the profiler globals for the current thread.
@@ -105,7 +64,10 @@ pub unsafe fn get_profiler_globals_from_cache(ls_cache: *mut c_void) -> *mut Pro
 pub unsafe fn get_profiler_globals() -> *mut ProfilerGlobals {
     #[cfg(php_zts)]
     {
-        get_profiler_globals_from_cache(get_tsrm_ls_cache())
+        // SAFETY: As long as this is called during the times documented by
+        // our own safety requirements, GLOBALS_ID will be set by PHP.
+        let id = ptr::addr_of!(GLOBALS_ID).read();
+        zts::tsrmg_bulk(id).cast()
     }
 
     #[cfg(not(php_zts))]
@@ -123,13 +85,11 @@ pub unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
     #[cfg(php_zts)]
     crate::timeline::timeline_ginit();
 
-    let globals = _globals_ptr.cast::<ProfilerGlobals>();
-    (*globals).interrupt_count = AtomicU32::new(0);
-
     // Initialize ZendMMState in PHP globals for ZTS builds. For NTS builds,
     // this was already done in its const initializer.
     #[cfg(php_zts)]
     {
+        let globals = _globals_ptr.cast::<ProfilerGlobals>();
         (*globals).zend_mm_state = Cell::new(ZendMMState::new());
     }
 

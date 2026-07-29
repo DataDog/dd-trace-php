@@ -199,10 +199,9 @@ pub fn collect_allocation(ptr: *mut c_void, len: size_t) {
         // Check if there's a pending time interrupt that we can handle now
         // instead of waiting for an interrupt handler. This is slightly more
         // accurate and efficient, win-win.
-        // SAFETY: allocation samples are collected on an initialized PHP request thread.
-        let globals = unsafe { module_globals::get_profiler_globals() };
-        // SAFETY: the current thread's module globals are valid through GSHUTDOWN.
-        let interrupt_count = unsafe { (*globals).interrupt_count.swap(0, Ordering::SeqCst) };
+        let interrupt_count = REQUEST_LOCALS
+            .try_with_borrow(|locals| locals.interrupt_count.swap(0, Ordering::SeqCst))
+            .unwrap_or(0);
 
         // SAFETY: execute_data was provided by the engine, and the profiler
         // doesn't mutate it.
