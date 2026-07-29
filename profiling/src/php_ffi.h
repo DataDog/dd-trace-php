@@ -162,7 +162,6 @@ void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap,
                                                ddog_php_prof_zend_mm_realloc _realloc);
 
 zend_execute_data* ddog_php_prof_get_current_execute_data();
-bool ddog_php_prof_vm_interrupt_pending();
 
 #if CFG_FRAMELESS
 void ddog_php_prof_post_startup();

@@ -79,10 +79,8 @@ mod execute_internal {
         unsafe { prev_execute_internal(execute_data, return_value) };
 
         // See safety section of `execute_data_func_is_trampoline` docs for why
-        // the leaf frame is used instead of the execute_data ptr.
-        if unsafe { zend::ddog_php_prof_vm_interrupt_pending() } {
-            ddog_php_prof_interrupt_function(leaf_frame);
-        }
+        // the leaf frame is used  instead of the execute_data ptr.
+        ddog_php_prof_interrupt_function(leaf_frame);
     }
 
     /// # Safety
