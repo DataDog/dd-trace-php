@@ -32,6 +32,9 @@ $specific_path = put_dynamic_config_file([
 ]);
 
 dd_trace_internal_fn("await_remote_config");
+if (ini_get("datadog.trace.sample_rate") == "0.3") { // possible race condition, just re-poll
+    dd_trace_internal_fn("await_remote_config");
+}
 
 // Specific config wins for sample_rate; org-level provides log_injection.
 print "After both configs:\n";

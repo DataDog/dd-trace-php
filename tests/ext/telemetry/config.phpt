@@ -19,7 +19,8 @@ DD_TRACE_AUTOFINISH_SPANS=1
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
 DD_AGENT_HOST=
 DD_AUTOLOAD_NO_COMPILE=
-DD_TRACE_RETRY_INTERVAL=
+DD_TRACE_AGENT_TIMEOUT=200
+DD_TRACE_RETRY_INTERVAL=1
 DD_TRACE_GIT_METADATA_ENABLED=0
 DD_TRACE_IGNORE_AGENT_SAMPLING_RATES=1
 DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED=0
@@ -49,7 +50,7 @@ for ($i = 0; $i < 300; ++$i) {
                     if ($json["request_type"] == "app-client-configuration-change") {
                         $cfg = $json["payload"]["configuration"];
                         print_r(array_values(array_filter($cfg, function ($c) {
-                            return $c["origin"] == "env_var" && $c["name"] != "DD_TRACE_SOURCES_PATH" && $c["name"] != "DD_TRACE_SIDECAR_TRACE_SENDER";
+                            return $c["origin"] == "env_var" && $c["name"] != "DD_TRACE_SOURCES_PATH" && $c["name"] != "DD_TRACE_SIDECAR_TRACE_SENDER" && $c["name"] != "DD_TRACE_AGENT_TIMEOUT" && $c["name"] != "DD_TRACE_RETRY_INTERVAL";
                         })));
                         var_dump(count(array_filter($cfg, function ($c) {
                             return $c["origin"] == "default";

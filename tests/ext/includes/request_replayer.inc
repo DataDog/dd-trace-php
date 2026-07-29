@@ -6,12 +6,11 @@ ini_set("datadog.trace.httpstream_enabled", 0);
 
 class ProxyContainer {
     public $proc;
-    public function __construct($proc) {
-        $this->proc = $proc;
-    }
+    private $pipes;
 
-    public function __destruct() {
-        proc_terminate($this->proc, 9);
+    public function __construct($proc, array $pipes) {
+        $this->proc = $proc;
+        $this->pipes = $pipes;
     }
 }
 
@@ -203,32 +202,34 @@ class RequestReplayer
         ]));
     }
 
-    public static function launchUnixProxy($socketPath) {
+    /**
+     * Serves $socketPath and forwards everything to the request-replayer, so
+     * that the tracer's unix socket agent transport can be tested.
+     *
+     * Launches unix_socket_proxy.php.
+     */
+    public static function launchUnixProxy($socketPath, $upstream = "request-replayer:80") {
         @unlink($socketPath);
-        $code = str_replace("\n", "", '
-ignore_user_abort(true); /* prevent bailout... */
-$server = stream_socket_server("unix://' . $socketPath . '");
-print "1\n"; /* ready marker */
-while ($client = stream_socket_accept($server, 5)) {
-    file_put_contents("/tmp/unix-proxy-' . basename($socketPath) . '", "connected\n", FILE_APPEND);
-    $replayer = stream_socket_client("request-replayer:80");
-    $all = $read = [$client, $replayer];
-    foreach ($read as $fp) stream_set_blocking($fp, false);
-    while (stream_select($read, $w, $e, null)) {
-        $data = fread($fp = reset($read), 4096);
-        if ($data == "") {
-            file_put_contents("/tmp/unix-proxy-' . basename($socketPath) . '", "end\n", FILE_APPEND);
-            break;
-        }
-        file_put_contents("/tmp/unix-proxy-' . basename($socketPath) . '", "$data\n", FILE_APPEND);
-        fwrite($fp == $replayer ? $client : $replayer, $data);
-        $read = $all;
-    }
-}
-');
 
-        $proc = proc_open(PHP_BINARY . " -r '$code'", [STDIN, ["pipe", "w"], STDERR], $pipes);
-        fread($pipes[1], 1); // ready
-        return new ProxyContainer($proc);
+        // -n: run without any php.ini, so the proxy does not itself load
+        // ddtrace and send agent requests into the socket it is serving.
+        $cmd = PHP_BINARY . " -n " . escapeshellarg(__DIR__ . "/unix_socket_proxy.php")
+            . " " . escapeshellarg($socketPath) . " " . escapeshellarg($upstream);
+        // stdin is a pipe on purpose: the proxy exits once it hits EOF there,
+        // which happens as soon as this process is gone. That avoids both a
+        // leaked proxy and the previous inactivity timeout, which killed the
+        // proxy while a test was still running.
+        $proc = proc_open($cmd, [["pipe", "r"], ["pipe", "w"], STDERR], $pipes);
+        if (!is_resource($proc)) {
+            throw new Exception("failed to launch unix proxy for $socketPath");
+        }
+
+        if (fread($pipes[1], 1) !== "1") { // ready marker
+            fclose($pipes[0]);
+            proc_close($proc);
+            throw new Exception("unix proxy for $socketPath failed to start");
+        }
+
+        return new ProxyContainer($proc, [$pipes[0]]);
     }
 }

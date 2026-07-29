@@ -6,6 +6,9 @@ If an agent unix domain socket exists it will try to connect to it
 <?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
 <?php @mkdir("/var/run/datadog"); if (!is_dir("/var/run/datadog")) { shell_exec("sudo mkdir /var/run/datadog <&-; sudo chown $(id -u) /var/run/datadog"); } if (!is_file("/var/run/datadog/apm.socket") && !is_writable("/var/run/datadog")) die("skip: no permissions to create a /var/run/datadog/apm.socket"); ?>
 --ENV--
+DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
+DD_REMOTE_CONFIG_ENABLED=0
 DD_AGENT_HOST=
 --FILE--
 <?php

@@ -15,13 +15,17 @@ DD_TRACE_AGENT_TEST_SESSION_TOKEN=remote-config/rc_fork_notify
 --FILE--
 <?php
 
-if (!pcntl_fork()) {
+if ($child = !pcntl_fork()) {
     require __DIR__ . "/remote_config.inc";
     put_dynamic_config_file(["tracing_enabled" => true]);
 }
 
 if (!ini_get("datadog.trace.enabled")) {
     dd_trace_internal_fn("await_remote_config");
+}
+
+if (!$child) {
+    pcntl_wait($status);
 }
 
 print ini_get("datadog.trace.enabled");
