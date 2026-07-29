@@ -616,6 +616,7 @@ ddog_Endpoint *datadog_sidecar_agent_endpoint(void) {
 
     if (agent_endpoint) {
         dd_set_endpoint_test_token(agent_endpoint);
+        ddog_endpoint_set_timeout(agent_endpoint, get_global_DD_TRACE_AGENT_TIMEOUT());
     }
 
     return agent_endpoint;

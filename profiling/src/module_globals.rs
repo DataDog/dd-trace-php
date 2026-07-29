@@ -2,6 +2,7 @@ use crate::allocation;
 use core::cell::Cell;
 use core::ffi::c_void;
 use core::ptr;
+use core::sync::atomic::AtomicU32;
 
 #[cfg(php_zend_mm_set_custom_handlers_ex)]
 use crate::allocation::allocation_ge84::ZendMMState;
@@ -13,6 +14,12 @@ pub struct ProfilerGlobals {
     /// Wrapped in `Cell` to prevent torn reads/writes when allocation hooks
     /// are called re-entrantly during `rinit()`/`rshutdown()`.
     pub zend_mm_state: Cell<ZendMMState>,
+    /// Number of profiler time interrupts pending for this PHP thread.
+    ///
+    /// The profiler timer thread updates this through a pointer registered by
+    /// the PHP thread, so the value must remain atomic despite living in
+    /// thread-local PHP module globals.
+    pub interrupt_count: AtomicU32,
 }
 
 /// We need TSRM to call into GINIT and GSHUTDOWN to observe spawning and
@@ -29,6 +36,7 @@ pub static mut GLOBALS_ID: i32 = 0;
 #[cfg(not(php_zts))]
 pub static mut GLOBALS: ProfilerGlobals = ProfilerGlobals {
     zend_mm_state: Cell::new(ZendMMState::new()),
+    interrupt_count: AtomicU32::new(0),
 };
 
 #[cfg(all(test, php_zts))]
@@ -113,12 +121,13 @@ pub unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
     #[cfg(php_zts)]
     crate::timeline::timeline_ginit();
 
-    // Initialize ZendMMState in PHP globals for ZTS builds. For NTS builds,
-    // this was already done in its const initializer.
+    // Initialize PHP globals for ZTS builds. For NTS builds, this was already
+    // done in its const initializer.
     #[cfg(php_zts)]
     {
         let globals = _globals_ptr.cast::<ProfilerGlobals>();
         (*globals).zend_mm_state = Cell::new(ZendMMState::new());
+        (*globals).interrupt_count = AtomicU32::new(0);
     }
 
     // SAFETY: this is called in thread ginit as expected, and no other places.
@@ -140,4 +149,20 @@ pub unsafe extern "C" fn gshutdown(_globals_ptr: *mut c_void) {
 
     // SAFETY: this is called in thread gshutdown as expected, no other places.
     allocation::gshutdown();
+}
+
+// Unit tests are not loaded by PHP, so provide the PHP globals and TSRM symbol
+// needed to link code retained in the test executable.
+#[cfg(test)]
+mod test_symbols {
+    #[cfg(not(php_zts))]
+    #[export_name = "compiler_globals"]
+    static mut TEST_COMPILER_GLOBALS: core::mem::MaybeUninit<crate::zend::zend_compiler_globals> =
+        core::mem::MaybeUninit::zeroed();
+
+    #[cfg(php_zts)]
+    #[no_mangle]
+    unsafe extern "C" fn tsrm_get_ls_cache() -> *mut core::ffi::c_void {
+        core::ptr::null_mut()
+    }
 }
