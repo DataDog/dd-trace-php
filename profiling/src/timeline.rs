@@ -542,6 +542,13 @@ pub(crate) fn timeline_mshutdown() {
         }
     }
 
+    #[cfg(php_opcache_restart_hook)]
+    {
+        unsafe {
+            zend::zend_accel_schedule_restart_hook = PREV_ZEND_ACCEL_SCHEDULE_RESTART_HOOK;
+        }
+    }
+
     #[cfg(php_zts)]
     timeline_gshutdown();
 }
