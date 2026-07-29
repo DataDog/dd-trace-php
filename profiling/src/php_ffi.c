@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <Zend/zend_vm.h>
 #include "SAPI.h"
 
 #if CFG_STACK_WALKING_TESTS
@@ -87,6 +88,18 @@ sapi_request_info datadog_sapi_globals_request_info() {
  * extension was built against at compile-time.
  */
 uint32_t ddog_php_prof_php_version_id(void) { return php_version_id(); }
+
+zend_result ddog_php_prof_check_tailcall_vm_interrupt(void) {
+#if PHP_VERSION_ID >= 80500 && PHP_VERSION_ID < 80600
+    uint32_t version_id = php_version_id();
+    // See this PR for more information on the tailcall VM crash:
+    // https://github.com/php/php-src/pull/21922
+    if (zend_vm_kind() == ZEND_VM_KIND_TAILCALL && version_id < 80507) {
+        return FAILURE;
+    }
+#endif
+    return SUCCESS;
+}
 
 /**
  * Returns the PHP_VERSION of the engine at run-time, not the version the

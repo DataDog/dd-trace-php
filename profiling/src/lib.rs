@@ -708,7 +708,6 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         // Not logging, rinit could be quite spammy.
         _ = REQUEST_LOCALS.try_with_borrow(|locals| {
             let cpu_time_enabled = system_settings.profiling_experimental_cpu_time_enabled;
-            let wall_time_enabled = system_settings.profiling_wall_time_enabled;
             CLOCKS.with_borrow_mut(|clocks| clocks.initialize(cpu_time_enabled));
 
             TAGS.set({
@@ -732,8 +731,8 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                 Arc::new(tags)
             });
 
-            // Only add interrupt if cpu- or wall-time is enabled.
-            if !(cpu_time_enabled | wall_time_enabled) {
+            // Only add interrupt if cpu- or wall-time sample collection is enabled.
+            if !(cpu_time_enabled | system_settings.profiling_wall_time_enabled) {
                 return;
             }
 
@@ -790,10 +789,9 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     _ = REQUEST_LOCALS.try_with_borrow(|locals| {
         let system_settings = locals.system_settings();
 
-        // The interrupt is only added if CPU- or wall-time are enabled BUT
-        // wall-time is not expected to ever be disabled, except in testing,
-        // and we don't need to optimize for that.
-        if system_settings.profiling_enabled {
+        if system_settings.profiling_wall_time_enabled
+            | system_settings.profiling_experimental_cpu_time_enabled
+        {
             if let Some(profiler) = Profiler::get() {
                 let interrupt = VmInterrupt {
                     interrupt_count_ptr: &locals.interrupt_count,

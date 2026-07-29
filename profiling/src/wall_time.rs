@@ -110,7 +110,10 @@ static mut PREV_INTERRUPT_FUNCTION: Option<VmInterruptFn> = None;
 #[inline(never)]
 pub extern "C" fn ddog_php_prof_interrupt_function(execute_data: *mut zend_execute_data) {
     let result = REQUEST_LOCALS.try_with_borrow(|locals| {
-        if !locals.system_settings().profiling_enabled {
+        let system_settings = locals.system_settings();
+        if !(system_settings.profiling_wall_time_enabled
+            | system_settings.profiling_experimental_cpu_time_enabled)
+        {
             return;
         }
 

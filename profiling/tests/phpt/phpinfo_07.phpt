@@ -40,11 +40,21 @@ foreach ($lines as $line) {
 // Check that Version exists, but not its value
 assert(isset($values["Version"]));
 
-// Check exact values for this set
+$tailcall_vm_interrupt_workaround_applies =
+    PHP_VERSION_ID >= 80500 &&
+    PHP_VERSION_ID < 80507 &&
+    defined('ZEND_VM_KIND') &&
+    ZEND_VM_KIND === 'ZEND_VM_KIND_TAILCALL';
+
+$cpu_time_expected = $tailcall_vm_interrupt_workaround_applies
+    ? "false"
+    : "true (all experimental features enabled)";
+
+// Check exact values for this set.
 $sections = [
     ["Profiling Enabled", "true"],
     ["Profiling Experimental Features Enabled", "true"],
-    ["Experimental CPU Time Profiling Enabled", "true (all experimental features enabled)"],
+    ["Experimental CPU Time Profiling Enabled", $cpu_time_expected],
     ["Allocation Profiling Enabled", "false"],
     ["Exception Profiling Enabled", "false"],
     ["Timeline Enabled", "false"],
@@ -52,9 +62,10 @@ $sections = [
 ];
 
 foreach ($sections as [$key, $expected]) {
+    $actual = $values[$key] ?? null;
     assert(
-        $values[$key] === $expected,
-        "Expected '{$expected}', found '{$values[$key]}', for key '{$key}'"
+        $actual === $expected,
+        "Expected '{$expected}', found '{$actual}', for key '{$key}'"
     );
 }
 
