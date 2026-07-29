@@ -181,6 +181,7 @@ void ddtrace_activate_once(void) {
                 // Set the default to 5000 so that BGS does not flush too often. The sidecar can flush more often, but the BGS is per process. Keep it higher to avoid too much load on the agent.
                 zai_config_change_default_ini(DATADOG_CONFIG_DD_TRACE_AGENT_FLUSH_INTERVAL, (zai_str) ZAI_STR_FROM_CSTR("5000"));
             }
+            ddtrace_telemetry_bgs_init();
             ddtrace_coms_minit(get_global_DD_TRACE_AGENT_STACK_INITIAL_SIZE(),
                                get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE(),
                                get_global_DD_TRACE_AGENT_STACK_BACKLOG());
@@ -240,10 +241,6 @@ void ddtrace_gshutdown(zend_datadog_globals *datadog_globals) {
 
     if (datadog_globals->ddtrace.agent_config_reader) {
         ddog_agent_remote_config_reader_drop(datadog_globals->ddtrace.agent_config_reader);
-    }
-    if (datadog_globals->sidecar) {
-        // Drain any accumulated background-sender metrics before the transport goes away.
-        ddtrace_telemetry_flush_bgs_metrics_final(datadog_globals);
     }
 }
 
@@ -399,6 +396,8 @@ void ddtrace_mshutdown() {
     if (get_global_DD_TRACE_FORCE_FLUSH_ON_SHUTDOWN() && DATADOG_G(sidecar)) {
         ddog_sidecar_flush(&DATADOG_G(sidecar), (ddog_SidecarFlushOptions){.traces_and_stats = true, .telemetry = true});
     }
+
+    ddtrace_telemetry_flush_bgs_metrics_final();
 
     ddtrace_engine_hooks_mshutdown();
     ddtrace_shutdown_proxy_info_map();

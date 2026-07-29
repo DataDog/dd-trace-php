@@ -9,7 +9,6 @@ use DDTrace\FeatureFlags\EvaluationErrorCode;
 use DDTrace\FeatureFlags\EvaluationReason;
 use DDTrace\FeatureFlags\EvaluationType;
 use DDTrace\FeatureFlags\Internal\Evaluator;
-use DDTrace\FeatureFlags\Internal\NativeEvaluator;
 use DDTrace\FeatureFlags\Internal\UnavailableEvaluator;
 use DDTrace\Log\LoggerInterface;
 use DDTrace\Log\LogLevel;
@@ -101,7 +100,7 @@ final class DataDogProviderTest extends TestCase
     public function testUnavailableRuntimeReturnsDefaultDetailsAndOneWarning(): void
     {
         $logger = new OpenFeatureRecordingLogger();
-        $client = $this->openFeatureClientFor(new DataDogProvider($logger));
+        $client = $this->openFeatureClientFor($this->providerForEvaluator(new UnavailableEvaluator(), $logger));
 
         $value = $client->getBooleanValue('checkout.enabled', true);
         $details = $client->getStringDetails('checkout.copy', 'fallback');
@@ -110,10 +109,7 @@ final class DataDogProviderTest extends TestCase
         self::assertSame('fallback', $details->getValue());
         self::assertSame(Reason::ERROR, $details->getReason());
         self::assertSame(ErrorCode::PROVIDER_NOT_READY()->getValue(), $details->getError()->getResolutionErrorCode()->getValue());
-        self::assertContains($details->getError()->getResolutionErrorMessage(), [
-            NativeEvaluator::WARNING_MESSAGE,
-            UnavailableEvaluator::WARNING_MESSAGE,
-        ]);
+        self::assertSame(UnavailableEvaluator::WARNING_MESSAGE, $details->getError()->getResolutionErrorMessage());
         self::assertSame([$details->getError()->getResolutionErrorMessage()], $logger->warnings());
     }
 
@@ -131,6 +127,26 @@ final class DataDogProviderTest extends TestCase
         $client->getBooleanValue('second.flag', false);
 
         self::assertSame(['temporary unavailable'], $logger->warnings());
+    }
+
+    public function testThrowingLoggerDoesNotChangeProviderNotReadyEvaluation(): void
+    {
+        $evaluator = new OpenFeatureTestEvaluator();
+        $evaluator->setUnavailable('preview.flag', false, 'runtime unavailable');
+        $logger = new OpenFeatureThrowingLogger();
+        $client = $this->openFeatureClientFor($this->providerForEvaluator($evaluator, $logger));
+
+        $firstDetails = $client->getBooleanDetails('preview.flag', false);
+        $secondDetails = $client->getBooleanDetails('preview.flag', false);
+
+        self::assertFalse($firstDetails->getValue());
+        self::assertSame(Reason::ERROR, $firstDetails->getReason());
+        self::assertSame(
+            ErrorCode::PROVIDER_NOT_READY()->getValue(),
+            $firstDetails->getError()->getResolutionErrorCode()->getValue()
+        );
+        self::assertFalse($secondDetails->getValue());
+        self::assertSame(1, $logger->warningCount());
     }
 
     public function testProviderErrorsMapToOpenFeatureDetails(): void
@@ -186,13 +202,19 @@ final class OpenFeatureTestEvaluator implements Evaluator
         string $flagKey,
         mixed $value,
         string $reason = EvaluationReason::STATIC_REASON,
-        ?string $variant = null
+        ?string $variant = null,
+        array $providerState = []
     ): self {
         $this->details[$flagKey] = new EvaluationDetails(
             $value,
             $this->typeForValue($value),
             $reason,
-            $variant
+            $variant,
+            null,
+            null,
+            [],
+            [],
+            $providerState
         );
 
         return $this;
@@ -334,6 +356,35 @@ final class OpenFeatureRecordingLogger implements LoggerInterface
     public function warnings(): array
     {
         return $this->warnings;
+    }
+}
+
+final class OpenFeatureThrowingLogger implements LoggerInterface
+{
+    private int $warningCount = 0;
+
+    public function debug($message, array $context = [])
+    {
+    }
+
+    public function warning($message, array $context = [])
+    {
+        ++$this->warningCount;
+        throw new \ErrorException($message);
+    }
+
+    public function error($message, array $context = [])
+    {
+    }
+
+    public function isLevelActive($level)
+    {
+        return true;
+    }
+
+    public function warningCount(): int
+    {
+        return $this->warningCount;
     }
 }
 }
