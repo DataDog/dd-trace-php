@@ -10,7 +10,6 @@ BEGIN_EXTERN_C()
 
 ZEND_API datadog_php_stack_sample tea_get_last_stack_sample(void);
 ZEND_API void ddog_php_prof_interrupt_function(zend_execute_data *execute_data);
-ZEND_API void ddog_php_prof_interrupt_function_unlikely(zend_execute_data *execute_data);
 END_EXTERN_C()
 
 #endif

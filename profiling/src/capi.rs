@@ -57,9 +57,7 @@ extern "C" fn ddog_php_prof_trigger_time_sample() {
     }
 }
 
-pub use crate::wall_time::{
-    ddog_php_prof_interrupt_function, ddog_php_prof_interrupt_function_unlikely,
-};
+pub use crate::wall_time::ddog_php_prof_interrupt_function;
 
 #[cfg(test)]
 mod tests {
