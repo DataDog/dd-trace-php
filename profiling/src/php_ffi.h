@@ -95,6 +95,12 @@ extern ddtrace_profiling_context (*datadog_php_profiling_get_profiling_context)(
 extern zend_string *(*datadog_php_profiling_get_process_tags_serialized)(void);
 
 /**
+ * Returns the calling thread's record published through the standard Linux
+ * `otel_thread_ctx_v1` TLS symbol, or NULL when unavailable.
+ */
+const void *datadog_php_profiling_get_otel_thread_context(void);
+
+/**
  * Called by this zend_extension's .startup handler. Does things that are
  * burdensome in Rust, like locating the ddtrace extension in the module
  * registry and finding the ddtrace_get_profiling_context function.

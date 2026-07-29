@@ -4,6 +4,11 @@ use core::ffi::c_void;
 use core::ptr;
 use core::sync::atomic::AtomicU32;
 
+#[cfg(target_os = "linux")]
+use crate::process_context::ProcessContextCache;
+#[cfg(target_os = "linux")]
+use core::cell::RefCell;
+
 #[cfg(php_zend_mm_set_custom_handlers_ex)]
 use crate::allocation::allocation_ge84::ZendMMState;
 #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
@@ -20,6 +25,8 @@ pub struct ProfilerGlobals {
     /// the PHP thread, so the value must remain atomic despite living in
     /// thread-local PHP module globals.
     pub interrupt_count: AtomicU32,
+    #[cfg(target_os = "linux")]
+    pub(crate) process_context: RefCell<ProcessContextCache>,
 }
 
 /// We need TSRM to call into GINIT and GSHUTDOWN to observe spawning and
@@ -37,6 +44,8 @@ pub static mut GLOBALS_ID: i32 = 0;
 pub static mut GLOBALS: ProfilerGlobals = ProfilerGlobals {
     zend_mm_state: Cell::new(ZendMMState::new()),
     interrupt_count: AtomicU32::new(0),
+    #[cfg(target_os = "linux")]
+    process_context: RefCell::new(ProcessContextCache::new()),
 };
 
 #[cfg(php_zts)]
@@ -122,6 +131,9 @@ pub unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
         let globals = _globals_ptr.cast::<ProfilerGlobals>();
         (*globals).zend_mm_state = Cell::new(ZendMMState::new());
         (*globals).interrupt_count = AtomicU32::new(0);
+        #[cfg(target_os = "linux")]
+        ptr::addr_of_mut!((*globals).process_context)
+            .write(RefCell::new(ProcessContextCache::new()));
     }
 
     // SAFETY: this is called in thread ginit as expected, and no other places.
@@ -137,9 +149,15 @@ pub unsafe extern "C" fn gshutdown(_globals_ptr: *mut c_void) {
     #[cfg(php_zts)]
     crate::timeline::timeline_gshutdown();
 
-    // TODO: Florian, do we need this?
-    // let globals = globals_ptr.cast::<ProfilerGlobals>();
-    // (*globals).zend_mm_state = ZendMMState::new();
+    #[cfg(target_os = "linux")]
+    {
+        let globals = _globals_ptr.cast::<ProfilerGlobals>();
+        if let Ok(mut cache) = (*globals).process_context.try_borrow_mut() {
+            cache.reset();
+        }
+        #[cfg(php_zts)]
+        ptr::drop_in_place(ptr::addr_of_mut!((*globals).process_context));
+    }
 
     // SAFETY: this is called in thread gshutdown as expected, no other places.
     allocation::gshutdown();

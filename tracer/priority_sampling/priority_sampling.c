@@ -12,6 +12,7 @@
 #include "../rule_matching.h"
 #include "../ddtrace.h"
 #include "../span.h"
+#include "../profiling.h"
 #include "components/log/log.h"
 #include <ext/agent_info.h>
 
@@ -415,6 +416,7 @@ zend_long ddtrace_fetch_priority_sampling_from_span(ddtrace_root_span_data *root
 
     if (decide) {
         dd_decide_on_sampling(root_span);
+        ddtrace_otel_thread_context_refresh();
     }
 
     return zval_get_long(&root_span->property_sampling_priority);
@@ -440,6 +442,7 @@ void ddtrace_set_priority_sampling_on_span(ddtrace_root_span_data *root_span, ze
         // Default is never explicit - e.g. distributed tracing.
         root_span->explicit_sampling_priority = mechanism != DD_MECHANISM_DEFAULT;
     }
+    ddtrace_otel_thread_context_refresh();
 }
 
 DATADOG_PUBLIC void ddtrace_set_priority_sampling_on_span_zobj(zend_object *root_span, zend_long priority, enum dd_sampling_mechanism mechanism) {

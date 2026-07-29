@@ -93,6 +93,111 @@ pub extern "C" fn datadog_format_runtime_id(buf: &mut [u8; 36]) {
     unsafe { datadog_runtime_id.as_hyphenated().encode_lower(buf) };
 }
 
+#[cfg(target_os = "linux")]
+fn char_slice_string(value: CharSlice<'_>) -> String {
+    value
+        .try_to_utf8()
+        .map(ToOwned::to_owned)
+        .unwrap_or_default()
+}
+
+/// Publish or update dd-trace-php's standard Linux OTel Process Context.
+#[cfg(target_os = "linux")]
+#[no_mangle]
+pub extern "C" fn datadog_publish_otel_process_context(
+    runtime_id: CharSlice<'_>,
+    tracer_version: CharSlice<'_>,
+    service: CharSlice<'_>,
+    env: CharSlice<'_>,
+    version: CharSlice<'_>,
+    hostname: CharSlice<'_>,
+    container_id: CharSlice<'_>,
+    process_tags: CharSlice<'_>,
+) -> bool {
+    use libdd_library_config::otel_process_ctx;
+    use libdd_library_config::tracer_metadata::{ThreadLocalMetadata, TracerMetadata};
+
+    let metadata = TracerMetadata {
+        runtime_id: Some(char_slice_string(runtime_id)),
+        tracer_language: "php".to_owned(),
+        tracer_version: char_slice_string(tracer_version),
+        hostname: char_slice_string(hostname),
+        service_name: Some(char_slice_string(service)),
+        service_env: Some(char_slice_string(env)),
+        service_version: Some(char_slice_string(version)),
+        process_tags: Some(char_slice_string(process_tags)),
+        container_id: Some(char_slice_string(container_id)),
+        threadlocal_metadata: Some(ThreadLocalMetadata {
+            attribute_keys: vec![
+                "service.name".to_owned(),
+                "deployment.environment.name".to_owned(),
+                "service.version".to_owned(),
+                "thread.id".to_owned(),
+            ],
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+
+    otel_process_ctx::publish(&metadata.to_otel_process_ctx()).is_ok()
+}
+
+/// Update the calling thread's standard Linux OTel Thread Context record.
+#[cfg(target_os = "linux")]
+#[no_mangle]
+pub extern "C" fn datadog_update_otel_thread_context(
+    trace_id: &[u8; 16],
+    span_id: &[u8; 8],
+    trace_flags: u8,
+    local_root_span_id: &[u8; 8],
+    service: CharSlice<'_>,
+    env: CharSlice<'_>,
+    version: CharSlice<'_>,
+    thread_id: CharSlice<'_>,
+) {
+    use libdd_otel_thread_ctx::linux::ThreadContext;
+
+    let service = service.try_to_utf8().unwrap_or_default();
+    let env = env.try_to_utf8().unwrap_or_default();
+    let version = version.try_to_utf8().unwrap_or_default();
+    let thread_id = thread_id.try_to_utf8().unwrap_or_default();
+    let mut attrs = [(0, ""); 4];
+    let mut attrs_len = 0;
+    if !service.is_empty() {
+        attrs[attrs_len] = (1, service);
+        attrs_len += 1;
+    }
+    if !env.is_empty() {
+        attrs[attrs_len] = (2, env);
+        attrs_len += 1;
+    }
+    if !version.is_empty() {
+        attrs[attrs_len] = (3, version);
+        attrs_len += 1;
+    }
+    if !thread_id.is_empty() {
+        attrs[attrs_len] = (4, thread_id);
+        attrs_len += 1;
+    }
+
+    ThreadContext::update(
+        *trace_id,
+        *span_id,
+        trace_flags,
+        *local_root_span_id,
+        &attrs[..attrs_len],
+    );
+}
+
+/// Detach and release the calling thread's Linux OTel Thread Context record.
+#[cfg(target_os = "linux")]
+#[no_mangle]
+pub extern "C" fn datadog_detach_otel_thread_context() {
+    use libdd_otel_thread_ctx::linux::ThreadContext;
+
+    drop(ThreadContext::detach());
+}
+
 #[must_use]
 #[no_mangle]
 pub extern "C" fn ddtrace_get_container_id() -> CharSlice<'static> {

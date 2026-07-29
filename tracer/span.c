@@ -25,6 +25,7 @@
 #include "standalone_limiter.h"
 #include "code_origins.h"
 #include "endpoint_guessing.h"
+#include "profiling.h"
 
 #define USE_REALTIME_CLOCK 0
 #define USE_MONOTONIC_CLOCK 1
@@ -83,6 +84,7 @@ static void dd_free_span_ring(ddtrace_span_data *span) {
 }
 
 void ddtrace_free_span_stacks(bool silent) {
+    ddtrace_otel_thread_context_detach();
     // ensure automatic stacks of trace root spans are popped
     while (DDTRACE_G(active_stack)->root_span && DDTRACE_G(active_stack) == DDTRACE_G(active_stack)->root_span->stack) {
         ddtrace_switch_span_stack(DDTRACE_G(active_stack)->parent_stack);
@@ -334,6 +336,7 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
         DDTRACE_G(inferred_span_created) = inferred_span != NULL;
     }
 
+    ddtrace_otel_thread_context_refresh();
     return span;
 }
 
@@ -593,6 +596,7 @@ void ddtrace_switch_span_stack(ddtrace_span_stack *target_stack) {
     ddtrace_span_stack *active_stack = DDTRACE_G(active_stack);
     DDTRACE_G(active_stack) = target_stack;
     OBJ_RELEASE(&active_stack->std);
+    ddtrace_otel_thread_context_refresh();
 }
 
 ddtrace_span_data *ddtrace_init_dummy_span(void) {
@@ -992,6 +996,7 @@ void ddtrace_close_top_span_without_stack_swap(ddtrace_span_data *span) {
     if (!stack->active || SPANDATA(stack->active)->stack != stack) {
         dd_close_entry_span_of_stack(stack);
     }
+    ddtrace_otel_thread_context_refresh();
 }
 
 // i.e. what DDTrace\active_span() reports. DDTrace\active_stack()->active is the active span which will be used as parent for new spans on that stack
@@ -1097,6 +1102,7 @@ void ddtrace_drop_span(ddtrace_span_data *span) {
     }
 
     dd_drop_span(span, false);
+    ddtrace_otel_thread_context_refresh();
 }
 
 void ddtrace_serialize_closed_spans(ddog_TracesBytes *traces, bool fast_shutdown) {

@@ -22,6 +22,17 @@ BEGIN_EXTERN_C()
  */
 DATADOG_PUBLIC struct ddtrace_profiling_context ddtrace_get_profiling_context(void);
 
+/**
+ * Refresh the standard Linux OTel Thread Context from the currently active
+ * span stack. This is a no-op on non-Linux platforms.
+ */
+void ddtrace_otel_thread_context_refresh(void);
+
+/**
+ * Detach the standard Linux OTel Thread Context from the calling thread.
+ */
+void ddtrace_otel_thread_context_detach(void);
+
 END_EXTERN_C()
 
 #endif  // DDTRACE_PROFILING_H

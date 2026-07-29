@@ -16,8 +16,30 @@ const char *datadog_module_build_id(void) { return ZEND_MODULE_BUILD_ID; }
 
 uint8_t *datadog_runtime_id = NULL;
 
+#ifdef __linux__
+static void *datadog_php_profiling_ddtrace_handle = NULL;
+static __thread void **datadog_php_profiling_otel_thread_context_slot = NULL;
+#endif
+
 static void locate_datadog_runtime_id(const zend_extension *extension) {
     datadog_runtime_id = DL_FETCH_SYMBOL(extension->handle, "datadog_runtime_id");
+}
+
+const void *datadog_php_profiling_get_otel_thread_context(void) {
+#ifdef __linux__
+    if (!datadog_php_profiling_ddtrace_handle) {
+        return NULL;
+    }
+    if (!datadog_php_profiling_otel_thread_context_slot) {
+        datadog_php_profiling_otel_thread_context_slot =
+            DL_FETCH_SYMBOL(datadog_php_profiling_ddtrace_handle, "otel_thread_ctx_v1");
+    }
+    return datadog_php_profiling_otel_thread_context_slot
+        ? *datadog_php_profiling_otel_thread_context_slot
+        : NULL;
+#else
+    return NULL;
+#endif
 }
 
 static void locate_ddtrace_get_profiling_context(const zend_extension *extension) {
@@ -166,6 +188,9 @@ void datadog_php_profiling_startup(zend_extension *extension) {
     for (const zend_llist_element *item = list->head; item; item = item->next) {
         const zend_extension *maybe_ddtrace = (zend_extension *)item->data;
         if (maybe_ddtrace != extension && is_ddtrace_extension(maybe_ddtrace)) {
+#ifdef __linux__
+            datadog_php_profiling_ddtrace_handle = maybe_ddtrace->handle;
+#endif
             locate_ddtrace_get_profiling_context(maybe_ddtrace);
             locate_datadog_runtime_id(maybe_ddtrace);
             locate_datadog_process_tags_get_serialized(maybe_ddtrace);

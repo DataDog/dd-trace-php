@@ -4,6 +4,7 @@ mod clocks;
 mod config;
 mod logging;
 pub mod module_globals;
+mod process_context;
 pub mod profiling;
 mod pthread;
 mod sapi;
@@ -94,13 +95,14 @@ static mut RUNTIME_PHP_VERSION: &str = {
 /// The first time this is accessed must be after config is initialized in
 /// the first RINIT and before mshutdown!
 static GLOBAL_TAGS: LazyLock<Vec<Tag>> = LazyLock::new(|| {
+    let runtime_id = process_context::runtime_id().unwrap_or_else(|| runtime_id().to_string());
     let mut tags = vec![
         tag!("language", "php"),
         tag!("profiler_version", env!("PROFILER_VERSION")),
         // SAFETY: calling getpid() is safe.
         Tag::new("process_id", unsafe { libc::getpid() }.to_string())
             .expect("process_id tag to be valid"),
-        Tag::new("runtime-id", runtime_id().to_string()).expect("runtime-id tag to be valid"),
+        Tag::new("runtime-id", runtime_id).expect("runtime-id tag to be valid"),
     ];
 
     // This should probably be "language_version", but this is the
@@ -703,6 +705,8 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     Profiler::init(system_settings);
 
     if system_settings.profiling_enabled {
+        let process_identity = process_context::identity();
+
         // Not logging, rinit could be quite spammy.
         _ = REQUEST_LOCALS.try_with_borrow(|locals| {
             let cpu_time_enabled = system_settings.profiling_experimental_cpu_time_enabled;
@@ -712,18 +716,30 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
             TAGS.set({
                 // SAFETY: accessing in RINIT after config is initialized.
                 let globals = GLOBAL_TAGS.deref();
-                let extra_tags_len = locals.service.is_some() as usize
-                    + locals.env.is_some() as usize
-                    + locals.version.is_some() as usize
+                let service = process_identity
+                    .service
+                    .as_ref()
+                    .or(locals.service.as_ref());
+                let environment = process_identity
+                    .environment
+                    .as_ref()
+                    .or(locals.env.as_ref());
+                let version = process_identity
+                    .version
+                    .as_ref()
+                    .or(locals.version.as_ref());
+                let extra_tags_len = service.is_some() as usize
+                    + environment.is_some() as usize
+                    + version.is_some() as usize
                     + locals.git_commit_sha.is_some() as usize
                     + locals.git_repository_url.is_some() as usize;
 
                 let mut tags = Vec::new();
                 tags.reserve_exact(globals.len() + extra_tags_len + locals.tags.len());
                 tags.extend_from_slice(globals.as_slice());
-                add_optional_tag(&mut tags, "service", &locals.service);
-                add_optional_tag(&mut tags, "env", &locals.env);
-                add_optional_tag(&mut tags, "version", &locals.version);
+                add_optional_tag(&mut tags, "service", &service);
+                add_optional_tag(&mut tags, "env", &environment);
+                add_optional_tag(&mut tags, "version", &version);
                 add_optional_tag(&mut tags, "git.commit.sha", &locals.git_commit_sha);
                 add_optional_tag(&mut tags, "git.repository_url", &locals.git_repository_url);
                 tags.extend_from_slice(locals.tags.as_slice());

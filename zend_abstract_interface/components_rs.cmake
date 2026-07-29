@@ -21,9 +21,11 @@ add_custom_target(libdatadog_stamp
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
 set(EXPORTS_FILE "${CMAKE_BINARY_DIR}/ddtrace_exports.version")
 add_custom_target(ddtrace_exports
-    COMMAND bash -c "{ echo -e '{\\nglobal:'; sed 's/$/;/' '${CMAKE_SOURCE_DIR}'/../datadog.sym; echo -e 'local:\\n*;\\n};'; } > '${EXPORTS_FILE}'"
+    COMMAND bash -c "{ echo -e '{\\nglobal:'; sed 's/$/;/' '${CMAKE_SOURCE_DIR}'/../datadog.sym '${CMAKE_SOURCE_DIR}'/../datadog-linux.sym; echo -e 'local:\\n*;\\n};'; } > '${EXPORTS_FILE}'"
     BYPRODUCT ${EXPORTS_FILE}
-    DEPENDS ${CMAKE_SOURCE_DIR}/../datadog.sym
+    DEPENDS
+        ${CMAKE_SOURCE_DIR}/../datadog.sym
+        ${CMAKE_SOURCE_DIR}/../datadog-linux.sym
     VERBATIM
 )
 elseif(APPLE)

@@ -42,22 +42,21 @@ inherits = "release"
 # level, so they are mirrored here too.
 [workspace.dependencies]
 anyhow = { version = "1.0", default-features = false }
-arc-swap = "1.7.1"
-hyper = { version = "1.6", features = [
-  "http1",
-  "client",
-], default-features = false }
-hyper-util = { version = "0.1.10", features = [
-  "http1",
-  "client",
-  "client-legacy",
-] }
+arc-swap = { version = "1.7.1", default-features = false }
+futures = { version = "0.3", default-features = false }
+hyper = { version = "1.6", default-features = false }
+hyper-util = { version = "0.1.10", default-features = false }
+io-lifetimes = { version = "1.0", default-features = false }
+libc = { version = "0.2", default-features = true }
 prost-build = { version = "0.14.1", default-features = false }
 protoc-bin-vendored = { version = "3.0.0", default-features = false }
+rustls = { version = "0.23", default-features = false }
 serde = { version = "1.0", default-features = false }
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
+syn = { version = "^2", default-features = false }
 tokio = { version = "1.36", default-features = false }
 tracing = { version = "0.1", default-features = false }
+uuid = { version = "1.7.0", default-features = false }
 
 [workspace.lints]
 # empty for compat with libdatadog

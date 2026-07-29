@@ -20,6 +20,8 @@
 #include <ext/agent_info.h>
 #include <ext/ffi_utils.h>
 #include <ext/process_tags.h>
+#include <ext/otel_context.h>
+#include "profiling.h"
 #include <ext/remote_config.h>
 #include <ext/sidecar.h>
 #include <ext/telemetry.h>
@@ -590,6 +592,7 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
     if (root_span_data_changed) {
         ddtrace_sidecar_submit_root_span_data();
     }
+    ddtrace_otel_thread_context_refresh();
 #if PHP_VERSION_ID >= 70400
     return ret;
 #endif
@@ -2043,6 +2046,7 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             if (datadog_process_tags_enabled()) {
                 datadog_process_tags_reload();
                 datadog_sidecar_update_process_tags();
+                datadog_otel_process_context_publish();
             }
             RETVAL_TRUE;
         } else if (params_count == 1 && FUNCTION_NAME_MATCHES("set_container_tags_hash")) {

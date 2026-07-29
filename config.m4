@@ -183,6 +183,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/handlers_signal.c \
     ext/logging.c \
     ext/otel_config.c \
+    ext/otel_context.c \
     ext/phpinfo.c \
     ext/process_tags.c \
     ext/remote_config.c \
@@ -307,10 +308,18 @@ if test "$PHP_DDTRACE" != "no"; then
   AC_CHECK_HEADER(time.h, [], [AC_MSG_ERROR([Cannot find or include time.h])])
 
   if test "$ext_shared" = "yes"; then
-    dnl Only export symbols defined in datadog.sym, which should all be marked as
+    dnl Only export the platform's listed symbols, which should all be marked as
     dnl DATADOG_PUBLIC in their source files as well.
     EXTRA_CFLAGS="$EXTRA_CFLAGS -fvisibility=hidden"
-    EXTRA_LDFLAGS="$EXTRA_LDFLAGS -export-symbols $ext_srcdir/datadog.sym -flto -fuse-linker-plugin"
+    case $host_os in
+      linux*)
+        DDTRACE_EXPORT_SYMBOLS="$ext_builddir/datadog-linux-exports.sym"
+        cat "$ext_srcdir/datadog.sym" "$ext_srcdir/datadog-linux.sym" > "$DDTRACE_EXPORT_SYMBOLS" \
+          || AC_MSG_ERROR([failed to generate Linux export-symbol list])
+      ;;
+      *) DDTRACE_EXPORT_SYMBOLS="$ext_srcdir/datadog.sym" ;;
+    esac
+    EXTRA_LDFLAGS="$EXTRA_LDFLAGS -export-symbols $DDTRACE_EXPORT_SYMBOLS -flto -fuse-linker-plugin"
 
     dnl On Linux: set the ELF entry point so ddtrace.so can be exec'd directly by ld.so
     dnl for sidecar spawning (no trampoline binary, no memfd, no temp files).

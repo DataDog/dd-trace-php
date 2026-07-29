@@ -18,12 +18,16 @@ use crate::bindings::ddog_php_prof_get_active_fiber;
 use crate::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_active_fiber;
 
 use crate::allocation::ALLOCATION_PROFILING_INTERVAL;
+#[cfg(not(target_os = "linux"))]
+use crate::bindings::datadog_php_profiling_get_profiling_context;
 use crate::bindings::{
-    datadog_php_profiling_get_process_tags_serialized, datadog_php_profiling_get_profiling_context,
-    zai_str_from_zstr, zend_execute_data,
+    datadog_php_profiling_get_process_tags_serialized, zai_str_from_zstr, zend_execute_data,
 };
 use crate::config::SystemSettings;
 use crate::exception::EXCEPTION_PROFILING_INTERVAL;
+use crate::process_context::ProcessIdentity;
+#[cfg(target_os = "linux")]
+use crate::process_context::{ProcessIdentityRef, ThreadContextRead};
 use crate::{Clocks, RefCellExt, CLOCKS, REQUEST_LOCALS, TAGS};
 use chrono::Utc;
 use core::mem::forget;
@@ -43,6 +47,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::num::NonZeroI64;
+use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Barrier, OnceLock};
 use std::thread::JoinHandle;
@@ -164,6 +169,82 @@ pub enum LabelValue {
 pub struct Label {
     pub key: &'static str,
     pub value: LabelValue,
+}
+
+struct SampleLabels {
+    labels: Vec<Label>,
+    identity: ProcessIdentity,
+    base_tags: Arc<Vec<Tag>>,
+}
+
+impl Deref for SampleLabels {
+    type Target = Vec<Label>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.labels
+    }
+}
+
+impl DerefMut for SampleLabels {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.labels
+    }
+}
+
+fn effective_profile_tags(base: Arc<Vec<Tag>>, identity: &ProcessIdentity) -> Arc<Vec<Tag>> {
+    let mut updated = None;
+    apply_profile_tag_override(&base, &mut updated, "service", identity.service.as_deref());
+    apply_profile_tag_override(&base, &mut updated, "env", identity.environment.as_deref());
+    apply_profile_tag_override(&base, &mut updated, "version", identity.version.as_deref());
+    updated.map(Arc::new).unwrap_or(base)
+}
+
+#[cfg(target_os = "linux")]
+fn profile_tag_value<'a>(tags: &'a [Tag], key: &str) -> Option<&'a str> {
+    tags.iter().find_map(|tag| {
+        let (candidate, value) = tag.as_ref().split_once(':')?;
+        (candidate == key).then_some(value)
+    })
+}
+
+fn apply_profile_tag_override(
+    base: &[Tag],
+    updated: &mut Option<Vec<Tag>>,
+    key: &str,
+    value: Option<&str>,
+) {
+    let Some(value) = value.filter(|value| !value.is_empty()) else {
+        return;
+    };
+
+    let tags = updated.as_deref().unwrap_or(base);
+    let existing = tags.iter().position(|tag| {
+        tag.as_ref()
+            .split_once(':')
+            .is_some_and(|(candidate, _)| candidate == key)
+    });
+    if let Some(index) = existing {
+        let (_, current) = tags[index]
+            .as_ref()
+            .split_once(':')
+            .expect("the matching tag contains a colon");
+        if current == value {
+            return;
+        }
+    }
+
+    // An invalid Thread Context attribute must not erase a valid process or
+    // profiler default.
+    let Ok(replacement) = Tag::new(key, value) else {
+        return;
+    };
+
+    let tags = updated.get_or_insert_with(|| base.to_vec());
+    if let Some(index) = existing {
+        tags[index] = replacement;
+    } else {
+        tags.push(replacement);
+    }
 }
 
 impl<'a> From<&'a Label> for ApiLabel<'a> {
@@ -819,10 +900,14 @@ const DDPROF_UPLOAD: &str = "ddprof_upload";
 impl Profiler {
     /// Will initialize the `PROFILER` OnceLock and makes sure that only one thread will do so.
     pub fn init(system_settings: &SystemSettings) {
+        crate::process_context::initialize();
+
         // SAFETY: the `get_or_init` access is a thread-safe API, and the
         // PROFILER is only being mutated in single-threaded phases such as
         //minit/mshutdown.
-        unsafe { (*ptr::addr_of!(PROFILER)).get_or_init(|| Profiler::new(system_settings)) };
+        unsafe {
+            (*ptr::addr_of!(PROFILER)).get_or_init(|| Profiler::new(system_settings));
+        }
     }
 
     pub fn get() -> Option<&'static Profiler> {
@@ -853,7 +938,7 @@ impl Profiler {
 
         // SAFETY: this is set to a noop version if ddtrace wasn't found, and
         // we're getting the process tags of a PHP thread
-        let process_tags: Option<String> = unsafe {
+        let legacy_process_tags = || unsafe {
             let raw_ptr = datadog_php_profiling_get_process_tags_serialized.unwrap_unchecked()();
             zai_str_from_zstr(raw_ptr.as_mut())
                 .into_utf8()
@@ -861,6 +946,7 @@ impl Profiler {
                 .filter(|s| !s.is_empty())
                 .map(|s| s.to_owned())
         };
+        let process_tags = crate::process_context::process_tags().or_else(legacy_process_tags);
 
         let uploader = Uploader::new(
             fork_barrier.clone(),
@@ -1738,11 +1824,52 @@ impl Profiler {
     ///
     /// * `n_extra_labels` - Reserve room for extra labels, such as when the
     ///   caller adds gc or exception labels.
-    fn common_labels(n_extra_labels: usize) -> Vec<Label> {
+    fn common_labels(n_extra_labels: usize) -> SampleLabels {
         let mut labels = Vec::with_capacity(5 + n_extra_labels);
+        let base_tags = TAGS.with_borrow(Arc::clone);
+        #[cfg(target_os = "linux")]
+        let thread_context = crate::process_context::thread_context(ProcessIdentityRef {
+            service: profile_tag_value(&base_tags, "service"),
+            environment: profile_tag_value(&base_tags, "env"),
+            version: profile_tag_value(&base_tags, "version"),
+        });
+        #[cfg(target_os = "linux")]
+        let (thread_id, local_root_span_id, span_id, identity) = match thread_context {
+            ThreadContextRead::Active(context) => (
+                context
+                    .thread_id
+                    .unwrap_or_else(|| unsafe { libc::pthread_self() as i64 }),
+                context.local_root_span_id,
+                context.span_id,
+                ProcessIdentity {
+                    service: context.service,
+                    environment: context.environment,
+                    version: context.version,
+                },
+            ),
+            ThreadContextRead::Inactive => (
+                unsafe { libc::pthread_self() as i64 },
+                0,
+                0,
+                ProcessIdentity::default(),
+            ),
+        };
+        #[cfg(not(target_os = "linux"))]
+        let (thread_id, local_root_span_id, span_id, identity) = {
+            // SAFETY: this is set to a noop version if ddtrace wasn't found,
+            // and we're getting the profiling context on a PHP thread.
+            let context =
+                unsafe { datadog_php_profiling_get_profiling_context.unwrap_unchecked()() };
+            (
+                unsafe { libc::pthread_self() as i64 },
+                context.local_root_span_id,
+                context.span_id,
+                ProcessIdentity::default(),
+            )
+        };
         labels.push(Label {
             key: "thread id",
-            value: LabelValue::Num(unsafe { libc::pthread_self() as i64 }, "id"),
+            value: LabelValue::Num(thread_id, "id"),
         });
 
         labels.push(Label {
@@ -1750,14 +1877,11 @@ impl Profiler {
             value: LabelValue::Str(get_current_thread_name().into()),
         });
 
-        // SAFETY: this is set to a noop version if ddtrace wasn't found, and
-        // we're getting the profiling context on a PHP thread.
-        let context = unsafe { datadog_php_profiling_get_profiling_context.unwrap_unchecked()() };
-        if context.local_root_span_id != 0 {
+        if local_root_span_id != 0 {
             // Casting between two integers of the same size is a no-op, and
             // Rust uses 2's complement for negative numbers.
-            let local_root_span_id = context.local_root_span_id as i64;
-            let span_id = context.span_id as i64;
+            let local_root_span_id = local_root_span_id as i64;
+            let span_id = span_id as i64;
 
             labels.push(Label {
                 key: "local root span id",
@@ -1784,14 +1908,18 @@ impl Profiler {
                 });
             }
         }
-        labels
+        SampleLabels {
+            labels,
+            identity,
+            base_tags,
+        }
     }
 
     fn prepare_and_send_message(
         &self,
         frames: Backtrace,
         samples: SampleValues,
-        labels: Vec<Label>,
+        labels: SampleLabels,
         timestamp: i64,
     ) -> Result<(), Box<TrySendError<ProfilerMessage>>> {
         let message = self.prepare_sample_message(frames, samples, labels, timestamp);
@@ -1804,7 +1932,7 @@ impl Profiler {
         &self,
         frames: Backtrace,
         samples: SampleValues,
-        labels: Vec<Label>,
+        labels: SampleLabels,
         timestamp: i64,
     ) -> SampleMessage {
         // If profiling is disabled, these will naturally return empty Vec.
@@ -1815,13 +1943,13 @@ impl Profiler {
         let sample_types = self.sample_types_filter.sample_types();
         let sample_values = self.sample_types_filter.filter(samples);
 
-        let tags = TAGS.with_borrow(Arc::clone);
+        let tags = effective_profile_tags(labels.base_tags, &labels.identity);
 
         SampleMessage {
             key: Arc::new(ProfileIndex { sample_types, tags }),
             value: SampleData {
                 frames: Arc::new(frames),
-                labels: Arc::new(labels),
+                labels: Arc::new(labels.labels),
                 sample_values,
                 timestamp,
             },
@@ -1901,18 +2029,109 @@ mod tests {
         }
     }
 
+    fn test_tags(values: &[(&str, &str)]) -> Arc<Vec<Tag>> {
+        Arc::new(
+            values
+                .iter()
+                .map(|(key, value)| Tag::new(key, value).unwrap())
+                .collect(),
+        )
+    }
+
+    fn test_tag_value<'a>(tags: &'a [Tag], key: &str) -> Option<&'a str> {
+        tags.iter().find_map(|tag| {
+            let (candidate, value) = tag.as_ref().split_once(':')?;
+            (candidate == key).then_some(value)
+        })
+    }
+
+    #[test]
+    fn effective_profile_tags_reuses_base_without_effective_changes() {
+        let base = test_tags(&[
+            ("service", "configured-service"),
+            ("env", "configured-env"),
+            ("version", "configured-version"),
+        ]);
+
+        let unchanged = effective_profile_tags(Arc::clone(&base), &ProcessIdentity::default());
+        assert!(Arc::ptr_eq(&base, &unchanged));
+
+        let same_values = effective_profile_tags(
+            Arc::clone(&base),
+            &ProcessIdentity {
+                service: Some("configured-service".to_owned()),
+                environment: Some("configured-env".to_owned()),
+                version: Some("configured-version".to_owned()),
+            },
+        );
+        assert!(Arc::ptr_eq(&base, &same_values));
+    }
+
+    #[test]
+    fn effective_profile_tags_override_independently_and_separate_profiles() {
+        let base = test_tags(&[
+            ("language", "php"),
+            ("service", "process-service"),
+            ("env", "process-env"),
+            ("version", "process-version"),
+        ]);
+        let effective = effective_profile_tags(
+            Arc::clone(&base),
+            &ProcessIdentity {
+                service: Some("root-service".to_owned()),
+                environment: None,
+                version: Some("root-version".to_owned()),
+            },
+        );
+
+        assert!(!Arc::ptr_eq(&base, &effective));
+        assert_eq!(test_tag_value(&effective, "service"), Some("root-service"));
+        assert_eq!(test_tag_value(&effective, "env"), Some("process-env"));
+        assert_eq!(test_tag_value(&effective, "version"), Some("root-version"));
+
+        let base_index = ProfileIndex {
+            sample_types: Vec::new(),
+            tags: base,
+        };
+        let effective_index = ProfileIndex {
+            sample_types: Vec::new(),
+            tags: effective,
+        };
+        assert_ne!(base_index, effective_index);
+    }
+
+    #[test]
+    fn effective_profile_tags_add_missing_and_ignore_invalid_overrides() {
+        let base = test_tags(&[("language", "php"), ("service", "process-service")]);
+        let effective = effective_profile_tags(
+            Arc::clone(&base),
+            &ProcessIdentity {
+                service: Some(":".to_owned()),
+                environment: Some("root-env".to_owned()),
+                version: None,
+            },
+        );
+
+        assert_eq!(
+            test_tag_value(&effective, "service"),
+            Some("process-service")
+        );
+        assert_eq!(test_tag_value(&effective, "env"), Some("root-env"));
+        assert_eq!(test_tag_value(&effective, "version"), None);
+    }
+
     #[test]
     #[cfg(not(miri))]
     fn profiler_prepare_sample_message_works_cpu_time_and_timeline() {
         let frames = get_frames();
         let samples = get_samples();
-        let labels = Profiler::common_labels(0);
         let mut settings = get_system_settings();
         settings.profiling_enabled = true;
         settings.profiling_experimental_cpu_time_enabled = true;
         settings.profiling_timeline_enabled = true;
 
         let profiler = Profiler::new(&settings);
+        let labels = Profiler::common_labels(0);
 
         let message: SampleMessage = profiler.prepare_sample_message(frames, samples, labels, 900);
 
