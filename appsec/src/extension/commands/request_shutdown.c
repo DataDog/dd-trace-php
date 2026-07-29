@@ -103,7 +103,7 @@ static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx)
     // 1.4.?
     if (send_raw_body) {
         dd_mpack_write_lstr(w, "server.response.body.raw");
-        mpack_write_str(w, ZSTR_VAL(req_info->entity),
+        mpack_write_bin(w, ZSTR_VAL(req_info->entity),
             (uint32_t)ZSTR_LEN(req_info->entity));
     }
 
