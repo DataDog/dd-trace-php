@@ -633,6 +633,7 @@ fn apple_linker_flags() {
         "_sapi_module",
         // TSRM (ZTS builds only; harmless to list on NTS — they simply
         // won't appear as undefined)
+        "_executor_globals_id",
         "_tsrm_get_ls_cache",
         "_tsrm_set_new_thread_end_handler",
         // ZTS globals offsets (replace direct globals on ZTS)
