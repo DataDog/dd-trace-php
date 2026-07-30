@@ -10,6 +10,9 @@ export DD_TRACE_GENERATE_ROOT_SPAN=true
 export DD_TRACE_AGENT_PORT=18126
 export PHPRC=
 
+# CI injects it, but it is captured by appsec so changes the results
+unset HTTP_PROXY
+
 CMAKE_BINARY_DIR="$1"
 MOCK_HELPER_BINARY="$2"
 TRACER_EXT_FILE="$3"
