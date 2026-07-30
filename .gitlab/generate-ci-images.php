@@ -126,19 +126,9 @@ variables:
     # pod uses cluster defaults. MAKE_JOBS sets the builder's compile parallelism.
     MAKE_JOBS: "8"
 
-# Mirrors an existing registry.ddbuild.io tag to Docker Hub by calling
-# `dd-pkg publish-image` against artifact-gateway. This replaced a
-# `trigger: project: DataDog/public-images` bridge job: the old GitLab
-# job-token mechanism could not identify which project requested a
-# publication, whereas artifact-gateway verifies the caller and checks an
-# authorization policy (audit-only at the time of writing). Registries,
-# sources and destinations are unchanged, so what gets published is the same.
-#
-# Unlike the bridge job this runs on a runner, hence image: and tags:. The
-# parent pipeline has no `default:` block and this generated child pipeline
-# inherits nothing from it, so the tag has to be explicit here. amd64 to match
-# every other job in this repo; dd-pkg ships a multi-arch image, so arm64 would
-# also work if this project's runner fleet offers it.
+# Mirrors an existing registry.ddbuild.io tag to Docker Hub via artifact-gateway.
+# tags: is required — this replaced a trigger/bridge job, which needed no runner,
+# and neither the parent pipeline nor this generated child sets a `default:`.
 .image_publish:
   stage: ci-publish
   rules:
