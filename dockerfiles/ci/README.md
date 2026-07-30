@@ -38,8 +38,9 @@ repo.
   (ddsign only ships for Linux/Mac), so they're signed by a separate `Windows
   sign` job that runs on Linux and looks up the pushed tag's digest with
   `docker buildx imagetools inspect` instead.
-* **Publish:** a `trigger` to the `DataDog/public-images` service mirrors the
-  internal image to Docker Hub. It has no dependency on the build (see below).
+* **Publish:** a `dd-pkg publish-image` call against artifact-gateway mirrors the
+  internal image to the public registries. It has no dependency on the build (see
+  below).
 
 ## Building via GitLab-CI
 
@@ -55,8 +56,10 @@ pipeline. Per OS it has two kinds of jobs:
    `ddsign`. Run the version(s) you need. Authentication to the internal
    registry is automatic via the runner's native credentials.
 2. **`<OS> publish`** (manual, a matrix with one instance per tag) — mirrors
-   `…:<tag>` from the internal registry to the public Docker Hub
-   (`datadog/dd-trace-ci`) via a downstream `public-images` pipeline.
+   `…:<tag>` from the internal registry to the `dd-trace-ci` repository on the
+   public registries, by calling `dd-pkg publish-image` against
+   artifact-gateway. There is no downstream pipeline to follow: the job itself
+   reports success or failure, so troubleshoot it in its own log.
 
 Windows has an extra manual job, **`Windows sign`** (a matrix with one
 instance per tag), since `Windows build` can't sign its own images (see
