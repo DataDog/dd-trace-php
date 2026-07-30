@@ -68,6 +68,9 @@ else
   set -- "${@:1:$#-1}" "${EXTRA_FLAGS[@]}" "${!#}"
 fi
 
+# The Fabric proxy leaks HTTP_PROXY into $_SERVER as a request header.
+unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy
+
 set -x
 exec "$@"
 
