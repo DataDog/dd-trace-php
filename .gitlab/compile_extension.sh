@@ -25,5 +25,10 @@ make -j static &
 wait
 
 # Link extension
-sed -i 's/-export-symbols .*\/datadog\.sym/-Wl,--retain-symbols-file=datadog.sym/g' ${EXTENSION_DIR}/ddtrace.ldflags
+if [ -f "${EXTENSION_DIR}/datadog-linux-exports.sym" ]; then
+  export_symbols_file="${EXTENSION_DIR}/datadog-linux-exports.sym"
+else
+  export_symbols_file="datadog.sym"
+fi
+sed -i -E "s#-export-symbols [^ ]+#-Wl,--retain-symbols-file=${export_symbols_file}#g" "${EXTENSION_DIR}/ddtrace.ldflags"
 cc -shared -Wl,-whole-archive ${MODULES_DIR}/ddtrace.a -Wl,-no-whole-archive $(cat ${EXTENSION_DIR}/ddtrace.ldflags) ${CARGO_TARGET_DIR}/debug/libdatadog_php.a -Wl,-soname -Wl,ddtrace.so -o ${MODULES_DIR}/ddtrace.so
