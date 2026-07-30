@@ -58,8 +58,9 @@ pipeline. Per OS it has two kinds of jobs:
 2. **`<OS> publish`** (manual, a matrix with one instance per tag) — mirrors
    `…:<tag>` from the internal registry to the `dd-trace-ci` repository on the
    public registries, by calling `dd-pkg publish-image` against
-   artifact-gateway. There is no downstream pipeline to follow: the job itself
-   reports success or failure, so troubleshoot it in its own log.
+   artifact-gateway. A `public-images` pipeline still performs the copy, but you
+   no longer trigger or watch it: `dd-pkg` polls it and this job succeeds or
+   fails with it, so start troubleshooting from the job log.
 
 Windows has an extra manual job, **`Windows sign`** (a matrix with one
 instance per tag), since `Windows build` can't sign its own images (see
