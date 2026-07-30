@@ -91,7 +91,7 @@ for ($i = 0; $i < 300; ++$i) {
 
     $allConfigs = [];
     foreach (file(__DIR__ . '/sensitive-config-telemetry.out') as $l) {
-        if (!$l) {
+        if (!$l || $l[0] != '{') {
             continue;
         }
         $json = json_decode($l, true);
