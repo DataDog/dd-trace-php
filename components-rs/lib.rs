@@ -101,6 +101,237 @@ fn char_slice_string(value: CharSlice<'_>) -> String {
         .unwrap_or_default()
 }
 
+#[cfg(target_os = "linux")]
+const OTEL_THREAD_ATTRIBUTE_INDEX_ABSENT: u16 = u16::MAX;
+
+/// Borrowed values and Thread Context key indices discovered while decoding a
+/// standard Linux OTel Process Context. All string slices borrow from the
+/// opaque handle returned by `datadog_otel_process_context_read`.
+#[cfg(target_os = "linux")]
+#[repr(C)]
+pub struct DatadogOtelProcessContextView<'a> {
+    pub service_name: CharSlice<'a>,
+    pub service_version: CharSlice<'a>,
+    pub deployment_environment_name: CharSlice<'a>,
+    pub service_instance_id: CharSlice<'a>,
+    pub thread_attribute_key_count: u16,
+    pub thread_service_name_index: u16,
+    pub thread_service_version_index: u16,
+    pub thread_deployment_environment_name_index: u16,
+}
+
+#[cfg(target_os = "linux")]
+impl Default for DatadogOtelProcessContextView<'_> {
+    fn default() -> Self {
+        Self {
+            service_name: CharSlice::default(),
+            service_version: CharSlice::default(),
+            deployment_environment_name: CharSlice::default(),
+            service_instance_id: CharSlice::default(),
+            thread_attribute_key_count: 0,
+            thread_service_name_index: OTEL_THREAD_ATTRIBUTE_INDEX_ABSENT,
+            thread_service_version_index: OTEL_THREAD_ATTRIBUTE_INDEX_ABSENT,
+            thread_deployment_environment_name_index: OTEL_THREAD_ATTRIBUTE_INDEX_ABSENT,
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn otel_process_context_string<'a>(
+    attributes: &'a [libdd_trace_protobuf::opentelemetry::proto::common::v1::KeyValue],
+    key: &str,
+) -> std::option::Option<&'a str> {
+    use libdd_trace_protobuf::opentelemetry::proto::common::v1::any_value;
+
+    match attributes
+        .iter()
+        .find(|attribute| attribute.key == key)?
+        .value
+        .as_ref()?
+        .value
+        .as_ref()?
+    {
+        any_value::Value::StringValue(value) if !value.is_empty() => {
+            std::option::Option::Some(value)
+        }
+        _ => std::option::Option::None,
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn otel_process_context_view(
+    context: &libdd_trace_protobuf::opentelemetry::proto::common::v1::ProcessContext,
+) -> DatadogOtelProcessContextView<'_> {
+    use libdd_trace_protobuf::opentelemetry::proto::common::v1::any_value;
+
+    let mut view = DatadogOtelProcessContextView::default();
+    if let Some(resource) = context.resource.as_ref() {
+        view.service_name = otel_process_context_string(&resource.attributes, "service.name")
+            .map(CharSlice::from)
+            .unwrap_or_default();
+        view.service_version = otel_process_context_string(&resource.attributes, "service.version")
+            .map(CharSlice::from)
+            .unwrap_or_default();
+        view.deployment_environment_name =
+            otel_process_context_string(&resource.attributes, "deployment.environment.name")
+                .map(CharSlice::from)
+                .unwrap_or_default();
+        view.service_instance_id =
+            otel_process_context_string(&resource.attributes, "service.instance.id")
+                .map(CharSlice::from)
+                .unwrap_or_default();
+    }
+
+    let Some(any_value::Value::ArrayValue(key_map)) = context
+        .extra_attributes
+        .iter()
+        .find(|attribute| attribute.key == "threadlocal.attribute_key_map")
+        .and_then(|attribute| attribute.value.as_ref())
+        .and_then(|value| value.value.as_ref())
+    else {
+        return view;
+    };
+
+    view.thread_attribute_key_count = key_map.values.len().min(256) as u16;
+    for (index, key) in key_map.values.iter().take(256).enumerate() {
+        let Some(any_value::Value::StringValue(key)) = key.value.as_ref() else {
+            continue;
+        };
+        let index = index as u16;
+        match key.as_str() {
+            "service.name" => view.thread_service_name_index = index,
+            "service.version" => view.thread_service_version_index = index,
+            "deployment.environment.name" => {
+                view.thread_deployment_environment_name_index = index;
+            }
+            _ => {}
+        }
+    }
+    view
+}
+
+/// Decode the current process's standard Linux OTel Process Context.
+///
+/// On success, returns an opaque owning handle and fills `view` with values
+/// borrowed from it. Returns null and resets `view` when no valid publication
+/// is available.
+///
+/// # Safety
+/// `view` must point to writable memory. Its borrowed slices must not be used
+/// after the returned handle is passed to
+/// `datadog_otel_process_context_drop`.
+#[cfg(target_os = "linux")]
+#[no_mangle]
+pub unsafe extern "C" fn datadog_otel_process_context_read(
+    view: *mut DatadogOtelProcessContextView<'static>,
+) -> *mut std::ffi::c_void {
+    use libdd_library_config::otel_process_ctx::ProcessContextSelfReader;
+
+    if view.is_null() {
+        return null_mut();
+    }
+    let Ok(context) = ProcessContextSelfReader::new().and_then(|reader| reader.read()) else {
+        unsafe { view.write(DatadogOtelProcessContextView::default()) };
+        return null_mut();
+    };
+
+    let context = Box::new(context);
+    let borrowed = otel_process_context_view(&context);
+    // SAFETY: lifetimes do not affect the C representation. The returned Box
+    // owns every borrowed string and remains pinned at this address until the
+    // matching drop call.
+    unsafe {
+        view.cast::<DatadogOtelProcessContextView<'_>>()
+            .write(borrowed)
+    };
+    Box::into_raw(context).cast()
+}
+
+/// Drop an owning handle returned by
+/// `datadog_otel_process_context_read`.
+///
+/// # Safety
+/// `handle` must be null or a live handle returned by the read function.
+#[cfg(target_os = "linux")]
+#[no_mangle]
+pub unsafe extern "C" fn datadog_otel_process_context_drop(handle: *mut std::ffi::c_void) {
+    use libdd_trace_protobuf::opentelemetry::proto::common::v1::ProcessContext;
+
+    if !handle.is_null() {
+        drop(unsafe { Box::from_raw(handle.cast::<ProcessContext>()) });
+    }
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod otel_process_context_tests {
+    use super::*;
+    use libdd_common_ffi::slice::AsBytes;
+    use libdd_trace_protobuf::opentelemetry::proto::{
+        common::v1::{any_value, AnyValue, ArrayValue, KeyValue, ProcessContext},
+        resource::v1::Resource,
+    };
+
+    fn string_attribute(key: &str, value: &str) -> KeyValue {
+        KeyValue {
+            key: key.to_owned(),
+            value: Some(AnyValue {
+                value: Some(any_value::Value::StringValue(value.to_owned())),
+            }),
+            key_ref: 0,
+        }
+    }
+
+    #[test]
+    fn view_borrows_resource_defaults_and_discovers_thread_indices() {
+        let context = ProcessContext {
+            resource: Some(Resource {
+                attributes: vec![
+                    string_attribute("service.version", "1.2.3"),
+                    string_attribute("service.instance.id", "not-necessarily-a-uuid"),
+                    string_attribute("service.name", "checkout"),
+                    string_attribute("deployment.environment.name", "production"),
+                ],
+                ..Default::default()
+            }),
+            extra_attributes: vec![KeyValue {
+                key: "threadlocal.attribute_key_map".to_owned(),
+                value: Some(AnyValue {
+                    value: Some(any_value::Value::ArrayValue(ArrayValue {
+                        values: [
+                            "ignored",
+                            "deployment.environment.name",
+                            "service.name",
+                            "service.version",
+                        ]
+                        .into_iter()
+                        .map(|key| AnyValue {
+                            value: Some(any_value::Value::StringValue(key.to_owned())),
+                        })
+                        .collect(),
+                    })),
+                }),
+                key_ref: 0,
+            }],
+        };
+
+        let view = otel_process_context_view(&context);
+        assert_eq!(view.service_name.try_to_utf8().unwrap(), "checkout");
+        assert_eq!(
+            view.deployment_environment_name.try_to_utf8().unwrap(),
+            "production"
+        );
+        assert_eq!(view.service_version.try_to_utf8().unwrap(), "1.2.3");
+        assert_eq!(
+            view.service_instance_id.try_to_utf8().unwrap(),
+            "not-necessarily-a-uuid"
+        );
+        assert_eq!(view.thread_attribute_key_count, 4);
+        assert_eq!(view.thread_deployment_environment_name_index, 1);
+        assert_eq!(view.thread_service_name_index, 2);
+        assert_eq!(view.thread_service_version_index, 3);
+    }
+}
+
 /// Publish or update dd-trace-php's standard Linux OTel Process Context.
 #[cfg(target_os = "linux")]
 #[no_mangle]

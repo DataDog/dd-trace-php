@@ -42,6 +42,24 @@ void datadog_generate_session_id(void);
 void datadog_format_runtime_id(uint8_t (*buf)[36]);
 
 #ifdef __linux__
+#define DATADOG_OTEL_THREAD_ATTRIBUTE_INDEX_ABSENT UINT16_MAX
+
+typedef struct datadog_OtelProcessContextView {
+    ddog_CharSlice service_name;
+    ddog_CharSlice service_version;
+    ddog_CharSlice deployment_environment_name;
+    ddog_CharSlice service_instance_id;
+    uint16_t thread_attribute_key_count;
+    uint16_t thread_service_name_index;
+    uint16_t thread_service_version_index;
+    uint16_t thread_deployment_environment_name_index;
+} datadog_OtelProcessContextView;
+
+void *datadog_otel_process_context_read(
+    datadog_OtelProcessContextView *view);
+
+void datadog_otel_process_context_drop(void *handle);
+
 bool datadog_publish_otel_process_context(ddog_CharSlice runtime_id,
                                           ddog_CharSlice tracer_version,
                                           ddog_CharSlice service,
