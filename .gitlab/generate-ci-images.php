@@ -126,6 +126,19 @@ variables:
     # pod uses cluster defaults. MAKE_JOBS sets the builder's compile parallelism.
     MAKE_JOBS: "8"
 
+# Mirrors an existing registry.ddbuild.io tag to Docker Hub by calling
+# `dd-pkg publish-image` against artifact-gateway. This replaced a
+# `trigger: project: DataDog/public-images` bridge job: the old GitLab
+# job-token mechanism could not identify which project requested a
+# publication, whereas artifact-gateway verifies the caller and checks an
+# authorization policy (audit-only at the time of writing). Registries,
+# sources and destinations are unchanged, so what gets published is the same.
+#
+# Unlike the bridge job this runs on a runner, hence image: and tags:. The
+# parent pipeline has no `default:` block and this generated child pipeline
+# inherits nothing from it, so the tag has to be explicit here. amd64 to match
+# every other job in this repo; dd-pkg ships a multi-arch image, so arm64 would
+# also work if this project's runner fleet offers it.
 .image_publish:
   stage: ci-publish
   rules:
@@ -134,16 +147,24 @@ variables:
   # No deps: a publish just mirrors whatever already exists in
   # registry.ddbuild.io to Docker Hub, so it can run without (re)building.
   needs: []
-  trigger:
-    project: DataDog/public-images
-    branch: main
-    strategy: depend
+  image: registry.ddbuild.io/agent-delivery/dd-pkg:v0.9.3
+  tags: ["arch:amd64"]
   # $TAG is supplied per matrix entry by the generated publish jobs.
   variables:
     IMG_REGISTRIES: "dockerhub"
-    IMG_SIGNING: false
+    IMG_SIGNING: "false"
     IMG_SOURCES: "${CI_REGISTRY_IMAGE}:${TAG}"
     IMG_DESTINATIONS: "dd-trace-ci:${TAG}"
+    PUBLIC_IMAGES_PUBLISH_TIMEOUT: "1800"
+  script:
+    - |
+      set -euo pipefail
+      dd-pkg version
+      args=(publish-image --timeout "${PUBLIC_IMAGES_PUBLISH_TIMEOUT}" --poll-interval 30 --signing="${IMG_SIGNING}")
+      if [[ -n "${IMG_REGISTRIES:-}" ]]; then args+=(--registries "${IMG_REGISTRIES}"); fi
+      if [[ -n "${IMG_SOURCES:-}" ]]; then args+=(--sources "${IMG_SOURCES}"); fi
+      if [[ -n "${IMG_DESTINATIONS:-}" ]]; then args+=(--destinations "${IMG_DESTINATIONS}"); fi
+      dd-pkg "${args[@]}"
 
 # Signs an already-pushed tag in registry.ddbuild.io. Used for the Windows
 # images: they're built without buildx (see .windows_image_build), so unlike
