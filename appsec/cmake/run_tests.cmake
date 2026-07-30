@@ -2,9 +2,18 @@ if(DD_APPSEC_DDTRACE_ALT)
     set(DD_APPSEC_TRACER_EXT_FILE $<TARGET_FILE:ddtrace>)
 else()
     get_filename_component(DD_APPSEC_TRACER_EXT_FILE "${CMAKE_SOURCE_DIR}/../tmp/build_extension/modules/ddtrace.so" REALPATH)
+    get_target_property(_DD_APPSEC_PCRE2_INCLUDE_DIRS
+        PCRE2::pcre2 INTERFACE_INCLUDE_DIRECTORIES)
+    if(_DD_APPSEC_PCRE2_INCLUDE_DIRS)
+        list(TRANSFORM _DD_APPSEC_PCRE2_INCLUDE_DIRS PREPEND "-I")
+        list(JOIN _DD_APPSEC_PCRE2_INCLUDE_DIRS " "
+            _DD_APPSEC_PCRE2_CPPFLAGS)
+        set(_DD_APPSEC_DDTRACE_MAKE_OPTIONS
+            "EXTRA_CFLAGS=${_DD_APPSEC_PCRE2_CPPFLAGS}")
+    endif()
     add_custom_target(ddtrace
         COMMAND ${CMAKE_COMMAND} -E env "PATH=${PhpConfig_ROOT_DIR}/bin:$ENV{PATH}" PHPRC=
-                make "${DD_APPSEC_TRACER_EXT_FILE}"
+                make ${_DD_APPSEC_DDTRACE_MAKE_OPTIONS} "${DD_APPSEC_TRACER_EXT_FILE}"
         BYPRODUCTS ${DD_APPSEC_TRACER_EXT_FILE}
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/../)
 endif()
