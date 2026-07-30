@@ -1,0 +1,80 @@
+name: "Publish system-tests image"
+
+# Pushes the per-branch dd-library-php image that DataDog/system-tests pulls
+# (LIBRARY_TARGET_BRANCH), tagged with the GitLab CI_COMMIT_REF_SLUG.
+on:
+  workflow_dispatch:
+    inputs:
+      ref_slug:
+        description: "Sanitised branch name (GitLab CI_COMMIT_REF_SLUG); used as the image tag and the S3 prefix."
+        required: true
+
+concurrency:
+  group: "publish-system-tests-image-${{ github.event.inputs.ref_slug }}"
+  cancel-in-progress: true
+
+env:
+  IMAGE: "ghcr.io/datadog/dd-trace-php/dd-library-php"
+  PACKAGE_PATH: "orgs/DataDog/packages/container/dd-trace-php%2Fdd-library-php"
+  S3_BASE: "https://dd-trace-php-builds.s3.us-east-1.amazonaws.com/ci"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - name: Download build artifacts from S3
+        env:
+          REF_SLUG: ${{ github.event.inputs.ref_slug }}
+        run: |
+          set -euo pipefail
+          base="${S3_BASE}/${REF_SLUG}"
+          mkdir -p packages/amd64 packages/arm64
+          curl -fSL --retry 3 "${base}/dd-library-php-x86_64-linux-gnu.tar.gz"  -o packages/amd64/dd-library-php-x86_64-linux-gnu.tar.gz
+          curl -fSL --retry 3 "${base}/dd-library-php-aarch64-linux-gnu.tar.gz" -o packages/arm64/dd-library-php-aarch64-linux-gnu.tar.gz
+          curl -fSL --retry 3 "${base}/datadog-setup.php" -o packages/amd64/datadog-setup.php
+          cp packages/amd64/datadog-setup.php packages/arm64/datadog-setup.php
+
+      - name: Log in to GHCR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: echo "$GH_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+
+      - name: Build and push image
+        env:
+          REF_SLUG: ${{ github.event.inputs.ref_slug }}
+        run: |
+          set -euo pipefail
+          printf 'FROM scratch\nARG TARGETARCH\nCOPY packages/${TARGETARCH}/dd-library-php-*-linux-gnu.tar.gz /\nCOPY packages/${TARGETARCH}/datadog-setup.php /\n' > Dockerfile.system-tests
+          # Label links the image to this repo, which is what makes GHCR grant this repo's
+          # GITHUB_TOKEN manage rights on the package (needed for the cleanup step below).
+          docker buildx build --platform linux/amd64,linux/arm64 \
+            --label org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }} \
+            -f Dockerfile.system-tests -t "${IMAGE}:${REF_SLUG}" --push .
+          echo "Pushed ${IMAGE}:${REF_SLUG}"
+
+      - name: Clean up superseded untagged versions
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REF_SLUG: ${{ github.event.inputs.ref_slug }}
+        continue-on-error: true
+        run: | # re-pushing a tag above just retargets it, leaving the old version untagged;
+               # the just-pushed multi-arch index's own child manifests are untagged too, so
+               # keep whatever digest the current tag still references.
+          set -euo pipefail
+          keep_digests=$(docker buildx imagetools inspect "${IMAGE}:${REF_SLUG}" --raw | jq -r '.manifests[].digest')
+          gh api "${PACKAGE_PATH}/versions" \
+            --jq '.[] | select(.metadata.container.tags == []) | "\(.id) \(.name)"' \
+            | while read -r id digest; do
+                if grep -qxF "$digest" <<< "$keep_digests"; then
+                  continue
+                fi
+                gh api "${PACKAGE_PATH}/versions/${id}" -X DELETE
+              done
+          echo "Untagged-version cleanup complete"
