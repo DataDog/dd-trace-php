@@ -1,4 +1,7 @@
 #include <SAPI.h>
+#if PHP_VERSION_ID >= 80600
+#include <Zend/zend_compile.h>
+#endif
 #include <Zend/zend_extensions.h>
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_types.h>
