@@ -44,9 +44,6 @@ void datadog_format_runtime_id(uint8_t (*buf)[36]);
 #ifdef __linux__
 bool datadog_publish_otel_process_context(ddog_CharSlice runtime_id,
                                           ddog_CharSlice tracer_version,
-                                          ddog_CharSlice service,
-                                          ddog_CharSlice env,
-                                          ddog_CharSlice version,
                                           ddog_CharSlice hostname,
                                           ddog_CharSlice container_id,
                                           ddog_CharSlice process_tags);

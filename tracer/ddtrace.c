@@ -150,7 +150,6 @@ static inline void dd_alter_prop(size_t prop_offset, zval *old_value, zval *new_
 
 bool datadog_alter_dd_service(zval *old_value, zval *new_value, zend_string *new_str) {
     dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_service), old_value, new_value, new_str);
-    datadog_otel_process_context_publish_config(new_str, get_DD_ENV(), get_DD_VERSION());
     ddtrace_otel_thread_context_refresh();
     if (DATADOG_G(request_initialized)) {
         ddtrace_sidecar_submit_span_data_direct(&DATADOG_G(sidecar), NULL, new_str, get_DD_ENV(), get_DD_VERSION());
@@ -159,7 +158,6 @@ bool datadog_alter_dd_service(zval *old_value, zval *new_value, zend_string *new
 }
 bool datadog_alter_dd_env(zval *old_value, zval *new_value, zend_string *new_str) {
     dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_env), old_value, new_value, new_str);
-    datadog_otel_process_context_publish_config(get_DD_SERVICE(), new_str, get_DD_VERSION());
     ddtrace_otel_thread_context_refresh();
     if (DATADOG_G(request_initialized)) {
         ddtrace_sidecar_submit_span_data_direct(&DATADOG_G(sidecar), NULL, get_DD_SERVICE(), new_str, get_DD_VERSION());
@@ -168,7 +166,6 @@ bool datadog_alter_dd_env(zval *old_value, zval *new_value, zend_string *new_str
 }
 bool datadog_alter_dd_version(zval *old_value, zval *new_value, zend_string *new_str) {
     dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_version), old_value, new_value, new_str);
-    datadog_otel_process_context_publish_config(get_DD_SERVICE(), get_DD_ENV(), new_str);
     ddtrace_otel_thread_context_refresh();
     if (DATADOG_G(request_initialized)) {
         ddtrace_sidecar_submit_span_data_direct(&DATADOG_G(sidecar), NULL, get_DD_SERVICE(), get_DD_ENV(), new_str);

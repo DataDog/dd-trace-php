@@ -1,5 +1,5 @@
 --TEST--
-Linux OTel Process Context publishes configured defaults and runtime updates
+Linux OTel Process Context excludes request-varying service metadata
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID < 70400) die('skip: FFI requires PHP 7.4+');
@@ -13,8 +13,11 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_SERVICE=configured-service
 DD_ENV=configured-env
 DD_VERSION=configured-version
+DD_HOSTNAME=configured-host
 --FILE--
 <?php
+
+require __DIR__ . '/includes/otel_thread_context.inc';
 
 function processContextSnapshot(FFI $ffi): array
 {
@@ -62,14 +65,12 @@ $ffi = FFI::cdef(
 
 $snapshot = processContextSnapshot($ffi);
 $payload = $snapshot['payload'];
-echo "Configured resource defaults: "; var_dump(payloadContains($payload, [
-    'service.name',
-    'configured-service',
-    'deployment.environment.name',
-    'configured-env',
-    'service.version',
-    'configured-version',
-]));
+echo "Configured service values excluded: "; var_dump(
+    strpos($payload, 'configured-service') === false
+    && strpos($payload, 'configured-env') === false
+    && strpos($payload, 'configured-version') === false
+    && strpos($payload, 'configured-host') === false
+);
 echo "Runtime and host resource fields: "; var_dump(payloadContains($payload, [
     'service.instance.id',
     'telemetry.sdk.language',
@@ -86,8 +87,16 @@ echo "Process and thread metadata: "; var_dump(payloadContains($payload, [
     'tlsdesc_v1_dev',
     'threadlocal.attribute_key_map',
     'datadog.local_root_span_id',
+    'service.name',
+    'deployment.environment.name',
+    'service.version',
     'thread.id',
 ]));
+echo "Request-varying keys are thread-only: "; var_dump(
+    substr_count($payload, 'service.name') === 1
+    && substr_count($payload, 'deployment.environment.name') === 1
+    && substr_count($payload, 'service.version') === 1
+);
 
 preg_match(
     '/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/',
@@ -99,26 +108,38 @@ echo "Runtime ID matches tracer: "; var_dump($root->meta['runtime-id'] === $matc
 DDTrace\close_span();
 
 $publishedAt = $snapshot['published_at'];
+$threadContext = new OtelThreadContext();
+$root = DDTrace\start_span();
 ini_set('datadog.service', 'runtime-service');
 ini_set('datadog.env', 'runtime-env');
 ini_set('datadog.version', 'runtime-version');
 
+$attributes = $threadContext->attributes();
+echo "Runtime values published in Thread Context: "; var_dump(
+    $attributes[1] === 'runtime-service'
+    && $attributes[2] === 'runtime-env'
+    && $attributes[3] === 'runtime-version'
+);
+
 $snapshot = processContextSnapshot($ffi);
 $payload = $snapshot['payload'];
-echo "Runtime defaults republished: "; var_dump(payloadContains($payload, [
-    'runtime-service',
-    'runtime-env',
-    'runtime-version',
-]));
-echo "Publication timestamp advanced: "; var_dump(
-    $snapshot['published_at'] > $publishedAt
+echo "Runtime values excluded from Process Context: "; var_dump(
+    strpos($payload, 'runtime-service') === false
+    && strpos($payload, 'runtime-env') === false
+    && strpos($payload, 'runtime-version') === false
 );
+echo "Publication timestamp unchanged: "; var_dump(
+    $snapshot['published_at'] === $publishedAt
+);
+DDTrace\close_span();
 
 ?>
 --EXPECT--
-Configured resource defaults: bool(true)
+Configured service values excluded: bool(true)
 Runtime and host resource fields: bool(true)
 Process and thread metadata: bool(true)
+Request-varying keys are thread-only: bool(true)
 Runtime ID matches tracer: bool(true)
-Runtime defaults republished: bool(true)
-Publication timestamp advanced: bool(true)
+Runtime values published in Thread Context: bool(true)
+Runtime values excluded from Process Context: bool(true)
+Publication timestamp unchanged: bool(true)

@@ -107,9 +107,6 @@ fn char_slice_string(value: CharSlice<'_>) -> String {
 pub extern "C" fn datadog_publish_otel_process_context(
     runtime_id: CharSlice<'_>,
     tracer_version: CharSlice<'_>,
-    service: CharSlice<'_>,
-    env: CharSlice<'_>,
-    version: CharSlice<'_>,
     hostname: CharSlice<'_>,
     container_id: CharSlice<'_>,
     process_tags: CharSlice<'_>,
@@ -122,9 +119,6 @@ pub extern "C" fn datadog_publish_otel_process_context(
         tracer_language: "php".to_owned(),
         tracer_version: char_slice_string(tracer_version),
         hostname: char_slice_string(hostname),
-        service_name: Some(char_slice_string(service)),
-        service_env: Some(char_slice_string(env)),
-        service_version: Some(char_slice_string(version)),
         process_tags: Some(char_slice_string(process_tags)),
         container_id: Some(char_slice_string(container_id)),
         threadlocal_metadata: Some(ThreadLocalMetadata {
@@ -139,7 +133,21 @@ pub extern "C" fn datadog_publish_otel_process_context(
         ..Default::default()
     };
 
-    otel_process_ctx::publish(&metadata.to_otel_process_ctx()).is_ok()
+    let mut context = metadata.to_otel_process_ctx();
+    // TracerMetadata emits empty resource attributes for absent optional fields to advertise
+    // support. These values can vary independently on every PHP request, so their values and
+    // resource keys must be omitted from the process-wide context. The keys remain discoverable
+    // through threadlocal.attribute_key_map.
+    if let Some(resource) = context.resource.as_mut() {
+        resource.attributes.retain(|attribute| {
+            !matches!(
+                attribute.key.as_str(),
+                "service.name" | "service.version" | "deployment.environment.name"
+            )
+        });
+    }
+
+    otel_process_ctx::publish(&context).is_ok()
 }
 
 /// Update the calling thread's standard Linux OTel Thread Context record.
