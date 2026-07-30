@@ -165,6 +165,8 @@ foreach ($profiler_minor_major_targets as $version) {
     - "if php -r 'exit(PHP_VERSION_ID < 80400 ? 0 : 1);'; then cat profiling/tests/php-language-xfail-pre84.list >> /tmp/profiler-php-language-xfail.list; fi"
     - export XFAIL_LIST=/tmp/profiler-php-language-xfail.list
     - ulimit -c unlimited
+    # The Fabric proxy changes curl test behavior and leaks HTTP_PROXY into $_SERVER.
+    - unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy
     - .gitlab/run_php_language_tests.sh
   after_script:
     - |
