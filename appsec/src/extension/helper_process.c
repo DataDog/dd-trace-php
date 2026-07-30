@@ -42,7 +42,6 @@ typedef struct _dd_helper_mgr {
     dd_conn conn;
 
     bool connected_this_req;
-    uint64_t otel_context_generation;
     dd_helper_shared_state hss;
 
     char *nonnull socket_path; // if abstract, starts with @
@@ -124,19 +123,9 @@ void dd_helper_rshutdown(void)
 dd_conn *nullable dd_helper_mgr_acquire_conn(
     client_init_func nonnull init_func, void *unspecnull ctx)
 {
-    dd_trace_refresh_otel_context();
-    uint64_t context_generation = dd_trace_otel_context_generation();
-
     dd_conn *conn = &_mgr.conn;
     if (dd_conn_connected(conn)) {
-        if (_mgr.otel_context_generation == context_generation) {
-            return conn;
-        }
-
-        mlog(dd_log_debug,
-            "Effective OTel context changed; reconnecting to the helper");
-        _mgr.connected_this_req = false;
-        dd_helper_close_conn();
+        return conn;
     }
 
     if (_skip_connecting(&_mgr.hss)) {
@@ -175,7 +164,6 @@ dd_conn *nullable dd_helper_mgr_acquire_conn(
     mlog(dd_log_debug, "returning fresh connection");
 
     _mgr.connected_this_req = true;
-    _mgr.otel_context_generation = context_generation;
     _release_shared_state_lock(&_mgr.hss);
     dd_telemetry_helper_conn_success();
 

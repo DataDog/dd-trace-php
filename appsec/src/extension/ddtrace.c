@@ -11,7 +11,6 @@
 #include "configuration.h"
 #include "ddappsec.h"
 #include "logging.h"
-#include "otel_context.h"
 #include "php_compat.h"
 #include "php_helpers.h"
 #include "php_objects.h"
@@ -140,7 +139,6 @@ void dd_trace_startup(void)
     _mod_version = mod->version;
 
     dd_trace_load_symbols(mod);
-    dd_appsec_otel_context_startup();
 
     if (get_global_DD_APPSEC_TESTING()) {
         _orig_ddtrace_shutdown = mod->request_shutdown_func;
@@ -148,11 +146,7 @@ void dd_trace_startup(void)
     }
 }
 
-void dd_trace_rinit(void)
-{
-    _asm_event_emitted = false;
-    dd_trace_refresh_otel_context();
-}
+void dd_trace_rinit(void) { _asm_event_emitted = false; }
 
 static void _setup_testing_telemetry_functions(void)
 {
@@ -327,7 +321,7 @@ zval *nullable dd_trace_span_get_meta_struct(zend_object *nonnull zobj)
 }
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-static zend_string *nullable _legacy_formatted_runtime_id(bool persistent)
+zend_string *nullable dd_trace_get_formatted_runtime_id(bool persistent)
 {
     if (_datadog_runtime_id == NULL) {
         return NULL;
@@ -353,16 +347,6 @@ static zend_string *nullable _legacy_formatted_runtime_id(bool persistent)
     return encoded_id;
 }
 // NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-
-zend_string *nullable dd_trace_get_formatted_runtime_id(bool persistent)
-{
-    zend_string *runtime_id = dd_appsec_otel_context_runtime_id();
-    if (runtime_id) {
-        return zend_string_init(
-            ZSTR_VAL(runtime_id), ZSTR_LEN(runtime_id), persistent);
-    }
-    return _legacy_formatted_runtime_id(persistent);
-}
 
 const uint8_t *nullable dd_trace_get_formatted_session_id(void)
 {
@@ -433,12 +417,6 @@ struct telemetry_rc_info dd_trace_get_telemetry_rc_info(void)
         return (struct telemetry_rc_info){0};
     }
     __auto_type tel_rc_info = _datadog_get_telemetry_rc_info();
-    if (dd_appsec_otel_context_service()) {
-        tel_rc_info.service_name = dd_appsec_otel_context_service();
-    }
-    if (dd_appsec_otel_context_environment()) {
-        tel_rc_info.env_name = dd_appsec_otel_context_environment();
-    }
 
     mlog(dd_log_trace,
         "Remote config path: %s, service name: %.*s, env name: %.*s",
@@ -447,25 +425,6 @@ struct telemetry_rc_info dd_trace_get_telemetry_rc_info(void)
         ZSTR_PRINTF(tel_rc_info.env_name));
 
     return tel_rc_info;
-}
-
-void dd_trace_refresh_otel_context(void)
-{
-    struct telemetry_rc_info legacy = {0};
-    if (_datadog_get_telemetry_rc_info) {
-        legacy = _datadog_get_telemetry_rc_info();
-    }
-    zend_string *runtime_id = _legacy_formatted_runtime_id(false);
-    dd_appsec_otel_context_refresh(
-        legacy.service_name, legacy.env_name, get_DD_VERSION(), runtime_id);
-    if (runtime_id) {
-        zend_string_release(runtime_id);
-    }
-}
-
-uint64_t dd_trace_otel_context_generation(void)
-{
-    return dd_appsec_otel_context_generation();
 }
 
 void dd_trace_span_add_propagated_tags(
@@ -613,37 +572,6 @@ static PHP_FUNCTION(datadog_appsec_testing_get_formatted_runtime_id) // NOLINT
     RETURN_EMPTY_STRING();
 }
 
-static PHP_FUNCTION(datadog_appsec_testing_otel_context) // NOLINT
-{
-    if (zend_parse_parameters_none() == FAILURE) {
-        RETURN_FALSE;
-    }
-
-    dd_trace_refresh_otel_context();
-    array_init(return_value);
-    zend_string *values[] = {
-        dd_appsec_otel_context_service(),
-        dd_appsec_otel_context_environment(),
-        dd_appsec_otel_context_version(),
-        dd_appsec_otel_context_runtime_id(),
-    };
-    const char *keys[] = {
-        "service",
-        "environment",
-        "version",
-        "runtime_id",
-    };
-    for (size_t index = 0; index < sizeof(values) / sizeof(values[0]);
-         ++index) {
-        if (values[index]) {
-            add_assoc_stringl(return_value, keys[index],
-                ZSTR_VAL(values[index]), ZSTR_LEN(values[index]));
-        } else {
-            add_assoc_null(return_value, keys[index]);
-        }
-    }
-}
-
 // clang-format off
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(void_ret_bool_arginfo, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
@@ -667,7 +595,6 @@ static const zend_function_entry functions[] = {
     ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_get_meta_struct", PHP_FN(datadog_appsec_testing_root_span_get_meta_struct), void_ret_nullable_array, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_TESTING_NS "root_span_get_metrics", PHP_FN(datadog_appsec_testing_root_span_get_metrics), void_ret_nullable_array, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_TESTING_NS "get_formatted_runtime_id", PHP_FN(datadog_appsec_testing_get_formatted_runtime_id), void_ret_nullable_string, 0, NULL, NULL)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "otel_context", PHP_FN(datadog_appsec_testing_otel_context), void_ret_nullable_array, 0, NULL, NULL)
     PHP_FE_END
 };
 // clang-format on

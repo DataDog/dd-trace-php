@@ -28,8 +28,6 @@ typedef zend_object root_span_t;
 void dd_trace_startup(void);
 void dd_trace_shutdown(void);
 void dd_trace_rinit(void);
-void dd_trace_refresh_otel_context(void);
-uint64_t dd_trace_otel_context_generation(void);
 
 // Returns the tracer version
 const char *nullable dd_trace_version(void);

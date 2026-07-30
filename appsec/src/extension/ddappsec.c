@@ -36,7 +36,6 @@
 #include "logging.h"
 #include "msgpack_helpers.h"
 #include "network.h"
-#include "otel_context.h"
 #include "php_compat.h"
 #include "php_objects.h"
 #include "request_abort.h"
@@ -175,7 +174,6 @@ static PHP_GINIT_FUNCTION(ddappsec)
 
 static PHP_GSHUTDOWN_FUNCTION(ddappsec)
 {
-    dd_appsec_otel_context_gshutdown();
     dd_entity_body_gshutdown();
     dd_helper_gshutdown();
     // delay log shutdown until the last possible moment, so that TSRM
