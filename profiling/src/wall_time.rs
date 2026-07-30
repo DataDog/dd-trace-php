@@ -2,10 +2,10 @@
 //! implementation reasons, it has cpu-time code as well.
 
 use crate::bindings::{zend_execute_data, zend_interrupt_function, VmInterruptFn};
-use crate::{profiling::Profiler, RefCellExt, REQUEST_LOCALS};
+use crate::module_globals;
+use crate::profiling::Profiler;
 use core::ptr;
-use log::debug;
-use std::sync::atomic::Ordering;
+use core::sync::atomic::Ordering;
 
 #[cfg(not(php_frameless))]
 mod execute_internal {
@@ -79,7 +79,7 @@ mod execute_internal {
         unsafe { prev_execute_internal(execute_data, return_value) };
 
         // See safety section of `execute_data_func_is_trampoline` docs for why
-        // the leaf frame is used  instead of the execute_data ptr.
+        // the leaf frame is used instead of the execute_data ptr.
         ddog_php_prof_interrupt_function(leaf_frame);
     }
 
@@ -109,31 +109,29 @@ static mut PREV_INTERRUPT_FUNCTION: Option<VmInterruptFn> = None;
 #[no_mangle]
 #[inline(never)]
 pub extern "C" fn ddog_php_prof_interrupt_function(execute_data: *mut zend_execute_data) {
-    let result = REQUEST_LOCALS.try_with_borrow(|locals| {
-        if !locals.system_settings().profiling_enabled {
-            return;
-        }
+    // SAFETY: interrupt callbacks run while the current PHP thread's module globals are valid.
+    let atomic_count = unsafe { &(*module_globals::get_profiler_globals()).interrupt_count };
 
-        /* Other extensions/modules or the engine itself may trigger an
-         * interrupt, but given how expensive it is to gather a stack trace,
-         * it should only be done if we triggered it ourselves. So
-         * interrupt_count serves dual purposes:
-         *  1. Track how many interrupts there were.
-         *  2. Ensure we don't collect on someone else's interrupt.
-         */
-        let interrupt_count = locals.interrupt_count.swap(0, Ordering::SeqCst);
-        if interrupt_count == 0 {
-            return;
-        }
+    /* Other extensions/modules or the engine itself may trigger an
+     * interrupt, but given how expensive it is to gather a stack trace,
+     * it should only be done if we triggered it ourselves. So
+     * interrupt_count serves dual purposes:
+     *  1. Track how many interrupts there were.
+     *  2. Ensure we don't collect on someone else's interrupt.
+     */
+    let interrupt_count = atomic_count.swap(0, Ordering::Relaxed);
+    if interrupt_count == 0 {
+        return;
+    }
+    collect_time_if_enabled(execute_data, interrupt_count);
+}
 
-        if let Some(profiler) = Profiler::get() {
-            // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-            profiler.collect_time(execute_data, interrupt_count);
-        }
-    });
-
-    if let Err(err) = result {
-        debug!("ddog_php_prof_interrupt_function failed to borrow request locals: {err}");
+#[inline(never)]
+#[export_name = "ddog_php_prof_collect_time_if_enabled"]
+extern "C" fn collect_time_if_enabled(execute_data: *mut zend_execute_data, interrupt_count: u32) {
+    if let Some(profiler) = Profiler::get() {
+        // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
+        profiler.collect_time(execute_data, interrupt_count);
     }
 }
 
@@ -144,7 +142,9 @@ mod frameless {
         use crate::bindings::{
             zend_flf_functions, zend_flf_handlers, zend_frameless_function_info,
         };
-        use crate::{profiling::Profiler, zend, RefCellExt, REQUEST_LOCALS};
+        use crate::module_globals;
+        use crate::wall_time::collect_time_if_enabled;
+        use crate::zend;
         use dynasmrt::{dynasm, DynasmApi, ExecutableBuffer};
         use log::error;
         use std::ffi::c_void;
@@ -270,24 +270,19 @@ mod frameless {
         #[no_mangle]
         #[inline(never)]
         pub extern "C" fn ddog_php_prof_icall_trampoline_target() {
-            let interrupt_count = REQUEST_LOCALS
-                .try_with_borrow(|locals| {
-                    if !locals.system_settings().profiling_enabled {
-                        return 0;
-                    }
-                    locals.interrupt_count.swap(0, Ordering::SeqCst)
-                })
-                .unwrap_or(0);
+            // SAFETY: frameless handlers run while the current PHP thread's module globals are
+            // valid. Retain the pointer so the authoritative swap reuses the same TSRM lookup.
+            let atomic_count =
+                unsafe { &(*module_globals::get_profiler_globals()).interrupt_count };
 
+            let interrupt_count = atomic_count.swap(0, Ordering::Relaxed);
             if interrupt_count == 0 {
                 return;
             }
 
-            if let Some(profiler) = Profiler::get() {
-                // SAFETY: profiler doesn't mutate execute_data
-                let execute_data = unsafe { zend::ddog_php_prof_get_current_execute_data() };
-                profiler.collect_time(execute_data, interrupt_count);
-            }
+            // Fetching execute data is intentionally delayed until a profiler interrupt is pending.
+            let execute_data = unsafe { zend::ddog_php_prof_get_current_execute_data() };
+            collect_time_if_enabled(execute_data, interrupt_count);
         }
     }
 
