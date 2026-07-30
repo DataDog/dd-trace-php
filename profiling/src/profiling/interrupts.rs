@@ -50,7 +50,7 @@ impl InterruptManager {
             // Reset interrupt counter to prevent sampling during `mshutdown` (PHP 8.0 bug with
             // userland destructors), but leave the interrupt flag unchanged as other extensions
             // may have raised it.
-            (*interrupt.interrupt_count_ptr).store(0, Ordering::SeqCst);
+            (*interrupt.interrupt_count_ptr).store(0, Ordering::Relaxed);
         }
     }
 
@@ -62,7 +62,7 @@ impl InterruptManager {
     pub(super) fn trigger_interrupts(&self) {
         let vm_interrupts = self.vm_interrupts.lock().unwrap();
         vm_interrupts.iter().for_each(|obj| unsafe {
-            (*obj.interrupt_count_ptr).fetch_add(1, Ordering::SeqCst);
+            (*obj.interrupt_count_ptr).fetch_add(1, Ordering::Relaxed);
             (*obj.engine_ptr).store(true, Ordering::SeqCst);
         });
     }
