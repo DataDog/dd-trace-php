@@ -100,7 +100,7 @@ stages:
       -DCMAKE_CXX_FLAGS='-stdlib=libc++' -DCMAKE_CXX_LINK_FLAGS='-stdlib=libc++'
 	  -DDD_APPSEC_TESTING=ON -DBOOST_CACHE_PREFIX=$CI_PROJECT_DIR/boost-cache
       -DENABLE_ASAN=$ASAN_FLAG"
-    # The Fabric proxy changes curl test behavior and leaks HTTP_PROXY into $_SERVER.
+    # The Fabric proxy changes network failure semantics and leaks HTTP_PROXY into $_SERVER.
     - unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy
     - ASAN_OPTIONS=malloc_context_size=0 make -j 4 xtest
 
@@ -359,6 +359,8 @@ stages:
         -DBOOST_CACHE_PREFIX="$CI_PROJECT_DIR/boost-cache"
     - |
       export PATH=$PATH:$HOME/.cargo/bin
+      # The Fabric proxy changes network failure semantics and leaks HTTP_PROXY into $_SERVER.
+      unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy
       LLVM_PROFILE_FILE="/tmp/cov-ext/%p.profraw" \
         VERBOSE=1 make -j 4 xtest
     - VERBOSE=1 make -j 4 ddappsec_helper_test
