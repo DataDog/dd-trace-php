@@ -317,8 +317,10 @@ function extract_otel_config_names($source, $constant) {
             } elseif ($depth === 1 && is_array($token) && $token[0] === T_CONSTANT_ENCAPSED_STRING) {
                 $previousIndex = php_next_significant_token($tokens, $j, -1);
                 $nextIndex = php_next_significant_token($tokens, $j, 1);
+                $previousToken = $previousIndex === null ? null : $tokens[$previousIndex];
                 if ($previousIndex === null || $nextIndex === null
-                    || ($tokens[$previousIndex] !== '[' && $tokens[$previousIndex] !== ',')
+                    || ($previousToken !== '[' && $previousToken !== ','
+                        && (!is_array($previousToken) || $previousToken[0] !== T_DOUBLE_ARROW))
                     || ($tokens[$nextIndex] !== ',' && $tokens[$nextIndex] !== ']')) {
                     continue;
                 }
@@ -363,12 +365,13 @@ const OTEL_CONFIG_WHITELIST = [
     "OTEL_REAL_\u{46}OUR",
     "OTEL_FALSE\Q",
     'OTEL_FALSE_KEY' => false,
+    7 => 'OTEL_REAL_FIVE',
     'OTEL_FALSE_CONCAT' . '_SUFFIX',
     "ignored ] and escaped quote: \" OTEL_FALSE_STRING",
 ];
 PHP;
     $otelNames = extract_otel_config_names($phpSource, 'OTEL_CONFIG_WHITELIST');
-    if ($otelNames !== ['OTEL_REAL_ONE', 'OTEL_REAL_TWO', 'OTEL_REAL_THREE', 'OTEL_REAL_FOUR']) {
+    if ($otelNames !== ['OTEL_REAL_ONE', 'OTEL_REAL_TWO', 'OTEL_REAL_THREE', 'OTEL_REAL_FOUR', 'OTEL_REAL_FIVE']) {
         throw new RuntimeException('OTel configuration parser self-test failed: ' . json_encode($otelNames));
     }
     exit(0);
