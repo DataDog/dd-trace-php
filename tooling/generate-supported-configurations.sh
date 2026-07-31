@@ -24,14 +24,26 @@ readonly CONFIG_GENERATION_INPUT_FILES=(
     "${GENERATOR_SCRIPT_FILE}"
 )
 
-if [[ "${1:-}" == "--print-input-files" ]]; then
-    printf '%s\n' "${CONFIG_GENERATION_INPUT_FILES[@]}"
-    exit 0
-fi
-if [[ $# -gt 0 ]]; then
-    echo "Usage: $0 [--print-input-files]" >&2
+SELF_TEST=0
+if [[ $# -gt 1 ]]; then
+    echo "Usage: $0 [--print-input-files|--self-test]" >&2
     exit 1
 fi
+case "${1:-}" in
+    --print-input-files)
+        printf '%s\n' "${CONFIG_GENERATION_INPUT_FILES[@]}"
+        exit 0
+        ;;
+    --self-test)
+        SELF_TEST=1
+        ;;
+    "")
+        ;;
+    *)
+        echo "Usage: $0 [--print-input-files|--self-test]" >&2
+        exit 1
+        ;;
+esac
 
 # Maps C config type to JSON schema type.
 PHP_CODE_FILE=$(mktemp "${TMPDIR:-/tmp}/ddtrace-supported-configurations.XXXXXX.php")
@@ -118,6 +130,7 @@ function normalize_supported_entries($entries, $canonical) {
 $SENSITIVE_CONFIGURATIONS = [];
 
 function mask_c_non_code($source) {
+    $source = str_replace(["\\\r\n", "\\\n", "\\\r"], '', $source);
     $quote = null;
     $lineComment = false;
     $blockComment = false;
@@ -193,6 +206,21 @@ function config_macro_arglist($source, $openParen) {
     return substr($source, $openParen + 1);
 }
 
+function extract_sensitive_config_names_from_source($source) {
+    $sensitive = [];
+    $source = mask_c_non_code($source);
+    preg_match_all('/\b(?:CONFIG|SYSCFG|CALIAS)\s*\(/', $source, $matches, PREG_OFFSET_CAPTURE);
+    foreach ($matches[0] as [$macro, $offset]) {
+        $openParen = $offset + strrpos($macro, '(');
+        $argList = config_macro_arglist($source, $openParen);
+        if (preg_match('/^\s*[^,]+,\s*([A-Z][A-Z0-9_]+)/', $argList, $nameMatch)
+            && preg_match('/\.sensitive\s*=\s*true\b/', $argList)) {
+            $sensitive[$nameMatch[1]] = true;
+        }
+    }
+    return $sensitive;
+}
+
 function extract_sensitive_config_names($paths) {
     $sensitive = [];
     foreach ($paths as $path) {
@@ -203,15 +231,8 @@ function extract_sensitive_config_names($paths) {
         if ($source === false || $source === '') {
             continue;
         }
-        $source = mask_c_non_code($source);
-        preg_match_all('/\b(?:CONFIG|SYSCFG|CALIAS)\s*\(/', $source, $matches, PREG_OFFSET_CAPTURE);
-        foreach ($matches[0] as [$macro, $offset]) {
-            $openParen = $offset + strrpos($macro, '(');
-            $argList = config_macro_arglist($source, $openParen);
-            if (preg_match('/^\s*[^,]+,\s*([A-Z][A-Z0-9_]+)/', $argList, $nameMatch)
-                && preg_match('/\.sensitive\s*=\s*true\b/', $argList)) {
-                $sensitive[$nameMatch[1]] = true;
-            }
+        foreach (extract_sensitive_config_names_from_source($source) as $name => $_) {
+            $sensitive[$name] = true;
         }
     }
     return $sensitive;
@@ -252,12 +273,85 @@ function add_otel_entries(&$supported, $names, $metadata) {
 }
 
 function extract_otel_config_names($source, $constant) {
-    $pattern = '/\b' . preg_quote($constant, '/') . '\s*=\s*\[(.*?)\]/s';
-    if (!preg_match($pattern, $source, $constantMatch)) {
-        return [];
+    $tokens = token_get_all($source);
+    $tokenCount = count($tokens);
+    for ($i = 0; $i < $tokenCount; $i++) {
+        if (!is_array($tokens[$i]) || $tokens[$i][0] !== T_CONST) {
+            continue;
+        }
+        do {
+            $i++;
+        } while ($i < $tokenCount && is_array($tokens[$i])
+            && in_array($tokens[$i][0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true));
+        if ($i >= $tokenCount || !is_array($tokens[$i])
+            || $tokens[$i][0] !== T_STRING || $tokens[$i][1] !== $constant) {
+            continue;
+        }
+        do {
+            $i++;
+        } while ($i < $tokenCount && is_array($tokens[$i])
+            && in_array($tokens[$i][0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true));
+        if ($i >= $tokenCount || $tokens[$i] !== '=') {
+            continue;
+        }
+        do {
+            $i++;
+        } while ($i < $tokenCount && is_array($tokens[$i])
+            && in_array($tokens[$i][0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true));
+        if ($i >= $tokenCount || $tokens[$i] !== '[') {
+            continue;
+        }
+        $names = [];
+        $depth = 0;
+        for (; $i < $tokenCount; $i++) {
+            $token = $tokens[$i];
+            if ($token === '[') {
+                $depth++;
+            } elseif ($token === ']' && --$depth === 0) {
+                return $names;
+            } elseif ($depth > 0 && is_array($token) && $token[0] === T_CONSTANT_ENCAPSED_STRING
+                && preg_match('/^[\'\"](OTEL_[A-Z0-9_]+)[\'\"]$/D', $token[1], $nameMatch)) {
+                $names[] = $nameMatch[1];
+            }
+        }
+        return $names;
     }
-    preg_match_all('/\'(OTEL_[A-Z0-9_]+)\'/', $constantMatch[1], $nameMatches);
-    return $nameMatches[1];
+    return [];
+}
+
+if (getenv('DDTRACE_CONFIG_GENERATOR_SELF_TEST')) {
+    $cSource = <<<'C'
+// CONFIG(STRING, DD_FALSE_LINE, "", .sensitive = true) \
+CONFIG(STRING, DD_FALSE_SPLICED_LINE, "", .sensitive = true)
+/* CONFIG(STRING, DD_FALSE_BLOCK, "", .sensitive = true) */
+const char *false_string = "CONFIG(STRING, DD_FALSE_STRING, \"\", .sensitive = true)";
+CONFIG(CUSTOM(MAP), DD_REAL_NESTED, "escaped quote: \" and )", .sensitive = true)
+CONFIG(STRING, DD_REAL_EVEN_ESCAPE, "escaped slash: \\", .sensitive = true)
+C;
+    $sensitive = extract_sensitive_config_names_from_source($cSource);
+    $expectedSensitive = ['DD_REAL_EVEN_ESCAPE', 'DD_REAL_NESTED'];
+    $actualSensitive = array_keys($sensitive);
+    sort($actualSensitive);
+    if ($actualSensitive !== $expectedSensitive) {
+        throw new RuntimeException('C sensitive configuration parser self-test failed: ' . json_encode($actualSensitive));
+    }
+
+    $phpSource = <<<'PHP'
+<?php
+// const OTEL_CONFIG_WHITELIST = ['OTEL_FALSE_LINE'];
+/* const OTEL_CONFIG_WHITELIST = ['OTEL_FALSE_BLOCK']; */
+const OTEL_CONFIG_WHITELIST = [
+    'OTEL_REAL_ONE',
+    // 'OTEL_FALSE_ENTRY',
+    "OTEL_REAL_TWO",
+    "ignored ] and escaped quote: \" OTEL_FALSE_STRING",
+];
+PHP;
+    $otelNames = extract_otel_config_names($phpSource, 'OTEL_CONFIG_WHITELIST');
+    if ($otelNames !== ['OTEL_REAL_ONE', 'OTEL_REAL_TWO']) {
+        throw new RuntimeException('OTel configuration parser self-test failed: ' . json_encode($otelNames));
+    }
+    exit(0);
 }
 
 // temporary solution until we merge configs
@@ -470,8 +564,6 @@ foreach ($otelPaths as $otelPath) {
     }
 }
 
-// OTEL configs read by the OpenTelemetry SDK rather than the extension are
-// enumerated in the PHP telemetry and sensitive configuration lists.
 $otelConfigurationPath = "../src/DDTrace/OpenTelemetry/Configuration.php";
 if (file_exists($otelConfigurationPath)) {
     $otelConfigurationSource = file_get_contents($otelConfigurationPath);
@@ -548,6 +640,11 @@ $json = preg_replace_callback('/^ +/m', function ($m) {
 file_put_contents($outputPath, $json . "\n");
 echo "Wrote supported configurations to $outputPath\n";
 ENDPHP
+
+if [[ $SELF_TEST -eq 1 ]]; then
+    DDTRACE_CONFIG_GENERATOR_SELF_TEST=1 php "$PHP_CODE_FILE"
+    exit 0
+fi
 
 cat <<EOT >../ext/version.h
 #ifndef PHP_DDTRACE_VERSION
