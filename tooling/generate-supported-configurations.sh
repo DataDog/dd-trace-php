@@ -272,6 +272,20 @@ function add_otel_entries(&$supported, $names, $metadata) {
     }
 }
 
+function php_token_is_ignored($token) {
+    return is_array($token) && in_array($token[0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true);
+}
+
+function php_next_significant_token($tokens, $index, $direction) {
+    $tokenCount = count($tokens);
+    for ($i = $index + $direction; $i >= 0 && $i < $tokenCount; $i += $direction) {
+        if (!php_token_is_ignored($tokens[$i])) {
+            return $i;
+        }
+    }
+    return null;
+}
+
 function extract_otel_config_names($source, $constant) {
     $tokens = token_get_all($source);
     $tokenCount = count($tokens);
@@ -279,43 +293,36 @@ function extract_otel_config_names($source, $constant) {
         if (!is_array($tokens[$i]) || $tokens[$i][0] !== T_CONST) {
             continue;
         }
-        do {
-            $i++;
-        } while ($i < $tokenCount && is_array($tokens[$i])
-            && in_array($tokens[$i][0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true));
-        if ($i >= $tokenCount || !is_array($tokens[$i])
-            || $tokens[$i][0] !== T_STRING || $tokens[$i][1] !== $constant) {
+        $nameIndex = php_next_significant_token($tokens, $i, 1);
+        if ($nameIndex === null || !is_array($tokens[$nameIndex])
+            || $tokens[$nameIndex][0] !== T_STRING || $tokens[$nameIndex][1] !== $constant) {
             continue;
         }
-        do {
-            $i++;
-        } while ($i < $tokenCount && is_array($tokens[$i])
-            && in_array($tokens[$i][0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true));
-        if ($i >= $tokenCount || $tokens[$i] !== '=') {
+        $equalsIndex = php_next_significant_token($tokens, $nameIndex, 1);
+        if ($equalsIndex === null || $tokens[$equalsIndex] !== '=') {
             continue;
         }
-        do {
-            $i++;
-        } while ($i < $tokenCount && is_array($tokens[$i])
-            && in_array($tokens[$i][0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true));
-        if ($i >= $tokenCount || $tokens[$i] !== '[') {
+        $arrayIndex = php_next_significant_token($tokens, $equalsIndex, 1);
+        if ($arrayIndex === null || $tokens[$arrayIndex] !== '[') {
             continue;
         }
         $names = [];
         $depth = 0;
-        for (; $i < $tokenCount; $i++) {
-            $token = $tokens[$i];
+        for ($j = $arrayIndex; $j < $tokenCount; $j++) {
+            $token = $tokens[$j];
             if ($token === '[') {
                 $depth++;
             } elseif ($token === ']' && --$depth === 0) {
                 return $names;
             } elseif ($depth === 1 && is_array($token) && $token[0] === T_CONSTANT_ENCAPSED_STRING) {
-                $literal = $token[1];
-                $quote = $literal[0];
-                $value = substr($literal, 1, -1);
-                $value = $quote === "'"
-                    ? strtr($value, ["\\\\" => "\\", "\\'" => "'"])
-                    : stripcslashes($value);
+                $previousIndex = php_next_significant_token($tokens, $j, -1);
+                $nextIndex = php_next_significant_token($tokens, $j, 1);
+                if ($previousIndex === null || $nextIndex === null
+                    || ($tokens[$previousIndex] !== '[' && $tokens[$previousIndex] !== ',')
+                    || ($tokens[$nextIndex] !== ',' && $tokens[$nextIndex] !== ']')) {
+                    continue;
+                }
+                $value = eval('return ' . $token[1] . ';');
                 if (preg_match('/^OTEL_[A-Z0-9_]+$/D', $value)) {
                     $names[] = $value;
                 }
@@ -353,11 +360,15 @@ const OTEL_CONFIG_WHITELIST = [
     "OTEL_REAL_TWO",
     ['OTEL_FALSE_NESTED'],
     "OTEL_REAL_\x54HREE",
+    "OTEL_REAL_\u{46}OUR",
+    "OTEL_FALSE\Q",
+    'OTEL_FALSE_KEY' => false,
+    'OTEL_FALSE_CONCAT' . '_SUFFIX',
     "ignored ] and escaped quote: \" OTEL_FALSE_STRING",
 ];
 PHP;
     $otelNames = extract_otel_config_names($phpSource, 'OTEL_CONFIG_WHITELIST');
-    if ($otelNames !== ['OTEL_REAL_ONE', 'OTEL_REAL_TWO', 'OTEL_REAL_THREE']) {
+    if ($otelNames !== ['OTEL_REAL_ONE', 'OTEL_REAL_TWO', 'OTEL_REAL_THREE', 'OTEL_REAL_FOUR']) {
         throw new RuntimeException('OTel configuration parser self-test failed: ' . json_encode($otelNames));
     }
     exit(0);
