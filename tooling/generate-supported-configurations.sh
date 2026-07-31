@@ -309,9 +309,16 @@ function extract_otel_config_names($source, $constant) {
                 $depth++;
             } elseif ($token === ']' && --$depth === 0) {
                 return $names;
-            } elseif ($depth > 0 && is_array($token) && $token[0] === T_CONSTANT_ENCAPSED_STRING
-                && preg_match('/^[\'\"](OTEL_[A-Z0-9_]+)[\'\"]$/D', $token[1], $nameMatch)) {
-                $names[] = $nameMatch[1];
+            } elseif ($depth === 1 && is_array($token) && $token[0] === T_CONSTANT_ENCAPSED_STRING) {
+                $literal = $token[1];
+                $quote = $literal[0];
+                $value = substr($literal, 1, -1);
+                $value = $quote === "'"
+                    ? strtr($value, ["\\\\" => "\\", "\\'" => "'"])
+                    : stripcslashes($value);
+                if (preg_match('/^OTEL_[A-Z0-9_]+$/D', $value)) {
+                    $names[] = $value;
+                }
             }
         }
         return $names;
@@ -344,11 +351,13 @@ const OTEL_CONFIG_WHITELIST = [
     'OTEL_REAL_ONE',
     // 'OTEL_FALSE_ENTRY',
     "OTEL_REAL_TWO",
+    ['OTEL_FALSE_NESTED'],
+    "OTEL_REAL_\x54HREE",
     "ignored ] and escaped quote: \" OTEL_FALSE_STRING",
 ];
 PHP;
     $otelNames = extract_otel_config_names($phpSource, 'OTEL_CONFIG_WHITELIST');
-    if ($otelNames !== ['OTEL_REAL_ONE', 'OTEL_REAL_TWO']) {
+    if ($otelNames !== ['OTEL_REAL_ONE', 'OTEL_REAL_TWO', 'OTEL_REAL_THREE']) {
         throw new RuntimeException('OTel configuration parser self-test failed: ' . json_encode($otelNames));
     }
     exit(0);
