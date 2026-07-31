@@ -17,6 +17,7 @@ require __DIR__ . '/../includes/otel_thread_context.inc';
 
 $context = new OtelThreadContext();
 $mainRoot = DDTrace\start_span();
+$mainRoot->service = 'main-service';
 $mainSpanId = $context->spanId();
 
 $fiber = new Fiber(function () use ($context, $mainSpanId) {
@@ -24,15 +25,22 @@ $fiber = new Fiber(function () use ($context, $mainSpanId) {
 
     $fiberRoot = DDTrace\start_trace_span();
     $fiberSpanId = $context->spanId();
-    echo "Fiber trace selected: "; var_dump($fiberSpanId !== $mainSpanId);
+    echo "Fiber trace selected: "; var_dump(
+        $fiberSpanId !== $mainSpanId
+        && $context->attributes()[1] === 'main-service'
+    );
 
     Fiber::suspend($fiberSpanId);
-    echo "Fiber trace restored: "; var_dump($context->spanId() === $fiberSpanId);
+    echo "Fiber trace restored: "; var_dump(
+        $context->spanId() === $fiberSpanId
+        && $context->attributes()[1] === 'updated-main-service'
+    );
     DDTrace\close_span();
 });
 
 $fiberSpanId = $fiber->start();
 echo "Main context restored after suspend: "; var_dump($context->spanId() === $mainSpanId);
+$mainRoot->service = 'updated-main-service';
 $fiber->resume();
 echo "Main context restored after return: "; var_dump($context->spanId() === $mainSpanId);
 

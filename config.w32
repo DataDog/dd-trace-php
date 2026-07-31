@@ -27,7 +27,6 @@ if (PHP_DDTRACE != 'no') {
 	DDTRACE_EXT_SOURCES += " handlers_pcntl.c";
 	DDTRACE_EXT_SOURCES += " logging.c";
 	DDTRACE_EXT_SOURCES += " otel_config.c";
-	DDTRACE_EXT_SOURCES += " otel_context.c";
 	DDTRACE_EXT_SOURCES += " phpinfo.c";
 	DDTRACE_EXT_SOURCES += " process_tags.c";
 	DDTRACE_EXT_SOURCES += " remote_config.c";

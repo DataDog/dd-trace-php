@@ -11,7 +11,9 @@
 #include "excluded_modules.h"
 #include "agent_info.h"
 #include "logging.h"
+#ifdef __linux__
 #include "otel_context.h"
+#endif
 #include "phpinfo.h"
 #include "process_tags.h"
 #include "remote_config.h"
@@ -548,7 +550,9 @@ static void dd_rinit_once(void) {
         datadog_process_tags_first_rinit();
         datadog_sidecar_update_process_tags();
     }
+#ifdef __linux__
     datadog_otel_process_context_publish();
+#endif
 
     // Uses config, cannot run earlier
 #ifndef _WIN32
@@ -708,7 +712,9 @@ void datadog_internal_handle_fork(void) {
     // CHILD PROCESS
     datadog_generate_runtime_id();
     datadog_sidecar_handle_fork();
+#ifdef __linux__
     datadog_otel_process_context_publish();
+#endif
 
 #ifdef DDTRACE
     ddtrace_internal_handle_fork();

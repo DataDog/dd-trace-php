@@ -25,8 +25,8 @@ static void locate_datadog_runtime_id(const zend_extension *extension) {
     datadog_runtime_id = DL_FETCH_SYMBOL(extension->handle, "datadog_runtime_id");
 }
 
-const void *datadog_php_profiling_get_otel_thread_context(void) {
 #ifdef __linux__
+const void *datadog_php_profiling_get_otel_thread_context(void) {
     if (!datadog_php_profiling_ddtrace_handle) {
         return NULL;
     }
@@ -37,10 +37,8 @@ const void *datadog_php_profiling_get_otel_thread_context(void) {
     return datadog_php_profiling_otel_thread_context_slot
         ? *datadog_php_profiling_otel_thread_context_slot
         : NULL;
-#else
-    return NULL;
-#endif
 }
+#endif
 
 static void locate_ddtrace_get_profiling_context(const zend_extension *extension) {
     ddtrace_profiling_context (*get_profiling)(void) =

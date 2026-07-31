@@ -98,7 +98,9 @@ extern zend_string *(*datadog_php_profiling_get_process_tags_serialized)(void);
  * Returns the calling thread's record published through the standard Linux
  * `otel_thread_ctx_v1` TLS symbol, or NULL when unavailable.
  */
+#ifdef __linux__
 const void *datadog_php_profiling_get_otel_thread_context(void);
+#endif
 
 /**
  * Called by this zend_extension's .startup handler. Does things that are

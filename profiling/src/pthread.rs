@@ -15,6 +15,7 @@ extern "C" fn prepare() {
     if let Some(profiler) = Profiler::get() {
         trace!("Preparing profiler for upcomming fork call.");
         let _ = profiler.fork_prepare();
+        #[cfg(target_os = "linux")]
         crate::process_context::invalidate_before_fork();
     }
 }

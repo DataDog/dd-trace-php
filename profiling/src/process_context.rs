@@ -1,7 +1,6 @@
 // Copyright 2026-Present Datadog, Inc. https://www.datadoghq.com/
 // SPDX-License-Identifier: Apache-2.0
 
-#[cfg(target_os = "linux")]
 #[derive(Debug, Default)]
 pub(crate) struct ThreadContext {
     pub(crate) local_root_span_id: u64,
@@ -19,7 +18,6 @@ pub(crate) struct ProcessIdentity {
     pub(crate) version: Option<String>,
 }
 
-#[cfg(target_os = "linux")]
 #[derive(Clone, Copy, Default)]
 pub(crate) struct ProcessIdentityRef<'a> {
     pub(crate) service: Option<&'a str>,
@@ -27,40 +25,15 @@ pub(crate) struct ProcessIdentityRef<'a> {
     pub(crate) version: Option<&'a str>,
 }
 
-#[cfg(target_os = "linux")]
 pub(crate) enum ThreadContextRead {
     /// No valid OTel Thread Context is currently attached.
-    #[cfg(target_os = "linux")]
     Inactive,
-    #[cfg(target_os = "linux")]
     Active(ThreadContext),
 }
 
-#[cfg(target_os = "linux")]
 #[path = "process_context/linux.rs"]
 mod platform;
 
-#[cfg(not(target_os = "linux"))]
-mod platform {
-    pub(crate) fn initialize() {}
-
-    pub(crate) fn invalidate_before_fork() {}
-
-    pub(crate) fn identity() -> super::ProcessIdentity {
-        super::ProcessIdentity::default()
-    }
-
-    pub(crate) fn process_tags() -> Option<String> {
-        None
-    }
-
-    pub(crate) fn runtime_id() -> Option<String> {
-        None
-    }
-}
-
-#[cfg(target_os = "linux")]
 pub(crate) use platform::thread_context;
-#[cfg(target_os = "linux")]
 pub(crate) use platform::ProcessContextCache;
 pub(crate) use platform::{identity, initialize, invalidate_before_fork, process_tags, runtime_id};

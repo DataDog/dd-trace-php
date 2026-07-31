@@ -48,16 +48,6 @@ bool datadog_publish_otel_process_context(ddog_CharSlice runtime_id,
                                           ddog_CharSlice container_id,
                                           ddog_CharSlice process_tags);
 
-void datadog_update_otel_thread_context(const uint8_t (*trace_id)[16],
-                                        const uint8_t (*span_id)[8],
-                                        uint8_t trace_flags,
-                                        const uint8_t (*local_root_span_id)[8],
-                                        ddog_CharSlice service,
-                                        ddog_CharSlice env,
-                                        ddog_CharSlice version,
-                                        ddog_CharSlice thread_id);
-
-void datadog_detach_otel_thread_context(void);
 #endif
 
 ddog_CharSlice ddtrace_get_container_id(void);

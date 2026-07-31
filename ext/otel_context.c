@@ -1,7 +1,5 @@
 #include "otel_context.h"
 
-#ifdef __linux__
-
 #include <limits.h>
 #include <unistd.h>
 
@@ -31,9 +29,3 @@ void datadog_otel_process_context_publish(void) {
         ddtrace_get_container_id(),
         dd_zend_string_to_CharSlice(process_tags));
 }
-
-#else
-
-void datadog_otel_process_context_publish(void) {}
-
-#endif

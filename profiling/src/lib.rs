@@ -4,11 +4,13 @@ mod clocks;
 mod config;
 mod logging;
 pub mod module_globals;
-mod process_context;
 pub mod profiling;
 mod pthread;
 mod sapi;
 mod wall_time;
+
+#[cfg(target_os = "linux")]
+mod process_context;
 
 #[cfg(php_run_time_cache)]
 mod string_set;
@@ -95,7 +97,10 @@ static mut RUNTIME_PHP_VERSION: &str = {
 /// The first time this is accessed must be after config is initialized in
 /// the first RINIT and before mshutdown!
 static GLOBAL_TAGS: LazyLock<Vec<Tag>> = LazyLock::new(|| {
+    #[cfg(target_os = "linux")]
     let runtime_id = process_context::runtime_id().unwrap_or_else(|| runtime_id().to_string());
+    #[cfg(not(target_os = "linux"))]
+    let runtime_id = runtime_id().to_string();
     let mut tags = vec![
         tag!("language", "php"),
         tag!("profiler_version", env!("PROFILER_VERSION")),
@@ -705,6 +710,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     Profiler::init(system_settings);
 
     if system_settings.profiling_enabled {
+        #[cfg(target_os = "linux")]
         let process_identity = process_context::identity();
 
         // Not logging, rinit could be quite spammy.
@@ -716,18 +722,27 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
             TAGS.set({
                 // SAFETY: accessing in RINIT after config is initialized.
                 let globals = GLOBAL_TAGS.deref();
+                #[cfg(target_os = "linux")]
                 let service = process_identity
                     .service
                     .as_ref()
                     .or(locals.service.as_ref());
+                #[cfg(not(target_os = "linux"))]
+                let service = locals.service.as_ref();
+                #[cfg(target_os = "linux")]
                 let environment = process_identity
                     .environment
                     .as_ref()
                     .or(locals.env.as_ref());
+                #[cfg(not(target_os = "linux"))]
+                let environment = locals.env.as_ref();
+                #[cfg(target_os = "linux")]
                 let version = process_identity
                     .version
                     .as_ref()
                     .or(locals.version.as_ref());
+                #[cfg(not(target_os = "linux"))]
+                let version = locals.version.as_ref();
                 let extra_tags_len = service.is_some() as usize
                     + environment.is_some() as usize
                     + version.is_some() as usize

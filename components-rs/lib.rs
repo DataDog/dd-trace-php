@@ -147,61 +147,14 @@ pub extern "C" fn datadog_publish_otel_process_context(
     otel_process_ctx::publish(&context).is_ok()
 }
 
-/// Update the calling thread's standard Linux OTel Thread Context record.
+// Keep libdd-otel-thread-ctx, which defines the standard TLS symbol, linked into the final
+// extension. The tracer updates its embedded records directly and does not call this function.
 #[cfg(target_os = "linux")]
-#[no_mangle]
-pub extern "C" fn datadog_update_otel_thread_context(
-    trace_id: &[u8; 16],
-    span_id: &[u8; 8],
-    trace_flags: u8,
-    local_root_span_id: &[u8; 8],
-    service: CharSlice<'_>,
-    env: CharSlice<'_>,
-    version: CharSlice<'_>,
-    thread_id: CharSlice<'_>,
-) {
-    use libdd_otel_thread_ctx::linux::ThreadContext;
-
-    let service = service.try_to_utf8().unwrap_or_default();
-    let env = env.try_to_utf8().unwrap_or_default();
-    let version = version.try_to_utf8().unwrap_or_default();
-    let thread_id = thread_id.try_to_utf8().unwrap_or_default();
-    let mut attrs = [(0, ""); 4];
-    let mut attrs_len = 0;
-    if !service.is_empty() {
-        attrs[attrs_len] = (1, service);
-        attrs_len += 1;
-    }
-    if !env.is_empty() {
-        attrs[attrs_len] = (2, env);
-        attrs_len += 1;
-    }
-    if !version.is_empty() {
-        attrs[attrs_len] = (3, version);
-        attrs_len += 1;
-    }
-    if !thread_id.is_empty() {
-        attrs[attrs_len] = (4, thread_id);
-        attrs_len += 1;
-    }
-
-    ThreadContext::update(
-        *trace_id,
-        *span_id,
-        trace_flags,
-        *local_root_span_id,
-        &attrs[..attrs_len],
-    );
-}
-
-/// Detach and release the calling thread's Linux OTel Thread Context record.
-#[cfg(target_os = "linux")]
-#[no_mangle]
-pub extern "C" fn datadog_detach_otel_thread_context() {
-    use libdd_otel_thread_ctx::linux::ThreadContext;
-
-    drop(ThreadContext::detach());
-}
+#[used]
+static DDTRACE_OTEL_THREAD_CONTEXT_LINK_ANCHOR: fn() -> std::option::Option<
+    libdd_otel_thread_ctx::linux::ThreadContext,
+> =
+    libdd_otel_thread_ctx::linux::ThreadContext::detach;
 
 #[must_use]
 #[no_mangle]
