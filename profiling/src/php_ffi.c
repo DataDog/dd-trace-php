@@ -654,7 +654,7 @@ bool ddog_php_jit_enabled() {
     }
 
     // Check opcache.jit_buffer_size, no buffer -> no JIT
-    char *buffer_size_str = zend_ini_string("opcache.jit_buffer_size", sizeof("opcache.jit_buffer_size") - 1, 0);
+    const char *buffer_size_str = zend_ini_string("opcache.jit_buffer_size", sizeof("opcache.jit_buffer_size") - 1, 0);
     if (!buffer_size_str || strlen(buffer_size_str) == 0 || strcmp(buffer_size_str, "0") == 0) {
         return false;
     }
@@ -666,7 +666,7 @@ bool ddog_php_jit_enabled() {
     }
 
     // Finally check the opcache.jit setting
-    char *jit_str = zend_ini_string("opcache.jit", sizeof("opcache.jit") - 1, 0);
+    const char *jit_str = zend_ini_string("opcache.jit", sizeof("opcache.jit") - 1, 0);
     if (!jit_str || strlen(jit_str) == 0 ||
         strcmp(jit_str, "disable") == 0 ||
         strcmp(jit_str, "off") == 0 ||
@@ -685,6 +685,8 @@ bool ddog_php_jit_enabled() {
 #if PHP_VERSION_ID < 70200
 #define zend_parse_parameters_none_throw() \
     (EXPECTED(ZEND_NUM_ARGS() == 0) ? SUCCESS : zend_parse_parameters_throw(ZEND_NUM_ARGS(), ""))
+#elif PHP_VERSION_ID >= 80600
+#define zend_parse_parameters_none_throw() zend_parse_parameters_none()
 #endif
 
 #if CFG_TRIGGER_TIME_SAMPLE

@@ -176,8 +176,8 @@ fn build_zend_php_ffis(
                 .chain([Path::new("../zend_abstract_interface")])
                 .chain([Path::new("../")]),
         )
-        .flag_if_supported("-std=c11")
-        .flag_if_supported("-std=c17");
+        .flag_if_supported("-std=gnu11")
+        .flag_if_supported("-std=gnu17");
     #[cfg(feature = "test")]
     build.define("CFG_TEST", "1");
     build.compile("php_ffi");
