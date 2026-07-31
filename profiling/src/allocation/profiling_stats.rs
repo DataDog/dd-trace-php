@@ -25,8 +25,7 @@ impl ProfilerGlobals {
         // SAFETY: the state is initialized in GINIT and all accesses occur on the
         // owning PHP thread. Allocator reentrancy cannot overlap this borrow because
         // sampling state is released before stack collection begins.
-        let stats =
-            unsafe { (&mut *(*globals).allocation_profiling_stats.get()).assume_init_mut() };
+        let stats = unsafe { (*(*globals).allocation_profiling_stats.get()).assume_init_mut() };
         stats.should_collect_allocation(len)
     }
 }
@@ -42,7 +41,7 @@ pub unsafe fn ginit() {
     // SAFETY: GINIT runs with allocated module globals and before allocator hooks.
     let globals = unsafe { module_globals::get_profiler_globals() };
     unsafe {
-        (&mut *(*globals).allocation_profiling_stats.get())
+        (*(*globals).allocation_profiling_stats.get())
             .write(AllocationProfilingStats::new(sampling_distance));
     }
 
@@ -59,7 +58,7 @@ pub unsafe fn ginit() {
 pub unsafe fn minit(sampling_distance: NonZeroU64) {
     // SAFETY: GINIT initialized this state, and MINIT has exclusive lifecycle access.
     let globals = unsafe { module_globals::get_profiler_globals() };
-    let stats = unsafe { (&mut *(*globals).allocation_profiling_stats.get()).assume_init_mut() };
+    let stats = unsafe { (*(*globals).allocation_profiling_stats.get()).assume_init_mut() };
     *stats = AllocationProfilingStats::new(sampling_distance);
 }
 
@@ -70,5 +69,5 @@ pub unsafe fn minit(sampling_distance: NonZeroU64) {
 pub unsafe fn gshutdown() {
     // SAFETY: GINIT initialized this state, and GSHUTDOWN has exclusive lifecycle access.
     let globals = unsafe { module_globals::get_profiler_globals() };
-    unsafe { (&mut *(*globals).allocation_profiling_stats.get()).assume_init_drop() };
+    unsafe { (*(*globals).allocation_profiling_stats.get()).assume_init_drop() };
 }
