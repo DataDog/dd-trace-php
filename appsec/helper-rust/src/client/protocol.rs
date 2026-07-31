@@ -13,7 +13,12 @@ use tokio_util::codec::{Decoder, Encoder};
 use crate::client::log::{fmt_bin, trace};
 
 pub const VERSION_FOR_PROTO: &str = env!("DDAPPSEC_VERSION");
-const MAX_MESSAGE_SIZE: u32 = 4 * 1024 * 1024;
+// Incoming messages (PHP extension → helper) can be large when raw response
+// body is enabled; both parsed and raw body can each be up to 4 MiB.
+const MAX_INCOMING_MSG_SIZE: u32 = 10 * 1024 * 1024;
+// Outgoing responses (helper → PHP extension) are small by design; keep this
+// at 4 MiB to stay within the PHP extension's receive buffer.
+const MAX_OUTGOING_MSG_SIZE: u32 = 4 * 1024 * 1024;
 
 #[derive(Debug)]
 pub enum Command {
@@ -367,11 +372,11 @@ impl Decoder for CommandCodec {
             ));
         }
 
-        if header.size > MAX_MESSAGE_SIZE {
+        if header.size > MAX_INCOMING_MSG_SIZE {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!(
-                    "Message is too large: {} bytes (supported up to 4 MB)",
+                    "Message is too large: {} bytes (supported up to 10 MiB)",
                     header.size
                 ),
             ));
@@ -475,12 +480,12 @@ impl Encoder<CommandResponse<'_>> for CommandCodec {
         }
 
         let size = dst.len() - start - header_len;
-        if size > MAX_MESSAGE_SIZE as usize {
+        if size > MAX_OUTGOING_MSG_SIZE as usize {
             dst.truncate(start);
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!(
-                    "Message is too large: {} bytes (supported up to 4 MB)",
+                    "Message is too large: {} bytes (supported up to 4 MiB)",
                     size
                 ),
             ));
