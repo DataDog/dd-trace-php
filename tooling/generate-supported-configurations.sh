@@ -207,12 +207,22 @@ function add_otel_entries(&$supported, $names, $metadata) {
             // OTEL_EXPORTER_OTLP_METRICS_ENDPOINT) so the published default is the
             // SDK's rather than the extension's runtime resolution.
             [$type, $default] = $metadata[$name];
-            $supported[$name] = [["implementation" => "A", "type" => $type, "default" => $default]];
+            $entry = ["implementation" => "A", "type" => $type, "default" => $default];
+            $supported[$name] = [mark_sensitive($entry, $name)];
         } else {
             // Not in the table: an OTEL var resolved by the SDK that we don't model.
             add_supported_entry($supported, $name, ["implementation" => "A", "type" => "string", "default" => ""]);
         }
     }
+}
+
+function extract_otel_config_names($source, $constant) {
+    $pattern = '/\b' . preg_quote($constant, '/') . '\s*=\s*\[(.*?)\]/s';
+    if (!preg_match($pattern, $source, $constantMatch)) {
+        return [];
+    }
+    preg_match_all('/\'(OTEL_[A-Z0-9_]+)\'/', $constantMatch[1], $nameMatches);
+    return $nameMatches[1];
 }
 
 // temporary solution until we merge configs
@@ -425,15 +435,17 @@ foreach ($otelPaths as $otelPath) {
     }
 }
 
-// OTEL configs read by the OpenTelemetry SDK rather than the extension (e.g.
-// OTEL_EXPORTER_OTLP_HEADERS), enumerated in the PHP telemetry whitelist.
-// Scope to the OTEL_CONFIG_WHITELIST array literal so unrelated OTEL_ mentions
-// elsewhere in the file (comments, error strings) can't be published.
-$otelWhitelistPath = "../src/DDTrace/OpenTelemetry/Configuration.php";
-if (file_exists($otelWhitelistPath)
-    && preg_match('/OTEL_CONFIG_WHITELIST\s*=\s*\[(.*?)\]/s', file_get_contents($otelWhitelistPath), $whitelistMatch)) {
-    preg_match_all('/\'(OTEL_[A-Z0-9_]+)\'/', $whitelistMatch[1], $m);
-    add_otel_entries($supported, $m[1], $otelMetadata);
+// OTEL configs read by the OpenTelemetry SDK rather than the extension are
+// enumerated in the PHP telemetry and sensitive configuration lists.
+$otelConfigurationPath = "../src/DDTrace/OpenTelemetry/Configuration.php";
+if (file_exists($otelConfigurationPath)) {
+    $otelConfigurationSource = file_get_contents($otelConfigurationPath);
+    $otelConfigNames = extract_otel_config_names($otelConfigurationSource, "OTEL_CONFIG_WHITELIST");
+    $otelSensitiveNames = extract_otel_config_names($otelConfigurationSource, "OTEL_SENSITIVE_CONFIGURATIONS");
+    foreach ($otelSensitiveNames as $name) {
+        $SENSITIVE_CONFIGURATIONS[$name] = true;
+    }
+    add_otel_entries($supported, array_merge($otelConfigNames, $otelSensitiveNames), $otelMetadata);
 }
 
 $profilingPath = "../profiling/src/config.rs";

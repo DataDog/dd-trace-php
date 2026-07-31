@@ -32,10 +32,17 @@ const OTEL_CONFIG_WHITELIST = [
     'OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE',
 ];
 
+const OTEL_SENSITIVE_CONFIGURATIONS = [
+    'OTEL_EXPORTER_OTLP_HEADERS',
+    'OTEL_EXPORTER_OTLP_METRICS_HEADERS',
+    'OTEL_EXPORTER_OTLP_LOGS_HEADERS',
+];
+
 // Helper function to track config access
 function track_otel_config_if_whitelisted(string $name, $value): void
 {
-    if (in_array($name, OTEL_CONFIG_WHITELIST, true)) {
+    if (in_array($name, OTEL_CONFIG_WHITELIST, true)
+        && !in_array($name, OTEL_SENSITIVE_CONFIGURATIONS, true)) {
         // Convert value to string for telemetry
         if (is_bool($value)) {
             $value_str = $value ? 'true' : 'false';
