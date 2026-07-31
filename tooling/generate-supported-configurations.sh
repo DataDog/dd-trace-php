@@ -307,30 +307,27 @@ function extract_otel_config_names($source, $constant) {
             continue;
         }
         $names = [];
-        $depth = 0;
-        for ($j = $arrayIndex; $j < $tokenCount; $j++) {
+        for ($j = $arrayIndex + 1; $j < $tokenCount; $j++) {
             $token = $tokens[$j];
-            if ($token === '[') {
-                $depth++;
-            } elseif ($token === ']' && --$depth === 0) {
+            if (php_token_is_ignored($token) || $token === ',') {
+                continue;
+            }
+            if ($token === ']') {
                 return $names;
-            } elseif ($depth === 1 && is_array($token) && $token[0] === T_CONSTANT_ENCAPSED_STRING) {
-                $previousIndex = php_next_significant_token($tokens, $j, -1);
+            }
+            if (is_array($token) && $token[0] === T_CONSTANT_ENCAPSED_STRING) {
                 $nextIndex = php_next_significant_token($tokens, $j, 1);
-                $previousToken = $previousIndex === null ? null : $tokens[$previousIndex];
-                if ($previousIndex === null || $nextIndex === null
-                    || ($previousToken !== '[' && $previousToken !== ','
-                        && (!is_array($previousToken) || $previousToken[0] !== T_DOUBLE_ARROW))
-                    || ($tokens[$nextIndex] !== ',' && $tokens[$nextIndex] !== ']')) {
+                if ($nextIndex !== null && ($tokens[$nextIndex] === ',' || $tokens[$nextIndex] === ']')) {
+                    $value = eval('return ' . $token[1] . ';');
+                    if (preg_match('/^OTEL_[A-Z0-9_]+$/D', $value)) {
+                        $names[] = $value;
+                    }
                     continue;
                 }
-                $value = eval('return ' . $token[1] . ';');
-                if (preg_match('/^OTEL_[A-Z0-9_]+$/D', $value)) {
-                    $names[] = $value;
-                }
             }
+            throw new RuntimeException("Unsupported entry in $constant; use direct string literals");
         }
-        return $names;
+        throw new RuntimeException("Unterminated array for $constant");
     }
     return [];
 }
@@ -360,19 +357,32 @@ const OTEL_CONFIG_WHITELIST = [
     'OTEL_REAL_ONE',
     // 'OTEL_FALSE_ENTRY',
     "OTEL_REAL_TWO",
-    ['OTEL_FALSE_NESTED'],
     "OTEL_REAL_\x54HREE",
     "OTEL_REAL_\u{46}OUR",
     "OTEL_FALSE\Q",
-    'OTEL_FALSE_KEY' => false,
-    7 => 'OTEL_REAL_FIVE',
-    'OTEL_FALSE_CONCAT' . '_SUFFIX',
     "ignored ] and escaped quote: \" OTEL_FALSE_STRING",
 ];
 PHP;
     $otelNames = extract_otel_config_names($phpSource, 'OTEL_CONFIG_WHITELIST');
-    if ($otelNames !== ['OTEL_REAL_ONE', 'OTEL_REAL_TWO', 'OTEL_REAL_THREE', 'OTEL_REAL_FOUR', 'OTEL_REAL_FIVE']) {
+    if ($otelNames !== ['OTEL_REAL_ONE', 'OTEL_REAL_TWO', 'OTEL_REAL_THREE', 'OTEL_REAL_FOUR']) {
         throw new RuntimeException('OTel configuration parser self-test failed: ' . json_encode($otelNames));
+    }
+    $unsupportedEntries = [
+        "['OTEL_NESTED']",
+        "'OTEL_STRING_KEY' => false",
+        "7 => 'OTEL_KEYED_VALUE'",
+        "'OTEL_CONCAT' . '_VALUE'",
+        "('OTEL_PAREN')",
+        "OTEL_CONSTANT_REFERENCE",
+    ];
+    foreach ($unsupportedEntries as $entry) {
+        $unsupportedSource = "<?php const OTEL_CONFIG_WHITELIST = [$entry];";
+        try {
+            extract_otel_config_names($unsupportedSource, 'OTEL_CONFIG_WHITELIST');
+        } catch (RuntimeException $e) {
+            continue;
+        }
+        throw new RuntimeException("OTel configuration parser accepted unsupported entry: $entry");
     }
     exit(0);
 }
