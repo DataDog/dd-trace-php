@@ -33,10 +33,12 @@ $otlpHeaders = [
     'OTEL_EXPORTER_OTLP_HEADERS',
     'OTEL_EXPORTER_OTLP_METRICS_HEADERS',
     'OTEL_EXPORTER_OTLP_LOGS_HEADERS',
+    'OTEL_EXPORTER_OTLP_TRACES_HEADERS',
 ];
 foreach ($otlpHeaders as $h) {
     dd_trace_internal_fn('track_otel_config', $h, 'dd-api-key=SENTINEL_OTLP');
 }
+dd_trace_internal_fn('track_otel_config', 'DD_API_KEY', 'SENTINEL_INTERNAL_DD_API_KEY');
 dd_trace_internal_fn('track_otel_config', 'OTEL_EXPORTER_OTLP_ENDPOINT', 'http://collector:4318');
 
 include __DIR__ . '/vendor/autoload.php';
@@ -49,6 +51,7 @@ dd_trace_internal_fn("finalize_telemetry");
 
 $sentinels = [
     'SENTINEL_DD_API_KEY',
+    'SENTINEL_INTERNAL_DD_API_KEY',
     'SENTINEL_OTLP',
 ];
 $omittedNames = array_merge([
@@ -121,6 +124,7 @@ DD_TRACE_ENABLED reported: bool(false)
 OTEL_EXPORTER_OTLP_HEADERS reported: bool(false)
 OTEL_EXPORTER_OTLP_METRICS_HEADERS reported: bool(false)
 OTEL_EXPORTER_OTLP_LOGS_HEADERS reported: bool(false)
+OTEL_EXPORTER_OTLP_TRACES_HEADERS reported: bool(false)
 OTEL_EXPORTER_OTLP_ENDPOINT reported: bool(true)
 DD_VERSION reported: bool(true)
 --CLEAN--

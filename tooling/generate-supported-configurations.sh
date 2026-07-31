@@ -117,28 +117,31 @@ function normalize_supported_entries($entries, $canonical) {
 
 $SENSITIVE_CONFIGURATIONS = [];
 
-function config_macro_arglist($source, $openParen) {
-    $depth = 0;
+function mask_c_non_code($source) {
     $quote = null;
     $lineComment = false;
     $blockComment = false;
     $escaped = false;
-    $code = '';
     $length = strlen($source);
-    for ($i = $openParen; $i < $length; $i++) {
+    for ($i = 0; $i < $length; $i++) {
         $char = $source[$i];
         $next = $i + 1 < $length ? $source[$i + 1] : '';
         if ($lineComment) {
             if ($char === "\n") {
                 $lineComment = false;
-                $code .= $char;
+            } else {
+                $source[$i] = ' ';
             }
             continue;
         }
         if ($blockComment) {
             if ($char === '*' && $next === '/') {
+                $source[$i] = ' ';
+                $source[$i + 1] = ' ';
                 $blockComment = false;
                 $i++;
+            } elseif ($char !== "\n") {
+                $source[$i] = ' ';
             }
             continue;
         }
@@ -150,42 +153,44 @@ function config_macro_arglist($source, $openParen) {
             } elseif ($char === $quote) {
                 $quote = null;
             }
-            $code .= ' ';
+            if ($char !== "\n") {
+                $source[$i] = ' ';
+            }
             continue;
         }
         if ($char === '/' && $next === '/') {
+            $source[$i] = ' ';
+            $source[$i + 1] = ' ';
             $lineComment = true;
             $i++;
             continue;
         }
         if ($char === '/' && $next === '*') {
+            $source[$i] = ' ';
+            $source[$i + 1] = ' ';
             $blockComment = true;
             $i++;
             continue;
         }
         if ($char === '"' || $char === "'") {
             $quote = $char;
-            $code .= ' ';
-            continue;
-        }
-        if ($char === '(') {
-            $depth++;
-            if ($depth > 1) {
-                $code .= $char;
-            }
-            continue;
-        }
-        if ($char === ')') {
-            $depth--;
-            if ($depth === 0) {
-                return $code;
-            }
-        }
-        if ($depth > 0) {
-            $code .= $char;
+            $source[$i] = ' ';
         }
     }
-    return $code;
+    return $source;
+}
+
+function config_macro_arglist($source, $openParen) {
+    $depth = 0;
+    $length = strlen($source);
+    for ($i = $openParen; $i < $length; $i++) {
+        if ($source[$i] === '(') {
+            $depth++;
+        } elseif ($source[$i] === ')' && --$depth === 0) {
+            return substr($source, $openParen + 1, $i - $openParen - 1);
+        }
+    }
+    return substr($source, $openParen + 1);
 }
 
 function extract_sensitive_config_names($paths) {
@@ -198,6 +203,7 @@ function extract_sensitive_config_names($paths) {
         if ($source === false || $source === '') {
             continue;
         }
+        $source = mask_c_non_code($source);
         preg_match_all('/\b(?:CONFIG|SYSCFG|CALIAS)\s*\(/', $source, $matches, PREG_OFFSET_CAPTURE);
         foreach ($matches[0] as [$macro, $offset]) {
             $openParen = $offset + strrpos($macro, '(');
