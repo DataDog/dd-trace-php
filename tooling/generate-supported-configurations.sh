@@ -18,6 +18,7 @@ readonly PROFILING_CONFIG_FILE="profiling/src/config.rs"
 readonly GENERATOR_SCRIPT_FILE="tooling/generate-supported-configurations.sh"
 readonly CONFIG_GENERATION_INPUT_FILES=(
     "${CONFIG_HEADER_FILES[@]}"
+    "tracer/configuration.h"
     "${OTEL_CONFIG_FILES[@]}"
     "${PROFILING_CONFIG_FILE}"
     "${GENERATOR_SCRIPT_FILE}"
@@ -114,18 +115,79 @@ function normalize_supported_entries($entries, $canonical) {
     return $normalized;
 }
 
-// Configurations marked with the `.sensitive = true` flag in their CONFIG(...)
-// declaration are excluded from configuration telemetry. The set is parsed
-// directly from the C config headers (the single source of truth) plus the
-// OTLP header variants registered below, and emitted as "sensitive": true in
-// the generated metadata.
 $SENSITIVE_CONFIGURATIONS = [];
 
-// Parses the CONFIG(...)/SYSCFG(...)/CALIAS(...) declarations in the given C
-// config headers and returns the set of configuration names carrying the
-// `.sensitive = true` flag. Each declaration spans from its macro keyword up
-// to the next one (the macro line-continuation backslashes mean a per-line
-// split would merge every declaration into one).
+function config_macro_arglist($source, $openParen) {
+    $depth = 0;
+    $quote = null;
+    $lineComment = false;
+    $blockComment = false;
+    $escaped = false;
+    $code = '';
+    $length = strlen($source);
+    for ($i = $openParen; $i < $length; $i++) {
+        $char = $source[$i];
+        $next = $i + 1 < $length ? $source[$i + 1] : '';
+        if ($lineComment) {
+            if ($char === "\n") {
+                $lineComment = false;
+                $code .= $char;
+            }
+            continue;
+        }
+        if ($blockComment) {
+            if ($char === '*' && $next === '/') {
+                $blockComment = false;
+                $i++;
+            }
+            continue;
+        }
+        if ($quote !== null) {
+            if ($escaped) {
+                $escaped = false;
+            } elseif ($char === '\\') {
+                $escaped = true;
+            } elseif ($char === $quote) {
+                $quote = null;
+            }
+            $code .= ' ';
+            continue;
+        }
+        if ($char === '/' && $next === '/') {
+            $lineComment = true;
+            $i++;
+            continue;
+        }
+        if ($char === '/' && $next === '*') {
+            $blockComment = true;
+            $i++;
+            continue;
+        }
+        if ($char === '"' || $char === "'") {
+            $quote = $char;
+            $code .= ' ';
+            continue;
+        }
+        if ($char === '(') {
+            $depth++;
+            if ($depth > 1) {
+                $code .= $char;
+            }
+            continue;
+        }
+        if ($char === ')') {
+            $depth--;
+            if ($depth === 0) {
+                return $code;
+            }
+        }
+        if ($depth > 0) {
+            $code .= $char;
+        }
+    }
+    return $code;
+}
+
 function extract_sensitive_config_names($paths) {
     $sensitive = [];
     foreach ($paths as $path) {
@@ -136,50 +198,17 @@ function extract_sensitive_config_names($paths) {
         if ($source === false || $source === '') {
             continue;
         }
-        // Strip line-continuation backslashes (and the preprocessor's escaped
-        // sequences) so a declaration is one contiguous span of text.
-        $source = str_replace(["\\\r\n", "\\\n", "\\\r"], ' ', $source);
-        // Split into per-declaration chunks at each macro keyword. The first
-        // chunk (before any keyword) is discarded.
-        $chunks = preg_split('/\b(?=(?:CONFIG|SYSCFG|CALIAS)\s*\()/', $source);
-        foreach ($chunks as $chunk) {
-            if (!preg_match('/^(?:CONFIG|SYSCFG|CALIAS)\s*\(\s*[^,]+,\s*([A-Z0-9_]+)/', $chunk, $m)) {
-                continue;
-            }
-            $name = $m[1];
-            // Limit the search for the flag to this declaration's own
-            // parenthesized argument list, not the trailing text that belongs
-            // to following declarations.
-            $argList = config_macro_arglist($chunk);
-            if (preg_match('/\.sensitive\s*=\s*true\b/', $argList)) {
-                $sensitive[$name] = true;
+        preg_match_all('/\b(?:CONFIG|SYSCFG|CALIAS)\s*\(/', $source, $matches, PREG_OFFSET_CAPTURE);
+        foreach ($matches[0] as [$macro, $offset]) {
+            $openParen = $offset + strrpos($macro, '(');
+            $argList = config_macro_arglist($source, $openParen);
+            if (preg_match('/^\s*[^,]+,\s*([A-Z][A-Z0-9_]+)/', $argList, $nameMatch)
+                && preg_match('/\.sensitive\s*=\s*true\b/', $argList)) {
+                $sensitive[$nameMatch[1]] = true;
             }
         }
     }
     return $sensitive;
-}
-
-// Returns the text inside the outermost parentheses of a CONFIG(...) chunk,
-// balancing nested parens (e.g. CUSTOM(MAP)).
-function config_macro_arglist($chunk) {
-    $start = strpos($chunk, '(');
-    if ($start === false) {
-        return '';
-    }
-    $depth = 0;
-    $len = strlen($chunk);
-    for ($i = $start; $i < $len; $i++) {
-        $c = $chunk[$i];
-        if ($c === '(') {
-            $depth++;
-        } elseif ($c === ')') {
-            $depth--;
-            if ($depth === 0) {
-                return substr($chunk, $start + 1, $i - $start - 1);
-            }
-        }
-    }
-    return substr($chunk, $start + 1);
 }
 
 function mark_sensitive($entry, $name) {
@@ -355,9 +384,9 @@ function add_rust_profiling_configurations(&$supported, $path) {
     }
 }
 
-// Determine which configurations are sensitive from the C config headers.
 $SENSITIVE_CONFIGURATIONS = extract_sensitive_config_names([
     "../ext/configuration.h",
+    "../tracer/configuration.h",
     "../appsec/src/extension/configuration.h",
 ]);
 

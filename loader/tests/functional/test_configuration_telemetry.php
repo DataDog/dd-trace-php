@@ -25,12 +25,8 @@ assertContains($content, '{"name":"instrumentation_source","value":"ssi","origin
 assertContains($content, '{"name":"ssi_injection_enabled","value":"tracer","origin":"env_var","config_id":null,"seq_id":null}');
 assertContains($content, '{"name":"ssi_forced_injection_enabled","value":"True","origin":"env_var","config_id":null,"seq_id":null}');
 
-// Sensitive configurations are excluded from configuration telemetry: neither
-// the name nor the value is enqueued. DD_API_KEY and DD_TRACE_ENABLED carry the
-// `sensitive` flag.
 assertNotContains($content, 'SENTINEL_DD_API_KEY');
 assertNotContains($content, '"name":"DD_API_KEY"');
 assertNotContains($content, '"name":"DD_TRACE_ENABLED"');
 
-// Non-sensitive configurations are still reported.
 assertContains($content, '{"name":"DD_VERSION","value":"1.2.3-loader-test","origin":"env_var","config_id":null,"seq_id":null}');
