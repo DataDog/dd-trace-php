@@ -95,10 +95,7 @@ pub extern "C" fn datadog_format_runtime_id(buf: &mut [u8; 36]) {
 
 #[cfg(target_os = "linux")]
 fn char_slice_string(value: CharSlice<'_>) -> String {
-    value
-        .try_to_utf8()
-        .map(ToOwned::to_owned)
-        .unwrap_or_default()
+    value.to_utf8_lossy().into_owned()
 }
 
 /// Publish or update dd-trace-php's standard Linux OTel Process Context.
