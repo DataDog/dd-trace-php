@@ -1132,8 +1132,7 @@
       {
         "implementation": "A",
         "type": "boolean",
-        "default": "true",
-        "sensitive": true
+        "default": "true"
       }
     ],
     "DD_TRACE_EXEC_ANALYTICS_ENABLED": [

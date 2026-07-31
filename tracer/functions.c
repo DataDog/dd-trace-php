@@ -1989,6 +1989,12 @@ PHP_FUNCTION(dd_trace_coms_trigger_writer_flush) {
 
 #define FUNCTION_NAME_MATCHES(function) zend_string_equals_literal(function_val, function)
 
+static bool ddtrace_otel_config_is_sensitive(zend_string *name) {
+    return zend_string_equals_literal(name, "OTEL_EXPORTER_OTLP_HEADERS")
+        || zend_string_equals_literal(name, "OTEL_EXPORTER_OTLP_METRICS_HEADERS")
+        || zend_string_equals_literal(name, "OTEL_EXPORTER_OTLP_LOGS_HEADERS");
+}
+
 PHP_FUNCTION(dd_trace_internal_fn) {
     UNUSED(execute_data);
     zval ***params = NULL;
@@ -2034,7 +2040,7 @@ PHP_FUNCTION(dd_trace_internal_fn) {
         } else if (params_count == 2 && FUNCTION_NAME_MATCHES("track_otel_config")) {
             zval *config_name = ZVAL_VARARG_PARAM(params, 0);
             zval *config_value = ZVAL_VARARG_PARAM(params, 1);
-            if (Z_TYPE_P(config_name) == IS_STRING) {
+            if (Z_TYPE_P(config_name) == IS_STRING && !ddtrace_otel_config_is_sensitive(Z_STR_P(config_name))) {
                 // Store the config name and value in the HashTable
                 zval value_copy;
                 ZVAL_COPY(&value_copy, config_value);

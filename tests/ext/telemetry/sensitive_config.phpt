@@ -29,39 +29,15 @@ datadog.trace.agent_url="file://{PWD}/sensitive-config-telemetry.out"
 
 DDTrace\start_span();
 
-// The OTLP header configurations are routed through the OpenTelemetry SDK
-// configuration whitelist (src/DDTrace/OpenTelemetry/Configuration.php). They
-// are not on that whitelist, so they are never tracked for telemetry. The
-// whitelist constant is loaded by the tracer's OpenTelemetry bridge.
 $otlpHeaders = [
     'OTEL_EXPORTER_OTLP_HEADERS',
     'OTEL_EXPORTER_OTLP_METRICS_HEADERS',
     'OTEL_EXPORTER_OTLP_LOGS_HEADERS',
 ];
-if (defined('OTEL_CONFIG_WHITELIST')) {
-    foreach ($otlpHeaders as $h) {
-        echo "$h whitelisted: ";
-        var_dump(in_array($h, OTEL_CONFIG_WHITELIST, true));
-    }
-} else {
-    // Bridge not loaded in this run; the headers are omitted regardless.
-    foreach ($otlpHeaders as $h) {
-        echo "$h whitelisted: bool(false)\n";
-    }
+foreach ($otlpHeaders as $h) {
+    dd_trace_internal_fn('track_otel_config', $h, 'dd-api-key=SENTINEL_OTLP');
 }
-
-// Exercise the real whitelist gate when available: sensitive OTLP headers must
-// not be forwarded, while a whitelisted non-sensitive config is.
-if (function_exists('track_otel_config_if_whitelisted')) {
-    foreach ($otlpHeaders as $h) {
-        track_otel_config_if_whitelisted($h, 'dd-api-key=SENTINEL_OTLP');
-    }
-    track_otel_config_if_whitelisted('OTEL_EXPORTER_OTLP_ENDPOINT', 'http://collector:4318');
-} else {
-    // Fallback: drive the OTel telemetry hashtable directly so the positive
-    // case (a tracked, non-sensitive OTel config is reported) still holds.
-    dd_trace_internal_fn('track_otel_config', 'OTEL_EXPORTER_OTLP_ENDPOINT', 'http://collector:4318');
-}
+dd_trace_internal_fn('track_otel_config', 'OTEL_EXPORTER_OTLP_ENDPOINT', 'http://collector:4318');
 
 include __DIR__ . '/vendor/autoload.php';
 
@@ -75,9 +51,6 @@ $sentinels = [
     'SENTINEL_DD_API_KEY',
     'SENTINEL_OTLP',
 ];
-// Configurations that must never appear in configuration telemetry:
-//   DD_API_KEY and DD_TRACE_ENABLED carry the `sensitive` flag (DD_* config
-//   table); the OTLP header variants are not tracked (OTel whitelist).
 $omittedNames = array_merge([
     'DD_API_KEY',
     'DD_TRACE_ENABLED',
@@ -105,7 +78,6 @@ for ($i = 0; $i < 300; ++$i) {
         }
     }
 
-    // Wait until we have observed the configuration array.
     if (!$allConfigs) {
         continue;
     }
@@ -141,9 +113,6 @@ if ($i == 300) {
 
 ?>
 --EXPECTF--
-OTEL_EXPORTER_OTLP_HEADERS whitelisted: bool(false)
-OTEL_EXPORTER_OTLP_METRICS_HEADERS whitelisted: bool(false)
-OTEL_EXPORTER_OTLP_LOGS_HEADERS whitelisted: bool(false)
 Included
 sentinel values in telemetry: array(0) {
 }
