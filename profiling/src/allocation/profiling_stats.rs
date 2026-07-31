@@ -4,6 +4,7 @@
 //! can be used but expose a relatively safe API.
 
 use super::{AllocationProfilingStats, ALLOCATION_PROFILING_INTERVAL};
+use crate::profiling::live_heap::LiveHeapTracker;
 use libc::size_t;
 use std::mem::MaybeUninit;
 
@@ -99,6 +100,28 @@ pub fn allocation_profiling_stats_should_collect(len: size_t) -> bool {
     // it. Even if the destructor were called, AllocationProfilingStats's dtor
     // doesn't access the TLS variable (it can't, it doesn't have access).
     unsafe { allocation_profiling_stats_mut(f) }
+}
+
+pub(crate) fn live_heap_track<T>(tracker: &LiveHeapTracker<T>, ptr: usize, sample: T) -> bool {
+    // SAFETY: allocation stats are initialized before allocation hooks run,
+    // and the closure does not retain or recursively borrow them.
+    unsafe {
+        allocation_profiling_stats_mut(|stats| {
+            stats
+                .assume_init_mut()
+                .live_heap
+                .track(tracker, ptr, sample)
+        })
+    }
+}
+
+pub(crate) fn live_heap_untrack<T>(tracker: &LiveHeapTracker<T>, ptr: usize) -> Option<T> {
+    // SAFETY: same lifecycle and borrowing guarantees as `live_heap_track`.
+    unsafe {
+        allocation_profiling_stats_mut(|stats| {
+            stats.assume_init_mut().live_heap.untrack(tracker, ptr)
+        })
+    }
 }
 
 /// Initializes the allocation profiler's globals.

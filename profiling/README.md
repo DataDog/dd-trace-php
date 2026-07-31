@@ -62,7 +62,14 @@ tests.
 ## Benchmarks
 
 Benchmarks are implemented using
-[criterion](https://github.com/bheisler/criterion.rs). In order to execute them
+[criterion](https://github.com/bheisler/criterion.rs). The heap-live tracking
+benchmark can run directly:
+
+```sh
+cargo bench --bench heap_live_tracking
+```
+
+The stack-walking benchmark links the profiler as a Rust library. To execute it
 you need to change the `crate-type` in the `Cargo.toml` from `cdylib` to `rlib`
 (or add it):
 
@@ -73,10 +80,10 @@ you need to change the `crate-type` in the `Cargo.toml` from `cdylib` to `rlib`
  bench = false # disables cargo build in libtest bench
 ```
 
-After this change you can execute the benchmarks using:
+After this change you can execute the stack-walking benchmark using:
 
 ```sh
-cargo bench --features stack_walking_tests
+cargo bench --bench stack_walking --features stack_walking_tests
 ```
 
 Note: the `--features stack_walking_tests` is necessary as some code in the
