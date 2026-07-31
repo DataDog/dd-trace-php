@@ -1217,6 +1217,8 @@ endforeach;
     - pecl install datadog_trace.tgz
     - echo "extension=ddtrace.so" | sudo tee $(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}')/ddtrace.ini
     - php --ri=ddtrace
+    # The Fabric proxy changes network failure semantics in PECL tests.
+    - unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy
     - TERM=dumb HTTPBIN_HOSTNAME=httpbin-integration HTTPBIN_PORT=8080 DATADOG_HAVE_DEV_ENV=1 DD_TRACE_GIT_METADATA_ENABLED=0 pecl run-tests --showdiff --ini=" -d datadog.trace.sources_path=" -p datadog_trace
   after_script:
     - mkdir artifacts

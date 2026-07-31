@@ -1,4 +1,7 @@
 #include <SAPI.h>
+#if PHP_VERSION_ID >= 80600
+#include <Zend/zend_compile.h>
+#endif
 #include <Zend/zend_extensions.h>
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_types.h>
@@ -38,10 +41,12 @@
 // Used to communicate strings from C -> Rust.
 #include <zai_string/string.h>
 
+#if PHP_VERSION_ID < 80600
 /* C11 allows a duplicate typedef provided they are the same, so this should be
  * fine as long as we compile with C11 or higher.
  */
 typedef ZEND_RESULT_CODE zend_result;
+#endif
 
 /**
  * Returns macro expansion of ZEND_EXTENSION_BUILD_ID, which bindgen cannot
