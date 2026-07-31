@@ -1957,10 +1957,19 @@ PHP_FUNCTION(dd_trace_coms_trigger_writer_flush) {
 
 #define FUNCTION_NAME_MATCHES(function) zend_string_equals_literal(function_val, function)
 
-static bool ddtrace_otel_config_is_sensitive(zend_string *name) {
-    return zend_string_equals_literal(name, "OTEL_EXPORTER_OTLP_HEADERS")
-        || zend_string_equals_literal(name, "OTEL_EXPORTER_OTLP_METRICS_HEADERS")
-        || zend_string_equals_literal(name, "OTEL_EXPORTER_OTLP_LOGS_HEADERS");
+static bool ddtrace_otel_config_is_reportable(zend_string *name) {
+    static const char otel_prefix[] = "OTEL_";
+    static const char otlp_prefix[] = "OTEL_EXPORTER_OTLP";
+    static const char headers_suffix[] = "_HEADERS";
+    size_t name_len = ZSTR_LEN(name);
+    if (name_len < sizeof(otel_prefix) - 1
+        || memcmp(ZSTR_VAL(name), otel_prefix, sizeof(otel_prefix) - 1) != 0) {
+        return false;
+    }
+    return name_len < sizeof(otlp_prefix) + sizeof(headers_suffix) - 2
+        || memcmp(ZSTR_VAL(name), otlp_prefix, sizeof(otlp_prefix) - 1) != 0
+        || memcmp(ZSTR_VAL(name) + name_len - sizeof(headers_suffix) + 1,
+            headers_suffix, sizeof(headers_suffix) - 1) != 0;
 }
 
 PHP_FUNCTION(dd_trace_internal_fn) {
@@ -2008,7 +2017,7 @@ PHP_FUNCTION(dd_trace_internal_fn) {
         } else if (params_count == 2 && FUNCTION_NAME_MATCHES("track_otel_config")) {
             zval *config_name = ZVAL_VARARG_PARAM(params, 0);
             zval *config_value = ZVAL_VARARG_PARAM(params, 1);
-            if (Z_TYPE_P(config_name) == IS_STRING && !ddtrace_otel_config_is_sensitive(Z_STR_P(config_name))) {
+            if (Z_TYPE_P(config_name) == IS_STRING && ddtrace_otel_config_is_reportable(Z_STR_P(config_name))) {
                 // Store the config name and value in the HashTable
                 zval value_copy;
                 ZVAL_COPY(&value_copy, config_value);
