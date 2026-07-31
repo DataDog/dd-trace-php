@@ -1,6 +1,7 @@
 use crate::allocation;
-use core::cell::Cell;
+use core::cell::{Cell, UnsafeCell};
 use core::ffi::c_void;
+use core::mem::MaybeUninit;
 use core::ptr;
 use core::sync::atomic::AtomicU32;
 
@@ -20,6 +21,9 @@ pub struct ProfilerGlobals {
     /// the PHP thread, so the value must remain atomic despite living in
     /// thread-local PHP module globals.
     pub interrupt_count: AtomicU32,
+    /// Per-thread allocation sampling state. Kept in PHP globals so allocator
+    /// hooks can reuse an already-resolved TSRM cache instead of accessing Rust TLS.
+    pub allocation_profiling_stats: UnsafeCell<MaybeUninit<allocation::AllocationProfilingStats>>,
 }
 
 /// We need TSRM to call into GINIT and GSHUTDOWN to observe spawning and
@@ -37,6 +41,7 @@ pub static mut GLOBALS_ID: i32 = 0;
 pub static mut GLOBALS: ProfilerGlobals = ProfilerGlobals {
     zend_mm_state: Cell::new(ZendMMState::new()),
     interrupt_count: AtomicU32::new(0),
+    allocation_profiling_stats: UnsafeCell::new(MaybeUninit::uninit()),
 };
 
 #[cfg(all(test, php_zts))]
@@ -128,6 +133,7 @@ pub unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
         let globals = _globals_ptr.cast::<ProfilerGlobals>();
         (*globals).zend_mm_state = Cell::new(ZendMMState::new());
         (*globals).interrupt_count = AtomicU32::new(0);
+        (*globals).allocation_profiling_stats = UnsafeCell::new(MaybeUninit::uninit());
     }
 
     // SAFETY: this is called in thread ginit as expected, and no other places.
