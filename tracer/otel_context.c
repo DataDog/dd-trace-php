@@ -39,7 +39,7 @@ extern __thread void *otel_thread_ctx_v1 __attribute__((visibility("default"), t
 
 static void ddtrace_otel_record_begin_update(datadog_otel_thr_ctx_rec *record);
 static void ddtrace_otel_record_end_update(datadog_otel_thr_ctx_rec *record);
-static void ddtrace_otel_attach(datadog_otel_thr_ctx_rec *record);
+static void ddtrace_otel_attach(ddtrace_root_span_data *root);
 static ddtrace_span_data *ddtrace_otel_entrypoint_span(void);
 static ddtrace_span_data *ddtrace_otel_attr_source_span(ddtrace_root_span_data *source_root);
 static void ddtrace_otel_record_set_trace_id(datadog_otel_thr_ctx_rec *record, datadog_trace_id trace_id);
@@ -51,6 +51,7 @@ static size_t ddtrace_otel_record_write_attr(datadog_otel_thr_ctx_rec *record, s
 static zend_string *ddtrace_otel_attr_zstr(zend_string *value);
 
 void ddtrace_otel_init_root_span(ddtrace_root_span_data *root) {
+    root->otel_context_slot = &otel_thread_ctx_v1;
     datadog_otel_thr_ctx_rec *record = &root->otel_context;
     ddtrace_otel_record_set_trace_id(record, root->trace_id);
     ddtrace_otel_record_store_span_id(record, root->span_id);
@@ -97,7 +98,7 @@ void ddtrace_otel_attach_stack(ddtrace_span_stack *stack) {
     if (UNEXPECTED(root->otel_context_attributes_generation != DDTRACE_G(otel_context_attributes_generation))) {
         ddtrace_otel_refresh_attribute_values(root);
     }
-    ddtrace_otel_attach(&root->otel_context);
+    ddtrace_otel_attach(root);
 }
 
 void ddtrace_otel_detach(void) {
@@ -121,9 +122,9 @@ static void ddtrace_otel_record_end_update(datadog_otel_thr_ctx_rec *record) {
     atomic_store_explicit(&record->valid, 1, memory_order_relaxed);
 }
 
-static void ddtrace_otel_attach(datadog_otel_thr_ctx_rec *record) {
+static void ddtrace_otel_attach(ddtrace_root_span_data *root) {
     atomic_signal_fence(memory_order_release);
-    otel_thread_ctx_v1 = record;
+    *root->otel_context_slot = &root->otel_context;
 }
 
 static ddtrace_span_data *ddtrace_otel_entrypoint_span(void) {

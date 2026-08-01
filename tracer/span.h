@@ -129,6 +129,9 @@ struct ddtrace_root_span_data {
 #ifdef __linux__
     datadog_otel_thr_ctx_rec otel_context;
     uint64_t otel_context_attributes_generation;
+    // Address of otel_thread_ctx_v1 for this root's thread, resolved at root creation to avoid a dynamic TLS lookup
+    // on every stack switch.
+    void **otel_context_slot;
 #endif
     bool explicit_sampling_priority;
     bool asm_event_emitted;
