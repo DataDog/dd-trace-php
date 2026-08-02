@@ -691,7 +691,9 @@ impl ReqContext {
 
         let waf_timeout = self.waf_timeout;
         let mut ctx = self.get_waf_runnable(options)?;
-        let maybe_res = tokio::task::block_in_place(|| ctx.run(data, waf_timeout));
+        // Evaluation is CPU-bound and bounded by the WAF timeout. Running it directly avoids
+        // handing the runtime worker core to another thread for every request phase.
+        let maybe_res = ctx.run(data, waf_timeout);
         drop(ctx);
         let res = match maybe_res {
             Ok(res) => res,

@@ -162,18 +162,28 @@ async fn on_message_impl(
         response_tx,
     };
 
-    timeout(Duration::from_millis(750), request_tx.send(request))
-        .await
-        .map_err(|_| {
-            anyhow::Error::new(OnMessageError::SendTimeout {
+    match request_tx.try_send(request) {
+        Ok(()) => {}
+        Err(mpsc::error::TrySendError::Full(request)) => {
+            timeout(Duration::from_millis(750), request_tx.send(request))
+                .await
+                .map_err(|_| {
+                    anyhow::Error::new(OnMessageError::SendTimeout {
+                        session_id: session_id_prod(),
+                    })
+                })?
+                .map_err(|_| {
+                    anyhow::Error::new(OnMessageError::SendClosed {
+                        session_id: session_id_prod(),
+                    })
+                })?;
+        }
+        Err(mpsc::error::TrySendError::Closed(_)) => {
+            return Err(anyhow::Error::new(OnMessageError::SendClosed {
                 session_id: session_id_prod(),
-            })
-        })?
-        .map_err(|_| {
-            anyhow::Error::new(OnMessageError::SendClosed {
-                session_id: session_id_prod(),
-            })
-        })?;
+            }));
+        }
+    };
 
     let response = timeout(Duration::from_millis(3000), response_rx)
         .await
@@ -337,6 +347,14 @@ mod tests {
             .replace(factory);
     }
 
+    fn test_request(command: &[u8]) -> HelperRequest {
+        let (response_tx, _response_rx) = oneshot::channel();
+        HelperRequest {
+            command: command.to_vec(),
+            response_tx,
+        }
+    }
+
     #[test]
     #[serial]
     fn channel_for_session_reuses_existing_sender() {
@@ -418,6 +436,77 @@ mod tests {
             .lock()
             .expect("CLIENTS not initialized")
             .contains_key(&key));
+
+        reset_test_state();
+    }
+
+    #[test]
+    #[serial]
+    fn on_message_impl_uses_timed_fallback_when_channel_is_full() {
+        reset_test_state();
+
+        let receiver = Arc::new(std::sync::Mutex::new(None));
+        let receiver_in_factory = receiver.clone();
+        set_new_client(Box::new(move |_session| {
+            let (tx, rx) = mpsc::channel::<HelperRequest>(1);
+            receiver_in_factory
+                .lock()
+                .expect("receiver mutex poisoned")
+                .replace(rx);
+            (tx, 1u64)
+        }));
+
+        let (sender, client_id) = sender_for_client(ClientKey {
+            session_id: b"sess".to_vec(),
+            client_id: 0,
+        })
+        .expect("sender should exist");
+        assert!(sender.try_send(test_request(b"first")).is_ok());
+
+        let mut receiver = receiver
+            .lock()
+            .expect("receiver mutex poisoned")
+            .take()
+            .expect("receiver should exist");
+
+        let (resolved_id, response) = test_runtime().block_on(async move {
+            timeout(Duration::from_secs(1), async move {
+                let message = tokio::spawn(async move {
+                    on_message_impl(b"sess", client_id, b"second".to_vec()).await
+                });
+                tokio::task::yield_now().await;
+
+                let first = receiver
+                    .recv()
+                    .await
+                    .expect("first request should be queued");
+                assert_eq!(first.command, b"first");
+                drop(first);
+
+                let second = receiver
+                    .recv()
+                    .await
+                    .expect("fallback should queue the second request");
+                assert_eq!(second.command, b"second");
+                second
+                    .response_tx
+                    .send(HelperResponse::Data(b"response".to_vec()))
+                    .map_err(|_| ())
+                    .expect("response receiver should be open");
+
+                message
+                    .await
+                    .expect("message task should not panic")
+                    .expect("message should succeed")
+            })
+            .await
+            .expect("full-channel fallback should complete before send timeout")
+        });
+        assert_eq!(resolved_id, client_id);
+        assert!(matches!(
+            response,
+            HelperResponse::Data(data) if data == b"response"
+        ));
 
         reset_test_state();
     }
