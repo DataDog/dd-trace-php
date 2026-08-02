@@ -1487,6 +1487,7 @@ name = "ddtrace-sidecar"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "cc",
  "datadog-sidecar",
  "helper-rust",
  "spawn_worker",

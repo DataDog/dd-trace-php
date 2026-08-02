@@ -7,6 +7,9 @@ edition = "2021"
 crate-type = ["staticlib", "cdylib"]
 path = "lib.rs"
 
+[features]
+glibc-compat = ["ddtrace-sidecar/glibc-compat"]
+
 [dependencies]
 libdd-common = { path = "../libdatadog/libdd-common", features = ["cgroup_testing"] }
 libdd-common-ffi = { path = "../libdatadog/libdd-common-ffi", default-features = false }
