@@ -118,6 +118,11 @@ DATADOG_PUBLIC ddog_SidecarTransport **ddtrace_get_sidecar_transport(void) {
 #endif
 
 static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_fork, const char *logpath) {
+    if (!datadog_ffi_try("Failed starting AppSec in sidecar",
+            ddog_sidecar_ensure_appsec_started(transport))) {
+        LOG(WARN, "AppSec sidecar backend is unavailable");
+    }
+
     ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) datadog_formatted_session_id, .len = sizeof(datadog_formatted_session_id)};
     ddog_CharSlice root_session_id = datadog_is_empty_session_id(datadog_formatted_root_session_id) ? DDOG_CHARSLICE_C("") : (ddog_CharSlice) {.ptr = (char *) datadog_formatted_root_session_id, .len = sizeof(datadog_formatted_root_session_id)};
     ddog_CharSlice parent_session_id = datadog_is_empty_session_id(datadog_formatted_parent_session_id) ? DDOG_CHARSLICE_C("") : (ddog_CharSlice) {.ptr = (char *) datadog_formatted_parent_session_id, .len = sizeof(datadog_formatted_parent_session_id)};
@@ -266,7 +271,7 @@ static ddog_SidecarTransport *dd_sidecar_connect(bool as_worker, bool is_fork) {
                     current_pid, datadog_sidecar_master_pid);
                 datadog_sidecar_master_pid = current_pid;
                 if (!datadog_ffi_try("Failed starting sidecar master listener as orphaned child",
-                        ddog_sidecar_connect_master((int32_t)datadog_sidecar_master_pid)) ||
+                        ddog_sidecar_connect_master_php((int32_t)datadog_sidecar_master_pid)) ||
                     !datadog_ffi_try("Failed connecting to new sidecar master as orphaned child",
                         ddog_sidecar_connect_worker((int32_t)datadog_sidecar_master_pid, &sidecar_transport))) {
                     dd_free_endpoints();
@@ -326,7 +331,8 @@ static void datadog_sidecar_setup_thread_mode() {
         return;
     }
 
-    if (!datadog_ffi_try("Failed starting sidecar master listener", ddog_sidecar_connect_master((int32_t)datadog_sidecar_master_pid))) {
+    if (!datadog_ffi_try("Failed starting sidecar master listener",
+            ddog_sidecar_connect_master_php((int32_t)datadog_sidecar_master_pid))) {
         LOG(WARN, "Failed to start sidecar master listener");
         if (datadog_endpoint) {
             dd_free_endpoints();
@@ -474,7 +480,7 @@ void datadog_sidecar_minit(void) {
 
     if (mode == DD_TRACE_SIDECAR_CONNECTION_MODE_THREAD) {
         datadog_ffi_try("Starting sidecar master listener in MINIT",
-                       ddog_sidecar_connect_master(datadog_sidecar_master_pid));
+                       ddog_sidecar_connect_master_php(datadog_sidecar_master_pid));
     }
 }
 
@@ -511,7 +517,7 @@ void datadog_sidecar_handle_fork(void) {
 
             datadog_sidecar_master_pid = (int32_t)getpid();
             if (!datadog_ffi_try("Failed starting sidecar master listener in child process",
-                    ddog_sidecar_connect_master((int32_t)datadog_sidecar_master_pid))) {
+                    ddog_sidecar_connect_master_php((int32_t)datadog_sidecar_master_pid))) {
                 if (datadog_endpoint) {
                     dd_free_endpoints();
                 }

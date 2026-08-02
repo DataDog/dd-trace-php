@@ -1397,6 +1397,7 @@ dependencies = [
  "bincode",
  "chrono",
  "console-subscriber",
+ "crossbeam-utils",
  "datadog-ffe",
  "datadog-ipc",
  "datadog-ipc-macros",

@@ -235,6 +235,18 @@ ddog_MaybeError ddog_send_debugger_diagnostics(const struct ddog_RemoteConfigSta
 void ddog_sidecar_enable_appsec(ddog_CharSlice log_file_path,
                                 ddog_CharSlice log_level);
 
+/**
+ * Starts a thread-mode master listener with the PHP-linked AppSec backend
+ * registered in the listener's process.
+ */
+ddog_MaybeError ddog_sidecar_connect_master_php(int32_t pid);
+
+/**
+ * Ensures the connected sidecar's AppSec backend is started using the
+ * configuration captured from the PHP extension.
+ */
+ddog_MaybeError ddog_sidecar_ensure_appsec_started(struct ddog_SidecarTransport **transport);
+
 ddog_MaybeError ddog_sidecar_connect_php(struct ddog_SidecarTransport **connection,
                                          const char *error_path,
                                          ddog_CharSlice log_level,

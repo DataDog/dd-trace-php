@@ -20,12 +20,21 @@ pub fn start_or_connect_to_sidecar(config: Config) -> anyhow::Result<SidecarTran
     )
 }
 
+/// Registers the AppSec backend linked into the PHP extension.
+///
+/// Registration is process-local and idempotent. Thread-mode listeners need
+/// this to run in the master process before their listener thread starts;
+/// subprocess-mode sidecars call it again from their entrypoint.
+pub fn register_appsec_backend() {
+    datadog_sidecar::appsec::register_backend_factory(create_backend);
+}
+
 #[no_mangle]
 pub extern "C" fn ddtrace_sidecar_entry_point(trampoline_data: &TrampolineData) {
     #[cfg(feature = "helper-rust-coverage")]
     ddappsec_helper::initialize_coverage();
 
-    datadog_sidecar::appsec::register_backend_factory(create_backend);
+    register_appsec_backend();
     datadog_sidecar::ddog_daemon_entry_point(trampoline_data);
 }
 

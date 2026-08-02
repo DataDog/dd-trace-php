@@ -156,6 +156,48 @@ pub extern "C" fn ddog_sidecar_enable_appsec(log_file_path: CharSlice, log_level
     });
 }
 
+/// Starts a thread-mode master listener with the PHP-linked AppSec backend
+/// registered in the listener's process.
+#[no_mangle]
+pub extern "C" fn ddog_sidecar_connect_master_php(pid: i32) -> MaybeError {
+    #[cfg(unix)]
+    ddtrace_sidecar::register_appsec_backend();
+
+    datadog_sidecar_ffi::ddog_sidecar_connect_master(pid)
+}
+
+/// Ensures the connected sidecar's AppSec backend is started using the
+/// configuration captured from the PHP extension.
+#[no_mangle]
+pub extern "C" fn ddog_sidecar_ensure_appsec_started(
+    transport: &mut Box<SidecarTransport>,
+) -> MaybeError {
+    let Some(appsec_config) = APPSEC_CONFIG.lock().unwrap().clone() else {
+        return MaybeError::None;
+    };
+
+    #[cfg(unix)]
+    {
+        let started = try_c!(datadog_sidecar::service::blocking::ensure_appsec_started(
+            transport,
+            appsec_config.log_file_path.as_os_str().as_bytes().to_vec(),
+            appsec_config.log_level,
+        ));
+        if !started {
+            return MaybeError::Some(libdd_common_ffi::Error::from(
+                "AppSec backend failed to initialize",
+            ));
+        }
+    }
+
+    #[cfg(windows)]
+    {
+        _ = (transport, appsec_config);
+    }
+
+    MaybeError::None
+}
+
 fn sidecar_connect(cfg: config::Config) -> anyhow::Result<Box<SidecarTransport>> {
     let mut stream = Box::new(run_sidecar(cfg)?);
     // Generally the Send buffer ought to be big enough for instantaneous transmission
