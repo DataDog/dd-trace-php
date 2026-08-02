@@ -37,8 +37,11 @@ macro_rules! sidecar_symbol {
         $ty:ty :
         $name:ident
     ) => {
-        static $static: SidecarSymbol<$ty> =
-            SidecarSymbol::new(unsafe {::std::ffi::CStr::from_bytes_with_nul_unchecked(::std::concat!(::std::stringify!($name), "\0").as_bytes())});
+        static $static: $crate::ffi::SidecarSymbol<$ty> =
+            $crate::ffi::SidecarSymbol::new(unsafe {
+                ::std::ffi::CStr::from_bytes_with_nul_unchecked(
+                    ::std::concat!(::std::stringify!($name), "\0").as_bytes())
+                });
 
         const _: () = {
             let _: $ty = $name;

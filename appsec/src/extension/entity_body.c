@@ -79,11 +79,12 @@ void dd_entity_body_startup(void)
 
 void dd_entity_body_shutdown(void) { dd_xml_parser_shutdown(); }
 
-void dd_entity_body_gshutdown(void)
+void dd_entity_body_tshutdown(void)
 {
     if (_buffer) {
         zend_string_release(_buffer);
         _buffer = NULL;
+        _buffer_size = 0;
     }
 }
 

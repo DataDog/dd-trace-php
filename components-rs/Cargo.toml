@@ -19,6 +19,7 @@ datadog-ffe = { path = "../libdatadog/datadog-ffe" }
 libdd-remote-config = { path = "../libdatadog/libdd-remote-config" }
 datadog-sidecar = { path = "../libdatadog/datadog-sidecar" }
 datadog-sidecar-ffi = { path = "../libdatadog/datadog-sidecar-ffi" }
+ddtrace-sidecar = { path = "../sidecar" }
 libdd-data-pipeline = { path = "../libdatadog/libdd-data-pipeline" }
 libdd-tinybytes = { path = "../libdatadog/libdd-tinybytes" }
 libdd-trace-utils = { path = "../libdatadog/libdd-trace-utils" }

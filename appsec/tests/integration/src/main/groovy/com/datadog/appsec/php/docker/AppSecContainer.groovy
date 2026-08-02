@@ -115,6 +115,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         overlayWww()
         enableCoredumps()
         runInitialize()
+        enableCoredumps()
     }
 
     private Consumer<OutputFrame> createLogConsumer() {
@@ -512,7 +513,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
 
         privilegedMode = true
 
-        withCreateContainerCmdModifier { cmd ->
+        withCreateContainerCmdModifier { CreateContainerCmd cmd ->
             cmd.hostConfig.withUlimits([new Ulimit('core', -1L, -1L)] as Ulimit[])
         }
 
@@ -550,30 +551,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
                 : "php-tracer-$phpVersion-$phpVariant"
             addVolumeMount(tracerVol, '/project/tmp')
         }
-        String helperBinaryPath = System.getProperty('HELPER_BINARY_PATH')
-        if (helperBinaryPath) {
-            // Bind-mount explicit helper binary directly to the expected path.
-            File helperFile = new File(helperBinaryPath)
-            if (!helperFile.isAbsolute()) {
-                helperFile = new File(System.getProperty('user.dir'), helperBinaryPath)
-            }
-            withFileSystemBind(helperFile.absolutePath,
-                    '/helper-rust/libddappsec-helper.so', BindMode.READ_ONLY)
-            withEnv 'USE_HELPER_RUST', '1'
-        } else {
-            // Mount helper-rust volume so enable_extensions.sh can copy the binary
-            // for the redirection mechanism.
-            String helperVolume = System.getProperty('USE_HELPER_RUST_COVERAGE') ?
-                'php-helper-rust-coverage' : 'php-helper-rust'
-            addVolumeMount(helperVolume, '/helper-rust')
-            if (System.getProperty('USE_HELPER_RUST_COVERAGE')) {
-                // Enable LLVM coverage profiling for the helper binary.
-                withEnv 'LLVM_PROFILE_FILE', '/helper-rust/coverage/default-%m-%p.profraw'
-            }
-        }
-        if (System.getProperty('USE_HELPER_CPP')) {
-            withEnv 'DD_APPSEC_HELPER_RUST_REDIRECTION', 'false'
-        }
+        withEnv 'RUST_BACKTRACE', '1'
 
         String fullWorkVolume = "php-workvol-$workVolume-$phpVersion-$phpVariant"
 

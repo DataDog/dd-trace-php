@@ -46,6 +46,10 @@ pub struct ddog_Option_Error__bindgen_ty_1__bindgen_ty_1 {
     pub some: ddog_Error,
 }
 pub type ddog_MaybeError = ddog_Option_Error;
+pub const ddog_MetricType_DDOG_METRIC_TYPE_GAUGE: ddog_MetricType = 0;
+pub const ddog_MetricType_DDOG_METRIC_TYPE_COUNT: ddog_MetricType = 1;
+pub const ddog_MetricType_DDOG_METRIC_TYPE_DISTRIBUTION: ddog_MetricType = 2;
+pub type ddog_MetricType = ::core::ffi::c_uint;
 pub const ddog_MetricNamespace_DDOG_METRIC_NAMESPACE_TRACERS: ddog_MetricNamespace = 0;
 pub const ddog_MetricNamespace_DDOG_METRIC_NAMESPACE_PROFILERS: ddog_MetricNamespace = 1;
 pub const ddog_MetricNamespace_DDOG_METRIC_NAMESPACE_RUM: ddog_MetricNamespace = 2;
@@ -58,10 +62,6 @@ pub const ddog_MetricNamespace_DDOG_METRIC_NAMESPACE_TELEMETRY: ddog_MetricNames
 pub const ddog_MetricNamespace_DDOG_METRIC_NAMESPACE_APM: ddog_MetricNamespace = 9;
 pub const ddog_MetricNamespace_DDOG_METRIC_NAMESPACE_SIDECAR: ddog_MetricNamespace = 10;
 pub type ddog_MetricNamespace = ::core::ffi::c_uint;
-pub const ddog_MetricType_DDOG_METRIC_TYPE_GAUGE: ddog_MetricType = 0;
-pub const ddog_MetricType_DDOG_METRIC_TYPE_COUNT: ddog_MetricType = 1;
-pub const ddog_MetricType_DDOG_METRIC_TYPE_DISTRIBUTION: ddog_MetricType = 2;
-pub type ddog_MetricType = ::core::ffi::c_uint;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct ddog_SidecarTransport {

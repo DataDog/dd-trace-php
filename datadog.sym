@@ -4,6 +4,7 @@ ddtrace_get_profiling_context
 ddtrace_get_root_span
 datadog_process_tags_get_serialized
 datadog_get_sidecar_queue_id
+ddtrace_get_sidecar_transport
 ddtrace_get_priority_sampling_on_span_zobj
 ddtrace_set_priority_sampling_on_span_zobj
 ddtrace_add_propagated_tag_on_span_zobj
@@ -24,6 +25,7 @@ ddog_remote_config_reader_drop
 get_module
 ddog_crashtracker_entry_point
 ddog_daemon_entry_point
+ddtrace_sidecar_entry_point
 ddog_set_rc_notify_fn
 ddog_remote_config_path
 ddog_remote_config_path_free
@@ -42,4 +44,6 @@ ddog_sidecar_enqueue_telemetry_point
 ddog_sidecar_enqueue_telemetry_metric
 ddog_sidecar_connect
 ddog_sidecar_ping
+ddog_sidecar_send_appsec_message
+ddog_sidecar_appsec_response_drop
 ddog_sidecar_transport_drop

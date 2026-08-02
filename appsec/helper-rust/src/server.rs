@@ -1,82 +1,127 @@
-use anyhow::Context;
-use tokio::net::UnixListener;
-use tokio_util::future::FutureExt;
+use std::future::Future;
+use std::pin::Pin;
+use std::time::Duration;
+
+use tokio::sync::mpsc;
+use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 
-use crate::client::Client;
-use crate::config::Config;
+use crate::client::{self, Client};
 use crate::rc_notify;
 use crate::service::ServiceManager;
-use crate::telemetry::SidecarReadyFuture;
 
-/// Run the Unix socket server that accepts client connections
-///
-/// This function:
-/// - Binds to the configured Unix socket
-/// - Accepts incoming client connections
-/// - Spawns a task for each client
-/// - Monitors the cancellation token for shutdown
+type ClientFuture = Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
+
+/// Start accepting helper messages from sidecar.
 ///
 /// Returns when the cancellation token is triggered
-pub async fn run_server(config: Config, cancel_token: CancellationToken) -> anyhow::Result<()> {
-    let socket_path = config.socket_path_as_path();
-
-    log::info!("Starting server on socket: {:?}", socket_path);
-
-    #[cfg(not(target_os = "linux"))]
-    if config.is_abstract_socket() {
-        anyhow::bail!("Abstract namespace sockets are only supported on Linux");
-    }
-
-    // tokio handles abstract namespace sockets on Linux
-    let listener = UnixListener::bind(&socket_path)
-        .with_context(|| format!("binding unix socket {:?}", &socket_path))?;
-
-    log::info!("Listening for connections");
+pub fn accept_appsec_messages(
+    runtime_handle: tokio::runtime::Handle,
+    cancel_token: CancellationToken,
+) -> ClientTaskSet {
+    log::info!("Starting to listen for helper messages from sidecar");
 
     // Create service manager with 'static lifetime
     // We leak it since it needs to live for the entire process lifetime
     let service_manager: &'static ServiceManager = Box::leak(Box::new(ServiceManager::new()));
+    let (client_task_set, future_tx) = ClientTaskSet::create(runtime_handle.clone());
 
     // Register for RC update callbacks from the sidecar
     rc_notify::register_for_rc_notifications(service_manager);
 
-    // telemetry can only be submitted after the sidecar is ready, so we need to wait for it
-    let sidecar_ready = SidecarReadyFuture::create();
+    client::start_accepting_messages(
+        // new_client callback:
+        Box::new(move |session_id: Vec<u8>| {
+            let client = Client::new(service_manager);
+            log::info!(
+                "Created client for session {}: id {}",
+                String::from_utf8_lossy(&session_id),
+                client.id
+            );
+            let client_id = client.id;
+            let client_key = client::ClientKey {
+                session_id,
+                client_id,
+            };
 
-    loop {
-        match listener
-            .accept()
-            .with_cancellation_token(&cancel_token)
-            .await
-        {
-            Some(Ok((stream, addr))) => {
-                log::debug!("Accepted new client {:?}", addr);
+            let (tx, rx) = mpsc::channel(5);
 
-                let client = Client::new(service_manager);
-                let sidecar_ready = sidecar_ready.clone();
-                let token = cancel_token.clone();
+            let future_tx = future_tx.clone();
+            let cancel_token = cancel_token.clone();
 
-                tokio::spawn(async move { client.entrypoint(stream, sidecar_ready, token).await });
-            }
-            Some(Err(err)) => {
-                log::warn!("Error in accept() call: {}", err);
-            }
-            None => {
-                log::info!("Server received cancellation signal, shutting down");
-                break;
-            }
-        }
-    }
+            let client_future = client.entrypoint(rx, cancel_token);
+            runtime_handle.spawn(async move {
+                let managed_future = async move {
+                    client_future.await;
+                    log::debug!(
+                        "Client future for {client_key:?} completed; removing client bookkeeping"
+                    );
+                    client::remove_client_bookkeeping(&client_key);
+                };
+                if let Err(e) = future_tx.send(Box::pin(managed_future)).await {
+                    crate::error!("Failed to send client future: {}", e);
+                }
+            });
 
-    if !config.is_abstract_socket() {
-        if let Err(e) = std::fs::remove_file(&socket_path) {
-            log::warn!("Failed to remove socket file: {}", e);
-        }
-    }
+            (tx, client_id)
+        }),
+    );
 
+    client_task_set
+}
+
+pub fn stop_accepting_appsec_messages() {
     rc_notify::unregister_for_rc_notifications();
+    client::stop_accepting_messages();
+}
 
-    log::info!("Server shutdown complete");
-    Ok(())
+// Spawns a task that receives client futures and spawns them in a join set
+pub struct ClientTaskSet {
+    managing_task_handle: tokio::task::JoinHandle<()>,
+}
+
+impl ClientTaskSet {
+    fn create(runtime_handle: tokio::runtime::Handle) -> (Self, mpsc::Sender<ClientFuture>) {
+        let (tx, rx) = mpsc::channel::<Pin<Box<dyn Future<Output = ()> + Send + 'static>>>(10);
+
+        (
+            Self {
+                managing_task_handle: runtime_handle.clone().spawn(Self::task_entrypoint(rx)),
+            },
+            tx,
+        )
+    }
+
+    async fn task_entrypoint(
+        mut rx: mpsc::Receiver<Pin<Box<dyn Future<Output = ()> + Send + 'static>>>,
+    ) {
+        let mut join_set = JoinSet::<()>::new();
+
+        // We accept new futures to be spawned as long as we have senders
+        while let Some(future) = rx.recv().await {
+            join_set.spawn(future);
+            Self::reap(&mut join_set);
+        }
+
+        // Afterwards, we wait for all tasks to complete
+        join_set.join_all().await;
+    }
+
+    /// Drain all tasks that have already finished (non-blocking).
+    fn reap(join_set: &mut JoinSet<()>) {
+        while let Some(result) = join_set.try_join_next() {
+            if let Err(e) = result {
+                crate::error!("Task failed: {}", e);
+            }
+        }
+    }
+
+    // Wait until the task finishes. This happens after new client generation
+    // is stopped by destroying the sender of futures and after all client
+    // tasks have finished (they have cooperative cancellation)
+    pub async fn wait_empty(&mut self, duration: Duration) -> bool {
+        tokio::time::timeout(duration, &mut self.managing_task_handle)
+            .await
+            .is_ok()
+    }
 }

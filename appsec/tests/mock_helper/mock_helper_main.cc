@@ -37,6 +37,8 @@ using SizeType = std::uint32_t;
 #include <stdexcept>
 #include <string>
 #include <sys/file.h>
+#include <sys/stat.h>
+#include <sys/un.h>
 #include <unistd.h>
 #include <vector>
 
@@ -53,6 +55,10 @@ using boost::system::error_code;
 // NOLINTNEXTLINE(cert-err58-cpp,fuchsia-statically-constructed-objects)
 asio::io_context iocontext;
 bool continuous_mode;
+// When set, exit as soon as the scripted responses are exhausted instead of
+// waiting for the client_shutdown goodbye. Used by tests where the extension
+// abandons the connection (e.g. a failed client_init) and so never sends one.
+bool no_wait_shutdown;
 
 MsgpackToJson::MsgpackToJson(const char *buffer, size_t size)
 {
@@ -335,6 +341,54 @@ private:
     rapidjson::Document &doc_; // NOLINT
 };
 
+// Returns true if the (already deframed) message is a client_shutdown command,
+// i.e. an array whose first element is the string "client_shutdown".
+static bool message_is_client_shutdown(const std::vector<std::byte> &data)
+{
+    mpack_tree_t tree;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    mpack_tree_init_data(
+        &tree, reinterpret_cast<const char *>(data.data()), data.size());
+    mpack_tree_parse(&tree);
+    bool result = false;
+    if (mpack_tree_error(&tree) == mpack_ok) {
+        mpack_node_t const root = mpack_tree_root(&tree);
+        if (mpack_node_type(root) == mpack_type_array &&
+            mpack_node_array_length(root) >= 1) {
+            mpack_node_t const name = mpack_node_array_at(root, 0);
+            if (mpack_node_type(name) == mpack_type_str) {
+                static constexpr char kName[] = "client_shutdown";
+                const std::size_t len = mpack_node_strlen(name);
+                result = len == sizeof(kName) - 1 &&
+                         std::memcmp(mpack_node_str(name), kName, len) == 0;
+            }
+        }
+    }
+    mpack_tree_destroy(&tree);
+    return result;
+}
+
+// Encodes the ack the real helper sends for client_shutdown:
+// [["client_shutdown", null]] (see CommandResponse::ClientShutdown).
+static OwningBuffer encode_client_shutdown_ack()
+{
+    char *out = nullptr;
+    std::size_t out_size = 0;
+    mpack_writer_t writer;
+    mpack_writer_init_growable(&writer, &out, &out_size);
+    mpack_start_array(&writer, 1);
+    mpack_start_array(&writer, 2);
+    mpack_write_cstr(&writer, "client_shutdown");
+    mpack_write_nil(&writer);
+    mpack_finish_array(&writer);
+    mpack_finish_array(&writer);
+    if (mpack_writer_destroy(&writer) != mpack_ok) {
+        std::free(out); // NOLINT
+        throw std::runtime_error{"Failed to encode client_shutdown ack"};
+    }
+    return OwningBuffer{out, out_size};
+}
+
 class Client {
 private:
     struct Header {
@@ -360,21 +414,38 @@ public:
         bool exited = false;
         while (!exited && next_response_ != responses_.end()) {
             SPDLOG_INFO("Will read message #{}", ++count);
-            exited = run_loop_body(yield);
-            next_response_++;
+            exited = run_loop_body(yield, /*scripted=*/true);
+            if (!exited) {
+                next_response_++;
+            }
         }
         if (continuous_mode) {
-            next_response_--;
+            if (next_response_ != responses_.begin()) {
+                next_response_--;
+            }
             while (!exited) {
                 SPDLOG_INFO("Will read message #{} (continuous mode)", ++count);
-                exited = run_loop_body(yield);
+                exited = run_loop_body(yield, /*scripted=*/true);
+            }
+        } else if (!no_wait_shutdown) {
+            // All scripted responses were consumed.  The extension still sends
+            // a client_shutdown goodbye when it tears the connection down (the
+            // test harness triggers this before reaping us); keep serving so we
+            // can ack it and exit cleanly instead of the extension hitting a
+            // premature EOF.  run_loop_body() handles client_shutdown specially.
+            while (!exited) {
+                SPDLOG_INFO("Waiting for client_shutdown (message #{})", ++count);
+                exited = run_loop_body(yield, /*scripted=*/false);
             }
         }
         SPDLOG_INFO("All responses given; exiting");
     }
 
 private:
-    bool run_loop_body(const asio::yield_context &yield)
+    // When scripted is true a queued response (*next_response_) is sent for the
+    // message read; when false (after the scripted responses are exhausted) we
+    // only expect a client_shutdown goodbye (or EOF) and exit afterwards.
+    bool run_loop_body(const asio::yield_context &yield, bool scripted)
     {
         SPDLOG_INFO("Waiting for client message...");
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
@@ -419,12 +490,47 @@ private:
 
         SPDLOG_INFO("Handling gotten message of size {}", data.size());
 
+        // The client_shutdown goodbye is not part of the scripted exchange and
+        // does not consume a response: ack it (mirroring the real helper) and
+        // signal the loop to exit.  It is not echoed to the command pipe.
+        //
+        // Only in non-continuous mode: a continuous mock doubles as the
+        // long-lived mock trace agent for the test, which may keep using it
+        // (e.g. flushing traces) after the appsec connection is torn down. There
+        // we let client_shutdown fall through and be answered like any other
+        // message, and rely on EOF to stop the loop, so the agent stays up.
+        if (!continuous_mode && message_is_client_shutdown(data)) {
+            SPDLOG_INFO("Received client_shutdown; acking and exiting");
+            send_client_shutdown_ack(yield);
+            return true;
+        }
+
+        if (!scripted) {
+            SPDLOG_INFO("Unexpected non-shutdown message after all scripted "
+                        "responses were consumed; exiting");
+            return true;
+        }
+
         MsgpackToJson msgpack2json{data.data(), data.size()};
         msgpack2json.convert();
 
         echo_pipe_.write(msgpack2json.asio_buffer(), yield);
         handle_client_data(*next_response_, yield);
         return false;
+    }
+
+    void send_client_shutdown_ack(const asio::yield_context &yield)
+    {
+        OwningBuffer const buf = encode_client_shutdown_ack();
+        Header h{};
+        memcpy(&h.marker, "dds", 4);
+        h.size = static_cast<std::uint32_t>(buf.len_);
+        std::array const buffers = {
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+            asio::const_buffer(reinterpret_cast<char *>(&h), sizeof(h)),
+            asio::const_buffer(buf.buf_, buf.len_),
+        };
+        async_write(sock_, buffers, yield);
     }
 
     void handle_client_data(rapidjson::Document &doc, asio::yield_context yield)
@@ -460,113 +566,6 @@ private:
     EchoPipe &echo_pipe_; // NOLINT
     std::vector<rapidjson::Document> responses_;
     decltype(responses_.begin()) next_response_;
-};
-
-class Dispatcher {
-public:
-    Dispatcher(EchoPipe &echo_pipe, std::vector<rapidjson::Document> responses)
-        : acceptor_{try_fds()}, echo_pipe_{echo_pipe}, responses_{
-                                                           std::move(responses)}
-    {
-        if (!acceptor_.is_open()) {
-            throw std::runtime_error{"UNIX socket is not open"};
-        }
-    }
-    Dispatcher(Dispatcher &&) = delete;
-    Dispatcher &operator=(Dispatcher &&) = delete;
-    Dispatcher(const Dispatcher &) = delete;
-    const Dispatcher &operator=(const Dispatcher &) = delete;
-
-    ~Dispatcher()
-    {
-        if (!iocontext.stopped()) {
-            SPDLOG_INFO("Closing listening UNIX socket (dispatcher finished)");
-        }
-        error_code ec;
-        acceptor_.close(ec);
-    }
-
-    void accept_one(asio::yield_context yield)
-    {
-        local::stream_protocol::socket client_socket{iocontext};
-        acceptor_.async_accept(client_socket, yield);
-        SPDLOG_INFO("Accepted a connection on UNIX socket");
-        auto client = std::make_unique<Client>(
-            std::move(client_socket), echo_pipe_, std::move(responses_));
-        spawn(
-            iocontext,
-            [client = std::move(client)](auto yield) {
-                client->run_loop(yield);
-                post(iocontext, [] { iocontext.stop(); });
-            },
-            [](const std::exception_ptr &e) {
-                if (e) {
-                    std::rethrow_exception(e);
-                }
-            });
-    }
-
-private:
-    static local::stream_protocol::acceptor try_fds()
-    {
-        auto maybe_sock = try_single_fd(4);
-        if (!maybe_sock) {
-            maybe_sock = try_single_fd(3);
-        }
-        if (!maybe_sock) {
-            throw std::runtime_error{"No UNIX socket provided"};
-        }
-        return std::move(*maybe_sock);
-    }
-
-    static std::optional<local::stream_protocol::acceptor> try_single_fd(int fd)
-    {
-        struct ::stat statbuf = {0};
-        if (fstat(fd, &statbuf) == -1) {
-            error_code const ec = {errno, boost::system::system_category()};
-            SPDLOG_INFO("fstat() failed for fd {}: {}", fd, ec.message());
-            return std::nullopt;
-        }
-        if ((statbuf.st_mode & S_IFSOCK) == 0) {
-            SPDLOG_INFO("File descriptor {0} is not a socket: {1:o}", fd,
-                statbuf.st_mode & S_IFMT);
-            return std::nullopt;
-        }
-
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
-        sockaddr_un addr;
-        socklen_t len = sizeof(addr);
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-        if (::getsockname(fd, reinterpret_cast<sockaddr *>(&addr), &len) ==
-            -1) {
-            error_code const ec = {errno, boost::system::system_category()};
-            SPDLOG_INFO("Call to getsockname failed on socket {}: {}", fd,
-                ec.message());
-            return std::nullopt;
-        }
-        if (addr.sun_family != AF_UNIX) {
-            SPDLOG_INFO("Socket {} is not a unix socket", fd);
-            return std::nullopt;
-        }
-
-        int const new_fd = ::dup(fd); // NOLINT
-        if (new_fd == -1) {
-            error_code const ec = {errno, boost::system::system_category()};
-            SPDLOG_INFO("Call to dup of fd {} failed: {}", fd, ec.message());
-            return std::nullopt;
-        }
-
-        SPDLOG_INFO(
-            "Using dup of file descriptor {} as unix listening socket", fd);
-
-        local::stream_protocol::acceptor sock{iocontext};
-        sock.assign(local::stream_protocol(), new_fd);
-        return std::move(sock);
-    }
-
-    local::stream_protocol::acceptor acceptor_;
-    EchoPipe &echo_pipe_; // NOLINT
-    std::vector<rapidjson::Document> responses_;
 };
 
 auto parse_responses(const std::vector<std::string> &responses_str)
@@ -669,6 +668,10 @@ int main(int argc, char *argv[])
                        "The responses to send")
         ("continuous", po::bool_switch(&continuous_mode)->default_value(false),
                        "Keep answering with the last payload")
+        ("no-wait-shutdown",
+                       po::bool_switch(&no_wait_shutdown)->default_value(false),
+                       "Exit after the last scripted response instead of "
+                       "waiting for the client_shutdown goodbye")
         ("lock",       po::value<std::string>(), "Location of the lock file");
     // clang-format on
 
@@ -710,8 +713,40 @@ int main(int argc, char *argv[])
     spawn(
         iocontext,
         [&](auto yield) {
-            Dispatcher dispatcher{echo_pipe, std::move(responses)};
-            dispatcher.accept_one(yield);
+            // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
+            for (int fd : {3, 4}) {
+                struct ::stat statbuf = {};
+                if (fstat(fd, &statbuf) == -1) { continue; }
+                if ((statbuf.st_mode & S_IFSOCK) == 0) { continue; }
+                // A connected socketpair endpoint has a peer; a listening
+                // socket does not.
+                sockaddr_un peer{};
+                socklen_t plen = sizeof(peer);
+                // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+                if (::getpeername(fd, reinterpret_cast<sockaddr *>(&peer),
+                        &plen) == -1) {
+                    continue;
+                }
+                const int new_fd = ::dup(fd); // NOLINT(android-cloexec-dup)
+                if (new_fd == -1) { continue; }
+                SPDLOG_INFO("Using dup of fd {} as communication socket", fd);
+                local::stream_protocol::socket client_socket{iocontext};
+                client_socket.assign(local::stream_protocol(), new_fd);
+                auto client = std::make_unique<Client>(std::move(client_socket),
+                    echo_pipe, std::move(responses));
+                spawn(
+                    iocontext,
+                    [client = std::move(client)](auto yield) {
+                        client->run_loop(yield);
+                        post(iocontext, [] { iocontext.stop(); });
+                    },
+                    [](const std::exception_ptr &e) {
+                        if (e) { std::rethrow_exception(e); }
+                    });
+                return;
+            }
+            throw std::runtime_error{
+                "No connected socket found on fd 3 or 4"};
         },
         [](const std::exception_ptr &e) {
             if (e) {

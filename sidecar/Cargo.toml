@@ -1,0 +1,16 @@
+[package]
+name = "ddtrace-sidecar"
+version = "0.0.1"
+edition = "2021"
+license = "Apache-2.0"
+authors = ["Datadog Inc. <info@datadoghq.com>"]
+publish = false
+
+[dependencies]
+anyhow = "1.0"
+datadog-sidecar = { path = "../libdatadog/datadog-sidecar" }
+spawn_worker = { path = "../libdatadog/spawn_worker" }
+
+[target.'cfg(unix)'.dependencies]
+ddappsec-helper = { package = "helper-rust", path = "../appsec/helper-rust" }
+tokio = { version = "1.49.0", features = ["rt"] }

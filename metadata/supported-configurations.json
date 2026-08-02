@@ -83,9 +83,9 @@
     ],
     "DD_APPSEC_HELPER_LOG_FILE": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "string",
-        "default": "/dev/null"
+        "default": "<sidecar log>"
       }
     ],
     "DD_APPSEC_HELPER_LOG_LEVEL": [
@@ -93,27 +93,6 @@
         "implementation": "A",
         "type": "string",
         "default": "info"
-      }
-    ],
-    "DD_APPSEC_HELPER_PATH": [
-      {
-        "implementation": "A",
-        "type": "string",
-        "default": "/opt/datadog-php/bin/libddappsec-helper.so"
-      }
-    ],
-    "DD_APPSEC_HELPER_RUNTIME_PATH": [
-      {
-        "implementation": "A",
-        "type": "string",
-        "default": "/tmp"
-      }
-    ],
-    "DD_APPSEC_HELPER_RUST_REDIRECTION": [
-      {
-        "implementation": "B",
-        "type": "boolean",
-        "default": "true"
       }
     ],
     "DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML": [

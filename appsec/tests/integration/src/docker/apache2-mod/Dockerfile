@@ -29,6 +29,14 @@ RUN if ! { echo $VARIANT | grep -q zts; }; then a2dismod mpm_event; a2enmod mpm_
 
 RUN sed -i 's/MaxRequestWorkers.*/MaxRequestWorkers 1/' /etc/apache2/mods-available/mpm_prefork.conf
 RUN sed -i 's/MaxRequestWorkers.*/MaxRequestWorkers 1/' /etc/apache2/mods-available/mpm_worker.conf
+RUN if echo $VARIANT | grep -q zts; then \
+	sed -i 's/StartServers.*/StartServers 1/' /etc/apache2/mods-available/mpm_event.conf && \
+	sed -i 's/MinSpareThreads.*/MinSpareThreads 3/' /etc/apache2/mods-available/mpm_event.conf && \
+	sed -i 's/MaxSpareThreads.*/MaxSpareThreads 3/' /etc/apache2/mods-available/mpm_event.conf && \
+	sed -i 's/ThreadsPerChild.*/ThreadsPerChild 3/' /etc/apache2/mods-available/mpm_event.conf && \
+	sed -i 's/MaxRequestWorkers.*/MaxRequestWorkers 3/' /etc/apache2/mods-available/mpm_event.conf && \
+	sed -i '/^<IfModule mpm_event_module>/a\\tServerLimit 1' /etc/apache2/mods-available/mpm_event.conf; \
+	fi
 
 RUN a2enmod php
 
