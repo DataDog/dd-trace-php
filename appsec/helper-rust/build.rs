@@ -2,6 +2,8 @@ use std::env;
 use std::path::PathBuf;
 
 fn main() {
+    println!("cargo::rustc-check-cfg=cfg(tokio_unstable)");
+
     let target = env::var("TARGET").expect("TARGET environment variable not set");
     let has_coverage = env::var("CARGO_FEATURE_COVERAGE").is_ok();
 
