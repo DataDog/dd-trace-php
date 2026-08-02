@@ -163,10 +163,6 @@ impl Service {
         &self.fixed_config
     }
 
-    pub fn telemetry_settings(&self) -> &protocol::TelemetrySettings {
-        &self.fixed_config.telemetry_settings
-    }
-
     pub fn configured_waf_timeout(&self) -> Option<std::time::Duration> {
         self.fixed_config
             .waf_settings

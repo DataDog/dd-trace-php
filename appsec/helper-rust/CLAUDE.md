@@ -43,7 +43,6 @@ Core modules:
 - **src/rc.rs** - Remote configuration reader using shared memory polling
 - **src/rc_notify.rs** - Remote configuration callback system to receive updates from sidecar
 - **src/telemetry.rs** - Telemetry traits and definitions for metrics and logs
-- **src/ffi.rs** - FFI helpers and symbol resolution for calling sidecar functions
 
 Client sub-modules:
 - **src/client/protocol.rs** - Msgpack protocol codec for PHP extension communication
@@ -61,7 +60,7 @@ Service sub-modules:
 - **src/service/waf_ruleset.rs** - WAF ruleset management and loading
 
 Telemetry sub-modules:
-- **src/telemetry/sidecar.rs** - Sidecar FFI telemetry submission
+- **src/telemetry/sidecar.rs** - In-process sidecar telemetry submission
 - **src/telemetry/error_tel_ctx.rs** - Error telemetry context management
 - **src/telemetry/tel_aware_logger.rs** - Logger that integrates with telemetry system
 
@@ -229,10 +228,8 @@ After running a test, check `logs_<scenario>/docker/weblog/logs/helper.log` for 
 
 ```
 2026-01-15T19:41:20.269325053Z [INFO] AppSec helper starting
-2026-01-15T19:41:20.269907428Z [INFO] Configuration: Config { socket_path: ...
+2026-01-15T19:41:20.269907428Z [INFO] Configuration: Config { ...
 2026-01-15T19:41:20.277712636Z [INFO] AppSec helper started successfully
-2026-01-15T19:41:20.277760178Z [INFO] Starting server on socket: ...
-2026-01-15T19:41:20.277871261Z [INFO] Listening for connections
 ```
 
 ## GitLab CI

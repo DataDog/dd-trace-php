@@ -6,7 +6,6 @@ use tokio_util::{sync::CancellationToken, task::TaskTracker};
 
 mod client;
 pub mod config;
-mod ffi;
 mod rc;
 mod rc_notify;
 pub mod server;
@@ -14,6 +13,7 @@ mod service;
 mod telemetry;
 
 use config::Config;
+use datadog_sidecar::service::telemetry::InProcessTelemetryClientFactory;
 
 pub use client::{on_disconnect, on_message, MessageResponse};
 
@@ -25,6 +25,7 @@ pub struct AppSecHelper {
 pub fn start(
     runtime_handle: tokio::runtime::Handle,
     config: Config,
+    telemetry: InProcessTelemetryClientFactory,
 ) -> anyhow::Result<AppSecHelper> {
     log::info!("AppSec helper starting");
     log::info!("Configuration: {:?}", config);
@@ -38,15 +39,9 @@ pub fn start(
         );
     }
 
-    if let Err(e) = telemetry::resolve_symbols() {
-        crate::error!(
-            "Failed to resolve sidecar telemetry symbols: {}; telemetry logs will not be submitted",
-            e
-        );
-    }
-
     let cancel_token = CancellationToken::new();
-    let client_task_tracker = server::accept_appsec_messages(runtime_handle, cancel_token.clone());
+    let client_task_tracker =
+        server::accept_appsec_messages(runtime_handle, cancel_token.clone(), telemetry);
 
     log::info!("AppSec helper started successfully");
     Ok(AppSecHelper {

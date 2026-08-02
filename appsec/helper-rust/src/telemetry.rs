@@ -1,8 +1,5 @@
-use crate::client::protocol::{SidecarSettings, TelemetrySettings};
-use crate::ffi::sidecar_ffi::{
-    ddog_MetricType, ddog_MetricType_DDOG_METRIC_TYPE_COUNT,
-    ddog_MetricType_DDOG_METRIC_TYPE_DISTRIBUTION, ddog_MetricType_DDOG_METRIC_TYPE_GAUGE,
-};
+use libdd_telemetry::data::metrics::MetricType;
+
 use std::cell::Cell;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -11,7 +8,7 @@ pub mod error_tel_ctx;
 mod sidecar;
 mod tel_aware_logger;
 
-pub use sidecar::{resolve_symbols, TelemetrySidecarLogSubmitter, TelemetrySidecarMetricSubmitter};
+pub use sidecar::{TelemetrySidecarLogSubmitter, TelemetrySidecarMetricSubmitter};
 pub(crate) use tel_aware_logger::submit_error_to_telemetry;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -104,68 +101,58 @@ pub const HELPER_WORKER_COUNT: MetricName = MetricName("helper.service_worker_co
 #[derive(Debug, Clone, Copy)]
 pub struct KnownMetric {
     pub name: MetricName,
-    pub metric_type: ddog_MetricType,
+    pub metric_type: MetricType,
 }
 pub const KNOWN_METRICS: &[KnownMetric] = &[
     KnownMetric {
         name: WAF_REQUESTS,
-        metric_type: ddog_MetricType_DDOG_METRIC_TYPE_COUNT,
+        metric_type: MetricType::Count,
     },
     KnownMetric {
         name: WAF_UPDATES,
-        metric_type: ddog_MetricType_DDOG_METRIC_TYPE_COUNT,
+        metric_type: MetricType::Count,
     },
     KnownMetric {
         name: WAF_INIT,
-        metric_type: ddog_MetricType_DDOG_METRIC_TYPE_COUNT,
+        metric_type: MetricType::Count,
     },
     KnownMetric {
         name: WAF_CONFIG_ERRORS,
-        metric_type: ddog_MetricType_DDOG_METRIC_TYPE_COUNT,
+        metric_type: MetricType::Count,
     },
     KnownMetric {
         name: WAF_ERROR,
-        metric_type: ddog_MetricType_DDOG_METRIC_TYPE_COUNT,
+        metric_type: MetricType::Count,
     },
     KnownMetric {
         name: WAF_DURATION_DIST,
-        metric_type: ddog_MetricType_DDOG_METRIC_TYPE_DISTRIBUTION,
+        metric_type: MetricType::Distribution,
     },
     KnownMetric {
         name: RASP_DURATION_DIST,
-        metric_type: ddog_MetricType_DDOG_METRIC_TYPE_DISTRIBUTION,
+        metric_type: MetricType::Distribution,
     },
     KnownMetric {
         name: RASP_TIMEOUT,
-        metric_type: ddog_MetricType_DDOG_METRIC_TYPE_COUNT,
+        metric_type: MetricType::Count,
     },
     KnownMetric {
         name: RASP_RULE_MATCH,
-        metric_type: ddog_MetricType_DDOG_METRIC_TYPE_COUNT,
+        metric_type: MetricType::Count,
     },
     KnownMetric {
         name: RASP_RULE_EVAL,
-        metric_type: ddog_MetricType_DDOG_METRIC_TYPE_COUNT,
+        metric_type: MetricType::Count,
     },
     KnownMetric {
         name: RASP_ERROR,
-        metric_type: ddog_MetricType_DDOG_METRIC_TYPE_COUNT,
+        metric_type: MetricType::Count,
     },
     KnownMetric {
         name: HELPER_WORKER_COUNT,
-        metric_type: ddog_MetricType_DDOG_METRIC_TYPE_GAUGE,
+        metric_type: MetricType::Gauge,
     },
 ];
-
-pub fn register_known_metrics(
-    sidecar_settings: &SidecarSettings,
-    telemetry_settings: &TelemetrySettings,
-) -> anyhow::Result<()> {
-    for metric in KNOWN_METRICS {
-        sidecar::register_metric_ffi(sidecar_settings, telemetry_settings, metric)?;
-    }
-    Ok(())
-}
 
 // not implemented (difficult to count requests on the helper)
 #[allow(dead_code)]

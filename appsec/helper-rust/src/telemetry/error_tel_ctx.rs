@@ -1,9 +1,8 @@
 use std::future::Future;
 use std::sync::{Arc, RwLock};
 
+use datadog_sidecar::service::telemetry::InProcessTelemetryClient;
 use tokio::task_local;
-
-use crate::client::protocol::{SidecarSettings, TelemetrySettings};
 
 task_local! {
     static ERROR_TELEMETRY_HANDLE: ErrorTelemetryHandle;
@@ -22,14 +21,8 @@ where
 
 /// Update the error telemetry context for the current task.
 /// Returns true if the update was successful, false if not in a scoped context.
-pub fn update_error_telemetry_context(
-    sidecar_settings: SidecarSettings,
-    telemetry_settings: TelemetrySettings,
-) -> bool {
-    let ctx = ErrorTelemetryContext {
-        sidecar_settings: Arc::new(sidecar_settings),
-        telemetry_settings: Arc::new(telemetry_settings),
-    };
+pub fn update_error_telemetry_context(client: InProcessTelemetryClient) -> bool {
+    let ctx = ErrorTelemetryContext { client };
     ERROR_TELEMETRY_HANDLE
         .try_with(|handle| handle.set(ctx))
         .is_ok()
@@ -55,11 +48,7 @@ pub fn get_context_log_submitter() -> Option<impl super::TelemetryLogSubmitter +
     }
     impl super::TelemetryLogSubmitter for ContextTelemetryLogSubmitter {
         fn submit_log(&mut self, log: super::TelemetryLog) {
-            super::TelemetrySidecarLogSubmitter::create(
-                &self.ctx.sidecar_settings,
-                &self.ctx.telemetry_settings,
-            )
-            .submit_log(log);
+            super::TelemetrySidecarLogSubmitter::create(&self.ctx.client).submit_log(log);
         }
     }
 
@@ -67,11 +56,9 @@ pub fn get_context_log_submitter() -> Option<impl super::TelemetryLogSubmitter +
 }
 
 /// Context for error telemetry submission.
-/// Both settings must be present for telemetry to be submitted.
 #[derive(Clone)]
 pub struct ErrorTelemetryContext {
-    pub sidecar_settings: Arc<SidecarSettings>,
-    pub telemetry_settings: Arc<TelemetrySettings>,
+    pub client: InProcessTelemetryClient,
 }
 
 /// Handle to the task-local error telemetry context.

@@ -26,6 +26,9 @@ arc-swap = "1.7"
 crossbeam-epoch = "0.9"  # Epoch-based memory reclamation
 libddwaf = { path = "../third_party/libddwaf-rust/crates/libddwaf" }
 libddwaf-sys = { path = "../third_party/libddwaf-rust/crates/libddwaf-sys", default-features = false }
+datadog-sidecar = { path = "../../libdatadog/datadog-sidecar", default-features = false, features = ["tracing"] }
+libdd-common = { path = "../../libdatadog/libdd-common" }
+libdd-telemetry = { path = "../../libdatadog/libdd-telemetry" }
 base64 = "0.22.1"
 flate2 = "1.0"         # gzip compression for schemas
 
