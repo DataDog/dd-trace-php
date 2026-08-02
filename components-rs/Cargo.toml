@@ -9,6 +9,7 @@ path = "lib.rs"
 
 [features]
 glibc-compat = ["ddtrace-sidecar/glibc-compat"]
+helper-rust-coverage = ["ddtrace-sidecar/helper-rust-coverage"]
 
 [dependencies]
 libdd-common = { path = "../libdatadog/libdd-common", features = ["cgroup_testing"] }

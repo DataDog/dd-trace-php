@@ -16,7 +16,10 @@ if [[ -n $USE_SSI ]]; then
         /etc/apache2/mods-enabled/mpm_prefork.conf
   fi
   PHP_API=$(php -r 'echo PHP_EXTENSION_DIR;' | sed 's/.*-//')
-  EXT_SUFFIX=$(php -r 'echo ZEND_DEBUG_BUILD ? "-debug" : "";')
+  EXT_SUFFIX=$(php -r '
+      echo (ZEND_THREAD_SAFE ? "-zts" : "")
+          . (ZEND_DEBUG_BUILD ? "-debug" : "");
+  ')
   PKG=/tmp/dd-package
   mkdir -p "$PKG/loader" "$PKG/trace/ext/$PHP_API" "$PKG/appsec/ext/$PHP_API"
   ln -s /tracer-ssi/libdatadog_php.so "$PKG/loader/libdatadog_php.so"
@@ -115,7 +118,6 @@ if [[ -n $OPCACHE ]]; then
     echo opcache.file_cache_only=0
     echo opcache.file_cache_consistency_checks=1
 
-    echo opcache.jit_buffer_size=100M
-    echo opcache.jit=1255
+    echo opcache.jit_buffer_size=0
   } >> /etc/php/php.ini
 fi

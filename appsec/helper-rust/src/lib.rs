@@ -17,6 +17,17 @@ use datadog_sidecar::service::telemetry::InProcessTelemetryClientFactory;
 
 pub use client::{on_disconnect, on_message, MessageResponse};
 
+#[cfg(feature = "coverage")]
+pub fn initialize_coverage() {
+    unsafe extern "C" {
+        fn ddappsec_helper_coverage_init();
+    }
+
+    unsafe {
+        ddappsec_helper_coverage_init();
+    }
+}
+
 pub struct AppSecHelper {
     cancel_token: CancellationToken,
     client_task_tracker: TaskTracker,

@@ -22,6 +22,9 @@ pub fn start_or_connect_to_sidecar(config: Config) -> anyhow::Result<SidecarTran
 
 #[no_mangle]
 pub extern "C" fn ddtrace_sidecar_entry_point(trampoline_data: &TrampolineData) {
+    #[cfg(feature = "helper-rust-coverage")]
+    ddappsec_helper::initialize_coverage();
+
     datadog_sidecar::appsec::register_backend_factory(create_backend);
     datadog_sidecar::ddog_daemon_entry_point(trampoline_data);
 }

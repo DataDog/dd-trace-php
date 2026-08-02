@@ -22,11 +22,15 @@ import static org.testcontainers.containers.Container.ExecResult
 class CrashDetectionTests {
 
     static boolean isEnabled() {
-        checkCoreDumps && (phpVersion == '8.4' || phpVersion == '7.4')
+        checkCoreDumps && (phpVersion == '8.4' || phpVersion == '7.4') && !isUseHelperRustCoverage()
     }
 
     private static boolean isCheckCoreDumps() {
         System.getProperty('checkCoreDumps') != null
+    }
+
+    private static boolean isUseHelperRustCoverage() {
+        System.getProperty('USE_HELPER_RUST_COVERAGE') != null
     }
 
     @Container

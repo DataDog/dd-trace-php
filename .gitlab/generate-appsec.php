@@ -263,6 +263,77 @@ stages:
         - appsec/tests/integration/build/*.tar.gz
         - .gradle-home/wrapper/dists/
 
+"helper-rust integration coverage":
+  stage: test
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
+  tags: [ "docker-in-docker:amd64" ]
+  interruptible: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      interruptible: false
+    - when: on_success
+  variables:
+    KUBERNETES_CPU_REQUEST: 8
+    KUBERNETES_MEMORY_REQUEST: 24Gi
+    KUBERNETES_MEMORY_LIMIT: 30Gi
+    ARCH: amd64
+    GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle-home"
+  before_script:
+<?php echo $ecrLoginSnippet, "\n"; ?>
+<?php dockerhub_login() ?>
+  script:
+    - apt update && apt install -y openjdk-17-jre
+    - |
+      cd appsec/tests/integration
+      CACHE_PATH=build/php-appsec-volume-caches-${ARCH}.tar.gz
+      if [ -f "$CACHE_PATH" ]; then
+        echo "Loading cache from $CACHE_PATH"
+        TERM=dumb ./gradlew loadCaches --info
+      fi
+
+      TERM=dumb ./gradlew buildPortableLibdatadogPhp \
+        --info -Pbuildscan --scan -PuseHelperRustCoverage
+
+      # Coverage-instrumented artifacts are bulky: this leaves ~6G of cargo
+      # intermediates in php-portable-libdatadog-php, over a quarter of the
+      # ~20G available, and the tests then run the disk out. The build copies
+      # libdatadog_php.so out of the target directory, and that copy is what
+      # both the tests and the coverage report use, so the intermediates are
+      # dead weight from here on. Unlike the cargo caches, this volume is not
+      # part of loadCaches/saveCaches, so nothing later reuses them either.
+      # Dropped here rather than in the Gradle task so local incremental
+      # rebuilds keep working.
+      docker run --rm -v php-portable-libdatadog-php:/vol alpine \
+        rm -rf /vol/cargo-target
+      TERM=dumb ./gradlew test8.3-release-ssi test8.4-release-zts-ssi \
+        --info -Pbuildscan --scan -PcheckCoreDumps -PuseHelperRustCoverage
+      TERM=dumb ./gradlew saveCaches --info
+    - |
+      cd "$CI_PROJECT_DIR"
+      DD_COVERAGE_FLAGS=helper-rust-integration-8.3-release-ssi \
+        .gitlab/upload-code-coverage-to-datadog.sh \
+          appsec/tests/integration/build/reports/coverage/8.3-release-ssi/helper-rust-integration.lcov
+      DD_COVERAGE_FLAGS=helper-rust-integration-8.4-release-zts-ssi \
+        .gitlab/upload-code-coverage-to-datadog.sh \
+          appsec/tests/integration/build/reports/coverage/8.4-release-zts-ssi/helper-rust-integration.lcov
+  after_script:
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts"
+    - find appsec/tests/integration/build/test-results -name "*.xml" -exec cp --parents '{}' "${CI_PROJECT_DIR}/artifacts/" \; || true
+    - cp -r appsec/tests/integration/build/test-logs "${CI_PROJECT_DIR}/artifacts/" 2>/dev/null || true
+    - .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:appsec/"
+  artifacts:
+    reports:
+      junit: "artifacts/**/test-results/**/TEST-*.xml"
+    paths:
+      - "artifacts/"
+      - appsec/tests/integration/build/reports/coverage/*/helper-rust-integration.lcov
+    when: always
+  cache:
+    - key: "appsec int test cache"
+      paths:
+        - appsec/tests/integration/build/*.tar.gz
+        - .gradle-home/wrapper/dists/
+
 "appsec code coverage":
   stage: test
   extends: .appsec_test
@@ -296,9 +367,7 @@ stages:
     - |
       echo "Uploading coverage to Datadog"
       cd "$CI_PROJECT_DIR"
-      .gitlab/upload-code-coverage-to-datadog.sh \
-        appsec/build/coverage-ext.lcov \
-        appsec/build/coverage-helper.lcov
+      .gitlab/upload-code-coverage-to-datadog.sh appsec/build/coverage-ext.lcov
 
 
 "push appsec images":
