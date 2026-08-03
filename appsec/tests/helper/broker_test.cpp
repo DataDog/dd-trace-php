@@ -525,22 +525,8 @@ TEST(BrokerTest, ParsingBodyLimit)
     mock::socket *socket = new mock::socket();
     network::broker broker{std::unique_ptr<mock::socket>(socket)};
 
-    std::stringstream ss;
-    msgpack::packer<std::stringstream> packer(ss);
-    packer.pack_array(1);
-    pack_str(packer, "request_shutdown");
-    packer.pack_array(1);
-    packer.pack_map(16);
-    // Create a message larger than 750KB limit
-    // 16 * (4 + 50000) = 800,064 bytes, well over 750KB
-    for (char c = 'a'; c < 'q'; c++) {
-        pack_str(packer, std::string(4, c));
-        pack_str(packer, std::string(50000, c));
-    }
-
-    const std::string &expected_data = ss.str();
-
-    network::header_t h{"dds", (uint32_t)expected_data.size()};
+    // Use a header size exactly at the limit to trigger the >= check.
+    network::header_t h{"dds", (uint32_t)network::broker::max_msg_body_size};
     EXPECT_CALL(*socket, recv(_, _))
         .WillOnce(DoAll(CopyHeader(&h), Return(sizeof(network::header_t))));
     EXPECT_CALL(*socket, discard(h.size)).WillOnce(Return(h.size));
@@ -555,22 +541,8 @@ TEST(BrokerTest, ParsingBodyLimitFailFlush)
     mock::socket *socket = new mock::socket();
     network::broker broker{std::unique_ptr<mock::socket>(socket)};
 
-    std::stringstream ss;
-    msgpack::packer<std::stringstream> packer(ss);
-    packer.pack_array(1);
-    pack_str(packer, "request_shutdown");
-    packer.pack_array(1);
-    packer.pack_map(16);
-    // Create a message larger than 750KB limit
-    // 16 * (4 + 50000) = 800,064 bytes, well over 750KB
-    for (char c = 'a'; c < 'q'; c++) {
-        pack_str(packer, std::string(4, c));
-        pack_str(packer, std::string(50000, c));
-    }
-
-    const std::string &expected_data = ss.str();
-
-    network::header_t h{"dds", (uint32_t)expected_data.size()};
+    // Use a header size exactly at the limit to trigger the >= check.
+    network::header_t h{"dds", (uint32_t)network::broker::max_msg_body_size};
     EXPECT_CALL(*socket, recv(_, _))
         .WillOnce(DoAll(CopyHeader(&h), Return(sizeof(network::header_t))));
     EXPECT_CALL(*socket, discard(_)).WillOnce(Return(h.size - 1));
