@@ -174,8 +174,6 @@ if (PHP_DDTRACE != 'no') {
 	// Promote to env var
 	frag_out.WriteLine("!if [set CARGO_TARGET_DIR=$(CARGO_TARGET_DIR)]");
 	frag_out.WriteLine("!endif");
-	frag_out.WriteLine("!if [set RUSTC_BOOTSTRAP=1]");
-	frag_out.WriteLine("!endif");
 	frag_out.WriteLine("!if [set RUSTFLAGS=--cfg windows_seh_wrapper]");
 	// Not supported yet on Windows: --cfg tokio_unstable --cfg tokio_taskdump
 	frag_out.WriteLine("!endif");
