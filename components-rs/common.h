@@ -1352,6 +1352,26 @@ typedef struct ddog_SenderParameters {
   ddog_CharSlice url;
 } ddog_SenderParameters;
 
+/**
+ * Payload-level tracer metadata consumed by the V1 msgpack encoder. Each field mirrors the
+ * corresponding field on `libdd_trace_utils::tracer_metadata::TracerMetadata`; empty slices are
+ * tolerated (the encoder falls back to span meta / omits the field).
+ */
+typedef struct ddog_TracerMetadataV1 {
+  ddog_CharSlice hostname;
+  ddog_CharSlice env;
+  ddog_CharSlice app_version;
+  ddog_CharSlice runtime_id;
+  ddog_CharSlice service;
+  ddog_CharSlice tracer_version;
+  ddog_CharSlice language_name;
+  ddog_CharSlice language_version;
+  ddog_CharSlice language_interpreter;
+  ddog_CharSlice language_interpreter_vendor;
+  ddog_CharSlice git_commit_sha;
+  ddog_CharSlice process_tags;
+} ddog_TracerMetadataV1;
+
 typedef enum ddog_crasht_BuildIdType {
   DDOG_CRASHT_BUILD_ID_TYPE_GNU,
   DDOG_CRASHT_BUILD_ID_TYPE_GO,
