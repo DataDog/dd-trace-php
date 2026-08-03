@@ -69,12 +69,17 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                 .buffer_size = get_global_DD_TRACE_BUFFER_SIZE(),
                 .url = (ddog_CharSlice) {.ptr = url, .len = strlen(url)},
             };
-            // Hard gate on DD_TRACE_AGENT_PROTOCOL_VERSION (no /info negotiation yet in this
-            // cut): "1"/"1.0" selects the V1 wire (POST /v1.0/traces); anything else (default
-            // "0.4") keeps the unchanged V0.4 path.
+            // V1 wire (POST /v1.0/traces) is used only when BOTH the config resolves to
+            // "1"/"1.0" AND the agent /info advertises "/v1.0/traces". Otherwise (default
+            // "0.4", explicit 1.0 but agent doesn't advertise it, or agent info not yet
+            // known) fall back to the unchanged V0.4 path -- the safe default.
             zend_string *protocol_version = get_global_DD_TRACE_AGENT_PROTOCOL_VERSION();
-            if (zend_string_equals_literal(protocol_version, "1") ||
-                zend_string_equals_literal(protocol_version, "1.0")) {
+            bool use_v1 = (zend_string_equals_literal(protocol_version, "1") ||
+                           zend_string_equals_literal(protocol_version, "1.0")) &&
+                          DATADOG_G(agent_info_reader) &&
+                          ddog_agent_info_has_endpoint(DATADOG_G(agent_info_reader),
+                                                       DDOG_CHARSLICE_C("/v1.0/traces"));
+            if (use_v1) {
                 uint8_t formatted_runtime_id[36];
                 datadog_format_runtime_id(&formatted_runtime_id);
                 zend_string *process_tags = datadog_process_tags_get_serialized();
