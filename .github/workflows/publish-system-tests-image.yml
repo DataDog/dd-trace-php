@@ -32,8 +32,8 @@ jobs:
           set -euo pipefail
           base="${S3_BASE}/${REF_SLUG}"
           mkdir -p packages/amd64 packages/arm64
-          curl -fSL --retry 3 "${base}/dd-library-php-x86_64-linux-gnu.tar.gz"  -o packages/amd64/dd-library-php-x86_64-linux-gnu.tar.gz
-          curl -fSL --retry 3 "${base}/dd-library-php-aarch64-linux-gnu.tar.gz" -o packages/arm64/dd-library-php-aarch64-linux-gnu.tar.gz
+          curl -fSL --retry 3 "${base}/dd-library-php-x86_64-linux-gnu.tar.gz"  -o "packages/amd64/dd-library-php-${REF_SLUG}-x86_64-linux-gnu.tar.gz"
+          curl -fSL --retry 3 "${base}/dd-library-php-aarch64-linux-gnu.tar.gz" -o "packages/arm64/dd-library-php-${REF_SLUG}-aarch64-linux-gnu.tar.gz"
           curl -fSL --retry 3 "${base}/datadog-setup.php" -o packages/amd64/datadog-setup.php
           cp packages/amd64/datadog-setup.php packages/arm64/datadog-setup.php
 
@@ -45,6 +45,16 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+
+      - name: Record digests about to be superseded
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REF_SLUG: ${{ github.event.inputs.ref_slug }}
+        run: |
+          set -euo pipefail
+          old_index=$(gh api "${PACKAGE_PATH}/versions" --jq '.[] | select(.metadata.container.tags[]? == "'"${REF_SLUG}"'") | .name')
+          old_children=$(docker buildx imagetools inspect "${IMAGE}:${REF_SLUG}" --raw 2>/dev/null | jq -r '.manifests[].digest' || true)
+          printf '%s\n' "$old_index" $old_children | sed '/^$/d' > old_digests.txt
 
       - name: Build and push image
         env:
@@ -59,22 +69,14 @@ jobs:
             -f Dockerfile.system-tests -t "${IMAGE}:${REF_SLUG}" --push .
           echo "Pushed ${IMAGE}:${REF_SLUG}"
 
-      - name: Clean up superseded untagged versions
+      - name: Delete the digests this run superseded
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REF_SLUG: ${{ github.event.inputs.ref_slug }}
         continue-on-error: true
-        run: | # re-pushing a tag above just retargets it, leaving the old version untagged;
-               # the just-pushed multi-arch index's own child manifests are untagged too, so
-               # keep whatever digest the current tag still references.
+        run: |
           set -euo pipefail
-          keep_digests=$(docker buildx imagetools inspect "${IMAGE}:${REF_SLUG}" --raw | jq -r '.manifests[].digest')
-          gh api "${PACKAGE_PATH}/versions" \
-            --jq '.[] | select(.metadata.container.tags == []) | "\(.id) \(.name)"' \
-            | while read -r id digest; do
-                if grep -qxF "$digest" <<< "$keep_digests"; then
-                  continue
-                fi
-                gh api "${PACKAGE_PATH}/versions/${id}" -X DELETE
-              done
-          echo "Untagged-version cleanup complete"
+          while read -r digest; do
+            id=$(gh api "${PACKAGE_PATH}/versions" --jq '.[] | select(.name=="'"$digest"'" and .metadata.container.tags==[]) | .id')
+            [ -n "$id" ] && gh api "${PACKAGE_PATH}/versions/${id}" -X DELETE
+          done < old_digests.txt
+          echo "Superseded-digest cleanup complete"
