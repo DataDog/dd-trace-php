@@ -13,7 +13,12 @@ use tokio_util::codec::{Decoder, Encoder};
 use crate::client::log::{fmt_bin, trace};
 
 pub const VERSION_FOR_PROTO: &str = env!("DDAPPSEC_VERSION");
-const MAX_MESSAGE_SIZE: u32 = 4 * 1024 * 1024;
+// Incoming messages (PHP extension → helper) can be large when raw response
+// body is enabled; both parsed and raw body can each be up to 4 MiB.
+const MAX_INCOMING_MSG_SIZE: u32 = 10 * 1024 * 1024;
+// Outgoing responses (helper → PHP extension) are small by design; keep this
+// at 4 MiB to stay within the PHP extension's receive buffer.
+const MAX_OUTGOING_MSG_SIZE: u32 = 4 * 1024 * 1024;
 
 #[derive(Debug)]
 pub enum Command {
@@ -386,11 +391,11 @@ impl CommandCodec {
             ));
         }
 
-        if header.size > MAX_MESSAGE_SIZE {
+        if header.size > MAX_INCOMING_MSG_SIZE {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!(
-                    "Message is too large: {} bytes (supported up to 4 MB)",
+                    "Message is too large: {} bytes (supported up to 10 MiB)",
                     header.size
                 ),
             ));
@@ -445,7 +450,7 @@ impl Decoder for CommandCodec {
         if src.len() < total_size {
             // not enough data, but we already know how big the frame is,
             // so we can reserve the necessary capacity
-            // (frame_size() caps this to 4 MB)
+            // (frame_size() caps this to 10 MiB)
             if src.capacity() < total_size {
                 src.reserve(total_size - src.capacity());
             }
@@ -536,12 +541,12 @@ impl Encoder<CommandResponse<'_>> for CommandCodec {
         }
 
         let size = dst.len() - start - header_len;
-        if size > MAX_MESSAGE_SIZE as usize {
+        if size > MAX_OUTGOING_MSG_SIZE as usize {
             dst.truncate(start);
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!(
-                    "Message is too large: {} bytes (supported up to 4 MB)",
+                    "Message is too large: {} bytes (supported up to 4 MiB)",
                     size
                 ),
             ));
@@ -660,6 +665,26 @@ mod tests {
             buf, good_frame,
             "oversized-message error must not corrupt already-buffered data"
         );
+    }
+
+    #[test]
+    fn test_incoming_message_size_limit() {
+        let max_size_header = Header {
+            marker: Header::VALID_MARKER,
+            size: MAX_INCOMING_MSG_SIZE,
+        };
+        assert_eq!(
+            CommandCodec::frame_size(max_size_header.as_slice()).unwrap(),
+            Some(std::mem::size_of::<Header>() + MAX_INCOMING_MSG_SIZE as usize)
+        );
+
+        let oversized_header = Header {
+            marker: Header::VALID_MARKER,
+            size: MAX_INCOMING_MSG_SIZE + 1,
+        };
+        let error = CommandCodec::frame_size(oversized_header.as_slice()).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("supported up to 10 MiB"));
     }
 
     fn serialize_message<T: serde::Serialize>(command: &T) -> Vec<u8> {

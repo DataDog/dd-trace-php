@@ -131,8 +131,10 @@ void MsgpackToJson::write(mpack_node_t &node)
         writer_.EndObject();
         break;
     }
-    case mpack_type_missing:
     case mpack_type_bin:
+        writer_.String(mpack_node_bin_data(node), mpack_node_bin_size(node));
+        break;
+    case mpack_type_missing:
         throw std::runtime_error{
             std::string{"saw unsupported msgpack object: "} +
             mpack_type_to_string(type)};
