@@ -113,6 +113,7 @@
     CONFIG(INT, DD_TRACE_BGS_TIMEOUT, DD_CFG_EXPSTR(DD_TRACE_BGS_TIMEOUT_VAL),                                 \
            .ini_change = zai_config_system_ini_change)                                                         \
     CONFIG(INT, DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS, "0")                                                    \
+    CONFIG(STRING, DD_TRACE_AGENT_PROTOCOL_VERSION, "0.4", .ini_change = zai_config_system_ini_change)         \
     CONFIG(INT, DD_TRACE_AGENT_RETRIES, "0", .ini_change = zai_config_system_ini_change)                       \
     CONFIG(BOOL, DD_TRACE_AGENT_DEBUG_VERBOSE_CURL, "false", .ini_change = zai_config_system_ini_change)       \
     CONFIG(BOOL, DD_TRACE_DEBUG_CURL_OUTPUT, "false", .ini_change = zai_config_system_ini_change)              \

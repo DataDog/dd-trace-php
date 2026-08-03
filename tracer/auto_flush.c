@@ -7,6 +7,8 @@
 #include "coms.h"
 #endif
 #include "configuration.h"
+#include <ext/ffi_utils.h>
+#include <ext/process_tags.h>
 #include <components/log/log.h>
 #include "serializer.h"
 #include "span.h"
@@ -67,7 +69,33 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                 .buffer_size = get_global_DD_TRACE_BUFFER_SIZE(),
                 .url = (ddog_CharSlice) {.ptr = url, .len = strlen(url)},
             };
-            ddog_send_traces_to_sidecar(traces, &parameters);
+            // Hard gate on DD_TRACE_AGENT_PROTOCOL_VERSION (no /info negotiation yet in this
+            // cut): "1"/"1.0" selects the V1 wire (POST /v1.0/traces); anything else (default
+            // "0.4") keeps the unchanged V0.4 path.
+            zend_string *protocol_version = get_global_DD_TRACE_AGENT_PROTOCOL_VERSION();
+            if (zend_string_equals_literal(protocol_version, "1") ||
+                zend_string_equals_literal(protocol_version, "1.0")) {
+                uint8_t formatted_runtime_id[36];
+                datadog_format_runtime_id(&formatted_runtime_id);
+                zend_string *process_tags = datadog_process_tags_get_serialized();
+                ddog_TracerMetadataV1 metadata = {
+                    .hostname = dd_zend_string_to_CharSlice(get_DD_HOSTNAME()),
+                    .env = dd_zend_string_to_CharSlice(get_DD_ENV()),
+                    .app_version = dd_zend_string_to_CharSlice(get_DD_VERSION()),
+                    .runtime_id = (ddog_CharSlice) {.ptr = (char *) formatted_runtime_id, .len = sizeof(formatted_runtime_id)},
+                    .service = dd_zend_string_to_CharSlice(get_DD_SERVICE()),
+                    .tracer_version = DDOG_CHARSLICE_C_BARE(PHP_DDTRACE_VERSION),
+                    .language_name = DDOG_CHARSLICE_C_BARE("php"),
+                    .language_version = php_version_rt,
+                    .language_interpreter = (ddog_CharSlice) {.ptr = sapi_module.name, .len = strlen(sapi_module.name)},
+                    .language_interpreter_vendor = DDOG_CHARSLICE_C_BARE(""),
+                    .git_commit_sha = dd_zend_string_to_CharSlice(get_DD_GIT_COMMIT_SHA()),
+                    .process_tags = dd_zend_string_to_CharSlice(process_tags),
+                };
+                ddog_send_traces_to_sidecar_v1(traces, &parameters, &metadata);
+            } else {
+                ddog_send_traces_to_sidecar(traces, &parameters);
+            }
         } else {
             LOGEV(INFO, {
                 log("Skipping flushing trace as connection to sidecar failed");
