@@ -10,7 +10,7 @@
 
 use crate::stats::apply_concentrator_config;
 use datadog_sidecar::service::agent_info::AgentInfoReader;
-use libdd_common_ffi::slice::CharSlice;
+use libdd_common_ffi::slice::{AsBytes, CharSlice};
 use libdd_data_pipeline::agent_info::schema::AgentInfoStruct;
 use std::ffi::c_char;
 use std::ffi::CString;
@@ -94,6 +94,31 @@ pub extern "C" fn ddog_agent_info_json_free(ptr: *mut c_char) {
     if !ptr.is_null() {
         drop(unsafe { CString::from_raw(ptr) });
     }
+}
+
+/// Returns true when the agent /info `endpoints` list advertises `endpoint`
+/// (e.g. `/v1.0/traces`).  Returns false when no info has been received yet, so the
+/// caller safely treats "agent info unknown" as "endpoint not advertised".
+///
+/// # Safety
+/// `reader` must be a valid pointer to an `AgentInfoReader`.
+#[no_mangle]
+pub unsafe extern "C" fn ddog_agent_info_has_endpoint(
+    reader: &mut AgentInfoReader,
+    endpoint: CharSlice,
+) -> bool {
+    let (changed, info) = reader.read();
+    if let Some(info) = info {
+        if changed {
+            info_to_concentrator_config(info);
+        }
+        let endpoint = endpoint.as_bytes();
+        return info
+            .endpoints
+            .as_deref()
+            .map_or(false, |eps| eps.iter().any(|e| e.as_bytes() == endpoint));
+    }
+    false
 }
 
 /// Apply concentrator config changes from the agent /info SHM.
