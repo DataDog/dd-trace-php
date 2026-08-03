@@ -5,8 +5,7 @@ suffix="${1:-}"
 
 export_symbols_file="datadog.sym"
 if [ "$(uname -s)" = "Linux" ]; then
-  export_symbols_file="datadog-linux-exports.sym"
-  cat datadog.sym datadog-linux.sym > "${export_symbols_file}"
+  export_symbols_file="datadog-linux.sym"
 fi
 sed -i -E "s#-export-symbols [^ ]+#-Wl,--retain-symbols-file=${export_symbols_file}#g" "ddtrace_$(uname -m)${suffix}.ldflags"
 pids=()

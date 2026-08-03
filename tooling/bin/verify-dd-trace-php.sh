@@ -52,7 +52,7 @@ expected_symbols=`mktemp "$TMPDIR/expected_symbols.XXXXXXXX"`
 if [ "$system_name" = "Darwin" ] ; then
     sed 's/^/_/' datadog.sym | sort > "$expected_symbols"
 elif [ "$system_name" = "Linux" ] ; then
-    sort datadog.sym datadog-linux.sym > "$expected_symbols"
+    sort datadog-linux.sym > "$expected_symbols"
 else
     sort datadog.sym > "$expected_symbols"
 fi

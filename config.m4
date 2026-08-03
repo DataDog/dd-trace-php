@@ -331,11 +331,7 @@ if test "$PHP_DDTRACE" != "no"; then
     dnl DATADOG_PUBLIC in their source files as well.
     EXTRA_CFLAGS="$EXTRA_CFLAGS -fvisibility=hidden"
     case $host_os in
-      linux*)
-        DDTRACE_EXPORT_SYMBOLS="$ext_builddir/datadog-linux-exports.sym"
-        cat "$ext_srcdir/datadog.sym" "$ext_srcdir/datadog-linux.sym" > "$DDTRACE_EXPORT_SYMBOLS" \
-          || AC_MSG_ERROR([failed to generate Linux export-symbol list])
-      ;;
+      linux*) DDTRACE_EXPORT_SYMBOLS="$ext_srcdir/datadog-linux.sym" ;;
       *) DDTRACE_EXPORT_SYMBOLS="$ext_srcdir/datadog.sym" ;;
     esac
     EXTRA_LDFLAGS="$EXTRA_LDFLAGS -export-symbols $DDTRACE_EXPORT_SYMBOLS -flto -fuse-linker-plugin"

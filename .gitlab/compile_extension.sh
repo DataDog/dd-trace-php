@@ -25,8 +25,8 @@ make -j static &
 wait
 
 # Link extension
-if [ -f "${EXTENSION_DIR}/datadog-linux-exports.sym" ]; then
-  export_symbols_file="${EXTENSION_DIR}/datadog-linux-exports.sym"
+if [ "$(uname -s)" = "Linux" ]; then
+  export_symbols_file="datadog-linux.sym"
 else
   export_symbols_file="datadog.sym"
 fi
