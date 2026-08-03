@@ -113,16 +113,20 @@ void dd_entity_body_rinit(void)
         desired_bufsize = (size_t)conf_size;
     }
 
+    size_t uncapped_bufsize = desired_bufsize;
     if (get_global_DD_APPSEC_RAW_RESPONSE_BODY_ENABLED() &&
         desired_bufsize > MAX_BODY_BUFF_RAW_ENABLED) {
-        mlog(dd_log_warning,
-            "DD_APPSEC_MAX_BODY_BUFF_SIZE (%zu) exceeds maximum allowed when "
-            "DD_APPSEC_RAW_RESPONSE_BODY_ENABLED is set (%zu); capping",
-            desired_bufsize, (size_t)MAX_BODY_BUFF_RAW_ENABLED);
         desired_bufsize = MAX_BODY_BUFF_RAW_ENABLED;
     }
 
     if (desired_bufsize != _buffer_size) {
+        if (uncapped_bufsize != desired_bufsize) {
+            mlog(dd_log_warning,
+                "DD_APPSEC_MAX_BODY_BUFF_SIZE (%zu) exceeds maximum allowed "
+                "when DD_APPSEC_RAW_RESPONSE_BODY_ENABLED is set (%zu); "
+                "capping",
+                uncapped_bufsize, (size_t)MAX_BODY_BUFF_RAW_ENABLED);
+        }
         if (_buffer != NULL) {
             zend_string_release(_buffer);
         }

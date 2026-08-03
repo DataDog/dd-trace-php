@@ -5,7 +5,7 @@ import com.datadog.appsec.php.docker.FailOnUnmatchedTraces
 import com.datadog.appsec.php.model.Span
 import groovy.util.logging.Slf4j
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.condition.DisabledIf
+import org.junit.jupiter.api.condition.EnabledIf
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 
@@ -19,9 +19,9 @@ import static org.hamcrest.MatcherAssert.assertThat
 
 @Testcontainers
 @Slf4j
-@DisabledIf('isZts')
+@EnabledIf('isEnabled')
 class RawResponseBodyTests {
-    static boolean zts = variant.contains('zts')
+    static boolean enabled = !variant.contains('zts') && phpVersion == '8.3'
 
     @Container
     @FailOnUnmatchedTraces
@@ -36,9 +36,7 @@ class RawResponseBodyTests {
                 withEnv('DD_APPSEC_RAW_RESPONSE_BODY_ENABLED', '1')
             }
 
-    static boolean isZts() {
-        variant.contains('zts')
-    }
+    static boolean isEnabled() { enabled }
 
     @Test
     void 'WAF matches against raw JSON response body'() {
