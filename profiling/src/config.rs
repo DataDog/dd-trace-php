@@ -916,8 +916,10 @@ unsafe extern "C" fn parse_profiling_enabled(
 
 /// Display the profiling enabled config value
 unsafe extern "C" fn display_profiling_enabled(ini_entry: *mut zend_ini_entry, type_: c_int) {
+    // PHP 8.6 changed this field from u8 to bool, so the cast is redundant only on older PHP.
+    #[allow(clippy::unnecessary_cast)]
     let tmp_value: *mut zend_string =
-        if type_ as u32 == ZEND_INI_DISPLAY_ORIG && (*ini_entry).modified != 0 {
+        if type_ as u32 == ZEND_INI_DISPLAY_ORIG && (*ini_entry).modified as u8 != 0 {
             if !(*ini_entry).orig_value.is_null() {
                 (*ini_entry).orig_value
             } else {
