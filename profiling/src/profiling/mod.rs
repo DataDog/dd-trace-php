@@ -1844,7 +1844,7 @@ impl Profiler {
             ThreadContextRead::Active(context) => (
                 context
                     .thread_id
-                    .unwrap_or_else(|| unsafe { libc::pthread_self() as i64 }),
+                    .unwrap_or_else(libdd_common::threading::get_current_thread_id),
                 context.local_root_span_id,
                 context.span_id,
                 ProcessIdentity {
@@ -1854,7 +1854,7 @@ impl Profiler {
                 },
             ),
             ThreadContextRead::Inactive => (
-                unsafe { libc::pthread_self() as i64 },
+                libdd_common::threading::get_current_thread_id(),
                 0,
                 0,
                 ProcessIdentity::default(),
