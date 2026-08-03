@@ -483,6 +483,16 @@ void ddog_send_traces_to_sidecar(ddog_TracesBytes *traces,
                                  struct ddog_SenderParameters *parameters);
 
 /**
+ * Encodes `traces` as a V1 msgpack `TracerPayload` (using `metadata` for the payload-level
+ * fields) and sends it to the sidecar, which re-encodes it for the agent's `/v1.0/traces`
+ * endpoint. Mirrors `ddog_send_traces_to_sidecar` (v04) for the SHM allocation, per-span dedup,
+ * `size_hint` derivation and the shm→bytes send fallback.
+ */
+void ddog_send_traces_to_sidecar_v1(ddog_TracesBytes *traces,
+                                    struct ddog_SenderParameters *parameters,
+                                    const struct ddog_TracerMetadataV1 *metadata);
+
+/**
  * Drops the agent info reader.
  */
 void ddog_drop_agent_info_reader(struct ddog_AgentInfoReader*);
