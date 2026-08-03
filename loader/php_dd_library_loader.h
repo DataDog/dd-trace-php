@@ -40,6 +40,7 @@ typedef enum {
     {                                                                                               \
         .ext_name = name, .ext_dir = dir, .ext_min_version = min_version, .tmp_name = name "_injected", .tmp_deps = deps,           \
         .pre_load_hook = _pre_load_hook, .pre_minit_hook = _pre_minit_hook,                         \
+        .so_module_entry = NULL,                                                                    \
         .orig_module_startup_func = NULL, .orig_module_deps = NULL, .orig_module_functions = NULL,  \
         .module_number = -1, .version = NULL,                                                       \
         .injection_success = false, .injection_error = NULL, .extra_config = {0}, .logs = {0}       \
@@ -57,6 +58,8 @@ typedef struct _injected_ext {
     const zend_module_dep *tmp_deps;
     char *(*pre_load_hook)(struct _injected_ext *config);
     void (*pre_minit_hook)(struct _injected_ext *config, zend_module_entry *module);
+
+    zend_module_entry *so_module_entry;
 
     zend_result (*orig_module_startup_func)(INIT_FUNC_ARGS);
     const zend_module_dep *orig_module_deps;
