@@ -44,12 +44,6 @@ pub static mut GLOBALS: ProfilerGlobals = ProfilerGlobals {
     allocation_profiling_stats: UnsafeCell::new(MaybeUninit::uninit()),
 };
 
-#[cfg(all(test, php_zts))]
-#[no_mangle]
-unsafe extern "C" fn tsrm_get_ls_cache() -> *mut c_void {
-    ptr::null_mut()
-}
-
 #[cfg(php_zts)]
 mod zts {
     use core::ffi::c_void;
