@@ -1,6 +1,3 @@
-#![allow(internal_features)]
-#![feature(allow_internal_unstable)]
-#![feature(linkage)]
 #![allow(static_mut_refs)] // remove with move to Rust 2024 edition
 
 pub mod agent_info;
@@ -285,6 +282,9 @@ pub unsafe extern "C" fn datadog_crashtracker_init(
 ) -> MaybeError {
     use libdd_crashtracker::{CrashtrackerConfiguration, StacktraceCollection};
 
+    #[cfg(not(target_os = "linux"))]
+    let _ = master_pid;
+
     let result = (|| -> anyhow::Result<()> {
         let metadata: libdd_crashtracker::Metadata = metadata.try_into()?;
 
@@ -361,7 +361,7 @@ pub unsafe extern "C" fn datadog_crashtracker_init(
 
         #[cfg(not(any(target_os = "linux", target_os = "macos")))]
         {
-            let _ = (master_pid, builder, metadata);
+            let _ = (builder, metadata);
             Ok(())
         }
     })();

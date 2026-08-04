@@ -56,7 +56,7 @@ ExternalProject_Add(components_rs_proj
     PREFIX ${CMAKE_BINARY_DIR}/components_rs
     SOURCE_DIR ${CMAKE_SOURCE_DIR}/../components-rs
     CONFIGURE_COMMAND ""
-    BUILD_COMMAND RUSTC_BOOTSTRAP=1 ${CARGO_BUILD_ENV} ${CARGO_BUILD_CMD} --target-dir=${CMAKE_BINARY_DIR}/components_rs
+    BUILD_COMMAND ${CARGO_BUILD_ENV} ${CARGO_BUILD_CMD} --target-dir=${CMAKE_BINARY_DIR}/components_rs
     INSTALL_COMMAND ""
     DEPENDS libdatadog_stamp
     BUILD_IN_SOURCE TRUE
