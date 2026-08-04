@@ -1,5 +1,5 @@
 [workspace]
-members = ["components-rs", "components-rs/php_sidecar_mockgen", "profiling"]
+members = ["components-rs", "components-rs/cxa-thread-atexit", "components-rs/php_sidecar_mockgen", "profiling"]
 resolver = "2"
 
 [workspace.package]

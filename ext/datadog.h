@@ -23,14 +23,15 @@ extern datadog_php_sapi datadog_active_sapi;
 
 extern ddog_CharSlice php_version_rt;
 
-#if defined(COMPILE_DL_DDTRACE) && defined(__GLIBC__) && __GLIBC_MINOR__
-#define CXA_THREAD_ATEXIT_WRAPPER 1
-#endif
-
 void datadog_internal_handle_fork(void);
-#ifdef CXA_THREAD_ATEXIT_WRAPPER
-void dd_run_rust_thread_destructors(void *unused);
-#endif
+
+/**
+ * Takes a reference on our own shared object so that it stays mapped for the rest of the process'
+ * life. Call this when a thread of ours could not be stopped at shutdown: the extension really does
+ * get unloaded now (`apachectl graceful` does exactly that), and the straggler would be executing an
+ * unmapped mapping the moment it wakes up. Leaking the image is the cheaper failure.
+ */
+void datadog_pin_image_in_memory(void);
 
 typedef struct {
     uint64_t low;

@@ -28,6 +28,7 @@ libdd-common = {  path = "../libdatadog/libdd-common" }
 libdd-library-config-ffi = { path = "../libdatadog/libdd-library-config-ffi" }
 env_logger = { version = "0.11", default-features = false }
 libc = "0.2"
+dd-cxa-thread-atexit = { path = "../components-rs/cxa-thread-atexit" }
 # TRACE set to max to support runtime configuration.
 log = { version = "0.4", features = ["max_level_trace", "release_max_level_trace"]}
 serde_json = {version = "1.0"}

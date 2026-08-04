@@ -1328,6 +1328,7 @@ dependencies = [
  "datadog-live-debugger-ffi",
  "datadog-sidecar",
  "datadog-sidecar-ffi",
+ "dd-cxa-thread-atexit",
  "env_logger 0.10.2",
  "hashbrown 0.15.2",
  "http",
@@ -1378,6 +1379,7 @@ dependencies = [
  "crossbeam-channel",
  "dashmap",
  "datadog-php-profiling",
+ "dd-cxa-thread-atexit",
  "dynasmrt",
  "env_logger 0.11.11",
  "http",
@@ -1494,6 +1496,13 @@ version = "0.0.1"
 dependencies = [
  "quote",
  "syn 2.0.118",
+]
+
+[[package]]
+name = "dd-cxa-thread-atexit"
+version = "0.0.1"
+dependencies = [
+ "cc",
 ]
 
 [[package]]

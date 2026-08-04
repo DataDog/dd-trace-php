@@ -229,6 +229,12 @@ pub unsafe extern "C" fn get_module() -> *mut zend::ModuleEntry {
 // mechanisms like std::sync::Once::call_once may not be suitable.
 // Be careful out there!
 extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
+    // Take over thread-local destructor registration from glibc before anything here touches a
+    // thread-local: glibc's `__cxa_thread_atexit_impl` would keep this library mapped for as long
+    // as a thread has a destructor pending, which is what used to make an Apache reload re-enter
+    // startup against a stale image. Idempotent, and the strong reference that pulls the crate in.
+    dd_cxa_thread_atexit::init();
+
     // todo: merge these lifecycle things to tracing feature?
     // When developing the extension, it's useful to see log messages that
     // occur before the user can configure the log level. However, if we

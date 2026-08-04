@@ -1103,9 +1103,8 @@ static void dd_signal_data_processed(struct _writer_loop_data_t *writer) {
 
 static void dd_writer_loop_cleanup(void *ctx) {
     dd_signal_writer_finished((struct _writer_loop_data_t *)ctx);
-#ifdef CXA_THREAD_ATEXIT_WRAPPER
-    dd_run_rust_thread_destructors(NULL);
-#endif
+    // This thread is done; don't leave its Rust thread-locals to be destroyed later.
+    ddog_flush_thread_destructors();
 }
 
 static void *dd_writer_loop(void *_) {
@@ -1447,7 +1446,9 @@ bool ddtrace_coms_flush_shutdown_writer_synchronous(void) {
         } else {
             // Thread failed to respond to cancellation within the grace period.
             // Detach the thread so that its resources are cleaned up automatically
-            // when it eventually terminates, instead of hanging here forever.
+            // when it eventually terminates, instead of hanging here forever. It keeps running
+            // code from this shared object, though, so make sure we outlive it.
+            datadog_pin_image_in_memory();
             pthread_detach(writer->thread->self);
         }
         free(writer->thread);

@@ -1,0 +1,13 @@
+[package]
+name = "dd-cxa-thread-atexit"
+version = "0.0.1"
+edition = "2021"
+license = "Apache-2.0"
+publish = false
+build = "build.rs"
+
+[lib]
+path = "src/lib.rs"
+
+[build-dependencies]
+cc = "1.0"

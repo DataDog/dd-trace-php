@@ -64,6 +64,30 @@ where
     }
 }
 
+/// Keeps this shared object mapped for the remaining life of the process.
+///
+/// Only called when a thread of ours could not be joined at shutdown. Leaking the image -- and
+/// whatever the straggler holds on to -- is the cheaper of the two failure modes; the alternative
+/// is the thread running off the end of an unmapped mapping. Note we deliberately do not
+/// `pthread_cancel()` instead: glibc implements cancellation as a forced unwind, and this crate is
+/// built with `panic = "abort"`, so unwinding through frames without landing pads takes the whole
+/// process down.
+fn pin_this_library() {
+    // SAFETY: dladdr() only writes into `info`; dlopen() with RTLD_NOLOAD does not load anything
+    // new, it just takes a reference on the already-loaded object (and marks it non-deletable).
+    unsafe {
+        let mut info: libc::Dl_info = std::mem::zeroed();
+        let addr = pin_this_library as *const () as *const libc::c_void;
+        if libc::dladdr(addr, &mut info) == 0 || info.dli_fname.is_null() {
+            return;
+        }
+        libc::dlopen(
+            info.dli_fname,
+            libc::RTLD_LAZY | libc::RTLD_NOLOAD | libc::RTLD_NODELETE,
+        );
+    }
+}
+
 #[derive(thiserror::Error, Debug)]
 #[error("timeout of {timeout_ms} ms reached when joining thread {thread}")]
 pub struct TimeoutError {
@@ -90,6 +114,10 @@ pub fn join_timeout(handle: JoinHandle<()>, timeout: Duration) -> Result<(), Tim
         if elapsed >= timeout {
             let thread = handle.thread().name().unwrap_or("{unknown}").to_string();
             let timeout_ms = timeout.as_millis();
+            // We are about to leak a running thread, and this library really does get unloaded
+            // now (`apachectl graceful` does exactly that), so the thread would be executing an
+            // unmapped mapping the moment it wakes up.
+            pin_this_library();
             return Err(TimeoutError { thread, timeout_ms });
         }
 

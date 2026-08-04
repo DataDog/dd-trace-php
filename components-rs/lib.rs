@@ -449,3 +449,21 @@ pub extern "C" fn ddog_free_normalized_tag_value(ptr: *const c_char) {
         drop(std::ffi::CString::from_raw(ptr as *mut c_char));
     }
 }
+
+/// Runs the destructors of this thread's Rust thread-locals right now, instead of leaving them to
+/// the thread actually exiting. PHP calls this at the point where it tears a thread down
+/// (`PHP_GSHUTDOWN`), and the trace sender calls it when its thread is done.
+///
+/// Also our anchor for `dd-cxa-thread-atexit`: the linker only pulls that crate in for a strong
+/// reference, and the references Rust's std emits to `__cxa_thread_atexit_impl` are weak.
+#[no_mangle]
+pub extern "C" fn ddog_flush_thread_destructors() {
+    dd_cxa_thread_atexit::flush();
+}
+
+/// Creates the machinery behind [`ddog_flush_thread_destructors`] ahead of its first use. Safe to
+/// call more than once.
+#[no_mangle]
+pub extern "C" fn ddog_init_thread_destructors() {
+    dd_cxa_thread_atexit::init();
+}

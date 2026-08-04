@@ -1,4 +1,5 @@
 #include "datadog.h"
+#include <dlfcn.h>
 #include <SAPI.h>
 #include <php.h>
 #include <json/json.h>
@@ -278,73 +279,17 @@ static PHP_GINIT_FUNCTION(datadog) {
 #endif
 }
 
-// Rust code will call __cxa_thread_atexit_impl. This is a weak symbol; it's defined by glibc.
-// The problem is that calls to __cxa_thread_atexit_impl cause shared libraries to remain referenced until the calling thread terminates.
-// However in NTS builds the calling thread is the main thread and thus the shared object (i.e. ddtrace.so) WILL remain loaded.
-// This is problematic with e.g. apache which, upon reloading will unload all PHP modules including PHP itself, then reload.
-// This prevents us from a) having the weak symbols updated to the new locations and b) having ddtrace updates going live without hard restart.
-// Thus, we need to intercept it: define it ourselves so that the linker will force the rust code to call our code here.
-// Then we can collect the callbacks and invoke them ourselves right at thread shutdown, i.e. GSHUTDOWN.
-#ifdef CXA_THREAD_ATEXIT_WRAPPER
-#define CXA_THREAD_ATEXIT_PHP ((void *)0)
-#define CXA_THREAD_ATEXIT_UNINITIALIZED ((void *)1)
-#define CXA_THREAD_ATEXIT_UNAVAILABLE ((void *)2)
-
-static int (*glibc__cxa_thread_atexit_impl)(void (*func)(void *), void *obj, void *dso_symbol) = CXA_THREAD_ATEXIT_UNINITIALIZED;
-static pthread_key_t dd_cxa_thread_atexit_key; // fallback for sidecar
-
-struct dd_rust_thread_destructor {
-    void (*dtor)(void *);
-    void *obj;
-    struct dd_rust_thread_destructor *next;
-};
+// Rust code registers the destructors of its thread-locals with __cxa_thread_atexit_impl. glibc's
+// implementation keeps the calling shared object referenced until the registering thread exits --
+// which, in an NTS build, is the main thread, so ddtrace.so (and libdatadog_php.so, and the
+// profiler) would stay mapped forever. That breaks e.g. an Apache reload, which unloads all PHP
+// modules and reloads them: the weak symbols never get updated to the new locations and an update
+// cannot go live without a hard restart. The `dd-cxa-thread-atexit` crate therefore overrides the
+// symbol in every artifact of ours that contains Rust code, and hands us back the two things we
+// need: destructors that run when *PHP* tears a thread down (below), and no reference on the image.
 // Use __thread explicitly: ZEND_TLS is empty on NTS builds.
-static __thread struct dd_rust_thread_destructor *dd_rust_thread_destructors = NULL;
-ZEND_TLS bool dd_is_main_thread = false;
+static __thread bool dd_is_main_thread = false;
 
-void dd_run_rust_thread_destructors(void *unused) {
-    UNUSED(unused);
-    struct dd_rust_thread_destructor *entry = dd_rust_thread_destructors;
-    dd_rust_thread_destructors = NULL; // destructors _may_ be invoked multiple times. We need to reset thus.
-    while (entry) {
-        struct dd_rust_thread_destructor *cur = entry;
-        cur->dtor(cur->obj);
-        entry = entry->next;
-        free(cur);
-    }
-}
-
-// Note: this symbol is not public
-int __cxa_thread_atexit_impl(void (*func)(void *), void *obj, void *dso_symbol) {
-    if (glibc__cxa_thread_atexit_impl == CXA_THREAD_ATEXIT_UNINITIALIZED) {
-        glibc__cxa_thread_atexit_impl = NULL; // DL_FETCH_SYMBOL(RTLD_DEFAULT, "__cxa_thread_atexit_impl");
-        if (glibc__cxa_thread_atexit_impl == NULL) {
-            // no race condition here: logging is initialized in MINIT, at which point only a single thread lives
-            glibc__cxa_thread_atexit_impl = CXA_THREAD_ATEXIT_UNAVAILABLE;
-            pthread_key_create(&dd_cxa_thread_atexit_key, dd_run_rust_thread_destructors);
-        }
-    }
-
-    if (glibc__cxa_thread_atexit_impl != CXA_THREAD_ATEXIT_PHP && glibc__cxa_thread_atexit_impl != CXA_THREAD_ATEXIT_UNAVAILABLE) {
-        return glibc__cxa_thread_atexit_impl(func, obj, dso_symbol);
-    }
-
-    if (glibc__cxa_thread_atexit_impl == CXA_THREAD_ATEXIT_UNAVAILABLE) {
-        pthread_setspecific(dd_cxa_thread_atexit_key, (void *)0x1); // needs to be non-NULL
-    }
-
-    struct dd_rust_thread_destructor *entry = malloc(sizeof(struct dd_rust_thread_destructor));
-    entry->dtor = func;
-    entry->obj = obj;
-    entry->next = dd_rust_thread_destructors;
-    dd_rust_thread_destructors = entry;
-    return 0;
-}
-
-static void dd_clean_main_thread_locals() {
-    dd_run_rust_thread_destructors(NULL);
-}
-#endif
 
 static PHP_GSHUTDOWN_FUNCTION(datadog) {
 #if ZTS
@@ -375,12 +320,10 @@ static PHP_GSHUTDOWN_FUNCTION(datadog) {
 
     tsrm_mutex_free(datadog_globals->sidecar_universal_service_tags_mutex);
 
-#ifdef CXA_THREAD_ATEXIT_WRAPPER
     // FrankenPHP calls `ts_free_thread()` in rshutdown
     if (!dd_is_main_thread && datadog_active_sapi != DATADOG_PHP_SAPI_FRANKENPHP) {
-        dd_run_rust_thread_destructors(NULL);
+        ddog_flush_thread_destructors();
     }
-#endif
 }
 
 static bool dd_is_compatible_sapi() {
@@ -418,14 +361,13 @@ static PHP_MINIT_FUNCTION(datadog) {
 
     datadog_active_sapi = datadog_php_sapi_from_name(datadog_php_string_view_from_cstr(sapi_module.name));
 
-#ifdef CXA_THREAD_ATEXIT_WRAPPER
-    // FrankenPHP calls `ts_free_thread()` in rshutdown
+    // FrankenPHP calls `ts_free_thread()` in rshutdown, so its threads keep running past
+    // GSHUTDOWN and must not be treated like the main thread.
     if (datadog_active_sapi != DATADOG_PHP_SAPI_FRANKENPHP) {
         dd_is_main_thread = true;
-        glibc__cxa_thread_atexit_impl = CXA_THREAD_ATEXIT_PHP;
-        atexit(dd_clean_main_thread_locals);
     }
-#endif
+    // Get the destructor bookkeeping up before anything touches a Rust thread-local.
+    ddog_init_thread_destructors();
 
     // Reset on every minit for `apachectl graceful`.
     dd_activate_once_control = (pthread_once_t)PTHREAD_ONCE_INIT;
@@ -700,6 +642,17 @@ static PHP_MINFO_FUNCTION(datadog) {
     datadog_phpinfo();
 
     DISPLAY_INI_ENTRIES();
+}
+
+void datadog_pin_image_in_memory(void) {
+#ifndef _WIN32
+    Dl_info info;
+    if (dladdr((void *)datadog_pin_image_in_memory, &info) == 0 || info.dli_fname == NULL) {
+        return;
+    }
+    // RTLD_NOLOAD: don't load anything, just take a reference on the object we are already in.
+    dlopen(info.dli_fname, RTLD_LAZY | RTLD_NOLOAD | RTLD_NODELETE);
+#endif
 }
 
 void datadog_internal_handle_fork(void) {
