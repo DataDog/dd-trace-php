@@ -1512,6 +1512,41 @@ $system_tests_weblogs = [
   script:
     - ./bin/test.sh
 
+# Regression test for the loader crashing the Apache parent on "apachectl graceful", i.e. on a
+# second php_module_startup() in the same process after the loader .so got re-mapped elsewhere
+# while the injected ddtrace.so/profiler stayed resident.
+"Loader Apache reload test on <?= $arch ?>":
+  stage: verify
+  image: "${LOADER_IMAGE_REPO}:php-${MAJOR_MINOR}_${CONTAINER_SUFFIX}"
+  tags: [ "arch:$ARCH" ]
+  variables:
+    ARCH: "<?= $arch ?>"
+    CONTAINER_SUFFIX: bookworm-10
+    LOADER_IMAGE_REPO: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci"
+  needs:
+    - job: "package loader: [<?= $arch ?>]"
+      artifacts: true
+  parallel:
+    matrix:
+      # 7.4 is the version the crash was reported on and reproduces reliably; the newer ones are
+      # there to keep the mod_php reload path covered going forward.
+      - MAJOR_MINOR:
+          - "7.4"
+          - "8.3"
+          - "8.5"
+        PHP_FLAVOUR: nts
+  before_script:
+<?php unset_dd_runner_env_vars() ?>
+    - switch-php $PHP_FLAVOUR
+    - mkdir -p extracted/
+    - tar --no-same-owner --no-same-permissions --touch -xzf packages/dd-library-php-ssi-*-linux.tar.gz -C extracted/
+    - export DD_LOADER_PACKAGE_PATH=${PWD}/extracted/dd-library-php-ssi
+    - cd loader
+    - mkdir -p modules
+    - cp ${DD_LOADER_PACKAGE_PATH}/linux-gnu/loader/dd_library_loader.so modules/
+  script:
+    - ./bin/test_apache_reload.sh
+
 <?php endforeach; ?>
 
 "publish to public s3":
