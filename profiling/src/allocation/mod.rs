@@ -14,7 +14,7 @@ use log::{debug, trace};
 use rand_distr::{Distribution, Poisson};
 use std::ffi::c_void;
 use std::num::{NonZero, NonZeroU32, NonZeroU64};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 
 #[cfg(not(php_zts))]
 use rand::rngs::StdRng;
@@ -39,13 +39,26 @@ pub(crate) unsafe fn get_zend_mm_state() -> *mut Cell<ZendMMState> {
     ptr::addr_of_mut!((*globals).zend_mm_state)
 }
 
+#[cfg(php_zts)]
 #[inline(always)]
-pub(crate) unsafe fn current_execute_data() -> *mut zend::zend_execute_data {
-    #[cfg(not(php_zts))]
-    return ptr::addr_of!(zend::executor_globals.current_execute_data).read();
-
-    #[cfg(php_zts)]
-    zend::ddog_php_prof_get_current_execute_data()
+pub(crate) unsafe fn current_execute_data_from_cache(
+    ls_cache: *mut c_void,
+) -> *mut zend::zend_execute_data {
+    // PHP 7.4 introduced fast globals offsets. Older versions use the TSRM resource ID.
+    #[cfg(php_zts_fast_globals)]
+    let globals = {
+        let offset = ptr::addr_of!(zend::executor_globals_offset).read();
+        ls_cache
+            .byte_add(offset)
+            .cast::<zend::zend_executor_globals>()
+    };
+    #[cfg(not(php_zts_fast_globals))]
+    let globals = {
+        let id = ptr::addr_of!(zend::executor_globals_id).read();
+        module_globals::get_tsrm_resource_from_cache(ls_cache, id)
+            .cast::<zend::zend_executor_globals>()
+    };
+    ptr::addr_of!((*globals).current_execute_data).read()
 }
 
 /// Macros for accessing ZendMMState from PHP globals.
@@ -85,6 +98,10 @@ pub mod allocation_le83;
 #[export_name = "executor_globals"]
 static mut TEST_EXECUTOR_GLOBALS: core::mem::MaybeUninit<zend::zend_executor_globals> =
     core::mem::MaybeUninit::zeroed();
+
+#[cfg(all(test, php_zts, php_zts_fast_globals))]
+#[export_name = "executor_globals_offset"]
+static mut TEST_EXECUTOR_GLOBALS_OFFSET: usize = 0;
 
 #[cfg(all(test, not(php_debug)))]
 #[no_mangle]
@@ -146,7 +163,7 @@ pub static ALLOCATION_PROFILING_COUNT: AtomicU64 = AtomicU64::new(0);
 pub static ALLOCATION_PROFILING_SIZE: AtomicU64 = AtomicU64::new(0);
 
 pub struct AllocationProfilingStats {
-    /// number of bytes until next sample collection
+    /// Number of bytes remaining until the next sample collection.
     next_sample: i64,
     poisson: Poisson<f64>,
     #[cfg(php_zts)]
@@ -177,42 +194,46 @@ impl AllocationProfilingStats {
 
     fn should_collect_allocation(&mut self, len: size_t) -> bool {
         self.next_sample -= len as i64;
-
         if self.next_sample > 0 {
             return false;
         }
 
         self.next_sampling_interval();
-
         true
     }
 }
 
 /// Collect an allocation sample and optionally track it for live heap profiling.
 ///
+/// # Safety
+/// `execute_data` must be null or a valid pointer provided by the engine. The
+/// profiler may walk the execution frames reachable through it.
+///
 /// # Arguments
 /// * `ptr` - The pointer returned by the allocator (used for live heap tracking)
 /// * `len` - The size of the allocation in bytes
 #[cold]
-pub fn collect_allocation(ptr: *mut c_void, len: size_t) {
+pub unsafe fn collect_allocation(
+    interrupt_count: &AtomicU32,
+    execute_data: *mut zend::zend_execute_data,
+    ptr: *mut c_void,
+    len: size_t,
+) {
     if let Some(profiler) = Profiler::get() {
         // Check if there's a pending time interrupt that we can handle now
         // instead of waiting for an interrupt handler. This is slightly more
         // accurate and efficient, win-win.
-        // SAFETY: allocation samples are collected on an initialized PHP request thread.
-        let globals = unsafe { module_globals::get_profiler_globals() };
-        // SAFETY: the current thread's module globals are valid through GSHUTDOWN.
-        let interrupt_count = unsafe { (*globals).interrupt_count.swap(0, Ordering::Relaxed) };
+        let pending_interrupts = interrupt_count.swap(0, Ordering::Relaxed);
 
         // SAFETY: execute_data was provided by the engine, and the profiler
-        // doesn't mutate it.
+        // only reads the execution frames reachable through it.
         unsafe {
             profiler.collect_allocations(
-                zend::ddog_php_prof_get_current_execute_data(),
+                execute_data,
                 ptr,
                 1_i64,
                 len as i64,
-                (interrupt_count > 0).then_some(interrupt_count),
+                (pending_interrupts > 0).then_some(pending_interrupts),
             )
         };
     }

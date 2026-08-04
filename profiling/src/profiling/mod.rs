@@ -1270,8 +1270,12 @@ impl Profiler {
     ///
     /// If heap live profiling is enabled, the allocation is tracked for later
     /// cancellation when freed.
+    ///
+    /// # Safety
+    /// `execute_data` must be null or a valid pointer provided by the engine.
+    /// The profiler walks the execution frames reachable through it.
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
-    pub fn collect_allocations(
+    pub unsafe fn collect_allocations(
         &self,
         execute_data: *mut zend_execute_data,
         ptr: *mut std::ffi::c_void,

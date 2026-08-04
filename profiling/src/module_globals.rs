@@ -1,6 +1,7 @@
 use crate::allocation;
-use core::cell::Cell;
+use core::cell::{Cell, UnsafeCell};
 use core::ffi::c_void;
+use core::mem::MaybeUninit;
 use core::ptr;
 use core::sync::atomic::AtomicU32;
 
@@ -27,6 +28,9 @@ pub struct ProfilerGlobals {
     pub interrupt_count: AtomicU32,
     #[cfg(target_os = "linux")]
     pub(crate) process_context: RefCell<ProcessContextCache>,
+    /// Per-thread allocation sampling state. Kept in PHP globals so allocator
+    /// hooks can reuse an already-resolved TSRM cache instead of accessing Rust TLS.
+    pub allocation_profiling_stats: UnsafeCell<MaybeUninit<allocation::AllocationProfilingStats>>,
 }
 
 /// We need TSRM to call into GINIT and GSHUTDOWN to observe spawning and
@@ -46,6 +50,7 @@ pub static mut GLOBALS: ProfilerGlobals = ProfilerGlobals {
     interrupt_count: AtomicU32::new(0),
     #[cfg(target_os = "linux")]
     process_context: RefCell::new(ProcessContextCache::new()),
+    allocation_profiling_stats: UnsafeCell::new(MaybeUninit::uninit()),
 };
 
 #[cfg(php_zts)]
@@ -134,6 +139,7 @@ pub unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
         #[cfg(target_os = "linux")]
         ptr::addr_of_mut!((*globals).process_context)
             .write(RefCell::new(ProcessContextCache::new()));
+        (*globals).allocation_profiling_stats = UnsafeCell::new(MaybeUninit::uninit());
     }
 
     // SAFETY: this is called in thread ginit as expected, and no other places.
