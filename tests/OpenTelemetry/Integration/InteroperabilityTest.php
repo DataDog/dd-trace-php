@@ -1396,10 +1396,6 @@ final class InteroperabilityTest extends BaseTestCase
 
     public function testBaggageApiInteroperability()
     {
-        if (PHP_VERSION_ID >= 80500) {
-            $this->markTestSkipped('OpenTelemetry baggage context interoperability is not supported on PHP 8.5 yet');
-        }
-
         // //1. OpenTelemetry Baggage is Propagated to Datadog
         $otelToDatadog = $this->isolateTracer(function () {
             $tracer = (new TracerProvider())->getTracer('OpenTelemetry.TestTracer');

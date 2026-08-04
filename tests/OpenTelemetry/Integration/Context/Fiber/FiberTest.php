@@ -40,9 +40,6 @@ final class FiberTest extends BaseTestCase
         if (version_compare(PHP_VERSION, '8.1.0', '<')) {
             $this->markTestSkipped('Fibers are only supported in PHP 8.1+');
         }
-        if (PHP_VERSION_ID >= 80500) {
-            $this->markTestSkipped('OpenTelemetry fiber stack interoperability is not supported on PHP 8.5 yet');
-        }
 
         $traces = $this->isolateTracer(function () {
             $tracer = (new TracerProvider())->getTracer('OpenTelemetry.TestTracer');

@@ -16,10 +16,6 @@ class SpanProvenanceTest extends BaseTestCase
 
     function testOtelSpanMarked()
     {
-        if (PHP_VERSION_ID >= 80500) {
-            $this->markTestSkipped('Filesystem hook provenance is not supported on PHP 8.5 yet');
-        }
-
         $traces = $this->isolateTracer(function () {
             $context = Configurator::create()
                 ->withTracerProvider(new TracerProvider)
