@@ -20,9 +20,11 @@ class SpanProvenanceTest extends BaseTestCase
             $context = Configurator::create()
                 ->withTracerProvider(new TracerProvider)
                 ->storeInContext();
-            Context::storage()->attach($context);
+            $scope = Context::storage()->attach($context);
 
             file_get_contents("/etc/passwd");
+
+            $scope->detach();
         });
         $this->assertEquals($traces[0][0]["resource"], "file_get_contents");
         $this->assertEquals($traces[0][0]["name"], "internal");

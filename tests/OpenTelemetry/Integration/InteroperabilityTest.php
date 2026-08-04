@@ -1398,7 +1398,7 @@ final class InteroperabilityTest extends BaseTestCase
     {
         // //1. OpenTelemetry Baggage is Propagated to Datadog
         $otelToDatadog = $this->isolateTracer(function () {
-            $tracer = (new TracerProvider())->getTracer('OpenTelemetry.TestTracer');
+            $tracer = (new TracerProvider([], new AlwaysOnSampler()))->getTracer('OpenTelemetry.TestTracer');
 
             $parentSpan = $tracer->spanBuilder('parent')
                 ->setSpanKind(SpanKind::KIND_CLIENT)
@@ -1427,7 +1427,7 @@ final class InteroperabilityTest extends BaseTestCase
             $span->name = "dd.span";
             $span->baggage["dd_key"] = "dd_value";
 
-            $tracer = (new TracerProvider())->getTracer('OpenTelemetry.TestTracer');
+            $tracer = (new TracerProvider([], new AlwaysOnSampler()))->getTracer('OpenTelemetry.TestTracer');
             $baggage = Baggage::getCurrent();
 
             $this->assertSame('dd_value', $baggage->getValue('dd_key'));
@@ -1436,7 +1436,7 @@ final class InteroperabilityTest extends BaseTestCase
 
         // 3. Conflict Handling Between OpenTelemetry and Datadog Baggage Keys
         $datadogAndOtelSharingKeys = $this->isolateTracer(function () {
-            $tracer = (new TracerProvider())->getTracer('OpenTelemetry.TestTracer');
+            $tracer = (new TracerProvider([], new AlwaysOnSampler()))->getTracer('OpenTelemetry.TestTracer');
 
             $parentSpan = $tracer->spanBuilder('parent')
                 ->setSpanKind(SpanKind::KIND_SERVER)
@@ -1466,7 +1466,7 @@ final class InteroperabilityTest extends BaseTestCase
 
         // 4. OpenTelemetry Baggage Removal Reflects in Datadog
         $otelDeletedOnDatadog = $this->isolateTracer(function () {
-            $tracer = (new TracerProvider())->getTracer('OpenTelemetry.TestTracer');
+            $tracer = (new TracerProvider([], new AlwaysOnSampler()))->getTracer('OpenTelemetry.TestTracer');
 
             $baggage = Baggage::getBuilder()
                 ->set('otel_key', 'otel_value')
