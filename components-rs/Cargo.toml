@@ -61,6 +61,7 @@ libdd-library-config = { path = "../libdatadog/libdd-library-config", default-fe
 libdd-otel-thread-ctx = { path = "../libdatadog/libdd-otel-thread-ctx" }
 
 [build-dependencies]
+build_common = { path = "../libdatadog/build-common" }
 cbindgen = "0.27"
 
 [lints.rust]
