@@ -443,6 +443,11 @@ foreach ($build_platforms as $platform) {
     TRIPLET: "<?= $platform['triplet'] ?>"
     ARCH: "<?= $platform['arch'] ?>"
     HOST_OS: "<?= $platform['host_os'] ?>"
+<?php if ($platform['host_os'] === "linux-gnu"): ?>
+    CC: clang
+    CXX: clang++
+    CARGO_TARGET_<?= strtoupper(str_replace('-', '_', $platform['triplet'])) ?>_LINKER: clang
+<?php endif; ?>
     CARGO_BUILD_JOBS: 16
     KUBERNETES_CPU_REQUEST: 16
     KUBERNETES_MEMORY_REQUEST: 5Gi
