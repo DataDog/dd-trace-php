@@ -99,6 +99,10 @@ pub mod allocation_le83;
 static mut TEST_EXECUTOR_GLOBALS: core::mem::MaybeUninit<zend::zend_executor_globals> =
     core::mem::MaybeUninit::zeroed();
 
+#[cfg(all(test, php_zts, php_zts_fast_globals))]
+#[export_name = "executor_globals_offset"]
+static mut TEST_EXECUTOR_GLOBALS_OFFSET: usize = 0;
+
 #[cfg(all(test, not(php_debug)))]
 #[no_mangle]
 unsafe extern "C" fn _zend_mm_free(_heap: *mut zend::_zend_mm_heap, _ptr: *mut c_void) {}
