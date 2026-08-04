@@ -9,7 +9,7 @@ else()
         list(JOIN _DD_APPSEC_PCRE2_INCLUDE_DIRS " "
             _DD_APPSEC_PCRE2_CPPFLAGS)
         set(_DD_APPSEC_DDTRACE_MAKE_OPTIONS
-            "EXTRA_CFLAGS=${_DD_APPSEC_PCRE2_CPPFLAGS}")
+            "EXTRA_INCLUDES=${_DD_APPSEC_PCRE2_CPPFLAGS}")
     endif()
     add_custom_target(ddtrace
         COMMAND ${CMAKE_COMMAND} -E env "PATH=${PhpConfig_ROOT_DIR}/bin:$ENV{PATH}" PHPRC=
