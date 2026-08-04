@@ -29,7 +29,7 @@ If you need to run this step outside a build script and your host lacks `binutil
 - `.gitlab/generate-common.php` -- shared PHP-version and arch matrices
 - `.gitlab/compile_extension.sh` -- build script for tracer-pipeline `compile extension` jobs
 - `compile_rust.sh` -- shared Rust build wrapper invoked by `compile_extension.sh`
-  and `build-sidecar.sh`; sets `RUSTFLAGS`, `RUSTC_BOOTSTRAP=1`, and `SIDECAR_VERSION`
+  and `build-sidecar.sh`; sets `RUSTFLAGS` and `SIDECAR_VERSION`
 - `.gitlab/build-tracing.sh` -- builds NTS + ZTS `.a` (static archives) for the package pipeline
 - `.gitlab/build-sidecar.sh` -- builds `libdatadog_php.{a,so}` (Rust sidecar)
 - `.gitlab/link-tracing-extension.sh` -- links `.a` archives with the sidecar into final `.so` files
