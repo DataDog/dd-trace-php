@@ -122,8 +122,11 @@ foreach ($profiler_minor_major_targets as $version) {
     # CARGO_TARGET_DIR: /mnt/ramdisk/cargo # ramdisk??
     libdir: /tmp/datadog-profiling
   script:
-    - switch-php nts # not compatible with debug
     - cd profiling
+    - switch-php nts
+    - cargo test --all-features
+    - touch build.rs # make sure `build.rs` gets executed after `switch-php`
+    - switch-php zts
     - cargo test --all-features
 
 "PHP language tests":
