@@ -14,6 +14,7 @@ use OpenTelemetry\API\Trace\Span;
 use OpenTelemetry\API\Trace\SpanKind;
 use OpenTelemetry\Context\Context;
 use OpenTelemetry\Context\ExecutionContextAwareInterface;
+use OpenTelemetry\SDK\Trace\Sampler\AlwaysOnSampler;
 use OpenTelemetry\SDK\Trace\TracerProvider;
 use function DDTrace\close_span;
 use function DDTrace\start_span;
@@ -42,7 +43,7 @@ final class FiberTest extends BaseTestCase
         }
 
         $traces = $this->isolateTracer(function () {
-            $tracer = (new TracerProvider())->getTracer('OpenTelemetry.TestTracer');
+            $tracer = (new TracerProvider([], new AlwaysOnSampler()))->getTracer('OpenTelemetry.TestTracer');
 
             $parentSpan = $tracer->spanBuilder('parent')
                 ->setSpanKind(SpanKind::KIND_SERVER)
