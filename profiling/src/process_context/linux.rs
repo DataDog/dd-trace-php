@@ -292,6 +292,21 @@ impl ProcessContextCache {
     }
 }
 
+// Standalone Rust tests do not run inside PHP and therefore have no TSRM
+// module globals. Use Rust TLS to preserve the per-thread cache semantics
+// without entering the PHP module-globals path.
+#[cfg(test)]
+std::thread_local! {
+    static TEST_CACHE: std::cell::RefCell<ProcessContextCache> =
+        const { std::cell::RefCell::new(ProcessContextCache::new()) };
+}
+
+#[cfg(test)]
+fn with_cache<R>(f: impl FnOnce(&std::cell::RefCell<ProcessContextCache>) -> R) -> R {
+    TEST_CACHE.with(f)
+}
+
+#[cfg(not(test))]
 fn with_cache<R>(f: impl FnOnce(&std::cell::RefCell<ProcessContextCache>) -> R) -> R {
     // SAFETY: PHP module globals are initialized by GINIT and are local to the
     // current PHP thread in ZTS builds. NTS executes PHP on one thread.
