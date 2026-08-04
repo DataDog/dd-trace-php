@@ -8,8 +8,7 @@ name = "ddappsec_helper"
 path = "src/lib.rs"
 
 [dependencies]
-# Tokio runtime with all features enabled
-tokio = { version = "1.0", features = ["full", "tracing"] }
+tokio = { version = "1.0", features = ["rt", "rt-multi-thread", "net", "io-util", "sync", "time", "macros"] }
 
 serde = { version = "1.0", features = ["derive"] }
 serde_tuple = { version = "1.0" }
