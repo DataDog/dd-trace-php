@@ -93,6 +93,8 @@ void ddtrace_otel_attach_stack(ddtrace_span_stack *stack) {
     }
 
     ddtrace_root_span_data *root = stack->root_span;
+    // Inactive span stacks may cache stale inherited attributes. Refresh them when
+    // reattached after a metadata update; see otel_thread_context_stack_switch.phpt.
     if (UNEXPECTED(root->otel_context_attributes_generation != DDTRACE_G(otel_context_attributes_generation))) {
         ddtrace_otel_refresh_attribute_values(root);
     }
