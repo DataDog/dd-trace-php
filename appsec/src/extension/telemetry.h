@@ -26,6 +26,8 @@ void dd_telemetry_note_helper_string_meta(const char *nonnull key,
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 void dd_telemetry_submit_duration_ext(double waf_ext_us, double rasp_ext_us);
+void dd_telemetry_add_rasp_rule_skipped(
+    zend_string *nonnull rule_type, zend_string *nullable rule_variant);
 
 void dd_telemetry_helper_conn_error(void);
 void dd_telemetry_helper_conn_success(void);

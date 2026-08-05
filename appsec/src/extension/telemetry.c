@@ -20,6 +20,7 @@ static zend_string *_dd_helper_conn_close_zstr;
 
 static zend_string *_waf_duration_ext_tel_zstr;
 static zend_string *_rasp_duration_ext_tel_zstr;
+static zend_string *_rasp_rule_skipped_zstr;
 
 static THREAD_LOCAL_ON_ZTS zend_string *nullable _cached_waf_version;
 static THREAD_LOCAL_ON_ZTS zend_string *nullable _cached_event_rules_version;
@@ -46,6 +47,8 @@ void dd_telemetry_startup(void)
         zend_string_init_interned(LSTRARG("waf.duration_ext"), 1);
     _rasp_duration_ext_tel_zstr =
         zend_string_init_interned(LSTRARG("rasp.duration_ext"), 1);
+    _rasp_rule_skipped_zstr =
+        zend_string_init_interned(LSTRARG("rasp.rule.skipped"), 1);
 }
 
 void dd_telemetry_mshutdown(void)
@@ -94,6 +97,32 @@ void dd_telemetry_add_sdk_event(char *nonnull event_type, size_t event_type_len)
     zend_string_release(tags_zstr);
 
     free(tags);
+}
+
+void dd_telemetry_add_rasp_rule_skipped(
+    zend_string *nonnull rule_type, zend_string *nullable rule_variant)
+{
+    if (!dd_trace_loaded() || datadog_metric_register_buffer == NULL ||
+        datadog_metric_add_point == NULL) {
+        return;
+    }
+
+    char *tags = NULL;
+    size_t tags_len;
+    if (rule_variant != NULL && ZSTR_LEN(rule_variant) > 0) {
+        tags_len = spprintf(&tags, 0,
+            "rule_type:%.*s,rule_variant:%.*s,reason:out-of-request",
+            ZSTR_PRINTF(rule_type), ZSTR_PRINTF(rule_variant));
+    } else {
+        tags_len = spprintf(&tags, 0, "rule_type:%.*s,reason:out-of-request",
+            ZSTR_PRINTF(rule_type));
+    }
+
+    zend_string *tags_zstr = zend_string_init(tags, tags_len, 0);
+    dd_telemetry_add_metric(
+        _rasp_rule_skipped_zstr, 1, tags_zstr, DDTRACE_METRIC_TYPE_COUNT);
+    zend_string_release(tags_zstr);
+    efree(tags);
 }
 
 static void _add_user_auth_metric(zend_string *nonnull name_zstr,
