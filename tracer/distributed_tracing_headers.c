@@ -352,19 +352,19 @@ static ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids_t
                 .low = ddtrace_parse_hex_span_id_str(&tracedata->trace_id[16], 16)
         };
         uint64_t parent_id = ddtrace_parse_hex_span_id_str(tracedata->parent_id, 16);
+        uint8_t trace_flags = (uint8_t)ddtrace_parse_hex_span_id_str(tracedata->trace_flags, 2)
+            & DDTRACE_TRACE_FLAGS_SUPPORTED;
+
+        zend_string_release(traceparent);
 
         if ((!trace_id.low && !trace_id.high) || !parent_id) {
-            zend_string_release(traceparent);
             return result;
         }
 
-        result.trace_flags = (uint8_t)ddtrace_parse_hex_span_id_str(tracedata->trace_flags, 2)
-            & DDTRACE_TRACE_FLAGS_SUPPORTED;
+        result.trace_flags = trace_flags;
         result.trace_id = trace_id;
         result.parent_id = parent_id;
         result.priority_sampling = (result.trace_flags & DDTRACE_TRACE_FLAG_SAMPLED) != 0;
-
-        zend_string_release(traceparent);
 
         zend_string *span_parent_key = zend_string_init("_dd.parent_id", strlen("_dd.parent_id"), 0);
 
