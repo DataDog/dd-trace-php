@@ -1089,17 +1089,15 @@ static void dd_serialize_span_events(zend_array *events, smart_str *buf) {
 }
 
 // --- Native V1 span links/events (DD_TRACE_AGENT_PROTOCOL_VERSION=1/1.0) ---
-// On the V1 wire, links/events are emitted into libdatadog's native span structures
-// (span_links field 11, span_events field 12) rather than the JSON-in-meta V0.4 form.
+// On the V1 wire these go into libdatadog's native span structures, not the V0.4 JSON-in-meta form.
 
 static bool dd_v1_native_span_enabled(void) {
     zend_string *pv = get_global_DD_TRACE_AGENT_PROTOCOL_VERSION();
     return zend_string_equals_literal(pv, "1") || zend_string_equals_literal(pv, "1.0");
 }
 
-// Emit each SpanLink into the native span. trace_id/span_id are hex strings; the V1 link
-// wire has no flags source on the PHP side and no dropped_attributes_count field, so both
-// are omitted. Link attributes are a string map.
+// Emit each SpanLink into the native span. The V1 link wire omits flags and
+// dropped_attributes_count (no PHP-side source); attributes are a string map.
 static void dd_span_links_to_native(zend_array *links, ddog_SpanBytes *rust_span) {
     zval *val;
     ZEND_HASH_FOREACH_VAL(links, val) {
@@ -1143,7 +1141,6 @@ static void dd_span_links_to_native(zend_array *links, ddog_SpanBytes *rust_span
     } ZEND_HASH_FOREACH_END();
 }
 
-// Dispatch a single event attribute to the typed native setter based on its zval type.
 static void dd_event_attribute_to_native(ddog_SpanEventBytes *event, ddog_CharSlice key, zval *val) {
     ZVAL_DEREF(val);
     switch (Z_TYPE_P(val)) {

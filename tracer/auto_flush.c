@@ -69,10 +69,8 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                 .buffer_size = get_global_DD_TRACE_BUFFER_SIZE(),
                 .url = (ddog_CharSlice) {.ptr = url, .len = strlen(url)},
             };
-            // V1 wire (POST /v1.0/traces) is used only when BOTH the config resolves to
-            // "1"/"1.0" AND the agent /info advertises "/v1.0/traces". Otherwise (default
-            // "0.4", explicit 1.0 but agent doesn't advertise it, or agent info not yet
-            // known) fall back to the unchanged V0.4 path -- the safe default.
+            // Use the V1 wire only when the protocol config is "1"/"1.0" AND the agent /info
+            // advertises "/v1.0/traces"; otherwise fall back to the default V0.4 path.
             zend_string *protocol_version = get_global_DD_TRACE_AGENT_PROTOCOL_VERSION();
             bool use_v1 = (zend_string_equals_literal(protocol_version, "1") ||
                            zend_string_equals_literal(protocol_version, "1.0")) &&
