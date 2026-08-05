@@ -25,6 +25,16 @@ pub(crate) struct ProcessIdentityRef<'a> {
     pub(crate) version: Option<&'a str>,
 }
 
+impl From<ProcessIdentityRef<'_>> for ProcessIdentity {
+    fn from(identity: ProcessIdentityRef<'_>) -> Self {
+        Self {
+            service: identity.service.map(str::to_owned),
+            environment: identity.environment.map(str::to_owned),
+            version: identity.version.map(str::to_owned),
+        }
+    }
+}
+
 pub(crate) enum ThreadContextRead {
     /// No valid OTel Thread Context is currently attached.
     Inactive,
