@@ -82,9 +82,7 @@ void ddtrace_otel_update_attribute_values(ddtrace_root_span_data *root) {
         return;
     }
 
-    if (++DDTRACE_G(otel_context_attributes_generation) == 0) {
-        ++DDTRACE_G(otel_context_attributes_generation);
-    }
+    ++DDTRACE_G(otel_context_attributes_generation);
     ddtrace_otel_refresh_attribute_values(root);
 }
 
