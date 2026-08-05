@@ -608,7 +608,8 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
     ddtrace_span_data_readonly(object, member, value, cache_slot);
 #endif
     if (trace_id_changed) {
-        span->trace_flags = trace_id_random ? DDTRACE_TRACE_FLAG_RANDOM : 0;
+        span->trace_flags = (span->trace_flags & ~DDTRACE_TRACE_FLAG_RANDOM)
+            | (trace_id_random ? DDTRACE_TRACE_FLAG_RANDOM : 0);
 #ifdef __linux__
         ddtrace_otel_update_trace_id(span);
 #endif
