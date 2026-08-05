@@ -99,22 +99,20 @@ fn char_slice_string(value: CharSlice<'_>) -> String {
 #[cfg(target_os = "linux")]
 #[no_mangle]
 pub extern "C" fn datadog_publish_otel_process_context(
-    runtime_id: CharSlice<'_>,
-    tracer_version: CharSlice<'_>,
     hostname: CharSlice<'_>,
-    container_id: CharSlice<'_>,
     process_tags: CharSlice<'_>,
 ) -> bool {
     use libdd_library_config::otel_process_ctx;
     use libdd_library_config::tracer_metadata::{ThreadLocalMetadata, TracerMetadata};
 
     let metadata = TracerMetadata {
-        runtime_id: Some(char_slice_string(runtime_id)),
+        // Safety: the runtime ID is only mutated from single-threaded contexts.
+        runtime_id: Some(unsafe { datadog_runtime_id.as_hyphenated().to_string() }),
         tracer_language: "php".to_owned(),
-        tracer_version: char_slice_string(tracer_version),
+        tracer_version: include_str!("../VERSION").trim().to_owned(),
         hostname: char_slice_string(hostname),
         process_tags: Some(char_slice_string(process_tags)),
-        container_id: Some(char_slice_string(container_id)),
+        container_id: get_container_id().map(str::to_owned),
         threadlocal_metadata: Some(ThreadLocalMetadata {
             attribute_keys: vec![
                 "service.name".to_owned(),
