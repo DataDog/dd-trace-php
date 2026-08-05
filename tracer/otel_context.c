@@ -175,7 +175,7 @@ static void ddtrace_otel_record_set_attrs(datadog_otel_thr_ctx_rec *record, ddtr
 
     zend_string *service = NULL, *env = NULL, *version = NULL;
     ddtrace_span_data *source = ddtrace_otel_attr_source_span(root);
-    datadog_populate_target_data_with_defaults(source, &service, &env, &version, get_DD_SERVICE(), get_DD_ENV(), get_DD_VERSION());
+    datadog_populate_target_data(source, &service, &env, &version);
 
     size_t offset = DDTRACE_OTEL_LOCAL_ROOT_SPAN_ID_ATTR_SIZE;
     offset = ddtrace_otel_record_write_attr_zstr(record, offset, DDTRACE_OTEL_ATTR_SERVICE_NAME, ddtrace_otel_attr_zstr(service));
