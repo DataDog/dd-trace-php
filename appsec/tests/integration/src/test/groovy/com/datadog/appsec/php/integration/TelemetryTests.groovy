@@ -923,7 +923,9 @@ class TelemetryTests {
 
     /**
      * Verifies that appsec.waf.requests is tagged request_blocked:true when the WAF
-     * returns a block_request action and false otherwise
+     * returns a block_request action and false otherwise, and that block_failure:false
+     * is emitted alongside request_blocked:true (the PHP layer is assumed to always
+     * succeed at blocking, and block_failure is only emitted when a block was requested).
      */
     @Test
     @Order(10)
@@ -974,10 +976,14 @@ class TelemetryTests {
         assert wafReqBlocked.type == 'count'
         assert 'rule_triggered:true' in wafReqBlocked.tags
         assert 'request_blocked:true' in wafReqBlocked.tags
+        assert 'block_failure:false' in wafReqBlocked.tags : 'block_failure:false must be emitted ' +
+                'alongside request_blocked:true'
 
         assert wafReqNotBlocked != null : 'waf.requests metric with request_blocked:false not found ' +
                 '-- rust helper must emit request_blocked:false on non-blocked requests (RFC-1012)'
         assert 'request_blocked:false' in wafReqNotBlocked.tags
+        assert wafReqNotBlocked.tags.find { it.startsWith('block_failure:') } == null :
+                'block_failure must not be emitted when request_blocked is false'
     }
 
     /**

@@ -234,8 +234,11 @@ impl telemetry::TelemetryMetricsGenerator for WafMetrics {
         // RFC-1012: all boolean tags must be emitted regardless of value.
         let mut tags = base_tags.clone();
         tags.add("rule_triggered", bool_tag(self.had_triggers));
-        // block_failure is not tracked: the PHP layer is assumed to always succeed at blocking.
+        // The PHP layer is assumed to always succeed at blocking.
         // Therefore request_blocked == "WAF requested a block" == "block succeeded".
+        if self.request_blocked {
+            tags.add("block_failure", "false");
+        }
         // request_excluded is not tracked: libddwaf applies exclusion filters internally and
         // does not expose whether a request was excluded in RunOutput.
         tags.add("request_blocked", bool_tag(self.request_blocked));
