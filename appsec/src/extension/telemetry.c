@@ -21,11 +21,18 @@ static zend_string *_dd_helper_conn_close_zstr;
 static zend_string *_waf_duration_ext_tel_zstr;
 static zend_string *_rasp_duration_ext_tel_zstr;
 static zend_string *_rasp_rule_skipped_zstr;
+static zend_string *_api_sec_request_schema_zstr;
+static zend_string *_api_sec_request_no_schema_zstr;
+static zend_string *_api_sec_missing_route_zstr;
+
+static zend_string *_component_literal_zstr;
 
 static THREAD_LOCAL_ON_ZTS zend_string *nullable _cached_waf_version;
 static THREAD_LOCAL_ON_ZTS zend_string *nullable _cached_event_rules_version;
+static THREAD_LOCAL_ON_ZTS bool _schema_extracted;
 
 static zend_string *nullable _duration_ext_tags_from_cache(void);
+static zend_string *nonnull _framework_tag(zend_object *nullable root_span);
 static void _release_zstr(zend_string *nullable *nonnull slot);
 static void _cache_replace(zend_string *nullable *nonnull slot,
     const char *nonnull val, size_t val_len);
@@ -49,6 +56,14 @@ void dd_telemetry_startup(void)
         zend_string_init_interned(LSTRARG("rasp.duration_ext"), 1);
     _rasp_rule_skipped_zstr =
         zend_string_init_interned(LSTRARG("rasp.rule.skipped"), 1);
+    _api_sec_request_schema_zstr =
+        zend_string_init_interned(LSTRARG("api_security.request.schema"), 1);
+    _api_sec_request_no_schema_zstr =
+        zend_string_init_interned(LSTRARG("api_security.request.no_schema"), 1);
+    _api_sec_missing_route_zstr =
+        zend_string_init_interned(LSTRARG("api_security.missing_route"), 1);
+    _component_literal_zstr =
+        zend_string_init_interned(LSTRARG("component"), 1);
 }
 
 void dd_telemetry_mshutdown(void)
@@ -61,6 +76,7 @@ void dd_telemetry_rinit(void)
 {
     _release_zstr(&_cached_event_rules_version);
     _release_zstr(&_cached_waf_version);
+    _schema_extracted = false;
 }
 
 void dd_telemetry_note_helper_string_meta(const char *nonnull key,
@@ -123,6 +139,76 @@ void dd_telemetry_add_rasp_rule_skipped(
         _rasp_rule_skipped_zstr, 1, tags_zstr, DDTRACE_METRIC_TYPE_COUNT);
     zend_string_release(tags_zstr);
     efree(tags);
+}
+
+void dd_telemetry_note_schema_extracted(void) { _schema_extracted = true; }
+
+void dd_telemetry_add_api_security_request(
+    zend_object *nullable root_span, dd_api_sec_outcome outcome)
+{
+    const bool schema_extracted = _schema_extracted;
+    _schema_extracted = false;
+
+    if (outcome == DD_API_SEC_SKIP) {
+        return;
+    }
+
+    if (!dd_trace_loaded() || datadog_metric_register_buffer == NULL ||
+        datadog_metric_add_point == NULL) {
+        return;
+    }
+
+    zend_string *name_zstr;
+    if (outcome == DD_API_SEC_MISSING_ROUTE) {
+        name_zstr = _api_sec_missing_route_zstr;
+    } else if (schema_extracted) {
+        name_zstr = _api_sec_request_schema_zstr;
+    } else {
+        name_zstr = _api_sec_request_no_schema_zstr;
+    }
+
+    zend_string *tags_zstr = _framework_tag(root_span);
+    dd_telemetry_add_metric(name_zstr, 1, tags_zstr, DDTRACE_METRIC_TYPE_COUNT);
+    zend_string_release(tags_zstr);
+}
+
+#define DD_UNKNOWN_FRAMEWORK "unknown"
+// Builds the framework tag out of the root span's component tag, which is what
+// the framework integrations set (e.g. laravel, symfony, wordpress). Per
+// RFC-1012, the name is normalized by lowercasing it and replacing spaces with
+// underscores.
+static zend_string *nonnull _framework_tag(zend_object *nullable root_span)
+{
+    const char *framework = DD_UNKNOWN_FRAMEWORK;
+    size_t framework_len = LSTRLEN(DD_UNKNOWN_FRAMEWORK);
+
+    zval *nullable meta = root_span ? dd_trace_span_get_meta(root_span) : NULL;
+    if (meta != NULL && Z_TYPE_P(meta) == IS_ARRAY) {
+        zval *nullable component =
+            zend_hash_find_ex(Z_ARRVAL_P(meta), _component_literal_zstr, true);
+        if (component != NULL && Z_TYPE_P(component) == IS_STRING &&
+            Z_STRLEN_P(component) > 0) {
+            framework = Z_STRVAL_P(component);
+            framework_len = Z_STRLEN_P(component);
+        }
+    }
+
+    zend_string *tags_zstr =
+        zend_string_alloc(LSTRLEN("framework:") + framework_len, 0);
+    memcpy(ZSTR_VAL(tags_zstr), LSTRARG("framework:"));
+    char *dest = ZSTR_VAL(tags_zstr) + LSTRLEN("framework:");
+    for (size_t i = 0; i < framework_len; i++) {
+        char c = framework[i];
+        if (c == ' ') {
+            c = '_';
+        } else if (c >= 'A' && c <= 'Z') {
+            c = (char)(c - 'A' + 'a');
+        }
+        dest[i] = c;
+    }
+    ZSTR_VAL(tags_zstr)[ZSTR_LEN(tags_zstr)] = '\0';
+
+    return tags_zstr;
 }
 
 static void _add_user_auth_metric(zend_string *nonnull name_zstr,
