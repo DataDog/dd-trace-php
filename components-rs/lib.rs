@@ -144,15 +144,6 @@ pub extern "C" fn datadog_publish_otel_process_context(
     otel_process_ctx::publish(&context).is_ok()
 }
 
-// Keep libdd-otel-thread-ctx, which defines the standard TLS symbol, linked into the final
-// extension. The tracer updates its embedded records directly and does not call this function.
-#[cfg(target_os = "linux")]
-#[used]
-static DDTRACE_OTEL_THREAD_CONTEXT_LINK_ANCHOR: fn() -> std::option::Option<
-    libdd_otel_thread_ctx::linux::ThreadContext,
-> =
-    libdd_otel_thread_ctx::linux::ThreadContext::detach;
-
 #[must_use]
 #[no_mangle]
 pub extern "C" fn ddtrace_get_container_id() -> CharSlice<'static> {

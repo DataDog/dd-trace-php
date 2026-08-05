@@ -1320,7 +1320,6 @@ version = "0.0.1"
 dependencies = [
  "anyhow",
  "bincode",
- "build_common",
  "cbindgen 0.27.0",
  "const-str",
  "datadog-ffe",
@@ -1342,7 +1341,6 @@ dependencies = [
  "libdd-data-pipeline",
  "libdd-library-config",
  "libdd-library-config-ffi",
- "libdd-otel-thread-ctx",
  "libdd-remote-config",
  "libdd-telemetry",
  "libdd-telemetry-ffi",
@@ -1654,12 +1652,6 @@ name = "either"
 version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60b1af1c220855b6ceac025d3f6ecdd2b7c4894bfe9cd9bda4fbb4bc7c0d4cf0"
-
-[[package]]
-name = "elf"
-version = "0.7.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4445909572dbd556c457c849c4ca58623d84b27c8fff1e74b0b4227d8b90d17b"
 
 [[package]]
 name = "encoding_rs"
@@ -3048,16 +3040,6 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
-]
-
-[[package]]
-name = "libdd-otel-thread-ctx"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "elf",
- "libdd-otel-thread-ctx",
- "object 0.36.7",
 ]
 
 [[package]]

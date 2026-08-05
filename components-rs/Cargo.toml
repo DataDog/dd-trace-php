@@ -58,10 +58,8 @@ hashbrown = "0.15"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libdd-library-config = { path = "../libdatadog/libdd-library-config", default-features = false, features = ["otel-thread-ctx"] }
-libdd-otel-thread-ctx = { path = "../libdatadog/libdd-otel-thread-ctx" }
 
 [build-dependencies]
-build_common = { path = "../libdatadog/build-common" }
 cbindgen = "0.27"
 
 [lints.rust]
