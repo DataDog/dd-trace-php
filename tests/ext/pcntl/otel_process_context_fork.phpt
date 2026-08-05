@@ -7,6 +7,9 @@ if (PHP_OS_FAMILY !== 'Linux') die('skip: Linux only');
 if (!extension_loaded('ffi')) die('skip: ffi extension required');
 if (!extension_loaded('pcntl')) die('skip: pcntl extension required');
 if (!is_readable('/proc/self/smaps')) die('skip: readable /proc/self/smaps required');
+if (getenv('USE_ZEND_ALLOC') === '0' && !getenv('SKIP_ASAN')) {
+    die('skip: Valgrind is incompatible with MADV_DONTFORK process mappings');
+}
 ?>
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
