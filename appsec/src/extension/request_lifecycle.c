@@ -41,7 +41,6 @@ const zend_array *nonnull _get_server_equiv(
     const zend_array *nonnull superglob_equiv);
 static uint64_t _calc_sampling_key(zend_object *root_span, int status_code,
     dd_api_sec_outcome *nonnull outcome);
-static bool _shutdown_succeeded(dd_result res);
 static void _register_testing_objects(void);
 
 static bool _enabled_user_req;
@@ -417,8 +416,7 @@ static void _do_request_finish_php(bool ignore_verdict)
                 dd_result_to_string(res));
         }
 
-        dd_telemetry_add_api_security_request(
-            _cur_req_span, api_sec_outcome);
+        dd_telemetry_add_api_security_request(_cur_req_span, api_sec_outcome);
     }
 
     dd_helper_rshutdown();
@@ -472,8 +470,7 @@ static zend_array *_do_request_finish_user_req(bool ignore_verdict,
                 dd_result_to_string(res));
         }
 
-        dd_telemetry_add_api_security_request(
-            _cur_req_span, api_sec_outcome);
+        dd_telemetry_add_api_security_request(_cur_req_span, api_sec_outcome);
     }
 
     dd_helper_rshutdown();
