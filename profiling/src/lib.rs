@@ -9,7 +9,6 @@ mod pthread;
 mod sapi;
 mod wall_time;
 
-#[cfg(target_os = "linux")]
 mod process_context;
 
 #[cfg(php_run_time_cache)]

@@ -25,8 +25,9 @@ use crate::bindings::{
 };
 use crate::config::SystemSettings;
 use crate::exception::EXCEPTION_PROFILING_INTERVAL;
+use crate::process_context::ProcessIdentity;
 #[cfg(target_os = "linux")]
-use crate::process_context::{ProcessIdentity, ProcessIdentityRef, ThreadContextRead};
+use crate::process_context::{ProcessIdentityRef, ThreadContextRead};
 use crate::{Clocks, RefCellExt, CLOCKS, REQUEST_LOCALS, TAGS};
 use chrono::Utc;
 use core::mem::forget;
@@ -172,7 +173,6 @@ pub struct Label {
 
 struct SampleLabels {
     labels: Vec<Label>,
-    #[cfg(target_os = "linux")]
     identity: ProcessIdentity,
     base_tags: Arc<Vec<Tag>>,
 }
@@ -191,7 +191,6 @@ impl DerefMut for SampleLabels {
     }
 }
 
-#[cfg(target_os = "linux")]
 fn effective_profile_tags(base: Arc<Vec<Tag>>, identity: &ProcessIdentity) -> Arc<Vec<Tag>> {
     let mut updated = None;
     apply_profile_tag_override(&base, &mut updated, "service", identity.service.as_deref());
@@ -208,7 +207,6 @@ fn profile_tag_value<'a>(tags: &'a [Tag], key: &str) -> Option<&'a str> {
     })
 }
 
-#[cfg(target_os = "linux")]
 fn apply_profile_tag_override(
     base: &[Tag],
     updated: &mut Option<Vec<Tag>>,
@@ -1865,7 +1863,7 @@ impl Profiler {
             ),
         };
         #[cfg(not(target_os = "linux"))]
-        let (thread_id, local_root_span_id, span_id) = {
+        let (thread_id, local_root_span_id, span_id, identity) = {
             // SAFETY: this is set to a noop version if ddtrace wasn't found,
             // and we're getting the profiling context on a PHP thread.
             let context =
@@ -1874,6 +1872,7 @@ impl Profiler {
                 unsafe { libc::pthread_self() as i64 },
                 context.local_root_span_id,
                 context.span_id,
+                ProcessIdentity::default(),
             )
         };
         labels.push(Label {
@@ -1919,7 +1918,6 @@ impl Profiler {
         }
         SampleLabels {
             labels,
-            #[cfg(target_os = "linux")]
             identity,
             base_tags,
         }
@@ -1953,10 +1951,7 @@ impl Profiler {
         let sample_types = self.sample_types_filter.sample_types();
         let sample_values = self.sample_types_filter.filter(samples);
 
-        #[cfg(target_os = "linux")]
         let tags = effective_profile_tags(labels.base_tags, &labels.identity);
-        #[cfg(not(target_os = "linux"))]
-        let tags = labels.base_tags;
 
         SampleMessage {
             key: Arc::new(ProfileIndex { sample_types, tags }),
@@ -2069,11 +2064,6 @@ mod tests {
         assert_eq!(message.value.sample_values, vec![10, 20, 30, 60]);
         assert_eq!(message.value.timestamp, 900);
     }
-}
-
-#[cfg(all(test, target_os = "linux"))]
-mod linux_tests {
-    use super::*;
 
     fn test_tags(values: &[(&str, &str)]) -> Arc<Vec<Tag>> {
         Arc::new(
