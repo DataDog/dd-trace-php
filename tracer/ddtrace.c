@@ -707,10 +707,6 @@ void ddtrace_internal_handle_postfork() {
 
 void ddtrace_internal_handle_fork() {
 #ifdef __linux__
-    ddtrace_span_stack *stack = DDTRACE_G(active_stack);
-    if (stack && stack->root_span) {
-        ddtrace_otel_update_attribute_values(stack->root_span);
-    }
     ddtrace_otel_detach();
 #endif
     if (DATADOG_G(sidecar)) {
