@@ -269,23 +269,6 @@ impl ProcessContextCache {
 
         (context, unknown_index)
     }
-
-    fn decode_with_refresh(
-        &mut self,
-        attributes: &[u8],
-        defaults: ProcessIdentityRef<'_>,
-    ) -> ThreadContext {
-        let (decoded, unknown_index) = self.decode_thread_attributes(attributes, defaults);
-        if !unknown_index {
-            return decoded;
-        }
-
-        if self.refresh().is_err() {
-            return decoded;
-        }
-
-        self.decode_thread_attributes(attributes, defaults).0
-    }
 }
 
 // Standalone Rust tests do not run inside PHP and therefore have no TSRM
@@ -390,7 +373,10 @@ pub(crate) fn thread_context(defaults: ProcessIdentityRef<'_>) -> ThreadContextR
         let Ok(mut cache) = cell.try_borrow_mut() else {
             return decoded;
         };
-        cache.decode_with_refresh(attributes, defaults)
+        if cache.refresh().is_err() {
+            return decoded;
+        }
+        cache.decode_thread_attributes(attributes, defaults).0
     });
     context.span_id = u64::from_be_bytes(
         header[16..24]
