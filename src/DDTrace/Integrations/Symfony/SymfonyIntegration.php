@@ -23,14 +23,6 @@ class SymfonyIntegration extends Integration
     public static $kernel;
 
     /**
-     * {@inheritdoc}
-     */
-    public static function requiresExplicitTraceAnalyticsEnabling(): bool
-    {
-        return false;
-    }
-
-    /**
      * Load the integration
      *
      * @return int
@@ -53,7 +45,6 @@ class SymfonyIntegration extends Integration
                     Integration::tagFrameworkServiceSource($rootSpan, SymfonyIntegration::NAME);
                     $rootSpan->meta[Tag::SPAN_KIND] = 'server';
                     $rootSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
-                    SymfonyIntegration::addTraceAnalyticsIfEnabled($rootSpan);
 
                     $span->name = 'symfony.httpkernel.kernel.handle';
                     $span->resource = \get_class($this);
@@ -479,7 +470,6 @@ class SymfonyIntegration extends Integration
                 $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
                 $rootSpan->meta[Tag::COMPONENT] = self::$frameworkPrefix;
                 $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-                self::addTraceAnalyticsIfEnabled($rootSpan);
 
                 if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
                     $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize($request->getUri());
@@ -630,7 +620,6 @@ class SymfonyIntegration extends Integration
             Integration::tagFrameworkServiceSource($span, self::$frameworkPrefix);
             $span->meta[Tag::COMPONENT] = self::NAME;
             \DDTrace\root_span()->exception = $args[0];
-
 
             if (isset($retval) && \method_exists($retval, 'getStatusCode') && $retval->getStatusCode() < 500) {
                 // It means that the exception event associated with the exception had a response, which certainly

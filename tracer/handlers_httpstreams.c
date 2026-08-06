@@ -72,11 +72,10 @@ static php_stream *dd_stream_opener(
             zend_array *meta = ddtrace_property_array(&span->property_meta);
             zval zv;
 
-            ZVAL_STRING(&zv, "php.stream");
-            zend_hash_str_update(meta, ZEND_STRL("component"), &zv);
-
-            ZVAL_STRING(&zv, "client");
-            zend_hash_str_update(meta, ZEND_STRL("span.kind"), &zv);
+            // Set on the properties; the serializer mirrors them into meta at serialization time.
+            zval_ptr_dtor(&span->property_component);
+            ZVAL_STRING(&span->property_component, "php.stream");
+            ZVAL_LONG(&span->property_span_kind, 3 /* DDTrace\SpanKind::CLIENT */);
 
             ZVAL_STRING(&zv, filename);
             zend_hash_str_update(meta, ZEND_STRL("http.url"), &zv);
