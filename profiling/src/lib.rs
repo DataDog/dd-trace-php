@@ -165,10 +165,13 @@ extern "C" {
 }
 
 /// Module dependencies for the profiler extension.
-static MODULE_DEPS: [zend::ModuleDep; 8] = [
+static MODULE_DEPS: [zend::ModuleDep; 9] = [
     zend::ModuleDep::required(cstr!("standard")),
     zend::ModuleDep::required(cstr!("json")),
+    // Load after optional context publishers so their Process and Thread Context
+    // are available when profiling starts.
     zend::ModuleDep::optional(cstr!("ddtrace")),
+    zend::ModuleDep::optional(cstr!("opentelemetry")),
     // Optionally, be dependent on these event extensions so that the functions they provide
     // are registered in the function table and we can hook into them.
     zend::ModuleDep::optional(cstr!("ev")),
