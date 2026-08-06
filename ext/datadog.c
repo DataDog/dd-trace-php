@@ -726,7 +726,7 @@ void datadog_internal_handle_fork(void) {
 static const zend_module_dep datadog_module_deps[] = {
     ZEND_MOD_REQUIRED("json")
     ZEND_MOD_REQUIRED("standard")
-    ZEND_MOD_OPTIONAL("openetelemetry") // make sure we load after otel to insert the hook function if it doesn't exist yet
+    ZEND_MOD_OPTIONAL("opentelemetry") // make sure we load after otel to insert the hook function if it doesn't exist yet
     ZEND_MOD_END};
 
 zend_module_entry datadog_module_entry = {STANDARD_MODULE_HEADER_EX, NULL,
