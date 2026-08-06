@@ -470,9 +470,9 @@ mod tests {
         ));
 
         let identity = cached.identity();
-        assert_eq!(identity.service.as_deref(), Some("checkout"));
-        assert_eq!(identity.environment.as_deref(), Some("production"));
-        assert_eq!(identity.version.as_deref(), Some("1.2.3"));
+        assert_eq!(identity.service, Some("checkout"));
+        assert_eq!(identity.environment, Some("production"));
+        assert_eq!(identity.version, Some("1.2.3"));
         assert_eq!(
             cached.resource_string(cached.offsets.resource.service_instance_id),
             Some("runtime-id-from-publisher")
