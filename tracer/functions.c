@@ -11,7 +11,7 @@
 #include "memory_limit.h"
 #ifdef __linux__
 #include "otel_context.h"
-#include <ext/otel_context.h>
+#include <components-rs/datadog.h>
 #endif
 #include "random.h"
 #include "serializer.h"
@@ -2081,7 +2081,8 @@ PHP_FUNCTION(dd_trace_internal_fn) {
                 datadog_process_tags_reload();
                 datadog_sidecar_update_process_tags();
 #ifdef __linux__
-                datadog_otel_process_context_publish();
+                zend_string *process_tags = datadog_process_tags_get_serialized();
+                datadog_publish_otel_process_context(dd_zend_string_to_CharSlice(process_tags));
 #endif
             }
             RETVAL_TRUE;

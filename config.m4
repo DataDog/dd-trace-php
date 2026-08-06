@@ -183,7 +183,6 @@ if test "$PHP_DDTRACE" != "no"; then
 
   case "$host_os" in
     linux*)
-      EXTRA_DATADOG_SOURCES="$EXTRA_DATADOG_SOURCES ext/otel_context.c"
       EXTRA_TRACER_SOURCES="$EXTRA_TRACER_SOURCES tracer/otel_context.c"
       ;;
   esac
