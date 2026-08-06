@@ -10,12 +10,10 @@
 
 void datadog_otel_process_context_publish(void) {
     char detected_hostname[HOST_NAME_MAX + 1] = {0};
-    ddog_CharSlice hostname = {0};
-    if (gethostname(detected_hostname, HOST_NAME_MAX) == 0) {
-        hostname = (ddog_CharSlice){
-            .ptr = detected_hostname,
-            .len = strnlen(detected_hostname, HOST_NAME_MAX),
-        };
+    ddog_CharSlice hostname = DDOG_CHARSLICE_C("");
+    if (gethostname(detected_hostname, sizeof detected_hostname) == 0) {
+        hostname.ptr = detected_hostname;
+        hostname.len = strnlen(detected_hostname, sizeof detected_hostname);
     }
 
     zend_string *process_tags = datadog_process_tags_get_serialized();
