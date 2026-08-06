@@ -163,11 +163,17 @@ impl ThreadAttributeOffsets {
 /// mapping, decodes it, and immediately closes the reader's copy pipe.
 pub(crate) struct ProcessContextCache {
     context: Option<CachedProcessContext>,
+    /// Consecutive samples that observed an unknown key index. Recovery is
+    /// attempted at powers of two and suppressed once this saturates.
+    unknown_index_observations: u8,
 }
 
 impl ProcessContextCache {
     pub(crate) const fn new() -> Self {
-        Self { context: None }
+        Self {
+            context: None,
+            unknown_index_observations: 0,
+        }
     }
 
     pub(crate) fn reset(&mut self) {
@@ -180,17 +186,12 @@ impl ProcessContextCache {
         if self.context.is_some() {
             return;
         }
-        if self.refresh().is_err() {
+        if self.read_process_context().is_err() {
             self.context = Some(CachedProcessContext::default());
         }
     }
 
-    /// Cold relative to sampling: initialization calls this once per PHP thread.
-    /// With the current fixed key map, an unknown index on the sample path is only
-    /// expected while restoring a cache invalidated before fork.
-    #[cold]
-    #[inline(never)]
-    fn refresh(&mut self) -> std::io::Result<()> {
+    fn read_process_context(&mut self) -> std::io::Result<()> {
         let result = ProcessContextSelfReader::new().and_then(|reader| reader.read());
         match result {
             Ok(context) => {
@@ -199,6 +200,27 @@ impl ProcessContextCache {
             }
             Err(error) => Err(error),
         }
+    }
+
+    fn unknown_index_refresh_due(&mut self) -> bool {
+        self.unknown_index_observations = self.unknown_index_observations.saturating_add(1);
+        self.unknown_index_observations.is_power_of_two()
+    }
+
+    /// Cold relative to sampling. With the current fixed key map, this is only
+    /// expected while restoring a cache invalidated before fork.
+    #[cold]
+    #[inline(never)]
+    fn refresh(&mut self) -> bool {
+        if !self.unknown_index_refresh_due() {
+            return false;
+        }
+        if self.read_process_context().is_err() {
+            return false;
+        }
+
+        self.unknown_index_observations = 0;
+        true
     }
 
     fn decode_thread_attributes(
@@ -378,7 +400,7 @@ pub(crate) fn thread_context(defaults: ProcessIdentityRef<'_>) -> ThreadContextR
         let Ok(mut cache) = cell.try_borrow_mut() else {
             return decoded;
         };
-        if cache.refresh().is_err() {
+        if !cache.refresh() {
             return decoded;
         }
         cache.decode_thread_attributes(attributes, defaults).0
@@ -439,6 +461,7 @@ mod tests {
     fn cache(context: ProcessContext) -> ProcessContextCache {
         ProcessContextCache {
             context: Some(CachedProcessContext::new(context)),
+            unknown_index_observations: 0,
         }
     }
 
@@ -450,6 +473,21 @@ mod tests {
             encoded.extend_from_slice(value);
         }
         encoded
+    }
+
+    #[test]
+    fn backs_off_unknown_index_refreshes() {
+        let mut cache = ProcessContextCache::new();
+        let refresh_observations: Vec<_> = (1..=300)
+            .filter(|_| cache.unknown_index_refresh_due())
+            .collect();
+
+        assert_eq!(refresh_observations, [1, 2, 4, 8, 16, 32, 64, 128]);
+        assert_eq!(cache.unknown_index_observations, u8::MAX);
+
+        cache.unknown_index_observations = 0;
+        assert!(cache.unknown_index_refresh_due());
+        assert_eq!(cache.unknown_index_observations, 1);
     }
 
     #[test]
