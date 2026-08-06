@@ -202,9 +202,15 @@ test_c2php: $(SO_FILE) $(INIT_HOOK_TEST_FILES) $(BUILD_DIR)/run-tests.php
 test_with_init_hook: $(SO_FILE) $(INIT_HOOK_TEST_FILES) $(BUILD_DIR)/run-tests.php
 	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(TRACER_SOURCES_INI) $(INIT_HOOK_TEST_FILES);
 
-# The .phpt suite runs twice: normally, and under valgrind for leak checking.
-# Separate targets so CI can parallelize them -- valgrind is far slower.
-# The PATH shim in tests/ext/valgrind adds the suppressions file.
+# The extension .phpt suite is run twice: once normally, and once under valgrind
+# for leak checking. The valgrind pass is an order of magnitude slower, so the
+# two passes are separate targets and separate CI jobs -- running them serially
+# in one job pushed `test_extension_ci` into its 2h timeout.
+#
+# `tests/ext/valgrind` is prepended to $PATH in both passes: the shim there
+# intercepts `valgrind` invocations to add the suppressions file. Only the `-m`
+# pass invokes valgrind, but the export is kept in both to preserve the
+# pre-split environment exactly.
 test_extension_ci_normal: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
 	( \
 	set -xe; \
@@ -222,8 +228,10 @@ test_extension_ci_valgrind: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_
 	DD_SPAWN_WORKER_STABLE_TRAMPOLINE=1 $(ALL_TEST_ENV_OVERRIDE) DD_TRACE_AGENT_TIMEOUT=5000 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m -s $$TEST_PHP_OUTPUT $(BUILD_DIR)/$(TESTS) && ! grep -e '^LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
 	)
 
-# Recursive $(MAKE), not prerequisites: under `make -jN` prerequisites would run
-# concurrently and both passes share the same .phpt sandbox (.out/.diff/.mem).
+# Back-compat composite for local use: both passes, serially, as before.
+# Recursive $(MAKE) rather than prerequisites, because prerequisites would run
+# concurrently under `make -jN` and both passes share the same .phpt sandbox
+# (.out/.diff/.mem files), which would interleave and corrupt results.
 test_extension_ci:
 	$(MAKE) test_extension_ci_normal
 	$(MAKE) test_extension_ci_valgrind

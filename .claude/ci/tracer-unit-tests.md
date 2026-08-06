@@ -559,9 +559,13 @@ make test_opcache
   with the normal pass. `make test_extension_ci` still runs both
   serially for local use.
 
-- **`PHP Language Tests` has retry:2 in CI.** These tests are
-  inherently flaky due to timing-sensitive PHP runtime tests. The CI
-  job retries up to 2 times on script failure.
+- **Retries are infrastructure-only.** `test_extension_ci`,
+  `ASAN test_c`, and `PHP Language Tests` inherit `default.retry` from
+  `.gitlab/generate-common.php`, which retries runner/API/timeout
+  failures but *not* `script_failure`. A genuine test failure is not
+  retried — retrying it tripled compute without changing the outcome.
+  These job classes are listed in `flaky-jobs.txt`, so their failures
+  are already non-gating.
 
 - **`test_integration` talks to test-agent on port 9126** and mongodb.
   `test_composer`, `test_auto_instrumentation`, and

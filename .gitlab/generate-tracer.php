@@ -243,6 +243,11 @@ foreach ($asan_minor_major_targets as $major_minor):
           - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
             ARCH: "<?= $arch ?>"
       artifacts: true
+  # No `retry:` override: inherit the repo-wide `default.retry` from
+  # generate-common.php. The bare `retry: 2` shorthand retried *every* failure
+  # reason, including `script_failure`, so a genuine ASAN regression burned 3x
+  # the compute. These failures are already non-gating (`ASAN test_c:*` is in
+  # flaky-jobs.txt), so the retries bought no merge signal.
   variables:
     WAIT_FOR: test-agent:9126
     KUBERNETES_CPU_REQUEST: 6
@@ -360,8 +365,16 @@ endforeach;
 <?php
 foreach ($all_minor_major_targets as $major_minor):
 ?>
-<?php /* Normal and valgrind passes run as separate jobs: valgrind is far
-   slower, so run in parallel. */ ?>
+<?php /*
+ * The extension .phpt suite runs as two jobs, not two passes of one job. The
+ * valgrind leak-check pass is ~an order of magnitude slower than the normal
+ * pass; running both serially in a single job routinely hit the 120m timeout
+ * and discarded the normal pass's results along with it.
+ *
+ * Both job names keep the `test_extension_ci:` prefix so they continue to match
+ * the `test_extension_ci:*` glob in flaky-jobs.txt -- merge-gate behaviour is
+ * unchanged by the split.
+ */ ?>
 "test_extension_ci: [<?= $major_minor ?>]":
   extends: .debug_test
   services:
@@ -584,17 +597,10 @@ foreach ($all_minor_major_targets as $major_minor):
     DD_INSTRUMENTATION_TELEMETRY_ENABLED: 0
 <?php endif; ?>
   timeout: 40m
-  retry:
-    max: 2
-    when:
-      - script_failure
-      - unknown_failure
-      - data_integrity_failure
-      - runner_system_failure
-      - scheduler_failure
-      - api_failure
-      - stuck_or_timeout_failure
-      - job_execution_timeout
+  # No `retry:` override: inherit the repo-wide `default.retry` from
+  # generate-common.php, which retries infrastructure failures only. Retrying
+  # `script_failure` re-ran genuine test failures up to 3x, tripling both the
+  # compute and the wall clock of an already-failing pipeline.
   script:
     - make install_all
     - export XFAIL_LIST="dockerfiles/ci/xfail_tests/${PHP_MAJOR_MINOR}.list"
