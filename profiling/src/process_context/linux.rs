@@ -185,6 +185,11 @@ impl ProcessContextCache {
         }
     }
 
+    /// Cold relative to sampling: initialization calls this once per PHP thread.
+    /// With the current fixed key map, an unknown index on the sample path is only
+    /// expected while restoring a cache invalidated before fork.
+    #[cold]
+    #[inline(never)]
     fn refresh(&mut self) -> std::io::Result<()> {
         let result = ProcessContextSelfReader::new().and_then(|reader| reader.read());
         match result {
