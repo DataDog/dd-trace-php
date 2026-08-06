@@ -237,7 +237,11 @@ foreach ($asan_minor_major_targets as $major_minor):
           - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
             ARCH: "<?= $arch ?>"
       artifacts: true
-  retry: 2
+  # No `retry:` override: inherit the repo-wide `default.retry` from
+  # generate-common.php. The bare `retry: 2` shorthand retried *every* failure
+  # reason, including `script_failure`, so a genuine ASAN regression burned 3x
+  # the compute. These failures are already non-gating (`ASAN test_c:*` is in
+  # flaky-jobs.txt), so the retries bought no merge signal.
   variables:
     WAIT_FOR: test-agent:9126
     KUBERNETES_CPU_REQUEST: 6
@@ -355,6 +359,16 @@ endforeach;
 <?php
 foreach ($all_minor_major_targets as $major_minor):
 ?>
+<?php /*
+ * The extension .phpt suite runs as two jobs, not two passes of one job. The
+ * valgrind leak-check pass is ~an order of magnitude slower than the normal
+ * pass; running both serially in a single job routinely hit the 120m timeout
+ * and discarded the normal pass's results along with it.
+ *
+ * Both job names keep the `test_extension_ci:` prefix so they continue to match
+ * the `test_extension_ci:*` glob in flaky-jobs.txt -- merge-gate behaviour is
+ * unchanged by the split.
+ */ ?>
 "test_extension_ci: [<?= $major_minor ?>]":
   extends: .debug_test
   services:
@@ -369,13 +383,62 @@ foreach ($all_minor_major_targets as $major_minor):
   variables:
     WAIT_FOR: test-agent:9126
     KUBERNETES_CPU_REQUEST: 12
+<?php if (version_compare($major_minor, "7.4", ">=")): ?>
+    # Match parallelism to the reserved CPU count. The previous value of 4 left
+    # 8 of the 12 requested cores idle for the whole job; the low value was only
+    # ever needed by the valgrind pass, which now runs as its own job below.
+    MAX_TEST_PARALLELISM: 12
+<?php else: ?>
+    # No MAX_TEST_PARALLELISM override below 7.4: run-tests.php is only invoked
+    # with -j when RUN_TESTS_IS_PARALLEL is set, and the Makefile gates that on
+    # PHP >= 7.4 (see RUN_TESTS_IS_PARALLEL in the Makefile). These versions run
+    # the suite serially, so any value here would be dead config.
+<?php endif; ?>
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "amd64"
+    KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
+<?php if (version_compare($major_minor, "7.4", ">=")): ?>
+  # Both passes together have a pc95 of ~30m and a worst case of ~39m on these
+  # versions, so the normal pass alone has ample headroom here.
+  timeout: 45m
+<?php else: ?>
+  # Left at the pre-split budget deliberately. These versions run serially and
+  # both passes together already take 82-99m, so the normal pass alone has not
+  # been measured in isolation. Tighten once there is per-pass timing; cutting
+  # this blind risks timeouts that `default.retry` would then pay for 3x via
+  # job_execution_timeout.
+  timeout: 120m
+<?php endif; ?>
+  script:
+    - make test_extension_ci_normal
+<?php after_script("tmp/build_extension", has_test_agent: true); ?>
+
+"test_extension_ci: [<?= $major_minor ?>, valgrind]":
+  extends: .debug_test
+  services:
+<?php agent_httpbin_service() ?>
+  needs:
+    - job: "compile extension: debug"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+  variables:
+    WAIT_FOR: test-agent:9126
+    KUBERNETES_CPU_REQUEST: 12
+    # Deliberately below the reserved CPU count: each worker spawns a valgrind
+    # process with its own memory and CPU overhead, so the pre-split pairing of
+    # 12 CPUs to 4 workers is preserved here rather than guessed at. Worth
+    # measuring separately. (Below 7.4 this is dead config -- see the note on
+    # the normal job above.)
     MAX_TEST_PARALLELISM: 4
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
     KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
   timeout: 120m
   script:
-    - make test_extension_ci
+    - make test_extension_ci_valgrind
 <?php after_script("tmp/build_extension", has_test_agent: true); ?>
 
 "Unit tests: [<?= $major_minor ?>]":
@@ -534,17 +597,10 @@ foreach ($all_minor_major_targets as $major_minor):
     DD_INSTRUMENTATION_TELEMETRY_ENABLED: 0
 <?php endif; ?>
   timeout: 40m
-  retry:
-    max: 2
-    when:
-      - script_failure
-      - unknown_failure
-      - data_integrity_failure
-      - runner_system_failure
-      - scheduler_failure
-      - api_failure
-      - stuck_or_timeout_failure
-      - job_execution_timeout
+  # No `retry:` override: inherit the repo-wide `default.retry` from
+  # generate-common.php, which retries infrastructure failures only. Retrying
+  # `script_failure` re-ran genuine test failures up to 3x, tripling both the
+  # compute and the wall clock of an already-failing pipeline.
   script:
     - make install_all
     - export XFAIL_LIST="dockerfiles/ci/xfail_tests/${PHP_MAJOR_MINOR}.list"
