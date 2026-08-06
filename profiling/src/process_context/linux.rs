@@ -72,9 +72,7 @@ impl CachedProcessContext {
     fn identity(&self) -> ProcessIdentityRef<'_> {
         ProcessIdentityRef {
             service: self.resource_string(self.offsets.resource.service_name),
-            environment: self.resource_string(
-                self.offsets.resource.deployment_environment_name,
-            ),
+            environment: self.resource_string(self.offsets.resource.deployment_environment_name),
             version: self.resource_string(self.offsets.resource.service_version),
         }
     }
@@ -341,7 +339,12 @@ pub(crate) fn identity() -> ProcessIdentity {
         cache
             .try_borrow()
             .ok()
-            .and_then(|cache| cache.context.as_ref().map(|cached| cached.identity().into()))
+            .and_then(|cache| {
+                cache
+                    .context
+                    .as_ref()
+                    .map(|cached| cached.identity().into())
+            })
             .unwrap_or_default()
     })
 }
