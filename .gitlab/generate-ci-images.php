@@ -12,8 +12,8 @@
  * This script prints a literal preamble (stages, job templates), then loops
  * over the parsed compose services to emit, per Linux OS, one build matrix job
  * over PHP versions (bake builds and pushes the multi-arch image, then ddsign
- * signs it) plus a manual publish matrix job that mirrors the tags to Docker
- * Hub. Windows is emitted the same way but single-arch (no manifest) with its
+ * signs it) plus a manual publish matrix job that mirrors the tags to the public
+ * registries. Windows is emitted the same way but single-arch (no manifest) with its
  * own build runner/script; its images are signed by a separate Linux job
  * (ddsign has no Windows binary), see .image_sign.
  */
@@ -126,24 +126,36 @@ variables:
     # pod uses cluster defaults. MAKE_JOBS sets the builder's compile parallelism.
     MAKE_JOBS: "8"
 
+# Mirrors an existing registry.ddbuild.io tag to the public registries via
+# artifact-gateway. tags: is required — this replaced a trigger/bridge job, which
+# needed no runner, and neither the parent pipeline nor this generated child sets
+# a `default:`.
 .image_publish:
   stage: ci-publish
   rules:
     - when: manual
       allow_failure: true
   # No deps: a publish just mirrors whatever already exists in
-  # registry.ddbuild.io to Docker Hub, so it can run without (re)building.
+  # registry.ddbuild.io, so it can run without (re)building.
   needs: []
-  trigger:
-    project: DataDog/public-images
-    branch: main
-    strategy: depend
+  image: registry.ddbuild.io/agent-delivery/dd-pkg:v0.9.3
+  tags: ["arch:arm64"]
   # $TAG is supplied per matrix entry by the generated publish jobs.
   variables:
-    IMG_REGISTRIES: "dockerhub"
-    IMG_SIGNING: false
+    IMG_REGISTRIES: "public"
+    IMG_SIGNING: "false"
     IMG_SOURCES: "${CI_REGISTRY_IMAGE}:${TAG}"
     IMG_DESTINATIONS: "dd-trace-ci:${TAG}"
+    PUBLIC_IMAGES_PUBLISH_TIMEOUT: "1800"
+  script:
+    - |
+      set -euo pipefail
+      dd-pkg version
+      args=(publish-image --timeout "${PUBLIC_IMAGES_PUBLISH_TIMEOUT}" --poll-interval 30 --signing="${IMG_SIGNING}")
+      if [[ -n "${IMG_REGISTRIES:-}" ]]; then args+=(--registries "${IMG_REGISTRIES}"); fi
+      if [[ -n "${IMG_SOURCES:-}" ]]; then args+=(--sources "${IMG_SOURCES}"); fi
+      if [[ -n "${IMG_DESTINATIONS:-}" ]]; then args+=(--destinations "${IMG_DESTINATIONS}"); fi
+      dd-pkg "${args[@]}"
 
 # Signs an already-pushed tag in registry.ddbuild.io. Used for the Windows
 # images: they're built without buildx (see .windows_image_build), so unlike
