@@ -41,13 +41,18 @@ class Apache2ModTests implements CommonTests {
 
     @Test
     void 'trace without attack after soft restart'() {
+        Trace trace = CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> it ->
+            assert it.body().text == 'Hello world!'
+        }
+        assert trace.first().metrics."_dd.appsec.enabled" == 1.0d
+
         ExecResult res = CONTAINER.execInContainer('service', 'apache2', 'reload')
         if (res.exitCode != 0) {
             throw new AssertionError("Failed reloading apache2: $res.stderr")
         }
         log.info "Result of restart: STDOUT: $res.stdout , STDERR: $res.stderr"
 
-        Trace trace = CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> it ->
+        trace = CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> it ->
             assert it.body().text == 'Hello world!'
         }
         assert trace.first().metrics."_dd.appsec.enabled" == 1.0d

@@ -15,9 +15,9 @@ extern bool dd_testing_send_active;
 
 // Drop-in for ddog_sidecar_send_appsec_message used in phpt tests.
 // Connects directly to the mock_helper Unix socket and performs the same framed
-// request/response exchange the real sidecar would. session_id is ignored.
+// request/response exchange the real sidecar would.
 ddog_AppsecCResponse dd_testing_mock_send_appsec_message(
-    ddog_CharSlice session_id, uint64_t client_id, ddog_CharSlice data);
+    uint64_t client_id, ddog_CharSlice data);
 
 // Activate the mock transport. Call once during extension startup when
 // DD_APPSEC_TESTING is true.

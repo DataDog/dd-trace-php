@@ -31,9 +31,8 @@ struct PACKED _mock_header {
 static THREAD_LOCAL_ON_ZTS int _mock_fd = -1;
 
 ddog_AppsecCResponse dd_testing_mock_send_appsec_message(
-    ddog_CharSlice session_id, uint64_t client_id, ddog_CharSlice data)
+    uint64_t client_id, ddog_CharSlice data)
 {
-    (void)session_id;
     (void)client_id;
 
     if (_mock_fd < 0) {

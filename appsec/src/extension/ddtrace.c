@@ -76,7 +76,7 @@ static zend_string *(*nullable _ddtrace_guess_endpoint_from_url)(
     const char *nonnull url, size_t url_len);
 static ddog_AppsecCResponse (*nullable _ddog_sidecar_send_appsec_message)(
     ddog_SidecarTransport *nonnull *nonnull transport,
-    ddog_CharSlice session_id, uint64_t client_id, ddog_CharSlice data);
+    uint64_t client_id, ddog_CharSlice data);
 static void (*nullable _ddog_sidecar_appsec_response_drop)(
     ddog_AppsecCResponse response);
 
@@ -407,8 +407,7 @@ ddog_AppsecCResponse dd_trace_send_appsec_message(
             .ptr = (const char *)request,
             .len = request_len,
         };
-        return dd_testing_mock_send_appsec_message(
-            (ddog_CharSlice){0}, client_id, data);
+        return dd_testing_mock_send_appsec_message(client_id, data);
     }
 #endif
 
@@ -432,19 +431,12 @@ ddog_AppsecCResponse dd_trace_send_appsec_message(
         return (ddog_AppsecCResponse){0};
     }
 
-    const uint8_t *session_id = dd_trace_get_formatted_session_id();
-    enum { SESSION_ID_LENGTH = 36 };
-    ddog_CharSlice session_id_slice = {
-        .ptr = session_id ? (const char *)session_id : "",
-        .len = session_id ? SESSION_ID_LENGTH : 0,
-    };
     ddog_CharSlice request_slice = {
         .ptr = (const char *)request,
         .len = request_len,
     };
 
-    return _ddog_sidecar_send_appsec_message(
-        &sidecar, session_id_slice, client_id, request_slice);
+    return _ddog_sidecar_send_appsec_message(&sidecar, client_id, request_slice);
 }
 
 void dd_trace_free_appsec_message_response(ddog_AppsecCResponse response)

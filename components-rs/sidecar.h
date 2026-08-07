@@ -431,7 +431,6 @@ void ddog_sidecar_send_garbage(struct ddog_SidecarTransport **transport);
  * Returns a zeroed `ddog_AppsecCResponse` (null ptr) on transport errors.
  */
 struct ddog_AppsecCResponse ddog_sidecar_send_appsec_message(struct ddog_SidecarTransport **transport,
-                                                             ddog_CharSlice session_id,
                                                              uint64_t client_id,
                                                              ddog_CharSlice data);
 
