@@ -237,7 +237,6 @@ foreach ($asan_minor_major_targets as $major_minor):
           - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
             ARCH: "<?= $arch ?>"
       artifacts: true
-  retry: 2
   variables:
     WAIT_FOR: test-agent:9126
     KUBERNETES_CPU_REQUEST: 6
@@ -355,6 +354,8 @@ endforeach;
 <?php
 foreach ($all_minor_major_targets as $major_minor):
 ?>
+<?php /* Normal and valgrind passes run as separate jobs: valgrind is far
+   slower, so run in parallel. */ ?>
 "test_extension_ci: [<?= $major_minor ?>]":
   extends: .debug_test
   services:
@@ -369,13 +370,46 @@ foreach ($all_minor_major_targets as $major_minor):
   variables:
     WAIT_FOR: test-agent:9126
     KUBERNETES_CPU_REQUEST: 12
+<?php if (version_compare($major_minor, "7.4", ">=")): ?>
+    # Match the CPU request.
+    MAX_TEST_PARALLELISM: 12
+<?php endif; ?>
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "amd64"
+    KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
+<?php if (version_compare($major_minor, "7.4", ">=")): ?>
+  timeout: 45m
+<?php else: ?>
+  # run-tests.php only gets -j on PHP >= 7.4 (RUN_TESTS_IS_PARALLEL in the
+  # Makefile), so these versions run serially and need the larger budget.
+  timeout: 120m
+<?php endif; ?>
+  script:
+    - make test_extension_ci_normal
+<?php after_script("tmp/build_extension", has_test_agent: true); ?>
+
+"test_extension_ci: [<?= $major_minor ?>, valgrind]":
+  extends: .debug_test
+  services:
+<?php agent_httpbin_service() ?>
+  needs:
+    - job: "compile extension: debug"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+  variables:
+    WAIT_FOR: test-agent:9126
+    KUBERNETES_CPU_REQUEST: 12
+    # Below the CPU request: each worker spawns its own valgrind process.
     MAX_TEST_PARALLELISM: 4
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
     KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
   timeout: 120m
   script:
-    - make test_extension_ci
+    - make test_extension_ci_valgrind
 <?php after_script("tmp/build_extension", has_test_agent: true); ?>
 
 "Unit tests: [<?= $major_minor ?>]":
@@ -534,17 +568,6 @@ foreach ($all_minor_major_targets as $major_minor):
     DD_INSTRUMENTATION_TELEMETRY_ENABLED: 0
 <?php endif; ?>
   timeout: 40m
-  retry:
-    max: 2
-    when:
-      - script_failure
-      - unknown_failure
-      - data_integrity_failure
-      - runner_system_failure
-      - scheduler_failure
-      - api_failure
-      - stuck_or_timeout_failure
-      - job_execution_timeout
   script:
     - make install_all
     - export XFAIL_LIST="dockerfiles/ci/xfail_tests/${PHP_MAJOR_MINOR}.list"

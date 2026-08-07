@@ -8,7 +8,7 @@
 - `.gitlab/compile_extension.sh` — compiles ddtrace.so (used by the
   `compile extension: debug` prerequisite)
 - `Makefile` — defines the `test_c`, `test_unit`, `test_opcache`,
-  `test_extension_ci`, etc. targets
+  `test_extension_ci_normal`, `test_extension_ci_valgrind`, etc. targets
 
 | CI Job | Image | What it does |
 |--------|-------|-------------|
@@ -16,7 +16,8 @@
 | `compile extension: debug-zts-asan` | same | Compiles ddtrace.so with ASAN+ZTS; used by ASAN test jobs |
 | `Unit tests: [{ver}]` | `dd-trace-ci:php-{ver}_bookworm-6` | Runs PHPUnit `--testsuite=unit` |
 | `API unit tests: [{ver}]` | same | Runs PHPUnit API unit tests |
-| `test_extension_ci: [{ver}]` | same | Runs .phpt extension tests + valgrind wrapper, with test-agent |
+| `test_extension_ci: [{ver}]` | same | Runs .phpt extension tests (normal pass), with test-agent |
+| `test_extension_ci: [{ver}, valgrind]` | same | Same suite under valgrind for leak checking; much slower, so it is a separate job |
 | `PHP Language Tests: [{ver}]` | same | Runs the upstream PHP test suite with ddtrace loaded; uses an xfail list |
 | `Opcache tests: [{ver}]` | same | Runs .phpt tests in `tests/opcache/` with opcache.so loaded |
 | `xDebug tests: [{ver}, {xdebug_ver}]` | same | Runs xdebug-specific .phpt tests + unit tests with xdebug loaded |
@@ -549,14 +550,22 @@ make test_opcache
   Each new `dockerh` invocation must re-run `make install_all` even
   when the compiled artifacts are cached.
 
-- **`test_extension_ci` uses a valgrind wrapper.** The Makefile
-  prepends `tests/ext/valgrind` to `$PATH`, which intercepts `php`
-  calls to run them under valgrind. This makes the job significantly
-  slower and is specific to CI.
+- **The valgrind pass is a separate job.** `make test_extension_ci_normal`
+  runs the suite normally; `make test_extension_ci_valgrind` re-runs it
+  under valgrind (`run-tests.php -m`) for leak checking. Both prepend
+  `tests/ext/valgrind` to `$PATH` — the shim there intercepts `valgrind`
+  invocations to add the suppressions file. The valgrind pass is roughly
+  an order of magnitude slower, which is why it no longer shares a job
+  with the normal pass. `make test_extension_ci` still runs both
+  serially for local use.
 
-- **`PHP Language Tests` has retry:2 in CI.** These tests are
-  inherently flaky due to timing-sensitive PHP runtime tests. The CI
-  job retries up to 2 times on script failure.
+- **Retries are infrastructure-only.** `test_extension_ci`,
+  `ASAN test_c`, and `PHP Language Tests` inherit `default.retry` from
+  `.gitlab/generate-common.php`, which retries runner/API/timeout
+  failures but *not* `script_failure`. A genuine test failure is not
+  retried — retrying it tripled compute without changing the outcome.
+  These job classes are listed in `flaky-jobs.txt`, so their failures
+  are already non-gating.
 
 - **`test_integration` talks to test-agent on port 9126** and mongodb.
   `test_composer`, `test_auto_instrumentation`, and
