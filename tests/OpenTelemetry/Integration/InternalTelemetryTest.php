@@ -59,7 +59,6 @@ final class InternalTelemetryTest extends CLITestCase
         $this->executeCommand();
 
         $requests = $this->retrieveDumpedData($this->untilTelemetryRequest("spans_created"));
-        var_dump($requests);
 
         $payloads = $this->readTelemetryPayloads($requests);
         $isMetric = function (array $payload) {

@@ -105,6 +105,7 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_addIntegration_buffer(
         version,
         compatible: None,
         auto_enabled: None,
+        error: None,
     });
     buffer.buffer.push(SidecarAction::Telemetry(action));
 }
@@ -121,6 +122,8 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_addDependency_buffer(
     let action = TelemetryActions::AddDependency(Dependency {
         name: dependency_name.to_utf8_lossy().into_owned(),
         version,
+        hash: None,
+        metadata: None,
     });
     buffer.buffer.push(SidecarAction::Telemetry(action));
 }
@@ -139,6 +142,9 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_addEndpoint_buffer(
         path: Some(path.to_utf8_lossy().into_owned()),
         operation_name: operation_name.to_utf8_lossy().into_owned(),
         resource_name: resource_name.to_utf8_lossy().into_owned(),
+        request_body_type: None,
+        response_body_type: None,
+        response_code: None,
     });
     buffer.buffer.push(SidecarAction::Telemetry(action));
 }
@@ -158,7 +164,7 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_enqueueConfig_buffer(
     };
     let action = TelemetryActions::AddConfig(data::Configuration {
         name: config_key.to_utf8_lossy().into_owned(),
-        value: config_value.to_utf8_lossy().into_owned(),
+        value: Some(config_value.to_utf8_lossy().into_owned()),
         origin,
         config_id,
         seq_id: None,

@@ -292,12 +292,37 @@ static void profiling_pre_minit_hook(injected_ext *config, zend_module_entry *mo
 // Declare the extension we want to load
 injected_ext ddloader_injected_ext_config[EXT_COUNT] = {
     // Tracer must be the first
-    [EXT_DDTRACE] = DECLARE_INJECTED_EXT("ddtrace", "trace", PHP_70_VERSION, ddtrace_pre_load_hook, ddtrace_pre_minit_hook,
-                         ((zend_module_dep[]){ZEND_MOD_OPTIONAL("json") ZEND_MOD_OPTIONAL("standard") ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_END})),
-    [EXT_DATADOG_PROFILING] = DECLARE_INJECTED_EXT("datadog-profiling", "profiling", PHP_71_VERSION, NULL, profiling_pre_minit_hook,
-                        ((zend_module_dep[]){ZEND_MOD_OPTIONAL("json") ZEND_MOD_OPTIONAL("standard") ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_OPTIONAL("ddtrace_injected") ZEND_MOD_OPTIONAL("datadog-profiling") ZEND_MOD_OPTIONAL("ev") ZEND_MOD_OPTIONAL("event") ZEND_MOD_OPTIONAL("libevent") ZEND_MOD_OPTIONAL("uv") ZEND_MOD_END})),
-    [EXT_DDAPPSEC] = DECLARE_INJECTED_EXT("ddappsec", "appsec", PHP_70_VERSION, NULL, NULL,
-                        ((zend_module_dep[]){ZEND_MOD_OPTIONAL("json") ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_OPTIONAL("ddtrace_injected") ZEND_MOD_OPTIONAL("ddappsec") ZEND_MOD_END})),
+    [EXT_DDTRACE] = DECLARE_INJECTED_EXT(
+        "ddtrace", "trace", PHP_70_VERSION, ddtrace_pre_load_hook, ddtrace_pre_minit_hook,
+        ((zend_module_dep[]){
+            ZEND_MOD_OPTIONAL("json")
+            ZEND_MOD_OPTIONAL("standard")
+            ZEND_MOD_OPTIONAL("ddtrace")
+            ZEND_MOD_END
+        })),
+    [EXT_DATADOG_PROFILING] = DECLARE_INJECTED_EXT(
+        "datadog-profiling", "profiling", PHP_71_VERSION, NULL, profiling_pre_minit_hook,
+        ((zend_module_dep[]){
+            ZEND_MOD_OPTIONAL("json")
+            ZEND_MOD_OPTIONAL("standard")
+            ZEND_MOD_OPTIONAL("ddtrace")
+            ZEND_MOD_OPTIONAL("ddtrace_injected")
+            ZEND_MOD_OPTIONAL("datadog-profiling")
+            ZEND_MOD_OPTIONAL("ev")
+            ZEND_MOD_OPTIONAL("event")
+            ZEND_MOD_OPTIONAL("libevent")
+            ZEND_MOD_OPTIONAL("uv")
+            ZEND_MOD_END
+        })),
+    [EXT_DDAPPSEC] = DECLARE_INJECTED_EXT(
+        "ddappsec", "appsec", PHP_70_VERSION, NULL, NULL,
+        ((zend_module_dep[]){
+            ZEND_MOD_OPTIONAL("json")
+            ZEND_MOD_OPTIONAL("ddtrace")
+            ZEND_MOD_OPTIONAL("ddtrace_injected")
+            ZEND_MOD_OPTIONAL("ddappsec")
+            ZEND_MOD_END
+        })),
 };
 
 void ddloader_logv(injected_ext *config, log_level level, const char *format, va_list va) {
@@ -741,6 +766,24 @@ static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
     return ret;
 }
 
+// Revert in-place patching so that nothing leaks across MSHUTDOWN -> MINIT with e.g. apache reload
+static void ddloader_restore_so_module_entry(injected_ext *config) {
+    zend_module_entry *module_entry = config->so_module_entry;
+    if (!module_entry) {
+        return;
+    }
+
+    module_entry->name = config->ext_name;
+    module_entry->module_startup_func = config->orig_module_startup_func;
+    module_entry->deps = config->orig_module_deps;
+    module_entry->functions = config->orig_module_functions;
+
+    config->so_module_entry = NULL;
+    config->orig_module_startup_func = NULL;
+    config->orig_module_deps = NULL;
+    config->orig_module_functions = NULL;
+}
+
 static int ddloader_load_extension(unsigned int php_api_no, char *module_build_id, bool is_zts, bool is_debug, injected_ext *config) {
     if (php_api_no < config->ext_min_version) {
         TELEMETRY(REASON_INCOMPATIBLE_RUNTIME, config, NULL, "'%s' extension is not supported on this PHP version", config->ext_name, php_api_no);
@@ -804,6 +847,7 @@ static int ddloader_load_extension(unsigned int php_api_no, char *module_build_i
      * wrap the MINIT function to perform our checks there.
      */
     module_entry->name = config->tmp_name;
+    config->so_module_entry = module_entry;
 
     config->orig_module_startup_func = module_entry->module_startup_func;
     module_entry->module_startup_func = ZEND_MODULE_STARTUP_N(ddloader_injected_extension_minit);
@@ -835,6 +879,7 @@ static int ddloader_load_extension(unsigned int php_api_no, char *module_build_i
 
 abort_and_unload:
     LOG(config, INFO, "Unloading the library");
+    ddloader_restore_so_module_entry(config);
     DL_UNLOAD(handle);
 abort:
     LOG(config, INFO, "Abort the loader");
@@ -1011,6 +1056,8 @@ static void ddloader_zend_extension_shutdown(zend_extension *ext) {
         // were loaded. So the callbacks for ddtrace/appsec/profiling will run
         // AFTER this callback.
         injected_ext *ext_config = &ddloader_injected_ext_config[i];
+        ddloader_restore_so_module_entry(ext_config);
+
         if (ext_config->so_handle) {
             zend_extension *zend_ext = zend_get_extension(ext_config->ext_name);
             if (zend_ext) {

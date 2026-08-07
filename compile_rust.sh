@@ -83,7 +83,7 @@ if test -n "$RUST_TOOLCHAIN"; then
   set -- "+$RUST_TOOLCHAIN" "$@"
 fi
 
-SIDECAR_VERSION=$(cat ../VERSION) RUSTFLAGS="$RUSTFLAGS" RUSTC_BOOTSTRAP=1 "${DDTRACE_CARGO:-cargo}" "$@"
+SIDECAR_VERSION=$(cat ../VERSION) RUSTFLAGS="$RUSTFLAGS" "${DDTRACE_CARGO:-cargo}" "$@"
 cargo_status=$?
 if test "$cargo_status" -ne 0; then
   exit "$cargo_status"

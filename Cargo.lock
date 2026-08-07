@@ -1192,30 +1192,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4ae5f15dda3c708c0ade84bfee31ccab44a3da4f88015ed22f63732abe300c8"
 
 [[package]]
-name = "datadog-ffe"
-version = "1.0.0"
-dependencies = [
- "chrono",
- "derive_more",
- "faststr",
- "libdd-common",
- "libdd-remote-config",
- "libdd-trace-protobuf",
- "log",
- "lru",
- "md5",
- "prost",
- "pyo3",
- "semver",
- "serde",
- "serde-bool",
- "serde_json",
- "serde_with",
- "thiserror 2.0.18",
- "url",
-]
-
-[[package]]
 name = "datadog-ipc"
 version = "0.1.0"
 dependencies = [
@@ -1307,7 +1283,6 @@ dependencies = [
  "bincode",
  "cbindgen 0.27.0",
  "const-str",
- "datadog-ffe",
  "datadog-ipc",
  "datadog-live-debugger",
  "datadog-live-debugger-ffi",
@@ -1325,6 +1300,7 @@ dependencies = [
  "libdd-crashtracker",
  "libdd-crashtracker-ffi",
  "libdd-data-pipeline",
+ "libdd-ffe",
  "libdd-library-config-ffi",
  "libdd-remote-config",
  "libdd-telemetry",
@@ -1398,7 +1374,6 @@ dependencies = [
  "chrono",
  "console-subscriber",
  "crossbeam-utils",
- "datadog-ffe",
  "datadog-ipc",
  "datadog-ipc-macros",
  "datadog-live-debugger",
@@ -1416,6 +1391,7 @@ dependencies = [
  "libdd-crashtracker-ffi",
  "libdd-data-pipeline",
  "libdd-dogstatsd-client",
+ "libdd-ffe",
  "libdd-remote-config",
  "libdd-telemetry",
  "libdd-tinybytes",
@@ -3017,6 +2993,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "libdd-ffe"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "chrono",
+ "derive_more",
+ "faststr",
+ "http",
+ "httpmock",
+ "libdd-capabilities",
+ "libdd-capabilities-impl",
+ "libdd-common",
+ "libdd-remote-config",
+ "libdd-trace-protobuf",
+ "log",
+ "lru",
+ "md5",
+ "prost",
+ "pyo3",
+ "semver",
+ "serde",
+ "serde-bool",
+ "serde_json",
+ "serde_with",
+ "thiserror 2.0.18",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "libdd-library-config"
 version = "3.0.0"
 dependencies = [
@@ -3195,6 +3201,8 @@ dependencies = [
  "libdd-shared-runtime",
  "serde",
  "serde_json",
+ "strum",
+ "strum_macros",
  "sys-info",
  "tokio",
  "tokio-util",

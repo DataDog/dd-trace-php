@@ -389,8 +389,11 @@ fn cfg_frameless(vernum: u64) -> bool {
 }
 
 fn cfg_php_feature_flags(vernum: u64) {
-    println!("cargo::rustc-check-cfg=cfg(php_gc_status, php_zend_compile_string_has_position, php_gc_status_extended, php_frameless, php_opcache_restart_hook, php_zend_mm_set_custom_handlers_ex)");
+    println!("cargo::rustc-check-cfg=cfg(php_gc_status, php_zend_compile_string_has_position, php_gc_status_extended, php_frameless, php_opcache_restart_hook, php_zend_mm_set_custom_handlers_ex, php_zts_fast_globals)");
 
+    if vernum >= 70400 {
+        println!("cargo:rustc-cfg=php_zts_fast_globals");
+    }
     if vernum >= 70300 {
         println!("cargo:rustc-cfg=php_gc_status");
     }
@@ -630,6 +633,7 @@ fn apple_linker_flags() {
         "_sapi_module",
         // TSRM (ZTS builds only; harmless to list on NTS — they simply
         // won't appear as undefined)
+        "_executor_globals_id",
         "_tsrm_get_ls_cache",
         "_tsrm_set_new_thread_end_handler",
         // ZTS globals offsets (replace direct globals on ZTS)
