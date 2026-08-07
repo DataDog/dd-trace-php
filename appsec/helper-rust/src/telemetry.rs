@@ -97,6 +97,7 @@ pub const WAF_ERROR: MetricName = MetricName("waf.error");
 pub const WAF_DURATION_DIST: MetricName = MetricName("waf.duration");
 pub const RASP_DURATION_DIST: MetricName = MetricName("rasp.duration");
 pub const RASP_RULE_EVAL: MetricName = MetricName("rasp.rule.eval");
+pub const RASP_RULE_DURATION_DIST: MetricName = MetricName("rasp.rule.duration");
 pub const RASP_RULE_MATCH: MetricName = MetricName("rasp.rule.match");
 pub const RASP_TIMEOUT: MetricName = MetricName("rasp.timeout");
 pub const RASP_ERROR: MetricName = MetricName("rasp.error");
@@ -134,6 +135,10 @@ pub const KNOWN_METRICS: &[KnownMetric] = &[
     },
     KnownMetric {
         name: RASP_DURATION_DIST,
+        metric_type: ddog_MetricType_DDOG_METRIC_TYPE_DISTRIBUTION,
+    },
+    KnownMetric {
+        name: RASP_RULE_DURATION_DIST,
         metric_type: ddog_MetricType_DDOG_METRIC_TYPE_DISTRIBUTION,
     },
     KnownMetric {
