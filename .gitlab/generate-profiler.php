@@ -167,14 +167,25 @@ foreach ($profiler_minor_major_targets as $version) {
     - cat "${XFAIL_LIST}" profiling/tests/php-language-xfail.list > /tmp/profiler-php-language-xfail.list
     - "if php -r 'exit(PHP_VERSION_ID < 80400 ? 0 : 1);'; then cat profiling/tests/php-language-xfail-pre84.list >> /tmp/profiler-php-language-xfail.list; fi"
     - export XFAIL_LIST=/tmp/profiler-php-language-xfail.list
-    - ulimit -c unlimited
-    - .gitlab/run_php_language_tests.sh
+    - |
+      ulimit -c unlimited
+      output="${CI_PROJECT_DIR}/artifacts/php-language-tests"
+      mkdir -p "${output}"
+      {
+        echo "core_limit=$(ulimit -c)"
+        echo "core_pattern=$(cat /proc/sys/kernel/core_pattern)"
+        echo "core_uses_pid=$(cat /proc/sys/kernel/core_uses_pid)"
+        if [ -w /usr/local/src/php ]; then echo "core_directory_writable=yes"; else echo "core_directory_writable=no"; fi
+        df -h /usr/local/src/php
+      } | tee "${output}/core-dump-settings.txt"
+      .gitlab/run_php_language_tests.sh
   after_script:
     - |
-      core=/usr/local/src/php/core
-      if [ -f "${core}" ]; then
-        output="${CI_PROJECT_DIR}/artifacts/php-language-tests"
-        mkdir -p "${output}"
+      output="${CI_PROJECT_DIR}/artifacts/php-language-tests"
+      mkdir -p "${output}"
+      .gitlab/collect_artifacts.sh /usr/local/src/php
+      core=$(find "${CI_PROJECT_DIR}/artifacts/core_dumps" -type f -name 'core*' -print -quit)
+      if [ -n "${core}" ]; then
         gdb --batch \
           -ex "set pagination off" \
           -ex "info threads" \
@@ -182,9 +193,10 @@ foreach ($profiler_minor_major_targets as $version) {
           -ex "thread apply all info registers" \
           -ex "info sharedlibrary" \
           /usr/local/bin/php "${core}" > "${output}/gdb-backtrace.txt" 2>&1 || true
-        mv "${core}" "${output}/core"
+      else
+        echo "No ELF core dump found under /usr/local/src/php" | tee -a "${output}/core-dump-settings.txt"
       fi
   artifacts:
     when: on_failure
     paths:
-      - artifacts/php-language-tests/
+      - artifacts/
