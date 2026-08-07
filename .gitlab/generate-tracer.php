@@ -361,7 +361,7 @@ endforeach;
 foreach ($all_minor_major_targets as $major_minor):
 ?>
 <?php /* Normal and valgrind passes run as separate jobs: valgrind is far
-   slower, so pairing them in one job blew its timeout. */ ?>
+   slower, so run in parallel. */ ?>
 "test_extension_ci: [<?= $major_minor ?>]":
   extends: .debug_test
   services:
