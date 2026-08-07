@@ -1,10 +1,8 @@
 use std::future::Future;
 use std::sync::{Arc, RwLock};
 
+use datadog_sidecar::service::telemetry::InProcessTelemetryClient;
 use tokio::task_local;
-
-use crate::client::log::debug;
-use crate::client::protocol::{SidecarSettings, TelemetrySettings};
 
 task_local! {
     static ERROR_TELEMETRY_HANDLE: ErrorTelemetryHandle;
@@ -23,14 +21,8 @@ where
 
 /// Update the error telemetry context for the current task.
 /// Returns true if the update was successful, false if not in a scoped context.
-pub fn update_error_telemetry_context(
-    sidecar_settings: SidecarSettings,
-    telemetry_settings: TelemetrySettings,
-) -> bool {
-    let ctx = ErrorTelemetryContext {
-        sidecar_settings: Arc::new(sidecar_settings),
-        telemetry_settings: Arc::new(telemetry_settings),
-    };
+pub fn update_error_telemetry_context(client: InProcessTelemetryClient) -> bool {
+    let ctx = ErrorTelemetryContext { client };
     ERROR_TELEMETRY_HANDLE
         .try_with(|handle| handle.set(ctx))
         .is_ok()
@@ -44,35 +36,29 @@ pub fn clear_error_telemetry_context() -> bool {
         .is_ok()
 }
 
-pub fn get_context_log_submitter() -> impl super::TelemetryLogSubmitter {
-    struct ContextTelemetryLogSubmitter {}
+/// Returns a log submitter that has already snapshotted the current task's telemetry
+/// context. Because the context is captured eagerly, the returned value is `Send` and
+/// can be used from any thread, not just the originating task's thread.
+/// Returns `None` when called outside of a task that has a telemetry context set.
+pub fn get_context_log_submitter() -> Option<impl super::TelemetryLogSubmitter + Send> {
+    let ctx = get_error_telemetry_context()?;
+
+    struct ContextTelemetryLogSubmitter {
+        ctx: ErrorTelemetryContext,
+    }
     impl super::TelemetryLogSubmitter for ContextTelemetryLogSubmitter {
         fn submit_log(&mut self, log: super::TelemetryLog) {
-            let Some(ctx) = get_error_telemetry_context() else {
-                debug!(
-                    "Cannot submit telemetry log {:?}: no error telemetry context",
-                    log
-                );
-                return;
-            };
-
-            super::TelemetrySidecarLogSubmitter::create(
-                &ctx.sidecar_settings,
-                &ctx.telemetry_settings,
-            )
-            .submit_log(log);
+            super::TelemetrySidecarLogSubmitter::create(&self.ctx.client).submit_log(log);
         }
     }
 
-    ContextTelemetryLogSubmitter {}
+    Some(ContextTelemetryLogSubmitter { ctx })
 }
 
 /// Context for error telemetry submission.
-/// Both settings must be present for telemetry to be submitted.
 #[derive(Clone)]
 pub struct ErrorTelemetryContext {
-    pub sidecar_settings: Arc<SidecarSettings>,
-    pub telemetry_settings: Arc<TelemetrySettings>,
+    pub client: InProcessTelemetryClient,
 }
 
 /// Handle to the task-local error telemetry context.

@@ -1,5 +1,5 @@
 use crate::sidecar::MaybeShmLimiter;
-use datadog_ffe::rules_based::{Configuration, UniversalFlagConfig};
+use libdd_ffe::rules_based::{Configuration, UniversalFlagConfig};
 use datadog_live_debugger::debugger_defs::{DebuggerData, DebuggerPayload};
 use datadog_live_debugger::{FilterList, LiveDebuggingData, ServiceConfiguration};
 use datadog_live_debugger_ffi::data::Probe;
@@ -164,12 +164,12 @@ pub unsafe extern "C" fn ddog_init_remote_config(flags: RemoteConfigFlags) {
     }
 
     if live_debugging_enabled {
-        DATADOG_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::LiveDebugger)
+        DATADOG_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::LiveDebugging)
     }
 
     if appsec_config {
         DATADOG_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::AsmData);
-        DATADOG_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::AsmDD);
+        DATADOG_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::AsmDd);
         DATADOG_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::Asm);
         [
             RemoteConfigCapabilities::AsmIpBlocking,
@@ -390,7 +390,7 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
             } => {
                 if let Some(data) = value.data {
                     match value.product {
-                        RemoteConfigProduct::LiveDebugger => {
+                        RemoteConfigProduct::LiveDebugging => {
                             let val = Box::new((data, MaybeShmLimiter::open(limiter_index)));
                             let rc_ref: &mut RemoteConfigState = unsafe { mem::transmute(remote_config as *mut _) }; // sigh, borrow checker
                             let config_id = value.config_id.clone();
@@ -439,7 +439,7 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                 }
             }
             RemoteConfigUpdate::Remove(path) => match path.product {
-                RemoteConfigProduct::LiveDebugger => {
+                RemoteConfigProduct::LiveDebugging => {
                     if let Some(boxed) = remote_config.live_debugger.active.remove(&path.config_id) {
                         if let Some(debugger) = boxed.0.downcast::<LiveDebuggingData>() {
                             remove_config(remote_config, &path.config_id, debugger);
@@ -655,8 +655,12 @@ pub extern "C" fn ddog_remote_configs_service_env_change(
         service.to_utf8_lossy().to_string(),
         env.to_utf8_lossy().to_string(),
         version.to_utf8_lossy().to_string(),
-        tags.as_slice().iter().map(|t| t.to_string()).collect(),
-        process_tags.as_slice().iter().map(|t| t.to_string()).collect(),
+        tags.as_slice().iter().map(ToString::to_string).collect(),
+        process_tags
+            .as_slice()
+            .iter()
+            .map(ToString::to_string)
+            .collect(),
     );
 
     if let Some(target) = remote_config.manager.get_target() {
@@ -755,7 +759,7 @@ pub extern "C" fn ddog_rshutdown_remote_config(remote_config: &mut RemoteConfigS
     remote_config.dynamic_config.merged_configs.clear();
     remote_config.manager.unload_configs(&[
         RemoteConfigProduct::ApmTracing,
-        RemoteConfigProduct::LiveDebugger,
+        RemoteConfigProduct::LiveDebugging,
     ]);
 }
 

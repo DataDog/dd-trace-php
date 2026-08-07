@@ -97,7 +97,6 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         withEnv 'DD_INSTRUMENTATION_TELEMETRY_ENABLED', '1'
         // very verbose:
         withEnv '_DD_DEBUG_SIDECAR_LOG_METHOD', 'file:///tmp/logs/sidecar.log'
-        withEnv 'DD_SPAWN_WORKER_USE_EXEC', '1' // gdb fails following child with fdexec
         withEnv 'DD_TELEMETRY_HEARTBEAT_INTERVAL', '10'
         // withEnv '_DD_SHARED_LIB_DEBUG', '1'
         if (System.getProperty('XDEBUG') == '1') {
@@ -115,6 +114,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         overlayWww()
         enableCoredumps()
         runInitialize()
+        enableCoredumps()
     }
 
     private Consumer<OutputFrame> createLogConsumer() {
@@ -370,18 +370,29 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         }
     }
 
-    void close() {
+    @Override
+    void stop() {
+        if (!isRunning()) {
+            super.stop()
+            return
+        }
+
         flushProfilingData()
         copyLogs()
         List<String> crashes = detectCrashes()
         restoreCorePattern()
         mockDatadogAgent.drainTraces()
-        super.close()
+        super.stop()
         if (crashes) {
             throw new AssertionError(
                     ("Process crash(es) detected in container during test run (${crashes.size()} crash(es)):\n" +
                             crashes.join('\n')).toString())
         }
+    }
+
+    @Override
+    void close() {
+        stop()
     }
 
     private static final Random RAND = new Random()
@@ -512,7 +523,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
 
         privilegedMode = true
 
-        withCreateContainerCmdModifier { cmd ->
+        withCreateContainerCmdModifier { CreateContainerCmd cmd ->
             cmd.hostConfig.withUlimits([new Ulimit('core', -1L, -1L)] as Ulimit[])
         }
 
@@ -538,6 +549,29 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
                 : "php-tracer-ssi-$phpVersion-$phpVariant"
             addVolumeMount(ssiTracerVol, '/tracer-ssi')
             addVolumeMount("php-loader-$phpVersion-$phpVariant", '/loader-ssi')
+            if (System.getProperty('USE_HELPER_RUST_COVERAGE')) {
+                String coverageDirectory = System.getProperty(
+                        'HELPER_RUST_COVERAGE_DIRECTORY')
+                if (!coverageDirectory) {
+                    throw new IllegalStateException(
+                            'HELPER_RUST_COVERAGE_DIRECTORY is not set')
+                }
+                withFileSystemBind(
+                        coverageDirectory, '/helper-rust',
+                        BindMode.READ_WRITE)
+                // Only the sidecar runs helper-rust, but the SSI loader maps
+                // the coverage-instrumented libdatadog_php.so into *every* PHP
+                // process, and the profiling runtime in each of them writes
+                // the whole 34M counter table out on exit. Those profiles
+                // cover none of the reported sources, so send them nowhere:
+                // the report is built from the helper's profile alone, and
+                // ddappsec_helper_coverage_init() names that one itself, in
+                // /helper-rust, rather than taking it from the environment.
+                // Leaving this unset is not an option -- the runtime would
+                // fall back to its default name and drop a default_*.profraw
+                // per process into the cwd instead.
+                withEnv 'LLVM_PROFILE_FILE', '/dev/null'
+            }
             withEnv 'USE_SSI', '1'
             withEnv 'DD_LOADER_PACKAGE_PATH', '/tmp/dd-package'
             withCreateContainerCmdModifier { cmd ->
@@ -550,30 +584,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
                 : "php-tracer-$phpVersion-$phpVariant"
             addVolumeMount(tracerVol, '/project/tmp')
         }
-        String helperBinaryPath = System.getProperty('HELPER_BINARY_PATH')
-        if (helperBinaryPath) {
-            // Bind-mount explicit helper binary directly to the expected path.
-            File helperFile = new File(helperBinaryPath)
-            if (!helperFile.isAbsolute()) {
-                helperFile = new File(System.getProperty('user.dir'), helperBinaryPath)
-            }
-            withFileSystemBind(helperFile.absolutePath,
-                    '/helper-rust/libddappsec-helper.so', BindMode.READ_ONLY)
-            withEnv 'USE_HELPER_RUST', '1'
-        } else {
-            // Mount helper-rust volume so enable_extensions.sh can copy the binary
-            // for the redirection mechanism.
-            String helperVolume = System.getProperty('USE_HELPER_RUST_COVERAGE') ?
-                'php-helper-rust-coverage' : 'php-helper-rust'
-            addVolumeMount(helperVolume, '/helper-rust')
-            if (System.getProperty('USE_HELPER_RUST_COVERAGE')) {
-                // Enable LLVM coverage profiling for the helper binary.
-                withEnv 'LLVM_PROFILE_FILE', '/helper-rust/coverage/default-%m-%p.profraw'
-            }
-        }
-        if (System.getProperty('USE_HELPER_CPP')) {
-            withEnv 'DD_APPSEC_HELPER_RUST_REDIRECTION', 'false'
-        }
+        withEnv 'RUST_BACKTRACE', '1'
 
         String fullWorkVolume = "php-workvol-$workVolume-$phpVersion-$phpVariant"
 
