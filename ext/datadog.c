@@ -11,6 +11,7 @@
 #include "excluded_modules.h"
 #include "agent_info.h"
 #include "logging.h"
+#include "ffi_utils.h"
 #include "phpinfo.h"
 #include "process_tags.h"
 #include "remote_config.h"
@@ -547,6 +548,10 @@ static void dd_rinit_once(void) {
         datadog_process_tags_first_rinit();
         datadog_sidecar_update_process_tags();
     }
+#ifdef __linux__
+    zend_string *process_tags = datadog_process_tags_get_serialized();
+    datadog_publish_otel_process_context(dd_zend_string_to_CharSlice(process_tags));
+#endif
 
     // Uses config, cannot run earlier
 #ifndef _WIN32
@@ -704,7 +709,12 @@ static PHP_MINFO_FUNCTION(datadog) {
 
 void datadog_internal_handle_fork(void) {
     // CHILD PROCESS
+    datadog_generate_runtime_id();
     datadog_sidecar_handle_fork();
+#ifdef __linux__
+    zend_string *process_tags = datadog_process_tags_get_serialized();
+    datadog_publish_otel_process_context(dd_zend_string_to_CharSlice(process_tags));
+#endif
 
 #ifdef DDTRACE
     ddtrace_internal_handle_fork();

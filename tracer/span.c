@@ -22,14 +22,26 @@
 #include "sandbox/sandbox.h"
 #include "hook/uhook.h"
 #include "trace_source.h"
+#include "trace_context.h"
 #include "standalone_limiter.h"
 #include "code_origins.h"
 #include "endpoint_guessing.h"
+#ifdef __linux__
+#include "otel_context.h"
+#endif
 
 #define USE_REALTIME_CLOCK 0
 #define USE_MONOTONIC_CLOCK 1
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
+
+#ifdef __linux__
+static inline void ddtrace_update_otel_thread_context_span_id(ddtrace_span_data *span) {
+    if (span && span->root) {
+        ddtrace_otel_record_store_span_id(&span->root->otel_context, span->span_id);
+    }
+}
+#endif
 
 static void dd_reset_span_counters(void) {
     DDTRACE_G(open_spans_count) = 0;
@@ -87,6 +99,9 @@ void ddtrace_free_span_stacks(bool silent) {
     while (DDTRACE_G(active_stack)->root_span && DDTRACE_G(active_stack) == DDTRACE_G(active_stack)->root_span->stack) {
         ddtrace_switch_span_stack(DDTRACE_G(active_stack)->parent_stack);
     }
+#ifdef __linux__
+    ddtrace_otel_detach();
+#endif
 
     zend_objects_store *objects = &EG(objects_store);
     zend_object **end = objects->object_buckets + 1;
@@ -284,12 +299,14 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
         if (primary_stack && (DDTRACE_G(distributed_trace_id).low || DDTRACE_G(distributed_trace_id).high)) {
             root->trace_id = DDTRACE_G(distributed_trace_id);
             root->parent_id = DDTRACE_G(distributed_parent_trace_id);
+            root->trace_flags = DDTRACE_G(distributed_trace_flags) & DDTRACE_TRACE_FLAG_RANDOM;
         } else {
             root->trace_id = (datadog_trace_id) {
                     .low = span->span_id,
                     .time = get_DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED() ? span->start / ZEND_NANO_IN_SEC : 0,
             };
             root->parent_id = 0;
+            root->trace_flags = DDTRACE_TRACE_FLAG_RANDOM;
         }
 
         ZVAL_NULL(&span->property_parent);
@@ -316,6 +333,14 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
     span->root = DDTRACE_G(active_stack)->root_span;
 
     ddtrace_set_global_span_properties(span);
+#ifdef __linux__
+    if (root_span) {
+        ddtrace_otel_init_root_span(ROOTSPANDATA(&span->std));
+        ddtrace_otel_attach_stack(DDTRACE_G(active_stack));
+    } else {
+        ddtrace_update_otel_thread_context_span_id(span);
+    }
+#endif
 
     if (root_span) {
         ddtrace_root_span_data *root = ROOTSPANDATA(&span->std);
@@ -592,6 +617,9 @@ void ddtrace_switch_span_stack(ddtrace_span_stack *target_stack) {
     GC_ADDREF(&target_stack->std);
     ddtrace_span_stack *active_stack = DDTRACE_G(active_stack);
     DDTRACE_G(active_stack) = target_stack;
+#ifdef __linux__
+    ddtrace_otel_attach_stack(target_stack);
+#endif
     OBJ_RELEASE(&active_stack->std);
 }
 
@@ -805,6 +833,9 @@ static void dd_mark_closed_spans_flushable(ddtrace_span_stack *stack) {
                         ZVAL_LONG(&priority, PRIORITY_SAMPLING_AUTO_REJECT);
                         datadog_assign_variable(&root_span->property_sampling_priority, &priority);
                         root_span->explicit_sampling_priority = true;
+#ifdef __linux__
+                        ddtrace_otel_update_trace_flags(root_span);
+#endif
                     }
                 }
             } else {
@@ -831,7 +862,8 @@ static void dd_close_entry_span_of_stack(ddtrace_span_stack *stack) {
     // We need to track complete finished span stacks separately in order to mark them flushable
     dd_mark_closed_spans_flushable(stack);
 
-    if (!stack->root_span || stack->root_span->stack == stack) {
+    bool closed_root_stack = !stack->root_span || stack->root_span->stack == stack;
+    if (closed_root_stack) {
         // Ensure the root span is cleared before allocations may happen in priority sampling deciding
         ddtrace_root_span_data *root_span = stack->root_span;
         if (stack->root_span) {
@@ -845,11 +877,20 @@ static void dd_close_entry_span_of_stack(ddtrace_span_stack *stack) {
             // We are always active stack except if ddtrace_close_top_span_without_stack_swap is used
             ddtrace_switch_span_stack(stack->parent_stack);
         }
+    }
 
-        if (get_DD_TRACE_AUTO_FLUSH_ENABLED() && ddtrace_flush_tracer(false, get_DD_TRACE_FLUSH_COLLECT_CYCLES(), false) == FAILURE) {
-            // In case we have root spans enabled, we need to always flush if we close that one (RSHUTDOWN)
-            LOG(WARN, "Unable to auto flush the tracer");
-        }
+#ifdef __linux__
+    // A direct parent-stack switch publishes its context. If the empty stack
+    // remains selected instead, it no longer has a context to publish.
+    if (DDTRACE_G(active_stack) == stack) {
+        ddtrace_otel_detach();
+    }
+#endif
+
+    if (closed_root_stack && get_DD_TRACE_AUTO_FLUSH_ENABLED()
+        && ddtrace_flush_tracer(false, get_DD_TRACE_FLUSH_COLLECT_CYCLES(), false) == FAILURE) {
+        // In case we have root spans enabled, we need to always flush if we close that one (RSHUTDOWN)
+        LOG(WARN, "Unable to auto flush the tracer");
     }
 }
 
@@ -958,6 +999,11 @@ void ddtrace_close_top_span_without_stack_swap(ddtrace_span_data *span) {
     } else {
         ZVAL_NULL(&stack->property_active);
     }
+#ifdef __linux__
+    if (stack == DDTRACE_G(active_stack) && stack->active && SPANDATA(stack->active)->stack == stack) {
+        ddtrace_update_otel_thread_context_span_id(SPANDATA(stack->active));
+    }
+#endif
 #if PHP_VERSION_ID < 70400
     // On PHP 7.3 and prior PHP will just destroy all unchanged references in cycle collection, in particular given that it does not appear in get_gc
     // Artificially increase refcount here thus.
@@ -1085,7 +1131,6 @@ void ddtrace_drop_span(ddtrace_span_data *span) {
     } else {
         ZVAL_NULL(&stack->property_active);
     }
-
     ++DDTRACE_G(dropped_spans_count);
     --DDTRACE_G(open_spans_count);
 
@@ -1094,6 +1139,10 @@ void ddtrace_drop_span(ddtrace_span_data *span) {
         stack->root_span = NULL;
     } else if (!stack->active || SPANDATA(stack->active)->stack != stack) {
         dd_close_entry_span_of_stack(stack);
+#ifdef __linux__
+    } else {
+        ddtrace_update_otel_thread_context_span_id(SPANDATA(stack->active));
+#endif
     }
 
     dd_drop_span(span, false);

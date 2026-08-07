@@ -469,7 +469,11 @@ void datadog_sidecar_handle_fork(void) {
         return;
     }
 
-    datadog_force_new_instance_id();
+    if (datadog_sidecar_instance_id) {
+        ddog_sidecar_instanceId_drop(datadog_sidecar_instance_id);
+        datadog_sidecar_instance_id = NULL;
+    }
+    dd_set_resettable_sidecar_globals();
 
     // After fork only one thread (the one that called fork) survives, so we only
     // need to drop and reconnect the current thread's transport.

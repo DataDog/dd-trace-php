@@ -1339,6 +1339,7 @@ dependencies = [
  "libdd-crashtracker",
  "libdd-crashtracker-ffi",
  "libdd-data-pipeline",
+ "libdd-library-config",
  "libdd-library-config-ffi",
  "libdd-remote-config",
  "libdd-telemetry",
@@ -1384,8 +1385,10 @@ dependencies = [
  "libc 0.2.186",
  "libdd-alloc",
  "libdd-common",
+ "libdd-library-config",
  "libdd-library-config-ffi",
  "libdd-profiling",
+ "libdd-trace-protobuf",
  "log",
  "mach2",
  "perfcnt",
@@ -2956,6 +2959,7 @@ dependencies = [
  "tracing",
  "uuid",
  "web-time",
+ "zstd",
 ]
 
 [[package]]

@@ -41,6 +41,11 @@ void datadog_generate_session_id(void);
 
 void datadog_format_runtime_id(uint8_t (*buf)[36]);
 
+#ifdef __linux__
+bool datadog_publish_otel_process_context(ddog_CharSlice process_tags);
+
+#endif
+
 ddog_CharSlice ddtrace_get_container_id(void);
 
 void ddtrace_set_container_cgroup_path(ddog_CharSlice path);

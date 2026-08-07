@@ -9,6 +9,8 @@ mod pthread;
 mod sapi;
 mod wall_time;
 
+mod process_context;
+
 #[cfg(php_run_time_cache)]
 mod string_set;
 
@@ -94,13 +96,17 @@ static mut RUNTIME_PHP_VERSION: &str = {
 /// The first time this is accessed must be after config is initialized in
 /// the first RINIT and before mshutdown!
 static GLOBAL_TAGS: LazyLock<Vec<Tag>> = LazyLock::new(|| {
+    #[cfg(target_os = "linux")]
+    let runtime_id = process_context::runtime_id().unwrap_or_else(|| runtime_id().to_string());
+    #[cfg(not(target_os = "linux"))]
+    let runtime_id = runtime_id().to_string();
     let mut tags = vec![
         tag!("language", "php"),
         tag!("profiler_version", env!("PROFILER_VERSION")),
         // SAFETY: calling getpid() is safe.
         Tag::new("process_id", unsafe { libc::getpid() }.to_string())
             .expect("process_id tag to be valid"),
-        Tag::new("runtime-id", runtime_id().to_string()).expect("runtime-id tag to be valid"),
+        Tag::new("runtime-id", runtime_id).expect("runtime-id tag to be valid"),
     ];
 
     // This should probably be "language_version", but this is the
@@ -159,10 +165,13 @@ extern "C" {
 }
 
 /// Module dependencies for the profiler extension.
-static MODULE_DEPS: [zend::ModuleDep; 8] = [
+static MODULE_DEPS: [zend::ModuleDep; 9] = [
     zend::ModuleDep::required(cstr!("standard")),
     zend::ModuleDep::required(cstr!("json")),
+    // Load after optional context publishers so their Process and Thread Context
+    // are available when profiling starts.
     zend::ModuleDep::optional(cstr!("ddtrace")),
+    zend::ModuleDep::optional(cstr!("opentelemetry")),
     // Optionally, be dependent on these event extensions so that the functions they provide
     // are registered in the function table and we can hook into them.
     zend::ModuleDep::optional(cstr!("ev")),
@@ -703,6 +712,9 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     Profiler::init(system_settings);
 
     if system_settings.profiling_enabled {
+        #[cfg(target_os = "linux")]
+        let process_identity = process_context::identity();
+
         // Not logging, rinit could be quite spammy.
         _ = REQUEST_LOCALS.try_with_borrow(|locals| {
             let cpu_time_enabled = system_settings.profiling_experimental_cpu_time_enabled;
@@ -712,18 +724,39 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
             TAGS.set({
                 // SAFETY: accessing in RINIT after config is initialized.
                 let globals = GLOBAL_TAGS.deref();
-                let extra_tags_len = locals.service.is_some() as usize
-                    + locals.env.is_some() as usize
-                    + locals.version.is_some() as usize
+                #[cfg(target_os = "linux")]
+                let service = process_identity
+                    .service
+                    .as_ref()
+                    .or(locals.service.as_ref());
+                #[cfg(not(target_os = "linux"))]
+                let service = locals.service.as_ref();
+                #[cfg(target_os = "linux")]
+                let environment = process_identity
+                    .environment
+                    .as_ref()
+                    .or(locals.env.as_ref());
+                #[cfg(not(target_os = "linux"))]
+                let environment = locals.env.as_ref();
+                #[cfg(target_os = "linux")]
+                let version = process_identity
+                    .version
+                    .as_ref()
+                    .or(locals.version.as_ref());
+                #[cfg(not(target_os = "linux"))]
+                let version = locals.version.as_ref();
+                let extra_tags_len = service.is_some() as usize
+                    + environment.is_some() as usize
+                    + version.is_some() as usize
                     + locals.git_commit_sha.is_some() as usize
                     + locals.git_repository_url.is_some() as usize;
 
                 let mut tags = Vec::new();
                 tags.reserve_exact(globals.len() + extra_tags_len + locals.tags.len());
                 tags.extend_from_slice(globals.as_slice());
-                add_optional_tag(&mut tags, "service", &locals.service);
-                add_optional_tag(&mut tags, "env", &locals.env);
-                add_optional_tag(&mut tags, "version", &locals.version);
+                add_optional_tag(&mut tags, "service", &service);
+                add_optional_tag(&mut tags, "env", &environment);
+                add_optional_tag(&mut tags, "version", &version);
                 add_optional_tag(&mut tags, "git.commit.sha", &locals.git_commit_sha);
                 add_optional_tag(&mut tags, "git.repository_url", &locals.git_repository_url);
                 tags.extend_from_slice(locals.tags.as_slice());

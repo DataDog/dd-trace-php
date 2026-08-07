@@ -41,6 +41,10 @@ uuid = { version = "1.0", features = ["v4"] }
 [target.'cfg(target_vendor = "apple")'.dependencies]
 mach2 = "0.6.0"
 
+[target.'cfg(target_os = "linux")'.dependencies]
+libdd-library-config = { path = "../libdatadog/libdd-library-config", default-features = false, features = ["process-context-reader"] }
+libdd-trace-protobuf = { path = "../libdatadog/libdd-trace-protobuf" }
+
 [dependencies.tracing-subscriber]
 version = "0.3"
 optional = true
