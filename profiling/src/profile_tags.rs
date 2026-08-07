@@ -4,6 +4,7 @@
 use libdd_common::tag::{parse_tags, Tag, TagParser, TagValidationError};
 use std::collections::TryReserveError;
 use std::fmt::Write;
+use std::hash::{Hash, Hasher};
 use std::ops::Range;
 use std::sync::Arc;
 
@@ -19,10 +20,26 @@ pub(crate) enum ProfileTagError {
 }
 
 /// An immutable ordered sequence of serialized tags backed by one string.
-#[derive(Debug, Default, Eq, PartialEq, Hash)]
+#[derive(Debug, Default)]
 pub(crate) struct ProfileTagSegment {
     storage: String,
     tags: Vec<Range<usize>>,
+}
+
+impl PartialEq for ProfileTagSegment {
+    fn eq(&self, other: &Self) -> bool {
+        // Storage is the exact comma-separated intake representation; ranges
+        // are iteration metadata and do not contribute to profile identity.
+        self.storage == other.storage
+    }
+}
+
+impl Eq for ProfileTagSegment {}
+
+impl Hash for ProfileTagSegment {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.storage.hash(state);
+    }
 }
 
 impl ProfileTagSegment {
@@ -133,11 +150,26 @@ impl ProfileTagSegment {
 }
 
 /// The final Unified Service Tags for one sample, with inline end offsets.
-#[derive(Debug, Default, Eq, PartialEq, Hash)]
+#[derive(Debug, Default)]
 pub(crate) struct UnifiedServiceTagSegment {
     storage: String,
     ends: [u32; 3],
     len: u8,
+}
+
+impl PartialEq for UnifiedServiceTagSegment {
+    fn eq(&self, other: &Self) -> bool {
+        // End offsets are iteration metadata for this serialized identity.
+        self.storage == other.storage
+    }
+}
+
+impl Eq for UnifiedServiceTagSegment {}
+
+impl Hash for UnifiedServiceTagSegment {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.storage.hash(state);
+    }
 }
 
 impl UnifiedServiceTagSegment {
@@ -247,6 +279,23 @@ impl ProfileTags {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn serialized_storage_defines_segment_identity() {
+        use std::collections::hash_map::DefaultHasher;
+
+        let one_tag = ProfileTagSegment::try_from_kv_slice(&[("a", "b,c:d")]).unwrap();
+        let two_tags = ProfileTagSegment::try_from_kv_slice(&[("a", "b"), ("c", "d")]).unwrap();
+        assert_eq!(one_tag.storage, two_tags.storage);
+        assert_eq!(one_tag, two_tags);
+
+        let hash = |segment: &ProfileTagSegment| {
+            let mut hasher = DefaultHasher::new();
+            segment.hash(&mut hasher);
+            hasher.finish()
+        };
+        assert_eq!(hash(&one_tag), hash(&two_tags));
+    }
 
     #[test]
     fn unified_service_tags_use_inline_offsets_and_omit_empty_values() {
