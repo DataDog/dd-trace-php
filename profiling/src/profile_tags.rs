@@ -5,7 +5,7 @@ use libdd_common::tag::{parse_tags, Tag, TagParser, TagValidationError};
 use std::collections::TryReserveError;
 use std::fmt::Write;
 use std::ops::Range;
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum ProfileTagError {
@@ -47,22 +47,6 @@ impl ProfileTagSegment {
             segment.push_validated(key.as_ref(), value.as_ref());
         }
         Ok(segment)
-    }
-
-    pub(crate) fn try_unified_service(
-        service: &str,
-        env: &str,
-        version: &str,
-    ) -> Result<Self, ProfileTagError> {
-        let mut tags = [("", ""); 3];
-        let mut len = 0;
-        for tag in [("service", service), ("env", env), ("version", version)] {
-            if !tag.1.is_empty() {
-                tags[len] = tag;
-                len += 1;
-            }
-        }
-        Self::try_from_kv_slice(&tags[..len])
     }
 
     pub(crate) fn try_reserve(
@@ -148,19 +132,79 @@ impl ProfileTagSegment {
     }
 }
 
-pub(crate) fn empty_profile_tag_segment() -> &'static Arc<ProfileTagSegment> {
-    static EMPTY: LazyLock<Arc<ProfileTagSegment>> =
-        LazyLock::new(|| Arc::new(ProfileTagSegment::default()));
-    &EMPTY
+/// The final Unified Service Tags for one sample, with inline end offsets.
+#[derive(Debug, Default, Eq, PartialEq, Hash)]
+pub(crate) struct UnifiedServiceTagSegment {
+    storage: String,
+    ends: [u32; 3],
+    len: u8,
+}
+
+impl UnifiedServiceTagSegment {
+    pub(crate) fn try_new(
+        service: &str,
+        env: &str,
+        version: &str,
+    ) -> Result<Self, ProfileTagError> {
+        let mut values = [("", ""); 3];
+        let mut len = 0usize;
+        let mut storage_len = 0usize;
+        for (key, value) in [("service", service), ("env", env), ("version", version)] {
+            if value.is_empty() {
+                continue;
+            }
+            Tag::validate(key, value)?;
+            storage_len = storage_len
+                .checked_add(key.len())
+                .and_then(|len| len.checked_add(value.len()))
+                .and_then(|len| len.checked_add(":,".len()))
+                .ok_or(ProfileTagError::CapacityOverflow)?;
+            values[len] = (key, value);
+            len += 1;
+        }
+        if storage_len > u32::MAX as usize {
+            return Err(ProfileTagError::CapacityOverflow);
+        }
+
+        let mut segment = Self::default();
+        segment.storage.try_reserve(storage_len)?;
+        for (key, value) in &values[..len] {
+            segment.storage.push_str(key);
+            segment.storage.push(':');
+            segment.storage.push_str(value);
+            segment.ends[segment.len as usize] = segment.storage.len() as u32;
+            segment.len += 1;
+            segment.storage.push(',');
+        }
+        Ok(segment)
+    }
+
+    pub(crate) fn iter(&self) -> impl ExactSizeIterator<Item = &str> {
+        (0..self.len as usize).map(|index| {
+            let start = if index == 0 {
+                0
+            } else {
+                self.ends[index - 1] as usize + 1
+            };
+            let end = self.ends[index] as usize;
+            // SAFETY: offsets are recorded at UTF-8 boundaries and each
+            // preceding end is followed by exactly one comma.
+            unsafe { self.storage.get_unchecked(start..end) }
+        })
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        self.len as usize
+    }
 }
 
 /// The complete, immutable profile tags for one sample's profile identity.
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub struct ProfileTags {
     pub(crate) common: Arc<ProfileTagSegment>,
-    pub(crate) unified_service: ProfileTagSegment,
-    pub(crate) git: Arc<ProfileTagSegment>,
-    pub(crate) custom: Arc<ProfileTagSegment>,
+    pub(crate) unified_service: UnifiedServiceTagSegment,
+    pub(crate) git: Option<Arc<ProfileTagSegment>>,
+    pub(crate) custom: Option<Arc<ProfileTagSegment>>,
 }
 
 impl ProfileTags {
@@ -168,8 +212,8 @@ impl ProfileTags {
         self.common
             .iter()
             .chain(self.unified_service.iter())
-            .chain(self.git.iter())
-            .chain(self.custom.iter())
+            .chain(self.git.iter().flat_map(|segment| segment.iter()))
+            .chain(self.custom.iter().flat_map(|segment| segment.iter()))
     }
 
     pub(crate) fn try_materialize(&self) -> anyhow::Result<Vec<Tag>> {
@@ -177,8 +221,10 @@ impl ProfileTags {
             .common
             .len()
             .checked_add(self.unified_service.len())
-            .and_then(|len| len.checked_add(self.git.len()))
-            .and_then(|len| len.checked_add(self.custom.len()))
+            .and_then(|len| len.checked_add(self.git.as_ref().map_or(0, |segment| segment.len())))
+            .and_then(|len| {
+                len.checked_add(self.custom.as_ref().map_or(0, |segment| segment.len()))
+            })
             .ok_or(ProfileTagError::CapacityOverflow)?;
         let mut tags = Vec::new();
         tags.try_reserve_exact(capacity)?;
@@ -201,6 +247,17 @@ impl ProfileTags {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn unified_service_tags_use_inline_offsets_and_omit_empty_values() {
+        let segment = UnifiedServiceTagSegment::try_new("checkout", "", "1.2.3").unwrap();
+
+        assert_eq!(segment.storage, "service:checkout,version:1.2.3,");
+        assert_eq!(
+            segment.iter().collect::<Vec<_>>(),
+            ["service:checkout", "version:1.2.3"]
+        );
+    }
 
     #[test]
     fn segment_uses_one_comma_separated_string() {

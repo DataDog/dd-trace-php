@@ -3,7 +3,7 @@
 
 use super::{ProcessIdentityRef, ThreadContext, ThreadContextRead};
 use crate::bindings::datadog_php_profiling_get_otel_thread_context;
-use crate::profile_tags::ProfileTagSegment;
+use crate::profile_tags::UnifiedServiceTagSegment;
 use libdd_library_config::otel_process_ctx::ProcessContextSelfReader;
 use libdd_trace_protobuf::opentelemetry::proto::common::v1::{any_value, KeyValue, ProcessContext};
 
@@ -316,7 +316,7 @@ impl ProcessContextCache {
         // TODO: propagate allocation failure to the sample caller instead of
         // dropping the final identity.
         context.unified_service_tags =
-            ProfileTagSegment::try_unified_service(service, env, version).unwrap_or_default();
+            UnifiedServiceTagSegment::try_new(service, env, version).unwrap_or_default();
 
         (context, unknown_index)
     }
@@ -384,14 +384,14 @@ pub(crate) fn thread_context(defaults: ProcessIdentityRef<'_>) -> ThreadContextR
     let inactive = || {
         let unified_service_tags = with_cache(|cell| {
             let Ok(cache) = cell.try_borrow() else {
-                return ProfileTagSegment::try_unified_service(
+                return UnifiedServiceTagSegment::try_new(
                     defaults.service.unwrap_or_default(),
                     defaults.env.unwrap_or_default(),
                     defaults.version.unwrap_or_default(),
                 );
             };
             let identity = cache.effective_identity(defaults);
-            ProfileTagSegment::try_unified_service(
+            UnifiedServiceTagSegment::try_new(
                 identity.service.unwrap_or_default(),
                 identity.env.unwrap_or_default(),
                 identity.version.unwrap_or_default(),

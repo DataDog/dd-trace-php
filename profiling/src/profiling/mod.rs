@@ -27,9 +27,9 @@ use crate::config::SystemSettings;
 use crate::exception::EXCEPTION_PROFILING_INTERVAL;
 #[cfg(target_os = "linux")]
 use crate::process_context::{ProcessIdentityRef, ThreadContextRead};
+use crate::profile_tags::ProfileTags;
 #[cfg(not(target_os = "linux"))]
-use crate::profile_tags::ProfileTagSegment;
-use crate::profile_tags::{empty_profile_tag_segment, ProfileTags};
+use crate::profile_tags::UnifiedServiceTagSegment;
 use crate::{Clocks, RefCellExt, CLOCKS, GLOBAL_TAGS, REQUEST_LOCALS};
 use chrono::Utc;
 use core::mem::forget;
@@ -1781,16 +1781,8 @@ impl Profiler {
         let common_tags = Arc::clone(&GLOBAL_TAGS);
         #[cfg(target_os = "linux")]
         let (git_tags, custom_tags, thread_context) = REQUEST_LOCALS.with_borrow(|locals| {
-            let git_tags = locals
-                .git_tags
-                .as_ref()
-                .map(Arc::clone)
-                .unwrap_or_else(|| Arc::clone(empty_profile_tag_segment()));
-            let custom_tags = locals
-                .custom_tags
-                .as_ref()
-                .map(Arc::clone)
-                .unwrap_or_else(|| Arc::clone(empty_profile_tag_segment()));
+            let git_tags = locals.git_tags.as_ref().map(Arc::clone);
+            let custom_tags = locals.custom_tags.as_ref().map(Arc::clone);
             let thread_context = crate::process_context::thread_context(ProcessIdentityRef {
                 service: locals.identity.service.as_deref(),
                 env: locals.identity.env.as_deref(),
@@ -1830,22 +1822,14 @@ impl Profiler {
             let context =
                 unsafe { datadog_php_profiling_get_profiling_context.unwrap_unchecked()() };
             // TODO: propagate allocation failure to the sample caller.
-            let unified_service_tags = ProfileTagSegment::try_unified_service(
+            let unified_service_tags = UnifiedServiceTagSegment::try_new(
                 locals.identity.service.as_deref().unwrap_or_default(),
                 locals.identity.env.as_deref().unwrap_or_default(),
                 locals.identity.version.as_deref().unwrap_or_default(),
             )
             .unwrap_or_default();
-            let git_tags = locals
-                .git_tags
-                .as_ref()
-                .map(Arc::clone)
-                .unwrap_or_else(|| Arc::clone(empty_profile_tag_segment()));
-            let custom_tags = locals
-                .custom_tags
-                .as_ref()
-                .map(Arc::clone)
-                .unwrap_or_else(|| Arc::clone(empty_profile_tag_segment()));
+            let git_tags = locals.git_tags.as_ref().map(Arc::clone);
+            let custom_tags = locals.custom_tags.as_ref().map(Arc::clone);
             (
                 common_tags,
                 git_tags,
