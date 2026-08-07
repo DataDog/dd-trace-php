@@ -45,7 +45,7 @@ enum datadog_sidecar_connection_mode {
     CONFIG(STRING, DD_AGENT_HOST, "localhost", .ini_change = zai_config_system_ini_change)                     \
     CONFIG(STRING, DD_DOGSTATSD_URL, "http://localhost:8125")                                                  \
     CONFIG(STRING, DD_DOGSTATSD_HOST, "localhost")                                                             \
-    CONFIG(STRING, DD_API_KEY, "", .ini_change = zai_config_system_ini_change)                                 \
+    CONFIG(STRING, DD_API_KEY, "", .ini_change = zai_config_system_ini_change, .sensitive = true)              \
     CONFIG(INT, DD_DOGSTATSD_PORT, "8125")                                                                     \
     CONFIG(STRING, DD_ENV, "", .ini_change = datadog_alter_dd_env,                                             \
            .env_config_fallback = ddtrace_conf_otel_resource_attributes_env)                                   \
