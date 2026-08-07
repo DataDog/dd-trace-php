@@ -25,17 +25,18 @@ use crate::bindings::{
 };
 use crate::config::SystemSettings;
 use crate::exception::EXCEPTION_PROFILING_INTERVAL;
-use crate::process_context::ProcessIdentity;
 #[cfg(target_os = "linux")]
 use crate::process_context::{ProcessIdentityRef, ThreadContextRead};
-use crate::{Clocks, RefCellExt, CLOCKS, REQUEST_LOCALS, TAGS};
+#[cfg(not(target_os = "linux"))]
+use crate::profile_tags::ProfileTagSegment;
+use crate::profile_tags::{empty_profile_tag_segment, ProfileTags};
+use crate::{Clocks, RefCellExt, CLOCKS, GLOBAL_TAGS, REQUEST_LOCALS};
 use chrono::Utc;
 use core::mem::forget;
 use core::{ptr, str};
 use cpu_time::ThreadTime;
 use crossbeam_channel::{Receiver, Sender, TrySendError};
 use dashmap::DashMap;
-use libdd_common::tag::Tag;
 use libdd_profiling::api::{
     Function, Label as ApiLabel, Location, Period, Sample, SampleType as ApiSampleType,
     UpscalingInfo, ValueType as ApiValueType,
@@ -173,8 +174,7 @@ pub struct Label {
 
 struct SampleLabels {
     labels: Vec<Label>,
-    identity: ProcessIdentity,
-    base_tags: Arc<Vec<Tag>>,
+    profile_tags: ProfileTags,
 }
 
 impl Deref for SampleLabels {
@@ -188,62 +188,6 @@ impl Deref for SampleLabels {
 impl DerefMut for SampleLabels {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.labels
-    }
-}
-
-fn effective_profile_tags(base: Arc<Vec<Tag>>, identity: &ProcessIdentity) -> Arc<Vec<Tag>> {
-    let mut updated = None;
-    apply_profile_tag_override(&base, &mut updated, "service", identity.service.as_deref());
-    apply_profile_tag_override(&base, &mut updated, "env", identity.environment.as_deref());
-    apply_profile_tag_override(&base, &mut updated, "version", identity.version.as_deref());
-    updated.map(Arc::new).unwrap_or(base)
-}
-
-#[cfg(target_os = "linux")]
-fn profile_tag_value<'a>(tags: &'a [Tag], key: &str) -> Option<&'a str> {
-    tags.iter().find_map(|tag| {
-        let (candidate, value) = tag.as_ref().split_once(':')?;
-        (candidate == key).then_some(value)
-    })
-}
-
-fn apply_profile_tag_override(
-    base: &[Tag],
-    updated: &mut Option<Vec<Tag>>,
-    key: &str,
-    value: Option<&str>,
-) {
-    let Some(value) = value.filter(|value| !value.is_empty()) else {
-        return;
-    };
-
-    let tags = updated.as_deref().unwrap_or(base);
-    let existing = tags.iter().position(|tag| {
-        tag.as_ref()
-            .split_once(':')
-            .is_some_and(|(candidate, _)| candidate == key)
-    });
-    if let Some(index) = existing {
-        let (_, current) = tags[index]
-            .as_ref()
-            .split_once(':')
-            .expect("the matching tag contains a colon");
-        if current == value {
-            return;
-        }
-    }
-
-    // An invalid Thread Context attribute must not erase a valid process or
-    // profiler default.
-    let Ok(replacement) = Tag::new(key, value) else {
-        return;
-    };
-
-    let tags = updated.get_or_insert_with(|| base.to_vec());
-    if let Some(index) = existing {
-        tags[index] = replacement;
-    } else {
-        tags.push(replacement);
     }
 }
 
@@ -286,10 +230,10 @@ impl ValueType {
 /// This information is expected to be mostly stable for a process, but it may
 /// not be if an Apache reload occurs and it adjusts the service name, or if
 /// Apache per-dir settings use different service name, etc.
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Debug, Eq, PartialEq, Hash)]
 pub struct ProfileIndex {
     pub sample_types: Vec<ValueType>,
-    pub tags: Arc<Vec<Tag>>,
+    pub tags: ProfileTags,
 }
 
 #[derive(Debug)]
@@ -1834,47 +1778,84 @@ impl Profiler {
     ///   caller adds gc or exception labels.
     fn common_labels(n_extra_labels: usize) -> SampleLabels {
         let mut labels = Vec::with_capacity(5 + n_extra_labels);
-        let base_tags = TAGS.with_borrow(Arc::clone);
+        let common_tags = Arc::clone(&GLOBAL_TAGS);
         #[cfg(target_os = "linux")]
-        let thread_context = crate::process_context::thread_context(ProcessIdentityRef {
-            service: profile_tag_value(&base_tags, "service"),
-            environment: profile_tag_value(&base_tags, "env"),
-            version: profile_tag_value(&base_tags, "version"),
+        let (git_tags, custom_tags, thread_context) = REQUEST_LOCALS.with_borrow(|locals| {
+            let git_tags = locals
+                .git_tags
+                .as_ref()
+                .map(Arc::clone)
+                .unwrap_or_else(|| Arc::clone(empty_profile_tag_segment()));
+            let custom_tags = locals
+                .custom_tags
+                .as_ref()
+                .map(Arc::clone)
+                .unwrap_or_else(|| Arc::clone(empty_profile_tag_segment()));
+            let thread_context = crate::process_context::thread_context(ProcessIdentityRef {
+                service: locals.identity.service.as_deref(),
+                env: locals.identity.env.as_deref(),
+                version: locals.identity.version.as_deref(),
+            });
+            (git_tags, custom_tags, thread_context)
         });
         #[cfg(target_os = "linux")]
-        let (thread_id, local_root_span_id, span_id, identity) = match thread_context {
+        let (thread_id, local_root_span_id, span_id, unified_service_tags) = match thread_context {
             ThreadContextRead::Active(context) => (
                 context
                     .thread_id
                     .unwrap_or_else(libdd_common::threading::get_current_thread_id),
                 context.local_root_span_id,
                 context.span_id,
-                ProcessIdentity {
-                    service: context.service,
-                    environment: context.environment,
-                    version: context.version,
-                },
+                context.unified_service_tags,
             ),
-            ThreadContextRead::Inactive => (
+            ThreadContextRead::Inactive(unified_service_tags) => (
                 libdd_common::threading::get_current_thread_id(),
                 0,
                 0,
-                ProcessIdentity::default(),
+                unified_service_tags,
             ),
         };
         #[cfg(not(target_os = "linux"))]
-        let (thread_id, local_root_span_id, span_id, identity) = {
+        let (
+            common_tags,
+            git_tags,
+            custom_tags,
+            thread_id,
+            local_root_span_id,
+            span_id,
+            unified_service_tags,
+        ) = REQUEST_LOCALS.with_borrow(|locals| {
             // SAFETY: this is set to a noop version if ddtrace wasn't found,
             // and we're getting the profiling context on a PHP thread.
             let context =
                 unsafe { datadog_php_profiling_get_profiling_context.unwrap_unchecked()() };
+            // TODO: propagate allocation failure to the sample caller.
+            let unified_service_tags = ProfileTagSegment::try_unified_service(
+                locals.identity.service.as_deref().unwrap_or_default(),
+                locals.identity.env.as_deref().unwrap_or_default(),
+                locals.identity.version.as_deref().unwrap_or_default(),
+            )
+            .unwrap_or_default();
+            let git_tags = locals
+                .git_tags
+                .as_ref()
+                .map(Arc::clone)
+                .unwrap_or_else(|| Arc::clone(empty_profile_tag_segment()));
+            let custom_tags = locals
+                .custom_tags
+                .as_ref()
+                .map(Arc::clone)
+                .unwrap_or_else(|| Arc::clone(empty_profile_tag_segment()));
             (
+                common_tags,
+                git_tags,
+                custom_tags,
                 unsafe { libc::pthread_self() as i64 },
                 context.local_root_span_id,
                 context.span_id,
-                ProcessIdentity::default(),
+                unified_service_tags,
             )
-        };
+        });
         labels.push(Label {
             key: "thread id",
             value: LabelValue::Num(thread_id, "id"),
@@ -1918,8 +1899,12 @@ impl Profiler {
         }
         SampleLabels {
             labels,
-            identity,
-            base_tags,
+            profile_tags: ProfileTags {
+                common: common_tags,
+                unified_service: unified_service_tags,
+                git: git_tags,
+                custom: custom_tags,
+            },
         }
     }
 
@@ -1951,10 +1936,11 @@ impl Profiler {
         let sample_types = self.sample_types_filter.sample_types();
         let sample_values = self.sample_types_filter.filter(samples);
 
-        let tags = effective_profile_tags(labels.base_tags, &labels.identity);
-
         SampleMessage {
-            key: Arc::new(ProfileIndex { sample_types, tags }),
+            key: Arc::new(ProfileIndex {
+                sample_types,
+                tags: labels.profile_tags,
+            }),
             value: SampleData {
                 frames: Arc::new(frames),
                 labels: Arc::new(labels.labels),
@@ -2063,96 +2049,5 @@ mod tests {
         );
         assert_eq!(message.value.sample_values, vec![10, 20, 30, 60]);
         assert_eq!(message.value.timestamp, 900);
-    }
-
-    fn test_tags(values: &[(&str, &str)]) -> Arc<Vec<Tag>> {
-        Arc::new(
-            values
-                .iter()
-                .map(|(key, value)| Tag::new(key, value).unwrap())
-                .collect(),
-        )
-    }
-
-    fn test_tag_value<'a>(tags: &'a [Tag], key: &str) -> Option<&'a str> {
-        tags.iter().find_map(|tag| {
-            let (candidate, value) = tag.as_ref().split_once(':')?;
-            (candidate == key).then_some(value)
-        })
-    }
-
-    #[test]
-    fn effective_profile_tags_reuses_base_without_effective_changes() {
-        let base = test_tags(&[
-            ("service", "configured-service"),
-            ("env", "configured-env"),
-            ("version", "configured-version"),
-        ]);
-
-        let unchanged = effective_profile_tags(Arc::clone(&base), &ProcessIdentity::default());
-        assert!(Arc::ptr_eq(&base, &unchanged));
-
-        let same_values = effective_profile_tags(
-            Arc::clone(&base),
-            &ProcessIdentity {
-                service: Some("configured-service".to_owned()),
-                environment: Some("configured-env".to_owned()),
-                version: Some("configured-version".to_owned()),
-            },
-        );
-        assert!(Arc::ptr_eq(&base, &same_values));
-    }
-
-    #[test]
-    fn effective_profile_tags_override_independently_and_separate_profiles() {
-        let base = test_tags(&[
-            ("language", "php"),
-            ("service", "process-service"),
-            ("env", "process-env"),
-            ("version", "process-version"),
-        ]);
-        let effective = effective_profile_tags(
-            Arc::clone(&base),
-            &ProcessIdentity {
-                service: Some("root-service".to_owned()),
-                environment: None,
-                version: Some("root-version".to_owned()),
-            },
-        );
-
-        assert!(!Arc::ptr_eq(&base, &effective));
-        assert_eq!(test_tag_value(&effective, "service"), Some("root-service"));
-        assert_eq!(test_tag_value(&effective, "env"), Some("process-env"));
-        assert_eq!(test_tag_value(&effective, "version"), Some("root-version"));
-
-        let base_index = ProfileIndex {
-            sample_types: Vec::new(),
-            tags: base,
-        };
-        let effective_index = ProfileIndex {
-            sample_types: Vec::new(),
-            tags: effective,
-        };
-        assert_ne!(base_index, effective_index);
-    }
-
-    #[test]
-    fn effective_profile_tags_add_missing_and_ignore_invalid_overrides() {
-        let base = test_tags(&[("language", "php"), ("service", "process-service")]);
-        let effective = effective_profile_tags(
-            Arc::clone(&base),
-            &ProcessIdentity {
-                service: Some(":".to_owned()),
-                environment: Some("root-env".to_owned()),
-                version: None,
-            },
-        );
-
-        assert_eq!(
-            test_tag_value(&effective, "service"),
-            Some("process-service")
-        );
-        assert_eq!(test_tag_value(&effective, "env"), Some("root-env"));
-        assert_eq!(test_tag_value(&effective, "version"), None);
     }
 }

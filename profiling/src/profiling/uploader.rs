@@ -101,16 +101,11 @@ impl Uploader {
         message: Box<UploadRequest>,
         last_cpu: &mut Option<ThreadTime>,
     ) -> anyhow::Result<u16> {
-        // `index` is `Arc<ProfileIndex>`; unwrap so we can move `tags` out.
-        // In the common case the upload thread holds the only strong ref by
-        // the time we get here, so this is a move rather than a clone.
-        let index = Arc::unwrap_or_clone(message.index);
+        let tags = message.index.tags.try_materialize()?;
         let profile = message.profile;
 
         let agent_endpoint = &self.endpoint;
         let endpoint = Endpoint::try_from(agent_endpoint)?;
-
-        let tags = Arc::unwrap_or_clone(index.tags);
         let mut exporter = libdd_profiling::exporter::ProfileExporter::new(
             PROFILER_NAME_STR,
             PROFILER_VERSION_STR,

@@ -1,8 +1,9 @@
 // Copyright 2026-Present Datadog, Inc. https://www.datadoghq.com/
 // SPDX-License-Identifier: Apache-2.0
 
-use super::{ProcessIdentity, ProcessIdentityRef, ThreadContext, ThreadContextRead};
+use super::{ProcessIdentityRef, ThreadContext, ThreadContextRead};
 use crate::bindings::datadog_php_profiling_get_otel_thread_context;
+use crate::profile_tags::ProfileTagSegment;
 use libdd_library_config::otel_process_ctx::ProcessContextSelfReader;
 use libdd_trace_protobuf::opentelemetry::proto::common::v1::{any_value, KeyValue, ProcessContext};
 
@@ -72,7 +73,7 @@ impl CachedProcessContext {
     fn identity(&self) -> ProcessIdentityRef<'_> {
         ProcessIdentityRef {
             service: self.resource_string(self.offsets.resource.service_name),
-            environment: self.resource_string(self.offsets.resource.deployment_environment_name),
+            env: self.resource_string(self.offsets.resource.deployment_environment_name),
             version: self.resource_string(self.offsets.resource.service_version),
         }
     }
@@ -221,13 +222,33 @@ impl ProcessContextCache {
         true
     }
 
+    fn effective_identity<'a>(
+        &'a self,
+        defaults: ProcessIdentityRef<'a>,
+    ) -> ProcessIdentityRef<'a> {
+        let process = self
+            .context
+            .as_ref()
+            .map(CachedProcessContext::identity)
+            .unwrap_or_default();
+        ProcessIdentityRef {
+            service: process.service.or(defaults.service),
+            env: process.env.or(defaults.env),
+            version: process.version.or(defaults.version),
+        }
+    }
+
     fn decode_thread_attributes(
         &self,
         attributes: &[u8],
         defaults: ProcessIdentityRef<'_>,
     ) -> (ThreadContext, bool) {
+        let defaults = self.effective_identity(defaults);
         let offsets = self.context.as_ref().map(|cached| &cached.offsets.thread);
         let mut context = ThreadContext::default();
+        let mut service = defaults.service.unwrap_or_default();
+        let mut env = defaults.env.unwrap_or_default();
+        let mut version = defaults.version.unwrap_or_default();
         let mut unknown_index = false;
         let mut offset = 0;
 
@@ -273,16 +294,16 @@ impl ProcessContextCache {
                 if offsets.local_root_span_id == Some(key_index) {
                     context.local_root_span_id = u64::from_str_radix(value, 16).unwrap_or_default();
                 } else if offsets.service_name == Some(key_index) {
-                    if Some(value) != defaults.service {
-                        context.service = Some(value.to_owned());
+                    if libdd_common::tag::Tag::validate("service", value).is_ok() {
+                        service = value;
                     }
                 } else if offsets.deployment_environment_name == Some(key_index) {
-                    if Some(value) != defaults.environment {
-                        context.environment = Some(value.to_owned());
+                    if libdd_common::tag::Tag::validate("env", value).is_ok() {
+                        env = value;
                     }
                 } else if offsets.service_version == Some(key_index) {
-                    if Some(value) != defaults.version {
-                        context.version = Some(value.to_owned());
+                    if libdd_common::tag::Tag::validate("version", value).is_ok() {
+                        version = value;
                     }
                 } else if offsets.thread_id == Some(key_index) {
                     context.thread_id = value.parse().ok().filter(|id| *id >= 0);
@@ -291,6 +312,11 @@ impl ProcessContextCache {
 
             offset = value_end;
         }
+
+        // TODO: propagate allocation failure to the sample caller instead of
+        // dropping the final identity.
+        context.unified_service_tags =
+            ProfileTagSegment::try_unified_service(service, env, version).unwrap_or_default();
 
         (context, unknown_index)
     }
@@ -334,21 +360,6 @@ pub(crate) fn invalidate_before_fork() {
     });
 }
 
-pub(crate) fn identity() -> ProcessIdentity {
-    with_cache(|cache| {
-        cache
-            .try_borrow()
-            .ok()
-            .and_then(|cache| {
-                cache
-                    .context
-                    .as_ref()
-                    .map(|cached| cached.identity().into())
-            })
-            .unwrap_or_default()
-    })
-}
-
 pub(crate) fn process_tags() -> Option<String> {
     with_cache(|cache| {
         let cache = cache.try_borrow().ok()?;
@@ -370,21 +381,41 @@ pub(crate) fn runtime_id() -> Option<String> {
 }
 
 pub(crate) fn thread_context(defaults: ProcessIdentityRef<'_>) -> ThreadContextRead {
+    let inactive = || {
+        let unified_service_tags = with_cache(|cell| {
+            let Ok(cache) = cell.try_borrow() else {
+                return ProfileTagSegment::try_unified_service(
+                    defaults.service.unwrap_or_default(),
+                    defaults.env.unwrap_or_default(),
+                    defaults.version.unwrap_or_default(),
+                );
+            };
+            let identity = cache.effective_identity(defaults);
+            ProfileTagSegment::try_unified_service(
+                identity.service.unwrap_or_default(),
+                identity.env.unwrap_or_default(),
+                identity.version.unwrap_or_default(),
+            )
+        });
+        // TODO: propagate allocation failure to the sample caller.
+        ThreadContextRead::Inactive(unified_service_tags.unwrap_or_default())
+    };
+
     let record = unsafe { datadog_php_profiling_get_otel_thread_context() }.cast::<u8>();
     if record.is_null() {
-        return ThreadContextRead::Inactive;
+        return inactive();
     }
 
     // The record belongs to the calling PHP thread. The tracer cannot mutate
     // it while the profiler is executing on that same thread.
     let header = unsafe { std::slice::from_raw_parts(record, THREAD_CONTEXT_HEADER_SIZE) };
     if header[24] != 1 {
-        return ThreadContextRead::Inactive;
+        return inactive();
     }
 
     let attributes_size = u16::from_ne_bytes([header[26], header[27]]) as usize;
     if attributes_size > MAX_THREAD_ATTRIBUTES_SIZE {
-        return ThreadContextRead::Inactive;
+        return inactive();
     }
 
     let attributes = unsafe {
@@ -517,7 +548,7 @@ mod tests {
 
         let identity = cached.identity();
         assert_eq!(identity.service, Some("checkout"));
-        assert_eq!(identity.environment, Some("production"));
+        assert_eq!(identity.env, Some("production"));
         assert_eq!(identity.version, Some("1.2.3"));
         assert_eq!(
             cached.resource_string(cached.offsets.resource.service_instance_id),
@@ -555,7 +586,7 @@ mod tests {
             &attributes,
             ProcessIdentityRef {
                 service: Some("configured-service"),
-                environment: Some("configured-env"),
+                env: Some("configured-env"),
                 version: Some("configured-version"),
             },
         );
@@ -563,9 +594,14 @@ mod tests {
         assert!(!unknown_index);
         assert_eq!(decoded.thread_id, Some(42));
         assert_eq!(decoded.local_root_span_id, 0xfedc_ba98_7654_3210);
-        assert_eq!(decoded.service.as_deref(), Some("root-service"));
-        assert_eq!(decoded.environment, None);
-        assert_eq!(decoded.version.as_deref(), Some("2.0.0"));
+        assert_eq!(
+            decoded.unified_service_tags.iter().collect::<Vec<_>>(),
+            [
+                "service:root-service",
+                "env:configured-env",
+                "version:2.0.0"
+            ]
+        );
     }
 
     #[test]
@@ -592,20 +628,25 @@ mod tests {
             &attributes,
             ProcessIdentityRef {
                 service: Some("configured-service"),
-                environment: Some("configured-env"),
+                env: Some("configured-env"),
                 version: Some("configured-version"),
             },
         );
 
         assert!(unknown_index);
-        assert_eq!(decoded.service, None);
-        assert_eq!(decoded.environment, None);
-        assert_eq!(decoded.version, None);
+        assert_eq!(
+            decoded.unified_service_tags.iter().collect::<Vec<_>>(),
+            [
+                "service:configured-service",
+                "env:configured-env",
+                "version:configured-version"
+            ]
+        );
         assert_eq!(decoded.thread_id, None);
 
         let (truncated, unknown_index) =
             cache.decode_thread_attributes(&[1, 10, b'a'], ProcessIdentityRef::default());
         assert!(!unknown_index);
-        assert_eq!(truncated.service, None);
+        assert_eq!(truncated.unified_service_tags.len(), 0);
     }
 }
