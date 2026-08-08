@@ -142,6 +142,8 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_addEndpoint_buffer(
         path: Some(path.to_utf8_lossy().into_owned()),
         operation_name: operation_name.to_utf8_lossy().into_owned(),
         resource_name: resource_name.to_utf8_lossy().into_owned(),
+        // Not collected by the PHP tracer (yet); libdatadog #2213 added them.
+        ..Default::default()
     });
     buffer.buffer.push(SidecarAction::Telemetry(action));
 }
@@ -161,7 +163,10 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_enqueueConfig_buffer(
     };
     let action = TelemetryActions::AddConfig(data::Configuration {
         name: config_key.to_utf8_lossy().into_owned(),
-        value: config_value.to_utf8_lossy().into_owned(),
+        // `value` became `Option<String>` to tell `null` from `""`. The C API
+        // always hands us a concrete (possibly empty) string, never a null, so
+        // an empty value stays an empty string rather than becoming `null`.
+        value: Some(config_value.to_utf8_lossy().into_owned()),
         origin,
         config_id,
         seq_id: None,
