@@ -105,6 +105,7 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_addIntegration_buffer(
         version,
         compatible: None,
         auto_enabled: None,
+        error: None,
     });
     buffer.buffer.push(SidecarAction::Telemetry(action));
 }
@@ -121,6 +122,8 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_addDependency_buffer(
     let action = TelemetryActions::AddDependency(Dependency {
         name: dependency_name.to_utf8_lossy().into_owned(),
         version,
+        hash: None,
+        metadata: None,
     });
     buffer.buffer.push(SidecarAction::Telemetry(action));
 }

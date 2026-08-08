@@ -1,5 +1,5 @@
 use crate::bytes::MaybeOwnedZendString;
-use datadog_ffe::rules_based::{
+use libdd_ffe::rules_based::{
     self as ffe, AssignmentReason, AssignmentValue, Attribute, Configuration, EvaluationContext,
     EvaluationError, ExpectedFlagType, Str, UniversalFlagConfig,
 };
