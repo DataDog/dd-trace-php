@@ -14,6 +14,7 @@
       "component": "codeigniter",
       "http.method": "GET",
       "http.route": "simple",
+      "_dd.appsec.normalized_route": "/simple",
       "http.status_code": "200",
       "http.url": "http://localhost/simple?key=value&<redacted>",
       "runtime-id": "26ab24e6-051f-4e1f-9adf-3d609bef6946",

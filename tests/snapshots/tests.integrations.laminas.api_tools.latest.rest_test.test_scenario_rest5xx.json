@@ -16,6 +16,7 @@
       "error.type": "Error",
       "http.method": "GET",
       "http.route": "[/v:version]/datadog-rest-service[/:datadog_rest_service_id]",
+      "_dd.appsec.normalized_route": "/datadog-rest-service",
       "http.status_code": "500",
       "http.url": "http://localhost/datadog-rest-service/42",
       "http.version": "1.1",
