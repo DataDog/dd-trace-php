@@ -442,9 +442,6 @@ static void dd_initialize_request(void) {
     DDTRACE_G(distributed_trace_id) = (datadog_trace_id){0};
     DDTRACE_G(distributed_parent_trace_id) = 0;
     DDTRACE_G(distributed_trace_flags) = 0;
-#ifdef __linux__
-    DDTRACE_G(otel_context_attributes_generation) = 0;
-#endif
     DDTRACE_G(additional_global_tags) = zend_new_array(0);
     DDTRACE_G(default_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
     DDTRACE_G(propagated_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNSET;

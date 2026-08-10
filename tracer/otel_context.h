@@ -58,9 +58,6 @@ void ddtrace_otel_attach_stack(ddtrace_span_stack *stack);
 /** Detach the current thread's record. */
 void ddtrace_otel_detach(void);
 
-/** Detach only if the current record belongs to root_span. */
-void ddtrace_detach_otel_thread_context_for_root(ddtrace_root_span_data *root_span);
-
 END_EXTERN_C()
 
 #endif  // DDTRACE_OTEL_CONTEXT_H
