@@ -1,6 +1,12 @@
 include(ExternalProject)
 
-set(CARGO_BUILD_CMD "cargo build")
+if(DD_APPSEC_SSI)
+    set(CARGO_BUILD_CMD "cargo build")
+else()
+    # Only the static library is linked into ddtrace. Building the cdylib as well fails on macOS
+    # because it references symbols that are provided by the final ddtrace extension.
+    set(CARGO_BUILD_CMD "cargo rustc --lib --crate-type staticlib")
+endif()
 set(CARGO_BUILD_ENV "") # Initialize to empty
 
 
@@ -137,6 +143,9 @@ if (PhpConfig_VERNUM LESS 80100)
     list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../tracer/handlers_fiber.c")
 endif()
 list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../ext/crashtracking_windows.c")
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../tracer/otel_context.c")
+endif()
 
 find_package(CURL REQUIRED)
 message(STATUS "CURL version: ${CURL_VERSION_STRING}")
