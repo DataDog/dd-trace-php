@@ -709,7 +709,7 @@ static PHP_MINFO_FUNCTION(datadog) {
 
 void datadog_internal_handle_fork(void) {
     // CHILD PROCESS
-    datadog_generate_runtime_id();
+    datadog_force_new_instance_id();
     datadog_sidecar_handle_fork();
 #ifdef __linux__
     zend_string *process_tags = datadog_process_tags_get_serialized();
