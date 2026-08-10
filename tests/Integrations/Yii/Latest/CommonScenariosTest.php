@@ -59,6 +59,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'app.endpoint' => 'app\controllers\SimpleController::actionIndex',
                         'app.route.path' => '/simple',
                         Tag::HTTP_ROUTE => '/simple',
+                        Tag::APPSEC_NORMALIZED_ROUTE => '/simple',
                         Tag::SPAN_KIND => "server",
                         Tag::COMPONENT => "yii",
                     ])->withChildren([
@@ -103,6 +104,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'app.endpoint' => 'app\controllers\SimpleController::actionView',
                         'app.route.path' => '/simple_view',
                         Tag::HTTP_ROUTE => '/simple_view',
+                        Tag::APPSEC_NORMALIZED_ROUTE => '/simple_view',
                         Tag::SPAN_KIND => "server",
                         Tag::COMPONENT => "yii",
                     ])->withChildren([
@@ -150,6 +152,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'app.endpoint' => 'app\controllers\SimpleController::actionError',
                         'app.route.path' => '/error',
                         Tag::HTTP_ROUTE => '/error',
+                        Tag::APPSEC_NORMALIZED_ROUTE => '/error',
                         Tag::SPAN_KIND => "server",
                         Tag::COMPONENT => "yii",
                     ])
@@ -222,6 +225,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'app.endpoint' => 'app\controllers\SimpleController::actionParameterized',
                         'app.route.path' => '/parameterized/:value',
                         Tag::HTTP_ROUTE => '/parameterized/:value',
+                        Tag::APPSEC_NORMALIZED_ROUTE => '/parameterized/{value}',
                         Tag::SPAN_KIND => "server",
                         Tag::COMPONENT => "yii",
                     ])->withChildren([

@@ -230,6 +230,10 @@ class CodeIgniterIntegration extends Integration
         if (isset($router->routes[$uri]))
         {
             $rootSpan->meta[Tag::HTTP_ROUTE] = $uri;
+            $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromCodeIgniter($uri);
+            if ($normalizedRoute !== null) {
+                $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+            }
             return;
         }
 
@@ -244,6 +248,10 @@ class CodeIgniterIntegration extends Integration
             if (preg_match('#^'.$key.'$#', $uri))
             {
                 $rootSpan->meta[Tag::HTTP_ROUTE] = $origKey;
+                $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromCodeIgniter($origKey);
+                if ($normalizedRoute !== null) {
+                    $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                }
                 return;
             }
         }
@@ -251,5 +259,9 @@ class CodeIgniterIntegration extends Integration
         // If we got this far it means we didn't encounter a
         // matching route so we'll set the site default route
         $rootSpan->meta[Tag::HTTP_ROUTE] = $uri;
+        $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromCodeIgniter($uri);
+        if ($normalizedRoute !== null) {
+            $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+        }
     }
 }

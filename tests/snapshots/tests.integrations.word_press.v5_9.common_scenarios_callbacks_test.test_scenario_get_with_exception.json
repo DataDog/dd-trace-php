@@ -17,6 +17,7 @@
       "error.type": "Exception",
       "http.method": "GET",
       "http.route": "([^/]+)(?:/([0-9]+))?/?$",
+      "_dd.appsec.normalized_route": "/{param1}/{param2}",
       "http.status_code": "200",
       "http.url": "http://localhost/error?key=value&<redacted>",
       "runtime-id": "896f86bc-7139-44f3-a99f-ed35e643f726",

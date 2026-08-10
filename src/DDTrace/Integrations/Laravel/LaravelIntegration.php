@@ -140,7 +140,13 @@ class LaravelIntegration extends Integration
                     $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($request->fullUrl());
                 }
                 if (\method_exists($route, 'uri')) {
-                    $rootSpan->meta[Tag::HTTP_ROUTE] = $route->uri();
+                    $httpRoute = $route->uri();
+                    $rootSpan->meta[Tag::HTTP_ROUTE] = $httpRoute;
+                    $matchedParams = \method_exists($route, 'parameters') ? ($route->parameters() ?? []) : [];
+                    $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromLaravel($httpRoute, $matchedParams);
+                    if ($normalizedRoute !== null) {
+                        $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                    }
                 }
                 if (\method_exists($route, 'parameters') && function_exists('\datadog\appsec\push_addresses')) {
                     $parameters = $route->parameters();

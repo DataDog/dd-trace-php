@@ -16,6 +16,7 @@
       "error.type": "Exception",
       "http.method": "GET",
       "http.route": "/error[/:key][/:pwd]",
+      "_dd.appsec.normalized_route": "/error",
       "laminas.route.name": "error",
       "http.status_code": "500",
       "http.url": "http://localhost/error?key=value&<redacted>",

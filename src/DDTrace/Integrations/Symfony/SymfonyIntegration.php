@@ -456,6 +456,10 @@ class SymfonyIntegration extends Integration
 
                 if ($path !== null) {
                     $rootSpan->meta[Tag::HTTP_ROUTE] = $path;
+                    $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromSymfony($path);
+                    if ($normalizedRoute !== null) {
+                        $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                    }
                 }
             };
         } else {

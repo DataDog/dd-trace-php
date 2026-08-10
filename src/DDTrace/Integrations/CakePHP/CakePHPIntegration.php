@@ -71,7 +71,12 @@ class CakePHPIntegration extends Integration
 
             $rootSpan = \DDTrace\root_span();
             if ($rootSpan !== null) {
-                $rootSpan->meta[Tag::HTTP_ROUTE] = $app->template;
+                $template = $app->template;
+                $rootSpan->meta[Tag::HTTP_ROUTE] = $template;
+                $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromCakePHP($template);
+                if ($normalizedRoute !== null) {
+                    $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                }
             }
         };
 

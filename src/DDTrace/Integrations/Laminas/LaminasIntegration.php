@@ -284,6 +284,11 @@ class LaminasIntegration extends Integration
                     $httpRoute = LaminasIntegration::httpRouteTemplateFromNamedRouteStack($this, (string) $routeName);
                     if ($httpRoute !== null && $httpRoute !== '') {
                         $rootSpan->meta[Tag::HTTP_ROUTE] = $httpRoute;
+                        $allParams = method_exists($routeMatch, 'getParams') ? ($routeMatch->getParams() ?? []) : [];
+                        $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromLaminas($httpRoute, $allParams);
+                        if ($normalizedRoute !== null) {
+                            $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                        }
                     }
                 }
 
