@@ -74,6 +74,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'symfony',
+                        Tag::APPSEC_NORMALIZED_ROUTE => '/simple',
                     ])->withChildren([
                         SpanAssertion::exists('symfony.httpkernel.kernel.handle')
                         ->withChildren([
@@ -113,6 +114,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'symfony',
+                        Tag::APPSEC_NORMALIZED_ROUTE => '/simple_view',
                     ])->withChildren([
                         SpanAssertion::exists('symfony.kernel.terminate'),
                         SpanAssertion::exists('symfony.httpkernel.kernel.handle')->withChildren([
@@ -159,6 +161,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '500',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'symfony',
+                        Tag::APPSEC_NORMALIZED_ROUTE => '/error',
                     ])
                     ->setError('Exception', 'An exception occurred')
                     ->withExistingTagsNames(['error.stack'])

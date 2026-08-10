@@ -13,6 +13,7 @@
       "component": "laravel",
       "http.method": "GET",
       "http.route": "simple",
+      "_dd.appsec.normalized_route": "/simple",
       "http.status_code": "200",
       "http.url": "http://localhost/simple?key=value&<redacted>",
       "laravel.route.action": "App\\Http\\Controllers\\CommonSpecsController@simple",
