@@ -156,6 +156,10 @@ class YiiIntegration extends Integration
 
                     $rootSpan->meta['app.route.path'] = $routePath;
                     $rootSpan->meta[Tag::HTTP_ROUTE] = $routePath;
+                    $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromYii($routePath);
+                    if ($normalizedRoute !== null) {
+                        $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                    }
 
                     if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
                         $resourceName = \str_replace(

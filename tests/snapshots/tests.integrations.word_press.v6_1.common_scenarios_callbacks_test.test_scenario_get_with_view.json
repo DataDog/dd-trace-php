@@ -13,6 +13,7 @@
       "component": "wordpress",
       "http.method": "GET",
       "http.route": "([^/]+)(?:/([0-9]+))?/?$",
+      "_dd.appsec.normalized_route": "/{param1}/{param2}",
       "http.status_code": "200",
       "http.url": "http://localhost/simple_view?key=value&<redacted>",
       "runtime-id": "333590aa-cf9b-4804-9dde-1ac7b59c09ab",
