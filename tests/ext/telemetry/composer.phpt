@@ -57,12 +57,16 @@ Array
                 (
                     [name] => datadog/dd-trace
                     [version] => dev-master
+                    [hash] =>
+                    [metadata] =>
                 )
 
             [1] => Array
                 (
                     [name] => ext-Core
                     [version] => %s
+                    [hash] =>
+                    [metadata] =>
                 )
 %a
         )
