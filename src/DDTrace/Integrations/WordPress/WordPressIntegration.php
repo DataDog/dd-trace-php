@@ -11,14 +11,6 @@ class WordPressIntegration extends Integration
     /**
      * {@inheritdoc}
      */
-    public static function requiresExplicitTraceAnalyticsEnabling(): bool
-    {
-        return false;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
     public static function init(): int
     {
         // This call happens right in central config initialization
@@ -109,7 +101,6 @@ class WordPressIntegration extends Integration
             }
         );
 
-
         \DDTrace\hook_function(
             'register_new_user',
             null,
@@ -154,7 +145,6 @@ class WordPressIntegration extends Integration
                 }
             }
         );
-
 
         return self::LOADED;
     }

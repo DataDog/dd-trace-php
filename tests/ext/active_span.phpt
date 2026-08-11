@@ -28,17 +28,13 @@ var_dump(DDTrace\active_span() == DDTrace\active_span());
 Hello, Datadog.
 greet tracer.
 bool(true)
-object(DDTrace\RootSpanData)#%d (24) {
+object(DDTrace\RootSpanData)#%d (29) {
   ["name"]=>
   string(15) "active_span.php"
   ["resource"]=>
   string(0) ""
   ["service"]=>
   string(15) "active_span.php"
-  ["env"]=>
-  string(0) ""
-  ["version"]=>
-  string(0) ""
   ["meta_struct"]=>
   array(0) {
   }
@@ -70,14 +66,17 @@ object(DDTrace\RootSpanData)#%d (24) {
   ["parent"]=>
   NULL
   ["stack"]=>
-  object(DDTrace\SpanStack)#%d (3) {
+  object(DDTrace\SpanStack)#%d (4) {
     ["parent"]=>
-    object(DDTrace\SpanStack)#%d (3) {
+    object(DDTrace\SpanStack)#%d (4) {
       ["parent"]=>
       NULL
       ["active"]=>
       NULL
       ["spanCreationObservers"]=>
+      array(0) {
+      }
+      ["attributes"]=>
       array(0) {
       }
     }
@@ -86,18 +85,34 @@ object(DDTrace\RootSpanData)#%d (24) {
     ["spanCreationObservers"]=>
     array(0) {
     }
+    ["attributes"]=>
+    array(0) {
+    }
   }
   ["onClose"]=>
   array(0) {
   }
   ["baggage"]=>
   array(0) {
+  }
+  ["env"]=>
+  string(0) ""
+  ["version"]=>
+  string(0) ""
+  ["component"]=>
+  string(0) ""
+  ["spanKind"]=>
+  int(0)
+  ["attributes"]=>
+  array(0) {
   }%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
   ["propagatedTags"]=>
   array(0) {
   }
   ["samplingPriority"]=>
-  int(1073741824)%r(\s*\["propagatedSamplingPriority"\]=>\s+uninitialized\(int\)\s*\["tracestate"\]=>\s+uninitialized\(string\))?%r
+  int(1073741824)
+  ["samplingMechanism"]=>
+  int(0)%r(\s*\["propagatedSamplingPriority"\]=>\s+uninitialized\(int\)\s*\["tracestate"\]=>\s+uninitialized\(string\))?%r
   ["tracestateTags"]=>
   array(0) {
   }%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
@@ -107,5 +122,7 @@ object(DDTrace\RootSpanData)#%d (24) {
   NULL
   ["inferredSpan"]=>
   NULL
+  ["hostname"]=>
+  string(0) ""
 }
 bool(true)

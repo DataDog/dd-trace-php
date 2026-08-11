@@ -777,6 +777,13 @@
         "default": "8126"
       }
     ],
+    "DD_TRACE_AGENT_PROTOCOL_VERSION": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": "0.4"
+      }
+    ],
     "DD_TRACE_AGENT_RETRIES": [
       {
         "implementation": "A",
@@ -2519,13 +2526,6 @@
       }
     ],
     "DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED": [
-      {
-        "implementation": "A",
-        "type": "boolean",
-        "default": "true"
-      }
-    ],
-    "DD_TRACE_WARN_LEGACY_DD_TRACE": [
       {
         "implementation": "A",
         "type": "boolean",

@@ -32,7 +32,6 @@ function test_endpoint($path) {
     } else {
         echo "Path: $path - No spans\n\n";
     }
-    dd_trace_reset();
 }
 
 // Test invalid inputs and root

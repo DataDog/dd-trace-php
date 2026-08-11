@@ -45,7 +45,6 @@ class SQLSRVIntegration extends Integration
 
             $span = $hook->span();
             self::setDefaultAttributes($conn, $span, 'sqlsrv_query', $query);
-            self::addTraceAnalyticsIfEnabled($span);
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
 
             DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'sqlsrv', 1);
@@ -99,7 +98,6 @@ class SQLSRVIntegration extends Integration
                 $query = resource_weak_get($stmt, self::QUERY_TAGS_KEY);
             }
             self::setDefaultAttributes($stmt, $span, 'sqlsrv_execute', $query ?? "", $retval);
-            self::addTraceAnalyticsIfEnabled($span);
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             if ($retval) {
                 self::setMetrics($span, $args[0]);
