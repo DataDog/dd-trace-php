@@ -175,6 +175,19 @@ function run_fixture_case($client, $fileName, $index, array $case, array &$failu
             . ': value got=' . encode_value($details->getValue())
             . ' want=' . encode_value($case['result']['value']);
     }
+
+    if ($details->getReason() !== $case['result']['reason']) {
+        $failures[] = $fileName . '#' . $index
+            . ': reason got=' . encode_value($details->getReason())
+            . ' want=' . encode_value($case['result']['reason']);
+    }
+
+    if (array_key_exists('errorCode', $case['result'])
+        && $details->getErrorCode() !== $case['result']['errorCode']) {
+        $failures[] = $fileName . '#' . $index
+            . ': errorCode got=' . encode_value($details->getErrorCode())
+            . ' want=' . encode_value($case['result']['errorCode']);
+    }
 }
 
 function evaluate_fixture_case($client, $variationType, $flag, $defaultValue, array $context)
