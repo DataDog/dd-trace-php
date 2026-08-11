@@ -6,6 +6,8 @@ use crate::bindings::datadog_php_profiling_get_otel_thread_context;
 use crate::profile_tags::UnifiedServiceTagSegment;
 use libdd_library_config::otel_process_ctx::ProcessContextSelfReader;
 use libdd_trace_protobuf::opentelemetry::proto::common::v1::{any_value, KeyValue, ProcessContext};
+use std::cell::RefCell;
+use std::sync::Arc;
 
 const THREAD_CONTEXT_HEADER_SIZE: usize = 28;
 const MAX_THREAD_ATTRIBUTES_SIZE: usize = 612;
@@ -44,6 +46,13 @@ struct ProcessContextOffsets {
 struct CachedProcessContext {
     context: ProcessContext,
     offsets: ProcessContextOffsets,
+}
+
+struct CachedThreadContext {
+    attributes: Vec<u8>,
+    local_root_span_id: u64,
+    thread_id: Option<i64>,
+    unified_service_tags: Arc<UnifiedServiceTagSegment>,
 }
 
 impl Default for CachedProcessContext {
@@ -162,6 +171,13 @@ impl ThreadAttributeOffsets {
 /// mapping, decodes it, and immediately closes the reader's copy pipe.
 pub(crate) struct ProcessContextCache {
     context: Option<CachedProcessContext>,
+    /// The most recently observed final UST identity. Thread Context records
+    /// normally remain stable for many samples, so share its serialization
+    /// instead of allocating and copying it for every sample.
+    unified_service_tags: RefCell<Option<Arc<UnifiedServiceTagSegment>>>,
+    /// Exact encoded attributes and their decoded result. Matching one
+    /// contiguous byte slice lets stable contexts bypass TLV decoding.
+    thread_context: RefCell<Option<CachedThreadContext>>,
     /// Consecutive samples that observed an unknown key index. Recovery is
     /// attempted at powers of two and suppressed once this saturates.
     unknown_index_observations: u8,
@@ -171,6 +187,8 @@ impl ProcessContextCache {
     pub(crate) const fn new() -> Self {
         Self {
             context: None,
+            unified_service_tags: RefCell::new(None),
+            thread_context: RefCell::new(None),
             unknown_index_observations: 0,
         }
     }
@@ -182,6 +200,8 @@ impl ProcessContextCache {
     /// Reads Process Context on this PHP thread's first request. A failed read
     /// installs an empty context so later requests do not repeat discovery.
     pub(crate) fn initialize(&mut self) {
+        // Request-configured fallback identity may change between requests.
+        self.thread_context.get_mut().take();
         if self.context.is_some() {
             return;
         }
@@ -194,6 +214,9 @@ impl ProcessContextCache {
         let result = ProcessContextSelfReader::new().and_then(|reader| reader.read());
         match result {
             Ok(context) => {
+                // The Thread Context key map is append-only, so cached bytes
+                // containing only previously known indexes retain their
+                // meaning. Final UST values are compared exactly before reuse.
                 self.context = Some(CachedProcessContext::new(context));
                 Ok(())
             }
@@ -238,14 +261,62 @@ impl ProcessContextCache {
         }
     }
 
+    fn unified_service_tags(
+        &self,
+        service: &str,
+        env: &str,
+        version: &str,
+    ) -> Result<Arc<UnifiedServiceTagSegment>, crate::profile_tags::ProfileTagError> {
+        if let Ok(cached) = self.unified_service_tags.try_borrow() {
+            if let Some(tags) = cached.as_ref() {
+                if tags.matches(service, env, version) {
+                    return Ok(Arc::clone(tags));
+                }
+            }
+        }
+
+        let tags = Arc::new(UnifiedServiceTagSegment::try_new(service, env, version)?);
+        if let Ok(mut cached) = self.unified_service_tags.try_borrow_mut() {
+            *cached = Some(Arc::clone(&tags));
+        }
+        Ok(tags)
+    }
+
     fn decode_thread_attributes(
+        &self,
+        attributes: &[u8],
+        defaults: ProcessIdentityRef<'_>,
+    ) -> (ThreadContext, bool) {
+        if let Ok(cached) = self.thread_context.try_borrow() {
+            if let Some(cached) = cached.as_ref() {
+                if cached.attributes == attributes {
+                    return (
+                        ThreadContext {
+                            local_root_span_id: cached.local_root_span_id,
+                            span_id: 0,
+                            thread_id: cached.thread_id,
+                            unified_service_tags: Arc::clone(&cached.unified_service_tags),
+                        },
+                        false,
+                    );
+                }
+            }
+        }
+
+        self.decode_thread_attributes_uncached(attributes, defaults)
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn decode_thread_attributes_uncached(
         &self,
         attributes: &[u8],
         defaults: ProcessIdentityRef<'_>,
     ) -> (ThreadContext, bool) {
         let defaults = self.effective_identity(defaults);
         let offsets = self.context.as_ref().map(|cached| &cached.offsets.thread);
-        let mut context = ThreadContext::default();
+        let mut local_root_span_id = 0;
+        let mut thread_id = None;
         let mut service = defaults.service.unwrap_or_default();
         let mut env = defaults.env.unwrap_or_default();
         let mut version = defaults.version.unwrap_or_default();
@@ -292,7 +363,7 @@ impl ProcessContextCache {
             };
             if !value.is_empty() {
                 if offsets.local_root_span_id == Some(key_index) {
-                    context.local_root_span_id = u64::from_str_radix(value, 16).unwrap_or_default();
+                    local_root_span_id = u64::from_str_radix(value, 16).unwrap_or_default();
                 } else if offsets.service_name == Some(key_index) {
                     if libdd_common::tag::Tag::validate("service", value).is_ok() {
                         service = value;
@@ -306,7 +377,7 @@ impl ProcessContextCache {
                         version = value;
                     }
                 } else if offsets.thread_id == Some(key_index) {
-                    context.thread_id = value.parse().ok().filter(|id| *id >= 0);
+                    thread_id = value.parse().ok().filter(|id| *id >= 0);
                 }
             }
 
@@ -315,10 +386,48 @@ impl ProcessContextCache {
 
         // TODO: propagate allocation failure to the sample caller instead of
         // dropping the final identity.
-        context.unified_service_tags =
-            UnifiedServiceTagSegment::try_new(service, env, version).unwrap_or_default();
+        let unified_service_tags = self
+            .unified_service_tags(service, env, version)
+            .unwrap_or_else(|_| Arc::default());
 
-        (context, unknown_index)
+        if !unknown_index {
+            if let Ok(mut slot) = self.thread_context.try_borrow_mut() {
+                if let Some(cached) = slot.as_mut() {
+                    let additional = attributes.len().saturating_sub(cached.attributes.len());
+                    if cached.attributes.try_reserve(additional).is_ok() {
+                        cached.attributes.clear();
+                        cached.attributes.extend_from_slice(attributes);
+                        cached.local_root_span_id = local_root_span_id;
+                        cached.thread_id = thread_id;
+                        cached.unified_service_tags = Arc::clone(&unified_service_tags);
+                    }
+                } else {
+                    let mut cached_attributes = Vec::new();
+                    if cached_attributes
+                        .try_reserve_exact(attributes.len())
+                        .is_ok()
+                    {
+                        cached_attributes.extend_from_slice(attributes);
+                        *slot = Some(CachedThreadContext {
+                            attributes: cached_attributes,
+                            local_root_span_id,
+                            thread_id,
+                            unified_service_tags: Arc::clone(&unified_service_tags),
+                        });
+                    }
+                }
+            }
+        }
+
+        (
+            ThreadContext {
+                local_root_span_id,
+                span_id: 0,
+                thread_id,
+                unified_service_tags,
+            },
+            unknown_index,
+        )
     }
 }
 
@@ -388,17 +497,18 @@ pub(crate) fn thread_context(defaults: ProcessIdentityRef<'_>) -> ThreadContextR
                     defaults.service.unwrap_or_default(),
                     defaults.env.unwrap_or_default(),
                     defaults.version.unwrap_or_default(),
-                );
+                )
+                .map(Arc::new);
             };
             let identity = cache.effective_identity(defaults);
-            UnifiedServiceTagSegment::try_new(
+            cache.unified_service_tags(
                 identity.service.unwrap_or_default(),
                 identity.env.unwrap_or_default(),
                 identity.version.unwrap_or_default(),
             )
         });
         // TODO: propagate allocation failure to the sample caller.
-        ThreadContextRead::Inactive(unified_service_tags.unwrap_or_default())
+        ThreadContextRead::Inactive(unified_service_tags.unwrap_or_else(|_| Arc::default()))
     };
 
     let record = unsafe { datadog_php_profiling_get_otel_thread_context() }.cast::<u8>();
@@ -495,6 +605,8 @@ mod tests {
     fn cache(context: ProcessContext) -> ProcessContextCache {
         ProcessContextCache {
             context: Some(CachedProcessContext::new(context)),
+            unified_service_tags: RefCell::new(None),
+            thread_context: RefCell::new(None),
             unknown_index_observations: 0,
         }
     }
@@ -594,6 +706,47 @@ mod tests {
         assert!(!unknown_index);
         assert_eq!(decoded.thread_id, Some(42));
         assert_eq!(decoded.local_root_span_id, 0xfedc_ba98_7654_3210);
+        let (decoded_again, _) = cache.decode_thread_attributes(
+            &attributes,
+            ProcessIdentityRef {
+                service: Some("configured-service"),
+                env: Some("configured-env"),
+                version: Some("configured-version"),
+            },
+        );
+        assert!(Arc::ptr_eq(
+            &decoded.unified_service_tags,
+            &decoded_again.unified_service_tags
+        ));
+
+        let changed_attributes = encoded_attributes(&[
+            (0, b"not interesting"),
+            (1, b"42"),
+            (2, b"2.0.0"),
+            (3, b"fedcba9876543210"),
+            (4, b"changed-service"),
+            (5, b"configured-env"),
+        ]);
+        let (changed, _) = cache.decode_thread_attributes(
+            &changed_attributes,
+            ProcessIdentityRef {
+                service: Some("configured-service"),
+                env: Some("configured-env"),
+                version: Some("configured-version"),
+            },
+        );
+        assert!(!Arc::ptr_eq(
+            &decoded.unified_service_tags,
+            &changed.unified_service_tags
+        ));
+        assert_eq!(
+            changed.unified_service_tags.iter().collect::<Vec<_>>(),
+            [
+                "service:changed-service",
+                "env:configured-env",
+                "version:2.0.0"
+            ]
+        );
         assert_eq!(
             decoded.unified_service_tags.iter().collect::<Vec<_>>(),
             [
@@ -601,6 +754,39 @@ mod tests {
                 "env:configured-env",
                 "version:2.0.0"
             ]
+        );
+    }
+
+    #[test]
+    fn request_initialization_invalidates_cached_fallback_identity() {
+        let mut cache = cache(context(vec![], vec![key_map(&["thread.id"])]));
+        let attributes = encoded_attributes(&[(0, b"42")]);
+
+        let (first, _) = cache.decode_thread_attributes(
+            &attributes,
+            ProcessIdentityRef {
+                service: Some("first-request"),
+                env: None,
+                version: None,
+            },
+        );
+        cache.initialize();
+        let (second, _) = cache.decode_thread_attributes(
+            &attributes,
+            ProcessIdentityRef {
+                service: Some("second-request"),
+                env: None,
+                version: None,
+            },
+        );
+
+        assert_eq!(
+            first.unified_service_tags.iter().collect::<Vec<_>>(),
+            ["service:first-request"]
+        );
+        assert_eq!(
+            second.unified_service_tags.iter().collect::<Vec<_>>(),
+            ["service:second-request"]
         );
     }
 

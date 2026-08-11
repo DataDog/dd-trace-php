@@ -28,8 +28,6 @@ use crate::exception::EXCEPTION_PROFILING_INTERVAL;
 #[cfg(target_os = "linux")]
 use crate::process_context::{ProcessIdentityRef, ThreadContextRead};
 use crate::profile_tags::ProfileTags;
-#[cfg(not(target_os = "linux"))]
-use crate::profile_tags::UnifiedServiceTagSegment;
 use crate::{Clocks, RefCellExt, CLOCKS, GLOBAL_TAGS, REQUEST_LOCALS};
 use chrono::Utc;
 use core::mem::forget;
@@ -524,7 +522,9 @@ impl TimeCollector {
             match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
                 Ok(_id) => {}
                 Err(err) => {
-                    warn!("Failed to add upscaling rule for allocation samples, allocation samples reported will be wrong: {err}")
+                    warn!(
+                        "Failed to add upscaling rule for allocation samples, allocation samples reported will be wrong: {err}"
+                    )
                 }
             }
         }
@@ -541,7 +541,9 @@ impl TimeCollector {
             match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
                 Ok(_id) => {}
                 Err(err) => {
-                    warn!("Failed to add upscaling rule for heap-live samples, heap-live samples reported will be wrong: {err}")
+                    warn!(
+                        "Failed to add upscaling rule for heap-live samples, heap-live samples reported will be wrong: {err}"
+                    )
                 }
             }
         }
@@ -569,7 +571,9 @@ impl TimeCollector {
                         if let Err(err) =
                             profile.add_upscaling_rule(&values_offset, "", "", upscaling_info)
                         {
-                            warn!("Failed to add upscaling rule for {metric_name}, {metric_name} reported will be wrong: {err}")
+                            warn!(
+                                "Failed to add upscaling rule for {metric_name}, {metric_name} reported will be wrong: {err}"
+                            )
                         }
                     }
                 };
@@ -646,7 +650,9 @@ impl TimeCollector {
             match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
                 Ok(_id) => {}
                 Err(err) => {
-                    warn!("Failed to add upscaling rule for exception samples, exception samples reported will be wrong: {err}")
+                    warn!(
+                        "Failed to add upscaling rule for exception samples, exception samples reported will be wrong: {err}"
+                    )
                 }
             }
         }
@@ -686,7 +692,9 @@ impl TimeCollector {
     ) {
         if message.key.sample_types.is_empty() {
             // profiling disabled, this should not happen!
-            warn!("A sample with no sample types was recorded in the profiler. Please report this to Datadog.");
+            warn!(
+                "A sample with no sample types was recorded in the profiler. Please report this to Datadog."
+            );
             return;
         }
 
@@ -744,7 +752,8 @@ impl TimeCollector {
         debug!(
             "Started with an upload period of {} seconds and approximate wall-time period of {} milliseconds.",
             UPLOAD_PERIOD.as_secs(),
-            WALL_TIME_PERIOD.as_millis());
+            WALL_TIME_PERIOD.as_millis()
+        );
 
         let wall_timer = crossbeam_channel::tick(WALL_TIME_PERIOD);
         let upload_tick = crossbeam_channel::tick(self.upload_period);
@@ -1038,7 +1047,9 @@ impl Profiler {
             .send_timeout(ProfilerMessage::Cancel, timeout)
         {
             Err(err) => {
-                warn!("Recent samples are most likely lost: Failed to notify other threads of cancellation: {err}.");
+                warn!(
+                    "Recent samples are most likely lost: Failed to notify other threads of cancellation: {err}."
+                );
                 false
             }
             Ok(_) => {
@@ -1270,7 +1281,10 @@ impl Profiler {
                     None
                 };
 
-                match self.message_sender.try_send(ProfilerMessage::Sample(message)) {
+                match self
+                    .message_sender
+                    .try_send(ProfilerMessage::Sample(message))
+                {
                     Ok(_) => {
                         trace!(
                             "Sent stack sample of {depth} frames, {n_labels} labels, {alloc_size} bytes allocated, {alloc_samples} allocations, and {interrupt_count} time interrupts to profiler."
@@ -1279,8 +1293,7 @@ impl Profiler {
                             if self.track_allocation(ptr as usize, tracked) {
                                 trace!(
                                     "Tracked allocation at {:#x} ({} bytes) for batched heap-live emission",
-                                    ptr as usize,
-                                    alloc_size
+                                    ptr as usize, alloc_size
                                 );
                             }
                         }
@@ -1540,7 +1553,9 @@ impl Profiler {
                 trace!("Sent event 'opcache_restart' with {n_labels} labels to profiler.")
             }
             Err(err) => {
-                warn!("Failed to send event 'opcache_restart' with {n_labels} labels to profiler: {err}")
+                warn!(
+                    "Failed to send event 'opcache_restart' with {n_labels} labels to profiler: {err}"
+                )
             }
         }
     }
@@ -1630,7 +1645,9 @@ impl Profiler {
                 trace!("Sent event 'gc' with {n_labels} labels and reason {reason} to profiler.")
             }
             Err(err) => {
-                warn!("Failed to send event 'gc' with {n_labels} and reason {reason} labels to profiler: {err}")
+                warn!(
+                    "Failed to send event 'gc' with {n_labels} and reason {reason} labels to profiler: {err}"
+                )
             }
         }
     }
@@ -1742,12 +1759,7 @@ impl Profiler {
                 let mut values = SampleValues::default();
                 set_value(&mut values);
 
-                match self.prepare_and_send_message(
-                    frames,
-                    values,
-                    labels,
-                    NO_TIMESTAMP,
-                ) {
+                match self.prepare_and_send_message(frames, values, labels, NO_TIMESTAMP) {
                     Ok(_) => trace!(
                         "Sent I/O stack sample of {depth} frames, {n_labels} labels with to profiler."
                     ),
@@ -1821,13 +1833,9 @@ impl Profiler {
             // and we're getting the profiling context on a PHP thread.
             let context =
                 unsafe { datadog_php_profiling_get_profiling_context.unwrap_unchecked()() };
-            // TODO: propagate allocation failure to the sample caller.
-            let unified_service_tags = UnifiedServiceTagSegment::try_new(
-                locals.identity.service.as_deref().unwrap_or_default(),
-                locals.identity.env.as_deref().unwrap_or_default(),
-                locals.identity.version.as_deref().unwrap_or_default(),
-            )
-            .unwrap_or_default();
+            // RINIT constructs this after populating the request identity and
+            // fails the request if tag construction fails.
+            let unified_service_tags = Arc::clone(&locals.unified_service_tags);
             let git_tags = locals.git_tags.as_ref().map(Arc::clone);
             let custom_tags = locals.custom_tags.as_ref().map(Arc::clone);
             (

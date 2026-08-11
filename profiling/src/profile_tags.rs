@@ -228,13 +228,39 @@ impl UnifiedServiceTagSegment {
     pub(crate) fn len(&self) -> usize {
         self.len as usize
     }
+
+    #[cfg(any(target_os = "linux", test))]
+    pub(crate) fn matches(&self, service: &str, env: &str, version: &str) -> bool {
+        let mut expected = [("", ""); 3];
+        let mut len = 0usize;
+        for (key, value) in [("service", service), ("env", env), ("version", version)] {
+            if !value.is_empty() {
+                expected[len] = (key, value);
+                len += 1;
+            }
+        }
+        if self.len() != len {
+            return false;
+        }
+
+        self.iter()
+            .zip(&expected[..len])
+            .all(|(serialized, (key, value))| {
+                let key = *key;
+                let value = *value;
+                serialized.len() == key.len() + 1 + value.len()
+                    && serialized.as_bytes().get(key.len()) == Some(&b':')
+                    && serialized.starts_with(key)
+                    && serialized[key.len() + 1..] == *value
+            })
+    }
 }
 
 /// The complete, immutable profile tags for one sample's profile identity.
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub struct ProfileTags {
     pub(crate) common: Arc<ProfileTagSegment>,
-    pub(crate) unified_service: UnifiedServiceTagSegment,
+    pub(crate) unified_service: Arc<UnifiedServiceTagSegment>,
     pub(crate) git: Option<Arc<ProfileTagSegment>>,
     pub(crate) custom: Option<Arc<ProfileTagSegment>>,
 }
@@ -302,6 +328,8 @@ mod tests {
         let segment = UnifiedServiceTagSegment::try_new("checkout", "", "1.2.3").unwrap();
 
         assert_eq!(segment.storage, "service:checkout,version:1.2.3,");
+        assert!(segment.matches("checkout", "", "1.2.3"));
+        assert!(!segment.matches("checkout", "staging", "1.2.3"));
         assert_eq!(
             segment.iter().collect::<Vec<_>>(),
             ["service:checkout", "version:1.2.3"]
