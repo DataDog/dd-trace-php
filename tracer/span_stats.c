@@ -349,10 +349,6 @@ static void ddtrace_span_concentrator_feed_cb(const ddog_SpanConcentrator *c, vo
         size_t peer_tag_keys_count = 0;
         const ddog_CharSlice *peer_tag_keys = ddog_span_concentrator_peer_tag_keys(c, &peer_tag_keys_count);
         if (peer_tag_keys_count > 0 && peer_tag_keys) {
-            // All configured keys are looked up: the cap bounds how many tags we *collect*, not how
-            // many keys we scan. The agent's key list is sorted alphabetically and already longer
-            // than DDTRACE_MAX_PEER_TAGS, so capping the scan would silently ignore whichever keys
-            // happen to sort last (e.g. out.host, peer.hostname, server.address).
             for (size_t i = 0; i < peer_tag_keys_count && actual_peer_tags < DDTRACE_MAX_PEER_TAGS; i++) {
                 const ddog_CharSlice *k = &peer_tag_keys[i];
                 zval *val = zend_hash_str_find(pre->meta, k->ptr, k->len);
