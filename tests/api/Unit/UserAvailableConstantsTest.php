@@ -186,6 +186,7 @@ class UserAvailableConstantsTest extends BaseTestCase
             [Tag::EXEC_CMDLINE_SHELL, 'cmd.shell'],
             [Tag::EXEC_TRUNCATED, 'cmd.truncated'],
             [Tag::EXEC_EXIT_CODE, 'cmd.exit_code'],
+            [Tag::APPSEC_NORMALIZED_ROUTE, '_dd.appsec.normalized_route'],
         ];
     }
 
