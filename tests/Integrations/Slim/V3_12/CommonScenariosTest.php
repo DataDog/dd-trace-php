@@ -59,6 +59,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'slim',
                         Tag::HTTP_ROUTE => '/simple',
+                        Tag::APPSEC_NORMALIZED_ROUTE => '/simple',
                     ])->withChildren([
                         SpanAssertion::build(
                             'slim.route.controller',
@@ -84,6 +85,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'slim',
                         Tag::HTTP_ROUTE => '/simple_view',
+                        Tag::APPSEC_NORMALIZED_ROUTE => '/simple_view',
                     ])->withChildren([
                         SpanAssertion::build(
                             'slim.route.controller',
@@ -119,6 +121,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'slim',
                         Tag::HTTP_ROUTE => '/error',
+                        Tag::APPSEC_NORMALIZED_ROUTE => '/error',
                     ])->setError(null, null)
                         ->withChildren([
                             SpanAssertion::build(
@@ -147,6 +150,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'slim',
                         Tag::HTTP_ROUTE => '/parameterized/{value}',
+                        Tag::APPSEC_NORMALIZED_ROUTE => '/parameterized/{value}',
                     ])->withChildren([
                         SpanAssertion::build(
                             'slim.route.controller',

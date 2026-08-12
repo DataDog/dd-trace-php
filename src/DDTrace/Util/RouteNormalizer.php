@@ -25,7 +25,7 @@ class RouteNormalizer
      * @param array  $matchedParams  Parameters from $route->parameters(); used to resolve optionals
      * @return string|null Normalized route, or null on parse failure
      */
-    public static function normalizeFromLaravel(string $routeUri, array $matchedParams = []): ?string
+    public static function normalizeFromLaravel(string $routeUri, array $matchedParams = [])
     {
         return self::normalizeBraceRoute($routeUri, $matchedParams);
     }
@@ -40,7 +40,7 @@ class RouteNormalizer
      * @param array  $matchedParams Matched params from $route->getArguments(); resolves optionals
      * @return string|null
      */
-    public static function normalizeFromSlim(string $pattern, array $matchedParams = []): ?string
+    public static function normalizeFromSlim(string $pattern, array $matchedParams = [])
     {
         return self::normalizeBraceRoute($pattern, $matchedParams, true);
     }
@@ -53,7 +53,7 @@ class RouteNormalizer
      * @param string $path Path template, e.g. "/users/{id}"
      * @return string|null
      */
-    public static function normalizeFromSymfony(string $path): ?string
+    public static function normalizeFromSymfony(string $path)
     {
         return self::normalizeBraceRoute($path, []);
     }
@@ -69,7 +69,7 @@ class RouteNormalizer
      * @param array  $matchedParams Matched params from $routeMatch->getParams()
      * @return string|null
      */
-    public static function normalizeFromLaminas(string $template, array $matchedParams = []): ?string
+    public static function normalizeFromLaminas(string $template, array $matchedParams = [])
     {
         $expanded = self::expandBracketOptionals($template, $matchedParams, ':');
         // Convert wildcard segments ('*') to a {param} placeholder before brace conversion
@@ -86,7 +86,7 @@ class RouteNormalizer
      * @param string $template Template from $app->template, e.g. "/articles/:id.:ext"
      * @return string|null
      */
-    public static function normalizeFromCakePHP(string $template): ?string
+    public static function normalizeFromCakePHP(string $template)
     {
         $braceFormat = self::cakephpToBraces($template);
         return self::normalizeBraceRoute($braceFormat, []);
@@ -101,7 +101,7 @@ class RouteNormalizer
      * @param string $routePath Path from Url::toRoute() with colon placeholders
      * @return string|null
      */
-    public static function normalizeFromYii(string $routePath): ?string
+    public static function normalizeFromYii(string $routePath)
     {
         $braceFormat = self::colonParamsToBraces($routePath);
         return self::normalizeBraceRoute($braceFormat, []);
@@ -116,7 +116,7 @@ class RouteNormalizer
      * @param string $route Route key from $router->routes, e.g. "blog/(:num)"
      * @return string|null
      */
-    public static function normalizeFromCodeIgniter(string $route): ?string
+    public static function normalizeFromCodeIgniter(string $route)
     {
         $route = trim($route, '/');
         if ($route === '') {
@@ -157,7 +157,7 @@ class RouteNormalizer
      * @param string $matchedRule Value of $wp->matched_rule
      * @return string|null
      */
-    public static function normalizeFromWordPress(string $matchedRule): ?string
+    public static function normalizeFromWordPress(string $matchedRule)
     {
         $rule = $matchedRule;
 
@@ -261,13 +261,13 @@ class RouteNormalizer
         string $route,
         array $matchedParams,
         bool $expandSquare = false
-    ): ?string {
+    ) {
         $route = trim($route);
         if ($route === '' || $route === '/') {
             return '/';
         }
 
-        $trailingSlash = (strlen($route) > 1 && $route[-1] === '/') ? '/' : '';
+        $trailingSlash = (strlen($route) > 1 && substr($route, -1) === '/') ? '/' : '';
         $route = rtrim($route, '/');
 
         if ($route[0] !== '/') {
@@ -304,7 +304,7 @@ class RouteNormalizer
      *
      * @return string|null The normalized element, or null if the segment is optional and absent
      */
-    private static function normalizeBraceSegment(string $segment, array $matchedParams): ?string
+    private static function normalizeBraceSegment(string $segment, array $matchedParams)
     {
         preg_match_all('/\{([^}]+)\}/', $segment, $matches, PREG_SET_ORDER);
 
@@ -316,7 +316,7 @@ class RouteNormalizer
         foreach ($matches as $match) {
             $raw = $match[1];
 
-            $isOptional = ($raw[-1] === '?');
+            $isOptional = (substr($raw, -1) === '?');
             if ($isOptional) {
                 $raw = substr($raw, 0, -1);
             }

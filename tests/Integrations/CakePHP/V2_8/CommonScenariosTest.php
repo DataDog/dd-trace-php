@@ -58,6 +58,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost/simple?key=value&<redacted>',
                         'http.status_code' => '200',
                         'http.route' => '/:controller',
+                        Tag::APPSEC_NORMALIZED_ROUTE => '/{controller}',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'cakephp',
                     ])->withChildren([
@@ -84,6 +85,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
                         'http.route' => '/:controller',
+                        Tag::APPSEC_NORMALIZED_ROUTE => '/{controller}',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'cakephp',
                     ])->withChildren([
@@ -119,6 +121,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost/error?key=value&<redacted>',
                         'http.status_code' => '500',
                         'http.route' => '/:controller',
+                        Tag::APPSEC_NORMALIZED_ROUTE => '/{controller}',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'cakephp',
                     ])->withExistingTagsNames([
@@ -161,6 +164,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost/parameterized/paramValue',
                         'http.status_code' => '200',
                         'http.route' => '/parameterized/:param',
+                        Tag::APPSEC_NORMALIZED_ROUTE => '/parameterized/{param}',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'cakephp',
                     ])->withChildren([
