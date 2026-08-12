@@ -43,6 +43,7 @@ class ParameterizedRouteTest extends WebFrameworkTestCase
                     Tag::HTTP_STATUS_CODE => '200',
                     'app.route.path' => '/homes/:state/:city/:neighborhood',
                     Tag::HTTP_ROUTE => '/homes/:state/:city/:neighborhood',
+                    Tag::APPSEC_NORMALIZED_ROUTE => '/homes/{state}/{city}/{neighborhood}',
                     'app.endpoint' => 'app\controllers\HomesController::actionView',
                     Tag::SPAN_KIND => "server",
                     Tag::COMPONENT => "yii",
