@@ -222,9 +222,9 @@ function show($label, $value)
 ?>
 --EXPECTF--
 fixture_cases=75
-rust_overrides=24
+rust_overrides=25
 observable_cases=75
-expected_compile_failures=20
+expected_compile_failures=19
 load_rejections=%d
 evaluation_rejections=%d
 failures=0
