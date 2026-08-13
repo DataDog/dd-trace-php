@@ -7,9 +7,7 @@ use DDTrace\Util\RouteNormalizer;
 
 class RouteNormalizerTest extends BaseTestCase
 {
-    // -------------------------------------------------------------------------
     // encodeStaticSegment
-    // -------------------------------------------------------------------------
 
     public function testEncodeStaticSegmentAllowed()
     {
@@ -30,9 +28,7 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertSame('%2F', RouteNormalizer::encodeStaticSegment('%2f'));
     }
 
-    // -------------------------------------------------------------------------
     // encodeParamName
-    // -------------------------------------------------------------------------
 
     public function testEncodeParamNamePreservesNormal()
     {
@@ -50,9 +46,7 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertSame('foo%23bar', RouteNormalizer::encodeParamName('foo#bar'));
     }
 
-    // -------------------------------------------------------------------------
     // normalizeFromLaravel
-    // -------------------------------------------------------------------------
 
     public function testLaravelSimpleRoute()
     {
@@ -107,9 +101,7 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertSame('/', RouteNormalizer::normalizeFromLaravel('/'));
     }
 
-    // -------------------------------------------------------------------------
     // normalizeFromSlim
-    // -------------------------------------------------------------------------
 
     public function testSlimSimpleRoute()
     {
@@ -139,9 +131,7 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertSame('/files/{file}', RouteNormalizer::normalizeFromSlim('/files/{file:.+}'));
     }
 
-    // -------------------------------------------------------------------------
     // normalizeFromSymfony
-    // -------------------------------------------------------------------------
 
     public function testSymfonySimpleRoute()
     {
@@ -160,9 +150,7 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertSame('/dump-request', RouteNormalizer::normalizeFromSymfony('/dump-request'));
     }
 
-    // -------------------------------------------------------------------------
     // normalizeFromLaminas
-    // -------------------------------------------------------------------------
 
     public function testLaminasSimpleColon()
     {
@@ -193,9 +181,7 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertSame('/{param1}', $result);
     }
 
-    // -------------------------------------------------------------------------
     // normalizeFromCakePHP
-    // -------------------------------------------------------------------------
 
     public function testCakePHPSimpleColon()
     {
@@ -219,9 +205,7 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertSame('/admin/dashboard', RouteNormalizer::normalizeFromCakePHP('/admin/dashboard'));
     }
 
-    // -------------------------------------------------------------------------
     // normalizeFromYii
-    // -------------------------------------------------------------------------
 
     public function testYiiSimpleColonPlaceholder()
     {
@@ -233,9 +217,7 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertSame('/site/index', RouteNormalizer::normalizeFromYii('/site/index'));
     }
 
-    // -------------------------------------------------------------------------
     // normalizeFromCodeIgniter
-    // -------------------------------------------------------------------------
 
     public function testCodeIgniterLiteralRoute()
     {
@@ -264,9 +246,7 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertSame('/{param1}', RouteNormalizer::normalizeFromCodeIgniter(':any'));
     }
 
-    // -------------------------------------------------------------------------
     // normalizeFromWordPress
-    // -------------------------------------------------------------------------
 
     public function testWordPressSimpleRegex()
     {
@@ -292,9 +272,7 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertSame('/', $result);
     }
 
-    // -------------------------------------------------------------------------
     // RFC examples
-    // -------------------------------------------------------------------------
 
     public function testRfcExampleFastApi()
     {
