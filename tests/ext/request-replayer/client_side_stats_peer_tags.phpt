@@ -1,5 +1,5 @@
 --TEST--
-Client-side SHM span stats include peer tags configured via agent info
+Client-side SHM span stats include peer tags configured via agent info, wherever they sit in the key list
 --SKIPIF--
 <?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
 <?php
@@ -7,6 +7,16 @@ if (PHP_VERSION_ID < 70400) die("skip: Before PHP 7.4, the skip-task would cause
 if (PHP_VERSION_ID >= 80100) {
     echo "nocache\n";
 }
+// Keys are looked up in the order the agent sent them. The real list is derived from the agent's
+// semantic registry, is sorted alphabetically and is currently 44 keys long, so pad the list here
+// and keep one matching key at each end: that catches any truncation of the key scan (a regression
+// that dropped, among others, network.destination.name and out.host).
+$peerTags = ['db.hostname'];
+for ($i = 0; $i < 40; $i++) {
+    $peerTags[] = sprintf('peer.unused.%02d', $i);
+}
+$peerTags[] = 'out.host';
+
 $ctx = stream_context_create([
     'http' => [
         'method' => 'PUT',
@@ -14,7 +24,7 @@ $ctx = stream_context_create([
             'Content-Type: application/json',
             'X-Datadog-Test-Session-Token: client_side_stats_peer_tags',
         ],
-        'content' => json_encode(['version' => '7.65.0', 'client_drop_p0s' => true, 'peer_tags' => ['db.hostname']]),
+        'content' => json_encode(['version' => '7.65.0', 'client_drop_p0s' => true, 'peer_tags' => $peerTags]),
     ]
 ]);
 file_get_contents('http://request-replayer/set-agent-info', false, $ctx);
@@ -45,12 +55,15 @@ dd_trace_internal_fn('await_agent_info');
 // Now create the span whose stats we want to inspect. When this span is fed to the
 // concentrator, ddog_apply_agent_info_concentrator_config() is called first, picks up
 // the peer_tags update from the SHM, and the concentrator extracts db.hostname from meta.
+// db.hostname is the first key the agent sent and out.host the last one (index 41): both must end
+// up in the stats payload, no matter where they sit in the list.
 $root = \DDTrace\start_trace_span();
 $root->name = "web.request";
 $root->resource = "GET /db";
 $root->service = "stats-test-service";
 $root->meta['span.kind'] = 'client';
 $root->meta['db.hostname'] = 'my-db-host';
+$root->meta['out.host'] = 'my-remote-host';
 \DDTrace\close_span();
 
 dd_trace_internal_fn('synchronous_flush');
@@ -90,4 +103,4 @@ if (!$found) {
 
 ?>
 --EXPECT--
-peer_tags: ["db.hostname:my-db-host"]
+peer_tags: ["db.hostname:my-db-host","out.host:my-remote-host"]
