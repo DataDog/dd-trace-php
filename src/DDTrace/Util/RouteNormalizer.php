@@ -65,13 +65,18 @@ class RouteNormalizer
      * The Wildcard route type produces "/*" which is treated as a catch-all.
      * Example: "/users/:id[.:format]"
      *
-     * @param string $template     Template from httpRouteTemplateFromMatchedRoute()
-     * @param array  $matchedParams Matched params from $routeMatch->getParams()
+     * @param string      $template     Template from httpRouteTemplateFromMatchedRoute()
+     * @param array       $matchedParams Matched params from $routeMatch->getParams()
+     * @param string|null $urlPath      The raw request URL path; used to exclude optional
+     *                                  sections whose params were injected by middleware
+     *                                  rather than matched from the URL (e.g. Laminas API
+     *                                  Tools VersionListener sets :version even without a
+     *                                  /v1/ prefix).
      * @return string|null
      */
-    public static function normalizeFromLaminas(string $template, array $matchedParams = [])
+    public static function normalizeFromLaminas(string $template, array $matchedParams = [], $urlPath = null)
     {
-        $expanded = self::expandBracketOptionals($template, $matchedParams, ':');
+        $expanded = self::expandBracketOptionals($template, $matchedParams, ':', $urlPath);
         // Convert wildcard segments ('*') to a {param} placeholder before brace conversion
         $expanded = preg_replace('#/\*$#', '/{param1}', $expanded);
         $braceFormat = self::colonParamsToBraces($expanded);
@@ -387,27 +392,49 @@ class RouteNormalizer
     /**
      * Expand Laminas [...] optional sections based on matched params.
      * Example: "/:id[.:format]" with format present → "/:id.:format"
+     *
+     * When $urlPath is provided, an optional section is only expanded if the
+     * section text with param values substituted is a substring of $urlPath.
+     * This prevents middleware-injected params (e.g. Laminas API Tools version)
+     * from incorrectly triggering expansion of sections absent from the URL.
      */
     private static function expandBracketOptionals(
         string $template,
         array $matchedParams,
-        string $paramPrefix = ':'
+        string $paramPrefix = ':',
+        $urlPath = null
     ): string {
         $prev = null;
         while ($prev !== $template) {
             $prev = $template;
             $template = preg_replace_callback(
                 '/\[([^\[\]]*)\]/',
-                function ($m) use ($matchedParams, $paramPrefix) {
+                function ($m) use ($matchedParams, $paramPrefix, $urlPath) {
                     $inner = $m[1];
                     $pattern = '/' . preg_quote($paramPrefix, '/') . '([a-zA-Z_][a-zA-Z0-9_]*)/';
                     preg_match_all($pattern, $inner, $pm);
                     $innerParams = $pm[1];
 
                     foreach ($innerParams as $param) {
-                        if (array_key_exists($param, $matchedParams)) {
-                            return $inner;
+                        if (!array_key_exists($param, $matchedParams)) {
+                            continue;
                         }
+                        if ($urlPath !== null) {
+                            // Substitute the param value into the inner template text and
+                            // verify the result is present in the actual URL path.  This
+                            // filters out params injected by middleware (e.g. a default
+                            // :version added by Laminas API Tools) that are not in the URL.
+                            $value = (string)$matchedParams[$param];
+                            $innerWithValue = preg_replace(
+                                '/' . preg_quote($paramPrefix . $param, '/') . '/',
+                                $value,
+                                $inner
+                            );
+                            if (strpos($urlPath, $innerWithValue) === false) {
+                                continue;
+                            }
+                        }
+                        return $inner;
                     }
 
                     return '';
