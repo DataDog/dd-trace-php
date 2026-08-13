@@ -24,8 +24,20 @@ $fixture = decode_json_file($fixturePath);
 if (!isset($fixture['cases']) || !is_array($fixture['cases'])) {
     throw new \RuntimeException('regex conformance fixture must contain a cases array');
 }
+if (!isset($fixture['schema'])
+    || $fixture['schema'] !== 'datadog.ffe.targeting-regex-conformance/v1'
+    || !isset($fixture['schemaVersion'])
+    || $fixture['schemaVersion'] !== 1
+    || !isset($fixture['contractVersion'])
+    || $fixture['contractVersion'] !== 'targeting-regex-v1') {
+    throw new \RuntimeException('unsupported regex conformance fixture version');
+}
+if (count($fixture['cases']) !== 75) {
+    throw new \RuntimeException('regex conformance fixture must contain 75 cases');
+}
 
 $caseCount = 0;
+$seenIds = array();
 $rustOverrideCount = 0;
 $observableCount = 0;
 $expectedCompileFailures = 0;
@@ -36,6 +48,11 @@ $failures = array();
 foreach ($fixture['cases'] as $case) {
     $caseCount++;
     $id = isset($case['id']) ? $case['id'] : '#' . ($caseCount - 1);
+    if (isset($seenIds[$id])) {
+        $failures[] = $id . ': duplicate fixture ID';
+        continue;
+    }
+    $seenIds[$id] = true;
     $rustExpectations = rust_rules_based_expectations($case);
     if ($rustExpectations !== null) {
         $rustOverrideCount++;
