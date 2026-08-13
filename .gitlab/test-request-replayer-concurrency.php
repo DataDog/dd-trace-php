@@ -6,12 +6,12 @@ if (PHP_OS_FAMILY === 'Windows') {
     exit(0);
 }
 
-function startProcess(array $command, array $environment): array
+function startProcess(array $command, array $environment, string $outputFile)
 {
     $pipes = [];
     $process = proc_open(
         $command,
-        [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+        [0 => ['pipe', 'r'], 1 => ['file', $outputFile, 'a'], 2 => ['file', $outputFile, 'a']],
         $pipes,
         dirname(__DIR__),
         $environment
@@ -20,20 +20,17 @@ function startProcess(array $command, array $environment): array
         throw new RuntimeException('Failed to start: ' . implode(' ', $command));
     }
     fclose($pipes[0]);
-    return [$process, $pipes];
+    return $process;
 }
 
-function stopProcess(?array $processAndPipes): void
+function stopProcess($process): void
 {
-    if ($processAndPipes === null) {
+    if ($process === null) {
         return;
     }
-    [$process, $pipes] = $processAndPipes;
     if (proc_get_status($process)['running']) {
         proc_terminate($process);
     }
-    fclose($pipes[1]);
-    fclose($pipes[2]);
     proc_close($process);
 }
 
@@ -113,7 +110,7 @@ try {
         $installSource,
         $installTarget,
         $installReady,
-    ], getenv());
+    ], getenv(), $stateDirectory . '/installer.log');
     file_put_contents($installSource . '/state-lock.php', 'state lock');
     usleep(200_000);
     if (file_exists($installReady)) {
@@ -159,7 +156,11 @@ try {
     $environment['PHP_CLI_SERVER_WORKERS'] = (string) $workerCount;
     $environment['REQUEST_REPLAYER_METRICS_SERVER_MANAGED'] = '1';
     $environment['TMPDIR'] = $stateDirectory;
-    $server = startProcess([PHP_BINARY, '-n', '-S', "127.0.0.1:$port", $docroot . '/index.php'], $environment);
+    $server = startProcess(
+        [PHP_BINARY, '-n', '-S', "127.0.0.1:$port", $docroot . '/index.php'],
+        $environment,
+        $stateDirectory . '/server.log'
+    );
 
     $ready = false;
     for ($attempt = 0; $attempt < 100; $attempt++) {
@@ -220,6 +221,14 @@ try {
     $clients = [];
 
     echo "request-replayer production locking passed with $workerCount workers\n";
+} catch (Throwable $exception) {
+    foreach (['installer.log', 'server.log'] as $logName) {
+        $log = $stateDirectory . '/' . $logName;
+        if (file_exists($log) && filesize($log) > 0) {
+            fwrite(STDERR, "=== $logName ===\n" . file_get_contents($log));
+        }
+    }
+    throw $exception;
 } finally {
     stopProcess($installer);
     if (is_resource($lock)) {
