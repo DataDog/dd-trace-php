@@ -29,7 +29,7 @@ if (!isset($fixture['schema'])
     || !isset($fixture['schemaVersion'])
     || $fixture['schemaVersion'] !== 1
     || !isset($fixture['contractVersion'])
-    || $fixture['contractVersion'] !== 'targeting-regex-v1') {
+    || $fixture['contractVersion'] !== 'targeting-regex-v2') {
     throw new \RuntimeException('unsupported regex conformance fixture version');
 }
 if (count($fixture['cases']) !== 75) {
