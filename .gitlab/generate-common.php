@@ -229,9 +229,24 @@ foreach ($arch_targets as $arch_target) {
   request-replayer:
     name: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-request-replayer-2.0
     alias: request-replayer
-    command: ["php", "-S", "<?= $service_bind_address ?>:80", "index.php"]
+    command:
+      - sh
+      - -c
+      - |
+        source_dir="$CI_PROJECT_DIR/dockerfiles/services/request-replayer/src"
+        printf '%s\n' '<''?php while (!file_exists("/tmp/request-replayer-ready")) { usleep(100000); } require "/var/www/index.php";' > /tmp/request-replayer-router.php
+        (
+          installer="$CI_PROJECT_DIR/.gitlab/install-request-replayer-source.sh"
+          while [ ! -f "$installer" ]; do sleep 1; done
+          sh "$installer" "$source_dir" /var/www /tmp/request-replayer-ready
+        ) &
+        (while true; do php /var/www/metricsserver.php; sleep 1; done) &
+        echo "$!" > /tmp/metrics-server.pid
+        exec php -S <?= $service_bind_address ?>:80 /tmp/request-replayer-router.php
     variables:
       DD_REQUEST_DUMPER_FILE: dump.json
+      PHP_CLI_SERVER_WORKERS: "16"
+      REQUEST_REPLAYER_METRICS_SERVER_MANAGED: "1"
       KUBERNETES_SERVICE_CPU_REQUEST: 2
       KUBERNETES_SERVICE_CPU_LIMIT: 2
       KUBERNETES_SERVICE_MEMORY_REQUEST: 1Gi
