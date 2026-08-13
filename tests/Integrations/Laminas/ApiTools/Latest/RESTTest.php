@@ -25,14 +25,12 @@ class RESTTest extends WebFrameworkTestCase
 
     private static function restFieldsToIgnore(): array
     {
-        // http.status_code and error.message vary between PHP/Laminas versions and are not
-        // under the tracer's control, so exclude them from snapshot comparison.
-        return array_merge(
-            ['metrics.php.compilation.total_time_ms', 'metrics.php.memory.peak_usage_bytes',
-             'metrics.php.memory.peak_real_usage_bytes', 'meta.error.stack', 'meta._dd.p.tid',
-             'start', 'duration'],
-            ['meta.http.status_code', 'meta.error.message']
-        );
+        // http.status_code and error.message vary between PHP/Laminas versions
+        return [
+            'metrics.php.compilation.total_time_ms', 'metrics.php.memory.peak_usage_bytes',
+            'metrics.php.memory.peak_real_usage_bytes', 'meta.error.stack', 'meta._dd.p.tid',
+            'start', 'duration', 'meta.http.status_code', 'meta.error.message',
+        ];
     }
 
     public function testScenarioRest4xx()
