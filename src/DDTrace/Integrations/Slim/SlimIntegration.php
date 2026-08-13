@@ -99,7 +99,6 @@ class SlimIntegration extends Integration
                             $route = $return;
                             $pattern = $route->getPattern();
                             $rootSpan->meta[Tag::HTTP_ROUTE] = $pattern;
-                            // Normalized route will be refined in traceControllers once matched params are available
                             $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromSlim($pattern);
                             if ($normalizedRoute !== null) {
                                 $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
