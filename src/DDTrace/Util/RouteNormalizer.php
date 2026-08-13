@@ -54,7 +54,7 @@ class RouteNormalizer
      *                                   VersionListener sets :version even without a /v1/ prefix)
      * @return string|null
      */
-    public static function normalizeFromLaminas(string $template, array $matchedParams = [], ?string $urlPath = null)
+    public static function normalizeFromLaminas(string $template, array $matchedParams = [], $urlPath = null)
     {
         $expanded = self::expandBracketOptionals($template, $matchedParams, ':', $urlPath);
         $expanded = preg_replace('#/\*$#', '/{param1}', $expanded);
@@ -343,7 +343,7 @@ class RouteNormalizer
         string $template,
         array $matchedParams,
         string $paramPrefix = ':',
-        ?string $urlPath = null
+        $urlPath = null
     ): string {
         $prev = null;
         while ($prev !== $template) {
