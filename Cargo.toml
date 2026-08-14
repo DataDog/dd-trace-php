@@ -41,8 +41,16 @@ inherits = "release"
 # #2253 consolidated `anyhow`, `serde`, `tokio` and `tracing` to the workspace
 # level, so they are mirrored here too.
 [workspace.dependencies]
+allocator-api2 = { version = "0.2.21", default-features = false }
 anyhow = { version = "1.0", default-features = false }
 arc-swap = "1.7.1"
+bolero = { version = "0.13.4", default-features = false }
+chrono = { version = "0.4.38", default-features = false }
+clap = { version = "4.3.21", default-features = false }
+criterion = { version = "0.5.1", default-features = true }
+cxx-build = { version = "1.0", default-features = false }
+elf = { version = "0.7", default-features = false }
+futures = { version = "0.3", default-features = false }
 hyper = { version = "1.6", features = [
   "http1",
   "client",
@@ -52,12 +60,20 @@ hyper-util = { version = "0.1.10", features = [
   "client",
   "client-legacy",
 ] }
+io-lifetimes = { version = "1.0", default-features = false }
+libc = { version = "0.2", default-features = true }
 prost-build = { version = "0.14.1", default-features = false }
 protoc-bin-vendored = { version = "3.0.0", default-features = false }
+rustls = { version = "0.23", default-features = false }
 serde = { version = "1.0", default-features = false }
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
+syn = { version = "^2", default-features = false }
+tempfile = { version = "3.13", default-features = false, features = [
+  "getrandom",
+] }
 tokio = { version = "1.36", default-features = false }
 tracing = { version = "0.1", default-features = false }
+uuid = { version = "1.7.0", default-features = false }
 
 [workspace.lints]
 # empty for compat with libdatadog
