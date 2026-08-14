@@ -139,21 +139,7 @@ pub extern "C" fn datadog_publish_otel_process_context(process_tags: CharSlice<'
         ..Default::default()
     };
 
-    let mut context = metadata.to_otel_process_ctx();
-    // TracerMetadata emits empty resource attributes for absent optional fields to advertise
-    // support. These values can vary independently on every PHP request, so their values and
-    // resource keys must be omitted from the process-wide context. The keys remain discoverable
-    // through threadlocal.attribute_key_map.
-    if let Some(resource) = context.resource.as_mut() {
-        resource.attributes.retain(|attribute| {
-            !matches!(
-                attribute.key.as_str(),
-                "service.name" | "service.version" | "deployment.environment.name"
-            )
-        });
-    }
-
-    otel_process_ctx::publish(&context).is_ok()
+    otel_process_ctx::publish(&metadata.to_otel_process_ctx()).is_ok()
 }
 
 #[must_use]
