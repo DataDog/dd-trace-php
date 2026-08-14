@@ -38,8 +38,7 @@ Logs => Aborting application instrumentation due to an incompatible runtime
 Version => %s
 Injection success => true
 Injection error =>
-Extra config => datadog.appsec.helper_path=%s
-
+Extra config =>
 Logs => Found extension file: %s
 %A
 Application instrumentation bootstrapping complete ('ddappsec')
@@ -81,8 +80,7 @@ Application instrumentation bootstrapping complete ('datadog-profiling')
 Version => %s
 Injection success => true
 Injection error =>
-Extra config => datadog.appsec.helper_path=%s
-
+Extra config =>
 Logs => Found extension file: %s
 %A
 Application instrumentation bootstrapping complete ('ddappsec')

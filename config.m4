@@ -283,7 +283,14 @@ if test "$PHP_DDTRACE" != "no"; then
 
   dnl sidecar requires us to be linked against libm for pow and powf and librt for shm_* functions
   AC_CHECK_LIBM
-  EXTRA_LDFLAGS="$EXTRA_LDFLAGS $LIBM"
+  dnl Deliberately not in EXTRA_LDFLAGS: those land before libdatadog_php.a on
+  dnl the link line, so they would not satisfy its undefined symbols. Note that
+  dnl the relinks in .gitlab/compile_extension.sh and
+  dnl .gitlab/link-tracing-extension.sh) are driven solely by ddtrace.ldflags
+  dnl and add no libm of their own, so it has to be in that file too.
+  EXTRA_LIBS="$EXTRA_LIBS $LIBM"
+  DDTRACE_SHARED_LIBADD="${DDTRACE_SHARED_LIBADD:-} $LIBM"
+  ddtrace_ldflags_file_extra="$ddtrace_ldflags_file_extra $LIBM"
   dnl as well as explicitly for pthread_atfork
   PTHREADS_CHECK
   EXTRA_CFLAGS="$EXTRA_CFLAGS $ac_cv_pthreads_cflags"
@@ -312,11 +319,18 @@ if test "$PHP_DDTRACE" != "no"; then
     EXTRA_CFLAGS="$EXTRA_CFLAGS -fvisibility=hidden"
     EXTRA_LDFLAGS="$EXTRA_LDFLAGS -export-symbols $ext_srcdir/datadog.sym -flto -fuse-linker-plugin"
 
-    dnl On Linux: set the ELF entry point so ddtrace.so can be exec'd directly by ld.so
-    dnl for sidecar spawning (no trampoline binary, no memfd, no temp files).
     case $host_os in
       linux*)
-        EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Wl,-e,ddog_spawn_direct_entry"
+        if test "$PHP_DDTRACE_RUST_LIBRARY_SPLIT" = "no"; then
+          EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Wl,-e,ddog_spawn_direct_entry"
+        else
+          dnl The extra flag from ddtrace.ldflags affects only the artifact
+          dnl path where ddtrace.so is relinked with libdatadog_php.a; it does
+          dnl not affect the SSI path where the Rust component remains a
+          dnl separate libdatadog_php.so. In that case, it's libdatadog_php.so
+          dnl that should get this flag (and it does, via cargo)
+          ddtrace_ldflags_file_extra="$ddtrace_ldflags_file_extra -Wl,-e,ddog_spawn_direct_entry"
+        fi
       ;;
     esac
 
@@ -422,7 +436,7 @@ EOT
     ddtrace_rust_lib="\$(builddir)/target/$ddtrace_cargo_profile/libdatadog_php.a"
 
     cat <<EOT >> Makefile.fragments
-$ddtrace_rust_lib: $( (find "$ext_srcdir/components-rs" -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -not -path "*/target/*"; find "$ext_srcdir/libdatadog" -name "*.rs" -not -path "*/target/*") 2>/dev/null | tr '\n' ' ' )
+$ddtrace_rust_lib: $( (find "$ext_srcdir/components-rs" -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/sidecar" -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -not -path "*/target/*"; find "$ext_srcdir/libdatadog" -name "*.rs" -not -path "*/target/*") 2>/dev/null | tr '\n' ' ' )
 	(cd "$ext_srcdir"; CARGO_TARGET_DIR=\$(builddir)/target/ SHARED=$(test "$ext_shared" = "yes" && echo 1) PROFILE="$ddtrace_cargo_profile" host_os="$host_os" DDTRACE_CARGO="\$(DDTRACE_CARGO)" $(if test "$PHP_DDTRACE_SANITIZE" != "no"; then echo COMPILE_ASAN=1; fi) sh ./compile_rust.sh \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+"))
 EOT
   fi
@@ -446,5 +460,7 @@ WEAKEN
     PHP_GLOBAL_OBJS="$ddtrace_rust_lib $PHP_GLOBAL_OBJS"
   fi
 
-  echo "$EXTRA_LDFLAGS $EXTRA_CFLAGS" > ddtrace.ldflags
+  dnl ddtrace_ldflags_file_extra holds the flags only the out-of-tree relinks
+  dnl of ddtrace.so need (they link libdatadog_php.a into ddtrace.so themselves)
+  echo "$EXTRA_LDFLAGS $EXTRA_CFLAGS$ddtrace_ldflags_file_extra" > ddtrace.ldflags
 fi

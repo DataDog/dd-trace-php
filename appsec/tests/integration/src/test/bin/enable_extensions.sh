@@ -7,16 +7,6 @@
   echo max_execution_time=1800
 } >> /etc/php/php.ini
 
-HELPER_PATH=/appsec/libddappsec-helper.so
-if [[ -n $USE_HELPER_RUST ]]; then
-  echo "Using Rust helper" >&2
-  HELPER_PATH=/helper-rust/libddappsec-helper.so
-elif [[ -f /helper-rust/libddappsec-helper.so ]]; then
-  # Copy Rust helper for the redirection mechanism
-  ln -sf /helper-rust/libddappsec-helper.so \
-    "$(dirname "$HELPER_PATH")/libddappsec-helper-rust.so"
-fi
-
 if [[ -n $USE_SSI ]]; then
   echo "Enabling SSI loader" >&2
   # SSI initialization is slower per worker (loading libdatadog_php.so).
@@ -26,18 +16,16 @@ if [[ -n $USE_SSI ]]; then
         /etc/apache2/mods-enabled/mpm_prefork.conf
   fi
   PHP_API=$(php -r 'echo PHP_EXTENSION_DIR;' | sed 's/.*-//')
-  EXT_SUFFIX=$(php -r 'echo ZEND_DEBUG_BUILD ? "-debug" : "";')
+  EXT_SUFFIX=$(php -r '
+      echo (ZEND_THREAD_SAFE ? "-zts" : "")
+          . (ZEND_DEBUG_BUILD ? "-debug" : "");
+  ')
   PKG=/tmp/dd-package
-  mkdir -p "$PKG/loader" "$PKG/trace/ext/$PHP_API" "$PKG/appsec/ext/$PHP_API" "$PKG/appsec/lib"
+  mkdir -p "$PKG/loader" "$PKG/trace/ext/$PHP_API" "$PKG/appsec/ext/$PHP_API"
   ln -s /tracer-ssi/libdatadog_php.so "$PKG/loader/libdatadog_php.so"
   ln -s /tracer-ssi/ddtrace.so "$PKG/trace/ext/$PHP_API/ddtrace${EXT_SUFFIX}.so"
   ln -s /appsec/ddappsec.so "$PKG/appsec/ext/$PHP_API/ddappsec${EXT_SUFFIX}.so"
-  ln -s /appsec/libddappsec-helper.so "$PKG/appsec/lib/libddappsec-helper.so"
-  if [[ -f /helper-rust/libddappsec-helper.so ]]; then
-    ln -sf /helper-rust/libddappsec-helper.so "$PKG/appsec/lib/libddappsec-helper-rust.so"
-  fi
   ln -s /project/src "$PKG/trace/src"
-  HELPER_PATH=/tmp/dd-package/appsec/lib/libddappsec-helper.so
   {
     echo "zend_extension=/loader-ssi/dd_library_loader.so"
     echo datadog.trace.generate_root_span=true
@@ -62,7 +50,6 @@ if [[ $ENABLE_APPSEC == true ]]; then
   echo "Enabling ddappsec" >&2
   {
     echo datadog.appsec.enabled=true
-    echo datadog.appsec.helper_path=$HELPER_PATH
     echo datadog.appsec.helper_log_file=/tmp/logs/helper.log
     echo datadog.appsec.helper_log_level=debug
     echo datadog.appsec.rules=/etc/recommended.json
@@ -131,7 +118,6 @@ if [[ -n $OPCACHE ]]; then
     echo opcache.file_cache_only=0
     echo opcache.file_cache_consistency_checks=1
 
-    echo opcache.jit_buffer_size=100M
-    echo opcache.jit=1255
+    echo opcache.jit_buffer_size=0
   } >> /etc/php/php.ini
 fi

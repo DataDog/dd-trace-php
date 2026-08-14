@@ -245,52 +245,6 @@ ddog_MaybeError ddog_sidecar_session_set_user_service_defined(struct ddog_Sideca
                                                               bool is_user_defined);
 
 /**
- * Enqueues a telemetry log action to be processed internally.
- * Non-blocking. Logs might be dropped if the internal queue is full.
- *
- * # Safety
- * Pointers must be valid, strings must be null-terminated if not null.
- */
-ddog_MaybeError ddog_sidecar_enqueue_telemetry_log(ddog_CharSlice session_id_ffi,
-                                                   ddog_CharSlice runtime_id_ffi,
-                                                   ddog_CharSlice service_name_ffi,
-                                                   ddog_CharSlice env_name_ffi,
-                                                   ddog_CharSlice identifier_ffi,
-                                                   enum ddog_LogLevel level,
-                                                   ddog_CharSlice message_ffi,
-                                                   ddog_CharSlice *stack_trace_ffi,
-                                                   ddog_CharSlice *tags_ffi,
-                                                   bool is_sensitive);
-
-/**
- * Enqueues a telemetry point to be processed internally.
- *
- * # Safety
- * Pointers must be valid, strings must be null-terminated if not null.
- */
-ddog_MaybeError ddog_sidecar_enqueue_telemetry_point(ddog_CharSlice session_id_ffi,
-                                                     ddog_CharSlice runtime_id_ffi,
-                                                     ddog_CharSlice service_name_ffi,
-                                                     ddog_CharSlice env_name_ffi,
-                                                     ddog_CharSlice metric_name_ffi,
-                                                     double value,
-                                                     ddog_CharSlice *tags_ffi);
-
-/**
- * Registers a telemetry metric to be processed internally.
- *
- * # Safety
- * Pointers must be valid, strings must be null-terminated if not null.
- */
-ddog_MaybeError ddog_sidecar_enqueue_telemetry_metric(ddog_CharSlice session_id_ffi,
-                                                      ddog_CharSlice runtime_id_ffi,
-                                                      ddog_CharSlice service_name_ffi,
-                                                      ddog_CharSlice env_name_ffi,
-                                                      ddog_CharSlice metric_name_ffi,
-                                                      enum ddog_MetricType metric_type,
-                                                      enum ddog_MetricNamespace metric_namespace);
-
-/**
  * Sends a trace to the sidecar via shared memory.
  */
 ddog_MaybeError ddog_sidecar_send_trace_v04_shm(struct ddog_SidecarTransport **transport,
@@ -467,6 +421,23 @@ void ddog_send_traces_to_sidecar(ddog_TracesBytes *traces,
 void ddog_drop_agent_info_reader(struct ddog_AgentInfoReader*);
 
 void ddog_sidecar_send_garbage(struct ddog_SidecarTransport **transport);
+
+/**
+ * Sends an AppSec message from the PHP extension through the sidecar to the registered helper.
+ *
+ * The response is allocated by the sidecar and must be freed with
+ * `ddog_sidecar_appsec_response_drop` when the caller is done with it.
+ *
+ * Returns a zeroed `ddog_AppsecCResponse` (null ptr) on transport errors.
+ */
+struct ddog_AppsecCResponse ddog_sidecar_send_appsec_message(struct ddog_SidecarTransport **transport,
+                                                             uint64_t client_id,
+                                                             ddog_CharSlice data);
+
+/**
+ * Frees an `AppsecCResponse` that was returned by `ddog_sidecar_send_appsec_message`.
+ */
+void ddog_sidecar_appsec_response_drop(struct ddog_AppsecCResponse response);
 
 ddog_TracesBytes *ddog_get_traces(void);
 
