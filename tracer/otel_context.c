@@ -59,7 +59,7 @@ void ddtrace_otel_init_root_span(ddtrace_root_span_data *root) {
     ddtrace_otel_record_set_attrs(record, root, source);
     ddtrace_root_span_data *generation_source = source ? source : root;
     root->otel_context_attributes_source_generation = generation_source->otel_context_attributes_generation;
-    atomic_store_explicit(&record->valid, 1, memory_order_relaxed);
+    ddtrace_otel_record_end_update(record);
 }
 
 void ddtrace_otel_update_trace_id(ddtrace_root_span_data *root) {
@@ -117,8 +117,8 @@ void ddtrace_otel_attach_stack(ddtrace_span_stack *stack) {
 }
 
 void ddtrace_otel_detach(void) {
-    atomic_signal_fence(memory_order_release);
     otel_thread_ctx_v1 = NULL;
+    atomic_signal_fence(memory_order_release);
 }
 
 static void ddtrace_otel_record_begin_update(datadog_otel_thr_ctx_rec *record) {
