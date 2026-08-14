@@ -50,7 +50,7 @@ array(1) {
   ["integrations"]=>
   array(1) {
     [0]=>
-    array(5) {
+    array(6) {
       ["name"]=>
       string(10) "filesystem"
       ["enabled"]=>
@@ -60,6 +60,8 @@ array(1) {
       ["compatible"]=>
       NULL
       ["auto_enabled"]=>
+      NULL
+      ["error"]=>
       NULL
     }
   }

@@ -90,6 +90,58 @@ pub extern "C" fn datadog_format_runtime_id(buf: &mut [u8; 36]) {
     unsafe { datadog_runtime_id.as_hyphenated().encode_lower(buf) };
 }
 
+#[cfg(target_os = "linux")]
+fn char_slice_string(value: CharSlice<'_>) -> String {
+    value.to_utf8_lossy().into_owned()
+}
+
+#[cfg(target_os = "linux")]
+fn hostname() -> String {
+    let max_len = unsafe { libc::sysconf(libc::_SC_HOST_NAME_MAX) };
+    let max_len = usize::try_from(max_len).unwrap_or(255);
+    let mut buffer = vec![0; max_len.saturating_add(1)];
+
+    if unsafe { libc::gethostname(buffer.as_mut_ptr().cast(), buffer.len()) } != 0 {
+        return String::new();
+    }
+
+    let len = buffer
+        .iter()
+        .position(|&byte| byte == 0)
+        .unwrap_or(buffer.len());
+    String::from_utf8_lossy(&buffer[..len]).into_owned()
+}
+
+/// Publish or update dd-trace-php's standard Linux OTel Process Context.
+#[cfg(target_os = "linux")]
+#[no_mangle]
+pub extern "C" fn datadog_publish_otel_process_context(process_tags: CharSlice<'_>) -> bool {
+    use libdd_library_config::otel_process_ctx;
+    use libdd_library_config::tracer_metadata::{ThreadLocalMetadata, TracerMetadata};
+
+    let metadata = TracerMetadata {
+        // Safety: the runtime ID is only mutated from single-threaded contexts.
+        runtime_id: Some(unsafe { datadog_runtime_id.as_hyphenated().to_string() }),
+        tracer_language: "php".to_owned(),
+        tracer_version: include_str!("../VERSION").trim().to_owned(),
+        hostname: hostname(),
+        process_tags: Some(char_slice_string(process_tags)),
+        container_id: get_container_id().map(str::to_owned),
+        threadlocal_metadata: Some(ThreadLocalMetadata {
+            attribute_keys: vec![
+                "service.name".to_owned(),
+                "deployment.environment.name".to_owned(),
+                "service.version".to_owned(),
+                "thread.id".to_owned(),
+            ],
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+
+    otel_process_ctx::publish(&metadata.to_otel_process_ctx()).is_ok()
+}
+
 #[must_use]
 #[no_mangle]
 pub extern "C" fn ddtrace_get_container_id() -> CharSlice<'static> {

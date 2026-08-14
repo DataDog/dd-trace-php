@@ -100,6 +100,19 @@ if test "$PHP_DDTRACE" != "no"; then
       EXTRA_CFLAGS="$EXTRA_CFLAGS -Wno-microsoft-anon-tag"
     ])
 
+  case "$host_os:$host_cpu" in
+    linux*:x86_64)
+      AC_LIBTOOL_COMPILER_OPTION([whether -mtls-dialect=gnu2 is a valid compiler argument],
+        lt_cv_ddtrace_tls_dialect_gnu2,
+        [-mtls-dialect=gnu2], [],
+        [
+          CFLAGS="$CFLAGS -mtls-dialect=gnu2"
+          EXTRA_CFLAGS="$EXTRA_CFLAGS -mtls-dialect=gnu2"
+        ],
+        [AC_MSG_ERROR([x86-64 Linux OTel context sharing requires compiler support for -mtls-dialect=gnu2])])
+      ;;
+  esac
+
   DD_TRACE_VENDOR_SOURCES="\
     tracer/vendor/mpack/mpack.c \
     tracer/vendor/mt19937/mt19937-64.c \
@@ -167,6 +180,12 @@ if test "$PHP_DDTRACE" != "no"; then
       zend_abstract_interface/sandbox/php8/sandbox.c \
     "
   fi
+
+  case "$host_os" in
+    linux*)
+      EXTRA_TRACER_SOURCES="$EXTRA_TRACER_SOURCES tracer/otel_context.c"
+      ;;
+  esac
 
   dnl datadog.c/ddtrace.c comes first, then everything else alphabetically
   DATADOG_PHP_SOURCES="$EXTRA_DATADOG_SOURCES \
@@ -307,10 +326,14 @@ if test "$PHP_DDTRACE" != "no"; then
   AC_CHECK_HEADER(time.h, [], [AC_MSG_ERROR([Cannot find or include time.h])])
 
   if test "$ext_shared" = "yes"; then
-    dnl Only export symbols defined in datadog.sym, which should all be marked as
+    dnl Only export the platform's listed symbols, which should all be marked as
     dnl DATADOG_PUBLIC in their source files as well.
     EXTRA_CFLAGS="$EXTRA_CFLAGS -fvisibility=hidden"
-    EXTRA_LDFLAGS="$EXTRA_LDFLAGS -export-symbols $ext_srcdir/datadog.sym -flto -fuse-linker-plugin"
+    case $host_os in
+      linux*) DDTRACE_EXPORT_SYMBOLS="$ext_srcdir/datadog-linux.sym" ;;
+      *) DDTRACE_EXPORT_SYMBOLS="$ext_srcdir/datadog.sym" ;;
+    esac
+    EXTRA_LDFLAGS="$EXTRA_LDFLAGS -export-symbols $DDTRACE_EXPORT_SYMBOLS -flto -fuse-linker-plugin"
 
     dnl On Linux: set the ELF entry point so ddtrace.so can be exec'd directly by ld.so
     dnl for sidecar spawning (no trampoline binary, no memfd, no temp files).

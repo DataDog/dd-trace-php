@@ -20,6 +20,25 @@ static void locate_datadog_runtime_id(const zend_extension *extension) {
     datadog_runtime_id = DL_FETCH_SYMBOL(extension->handle, "datadog_runtime_id");
 }
 
+#ifdef __linux__
+// Standard OTel context providers export this TLS symbol globally. Cache its
+// address per thread because dynamic TLS addresses differ between threads.
+static void *datadog_php_profiling_inactive_otel_thread_context = NULL;
+static __thread void **datadog_php_profiling_otel_thread_context_slot = NULL;
+
+const void *datadog_php_profiling_get_otel_thread_context(void) {
+    if (!datadog_php_profiling_otel_thread_context_slot) {
+        datadog_php_profiling_otel_thread_context_slot =
+            DL_FETCH_SYMBOL(NULL, "otel_thread_ctx_v1");
+        if (!datadog_php_profiling_otel_thread_context_slot) {
+            datadog_php_profiling_otel_thread_context_slot =
+                &datadog_php_profiling_inactive_otel_thread_context;
+        }
+    }
+    return *datadog_php_profiling_otel_thread_context_slot;
+}
+#endif
+
 static void locate_ddtrace_get_profiling_context(const zend_extension *extension) {
     ddtrace_profiling_context (*get_profiling)(void) =
         DL_FETCH_SYMBOL(extension->handle, "ddtrace_get_profiling_context");
