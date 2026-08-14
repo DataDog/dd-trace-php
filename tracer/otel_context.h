@@ -63,6 +63,9 @@ void ddtrace_otel_attach_stack(ddtrace_span_stack *stack);
 /** Detach the current thread's record. */
 void ddtrace_otel_detach(void);
 
+/** Reset the tid after a fork. */
+void ddtrace_otel_tid_fork_handler(void);
+
 END_EXTERN_C()
 
 #endif  // DDTRACE_OTEL_CONTEXT_H

@@ -37,6 +37,15 @@ _Static_assert(offsetof(ddtrace_root_span_data, otel_context) % 8 == 0, "unexpec
 _Static_assert((offsetof(ddtrace_root_span_data, otel_context) + offsetof(datadog_otel_thr_ctx_rec, span_id)) % 8 == 0,
                "unexpected OTel thread context span_id placement");
 
+typedef struct {
+    // The length of the used bytes in .value, excluding null.
+    uint8_t len;
+    // On Linux tids are pid_t, which are `int`, so the most negative value is
+    // the longest when printed (because of sign bit).
+    char value[sizeof("-2147483648")];
+} ddtrace_otel_cached_tid;
+
+static __thread ddtrace_otel_cached_tid otel_tid = {0};
 __thread void *otel_thread_ctx_v1 __attribute__((visibility("default"), tls_model("global-dynamic")));
 
 static void ddtrace_otel_record_begin_update(datadog_otel_thr_ctx_rec *record);
@@ -203,10 +212,20 @@ static void ddtrace_otel_record_set_attrs(datadog_otel_thr_ctx_rec *record, ddtr
     offset = ddtrace_otel_record_write_attr_zstr(record, offset, DDTRACE_OTEL_ATTR_DEPLOYMENT_ENVIRONMENT_NAME, ddtrace_otel_attr_zstr(env));
     offset = ddtrace_otel_record_write_attr_zstr(record, offset, DDTRACE_OTEL_ATTR_SERVICE_VERSION, ddtrace_otel_attr_zstr(version));
 
-    char thread_id[32];
-    int thread_id_len = snprintf(thread_id, sizeof(thread_id), "%llu", (unsigned long long)syscall(SYS_gettid));
-    if (thread_id_len > 0) {
-        offset = ddtrace_otel_record_write_attr(record, offset, DDTRACE_OTEL_ATTR_THREAD_ID, thread_id, (size_t)thread_id_len);
+    if (UNEXPECTED(otel_tid.len == 0)) { // should only happen 1x per thread
+        long tid = syscall(SYS_gettid);
+        if (EXPECTED(tid > 0)) { // this syscall is fundamental and shouldn't fail
+            // tids are just pid_t but there's no safety in casting down to int
+            // here, if the buffer is big enough, then we're good.
+            int tid_len = snprintf(otel_tid.value, sizeof otel_tid.value, "%ld", tid);
+            // Should fit, tids are `int` on Linux.
+            if (EXPECTED(tid_len > 0 && (size_t)tid_len < sizeof otel_tid.value)) {
+                otel_tid.len = (uint8_t)tid_len;
+            }
+        }
+    }
+    if (EXPECTED(otel_tid.len != 0)) {
+        offset = ddtrace_otel_record_write_attr(record, offset, DDTRACE_OTEL_ATTR_THREAD_ID, otel_tid.value, (size_t)otel_tid.len);
     }
     record->attrs_data_size = (uint16_t)offset;
 
@@ -241,3 +260,7 @@ static size_t ddtrace_otel_record_write_attr(datadog_otel_thr_ctx_rec *record, s
 }
 
 static zend_string *ddtrace_otel_attr_zstr(zend_string *value) { return value ? value : ZSTR_EMPTY_ALLOC(); }
+
+void ddtrace_otel_tid_fork_handler(void) {
+    otel_tid.len = 0;
+}

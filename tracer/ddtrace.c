@@ -686,7 +686,7 @@ bool ddtrace_update_remote_config_flags(ddog_RemoteConfigFlags *flags) {
 #define JOIN_BGS_BEFORE_FORK 1
 #endif
 
-void ddtrace_internal_handle_prefork() {
+void ddtrace_internal_handle_prefork(void) {
 #if JOIN_BGS_BEFORE_FORK
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
         ddtrace_coms_flush_shutdown_writer_synchronous();
@@ -694,7 +694,7 @@ void ddtrace_internal_handle_prefork() {
 #endif
 }
 
-void ddtrace_internal_handle_postfork() {
+void ddtrace_internal_handle_postfork(void) {
 #if JOIN_BGS_BEFORE_FORK
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
         ddtrace_coms_restart_writer();
@@ -705,6 +705,7 @@ void ddtrace_internal_handle_postfork() {
 void ddtrace_internal_handle_fork() {
 #ifdef __linux__
     ddtrace_otel_detach();
+    ddtrace_otel_tid_fork_handler();
 #endif
     if (DATADOG_G(sidecar)) {
         // Unconditionally send, even if root span is NULL
