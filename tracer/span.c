@@ -37,9 +37,9 @@ ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
 #ifdef __linux__
 static inline void ddtrace_update_otel_thread_context_span_id(ddtrace_span_data *span) {
-    if (span && span->root) {
-        ddtrace_otel_record_store_span_id(&span->root->otel_context, span->span_id);
-    }
+    ZEND_ASSERT(span);
+    ZEND_ASSERT(span->root && "An active span without a root is broken and will segfault elsewhere");
+    ddtrace_otel_record_store_span_id(&span->root->otel_context, span->span_id);
 }
 #endif
 
@@ -910,14 +910,14 @@ void ddtrace_close_span(ddtrace_span_data *span) {
 }
 
 void ddtrace_close_span_restore_stack(ddtrace_span_data *span) {
-    assert(span != NULL);
+    ZEND_ASSERT(span != NULL);
     if (span->type == DDTRACE_SPAN_CLOSED) {
         return;
     }
 
     // switches to the stack of the passed span, closes the span and switches back to the original stack
     ddtrace_span_stack *active_stack_before = DDTRACE_G(active_stack);
-    assert(active_stack_before != NULL);
+    ZEND_ASSERT(active_stack_before != NULL);
     GC_ADDREF(&active_stack_before->std);
 
     ddtrace_close_span(span);
