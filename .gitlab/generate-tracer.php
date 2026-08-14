@@ -585,6 +585,17 @@ foreach ($all_minor_major_targets as $major_minor):
     DD_INSTRUMENTATION_TELEMETRY_ENABLED: 0
 <?php endif; ?>
   timeout: 40m
+  retry:
+    max: 2
+    when:
+      - script_failure
+      - unknown_failure
+      - data_integrity_failure
+      - runner_system_failure
+      - scheduler_failure
+      - api_failure
+      - stuck_or_timeout_failure
+      - job_execution_timeout
   script:
     - make install_all
     - export XFAIL_LIST="dockerfiles/ci/xfail_tests/${PHP_MAJOR_MINOR}.list"
