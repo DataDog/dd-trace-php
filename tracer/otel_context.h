@@ -16,6 +16,11 @@ typedef struct ddtrace_span_stack ddtrace_span_stack;
 
 #define DATADOG_PHP_PROFILING_OTEL_ATTRS_DATA_SIZE 612
 
+/*
+ * valid guards updates that require multiple stores to form one consistent snapshot. span_id and
+ * trace_flags are atomic because each can also change independently while the record remains valid;
+ * a reader may observe either the complete old value or the complete new value.
+ */
 typedef struct {
     uint64_t trace_id[2];
     _Atomic(uint64_t) span_id;
@@ -35,7 +40,7 @@ static inline uint64_t ddtrace_otel_u64_be(uint64_t value) {
 #endif
 }
 
-/** Store the active span id without rebuilding root-scoped attributes. */
+/** Atomically update the active span id; a single-field update does not invalidate the record. */
 static inline void ddtrace_otel_record_store_span_id(datadog_otel_thr_ctx_rec *record, uint64_t span_id) {
     atomic_store_explicit(&record->span_id, ddtrace_otel_u64_be(span_id), memory_order_relaxed);
 }

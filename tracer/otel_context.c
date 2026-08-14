@@ -23,6 +23,8 @@ ZEND_EXTERN_MODULE_GLOBALS(datadog);
 #define DDTRACE_OTEL_ATTR_THREAD_ID 4
 #define DDTRACE_OTEL_LOCAL_ROOT_SPAN_ID_ATTR_SIZE 18
 
+_Static_assert(ATOMIC_CHAR_LOCK_FREE == 2, "OTel thread context byte atomics must always be lock-free");
+_Static_assert(ATOMIC_LLONG_LOCK_FREE == 2, "OTel thread context 64-bit atomics must always be lock-free");
 _Static_assert(sizeof(datadog_otel_thr_ctx_rec) == 640, "unexpected OTel thread context record size");
 _Static_assert(_Alignof(datadog_otel_thr_ctx_rec) == 8, "unexpected OTel thread context record alignment");
 _Static_assert(offsetof(datadog_otel_thr_ctx_rec, trace_id) == 0, "unexpected OTel thread context trace_id offset");
@@ -75,6 +77,8 @@ void ddtrace_otel_update_trace_flags(ddtrace_root_span_data *root) {
         return;
     }
 
+    // This is a single-field atomic update, so the record remains a consistent snapshot without
+    // toggling valid. Multi-field trace-id updates use the begin/end update protocol instead.
     ddtrace_otel_record_set_trace_flags(&root->otel_context, root);
 }
 
