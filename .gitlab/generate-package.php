@@ -1718,7 +1718,7 @@ foreach ($arch_targets as $arch) {
     - docker buildx rm "system-tests-builder-${CI_JOB_ID}" || true
 
 "bundle for reliability env":
-  stage: shared-pipeline
+  stage: shared-pipeline-build
   image: registry.ddbuild.io/ci/libdatadog-build/ci_docker_base:67145216
   tags: [ "arch:amd64" ]
   rules:
@@ -1750,7 +1750,7 @@ foreach ($arch_targets as $arch) {
       - 'datadog-setup-x86_64-linux-gnu.tar'
 
 deploy_to_reliability_env:
-  stage: shared-pipeline
+  stage: shared-pipeline-publish
   allow_failure: true
   needs:
     - job: "bundle for reliability env"
