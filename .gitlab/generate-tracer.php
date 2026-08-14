@@ -398,6 +398,7 @@ foreach ($all_minor_major_targets as $major_minor):
     # Run twice: shared state between .phpt tests only surfaces on a second pass.
     - make test_extension_ci_normal
     - make test_extension_ci_normal
+    - make test_extension_ci_normal
 <?php after_script("tmp/build_extension", has_test_agent: true); ?>
 
 "test_extension_ci: [<?= $major_minor ?>, valgrind]":
