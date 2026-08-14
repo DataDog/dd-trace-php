@@ -334,6 +334,21 @@ ddog_MaybeError ddog_sidecar_send_ffe_exposure_batch(struct ddog_SidecarTranspor
                                                      struct ddog_Slice_FfeExposure exposures);
 
 /**
+ * Send structured FFE flag evaluation events to the sidecar. The sidecar owns
+ * JSON serialization and Agent EVP delivery. This function is caller-driven;
+ * callers must aggregate and bound event cardinality before passing a batch.
+ *
+ * # Safety
+ * `context` and every element in `flag_evaluations` must contain valid UTF-8
+ * `CharSlice` values. Empty `flag_evaluations` is a no-op.
+ */
+ddog_MaybeError ddog_sidecar_send_ffe_flag_evaluation_batch(struct ddog_SidecarTransport **transport,
+                                                            const struct ddog_InstanceId *instance_id,
+                                                            const ddog_QueueId *queue_id,
+                                                            const struct ddog_FfeTelemetryContext *context,
+                                                            struct ddog_Slice_FfeFlagEvaluation flag_evaluations);
+
+/**
  * Send structured FFE evaluation metric events to the sidecar. The sidecar
  * owns aggregation, OTLP/protobuf serialization, and OTLP HTTP delivery. This
  * function is caller-driven so SDKs with existing host-language hooks can

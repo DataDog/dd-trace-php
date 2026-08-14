@@ -42,6 +42,9 @@ void datadog_generate_session_id(void);
 void datadog_format_runtime_id(uint8_t (*buf)[36]);
 
 #ifdef __linux__
+/**
+ * Publish or update dd-trace-php's standard Linux OTel Process Context.
+ */
 bool datadog_publish_otel_process_context(ddog_CharSlice process_tags);
 
 #endif
