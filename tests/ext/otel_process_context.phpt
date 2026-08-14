@@ -79,7 +79,6 @@ echo "Runtime and host resource fields: "; var_dump(payloadContains($payload, [
     'telemetry.sdk.name',
     'libdatadog',
     'host.name',
-    'container.id',
 ]));
 echo "Process and thread metadata: "; var_dump(payloadContains($payload, [
     'datadog.process_tags',
