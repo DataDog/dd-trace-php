@@ -559,6 +559,9 @@ make test_opcache
   with the normal pass. `make test_extension_ci` still runs both
   serially for local use.
 
+- **`PHP Language Tests` has retry:2 in CI.** These tests are
+  inherently flaky due to timing-sensitive PHP runtime tests. The CI
+  job retries up to 2 times on script failure.
 
 - **`test_integration` talks to test-agent on port 9126** and mongodb.
   `test_composer`, `test_auto_instrumentation`, and
