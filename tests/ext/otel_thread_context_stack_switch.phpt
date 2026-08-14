@@ -23,6 +23,33 @@ $mainRoot->env = 'main-env';
 $mainRoot->version = 'main-version';
 $mainSpanId = $context->spanId();
 
+$inheritedParent = DDTrace\start_span();
+$staleStack = DDTrace\create_stack();
+DDTrace\switch_stack($mainRoot);
+DDTrace\close_span();
+DDTrace\switch_stack($staleStack);
+echo "Closed inherited parent skipped: "; var_dump(
+    DDTrace\active_span() === $mainRoot
+    && $context->spanId() === $mainSpanId
+);
+DDTrace\switch_stack($mainRoot);
+
+$mainChild = DDTrace\start_span();
+$mainChildSpanId = $context->spanId();
+$branchStack = DDTrace\create_stack();
+$branchChild = DDTrace\start_span();
+$branchChildSpanId = $context->spanId();
+
+DDTrace\switch_stack($mainChild);
+echo "Main child selected across shared root: "; var_dump($context->spanId() === $mainChildSpanId);
+DDTrace\switch_stack($branchStack);
+echo "Branch child selected across shared root: "; var_dump($context->spanId() === $branchChildSpanId);
+
+DDTrace\close_span();
+DDTrace\switch_stack($mainChild);
+DDTrace\close_span();
+echo "Main root restored after shared-root stacks close: "; var_dump($context->spanId() === $mainSpanId);
+
 $otherRoot = DDTrace\start_trace_span();
 $otherRoot->service = 'other-service';
 $otherSpanId = $context->spanId();
@@ -69,6 +96,10 @@ echo "Detached after both roots close: "; var_dump(!$context->isActive());
 
 ?>
 --EXPECT--
+Closed inherited parent skipped: bool(true)
+Main child selected across shared root: bool(true)
+Branch child selected across shared root: bool(true)
+Main root restored after shared-root stacks close: bool(true)
 Other root selected: bool(true)
 Active nested root metadata updated: bool(true)
 Main root selected: bool(true)

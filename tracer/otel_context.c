@@ -109,7 +109,18 @@ void ddtrace_otel_attach_stack(ddtrace_span_stack *stack) {
         return;
     }
 
+    // Multiple span stacks can share one root and therefore one context record. Refresh the
+    // selected span on every attach rather than relying on the last stack that updated the root.
+    // stack->active may be an inherited span that has since closed on its owning parent stack,
+    // so resolve the effective active span across the stack hierarchy.
+    ddtrace_span_data *active_span = ddtrace_active_span();
+    if (!active_span) {
+        ddtrace_otel_detach();
+        return;
+    }
+
     ddtrace_root_span_data *root = stack->root_span;
+    ddtrace_otel_record_store_span_id(&root->otel_context, active_span->span_id);
     ddtrace_root_span_data *source = ddtrace_otel_attr_source_root(root);
     ddtrace_root_span_data *generation_source = source ? source : root;
     // Inactive span stacks may cache stale inherited attributes. Refresh only when their own

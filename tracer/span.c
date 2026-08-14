@@ -1000,6 +1000,7 @@ void ddtrace_close_top_span_without_stack_swap(ddtrace_span_data *span) {
         ZVAL_NULL(&stack->property_active);
     }
 #ifdef __linux__
+    // Refresh before allocation-capable close processing can trigger a profiler sample.
     if (stack == DDTRACE_G(active_stack) && stack->active && SPANDATA(stack->active)->stack == stack) {
         ddtrace_update_otel_thread_context_span_id(SPANDATA(stack->active));
     }
