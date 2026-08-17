@@ -176,16 +176,25 @@ class RouteNormalizer
                 continue;
             }
 
-            if (preg_match('/^\([^)]+\)$/', $segment)) {
-                if ($matchedGroupCount !== null && $paramIndex > $matchedGroupCount) {
-                    continue;
+            if (preg_match('/[()[\].*+?|^${}\\\\]/', $segment)) {
+                $groupCount = self::countCaptureGroups($segment);
+                if ($groupCount === 0) {
+                    if ($matchedGroupCount !== null && $paramIndex > $matchedGroupCount) {
+                        continue;
+                    }
+                    $normalizedSegments[] = '{param' . $paramIndex++ . '}';
+                } else {
+                    $params = [];
+                    for ($j = 0; $j < $groupCount; $j++) {
+                        if ($matchedGroupCount !== null && $paramIndex > $matchedGroupCount) {
+                            break;
+                        }
+                        $params[] = 'param' . $paramIndex++;
+                    }
+                    if (!empty($params)) {
+                        $normalizedSegments[] = '{' . implode('+', $params) . '}';
+                    }
                 }
-                $normalizedSegments[] = '{param' . $paramIndex++ . '}';
-            } elseif (preg_match('/[()[\].*+?|^${}\\\\]/', $segment)) {
-                if ($matchedGroupCount !== null && $paramIndex > $matchedGroupCount) {
-                    continue;
-                }
-                $normalizedSegments[] = '{param' . $paramIndex++ . '}';
             } else {
                 $normalizedSegments[] = self::encodeStaticSegment($segment);
             }
@@ -230,6 +239,37 @@ class RouteNormalizer
 
         $segments[] = $current;
         return $segments;
+    }
+
+    /**
+     * Count capturing groups in a regex segment, ignoring character classes and non-capturing groups.
+     */
+    private static function countCaptureGroups(string $segment): int
+    {
+        $count = 0;
+        $len = strlen($segment);
+        $inClass = false;
+
+        for ($i = 0; $i < $len; $i++) {
+            $c = $segment[$i];
+
+            if ($c === '\\' && $i + 1 < $len) {
+                $i++;
+                continue;
+            }
+
+            if ($c === '[' && !$inClass) {
+                $inClass = true;
+            } elseif ($c === ']' && $inClass) {
+                $inClass = false;
+            } elseif ($c === '(' && !$inClass) {
+                if ($i + 1 >= $len || $segment[$i + 1] !== '?') {
+                    $count++;
+                }
+            }
+        }
+
+        return $count;
     }
 
     /**
