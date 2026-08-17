@@ -113,6 +113,25 @@ final class InteroperabilityTest extends BaseTestCase
         $this->assertArrayNotHasKey('parent_id', $span['meta']);
     }
 
+    public function testDatadogSpanTraceFlagsArePreserved()
+    {
+        $this->isolateTracer(function () {
+            start_span();
+            \DDTrace\root_span()->samplingPriority = \DD_TRACE_PRIORITY_SAMPLING_USER_KEEP;
+
+            $currentSpan = Span::getCurrent();
+            $spanContext = $currentSpan->getContext();
+
+            $this->assertSame(TraceFlags::SAMPLED | TraceFlags::RANDOM, $spanContext->getTraceFlags());
+
+            $carrier = [];
+            TraceContextPropagator::getInstance()->inject($carrier);
+            $this->assertStringEndsWith('-03', $carrier[TraceContextPropagator::TRACEPARENT]);
+
+            close_span();
+        });
+    }
+
     /** @noinspection PhpParamsInspection */
     public function testMixingOpenTelemetrylAndDatadogBasic()
     {
