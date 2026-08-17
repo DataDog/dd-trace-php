@@ -268,6 +268,26 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertSame('/{param1}/{param2}', $result);
     }
 
+    public function testWordPressOptionalGroupAbsent()
+    {
+        // Optional second segment not present in URL — must not emit phantom {param2}
+        $result = RouteNormalizer::normalizeFromWordPress('^([^/]+)(?:/([0-9]+))?/?$', 'simple');
+        $this->assertSame('/{param1}', $result);
+    }
+
+    public function testWordPressOptionalGroupPresent()
+    {
+        $result = RouteNormalizer::normalizeFromWordPress('^([^/]+)(?:/([0-9]+))?/?$', 'simple/123');
+        $this->assertSame('/{param1}/{param2}', $result);
+    }
+
+    public function testWordPressOptionalGroupNoUrlPath()
+    {
+        // Without URL path, fall back to emitting all groups (backward-compatible)
+        $result = RouteNormalizer::normalizeFromWordPress('^([^/]+)(?:/([0-9]+))?/?$');
+        $this->assertSame('/{param1}/{param2}', $result);
+    }
+
     public function testWordPressRootRule()
     {
         $result = RouteNormalizer::normalizeFromWordPress('^/?$');
