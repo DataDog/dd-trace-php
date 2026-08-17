@@ -282,6 +282,13 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertSame('/foo/{bar}', $result);
     }
 
+    public function testLaminasRegexRouteSpec()
+    {
+        // Laminas\Router\Http\Regex uses %param% spec format for URL generation
+        $this->assertSame('/blog/{id}', RouteNormalizer::normalizeFromLaminas('/blog/%id%'));
+        $this->assertSame('/user/{id}/{name}', RouteNormalizer::normalizeFromLaminas('/user/%id%/%name%'));
+    }
+
     public function testLaminasLiteralRoute()
     {
         $this->assertSame('/dump-request', RouteNormalizer::normalizeFromLaminas('/dump-request'));
