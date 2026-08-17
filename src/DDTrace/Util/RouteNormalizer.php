@@ -73,7 +73,9 @@ class RouteNormalizer
     {
         $expanded = self::expandBracketOptionals($template, $matchedParams, ':', $urlPath);
         $expanded = preg_replace('#/\*$#', '/{param1}', $expanded);
+        // Segment routes use :param; Regex routes use %param% (spec format) — handle both.
         $braceFormat = self::colonParamsToBraces($expanded);
+        $braceFormat = self::percentParamsToBraces($braceFormat);
         return self::normalizeBraceRoute($braceFormat, $matchedParams);
     }
 
@@ -499,6 +501,15 @@ class RouteNormalizer
             },
             $template
         );
+    }
+
+    /**
+     * Convert Laminas Regex route spec %param% notation to {param} brace notation.
+     * Regex routes store their spec as "/path/%id%/%name%" for URL generation.
+     */
+    private static function percentParamsToBraces(string $template): string
+    {
+        return preg_replace('/%([a-zA-Z_][a-zA-Z0-9_]*)%/', '{$1}', $template);
     }
 
     /**
