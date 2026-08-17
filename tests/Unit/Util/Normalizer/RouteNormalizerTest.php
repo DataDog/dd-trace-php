@@ -112,6 +112,8 @@ class RouteNormalizerTest extends BaseTestCase
     {
         $this->assertSame('/users/{id}', RouteNormalizer::normalizeFromSlim('/users/{id:[0-9]+}'));
         $this->assertSame('/v2/{name}/blobs', RouteNormalizer::normalizeFromSlim('/v2/{name:[a-zA-Z0-9-]+}/blobs'));
+        // Constraint containing '/' must not break the segment split
+        $this->assertSame('/files/{name}', RouteNormalizer::normalizeFromSlim('/files/{name:[^/]+}'));
     }
 
     public function testSlimOptionalSegmentPresent()
