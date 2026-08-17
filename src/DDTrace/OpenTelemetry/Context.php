@@ -185,7 +185,7 @@ final class Context implements ContextInterface
         $currentTraceId = \DDTrace\root_span()->traceId;
         $traceContext = generate_distributed_tracing_headers(['tracecontext']);
         $traceFlags = isset($traceContext['traceparent'])
-            ? (substr($traceContext['traceparent'], -2) === '01' ? API\TraceFlags::SAMPLED : API\TraceFlags::DEFAULT)
+            ? hexdec(substr($traceContext['traceparent'], -2))
             : null;
         $traceState = new API\TraceState($traceContext['tracestate'] ?? null);
 
