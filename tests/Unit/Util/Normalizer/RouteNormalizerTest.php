@@ -294,6 +294,14 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertSame('/', $result);
     }
 
+    public function testWordPressMultipleCaptureGroupsInOneSegment()
+    {
+        // Two capture groups in the same slash-separated segment → combined with +
+        // The static prefix "post-" is dropped as the whole mixed segment is treated as dynamic
+        $result = RouteNormalizer::normalizeFromWordPress('^post-([^/]+)-([0-9]+)/?$');
+        $this->assertSame('/{param1+param2}', $result);
+    }
+
     // RFC examples
 
     public function testRfcExampleFastApi()
