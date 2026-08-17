@@ -146,6 +146,27 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertSame('/files/{file}', RouteNormalizer::normalizeFromSlim('/files/{file:.+}'));
     }
 
+    public function testSlimStaticOptionalSectionPresent()
+    {
+        // /feed[.json] requested as /feed.json → .json section included
+        $result = RouteNormalizer::normalizeFromSlim('/feed[.json]', [], '/feed.json');
+        $this->assertSame('/feed.json', $result);
+    }
+
+    public function testSlimStaticOptionalSectionAbsent()
+    {
+        // /feed[.json] requested as /feed → .json section absent
+        $result = RouteNormalizer::normalizeFromSlim('/feed[.json]', [], '/feed');
+        $this->assertSame('/feed', $result);
+    }
+
+    public function testSlimStaticOptionalSectionNoUrlPath()
+    {
+        // Without URL path, backward-compatible: keep the section
+        $result = RouteNormalizer::normalizeFromSlim('/feed[.json]', []);
+        $this->assertSame('/feed.json', $result);
+    }
+
     // normalizeFromSymfony
 
     public function testSymfonySimpleRoute()
@@ -163,6 +184,41 @@ class RouteNormalizerTest extends BaseTestCase
     public function testSymfonyStaticOnlyRoute()
     {
         $this->assertSame('/dump-request', RouteNormalizer::normalizeFromSymfony('/dump-request'));
+    }
+
+    public function testSymfonyOptionalParamAbsent()
+    {
+        // /blog/{page} requested as /blog — page has a default and was not in the URL
+        $result = RouteNormalizer::normalizeFromSymfony('/blog/{page}', []);
+        $this->assertSame('/blog', $result);
+    }
+
+    public function testSymfonyOptionalParamPresent()
+    {
+        // /blog/{page} requested as /blog/2 — page was in the URL
+        $result = RouteNormalizer::normalizeFromSymfony('/blog/{page}', ['page' => '2']);
+        $this->assertSame('/blog/{page}', $result);
+    }
+
+    public function testSymfonyRequiredParamsAlwaysKept()
+    {
+        // All params present — nothing dropped
+        $result = RouteNormalizer::normalizeFromSymfony('/users/{id}/posts/{post_id}', ['id' => '1', 'post_id' => '5']);
+        $this->assertSame('/users/{id}/posts/{post_id}', $result);
+    }
+
+    public function testSymfonyTrailingOptionalAbsent()
+    {
+        // /users/{id}/posts/{post_id} with only id in URL — post_id absent
+        $result = RouteNormalizer::normalizeFromSymfony('/users/{id}/posts/{post_id}', ['id' => '1']);
+        $this->assertSame('/users/{id}/posts', $result);
+    }
+
+    public function testSymfonyNoMatchedParamsArgKeepsAll()
+    {
+        // null matchedParams → old behaviour, no params dropped
+        $result = RouteNormalizer::normalizeFromSymfony('/blog/{page}');
+        $this->assertSame('/blog/{page}', $result);
     }
 
     // normalizeFromLaminas
