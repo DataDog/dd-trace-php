@@ -259,9 +259,7 @@ class CodeIgniterIntegration extends Integration
         // If we got this far it means we didn't encounter a
         // matching route so we'll set the site default route
         $rootSpan->meta[Tag::HTTP_ROUTE] = $uri;
-        $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromCodeIgniter($uri);
-        if ($normalizedRoute !== null) {
-            $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
-        }
+        // $uri is the concrete request path here, not a route template, so
+        // APPSEC_NORMALIZED_ROUTE is not set to avoid emitting real parameter values.
     }
 }
