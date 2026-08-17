@@ -353,10 +353,14 @@ class RouteNormalizer
             $name = trim($raw);
 
             if ($isOptional && !array_key_exists($name, $matchedParams)) {
-                return null;
+                continue;
             }
 
             $paramNames[] = self::encodeParamName($name);
+        }
+
+        if (empty($paramNames)) {
+            return null;
         }
 
         if (count($paramNames) === 1) {
@@ -424,25 +428,31 @@ class RouteNormalizer
                     preg_match_all($pattern, $inner, $pm);
                     $innerParams = $pm[1];
 
+                    // All params in the section must be present in matched params.
                     foreach ($innerParams as $param) {
                         if (!array_key_exists($param, $matchedParams)) {
-                            continue;
+                            return '';
                         }
-                        if ($urlPath !== null) {
-                            $value = (string)$matchedParams[$param];
-                            $innerWithValue = preg_replace(
-                                '/' . preg_quote($paramPrefix . $param, '/') . '/',
-                                $value,
-                                $inner
-                            );
-                            if (strpos($urlPath, $innerWithValue) === false) {
-                                continue;
-                            }
-                        }
-                        return $inner;
                     }
 
-                    return '';
+                    if ($urlPath !== null && !empty($innerParams)) {
+                        // Substitute every param value before checking the URL so that
+                        // multi-param sections like [/:year/:month] are found correctly.
+                        $innerWithValues = $inner;
+                        foreach ($innerParams as $param) {
+                            $value = (string)$matchedParams[$param];
+                            $innerWithValues = preg_replace(
+                                '/' . preg_quote($paramPrefix . $param, '/') . '/',
+                                $value,
+                                $innerWithValues
+                            );
+                        }
+                        if (strpos($urlPath, $innerWithValues) === false) {
+                            return '';
+                        }
+                    }
+
+                    return $inner;
                 },
                 $template
             );
