@@ -235,6 +235,10 @@ class RouteNormalizer
             $route = self::expandSquareBracketOptionals($route, $matchedParams);
         }
 
+        // Strip inline constraints before splitting so that a '/' inside a
+        // constraint (e.g. Slim's {name:[^/]+}) does not break the segment split.
+        $route = preg_replace('/\{([a-zA-Z_][a-zA-Z0-9_]*)[^}]*\}/', '{$1}', $route);
+
         $raw = ltrim($route, '/');
         $parts = explode('/', $raw);
         $normalizedSegments = [];
