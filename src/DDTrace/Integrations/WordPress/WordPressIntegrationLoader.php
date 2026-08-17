@@ -734,7 +734,8 @@ class WordPressIntegrationLoader
                 if (\property_exists($This, 'matched_rule')) {
                     $matchedRule = $This->matched_rule;
                     $rootSpan->meta[Tag::HTTP_ROUTE] = $matchedRule;
-                    $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromWordPress($matchedRule);
+                    $urlPath = \property_exists($This, 'request') ? $This->request : null;
+                    $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromWordPress($matchedRule, $urlPath);
                     if ($normalizedRoute !== null) {
                         $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
                     }
