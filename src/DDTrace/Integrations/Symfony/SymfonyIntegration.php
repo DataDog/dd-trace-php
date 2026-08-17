@@ -456,7 +456,8 @@ class SymfonyIntegration extends Integration
 
                 if ($path !== null) {
                     $rootSpan->meta[Tag::HTTP_ROUTE] = $path;
-                    $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromSymfony($path);
+                    $matchedParams = self::inferSymfonyRouteParams($path, $request->getPathInfo());
+                    $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromSymfony($path, $matchedParams);
                     if ($normalizedRoute !== null) {
                         $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
                     }
@@ -773,5 +774,37 @@ class SymfonyIntegration extends Integration
         $requestSpan->meta['symfony.route.action'] = $action;
 
         return true;
+    }
+
+    /**
+     * Walk the path template and URL path together to determine which {param}
+     * placeholders were actually present in the URL (vs filled from route defaults).
+     * Each template segment is either static text or a single {param}; trailing
+     * params with no corresponding URL segment are considered absent.
+     *
+     * @return array Map of param name → URL value for params present in the URL
+     */
+    private static function inferSymfonyRouteParams(string $template, string $urlPath): array
+    {
+        $templateSegments = array_values(array_filter(explode('/', $template)));
+        $urlSegments      = array_values(array_filter(explode('/', $urlPath)));
+
+        $matched = [];
+        $urlIdx  = 0;
+
+        foreach ($templateSegments as $seg) {
+            if (preg_match('/^\{([a-zA-Z_][a-zA-Z0-9_]*)\}$/', $seg, $m)) {
+                if ($urlIdx < count($urlSegments)) {
+                    $matched[$m[1]] = $urlSegments[$urlIdx];
+                    $urlIdx++;
+                }
+                // else: param is beyond end of URL → absent (default-filled)
+            } else {
+                // Static segment — always advance the URL position
+                $urlIdx++;
+            }
+        }
+
+        return $matched;
     }
 }

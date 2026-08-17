@@ -20,23 +20,38 @@ class RouteNormalizer
     /**
      * Normalize a Slim route pattern.
      *
-     * @param string $pattern      Pattern from $route->getPattern(), e.g. "/users/{id:[0-9]+}"
-     * @param array  $matchedParams Matched params from $route->getArguments(); resolves optionals
+     * @param string      $pattern       Pattern from $route->getPattern(), e.g. "/users/{id:[0-9]+}"
+     * @param array       $matchedParams Matched params from $route->getArguments(); resolves optionals
+     * @param string|null $urlPath       Actual request path; used to resolve static-only optional
+     *                                   sections like [.json] that have no placeholder param
      * @return string|null
      */
-    public static function normalizeFromSlim(string $pattern, array $matchedParams = [])
+    public static function normalizeFromSlim(string $pattern, array $matchedParams = [], ?string $urlPath = null)
     {
-        return self::normalizeBraceRoute($pattern, $matchedParams, true);
+        return self::normalizeBraceRoute($pattern, $matchedParams, true, $urlPath);
     }
 
     /**
      * Normalize a Symfony route path.
      *
-     * @param string $path Path template, e.g. "/users/{id}"
+     * @param string     $path          Path template, e.g. "/users/{id}"
+     * @param array|null $matchedParams Params actually present in the URL path (not including
+     *                                  route defaults); when provided, absent params are dropped
      * @return string|null
      */
-    public static function normalizeFromSymfony(string $path)
+    public static function normalizeFromSymfony(string $path, ?array $matchedParams = null)
     {
+        if ($matchedParams !== null) {
+            // Mark params absent from the URL as optional so normalizeBraceSegment drops them.
+            $path = preg_replace_callback(
+                '/\{([a-zA-Z_][a-zA-Z0-9_]*)\}/',
+                static function ($m) use ($matchedParams) {
+                    return array_key_exists($m[1], $matchedParams) ? $m[0] : '{' . $m[1] . '?}';
+                },
+                $path
+            );
+            return self::normalizeBraceRoute($path, $matchedParams);
+        }
         return self::normalizeBraceRoute($path, []);
     }
 
@@ -275,12 +290,14 @@ class RouteNormalizer
     /**
      * Normalize a route that uses {param} notation.
      *
-     * @param bool $expandSquare When true, expand Slim-style [...] optional sections
+     * @param bool        $expandSquare When true, expand Slim-style [...] optional sections
+     * @param string|null $urlPath      Actual request path; forwarded to expandSquareBracketOptionals
      */
     private static function normalizeBraceRoute(
         string $route,
         array $matchedParams,
-        bool $expandSquare = false
+        bool $expandSquare = false,
+        ?string $urlPath = null
     ) {
         $route = trim($route);
         if ($route === '' || $route === '/') {
@@ -295,7 +312,7 @@ class RouteNormalizer
         }
 
         if ($expandSquare) {
-            $route = self::expandSquareBracketOptionals($route, $matchedParams);
+            $route = self::expandSquareBracketOptionals($route, $matchedParams, $urlPath);
         }
 
         // Strip inline constraints (e.g. Slim's {name:[^/]+} → {name}) before
@@ -372,20 +389,29 @@ class RouteNormalizer
 
     /**
      * Expand Slim-style optional sections [...] based on matched params.
+     *
+     * For sections that contain no placeholder (e.g. [.json]), $urlPath is used
+     * to decide whether the literal text was part of the request; without it the
+     * section is always kept (backward-compatible behaviour).
      */
-    private static function expandSquareBracketOptionals(string $route, array $matchedParams): string
+    private static function expandSquareBracketOptionals(string $route, array $matchedParams, ?string $urlPath = null): string
     {
         $prev = null;
         while ($prev !== $route) {
             $prev = $route;
             $route = preg_replace_callback(
                 '/\[([^\[\]]*)\]/',
-                function ($m) use ($matchedParams) {
+                function ($m) use ($matchedParams, $urlPath) {
                     $inner = $m[1];
                     preg_match_all('/\{([^}?:]+)[?:]?[^}]*\}/', $inner, $pm);
                     $innerParams = $pm[1];
 
                     if (empty($innerParams)) {
+                        // Static-only section (e.g. [.json]): include only when the
+                        // literal text actually appears in the request path.
+                        if ($urlPath !== null) {
+                            return strpos($urlPath, $inner) !== false ? $inner : '';
+                        }
                         return $inner;
                     }
 

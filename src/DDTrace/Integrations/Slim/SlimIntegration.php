@@ -145,7 +145,8 @@ class SlimIntegration extends Integration
                             $matchedParams = method_exists($route, 'getArguments') ? ($route->getArguments() ?? []) : [];
                             $pattern = isset($rootSpan->meta[Tag::HTTP_ROUTE]) ? $rootSpan->meta[Tag::HTTP_ROUTE] : '';
                             if ($pattern !== '') {
-                                $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromSlim($pattern, $matchedParams);
+                                $urlPath = $request->getUri()->getPath();
+                                $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromSlim($pattern, $matchedParams, $urlPath);
                                 if ($normalizedRoute !== null) {
                                     $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
                                 }
@@ -158,7 +159,8 @@ class SlimIntegration extends Integration
                         $matchedParams = isset($args[3]) && is_array($args[3]) ? $args[3] : [];
                         $pattern = isset($rootSpan->meta[Tag::HTTP_ROUTE]) ? $rootSpan->meta[Tag::HTTP_ROUTE] : '';
                         if ($pattern !== '') {
-                            $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromSlim($pattern, $matchedParams);
+                            $urlPath = $request->getUri()->getPath();
+                            $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromSlim($pattern, $matchedParams, $urlPath);
                             if ($normalizedRoute !== null) {
                                 $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
                             }
