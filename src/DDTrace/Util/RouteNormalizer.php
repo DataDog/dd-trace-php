@@ -133,11 +133,28 @@ class RouteNormalizer
      * WordPress route matching uses regex rules like "^blog/([^/]+)/?$".
      * Named parameters are not available; placeholders param1, param2, … are used.
      *
-     * @param string $matchedRule Value of $wp->matched_rule
+     * @param string      $matchedRule Value of $wp->matched_rule
+     * @param string|null $urlPath     Value of $wp->request; used to detect which
+     *                                 optional capture groups actually participated
+     *                                 in the match, so phantom segments are not emitted.
      * @return string|null
      */
-    public static function normalizeFromWordPress(string $matchedRule)
+    public static function normalizeFromWordPress(string $matchedRule, $urlPath = null)
     {
+        // Re-run the regex against the actual URL to find how many capture groups matched.
+        // This handles optional groups like (?:/([0-9]+))? that may or may not be present.
+        $matchedGroupCount = null;
+        if ($urlPath !== null) {
+            if (@preg_match('#^' . $matchedRule . '#', ltrim($urlPath, '/'), $captures)) {
+                $matchedGroupCount = 0;
+                for ($i = 1; $i < count($captures); $i++) {
+                    if (isset($captures[$i]) && $captures[$i] !== '') {
+                        $matchedGroupCount = $i;
+                    }
+                }
+            }
+        }
+
         $rule = ltrim($matchedRule, '^');
         $rule = rtrim($rule, '$');
 
@@ -160,8 +177,14 @@ class RouteNormalizer
             }
 
             if (preg_match('/^\([^)]+\)$/', $segment)) {
+                if ($matchedGroupCount !== null && $paramIndex > $matchedGroupCount) {
+                    continue;
+                }
                 $normalizedSegments[] = '{param' . $paramIndex++ . '}';
             } elseif (preg_match('/[()[\].*+?|^${}\\\\]/', $segment)) {
+                if ($matchedGroupCount !== null && $paramIndex > $matchedGroupCount) {
+                    continue;
+                }
                 $normalizedSegments[] = '{param' . $paramIndex++ . '}';
             } else {
                 $normalizedSegments[] = self::encodeStaticSegment($segment);
