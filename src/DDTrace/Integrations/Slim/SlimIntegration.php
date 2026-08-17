@@ -154,6 +154,15 @@ class SlimIntegration extends Integration
                     } else {
                         $rootSpan->meta['slim.route.controller'] = $callableName;
                         $span->name = 'slim.route.controller';
+                        // Refine normalized route now that matched params are available (Slim 3)
+                        $matchedParams = isset($args[3]) && is_array($args[3]) ? $args[3] : [];
+                        $pattern = isset($rootSpan->meta[Tag::HTTP_ROUTE]) ? $rootSpan->meta[Tag::HTTP_ROUTE] : '';
+                        if ($pattern !== '') {
+                            $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromSlim($pattern, $matchedParams);
+                            if ($normalizedRoute !== null) {
+                                $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                            }
+                        }
                     }
                 };
 
