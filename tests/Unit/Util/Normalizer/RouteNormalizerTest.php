@@ -84,6 +84,19 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertSame('/posts/{id}', $result);
     }
 
+    public function testLaravelRequiredParamBesideAbsentOptional()
+    {
+        // {name} is required; {ext?} is absent — must keep {name}, not drop the whole segment
+        $result = RouteNormalizer::normalizeFromLaravel('/files/{name}.{ext?}', ['name' => 'foo']);
+        $this->assertSame('/files/{name}', $result);
+    }
+
+    public function testLaravelRequiredParamBesideAbsentOptionalBothPresent()
+    {
+        $result = RouteNormalizer::normalizeFromLaravel('/files/{name}.{ext?}', ['name' => 'foo', 'ext' => 'txt']);
+        $this->assertSame('/files/{name+ext}', $result);
+    }
+
     public function testLaravelDeeperRoute()
     {
         $result = RouteNormalizer::normalizeFromLaravel('/dashboard/shared_widget_update/{id}/{widget_id}');
@@ -169,6 +182,48 @@ class RouteNormalizerTest extends BaseTestCase
     {
         $result = RouteNormalizer::normalizeFromLaminas('/users/:id[.:format]', ['id' => '1']);
         $this->assertSame('/users/{id}', $result);
+    }
+
+    public function testLaminasMultiParamOptionalPresent()
+    {
+        // Both params in the section present and appear in the URL → expand
+        $result = RouteNormalizer::normalizeFromLaminas(
+            '/archive[/:year/:month]',
+            ['year' => '2024', 'month' => '08'],
+            '/archive/2024/08'
+        );
+        $this->assertSame('/archive/{year}/{month}', $result);
+    }
+
+    public function testLaminasMultiParamOptionalAbsent()
+    {
+        // Both params injected by middleware but absent from URL → do not expand
+        $result = RouteNormalizer::normalizeFromLaminas(
+            '/archive[/:year/:month]',
+            ['year' => '2024', 'month' => '08'],
+            '/archive'
+        );
+        $this->assertSame('/archive', $result);
+    }
+
+    public function testLaminasNestedOptionalBothPresent()
+    {
+        $result = RouteNormalizer::normalizeFromLaminas(
+            '/foo[/:bar[/:baz]]',
+            ['bar' => 'a', 'baz' => 'b'],
+            '/foo/a/b'
+        );
+        $this->assertSame('/foo/{bar}/{baz}', $result);
+    }
+
+    public function testLaminasNestedOptionalOnlyOuterPresent()
+    {
+        $result = RouteNormalizer::normalizeFromLaminas(
+            '/foo[/:bar[/:baz]]',
+            ['bar' => 'a'],
+            '/foo/a'
+        );
+        $this->assertSame('/foo/{bar}', $result);
     }
 
     public function testLaminasLiteralRoute()
