@@ -1,3 +1,4 @@
+#include "routing_cache.h"
 #include "components-rs/common.h"
 #include "components-rs/sidecar.h"
 #include "zend_API.h"
@@ -373,6 +374,7 @@ void ddtrace_minit_late() {
 
     ddtrace_live_debugger_minit();
     ddtrace_trace_source_minit();
+    ddtrace_routing_cache_minit();
 }
 
 void ddtrace_mshutdown() {
@@ -380,6 +382,7 @@ void ddtrace_mshutdown() {
     zai_hook_mshutdown();
 
     ddtrace_unregister_functions_and_classes();
+    ddtrace_routing_cache_mshutdown();
 
     if (datadog_disable == 1) {
         return;

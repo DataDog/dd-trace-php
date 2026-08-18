@@ -442,15 +442,25 @@ class SymfonyIntegration extends Integration
                     return;
                 }
 
-                /** @var ContainerInterface $container */
-                $container = self::$kernel->getContainer();
-                $path = EndpointCatalog::pathForRoute($route_name, $container);
+                $cacheKey = $route_name;
+                $cachedPath = \DDTrace\routing_cache_get($cacheKey);
+                if ($cachedPath !== false) {
+                    $path = $cachedPath;
+                } else {
+                    /** @var ContainerInterface $container */
+                    $container = self::$kernel->getContainer();
+                    $path = EndpointCatalog::pathForRoute($route_name, $container);
 
-                // Try with locale suffix (Symfony i18n routing convention)
-                if ($path === null) {
-                    $locale = $request->attributes->get('_locale');
-                    if ($locale !== null) {
-                        $path = EndpointCatalog::pathForRoute($route_name . '.' . $locale, $container);
+                    // Try with locale suffix (Symfony i18n routing convention)
+                    if ($path === null) {
+                        $locale = $request->attributes->get('_locale');
+                        if ($locale !== null) {
+                            $path = EndpointCatalog::pathForRoute($route_name . '.' . $locale, $container);
+                        }
+                    }
+
+                    if ($path !== null) {
+                        \DDTrace\routing_cache_set($cacheKey, $path);
                     }
                 }
 
