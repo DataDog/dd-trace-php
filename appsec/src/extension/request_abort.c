@@ -585,7 +585,7 @@ static void _emit_error(const char *format, ...)
     char *msg = NULL;
     bool free_msg = false;
     if (len >= (int)sizeof(buf)) {
-        msg = safe_emalloc(len, 1, 0);
+        msg = safe_emalloc(len, 1, 1);
         if (vsnprintf(msg, len + 1, format, args2) < 0) {
             char default_msg[] = "Datadog blocked the request.";
             msg = default_msg;
