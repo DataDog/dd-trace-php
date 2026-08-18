@@ -165,9 +165,11 @@ dogstatsd_client_status dogstatsd_client_metric_send(
     return DOGSTATSD_CLIENT_E_TOO_LONG;
   }
 
-  ssize_t send_status =
-      sendto(client->socket, client->msg_buffer, size, MSG_DONTWAIT,
-             client->address->ai_addr, client->address->ai_addrlen);
+  /* PF_UNIX sockets are already connect()ed, so just send() it. */
+  ssize_t send_status = client->address->ai_family == PF_UNIX
+      ? send(client->socket, client->msg_buffer, size, MSG_DONTWAIT)
+      : sendto(client->socket, client->msg_buffer, size, MSG_DONTWAIT,
+               client->address->ai_addr, client->address->ai_addrlen);
 
   if (send_status > -1) {
     return DOGSTATSD_CLIENT_OK;
