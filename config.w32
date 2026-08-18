@@ -69,6 +69,7 @@ if (PHP_DDTRACE != 'no') {
 	DDTRACE_TRACER_SOURCES += " tracer_otel_config.c";
 	DDTRACE_TRACER_SOURCES += " profiling.c";
 	DDTRACE_TRACER_SOURCES += " random.c";
+	DDTRACE_TRACER_SOURCES += " routing_cache.c";
 	DDTRACE_TRACER_SOURCES += " rule_matching.c";
 	DDTRACE_TRACER_SOURCES += " serializer.c";
 	DDTRACE_TRACER_SOURCES += " span.c";
