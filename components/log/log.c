@@ -14,7 +14,7 @@ static void ddog_logf_va(ddog_Log source, bool once, const char *format, va_list
     va_list va2;
     va_copy(va2, va);
     int len = vsnprintf(buf, sizeof(buf), format, va);
-    if (len > (int)sizeof(buf)) {
+    if (len >= (int)sizeof(buf)) {
         char *msg = malloc(len + 1);
         len = vsnprintf(msg, len + 1, format, va2);
         ddog_log(source, once || (source & ddog_LOG_ONCE), (ddog_CharSlice){ .ptr = msg, .len = (uintptr_t)len });
