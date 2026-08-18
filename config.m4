@@ -247,6 +247,7 @@ if test "$PHP_DDTRACE" != "no"; then
     tracer/priority_sampling/priority_sampling.c \
     tracer/profiling.c \
     tracer/random.c \
+    tracer/routing_cache.c \
     tracer/rule_matching.c \
     tracer/serializer.c \
     tracer/standalone_limiter.c \
