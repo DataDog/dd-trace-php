@@ -26,7 +26,7 @@ class RouteNormalizer
      *                                   sections like [.json] that have no placeholder param
      * @return string|null
      */
-    public static function normalizeFromSlim(string $pattern, array $matchedParams = [], ?string $urlPath = null)
+    public static function normalizeFromSlim(string $pattern, array $matchedParams = [], $urlPath = null)
     {
         return self::normalizeBraceRoute($pattern, $matchedParams, true, $urlPath);
     }
@@ -39,7 +39,7 @@ class RouteNormalizer
      *                                  route defaults); when provided, absent params are dropped
      * @return string|null
      */
-    public static function normalizeFromSymfony(string $path, ?array $matchedParams = null)
+    public static function normalizeFromSymfony(string $path, $matchedParams = null)
     {
         if ($matchedParams !== null) {
             // Mark params absent from the URL as optional so normalizeBraceSegment drops them.
@@ -299,7 +299,7 @@ class RouteNormalizer
         string $route,
         array $matchedParams,
         bool $expandSquare = false,
-        ?string $urlPath = null
+        $urlPath = null
     ) {
         $route = trim($route);
         if ($route === '' || $route === '/') {
@@ -396,7 +396,7 @@ class RouteNormalizer
      * to decide whether the literal text was part of the request; without it the
      * section is always kept (backward-compatible behaviour).
      */
-    private static function expandSquareBracketOptionals(string $route, array $matchedParams, ?string $urlPath = null): string
+    private static function expandSquareBracketOptionals(string $route, array $matchedParams, $urlPath = null): string
     {
         $prev = null;
         while ($prev !== $route) {
