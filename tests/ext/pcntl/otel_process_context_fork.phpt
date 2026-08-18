@@ -16,6 +16,8 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
 
+require __DIR__ . '/../includes/otel_thread_context.inc';
+
 function processContextMappings(): array
 {
     $mappings = [];
@@ -81,9 +83,14 @@ echo "Parent mapping is MADV_DONTFORK: "; var_dump(
 );
 $parentRuntimeId = processContextRuntimeId($ffi, $parentMappings[0]);
 echo "Parent has runtime ID: "; var_dump($parentRuntimeId !== '');
+$threadContext = new OtelThreadContext();
 $parentRoot = DDTrace\start_span();
 echo "Parent runtime ID matches tracer: "; var_dump(
     $parentRoot->meta['runtime-id'] === $parentRuntimeId
+);
+$parentThreadId = $threadContext->attributes()[4] ?? null;
+echo "Parent thread ID matches process ID: "; var_dump(
+    $parentThreadId === (string) getmypid()
 );
 DDTrace\close_span();
 
@@ -106,6 +113,11 @@ if ($pid === 0) {
     echo "Child mapping was republished: "; var_dump(
         $childRuntimeId !== $parentRuntimeId
     );
+    $childThreadId = $threadContext->attributes()[4] ?? null;
+    echo "Child thread ID was refreshed: "; var_dump(
+        $childThreadId === (string) getmypid()
+        && $childThreadId !== $parentThreadId
+    );
     DDTrace\close_span();
     exit;
 }
@@ -121,8 +133,10 @@ Parent has one mapping: bool(true)
 Parent mapping is MADV_DONTFORK: bool(true)
 Parent has runtime ID: bool(true)
 Parent runtime ID matches tracer: bool(true)
+Parent thread ID matches process ID: bool(true)
 Child has one mapping: bool(true)
 Child mapping is MADV_DONTFORK: bool(true)
 Child runtime ID matches tracer: bool(true)
 Child mapping was republished: bool(true)
+Child thread ID was refreshed: bool(true)
 Child exited successfully: bool(true)
