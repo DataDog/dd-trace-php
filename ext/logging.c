@@ -177,8 +177,8 @@ int datadog_signal_safe_logf(const char *fmt, ...) {
         int needed_len = vsnprintf(NULL, 0, fmt, args_copy);
         va_end(args_copy);
 
-        char *msgbuf = malloc(needed_len);
-        vsnprintf(msgbuf, needed_len, fmt, args);
+        char *msgbuf = malloc(needed_len + 1);
+        vsnprintf(msgbuf, needed_len + 1, fmt, args);
         va_end(args);
 
         ret = datadog_log_with_time(error_log_fd, msgbuf, needed_len);
