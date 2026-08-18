@@ -15,6 +15,7 @@ this test binds it here and forks a child PHP process to reproduce RINIT.
 if (strncasecmp(PHP_OS, "WIN", 3) == 0) die('skip: There are no unix sockets on Windows');
 if (!extension_loaded('sockets')) die('skip: the sockets extension is required for this test');
 if (PHP_VERSION_ID < 70200) die('skip: this test triggers a bug in PHP < 7.2 (See https://github.com/php/php-src/pull/3408)');
+if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support TEST_PHP_EXECUTABLE");
 ?>
 --FILE--
 <?php
