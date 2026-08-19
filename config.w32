@@ -23,6 +23,7 @@ if (PHP_DDTRACE != 'no') {
 	DDTRACE_EXT_SOURCES += " endpoints.c";
 	DDTRACE_EXT_SOURCES += " excluded_modules.c";
 	DDTRACE_EXT_SOURCES += " git.c";
+	DDTRACE_EXT_SOURCES += " hang_watchdog_windows.c";
 	DDTRACE_EXT_SOURCES += " handlers_api.c";
 	DDTRACE_EXT_SOURCES += " handlers_pcntl.c";
 	DDTRACE_EXT_SOURCES += " logging.c";
