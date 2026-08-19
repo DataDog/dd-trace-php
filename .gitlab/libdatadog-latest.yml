@@ -10,6 +10,8 @@ stages:
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
       aud: dd-octo-sts
+  before_script:
+    - .gitlab/tag-pipeline-green-ci-excluded.sh
   script:
     - |
       set -xuo pipefail
