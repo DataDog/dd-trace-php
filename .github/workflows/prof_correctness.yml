@@ -47,8 +47,8 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-llvm-${{ env.LLVM_VERSION }}-${{ hashFiles('**/Cargo.lock', 'profiling/rust-toolchain.toml') }}-${{ matrix.php-version }}-${{ matrix.phpts }}
+            target-profiling/
+          key: ${{ runner.os }}-cargo-llvm-${{ env.LLVM_VERSION }}-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}-${{ matrix.php-version }}-${{ matrix.phpts }}
 
       - name: Build profiler
         run: |
@@ -76,10 +76,11 @@ jobs:
           clang --version
           ld.lld --version
           "$LLVM_CONFIG_PATH" --version
-          cd profiling
           version_number=$(awk -F' = ' '$1 == "channel" { gsub(/"/, "", $2); print $2 }' rust-toolchain.toml)
           curl https://sh.rustup.rs -sSf | sh -s -- --profile minimal -y --default-toolchain "$version_number"
-          cargo rustc --features="trigger_time_sample" --profile profiler-release --crate-type=cdylib
+          phpize
+          DDTRACE_PROFILING_FEATURES=trigger_time_sample ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling
+          make -j"$(nproc)"
 
       - name: Cache build dependencies
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -89,8 +90,8 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-llvm-${{ env.LLVM_VERSION }}-${{ hashFiles('**/Cargo.lock', 'profiling/rust-toolchain.toml') }}-${{ matrix.php-version }}-${{ matrix.phpts }}
+            target-profiling/
+          key: ${{ runner.os }}-cargo-llvm-${{ env.LLVM_VERSION }}-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}-${{ matrix.php-version }}-${{ matrix.phpts }}
 
       - name: Run no profile test
         run: |
@@ -98,11 +99,11 @@ jobs:
           export DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=1
           export DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1
           php -v
-          php -d extension=target/profiler-release/libdatadog_php_profiling.so --ri datadog-profiling
+          php -d extension=modules/datadog-profiling.so --ri datadog-profiling
           for test_case in "allocations" "time" "strange_frames" "timeline" "exceptions" "io" "allocation_time_combined" "generators"; do
               mkdir -p profiling/tests/correctness/"$test_case"/
               export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/"$test_case"/test.pprof
-              php -d extension="${PWD}/target/profiler-release/libdatadog_php_profiling.so" "profiling/tests/correctness/${test_case}.php"
+              php -d extension="${PWD}/modules/datadog-profiling.so" "profiling/tests/correctness/${test_case}.php"
               if compgen -G "$DD_PROFILING_OUTPUT_PPROF.*" > /dev/null; then
                 echo "Profile output should not exist:"
                 ls -l "$DD_PROFILING_OUTPUT_PPROF".*
@@ -117,20 +118,20 @@ jobs:
           export DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE=1
           export DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1
           php -v
-          php -d extension=target/profiler-release/libdatadog_php_profiling.so --ri datadog-profiling
+          php -d extension=modules/datadog-profiling.so --ri datadog-profiling
           for test_case in "allocations" "time" "strange_frames" "timeline" "exceptions" "io" "allocation_time_combined" "generators"; do
               mkdir -p profiling/tests/correctness/"$test_case"/
               export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/"$test_case"/test.pprof
-              php -d extension=$PWD/target/profiler-release/libdatadog_php_profiling.so profiling/tests/correctness/"$test_case".php
+              php -d extension=$PWD/modules/datadog-profiling.so profiling/tests/correctness/"$test_case".php
           done
           mkdir -p profiling/tests/correctness/allocations_1byte/
           export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/allocations_1byte/test.pprof
           export DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE=1
-          php -d extension=$PWD/target/profiler-release/libdatadog_php_profiling.so profiling/tests/correctness/allocations.php
+          php -d extension=$PWD/modules/datadog-profiling.so profiling/tests/correctness/allocations.php
           mkdir -p profiling/tests/correctness/allocations_1byte_no_zend_alloc/
           export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/allocations_1byte_no_zend_alloc/test.pprof
           export DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE=1
-          USE_ZEND_ALLOC=0 php -d extension=$PWD/target/profiler-release/libdatadog_php_profiling.so profiling/tests/correctness/allocations.php
+          USE_ZEND_ALLOC=0 php -d extension=$PWD/modules/datadog-profiling.so profiling/tests/correctness/allocations.php
           unset DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE
 
       - name: Run ZTS tests
@@ -141,11 +142,11 @@ jobs:
           export DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE=1
           export DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1
           php -v
-          php -d extension=target/profiler-release/libdatadog_php_profiling.so --ri datadog-profiling
+          php -d extension=modules/datadog-profiling.so --ri datadog-profiling
           for test_case in "exceptions_zts"; do
               mkdir -p profiling/tests/correctness/"$test_case"/
               export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/"$test_case"/test.pprof
-              php -d extension=$PWD/target/profiler-release/libdatadog_php_profiling.so profiling/tests/correctness/"$test_case".php
+              php -d extension=$PWD/modules/datadog-profiling.so profiling/tests/correctness/"$test_case".php
           done
 
       - name: Check profiler correctness for allocations

@@ -29,8 +29,8 @@ mod exception;
 mod timeline;
 mod vec_ext;
 
-use crate::config::SystemSettings;
-use crate::zend::datadog_sapi_globals_request_info;
+use crate::profiling::config::SystemSettings;
+use crate::profiling::zend::datadog_sapi_globals_request_info;
 use bindings::{
     self as zend, ddog_php_prof_php_version, ddog_php_prof_php_version_id, ZendExtension,
     ZendResult,
@@ -164,10 +164,6 @@ static SAPI: LazyLock<Sapi> = LazyLock::new(|| {
 /// so whatever it is replaced with needs to also follow the
 /// initialize-on-first-use pattern.
 static RUNTIME_ID: OnceLock<Uuid> = OnceLock::new();
-// If ddtrace is loaded, we fetch the uuid from there instead
-extern "C" {
-    pub static datadog_runtime_id: *const Uuid;
-}
 
 /// Module dependencies for the profiler extension.
 static MODULE_DEPS: [zend::ModuleDep; 9] = [
@@ -535,8 +531,17 @@ thread_local! {
 
 /// Gets the runtime-id for the process. Do not call before RINIT!
 fn runtime_id() -> &'static Uuid {
-    RUNTIME_ID
-        .get_or_init(|| unsafe { datadog_runtime_id.as_ref() }.map_or_else(Uuid::new_v4, |u| *u))
+    RUNTIME_ID.get_or_init(|| {
+        // Resolve dynamically so the separately loaded tracer remains authoritative. The root
+        // package also contains a common runtime-id symbol, so treating this as an extern pointer
+        // would both use the wrong ABI and make a standalone profiler unsafe.
+        let symbol = unsafe { libc::dlsym(libc::RTLD_DEFAULT, c"datadog_runtime_id".as_ptr()) }
+            .cast::<Uuid>();
+        unsafe { symbol.as_ref() }
+            .filter(|id| !id.is_nil())
+            .copied()
+            .unwrap_or_else(Uuid::new_v4)
+    })
 }
 
 extern "C" fn activate() {

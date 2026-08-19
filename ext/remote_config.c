@@ -8,7 +8,9 @@
 #include <tracer/tracer_api.h>
 #ifndef _WIN32
 #include <sys/time.h>
+#ifdef DDTRACE
 #include <tracer/ddtrace_globals.h>
+#endif
 #endif
 
 #if PHP_VERSION_ID < 70100
@@ -73,7 +75,9 @@ static void dd_sigvtalarm_handler(int signal, siginfo_t *siginfo, void *ctx) {
     }
 #endif
 
+#if defined(DDTRACE) || (!defined(__linux__) && defined(ZTS))
     uint64_t now_ns = 0;
+#endif
 #if !defined(__linux__) && defined(ZTS)
     // On macOS ZTS, setitimer is per-process; the signal may land on any thread - iterate all threads to check for expirations
     uint64_t next_deadline = ~0ull;
@@ -82,6 +86,7 @@ static void dd_sigvtalarm_handler(int signal, siginfo_t *siginfo, void *ctx) {
     ZEND_HASH_FOREACH_PTR(&datadog_tls_bases, TSRMLS_CACHE) {
 #endif
     // On Linux the signal gets delivered to the thread that set the timer, so we don't need to iterate all threads
+#ifdef DDTRACE
     uint64_t deadline = DDTRACE_G(capture_deadline_ns);
     if (deadline) {
         if (!now_ns) {
@@ -98,6 +103,7 @@ static void dd_sigvtalarm_handler(int signal, siginfo_t *siginfo, void *ctx) {
         }
 #endif
     }
+#endif
 #if !defined(__linux__) && defined(ZTS)
     } ZEND_HASH_FOREACH_END();
     if (next_deadline != ~0ull) { // re-arm the timer, for ZTS concurrency
@@ -151,7 +157,11 @@ static zend_string *dd_dynamic_configuration_update(ddog_CharSlice config, zend_
 }
 
 void datadog_minit_remote_config(void) {
+#ifdef DDTRACE
     ddog_setup_remote_config(dd_dynamic_configuration_update, &ddtrace_live_debugger_setup);
+#else
+    ddog_setup_remote_config(dd_dynamic_configuration_update, NULL);
+#endif
     dd_prev_interrupt_function = zend_interrupt_function;
     zend_interrupt_function = dd_vm_interrupt;
 

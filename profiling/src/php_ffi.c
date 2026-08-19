@@ -14,12 +14,6 @@
 const char *datadog_extension_build_id(void) { return ZEND_EXTENSION_BUILD_ID; }
 const char *datadog_module_build_id(void) { return ZEND_MODULE_BUILD_ID; }
 
-uint8_t *datadog_runtime_id = NULL;
-
-static void locate_datadog_runtime_id(const zend_extension *extension) {
-    datadog_runtime_id = DL_FETCH_SYMBOL(extension->handle, "datadog_runtime_id");
-}
-
 #ifdef __linux__
 // Standard OTel context providers export this TLS symbol globally. Cache its
 // address per thread because dynamic TLS addresses differ between threads.
@@ -186,7 +180,6 @@ void datadog_php_profiling_startup(zend_extension *extension) {
         const zend_extension *maybe_ddtrace = (zend_extension *)item->data;
         if (maybe_ddtrace != extension && is_ddtrace_extension(maybe_ddtrace)) {
             locate_ddtrace_get_profiling_context(maybe_ddtrace);
-            locate_datadog_runtime_id(maybe_ddtrace);
             locate_datadog_process_tags_get_serialized(maybe_ddtrace);
             break;
         }

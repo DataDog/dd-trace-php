@@ -1,5 +1,6 @@
 #include "configuration.h"
 #include "tracer_otel_config.h"
+#include <ext/otel_config.h>
 #include "span.h"
 #include "random.h"
 #include "ip_extraction.h"

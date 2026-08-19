@@ -1,6 +1,43 @@
-#![allow(static_mut_refs)] // remove with move to Rust 2024 edition
+#![allow(static_mut_refs)]
+// remove with move to Rust 2024 edition
+// The former components and profiler crates carried substantial pre-existing Clippy debt.
+// Keep consolidation from turning those warnings into unrelated migration work.
+#![allow(
+    clippy::bool_assert_comparison,
+    clippy::collapsible_else_if,
+    clippy::from_over_into,
+    clippy::manual_retain,
+    clippy::map_clone,
+    clippy::missing_safety_doc,
+    clippy::missing_transmute_annotations,
+    clippy::module_inception,
+    clippy::needless_borrow,
+    clippy::needless_lifetimes,
+    clippy::needless_return,
+    clippy::not_unsafe_ptr_arg_deref,
+    clippy::ptr_arg,
+    clippy::redundant_closure,
+    clippy::too_many_arguments,
+    clippy::transmute_ptr_to_ref,
+    clippy::unnecessary_map_or,
+    clippy::unused_unit,
+    clippy::useless_asref
+)]
+
+/// Common Rust components shared by every ddtrace build.
+pub mod components;
+
+/// Tracer-specific Rust facade. The C tracer remains in `tracer/`.
+#[cfg(feature = "tracer")]
+pub mod tracer;
+
+/// Standalone profiler implementation, retained in its existing source tree.
+#[cfg(feature = "profiling")]
+#[path = "../profiling/src/lib.rs"]
+pub mod profiling;
 
 pub mod agent_info;
+pub mod bytes;
 pub mod ffe;
 pub mod log;
 pub mod remote_config;
@@ -8,28 +45,27 @@ pub mod sidecar;
 pub mod stats;
 pub mod telemetry;
 pub mod trace_filter;
-pub mod bytes;
 
-use libdd_common::entity_id::{get_container_id, set_cgroup_file};
+#[cfg(unix)]
+use datadog_sidecar::crashtracker::crashtracker_receiver_request_bytes;
+pub use datadog_sidecar_ffi::*;
 use http::uri::{PathAndQuery, Scheme};
 use http::Uri;
+#[cfg(unix)]
+use libdd_common::connector::uds::socket_path_to_uri;
+use libdd_common::entity_id::{get_container_id, set_cgroup_file};
+use libdd_common::{parse_uri, Endpoint};
+use libdd_common_ffi::slice::AsBytes;
+pub use libdd_common_ffi::*;
+pub use libdd_crashtracker_ffi::*;
+pub use libdd_library_config_ffi::*;
+pub use libdd_telemetry_ffi::*;
 use std::borrow::Cow;
 use std::ffi::{c_char, OsStr};
 #[cfg(unix)]
 use std::path::Path;
 use std::ptr::null_mut;
 use uuid::Uuid;
-#[cfg(unix)]
-use datadog_sidecar::crashtracker::crashtracker_receiver_request_bytes;
-pub use libdd_crashtracker_ffi::*;
-pub use libdd_library_config_ffi::*;
-pub use datadog_sidecar_ffi::*;
-use libdd_common::{parse_uri, Endpoint};
-#[cfg(unix)]
-use libdd_common::connector::uds::socket_path_to_uri;
-use libdd_common_ffi::slice::AsBytes;
-pub use libdd_common_ffi::*;
-pub use libdd_telemetry_ffi::*;
 
 #[no_mangle]
 #[allow(non_upper_case_globals)]
@@ -64,7 +100,9 @@ pub unsafe extern "C" fn datadog_generate_runtime_id() {
 pub unsafe extern "C" fn datadog_generate_session_id() {
     datadog_session_id = Uuid::new_v4();
     datadog_runtime_id = datadog_session_id;
-    datadog_session_id.as_hyphenated().encode_lower(&mut datadog_formatted_session_id);
+    datadog_session_id
+        .as_hyphenated()
+        .encode_lower(&mut datadog_formatted_session_id);
 
     unsafe fn set(name: &str, value: &mut [u8; 36], force: bool) {
         if let Ok(str) = std::env::var(name) {
@@ -76,11 +114,22 @@ pub unsafe extern "C" fn datadog_generate_session_id() {
                 }
             }
         }
-        std::env::set_var(name, OsStr::from_encoded_bytes_unchecked(&datadog_formatted_session_id));
+        std::env::set_var(
+            name,
+            OsStr::from_encoded_bytes_unchecked(&datadog_formatted_session_id),
+        );
     }
 
-    set("_DD_PARENT_PHP_SESSION_ID", &mut datadog_formatted_parent_session_id, true);
-    set("_DD_ROOT_PHP_SESSION_ID", &mut datadog_formatted_root_session_id, false);
+    set(
+        "_DD_PARENT_PHP_SESSION_ID",
+        &mut datadog_formatted_parent_session_id,
+        true,
+    );
+    set(
+        "_DD_ROOT_PHP_SESSION_ID",
+        &mut datadog_formatted_root_session_id,
+        false,
+    );
 }
 
 #[no_mangle]
@@ -201,22 +250,30 @@ pub unsafe extern "C" fn datadog_parse_agent_url(
 }
 
 #[cfg(unix)]
-fn otel_metrics_endpoint_from_unix_socket(_socket_path: &str) -> std::option::Option<Box<Endpoint>> {
-    socket_path_to_uri(Path::new(_socket_path)).ok().and_then(|uri| {
-        let mut parts = uri.into_parts();
-        parts.path_and_query = Some(PathAndQuery::from_static("/v1/metrics"));
-        Uri::from_parts(parts)
-            .ok()
-            .map(|url| Box::new(Endpoint::from_url(url)))
-    })
+fn otel_metrics_endpoint_from_unix_socket(
+    _socket_path: &str,
+) -> std::option::Option<Box<Endpoint>> {
+    socket_path_to_uri(Path::new(_socket_path))
+        .ok()
+        .and_then(|uri| {
+            let mut parts = uri.into_parts();
+            parts.path_and_query = Some(PathAndQuery::from_static("/v1/metrics"));
+            Uri::from_parts(parts)
+                .ok()
+                .map(|url| Box::new(Endpoint::from_url(url)))
+        })
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn datadog_otel_metrics_endpoint_from_url(url: CharSlice) -> std::option::Option<Box<Endpoint>> {
+pub unsafe extern "C" fn datadog_otel_metrics_endpoint_from_url(
+    url: CharSlice,
+) -> std::option::Option<Box<Endpoint>> {
     let url_str = url.to_utf8_lossy();
     #[cfg(unix)]
     if let Some(socket_path) = url_str.strip_prefix("unix://") {
-        let socket_path = socket_path.strip_suffix("/v1/metrics").unwrap_or(socket_path);
+        let socket_path = socket_path
+            .strip_suffix("/v1/metrics")
+            .unwrap_or(socket_path);
         return otel_metrics_endpoint_from_unix_socket(socket_path);
     }
     parse_uri(url_str.as_ref())
@@ -225,7 +282,9 @@ pub unsafe extern "C" fn datadog_otel_metrics_endpoint_from_url(url: CharSlice) 
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn datadog_otel_metrics_endpoint_from_agent_url(url: CharSlice) -> std::option::Option<Box<Endpoint>> {
+pub unsafe extern "C" fn datadog_otel_metrics_endpoint_from_agent_url(
+    url: CharSlice,
+) -> std::option::Option<Box<Endpoint>> {
     let url_str = url.to_utf8_lossy();
     #[cfg(unix)]
     if let Some(socket_path) = url_str.strip_prefix("unix://") {
@@ -233,7 +292,10 @@ pub unsafe extern "C" fn datadog_otel_metrics_endpoint_from_agent_url(url: CharS
     }
     if url_str.starts_with("http") {
         let parsed = parse_uri(url_str.as_ref()).ok();
-        let scheme = parsed.as_ref().and_then(|u| u.scheme_str()).unwrap_or("http");
+        let scheme = parsed
+            .as_ref()
+            .and_then(|u| u.scheme_str())
+            .unwrap_or("http");
         let host = parsed
             .as_ref()
             .and_then(|u| u.host())
@@ -322,8 +384,7 @@ pub unsafe extern "C" fn datadog_crashtracker_init(
             let config = builder
                 .resolve_frames(StacktraceCollection::EnabledWithSymbolsInReceiver)
                 .build()?;
-            let receiver_config =
-                datadog_sidecar::build_crashtracker_receiver_config(None, None)?;
+            let receiver_config = datadog_sidecar::build_crashtracker_receiver_config(None, None)?;
             libdd_crashtracker::init(config, receiver_config, metadata)
         }
 
@@ -356,9 +417,7 @@ pub unsafe extern "C" fn datadog_crashtracker_init(
     })();
     match result {
         Ok(()) => MaybeError::None,
-        Err(e) => {
-            MaybeError::Some(Error::from(format!("{e:?}")))
-        }
+        Err(e) => MaybeError::Some(Error::from(format!("{e:?}"))),
     }
 }
 
@@ -366,34 +425,25 @@ pub unsafe extern "C" fn datadog_crashtracker_init(
 /// already open fd from datadog_sidecar_for_signal.
 #[cfg(target_os = "macos")]
 fn reuse_sidecar_fd_connector(_unix_socket_path: &str) -> std::os::fd::RawFd {
-    extern "C" {
-        // Set by the sidecar connect path (sidecar.c) to the live transport for best-effort
-        // signal-handler use; null when there is no connection. The transport pointer is stable
-        // across transparent reconnects (only its inner sender is swapped), so reading the fd
-        // through it stays current. Typed as an opaque pointer to keep the `extern` block FFI-safe;
-        // cast to the real type below.
-        static mut datadog_sidecar_for_signal: *mut std::ffi::c_void;
+    // Resolve the optional C-side transport dynamically. The standalone profiler also contains
+    // the common Rust components, but it must remain loadable without the tracer C module.
+    let symbol = unsafe { libc::dlsym(libc::RTLD_DEFAULT, c"datadog_sidecar_for_signal".as_ptr()) }
+        as *const *mut std::ffi::c_void;
+    if symbol.is_null() {
+        return -1;
     }
 
     // Best-effort, signal context: read the transport pointer and get its current fd via
     // SidecarTransport::as_raw_fd (which uses get_mut, never locking). Going through the raw
     // pointer knowingly bypasses aliasing checks — the crashing thread is the only realistic
     // accessor.
-    let transport = unsafe { datadog_sidecar_for_signal }
-        as *mut datadog_sidecar::service::blocking::SidecarTransport;
+    let transport = unsafe { *symbol } as *mut datadog_sidecar::service::blocking::SidecarTransport;
     if transport.is_null() {
         return -1;
     }
     let fd = unsafe { (*transport).as_raw_fd() };
     let bytes = crashtracker_receiver_request_bytes();
-    let sent = unsafe {
-        libc::send(
-            fd,
-            bytes.as_ptr().cast::<libc::c_void>(),
-            bytes.len(),
-            0,
-        )
-    };
+    let sent = unsafe { libc::send(fd, bytes.as_ptr().cast::<libc::c_void>(), bytes.len(), 0) };
     if sent == bytes.len() as isize {
         fd
     } else {
@@ -454,9 +504,7 @@ pub unsafe extern "C" fn dd_fnv1a_64(data: *const u8, len: usize) -> u64 {
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_normalize_process_tag_value(
-    tag_value: CharSlice,
-) -> *const c_char {
+pub extern "C" fn ddog_normalize_process_tag_value(tag_value: CharSlice) -> *const c_char {
     let value = tag_value.to_utf8_lossy();
 
     let mut out = String::new();

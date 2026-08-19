@@ -1,16 +1,16 @@
 //! This module has code related to generating wall-time profiles. Due to
 //! implementation reasons, it has cpu-time code as well.
 
-use crate::bindings::{zend_execute_data, zend_interrupt_function, VmInterruptFn};
-use crate::module_globals;
-use crate::profiling::Profiler;
+use crate::profiling::bindings::{zend_execute_data, zend_interrupt_function, VmInterruptFn};
+use crate::profiling::module_globals;
+use crate::profiling::profiling::Profiler;
 use core::ptr;
 use core::sync::atomic::Ordering;
 
 #[cfg(not(php_frameless))]
 mod execute_internal {
     use super::*;
-    use crate::zend;
+    use crate::profiling::zend;
     use std::mem::MaybeUninit;
     use zend::{zend_execute_internal, zval, ZEND_ACC_CALL_VIA_TRAMPOLINE};
 
@@ -139,12 +139,12 @@ extern "C" fn collect_time_if_enabled(execute_data: *mut zend_execute_data, inte
 mod frameless {
     #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
     mod trampoline {
-        use crate::bindings::{
+        use crate::profiling::bindings::{
             zend_flf_functions, zend_flf_handlers, zend_frameless_function_info,
         };
-        use crate::module_globals;
-        use crate::wall_time::collect_time_if_enabled;
-        use crate::zend;
+        use crate::profiling::module_globals;
+        use crate::profiling::wall_time::collect_time_if_enabled;
+        use crate::profiling::zend;
         use dynasmrt::{dynasm, DynasmApi, ExecutableBuffer};
         use log::error;
         use std::ffi::c_void;
@@ -294,7 +294,7 @@ mod frameless {
 
     #[cfg(test)]
     mod tests {
-        use crate::bindings::zend_function;
+        use crate::profiling::bindings::zend_function;
 
         #[no_mangle]
         pub static mut zend_flf_functions: *mut *mut zend_function = std::ptr::null_mut();

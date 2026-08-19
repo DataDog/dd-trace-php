@@ -1,8 +1,16 @@
+#[path = "../profiling/build.rs"]
+mod profiling_build;
+
 fn main() {
-    // On Linux, set ddog_spawn_direct_entry as the ELF entry point for the
-    // cdylib build (libdatadog_php.so in SSI deployments). This allows ld.so
-    // to exec the library directly without a trampoline binary.
-    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("linux") {
+    // This entry point belongs only to the common/tracer cdylib used by SSI.
+    // The standalone profiler must remain an ordinary PHP shared library.
+    if std::env::var_os("CARGO_FEATURE_TRACER").is_some()
+        && std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("linux")
+    {
         println!("cargo:rustc-cdylib-link-arg=-Wl,-e,ddog_spawn_direct_entry");
+    }
+
+    if std::env::var_os("CARGO_FEATURE_PROFILING").is_some() {
+        profiling_build::build();
     }
 }

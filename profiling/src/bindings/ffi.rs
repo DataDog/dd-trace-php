@@ -2,7 +2,7 @@
 #![allow(clippy::all)]
 #![allow(warnings)]
 
-use crate::bindings::{
+use crate::profiling::bindings::{
     _zend_module_entry, zend_bool, zend_extension, zend_module_entry, zend_result, ZaiConfigEntry,
     ZaiConfigMemoizedEntry, ZaiStr, ZendString,
 };

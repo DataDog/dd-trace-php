@@ -20,6 +20,19 @@ void datadog_report_otel_cfg_telemetry_invalid(const char *otel_cfg, const char 
     }
 }
 
+bool ddtrace_conf_otel_traces_exporter(zai_env_buffer *buf, bool pre_rinit) {
+    if (datadog_get_otel_value((zai_str) ZAI_STRL("OTEL_TRACES_EXPORTER"), buf, pre_rinit)) {
+        if (strcmp(buf->ptr, "none") == 0) {
+            buf->ptr = "0";
+            buf->len = 1;
+            return true;
+        }
+        LOG_ONCE(WARN, "OTEL_TRACES_EXPORTER has invalid value: %s", buf->ptr);
+        datadog_report_otel_cfg_telemetry_invalid("otel_traces_exporter", "dd_trace_enabled", pre_rinit);
+    }
+    return false;
+}
+
 bool datadog_get_otel_value(zai_str str, zai_env_buffer *buf, bool pre_rinit) {
     if (!pre_rinit && zai_sapi_getenv(str, buf) == ZAI_ENV_SUCCESS) return true;
     zai_option_str sys = zai_sys_getenv(str);

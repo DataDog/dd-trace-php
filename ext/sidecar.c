@@ -637,7 +637,11 @@ void datadog_sidecar_push_tag(ddog_Vec_Tag *vec, ddog_CharSlice key, ddog_CharSl
 void datadog_sidecar_push_tags(ddog_Vec_Tag *vec, zval *tags) {
     // Global tags (https://github.com/DataDog/php-datadogstatsd/blob/0efdd1c38f6d3dd407efbb899ad1fd2e5cd18085/src/DogStatsd.php#L113-L125)
     zend_string *service_string, *env_string, *version_string;
+#ifdef DDTRACE
     ddtrace_span_data *span = ddtrace_active_span();
+#else
+    ddtrace_span_data *span = NULL;
+#endif
     datadog_populate_target_data(span, &service_string, &env_string, &version_string);
 
     if (ZSTR_LEN(env_string) > 0) {

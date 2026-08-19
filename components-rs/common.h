@@ -437,6 +437,7 @@ typedef enum ddog_RemoteConfigProduct {
   DDOG_REMOTE_CONFIG_PRODUCT_FFE_FLAGS,
   DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGING,
   DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGING_SYMBOL_DB,
+  DDOG_REMOTE_CONFIG_PRODUCT_DEBUG,
 } ddog_RemoteConfigProduct;
 
 typedef enum ddog_SpanProbeTarget {
@@ -489,6 +490,8 @@ typedef struct ddog_SidecarTransport ddog_SidecarTransport;
  */
 typedef struct ddog_SpanConcentrator ddog_SpanConcentrator;
 
+typedef struct _zend_string *ddog_OwnedZendString;
+
 typedef struct ddog_FfeResult {
   _zend_string * value_json;
   _zend_string * variant;
@@ -536,8 +539,6 @@ typedef struct ddog_Tag {
   ddog_CharSlice name;
   const struct ddog_DslString *value;
 } ddog_Tag;
-
-typedef struct _zend_string *ddog_OwnedZendString;
 
 typedef struct _zend_string *(*ddog_DynamicConfigUpdate)(ddog_CharSlice config,
                                                          ddog_OwnedZendString value,

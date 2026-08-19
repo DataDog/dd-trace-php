@@ -1,9 +1,9 @@
-use crate::config::AgentEndpoint;
-use crate::profiling::{
+use crate::profiling::config::AgentEndpoint;
+use crate::profiling::profiling::{
     update_cpu_time_counter, UploadMessage, UploadRequest, DDPROF_TIME_CPU_TIME_NS,
     DDPROF_UPLOAD_CPU_TIME_NS, STACK_WALK_COUNT, STACK_WALK_CPU_TIME_NS,
 };
-use crate::{PROFILER_NAME_STR, PROFILER_VERSION_STR};
+use crate::profiling::{PROFILER_NAME_STR, PROFILER_VERSION_STR};
 use chrono::{DateTime, Utc};
 use cpu_time::ThreadTime;
 use crossbeam_channel::{select, Receiver};
@@ -15,9 +15,9 @@ use std::str;
 use std::sync::{Arc, Barrier};
 
 #[cfg(feature = "debug_stats")]
-use crate::allocation::{ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE};
+use crate::profiling::allocation::{ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE};
 #[cfg(feature = "debug_stats")]
-use crate::exception::EXCEPTION_PROFILING_EXCEPTION_COUNT;
+use crate::profiling::exception::EXCEPTION_PROFILING_EXCEPTION_COUNT;
 use std::sync::atomic::Ordering;
 
 pub struct Uploader {

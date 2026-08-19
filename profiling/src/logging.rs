@@ -22,7 +22,7 @@ pub fn log_init(level_filter: LevelFilter) {
         let target = Box::new(unsafe { File::from_raw_fd(fd) });
         let result = env_logger::builder()
             .filter_level(LevelFilter::Off)
-            .filter_module("datadog_php_profiling", level_filter)
+            .filter_module("datadog_php", level_filter)
             .target(Target::Pipe(target))
             .format_timestamp_micros()
             .try_init();

@@ -59,15 +59,15 @@ foreach ($profiler_minor_major_targets as $version) {
     - '# NTS'
     - '# Use if/then instead of `command -v switch-php && switch-php` — the && form exits 1 when switch-php is absent, which FF_ENABLE_BASH_EXIT_CODE_CHECK treats as a job failure'
     - if command -v switch-php > /dev/null 2>&1; then switch-php "${PHP_MAJOR_MINOR}"; fi
-    - cargo build --profile profiler-release --all-features
-    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/nts-results.xml" php profiling/tests/run-tests.php -d "extension=/mnt/ramdisk/cargo/profiler-release/libdatadog_php_profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
+    - (cd ..; phpize && DDTRACE_PROFILING_FEATURES="debug_stats,stack_walking_tests,test,tracing,tracing-subscriber,trigger_time_sample" ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling && make -j$(nproc))
+    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/nts-results.xml" php profiling/tests/run-tests.php -d "extension=${CI_PROJECT_DIR}/modules/datadog-profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
 
-    - touch build.rs #make sure `build.rs` gets executed after `switch-php` call
 
     - '# ZTS'
     - if command -v switch-php > /dev/null 2>&1; then switch-php "${PHP_MAJOR_MINOR}-zts"; fi
-    - cargo build --profile profiler-release --all-features
-    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/zts-results.xml" php profiling/tests/run-tests.php -d "extension=/mnt/ramdisk/cargo/profiler-release/libdatadog_php_profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
+    - touch ../profiling/build.rs # force regeneration after switch-php changes the php-config symlink target
+    - (cd ..; make distclean || true; phpize && DDTRACE_PROFILING_FEATURES="debug_stats,stack_walking_tests,test,tracing,tracing-subscriber,trigger_time_sample" ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling && make -j$(nproc))
+    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/zts-results.xml" php profiling/tests/run-tests.php -d "extension=${CI_PROJECT_DIR}/modules/datadog-profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
   after_script:
     - |
       if [ "${IMAGE_SUFFIX}" != "_centos-7" ]; then
@@ -102,9 +102,7 @@ foreach ($profiler_minor_major_targets as $version) {
       - PHP_MAJOR_MINOR: *all_profiler_targets
   script:
     - switch-php nts # not compatible with debug
-    - cd profiling
-    - sed -i -e "s/crate-type.*$/crate-type = [\"rlib\"]/g" Cargo.toml
-    - cargo clippy --all-targets --all-features -- -D warnings -Aunknown-lints
+    - cargo clippy --all-targets --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample -- -D warnings -Aunknown-lints
 
 "Cargo test":
   stage: test
@@ -122,12 +120,11 @@ foreach ($profiler_minor_major_targets as $version) {
     # CARGO_TARGET_DIR: /mnt/ramdisk/cargo # ramdisk??
     libdir: /tmp/datadog-profiling
   script:
-    - cd profiling
     - switch-php nts
-    - cargo test --all-features
-    - touch build.rs # make sure `build.rs` gets executed after `switch-php`
+    - cargo test --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample
+    - touch profiling/build.rs # make sure the build helper runs after switch-php
     - switch-php zts
-    - cargo test --all-features
+    - cargo test --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample
 
 "PHP language tests":
   stage: test
@@ -156,10 +153,10 @@ foreach ($profiler_minor_major_targets as $version) {
   script:
     - unset DD_SERVICE; unset DD_ENV
     - command -v switch-php && switch-php "${FLAVOUR}"
-    - cd profiling
-    - cargo build --profile profiler-release
-    - cd ..
-    - echo "extension=/tmp/cargo/profiler-release/libdatadog_php_profiling.so" > /opt/php/${FLAVOUR}/conf.d/profiling.ini
+    - phpize
+    - ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling
+    - make -j$(nproc)
+    - echo "extension=${CI_PROJECT_DIR}/modules/datadog-profiling.so" > /opt/php/${FLAVOUR}/conf.d/profiling.ini
     - php -v
     # Fail loudly if the profiler did not load: otherwise the language tests
     # would run profiler-less and pass, giving a false green.
