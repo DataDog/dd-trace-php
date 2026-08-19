@@ -519,7 +519,7 @@ class RouteNormalizer
     {
         $result = preg_replace('#/\*\*#', '/{catchall}', $template);
         $result = preg_replace('#/\*(?!\*)#', '/{catchall}', $result);
-        $result = preg_replace('#(?<![/*])\*(?![/*])#', '{catchall}', $result);
+        $result = preg_replace('#(?<![\/\*])\*(?![\/\*])#', '{catchall}', $result);
 
         return preg_replace_callback(
             '/:([a-zA-Z_][a-zA-Z0-9_]*)/',
