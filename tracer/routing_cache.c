@@ -19,12 +19,12 @@ static void ddtrace_routing_cache_evict_oldest(void) {
     }
 }
 
-void ddtrace_routing_cache_ginit(void) {
-    zend_hash_init(&DDTRACE_G(rcache), DDTRACE_ROUTING_CACHE_CAPACITY, NULL, ddtrace_routing_cache_dtor, 1);
+void ddtrace_routing_cache_ginit(HashTable *rcache) {
+    zend_hash_init(rcache, DDTRACE_ROUTING_CACHE_CAPACITY, NULL, ddtrace_routing_cache_dtor, 1);
 }
 
-void ddtrace_routing_cache_gshutdown(void) {
-    zend_hash_destroy(&DDTRACE_G(rcache));
+void ddtrace_routing_cache_gshutdown(HashTable *rcache) {
+    zend_hash_destroy(rcache);
 }
 
 /* DDTrace\routing_cache_get(string $key): string|false */
