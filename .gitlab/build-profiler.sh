@@ -17,6 +17,7 @@ set -u
 prefix="$1"
 thread_safety="${2:-nts}"
 mkdir -vp "${prefix}"
+prefix="$(cd "${prefix}" && pwd)"
 
 if [ "$thread_safety" = "zts" ]; then
     switch-php "${PHP_VERSION}-zts"
