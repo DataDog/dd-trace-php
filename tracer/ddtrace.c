@@ -245,6 +245,7 @@ void ddtrace_ginit(zend_datadog_globals *ddtrace_globals) {
     UNUSED(ddtrace_globals);
 #endif
     zai_hook_ginit();
+    ddtrace_routing_cache_ginit();
 }
 
 void ddtrace_gshutdown(zend_datadog_globals *datadog_globals) {
@@ -253,6 +254,7 @@ void ddtrace_gshutdown(zend_datadog_globals *datadog_globals) {
     if (datadog_globals->ddtrace.agent_config_reader) {
         ddog_agent_remote_config_reader_drop(datadog_globals->ddtrace.agent_config_reader);
     }
+    ddtrace_routing_cache_gshutdown();
 }
 
 
@@ -374,7 +376,6 @@ void ddtrace_minit_late() {
 
     ddtrace_live_debugger_minit();
     ddtrace_trace_source_minit();
-    ddtrace_routing_cache_minit();
 }
 
 void ddtrace_mshutdown() {
@@ -382,7 +383,6 @@ void ddtrace_mshutdown() {
     zai_hook_mshutdown();
 
     ddtrace_unregister_functions_and_classes();
-    ddtrace_routing_cache_mshutdown();
 
     if (datadog_disable == 1) {
         return;
