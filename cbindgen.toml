@@ -44,7 +44,7 @@ include = [
     "libdd-common-ffi",
     "datadog-crashtracker-ffi",
     "datadog-sidecar",
-    "datadog-ipc",
+    "libdd-ipc",
     "datadog-live-debugger",
     "datadog-live-debugger-ffi",
     "libdd-remote-config",
