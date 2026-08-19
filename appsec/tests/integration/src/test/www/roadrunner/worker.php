@@ -16,10 +16,12 @@ $httpWorker = new HttpWorker($worker);
 
 $router = new \App\Router();
 $router->addRoute('/', new \App\HomePageHandler());
+// default path TelemetryHelpers uses to flush non-request-bound telemetry
+$router->addRoute('/hello.php', new \App\HomePageHandler());
 $router->addRoute('/json', new \App\JsonHandler());
 $router->addRoute('/xml', new \App\XmlHandler());
-$router->addRoute('/post-respond-lfi', new \App\PostRespondLfiHandler());
 $router->addRoute('/post-respond-track-user', new \App\PostRespondTrackUserHandler());
+$router->addRoute('/post-respond-rasp', new \App\PostRespondRaspHandler());
 
 while ($req = $httpWorker->waitRequest()) {
     /** @var \Spiral\RoadRunner\Http\Request $req */

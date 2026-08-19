@@ -26,6 +26,30 @@ void dd_telemetry_note_helper_string_meta(const char *nonnull key,
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 void dd_telemetry_submit_duration_ext(double waf_ext_us, double rasp_ext_us);
+void dd_telemetry_add_rasp_rule_skipped(
+    zend_string *nonnull rule_type, zend_string *nullable rule_variant);
+
+// The outcome of the API security decision taken for a request, as far as
+// RFC-1012's api_security metrics are concerned.
+typedef enum {
+    // the request is not a candidate for schema extraction for a reason that
+    // is not worth reporting (API security disabled, request blocked, trace
+    // dropped, ...). No metric is emitted.
+    DD_API_SEC_SKIP = 0,
+    // the request would have been a candidate, but no HTTP route (or a
+    // stand-in for it) could be determined: appsec.api_security.missing_route
+    DD_API_SEC_MISSING_ROUTE,
+    // the request was submitted for schema extraction: either
+    // appsec.api_security.request.schema or .no_schema, depending on whether
+    // the helper came back with a schema
+    DD_API_SEC_EVALUATED,
+} dd_api_sec_outcome;
+
+// Called when the helper reports schemas (_dd.appsec.s.*) for the current
+// request
+void dd_telemetry_note_schema_extracted(void);
+void dd_telemetry_add_api_security_request(
+    zend_object *nullable root_span, dd_api_sec_outcome outcome);
 
 void dd_telemetry_helper_conn_error(void);
 void dd_telemetry_helper_conn_success(void);

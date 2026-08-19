@@ -923,7 +923,9 @@ class TelemetryTests {
 
     /**
      * Verifies that appsec.waf.requests is tagged request_blocked:true when the WAF
-     * returns a block_request action and false otherwise
+     * returns a block_request action and false otherwise, and that block_failure:false
+     * is emitted alongside request_blocked:true (the PHP layer is assumed to always
+     * succeed at blocking, and block_failure is only emitted when a block was requested).
      */
     @Test
     @Order(10)
@@ -974,10 +976,14 @@ class TelemetryTests {
         assert wafReqBlocked.type == 'count'
         assert 'rule_triggered:true' in wafReqBlocked.tags
         assert 'request_blocked:true' in wafReqBlocked.tags
+        assert 'block_failure:false' in wafReqBlocked.tags : 'block_failure:false must be emitted ' +
+                'alongside request_blocked:true'
 
         assert wafReqNotBlocked != null : 'waf.requests metric with request_blocked:false not found ' +
                 '-- rust helper must emit request_blocked:false on non-blocked requests (RFC-1012)'
         assert 'request_blocked:false' in wafReqNotBlocked.tags
+        assert wafReqNotBlocked.tags.find { it.startsWith('block_failure:') } == null :
+                'block_failure must not be emitted when request_blocked is false'
     }
 
     /**
@@ -986,6 +992,9 @@ class TelemetryTests {
      * emitted as DDSketch distributions (both µs). Cross-checks consistency:
      *  - rasp.duration: span metric ms × 1000 → µs must fall inside a populated bin
      *  - rasp.duration_ext: span metric µs falls directly inside a populated bin (no conversion)
+     *
+     * Also covers appsec.rasp.rule.duration, the per-libddwaf-call counterpart of
+     * appsec.rasp.duration, which is tagged per rule type and variant.
      *
      * This test only applies to the Rust helper (distributions not implemented elsewhere).
      */
@@ -1014,12 +1023,21 @@ class TelemetryTests {
 
         TelemetryHelpers.DistributionMetric raspDuration
         TelemetryHelpers.DistributionMetric raspDurationExt
+        TelemetryHelpers.DistributionMetric lfiRuleDuration
+        TelemetryHelpers.DistributionMetric ssrfRuleDuration
 
         TelemetryHelpers.waitForDistributions(CONTAINER, 30) { List<TelemetryHelpers.GenerateDistributions> messages ->
             def allSeries = messages.collectMany { it.series }
             raspDuration = raspDuration ?: allSeries.find { it.name == 'rasp.duration' }
             raspDurationExt = raspDurationExt ?: allSeries.find { it.name == 'rasp.duration_ext' }
-            raspDuration != null && raspDurationExt != null
+            lfiRuleDuration = lfiRuleDuration ?: allSeries.find {
+                it.name == 'rasp.rule.duration' && 'rule_type:lfi' in it.tags
+            }
+            ssrfRuleDuration = ssrfRuleDuration ?: allSeries.find {
+                it.name == 'rasp.rule.duration' && 'rule_type:ssrf' in it.tags
+            }
+            raspDuration != null && raspDurationExt != null &&
+                    lfiRuleDuration != null && ssrfRuleDuration != null
         }
 
         assert raspDuration != null : 'rasp.duration distribution metric not found'
@@ -1054,6 +1072,26 @@ class TelemetryTests {
         assert raspDurationExt.countForBinContaining(raspDurationExtUs) != null :
             "span metric value ${raspDurationExtUs} µs not found in any rasp.duration_ext " +
             "distribution bin; distribution: ${raspDurationExt}"
+
+        // RFC-1012 appsec.rasp.rule.duration: unlike rasp.duration, which contributes one
+        // cumulative observation per request, this records one observation per libddwaf call.
+        // /multiple_rasp.php evaluates lfi 3× and ssrf 2×, so those are the per-request minima.
+        assert lfiRuleDuration != null : 'rasp.rule.duration for lfi not found'
+        assert lfiRuleDuration.namespace == 'appsec'
+        assert lfiRuleDuration.tags.find { it.startsWith('waf_version:') } != null
+        assert lfiRuleDuration.tags.find { it.startsWith('event_rules_version:') } != null
+        assert lfiRuleDuration.count >= 3.0 :
+            "expected >= 3 lfi observations, got ${lfiRuleDuration}"
+        // LFI has no variant — tag must be absent (sidecar rejects empty tag values)
+        assert !lfiRuleDuration.tags.any { it.startsWith('rule_variant:') }
+
+        assert ssrfRuleDuration != null : 'rasp.rule.duration for ssrf not found'
+        assert ssrfRuleDuration.namespace == 'appsec'
+        assert ssrfRuleDuration.tags.find { it.startsWith('waf_version:') } != null
+        assert ssrfRuleDuration.tags.find { it.startsWith('event_rules_version:') } != null
+        assert ssrfRuleDuration.count >= 2.0 :
+            "expected >= 2 ssrf observations, got ${ssrfRuleDuration}"
+        assert 'rule_variant:request' in ssrfRuleDuration.tags
     }
 
     /**
