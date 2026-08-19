@@ -2821,7 +2821,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-crashtracker"
-version = "1.0.0"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "blazesym",
@@ -2984,7 +2984,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-gotter"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "libc 0.2.186",
  "tempfile",
@@ -3025,7 +3025,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-ipc-macros"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
@@ -3161,6 +3161,7 @@ dependencies = [
  "libdd-common",
  "libdd-remote-config",
  "libdd-trace-protobuf",
+ "libdd-tuf",
  "manual_future",
  "prost",
  "rand 0.8.5",
@@ -3175,7 +3176,6 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
- "tuf",
  "uuid",
 ]
 
@@ -3376,6 +3376,31 @@ dependencies = [
  "tracing",
  "urlencoding",
  "zstd",
+]
+
+[[package]]
+name = "libdd-tuf"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4f7e7c44ae16b25063087e576b0ec25b46ef3a84c8a2239ea85ef7685fd46fb6"
+dependencies = [
+ "chrono",
+ "data-encoding",
+ "derp",
+ "futures-io",
+ "futures-util",
+ "http 0.2.12",
+ "itoa 0.4.8",
+ "log",
+ "percent-encoding",
+ "ring",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+ "untrusted 0.7.1",
+ "url",
 ]
 
 [[package]]
@@ -6159,30 +6184,6 @@ name = "try-lock"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
-
-[[package]]
-name = "tuf"
-version = "0.3.0-beta10"
-source = "git+https://github.com/DataDog/rust-tuf/?rev=eb129ccad320b11e8bf99d2f0ff2c415a0795ccb#eb129ccad320b11e8bf99d2f0ff2c415a0795ccb"
-dependencies = [
- "chrono",
- "data-encoding",
- "derp",
- "futures-io",
- "futures-util",
- "http 0.2.12",
- "itoa 0.4.8",
- "log",
- "percent-encoding",
- "ring",
- "serde",
- "serde_derive",
- "serde_json",
- "tempfile",
- "thiserror 1.0.69",
- "untrusted 0.7.1",
- "url",
-]
 
 [[package]]
 name = "twox-hash"
