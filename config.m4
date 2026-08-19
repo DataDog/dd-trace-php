@@ -48,6 +48,9 @@ if test "$PHP_DDTRACE_TRACER" != "no" && test "$PHP_DDTRACE_PROFILING" != "no"; 
 fi
 
 if test "$PHP_DDTRACE_PROFILING" != "no"; then
+  dnl PHP_NEW_EXTENSION normally initializes this for libtool's configure probes.
+  RM="rm -f"
+
   case "$host_os" in
     mingw*|cygwin*|msys*|windows*)
       AC_MSG_ERROR([The standalone Datadog profiler is not supported on Windows])
