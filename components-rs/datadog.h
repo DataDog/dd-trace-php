@@ -9,6 +9,14 @@ struct _zend_string;
 #include "telemetry.h"
 #include "sidecar.h"
 
+extern void (*ddog_log_callback)(ddog_CharSlice);
+
+extern ddog_VecRemoteConfigProduct DATADOG_REMOTE_CONFIG_PRODUCTS;
+
+extern ddog_VecRemoteConfigCapabilities DATADOG_REMOTE_CONFIG_CAPABILITIES;
+
+extern const uint8_t *DDOG_PHP_FUNCTION;
+
 extern ddog_Uuid datadog_runtime_id;
 
 extern ddog_Uuid datadog_session_id;
@@ -18,78 +26,6 @@ extern uint8_t datadog_formatted_session_id[36];
 extern uint8_t datadog_formatted_root_session_id[36];
 
 extern uint8_t datadog_formatted_parent_session_id[36];
-
-extern void (*ddog_log_callback)(ddog_CharSlice);
-
-extern ddog_VecRemoteConfigProduct DATADOG_REMOTE_CONFIG_PRODUCTS;
-
-extern ddog_VecRemoteConfigCapabilities DATADOG_REMOTE_CONFIG_CAPABILITIES;
-
-extern const uint8_t *DDOG_PHP_FUNCTION;
-
-/**
- * # Safety
- * Must be called from a single-threaded context, such as MINIT or first rinit.
- */
-void datadog_generate_runtime_id(void);
-
-/**
- * # Safety
- * Must be called from a single-threaded context, such as MINIT.
- */
-void datadog_generate_session_id(void);
-
-void datadog_format_runtime_id(uint8_t (*buf)[36]);
-
-#if defined(__linux__)
-/**
- * Publish or update dd-trace-php's standard Linux OTel Process Context.
- */
-bool datadog_publish_otel_process_context(ddog_CharSlice process_tags);
-#endif
-
-ddog_CharSlice ddtrace_get_container_id(void);
-
-void ddtrace_set_container_cgroup_path(ddog_CharSlice path);
-
-char *ddtrace_strip_invalid_utf8(const char *input, uintptr_t *len);
-
-void ddtrace_drop_rust_string(char *input, uintptr_t len);
-
-struct ddog_Endpoint *datadog_parse_agent_url(ddog_CharSlice url);
-
-struct ddog_Endpoint *datadog_otel_metrics_endpoint_from_url(ddog_CharSlice url);
-
-struct ddog_Endpoint *datadog_otel_metrics_endpoint_from_agent_url(ddog_CharSlice url);
-
-/**
- * Initialize crashtracking, selecting the receiver strategy for this process:
- *   - Linux, sidecar host (`master_pid == getpid()`): the in-process thread-mode sidecar can't
- *     serve its own crash, so spawn a fork+exec subprocess receiver (like the standalone daemon),
- *     resolving frames there since a crashing process can't reliably symbolize itself.
- *   - Linux, worker/collector: connect to the sidecar IPC socket and upgrade it to a crashtracker
- *     receiver on crash (`SOCK_SEQPACKET` + `enter_crashtracker_receiver`), streaming the report
- *     over that single socket and resolving frames in-process.
- *   - other unix (macOS): no sidecar upgrade; the default connector reaches the socket path.
- *
- * `master_pid` is the thread-mode master listener PID (0 if none): it keys the IPC socket and, on
- * Linux, distinguishes the host from a worker.
- *
- * # Safety
- * `endpoint` must point to a valid `Endpoint`; `metadata`'s borrowed strings/tags must outlive the
- * call (they are copied into owned storage before it returns).
- */
-ddog_MaybeError datadog_crashtracker_init(const struct ddog_Endpoint *endpoint,
-                                          ddog_crasht_Metadata metadata,
-                                          int32_t master_pid);
-
-ddog_Configurator *ddog_library_configurator_new_dummy(bool debug_logs, ddog_CharSlice language);
-
-uint64_t dd_fnv1a_64(const uint8_t *data, uintptr_t len);
-
-const char *ddog_normalize_process_tag_value(ddog_CharSlice tag_value);
-
-void ddog_free_normalized_tag_value(const char *ptr);
 
 /**
  * Read all agent /info data in one SHM read and apply env, container-hash and concentrator
@@ -515,5 +451,69 @@ bool ddog_sidecar_telemetry_are_endpoints_collected(ddog_ShmCacheMap *cache,
 bool ddog_check_stats_trace_filter(ddog_CharSlice resource,
                                    const void *root_span,
                                    ddog_RootTagLookupFn lookup_fn);
+
+/**
+ * # Safety
+ * Must be called from a single-threaded context, such as MINIT or first rinit.
+ */
+void datadog_generate_runtime_id(void);
+
+/**
+ * # Safety
+ * Must be called from a single-threaded context, such as MINIT.
+ */
+void datadog_generate_session_id(void);
+
+void datadog_format_runtime_id(uint8_t (*buf)[36]);
+
+#if defined(__linux__)
+/**
+ * Publish or update dd-trace-php's standard Linux OTel Process Context.
+ */
+bool datadog_publish_otel_process_context(ddog_CharSlice process_tags);
+#endif
+
+ddog_CharSlice ddtrace_get_container_id(void);
+
+void ddtrace_set_container_cgroup_path(ddog_CharSlice path);
+
+char *ddtrace_strip_invalid_utf8(const char *input, uintptr_t *len);
+
+void ddtrace_drop_rust_string(char *input, uintptr_t len);
+
+struct ddog_Endpoint *datadog_parse_agent_url(ddog_CharSlice url);
+
+struct ddog_Endpoint *datadog_otel_metrics_endpoint_from_url(ddog_CharSlice url);
+
+struct ddog_Endpoint *datadog_otel_metrics_endpoint_from_agent_url(ddog_CharSlice url);
+
+/**
+ * Initialize crashtracking, selecting the receiver strategy for this process:
+ *   - Linux, sidecar host (`master_pid == getpid()`): the in-process thread-mode sidecar can't
+ *     serve its own crash, so spawn a fork+exec subprocess receiver (like the standalone daemon),
+ *     resolving frames there since a crashing process can't reliably symbolize itself.
+ *   - Linux, worker/collector: connect to the sidecar IPC socket and upgrade it to a crashtracker
+ *     receiver on crash (`SOCK_SEQPACKET` + `enter_crashtracker_receiver`), streaming the report
+ *     over that single socket and resolving frames in-process.
+ *   - other unix (macOS): no sidecar upgrade; the default connector reaches the socket path.
+ *
+ * `master_pid` is the thread-mode master listener PID (0 if none): it keys the IPC socket and, on
+ * Linux, distinguishes the host from a worker.
+ *
+ * # Safety
+ * `endpoint` must point to a valid `Endpoint`; `metadata`'s borrowed strings/tags must outlive the
+ * call (they are copied into owned storage before it returns).
+ */
+ddog_MaybeError datadog_crashtracker_init(const struct ddog_Endpoint *endpoint,
+                                          ddog_crasht_Metadata metadata,
+                                          int32_t master_pid);
+
+ddog_Configurator *ddog_library_configurator_new_dummy(bool debug_logs, ddog_CharSlice language);
+
+uint64_t dd_fnv1a_64(const uint8_t *data, uintptr_t len);
+
+const char *ddog_normalize_process_tag_value(ddog_CharSlice tag_value);
+
+void ddog_free_normalized_tag_value(const char *ptr);
 
 #endif  /* DDTRACE_PHP_H */

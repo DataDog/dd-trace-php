@@ -36,16 +36,31 @@ pub mod tracer;
 #[path = "../profiling/src/lib.rs"]
 pub mod profiling;
 
+#[cfg(not(standalone_profiler))]
 pub mod agent_info;
+#[cfg(not(standalone_profiler))]
 pub mod bytes;
+#[cfg(not(standalone_profiler))]
 pub mod ffe;
+#[cfg(not(standalone_profiler))]
 pub mod log;
+#[cfg(not(standalone_profiler))]
 pub mod remote_config;
+#[cfg(not(standalone_profiler))]
 pub mod sidecar;
+#[cfg(not(standalone_profiler))]
 pub mod stats;
+#[cfg(not(standalone_profiler))]
 pub mod telemetry;
+#[cfg(not(standalone_profiler))]
 pub mod trace_filter;
 
+// A standalone profiler must retain the existing profiler-only ABI and size.
+// Cargo's `cdylib` keeps every `no_mangle` common export alive, even though the
+// profiler does not use them, so omit those exports only in profiler-only builds.
+#[cfg(not(standalone_profiler))]
+#[rustfmt::skip]
+mod common_exports {
 #[cfg(unix)]
 use datadog_sidecar::crashtracker::crashtracker_receiver_request_bytes;
 pub use datadog_sidecar_ffi::*;
@@ -425,8 +440,8 @@ pub unsafe extern "C" fn datadog_crashtracker_init(
 /// already open fd from datadog_sidecar_for_signal.
 #[cfg(target_os = "macos")]
 fn reuse_sidecar_fd_connector(_unix_socket_path: &str) -> std::os::fd::RawFd {
-    // Resolve the optional C-side transport dynamically. The standalone profiler also contains
-    // the common Rust components, but it must remain loadable without the tracer C module.
+    // Resolve the optional C-side transport dynamically so common-only builds remain loadable
+    // without the tracer C module.
     let symbol = unsafe { libc::dlsym(libc::RTLD_DEFAULT, c"datadog_sidecar_for_signal".as_ptr()) }
         as *const *mut std::ffi::c_void;
     if symbol.is_null() {
@@ -549,3 +564,7 @@ pub extern "C" fn ddog_free_normalized_tag_value(ptr: *const c_char) {
         drop(std::ffi::CString::from_raw(ptr as *mut c_char));
     }
 }
+}
+
+#[cfg(not(standalone_profiler))]
+pub use common_exports::*;

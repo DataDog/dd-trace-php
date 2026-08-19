@@ -2,6 +2,13 @@
 mod profiling_build;
 
 fn main() {
+    println!("cargo:rustc-check-cfg=cfg(standalone_profiler)");
+    if std::env::var_os("CARGO_FEATURE_PROFILING").is_some()
+        && std::env::var_os("CARGO_FEATURE_TRACER").is_none()
+    {
+        println!("cargo:rustc-cfg=standalone_profiler");
+    }
+
     // This entry point belongs only to the common/tracer cdylib used by SSI.
     // The standalone profiler must remain an ordinary PHP shared library.
     if std::env::var_os("CARGO_FEATURE_TRACER").is_some()
