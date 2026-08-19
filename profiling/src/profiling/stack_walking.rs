@@ -1,15 +1,15 @@
-use crate::bindings::{
+use crate::profiling::bindings::{
     zai_str_from_zstr, zend_execute_data, zend_function, zend_op, zend_op_array,
 };
-use crate::profiling::Backtrace;
-use crate::vec_ext::VecExt;
+use crate::profiling::profiling::Backtrace;
+use crate::profiling::vec_ext::VecExt;
 use std::borrow::Cow;
 
 #[cfg(php_frameless)]
-use crate::bindings::zend_flf_functions;
+use crate::profiling::bindings::zend_flf_functions;
 
 #[cfg(php_frameless)]
-use crate::bindings::{
+use crate::profiling::bindings::{
     ZEND_FRAMELESS_ICALL_0, ZEND_FRAMELESS_ICALL_1, ZEND_FRAMELESS_ICALL_2, ZEND_FRAMELESS_ICALL_3,
 };
 
@@ -172,8 +172,8 @@ unsafe fn extract_file_and_line(
 #[cfg(php_run_time_cache)]
 mod detail {
     use super::*;
-    use crate::string_set::StringSet;
-    use crate::{RefCellExt, RefCellExtError};
+    use crate::profiling::string_set::StringSet;
+    use crate::profiling::{RefCellExt, RefCellExtError};
     use libdd_profiling::profiles::collections::ThinStr;
     use log::{debug, trace};
     use std::cell::RefCell;
@@ -301,9 +301,9 @@ mod detail {
         string_set: &mut StringSet,
     ) -> Result<Backtrace, CollectStackSampleError> {
         #[cfg(feature = "stack_walking_tests")]
-        use crate::bindings::ddog_test_zend_generator_check_placeholder_frame as zend_generator_check_placeholder_frame;
+        use crate::profiling::bindings::ddog_test_zend_generator_check_placeholder_frame as zend_generator_check_placeholder_frame;
         #[cfg(not(feature = "stack_walking_tests"))]
-        use crate::bindings::zend_generator_check_placeholder_frame;
+        use crate::profiling::bindings::zend_generator_check_placeholder_frame;
 
         let max_depth = 512;
         let mut samples = Vec::new();
@@ -396,9 +396,9 @@ mod detail {
         string_set: &mut StringSet,
     ) -> Option<ZendFrame> {
         #[cfg(not(feature = "stack_walking_tests"))]
-        use crate::bindings::ddog_php_prof_function_run_time_cache;
+        use crate::profiling::bindings::ddog_php_prof_function_run_time_cache;
         #[cfg(feature = "stack_walking_tests")]
-        use crate::bindings::ddog_test_php_prof_function_run_time_cache as ddog_php_prof_function_run_time_cache;
+        use crate::profiling::bindings::ddog_test_php_prof_function_run_time_cache as ddog_php_prof_function_run_time_cache;
 
         let func = execute_data.func.as_ref()?;
         let (function, file, line) = match ddog_php_prof_function_run_time_cache(func) {
@@ -502,9 +502,9 @@ mod detail {
         top_execute_data: *mut zend_execute_data,
     ) -> Result<Backtrace, CollectStackSampleError> {
         #[cfg(feature = "stack_walking_tests")]
-        use crate::bindings::ddog_test_zend_generator_check_placeholder_frame as zend_generator_check_placeholder_frame;
+        use crate::profiling::bindings::ddog_test_zend_generator_check_placeholder_frame as zend_generator_check_placeholder_frame;
         #[cfg(not(feature = "stack_walking_tests"))]
-        use crate::bindings::zend_generator_check_placeholder_frame;
+        use crate::profiling::bindings::zend_generator_check_placeholder_frame;
 
         #[cfg(feature = "tracing")]
         let _span = tracing::trace_span!("collect_stack_sample").entered();
@@ -569,7 +569,7 @@ pub use detail::*;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bindings as zend;
+    use crate::profiling::bindings as zend;
 
     extern "C" {
         fn ddog_php_test_create_fake_zend_function_with_name_len(

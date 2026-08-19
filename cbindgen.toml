@@ -12,12 +12,13 @@ sys_includes = ["stdbool.h", "stddef.h", "stdint.h"]
 includes = ["common.h", "telemetry.h", "sidecar.h"]
 
 [defines]
+"feature = profiling" = "DDTRACE_PROFILING"
 "target_os = linux" = "__linux__"
 
 [export]
 prefix = "ddog_"
 renaming_overrides_prefixing = true
-exclude = ["posix_spawn_file_actions_addchdir_np"]
+exclude = ["get_module", "posix_spawn_file_actions_addchdir_np"]
 
 [export.mangle]
 rename_types = "PascalCase"

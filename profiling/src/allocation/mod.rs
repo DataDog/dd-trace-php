@@ -2,11 +2,11 @@ mod profiling_stats;
 
 pub use profiling_stats::*;
 
-use crate::bindings::{self as zend};
-use crate::config::SystemSettings;
-use crate::module_globals;
-use crate::profiling::Profiler;
-use crate::{RefCellExt, REQUEST_LOCALS};
+use crate::profiling::bindings::{self as zend};
+use crate::profiling::config::SystemSettings;
+use crate::profiling::module_globals;
+use crate::profiling::profiling::Profiler;
+use crate::profiling::{RefCellExt, REQUEST_LOCALS};
 use core::cell::Cell;
 use core::ptr;
 use libc::size_t;
@@ -24,9 +24,9 @@ use rand::rngs::ThreadRng;
 use rand::SeedableRng;
 
 #[cfg(php_zend_mm_set_custom_handlers_ex)]
-use crate::allocation::allocation_ge84::ZendMMState;
+use crate::profiling::allocation::allocation_ge84::ZendMMState;
 #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
-use crate::allocation::allocation_le83::ZendMMState;
+use crate::profiling::allocation::allocation_le83::ZendMMState;
 
 /// Gets a pointer to the Cell<ZendMMState> from PHP globals.
 ///
@@ -67,14 +67,18 @@ pub(crate) unsafe fn current_execute_data_from_cache(
 #[macro_export]
 macro_rules! tls_zend_mm_state_copy {
     () => {
-        unsafe { (*$crate::allocation::get_zend_mm_state()).get() }
+        unsafe { (*$crate::profiling::allocation::get_zend_mm_state()).get() }
     };
 }
 
 #[macro_export]
 macro_rules! tls_zend_mm_state_get {
     ($x:ident) => {
-        unsafe { (*$crate::allocation::get_zend_mm_state()).get().$x }
+        unsafe {
+            (*$crate::profiling::allocation::get_zend_mm_state())
+                .get()
+                .$x
+        }
     };
 }
 
@@ -83,7 +87,7 @@ macro_rules! tls_zend_mm_state_set {
     ($x:expr) => {{
         let value = $x;
         unsafe {
-            (*$crate::allocation::get_zend_mm_state()).set(value);
+            (*$crate::profiling::allocation::get_zend_mm_state()).set(value);
         }
     }};
 }

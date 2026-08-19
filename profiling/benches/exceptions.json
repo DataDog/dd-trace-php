@@ -1,6 +1,6 @@
 {
     "name": "php-profiler-exceptions",
-    "run": "php -d extension=../target/release/libdatadog_php_profiling.so benches/exceptions.php",
+    "run": "php -d extension=../tmp/build_profiler/modules/datadog-profiling.so benches/exceptions.php",
     "timeout": 20,
     "iterations": 5,
     "env": {

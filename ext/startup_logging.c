@@ -66,13 +66,34 @@ static size_t dd_curl_write_noop(void *ptr, size_t size, size_t nmemb, void *use
 
 static size_t dd_check_for_agent_error(char *error, bool quick) {
     CURL *curl = curl_easy_init();
+#ifdef DDTRACE
     ddtrace_curl_set_hostname(curl);
+#else
+    char *url = datadog_agent_url();
+    if (url && url[0]) {
+        const char *http_url = url;
+        if (strncmp(url, "unix://", sizeof("unix://") - 1) == 0) {
+            curl_easy_setopt(curl, CURLOPT_UNIX_SOCKET_PATH, url + sizeof("unix://") - 1);
+            http_url = "http://localhost";
+        }
+        char *trace_url;
+        spprintf(&trace_url, 0, "%s/v0.4/traces", http_url);
+        curl_easy_setopt(curl, CURLOPT_URL, trace_url);
+        efree(trace_url);
+    }
+    free(url);
+#endif
     if (quick) {
         curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, DATADOG_AGENT_QUICK_TIMEOUT);
         curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, DATADOG_AGENT_QUICK_CONNECT_TIMEOUT);
     } else {
+#ifdef DDTRACE
         ddtrace_curl_set_timeout(curl);
         ddtrace_curl_set_connect_timeout(curl);
+#else
+        curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, get_global_DD_TRACE_AGENT_TIMEOUT());
+        curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, get_global_DD_TRACE_AGENT_CONNECT_TIMEOUT());
+#endif
     }
 
     struct curl_slist *headers = NULL;
@@ -142,7 +163,11 @@ void datadog_startup_diagnostics(HashTable *ht, bool quick) {
     for (uint16_t i = 0; i < zai_config_memoized_entries_count; ++i) {
         zai_config_memoized_entry *cfg = &zai_config_memoized_entries[i];
         // DD_TRACE_LOGS_ENABLED would be the proper name, but for compatibility with other tracers, we also support DD_LOGS_INJECTION officially
-        if (cfg->name_index > 0 && i != DATADOG_CONFIG_DD_TRACE_LOGS_ENABLED) {
+        bool deprecated_alias = cfg->name_index > 0;
+#ifdef DDTRACE
+        deprecated_alias = deprecated_alias && i != DATADOG_CONFIG_DD_TRACE_LOGS_ENABLED;
+#endif
+        if (deprecated_alias) {
             zai_config_name *old_name = &cfg->names[cfg->name_index];
             zend_string *message = zend_strpprintf(0, "'%s=%s' is deprecated, use %s instead.", old_name->ptr,
                                                    ZSTR_VAL(cfg->ini_entries[0]->value), cfg->names[0].ptr);

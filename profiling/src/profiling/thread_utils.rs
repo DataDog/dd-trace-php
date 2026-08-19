@@ -1,13 +1,13 @@
-use crate::SAPI;
+use crate::profiling::SAPI;
 use std::cell::OnceCell;
 use std::mem::MaybeUninit;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 #[cfg(php_zts)]
-use crate::bindings::ddog_php_prof_is_parallel_thread;
+use crate::profiling::bindings::ddog_php_prof_is_parallel_thread;
 #[cfg(php_zts)]
-use crate::sapi::Sapi;
+use crate::profiling::sapi::Sapi;
 #[cfg(php_zts)]
 use libc::c_char;
 
