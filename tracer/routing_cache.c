@@ -1,6 +1,8 @@
 #include "routing_cache.h"
 #include "ddtrace.h"
 
+ZEND_EXTERN_MODULE_GLOBALS(datadog);
+
 static void ddtrace_routing_cache_dtor(zval *pz) {
     zend_string_release_ex((zend_string *)Z_PTR_P(pz), 1);
 }
