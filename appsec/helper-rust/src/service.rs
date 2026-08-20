@@ -338,6 +338,7 @@ impl Service {
                 asm_feature_config_manager: AsmFeatureConfigManager::new(),
                 pending_telemetry_metrics: TelemetryMetricsCollector::default(),
                 pending_init_diagnostics_legacy: Some(init_diagnostics_legacy),
+                extra_chunk_paths: HashMap::new(),
             }),
             config_snapshot: ArcSwap::from_pointee(ConfigSnapshot::new(
                 asm_always_enabled,
@@ -385,14 +386,37 @@ impl Service {
         let mut rules_version: Option<String> = None;
 
         // Handle removal of configs
-        for old_path in state
+        let removed_paths: Vec<rc::RcPath> = state
             .last_configs
             .keys()
             .filter(|k| !new_configs.contains_key(*k))
-        {
+            .cloned()
+            .collect();
+        for old_path in &removed_paths {
             if old_path.as_str().contains("/ASM_FEATURES/") {
                 state.asm_feature_config_manager.remove(old_path);
             } else {
+                // Remove any extra chunk paths registered for this config
+                if let Some(chunk_paths) = state.extra_chunk_paths.remove(old_path) {
+                    for chunk_path in chunk_paths {
+                        match self.waf.remove_config(&chunk_path) {
+                            Ok(true) => {
+                                debug!("Removed WAF chunk config for {:?}: {}", old_path, chunk_path);
+                                waf_changed = true;
+                            }
+                            Ok(false) => {
+                                warning!("No WAF chunk config found to remove for {:?}: {}", old_path, chunk_path);
+                            }
+                            Err(e) => {
+                                self.log_general_rc_error(&e.context(format!(
+                                    "Failed to remove WAF chunk config for {:?}: {}",
+                                    old_path, chunk_path
+                                )));
+                            }
+                        }
+                    }
+                }
+
                 let res = self.waf.remove_config(old_path.as_str());
                 match res {
                     Ok(true) => {
@@ -560,29 +584,63 @@ impl Service {
                 let shmem = cfg.read()?;
                 let data = unsafe { shmem.as_slice() };
 
-                let ruleset = waf_ruleset::WafRuleset::from_slice(data)
-                    .with_context(|| format!("Failed to parse WAF config for {:?}", rc_path))?;
-
-                let waf_obj: libddwaf::object::WafObject = ruleset.into();
-                let mut diagnostics = Default::default();
-
-                let upd_result = self.waf.add_or_update_config(
-                    rc_path.as_str(),
-                    &waf_obj,
-                    Some(&mut diagnostics),
-                );
-
-                if upd_result.is_ok() {
-                    debug!("Added/updated WAF config: {:?}", rc_path);
-                    if product.name() == "ASM_DD" {
-                        *rules_version = waf_diag::extract_ruleset_version(&diagnostics);
-                        *new_snapshot = new_snapshot.with_new_rules_version(rules_version.clone());
+                // Remove stale chunk paths from a previous update of the same RC path
+                if let Some(old_chunk_paths) = state.extra_chunk_paths.remove(rc_path) {
+                    for chunk_path in old_chunk_paths {
+                        if let Err(e) = self.waf.remove_config(&chunk_path) {
+                            debug!("Failed to remove old WAF chunk config for {:?}: {:#}", rc_path, e);
+                        }
                     }
-                    *waf_changed = true;
                 }
 
-                all_diagnostics.push((rc_path.clone(), diagnostics));
-                upd_result
+                let chunks = split_asm_data_if_needed(data)
+                    .with_context(|| format!("Failed to split ASM_DATA for {:?}", rc_path))?;
+
+                let mut new_chunk_paths: Vec<String> = Vec::new();
+                let mut last_result = Ok(());
+
+                for (i, chunk_data) in chunks.iter().enumerate() {
+                    let chunk_path = if i == 0 {
+                        rc_path.as_str().to_string()
+                    } else {
+                        // Use null byte as separator to guarantee no collision with real RC paths
+                        let p = format!("{}\x00chunk_{}", rc_path.as_str(), i);
+                        new_chunk_paths.push(p.clone());
+                        p
+                    };
+
+                    let ruleset = waf_ruleset::WafRuleset::from_slice(chunk_data)
+                        .with_context(|| format!("Failed to parse WAF config chunk {} for {:?}", i, rc_path))?;
+
+                    let waf_obj: libddwaf::object::WafObject = ruleset.into();
+                    let mut diagnostics = Default::default();
+
+                    let upd_result = self.waf.add_or_update_config(
+                        &chunk_path,
+                        &waf_obj,
+                        Some(&mut diagnostics),
+                    );
+
+                    if upd_result.is_ok() {
+                        debug!("Added/updated WAF config chunk {}: {:?}", i, rc_path);
+                        if product.name() == "ASM_DD" && i == 0 {
+                            *rules_version = waf_diag::extract_ruleset_version(&diagnostics);
+                            *new_snapshot = new_snapshot.with_new_rules_version(rules_version.clone());
+                        }
+                        *waf_changed = true;
+                    }
+
+                    if i == 0 {
+                        all_diagnostics.push((rc_path.clone(), diagnostics));
+                        last_result = upd_result;
+                    }
+                }
+
+                if !new_chunk_paths.is_empty() {
+                    state.extra_chunk_paths.insert(rc_path.clone(), new_chunk_paths);
+                }
+
+                last_result
             }
             _ => {
                 debug!("Ignoring unknown product: {:?}", product);
@@ -797,6 +855,80 @@ struct RcUpdateState {
     asm_feature_config_manager: AsmFeatureConfigManager,
     pending_telemetry_metrics: TelemetryMetricsCollector,
     pending_init_diagnostics_legacy: Option<InitDiagnosticsLegacy>,
+    // Extra WAF config paths created when splitting large ASM_DATA arrays into chunks.
+    // Maps original RC path -> list of extra chunk WAF paths to remove when the original is removed.
+    extra_chunk_paths: HashMap<rc::RcPath, Vec<String>>,
+}
+
+// libddwaf v2.x uses u16 for WafArray capacity (max 65535 entries per array).
+// When ASM_DATA contains a rules_data[*].data array exceeding this limit, we split it
+// into chunks that each fit within the limit, using separate WAF config paths per chunk.
+// libddwaf merges rules_data entries with the same id from multiple config paths.
+const MAX_WAF_ARRAY_ENTRIES: usize = u16::MAX as usize;
+
+fn split_asm_data_if_needed(data: &[u8]) -> anyhow::Result<Vec<Vec<u8>>> {
+    let value: serde_json::Value = serde_json::from_slice(data)
+        .context("Failed to parse ASM_DATA JSON")?;
+
+    let rules_data = match value.get("rules_data").and_then(|v| v.as_array()) {
+        Some(rd) => rd,
+        None => return Ok(vec![data.to_vec()]),
+    };
+
+    let any_large = rules_data.iter().any(|entry| {
+        entry
+            .get("data")
+            .and_then(|d| d.as_array())
+            .map(|arr| arr.len() > MAX_WAF_ARRAY_ENTRIES)
+            .unwrap_or(false)
+    });
+
+    if !any_large {
+        return Ok(vec![data.to_vec()]);
+    }
+
+    // Build the first chunk (with all small entries + first slice of large entries).
+    // Additional chunks carry subsequent slices of large entries.
+    let mut first_entries: Vec<serde_json::Value> = Vec::new();
+    let mut extra_jsons: Vec<Vec<u8>> = Vec::new();
+
+    for entry in rules_data {
+        let data_arr = entry.get("data").and_then(|d| d.as_array());
+        match data_arr {
+            Some(arr) if arr.len() > MAX_WAF_ARRAY_ENTRIES => {
+                let id = entry.get("id").cloned().unwrap_or(serde_json::Value::Null);
+                let type_ = entry
+                    .get("type")
+                    .cloned()
+                    .unwrap_or(serde_json::Value::Null);
+                let mut first = true;
+                for chunk in arr.chunks(MAX_WAF_ARRAY_ENTRIES) {
+                    let chunk_entry = serde_json::json!({
+                        "id": id,
+                        "type": type_,
+                        "data": serde_json::Value::Array(chunk.to_vec())
+                    });
+                    if first {
+                        first_entries.push(chunk_entry);
+                        first = false;
+                    } else {
+                        extra_jsons.push(
+                            serde_json::to_vec(&serde_json::json!({"rules_data": [chunk_entry]}))
+                                .context("Failed to serialize ASM_DATA chunk")?,
+                        );
+                    }
+                }
+            }
+            _ => first_entries.push(entry.clone()),
+        }
+    }
+
+    let first_json = serde_json::to_vec(&serde_json::json!({"rules_data": first_entries}))
+        .context("Failed to serialize first ASM_DATA chunk")?;
+
+    let mut result = vec![first_json];
+    result.extend(extra_jsons);
+    Ok(result)
 }
 
 // --- Tests ---
@@ -980,5 +1112,63 @@ mod tests {
              client_init disabled RC, but got: {:?}",
             result
         );
+    }
+
+    #[test]
+    fn split_asm_data_no_split_when_small() {
+        let data = serde_json::json!({
+            "rules_data": [{
+                "id": "blocked_ips",
+                "type": "ip_with_expiration",
+                "data": [{"value": "1.2.3.4", "expiration": 0}]
+            }]
+        });
+        let bytes = serde_json::to_vec(&data).unwrap();
+        let chunks = split_asm_data_if_needed(&bytes).unwrap();
+        assert_eq!(chunks.len(), 1);
+        // Content should be the original bytes unchanged
+        assert_eq!(chunks[0], bytes);
+    }
+
+    #[test]
+    fn split_asm_data_splits_large_array() {
+        // Build a rules_data entry with MAX_WAF_ARRAY_ENTRIES + 1 items
+        let count = MAX_WAF_ARRAY_ENTRIES + 1;
+        let entries: Vec<serde_json::Value> = (0..count)
+            .map(|i| serde_json::json!({"value": format!("1.{}.{}.{}", i >> 16, (i >> 8) & 0xff, i & 0xff), "expiration": 0}))
+            .collect();
+        let data = serde_json::json!({
+            "rules_data": [{
+                "id": "blocked_ips",
+                "type": "ip_with_expiration",
+                "data": entries
+            }]
+        });
+        let bytes = serde_json::to_vec(&data).unwrap();
+        let chunks = split_asm_data_if_needed(&bytes).unwrap();
+        // Should produce 2 chunks: first with MAX_WAF_ARRAY_ENTRIES, second with 1
+        assert_eq!(chunks.len(), 2);
+
+        let chunk0: serde_json::Value = serde_json::from_slice(&chunks[0]).unwrap();
+        let chunk1: serde_json::Value = serde_json::from_slice(&chunks[1]).unwrap();
+
+        let data0 = chunk0["rules_data"][0]["data"].as_array().unwrap();
+        let data1 = chunk1["rules_data"][0]["data"].as_array().unwrap();
+
+        assert_eq!(data0.len(), MAX_WAF_ARRAY_ENTRIES);
+        assert_eq!(data1.len(), 1);
+
+        // Verify IDs are preserved
+        assert_eq!(chunk0["rules_data"][0]["id"], "blocked_ips");
+        assert_eq!(chunk1["rules_data"][0]["id"], "blocked_ips");
+    }
+
+    #[test]
+    fn split_asm_data_no_rules_data_passthrough() {
+        let data = serde_json::json!({"rules": []});
+        let bytes = serde_json::to_vec(&data).unwrap();
+        let chunks = split_asm_data_if_needed(&bytes).unwrap();
+        assert_eq!(chunks.len(), 1);
+        assert_eq!(chunks[0], bytes);
     }
 }
