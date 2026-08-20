@@ -401,11 +401,18 @@ impl Service {
                     for chunk_path in chunk_paths {
                         match self.waf.remove_config(&chunk_path) {
                             Ok(true) => {
-                                debug!("Removed WAF chunk config for {:?}: {}", old_path, chunk_path);
+                                debug!(
+                                    "Removed WAF chunk config for {:?}: {}",
+                                    old_path, chunk_path
+                                );
                                 waf_changed = true;
                             }
                             Ok(false) => {
-                                warning!("No WAF chunk config found to remove for {:?}: {}", old_path, chunk_path);
+                                warning!(
+                                    "No WAF chunk config found to remove for {:?}: {}",
+                                    old_path,
+                                    chunk_path
+                                );
                             }
                             Err(e) => {
                                 self.log_general_rc_error(&e.context(format!(
@@ -588,7 +595,10 @@ impl Service {
                 if let Some(old_chunk_paths) = state.extra_chunk_paths.remove(rc_path) {
                     for chunk_path in old_chunk_paths {
                         if let Err(e) = self.waf.remove_config(&chunk_path) {
-                            debug!("Failed to remove old WAF chunk config for {:?}: {:#}", rc_path, e);
+                            debug!(
+                                "Failed to remove old WAF chunk config for {:?}: {:#}",
+                                rc_path, e
+                            );
                         }
                     }
                 }
@@ -609,8 +619,10 @@ impl Service {
                         p
                     };
 
-                    let ruleset = waf_ruleset::WafRuleset::from_slice(chunk_data)
-                        .with_context(|| format!("Failed to parse WAF config chunk {} for {:?}", i, rc_path))?;
+                    let ruleset =
+                        waf_ruleset::WafRuleset::from_slice(chunk_data).with_context(|| {
+                            format!("Failed to parse WAF config chunk {} for {:?}", i, rc_path)
+                        })?;
 
                     let waf_obj: libddwaf::object::WafObject = ruleset.into();
                     let mut diagnostics = Default::default();
@@ -625,7 +637,8 @@ impl Service {
                         debug!("Added/updated WAF config chunk {}: {:?}", i, rc_path);
                         if product.name() == "ASM_DD" && i == 0 {
                             *rules_version = waf_diag::extract_ruleset_version(&diagnostics);
-                            *new_snapshot = new_snapshot.with_new_rules_version(rules_version.clone());
+                            *new_snapshot =
+                                new_snapshot.with_new_rules_version(rules_version.clone());
                         }
                         *waf_changed = true;
                     }
@@ -637,7 +650,9 @@ impl Service {
                 }
 
                 if !new_chunk_paths.is_empty() {
-                    state.extra_chunk_paths.insert(rc_path.clone(), new_chunk_paths);
+                    state
+                        .extra_chunk_paths
+                        .insert(rc_path.clone(), new_chunk_paths);
                 }
 
                 last_result
@@ -867,8 +882,8 @@ struct RcUpdateState {
 const MAX_WAF_ARRAY_ENTRIES: usize = u16::MAX as usize;
 
 fn split_asm_data_if_needed(data: &[u8]) -> anyhow::Result<Vec<Vec<u8>>> {
-    let value: serde_json::Value = serde_json::from_slice(data)
-        .context("Failed to parse ASM_DATA JSON")?;
+    let value: serde_json::Value =
+        serde_json::from_slice(data).context("Failed to parse ASM_DATA JSON")?;
 
     let rules_data = match value.get("rules_data").and_then(|v| v.as_array()) {
         Some(rd) => rd,
