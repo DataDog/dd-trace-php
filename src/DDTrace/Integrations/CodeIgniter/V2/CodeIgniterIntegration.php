@@ -222,7 +222,7 @@ class CodeIgniterIntegration extends Integration
     /*
      * Replicate CodeIgniter's route parsing, as matching key is never stored or returned in the framework.
      */
-    private static function setNormalizedRoute($rootSpan, string $pattern): void {
+    private static function setNormalizedRoute($rootSpan, string $pattern) {
         $cacheKey = $pattern;
         $normalizedRoute = \DDTrace\routing_cache_get($cacheKey);
         if ($normalizedRoute === false) {
