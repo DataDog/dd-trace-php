@@ -933,6 +933,7 @@ fn split_asm_data_if_needed(data: &[u8]) -> anyhow::Result<Vec<Vec<u8>>> {
                         );
                     }
                 }
+            }
             _ => first_entries.push(entry.clone()),
         }
     }
@@ -945,8 +946,8 @@ fn split_asm_data_if_needed(data: &[u8]) -> anyhow::Result<Vec<Vec<u8>>> {
         );
     }
 
-    let first_json = serde_json::to_vec(&first_value)
-        .context("Failed to serialize first ASM_DATA chunk")?;
+    let first_json =
+        serde_json::to_vec(&first_value).context("Failed to serialize first ASM_DATA chunk")?;
 
     let mut result = vec![first_json];
     result.extend(extra_jsons);
