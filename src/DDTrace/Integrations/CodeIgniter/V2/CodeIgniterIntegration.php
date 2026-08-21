@@ -222,6 +222,20 @@ class CodeIgniterIntegration extends Integration
     /*
      * Replicate CodeIgniter's route parsing, as matching key is never stored or returned in the framework.
      */
+    private static function setNormalizedRoute($rootSpan, string $pattern) {
+        $cacheKey = $pattern;
+        $normalizedRoute = \DDTrace\routing_cache_get($cacheKey);
+        if ($normalizedRoute === false) {
+            $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromCodeIgniter($pattern);
+            if ($normalizedRoute !== null) {
+                \DDTrace\routing_cache_set($cacheKey, $normalizedRoute);
+            }
+        }
+        if ($normalizedRoute !== null && $normalizedRoute !== false) {
+            $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+        }
+    }
+
     private static function setHttpRoute($router, $rootSpan) {
         // Turn the segment array into a URI string
         $uri = implode('/', $router->uri->segments);
@@ -230,6 +244,7 @@ class CodeIgniterIntegration extends Integration
         if (isset($router->routes[$uri]))
         {
             $rootSpan->meta[Tag::HTTP_ROUTE] = $uri;
+            self::setNormalizedRoute($rootSpan, $uri);
             return;
         }
 
@@ -244,6 +259,7 @@ class CodeIgniterIntegration extends Integration
             if (preg_match('#^'.$key.'$#', $uri))
             {
                 $rootSpan->meta[Tag::HTTP_ROUTE] = $origKey;
+                self::setNormalizedRoute($rootSpan, $origKey);
                 return;
             }
         }
@@ -251,5 +267,6 @@ class CodeIgniterIntegration extends Integration
         // If we got this far it means we didn't encounter a
         // matching route so we'll set the site default route
         $rootSpan->meta[Tag::HTTP_ROUTE] = $uri;
+        self::setNormalizedRoute($rootSpan, $uri);
     }
 }

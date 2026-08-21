@@ -732,7 +732,19 @@ class WordPressIntegrationLoader
                 function_exists('is_404') && is_404() === false) {
                 $rootSpan = \DDTrace\root_span();
                 if (\property_exists($This, 'matched_rule')) {
-                    $rootSpan->meta[Tag::HTTP_ROUTE] = $This->matched_rule;
+                    $matchedRule = $This->matched_rule;
+                    $rootSpan->meta[Tag::HTTP_ROUTE] = $matchedRule;
+                    $urlPath = \property_exists($This, 'request') ? $This->request : null;
+                    $normalizedRoute = \DDTrace\routing_cache_get($matchedRule);
+                    if ($normalizedRoute === false) {
+                        $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromWordPress($matchedRule, $urlPath);
+                        if ($normalizedRoute !== null) {
+                            \DDTrace\routing_cache_set($matchedRule, $normalizedRoute);
+                        }
+                    }
+                    if ($normalizedRoute !== null && $normalizedRoute !== false) {
+                        $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                    }
                 }
             }
         });

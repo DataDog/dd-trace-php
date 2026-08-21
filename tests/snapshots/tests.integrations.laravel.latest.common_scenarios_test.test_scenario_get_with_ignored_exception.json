@@ -13,6 +13,7 @@
       "component": "laravel",
       "http.method": "GET",
       "http.route": "ignored_exception",
+      "_dd.appsec.normalized_route": "/ignored_exception",
       "http.status_code": "500",
       "http.url": "http://localhost/ignored_exception?key=value&<redacted>",
       "laravel.route.action": "App\\Http\\Controllers\\CommonSpecsController@ignored_exception",
