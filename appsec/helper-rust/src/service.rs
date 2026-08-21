@@ -937,7 +937,15 @@ fn split_asm_data_if_needed(data: &[u8]) -> anyhow::Result<Vec<Vec<u8>>> {
         }
     }
 
-    let first_json = serde_json::to_vec(&serde_json::json!({"rules_data": first_entries}))
+    let mut first_value = value.clone();
+    if let Some(obj) = first_value.as_object_mut() {
+        obj.insert(
+            "rules_data".to_string(),
+            serde_json::Value::Array(first_entries),
+        );
+    }
+
+    let first_json = serde_json::to_vec(&first_value)
         .context("Failed to serialize first ASM_DATA chunk")?;
 
     let mut result = vec![first_json];
