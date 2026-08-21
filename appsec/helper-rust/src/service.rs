@@ -591,23 +591,13 @@ impl Service {
                 let shmem = cfg.read()?;
                 let data = unsafe { shmem.as_slice() };
 
-                // Remove stale chunk paths from a previous update of the same RC path
-                if let Some(old_chunk_paths) = state.extra_chunk_paths.remove(rc_path) {
-                    for chunk_path in old_chunk_paths {
-                        if let Err(e) = self.waf.remove_config(&chunk_path) {
-                            debug!(
-                                "Failed to remove old WAF chunk config for {:?}: {:#}",
-                                rc_path, e
-                            );
-                        }
-                    }
-                }
-
+                // Parse and split first; only remove old chunk paths after successful
+                // registration so a malformed update doesn't drop last-known-good chunks.
                 let chunks = split_asm_data_if_needed(data)
                     .with_context(|| format!("Failed to split ASM_DATA for {:?}", rc_path))?;
 
                 let mut new_chunk_paths: Vec<String> = Vec::new();
-                let mut last_result = Ok(());
+                let mut first_result = Ok(());
 
                 for (i, chunk_data) in chunks.iter().enumerate() {
                     let chunk_path = if i == 0 {
@@ -615,7 +605,6 @@ impl Service {
                     } else {
                         // Use a delimiter that cannot appear in real RC paths but is safe for C-string interop
                         let p = format!("{}#chunk_{}", rc_path.as_str(), i);
-                        new_chunk_paths.push(p.clone());
                         p
                     };
 
@@ -633,19 +622,52 @@ impl Service {
                         Some(&mut diagnostics),
                     );
 
-                    if upd_result.is_ok() {
-                        debug!("Added/updated WAF config chunk {}: {:?}", i, rc_path);
-                        if product.name() == "ASM_DD" && i == 0 {
-                            *rules_version = waf_diag::extract_ruleset_version(&diagnostics);
-                            *new_snapshot =
-                                new_snapshot.with_new_rules_version(rules_version.clone());
-                        }
-                        *waf_changed = true;
-                    }
+                    // Collect diagnostics for every chunk under the original RC path so
+                    // errors in chunks beyond the first are not silently discarded.
+                    all_diagnostics.push((rc_path.clone(), diagnostics));
 
-                    if i == 0 {
-                        all_diagnostics.push((rc_path.clone(), diagnostics));
-                        last_result = upd_result;
+                    match upd_result {
+                        Ok(()) => {
+                            debug!("Added/updated WAF config chunk {}: {:?}", i, rc_path);
+                            if product.name() == "ASM_DD" && i == 0 {
+                                if let Some((_, diag)) = all_diagnostics.last() {
+                                    *rules_version = waf_diag::extract_ruleset_version(diag);
+                                }
+                                *new_snapshot =
+                                    new_snapshot.with_new_rules_version(rules_version.clone());
+                            }
+                            *waf_changed = true;
+                            if i > 0 {
+                                new_chunk_paths.push(chunk_path);
+                            }
+                        }
+                        Err(e) => {
+                            if i == 0 {
+                                first_result = Err(e);
+                            } else {
+                                // Propagate failures from any chunk: a partial update
+                                // would silently leave the WAF with an incomplete denylist.
+                                return Err(e).with_context(|| {
+                                    format!(
+                                        "Failed to add WAF config chunk {} for {:?}",
+                                        i, rc_path
+                                    )
+                                });
+                            }
+                        }
+                    }
+                }
+
+                // All chunks accepted — now remove stale chunk paths from the previous
+                // update of this RC path and record the newly registered ones.
+                if let Some(old_chunk_paths) = state.extra_chunk_paths.remove(rc_path) {
+                    for chunk_path in old_chunk_paths {
+                        if let Err(e) = self.waf.remove_config(&chunk_path) {
+                            debug!(
+                                "Failed to remove old WAF chunk config for {:?}: {:#}",
+                                rc_path, e
+                            );
+                        }
                     }
                 }
 
@@ -655,7 +677,7 @@ impl Service {
                         .insert(rc_path.clone(), new_chunk_paths);
                 }
 
-                last_result
+                first_result
             }
             _ => {
                 debug!("Ignoring unknown product: {:?}", product);
