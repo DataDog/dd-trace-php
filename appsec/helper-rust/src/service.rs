@@ -613,8 +613,8 @@ impl Service {
                     let chunk_path = if i == 0 {
                         rc_path.as_str().to_string()
                     } else {
-                        // Use null byte as separator to guarantee no collision with real RC paths
-                        let p = format!("{}\x00chunk_{}", rc_path.as_str(), i);
+                        // Use a delimiter that cannot appear in real RC paths but is safe for C-string interop
+                        let p = format!("{}#chunk_{}", rc_path.as_str(), i);
                         new_chunk_paths.push(p.clone());
                         p
                     };
