@@ -120,7 +120,11 @@ void dd_stop_debugger_timeout(void) {
 
 static void CALLBACK dd_timeout_callback(PVOID param, BOOLEAN fired) {
     UNUSED(fired);
-    *((volatile sig_atomic_t *)param) = 1;
+    volatile sig_atomic_t **flags = (volatile sig_atomic_t **)param;
+    if (!*flags[0]) {
+        *flags[1] = DD_CAPTURE_ABORT_TIMEOUT;
+    }
+    *flags[0] = 1;
 }
 
 void dd_start_debugger_timeout(void) {
@@ -132,10 +136,12 @@ void dd_start_debugger_timeout(void) {
         LOG(WARN, "Starting debugger timeout when it was already active. Last timeout was not stopped properly?");
     }
     DDTRACE_G(debugger_capture_timed_out) = 0;
+    DDTRACE_G(debugger_capture_abort_reason) = DD_CAPTURE_ABORT_NONE;
+    DDTRACE_G(capture_timeout_flags)[0] = &DDTRACE_G(debugger_capture_timed_out);
+    DDTRACE_G(capture_timeout_flags)[1] = &DDTRACE_G(debugger_capture_abort_reason);
     HANDLE timer = NULL;
-    // Pass a stable pointer to this thread's flag; the callback writes it from the timer-pool thread.
     if (CreateTimerQueueTimer(&timer, NULL, dd_timeout_callback,
-                              (PVOID)&DDTRACE_G(debugger_capture_timed_out),
+                              (PVOID)DDTRACE_G(capture_timeout_flags),
                               (DWORD)ms, 0, WT_EXECUTEONLYONCE)) {
         DDTRACE_G(capture_timer_handle) = timer;
     }
@@ -244,7 +250,12 @@ static ddog_CharSlice dd_persist_str_eval_arena(struct eval_ctx *eval_ctx, zend_
 void ddtrace_increase_capture_size(size_t bytes) {
     DDTRACE_G(debugger_capture_arena).captured_size += bytes;
     if (UNEXPECTED(DDTRACE_G(debugger_capture_arena).captured_size > DD_MAX_CAPTURE_SIZE)) {
-        // Reuse the timeout flag: every capture loop already bails out on it.
+        // Reuse the timeout flag: every capture loop already bails out on it. Only record the reason
+        // if nothing aborted the capture yet, so a size overshoot after an earlier CPU timeout doesn't
+        // overwrite the real reason.
+        if (!DDTRACE_G(debugger_capture_timed_out)) {
+            DDTRACE_G(debugger_capture_abort_reason) = DD_CAPTURE_ABORT_SIZE;
+        }
         DDTRACE_G(debugger_capture_timed_out) = 1;
     }
 }

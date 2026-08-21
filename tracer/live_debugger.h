@@ -45,4 +45,10 @@ void dd_stop_debugger_timeout(void);
 
 void ddtrace_increase_capture_size(size_t bytes);
 
+// Which of the two independent triggers set debugger_capture_timed_out; recorded by whichever
+// trigger fires first, since the CPU timer and the size limit share that one abort flag.
+#define DD_CAPTURE_ABORT_NONE 0
+#define DD_CAPTURE_ABORT_TIMEOUT 1
+#define DD_CAPTURE_ABORT_SIZE 2
+
 #endif // DD_LIVE_DEBUGGER_H

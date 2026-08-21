@@ -89,7 +89,7 @@ static void dd_exception_trace_to_error_stack(zend_string *trace, ddog_SpanBytes
 
 
 static ddog_CharSlice dd_capture_aborted_reason(void) {
-    return DDTRACE_G(debugger_capture_arena).captured_size > DD_MAX_CAPTURE_SIZE ? DDOG_CHARSLICE_C("size") : DDOG_CHARSLICE_C("timeout");
+    return DDTRACE_G(debugger_capture_abort_reason) == DD_CAPTURE_ABORT_SIZE ? DDOG_CHARSLICE_C("size") : DDOG_CHARSLICE_C("timeout");
 }
 
 static void ddtrace_capture_string_value(zend_string *str, struct ddog_CaptureValue *value, const ddog_CaptureConfiguration *config) {
