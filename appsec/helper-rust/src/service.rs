@@ -560,6 +560,10 @@ impl Service {
                 let shmem = cfg.read()?;
                 let data = unsafe { shmem.as_slice() };
 
+                let truncated = truncate_asm_data_if_needed(data)
+                    .with_context(|| format!("Failed to parse WAF config for {:?}", rc_path))?;
+                let data = truncated.as_deref().unwrap_or(data);
+
                 let ruleset = waf_ruleset::WafRuleset::from_slice(data)
                     .with_context(|| format!("Failed to parse WAF config for {:?}", rc_path))?;
 
@@ -799,6 +803,44 @@ struct RcUpdateState {
     pending_init_diagnostics_legacy: Option<InitDiagnosticsLegacy>,
 }
 
+// libddwaf v2.x uses u16 for WafArray capacity (max 65535 entries per array).
+// When ASM_DATA delivers a rules_data[*].data array larger than this, we truncate
+// it to the limit rather than panic. Entries beyond the limit are silently dropped.
+const MAX_WAF_ARRAY_ENTRIES: usize = u16::MAX as usize;
+
+fn truncate_asm_data_if_needed(data: &[u8]) -> anyhow::Result<Option<Vec<u8>>> {
+    let mut value: serde_json::Value =
+        serde_json::from_slice(data).context("Failed to parse WAF config JSON")?;
+
+    let rules_data = match value.get_mut("rules_data").and_then(|v| v.as_array_mut()) {
+        Some(rd) => rd,
+        None => return Ok(None),
+    };
+
+    let mut truncated = false;
+    for entry in rules_data.iter_mut() {
+        if let Some(data_arr) = entry.get_mut("data").and_then(|d| d.as_array_mut()) {
+            if data_arr.len() > MAX_WAF_ARRAY_ENTRIES {
+                warning!(
+                    "ASM_DATA rules_data entry has {} IPs, truncating to {} (WAF limit)",
+                    data_arr.len(),
+                    MAX_WAF_ARRAY_ENTRIES
+                );
+                data_arr.truncate(MAX_WAF_ARRAY_ENTRIES);
+                truncated = true;
+            }
+        }
+    }
+
+    if !truncated {
+        return Ok(None);
+    }
+
+    let serialized =
+        serde_json::to_vec(&value).context("Failed to serialize truncated WAF config")?;
+    Ok(Some(serialized))
+}
+
 // --- Tests ---
 
 #[cfg(test)]
@@ -979,6 +1021,54 @@ mod tests {
             "config_sync with the same path must not create a new config when \
              client_init disabled RC, but got: {:?}",
             result
+        );
+    }
+
+    #[test]
+    fn truncate_asm_data_no_truncate_when_small() {
+        let data = serde_json::json!({
+            "rules_data": [{
+                "id": "blocked_ips",
+                "type": "ip_with_expiration",
+                "data": [{"value": "1.2.3.4", "expiration": 0}]
+            }]
+        });
+        let bytes = serde_json::to_vec(&data).unwrap();
+        let result = truncate_asm_data_if_needed(&bytes).unwrap();
+        assert!(result.is_none(), "small array should not be truncated");
+    }
+
+    #[test]
+    fn truncate_asm_data_truncates_large_array() {
+        let count = MAX_WAF_ARRAY_ENTRIES + 10;
+        let entries: Vec<serde_json::Value> = (0..count)
+            .map(|i| {
+                serde_json::json!({"value": format!("1.{}.{}.{}", i >> 16, (i >> 8) & 0xff, i & 0xff), "expiration": 0})
+            })
+            .collect();
+        let data = serde_json::json!({
+            "rules_data": [{
+                "id": "blocked_ips",
+                "type": "ip_with_expiration",
+                "data": entries
+            }]
+        });
+        let bytes = serde_json::to_vec(&data).unwrap();
+        let result = truncate_asm_data_if_needed(&bytes).unwrap();
+        let truncated = result.expect("large array should trigger truncation");
+        let parsed: serde_json::Value = serde_json::from_slice(&truncated).unwrap();
+        let data_arr = parsed["rules_data"][0]["data"].as_array().unwrap();
+        assert_eq!(data_arr.len(), MAX_WAF_ARRAY_ENTRIES);
+    }
+
+    #[test]
+    fn truncate_asm_data_no_rules_data_passthrough() {
+        let data = serde_json::json!({"rules": []});
+        let bytes = serde_json::to_vec(&data).unwrap();
+        let result = truncate_asm_data_if_needed(&bytes).unwrap();
+        assert!(
+            result.is_none(),
+            "config without rules_data should pass through"
         );
     }
 }
