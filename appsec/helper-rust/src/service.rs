@@ -917,6 +917,7 @@ fn split_asm_data_if_needed(data: &[u8]) -> anyhow::Result<Vec<Vec<u8>>> {
                     .cloned()
                     .unwrap_or(serde_json::Value::Null);
                 let mut first = true;
+                for chunk in arr.chunks(MAX_WAF_ARRAY_ENTRIES) {
                     let chunk_entry = serde_json::json!({
                         "id": id.clone(),
                         "type": type_.clone(),
@@ -932,7 +933,6 @@ fn split_asm_data_if_needed(data: &[u8]) -> anyhow::Result<Vec<Vec<u8>>> {
                         );
                     }
                 }
-            }
             _ => first_entries.push(entry.clone()),
         }
     }
