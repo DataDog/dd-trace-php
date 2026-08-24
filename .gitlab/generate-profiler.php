@@ -168,19 +168,49 @@ foreach ($profiler_minor_major_targets as $version) {
     - .gitlab/run_php_language_tests.sh
   after_script:
     - |
-      core=/usr/local/src/php/core
-      if [ -f "${core}" ]; then
-        output="${CI_PROJECT_DIR}/artifacts/php-language-tests"
-        mkdir -p "${output}"
+      output="${CI_PROJECT_DIR}/artifacts/php-language-tests"
+      mkdir -p "${output}"
+
+      # Core files are written relative to the crashing process's working
+      # directory when core_pattern is not absolute. PHPT processes run from
+      # their test directories, so looking only for /usr/local/src/php/core
+      # misses crashes such as ext/pcntl/tests/core. The pattern may also add
+      # the PID, producing core.<pid>.
+      core_pattern=$(cat /proc/sys/kernel/core_pattern 2>&1)
+      {
+        echo "core_pattern: ${core_pattern}"
+        echo "core ulimit: $(ulimit -c)"
+      } | tee "${output}/core-diagnostics.txt"
+
+      search_roots=(/usr/local/src/php "${CI_PROJECT_DIR}")
+      if [[ "${core_pattern}" == /* ]]; then
+        search_roots+=("$(dirname "${core_pattern}")")
+      fi
+
+      # Accommodate patterns such as core, core.%p, and core.%e.%p. Filtering
+      # with file avoids mistaking source files whose names begin with "core"
+      # for process core dumps.
+      mapfile -d '' cores < <(
+        while IFS= read -r -d '' candidate; do
+          if file -b "${candidate}" 2>/dev/null | grep -q 'core file'; then
+            printf '%s\0' "${candidate}"
+          fi
+        done < <(find "${search_roots[@]}" -type f -name 'core*' -print0 2>/dev/null)
+      )
+      echo "core files found: ${#cores[@]}" | tee -a "${output}/core-diagnostics.txt"
+
+      for i in "${!cores[@]}"; do
+        core="${cores[$i]}"
+        echo "core ${i}: ${core}" | tee -a "${output}/core-diagnostics.txt"
         gdb --batch \
           -ex "set pagination off" \
           -ex "info threads" \
           -ex "thread apply all bt full" \
           -ex "thread apply all info registers" \
           -ex "info sharedlibrary" \
-          /usr/local/bin/php "${core}" > "${output}/gdb-backtrace.txt" 2>&1 || true
-        mv "${core}" "${output}/core"
-      fi
+          /usr/local/bin/php "${core}" > "${output}/gdb-backtrace-${i}.txt" 2>&1 || true
+        mv "${core}" "${output}/core-${i}"
+      done
   artifacts:
     when: on_failure
     paths:
