@@ -11,6 +11,7 @@ $output = runCLI('-r "echo \'foo\'; dd_trace_internal_fn(\'finalize_telemetry\')
     'DD_INJECT_FORCE=true',
     'DD_INJECTION_ENABLED=tracer', // Normally set by the injector
     'DD_SERVICE=loader',
+    'DD_TRACE_GENERATE_ROOT_SPAN=0',
 ]);
 
 assertMatchesFormat($output, '%A"loaded_by_ssi":true%s%A');
