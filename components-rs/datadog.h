@@ -121,9 +121,8 @@ char *ddog_agent_info_as_json(struct ddog_AgentInfoReader *reader);
 void ddog_agent_info_json_free(char *ptr);
 
 /**
- * Returns true when the agent /info `endpoints` list advertises `endpoint`
- * (e.g. `/v1.0/traces`).  Returns false when no info has been received yet, so the
- * caller safely treats "agent info unknown" as "endpoint not advertised".
+ * Returns whether the agent /info `endpoints` list advertises `endpoint` (e.g. `/v1.0/traces`);
+ * false when no info has been received yet ("unknown" == "not advertised").
  *
  * # Safety
  * `reader` must be a valid pointer to an `AgentInfoReader`.

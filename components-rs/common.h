@@ -437,6 +437,7 @@ typedef enum ddog_RemoteConfigProduct {
   DDOG_REMOTE_CONFIG_PRODUCT_FFE_FLAGS,
   DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGING,
   DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGING_SYMBOL_DB,
+  DDOG_REMOTE_CONFIG_PRODUCT_DEBUG,
 } ddog_RemoteConfigProduct;
 
 typedef enum ddog_SpanProbeTarget {
@@ -1353,9 +1354,7 @@ typedef struct ddog_SenderParameters {
 } ddog_SenderParameters;
 
 /**
- * Payload-level tracer metadata consumed by the V1 msgpack encoder. Each field mirrors the
- * corresponding field on `libdd_trace_utils::tracer_metadata::TracerMetadata`; empty slices are
- * tolerated (the encoder falls back to span meta / omits the field).
+ * Payload-level tracer metadata for the V1 msgpack encoder; mirrors `TracerMetadata`.
  */
 typedef struct ddog_TracerMetadataV1 {
   ddog_CharSlice hostname;
