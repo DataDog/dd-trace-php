@@ -135,6 +135,12 @@ stages:
     docker run --network net -d --name request-replayer registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-request-replayer-2.0-windows
     docker run -v ${pwd}:C:\Users\ContainerAdministrator\app  --network net -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
 
+    # Enable NTFS long path support so cargo's libgit2-based git checkouts of
+    # deeply nested dependencies (e.g. rust-tuf's interop-tests fixtures,
+    # pulled in via libdd-remote-config) don't fail with "path too long".
+    docker exec ${CONTAINER_NAME} powershell.exe -Command "`$ErrorActionPreference='Stop'; Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\FileSystem' -Name LongPathsEnabled -Value 1 -Type DWord"
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }  # local registry tweak, not network — fail fast (no retry)
+
     # Build nts
     docker exec ${CONTAINER_NAME} powershell.exe "cd app; switch-php nts; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake"
 

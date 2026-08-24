@@ -1,6 +1,12 @@
 include(ExternalProject)
 
-set(CARGO_BUILD_CMD "cargo build")
+if(DD_APPSEC_SSI)
+    set(CARGO_BUILD_CMD "cargo build")
+else()
+    # Only the static library is linked into ddtrace. Building the cdylib as well fails on macOS
+    # because it references symbols that are provided by the final ddtrace extension.
+    set(CARGO_BUILD_CMD "cargo rustc --lib --crate-type staticlib")
+endif()
 set(CARGO_BUILD_ENV "") # Initialize to empty
 
 
@@ -26,9 +32,9 @@ add_custom_target(libdatadog_stamp
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
 set(EXPORTS_FILE "${CMAKE_BINARY_DIR}/ddtrace_exports.version")
 add_custom_target(ddtrace_exports
-    COMMAND bash -c "{ echo -e '{\\nglobal:'; sed 's/$/;/' '${CMAKE_SOURCE_DIR}'/../datadog.sym; echo -e 'local:\\n*;\\n};'; } > '${EXPORTS_FILE}'"
+    COMMAND bash -c "{ echo -e '{\\nglobal:'; sed 's/$/;/' '${CMAKE_SOURCE_DIR}'/../datadog-linux.sym; echo -e 'local:\\n*;\\n};'; } > '${EXPORTS_FILE}'"
     BYPRODUCTS ${EXPORTS_FILE}
-    DEPENDS ${CMAKE_SOURCE_DIR}/../datadog.sym
+    DEPENDS ${CMAKE_SOURCE_DIR}/../datadog-linux.sym
     VERBATIM
 )
 elseif(APPLE)
@@ -137,6 +143,9 @@ if (PhpConfig_VERNUM LESS 80100)
     list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../tracer/handlers_fiber.c")
 endif()
 list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../ext/crashtracking_windows.c")
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../tracer/otel_context.c")
+endif()
 
 find_package(CURL REQUIRED)
 message(STATUS "CURL version: ${CURL_VERSION_STRING}")
@@ -153,6 +162,14 @@ target_compile_options(ddtrace PRIVATE -fms-extensions -Wno-microsoft-anon-tag)
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     target_compile_definitions(ddtrace PRIVATE _GNU_SOURCE)
     target_link_options(ddtrace PRIVATE "-Wl,--version-script=${EXPORTS_FILE}")
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64)$")
+        include(CheckCCompilerFlag)
+        check_c_compiler_flag("-mtls-dialect=gnu2" COMPILER_HAS_GNU2_TLS_DIALECT)
+        if(NOT COMPILER_HAS_GNU2_TLS_DIALECT)
+            message(FATAL_ERROR "x86-64 Linux OTel context sharing requires compiler support for -mtls-dialect=gnu2")
+        endif()
+        target_compile_options(ddtrace PRIVATE -mtls-dialect=gnu2)
+    endif()
 elseif(APPLE)
     target_link_options(ddtrace PRIVATE "-exported_symbols_list" "${EXPORTS_FILE}")
 else()

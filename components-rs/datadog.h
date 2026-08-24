@@ -41,6 +41,13 @@ void datadog_generate_session_id(void);
 
 void datadog_format_runtime_id(uint8_t (*buf)[36]);
 
+#if defined(__linux__)
+/**
+ * Publish or update dd-trace-php's standard Linux OTel Process Context.
+ */
+bool datadog_publish_otel_process_context(ddog_CharSlice process_tags);
+#endif
+
 ddog_CharSlice ddtrace_get_container_id(void);
 
 void ddtrace_set_container_cgroup_path(ddog_CharSlice path);
@@ -77,8 +84,6 @@ ddog_MaybeError datadog_crashtracker_init(const struct ddog_Endpoint *endpoint,
                                           int32_t master_pid);
 
 ddog_Configurator *ddog_library_configurator_new_dummy(bool debug_logs, ddog_CharSlice language);
-
-int posix_spawn_file_actions_addchdir_np(void *file_actions, const char *path);
 
 uint64_t dd_fnv1a_64(const uint8_t *data, uintptr_t len);
 

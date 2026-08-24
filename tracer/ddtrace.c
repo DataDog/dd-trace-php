@@ -41,6 +41,9 @@
 #endif
 #include "config/config.h"
 #include "configuration.h"
+#ifdef __linux__
+#include "otel_context.h"
+#endif
 #ifndef _WIN32
 #include "dogstatsd_client.h"
 #endif
@@ -134,8 +137,8 @@ bool ddtrace_alter_sampling_rules_file_config(zval *old_value, zval *new_value, 
     return dd_save_sampling_rules_file_config(Z_STR_P(new_value), PHP_INI_USER, PHP_INI_STAGE_RUNTIME);
 }
 
-static inline void dd_alter_prop(size_t prop_offset, zval *old_value, zval *new_value, zend_string *new_str) {
-    UNUSED(old_value, new_str);
+static inline void dd_alter_prop(size_t prop_offset, zval *old_value, zval *new_value) {
+    UNUSED(old_value);
 
     ddtrace_span_properties *pspan = ddtrace_active_span_props();
     while (pspan) {
@@ -144,24 +147,31 @@ static inline void dd_alter_prop(size_t prop_offset, zval *old_value, zval *new_
         zval_ptr_dtor(&garbage);
         pspan = pspan->parent;
     }
+
+#ifdef __linux__
+    ddtrace_span_stack *stack = DDTRACE_G(active_stack);
+    if (stack && stack->root_span) {
+        ddtrace_otel_update_attribute_values(stack->root_span);
+    }
+#endif
 }
 
 bool datadog_alter_dd_service(zval *old_value, zval *new_value, zend_string *new_str) {
-    dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_service), old_value, new_value, new_str);
+    dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_service), old_value, new_value);
     if (DATADOG_G(request_initialized)) {
         ddtrace_sidecar_submit_span_data_direct(&DATADOG_G(sidecar), NULL, new_str, get_DD_ENV(), get_DD_VERSION());
     }
     return true;
 }
 bool datadog_alter_dd_env(zval *old_value, zval *new_value, zend_string *new_str) {
-    dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_env), old_value, new_value, new_str);
+    dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_env), old_value, new_value);
     if (DATADOG_G(request_initialized)) {
         ddtrace_sidecar_submit_span_data_direct(&DATADOG_G(sidecar), NULL, get_DD_SERVICE(), new_str, get_DD_VERSION());
     }
     return true;
 }
 bool datadog_alter_dd_version(zval *old_value, zval *new_value, zend_string *new_str) {
-    dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_version), old_value, new_value, new_str);
+    dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_version), old_value, new_value);
     if (DATADOG_G(request_initialized)) {
         ddtrace_sidecar_submit_span_data_direct(&DATADOG_G(sidecar), NULL, get_DD_SERVICE(), get_DD_ENV(), new_str);
     }
@@ -431,6 +441,7 @@ void ddtrace_first_rinit(void) {
 static void dd_initialize_request(void) {
     DDTRACE_G(distributed_trace_id) = (datadog_trace_id){0};
     DDTRACE_G(distributed_parent_trace_id) = 0;
+    DDTRACE_G(distributed_trace_flags) = 0;
     DDTRACE_G(additional_global_tags) = zend_new_array(0);
     DDTRACE_G(default_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
     DDTRACE_G(propagated_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNSET;
@@ -675,7 +686,7 @@ bool ddtrace_update_remote_config_flags(ddog_RemoteConfigFlags *flags) {
 #define JOIN_BGS_BEFORE_FORK 1
 #endif
 
-void ddtrace_internal_handle_prefork() {
+void ddtrace_internal_handle_prefork(void) {
 #if JOIN_BGS_BEFORE_FORK
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
         ddtrace_coms_flush_shutdown_writer_synchronous();
@@ -683,7 +694,7 @@ void ddtrace_internal_handle_prefork() {
 #endif
 }
 
-void ddtrace_internal_handle_postfork() {
+void ddtrace_internal_handle_postfork(void) {
 #if JOIN_BGS_BEFORE_FORK
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
         ddtrace_coms_restart_writer();
@@ -692,6 +703,10 @@ void ddtrace_internal_handle_postfork() {
 }
 
 void ddtrace_internal_handle_fork() {
+#ifdef __linux__
+    ddtrace_otel_detach();
+    ddtrace_otel_tid_fork_handler();
+#endif
     if (DATADOG_G(sidecar)) {
         // Unconditionally send, even if root span is NULL
         ddtrace_span_data *root = DDTRACE_G(active_stack) && DDTRACE_G(active_stack)->root_span ? &DDTRACE_G(active_stack)->root_span->span : NULL;
@@ -718,9 +733,12 @@ void ddtrace_internal_handle_fork() {
         if (get_DD_DISTRIBUTED_TRACING()) {
             DDTRACE_G(distributed_parent_trace_id) = ddtrace_peek_span_id();
             DDTRACE_G(distributed_trace_id) = ddtrace_peek_trace_id();
+            ddtrace_root_span_data *root = DDTRACE_G(active_stack) ? DDTRACE_G(active_stack)->root_span : NULL;
+            DDTRACE_G(distributed_trace_flags) = root ? root->trace_flags : 0;
         } else {
             DDTRACE_G(distributed_parent_trace_id) = 0;
-            DDTRACE_G(distributed_trace_id) = (datadog_trace_id){ 0 };
+            DDTRACE_G(distributed_trace_id) = (datadog_trace_id){0};
+            DDTRACE_G(distributed_trace_flags) = 0;
         }
         ddtrace_free_span_stacks(true);
         ddtrace_init_span_stacks();

@@ -60,7 +60,7 @@ void ddtrace_integration_error_telemetryf(ddog_Log source, const char *format, .
     va_copy(va2, va);
     int len = vsnprintf(buf, sizeof(buf), format, va2);
     va_end(va2);
-    if (len > (int)sizeof(buf)) {
+    if (len >= (int)sizeof(buf)) {
         char *msg = malloc(len + 1);
         len = vsnprintf(msg, len + 1, format, va);
         ddog_sidecar_telemetry_add_integration_log_buffer(source, buffer, (ddog_CharSlice){ .ptr = msg, .len = (uintptr_t)len });

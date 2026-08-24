@@ -1031,9 +1031,7 @@ endforeach;
         IMAGE:
           - alpine:3.8
           - alpine:3.9
-          - alpine:3.10
           - alpine:3.11
-          - alpine:3.12
           - alpine:3.15
         INSTALL_TYPE: &verify_install_types
         - php_installer
@@ -1042,9 +1040,8 @@ endforeach;
         IMAGE:
           - alpine:3.15
           - alpine:3.16
-          - alpine:3.17
-          - alpine:3.20
-          - alpine@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+          - alpine:3.21
+          - alpine:3.24
         INSTALL_TYPE: *verify_install_types
       - IMAGE: <?= json_encode(array_map(function ($v) { return "php:$v-fpm-alpine"; }, $all_minor_major_targets)), "\n" ?>
         INSTALL_TYPE: *verify_install_types
@@ -1339,6 +1336,7 @@ endforeach;
         - APPSEC_API_SECURITY
         - APPSEC_API_SECURITY_RC
         - APPSEC_API_SECURITY_NO_RESPONSE_BODY
+        - APPSEC_STANDALONE_APM_STANDALONE
         - APPSEC_RUNTIME_ACTIVATION
         - INTEGRATIONS
         - CROSSED_TRACING_LIBRARIES
@@ -1362,6 +1360,7 @@ endforeach;
         - APPSEC_API_SECURITY
         - APPSEC_API_SECURITY_RC
         - APPSEC_API_SECURITY_NO_RESPONSE_BODY
+        - APPSEC_STANDALONE_APM_STANDALONE
         - APPSEC_RUNTIME_ACTIVATION
         - INTEGRATIONS
         - CROSSED_TRACING_LIBRARIES
@@ -1716,7 +1715,7 @@ foreach ($arch_targets as $arch) {
     - docker buildx rm "system-tests-builder-${CI_JOB_ID}" || true
 
 "bundle for reliability env":
-  stage: shared-pipeline
+  stage: shared-pipeline-build
   image: registry.ddbuild.io/ci/libdatadog-build/ci_docker_base:67145216
   tags: [ "arch:amd64" ]
   rules:
@@ -1748,7 +1747,7 @@ foreach ($arch_targets as $arch) {
       - 'datadog-setup-x86_64-linux-gnu.tar'
 
 deploy_to_reliability_env:
-  stage: shared-pipeline
+  stage: shared-pipeline-publish
   allow_failure: true
   needs:
     - job: "bundle for reliability env"

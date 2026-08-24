@@ -14,7 +14,6 @@ use core::ptr;
 use core::str::FromStr;
 pub use http::Uri;
 use libc::{c_char, c_int};
-use libdd_common::tag::{parse_tags, Tag};
 use log::{debug, error, warn, LevelFilter};
 use std::borrow::Cow;
 use std::ffi::CString;
@@ -776,11 +775,8 @@ pub(crate) unsafe fn git_repository_url() -> Option<String> {
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn tags() -> (Vec<Tag>, Option<String>) {
-    match get_str(Tags) {
-        None => (Vec::new(), None),
-        Some(dd_tags) => parse_tags(&dd_tags),
-    }
+pub(crate) unsafe fn tags() -> Option<String> {
+    get_str(Tags)
 }
 
 /// # Safety

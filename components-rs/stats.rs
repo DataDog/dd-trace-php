@@ -8,7 +8,7 @@
 //! valid for the duration of that call.
 
 use crate::trace_filter;
-use datadog_ipc::shm_stats::{OwnedShmSpanInput, ShmSpanConcentrator, ShmSpanInput, MAX_PEER_TAGS};
+use libdd_ipc::shm_stats::{OwnedShmSpanInput, ShmSpanConcentrator, ShmSpanInput, MAX_PEER_TAGS};
 use datadog_sidecar::service::blocking::{add_span_to_concentrator, SidecarTransport};
 use libdd_trace_stats::span_concentrator::FixedAggregationKey;
 use libdd_trace_protobuf::pb::Trilean;

@@ -9,7 +9,7 @@ use std::time::Duration;
 use datadog_sidecar::config::{self, AppSecConfig, LogMethod};
 use datadog_sidecar::service::blocking::{acquire_exception_hash_rate_limiter, SidecarTransport};
 use libdd_common::rate_limiter::{Limiter, LocalLimiter};
-use datadog_ipc::rate_limiter::{AnyLimiter, ShmLimiterMemory};
+use libdd_ipc::rate_limiter::{AnyLimiter, ShmLimiterMemory};
 use datadog_sidecar::service::exception_hash_rate_limiter::ExceptionHashRateLimiter;
 use datadog_sidecar::tracer::shm_limiter_path;
 use libdd_common::Endpoint;

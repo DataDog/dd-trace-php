@@ -3,7 +3,11 @@ set -e -o pipefail
 
 suffix="${1:-}"
 
-sed -i 's/-export-symbols .*\/datadog\.sym/-Wl,--retain-symbols-file=datadog.sym/g' "ddtrace_$(uname -m)${suffix}.ldflags"
+export_symbols_file="datadog.sym"
+if [ "$(uname -s)" = "Linux" ]; then
+  export_symbols_file="datadog-linux.sym"
+fi
+sed -i -E "s#-export-symbols [^ ]+#-Wl,--retain-symbols-file=${export_symbols_file}#g" "ddtrace_$(uname -m)${suffix}.ldflags"
 pids=()
 for archive in extensions_$(uname -m)/*.a; do
   (
