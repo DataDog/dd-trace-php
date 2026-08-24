@@ -1,4 +1,3 @@
-use datadog_ipc::rate_limiter::{AnyLimiter, ShmLimiterMemory};
 use datadog_sidecar::config::{self, AppSecConfig, LogMethod};
 use datadog_sidecar::service::blocking::{acquire_exception_hash_rate_limiter, SidecarTransport};
 use datadog_sidecar::service::exception_hash_rate_limiter::ExceptionHashRateLimiter;
@@ -8,6 +7,7 @@ use libdd_common::rate_limiter::{Limiter, LocalLimiter};
 use libdd_common::Endpoint;
 use libdd_common_ffi::slice::AsBytes;
 use libdd_common_ffi::{self as ffi, CharSlice, MaybeError};
+use libdd_ipc::rate_limiter::{AnyLimiter, ShmLimiterMemory};
 use libdd_telemetry_ffi::try_c;
 #[cfg(windows)]
 use spawn_worker::{get_trampoline_target_data, LibDependency};

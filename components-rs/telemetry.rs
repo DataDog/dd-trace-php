@@ -6,8 +6,6 @@ use std::ffi::CString;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use datadog_ipc::one_way_shared_memory::{open_named_shm, OneWayShmReader};
-use datadog_ipc::platform::NamedShmHandle;
 use datadog_sidecar::service::{
     blocking::{self, SidecarTransport},
     InstanceId, QueueId, SidecarAction,
@@ -15,6 +13,8 @@ use datadog_sidecar::service::{
 use libdd_common::tag::parse_tags;
 use libdd_common_ffi::slice::AsBytes;
 use libdd_common_ffi::{self as ffi, CharSlice, MaybeError};
+use libdd_ipc::one_way_shared_memory::{open_named_shm, OneWayShmReader};
+use libdd_ipc::platform::NamedShmHandle;
 use libdd_telemetry::data;
 use libdd_telemetry::data::metrics::{MetricNamespace, MetricType};
 use libdd_telemetry::data::{Dependency, Integration, LogLevel};

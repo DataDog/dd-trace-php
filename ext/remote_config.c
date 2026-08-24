@@ -6,6 +6,7 @@
 #include <components/log/log.h>
 #include "threads.h"
 #include <tracer/tracer_api.h>
+#include <tracer/live_debugger.h>
 #ifndef _WIN32
 #include <sys/time.h>
 #ifdef DDTRACE
@@ -95,6 +96,9 @@ static void dd_sigvtalarm_handler(int signal, siginfo_t *siginfo, void *ctx) {
             now_ns = (uint64_t)now.tv_sec * 1000000000ULL + (uint64_t)now.tv_nsec;
         }
         if (now_ns >= deadline) {
+            if (!DDTRACE_G(debugger_capture_timed_out)) {
+                DDTRACE_G(debugger_capture_abort_reason) = DD_CAPTURE_ABORT_TIMEOUT;
+            }
             DDTRACE_G(debugger_capture_timed_out) = 1;
         }
 #if !defined(__linux__) && defined(ZTS)

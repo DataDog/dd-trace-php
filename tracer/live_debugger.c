@@ -120,7 +120,11 @@ void dd_stop_debugger_timeout(void) {
 
 static void CALLBACK dd_timeout_callback(PVOID param, BOOLEAN fired) {
     UNUSED(fired);
-    *((volatile sig_atomic_t *)param) = 1;
+    volatile sig_atomic_t **flags = (volatile sig_atomic_t **)param;
+    if (!*flags[0]) {
+        *flags[1] = DD_CAPTURE_ABORT_TIMEOUT;
+    }
+    *flags[0] = 1;
 }
 
 void dd_start_debugger_timeout(void) {
@@ -132,10 +136,12 @@ void dd_start_debugger_timeout(void) {
         LOG(WARN, "Starting debugger timeout when it was already active. Last timeout was not stopped properly?");
     }
     DDTRACE_G(debugger_capture_timed_out) = 0;
+    DDTRACE_G(debugger_capture_abort_reason) = DD_CAPTURE_ABORT_NONE;
+    DDTRACE_G(capture_timeout_flags)[0] = &DDTRACE_G(debugger_capture_timed_out);
+    DDTRACE_G(capture_timeout_flags)[1] = &DDTRACE_G(debugger_capture_abort_reason);
     HANDLE timer = NULL;
-    // Pass a stable pointer to this thread's flag; the callback writes it from the timer-pool thread.
     if (CreateTimerQueueTimer(&timer, NULL, dd_timeout_callback,
-                              (PVOID)&DDTRACE_G(debugger_capture_timed_out),
+                              (PVOID)DDTRACE_G(capture_timeout_flags),
                               (DWORD)ms, 0, WT_EXECUTEONLYONCE)) {
         DDTRACE_G(capture_timer_handle) = timer;
     }
@@ -238,6 +244,20 @@ static ddog_CharSlice dd_persist_str_eval_arena(struct eval_ctx *eval_ctx, zend_
         }
     }
     return dd_zend_string_to_CharSlice(Z_STR(zv));
+}
+
+// Accounts for bytes about to be added to the current snapshot; aborts the capture once it grew too large.
+void ddtrace_increase_capture_size(size_t bytes) {
+    DDTRACE_G(debugger_capture_arena).captured_size += bytes;
+    if (UNEXPECTED(DDTRACE_G(debugger_capture_arena).captured_size > DD_MAX_CAPTURE_SIZE)) {
+        // Reuse the timeout flag: every capture loop already bails out on it. Only record the reason
+        // if nothing aborted the capture yet, so a size overshoot after an earlier CPU timeout doesn't
+        // overwrite the real reason.
+        if (!DDTRACE_G(debugger_capture_timed_out)) {
+            DDTRACE_G(debugger_capture_abort_reason) = DD_CAPTURE_ABORT_SIZE;
+        }
+        DDTRACE_G(debugger_capture_timed_out) = 1;
+    }
 }
 
 typedef struct {
@@ -726,9 +746,11 @@ static void dd_log_probe_add_capture_fields(ddog_DebuggerCapture *capture, dd_lo
                 break;
             case DDOG_INTERMEDIATE_VALUE_STRING: {
                 capture_value.type = DDOG_CHARSLICE_C("string");
-                char *buf = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena).arena, iv.string.len);
-                memcpy(buf, iv.string.ptr, iv.string.len);
-                capture_value.value = (ddog_CharSlice){ .ptr = buf, .len = iv.string.len };
+                ddog_CharSlice str = ddtrace_capture_bound_charslice(iv.string, exprs[i].capture->max_length);
+                char *buf = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena).arena, str.len);
+                memcpy(buf, str.ptr, str.len);
+                capture_value.value = (ddog_CharSlice){ .ptr = buf, .len = str.len };
+                ddtrace_increase_capture_size(str.len);
                 break;
             }
             case DDOG_INTERMEDIATE_VALUE_NUMBER: {
