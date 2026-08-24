@@ -20,11 +20,11 @@ assertMatchesFormat($output, '%A"loaded_by_ssi":true%s%A');
 $instrumentationSource = '{"name":"instrumentation_source","value":"ssi","origin":"default","config_id":null,"seq_id":null}';
 $deadline = microtime(true) + 5;
 do {
+    usleep(10000);
     $content = file_get_contents($telemetryLogPath);
     if (strpos($content, $instrumentationSource) !== false) {
         break;
     }
-    usleep(10000);
 } while (microtime(true) < $deadline);
 
 assertContains($content, $instrumentationSource);
