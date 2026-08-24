@@ -43,6 +43,7 @@ class DebuggerLogReplayer {
     private $rr;
     private $outstandingLogs = [];
     private $outstandingDiagnostics = [];
+    private $diagnosticsRequestSummary = [];
 
     public function __construct() {
         require_once __DIR__ . '/../includes/request_replayer.inc';
@@ -110,6 +111,16 @@ class DebuggerLogReplayer {
             ],
         ])), true);
         if ($allDiagnostics) {
+            foreach ($allDiagnostics as $request) {
+                $uri = $request["uri"] ?? "<missing>";
+                if (strpos($uri, '/debugger/') === 0 && count($this->diagnosticsRequestSummary) < 20) {
+                    $this->diagnosticsRequestSummary[] = [
+                        "uri" => $uri,
+                        "has_body" => isset($request["body"]),
+                        "files" => isset($request["files"]) ? array_keys($request["files"]) : [],
+                    ];
+                }
+            }
             $allDiagnostics = array_values(array_filter($allDiagnostics, function ($v) { return strpos($v["uri"], '/debugger/v1/diagnostics') === 0 && !isset($v["body"]); }));
         }
         if ($allDiagnostics) {
@@ -117,6 +128,11 @@ class DebuggerLogReplayer {
             return array_shift($this->outstandingDiagnostics);
         }
         return [];
+    }
+
+    public function getDiagnosticsRequestSummary()
+    {
+        return $this->diagnosticsRequestSummary;
     }
 }
 
