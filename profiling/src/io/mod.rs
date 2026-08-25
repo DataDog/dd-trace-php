@@ -3,7 +3,7 @@ pub mod got_elf64;
 #[cfg(target_os = "macos")]
 pub mod got_macho;
 
-use crate::profiling::profiling::Profiler;
+use crate::profiling::profiler::Profiler;
 use crate::profiling::{zend, RefCellExt, REQUEST_LOCALS};
 use libc::{c_int, c_void, fstat, stat, S_IFMT, S_IFSOCK};
 use rand::rngs::ThreadRng;

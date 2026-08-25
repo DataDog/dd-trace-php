@@ -4,7 +4,7 @@ mod clocks;
 mod config;
 mod logging;
 pub mod module_globals;
-pub mod profiling;
+pub mod profiler;
 mod pthread;
 mod sapi;
 mod wall_time;
@@ -41,7 +41,7 @@ use core::ptr;
 use libdd_common::cstr;
 use log::{debug, error, info, trace, warn};
 use profile_tags::{ProfileTagSegment, UnifiedServiceTagSegment};
-use profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
+use profiler::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
 use sapi::Sapi;
 use std::borrow::Cow;
 use std::cell::{BorrowError, BorrowMutError, RefCell};
@@ -546,7 +546,7 @@ fn runtime_id() -> &'static Uuid {
 
 extern "C" fn activate() {
     // SAFETY: calling in activate as required.
-    unsafe { profiling::stack_walking::activate() };
+    unsafe { profiler::stack_walking::activate() };
 }
 
 /// The mut here is *only* for resetting this back to uninitialized each minit.
@@ -784,7 +784,7 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
         return ZendResult::Success;
     }
 
-    profiling::stack_walking::rshutdown();
+    profiler::stack_walking::rshutdown();
 
     // Not logging, rshutdown could be quite spammy.
     _ = REQUEST_LOCALS.try_with_borrow(|locals| {

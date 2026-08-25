@@ -1,5 +1,5 @@
 use crate::profiling::config::SystemSettings;
-use crate::profiling::profiling::{SampleValues, ValueType};
+use crate::profiling::profiler::{SampleValues, ValueType};
 
 const MAX_SAMPLE_TYPES: usize = 25;
 
@@ -139,7 +139,7 @@ impl SampleTypeFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::profiling::profiling::tests::{get_samples, get_system_settings};
+    use crate::profiling::profiler::tests::{get_samples, get_system_settings};
 
     fn assert_filter(
         settings: &SystemSettings,

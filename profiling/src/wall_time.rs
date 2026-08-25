@@ -3,7 +3,7 @@
 
 use crate::profiling::bindings::{zend_execute_data, zend_interrupt_function, VmInterruptFn};
 use crate::profiling::module_globals;
-use crate::profiling::profiling::Profiler;
+use crate::profiling::profiler::Profiler;
 use core::ptr;
 use core::sync::atomic::Ordering;
 

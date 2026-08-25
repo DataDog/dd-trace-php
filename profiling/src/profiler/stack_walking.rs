@@ -1,7 +1,7 @@
 use crate::profiling::bindings::{
     zai_str_from_zstr, zend_execute_data, zend_function, zend_op, zend_op_array,
 };
-use crate::profiling::profiling::Backtrace;
+use crate::profiling::profiler::Backtrace;
 use crate::profiling::vec_ext::VecExt;
 use std::borrow::Cow;
 

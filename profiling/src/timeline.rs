@@ -1,4 +1,4 @@
-use crate::profiling::profiling::{extract_function_name, Profiler};
+use crate::profiling::profiler::{extract_function_name, Profiler};
 use crate::profiling::sapi::Sapi;
 use crate::profiling::zend::{
     self, zai_str_from_zstr, zend_execute_data, zend_get_executed_filename_ex, zval,

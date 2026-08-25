@@ -1,5 +1,5 @@
 use crate::profiling::config::AgentEndpoint;
-use crate::profiling::profiling::{
+use crate::profiling::profiler::{
     update_cpu_time_counter, UploadMessage, UploadRequest, DDPROF_TIME_CPU_TIME_NS,
     DDPROF_UPLOAD_CPU_TIME_NS, STACK_WALK_COUNT, STACK_WALK_CPU_TIME_NS,
 };

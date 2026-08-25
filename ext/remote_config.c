@@ -7,12 +7,6 @@
 #include "threads.h"
 #include <tracer/tracer_api.h>
 #include <tracer/live_debugger.h>
-#ifndef _WIN32
-#include <sys/time.h>
-#ifdef DDTRACE
-#include <tracer/ddtrace_globals.h>
-#endif
-#endif
 
 #if PHP_VERSION_ID < 70100
 #include <interceptor/php7/interceptor.h>
@@ -76,49 +70,8 @@ static void dd_sigvtalarm_handler(int signal, siginfo_t *siginfo, void *ctx) {
     }
 #endif
 
-#if defined(DDTRACE) || (!defined(__linux__) && defined(ZTS))
-    uint64_t now_ns = 0;
-#endif
-#if !defined(__linux__) && defined(ZTS)
-    // On macOS ZTS, setitimer is per-process; the signal may land on any thread - iterate all threads to check for expirations
-    uint64_t next_deadline = ~0ull;
-    tsrm_mutex_lock(datadog_threads_mutex);
-    void *TSRMLS_CACHE;
-    ZEND_HASH_FOREACH_PTR(&datadog_tls_bases, TSRMLS_CACHE) {
-#endif
-    // On Linux the signal gets delivered to the thread that set the timer, so we don't need to iterate all threads
 #ifdef DDTRACE
-    uint64_t deadline = DDTRACE_G(capture_deadline_ns);
-    if (deadline) {
-        if (!now_ns) {
-            struct timespec now;
-            clock_gettime(CLOCK_THREAD_CPUTIME_ID, &now);
-            now_ns = (uint64_t)now.tv_sec * 1000000000ULL + (uint64_t)now.tv_nsec;
-        }
-        if (now_ns >= deadline) {
-            if (!DDTRACE_G(debugger_capture_timed_out)) {
-                DDTRACE_G(debugger_capture_abort_reason) = DD_CAPTURE_ABORT_TIMEOUT;
-            }
-            DDTRACE_G(debugger_capture_timed_out) = 1;
-        }
-#if !defined(__linux__) && defined(ZTS)
-        else {
-            next_deadline = MIN(deadline, next_deadline);
-        }
-#endif
-    }
-#endif
-#if !defined(__linux__) && defined(ZTS)
-    } ZEND_HASH_FOREACH_END();
-    if (next_deadline != ~0ull) { // re-arm the timer, for ZTS concurrency
-        uint64_t usec = (next_deadline - now_ns) / 1000ull;
-        struct itimerval it = {
-            .it_value    = { .tv_sec = usec / 1000000, .tv_usec = usec % 1000000 },
-            .it_interval = { 0, 0 },
-        };
-        setitimer(ITIMER_VIRTUAL, &it, NULL);
-    }
-    tsrm_mutex_unlock(datadog_threads_mutex);
+    ddtrace_live_debugger_handle_sigvtalarm();
 #endif
 }
 #endif

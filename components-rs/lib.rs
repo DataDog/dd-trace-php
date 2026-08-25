@@ -1,5 +1,5 @@
+// Remove with move to Rust 2024 edition.
 #![allow(static_mut_refs)]
-// remove with move to Rust 2024 edition
 // The former components and profiler crates carried substantial pre-existing Clippy debt.
 // Keep consolidation from turning those warnings into unrelated migration work.
 #![allow(
@@ -10,7 +10,6 @@
     clippy::map_clone,
     clippy::missing_safety_doc,
     clippy::missing_transmute_annotations,
-    clippy::module_inception,
     clippy::needless_borrow,
     clippy::needless_lifetimes,
     clippy::needless_return,
@@ -24,11 +23,9 @@
     clippy::useless_asref
 )]
 
-/// Common Rust components shared by every ddtrace build.
-pub mod components;
-
-/// Tracer-specific Rust facade. The C tracer remains in `tracer/`.
+/// Tracer-specific Rust facade, colocated with the C tracer sources.
 #[cfg(feature = "tracer")]
+#[path = "../tracer/mod.rs"]
 pub mod tracer;
 
 /// Standalone profiler implementation, retained in its existing source tree.

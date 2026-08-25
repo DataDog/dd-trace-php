@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, SamplingMode};
 use datadog_php::profiling::bindings as zend;
-use datadog_php::profiling::profiling::stack_walking::collect_stack_sample;
+use datadog_php::profiling::profiler::stack_walking::collect_stack_sample;
 
 #[cfg(php_frameless)]
 #[no_mangle]

@@ -1,4 +1,4 @@
-use crate::profiling::profiling::stack_walking::ZendFrame;
+use crate::profiling::profiler::stack_walking::ZendFrame;
 use core::ops::Deref;
 
 #[derive(Clone, Debug)]

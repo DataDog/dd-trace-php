@@ -35,6 +35,9 @@ void ddtrace_sidecar_send_debugger_datum(ddog_DebuggerPayload *payload);
 
 void dd_start_debugger_timeout(void);
 void dd_stop_debugger_timeout(void);
+#ifndef _WIN32
+void ddtrace_live_debugger_handle_sigvtalarm(void);
+#endif
 
 // The capture is aborted once its approximate serialized size exceeds this; larger snapshots are of
 // little use and risk being rejected by the intake.

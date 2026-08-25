@@ -1,4 +1,4 @@
-use crate::profiling::profiling::Profiler;
+use crate::profiling::profiler::Profiler;
 use crate::profiling::zend::{
     self, zend_execute_data, zend_generator, zval, InternalFunctionHandler,
 };

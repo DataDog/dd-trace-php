@@ -5,7 +5,7 @@ pub use profiling_stats::*;
 use crate::profiling::bindings::{self as zend};
 use crate::profiling::config::SystemSettings;
 use crate::profiling::module_globals;
-use crate::profiling::profiling::Profiler;
+use crate::profiling::profiler::Profiler;
 use crate::profiling::{RefCellExt, REQUEST_LOCALS};
 use core::cell::Cell;
 use core::ptr;
