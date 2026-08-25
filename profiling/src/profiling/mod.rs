@@ -1799,7 +1799,7 @@ impl Profiler {
             let thread_context =
                 crate::profiling::process_context::thread_context(ProcessIdentityRef {
                     service: locals.identity.service.as_deref(),
-                    env: locals.identity.env.as_deref(),
+                    env: locals.identity.env.as_deref().or(Some("none")),
                     version: locals.identity.version.as_deref(),
                 });
             (git_tags, custom_tags, thread_context)
