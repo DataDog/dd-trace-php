@@ -340,13 +340,21 @@ def buildRunInDockerTask = { Map options ->
     t
 }
 
-def buildTracerTask = { String version, String variant, altBaseTag = null ->
+// in the build image, the release nonzts versions have no suffix
+def phpSdkVersion = { String version, String variant ->
+    variant in ['release', 'release-musl'] ? version : "$version-$variant"
+}
+
+def buildTracerTask = { String version, String variant ->
     buildRunInDockerTask(
             baseName: 'buildTracer',
-            baseTag: altBaseTag ?: 'php',
+            imageTag: 'php-buildonly-rust',
             version: version,
             variant: variant,
+            needsTracer: false,
             needsAppsec: false,
+            needsBoostCache: false,
+            needsCargoCache: false,
             description: 'Build tracer for PHP',
             inputs: [
                     dirs: [
@@ -363,6 +371,8 @@ def buildTracerTask = { String version, String variant, altBaseTag = null ->
                             '../../third_party/libddwaf-rust',
                     ],
                     files: [
+                            '../../../Makefile',
+                            '../../../VERSION',
                             '../../../config.m4',
                     ],
             ],
@@ -370,25 +380,50 @@ def buildTracerTask = { String version, String variant, altBaseTag = null ->
                     volume: 'php-tracer',
                     files: ['build_extension/modules/ddtrace.so'],
             ],
+            volumes: [
+                    ("php-tracer-buildonly-${version}-${variant}"): [
+                            mountPoint: '/project/tmp',
+                    ],
+                    ("php-tracer-${version}-${variant}"): [
+                            mountPoint: '/tracer',
+                    ],
+                    'php-portable-libdatadog-php': [
+                            mountPoint: '/portable-rust',
+                            readonly: true,
+                    ],
+            ],
+            taskDependencies: ['buildPortableLibdatadogPhp'],
             command: [
                     '-e', '-c',
-                    '''
+                    """
                     cd /project
-                    PHPRC= RUST_DEBUG_BUILD=1 make /project/tmp/build_extension/modules/ddtrace.so
-                    '''
+
+                    PHPRC= \\
+                        PHP_SDK_VERSION=${phpSdkVersion(version, variant)} \\
+                        EXTRA_CONFIGURE_OPTIONS="--with-ddtrace-rust-library=/portable-rust/libdatadog_php.a \\
+                            --with-ddtrace-sidecar-mockgen=/portable-rust/php_sidecar_mockgen" \\
+                        make /project/tmp/build_extension/modules/ddtrace.so
+                    TRACER=/project/tmp/build_extension/modules/ddtrace.so
+                    mkdir -p /tracer/build_extension/modules
+                    cp "\$TRACER" \
+                        /tracer/build_extension/modules/ddtrace.so
+                    touch /tracer/build_extension/modules/ddtrace.so
+                    """
             ]
     )
 }
 
-def buildTracerCmakeTask = { String version, String variant, altBaseTag = null ->
+def buildTracerCmakeTask = { String version, String variant ->
     def buildType = variant.contains('debug') ? 'Debug' : 'RelWithDebInfo'
     buildRunInDockerTask(
             baseName: 'buildTracerCmake',
-            baseTag: altBaseTag ?: 'php',
+            imageTag: 'php-buildonly-rust',
             version: version,
             variant: variant,
             needsTracer: false,
             needsAppsec: false,
+            needsBoostCache: false,
+            needsCargoCache: false,
             description: 'Build tracer for PHP (cmake)',
             inputs: [
                     dirs: [
@@ -403,6 +438,7 @@ def buildTracerCmakeTask = { String version, String variant, altBaseTag = null -
                             '../../helper-rust',
                             '../../../sidecar',
                             '../../third_party/libddwaf-rust',
+                            '../../../cmake/Modules',
                             '../../cmake',
                     ],
                     files: ['../../CMakeLists.txt', '../../cmake/ddtrace.cmake'],
@@ -412,32 +448,46 @@ def buildTracerCmakeTask = { String version, String variant, altBaseTag = null -
                     files: ['build_extension/modules/ddtrace.so'],
             ],
             volumes: [
-                    ("php-tracer-cmake-${version}-${variant}"): [mountPoint: '/project/tmp'],
+                    ("php-tracer-cmake-buildonly-${version}-${variant}"): [
+                            mountPoint: '/project/tmp',
+                    ],
+                    ("php-tracer-cmake-${version}-${variant}"): [
+                            mountPoint: '/tracer',
+                    ],
+                    'php-portable-libdatadog-php': [
+                            mountPoint: '/portable-rust',
+                            readonly: true,
+                    ],
             ],
+            taskDependencies: ['buildPortableLibdatadogPhp'],
             command: [
                     '-e', '-c',
                     """
                     cd /project/tmp
-                    mkdir -p build_extension/modules
-                    test -f CMakeCache.txt || \\
-                        cmake -DCMAKE_BUILD_TYPE=${buildType} \\
-                              -DDD_APPSEC_DDTRACE_ALT=ON \\
-                              -DDD_APPSEC_BUILD_EXTENSION=OFF \\
-                              -DDD_APPSEC_TESTING=OFF \\
-                              /project/appsec
+
+                    export PHP_SDK_VERSION=${phpSdkVersion(version, variant)}
+                    cmake -DCMAKE_BUILD_TYPE=${buildType} \\
+                          -DDD_APPSEC_DDTRACE_ALT=ON \\
+                          -DDD_APPSEC_BUILD_EXTENSION=OFF \\
+                          -DDD_APPSEC_TESTING=OFF \\
+                          -DDD_APPSEC_LIBDATADOG_PHP=/portable-rust/libdatadog_php.a \\
+                          -DDD_APPSEC_PHP_SIDECAR_MOCKGEN=/portable-rust/php_sidecar_mockgen \\
+                          /project/appsec
                     make -j ddtrace
-                    cp ddtrace.so build_extension/modules/ddtrace.so
-                    touch build_extension/modules/ddtrace.so
+                    mkdir -p /tracer/build_extension/modules
+                    cp ddtrace.so /tracer/build_extension/modules/ddtrace.so
+                    touch /tracer/build_extension/modules/ddtrace.so
                     """
             ]
     )
 }
 
 def buildTracerSsiTask = { String version, String variant ->
-    def isDebug = variant.contains('debug')
     def volumes = [
             ("php-tracer-ssi-${version}-${variant}"): [mountPoint: '/tracer-ssi'],
-            ("php-tracer-ssi-build-${version}-${variant}"): [mountPoint: '/project/tmp'],
+            ("php-tracer-ssi-buildonly-${version}-${variant}"): [
+                    mountPoint: '/project/tmp',
+            ],
             'php-portable-libdatadog-php': [
                     mountPoint: '/portable-rust',
                     readonly: true,
@@ -446,11 +496,13 @@ def buildTracerSsiTask = { String version, String variant ->
 
     def task = buildRunInDockerTask(
             baseName: 'buildTracerSsi',
+            imageTag: 'php-buildonly-rust',
             version: version,
             variant: variant,
             needsTracer: false,
             needsAppsec: false,
             needsBoostCache: false,
+            needsCargoCache: false,
             description: 'Build tracer in SSI split configuration for PHP',
             inputs: [
                     dirs: [
@@ -488,9 +540,16 @@ def buildTracerSsiTask = { String version, String variant ->
                     '-e', '-c',
                     """
                     cd /project
-                    PHPRC= ${isDebug ? 'RUST_DEBUG_BUILD=1' : ''} EXTRA_CONFIGURE_OPTIONS=--enable-ddtrace-rust-library-split \\
+                    PHPRC= \\
+                        PHP_SDK_VERSION=${phpSdkVersion(version, variant)} \\
+                        EXTRA_CONFIGURE_OPTIONS="--enable-ddtrace-rust-library-split \\
+                            --with-ddtrace-rust-library=/portable-rust/libdatadog_php.so \\
+                            --with-ddtrace-sidecar-mockgen=/portable-rust/php_sidecar_mockgen" \\
                         make /project/tmp/build_extension/modules/ddtrace.so
-                    cp /project/tmp/build_extension/modules/ddtrace.so /tracer-ssi/ddtrace.so
+                    TRACER=/project/tmp/build_extension/modules/ddtrace.so
+                    patchelf --print-needed "\$TRACER" | \\
+                        grep -qx libdatadog_php.so
+                    cp "\$TRACER" /tracer-ssi/ddtrace.so
 
                     cp /portable-rust/libdatadog_php.so \\
                         /tracer-ssi/libdatadog_php.so
@@ -531,14 +590,15 @@ static boolean dockerVolumeFilesMatch(
 
 def buildTracerSsiCmakeTask = { String version, String variant ->
     def buildType = variant.contains('debug') ? 'Debug' : 'RelWithDebInfo'
-    def cargoSubdir = buildType == 'Debug' ? 'debug' : 'release'
-    buildRunInDockerTask(
+    def task = buildRunInDockerTask(
             baseName: 'buildTracerSsiCmake',
+            imageTag: 'php-buildonly-rust',
             version: version,
             variant: variant,
             needsTracer: false,
             needsAppsec: false,
             needsBoostCache: false,
+            needsCargoCache: false,
             description: 'Build tracer in SSI split configuration for PHP (cmake)',
             inputs: [
                     dirs: [
@@ -553,6 +613,7 @@ def buildTracerSsiCmakeTask = { String version, String variant ->
                             '../../helper-rust',
                             '../../../sidecar',
                             '../../third_party/libddwaf-rust',
+                            '../../../cmake/Modules',
                             '../../cmake',
                     ],
                     files: ['../../CMakeLists.txt', '../../cmake/ddtrace.cmake'],
@@ -562,25 +623,51 @@ def buildTracerSsiCmakeTask = { String version, String variant ->
                     files: ['ddtrace.so', 'libdatadog_php.so'],
             ],
             volumes: [
-                    ("php-tracer-ssi-cmake-${version}-${variant}"): [mountPoint: '/tracer-ssi'],
+                    ("php-tracer-ssi-cmake-buildonly-${version}-${variant}"): [
+                            mountPoint: '/project/tmp',
+                    ],
+                    ("php-tracer-ssi-cmake-${version}-${variant}"): [
+                            mountPoint: '/tracer-ssi',
+                    ],
+                    'php-portable-libdatadog-php': [
+                            mountPoint: '/portable-rust',
+                            readonly: true,
+                    ],
             ],
+            taskDependencies: ['buildPortableLibdatadogPhp'],
             command: [
                     '-e', '-c',
                     """
-                    cd /tracer-ssi
-                    test -f CMakeCache.txt || \\
-                        cmake -DCMAKE_BUILD_TYPE=${buildType} \\
-                              -DDD_APPSEC_DDTRACE_ALT=ON \\
-                              -DDD_APPSEC_SSI=ON \\
-                              -DDD_APPSEC_BUILD_EXTENSION=OFF \\
-                              -DDD_APPSEC_TESTING=OFF \\
-                              /project/appsec
+                    cd /project/tmp
+                    export PHP_SDK_VERSION=${phpSdkVersion(version, variant)}
+                    cmake -DCMAKE_BUILD_TYPE=${buildType} \\
+                          -DDD_APPSEC_DDTRACE_ALT=ON \\
+                          -DDD_APPSEC_SSI=ON \\
+                          -DDD_APPSEC_BUILD_EXTENSION=OFF \\
+                          -DDD_APPSEC_TESTING=OFF \\
+                          -DDD_APPSEC_LIBDATADOG_PHP=/portable-rust/libdatadog_php.so \\
+                          -DDD_APPSEC_PHP_SIDECAR_MOCKGEN=/portable-rust/php_sidecar_mockgen \\
+                          /project/appsec
                     make -j ddtrace
-                    cp components_rs/${cargoSubdir}/libdatadog_php.so .
-                    touch ddtrace.so libdatadog_php.so
+                    cp ddtrace.so /tracer-ssi/ddtrace.so
+                    cp /portable-rust/libdatadog_php.so \\
+                        /tracer-ssi/libdatadog_php.so
+                    touch /tracer-ssi/ddtrace.so \\
+                        /tracer-ssi/libdatadog_php.so
                     """
             ]
     )
+    task.configure {
+        inputs.property 'useHelperRustCoverage', useHelperRustCoverage
+        outputs.upToDateWhen {
+            dockerVolumeFilesMatch(
+                    dockerMirror,
+                    'php-portable-libdatadog-php',
+                    "php-tracer-ssi-cmake-${version}-${variant}",
+                    'libdatadog_php.so')
+        }
+    }
+    task
 }
 
 def buildCoverageReportTask = {
@@ -690,6 +777,7 @@ def buildAppSecTask = { String version, String variant, altBaseTag = null ->
             version: version,
             variant: variant,
             needsTracer: false,
+            needsCargoCache: false,
             description: 'Build appsec for PHP',
             inputs: [
                     dirs: [
@@ -731,6 +819,8 @@ def runUnitTestsTask = { String phpVersion, String variant ->
             baseTag: 'php',
             version: phpVersion,
             variant: variant,
+            needsBoostCache: false,
+            needsCargoCache: false,
             description: 'Build appsec for PHP',
             command: [
                     '-e', '-c',
@@ -773,7 +863,7 @@ def runMainTask = { String phpVersion, String variant ->
 
     def isMusl = variant =~ /\bmusl\b/
 
-    buildTracerTask(phpVersion, variant, isMusl ? 'nginx-fpm-php' : null)
+    buildTracerTask(phpVersion, variant)
     if (!isMusl) {
         buildTracerCmakeTask(phpVersion, variant)
     }
@@ -996,46 +1086,58 @@ def helperRustEnvSetup = '''
 export PATH="/root/.cargo/bin:$PATH"
 export RUSTUP_HOME=/root/.rustup
 export CARGO_HOME=/root/.cargo
+export CC=musl-clang
+export CXX=musl-clang++
+export RUSTFLAGS="-C target-feature=-crt-static -C linker=musl-clang"
 cd /project
 export CARGO_TARGET_DIR=/helper-rust-build/cargo-target
 '''
 
-def portableLibdatadogPhpFeatures = useHelperRustCoverage ?
-        'helper-rust-coverage,glibc-compat' : 'glibc-compat'
-def portableLibdatadogPhpRustFlags = useHelperRustCoverage ?
-        '-C instrument-coverage' : ''
+def portableLibdatadogPhpFeatureArgs = useHelperRustCoverage ?
+        '--features helper-rust-coverage' : ''
+def portableLibdatadogPhpRustFlags = '-C link-arg=/usr/lib/libunwind.a'
+if (useHelperRustCoverage) {
+    portableLibdatadogPhpRustFlags += ' -C instrument-coverage'
+}
 def portableLibdatadogPhpBuildMode = useHelperRustCoverage ?
         'helper-rust-coverage' : 'default'
 def portableLibdatadogPhpCommand = '''
         RUST_TARGET="$(uname -m)-unknown-linux-musl"
         RUST_TOOLCHAIN="nightly-$RUST_TARGET"
-        export DDTRACE_LLVM_LIBUNWIND_PATH=/usr/lib/libunwind.a
         export CARGO_TARGET_DIR=/portable-rust/cargo-target
 
         cd /project
         RUSTFLAGS='@RUSTFLAGS@' \
             RUST_TOOLCHAIN="$RUST_TOOLCHAIN" \
             SHARED=1 PROFILE=tracer-release host_os=linux-musl \
-            ./compile_rust.sh \
+            ./compile_rust.sh @FEATURE_ARGS@ \
+                --package datadog-php \
+                --package php_sidecar_mockgen \
                 -Z build-std=std,panic_abort \
-                -Z build-std-features=llvm-libunwind,backtrace \
-                --features @FEATURES@
+                -Z build-std-features=llvm-libunwind,backtrace
 
-        LIBRARY=/portable-rust/cargo-target/tracer-release/libdatadog_php.so
-        cp "$LIBRARY" /portable-rust/libdatadog_php.so
+        LIBRARY_DIR=/portable-rust/cargo-target/tracer-release
+        cp "$LIBRARY_DIR/libdatadog_php.so" \
+            /portable-rust/libdatadog_php.so
+        cp "$LIBRARY_DIR/libdatadog_php.a" \
+            /portable-rust/libdatadog_php.a
+        cp "/portable-rust/cargo-target/$RUST_TARGET/tracer-release/php_sidecar_mockgen" \
+            /portable-rust/php_sidecar_mockgen
         printf '%s\n' '@BUILD_MODE@' > /portable-rust/build-mode
         printf '%s\n' "$RUST_TARGET" > /portable-rust/rust-target
-        touch /portable-rust/libdatadog_php.so
+        touch /portable-rust/libdatadog_php.so \
+            /portable-rust/libdatadog_php.a \
+            /portable-rust/php_sidecar_mockgen
         '''.stripIndent()
         .replace('@RUSTFLAGS@', portableLibdatadogPhpRustFlags)
-        .replace('@FEATURES@', portableLibdatadogPhpFeatures)
+        .replace('@FEATURE_ARGS@', portableLibdatadogPhpFeatureArgs)
         .replace('@BUILD_MODE@', portableLibdatadogPhpBuildMode)
 
 def buildPortableLibdatadogPhp = buildRunInDockerTask(
         baseName: 'buildPortableLibdatadogPhp',
-        imageTag: 'nginx-fpm-php-8.5-release-musl',
+        imageTag: 'php-buildonly-rust',
         entrypoint: '/bin/sh',
-        description: 'Build portable libdatadog_php.so',
+        description: 'Build portable libdatadog_php libraries',
         needsBoostCache: false,
         needsCargoCache: false,
         inputs: [
@@ -1056,17 +1158,22 @@ def buildPortableLibdatadogPhp = buildRunInDockerTask(
         ],
         outputs: [
                 volume: 'php-portable-libdatadog-php',
-                files: ['libdatadog_php.so', 'build-mode'],
+                files: [
+                        'libdatadog_php.so',
+                        'libdatadog_php.a',
+                        'php_sidecar_mockgen',
+                        'build-mode',
+                ],
         ],
         volumes: [
                 'php-portable-libdatadog-php': [mountPoint: '/portable-rust'],
-                'php-tracer-cargo-cache': [mountPoint: '/usr/local/cargo/registry'],
-                'php-tracer-cargo-cache-git': [mountPoint: '/usr/local/cargo/git'],
+                'php-tracer-cargo-cache': [mountPoint: '/root/.cargo/registry'],
+                'php-tracer-cargo-cache-git': [mountPoint: '/root/.cargo/git'],
         ],
         command: [
                 '-e', '-c',
                 portableLibdatadogPhpCommand,
-        ]
+        ],
 )
 buildPortableLibdatadogPhp.configure {
     inputs.property 'useHelperRustCoverage', useHelperRustCoverage
@@ -1074,7 +1181,7 @@ buildPortableLibdatadogPhp.configure {
 
 buildRunInDockerTask(
         baseName: 'testHelperRust',
-        imageTag: 'php-deps',
+        imageTag: 'php-buildonly-rust',
         description: 'Test and lint helper-rust',
         needsBoostCache: false,
         inputs: helperRustInputs,
@@ -1105,7 +1212,7 @@ buildRunInDockerTask(
 
 buildRunInDockerTask(
         baseName: 'coverageHelperRust',
-        imageTag: 'php-deps',
+        imageTag: 'php-buildonly-rust',
         description: 'Generate coverage for helper-rust unit tests',
         needsBoostCache: false,
         inputs: helperRustInputs,
@@ -1120,16 +1227,6 @@ buildRunInDockerTask(
                 '-e', '-c',
                 """
                 ${helperRustEnvSetup}
-
-                echo '=== Installing cargo-llvm-cov ==='
-                rustup component add llvm-tools-preview
-                ARCH=\$(uname -m)
-                if [ "\$ARCH" = "aarch64" ]; then
-                    LLVM_COV_ARCH="aarch64-unknown-linux-musl"
-                else
-                    LLVM_COV_ARCH="x86_64-unknown-linux-musl"
-                fi
-                curl -LsSf "https://github.com/taiki-e/cargo-llvm-cov/releases/download/v0.6.23/cargo-llvm-cov-\${LLVM_COV_ARCH}.tar.gz" | tar xzf - -C /root/.cargo/bin
 
                 echo '=== Running cargo test with coverage ==='
                 cargo llvm-cov test --release -p helper-rust --lcov \\

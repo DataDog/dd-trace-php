@@ -168,11 +168,11 @@ The `test8.5-release-musl` target uses an Alpine-based nginx+fpm image. Tests ta
 ./gradlew test8.5-release-musl --info
 ```
 
-`buildPortableLibdatadogPhp` builds the library with the `glibc-compat`
-Cargo feature against musl (also rebuilding std with LLVM libunwind for
-backtrace support). `compile_rust.sh` then uses `patchelf` to strip musl's
-`DT_NEEDED` entries and add the glibc sonames, so the resulting library
-loads on both musl and glibc systems.
+`buildPortableLibdatadogPhp` builds against musl with the portable PHP build
+image (also rebuilding std with LLVM libunwind for backtrace support). The
+image's linker wrapper adds the glibc compatibility object and required
+`DT_NEEDED` entries to the shared library. The static library does not invoke
+the linker and therefore does not include the compatibility object.
 
 ## CI Job Mapping
 

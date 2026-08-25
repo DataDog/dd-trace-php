@@ -8,7 +8,6 @@ crate-type = ["staticlib", "cdylib"]
 path = "lib.rs"
 
 [features]
-glibc-compat = ["ddtrace-sidecar/glibc-compat"]
 helper-rust-coverage = ["ddtrace-sidecar/helper-rust-coverage"]
 
 [dependencies]

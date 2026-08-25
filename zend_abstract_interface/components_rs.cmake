@@ -13,6 +13,17 @@ endif()
 
 set(LIBDATADOG_DIR "${CMAKE_SOURCE_DIR}/../libdatadog")
 set(LIBDATADOG_STAMP_FILE "${CMAKE_BINARY_DIR}/libdatadog.stamp")
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+    set(DDTRACE_EXPORT_SYMBOL_FILES
+        "${CMAKE_SOURCE_DIR}/../datadog-linux.sym")
+else()
+    set(DDTRACE_EXPORT_SYMBOL_FILES
+        "${CMAKE_SOURCE_DIR}/../datadog.sym")
+endif()
+list(APPEND DDTRACE_EXPORT_SYMBOL_FILES
+    "${CMAKE_SOURCE_DIR}/../components-rs/datadog.sym")
+string(JOIN "' '" DDTRACE_EXPORT_SYMBOL_ARGUMENTS
+    ${DDTRACE_EXPORT_SYMBOL_FILES})
 add_custom_target(libdatadog_stamp
     COMMAND ${CMAKE_COMMAND} -E touch ${LIBDATADOG_STAMP_FILE} #XXX: use a script to find modifications
     BYPRODUCT ${LIBDATADOG_STAMP_FILE}
@@ -21,17 +32,17 @@ add_custom_target(libdatadog_stamp
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
 set(EXPORTS_FILE "${CMAKE_BINARY_DIR}/ddtrace_exports.version")
 add_custom_target(ddtrace_exports
-    COMMAND bash -c "{ echo -e '{\\nglobal:'; sed 's/$/;/' '${CMAKE_SOURCE_DIR}'/../datadog-linux.sym; echo -e 'local:\\n*;\\n};'; } > '${EXPORTS_FILE}'"
+    COMMAND bash -c "{ echo -e '{\\nglobal:'; sed 's/$/;/' '${DDTRACE_EXPORT_SYMBOL_ARGUMENTS}'; echo -e 'local:\\n*;\\n};'; } > '${EXPORTS_FILE}'"
     BYPRODUCT ${EXPORTS_FILE}
-    DEPENDS ${CMAKE_SOURCE_DIR}/../datadog-linux.sym
+    DEPENDS ${DDTRACE_EXPORT_SYMBOL_FILES}
     VERBATIM
 )
 elseif(APPLE)
 set(EXPORTS_FILE "${CMAKE_BINARY_DIR}/datadog_exports.sym")
 add_custom_target(ddtrace_exports
-    COMMAND bash -c "sed 's/^/_/' '${CMAKE_SOURCE_DIR}'/../datadog.sym > '${EXPORTS_FILE}'"
+    COMMAND bash -c "sed 's/^/_/' '${DDTRACE_EXPORT_SYMBOL_ARGUMENTS}' > '${EXPORTS_FILE}'"
     BYPRODUCT ${EXPORTS_FILE}
-    DEPENDS ${CMAKE_SOURCE_DIR}/../datadog.sym
+    DEPENDS ${DDTRACE_EXPORT_SYMBOL_FILES}
     VERBATIM
 )
 endif()

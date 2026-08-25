@@ -212,7 +212,6 @@ tasks.register('buildNginxFpm-8.5-release-musl', Exec) {
     description = "Build the musl-nginx image for Alpine testing"
     inputs.file file('src/docker/nginx-fpm-musl/Dockerfile')
     inputs.file file('src/docker/nginx-fpm-musl/nginx.conf')
-    inputs.dir 'src/docker/nginx-fpm-musl/llvm-runtimes'
     outputs.upToDateWhen imageUpToDate(inputs, image)
 
     commandLine(*dockerBuildCommand, *dockerMirrorArgs,
@@ -221,12 +220,23 @@ tasks.register('buildNginxFpm-8.5-release-musl', Exec) {
             'src/docker/nginx-fpm-musl')
 }
 
+tasks.register('buildPhpBuildonlyRustImage', Exec) {
+    String image = "$repo:php-buildonly-rust"
+    description = 'Build the portable PHP extension build image'
+    inputs.file 'src/docker/php-buildonly-rust/Dockerfile'
+    inputs.file 'src/docker/php-buildonly-rust/php-symbols.txt.gz'
+    outputs.upToDateWhen imageUpToDate(inputs, image)
+    commandLine(*dockerBuildCommand, *dockerMirrorArgs, '-t', image,
+            'src/docker/php-buildonly-rust')
+}
+
 task buildAll {
     dependsOn 'buildAllPhp',
             'buildAllApache2Mod',
             'buildAllApache2Fpm',
             'buildAllNginxFpm',
             'buildFrankenPHP-8.4-release-zts',
+            'buildPhpBuildonlyRustImage',
             'buildNginxFpm-8.5-release-musl'
 }
 
@@ -264,6 +274,7 @@ def allPushTasks = [
             buildPushTask("nginx-fpm-php-${spec[0]}-${spec[1]}", "buildNginxFpm-${spec[0]}-${spec[1]}")
         },
         buildPushTask("frankenphp-8.4-release-zts", 'buildFrankenPHP-8.4-release-zts'),
+        buildPushTask("php-buildonly-rust", 'buildPhpBuildonlyRustImage'),
         buildPushTask("nginx-fpm-php-8.5-release-musl", 'buildNginxFpm-8.5-release-musl'),
 ]
 tasks.register('pushAll') {
@@ -302,6 +313,7 @@ def allMultiArchTasks = [
             buildMultiArchTask("nginx-fpm-php-${spec[0]}-${spec[1]}")
         },
         buildMultiArchTask("frankenphp-8.4-release-zts"),
+        buildMultiArchTask("php-buildonly-rust"),
         buildMultiArchTask("nginx-fpm-php-8.5-release-musl"),
 ]
 tasks.register('pushMultiArch') {

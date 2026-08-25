@@ -199,6 +199,9 @@ if (PHP_DDTRACE != 'no') {
 	deffile = FSO.CreateTextFile(defpath, true);
 	deffile.WriteLine("EXPORTS");
 	var contents = FSO.OpenTextFile(configure_module_dirname + "/datadog.sym", 1).ReadAll();
+	var rust_symbols = FSO.OpenTextFile(
+		configure_module_dirname + "/components-rs/datadog.sym", 1).ReadAll();
+	contents = contents + "\n" + rust_symbols;
 	contents = contents.replace(/ddog_crashtracker_entry_point\s*/, ""); // unix-only symbol
 	contents = contents.replace(/ddtrace_sidecar_entry_point\s*/, ""); // unix-only symbol
 	contents = contents.replace(/ddog_sidecar_send_appsec_message\s*/, ""); // unix-only (appsec not supported on Windows)

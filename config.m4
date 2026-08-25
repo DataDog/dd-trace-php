@@ -19,8 +19,8 @@ PHP_ARG_WITH(ddtrace-cargo, where cargo is located for rust code compilation,
 PHP_ARG_ENABLE(ddtrace-rust-debug, whether to compile rust in debug mode,
   [  --enable-ddtrace-rust-debug Build rust code in debug mode (significantly slower)], [[$( (if test x"$ext_shared" = x"yes"; then $GREP -q "ZEND_DEBUG 1" $("$PHP_CONFIG" --include-dir)/main/php_config.h; else test x"$PHP_DEBUG" = x"yes"; fi) && echo yes || echo no)]], [no])
 
-PHP_ARG_ENABLE(ddtrace-rust-library-split, whether to not link the rust library against the extension at compile time,
-  [  --enable-ddtrace-rust-library-split Do not build nor link against the rust code], no, no)
+PHP_ARG_ENABLE(ddtrace-rust-library-split, whether to keep the rust library separate from the extension,
+  [  --enable-ddtrace-rust-library-split Do not build or statically link the rust code], no, no)
 
 if test "$PHP_DDTRACE" != "no"; then
   AC_CHECK_SIZEOF([long])
@@ -327,20 +327,36 @@ if test "$PHP_DDTRACE" != "no"; then
   esac
 
   PHP_CHECK_LIBRARY(curl, curl_easy_setopt,
-    [PHP_ADD_LIBRARY(curl, , EXTRA_LDFLAGS)],
+    [case " $LDFLAGS " in
+       *" -Wl,-Bdynamic "*)
+         EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Wl,-Bdynamic,-lcurl,-Bstatic"
+         ;;
+       *)
+         PHP_ADD_LIBRARY(curl, , EXTRA_LDFLAGS)
+         ;;
+     esac],
     [AC_MSG_ERROR([cannot find or include curl])])
 
   AC_CHECK_HEADER(time.h, [], [AC_MSG_ERROR([Cannot find or include time.h])])
 
   if test "$ext_shared" = "yes"; then
-    dnl Only export the platform's listed symbols, which should all be marked as
-    dnl DATADOG_PUBLIC in their source files as well.
-    EXTRA_CFLAGS="$EXTRA_CFLAGS -fvisibility=hidden"
     case $host_os in
-      linux*) DDTRACE_EXPORT_SYMBOLS="$ext_srcdir/datadog-linux.sym" ;;
-      *) DDTRACE_EXPORT_SYMBOLS="$ext_srcdir/datadog.sym" ;;
+      linux*) ddtrace_export_symbols="$ext_srcdir/datadog-linux.sym" ;;
+      *) ddtrace_export_symbols="$ext_srcdir/datadog.sym" ;;
     esac
-    EXTRA_LDFLAGS="$EXTRA_LDFLAGS -export-symbols $DDTRACE_EXPORT_SYMBOLS -flto -fuse-linker-plugin"
+
+    dnl Rust symbols are part of ddtrace.so only in the non-SSI build.
+    if test "$PHP_DDTRACE_RUST_LIBRARY_SPLIT" = "no"; then
+      ddtrace_platform_export_symbols="$ddtrace_export_symbols"
+      ddtrace_export_symbols="$ext_builddir/datadog-all.sym"
+      cat "$ddtrace_platform_export_symbols" \
+        "$ext_srcdir/components-rs/datadog.sym" > "$ddtrace_export_symbols"
+    fi
+
+    dnl Only export the symbols selected above, which should all be marked as
+    dnl DATADOG_PUBLIC in their source files.
+    EXTRA_CFLAGS="$EXTRA_CFLAGS -fvisibility=hidden"
+    EXTRA_LDFLAGS="$EXTRA_LDFLAGS -export-symbols $ddtrace_export_symbols -flto -fuse-linker-plugin"
 
     case $host_os in
       linux*)
@@ -449,10 +465,26 @@ EOT
     fi
   fi
 
-  if test "$PHP_DDTRACE_RUST_LIBRARY_SPLIT" != "no"; then
+  if test "$PHP_DDTRACE_RUST_LIBRARY" != "-" && \
+      test "$PHP_DDTRACE_RUST_LIBRARY_SPLIT" != "no"; then
+    dnl libtool drops an unreferenced absolute DSO from shared_objects_ddtrace.
+    dnl Pass it through as ordered linker arguments so it remains a DT_NEEDED
+    dnl dependency without pulling its contents into ddtrace.so.
+    case $host_os in
+      linux*)
+        DDTRACE_SHARED_LIBADD="$DDTRACE_SHARED_LIBADD \
+-Wl,--push-state,-Bdynamic,--no-as-needed,$PHP_DDTRACE_RUST_LIBRARY,--pop-state"
+        ;;
+      darwin*)
+        DDTRACE_SHARED_LIBADD="$DDTRACE_SHARED_LIBADD \
+-Wl,-needed_library,$PHP_DDTRACE_RUST_LIBRARY"
+        ;;
+    esac
     ddtrace_rust_lib=""
   elif test "$PHP_DDTRACE_RUST_LIBRARY" != "-"; then
     ddtrace_rust_lib="$PHP_DDTRACE_RUST_LIBRARY"
+  elif test "$PHP_DDTRACE_RUST_LIBRARY_SPLIT" != "no"; then
+    ddtrace_rust_lib=""
   else
     dnl consider it debug if -g is specified (but not -g0)
     ddtrace_cargo_profile=$(test "$PHP_DDTRACE_RUST_DEBUG" != "no" && echo debug || echo tracer-release)

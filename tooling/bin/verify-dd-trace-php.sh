@@ -27,6 +27,10 @@ if [ "$system_name" = "Linux" ] && [ ! -f "datadog-linux.sym" ] ; then
     >&2 echo "ERROR: expected 'datadog-linux.sym' to exist"
     exit 1
 fi
+if [ ! -f "components-rs/datadog.sym" ] ; then
+    >&2 echo "ERROR: expected 'components-rs/datadog.sym' to exist"
+    exit 1
+fi
 # }}}
 
 # Env vars have been processed; treat unset parameters as an error.
@@ -50,11 +54,15 @@ nm -gC "$sofile" \
 
 expected_symbols=`mktemp "$TMPDIR/expected_symbols.XXXXXXXX"`
 if [ "$system_name" = "Darwin" ] ; then
-    sed 's/^/_/' datadog.sym | sort > "$expected_symbols"
+    cat datadog.sym components-rs/datadog.sym \
+        | sed 's/^/_/' \
+        | sort > "$expected_symbols"
 elif [ "$system_name" = "Linux" ] ; then
-    sort datadog-linux.sym > "$expected_symbols"
+    cat datadog-linux.sym components-rs/datadog.sym \
+        | sort > "$expected_symbols"
 else
-    sort datadog.sym > "$expected_symbols"
+    cat datadog.sym components-rs/datadog.sym \
+        | sort > "$expected_symbols"
 fi
 
 unexpected_symbols=`mktemp "$TMPDIR/unexpected_symbols.XXXXXXXX"`
@@ -65,7 +73,8 @@ comm -13 "$expected_symbols" "$actual_symbols" > "$unexpected_symbols"
 missing_platform_symbols=`mktemp "$TMPDIR/missing_platform_symbols.XXXXXXXX"`
 if [ "$system_name" = "Linux" ] ; then
     required_platform_symbols=`mktemp "$TMPDIR/required_platform_symbols.XXXXXXXX"`
-    sort datadog-linux.sym > "$required_platform_symbols"
+    cat datadog-linux.sym components-rs/datadog.sym \
+        | sort > "$required_platform_symbols"
     comm -23 "$required_platform_symbols" "$actual_defined_symbols" > "$missing_platform_symbols"
     rm "$required_platform_symbols"
 fi
