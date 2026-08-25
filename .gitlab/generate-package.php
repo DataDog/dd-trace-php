@@ -1805,14 +1805,6 @@ deploy_to_reliability_env:
     # Prevent token from appearing in logs
     GITHUB_TOKEN: "[MASKED]"
 
-"test install datadog ci":
-  stage: pre-release
-  image: registry.ddbuild.io/images/bazel:dynamic-22.04
-  tags: [ "arch:amd64" ]
-  needs: []
-  script:
-    - datadog-ci version
-
 "upload SSI debug symbols":
   stage: pre-release
   image: registry.ddbuild.io/images/bazel:dynamic-22.04
