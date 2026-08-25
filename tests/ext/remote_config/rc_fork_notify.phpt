@@ -2,6 +2,7 @@
 RC notifications must appear in forked processes
 --SKIPIF--
 <?php
+if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support XFAIL");
 include __DIR__ . '/../includes/skipif_no_dev_env.inc';
 if (!extension_loaded('pcntl')) die('skip: pcntl extension required');
 ?>
