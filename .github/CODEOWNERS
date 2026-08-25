@@ -1,31 +1,31 @@
 # Default owners
-* @DataDog/apm-php
+* @DataDog/apm-php @DataDog/apm-php-core
 
 # Profiling team
-/profiling/ @DataDog/profiling-php
+/profiling/ @DataDog/profiling-php @DataDog/apm-php-core
 
 # ASM Team
-/appsec/ @DataDog/asm-php
+/appsec/ @DataDog/asm-php @DataDog/apm-php-core
 
 # APM libdatadog
-/components-rs/ @Datadog/libdatadog-apm
-compile_rust.sh @Datadog/libdatadog-apm
+/components-rs/ @Datadog/libdatadog-apm @DataDog/apm-php-core
+compile_rust.sh @Datadog/libdatadog-apm @DataDog/apm-php-core
 
 # APM IDM Team
 /src/ @DataDog/apm-idm-php
 
 # FFE (Feature Flagging & Experimentation) SDK Team
-/components-rs/ffe.rs @Datadog/libdatadog-apm @DataDog/feature-flagging-and-experimentation-sdk
-/libdatadog @Datadog/libdatadog-apm @DataDog/feature-flagging-and-experimentation-sdk
-/src/api/FeatureFlags/ @DataDog/feature-flagging-and-experimentation-sdk
-/src/DDTrace/OpenFeature/ @DataDog/feature-flagging-and-experimentation-sdk
-/src/bridge/_files_openfeature.php @DataDog/feature-flagging-and-experimentation-sdk
-/tests/FeatureFlags/ @DataDog/feature-flagging-and-experimentation-sdk
-/tests/api/Unit/FeatureFlags/ @DataDog/feature-flagging-and-experimentation-sdk
-/tests/OpenFeature/ @DataDog/feature-flagging-and-experimentation-sdk
-/tests/ext/ffe/ @DataDog/feature-flagging-and-experimentation-sdk
+/components-rs/ffe.rs @Datadog/libdatadog-apm @DataDog/feature-flagging-and-experimentation-sdk @DataDog/apm-php-core
+/libdatadog @Datadog/libdatadog-apm @DataDog/feature-flagging-and-experimentation-sdk @DataDog/apm-php-core
+/src/api/FeatureFlags/ @DataDog/feature-flagging-and-experimentation-sdk @DataDog/apm-php-core
+/src/DDTrace/OpenFeature/ @DataDog/feature-flagging-and-experimentation-sdk @DataDog/apm-php-core
+/src/bridge/_files_openfeature.php @DataDog/feature-flagging-and-experimentation-sdk @DataDog/apm-php-core
+/tests/FeatureFlags/ @DataDog/feature-flagging-and-experimentation-sdk @DataDog/apm-php-core
+/tests/api/Unit/FeatureFlags/ @DataDog/feature-flagging-and-experimentation-sdk @DataDog/apm-php-core
+/tests/OpenFeature/ @DataDog/feature-flagging-and-experimentation-sdk @DataDog/apm-php-core
+/tests/ext/ffe/ @DataDog/feature-flagging-and-experimentation-sdk @DataDog/apm-php-core
 
 # Release files
-Cargo.lock @DataDog/apm-php @DataDog/profiling-php @Datadog/libdatadog-apm
-package.xml @DataDog/apm-php @DataDog/profiling-php @Datadog/asm-php
-VERSION @DataDog/apm-php @DataDog/profiling-php @Datadog/asm-php
+Cargo.lock @DataDog/apm-php @DataDog/profiling-php @Datadog/libdatadog-apm @DataDog/apm-php-core
+package.xml @DataDog/apm-php @DataDog/profiling-php @Datadog/asm-php @DataDog/apm-php-core
+VERSION @DataDog/apm-php @DataDog/profiling-php @Datadog/asm-php @DataDog/apm-php-core
