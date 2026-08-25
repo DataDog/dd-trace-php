@@ -228,7 +228,7 @@ services:
       - DD_API_KEY=invalid_key_but_its_ok
 
   request-replayer:
-    image: datadog/dd-trace-ci:php-request-replayer-2.0
+    image: datadog/dd-trace-ci:php-request-replayer-3.0
     ports:
       - "8766:80"
 
@@ -295,7 +295,7 @@ services:
 
 
   windows-request-replayer:
-    image: datadog/dd-trace-ci:php-request-replayer-2.0-windows
+    image: datadog/dd-trace-ci:php-request-replayer-3.0_windows
     ports:
       - "8766:80"
     networks:

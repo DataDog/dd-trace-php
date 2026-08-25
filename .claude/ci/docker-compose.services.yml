@@ -35,7 +35,7 @@ services:
       - SNAPSHOT_REGEX_PLACEHOLDERS=path:/home/circleci/app|/project/dd-trace-php,httpbin:(?<=//)httpbin-integration:8080
 
   request-replayer:
-    image: datadog/dd-trace-ci:php-request-replayer-2.0
+    image: datadog/dd-trace-ci:php-request-replayer-3.0
 
   httpbin-integration:
     image: kong/httpbin:0.2.2
