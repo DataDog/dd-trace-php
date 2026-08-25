@@ -2922,6 +2922,7 @@ dependencies = [
  "tracing",
  "uuid",
  "web-time",
+ "zrip",
  "zstd",
 ]
 
@@ -3129,6 +3130,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tokio-util",
+ "zrip",
  "zstd",
 ]
 
@@ -3151,6 +3153,7 @@ dependencies = [
  "chrono",
  "futures",
  "futures-util",
+ "getrandom 0.2.15",
  "hashbrown 0.15.2",
  "http 1.4.2",
  "http-body-util",
@@ -3165,6 +3168,7 @@ dependencies = [
  "manual_future",
  "prost",
  "rand 0.8.5",
+ "ring",
  "serde",
  "serde_json",
  "serde_with",
@@ -3375,6 +3379,7 @@ dependencies = [
  "tokio",
  "tracing",
  "urlencoding",
+ "zrip",
  "zstd",
 ]
 
@@ -7202,6 +7207,41 @@ name = "zmij"
 version = "1.0.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b8848ee67ecc8aedbaf3e4122217aff892639231befc6a1b58d29fff4c2cabaa"
+
+[[package]]
+name = "zrip"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "964fe9f1ea10a0d183fc143a7525266cbe16978883dbe304725da34b314c04cf"
+dependencies = [
+ "zrip-core",
+ "zrip-decode",
+ "zrip-encode",
+]
+
+[[package]]
+name = "zrip-core"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cbc201ba56175f86e67cc88bdaf1a7af9c061815c7dde719c7a6a1ed5aaa186b"
+
+[[package]]
+name = "zrip-decode"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "038f795e49887bdeaab197fff84c8165644484a98dc3f2354e5df3d2e5f4f978"
+dependencies = [
+ "zrip-core",
+]
+
+[[package]]
+name = "zrip-encode"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f3dfdcbb503db2045716492d5ab31cd82f2852d0d93d8edf6a9235653d9da685"
+dependencies = [
+ "zrip-core",
+]
 
 [[package]]
 name = "zstd"
