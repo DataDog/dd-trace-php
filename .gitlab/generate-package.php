@@ -1741,7 +1741,7 @@ foreach ($arch_targets as $arch) {
       else
         echo "UPSTREAM_TRACER_VERSION=$(<VERSION)" > upstream.env
       fi
-    - mv packages/dd-library-php-*-x86_64-linux-gnu.tar.gz dd-library-php-x86_64-linux-gnu.tar.gz
+    - cp packages/dd-library-php-*-x86_64-linux-gnu.tar.gz dd-library-php-x86_64-linux-gnu.tar.gz
     - tar -cf 'datadog-setup-x86_64-linux-gnu.tar' 'datadog-setup.php' 'dd-library-php-x86_64-linux-gnu.tar.gz'
   artifacts:
     paths:
