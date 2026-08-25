@@ -375,7 +375,11 @@ foreach ($all_minor_major_targets as $major_minor):
       artifacts: true
   variables:
     WAIT_FOR: test-agent:9126
+    # request == limit: enforce-static-cpus only pins cores for Guaranteed QoS.
     KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_CPU_LIMIT: 12
+    KUBERNETES_MEMORY_REQUEST: 8Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
 <?php if (version_compare($major_minor, "7.4", ">=")): ?>
     # Match the CPU request.
     MAX_TEST_PARALLELISM: 12
@@ -391,6 +395,7 @@ foreach ($all_minor_major_targets as $major_minor):
   timeout: 120m
 <?php endif; ?>
   script:
+    # Run twice: shared state between .phpt tests only surfaces on a second pass.
     - make test_extension_ci_normal
     - make test_extension_ci_normal
 <?php after_script("tmp/build_extension", has_test_agent: true); ?>
@@ -408,7 +413,11 @@ foreach ($all_minor_major_targets as $major_minor):
       artifacts: true
   variables:
     WAIT_FOR: test-agent:9126
+    # request == limit: enforce-static-cpus only pins cores for Guaranteed QoS.
     KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_CPU_LIMIT: 12
+    KUBERNETES_MEMORY_REQUEST: 8Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
     # Below the CPU request: each worker spawns its own valgrind process.
     MAX_TEST_PARALLELISM: 4
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
