@@ -125,6 +125,8 @@ variables:
   OCI_PACKAGE_MAX_SIZE_BYTES: 150_000_000
   LIB_INJECTION_IMAGE_MAX_SIZE_BYTES: 210_000_000
 
+  REPO_NOTIFICATION_CHANNEL: "#guild-dd-php"
+
 include:
   - local: .gitlab/one-pipeline.locked.yml
   - local: .gitlab/benchmarks.yml
@@ -1716,7 +1718,7 @@ foreach ($arch_targets as $arch) {
 
 "bundle for reliability env":
   stage: shared-pipeline-build
-  image: registry.ddbuild.io/ci/libdatadog-build/ci_docker_base:67145216
+  image: registry.ddbuild.io/images/base/gbi-ubuntu_2404:release
   tags: [ "arch:amd64" ]
   rules:
     - if: $NIGHTLY_BUILD
@@ -1805,7 +1807,7 @@ deploy_to_reliability_env:
 
 "upload SSI debug symbols":
   stage: pre-release
-  image: registry.ddbuild.io/ci/async-profiler-build:v71888475-datadog-ci
+  image: registry.ddbuild.io/images/base/gbi-ubuntu_2404:release
   tags: [ "arch:amd64" ]
   only:
     - tags
@@ -1822,6 +1824,7 @@ foreach ($arch_targets as $arch) {
     - mkdir build
     - find packages -name "*.tar.gz" -exec tar xzf {} -C build/ \;
   script:
+    - .gitlab/install-datadog-ci.sh
     - export DATADOG_API_KEY_PROD=$(aws ssm get-parameter --region us-east-1 --name ci.async-profiler-build.api_key_public_symbols_prod_us1 --with-decryption --query "Parameter.Value" --out text)
     - export DATADOG_API_KEY_STAGING=$(aws ssm get-parameter --region us-east-1 --name ci.async-profiler-build.api_key_public_symbols_staging --with-decryption --query "Parameter.Value" --out text)
     - DATADOG_API_KEY=$DATADOG_API_KEY_STAGING DATADOG_SITE=datad0g.com DD_BETA_COMMANDS_ENABLED=1 datadog-ci elf-symbols upload --disable-git ./build
