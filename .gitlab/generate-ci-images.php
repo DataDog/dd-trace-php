@@ -75,6 +75,7 @@ $dirs = [
     "Bookworm" => "dockerfiles/ci/bookworm",
     "CentOS"   => "dockerfiles/ci/centos/7",
     "Alpine"   => "dockerfiles/ci/alpine_compile_extension",
+    "Services" => "dockerfiles/services",
 ];
 
 $osList = [];
