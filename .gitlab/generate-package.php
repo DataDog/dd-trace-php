@@ -1805,6 +1805,15 @@ deploy_to_reliability_env:
     # Prevent token from appearing in logs
     GITHUB_TOKEN: "[MASKED]"
 
+"test install datadog ci"
+  stage: pre-release
+  image: registry.ddbuild.io/images/base/gbi-ubuntu_2404:release
+  tags: [ "arch:amd64" ]
+  needs: []
+  script:
+    - .gitlab/install-datadog-ci.sh
+    - datadog-ci version
+
 "upload SSI debug symbols":
   stage: pre-release
   image: registry.ddbuild.io/images/base/gbi-ubuntu_2404:release
