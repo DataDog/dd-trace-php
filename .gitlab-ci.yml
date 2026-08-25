@@ -52,7 +52,6 @@ generate-templates:
         LIBDATADOG_SHA=$(git ls-tree HEAD libdatadog | awk '{print $3}')
         printf 'LIBDATADOG_OVERRIDE_SHA=%s\nLIBDATADOG_FEEDBACK_RUN=true\n' "$LIBDATADOG_SHA" >> libdatadog.env
       fi
-    - php ./.gitlab/test-request-replayer-concurrency.php
     - php ./.gitlab/generate-package.php  | tee .gitlab/package-gen.yml
     - php ./.gitlab/generate-tracer.php   | tee .gitlab/tracer-gen.yml
     - php ./.gitlab/generate-appsec.php   | tee .gitlab/appsec-gen.yml

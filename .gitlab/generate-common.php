@@ -227,22 +227,24 @@ foreach ($arch_targets as $arch_target) {
       KUBERNETES_SERVICE_MEMORY_LIMIT: 512Mi
 
   request-replayer:
-    name: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-request-replayer-2.0
+    name: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-request-replayer-3.0
     alias: request-replayer
     command:
       - sh
       - -c
       - |
-        source_dir="$CI_PROJECT_DIR/dockerfiles/services/request-replayer/src"
-        printf '%s\n' '<''?php while (!file_exists("/tmp/request-replayer-ready")) { usleep(100000); } require "/var/www/index.php";' > /tmp/request-replayer-router.php
+        # Supervise the UDP metrics server outside the worker pool: index.php's
+        # own spawn races under PHP_CLI_SERVER_WORKERS.
         (
-          installer="$CI_PROJECT_DIR/.gitlab/install-request-replayer-source.sh"
-          while [ ! -f "$installer" ]; do sleep 1; done
-          sh "$installer" "$source_dir" /var/www /tmp/request-replayer-ready
+          n=0
+          while true; do
+            n=$((n+1))
+            if [ "$n" -gt 20 ]; then echo "metricsserver: giving up after $n starts" >&2; exit 1; fi
+            php /var/www/metricsserver.php || echo "metricsserver: exited (start $n), restarting" >&2
+            sleep 1
+          done
         ) &
-        (while true; do php /var/www/metricsserver.php; sleep 1; done) &
-        echo "$!" > /tmp/metrics-server.pid
-        exec php -S <?= $service_bind_address ?>:80 /tmp/request-replayer-router.php
+        exec php -S <?= $service_bind_address ?>:80 index.php
     variables:
       DD_REQUEST_DUMPER_FILE: dump.json
       PHP_CLI_SERVER_WORKERS: "16"
