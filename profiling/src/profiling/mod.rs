@@ -1797,7 +1797,7 @@ impl Profiler {
             let custom_tags = locals.custom_tags.as_ref().map(Arc::clone);
             let thread_context = crate::process_context::thread_context(ProcessIdentityRef {
                 service: locals.identity.service.as_deref(),
-                env: locals.identity.env.as_deref(),
+                env: locals.identity.env.as_deref().or(Some("none")),
                 version: locals.identity.version.as_deref(),
             });
             (git_tags, custom_tags, thread_context)
