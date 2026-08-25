@@ -52,10 +52,21 @@ $uri = explode("?", $_SERVER['REQUEST_URI'])[0];
 
 $temp_location = sys_get_temp_dir();
 
-if (!getenv('REQUEST_REPLAYER_METRICS_SERVER_MANAGED')) {
-    $metricsServerPid = "$temp_location/metrics-server.pid";
-    if (!file_exists($metricsServerPid)) {
-        shell_exec("nohup bash -c 'php metricsserver.php & pid=$!; echo \$pid > $metricsServerPid; wait \$pid; rm $metricsServerPid' > /dev/null 2>&1 &");
+// One UDP metrics server is shared by every PHP_CLI_SERVER_WORKERS worker.
+// metricsserver.php holds this lock for its lifetime, so taking it means
+// nothing is on udp/80: drop it (the child needs the same lock) and spawn.
+// A second worker in that window is harmless -- the loser's own LOCK_NB makes
+// it exit rather than bind twice. The stamp caps attempts at one a second.
+$metricsServerLock = "$temp_location/metrics-server.lock";
+$metricsServerStamp = "$temp_location/metrics-server.spawned-at";
+$lock = @fopen($metricsServerLock, 'c');
+if ($lock !== false) {
+    $stopped = flock($lock, LOCK_EX | LOCK_NB);
+    fclose($lock);
+    clearstatcache(true, $metricsServerStamp);
+    if ($stopped && @filemtime($metricsServerStamp) < time()) {
+        @touch($metricsServerStamp);
+        shell_exec('nohup php ' . escapeshellarg(__DIR__ . '/metricsserver.php') . ' > /dev/null 2>&1 &');
     }
 }
 
@@ -102,7 +113,10 @@ set_error_handler(function ($number, $message, $errfile, $errline) {
         return true;
     }
     logRequest("Triggered error $number $message in $errfile on line $errline: " . (new \Exception)->getTraceAsString());
-    trigger_error($message, $number);
+    // Re-raising via trigger_error() is a ValueError on PHP 8 for any level
+    // outside E_USER_*, which turns a warning into an HTML fatal served as
+    // HTTP 200 -- callers then json_decode() that. Let PHP report it instead.
+    return false;
 });
 
 switch ($uri) {
