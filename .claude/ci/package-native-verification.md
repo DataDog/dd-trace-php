@@ -184,7 +184,7 @@ docker network create verify-net 2>/dev/null || true
 docker rm -f replayer 2>/dev/null || true
 docker run -d --name replayer --network verify-net \
   --network-alias request-replayer \
-  datadog/dd-trace-ci:php-request-replayer-3.0
+  datadog/request-replayer:3.0
 
 .claude/ci/dockerh --cache verify-debian-83 --overlayfs --root \
   debian:bookworm-slim \
