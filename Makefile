@@ -202,17 +202,31 @@ test_c2php: $(SO_FILE) $(INIT_HOOK_TEST_FILES) $(BUILD_DIR)/run-tests.php
 test_with_init_hook: $(SO_FILE) $(INIT_HOOK_TEST_FILES) $(BUILD_DIR)/run-tests.php
 	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(TRACER_SOURCES_INI) $(INIT_HOOK_TEST_FILES);
 
-test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
+# The .phpt suite runs twice: normally, and under valgrind for leak checking.
+# Separate targets so CI can parallelize them -- valgrind is far slower.
+# The PATH shim in tests/ext/valgrind adds the suppressions file.
+test_extension_ci_normal: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
 	( \
 	set -xe; \
 	export PATH="$(PROJECT_ROOT)/tests/ext/valgrind:$$PATH"; \
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/normal-extension-test.xml; \
 	$(ALL_TEST_ENV_OVERRIDE) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS); \
-	\
+	)
+
+test_extension_ci_valgrind: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
+	( \
+	set -xe; \
+	export PATH="$(PROJECT_ROOT)/tests/ext/valgrind:$$PATH"; \
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/valgrind-extension-test.xml; \
 	export TEST_PHP_OUTPUT=$(JUNIT_RESULTS_DIR)/valgrind-run-tests.out; \
 	DD_SPAWN_WORKER_STABLE_TRAMPOLINE=1 $(ALL_TEST_ENV_OVERRIDE) DD_TRACE_AGENT_TIMEOUT=5000 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m -s $$TEST_PHP_OUTPUT $(BUILD_DIR)/$(TESTS) && ! grep -e '^LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
 	)
+
+# Recursive $(MAKE), not prerequisites: under `make -jN` prerequisites would run
+# concurrently and both passes share the same .phpt sandbox (.out/.diff/.mem).
+test_extension_ci:
+	$(MAKE) test_extension_ci_normal
+	$(MAKE) test_extension_ci_valgrind
 
 build_tea: TEA_BUILD_TESTS=ON
 build_tea: TEA_PREFIX_PATH=/opt/catch2
@@ -1637,5 +1651,5 @@ test_internal_api_randomized: $(SO_FILE)
 composer.lock: composer.json
 	$(call run_composer_with_retry,,)
 
-.PHONY: dev dist_clean clean cores all clang_format_check clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test_zai test_zai_asan test install_ini install_all \
+.PHONY: dev dist_clean clean cores all clang_format_check clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test_extension_ci_normal test_extension_ci_valgrind test_zai test_zai_asan test install_ini install_all \
 	.apk .rpm .deb .tar.gz sudo debug prod strict run-tests.php verify_pecl_file_definitions verify_package_xml cbindgen cbindgen_binary
