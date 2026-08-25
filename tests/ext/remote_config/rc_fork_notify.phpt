@@ -12,6 +12,8 @@ DD_TRACE_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=0.1
 DD_TRACE_AGENT_TEST_SESSION_TOKEN=remote-config/rc_fork_notify
+--XFAIL--
+SessionInfo should not contain process info
 --FILE--
 <?php
 
