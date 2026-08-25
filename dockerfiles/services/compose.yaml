@@ -1,7 +1,7 @@
 services:
 
   request-replayer:
-    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-request-replayer-$REQUEST_REPLAYER_NEXT_VERSION
+    image: ${CI_REGISTRY_IMAGE:-datadog/request-replayer}:$REQUEST_REPLAYER_NEXT_VERSION
     build:
       context: request-replayer
       dockerfile: linux.Dockerfile

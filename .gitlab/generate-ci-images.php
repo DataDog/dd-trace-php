@@ -89,6 +89,10 @@ $dirs = [
     "Services" => "dockerfiles/services",
 ];
 
+$registryOverrides = [
+    "Services" => "registry.ddbuild.io/ci/dd-trace-php/request-replayer",
+];
+
 $osList = [];
 foreach ($dirs as $os => $dir) {
     $services = parse_compose(compose_file("$root/$dir"), parse_env("$root/$dir/.env"));
@@ -324,6 +328,10 @@ Windows sign:
 <?= $os ?> build:
   extends: .linux_image_build
   tags: ["arch:amd64"]
+<?php if ($registry = $registryOverrides[$os] ?? null): ?>
+  variables:
+    CI_REGISTRY_IMAGE: "<?= $registry ?>"
+<?php endif; ?>
   parallel:
     matrix:
 <?php foreach ($services as $svc => $tag): ?>
@@ -349,6 +357,11 @@ Windows sign:
 
 <?= $os ?> publish:
   extends: .image_publish
+<?php if ($registry = $registryOverrides[$os] ?? null): ?>
+  variables:
+    CI_REGISTRY_IMAGE: "<?= $registry ?>"
+    IMG_DESTINATIONS: "<?= basename($registry) ?>:${TAG}"
+<?php endif; ?>
   parallel:
     matrix:
       - TAG:
