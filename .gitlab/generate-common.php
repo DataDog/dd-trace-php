@@ -229,26 +229,10 @@ foreach ($arch_targets as $arch_target) {
   request-replayer:
     name: registry.ddbuild.io/ci/dd-trace-php/request-replayer:3.0
     alias: request-replayer
-    command:
-      - sh
-      - -c
-      - |
-        # Supervise the UDP metrics server outside the worker pool: index.php's
-        # own spawn races under PHP_CLI_SERVER_WORKERS.
-        (
-          n=0
-          while true; do
-            n=$((n+1))
-            if [ "$n" -gt 20 ]; then echo "metricsserver: giving up after $n starts" >&2; exit 1; fi
-            php /var/www/metricsserver.php || echo "metricsserver: exited (start $n), restarting" >&2
-            sleep 1
-          done
-        ) &
-        exec php -S <?= $service_bind_address ?>:80 index.php
+    command: ["php", "-S", "<?= $service_bind_address ?>:80", "index.php"]
     variables:
       DD_REQUEST_DUMPER_FILE: dump.json
       PHP_CLI_SERVER_WORKERS: "16"
-      REQUEST_REPLAYER_METRICS_SERVER_MANAGED: "1"
       KUBERNETES_SERVICE_CPU_REQUEST: 2
       KUBERNETES_SERVICE_CPU_LIMIT: 2
       KUBERNETES_SERVICE_MEMORY_REQUEST: 1Gi
