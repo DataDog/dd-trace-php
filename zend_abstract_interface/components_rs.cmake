@@ -13,15 +13,22 @@ endif()
 
 set(LIBDATADOG_DIR "${CMAKE_SOURCE_DIR}/../libdatadog")
 set(LIBDATADOG_STAMP_FILE "${CMAKE_BINARY_DIR}/libdatadog.stamp")
+set(DDTRACE_EXPORT_SYMBOL_FILES
+    "${CMAKE_SOURCE_DIR}/../ddtrace-extension.sym")
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-    set(DDTRACE_EXPORT_SYMBOL_FILES
-        "${CMAKE_SOURCE_DIR}/../datadog-linux.sym")
-else()
-    set(DDTRACE_EXPORT_SYMBOL_FILES
-        "${CMAKE_SOURCE_DIR}/../datadog.sym")
+    list(APPEND DDTRACE_EXPORT_SYMBOL_FILES
+        "${CMAKE_SOURCE_DIR}/../ddtrace-extension-linux.sym")
 endif()
 list(APPEND DDTRACE_EXPORT_SYMBOL_FILES
-    "${CMAKE_SOURCE_DIR}/../components-rs/datadog.sym")
+    "${CMAKE_SOURCE_DIR}/../components-rs/libdatadog-php.sym")
+if(UNIX)
+    list(APPEND DDTRACE_EXPORT_SYMBOL_FILES
+        "${CMAKE_SOURCE_DIR}/../components-rs/libdatadog-php-unix.sym")
+endif()
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+    list(APPEND DDTRACE_EXPORT_SYMBOL_FILES
+        "${CMAKE_SOURCE_DIR}/../components-rs/libdatadog-php-linux.sym")
+endif()
 string(JOIN "' '" DDTRACE_EXPORT_SYMBOL_ARGUMENTS
     ${DDTRACE_EXPORT_SYMBOL_FILES})
 add_custom_target(libdatadog_stamp
@@ -30,7 +37,7 @@ add_custom_target(libdatadog_stamp
 )
 
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-set(EXPORTS_FILE "${CMAKE_BINARY_DIR}/ddtrace_exports.version")
+set(EXPORTS_FILE "${CMAKE_BINARY_DIR}/ddtrace-fat.version")
 add_custom_target(ddtrace_exports
     COMMAND bash -c "{ echo -e '{\\nglobal:'; sed 's/$/;/' '${DDTRACE_EXPORT_SYMBOL_ARGUMENTS}'; echo -e 'local:\\n*;\\n};'; } > '${EXPORTS_FILE}'"
     BYPRODUCT ${EXPORTS_FILE}
@@ -38,7 +45,7 @@ add_custom_target(ddtrace_exports
     VERBATIM
 )
 elseif(APPLE)
-set(EXPORTS_FILE "${CMAKE_BINARY_DIR}/datadog_exports.sym")
+set(EXPORTS_FILE "${CMAKE_BINARY_DIR}/ddtrace-fat.sym")
 add_custom_target(ddtrace_exports
     COMMAND bash -c "sed 's/^/_/' '${DDTRACE_EXPORT_SYMBOL_ARGUMENTS}' > '${EXPORTS_FILE}'"
     BYPRODUCT ${EXPORTS_FILE}

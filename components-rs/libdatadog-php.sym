@@ -2,9 +2,7 @@ datadog_runtime_id
 ddog_remote_config_reader_for_path
 ddog_remote_config_read
 ddog_remote_config_reader_drop
-ddog_crashtracker_entry_point
 ddog_daemon_entry_point
-ddtrace_sidecar_entry_point
 ddog_set_rc_notify_fn
 ddog_remote_config_path
 ddog_remote_config_path_free
@@ -20,6 +18,4 @@ ddog_Error_drop
 ddog_library_configurator_drop
 ddog_sidecar_connect
 ddog_sidecar_ping
-ddog_sidecar_send_appsec_message
-ddog_sidecar_appsec_response_drop
 ddog_sidecar_transport_drop

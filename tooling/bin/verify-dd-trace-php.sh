@@ -19,17 +19,27 @@ fi
 
 system_name=`uname -s`
 
-if [ ! -f "datadog.sym" ] ; then
-    >&2 echo "ERROR: expected 'datadog.sym' to exist"
+if [ ! -f "ddtrace-extension.sym" ] ; then
+    >&2 echo "ERROR: expected 'ddtrace-extension.sym' to exist"
     exit 1
 fi
-if [ "$system_name" = "Linux" ] && [ ! -f "datadog-linux.sym" ] ; then
-    >&2 echo "ERROR: expected 'datadog-linux.sym' to exist"
+if [ ! -f "components-rs/libdatadog-php.sym" ] ; then
+    >&2 echo "ERROR: expected 'components-rs/libdatadog-php.sym' to exist"
     exit 1
 fi
-if [ ! -f "components-rs/datadog.sym" ] ; then
-    >&2 echo "ERROR: expected 'components-rs/datadog.sym' to exist"
+if [ ! -f "components-rs/libdatadog-php-unix.sym" ] ; then
+    >&2 echo "ERROR: expected 'components-rs/libdatadog-php-unix.sym' to exist"
     exit 1
+fi
+if [ "$system_name" = "Linux" ] ; then
+    if [ ! -f "ddtrace-extension-linux.sym" ] ; then
+        >&2 echo "ERROR: expected 'ddtrace-extension-linux.sym' to exist"
+        exit 1
+    fi
+    if [ ! -f "components-rs/libdatadog-php-linux.sym" ] ; then
+        >&2 echo "ERROR: expected 'components-rs/libdatadog-php-linux.sym' to exist"
+        exit 1
+    fi
 fi
 # }}}
 
@@ -54,14 +64,19 @@ nm -gC "$sofile" \
 
 expected_symbols=`mktemp "$TMPDIR/expected_symbols.XXXXXXXX"`
 if [ "$system_name" = "Darwin" ] ; then
-    cat datadog.sym components-rs/datadog.sym \
+    cat ddtrace-extension.sym components-rs/libdatadog-php.sym \
+        components-rs/libdatadog-php-unix.sym \
         | sed 's/^/_/' \
         | sort > "$expected_symbols"
 elif [ "$system_name" = "Linux" ] ; then
-    cat datadog-linux.sym components-rs/datadog.sym \
+    cat ddtrace-extension.sym ddtrace-extension-linux.sym \
+        components-rs/libdatadog-php.sym \
+        components-rs/libdatadog-php-unix.sym \
+        components-rs/libdatadog-php-linux.sym \
         | sort > "$expected_symbols"
 else
-    cat datadog.sym components-rs/datadog.sym \
+    cat ddtrace-extension.sym components-rs/libdatadog-php.sym \
+        components-rs/libdatadog-php-unix.sym \
         | sort > "$expected_symbols"
 fi
 
@@ -73,7 +88,10 @@ comm -13 "$expected_symbols" "$actual_symbols" > "$unexpected_symbols"
 missing_platform_symbols=`mktemp "$TMPDIR/missing_platform_symbols.XXXXXXXX"`
 if [ "$system_name" = "Linux" ] ; then
     required_platform_symbols=`mktemp "$TMPDIR/required_platform_symbols.XXXXXXXX"`
-    cat datadog-linux.sym components-rs/datadog.sym \
+    cat ddtrace-extension.sym ddtrace-extension-linux.sym \
+        components-rs/libdatadog-php.sym \
+        components-rs/libdatadog-php-unix.sym \
+        components-rs/libdatadog-php-linux.sym \
         | sort > "$required_platform_symbols"
     comm -23 "$required_platform_symbols" "$actual_defined_symbols" > "$missing_platform_symbols"
     rm "$required_platform_symbols"

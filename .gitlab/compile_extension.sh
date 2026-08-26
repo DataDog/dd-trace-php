@@ -25,11 +25,8 @@ make -j static &
 wait
 
 # Link extension
-#
-# config.m4 already picks the right symbol list (datadog-all.sym, which
-# also includes the Rust-exported symbols, when the Rust library is not
-# split out; the platform-only datadog{,-linux}.sym otherwise) and writes
-# it as the -export-symbols argument in ddtrace.ldflags.
-export_symbols_file=$(grep -oE -- '-export-symbols [^ ]+' "${EXTENSION_DIR}/ddtrace.ldflags" | awk '{print $2}')
-sed -i -E "s#-export-symbols [^ ]+#-Wl,--retain-symbols-file=${export_symbols_file}#g" "${EXTENSION_DIR}/ddtrace.ldflags"
-cc -shared -Wl,-whole-archive ${MODULES_DIR}/ddtrace.a -Wl,-no-whole-archive $(cat ${EXTENSION_DIR}/ddtrace.ldflags) ${CARGO_TARGET_DIR}/debug/libdatadog_php.a -Wl,-soname -Wl,ddtrace.so -o ${MODULES_DIR}/ddtrace.so
+cc -shared -Wl,-whole-archive "${MODULES_DIR}/ddtrace.a" \
+  -Wl,-no-whole-archive $(cat "${EXTENSION_DIR}/ddtrace-fat.ldflags") \
+  -Wl,--retain-symbols-file="${EXTENSION_DIR}/ddtrace-fat.sym" \
+  "${CARGO_TARGET_DIR}/debug/libdatadog_php.a" \
+  -Wl,-soname -Wl,ddtrace.so -o "${MODULES_DIR}/ddtrace.so"

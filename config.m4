@@ -305,7 +305,8 @@ if test "$PHP_DDTRACE" != "no"; then
   dnl Deliberately not in EXTRA_LDFLAGS: those land before libdatadog_php.a on
   dnl the link line, so they would not satisfy its undefined symbols. Note that
   dnl the relinks in .gitlab/compile_extension.sh and
-  dnl .gitlab/link-tracing-extension.sh) are driven solely by ddtrace.ldflags
+  dnl .gitlab/link-tracing-extension.sh are driven solely by
+  dnl ddtrace-fat.ldflags
   dnl and add no libm of their own, so it has to be in that file too.
   EXTRA_LIBS="$EXTRA_LIBS $LIBM"
   DDTRACE_SHARED_LIBADD="${DDTRACE_SHARED_LIBADD:-} $LIBM"
@@ -339,39 +340,50 @@ if test "$PHP_DDTRACE" != "no"; then
 
   AC_CHECK_HEADER(time.h, [], [AC_MSG_ERROR([Cannot find or include time.h])])
 
+  ddtrace_fat_ldflags="$EXTRA_LDFLAGS"
   if test "$ext_shared" = "yes"; then
+    ddtrace_slim_export_symbols="$ext_builddir/ddtrace-slim.sym"
+    cat "$ext_srcdir/ddtrace-extension.sym" > "$ddtrace_slim_export_symbols"
+
     case $host_os in
-      linux*) ddtrace_export_symbols="$ext_srcdir/datadog-linux.sym" ;;
-      *) ddtrace_export_symbols="$ext_srcdir/datadog.sym" ;;
+      linux*)
+        cat "$ext_srcdir/ddtrace-extension-linux.sym" \
+          >> "$ddtrace_slim_export_symbols"
+      ;;
     esac
 
-    dnl Rust symbols are part of ddtrace.so only in the non-SSI build.
-    if test "$PHP_DDTRACE_RUST_LIBRARY_SPLIT" = "no"; then
-      ddtrace_platform_export_symbols="$ddtrace_export_symbols"
-      ddtrace_export_symbols="$ext_builddir/datadog-all.sym"
-      cat "$ddtrace_platform_export_symbols" \
-        "$ext_srcdir/components-rs/datadog.sym" > "$ddtrace_export_symbols"
-    fi
+    ddtrace_fat_export_symbols="$ext_builddir/ddtrace-fat.sym"
+    cat "$ddtrace_slim_export_symbols" \
+      "$ext_srcdir/components-rs/libdatadog-php.sym" \
+      "$ext_srcdir/components-rs/libdatadog-php-unix.sym" \
+      > "$ddtrace_fat_export_symbols"
+
+    case $host_os in
+      linux*)
+        cat "$ext_srcdir/components-rs/libdatadog-php-linux.sym" \
+          >> "$ddtrace_fat_export_symbols"
+      ;;
+    esac
 
     dnl Only export the symbols selected above, which should all be marked as
     dnl DATADOG_PUBLIC in their source files.
     EXTRA_CFLAGS="$EXTRA_CFLAGS -fvisibility=hidden"
-    EXTRA_LDFLAGS="$EXTRA_LDFLAGS -export-symbols $ddtrace_export_symbols -flto -fuse-linker-plugin"
+    ddtrace_slim_ldflags="$EXTRA_LDFLAGS -flto -fuse-linker-plugin"
+    ddtrace_fat_ldflags="$ddtrace_slim_ldflags"
 
     case $host_os in
       linux*)
-        if test "$PHP_DDTRACE_RUST_LIBRARY_SPLIT" = "no"; then
-          EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Wl,-e,ddog_spawn_direct_entry"
-        else
-          dnl The extra flag from ddtrace.ldflags affects only the artifact
-          dnl path where ddtrace.so is relinked with libdatadog_php.a; it does
-          dnl not affect the SSI path where the Rust component remains a
-          dnl separate libdatadog_php.so. In that case, it's libdatadog_php.so
-          dnl that should get this flag (and it does, via cargo)
-          ddtrace_ldflags_file_extra="$ddtrace_ldflags_file_extra -Wl,-e,ddog_spawn_direct_entry"
-        fi
+        dnl A fat Linux ddtrace.so is also the sidecar executable. When ld.so
+        dnl executes it directly, it jumps to this ELF entry point.
+        ddtrace_fat_ldflags="$ddtrace_fat_ldflags -Wl,-e,ddog_spawn_direct_entry"
       ;;
     esac
+
+    if test "$PHP_DDTRACE_RUST_LIBRARY_SPLIT" = "no"; then
+      EXTRA_LDFLAGS="$ddtrace_fat_ldflags -export-symbols $ddtrace_fat_export_symbols"
+    else
+      EXTRA_LDFLAGS="$ddtrace_slim_ldflags -export-symbols $ddtrace_slim_export_symbols"
+    fi
 
     PHP_SUBST(EXTRA_CFLAGS)
     PHP_SUBST(EXTRA_LDFLAGS)
@@ -515,7 +527,6 @@ WEAKEN
     PHP_GLOBAL_OBJS="$ddtrace_rust_lib $PHP_GLOBAL_OBJS"
   fi
 
-  dnl ddtrace_ldflags_file_extra holds the flags only the out-of-tree relinks
-  dnl of ddtrace.so need (they link libdatadog_php.a into ddtrace.so themselves)
-  echo "$EXTRA_LDFLAGS $EXTRA_CFLAGS$ddtrace_ldflags_file_extra" > ddtrace.ldflags
+  dnl These flags are consumed by out-of-tree fat links.
+  echo "$ddtrace_fat_ldflags $EXTRA_CFLAGS$ddtrace_ldflags_file_extra" > ddtrace-fat.ldflags
 fi

@@ -333,7 +333,8 @@ foreach ($build_platforms as $platform) {
     paths:
       - "extensions_*"
       - "standalone_*"
-      - "ddtrace_*.ldflags"
+      - "ddtrace_*-fat.ldflags"
+      - "ddtrace_*-fat.sym"
 
 <?php
     }
@@ -365,7 +366,8 @@ foreach ($build_platforms as $platform) {
     paths:
       - "extensions_*"
       - "standalone_*"
-      - "ddtrace_*.ldflags"
+      - "ddtrace_*-fat.ldflags"
+      - "ddtrace_*-fat.sym"
 <?php
 endforeach;
 ?>
