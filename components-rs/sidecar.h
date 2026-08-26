@@ -307,6 +307,27 @@ ddog_MaybeError ddog_sidecar_send_trace_v04_bytes(struct ddog_SidecarTransport *
                                                   ddog_CharSlice data,
                                                   const struct ddog_TracerHeaderTags *tracer_header_tags);
 
+/**
+ * Sends a V1-encoded trace to the sidecar via shared memory. The sidecar decodes the V1
+ * `TracerPayload`, can inspect it, and re-encodes it as V1 msgpack on the way to the agent's
+ * `/v1.0/traces` endpoint.
+ */
+ddog_MaybeError ddog_sidecar_send_trace_v1_shm(struct ddog_SidecarTransport **transport,
+                                               const struct ddog_InstanceId *instance_id,
+                                               struct ddog_ShmHandle *shm_handle,
+                                               uintptr_t len,
+                                               const struct ddog_TracerHeaderTags *tracer_header_tags);
+
+/**
+ * Sends a V1-encoded trace as bytes to the sidecar. The sidecar decodes the V1 `TracerPayload`,
+ * can inspect it, and re-encodes it as V1 msgpack on the way to the agent's `/v1.0/traces`
+ * endpoint.
+ */
+ddog_MaybeError ddog_sidecar_send_trace_v1_bytes(struct ddog_SidecarTransport **transport,
+                                                 const struct ddog_InstanceId *instance_id,
+                                                 ddog_CharSlice data,
+                                                 const struct ddog_TracerHeaderTags *tracer_header_tags);
+
 ddog_MaybeError ddog_sidecar_send_debugger_data(struct ddog_SidecarTransport **transport,
                                                 const struct ddog_InstanceId *instance_id,
                                                 ddog_QueueId queue_id,
@@ -475,6 +496,14 @@ ddog_CharSlice ddog_get_agent_info_container_tags_hash(struct ddog_AgentInfoRead
 
 void ddog_send_traces_to_sidecar(ddog_TracesBytes *traces,
                                  struct ddog_SenderParameters *parameters);
+
+/**
+ * V1 counterpart of `ddog_send_traces_to_sidecar`: encodes `traces` as a V1 `TracerPayload`
+ * using `metadata`, then sends it to the sidecar for the agent's `/v1.0/traces` endpoint.
+ */
+void ddog_send_traces_to_sidecar_v1(ddog_TracesBytes *traces,
+                                    struct ddog_SenderParameters *parameters,
+                                    const struct ddog_TracerMetadataV1 *metadata);
 
 /**
  * Drops the agent info reader.

@@ -437,6 +437,7 @@ typedef enum ddog_RemoteConfigProduct {
   DDOG_REMOTE_CONFIG_PRODUCT_FFE_FLAGS,
   DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGING,
   DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGING_SYMBOL_DB,
+  DDOG_REMOTE_CONFIG_PRODUCT_DEBUG,
 } ddog_RemoteConfigProduct;
 
 typedef enum ddog_SpanProbeTarget {
@@ -1351,6 +1352,24 @@ typedef struct ddog_SenderParameters {
   int64_t buffer_size;
   ddog_CharSlice url;
 } ddog_SenderParameters;
+
+/**
+ * Payload-level tracer metadata for the V1 msgpack encoder; mirrors `TracerMetadata`.
+ */
+typedef struct ddog_TracerMetadataV1 {
+  ddog_CharSlice hostname;
+  ddog_CharSlice env;
+  ddog_CharSlice app_version;
+  ddog_CharSlice runtime_id;
+  ddog_CharSlice service;
+  ddog_CharSlice tracer_version;
+  ddog_CharSlice language_name;
+  ddog_CharSlice language_version;
+  ddog_CharSlice language_interpreter;
+  ddog_CharSlice language_interpreter_vendor;
+  ddog_CharSlice git_commit_sha;
+  ddog_CharSlice process_tags;
+} ddog_TracerMetadataV1;
 
 typedef enum ddog_crasht_BuildIdType {
   DDOG_CRASHT_BUILD_ID_TYPE_GNU,

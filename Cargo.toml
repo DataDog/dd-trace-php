@@ -39,7 +39,8 @@ inherits = "release"
 # inheritance against this manifest when built as path dependencies. Keep this
 # list in sync with libdatadog's own `[workspace.dependencies]`; libdatadog
 # #2253 consolidated `anyhow`, `serde`, `tokio` and `tracing` to the workspace
-# level, so they are mirrored here too.
+# level, and later work moved the rest of libdatadog's shared deps there too, so
+# the full list is mirrored here.
 [workspace.dependencies]
 allocator-api2 = { version = "0.2.21", default-features = false }
 anyhow = { version = "1.0", default-features = false }
