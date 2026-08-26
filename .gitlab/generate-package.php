@@ -168,6 +168,26 @@ requirements_json_test:
     REQUIREMENTS_BLOCK_JSON_PATH: "loader/packaging/block_tests.json"
     REQUIREMENTS_ALLOW_JSON_PATH: "loader/packaging/allow_tests.json"
 
+"system tests shard selector test":
+  stage: prepare
+  image: registry.ddbuild.io/images/mirror/python:3.12-slim-bullseye
+  tags: [ "arch:amd64" ]
+  needs: []
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+  script:
+    - python3 .gitlab/tests/test_package_system_tests_sharding.py -v
+
+"system tests pinning contract test":
+  stage: prepare
+  image: registry.ddbuild.io/images/mirror/php:8.2-cli
+  tags: [ "arch:amd64" ]
+  needs: []
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+  script:
+    - php .gitlab/tests/test_package_system_tests_pinning.php
+
 
 # dd-trace-php release packaging
 "prepare code":
@@ -176,6 +196,13 @@ requirements_json_test:
   tags: [ "arch:amd64" ]
   script:
     - ./.gitlab/append-build-id.sh
+    - |
+      SYSTEM_TESTS_SHA=$(git ls-remote https://github.com/DataDog/system-tests.git refs/heads/main | awk 'NR == 1 { print $1 }')
+      if ! printf '%s\n' "$SYSTEM_TESTS_SHA" | grep -Eq '^[0-9a-f]{40}$'; then
+        echo "Failed to resolve a valid system-tests commit: $SYSTEM_TESTS_SHA"
+        exit 1
+      fi
+      printf 'SYSTEM_TESTS_SHA=%s\n' "$SYSTEM_TESTS_SHA" > system-tests.env
     # Upgrading composer
     - composer self-update --no-interaction
     # Installing dependencies with composer
@@ -190,6 +217,8 @@ requirements_json_test:
     paths:
       - VERSION
       - ./src/bridge/_generated*.php
+    reports:
+      dotenv: system-tests.env
 
 <?php
 foreach ($build_platforms as $platform) {
@@ -1305,7 +1334,20 @@ endforeach;
       pip install -U pip virtualenv
 <?php dockerhub_login() ?>
     - /tmp/vault kv get --format=json "kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key" 2>/dev/null | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['data']['key'])" > /tmp/.dd-api-key 2>/dev/null || true
-    - git clone https://github.com/DataDog/system-tests.git
+    - |
+      if ! printf '%s\n' "${SYSTEM_TESTS_SHA:-}" | grep -Eq '^[0-9a-f]{40}$'; then
+        echo "Missing or invalid SYSTEM_TESTS_SHA: ${SYSTEM_TESTS_SHA:-}"
+        exit 1
+      fi
+      git init -q system-tests
+      git -C system-tests remote add origin https://github.com/DataDog/system-tests.git
+      git -C system-tests fetch --depth=1 origin "$SYSTEM_TESTS_SHA"
+      git -C system-tests checkout --detach "$SYSTEM_TESTS_SHA"
+      CHECKED_OUT_SYSTEM_TESTS_SHA=$(git -C system-tests rev-parse HEAD)
+      if [ "$CHECKED_OUT_SYSTEM_TESTS_SHA" != "$SYSTEM_TESTS_SHA" ]; then
+        echo "Checked out system-tests $CHECKED_OUT_SYSTEM_TESTS_SHA, expected $SYSTEM_TESTS_SHA"
+        exit 1
+      fi
     - mv packages/{datadog-setup.php,dd-library-php-*x86_64-linux-gnu.tar.gz} system-tests/binaries
     - cd system-tests
     - ./build.sh $BUILD_SH_ARGS
@@ -1385,6 +1427,7 @@ $system_tests_weblogs = [
 "System Tests: [<?= $weblog ?>, tracer-release]":
   extends: .system_tests
   timeout: 4h
+  parallel: 4
   variables:
     BUILD_SH_ARGS: -w <?= $weblog ?> php
     # Expand the DinD loopback volume to avoid running out of disk space.
@@ -1400,7 +1443,12 @@ $system_tests_weblogs = [
   script:
     - DD_API_KEY=$(cat /tmp/.dd-api-key 2>/dev/null) || { echo "Failed to fetch DD_API_KEY"; exit 1; }
     - export DD_API_KEY
-    - SCENARIOS=$(PYTHONPATH=. venv/bin/python utils/scripts/compute-workflow-parameters.py php -g tracer_release -f json | python3 -c "import sys,json;d=json.load(sys.stdin);s=set();[s.update(v['scenarios']) for v in d.values() if isinstance(v,dict) and 'scenarios' in v];print(' '.join(sorted(s)))")
+    - |
+      set -o pipefail
+      SCENARIOS=$(
+        PYTHONPATH=. venv/bin/python utils/scripts/compute-workflow-parameters.py php -g tracer_release -f json |
+          python3 "$CI_PROJECT_DIR/.gitlab/select-system-tests-shard.py"
+      ) || exit $?
     - FAILED=""; for S in $SCENARIOS; do echo "=== Running $S ==="; ./run.sh $S || FAILED="$FAILED $S"; done; if [ -n "$FAILED" ]; then echo "Failed scenarios:$FAILED"; exit 1; fi
 
 <?php endforeach; ?>
