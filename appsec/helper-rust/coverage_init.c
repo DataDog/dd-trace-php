@@ -146,12 +146,12 @@ static void coverage_precreate_profile_file(void) {
 void ddappsec_helper_coverage_init(void) {
     coverage_log("ddappsec_helper_coverage_init() called");
 
-    // Hardcoded rather than read from the environment on purpose. Only about
-    // a third of the sidecars in a run inherit the ambient environment at all,
-    // so a variable naming this path would reach some of them and not others,
-    // and pointing it anywhere else would split the merge pool in two instead
-    // of moving it. %m rather than %p so that repeatedly respawned sidecars
-    // keep merging into the one file.
+    // SSI loads this coverage-instrumented library into every PHP process, but
+    // only the sidecar executes helper-rust. The harness sets LLVM_PROFILE_FILE
+    // to /dev/null to suppress the empty profiles those PHP processes would
+    // write. The sidecar inherits that setting, so redirect its profiling
+    // runtime to the shared coverage directory. %m enables merge mode, allowing
+    // replacement sidecars to accumulate coverage in the same profile.
     const char *profile_path = "/helper-rust/helper-%m.profraw";
     coverage_log("Helper coverage profile = %s", profile_path);
 
