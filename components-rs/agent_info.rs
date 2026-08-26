@@ -96,30 +96,6 @@ pub extern "C" fn ddog_agent_info_json_free(ptr: *mut c_char) {
     }
 }
 
-/// Returns whether the agent /info `endpoints` list advertises `endpoint` (e.g. `/v1.0/traces`);
-/// false when no info has been received yet ("unknown" == "not advertised").
-///
-/// # Safety
-/// `reader` must be a valid pointer to an `AgentInfoReader`.
-#[no_mangle]
-pub unsafe extern "C" fn ddog_agent_info_has_endpoint(
-    reader: &mut AgentInfoReader,
-    endpoint: CharSlice,
-) -> bool {
-    let (changed, info) = reader.read();
-    if let Some(info) = info {
-        if changed {
-            info_to_concentrator_config(info);
-        }
-        let endpoint = endpoint.as_bytes();
-        return info
-            .endpoints
-            .as_deref()
-            .map_or(false, |eps| eps.iter().any(|e| e.as_bytes() == endpoint));
-    }
-    false
-}
-
 /// Apply concentrator config changes from the agent /info SHM.
 ///
 /// Cheap no-op when the SHM has not changed (`changed == false`).  Only applies when

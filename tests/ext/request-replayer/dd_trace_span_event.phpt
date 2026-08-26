@@ -41,8 +41,22 @@ $replay = $rr->waitForDataAndReplay();
 $root = json_decode($replay["body"], true);
 $spans = $root["chunks"][0]["spans"] ?? $root[0];
 $span = $spans[0];
-var_dump($span['meta']['events']);
+// The sidecar sender now builds the native V1 payload, so span events are emitted as native span
+// events (a V1 `span_events` array; downgraded to the native V0.4 `span_events` field when the agent
+// is not V1-capable) instead of the legacy meta["events"] JSON blob. Native event attributes are
+// OTEL AnyValue-typed maps; we assert them order-independently. Array/object attribute values have
+// no native V1 attribute variant, so they are preserved as a JSON string (recoverable).
+$event = $span['span_events'][0];
+$attrs = $event['attributes'];
+var_dump($event['name'], $event['time_unix_nano']);
+var_dump($attrs['arg1']['string_value']);
+var_dump($attrs['int_array']['string_value']);
+var_dump($attrs['string_array']['string_value']);
 ?>
 --EXPECT--
 In testMethod
-string(134) "[{"name":"event-name","time_unix_nano":1720037568765201300,"attributes":{"arg1":"value1","int_array":[3,4],"string_array":["5","6"]}}]"
+string(10) "event-name"
+int(1720037568765201300)
+string(6) "value1"
+string(5) "[3,4]"
+string(9) "["5","6"]"

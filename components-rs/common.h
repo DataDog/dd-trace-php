@@ -1209,6 +1209,11 @@ typedef struct ddog_RuntimeMetadata ddog_RuntimeMetadata;
 
 typedef struct ddog_ShmHandle ddog_ShmHandle;
 
+/**
+ * Builds a native V1 [`TracerPayloadBytes`] while interning every string once.
+ */
+typedef struct ddog_TracerPayloadV1Builder ddog_TracerPayloadV1Builder;
+
 typedef struct ddog_NativeFile {
   struct ddog_PlatformHandle_File *handle;
 } ddog_NativeFile;
@@ -1354,21 +1359,17 @@ typedef struct ddog_SenderParameters {
 } ddog_SenderParameters;
 
 /**
- * Payload-level tracer metadata for the V1 msgpack encoder; mirrors `TracerMetadata`.
+ * Payload-level tracer metadata for the V1 send path that is NOT already carried by the sender's
+ * `tracer_headers_tags`. The lang/lang_version/lang_interpreter/lang_vendor/tracer_version and
+ * container_id fields live in `SenderParameters::tracer_headers_tags` and are routed from there,
+ * so they are not duplicated here.
  */
 typedef struct ddog_TracerMetadataV1 {
   ddog_CharSlice hostname;
   ddog_CharSlice env;
   ddog_CharSlice app_version;
   ddog_CharSlice runtime_id;
-  ddog_CharSlice service;
-  ddog_CharSlice tracer_version;
-  ddog_CharSlice language_name;
-  ddog_CharSlice language_version;
-  ddog_CharSlice language_interpreter;
-  ddog_CharSlice language_interpreter_vendor;
   ddog_CharSlice git_commit_sha;
-  ddog_CharSlice process_tags;
 } ddog_TracerMetadataV1;
 
 typedef enum ddog_crasht_BuildIdType {
