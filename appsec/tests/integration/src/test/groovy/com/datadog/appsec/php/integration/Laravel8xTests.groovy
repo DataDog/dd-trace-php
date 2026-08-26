@@ -171,6 +171,10 @@ class Laravel8xTests {
         assert span.metrics."_dd.appsec.waf.duration" > 0.0d
         assert span.meta."_dd.appsec.event_rules.version" != ''
         assert span.meta."appsec.blocked" == "true"
+        // Laravel uri() returns the route without a leading slash
+        assert span.meta."http.route" == 'dynamic-path/{param01}'
+        // Normalizer adds the leading slash and keeps {param01} as-is
+        assert span.meta."_dd.appsec.normalized_route" == '/dynamic-path/{param01}'
     }
 
     @Test
