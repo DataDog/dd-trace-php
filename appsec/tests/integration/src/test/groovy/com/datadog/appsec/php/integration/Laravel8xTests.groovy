@@ -178,6 +178,37 @@ class Laravel8xTests {
     }
 
     @Test
+    @Order(10)
+    void 'optional route shape is calculated for each request'() {
+        Trace absentTrace = container.traceFromRequest('/normalized-optional') {
+            HttpResponse<InputStream> resp ->
+                assert resp.statusCode() == 200
+        }
+        assert absentTrace.first().meta.'http.route' == 'normalized-optional/{value?}'
+        assert absentTrace.first().meta.'_dd.appsec.normalized_route' == '/normalized-optional'
+
+        Trace presentTrace = container.traceFromRequest('/normalized-optional/present') {
+            HttpResponse<InputStream> resp ->
+                assert resp.statusCode() == 200
+        }
+        assert presentTrace.first().meta.'http.route' == 'normalized-optional/{value?}'
+        assert presentTrace.first().meta.'_dd.appsec.normalized_route' ==
+                '/normalized-optional/{value}'
+    }
+
+    @Test
+    @Order(11)
+    void 'defaulted optional parameter is absent when not present in URL'() {
+        Trace trace = container.traceFromRequest('/normalized-default') {
+            HttpResponse<InputStream> resp ->
+                assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'http.route' == 'normalized-default/{format?}'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-default'
+    }
+
+    @Test
     @Order(1)
     void 'Endpoints are not collected before the first request to framework'() {
         HttpRequest req = container.buildReq('/outside_of_framework.php').GET().build()
@@ -213,12 +244,20 @@ class Laravel8xTests {
             endpoints.size() > 0
         })
 
-        assert endpoints.size() == 6
+        assert endpoints.size() == 8
         assert endpoints.find { it.path == '/' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /' } != null
         assert endpoints.find { it.path == 'authenticate' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET authenticate' } != null
         assert endpoints.find { it.path == 'register' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET register' } != null
         assert endpoints.find { it.path == 'dynamic-path/{param01}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET dynamic-path/{param01}' } != null
         assert endpoints.find { it.path == 'sanctum/csrf-cookie' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET sanctum/csrf-cookie' } != null
         assert endpoints.find { it.path == 'api/user' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET api/user' } != null
+        assert endpoints.find {
+            it.path == 'normalized-optional/{value?}' && it.method == 'GET' &&
+                    it.operationName == 'http.request' && it.resourceName == 'GET normalized-optional/{value?}'
+        } != null
+        assert endpoints.find {
+            it.path == 'normalized-default/{format?}' && it.method == 'GET' &&
+                    it.operationName == 'http.request' && it.resourceName == 'GET normalized-default/{format?}'
+        } != null
     }
 }

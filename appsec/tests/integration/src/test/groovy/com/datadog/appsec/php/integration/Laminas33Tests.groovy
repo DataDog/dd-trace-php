@@ -81,7 +81,7 @@ class Laminas33Tests {
             endpoints.size() > 0
         })
 
-        assert endpoints.size() == 26
+        assert endpoints.size() == 33
         assert endpoints.find { it.path == '/' && it.method == '*' && it.operationName == 'http.request' && it.resourceName == '* /' } != null
         assert endpoints.find {
             it.path == '/application[/:action]' && it.method == '*' && it.operationName == 'http.request' && it.resourceName == '* /application[/:action]'
@@ -123,6 +123,34 @@ class Laminas33Tests {
         } != null
         assert endpoints.find {
             it.path == '/any-verb' && it.method == '*' && it.operationName == 'http.request' && it.resourceName == '* /any-verb'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-regex/%id%.%format%' && it.method == '*' &&
+                    it.operationName == 'http.request' && it.resourceName == '* /normalized-regex/%id%.%format%'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-encoded[/:slug]' && it.method == '*' &&
+                    it.operationName == 'http.request' && it.resourceName == '* /normalized-encoded[/:slug]'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-static[/draft]' && it.method == '*' &&
+                    it.operationName == 'http.request' && it.resourceName == '* /normalized-static[/draft]'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-name/:user-id' && it.method == '*' &&
+                    it.operationName == 'http.request' && it.resourceName == '* /normalized-name/:user-id'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-wildcard/:param1' && it.method == '*' &&
+                    it.operationName == 'http.request' && it.resourceName == '* /normalized-wildcard/:param1'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-wildcard/:param1/*' && it.method == '*' &&
+                    it.operationName == 'http.request' && it.resourceName == '* /normalized-wildcard/:param1/*'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized/{translated_page}' && it.method == '*' &&
+                    it.operationName == 'http.request' && it.resourceName == '* /normalized/{translated_page}'
         } != null
     }
 
@@ -327,4 +355,85 @@ class Laminas33Tests {
         assert trace.first().meta.'http.route' == '/application[/:action]'
         assert trace.first().meta.'_dd.appsec.normalized_route' == '/application/{action}'
     }
+
+    @Test
+    @Order(13)
+    void 'optional regex capture absent is omitted from normalized route'() {
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-regex/article').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'http.route' == '/normalized-regex/%id%.%format%'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-regex/{id}'
+    }
+
+    @Test
+    @Order(14)
+    void 'encoded optional value is recognized as present'() {
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-encoded/a%20b').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'http.route' == '/normalized-encoded[/:slug]'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-encoded/{slug}'
+    }
+
+    @Test
+    @Order(15)
+    void 'static-only optional segment absent is omitted'() {
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-static').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'http.route' == '/normalized-static[/draft]'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-static'
+    }
+
+    @Test
+    @Order(16)
+    void 'hyphenated segment parameter name remains intact'() {
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-name/alice').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'http.route' == '/normalized-name/:user-id'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-name/{user-id}'
+    }
+
+    @Test
+    @Order(17)
+    void 'wildcard placeholder does not collide with an existing parameter name'() {
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-wildcard/value/foo/bar').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'http.route' == '/normalized-wildcard/:param1/*'
+        assert trace.first().meta.'_dd.appsec.normalized_route' ==
+                '/normalized-wildcard/{param1}/{param2}'
+    }
+
+    @Test
+    @Order(18)
+    void 'translated literal remains a static route element'() {
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized/translated-page').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'http.route' == '/normalized/{translated_page}'
+        assert trace.first().meta.'_dd.appsec.normalized_route' ==
+                '/normalized/translated-page'
+    }
+
 }

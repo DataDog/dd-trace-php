@@ -21,3 +21,11 @@ Route::get('/', function () {
 Route::get('/authenticate', '\App\Http\Controllers\LoginController@authenticate');
 Route::get('/register', '\App\Http\Controllers\LoginController@register');
 Route::get('/dynamic-path/{param01}', '\App\Http\Controllers\MiscController@dynamicPath');
+
+Route::get('/normalized-optional/{value?}', function ($value = null) {
+    return response($value ?? 'absent');
+});
+
+Route::get('/normalized-default/{format?}', function ($format = null) {
+    return response($format);
+})->defaults('format', 'html');

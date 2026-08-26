@@ -166,6 +166,7 @@ class Symfony62Tests {
 
             Span span = trace.first()
             assert span.meta."http.route" == null
+            assert span.meta."_dd.appsec.normalized_route" == null
             assert span.meta."symfony.route.name" != null
             assert span.resource == 'app_home_dynamic'
         } finally {
@@ -178,6 +179,84 @@ class Symfony62Tests {
     }
 
     @Test
+    @Order(11)
+    void 'normalized route is absent when API Security is disabled'() {
+        try {
+            def res = CONTAINER.execInContainer(
+                    'bash', '-c',
+                    '''echo export DD_API_SECURITY_ENABLED=false >> /etc/apache2/envvars;
+                       service apache2 restart''')
+            assert res.exitCode == 0
+
+            Trace trace = container.traceFromRequest('/') { HttpResponse<InputStream> resp ->
+                assert resp.statusCode() == 200
+            }
+
+            Span span = trace.first()
+            assert span.meta.'http.route' == '/'
+            assert span.meta.'_dd.appsec.normalized_route' == null
+        } finally {
+            def res = CONTAINER.execInContainer(
+                    'bash', '-c',
+                    '''sed -i '/export DD_API_SECURITY_ENABLED=/d' /etc/apache2/envvars;
+                       service apache2 restart''')
+            assert res.exitCode == 0
+        }
+    }
+
+    @Test
+    @Order(12)
+    void 'mixed dynamic values in one segment are combined'() {
+        Trace trace = container.traceFromRequest('/normalized/mixed/article.json') {
+            HttpResponse<InputStream> resp ->
+                assert resp.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert span.meta.'http.route' == '/normalized/mixed/{id}.{_format}'
+        assert span.meta.'_dd.appsec.normalized_route' == '/normalized/mixed/{id+_format}'
+    }
+
+    @Test
+    @Order(13)
+    void 'zero-valued path parameter is retained'() {
+        Trace trace = container.traceFromRequest('/normalized/zero/0') {
+            HttpResponse<InputStream> resp ->
+                assert resp.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert span.meta.'http.route' == '/normalized/zero/{id}'
+        assert span.meta.'_dd.appsec.normalized_route' == '/normalized/zero/{id}'
+    }
+
+    @Test
+    @Order(14)
+    void 'static part of a segment remains when its optional parameter is absent'() {
+        Trace trace = container.traceFromRequest('/normalized/search') {
+            HttpResponse<InputStream> resp ->
+                assert resp.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert span.meta.'http.route' == '/normalized/search.{_format}'
+        assert span.meta.'_dd.appsec.normalized_route' == '/normalized/search'
+    }
+
+    @Test
+    @Order(15)
+    void 'UTF-8 optional parameter name is omitted when absent'() {
+        Trace trace = container.traceFromRequest('/normalized/utf8') {
+            HttpResponse<InputStream> resp ->
+                assert resp.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert span.meta.'http.route' == '/normalized/utf8/{föo}'
+        assert span.meta.'_dd.appsec.normalized_route' == '/normalized/utf8'
+    }
+
+    @Test
     @Order(1)
     void 'Endpoints are not collected before the first request to framework'() {
         HttpRequest req = container.buildReq('/outside_of_framework.php').GET().build()
@@ -186,6 +265,8 @@ class Symfony62Tests {
             assert re.body().contains('are_endpoints_collected: false')
         }
     }
+
+    @Test
     @Order(3)
     void 'Endpoints are collected after the first request to framework'() {
         HttpRequest req = container.buildReq('/outside_of_framework.php').GET().build()
@@ -194,6 +275,8 @@ class Symfony62Tests {
             assert re.body().contains('are_endpoints_collected: true')
         }
     }
+
+    @Test
     @Order(2)
     void 'Endpoints are sent'() {
         def trace = container.traceFromRequest('/') { HttpResponse<InputStream> resp ->
@@ -209,12 +292,37 @@ class Symfony62Tests {
             endpoints.size() > 0
         })
 
-        assert endpoints.size() == 6
+        assert endpoints.size() == 11
         assert endpoints.find { it.path == '/' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /' } != null
         assert endpoints.find { it.path == '/dynamic-path/{param01}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /dynamic-path/{param01}' } != null
         assert endpoints.find { it.path == '/login' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /login' } != null
         assert endpoints.find { it.path == '/_error/{code}.{_format}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /_error/{code}.{_format}' } != null
         assert endpoints.find { it.path == '/register' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /register' } != null
         assert endpoints.find { it.path == '/caminho-dinamico/{param01}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /caminho-dinamico/{param01}' } != null
+        assert endpoints.find {
+            it.path == '/café/{item}' && it.method == 'GET' &&
+                    it.operationName == 'http.request' &&
+                    it.resourceName == 'GET /café/{item}'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized/mixed/{id}.{_format}' && it.method == 'GET' &&
+                    it.operationName == 'http.request' &&
+                    it.resourceName == 'GET /normalized/mixed/{id}.{_format}'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized/zero/{id}' && it.method == 'GET' &&
+                    it.operationName == 'http.request' &&
+                    it.resourceName == 'GET /normalized/zero/{id}'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized/search.{_format}' && it.method == 'GET' &&
+                    it.operationName == 'http.request' &&
+                    it.resourceName == 'GET /normalized/search.{_format}'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized/utf8/{föo}' && it.method == 'GET' &&
+                    it.operationName == 'http.request' &&
+                    it.resourceName == 'GET /normalized/utf8/{föo}'
+        } != null
     }
 }

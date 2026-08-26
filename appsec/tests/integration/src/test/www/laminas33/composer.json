@@ -7,6 +7,7 @@
         "php": "^7.3 || ~8.0.0 || ~8.1.0",
         "laminas/laminas-component-installer": "^2.4",
         "laminas/laminas-development-mode": "^3.2",
+        "laminas/laminas-i18n": "^2.10",
         "laminas/laminas-mvc": "3.3.*",
         "laminas/laminas-authentication": "^2.9",
         "laminas/laminas-db": "^2.13",
