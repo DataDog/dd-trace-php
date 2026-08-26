@@ -226,6 +226,9 @@ stages:
   extends: .base_test
   variables:
     SWITCH_PHP_VERSION: debug-zts-asan
+    # Keep this at twice the default in libdatadog/datadog-sidecar/src/watchdog.rs;
+    # update it whenever that default changes.
+    _DD_SIDECAR_WATCHDOG_MAX_MEMORY: 2147483648
     ASAN_OPTIONS: abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1
 
 <?php
