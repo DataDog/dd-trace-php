@@ -512,6 +512,27 @@ void ddog_send_traces_to_sidecar_v1(struct ddog_TracerPayloadV1Builder *builder,
                                     const struct ddog_TracerMetadataV1 *metadata);
 
 /**
+ * Serializes the native V1 `TracerPayload` built via the [`crate::span_v1`] builder into owned
+ * msgpack bytes for the in-process (non-sidecar) sender in `coms.c`, which POSTs them directly to
+ * the agent's `/v1.0/traces` endpoint (the PHP <= 8.2 path that never goes through the sidecar).
+ * Consumes `builder`. The V1 counterpart of [`crate::span::ddog_serialize_trace_into_charslice`].
+ *
+ * Payload-level metadata is applied here exactly as the sidecar path does (via
+ * `populate_payload_metadata`): `container_id`/`language_name`/`language_version`/`tracer_version`
+ * come from the caller's tracer header tags and the rest from `metadata`, so the promoted V1
+ * fields are identical to the sidecar-encoded payload.
+ *
+ * The returned slice is an owned allocation that must be freed with
+ * [`crate::span::ddog_free_charslice`].
+ */
+ddog_CharSlice ddog_serialize_trace_v1_into_charslice(struct ddog_TracerPayloadV1Builder *builder,
+                                                      const struct ddog_TracerMetadataV1 *metadata,
+                                                      ddog_CharSlice container_id,
+                                                      ddog_CharSlice language_name,
+                                                      ddog_CharSlice language_version,
+                                                      ddog_CharSlice tracer_version);
+
+/**
  * Drops the agent info reader.
  */
 void ddog_drop_agent_info_reader(struct ddog_AgentInfoReader*);
