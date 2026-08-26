@@ -116,6 +116,7 @@ class Symfony62Tests {
         assert span.meta."_dd.appsec.event_rules.version" != ''
         assert span.meta."appsec.blocked" == "true"
         assert span.meta."http.route" == '/dynamic-path/{param01}'
+        assert span.meta."_dd.appsec.normalized_route" == '/dynamic-path/{param01}'
     }
 
     @Test
@@ -129,6 +130,7 @@ class Symfony62Tests {
 
         Span span = trace.first()
         assert span.meta."http.route" == '/caminho-dinamico/{param01}'
+        assert span.meta."_dd.appsec.normalized_route" == '/caminho-dinamico/{param01}'
     }
 
     @Test
@@ -141,6 +143,8 @@ class Symfony62Tests {
 
         Span span = trace.first()
         assert span.meta."http.route" == '/café/{item}'
+        // Static segment 'café' is percent-encoded per RFC 3986; é (U+00E9) → %C3%A9
+        assert span.meta."_dd.appsec.normalized_route" == '/caf%C3%A9/{item}'
     }
 
     @Test

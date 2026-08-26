@@ -231,6 +231,7 @@ class Laminas33Tests {
         assert span.meta.'_dd.appsec.event_rules.version' != ''
         assert span.meta.'appsec.blocked' == 'true'
         assert span.meta.'http.route' == '/dynamic-path[/:param01]'
+        assert span.meta.'_dd.appsec.normalized_route' == '/dynamic-path/{param01}'
     }
 
     @Test
@@ -241,12 +242,14 @@ class Laminas33Tests {
             assert resp.statusCode() == 200
         }
         assert nestedTrace.first().meta.'http.route' == '/resource/:resourceId/:subId'
+        assert nestedTrace.first().meta.'_dd.appsec.normalized_route' == '/resource/{resourceId}/{subId}'
 
         HttpRequest chainReq = container.buildReq('/chain/abc').GET().build()
         Trace chainTrace = container.traceFromRequest(chainReq, ofString()) { HttpResponse<String> resp ->
             assert resp.statusCode() == 200
         }
         assert chainTrace.first().meta.'http.route' == '/chain/:chainId'
+        assert chainTrace.first().meta.'_dd.appsec.normalized_route' == '/chain/{chainId}'
     }
 
     @Test
@@ -271,6 +274,7 @@ class Laminas33Tests {
             assert resp.statusCode() == 200
         }
         assert regexTrace.first().meta.'http.route' == '/regex-year/%year%'
+        assert regexTrace.first().meta.'_dd.appsec.normalized_route' == '/regex-year/{year}'
 
         Trace schemeTrace = container.traceFromRequest(
                 container.buildReq('/scheme-only-page').GET().build(),
@@ -278,6 +282,7 @@ class Laminas33Tests {
             assert resp.statusCode() == 200
         }
         assert schemeTrace.first().meta.'http.route' == '/scheme-only-page'
+        assert schemeTrace.first().meta.'_dd.appsec.normalized_route' == '/scheme-only-page'
 
         Trace placeholderTrace = container.traceFromRequest(
                 container.buildReq('/placeholder-literal').GET().build(),
@@ -285,6 +290,7 @@ class Laminas33Tests {
             assert resp.statusCode() == 200
         }
         assert placeholderTrace.first().meta.'http.route' == '/placeholder-literal'
+        assert placeholderTrace.first().meta.'_dd.appsec.normalized_route' == '/placeholder-literal'
 
         Trace wildcardTrace = container.traceFromRequest(
                 container.buildReq('/wildcard-keys/foo/bar').GET().build(),
@@ -292,5 +298,33 @@ class Laminas33Tests {
             assert resp.statusCode() == 200
         }
         assert wildcardTrace.first().meta.'http.route' == '/wildcard-keys/*'
+        assert wildcardTrace.first().meta.'_dd.appsec.normalized_route' == '/wildcard-keys/{param1}'
+    }
+
+    @Test
+    @Order(11)
+    void 'optional segment absent produces correct normalized route'() {
+        // /application[/:action] with no action in URL — optional section dropped
+        // (default action=index is injected by the router but /index is not in the URL path)
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/application').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert trace.first().meta.'http.route' == '/application[/:action]'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/application'
+    }
+
+    @Test
+    @Order(12)
+    void 'optional segment present produces correct normalized route'() {
+        // /application[/:action] with action in URL — optional section expanded
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/application/test').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert trace.first().meta.'http.route' == '/application[/:action]'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/application/{action}'
     }
 }
