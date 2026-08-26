@@ -2,8 +2,7 @@ Changelog for older versions can be found in our [release page](https://github.c
 
 ## All products
 ### Fixed
-- Ensure files and directories created by the installer remain readable when
-  installation runs under a restrictive umask #4138
+- Ensure files and directories created by the installer remain readable when installation runs under a restrictive umask #4138
 
 ## Profiling
 ### Fixed
