@@ -3,6 +3,7 @@
 error_reporting(\E_ALL);
 
 include __DIR__ . '/vendor/autoload.php';
+include __DIR__ . '/state-lock.php';
 
 use MessagePack\BufferUnpacker;
 use MessagePack\UnpackOptions;
@@ -51,9 +52,22 @@ $uri = explode("?", $_SERVER['REQUEST_URI'])[0];
 
 $temp_location = sys_get_temp_dir();
 
-$metricsServerPid = "$temp_location/metrics-server.pid";
-if (!file_exists($metricsServerPid)) {
-    shell_exec("nohup bash -c 'php metricsserver.php & pid=$!; echo \$pid > $metricsServerPid; wait \$pid; rm $metricsServerPid' > /dev/null 2>&1 &");
+// One UDP metrics server is shared by every PHP_CLI_SERVER_WORKERS worker.
+// metricsserver.php holds this lock for its lifetime, so taking it means
+// nothing is on udp/80: drop it (the child needs the same lock) and spawn.
+// A second worker in that window is harmless -- the loser's own LOCK_NB makes
+// it exit rather than bind twice. The stamp caps attempts at one a second.
+$metricsServerLock = "$temp_location/metrics-server.lock";
+$metricsServerStamp = "$temp_location/metrics-server.spawned-at";
+$lock = @fopen($metricsServerLock, 'c');
+if ($lock !== false) {
+    $stopped = flock($lock, LOCK_EX | LOCK_NB);
+    fclose($lock);
+    clearstatcache(true, $metricsServerStamp);
+    if ($stopped && @filemtime($metricsServerStamp) < time()) {
+        @touch($metricsServerStamp);
+        shell_exec('nohup php ' . escapeshellarg(__DIR__ . '/metricsserver.php') . ' > /dev/null 2>&1 &');
+    }
 }
 
 $token = $_SERVER["HTTP_X_DATADOG_TEST_SESSION_TOKEN"] ?? "";
@@ -81,6 +95,7 @@ define('REQUEST_METRICS_FILE', getenv('REQUEST_METRICS_FILE') ?: ("$temp_locatio
 define('REQUEST_METRICS_LOG_FILE', getenv('REQUEST_METRICS_LOG_FILE') ?: ("$temp_location/metrics-log.txt"));
 define('REQUEST_STATS_FILE', getenv('REQUEST_STATS_FILE') ?: ("$temp_location/stats.json"));
 define('REQUEST_AGENT_INFO_FILE', getenv('REQUEST_AGENT_INFO_FILE') ?: ("$temp_location/agent-info.txt"));
+define('REQUEST_STATE_LOCK_FILE', "$temp_location/.state.lock");
 
 function logRequest($message, $data = '')
 {
@@ -98,144 +113,159 @@ set_error_handler(function ($number, $message, $errfile, $errline) {
         return true;
     }
     logRequest("Triggered error $number $message in $errfile on line $errline: " . (new \Exception)->getTraceAsString());
-    trigger_error($message, $number);
+    // Re-raising via trigger_error() is a ValueError on PHP 8 for any level
+    // outside E_USER_*, which turns a warning into an HTML fatal served as
+    // HTTP 200 -- callers then json_decode() that. Let PHP report it instead.
+    return false;
 });
-
-$rc_configs = file_exists(REQUEST_RC_CONFIGS_FILE) ? json_decode(file_get_contents(REQUEST_RC_CONFIGS_FILE), true) : [];
 
 switch ($uri) {
     case '/replay':
-        if (!file_exists(REQUEST_LATEST_DUMP_FILE)) {
-            logRequest('Cannot replay last request; request log does not exist');
-            break;
-        }
-        $request = file_get_contents(REQUEST_LATEST_DUMP_FILE);
-        echo $request;
-        unlink(REQUEST_LATEST_DUMP_FILE);
-        unlink(REQUEST_LOG_FILE);
-        logRequest('Returned last request and deleted request log', $request);
-        break;
-    case '/replay-metrics':
-        if (!file_exists(REQUEST_METRICS_FILE)) {
-            logRequest('Cannot replay last request; metrics log does not exist');
-            break;
-        }
-        $request = file_get_contents(REQUEST_METRICS_FILE);
-        echo $request;
-        unlink(REQUEST_METRICS_FILE);
-        unlink(REQUEST_METRICS_LOG_FILE);
-        logRequest('Returned last metrics and deleted metrics log', $request);
-        break;
-    case '/replay-stats':
-        if (!file_exists(REQUEST_STATS_FILE)) {
-            logRequest('Cannot replay stats; stats log does not exist');
-            break;
-        }
-        $request = file_get_contents(REQUEST_STATS_FILE);
-        echo $request;
-        unlink(REQUEST_STATS_FILE);
-        logRequest('Returned stats and deleted stats log', $request);
-        break;
-    case '/replay-rc-requests':
-        if (!file_exists(REQUEST_RC_REQUESTS_FILE)) {
-            logRequest('Cannot replay RC requests; RC requests log does not exist');
-            break;
-        }
-        $request = file_get_contents(REQUEST_RC_REQUESTS_FILE);
-        echo $request;
-        unlink(REQUEST_RC_REQUESTS_FILE);
-        logRequest('Returned RC requests and deleted RC requests log', $request);
-        break;
-    case '/clear-dumped-data':
-        if (!file_exists(REQUEST_LATEST_DUMP_FILE) && !file_exists(REQUEST_METRICS_FILE) && !file_exists(REQUEST_RC_CONFIGS_FILE)) {
-            logRequest('Cannot delete request log; request log does not exist');
-            break;
-        }
-        if (file_exists(REQUEST_RC_CONFIGS_FILE)) {
-            unlink(REQUEST_RC_CONFIGS_FILE);
-        }
-        if (file_exists(REQUEST_LATEST_DUMP_FILE)) {
+        $request = withRequestReplayerStateLock(REQUEST_STATE_LOCK_FILE, function () {
+            if (!file_exists(REQUEST_LATEST_DUMP_FILE)) {
+                logRequest('Cannot replay last request; request log does not exist');
+                return null;
+            }
+            $request = file_get_contents(REQUEST_LATEST_DUMP_FILE);
             unlink(REQUEST_LATEST_DUMP_FILE);
             unlink(REQUEST_LOG_FILE);
-        }
-        if (file_exists(REQUEST_METRICS_FILE)) {
+            logRequest('Returned last request and deleted request log', $request);
+            return $request;
+        });
+        echo $request ?? '';
+        break;
+    case '/replay-metrics':
+        $request = withRequestReplayerStateLock(REQUEST_STATE_LOCK_FILE, function () {
+            if (!file_exists(REQUEST_METRICS_FILE)) {
+                logRequest('Cannot replay last request; metrics log does not exist');
+                return null;
+            }
+            $request = file_get_contents(REQUEST_METRICS_FILE);
             unlink(REQUEST_METRICS_FILE);
             unlink(REQUEST_METRICS_LOG_FILE);
-        }
-        if (file_exists(REQUEST_STATS_FILE)) {
+            logRequest('Returned last metrics and deleted metrics log', $request);
+            return $request;
+        });
+        echo $request ?? '';
+        break;
+    case '/replay-stats':
+        $request = withRequestReplayerStateLock(REQUEST_STATE_LOCK_FILE, function () {
+            if (!file_exists(REQUEST_STATS_FILE)) {
+                logRequest('Cannot replay stats; stats log does not exist');
+                return null;
+            }
+            $request = file_get_contents(REQUEST_STATS_FILE);
             unlink(REQUEST_STATS_FILE);
-        }
-        if (file_exists(REQUEST_NEXT_RESPONSE_FILE)) {
-            unlink(REQUEST_NEXT_RESPONSE_FILE);
-        }
-        if (file_exists(REQUEST_AGENT_INFO_FILE)) {
-            unlink(REQUEST_AGENT_INFO_FILE);
-        }
-        if (file_exists(REQUEST_RC_REQUESTS_FILE)) {
+            logRequest('Returned stats and deleted stats log', $request);
+            return $request;
+        });
+        echo $request ?? '';
+        break;
+    case '/replay-rc-requests':
+        $request = withRequestReplayerStateLock(REQUEST_STATE_LOCK_FILE, function () {
+            if (!file_exists(REQUEST_RC_REQUESTS_FILE)) {
+                logRequest('Cannot replay RC requests; RC requests log does not exist');
+                return null;
+            }
+            $request = file_get_contents(REQUEST_RC_REQUESTS_FILE);
             unlink(REQUEST_RC_REQUESTS_FILE);
-        }
-        logRequest('Deleted request log');
+            logRequest('Returned RC requests and deleted RC requests log', $request);
+            return $request;
+        });
+        echo $request ?? '';
+        break;
+    case '/clear-dumped-data':
+        withRequestReplayerStateLock(REQUEST_STATE_LOCK_FILE, function () {
+            if (!file_exists(REQUEST_LATEST_DUMP_FILE) && !file_exists(REQUEST_METRICS_FILE) && !file_exists(REQUEST_RC_CONFIGS_FILE)) {
+                logRequest('Cannot delete request log; request log does not exist');
+                return;
+            }
+            foreach ([
+                REQUEST_RC_CONFIGS_FILE,
+                REQUEST_LATEST_DUMP_FILE,
+                REQUEST_LOG_FILE,
+                REQUEST_METRICS_FILE,
+                REQUEST_METRICS_LOG_FILE,
+                REQUEST_STATS_FILE,
+                REQUEST_NEXT_RESPONSE_FILE,
+                REQUEST_AGENT_INFO_FILE,
+                REQUEST_RC_REQUESTS_FILE,
+            ] as $file) {
+                if (file_exists($file)) {
+                    unlink($file);
+                }
+            }
+            logRequest('Deleted request log');
+        });
         break;
     case '/next-response':
         $raw = file_get_contents('php://input');
-        file_put_contents(REQUEST_NEXT_RESPONSE_FILE, $raw);
+        withRequestReplayerStateLock(REQUEST_STATE_LOCK_FILE, function () use ($raw) {
+            file_put_contents(REQUEST_NEXT_RESPONSE_FILE, $raw);
+        });
         break;
     case '/add-rc-config-file':
-        $rc_configs[$_GET["path"]] = ["service" => $_GET["service"], "data" => file_get_contents('php://input')];
-        file_put_contents(REQUEST_RC_CONFIGS_FILE, json_encode($rc_configs, JSON_UNESCAPED_SLASHES));
+        $raw = file_get_contents('php://input');
+        withRequestReplayerStateLock(REQUEST_STATE_LOCK_FILE, function () use ($raw) {
+            $rc_configs = file_exists(REQUEST_RC_CONFIGS_FILE) ? json_decode(file_get_contents(REQUEST_RC_CONFIGS_FILE), true) : [];
+            $rc_configs[$_GET["path"]] = ["service" => $_GET["service"], "data" => $raw];
+            file_put_contents(REQUEST_RC_CONFIGS_FILE, json_encode($rc_configs, JSON_UNESCAPED_SLASHES));
+        });
         break;
     case '/del-rc-config-file':
-        unset($rc_configs[$_GET["path"]]);
-        file_put_contents(REQUEST_RC_CONFIGS_FILE, json_encode($rc_configs, JSON_UNESCAPED_SLASHES));
+        withRequestReplayerStateLock(REQUEST_STATE_LOCK_FILE, function () {
+            $rc_configs = file_exists(REQUEST_RC_CONFIGS_FILE) ? json_decode(file_get_contents(REQUEST_RC_CONFIGS_FILE), true) : [];
+            unset($rc_configs[$_GET["path"]]);
+            file_put_contents(REQUEST_RC_CONFIGS_FILE, json_encode($rc_configs, JSON_UNESCAPED_SLASHES));
+        });
         break;
     case '/v0.7/config':
         $request = file_get_contents('php://input');
         logRequest("Requested remote config", $request);
+        $response = withRequestReplayerStateLock(REQUEST_STATE_LOCK_FILE, function () use ($request) {
+            $tracesStack = file_exists(REQUEST_RC_REQUESTS_FILE) ? json_decode(file_get_contents(REQUEST_RC_REQUESTS_FILE), true) : [];
+            $tracesStack[] = ['uri' => $_SERVER['REQUEST_URI'], 'headers' => getallheaders(), 'body' => $request];
+            file_put_contents(REQUEST_RC_REQUESTS_FILE, json_encode($tracesStack));
 
-        if (file_exists(REQUEST_RC_REQUESTS_FILE)) {
-            $tracesStack = json_decode(file_get_contents(REQUEST_RC_REQUESTS_FILE), true);
-        } else {
-            $tracesStack = [];
-        }
-        $tracesStack[] = ['uri' => $_SERVER['REQUEST_URI'], 'headers' => getallheaders(), 'body' => $request];
-        file_put_contents(REQUEST_RC_REQUESTS_FILE, json_encode($tracesStack));
-
-        $request = json_decode($request, true);
-        $recentUpdate = @filemtime(REQUEST_RC_CONFIGS_FILE) > time() - 2;
-        $response = [
-            "roots" => [],
-            "targets" => [
-                "signatures" => [],
-                "signed" => [
-                    "_type" => "targets",
-                    "custom" => [
-                        "opaque_backend_state" => "foobarbaz",
-                        "agent_refresh_interval" => ($recentUpdate ? 10 : 10000) * 1000000, // in ns
+            $decodedRequest = json_decode($request, true);
+            $rc_configs = file_exists(REQUEST_RC_CONFIGS_FILE) ? json_decode(file_get_contents(REQUEST_RC_CONFIGS_FILE), true) : [];
+            $recentUpdate = @filemtime(REQUEST_RC_CONFIGS_FILE) > time() - 2;
+            $response = [
+                "roots" => [],
+                "targets" => [
+                    "signatures" => [],
+                    "signed" => [
+                        "_type" => "targets",
+                        "custom" => [
+                            "opaque_backend_state" => "foobarbaz",
+                            "agent_refresh_interval" => ($recentUpdate ? 10 : 10000) * 1000000, // in ns
+                        ],
+                        "expires" => "9999-12-31T23:59:59Z",
+                        "spec_version" => "1.0.0",
+                        "targets" => new \StdClass,
+                        "version" => 1,
                     ],
-                    "expires" => "9999-12-31T23:59:59Z",
-                    "spec_version" => "1.0.0",
-                    "targets" => new \StdClass,
-                    "version" => 1,
                 ],
-            ],
-            "target_files" => [],
-            "client_configs" => [],
-        ];
-        foreach ($rc_configs as $path => $config) {
-            if ($config["service"] == $request["client"]["client_tracer"]["service"]) {
-                $content = $config["data"];
-                $response["targets"]["signed"]["targets"]->$path = [
-                    "custom" => ["v" => strlen($path)],
-                    "hashes" => ["sha256" => hash("sha256", $content)],
-                    "length" => strlen($content),
-                ];
-                $response["target_files"][] = [
-                    "path" => $path,
-                    "raw" => base64_encode($content),
-                ];
-                $response["client_configs"][] = $path;
+                "target_files" => [],
+                "client_configs" => [],
+            ];
+            foreach ($rc_configs as $path => $config) {
+                if ($config["service"] == $decodedRequest["client"]["client_tracer"]["service"]) {
+                    $content = $config["data"];
+                    $response["targets"]["signed"]["targets"]->$path = [
+                        "custom" => ["v" => strlen($path)],
+                        "hashes" => ["sha256" => hash("sha256", $content)],
+                        "length" => strlen($content),
+                    ];
+                    $response["target_files"][] = [
+                        "path" => $path,
+                        "raw" => base64_encode($content),
+                    ];
+                    $response["client_configs"][] = $path;
+                }
             }
-        }
+            return $response;
+        });
         logRequest("Returned remote config", json_encode($response, JSON_UNESCAPED_SLASHES));
         $response["targets"] = base64_encode(json_encode($response["targets"], JSON_UNESCAPED_SLASHES));
         echo json_encode($response, JSON_UNESCAPED_SLASHES);
@@ -243,24 +273,25 @@ switch ($uri) {
     case "/metrics":
         $_SERVER['REQUEST_URI'] = $uri;
         logRequest('Logged new metrics', json_encode($decodedMetrics));
-        foreach ($decodedMetrics as $metric) {
-            file_put_contents(REQUEST_METRICS_LOG_FILE, json_encode($metric) . "\n", FILE_APPEND);
-
-            if (file_exists(REQUEST_METRICS_FILE)) {
-                $allMetrics = json_decode(file_get_contents(REQUEST_METRICS_FILE), true);
-            } else {
-                $allMetrics = [];
+        withRequestReplayerStateLock(REQUEST_STATE_LOCK_FILE, function () use ($decodedMetrics) {
+            $allMetrics = file_exists(REQUEST_METRICS_FILE) ? json_decode(file_get_contents(REQUEST_METRICS_FILE), true) : [];
+            foreach ($decodedMetrics as $metric) {
+                file_put_contents(REQUEST_METRICS_LOG_FILE, json_encode($metric) . "\n", FILE_APPEND);
+                $allMetrics[] = $metric;
             }
-            $allMetrics[] = $metric;
             file_put_contents(REQUEST_METRICS_FILE, json_encode($allMetrics));
-        }
+        });
         break;
     case '/set-agent-info':
         $raw = file_get_contents('php://input');
-        file_put_contents(REQUEST_AGENT_INFO_FILE, $raw);
+        withRequestReplayerStateLock(REQUEST_STATE_LOCK_FILE, function () use ($raw) {
+            file_put_contents(REQUEST_AGENT_INFO_FILE, $raw);
+        });
         break;
     case '/info':
-        $file = @file_get_contents(REQUEST_AGENT_INFO_FILE) ?: "{}";
+        $file = withRequestReplayerStateLock(REQUEST_STATE_LOCK_FILE, function () {
+            return @file_get_contents(REQUEST_AGENT_INFO_FILE) ?: "{}";
+        });
         logRequest('Requested /info endpoint, returning ' . $file);
         header("datadog-agent-state: " . sha1($file));
         echo $file;
@@ -288,13 +319,11 @@ switch ($uri) {
             'headers' => getallheaders(),
             'body' => $body,
         ];
-        if (file_exists(REQUEST_STATS_FILE)) {
-            $statsStack = json_decode(file_get_contents(REQUEST_STATS_FILE), true);
-        } else {
-            $statsStack = [];
-        }
-        $statsStack[] = $newStatsRequest;
-        file_put_contents(REQUEST_STATS_FILE, json_encode($statsStack));
+        withRequestReplayerStateLock(REQUEST_STATE_LOCK_FILE, function () use ($newStatsRequest) {
+            $statsStack = file_exists(REQUEST_STATS_FILE) ? json_decode(file_get_contents(REQUEST_STATS_FILE), true) : [];
+            $statsStack[] = $newStatsRequest;
+            file_put_contents(REQUEST_STATS_FILE, json_encode($statsStack));
+        });
         logRequest('Logged stats request', $body);
         break;
     default:
@@ -366,22 +395,21 @@ switch ($uri) {
 
             $newIncomingRequest["body"] = $body;
         }
-        if (file_exists(REQUEST_LATEST_DUMP_FILE)) {
-            $tracesStack = json_decode(file_get_contents(REQUEST_LATEST_DUMP_FILE), true);
-        } else {
-            $tracesStack = [];
-        }
-
-        $tracesStack[] = $newIncomingRequest;
         $newIncomingRequestJson = json_encode($newIncomingRequest);
+        $nextResponse = withRequestReplayerStateLock(REQUEST_STATE_LOCK_FILE, function () use ($newIncomingRequest, $newIncomingRequestJson) {
+            $tracesStack = file_exists(REQUEST_LATEST_DUMP_FILE) ? json_decode(file_get_contents(REQUEST_LATEST_DUMP_FILE), true) : [];
+            $tracesStack[] = $newIncomingRequest;
+            file_put_contents(REQUEST_LATEST_DUMP_FILE, json_encode($tracesStack));
+            file_put_contents(REQUEST_LOG_FILE, $newIncomingRequestJson . "\n", FILE_APPEND);
+            logRequest('Logged new request', $newIncomingRequestJson);
 
-        file_put_contents(REQUEST_LATEST_DUMP_FILE, json_encode($tracesStack));
-        file_put_contents(REQUEST_LOG_FILE, $newIncomingRequestJson . "\n", FILE_APPEND);
-        logRequest('Logged new request', $newIncomingRequestJson);
-
-        if (file_exists(REQUEST_NEXT_RESPONSE_FILE)) {
-            readfile(REQUEST_NEXT_RESPONSE_FILE);
+            if (!file_exists(REQUEST_NEXT_RESPONSE_FILE)) {
+                return null;
+            }
+            $response = file_get_contents(REQUEST_NEXT_RESPONSE_FILE);
             unlink(REQUEST_NEXT_RESPONSE_FILE);
-        }
+            return $response;
+        });
+        echo $nextResponse ?? '';
         break;
 }

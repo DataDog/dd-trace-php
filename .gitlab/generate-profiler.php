@@ -143,6 +143,7 @@ foreach ($profiler_minor_major_targets as $version) {
     libdir: /tmp/datadog-profiling
     SKIP_ONLINE_TESTS: "1"
     REPORT_EXIT_STATUS: "1"
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
     DD_PROFILING_OUTPUT_PPROF: /tmp/
     XFAIL_LIST: dockerfiles/ci/xfail_tests/${PHP_MAJOR_MINOR}.list
   parallel:
@@ -211,6 +212,7 @@ foreach ($profiler_minor_major_targets as $version) {
           /usr/local/bin/php "${core}" > "${output}/gdb-backtrace-${i}.txt" 2>&1 || true
         mv "${core}" "${output}/core-${i}"
       done
+    - .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:profiling/"
   artifacts:
     when: on_failure
     paths:

@@ -1247,6 +1247,8 @@ typedef struct ddog_FfeExposure {
   ddog_CharSlice subject_attributes_json;
   ddog_CharSlice allocation_key;
   ddog_CharSlice variant;
+  int32_t serial_id;
+  bool has_serial_id;
 } ddog_FfeExposure;
 
 typedef struct ddog_Slice_FfeExposure {
