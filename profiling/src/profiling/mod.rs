@@ -127,18 +127,18 @@ pub struct SampleValues {
     socket_read_time_samples: i64,
     socket_write_time: i64,
     socket_write_time_samples: i64,
-    file_read_time: i64,
-    file_read_time_samples: i64,
-    file_write_time: i64,
-    file_write_time_samples: i64,
+    file_io_read_time: i64,
+    file_io_read_time_samples: i64,
+    file_io_write_time: i64,
+    file_io_write_time_samples: i64,
     socket_read_size: i64,
     socket_read_size_samples: i64,
     socket_write_size: i64,
     socket_write_size_samples: i64,
-    file_read_size: i64,
-    file_read_size_samples: i64,
-    file_write_size: i64,
-    file_write_size_samples: i64,
+    file_io_read_size: i64,
+    file_io_read_size_samples: i64,
+    file_io_write_size: i64,
+    file_io_write_size_samples: i64,
 }
 
 const WALL_TIME_PERIOD: Duration = Duration::from_millis(10);
@@ -465,35 +465,35 @@ impl TimeCollector {
             socket_read_time_samples_offset,
             socket_write_time_offset,
             socket_write_time_samples_offset,
-            file_read_time_offset,
-            file_read_time_samples_offset,
-            file_write_time_offset,
-            file_write_time_samples_offset,
+            file_io_read_time_offset,
+            file_io_read_time_samples_offset,
+            file_io_write_time_offset,
+            file_io_write_time_samples_offset,
             socket_read_size_offset,
             socket_read_size_samples_offset,
             socket_write_size_offset,
             socket_write_size_samples_offset,
-            file_read_size_offset,
-            file_read_size_samples_offset,
-            file_write_size_offset,
-            file_write_size_samples_offset,
+            file_io_read_size_offset,
+            file_io_read_size_samples_offset,
+            file_io_write_size_offset,
+            file_io_write_size_samples_offset,
         ) = (
             get_offset("socket-read-time"),
             get_offset("socket-read-time-samples"),
             get_offset("socket-write-time"),
             get_offset("socket-write-time-samples"),
-            get_offset("file-read-time"),
-            get_offset("file-read-time-samples"),
-            get_offset("file-write-time"),
-            get_offset("file-write-time-samples"),
+            get_offset("file-io-read-time"),
+            get_offset("file-io-read-time-samples"),
+            get_offset("file-io-write-time"),
+            get_offset("file-io-write-time-samples"),
             get_offset("socket-read-size"),
             get_offset("socket-read-size-samples"),
             get_offset("socket-write-size"),
             get_offset("socket-write-size-samples"),
-            get_offset("file-read-size"),
-            get_offset("file-read-size-samples"),
-            get_offset("file-write-size"),
-            get_offset("file-write-size-samples"),
+            get_offset("file-io-read-size"),
+            get_offset("file-io-read-size-samples"),
+            get_offset("file-io-write-size"),
+            get_offset("file-io-write-size-samples"),
         );
 
         // check if we have the `exception-samples` sample types
@@ -596,16 +596,16 @@ impl TimeCollector {
 
             add_io_upscaling_rule(
                 &mut profile,
-                file_read_time_offset,
-                file_read_time_samples_offset,
+                file_io_read_time_offset,
+                file_io_read_time_samples_offset,
                 FILE_READ_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed),
                 "file read time samples",
             );
 
             add_io_upscaling_rule(
                 &mut profile,
-                file_write_time_offset,
-                file_write_time_samples_offset,
+                file_io_write_time_offset,
+                file_io_write_time_samples_offset,
                 FILE_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed),
                 "file write time samples",
             );
@@ -628,16 +628,16 @@ impl TimeCollector {
 
             add_io_upscaling_rule(
                 &mut profile,
-                file_read_size_offset,
-                file_read_size_samples_offset,
+                file_io_read_size_offset,
+                file_io_read_size_samples_offset,
                 FILE_READ_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed),
                 "file read size samples",
             );
 
             add_io_upscaling_rule(
                 &mut profile,
-                file_write_size_offset,
-                file_write_size_samples_offset,
+                file_io_write_size_offset,
+                file_io_write_size_samples_offset,
                 FILE_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed),
                 "file write size samples",
             );
@@ -1680,8 +1680,8 @@ impl Profiler {
     ))]
     pub fn collect_file_read_time(&self, ed: *mut zend_execute_data, file_io_read_time: i64) {
         self.collect_io(ed, |vals| {
-            vals.file_read_time = file_io_read_time;
-            vals.file_read_time_samples = 1;
+            vals.file_io_read_time = file_io_read_time;
+            vals.file_io_read_time_samples = 1;
         })
     }
 
@@ -1691,8 +1691,8 @@ impl Profiler {
     ))]
     pub fn collect_file_write_time(&self, ed: *mut zend_execute_data, file_io_write_time: i64) {
         self.collect_io(ed, |vals| {
-            vals.file_write_time = file_io_write_time;
-            vals.file_write_time_samples = 1;
+            vals.file_io_write_time = file_io_write_time;
+            vals.file_io_write_time_samples = 1;
         })
     }
 
@@ -1724,8 +1724,8 @@ impl Profiler {
     ))]
     pub fn collect_file_read_size(&self, ed: *mut zend_execute_data, file_io_read_size: i64) {
         self.collect_io(ed, |vals| {
-            vals.file_read_size = file_io_read_size;
-            vals.file_read_size_samples = 1;
+            vals.file_io_read_size = file_io_read_size;
+            vals.file_io_read_size_samples = 1;
         })
     }
 
@@ -1735,8 +1735,8 @@ impl Profiler {
     ))]
     pub fn collect_file_write_size(&self, ed: *mut zend_execute_data, file_io_write_size: i64) {
         self.collect_io(ed, |vals| {
-            vals.file_write_size = file_io_write_size;
-            vals.file_write_size_samples = 1;
+            vals.file_io_write_size = file_io_write_size;
+            vals.file_io_write_size_samples = 1;
         })
     }
 
@@ -2000,18 +2000,18 @@ mod tests {
             socket_read_time_samples: 81,
             socket_write_time: 90,
             socket_write_time_samples: 91,
-            file_read_time: 100,
-            file_read_time_samples: 101,
-            file_write_time: 110,
-            file_write_time_samples: 111,
+            file_io_read_time: 100,
+            file_io_read_time_samples: 101,
+            file_io_write_time: 110,
+            file_io_write_time_samples: 111,
             socket_read_size: 120,
             socket_read_size_samples: 121,
             socket_write_size: 130,
             socket_write_size_samples: 131,
-            file_read_size: 140,
-            file_read_size_samples: 141,
-            file_write_size: 150,
-            file_write_size_samples: 151,
+            file_io_read_size: 140,
+            file_io_read_size_samples: 141,
+            file_io_write_size: 150,
+            file_io_write_size_samples: 151,
         }
     }
 
