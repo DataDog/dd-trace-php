@@ -33,8 +33,8 @@ AUTH="PRIVATE-TOKEN: ${GITLAB_TOKEN}"
 # GET with a bounded retry; a non-zero exit means API error, which callers must
 # not confuse with an empty (i.e. "nothing failed") result.
 api_get() {
-  local url="$1" attempt body
-  for attempt in 1 2 3; do
+  local url="$1" body
+  for _ in 1 2 3; do
     body=$(curl -g -sf -H "${AUTH}" "${url}") && { printf '%s' "${body}"; return 0; }
     sleep 5
   done
