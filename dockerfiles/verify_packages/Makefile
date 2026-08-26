@@ -83,6 +83,7 @@ test_install_custom_installation_root.sh \
 test_install_non_root_user.sh \
 test_install_subdir_from_file.sh \
 test_install_subdir_from_version.sh \
+test_install_umask_permissions.sh \
 test_install_uninstall_install_tracer_appsec.sh \
 test_install_uninstall_install_tracer_profiling.sh \
 test_install_uninstall_install_tracer.sh \
