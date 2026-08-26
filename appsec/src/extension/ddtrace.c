@@ -75,8 +75,8 @@ static void *(*nullable _ddtrace_emit_asm_event)(void);
 static zend_string *(*nullable _ddtrace_guess_endpoint_from_url)(
     const char *nonnull url, size_t url_len);
 static ddog_AppsecCResponse (*nullable _ddog_sidecar_send_appsec_message)(
-    ddog_SidecarTransport *nonnull *nonnull transport,
-    uint64_t client_id, ddog_CharSlice data);
+    ddog_SidecarTransport *nonnull *nonnull transport, uint64_t client_id,
+    ddog_CharSlice data);
 static void (*nullable _ddog_sidecar_appsec_response_drop)(
     ddog_AppsecCResponse response);
 
@@ -436,7 +436,8 @@ ddog_AppsecCResponse dd_trace_send_appsec_message(
         .len = request_len,
     };
 
-    return _ddog_sidecar_send_appsec_message(&sidecar, client_id, request_slice);
+    return _ddog_sidecar_send_appsec_message(
+        &sidecar, client_id, request_slice);
 }
 
 void dd_trace_free_appsec_message_response(ddog_AppsecCResponse response)

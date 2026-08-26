@@ -25,6 +25,25 @@ $ecrLoginSnippet = <<<'EOT'
       echo "Logging in to ECR"
       aws ecr get-login-password | docker login --username AWS --password-stdin 669783387624.dkr.ecr.us-east-1.amazonaws.com
 EOT;
+
+// Keep these groups aligned with allPushTasks in gradle/images.gradle.
+$appsecImageTagGroups = [];
+foreach ($all_minor_major_targets as $version) {
+    $tags = [];
+    foreach (["php", "apache2-mod-php", "apache2-fpm-php", "nginx-fpm-php"] as $prefix) {
+        foreach (["release", "debug", "release-zts"] as $variant) {
+            $tags[] = "$prefix-$version-$variant";
+        }
+    }
+    $appsecImageTagGroups["PHP $version"] = $tags;
+}
+$appsecImageTagGroups["other"] = [
+    "toolchain",
+    "php-deps",
+    "frankenphp-8.4-release-zts",
+    "php-buildonly-rust",
+    "nginx-fpm-php-8.5-release-musl",
+];
 ?>
 variables:
   FF_ENABLE_BASH_EXIT_CODE_CHECK: "true"
@@ -38,10 +57,12 @@ variables:
     description: "Your docker hub personal access token, can be created following this doc https://docs.docker.com/docker-hub/access-tokens/#create-an-access-token"
   CI_REGISTRY:
     value: "docker.io"
+  APPSEC_IMAGE_REPO: "registry.ddbuild.io/ci/dd-trace-php/dd-appsec-php-ci"
 
 stages:
   - test
   - docker-build
+  - docker-publish
 
 .appsec_test:
   tags: [ "arch:${ARCH}" ]
@@ -61,11 +82,54 @@ stages:
 
 .docker_push_job:
   stage: docker-build
+  timeout: 3h
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   before_script:
 <?php echo $ecrLoginSnippet, "\n"; ?>
-<?php dockerhub_login() ?>
     - apt update && apt install -y openjdk-17-jre
+
+.appsec_image_publish:
+  stage: docker-publish
+  needs:
+    - "push appsec docker images multiarch"
+  image: registry.ddbuild.io/agent-delivery/dd-pkg:v0.9.3
+  tags: [ "arch:arm64" ]
+  variables:
+    IMG_REGISTRIES: "dockerhub"
+    IMG_SIGNING: "false"
+    PUBLIC_IMAGES_PUBLISH_TIMEOUT: "1800"
+  script:
+    - |
+      set -euo pipefail
+      dd-pkg version
+
+      read -r -a tags <<< "${TAGS}"
+      pids=()
+      for tag in "${tags[@]}"; do
+        (
+          set -o pipefail
+          dd-pkg publish-image \
+            --timeout "${PUBLIC_IMAGES_PUBLISH_TIMEOUT}" \
+            --poll-interval 30 \
+            --signing="${IMG_SIGNING}" \
+            --registries "${IMG_REGISTRIES}" \
+            --sources "${APPSEC_IMAGE_REPO}:${tag}" \
+            --destinations "dd-appsec-php-ci:${tag}" 2>&1 \
+            | sed -u "s/^/[${tag}] /"
+        ) &
+        pids+=("$!")
+      done
+
+      failed=0
+      for i in "${!pids[@]}"; do
+        if wait "${pids[$i]}"; then
+          echo "Published ${tags[$i]}"
+        else
+          echo "Failed to publish ${tags[$i]}" >&2
+          failed=1
+        fi
+      done
+      exit "${failed}"
 
 "test appsec extension":
   stage: test
@@ -377,9 +441,12 @@ stages:
     KUBERNETES_CPU_REQUEST: 8
     KUBERNETES_MEMORY_REQUEST: 16Gi
     KUBERNETES_MEMORY_LIMIT: 24Gi
+    # The DinD helper defaults to 20G, but this job retains >100 images with
+    # shared layers while it builds and pushes the complete matrix.
+    DOCKER_LOOPBACK_SIZE: 100G
+    DOCKER_LOOPBACK_PATH: "/var"
   parallel:
     matrix:
-# XXX: docker-in-docker:arm64 is not supported yet
       - ARCH: ["amd64", "arm64"]
   rules:
     - when: manual
@@ -387,22 +454,41 @@ stages:
   needs: []
   script:
     - cd appsec/tests/integration
-    - TERM=dumb ./gradlew pushAll --info -Pbuildscan --scan
+    - |
+      TERM=dumb ./gradlew pushAll --info -Pbuildscan --scan \
+        -PfloatingImageTags -PdockerArch="${ARCH}" \
+        -PpushRepo="${APPSEC_IMAGE_REPO}"
 
 "push appsec docker images multiarch":
   extends: .docker_push_job
+  tags: [ "arch:amd64" ]
+  id_tokens:
+    DDSIGN_ID_TOKEN:
+      aud: image-integrity
+  before_script:
+    - apt update && apt install -y openjdk-17-jre
   variables:
     KUBERNETES_CPU_REQUEST: 2
     KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 6Gi
     ARCH: amd64
-  rules:
-    - when: on_success
   needs:
-    - job: "push appsec images"
+    - "push appsec images"
   script:
     - cd appsec/tests/integration
-    - TERM=dumb ./gradlew pushMultiArch --info -Pbuildscan --scan
+    - |
+      TERM=dumb ./gradlew signMultiArch --info -Pbuildscan --scan \
+        -PfloatingImageTags -PpushRepo="${APPSEC_IMAGE_REPO}"
+
+<?php foreach ($appsecImageTagGroups as $group => $tags): ?>
+"publish appsec docker images: <?= $group ?>":
+  extends: .appsec_image_publish
+  variables:
+    TAGS: >-
+<?php foreach ($tags as $tag): ?>
+      <?= $tag, "\n" ?>
+<?php endforeach; ?>
+<?php endforeach; ?>
 
 "appsec lint":
   stage: test

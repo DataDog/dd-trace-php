@@ -1,4 +1,5 @@
-FROM php:8.5-fpm-alpine
+ARG DOCKER_REGISTRY=docker.io
+FROM ${DOCKER_REGISTRY}/library/php:8.5-fpm-alpine
 
 # doubles as php/toolchain image for musl
 
