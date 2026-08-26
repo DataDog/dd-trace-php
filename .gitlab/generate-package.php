@@ -119,6 +119,10 @@ stages:
 variables:
   FF_ENABLE_BASH_EXIT_CODE_CHECK: "true"
   FF_USE_NEW_BASH_EVAL_STRATEGY: "true"
+  GIT_SUBMODULE_STRATEGY: recursive
+  GIT_SUBMODULE_PATHS: libdatadog tests/FeatureFlags/ffe-system-test-data appsec/third_party/cpp-base64 appsec/third_party/libddwaf appsec/third_party/libddwaf-rust appsec/third_party/msgpack-c
+  RELIABILITY_ENV_BRANCH: "master"
+  SYSTEM_TESTS_LIBRARY: php
   CARGO_HOME: "${CI_PROJECT_DIR}/.cache/cargo"
 
   # One pipeline injection package size ratchet
@@ -1263,18 +1267,17 @@ endforeach;
 
 .system_tests:
   stage: verify
-  image: registry.ddbuild.io/images/mirror/python:3.12-slim-bullseye
+  image: registry.ddbuild.io/system-tests/ci-runner:75a57a4b6391
   tags: [ "docker-in-docker:amd64" ]
   variables:
+    GIT_SUBMODULE_STRATEGY: none
     TEST_LIBRARY: php
     KUBERNETES_CPU_REQUEST: 8
     PYTEST_XDIST_AUTO_NUM_WORKERS: 8
     KUBERNETES_MEMORY_REQUEST: 3Gi
     KUBERNETES_MEMORY_LIMIT: 4Gi
     RUST_BACKTRACE: 1
-    BUILD_SH_ARGS: php
-    PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
-    APT_CACHE: $CI_PROJECT_DIR/.cache/apt
+    BUILD_SH_ARGS: "-i weblog php"
     DOCKER_DEFAULT_PLATFORM: linux/amd64
     # TODO DD_API_KEY; SYSTEM_TESTS_AWS_ACCESS_KEY_ID; SYSTEM_TESTS_AWS_SECRET_ACCESS_KEY
   needs:
@@ -1286,34 +1289,23 @@ endforeach;
       artifacts: true
   before_script:
     - |
-      # Setup cache dirs
-      mkdir -p $PIP_CACHE_DIR
-      mkdir -p $APT_CACHE/lists
-      mkdir -p $APT_CACHE/archives
-      chown -R $(id -u):$(id -g) $CI_PROJECT_DIR/.cache
-
-      # Install system dependencies
-      apt-get update -o dir::state::lists="$APT_CACHE/lists"
-      apt-get install -y --no-install-recommends -o dir::state::lists="$APT_CACHE/lists" -o dir::cache::archives="$APT_CACHE/archives" ca-certificates curl git build-essential
-      mkdir -p /etc/apt/keyrings
-      curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
-      echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list
-      apt-get update -o dir::state::lists="$APT_CACHE/lists"
-      apt-get install -y --no-install-recommends -o dir::state::lists="$APT_CACHE/lists" -o dir::cache::archives="$APT_CACHE/archives" docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-      # Install Python dependencies
-      pip install -U pip virtualenv
+      set -e
+      readonly PINNED_SYSTEM_TESTS_COMMIT=f16fe9ed13a45ca4b2bbb9bc55c643347b6c611f
+      printf '%s' "$PINNED_SYSTEM_TESTS_COMMIT" | grep -Eq '^[0-9a-f]{40}$'
+      git init -q system-tests
+      git -C system-tests fetch --quiet --depth 1 https://github.com/DataDog/system-tests.git "$PINNED_SYSTEM_TESTS_COMMIT"
+      git -C system-tests checkout --quiet --detach "$PINNED_SYSTEM_TESTS_COMMIT"
+      test "$(git -C system-tests rev-parse HEAD)" = "$PINNED_SYSTEM_TESTS_COMMIT"
+      test "$(git -C system-tests rev-parse --is-shallow-repository)" = "true"
+    - CI_IMAGE="$CI_JOB_IMAGE" python3 system-tests/utils/ci/gitlab/build_ci_image.py --check-only
 <?php dockerhub_login() ?>
     - /tmp/vault kv get --format=json "kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key" 2>/dev/null | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['data']['key'])" > /tmp/.dd-api-key 2>/dev/null || true
-    - git clone https://github.com/DataDog/system-tests.git
     - mv packages/{datadog-setup.php,dd-library-php-*x86_64-linux-gnu.tar.gz} system-tests/binaries
     - cd system-tests
-    - ./build.sh $BUILD_SH_ARGS
-  cache:
-    - key: v0-$CI_JOB_NAME_SLUG-cache
-      when: always
-      paths:
-        - .cache/
+    - ln -sf /system-tests/venv venv
+    - source venv/bin/activate
+    - export PYTHONPATH="$CI_PROJECT_DIR/system-tests"
+    - if [ -n "$BUILD_SH_ARGS" ]; then ./build.sh $BUILD_SH_ARGS; fi
   after_script:
     - DATADOG_API_KEY=$(cat /tmp/.dd-api-key 2>/dev/null) || true
     - mkdir -p artifacts && for f in system-tests/logs*/reportJunit.xml; do dir=$(basename $(dirname "$f")); cp "$f" "artifacts/reportJunit_${dir}.xml" 2>/dev/null || true; done
@@ -1346,14 +1338,14 @@ endforeach;
 "System Tests: [php-fpm-8.5, default]":
   extends: .system_tests
   variables:
-    BUILD_SH_ARGS: -w php-fpm-8.5 php
+    BUILD_SH_ARGS: "-i weblog -w php-fpm-8.5 php"
   script:
     - ./run.sh
 
 "System Tests: [php-fpm-8.5]":
   extends: .system_tests
   variables:
-    BUILD_SH_ARGS: -w php-fpm-8.5 php
+    BUILD_SH_ARGS: "-i weblog -w php-fpm-8.5 php"
   parallel:
     matrix:
       - TESTSUITE:
@@ -1386,7 +1378,7 @@ $system_tests_weblogs = [
   extends: .system_tests
   timeout: 4h
   variables:
-    BUILD_SH_ARGS: -w <?= $weblog ?> php
+    BUILD_SH_ARGS: "-i weblog -w <?= $weblog ?> php"
     # Expand the DinD loopback volume to avoid running out of disk space.
     # See https://datadoghq.atlassian.net/wiki/spaces/K8S/pages/2874901299/How+to+use+Micro+VMs#DinD-in-CI
     DOCKER_LOOPBACK_SIZE: 50G
@@ -1407,7 +1399,7 @@ $system_tests_weblogs = [
 "System Tests: [parametric]":
   extends: .system_tests
   variables:
-    BUILD_SH_ARGS: "-i runner"
+    BUILD_SH_ARGS: ""
   script:
     - ./run.sh PARAMETRIC
 
