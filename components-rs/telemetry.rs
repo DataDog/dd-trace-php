@@ -6,8 +6,8 @@ use std::ffi::CString;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use datadog_ipc::platform::NamedShmHandle;
-use datadog_ipc::one_way_shared_memory::{open_named_shm, OneWayShmReader};
+use libdd_ipc::platform::NamedShmHandle;
+use libdd_ipc::one_way_shared_memory::{open_named_shm, OneWayShmReader};
 use datadog_sidecar::service::{
     blocking::{self, SidecarTransport},
     InstanceId, QueueId, SidecarAction,
@@ -142,9 +142,9 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_addEndpoint_buffer(
         path: Some(path.to_utf8_lossy().into_owned()),
         operation_name: operation_name.to_utf8_lossy().into_owned(),
         resource_name: resource_name.to_utf8_lossy().into_owned(),
+        response_code: None,
         request_body_type: None,
         response_body_type: None,
-        response_code: None,
     });
     buffer.buffer.push(SidecarAction::Telemetry(action));
 }

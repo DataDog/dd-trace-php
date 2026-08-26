@@ -1,5 +1,5 @@
 use crate::sidecar::MaybeShmLimiter;
-use libdd_ffe::rules_based::{Configuration, UniversalFlagConfig};
+use datadog_ffe::rules_based::{Configuration, UniversalFlagConfig};
 use datadog_live_debugger::debugger_defs::{DebuggerData, DebuggerPayload};
 use datadog_live_debugger::{FilterList, LiveDebuggingData, ServiceConfiguration};
 use datadog_live_debugger_ffi::data::Probe;
@@ -218,6 +218,7 @@ pub unsafe extern "C" fn ddog_init_remote_config_state(
             language: "php".to_string(),
             tracer_version: include_str!("../VERSION").trim().into(),
             endpoint: endpoint.clone(),
+            agentless: None,
         }, registry),
         live_debugger: LiveDebuggerState {
             di_enabled,
@@ -389,12 +390,15 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                 limiter_index,
             } => {
                 if let Some(data) = value.data {
-                    match value.product {
+                    match value.path.product() {
                         RemoteConfigProduct::LiveDebugging => {
                             let val = Box::new((data, MaybeShmLimiter::open(limiter_index)));
                             let rc_ref: &mut RemoteConfigState = unsafe { mem::transmute(remote_config as *mut _) }; // sigh, borrow checker
-                            let config_id = value.config_id.clone();
-                            let entry = remote_config.live_debugger.active.entry(value.config_id);
+                            let config_id = value.path.config_id();
+                            let entry = remote_config
+                                .live_debugger
+                                .active
+                                .entry(config_id.to_string());
                             let (parsed, limiter) = match entry {
                                 Entry::Occupied(mut e) => {
                                     e.insert(val);
@@ -407,7 +411,7 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                                 }
                             };
                             if let Some(debugger) = parsed.downcast::<LiveDebuggingData>() {
-                                apply_config(rc_ref, &config_id, debugger, limiter);
+                                apply_config(rc_ref, config_id, debugger, limiter);
                             }
                         }
                         RemoteConfigProduct::ApmTracing => {
@@ -416,7 +420,7 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                                 let configs: Vec<Configs> = config_data.lib_config.clone().into();
                                 if !configs.is_empty() {
                                     remote_config.dynamic_config.active_configs
-                                        .insert(value.config_id, ActiveDynamicConfig { priority, configs });
+                                        .insert(value.path.config_id().to_string(), ActiveDynamicConfig { priority, configs });
                                     let merged = compute_merged_configs(&remote_config.dynamic_config.active_configs);
                                     insert_new_configs(
                                         &mut remote_config.dynamic_config.old_config_values,
@@ -438,16 +442,16 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                     }
                 }
             }
-            RemoteConfigUpdate::Remove(path) => match path.product {
+            RemoteConfigUpdate::Remove(path) => match path.product() {
                 RemoteConfigProduct::LiveDebugging => {
-                    if let Some(boxed) = remote_config.live_debugger.active.remove(&path.config_id) {
+                    if let Some(boxed) = remote_config.live_debugger.active.remove(path.config_id()) {
                         if let Some(debugger) = boxed.0.downcast::<LiveDebuggingData>() {
-                            remove_config(remote_config, &path.config_id, debugger);
+                            remove_config(remote_config, path.config_id(), debugger);
                         }
                     }
                 }
                 RemoteConfigProduct::ApmTracing => {
-                    if remote_config.dynamic_config.active_configs.remove(&path.config_id).is_some() {
+                    if remote_config.dynamic_config.active_configs.remove(path.config_id()).is_some() {
                         if remote_config.dynamic_config.active_configs.is_empty() {
                             remove_old_configs(remote_config);
                         } else {

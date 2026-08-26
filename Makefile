@@ -49,7 +49,7 @@ RUN_TESTS_CMD := DD_SERVICE= DD_ENV= REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJ
 C_FILES = $(shell find components components-rs ext src/dogstatsd tracer zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES = $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name '*.yaml' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 SIDECAR_RUST_FILES = appsec/recommended.json $(shell find sidecar appsec/helper-rust appsec/third_party/libddwaf-rust \( -type l -o -type f \) \( -path "*/src*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -name '*.c' \) -not -path "*/target/*" -not -path "*/.git/*")
-RUST_FILES = $(BUILD_DIR)/Cargo.toml $(BUILD_DIR)/Cargo.lock $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{build-common,datadog-ffe,datadog-ipc,datadog-ipc-macros,datadog-live-debugger,datadog-live-debugger-ffi,libdd-remote-config,datadog-sidecar,datadog-sidecar-ffi,datadog-sidecar-macros,libdd-alloc,libdd-capabilities,libdd-capabilities-impl,libdd-common,libdd-common-ffi,libdd-crashtracker,libdd-crashtracker-ffi,libdd-data-pipeline,libdd-ddsketch,libdd-dogstatsd-client,libdd-library-config,libdd-library-config-ffi,libdd-log,libdd-shared-runtime,libdd-telemetry,libdd-telemetry-ffi,libdd-tinybytes,libdd-trace-*,spawn_worker,tools/{cc_utils,sidecar_mockgen},libdd-trace-*,Cargo.toml} \( -type l -o -type f \) \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/datadog-ipc/build.rs" -not -path "*/datadog-sidecar-ffi/build.rs") $(SIDECAR_RUST_FILES)
+RUST_FILES = $(BUILD_DIR)/Cargo.toml $(BUILD_DIR)/Cargo.lock $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{build-common,libdd-ffe,libdd-ipc,libdd-ipc-macros,datadog-live-debugger,datadog-live-debugger-ffi,libdd-remote-config,datadog-sidecar,datadog-sidecar-ffi,datadog-sidecar-macros,libdd-alloc,libdd-capabilities,libdd-capabilities-impl,libdd-common,libdd-common-ffi,libdd-crashtracker,libdd-crashtracker-ffi,libdd-data-pipeline,libdd-ddsketch,libdd-dogstatsd-client,libdd-gotter,libdd-library-config,libdd-library-config-ffi,libdd-log,libdd-otel-thread-ctx,libdd-shared-runtime,libdd-telemetry,libdd-telemetry-ffi,libdd-tinybytes,libdd-trace-*,spawn_worker,tools/{cc_utils,sidecar_mockgen},libdd-trace-*,Cargo.toml} \( -type l -o -type f \) \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/libdd-ipc/build.rs" -not -path "*/datadog-sidecar-ffi/build.rs") $(SIDECAR_RUST_FILES)
 ALL_OBJECT_FILES = $(C_FILES) $(RUST_FILES) $(BUILD_DIR)/Makefile
 TEST_OPCACHE_FILES = $(shell find tests/opcache -name '*.php*' -o -name '.gitkeep' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_STUB_FILES = $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
@@ -109,7 +109,7 @@ JUNIT_RESULTS_DIR := $(shell pwd)
 
 all: $(BUILD_DIR)/configure $(SO_FILE)
 
-$(BUILD_DIR)/configure: $(M4_FILES) $(BUILD_DIR)/datadog.sym $(BUILD_DIR)/VERSION
+$(BUILD_DIR)/configure: $(M4_FILES) $(BUILD_DIR)/datadog.sym $(BUILD_DIR)/datadog-linux.sym $(BUILD_DIR)/VERSION
 	$(Q) (cd $(BUILD_DIR); phpize && $(SED_I) 's/\/FAILED/\/\\bFAILED/' $(BUILD_DIR)/run-tests.php) # Fix PHP 5.4 exit code bug when running selected tests (FAILED vs XFAILED)
 
 $(BUILD_DIR)/run-tests.php: $(if $(ASSUME_COMPILED),, $(BUILD_DIR)/configure)
@@ -201,17 +201,31 @@ test_c2php: $(SO_FILE) $(INIT_HOOK_TEST_FILES) $(BUILD_DIR)/run-tests.php
 test_with_init_hook: $(SO_FILE) $(INIT_HOOK_TEST_FILES) $(BUILD_DIR)/run-tests.php
 	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(TRACER_SOURCES_INI) $(INIT_HOOK_TEST_FILES);
 
-test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
+# The .phpt suite runs twice: normally, and under valgrind for leak checking.
+# Separate targets so CI can parallelize them -- valgrind is far slower.
+# The PATH shim in tests/ext/valgrind adds the suppressions file.
+test_extension_ci_normal: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
 	( \
 	set -xe; \
 	export PATH="$(PROJECT_ROOT)/tests/ext/valgrind:$$PATH"; \
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/normal-extension-test.xml; \
 	$(ALL_TEST_ENV_OVERRIDE) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(BUILD_DIR)/$(TESTS); \
-	\
+	)
+
+test_extension_ci_valgrind: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
+	( \
+	set -xe; \
+	export PATH="$(PROJECT_ROOT)/tests/ext/valgrind:$$PATH"; \
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/valgrind-extension-test.xml; \
 	export TEST_PHP_OUTPUT=$(JUNIT_RESULTS_DIR)/valgrind-run-tests.out; \
 	DD_SPAWN_WORKER_STABLE_TRAMPOLINE=1 $(ALL_TEST_ENV_OVERRIDE) DD_TRACE_AGENT_TIMEOUT=5000 $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m -s $$TEST_PHP_OUTPUT $(BUILD_DIR)/$(TESTS) && ! grep -e '^LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
 	)
+
+# Recursive $(MAKE), not prerequisites: under `make -jN` prerequisites would run
+# concurrently and both passes share the same .phpt sandbox (.out/.diff/.mem).
+test_extension_ci:
+	$(MAKE) test_extension_ci_normal
+	$(MAKE) test_extension_ci_valgrind
 
 build_tea: TEA_BUILD_TESTS=ON
 build_tea: TEA_PREFIX_PATH=/opt/catch2
@@ -1636,5 +1650,5 @@ test_internal_api_randomized: $(SO_FILE)
 composer.lock: composer.json
 	$(call run_composer_with_retry,,)
 
-.PHONY: dev dist_clean clean cores all clang_format_check clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test_zai test_zai_asan test install_ini install_all \
+.PHONY: dev dist_clean clean cores all clang_format_check clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test_extension_ci_normal test_extension_ci_valgrind test_zai test_zai_asan test install_ini install_all \
 	.apk .rpm .deb .tar.gz sudo debug prod strict run-tests.php verify_pecl_file_definitions verify_package_xml cbindgen cbindgen_binary

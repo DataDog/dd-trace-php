@@ -18,8 +18,8 @@ libdd-telemetry = { path = "../libdatadog/libdd-telemetry" }
 libdd-telemetry-ffi = { path = "../libdatadog/libdd-telemetry-ffi", default-features = false }
 datadog-live-debugger = { path = "../libdatadog/datadog-live-debugger" }
 datadog-live-debugger-ffi = { path = "../libdatadog/datadog-live-debugger-ffi", default-features = false }
-datadog-ipc = { path = "../libdatadog/datadog-ipc" }
-libdd-ffe = { path = "../libdatadog/libdd-ffe" }
+libdd-ipc = { path = "../libdatadog/libdd-ipc" }
+datadog-ffe = { package = "libdd-ffe", path = "../libdatadog/libdd-ffe" }
 libdd-remote-config = { path = "../libdatadog/libdd-remote-config" }
 datadog-sidecar = { path = "../libdatadog/datadog-sidecar" }
 datadog-sidecar-ffi = { path = "../libdatadog/datadog-sidecar-ffi" }
@@ -64,6 +64,9 @@ hashbrown = "0.15"
 # which is a unix-only concern. On Windows `run_sidecar` uses `datadog_sidecar` directly instead.
 [target.'cfg(unix)'.dependencies]
 ddtrace-sidecar = { path = "../sidecar" }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libdd-library-config = { path = "../libdatadog/libdd-library-config", default-features = false, features = ["otel-thread-ctx"] }
 
 [build-dependencies]
 cbindgen = "0.27"

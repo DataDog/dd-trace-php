@@ -308,6 +308,7 @@ injected_ext ddloader_injected_ext_config[EXT_COUNT] = {
             ZEND_MOD_OPTIONAL("ddtrace")
             ZEND_MOD_OPTIONAL("ddtrace_injected")
             ZEND_MOD_OPTIONAL("datadog-profiling")
+            ZEND_MOD_OPTIONAL("opentelemetry")
             ZEND_MOD_OPTIONAL("ev")
             ZEND_MOD_OPTIONAL("event")
             ZEND_MOD_OPTIONAL("libevent")

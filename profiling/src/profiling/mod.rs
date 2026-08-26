@@ -18,20 +18,23 @@ use crate::bindings::ddog_php_prof_get_active_fiber;
 use crate::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_active_fiber;
 
 use crate::allocation::ALLOCATION_PROFILING_INTERVAL;
+#[cfg(not(target_os = "linux"))]
+use crate::bindings::datadog_php_profiling_get_profiling_context;
 use crate::bindings::{
-    datadog_php_profiling_get_process_tags_serialized, datadog_php_profiling_get_profiling_context,
-    zai_str_from_zstr, zend_execute_data,
+    datadog_php_profiling_get_process_tags_serialized, zai_str_from_zstr, zend_execute_data,
 };
 use crate::config::SystemSettings;
 use crate::exception::EXCEPTION_PROFILING_INTERVAL;
-use crate::{Clocks, RefCellExt, CLOCKS, REQUEST_LOCALS, TAGS};
+#[cfg(target_os = "linux")]
+use crate::process_context::{ProcessIdentityRef, ThreadContextRead};
+use crate::profile_tags::ProfileTags;
+use crate::{Clocks, RefCellExt, CLOCKS, GLOBAL_TAGS, REQUEST_LOCALS};
 use chrono::Utc;
 use core::mem::forget;
 use core::{ptr, str};
 use cpu_time::ThreadTime;
 use crossbeam_channel::{Receiver, Sender, TrySendError};
 use dashmap::DashMap;
-use libdd_common::tag::Tag;
 use libdd_profiling::api::{
     Function, Label as ApiLabel, Location, Period, Sample, SampleType as ApiSampleType,
     UpscalingInfo, ValueType as ApiValueType,
@@ -43,6 +46,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::num::NonZeroI64;
+use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Barrier, OnceLock};
 use std::thread::JoinHandle;
@@ -166,6 +170,25 @@ pub struct Label {
     pub value: LabelValue,
 }
 
+struct SampleLabels {
+    labels: Vec<Label>,
+    profile_tags: ProfileTags,
+}
+
+impl Deref for SampleLabels {
+    type Target = Vec<Label>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.labels
+    }
+}
+
+impl DerefMut for SampleLabels {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.labels
+    }
+}
+
 impl<'a> From<&'a Label> for ApiLabel<'a> {
     fn from(label: &'a Label) -> Self {
         let key = label.key;
@@ -205,10 +228,10 @@ impl ValueType {
 /// This information is expected to be mostly stable for a process, but it may
 /// not be if an Apache reload occurs and it adjusts the service name, or if
 /// Apache per-dir settings use different service name, etc.
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Debug, Eq, PartialEq, Hash)]
 pub struct ProfileIndex {
     pub sample_types: Vec<ValueType>,
-    pub tags: Arc<Vec<Tag>>,
+    pub tags: ProfileTags,
 }
 
 #[derive(Debug)]
@@ -499,7 +522,9 @@ impl TimeCollector {
             match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
                 Ok(_id) => {}
                 Err(err) => {
-                    warn!("Failed to add upscaling rule for allocation samples, allocation samples reported will be wrong: {err}")
+                    warn!(
+                        "Failed to add upscaling rule for allocation samples, allocation samples reported will be wrong: {err}"
+                    )
                 }
             }
         }
@@ -516,7 +541,9 @@ impl TimeCollector {
             match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
                 Ok(_id) => {}
                 Err(err) => {
-                    warn!("Failed to add upscaling rule for heap-live samples, heap-live samples reported will be wrong: {err}")
+                    warn!(
+                        "Failed to add upscaling rule for heap-live samples, heap-live samples reported will be wrong: {err}"
+                    )
                 }
             }
         }
@@ -544,7 +571,9 @@ impl TimeCollector {
                         if let Err(err) =
                             profile.add_upscaling_rule(&values_offset, "", "", upscaling_info)
                         {
-                            warn!("Failed to add upscaling rule for {metric_name}, {metric_name} reported will be wrong: {err}")
+                            warn!(
+                                "Failed to add upscaling rule for {metric_name}, {metric_name} reported will be wrong: {err}"
+                            )
                         }
                     }
                 };
@@ -621,7 +650,9 @@ impl TimeCollector {
             match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
                 Ok(_id) => {}
                 Err(err) => {
-                    warn!("Failed to add upscaling rule for exception samples, exception samples reported will be wrong: {err}")
+                    warn!(
+                        "Failed to add upscaling rule for exception samples, exception samples reported will be wrong: {err}"
+                    )
                 }
             }
         }
@@ -661,7 +692,9 @@ impl TimeCollector {
     ) {
         if message.key.sample_types.is_empty() {
             // profiling disabled, this should not happen!
-            warn!("A sample with no sample types was recorded in the profiler. Please report this to Datadog.");
+            warn!(
+                "A sample with no sample types was recorded in the profiler. Please report this to Datadog."
+            );
             return;
         }
 
@@ -719,7 +752,8 @@ impl TimeCollector {
         debug!(
             "Started with an upload period of {} seconds and approximate wall-time period of {} milliseconds.",
             UPLOAD_PERIOD.as_secs(),
-            WALL_TIME_PERIOD.as_millis());
+            WALL_TIME_PERIOD.as_millis()
+        );
 
         let wall_timer = crossbeam_channel::tick(WALL_TIME_PERIOD);
         let upload_tick = crossbeam_channel::tick(self.upload_period);
@@ -819,10 +853,15 @@ const DDPROF_UPLOAD: &str = "ddprof_upload";
 impl Profiler {
     /// Will initialize the `PROFILER` OnceLock and makes sure that only one thread will do so.
     pub fn init(system_settings: &SystemSettings) {
+        #[cfg(target_os = "linux")]
+        crate::process_context::initialize();
+
         // SAFETY: the `get_or_init` access is a thread-safe API, and the
         // PROFILER is only being mutated in single-threaded phases such as
         //minit/mshutdown.
-        unsafe { (*ptr::addr_of!(PROFILER)).get_or_init(|| Profiler::new(system_settings)) };
+        unsafe {
+            (*ptr::addr_of!(PROFILER)).get_or_init(|| Profiler::new(system_settings));
+        }
     }
 
     pub fn get() -> Option<&'static Profiler> {
@@ -853,7 +892,7 @@ impl Profiler {
 
         // SAFETY: this is set to a noop version if ddtrace wasn't found, and
         // we're getting the process tags of a PHP thread
-        let process_tags: Option<String> = unsafe {
+        let legacy_process_tags = || unsafe {
             let raw_ptr = datadog_php_profiling_get_process_tags_serialized.unwrap_unchecked()();
             zai_str_from_zstr(raw_ptr.as_mut())
                 .into_utf8()
@@ -861,6 +900,10 @@ impl Profiler {
                 .filter(|s| !s.is_empty())
                 .map(|s| s.to_owned())
         };
+        #[cfg(target_os = "linux")]
+        let process_tags = crate::process_context::process_tags().or_else(legacy_process_tags);
+        #[cfg(not(target_os = "linux"))]
+        let process_tags = legacy_process_tags();
 
         let uploader = Uploader::new(
             fork_barrier.clone(),
@@ -1004,7 +1047,9 @@ impl Profiler {
             .send_timeout(ProfilerMessage::Cancel, timeout)
         {
             Err(err) => {
-                warn!("Recent samples are most likely lost: Failed to notify other threads of cancellation: {err}.");
+                warn!(
+                    "Recent samples are most likely lost: Failed to notify other threads of cancellation: {err}."
+                );
                 false
             }
             Ok(_) => {
@@ -1236,7 +1281,10 @@ impl Profiler {
                     None
                 };
 
-                match self.message_sender.try_send(ProfilerMessage::Sample(message)) {
+                match self
+                    .message_sender
+                    .try_send(ProfilerMessage::Sample(message))
+                {
                     Ok(_) => {
                         trace!(
                             "Sent stack sample of {depth} frames, {n_labels} labels, {alloc_size} bytes allocated, {alloc_samples} allocations, and {interrupt_count} time interrupts to profiler."
@@ -1245,8 +1293,7 @@ impl Profiler {
                             if self.track_allocation(ptr as usize, tracked) {
                                 trace!(
                                     "Tracked allocation at {:#x} ({} bytes) for batched heap-live emission",
-                                    ptr as usize,
-                                    alloc_size
+                                    ptr as usize, alloc_size
                                 );
                             }
                         }
@@ -1506,7 +1553,9 @@ impl Profiler {
                 trace!("Sent event 'opcache_restart' with {n_labels} labels to profiler.")
             }
             Err(err) => {
-                warn!("Failed to send event 'opcache_restart' with {n_labels} labels to profiler: {err}")
+                warn!(
+                    "Failed to send event 'opcache_restart' with {n_labels} labels to profiler: {err}"
+                )
             }
         }
     }
@@ -1596,7 +1645,9 @@ impl Profiler {
                 trace!("Sent event 'gc' with {n_labels} labels and reason {reason} to profiler.")
             }
             Err(err) => {
-                warn!("Failed to send event 'gc' with {n_labels} and reason {reason} labels to profiler: {err}")
+                warn!(
+                    "Failed to send event 'gc' with {n_labels} and reason {reason} labels to profiler: {err}"
+                )
             }
         }
     }
@@ -1708,12 +1759,7 @@ impl Profiler {
                 let mut values = SampleValues::default();
                 set_value(&mut values);
 
-                match self.prepare_and_send_message(
-                    frames,
-                    values,
-                    labels,
-                    NO_TIMESTAMP,
-                ) {
+                match self.prepare_and_send_message(frames, values, labels, NO_TIMESTAMP) {
                     Ok(_) => trace!(
                         "Sent I/O stack sample of {depth} frames, {n_labels} labels with to profiler."
                     ),
@@ -1742,11 +1788,69 @@ impl Profiler {
     ///
     /// * `n_extra_labels` - Reserve room for extra labels, such as when the
     ///   caller adds gc or exception labels.
-    fn common_labels(n_extra_labels: usize) -> Vec<Label> {
+    fn common_labels(n_extra_labels: usize) -> SampleLabels {
         let mut labels = Vec::with_capacity(5 + n_extra_labels);
+        let common_tags = Arc::clone(&GLOBAL_TAGS);
+        #[cfg(target_os = "linux")]
+        let (git_tags, custom_tags, thread_context) = REQUEST_LOCALS.with_borrow(|locals| {
+            let git_tags = locals.git_tags.as_ref().map(Arc::clone);
+            let custom_tags = locals.custom_tags.as_ref().map(Arc::clone);
+            let thread_context = crate::process_context::thread_context(ProcessIdentityRef {
+                service: locals.identity.service.as_deref(),
+                env: locals.identity.env.as_deref().or(Some("none")),
+                version: locals.identity.version.as_deref(),
+            });
+            (git_tags, custom_tags, thread_context)
+        });
+        #[cfg(target_os = "linux")]
+        let (thread_id, local_root_span_id, span_id, unified_service_tags) = match thread_context {
+            ThreadContextRead::Active(context) => (
+                context
+                    .thread_id
+                    .unwrap_or_else(libdd_common::threading::get_current_thread_id),
+                context.local_root_span_id,
+                context.span_id,
+                context.unified_service_tags,
+            ),
+            ThreadContextRead::Inactive(unified_service_tags) => (
+                libdd_common::threading::get_current_thread_id(),
+                0,
+                0,
+                unified_service_tags,
+            ),
+        };
+        #[cfg(not(target_os = "linux"))]
+        let (
+            common_tags,
+            git_tags,
+            custom_tags,
+            thread_id,
+            local_root_span_id,
+            span_id,
+            unified_service_tags,
+        ) = REQUEST_LOCALS.with_borrow(|locals| {
+            // SAFETY: this is set to a noop version if ddtrace wasn't found,
+            // and we're getting the profiling context on a PHP thread.
+            let context =
+                unsafe { datadog_php_profiling_get_profiling_context.unwrap_unchecked()() };
+            // RINIT constructs this after populating the request identity and
+            // fails the request if tag construction fails.
+            let unified_service_tags = Arc::clone(&locals.unified_service_tags);
+            let git_tags = locals.git_tags.as_ref().map(Arc::clone);
+            let custom_tags = locals.custom_tags.as_ref().map(Arc::clone);
+            (
+                common_tags,
+                git_tags,
+                custom_tags,
+                unsafe { libc::pthread_self() as i64 },
+                context.local_root_span_id,
+                context.span_id,
+                unified_service_tags,
+            )
+        });
         labels.push(Label {
             key: "thread id",
-            value: LabelValue::Num(unsafe { libc::pthread_self() as i64 }, "id"),
+            value: LabelValue::Num(thread_id, "id"),
         });
 
         labels.push(Label {
@@ -1754,14 +1858,11 @@ impl Profiler {
             value: LabelValue::Str(get_current_thread_name().into()),
         });
 
-        // SAFETY: this is set to a noop version if ddtrace wasn't found, and
-        // we're getting the profiling context on a PHP thread.
-        let context = unsafe { datadog_php_profiling_get_profiling_context.unwrap_unchecked()() };
-        if context.local_root_span_id != 0 {
+        if local_root_span_id != 0 {
             // Casting between two integers of the same size is a no-op, and
             // Rust uses 2's complement for negative numbers.
-            let local_root_span_id = context.local_root_span_id as i64;
-            let span_id = context.span_id as i64;
+            let local_root_span_id = local_root_span_id as i64;
+            let span_id = span_id as i64;
 
             labels.push(Label {
                 key: "local root span id",
@@ -1788,14 +1889,22 @@ impl Profiler {
                 });
             }
         }
-        labels
+        SampleLabels {
+            labels,
+            profile_tags: ProfileTags {
+                common: common_tags,
+                unified_service: unified_service_tags,
+                git: git_tags,
+                custom: custom_tags,
+            },
+        }
     }
 
     fn prepare_and_send_message(
         &self,
         frames: Backtrace,
         samples: SampleValues,
-        labels: Vec<Label>,
+        labels: SampleLabels,
         timestamp: i64,
     ) -> Result<(), Box<TrySendError<ProfilerMessage>>> {
         let message = self.prepare_sample_message(frames, samples, labels, timestamp);
@@ -1808,7 +1917,7 @@ impl Profiler {
         &self,
         frames: Backtrace,
         samples: SampleValues,
-        labels: Vec<Label>,
+        labels: SampleLabels,
         timestamp: i64,
     ) -> SampleMessage {
         // If profiling is disabled, these will naturally return empty Vec.
@@ -1819,13 +1928,14 @@ impl Profiler {
         let sample_types = self.sample_types_filter.sample_types();
         let sample_values = self.sample_types_filter.filter(samples);
 
-        let tags = TAGS.with_borrow(Arc::clone);
-
         SampleMessage {
-            key: Arc::new(ProfileIndex { sample_types, tags }),
+            key: Arc::new(ProfileIndex {
+                sample_types,
+                tags: labels.profile_tags,
+            }),
             value: SampleData {
                 frames: Arc::new(frames),
-                labels: Arc::new(labels),
+                labels: Arc::new(labels.labels),
                 sample_values,
                 timestamp,
             },
@@ -1910,13 +2020,13 @@ mod tests {
     fn profiler_prepare_sample_message_works_cpu_time_and_timeline() {
         let frames = get_frames();
         let samples = get_samples();
-        let labels = Profiler::common_labels(0);
         let mut settings = get_system_settings();
         settings.profiling_enabled = true;
         settings.profiling_experimental_cpu_time_enabled = true;
         settings.profiling_timeline_enabled = true;
 
         let profiler = Profiler::new(&settings);
+        let labels = Profiler::common_labels(0);
 
         let message: SampleMessage = profiler.prepare_sample_message(frames, samples, labels, 900);
 

@@ -70,6 +70,9 @@ case "${host_os}" in
   *musl*)
     # Bindgen's build script needs dynamic CRT to load libclang. Configure its
     # host rustflags separately from the target's (whatever it is)
+    # Stable Cargo needs bootstrap enabled for the host-config and artifact-dir
+    # options below. This does not affect non-musl builds.
+    export RUSTC_BOOTSTRAP=1
     target=$("${RUSTC:-rustc}" -vV | sed -n 's/^host: //p')
     artifact_dir="${CARGO_TARGET_DIR:-../target}/${PROFILE:-debug}"
     set -- --config target-applies-to-host=false \

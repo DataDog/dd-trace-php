@@ -135,6 +135,12 @@ stages:
     docker run --network net -d --name request-replayer registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-request-replayer-2.0-windows
     docker run -v ${pwd}:C:\Users\ContainerAdministrator\app  --network net -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
 
+    # Enable NTFS long path support so cargo's libgit2-based git checkouts of
+    # deeply nested dependencies (e.g. rust-tuf's interop-tests fixtures,
+    # pulled in via libdd-remote-config) don't fail with "path too long".
+    docker exec ${CONTAINER_NAME} powershell.exe -Command "`$ErrorActionPreference='Stop'; Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\FileSystem' -Name LongPathsEnabled -Value 1 -Type DWord"
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }  # local registry tweak, not network — fail fast (no retry)
+
     # Build nts
     docker exec ${CONTAINER_NAME} powershell.exe "cd app; switch-php nts; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake"
 
@@ -237,7 +243,6 @@ foreach ($asan_minor_major_targets as $major_minor):
           - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
             ARCH: "<?= $arch ?>"
       artifacts: true
-  retry: 2
   variables:
     WAIT_FOR: test-agent:9126
     KUBERNETES_CPU_REQUEST: 6
@@ -355,6 +360,8 @@ endforeach;
 <?php
 foreach ($all_minor_major_targets as $major_minor):
 ?>
+<?php /* Normal and valgrind passes run as separate jobs: valgrind is far
+   slower, so run in parallel. */ ?>
 "test_extension_ci: [<?= $major_minor ?>]":
   extends: .debug_test
   services:
@@ -368,14 +375,57 @@ foreach ($all_minor_major_targets as $major_minor):
       artifacts: true
   variables:
     WAIT_FOR: test-agent:9126
+    # request == limit: enforce-static-cpus only pins cores for Guaranteed QoS.
     KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_CPU_LIMIT: 12
+    KUBERNETES_MEMORY_REQUEST: 8Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
+<?php if (version_compare($major_minor, "7.4", ">=")): ?>
+    # Match the CPU request.
+    MAX_TEST_PARALLELISM: 12
+<?php endif; ?>
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "amd64"
+    KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
+<?php if (version_compare($major_minor, "7.4", ">=")): ?>
+  timeout: 45m
+<?php else: ?>
+  # run-tests.php only gets -j on PHP >= 7.4 (RUN_TESTS_IS_PARALLEL in the
+  # Makefile), so these versions run serially and need the larger budget.
+  timeout: 120m
+<?php endif; ?>
+  script:
+    # Run twice: shared state between .phpt tests only surfaces on a second pass.
+    - make test_extension_ci_normal
+    - make test_extension_ci_normal
+<?php after_script("tmp/build_extension", has_test_agent: true); ?>
+
+"test_extension_ci: [<?= $major_minor ?>, valgrind]":
+  extends: .debug_test
+  services:
+<?php agent_httpbin_service() ?>
+  needs:
+    - job: "compile extension: debug"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+  variables:
+    WAIT_FOR: test-agent:9126
+    # request == limit: enforce-static-cpus only pins cores for Guaranteed QoS.
+    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_CPU_LIMIT: 12
+    KUBERNETES_MEMORY_REQUEST: 8Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
+    # Below the CPU request: each worker spawns its own valgrind process.
     MAX_TEST_PARALLELISM: 4
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
     KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
   timeout: 120m
   script:
-    - make test_extension_ci
+    - make test_extension_ci_valgrind
 <?php after_script("tmp/build_extension", has_test_agent: true); ?>
 
 "Unit tests: [<?= $major_minor ?>]":

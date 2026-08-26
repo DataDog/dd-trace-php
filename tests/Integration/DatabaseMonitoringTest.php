@@ -51,7 +51,7 @@ class DatabaseMonitoringTest extends IntegrationTestCase
         }
 
         // phpcs:disable Generic.Files.LineLength.TooLong
-        $this->assertRegularExpression('/^\/\*dddbs=\'testdb\',ddps=\'phpunit\',traceparent=\'00-[0-9a-f]{16}c151df7d6ee5e2d6-a3978fb9b92502a8-01\'\*\/ SELECT 1$/', $commentedQuery);
+        $this->assertRegularExpression('/^\/\*dddbs=\'testdb\',ddps=\'phpunit\',traceparent=\'00-[0-9a-f]{16}c151df7d6ee5e2d6-a3978fb9b92502a8-03\'\*\/ SELECT 1$/', $commentedQuery);
         // phpcs:enable Generic.Files.LineLength.TooLong
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists("phpunit")->withChildren([
@@ -84,7 +84,7 @@ class DatabaseMonitoringTest extends IntegrationTestCase
             \DDTrace\remove_hook($hook);
         }
 
-        $this->assertRegularExpression('/^\/\*dddbs=\'mapped-service\',ddps=\'phpunit\',traceparent=\'00-[0-9a-f]{16}c151df7d6ee5e2d6-a3978fb9b92502a8-01\'\*\/ SELECT 1$/', $commentedQuery);
+        $this->assertRegularExpression('/^\/\*dddbs=\'mapped-service\',ddps=\'phpunit\',traceparent=\'00-[0-9a-f]{16}c151df7d6ee5e2d6-a3978fb9b92502a8-03\'\*\/ SELECT 1$/', $commentedQuery);
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists("phpunit")->withChildren([
                 SpanAssertion::exists('instrumented')->withExactTags([
@@ -115,7 +115,7 @@ class DatabaseMonitoringTest extends IntegrationTestCase
             \DDTrace\remove_hook($hook);
         }
 
-        $this->assertRegularExpression('/^\/\*dddbs=\'mapped-service\',ddps=\'mapped-service\',traceparent=\'00-[0-9a-f]{16}c151df7d6ee5e2d6-c151df7d6ee5e2d6-01\'\*\/ SELECT 1$/', $commentedQuery);
+        $this->assertRegularExpression('/^\/\*dddbs=\'mapped-service\',ddps=\'mapped-service\',traceparent=\'00-[0-9a-f]{16}c151df7d6ee5e2d6-c151df7d6ee5e2d6-03\'\*\/ SELECT 1$/', $commentedQuery);
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('instrumented')->withExactTags([
                 "_dd.dbm_trace_injected" => "true",
@@ -206,7 +206,7 @@ class DatabaseMonitoringTest extends IntegrationTestCase
         }
 
         // phpcs:disable Generic.Files.LineLength.TooLong
-        $this->assertRegularExpression('/^\/\*dddb=\'myDatabase\',dddbs=\'testdb\',ddh=\'127.0.0.1\',ddprs=\'dbinstance\',ddps=\'mapped-service\',traceparent=\'00-[0-9a-f]{16}c151df7d6ee5e2d6-a3978fb9b92502a8-01\'\*\/ SELECT 1$/', $commentedQuery);
+        $this->assertRegularExpression('/^\/\*dddb=\'myDatabase\',dddbs=\'testdb\',ddh=\'127.0.0.1\',ddprs=\'dbinstance\',ddps=\'mapped-service\',traceparent=\'00-[0-9a-f]{16}c151df7d6ee5e2d6-a3978fb9b92502a8-03\'\*\/ SELECT 1$/', $commentedQuery);
         // phpcs:enable Generic.Files.LineLength.TooLong
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists("phpunit")->withChildren([

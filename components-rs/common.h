@@ -283,6 +283,9 @@ typedef enum ddog_ConfigurationOrigin {
   DDOG_CONFIGURATION_ORIGIN_LOCAL_STABLE_CONFIG,
   DDOG_CONFIGURATION_ORIGIN_FLEET_STABLE_CONFIG,
   DDOG_CONFIGURATION_ORIGIN_CALCULATED,
+  DDOG_CONFIGURATION_ORIGIN_OTEL_ENV_VAR,
+  DDOG_CONFIGURATION_ORIGIN_INI,
+  DDOG_CONFIGURATION_ORIGIN_UNKNOWN,
 } ddog_ConfigurationOrigin;
 
 typedef enum ddog_DynamicConfigUpdateMode {
@@ -349,12 +352,17 @@ typedef enum ddog_MetricNamespace {
   DDOG_METRIC_NAMESPACE_TELEMETRY,
   DDOG_METRIC_NAMESPACE_APM,
   DDOG_METRIC_NAMESPACE_SIDECAR,
+  DDOG_METRIC_NAMESPACE_CIVISIBILITY,
+  DDOG_METRIC_NAMESPACE_MLOBS,
+  DDOG_METRIC_NAMESPACE_DDTRACEAPI,
+  DDOG_METRIC_NAMESPACE_AI_GUARD,
 } ddog_MetricNamespace;
 
 typedef enum ddog_MetricType {
   DDOG_METRIC_TYPE_GAUGE,
   DDOG_METRIC_TYPE_COUNT,
   DDOG_METRIC_TYPE_DISTRIBUTION,
+  DDOG_METRIC_TYPE_RATE,
 } ddog_MetricType;
 
 typedef enum ddog_ProbeStatus {
@@ -427,8 +435,8 @@ typedef enum ddog_RemoteConfigProduct {
   DDOG_REMOTE_CONFIG_PRODUCT_ASM_DD,
   DDOG_REMOTE_CONFIG_PRODUCT_ASM_FEATURES,
   DDOG_REMOTE_CONFIG_PRODUCT_FFE_FLAGS,
-  DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGER,
-  DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGER_SYMBOL_DB,
+  DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGING,
+  DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGING_SYMBOL_DB,
 } ddog_RemoteConfigProduct;
 
 typedef enum ddog_SpanProbeTarget {
@@ -1206,6 +1214,7 @@ typedef struct ddog_NativeFile {
 
 typedef struct ddog_SidecarFlushOptions {
   bool traces_and_stats;
+  bool flag_evaluations;
   bool telemetry;
 } ddog_SidecarFlushOptions;
 
@@ -1237,6 +1246,8 @@ typedef struct ddog_FfeExposure {
   ddog_CharSlice subject_attributes_json;
   ddog_CharSlice allocation_key;
   ddog_CharSlice variant;
+  int32_t serial_id;
+  bool has_serial_id;
 } ddog_FfeExposure;
 
 typedef struct ddog_Slice_FfeExposure {
@@ -1252,6 +1263,40 @@ typedef struct ddog_Slice_FfeExposure {
    */
   uintptr_t len;
 } ddog_Slice_FfeExposure;
+
+typedef struct ddog_FfeFlagEvaluation {
+  int64_t timestamp_ms;
+  ddog_CharSlice flag_key;
+  int64_t first_evaluation_ms;
+  int64_t last_evaluation_ms;
+  uint64_t evaluation_count;
+  ddog_CharSlice variant;
+  ddog_CharSlice allocation_key;
+  ddog_CharSlice targeting_rule_key;
+  ddog_CharSlice targeting_key;
+  /**
+   * UTF-8 JSON object. Empty, invalid, or non-object JSON is omitted. Object
+   * values are pruned to 256 leaf fields, 256-byte string values, and four
+   * levels of nested context depth.
+   */
+  ddog_CharSlice evaluation_context_json;
+  ddog_CharSlice error_message;
+  bool runtime_default_used;
+} ddog_FfeFlagEvaluation;
+
+typedef struct ddog_Slice_FfeFlagEvaluation {
+  /**
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
+   */
+  const struct ddog_FfeFlagEvaluation *ptr;
+  /**
+   * The number of elements (not bytes) that `.ptr` points to. Must be less
+   * than or equal to [isize::MAX].
+   */
+  uintptr_t len;
+} ddog_Slice_FfeFlagEvaluation;
 
 typedef struct ddog_FfeEvaluationMetric {
   ddog_CharSlice flag_key;
