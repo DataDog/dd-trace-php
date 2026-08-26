@@ -32,7 +32,6 @@ const RELEASE_VERSION = '@release_version@';
 
 // Modes set explicitly, so that the install does not depend on the caller's umask
 const MODE_FILE = 0644;
-const MODE_EXECUTABLE = 0755;
 const MODE_DIR = 0755;
 
 // The INI file the installer creates in the INI scan directory
@@ -590,8 +589,7 @@ function install($options)
     // These two are ours whether we created them or not, so repair a bad umask
     set_mode($options[OPT_INSTALL_DIR], MODE_DIR);
     set_mode($installDir, MODE_DIR);
-    // Nothing here is ever invoked directly, so no file needs an exec bit
-    set_mode_recursive($installDirSourcesDir, true);
+    set_mode_recursive($installDirSourcesDir);
     warn_if_not_traversable($installDir);
     echo "Installed required source files to '$installDir'\n";
 
@@ -1044,25 +1042,22 @@ function set_mode($path, $mode)
 }
 
 /**
- * Same as `set_mode()`, applied to a whole installed tree: directories and
- * executables get MODE_EXECUTABLE, anything else MODE_FILE. Symlinks are
- * skipped, as chmod would follow them outside of the tree.
- *
- * `$dataOnly` marks a tree with no runnable file, so that an exec bit recorded
- * in the package - a few of the shipped PHP sources carry one - is dropped.
+ * Same as `set_mode()`, applied to a whole installed tree: directories get
+ * MODE_DIR, files MODE_FILE. We install no executable, only shared objects,
+ * which are dlopen()ed and need no exec bit. Symlinks are skipped, as chmod
+ * would follow them outside of the tree.
  *
  * @param string $path
- * @param bool $dataOnly
  * @return void
  */
-function set_mode_recursive($path, $dataOnly = false)
+function set_mode_recursive($path)
 {
     if (IS_WINDOWS || is_link($path)) {
         return;
     }
 
     if (!is_dir($path)) {
-        set_mode($path, !$dataOnly && is_executable($path) ? MODE_EXECUTABLE : MODE_FILE);
+        set_mode($path, MODE_FILE);
         return;
     }
 
@@ -1074,7 +1069,7 @@ function set_mode_recursive($path, $dataOnly = false)
     }
     foreach ($entries as $entry) {
         if ($entry !== '.' && $entry !== '..') {
-            set_mode_recursive($path . '/' . $entry, $dataOnly);
+            set_mode_recursive($path . '/' . $entry);
         }
     }
 }
