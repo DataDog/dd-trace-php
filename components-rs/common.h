@@ -437,6 +437,7 @@ typedef enum ddog_RemoteConfigProduct {
   DDOG_REMOTE_CONFIG_PRODUCT_FFE_FLAGS,
   DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGING,
   DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGING_SYMBOL_DB,
+  DDOG_REMOTE_CONFIG_PRODUCT_DEBUG,
 } ddog_RemoteConfigProduct;
 
 typedef enum ddog_SpanProbeTarget {
@@ -1246,6 +1247,8 @@ typedef struct ddog_FfeExposure {
   ddog_CharSlice subject_attributes_json;
   ddog_CharSlice allocation_key;
   ddog_CharSlice variant;
+  int32_t serial_id;
+  bool has_serial_id;
 } ddog_FfeExposure;
 
 typedef struct ddog_Slice_FfeExposure {
