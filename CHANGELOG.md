@@ -2,4 +2,11 @@ Changelog for older versions can be found in our [release page](https://github.c
 
 ## All products
 ### Fixed
-- Fix potential crash on crashtracker startup with musl. DataDog/libdatadog#2379
+- Ensure files and directories created by the installer remain readable when
+  installation runs under a restrictive umask #4138
+
+## Profiling
+### Fixed
+- Fix I/O profiling upscaling #4137
+- Normalize missing environment values in profiler samples #4133
+- Fix macOS profiler builds with test features enabled #4132
