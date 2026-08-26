@@ -17,7 +17,6 @@
 #include "zend_variables.h"
 #include <components-rs/datadog.h>
 #include <components-rs/sidecar.h>
-#include <components-rs/sidecar_v1_macro_ffi.h>
 #include <SAPI.h>
 #include <exceptions/exceptions.h>
 #include <json/json.h>

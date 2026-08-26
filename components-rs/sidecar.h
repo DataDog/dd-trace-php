@@ -749,6 +749,62 @@ void ddog_v1_add_chunk_attr_str(struct ddog_TracerPayloadV1Builder *builder,
 uintptr_t ddog_v1_chunk_new_span(struct ddog_TracerPayloadV1Builder *builder, uintptr_t chunk);
 
 /**
+ * Sets the span service (interned id).
+ */
+void ddog_v1_set_span_service(struct ddog_TracerPayloadV1Builder *builder,
+                              uintptr_t chunk,
+                              uintptr_t span,
+                              uint32_t id);
+
+/**
+ * Sets the span name (interned id).
+ */
+void ddog_v1_set_span_name(struct ddog_TracerPayloadV1Builder *builder,
+                           uintptr_t chunk,
+                           uintptr_t span,
+                           uint32_t id);
+
+/**
+ * Sets the span resource (interned id).
+ */
+void ddog_v1_set_span_resource(struct ddog_TracerPayloadV1Builder *builder,
+                               uintptr_t chunk,
+                               uintptr_t span,
+                               uint32_t id);
+
+/**
+ * Sets the span type (interned id).
+ */
+void ddog_v1_set_span_type(struct ddog_TracerPayloadV1Builder *builder,
+                           uintptr_t chunk,
+                           uintptr_t span,
+                           uint32_t id);
+
+/**
+ * Sets the span env (interned id).
+ */
+void ddog_v1_set_span_env(struct ddog_TracerPayloadV1Builder *builder,
+                          uintptr_t chunk,
+                          uintptr_t span,
+                          uint32_t id);
+
+/**
+ * Sets the span version (interned id).
+ */
+void ddog_v1_set_span_version(struct ddog_TracerPayloadV1Builder *builder,
+                              uintptr_t chunk,
+                              uintptr_t span,
+                              uint32_t id);
+
+/**
+ * Sets the span component (interned id).
+ */
+void ddog_v1_set_span_component(struct ddog_TracerPayloadV1Builder *builder,
+                                uintptr_t chunk,
+                                uintptr_t span,
+                                uint32_t id);
+
+/**
  * Sets the span id.
  */
 void ddog_v1_set_span_id(struct ddog_TracerPayloadV1Builder *builder,
@@ -795,6 +851,42 @@ void ddog_v1_set_span_kind(struct ddog_TracerPayloadV1Builder *builder,
                            uintptr_t chunk,
                            uintptr_t span,
                            uint32_t kind);
+
+/**
+ * Adds a string span attribute (key and value are interned ids).
+ */
+void ddog_v1_add_span_attr_str(struct ddog_TracerPayloadV1Builder *builder,
+                               uintptr_t chunk,
+                               uintptr_t span,
+                               uint32_t key_id,
+                               uint32_t value);
+
+/**
+ * Adds an integer span attribute (key is an interned id).
+ */
+void ddog_v1_add_span_attr_int(struct ddog_TracerPayloadV1Builder *builder,
+                               uintptr_t chunk,
+                               uintptr_t span,
+                               uint32_t key_id,
+                               int64_t value);
+
+/**
+ * Adds a double span attribute (key is an interned id).
+ */
+void ddog_v1_add_span_attr_double(struct ddog_TracerPayloadV1Builder *builder,
+                                  uintptr_t chunk,
+                                  uintptr_t span,
+                                  uint32_t key_id,
+                                  double value);
+
+/**
+ * Adds a boolean span attribute (key is an interned id).
+ */
+void ddog_v1_add_span_attr_bool(struct ddog_TracerPayloadV1Builder *builder,
+                                uintptr_t chunk,
+                                uintptr_t span,
+                                uint32_t key_id,
+                                bool value);
 
 /**
  * Adds a bytes-valued span attribute. The key is an interned id; the value bytes are copied
@@ -884,5 +976,45 @@ void ddog_v1_set_event_name(struct ddog_TracerPayloadV1Builder *builder,
                             uintptr_t span,
                             uintptr_t event,
                             uint32_t id);
+
+/**
+ * Adds a string event attribute (key and value are interned ids).
+ */
+void ddog_v1_add_event_attr_str(struct ddog_TracerPayloadV1Builder *builder,
+                                uintptr_t chunk,
+                                uintptr_t span,
+                                uintptr_t event,
+                                uint32_t key_id,
+                                uint32_t value);
+
+/**
+ * Adds an integer event attribute (key is an interned id).
+ */
+void ddog_v1_add_event_attr_int(struct ddog_TracerPayloadV1Builder *builder,
+                                uintptr_t chunk,
+                                uintptr_t span,
+                                uintptr_t event,
+                                uint32_t key_id,
+                                int64_t value);
+
+/**
+ * Adds a double event attribute (key is an interned id).
+ */
+void ddog_v1_add_event_attr_double(struct ddog_TracerPayloadV1Builder *builder,
+                                   uintptr_t chunk,
+                                   uintptr_t span,
+                                   uintptr_t event,
+                                   uint32_t key_id,
+                                   double value);
+
+/**
+ * Adds a boolean event attribute (key is an interned id).
+ */
+void ddog_v1_add_event_attr_bool(struct ddog_TracerPayloadV1Builder *builder,
+                                 uintptr_t chunk,
+                                 uintptr_t span,
+                                 uintptr_t event,
+                                 uint32_t key_id,
+                                 bool value);
 
 #endif  /* DDOG_SIDECAR_H */
