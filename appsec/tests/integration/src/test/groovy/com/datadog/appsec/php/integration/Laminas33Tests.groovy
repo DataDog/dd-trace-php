@@ -320,7 +320,7 @@ class Laminas33Tests {
     void 'optional segment present produces correct normalized route'() {
         // /application[/:action] with action in URL — optional section expanded
         Trace trace = container.traceFromRequest(
-                container.buildReq('/application/test').GET().build(),
+                container.buildReq('/application/hello').GET().build(),
                 ofString()) { HttpResponse<String> resp ->
             assert resp.statusCode() == 200
         }
