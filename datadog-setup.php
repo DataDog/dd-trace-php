@@ -590,7 +590,8 @@ function install($options)
     // These two are ours whether we created them or not, so repair a bad umask
     set_mode($options[OPT_INSTALL_DIR], MODE_DIR);
     set_mode($installDir, MODE_DIR);
-    set_mode_recursive($installDirSourcesDir);
+    // Nothing here is ever invoked directly, so no file needs an exec bit
+    set_mode_recursive($installDirSourcesDir, true);
     warn_if_not_traversable($installDir);
     echo "Installed required source files to '$installDir'\n";
 
@@ -679,7 +680,8 @@ function install($options)
         }
         $appSecHelperPath = $installDir . '/lib/libddappsec-helper.so';
 
-        if (isset($options[OPT_PHP_INI])) {
+        $iniPathsFromUser = isset($options[OPT_PHP_INI]);
+        if ($iniPathsFromUser) {
             $iniFilePaths = $options[OPT_PHP_INI];
         } else {
             $iniFilePaths = find_main_ini_files($phpProperties);
@@ -708,7 +710,7 @@ function install($options)
                 echo "\n";
 
                 // A previous run may have created it with a restrictive umask
-                if (is_managed_ini_file($iniFilePath, $phpProperties)) {
+                if (is_managed_ini_file($iniFilePath, $phpProperties, $iniPathsFromUser)) {
                     set_mode($iniFilePath, MODE_FILE);
                 } else {
                     warn_if_not_world_readable($iniFilePath);
@@ -910,13 +912,8 @@ function find_main_ini_files(array $phpProperties)
         if (is_dir($phpProperties[INI_SCANDIR])) {
             foreach (scandir($phpProperties[INI_SCANDIR]) as $ini) {
                 $path = "{$phpProperties[INI_SCANDIR]}/$ini";
-                if (is_file($path)) {
-                    // match /path/to/ddtrace.so, plain extension = ddtrace or future extensions like ddtrace.dll
-                    if (preg_match("(^\s*extension\s*=\s*(\S*ddtrace)\b)m", file_get_contents($path), $res)) {
-                        if (basename($res[1]) == "ddtrace") {
-                            $iniFileName = $ini;
-                        }
-                    }
+                if (is_file($path) && loads_ddtrace_extension(file_get_contents($path))) {
+                    $iniFileName = $ini;
                 }
             }
         }
@@ -943,19 +940,38 @@ function find_main_ini_files(array $phpProperties)
 }
 
 /**
+ * Whether `$contents` enables our extension, which is what makes an INI file the
+ * one loading ddtrace. Shared with `is_managed_ini_file()` so that the file we
+ * adopt is exactly the file we consider ours.
+ *
+ * @param string $contents
+ * @return bool
+ */
+function loads_ddtrace_extension($contents)
+{
+    // match /path/to/ddtrace.so, plain extension = ddtrace or future extensions like ddtrace.dll
+    if (!preg_match("(^\s*extension\s*=\s*(\S*ddtrace)\b)m", $contents, $res)) {
+        return false;
+    }
+
+    return basename($res[1]) == "ddtrace";
+}
+
+/**
  * Whether the installer owns `$iniFilePath` and may therefore set its mode.
  *
- * Only drop-ins in an INI scan directory qualify, whatever name
- * `find_main_ini_files()` adopted for ours: those exist to load extensions and
- * are world-readable on every distribution. Anything else - in particular a
- * php.ini, which `--ini` can point at - is the user's, and may deliberately not
- * be world-readable as it can hold credentials.
+ * A file qualifies only if it sits in an INI scan directory *and* is evidently
+ * ours. Being in a scan directory is not enough on its own: a drop-in there may
+ * be the user's and deliberately unreadable because it holds credentials, and so
+ * may a php.ini, which `--ini` can point at.
  *
  * @param string $iniFilePath
  * @param array $phpProperties
+ * @param bool $userSupplied Whether the path comes from `--ini` rather than from
+ *                           `find_main_ini_files()`
  * @return bool
  */
-function is_managed_ini_file($iniFilePath, array $phpProperties)
+function is_managed_ini_file($iniFilePath, array $phpProperties, $userSupplied)
 {
     if (!isset($phpProperties[INI_SCANDIR])) {
         return false;
@@ -974,13 +990,33 @@ function is_managed_ini_file($iniFilePath, array $phpProperties)
         $scanDirs[] = str_replace('/cli/conf.d', '/apache2/conf.d', $scanDir);
     }
 
+    $inScanDir = false;
     foreach ($scanDirs as $scanDir) {
         if (realpath($scanDir) === $iniDir) {
-            return true;
+            $inScanDir = true;
+            break;
         }
     }
 
-    return false;
+    if (!$inScanDir) {
+        return false;
+    }
+
+    // The name we install under is ours wherever the path came from
+    if (basename($iniFilePath) === DEFAULT_INI_FILE_NAME) {
+        return true;
+    }
+
+    // A path handed to us with --ini is the user's, scan directory or not
+    if ($userSupplied) {
+        return false;
+    }
+
+    // Otherwise find_main_ini_files() adopted it, and it only adopts a file that
+    // already loads ddtrace, i.e. one an earlier run of ours wrote
+    $contents = @file_get_contents($iniFilePath);
+
+    return $contents !== false && loads_ddtrace_extension($contents);
 }
 
 /**
@@ -1012,17 +1048,21 @@ function set_mode($path, $mode)
  * executables get MODE_EXECUTABLE, anything else MODE_FILE. Symlinks are
  * skipped, as chmod would follow them outside of the tree.
  *
+ * `$dataOnly` marks a tree with no runnable file, so that an exec bit recorded
+ * in the package - a few of the shipped PHP sources carry one - is dropped.
+ *
  * @param string $path
+ * @param bool $dataOnly
  * @return void
  */
-function set_mode_recursive($path)
+function set_mode_recursive($path, $dataOnly = false)
 {
     if (IS_WINDOWS || is_link($path)) {
         return;
     }
 
     if (!is_dir($path)) {
-        set_mode($path, is_executable($path) ? MODE_EXECUTABLE : MODE_FILE);
+        set_mode($path, !$dataOnly && is_executable($path) ? MODE_EXECUTABLE : MODE_FILE);
         return;
     }
 
@@ -1034,7 +1074,7 @@ function set_mode_recursive($path)
     }
     foreach ($entries as $entry) {
         if ($entry !== '.' && $entry !== '..') {
-            set_mode_recursive($path . '/' . $entry);
+            set_mode_recursive($path . '/' . $entry, $dataOnly);
         }
     }
 }

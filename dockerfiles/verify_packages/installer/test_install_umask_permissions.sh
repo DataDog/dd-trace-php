@@ -21,14 +21,24 @@ bundle="build/packages/dd-library-php-${version}-${arch}-linux-gnu.tar.gz"
 # The symptom the permissions are about: another user must be able to load ddtrace.
 # cd / so that su does not fail on a working directory it cannot reach.
 useradd -m ddtracetest
+# Match a module line exactly, and keep the streams apart: the failure prints
+# "Unable to load dynamic library 'ddtrace.so'", which contains "ddtrace", so a
+# substring match over both streams passes on the failure it must catch.
 assert_ddtrace_loadable_by_other_user() {
-    output=$(su ddtracetest -c "cd / && php -m" 2>&1)
-    if [ -z "${output##*ddtrace*}" ]; then
-        echo "Ok: ddtrace is loadable by another user\n"
-    else
-        echo "Error: ddtrace is not loadable by another user\n---\n${output}\n---\n"
+    modules=/tmp/php-m.out
+    diagnostics=/tmp/php-m.err
+    su ddtracetest -c "cd / && php -m" > "${modules}" 2> "${diagnostics}" || true
+    if ! grep -qx ddtrace "${modules}"; then
+        echo "Error: ddtrace is not loadable by another user\n---\n$(cat "${modules}" "${diagnostics}")\n---\n"
         exit 1
     fi
+    # A second layer, for when ddtrace loads but another extension did not.
+    # The warning goes to stderr, but display_errors can route it to stdout.
+    if grep -q 'Unable to load dynamic library' "${modules}" "${diagnostics}"; then
+        echo "Error: a library failed to load for another user\n---\n$(cat "${modules}" "${diagnostics}")\n---\n"
+        exit 1
+    fi
+    echo "Ok: ddtrace is loadable by another user\n"
 }
 
 # Install with a umask that hides everything from "other": the installed files
@@ -100,3 +110,24 @@ assert_file_not_contains "${install_log}" 'is not readable by other users'
 # Already readable: nothing to say either.
 install_with_other_sapi_ini 0644
 assert_file_not_contains "${install_log}" 'is not readable by other users'
+
+# A scan directory drop-in is not ours just by sitting there: --ini can name the
+# user's own, kept unreadable on purpose because it holds an api key. Only the
+# name we install under, or a file we adopted ourselves, may be widened. Run
+# twice, because the first run writes our directives into it and that must not be
+# enough to make the second run treat it as ours. The file adopted above is
+# removed first, so this one is the only one loading ddtrace.
+rm "${custom_ini_file}"
+user_ini="${conf_dir}/50-datadog-secrets.ini"
+echo "datadog.api_key = secret" > "${user_ini}"
+chmod 0600 "${user_ini}"
+
+for _ in 1 2; do
+    php ./build/packages/datadog-setup.php --php-bin php --file "${bundle}" \
+        --ini "${user_ini}" > "${install_log}" 2>&1
+    cat "${install_log}"
+    assert_file_contains "${user_ini}" 'extension = ddtrace'
+    assert_file_contains "${user_ini}" 'datadog.api_key = secret'
+    assert_not_world_readable "${user_ini}"
+    assert_file_contains "${install_log}" 'is not readable by other users'
+done
