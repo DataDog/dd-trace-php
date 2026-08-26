@@ -440,19 +440,17 @@ impl TimeCollector {
             })
             .collect();
 
-        let get_offset = |name: &str| {
-            sample_types.iter().position(|st| {
-                let vt: ApiValueType = (*st).into();
-                vt.r#type == name
-            })
-        };
+        let get_offset =
+            |sample_type: ApiSampleType| sample_types.iter().position(|st| *st == sample_type);
 
         // check if we have the `alloc-size` and `alloc-samples` sample types
-        let (alloc_samples_offset, alloc_size_offset) =
-            (get_offset("alloc-samples"), get_offset("alloc-size"));
+        let (alloc_samples_offset, alloc_size_offset) = (
+            get_offset(ApiSampleType::AllocSamples),
+            get_offset(ApiSampleType::AllocSize),
+        );
         let (heap_live_samples_offset, heap_live_size_offset) = (
-            get_offset("heap-live-samples"),
-            get_offset("heap-live-size"),
+            get_offset(ApiSampleType::HeapLiveSamples),
+            get_offset(ApiSampleType::HeapLiveSize),
         );
 
         // check if we have the IO sample types
@@ -478,26 +476,26 @@ impl TimeCollector {
             file_io_write_size_offset,
             file_io_write_size_samples_offset,
         ) = (
-            get_offset("socket-read-time"),
-            get_offset("socket-read-time-samples"),
-            get_offset("socket-write-time"),
-            get_offset("socket-write-time-samples"),
-            get_offset("file-io-read-time"),
-            get_offset("file-io-read-time-samples"),
-            get_offset("file-io-write-time"),
-            get_offset("file-io-write-time-samples"),
-            get_offset("socket-read-size"),
-            get_offset("socket-read-size-samples"),
-            get_offset("socket-write-size"),
-            get_offset("socket-write-size-samples"),
-            get_offset("file-io-read-size"),
-            get_offset("file-io-read-size-samples"),
-            get_offset("file-io-write-size"),
-            get_offset("file-io-write-size-samples"),
+            get_offset(ApiSampleType::SocketReadTime),
+            get_offset(ApiSampleType::SocketReadTimeSamples),
+            get_offset(ApiSampleType::SocketWriteTime),
+            get_offset(ApiSampleType::SocketWriteTimeSamples),
+            get_offset(ApiSampleType::FileIoReadTime),
+            get_offset(ApiSampleType::FileIoReadTimeSamples),
+            get_offset(ApiSampleType::FileIoWriteTime),
+            get_offset(ApiSampleType::FileIoWriteTimeSamples),
+            get_offset(ApiSampleType::SocketReadSize),
+            get_offset(ApiSampleType::SocketReadSizeSamples),
+            get_offset(ApiSampleType::SocketWriteSize),
+            get_offset(ApiSampleType::SocketWriteSizeSamples),
+            get_offset(ApiSampleType::FileIoReadSize),
+            get_offset(ApiSampleType::FileIoReadSizeSamples),
+            get_offset(ApiSampleType::FileIoWriteSize),
+            get_offset(ApiSampleType::FileIoWriteSizeSamples),
         );
 
         // check if we have the `exception-samples` sample types
-        let exception_samples_offset = get_offset("exception-samples");
+        let exception_samples_offset = get_offset(ApiSampleType::ExceptionSamples);
 
         let period = WALL_TIME_PERIOD.as_nanos();
         let mut profile = InternalProfile::try_new(
