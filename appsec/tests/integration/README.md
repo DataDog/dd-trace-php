@@ -69,7 +69,7 @@ The preferred workflow is the manual AppSec jobs in the GitLab child pipeline:
    artifact-gateway to mirror internal tags to the public
    [`datadog/dd-appsec-php-ci`](https://hub.docker.com/r/datadog/dd-appsec-php-ci)
    repository.
-4. Run `./gradlew generateTagMappings -PfloatingImageTags` after publication
+4. Run `./gradlew generateTagMappings` after publication
    and submit the updated `gradle/tag_mappings.gradle`.
 
 For local publication, `pushAll` and `pushMultiArch` still default directly to
