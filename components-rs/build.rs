@@ -1,5 +1,7 @@
 #[path = "../profiling/build.rs"]
 mod profiling_build;
+#[path = "config_codegen.rs"]
+mod config_codegen;
 
 fn main() {
     println!("cargo:rustc-check-cfg=cfg(standalone_profiler)");
@@ -19,5 +21,9 @@ fn main() {
 
     if std::env::var_os("CARGO_FEATURE_PROFILING").is_some() {
         profiling_build::build();
+    }
+
+    if std::env::var_os("CARGO_FEATURE_TRACER").is_some() {
+        config_codegen::build();
     }
 }

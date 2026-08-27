@@ -38,6 +38,8 @@ pub mod agent_info;
 #[cfg(not(standalone_profiler))]
 pub mod bytes;
 #[cfg(not(standalone_profiler))]
+pub mod config;
+#[cfg(not(standalone_profiler))]
 pub mod ffe;
 #[cfg(not(standalone_profiler))]
 pub mod log;
