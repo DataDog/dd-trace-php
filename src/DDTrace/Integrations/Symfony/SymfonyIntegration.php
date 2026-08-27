@@ -442,34 +442,31 @@ class SymfonyIntegration extends Integration
                     return;
                 }
 
-                $cacheKey = $route_name;
-                $cachedPath = \DDTrace\routing_cache_get($cacheKey);
-                if ($cachedPath !== false) {
-                    $path = $cachedPath;
-                } else {
-                    /** @var ContainerInterface $container */
-                    $container = self::$kernel->getContainer();
-                    $path = EndpointCatalog::pathForRoute($route_name, $container);
+                /** @var ContainerInterface $container */
+                $container = self::$kernel->getContainer();
+                $path = EndpointCatalog::pathForRoute($route_name, $container);
 
-                    // Try with locale suffix (Symfony i18n routing convention)
-                    if ($path === null) {
-                        $locale = $request->attributes->get('_locale');
-                        if ($locale !== null) {
-                            $path = EndpointCatalog::pathForRoute($route_name . '.' . $locale, $container);
-                        }
-                    }
-
-                    if ($path !== null) {
-                        \DDTrace\routing_cache_set($cacheKey, $path);
+                // Try with locale suffix (Symfony i18n routing convention)
+                if ($path === null) {
+                    $locale = $request->attributes->get('_locale');
+                    if ($locale !== null) {
+                        $path = EndpointCatalog::pathForRoute($route_name . '.' . $locale, $container);
                     }
                 }
 
                 if ($path !== null) {
                     $rootSpan->meta[Tag::HTTP_ROUTE] = $path;
                     if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()) {
-                        $matchedParams = \DDTrace\Util\RouteNormalizer::inferSymfonyRouteParams($path, $request->getPathInfo());
-                        $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromSymfony($path, $matchedParams);
-                        if ($normalizedRoute !== null) {
+                        $cacheKey = $route_name;
+                        $normalizedRoute = \DDTrace\routing_cache_get($cacheKey);
+                        if ($normalizedRoute === false) {
+                            $matchedParams = \DDTrace\Util\RouteNormalizer::inferSymfonyRouteParams($path, $request->getPathInfo());
+                            $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromSymfony($path, $matchedParams);
+                            if ($normalizedRoute !== null) {
+                                \DDTrace\routing_cache_set($cacheKey, $normalizedRoute);
+                            }
+                        }
+                        if ($normalizedRoute !== null && $normalizedRoute !== false) {
                             $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
                         }
                     }
