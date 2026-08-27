@@ -466,10 +466,12 @@ class SymfonyIntegration extends Integration
 
                 if ($path !== null) {
                     $rootSpan->meta[Tag::HTTP_ROUTE] = $path;
-                    $matchedParams = self::inferSymfonyRouteParams($path, $request->getPathInfo());
-                    $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromSymfony($path, $matchedParams);
-                    if ($normalizedRoute !== null) {
-                        $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                    if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()) {
+                        $matchedParams = self::inferSymfonyRouteParams($path, $request->getPathInfo());
+                        $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromSymfony($path, $matchedParams);
+                        if ($normalizedRoute !== null) {
+                            $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                        }
                     }
                 }
             };

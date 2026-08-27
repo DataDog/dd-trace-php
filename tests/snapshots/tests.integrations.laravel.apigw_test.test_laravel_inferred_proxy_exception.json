@@ -44,7 +44,6 @@
          "error.type": "Exception",
          "http.method": "GET",
          "http.route": "error",
-         "_dd.appsec.normalized_route": "/error",
          "http.status_code": "500",
          "http.url": "http://localhost/error?key=value&<redacted>",
          "laravel.route.action": "App\\Http\\Controllers\\CommonSpecsController@error",

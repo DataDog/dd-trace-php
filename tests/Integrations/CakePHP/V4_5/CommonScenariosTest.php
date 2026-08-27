@@ -61,7 +61,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.route' => '/{controller}',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'cakephp',
-                        Tag::APPSEC_NORMALIZED_ROUTE => '/{controller}',
                     ])->withChildren([
                         SpanAssertion::build(
                             'Controller.invokeAction',
@@ -88,7 +87,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.route' => '/{controller}',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'cakephp',
-                        Tag::APPSEC_NORMALIZED_ROUTE => '/{controller}',
                     ])->withChildren([
                         SpanAssertion::build(
                             'Controller.invokeAction',
@@ -125,7 +123,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.route' => '/{controller}',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'cakephp',
-                        Tag::APPSEC_NORMALIZED_ROUTE => '/{controller}',
                     ])->withExistingTagsNames([
                         'error.stack'
                     ])->setError(
@@ -168,7 +165,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.route' => '/parameterized/{param}',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'cakephp',
-                        Tag::APPSEC_NORMALIZED_ROUTE => '/parameterized/{param}',
                     ])->withChildren([
                         SpanAssertion::build(
                             'Controller.invokeAction',

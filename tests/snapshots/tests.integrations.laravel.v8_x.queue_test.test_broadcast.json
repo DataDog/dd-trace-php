@@ -13,7 +13,6 @@
       "component": "laravel",
       "http.method": "GET",
       "http.route": "queue/broadcast",
-      "_dd.appsec.normalized_route": "/queue/broadcast",
       "http.status_code": "200",
       "http.url": "http://localhost/queue/broadcast",
       "laravel.route.action": "App\\Http\\Controllers\\QueueTestController@broadcast",

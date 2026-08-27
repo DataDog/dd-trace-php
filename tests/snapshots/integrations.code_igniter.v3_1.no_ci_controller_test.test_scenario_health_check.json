@@ -13,7 +13,6 @@
       "component": "codeigniter",
       "http.method": "GET",
       "http.route": "health_check/ping",
-      "_dd.appsec.normalized_route": "/health_check/ping",
       "http.status_code": "200",
       "http.url": "http://localhost/health_check/ping",
       "runtime-id": "ca127e85-a20d-46aa-b510-07e9077a14c9",

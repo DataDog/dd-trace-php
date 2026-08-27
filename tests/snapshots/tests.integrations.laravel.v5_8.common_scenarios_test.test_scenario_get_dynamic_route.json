@@ -13,7 +13,6 @@
       "component": "laravel",
       "http.method": "GET",
       "http.route": "dynamic_route/{param01}/static/{param02?}",
-      "_dd.appsec.normalized_route": "/dynamic_route/{param01}/static/{param02}",
       "http.status_code": "200",
       "http.url": "http://localhost/dynamic_route/dynamic01/static/dynamic02",
       "laravel.route.action": "App\\Http\\Controllers\\CommonSpecsController@dynamicRoute",

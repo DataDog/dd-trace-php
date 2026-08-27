@@ -18,7 +18,6 @@
       "error.type": "Exception",
       "http.method": "GET",
       "http.route": "error",
-      "_dd.appsec.normalized_route": "/error",
       "http.status_code": "500",
       "http.url": "http://localhost/error?key=value&<redacted>",
       "runtime-id": "91489364-94f6-4030-b3ed-5df886a158a0",

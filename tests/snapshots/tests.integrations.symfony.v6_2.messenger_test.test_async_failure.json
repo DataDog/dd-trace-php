@@ -13,7 +13,6 @@
       "component": "symfony",
       "http.method": "GET",
       "http.route": "/lucky/fail",
-      "_dd.appsec.normalized_route": "/lucky/fail",
       "http.status_code": "200",
       "http.url": "http://localhost/lucky/fail",
       "runtime-id": "8d575e05-da62-4382-a61a-a3c04f3e8cad",

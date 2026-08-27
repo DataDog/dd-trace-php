@@ -77,15 +77,17 @@ class SlimIntegration extends Integration
                             /** @var \Slim\Interfaces\RouteInterface $return */
                             $pattern = $return->getPattern();
                             $rootSpan->meta[Tag::HTTP_ROUTE] = $pattern;
-                            $normalizedRoute = \DDTrace\routing_cache_get($pattern);
-                            if ($normalizedRoute === false) {
-                                $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromSlim($pattern);
-                                if ($normalizedRoute !== null) {
-                                    \DDTrace\routing_cache_set($pattern, $normalizedRoute);
+                            if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()) {
+                                $normalizedRoute = \DDTrace\routing_cache_get($pattern);
+                                if ($normalizedRoute === false) {
+                                    $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromSlim($pattern);
+                                    if ($normalizedRoute !== null) {
+                                        \DDTrace\routing_cache_set($pattern, $normalizedRoute);
+                                    }
                                 }
-                            }
-                            if ($normalizedRoute !== null && $normalizedRoute !== false) {
-                                $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                                if ($normalizedRoute !== null && $normalizedRoute !== false) {
+                                    $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                                }
                             }
 
                             if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
@@ -105,15 +107,17 @@ class SlimIntegration extends Integration
                             $route = $return;
                             $pattern = $route->getPattern();
                             $rootSpan->meta[Tag::HTTP_ROUTE] = $pattern;
-                            $normalizedRoute = \DDTrace\routing_cache_get($pattern);
-                            if ($normalizedRoute === false) {
-                                $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromSlim($pattern);
-                                if ($normalizedRoute !== null) {
-                                    \DDTrace\routing_cache_set($pattern, $normalizedRoute);
+                            if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()) {
+                                $normalizedRoute = \DDTrace\routing_cache_get($pattern);
+                                if ($normalizedRoute === false) {
+                                    $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromSlim($pattern);
+                                    if ($normalizedRoute !== null) {
+                                        \DDTrace\routing_cache_set($pattern, $normalizedRoute);
+                                    }
                                 }
-                            }
-                            if ($normalizedRoute !== null && $normalizedRoute !== false) {
-                                $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                                if ($normalizedRoute !== null && $normalizedRoute !== false) {
+                                    $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                                }
                             }
                         }
                     );
@@ -154,7 +158,30 @@ class SlimIntegration extends Integration
                                 $rootSpan->meta['slim.route.name'] = $routeName;
                             }
                             // Refine normalized route now that matched params are available
-                            $matchedParams = method_exists($route, 'getArguments') ? ($route->getArguments() ?? []) : [];
+                            if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()) {
+                                $matchedParams = method_exists($route, 'getArguments') ? ($route->getArguments() ?? []) : [];
+                                $pattern = isset($rootSpan->meta[Tag::HTTP_ROUTE]) ? $rootSpan->meta[Tag::HTTP_ROUTE] : '';
+                                if ($pattern !== '') {
+                                    $urlPath = $request->getUri()->getPath();
+                                    $normalizedRoute = \DDTrace\routing_cache_get($pattern);
+                                    if ($normalizedRoute === false) {
+                                        $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromSlim($pattern, $matchedParams, $urlPath);
+                                        if ($normalizedRoute !== null) {
+                                            \DDTrace\routing_cache_set($pattern, $normalizedRoute);
+                                        }
+                                    }
+                                    if ($normalizedRoute !== null && $normalizedRoute !== false) {
+                                        $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        $rootSpan->meta['slim.route.controller'] = $callableName;
+                        $span->name = 'slim.route.controller';
+                        // Refine normalized route now that matched params are available (Slim 3)
+                        if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()) {
+                            $matchedParams = isset($args[3]) && is_array($args[3]) ? $args[3] : [];
                             $pattern = isset($rootSpan->meta[Tag::HTTP_ROUTE]) ? $rootSpan->meta[Tag::HTTP_ROUTE] : '';
                             if ($pattern !== '') {
                                 $urlPath = $request->getUri()->getPath();
@@ -168,25 +195,6 @@ class SlimIntegration extends Integration
                                 if ($normalizedRoute !== null && $normalizedRoute !== false) {
                                     $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
                                 }
-                            }
-                        }
-                    } else {
-                        $rootSpan->meta['slim.route.controller'] = $callableName;
-                        $span->name = 'slim.route.controller';
-                        // Refine normalized route now that matched params are available (Slim 3)
-                        $matchedParams = isset($args[3]) && is_array($args[3]) ? $args[3] : [];
-                        $pattern = isset($rootSpan->meta[Tag::HTTP_ROUTE]) ? $rootSpan->meta[Tag::HTTP_ROUTE] : '';
-                        if ($pattern !== '') {
-                            $urlPath = $request->getUri()->getPath();
-                            $normalizedRoute = \DDTrace\routing_cache_get($pattern);
-                            if ($normalizedRoute === false) {
-                                $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromSlim($pattern, $matchedParams, $urlPath);
-                                if ($normalizedRoute !== null) {
-                                    \DDTrace\routing_cache_set($pattern, $normalizedRoute);
-                                }
-                            }
-                            if ($normalizedRoute !== null && $normalizedRoute !== false) {
-                                $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
                             }
                         }
                     }
