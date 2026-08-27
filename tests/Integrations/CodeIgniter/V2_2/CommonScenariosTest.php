@@ -56,7 +56,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'codeigniter',
                         Tag::HTTP_ROUTE => 'simple',
-                        Tag::APPSEC_NORMALIZED_ROUTE => '/simple',
                     ])->withChildren([
                         SpanAssertion::build(
                             'Simple.index',
@@ -82,7 +81,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'codeigniter',
                         Tag::HTTP_ROUTE => 'simple_view',
-                        Tag::APPSEC_NORMALIZED_ROUTE => '/simple_view',
                     ])->withChildren([
                         SpanAssertion::build(
                             'Simple_View.index',
@@ -118,7 +116,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'codeigniter',
                         Tag::HTTP_ROUTE => 'error',
-                        Tag::APPSEC_NORMALIZED_ROUTE => '/error',
                     ])
                     ->setError("Exception", "Uncaught Exception: datadog in %s:%d")
                     ->withExistingTagsNames(['error.stack'])
@@ -147,7 +144,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'codeigniter',
                         Tag::HTTP_ROUTE =>  'parameterized/(:any)',
-                        Tag::APPSEC_NORMALIZED_ROUTE => '/parameterized/{param1}',
                     ])->withChildren([
                         SpanAssertion::build(
                             'Parameterized.customAction',

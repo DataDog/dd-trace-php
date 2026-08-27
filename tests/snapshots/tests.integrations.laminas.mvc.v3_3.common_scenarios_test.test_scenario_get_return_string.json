@@ -13,7 +13,6 @@
       "component": "laminas",
       "http.method": "GET",
       "http.route": "/simple[/:key][/:pwd]",
-      "_dd.appsec.normalized_route": "/simple",
       "http.status_code": "200",
       "http.url": "http://localhost/simple?key=value&<redacted>",
       "http.version": "1.1",

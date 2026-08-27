@@ -44,7 +44,6 @@ class ExitTest extends WebFrameworkTestCase
                     Tag::SPAN_KIND => 'server',
                     Tag::COMPONENT => 'codeigniter',
                     Tag::HTTP_ROUTE => 'exits',
-                    Tag::APPSEC_NORMALIZED_ROUTE => '/exits',
                 ])->withChildren([
                     SpanAssertion::build(
                         'Exits.index',

@@ -43,7 +43,6 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                     'symfony.route.action' => 'App\Controller\CommonScenariosController@simpleAction',
                     'symfony.route.name' => 'simple',
                     'http.route' => '/simple',
-                    Tag::APPSEC_NORMALIZED_ROUTE => '/simple',
                     'http.method' => 'GET',
                     'http.url' => 'http://localhost/simple',
                     'http.status_code' => '200',

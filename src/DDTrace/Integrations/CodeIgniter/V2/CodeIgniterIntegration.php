@@ -223,6 +223,9 @@ class CodeIgniterIntegration extends Integration
      * Replicate CodeIgniter's route parsing, as matching key is never stored or returned in the framework.
      */
     private static function setNormalizedRoute($rootSpan, string $pattern) {
+        if (!function_exists('\datadog\appsec\is_enabled') || !\datadog\appsec\is_enabled()) {
+            return;
+        }
         $cacheKey = $pattern;
         $normalizedRoute = \DDTrace\routing_cache_get($cacheKey);
         if ($normalizedRoute === false) {

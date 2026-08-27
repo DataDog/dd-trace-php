@@ -142,16 +142,18 @@ class LaravelIntegration extends Integration
                 if (\method_exists($route, 'uri')) {
                     $httpRoute = $route->uri();
                     $rootSpan->meta[Tag::HTTP_ROUTE] = $httpRoute;
-                    $normalizedRoute = \DDTrace\routing_cache_get($httpRoute);
-                    if ($normalizedRoute === false) {
-                        $matchedParams = \method_exists($route, 'parameters') ? ($route->parameters() ?? []) : [];
-                        $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromLaravel($httpRoute, $matchedParams);
-                        if ($normalizedRoute !== null) {
-                            \DDTrace\routing_cache_set($httpRoute, $normalizedRoute);
+                    if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()) {
+                        $normalizedRoute = \DDTrace\routing_cache_get($httpRoute);
+                        if ($normalizedRoute === false) {
+                            $matchedParams = \method_exists($route, 'parameters') ? ($route->parameters() ?? []) : [];
+                            $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromLaravel($httpRoute, $matchedParams);
+                            if ($normalizedRoute !== null) {
+                                \DDTrace\routing_cache_set($httpRoute, $normalizedRoute);
+                            }
                         }
-                    }
-                    if ($normalizedRoute !== null && $normalizedRoute !== false) {
-                        $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                        if ($normalizedRoute !== null && $normalizedRoute !== false) {
+                            $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                        }
                     }
                 }
                 if (\method_exists($route, 'parameters') && function_exists('\datadog\appsec\push_addresses')) {

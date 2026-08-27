@@ -293,11 +293,13 @@ class LaminasIntegration extends Integration
                     }
                     if ($httpRoute !== null && $httpRoute !== false && $httpRoute !== '') {
                         $rootSpan->meta[Tag::HTTP_ROUTE] = $httpRoute;
-                        $allParams = method_exists($routeMatch, 'getParams') ? ($routeMatch->getParams() ?? []) : [];
-                        $urlPath = method_exists($request, 'getUri') ? $request->getUri()->getPath() : null;
-                        $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromLaminas($httpRoute, $allParams, $urlPath);
-                        if ($normalizedRoute !== null) {
-                            $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                        if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()) {
+                            $allParams = method_exists($routeMatch, 'getParams') ? ($routeMatch->getParams() ?? []) : [];
+                            $urlPath = method_exists($request, 'getUri') ? $request->getUri()->getPath() : null;
+                            $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromLaminas($httpRoute, $allParams, $urlPath);
+                            if ($normalizedRoute !== null) {
+                                $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                            }
                         }
                     }
                 }

@@ -43,7 +43,6 @@ class NoCIControllertTest extends WebFrameworkTestCase
                     Tag::SPAN_KIND => 'server',
                     Tag::COMPONENT => 'codeigniter',
                     Tag::HTTP_ROUTE => 'health_check/ping',
-                    Tag::APPSEC_NORMALIZED_ROUTE => '/health_check/ping',
                 ])->withChildren([
                     SpanAssertion::build(
                         'Health_check.ping',
