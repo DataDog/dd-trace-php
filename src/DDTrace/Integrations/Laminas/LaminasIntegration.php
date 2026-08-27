@@ -281,23 +281,21 @@ class LaminasIntegration extends Integration
                     && $routeName !== null
                     && $routeName !== ''
                 ) {
-                    $cacheKey = (string) $routeName;
-                    $cachedRoute = \DDTrace\routing_cache_get($cacheKey);
-                    if ($cachedRoute !== false) {
-                        $httpRoute = $cachedRoute;
-                    } else {
-                        $httpRoute = LaminasIntegration::httpRouteTemplateFromNamedRouteStack($this, (string) $routeName);
-                        if ($httpRoute !== null && $httpRoute !== '') {
-                            \DDTrace\routing_cache_set($cacheKey, $httpRoute);
-                        }
-                    }
-                    if ($httpRoute !== null && $httpRoute !== false && $httpRoute !== '') {
+                    $httpRoute = LaminasIntegration::httpRouteTemplateFromNamedRouteStack($this, (string) $routeName);
+                    if ($httpRoute !== null && $httpRoute !== '') {
                         $rootSpan->meta[Tag::HTTP_ROUTE] = $httpRoute;
                         if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()) {
                             $allParams = method_exists($routeMatch, 'getParams') ? ($routeMatch->getParams() ?? []) : [];
                             $urlPath = method_exists($request, 'getUri') ? $request->getUri()->getPath() : null;
-                            $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromLaminas($httpRoute, $allParams, $urlPath);
-                            if ($normalizedRoute !== null) {
+                            $cacheKey = $httpRoute . '|' . ($urlPath ?? '');
+                            $normalizedRoute = \DDTrace\routing_cache_get($cacheKey);
+                            if ($normalizedRoute === false) {
+                                $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromLaminas($httpRoute, $allParams, $urlPath);
+                                if ($normalizedRoute !== null) {
+                                    \DDTrace\routing_cache_set($cacheKey, $normalizedRoute);
+                                }
+                            }
+                            if ($normalizedRoute !== null && $normalizedRoute !== false) {
                                 $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
                             }
                         }
