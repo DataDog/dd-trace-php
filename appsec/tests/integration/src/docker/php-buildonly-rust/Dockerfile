@@ -18,7 +18,7 @@ RUN apk --no-cache add clang21-libclang curl curl-dev && \
     rustup component add rustfmt clippy llvm-tools-preview && \
     rust_toolchain="nightly-$(uname -m)-unknown-linux-musl" && \
     rustup toolchain install "$rust_toolchain" \
-        --profile minimal --component rust-src && \
+        --profile minimal --component rust-src --component llvm-tools-preview && \
     architecture="$(uname -m)" && \
     case "$architecture" in \
         aarch64) cargo_llvm_cov_sha256=3c299780e109d59fd77044e64734421d43c0067b92937a49be302fee66d04727 ;; \

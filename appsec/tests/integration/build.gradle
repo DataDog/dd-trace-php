@@ -679,7 +679,7 @@ def buildCoverageReportTask = {
             coverageDirectory, 'helper-rust-integration.lcov')
     def coverageReportTask = buildRunInDockerTask(
             baseName: "generateHelperRustIntegrationCoverage-$id",
-            imageTag: 'nginx-fpm-php-8.5-release-musl',
+            imageTag: 'php-buildonly-rust',
             entrypoint: '/bin/sh',
             description: "Generate helper-rust coverage for $id",
             needsBoostCache: false,
@@ -695,7 +695,8 @@ def buildCoverageReportTask = {
             command: [
                     '-e', '-c',
                     """
-                LLVM_TOOLS=/usr/lib/llvm22/bin
+                RUST_TOOLCHAIN="nightly-\$(uname -m)-unknown-linux-musl"
+                LLVM_TOOLS="\$(dirname "\$(rustc +\$RUST_TOOLCHAIN --print target-libdir)")/bin"
                 test -x "\$LLVM_TOOLS/llvm-profdata"
                 test -x "\$LLVM_TOOLS/llvm-cov"
 
