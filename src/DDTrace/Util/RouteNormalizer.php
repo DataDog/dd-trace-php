@@ -522,8 +522,8 @@ class RouteNormalizer
      */
     public static function inferSymfonyRouteParams(string $template, string $urlPath): array
     {
-        $templateSegments = array_values(array_filter(explode('/', $template)));
-        $urlSegments      = array_values(array_filter(explode('/', $urlPath)));
+        $templateSegments = array_values(array_filter(explode('/', $template), 'strlen'));
+        $urlSegments      = array_values(array_filter(explode('/', $urlPath), 'strlen'));
 
         $matched = [];
         $urlIdx  = 0;
