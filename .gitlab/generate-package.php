@@ -180,6 +180,13 @@ requirements_json_test:
   tags: [ "arch:amd64" ]
   script:
     - ./.gitlab/append-build-id.sh
+    - |
+      SYSTEM_TESTS_SHA=$(git ls-remote https://github.com/DataDog/system-tests.git refs/heads/main | awk 'NR == 1 { print $1 }')
+      if ! printf '%s\n' "$SYSTEM_TESTS_SHA" | grep -Eq '^[0-9a-f]{40}$'; then
+        echo "Failed to resolve a valid system-tests commit: $SYSTEM_TESTS_SHA"
+        exit 1
+      fi
+      printf 'SYSTEM_TESTS_SHA=%s\n' "$SYSTEM_TESTS_SHA" > system-tests.env
     # Upgrading composer
     - composer self-update --no-interaction
     # Installing dependencies with composer
@@ -194,6 +201,8 @@ requirements_json_test:
     paths:
       - VERSION
       - ./src/bridge/_generated*.php
+    reports:
+      dotenv: system-tests.env
 
 <?php
 foreach ($build_platforms as $platform) {
@@ -1290,12 +1299,14 @@ endforeach;
   before_script:
     - |
       set -e
-      readonly PINNED_SYSTEM_TESTS_COMMIT=f16fe9ed13a45ca4b2bbb9bc55c643347b6c611f
-      printf '%s' "$PINNED_SYSTEM_TESTS_COMMIT" | grep -Eq '^[0-9a-f]{40}$'
+      if ! printf '%s\n' "${SYSTEM_TESTS_SHA:-}" | grep -Eq '^[0-9a-f]{40}$'; then
+        echo "Missing or invalid SYSTEM_TESTS_SHA: ${SYSTEM_TESTS_SHA:-}"
+        exit 1
+      fi
       git init -q system-tests
-      git -C system-tests fetch --quiet --depth 1 https://github.com/DataDog/system-tests.git "$PINNED_SYSTEM_TESTS_COMMIT"
-      git -C system-tests checkout --quiet --detach "$PINNED_SYSTEM_TESTS_COMMIT"
-      test "$(git -C system-tests rev-parse HEAD)" = "$PINNED_SYSTEM_TESTS_COMMIT"
+      git -C system-tests fetch --quiet --depth 1 https://github.com/DataDog/system-tests.git "$SYSTEM_TESTS_SHA"
+      git -C system-tests checkout --quiet --detach "$SYSTEM_TESTS_SHA"
+      test "$(git -C system-tests rev-parse HEAD)" = "$SYSTEM_TESTS_SHA"
       test "$(git -C system-tests rev-parse --is-shallow-repository)" = "true"
     - CI_IMAGE="$CI_JOB_IMAGE" python3 system-tests/utils/ci/gitlab/build_ci_image.py --check-only
 <?php dockerhub_login() ?>
