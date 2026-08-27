@@ -287,7 +287,12 @@ class LaminasIntegration extends Integration
                         if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()) {
                             $allParams = method_exists($routeMatch, 'getParams') ? ($routeMatch->getParams() ?? []) : [];
                             $urlPath = method_exists($request, 'getUri') ? $request->getUri()->getPath() : null;
-                            $cacheKey = $httpRoute . '|' . ($urlPath ?? '');
+                            // Only include the URL in the key when the template has optional
+                            // bracket sections; for fully-required routes the normalized form
+                            // is the same for every request regardless of param values.
+                            $cacheKey = strpos($httpRoute, '[') !== false
+                                ? $httpRoute . '|' . ($urlPath ?? '')
+                                : $httpRoute;
                             $normalizedRoute = \DDTrace\routing_cache_get($cacheKey);
                             if ($normalizedRoute === false) {
                                 $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromLaminas($httpRoute, $allParams, $urlPath);

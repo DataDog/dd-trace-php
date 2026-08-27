@@ -457,10 +457,14 @@ class SymfonyIntegration extends Integration
                 if ($path !== null) {
                     $rootSpan->meta[Tag::HTTP_ROUTE] = $path;
                     if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()) {
-                        $cacheKey = $route_name;
+                        // inferSymfonyRouteParams is lightweight (URL parsing only); compute it
+                        // first so the cache key encodes which optional params are present.
+                        // Without this, a route with optional params caches only the first
+                        // materialization and serves it for all subsequent URL patterns.
+                        $matchedParams = \DDTrace\Util\RouteNormalizer::inferSymfonyRouteParams($path, $request->getPathInfo());
+                        $cacheKey = $route_name . '|' . implode(',', array_keys($matchedParams));
                         $normalizedRoute = \DDTrace\routing_cache_get($cacheKey);
                         if ($normalizedRoute === false) {
-                            $matchedParams = \DDTrace\Util\RouteNormalizer::inferSymfonyRouteParams($path, $request->getPathInfo());
                             $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromSymfony($path, $matchedParams);
                             if ($normalizedRoute !== null) {
                                 \DDTrace\routing_cache_set($cacheKey, $normalizedRoute);

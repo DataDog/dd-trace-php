@@ -168,6 +168,49 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertSame('/blog/{page}', $result);
     }
 
+    // inferSymfonyRouteParams — used to build the cache key in SymfonyIntegration
+
+    public function testInferSymfonyRouteParamsRequiredParamsAlwaysPresent()
+    {
+        $params = RouteNormalizer::inferSymfonyRouteParams('/users/{id}', '/users/42');
+        $this->assertArrayHasKey('id', $params);
+    }
+
+    public function testInferSymfonyRouteParamsOptionalParamAbsent()
+    {
+        // Route /posts/{page} where page has a Symfony default — URL /posts does not include page.
+        // The integration code uses array_keys($params) as cache key suffix; this must be []
+        // so that the 'absent' cache entry is distinct from the 'present' one.
+        $params = RouteNormalizer::inferSymfonyRouteParams('/posts/{page}', '/posts');
+        $this->assertSame([], $params);
+    }
+
+    public function testInferSymfonyRouteParamsOptionalParamPresent()
+    {
+        // URL /posts/2 provides page explicitly — must be in the returned params.
+        $params = RouteNormalizer::inferSymfonyRouteParams('/posts/{page}', '/posts/2');
+        $this->assertArrayHasKey('page', $params);
+    }
+
+    public function testInferSymfonyRouteParamsCacheKeysDiffer()
+    {
+        // Core invariant for correct cache behaviour: the two URL patterns for the same route
+        // produce different param key sets, so the cache key suffix encodes presence/absence.
+        $absent  = array_keys(RouteNormalizer::inferSymfonyRouteParams('/posts/{page}', '/posts'));
+        $present = array_keys(RouteNormalizer::inferSymfonyRouteParams('/posts/{page}', '/posts/2'));
+        $this->assertNotSame($absent, $present);
+
+        // And normalizeFromSymfony produces the correct result for each case.
+        $this->assertSame('/posts', RouteNormalizer::normalizeFromSymfony(
+            '/posts/{page}',
+            RouteNormalizer::inferSymfonyRouteParams('/posts/{page}', '/posts')
+        ));
+        $this->assertSame('/posts/{page}', RouteNormalizer::normalizeFromSymfony(
+            '/posts/{page}',
+            RouteNormalizer::inferSymfonyRouteParams('/posts/{page}', '/posts/2')
+        ));
+    }
+
     // normalizeFromLaminas
 
     public function testLaminasSimpleColon()
