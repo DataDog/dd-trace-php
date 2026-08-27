@@ -212,11 +212,58 @@ class Laravel8xTests {
             endpoints.size() > 0
         })
 
-        assert endpoints.size() == 27
+        assert endpoints.size() == 29
         assert endpoints.find { it.path == '/' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /' } != null
         assert endpoints.find { it.path == 'login/auth' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET login/auth' } != null
         assert endpoints.find { it.path == 'login/signup' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET login/signup' } != null
         assert endpoints.find { it.path == 'dynamic-path/{param01}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET dynamic-path/{param01}' } != null
         assert endpoints.find { it.path == 'api/user' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET api/user' } != null
+        assert endpoints.find { it.path == 'normalized-optional/{value?}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET normalized-optional/{value?}' } != null
+        assert endpoints.find { it.path == 'normalized-default/{format?}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET normalized-default/{format?}' } != null
+    }
+
+    @Test
+    @Order(10)
+    void 'optional param present produces correct normalized route'() {
+        HttpRequest req = container.buildReq('/normalized-optional/hello').GET().build()
+        Trace trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 200
+            assert re.body() == 'hello'
+        }
+
+        Span span = trace.first()
+        assert span.meta.'http.route' == 'normalized-optional/{value?}'
+        assert span.meta.'_dd.appsec.normalized_route' == '/normalized-optional/{value}'
+    }
+
+    @Test
+    @Order(11)
+    void 'optional param absent produces correct normalized route'() {
+        HttpRequest req = container.buildReq('/normalized-optional').GET().build()
+        Trace trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 200
+            assert re.body() == 'absent'
+        }
+
+        Span span = trace.first()
+        assert span.meta.'http.route' == 'normalized-optional/{value?}'
+        assert span.meta.'_dd.appsec.normalized_route' == '/normalized-optional'
+    }
+
+    @Test
+    @Order(12)
+    void 'defaulted optional absent from URL produces normalized route without the param'() {
+        // The route uses ->defaults('format', 'html'). When the URL has no {format?} segment,
+        // Laravel injects 'html' into $route->parameters() — but the param is absent from the URL.
+        // The normalized route must not include {format} in this case.
+        HttpRequest req = container.buildReq('/normalized-default').GET().build()
+        Trace trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 200
+            assert re.body() == 'html'
+        }
+
+        Span span = trace.first()
+        assert span.meta.'http.route' == 'normalized-default/{format?}'
+        assert span.meta.'_dd.appsec.normalized_route' == '/normalized-default'
     }
 }

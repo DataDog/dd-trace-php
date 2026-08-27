@@ -115,7 +115,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'app.endpoint' => 'Error_::index',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'codeigniter',
-                        Tag::HTTP_ROUTE => 'error',
+                        Tag::HTTP_ROUTE => 'error'
                     ])
                     ->setError("Exception", "Uncaught Exception: datadog in %s:%d")
                     ->withExistingTagsNames(['error.stack'])

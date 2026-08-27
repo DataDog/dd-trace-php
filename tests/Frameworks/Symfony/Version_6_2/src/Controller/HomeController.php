@@ -37,4 +37,12 @@ class HomeController extends AbstractController
             "Café: $item"
         );
     }
+
+    #[Route("/article/{slug}.{_format}", name: "article_mixed", requirements: ["_format" => "html|json|xml"])]
+    public function normalizedMixedAction(Request $request, string $slug, string $_format)
+    {
+        return new Response(
+            "$slug.$_format"
+        );
+    }
 }
