@@ -125,6 +125,8 @@ variables:
   OCI_PACKAGE_MAX_SIZE_BYTES: 150_000_000
   LIB_INJECTION_IMAGE_MAX_SIZE_BYTES: 210_000_000
 
+  REPO_NOTIFICATION_CHANNEL: "#guild-dd-php"
+
 include:
   - local: .gitlab/one-pipeline.locked.yml
   - local: .gitlab/benchmarks.yml
@@ -1716,7 +1718,7 @@ foreach ($arch_targets as $arch) {
 
 "bundle for reliability env":
   stage: shared-pipeline-build
-  image: registry.ddbuild.io/ci/libdatadog-build/ci_docker_base:67145216
+  image: registry.ddbuild.io/images/base/gbi-ubuntu_2404:release
   tags: [ "arch:amd64" ]
   rules:
     - if: $NIGHTLY_BUILD
@@ -1739,7 +1741,7 @@ foreach ($arch_targets as $arch) {
       else
         echo "UPSTREAM_TRACER_VERSION=$(<VERSION)" > upstream.env
       fi
-    - mv packages/dd-library-php-*-x86_64-linux-gnu.tar.gz dd-library-php-x86_64-linux-gnu.tar.gz
+    - cp packages/dd-library-php-*-x86_64-linux-gnu.tar.gz dd-library-php-x86_64-linux-gnu.tar.gz
     - tar -cf 'datadog-setup-x86_64-linux-gnu.tar' 'datadog-setup.php' 'dd-library-php-x86_64-linux-gnu.tar.gz'
   artifacts:
     paths:
@@ -1805,7 +1807,7 @@ deploy_to_reliability_env:
 
 "upload SSI debug symbols":
   stage: pre-release
-  image: registry.ddbuild.io/ci/async-profiler-build:v71888475-datadog-ci
+  image: registry.ddbuild.io/images/bazel:dynamic-22.04
   tags: [ "arch:amd64" ]
   only:
     - tags
