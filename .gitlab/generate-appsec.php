@@ -480,6 +480,70 @@ stages:
       TERM=dumb ./gradlew signMultiArch --info -Pbuildscan --scan \
         -PfloatingImageTags -PpushRepo="${APPSEC_IMAGE_REPO}"
 
+# Temporary targeted jobs for rebuilding php-buildonly-rust without running
+# the full AppSec image matrix. Remove them after the refreshed image has been
+# published.
+.temporary_php_buildonly_rust_build:
+  extends: .docker_push_job
+  tags: [ "docker-in-docker:${ARCH}" ]
+  needs: []
+  variables:
+    KUBERNETES_CPU_REQUEST: 8
+    KUBERNETES_MEMORY_REQUEST: 16Gi
+    KUBERNETES_MEMORY_LIMIT: 24Gi
+  script:
+    - cd appsec/tests/integration
+    - |
+      TERM=dumb ./gradlew pushImage-php-buildonly-rust --info \
+        -Pbuildscan --scan -PfloatingImageTags \
+        -PdockerArch="${ARCH}" -PpushRepo="${APPSEC_IMAGE_REPO}"
+
+"temporary php-buildonly-rust build amd64":
+  extends: .temporary_php_buildonly_rust_build
+  rules:
+    - when: manual
+      allow_failure: false
+  variables:
+    ARCH: amd64
+
+"temporary php-buildonly-rust build arm64":
+  extends: .temporary_php_buildonly_rust_build
+  rules:
+    - when: manual
+      allow_failure: false
+  variables:
+    ARCH: arm64
+
+"temporary php-buildonly-rust manifest and sign":
+  extends: .docker_push_job
+  tags: [ "arch:amd64" ]
+  id_tokens:
+    DDSIGN_ID_TOKEN:
+      aud: image-integrity
+  before_script:
+    - apt update && apt install -y openjdk-17-jre
+  needs:
+    - "temporary php-buildonly-rust build amd64"
+    - "temporary php-buildonly-rust build arm64"
+  variables:
+    KUBERNETES_CPU_REQUEST: 2
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 6Gi
+    ARCH: amd64
+  script:
+    - cd appsec/tests/integration
+    - |
+      TERM=dumb ./gradlew signImage-php-buildonly-rust-multiarch --info \
+        -Pbuildscan --scan -PfloatingImageTags \
+        -PpushRepo="${APPSEC_IMAGE_REPO}"
+
+"temporary php-buildonly-rust publish":
+  extends: .appsec_image_publish
+  needs:
+    - "temporary php-buildonly-rust manifest and sign"
+  variables:
+    TAGS: "php-buildonly-rust"
+
 <?php foreach ($appsecImageTagGroups as $group => $tags): ?>
 "publish appsec docker images: <?= $group ?>":
   extends: .appsec_image_publish
