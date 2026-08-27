@@ -85,7 +85,7 @@ pub unsafe extern "C" fn datadog_crasht_init_with_sidecar(
     transport: *mut SidecarTransport,
     sidecar_master_pid: i32,
 ) -> ffi::VoidResult {
-    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> anyhow::Result<()> {
+    let result = || -> anyhow::Result<()> {
         let mut crashtracker_config: libdd_crashtracker::CrashtrackerConfiguration =
             ffi_config.try_into()?;
 
@@ -122,16 +122,9 @@ pub unsafe extern "C" fn datadog_crasht_init_with_sidecar(
             libdd_crashtracker::CrashtrackerReceiverConfig::default(),
             metadata.try_into()?,
         )
-    }))
-    .map_or_else(
-        |error| {
-            ffi::VoidResult::Err(ffi::utils::handle_panic_error(
-                error,
-                "datadog_crasht_init_with_sidecar",
-            ))
-        },
-        Into::into,
-    )
+    };
+
+    result().into()
 }
 
 // must be called prior to ddog_sidecar_connect

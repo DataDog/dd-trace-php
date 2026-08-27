@@ -102,12 +102,8 @@ DATADOG_PUBLIC uint64_t datadog_get_sidecar_queue_id(void) {
 #ifdef ZTS
 DATADOG_PUBLIC ddog_SidecarTransport **ddtrace_get_sidecar_transport(void *tsrm_ls) {
     if (tsrm_ls) {
-        void *saved = TSRMLS_CACHE;
-        TSRMLS_CACHE = tsrm_ls;
-        ddog_SidecarTransport **result = &TSRMG_STATIC(
-            datadog_globals_id, zend_datadog_globals *, sidecar);
-        TSRMLS_CACHE = saved;
-        return result;
+        void *TSRMLS_CACHE = tsrm_ls; // shadows global
+        return &DATADOG_G(sidecar);
     }
     return &DATADOG_G(sidecar);
 }

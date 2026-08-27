@@ -60,7 +60,3 @@ if test -n "$RUST_TOOLCHAIN"; then
 fi
 
 SIDECAR_VERSION=$(cat ../VERSION) RUSTFLAGS="$RUSTFLAGS" "${DDTRACE_CARGO:-cargo}" "$@"
-cargo_status=$?
-if test "$cargo_status" -ne 0; then
-  exit "$cargo_status"
-fi
