@@ -213,7 +213,7 @@ class Symfony62Tests {
             endpoints.size() > 0
         })
 
-        assert endpoints.size() == 8
+        assert endpoints.size() == 9
         assert endpoints.find { it.path == '/' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /' } != null
         assert endpoints.find { it.path == '/dynamic-path/{param01}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /dynamic-path/{param01}' } != null
         assert endpoints.find { it.path == '/login' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /login' } != null
@@ -222,10 +222,33 @@ class Symfony62Tests {
         assert endpoints.find { it.path == '/caminho-dinamico/{param01}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /caminho-dinamico/{param01}' } != null
         assert endpoints.find { it.path == '/article/{slug}.{_format}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /article/{slug}.{_format}' } != null
         assert endpoints.find { it.path == '/café/{item}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /café/{item}' } != null
+        assert endpoints.find { it.path == '/posts/{page}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /posts/{page}' } != null
     }
 
     @Test
     @Order(11)
+    void 'optional param absent: cache key does not bleed into present case'() {
+        // Hit /posts (page absent from URL — uses default=1) first so that if the cache key
+        // were just the route name, the result '/posts' would be stored and served for /posts/2.
+        HttpRequest absentReq = container.buildReq('/posts').GET().build()
+        Trace absentTrace = container.traceFromRequest(absentReq, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 200
+        }
+        assert absentTrace.first().meta.'http.route' == '/posts/{page}'
+        assert absentTrace.first().meta.'_dd.appsec.normalized_route' == '/posts'
+
+        // Now hit /posts/2 (page present in URL). With a coarse cache key (route name only)
+        // this would incorrectly return '/posts' from cache instead of '/posts/{page}'.
+        HttpRequest presentReq = container.buildReq('/posts/2').GET().build()
+        Trace presentTrace = container.traceFromRequest(presentReq, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 200
+        }
+        assert presentTrace.first().meta.'http.route' == '/posts/{page}'
+        assert presentTrace.first().meta.'_dd.appsec.normalized_route' == '/posts/{page}'
+    }
+
+    @Test
+    @Order(12)
     void 'mixed segment route normalizes both params into one brace group'() {
         HttpRequest req = container.buildReq('/article/my-post.html').GET().build()
         Trace trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->

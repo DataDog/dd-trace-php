@@ -45,4 +45,10 @@ class HomeController extends AbstractController
             "$slug.$_format"
         );
     }
+
+    #[Route("/posts/{page}", name: "posts_optional_page", defaults: ["page" => 1])]
+    public function postsAction(Request $request, int $page)
+    {
+        return new Response("posts page: $page");
+    }
 }
