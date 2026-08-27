@@ -156,19 +156,6 @@ class YiiIntegration extends Integration
 
                     $rootSpan->meta['app.route.path'] = $routePath;
                     $rootSpan->meta[Tag::HTTP_ROUTE] = $routePath;
-                    if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()) {
-                        $cacheKey = $routePath;
-                        $normalizedRoute = \DDTrace\routing_cache_get($cacheKey);
-                        if ($normalizedRoute === false) {
-                            $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromYii($routePath);
-                            if ($normalizedRoute !== null) {
-                                \DDTrace\routing_cache_set($cacheKey, $normalizedRoute);
-                            }
-                        }
-                        if ($normalizedRoute !== null && $normalizedRoute !== false) {
-                            $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
-                        }
-                    }
 
                     if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
                         $resourceName = \str_replace(

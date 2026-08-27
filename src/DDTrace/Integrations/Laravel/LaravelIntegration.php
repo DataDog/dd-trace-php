@@ -143,12 +143,32 @@ class LaravelIntegration extends Integration
                     $httpRoute = $route->uri();
                     $rootSpan->meta[Tag::HTTP_ROUTE] = $httpRoute;
                     if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()) {
-                        $normalizedRoute = \DDTrace\routing_cache_get($httpRoute);
+                        $allParams = \method_exists($route, 'parameters') ? ($route->parameters() ?? []) : [];
+                        if (strpos($httpRoute, '?}') !== false) {
+                            // For routes with optional params, filter out default-injected values
+                            // (e.g. ->defaults('format', 'html')) that weren't present in the URL.
+                            $matchedParams = self::laravelUrlMatchedParams(
+                                $httpRoute, $request->path(), $allParams
+                            );
+                            // Cache key encodes which optional params are present
+                            preg_match_all('/\{([^}]+)\?\}/', $httpRoute, $_opts);
+                            $_present = [];
+                            foreach ($_opts[1] as $_opt) {
+                                if (array_key_exists($_opt, $matchedParams)) {
+                                    $_present[] = $_opt;
+                                }
+                            }
+                            $cacheKey = $httpRoute . '#' . implode(',', $_present);
+                            unset($_opts, $_present, $_opt);
+                        } else {
+                            $matchedParams = $allParams;
+                            $cacheKey = $httpRoute;
+                        }
+                        $normalizedRoute = \DDTrace\routing_cache_get($cacheKey);
                         if ($normalizedRoute === false) {
-                            $matchedParams = \method_exists($route, 'parameters') ? ($route->parameters() ?? []) : [];
                             $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromLaravel($httpRoute, $matchedParams);
                             if ($normalizedRoute !== null) {
-                                \DDTrace\routing_cache_set($httpRoute, $normalizedRoute);
+                                \DDTrace\routing_cache_set($cacheKey, $normalizedRoute);
                             }
                         }
                         if ($normalizedRoute !== null && $normalizedRoute !== false) {
@@ -766,5 +786,48 @@ class LaravelIntegration extends Integration
         }
 
         return $routeName;
+    }
+
+    /**
+     * Determine which Laravel optional params were actually present in the URL path
+     * (vs. injected as route defaults via ->defaults()).
+     *
+     * Walks the route URI template and URL path in parallel; an optional param is only
+     * included in the result when the URL has a non-empty segment at that position.
+     *
+     * @param string $routeUri  From $route->uri(), e.g. "normalized-default/{format?}"
+     * @param string $urlPath   From $request->path(), e.g. "normalized-default"
+     * @param array  $allParams From $route->parameters()
+     * @return array
+     */
+    private static function laravelUrlMatchedParams(string $routeUri, string $urlPath, array $allParams): array
+    {
+        $routeSegs = explode('/', trim($routeUri, '/'));
+        $urlSegs   = explode('/', trim($urlPath, '/'));
+        $matched   = [];
+        $urlIdx    = 0;
+
+        foreach ($routeSegs as $seg) {
+            if (preg_match('/^\{([^}?]+)\?\}$/', $seg, $m)) {
+                // Optional param — include only when URL has a segment at this position
+                if ($urlIdx < count($urlSegs) && $urlSegs[$urlIdx] !== '') {
+                    if (array_key_exists($m[1], $allParams)) {
+                        $matched[$m[1]] = $allParams[$m[1]];
+                    }
+                    $urlIdx++;
+                }
+            } elseif (preg_match('/^\{([^}]+)\}$/', $seg)) {
+                // Required param — always present
+                preg_match('/^\{([^}]+)\}$/', $seg, $m);
+                if (array_key_exists($m[1], $allParams)) {
+                    $matched[$m[1]] = $allParams[$m[1]];
+                }
+                $urlIdx++;
+            } else {
+                $urlIdx++;
+            }
+        }
+
+        return $matched;
     }
 }

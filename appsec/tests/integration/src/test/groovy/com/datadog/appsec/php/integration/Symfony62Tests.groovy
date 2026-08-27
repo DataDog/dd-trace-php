@@ -186,6 +186,8 @@ class Symfony62Tests {
             assert re.body().contains('are_endpoints_collected: false')
         }
     }
+
+    @Test
     @Order(3)
     void 'Endpoints are collected after the first request to framework'() {
         HttpRequest req = container.buildReq('/outside_of_framework.php').GET().build()
@@ -194,6 +196,8 @@ class Symfony62Tests {
             assert re.body().contains('are_endpoints_collected: true')
         }
     }
+
+    @Test
     @Order(2)
     void 'Endpoints are sent'() {
         def trace = container.traceFromRequest('/') { HttpResponse<InputStream> resp ->
@@ -209,12 +213,27 @@ class Symfony62Tests {
             endpoints.size() > 0
         })
 
-        assert endpoints.size() == 6
+        assert endpoints.size() == 7
         assert endpoints.find { it.path == '/' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /' } != null
         assert endpoints.find { it.path == '/dynamic-path/{param01}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /dynamic-path/{param01}' } != null
         assert endpoints.find { it.path == '/login' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /login' } != null
         assert endpoints.find { it.path == '/_error/{code}.{_format}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /_error/{code}.{_format}' } != null
         assert endpoints.find { it.path == '/register' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /register' } != null
         assert endpoints.find { it.path == '/caminho-dinamico/{param01}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /caminho-dinamico/{param01}' } != null
+        assert endpoints.find { it.path == '/article/{slug}.{_format}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /article/{slug}.{_format}' } != null
+    }
+
+    @Test
+    @Order(11)
+    void 'mixed segment route normalizes both params into one brace group'() {
+        HttpRequest req = container.buildReq('/article/my-post.html').GET().build()
+        Trace trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 200
+            assert re.body() == 'my-post.html'
+        }
+
+        Span span = trace.first()
+        assert span.meta.'http.route' == '/article/{slug}.{_format}'
+        assert span.meta.'_dd.appsec.normalized_route' == '/article/{slug+_format}'
     }
 }

@@ -9,26 +9,13 @@ class RouteNormalizer
      * Normalize a Laravel route URI.
      *
      * @param string $routeUri     URI from $route->uri(), e.g. "/users/{id}/{format?}"
-     * @param array  $matchedParams Parameters from $route->parameters(); used to resolve optionals
+     * @param array  $matchedParams Parameters from $route->parameters(); used to resolve optionals.
+     *                              Note: includes framework-injected defaults; caller must exclude them.
      * @return string|null
      */
     public static function normalizeFromLaravel(string $routeUri, array $matchedParams = [])
     {
         return self::normalizeBraceRoute($routeUri, $matchedParams);
-    }
-
-    /**
-     * Normalize a Slim route pattern.
-     *
-     * @param string      $pattern       Pattern from $route->getPattern(), e.g. "/users/{id:[0-9]+}"
-     * @param array       $matchedParams Matched params from $route->getArguments(); resolves optionals
-     * @param string|null $urlPath       Actual request path; used to resolve static-only optional
-     *                                   sections like [.json] that have no placeholder param
-     * @return string|null
-     */
-    public static function normalizeFromSlim(string $pattern, array $matchedParams = [], $urlPath = null)
-    {
-        return self::normalizeBraceRoute($pattern, $matchedParams, true, $urlPath);
     }
 
     /**
@@ -43,8 +30,9 @@ class RouteNormalizer
     {
         if ($matchedParams !== null) {
             // Mark params absent from the URL as optional so normalizeBraceSegment drops them.
+            // Use [^}?:]+ to match any param name including UTF-8 characters.
             $path = preg_replace_callback(
-                '/\{([a-zA-Z_][a-zA-Z0-9_]*)\}/',
+                '/\{([^}?:]+)\}/',
                 static function ($m) use ($matchedParams) {
                     return array_key_exists($m[1], $matchedParams) ? $m[0] : '{' . $m[1] . '?}';
                 },
@@ -72,76 +60,17 @@ class RouteNormalizer
     public static function normalizeFromLaminas(string $template, array $matchedParams = [], $urlPath = null)
     {
         $expanded = self::expandBracketOptionals($template, $matchedParams, ':', $urlPath);
-        $expanded = preg_replace('#/\*$#', '/{param1}', $expanded);
+
+        // Replace wildcard /* with a param name that doesn't collide with existing params
+        if (preg_match('#/\*$#', $expanded)) {
+            $wildcardName = self::uniqueParamName($expanded, ':');
+            $expanded = preg_replace('#/\*$#', '/{' . $wildcardName . '}', $expanded);
+        }
+
         // Segment routes use :param; Regex routes use %param% (spec format) — handle both.
         $braceFormat = self::colonParamsToBraces($expanded);
         $braceFormat = self::percentParamsToBraces($braceFormat);
         return self::normalizeBraceRoute($braceFormat, $matchedParams);
-    }
-
-    /**
-     * Normalize a CakePHP route template.
-     *
-     * @param string $template Template from $app->template, e.g. "/articles/:id.:ext"
-     * @return string|null
-     */
-    public static function normalizeFromCakePHP(string $template)
-    {
-        $braceFormat = self::cakephpToBraces($template);
-        return self::normalizeBraceRoute($braceFormat, []);
-    }
-
-    /**
-     * Normalize a Yii route path containing :param placeholders.
-     *
-     * @param string $routePath Path from Url::toRoute() with colon placeholders
-     * @return string|null
-     */
-    public static function normalizeFromYii(string $routePath)
-    {
-        $braceFormat = self::colonParamsToBraces($routePath);
-        return self::normalizeBraceRoute($braceFormat, []);
-    }
-
-    /**
-     * Normalize a CodeIgniter V2 route pattern.
-     *
-     * CodeIgniter uses :any / :num wildcards and positional regex groups.
-     * Named parameters are not available, so placeholders param1, param2, … are used.
-     *
-     * @param string $route Route key from $router->routes, e.g. "blog/(:num)"
-     * @return string|null
-     */
-    public static function normalizeFromCodeIgniter(string $route)
-    {
-        $route = trim($route, '/');
-        if ($route === '') {
-            return '/';
-        }
-
-        $segments = explode('/', $route);
-        $normalizedSegments = [];
-        $paramIndex = 1;
-
-        foreach ($segments as $segment) {
-            if ($segment === '') {
-                continue;
-            }
-
-            $lower = strtolower($segment);
-            if (
-                $lower === ':any' || $lower === ':num' ||
-                $lower === '(:any)' || $lower === '(:num)'
-            ) {
-                $normalizedSegments[] = '{param' . $paramIndex++ . '}';
-            } elseif (preg_match('/[()[\].*+?|^$\\\\]/', $segment) || strpos($segment, ':') !== false) {
-                $normalizedSegments[] = '{param' . $paramIndex++ . '}';
-            } else {
-                $normalizedSegments[] = self::encodeStaticSegment($segment);
-            }
-        }
-
-        return '/' . implode('/', $normalizedSegments);
     }
 
     /**
@@ -194,7 +123,18 @@ class RouteNormalizer
             }
 
             if (preg_match('/[()[\].*+?|^${}\\\\]/', $segment)) {
-                $groupCount = self::countCaptureGroups($segment);
+                // Extract static prefix before the first regex metacharacter
+                $prefixLen = strcspn($segment, '([{?*+|^$\\');
+                if ($prefixLen > 0) {
+                    $staticPart = rtrim(substr($segment, 0, $prefixLen), '/-._');
+                    if ($staticPart !== '') {
+                        $normalizedSegments[] = self::encodeStaticSegment($staticPart);
+                    }
+                }
+
+                $dynamicPart = substr($segment, $prefixLen);
+                $groupCount = self::countCaptureGroups($dynamicPart);
+
                 if ($groupCount === 0) {
                     if ($matchedGroupCount !== null && $paramIndex > $matchedGroupCount) {
                         continue;
@@ -221,8 +161,8 @@ class RouteNormalizer
     }
 
     /**
-     * Split a regex string by '/' but not inside character classes [...].
-     * Prevents [^/] from being split into two segments.
+     * Split a regex string by '/' but not inside character classes [...] or groups (...).
+     * Prevents [^/] and (?:/...) from being split into multiple segments.
      */
     private static function splitRegexBySlash(string $str): array
     {
@@ -230,6 +170,7 @@ class RouteNormalizer
         $current = '';
         $len = strlen($str);
         $bracketDepth = 0;
+        $parenDepth = 0;
 
         for ($i = 0; $i < $len; $i++) {
             $c = $str[$i];
@@ -240,13 +181,19 @@ class RouteNormalizer
                 continue;
             }
 
-            if ($c === '[') {
+            if ($c === '[' && $parenDepth === 0) {
                 $bracketDepth++;
                 $current .= $c;
             } elseif ($c === ']' && $bracketDepth > 0) {
                 $bracketDepth--;
                 $current .= $c;
-            } elseif ($c === '/' && $bracketDepth === 0) {
+            } elseif ($c === '(' && $bracketDepth === 0) {
+                $parenDepth++;
+                $current .= $c;
+            } elseif ($c === ')' && $parenDepth > 0 && $bracketDepth === 0) {
+                $parenDepth--;
+                $current .= $c;
+            } elseif ($c === '/' && $bracketDepth === 0 && $parenDepth === 0) {
                 $segments[] = $current;
                 $current = '';
             } else {
@@ -291,15 +238,10 @@ class RouteNormalizer
 
     /**
      * Normalize a route that uses {param} notation.
-     *
-     * @param bool        $expandSquare When true, expand Slim-style [...] optional sections
-     * @param string|null $urlPath      Actual request path; forwarded to expandSquareBracketOptionals
      */
     private static function normalizeBraceRoute(
         string $route,
-        array $matchedParams,
-        bool $expandSquare = false,
-        $urlPath = null
+        array $matchedParams
     ) {
         $route = trim($route);
         if ($route === '' || $route === '/') {
@@ -313,14 +255,10 @@ class RouteNormalizer
             $route = '/' . $route;
         }
 
-        if ($expandSquare) {
-            $route = self::expandSquareBracketOptionals($route, $matchedParams, $urlPath);
-        }
-
         // Strip inline constraints (e.g. Slim's {name:[^/]+} → {name}) before
         // splitting so that a '/' inside a constraint does not break the segment
         // split. The optional marker '?' is preserved: {name?:[0-9]+} → {name?}.
-        $route = preg_replace('/\{([a-zA-Z_][a-zA-Z0-9_]*(\?)?):([^}]*)\}/', '{$1}', $route);
+        $route = preg_replace('/\{([^}?:]+(\?)?):([^}]*)\}/', '{$1}', $route);
 
         $raw = ltrim($route, '/');
         $parts = explode('/', $raw);
@@ -346,6 +284,7 @@ class RouteNormalizer
      * Normalize a single URL segment that may contain {param} placeholders.
      *
      * @return string|null The normalized element, or null if the segment is optional and absent
+     *                     with no remaining static text
      */
     private static function normalizeBraceSegment(string $segment, array $matchedParams)
     {
@@ -379,6 +318,13 @@ class RouteNormalizer
         }
 
         if (empty($paramNames)) {
+            // All params were optional and absent.
+            // Preserve any static text remaining in the segment (e.g. "search.{_format?}" → "search").
+            $staticOnly = preg_replace('/\{[^}]+\}/', '', $segment);
+            $staticOnly = trim($staticOnly, '.-_~');
+            if ($staticOnly !== '') {
+                return self::encodeStaticSegment($staticOnly);
+            }
             return null;
         }
 
@@ -390,54 +336,15 @@ class RouteNormalizer
     }
 
     /**
-     * Expand Slim-style optional sections [...] based on matched params.
-     *
-     * For sections that contain no placeholder (e.g. [.json]), $urlPath is used
-     * to decide whether the literal text was part of the request; without it the
-     * section is always kept (backward-compatible behaviour).
-     */
-    private static function expandSquareBracketOptionals(string $route, array $matchedParams, $urlPath = null): string
-    {
-        $prev = null;
-        while ($prev !== $route) {
-            $prev = $route;
-            $route = preg_replace_callback(
-                '/\[([^\[\]]*)\]/',
-                function ($m) use ($matchedParams, $urlPath) {
-                    $inner = $m[1];
-                    preg_match_all('/\{([^}?:]+)[?:]?[^}]*\}/', $inner, $pm);
-                    $innerParams = $pm[1];
-
-                    if (empty($innerParams)) {
-                        // Static-only section (e.g. [.json]): include only when the
-                        // literal text actually appears in the request path.
-                        if ($urlPath !== null) {
-                            return strpos($urlPath, $inner) !== false ? $inner : '';
-                        }
-                        return $inner;
-                    }
-
-                    foreach ($innerParams as $param) {
-                        if (array_key_exists($param, $matchedParams)) {
-                            return $inner;
-                        }
-                    }
-
-                    return '';
-                },
-                $route
-            );
-        }
-        return $route;
-    }
-
-    /**
      * Expand Laminas [...] optional sections based on matched params.
      *
      * When $urlPath is provided, an optional section is only expanded if the
      * section text with param values substituted is a substring of $urlPath.
      * This prevents middleware-injected params from incorrectly triggering
      * expansion of sections absent from the URL.
+     *
+     * For static-only optional sections (no params), the URL path is also checked
+     * to determine whether the literal text appeared in the request.
      */
     private static function expandBracketOptionals(
         string $template,
@@ -452,9 +359,18 @@ class RouteNormalizer
                 '/\[([^\[\]]*)\]/',
                 function ($m) use ($matchedParams, $paramPrefix, $urlPath) {
                     $inner = $m[1];
-                    $pattern = '/' . preg_quote($paramPrefix, '/') . '([a-zA-Z_][a-zA-Z0-9_]*)/';
+                    $pattern = '/' . preg_quote($paramPrefix, '/') . '([a-zA-Z_][a-zA-Z0-9_-]*)/';
                     preg_match_all($pattern, $inner, $pm);
                     $innerParams = $pm[1];
+
+                    if (empty($innerParams)) {
+                        // Static-only optional section (e.g. [/draft]):
+                        // only expand when the literal text appears in the URL.
+                        if ($urlPath !== null) {
+                            return (strpos($urlPath, $inner) !== false) ? $inner : '';
+                        }
+                        return $inner;
+                    }
 
                     // All params in the section must be present in matched params.
                     foreach ($innerParams as $param) {
@@ -463,21 +379,27 @@ class RouteNormalizer
                         }
                     }
 
-                    if ($urlPath !== null && !empty($innerParams)) {
+                    if ($urlPath !== null) {
                         // Substitute every param value before checking the URL so that
                         // multi-param sections like [/:year/:month] are found correctly.
                         $innerWithValues = $inner;
                         foreach ($innerParams as $param) {
                             $value = (string)$matchedParams[$param];
-                            $innerWithValues = preg_replace(
-                                '/' . preg_quote($paramPrefix . $param, '/') . '/',
-                                $value,
-                                $innerWithValues
-                            );
+                            $innerWithValues = str_replace($paramPrefix . $param, $value, $innerWithValues);
                         }
-                        if (strpos($urlPath, $innerWithValues) === false) {
-                            return '';
+                        if (strpos($urlPath, $innerWithValues) !== false) {
+                            return $inner;
                         }
+                        // Try percent-encoded values (Laminas URL-decodes param values)
+                        $innerEncoded = $inner;
+                        foreach ($innerParams as $param) {
+                            $value = rawurlencode((string)$matchedParams[$param]);
+                            $innerEncoded = str_replace($paramPrefix . $param, $value, $innerEncoded);
+                        }
+                        if (strpos($urlPath, $innerEncoded) !== false) {
+                            return $inner;
+                        }
+                        return '';
                     }
 
                     return $inner;
@@ -491,11 +413,12 @@ class RouteNormalizer
     /**
      * Convert ":paramName" colon-prefix notation to "{paramName}" brace notation.
      * Laminas segment constraints like ":param{constraint}" are also handled.
+     * Hyphenated param names like ":user-id" are supported.
      */
     private static function colonParamsToBraces(string $template): string
     {
         return preg_replace_callback(
-            '/:([a-zA-Z_][a-zA-Z0-9_]*)(?:\{[^}]*\})?/',
+            '/:([a-zA-Z_][a-zA-Z0-9_-]*)(?:\{[^}]*\})?/',
             static function ($m) {
                 return '{' . $m[1] . '}';
             },
@@ -513,21 +436,19 @@ class RouteNormalizer
     }
 
     /**
-     * Convert CakePHP route template syntax to brace notation.
+     * Find a param name of the form "paramN" that does not already appear in $template
+     * as either a colon-param (:paramN) or a brace-param ({paramN}).
      */
-    private static function cakephpToBraces(string $template): string
+    private static function uniqueParamName(string $template, string $paramPrefix = ':'): string
     {
-        $result = preg_replace('#/\*\*#', '/{catchall}', $template);
-        $result = preg_replace('#/\*(?!\*)#', '/{catchall}', $result);
-        $result = preg_replace('#(?<![\/\*])\*(?![\/\*])#', '{catchall}', $result);
-
-        return preg_replace_callback(
-            '/:([a-zA-Z_][a-zA-Z0-9_]*)/',
-            static function ($m) {
-                return '{' . $m[1] . '}';
-            },
-            $result
-        );
+        $i = 1;
+        while (
+            strpos($template, $paramPrefix . 'param' . $i) !== false ||
+            strpos($template, '{param' . $i . '}') !== false
+        ) {
+            $i++;
+        }
+        return 'param' . $i;
     }
 
     /**
@@ -580,5 +501,63 @@ class RouteNormalizer
             }
         }
         return $result;
+    }
+
+    /**
+     * Infer which Symfony route parameters were actually present in the URL path
+     * (vs. injected as route defaults).
+     *
+     * Handles three kinds of template segments:
+     *  - Whole-segment param:  {id}           → matched if URL has a segment at that position
+     *  - Mixed segment:        {id}.{_format} → matched if URL segment matches template regex
+     *  - Static segment:       users          → no params extracted
+     *
+     * UTF-8 parameter names are supported.
+     */
+    public static function inferSymfonyRouteParams(string $template, string $urlPath): array
+    {
+        $templateSegments = array_values(array_filter(explode('/', $template)));
+        $urlSegments      = array_values(array_filter(explode('/', $urlPath)));
+
+        $matched = [];
+        $urlIdx  = 0;
+
+        foreach ($templateSegments as $seg) {
+            if (preg_match('/^\{([^}?:]+)\}$/', $seg, $m)) {
+                // Whole-segment param — present if there is a URL segment at this position
+                if ($urlIdx < count($urlSegments)) {
+                    $matched[$m[1]] = $urlSegments[$urlIdx];
+                }
+                $urlIdx++;
+            } elseif (preg_match('/\{/', $seg)) {
+                // Mixed segment (static text + one or more params): determine presence by
+                // trying to match the URL segment against the template pattern.
+                if ($urlIdx < count($urlSegments)) {
+                    preg_match_all('/\{([^}?:]+)\}/', $seg, $pm);
+                    $paramNames = $pm[1];
+                    if (!empty($paramNames)) {
+                        // Build a lightweight regex from the template segment
+                        $staticParts = preg_split('/\{[^}]+\}/', $seg);
+                        $regexParts  = array_map(
+                            static function ($p) { return preg_quote($p, '/'); },
+                            $staticParts
+                        );
+                        $segRegex = '/^' . implode('(.+)', $regexParts) . '$/';
+                        if (@preg_match($segRegex, $urlSegments[$urlIdx])) {
+                            foreach ($paramNames as $p) {
+                                $matched[$p] = true;
+                            }
+                        }
+                        // else: URL segment doesn't contain the dynamic part → params absent
+                    }
+                }
+                $urlIdx++;
+            } else {
+                // Pure static segment — advance URL position
+                $urlIdx++;
+            }
+        }
+
+        return $matched;
     }
 }
