@@ -180,6 +180,83 @@ return [
                     ],
                 ],
             ],
+            'regex_optional_format' => [
+                'type' => Regex::class,
+                'options' => [
+                    'regex' => '/normalized-regex/(?P<id>[a-z]+)(?:\.(?P<format>[a-z]+))?',
+                    'spec' => '/normalized-regex/%id%.%format%',
+                    'defaults' => [
+                        'controller' => DynamicPathController::class,
+                        'action' => 'index',
+                        'format' => 'html',
+                    ],
+                ],
+            ],
+            'normalized_encoded_optional' => [
+                'type' => Segment::class,
+                'options' => [
+                    'route' => '/normalized-encoded[/:slug]',
+                    'constraints' => [
+                        'slug' => '.+',
+                    ],
+                    'defaults' => [
+                        'controller' => DynamicPathController::class,
+                        'action' => 'index',
+                    ],
+                ],
+            ],
+            'normalized_static_optional' => [
+                'type' => Segment::class,
+                'options' => [
+                    'route' => '/normalized-static[/draft]',
+                    'defaults' => [
+                        'controller' => DynamicPathController::class,
+                        'action' => 'index',
+                    ],
+                ],
+            ],
+            'normalized_hyphenated_name' => [
+                'type' => Segment::class,
+                'options' => [
+                    'route' => '/normalized-name/:user-id',
+                    'constraints' => [
+                        'user-id' => '[a-z]+',
+                    ],
+                    'defaults' => [
+                        'controller' => DynamicPathController::class,
+                        'action' => 'index',
+                    ],
+                ],
+            ],
+            'normalized_wildcard_collision' => [
+                'type' => Segment::class,
+                'options' => [
+                    'route' => '/normalized-wildcard/:param1',
+                    'defaults' => [
+                        'controller' => DynamicPathController::class,
+                        'action' => 'index',
+                    ],
+                ],
+                'may_terminate' => false,
+                'child_routes' => [
+                    'tail' => [
+                        'type' => Wildcard::class,
+                        'options' => [
+                            'defaults' => [],
+                        ],
+                    ],
+                ],
+            ],
+            'normalized_translated_literal' => [
+                'type' => Segment::class,
+                'options' => [
+                    'route' => '/normalized/{translated_page}',
+                    'defaults' => [
+                        'controller' => DynamicPathController::class,
+                        'action' => 'index',
+                    ],
+                ],
+            ],
             'scheme_http_gate' => [
                 'type' => Scheme::class,
                 'options' => [
@@ -228,19 +305,7 @@ return [
                     ],
                 ],
             ],
-            'user_by_id' => [
-                'type' => Segment::class,
-                'options' => [
-                    'route' => '/user/:user-id',
-                    'constraints' => [
-                        'user-id' => '[0-9]+',
-                    ],
-                    'defaults' => [
-                        'controller' => DynamicPathController::class,
-                        'action' => 'index',
-                    ],
-                ],
-            ],
+
             'wildcard_keys' => [
                 'type' => Literal::class,
                 'options' => [
