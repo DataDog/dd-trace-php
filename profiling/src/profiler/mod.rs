@@ -13,22 +13,22 @@ use thread_utils::get_current_thread_name;
 use uploader::*;
 
 #[cfg(all(php_has_fibers, not(test)))]
-use crate::bindings::ddog_php_prof_get_active_fiber;
+use crate::profiling::bindings::ddog_php_prof_get_active_fiber;
 #[cfg(all(php_has_fibers, test))]
-use crate::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_active_fiber;
+use crate::profiling::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_active_fiber;
 
-use crate::allocation::ALLOCATION_PROFILING_INTERVAL;
+use crate::profiling::allocation::ALLOCATION_PROFILING_INTERVAL;
 #[cfg(not(target_os = "linux"))]
-use crate::bindings::datadog_php_profiling_get_profiling_context;
-use crate::bindings::{
+use crate::profiling::bindings::datadog_php_profiling_get_profiling_context;
+use crate::profiling::bindings::{
     datadog_php_profiling_get_process_tags_serialized, zai_str_from_zstr, zend_execute_data,
 };
-use crate::config::SystemSettings;
-use crate::exception::EXCEPTION_PROFILING_INTERVAL;
+use crate::profiling::config::SystemSettings;
+use crate::profiling::exception::EXCEPTION_PROFILING_INTERVAL;
 #[cfg(target_os = "linux")]
-use crate::process_context::{ProcessIdentityRef, ThreadContextRead};
-use crate::profile_tags::ProfileTags;
-use crate::{Clocks, RefCellExt, CLOCKS, GLOBAL_TAGS, REQUEST_LOCALS};
+use crate::profiling::process_context::{ProcessIdentityRef, ThreadContextRead};
+use crate::profiling::profile_tags::ProfileTags;
+use crate::profiling::{Clocks, RefCellExt, CLOCKS, GLOBAL_TAGS, REQUEST_LOCALS};
 use chrono::Utc;
 use core::mem::forget;
 use core::{ptr, str};
@@ -56,7 +56,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
     any(target_os = "linux", target_os = "macos"),
     feature = "io_profiling"
 ))]
-use crate::io::{
+use crate::profiling::io::{
     FILE_READ_SIZE_PROFILING_INTERVAL, FILE_READ_TIME_PROFILING_INTERVAL,
     FILE_WRITE_SIZE_PROFILING_INTERVAL, FILE_WRITE_TIME_PROFILING_INTERVAL,
     SOCKET_READ_SIZE_PROFILING_INTERVAL, SOCKET_READ_TIME_PROFILING_INTERVAL,
@@ -852,7 +852,7 @@ impl Profiler {
     /// Will initialize the `PROFILER` OnceLock and makes sure that only one thread will do so.
     pub fn init(system_settings: &SystemSettings) {
         #[cfg(target_os = "linux")]
-        crate::process_context::initialize();
+        crate::profiling::process_context::initialize();
 
         // SAFETY: the `get_or_init` access is a thread-safe API, and the
         // PROFILER is only being mutated in single-threaded phases such as
@@ -899,7 +899,8 @@ impl Profiler {
                 .map(|s| s.to_owned())
         };
         #[cfg(target_os = "linux")]
-        let process_tags = crate::process_context::process_tags().or_else(legacy_process_tags);
+        let process_tags =
+            crate::profiling::process_context::process_tags().or_else(legacy_process_tags);
         #[cfg(not(target_os = "linux"))]
         let process_tags = legacy_process_tags();
 
@@ -1793,11 +1794,12 @@ impl Profiler {
         let (git_tags, custom_tags, thread_context) = REQUEST_LOCALS.with_borrow(|locals| {
             let git_tags = locals.git_tags.as_ref().map(Arc::clone);
             let custom_tags = locals.custom_tags.as_ref().map(Arc::clone);
-            let thread_context = crate::process_context::thread_context(ProcessIdentityRef {
-                service: locals.identity.service.as_deref(),
-                env: locals.identity.env.as_deref().or(Some("none")),
-                version: locals.identity.version.as_deref(),
-            });
+            let thread_context =
+                crate::profiling::process_context::thread_context(ProcessIdentityRef {
+                    service: locals.identity.service.as_deref(),
+                    env: locals.identity.env.as_deref().or(Some("none")),
+                    version: locals.identity.version.as_deref(),
+                });
             (git_tags, custom_tags, thread_context)
         });
         #[cfg(target_os = "linux")]
@@ -1948,8 +1950,10 @@ pub struct JoinError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::SystemSettingsState;
-    use crate::{allocation::DEFAULT_ALLOCATION_SAMPLING_INTERVAL, config::AgentEndpoint};
+    use crate::profiling::config::SystemSettingsState;
+    use crate::profiling::{
+        allocation::DEFAULT_ALLOCATION_SAMPLING_INTERVAL, config::AgentEndpoint,
+    };
     use http::Uri;
     use log::LevelFilter;
 

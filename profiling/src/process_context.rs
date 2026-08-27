@@ -7,7 +7,8 @@ pub(crate) struct ThreadContext {
     pub(crate) local_root_span_id: u64,
     pub(crate) span_id: u64,
     pub(crate) thread_id: Option<i64>,
-    pub(crate) unified_service_tags: std::sync::Arc<crate::profile_tags::UnifiedServiceTagSegment>,
+    pub(crate) unified_service_tags:
+        std::sync::Arc<crate::profiling::profile_tags::UnifiedServiceTagSegment>,
 }
 
 #[derive(Debug, Default)]
@@ -28,7 +29,7 @@ pub(crate) struct ProcessIdentityRef<'a> {
 #[cfg(target_os = "linux")]
 pub(crate) enum ThreadContextRead {
     /// No valid OTel Thread Context is currently attached.
-    Inactive(std::sync::Arc<crate::profile_tags::UnifiedServiceTagSegment>),
+    Inactive(std::sync::Arc<crate::profiling::profile_tags::UnifiedServiceTagSegment>),
     Active(ThreadContext),
 }
 

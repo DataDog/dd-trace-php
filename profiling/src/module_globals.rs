@@ -1,4 +1,4 @@
-use crate::allocation;
+use crate::profiling::allocation;
 use core::cell::{Cell, UnsafeCell};
 use core::ffi::c_void;
 use core::mem::MaybeUninit;
@@ -6,14 +6,14 @@ use core::ptr;
 use core::sync::atomic::AtomicU32;
 
 #[cfg(target_os = "linux")]
-use crate::process_context::ProcessContextCache;
+use crate::profiling::process_context::ProcessContextCache;
 #[cfg(target_os = "linux")]
 use core::cell::RefCell;
 
 #[cfg(php_zend_mm_set_custom_handlers_ex)]
-use crate::allocation::allocation_ge84::ZendMMState;
+use crate::profiling::allocation::allocation_ge84::ZendMMState;
 #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
-use crate::allocation::allocation_le83::ZendMMState;
+use crate::profiling::allocation::allocation_le83::ZendMMState;
 
 #[repr(C)]
 pub struct ProfilerGlobals {
@@ -127,7 +127,7 @@ pub unsafe fn get_profiler_globals() -> *mut ProfilerGlobals {
 #[export_name = "ddog_php_prof_ginit"]
 pub unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
     #[cfg(php_zts)]
-    crate::timeline::timeline_ginit();
+    crate::profiling::timeline::timeline_ginit();
 
     // Initialize PHP globals for ZTS builds. For NTS builds, this was already
     // done in its const initializer.
@@ -153,7 +153,7 @@ pub unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
 #[export_name = "ddog_php_prof_gshutdown"]
 pub unsafe extern "C" fn gshutdown(_globals_ptr: *mut c_void) {
     #[cfg(php_zts)]
-    crate::timeline::timeline_gshutdown();
+    crate::profiling::timeline::timeline_gshutdown();
 
     #[cfg(target_os = "linux")]
     {
@@ -175,8 +175,9 @@ pub unsafe extern "C" fn gshutdown(_globals_ptr: *mut c_void) {
 mod test_symbols {
     #[cfg(not(php_zts))]
     #[export_name = "compiler_globals"]
-    static mut TEST_COMPILER_GLOBALS: core::mem::MaybeUninit<crate::zend::zend_compiler_globals> =
-        core::mem::MaybeUninit::zeroed();
+    static mut TEST_COMPILER_GLOBALS: core::mem::MaybeUninit<
+        crate::profiling::zend::zend_compiler_globals,
+    > = core::mem::MaybeUninit::zeroed();
 
     #[cfg(php_zts)]
     #[no_mangle]

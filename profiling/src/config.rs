@@ -1,13 +1,13 @@
-use crate::bindings::zai_config_type::*;
-use crate::bindings::{
+use crate::profiling::bindings::zai_config_type::*;
+use crate::profiling::bindings::{
     datadog_php_profiling_copy_string_view_into_zval, ddog_php_prof_config_is_set_by_user,
     ddog_php_prof_get_memoized_config, zai_config_entry, zai_config_get_value, zai_config_minit,
     zai_config_name, zai_config_system_ini_change, zend_ini_entry, zend_long, zend_string,
     zend_write, zval, StringError, ZaiStr, IS_FALSE, IS_LONG, IS_TRUE, ZAI_CONFIG_NAME_BUFSIZ,
     ZEND_INI_DISPLAY_ORIG,
 };
-use crate::zend::zai_str_from_zstr;
-use crate::{allocation, bindings};
+use crate::profiling::zend::zai_str_from_zstr;
+use crate::profiling::{allocation, bindings};
 use core::fmt::{Display, Formatter};
 use core::mem::transmute;
 use core::ptr;
@@ -1070,7 +1070,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     id: transmute::<ConfigId, u16>(ProfilingAllocationSamplingDistance),
                     name: ProfilingAllocationSamplingDistance.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_CUSTOM,
-                    default_encoded_value: ZaiStr::literal(b"4194304\0"), // crate::allocation::DEFAULT_ALLOCATION_SAMPLING_INTERVAL
+                    default_encoded_value: ZaiStr::literal(b"4194304\0"), // crate::profiling::allocation::DEFAULT_ALLOCATION_SAMPLING_INTERVAL
                     aliases: ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
@@ -1325,7 +1325,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
         #[cfg(debug_assertions)]
         log::set_max_level(system_settings.profiling_log_level);
         #[cfg(not(debug_assertions))]
-        crate::logging::log_init(system_settings.profiling_log_level);
+        crate::profiling::logging::log_init(system_settings.profiling_log_level);
 
         SystemSettings::log_state(
             (*ptr::addr_of!(SYSTEM_SETTINGS)).state,

@@ -1,7 +1,7 @@
-use crate::allocation::{collect_allocation, untrack_allocation};
-use crate::bindings as zend;
-use crate::module_globals::{self, ProfilerGlobals};
-use crate::PROFILER_NAME;
+use crate::profiling::allocation::{collect_allocation, untrack_allocation};
+use crate::profiling::bindings as zend;
+use crate::profiling::module_globals::{self, ProfilerGlobals};
+use crate::profiling::PROFILER_NAME;
 use core::ptr;
 use libc::{c_char, c_int, c_void, size_t};
 use log::{debug, trace, warn};
@@ -9,13 +9,13 @@ use std::sync::atomic::Ordering::Relaxed;
 use std::sync::LazyLock;
 
 #[cfg(php_zts)]
-use crate::allocation::current_execute_data_from_cache;
+use crate::profiling::allocation::current_execute_data_from_cache;
 
 #[cfg(php_debug)]
 use libc::c_uint;
 
 #[cfg(feature = "debug_stats")]
-use crate::allocation::{ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE};
+use crate::profiling::allocation::{ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE};
 
 #[derive(Copy, Clone)]
 pub struct ZendMMState {
@@ -86,7 +86,7 @@ pub fn alloc_prof_ginit() {
 
 pub fn first_rinit_should_disable_due_to_jit() -> bool {
     NEEDS_RUN_TIME_CHECK_FOR_ENABLED_JIT
-        && alloc_prof_needs_disabled_for_jit(crate::RUNTIME_PHP_VERSION_ID.load(Relaxed))
+        && alloc_prof_needs_disabled_for_jit(crate::profiling::RUNTIME_PHP_VERSION_ID.load(Relaxed))
         && *JIT_ENABLED
 }
 

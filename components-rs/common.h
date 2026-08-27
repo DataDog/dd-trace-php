@@ -490,6 +490,8 @@ typedef struct ddog_SidecarTransport ddog_SidecarTransport;
  */
 typedef struct ddog_SpanConcentrator ddog_SpanConcentrator;
 
+typedef struct _zend_string *ddog_OwnedZendString;
+
 typedef struct ddog_FfeResult {
   _zend_string * value_json;
   _zend_string * variant;
@@ -537,8 +539,6 @@ typedef struct ddog_Tag {
   ddog_CharSlice name;
   const struct ddog_DslString *value;
 } ddog_Tag;
-
-typedef struct _zend_string *ddog_OwnedZendString;
 
 typedef struct _zend_string *(*ddog_DynamicConfigUpdate)(ddog_CharSlice config,
                                                          ddog_OwnedZendString value,
@@ -800,6 +800,30 @@ typedef const char *(*ddog_RootTagLookupFn)(const void *ctx,
                                             uintptr_t *out_len);
 
 /**
+ * Holds the raw parts of a Rust Vec; it should only be created from Rust,
+ * never from C.
+ */
+typedef struct ddog_Vec_RemoteConfigProduct {
+  const enum ddog_RemoteConfigProduct *ptr;
+  uintptr_t len;
+  uintptr_t capacity;
+} ddog_Vec_RemoteConfigProduct;
+
+typedef struct ddog_Vec_RemoteConfigProduct ddog_VecRemoteConfigProduct;
+
+/**
+ * Holds the raw parts of a Rust Vec; it should only be created from Rust,
+ * never from C.
+ */
+typedef struct ddog_Vec_RemoteConfigCapabilities {
+  const enum ddog_RemoteConfigCapabilities *ptr;
+  uintptr_t len;
+  uintptr_t capacity;
+} ddog_Vec_RemoteConfigCapabilities;
+
+typedef struct ddog_Vec_RemoteConfigCapabilities ddog_VecRemoteConfigCapabilities;
+
+/**
  * A 128-bit (16 byte) buffer containing the UUID.
  *
  * # ABI
@@ -905,30 +929,6 @@ typedef uint8_t ddog_Bytes[16];
  * The `Uuid` type is always guaranteed to be have the same ABI as [`Bytes`].
  */
 typedef ddog_Bytes ddog_Uuid;
-
-/**
- * Holds the raw parts of a Rust Vec; it should only be created from Rust,
- * never from C.
- */
-typedef struct ddog_Vec_RemoteConfigProduct {
-  const enum ddog_RemoteConfigProduct *ptr;
-  uintptr_t len;
-  uintptr_t capacity;
-} ddog_Vec_RemoteConfigProduct;
-
-typedef struct ddog_Vec_RemoteConfigProduct ddog_VecRemoteConfigProduct;
-
-/**
- * Holds the raw parts of a Rust Vec; it should only be created from Rust,
- * never from C.
- */
-typedef struct ddog_Vec_RemoteConfigCapabilities {
-  const enum ddog_RemoteConfigCapabilities *ptr;
-  uintptr_t len;
-  uintptr_t capacity;
-} ddog_Vec_RemoteConfigCapabilities;
-
-typedef struct ddog_Vec_RemoteConfigCapabilities ddog_VecRemoteConfigCapabilities;
 
 #define ddog_DYANMIC_CONFIG_UPDATE_UNMODIFIED (_zend_string*)1
 

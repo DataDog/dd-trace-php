@@ -77,6 +77,8 @@ ${changelog}
             <file name="config.w32" role="src" />
             <file name="datadog-linux.sym" role="src" />
             <file name="datadog.sym" role="src" />
+            <file name="datadog-common-linux.sym" role="src" />
+            <file name="datadog-common.sym" role="src" />
             <file name="compile_rust.sh" role="src" />
             <file name="VERSION" role="src" />
 

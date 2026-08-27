@@ -20,7 +20,7 @@ TEA_BENCHMARK_FORMAT ?= json
 TEA_BENCHMARK_OUTPUT ?= $(PROJECT_ROOT)/tea/benchmarks/reports/tracer-tea-bench-results.$(TEA_BENCHMARK_FORMAT)
 BENCHMARK_EXTRA ?=
 COMPONENTS_BUILD_DIR = $(PROJECT_ROOT)/tmp/build_components
-SO_FILE = $(BUILD_DIR)/modules/ddtrace.so
+SO_FILE = $(BUILD_DIR)/modules/$(if $(PROFILING),datadog-profiling,ddtrace).so
 AR_FILE = $(BUILD_DIR)/modules/ddtrace.a
 WALL_FLAGS = -Wall -Wextra
 CFLAGS ?= $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo -O0 || echo -O2) -g $(WALL_FLAGS)
@@ -48,7 +48,7 @@ RUN_TESTS_CMD := DD_SERVICE= DD_ENV= REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJ
 
 C_FILES = $(shell find components components-rs ext src/dogstatsd tracer zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES = $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name '*.yaml' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-RUST_FILES = $(BUILD_DIR)/Cargo.toml $(BUILD_DIR)/Cargo.lock $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{build-common,libdd-ffe,libdd-ipc,libdd-ipc-macros,datadog-live-debugger,datadog-live-debugger-ffi,libdd-remote-config,datadog-sidecar,datadog-sidecar-ffi,datadog-sidecar-macros,libdd-alloc,libdd-capabilities,libdd-capabilities-impl,libdd-common,libdd-common-ffi,libdd-crashtracker,libdd-crashtracker-ffi,libdd-data-pipeline,libdd-ddsketch,libdd-dogstatsd-client,libdd-gotter,libdd-library-config,libdd-library-config-ffi,libdd-log,libdd-otel-thread-ctx,libdd-shared-runtime,libdd-telemetry,libdd-telemetry-ffi,libdd-tinybytes,libdd-trace-*,spawn_worker,tools/{cc_utils,sidecar_mockgen},libdd-trace-*,Cargo.toml} \( -type l -o -type f \) \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/libdd-ipc/build.rs" -not -path "*/datadog-sidecar-ffi/build.rs")
+RUST_FILES = $(BUILD_DIR)/Cargo.toml $(BUILD_DIR)/Cargo.lock $(shell find components-rs profiling -name '*.c' -o -name '*.h' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find tracer -name '*.rs' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog \( -type l -o -type f \) \( -name '*.rs' -o -path '*/src*' -o -path '*/examples*' -o -name 'Cargo.toml' \) -not -path '*/target/*' -not -path '*/.git/*')
 ALL_OBJECT_FILES = $(C_FILES) $(RUST_FILES) $(BUILD_DIR)/Makefile
 TEST_OPCACHE_FILES = $(shell find tests/opcache -name '*.php*' -o -name '.gitkeep' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_STUB_FILES = $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
@@ -94,7 +94,7 @@ $(BUILD_DIR)/Cargo.toml: Cargo.toml
 	$(Q) echo Copying Cargo.toml to $@
 	$(Q) mkdir -p $(dir $@)
 	$(Q) cp -a Cargo.toml $@
-	$(SED_I) -E 's/, "profiling",?//' $@
+	$(SED_I) -E 's|path = "libdatadog/|path = "../../libdatadog/|g' $@
 
 $(BUILD_DIR)/%: %
 	$(Q) echo Copying $* to $@
@@ -106,7 +106,7 @@ JUNIT_RESULTS_DIR := $(shell pwd)
 
 all: $(BUILD_DIR)/configure $(SO_FILE)
 
-$(BUILD_DIR)/configure: $(M4_FILES) $(BUILD_DIR)/datadog.sym $(BUILD_DIR)/datadog-linux.sym $(BUILD_DIR)/VERSION
+$(BUILD_DIR)/configure: $(M4_FILES) $(BUILD_DIR)/datadog.sym $(BUILD_DIR)/datadog-linux.sym $(BUILD_DIR)/datadog-common.sym $(BUILD_DIR)/datadog-common-linux.sym $(BUILD_DIR)/VERSION
 	$(Q) (cd $(BUILD_DIR); phpize && $(SED_I) 's/\/FAILED/\/\\bFAILED/' $(BUILD_DIR)/run-tests.php) # Fix PHP 5.4 exit code bug when running selected tests (FAILED vs XFAILED)
 
 $(BUILD_DIR)/run-tests.php: $(if $(ASSUME_COMPILED),, $(BUILD_DIR)/configure)
@@ -401,10 +401,10 @@ strict:
 	$(eval CFLAGS=-Wall -Werror -Wextra)
 
 compile_profiler:
-	(cd profiling; CARGO_TARGET_DIR=$(PROJECT_ROOT)/tmp/build_profiler cargo build --release --features trigger_time_sample)
+	DDTRACE_PROFILING_FEATURES=trigger_time_sample $(MAKE) BUILD_SUFFIX=profiler PROFILING=1 EXTRA_CONFIGURE_OPTIONS="--disable-ddtrace-tracer --enable-ddtrace-profiling" all
 
 install_profiler: compile_profiler
-	cp $(PROJECT_ROOT)/tmp/build_profiler/release/libdatadog_php_profiling.so $(PHP_EXTENSION_DIR)/datadog-profiling.so
+	cp $(PROJECT_ROOT)/tmp/build_profiler/modules/datadog-profiling.so $(PHP_EXTENSION_DIR)/datadog-profiling.so
 	$(Q) echo "extension=datadog-profiling.so" | $(SUDO) tee $(INI_DIR)/datadog-profiling.ini
 
 clang_find_files_to_lint:
