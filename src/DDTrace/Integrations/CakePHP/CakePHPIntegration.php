@@ -71,20 +71,7 @@ class CakePHPIntegration extends Integration
 
             $rootSpan = \DDTrace\root_span();
             if ($rootSpan !== null) {
-                $template = $app->template;
-                $rootSpan->meta[Tag::HTTP_ROUTE] = $template;
-                if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()) {
-                    $normalizedRoute = \DDTrace\routing_cache_get($template);
-                    if ($normalizedRoute === false) {
-                        $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromCakePHP($template);
-                        if ($normalizedRoute !== null) {
-                            \DDTrace\routing_cache_set($template, $normalizedRoute);
-                        }
-                    }
-                    if ($normalizedRoute !== null && $normalizedRoute !== false) {
-                        $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
-                    }
-                }
+                $rootSpan->meta[Tag::HTTP_ROUTE] = $app->template;
             }
         };
 

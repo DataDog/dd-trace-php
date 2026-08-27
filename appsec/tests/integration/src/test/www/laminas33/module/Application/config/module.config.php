@@ -228,6 +228,19 @@ return [
                     ],
                 ],
             ],
+            'user_by_id' => [
+                'type' => Segment::class,
+                'options' => [
+                    'route' => '/user/:user-id',
+                    'constraints' => [
+                        'user-id' => '[0-9]+',
+                    ],
+                    'defaults' => [
+                        'controller' => DynamicPathController::class,
+                        'action' => 'index',
+                    ],
+                ],
+            ],
             'wildcard_keys' => [
                 'type' => Literal::class,
                 'options' => [
