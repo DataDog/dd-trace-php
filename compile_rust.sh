@@ -1,5 +1,4 @@
 #!/bin/sh
-cd components-rs
 
 # These flags configure the PHP extension's C build. Letting them reach Cargo
 # also applies them to unrelated native dependencies compiled by build scripts.
@@ -34,9 +33,9 @@ if test -n "$COMPILE_ASAN"; then
 fi
 
 if test "${PROFILE:-debug}" = "debug"; then
-  set -- build "$@"
+  set -- build ${CARGO_FEATURES:---features tracer} "$@"
 else
-  set -- build --profile "$PROFILE" "$@"
+  set -- build ${CARGO_FEATURES:---features tracer} --profile "$PROFILE" "$@"
 fi
 
 case "${host_os}" in
@@ -47,7 +46,7 @@ case "${host_os}" in
     # options below. This does not affect non-musl builds.
     export RUSTC_BOOTSTRAP=1
     target=$("${RUSTC:-rustc}" -vV | sed -n 's/^host: //p')
-    artifact_dir="${CARGO_TARGET_DIR:-../target}/${PROFILE:-debug}"
+    artifact_dir="${CARGO_TARGET_DIR:-target}/${PROFILE:-debug}"
     set -- --config target-applies-to-host=false \
       --config 'host.rustflags=["-C", "target-feature=-crt-static"]' \
       "$@" -Zhost-config -Ztarget-applies-to-host -Zunstable-options \
@@ -59,4 +58,4 @@ if test -n "$RUST_TOOLCHAIN"; then
   set -- "+$RUST_TOOLCHAIN" "$@"
 fi
 
-SIDECAR_VERSION=$(cat ../VERSION) RUSTFLAGS="$RUSTFLAGS" "${DDTRACE_CARGO:-cargo}" "$@"
+SIDECAR_VERSION=$(cat VERSION) RUSTFLAGS="$RUSTFLAGS" "${DDTRACE_CARGO:-cargo}" "$@"

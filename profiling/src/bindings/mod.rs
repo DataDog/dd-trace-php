@@ -407,7 +407,7 @@ extern "C" {
     pub fn ddog_php_prof_is_post_startup() -> bool;
 }
 
-use crate::config::ConfigId;
+use crate::profiling::config::ConfigId;
 pub use zend_module_dep as ModuleDep;
 
 impl ModuleDep {

@@ -1,4 +1,8 @@
 ARG_ENABLE("ddtrace", "Datadog tracing support", "shared");
+ARG_ENABLE("ddtrace-profiling", "standalone Datadog profiler (unsupported on Windows)", "no");
+if (PHP_DDTRACE_PROFILING != 'no') {
+	ERROR('The standalone Datadog profiler is not supported on Windows');
+}
 var ddtrace_cargo_profile = "debug";
 
 if (PHP_DDTRACE != 'no') {
@@ -166,13 +170,15 @@ if (PHP_DDTRACE != 'no') {
 	var rust_files = recursivelySearchRustFiles(configure_module_dirname + "/libdatadog")
 		.concat(recursivelySearchRustFiles(configure_module_dirname + "/components-rs"))
 		.concat(recursivelySearchRustFiles(configure_module_dirname + "/sidecar"));
+	rust_files.push(condense_path(configure_module_dirname + "/Cargo.toml"));
+	rust_files.push(condense_path(configure_module_dirname + "/Cargo.lock"));
 
-	var cargo_lib = "$(BUILD_DIR)/target/" + ddtrace_cargo_profile + "/datadog_php.lib";
+	var cargo_lib = "$(BUILD_DIR)/target-common/" + ddtrace_cargo_profile + "/datadog_php.lib";
 
 	var fragment = configure_module_dirname + "/Makefile.frag.w32";
 	frag_out = FSO.CreateTextFile(fragment, true);
 
-	frag_out.WriteLine("CARGO_TARGET_DIR=$(BUILD_DIR)/target/");
+	frag_out.WriteLine("CARGO_TARGET_DIR=$(BUILD_DIR)/target-common/");
 	// Promote to env var
 	frag_out.WriteLine("!if [set CARGO_TARGET_DIR=$(CARGO_TARGET_DIR)]");
 	frag_out.WriteLine("!endif");

@@ -1,5 +1,6 @@
-use crate::config::SystemSettings;
-use crate::profiling::{SampleValues, ValueType};
+use crate::profiling::config::SystemSettings;
+use crate::profiling::profiler::{SampleValues, ValueType};
+use libdd_profiling::api::{SampleType as ApiSampleType, ValueType as ApiValueType};
 
 const MAX_SAMPLE_TYPES: usize = 25;
 
@@ -12,48 +13,52 @@ pub struct SampleTypeFilter {
 impl SampleTypeFilter {
     pub fn new(system_settings: &SystemSettings) -> Self {
         // Lay this out in the same order as SampleValues.
-        static SAMPLE_TYPES: &[ValueType; MAX_SAMPLE_TYPES] = &[
-            ValueType::new("sample", "count"),
-            ValueType::new("wall-time", "nanoseconds"),
-            ValueType::new("cpu-time", "nanoseconds"),
-            ValueType::new("alloc-samples", "count"),
-            ValueType::new("alloc-size", "bytes"),
-            ValueType::new("heap-live-samples", "count"),
-            ValueType::new("heap-live-size", "bytes"),
-            ValueType::new("timeline", "nanoseconds"),
-            ValueType::new("exception-samples", "count"),
-            ValueType::new("socket-read-time", "nanoseconds"),
-            ValueType::new("socket-read-time-samples", "count"),
-            ValueType::new("socket-write-time", "nanoseconds"),
-            ValueType::new("socket-write-time-samples", "count"),
-            ValueType::new("file-io-read-time", "nanoseconds"),
-            ValueType::new("file-io-read-time-samples", "count"),
-            ValueType::new("file-io-write-time", "nanoseconds"),
-            ValueType::new("file-io-write-time-samples", "count"),
-            ValueType::new("socket-read-size", "bytes"),
-            ValueType::new("socket-read-size-samples", "count"),
-            ValueType::new("socket-write-size", "bytes"),
-            ValueType::new("socket-write-size-samples", "count"),
-            ValueType::new("file-io-read-size", "bytes"),
-            ValueType::new("file-io-read-size-samples", "count"),
-            ValueType::new("file-io-write-size", "bytes"),
-            ValueType::new("file-io-write-size-samples", "count"),
+        static SAMPLE_TYPES: &[ApiSampleType; MAX_SAMPLE_TYPES] = &[
+            ApiSampleType::Sample,
+            ApiSampleType::WallTime,
+            ApiSampleType::CpuTime,
+            ApiSampleType::AllocSamples,
+            ApiSampleType::AllocSize,
+            ApiSampleType::HeapLiveSamples,
+            ApiSampleType::HeapLiveSize,
+            ApiSampleType::Timeline,
+            ApiSampleType::ExceptionSamples,
+            ApiSampleType::SocketReadTime,
+            ApiSampleType::SocketReadTimeSamples,
+            ApiSampleType::SocketWriteTime,
+            ApiSampleType::SocketWriteTimeSamples,
+            ApiSampleType::FileIoReadTime,
+            ApiSampleType::FileIoReadTimeSamples,
+            ApiSampleType::FileIoWriteTime,
+            ApiSampleType::FileIoWriteTimeSamples,
+            ApiSampleType::SocketReadSize,
+            ApiSampleType::SocketReadSizeSamples,
+            ApiSampleType::SocketWriteSize,
+            ApiSampleType::SocketWriteSizeSamples,
+            ApiSampleType::FileIoReadSize,
+            ApiSampleType::FileIoReadSizeSamples,
+            ApiSampleType::FileIoWriteSize,
+            ApiSampleType::FileIoWriteSizeSamples,
         ];
 
+        let all_sample_types: [ValueType; MAX_SAMPLE_TYPES] = std::array::from_fn(|i| {
+            let value_type: ApiValueType = SAMPLE_TYPES[i].into();
+            ValueType::new(value_type.r#type, value_type.unit)
+        });
         let mut sample_types = Vec::with_capacity(SAMPLE_TYPES.len());
         let mut sample_types_mask = [false; MAX_SAMPLE_TYPES];
 
         if system_settings.profiling_enabled {
             // sample, wall-time, cpu-time
             let len = 2 + system_settings.profiling_experimental_cpu_time_enabled as usize;
-            sample_types.extend_from_slice(&SAMPLE_TYPES[0..len]);
+            sample_types.extend_from_slice(&all_sample_types[0..len]);
             sample_types_mask[0] = true;
             sample_types_mask[1] = true;
             sample_types_mask[2] = system_settings.profiling_experimental_cpu_time_enabled;
 
             // alloc-samples, alloc-size
             if system_settings.profiling_allocation_enabled {
-                sample_types.extend_from_slice(&SAMPLE_TYPES[3..5]);
+                sample_types.extend_from_slice(&all_sample_types[3..5]);
                 sample_types_mask[3] = true;
                 sample_types_mask[4] = true;
             }
@@ -62,18 +67,18 @@ impl SampleTypeFilter {
             if system_settings.profiling_allocation_enabled
                 && system_settings.profiling_experimental_heap_live_enabled
             {
-                sample_types.extend_from_slice(&SAMPLE_TYPES[5..7]);
+                sample_types.extend_from_slice(&all_sample_types[5..7]);
                 sample_types_mask[5] = true;
                 sample_types_mask[6] = true;
             }
 
             if system_settings.profiling_timeline_enabled {
-                sample_types.push(SAMPLE_TYPES[7]);
+                sample_types.push(all_sample_types[7]);
                 sample_types_mask[7] = true;
             }
 
             if system_settings.profiling_exception_enabled {
-                sample_types.push(SAMPLE_TYPES[8]);
+                sample_types.push(all_sample_types[8]);
                 sample_types_mask[8] = true;
             }
 
@@ -81,7 +86,7 @@ impl SampleTypeFilter {
             if system_settings.profiling_io_enabled {
                 // I/O sample types are at indices 9..=24
                 for i in 9..=24 {
-                    sample_types.push(SAMPLE_TYPES[i]);
+                    sample_types.push(all_sample_types[i]);
                     sample_types_mask[i] = true;
                 }
             }
@@ -114,18 +119,18 @@ impl SampleTypeFilter {
             sample_values.socket_read_time_samples,
             sample_values.socket_write_time,
             sample_values.socket_write_time_samples,
-            sample_values.file_read_time,
-            sample_values.file_read_time_samples,
-            sample_values.file_write_time,
-            sample_values.file_write_time_samples,
+            sample_values.file_io_read_time,
+            sample_values.file_io_read_time_samples,
+            sample_values.file_io_write_time,
+            sample_values.file_io_write_time_samples,
             sample_values.socket_read_size,
             sample_values.socket_read_size_samples,
             sample_values.socket_write_size,
             sample_values.socket_write_size_samples,
-            sample_values.file_read_size,
-            sample_values.file_read_size_samples,
-            sample_values.file_write_size,
-            sample_values.file_write_size_samples,
+            sample_values.file_io_read_size,
+            sample_values.file_io_read_size_samples,
+            sample_values.file_io_write_size,
+            sample_values.file_io_write_size_samples,
         ];
 
         values
@@ -139,7 +144,7 @@ impl SampleTypeFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::profiling::tests::{get_samples, get_system_settings};
+    use crate::profiling::profiler::tests::{get_samples, get_system_settings};
 
     fn assert_filter(
         settings: &SystemSettings,

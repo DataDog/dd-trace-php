@@ -1,6 +1,14 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, SamplingMode};
-use datadog_php_profiling::bindings as zend;
-use datadog_php_profiling::profiling::stack_walking::collect_stack_sample;
+use datadog_php::profiling::bindings as zend;
+use datadog_php::profiling::profiler::stack_walking::collect_stack_sample;
+
+#[cfg(php_frameless)]
+#[no_mangle]
+static mut zend_flf_functions: *mut *mut zend::zend_function = std::ptr::null_mut();
+
+#[export_name = "sapi_module"]
+static mut TEST_SAPI_MODULE: std::mem::MaybeUninit<zend::sapi_module_struct> =
+    std::mem::MaybeUninit::zeroed();
 
 #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
 use criterion_perf_events::Perf;

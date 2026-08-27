@@ -26,8 +26,10 @@ the process.
 
 ## Compiling
 
-The command `cargo build` will run the [build.rs](build.rs) script, which is
-how it adapts to various PHP versions. The
+From the repository root, run `phpize`, then
+`./configure --disable-ddtrace-tracer --enable-ddtrace-profiling`, and `make`.
+This invokes the root Cargo package and its profiler build helper, which is how
+it adapts to various PHP versions. The
 [bindgen](https://crates.io/crates/bindgen) crate is used to generate Rust
 bindings to the Zend Engine. Although bindgen is pretty good, there are things
 like complex macro expansions which it doesn't understand, so there is a bit of
@@ -41,21 +43,22 @@ cases where they are ABI compatible.
 
 ## Testing
 
-The command `cargo test` will run the tests on the profiler. To also run the
-stack walking test run `cargo test --features stack_walking_tests`.
+From the repository root, `cargo test --no-default-features --features profiling,test`
+runs the Rust tests. To also run the stack walking tests, add the
+`stack_walking_tests` feature.
 
-To see if the profiler is recognised by your PHP version as an extension you
-may run `/path/to/php -d extension=target/debug/libdatadog_php_profiling.so
---ri datadog-profiling` and check the output.
+To see if the profiler is recognised by your PHP version as an extension, run
+`/path/to/php -d extension=modules/datadog-profiling.so --ri datadog-profiling`
+and check the output.
 
 The following command will help you run the [PHPT tests](tests/phpt):
 
 ```sh
-/path/to/php /path/to/run-tests.php -d extension=target/release/libdatadog_php_profiling.so -n tests/phpt
+/path/to/php /path/to/run-tests.php -d extension=modules/datadog-profiling.so -n profiling/tests/phpt
 ```
 
 Be aware that the PHPT tests will fail with the debug version of the profiler,
-if you haven't already, build the release version with `cargo build --release`.
+if you haven't already, build the release version through configure and make.
 Also the `run-tests.php` version has to match the PHP version used to run the
 tests.
 
@@ -63,20 +66,10 @@ tests.
 
 Benchmarks are implemented using
 [criterion](https://github.com/bheisler/criterion.rs). In order to execute them
-you need to change the `crate-type` in the `Cargo.toml` from `cdylib` to `rlib`
-(or add it):
-
-```diff
- [lib]
--crate-type = ["cdylib"]
-+crate-type = ["rlib"]
- bench = false # disables cargo build in libtest bench
-```
-
-After this change you can execute the benchmarks using:
+execute them from the repository root using:
 
 ```sh
-cargo bench --features stack_walking_tests
+cargo bench --no-default-features --features profiling,test,stack_walking_tests
 ```
 
 Note: the `--features stack_walking_tests` is necessary as some code in the
@@ -85,13 +78,8 @@ behind a feature flag.
 
 ## Troubleshooting
 
-#### ld: symbol(s) not found for architecture arm64
+#### Can't find the profiler library on macOS
 
-If your linker is not finding certain symbols, you might be missing your
-architecture in the [.cargo/config.toml](.cargo/config.toml) file. You should be able to
-fix this problem by adding your target as shown by `rustc -vV`.
-
-#### Can't find `libdatadog_php_profiling.so` on MacOS
-
-On MacOS the file extension being used is `.dylib` and not `.so`. The correct
-file path should be `target/release/libdatadog_php_profiling.dylib`.
+The supported PHP build copies the loadable extension to
+`modules/datadog-profiling.so`. Cargo's intermediate cdylib uses the native
+`.dylib` suffix and is stored under `target-profiling/<profile>/libdatadog_php.dylib`.

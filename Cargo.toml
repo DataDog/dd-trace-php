@@ -1,24 +1,139 @@
 [workspace]
 members = [
-  "components-rs",
   "components-rs/php_sidecar_mockgen",
-  "profiling",
   "sidecar",
   "appsec/helper-rust",
 ]
+# Don't add vendored libddwaf crates to the this workspace; it would break them
 exclude = ["appsec/third_party/libddwaf-rust"]
 resolver = "2"
 
 [workspace.package]
 rust-version = "1.87.0"
 edition = "2021"
-# Irrelevant version and license. These do NOT apply here, they just are here to make cargo build pass.
 version = "0.0.1"
 license = "Apache-2.0"
 authors = ["Datadog Inc. <info@datadoghq.com>"]
 
+[package]
+name = "datadog-php"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+build = "components-rs/build.rs"
+
+[lib]
+crate-type = ["staticlib", "cdylib", "rlib"]
+path = "components-rs/lib.rs"
+bench = false
+
+[features]
+default = ["tracer"]
+tracer = []
+helper-rust-coverage = ["ddtrace-sidecar/helper-rust-coverage"]
+profiling = [
+  "dep:cpu-time", "dep:crossbeam-channel", "dep:dashmap", "dep:dynasmrt",
+  "dep:libdd-alloc", "dep:libdd-profiling", "dep:mach2", "dep:rand", "dep:rand_distr",
+  "dep:rustc-hash", "dep:thiserror", "io_profiling"
+]
+debug_stats = ["profiling"]
+io_profiling = ["profiling"]
+stack_walking_tests = ["profiling"]
+test = ["profiling"]
+tracing = ["profiling"]
+tracing-subscriber = ["tracing"]
+trigger_time_sample = ["profiling"]
+
+[dependencies]
+libdd-common = { path = "libdatadog/libdd-common", features = ["cgroup_testing"] }
+libdd-common-ffi = { path = "libdatadog/libdd-common-ffi", default-features = false }
+libdd-telemetry = { path = "libdatadog/libdd-telemetry" }
+libdd-telemetry-ffi = { path = "libdatadog/libdd-telemetry-ffi", default-features = false }
+datadog-live-debugger = { path = "libdatadog/datadog-live-debugger" }
+datadog-live-debugger-ffi = { path = "libdatadog/datadog-live-debugger-ffi", default-features = false }
+libdd-ipc = { path = "libdatadog/libdd-ipc" }
+datadog-ffe = { package = "libdd-ffe", path = "libdatadog/libdd-ffe" }
+libdd-remote-config = { path = "libdatadog/libdd-remote-config" }
+datadog-sidecar = { path = "libdatadog/datadog-sidecar" }
+datadog-sidecar-ffi = { path = "libdatadog/datadog-sidecar-ffi" }
+libdd-data-pipeline = { path = "libdatadog/libdd-data-pipeline" }
+libdd-tinybytes = { path = "libdatadog/libdd-tinybytes" }
+libdd-trace-utils = { path = "libdatadog/libdd-trace-utils" }
+libdd-trace-stats = { path = "libdatadog/libdd-trace-stats" }
+libdd-trace-protobuf = { path = "libdatadog/libdd-trace-protobuf" }
+libdd-crashtracker = { path = "libdatadog/libdd-crashtracker", default-features = false, features = ["collector"] }
+libdd-crashtracker-ffi = { path = "libdatadog/libdd-crashtracker-ffi", default-features = false, features = ["collector"] }
+libdd-library-config-ffi = { path = "libdatadog/libdd-library-config-ffi", default-features = false }
+spawn_worker = { path = "libdatadog/spawn_worker" }
+anyhow = "1.0"
+const-str = "0.5.6"
+itertools = "0.11.0"
+serde = "1.0.196"
+simd-json = "0.14.1"
+serde_with = "3.6.0"
+lazy_static = "1.4"
+log = { version = "0.4.20", features = ["max_level_trace", "release_max_level_trace"] }
+env_logger = "0.11"
+zwohash = "0.1.2"
+uuid = { version = "1.0", features = ["v4"] }
+paste = "1"
+tempfile = "3.3"
+tracing = { version = "0.1", default-features = false, features = ["std", "attributes"] }
+tracing-core = "0.1.32"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["std", "fmt", "env-filter", "smallvec"] }
+serde_json = "1.0.113"
+regex = "1.10.5"
+regex-automata = "0.4.5"
+http = "1.4"
+libc = "0.2"
+bincode = "1.3.3"
+hashbrown = "0.15"
+chrono = "0.4"
+cpu-time = { version = "1.0", optional = true }
+crossbeam-channel = { version = "0.5", default-features = false, features = ["std"], optional = true }
+dashmap = { version = "6.2.1", optional = true }
+dynasmrt = { version = "5.0.0", optional = true }
+libdd-alloc = { path = "libdatadog/libdd-alloc", optional = true }
+libdd-profiling = { path = "libdatadog/libdd-profiling", optional = true }
+rand = { version = "0.9.4", optional = true }
+rand_distr = { version = "0.5.1", optional = true }
+rustc-hash = { version = "2.1.3", optional = true }
+thiserror = { version = "2", optional = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libdd-library-config = { path = "libdatadog/libdd-library-config", default-features = false, features = ["otel-thread-ctx", "process-context-reader"] }
+
+# ddtrace-sidecar only adds the AppSec backend registration around libdatadog's daemon entrypoint,
+# which is a Unix-only concern. On Windows `run_sidecar` uses `datadog_sidecar` directly instead.
+[target.'cfg(unix)'.dependencies]
+ddtrace-sidecar = { path = "sidecar" }
+
+[target.'cfg(target_vendor = "apple")'.dependencies]
+mach2 = { version = "0.6.0", optional = true }
+
+[build-dependencies]
+cbindgen = "0.27"
+bindgen = "0.72.1"
+cc = "1.0"
+
+[dev-dependencies]
+criterion = "0.5.1"
+static_assertions = "1"
+
+[target.'cfg(target_arch = "x86_64")'.dev-dependencies]
+criterion-perf-events = "0.4.0"
+perfcnt = "0.8.0"
+
+[[bench]]
+name = "stack_walking"
+path = "profiling/benches/stack_walking.rs"
+harness = false
+required-features = ["profiling", "test"]
+
 [profile.dev]
-debug = 2 # full debug info
+debug = 2
 
 [profile.release]
 codegen-units = 1
@@ -27,7 +142,7 @@ incremental = false
 lto = "fat"
 
 [profile.tracer-release]
-debug = 1 # line tables only
+debug = 1
 lto = true
 codegen-units = 1
 panic = "abort"
@@ -37,16 +152,6 @@ inherits = "release"
 panic = "abort"
 inherits = "release"
 
-# These are to satistfy the build with libdatadog as a path dependency inside
-# components-rs. There may be a better way to fix this, but I'm alreday two
-# tasks removed from what I'm trying to do, so pushing forward.
-#
-# Every dependency that a libdatadog crate inherits via `{ workspace = true }`
-# must be declared here, because those crates resolve their workspace
-# inheritance against this manifest when built as path dependencies. Keep this
-# list in sync with libdatadog's own `[workspace.dependencies]`; libdatadog
-# #2253 consolidated `anyhow`, `serde`, `tokio` and `tracing` to the workspace
-# level, so they are mirrored here too.
 [workspace.dependencies]
 allocator-api2 = { version = "0.2.21", default-features = false }
 anyhow = { version = "1.0", default-features = false }
@@ -74,4 +179,6 @@ tracing = { version = "0.1", default-features = false }
 uuid = { version = "1.7.0", default-features = false }
 
 [workspace.lints]
-# empty for compat with libdatadog
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(php_shared_build)', 'cfg(stack_walking_tests)'] }

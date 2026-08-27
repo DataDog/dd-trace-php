@@ -90,7 +90,7 @@ benchmark_env=(
 php_command=(
     php -n
     -d extension=/work/tmp/build_extension/modules/ddtrace.so
-    -d extension=/work/tmp/build_profiler/release/libdatadog_php_profiling.so
+    -d extension=/work/tmp/build_profiler/modules/datadog-profiling.so
     /work/benchmark/otel-profiler-context/workload.php
 )
 

@@ -132,7 +132,7 @@ stages:
     # Start the container network and services
     docker network create -d "nat" -o com.docker.network.windowsshim.dnsservers="1.1.1.1" net
     docker run --network net -d --name httpbin-integration registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:httpbin-windows
-    docker run --network net -d --name request-replayer registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-request-replayer-2.0-windows
+    docker run --network net -d --name request-replayer registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-request-replayer-3.0_windows
     docker run -v ${pwd}:C:\Users\ContainerAdministrator\app  --network net -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
 
     # Enable NTFS long path support so cargo's libgit2-based git checkouts of
@@ -226,6 +226,9 @@ stages:
   extends: .base_test
   variables:
     SWITCH_PHP_VERSION: debug-zts-asan
+    # Keep this at twice the default in libdatadog/datadog-sidecar/src/watchdog.rs;
+    # update it whenever that default changes.
+    _DD_SIDECAR_WATCHDOG_MAX_MEMORY: 2147483648
     ASAN_OPTIONS: abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1
 
 <?php
