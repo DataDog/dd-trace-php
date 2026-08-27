@@ -247,16 +247,6 @@ return [
                     ],
                 ],
             ],
-            'normalized_translated_literal' => [
-                'type' => Segment::class,
-                'options' => [
-                    'route' => '/normalized/{translated_page}',
-                    'defaults' => [
-                        'controller' => DynamicPathController::class,
-                        'action' => 'index',
-                    ],
-                ],
-            ],
             'scheme_http_gate' => [
                 'type' => Scheme::class,
                 'options' => [

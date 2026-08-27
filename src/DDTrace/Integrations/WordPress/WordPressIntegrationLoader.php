@@ -736,11 +736,12 @@ class WordPressIntegrationLoader
                     $rootSpan->meta[Tag::HTTP_ROUTE] = $matchedRule;
                     if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()) {
                         $urlPath = \property_exists($This, 'request') ? $This->request : null;
-                        $normalizedRoute = \DDTrace\routing_cache_get($matchedRule);
+                        $cacheKey = $matchedRule . '|' . ($urlPath ?? '');
+                        $normalizedRoute = \DDTrace\routing_cache_get($cacheKey);
                         if ($normalizedRoute === false) {
                             $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromWordPress($matchedRule, $urlPath);
                             if ($normalizedRoute !== null) {
-                                \DDTrace\routing_cache_set($matchedRule, $normalizedRoute);
+                                \DDTrace\routing_cache_set($cacheKey, $normalizedRoute);
                             }
                         }
                         if ($normalizedRoute !== null && $normalizedRoute !== false) {
