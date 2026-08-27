@@ -13,7 +13,6 @@
       "component": "codeigniter",
       "http.method": "GET",
       "http.route": "does_not_exist",
-      "_dd.appsec.normalized_route": "/does_not_exist",
       "http.status_code": "200",
       "http.url": "http://localhost/does_not_exist?key=value&<redacted>",
       "runtime-id": "0caac976-2232-42e0-a186-9f73b4c27f50",
