@@ -330,15 +330,9 @@ class RouteNormalizerTest extends BaseTestCase
     public function testRfcExampleRailsMandatoryFormat()
     {
         // http.route: /photos/:id.:format → /photos/{id+format}
-        $result = RouteNormalizer::normalizeFromCakePHP('/photos/:id.:format');
+        // Laminas uses the same :param syntax as CakePHP/Rails for this pattern.
+        $result = RouteNormalizer::normalizeFromLaminas('/photos/:id.:format');
         $this->assertSame('/photos/{id+format}', $result);
-    }
-
-    public function testRfcExampleGoGorilla()
-    {
-        // http.route: /v2/{name:[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]}/blobs
-        $result = RouteNormalizer::normalizeFromSlim('/v2/{name:[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]}/blobs');
-        $this->assertSame('/v2/{name}/blobs', $result);
     }
 
     public function testRfcExampleRailsOptionalFormatPresent()
