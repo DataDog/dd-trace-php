@@ -43,13 +43,6 @@ pub fn start(
 
     init_waf_logging(&config);
 
-    if let Err(e) = rc_notify::resolve_symbols() {
-        crate::error!(
-            "Failed to resolve RC notify symbols: {}; will not get Remote Config updates",
-            e
-        );
-    }
-
     let cancel_token = CancellationToken::new();
     let client_task_tracker =
         server::accept_appsec_messages(runtime_handle, cancel_token.clone(), telemetry);

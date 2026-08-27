@@ -2153,6 +2153,7 @@ dependencies = [
  "futures",
  "libc 0.2.186",
  "libdd-common",
+ "libdd-remote-config",
  "libdd-telemetry",
  "libddwaf",
  "libddwaf-sys",
