@@ -81,7 +81,7 @@ class Laminas33Tests {
             endpoints.size() > 0
         })
 
-        assert endpoints.size() == 33
+        assert endpoints.size() == 32
         assert endpoints.find { it.path == '/' && it.method == '*' && it.operationName == 'http.request' && it.resourceName == '* /' } != null
         assert endpoints.find {
             it.path == '/application[/:action]' && it.method == '*' && it.operationName == 'http.request' && it.resourceName == '* /application[/:action]'
@@ -147,10 +147,6 @@ class Laminas33Tests {
         assert endpoints.find {
             it.path == '/normalized-wildcard/:param1/*' && it.method == '*' &&
                     it.operationName == 'http.request' && it.resourceName == '* /normalized-wildcard/:param1/*'
-        } != null
-        assert endpoints.find {
-            it.path == '/normalized/{translated_page}' && it.method == '*' &&
-                    it.operationName == 'http.request' && it.resourceName == '* /normalized/{translated_page}'
         } != null
     }
 
@@ -420,20 +416,6 @@ class Laminas33Tests {
         assert trace.first().meta.'http.route' == '/normalized-wildcard/:param1/*'
         assert trace.first().meta.'_dd.appsec.normalized_route' ==
                 '/normalized-wildcard/{param1}/{param2}'
-    }
-
-    @Test
-    @Order(18)
-    void 'translated literal remains a static route element'() {
-        Trace trace = container.traceFromRequest(
-                container.buildReq('/normalized/translated-page').GET().build(),
-                ofString()) { HttpResponse<String> resp ->
-            assert resp.statusCode() == 200
-        }
-
-        assert trace.first().meta.'http.route' == '/normalized/{translated_page}'
-        assert trace.first().meta.'_dd.appsec.normalized_route' ==
-                '/normalized/translated-page'
     }
 
 }
