@@ -178,14 +178,16 @@ endif()
 if (PhpConfig_VERNUM GREATER_EQUAL 70300)
     list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../ext/zend_hrtime.c")
 endif()
+# config.m4 adds these two together, for 8.0 <= PHP_VERSION_ID < 8.2 only.
 if (PhpConfig_VERNUM LESS 80000 OR PhpConfig_VERNUM GREATER_EQUAL 80200)
-    list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../ext/patch_zend_call_known_function.c")
+    list(REMOVE_ITEM FILES_DDTRACE
+        "${CMAKE_SOURCE_DIR}/../ext/patch_zend_call_known_function.c"
+        "${CMAKE_SOURCE_DIR}/../tracer/weakrefs.c")
 endif()
 if (PhpConfig_VERNUM LESS 80200)
     list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/interceptor/php8/resolver.c")
 else() # PHP 8.2+
-    list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../tracer/weakrefs.c"
-        "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/interceptor/php8/resolver_pre-8_2.c")
+    list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/interceptor/php8/resolver_pre-8_2.c")
 endif()
 if (PhpConfig_VERNUM LESS 80100)
     list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../tracer/handlers_fiber.c")
