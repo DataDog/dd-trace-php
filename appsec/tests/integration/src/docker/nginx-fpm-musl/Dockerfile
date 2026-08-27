@@ -5,7 +5,7 @@ FROM ${DOCKER_REGISTRY}/library/php:8.5-fpm-alpine
 
 RUN apk add --no-cache \
     autoconf automake bash bison cmake curl curl-dev \
-    build-base g++ gcc gdb git libc-dev linux-headers llvm22 make \
+    build-base g++ gcc gdb git libc-dev linux-headers make \
     musl-dev nginx oniguruma-dev openssl-dev patch patchelf pkgconf re2c libtool \
     libxml2-dev libzip-dev python3 xz zlib-dev
 
