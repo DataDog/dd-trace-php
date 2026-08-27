@@ -1,6 +1,10 @@
 #!/bin/sh
 cd components-rs
 
+# These flags configure the PHP extension's C build. Letting them reach Cargo
+# also applies them to unrelated native dependencies compiled by build scripts.
+unset CFLAGS CXXFLAGS CPPFLAGS LDFLAGS
+
 RUSTFLAGS="${RUSTFLAGS:-} --cfg tokio_unstable"
 
 if test -n "$SHARED"; then
