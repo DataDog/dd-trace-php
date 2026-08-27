@@ -400,6 +400,7 @@ def buildTracerTask = { String version, String variant ->
 
                     PHPRC= \\
                         PHP_SDK_VERSION=${phpSdkVersion(version, variant)} \\
+                        EXTRA_CFLAGS=-DCXA_THREAD_ATEXIT_WRAPPER=1 \\
                         EXTRA_CONFIGURE_OPTIONS="--with-ddtrace-rust-library=/portable-rust/libdatadog_php.a \\
                             --with-ddtrace-sidecar-mockgen=/portable-rust/php_sidecar_mockgen" \\
                         make /project/tmp/build_extension/modules/ddtrace.so
@@ -467,6 +468,7 @@ def buildTracerCmakeTask = { String version, String variant ->
 
                     export PHP_SDK_VERSION=${phpSdkVersion(version, variant)}
                     cmake -DCMAKE_BUILD_TYPE=${buildType} \\
+                          -DCMAKE_C_FLAGS=-DCXA_THREAD_ATEXIT_WRAPPER=1 \\
                           -DDD_APPSEC_DDTRACE_ALT=ON \\
                           -DDD_APPSEC_BUILD_EXTENSION=OFF \\
                           -DDD_APPSEC_TESTING=OFF \\
@@ -542,6 +544,7 @@ def buildTracerSsiTask = { String version, String variant ->
                     cd /project
                     PHPRC= \\
                         PHP_SDK_VERSION=${phpSdkVersion(version, variant)} \\
+                        EXTRA_CFLAGS=-DCXA_THREAD_ATEXIT_WRAPPER=1 \\
                         EXTRA_CONFIGURE_OPTIONS="--enable-ddtrace-rust-library-split \\
                             --with-ddtrace-rust-library=/portable-rust/libdatadog_php.so \\
                             --with-ddtrace-sidecar-mockgen=/portable-rust/php_sidecar_mockgen" \\
@@ -641,6 +644,7 @@ def buildTracerSsiCmakeTask = { String version, String variant ->
                     cd /project/tmp
                     export PHP_SDK_VERSION=${phpSdkVersion(version, variant)}
                     cmake -DCMAKE_BUILD_TYPE=${buildType} \\
+                          -DCMAKE_C_FLAGS=-DCXA_THREAD_ATEXIT_WRAPPER=1 \\
                           -DDD_APPSEC_DDTRACE_ALT=ON \\
                           -DDD_APPSEC_SSI=ON \\
                           -DDD_APPSEC_BUILD_EXTENSION=OFF \\
