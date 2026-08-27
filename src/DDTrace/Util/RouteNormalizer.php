@@ -113,6 +113,11 @@ class RouteNormalizer
             return '/';
         }
 
+        // Pull the path separator out of (?:/...) non-capturing groups so that
+        // splitRegexBySlash treats the embedded '/' as a real segment boundary.
+        // Pattern: (?:/foo) means "optional /foo segment" — the '/' belongs at top level.
+        $rule = str_replace('(?:/', '/(?:', $rule);
+
         $segments = self::splitRegexBySlash($rule);
         $normalizedSegments = [];
         $paramIndex = 1;
@@ -123,17 +128,18 @@ class RouteNormalizer
             }
 
             if (preg_match('/[()[\].*+?|^${}\\\\]/', $segment)) {
-                // Extract static prefix before the first regex metacharacter
                 $prefixLen = strcspn($segment, '([{?*+|^$\\');
-                if ($prefixLen > 0) {
+                $dynamicPart = substr($segment, $prefixLen);
+                $groupCount = self::countCaptureGroups($dynamicPart);
+
+                // Only emit a static prefix when there is at most one capture group;
+                // mixed segments with multiple groups are treated as fully dynamic.
+                if ($prefixLen > 0 && $groupCount <= 1) {
                     $staticPart = rtrim(substr($segment, 0, $prefixLen), '/-._');
                     if ($staticPart !== '') {
                         $normalizedSegments[] = self::encodeStaticSegment($staticPart);
                     }
                 }
-
-                $dynamicPart = substr($segment, $prefixLen);
-                $groupCount = self::countCaptureGroups($dynamicPart);
 
                 if ($groupCount === 0) {
                     if ($matchedGroupCount !== null && $paramIndex > $matchedGroupCount) {
