@@ -3,6 +3,7 @@ package com.datadog.appsec.php.integration
 import com.datadog.appsec.php.docker.AppSecContainer
 import com.datadog.appsec.php.docker.FailOnUnmatchedTraces
 import com.datadog.appsec.php.docker.InspectContainerHelper
+import com.datadog.appsec.php.docker.PhpFpm
 import com.datadog.appsec.php.model.Span
 import com.datadog.appsec.php.model.Trace
 import groovy.util.logging.Slf4j
@@ -96,8 +97,14 @@ class WordPressTests {
         res = CONTAINER.execInContainer('bash', '-c',
                 """export DD_TRACE_CLI_ENABLED=false DD_APPSEC_ENABLED=0
                    wp option update siteurl 'http://localhost:${port}' --path=/var/www/public --allow-root
-                   wp option update home 'http://localhost:${port}' --path=/var/www/public --allow-root""")
+                   wp option update home 'http://localhost:${port}' --path=/var/www/public --allow-root
+                   wp rewrite structure '/%postname%/' --path=/var/www/public --allow-root
+                   wp rewrite flush --hard --path=/var/www/public --allow-root""")
         assert res.exitCode == 0 : "Failed to update WordPress URLs: ${res.stderr}"
+
+        PhpFpm fpm = new PhpFpm(CONTAINER)
+        fpm.setPoolValue('pm.max_children', '1')
+        fpm.reload()
 
         CONTAINER.clearTraces()
     }
@@ -193,5 +200,43 @@ class WordPressTests {
         assert span.meta."usr.id" == "1"
         assert span.meta."_dd.appsec.usr.id" == "1"
         assert span.meta."_dd.appsec.user.collection_mode" == "identification"
+    }
+
+    @Test
+    @Order(6)
+    void 'static prefix remains when optional rewrite capture is absent'() {
+        Trace trace = CONTAINER.traceFromRequest('/normalized-cache/') {
+            HttpResponse<InputStream> response ->
+                assert response.statusCode() == 200
+        }
+        Span span = trace.first()
+        assert span.meta.'http.route' ==
+                '^normalized-cache(?:/([^/]+))?/?$'
+        assert span.meta.'_dd.appsec.normalized_route' == '/normalized-cache'
+    }
+
+    @Test
+    @Order(7)
+    void 'optional rewrite capture is normalized for each request'() {
+        Trace absentTrace = CONTAINER.traceFromRequest('/normalized-cache-shape/') {
+            HttpResponse<InputStream> response ->
+                assert response.statusCode() == 200
+        }
+        Span absentSpan = absentTrace.first()
+        assert absentSpan.meta.'http.route' ==
+                '^normalized-cache-shape/?([^/]*)/?$'
+        assert absentSpan.meta.'_dd.appsec.normalized_route' ==
+                '/normalized-cache-shape'
+
+        Trace presentTrace = CONTAINER.traceFromRequest(
+                '/normalized-cache-shape/present/') {
+            HttpResponse<InputStream> response ->
+                assert response.statusCode() == 200
+        }
+        Span presentSpan = presentTrace.first()
+        assert presentSpan.meta.'http.route' ==
+                '^normalized-cache-shape/?([^/]*)/?$'
+        assert presentSpan.meta.'_dd.appsec.normalized_route' ==
+                '/normalized-cache-shape/{param1}'
     }
 }
