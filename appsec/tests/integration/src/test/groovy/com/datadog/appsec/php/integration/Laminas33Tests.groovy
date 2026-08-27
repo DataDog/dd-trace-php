@@ -139,6 +139,9 @@ class Laminas33Tests {
         assert endpoints.find {
             it.path == '/any-verb' && it.method == '*' && it.operationName == 'http.request' && it.resourceName == '* /any-verb'
         } != null
+        assert endpoints.find {
+            it.path == '/user/:user-id' && it.method == '*' && it.operationName == 'http.request' && it.resourceName == '* /user/:user-id'
+        } != null
     }
 
     @Test
@@ -341,5 +344,17 @@ class Laminas33Tests {
         }
         assert trace.first().meta.'http.route' == '/application[/:action]'
         assert trace.first().meta.'_dd.appsec.normalized_route' == '/application/{action}'
+    }
+
+    @Test
+    @Order(13)
+    void 'hyphenated param name in segment route normalizes correctly'() {
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/user/42').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert trace.first().meta.'http.route' == '/user/:user-id'
+        assert trace.first().meta.'_dd.appsec.normalized_route' == '/user/{user-id}'
     }
 }

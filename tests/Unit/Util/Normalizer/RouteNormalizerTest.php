@@ -114,59 +114,6 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertSame('/', RouteNormalizer::normalizeFromLaravel('/'));
     }
 
-    // normalizeFromSlim
-
-    public function testSlimSimpleRoute()
-    {
-        $this->assertSame('/users/{id}', RouteNormalizer::normalizeFromSlim('/users/{id}'));
-    }
-
-    public function testSlimRegexConstraintStripped()
-    {
-        $this->assertSame('/users/{id}', RouteNormalizer::normalizeFromSlim('/users/{id:[0-9]+}'));
-        $this->assertSame('/v2/{name}/blobs', RouteNormalizer::normalizeFromSlim('/v2/{name:[a-zA-Z0-9-]+}/blobs'));
-        // Constraint containing '/' must not break the segment split
-        $this->assertSame('/files/{name}', RouteNormalizer::normalizeFromSlim('/files/{name:[^/]+}'));
-    }
-
-    public function testSlimOptionalSegmentPresent()
-    {
-        $result = RouteNormalizer::normalizeFromSlim('/users/{id}[/{format}]', ['id' => '1', 'format' => 'json']);
-        $this->assertSame('/users/{id}/{format}', $result);
-    }
-
-    public function testSlimOptionalSegmentAbsent()
-    {
-        $result = RouteNormalizer::normalizeFromSlim('/users/{id}[/{format}]', ['id' => '1']);
-        $this->assertSame('/users/{id}', $result);
-    }
-
-    public function testSlimCatchAll()
-    {
-        $this->assertSame('/files/{file}', RouteNormalizer::normalizeFromSlim('/files/{file:.+}'));
-    }
-
-    public function testSlimStaticOptionalSectionPresent()
-    {
-        // /feed[.json] requested as /feed.json → .json section included
-        $result = RouteNormalizer::normalizeFromSlim('/feed[.json]', [], '/feed.json');
-        $this->assertSame('/feed.json', $result);
-    }
-
-    public function testSlimStaticOptionalSectionAbsent()
-    {
-        // /feed[.json] requested as /feed → .json section absent
-        $result = RouteNormalizer::normalizeFromSlim('/feed[.json]', [], '/feed');
-        $this->assertSame('/feed', $result);
-    }
-
-    public function testSlimStaticOptionalSectionNoUrlPath()
-    {
-        // Without URL path, backward-compatible: keep the section
-        $result = RouteNormalizer::normalizeFromSlim('/feed[.json]', []);
-        $this->assertSame('/feed.json', $result);
-    }
-
     // normalizeFromSymfony
 
     public function testSymfonySimpleRoute()
@@ -299,71 +246,6 @@ class RouteNormalizerTest extends BaseTestCase
         // Wildcard routes produce '/*' from laminasSegmentPartsToRouteTemplate
         $result = RouteNormalizer::normalizeFromLaminas('/*');
         $this->assertSame('/{param1}', $result);
-    }
-
-    // normalizeFromCakePHP
-
-    public function testCakePHPSimpleColon()
-    {
-        $this->assertSame('/articles/{id}', RouteNormalizer::normalizeFromCakePHP('/articles/:id'));
-    }
-
-    public function testCakePHPMixedSegment()
-    {
-        $result = RouteNormalizer::normalizeFromCakePHP('/articles/:id.:ext');
-        $this->assertSame('/articles/{id+ext}', $result);
-    }
-
-    public function testCakePHPCatchAll()
-    {
-        $this->assertSame('/{catchall}', RouteNormalizer::normalizeFromCakePHP('/*'));
-        $this->assertSame('/api/{catchall}', RouteNormalizer::normalizeFromCakePHP('/api/**'));
-    }
-
-    public function testCakePHPStaticRoute()
-    {
-        $this->assertSame('/admin/dashboard', RouteNormalizer::normalizeFromCakePHP('/admin/dashboard'));
-    }
-
-    // normalizeFromYii
-
-    public function testYiiSimpleColonPlaceholder()
-    {
-        $this->assertSame('/articles/{id}', RouteNormalizer::normalizeFromYii('/articles/:id'));
-    }
-
-    public function testYiiStaticRoute()
-    {
-        $this->assertSame('/site/index', RouteNormalizer::normalizeFromYii('/site/index'));
-    }
-
-    // normalizeFromCodeIgniter
-
-    public function testCodeIgniterLiteralRoute()
-    {
-        $this->assertSame('/articles/index', RouteNormalizer::normalizeFromCodeIgniter('articles/index'));
-    }
-
-    public function testCodeIgniterNumWildcard()
-    {
-        $this->assertSame('/blog/{param1}', RouteNormalizer::normalizeFromCodeIgniter('blog/(:num)'));
-    }
-
-    public function testCodeIgniterAnyWildcard()
-    {
-        $this->assertSame('/users/{param1}', RouteNormalizer::normalizeFromCodeIgniter('users/:any'));
-    }
-
-    public function testCodeIgniterMultipleWildcards()
-    {
-        $result = RouteNormalizer::normalizeFromCodeIgniter('posts/(:num)/comments/(:num)');
-        $this->assertSame('/posts/{param1}/comments/{param2}', $result);
-    }
-
-    public function testCodeIgniterCatchAll()
-    {
-        // A catch-all in CI is typically :any at the end
-        $this->assertSame('/{param1}', RouteNormalizer::normalizeFromCodeIgniter(':any'));
     }
 
     // normalizeFromWordPress

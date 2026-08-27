@@ -292,6 +292,19 @@ return [
                     ],
                 ],
             ],
+            'user_by_id' => [
+                'type' => Segment::class,
+                'options' => [
+                    'route' => '/user/:user-id',
+                    'constraints' => [
+                        'user-id' => '[0-9]+',
+                    ],
+                    'defaults' => [
+                        'controller' => DynamicPathController::class,
+                        'action' => 'index',
+                    ],
+                ],
+            ],
             'any_verb' => [
                 'type' => Literal::class,
                 'options' => [
