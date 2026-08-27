@@ -168,16 +168,6 @@ requirements_json_test:
     REQUIREMENTS_BLOCK_JSON_PATH: "loader/packaging/block_tests.json"
     REQUIREMENTS_ALLOW_JSON_PATH: "loader/packaging/allow_tests.json"
 
-tracer_release_scenario_extractor_test:
-  stage: prepare
-  image: registry.ddbuild.io/images/mirror/python:3.12-slim-bullseye
-  tags: [ "arch:amd64" ]
-  needs: []
-  variables:
-    GIT_SUBMODULE_STRATEGY: none
-  script:
-    - python3 .gitlab/test_extract_tracer_release_scenarios.py
-
 
 # dd-trace-php release packaging
 "prepare code":
@@ -1410,7 +1400,25 @@ $system_tests_weblogs = [
   script:
     - DD_API_KEY=$(cat /tmp/.dd-api-key 2>/dev/null) || { echo "Failed to fetch DD_API_KEY"; exit 1; }
     - export DD_API_KEY
-    - SCENARIOS=$(PYTHONPATH=. venv/bin/python utils/scripts/compute-workflow-parameters.py php -g tracer_release --excluded-scenarios PARAMETRIC -f json | python3 "$CI_PROJECT_DIR/.gitlab/extract_tracer_release_scenarios.py")
+    - |
+      set -o pipefail
+      SCENARIOS=$(
+        PYTHONPATH=. venv/bin/python utils/scripts/compute-workflow-parameters.py php -g tracer_release --excluded-scenarios PARAMETRIC -f json |
+          python3 -c '
+      import json, sys
+
+      data = json.load(sys.stdin)
+      scenarios = {
+          scenario
+          for job in data["endtoend_defs"]["parallel_jobs"]
+          for scenario in job["scenarios"]
+      }
+      invalid = any(not isinstance(scenario, str) or not scenario or any(character.isspace() for character in scenario) for scenario in scenarios)
+      if not scenarios or invalid or "PARAMETRIC" in scenarios:
+          raise SystemExit(1)
+      print(" ".join(sorted(scenarios)))
+      '
+      ) || { echo "Failed to compute tracer-release scenarios"; exit 1; }
     - FAILED=""; for S in $SCENARIOS; do echo "=== Running $S ==="; ./run.sh $S || FAILED="$FAILED $S"; done; if [ -n "$FAILED" ]; then echo "Failed scenarios:$FAILED"; exit 1; fi
 
 <?php endforeach; ?>
