@@ -51,4 +51,36 @@ class HomeController extends AbstractController
     {
         return new Response("posts page: $page");
     }
+
+    #[Route("/normalized/mixed/{id}.{_format}", name: "normalized_mixed")]
+    public function normalizedMixedIdAction(Request $request)
+    {
+        return new Response('Mixed route');
+    }
+
+    #[Route("/normalized/zero/{id}", name: "normalized_zero")]
+    public function normalizedZeroAction(Request $request)
+    {
+        return new Response('Zero route');
+    }
+
+    #[Route(
+        "/normalized/search.{_format}",
+        name: "normalized_static_optional",
+        defaults: ["_format" => null]
+    )]
+    public function normalizedStaticOptionalAction(Request $request)
+    {
+        return new Response('Optional format route');
+    }
+
+    #[Route(
+        "/normalized/utf8/{föo}",
+        name: "normalized_utf8_optional",
+        defaults: ["föo" => null]
+    )]
+    public function normalizedUtf8OptionalAction(Request $request)
+    {
+        return new Response('UTF-8 parameter route');
+    }
 }
