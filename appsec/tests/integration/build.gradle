@@ -1153,11 +1153,11 @@ def portableLibdatadogPhpCommand = '''
                 -Z build-std-features=llvm-libunwind,backtrace
 
         LIBRARY_DIR=/portable-rust/cargo-target/tracer-release
-        cp "$LIBRARY_DIR/libdatadog_php.so" \
+        ln -f "$LIBRARY_DIR/libdatadog_php.so" \
             /portable-rust/libdatadog_php.so
-        cp "$LIBRARY_DIR/libdatadog_php.a" \
+        ln -f "$LIBRARY_DIR/libdatadog_php.a" \
             /portable-rust/libdatadog_php.a
-        cp "/portable-rust/cargo-target/$RUST_TARGET/tracer-release/php_sidecar_mockgen" \
+        ln -f "/portable-rust/cargo-target/$RUST_TARGET/tracer-release/php_sidecar_mockgen" \
             /portable-rust/php_sidecar_mockgen
         printf '%s\n' '@BUILD_MODE@' > /portable-rust/build-mode
         printf '%s\n' "$RUST_TARGET" > /portable-rust/rust-target
