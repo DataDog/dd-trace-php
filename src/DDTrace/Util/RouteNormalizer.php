@@ -68,8 +68,26 @@ class RouteNormalizer
         }
 
         // Segment routes use :param; Regex routes use %param% (spec format) — handle both.
+        // Detect Regex routes before conversion so we can apply URL-based param filtering.
+        $hasPercentParams = (bool) preg_match('/%([a-zA-Z_][a-zA-Z0-9_]*)%/', $expanded);
         $braceFormat = self::colonParamsToBraces($expanded);
         $braceFormat = self::percentParamsToBraces($braceFormat);
+
+        // For Regex routes the defaults array injects values into matchedParams even for
+        // optional captures absent from the URL (e.g. format='html' when no .html in path).
+        // Use the URL path to determine which params were actually URL-matched.
+        if ($hasPercentParams && $urlPath !== null) {
+            $urlMatchedParams = self::inferSymfonyRouteParams($braceFormat, $urlPath);
+            $braceFormat = preg_replace_callback(
+                '/\{([^}?:]+)\}/',
+                static function ($m) use ($urlMatchedParams) {
+                    return array_key_exists($m[1], $urlMatchedParams) ? $m[0] : '{' . $m[1] . '?}';
+                },
+                $braceFormat
+            );
+            return self::normalizeBraceRoute($braceFormat, $urlMatchedParams);
+        }
+
         return self::normalizeBraceRoute($braceFormat, $matchedParams);
     }
 
@@ -537,24 +555,33 @@ class RouteNormalizer
                 $urlIdx++;
             } elseif (preg_match('/\{/', $seg)) {
                 // Mixed segment (static text + one or more params): determine presence by
-                // trying to match the URL segment against the template pattern.
+                // trying to match the URL segment, dropping trailing optional params as needed.
                 if ($urlIdx < count($urlSegments)) {
                     preg_match_all('/\{([^}?:]+)\}/', $seg, $pm);
-                    $paramNames = $pm[1];
-                    if (!empty($paramNames)) {
-                        // Build a lightweight regex from the template segment
+                    $paramNames  = $pm[1];
+                    $n           = count($paramNames);
+                    if ($n > 0) {
+                        $urlSeg      = $urlSegments[$urlIdx];
                         $staticParts = preg_split('/\{[^}]+\}/', $seg);
-                        $regexParts  = array_map(
-                            static function ($p) { return preg_quote($p, '/'); },
-                            $staticParts
-                        );
-                        $segRegex = '/^' . implode('(.+)', $regexParts) . '$/';
-                        if (@preg_match($segRegex, $urlSegments[$urlIdx])) {
-                            foreach ($paramNames as $p) {
-                                $matched[$p] = true;
+                        // Try with k params (k = n, n-1, ..., 1). Drop params from the right
+                        // until the URL segment matches. This handles optional trailing captures
+                        // that were injected as route defaults but absent from the URL.
+                        for ($k = $n; $k >= 1; $k--) {
+                            $regexBody = '';
+                            for ($i = 0; $i < $k; $i++) {
+                                $regexBody .= preg_quote($staticParts[$i], '/') . '(.+)';
+                            }
+                            // Only include the trailing static part for a full match
+                            if ($k === $n) {
+                                $regexBody .= preg_quote($staticParts[$n], '/');
+                            }
+                            if (@preg_match('/^' . $regexBody . '$/', $urlSeg)) {
+                                for ($i = 0; $i < $k; $i++) {
+                                    $matched[$paramNames[$i]] = true;
+                                }
+                                break;
                             }
                         }
-                        // else: URL segment doesn't contain the dynamic part → params absent
                     }
                 }
                 $urlIdx++;
