@@ -25,7 +25,7 @@ import static java.net.http.HttpResponse.BodyHandlers.ofString
 @EnabledIf('isExpectedVersion')
 @TestMethodOrder(MethodOrderer.OrderAnnotation)
 class Laravel8xTests {
-    static boolean expectedVersion = phpVersion.contains('7.4') && !variant.contains('zts')
+    static boolean expectedVersion = phpVersion.contains('8.1') && !variant.contains('zts')
 
     AppSecContainer getContainer() {
             getClass().CONTAINER
@@ -39,7 +39,7 @@ class Laravel8xTests {
                     baseTag: 'apache2-mod-php',
                     phpVersion: phpVersion,
                     phpVariant: variant,
-                    www: 'laravel8x',
+                    www: '../../../tests/Frameworks/Laravel/Version_8_x',
             )
 
     static void main(String[] args) {
@@ -209,12 +209,11 @@ class Laravel8xTests {
             endpoints.size() > 0
         })
 
-        assert endpoints.size() == 6
+        assert endpoints.size() == 29
         assert endpoints.find { it.path == '/' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /' } != null
         assert endpoints.find { it.path == 'authenticate' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET authenticate' } != null
         assert endpoints.find { it.path == 'register' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET register' } != null
         assert endpoints.find { it.path == 'dynamic-path/{param01}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET dynamic-path/{param01}' } != null
-        assert endpoints.find { it.path == 'sanctum/csrf-cookie' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET sanctum/csrf-cookie' } != null
         assert endpoints.find { it.path == 'api/user' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET api/user' } != null
     }
 }

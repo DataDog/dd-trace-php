@@ -516,9 +516,11 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
             cmd.hostConfig.withUlimits([new Ulimit('core', -1L, -1L)] as Ulimit[])
         }
 
-        this.wwwDir ="src/test/www/${options.get('www', 'base')}"
+        String wwwValue = options.get('www', 'base') as String
+        this.wwwDir = wwwValue.contains('/') ? wwwValue : "src/test/www/${wwwValue}"
         if (options['www_src']) {
-            this.wwwSrcDir = "src/test/www/${options['www_src']}"
+            String wwwSrcValue = options['www_src'] as String
+            this.wwwSrcDir = wwwSrcValue.contains('/') ? wwwSrcValue : "src/test/www/${wwwSrcValue}"
         }
 
         withFileSystemBind('../../..', '/project', BindMode.READ_ONLY)
