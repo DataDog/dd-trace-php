@@ -367,6 +367,43 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertSame('/{param1+param2}', $result);
     }
 
+    public function testWordPressStaticPrefixNotSeparateElement()
+    {
+        // F-07: static prefix before a capture must NOT become a separate segment element.
+        // "post-([^/]+)" is a single URL segment → one RFC element.
+        $result = RouteNormalizer::normalizeFromWordPress('^post-([^/]+)$', 'post-hello');
+        $this->assertSame('/{param1}', $result);
+    }
+
+    public function testWordPressAbsentOptionalCaptureSkipped()
+    {
+        // F-11: when an inner optional capture did not participate (empty string in captures),
+        // it must not produce a phantom {paramN}.
+        $result = RouteNormalizer::normalizeFromWordPress('^(?:([^/]+)-)?([^/]+)$', 'x');
+        $this->assertSame('/{param2}', $result);
+    }
+
+    public function testWordPressBothCapturesPresentInOptionalGroup()
+    {
+        $result = RouteNormalizer::normalizeFromWordPress('^(?:([^/]+)-)?([^/]+)$', 'foo-x');
+        $this->assertSame('/{param1+param2}', $result);
+    }
+
+    public function testStaticPrefixLeadingTildePreservedWhenOptionalAbsent()
+    {
+        // F-04: rtrim — a leading special char like '~' must survive when the optional
+        // param is absent. Old behaviour: trim('~foo.', '.-_~') = 'foo'. Fixed: rtrim.
+        $result = RouteNormalizer::normalizeFromLaravel('~foo.{ext?}', []);
+        $this->assertSame('/~foo', $result);
+    }
+
+    public function testLaminasWildcardAfterPercentParam()
+    {
+        // F-10: uniqueParamName must skip %param1% when choosing a name for the wildcard.
+        $result = RouteNormalizer::normalizeFromLaminas('/foo/%param1%/*');
+        $this->assertSame('/foo/{param1}/{param2}', $result);
+    }
+
     // RFC examples
 
     public function testRfcExampleFastApi()
