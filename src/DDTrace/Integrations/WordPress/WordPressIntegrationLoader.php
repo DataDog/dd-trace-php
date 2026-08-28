@@ -736,7 +736,22 @@ class WordPressIntegrationLoader
                     $rootSpan->meta[Tag::HTTP_ROUTE] = $matchedRule;
                     if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()) {
                         $urlPath = \property_exists($This, 'request') ? $This->request : null;
-                        $cacheKey = $matchedRule . '|' . ($urlPath ?? '');
+                        // Key on the count of matched capture groups, not the full URL,
+                        // so all requests with the same optional-capture participation
+                        // share one cache entry rather than one entry per distinct URL.
+                        $wpMatchedGroupCount = null;
+                        if ($urlPath !== null) {
+                            if (@preg_match('#^' . $matchedRule . '#', ltrim($urlPath, '/'), $_wpc)) {
+                                $wpMatchedGroupCount = 0;
+                                for ($_wi = 1; $_wi < count($_wpc); $_wi++) {
+                                    if (isset($_wpc[$_wi]) && $_wpc[$_wi] !== '') {
+                                        $wpMatchedGroupCount = $_wi;
+                                    }
+                                }
+                                unset($_wpc, $_wi);
+                            }
+                        }
+                        $cacheKey = $matchedRule . '#' . ($wpMatchedGroupCount ?? 'n');
                         $normalizedRoute = \DDTrace\routing_cache_get($cacheKey);
                         if ($normalizedRoute === false) {
                             $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromWordPress($matchedRule, $urlPath);

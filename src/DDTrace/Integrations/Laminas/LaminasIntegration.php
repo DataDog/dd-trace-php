@@ -287,12 +287,40 @@ class LaminasIntegration extends Integration
                         if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()) {
                             $allParams = method_exists($routeMatch, 'getParams') ? ($routeMatch->getParams() ?? []) : [];
                             $urlPath = method_exists($request, 'getUri') ? $request->getUri()->getPath() : null;
-                            // Only include the URL in the key when the template has optional
-                            // bracket sections; for fully-required routes the normalized form
-                            // is the same for every request regardless of param values.
-                            $cacheKey = strpos($httpRoute, '[') !== false
-                                ? $httpRoute . '|' . ($urlPath ?? '')
-                                : $httpRoute;
+                            // Build a stable cache key that encodes only which optional
+                            // components participated, not the raw URL (which would cause
+                            // one cache entry per distinct request value — 500-entry churn).
+                            //
+                            // Regex routes (%param% spec): infer which params appear in the
+                            // URL and encode their sorted names as a presence key.
+                            // Bracket routes ([/:param]): collect optional colon-params whose
+                            // values appear in the URL as a presence key.
+                            // Fully-required routes: template alone is sufficient.
+                            if ($urlPath !== null && strpos($httpRoute, '%') !== false) {
+                                // Regex route: convert spec to brace form and infer presence
+                                $braceTemp = preg_replace('/%([a-zA-Z_][a-zA-Z0-9_]*)%/', '{$1}', $httpRoute);
+                                $urlMatchedKeys = array_keys(
+                                    \DDTrace\Util\RouteNormalizer::inferSymfonyRouteParams($braceTemp, $urlPath)
+                                );
+                                sort($urlMatchedKeys);
+                                $cacheKey = $httpRoute . '#' . implode(',', $urlMatchedKeys);
+                            } elseif (strpos($httpRoute, '[') !== false) {
+                                // Bracket-optional route: encode which optional colon-params
+                                // have values that appear in the URL path.
+                                preg_match_all('/:([a-zA-Z_][a-zA-Z0-9_-]*)/', $httpRoute, $_pm);
+                                $_present = [];
+                                foreach ($_pm[1] as $_p) {
+                                    if (isset($allParams[$_p]) && $urlPath !== null &&
+                                        strpos($urlPath, (string)$allParams[$_p]) !== false) {
+                                        $_present[] = $_p;
+                                    }
+                                }
+                                sort($_present);
+                                $cacheKey = $httpRoute . '#' . implode(',', $_present);
+                                unset($_pm, $_present, $_p);
+                            } else {
+                                $cacheKey = $httpRoute;
+                            }
                             $normalizedRoute = \DDTrace\routing_cache_get($cacheKey);
                             if ($normalizedRoute === false) {
                                 $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromLaminas($httpRoute, $allParams, $urlPath);
