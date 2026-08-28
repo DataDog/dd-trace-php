@@ -105,15 +105,16 @@ class RouteNormalizer
      */
     public static function normalizeFromWordPress(string $matchedRule, $urlPath = null)
     {
-        // Re-run the regex against the actual URL to find how many capture groups matched.
-        // This handles optional groups like (?:/([0-9]+))? that may or may not be present.
-        $matchedGroupCount = null;
+        // Re-run the regex against the actual URL to find which capture groups matched.
+        // Tracks each group individually so gaps from optional groups (e.g. (?:(...))?)
+        // that didn't participate are skipped instead of emitting phantom params.
+        $matchedGroups = null;
         if ($urlPath !== null) {
             if (@preg_match('#^' . $matchedRule . '#', ltrim($urlPath, '/'), $captures)) {
-                $matchedGroupCount = 0;
+                $matchedGroups = [];
                 for ($i = 1; $i < count($captures); $i++) {
                     if (isset($captures[$i]) && $captures[$i] !== '') {
-                        $matchedGroupCount = $i;
+                        $matchedGroups[$i] = true;
                     }
                 }
             }
@@ -150,9 +151,10 @@ class RouteNormalizer
                 $dynamicPart = substr($segment, $prefixLen);
                 $groupCount = self::countCaptureGroups($dynamicPart);
 
-                // Only emit a static prefix when there is at most one capture group;
-                // mixed segments with multiple groups are treated as fully dynamic.
-                if ($prefixLen > 0 && $groupCount <= 1) {
+                // Only emit a static prefix for purely-regex segments with no capture
+                // groups. When captures exist the whole segment (prefix + captures) maps
+                // to one RFC element, so the prefix must not become a separate element.
+                if ($prefixLen > 0 && $groupCount === 0) {
                     $staticPart = rtrim(substr($segment, 0, $prefixLen), '/-._');
                     if ($staticPart !== '') {
                         $normalizedSegments[] = self::encodeStaticSegment($staticPart);
@@ -160,15 +162,17 @@ class RouteNormalizer
                 }
 
                 if ($groupCount === 0) {
-                    if ($matchedGroupCount !== null && $paramIndex > $matchedGroupCount) {
+                    if ($matchedGroups !== null && !isset($matchedGroups[$paramIndex])) {
+                        $paramIndex++;
                         continue;
                     }
                     $normalizedSegments[] = '{param' . $paramIndex++ . '}';
                 } else {
                     $params = [];
                     for ($j = 0; $j < $groupCount; $j++) {
-                        if ($matchedGroupCount !== null && $paramIndex > $matchedGroupCount) {
-                            break;
+                        if ($matchedGroups !== null && !isset($matchedGroups[$paramIndex])) {
+                            $paramIndex++;
+                            continue;
                         }
                         $params[] = 'param' . $paramIndex++;
                     }
@@ -344,8 +348,9 @@ class RouteNormalizer
         if (empty($paramNames)) {
             // All params were optional and absent.
             // Preserve any static text remaining in the segment (e.g. "search.{_format?}" → "search").
+            // rtrim only: a leading special char (e.g. '~foo.{ext?}') must survive.
             $staticOnly = preg_replace('/\{[^}]+\}/', '', $segment);
-            $staticOnly = trim($staticOnly, '.-_~');
+            $staticOnly = rtrim($staticOnly, '.-_~');
             if ($staticOnly !== '') {
                 return self::encodeStaticSegment($staticOnly);
             }
@@ -406,10 +411,16 @@ class RouteNormalizer
                     if ($urlPath !== null) {
                         // Substitute every param value before checking the URL so that
                         // multi-param sections like [/:year/:month] are found correctly.
+                        // Use a word-boundary-aware replacement so :id is not replaced
+                        // inside :id2 (str_replace(':id', ...) would corrupt ':id2').
                         $innerWithValues = $inner;
                         foreach ($innerParams as $param) {
                             $value = (string)$matchedParams[$param];
-                            $innerWithValues = str_replace($paramPrefix . $param, $value, $innerWithValues);
+                            $innerWithValues = preg_replace(
+                                '/' . preg_quote($paramPrefix . $param, '/') . '(?![a-zA-Z0-9_-])/',
+                                $value,
+                                $innerWithValues
+                            );
                         }
                         if (strpos($urlPath, $innerWithValues) !== false) {
                             return $inner;
@@ -418,7 +429,11 @@ class RouteNormalizer
                         $innerEncoded = $inner;
                         foreach ($innerParams as $param) {
                             $value = rawurlencode((string)$matchedParams[$param]);
-                            $innerEncoded = str_replace($paramPrefix . $param, $value, $innerEncoded);
+                            $innerEncoded = preg_replace(
+                                '/' . preg_quote($paramPrefix . $param, '/') . '(?![a-zA-Z0-9_-])/',
+                                $value,
+                                $innerEncoded
+                            );
                         }
                         if (strpos($urlPath, $innerEncoded) !== false) {
                             return $inner;
@@ -467,8 +482,10 @@ class RouteNormalizer
     {
         $i = 1;
         while (
-            strpos($template, $paramPrefix . 'param' . $i) !== false ||
-            strpos($template, '{param' . $i . '}') !== false
+            // Use regex so ':param1' doesn't falsely match inside ':param10'
+            preg_match('/' . preg_quote($paramPrefix . 'param' . $i, '/') . '(?![0-9])/', $template) ||
+            strpos($template, '{param' . $i . '}') !== false ||
+            strpos($template, '%param' . $i . '%') !== false
         ) {
             $i++;
         }
@@ -541,7 +558,12 @@ class RouteNormalizer
     public static function inferSymfonyRouteParams(string $template, string $urlPath): array
     {
         $templateSegments = array_values(array_filter(explode('/', $template), 'strlen'));
-        $urlSegments      = array_values(array_filter(explode('/', $urlPath), 'strlen'));
+        // Decode percent-encoded URL path so template literals (e.g. café) compare
+        // correctly against encoded URL segments (e.g. caf%C3%A9).
+        $urlSegments = array_values(array_filter(
+            array_map('rawurldecode', explode('/', $urlPath)),
+            'strlen'
+        ));
 
         $matched = [];
         $urlIdx  = 0;

@@ -808,19 +808,47 @@ class LaravelIntegration extends Integration
         $urlIdx    = 0;
 
         foreach ($routeSegs as $seg) {
-            if (preg_match('/^\{([^}?]+)\?\}$/', $seg, $m)) {
-                // Optional param — include only when URL has a segment at this position
+            if (preg_match('/^\{([^}?:]+)\?\}$/', $seg, $m)) {
+                // Whole-segment optional param
                 if ($urlIdx < count($urlSegs) && $urlSegs[$urlIdx] !== '') {
                     if (array_key_exists($m[1], $allParams)) {
                         $matched[$m[1]] = $allParams[$m[1]];
                     }
                     $urlIdx++;
                 }
-            } elseif (preg_match('/^\{([^}]+)\}$/', $seg)) {
-                // Required param — always present
-                preg_match('/^\{([^}]+)\}$/', $seg, $m);
+            } elseif (preg_match('/^\{([^}?:]+)\}$/', $seg, $m)) {
+                // Whole-segment required param — always present
                 if (array_key_exists($m[1], $allParams)) {
                     $matched[$m[1]] = $allParams[$m[1]];
+                }
+                $urlIdx++;
+            } elseif (strpos($seg, '{') !== false) {
+                // Mixed segment (e.g. "{name}.{ext?}"): use progressive regex matching
+                // to determine which params (including optional ones) appear in the URL.
+                if ($urlIdx < count($urlSegs) && $urlSegs[$urlIdx] !== '') {
+                    preg_match_all('/\{([^}?:]+)(\?)?\}/', $seg, $pm, PREG_SET_ORDER);
+                    $paramNames  = array_map(static function($m) { return $m[1]; }, $pm);
+                    $staticParts = preg_split('/\{[^}]+\}/', $seg);
+                    $n           = count($paramNames);
+                    $urlSeg      = $urlSegs[$urlIdx];
+
+                    for ($k = $n; $k >= 1; $k--) {
+                        $regexBody = '';
+                        for ($ri = 0; $ri < $k; $ri++) {
+                            $regexBody .= preg_quote($staticParts[$ri], '/') . '(.+)';
+                        }
+                        if ($k === $n) {
+                            $regexBody .= preg_quote($staticParts[$n], '/');
+                        }
+                        if (@preg_match('/^' . $regexBody . '$/', $urlSeg)) {
+                            for ($ri = 0; $ri < $k; $ri++) {
+                                if (array_key_exists($paramNames[$ri], $allParams)) {
+                                    $matched[$paramNames[$ri]] = $allParams[$paramNames[$ri]];
+                                }
+                            }
+                            break;
+                        }
+                    }
                 }
                 $urlIdx++;
             } else {
