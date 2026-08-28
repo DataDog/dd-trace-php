@@ -259,8 +259,11 @@ class DrupalIntegration extends Integration
             [
                 'recurse' => true,
                 'prehook' => function (SpanData $span, $args) use (&$renderHookIds) {
-                    // Reset first, so a stale entry left by a dropped span can never be reused.
+                    // A dropped span skips the posthook, so its hook may still be installed.
                     $spanKey = \spl_object_hash($span);
+                    if (!empty($renderHookIds[$spanKey])) {
+                        remove_hook($renderHookIds[$spanKey]);
+                    }
                     $renderHookIds[$spanKey] = 0;
 
                     $span->name = 'drupal.theme.render';
