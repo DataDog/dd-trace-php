@@ -279,6 +279,28 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertSame('/user/{id}/{name}', RouteNormalizer::normalizeFromLaminas('/user/%id%/%name%'));
     }
 
+    public function testLaminasRegexRouteOptionalFormatAbsent()
+    {
+        // Route defaults inject format='html' even when the URL has no .html extension.
+        // Only params actually present in the URL path should appear in the normalized route.
+        $result = RouteNormalizer::normalizeFromLaminas(
+            '/normalized-regex/%id%.%format%',
+            ['id' => 'article', 'format' => 'html', 'controller' => 'C', 'action' => 'index'],
+            '/normalized-regex/article'
+        );
+        $this->assertSame('/normalized-regex/{id}', $result);
+    }
+
+    public function testLaminasRegexRouteOptionalFormatPresent()
+    {
+        $result = RouteNormalizer::normalizeFromLaminas(
+            '/normalized-regex/%id%.%format%',
+            ['id' => 'article', 'format' => 'html', 'controller' => 'C', 'action' => 'index'],
+            '/normalized-regex/article.html'
+        );
+        $this->assertSame('/normalized-regex/{id+format}', $result);
+    }
+
     public function testLaminasLiteralRoute()
     {
         $this->assertSame('/dump-request', RouteNormalizer::normalizeFromLaminas('/dump-request'));
