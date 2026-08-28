@@ -39,8 +39,63 @@ pkg_xml=${pkg_xml//'${changelog}'/${dd_changelog}}
 
 echo "$pkg_xml" > package.xml
 
-# no profiling in pecl
-sed -i '/"profiling"/d' "Cargo.toml"
+# No profiling in pecl: the pecl package builds the tracer only, so drop the
+# `profiling` feature (and every feature that transitively requires it) from
+# the root manifest.
+#
+# This can't be a line-based delete: `profiling = [ ... ]` spans several lines
+# and none of them contains the literal `"profiling"`, so a
+# `sed '/"profiling"/d'` would delete the *dependent* features (`io_profiling`,
+# `test`, `tracing`, ...) while keeping the `profiling` block that references
+# them, leaving Cargo.toml unparseable. The awk below deletes whole feature
+# entries instead, bracket-balanced and closed transitively.
+awk '
+BEGIN { drop["profiling"] = 1 }
+{ line[NR] = $0 }
+END {
+  # Locate the [features] table.
+  for (i = 1; i <= NR; i++) {
+    if (line[i] ~ /^\[features\]/) { start = i + 1; continue }
+    if (start && line[i] ~ /^\[/) { end = i - 1; break }
+  }
+  if (!start) { for (i = 1; i <= NR; i++) print line[i]; exit }
+  if (!end) end = NR
+
+  # Split the table into (possibly multi-line) feature entries.
+  n = 0
+  for (i = start; i <= end; i++) {
+    if (line[i] !~ /^[A-Za-z0-9_-]+[ \t]*=/) continue
+    name = line[i]; sub(/[ \t]*=.*/, "", name)
+    body = ""; depth = 0; j = i
+    do {
+      body = body line[j]
+      depth += gsub(/\[/, "[", line[j]) - gsub(/\]/, "]", line[j])
+      j++
+    } while (depth > 0 && j <= end)
+    n++
+    ename[n] = name; ebody[n] = body; efrom[n] = i; eto[n] = j - 1
+    i = j - 1
+  }
+
+  # Transitively drop `profiling` and everything that requires it.
+  do {
+    changed = 0
+    for (k = 1; k <= n; k++) {
+      if (ename[k] in drop) continue
+      for (d in drop) {
+        if (index(ebody[k], "\"" d "\"")) { drop[ename[k]] = 1; changed = 1; break }
+      }
+    }
+  } while (changed)
+
+  for (k = 1; k <= n; k++)
+    if (ename[k] in drop)
+      for (i = efrom[k]; i <= eto[k]; i++) del[i] = 1
+
+  for (i = 1; i <= NR; i++) if (!(i in del)) print line[i]
+}
+' "Cargo.toml" > "Cargo.toml.pecl"
+mv "Cargo.toml.pecl" "Cargo.toml"
 
 pear package-validate package.xml
 pear package
