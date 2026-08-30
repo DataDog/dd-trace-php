@@ -50,7 +50,7 @@ pub fn build() {
     if env::var_os("CARGO_FEATURE_PROFILING").is_some() {
         cc_build.define("PROFILING", None);
     }
-    for inc in php_config_includes() {
+    for inc in php_include_dirs() {
         cc_build.include(inc);
     }
 
@@ -94,20 +94,25 @@ pub fn build() {
     }
 }
 
-fn php_config_includes() -> Vec<String> {
-    let php_config = env::var("PHP_CONFIG").unwrap_or_else(|_| "php-config".to_string());
-    let output = std::process::Command::new(&php_config)
-        .arg("--includes")
-        .output()
-        .unwrap_or_else(|e| panic!("failed to run `{php_config} --includes`: {e}"));
-    if !output.status.success() {
-        panic!(
-            "`{php_config} --includes` failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
+fn php_include_dirs() -> Vec<String> {
+    println!("cargo:rerun-if-env-changed=DDTRACE_PHP_INCLUDES");
+    if let Ok(includes) = env::var("DDTRACE_PHP_INCLUDES") {
+        return parse_include_flags(&includes);
     }
-    String::from_utf8(output.stdout)
-        .expect("php-config output was not valid UTF-8")
+
+    // php-config does not exist in the Windows SDK. config.w32 exports the
+    // PHP build's CFLAGS for cc-rs instead, including the PHP header paths.
+    if env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
+        return Vec::new();
+    }
+
+    panic!(
+        "DDTRACE_PHP_INCLUDES is required; loadable extensions must pass Make's INCLUDES to Cargo"
+    );
+}
+
+fn parse_include_flags(flags: &str) -> Vec<String> {
+    flags
         .split_whitespace()
         .filter_map(|flag| flag.strip_prefix("-I"))
         .map(str::to_string)

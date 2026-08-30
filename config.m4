@@ -29,12 +29,6 @@ PHP_ARG_ENABLE(ddtrace-rust-debug, whether to compile rust in debug mode,
 PHP_ARG_ENABLE(ddtrace-rust-library-split, whether to not link the rust library against the extension at compile time,
   [  --enable-ddtrace-rust-library-split Do not build nor link against the rust code], no, no)
 
-DDTRACE_PHP_CONFIG=$(command -v "$PHP_CONFIG" 2>/dev/null || echo "$PHP_CONFIG")
-if command -v realpath >/dev/null 2>&1; then
-  DDTRACE_PHP_CONFIG=$(realpath "$DDTRACE_PHP_CONFIG")
-fi
-PHP_SUBST(DDTRACE_PHP_CONFIG)
-
 dnl Keep make clean out of Cargo targets; distclean removes all product-specific targets.
 AC_DEFUN([DDTRACE_GEN_GLOBAL_MAKEFILE_WRAP], [
   pushdef([PHP_GEN_GLOBAL_MAKEFILE], [
@@ -96,7 +90,7 @@ if test "$PHP_DDTRACE_PROFILING" != "no"; then
 
   cat <<EOT >> Makefile.fragments
 $profiler_rust_lib: \$(shell for dir in \$(srcdir)/components-rs \$(srcdir)/profiling \$(srcdir)/libdatadog \$(srcdir)/../../libdatadog; do test ! -d \$\$dir || find \$\$dir \( -type f -o -type l \) \( -name '*.rs' -o -name '*.c' -o -name '*.h' -o -name Cargo.toml \) -not -path '*/target/*' -not -path '*/.git/*'; done) \$(srcdir)/ext/configuration.h \$(srcdir)/ext/configuration_helpers.h \$(srcdir)/ext/configuration_shared.h \$(srcdir)/tracer/configuration.h \$(srcdir)/ext/handlers_api.c \$(srcdir)/ext/handlers_api.h \$(srcdir)/Cargo.toml \$(srcdir)/Cargo.lock \$(srcdir)/VERSION
-	(cd "\$(srcdir)"; PHP_CONFIG="\$(DDTRACE_PHP_CONFIG)" CARGO_TARGET_DIR="$profiler_target_dir" RUSTFLAGS="\$(RUSTFLAGS) --cfg tokio_unstable" "\$(DDTRACE_CARGO)" build $DDTRACE_PROFILING_CARGO_BUILD_FLAGS $profiler_target_arg --no-default-features --features "profiling${DDTRACE_PROFILING_FEATURES:+,$DDTRACE_PROFILING_FEATURES}" $(test "$profiler_cargo_profile" = debug || echo --profile "$profiler_cargo_profile") \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+"))
+	(cd "\$(srcdir)"; DDTRACE_PHP_INCLUDES="\$(INCLUDES)" CARGO_TARGET_DIR="$profiler_target_dir" RUSTFLAGS="\$(RUSTFLAGS) --cfg tokio_unstable" "\$(DDTRACE_CARGO)" build $DDTRACE_PROFILING_CARGO_BUILD_FLAGS $profiler_target_arg --no-default-features --features "profiling${DDTRACE_PROFILING_FEATURES:+,$DDTRACE_PROFILING_FEATURES}" $(test "$profiler_cargo_profile" = debug || echo --profile "$profiler_cargo_profile") \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+"))
 
 \$(phplibdir)/datadog-profiling.la: $profiler_rust_lib
 	@mkdir -p \$(phplibdir)/.libs
@@ -551,7 +545,7 @@ EOT
 
     cat <<EOT >> Makefile.fragments
 $ddtrace_rust_lib: $( (find "$ext_srcdir/components-rs" -name "*.rs"; find "$ext_srcdir/profiling" \( -name "*.rs" -o -name "*.c" -o -name "*.h" \); find "$ext_srcdir/zend_abstract_interface" \( -name "*.c" -o -name "*.h" \); find "$ext_srcdir" -maxdepth 1 -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -not -path "*/target/*"; find "$ext_srcdir/libdatadog" -name "*.rs" -not -path "*/target/*") 2>/dev/null | tr '\n' ' ' ) $ext_srcdir/ext/configuration.h $ext_srcdir/ext/configuration_helpers.h $ext_srcdir/ext/configuration_shared.h $ext_srcdir/tracer/configuration.h
-	(cd "$ext_srcdir"; PHP_CONFIG="\$(DDTRACE_PHP_CONFIG)" CARGO_FEATURES="$ddtrace_cargo_features" CARGO_TARGET_DIR="$ddtrace_target_dir/" SHARED=$(test "$ext_shared" = "yes" && echo 1) PROFILE="$ddtrace_cargo_profile" host_os="$host_os" DDTRACE_CARGO="\$(DDTRACE_CARGO)" $(if test "$PHP_DDTRACE_SANITIZE" != "no"; then echo COMPILE_ASAN=1; fi) sh ./compile_rust.sh $ddtrace_cargo_build_flags \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+"))
+	(cd "$ext_srcdir"; DDTRACE_PHP_INCLUDES="\$(INCLUDES)" CARGO_FEATURES="$ddtrace_cargo_features" CARGO_TARGET_DIR="$ddtrace_target_dir/" SHARED=$(test "$ext_shared" = "yes" && echo 1) PROFILE="$ddtrace_cargo_profile" host_os="$host_os" DDTRACE_CARGO="\$(DDTRACE_CARGO)" $(if test "$PHP_DDTRACE_SANITIZE" != "no"; then echo COMPILE_ASAN=1; fi) sh ./compile_rust.sh $ddtrace_cargo_build_flags \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+"))
 EOT
   fi
 

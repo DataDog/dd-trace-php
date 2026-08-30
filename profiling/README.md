@@ -49,9 +49,15 @@ cases where they are ABI compatible.
 
 ## Testing
 
-From the repository root, `cargo test --no-default-features --features profiling,test`
-runs the Rust tests. To also run the stack walking tests, add the
-`stack_walking_tests` feature.
+From the repository root, Rust tests can be run directly when the selected PHP
+toolchain is supplied explicitly:
+
+```sh
+DDTRACE_PHP_INCLUDES="$(php-config --includes)" \
+cargo test --no-default-features --features profiling,test
+```
+
+To also run the stack walking tests, add the `stack_walking_tests` feature.
 
 To inspect a standalone profiler, run
 `/path/to/php -d extension=modules/datadog-profiling.so --ri datadog-profiling`.
@@ -86,6 +92,7 @@ Benchmarks are implemented using
 execute them from the repository root using:
 
 ```sh
+DDTRACE_PHP_INCLUDES="$(php-config --includes)" \
 cargo bench --no-default-features --features profiling,test,stack_walking_tests
 ```
 

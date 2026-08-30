@@ -2,34 +2,15 @@ use bindgen::callbacks::IntKind;
 use std::collections::HashSet;
 use std::path::Path;
 use std::path::PathBuf;
-use std::process::Command;
 use std::{env, fs};
 
-fn php_config() -> std::ffi::OsString {
-    env::var_os("PHP_CONFIG").unwrap_or_else(|| "php-config".into())
-}
-
 pub fn build() {
-    // Configure resolves PHP_CONFIG to the selected toolchain's real path, so
-    // switching PHP builds invalidates Cargo's cached bindings and C probes.
-    println!("cargo:rerun-if-env-changed=PHP_CONFIG");
-
-    let php_config_includes_output = Command::new(php_config())
-        .arg("--includes")
-        .output()
-        .expect(
-            "Unable to run `php-config`. Set PHP_CONFIG to the php-config selected by configure.",
-        );
-
-    if !php_config_includes_output.status.success() {
-        match String::from_utf8(php_config_includes_output.stderr) {
-            Ok(stderr) => panic!("`php-config failed: {stderr}"),
-            Err(err) => panic!(
-                "`php-config` failed, not utf8: {}",
-                String::from_utf8_lossy(err.as_bytes())
-            ),
-        }
-    }
+    // Make owns PHP toolchain selection and passes its generated include flags
+    // into Cargo. Do not rediscover a potentially different PHP installation.
+    println!("cargo:rerun-if-env-changed=DDTRACE_PHP_INCLUDES");
+    let php_includes = env::var("DDTRACE_PHP_INCLUDES")
+        .expect("DDTRACE_PHP_INCLUDES is required; build through phpize/configure/Make");
+    let php_include_root = php_include_root(&php_includes);
 
     // Read the version from the VERSION file
     let version = fs::read_to_string("VERSION")
@@ -39,10 +20,7 @@ pub fn build() {
     println!("cargo:rustc-env=PROFILER_VERSION={version}");
     println!("cargo:rerun-if-changed=VERSION");
 
-    let php_config_includes = std::str::from_utf8(php_config_includes_output.stdout.as_slice())
-        .expect("`php-config`'s stdout to be valid utf8");
-
-    let vernum = php_config_vernum();
+    let vernum = php_version_id(&php_include_root);
     let post_startup_cb = cfg_post_startup_cb(vernum);
     let preload = cfg_preload(vernum);
     let fibers = cfg_fibers(vernum);
@@ -51,9 +29,9 @@ pub fn build() {
     let trigger_time_sample = cfg_trigger_time_sample();
     let zend_error_observer = cfg_zend_error_observer(vernum);
 
-    generate_bindings(php_config_includes, fibers, zend_error_observer);
+    generate_bindings(&php_includes, fibers, zend_error_observer);
     build_zend_php_ffis(
-        php_config_includes,
+        &php_includes,
         post_startup_cb,
         preload,
         run_time_cache,
@@ -65,32 +43,40 @@ pub fn build() {
 
     cfg_php_major_version(vernum);
     cfg_php_feature_flags(vernum);
-    cfg_php_build();
+    cfg_php_build(&php_include_root);
     apple_linker_flags();
 }
 
-fn php_config_vernum() -> u64 {
-    let output = Command::new(php_config()).arg("--vernum").output().expect(
-        "Unable to run `php-config`. Set PHP_CONFIG to the php-config selected by configure.",
-    );
+fn php_include_root(includes: &str) -> PathBuf {
+    includes
+        .split_whitespace()
+        .filter_map(|flag| flag.strip_prefix("-I"))
+        .map(PathBuf::from)
+        .find(|path| {
+            path.join("main/php_version.h").is_file() && path.join("main/php_config.h").is_file()
+        })
+        .unwrap_or_else(|| {
+            panic!("DDTRACE_PHP_INCLUDES does not contain the PHP include root: {includes}")
+        })
+}
 
-    if !output.status.success() {
-        match String::from_utf8(output.stderr) {
-            Ok(stderr) => panic!("`php-config --vernum` failed: {stderr}"),
-            Err(err) => panic!(
-                "`php-config --vernum` failed, not utf8: {}",
-                String::from_utf8_lossy(err.as_bytes())
-            ),
-        }
-    }
+fn php_version_id(include_root: &Path) -> u64 {
+    let version_header = include_root.join("main/php_version.h");
+    println!("cargo:rerun-if-changed={}", version_header.display());
+    let contents = fs::read_to_string(&version_header).expect("failed to read main/php_version.h");
+    macro_value(&contents, "PHP_VERSION_ID")
+        .expect("PHP_VERSION_ID is missing from main/php_version.h")
+        .parse()
+        .expect("PHP_VERSION_ID is not an integer")
+}
 
-    let vernum = std::str::from_utf8(output.stdout.as_slice())
-        .expect("`php-config`'s stdout to be valid utf8");
-
-    vernum
-        .trim()
-        .parse::<u64>()
-        .expect("output to be a number and fit in u64")
+fn macro_value<'a>(contents: &'a str, name: &str) -> Option<&'a str> {
+    contents.lines().find_map(|line| {
+        let rest = line.trim().strip_prefix("#define ")?;
+        let split_at = rest.find(char::is_whitespace)?;
+        let (macro_name, value) = rest.split_at(split_at);
+        (macro_name == name).then(|| value.trim())
+    })
 }
 
 const ZAI_H_FILES: &[&str] = &[
@@ -109,7 +95,7 @@ const ZAI_H_FILES: &[&str] = &[
 
 #[allow(clippy::too_many_arguments)]
 fn build_zend_php_ffis(
-    php_config_includes: &str,
+    php_includes: &str,
     post_startup_cb: bool,
     preload: bool,
     run_time_cache: bool,
@@ -142,16 +128,6 @@ fn build_zend_php_ffis(
     for file in zai_c_files.iter().chain(ZAI_H_FILES.iter()) {
         println!("cargo:rerun-if-changed={file}");
     }
-
-    let output = Command::new(php_config()).arg("--prefix").output().expect(
-        "Unable to run `php-config`. Set PHP_CONFIG to the php-config selected by configure.",
-    );
-
-    let prefix = String::from_utf8(output.stdout).expect("only utf8 chars work");
-    println!(
-        "cargo:rustc-link-search=native={prefix}/lib",
-        prefix = prefix.trim()
-    );
 
     let files = ["profiling/src/php_ffi.c", "ext/handlers_api.c"];
     let post_startup_cb = if post_startup_cb { "1" } else { "0" };
@@ -189,7 +165,7 @@ fn build_zend_php_ffis(
         .define("PROFILING", None)
         .includes([Path::new("ext")])
         .includes(
-            str::replace(php_config_includes, "-I", "")
+            str::replace(php_includes, "-I", "")
                 .split(' ')
                 .map(Path::new)
                 .chain([Path::new("zend_abstract_interface")])
@@ -232,7 +208,7 @@ impl bindgen::callbacks::ParseCallbacks for IgnoreMacros {
     }
 }
 
-fn generate_bindings(php_config_includes: &str, fibers: bool, zend_error_observer: bool) {
+fn generate_bindings(php_includes: &str, fibers: bool, zend_error_observer: bool) {
     println!("cargo:rerun-if-changed=profiling/src/php_ffi.h");
     println!("cargo:rerun-if-changed=ext/handlers_api.h");
     let ignored_macros = IgnoreMacros(
@@ -310,7 +286,7 @@ fn generate_bindings(php_config_includes: &str, fibers: bool, zend_error_observe
         .rustified_enum("datadog_php_profiling_log_level")
         .rustified_enum("zai_config_type")
         .parse_callbacks(Box::new(ignored_macros))
-        .clang_args(php_config_includes.split(' '))
+        .clang_args(php_includes.split(' '))
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .layout_tests(false)
         // this prevents bindgen from copying C comments to Rust, as otherwise
@@ -430,80 +406,16 @@ fn cfg_php_feature_flags(vernum: u64) {
     }
 }
 
-fn cfg_php_build() {
+fn cfg_php_build(include_root: &Path) {
     println!("cargo::rustc-check-cfg=cfg(php_zts)");
     println!("cargo::rustc-check-cfg=cfg(php_debug)");
 
-    let output = Command::new(php_config())
-        .arg("--include-dir")
-        .output()
-        .expect(
-            "Unable to run `php-config`. Set PHP_CONFIG to the php-config selected by configure.",
-        );
+    let config_header = include_root.join("main/php_config.h");
+    println!("cargo:rerun-if-changed={}", config_header.display());
+    let contents = fs::read_to_string(&config_header).expect("failed to read main/php_config.h");
 
-    if !output.status.success() {
-        match String::from_utf8(output.stderr) {
-            Ok(stderr) => panic!("`php-config --include-dir` failed: {stderr}"),
-            Err(err) => panic!("`php-config --include-dir` failed, not utf8: {err}"),
-        }
-    }
-
-    let include_dir = std::str::from_utf8(output.stdout.as_slice())
-        .expect("`php-config`'s stdout to be valid utf8")
-        .trim();
-
-    let out_dir = env::var("OUT_DIR").unwrap();
-    let probe_path = Path::new(&out_dir).join("php_build_probe.c");
-    fs::write(
-        &probe_path,
-        r#"
-#include "main/php_config.h"
-#include <stdio.h>
-int main() {
-#ifdef ZTS
-    printf("1");
-#else
-    printf("0");
-#endif
-#if ZEND_DEBUG
-    printf("1");
-#else
-    printf("0");
-#endif
-    return 0;
-}
-"#,
-    )
-    .expect("Failed to write PHP build probe file");
-
-    let compiler = cc::Build::new().get_compiler();
-    let probe_exe = Path::new(&out_dir).join("php_build_probe");
-    let compile_status = Command::new(compiler.path())
-        .arg(format!("-I{}", include_dir))
-        .arg(&probe_path)
-        .arg("-o")
-        .arg(&probe_exe)
-        .status()
-        .expect("Failed to compile PHP build probe");
-
-    if !compile_status.success() {
-        panic!("Failed to compile PHP build probe");
-    }
-
-    let probe_output = Command::new(&probe_exe)
-        .output()
-        .expect("Failed to run PHP build probe");
-
-    let probe_value = std::str::from_utf8(&probe_output.stdout)
-        .expect("PHP build probe output not UTF-8")
-        .trim();
-    let (zts, debug) = match probe_value {
-        "00" => (false, false),
-        "01" => (false, true),
-        "10" => (true, false),
-        "11" => (true, true),
-        _ => panic!("Unexpected PHP build probe output: {probe_value:?}"),
-    };
+    let zts = macro_value(&contents, "ZTS").is_some_and(|value| value != "0");
+    let debug = macro_value(&contents, "ZEND_DEBUG").is_some_and(|value| value != "0");
 
     if zts {
         println!("cargo:rustc-cfg=php_zts");
