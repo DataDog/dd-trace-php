@@ -19,10 +19,17 @@ if [ "${WITH_ASAN}" -eq "1" ]; then
   export ASAN=1
   export COMPILE_ASAN=1
 fi
-# Compile Rust and PHP in parallel
-SHARED=1 ./compile_rust.sh &
+# Compile Rust and PHP in parallel. This split-library build links the Rust
+# archive manually, so pass the PHP toolchain selected above explicitly.
+DDTRACE_PHP_INCLUDES="$(php-config --includes)" SHARED=1 ./compile_rust.sh &
+rust_pid=$!
 make -j static &
-wait
+php_pid=$!
+
+build_status=0
+wait "${rust_pid}" || build_status=$?
+wait "${php_pid}" || build_status=$?
+test "${build_status}" -eq 0
 
 # Link extension
 if [ "$(uname -s)" = "Linux" ]; then
