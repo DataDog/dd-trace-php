@@ -13,7 +13,7 @@ PHP timeout limit is implemented using the VM interrupt handler, which is why
 it is set up for this test.
 --SKIPIF--
 <?php
-if (!extension_loaded('datadog-profiling'))
+if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
   echo "skip: test requires Datadog Continuous Profiler\n";
 if (PHP_VERSION_ID < 70100)
   echo "skip: php 7.1 or above is required to execute VM interrupt hook.\n";

@@ -10,7 +10,7 @@ if (PHP_VERSION_ID < 80400)
     echo "skip: PHP Version < 8.4 are not affected", PHP_EOL;
 if (PHP_VERSION_ID >= 80407)
     echo "skip: fixed since PHP version 8.4.7", PHP_EOL;
-if (!extension_loaded('datadog-profiling'))
+if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
     echo "skip: test requires datadog-profiling", PHP_EOL;
 if (php_uname("s") === "Darwin")
     echo "skip: 'Darwin' has no JIT", PHP_EOL;

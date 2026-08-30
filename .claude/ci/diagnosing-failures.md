@@ -28,7 +28,7 @@ non-fatal issues.
 
 If a test flips green→red **deterministically across every PHP version/SAPI**
 with no corresponding source/commit change, suspect a **mutable CI image tag
-being republished** under the same tag (the `bookworm-{N}` images are rebuilt
+being republished** under the same tag (the `bookworm-10` images are rebuilt
 in place with `docker buildx bake --no-cache --pull`), not a code regression.
 Verify the mechanism empirically before fixing:
 

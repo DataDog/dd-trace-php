@@ -75,29 +75,27 @@ for architecture in "${architectures[@]}"; do
         ########################
 
         mkdir -p ${gnu}/trace/ext/${php_api} ${musl}/trace/ext/${php_api}
-        # gnu
-        stripto ./standalone_${architecture}/ddtrace-${php_api}.so ${gnu}/trace/ext/${php_api}/ddtrace.so
-        stripto ./standalone_${architecture}/ddtrace-${php_api}-zts.so ${gnu}/trace/ext/${php_api}/ddtrace-zts.so
-        # musl
-        stripto ./standalone_${architecture}/ddtrace-${php_api}-alpine.so ${musl}/trace/ext/${php_api}/ddtrace.so
-        stripto ./standalone_${architecture}/ddtrace-${php_api}-alpine-zts.so ${musl}/trace/ext/${php_api}/ddtrace-zts.so
-
-        ########################
-        # Profiling
-        ########################
-
         if [[ ${php_api} -ge 20160303 ]]; then
-            mkdir -p ${gnu}/profiling/ext/${php_api} ${musl}/profiling/ext/${php_api}
-            # gnu
-            stripto ./datadog-profiling/${architecture}-unknown-linux-gnu/lib/php/${php_api}/datadog-profiling.so \
-                ${gnu}/profiling/ext/${php_api}/datadog-profiling.so
-            stripto ./datadog-profiling/${architecture}-unknown-linux-gnu/lib/php/${php_api}/datadog-profiling-zts.so \
-                ${gnu}/profiling/ext/${php_api}/datadog-profiling-zts.so
-            # musl
-            stripto ./datadog-profiling/${architecture}-alpine-linux-musl/lib/php/${php_api}/datadog-profiling.so \
-                ${musl}/profiling/ext/${php_api}/datadog-profiling.so
-            stripto ./datadog-profiling/${architecture}-alpine-linux-musl/lib/php/${php_api}/datadog-profiling-zts.so \
-                ${musl}/profiling/ext/${php_api}/datadog-profiling-zts.so
+            # Profiling-capable PHP versions use the self-contained combined artifact.
+            stripto ./combined-ddtrace/${architecture}-unknown-linux-gnu/lib/php/${php_api}/ddtrace.so \
+                ${gnu}/trace/ext/${php_api}/ddtrace.so
+            stripto ./combined-ddtrace/${architecture}-unknown-linux-gnu/lib/php/${php_api}/ddtrace-zts.so \
+                ${gnu}/trace/ext/${php_api}/ddtrace-zts.so
+            touch ${gnu}/trace/ext/${php_api}/.ddtrace.profiling
+            touch ${gnu}/trace/ext/${php_api}/.ddtrace-zts.profiling
+
+            stripto ./combined-ddtrace/${architecture}-alpine-linux-musl/lib/php/${php_api}/ddtrace.so \
+                ${musl}/trace/ext/${php_api}/ddtrace.so
+            stripto ./combined-ddtrace/${architecture}-alpine-linux-musl/lib/php/${php_api}/ddtrace-zts.so \
+                ${musl}/trace/ext/${php_api}/ddtrace-zts.so
+            touch ${musl}/trace/ext/${php_api}/.ddtrace.profiling
+            touch ${musl}/trace/ext/${php_api}/.ddtrace-zts.profiling
+        else
+            # PHP 7.0 remains tracer-only.
+            stripto ./standalone_${architecture}/ddtrace-${php_api}.so ${gnu}/trace/ext/${php_api}/ddtrace.so
+            stripto ./standalone_${architecture}/ddtrace-${php_api}-zts.so ${gnu}/trace/ext/${php_api}/ddtrace-zts.so
+            stripto ./standalone_${architecture}/ddtrace-${php_api}-alpine.so ${musl}/trace/ext/${php_api}/ddtrace.so
+            stripto ./standalone_${architecture}/ddtrace-${php_api}-alpine-zts.so ${musl}/trace/ext/${php_api}/ddtrace-zts.so
         fi
 
         ########################
@@ -113,9 +111,10 @@ for architecture in "${architectures[@]}"; do
         stripto ./appsec_${architecture}/ddappsec-${php_api}-alpine-zts.so ${musl}/appsec/ext/${php_api}/ddappsec-zts.so
     done
 
-    # Trace
-    mkdir -p "${root}/trace"
+    # Trace and profiling licenses
+    mkdir -p "${root}/trace/profiling-licenses"
     cp -r ./src "${root}/trace/"
+    cp ./profiling/LICENSE* ./profiling/NOTICE "${root}/trace/profiling-licenses/"
 
     # AppSec
     mkdir -p "${root}/appsec/lib" "${root}/appsec/etc"

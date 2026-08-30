@@ -9,7 +9,7 @@ Our zend_execute_internal hook inspected the func after the call has been made,
 potentially triggering the issue. This test will likely only fail under asan.
 --SKIPIF--
 <?php
-if (!extension_loaded('datadog-profiling'))
+if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
     echo "skip: test requires Datadog Continuous Profiler\n";
 if (PHP_VERSION_ID < 80200)
     echo "skip: test requires PHP 8.2+\n";

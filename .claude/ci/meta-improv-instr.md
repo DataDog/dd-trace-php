@@ -58,8 +58,8 @@ Good gaps to capture:
 - Dependencies (packages, files, env vars) that must be present but are not
   mentioned
 - Paths or filenames that differ between the docs and reality
-- Steps that are described as necessary but turn out to be no-ops (e.g. CI
-  checks `.lz4` but profiler emits `.zst` — the check is vacuously true)
+- Steps that are described as necessary but turn out to be no-ops or duplicate
+  work already owned by the generated Makefile
 - Speed differences large enough to matter (e.g. `EXECUTION_TIME=3` saves 50+
   seconds per run; `DD_PROFILING_LOG_LEVEL=warn` vs `trace` measurably affects
   throughput)
@@ -99,8 +99,7 @@ a "Reproducing Locally" example:
 | `parallel` PECL needs `libpcre2-dev` + GitHub URL for v1.2.7 | `github-actions-profiler.md` |
 | `parallel.so` not persisted in overlay cache — copy to project dir | `github-actions-profiler.md` |
 | Image tag must match PHP version under test | `github-actions-profiler.md` |
-| `cargo rustc` must run from `profiling/` subdir | `github-actions-profiler.md` |
-| Output path in docs differed from CI workflow path | `github-actions-profiler.md` |
+| Loadable profiler artifacts must use root phpize/configure/Make | `github-actions-profiler.md` |
+| Supported output paths are under `modules/`, not Cargo target directories | `github-actions-profiler.md` |
 | `EXECUTION_TIME=3` applies to all time-based tests, not just `allocations` | `github-actions-profiler.md` |
 | `DD_PROFILING_LOG_LEVEL=warn` recommended (trace slows execution) | `github-actions-profiler.md` |
-| "No profile" check is vacuously true (`.lz4` vs `.zst`) | `github-actions-profiler.md` |

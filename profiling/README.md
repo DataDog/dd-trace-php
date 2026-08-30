@@ -26,11 +26,17 @@ the process.
 
 ## Compiling
 
-From the repository root, run `phpize`, then
-`./configure --disable-ddtrace-tracer --enable-ddtrace-profiling`, and `make`.
-This invokes the root Cargo package and its profiler build helper, which is how
-it adapts to various PHP versions. The
-[bindgen](https://crates.io/crates/bindgen) crate is used to generate Rust
+From the repository root, run `phpize`, then select one profiler build:
+
+- Standalone `datadog-profiling.so`: `./configure --disable-ddtrace-tracer --enable-ddtrace-profiling`
+- Combined tracer and profiler `ddtrace.so`: `./configure --enable-ddtrace-tracer --enable-ddtrace-profiling`
+
+Run `make` after configuring. Both modes invoke the root Cargo package and its
+profiler build helper, which is how the profiler adapts to various PHP versions.
+Standalone profiling defaults on when its module is explicitly loaded; combined
+`ddtrace.so` defaults profiling off and is enabled with `DD_PROFILING_ENABLED=1`.
+A direct `cargo build` does not produce a supported PHP extension artifact.
+The [bindgen](https://crates.io/crates/bindgen) crate is used to generate Rust
 bindings to the Zend Engine. Although bindgen is pretty good, there are things
 like complex macro expansions which it doesn't understand, so there is a bit of
 C code to do things that Rust/bindgen isn't good at.
@@ -47,14 +53,25 @@ From the repository root, `cargo test --no-default-features --features profiling
 runs the Rust tests. To also run the stack walking tests, add the
 `stack_walking_tests` feature.
 
-To see if the profiler is recognised by your PHP version as an extension, run
-`/path/to/php -d extension=modules/datadog-profiling.so --ri datadog-profiling`
-and check the output.
+To inspect a standalone profiler, run
+`/path/to/php -d extension=modules/datadog-profiling.so --ri datadog-profiling`.
+For a combined build, load `modules/ddtrace.so` and inspect `--ri ddtrace`; it
+registers only the `ddtrace` module and Zend extension identities.
 
 The following command will help you run the [PHPT tests](tests/phpt):
 
 ```sh
 /path/to/php /path/to/run-tests.php -d extension=modules/datadog-profiling.so -n profiling/tests/phpt
+```
+
+For profiler-focused testing of a combined artifact, disable the other runtime
+products while leaving common configuration active:
+
+```sh
+DD_TRACE_ENABLED=0 \
+DD_INSTRUMENTATION_TELEMETRY_ENABLED=0 \
+DD_REMOTE_CONFIG_ENABLED=0 \
+/path/to/php /path/to/run-tests.php -d extension=modules/ddtrace.so -n profiling/tests/phpt
 ```
 
 Be aware that the PHPT tests will fail with the debug version of the profiler,
@@ -80,6 +97,7 @@ behind a feature flag.
 
 #### Can't find the profiler library on macOS
 
-The supported PHP build copies the loadable extension to
-`modules/datadog-profiling.so`. Cargo's intermediate cdylib uses the native
-`.dylib` suffix and is stored under `target-profiling/<profile>/libdatadog_php.dylib`.
+Only the phpize/configure/Make output is a supported loadable extension. A
+standalone build produces `modules/datadog-profiling.so`; a combined build
+produces `modules/ddtrace.so`. Do not load or copy Cargo's intermediate cdylib
+from the target directory.

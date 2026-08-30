@@ -5,7 +5,7 @@ This test verifies that an invalid Unix Domain Socket (UDS) path used in
 DD_TRACE_AGENT_URL will cause it to fall back to DD_AGENT_HOST if set.
 --SKIPIF--
 <?php
-if (!extension_loaded('datadog-profiling'))
+if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
   echo "skip: test requires Datadog Continuous Profiler\n";
 ?>
 --ENV--
@@ -18,7 +18,7 @@ assert.exception=1
 <?php
 
 ob_start();
-$extension = new ReflectionExtension('datadog-profiling');
+$extension = new ReflectionExtension(extension_loaded('datadog-profiling') ? 'datadog-profiling' : 'ddtrace');
 $extension->info();
 $output = ob_get_clean();
 

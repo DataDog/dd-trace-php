@@ -6,6 +6,9 @@
 #include <components-rs/sidecar.h>
 
 #include <tracer/tracer_api.h>
+#ifdef PROFILING
+#include <profiling/src/lifecycle.h>
+#endif
 
 #include "configuration.h"
 #include "excluded_modules.h"
@@ -47,8 +50,19 @@ ddog_CharSlice php_version_rt;
 
 ZEND_DECLARE_MODULE_GLOBALS(datadog)
 
+#ifdef PROFILING
+static bool datadog_profiling_initialized;
+#endif
+
 #ifdef COMPILE_DL_DDTRACE
+#ifdef PROFILING
+ZEND_DLEXPORT zend_module_entry *get_module(void) {
+    datadog_module_entry.functions = ddog_php_prof_functions;
+    return &datadog_module_entry;
+}
+#else
 ZEND_GET_MODULE(datadog)
+#endif
 #ifdef ZTS
 TSRM_TLS void *TSRMLS_CACHE = NULL;
 #endif
@@ -138,19 +152,30 @@ static int datadog_startup(zend_extension *extension) {
 #endif
     }
 
-#ifdef DDTRACE
-    ddtrace_startup();
+#ifdef TRACER
+    if (ddtrace_startup() != SUCCESS) {
+        return FAILURE;
+    }
+#endif
+#ifdef PROFILING
+    if (datadog_profiling_initialized && ddog_php_prof_zend_startup(extension) != SUCCESS) {
+        return FAILURE;
+    }
 #endif
 
     return SUCCESS;
 }
 
 static void datadog_shutdown(zend_extension *extension) {
-    UNUSED(extension);
-
-    #ifdef DDTRACE
+#ifdef PROFILING
+    if (datadog_profiling_initialized) {
+        ddog_php_prof_zend_shutdown(extension);
+    }
+#endif
+#ifdef TRACER
     ddtrace_shutdown();
 #endif
+    UNUSED(extension);
 }
 
 static void dd_activate_once(void) {
@@ -167,13 +192,14 @@ static void dd_activate_once(void) {
         if (enable_sidecar) {
             datadog_sidecar_setup(flags);
         }
-#ifdef DDTRACE
-        ddtrace_activate_once();
-#endif
     }
 }
 
 static pthread_once_t dd_activate_once_control = PTHREAD_ONCE_INIT;
+#ifdef TRACER
+static pthread_once_t dd_tracer_activate_once_control = PTHREAD_ONCE_INIT;
+static pthread_once_t dd_tracer_first_rinit_control = PTHREAD_ONCE_INIT;
+#endif
 
 static bool dd_is_cli_autodisabled(const char *arg) {
     const char *slashend = strrchr(arg, '/');
@@ -190,10 +216,6 @@ static void datadog_activate(void) {
     }
 
     datadog_telemetry_rinit();
-
-#ifdef DDTRACE
-    ddtrace_activate_early();
-#endif
 
     // ZAI config is always set up
     pthread_once(&dd_activate_once_control, dd_activate_once);
@@ -217,8 +239,17 @@ static void datadog_activate(void) {
         }
     }
 
-#ifdef DDTRACE
+#ifdef TRACER
+    // Tracer activation follows completion of common activation. Its one-time
+    // setup must still precede its first zai_hook activation.
+    pthread_once(&dd_tracer_activate_once_control, ddtrace_activate_once);
+    ddtrace_activate_early();
     ddtrace_activate_late();
+#endif
+#ifdef PROFILING
+    if (datadog_profiling_initialized) {
+        ddog_php_prof_zend_activate();
+    }
 #endif
 }
 
@@ -241,7 +272,7 @@ static zend_extension dd_zend_extension_entry = {"ddtrace",
                                                   datadog_activate,
                                                   datadog_deactivate,
                                                   NULL,
-#if PHP_VERSION_ID < 80000 && defined(DDTRACE)
+#if PHP_VERSION_ID < 80000 && defined(TRACER)
                                                   zai_interceptor_op_array_pass_two,
 #else
                                                   NULL,
@@ -249,12 +280,12 @@ static zend_extension dd_zend_extension_entry = {"ddtrace",
                                                   NULL,
                                                   NULL,
                                                   NULL,
-#if PHP_VERSION_ID < 80000 && defined(DDTRACE)
+#if PHP_VERSION_ID < 80000 && defined(TRACER)
                                                   zai_interceptor_op_array_ctor,
 #else
                                                   NULL,
 #endif
-#ifdef DDTRACE
+#ifdef TRACER
                                                   zai_hook_unresolve_op_array,
 #else
                                                   NULL,
@@ -274,10 +305,22 @@ static PHP_GINIT_FUNCTION(datadog) {
     datadog_globals->sidecar_universal_service_tags_mutex = tsrm_mutex_alloc();
     zend_hash_init(&datadog_globals->git_metadata, 8, unused, (dtor_func_t)datadog_git_metadata_dtor, 1);
 
-#ifdef DDTRACE
+#ifdef TRACER
     ddtrace_ginit(datadog_globals);
 #endif
+#ifdef PROFILING
+    datadog_globals->profiling_globals = pemalloc(ddog_php_prof_globals_size(), true);
+    if (datadog_globals->profiling_globals) {
+        ddog_php_prof_ginit(datadog_globals->profiling_globals);
+    }
+#endif
 }
+
+#ifdef PROFILING
+void *datadog_php_profiling_globals(void) {
+    return DATADOG_G(profiling_globals);
+}
+#endif
 
 // Rust code will call __cxa_thread_atexit_impl. This is a weak symbol; it's defined by glibc.
 // The problem is that calls to __cxa_thread_atexit_impl cause shared libraries to remain referenced until the calling thread terminates.
@@ -348,6 +391,16 @@ static void dd_clean_main_thread_locals() {
 #endif
 
 static PHP_GSHUTDOWN_FUNCTION(datadog) {
+#ifdef PROFILING
+    if (datadog_globals->profiling_globals) {
+        ddog_php_prof_gshutdown(datadog_globals->profiling_globals);
+        pefree(datadog_globals->profiling_globals, true);
+        datadog_globals->profiling_globals = NULL;
+    }
+#endif
+#ifdef TRACER
+    ddtrace_gshutdown(datadog_globals);
+#endif
 #if ZTS
     datadog_thread_gshutdown();
 #endif
@@ -366,10 +419,6 @@ static PHP_GSHUTDOWN_FUNCTION(datadog) {
     }
 
     zend_hash_destroy(&datadog_globals->git_metadata);
-
-#ifdef DDTRACE
-    ddtrace_gshutdown(datadog_globals);
-#endif
 
     // Drop the per-thread sidecar transport (thread-lifetime, one per thread).
     datadog_sidecar_gshutdown(datadog_globals);
@@ -407,8 +456,38 @@ static void dd_disable_if_incompatible_sapi_detected(void) {
     }
 }
 
+static PHP_MSHUTDOWN_FUNCTION(datadog);
+
+static int datadog_register_zend_extension(void) {
+    /* Allow extension=ddtrace.so to install Zend Engine hooks without being
+     * loadable as zend_extension=ddtrace.so. Normal startup registers only
+     * after product MINIT succeeds; the legacy hard-disabled path registers
+     * after creating only the tracer's required hook infrastructure. */
+    zend_module_entry *mod_ptr =
+        zend_hash_str_find_ptr(&module_registry, PHP_DDTRACE_EXTNAME, sizeof(PHP_DDTRACE_EXTNAME) - 1);
+    if (mod_ptr == NULL) {
+        zend_error(E_CORE_WARNING,
+                   "Failed to find ddtrace extension in registered modules. "
+                   "Please open a bug report.");
+        return FAILURE;
+    }
+    zend_register_extension(&dd_zend_extension_entry, datadog_module_entry.handle);
+    mod_ptr->handle = NULL;
+    return SUCCESS;
+}
+
 static PHP_MINIT_FUNCTION(datadog) {
     UNUSED(type);
+#ifdef PROFILING
+    datadog_profiling_initialized = false;
+#endif
+    if (zend_hash_str_exists(&module_registry, ZEND_STRL("datadog-profiling"))) {
+        zend_error(E_CORE_WARNING,
+                   "datadog-profiling cannot be loaded alongside ddtrace; "
+                   "use combined ddtrace profiling support instead");
+        return FAILURE;
+    }
+
     zval *php_version = zend_get_constant_str(ZEND_STRL("PHP_VERSION"));
     if (php_version && Z_TYPE_P(php_version) == IS_STRING) {
         php_version_rt = (ddog_CharSlice){Z_STRVAL_P(php_version), Z_STRLEN_P(php_version)};
@@ -430,7 +509,10 @@ static PHP_MINIT_FUNCTION(datadog) {
 
     // Reset on every minit for `apachectl graceful`.
     dd_activate_once_control = (pthread_once_t)PTHREAD_ONCE_INIT;
-
+#ifdef TRACER
+    dd_tracer_activate_once_control = (pthread_once_t)PTHREAD_ONCE_INIT;
+    dd_tracer_first_rinit_control = (pthread_once_t)PTHREAD_ONCE_INIT;
+#endif
 
 #if PHP_VERSION_ID < 70300 || (defined(_WIN32) && PHP_VERSION_ID >= 80300 && PHP_VERSION_ID < 80400)
     datadog_startup_hrtime();
@@ -449,7 +531,7 @@ static PHP_MINIT_FUNCTION(datadog) {
     // config initialization needs to be at the top
     // This also initialiyzed logging, so no logs may be emitted before this.
     datadog_log_init();
-#ifdef DDTRACE
+#ifdef TRACER
     ddtrace_pre_config_minit();
 #endif
     if (!datadog_config_minit(module_number)) {
@@ -458,33 +540,13 @@ static PHP_MINIT_FUNCTION(datadog) {
 
     dd_disable_if_incompatible_sapi_detected();
 
-#ifdef DDTRACE
-    ddtrace_minit_early(module_number);
-#endif
-
-    /* This allows an extension (e.g. extension=ddtrace.so) to have zend_engine
-     * hooks too, but not loadable as zend_extension=ddtrace.so.
-     * See http://www.phpinternalsbook.com/php7/extensions_design/zend_extensions.html#hybrid-extensions
-     * {{{ */
-    zend_register_extension(&dd_zend_extension_entry, datadog_module_entry.handle);
-    // The original entry is copied into the module registry when the module is
-    // registered, so we search the module registry to find the right
-    // zend_module_entry to modify.
-    zend_module_entry *mod_ptr =
-        zend_hash_str_find_ptr(&module_registry, PHP_DDTRACE_EXTNAME, sizeof(PHP_DDTRACE_EXTNAME) - 1);
-    if (mod_ptr == NULL) {
-        // This shouldn't happen, possibly a bug if it does.
-        zend_error(E_CORE_WARNING,
-                   "Failed to find ddtrace extension in "
-                   "registered modules. Please open a bug report.");
-
-        return FAILURE;
-    }
-    mod_ptr->handle = NULL;
-    /* }}} */
-
     if (datadog_disable) {
-        return SUCCESS;
+#ifdef TRACER
+        // Preserve the legacy hard-disabled module's PHP API and hook
+        // infrastructure without starting either product.
+        ddtrace_minit_early(module_number);
+#endif
+        return datadog_register_zend_extension();
     }
 
 #ifndef _WIN32
@@ -495,10 +557,6 @@ static PHP_MINIT_FUNCTION(datadog) {
 
     datadog_sidecar_minit();
 
-#ifdef DDTRACE
-    ddtrace_minit_late();
-#endif
-
     datadog_minit_remote_config();
 
 #ifndef _WIN32
@@ -506,22 +564,44 @@ static PHP_MINIT_FUNCTION(datadog) {
 #endif
     ddtrace_set_container_cgroup_path((ddog_CharSlice){ .ptr = DATADOG_G(cgroup_file), .len = strlen(DATADOG_G(cgroup_file)) });
 
+#ifdef TRACER
+    ddtrace_minit_early(module_number);
+    ddtrace_minit_late();
+#endif
+#ifdef PROFILING
+    if (ddog_php_prof_minit(type, module_number) != SUCCESS) {
+        PHP_MSHUTDOWN(datadog)(type, module_number);
+        return FAILURE;
+    }
+    datadog_profiling_initialized = true;
+#endif
+    if (datadog_register_zend_extension() != SUCCESS) {
+        PHP_MSHUTDOWN(datadog)(type, module_number);
+        return FAILURE;
+    }
     return SUCCESS;
 }
 
 static PHP_MSHUTDOWN_FUNCTION(datadog) {
     UNUSED(module_number, type);
 
-    UNREGISTER_INI_ENTRIES();
-
-#ifdef DDTRACE
+#ifdef PROFILING
+    int profiler_result = datadog_profiling_initialized ? ddog_php_prof_mshutdown(type, module_number) : SUCCESS;
+#endif
+#ifdef TRACER
     ddtrace_mshutdown();
 #endif
+
+    UNREGISTER_INI_ENTRIES();
 
     if (datadog_disable == 1) {
         zai_config_mshutdown();
         zai_json_shutdown_bindings();
+#ifdef PROFILING
+        return profiler_result;
+#else
         return SUCCESS;
+#endif
     }
 
     datadog_mshutdown_remote_config();
@@ -539,7 +619,11 @@ static PHP_MSHUTDOWN_FUNCTION(datadog) {
 
     datadog_process_tags_mshutdown();
 
+#ifdef PROFILING
+    return profiler_result;
+#else
     return SUCCESS;
+#endif
 }
 
 static void dd_rinit_once(void) {
@@ -563,10 +647,6 @@ static void dd_rinit_once(void) {
 #endif
 
     datadog_startup_logging_first_rinit();
-
-#ifdef DDTRACE
-    ddtrace_first_rinit();
-#endif
 }
 
 static pthread_once_t dd_rinit_once_control = PTHREAD_ONCE_INIT;
@@ -593,17 +673,25 @@ static PHP_RINIT_FUNCTION(datadog) {
     // Single combined read: applies env, container-hash, and concentrator config.
     datadog_apply_agent_info();
 
-#ifdef DDTRACE
-    ddtrace_rinit_early();
-#endif
-
     // Do after env check, so that RC data is not updated before RC init
     DATADOG_G(request_initialized) = true;
 
     datadog_sidecar_rinit();
 
-#ifdef DDTRACE
+#ifdef TRACER
+    pthread_once(&dd_tracer_first_rinit_control, ddtrace_first_rinit);
+    ddtrace_rinit_early();
     ddtrace_rinit();
+#endif
+#ifdef PROFILING
+    if (datadog_profiling_initialized) {
+        if (ddog_php_prof_rinit(type, module_number) != SUCCESS) {
+            return FAILURE;
+        }
+#ifdef TRACER
+        ddtrace_set_profiling_notify_enabled(ddog_php_prof_is_enabled());
+#endif
+    }
 #endif
 
     return SUCCESS;
@@ -633,6 +721,10 @@ static void dd_shutdown_observer() {
 static PHP_RSHUTDOWN_FUNCTION(datadog) {
     UNUSED(module_number, type);
 
+#ifdef PROFILING
+    int profiler_result = datadog_profiling_initialized ? ddog_php_prof_rshutdown(type, module_number) : SUCCESS;
+#endif
+
     // We deliberately select to not free some data structures, as to avoid the overhead of freeing them.
     // Just proper destruction can have significant and easily measurable overhead on applications.
     // Prior to PHP 7.2 fast shutdown was an opcache only feature
@@ -648,6 +740,16 @@ static PHP_RSHUTDOWN_FUNCTION(datadog) {
     bool fast_shutdown = is_zend_mm() && !EG(full_tables_cleanup);
 #endif
 
+#ifdef TRACER
+    ddtrace_rshutdown(fast_shutdown);
+#ifdef PROFILING
+    // Keep Endpoint Profiling notification available while tracer RSHUTDOWN
+    // closes the request's automatic root span. Profiler request locals remain
+    // valid until post-deactivate.
+    ddtrace_set_profiling_notify_enabled(false);
+#endif
+#endif
+
     if (DATADOG_G(remote_config_state)) {
         datadog_rshutdown_remote_config();
     }
@@ -655,10 +757,6 @@ static PHP_RSHUTDOWN_FUNCTION(datadog) {
     if (!datadog_disable) {
         dd_shutdown_observer();
     }
-
-#ifdef DDTRACE
-    ddtrace_rshutdown(fast_shutdown);
-#endif
 
     datadog_sidecar_finalize(true);
     DATADOG_G(request_initialized) = false;
@@ -681,7 +779,11 @@ static PHP_RSHUTDOWN_FUNCTION(datadog) {
         DATADOG_G(last_version) = NULL;
     }
 
+#ifdef PROFILING
+    return profiler_result;
+#else
     return SUCCESS;
+#endif
 }
 
 #if PHP_VERSION_ID < 80000
@@ -689,14 +791,21 @@ int datadog_post_deactivate(void) {
 #else
 zend_result datadog_post_deactivate(void) {
 #endif
-#ifdef DDTRACE
+#ifdef PROFILING
+    int profiler_result = datadog_profiling_initialized ? ddog_php_prof_post_deactivate() : SUCCESS;
+#endif
+#ifdef TRACER
     ddtrace_post_deactivate();
 #endif
 
     // zai config may be accessed indirectly via other modules RSHUTDOWN, so delay this until the last possible time
     zai_config_rshutdown();
 
+#ifdef PROFILING
+    return profiler_result;
+#else
     return SUCCESS;
+#endif
 }
 
 static PHP_MINFO_FUNCTION(datadog) {
@@ -705,6 +814,11 @@ static PHP_MINFO_FUNCTION(datadog) {
     datadog_phpinfo();
 
     DISPLAY_INI_ENTRIES();
+#ifdef PROFILING
+    if (datadog_profiling_initialized) {
+        ddog_php_prof_minfo(zend_module);
+    }
+#endif
 }
 
 void datadog_internal_handle_fork(void) {
@@ -716,7 +830,7 @@ void datadog_internal_handle_fork(void) {
     datadog_publish_otel_process_context(dd_zend_string_to_CharSlice(process_tags));
 #endif
 
-#ifdef DDTRACE
+#ifdef TRACER
     ddtrace_internal_handle_fork();
 #else
     ddtrace_sidecar_submit_span_data_direct_defaults(&DATADOG_G(sidecar), NULL);
@@ -727,6 +841,12 @@ static const zend_module_dep datadog_module_deps[] = {
     ZEND_MOD_REQUIRED("json")
     ZEND_MOD_REQUIRED("standard")
     ZEND_MOD_OPTIONAL("opentelemetry") // make sure we load after otel to insert the hook function if it doesn't exist yet
+#ifdef PROFILING
+    ZEND_MOD_OPTIONAL("ev")
+    ZEND_MOD_OPTIONAL("event")
+    ZEND_MOD_OPTIONAL("libevent")
+    ZEND_MOD_OPTIONAL("uv")
+#endif
     ZEND_MOD_END};
 
 zend_module_entry datadog_module_entry = {STANDARD_MODULE_HEADER_EX, NULL,

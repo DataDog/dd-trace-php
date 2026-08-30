@@ -1,9 +1,7 @@
-use crate::profiling::bindings::zai_config_type::*;
 use crate::profiling::bindings::{
     datadog_php_profiling_copy_string_view_into_zval, ddog_php_prof_config_is_set_by_user,
-    ddog_php_prof_get_memoized_config, zai_config_entry, zai_config_get_value, zai_config_minit,
-    zai_config_name, zai_config_system_ini_change, zend_ini_entry, zend_long, zend_string,
-    zend_write, zval, StringError, ZaiStr, IS_FALSE, IS_LONG, IS_TRUE, ZAI_CONFIG_NAME_BUFSIZ,
+    ddog_php_prof_get_memoized_config, zai_config_get_value, zend_ini_entry, zend_long,
+    zend_string, zend_write, zval, StringError, ZaiStr, IS_FALSE, IS_LONG, IS_TRUE,
     ZEND_INI_DISPLAY_ORIG,
 };
 use crate::profiling::zend::zai_str_from_zstr;
@@ -13,7 +11,7 @@ use core::mem::transmute;
 use core::ptr;
 use core::str::FromStr;
 pub use http::Uri;
-use libc::{c_char, c_int};
+use libc::c_int;
 use log::{debug, error, warn, LevelFilter};
 use std::borrow::Cow;
 use std::ffi::CString;
@@ -324,71 +322,11 @@ fn detect_uri_from_config(
     AgentEndpoint::default()
 }
 
-unsafe extern "C" fn env_to_ini_name(env_name: ZaiStr, ini_name: *mut zai_config_name) {
-    assert!(!ini_name.is_null());
-    let ini_name = &mut *ini_name;
-
-    let name: &str = env_name.into_utf8().unwrap();
-
-    assert!(name.starts_with("DD_"));
-
-    // Env var name needs to fit.
-    let projection = "datadog.".len() - "DD_".len();
-    let null_byte = 1usize;
-    assert!(name.len() + projection + null_byte <= (ZAI_CONFIG_NAME_BUFSIZ as usize));
-
-    let (dest_prefix, src_prefix) = if name.starts_with("DD_TRACE_") {
-        ("datadog.trace.", "DD_TRACE_")
-    } else if name.starts_with("DD_PROFILING_") {
-        ("datadog.profiling.", "DD_PROFILING_")
-    } else if name.starts_with("DD_APPSEC_") {
-        ("datadog.appsec.", "DD_APPSEC_")
-    } else {
-        ("datadog.", "DD_")
-    };
-
-    {
-        /* Safety:
-         *  1. The src buffer's length is coming from a safe rust slice
-         *  2. The length of all these prefixes is less than the size of the
-         *     dst buffer (currently 60 bytes);
-         *  3. Both pointers are dealing with bytes, and so they are aligned.
-         *  4. These pointers do not overlap, the src string is a constant
-         *     and the destination is an in-place array in a struct.
-         */
-        ptr::copy_nonoverlapping(
-            dest_prefix.as_ptr() as *const c_char,
-            ini_name.ptr.as_mut_ptr(),
-            dest_prefix.len(),
-        );
-
-        // Miri doesn't like uninitialized bytes
-        let buffer = &mut ini_name.ptr[dest_prefix.len()..];
-        buffer.fill(c_char::default());
-    }
-
-    // Copy in the parts after the prefix, lowercasing as we go. For example,
-    // with DD_PROFILING_ENABLED copy `ENABLED` as `enabled` into the
-    // destination slice.
-    let dest_suffix = &mut ini_name.ptr[dest_prefix.len()..];
-    let src_suffix = &name[src_prefix.len()..];
-    for (dest, src) in dest_suffix.iter_mut().zip(src_suffix.bytes()) {
-        // Casting between same-sized integers is a no-op.
-        *dest = src.to_ascii_lowercase() as c_char;
-    }
-
-    // Add the null terminator.
-    dest_suffix[src_suffix.len()] = b'\0' as c_char;
-
-    // Store the length without the null.
-    ini_name.len = dest_prefix.len() + src_suffix.len();
-}
-
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in rshutdown.
 pub(crate) unsafe fn get_value(id: ConfigId) -> &'static mut zval {
-    let value = zai_config_get_value(transmute::<ConfigId, u16>(id));
+    let value = zai_config_get_value(id as u16);
     // Panic: the implementation makes this guarantee.
     assert!(!value.is_null());
     &mut *value
@@ -401,78 +339,27 @@ unsafe fn get_system_value(id: ConfigId) -> &'static mut zval {
     &mut *value
 }
 
-#[repr(u16)]
-#[derive(Clone, Copy)]
-pub(crate) enum ConfigId {
-    ProfilingEnabled = 0,
-    ProfilingExperimentalFeaturesEnabled,
-    ProfilingEndpointCollectionEnabled,
-    ProfilingExperimentalCpuTimeEnabled,
-    ProfilingAllocationEnabled,
-    ProfilingAllocationSamplingDistance,
-    ProfilingExperimentalHeapLiveEnabled,
-    ProfilingTimelineEnabled,
-    ProfilingExceptionEnabled,
-    ProfilingExceptionMessageEnabled,
-    ProfilingExceptionSamplingDistance,
-    ProfilingExperimentalIOEnabled,
-    ProfilingLogLevel,
-    ProfilingOutputPprof,
-    ProfilingWallTimeEnabled,
-
-    // todo: do these need to be kept in sync with the tracer?
-    AgentHost,
-    Env,
-    Service,
-    Tags,
-    TraceAgentPort,
-    TraceAgentUrl,
-    Version,
-    GitCommitSha,
-    GitRepositoryUrl,
-}
-
-use ConfigId::*;
-
-impl ConfigId {
-    const fn env_var_name(&self) -> ZaiStr<'_> {
-        let bytes: &'static [u8] = match self {
-            ProfilingEnabled => b"DD_PROFILING_ENABLED\0",
-            ProfilingExperimentalFeaturesEnabled => b"DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED\0",
-            ProfilingEndpointCollectionEnabled => b"DD_PROFILING_ENDPOINT_COLLECTION_ENABLED\0",
-            ProfilingExperimentalCpuTimeEnabled => b"DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED\0",
-            ProfilingAllocationEnabled => b"DD_PROFILING_ALLOCATION_ENABLED\0",
-            ProfilingAllocationSamplingDistance => b"DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE\0",
-            ProfilingExperimentalHeapLiveEnabled => {
-                b"DD_PROFILING_EXPERIMENTAL_HEAP_LIVE_ENABLED\0"
-            }
-            ProfilingTimelineEnabled => b"DD_PROFILING_TIMELINE_ENABLED\0",
-            ProfilingExceptionEnabled => b"DD_PROFILING_EXCEPTION_ENABLED\0",
-            ProfilingExceptionMessageEnabled => b"DD_PROFILING_EXCEPTION_MESSAGE_ENABLED\0",
-            ProfilingExceptionSamplingDistance => b"DD_PROFILING_EXCEPTION_SAMPLING_DISTANCE\0",
-            ProfilingExperimentalIOEnabled => b"DD_PROFILING_EXPERIMENTAL_IO_ENABLED\0",
-            ProfilingLogLevel => b"DD_PROFILING_LOG_LEVEL\0",
-
-            // Note: this group is meant only for debugging and testing. Please
-            // don't advertise this group of settings in the docs.
-            ProfilingOutputPprof => b"DD_PROFILING_OUTPUT_PPROF\0",
-            ProfilingWallTimeEnabled => b"DD_PROFILING_WALLTIME_ENABLED\0",
-
-            AgentHost => b"DD_AGENT_HOST\0",
-            Env => b"DD_ENV\0",
-            Service => b"DD_SERVICE\0",
-            Tags => b"DD_TAGS\0",
-            TraceAgentPort => b"DD_TRACE_AGENT_PORT\0",
-            TraceAgentUrl => b"DD_TRACE_AGENT_URL\0",
-            Version => b"DD_VERSION\0",
-            GitCommitSha => b"DD_GIT_COMMIT_SHA\0",
-            GitRepositoryUrl => b"DD_GIT_REPOSITORY_URL\0",
-        };
-
-        // Safety: all these byte strings are [CStr::from_bytes_with_nul_unchecked] compatible.
-        unsafe { ZaiStr::literal(bytes) }
-    }
-}
+pub(crate) use crate::config::ConfigId;
+use crate::config::ConfigId::{
+    DD_AGENT_HOST as AgentHost, DD_ENV as Env, DD_GIT_COMMIT_SHA as GitCommitSha,
+    DD_GIT_REPOSITORY_URL as GitRepositoryUrl,
+    DD_PROFILING_ALLOCATION_ENABLED as ProfilingAllocationEnabled,
+    DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE as ProfilingAllocationSamplingDistance,
+    DD_PROFILING_ENABLED as ProfilingEnabled,
+    DD_PROFILING_ENDPOINT_COLLECTION_ENABLED as ProfilingEndpointCollectionEnabled,
+    DD_PROFILING_EXCEPTION_ENABLED as ProfilingExceptionEnabled,
+    DD_PROFILING_EXCEPTION_MESSAGE_ENABLED as ProfilingExceptionMessageEnabled,
+    DD_PROFILING_EXCEPTION_SAMPLING_DISTANCE as ProfilingExceptionSamplingDistance,
+    DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED as ProfilingExperimentalCpuTimeEnabled,
+    DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED as ProfilingExperimentalFeaturesEnabled,
+    DD_PROFILING_EXPERIMENTAL_HEAP_LIVE_ENABLED as ProfilingExperimentalHeapLiveEnabled,
+    DD_PROFILING_EXPERIMENTAL_IO_ENABLED as ProfilingExperimentalIOEnabled,
+    DD_PROFILING_LOG_LEVEL as ProfilingLogLevel, DD_PROFILING_OUTPUT_PPROF as ProfilingOutputPprof,
+    DD_PROFILING_TIMELINE_ENABLED as ProfilingTimelineEnabled,
+    DD_PROFILING_WALLTIME_ENABLED as ProfilingWallTimeEnabled, DD_SERVICE as Service,
+    DD_TRACE_AGENT_PORT as TraceAgentPort, DD_TRACE_AGENT_URL as TraceAgentUrl,
+    DD_VERSION as Version,
+};
 
 /// Keep these in sync with the INI defaults.
 static DEFAULT_SYSTEM_SETTINGS: SystemSettings = SystemSettings {
@@ -499,7 +386,7 @@ static DEFAULT_SYSTEM_SETTINGS: SystemSettings = SystemSettings {
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-unsafe fn profiling_enabled() -> bool {
+pub(crate) unsafe fn profiling_enabled() -> bool {
     get_system_bool(ProfilingEnabled, DEFAULT_SYSTEM_SETTINGS.profiling_enabled)
 }
 
@@ -695,7 +582,7 @@ unsafe fn get_system_str(config_id: ConfigId) -> Option<Cow<'static, str>> {
             }
         }
         Err(err) => {
-            let env_var = config_id.env_var_name().into_string_lossy();
+            let env_var = format!("{config_id:?}");
             match err {
                 StringError::Null => panic!("When fetching {env_var}, found a null string pointer inside a zval of type string"),
                 StringError::Type(type_code) => panic!("When fetching {env_var}, expected type IS_STRING, found {type_code}"),
@@ -776,7 +663,11 @@ pub(crate) unsafe fn git_repository_url() -> Option<String> {
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 pub(crate) unsafe fn tags() -> Option<String> {
-    get_str(Tags)
+    let tags = unsafe { bindings::ddog_php_prof_get_common_tags() };
+    tags.into_utf8()
+        .ok()
+        .filter(|tags| !tags.is_empty())
+        .map(str::to_owned)
 }
 
 /// # Safety
@@ -819,7 +710,8 @@ unsafe fn profiling_log_level() -> LevelFilter {
 }
 
 /// Parses the sampling distance and makes sure it is ℤ+ (positive integer > 0)
-unsafe extern "C" fn parse_sampling_distance_filter(
+#[no_mangle]
+pub unsafe extern "C" fn ddog_php_prof_config_parse_sampling_distance(
     value: ZaiStr,
     decoded_value: *mut zval,
     _persistent: bool,
@@ -848,7 +740,8 @@ unsafe extern "C" fn parse_sampling_distance_filter(
     }
 }
 
-unsafe extern "C" fn parse_level_filter(
+#[no_mangle]
+pub unsafe extern "C" fn ddog_php_prof_config_parse_log_level(
     value: ZaiStr,
     decoded_value: *mut zval,
     _persistent: bool,
@@ -881,8 +774,9 @@ unsafe extern "C" fn parse_level_filter(
 }
 
 /// This function is used to parse the profiling enabled config value.
-/// It behaves similarlry to the "zai_config_decode_bool" but also accepts "auto" as true.
-unsafe extern "C" fn parse_profiling_enabled(
+/// It behaves similarly to `zai_config_decode_bool` but also accepts "auto" as true.
+#[no_mangle]
+pub unsafe extern "C" fn ddog_php_prof_config_parse_enabled(
     value: ZaiStr,
     decoded_value: *mut zval,
     _persistent: bool,
@@ -911,7 +805,11 @@ unsafe extern "C" fn parse_profiling_enabled(
 }
 
 /// Display the profiling enabled config value
-unsafe extern "C" fn display_profiling_enabled(ini_entry: *mut zend_ini_entry, type_: c_int) {
+#[no_mangle]
+pub unsafe extern "C" fn ddog_php_prof_config_display_enabled(
+    ini_entry: *mut zend_ini_entry,
+    type_: c_int,
+) {
     // PHP 8.6 changed this field from u8 to bool, so the cast is redundant only on older PHP.
     #[allow(clippy::unnecessary_cast)]
     let tmp_value: *mut zend_string =
@@ -951,7 +849,8 @@ unsafe extern "C" fn display_profiling_enabled(ini_entry: *mut zend_ini_entry, t
     }
 }
 
-unsafe extern "C" fn parse_utf8_string(
+#[no_mangle]
+pub unsafe extern "C" fn ddog_php_prof_config_parse_utf8_string(
     value: ZaiStr,
     decoded_value: *mut zval,
     persistent: bool,
@@ -973,352 +872,19 @@ unsafe extern "C" fn parse_utf8_string(
     }
 }
 
-pub(crate) fn minit(module_number: libc::c_int) {
+pub(crate) fn minit(_module_number: libc::c_int) {
     unsafe {
-        const CPU_TIME_ALIASES: &[ZaiStr] =
-            unsafe { &[ZaiStr::literal(b"DD_PROFILING_EXPERIMENTAL_CPU_ENABLED\0")] };
+        #[cfg(all(feature = "profiling", not(feature = "tracer")))]
+        {
+            assert!(bindings::ddog_php_prof_config_minit(_module_number));
 
-        const ALLOCATION_ALIASES: &[ZaiStr] = unsafe {
-            &[ZaiStr::literal(
-                b"DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED\0",
-            )]
-        };
+            // Make system INI settings available during MINIT, for example
+            // for allocation_sampling_distance.
+            bindings::zai_config_first_time_rinit(false);
+        }
 
-        const EXCEPTION_ALIASES: &[ZaiStr] = unsafe {
-            &[ZaiStr::literal(
-                b"DD_PROFILING_EXPERIMENTAL_EXCEPTION_ENABLED\0",
-            )]
-        };
-
-        const EXCEPTION_SAMPLING_DISTANCE_ALIASES: &[ZaiStr] = unsafe {
-            &[ZaiStr::literal(
-                b"DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE\0",
-            )]
-        };
-
-        const TIMELINE_ALIASES: &[ZaiStr] = unsafe {
-            &[ZaiStr::literal(
-                b"DD_PROFILING_EXPERIMENTAL_TIMELINE_ENABLED\0",
-            )]
-        };
-
-        // Note that function pointers cannot appear in const functions, so we
-        // can't extract each entry into a helper function.
-        static mut ENTRIES: &mut [zai_config_entry] = unsafe {
-            &mut [
-                zai_config_entry {
-                    id: transmute::<ConfigId, u16>(ProfilingEnabled),
-                    name: ProfilingEnabled.env_var_name(),
-                    type_: ZAI_CONFIG_TYPE_CUSTOM,
-                    default_encoded_value: ZaiStr::literal(b"1\0"),
-                    aliases: ptr::null_mut(),
-                    aliases_count: 0,
-                    ini_change: Some(zai_config_system_ini_change),
-                    parser: Some(parse_profiling_enabled),
-                    displayer: Some(display_profiling_enabled),
-                    env_config_fallback: None,
-                },
-                zai_config_entry {
-                    id: transmute::<ConfigId, u16>(ProfilingExperimentalFeaturesEnabled),
-                    name: ProfilingExperimentalFeaturesEnabled.env_var_name(),
-                    type_: ZAI_CONFIG_TYPE_BOOL,
-                    default_encoded_value: ZaiStr::literal(b"0\0"),
-                    aliases: ptr::null_mut(),
-                    aliases_count: 0,
-                    ini_change: Some(zai_config_system_ini_change),
-                    parser: None,
-                    displayer: None,
-                    env_config_fallback: None,
-                },
-                zai_config_entry {
-                    id: transmute::<ConfigId, u16>(ProfilingEndpointCollectionEnabled),
-                    name: ProfilingEndpointCollectionEnabled.env_var_name(),
-                    type_: ZAI_CONFIG_TYPE_BOOL,
-                    default_encoded_value: ZaiStr::literal(b"1\0"),
-                    aliases: ptr::null_mut(),
-                    aliases_count: 0,
-                    ini_change: Some(zai_config_system_ini_change),
-                    parser: None,
-                    displayer: None,
-                    env_config_fallback: None,
-                },
-                zai_config_entry {
-                    id: transmute::<ConfigId, u16>(ProfilingExperimentalCpuTimeEnabled),
-                    name: ProfilingExperimentalCpuTimeEnabled.env_var_name(),
-                    type_: ZAI_CONFIG_TYPE_BOOL,
-                    default_encoded_value: ZaiStr::literal(b"1\0"),
-                    aliases: CPU_TIME_ALIASES.as_ptr(),
-                    aliases_count: CPU_TIME_ALIASES.len() as u8,
-                    ini_change: Some(zai_config_system_ini_change),
-                    parser: None,
-                    displayer: None,
-                    env_config_fallback: None,
-                },
-                zai_config_entry {
-                    id: transmute::<ConfigId, u16>(ProfilingAllocationEnabled),
-                    name: ProfilingAllocationEnabled.env_var_name(),
-                    type_: ZAI_CONFIG_TYPE_BOOL,
-                    default_encoded_value: ZaiStr::literal(b"1\0"),
-                    aliases: ALLOCATION_ALIASES.as_ptr(),
-                    aliases_count: ALLOCATION_ALIASES.len() as u8,
-                    ini_change: Some(zai_config_system_ini_change),
-                    parser: None,
-                    displayer: None,
-                    env_config_fallback: None,
-                },
-                zai_config_entry {
-                    id: transmute::<ConfigId, u16>(ProfilingAllocationSamplingDistance),
-                    name: ProfilingAllocationSamplingDistance.env_var_name(),
-                    type_: ZAI_CONFIG_TYPE_CUSTOM,
-                    default_encoded_value: ZaiStr::literal(b"4194304\0"), // crate::profiling::allocation::DEFAULT_ALLOCATION_SAMPLING_INTERVAL
-                    aliases: ptr::null_mut(),
-                    aliases_count: 0,
-                    ini_change: Some(zai_config_system_ini_change),
-                    parser: Some(parse_sampling_distance_filter),
-                    displayer: None,
-                    env_config_fallback: None,
-                },
-                zai_config_entry {
-                    id: transmute::<ConfigId, u16>(ProfilingExperimentalHeapLiveEnabled),
-                    name: ProfilingExperimentalHeapLiveEnabled.env_var_name(),
-                    type_: ZAI_CONFIG_TYPE_BOOL,
-                    default_encoded_value: ZaiStr::literal(b"0\0"),
-                    aliases: ptr::null_mut(),
-                    aliases_count: 0,
-                    ini_change: Some(zai_config_system_ini_change),
-                    parser: None,
-                    displayer: None,
-                    env_config_fallback: None,
-                },
-                zai_config_entry {
-                    id: transmute::<ConfigId, u16>(ProfilingTimelineEnabled),
-                    name: ProfilingTimelineEnabled.env_var_name(),
-                    type_: ZAI_CONFIG_TYPE_BOOL,
-                    default_encoded_value: ZaiStr::literal(b"1\0"),
-                    aliases: TIMELINE_ALIASES.as_ptr(),
-                    aliases_count: TIMELINE_ALIASES.len() as u8,
-                    ini_change: Some(zai_config_system_ini_change),
-                    parser: None,
-                    displayer: None,
-                    env_config_fallback: None,
-                },
-                zai_config_entry {
-                    id: transmute::<ConfigId, u16>(ProfilingExceptionEnabled),
-                    name: ProfilingExceptionEnabled.env_var_name(),
-                    type_: ZAI_CONFIG_TYPE_BOOL,
-                    default_encoded_value: ZaiStr::literal(b"1\0"),
-                    aliases: EXCEPTION_ALIASES.as_ptr(),
-                    aliases_count: EXCEPTION_ALIASES.len() as u8,
-                    ini_change: Some(zai_config_system_ini_change),
-                    parser: None,
-                    displayer: None,
-                    env_config_fallback: None,
-                },
-                zai_config_entry {
-                    id: transmute::<ConfigId, u16>(ProfilingExceptionMessageEnabled),
-                    name: ProfilingExceptionMessageEnabled.env_var_name(),
-                    type_: ZAI_CONFIG_TYPE_BOOL,
-                    default_encoded_value: ZaiStr::literal(b"0\0"),
-                    aliases: ptr::null_mut(),
-                    aliases_count: 0,
-                    ini_change: Some(zai_config_system_ini_change),
-                    parser: None,
-                    displayer: None,
-                    env_config_fallback: None,
-                },
-                zai_config_entry {
-                    id: transmute::<ConfigId, u16>(ProfilingExceptionSamplingDistance),
-                    name: ProfilingExceptionSamplingDistance.env_var_name(),
-                    type_: ZAI_CONFIG_TYPE_CUSTOM,
-                    default_encoded_value: ZaiStr::literal(b"100\0"),
-                    aliases: EXCEPTION_SAMPLING_DISTANCE_ALIASES.as_ptr(),
-                    aliases_count: EXCEPTION_SAMPLING_DISTANCE_ALIASES.len() as u8,
-                    ini_change: Some(zai_config_system_ini_change),
-                    parser: Some(parse_sampling_distance_filter),
-                    displayer: None,
-                    env_config_fallback: None,
-                },
-                zai_config_entry {
-                    id: transmute::<ConfigId, u16>(ProfilingExperimentalIOEnabled),
-                    name: ProfilingExperimentalIOEnabled.env_var_name(),
-                    type_: ZAI_CONFIG_TYPE_BOOL,
-                    default_encoded_value: ZaiStr::literal(b"0\0"),
-                    aliases: ptr::null_mut(),
-                    aliases_count: 0,
-                    ini_change: Some(zai_config_system_ini_change),
-                    parser: None,
-                    displayer: None,
-                    env_config_fallback: None,
-                },
-                zai_config_entry {
-                    id: transmute::<ConfigId, u16>(ProfilingLogLevel),
-                    name: ProfilingLogLevel.env_var_name(),
-                    type_: ZAI_CONFIG_TYPE_CUSTOM, // store it as an int
-                    default_encoded_value: ZaiStr::literal(b"off\0"),
-                    aliases: ptr::null_mut(),
-                    aliases_count: 0,
-                    ini_change: Some(zai_config_system_ini_change),
-                    parser: Some(parse_level_filter),
-                    displayer: None,
-                    env_config_fallback: None,
-                },
-                zai_config_entry {
-                    id: transmute::<ConfigId, u16>(ProfilingOutputPprof),
-                    name: ProfilingOutputPprof.env_var_name(),
-                    type_: ZAI_CONFIG_TYPE_STRING,
-                    default_encoded_value: ZaiStr::new(),
-                    aliases: ptr::null_mut(),
-                    aliases_count: 0,
-                    ini_change: Some(zai_config_system_ini_change),
-                    parser: Some(parse_utf8_string),
-                    displayer: None,
-                    env_config_fallback: None,
-                },
-                // At the moment, wall-time cannot be fully disabled. This only
-                // controls automatic collection (manual collection is still
-                // possible).
-                zai_config_entry {
-                    id: transmute::<ConfigId, u16>(ProfilingWallTimeEnabled),
-                    name: ProfilingWallTimeEnabled.env_var_name(),
-                    type_: ZAI_CONFIG_TYPE_BOOL,
-                    default_encoded_value: ZaiStr::literal(b"1\0"),
-                    aliases: ptr::null_mut(),
-                    aliases_count: 0,
-                    ini_change: Some(zai_config_system_ini_change),
-                    parser: None,
-                    displayer: None,
-                    env_config_fallback: None,
-                },
-                zai_config_entry {
-                    id: transmute::<ConfigId, u16>(AgentHost),
-                    name: AgentHost.env_var_name(),
-                    type_: ZAI_CONFIG_TYPE_STRING,
-                    default_encoded_value: ZaiStr::new(),
-                    aliases: ptr::null_mut(),
-                    aliases_count: 0,
-                    ini_change: Some(zai_config_system_ini_change),
-                    parser: Some(parse_utf8_string),
-                    displayer: None,
-                    env_config_fallback: None,
-                },
-                zai_config_entry {
-                    id: transmute::<ConfigId, u16>(Env),
-                    name: Env.env_var_name(),
-                    type_: ZAI_CONFIG_TYPE_STRING,
-                    default_encoded_value: ZaiStr::new(),
-                    aliases: ptr::null_mut(),
-                    aliases_count: 0,
-                    ini_change: None,
-                    parser: Some(parse_utf8_string),
-                    displayer: None,
-                    env_config_fallback: None,
-                },
-                zai_config_entry {
-                    id: transmute::<ConfigId, u16>(Service),
-                    name: Service.env_var_name(),
-                    type_: ZAI_CONFIG_TYPE_STRING,
-                    default_encoded_value: ZaiStr::new(),
-                    aliases: ptr::null_mut(),
-                    aliases_count: 0,
-                    ini_change: None,
-                    parser: Some(parse_utf8_string),
-                    displayer: None,
-                    env_config_fallback: None,
-                },
-                zai_config_entry {
-                    id: transmute::<ConfigId, u16>(Tags),
-                    name: Tags.env_var_name(),
-                    // Using a string here means we're going to parse the
-                    // string into tags over and over, but since it needs to
-                    // be a valid zval for destruction, we can't just use a
-                    // Box::leak of Vec<Tag> or something.
-                    type_: ZAI_CONFIG_TYPE_STRING,
-                    default_encoded_value: ZaiStr::new(),
-                    aliases: ptr::null_mut(),
-                    aliases_count: 0,
-                    ini_change: None,
-                    parser: None,
-                    displayer: None,
-                    env_config_fallback: None,
-                },
-                zai_config_entry {
-                    id: transmute::<ConfigId, u16>(TraceAgentPort),
-                    name: TraceAgentPort.env_var_name(),
-                    type_: ZAI_CONFIG_TYPE_INT,
-                    default_encoded_value: ZaiStr::literal(b"0\0"),
-                    aliases: ptr::null_mut(),
-                    aliases_count: 0,
-                    ini_change: Some(zai_config_system_ini_change),
-                    parser: Some(parse_utf8_string),
-                    displayer: None,
-                    env_config_fallback: None,
-                },
-                zai_config_entry {
-                    id: transmute::<ConfigId, u16>(TraceAgentUrl),
-                    name: TraceAgentUrl.env_var_name(),
-                    type_: ZAI_CONFIG_TYPE_STRING, // TYPE?
-                    default_encoded_value: ZaiStr::new(),
-                    aliases: ptr::null_mut(),
-                    aliases_count: 0,
-                    ini_change: Some(zai_config_system_ini_change),
-                    parser: Some(parse_utf8_string),
-                    displayer: None,
-                    env_config_fallback: None,
-                },
-                zai_config_entry {
-                    id: transmute::<ConfigId, u16>(Version),
-                    name: Version.env_var_name(),
-                    type_: ZAI_CONFIG_TYPE_STRING,
-                    default_encoded_value: ZaiStr::new(),
-                    aliases: ptr::null_mut(),
-                    aliases_count: 0,
-                    ini_change: None,
-                    parser: Some(parse_utf8_string),
-                    displayer: None,
-                    env_config_fallback: None,
-                },
-                zai_config_entry {
-                    id: transmute::<ConfigId, u16>(GitCommitSha),
-                    name: GitCommitSha.env_var_name(),
-                    type_: ZAI_CONFIG_TYPE_STRING,
-                    default_encoded_value: ZaiStr::new(),
-                    aliases: ptr::null_mut(),
-                    aliases_count: 0,
-                    ini_change: None,
-                    parser: Some(parse_utf8_string),
-                    displayer: None,
-                    env_config_fallback: None,
-                },
-                zai_config_entry {
-                    id: transmute::<ConfigId, u16>(GitRepositoryUrl),
-                    name: GitRepositoryUrl.env_var_name(),
-                    type_: ZAI_CONFIG_TYPE_STRING,
-                    default_encoded_value: ZaiStr::new(),
-                    aliases: ptr::null_mut(),
-                    aliases_count: 0,
-                    ini_change: None,
-                    parser: Some(parse_utf8_string),
-                    displayer: None,
-                    env_config_fallback: None,
-                },
-            ]
-        };
-
-        let entries = &mut *ptr::addr_of_mut!(ENTRIES);
-        let tmp = zai_config_minit(
-            entries.as_mut_ptr(),
-            entries.len(),
-            Some(env_to_ini_name),
-            module_number,
-        );
-        assert!(tmp); // It's literally return true in the source.
-
-        // We set this so that we can access config for system INI settings during
-        // minit, for example for allocation_sampling_distance.
-        let in_request = false;
-        bindings::zai_config_first_time_rinit(in_request);
-
-        // SAFETY: just initialized zai config.
+        // SAFETY: common configuration has already initialized the aggregate
+        // table in combined mode; standalone initialized it above.
         let mut system_settings = SystemSettings::new();
 
         // Initialize logging before allocation's rinit, as it logs.
@@ -1358,98 +924,6 @@ pub(crate) unsafe fn on_fork_in_child() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::MaybeUninit;
-    use libc::memcmp;
-
-    #[test]
-    fn test_env_to_ini_name() {
-        let cases: &[(&[u8], &str)] = &[
-            (b"DD_SERVICE\0", "datadog.service"),
-            (b"DD_ENV\0", "datadog.env"),
-            (b"DD_VERSION\0", "datadog.version"),
-            (b"DD_GIT_COMMIT_SHA\0", "datadog.git_commit_sha"),
-            (b"DD_GIT_REPOSITORY_URL\0", "datadog.git_repository_url"),
-            (b"DD_TRACE_AGENT_URL\0", "datadog.trace.agent_url"),
-            (b"DD_TRACE_AGENT_PORT\0", "datadog.trace.agent_port"),
-            (b"DD_AGENT_HOST\0", "datadog.agent_host"),
-            (b"DD_PROFILING_ENABLED\0", "datadog.profiling.enabled"),
-            (
-                b"DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED\0",
-                "datadog.profiling.experimental_features_enabled",
-            ),
-            (
-                b"DD_PROFILING_ENDPOINT_COLLECTION_ENABLED\0",
-                "datadog.profiling.endpoint_collection_enabled",
-            ),
-            (
-                b"DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED\0",
-                "datadog.profiling.experimental_cpu_time_enabled",
-            ),
-            (
-                b"DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED\0",
-                "datadog.profiling.experimental_allocation_enabled",
-            ),
-            (
-                b"DD_PROFILING_ALLOCATION_ENABLED\0",
-                "datadog.profiling.allocation_enabled",
-            ),
-            (
-                b"DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE\0",
-                "datadog.profiling.experimental_exception_sampling_distance",
-            ),
-            (
-                b"DD_PROFILING_EXPERIMENTAL_TIMELINE_ENABLED\0",
-                "datadog.profiling.experimental_timeline_enabled",
-            ),
-            (
-                b"DD_PROFILING_TIMELINE_ENABLED\0",
-                "datadog.profiling.timeline_enabled",
-            ),
-            (
-                b"DD_PROFILING_EXPERIMENTAL_IO_ENABLED\0",
-                "datadog.profiling.experimental_io_enabled",
-            ),
-            (b"DD_PROFILING_LOG_LEVEL\0", "datadog.profiling.log_level"),
-            (
-                b"DD_PROFILING_OUTPUT_PPROF\0",
-                "datadog.profiling.output_pprof",
-            ),
-            (
-                b"DD_PROFILING_WALL_TIME_ENABLED\0",
-                "datadog.profiling.wall_time_enabled",
-            ),
-        ];
-
-        for (env_name, expected_ini_name) in cases {
-            unsafe {
-                let env = ZaiStr::literal(env_name);
-                let mut ini = MaybeUninit::uninit();
-                env_to_ini_name(env, ini.as_mut_ptr());
-                let ini = ini.assume_init();
-
-                // Check that .len matches.
-                assert_eq!(
-                    expected_ini_name.len(),
-                    { ini.len },
-                    "Env: {}, expected ini: {}",
-                    std::str::from_utf8(env_name).unwrap(),
-                    expected_ini_name
-                );
-
-                // Check that the bytes match.
-                let cmp = memcmp(
-                    expected_ini_name.as_ptr().cast(),
-                    ini.ptr.as_ptr().cast(),
-                    expected_ini_name.len(),
-                );
-                assert_eq!(0, cmp);
-
-                // Check that it is null terminated.
-                assert_eq!(ini.ptr[ini.len] as u8, b'\0');
-            }
-        }
-    }
-
     #[test]
     fn detect_uri_from_config_works() {
         // expected

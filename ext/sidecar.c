@@ -409,7 +409,7 @@ bool datadog_sidecar_should_enable(ddog_RemoteConfigFlags *flags) {
     flags->appsec_config = appsec_config;
 
     enable_sidecar = enable_sidecar || get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED();
-#ifdef DDTRACE
+#ifdef TRACER
     enable_sidecar = ddtrace_update_remote_config_flags(flags) || enable_sidecar;
 #endif
 
@@ -637,7 +637,7 @@ void datadog_sidecar_push_tag(ddog_Vec_Tag *vec, ddog_CharSlice key, ddog_CharSl
 void datadog_sidecar_push_tags(ddog_Vec_Tag *vec, zval *tags) {
     // Global tags (https://github.com/DataDog/php-datadogstatsd/blob/0efdd1c38f6d3dd407efbb899ad1fd2e5cd18085/src/DogStatsd.php#L113-L125)
     zend_string *service_string, *env_string, *version_string;
-#ifdef DDTRACE
+#ifdef TRACER
     ddtrace_span_data *span = ddtrace_active_span();
 #else
     ddtrace_span_data *span = NULL;
@@ -861,7 +861,7 @@ bool datadog_alter_test_session_token(zval *old_value, zval *new_value, zend_str
         datadog_ffi_try("Failed updating test session token",
                         ddog_sidecar_set_test_session_token(&DATADOG_G(sidecar), dd_zend_string_to_CharSlice(Z_STR_P(new_value))));
     }
-#if !defined(_WIN32) && defined(DDTRACE)
+#if !defined(_WIN32) && defined(TRACER)
     ddtrace_coms_set_test_session_token(Z_STRVAL_P(new_value), Z_STRLEN_P(new_value));
 #endif
     return true;

@@ -70,16 +70,11 @@ for architecture in "${architectures[@]}"; do
                     cp_with_dir ${ddtrace_ext_path} ${trace_base_dir}/ext/${php_api}/$(if [[ $target == "windows" ]]; then echo php_; fi)ddtrace${config}.${ext}
                     cp -r ./src ${trace_base_dir}
 
-                    profiling_ext_path=./datadog-profiling/${architecture}-${full_target}/lib/php/${php_api}/datadog-profiling${config}.${ext}
-                    if [[ -f ${profiling_ext_path} ]]; then
-                        profiling_base_dir=${tmp_folder_final}/dd-library-php/profiling
-                        cp_with_dir ${profiling_ext_path} ${profiling_base_dir}/ext/${php_api}/datadog-profiling${config}.${ext}
-
-                        # Licenses
-                        cp \
-                            ./profiling/LICENSE* \
-                            ./profiling/NOTICE \
-                            ${profiling_base_dir}/
+                    combined_ext_path=./combined-ddtrace/${architecture}-${full_target}/lib/php/${php_api}/ddtrace${config}.${ext}
+                    if [[ -f ${combined_ext_path} ]]; then
+                        touch ${trace_base_dir}/ext/${php_api}/.ddtrace${config}.profiling
+                        mkdir -p ${trace_base_dir}/profiling-licenses
+                        cp ./profiling/LICENSE* ./profiling/NOTICE ${trace_base_dir}/profiling-licenses/
                     fi
 
                     appsec_ext_path=./appsec_${architecture}/ddappsec-${php_api}${alpine}${config}.${ext}
@@ -140,11 +135,21 @@ for architecture in "${architectures[@]}"; do
                     cp ./extensions_${architecture}/ddtrace-$php_api.so ${tmp_folder_final_gnu_trace}/ext/$php_api/ddtrace.so;
                     cp ./extensions_${architecture}/ddtrace-$php_api-zts.so ${tmp_folder_final_gnu_trace}/ext/$php_api/ddtrace-zts.so;
                     cp ./extensions_${architecture}/ddtrace-$php_api-debug.so ${tmp_folder_final_gnu_trace}/ext/$php_api/ddtrace-debug.so;
+                    for profiling_config in "" -zts; do
+                        if [[ -f ./combined-ddtrace/${architecture}-${full_target}/lib/php/${php_api}/ddtrace${profiling_config}.so ]]; then
+                            touch ${tmp_folder_final_gnu_trace}/ext/$php_api/.ddtrace${profiling_config}.profiling
+                        fi
+                    done
                 fi
                 if [[ $target == "linux-musl" ]]; then
                     mkdir -p ${tmp_folder_final_musl_trace}/ext/$php_api;
                     cp ./extensions_${architecture}/ddtrace-$php_api-alpine.so ${tmp_folder_final_musl_trace}/ext/$php_api/ddtrace.so;
                     cp ./extensions_${architecture}/ddtrace-$php_api-alpine-zts.so ${tmp_folder_final_musl_trace}/ext/$php_api/ddtrace-zts.so;
+                    for profiling_config in "" -zts; do
+                        if [[ -f ./combined-ddtrace/${architecture}-${full_target}/lib/php/${php_api}/ddtrace${profiling_config}.so ]]; then
+                            touch ${tmp_folder_final_musl_trace}/ext/$php_api/.ddtrace${profiling_config}.profiling
+                        fi
+                    done
                 fi
                 if [[ $target == "windows" && ${php_api} -ge 20170718 && $architecture == "x86_64" ]]; then # Windows support starts on 7.2
                     mkdir -p ${tmp_folder_final_windows_trace}/ext/$php_api;
@@ -166,11 +171,19 @@ for architecture in "${architectures[@]}"; do
         if [[ $target == "linux-gnu" ]]; then
             mkdir -p ${tmp_folder_final_gnu_trace}
             cp -r ./src ${tmp_folder_final_gnu_trace};
+            if [[ -d ./combined-ddtrace/${architecture}-${full_target} ]]; then
+                mkdir -p ${tmp_folder_final_gnu_trace}/profiling-licenses
+                cp ./profiling/LICENSE* ./profiling/NOTICE ${tmp_folder_final_gnu_trace}/profiling-licenses/
+            fi
         fi
 
         if [[ $target == "linux-musl" ]]; then
             mkdir -p ${tmp_folder_final_musl_trace}
             cp -r ./src ${tmp_folder_final_musl_trace};
+            if [[ -d ./combined-ddtrace/${architecture}-${full_target} ]]; then
+                mkdir -p ${tmp_folder_final_musl_trace}/profiling-licenses
+                cp ./profiling/LICENSE* ./profiling/NOTICE ${tmp_folder_final_musl_trace}/profiling-licenses/
+            fi
         fi
 
         if [[ $target == "windows" && $architecture == "x86_64" ]]; then
@@ -178,62 +191,6 @@ for architecture in "${architectures[@]}"; do
             cp -r ./src ${tmp_folder_final_windows_trace};
         fi
     done
-
-    ########################
-    # Profiling
-    ########################
-    if [[ -z ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
-        # Extension
-        php_apis=(20160303 20170718 20180731 20190902 20200930 20210902 20220829 20230831 20240924 20250925)
-        for version in "${php_apis[@]}"
-        do
-            for full_target in "${targets[@]}"; do
-                target=${full_target#*-}
-                if [[ $target == "linux-gnu" ]]; then
-                    mkdir -v -p \
-                          $tmp_folder_final_gnu/dd-library-php/profiling/ext/$version
-
-                    cp -v \
-                        ./datadog-profiling/$architecture-unknown-linux-gnu/lib/php/$version/datadog-profiling.so \
-                        $tmp_folder_final_gnu/dd-library-php/profiling/ext/$version/datadog-profiling.so
-                    cp -v \
-                        ./datadog-profiling/$architecture-unknown-linux-gnu/lib/php/$version/datadog-profiling-zts.so \
-                        $tmp_folder_final_gnu/dd-library-php/profiling/ext/$version/datadog-profiling-zts.so
-                fi
-
-                if [[ $target == "linux-musl" ]]; then
-                    mkdir -v -p \
-                          $tmp_folder_final_musl/dd-library-php/profiling/ext/$version
-
-                    cp -v \
-                        ./datadog-profiling/$architecture-alpine-linux-musl/lib/php/$version/datadog-profiling.so \
-                        $tmp_folder_final_musl/dd-library-php/profiling/ext/$version/datadog-profiling.so
-                    cp -v \
-                        ./datadog-profiling/$architecture-alpine-linux-musl/lib/php/$version/datadog-profiling-zts.so \
-                        $tmp_folder_final_musl/dd-library-php/profiling/ext/$version/datadog-profiling-zts.so
-                fi
-            done
-        done
-
-        # Licenses
-        for full_target in "${targets[@]}"; do
-            target=${full_target#*-}
-            if [[ $target == "linux-gnu" ]]; then
-                mkdir -p $tmp_folder_final_gnu/dd-library-php/profiling
-                cp -v \
-                    ./profiling/LICENSE* \
-                    ./profiling/NOTICE \
-                    $tmp_folder_final_gnu/dd-library-php/profiling/
-            fi
-            if [[ $target == "linux-musl" ]]; then
-                mkdir -p $tmp_folder_final_musl/dd-library-php/profiling
-                cp -v \
-                    ./profiling/LICENSE* \
-                    ./profiling/NOTICE \
-                    $tmp_folder_final_musl/dd-library-php/profiling/
-           fi
-        done
-    fi
 
     ########################
     # AppSec

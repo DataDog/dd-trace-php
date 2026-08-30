@@ -9,7 +9,7 @@ function should actually cleanup some memory and return the amount in bytes.
 <?php
 if (getenv('USE_ZEND_ALLOC') === '0')
     die("skip requires ZendMM");
-if (!extension_loaded('datadog-profiling'))
+if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
     echo "skip: test requires Datadog Continuous Profiler\n";
 ?>
 --ENV--

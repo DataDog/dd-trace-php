@@ -16,25 +16,34 @@ fi
 set -u
 prefix="$1"
 thread_safety="${2:-nts}"
+artifact_mode="${3:-standalone}"
 mkdir -vp "${prefix}"
 prefix="$(cd "${prefix}" && pwd)"
 
-if [ "$thread_safety" = "zts" ]; then
-    switch-php "${PHP_VERSION}-zts"
-    output_file="${prefix}/datadog-profiling-zts.so"
+if [ "$artifact_mode" = "combined" ]; then
+    configure_products="--enable-ddtrace-tracer --enable-ddtrace-profiling"
+    extension_name="ddtrace"
 else
-    switch-php "${PHP_VERSION}"
-    output_file="${prefix}/datadog-profiling.so"
+    configure_products="--disable-ddtrace-tracer --enable-ddtrace-profiling"
+    extension_name="datadog-profiling"
 fi
 
-# Loadable profiler artifacts must go through the supported PHP build path.
+if [ "$thread_safety" = "zts" ]; then
+    switch-php "${PHP_VERSION}-zts"
+    output_file="${prefix}/${extension_name}-zts.so"
+else
+    switch-php "${PHP_VERSION}"
+    output_file="${prefix}/${extension_name}.so"
+fi
+
+# Loadable profiling artifacts must go through the supported PHP build path.
 build_dir="/tmp/ddtrace-build-profiler-${thread_safety}"
 rm -rf "${build_dir}"
 mkdir -p "${build_dir}/src"
 tar -cf - --exclude=.git --exclude=tmp . | tar -xf - -C "${build_dir}/src"
 cd "${build_dir}/src"
 phpize
-./configure --disable-ddtrace-tracer --enable-ddtrace-profiling
+./configure ${configure_products}
 make -j"$(nproc)"
-cp -v modules/datadog-profiling.so "${output_file}"
+cp -v "modules/${extension_name}.so" "${output_file}"
 objcopy --compress-debug-sections "${output_file}"

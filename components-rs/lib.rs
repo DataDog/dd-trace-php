@@ -33,29 +33,30 @@ pub mod tracer;
 #[path = "../profiling/src/lib.rs"]
 pub mod profiling;
 
-#[cfg(not(standalone_profiler))]
+#[cfg(not(all(feature = "profiling", not(feature = "tracer"))))]
 pub mod agent_info;
-#[cfg(not(standalone_profiler))]
+#[cfg(not(all(feature = "profiling", not(feature = "tracer"))))]
 pub mod bytes;
-#[cfg(not(standalone_profiler))]
+pub mod config;
+#[cfg(not(all(feature = "profiling", not(feature = "tracer"))))]
 pub mod ffe;
-#[cfg(not(standalone_profiler))]
+#[cfg(not(all(feature = "profiling", not(feature = "tracer"))))]
 pub mod log;
-#[cfg(not(standalone_profiler))]
+#[cfg(not(all(feature = "profiling", not(feature = "tracer"))))]
 pub mod remote_config;
-#[cfg(not(standalone_profiler))]
+#[cfg(not(all(feature = "profiling", not(feature = "tracer"))))]
 pub mod sidecar;
-#[cfg(not(standalone_profiler))]
+#[cfg(not(all(feature = "profiling", not(feature = "tracer"))))]
 pub mod stats;
-#[cfg(not(standalone_profiler))]
+#[cfg(not(all(feature = "profiling", not(feature = "tracer"))))]
 pub mod telemetry;
-#[cfg(not(standalone_profiler))]
+#[cfg(not(all(feature = "profiling", not(feature = "tracer"))))]
 pub mod trace_filter;
 
 // A standalone profiler must retain the existing profiler-only ABI and size.
 // Cargo's `cdylib` keeps every `no_mangle` common export alive, even though the
 // profiler does not use them, so omit those exports only in profiler-only builds.
-#[cfg(not(standalone_profiler))]
+#[cfg(not(all(feature = "profiling", not(feature = "tracer"))))]
 #[rustfmt::skip]
 mod common_exports {
 #[cfg(unix)]
@@ -563,5 +564,5 @@ pub extern "C" fn ddog_free_normalized_tag_value(ptr: *const c_char) {
 }
 }
 
-#[cfg(not(standalone_profiler))]
+#[cfg(not(all(feature = "profiling", not(feature = "tracer"))))]
 pub use common_exports::*;

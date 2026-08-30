@@ -17,7 +17,7 @@
 
 | CI Job | Image | What it does |
 |--------|-------|-------------|
-| `test_integrations_amqp2: [{php}]` | `datadog/dd-trace-ci:php-{php}_bookworm-6` | AMQP v2 (RabbitMQ) integration tests |
+| `test_integrations_amqp2: [{php}]` | `datadog/dd-trace-ci:php-{php}_bookworm-10` | AMQP v2 (RabbitMQ) integration tests |
 | `test_integrations_amqp_latest: [{php}]` | same | AMQP latest version tests |
 | `test_integrations_curl: [{php}]` | same | Curl integration tests |
 | `test_integrations_deferred_loading: [{php}]` | same | Deferred loading tests (needs mysql + redis) |
@@ -130,7 +130,7 @@ Use the **same cache name** as the test step (`tracer-integ-83`) so the built
 
 ```bash
 .claude/ci/dockerh --cache tracer-integ-83 --overlayfs --php debug \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 \
+  datadog/dd-trace-ci:php-8.3_bookworm-10 \
   -e CI_COMMIT_TAG=local \
   -e SHARED=1 \
   -- bash -c '
@@ -187,7 +187,7 @@ name from Step 2). The `--network` flag must appear **after** the image name.
 
 ```bash
 .claude/ci/dockerh --cache tracer-integ-83 --overlayfs --php debug \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 \
+  datadog/dd-trace-ci:php-8.3_bookworm-10 \
   --network ${PROJECT}_default \
   -e COMPOSER_MEMORY_LIMIT=-1 \
   -e DD_TRACE_ASSUME_COMPILED=1 \
@@ -239,7 +239,7 @@ docker compose -p $PROJECT -f .claude/ci/docker-compose.services.yml down
 
 - **phpredis version-specific .so files**: `test_integrations_phpredis3`
   through `phpredis5` load specific pre-built `.so` files via
-  `TEST_EXTRA_INI=-d extension=redis-X.Y.Z.so`. The `bookworm-6` CI image
+  `TEST_EXTRA_INI=-d extension=redis-X.Y.Z.so`. The `bookworm-10` CI image
   only ships `redis-5.3.7.so` — **`redis-3.1.6.so` and `redis-4.3.0.so` are
   absent**, so `test_integrations_phpredis3` and `test_integrations_phpredis4`
   cannot be run locally against a PHP 8.3 image. Run them with a PHP 7.x image

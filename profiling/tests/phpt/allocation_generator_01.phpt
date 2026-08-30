@@ -12,7 +12,7 @@ Note: this does not trigger with PHP 7 when the tracer is enabled, as the tracer
 restores the opline in a opcode handler!
 --SKIPIF--
 <?php
-if (!extension_loaded('datadog-profiling'))
+if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
     die("skip: test requires datadog-profiling");
 if (PHP_VERSION_ID <= 80010)
     die("skip: PHP is buggy");
@@ -20,7 +20,7 @@ if (PHP_VERSION_ID <= 80010)
 --ENV--
 DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE=1
 --INI--
-memory_limit=16m
+memory_limit=8m
 --FILE--
 <?php
 function a() {

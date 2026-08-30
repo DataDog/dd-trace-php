@@ -8,8 +8,8 @@ PHP_ARG_ENABLE(ddtrace, whether to enable Datadog support,
 PHP_ARG_ENABLE(ddtrace-tracer, whether to enable Datadog tracing support,
   [  --disable-ddtrace-tracer Disable Datadog tracing support], yes, no)
 
-PHP_ARG_ENABLE(ddtrace-profiling, whether to build the standalone Datadog profiler,
-  [  --enable-ddtrace-profiling Build the standalone datadog-profiling extension], no, no)
+PHP_ARG_ENABLE(ddtrace-profiling, whether to enable Datadog profiling support,
+  [  --enable-ddtrace-profiling Build Datadog profiling support], no, no)
 
 PHP_ARG_ENABLE(ddtrace-sanitize, whether to enable AddressSanitizer for ddtrace,
   [  --enable-ddtrace-sanitize Build Datadog tracing with AddressSanitizer support], no, no)
@@ -30,6 +30,9 @@ PHP_ARG_ENABLE(ddtrace-rust-library-split, whether to not link the rust library 
   [  --enable-ddtrace-rust-library-split Do not build nor link against the rust code], no, no)
 
 DDTRACE_PHP_CONFIG=$(command -v "$PHP_CONFIG" 2>/dev/null || echo "$PHP_CONFIG")
+if command -v realpath >/dev/null 2>&1; then
+  DDTRACE_PHP_CONFIG=$(realpath "$DDTRACE_PHP_CONFIG")
+fi
 PHP_SUBST(DDTRACE_PHP_CONFIG)
 
 dnl Keep make clean out of Cargo targets; distclean removes all product-specific targets.
@@ -43,17 +46,13 @@ AC_DEFUN([DDTRACE_GEN_GLOBAL_MAKEFILE_WRAP], [
 ])
 DDTRACE_GEN_GLOBAL_MAKEFILE_WRAP
 
-if test "$PHP_DDTRACE_TRACER" != "no" && test "$PHP_DDTRACE_PROFILING" != "no"; then
-  AC_MSG_ERROR([A combined tracer and profiler extension is deferred to a later milestone. Build the standalone profiler with: ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling])
-fi
-
 if test "$PHP_DDTRACE_PROFILING" != "no"; then
   dnl PHP_NEW_EXTENSION normally initializes this for libtool's configure probes.
   RM="rm -f"
 
   case "$host_os" in
     mingw*|cygwin*|msys*|windows*)
-      AC_MSG_ERROR([The standalone Datadog profiler is not supported on Windows])
+      AC_MSG_ERROR([Datadog profiling support is not available on Windows])
       ;;
   esac
 
@@ -61,7 +60,7 @@ if test "$PHP_DDTRACE_PROFILING" != "no"; then
     PHP_VERSION_ID=$("$PHP_CONFIG" --vernum)
   fi
   if test "$PHP_VERSION_ID" -lt 70100; then
-    AC_MSG_ERROR([The standalone Datadog profiler requires PHP 7.1 or newer; PHP 7.0 is not supported])
+    AC_MSG_ERROR([Datadog profiling support requires PHP 7.1 or newer; PHP 7.0 is not supported])
   fi
 
   if test -n "$PHP_DDTRACE_CARGO" && test "$PHP_DDTRACE_CARGO" != "cargo"; then
@@ -78,6 +77,8 @@ if test "$PHP_DDTRACE_PROFILING" != "no"; then
 
   profiler_cargo_profile=$(test "$PHP_DDTRACE_RUST_DEBUG" != "no" && echo debug || echo profiler-release)
   profiler_target_dir="${CARGO_TARGET_DIR:-\$(builddir)/target-profiling}"
+
+  if test "$PHP_DDTRACE_TRACER" = "no"; then
   profiler_target_path=
   profiler_target_arg=
   if test -n "$DDTRACE_PROFILING_TARGET"; then
@@ -94,7 +95,7 @@ if test "$PHP_DDTRACE_PROFILING" != "no"; then
   PHP_SUBST(PHP_MODULES)
 
   cat <<EOT >> Makefile.fragments
-$profiler_rust_lib: \$(shell for dir in \$(srcdir)/components-rs \$(srcdir)/profiling \$(srcdir)/libdatadog \$(srcdir)/../../libdatadog; do test ! -d \$\$dir || find \$\$dir \( -type f -o -type l \) \( -name '*.rs' -o -name '*.c' -o -name '*.h' -o -name Cargo.toml \) -not -path '*/target/*' -not -path '*/.git/*'; done) \$(srcdir)/ext/handlers_api.c \$(srcdir)/ext/handlers_api.h \$(srcdir)/Cargo.toml \$(srcdir)/Cargo.lock \$(srcdir)/VERSION
+$profiler_rust_lib: \$(shell for dir in \$(srcdir)/components-rs \$(srcdir)/profiling \$(srcdir)/libdatadog \$(srcdir)/../../libdatadog; do test ! -d \$\$dir || find \$\$dir \( -type f -o -type l \) \( -name '*.rs' -o -name '*.c' -o -name '*.h' -o -name Cargo.toml \) -not -path '*/target/*' -not -path '*/.git/*'; done) \$(srcdir)/ext/configuration.h \$(srcdir)/ext/configuration_helpers.h \$(srcdir)/ext/configuration_shared.h \$(srcdir)/tracer/configuration.h \$(srcdir)/ext/handlers_api.c \$(srcdir)/ext/handlers_api.h \$(srcdir)/Cargo.toml \$(srcdir)/Cargo.lock \$(srcdir)/VERSION
 	(cd "\$(srcdir)"; PHP_CONFIG="\$(DDTRACE_PHP_CONFIG)" CARGO_TARGET_DIR="$profiler_target_dir" RUSTFLAGS="\$(RUSTFLAGS) --cfg tokio_unstable" "\$(DDTRACE_CARGO)" build $DDTRACE_PROFILING_CARGO_BUILD_FLAGS $profiler_target_arg --no-default-features --features "profiling${DDTRACE_PROFILING_FEATURES:+,$DDTRACE_PROFILING_FEATURES}" $(test "$profiler_cargo_profile" = debug || echo --profile "$profiler_cargo_profile") \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+"))
 
 \$(phplibdir)/datadog-profiling.la: $profiler_rust_lib
@@ -108,9 +109,10 @@ clean-profiler:
 clean: clean-profiler
 
 EOT
+  fi
 fi
 
-if test "$PHP_DDTRACE" != "no" && test "$PHP_DDTRACE_PROFILING" = "no"; then
+if test "$PHP_DDTRACE" != "no" && { test "$PHP_DDTRACE_PROFILING" = "no" || test "$PHP_DDTRACE_TRACER" != "no"; }; then
   AC_CHECK_SIZEOF([long])
   AC_MSG_CHECKING([for 64-bit platform])
   AS_IF([test "$ac_cv_sizeof_long" -eq 4],[
@@ -382,7 +384,11 @@ if test "$PHP_DDTRACE" != "no" && test "$PHP_DDTRACE_PROFILING" = "no"; then
       $DD_TRACE_PHP_SOURCES
     "
 
-    DATADOG_EXTENSION_FLAGS="$DATADOG_EXTENSION_FLAGS -DDDTRACE"
+    DATADOG_EXTENSION_FLAGS="$DATADOG_EXTENSION_FLAGS -DTRACER"
+  fi
+
+  if test "$PHP_DDTRACE_PROFILING" != "no"; then
+    DATADOG_EXTENSION_FLAGS="$DATADOG_EXTENSION_FLAGS -DPROFILING"
   fi
 
   PHP_NEW_EXTENSION(ddtrace, $ALL_DATADOG_SOURCES, $ext_shared,, $DATADOG_EXTENSION_FLAGS)
@@ -525,16 +531,27 @@ EOT
   else
     dnl consider it debug if -g is specified (but not -g0)
     ddtrace_cargo_profile=$(test "$PHP_DDTRACE_RUST_DEBUG" != "no" && echo debug || echo tracer-release)
-    ddtrace_rust_lib="\$(builddir)/target-common/$ddtrace_cargo_profile/libdatadog_php.a"
-    if test "$PHP_DDTRACE_TRACER" != "no"; then
+    ddtrace_target_dir="${CARGO_TARGET_DIR:-\$(builddir)/target-common}"
+    ddtrace_target_path=
+    ddtrace_target_args=
+    if test "$PHP_DDTRACE_TRACER" != "no" && test "$PHP_DDTRACE_PROFILING" != "no" && test -n "$DDTRACE_PROFILING_TARGET"; then
+      ddtrace_target_path="/$DDTRACE_PROFILING_TARGET"
+      ddtrace_target_args="--target $DDTRACE_PROFILING_TARGET"
+    fi
+    ddtrace_rust_lib="$ddtrace_target_dir$ddtrace_target_path/$ddtrace_cargo_profile/libdatadog_php.a"
+    if test "$PHP_DDTRACE_TRACER" != "no" && test "$PHP_DDTRACE_PROFILING" != "no"; then
+      ddtrace_cargo_features="--no-default-features --features tracer,profiling${DDTRACE_PROFILING_FEATURES:+,$DDTRACE_PROFILING_FEATURES}"
+      ddtrace_cargo_build_flags="$DDTRACE_PROFILING_CARGO_BUILD_FLAGS $ddtrace_target_args"
+    elif test "$PHP_DDTRACE_TRACER" != "no"; then
       ddtrace_cargo_features="--features tracer"
     else
       ddtrace_cargo_features="--no-default-features"
     fi
+    ddtrace_cargo_build_flags="${ddtrace_cargo_build_flags:-}"
 
     cat <<EOT >> Makefile.fragments
-$ddtrace_rust_lib: $( (find "$ext_srcdir/components-rs" -name "*.rs"; find "$ext_srcdir" -maxdepth 1 -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -not -path "*/target/*"; find "$ext_srcdir/libdatadog" -name "*.rs" -not -path "*/target/*") 2>/dev/null | tr '\n' ' ' )
-	(cd "$ext_srcdir"; PHP_CONFIG="\$(DDTRACE_PHP_CONFIG)" CARGO_FEATURES="$ddtrace_cargo_features" CARGO_TARGET_DIR=\$(builddir)/target-common/ SHARED=$(test "$ext_shared" = "yes" && echo 1) PROFILE="$ddtrace_cargo_profile" host_os="$host_os" DDTRACE_CARGO="\$(DDTRACE_CARGO)" $(if test "$PHP_DDTRACE_SANITIZE" != "no"; then echo COMPILE_ASAN=1; fi) sh ./compile_rust.sh \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+"))
+$ddtrace_rust_lib: $( (find "$ext_srcdir/components-rs" -name "*.rs"; find "$ext_srcdir/profiling" \( -name "*.rs" -o -name "*.c" -o -name "*.h" \); find "$ext_srcdir/zend_abstract_interface" \( -name "*.c" -o -name "*.h" \); find "$ext_srcdir" -maxdepth 1 -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -not -path "*/target/*"; find "$ext_srcdir/libdatadog" -name "*.rs" -not -path "*/target/*") 2>/dev/null | tr '\n' ' ' ) $ext_srcdir/ext/configuration.h $ext_srcdir/ext/configuration_helpers.h $ext_srcdir/ext/configuration_shared.h $ext_srcdir/tracer/configuration.h
+	(cd "$ext_srcdir"; PHP_CONFIG="\$(DDTRACE_PHP_CONFIG)" CARGO_FEATURES="$ddtrace_cargo_features" CARGO_TARGET_DIR="$ddtrace_target_dir/" SHARED=$(test "$ext_shared" = "yes" && echo 1) PROFILE="$ddtrace_cargo_profile" host_os="$host_os" DDTRACE_CARGO="\$(DDTRACE_CARGO)" $(if test "$PHP_DDTRACE_SANITIZE" != "no"; then echo COMPILE_ASAN=1; fi) sh ./compile_rust.sh $ddtrace_cargo_build_flags \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+"))
 EOT
   fi
 

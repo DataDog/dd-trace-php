@@ -40,9 +40,20 @@ static void stable_config_entry_dtor(zval *el) {
 }
 
 void zai_config_stable_file_minit(void) {
-    // Resolve symbols at runtime, as they are not part of the AppSec extension
-    // but are provided by ddtrace if it is loaded.
+    // Resolve symbols at runtime for separate artifacts. A combined artifact
+    // binds directly because the functions are linked into the same library.
     if (!_ddog_library_configurator_new) {
+#if defined(TRACER) && defined(PROFILING)
+        _ddog_library_configurator_new = ddog_library_configurator_new;
+        _ddog_library_configurator_with_local_path = ddog_library_configurator_with_local_path;
+        _ddog_library_configurator_with_fleet_path = ddog_library_configurator_with_fleet_path;
+        _ddog_library_configurator_with_detect_process_info = ddog_library_configurator_with_detect_process_info;
+        _ddog_library_configurator_get = ddog_library_configurator_get;
+        _ddog_library_config_source_to_string = ddog_library_config_source_to_string;
+        _ddog_library_config_drop = ddog_library_config_drop;
+        _ddog_Error_drop = ddog_Error_drop;
+        _ddog_library_configurator_drop = ddog_library_configurator_drop;
+#else
         zend_module_entry *ext = NULL;
         ext = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("ddtrace"));
         if (!ext) {
@@ -61,6 +72,7 @@ void zai_config_stable_file_minit(void) {
         RESOLVE_SYMBOL(ddog_library_config_drop);
         RESOLVE_SYMBOL(ddog_Error_drop);
         RESOLVE_SYMBOL(ddog_library_configurator_drop);
+#endif
     }
 
     ddog_Configurator *configurator = _ddog_library_configurator_new(false, DDOG_CHARSLICE_C("php"));

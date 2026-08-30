@@ -4,7 +4,7 @@
 #
 # On "apachectl graceful" Apache re-runs php_module_startup() in the very same process, after
 # having dlclose()'d and re-dlopen()'d dd_library_loader.so (which lands at a *different* address),
-# while the previously injected ddtrace.so/datadog-profiling.so usually stay resident (glibc refuses
+# while the previously injected combined ddtrace.so usually stays resident (glibc refuses
 # to unmap libraries that started threads). If the loader leaves its in-place patches on the
 # injected module's static zend_module_entry behind, the second startup re-captures those already
 # patched values -- pointers into the now unmapped previous loader image -- installs and calls them,
@@ -112,7 +112,7 @@ printf(
     extension_loaded('ddtrace') ? 'yes' : 'no',
     phpversion('ddtrace') ?: '-',
     function_exists('DDTrace\\trace_function') ? 'yes' : 'no',
-    extension_loaded('datadog-profiling') ? 'yes' : 'no'
+    ini_get('datadog.profiling.enabled') !== false ? 'yes' : 'no'
 );
 PHP
 

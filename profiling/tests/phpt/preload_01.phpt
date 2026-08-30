@@ -18,7 +18,7 @@ USE_ZEND_ALLOC=0
 <?php
 if (PHP_VERSION_ID < 70400)
     echo "skip: need preloading and therefore PHP >= 7.4.0", PHP_EOL;
-if (!extension_loaded('datadog-profiling'))
+if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
     echo "skip: test requires datadog-profiling", PHP_EOL;
 if (!extension_loaded('Zend OPcache'))
     echo "skip: test requires opcache", PHP_EOL;
@@ -41,6 +41,6 @@ echo "Done.", PHP_EOL;
 ?>
 --EXPECTREGEX--
 .*zend_post_startup_cb hasn't happened yet; not enabling profiler.
-preloading
+(.*\n)*preloading
 .*Started with an upload period of [0-9]+ seconds and approximate wall-time period of [0-9]+ milliseconds.
 .*Done.*

@@ -12,6 +12,7 @@ trace_version=$(cat VERSION)
 php ./build/packages/datadog-setup.php --php-bin php --extension-dir /custom-ext-dir --enable-profiling
 
 assert_file_exists /custom-ext-dir/ddtrace.so
+assert_file_not_exists /custom-ext-dir/datadog-profiling.so
 
 assert_ddtrace_version "${trace_version}"
 assert_profiler_installed

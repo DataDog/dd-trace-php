@@ -38,7 +38,7 @@ Target format: {libc}-{arch}-{php_version}-{thread_safety}
   thread_safety: nts | zts
 
 Options:
-  --profiler    Also build the profiling extension
+  --profiler    Build profiling into the combined ddtrace extension
   --appsec      Also build the AppSec extension
 
 If the current directory contains a Dockerfile, it will be patched to COPY the
@@ -242,16 +242,12 @@ _preamble() {  # $1 = shell commands to run as the host user
     fi
 }
 
-TRACE_SCRIPT="$(_preamble "DD_TRACE_DOCKER_DEBUG=1 CFLAGS='-std=gnu11 -O0 -g' make
-cp tmp/build_extension/modules/ddtrace.so /output/ddtrace.so")"
-
+TRACE_PRODUCTS=""
 if [[ "$BUILD_PROFILER" == "1" ]]; then
-    PROFILER_SCRIPT="$(_preamble "if [ -f /sbin/apk ] && [ \$(uname -m) = 'aarch64' ]; then
-    ln -sf ../lib/llvm20/bin/clang /usr/bin/clang
+    TRACE_PRODUCTS="EXTRA_CONFIGURE_OPTIONS=--enable-ddtrace-profiling"
 fi
-make BUILD_SUFFIX=profiler PROFILING=1 RUST_DEBUG_BUILD=1 EXTRA_CONFIGURE_OPTIONS='--disable-ddtrace-tracer --enable-ddtrace-profiling'
-cp ${HOME_DIR}/tmp/build_profiler/modules/datadog-profiling.so /output/datadog-profiling${EXT_SUFFIX}.so")"
-fi
+TRACE_SCRIPT="$(_preamble "DD_TRACE_DOCKER_DEBUG=1 CFLAGS='-std=gnu11 -O0 -g' make ${TRACE_PRODUCTS}
+cp tmp/build_extension/modules/ddtrace.so /output/ddtrace.so")"
 
 if [[ "$BUILD_APPSEC" == "1" ]]; then
     # Resolve libddwaf commit on the host (avoids git inside the container,
@@ -317,9 +313,6 @@ fi
 
 _launch "trace"   docker run -w "${HOME_DIR}" --rm "${_common_volumes[@]}" "$DOCKER_IMAGE" "$DOCKER_SHELL" -c "$TRACE_SCRIPT"
 
-[[ "$BUILD_PROFILER" == "1" ]] && \
-    _launch "profiler" docker run -w "${HOME_DIR}" --rm "${_common_volumes[@]}" "$DOCKER_IMAGE" "$DOCKER_SHELL" -c "$PROFILER_SCRIPT"
-
 if [[ "$BUILD_APPSEC" == "1" ]]; then
     _launch "appsec" docker run -w "${HOME_DIR}" --rm "${_common_volumes[@]}" "$DOCKER_IMAGE" "$DOCKER_SHELL" -c "$APPSEC_SCRIPT"
 
@@ -368,11 +361,10 @@ cp -r "${REPO_ROOT}/src" "${TRACE_BASE}/src"
 echo "$VERSION" > "${TMP_PKG}/dd-library-php/VERSION"
 
 if [[ "$BUILD_PROFILER" == "1" ]]; then
-    PROFILING_BASE="${TMP_PKG}/dd-library-php/profiling"
-    mkdir -p "${PROFILING_BASE}/ext/${php_api}"
-    cp "${TMP_OUT}/datadog-profiling${EXT_SUFFIX}.so" "${PROFILING_BASE}/ext/${php_api}/datadog-profiling${EXT_SUFFIX}.so"
-    cp "${REPO_ROOT}/profiling/LICENSE"* "${PROFILING_BASE}/" 2>/dev/null || true
-    cp "${REPO_ROOT}/profiling/NOTICE" "${PROFILING_BASE}/" 2>/dev/null || true
+    touch "${TRACE_BASE}/ext/${php_api}/.ddtrace${EXT_SUFFIX}.profiling"
+    mkdir -p "${TRACE_BASE}/profiling-licenses"
+    cp "${REPO_ROOT}/profiling/LICENSE"* "${TRACE_BASE}/profiling-licenses/" 2>/dev/null || true
+    cp "${REPO_ROOT}/profiling/NOTICE" "${TRACE_BASE}/profiling-licenses/" 2>/dev/null || true
 fi
 
 if [[ "$BUILD_APPSEC" == "1" ]]; then

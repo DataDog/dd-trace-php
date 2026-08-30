@@ -257,7 +257,7 @@ TRIPLET=x86_64-alpine-linux-musl \
 ```
 
 The script needs compiled extensions in `extensions_x86_64/`,
-`datadog-profiling/`, `appsec_x86_64/`, and `src/`. If built via
+`combined-ddtrace/`, `appsec_x86_64/`, and `src/`. If built via
 `dockerh --overlayfs`, extract from volumes first (see
 [compile-artifacts.md](compile-artifacts.md)).
 

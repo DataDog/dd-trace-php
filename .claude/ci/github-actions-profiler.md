@@ -20,11 +20,18 @@ ASAN matrix: PHP 8.3+ × {arm64, amd64}.
 
 ## What It Tests
 
-Each job builds the profiler extension with `--features=trigger_time_sample`, then runs
-PHP scripts that exercise profiling (allocations, wall/cpu time, exceptions, IO, timeline,
-strange frames). The scripts output pprof files (zstd-compressed protobuf). The
+Each job builds through phpize/configure/Make with
+`DDTRACE_PROFILING_FEATURES=trigger_time_sample`, then runs PHP scripts that exercise
+profiling (allocations, wall/cpu time, exceptions, IO, timeline, strange frames). PHP
+8.5 correctness cells use combined `ddtrace.so`; older cells retain the standalone
+profiler. The scripts output pprof files (zstd-compressed protobuf). The
 `Datadog/prof-correctness/analyze` GitHub Action then checks each pprof against a JSON
-expectations file.
+expectations file. The PHP 8.5 NTS combined cell also runs tracer/profiler runtime-ID
+integration with profiling both enabled and disabled and checks that closing a web root
+span enqueues its endpoint information in the profiler. It then rebuilds a standalone
+profiler and verifies that loading it alongside `ddtrace.so` fails in both load orders.
+The PHP 8.4 NTS standalone cell also creates an OpenTelemetry SDK tracer and active span
+to verify that the userland SDK and standalone profiler coexist.
 
 Test cases (NTS): `allocations`, `time`, `strange_frames`, `timeline`, `exceptions`, `io`,
 `allocation_time_combined`, plus `allocations` re-run with 1-byte sampling distance (with
@@ -34,52 +41,48 @@ ZTS adds: `exceptions_zts`.
 
 ## Local Reproduction
 
-Use `.claude/ci/dockerh` with the `datadog/dd-trace-ci:php-<VERSION>_bookworm-{N}` image
-matching the PHP version under test (see `index.md` for image version and contents). The CI
-uses clang-19 on ubuntu-24.04; clang-17 in the image works fine.
+Use `.claude/ci/dockerh` with the `datadog/dd-trace-ci:php-<VERSION>_bookworm-10` image
+matching the PHP version under test (see `index.md` for image contents). The CI
+installs and uses clang-20 on ubuntu-24.04.
 
 Actions jobs use `shivammathur/setup-php` instead, but the same `dd-trace-ci`
 image is a suitable local substitute.
 
-**Image naming:** use `php-8.1_bookworm-N` for PHP 8.1 tests, `php-8.3_bookworm-N` for
-8.3, etc. — the image is tagged by PHP version, so the version in the tag must match the
-PHP version being tested.
+**Image naming:** use `php-8.1_bookworm-10` for PHP 8.1 tests,
+`php-8.3_bookworm-10` for 8.3, etc. The version in the tag must match the PHP version
+being tested.
 
 **Cache naming:** use a separate `--cache` name per `(php-version, phpts)` pair (e.g.
 `profiler-8.1-zts`) to avoid mixing NTS and ZTS build artifacts.
 
 ### Build the profiler extension
 
-`cargo rustc` must be run from the `profiling/` subdirectory (the workspace `profiler-release`
-profile is defined in the repo root `Cargo.toml`, but the crate itself lives in `profiling/`).
-
-**`CARGO_TARGET_DIR` must be set explicitly** to `/project/dd-trace-php/target`. Without
-it the `cbindgen` build script inside `libdatadog` calls `cargo locate-project --workspace`,
-which resolves to the `libdatadog/` submodule's own workspace (not the repo root), and
-tries to create `libdatadog/target/include/datadog/library-config.h`. That path is inside
-the read-only source mount with no writable overlay, causing a
-`ReadOnlyFilesystem (os error 30)` panic. Pointing `CARGO_TARGET_DIR` at the already-
-overlaid `/project/dd-trace-php/target` fixes it.
+Loadable artifacts must go through phpize/configure/Make from the repository root.
+Do not load a Cargo target-directory cdylib.
 
 ```bash
-# NTS example (PHP 8.3)
-dockerh --cache profiler-8.3-nts --php nts datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
-export CARGO_TARGET_DIR=/project/dd-trace-php/target
-cd profiling && cargo rustc --features=trigger_time_sample --profile profiler-release --crate-type=cdylib
+# Standalone NTS example (PHP 8.3)
+dockerh --cache profiler-8.3-nts --php nts datadog/dd-trace-ci:php-8.3_bookworm-10 -- bash -c '
+cd /project/dd-trace-php
+phpize
+DDTRACE_PROFILING_FEATURES=trigger_time_sample \
+  ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling --disable-ddtrace-rust-debug
+make -j"$(nproc)"
 '
 
-# ZTS example (PHP 8.1) — note --php zts, matching image version, and separate cache name
-dockerh --cache profiler-8.1-zts --php zts datadog/dd-trace-ci:php-8.1_bookworm-6 -- bash -c '
-export CARGO_TARGET_DIR=/project/dd-trace-php/target
-cd profiling && cargo rustc --features=trigger_time_sample --profile profiler-release --crate-type=cdylib
+# Combined ZTS example (PHP 8.5)
+dockerh --cache profiler-8.5-zts --php zts datadog/dd-trace-ci:php-8.5_bookworm-10 -- bash -c '
+cd /project/dd-trace-php
+phpize
+DDTRACE_PROFILING_FEATURES=trigger_time_sample \
+  ./configure --enable-ddtrace-tracer --enable-ddtrace-profiling --disable-ddtrace-rust-debug
+make -j"$(nproc)"
 '
 ```
 
-Output: `/project/dd-trace-php/target/profiler-release/libdatadog_php_profiling.so`
-(persisted in the host cache at `~/.cache/dd-ci/<CACHE-NAME>/target/`).
-
-The second run reuses the build cache and completes in seconds. Never run `--clean-cache`
-between iterations — the Rust build takes 5–15 minutes from scratch.
+The supported outputs are `modules/datadog-profiling.so` and
+`modules/ddtrace.so`, respectively. Use separate caches for PHP versions and NTS/ZTS
+variants.
 
 ### Run a single test case
 
@@ -88,8 +91,7 @@ write pprof output there — no extra mounts needed:
 
 ```bash
 dockerh --cache profiler-8.3-nts --php nts \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
-export CARGO_TARGET_DIR=/project/dd-trace-php/target
+  datadog/dd-trace-ci:php-8.3_bookworm-10 -- bash -c '
 export DD_PROFILING_LOG_LEVEL=warn   # use "trace" only when debugging — trace is verbose and slows execution
 export DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=1
 export DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE=1
@@ -100,7 +102,7 @@ TEST_CASE=allocations
 OUT=/project/dd-trace-php/tmp/correctness/$TEST_CASE
 mkdir -p $OUT
 DD_PROFILING_OUTPUT_PPROF=$OUT/test.pprof \
-  php -d extension=/project/dd-trace-php/target/profiler-release/libdatadog_php_profiling.so \
+  php -d extension=/project/dd-trace-php/modules/datadog-profiling.so \
       /project/dd-trace-php/profiling/tests/correctness/$TEST_CASE.php
 ls -la $OUT/
 '
@@ -123,18 +125,13 @@ export DD_PROFILING_ENABLED=Off
 # Verify test.pprof.1.zst does NOT exist
 ```
 
-**Note:** the CI script checks for the `.lz4` extension (an older format), but the current
-profiler outputs `.zst`. This means the CI "no profile" check always passes regardless of
-whether a `.zst` file is produced. Locally, check for `.zst` if you want a meaningful
-verification.
-
 ### Inspecting pprof output
 
 The pprof files are zstd-compressed protobuf. Use `go tool pprof` (available in the
 dd-trace-ci image) to inspect them. Pass `--user root` so `apt-get install` works:
 
 ```bash
-dockerh --cache profiler-8.3-nts --php nts datadog/dd-trace-ci:php-7.3_bookworm-6 --user root -- bash -c '
+dockerh --cache profiler-8.3-nts --php nts datadog/dd-trace-ci:php-7.3_bookworm-10 --user root -- bash -c '
 apt-get update -qq > /dev/null 2>&1 && apt-get install -y -qq zstd > /dev/null 2>&1
 
 PPROF_DIR=/project/dd-trace-php/tmp/correctness/allocations
@@ -202,14 +199,17 @@ frame name formatting. The implementation is in `profiling/src/capi.rs` and
 
 ## Debug Build
 
-For a debug (unoptimized) build:
+Select Rust debug mode through configure, then consume the Make output:
 
 ```bash
-cargo rustc --features=trigger_time_sample --profile dev --crate-type=cdylib
+phpize
+DDTRACE_PROFILING_FEATURES=trigger_time_sample \
+  ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling --enable-ddtrace-rust-debug
+make -j"$(nproc)"
 ```
 
-Output: `target/debug/libdatadog_php_profiling.so` (~144 MB vs ~20 MB for profiler-release).
-Use the same `php -d extension=...` command, just point to the debug path.
+The artifact remains `modules/datadog-profiling.so`. Profiling PHPT and correctness
+expectations are intended for optimized builds.
 
 ## ZTS tests -- parallel PECL extension
 
@@ -225,25 +225,26 @@ installs version `v1.2.7` from GitHub via the `extensions` matrix parameter
 ## ASAN Build
 
 Builds the profiler with AddressSanitizer using a pinned nightly Rust toolchain
-and clang-17, then runs the `.phpt` test suite with `--asan`.
+and clang-20, then runs the `.phpt` test suite with `--asan`.
 
 ### Local reproduction
 
 ```bash
 dockerh --cache profiler-asan-8.3-nts --php nts-asan \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 --user root --privileged -- bash -c '
-export CARGO_TARGET_DIR=/project/dd-trace-php/target
-export CC=clang-17
-export CFLAGS="-fsanitize=address -fno-omit-frame-pointer"
+  datadog/dd-trace-ci:php-8.3_bookworm-10 --user root --privileged -- bash -c '
+cd /project/dd-trace-php
+export CC=clang-20
+export CFLAGS="-fsanitize=address -fsanitize-address-use-after-scope -fno-omit-frame-pointer"
 export LDFLAGS="-fsanitize=address -shared-libasan"
-export RUSTC_LINKER=lld-17
-RUST_TOOLCHAIN=nightly-2025-06-13
-
-cd profiling
-triplet=$(uname -m)-unknown-linux-gnu
-RUSTFLAGS="-Zsanitizer=address" cargo +${RUST_TOOLCHAIN} build -Zbuild-std=std,panic_abort \
-  --target $triplet --profile profiler-release
-cp -v "$CARGO_TARGET_DIR/$triplet/profiler-release/libdatadog_php_profiling.so" \
+export RUSTC_LINKER=lld-20
+rustup override set nightly-2025-06-13
+export RUSTFLAGS="-Zsanitizer=address -C force-frame-pointers=yes"
+export DDTRACE_PROFILING_TARGET="$(uname -m)-unknown-linux-gnu"
+export DDTRACE_PROFILING_CARGO_BUILD_FLAGS="-Zbuild-std=std,panic_abort"
+phpize
+./configure --disable-ddtrace-tracer --enable-ddtrace-profiling --disable-ddtrace-rust-debug
+make -j"$(nproc)"
+cp -v modules/datadog-profiling.so \
   "$(php-config --extension-dir)/datadog-profiling.so"
 
 # run-tests.php writes temp files next to .phpt files, so both must be in a writable dir.
@@ -268,10 +269,6 @@ the workflow file for the current pinned version.
 
 - **Expected ASAN test counts:** 39 total, ~27 pass, ~12 skip (30%), 0 fail. The skips are normal
   (platform/env conditions). A non-zero fail count indicates a real problem.
-- The `profiler-release` profile is defined in the workspace root `Cargo.toml`, not in
-  `profiling/Cargo.toml`. It inherits from `release` with `panic = "abort"`.
 - `dockerh` runs the container as your host UID so cache dirs are writable without any
   permission tricks. Pass `--user root` after the image name if you need to install
   packages with `apt-get`.
-- CI checks for `.lz4` extension in the "no profile" test, but the current profiler
-  outputs `.zst` (zstandard). Both are valid pprof compression formats.

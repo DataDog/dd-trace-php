@@ -96,7 +96,7 @@ function appsec_image_from_tag_mapping(string $tag): string
 
 stages:
   - prepare
-  - profiler
+  - combined
   - appsec
   - tracing
   - packaging
@@ -230,8 +230,8 @@ foreach ($build_platforms as $platform) {
     foreach ($profiler_minor_major_targets as $major_minor) {
         $abi_no = $php_versions_to_abi[$major_minor]
 ?>
-"compile profiler extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
-  stage: profiler
+"compile combined extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
+  stage: combined
   image: "<?= sprintf($platform['image_template'], $major_minor) ?>"
   tags: [ "arch:$ARCH" ]
   needs:
@@ -249,8 +249,8 @@ foreach ($build_platforms as $platform) {
     KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
   script:
-    - .gitlab/build-profiler.sh "datadog-profiling/${TRIPLET}/lib/php/${ABI_NO}" "nts"
-    - .gitlab/build-profiler.sh "datadog-profiling/${TRIPLET}/lib/php/${ABI_NO}" "zts"
+    - .gitlab/build-profiler.sh "combined-ddtrace/${TRIPLET}/lib/php/${ABI_NO}" "nts" "combined"
+    - .gitlab/build-profiler.sh "combined-ddtrace/${TRIPLET}/lib/php/${ABI_NO}" "zts" "combined"
   cache:
     - key:
         prefix: cargo-cache-${TRIPLET}
@@ -261,7 +261,7 @@ foreach ($build_platforms as $platform) {
       policy: pull  # `Cache Cargo Deps` is used to update/push the cache
   artifacts:
     paths:
-      - "datadog-profiling"
+      - "combined-ddtrace"
 
 <?php
     }
@@ -650,6 +650,16 @@ foreach ($build_platforms as $platform) {
     ARCH: "<?= $platform['arch'] ?>"
     TRIPLET: "<?= $platform['triplet'] ?>"
   script:
+    # Overlay the PHP-version-specific combined artifacts onto the historical
+    # ddtrace paths consumed by package generation. PHP 7.0 and debug builds
+    # remain tracer-only because profiling does not support those builds.
+    - |
+      for module in combined-ddtrace/${TRIPLET}/lib/php/*/ddtrace*.so; do
+        api=$(basename "$(dirname "$module")")
+        variant=$(basename "$module" .so)
+        variant=${variant#ddtrace}
+        cp -v "$module" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${api}<?= ($platform['host_os'] === 'linux-musl') ? '-alpine' : '' ?>${variant}.so"
+      done
     - make -j 4 <?= implode(' ', $platform['targets']) ?>
 
     - ./tooling/bin/generate-final-artifact.sh $(<VERSION) "build/packages" "${CI_PROJECT_DIR}"
@@ -693,8 +703,8 @@ foreach ($build_platforms as $platform) {
 <?php
     foreach ($profiler_minor_major_targets as $major_minor) {
 ?>
-    # Profiler extension
-    - job: "compile profiler extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+    # Combined tracer and profiler extension
+    - job: "compile combined extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
 <?php
     }
@@ -789,7 +799,7 @@ foreach ($asan_build_platforms as $platform) {
 <?php
             foreach ($profiler_minor_major_targets as $major_minor):
 ?>
-    - job: "compile profiler extension: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>]"
+    - job: "compile combined extension: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
 <?php
             endforeach;

@@ -65,7 +65,7 @@ static void dd_sigsegv_handler(int sig) {
         DATADOG_G(backtrace_handler_already_run) = true;
         datadog_signal_safe_logf("[crash] Segmentation fault encountered");
 
-#if HAVE_SIGACTION && defined(DDTRACE)
+#if HAVE_SIGACTION && defined(TRACER)
         bool health_metrics_enabled = get_DD_TRACE_HEALTH_METRICS_ENABLED();
         if (health_metrics_enabled) {
             // TODO: emit in sidecar

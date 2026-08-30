@@ -77,6 +77,9 @@ zend_module_entry *datadog_get_module_entry(const char *str, uintptr_t len);
  */
 void *datadog_php_profiling_vm_interrupt_addr(void);
 
+/** Reports that standalone profiler and ddtrace were loaded together. */
+void datadog_php_profiling_conflicting_extension_error(void);
+
 /**
  * For Code Hotspots, we need the tracer's local root span id and the current
  * span id. This is a cross-product struct, so keep it in sync with tracer's
@@ -88,15 +91,11 @@ typedef struct ddtrace_profiling_context_s {
 } ddtrace_profiling_context;
 
 /**
- * A pointer to the tracer's ddtrace_get_profiling_context function if it was
- * found, otherwise points to a function which just returns {0, 0}.
+ * Context providers used by profiler code. Combined builds install direct
+ * tracer/common providers during Zend startup; standalone builds retain the
+ * no-op providers.
  */
 extern ddtrace_profiling_context (*datadog_php_profiling_get_profiling_context)(void);
-
-/**
- * A pointer to the tracer's ddtrace_get_process_tags_serialized function if it
- * was found, otherwise points to a function which just returns NULL;
- */
 extern zend_string *(*datadog_php_profiling_get_process_tags_serialized)(void);
 
 /**
@@ -107,11 +106,7 @@ extern zend_string *(*datadog_php_profiling_get_process_tags_serialized)(void);
 const void *datadog_php_profiling_get_otel_thread_context(void);
 #endif
 
-/**
- * Called by this zend_extension's .startup handler. Does things that are
- * burdensome in Rust, like locating the ddtrace extension in the module
- * registry and finding the ddtrace_get_profiling_context function.
- */
+/** Installs the direct combined-build context providers, when available. */
 void datadog_php_profiling_startup(zend_extension *extension);
 
 /**

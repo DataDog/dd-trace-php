@@ -482,6 +482,9 @@ define FPM_FILES
 	extensions_$(shell test $(1) = arm64 && echo aarch64 || echo $(1))/=$(EXT_DIR)/extensions \
 		$(shell test $(1) = windows || echo package/post-install.sh=$(EXT_DIR)/bin/post-install.sh) package/ddtrace.ini.example=$(EXT_DIR)/etc/ \
 		docs=$(EXT_DIR)/docs README.md=$(EXT_DIR)/docs/README.md \
+		profiling/LICENSE=$(EXT_DIR)/docs/profiling/LICENSE \
+		profiling/LICENSE-3rdparty.csv=$(EXT_DIR)/docs/profiling/LICENSE-3rdparty.csv \
+		profiling/NOTICE=$(EXT_DIR)/docs/profiling/NOTICE \
 		src=$(EXT_DIR)/dd-trace-sources
 endef
 define FPM_OPTS

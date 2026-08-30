@@ -5,7 +5,7 @@ This code path had a regression, so it seems worth adding a test to ensure it
 cannot regress again.
 --SKIPIF--
 <?php
-if (!extension_loaded('datadog-profiling'))
+if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
     die("skip: test requires datadog-profiling");
 ?>
 --INI--

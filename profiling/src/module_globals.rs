@@ -2,6 +2,11 @@ use crate::profiling::allocation;
 use core::cell::{Cell, UnsafeCell};
 use core::ffi::c_void;
 use core::mem::MaybeUninit;
+#[cfg(any(
+    not(all(feature = "profiling", feature = "tracer")),
+    target_os = "linux",
+    test
+))]
 use core::ptr;
 use core::sync::atomic::AtomicU32;
 
@@ -38,13 +43,16 @@ pub struct ProfilerGlobals {
 /// [`ModuleEntry::globals_id_ptr`] in the `zend_module_entry` and the TSRM
 /// will store it's thread-safe-resource id here; see:
 /// <https://github.com/php/php-src/blob/5ce36453d66143548485cb57fb19bf4157ab60c2/Zend/zend_API.h#L253>
-#[cfg(php_zts)]
+#[cfg(all(php_zts, all(feature = "profiling", not(feature = "tracer"))))]
 pub static mut GLOBALS_ID: i32 = 0;
 
 /// Module globals for NTS builds. In NTS mode, PHP uses this static directly.
 /// The `globals_ctor` function will re-initialize this (though it's already
 /// initialized here).
-#[cfg(not(php_zts))]
+#[cfg(all(
+    not(php_zts),
+    any(not(all(feature = "profiling", feature = "tracer")), test)
+))]
 pub static mut GLOBALS: ProfilerGlobals = ProfilerGlobals {
     zend_mm_state: Cell::new(ZendMMState::new()),
     interrupt_count: AtomicU32::new(0),
@@ -89,13 +97,21 @@ pub unsafe fn get_tsrm_resource_from_cache(ls_cache: *mut c_void, id: i32) -> *m
     zts::tsrmg_bulk(ls_cache, id)
 }
 
-#[cfg(php_zts)]
+#[cfg(all(php_zts, all(feature = "profiling", not(feature = "tracer"))))]
 #[inline]
 pub unsafe fn get_profiler_globals_from_cache(ls_cache: *mut c_void) -> *mut ProfilerGlobals {
     // SAFETY: As long as this is called during the times documented by
     // get_profiler_globals(), GLOBALS_ID will be set by PHP.
     let id = ptr::addr_of!(GLOBALS_ID).read();
     get_tsrm_resource_from_cache(ls_cache, id).cast()
+}
+
+#[cfg(all(php_zts, all(feature = "profiling", feature = "tracer")))]
+#[inline]
+pub unsafe fn get_profiler_globals_from_cache(_ls_cache: *mut c_void) -> *mut ProfilerGlobals {
+    // Combined storage is owned by the current thread's ddtrace globals. The C
+    // accessor uses PHP's static TSRMLS cache, matching DATADOG_G access.
+    get_profiler_globals()
 }
 
 /// Returns a pointer to the profiler globals for the current thread.
@@ -109,12 +125,23 @@ pub unsafe fn get_profiler_globals_from_cache(ls_cache: *mut c_void) -> *mut Pro
 /// - Must not be called after `GSHUTDOWN`.
 #[inline]
 pub unsafe fn get_profiler_globals() -> *mut ProfilerGlobals {
-    #[cfg(php_zts)]
+    #[cfg(all(all(feature = "profiling", feature = "tracer"), not(test)))]
+    {
+        unsafe extern "C" {
+            fn datadog_php_profiling_globals() -> *mut c_void;
+        }
+        datadog_php_profiling_globals().cast()
+    }
+
+    #[cfg(all(not(all(feature = "profiling", feature = "tracer")), php_zts))]
     {
         get_profiler_globals_from_cache(get_tsrm_ls_cache())
     }
 
-    #[cfg(not(php_zts))]
+    #[cfg(all(
+        not(php_zts),
+        any(not(all(feature = "profiling", feature = "tracer")), test)
+    ))]
     {
         ptr::addr_of_mut!(GLOBALS)
     }
@@ -131,7 +158,7 @@ pub unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
 
     // Initialize PHP globals for ZTS builds. For NTS builds, this was already
     // done in its const initializer.
-    #[cfg(php_zts)]
+    #[cfg(any(php_zts, all(feature = "profiling", feature = "tracer")))]
     {
         let globals = _globals_ptr.cast::<ProfilerGlobals>();
         (*globals).zend_mm_state = Cell::new(ZendMMState::new());
@@ -161,12 +188,17 @@ pub unsafe extern "C" fn gshutdown(_globals_ptr: *mut c_void) {
         if let Ok(mut cache) = (*globals).process_context.try_borrow_mut() {
             cache.reset();
         }
-        #[cfg(php_zts)]
+        #[cfg(any(php_zts, all(feature = "profiling", feature = "tracer")))]
         ptr::drop_in_place(ptr::addr_of_mut!((*globals).process_context));
     }
 
     // SAFETY: this is called in thread gshutdown as expected, no other places.
     allocation::gshutdown();
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_php_prof_globals_size() -> usize {
+    core::mem::size_of::<ProfilerGlobals>()
 }
 
 // Unit tests are not loaded by PHP, so provide the PHP globals and TSRM symbol

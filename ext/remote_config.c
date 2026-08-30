@@ -70,7 +70,7 @@ static void dd_sigvtalarm_handler(int signal, siginfo_t *siginfo, void *ctx) {
     }
 #endif
 
-#ifdef DDTRACE
+#ifdef TRACER
     ddtrace_live_debugger_handle_sigvtalarm();
 #endif
 }
@@ -114,7 +114,7 @@ static zend_string *dd_dynamic_configuration_update(ddog_CharSlice config, zend_
 }
 
 void datadog_minit_remote_config(void) {
-#ifdef DDTRACE
+#ifdef TRACER
     ddog_setup_remote_config(dd_dynamic_configuration_update, &ddtrace_live_debugger_setup);
 #else
     ddog_setup_remote_config(dd_dynamic_configuration_update, NULL);

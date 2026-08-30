@@ -13,6 +13,7 @@ custom_ini_file="$(get_php_conf_dir)/40-ddtrace.ini"
 php ./build/packages/datadog-setup.php --php-bin php --extension-dir /custom-ext-dir --enable-profiling --ini "$custom_ini_file"
 
 assert_file_exists /custom-ext-dir/ddtrace.so
+assert_file_not_exists /custom-ext-dir/datadog-profiling.so
 
 assert_ddtrace_version "${trace_version}"
 assert_profiler_installed

@@ -83,7 +83,11 @@ ZEND_BEGIN_MODULE_GLOBALS(datadog)
     char *cgroup_file;
     zend_bool backtrace_handler_already_run;
 
-#if DDTRACE
+#ifdef PROFILING
+    void *profiling_globals;
+#endif
+
+#ifdef TRACER
     ddtrace_globals ddtrace;
 #endif
 ZEND_END_MODULE_GLOBALS(datadog)

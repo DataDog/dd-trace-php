@@ -92,7 +92,7 @@ Used before running tracer unit tests, .phpt tests, etc.:
 
 ```bash
 .claude/ci/dockerh --cache tracer-8.3-debug --overlayfs --php debug \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-10 -- bash -c '
 set -e
 git submodule update --init libdatadog
 make -j$(nproc) all
@@ -138,7 +138,7 @@ Reproduces the `compile extension: debug` CI job exactly:
 
 ```bash
 .claude/ci/dockerh --cache tracer-8.3-debug --overlayfs --root \
-    datadog/dd-trace-ci:php-8.3_bookworm-6 \
+    datadog/dd-trace-ci:php-8.3_bookworm-10 \
     -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
     -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
     -e SHARED=1 \
@@ -156,7 +156,7 @@ enables `-fsanitize=address` in the Rust sidecar.
 ```bash
 .claude/ci/dockerh --cache tracer-8.3-asan --overlayfs \
   --php debug-zts-asan \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-10 -- bash -c '
 set -e
 export COMPILE_ASAN=1
 make -j$(nproc) all
@@ -242,15 +242,19 @@ git submodule update --init \
 
 ### For correctness tests (bookworm)
 
-`CARGO_TARGET_DIR` **must** be set explicitly (see
-[github-actions-profiler.md](github-actions-profiler.md) for why):
+Build the loadable extension through phpize/configure/Make from the repository
+root. Make owns the Cargo feature set, PHP headers, target directory, and final
+module name:
 
 ```bash
 dockerh --cache profiler-8.3-nts --php nts \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
-export CARGO_TARGET_DIR=/project/dd-trace-php/target
-cd profiling && cargo rustc --features=trigger_time_sample \
-  --profile profiler-release --crate-type=cdylib
+  datadog/dd-trace-ci:php-8.3_bookworm-10 -- bash -c '
+cd /project/dd-trace-php
+phpize
+DDTRACE_PROFILING_FEATURES=trigger_time_sample \
+  ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling --disable-ddtrace-rust-debug
+make -j"$(nproc)"
+php -n -d extension=modules/datadog-profiling.so --ri datadog-profiling
 '
 ```
 
@@ -258,23 +262,23 @@ cd profiling && cargo rustc --features=trigger_time_sample \
 
 Bookworm is too recent for binary compatibility purposes.
 
-`build-profiler.sh` takes two arguments: the output directory prefix
-and the thread safety mode (`nts` or `zts`). It calls `switch-php`
-internally, so use `--root` (not `--php`). The output prefix must
-match the directory layout expected by `generate-final-artifact.sh`:
-`datadog-profiling/{triplet}/lib/php/{PHP_API}/`.
+`build-profiler.sh` takes an output directory prefix, the thread safety mode
+(`nts` or `zts`), and an optional `combined` artifact mode. Package jobs use
+combined mode. It calls `switch-php` internally, so use `--root` (not
+`--php`). The output prefix must match the directory layout expected by
+`generate-final-artifact.sh`: `combined-ddtrace/{triplet}/lib/php/{PHP_API}/`.
 
 Build one PHP version at a time (each centos-7 image ships one
 version). For a single version (e.g. 8.2, ABI `20220829`):
 
 ```bash
-.claude/ci/dockerh --cache compile-profiler-8.2-gnu --overlayfs \
+.claude/ci/dockerh --cache compile-combined-8.2-gnu --overlayfs \
     --root \
     datadog/dd-trace-ci:php-8.2_centos-7 \
     -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
     -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
     -- bash -c 'PHP_VERSION=8.2 bash .gitlab/build-profiler.sh \
-      datadog-profiling/x86_64-unknown-linux-gnu/lib/php/20220829 nts'
+      combined-ddtrace/x86_64-unknown-linux-gnu/lib/php/20220829 nts combined'
 ```
 
 ## Sidecar (Rust)
@@ -330,8 +334,8 @@ compiled `.so` files:
 - `appsec_$(uname -m)/` — appsec extensions (`ddappsec-{API}[-zts].so`) +
   helpers (`libddappsec-helper.so` and `libddappsec-helper-rust.so`) +
   `recommended.json`
-- `datadog-profiling/{triplet}/lib/php/{API}/` — profiler
-  extensions
+- `combined-ddtrace/{triplet}/lib/php/{API}/` — combined NTS/ZTS
+  `ddtrace.so` artifacts used to replace the tracer-only package inputs
 
 Missing files cause hard `cp` failures. This means that we need to build (or
 download from CI) all these individual artifacts. This is rarely desirable when

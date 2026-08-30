@@ -28,9 +28,10 @@ reproduced by ext/pcntl/tests/waiting_on_sigchild_pcntl_wait.phpt:
     #17 ... at profiling/src/profiler/thread_utils.rs:45
 --SKIPIF--
 <?php
-foreach (['datadog-profiling', 'pcntl'] as $extension)
-    if (!extension_loaded($extension))
-        echo "skip: test requires {$extension}\n";
+if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
+    echo "skip: test requires Datadog profiling support\n";
+if (!extension_loaded('pcntl'))
+    echo "skip: test requires pcntl\n";
 if (!ZEND_THREAD_SAFE)
     echo "skip: ZTS only (the crash is a thread-local PCNTL_G access from a helper thread)\n";
 if (PHP_OS_FAMILY !== 'Linux')

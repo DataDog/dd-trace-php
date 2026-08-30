@@ -6,7 +6,7 @@ DD_TRACE_AGENT_URL will cause it to fall back to the default socket path (as
 long as DD_AGENT_HOST is not set or is empty).
 --SKIPIF--
 <?php
-if (!extension_loaded('datadog-profiling'))
+if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
   echo "skip: test requires Datadog Continuous Profiler\n";
 $socket_path = "/var/run/datadog/apm.socket";
 if (!file_exists($socket_path))
@@ -22,7 +22,7 @@ assert.exception=1
 <?php
 
 ob_start();
-$extension = new ReflectionExtension('datadog-profiling');
+$extension = new ReflectionExtension(extension_loaded('datadog-profiling') ? 'datadog-profiling' : 'ddtrace');
 $extension->info();
 $output = ob_get_clean();
 

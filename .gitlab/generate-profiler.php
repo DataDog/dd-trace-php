@@ -65,7 +65,6 @@ foreach ($profiler_minor_major_targets as $version) {
 
     - '# ZTS'
     - if command -v switch-php > /dev/null 2>&1; then switch-php "${PHP_MAJOR_MINOR}-zts"; fi
-    - touch ../profiling/build.rs # force regeneration after switch-php changes the php-config symlink target
     - (cd ..; make distclean || true; phpize && DDTRACE_PROFILING_FEATURES="debug_stats,stack_walking_tests,test,tracing,tracing-subscriber,trigger_time_sample" ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling && make -j$(nproc))
     - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/zts-results.xml" php profiling/tests/run-tests.php -d "extension=${CI_PROJECT_DIR}/modules/datadog-profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
   after_script:
@@ -121,10 +120,9 @@ foreach ($profiler_minor_major_targets as $version) {
     libdir: /tmp/datadog-profiling
   script:
     - switch-php nts
-    - cargo test --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample
-    - touch profiling/build.rs # make sure the build helper runs after switch-php
+    - PHP_CONFIG="$(realpath "$(command -v php-config)")" cargo test --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample
     - switch-php zts
-    - cargo test --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample
+    - PHP_CONFIG="$(realpath "$(command -v php-config)")" cargo test --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample
 
 "PHP language tests":
   stage: test

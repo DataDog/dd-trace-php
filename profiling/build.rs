@@ -10,6 +10,10 @@ fn php_config() -> std::ffi::OsString {
 }
 
 pub fn build() {
+    // Configure resolves PHP_CONFIG to the selected toolchain's real path, so
+    // switching PHP builds invalidates Cargo's cached bindings and C probes.
+    println!("cargo:rerun-if-env-changed=PHP_CONFIG");
+
     let php_config_includes_output = Command::new(php_config())
         .arg("--includes")
         .output()
@@ -116,6 +120,9 @@ fn build_zend_php_ffis(
 ) {
     println!("cargo:rerun-if-changed=profiling/src/php_ffi.h");
     println!("cargo:rerun-if-changed=profiling/src/php_ffi.c");
+    println!("cargo:rerun-if-changed=profiling/src/configuration.c");
+    println!("cargo:rerun-if-changed=profiling/configuration.h");
+    println!("cargo:rerun-if-changed=ext/configuration_shared.h");
     println!("cargo:rerun-if-changed=ext/handlers_api.c");
     println!("cargo:rerun-if-changed=ext/handlers_api.h");
 
@@ -161,9 +168,16 @@ fn build_zend_php_ffis(
     #[cfg(not(feature = "stack_walking_tests"))]
     let stack_walking_tests = "0";
 
+    let combined = env::var_os("CARGO_FEATURE_TRACER").is_some();
     let mut build = cc::Build::new();
     build
-        .files(files.into_iter().chain(zai_c_files))
+        .files(files)
+        .files(if combined { &[][..] } else { &zai_c_files[..] })
+        .files(if combined {
+            &[][..]
+        } else {
+            &["profiling/src/configuration.c"][..]
+        })
         .define("CFG_POST_STARTUP_CB", post_startup_cb)
         .define("CFG_PRELOAD", preload)
         .define("CFG_FIBERS", fibers)
@@ -172,6 +186,7 @@ fn build_zend_php_ffis(
         .define("CFG_STACK_WALKING_TESTS", stack_walking_tests)
         .define("CFG_TRIGGER_TIME_SAMPLE", trigger_time_sample)
         .define("CFG_ZEND_ERROR_OBSERVER", zend_error_observer)
+        .define("PROFILING", None)
         .includes([Path::new("ext")])
         .includes(
             str::replace(php_config_includes, "-I", "")
@@ -182,6 +197,9 @@ fn build_zend_php_ffis(
         )
         .flag_if_supported("-std=gnu11")
         .flag_if_supported("-std=gnu17");
+    if combined {
+        build.define("TRACER", None);
+    }
     #[cfg(feature = "test")]
     build.define("CFG_TEST", "1");
     build.compile("php_ffi");
@@ -230,20 +248,19 @@ fn generate_bindings(php_config_includes: &str, fibers: bool, zend_error_observe
         .collect(),
     );
 
-    let mut clang_args = if fibers {
-        vec!["-D", "CFG_FIBERS=1"]
+    let mut clang_args: Vec<String> = if fibers {
+        vec!["-D".into(), "CFG_FIBERS=1".into()]
     } else {
-        vec!["-D", "CFG_FIBERS=0"]
+        vec!["-D".into(), "CFG_FIBERS=0".into()]
     };
 
     if zend_error_observer {
-        clang_args.push("-D");
-        clang_args.push("CFG_ZEND_ERROR_OBSERVER=1");
+        clang_args.push("-D".into());
+        clang_args.push("CFG_ZEND_ERROR_OBSERVER=1".into());
     } else {
-        clang_args.push("-D");
-        clang_args.push("CFG_ZEND_ERROR_OBSERVER=0");
+        clang_args.push("-D".into());
+        clang_args.push("CFG_ZEND_ERROR_OBSERVER=0".into());
     }
-
     let bindings = bindgen::Builder::default()
         .ctypes_prefix("libc")
         .clang_args(clang_args)
@@ -502,12 +519,13 @@ int main() {
 /// `-undefined dynamic_lookup` for debug builds.
 ///
 /// To regenerate the symbol list after adding new PHP/C API calls:
-///   1. Edit the profile != release check to always be true e.g. if true {
-///   2. Build a release: `cargo build --no-default-features --features profiling --release`
+///   1. Temporarily make the release-like profile check below take the debug branch.
+///   2. Build the standalone profiler through its supported PHP build path:
+///      `phpize && ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling --disable-ddtrace-rust-debug && make`
 ///   3. Extract symbols:
-///      `nm -u target/release/libdatadog_php.dylib | sort -u |
+///      `nm -u modules/datadog-profiling.so | sort -u |
 ///       grep -v '^$\|^ERROR\|dyld_stub' | sed 's/^/-Wl,-U,/' | tr '\n' ' '`
-///   4. Update the ALLOWED_UNDEFINED_SYMBOLS list below.
+///   4. Update the ALLOWED_UNDEFINED_SYMBOLS list below and restore the check.
 ///
 /// ## Why list the symbols manually?
 ///
@@ -525,8 +543,10 @@ fn apple_linker_flags() {
     }
 
     let profile = env::var("PROFILE").unwrap_or_default();
-    if profile != "release" {
-        // Debug builds: allow all undefined symbols.
+    // Matches both Cargo's `release` profile and our `profiler-release` profile.
+    let release_like = profile.ends_with("release");
+    if !release_like {
+        // Debug and test builds: allow all undefined symbols.
         println!("cargo:rustc-cdylib-link-arg=-undefined");
         println!("cargo:rustc-cdylib-link-arg=dynamic_lookup");
         println!("cargo:rustc-link-arg=-undefined");

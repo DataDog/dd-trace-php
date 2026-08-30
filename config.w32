@@ -1,7 +1,7 @@
 ARG_ENABLE("ddtrace", "Datadog tracing support", "shared");
-ARG_ENABLE("ddtrace-profiling", "standalone Datadog profiler (unsupported on Windows)", "no");
+ARG_ENABLE("ddtrace-profiling", "Datadog profiling support (unsupported on Windows)", "no");
 if (PHP_DDTRACE_PROFILING != 'no') {
-	ERROR('The standalone Datadog profiler is not supported on Windows');
+	ERROR('Datadog profiling support is not available on Windows');
 }
 var ddtrace_cargo_profile = "debug";
 
@@ -111,7 +111,7 @@ if (PHP_DDTRACE != 'no') {
 		ADD_FLAG("CFLAGS_DDTRACE", " /Zc:preprocessor ");
 	}
 
-	ADD_FLAG("CFLAGS_DDTRACE", " /DDDTRACE ");
+	ADD_FLAG("CFLAGS_DDTRACE", " /DTRACER ");
 
 	ADD_SOURCES(configure_module_dirname + "/ext", DDTRACE_EXT_SOURCES, "ddtrace");
 	ADD_SOURCES(configure_module_dirname + "/tracer", DDTRACE_TRACER_SOURCES, "ddtrace");

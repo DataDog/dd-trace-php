@@ -516,7 +516,7 @@ void ddtrace_rinit(void) {
             if (datadog_endpoint) {
                 DDTRACE_G(agent_config_reader) = ddog_agent_remote_config_reader_for_endpoint(datadog_endpoint);
             }
-#if !defined(_WIN32) && defined(DDTRACE)
+#if !defined(_WIN32) && defined(TRACER)
         } else if (ddtrace_coms_agent_config_handle) {
             ddog_agent_remote_config_reader_for_anon_shm(ddtrace_coms_agent_config_handle, &DDTRACE_G(agent_config_reader));
 #endif
