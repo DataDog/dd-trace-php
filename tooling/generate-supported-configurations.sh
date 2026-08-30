@@ -9,17 +9,21 @@ readonly CONFIG_HEADER_FILES=(
     "ext/configuration.h"
     "appsec/src/extension/configuration.h"
 )
+readonly CONFIG_DEPENDENCY_FILES=(
+    "ext/configuration_shared.h"
+    "tracer/configuration.h"
+    "profiling/configuration.h"
+)
 readonly OTEL_CONFIG_FILES=(
     "ext/otel_config.c"
     "tracer/tracer_otel_config.c"
     "src/DDTrace/OpenTelemetry/Configuration.php"
 )
-readonly PROFILING_CONFIG_FILE="profiling/src/config.rs"
 readonly GENERATOR_SCRIPT_FILE="tooling/generate-supported-configurations.sh"
 readonly CONFIG_GENERATION_INPUT_FILES=(
     "${CONFIG_HEADER_FILES[@]}"
+    "${CONFIG_DEPENDENCY_FILES[@]}"
     "${OTEL_CONFIG_FILES[@]}"
-    "${PROFILING_CONFIG_FILE}"
     "${GENERATOR_SCRIPT_FILE}"
 )
 
@@ -38,14 +42,15 @@ trap 'rm -f "$PHP_CODE_FILE"' EXIT
 
 cat >"$PHP_CODE_FILE" <<'ENDPHP'
 <?php
-function map_type($raw) {
+function map_type($raw, $parser) {
     $raw = trim($raw);
     if (preg_match('/^CUSTOM\((.+)\)$/', $raw, $m)) {
         $inner = trim($m[1]);
-        // CUSTOM() types don't always map 1:1 to JSON schema types.
-        // In particular, CUSTOM(INT) values are exposed as strings at the config boundary.
+        // Most CUSTOM(INT) configurations accept textual enum values and only
+        // decode them to integers internally. Sampling distances are different:
+        // their custom parser validates a positive integer and produces IS_LONG.
         if ($inner === 'INT') {
-            return 'string';
+            return $parser === 'ddog_php_prof_config_parse_sampling_distance' ? 'int' : 'string';
         }
         if ($inner === 'MAP') {
             return 'map';
@@ -139,138 +144,9 @@ function add_otel_entries(&$supported, $names, $metadata) {
     }
 }
 
-// temporary solution until we merge configs
-function map_rust_type($rawType, $parser) {
-    $map = [
-        'ZAI_CONFIG_TYPE_BOOL' => 'boolean',
-        'ZAI_CONFIG_TYPE_STRING' => 'string',
-        'ZAI_CONFIG_TYPE_INT' => 'int',
-        'ZAI_CONFIG_TYPE_DOUBLE' => 'decimal',
-        'ZAI_CONFIG_TYPE_MAP' => 'map',
-        'ZAI_CONFIG_TYPE_JSON' => 'array',
-        'ZAI_CONFIG_TYPE_SET' => 'array',
-        'ZAI_CONFIG_TYPE_SET_LOWERCASE' => 'array',
-        'ZAI_CONFIG_TYPE_SET_OR_MAP_LOWERCASE' => 'map',
-    ];
-    if (isset($map[$rawType])) {
-        return $map[$rawType];
-    }
-    if ($rawType === 'ZAI_CONFIG_TYPE_CUSTOM') {
-        if ($parser === 'parse_profiling_enabled') {
-            return 'boolean';
-        }
-        if ($parser === 'parse_sampling_distance_filter') {
-            return 'int';
-        }
-        return 'string';
-    }
-    return 'string';
-}
-
-function parse_rust_default($raw) {
-    $raw = trim(preg_replace('/\/\/.*$/', '', $raw));
-    if ($raw === 'ZaiStr::new()') {
-        return '';
-    }
-    if (preg_match('/ZaiStr::literal\(b"((?:\\\\.|[^"\\\\])*)\\\\0"\)/', $raw, $m)) {
-        return stripcslashes($m[1]);
-    }
-    return '';
-}
-
-function extract_rust_alias_groups($source) {
-    $groups = [];
-    if (preg_match_all('/const\s+([A-Z0-9_]+)\s*:\s*&\[ZaiStr\]\s*=\s*unsafe\s*\{\s*&\[(.*?)\]\s*\};/s', $source, $matches, PREG_SET_ORDER)) {
-        foreach ($matches as $match) {
-            $aliases = [];
-            if (preg_match_all('/ZaiStr::literal\(b"((?:\\\\.|[^"\\\\])*)\\\\0"\)/', $match[2], $aliasMatches)) {
-                foreach ($aliasMatches[1] as $alias) {
-                    $aliases[] = stripcslashes($alias);
-                }
-            }
-            $groups[$match[1]] = $aliases;
-        }
-    }
-    return $groups;
-}
-
-function extract_rust_env_var_names($source) {
-    $names = [];
-    if (preg_match_all('/([A-Za-z0-9_]+)\s*=>\s*b"([A-Z0-9_]+)\\\\0"/', $source, $matches, PREG_SET_ORDER)) {
-        foreach ($matches as $match) {
-            $names[$match[1]] = $match[2];
-        }
-    }
-    return $names;
-}
-
-function add_rust_profiling_configurations(&$supported, $path) {
-    if (!file_exists($path)) {
-        return;
-    }
-    $source = file_get_contents($path);
-    if ($source === false || $source === '') {
-        return;
-    }
-
-    $envVarByConfigId = extract_rust_env_var_names($source);
-    if (empty($envVarByConfigId)) {
-        return;
-    }
-    $aliasesByConstName = extract_rust_alias_groups($source);
-
-    if (!preg_match_all('/zai_config_entry\s*\{(.*?)\n\s*},/s', $source, $entryMatches, PREG_SET_ORDER)) {
-        return;
-    }
-
-    foreach ($entryMatches as $entryMatch) {
-        $entryBlock = $entryMatch[1];
-        if (!preg_match('/name:\s*([A-Za-z0-9_]+)\.env_var_name\(\),/', $entryBlock, $nameMatch)) {
-            continue;
-        }
-        $configId = $nameMatch[1];
-        if (!isset($envVarByConfigId[$configId])) {
-            continue;
-        }
-        $name = $envVarByConfigId[$configId];
-
-        if (!preg_match('/type_:\s*(ZAI_CONFIG_TYPE_[A-Z_]+),/', $entryBlock, $typeMatch)) {
-            continue;
-        }
-        if (!preg_match('/default_encoded_value:\s*([^\n]+),/', $entryBlock, $defaultMatch)) {
-            continue;
-        }
-
-        $parser = '';
-        if (preg_match('/parser:\s*([^\n,]+),/', $entryBlock, $parserMatch)) {
-            $parserRaw = trim($parserMatch[1]);
-            if (preg_match('/Some\(([^)]+)\)/', $parserRaw, $parserNameMatch)) {
-                $parser = trim($parserNameMatch[1]);
-            }
-        }
-
-        $aliases = [];
-        if (preg_match('/aliases:\s*([A-Z0-9_]+)\.as_ptr\(\),/', $entryBlock, $aliasesMatch)) {
-            $aliases = $aliasesByConstName[$aliasesMatch[1]] ?? [];
-        }
-
-        $mappedType = map_rust_type(trim($typeMatch[1]), $parser);
-        $entry = [
-            "implementation" => "A",
-            "type" => $mappedType,
-            "default" => normalize_default(parse_rust_default($defaultMatch[1]), $mappedType, $name),
-        ];
-        $normAliases = normalize_aliases($aliases, $name);
-        if (!empty($normAliases)) {
-            sort($normAliases);
-            $entry["aliases"] = $normAliases;
-        }
-        add_supported_entry($supported, $name, $entry);
-    }
-}
-
 $supported = [];
 foreach (explode("|NEXT_CONFIG|", file_get_contents("php://stdin")) as $configLine) {
+    [$configLine, $options] = array_pad(explode("|CONFIG_OPTIONS|", $configLine, 2), 2, '');
     $configLine = preg_replace('((\\\\{2})*\K"\s*")', '', $configLine);
     $config = str_getcsv(trim($configLine), ",", '"', '\\');
     if (count($config) < 3) {
@@ -278,7 +154,9 @@ foreach (explode("|NEXT_CONFIG|", file_get_contents("php://stdin")) as $configLi
     }
     [$type, $name, $default] = array_map('trim', array_slice($config, 0, 3));
     $aliases = count($config) > 3 ? array_slice($config, 3) : [];
-    $mappedType = map_type($type);
+    $parser = preg_match('/\\.parser\\s*=\\s*([A-Za-z0-9_]+)/', $options, $parserMatch)
+        ? $parserMatch[1] : '';
+    $mappedType = map_type($type, $parser);
     $entry = [
         "implementation" => "A",
         "type" => $mappedType,
@@ -353,9 +231,6 @@ if (file_exists($otelWhitelistPath)
     preg_match_all('/\'(OTEL_[A-Z0-9_]+)\'/', $whitelistMatch[1], $m);
     add_otel_entries($supported, $m[1], $otelMetadata);
 }
-
-$profilingPath = "../profiling/src/config.rs";
-add_rust_profiling_configurations($supported, $profilingPath);
 
 if (empty($supported)) {
     fwrite(STDERR, "Error: no supported configurations were generated\n");
@@ -458,6 +333,8 @@ extract_c_supported_configurations() {
     "${CPP_COMPILER_CMD[@]}" $(php-config --includes) -I.. -I../ext -I../zend_abstract_interface -I../src/dogstatsd -I../components-rs -x c -E - <<CODE | grep -A9999 -m1 -F "JSON_CONFIGURATION_MARKER" | tail -n+2
 #undef __linux__
 #define DDTRACE
+#define TRACER
+#define PROFILING
 #include "$header"
 
 #undef PHP_VERSION_ID
@@ -477,9 +354,11 @@ extract_c_supported_configurations() {
 #define CUSTOM(id) id
 // Preserve the literal config type tokens (e.g. CUSTOM(INT)) so the generator can
 // map them to the correct JSON schema type.
-#define CONFIG(type, name, default_value, ...) CALIAS(#type, name, default_value,)
+#define CONFIG(type, name, default_value, ...) \
+    #type, #name, default_value, |CONFIG_OPTIONS| #__VA_ARGS__ |NEXT_CONFIG|
 #define SYSCFG(type, name, default_value, ...) CONFIG(type, name, default_value, __VA_ARGS__)
-#define CALIAS(type, name, default_value, aliases, ...) type, #name, default_value EXPAND(ALT##aliases) |NEXT_CONFIG|
+#define CALIAS(type, name, default_value, aliases, ...) \
+    #type, #name, default_value EXPAND(ALT##aliases) |CONFIG_OPTIONS| #__VA_ARGS__ |NEXT_CONFIG|
 
 JSON_CONFIGURATION_MARKER
 #ifdef DD_ALL_CONFIGURATIONS

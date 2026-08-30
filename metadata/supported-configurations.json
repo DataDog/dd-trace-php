@@ -547,7 +547,10 @@
       {
         "implementation": "B",
         "type": "boolean",
-        "default": "true"
+        "default": "true",
+        "aliases": [
+          "DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED"
+        ]
       }
     ],
     "DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE": [
@@ -561,7 +564,7 @@
       {
         "implementation": "D",
         "type": "boolean",
-        "default": "true"
+        "default": "false"
       }
     ],
     "DD_PROFILING_ENDPOINT_COLLECTION_ENABLED": [
@@ -575,7 +578,10 @@
       {
         "implementation": "A",
         "type": "boolean",
-        "default": "true"
+        "default": "true",
+        "aliases": [
+          "DD_PROFILING_EXPERIMENTAL_EXCEPTION_ENABLED"
+        ]
       }
     ],
     "DD_PROFILING_EXCEPTION_MESSAGE_ENABLED": [
@@ -589,7 +595,10 @@
       {
         "implementation": "A",
         "type": "int",
-        "default": "100"
+        "default": "100",
+        "aliases": [
+          "DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE"
+        ]
       }
     ],
     "DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED": [
@@ -603,6 +612,13 @@
       }
     ],
     "DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_PROFILING_EXPERIMENTAL_HEAP_LIVE_ENABLED": [
       {
         "implementation": "A",
         "type": "boolean",
@@ -634,7 +650,10 @@
       {
         "implementation": "A",
         "type": "boolean",
-        "default": "true"
+        "default": "true",
+        "aliases": [
+          "DD_PROFILING_EXPERIMENTAL_TIMELINE_ENABLED"
+        ]
       }
     ],
     "DD_PROFILING_WALLTIME_ENABLED": [
