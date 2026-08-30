@@ -52,11 +52,17 @@ add_custom_command(
 )
 add_custom_target(update_version_h ALL DEPENDS "${VERSION_H_PATH}")
 
+set(DDTRACE_PHP_INCLUDE_FLAGS ${PhpConfig_INCLUDE_DIRS})
+list(TRANSFORM DDTRACE_PHP_INCLUDE_FLAGS PREPEND "-I")
+list(JOIN DDTRACE_PHP_INCLUDE_FLAGS " " DDTRACE_PHP_INCLUDES)
+
 ExternalProject_Add(components_rs_proj
     PREFIX ${CMAKE_BINARY_DIR}/components_rs
     SOURCE_DIR ${CMAKE_SOURCE_DIR}/../components-rs
     CONFIGURE_COMMAND ""
-    BUILD_COMMAND ${CARGO_BUILD_ENV} ${CARGO_BUILD_CMD} --target-dir=${CMAKE_BINARY_DIR}/components_rs
+    BUILD_COMMAND ${CMAKE_COMMAND} -E env
+        "DDTRACE_PHP_INCLUDES=${DDTRACE_PHP_INCLUDES}"
+        ${CARGO_BUILD_ENV} ${CARGO_BUILD_CMD} --target-dir=${CMAKE_BINARY_DIR}/components_rs
     INSTALL_COMMAND ""
     DEPENDS libdatadog_stamp
     BUILD_IN_SOURCE TRUE
