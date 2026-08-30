@@ -30,7 +30,6 @@ foreach ($profiler_minor_major_targets as $version) {
     KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
     KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
     CARGO_TARGET_DIR: /mnt/ramdisk/cargo # ramdisk??
-    libdir: /tmp/datadog-profiling
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *all_profiler_targets
@@ -60,12 +59,16 @@ foreach ($profiler_minor_major_targets as $version) {
     - '# Use if/then instead of `command -v switch-php && switch-php` — the && form exits 1 when switch-php is absent, which FF_ENABLE_BASH_EXIT_CODE_CHECK treats as a job failure'
     - if command -v switch-php > /dev/null 2>&1; then switch-php "${PHP_MAJOR_MINOR}"; fi
     - (cd ..; phpize && DDTRACE_PROFILING_FEATURES="debug_stats,stack_walking_tests,test,tracing,tracing-subscriber,trigger_time_sample" ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling && make -j$(nproc))
+    - test -f "${CI_PROJECT_DIR}/modules/datadog-profiling.so" || { echo "ERROR standalone profiler build did not produce modules/datadog-profiling.so"; find "${CI_PROJECT_DIR}/modules" -maxdepth 1 -type f -print; exit 1; }
+    - php -d "extension=${CI_PROJECT_DIR}/modules/datadog-profiling.so" -r 'if (!extension_loaded("datadog-profiling") || ini_get("datadog.profiling.enabled") === false) { exit(1); }'
     - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/nts-results.xml" php profiling/tests/run-tests.php -d "extension=${CI_PROJECT_DIR}/modules/datadog-profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
 
 
     - '# ZTS'
     - if command -v switch-php > /dev/null 2>&1; then switch-php "${PHP_MAJOR_MINOR}-zts"; fi
     - (cd ..; make distclean || true; phpize && DDTRACE_PROFILING_FEATURES="debug_stats,stack_walking_tests,test,tracing,tracing-subscriber,trigger_time_sample" ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling && make -j$(nproc))
+    - test -f "${CI_PROJECT_DIR}/modules/datadog-profiling.so" || { echo "ERROR standalone profiler ZTS build did not produce modules/datadog-profiling.so"; find "${CI_PROJECT_DIR}/modules" -maxdepth 1 -type f -print; exit 1; }
+    - php -d "extension=${CI_PROJECT_DIR}/modules/datadog-profiling.so" -r 'if (!extension_loaded("datadog-profiling") || ini_get("datadog.profiling.enabled") === false) { exit(1); }'
     - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/zts-results.xml" php profiling/tests/run-tests.php -d "extension=${CI_PROJECT_DIR}/modules/datadog-profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
   after_script:
     - |
@@ -95,7 +98,6 @@ foreach ($profiler_minor_major_targets as $version) {
     KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
     KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
     # CARGO_TARGET_DIR: /mnt/ramdisk/cargo # ramdisk??
-    libdir: /tmp/datadog-profiling
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *all_profiler_targets
@@ -117,7 +119,6 @@ foreach ($profiler_minor_major_targets as $version) {
     KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
     KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
     # CARGO_TARGET_DIR: /mnt/ramdisk/cargo # ramdisk??
-    libdir: /tmp/datadog-profiling
   script:
     - switch-php nts
     - PHP_CONFIG="$(realpath "$(command -v php-config)")" cargo test --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample
@@ -138,7 +139,6 @@ foreach ($profiler_minor_major_targets as $version) {
     KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
     KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
     CARGO_TARGET_DIR: /tmp/cargo
-    libdir: /tmp/datadog-profiling
     SKIP_ONLINE_TESTS: "1"
     REPORT_EXIT_STATUS: "1"
     TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
