@@ -87,9 +87,25 @@ function normalize_default($v, $type, $name) {
 }
 
 function normalize_aliases($aliases, $canonical) {
+    // Local aliases only need to be a subset of the configuration registry.
+    // Keep runtime-compatible legacy aliases unpublished until the registry's
+    // existing implementation versions include them.
+    $unpublishedAliases = [
+        'DD_PROFILING_ALLOCATION_ENABLED' => [
+            'DD_PROFILING_EXPERIMENTAL_ALLOCATION_ENABLED',
+        ],
+        'DD_PROFILING_EXCEPTION_ENABLED' => [
+            'DD_PROFILING_EXPERIMENTAL_EXCEPTION_ENABLED',
+        ],
+        'DD_PROFILING_EXCEPTION_SAMPLING_DISTANCE' => [
+            'DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE',
+        ],
+    ];
+    $excluded = array_flip($unpublishedAliases[$canonical] ?? []);
+
     $out = [];
     foreach ($aliases as $a) {
-        if ($a !== '' && $a !== $canonical) {
+        if ($a !== '' && $a !== $canonical && !isset($excluded[$a])) {
             $out[$a] = true;
         }
     }
@@ -120,6 +136,12 @@ function normalize_supported_entries($entries, $canonical) {
 }
 
 function add_supported_entry(&$supported, $name, $entry) {
+    // This experimental runtime setting predates its registry metadata. Do not
+    // publish it until an implementation version exists in the registry.
+    if ($name === 'DD_PROFILING_EXPERIMENTAL_HEAP_LIVE_ENABLED') {
+        return;
+    }
+
     // Keep the first-seen source as canonical for duplicate names.
     if (!isset($supported[$name])) {
         $supported[$name] = [$entry];
