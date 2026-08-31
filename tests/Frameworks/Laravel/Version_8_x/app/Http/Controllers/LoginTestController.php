@@ -50,42 +50,6 @@ class LoginTestController extends Controller
         return response('User created', 200);
     }
 
-    public function authenticate(Request $request): Response
-    {
-        $credentials = [
-            'email' => $request->get('email'),
-            'password' => $request->query('password', 'password'),
-        ];
-
-        if (Auth::attempt($credentials)) {
-            $request->session()->regenerate();
-            return response('Login successful', 200);
-        }
-
-        return response('Invalid credentials', 403);
-    }
-
-    public function registerAppsec(Request $request): Response
-    {
-        $request->validate([
-            'name' => ['required'],
-            'email' => ['required'],
-            'password' => ['required'],
-        ]);
-
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
-
-        event(new Registered($user));
-
-        Auth::login($user);
-
-        return response('User created', 200);
-    }
-
     public function behind_auth()
     {
         return "page behind auth";
