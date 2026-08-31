@@ -93,7 +93,8 @@ static bool ddtrace_conf_otel_resource_attributes_special(const char *tag, int l
 }
 
 bool ddtrace_conf_otel_resource_attributes_env(zai_env_buffer *buf, bool pre_rinit) {
-    return ddtrace_conf_otel_resource_attributes_special(ZEND_STRL("deployment.environment"), buf, pre_rinit);
+    return ddtrace_conf_otel_resource_attributes_special(ZEND_STRL("deployment.environment.name"), buf, pre_rinit)
+        || ddtrace_conf_otel_resource_attributes_special(ZEND_STRL("deployment.environment"), buf, pre_rinit);
 }
 
 bool ddtrace_conf_otel_resource_attributes_version(zai_env_buffer *buf, bool pre_rinit) {
@@ -124,13 +125,20 @@ bool ddtrace_conf_otel_resource_attributes_tags(zai_env_buffer *buf, bool pre_ri
                 ++cur;
             }
             key_start = cur + 1;
+            if (key_end - key == strlen("deployment.environment.name") && memcmp(key, ZEND_STRL("deployment.environment.name")) == 0) {
+                --cur;
+                continue;
+            }
             if (key_end - key == strlen("deployment.environment") && memcmp(key, ZEND_STRL("deployment.environment")) == 0) {
+                --cur;
                 continue;
             }
             if (key_end - key == strlen("service.name") && memcmp(key, ZEND_STRL("service.name")) == 0) {
+                --cur;
                 continue;
             }
             if (key_end - key == strlen("service.version") && memcmp(key, ZEND_STRL("service.version")) == 0) {
+                --cur;
                 continue;
             }
             memmove(out, key, cur - key);

@@ -223,6 +223,7 @@ mod detail {
     /// Used to help track the function run_time_cache hit rate. It glosses
     /// over the fact that there are two cache slots used, and they don't have
     /// to be in sync. However, they usually are, so we simplify.
+    #[cfg(feature = "debug_stats")]
     #[derive(Debug, Default)]
     struct FunctionRunTimeCacheStats {
         hit: usize,
@@ -230,6 +231,7 @@ mod detail {
         not_applicable: usize,
     }
 
+    #[cfg(feature = "debug_stats")]
     impl FunctionRunTimeCacheStats {
         const fn new() -> Self {
             Self {
@@ -240,6 +242,7 @@ mod detail {
         }
     }
 
+    #[cfg(feature = "debug_stats")]
     impl FunctionRunTimeCacheStats {
         fn hit_rate(&self) -> f64 {
             let denominator = (self.hit + self.missed + self.not_applicable) as f64;
@@ -249,6 +252,7 @@ mod detail {
 
     thread_local! {
         static CACHED_STRINGS: RefCell<StringSet> = RefCell::new(StringSet::new());
+        #[cfg(feature = "debug_stats")]
         static FUNCTION_CACHE_STATS: RefCell<FunctionRunTimeCacheStats> =
             const { RefCell::new(FunctionRunTimeCacheStats::new()) }
     }
@@ -260,12 +264,15 @@ mod detail {
 
     #[inline]
     pub fn rshutdown() {
-        // If we cannot borrow the stats, then something has gone wrong, but
-        // it's not that important.
-        _ = FUNCTION_CACHE_STATS.try_with_borrow(|stats| {
-            let hit_rate = stats.hit_rate();
-            debug!("Process cumulative {stats:?} hit_rate: {hit_rate}");
-        });
+        #[cfg(feature = "debug_stats")]
+        {
+            // If we cannot borrow the stats, then something has gone wrong, but
+            // it's not that important.
+            _ = FUNCTION_CACHE_STATS.try_with_borrow(|stats| {
+                let hit_rate = stats.hit_rate();
+                debug!("Process cumulative {stats:?} hit_rate: {hit_rate}");
+            });
+        }
 
         let result = CACHED_STRINGS.try_with_borrow_mut(|string_set| {
             // A slow ramp up to 2 MiB is probably _not_ going to look like a
@@ -410,24 +417,30 @@ mod detail {
                 let function = handle_function_cache_slot(func, &mut string_cache);
                 let (file, line) = handle_file_cache_slot(execute_data, &mut string_cache);
 
-                let cache_slots = string_cache.cache_slots;
-                // If we cannot borrow the stats, then something has gone
-                // wrong, but it's not that important.
-                _ = FUNCTION_CACHE_STATS.try_with_borrow_mut(|stats| {
-                    if cache_slots[0] == 0 {
-                        stats.missed += 1;
-                    } else {
-                        stats.hit += 1;
-                    }
-                });
+                #[cfg(feature = "debug_stats")]
+                {
+                    let cache_slots = string_cache.cache_slots;
+                    // If we cannot borrow the stats, then something has gone
+                    // wrong, but it's not that important.
+                    _ = FUNCTION_CACHE_STATS.try_with_borrow_mut(|stats| {
+                        if cache_slots[0] == 0 {
+                            stats.missed += 1;
+                        } else {
+                            stats.hit += 1;
+                        }
+                    });
+                }
 
                 (function, file.map(Cow::Owned), line)
             }
 
             None => {
-                // If we cannot borrow the stats, then something has gone
-                // wrong, but it's not that important.
-                _ = FUNCTION_CACHE_STATS.try_with_borrow_mut(|stats| stats.not_applicable += 1);
+                #[cfg(feature = "debug_stats")]
+                {
+                    // If we cannot borrow the stats, then something has gone
+                    // wrong, but it's not that important.
+                    _ = FUNCTION_CACHE_STATS.try_with_borrow_mut(|stats| stats.not_applicable += 1);
+                }
                 let function = extract_function_name(func);
                 let (file, line) = extract_file_and_line(execute_data);
                 (function, file, line)
