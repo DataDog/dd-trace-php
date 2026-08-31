@@ -207,7 +207,8 @@ Use `tooling/bin/download-artifacts` to download CI artifacts from GitLab jobs.
 
 **Modes:**
 - `--preset KEY` — download a well-known artifact by key (e.g., `ssi-amd64`,
-  `extension-amd64-gnu`, `datadog-setup`). Use `--list-presets` to see all.
+  `extension-amd64-gnu-installers`, `extension-amd64-gnu-bundles`,
+  `datadog-setup`). Use `--list-presets` to see all.
 - `--job-name NAME` — download artifacts from a job matched by name (substring).
 - `--job-id ID` — download artifacts directly by job ID (no pipeline needed).
 - `--list-presets` — show available preset keys.
