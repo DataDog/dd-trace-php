@@ -50,9 +50,7 @@ pub fn build() {
     if env::var_os("CARGO_FEATURE_PROFILING").is_some() {
         cc_build.define("PROFILING", None);
     }
-    for inc in php_include_dirs() {
-        cc_build.include(inc);
-    }
+    configure_php_build(&mut cc_build);
 
     let expanded = String::from_utf8(cc_build.expand())
         .expect("config preprocessor output was not valid UTF-8");
@@ -94,21 +92,23 @@ pub fn build() {
     }
 }
 
-fn php_include_dirs() -> Vec<String> {
+fn configure_php_build(build: &mut cc::Build) {
     println!("cargo:rerun-if-env-changed=DDTRACE_PHP_INCLUDES");
-    if let Ok(includes) = env::var("DDTRACE_PHP_INCLUDES") {
-        return parse_include_flags(&includes);
-    }
+    println!("cargo:rerun-if-env-changed=DDTRACE_PHP_CFLAGS");
 
-    // php-config does not exist in the Windows SDK. config.w32 exports the
-    // PHP build's CFLAGS for cc-rs instead, including the PHP header paths.
     if env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
-        return Vec::new();
+        let flags = env::var("DDTRACE_PHP_CFLAGS")
+            .expect("DDTRACE_PHP_CFLAGS is required; config.w32 must pass PHP's CFLAGS to Cargo");
+        apply_msvc_php_flags(build, &flags);
+        return;
     }
 
-    panic!(
-        "DDTRACE_PHP_INCLUDES is required; loadable extensions must pass Make's INCLUDES to Cargo"
+    let includes = env::var("DDTRACE_PHP_INCLUDES").expect(
+        "DDTRACE_PHP_INCLUDES is required; loadable extensions must pass Make's INCLUDES to Cargo",
     );
+    for include in parse_include_flags(&includes) {
+        build.include(include);
+    }
 }
 
 fn parse_include_flags(flags: &str) -> Vec<String> {
@@ -117,4 +117,77 @@ fn parse_include_flags(flags: &str) -> Vec<String> {
         .filter_map(|flag| flag.strip_prefix("-I"))
         .map(str::to_string)
         .collect()
+}
+
+fn apply_msvc_php_flags(build: &mut cc::Build, flags: &str) {
+    let args = split_windows_command_line(flags);
+    let mut index = 0;
+    while index < args.len() {
+        let arg = &args[index];
+        let upper = arg.to_ascii_uppercase();
+        match upper.as_str() {
+            "/I" => {
+                index += 1;
+                build.include(
+                    args.get(index)
+                        .expect("/I is missing its include directory"),
+                );
+            }
+            "/D" => {
+                index += 1;
+                apply_msvc_define(
+                    build,
+                    args.get(index).expect("/D is missing its definition"),
+                );
+            }
+            "/FI" => {
+                index += 1;
+                build.flag("/FI");
+                build.flag(args.get(index).expect("/FI is missing its header"));
+            }
+            "/EXPERIMENTAL:PREPROCESSOR" | "/ZC:PREPROCESSOR" => {
+                build.flag(arg);
+            }
+            _ if upper.starts_with("/I") => {
+                build.include(&arg[2..]);
+            }
+            _ if upper.starts_with("/D") => apply_msvc_define(build, &arg[2..]),
+            _ if upper.starts_with("/FI") => {
+                build.flag(arg);
+            }
+            _ => {}
+        }
+        index += 1;
+    }
+}
+
+fn apply_msvc_define(build: &mut cc::Build, definition: &str) {
+    if let Some((name, value)) = definition.split_once('=') {
+        build.define(name, Some(value));
+    } else {
+        build.define(definition, None);
+    }
+}
+
+fn split_windows_command_line(command_line: &str) -> Vec<String> {
+    let mut args = Vec::new();
+    let mut current = String::new();
+    let mut quoted = false;
+
+    for ch in command_line.chars() {
+        match ch {
+            '"' => quoted = !quoted,
+            ch if ch.is_whitespace() && !quoted => {
+                if !current.is_empty() {
+                    args.push(std::mem::take(&mut current));
+                }
+            }
+            _ => current.push(ch),
+        }
+    }
+    assert!(!quoted, "unterminated quote in DDTRACE_PHP_CFLAGS");
+    if !current.is_empty() {
+        args.push(current);
+    }
+    args
 }

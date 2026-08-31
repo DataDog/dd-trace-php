@@ -180,9 +180,9 @@ if (PHP_DDTRACE != 'no') {
 	// Promote to env var
 	frag_out.WriteLine("!if [set CARGO_TARGET_DIR=$(CARGO_TARGET_DIR)]");
 	frag_out.WriteLine("!endif");
-	// cc-rs needs the PHP SDK include flags while preprocessing the generated
-	// configuration table; Windows does not provide php-config.
-	frag_out.WriteLine("!if [set CFLAGS=$(CFLAGS) $(CFLAGS_DDTRACE)]");
+	// The configuration generator needs the PHP SDK compiler settings, but
+	// exporting CFLAGS would also affect every C/C++ build script in Cargo.
+	frag_out.WriteLine("!if [set DDTRACE_PHP_CFLAGS=$(CFLAGS) $(CFLAGS_DDTRACE)]");
 	frag_out.WriteLine("!endif");
 	frag_out.WriteLine("!if [set RUSTFLAGS=--cfg windows_seh_wrapper]");
 	// Not supported yet on Windows: --cfg tokio_unstable --cfg tokio_taskdump
