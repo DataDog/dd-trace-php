@@ -82,6 +82,10 @@ uint32_t ddtrace_coms_test_consumer(void);
 uint32_t ddtrace_coms_test_msgpack_consumer(void);
 /* }}} */
 
+// Removable v0.4->v1 bolt-on: selects the agent trace endpoint the in-process writer POSTs to
+// (/v1.0/traces when true, else /v0.4/traces). Set per flush from the agent-capability check.
+void ddtrace_coms_set_v1_traces_endpoint(bool enabled);
+
 /* exposed for diagnostics {{{ */
 void ddtrace_curl_set_hostname(CURL *curl);
 void ddtrace_curl_set_telemetry_url(CURL *curl);

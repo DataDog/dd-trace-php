@@ -12,6 +12,7 @@
 #ifdef __linux__
 #include "otel_context.h"
 #include <components-rs/datadog.h>
+#include <components-rs/sidecar.h>
 #endif
 #include "random.h"
 #include "serializer.h"
@@ -1101,10 +1102,23 @@ PHP_FUNCTION(dd_trace_serialize_closed_spans) {
 
     ddtrace_mark_all_span_stacks_flushable();
 
-    ddog_TracesBytes *traces = ddog_get_traces();
-    ddtrace_serialize_closed_spans_with_cycle(traces, NULL, false);
+    // Mirror the send path: on the sidecar/V1 path spans are finalized directly into the native V1
+    // builder and introspected via the V1 getters (V1-shaped array); otherwise use the V0.4 model.
+    bool use_sidecar = get_global_DD_TRACE_SIDECAR_TRACE_SENDER() && DATADOG_G(sidecar);
+    ddtrace_v1_ctx v1_ctx = {.builder = NULL, .chunk = DD_V1_CHUNK_NONE};
+    ddtrace_v1_ctx *v1 = NULL;
+    if (use_sidecar) {
+        v1_ctx.builder = ddog_v1_new_builder();
+        v1 = &v1_ctx;
+    }
 
-    zval traces_zv = dd_serialize_rust_traces_to_zval(traces);
+    ddog_TracesBytes *traces = ddog_get_traces();
+    ddtrace_serialize_closed_spans_with_cycle(traces, v1, false);
+
+    zval traces_zv = v1 ? dd_serialize_rust_v1_to_zval(v1->builder) : dd_serialize_rust_traces_to_zval(traces);
+    if (v1) {
+        ddog_v1_free_builder(v1->builder);
+    }
 
     if (zend_hash_num_elements(Z_ARR(traces_zv)) == 1) {
         ZVAL_COPY(return_value, zend_hash_get_current_data(Z_ARR(traces_zv)));

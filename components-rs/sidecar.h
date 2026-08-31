@@ -533,6 +533,29 @@ ddog_CharSlice ddog_serialize_trace_v1_into_charslice(struct ddog_TracerPayloadV
                                                       ddog_CharSlice tracer_version);
 
 /**
+ * Transcodes an existing v0.4 trace collection (built with the v0.4 [`crate::span`] builder) into
+ * owned V1 msgpack bytes, for the in-process (non-sidecar) sender in `coms.c`. That sender builds
+ * v0.4 today; this lets it emit V1 to the agent's `/v1.0/traces` endpoint without a second builder,
+ * by upgrading the already-built v0.4 payload via [`msgpack_encoder::v1::to_vec_from_v04`]. When the
+ * agent isn't V1-capable, the caller sends its v0.4 bytes directly instead of calling this — so the
+ * V1 upgrade is an isolated, removable bolt-on gated by that endpoint check.
+ *
+ * The V1 wire payload carries tracer metadata inline (v0.4 sends it as HTTP headers), so the
+ * promoted fields are supplied here exactly as the V1 sidecar path applies them:
+ * `container_id`/`language_name`/`language_version`/`tracer_version` from the caller's tracer header
+ * tags and `hostname`/`env`/`app_version`/`runtime_id`/`git_commit_sha` from `metadata`.
+ *
+ * Consumes nothing; `traces` is deduped in place (as the v0.4 shm sender does) before encoding. The
+ * returned slice is an owned allocation that must be freed with [`crate::span::ddog_free_charslice`].
+ */
+ddog_CharSlice ddog_serialize_trace_v04_as_v1_into_charslice(ddog_TracesBytes *traces,
+                                                             const struct ddog_TracerMetadataV1 *metadata,
+                                                             ddog_CharSlice container_id,
+                                                             ddog_CharSlice language_name,
+                                                             ddog_CharSlice language_version,
+                                                             ddog_CharSlice tracer_version);
+
+/**
  * Drops the agent info reader.
  */
 void ddog_drop_agent_info_reader(struct ddog_AgentInfoReader*);
@@ -710,17 +733,7 @@ struct ddog_TracerPayloadV1Builder *ddog_v1_new_builder(void);
 void ddog_v1_free_builder(struct ddog_TracerPayloadV1Builder *_builder);
 
 /**
- * Interns `string` into the builder's value-keyed table and returns its stable id. Equal strings
- * (including across chunks/spans) always return the same id; the empty string is always id 0.
- */
-uint32_t ddog_v1_intern_string(struct ddog_TracerPayloadV1Builder *builder, ddog_CharSlice string);
-
-/**
  * Appends a new (empty) chunk with the given 128-bit trace id, returning its index.
- *
- * A chunk must be fully built (all its spans/links/events) before the next chunk is created:
- * creating a chunk may reallocate the chunk vector and invalidate positions cached as raw
- * pointers. Indices remain valid.
  */
 uintptr_t ddog_v1_builder_new_chunk(struct ddog_TracerPayloadV1Builder *builder,
                                     uint64_t trace_id_high,
@@ -734,11 +747,11 @@ void ddog_v1_set_chunk_sampling_priority(struct ddog_TracerPayloadV1Builder *bui
                                          int32_t priority);
 
 /**
- * Sets the chunk origin (v0.4 `_dd.origin`) from an interned id.
+ * Sets the chunk origin (v0.4 `_dd.origin`).
  */
 void ddog_v1_set_chunk_origin(struct ddog_TracerPayloadV1Builder *builder,
                               uintptr_t chunk,
-                              uint32_t origin_id);
+                              ddog_CharSlice origin);
 
 /**
  * Sets the chunk sampling mechanism (v0.4 `_dd.p.dm`).
@@ -755,75 +768,73 @@ void ddog_v1_set_chunk_dropped_trace(struct ddog_TracerPayloadV1Builder *builder
                                      bool dropped);
 
 /**
- * Adds a string-valued chunk-level attribute (key and value are interned ids).
+ * Adds a string-valued chunk-level attribute.
  */
 void ddog_v1_add_chunk_attr_str(struct ddog_TracerPayloadV1Builder *builder,
                                 uintptr_t chunk,
-                                uint32_t key_id,
-                                uint32_t value_id);
+                                ddog_CharSlice key,
+                                ddog_CharSlice value);
 
 /**
  * Appends a new (empty) span to `chunk`, returning its index within that chunk.
- *
- * A span must be fully built before the next span is created in the same chunk.
  */
 uintptr_t ddog_v1_chunk_new_span(struct ddog_TracerPayloadV1Builder *builder, uintptr_t chunk);
 
 /**
- * Sets the span service (interned id).
+ * Sets the span service.
  */
 void ddog_v1_set_span_service(struct ddog_TracerPayloadV1Builder *builder,
                               uintptr_t chunk,
                               uintptr_t span,
-                              uint32_t id);
+                              ddog_CharSlice value);
 
 /**
- * Sets the span name (interned id).
+ * Sets the span name.
  */
 void ddog_v1_set_span_name(struct ddog_TracerPayloadV1Builder *builder,
                            uintptr_t chunk,
                            uintptr_t span,
-                           uint32_t id);
+                           ddog_CharSlice value);
 
 /**
- * Sets the span resource (interned id).
+ * Sets the span resource.
  */
 void ddog_v1_set_span_resource(struct ddog_TracerPayloadV1Builder *builder,
                                uintptr_t chunk,
                                uintptr_t span,
-                               uint32_t id);
+                               ddog_CharSlice value);
 
 /**
- * Sets the span type (interned id).
+ * Sets the span type.
  */
 void ddog_v1_set_span_type(struct ddog_TracerPayloadV1Builder *builder,
                            uintptr_t chunk,
                            uintptr_t span,
-                           uint32_t id);
+                           ddog_CharSlice value);
 
 /**
- * Sets the span env (interned id).
+ * Sets the span env.
  */
 void ddog_v1_set_span_env(struct ddog_TracerPayloadV1Builder *builder,
                           uintptr_t chunk,
                           uintptr_t span,
-                          uint32_t id);
+                          ddog_CharSlice value);
 
 /**
- * Sets the span version (interned id).
+ * Sets the span version.
  */
 void ddog_v1_set_span_version(struct ddog_TracerPayloadV1Builder *builder,
                               uintptr_t chunk,
                               uintptr_t span,
-                              uint32_t id);
+                              ddog_CharSlice value);
 
 /**
- * Sets the span component (interned id).
+ * Sets the span component.
  */
 void ddog_v1_set_span_component(struct ddog_TracerPayloadV1Builder *builder,
                                 uintptr_t chunk,
                                 uintptr_t span,
-                                uint32_t id);
+                                ddog_CharSlice value);
 
 /**
  * Sets the span id.
@@ -874,50 +885,90 @@ void ddog_v1_set_span_kind(struct ddog_TracerPayloadV1Builder *builder,
                            uint32_t kind);
 
 /**
- * Adds a string span attribute (key and value are interned ids).
+ * Adds a string span attribute.
  */
 void ddog_v1_add_span_attr_str(struct ddog_TracerPayloadV1Builder *builder,
                                uintptr_t chunk,
                                uintptr_t span,
-                               uint32_t key_id,
-                               uint32_t value);
+                               ddog_CharSlice key,
+                               ddog_CharSlice value);
 
 /**
- * Adds an integer span attribute (key is an interned id).
+ * Adds an integer span attribute.
  */
 void ddog_v1_add_span_attr_int(struct ddog_TracerPayloadV1Builder *builder,
                                uintptr_t chunk,
                                uintptr_t span,
-                               uint32_t key_id,
+                               ddog_CharSlice key,
                                int64_t value);
 
 /**
- * Adds a double span attribute (key is an interned id).
+ * Adds a double span attribute.
  */
 void ddog_v1_add_span_attr_double(struct ddog_TracerPayloadV1Builder *builder,
                                   uintptr_t chunk,
                                   uintptr_t span,
-                                  uint32_t key_id,
+                                  ddog_CharSlice key,
                                   double value);
 
 /**
- * Adds a boolean span attribute (key is an interned id).
+ * Adds a boolean span attribute.
  */
 void ddog_v1_add_span_attr_bool(struct ddog_TracerPayloadV1Builder *builder,
                                 uintptr_t chunk,
                                 uintptr_t span,
-                                uint32_t key_id,
+                                ddog_CharSlice key,
                                 bool value);
 
 /**
- * Adds a bytes-valued span attribute. The key is an interned id; the value bytes are copied
- * verbatim (not interned) and encoded as msgpack `bin`.
+ * Adds a bytes-valued span attribute. The value bytes are copied verbatim and encoded as msgpack
+ * `bin`.
  */
 void ddog_v1_add_span_attr_bytes(struct ddog_TracerPayloadV1Builder *builder,
                                  uintptr_t chunk,
                                  uintptr_t span,
-                                 uint32_t key_id,
+                                 ddog_CharSlice key,
                                  ddog_CharSlice value);
+
+/**
+ * Returns whether the span carries an attribute under `key`. Mirrors the v0.4
+ * `ddog_has_span_meta`/`ddog_has_span_metrics` existence checks used to avoid overwriting a value
+ * business logic already set (the span-array flatteners only add a key when it is absent).
+ */
+bool ddog_v1_has_span_attr(const struct ddog_TracerPayloadV1Builder *builder,
+                           uintptr_t chunk,
+                           uintptr_t span,
+                           ddog_CharSlice key);
+
+/**
+ * Removes the attribute under `key` from the span, returning whether it was present. Mirrors the
+ * v0.4 `ddog_del_span_meta_str`/`ddog_del_span_metrics_str` deletes (e.g. dropping `error.ignored`
+ * after finalization).
+ */
+bool ddog_v1_del_span_attr(struct ddog_TracerPayloadV1Builder *builder,
+                           uintptr_t chunk,
+                           uintptr_t span,
+                           ddog_CharSlice key);
+
+/**
+ * Copies the attribute under `key` from `from_span` onto `to_span` (both within `chunk`), returning
+ * whether the source carried it. When `delete_source` is set, the attribute is also removed from
+ * `from_span`. Replicates the v0.4 `transfer_meta_data`/`transfer_metrics_data` helpers used in the
+ * inferred-span merge (data moves from the root span into the inferred/proxy span); the unified V1
+ * attribute map subsumes both the string `meta` and numeric `metrics` cases with a single,
+ * type-preserving copy.
+ *
+ * The read (clone of the source value) completes before any mutable borrow, so the whole operation
+ * is routed through the single `&mut TracerPayloadV1Builder` without aliasing. A missing source key
+ * or a missing destination span is a no-op returning `false` (nothing is deleted from the source in
+ * that case).
+ */
+bool ddog_v1_transfer_span_attr(struct ddog_TracerPayloadV1Builder *builder,
+                                uintptr_t chunk,
+                                uintptr_t from_span,
+                                uintptr_t to_span,
+                                ddog_CharSlice key,
+                                bool delete_source);
 
 /**
  * Appends a new (empty) link to a span, returning its index within that span.
@@ -955,23 +1006,23 @@ void ddog_v1_set_link_flags(struct ddog_TracerPayloadV1Builder *builder,
                             uint32_t value);
 
 /**
- * Sets the link tracestate (interned id).
+ * Sets the link tracestate.
  */
 void ddog_v1_set_link_tracestate(struct ddog_TracerPayloadV1Builder *builder,
                                  uintptr_t chunk,
                                  uintptr_t span,
                                  uintptr_t link,
-                                 uint32_t id);
+                                 ddog_CharSlice value);
 
 /**
- * Adds a string-valued link attribute (key and value are interned ids).
+ * Adds a string-valued link attribute.
  */
 void ddog_v1_add_link_attr_str(struct ddog_TracerPayloadV1Builder *builder,
                                uintptr_t chunk,
                                uintptr_t span,
                                uintptr_t link,
-                               uint32_t key_id,
-                               uint32_t value_id);
+                               ddog_CharSlice key,
+                               ddog_CharSlice value);
 
 /**
  * Appends a new (empty) event to a span, returning its index within that span.
@@ -990,52 +1041,440 @@ void ddog_v1_set_event_time(struct ddog_TracerPayloadV1Builder *builder,
                             uint64_t time_unix_nano);
 
 /**
- * Sets the event name (interned id).
+ * Sets the event name.
  */
 void ddog_v1_set_event_name(struct ddog_TracerPayloadV1Builder *builder,
                             uintptr_t chunk,
                             uintptr_t span,
                             uintptr_t event,
-                            uint32_t id);
+                            ddog_CharSlice value);
 
 /**
- * Adds a string event attribute (key and value are interned ids).
+ * Adds a string event attribute.
  */
 void ddog_v1_add_event_attr_str(struct ddog_TracerPayloadV1Builder *builder,
                                 uintptr_t chunk,
                                 uintptr_t span,
                                 uintptr_t event,
-                                uint32_t key_id,
-                                uint32_t value);
+                                ddog_CharSlice key,
+                                ddog_CharSlice value);
 
 /**
- * Adds an integer event attribute (key is an interned id).
+ * Adds an integer event attribute.
  */
 void ddog_v1_add_event_attr_int(struct ddog_TracerPayloadV1Builder *builder,
                                 uintptr_t chunk,
                                 uintptr_t span,
                                 uintptr_t event,
-                                uint32_t key_id,
+                                ddog_CharSlice key,
                                 int64_t value);
 
 /**
- * Adds a double event attribute (key is an interned id).
+ * Adds a double event attribute.
  */
 void ddog_v1_add_event_attr_double(struct ddog_TracerPayloadV1Builder *builder,
                                    uintptr_t chunk,
                                    uintptr_t span,
                                    uintptr_t event,
-                                   uint32_t key_id,
+                                   ddog_CharSlice key,
                                    double value);
 
 /**
- * Adds a boolean event attribute (key is an interned id).
+ * Adds a boolean event attribute.
  */
 void ddog_v1_add_event_attr_bool(struct ddog_TracerPayloadV1Builder *builder,
                                  uintptr_t chunk,
                                  uintptr_t span,
                                  uintptr_t event,
-                                 uint32_t key_id,
+                                 ddog_CharSlice key,
                                  bool value);
+
+/**
+ * Number of chunks in the builder.
+ */
+uintptr_t ddog_v1_get_chunk_count(const struct ddog_TracerPayloadV1Builder *builder);
+
+/**
+ * Number of spans in `chunk`.
+ */
+uintptr_t ddog_v1_get_span_count(const struct ddog_TracerPayloadV1Builder *builder,
+                                 uintptr_t chunk);
+
+/**
+ * Number of links on a span.
+ */
+uintptr_t ddog_v1_get_link_count(const struct ddog_TracerPayloadV1Builder *builder,
+                                 uintptr_t chunk,
+                                 uintptr_t span);
+
+/**
+ * Number of events on a span.
+ */
+uintptr_t ddog_v1_get_event_count(const struct ddog_TracerPayloadV1Builder *builder,
+                                  uintptr_t chunk,
+                                  uintptr_t span);
+
+/**
+ * High 64 bits of the chunk's 128-bit trace id.
+ */
+uint64_t ddog_v1_get_chunk_trace_id_high(const struct ddog_TracerPayloadV1Builder *builder,
+                                         uintptr_t chunk);
+
+/**
+ * Low 64 bits of the chunk's 128-bit trace id.
+ */
+uint64_t ddog_v1_get_chunk_trace_id_low(const struct ddog_TracerPayloadV1Builder *builder,
+                                        uintptr_t chunk);
+
+/**
+ * Reads the chunk sampling priority; returns `false` (and leaves `out` untouched) when unset.
+ */
+bool ddog_v1_get_chunk_sampling_priority(const struct ddog_TracerPayloadV1Builder *builder,
+                                         uintptr_t chunk,
+                                         int32_t *out);
+
+/**
+ * Reads the chunk sampling mechanism; returns `false` (and leaves `out` untouched) when unset.
+ */
+bool ddog_v1_get_chunk_sampling_mechanism(const struct ddog_TracerPayloadV1Builder *builder,
+                                          uintptr_t chunk,
+                                          uint32_t *out);
+
+/**
+ * The chunk origin (empty if unset).
+ */
+ddog_CharSlice ddog_v1_get_chunk_origin(const struct ddog_TracerPayloadV1Builder *builder,
+                                        uintptr_t chunk);
+
+/**
+ * Whether the chunk is a dropped (p0) trace.
+ */
+bool ddog_v1_get_chunk_dropped_trace(const struct ddog_TracerPayloadV1Builder *builder,
+                                     uintptr_t chunk);
+
+/**
+ * Number of chunk-level attributes.
+ */
+uintptr_t ddog_v1_get_chunk_attr_count(const struct ddog_TracerPayloadV1Builder *builder,
+                                       uintptr_t chunk);
+
+/**
+ * Key of the chunk attribute at `idx`.
+ */
+ddog_CharSlice ddog_v1_get_chunk_attr_key(const struct ddog_TracerPayloadV1Builder *builder,
+                                          uintptr_t chunk,
+                                          uintptr_t idx);
+
+/**
+ * [`DDOG_V1_ATTR_*`] type tag of the chunk attribute at `idx`.
+ */
+uint32_t ddog_v1_get_chunk_attr_type(const struct ddog_TracerPayloadV1Builder *builder,
+                                     uintptr_t chunk,
+                                     uintptr_t idx);
+
+/**
+ * String value of the chunk attribute at `idx` (empty unless it is a string).
+ */
+ddog_CharSlice ddog_v1_get_chunk_attr_str(const struct ddog_TracerPayloadV1Builder *builder,
+                                          uintptr_t chunk,
+                                          uintptr_t idx);
+
+/**
+ * The span service (empty if unset).
+ */
+ddog_CharSlice ddog_v1_get_span_service(const struct ddog_TracerPayloadV1Builder *builder,
+                                        uintptr_t chunk,
+                                        uintptr_t span);
+
+/**
+ * The span name (empty if unset).
+ */
+ddog_CharSlice ddog_v1_get_span_name(const struct ddog_TracerPayloadV1Builder *builder,
+                                     uintptr_t chunk,
+                                     uintptr_t span);
+
+/**
+ * The span resource (empty if unset).
+ */
+ddog_CharSlice ddog_v1_get_span_resource(const struct ddog_TracerPayloadV1Builder *builder,
+                                         uintptr_t chunk,
+                                         uintptr_t span);
+
+/**
+ * The span type (empty if unset).
+ */
+ddog_CharSlice ddog_v1_get_span_type(const struct ddog_TracerPayloadV1Builder *builder,
+                                     uintptr_t chunk,
+                                     uintptr_t span);
+
+/**
+ * The span env (empty if unset).
+ */
+ddog_CharSlice ddog_v1_get_span_env(const struct ddog_TracerPayloadV1Builder *builder,
+                                    uintptr_t chunk,
+                                    uintptr_t span);
+
+/**
+ * The span version (empty if unset).
+ */
+ddog_CharSlice ddog_v1_get_span_version(const struct ddog_TracerPayloadV1Builder *builder,
+                                        uintptr_t chunk,
+                                        uintptr_t span);
+
+/**
+ * The span component (empty if unset).
+ */
+ddog_CharSlice ddog_v1_get_span_component(const struct ddog_TracerPayloadV1Builder *builder,
+                                          uintptr_t chunk,
+                                          uintptr_t span);
+
+/**
+ * The span id.
+ */
+uint64_t ddog_v1_get_span_id(const struct ddog_TracerPayloadV1Builder *builder,
+                             uintptr_t chunk,
+                             uintptr_t span);
+
+/**
+ * The span parent id.
+ */
+uint64_t ddog_v1_get_span_parent_id(const struct ddog_TracerPayloadV1Builder *builder,
+                                    uintptr_t chunk,
+                                    uintptr_t span);
+
+/**
+ * The span start time (unix nanos).
+ */
+int64_t ddog_v1_get_span_start(const struct ddog_TracerPayloadV1Builder *builder,
+                               uintptr_t chunk,
+                               uintptr_t span);
+
+/**
+ * The span duration (nanos).
+ */
+int64_t ddog_v1_get_span_duration(const struct ddog_TracerPayloadV1Builder *builder,
+                                  uintptr_t chunk,
+                                  uintptr_t span);
+
+/**
+ * The span error flag.
+ */
+bool ddog_v1_get_span_error(const struct ddog_TracerPayloadV1Builder *builder,
+                            uintptr_t chunk,
+                            uintptr_t span);
+
+/**
+ * The span kind as its OTEL wire value.
+ */
+uint32_t ddog_v1_get_span_kind(const struct ddog_TracerPayloadV1Builder *builder,
+                               uintptr_t chunk,
+                               uintptr_t span);
+
+/**
+ * Number of attributes on a span.
+ */
+uintptr_t ddog_v1_get_span_attr_count(const struct ddog_TracerPayloadV1Builder *builder,
+                                      uintptr_t chunk,
+                                      uintptr_t span);
+
+/**
+ * Key of the span attribute at `idx`.
+ */
+ddog_CharSlice ddog_v1_get_span_attr_key(const struct ddog_TracerPayloadV1Builder *builder,
+                                         uintptr_t chunk,
+                                         uintptr_t span,
+                                         uintptr_t idx);
+
+/**
+ * [`DDOG_V1_ATTR_*`] type tag of the span attribute at `idx`.
+ */
+uint32_t ddog_v1_get_span_attr_type(const struct ddog_TracerPayloadV1Builder *builder,
+                                    uintptr_t chunk,
+                                    uintptr_t span,
+                                    uintptr_t idx);
+
+/**
+ * String value of the span attribute at `idx` (empty unless it is a string).
+ */
+ddog_CharSlice ddog_v1_get_span_attr_str(const struct ddog_TracerPayloadV1Builder *builder,
+                                         uintptr_t chunk,
+                                         uintptr_t span,
+                                         uintptr_t idx);
+
+/**
+ * Integer value of the span attribute at `idx` (0 unless it is an int).
+ */
+int64_t ddog_v1_get_span_attr_int(const struct ddog_TracerPayloadV1Builder *builder,
+                                  uintptr_t chunk,
+                                  uintptr_t span,
+                                  uintptr_t idx);
+
+/**
+ * Double value of the span attribute at `idx` (0.0 unless it is a double).
+ */
+double ddog_v1_get_span_attr_double(const struct ddog_TracerPayloadV1Builder *builder,
+                                    uintptr_t chunk,
+                                    uintptr_t span,
+                                    uintptr_t idx);
+
+/**
+ * Boolean value of the span attribute at `idx` (false unless it is a true bool).
+ */
+bool ddog_v1_get_span_attr_bool(const struct ddog_TracerPayloadV1Builder *builder,
+                                uintptr_t chunk,
+                                uintptr_t span,
+                                uintptr_t idx);
+
+/**
+ * Bytes value of the span attribute at `idx` (empty unless it is a bytes value).
+ */
+ddog_CharSlice ddog_v1_get_span_attr_bytes(const struct ddog_TracerPayloadV1Builder *builder,
+                                           uintptr_t chunk,
+                                           uintptr_t span,
+                                           uintptr_t idx);
+
+/**
+ * High 64 bits of the link's 128-bit trace id.
+ */
+uint64_t ddog_v1_get_link_trace_id_high(const struct ddog_TracerPayloadV1Builder *builder,
+                                        uintptr_t chunk,
+                                        uintptr_t span,
+                                        uintptr_t link);
+
+/**
+ * Low 64 bits of the link's 128-bit trace id.
+ */
+uint64_t ddog_v1_get_link_trace_id_low(const struct ddog_TracerPayloadV1Builder *builder,
+                                       uintptr_t chunk,
+                                       uintptr_t span,
+                                       uintptr_t link);
+
+/**
+ * The link span id.
+ */
+uint64_t ddog_v1_get_link_span_id(const struct ddog_TracerPayloadV1Builder *builder,
+                                  uintptr_t chunk,
+                                  uintptr_t span,
+                                  uintptr_t link);
+
+/**
+ * The link flags.
+ */
+uint32_t ddog_v1_get_link_flags(const struct ddog_TracerPayloadV1Builder *builder,
+                                uintptr_t chunk,
+                                uintptr_t span,
+                                uintptr_t link);
+
+/**
+ * The link tracestate (empty if unset).
+ */
+ddog_CharSlice ddog_v1_get_link_tracestate(const struct ddog_TracerPayloadV1Builder *builder,
+                                           uintptr_t chunk,
+                                           uintptr_t span,
+                                           uintptr_t link);
+
+/**
+ * Number of attributes on a link.
+ */
+uintptr_t ddog_v1_get_link_attr_count(const struct ddog_TracerPayloadV1Builder *builder,
+                                      uintptr_t chunk,
+                                      uintptr_t span,
+                                      uintptr_t link);
+
+/**
+ * Key of the link attribute at `idx`.
+ */
+ddog_CharSlice ddog_v1_get_link_attr_key(const struct ddog_TracerPayloadV1Builder *builder,
+                                         uintptr_t chunk,
+                                         uintptr_t span,
+                                         uintptr_t link,
+                                         uintptr_t idx);
+
+/**
+ * String value of the link attribute at `idx` (empty unless it is a string).
+ */
+ddog_CharSlice ddog_v1_get_link_attr_str(const struct ddog_TracerPayloadV1Builder *builder,
+                                         uintptr_t chunk,
+                                         uintptr_t span,
+                                         uintptr_t link,
+                                         uintptr_t idx);
+
+/**
+ * The event time (unix nanos).
+ */
+uint64_t ddog_v1_get_event_time(const struct ddog_TracerPayloadV1Builder *builder,
+                                uintptr_t chunk,
+                                uintptr_t span,
+                                uintptr_t event);
+
+/**
+ * The event name (empty if unset).
+ */
+ddog_CharSlice ddog_v1_get_event_name(const struct ddog_TracerPayloadV1Builder *builder,
+                                      uintptr_t chunk,
+                                      uintptr_t span,
+                                      uintptr_t event);
+
+/**
+ * Number of attributes on an event.
+ */
+uintptr_t ddog_v1_get_event_attr_count(const struct ddog_TracerPayloadV1Builder *builder,
+                                       uintptr_t chunk,
+                                       uintptr_t span,
+                                       uintptr_t event);
+
+/**
+ * Key of the event attribute at `idx`.
+ */
+ddog_CharSlice ddog_v1_get_event_attr_key(const struct ddog_TracerPayloadV1Builder *builder,
+                                          uintptr_t chunk,
+                                          uintptr_t span,
+                                          uintptr_t event,
+                                          uintptr_t idx);
+
+/**
+ * [`DDOG_V1_ATTR_*`] type tag of the event attribute at `idx`.
+ */
+uint32_t ddog_v1_get_event_attr_type(const struct ddog_TracerPayloadV1Builder *builder,
+                                     uintptr_t chunk,
+                                     uintptr_t span,
+                                     uintptr_t event,
+                                     uintptr_t idx);
+
+/**
+ * String value of the event attribute at `idx` (empty unless it is a string).
+ */
+ddog_CharSlice ddog_v1_get_event_attr_str(const struct ddog_TracerPayloadV1Builder *builder,
+                                          uintptr_t chunk,
+                                          uintptr_t span,
+                                          uintptr_t event,
+                                          uintptr_t idx);
+
+/**
+ * Integer value of the event attribute at `idx` (0 unless it is an int).
+ */
+int64_t ddog_v1_get_event_attr_int(const struct ddog_TracerPayloadV1Builder *builder,
+                                   uintptr_t chunk,
+                                   uintptr_t span,
+                                   uintptr_t event,
+                                   uintptr_t idx);
+
+/**
+ * Double value of the event attribute at `idx` (0.0 unless it is a double).
+ */
+double ddog_v1_get_event_attr_double(const struct ddog_TracerPayloadV1Builder *builder,
+                                     uintptr_t chunk,
+                                     uintptr_t span,
+                                     uintptr_t event,
+                                     uintptr_t idx);
+
+/**
+ * Boolean value of the event attribute at `idx` (false unless it is a true bool).
+ */
+bool ddog_v1_get_event_attr_bool(const struct ddog_TracerPayloadV1Builder *builder,
+                                 uintptr_t chunk,
+                                 uintptr_t span,
+                                 uintptr_t event,
+                                 uintptr_t idx);
 
 #endif  /* DDOG_SIDECAR_H */

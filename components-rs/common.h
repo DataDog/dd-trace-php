@@ -1175,6 +1175,25 @@ typedef struct ddog_AttributeAnyValueBytes ddog_AttributeAnyValueBytes;
 typedef struct ddog_AttributeArrayValueBytes ddog_AttributeArrayValueBytes;
 
 
+/**
+ * Attribute value type tags returned by the `ddog_v1_get_*_attr_type` getters. They let a C caller
+ * pick the matching typed value getter (`_attr_str`/`_attr_int`/`_attr_double`/`_attr_bool`/
+ * `_attr_bytes`) for a given attribute index.
+ */
+#define ddog_DDOG_V1_ATTR_STRING 0
+
+#define ddog_DDOG_V1_ATTR_INT 1
+
+#define ddog_DDOG_V1_ATTR_DOUBLE 2
+
+#define ddog_DDOG_V1_ATTR_BOOL 3
+
+#define ddog_DDOG_V1_ATTR_BYTES 4
+
+#define ddog_DDOG_V1_ATTR_KEYVALUE 5
+
+#define ddog_DDOG_V1_ATTR_LIST 6
+
 typedef enum ddog_DynamicInstrumentationConfigState {
   DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED,
   DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_DISABLED,
@@ -1210,7 +1229,7 @@ typedef struct ddog_RuntimeMetadata ddog_RuntimeMetadata;
 typedef struct ddog_ShmHandle ddog_ShmHandle;
 
 /**
- * Builds a native V1 [`TracerPayloadBytes`] while interning every string once.
+ * Builds a native V1 [`TracerPayloadBytes`] holding readable strings.
  */
 typedef struct ddog_TracerPayloadV1Builder ddog_TracerPayloadV1Builder;
 
