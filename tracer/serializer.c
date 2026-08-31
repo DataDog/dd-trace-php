@@ -2480,15 +2480,33 @@ zval dd_serialize_rust_v1_to_zval(ddog_TracerPayloadV1Builder *b) {
 
             size_t attr_count = ddog_v1_get_span_attr_count(b, c, j);
             if (attr_count > 0) {
-                zval attrs_zv;
+                zval attrs_zv, meta_struct_zv;
                 array_init(&attrs_zv);
+                array_init(&meta_struct_zv);
                 for (size_t k = 0; k < attr_count; k++) {
                     ddog_CharSlice key = ddog_v1_get_span_attr_key(b, c, j, k);
                     zval value_zv;
                     dd_v1_attr_value_to_zval(b, c, j, k, &value_zv);
-                    zend_hash_str_update(Z_ARR(attrs_zv), key.ptr, key.len, &value_zv);
+                    // Bytes-typed attributes are v0.4 meta_struct entries (the only source of
+                    // bytes attrs on this path). Surface them under a dedicated "meta_struct" key,
+                    // mirroring the v0.4 reader, instead of mixing raw msgpack blobs into the
+                    // readable attribute map.
+                    if (ddog_v1_get_span_attr_type(b, c, j, k) == ddog_DDOG_V1_ATTR_BYTES) {
+                        zend_hash_str_update(Z_ARR(meta_struct_zv), key.ptr, key.len, &value_zv);
+                    } else {
+                        zend_hash_str_update(Z_ARR(attrs_zv), key.ptr, key.len, &value_zv);
+                    }
                 }
-                add_assoc_zval(&span_zv, "attributes", &attrs_zv);
+                if (zend_hash_num_elements(Z_ARR(attrs_zv))) {
+                    add_assoc_zval(&span_zv, "attributes", &attrs_zv);
+                } else {
+                    zval_ptr_dtor(&attrs_zv);
+                }
+                if (zend_hash_num_elements(Z_ARR(meta_struct_zv))) {
+                    add_assoc_zval(&span_zv, "meta_struct", &meta_struct_zv);
+                } else {
+                    zval_ptr_dtor(&meta_struct_zv);
+                }
             }
 
             size_t link_count = ddog_v1_get_link_count(b, c, j);
