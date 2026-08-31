@@ -231,12 +231,20 @@ class DrupalIntegration extends Integration
         // The span of the executing ThemeManager::render frame. The render function is hooked in its
         // own frame, so it cannot reach that span on its own.
         $renderSpan = null;
+        $legacyRenderHooks = [];
 
         $tagTemplateFile = static function ($file) use (&$renderSpan) {
             if ($renderSpan) {
                 $renderSpan->meta['drupal.template.file'] = $file;
             }
         };
+
+        $tagLegacyRender = static function (HookData $renderHook) use ($tagTemplateFile) {
+            $tagTemplateFile($renderHook->args[0]);
+        };
+        // Twig is both the default engine and core's fallback when {engine}_render_template() is
+        // missing, and the deprecated global does not delegate to the 11.3+ service.
+        $legacyRenderHooks['twig'] = install_hook('twig_render_template', $tagLegacyRender);
 
         // Drupal 11.3+ renders through a theme_engine service instead of {engine}_render_template().
         install_hook(
@@ -253,11 +261,18 @@ class DrupalIntegration extends Integration
 
         install_hook(
             'Drupal\Core\Theme\ThemeManager::render',
-            function (HookData $hookData) use (&$renderSpan, $tagTemplateFile) {
+            function (HookData $hookData) use (&$renderSpan, &$legacyRenderHooks, $tagLegacyRender) {
+                // install_hook, unlike trace_method, still runs both callbacks past the span limit;
+                // clearing $renderSpan keeps this frame's template off the enclosing render's span.
+                if (\dd_trace_tracer_is_limited()) {
+                    $hookData->data = $renderSpan;
+                    $renderSpan = null;
+                    return;
+                }
+
                 $span = $hookData->span();
-                $enclosing = $renderSpan;
+                $hookData->data = $renderSpan;
                 $renderSpan = $span;
-                $hookData->data = [$enclosing, null];
 
                 $span->name = 'drupal.theme.render';
                 $span->service = \ddtrace_config_app_name('drupal');
@@ -279,29 +294,20 @@ class DrupalIntegration extends Integration
                 }
                 $span->meta['drupal.render.engine'] = $themeEngine;
 
-                // Drupal <= 11.2 renders through the {engine}_render_template() global.
-                if (!\function_exists("{$themeEngine}_render_template")) {
-                    return;
+                // Drupal <= 11.2 renders through the {engine}_render_template() global. One hook per
+                // engine name for the whole request; $renderSpan does the attribution.
+                if (!isset($legacyRenderHooks[$themeEngine])) {
+                    $legacyRenderHooks[$themeEngine] =
+                        install_hook("{$themeEngine}_render_template", $tagLegacyRender);
                 }
-                // Take that branch only when no engine service resolves, as core does.
-                if (\property_exists($this, 'themeEngines') && $this->themeEngines->has($themeEngine)) {
-                    return;
-                }
-
-                $hookData->data = [$enclosing, install_hook(
-                    "{$themeEngine}_render_template",
-                    static function (HookData $renderHook) use ($tagTemplateFile) {
-                        $tagTemplateFile($renderHook->args[0]);
-                        // Self-removal keeps outer/inner render pairing correct.
-                        remove_hook($renderHook->id);
-                    }
-                )];
             },
             function (HookData $hookData) use (&$renderSpan) {
-                $renderSpan = $hookData->data[0];
-                // render() can return without calling the render function, so self-removal is not enough.
-                if (!empty($hookData->data[1])) {
-                    remove_hook($hookData->data[1]);
+                // $renderSpan is this frame's span, or null when the begin callback bailed out
+                // past the span limit. $hookData->data holds the enclosing render's span.
+                $span = $renderSpan;
+                $renderSpan = $hookData->data;
+                if (!$span) {
+                    return;
                 }
 
                 /** @var null|\Drupal\Core\Theme\Registry $themeRegistry */
@@ -310,7 +316,6 @@ class DrupalIntegration extends Integration
                     return;
                 }
 
-                $span = $hookData->span();
                 $runtimeThemeRegistry = $themeRegistry->getRuntime();
                 $hook = $hookData->args[0];
 

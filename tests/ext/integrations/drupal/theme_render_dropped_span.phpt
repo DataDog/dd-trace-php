@@ -1,5 +1,5 @@
 --TEST--
-Drupal render hook is removed when the render span is dropped (APMS-20395)
+Drupal render tagging survives a dropped render span (APMS-20395)
 --SKIPIF--
 <?php
 require __DIR__ . '/drupal_root.inc';
@@ -44,7 +44,7 @@ namespace Drupal\Core\Theme
         {
             if ($hook === 'dropped') {
                 // A sampling filter or another integration can drop the render span; the end hook
-                // must still run and remove the render hook.
+                // must still run and restore the enclosing render's span.
                 \DDTrace\try_drop_span(\DDTrace\active_span());
                 return false;
             }
@@ -74,7 +74,7 @@ namespace
     for ($i = 0; $i < 30; ++$i) {
         $themeManager->render('dropped');
     }
-    // A leak above exhausts the budget, so this render can no longer tag its own template.
+    // Were a hook leaked above, the budget would be exhausted and this render left untagged.
     $themeManager->render('page');
 
     DDTrace\close_span();

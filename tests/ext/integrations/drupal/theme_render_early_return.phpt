@@ -1,5 +1,5 @@
 --TEST--
-Drupal render hooks are removed when the render function is never called (APMS-20395)
+Drupal renders that never call the render function do not mis-tag later ones (APMS-20395)
 --SKIPIF--
 <?php
 require __DIR__ . '/drupal_root.inc';
