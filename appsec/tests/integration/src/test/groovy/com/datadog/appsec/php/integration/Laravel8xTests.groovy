@@ -49,7 +49,7 @@ class Laravel8xTests {
     @Test
     @Order(4)
     void 'Login failure automated event'() {
-        Trace trace = container.traceFromRequest('/authenticate?email=nonExisiting@email.com') {
+        Trace trace = container.traceFromRequest('/login/auth?email=nonExisiting@email.com') {
             HttpResponse<InputStream> resp ->
                 assert resp.statusCode() == 403
         }
@@ -58,7 +58,6 @@ class Laravel8xTests {
         assert span.meta."appsec.events.users.login.failure.track" == "true"
         assert span.meta."_dd.appsec.events.users.login.failure.auto.mode" == "identification"
         assert span.meta."appsec.events.users.login.failure.usr.exists" == "false"
-        // Failed event hook reads the credentials array; usr.login is the attempted email.
         assert span.meta."appsec.events.users.login.failure.usr.login" == 'nonExisiting@email.com'
         assert span.metrics._sampling_priority_v1 == 2.0d
     }
@@ -68,7 +67,7 @@ class Laravel8xTests {
     void 'Login failure automated event - wrong password for existing user'() {
         // Existing user (id=1) with a wrong password: the Failed event carries the
         // resolved user object, so usr.id and usr.exists must be populated.
-        Trace trace = container.traceFromRequest('/authenticate?email=ciuser@example.com&password=wrong') {
+        Trace trace = container.traceFromRequest('/login/auth?email=ciuser@example.com&password=wrong') {
             HttpResponse<InputStream> resp ->
                 assert resp.statusCode() == 403
         }
@@ -89,7 +88,7 @@ class Laravel8xTests {
         // Laravel integration calls track_user_login_failure_event_automated('',
         // null, false, [], 'laravel'). Per spec both missing_user_login and
         // missing_user_id must fire, tagged framework:laravel.
-        container.traceFromRequest('/authenticate?email=') {
+        container.traceFromRequest('/login/auth?email=') {
             HttpResponse<InputStream> resp ->
                 assert resp.statusCode() == 403
         }
@@ -125,7 +124,7 @@ class Laravel8xTests {
     @Order(7)
     void 'Login success automated event'() {
         //The user ciuser@example.com is already on the DB
-        def trace = container.traceFromRequest('/authenticate?email=ciuser@example.com') {
+        def trace = container.traceFromRequest('/login/auth?email=ciuser@example.com') {
             HttpResponse<InputStream> resp ->
                 assert resp.statusCode() == 200
         }
@@ -142,7 +141,7 @@ class Laravel8xTests {
     @Order(8)
     void 'Sign up automated event'() {
         def trace = container.traceFromRequest(
-                '/register?email=test-user-new@email.coms&name=somename&password=somepassword'
+                '/login/signup?email=test-user-new@email.coms&name=somename&password=somepassword'
         ) { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
         }
@@ -209,10 +208,10 @@ class Laravel8xTests {
             endpoints.size() > 0
         })
 
-        assert endpoints.size() == 29
+        assert endpoints.size() == 27
         assert endpoints.find { it.path == '/' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /' } != null
-        assert endpoints.find { it.path == 'authenticate' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET authenticate' } != null
-        assert endpoints.find { it.path == 'register' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET register' } != null
+        assert endpoints.find { it.path == 'login/auth' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET login/auth' } != null
+        assert endpoints.find { it.path == 'login/signup' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET login/signup' } != null
         assert endpoints.find { it.path == 'dynamic-path/{param01}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET dynamic-path/{param01}' } != null
         assert endpoints.find { it.path == 'api/user' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET api/user' } != null
     }

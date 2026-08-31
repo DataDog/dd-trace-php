@@ -24,8 +24,6 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return view('welcome');
 });
-Route::get('/authenticate', [LoginTestController::class, 'authenticate']);
-Route::get('/register', [LoginTestController::class, 'registerAppsec']);
 Route::get('/dynamic-path/{param01}', [MiscController::class, 'dynamicPath']);
 
 Route::get('simple', [CommonSpecsController::class, 'simple'])->name('simple_route');
