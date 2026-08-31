@@ -12,7 +12,10 @@ case "${host_os}" in
     ;;
 esac
 
-set -x
+case " $* " in
+  *" --quiet "*|*" -q "*) ;;
+  *) set -x ;;
+esac
 
 if test -n "$COMPILE_ASAN"; then
   # We need -lresolv due to https://github.com/llvm/llvm-project/issues/59007
