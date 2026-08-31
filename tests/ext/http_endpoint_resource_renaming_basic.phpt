@@ -23,8 +23,8 @@ function test_endpoint($path) {
     if (count($spans) > 0) {
         $span_data = $spans[0];
         echo "Path: $path\n";
-        if (isset($span_data['meta']['http.endpoint'])) {
-            echo "Endpoint: " . $span_data['meta']['http.endpoint'] . "\n";
+        if (isset($span_data['attributes']['http.endpoint'])) {
+            echo "Endpoint: " . $span_data['attributes']['http.endpoint'] . "\n";
         } else {
             echo "Endpoint: (not set)\n";
         }
@@ -94,8 +94,8 @@ function test_endpoint_with_route($path, $route) {
     if (count($spans) > 0) {
         $span_data = $spans[0];
         echo "Path: $path, Route: $route\n";
-        if (isset($span_data['meta']['http.endpoint'])) {
-            echo "Endpoint: " . $span_data['meta']['http.endpoint'] . "\n";
+        if (isset($span_data['attributes']['http.endpoint'])) {
+            echo "Endpoint: " . $span_data['attributes']['http.endpoint'] . "\n";
         } else {
             echo "Endpoint: (not set)\n";
         }

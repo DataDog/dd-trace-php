@@ -26,8 +26,8 @@ var_dump(\DDTrace\trace_id() < 2 ** 64);
 DDTrace\close_span();
 
 $spans = dd_trace_serialize_closed_spans();
-var_dump(!isset($spans[0]["meta"]["_dd.p.tid"]));
-var_dump(hexdec($spans[1]["meta"]["_dd.p.tid"]) == floor($spans[1]["start"] / 1000000000) * (1 << 32));
+var_dump(!isset($spans[0]["trace_id_high"]));
+var_dump(hexdec($spans[1]["trace_id_high"]) == floor($spans[1]["start"] / 1000000000) * (1 << 32));
 
 ?>
 --EXPECT--

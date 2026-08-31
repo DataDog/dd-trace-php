@@ -12,7 +12,7 @@ $span->name = 'op';
 \DDTrace\close_span();
 
 $spans = dd_trace_serialize_closed_spans();
-$processTags = $spans[0]['meta']['_dd.tags.process'];
+$processTags = $spans[0]['attributes']['_dd.tags.process'];
 
 echo "DD_SERVICE resolved to: " . ini_get('datadog.service') . "\n";
 echo "has svc.user:true: " . (strpos($processTags, 'svc.user:true') !== false ? 'YES' : 'NO') . "\n";
