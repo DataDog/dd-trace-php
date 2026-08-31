@@ -53,8 +53,7 @@ namespace
     {
         $rendered = "rendered $template_file";
         if (isset($variables['nested'])) {
-            // A template embedding another theme hook, i.e. a nested ThemeManager::render()
-            // from inside the render function.
+            // A template embedding another theme hook: a nested render from the render function.
             $nested = $variables['nested'];
             $rendered .= $nested();
         }
@@ -67,9 +66,8 @@ namespace
 
     $themeManager = new Drupal\Core\Theme\ThemeManager();
 
-    // The legacy hook is installed from an install_hook callback, which is not gated by the
-    // span limit, so the nested render still fires it while active_span() is the outer
-    // render's span. init() forces spans_limit >= 1500, so shrink it afterwards.
+    // The legacy hook is installed from an install_hook callback, which is not span-limit gated,
+    // so the nested render fires it while active_span() is the outer's. init() forces >= 1500.
     ini_set('datadog.trace.spans_limit', 2);
     DDTrace\start_span();
     DDTrace\close_span();

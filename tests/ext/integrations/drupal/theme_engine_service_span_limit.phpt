@@ -89,16 +89,13 @@ namespace
     $engines = new Drupal\Core\Theme\ThemeEngineCollection(['twig' => $engine]);
     $themeManager = new Drupal\Core\Theme\ThemeManager($engines);
 
-    // Twig renders an embedded theme hook from inside the outer template, i.e. a nested
-    // ThemeManager::render() during the outer renderTemplate().
+    // Twig renders an embedded theme hook, i.e. a nested render during the outer renderTemplate().
     $engine->nested = function () use ($themeManager) {
         return $themeManager->render('block');
     };
 
-    // install_hook's callback is not gated by the span limit, but trace_method is. Leave room
-    // for exactly one span so the outer render is traced and the nested one is not: the nested
-    // renderTemplate() then still fires the interface hook while active_span() is the outer
-    // render's span. init() forces spans_limit >= 1500, so shrink it afterwards.
+    // install_hook's callback is not span-limit gated, but trace_method is: with room for one span
+    // the nested render fires the hook while active_span() is the outer's. init() forces >= 1500.
     ini_set('datadog.trace.spans_limit', 2);
     DDTrace\start_span();
     DDTrace\close_span();

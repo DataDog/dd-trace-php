@@ -73,9 +73,8 @@ namespace Drupal\Core\Theme
 
         public function render($hook, array $variables = [])
         {
-            // A preprocess callback renders a sub-element before the outer template itself
-            // (ThemeManager.php:366 vs :428), so the child's renderTemplate() fires first.
-            // This is why the tag cannot be first-write-wins.
+            // A preprocess renders a sub-element before the outer template (ThemeManager.php:366
+            // vs :428), so the child's renderTemplate() fires first: the tag cannot be first-write-wins.
             if ($hook === 'page') {
                 $this->render('child');
             }

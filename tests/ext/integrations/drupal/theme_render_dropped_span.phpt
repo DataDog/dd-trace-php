@@ -43,8 +43,8 @@ namespace Drupal\Core\Theme
         public function render($hook, array $variables = [])
         {
             if ($hook === 'dropped') {
-                // A sampling filter or another integration can drop the render span. The
-                // tracing posthook is then skipped, so it cannot be what removes the hook.
+                // A sampling filter or another integration can drop the render span; the tracing
+                // posthook is then skipped, so it cannot be what removes the hook.
                 \DDTrace\try_drop_span(\DDTrace\active_span());
                 return false;
             }

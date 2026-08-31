@@ -4,8 +4,7 @@ require_once __DIR__ . '/drupal_root.inc';
 
 $root = dd_drupal_tracer_root();
 
-// Declared on demand, never eagerly: Drupal autoloads the engine mid-request, so this is
-// what exercises hook re-registration on class declaration rather than early binding.
+// Declared on demand: only a mid-request class declaration exercises hook re-registration.
 spl_autoload_register(function ($class) {
     if ($class === 'Drupal\Core\Template\TwigThemeEngine') {
         require __DIR__ . '/drupal_twig_engine.inc';
@@ -30,12 +29,7 @@ spl_autoload_register(function ($class) use ($root) {
     echo "autoload miss: $class\n";
 });
 
-/**
- * @param array $spans          Serialized closed spans.
- * @param array $probeTargets   Hook targets whose remaining budget should be reported. Each
- *                              install site needs its own entry: the budget is per target, so
- *                              probing only the legacy global would miss a leak on the method.
- */
+// The hook budget is per target, so $probeTargets needs an entry per install site.
 function dd_drupal_render_report(array $spans, array $probeTargets)
 {
     $tags = [];

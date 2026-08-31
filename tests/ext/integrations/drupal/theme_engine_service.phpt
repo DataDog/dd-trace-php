@@ -37,8 +37,7 @@ namespace Drupal\Core\Theme
         }
     }
 
-    // Stands in for the ServiceCollectionInterface injected as ThemeManager::$themeEngines
-    // in Drupal 11.3+; has() must not instantiate the service.
+    // Stands in for ThemeManager::$themeEngines (Drupal 11.3+); has() must not instantiate.
     class ThemeEngineCollection
     {
         private $engines;

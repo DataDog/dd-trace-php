@@ -74,8 +74,7 @@ namespace Drupal\Core\Theme
         public function render($hook, array $variables = [])
         {
             if ($hook === 'block') {
-                // Dropped after the tracing prehook ran, so the tracer is not limited;
-                // active_span() now points at the OUTER render.
+                // Dropped after the prehook ran (so not span-limited); active_span() is the OUTER render.
                 \DDTrace\try_drop_span(\DDTrace\active_span());
             }
 

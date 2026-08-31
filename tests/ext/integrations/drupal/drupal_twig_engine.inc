@@ -2,13 +2,8 @@
 
 namespace Drupal\Core\Template;
 
-/**
- * Autoloaded on demand so the interface hook has to resolve against a class declared
- * after DrupalIntegration::init() ran, as it does in a real Drupal request.
- *
- * Core appends the extension inside renderTemplate() and passes $template_file without
- * it (TwigThemeEngine::EXTENSION, ThemeManager sets $extension = '' on this path).
- */
+// Autoloaded on demand so the interface hook resolves against a class declared after init(),
+// as in a real request. Core passes $template_file without the extension; renderTemplate() appends it.
 class TwigThemeEngine implements \Drupal\Core\Theme\ThemeEngineInterface
 {
     const EXTENSION = '.html.twig';

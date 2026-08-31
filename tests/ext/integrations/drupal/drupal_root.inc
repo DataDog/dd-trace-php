@@ -1,7 +1,6 @@
 <?php
 
-// Locates the repository root so the tests can load the Drupal integration straight from
-// src/, without depending on datadog.trace.sources_path pointing at the working tree.
+// Load the integration straight from src/, without relying on datadog.trace.sources_path.
 function dd_drupal_tracer_root()
 {
     $dir = __DIR__;

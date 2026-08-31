@@ -228,14 +228,12 @@ class DrupalIntegration extends Integration
             }
         );
 
-        // The span of the ThemeManager::render frame currently executing, or null when that
-        // frame has none of its own. An ancestor render span carries the same name under
-        // 'recurse' => true, so the tag target can only be matched by identity.
+        // The span of the executing ThemeManager::render frame, or null when it has none of its own.
+        // Ancestors share its name under 'recurse' => true, so it can only be matched by identity.
         $renderSpan = null;
 
         $tagTemplateFile = static function ($file) use (&$renderSpan) {
-            // A nested render whose span was dropped leaves active_span() on its ancestor,
-            // which would otherwise take the inner template.
+            // A nested render whose span was dropped leaves active_span() on an ancestor.
             if ($renderSpan && $renderSpan === active_span()) {
                 $renderSpan->meta['drupal.template.file'] = $file;
             }
@@ -246,8 +244,7 @@ class DrupalIntegration extends Integration
             'Drupal\Core\Theme\ThemeEngineInterface::renderTemplate',
             static function (HookData $hook) use ($tagTemplateFile) {
                 $file = $hook->args[0];
-                // Core passes the path without its extension here; re-append it so the tag keeps
-                // the value it had before 11.3.
+                // Core passes the path without its extension here; re-append it to keep the pre-11.3 value.
                 if (isset($hook->instance) && $hook->instance instanceof \Drupal\Core\Template\TwigThemeEngine) {
                     $file .= '.html.twig';
                 }
@@ -352,25 +349,21 @@ class DrupalIntegration extends Integration
             ]
         );
 
+        // Drupal <= 11.2 renders through the {engine}_render_template() global; unlike the tracing
+        // posthook, this end hook also runs for a dropped or span-limited render.
+
         // Must follow the trace_method: begin hooks run in install order, so active_span() is our own span.
-        // Drupal <= 11.2 renders through the {engine}_render_template() global; the per-render
-        // hook id travels in $hook->data, which is per-invocation and therefore nests without
-        // bookkeeping, and this end hook still runs when the tracing posthook is skipped,
-        // i.e. for a dropped or span-limited render.
         install_hook(
             'Drupal\Core\Theme\ThemeManager::render',
             function (HookData $hook) use (&$renderSpan, $tagTemplateFile) {
                 $enclosing = $renderSpan;
-                // Past the span limit this frame gets no span of its own and active_span()
-                // would be its parent's, so claim nothing.
+                // Past the span limit this frame gets no span of its own, so claim nothing.
                 $span = \dd_trace_tracer_is_limited() ? null : active_span();
                 $renderSpan = ($span && $span->name === 'drupal.theme.render') ? $span : null;
                 $hook->data = [$enclosing, null];
 
                 /** @var \Drupal\Core\Theme\ThemeManager $this */
                 $themeEngine = $this->getActiveTheme()->getEngine();
-                // The theme engine may use a different extension and a different renderer
-                // Moreover, Drupal can use different themes in the same application
                 if (empty($themeEngine) || !\function_exists("{$themeEngine}_render_template")) {
                     return;
                 }
@@ -390,8 +383,7 @@ class DrupalIntegration extends Integration
             },
             static function (HookData $hook) use (&$renderSpan) {
                 $renderSpan = $hook->data[0];
-                // render() can return without ever calling the render function (unknown theme
-                // hook, exception), so the callback's self-removal cannot be the only one.
+                // render() can return without calling the render function, so self-removal is not enough.
                 if (!empty($hook->data[1])) {
                     remove_hook($hook->data[1]);
                 }
