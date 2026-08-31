@@ -43,8 +43,8 @@ namespace Drupal\Core\Theme
         public function render($hook, array $variables = [])
         {
             if ($hook === 'dropped') {
-                // A sampling filter or another integration can drop the render span; the tracing
-                // posthook is then skipped, so it cannot be what removes the hook.
+                // A sampling filter or another integration can drop the render span; the end hook
+                // must still run and remove the render hook.
                 \DDTrace\try_drop_span(\DDTrace\active_span());
                 return false;
             }
@@ -66,7 +66,7 @@ namespace
     DDTrace\Integrations\Drupal\DrupalIntegration::init();
 
     // The render spans must not be root spans: dropping a root span rejects the trace instead
-    // of marking the span dropped, which would leave the posthook running.
+    // of marking the span dropped.
     $root = DDTrace\start_span();
     $root->name = 'test.root';
 
@@ -92,8 +92,7 @@ namespace
     dd_drupal_render_report($spans, ['twig_render_template']);
 }
 ?>
---EXPECTF--
-[ddtrace] [error] [%d] Cannot run tracing closure for render(); spans out of sync; This message is only displayed once. Specify DD_TRACE_ONCE_LOGS=0 to show all messages.
+--EXPECT--
 span[drupal.theme.render] = 1
 span[test.root] = 1
 drupal.render.engine[twig] = 1

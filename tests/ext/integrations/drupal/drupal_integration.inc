@@ -40,7 +40,7 @@ function dd_drupal_render_report(array $spans, array $probeTargets)
         }
         $file = isset($span['meta']['drupal.template.file']) ? $span['meta']['drupal.template.file'] : '<missing>';
         $tags[$file] = (isset($tags[$file]) ? $tags[$file] : 0) + 1;
-        // Also reported so that a prehook exception swallowed by the sandbox cannot pass silently.
+        // Also reported so that a begin hook exception swallowed by the sandbox cannot pass silently.
         $engine = isset($span['meta']['drupal.render.engine']) ? $span['meta']['drupal.render.engine'] : '<missing>';
         $engines[$engine] = (isset($engines[$engine]) ? $engines[$engine] : 0) + 1;
     }

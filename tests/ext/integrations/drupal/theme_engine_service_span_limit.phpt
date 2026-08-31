@@ -94,14 +94,16 @@ namespace
         return $themeManager->render('block');
     };
 
-    // install_hook's callback is not span-limit gated, but trace_method is: with room for one span
-    // the nested render fires the hook while active_span() is the outer's. init() forces >= 1500.
+    // Room for exactly one more span: the outer render gets a real one, the nested render only a
+    // dummy that is never pushed, so it must not reach the outer's tag. init() forces >= 1500.
     ini_set('datadog.trace.spans_limit', 2);
     DDTrace\start_span();
     DDTrace\close_span();
 
-    $themeManager->render('page');
+    $rendered = $themeManager->render('page');
 
+    // Proves the nested render really ran, so the tag assertion below cannot pass vacuously.
+    echo "nested rendered: ", var_export(strpos($rendered, 'block.html.twig') !== false, true), "\n";
     echo "limited: ", var_export((bool) dd_trace_tracer_is_limited(), true), "\n";
     dd_drupal_render_report(dd_trace_serialize_closed_spans(), [
         'Drupal\Core\Template\TwigThemeEngine::renderTemplate',
@@ -109,7 +111,8 @@ namespace
 }
 ?>
 --EXPECT--
+nested rendered: true
 limited: true
 drupal.render.engine[twig] = 1
-drupal.template.file[<missing>] = 1
+drupal.template.file[core/themes/claro/templates/page.html.twig] = 1
 hook budget left [Drupal\Core\Template\TwigThemeEngine::renderTemplate]: yes

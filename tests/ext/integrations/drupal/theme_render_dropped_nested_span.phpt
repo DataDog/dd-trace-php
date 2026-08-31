@@ -43,7 +43,8 @@ namespace Drupal\Core\Theme
         public function render($hook, array $variables = [])
         {
             if ($hook === 'block') {
-                // Dropped after the prehook ran, so the hook is installed and active_span() is the OUTER render.
+                // Dropped after the begin hook ran, so this frame's render hook is installed and
+                // fires against a dropped span rather than the surviving outer one.
                 \DDTrace\try_drop_span(\DDTrace\active_span());
             }
 
@@ -91,8 +92,7 @@ namespace
     dd_drupal_render_report($spans, ['twig_render_template']);
 }
 ?>
---EXPECTF--
-[ddtrace] [error] [%d] Cannot run tracing closure for render(); spans out of sync; This message is only displayed once. Specify DD_TRACE_ONCE_LOGS=0 to show all messages.
+--EXPECT--
 surviving render span template.file = core/themes/olivero/templates/page.html.twig
 drupal.render.engine[twig] = 1
 drupal.template.file[core/themes/olivero/templates/page.html.twig] = 1

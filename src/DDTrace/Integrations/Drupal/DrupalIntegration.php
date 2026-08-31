@@ -228,13 +228,12 @@ class DrupalIntegration extends Integration
             }
         );
 
-        // The span of the executing ThemeManager::render frame, or null when it has none of its own.
-        // Ancestors share its name under 'recurse' => true, so it can only be matched by identity.
+        // The span of the executing ThemeManager::render frame. The render function is hooked in its
+        // own frame, so it cannot reach that span on its own.
         $renderSpan = null;
 
         $tagTemplateFile = static function ($file) use (&$renderSpan) {
-            // A nested render whose span was dropped leaves active_span() on an ancestor.
-            if ($renderSpan && $renderSpan === active_span()) {
+            if ($renderSpan) {
                 $renderSpan->meta['drupal.template.file'] = $file;
             }
         };
@@ -252,127 +251,44 @@ class DrupalIntegration extends Integration
             }
         );
 
-        trace_method(
-            'Drupal\Core\Theme\ThemeManager',
-            'render',
-            [
-                'recurse' => true,
-                'prehook' => function (SpanData $span, $args) {
-                    $span->name = 'drupal.theme.render';
-                    $span->service = \ddtrace_config_app_name('drupal');
-                    Integration::tagFrameworkServiceSource($span, 'drupal');
-                    $span->type = Type::WEB_SERVLET;
-                    $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
-
-                    /** @var \Drupal\Core\Theme\ThemeManager $this */
-                    $activeTheme = $this->getActiveTheme();
-                    $themeName = $activeTheme->getName();
-                    $themeEngine = $activeTheme->getEngine();
-
-                    if (!empty($themeName)) {
-                        $span->meta['drupal.render.theme'] = $themeName;
-                    }
-
-                    if (!empty($themeEngine)) {
-                        $span->meta['drupal.render.engine'] = $themeEngine;
-                    }
-                },
-                'posthook' => function (SpanData $span, $args) {
-                    /** @var null|\Drupal\Core\Theme\Registry $themeRegistry */
-                    $themeRegistry = ObjectKVStore::get($this, 'theme_registry');
-                    if ($themeRegistry) {
-                        $runtimeThemeRegistry = $themeRegistry->getRuntime();
-                        $hook = $args[0];
-
-                        if (is_array($hook)) {
-                            foreach ($hook as $candidate) {
-                                if ($runtimeThemeRegistry->has($candidate)) {
-                                    break;
-                                }
-                            }
-                            $hook = $candidate;
-                        }
-
-                        $originalHook = $hook;
-
-                        if (!$runtimeThemeRegistry->has($hook)) {
-                            // Iteratively strip everything after the last '__' delimiter, until an
-                            // implementation is found
-                            while ($pos = strrpos($hook, '__')) {
-                                $hook = substr($hook, 0, $pos);
-                                if ($runtimeThemeRegistry->has($hook)) {
-                                    break;
-                                }
-                            }
-                        }
-
-                        if ($runtimeThemeRegistry->has($hook)) {
-                            $span->meta['drupal.render.hook'] = $span->resource = $hook;
-                            $info = $runtimeThemeRegistry->get($hook);
-
-                            if (isset($info['base hook'])) {
-                                $span->meta['drupal.render.base_hook'] = $info['base hook'];
-                            }
-
-                            if (isset($info['type'])) {
-                                $span->meta['drupal.render.type'] = $info['type'];
-                            }
-
-                            if (isset($info['render element'])) {
-                                $span->meta['drupal.render.element'] = $info['render element'];
-                            }
-
-                            if (isset($info['template'])) {
-                                $span->meta['drupal.template.template'] = $info['template'];
-                            }
-
-                            if (isset($info['function'])) {
-                                $span->meta['drupal.render.theme_function'] = $info['function'];
-                            }
-
-                            if (isset($info['path'])) {
-                                // The template can be from a different theme than the active one
-                                // Format: '.../themes/<theme_name>/...'
-                                $path = $info['path'];
-                                $themePathStart = strpos($path, '/themes/');
-                                if ($themePathStart !== false) {
-                                    $themePath = substr($path,  $themePathStart + 8); // Between '/themes/', 8 = strlen('/themes/')
-                                    $themePath = substr($themePath, 0, strpos($themePath, '/')); // Until the next '/'
-                                    $span->meta['drupal.template.theme'] = $themePath;
-                                }
-                            }
-                        } else {
-                            $span->meta['drupal.render.hook'] = $span->resource = $originalHook;
-                        }
-                    }
-                }
-            ]
-        );
-
-        // Drupal <= 11.2 renders through the {engine}_render_template() global; unlike the tracing
-        // posthook, this end hook also runs for a dropped or span-limited render.
-
-        // Must follow the trace_method: begin hooks run in install order, so active_span() is our own span.
         install_hook(
             'Drupal\Core\Theme\ThemeManager::render',
-            function (HookData $hook) use (&$renderSpan, $tagTemplateFile) {
+            function (HookData $hookData) use (&$renderSpan, $tagTemplateFile) {
+                $span = $hookData->span();
                 $enclosing = $renderSpan;
-                // Past the span limit this frame gets no span of its own, so claim nothing.
-                $span = \dd_trace_tracer_is_limited() ? null : active_span();
-                $renderSpan = ($span && $span->name === 'drupal.theme.render') ? $span : null;
-                $hook->data = [$enclosing, null];
+                $renderSpan = $span;
+                $hookData->data = [$enclosing, null];
+
+                $span->name = 'drupal.theme.render';
+                $span->service = \ddtrace_config_app_name('drupal');
+                Integration::tagFrameworkServiceSource($span, 'drupal');
+                $span->type = Type::WEB_SERVLET;
+                $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
 
                 /** @var \Drupal\Core\Theme\ThemeManager $this */
-                $themeEngine = $this->getActiveTheme()->getEngine();
-                if (empty($themeEngine) || !\function_exists("{$themeEngine}_render_template")) {
+                $activeTheme = $this->getActiveTheme();
+                $themeName = $activeTheme->getName();
+                $themeEngine = $activeTheme->getEngine();
+
+                if (!empty($themeName)) {
+                    $span->meta['drupal.render.theme'] = $themeName;
+                }
+
+                if (empty($themeEngine)) {
                     return;
                 }
-                // Take the legacy branch only when no engine service resolves, as core does.
+                $span->meta['drupal.render.engine'] = $themeEngine;
+
+                // Drupal <= 11.2 renders through the {engine}_render_template() global.
+                if (!\function_exists("{$themeEngine}_render_template")) {
+                    return;
+                }
+                // Take that branch only when no engine service resolves, as core does.
                 if (\property_exists($this, 'themeEngines') && $this->themeEngines->has($themeEngine)) {
                     return;
                 }
 
-                $hook->data = [$enclosing, install_hook(
+                $hookData->data = [$enclosing, install_hook(
                     "{$themeEngine}_render_template",
                     static function (HookData $renderHook) use ($tagTemplateFile) {
                         $tagTemplateFile($renderHook->args[0]);
@@ -381,11 +297,83 @@ class DrupalIntegration extends Integration
                     }
                 )];
             },
-            static function (HookData $hook) use (&$renderSpan) {
-                $renderSpan = $hook->data[0];
+            function (HookData $hookData) use (&$renderSpan) {
+                $renderSpan = $hookData->data[0];
                 // render() can return without calling the render function, so self-removal is not enough.
-                if (!empty($hook->data[1])) {
-                    remove_hook($hook->data[1]);
+                if (!empty($hookData->data[1])) {
+                    remove_hook($hookData->data[1]);
+                }
+
+                /** @var null|\Drupal\Core\Theme\Registry $themeRegistry */
+                $themeRegistry = ObjectKVStore::get($this, 'theme_registry');
+                if (!$themeRegistry) {
+                    return;
+                }
+
+                $span = $hookData->span();
+                $runtimeThemeRegistry = $themeRegistry->getRuntime();
+                $hook = $hookData->args[0];
+
+                if (is_array($hook)) {
+                    foreach ($hook as $candidate) {
+                        if ($runtimeThemeRegistry->has($candidate)) {
+                            break;
+                        }
+                    }
+                    $hook = $candidate;
+                }
+
+                $originalHook = $hook;
+
+                if (!$runtimeThemeRegistry->has($hook)) {
+                    // Iteratively strip everything after the last '__' delimiter, until an
+                    // implementation is found
+                    while ($pos = strrpos($hook, '__')) {
+                        $hook = substr($hook, 0, $pos);
+                        if ($runtimeThemeRegistry->has($hook)) {
+                            break;
+                        }
+                    }
+                }
+
+                if (!$runtimeThemeRegistry->has($hook)) {
+                    $span->meta['drupal.render.hook'] = $span->resource = $originalHook;
+                    return;
+                }
+
+                $span->meta['drupal.render.hook'] = $span->resource = $hook;
+                $info = $runtimeThemeRegistry->get($hook);
+
+                if (isset($info['base hook'])) {
+                    $span->meta['drupal.render.base_hook'] = $info['base hook'];
+                }
+
+                if (isset($info['type'])) {
+                    $span->meta['drupal.render.type'] = $info['type'];
+                }
+
+                if (isset($info['render element'])) {
+                    $span->meta['drupal.render.element'] = $info['render element'];
+                }
+
+                if (isset($info['template'])) {
+                    $span->meta['drupal.template.template'] = $info['template'];
+                }
+
+                if (isset($info['function'])) {
+                    $span->meta['drupal.render.theme_function'] = $info['function'];
+                }
+
+                if (isset($info['path'])) {
+                    // The template can be from a different theme than the active one
+                    // Format: '.../themes/<theme_name>/...'
+                    $path = $info['path'];
+                    $themePathStart = strpos($path, '/themes/');
+                    if ($themePathStart !== false) {
+                        $themePath = substr($path,  $themePathStart + 8); // Between '/themes/', 8 = strlen('/themes/')
+                        $themePath = substr($themePath, 0, strpos($themePath, '/')); // Until the next '/'
+                        $span->meta['drupal.template.theme'] = $themePath;
+                    }
                 }
             }
         );
