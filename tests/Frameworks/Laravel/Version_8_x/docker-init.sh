@@ -4,12 +4,10 @@ cd /var/www
 
 export DD_TRACE_CLI_ENABLED=false
 
-# Clear stale bootstrap cache built with dev dependencies (e.g. facade/ignition).
-# Without this, artisan fails with "Class not found" for removed dev providers.
+# vendor/ arrives via overlayfs from the local checkout. Re-run composer to
+# strip dev packages and rebuild the autoloader for the container's PHP version.
+# Clear bootstrap cache first or artisan fails on dev-only providers (e.g. facade/ignition).
 rm -f /var/www/bootstrap/cache/*.php
-
-# The vendor/ directory is pre-installed on the host and mounted via the overlay.
-# Run composer install to regenerate the autoloader for the container's PHP version.
 composer install --no-dev --no-scripts
 
 cp .env.example .env

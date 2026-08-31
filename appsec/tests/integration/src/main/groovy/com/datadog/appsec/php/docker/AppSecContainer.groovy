@@ -646,7 +646,9 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
 
     private void runInitialize() {
         execInContainerWithOutput('/bin/bash', '-c', '''
-            if [[ -f /var/www/initialize.sh ]]; then
+            if [[ -f /var/www/docker-init.sh ]]; then
+                /var/www/docker-init.sh
+            elif [[ -f /var/www/initialize.sh ]]; then
                 /var/www/initialize.sh
             fi
         ''')
