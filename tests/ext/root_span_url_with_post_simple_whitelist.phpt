@@ -14,9 +14,9 @@ foo=bar&password=should_not_redact&username=should_redact
 DDTrace\start_span();
 DDTrace\close_span();
 $spans = dd_trace_serialize_closed_spans();
-var_dump($spans[0]['meta']['http.request.post.foo']);
-var_dump($spans[0]['meta']['http.request.post.password']);
-var_dump($spans[0]['meta']['http.request.post.username']);
+var_dump($spans[0]['attributes']['http.request.post.foo']);
+var_dump($spans[0]['attributes']['http.request.post.password']);
+var_dump($spans[0]['attributes']['http.request.post.username']);
 ?>
 --EXPECT--
 string(3) "bar"

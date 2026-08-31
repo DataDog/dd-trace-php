@@ -8,8 +8,8 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 DDTrace\start_span();
 DDTrace\close_span(0);
 $spans = dd_trace_serialize_closed_spans();
-var_dump(array_key_exists('http.request.headers.x-datadog-endpoint-scan', $spans[0]['meta']));
-var_dump(array_key_exists('http.request.headers.x-datadog-security-test', $spans[0]['meta']));
+var_dump(array_key_exists('http.request.headers.x-datadog-endpoint-scan', $spans[0]['attributes']));
+var_dump(array_key_exists('http.request.headers.x-datadog-security-test', $spans[0]['attributes']));
 ?>
 --EXPECT--
 bool(false)

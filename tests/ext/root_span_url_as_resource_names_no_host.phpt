@@ -16,24 +16,13 @@ foo=bar
 DDTrace\start_span();
 DDTrace\close_span();
 $spans = dd_trace_serialize_closed_spans();
-var_dump($spans[0]['meta']);
+var_dump($spans[0]['span_kind']);
+var_dump($spans[0]['attributes']['http.method']);
+var_dump($spans[0]['attributes']['http.status_code']);
+var_dump($spans[0]['attributes']['http.url']);
 ?>
 --EXPECTF--
-array(8) {
-  ["_dd.p.dm"]=>
-  string(2) "-0"
-  ["_dd.p.tid"]=>
-  string(16) "%s"
-  ["_dd.tags.process"]=>
-  string(%d) "%s"
-  ["http.method"]=>
-  string(3) "GET"
-  ["http.status_code"]=>
-  string(3) "200"
-  ["http.url"]=>
-  string(25) "http://localhost:8888/foo"
-  ["runtime-id"]=>
-  string(36) "%s"
-  ["span.kind"]=>
-  string(6) "server"
-}
+int(2)
+string(3) "GET"
+string(3) "200"
+string(25) "http://localhost:8888/foo"

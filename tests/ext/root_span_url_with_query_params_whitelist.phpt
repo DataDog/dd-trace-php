@@ -16,7 +16,7 @@ password=value&some=query&param&eters
 DDTrace\start_span();
 DDTrace\close_span();
 $spans = dd_trace_serialize_closed_spans();
-var_dump($spans[0]['meta']["http.url"]);
+var_dump($spans[0]['attributes']["http.url"]);
 ?>
 --EXPECT--
 string(41) "https://localhost:9999/foo?password=value"

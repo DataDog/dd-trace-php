@@ -20,19 +20,8 @@ if (!isset($_SERVER[0])) {
 
 DDTrace\start_span();
 DDTrace\close_span();
-var_dump(dd_trace_serialize_closed_spans()[0]["meta"]);
+var_dump(dd_trace_serialize_closed_spans()[0]["attributes"]["http.request.headers.0"]);
 
 ?>
---EXPECTF--
-array(5) {
-  ["_dd.p.dm"]=>
-  string(2) "-0"
-  ["_dd.p.tid"]=>
-  string(16) "%s"
-  ["_dd.tags.process"]=>
-  string(%d) "%s"
-  ["http.request.headers.0"]=>
-  string(16) "http_zero_header"
-  ["runtime-id"]=>
-  string(36) "%s"
-}
+--EXPECT--
+string(16) "http_zero_header"
