@@ -219,6 +219,11 @@ static void datadog_activate(void) {
 
     // ZAI config is always set up
     pthread_once(&dd_activate_once_control, dd_activate_once);
+#ifdef TRACER
+    // This setup may change tracer config defaults and must run before the
+    // request snapshots them. Common one-time activation still runs first.
+    pthread_once(&dd_tracer_activate_once_control, ddtrace_activate_once);
+#endif
     zai_config_rinit();
 
     if (!datadog_disable) {
@@ -240,9 +245,6 @@ static void datadog_activate(void) {
     }
 
 #ifdef TRACER
-    // Tracer activation follows completion of common activation. Its one-time
-    // setup must still precede its first zai_hook activation.
-    pthread_once(&dd_tracer_activate_once_control, ddtrace_activate_once);
     ddtrace_activate_early();
     ddtrace_activate_late();
 #endif
