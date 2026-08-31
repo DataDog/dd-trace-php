@@ -22,9 +22,9 @@ try {
 
     $span = $spans[0];
     echo 'error: ' . $span['error'] . PHP_EOL;
-    echo 'error.type: ' . $span['meta']['error.type'] . PHP_EOL;
-    echo 'error.message: ' . $span['meta']['error.message'] . PHP_EOL;
-    echo 'Has error.stack: ' . isset($span['meta']['error.stack']) . PHP_EOL;
+    echo 'error.type: ' . $span['attributes']['error.type'] . PHP_EOL;
+    echo 'error.message: ' . $span['attributes']['error.message'] . PHP_EOL;
+    echo 'Has error.stack: ' . isset($span['attributes']['error.stack']) . PHP_EOL;
 }
 ?>
 --EXPECTF--
