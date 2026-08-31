@@ -80,6 +80,14 @@ void *datadog_php_profiling_vm_interrupt_addr(void);
 /** Reports that standalone profiler and ddtrace were loaded together. */
 void datadog_php_profiling_conflicting_extension_error(void);
 
+/** Visits each string key/value in a decoded map configuration. */
+typedef bool (*ddog_php_prof_config_map_visitor)(void *context,
+                                                 const char *key, size_t key_len,
+                                                 const char *value, size_t value_len);
+bool ddog_php_prof_config_visit_map(uint16_t config_id, bool memoized,
+                                    void *context,
+                                    ddog_php_prof_config_map_visitor visitor);
+
 /**
  * For Code Hotspots, we need the tracer's local root span id and the current
  * span id. This is a cross-product struct, so keep it in sync with tracer's

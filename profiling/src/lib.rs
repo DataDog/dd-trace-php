@@ -1,7 +1,7 @@
 pub mod bindings;
 pub mod capi;
 mod clocks;
-mod config;
+pub(crate) mod config;
 mod logging;
 pub mod module_globals;
 pub mod profiler;
@@ -700,7 +700,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
 
             let mut custom = ProfileTagSegment::default();
             if let Some(tags) = config::tags() {
-                if let Some(error) = custom.try_push_tags(&tags)? {
+                if let Some(error) = custom.try_push_kv_tags(&tags)? {
                     // DD_TAGS can change on each request, so this warns on every
                     // request. Maybe we should cache the error string and only
                     // emit warnings for new ones?

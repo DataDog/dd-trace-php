@@ -193,9 +193,27 @@ zend_module_entry *datadog_get_module_entry(const char *str, uintptr_t len) {
     return zend_hash_str_find_ptr(&module_registry, str, len);
 }
 
-zai_str ddog_php_prof_get_common_tags(void) {
-    const char *tags = zend_ini_string(ZEND_STRL("datadog.tags"), false);
-    return tags ? (zai_str)ZAI_STR_FROM_CSTR(tags) : (zai_str)ZAI_STR_EMPTY;
+bool ddog_php_prof_config_visit_map(uint16_t config_id, bool memoized,
+                                    void *context,
+                                    ddog_php_prof_config_map_visitor visitor) {
+    zval *map = memoized
+        ? &zai_config_memoized_entries[config_id].decoded_value
+        : zai_config_get_value(config_id);
+    if (!map || Z_TYPE_P(map) != IS_ARRAY || !visitor) {
+        return false;
+    }
+
+    zend_string *key;
+    zval *value;
+    ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(map), key, value) {
+        if (!key || Z_TYPE_P(value) != IS_STRING ||
+            !visitor(context, ZSTR_VAL(key), ZSTR_LEN(key),
+                     Z_STRVAL_P(value), Z_STRLEN_P(value))) {
+            return false;
+        }
+    } ZEND_HASH_FOREACH_END();
+
+    return true;
 }
 
 #if defined(TRACER) && defined(PROFILING)

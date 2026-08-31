@@ -362,13 +362,10 @@ extern "C" {
     /// until mshutdown.
     pub(crate) fn ddog_php_prof_get_memoized_config(config_id: ConfigId) -> *mut zval;
 
-    /// Returns the current encoded common DD_TAGS value in combined mode.
     pub(crate) fn ddog_php_prof_config_count() -> u16;
     pub(crate) fn datadog_php_profiling_config_count_error(c_count: u16, rust_count: usize);
     #[cfg(all(feature = "profiling", not(feature = "tracer")))]
     pub(crate) fn ddog_php_prof_config_minit(module_number: libc::c_int) -> bool;
-    pub(crate) fn ddog_php_prof_get_common_tags() -> ZaiStr<'static>;
-
     /// Returns true if the config value was explicitly set by the user (not
     /// just the compiled-in default), false otherwise.
     pub(crate) fn ddog_php_prof_config_is_set_by_user(config_id: ConfigId) -> bool;
@@ -504,6 +501,19 @@ impl TryFrom<&mut zval> for zend_long {
         let r#type = unsafe { zval.u1.v.type_ };
         if r#type == IS_LONG {
             Ok(unsafe { zval.value.lval })
+        } else {
+            Err(r#type)
+        }
+    }
+}
+
+impl TryFrom<&mut zval> for f64 {
+    type Error = u8;
+
+    fn try_from(zval: &mut zval) -> Result<Self, Self::Error> {
+        let r#type = unsafe { zval.u1.v.type_ };
+        if r#type == IS_DOUBLE {
+            Ok(unsafe { zval.value.dval })
         } else {
             Err(r#type)
         }

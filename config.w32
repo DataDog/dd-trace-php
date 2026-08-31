@@ -23,6 +23,7 @@ if (PHP_DDTRACE != 'no') {
 
 	var DDTRACE_EXT_SOURCES = "agent_info.c";
 	DDTRACE_EXT_SOURCES += " configuration.c";
+	DDTRACE_EXT_SOURCES += " configuration_tags.c";
 	DDTRACE_EXT_SOURCES += " crashtracking_windows.c";
 	DDTRACE_EXT_SOURCES += " endpoints.c";
 	DDTRACE_EXT_SOURCES += " excluded_modules.c";

@@ -280,6 +280,7 @@ if test "$PHP_DDTRACE" != "no" && { test "$PHP_DDTRACE_PROFILING" = "no" || test
     ext/agent_info.c \
     ext/compat_getrandom.c \
     ext/configuration.c \
+    ext/configuration_tags.c \
     ext/crashtracking_frames.c \
     ext/endpoints.c \
     ext/excluded_modules.c \

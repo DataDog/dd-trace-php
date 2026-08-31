@@ -1,4 +1,5 @@
-//! Generates Rust configuration IDs from the same X-macro list used by C.
+//! Generates Rust configuration IDs and storage-typed accessors from the same
+//! X-macro list used by C.
 //!
 //! The C preprocessor reduces each CONFIG/CALIAS declaration to a type/name
 //! record. Keeping the records in preprocessor order makes the generated Rust
@@ -60,23 +61,26 @@ pub fn build() {
         + MARKER.len();
 
     let mut variants = String::new();
+    let mut accessors = String::new();
     let mut count = 0;
     for record in expanded[start..].split("|NEXT_CONFIG|") {
         let record = record.trim();
         if record.is_empty() {
             continue;
         }
-        let (_, name) = record
+        let (ty, name) = record
             .split_once(',')
             .unwrap_or_else(|| panic!("malformed config record: {record:?}"));
-        variants.push_str(&format!("    {},\n", name.trim()));
+        let (ty, name) = (ty.trim(), name.trim());
+        variants.push_str(&format!("    {name},\n"));
+        accessors.push_str(&render_accessors(ty, name));
         count += 1;
     }
 
     fs::write(
         Path::new(&out_dir).join("generated_config.rs"),
         format!(
-            "pub const CONFIG_COUNT: usize = {count};\n\n#[repr(u16)]\n#[derive(Clone, Copy, Debug)]\n#[allow(non_camel_case_types)]\npub enum ConfigId {{\n{variants}}}\n"
+            "pub const CONFIG_COUNT: usize = {count};\n\n#[repr(u16)]\n#[derive(Clone, Copy, Debug)]\n#[allow(non_camel_case_types)]\npub enum ConfigId {{\n{variants}}}\n\n{accessors}"
         ),
     )
     .expect("failed to write generated_config.rs");
@@ -90,6 +94,26 @@ pub fn build() {
     ] {
         println!("cargo:rerun-if-changed={path}");
     }
+}
+
+fn render_accessors(ty: &str, name: &str) -> String {
+    let (return_type, current, memoized) = match ty {
+        "BOOL" => ("bool", "config_bool", "memoized_config_bool"),
+        "INT" => ("i64", "config_int", "memoized_config_int"),
+        "DOUBLE" => ("f64", "config_double", "memoized_config_double"),
+        "STRING" => ("String", "config_string", "memoized_config_string"),
+        "MAP" => (
+            "crate::profiling::config::ConfigMap",
+            "config_map",
+            "memoized_config_map",
+        ),
+        other => panic!("unrecognized configuration type {other:?} for {name}"),
+    };
+
+    format!(
+        "#[cfg(feature = \"profiling\")]\n#[allow(dead_code, non_snake_case)]\npub(crate) unsafe fn get_{name}() -> {return_type} {{\n    crate::profiling::config::{current}(ConfigId::{name})\n}}\n\
+         #[cfg(feature = \"profiling\")]\n#[allow(dead_code, non_snake_case)]\npub(crate) unsafe fn get_global_{name}() -> {return_type} {{\n    crate::profiling::config::{memoized}(ConfigId::{name})\n}}\n\n"
+    )
 }
 
 fn configure_php_build(build: &mut cc::Build) {

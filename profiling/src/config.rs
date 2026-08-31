@@ -14,9 +14,10 @@ pub use http::Uri;
 use libc::c_int;
 use log::{debug, error, warn, LevelFilter};
 use std::borrow::Cow;
-use std::ffi::CString;
+use std::ffi::{c_char, c_void, CString};
 use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
+use std::{slice, str};
 
 #[derive(Copy, Clone, Debug, Default)]
 pub enum SystemSettingsState {
@@ -337,6 +338,46 @@ unsafe fn get_system_value(id: ConfigId) -> &'static mut zval {
     // Panic: the implementation makes this guarantee.
     assert!(!value.is_null());
     &mut *value
+}
+
+pub(crate) unsafe fn config_bool(id: ConfigId) -> bool {
+    bool::try_from(get_value(id)).expect("generated BOOL accessor received a non-boolean zval")
+}
+
+pub(crate) unsafe fn memoized_config_bool(id: ConfigId) -> bool {
+    bool::try_from(get_system_value(id))
+        .expect("generated BOOL accessor received a non-boolean memoized zval")
+}
+
+pub(crate) unsafe fn config_int(id: ConfigId) -> i64 {
+    zend_long::try_from(get_value(id)).expect("generated INT accessor received a non-integer zval")
+        as i64
+}
+
+pub(crate) unsafe fn memoized_config_int(id: ConfigId) -> i64 {
+    zend_long::try_from(get_system_value(id))
+        .expect("generated INT accessor received a non-integer memoized zval") as i64
+}
+
+#[allow(dead_code)]
+pub(crate) unsafe fn config_double(id: ConfigId) -> f64 {
+    f64::try_from(get_value(id)).expect("generated DOUBLE accessor received a non-double zval")
+}
+
+#[allow(dead_code)]
+pub(crate) unsafe fn memoized_config_double(id: ConfigId) -> f64 {
+    f64::try_from(get_system_value(id))
+        .expect("generated DOUBLE accessor received a non-double memoized zval")
+}
+
+pub(crate) unsafe fn config_string(id: ConfigId) -> String {
+    String::try_from(get_value(id))
+        .unwrap_or_else(|_| panic!("generated STRING accessor received a non-string zval"))
+}
+
+pub(crate) unsafe fn memoized_config_string(id: ConfigId) -> String {
+    String::try_from(get_system_value(id))
+        .unwrap_or_else(|_| panic!("generated STRING accessor received a non-string memoized zval"))
 }
 
 pub(crate) use crate::config::ConfigId;
@@ -661,13 +702,68 @@ pub(crate) unsafe fn git_repository_url() -> Option<String> {
 
 /// # Safety
 /// This function must only be called after config has been initialized in
-/// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn tags() -> Option<String> {
-    let tags = unsafe { bindings::ddog_php_prof_get_common_tags() };
-    tags.into_utf8()
-        .ok()
-        .filter(|tags| !tags.is_empty())
-        .map(str::to_owned)
+/// rinit, and before it is uninitialized in rshutdown.
+pub(crate) unsafe fn tags() -> Option<Vec<(String, String)>> {
+    crate::config::get_DD_TAGS().string_pairs()
+}
+
+pub(crate) struct ConfigMap {
+    id: ConfigId,
+    memoized: bool,
+}
+
+impl ConfigMap {
+    unsafe fn string_pairs(self) -> Option<Vec<(String, String)>> {
+        read_config_map(self.id, self.memoized)
+    }
+}
+
+pub(crate) unsafe fn config_map(id: ConfigId) -> ConfigMap {
+    ConfigMap {
+        id,
+        memoized: false,
+    }
+}
+
+pub(crate) unsafe fn memoized_config_map(id: ConfigId) -> ConfigMap {
+    ConfigMap { id, memoized: true }
+}
+
+unsafe fn read_config_map(id: ConfigId, memoized: bool) -> Option<Vec<(String, String)>> {
+    struct Context {
+        tags: Vec<(String, String)>,
+        valid: bool,
+    }
+
+    unsafe extern "C" fn visit(
+        context: *mut c_void,
+        key: *const c_char,
+        key_len: usize,
+        value: *const c_char,
+        value_len: usize,
+    ) -> bool {
+        let context = &mut *(context.cast::<Context>());
+        let key = slice::from_raw_parts(key.cast::<u8>(), key_len);
+        let value = slice::from_raw_parts(value.cast::<u8>(), value_len);
+        let (Ok(key), Ok(value)) = (str::from_utf8(key), str::from_utf8(value)) else {
+            context.valid = false;
+            return false;
+        };
+        context.tags.push((key.to_owned(), value.to_owned()));
+        true
+    }
+
+    let mut context = Context {
+        tags: Vec::new(),
+        valid: true,
+    };
+    let visited = bindings::ddog_php_prof_config_visit_map(
+        id as u16,
+        memoized,
+        (&mut context as *mut Context).cast(),
+        Some(visit),
+    );
+    (visited && context.valid && !context.tags.is_empty()).then_some(context.tags)
 }
 
 /// # Safety

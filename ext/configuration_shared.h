@@ -10,6 +10,8 @@
  * extension can preserve its historical ID ordering while standalone products
  * can compose just the shared subset in their own table.
  */
+bool datadog_config_parse_tags(zai_str value, zval *decoded_value, bool persistent);
+
 #if defined(PROFILING) && !defined(TRACER)
 bool ddog_php_prof_config_parse_utf8_string(zai_str value, zval *decoded_value, bool persistent);
 
@@ -20,7 +22,8 @@ bool ddog_php_prof_config_parse_utf8_string(zai_str value, zval *decoded_value, 
     CONFIG(STRING, DD_ENV, "", .parser = ddog_php_prof_config_parse_utf8_string)
 #define DD_COMMON_SERVICE_CONFIGURATION                                                                        \
     CONFIG(STRING, DD_SERVICE, "", .parser = ddog_php_prof_config_parse_utf8_string)
-#define DD_COMMON_TAGS_CONFIGURATION CONFIG(STRING, DD_TAGS, "")
+#define DD_COMMON_TAGS_CONFIGURATION                                                                    \
+    CONFIG(CUSTOM(MAP), DD_TAGS, "", .parser = datadog_config_parse_tags)
 #define DD_COMMON_TRACE_AGENT_PORT_CONFIGURATION                                                               \
     CONFIG(INT, DD_TRACE_AGENT_PORT, "0", .ini_change = zai_config_system_ini_change)
 #define DD_COMMON_TRACE_AGENT_URL_CONFIGURATION                                                                \
@@ -43,7 +46,7 @@ bool ddog_php_prof_config_parse_utf8_string(zai_str value, zval *decoded_value, 
            .env_config_fallback = ddtrace_conf_otel_service_name)
 #define DD_COMMON_TAGS_CONFIGURATION                                                                           \
     CONFIG(CUSTOM(MAP), DD_TAGS, "",                                                                           \
-           .env_config_fallback = ddtrace_conf_otel_resource_attributes_tags, .parser = dd_parse_tags)
+           .env_config_fallback = ddtrace_conf_otel_resource_attributes_tags, .parser = datadog_config_parse_tags)
 #define DD_COMMON_TRACE_AGENT_PORT_CONFIGURATION                                                               \
     CONFIG(INT, DD_TRACE_AGENT_PORT, "8126", .ini_change = zai_config_system_ini_change)
 #define DD_COMMON_TRACE_AGENT_URL_CONFIGURATION                                                                \

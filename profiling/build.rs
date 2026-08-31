@@ -109,6 +109,7 @@ fn build_zend_php_ffis(
     println!("cargo:rerun-if-changed=profiling/src/configuration.c");
     println!("cargo:rerun-if-changed=profiling/configuration.h");
     println!("cargo:rerun-if-changed=ext/configuration_shared.h");
+    println!("cargo:rerun-if-changed=ext/configuration_tags.c");
     println!("cargo:rerun-if-changed=ext/handlers_api.c");
     println!("cargo:rerun-if-changed=ext/handlers_api.h");
 
@@ -152,7 +153,7 @@ fn build_zend_php_ffis(
         .files(if combined {
             &[][..]
         } else {
-            &["profiling/src/configuration.c"][..]
+            &["profiling/src/configuration.c", "ext/configuration_tags.c"][..]
         })
         .define("CFG_POST_STARTUP_CB", post_startup_cb)
         .define("CFG_PRELOAD", preload)
