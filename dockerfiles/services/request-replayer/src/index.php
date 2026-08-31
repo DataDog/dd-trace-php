@@ -47,6 +47,9 @@ function decodeDogStatsDMetrics($metrics)
     return $decodedMetrics;
 }
 
+// v1 (`/v1.0/traces`) msgpack decoder, normalizing to the v0.4 per-span view.
+require __DIR__ . '/msgpack_v1_decoder.php';
+
 $uri = explode("?", $_SERVER['REQUEST_URI'])[0];
 
 $temp_location = sys_get_temp_dir();
@@ -260,7 +263,22 @@ switch ($uri) {
         file_put_contents(REQUEST_AGENT_INFO_FILE, $raw);
         break;
     case '/info':
-        $file = @file_get_contents(REQUEST_AGENT_INFO_FILE) ?: "{}";
+        // Default advertises /v1.0/traces so the sidecar (8.3+) and the in-process (<=8.2) sender
+        // both negotiate the v1 wire. Tests that need a specific /info still override it via
+        // /set-agent-info (the written file is served verbatim, untouched by this default).
+        $default_info = json_encode([
+            "endpoints" => [
+                "/v0.4/traces",
+                "/v0.6/stats",
+                "/v0.7/config",
+                "/v1.0/traces",
+                "/telemetry/proxy/",
+                "/evp_proxy/v2/",
+            ],
+            "client_drop_p0s" => false,
+            "version" => "7.66.0",
+        ], JSON_UNESCAPED_SLASHES);
+        $file = @file_get_contents(REQUEST_AGENT_INFO_FILE) ?: $default_info;
         logRequest('Requested /info endpoint, returning ' . $file);
         header("datadog-agent-state: " . sha1($file));
         echo $file;
@@ -317,8 +335,14 @@ switch ($uri) {
             }
         } else {
             $raw = file_get_contents('php://input');
-            if ((isset($headers['Content-Type']) && $headers['Content-Type'] === 'application/msgpack')
-                || (isset($headers['content-type']) && $headers['content-type'] === 'application/msgpack')) {
+            $isMsgpack = (isset($headers['Content-Type']) && $headers['Content-Type'] === 'application/msgpack')
+                || (isset($headers['content-type']) && $headers['content-type'] === 'application/msgpack');
+            if ($isMsgpack && substr($uri, -strlen('/v1.0/traces')) === '/v1.0/traces') {
+                // v1 (`/v1.0/traces`) wire: integer keys, streaming string table, typed AnyValue.
+                // Normalize it back to the canonical v0.4 per-span view the PHPUnit tests read.
+                $decoder = new V1TraceDecoder($raw);
+                $body = json_encode($decoder->decode());
+            } elseif ($isMsgpack) {
                 // We unpack in two phases:
                 //  1) using UnpackOptions::BIGINT_AS_GMP and only asserting that trace_id, span_id and parent_id are either
                 //     integers (when <= PHP_INT_MAX) or GMP (when > PHP_INT_MAX);
