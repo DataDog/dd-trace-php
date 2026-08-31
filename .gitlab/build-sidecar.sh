@@ -19,7 +19,8 @@ if [ "${suffix}" = "-alpine" ]; then
   export PATH="/root/.cargo/bin:$PATH"
 fi
 
-SHARED=1 PROFILE=tracer-release host_os="${HOST_OS}" ./compile_rust.sh
+DDTRACE_PHP_INCLUDES="$(php-config --includes)" \
+  SHARED=1 PROFILE=tracer-release host_os="${HOST_OS}" ./compile_rust.sh
 cp -v "${CARGO_TARGET_DIR:-target}/tracer-release/libdatadog_php.a" "libdatadog_php_$(uname -m)${suffix}.a"
 output="libdatadog_php_$(uname -m)${suffix}.so"
 objcopy --compress-debug-sections "${CARGO_TARGET_DIR:-target}/tracer-release/libdatadog_php.so" "${output}"
