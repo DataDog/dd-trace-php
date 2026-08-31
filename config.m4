@@ -89,7 +89,10 @@ if test "$PHP_DDTRACE_PROFILING" != "no"; then
   PHP_SUBST(PHP_MODULES)
 
   cat <<EOT >> Makefile.fragments
-$profiler_rust_lib: \$(shell for dir in \$(srcdir)/components-rs \$(srcdir)/profiling \$(srcdir)/libdatadog \$(srcdir)/../../libdatadog; do test ! -d \$\$dir || find \$\$dir \( -type f -o -type l \) \( -name '*.rs' -o -name '*.c' -o -name '*.h' -o -name Cargo.toml \) -not -path '*/target/*' -not -path '*/.git/*'; done) \$(srcdir)/ext/configuration.h \$(srcdir)/ext/configuration_helpers.h \$(srcdir)/ext/configuration_shared.h \$(srcdir)/tracer/configuration.h \$(srcdir)/ext/handlers_api.c \$(srcdir)/ext/handlers_api.h \$(srcdir)/Cargo.toml \$(srcdir)/Cargo.lock \$(srcdir)/VERSION
+.PHONY: ddtrace-profiler-rust-build
+ddtrace-profiler-rust-build:
+
+$profiler_rust_lib: ddtrace-profiler-rust-build \$(shell for dir in \$(srcdir)/components-rs \$(srcdir)/profiling \$(srcdir)/libdatadog \$(srcdir)/../../libdatadog; do test ! -d \$\$dir || find \$\$dir \( -type f -o -type l \) \( -name '*.rs' -o -name '*.c' -o -name '*.h' -o -name Cargo.toml \) -not -path '*/target/*' -not -path '*/.git/*'; done) \$(srcdir)/ext/configuration.h \$(srcdir)/ext/configuration_helpers.h \$(srcdir)/ext/configuration_shared.h \$(srcdir)/tracer/configuration.h \$(srcdir)/ext/handlers_api.c \$(srcdir)/ext/handlers_api.h \$(srcdir)/Cargo.toml \$(srcdir)/Cargo.lock \$(srcdir)/VERSION
 	(cd "\$(srcdir)"; DDTRACE_PHP_INCLUDES="\$(INCLUDES)" CARGO_TARGET_DIR="$profiler_target_dir" RUSTFLAGS="\$(RUSTFLAGS) --cfg tokio_unstable" "\$(DDTRACE_CARGO)" build $DDTRACE_PROFILING_CARGO_BUILD_FLAGS $profiler_target_arg --no-default-features --features "profiling${DDTRACE_PROFILING_FEATURES:+,$DDTRACE_PROFILING_FEATURES}" $(test "$profiler_cargo_profile" = debug || echo --profile "$profiler_cargo_profile") \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+"))
 
 \$(phplibdir)/datadog-profiling.la: $profiler_rust_lib
