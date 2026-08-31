@@ -2362,6 +2362,12 @@ dd_span_sink ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_T
             log("Encoding span: %s", span_log.ptr);
             ddog_free_charslice(span_log);
         });
+    } else if (sink.builder) {
+        LOGEV(SPAN, {
+            ddog_CharSlice span_log = ddog_v1_span_debug_log(sink.builder, sink.chunk, sink.span);
+            log("Encoding span: %s", span_log.ptr);
+            ddog_free_charslice(span_log);
+        });
     }
 
     zend_array *meta_struct = ddtrace_property_array(&span->property_meta_struct);

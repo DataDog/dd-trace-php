@@ -1477,4 +1477,18 @@ bool ddog_v1_get_event_attr_bool(const struct ddog_TracerPayloadV1Builder *build
                                  uintptr_t event,
                                  uintptr_t idx);
 
+/**
+ * Renders the span at index `chunk`/`span` as a human-readable diagnostic string, mirroring the
+ * v0.4 [`crate::span::ddog_span_debug_log`] used by dd-trace-php to emit the `DD_TRACE_DEBUG`
+ * "[span] Encoding span: …" line on the V1 path. Unlike the v0.4 variant it is index-addressed (the
+ * V1 builder never hands out `&mut`/`&` span handles to C); an out-of-range index yields an empty
+ * slice.
+ *
+ * The returned slice is an owned allocation that must be freed with the very same free function as
+ * the v0.4 variant, [`crate::span::ddog_free_charslice`].
+ */
+ddog_CharSlice ddog_v1_span_debug_log(const struct ddog_TracerPayloadV1Builder *builder,
+                                      uintptr_t chunk,
+                                      uintptr_t span);
+
 #endif  /* DDOG_SIDECAR_H */
