@@ -228,15 +228,17 @@ class DrupalIntegration extends Integration
             }
         );
 
-        // install_hook's callbacks are not gated by the span limit while trace_method is, so
-        // past the limit a nested render gets no span and active_span() is the outer render's:
-        // tagging it would attribute the wrong template.
-        $tagTemplateFile = static function ($file) {
-            $span = active_span();
-            if (!$span || $span->name !== 'drupal.theme.render' || \dd_trace_tracer_is_limited()) {
-                return;
+        // The span of the ThemeManager::render frame currently executing, or null when that
+        // frame has none of its own. An ancestor render span carries the same name under
+        // 'recurse' => true, so the tag target can only be matched by identity.
+        $renderSpan = null;
+
+        $tagTemplateFile = static function ($file) use (&$renderSpan) {
+            // A nested render whose span was dropped leaves active_span() on its ancestor,
+            // which would otherwise take the inner template.
+            if ($renderSpan && $renderSpan === active_span()) {
+                $renderSpan->meta['drupal.template.file'] = $file;
             }
-            $span->meta['drupal.template.file'] = $file;
         };
 
         // Drupal 11.3+ renders through a theme_engine service instead of {engine}_render_template().
@@ -250,43 +252,6 @@ class DrupalIntegration extends Integration
                     $file .= '.html.twig';
                 }
                 $tagTemplateFile($file);
-            }
-        );
-
-        // Drupal <= 11.2 renders through the {engine}_render_template() global. The per-render
-        // hook id travels in $hook->data, which is per-invocation and therefore nests without
-        // bookkeeping; and this end hook still runs when the tracing posthook is skipped,
-        // i.e. for a dropped or span-limited render.
-        install_hook(
-            'Drupal\Core\Theme\ThemeManager::render',
-            function (HookData $hook) use ($tagTemplateFile) {
-                /** @var \Drupal\Core\Theme\ThemeManager $this */
-                $themeEngine = $this->getActiveTheme()->getEngine();
-                // The theme engine may use a different extension and a different renderer
-                // Moreover, Drupal can use different themes in the same application
-                if (empty($themeEngine) || !\function_exists("{$themeEngine}_render_template")) {
-                    return;
-                }
-                // Take the legacy branch only when no engine service resolves, as core does.
-                if (\property_exists($this, 'themeEngines') && $this->themeEngines->has($themeEngine)) {
-                    return;
-                }
-
-                $hook->data = install_hook(
-                    "{$themeEngine}_render_template",
-                    static function (HookData $renderHook) use ($tagTemplateFile) {
-                        $tagTemplateFile($renderHook->args[0]);
-                        // Self-removal keeps outer/inner render pairing correct.
-                        remove_hook($renderHook->id);
-                    }
-                );
-            },
-            static function (HookData $hook) {
-                // render() can return without ever calling the render function (unknown theme
-                // hook, exception), so the callback's self-removal cannot be the only one.
-                if (!empty($hook->data)) {
-                    remove_hook($hook->data);
-                }
             }
         );
 
@@ -385,6 +350,52 @@ class DrupalIntegration extends Integration
                     }
                 }
             ]
+        );
+
+        // Must follow the trace_method: begin hooks run in install order, so active_span() is our own span.
+        // Drupal <= 11.2 renders through the {engine}_render_template() global; the per-render
+        // hook id travels in $hook->data, which is per-invocation and therefore nests without
+        // bookkeeping, and this end hook still runs when the tracing posthook is skipped,
+        // i.e. for a dropped or span-limited render.
+        install_hook(
+            'Drupal\Core\Theme\ThemeManager::render',
+            function (HookData $hook) use (&$renderSpan, $tagTemplateFile) {
+                $enclosing = $renderSpan;
+                // Past the span limit this frame gets no span of its own and active_span()
+                // would be its parent's, so claim nothing.
+                $span = \dd_trace_tracer_is_limited() ? null : active_span();
+                $renderSpan = ($span && $span->name === 'drupal.theme.render') ? $span : null;
+                $hook->data = [$enclosing, null];
+
+                /** @var \Drupal\Core\Theme\ThemeManager $this */
+                $themeEngine = $this->getActiveTheme()->getEngine();
+                // The theme engine may use a different extension and a different renderer
+                // Moreover, Drupal can use different themes in the same application
+                if (empty($themeEngine) || !\function_exists("{$themeEngine}_render_template")) {
+                    return;
+                }
+                // Take the legacy branch only when no engine service resolves, as core does.
+                if (\property_exists($this, 'themeEngines') && $this->themeEngines->has($themeEngine)) {
+                    return;
+                }
+
+                $hook->data = [$enclosing, install_hook(
+                    "{$themeEngine}_render_template",
+                    static function (HookData $renderHook) use ($tagTemplateFile) {
+                        $tagTemplateFile($renderHook->args[0]);
+                        // Self-removal keeps outer/inner render pairing correct.
+                        remove_hook($renderHook->id);
+                    }
+                )];
+            },
+            static function (HookData $hook) use (&$renderSpan) {
+                $renderSpan = $hook->data[0];
+                // render() can return without ever calling the render function (unknown theme
+                // hook, exception), so the callback's self-removal cannot be the only one.
+                if (!empty($hook->data[1])) {
+                    remove_hook($hook->data[1]);
+                }
+            }
         );
 
         hook_method(
