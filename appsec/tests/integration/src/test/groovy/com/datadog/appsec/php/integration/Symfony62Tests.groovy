@@ -252,6 +252,11 @@ class Symfony62Tests {
                     it.operationName == 'http.request' &&
                     it.resourceName == 'GET /normalized/utf8/{föo}'
         } != null
+        assert endpoints.find {
+            it.path == '/normalized/ambiguous/{slug}.{format}' && it.method == 'GET' &&
+                    it.operationName == 'http.request' &&
+                    it.resourceName == 'GET /normalized/ambiguous/{slug}.{format}'
+        } != null
     }
 
     @Test
@@ -366,5 +371,24 @@ class Symfony62Tests {
         Span span = trace.first()
         assert span.meta.'http.route' == '/article/{slug}.{_format}'
         assert span.meta.'_dd.appsec.normalized_route' == '/article/{slug+_format}'
+    }
+
+    @Test
+    @Order(18)
+    void 'route requirements distinguish an absent defaulted mixed parameter'() {
+        HttpRequest req = container.buildReq('/normalized/ambiguous/foo.bar').GET().build()
+        Trace trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 200
+            assert re.body() == 'Ambiguous mixed route: foo.bar/html'
+        }
+
+        Span span = trace.first()
+        assert span.meta.'http.route' ==
+                '/normalized/ambiguous/{slug}.{format}'
+        // Symfony matched the entire "foo.bar" value as slug and supplied
+        // format from its default. URL-only inference ignores the framework
+        // requirements and incorrectly treats "bar" as a matched format.
+        assert span.meta.'_dd.appsec.normalized_route' ==
+                '/normalized/ambiguous/{slug}'
     }
 }
