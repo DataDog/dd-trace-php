@@ -1,0 +1,26 @@
+{
+  "scale_by_duration": true,
+  "test_name": "php_socket_io",
+  "stacks": [
+    {
+      "profile-type": "socket-write-size",
+      "stack-content": [
+        {
+          "regular_expression": "<?php;main;write_to_socket;standard\\|fwrite$",
+          "percent": 100,
+          "error_margin": 1
+        }
+      ]
+    },
+    {
+      "profile-type": "socket-read-size",
+      "stack-content": [
+        {
+          "regular_expression": "<?php;main;read_from_socket;standard\\|fread$",
+          "percent": 100,
+          "error_margin": 1
+        }
+      ]
+    }
+  ]
+}
