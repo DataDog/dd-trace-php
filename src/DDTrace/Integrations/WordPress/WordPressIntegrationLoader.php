@@ -742,7 +742,7 @@ class WordPressIntegrationLoader
                         // (?:([^/]+)-)? absent vs present) get distinct cache entries.
                         $wpParticipation = null;
                         if ($urlPath !== null) {
-                            if (@preg_match('#^' . $matchedRule . '#', ltrim($urlPath, '/'), $_wpc)) {
+                            if (@preg_match('#^' . $matchedRule . '#', trim($urlPath, '/'), $_wpc)) {
                                 $_bits = [];
                                 for ($_wi = 1; $_wi < count($_wpc); $_wi++) {
                                     $_bits[] = (isset($_wpc[$_wi]) && $_wpc[$_wi] !== '') ? '1' : '0';
