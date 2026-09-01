@@ -1102,23 +1102,18 @@ PHP_FUNCTION(dd_trace_serialize_closed_spans) {
 
     ddtrace_mark_all_span_stacks_flushable();
 
-    // Mirror the send path: on the sidecar/V1 path spans are finalized directly into the native V1
-    // builder and introspected via the V1 getters (V1-shaped array); otherwise use the V0.4 model.
-    bool use_sidecar = get_global_DD_TRACE_SIDECAR_TRACE_SENDER() && DATADOG_G(sidecar);
-    ddtrace_v1_ctx v1_ctx = {.builder = NULL, .chunk = DD_V1_CHUNK_NONE};
-    ddtrace_v1_ctx *v1 = NULL;
-    if (use_sidecar) {
-        v1_ctx.builder = ddog_v1_new_builder();
-        v1 = &v1_ctx;
-    }
+    // Introspection is a debug view and must be uniformly V1-shaped on ALL PHP versions,
+    // independent of which sender performs the actual wire flush. The native V1 builder is an
+    // in-memory structure and does not require an active sidecar, so we always finalize spans into
+    // it and read them back via the V1 getters. The wire flush stays sender-gated elsewhere.
+    ddtrace_v1_ctx v1_ctx = {.builder = ddog_v1_new_builder(), .chunk = DD_V1_CHUNK_NONE};
+    ddtrace_v1_ctx *v1 = &v1_ctx;
 
     ddog_TracesBytes *traces = ddog_get_traces();
     ddtrace_serialize_closed_spans_with_cycle(traces, v1, false);
 
-    zval traces_zv = v1 ? dd_serialize_rust_v1_to_zval(v1->builder) : dd_serialize_rust_traces_to_zval(traces);
-    if (v1) {
-        ddog_v1_free_builder(v1->builder);
-    }
+    zval traces_zv = dd_serialize_rust_v1_to_zval(v1->builder);
+    ddog_v1_free_builder(v1->builder);
 
     if (zend_hash_num_elements(Z_ARR(traces_zv)) == 1) {
         ZVAL_COPY(return_value, zend_hash_get_current_data(Z_ARR(traces_zv)));
