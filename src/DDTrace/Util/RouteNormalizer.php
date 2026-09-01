@@ -110,7 +110,11 @@ class RouteNormalizer
         // that didn't participate are skipped instead of emitting phantom params.
         $matchedGroups = null;
         if ($urlPath !== null) {
-            if (@preg_match('#^' . $matchedRule . '#', ltrim($urlPath, '/'), $captures)) {
+            // Strip both leading and trailing slashes: WordPress $wp->request often includes
+            // a trailing slash, but many WordPress regex rules end with `$` (no `/?`), so a
+            // trailing slash causes the match to fail and leaves $matchedGroups null — which
+            // then treats all optional capture groups as present and produces the wrong shape.
+            if (@preg_match('#^' . $matchedRule . '#', trim($urlPath, '/'), $captures)) {
                 $matchedGroups = [];
                 for ($i = 1; $i < count($captures); $i++) {
                     if (isset($captures[$i]) && $captures[$i] !== '') {
