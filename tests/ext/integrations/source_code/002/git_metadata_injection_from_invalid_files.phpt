@@ -28,14 +28,14 @@ function makeRequest() {
     \DDTrace\close_span();
 
     $closedSpans = dd_clean_spans();
-    $rootMeta = $closedSpans[0]['meta'];
+    $rootMeta = $closedSpans[0]['attributes'];
     var_dump($rootMeta);
 
     \DDTrace\start_span();
     \DDTrace\close_span();
 
     $closedRoot = dd_clean_spans();
-    $rootMeta2 = $closedRoot[0]['meta'];
+    $rootMeta2 = $closedRoot[0]['attributes'];
     var_dump($rootMeta2);
 }
 
@@ -55,43 +55,67 @@ function rm_rf($dir) {
 rm_rf(__DIR__ . '/.git');
 ?>
 --EXPECTF--
-array(4) {
-  ["_dd.git.repository_url"]=>
-  string(32) "https://github.com/user/repo_new"
-  ["_dd.p.dm"]=>
-  string(2) "-0"
-  ["_dd.p.tid"]=>
-  string(16) "%s"
+array(7) {
   ["runtime-id"]=>
   string(%d) "%s"
+  ["_dd.git.repository_url"]=>
+  string(32) "https://github.com/user/repo_new"
+  ["process_id"]=>
+  float(%f)
+  ["_dd.agent_psr"]=>
+  float(1)
+  ["php.compilation.total_time_ms"]=>
+  float(%f)
+  ["php.memory.peak_usage_bytes"]=>
+  float(%f)
+  ["php.memory.peak_real_usage_bytes"]=>
+  float(%f)
 }
-array(4) {
-  ["_dd.git.repository_url"]=>
-  string(32) "https://github.com/user/repo_new"
-  ["_dd.p.dm"]=>
-  string(2) "-0"
-  ["_dd.p.tid"]=>
-  string(16) "%s"
+array(7) {
   ["runtime-id"]=>
   string(%d) "%s"
+  ["_dd.git.repository_url"]=>
+  string(32) "https://github.com/user/repo_new"
+  ["process_id"]=>
+  float(%f)
+  ["_dd.agent_psr"]=>
+  float(1)
+  ["php.compilation.total_time_ms"]=>
+  float(%f)
+  ["php.memory.peak_usage_bytes"]=>
+  float(%f)
+  ["php.memory.peak_real_usage_bytes"]=>
+  float(%f)
 }
-array(4) {
-  ["_dd.git.repository_url"]=>
-  string(32) "https://github.com/user/repo_new"
-  ["_dd.p.dm"]=>
-  string(2) "-0"
-  ["_dd.p.tid"]=>
-  string(16) "%s"
+array(7) {
   ["runtime-id"]=>
   string(%d) "%s"
+  ["_dd.git.repository_url"]=>
+  string(32) "https://github.com/user/repo_new"
+  ["process_id"]=>
+  float(%f)
+  ["_dd.agent_psr"]=>
+  float(1)
+  ["php.compilation.total_time_ms"]=>
+  float(%f)
+  ["php.memory.peak_usage_bytes"]=>
+  float(%f)
+  ["php.memory.peak_real_usage_bytes"]=>
+  float(%f)
 }
-array(4) {
-  ["_dd.git.repository_url"]=>
-  string(32) "https://github.com/user/repo_new"
-  ["_dd.p.dm"]=>
-  string(2) "-0"
-  ["_dd.p.tid"]=>
-  string(16) "%s"
+array(7) {
   ["runtime-id"]=>
   string(%d) "%s"
+  ["_dd.git.repository_url"]=>
+  string(32) "https://github.com/user/repo_new"
+  ["process_id"]=>
+  float(%f)
+  ["_dd.agent_psr"]=>
+  float(1)
+  ["php.compilation.total_time_ms"]=>
+  float(%f)
+  ["php.memory.peak_usage_bytes"]=>
+  float(%f)
+  ["php.memory.peak_real_usage_bytes"]=>
+  float(%f)
 }

@@ -31,17 +31,23 @@ function dd_dump_spans($skipMeta = false)
         if (!empty($values)) {
             echo ' (' . implode(', ', $values) . ')';
         }
-        if (isset($span['meta']['error.message'])) {
-            echo ' (error: ' . $span['meta']['error.message'] . ')';
+        if (isset($span['attributes']['error.message'])) {
+            echo ' (error: ' . $span['attributes']['error.message'] . ')';
         }
-        if (isset($span['meta'])) {
+        if (isset($span['attributes'])) {
             if ($skipMeta) {
-                unset($span['meta']['_dd.p.dm']);
+                unset($span['attributes']['_dd.p.dm']);
             }
             echo PHP_EOL;
-            unset($span["meta"]["runtime-id"]);
-            unset($span["meta"]["_dd.tags.process"]);
-            foreach ($span['meta'] as $k => $v) {
+            unset($span["attributes"]["runtime-id"]);
+            unset($span["attributes"]["_dd.tags.process"]);
+            // The v1 introspection shape merges the old meta (strings) and metrics
+            // (numbers) into a single attributes map. This dumper historically showed
+            // only string meta, so keep string-valued attributes to preserve its view.
+            foreach ($span['attributes'] as $k => $v) {
+                if (!is_string($v)) {
+                    continue;
+                }
                 echo str_repeat(' ', $indent) . '  ' . $k . ' => ' . $v . PHP_EOL;
             }
         } else {
@@ -80,10 +86,10 @@ function dd_dump_spans($skipMeta = false)
 function dd_clean_spans() {
     $spans = dd_trace_serialize_closed_spans();
     foreach ($spans as &$span) {
-        if (isset($span['meta'])) {
-            unset($span['meta']['_dd.tags.process']);
-            if (empty($span['meta'])) {
-                unset($span['meta']);
+        if (isset($span['attributes'])) {
+            unset($span['attributes']['_dd.tags.process']);
+            if (empty($span['attributes'])) {
+                unset($span['attributes']);
             }
         }
     }

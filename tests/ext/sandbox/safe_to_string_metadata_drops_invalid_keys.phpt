@@ -20,8 +20,8 @@ DDTrace\trace_function('meta_to_string', function (SpanData $span) {
 meta_to_string();
 
 list($span) = dd_clean_spans();
-unset($span['meta']['process_id']);
-var_dump($span['meta']);
+unset($span['attributes']['process_id']);
+var_dump($span['attributes']);
 ?>
 --EXPECT--
 array(2) {

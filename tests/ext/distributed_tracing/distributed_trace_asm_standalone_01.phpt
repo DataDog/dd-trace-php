@@ -28,7 +28,7 @@ var_dump(dd_clean_spans());
 --EXPECTF--
 array(2) {
   [0]=>
-  array(11) {
+  array(14) {
     ["trace_id"]=>
     string(2) "42"
     ["span_id"]=>
@@ -47,39 +47,38 @@ array(2) {
     string(39) "distributed_trace_asm_standalone_01.php"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
-    array(6) {
-      ["_dd.origin"]=>
-      string(7) "datadog"
+    ["span_kind"]=>
+    int(1)
+    ["sampling_priority"]=>
+    int(1)
+    ["sampling_mechanism"]=>
+    int(0)
+    ["origin"]=>
+    string(7) "datadog"
+    ["attributes"]=>
+    array(9) {
       ["_dd.p.custom_tag"]=>
       string(9) "inherited"
-      ["_dd.p.dm"]=>
-      string(2) "-0"
-      ["_dd.p.other_tag"]=>
-      string(4) "also"
       ["_dd.propagation_error"]=>
       string(14) "decoding_error"
+      ["_dd.p.other_tag"]=>
+      string(4) "also"
       ["runtime-id"]=>
       string(36) "%s"
-    }
-    ["metrics"]=>
-    array(6) {
+      ["process_id"]=>
+      float(%f)
       ["_dd.apm.enabled"]=>
       float(0)
-      ["_sampling_priority_v1"]=>
-      float(1)
       ["php.compilation.total_time_ms"]=>
-      float(%f)
-      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
       ["php.memory.peak_usage_bytes"]=>
       float(%f)
-      ["process_id"]=>
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
     }
   }
   [1]=>
-  array(11) {
+  array(14) {
     ["trace_id"]=>
     string(2) "42"
     ["span_id"]=>
@@ -98,12 +97,15 @@ array(2) {
     string(39) "distributed_trace_asm_standalone_01.php"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
-    array(1) {
-      ["_dd.origin"]=>
-      string(7) "datadog"
-    }
-    ["metrics"]=>
+    ["span_kind"]=>
+    int(1)
+    ["sampling_priority"]=>
+    int(1)
+    ["sampling_mechanism"]=>
+    int(0)
+    ["origin"]=>
+    string(7) "datadog"
+    ["attributes"]=>
     array(1) {
       ["_dd.apm.enabled"]=>
       float(0)

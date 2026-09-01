@@ -58,9 +58,11 @@ bool(true)
 float(2000000000)
 array(2) {
   [0]=>
-  array(10) {
+  array(13) {
     ["trace_id"]=>
     string(%d) "%d"
+    ["trace_id_high"]=>
+    string(16) "%s"
     ["span_id"]=>
     string(%d) "%d"
     ["start"]=>
@@ -75,35 +77,34 @@ array(2) {
     string(34) "start_span_with_all_properties.php"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
-    array(3) {
-      ["_dd.p.dm"]=>
-      string(2) "-0"
-      ["_dd.p.tid"]=>
-      string(16) "%s"
+    ["span_kind"]=>
+    int(1)
+    ["sampling_priority"]=>
+    int(1)
+    ["sampling_mechanism"]=>
+    int(0)
+    ["attributes"]=>
+    array(6) {
       ["runtime-id"]=>
       string(36) "%s"
-    }
-    ["metrics"]=>
-    array(6) {
+      ["process_id"]=>
+      float(%f)
       ["_dd.agent_psr"]=>
-      float(1)
-      ["_sampling_priority_v1"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
-      ["php.memory.peak_real_usage_bytes"]=>
-      float(%f)
       ["php.memory.peak_usage_bytes"]=>
       float(%f)
-      ["process_id"]=>
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
     }
   }
   [1]=>
-  array(10) {
+  array(13) {
     ["trace_id"]=>
     string(%d) "%d"
+    ["trace_id_high"]=>
+    string(16) "%s"
     ["span_id"]=>
     string(%d) "%d"
     ["start"]=>
@@ -118,34 +119,31 @@ array(2) {
     string(4) "test"
     ["type"]=>
     string(6) "runner"
-    ["meta"]=>
-    array(5) {
-      ["_dd.p.dm"]=>
-      string(2) "-0"
-      ["_dd.p.tid"]=>
-      string(16) "%s"
+    ["span_kind"]=>
+    int(1)
+    ["sampling_priority"]=>
+    int(1)
+    ["sampling_mechanism"]=>
+    int(0)
+    ["attributes"]=>
+    array(9) {
+      ["runtime-id"]=>
+      string(36) "%s"
       ["_dd.svc_src"]=>
       string(1) "m"
       ["aa"]=>
       string(2) "bb"
-      ["runtime-id"]=>
-      string(36) "%s"
-    }
-    ["metrics"]=>
-    array(7) {
-      ["_dd.agent_psr"]=>
-      float(1)
-      ["_sampling_priority_v1"]=>
-      float(1)
+      ["process_id"]=>
+      float(%f)
       ["cc"]=>
       float(0)
+      ["_dd.agent_psr"]=>
+      float(1)
       ["php.compilation.total_time_ms"]=>
-      float(%f)
-      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
       ["php.memory.peak_usage_bytes"]=>
       float(%f)
-      ["process_id"]=>
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
     }
   }

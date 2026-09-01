@@ -32,4 +32,4 @@ try {
 array_sum hooked.
 [ddtrace] [warning] [%d] Exception thrown in ddtrace's closure defined at %s:%d for array_sum(): ! in %s on line %d
 Sum = 4.
-[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for %s
+[ddtrace] [info] [%d] Flushing v1 trace of size 1 to send-queue for %s

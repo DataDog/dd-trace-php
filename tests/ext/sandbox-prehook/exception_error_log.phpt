@@ -15,4 +15,4 @@ var_dump($sum);
 --EXPECTF--
 [ddtrace] [warning] [%d] RuntimeException thrown in ddtrace's closure defined at %s:%d for array_sum(): This exception is expected in %s on line %d
 int(9)
-[ddtrace] [info] [%d] Flushing trace of size 2 to send-queue for %s
+[ddtrace] [info] [%d] Flushing v1 trace of size 2 to send-queue for %s

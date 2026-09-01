@@ -23,9 +23,11 @@ var_dump(dd_clean_spans());
 --EXPECTF--
 array(2) {
   [0]=>
-  array(10) {
+  array(13) {
     ["trace_id"]=>
     string(%d) "%d"
+    ["trace_id_high"]=>
+    string(16) "%s"
     ["span_id"]=>
     string(%d) "%d"
     ["start"]=>
@@ -40,37 +42,36 @@ array(2) {
     string(22) "commit_sha_env_var.php"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
-    array(4) {
-      ["_dd.git.commit.sha"]=>
-      string(6) "123456"
-      ["_dd.p.dm"]=>
-      string(2) "-0"
-      ["_dd.p.tid"]=>
-      string(16) "%s"
+    ["span_kind"]=>
+    int(1)
+    ["sampling_priority"]=>
+    int(1)
+    ["sampling_mechanism"]=>
+    int(0)
+    ["attributes"]=>
+    array(7) {
       ["runtime-id"]=>
       string(%d) "%s"
-    }
-    ["metrics"]=>
-    array(6) {
+      ["_dd.git.commit.sha"]=>
+      string(6) "123456"
+      ["process_id"]=>
+      float(%f)
       ["_dd.agent_psr"]=>
-      float(1)
-      ["_sampling_priority_v1"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
-      ["php.memory.peak_real_usage_bytes"]=>
-      float(%f)
       ["php.memory.peak_usage_bytes"]=>
       float(%f)
-      ["process_id"]=>
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
     }
   }
   [1]=>
-  array(9) {
+  array(13) {
     ["trace_id"]=>
     string(%d) "%d"
+    ["trace_id_high"]=>
+    string(16) "%s"
     ["span_id"]=>
     string(%d) "%d"
     ["parent_id"]=>
@@ -87,5 +88,11 @@ array(2) {
     string(22) "commit_sha_env_var.php"
     ["type"]=>
     string(3) "cli"
+    ["span_kind"]=>
+    int(1)
+    ["sampling_priority"]=>
+    int(1)
+    ["sampling_mechanism"]=>
+    int(0)
   }
 }
