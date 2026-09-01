@@ -76,17 +76,17 @@ for architecture in "${architectures[@]}"; do
 
         mkdir -p ${gnu}/trace/ext/${php_api} ${musl}/trace/ext/${php_api}
         if [[ ${php_api} -ge 20160303 ]]; then
-            # Profiling-capable PHP versions use the self-contained combined artifact.
-            stripto ./combined-ddtrace/${architecture}-unknown-linux-gnu/lib/php/${php_api}/ddtrace.so \
+            # Profiling-capable PHP versions are built as combined artifacts.
+            stripto ./extensions_${architecture}/ddtrace-${php_api}.so \
                 ${gnu}/trace/ext/${php_api}/ddtrace.so
-            stripto ./combined-ddtrace/${architecture}-unknown-linux-gnu/lib/php/${php_api}/ddtrace-zts.so \
+            stripto ./extensions_${architecture}/ddtrace-${php_api}-zts.so \
                 ${gnu}/trace/ext/${php_api}/ddtrace-zts.so
             touch ${gnu}/trace/ext/${php_api}/.ddtrace.profiling
             touch ${gnu}/trace/ext/${php_api}/.ddtrace-zts.profiling
 
-            stripto ./combined-ddtrace/${architecture}-alpine-linux-musl/lib/php/${php_api}/ddtrace.so \
+            stripto ./extensions_${architecture}/ddtrace-${php_api}-alpine.so \
                 ${musl}/trace/ext/${php_api}/ddtrace.so
-            stripto ./combined-ddtrace/${architecture}-alpine-linux-musl/lib/php/${php_api}/ddtrace-zts.so \
+            stripto ./extensions_${architecture}/ddtrace-${php_api}-alpine-zts.so \
                 ${musl}/trace/ext/${php_api}/ddtrace-zts.so
             touch ${musl}/trace/ext/${php_api}/.ddtrace.profiling
             touch ${musl}/trace/ext/${php_api}/.ddtrace-zts.profiling

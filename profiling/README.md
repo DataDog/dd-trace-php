@@ -4,7 +4,7 @@
 
 The profiler is implemented in Rust. To see the currently required Rust
 version, refer to the [rust-toolchain.toml](rust-toolchain.toml) file. The profiler
-requires PHP 7.1+, and does not support debug builds.
+requires PHP 7.1+ and supports both release and debug PHP builds.
 
 ## Time Profiling
 
@@ -80,10 +80,7 @@ DD_REMOTE_CONFIG_ENABLED=0 \
 /path/to/php /path/to/run-tests.php -d extension=modules/ddtrace.so -n profiling/tests/phpt
 ```
 
-Be aware that the PHPT tests will fail with the debug version of the profiler,
-if you haven't already, build the release version through configure and make.
-Also the `run-tests.php` version has to match the PHP version used to run the
-tests.
+The `run-tests.php` version has to match the PHP version used to run the tests.
 
 ## Benchmarks
 
