@@ -83,4 +83,19 @@ class HomeController extends AbstractController
     {
         return new Response('UTF-8 parameter route');
     }
+
+    #[Route(
+        "/normalized/ambiguous/{slug}.{format}",
+        name: "normalized_ambiguous_mixed",
+        defaults: ["format" => "html"],
+        requirements: ["slug" => ".+", "format" => "html|json"]
+    )]
+    public function normalizedAmbiguousMixedAction(
+        Request $request,
+        string $slug,
+        string $format
+    )
+    {
+        return new Response("Ambiguous mixed route: $slug/$format");
+    }
 }

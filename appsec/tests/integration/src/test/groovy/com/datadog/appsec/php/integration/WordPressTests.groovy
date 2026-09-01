@@ -239,4 +239,93 @@ class WordPressTests {
         assert presentSpan.meta.'_dd.appsec.normalized_route' ==
                 '/normalized-cache-shape/{param1}'
     }
+
+    @Test
+    @Order(8)
+    void 'escaped regex literals remain static route text'() {
+        Trace trace = CONTAINER.traceFromRequest('/normalized-literal/file.json/') {
+            HttpResponse<InputStream> response ->
+                assert response.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert span.meta.'http.route' == '^normalized-literal/file\\.json$'
+        assert span.meta.'_dd.appsec.normalized_route' ==
+                '/normalized-literal/file.json'
+    }
+
+    @Test
+    @Order(9)
+    void 'capture participation holes do not share a cached result shape'() {
+        Trace absentTrace = CONTAINER.traceFromRequest(
+                '/normalized-capture-hole/tail/') {
+            HttpResponse<InputStream> response ->
+                assert response.statusCode() == 200
+        }
+
+        Span absentSpan = absentTrace.first()
+        assert absentSpan.meta.'http.route' ==
+                '^normalized-capture-hole/(?:([^/]+)-)?([^/]+)$'
+        assert absentSpan.meta.'_dd.appsec.normalized_route' ==
+                '/normalized-capture-hole/{param2}'
+
+        Trace presentTrace = CONTAINER.traceFromRequest(
+                '/normalized-capture-hole/head-tail/') {
+            HttpResponse<InputStream> response ->
+                assert response.statusCode() == 200
+        }
+
+        Span presentSpan = presentTrace.first()
+        assert presentSpan.meta.'http.route' ==
+                '^normalized-capture-hole/(?:([^/]+)-)?([^/]+)$'
+        // Both requests have capture 2 as their highest participating index,
+        // but only this request includes capture 1. A highest-index cache key
+        // serves the absent shape cached by the preceding request.
+        assert presentSpan.meta.'_dd.appsec.normalized_route' ==
+                '/normalized-capture-hole/{param1+param2}'
+    }
+
+    @Test
+    @Order(10)
+    void 'named regex captures are counted and retain their framework name'() {
+        Trace trace = CONTAINER.traceFromRequest(
+                '/normalized-named-captures/first-second/') {
+            HttpResponse<InputStream> response ->
+                assert response.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert span.meta.'http.route' ==
+                '^normalized-named-captures/(?P<first>[^/]+)-' +
+                '(?P<second>[^/]+)/?$'
+        // Both named captures share one URL segment and must be present in its
+        // combined element. RFC-1103 does not define whether a route accepting
+        // both terminal-slash forms should retain '/', so accept either form.
+        String normalizedRoute = span.meta.'_dd.appsec.normalized_route'
+        assert normalizedRoute ==
+                '/normalized-named-captures/{first+second}' ||
+                normalizedRoute ==
+                '/normalized-named-captures/{first+second}/'
+    }
+
+    @Test
+    @Order(11)
+    void 'normalized route is absent when API Security is disabled'() {
+        PhpFpm fpm = new PhpFpm(CONTAINER)
+        try {
+            fpm.restart(['DD_API_SECURITY_ENABLED': 'false'])
+
+            Trace trace = CONTAINER.traceFromRequest('/normalized-cache/') {
+                HttpResponse<InputStream> response ->
+                    assert response.statusCode() == 200
+            }
+
+            Span span = trace.first()
+            assert span.meta.'http.route' ==
+                    '^normalized-cache(?:/([^/]+))?/?$'
+            assert span.meta.'_dd.appsec.normalized_route' == null
+        } finally {
+            fpm.restart()
+        }
+    }
 }
