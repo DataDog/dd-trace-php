@@ -1,24 +1,39 @@
 {
-  "scale_by_duration": true,
+  "scale_by_duration": false,
   "test_name": "php_socket_io",
+  "note": "4096 small and 8192 large 8 KiB operations produce 96 MiB; Poisson upscaling reports 100690324 bytes.",
   "stacks": [
     {
       "profile-type": "socket-write-size",
+      "error-margin": 5,
+      "value-matching-sum": 100690324,
       "stack-content": [
         {
-          "regular_expression": "<?php;main;write_to_socket;standard\\|fwrite$",
-          "percent": 100,
-          "error_margin": 1
+          "regular_expression": "<?php;main;small_socket_writes;standard\\|fwrite$",
+          "percent": 33,
+          "error_margin": 2
+        },
+        {
+          "regular_expression": "<?php;main;large_socket_writes;standard\\|fwrite$",
+          "percent": 66,
+          "error_margin": 2
         }
       ]
     },
     {
       "profile-type": "socket-read-size",
+      "error-margin": 5,
+      "value-matching-sum": 100690324,
       "stack-content": [
         {
-          "regular_expression": "<?php;main;read_from_socket;standard\\|fread$",
-          "percent": 100,
-          "error_margin": 1
+          "regular_expression": "<?php;main;small_socket_writes;read_from_socket;standard\\|fread$",
+          "percent": 33,
+          "error_margin": 2
+        },
+        {
+          "regular_expression": "<?php;main;large_socket_writes;read_from_socket;standard\\|fread$",
+          "percent": 66,
+          "error_margin": 2
         }
       ]
     }

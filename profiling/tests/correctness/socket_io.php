@@ -1,9 +1,8 @@
 <?php
 // Test socket I/O profiling over a loopback connection on an ephemeral port.
 
-function write_to_socket($socket, $data) {
-    return fwrite($socket, $data);
-}
+const OPERATION_COUNT = 4096;
+const OPERATION_SIZE = 8 * 1024;
 
 function read_from_socket($socket, $length) {
     $read = [$socket];
@@ -11,19 +10,31 @@ function read_from_socket($socket, $length) {
     if (stream_select($read, $write, $except, 1) !== 1) {
         throw new RuntimeException('Socket did not become readable');
     }
-    fread($socket, $length);
+    while ($length > 0) {
+        $length -= strlen(fread($socket, $length));
+    }
+}
+
+function small_socket_writes($writer, $reader, $data) {
+    for ($i = 0; $i < OPERATION_COUNT; $i++) {
+        read_from_socket($reader, fwrite($writer, $data));
+    }
+}
+
+function large_socket_writes($writer, $reader, $data) {
+    for ($i = 0; $i < OPERATION_COUNT * 2; $i++) {
+        read_from_socket($reader, fwrite($writer, $data));
+    }
 }
 
 function main() {
     $server = stream_socket_server('tcp://127.0.0.1:0');
     $client = stream_socket_client('tcp://' . stream_socket_get_name($server, false));
     $socket = stream_socket_accept($server);
-    $data = str_repeat('A', 8192);
+    $data = str_repeat('A', OPERATION_SIZE);
 
-    $end = microtime(true) + ($_ENV['EXECUTION_TIME'] ?? 10);
-    while (microtime(true) < $end) {
-        read_from_socket($socket, write_to_socket($client, $data));
-    }
+    small_socket_writes($client, $socket, $data);
+    large_socket_writes($client, $socket, $data);
 
     fclose($socket);
     fclose($client);
