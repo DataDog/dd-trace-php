@@ -300,25 +300,34 @@ class LaminasIntegration extends Integration
                             // Fully-required routes: template alone is sufficient.
                             $urlMatchedFromRegex = null;
                             if ($urlPath !== null && strpos($httpRoute, '%') !== false) {
-                                // Regex route: use actual route regex for accurate presence
-                                $_leafRoute = self::getLeafRouteFromNamedRouteStack($this, (string) $routeName);
-                                if ($_leafRoute instanceof \Laminas\Router\Http\Regex) {
-                                    $_rp = new ReflectionProperty($_leafRoute, 'regex');
-                                    $_rp->setAccessible(true);
-                                    $_routeRegex = $_rp->getValue($_leafRoute);
-                                    if ($_routeRegex !== null &&
-                                        @preg_match('(^' . $_routeRegex . '$)', $urlPath, $_rxm) === 1) {
-                                        $urlMatchedFromRegex = [];
-                                        foreach ($_rxm as $_k => $_v) {
-                                            if (!is_string($_k) || $_v === '') {
-                                                continue;
+                                // Regex route: use actual route regex for accurate presence.
+                                // Protected property access via Closure::bind (avoids
+                                // ReflectionProperty issues inside DDTrace sandbox).
+                                try {
+                                    $_leafRoute = self::getLeafRouteFromNamedRouteStack($this, (string) $routeName);
+                                    if ($_leafRoute instanceof \Laminas\Router\Http\Regex) {
+                                        $_routeRegex = \Closure::bind(
+                                            static function ($r) { return $r->regex; },
+                                            null,
+                                            \Laminas\Router\Http\Regex::class
+                                        )($_leafRoute);
+                                        if ($_routeRegex !== null &&
+                                            @preg_match('(^' . $_routeRegex . '$)', $urlPath, $_rxm) === 1) {
+                                            $urlMatchedFromRegex = [];
+                                            foreach ($_rxm as $_k => $_v) {
+                                                if (!is_string($_k) || $_v === '') {
+                                                    continue;
+                                                }
+                                                $urlMatchedFromRegex[$_k] = rawurldecode($_v);
                                             }
-                                            $urlMatchedFromRegex[$_k] = rawurldecode($_v);
                                         }
+                                        unset($_routeRegex, $_rxm, $_k, $_v);
                                     }
-                                    unset($_rp, $_routeRegex, $_rxm, $_k, $_v);
+                                    unset($_leafRoute);
+                                } catch (\Throwable $_ex) {
+                                    unset($_leafRoute, $_routeRegex, $_rxm, $_k, $_v, $_ex);
+                                    $urlMatchedFromRegex = null;
                                 }
-                                unset($_leafRoute);
                                 $_braceTemp = preg_replace('/%([a-zA-Z_][a-zA-Z0-9_]*)%/', '{$1}', $httpRoute);
                                 $_urlMatchedKeys = array_keys(
                                     $urlMatchedFromRegex ?? \DDTrace\Util\RouteNormalizer::inferSymfonyRouteParams($_braceTemp, $urlPath)

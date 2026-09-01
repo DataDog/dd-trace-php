@@ -841,15 +841,31 @@ class LaravelIntegration extends Integration
                         if ($k === $n) {
                             $regexBody .= preg_quote($staticParts[$n], '/');
                         }
-                        if (@preg_match('/^' . $regexBody . '$/', $urlSeg)) {
+                        if (@preg_match('/^' . $regexBody . '$/', $urlSeg, $_caps)) {
+                            // For optional params, verify the captured value matches
+                            // allParams. If it doesn't, the param is using a route
+                            // default injected by ->defaults() and was absent from the URL.
+                            $_valid = true;
                             for ($ri = 0; $ri < $k; $ri++) {
-                                if (array_key_exists($paramNames[$ri], $allParams)) {
-                                    $matched[$paramNames[$ri]] = $allParams[$paramNames[$ri]];
+                                $_isOpt = !empty($pm[$ri][2]);
+                                if ($_isOpt && array_key_exists($paramNames[$ri], $allParams) &&
+                                    isset($_caps[$ri + 1]) &&
+                                    (string)$allParams[$paramNames[$ri]] !== (string)$_caps[$ri + 1]) {
+                                    $_valid = false;
+                                    break;
                                 }
                             }
-                            break;
+                            if ($_valid) {
+                                for ($ri = 0; $ri < $k; $ri++) {
+                                    if (array_key_exists($paramNames[$ri], $allParams)) {
+                                        $matched[$paramNames[$ri]] = $allParams[$paramNames[$ri]];
+                                    }
+                                }
+                                break;
+                            }
                         }
                     }
+                    unset($_caps, $_valid, $_isOpt);
                 }
                 $urlIdx++;
             } else {
