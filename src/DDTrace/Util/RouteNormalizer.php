@@ -57,7 +57,7 @@ class RouteNormalizer
      *                                   VersionListener sets :version even without a /v1/ prefix)
      * @return string|null
      */
-    public static function normalizeFromLaminas(string $template, array $matchedParams = [], $urlPath = null)
+    public static function normalizeFromLaminas(string $template, array $matchedParams = [], $urlPath = null, $urlMatchedParams = null)
     {
         $expanded = self::expandBracketOptionals($template, $matchedParams, ':', $urlPath);
 
@@ -77,15 +77,15 @@ class RouteNormalizer
         // optional captures absent from the URL (e.g. format='html' when no .html in path).
         // Use the URL path to determine which params were actually URL-matched.
         if ($hasPercentParams && $urlPath !== null) {
-            $urlMatchedParams = self::inferSymfonyRouteParams($braceFormat, $urlPath);
+            $effectiveUrlMatchedParams = $urlMatchedParams ?? self::inferSymfonyRouteParams($braceFormat, $urlPath);
             $braceFormat = preg_replace_callback(
                 '/\{([^}?:]+)\}/',
-                static function ($m) use ($urlMatchedParams) {
-                    return array_key_exists($m[1], $urlMatchedParams) ? $m[0] : '{' . $m[1] . '?}';
+                static function ($m) use ($effectiveUrlMatchedParams) {
+                    return array_key_exists($m[1], $effectiveUrlMatchedParams) ? $m[0] : '{' . $m[1] . '?}';
                 },
                 $braceFormat
             );
-            return self::normalizeBraceRoute($braceFormat, $urlMatchedParams);
+            return self::normalizeBraceRoute($braceFormat, $effectiveUrlMatchedParams);
         }
 
         return self::normalizeBraceRoute($braceFormat, $matchedParams);
@@ -447,9 +447,11 @@ class RouteNormalizer
 
                     if (empty($innerParams)) {
                         // Static-only optional section (e.g. [/draft]):
-                        // only expand when the literal text appears in the URL.
+                        // only expand when the literal text appears in the URL
+                        // at a position > 0 (never at the very start, since optional
+                        // sections always follow mandatory route text).
                         if ($urlPath !== null) {
-                            return (strpos($urlPath, $inner) !== false) ? $inner : '';
+                            return (strpos($urlPath, $inner) > 0) ? $inner : '';
                         }
                         return $inner;
                     }
@@ -466,6 +468,9 @@ class RouteNormalizer
                         // multi-param sections like [/:year/:month] are found correctly.
                         // Use a word-boundary-aware replacement so :id is not replaced
                         // inside :id2 (str_replace(':id', ...) would corrupt ':id2').
+                        // Check position > 0: optional sections always follow mandatory
+                        // route text so a match at position 0 is a false positive (e.g.
+                        // the default value is identical to the mandatory route prefix).
                         $innerWithValues = $inner;
                         foreach ($innerParams as $param) {
                             $value = (string)$matchedParams[$param];
@@ -475,10 +480,11 @@ class RouteNormalizer
                                 $innerWithValues
                             );
                         }
-                        if (strpos($urlPath, $innerWithValues) !== false) {
+                        if (strpos($urlPath, $innerWithValues) > 0) {
                             return $inner;
                         }
-                        // Try percent-encoded values (Laminas URL-decodes param values)
+                        // Try percent-encoded values (Laminas URL-decodes param values).
+                        // Also try lowercase hex since browsers may send %c3%a9 for %C3%A9.
                         $innerEncoded = $inner;
                         foreach ($innerParams as $param) {
                             $value = rawurlencode((string)$matchedParams[$param]);
@@ -488,7 +494,8 @@ class RouteNormalizer
                                 $innerEncoded
                             );
                         }
-                        if (strpos($urlPath, $innerEncoded) !== false) {
+                        if (strpos($urlPath, $innerEncoded) > 0 ||
+                            strpos(strtolower($urlPath), strtolower($innerEncoded)) > 0) {
                             return $inner;
                         }
                         return '';
