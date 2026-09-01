@@ -316,7 +316,8 @@ pub extern "C" fn ddog_get_span_metrics_str(
 
 #[no_mangle]
 pub extern "C" fn ddog_del_span_metrics_str(ptr: &mut SpanBytes, key: *const c_char) {
-    ptr.metrics.remove_slow(&convert_literal_to_bytes_string(key));
+    ptr.metrics
+        .remove_slow(&convert_literal_to_bytes_string(key));
 }
 
 #[no_mangle]

@@ -3,7 +3,7 @@
 //! through an already-resolved [`ProfilerGlobals`] pointer whenever possible.
 
 use super::{AllocationProfilingStats, ALLOCATION_PROFILING_INTERVAL};
-use crate::module_globals::{self, ProfilerGlobals};
+use crate::profiling::module_globals::{self, ProfilerGlobals};
 use libc::size_t;
 use std::num::NonZeroU64;
 use std::sync::atomic::Ordering;

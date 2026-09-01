@@ -227,11 +227,12 @@ foreach ($arch_targets as $arch_target) {
       KUBERNETES_SERVICE_MEMORY_LIMIT: 512Mi
 
   request-replayer:
-    name: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-request-replayer-2.0
+    name: registry.ddbuild.io/ci/dd-trace-php/request-replayer:3.0
     alias: request-replayer
     command: ["php", "-S", "<?= $service_bind_address ?>:80", "index.php"]
     variables:
       DD_REQUEST_DUMPER_FILE: dump.json
+      PHP_CLI_SERVER_WORKERS: "16"
       KUBERNETES_SERVICE_CPU_REQUEST: 2
       KUBERNETES_SERVICE_CPU_LIMIT: 2
       KUBERNETES_SERVICE_MEMORY_REQUEST: 1Gi

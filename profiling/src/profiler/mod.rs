@@ -13,22 +13,22 @@ use thread_utils::get_current_thread_name;
 use uploader::*;
 
 #[cfg(all(php_has_fibers, not(test)))]
-use crate::bindings::ddog_php_prof_get_active_fiber;
+use crate::profiling::bindings::ddog_php_prof_get_active_fiber;
 #[cfg(all(php_has_fibers, test))]
-use crate::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_active_fiber;
+use crate::profiling::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_active_fiber;
 
-use crate::allocation::ALLOCATION_PROFILING_INTERVAL;
+use crate::profiling::allocation::ALLOCATION_PROFILING_INTERVAL;
 #[cfg(not(target_os = "linux"))]
-use crate::bindings::datadog_php_profiling_get_profiling_context;
-use crate::bindings::{
+use crate::profiling::bindings::datadog_php_profiling_get_profiling_context;
+use crate::profiling::bindings::{
     datadog_php_profiling_get_process_tags_serialized, zai_str_from_zstr, zend_execute_data,
 };
-use crate::config::SystemSettings;
-use crate::exception::EXCEPTION_PROFILING_INTERVAL;
+use crate::profiling::config::SystemSettings;
+use crate::profiling::exception::EXCEPTION_PROFILING_INTERVAL;
 #[cfg(target_os = "linux")]
-use crate::process_context::{ProcessIdentityRef, ThreadContextRead};
-use crate::profile_tags::ProfileTags;
-use crate::{Clocks, RefCellExt, CLOCKS, GLOBAL_TAGS, REQUEST_LOCALS};
+use crate::profiling::process_context::{ProcessIdentityRef, ThreadContextRead};
+use crate::profiling::profile_tags::ProfileTags;
+use crate::profiling::{Clocks, RefCellExt, CLOCKS, GLOBAL_TAGS, REQUEST_LOCALS};
 use chrono::Utc;
 use core::mem::forget;
 use core::{ptr, str};
@@ -56,7 +56,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
     any(target_os = "linux", target_os = "macos"),
     feature = "io_profiling"
 ))]
-use crate::io::{
+use crate::profiling::io::{
     FILE_READ_SIZE_PROFILING_INTERVAL, FILE_READ_TIME_PROFILING_INTERVAL,
     FILE_WRITE_SIZE_PROFILING_INTERVAL, FILE_WRITE_TIME_PROFILING_INTERVAL,
     SOCKET_READ_SIZE_PROFILING_INTERVAL, SOCKET_READ_TIME_PROFILING_INTERVAL,
@@ -127,18 +127,18 @@ pub struct SampleValues {
     socket_read_time_samples: i64,
     socket_write_time: i64,
     socket_write_time_samples: i64,
-    file_read_time: i64,
-    file_read_time_samples: i64,
-    file_write_time: i64,
-    file_write_time_samples: i64,
+    file_io_read_time: i64,
+    file_io_read_time_samples: i64,
+    file_io_write_time: i64,
+    file_io_write_time_samples: i64,
     socket_read_size: i64,
     socket_read_size_samples: i64,
     socket_write_size: i64,
     socket_write_size_samples: i64,
-    file_read_size: i64,
-    file_read_size_samples: i64,
-    file_write_size: i64,
-    file_write_size_samples: i64,
+    file_io_read_size: i64,
+    file_io_read_size_samples: i64,
+    file_io_write_size: i64,
+    file_io_write_size_samples: i64,
 }
 
 const WALL_TIME_PERIOD: Duration = Duration::from_millis(10);
@@ -440,19 +440,17 @@ impl TimeCollector {
             })
             .collect();
 
-        let get_offset = |name: &str| {
-            sample_types.iter().position(|st| {
-                let vt: ApiValueType = (*st).into();
-                vt.r#type == name
-            })
-        };
+        let get_offset =
+            |sample_type: ApiSampleType| sample_types.iter().position(|st| *st == sample_type);
 
         // check if we have the `alloc-size` and `alloc-samples` sample types
-        let (alloc_samples_offset, alloc_size_offset) =
-            (get_offset("alloc-samples"), get_offset("alloc-size"));
+        let (alloc_samples_offset, alloc_size_offset) = (
+            get_offset(ApiSampleType::AllocSamples),
+            get_offset(ApiSampleType::AllocSize),
+        );
         let (heap_live_samples_offset, heap_live_size_offset) = (
-            get_offset("heap-live-samples"),
-            get_offset("heap-live-size"),
+            get_offset(ApiSampleType::HeapLiveSamples),
+            get_offset(ApiSampleType::HeapLiveSize),
         );
 
         // check if we have the IO sample types
@@ -465,39 +463,39 @@ impl TimeCollector {
             socket_read_time_samples_offset,
             socket_write_time_offset,
             socket_write_time_samples_offset,
-            file_read_time_offset,
-            file_read_time_samples_offset,
-            file_write_time_offset,
-            file_write_time_samples_offset,
+            file_io_read_time_offset,
+            file_io_read_time_samples_offset,
+            file_io_write_time_offset,
+            file_io_write_time_samples_offset,
             socket_read_size_offset,
             socket_read_size_samples_offset,
             socket_write_size_offset,
             socket_write_size_samples_offset,
-            file_read_size_offset,
-            file_read_size_samples_offset,
-            file_write_size_offset,
-            file_write_size_samples_offset,
+            file_io_read_size_offset,
+            file_io_read_size_samples_offset,
+            file_io_write_size_offset,
+            file_io_write_size_samples_offset,
         ) = (
-            get_offset("socket-read-time"),
-            get_offset("socket-read-time-samples"),
-            get_offset("socket-write-time"),
-            get_offset("socket-write-time-samples"),
-            get_offset("file-read-time"),
-            get_offset("file-read-time-samples"),
-            get_offset("file-write-time"),
-            get_offset("file-write-time-samples"),
-            get_offset("socket-read-size"),
-            get_offset("socket-read-size-samples"),
-            get_offset("socket-write-size"),
-            get_offset("socket-write-size-samples"),
-            get_offset("file-read-size"),
-            get_offset("file-read-size-samples"),
-            get_offset("file-write-size"),
-            get_offset("file-write-size-samples"),
+            get_offset(ApiSampleType::SocketReadTime),
+            get_offset(ApiSampleType::SocketReadTimeSamples),
+            get_offset(ApiSampleType::SocketWriteTime),
+            get_offset(ApiSampleType::SocketWriteTimeSamples),
+            get_offset(ApiSampleType::FileIoReadTime),
+            get_offset(ApiSampleType::FileIoReadTimeSamples),
+            get_offset(ApiSampleType::FileIoWriteTime),
+            get_offset(ApiSampleType::FileIoWriteTimeSamples),
+            get_offset(ApiSampleType::SocketReadSize),
+            get_offset(ApiSampleType::SocketReadSizeSamples),
+            get_offset(ApiSampleType::SocketWriteSize),
+            get_offset(ApiSampleType::SocketWriteSizeSamples),
+            get_offset(ApiSampleType::FileIoReadSize),
+            get_offset(ApiSampleType::FileIoReadSizeSamples),
+            get_offset(ApiSampleType::FileIoWriteSize),
+            get_offset(ApiSampleType::FileIoWriteSizeSamples),
         );
 
         // check if we have the `exception-samples` sample types
-        let exception_samples_offset = get_offset("exception-samples");
+        let exception_samples_offset = get_offset(ApiSampleType::ExceptionSamples);
 
         let period = WALL_TIME_PERIOD.as_nanos();
         let mut profile = InternalProfile::try_new(
@@ -596,16 +594,16 @@ impl TimeCollector {
 
             add_io_upscaling_rule(
                 &mut profile,
-                file_read_time_offset,
-                file_read_time_samples_offset,
+                file_io_read_time_offset,
+                file_io_read_time_samples_offset,
                 FILE_READ_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed),
                 "file read time samples",
             );
 
             add_io_upscaling_rule(
                 &mut profile,
-                file_write_time_offset,
-                file_write_time_samples_offset,
+                file_io_write_time_offset,
+                file_io_write_time_samples_offset,
                 FILE_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed),
                 "file write time samples",
             );
@@ -628,16 +626,16 @@ impl TimeCollector {
 
             add_io_upscaling_rule(
                 &mut profile,
-                file_read_size_offset,
-                file_read_size_samples_offset,
+                file_io_read_size_offset,
+                file_io_read_size_samples_offset,
                 FILE_READ_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed),
                 "file read size samples",
             );
 
             add_io_upscaling_rule(
                 &mut profile,
-                file_write_size_offset,
-                file_write_size_samples_offset,
+                file_io_write_size_offset,
+                file_io_write_size_samples_offset,
                 FILE_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed),
                 "file write size samples",
             );
@@ -854,7 +852,7 @@ impl Profiler {
     /// Will initialize the `PROFILER` OnceLock and makes sure that only one thread will do so.
     pub fn init(system_settings: &SystemSettings) {
         #[cfg(target_os = "linux")]
-        crate::process_context::initialize();
+        crate::profiling::process_context::initialize();
 
         // SAFETY: the `get_or_init` access is a thread-safe API, and the
         // PROFILER is only being mutated in single-threaded phases such as
@@ -901,7 +899,8 @@ impl Profiler {
                 .map(|s| s.to_owned())
         };
         #[cfg(target_os = "linux")]
-        let process_tags = crate::process_context::process_tags().or_else(legacy_process_tags);
+        let process_tags =
+            crate::profiling::process_context::process_tags().or_else(legacy_process_tags);
         #[cfg(not(target_os = "linux"))]
         let process_tags = legacy_process_tags();
 
@@ -1680,8 +1679,8 @@ impl Profiler {
     ))]
     pub fn collect_file_read_time(&self, ed: *mut zend_execute_data, file_io_read_time: i64) {
         self.collect_io(ed, |vals| {
-            vals.file_read_time = file_io_read_time;
-            vals.file_read_time_samples = 1;
+            vals.file_io_read_time = file_io_read_time;
+            vals.file_io_read_time_samples = 1;
         })
     }
 
@@ -1691,8 +1690,8 @@ impl Profiler {
     ))]
     pub fn collect_file_write_time(&self, ed: *mut zend_execute_data, file_io_write_time: i64) {
         self.collect_io(ed, |vals| {
-            vals.file_write_time = file_io_write_time;
-            vals.file_write_time_samples = 1;
+            vals.file_io_write_time = file_io_write_time;
+            vals.file_io_write_time_samples = 1;
         })
     }
 
@@ -1724,8 +1723,8 @@ impl Profiler {
     ))]
     pub fn collect_file_read_size(&self, ed: *mut zend_execute_data, file_io_read_size: i64) {
         self.collect_io(ed, |vals| {
-            vals.file_read_size = file_io_read_size;
-            vals.file_read_size_samples = 1;
+            vals.file_io_read_size = file_io_read_size;
+            vals.file_io_read_size_samples = 1;
         })
     }
 
@@ -1735,8 +1734,8 @@ impl Profiler {
     ))]
     pub fn collect_file_write_size(&self, ed: *mut zend_execute_data, file_io_write_size: i64) {
         self.collect_io(ed, |vals| {
-            vals.file_write_size = file_io_write_size;
-            vals.file_write_size_samples = 1;
+            vals.file_io_write_size = file_io_write_size;
+            vals.file_io_write_size_samples = 1;
         })
     }
 
@@ -1795,11 +1794,12 @@ impl Profiler {
         let (git_tags, custom_tags, thread_context) = REQUEST_LOCALS.with_borrow(|locals| {
             let git_tags = locals.git_tags.as_ref().map(Arc::clone);
             let custom_tags = locals.custom_tags.as_ref().map(Arc::clone);
-            let thread_context = crate::process_context::thread_context(ProcessIdentityRef {
-                service: locals.identity.service.as_deref(),
-                env: locals.identity.env.as_deref().or(Some("none")),
-                version: locals.identity.version.as_deref(),
-            });
+            let thread_context =
+                crate::profiling::process_context::thread_context(ProcessIdentityRef {
+                    service: locals.identity.service.as_deref(),
+                    env: locals.identity.env.as_deref().or(Some("none")),
+                    version: locals.identity.version.as_deref(),
+                });
             (git_tags, custom_tags, thread_context)
         });
         #[cfg(target_os = "linux")]
@@ -1950,8 +1950,10 @@ pub struct JoinError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::SystemSettingsState;
-    use crate::{allocation::DEFAULT_ALLOCATION_SAMPLING_INTERVAL, config::AgentEndpoint};
+    use crate::profiling::config::SystemSettingsState;
+    use crate::profiling::{
+        allocation::DEFAULT_ALLOCATION_SAMPLING_INTERVAL, config::AgentEndpoint,
+    };
     use http::Uri;
     use log::LevelFilter;
 
@@ -2000,18 +2002,18 @@ mod tests {
             socket_read_time_samples: 81,
             socket_write_time: 90,
             socket_write_time_samples: 91,
-            file_read_time: 100,
-            file_read_time_samples: 101,
-            file_write_time: 110,
-            file_write_time_samples: 111,
+            file_io_read_time: 100,
+            file_io_read_time_samples: 101,
+            file_io_write_time: 110,
+            file_io_write_time_samples: 111,
             socket_read_size: 120,
             socket_read_size_samples: 121,
             socket_write_size: 130,
             socket_write_size_samples: 131,
-            file_read_size: 140,
-            file_read_size_samples: 141,
-            file_write_size: 150,
-            file_write_size_samples: 151,
+            file_io_read_size: 140,
+            file_io_read_size_samples: 141,
+            file_io_write_size: 150,
+            file_io_write_size_samples: 151,
         }
     }
 

@@ -1900,7 +1900,9 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
             targeting_key,
             subject_attributes_json,
             allocation_key,
-            variant
+            variant,
+            result.serial_id,
+            result.has_serial_id
         );
         zend_string_release(subject_attributes_json);
     }

@@ -1,4 +1,5 @@
-FROM datadog/dd-trace-ci:php-8.2_windows
+ARG CI_REGISTRY_IMAGE=datadog/dd-trace-ci
+FROM ${CI_REGISTRY_IMAGE}:php-8.2_windows
 
 WORKDIR /var/www
 

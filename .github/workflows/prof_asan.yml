@@ -53,14 +53,18 @@ jobs:
         run: |
           set -eux
           switch-php ${{ matrix.php-build }}
-          cd profiling
           export CC=clang-20
           export CFLAGS='-fsanitize=address -fsanitize-address-use-after-scope -fno-omit-frame-pointer'
           export LDFLAGS='-fsanitize=address -shared-libasan'
           export RUSTC_LINKER=lld-20
-          triplet=$(uname -m)-unknown-linux-gnu
-          RUSTFLAGS='-Zsanitizer=address -C force-frame-pointers=yes' cargo +${RUST_TOOLCHAIN} build -Zbuild-std=std,panic_abort --target $triplet --profile profiler-release
-          cp -v "$CARGO_TARGET_DIR/$triplet/profiler-release/libdatadog_php_profiling.so" "$(php-config --extension-dir)/datadog-profiling.so"
+          rustup override set "${RUST_TOOLCHAIN}"
+          export RUSTFLAGS='-Zsanitizer=address -C force-frame-pointers=yes'
+          export DDTRACE_PROFILING_TARGET="$(uname -m)-unknown-linux-gnu"
+          export DDTRACE_PROFILING_CARGO_BUILD_FLAGS='-Zbuild-std=std,panic_abort'
+          phpize
+          ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling --disable-ddtrace-rust-debug
+          make -j"$(nproc)"
+          cp -v modules/datadog-profiling.so "$(php-config --extension-dir)/datadog-profiling.so"
 
       - name: Run phpt tests
         run: |
@@ -117,15 +121,16 @@ jobs:
         run: |
           set -eux
           switch-php ${{ matrix.php-build }}
-          cd profiling
           export CC=clang-20
           export CXX=clang++-20
           export CFLAGS='-fsanitize=undefined,local-bounds -fno-sanitize-recover=all -fno-omit-frame-pointer'
           export LDFLAGS='-fsanitize=undefined,local-bounds -fno-sanitize-recover=all'
           export RUSTC_LINKER=clang-20
           export RUSTFLAGS='-C link-arg=-fsanitize=undefined,local-bounds -C link-arg=-fno-sanitize-recover=all'
-          cargo build --profile profiler-release
-          cp -v "$CARGO_TARGET_DIR/profiler-release/libdatadog_php_profiling.so" "$(php-config --extension-dir)/datadog-profiling.so"
+          phpize
+          ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling
+          make -j"$(nproc)"
+          cp -v modules/datadog-profiling.so "$(php-config --extension-dir)/datadog-profiling.so"
 
       - name: Run phpt tests
         run: |

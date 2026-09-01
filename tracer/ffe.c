@@ -31,6 +31,8 @@ typedef struct {
     zend_string *subject_attributes_json;
     zend_string *allocation_key;
     zend_string *variant;
+    int32_t serial_id;
+    bool has_serial_id;
 } dd_ffe_exposure;
 
 static void dd_ffe_release_metric(dd_ffe_metric *metric) {
@@ -168,7 +170,9 @@ void ddtrace_ffe_record_exposure(
     zend_string *targeting_key,
     zend_string *subject_attributes_json,
     zend_string *allocation_key,
-    zend_string *variant
+    zend_string *variant,
+    int32_t serial_id,
+    bool has_serial_id
 ) {
     if (ZSTR_LEN(flag_key) == 0 || ZSTR_LEN(variant) == 0) {
         return;
@@ -200,6 +204,8 @@ void ddtrace_ffe_record_exposure(
     exposure->subject_attributes_json = zend_string_copy(subject_attributes_json);
     exposure->allocation_key = zend_string_copy(allocation_key);
     exposure->variant = zend_string_copy(variant);
+    exposure->serial_id = serial_id;
+    exposure->has_serial_id = has_serial_id;
 }
 
 bool ddtrace_ffe_flush_exposures(void) {
@@ -224,6 +230,8 @@ bool ddtrace_ffe_flush_exposures(void) {
             .subject_attributes_json = dd_zend_string_to_CharSlice(buffer[i].subject_attributes_json),
             .allocation_key = dd_zend_string_to_CharSlice(buffer[i].allocation_key),
             .variant = dd_zend_string_to_CharSlice(buffer[i].variant),
+            .serial_id = buffer[i].serial_id,
+            .has_serial_id = buffer[i].has_serial_id,
         };
     }
 

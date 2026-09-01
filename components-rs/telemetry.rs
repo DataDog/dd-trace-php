@@ -6,8 +6,6 @@ use std::ffi::CString;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use libdd_ipc::platform::NamedShmHandle;
-use libdd_ipc::one_way_shared_memory::{open_named_shm, OneWayShmReader};
 use datadog_sidecar::service::{
     blocking::{self, SidecarTransport},
     InstanceId, QueueId, SidecarAction,
@@ -15,6 +13,8 @@ use datadog_sidecar::service::{
 use libdd_common::tag::parse_tags;
 use libdd_common_ffi::slice::AsBytes;
 use libdd_common_ffi::{self as ffi, CharSlice, MaybeError};
+use libdd_ipc::one_way_shared_memory::{open_named_shm, OneWayShmReader};
+use libdd_ipc::platform::NamedShmHandle;
 use libdd_telemetry::data;
 use libdd_telemetry::data::metrics::{MetricNamespace, MetricType};
 use libdd_telemetry::data::{Dependency, Integration, LogLevel};
@@ -289,7 +289,9 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_config_sent(
     service: CharSlice,
     env: CharSlice,
 ) -> bool {
-    ddog_sidecar_telemetry_cache_get_or_update(cache, service, env).shared.config_sent
+    ddog_sidecar_telemetry_cache_get_or_update(cache, service, env)
+        .shared
+        .config_sent
 }
 
 unsafe fn ddog_sidecar_telemetry_cache_get_or_update<'a>(
@@ -322,7 +324,9 @@ unsafe fn ddog_sidecar_telemetry_cache_get_or_update<'a>(
     let env_str = env.to_utf8_lossy();
 
     // I hate you, borrow checker, you get an unsafe from me!
-    if let Some(cached_entry) = (&mut *(cache as *mut ShmCacheMap)).get_mut(&(service_str.as_ref(), env_str.as_ref())) {
+    if let Some(cached_entry) =
+        (&mut *(cache as *mut ShmCacheMap)).get_mut(&(service_str.as_ref(), env_str.as_ref()))
+    {
         refresh_cache(cached_entry);
         return cached_entry;
     }
@@ -333,10 +337,13 @@ unsafe fn ddog_sidecar_telemetry_cache_get_or_update<'a>(
         shm_path,
         |path| open_named_shm(path).ok(),
     );
-    let cached_entry = cache.entry(ShmCacheKey(service_str.into(), env_str.into())).insert(ShmCache {
-        reader,
-        shared: TelemetryCachedClientShmData::default(),
-    }).into_mut();
+    let cached_entry = cache
+        .entry(ShmCacheKey(service_str.into(), env_str.into()))
+        .insert(ShmCache {
+            reader,
+            shared: TelemetryCachedClientShmData::default(),
+        })
+        .into_mut();
 
     refresh_cache(cached_entry);
     cached_entry
@@ -387,5 +394,9 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_are_endpoints_collected(
     env: CharSlice,
 ) -> bool {
     let cache_entry = ddog_sidecar_telemetry_cache_get_or_update(cache, service, env);
-    cache_entry.shared.last_endpoints_push.elapsed().map_or(false, |d| d < Duration::from_secs(1800)) // 30 minutes
+    cache_entry
+        .shared
+        .last_endpoints_push
+        .elapsed()
+        .map_or(false, |d| d < Duration::from_secs(1800)) // 30 minutes
 }

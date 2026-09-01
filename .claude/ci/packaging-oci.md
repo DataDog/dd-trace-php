@@ -33,7 +33,7 @@ documented in [compile-artifacts.md](compile-artifacts.md).
 | `publishing-gate` | (one-pipeline template) | Final gate before production promotion |
 | `publish to public s3` | `amazon/aws-cli:2.17.32` | Uploads packages to `s3://dd-trace-php-builds/{VERSION}/` |
 | `publish release to github` | `php:8.2-cli` | Creates GitHub release + uploads assets (release branches only) |
-| `bundle for reliability env` | `ci_docker_base:67145216` | Bundles setup script + tar for the reliability env |
+| `bundle for reliability env` | `gbi-ubuntu_2404:release` | Bundles setup script + tar for the reliability env |
 
 Runner: `arch:amd64` for all packaging and publishing jobs.
 

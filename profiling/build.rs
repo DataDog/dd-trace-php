@@ -5,11 +5,17 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::{env, fs};
 
-fn main() {
-    let php_config_includes_output = Command::new("php-config")
+fn php_config() -> std::ffi::OsString {
+    env::var_os("PHP_CONFIG").unwrap_or_else(|| "php-config".into())
+}
+
+pub fn build() {
+    let php_config_includes_output = Command::new(php_config())
         .arg("--includes")
         .output()
-        .expect("Unable to run `php-config`. Is it in your PATH?");
+        .expect(
+            "Unable to run `php-config`. Set PHP_CONFIG to the php-config selected by configure.",
+        );
 
     if !php_config_includes_output.status.success() {
         match String::from_utf8(php_config_includes_output.stderr) {
@@ -22,12 +28,12 @@ fn main() {
     }
 
     // Read the version from the VERSION file
-    let version = fs::read_to_string("../VERSION")
+    let version = fs::read_to_string("VERSION")
         .expect("Failed to read VERSION file")
         .trim()
         .to_string();
     println!("cargo:rustc-env=PROFILER_VERSION={version}");
-    println!("cargo:rerun-if-changed=../VERSION");
+    println!("cargo:rerun-if-changed=VERSION");
 
     let php_config_includes = std::str::from_utf8(php_config_includes_output.stdout.as_slice())
         .expect("`php-config`'s stdout to be valid utf8");
@@ -60,10 +66,9 @@ fn main() {
 }
 
 fn php_config_vernum() -> u64 {
-    let output = Command::new("php-config")
-        .arg("--vernum")
-        .output()
-        .expect("Unable to run `php-config`. Is it in your PATH?");
+    let output = Command::new(php_config()).arg("--vernum").output().expect(
+        "Unable to run `php-config`. Set PHP_CONFIG to the php-config selected by configure.",
+    );
 
     if !output.status.success() {
         match String::from_utf8(output.stderr) {
@@ -85,17 +90,17 @@ fn php_config_vernum() -> u64 {
 }
 
 const ZAI_H_FILES: &[&str] = &[
-    "../zend_abstract_interface/zai_assert/zai_assert.h",
-    "../zend_abstract_interface/zai_string/string.h",
-    "../zend_abstract_interface/config/config.h",
-    "../zend_abstract_interface/config/config_decode.h",
-    "../zend_abstract_interface/config/config_ini.h",
-    "../zend_abstract_interface/config/config_stable_file.h",
-    "../zend_abstract_interface/env/env.h",
-    "../zend_abstract_interface/exceptions/exceptions.h",
-    "../zend_abstract_interface/json/json.h",
-    "../components-rs/common.h",
-    "../components-rs/library-config.h",
+    "zend_abstract_interface/zai_assert/zai_assert.h",
+    "zend_abstract_interface/zai_string/string.h",
+    "zend_abstract_interface/config/config.h",
+    "zend_abstract_interface/config/config_decode.h",
+    "zend_abstract_interface/config/config_ini.h",
+    "zend_abstract_interface/config/config_stable_file.h",
+    "zend_abstract_interface/env/env.h",
+    "zend_abstract_interface/exceptions/exceptions.h",
+    "zend_abstract_interface/json/json.h",
+    "components-rs/common.h",
+    "components-rs/library-config.h",
 ];
 
 #[allow(clippy::too_many_arguments)]
@@ -109,32 +114,31 @@ fn build_zend_php_ffis(
     trigger_time_sample: bool,
     zend_error_observer: bool,
 ) {
-    println!("cargo:rerun-if-changed=src/php_ffi.h");
-    println!("cargo:rerun-if-changed=src/php_ffi.c");
-    println!("cargo:rerun-if-changed=../ext/handlers_api.c");
-    println!("cargo:rerun-if-changed=../ext/handlers_api.h");
+    println!("cargo:rerun-if-changed=profiling/src/php_ffi.h");
+    println!("cargo:rerun-if-changed=profiling/src/php_ffi.c");
+    println!("cargo:rerun-if-changed=ext/handlers_api.c");
+    println!("cargo:rerun-if-changed=ext/handlers_api.h");
 
     // Profiling only needs config, exceptions and its dependencies.
     let zai_c_files = [
-        "../zend_abstract_interface/config/config_decode.c",
-        "../zend_abstract_interface/config/config_ini.c",
-        "../zend_abstract_interface/config/config_stable_file.c",
-        "../zend_abstract_interface/config/config.c",
-        "../zend_abstract_interface/config/config_runtime.c",
-        "../zend_abstract_interface/env/env.c",
-        "../zend_abstract_interface/exceptions/exceptions.c",
-        "../zend_abstract_interface/json/json.c",
-        "../zend_abstract_interface/zai_string/string.c",
+        "zend_abstract_interface/config/config_decode.c",
+        "zend_abstract_interface/config/config_ini.c",
+        "zend_abstract_interface/config/config_stable_file.c",
+        "zend_abstract_interface/config/config.c",
+        "zend_abstract_interface/config/config_runtime.c",
+        "zend_abstract_interface/env/env.c",
+        "zend_abstract_interface/exceptions/exceptions.c",
+        "zend_abstract_interface/json/json.c",
+        "zend_abstract_interface/zai_string/string.c",
     ];
 
     for file in zai_c_files.iter().chain(ZAI_H_FILES.iter()) {
         println!("cargo:rerun-if-changed={file}");
     }
 
-    let output = Command::new("php-config")
-        .arg("--prefix")
-        .output()
-        .expect("Unable to run `php-config`. Is it in your PATH?");
+    let output = Command::new(php_config()).arg("--prefix").output().expect(
+        "Unable to run `php-config`. Set PHP_CONFIG to the php-config selected by configure.",
+    );
 
     let prefix = String::from_utf8(output.stdout).expect("only utf8 chars work");
     println!(
@@ -142,7 +146,7 @@ fn build_zend_php_ffis(
         prefix = prefix.trim()
     );
 
-    let files = ["src/php_ffi.c", "../ext/handlers_api.c"];
+    let files = ["profiling/src/php_ffi.c", "ext/handlers_api.c"];
     let post_startup_cb = if post_startup_cb { "1" } else { "0" };
     let preload = if preload { "1" } else { "0" };
     let fibers = if fibers { "1" } else { "0" };
@@ -168,13 +172,13 @@ fn build_zend_php_ffis(
         .define("CFG_STACK_WALKING_TESTS", stack_walking_tests)
         .define("CFG_TRIGGER_TIME_SAMPLE", trigger_time_sample)
         .define("CFG_ZEND_ERROR_OBSERVER", zend_error_observer)
-        .includes([Path::new("../ext")])
+        .includes([Path::new("ext")])
         .includes(
             str::replace(php_config_includes, "-I", "")
                 .split(' ')
                 .map(Path::new)
-                .chain([Path::new("../zend_abstract_interface")])
-                .chain([Path::new("../")]),
+                .chain([Path::new("zend_abstract_interface")])
+                .chain([Path::new(".")]),
         )
         .flag_if_supported("-std=gnu11")
         .flag_if_supported("-std=gnu17");
@@ -211,8 +215,8 @@ impl bindgen::callbacks::ParseCallbacks for IgnoreMacros {
 }
 
 fn generate_bindings(php_config_includes: &str, fibers: bool, zend_error_observer: bool) {
-    println!("cargo:rerun-if-changed=src/php_ffi.h");
-    println!("cargo:rerun-if-changed=../ext/handlers_api.h");
+    println!("cargo:rerun-if-changed=profiling/src/php_ffi.h");
+    println!("cargo:rerun-if-changed=ext/handlers_api.h");
     let ignored_macros = IgnoreMacros(
         [
             "FP_INFINITE".into(),
@@ -244,10 +248,10 @@ fn generate_bindings(php_config_includes: &str, fibers: bool, zend_error_observe
         .ctypes_prefix("libc")
         .clang_args(clang_args)
         .raw_line("extern crate libc;")
-        .header("src/php_ffi.h")
-        .header("../ext/handlers_api.h")
-        .clang_arg("-I../zend_abstract_interface")
-        .clang_arg("-I../")
+        .header("profiling/src/php_ffi.h")
+        .header("ext/handlers_api.h")
+        .clang_arg("-Izend_abstract_interface")
+        .clang_arg("-I.")
         // Block some zend items that we'll provide manual definitions for
         .blocklist_item("zai_str_s")
         .blocklist_item("zai_str")
@@ -413,10 +417,12 @@ fn cfg_php_build() {
     println!("cargo::rustc-check-cfg=cfg(php_zts)");
     println!("cargo::rustc-check-cfg=cfg(php_debug)");
 
-    let output = Command::new("php-config")
+    let output = Command::new(php_config())
         .arg("--include-dir")
         .output()
-        .expect("Unable to run `php-config`. Is it in your PATH?");
+        .expect(
+            "Unable to run `php-config`. Set PHP_CONFIG to the php-config selected by configure.",
+        );
 
     if !output.status.success() {
         match String::from_utf8(output.stderr) {
@@ -497,9 +503,9 @@ int main() {
 ///
 /// To regenerate the symbol list after adding new PHP/C API calls:
 ///   1. Edit the profile != release check to always be true e.g. if true {
-///   2. Build a release: `cargo build -p datadog-php-profiling --release`
+///   2. Build a release: `cargo build --no-default-features --features profiling --release`
 ///   3. Extract symbols:
-///      `nm -u target/release/libdatadog_php_profiling.dylib | sort -u |
+///      `nm -u target/release/libdatadog_php.dylib | sort -u |
 ///       grep -v '^$\|^ERROR\|dyld_stub' | sed 's/^/-Wl,-U,/' | tr '\n' ' '`
 ///   4. Update the ALLOWED_UNDEFINED_SYMBOLS list below.
 ///
@@ -548,6 +554,7 @@ fn apple_linker_flags() {
         "__emalloc_56",
         "__emalloc_huge",
         "__emalloc_large",
+        "__emalloc_huge",
         "__zend_handle_numeric_str_ex",
         "__zend_hash_init",
         "__zend_mm_alloc",
@@ -618,6 +625,7 @@ fn apple_linker_flags() {
         "_zval_ptr_dtor",
         // PHP APIs
         "_php_during_module_startup",
+        "_php_error_docref",
         "_php_get_module_initialized",
         "_php_info_print_table_end",
         "_php_info_print_table_row",

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{ProcessIdentityRef, ThreadContext, ThreadContextRead};
-use crate::bindings::datadog_php_profiling_get_otel_thread_context;
-use crate::profile_tags::UnifiedServiceTagSegment;
+use crate::profiling::bindings::datadog_php_profiling_get_otel_thread_context;
+use crate::profiling::profile_tags::UnifiedServiceTagSegment;
 use libdd_library_config::otel_process_ctx::ProcessContextSelfReader;
 use libdd_trace_protobuf::opentelemetry::proto::common::v1::{any_value, KeyValue, ProcessContext};
 use std::cell::RefCell;
@@ -266,7 +266,8 @@ impl ProcessContextCache {
         service: &str,
         env: &str,
         version: &str,
-    ) -> Result<Arc<UnifiedServiceTagSegment>, crate::profile_tags::ProfileTagError> {
+    ) -> Result<Arc<UnifiedServiceTagSegment>, crate::profiling::profile_tags::ProfileTagError>
+    {
         if let Ok(cached) = self.unified_service_tags.try_borrow() {
             if let Some(tags) = cached.as_ref() {
                 if tags.matches(service, env, version) {
@@ -449,7 +450,7 @@ fn with_cache<R>(f: impl FnOnce(&std::cell::RefCell<ProcessContextCache>) -> R) 
 fn with_cache<R>(f: impl FnOnce(&std::cell::RefCell<ProcessContextCache>) -> R) -> R {
     // SAFETY: PHP module globals are initialized by GINIT and are local to the
     // current PHP thread in ZTS builds. NTS executes PHP on one thread.
-    let globals = unsafe { &*crate::module_globals::get_profiler_globals() };
+    let globals = unsafe { &*crate::profiling::module_globals::get_profiler_globals() };
     f(&globals.process_context)
 }
 

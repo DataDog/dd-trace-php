@@ -4,7 +4,7 @@ mod clocks;
 mod config;
 mod logging;
 pub mod module_globals;
-pub mod profiling;
+pub mod profiler;
 mod pthread;
 mod sapi;
 mod wall_time;
@@ -29,8 +29,8 @@ mod exception;
 mod timeline;
 mod vec_ext;
 
-use crate::config::SystemSettings;
-use crate::zend::datadog_sapi_globals_request_info;
+use crate::profiling::config::SystemSettings;
+use crate::profiling::zend::datadog_sapi_globals_request_info;
 use bindings::{
     self as zend, ddog_php_prof_php_version, ddog_php_prof_php_version_id, ZendExtension,
     ZendResult,
@@ -41,7 +41,7 @@ use core::ptr;
 use libdd_common::cstr;
 use log::{debug, error, info, trace, warn};
 use profile_tags::{ProfileTagSegment, UnifiedServiceTagSegment};
-use profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
+use profiler::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
 use sapi::Sapi;
 use std::borrow::Cow;
 use std::cell::{BorrowError, BorrowMutError, RefCell};
@@ -164,10 +164,6 @@ static SAPI: LazyLock<Sapi> = LazyLock::new(|| {
 /// so whatever it is replaced with needs to also follow the
 /// initialize-on-first-use pattern.
 static RUNTIME_ID: OnceLock<Uuid> = OnceLock::new();
-// If ddtrace is loaded, we fetch the uuid from there instead
-extern "C" {
-    pub static datadog_runtime_id: *const Uuid;
-}
 
 /// Module dependencies for the profiler extension.
 static MODULE_DEPS: [zend::ModuleDep; 9] = [
@@ -535,13 +531,22 @@ thread_local! {
 
 /// Gets the runtime-id for the process. Do not call before RINIT!
 fn runtime_id() -> &'static Uuid {
-    RUNTIME_ID
-        .get_or_init(|| unsafe { datadog_runtime_id.as_ref() }.map_or_else(Uuid::new_v4, |u| *u))
+    RUNTIME_ID.get_or_init(|| {
+        // Resolve dynamically so the separately loaded tracer remains authoritative. The root
+        // package also contains a common runtime-id symbol, so treating this as an extern pointer
+        // would both use the wrong ABI and make a standalone profiler unsafe.
+        let symbol = unsafe { libc::dlsym(libc::RTLD_DEFAULT, c"datadog_runtime_id".as_ptr()) }
+            .cast::<Uuid>();
+        unsafe { symbol.as_ref() }
+            .filter(|id| !id.is_nil())
+            .copied()
+            .unwrap_or_else(Uuid::new_v4)
+    })
 }
 
 extern "C" fn activate() {
     // SAFETY: calling in activate as required.
-    unsafe { profiling::stack_walking::activate() };
+    unsafe { profiler::stack_walking::activate() };
 }
 
 /// The mut here is *only* for resetting this back to uninitialized each minit.
@@ -779,7 +784,7 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
         return ZendResult::Success;
     }
 
-    profiling::stack_walking::rshutdown();
+    profiler::stack_walking::rshutdown();
 
     // Not logging, rshutdown could be quite spammy.
     _ = REQUEST_LOCALS.try_with_borrow(|locals| {

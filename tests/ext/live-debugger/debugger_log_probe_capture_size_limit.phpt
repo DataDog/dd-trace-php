@@ -9,8 +9,7 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_DYNAMIC_INSTRUMENTATION_ENABLED=1
 DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=0.1
 DD_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT_MS=0
---INI--
-datadog.trace.agent_test_session_token=live-debugger/log_probe_capture_size_limit
+DD_TRACE_AGENT_TEST_SESSION_TOKEN=live-debugger/log_probe_capture_size_limit
 --FILE--
 <?php
 
