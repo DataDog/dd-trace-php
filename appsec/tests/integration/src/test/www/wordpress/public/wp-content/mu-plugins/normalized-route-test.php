@@ -15,6 +15,21 @@ add_action('init', static function () {
         'index.php?normalized_route_test=1&normalized_value=$matches[1]',
         'top'
     );
+    add_rewrite_rule(
+        '^normalized-literal/file\.json$',
+        'index.php?normalized_route_test=1&normalized_value=literal',
+        'top'
+    );
+    add_rewrite_rule(
+        '^normalized-capture-hole/(?:([^/]+)-)?([^/]+)$',
+        'index.php?normalized_route_test=1&normalized_value=$matches[2]',
+        'top'
+    );
+    add_rewrite_rule(
+        '^normalized-named-captures/(?P<first>[^/]+)-(?P<second>[^/]+)/?$',
+        'index.php?normalized_route_test=1&normalized_value=$matches[1]-$matches[2]',
+        'top'
+    );
 });
 
 add_filter('query_vars', static function (array $queryVars): array {

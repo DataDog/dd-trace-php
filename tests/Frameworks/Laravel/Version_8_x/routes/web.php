@@ -64,3 +64,9 @@ Route::get('/normalized-optional/{value?}', function ($value = null) {
 Route::get('/normalized-default/{format?}', function ($format = null) {
     return response($format);
 })->defaults('format', 'html');
+
+Route::get('/normalized-ambiguous/{name}.{ext?}', function ($name, $ext = null) {
+    return response($name . '/' . ($ext ?? 'absent'));
+})->where('name', '.+')
+    ->where('ext', 'pdf|json')
+    ->defaults('ext', 'html');

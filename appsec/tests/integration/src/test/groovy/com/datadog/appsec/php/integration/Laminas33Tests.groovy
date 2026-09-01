@@ -81,7 +81,7 @@ class Laminas33Tests {
             endpoints.size() > 0
         })
 
-        assert endpoints.size() == 32
+        assert endpoints.size() == 37
         assert endpoints.find { it.path == '/' && it.method == '*' && it.operationName == 'http.request' && it.resourceName == '* /' } != null
         assert endpoints.find {
             it.path == '/application[/:action]' && it.method == '*' && it.operationName == 'http.request' && it.resourceName == '* /application[/:action]'
@@ -129,12 +129,38 @@ class Laminas33Tests {
                     it.operationName == 'http.request' && it.resourceName == '* /normalized-regex/%id%.%format%'
         } != null
         assert endpoints.find {
+            it.path == '/normalized-regex-ambiguous/%name%.%ext%' &&
+                    it.method == '*' && it.operationName == 'http.request' &&
+                    it.resourceName ==
+                    '* /normalized-regex-ambiguous/%name%.%ext%'
+        } != null
+        assert endpoints.find {
             it.path == '/normalized-encoded[/:slug]' && it.method == '*' &&
                     it.operationName == 'http.request' && it.resourceName == '* /normalized-encoded[/:slug]'
         } != null
         assert endpoints.find {
             it.path == '/normalized-static[/draft]' && it.method == '*' &&
                     it.operationName == 'http.request' && it.resourceName == '* /normalized-static[/draft]'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-static-prefix[/normalized]' && it.method == '*' &&
+                    it.operationName == 'http.request' &&
+                    it.resourceName == '* /normalized-static-prefix[/normalized]'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-dynamic-prefix[/:value]' && it.method == '*' &&
+                    it.operationName == 'http.request' &&
+                    it.resourceName == '* /normalized-dynamic-prefix[/:value]'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-encoded-cache[/:slug]' && it.method == '*' &&
+                    it.operationName == 'http.request' &&
+                    it.resourceName == '* /normalized-encoded-cache[/:slug]'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-encoded-lowercase[/:slug]' && it.method == '*' &&
+                    it.operationName == 'http.request' &&
+                    it.resourceName == '* /normalized-encoded-lowercase[/:slug]'
         } != null
         assert endpoints.find {
             it.path == '/normalized-name/:user-id' && it.method == '*' &&
@@ -380,19 +406,111 @@ class Laminas33Tests {
 
     @Test
     @Order(15)
-    void 'static-only optional segment absent is omitted'() {
+    void 'lowercase percent escapes retain an optional matched value'() {
         Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-encoded-lowercase/%c3%a9').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'http.route' ==
+                '/normalized-encoded-lowercase[/:slug]'
+        assert trace.first().meta.'_dd.appsec.normalized_route' ==
+                '/normalized-encoded-lowercase/{slug}'
+    }
+
+    @Test
+    @Order(16)
+    void 'static optional text is matched only at its route position'() {
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-static-prefix').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'http.route' ==
+                '/normalized-static-prefix[/normalized]'
+        // The optional suffix is absent. Its text happens to be a prefix of
+        // the mandatory segment and must not be detected there.
+        assert trace.first().meta.'_dd.appsec.normalized_route' ==
+                '/normalized-static-prefix'
+    }
+
+    @Test
+    @Order(17)
+    void 'defaulted optional value is matched only at its route position'() {
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-dynamic-prefix').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'http.route' ==
+                '/normalized-dynamic-prefix[/:value]'
+        // The framework-injected default equals earlier static route text. It
+        // does not mean the optional URL segment participated in this request.
+        // Laminas merges defaults and captures in RouteMatch, so RFC-1103 also
+        // permits omitting the tag when accurate participation is unavailable.
+        String normalizedRoute = trace.first().meta.'_dd.appsec.normalized_route'
+        assert normalizedRoute == null ||
+                normalizedRoute == '/normalized-dynamic-prefix'
+    }
+
+    @Test
+    @Order(18)
+    void 'encoded optional presence is not poisoned by a prior cache shape'() {
+        // The lowercase request is known to be misclassified as absent. It
+        // primes the result cache with the absent shape; the next request has
+        // an uppercase encoding that normalizes correctly when run alone.
+        container.traceFromRequest(
+                container.buildReq('/normalized-encoded-cache/%c3%a9').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        Trace presentTrace = container.traceFromRequest(
+                container.buildReq('/normalized-encoded-cache/a%20b').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert presentTrace.first().meta.'http.route' ==
+                '/normalized-encoded-cache[/:slug]'
+        assert presentTrace.first().meta.'_dd.appsec.normalized_route' ==
+                '/normalized-encoded-cache/{slug}'
+    }
+
+    @Test
+    @Order(19)
+    void 'static-only optional shapes do not share a cached result'() {
+        Trace absentTrace = container.traceFromRequest(
                 container.buildReq('/normalized-static').GET().build(),
                 ofString()) { HttpResponse<String> resp ->
             assert resp.statusCode() == 200
         }
 
-        assert trace.first().meta.'http.route' == '/normalized-static[/draft]'
-        assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-static'
+        assert absentTrace.first().meta.'http.route' ==
+                '/normalized-static[/draft]'
+        assert absentTrace.first().meta.'_dd.appsec.normalized_route' ==
+                '/normalized-static'
+
+        Trace presentTrace = container.traceFromRequest(
+                container.buildReq('/normalized-static/draft').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert presentTrace.first().meta.'http.route' ==
+                '/normalized-static[/draft]'
+        // The cache suffix contains only optional parameter names. This route's
+        // optional group is purely static, so absent and present both use the
+        // same key even though they require different normalized results.
+        assert presentTrace.first().meta.'_dd.appsec.normalized_route' ==
+                '/normalized-static/draft'
     }
 
     @Test
-    @Order(16)
+    @Order(20)
     void 'hyphenated segment parameter name remains intact'() {
         Trace trace = container.traceFromRequest(
                 container.buildReq('/normalized-name/alice').GET().build(),
@@ -405,7 +523,7 @@ class Laminas33Tests {
     }
 
     @Test
-    @Order(17)
+    @Order(21)
     void 'wildcard placeholder does not collide with an existing parameter name'() {
         Trace trace = container.traceFromRequest(
                 container.buildReq('/normalized-wildcard/value/foo/bar').GET().build(),
@@ -416,6 +534,53 @@ class Laminas33Tests {
         assert trace.first().meta.'http.route' == '/normalized-wildcard/:param1/*'
         assert trace.first().meta.'_dd.appsec.normalized_route' ==
                 '/normalized-wildcard/{param1}/{param2}'
+    }
+
+    @Test
+    @Order(22)
+    void 'Regex constraints distinguish an absent defaulted parameter'() {
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-regex-ambiguous/report.txt')
+                        .GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+            assert resp.body() == 'report.txt/html'
+        }
+
+        assert trace.first().meta.'http.route' ==
+                '/normalized-regex-ambiguous/%name%.%ext%'
+        // The route regex accepts only pdf or json as ext, so report.txt is
+        // consumed entirely by name and ext comes only from its html default.
+        // Generic URL inference ignores that regex and treats txt as matched.
+        assert trace.first().meta.'_dd.appsec.normalized_route' ==
+                '/normalized-regex-ambiguous/{name}'
+    }
+
+    @Test
+    @Order(23)
+    void 'normalized route is absent when API Security is disabled'() {
+        try {
+            def res = CONTAINER.execInContainer(
+                    'bash', '-c',
+                    '''echo export DD_API_SECURITY_ENABLED=false >> /etc/apache2/envvars;
+                       service apache2 restart''')
+            assert res.exitCode == 0
+
+            Trace trace = container.traceFromRequest(
+                    container.buildReq('/application').GET().build(),
+                    ofString()) { HttpResponse<String> resp ->
+                assert resp.statusCode() == 200
+            }
+
+            assert trace.first().meta.'http.route' == '/application[/:action]'
+            assert trace.first().meta.'_dd.appsec.normalized_route' == null
+        } finally {
+            def res = CONTAINER.execInContainer(
+                    'bash', '-c',
+                    '''sed -i '/export DD_API_SECURITY_ENABLED=/d' /etc/apache2/envvars;
+                       service apache2 restart''')
+            assert res.exitCode == 0
+        }
     }
 
 }
