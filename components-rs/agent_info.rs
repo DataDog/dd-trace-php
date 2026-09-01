@@ -10,7 +10,7 @@
 
 use crate::stats::apply_concentrator_config;
 use datadog_sidecar::service::agent_info::AgentInfoReader;
-use libdd_common_ffi::slice::{AsBytes, CharSlice};
+use libdd_common_ffi::slice::CharSlice;
 use libdd_data_pipeline::agent_info::schema::AgentInfoStruct;
 use std::ffi::c_char;
 use std::ffi::CString;

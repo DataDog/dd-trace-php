@@ -2131,11 +2131,10 @@ dd_span_sink ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_T
         ZEND_HASH_FOREACH_END();
     }
 
-    // Avoid adding it twice to meta
-    if (!pre.env_deprecated && pre.env) {
+    if (pre.env) {
         dd_sink_meta_str_zstr(&sink, "env", pre.env);
     }
-    if (!pre.version_deprecated && pre.version) {
+    if (pre.version) {
         dd_sink_meta_str_zstr(&sink, "version", pre.version);
     }
 

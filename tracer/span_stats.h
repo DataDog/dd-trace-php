@@ -35,10 +35,6 @@ typedef struct {
     bool resource_from_meta;
     bool type_from_meta;
 
-    /* True when the span's meta hash contains a deprecated "env"/"version" key */
-    bool env_deprecated;
-    bool version_deprecated;
-
     bool has_exception; /* when span->property_exception holds a Throwable */
     bool ignore_error;
 

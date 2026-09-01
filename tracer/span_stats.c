@@ -107,10 +107,8 @@ void ddtrace_precompute_span(ddtrace_span_data *span, ddtrace_span_precomputed *
         pre->type = datadog_convert_to_str(prop_type);
     }
 
-    // Env: prefer deprecated meta["env"] (with a warning), else span property.
+    // Env: taken from the span's own property.
     pre->env = NULL;
-    zval *meta_env = pre->meta ? zend_hash_str_find(pre->meta, ZEND_STRL("env")) : NULL;
-    pre->env_deprecated = false;
     zval *prop_env = &span->property_env;
     ZVAL_DEREF(prop_env);
     if (Z_TYPE_P(prop_env) > IS_NULL) {
@@ -122,10 +120,8 @@ void ddtrace_precompute_span(ddtrace_span_data *span, ddtrace_span_precomputed *
         }
     }
 
-    // Version: prefer deprecated meta["version"] (with a warning), else the span's own property.
+    // Version: taken from the span's own property.
     pre->version = NULL;
-    zval *meta_version = pre->meta ? zend_hash_str_find(pre->meta, ZEND_STRL("version")) : NULL;
-    pre->version_deprecated = false;
     zval *prop_version = &span->property_version;
     ZVAL_DEREF(prop_version);
     if (Z_TYPE_P(prop_version) > IS_NULL) {
