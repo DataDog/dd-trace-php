@@ -72,8 +72,7 @@ Version => %s
 Injection success => true
 Injection error =>
 Extra config => provided by combined ddtrace
-Logs =>
-%A
+Logs =>%A
 
   => ddappsec
 Version => %s
