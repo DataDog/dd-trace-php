@@ -456,9 +456,8 @@ class SymfonyIntegration extends Integration
 
                 if ($path !== null) {
                     $rootSpan->meta[Tag::HTTP_ROUTE] = $path;
-                    $rawIni = ini_get('datadog.api_security_enabled');
                     if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()
-                        && ($rawIni === false || filter_var($rawIni, FILTER_VALIDATE_BOOLEAN) !== false)) {
+                        && dd_trace_env_config("DD_API_SECURITY_ENABLED")) {
                         // inferSymfonyRouteParams is lightweight (URL parsing only); compute it
                         // first so the cache key encodes which optional params are present.
                         // Without this, a route with optional params caches only the first
