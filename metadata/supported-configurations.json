@@ -609,11 +609,14 @@
         "default": "false"
       }
     ],
-    "DD_PROFILING_EXPERIMENTAL_IO_ENABLED": [
+    "DD_PROFILING_IO_ENABLED": [
       {
         "implementation": "A",
         "type": "boolean",
-        "default": "false"
+        "default": "true",
+        "aliases": [
+          "DD_PROFILING_EXPERIMENTAL_IO_ENABLED"
+        ]
       }
     ],
     "DD_PROFILING_LOG_LEVEL": [
