@@ -147,9 +147,20 @@ class RouteNormalizer
             }
 
             if (preg_match('/[()[\].*+?|^${}\\\\]/', $segment)) {
+                // If the segment is entirely escaped static text (e.g. file\.json),
+                // decode the backslash escapes and emit it as a plain static segment.
+                if (self::isStaticEscapedRegex($segment)) {
+                    $decoded = preg_replace('/\\\\(.)/', '$1', $segment);
+                    if ($decoded !== '') {
+                        $normalizedSegments[] = self::encodeStaticSegment($decoded);
+                    }
+                    continue;
+                }
+
                 $prefixLen = strcspn($segment, '([{?*+|^$\\');
                 $dynamicPart = substr($segment, $prefixLen);
-                $groupCount = self::countCaptureGroups($dynamicPart);
+                $groupNames = self::extractCaptureGroupNames($dynamicPart);
+                $groupCount = count($groupNames);
 
                 // Only emit a static prefix for purely-regex segments with no capture
                 // groups. When captures exist the whole segment (prefix + captures) maps
@@ -174,7 +185,9 @@ class RouteNormalizer
                             $paramIndex++;
                             continue;
                         }
-                        $params[] = 'param' . $paramIndex++;
+                        $name = $groupNames[$j] ?? null;
+                        $params[] = $name !== null ? self::encodeParamName($name) : 'param' . $paramIndex;
+                        $paramIndex++;
                     }
                     if (!empty($params)) {
                         $normalizedSegments[] = '{' . implode('+', $params) . '}';
@@ -234,11 +247,33 @@ class RouteNormalizer
     }
 
     /**
-     * Count capturing groups in a regex segment, ignoring character classes and non-capturing groups.
+     * Returns true if $s is entirely made up of backslash-escaped characters and
+     * plain literal text, with no real regex metacharacters (captures, classes, etc.).
      */
-    private static function countCaptureGroups(string $segment): int
+    private static function isStaticEscapedRegex(string $s): bool
     {
-        $count = 0;
+        $len = strlen($s);
+        for ($i = 0; $i < $len; $i++) {
+            if ($s[$i] === '\\') {
+                if ($i + 1 >= $len) {
+                    return false;
+                }
+                $i++;
+            } elseif (strpos('([{?*+|^$', $s[$i]) !== false) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Extract capture group names from a regex segment.
+     * Named groups ((?P<name>...) or (?<name>...)) return their name; unnamed groups return null.
+     * Non-capturing groups (?:...) and lookarounds are not included.
+     */
+    private static function extractCaptureGroupNames(string $segment): array
+    {
+        $names = [];
         $len = strlen($segment);
         $inClass = false;
 
@@ -255,13 +290,31 @@ class RouteNormalizer
             } elseif ($c === ']' && $inClass) {
                 $inClass = false;
             } elseif ($c === '(' && !$inClass) {
-                if ($i + 1 >= $len || $segment[$i + 1] !== '?') {
-                    $count++;
+                if ($i + 1 < $len && $segment[$i + 1] === '?') {
+                    // Named group (?P<name>...) — Python/PCRE syntax
+                    if ($i + 3 < $len && $segment[$i + 2] === 'P' && $segment[$i + 3] === '<') {
+                        $closePos = strpos($segment, '>', $i + 4);
+                        $names[] = $closePos !== false
+                            ? substr($segment, $i + 4, $closePos - ($i + 4))
+                            : null;
+                    // Named group (?<name>...) but not lookbehind (?<=...) / (?<!...)
+                    } elseif (
+                        $i + 2 < $len && $segment[$i + 2] === '<' &&
+                        isset($segment[$i + 3]) && $segment[$i + 3] !== '=' && $segment[$i + 3] !== '!'
+                    ) {
+                        $closePos = strpos($segment, '>', $i + 3);
+                        $names[] = $closePos !== false
+                            ? substr($segment, $i + 3, $closePos - ($i + 3))
+                            : null;
+                    }
+                    // (?:...), (?=...), etc. — not a capturing group, skip
+                } else {
+                    $names[] = null;
                 }
             }
         }
 
-        return $count;
+        return $names;
     }
 
     /**

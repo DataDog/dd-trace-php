@@ -284,7 +284,8 @@ class LaminasIntegration extends Integration
                     $httpRoute = LaminasIntegration::httpRouteTemplateFromNamedRouteStack($this, (string) $routeName);
                     if ($httpRoute !== null && $httpRoute !== '') {
                         $rootSpan->meta[Tag::HTTP_ROUTE] = $httpRoute;
-                        if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()) {
+                        if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()
+                            && dd_trace_env_config("DD_API_SECURITY_ENABLED")) {
                             $allParams = method_exists($routeMatch, 'getParams') ? ($routeMatch->getParams() ?? []) : [];
                             $urlPath = method_exists($request, 'getUri') ? $request->getUri()->getPath() : null;
                             // Build a stable cache key that encodes only which optional

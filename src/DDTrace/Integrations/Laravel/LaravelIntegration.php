@@ -142,7 +142,8 @@ class LaravelIntegration extends Integration
                 if (\method_exists($route, 'uri')) {
                     $httpRoute = $route->uri();
                     $rootSpan->meta[Tag::HTTP_ROUTE] = $httpRoute;
-                    if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()) {
+                    if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()
+                        && dd_trace_env_config("DD_API_SECURITY_ENABLED")) {
                         $allParams = \method_exists($route, 'parameters') ? ($route->parameters() ?? []) : [];
                         if (strpos($httpRoute, '?}') !== false) {
                             // For routes with optional params, filter out default-injected values

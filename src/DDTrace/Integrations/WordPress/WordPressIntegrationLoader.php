@@ -734,24 +734,24 @@ class WordPressIntegrationLoader
                 if (\property_exists($This, 'matched_rule')) {
                     $matchedRule = $This->matched_rule;
                     $rootSpan->meta[Tag::HTTP_ROUTE] = $matchedRule;
-                    if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()) {
+                    if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()
+                        && dd_trace_env_config("DD_API_SECURITY_ENABLED")) {
                         $urlPath = \property_exists($This, 'request') ? $This->request : null;
-                        // Key on the count of matched capture groups, not the full URL,
-                        // so all requests with the same optional-capture participation
-                        // share one cache entry rather than one entry per distinct URL.
-                        $wpMatchedGroupCount = null;
+                        // Key on per-capture participation bits, not the full URL or the
+                        // highest-index group, so routes with optional-group holes (e.g.
+                        // (?:([^/]+)-)? absent vs present) get distinct cache entries.
+                        $wpParticipation = null;
                         if ($urlPath !== null) {
                             if (@preg_match('#^' . $matchedRule . '#', ltrim($urlPath, '/'), $_wpc)) {
-                                $wpMatchedGroupCount = 0;
+                                $_bits = [];
                                 for ($_wi = 1; $_wi < count($_wpc); $_wi++) {
-                                    if (isset($_wpc[$_wi]) && $_wpc[$_wi] !== '') {
-                                        $wpMatchedGroupCount = $_wi;
-                                    }
+                                    $_bits[] = (isset($_wpc[$_wi]) && $_wpc[$_wi] !== '') ? '1' : '0';
                                 }
-                                unset($_wpc, $_wi);
+                                $wpParticipation = implode('', $_bits);
+                                unset($_wpc, $_wi, $_bits);
                             }
                         }
-                        $cacheKey = $matchedRule . '#' . ($wpMatchedGroupCount ?? 'n');
+                        $cacheKey = $matchedRule . '#' . ($wpParticipation ?? 'n');
                         $normalizedRoute = \DDTrace\routing_cache_get($cacheKey);
                         if ($normalizedRoute === false) {
                             $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromWordPress($matchedRule, $urlPath);
