@@ -5,7 +5,7 @@
   "stacks": [
     {
       "profile-type": "socket-write-size",
-      "error-margin": 5,
+      "error-margin": 1,
       "value-matching-sum": 100663296,
       "stack-content": [
         {
@@ -22,7 +22,7 @@
     },
     {
       "profile-type": "socket-read-size",
-      "error-margin": 5,
+      "error-margin": 1,
       "value-matching-sum": 100663296,
       "stack-content": [
         {
