@@ -304,7 +304,7 @@ class LaminasIntegration extends Integration
                                 // Protected property access via Closure::bind (avoids
                                 // ReflectionProperty issues inside DDTrace sandbox).
                                 try {
-                                    $_leafRoute = self::getLeafRouteFromNamedRouteStack($this, (string) $routeName);
+                                    $_leafRoute = LaminasIntegration::getLeafRouteFromNamedRouteStack($this, (string) $routeName);
                                     if ($_leafRoute instanceof \Laminas\Router\Http\Regex) {
                                         $_routeRegex = \Closure::bind(
                                             static function ($r) { return $r->regex; },
@@ -1246,7 +1246,7 @@ class LaminasIntegration extends Integration
         }
     }
 
-    private static function getLeafRouteFromNamedRouteStack($stack, string $matchedName)
+    public static function getLeafRouteFromNamedRouteStack($stack, string $matchedName)
     {
         $segments = \explode('/', $matchedName, 2);
         $route = self::laminasGetNamedRouteFromStack($stack, $segments[0]);
