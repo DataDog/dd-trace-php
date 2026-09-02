@@ -392,9 +392,18 @@ if test "$PHP_DDTRACE" != "no" && { test "$PHP_DDTRACE_PROFILING" = "no" || test
   PHP_NEW_EXTENSION(ddtrace, $ALL_DATADOG_SOURCES, $ext_shared,, $DATADOG_EXTENSION_FLAGS)
   PHP_ADD_BUILD_DIR($ext_builddir/ext, 1)
 
-  dnl sidecar requires us to be linked against libm for pow and powf and librt for shm_* functions
+  dnl sidecar requires us to be linked against libm for pow and powf and librt for shm_* functions.
+  dnl Keep libm as a DT_NEEDED dependency even though libtool places it before the Rust archive
+  dnl that references it; direct sidecar execution cannot inherit libm from the PHP executable.
   AC_CHECK_LIBM
-  EXTRA_LDFLAGS="$EXTRA_LDFLAGS $LIBM"
+  case $host_os in
+    linux*)
+      if test -n "$LIBM"; then
+        EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Wl,--no-as-needed,$LIBM,--as-needed"
+      fi
+    ;;
+    *) EXTRA_LDFLAGS="$EXTRA_LDFLAGS $LIBM" ;;
+  esac
   dnl as well as explicitly for pthread_atfork
   PTHREADS_CHECK
   EXTRA_CFLAGS="$EXTRA_CFLAGS $ac_cv_pthreads_cflags"
@@ -553,12 +562,17 @@ $ddtrace_rust_lib: $( (find "$ext_srcdir/components-rs" -name "*.rs"; find "$ext
 EOT
   fi
 
-  dnl Weaken PHP-origin symbols in all .o files before the link step so that
-  dnl the resulting .so/.a naturally has weak references.
+  dnl Weaken PHP-origin symbols before the link step so the resulting shared
+  dnl object can also be executed as the sidecar's main object. Combined builds
+  dnl have additional PHP references inside the Rust static archive.
   if test "$ext_shared" = "yes"; then
+    ddtrace_weaken_targets="$all_object_files_absolute"
+    if test "$PHP_DDTRACE_TRACER" != "no" && test "$PHP_DDTRACE_PROFILING" != "no"; then
+      ddtrace_weaken_targets="$ddtrace_weaken_targets $ddtrace_rust_lib"
+    fi
     _ddtrace_weaken_tmp=$(mktemp)
     cat > "$_ddtrace_weaken_tmp" << WEAKEN
-	($ddtrace_mockgen_invocation weaken-dynsym $all_object_files_absolute $php_binary)
+	($ddtrace_mockgen_invocation weaken-dynsym $ddtrace_weaken_targets $php_binary)
 WEAKEN
     sed -i $({ sed --version 2>&1 || echo ''; } | grep GNU >/dev/null || echo "''") -e "/\/ddtrace\.la:\ \\$/r $_ddtrace_weaken_tmp" Makefile.objects
     dnl run weaken only once, create a dependency on .la for .a

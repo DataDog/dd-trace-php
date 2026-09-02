@@ -4171,6 +4171,7 @@ dependencies = [
 name = "php_sidecar_mockgen"
 version = "0.1.0"
 dependencies = [
+ "object 0.31.1",
  "sidecar_mockgen",
 ]
 
