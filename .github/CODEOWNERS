@@ -12,7 +12,7 @@
 compile_rust.sh @Datadog/libdatadog-apm @DataDog/apm-php-core
 
 # APM IDM Team
-/src/ @DataDog/apm-idm-php
+/src/ @DataDog/apm-idm-php @DataDog/apm-php-core
 
 # FFE (Feature Flagging & Experimentation) SDK Team
 /components-rs/ffe.rs @Datadog/libdatadog-apm @DataDog/feature-flagging-and-experimentation-sdk @DataDog/apm-php-core
