@@ -19,3 +19,7 @@ done
 for pid in "${pids[@]}"; do
   wait $pid
 done
+
+# The archives are intermediate inputs. Keeping them in extensions_* causes
+# the legacy RPM, DEB, and tarball targets to ship them to users.
+rm -f extensions_$(uname -m)/*.a
