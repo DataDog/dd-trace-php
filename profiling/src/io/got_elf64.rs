@@ -1,4 +1,4 @@
-use super::GotSymbolOverwrite;
+use super::{restore_slot_if_owned, GotHookState, GotSlotRestore};
 use crate::profiling::bindings::{
     Elf64_Dyn, Elf64_Rela, Elf64_Sym, Elf64_Xword, DT_JMPREL, DT_NULL, DT_PLTRELSZ, DT_STRTAB,
     DT_SYMTAB, PT_DYNAMIC, R_AARCH64_JUMP_SLOT, R_X86_64_JUMP_SLOT,
@@ -26,10 +26,7 @@ fn elf64_r_sym(info: Elf64_Xword) -> u32 {
 /// arithmetics are safe because the dynamic library the `info` is pointing to was loaded by the
 /// dynamic linker prior to us messing with the global offset table. If the dynamic library would
 /// not be a valid ELF64, the dynamic linker would have not loaded it.
-unsafe fn override_got_entry(
-    info: *mut dl_phdr_info,
-    overwrites: *mut Vec<GotSymbolOverwrite>,
-) -> bool {
+unsafe fn override_got_entry(info: *mut dl_phdr_info, state: &mut GotHookState) -> bool {
     let phdr = (*info).dlpi_phdr;
 
     // Locate the dynamic programm header (`PT_DYNAMIC`)
@@ -111,7 +108,7 @@ unsafe fn override_got_entry(
 
     // For each symbol we want to overwrite (from `overwrites`), we scan the relocation entries.
     // Once the matching symbol name is found, patch its GOT entry to point to our new function.
-    for overwrite in &mut *overwrites {
+    for overwrite in state.overwrites.iter_mut() {
         for i in 0..num_relocs {
             let rel = rel_plt.add(i);
             let r_type = elf64_r_type((*rel).r_info);
@@ -151,12 +148,17 @@ unsafe fn override_got_entry(
                     return false;
                 }
 
+                let original = *got_entry;
+                if original == overwrite.new_func {
+                    continue;
+                }
+
                 trace!(
                     "Overriding GOT entry for {} at offset {:?} (abs: {:p}) pointing to {:p} (orig function at {:p})",
                     overwrite.symbol_name,
                     (*rel).r_offset,
                     got_entry,
-                    *got_entry,
+                    original,
                     *overwrite.orig_func
                 );
 
@@ -164,8 +166,14 @@ unsafe fn override_got_entry(
                 *overwrite.orig_func = libc::dlsym(libc::RTLD_NEXT, name_ptr) as *mut ();
                 if (*overwrite.orig_func).is_null() {
                     // libc linux fallback
-                    *overwrite.orig_func = *got_entry;
+                    *overwrite.orig_func = original;
                 }
+                state.restores.push(GotSlotRestore {
+                    image: (*info).dlpi_addr as usize,
+                    slot: got_entry as usize,
+                    original: original as usize,
+                    replacement: overwrite.new_func as usize,
+                });
                 *got_entry = overwrite.new_func;
                 continue;
             }
@@ -181,7 +189,7 @@ pub unsafe extern "C" fn callback(
     _size: usize,
     data: *mut c_void,
 ) -> c_int {
-    let overwrites = &mut *(data as *mut Vec<GotSymbolOverwrite>);
+    let state = &mut *(data as *mut GotHookState);
 
     // detect myself ...
     let mut my_info: libc::Dl_info = std::mem::zeroed();
@@ -210,10 +218,61 @@ pub unsafe extern "C" fn callback(
         return 0;
     }
 
-    if override_got_entry(info, overwrites) {
+    if override_got_entry(info, state) {
         trace!("Hooked into {name}");
     } else {
         trace!("Hooking {name} failed");
+    }
+
+    0
+}
+
+pub unsafe fn restore_symbols(restores: &mut Vec<GotSlotRestore>) {
+    libc::dl_iterate_phdr(
+        Some(restore_callback),
+        restores as *mut _ as *mut libc::c_void,
+    );
+    restores.clear();
+}
+
+unsafe extern "C" fn restore_callback(
+    info: *mut dl_phdr_info,
+    _size: usize,
+    data: *mut c_void,
+) -> c_int {
+    let restores = &mut *(data as *mut Vec<GotSlotRestore>);
+    let image = (*info).dlpi_addr as usize;
+    let page_size = libc::sysconf(libc::_SC_PAGESIZE) as usize;
+
+    for restore in restores
+        .iter()
+        .rev()
+        .filter(|restore| restore.image == image)
+    {
+        let slot = restore.slot as *mut *mut ();
+        if *slot as usize != restore.replacement {
+            trace!(
+                "Not restoring GOT entry at {:p}: it was replaced after our hook",
+                slot
+            );
+            continue;
+        }
+
+        let aligned_addr = restore.slot & !(page_size - 1);
+        if libc::mprotect(
+            aligned_addr as *mut c_void,
+            page_size,
+            libc::PROT_READ | libc::PROT_WRITE,
+        ) != 0
+        {
+            let err = *libc::__errno_location();
+            trace!("mprotect failed while restoring GOT entry at {slot:p}: {err}");
+            continue;
+        }
+
+        if restore_slot_if_owned(restore) {
+            trace!("Restored GOT entry at {slot:p}");
+        }
     }
 
     0

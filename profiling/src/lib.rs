@@ -1029,6 +1029,12 @@ extern "C" fn mshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     // SAFETY: calling in mshutdown as required.
     unsafe { Profiler::stop(Duration::from_secs(1)) };
 
+    #[cfg(all(
+        feature = "io_profiling",
+        any(target_os = "linux", target_os = "macos")
+    ))]
+    io::io_prof_mshutdown();
+
     ZendResult::Success
 }
 

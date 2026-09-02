@@ -59,6 +59,31 @@ pub struct GotSymbolOverwrite {
     pub orig_func: *mut *mut (),
 }
 
+pub struct GotHookState<'a> {
+    pub overwrites: &'a mut [GotSymbolOverwrite],
+    pub restores: &'a mut Vec<GotSlotRestore>,
+}
+
+pub struct GotSlotRestore {
+    pub image: usize,
+    pub slot: usize,
+    pub original: usize,
+    pub replacement: usize,
+    #[cfg(target_os = "macos")]
+    pub is_data_const: bool,
+}
+
+static GOT_SLOT_RESTORES: Mutex<Vec<GotSlotRestore>> = Mutex::new(Vec::new());
+
+unsafe fn restore_slot_if_owned(restore: &GotSlotRestore) -> bool {
+    let slot = restore.slot as *mut *mut ();
+    if *slot as usize != restore.replacement {
+        return false;
+    }
+    *slot = restore.original as *mut ();
+    true
+}
+
 static mut ORIG_POLL: unsafe extern "C" fn(*mut libc::pollfd, libc::nfds_t, c_int) -> i32 =
     libc::poll;
 
@@ -709,15 +734,32 @@ pub fn io_prof_first_rinit() {
                     orig_func: ptr::addr_of_mut!(ORIG_POLL) as *mut _ as *mut *mut (),
                 },
             ];
+            let mut restores = GOT_SLOT_RESTORES.lock().unwrap();
+            let mut state = GotHookState {
+                overwrites: &mut overwrites,
+                restores: &mut restores,
+            };
+
             #[cfg(target_os = "linux")]
             libc::dl_iterate_phdr(
                 Some(got_elf64::callback),
-                &mut overwrites as *mut _ as *mut libc::c_void,
+                &mut state as *mut _ as *mut libc::c_void,
             );
 
             #[cfg(target_os = "macos")]
-            got_macho::rebind_symbols(&mut overwrites);
+            got_macho::rebind_symbols(&mut state);
         };
+    }
+}
+
+pub fn io_prof_mshutdown() {
+    let mut restores = GOT_SLOT_RESTORES.lock().unwrap();
+    unsafe {
+        #[cfg(target_os = "linux")]
+        got_elf64::restore_symbols(&mut restores);
+
+        #[cfg(target_os = "macos")]
+        got_macho::restore_symbols(&mut restores);
     }
 }
 

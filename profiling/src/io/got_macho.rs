@@ -49,7 +49,7 @@
 // - Apple dyld source: https://opensource.apple.com/source/dyld/
 // - Mach-O headers: <mach-o/loader.h>, <mach-o/nlist.h>
 
-use super::GotSymbolOverwrite;
+use super::{restore_slot_if_owned, GotHookState, GotSlotRestore, GotSymbolOverwrite};
 use libc::{c_char, c_void};
 use log::{error, trace};
 use mach2::loader;
@@ -234,7 +234,7 @@ extern "C" {
 /// initialization, from a single thread, before the hooked functions are called concurrently.
 /// The pointer arithmetic is safe because all images were successfully loaded by dyld — if an
 /// image had an invalid Mach-O structure, dyld would have rejected it.
-pub unsafe fn rebind_symbols(overwrites: &mut Vec<GotSymbolOverwrite>) {
+pub unsafe fn rebind_symbols(state: &mut GotHookState) {
     // Use dladdr on one of our own functions to find our image's base address, so we can
     // skip patching our own image (we don't want to hook our own calls to libc).
     let mut my_info: libc::Dl_info = std::mem::zeroed();
@@ -265,7 +265,7 @@ pub unsafe fn rebind_symbols(overwrites: &mut Vec<GotSymbolOverwrite>) {
             CStr::from_ptr(name_ptr).to_str().unwrap_or("[Unknown]")
         };
 
-        if rebind_symbols_for_image(header, slide, overwrites) {
+        if rebind_symbols_for_image(header, slide, state) {
             trace!("Hooked into {name}");
         } else {
             trace!("Hooking {name} skipped or failed");
@@ -287,7 +287,7 @@ pub unsafe fn rebind_symbols(overwrites: &mut Vec<GotSymbolOverwrite>) {
 unsafe fn rebind_symbols_for_image(
     header: *const loader::mach_header,
     slide: isize,
-    overwrites: &mut Vec<GotSymbolOverwrite>,
+    state: &mut GotHookState,
 ) -> bool {
     if (*header).magic != libc::MH_MAGIC_64 {
         trace!(
@@ -386,12 +386,14 @@ unsafe fn rebind_symbols_for_image(
                     }
 
                     if rebind_symbols_in_section(
+                        header as usize,
                         section,
                         slide,
                         symtab,
                         strtab,
                         indirect_symtab,
-                        overwrites,
+                        &mut *state.overwrites,
+                        &mut *state.restores,
                         segname == "__DATA_CONST",
                     ) {
                         hooked = true;
@@ -418,12 +420,14 @@ unsafe fn rebind_symbols_for_image(
 /// 4. If the name matches one of our overwrites, save the current pointer as the "original"
 ///    function and replace it with our instrumented version.
 unsafe fn rebind_symbols_in_section(
+    image: usize,
     section: &Section64,
     slide: isize,
     symtab: *const Nlist64,
     strtab: *const c_char,
     indirect_symtab: *const u32,
     overwrites: &mut [GotSymbolOverwrite],
+    restores: &mut Vec<GotSlotRestore>,
     is_data_const: bool,
 ) -> bool {
     // Each slot in the section is one pointer (8 bytes on 64-bit). The number of slots is
@@ -471,6 +475,10 @@ unsafe fn rebind_symbols_in_section(
             }
 
             let slot = symbol_ptrs.add(i);
+            let original = *slot;
+            if original as *mut () == overwrite.new_func {
+                continue;
+            }
 
             // __DATA_CONST is read-only at this point (dyld marks it read-only after initial
             // binding). We need to temporarily make the page writable using vm_protect with
@@ -499,11 +507,16 @@ unsafe fn rebind_symbols_in_section(
                 *overwrite.orig_func,
             );
 
-            // Save the original function pointer from the slot before we overwrite it.
-            // This is written on every matching image (last writer wins), but that's fine:
-            // by first RINIT all lazy bindings for common libc functions are resolved, so
-            // every image's slot points to the same canonical address in libSystem.
-            *overwrite.orig_func = *slot as *mut ();
+            // Keep the existing single call-through pointer, but record the exact value of every
+            // slot so MSHUTDOWN can restore images which resolve this symbol differently.
+            *overwrite.orig_func = original as *mut ();
+            restores.push(GotSlotRestore {
+                image,
+                slot: slot as usize,
+                original: original as usize,
+                replacement: overwrite.new_func as usize,
+                is_data_const,
+            });
             *slot = overwrite.new_func as *mut c_void;
             hooked = true;
 
@@ -525,6 +538,67 @@ unsafe fn rebind_symbols_in_section(
     }
 
     hooked
+}
+
+pub unsafe fn restore_symbols(restores: &mut Vec<GotSlotRestore>) {
+    let image_count = _dyld_image_count();
+    let page_size = libc::sysconf(libc::_SC_PAGESIZE) as usize;
+
+    for i in 0..image_count {
+        let header = _dyld_get_image_header(i);
+        if header.is_null() {
+            continue;
+        }
+
+        for restore in restores
+            .iter()
+            .rev()
+            .filter(|restore| restore.image == header as usize)
+        {
+            let slot = restore.slot as *mut *mut ();
+            if *slot as usize != restore.replacement {
+                trace!(
+                    "Not restoring symbol pointer at {:p}: it was replaced after our hook",
+                    slot
+                );
+                continue;
+            }
+
+            if restore.is_data_const {
+                let page_start = restore.slot & !(page_size - 1);
+                let result = vm_protect(
+                    mach_task_self(),
+                    page_start as libc::mach_vm_address_t,
+                    page_size as libc::mach_vm_size_t,
+                    0,
+                    libc::VM_PROT_READ | libc::VM_PROT_WRITE | VM_PROT_COPY,
+                );
+                if result != 0 {
+                    trace!(
+                        "vm_protect failed while restoring symbol pointer at {slot:p}: kern_return {result}"
+                    );
+                    continue;
+                }
+            }
+
+            if restore_slot_if_owned(restore) {
+                trace!("Restored symbol pointer at {slot:p}");
+            }
+
+            if restore.is_data_const {
+                let page_start = restore.slot & !(page_size - 1);
+                vm_protect(
+                    mach_task_self(),
+                    page_start as libc::mach_vm_address_t,
+                    page_size as libc::mach_vm_size_t,
+                    0,
+                    libc::VM_PROT_READ,
+                );
+            }
+        }
+    }
+
+    restores.clear();
 }
 
 /// Extract the segment name from a `segment_command_64` as a `&str`.
