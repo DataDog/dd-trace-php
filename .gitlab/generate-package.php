@@ -119,6 +119,10 @@ stages:
 variables:
   FF_ENABLE_BASH_EXIT_CODE_CHECK: "true"
   FF_USE_NEW_BASH_EVAL_STRATEGY: "true"
+  GIT_SUBMODULE_STRATEGY: recursive
+  GIT_SUBMODULE_PATHS: libdatadog tests/FeatureFlags/ffe-system-test-data appsec/third_party/cpp-base64 appsec/third_party/libddwaf appsec/third_party/libddwaf-rust appsec/third_party/msgpack-c
+  RELIABILITY_ENV_BRANCH: "master"
+  SYSTEM_TESTS_LIBRARY: php
   CARGO_HOME: "${CI_PROJECT_DIR}/.cache/cargo"
 
   # One pipeline injection package size ratchet
@@ -178,6 +182,13 @@ requirements_json_test:
   tags: [ "arch:amd64" ]
   script:
     - ./.gitlab/append-build-id.sh
+    - |
+      SYSTEM_TESTS_SHA=$(git ls-remote https://github.com/DataDog/system-tests.git refs/heads/main | awk 'NR == 1 { print $1 }')
+      if ! printf '%s\n' "$SYSTEM_TESTS_SHA" | grep -Eq '^[0-9a-f]{40}$'; then
+        echo "Failed to resolve a valid system-tests commit: $SYSTEM_TESTS_SHA"
+        exit 1
+      fi
+      printf 'SYSTEM_TESTS_SHA=%s\n' "$SYSTEM_TESTS_SHA" > system-tests.env
     # Upgrading composer
     - composer self-update --no-interaction
     # Installing dependencies with composer
@@ -192,6 +203,8 @@ requirements_json_test:
     paths:
       - VERSION
       - ./src/bridge/_generated*.php
+    reports:
+      dotenv: system-tests.env
 
 <?php
 foreach ($build_platforms as $platform) {
@@ -1265,18 +1278,17 @@ endforeach;
 
 .system_tests:
   stage: verify
-  image: registry.ddbuild.io/images/mirror/python:3.12-slim-bullseye
+  image: registry.ddbuild.io/system-tests/ci-runner:75a57a4b6391
   tags: [ "docker-in-docker:amd64" ]
   variables:
+    GIT_SUBMODULE_STRATEGY: none
     TEST_LIBRARY: php
     KUBERNETES_CPU_REQUEST: 8
     PYTEST_XDIST_AUTO_NUM_WORKERS: 8
     KUBERNETES_MEMORY_REQUEST: 3Gi
     KUBERNETES_MEMORY_LIMIT: 4Gi
     RUST_BACKTRACE: 1
-    BUILD_SH_ARGS: php
-    PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
-    APT_CACHE: $CI_PROJECT_DIR/.cache/apt
+    BUILD_SH_ARGS: "-i weblog php"
     DOCKER_DEFAULT_PLATFORM: linux/amd64
     # TODO DD_API_KEY; SYSTEM_TESTS_AWS_ACCESS_KEY_ID; SYSTEM_TESTS_AWS_SECRET_ACCESS_KEY
   needs:
@@ -1288,34 +1300,25 @@ endforeach;
       artifacts: true
   before_script:
     - |
-      # Setup cache dirs
-      mkdir -p $PIP_CACHE_DIR
-      mkdir -p $APT_CACHE/lists
-      mkdir -p $APT_CACHE/archives
-      chown -R $(id -u):$(id -g) $CI_PROJECT_DIR/.cache
-
-      # Install system dependencies
-      apt-get update -o dir::state::lists="$APT_CACHE/lists"
-      apt-get install -y --no-install-recommends -o dir::state::lists="$APT_CACHE/lists" -o dir::cache::archives="$APT_CACHE/archives" ca-certificates curl git build-essential
-      mkdir -p /etc/apt/keyrings
-      curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
-      echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list
-      apt-get update -o dir::state::lists="$APT_CACHE/lists"
-      apt-get install -y --no-install-recommends -o dir::state::lists="$APT_CACHE/lists" -o dir::cache::archives="$APT_CACHE/archives" docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-      # Install Python dependencies
-      pip install -U pip virtualenv
+      set -e
+      if ! printf '%s\n' "${SYSTEM_TESTS_SHA:-}" | grep -Eq '^[0-9a-f]{40}$'; then
+        echo "Missing or invalid SYSTEM_TESTS_SHA: ${SYSTEM_TESTS_SHA:-}"
+        exit 1
+      fi
+      git init -q system-tests
+      git -C system-tests fetch --quiet --depth 1 https://github.com/DataDog/system-tests.git "$SYSTEM_TESTS_SHA"
+      git -C system-tests checkout --quiet --detach "$SYSTEM_TESTS_SHA"
+      test "$(git -C system-tests rev-parse HEAD)" = "$SYSTEM_TESTS_SHA"
+      test "$(git -C system-tests rev-parse --is-shallow-repository)" = "true"
+    - CI_IMAGE="$CI_JOB_IMAGE" python3 system-tests/utils/ci/gitlab/build_ci_image.py --check-only
 <?php dockerhub_login() ?>
     - /tmp/vault kv get --format=json "kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key" 2>/dev/null | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['data']['key'])" > /tmp/.dd-api-key 2>/dev/null || true
-    - git clone https://github.com/DataDog/system-tests.git
     - mv packages/{datadog-setup.php,dd-library-php-*x86_64-linux-gnu.tar.gz} system-tests/binaries
     - cd system-tests
-    - ./build.sh $BUILD_SH_ARGS
-  cache:
-    - key: v0-$CI_JOB_NAME_SLUG-cache
-      when: always
-      paths:
-        - .cache/
+    - ln -sf /system-tests/venv venv
+    - source venv/bin/activate
+    - export PYTHONPATH="$CI_PROJECT_DIR/system-tests"
+    - if [ -n "$BUILD_SH_ARGS" ]; then ./build.sh $BUILD_SH_ARGS; fi
   after_script:
     - DATADOG_API_KEY=$(cat /tmp/.dd-api-key 2>/dev/null) || true
     - mkdir -p artifacts && for f in system-tests/logs*/reportJunit.xml; do dir=$(basename $(dirname "$f")); cp "$f" "artifacts/reportJunit_${dir}.xml" 2>/dev/null || true; done
@@ -1348,14 +1351,14 @@ endforeach;
 "System Tests: [php-fpm-8.5, default]":
   extends: .system_tests
   variables:
-    BUILD_SH_ARGS: -w php-fpm-8.5 php
+    BUILD_SH_ARGS: "-i weblog -w php-fpm-8.5 php"
   script:
     - ./run.sh
 
 "System Tests: [php-fpm-8.5]":
   extends: .system_tests
   variables:
-    BUILD_SH_ARGS: -w php-fpm-8.5 php
+    BUILD_SH_ARGS: "-i weblog -w php-fpm-8.5 php"
   parallel:
     matrix:
       - TESTSUITE:
@@ -1388,7 +1391,7 @@ $system_tests_weblogs = [
   extends: .system_tests
   timeout: 4h
   variables:
-    BUILD_SH_ARGS: -w <?= $weblog ?> php
+    BUILD_SH_ARGS: "-i weblog -w <?= $weblog ?> php"
     # Expand the DinD loopback volume to avoid running out of disk space.
     # See https://datadoghq.atlassian.net/wiki/spaces/K8S/pages/2874901299/How+to+use+Micro+VMs#DinD-in-CI
     DOCKER_LOOPBACK_SIZE: 50G
@@ -1409,7 +1412,7 @@ $system_tests_weblogs = [
 "System Tests: [parametric]":
   extends: .system_tests
   variables:
-    BUILD_SH_ARGS: "-i runner"
+    BUILD_SH_ARGS: ""
   script:
     - ./run.sh PARAMETRIC
 
