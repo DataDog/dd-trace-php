@@ -6,7 +6,7 @@ use Illuminate\Http\Response;
 
 class MiscController extends Controller
 {
-    public function dynamicPath(string $param01)
+    public function dynamicPath(string $param01): Response
     {
         return response('Hi', 200);
     }
