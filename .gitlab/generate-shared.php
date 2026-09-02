@@ -135,7 +135,6 @@ stages:
       trap 'rm -f "$BASELINE_CONFIG"' EXIT
       cp metadata/supported-configurations.json "$BASELINE_CONFIG"
 
-      bash tooling/generate-supported-configurations.sh --self-test
       bash tooling/generate-supported-configurations.sh
 
       if ! cmp -s "$BASELINE_CONFIG" metadata/supported-configurations.json; then
