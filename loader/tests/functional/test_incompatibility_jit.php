@@ -36,6 +36,7 @@ Version => %s
 Injection success => true
 Injection error =>
 Extra config => datadog.trace.sources_path=%s/trace/src
+datadog.profiling.enabled=0
 
 %A
 EOT
@@ -66,6 +67,7 @@ Version => %s
 Injection success => true
 Injection error =>
 Extra config => datadog.trace.sources_path=%s/trace/src
+datadog.profiling.enabled=0
 
 %A
 EOT
@@ -102,6 +104,7 @@ Version => %s
 Injection success => false
 Injection error => Incompatible runtime
 Extra config => datadog.trace.sources_path=%s/trace/src
+datadog.profiling.enabled=0
 ddtrace.disable=1
 
 %A
@@ -169,6 +172,7 @@ Version => %s
 Injection success => true
 Injection error =>
 Extra config => datadog.trace.sources_path=%s/trace/src
+datadog.profiling.enabled=0
 
 %A
 OPcache JIT is enabled and may cause instability. Ignoring as DD_INJECT_FORCE is enabled
@@ -206,6 +210,7 @@ Version => %s
 Injection success => true
 Injection error =>
 Extra config => datadog.trace.sources_path=%s/trace/src
+datadog.profiling.enabled=0
 
 %A
 OPcache JIT is enabled and may cause instability. Ignoring as DD_INJECT_FORCE is enabled
