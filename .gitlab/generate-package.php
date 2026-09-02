@@ -646,6 +646,18 @@ foreach ($build_platforms as $platform) {
   stage: packaging
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php_fpm_packaging
   tags: [ "arch:amd64" ]
+  after_script:
+    - |
+      if [ -d packages ]; then
+        echo "Package artifact total size:"
+        du -sh packages
+        echo "Package artifact files, sorted by size:"
+        find packages -type f -exec du -h {} + | sort -h
+      fi
+      echo "Extension input total sizes:"
+      du -sh extensions_*
+      echo "Extension input files, sorted by size:"
+      find extensions_* -type f -exec du -h {} + | sort -h
   artifacts:
     paths:
       - "packages/"
