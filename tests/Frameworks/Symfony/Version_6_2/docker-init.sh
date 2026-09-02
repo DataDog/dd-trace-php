@@ -5,7 +5,7 @@ cd /var/www
 export DD_TRACE_CLI_ENABLED=false
 export DATABASE_URL="sqlite:////var/www/var/app.db"
 
-composer install --no-scripts
+composer install --no-dev --no-scripts
 mkdir -p var
 php bin/console cache:clear
 php bin/console doctrine:database:drop --force 2>/dev/null || true
