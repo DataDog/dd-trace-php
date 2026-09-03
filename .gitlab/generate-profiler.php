@@ -55,21 +55,34 @@ foreach ($profiler_minor_major_targets as $version) {
     - unset DD_SERVICE; unset DD_ENV
     - mkdir -p "${CI_PROJECT_DIR}/artifacts/profiler-tests"
 
-    - '# NTS'
+    - '# NTS standalone'
     - '# Use if/then instead of `command -v switch-php && switch-php` — the && form exits 1 when switch-php is absent, which FF_ENABLE_BASH_EXIT_CODE_CHECK treats as a job failure'
     - if command -v switch-php > /dev/null 2>&1; then switch-php "${PHP_MAJOR_MINOR}"; fi
     - (cd ..; phpize && DDTRACE_PROFILING_FEATURES="debug_stats,stack_walking_tests,test,tracing,tracing-subscriber,trigger_time_sample" ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling && make -j$(nproc))
     - test -f "${CI_PROJECT_DIR}/modules/datadog-profiling.so" || { echo "ERROR standalone profiler build did not produce modules/datadog-profiling.so"; find "${CI_PROJECT_DIR}/modules" -maxdepth 1 -type f -print; exit 1; }
     - php -d "extension=${CI_PROJECT_DIR}/modules/datadog-profiling.so" -r 'if (!extension_loaded("datadog-profiling") || ini_get("datadog.profiling.enabled") === false) { exit(1); }'
-    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/nts-results.xml" php profiling/tests/run-tests.php -d "extension=${CI_PROJECT_DIR}/modules/datadog-profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
+    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/nts-standalone-results.xml" php profiling/tests/run-tests.php -d "extension=${CI_PROJECT_DIR}/modules/datadog-profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
 
+    - '# NTS combined (tracer + profiling in one ddtrace.so, as shipped)'
+    - if command -v switch-php > /dev/null 2>&1; then switch-php "${PHP_MAJOR_MINOR}"; fi
+    - (cd ..; make distclean || true; phpize && DDTRACE_PROFILING_FEATURES="debug_stats,stack_walking_tests,test,tracing,tracing-subscriber,trigger_time_sample" ./configure --enable-ddtrace-tracer --enable-ddtrace-profiling && make -j$(nproc))
+    - test -f "${CI_PROJECT_DIR}/modules/ddtrace.so" || { echo "ERROR combined build did not produce modules/ddtrace.so"; find "${CI_PROJECT_DIR}/modules" -maxdepth 1 -type f -print; exit 1; }
+    - php -d "extension=${CI_PROJECT_DIR}/modules/ddtrace.so" -r 'if (!extension_loaded("ddtrace") || ini_get("datadog.profiling.enabled") === false) { exit(1); }'
+    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/nts-combined-results.xml" php profiling/tests/run-tests.php -d "extension=${CI_PROJECT_DIR}/modules/ddtrace.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
 
-    - '# ZTS'
+    - '# ZTS standalone'
     - if command -v switch-php > /dev/null 2>&1; then switch-php "${PHP_MAJOR_MINOR}-zts"; fi
     - (cd ..; make distclean || true; phpize && DDTRACE_PROFILING_FEATURES="debug_stats,stack_walking_tests,test,tracing,tracing-subscriber,trigger_time_sample" ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling && make -j$(nproc))
     - test -f "${CI_PROJECT_DIR}/modules/datadog-profiling.so" || { echo "ERROR standalone profiler ZTS build did not produce modules/datadog-profiling.so"; find "${CI_PROJECT_DIR}/modules" -maxdepth 1 -type f -print; exit 1; }
     - php -d "extension=${CI_PROJECT_DIR}/modules/datadog-profiling.so" -r 'if (!extension_loaded("datadog-profiling") || ini_get("datadog.profiling.enabled") === false) { exit(1); }'
-    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/zts-results.xml" php profiling/tests/run-tests.php -d "extension=${CI_PROJECT_DIR}/modules/datadog-profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
+    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/zts-standalone-results.xml" php profiling/tests/run-tests.php -d "extension=${CI_PROJECT_DIR}/modules/datadog-profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
+
+    - '# ZTS combined (tracer + profiling in one ddtrace.so, as shipped)'
+    - if command -v switch-php > /dev/null 2>&1; then switch-php "${PHP_MAJOR_MINOR}-zts"; fi
+    - (cd ..; make distclean || true; phpize && DDTRACE_PROFILING_FEATURES="debug_stats,stack_walking_tests,test,tracing,tracing-subscriber,trigger_time_sample" ./configure --enable-ddtrace-tracer --enable-ddtrace-profiling && make -j$(nproc))
+    - test -f "${CI_PROJECT_DIR}/modules/ddtrace.so" || { echo "ERROR combined ZTS build did not produce modules/ddtrace.so"; find "${CI_PROJECT_DIR}/modules" -maxdepth 1 -type f -print; exit 1; }
+    - php -d "extension=${CI_PROJECT_DIR}/modules/ddtrace.so" -r 'if (!extension_loaded("ddtrace") || ini_get("datadog.profiling.enabled") === false) { exit(1); }'
+    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/zts-combined-results.xml" php profiling/tests/run-tests.php -d "extension=${CI_PROJECT_DIR}/modules/ddtrace.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
   after_script:
     - |
       if [ "${IMAGE_SUFFIX}" != "_centos-7" ]; then

@@ -144,7 +144,7 @@ EOS
     // JIT enabled + force injection via ENV
     [
         "config" => "-dzend_extension=opcache -dopcache.enable_cli=1 -ddatadog.trace.cli_enabled=1 -dopcache.jit_buffer_size=32M -dopcache.jit=tracing",
-        "env" => ['DD_INJECT_FORCE=1'],
+        "env" => ['DD_INJECT_FORCE=1', 'DD_PROFILING_ENABLED=1'],
         "must_not_contain" => [],
         "must_contain" => [
             $msg_forced,
@@ -183,6 +183,7 @@ EOT
     // JIT enabled + force injection via INI
     [
         "config" => "-dzend_extension=opcache -dopcache.enable_cli=1 -ddatadog.trace.cli_enabled=1 -ddatadog.loader.force_inject=1 -dopcache.jit_buffer_size=32M -dopcache.jit=tracing",
+        "env" => ['DD_PROFILING_ENABLED=1'],
         "must_not_contain" => [],
         "must_contain" => [
             $msg_forced,
