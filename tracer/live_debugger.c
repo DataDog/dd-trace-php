@@ -1087,8 +1087,8 @@ static void dd_remove_live_debugger_probe(int64_t id) {
         if (func) {
             zend_string_release(func);
         }
-        // zai_hook_remove freed `def` via the hook's aux dtor; drop the now-stale
-        // map entry so a later lookup of the same id can't use-after-free it.
+        // Drop the (now stale) index entry so that the number of elements in
+        // active_live_debugger_hooks reflects the currently-installed probes.
         zend_hash_index_del(&DDTRACE_G(active_live_debugger_hooks), (zend_ulong)id);
     }
 }
