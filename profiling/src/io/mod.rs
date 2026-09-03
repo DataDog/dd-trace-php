@@ -7,7 +7,7 @@ use crate::profiling::profiler::Profiler;
 use crate::profiling::{zend, RefCellExt, REQUEST_LOCALS};
 use libc::{c_int, c_void, fstat, stat, S_IFMT, S_IFSOCK};
 use rand::rngs::ThreadRng;
-use rand_distr::{Distribution, Poisson};
+use rand::Rng;
 use rustc_hash::FxHashMap;
 use std::cell::RefCell;
 use std::mem::MaybeUninit;
@@ -563,17 +563,16 @@ fn collect_file_write_size(value: u64) {
 
 pub struct IOProfilingStats {
     next_sample: u64,
-    poisson: Poisson<f64>,
+    mean: f64,
     rng: ThreadRng,
 }
 
 impl IOProfilingStats {
-    fn new(lambda: f64) -> Self {
-        // Safety: this will only error if lambda <= 0
-        let poisson = Poisson::new(lambda).unwrap();
+    fn new(mean: u64) -> Self {
+        assert!(mean > 0);
         let mut stats = IOProfilingStats {
+            mean: mean as f64,
             next_sample: 0,
-            poisson,
             rng: rand::rng(),
         };
         stats.next_sampling_interval();
@@ -581,7 +580,14 @@ impl IOProfilingStats {
     }
 
     fn next_sampling_interval(&mut self) {
-        self.next_sample = self.poisson.sample(&mut self.rng) as u64;
+        // Draw inter-sample distance from an exponential distribution: -ln(U) * mean
+        let u: f64 = self.rng.random();
+        let u = if u <= 0.0 { 1e-10 } else { u };
+        let v = -u.ln() * self.mean;
+        // Clamp to [8, 20 * mean] matching libdatadog sampler
+        let vmax = 20.0 * self.mean;
+        let v = v.clamp(8.0, vmax);
+        self.next_sample = v as u64;
     }
 
     fn should_collect(&mut self, value: u64) -> bool {
@@ -606,42 +612,42 @@ impl IOProfilingStats {
 thread_local! {
     static SOCKET_READ_TIME_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            SOCKET_READ_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
+            SOCKET_READ_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed),
         )
     );
     static SOCKET_WRITE_TIME_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            SOCKET_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
+            SOCKET_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed),
         )
     );
     static FILE_READ_TIME_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            FILE_READ_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
+            FILE_READ_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed),
         )
     );
     static FILE_WRITE_TIME_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            FILE_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
+            FILE_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed),
         )
     );
     static SOCKET_READ_SIZE_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            SOCKET_READ_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
+            SOCKET_READ_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed),
         )
     );
     static SOCKET_WRITE_SIZE_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            SOCKET_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
+            SOCKET_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed),
         )
     );
     static FILE_READ_SIZE_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            FILE_READ_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
+            FILE_READ_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed),
         )
     );
     static FILE_WRITE_SIZE_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            FILE_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
+            FILE_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed),
         )
     );
 }
