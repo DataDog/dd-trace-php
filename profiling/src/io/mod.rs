@@ -97,6 +97,11 @@ unsafe fn restore_slot_if_owned(restore: &GotSlotRestore) -> bool {
     true
 }
 
+#[inline]
+fn is_zend_thread() -> bool {
+    REQUEST_LOCALS.borrow_or_false(|locals| !locals.vm_interrupt_addr.is_null())
+}
+
 fn eval_poll_events(ret: i32, fds: &[libc::pollfd]) -> (bool, bool) {
     let mut has_read = false;
     let mut has_write = false;
@@ -136,6 +141,10 @@ unsafe extern "C" fn observed_poll(
     nfds: libc::nfds_t,
     timeout: c_int,
 ) -> i32 {
+    if !is_zend_thread() {
+        return libc::poll(fds, nfds, timeout);
+    }
+
     let start = Instant::now();
     let ret = libc::poll(fds, nfds, timeout);
     let _errno_backup = ErrnoBackup::new();
@@ -169,6 +178,10 @@ unsafe extern "C" fn observed_recv(
     length: usize,
     flags: c_int,
 ) -> isize {
+    if !is_zend_thread() {
+        return libc::recv(socket, buf, length, flags);
+    }
+
     let start = Instant::now();
     let len = libc::recv(socket, buf, length, flags);
     let _errno_backup = ErrnoBackup::new();
@@ -194,6 +207,10 @@ unsafe extern "C" fn observed_recvmsg(
     msg: *mut libc::msghdr,
     flags: c_int,
 ) -> isize {
+    if !is_zend_thread() {
+        return libc::recvmsg(socket, msg, flags);
+    }
+
     let start = Instant::now();
     let len = libc::recvmsg(socket, msg, flags);
     let _errno_backup = ErrnoBackup::new();
@@ -222,6 +239,10 @@ unsafe extern "C" fn observed_recvfrom(
     address: *mut libc::sockaddr,
     address_len: *mut libc::socklen_t,
 ) -> isize {
+    if !is_zend_thread() {
+        return libc::recvfrom(socket, buf, length, flags, address, address_len);
+    }
+
     let start = Instant::now();
     let len = libc::recvfrom(socket, buf, length, flags, address, address_len);
     let _errno_backup = ErrnoBackup::new();
@@ -248,6 +269,10 @@ unsafe extern "C" fn observed_send(
     length: usize,
     flags: c_int,
 ) -> isize {
+    if !is_zend_thread() {
+        return libc::send(socket, buf, length, flags);
+    }
+
     let start = Instant::now();
     let len = libc::send(socket, buf, length, flags);
     let _errno_backup = ErrnoBackup::new();
@@ -273,6 +298,10 @@ unsafe extern "C" fn observed_sendmsg(
     msg: *const libc::msghdr,
     flags: c_int,
 ) -> isize {
+    if !is_zend_thread() {
+        return libc::sendmsg(socket, msg, flags);
+    }
+
     let start = Instant::now();
     let len = libc::sendmsg(socket, msg, flags);
     let _errno_backup = ErrnoBackup::new();
@@ -299,6 +328,10 @@ unsafe extern "C" fn observed_fwrite(
     nobj: usize,
     stream: *mut libc::FILE,
 ) -> usize {
+    if !is_zend_thread() {
+        return libc::fwrite(ptr, size, nobj, stream);
+    }
+
     let start = Instant::now();
     let len = libc::fwrite(ptr, size, nobj, stream);
     let _errno_backup = ErrnoBackup::new();
@@ -319,6 +352,10 @@ unsafe extern "C" fn observed_fwrite(
 }
 
 unsafe extern "C" fn observed_write(fd: c_int, buf: *const c_void, count: usize) -> isize {
+    if !is_zend_thread() {
+        return libc::write(fd, buf, count);
+    }
+
     let start = Instant::now();
     let len = libc::write(fd, buf, count);
     let _errno_backup = ErrnoBackup::new();
@@ -366,6 +403,10 @@ unsafe extern "C" fn observed_fread(
     nobj: usize,
     stream: *mut libc::FILE,
 ) -> usize {
+    if !is_zend_thread() {
+        return libc::fread(ptr, size, nobj, stream);
+    }
+
     let start = Instant::now();
     let len = libc::fread(ptr, size, nobj, stream);
     let _errno_backup = ErrnoBackup::new();
@@ -386,6 +427,10 @@ unsafe extern "C" fn observed_fread(
 }
 
 unsafe extern "C" fn observed_read(fd: c_int, buf: *mut c_void, count: usize) -> isize {
+    if !is_zend_thread() {
+        return libc::read(fd, buf, count);
+    }
+
     let start = Instant::now();
     let len = libc::read(fd, buf, count);
     let _errno_backup = ErrnoBackup::new();
@@ -603,15 +648,6 @@ impl IOProfilingStats {
     }
 
     fn should_collect(&mut self, value: u64) -> bool {
-        let zend_thread =
-            REQUEST_LOCALS.borrow_or_false(|locals| !locals.vm_interrupt_addr.is_null());
-        if !zend_thread {
-            // `curl_exec()` for example will spawn a new thread for name resolution. GOT hooking
-            // follows threads and as such we might sample from another (non PHP) thread even in a
-            // NTS build of PHP. We have observed crashes for these cases, so instead of crashing
-            // (or risking a crash) we refrain from collection I/O.
-            return false;
-        }
         if let Some(next_sample) = self.next_sample.checked_sub(value) {
             self.next_sample = next_sample;
             return false;
