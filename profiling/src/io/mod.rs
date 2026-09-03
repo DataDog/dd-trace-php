@@ -337,11 +337,11 @@ unsafe extern "C" fn observed_fwrite(
     if FILE_WRITE_TIME_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(duration_nanos)) {
         collect_file_write_time(duration_nanos);
     }
-    if len > 0 {
-        let len_u64 = len as u64;
-        if FILE_WRITE_SIZE_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(len_u64)) {
-            collect_file_write_size(len_u64);
-        }
+    let bytes = (len as u64).saturating_mul(size as u64);
+    if bytes > 0
+        && FILE_WRITE_SIZE_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(bytes))
+    {
+        collect_file_write_size(bytes);
     }
 
     len
@@ -407,11 +407,11 @@ unsafe extern "C" fn observed_fread(
     if FILE_READ_TIME_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(duration_nanos)) {
         collect_file_read_time(duration_nanos);
     }
-    if len > 0 {
-        let len_u64 = len as u64;
-        if FILE_READ_SIZE_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(len_u64)) {
-            collect_file_read_size(len_u64);
-        }
+    let bytes = (len as u64).saturating_mul(size as u64);
+    if bytes > 0
+        && FILE_READ_SIZE_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(bytes))
+    {
+        collect_file_read_size(bytes);
     }
 
     len
