@@ -923,359 +923,82 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
     zend_hash_str_add_new(metrics, ZEND_STRL("process_id"), &pid);
 }
 
-static void dd_serialize_json(zend_array *arr, smart_str *buf, int options) {
-    zval zv;
-    ZVAL_ARR(&zv, arr);
-    zai_json_encode(buf, &zv, options);
-    smart_str_0(buf);
-}
-
-// Maps a DDTrace\SpanKind integer constant to its meta["span.kind"] string; NULL means emit nothing.
-static const char *dd_span_kind_to_meta_str(zend_long kind) {
-    switch (kind) {
-        case 1: return "internal";  // DDTrace\SpanKind::INTERNAL
-        case 2: return "server";    // DDTrace\SpanKind::SERVER
-        case 3: return "client";    // DDTrace\SpanKind::CLIENT
-        case 4: return "producer";  // DDTrace\SpanKind::PRODUCER
-        case 5: return "consumer";  // DDTrace\SpanKind::CONSUMER
-        default: return NULL;       // DDTrace\SpanKind::UNSPECIFIED (0) or unknown
-    }
-}
-
-// Mirror the $span->component / $span->spanKind properties into meta (clobbering) so the wire meta
-// matches the pre-property behaviour. Empty component / spanKind==0 is a no-op, leaving meta intact.
-static void dd_translate_span_kind_component_to_meta(ddtrace_span_data *span, zend_array *meta) {
-    zval *component = &span->property_component;
-    ZVAL_DEREF(component);
-    if (Z_TYPE_P(component) == IS_STRING && Z_STRLEN_P(component) > 0) {
-        zval zv;
-        ZVAL_STR_COPY(&zv, Z_STR_P(component));
-        zend_hash_str_update(meta, ZEND_STRL("component"), &zv);
-    }
-
-    zval *span_kind = &span->property_span_kind;
-    ZVAL_DEREF(span_kind);
-    if (Z_TYPE_P(span_kind) == IS_LONG) {
-        const char *kind_str = dd_span_kind_to_meta_str(Z_LVAL_P(span_kind));
-        if (kind_str) {
-            zval zv;
-            ZVAL_STRING(&zv, kind_str);
-            zend_hash_str_update(meta, ZEND_STRL("span.kind"), &zv);
-        }
-    }
-}
-
-// Convert a DDTrace\SpanEvent to the array shape SpanEvent::jsonSerialize() used to return.
-static zend_array *dd_span_event_to_array(ddtrace_span_event *event) {
-    zval array;
-    array_init(&array);
-
-    Z_TRY_ADDREF(event->property_name);
-    add_assoc_zval_ex(&array, ZEND_STRL("name"), &event->property_name);
-    Z_TRY_ADDREF(event->property_timestamp);
-    add_assoc_zval_ex(&array, ZEND_STRL("time_unix_nano"), &event->property_timestamp);
-
-    // Handle attributes dynamically
-    zval *attributes = &event->property_attributes;
-    zval combined_attributes;
-    array_init(&combined_attributes);
-
-    if (instanceof_function(event->std.ce, ddtrace_ce_exception_span_event)) {
-        // Handle exception attributes dynamically if an exception property exists
-        ddtrace_exception_span_event *exception_event = (ddtrace_exception_span_event *)event;
-        zval *exception = &exception_event->property_exception;
-        if (Z_TYPE_P(exception) == IS_OBJECT && instanceof_function(Z_OBJCE_P(exception), zend_ce_throwable)) {
-            // Get exception message, type, and stack trace directly
-            zend_string *message = zai_exception_message(Z_OBJ_P(exception));
-            if (ZSTR_LEN(message)) {
-                add_assoc_str_ex(&combined_attributes, ZEND_STRL("exception.message"), zend_string_copy(message));
-            }
-            add_assoc_str_ex(&combined_attributes, ZEND_STRL("exception.type"), zend_string_copy(Z_OBJCE_P(exception)->name));
-
-            // Get the exception stack trace using zai_get_trace_without_args_from_exception
-            zend_string *stacktrace = zai_get_trace_without_args_from_exception(Z_OBJ_P(exception));
-            add_assoc_str_ex(&combined_attributes, ZEND_STRL("exception.stacktrace"), stacktrace);
-        }
-    }
-
-    if (Z_TYPE_P(attributes) == IS_ARRAY) {
-        zend_hash_copy(Z_ARRVAL(combined_attributes), Z_ARRVAL_P(attributes), (copy_ctor_func_t)zval_add_ref);
-    }
-
-    if (zend_hash_num_elements(Z_ARRVAL(combined_attributes)) > 0) {
-        add_assoc_zval_ex(&array, ZEND_STRL("attributes"), &combined_attributes);
-    } else {
-        zval_ptr_dtor(&combined_attributes); // Clean up if no elements
-    }
-
-    return Z_ARR(array);
-}
-
-// Convert a DDTrace\SpanLink to the array shape SpanLink::jsonSerialize() used to return.
-static zend_array *dd_span_link_to_array(ddtrace_span_link *link) {
-    zend_array *array = zend_new_array(5);
-
-    zend_string *trace_id = zend_string_init("trace_id", sizeof("trace_id") - 1, 0);
-    zend_string *span_id = zend_string_init("span_id", sizeof("span_id") - 1, 0);
-    zend_string *trace_state = zend_string_init("trace_state", sizeof("trace_state") - 1, 0);
-    zend_string *attributes = zend_string_init("attributes", sizeof("attributes") - 1, 0);
-    zend_string *dropped_attributes_count = zend_string_init("dropped_attributes_count", sizeof("dropped_attributes_count") - 1, 0);
-
-    Z_TRY_ADDREF(link->property_trace_id);
-    zend_hash_add(array, trace_id, &link->property_trace_id);
-    Z_TRY_ADDREF(link->property_span_id);
-    zend_hash_add(array, span_id, &link->property_span_id);
-    Z_TRY_ADDREF(link->property_trace_state);
-    zend_hash_add(array, trace_state, &link->property_trace_state);
-    Z_TRY_ADDREF(link->property_attributes);
-    zend_hash_add(array, attributes, &link->property_attributes);
-    Z_TRY_ADDREF(link->property_dropped_attributes_count);
-    zend_hash_add(array, dropped_attributes_count, &link->property_dropped_attributes_count);
-
-    zend_string_release(trace_id);
-    zend_string_release(span_id);
-    zend_string_release(trace_state);
-    zend_string_release(attributes);
-    zend_string_release(dropped_attributes_count);
-
-    return array;
-}
-
-// JSON-encode a list of span links, converting each SpanLink object via dd_span_link_to_array
-// (replaces the former JsonSerializable path, byte-identical output).
-static void dd_serialize_span_links(zend_array *links, smart_str *buf) {
-    zval tmp;
-    array_init_size(&tmp, zend_hash_num_elements(links));
-    zend_ulong idx;
-    zend_string *key;
-    zval *val;
-    ZEND_HASH_FOREACH_KEY_VAL(links, idx, key, val) {
-        zval elem;
-        ZVAL_DEREF(val);
-        if (Z_TYPE_P(val) == IS_OBJECT && instanceof_function(Z_OBJCE_P(val), ddtrace_ce_span_link)) {
-            ZVAL_ARR(&elem, dd_span_link_to_array((ddtrace_span_link *)Z_OBJ_P(val)));
-        } else {
-            ZVAL_COPY(&elem, val);
-        }
-        if (key) {
-            zend_hash_add(Z_ARRVAL(tmp), key, &elem);
-        } else {
-            zend_hash_index_add(Z_ARRVAL(tmp), idx, &elem);
-        }
-    } ZEND_HASH_FOREACH_END();
-    dd_serialize_json(Z_ARRVAL(tmp), buf, 0);
-    zval_ptr_dtor(&tmp);
-}
-
-// JSON-encode a list of span events, converting each SpanEvent object via dd_span_event_to_array.
-static void dd_serialize_span_events(zend_array *events, smart_str *buf) {
-    zval tmp;
-    array_init_size(&tmp, zend_hash_num_elements(events));
-    zend_ulong idx;
-    zend_string *key;
-    zval *val;
-    ZEND_HASH_FOREACH_KEY_VAL(events, idx, key, val) {
-        zval elem;
-        ZVAL_DEREF(val);
-        if (Z_TYPE_P(val) == IS_OBJECT && instanceof_function(Z_OBJCE_P(val), ddtrace_ce_span_event)) {
-            ZVAL_ARR(&elem, dd_span_event_to_array((ddtrace_span_event *)Z_OBJ_P(val)));
-        } else {
-            ZVAL_COPY(&elem, val);
-        }
-        if (key) {
-            zend_hash_add(Z_ARRVAL(tmp), key, &elem);
-        } else {
-            zend_hash_index_add(Z_ARRVAL(tmp), idx, &elem);
-        }
-    } ZEND_HASH_FOREACH_END();
-    dd_serialize_json(Z_ARRVAL(tmp), buf, 0);
-    zval_ptr_dtor(&tmp);
-}
-
-// --- Span finalization sink (v0.4 vs native V1) ---
+// --- Span finalization sink (native V1) ---
 // ddtrace_serialize_span_to_rust_span runs one finalization body and routes every field/meta/metrics
-// write through a dd_span_sink. On the in-process (<=8.2) path the sink targets a V0.4 ddog_SpanBytes
-// (also read back by functions.c introspection); on the sidecar path it targets the native V1 builder
-// chunk/span directly, with no V0.4 intermediate. The V1 routing promotes env/version/component/
-// span.kind to dedicated span setters and _dd.origin/_dd.p.dm/_sampling_priority_v1 to chunk-level
-// fields (excluding them from the attribute map), and drops _dd.p.tid (carried by the chunk's 128-bit
-// trace id) and the _dd.span_links/events JSON (emitted natively from the PHP span).
+// write through a dd_span_sink into the native V1 builder chunk/span. Promoted keys (env/version/
+// component/span.kind to span setters; _dd.origin/_dd.p.dm/_sampling_priority_v1 to chunk fields;
+// _dd.p.tid dropped as it's carried by the chunk's 128-bit trace id; links/events emitted natively)
+// are handled up front in the finalization body, so the sink ops below just add plain attributes.
 
-static inline bool dd_cs_eq_lit(ddog_CharSlice s, const char *lit, size_t len) {
-    return s.len == len && memcmp(s.ptr, lit, len) == 0;
-}
-#define DD_CS_EQ(s, lit) dd_cs_eq_lit((s), "" lit, sizeof(lit) - 1)
-
-// meta["span.kind"] string -> OTEL wire SpanKind value. DDTrace\SpanKind constants already match
-// the OTEL wire values (INTERNAL=1, SERVER=2, CLIENT=3, PRODUCER=4, CONSUMER=5); 0 = unspecified.
-static uint32_t dd_span_kind_meta_to_otel(ddog_CharSlice v) {
-    if (DD_CS_EQ(v, "internal")) return 1;
-    if (DD_CS_EQ(v, "server")) return 2;
-    if (DD_CS_EQ(v, "client")) return 3;
-    if (DD_CS_EQ(v, "producer")) return 4;
-    if (DD_CS_EQ(v, "consumer")) return 5;
-    return 0;
-}
-
-// Route a meta (string) key to its V1 destination. Returns true when the key is consumed as a
-// promoted span field or a chunk-level attribute (and therefore must NOT be added to the span
-// attribute map). Mirrors the V0.4->V1 routing that dd_v1_convert_span used to apply post-hoc.
-static bool dd_v1_route_meta(dd_span_sink *s, ddog_CharSlice key, ddog_CharSlice value) {
-    ddog_TracerPayloadV1Builder *b = s->builder;
-    if (DD_CS_EQ(key, "env")) { ddog_v1_set_span_env(b, s->chunk, s->span, value); return true; }
-    if (DD_CS_EQ(key, "version")) { ddog_v1_set_span_version(b, s->chunk, s->span, value); return true; }
-    if (DD_CS_EQ(key, "component")) { ddog_v1_set_span_component(b, s->chunk, s->span, value); return true; }
-    if (DD_CS_EQ(key, "span.kind")) { ddog_v1_set_span_kind(b, s->chunk, s->span, dd_span_kind_meta_to_otel(value)); return true; }
-    // Links/events are emitted natively from the PHP span, never as JSON-in-meta on the V1 path.
-    if (DD_CS_EQ(key, "_dd.span_links") || DD_CS_EQ(key, "events")) { return true; }
-    if (DD_CS_EQ(key, "_dd.origin")) { ddog_v1_set_chunk_origin(b, s->chunk, value); return true; }
-    if (DD_CS_EQ(key, "_dd.p.dm")) {
-        // v0.4 form is "-N"; the mechanism is the trailing unsigned integer.
-        const char *p = value.ptr; size_t n = value.len;
-        if (n && *p == '-') { p++; n--; }
-        uint32_t mech = 0;
-        for (size_t i = 0; i < n; i++) { if (p[i] < '0' || p[i] > '9') { mech = 0; break; } mech = mech * 10 + (uint32_t)(p[i] - '0'); }
-        ddog_v1_set_chunk_sampling_mechanism(b, s->chunk, mech);
-        return true;
-    }
-    // 128-bit trace-id high half is carried by the chunk trace id, not a span attribute.
-    if (DD_CS_EQ(key, "_dd.p.tid")) { return true; }
-    return false;
-}
-
-// --- Sink write ops: dispatch each finalization write to the V0.4 span or the native V1 builder ---
+// --- Sink write ops: each finalization write targets the native V1 builder span ---
 
 // The four meta-string sink ops below have external linkage: exception_serialize.c writes span meta
-// through the same routing (declared in serializer.h).
+// through them (declared in serializer.h).
 void dd_sink_meta_cs_cs(dd_span_sink *s, ddog_CharSlice key, ddog_CharSlice val) {
-    if (s->builder) {
-        if (!dd_v1_route_meta(s, key, val)) ddog_v1_add_span_attr_str(s->builder, s->chunk, s->span, key, val);
-    } else {
-        ddog_add_span_meta(s->v04, key, val);
-    }
+    ddog_add_span_attr_cs_cs(s->builder, s->chunk, s->span, key, val);
 }
 void dd_sink_meta_str_cs(dd_span_sink *s, const char *key, ddog_CharSlice val) {
-    if (s->builder) {
-        dd_sink_meta_cs_cs(s, (ddog_CharSlice){ .ptr = key, .len = strlen(key) }, val);
-    } else {
-        ddog_add_str_span_meta_CharSlice(s->v04, key, val);
-    }
+    ddog_add_span_attr_lit_cs(s->builder, s->chunk, s->span, key, val);
 }
 void dd_sink_meta_str_str(dd_span_sink *s, const char *key, const char *val) {
-    if (s->builder) {
-        dd_sink_meta_cs_cs(s, (ddog_CharSlice){ .ptr = key, .len = strlen(key) }, (ddog_CharSlice){ .ptr = val, .len = strlen(val) });
-    } else {
-        ddog_add_str_span_meta_str(s->v04, key, val);
-    }
+    ddog_add_span_attr_lit_cs(s->builder, s->chunk, s->span, key, (ddog_CharSlice){ .ptr = val, .len = strlen(val) });
 }
 void dd_sink_meta_str_zstr(dd_span_sink *s, const char *key, zend_string *val) {
-    if (s->builder) {
-        dd_sink_meta_cs_cs(s, (ddog_CharSlice){ .ptr = key, .len = strlen(key) }, dd_zend_string_to_CharSlice(val));
-    } else {
-        ddog_add_str_span_meta_zstr(s->v04, key, val);
-    }
+    ddog_add_span_attr_lit_cs(s->builder, s->chunk, s->span, key, dd_zend_string_to_CharSlice(val));
 }
 static inline void dd_sink_meta_zstr_str(dd_span_sink *s, zend_string *key, const char *val) {
-    if (s->builder) {
-        dd_sink_meta_cs_cs(s, dd_zend_string_to_CharSlice(key), (ddog_CharSlice){ .ptr = val, .len = strlen(val) });
-    } else {
-        ddog_add_zstr_span_meta_str(s->v04, key, val);
-    }
+    ddog_add_span_attr_zstr_cs(s->builder, s->chunk, s->span, key, (ddog_CharSlice){ .ptr = val, .len = strlen(val) });
 }
 static inline void dd_sink_meta_zstr_zstr(dd_span_sink *s, zend_string *key, zend_string *val) {
-    if (s->builder) {
-        dd_sink_meta_cs_cs(s, dd_zend_string_to_CharSlice(key), dd_zend_string_to_CharSlice(val));
-    } else {
-        ddog_add_span_meta_zstr(s->v04, key, val);
-    }
+    ddog_add_span_attr_zstr_zstr(s->builder, s->chunk, s->span, key, val);
 }
 static inline bool dd_sink_has_meta_zstr(dd_span_sink *s, zend_string *key) {
-    return s->builder ? ddog_v1_has_span_attr(s->builder, s->chunk, s->span, dd_zend_string_to_CharSlice(key))
-                      : ddog_has_span_meta_zstr(s->v04, key);
+    return ddog_has_span_attr_zstr(s->builder, s->chunk, s->span, key);
 }
 static inline void dd_sink_del_meta_str(dd_span_sink *s, const char *key) {
-    if (s->builder) ddog_v1_del_span_attr(s->builder, s->chunk, s->span, (ddog_CharSlice){ .ptr = key, .len = strlen(key) });
-    else ddog_del_span_meta_str(s->v04, key);
+    ddog_del_span_attr_lit(s->builder, s->chunk, s->span, key);
 }
 
-static inline void dd_sink_metrics_cs(dd_span_sink *s, ddog_CharSlice key, double val) {
-    if (s->builder) {
-        if (DD_CS_EQ(key, "_sampling_priority_v1")) {
-            ddog_v1_set_chunk_sampling_priority(s->builder, s->chunk, (int32_t)val);
-        } else {
-            ddog_v1_add_span_attr_double(s->builder, s->chunk, s->span, key, val);
-        }
-    }
-}
 static inline void dd_sink_metrics_str(dd_span_sink *s, const char *key, double val) {
-    if (s->builder) dd_sink_metrics_cs(s, (ddog_CharSlice){ .ptr = key, .len = strlen(key) }, val);
-    else ddog_add_span_metrics_str(s->v04, key, val);
+    ddog_add_span_attr_double_lit(s->builder, s->chunk, s->span, key, val);
 }
 static inline void dd_sink_metrics_zstr(dd_span_sink *s, zend_string *key, double val) {
-    if (s->builder) dd_sink_metrics_cs(s, dd_zend_string_to_CharSlice(key), val);
-    else ddog_add_span_metrics_zstr(s->v04, key, val);
+    ddog_add_span_attr_double_zstr(s->builder, s->chunk, s->span, key, val);
 }
 static inline bool dd_sink_has_metrics_zstr(dd_span_sink *s, zend_string *key) {
-    return s->builder ? ddog_v1_has_span_attr(s->builder, s->chunk, s->span, dd_zend_string_to_CharSlice(key))
-                      : ddog_has_span_metrics_zstr(s->v04, key);
+    return ddog_has_span_attr_zstr(s->builder, s->chunk, s->span, key);
 }
 
 static inline void dd_sink_meta_struct_zstr_cs(dd_span_sink *s, zend_string *key, ddog_CharSlice val) {
-    if (s->builder) ddog_v1_add_span_attr_bytes(s->builder, s->chunk, s->span, dd_zend_string_to_CharSlice(key), val);
-    else ddog_add_zstr_span_meta_struct_CharSlice(s->v04, key, val);
+    ddog_add_span_attr_bytes_zstr(s->builder, s->chunk, s->span, key, val);
 }
 
 static inline void dd_sink_set_name_zstr(dd_span_sink *s, zend_string *v) {
-    if (s->builder) ddog_v1_set_span_name(s->builder, s->chunk, s->span, dd_zend_string_to_CharSlice(v));
-    else ddog_set_span_name_zstr(s->v04, v);
+    ddog_set_span_name_zstr(s->builder, s->chunk, s->span, v);
 }
 static inline void dd_sink_set_resource_zstr(dd_span_sink *s, zend_string *v) {
-    if (s->builder) ddog_v1_set_span_resource(s->builder, s->chunk, s->span, dd_zend_string_to_CharSlice(v));
-    else ddog_set_span_resource_zstr(s->v04, v);
+    ddog_set_span_resource_zstr(s->builder, s->chunk, s->span, v);
 }
 static inline void dd_sink_set_service_zstr(dd_span_sink *s, zend_string *v) {
-    if (s->builder) ddog_v1_set_span_service(s->builder, s->chunk, s->span, dd_zend_string_to_CharSlice(v));
-    else ddog_set_span_service_zstr(s->v04, v);
+    ddog_set_span_service_zstr(s->builder, s->chunk, s->span, v);
 }
 static inline void dd_sink_set_type_zstr(dd_span_sink *s, zend_string *v) {
-    if (s->builder) ddog_v1_set_span_type(s->builder, s->chunk, s->span, dd_zend_string_to_CharSlice(v));
-    else ddog_set_span_type_zstr(s->v04, v);
+    ddog_set_span_type_zstr(s->builder, s->chunk, s->span, v);
 }
 static inline void dd_sink_set_error(dd_span_sink *s, int error) {
-    if (s->builder) ddog_v1_set_span_error(s->builder, s->chunk, s->span, error != 0);
-    else ddog_set_span_error(s->v04, error);
+    ddog_span_set_error(s->builder, s->chunk, s->span, error != 0);
 }
 static inline int dd_sink_get_error(dd_span_sink *s) {
-    return s->builder ? (ddog_v1_get_span_error(s->builder, s->chunk, s->span) ? 1 : 0)
-                      : ddog_get_span_error(s->v04);
+    return ddog_v1_get_span_error(s->builder, s->chunk, s->span) ? 1 : 0;
 }
 
 // Copies attribute `key` from `src` onto `dst` (both spans in the same trace); when delete_source is
-// set, removes it from the source. Replicates the V0.4 transfer_meta/metrics helpers used in the
-// inferred-span merge; on V1 the unified attribute map subsumes both cases in one typed op.
+// set, removes it from the source. On V1 the unified attribute map subsumes meta and metrics in one op.
 void transfer_span_attr(dd_span_sink *src, dd_span_sink *dst, const char *key, bool delete_source) {
-    if (src->builder) {
-        ddog_v1_transfer_span_attr(src->builder, src->chunk, src->span, dst->span,
-                                   (ddog_CharSlice){ .ptr = key, .len = strlen(key) }, delete_source);
-    } else {
-        ddog_CharSlice value = ddog_get_span_meta_str(src->v04, key);
-        if (value.len > 0) {
-            ddog_add_str_span_meta_CharSlice(dst->v04, key, value);
-            if (delete_source) ddog_del_span_meta_str(src->v04, key);
-        }
-    }
+    ddog_transfer_span_attr(src->builder, src->chunk, src->span, dst->span, key, delete_source);
 }
 void transfer_span_metric(dd_span_sink *src, dd_span_sink *dst, const char *key, bool delete_source) {
-    if (src->builder) {
-        ddog_v1_transfer_span_attr(src->builder, src->chunk, src->span, dst->span,
-                                   (ddog_CharSlice){ .ptr = key, .len = strlen(key) }, delete_source);
-    } else {
-        double metric;
-        if (ddog_get_span_metrics_str(src->v04, key, &metric)) {
-            ddog_add_span_metrics_str(dst->v04, key, metric);
-            if (delete_source) ddog_del_span_metrics_str(src->v04, key);
-        }
-    }
+    ddog_transfer_span_attr(src->builder, src->chunk, src->span, dst->span, key, delete_source);
 }
 
 // Adds a string-valued V1 attribute from a zval: scalars via the usual string conversion,
@@ -1309,18 +1032,18 @@ static void dd_span_links_to_v1(zend_array *links, ddog_TracerPayloadV1Builder *
             continue;
         }
         ddtrace_span_link *link = (ddtrace_span_link *)Z_OBJ_P(val);
-        uintptr_t rust_link = ddog_v1_span_new_link(b, chunk, span);
+        uintptr_t rust_link = ddog_new_link(b, chunk, span);
 
         zval *tid = &link->property_trace_id;
         if (Z_TYPE_P(tid) == IS_STRING) {
             datadog_trace_id id = ddtrace_parse_hex_trace_id(Z_STRVAL_P(tid), Z_STRLEN_P(tid));
-            ddog_v1_set_link_trace_id(b, chunk, span, rust_link, id.high, id.low);
+            ddog_link_set_trace_id(b, chunk, span, rust_link, id.high, id.low);
         }
-        ddog_v1_set_link_span_id(b, chunk, span, rust_link, ddtrace_parse_hex_span_id(&link->property_span_id));
+        ddog_link_set_span_id(b, chunk, span, rust_link, ddtrace_parse_hex_span_id(&link->property_span_id));
 
         zval *ts = &link->property_trace_state;
         if (Z_TYPE_P(ts) == IS_STRING && Z_STRLEN_P(ts) > 0) {
-            ddog_v1_set_link_tracestate(b, chunk, span, rust_link, dd_zend_string_to_CharSlice(Z_STR_P(ts)));
+            ddog_link_set_tracestate(b, chunk, span, rust_link, dd_zend_string_to_CharSlice(Z_STR_P(ts)));
         }
 
         zval *attrs = &link->property_attributes;
@@ -1334,7 +1057,7 @@ static void dd_span_links_to_v1(zend_array *links, ddog_TracerPayloadV1Builder *
                 ddog_CharSlice key_cs = key
                     ? dd_zend_string_to_CharSlice(key)
                     : (ddog_CharSlice){ .ptr = numbuf, .len = snprintf(numbuf, sizeof(numbuf), ZEND_ULONG_FMT, idx) };
-#define DD_V1_ADD_LINK_ATTR(val_cs) ddog_v1_add_link_attr_str(b, chunk, span, rust_link, key_cs, (val_cs))
+#define DD_V1_ADD_LINK_ATTR(val_cs) ddog_link_add_attr_str(b, chunk, span, rust_link, key_cs, (val_cs))
                 DD_V1_ADD_ZVAL_STR(DD_V1_ADD_LINK_ATTR, aval);
 #undef DD_V1_ADD_LINK_ATTR
             } ZEND_HASH_FOREACH_END();
@@ -1346,12 +1069,12 @@ static void dd_event_attribute_to_v1(ddog_TracerPayloadV1Builder *b, uintptr_t c
                                      uintptr_t event, ddog_CharSlice key, zval *val) {
     ZVAL_DEREF(val);
     switch (Z_TYPE_P(val)) {
-        case IS_TRUE:   ddog_v1_add_event_attr_bool(b, chunk, span, event, key, true); break;
-        case IS_FALSE:  ddog_v1_add_event_attr_bool(b, chunk, span, event, key, false); break;
-        case IS_LONG:   ddog_v1_add_event_attr_int(b, chunk, span, event, key, Z_LVAL_P(val)); break;
-        case IS_DOUBLE: ddog_v1_add_event_attr_double(b, chunk, span, event, key, Z_DVAL_P(val)); break;
+        case IS_TRUE:   ddog_event_add_attr_bool(b, chunk, span, event, key, true); break;
+        case IS_FALSE:  ddog_event_add_attr_bool(b, chunk, span, event, key, false); break;
+        case IS_LONG:   ddog_event_add_attr_int(b, chunk, span, event, key, Z_LVAL_P(val)); break;
+        case IS_DOUBLE: ddog_event_add_attr_double(b, chunk, span, event, key, Z_DVAL_P(val)); break;
         default: {
-#define DD_V1_ADD_EVENT_ATTR(val_cs) ddog_v1_add_event_attr_str(b, chunk, span, event, key, (val_cs))
+#define DD_V1_ADD_EVENT_ATTR(val_cs) ddog_event_add_attr_str(b, chunk, span, event, key, (val_cs))
             DD_V1_ADD_ZVAL_STR(DD_V1_ADD_EVENT_ATTR, val);
 #undef DD_V1_ADD_EVENT_ATTR
             break;
@@ -1360,7 +1083,7 @@ static void dd_event_attribute_to_v1(ddog_TracerPayloadV1Builder *b, uintptr_t c
 }
 
 // Emit each SpanEvent into the V1 builder span, dispatching attributes by type. ExceptionSpanEvent
-// flattens exception.message/type/stacktrace as string attributes (mirrors dd_span_event_to_array).
+// flattens exception.message/type/stacktrace as string attributes.
 static void dd_span_events_to_v1(zend_array *events, ddog_TracerPayloadV1Builder *b, uintptr_t chunk, uintptr_t span) {
     zval *val;
     ZEND_HASH_FOREACH_VAL(events, val) {
@@ -1369,16 +1092,16 @@ static void dd_span_events_to_v1(zend_array *events, ddog_TracerPayloadV1Builder
             continue;
         }
         ddtrace_span_event *event = (ddtrace_span_event *)Z_OBJ_P(val);
-        uintptr_t rust_event = ddog_v1_span_new_event(b, chunk, span);
+        uintptr_t rust_event = ddog_new_event(b, chunk, span);
 
         zval *name = &event->property_name;
         if (Z_TYPE_P(name) == IS_STRING) {
-            ddog_v1_set_event_name(b, chunk, span, rust_event, dd_zend_string_to_CharSlice(Z_STR_P(name)));
+            ddog_event_set_name(b, chunk, span, rust_event, dd_zend_string_to_CharSlice(Z_STR_P(name)));
         }
         zval *time = &event->property_timestamp;
         ZVAL_DEREF(time);
         if (Z_TYPE_P(time) == IS_LONG) {
-            ddog_v1_set_event_time(b, chunk, span, rust_event, (uint64_t)Z_LVAL_P(time));
+            ddog_event_set_time(b, chunk, span, rust_event, (uint64_t)Z_LVAL_P(time));
         }
 
         if (instanceof_function(event->std.ce, ddtrace_ce_exception_span_event)) {
@@ -1387,13 +1110,13 @@ static void dd_span_events_to_v1(zend_array *events, ddog_TracerPayloadV1Builder
             if (Z_TYPE_P(exception) == IS_OBJECT && instanceof_function(Z_OBJCE_P(exception), zend_ce_throwable)) {
                 zend_string *message = zai_exception_message(Z_OBJ_P(exception));
                 if (ZSTR_LEN(message)) {
-                    ddog_v1_add_event_attr_str(b, chunk, span, rust_event,
+                    ddog_event_add_attr_str(b, chunk, span, rust_event,
                         DDOG_CHARSLICE_C("exception.message"), dd_zend_string_to_CharSlice(message));
                 }
-                ddog_v1_add_event_attr_str(b, chunk, span, rust_event,
+                ddog_event_add_attr_str(b, chunk, span, rust_event,
                     DDOG_CHARSLICE_C("exception.type"), dd_zend_string_to_CharSlice(Z_OBJCE_P(exception)->name));
                 zend_string *stacktrace = zai_get_trace_without_args_from_exception(Z_OBJ_P(exception));
-                ddog_v1_add_event_attr_str(b, chunk, span, rust_event,
+                ddog_event_add_attr_str(b, chunk, span, rust_event,
                     DDOG_CHARSLICE_C("exception.stacktrace"), dd_zend_string_to_CharSlice(stacktrace));
                 zend_string_release(stacktrace);
             }
@@ -1757,9 +1480,6 @@ dd_span_sink ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_T
     zend_array *meta = ddtrace_property_array(&span->property_meta);
     zend_array *metrics = ddtrace_property_array(&span->property_metrics);
 
-    // Mirror the component / span.kind properties into meta so meta-based consumers keep working.
-    dd_translate_span_kind_component_to_meta(span, meta);
-
     // Remap OTel's status code (metric, http.status_code) to DD's status code (meta, http.status_code)
     // OTel HTTP semantic conventions < 1.21.0
     zval *http_status_code = zend_hash_str_find(metrics, ZEND_STRL("http.status_code"));
@@ -1972,36 +1692,19 @@ dd_span_sink ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_T
         return (dd_span_sink){0};
     }
 
-    // On the sidecar path the span is built directly into the native V1 builder (no V0.4 span); on
-    // the in-process (<=8.2) path it is built into a V0.4 ddog_SpanBytes. Exactly one backend is set
-    // on the sink; every field/meta/metrics write below routes through it.
+    // The span is built directly into the native V1 builder chunk/span; every field/meta/metrics
+    // write below routes through the sink. The chunk carries the 128-bit trace id (set at creation).
     dd_span_sink sink = {0};
-    uintptr_t rust_span_index = 0;
-    bool is_first_span;
-    ddog_SpanBytes *rust_span = NULL;
-    if (v1) {
-        if (v1->chunk == DD_V1_CHUNK_NONE) {
-            v1->chunk = ddog_v1_builder_new_chunk(v1->builder, span->root->trace_id.high, span->root->trace_id.low);
-            ddog_v1_set_chunk_dropped_trace(v1->builder, v1->chunk, p0_trace);
-        }
-        is_first_span = ddog_v1_get_span_count(v1->builder, v1->chunk) == 0;
-        sink.builder = v1->builder;
-        sink.chunk = v1->chunk;
-        sink.span = ddog_v1_chunk_new_span(v1->builder, v1->chunk);
-    } else {
-        rust_span_index = ddog_get_trace_size(trace);
-        is_first_span = rust_span_index == 0;
-        rust_span = ddog_trace_new_span(trace);
-        sink.v04 = rust_span;
+    if (v1->chunk == DD_V1_CHUNK_NONE) {
+        v1->chunk = ddog_new_chunk(v1->builder, span->root->trace_id.high, span->root->trace_id.low);
+        ddog_set_chunk_dropped_trace(v1->builder, v1->chunk, p0_trace);
     }
+    bool is_first_span = ddog_v1_get_span_count(v1->builder, v1->chunk) == 0;
+    sink.builder = v1->builder;
+    sink.chunk = v1->chunk;
+    sink.span = ddog_new_span(v1->builder, v1->chunk);
 
-    // trace_id: V1 carries the 128-bit trace id on the chunk (set at chunk creation), so this is a
-    // V0.4-only field.
-    if (!v1) {
-        ddog_set_span_trace_id(rust_span, span->root->trace_id.low);
-    }
-    if (v1) ddog_v1_set_span_id(sink.builder, sink.chunk, sink.span, span->span_id);
-    else ddog_set_span_id(rust_span, span->span_id);
+    ddog_span_set_id(sink.builder, sink.chunk, sink.span, span->span_id);
 
     uint64_t parent_id_set = 0;
     bool has_parent_id = false;
@@ -2022,17 +1725,11 @@ dd_span_sink ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_T
         parent_id_set = span->root->parent_id; has_parent_id = true;
     }
     if (has_parent_id) {
-        if (v1) ddog_v1_set_span_parent_id(sink.builder, sink.chunk, sink.span, parent_id_set);
-        else ddog_set_span_parent_id(rust_span, parent_id_set);
+        ddog_span_set_parent_id(sink.builder, sink.chunk, sink.span, parent_id_set);
     }
 
-    if (v1) {
-        ddog_v1_set_span_start(sink.builder, sink.chunk, sink.span, span->start);
-        ddog_v1_set_span_duration(sink.builder, sink.chunk, sink.span, span->duration);
-    } else {
-        ddog_set_span_start(rust_span, span->start);
-        ddog_set_span_duration(rust_span, span->duration);
-    }
+    ddog_span_set_start(sink.builder, sink.chunk, sink.span, span->start);
+    ddog_span_set_duration(sink.builder, sink.chunk, sink.span, span->duration);
 
     if (is_first_span) {
         zend_string *process_tags = datadog_process_tags_get_serialized();
@@ -2118,6 +1815,79 @@ dd_span_sink ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_T
         }
     }
 
+    // Promote span-level fields (env/version/component/span.kind from the property, falling back to
+    // meta) and chunk-level fields (_dd.origin/_dd.p.dm) up front, deleting the corresponding meta
+    // keys so the copy loop below carries only plain attributes. env/version are property-FIRST with a
+    // meta FALLBACK: when DD_ENV/DD_VERSION are unset, DD_TAGS "env"/"version" are merged into meta by
+    // ddtrace_set_global_span_properties, so promoting only the property would silently drop them.
+    if (pre.env) {
+        ddog_set_span_env(sink.builder, sink.chunk, sink.span, dd_zend_string_to_CharSlice(pre.env));
+    } else if (meta) {
+        zval *env_meta = zend_hash_str_find(meta, ZEND_STRL("env"));
+        if (env_meta && Z_TYPE_P(env_meta) == IS_STRING) {
+            ddog_set_span_env(sink.builder, sink.chunk, sink.span, dd_zend_string_to_CharSlice(Z_STR_P(env_meta)));
+        }
+    }
+    if (pre.version) {
+        ddog_set_span_version(sink.builder, sink.chunk, sink.span, dd_zend_string_to_CharSlice(pre.version));
+    } else if (meta) {
+        zval *version_meta = zend_hash_str_find(meta, ZEND_STRL("version"));
+        if (version_meta && Z_TYPE_P(version_meta) == IS_STRING) {
+            ddog_set_span_version(sink.builder, sink.chunk, sink.span, dd_zend_string_to_CharSlice(Z_STR_P(version_meta)));
+        }
+    }
+
+    zval *component_prop = &span->property_component;
+    ZVAL_DEREF(component_prop);
+    if (Z_TYPE_P(component_prop) == IS_STRING && Z_STRLEN_P(component_prop) > 0) {
+        ddog_set_span_component(sink.builder, sink.chunk, sink.span, dd_zend_string_to_CharSlice(Z_STR_P(component_prop)));
+    } else if (meta) {
+        zval *component_meta = zend_hash_str_find(meta, ZEND_STRL("component"));
+        if (component_meta && Z_TYPE_P(component_meta) == IS_STRING) {
+            ddog_set_span_component(sink.builder, sink.chunk, sink.span, dd_zend_string_to_CharSlice(Z_STR_P(component_meta)));
+        }
+    }
+
+    zval *span_kind_prop = &span->property_span_kind;
+    ZVAL_DEREF(span_kind_prop);
+    if (Z_TYPE_P(span_kind_prop) == IS_LONG && Z_LVAL_P(span_kind_prop) >= 1 && Z_LVAL_P(span_kind_prop) <= 5) {
+        ddog_set_span_kind(sink.builder, sink.chunk, sink.span, (uint32_t)Z_LVAL_P(span_kind_prop));
+    } else if (meta) {
+        zval *span_kind_meta = zend_hash_str_find(meta, ZEND_STRL("span.kind"));
+        if (span_kind_meta && Z_TYPE_P(span_kind_meta) == IS_STRING) {
+            ddog_set_span_kind_str(sink.builder, sink.chunk, sink.span,
+                                  dd_zend_string_to_CharSlice(Z_STR_P(span_kind_meta)));
+        }
+    }
+
+    // _dd.origin is property-sourced; the chunk carries it (never a span attribute).
+    zval *origin = &span->root->property_origin;
+    if (Z_TYPE_P(origin) > IS_NULL && (Z_TYPE_P(origin) != IS_STRING || Z_STRLEN_P(origin))) {
+        ddog_set_chunk_origin(sink.builder, sink.chunk, dd_zend_string_to_CharSlice(Z_STR_P(origin)));
+    }
+
+    if (meta) {
+        // _dd.p.dm v0.4 form is "-N"; the mechanism is the trailing unsigned integer -> chunk field.
+        zval *dm_meta = zend_hash_str_find(meta, ZEND_STRL("_dd.p.dm"));
+        if (dm_meta && Z_TYPE_P(dm_meta) == IS_STRING) {
+            const char *p = Z_STRVAL_P(dm_meta);
+            size_t n = Z_STRLEN_P(dm_meta);
+            if (n && *p == '-') { p++; n--; }
+            uint32_t mech = 0;
+            for (size_t i = 0; i < n; i++) { if (p[i] < '0' || p[i] > '9') { mech = 0; break; } mech = mech * 10 + (uint32_t)(p[i] - '0'); }
+            ddog_set_chunk_sampling_mechanism(sink.builder, sink.chunk, mech);
+        }
+        // Delete promoted keys so the copy loop only carries plain attributes. _dd.p.tid is dropped:
+        // the 128-bit trace-id high half is carried by the chunk trace id, never a span attribute.
+        zend_hash_str_del(meta, ZEND_STRL("env"));
+        zend_hash_str_del(meta, ZEND_STRL("version"));
+        zend_hash_str_del(meta, ZEND_STRL("component"));
+        zend_hash_str_del(meta, ZEND_STRL("span.kind"));
+        zend_hash_str_del(meta, ZEND_STRL("_dd.origin"));
+        zend_hash_str_del(meta, ZEND_STRL("_dd.p.dm"));
+        zend_hash_str_del(meta, ZEND_STRL("_dd.p.tid"));
+    }
+
     if (meta) {
         zend_string *meta_str_key;
         zval *orig_val;
@@ -2131,13 +1901,6 @@ dd_span_sink ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_T
         ZEND_HASH_FOREACH_END();
     }
 
-    if (pre.env) {
-        dd_sink_meta_str_zstr(&sink, "env", pre.env);
-    }
-    if (pre.version) {
-        dd_sink_meta_str_zstr(&sink, "version", pre.version);
-    }
-
     zval *exception_zv = &span->property_exception;
     if (pre.has_exception && !pre.ignore_error) {
         enum dd_exception exception_type = DD_EXCEPTION_THROWN;
@@ -2147,37 +1910,16 @@ dd_span_sink ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_T
         ddtrace_exception_to_meta(Z_OBJ_P(exception_zv), pre.service ? pre.service : ZSTR_EMPTY_ALLOC(), span->start, &sink, exception_type);
     }
 
-    // Links/events: on the in-process (<=8.2) V0.4 path they are serialized as JSON-in-meta (read by
-    // the in-process sender and functions.c introspection); on the V1 sidecar path they are emitted
-    // natively from the PHP span (and the _dd.span_links/events meta keys are never produced).
+    // Links/events are emitted natively from the PHP span (the _dd.span_links/events meta keys are
+    // never produced on the V1 path).
     zend_array *span_links = ddtrace_property_array(&span->property_links);
     if (zend_hash_num_elements(span_links) > 0) {
-        if (v1) {
-            dd_span_links_to_v1(span_links, sink.builder, sink.chunk, sink.span);
-        } else {
-            zend_object *current_exception = EG(exception);
-            EG(exception) = NULL;
-            smart_str buf = {0};
-            dd_serialize_span_links(span_links, &buf);
-            ddog_add_str_span_meta_zstr(rust_span, "_dd.span_links", buf.s);
-            smart_str_free(&buf);
-            EG(exception) = current_exception;
-        }
+        dd_span_links_to_v1(span_links, sink.builder, sink.chunk, sink.span);
     }
 
     zend_array *span_events = ddtrace_property_array(&span->property_events);
     if (zend_hash_num_elements(span_events) > 0) {
-        if (v1) {
-            dd_span_events_to_v1(span_events, sink.builder, sink.chunk, sink.span);
-        } else {
-            zend_object *current_exception = EG(exception);
-            EG(exception) = NULL;
-            smart_str buf = {0};
-            dd_serialize_span_events(span_events, &buf);
-            ddog_add_str_span_meta_zstr(rust_span, "events", buf.s);
-            smart_str_free(&buf);
-            EG(exception) = current_exception;
-        }
+        dd_span_events_to_v1(span_events, sink.builder, sink.chunk, sink.span);
     }
 
     zval *git_metadata = &span->root->property_git_metadata;
@@ -2228,11 +1970,6 @@ dd_span_sink ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_T
         efree(headers);
     }
 
-    zval *origin = &span->root->property_origin;
-    if (Z_TYPE_P(origin) > IS_NULL && (Z_TYPE_P(origin) != IS_STRING || Z_STRLEN_P(origin))) {
-        dd_sink_meta_str_zstr(&sink, "_dd.origin", Z_STR_P(origin));
-    }
-
     bool error = dd_compute_span_is_error(&pre);
     if (error) {
         dd_sink_set_error(&sink, 1);
@@ -2249,12 +1986,6 @@ dd_span_sink ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_T
                 current = current->parent ? SPANDATA(current->parent) : NULL;
             } while (current);
         }
-    }
-
-    if (is_inferred_span || (span->root->trace_id.high && is_root_span && !inferred_span)) {
-        zend_string *trace_id_str = zend_strpprintf(0, "%" PRIx64, span->root->trace_id.high);
-        dd_sink_meta_str_zstr(&sink, "_dd.p.tid", trace_id_str);
-        zend_string_release(trace_id_str);
     }
 
     // Add _dd.base_service if service name differs from mapped root service name.
@@ -2277,22 +2008,31 @@ dd_span_sink ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_T
         ddtrace_feed_span_to_concentrator(span, &pre);
     }
 
+    // Promoted metric keys removed up front so the copy loop is branch-free (mirrors the meta loop):
+    // _sampling_priority_v1 becomes the chunk sampling priority below; _dd1.sr.eausr is not emitted.
+    if (metrics) {
+        zend_hash_str_del(metrics, ZEND_STRL("_dd1.sr.eausr"));
+        zend_hash_str_del(metrics, ZEND_STRL("_sampling_priority_v1"));
+    }
+
     zend_string *str_key;
     zval *val;
     ZEND_HASH_FOREACH_STR_KEY_VAL_IND(metrics, str_key, val) {
-        if (str_key && !zend_string_equals_literal(str_key, "_dd1.sr.eausr") &&
-            !dd_sink_has_metrics_zstr(&sink, str_key)) {
-            dd_serialize_array_metrics_recursively(&sink, str_key, val);
+        if (str_key) {
+            if (!dd_sink_has_metrics_zstr(&sink, str_key)) {
+                dd_serialize_array_metrics_recursively(&sink, str_key, val);
+            }
         }
     } ZEND_HASH_FOREACH_END();
 
+    // _sampling_priority_v1 is a chunk-level field, not a span metric.
     if ((is_root_span && !inferred_span) || is_inferred_span) {
         if (Z_TYPE_P(&span->root->property_sampling_priority) != IS_UNDEF) {
             long sampling_priority = zval_get_long(&span->root->property_sampling_priority);
             if (!get_global_DD_APM_TRACING_ENABLED() && !ddtrace_trace_source_is_meta_asm_sourced(meta)) {
                 sampling_priority = MIN(PRIORITY_SAMPLING_AUTO_KEEP, sampling_priority);
             }
-            dd_sink_metrics_str(&sink, "_sampling_priority_v1", sampling_priority);
+            ddog_set_chunk_sampling_priority(sink.builder, sink.chunk, (int32_t)sampling_priority);
         }
     }
 
@@ -2331,11 +2071,14 @@ dd_span_sink ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_T
     dd_span_sink inferred_sink = {0};
     if (inferred_span) {
         inferred_sink = ddtrace_serialize_span_to_rust_span(inferred_span, trace, v1);
-        // The inferred recursion may have appended to the V0.4 trace, invalidating rust_span; the V1
-        // builder addresses spans by stable index, so only the V0.4 pointer needs re-fetching.
-        if (sink.v04) {
-            sink.v04 = ddog_get_span(trace, rust_span_index);
-        }
+    }
+    // The inferred recursion returns the {0} sentinel (builder NULL) when the inferred span was
+    // dropped (e.g. a p0 trace fed to the stats concentrator). Skip the index-based transfers and
+    // set_error then — dst->span would otherwise default to index 0, corrupting a real span, and
+    // set_error would deref a NULL builder. Mirrors master's NULL-destination no-op.
+    if (inferred_sink.builder) {
+        // The V1 builder addresses spans by stable index, so the inferred recursion does not
+        // invalidate this span's sink.
 
         transfer_span_metric(&sink, &inferred_sink, "_dd.agent_psr", true);
         transfer_span_metric(&sink, &inferred_sink, "_dd.rule_psr", true);
@@ -2355,19 +2098,11 @@ dd_span_sink ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_T
         dd_sink_set_error(&inferred_sink, dd_sink_get_error(&sink));
     }
 
-    if (sink.v04) {
-        LOGEV(SPAN, {
-            ddog_CharSlice span_log = ddog_span_debug_log(sink.v04);
-            log("Encoding span: %s", span_log.ptr);
-            ddog_free_charslice(span_log);
-        });
-    } else if (sink.builder) {
-        LOGEV(SPAN, {
-            ddog_CharSlice span_log = ddog_v1_span_debug_log(sink.builder, sink.chunk, sink.span);
-            log("Encoding span: %s", span_log.ptr);
-            ddog_free_charslice(span_log);
-        });
-    }
+    LOGEV(SPAN, {
+        ddog_CharSlice span_log = ddog_v1_span_debug_log(sink.builder, sink.chunk, sink.span);
+        log("Encoding span: %s", span_log.ptr);
+        ddog_free_charslice(span_log);
+    });
 
     zend_array *meta_struct = ddtrace_property_array(&span->property_meta_struct);
     zend_string *ms_str_key;
@@ -2406,8 +2141,8 @@ static void dd_v1_attr_value_to_zval(ddog_TracerPayloadV1Builder *b, uintptr_t c
     }
 }
 
-// Introspection reader for the native V1 builder (sidecar path). Mirrors dd_serialize_rust_traces_to_zval
-// but reflects the V1 model: promoted fields (env/version/component/span_kind) and chunk-level fields
+// Introspection reader for the native V1 builder. Reflects the V1 model: promoted fields
+// (env/version/component/span_kind) and chunk-level fields
 // (origin/sampling_priority/sampling_mechanism) are surfaced directly, and the unified typed attribute
 // map is exposed under "attributes"; links and events are surfaced natively.
 zval dd_serialize_rust_v1_to_zval(ddog_TracerPayloadV1Builder *b) {
@@ -2578,121 +2313,6 @@ zval dd_serialize_rust_v1_to_zval(ddog_TracerPayloadV1Builder *b) {
 
     return traces_zv;
 }
-
-zval dd_serialize_rust_traces_to_zval(ddog_TracesBytes *traces) {
-    zval traces_zv;
-    array_init(&traces_zv);
-
-    for (size_t i = 0; i < ddog_get_traces_size(traces); i++) {
-        ddog_TraceBytes *trace = ddog_get_trace(traces, i);
-        zval trace_zv;
-        array_init(&trace_zv);
-
-        for (size_t j = 0; j < ddog_get_trace_size(trace); j++) {
-            ddog_SpanBytes *span = ddog_get_span(trace, j);
-            zval span_zv;
-            array_init(&span_zv);
-
-            add_assoc_str(&span_zv, KEY_TRACE_ID, ddtrace_span_id_as_string(ddog_get_span_trace_id(span)));
-            add_assoc_str(&span_zv, KEY_SPAN_ID, ddtrace_span_id_as_string(ddog_get_span_id(span)));
-
-            size_t span_parent_id = ddog_get_span_parent_id(span);
-            if (span_parent_id) {
-                add_assoc_str(&span_zv, KEY_PARENT_ID, ddtrace_span_id_as_string(span_parent_id));
-            }
-
-            add_assoc_long(&span_zv, "start", ddog_get_span_start(span));
-            add_assoc_long(&span_zv, "duration", ddog_get_span_duration(span));
-
-            ddog_CharSlice name = ddog_get_span_name(span);
-            add_assoc_str(&span_zv, "name", dd_CharSlice_to_zend_string(name));
-
-            ddog_CharSlice resource = ddog_get_span_resource(span);
-            add_assoc_str(&span_zv, "resource", dd_CharSlice_to_zend_string(resource));
-
-            ddog_CharSlice service = ddog_get_span_service(span);
-            add_assoc_str(&span_zv, "service", dd_CharSlice_to_zend_string(service));
-
-            ddog_CharSlice type = ddog_get_span_type(span);
-            add_assoc_str(&span_zv, "type", dd_CharSlice_to_zend_string(type));
-
-            double error = ddog_get_span_error(span);
-            if (error != 0) {
-                add_assoc_long(&span_zv, "error", error);
-            }
-
-            size_t meta_count = 0;
-            ddog_CharSlice *meta_keys = ddog_span_meta_get_keys(span, &meta_count);
-
-            if (meta_count > 0) {
-                zval meta_zv;
-                array_init(&meta_zv);
-
-                for (size_t k = 0; k < meta_count; k++) {
-                    ddog_CharSlice key = meta_keys[k];
-                    ddog_CharSlice value = ddog_get_span_meta(span, key);
-
-                    zval value_zv;
-                    ZVAL_STR(&value_zv, dd_CharSlice_to_zend_string(value));
-                    zend_hash_str_update(Z_ARR(meta_zv), key.ptr, key.len, &value_zv);
-                }
-
-                add_assoc_zval(&span_zv, "meta", &meta_zv);
-            }
-
-            size_t metrics_count = 0;
-            ddog_CharSlice *metrics_keys = ddog_span_metrics_get_keys(span, &metrics_count);
-
-            if (metrics_count > 0) {
-                zval metrics_zv;
-                array_init(&metrics_zv);
-
-                for (size_t k = 0; k < metrics_count; k++) {
-                    ddog_CharSlice key = metrics_keys[k];
-                    double value;
-
-                    if (ddog_get_span_metrics(span, key, &value)) {
-                        zval value_zv;
-                        ZVAL_DOUBLE(&value_zv, value);
-                        zend_hash_str_update(Z_ARR(metrics_zv), key.ptr, key.len, &value_zv);
-                    }
-                }
-
-                add_assoc_zval(&span_zv, "metrics", &metrics_zv);
-            }
-
-            size_t meta_struct_count = 0;
-            ddog_CharSlice *meta_struct_keys = ddog_span_meta_struct_get_keys(span, &meta_struct_count);
-
-            if (meta_struct_count > 0) {
-                zval meta_struct_zv;
-                array_init(&meta_struct_zv);
-
-                for (size_t k = 0; k < meta_struct_count; k++) {
-                    ddog_CharSlice key = meta_struct_keys[k];
-                    ddog_CharSlice value = ddog_get_span_meta_struct(span, key);
-
-                    zval value_zv;
-                    ZVAL_STR(&value_zv, dd_CharSlice_to_zend_string(value));
-                    zend_hash_str_update(Z_ARR(meta_struct_zv), key.ptr, key.len, &value_zv);
-                }
-
-                add_assoc_zval(&span_zv, "meta_struct", &meta_struct_zv);
-            }
-
-            zend_hash_next_index_insert_new(Z_ARR_P(&trace_zv), &span_zv);
-
-            ddog_span_free_keys_ptr(meta_keys, meta_count);
-            ddog_span_free_keys_ptr(metrics_keys, metrics_count);
-            ddog_span_free_keys_ptr(meta_struct_keys, meta_struct_count);
-        }
-
-        zend_hash_next_index_insert_new(Z_ARR_P(&traces_zv), &trace_zv);
-    }
-
-    return traces_zv;
-}
-
 
 static zend_string *dd_truncate_uncaught_exception(zend_string *msg) {
     const char uncaught[] = "Uncaught ";

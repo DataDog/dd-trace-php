@@ -107,7 +107,9 @@ void ddtrace_precompute_span(ddtrace_span_data *span, ddtrace_span_precomputed *
         pre->type = datadog_convert_to_str(prop_type);
     }
 
-    // Env: taken from the span's own property.
+    // Env: span property first, then the deprecated meta["env"] fallback — mirrors the serializer's
+    // promotion precedence (serializer.c). DD_TAGS "env" is merged into meta (not the property) when
+    // DD_ENV is unset, so without the fallback stats would bucket by empty env while traces carry it.
     pre->env = NULL;
     zval *prop_env = &span->property_env;
     ZVAL_DEREF(prop_env);
@@ -119,8 +121,14 @@ void ddtrace_precompute_span(ddtrace_span_data *span, ddtrace_span_precomputed *
             zend_string_release(str);
         }
     }
+    if (!pre->env && pre->meta) {
+        zval *env_meta = zend_hash_str_find(pre->meta, ZEND_STRL("env"));
+        if (env_meta && Z_TYPE_P(env_meta) == IS_STRING) {
+            pre->env = zend_string_copy(Z_STR_P(env_meta));
+        }
+    }
 
-    // Version: taken from the span's own property.
+    // Version: span property first, then the deprecated meta["version"] fallback (same rationale).
     pre->version = NULL;
     zval *prop_version = &span->property_version;
     ZVAL_DEREF(prop_version);
@@ -130,6 +138,12 @@ void ddtrace_precompute_span(ddtrace_span_data *span, ddtrace_span_precomputed *
             pre->version = str;
         } else {
             zend_string_release(str);
+        }
+    }
+    if (!pre->version && pre->meta) {
+        zval *version_meta = zend_hash_str_find(pre->meta, ZEND_STRL("version"));
+        if (version_meta && Z_TYPE_P(version_meta) == IS_STRING) {
+            pre->version = zend_string_copy(Z_STR_P(version_meta));
         }
     }
 
@@ -148,7 +162,8 @@ void ddtrace_precompute_span(ddtrace_span_data *span, ddtrace_span_precomputed *
     pre->is_measured = is_measured && zval_get_double(is_measured) != 0.0;
     pre->is_partial_snapshot = false;
     zval *span_kind_zv = pre->meta ? zend_hash_str_find(pre->meta, ZEND_STRL("span.kind")) : NULL;
-    pre->span_kind = (span_kind_zv && Z_TYPE_P(span_kind_zv) == IS_STRING) ? Z_STR_P(span_kind_zv) : NULL;
+    // Owned copy: the serializer deletes meta["span.kind"] up front, so pre must not borrow it.
+    pre->span_kind = (span_kind_zv && Z_TYPE_P(span_kind_zv) == IS_STRING) ? zend_string_copy(Z_STR_P(span_kind_zv)) : NULL;
 }
 
 bool dd_compute_span_is_error(const ddtrace_span_precomputed *pre) {
@@ -180,6 +195,9 @@ void ddtrace_free_span_precomputed(ddtrace_span_precomputed *pre) {
     }
     if (pre->version) {
         zend_string_release(pre->version);
+    }
+    if (pre->span_kind) {
+        zend_string_release(pre->span_kind);
     }
 }
 
@@ -371,6 +389,12 @@ void ddtrace_feed_span_to_concentrator(ddtrace_span_data *span, const ddtrace_sp
         version_zstr = Z_STR_P(root_version_zv);
     } else {
         version_zstr = get_DD_VERSION();
+        // DD_TAGS "version" (DD_VERSION unset) is merged into meta, not the property, and meta is
+        // deleted during promotion — so fall back to the precomputed value (property-first,
+        // meta-fallback) to keep stats bucketed by the same version as the trace wire.
+        if (ZSTR_LEN(version_zstr) == 0 && pre->version) {
+            version_zstr = pre->version;
+        }
     }
     ddog_CharSlice version_slice = dd_zend_string_to_CharSlice(version_zstr);
     // Use the process-level DD_SERVICE as the concentrator key so all spans from this PHP

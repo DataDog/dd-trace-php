@@ -25,12 +25,10 @@ typedef struct {
     uintptr_t chunk;
 } ddtrace_v1_ctx;
 
-// Write target for span finalization. Exactly one backend is active at a time: the v0.4 SpanBytes
-// (in-process <=8.2 background sender + functions.c introspection), or the native v1 builder
-// chunk/span (sidecar path, built directly with no v0.4 intermediate). A zero-initialized sink
-// (both pointers NULL) is the "no span" sentinel returned for dropped spans.
+// Write target for span finalization: the native v1 builder chunk/span, built directly with no
+// v0.4 intermediate. A zero-initialized sink (builder NULL) is the "no span" sentinel returned for
+// dropped spans.
 typedef struct {
-    struct ddog_SpanBytes *v04;                  // non-NULL on the v0.4 path
     struct ddog_TracerPayloadV1Builder *builder; // non-NULL on the v1 path
     uintptr_t chunk;
     uintptr_t span;
