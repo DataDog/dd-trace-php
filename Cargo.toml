@@ -123,6 +123,12 @@ required-features = ["profiling", "test"]
 [profile.dev]
 debug = 2
 
+[profile.php-debug]
+inherits = "dev"
+opt-level = "z"
+debug = 2
+panic = "abort"
+
 [profile.release]
 codegen-units = 1
 debug = "line-tables-only"

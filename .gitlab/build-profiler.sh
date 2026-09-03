@@ -48,6 +48,11 @@ case "$build_variant" in
 esac
 output_file="${prefix}/${4:-${default_output_name}}"
 
+# PHP debug ABI artifacts retain full Rust debug information while optimizing for size.
+if [ "$build_variant" = "debug" ]; then
+    export DDTRACE_RUST_PROFILE=php-debug
+fi
+
 # Loadable profiling artifacts must go through the supported PHP build path.
 build_dir="/tmp/ddtrace-build-profiler-${build_variant}"
 rm -rf "${build_dir}"

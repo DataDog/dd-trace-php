@@ -1,6 +1,7 @@
 AC_ARG_VAR([DDTRACE_PROFILING_FEATURES], [additional Cargo features for standalone profiler test builds])
 AC_ARG_VAR([DDTRACE_PROFILING_CARGO_BUILD_FLAGS], [additional Cargo build flags for the standalone profiler])
 AC_ARG_VAR([DDTRACE_PROFILING_TARGET], [Rust target triple for the standalone profiler])
+AC_ARG_VAR([DDTRACE_RUST_PROFILE], [Cargo profile used to build the Rust extension library])
 
 PHP_ARG_ENABLE(ddtrace, whether to enable Datadog support,
   [  --enable-ddtrace   Enable Datadog tracing support])
@@ -69,7 +70,7 @@ if test "$PHP_DDTRACE_PROFILING" != "no"; then
   fi
   PHP_SUBST(DDTRACE_CARGO)
 
-  profiler_cargo_profile=$(test "$PHP_DDTRACE_RUST_DEBUG" != "no" && echo debug || echo profiler-release)
+  profiler_cargo_profile=${DDTRACE_RUST_PROFILE:-$(test "$PHP_DDTRACE_RUST_DEBUG" != "no" && echo debug || echo profiler-release)}
   profiler_target_dir="${CARGO_TARGET_DIR:-\$(builddir)/target-profiling}"
 
   if test "$PHP_DDTRACE_TRACER" = "no"; then
@@ -538,7 +539,7 @@ EOT
     ddtrace_rust_lib="$PHP_DDTRACE_RUST_LIBRARY"
   else
     dnl consider it debug if -g is specified (but not -g0)
-    ddtrace_cargo_profile=$(test "$PHP_DDTRACE_RUST_DEBUG" != "no" && echo debug || echo tracer-release)
+    ddtrace_cargo_profile=${DDTRACE_RUST_PROFILE:-$(test "$PHP_DDTRACE_RUST_DEBUG" != "no" && echo debug || echo tracer-release)}
     ddtrace_target_dir="${CARGO_TARGET_DIR:-\$(builddir)/target-common}"
     ddtrace_target_path=
     ddtrace_target_args=
