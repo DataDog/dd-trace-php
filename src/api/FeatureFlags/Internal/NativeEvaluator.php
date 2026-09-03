@@ -3,6 +3,7 @@
 namespace DDTrace\FeatureFlags\Internal;
 
 use DDTrace\FeatureFlags\EvaluationType;
+use DDTrace\FeatureFlags\SpanEnrichmentRegistry;
 
 final class NativeEvaluator implements Evaluator
 {
@@ -50,7 +51,17 @@ final class NativeEvaluator implements Evaluator
             $rawResult = $this->withProviderState($rawResult);
         }
 
-        return $this->mapper->map($rawResult, $expectedType, $defaultValue);
+        $details = $this->mapper->map($rawResult, $expectedType, $defaultValue);
+
+        // APM feature-flag span enrichment. This is the single choke point both
+        // the native Client and the OpenFeature DataDogProvider evaluate through,
+        // and it is only reachable with the extension loaded (UnavailableEvaluator
+        // is returned otherwise), so enrichment is recorded here once rather than
+        // duplicated in each caller. No-op when the gate is off or there is no
+        // active root span; never throws into evaluation.
+        SpanEnrichmentRegistry::record($flagKey, $details, $targetingKey);
+
+        return $details;
     }
 
     private function typeId($expectedType)
@@ -92,9 +103,9 @@ final class NativeEvaluator implements Evaluator
             'ready' => $hasConfig,
             'hasConfig' => $hasConfig,
             'configVersion' => $configVersion,
-            'productionRuntime' => false,
+            'productionRuntime' => true,
             'mode' => 'native_remote_config',
-            'reason' => $hasConfig ? 'metrics_delivery_pending' : 'configuration_missing',
+            'reason' => $hasConfig ? 'ready' : 'configuration_missing',
         );
 
         if (is_array($rawResult)) {

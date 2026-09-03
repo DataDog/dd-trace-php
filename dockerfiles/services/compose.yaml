@@ -1,0 +1,11 @@
+services:
+
+  request-replayer:
+    image: ${CI_REGISTRY_IMAGE:-datadog/request-replayer}:$REQUEST_REPLAYER_NEXT_VERSION
+    build:
+      context: request-replayer
+      dockerfile: linux.Dockerfile
+      x-bake:
+        platforms:
+          - linux/arm64
+          - linux/amd64

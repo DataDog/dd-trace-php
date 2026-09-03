@@ -1,38 +1,52 @@
 Changelog for older versions can be found in our [release page](https://github.com/DataDog/dd-trace-php/releases).
 
-## Tracer
+## All products
 ### Fixed
-- Fix `SpanStack::$active` unset corruption #3962
-- Fix sandbox not saving/restoring `jit_trace_num` #3964
-- Fix `SpanStack` state corruption when tracing objects with deep clone operations #3976
-- Fix `request_exec` being issued between requests #3939
-- Fix Azure Functions instance name resolution DataDog/libdatadog#2077
-- Fix remote config `tracing_sample_rate` missing/null deserialization DataDog/libdatadog#2102
+- Repair the macOS crashtracking sidecar connector #4069
+- Avoid leaking a patched `module_entry` across SSI loader shutdown, which could crash on reload #4087
+- Fix `vsnprintf` off-by-one buffer sizing across appsec/logging/telemetry call sites #4115
+- Harden crash-report backtrace collection from a multi-threaded process via ptrace DataDog/libdatadog#2216
+- Fix parent-death-signal handling in the sidecar/loader child-process bootstrap DataDog/libdatadog#2348
 
 ### Internal
-- Fix crashtracker metadata: correctly distinguish JIT disabled vs opcache disabled, and correct system INI classification #3965
-- Use libdatadog's CSS trace filter implementation, aligning filtering behavior with the agent #3986, DataDog/libdatadog#1985
-- Add configurable sidecar connection retry interval #3977, DataDog/libdatadog#2106
-- Emit `_dd.svc_src` span tag per Service Override Source Attribution RFC #3948
-- Fix duplicate span serialization in the sidecar DataDog/libdatadog#2107
+- Crashtracker now shares the sidecar's socket instead of holding a dedicated one, reducing per-process file descriptor usage DataDog/libdatadog#2179
+- Fix the debug build variant of the SSI loader on PHP 8.4 #4089
+
+## Tracer
+### Added
+- Support `DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT` (`continue`/`restart`/`ignore`) to control how upstream distributed-trace context is extracted, matching other Datadog tracers #3997
+- Add `DD_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT_MS` to bound Dynamic Instrumentation capture time #4003
+- Add experimental Feature Flag Events (FFE) span enrichment, opt-in via `DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED` (default off) #3996
+- Publish standard OTel process and thread contexts from the tracer, consumed by the profiler for runtime identity and effective service metadata #4077
+
+### Changed
+- Propagate the agent-configured timeout to the sidecar instead of using a fixed value #4025
+
+### Fixed
+- Scan the agent's full peer-tag key list for client-side stats instead of truncating it, which had started silently dropping tags like `out.host`/`peer.hostname`/`peer.service`/`server.address` #4102
+- Preserve the complete W3C trace-flags byte when converting a Datadog span into an OpenTelemetry span context, fixing sampled+random-id contexts being treated as unsampled #4112
+- Fix health metrics over UDS #4116
+
+### Internal
+- Report OTLP export status (traces/metrics/logs) in the startup log #4056
+- Update libdatadog and fix background-sender telemetry errors/flakiness #4073, DataDog/libdatadog#2277
 
 ## Profiling
 ### Added
-- Add trampoline for frameless functions (FLF) to correctly capture timings on aarch64 and x86_64 #3595
-- Add experimental heap-live profiling for memory leak detection, enabled via `DD_PROFILING_EXPERIMENTAL_HEAP_LIVE_ENABLED` (requires allocation profiling to be active) #3623
+- Add build compatibility with PHP 8.6 #4084
 
-### Fixed
-- Fix profiler crashes and hangs: stderr fd leak (`O_CLOEXEC` missing) causing child processes to hang, NULL file dereference in timeline error observer on PHP 8.0, and async signal delivery to helper threads causing a segfault on ZTS builds #3364
-- Fix macOS release builds for the profiler #3987
-
-### Internal
-- Replace `lazy_static` with `std::sync::LazyLock` and optimize `Sapi`/`RefCellExt` #3990
-- Simplify profiler name/version string constants to compile-time values #3998
+### Changed
+- Avoid an FFI call on the allocation hot path on NTS builds #4068
+- Remove indirect allocator forwarding by specializing malloc/free/realloc callbacks at RINIT #4070
+- Speed up `interrupt_count` checks by using a relaxed atomic outside of `REQUEST_LOCALS` #4074
+- Reuse a single cached TSRM pointer for profiler and executor globals in the allocation hook (PHP ≤8.3) #4072
 
 ## AppSec
-### Changed
-- Enable Rust helper by default for all PHP versions (can be disabled with `DD_APPSEC_HELPER_RUST_REDIRECTION=false`) #3991
+### Added
+- Support the `server.response.body.raw` WAF address for raw (unparsed) HTTP response body inspection #4055
+
+### Fixed
+- Ensure `_dd.apm.enabled:0` is present on every span so it is reliably encountered during APM-standalone billing processing #4054
 
 ### Internal
-- Implement `waf.error` and `rasp.error` error tracking metrics #3963
-- Harden `_assume_utf8` against potential out-of-bounds access #4009
+- Report `DD_APPSEC_AGENTIC_ONBOARDING` in configuration telemetry #4053

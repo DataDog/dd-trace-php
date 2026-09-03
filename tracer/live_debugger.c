@@ -16,8 +16,188 @@
 #include <ext/ffi_utils.h>
 #include "zend_generators.h"
 #include <ext/process_tags.h>
+#ifndef _WIN32
+#include <sys/time.h>
+#include <time.h>
+#endif
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
+
+#ifndef _WIN32
+#ifdef __linux__
+#include <sys/syscall.h>
+#elif defined(ZTS)
+uint64_t dd_find_lowest_deadline_timer(void) {
+    uint64_t usec = 0;
+    uint64_t next_deadline = ~0ull;
+    tsrm_mutex_lock(datadog_threads_mutex);
+    void *TSRMLS_CACHE;
+    ZEND_HASH_FOREACH_PTR(&datadog_tls_bases, TSRMLS_CACHE) {
+        uint64_t deadline = DDTRACE_G(capture_deadline_ns);
+        if (deadline) {
+            next_deadline = MIN(deadline, next_deadline);
+        }
+    } ZEND_HASH_FOREACH_END();
+    tsrm_mutex_unlock(datadog_threads_mutex);
+    if (next_deadline != ~0ull) {
+        struct timespec now;
+        clock_gettime(CLOCK_THREAD_CPUTIME_ID, &now);
+        uint64_t now_ns = (uint64_t)now.tv_sec * 1000000000ULL + (uint64_t)now.tv_nsec;
+        usec = (next_deadline - now_ns) / 1000ull;
+    }
+    return usec;
+}
+#endif
+
+// SIGEV_THREAD_ID delivers SIGVTALRM to exactly this thread, not a random one (critical for ZTS).
+void dd_start_debugger_timeout(void) {
+    zend_long ms = get_global_DD_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT_MS();
+    if (ms <= 0) {
+        return;
+    }
+    if (DDTRACE_G(capture_deadline_ns)) {
+        LOG(WARN, "Starting debugger timeout when it was already active. Last timeout was not stopped properly?");
+    }
+    struct timespec now;
+    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &now);
+    uint64_t now_ns = (uint64_t)now.tv_sec * 1000000000ULL + (uint64_t)now.tv_nsec;
+    // Set deadline BEFORE arming the timer so a racing SIGVTALRM sees a valid deadline.
+    DDTRACE_G(capture_deadline_ns) = now_ns + (uint64_t)ms * 1000000ULL;
+    DDTRACE_G(debugger_capture_timed_out) = 0;
+#ifdef __linux__
+    // musl exposes it, but glibc doesn't always. Define the glibc variant here.
+#ifndef sigev_notify_thread_id
+#define sigev_notify_thread_id _sigev_un._tid
+#endif
+    struct sigevent sev = {0};
+    sev.sigev_notify = SIGEV_THREAD_ID;
+    sev.sigev_signo = SIGVTALRM;
+    sev.sigev_notify_thread_id = (pid_t)syscall(SYS_gettid); // gettid() is glibc 2.30 only
+    if (timer_create(CLOCK_THREAD_CPUTIME_ID, &sev, &DDTRACE_G(capture_timer)) == 0) {
+        struct itimerspec it = {
+            .it_value = { .tv_sec = ms / 1000, .tv_nsec = (ms % 1000) * 1000000LL },
+        };
+        timer_settime(DDTRACE_G(capture_timer), 0, &it, NULL);
+        DDTRACE_G(capture_timer_active) = 1;
+    }
+#else
+    uint64_t usec = (uint64_t)ms * 1000ULL;
+#ifdef ZTS
+    usec = dd_find_lowest_deadline_timer();
+#endif
+    struct itimerval it = {
+        .it_value    = { .tv_sec = usec / 1000000, .tv_usec = usec % 1000000 },
+        .it_interval = { 0, 0 },
+    };
+    setitimer(ITIMER_VIRTUAL, &it, NULL);
+#endif
+}
+
+void dd_stop_debugger_timeout(void) {
+    // Clear deadline BEFORE deleting the timer so a racing signal sees "not active".
+    DDTRACE_G(capture_deadline_ns) = 0;
+#ifdef __linux__
+    if (DDTRACE_G(capture_timer_active)) {
+        timer_delete(DDTRACE_G(capture_timer));
+        DDTRACE_G(capture_timer_active) = 0;
+    }
+#else
+    // Reset timer to zero - on ZTS check other threads for timeouts first
+    uint64_t usec = 0;
+#ifdef ZTS
+    usec = dd_find_lowest_deadline_timer();
+#endif
+    struct itimerval it = {
+        .it_value    = { .tv_sec = usec / 1000000, .tv_usec = usec % 1000000 },
+        .it_interval = { 0, 0 },
+    };
+    setitimer(ITIMER_VIRTUAL, &it, NULL);
+#endif
+    DDTRACE_G(debugger_capture_timed_out) = 0;
+}
+
+void ddtrace_live_debugger_handle_sigvtalarm(void) {
+    uint64_t now_ns = 0;
+#if !defined(__linux__) && defined(ZTS)
+    // On macOS ZTS, setitimer is per-process; the signal may land on any thread - iterate all threads to check for expirations
+    uint64_t next_deadline = ~0ull;
+    tsrm_mutex_lock(datadog_threads_mutex);
+    void *TSRMLS_CACHE;
+    ZEND_HASH_FOREACH_PTR(&datadog_tls_bases, TSRMLS_CACHE) {
+#endif
+    // On Linux the signal gets delivered to the thread that set the timer, so we don't need to iterate all threads
+    uint64_t deadline = DDTRACE_G(capture_deadline_ns);
+    if (deadline) {
+        if (!now_ns) {
+            struct timespec now;
+            clock_gettime(CLOCK_THREAD_CPUTIME_ID, &now);
+            now_ns = (uint64_t)now.tv_sec * 1000000000ULL + (uint64_t)now.tv_nsec;
+        }
+        if (now_ns >= deadline) {
+            if (!DDTRACE_G(debugger_capture_timed_out)) {
+                DDTRACE_G(debugger_capture_abort_reason) = DD_CAPTURE_ABORT_TIMEOUT;
+            }
+            DDTRACE_G(debugger_capture_timed_out) = 1;
+        }
+#if !defined(__linux__) && defined(ZTS)
+        else {
+            next_deadline = MIN(deadline, next_deadline);
+        }
+#endif
+    }
+#if !defined(__linux__) && defined(ZTS)
+    } ZEND_HASH_FOREACH_END();
+    if (next_deadline != ~0ull) { // re-arm the timer, for ZTS concurrency
+        uint64_t usec = (next_deadline - now_ns) / 1000ull;
+        struct itimerval it = {
+            .it_value    = { .tv_sec = usec / 1000000, .tv_usec = usec % 1000000 },
+            .it_interval = { 0, 0 },
+        };
+        setitimer(ITIMER_VIRTUAL, &it, NULL);
+    }
+    tsrm_mutex_unlock(datadog_threads_mutex);
+#endif
+}
+#else
+#include <windows.h>
+
+static void CALLBACK dd_timeout_callback(PVOID param, BOOLEAN fired) {
+    UNUSED(fired);
+    volatile sig_atomic_t **flags = (volatile sig_atomic_t **)param;
+    if (!*flags[0]) {
+        *flags[1] = DD_CAPTURE_ABORT_TIMEOUT;
+    }
+    *flags[0] = 1;
+}
+
+void dd_start_debugger_timeout(void) {
+    zend_long ms = get_global_DD_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT_MS();
+    if (ms <= 0) {
+        return;
+    }
+    if (DDTRACE_G(capture_timer_handle)) {
+        LOG(WARN, "Starting debugger timeout when it was already active. Last timeout was not stopped properly?");
+    }
+    DDTRACE_G(debugger_capture_timed_out) = 0;
+    DDTRACE_G(debugger_capture_abort_reason) = DD_CAPTURE_ABORT_NONE;
+    DDTRACE_G(capture_timeout_flags)[0] = &DDTRACE_G(debugger_capture_timed_out);
+    DDTRACE_G(capture_timeout_flags)[1] = &DDTRACE_G(debugger_capture_abort_reason);
+    HANDLE timer = NULL;
+    if (CreateTimerQueueTimer(&timer, NULL, dd_timeout_callback,
+                              (PVOID)DDTRACE_G(capture_timeout_flags),
+                              (DWORD)ms, 0, WT_EXECUTEONLYONCE)) {
+        DDTRACE_G(capture_timer_handle) = timer;
+    }
+}
+
+void dd_stop_debugger_timeout(void) {
+    if (DDTRACE_G(capture_timer_handle)) {
+        DeleteTimerQueueTimer(NULL, DDTRACE_G(capture_timer_handle), INVALID_HANDLE_VALUE);
+        DDTRACE_G(capture_timer_handle) = NULL;
+    }
+    DDTRACE_G(debugger_capture_timed_out) = 0;
+}
+#endif
 
 struct eval_ctx {
     zend_execute_data *frame;
@@ -109,6 +289,20 @@ static ddog_CharSlice dd_persist_str_eval_arena(struct eval_ctx *eval_ctx, zend_
     return dd_zend_string_to_CharSlice(Z_STR(zv));
 }
 
+// Accounts for bytes about to be added to the current snapshot; aborts the capture once it grew too large.
+void ddtrace_increase_capture_size(size_t bytes) {
+    DDTRACE_G(debugger_capture_arena).captured_size += bytes;
+    if (UNEXPECTED(DDTRACE_G(debugger_capture_arena).captured_size > DD_MAX_CAPTURE_SIZE)) {
+        // Reuse the timeout flag: every capture loop already bails out on it. Only record the reason
+        // if nothing aborted the capture yet, so a size overshoot after an earlier CPU timeout doesn't
+        // overwrite the real reason.
+        if (!DDTRACE_G(debugger_capture_timed_out)) {
+            DDTRACE_G(debugger_capture_abort_reason) = DD_CAPTURE_ABORT_SIZE;
+        }
+        DDTRACE_G(debugger_capture_timed_out) = 1;
+    }
+}
+
 typedef struct {
     ddtrace_span_data *span;
 } dd_span_probe_dynamic;
@@ -128,11 +322,8 @@ static bool dd_probe_file_mismatch(dd_probe_def *def, zend_execute_data *execute
 
 static void dd_probe_dtor(void *data) {
     dd_probe_def *def = data;
-    if (def->probe.probe.tag == DDOG_PROBE_TYPE_SPAN_DECORATION) {
-        ddog_drop_span_decoration_probe(def->probe.probe.span_decoration);
-    } else if (def->probe.probe.tag == DDOG_PROBE_TYPE_LOG) {
-        ddog_drop_log_probe_capture_expressions(def->probe.probe.log);
-    }
+    // Frees the probe's FFI-owned allocations (tags + span-decoration/log).
+    ddog_drop_probe(def->probe);
     if (def->file) {
         zend_string_release(def->file);
     }
@@ -297,6 +488,7 @@ static void dd_span_decoration_end(zend_ulong invocation, zend_execute_data *exe
     }
 
     dd_probe_mark_active(def);
+    dd_start_debugger_timeout();
 
     if (def->probe.probe.span_decoration.target == DDOG_SPAN_PROBE_TARGET_ROOT) {
         span = &span->stack->root_span->span;
@@ -306,6 +498,9 @@ static void dd_span_decoration_end(zend_ulong invocation, zend_execute_data *exe
     bool condition_result = true;
     const ddog_ProbeCondition *const *condition = def->probe.probe.span_decoration.conditions;
     for (uintptr_t i = 0; i < def->probe.probe.span_decoration.span_tags_num; ++i) {
+        if (UNEXPECTED(DDTRACE_G(debugger_capture_timed_out))) {
+            break;
+        }
         const ddog_SpanProbeTag *spanTag = def->probe.probe.span_decoration.span_tags + i;
         if (spanTag->next_condition) {
             ddog_ConditionEvaluationResult result = dd_eval_condition(*(condition++), retval);
@@ -340,6 +535,7 @@ static void dd_span_decoration_end(zend_ulong invocation, zend_execute_data *exe
             }
         }
     }
+    dd_stop_debugger_timeout();
 }
 
 static bool dd_span_decoration_begin(zend_ulong invocation, zend_execute_data *execute_data, void *auxiliary, void *dynamic) {
@@ -419,6 +615,9 @@ static void dd_log_probe_capture_snapshot(ddog_DebuggerCapture *capture, dd_log_
         zend_string *symbol;
         zval *variable;
         ZEND_HASH_FOREACH_STR_KEY_VAL_IND(symbol_table, symbol, variable) {
+            if (UNEXPECTED(DDTRACE_G(debugger_capture_timed_out))) {
+                break;
+            }
             if (symbol) {
                 struct ddog_CaptureValue capture_value = {0};
                 ddog_CharSlice name_slice = dd_zend_string_to_CharSlice(symbol);
@@ -432,6 +631,9 @@ static void dd_log_probe_capture_snapshot(ddog_DebuggerCapture *capture, dd_log_
     } else if (EX(func)->internal_function.arg_info) {
         uint32_t num_args = EX(func)->internal_function.num_args;
         for (uintptr_t i = 0; i < num_args; ++i) {
+            if (UNEXPECTED(DDTRACE_G(debugger_capture_timed_out))) {
+                break;
+            }
             const char *name = EX(func)->internal_function.arg_info[i].name;
             ddog_CharSlice name_slice = { .len = strlen(name), .ptr = name };
             struct ddog_CaptureValue capture_value = {0};
@@ -454,7 +656,7 @@ static void dd_probe_capture_stack(ddog_DebuggerPayload *payload, zend_execute_d
 #if PHP_VERSION_ID >= 80400
     zend_execute_data *last_call = NULL;
 #endif
-    while (call && --remaining_depth > 0) {
+    while (call && --remaining_depth > 0 && EXPECTED(!DDTRACE_G(debugger_capture_timed_out))) {
         if (UNEXPECTED(!call->func)) {
             /* This is the fake frame inserted for nested generators. Normally,
              * this frame is preceded by the actual generator frame and then
@@ -568,6 +770,9 @@ static void dd_log_probe_add_capture_fields(ddog_DebuggerCapture *capture, dd_lo
     uintptr_t num = def->parent.probe.probe.log.capture_expressions_num;
     const ddog_CaptureExpression *exprs = def->parent.probe.probe.log.capture_expressions;
     for (uintptr_t i = 0; i < num; i++) {
+        if (UNEXPECTED(DDTRACE_G(debugger_capture_timed_out))) {
+            break;
+        }
         ctx.config = exprs[i].capture;
         ddog_ValueEvaluationResult result = ddog_evaluate_value(exprs[i].expr, &ctx);
 
@@ -584,9 +789,11 @@ static void dd_log_probe_add_capture_fields(ddog_DebuggerCapture *capture, dd_lo
                 break;
             case DDOG_INTERMEDIATE_VALUE_STRING: {
                 capture_value.type = DDOG_CHARSLICE_C("string");
-                char *buf = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena).arena, iv.string.len);
-                memcpy(buf, iv.string.ptr, iv.string.len);
-                capture_value.value = (ddog_CharSlice){ .ptr = buf, .len = iv.string.len };
+                ddog_CharSlice str = ddtrace_capture_bound_charslice(iv.string, exprs[i].capture->max_length);
+                char *buf = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena).arena, str.len);
+                memcpy(buf, str.ptr, str.len);
+                capture_value.value = (ddog_CharSlice){ .ptr = buf, .len = str.len };
+                ddtrace_increase_capture_size(str.len);
                 break;
             }
             case DDOG_INTERMEDIATE_VALUE_NUMBER: {
@@ -634,7 +841,10 @@ static void dd_log_probe_end(zend_ulong invocation, zend_execute_data *execute_d
         return;
     }
 
+    dd_start_debugger_timeout();
+
     if (def->parent.probe.evaluate_at == DDOG_EVALUATE_AT_EXIT && !dd_log_probe_eval_condition(def, execute_data, retval)) {
+        dd_stop_debugger_timeout();
         return;
     }
 
@@ -704,6 +914,7 @@ static void dd_log_probe_end(zend_ulong invocation, zend_execute_data *execute_d
             dd_log_probe_add_capture_fields(capture, def, execute_data, retval);
         }
     }
+    dd_stop_debugger_timeout();
     ddtrace_sidecar_send_debugger_datum(dyn->payload);
     if (DDTRACE_G(debugger_capture_arena).arena) {
         dd_free_capture_ephemerals(DDTRACE_G(debugger_capture_arena).ephemerals);
@@ -723,6 +934,8 @@ static bool dd_log_probe_begin(zend_ulong invocation, zend_execute_data *execute
 
     zval retval;
     ZVAL_NULL(&retval);
+
+    dd_start_debugger_timeout();
 
     dyn->payload = NULL;
     dyn->rejected = def->parent.probe.evaluate_at == DDOG_EVALUATE_AT_ENTRY && !dd_log_probe_eval_condition(def, execute_data, &retval);
@@ -747,6 +960,7 @@ static bool dd_log_probe_begin(zend_ulong invocation, zend_execute_data *execute
         }
     }
 
+    dd_stop_debugger_timeout();
     return true;
 }
 
@@ -854,10 +1068,19 @@ static void dd_remove_live_debugger_probe(int64_t id) {
         zend_string *scope = def->scope ? zend_string_copy(def->scope) : NULL;
         zend_string *func = def->function ? zend_string_copy(def->function) : NULL;
         def->removed = true;
-        zai_hook_remove(
-                def->scope ? (zai_str)ZAI_STR_FROM_ZSTR(def->scope) : (zai_str)ZAI_STR_EMPTY,
-                def->function ? (zai_str)ZAI_STR_FROM_ZSTR(def->function) : (zai_str)ZAI_STR_EMPTY,
-                id);
+        // Use explicit if-guards, not an inline ternary in the call args:
+        // MSVC 2017 (PHP 7.x Windows) if-converts
+        // `def->scope ? ZAI_STR_FROM_ZSTR(def->scope) : ZAI_STR_EMPTY` into an
+        // unconditional ZSTR_LEN(def->scope) — a NULL deref for global functions
+        // (scope == NULL). See PR #4036.
+        zai_str scope_str = ZAI_STR_EMPTY, func_str = ZAI_STR_EMPTY;
+        if (def->scope) {
+            scope_str = (zai_str) ZAI_STR_FROM_ZSTR(def->scope);
+        }
+        if (def->function) {
+            func_str = (zai_str) ZAI_STR_FROM_ZSTR(def->function);
+        }
+        zai_hook_remove(scope_str, func_str, id);
         if (scope) {
             zend_string_release(scope);
         }
@@ -1300,7 +1523,7 @@ static ddog_VoidCollection dd_eval_try_enumerate(void *ctx, const void *zvp) {
                         if (iter->funcs->rewind) {
                             iter->funcs->rewind(iter);
                         }
-                        while (!EG(exception) && idx < max_items && iter->funcs->valid(iter) == SUCCESS) {
+                        while (!EG(exception) && idx < max_items && !DDTRACE_G(debugger_capture_timed_out) && iter->funcs->valid(iter) == SUCCESS) {
                             zval key_zv, *data = iter->funcs->get_current_data(iter);
 
                             if (iter->funcs->get_current_key) {
@@ -1351,6 +1574,9 @@ static ddog_VoidCollection dd_eval_try_enumerate(void *ctx, const void *zvp) {
     ddog_VoidCollection collection = dd_alloc_kv_collection(count);
     int idx = 0;
     ZEND_HASH_FOREACH_KEY_VAL_IND(values, num_key, str_key, val) {
+        if (UNEXPECTED(DDTRACE_G(debugger_capture_timed_out))) {
+            break;
+        }
         zval key_zv;
         if (str_key) {
             ZVAL_STR(&key_zv, str_key);
@@ -1409,6 +1635,9 @@ static void dd_stringify_zval(const zval *zv, smart_str *str, const ddog_Capture
             if (zend_array_is_list(Z_ARR_P(zv))) {
                 int remaining_fields = config->max_collection_size;
                 ZEND_HASH_FOREACH_VAL(Z_ARR_P(zv), val) {
+                    if (UNEXPECTED(DDTRACE_G(debugger_capture_timed_out))) {
+                        break;
+                    }
                     if (!first) {
                         smart_str_appends(str, ", ");
                     }
@@ -1425,6 +1654,9 @@ static void dd_stringify_zval(const zval *zv, smart_str *str, const ddog_Capture
                 zend_string *key;
                 int remaining_fields = config->max_collection_size;
                 ZEND_HASH_FOREACH_KEY_VAL(Z_ARR_P(zv), idx, key, val) {
+                    if (UNEXPECTED(DDTRACE_G(debugger_capture_timed_out))) {
+                        break;
+                    }
                     if (!first) {
                         smart_str_appends(str, ", ");
                     }
@@ -1481,6 +1713,9 @@ static void dd_stringify_zval(const zval *zv, smart_str *str, const ddog_Capture
                     : Z_OBJPROP_P(zv);
             bool first = true;
             ZEND_HASH_REVERSE_FOREACH_STR_KEY_VAL(ht, key, val) {
+                if (UNEXPECTED(DDTRACE_G(debugger_capture_timed_out))) {
+                    break;
+                }
                 if (!key) {
                     continue;
                 }

@@ -19,7 +19,7 @@ for ($i = 0; $i < 300; ++$i) {
     if (file_exists(__DIR__ . '/'.$id.'-telemetry.out')) {
         $batches = [];
         foreach (file(__DIR__ . '/'.$id.'-telemetry.out') as $l) {
-            if ($l) {
+            if ($l && $l[0] == '{') {
                 $json = json_decode($l, true);
                 if ($json) {
                     if ($json["application"]["service_name"] == "background_sender-php-service" || $json["application"]["service_name"] == "datadog-ipc-helper") {
@@ -29,19 +29,20 @@ for ($i = 0; $i < 300; ++$i) {
                 }
             }
         }
-        $found = array_filter($batches, function ($json) {
-            if ($json["request_type"] !== "app-client-configuration-change") {
-                return false;
+        $found = null;
+        foreach ($batches as $json) {
+            if ($json["request_type"] !== "app-started" && $json["request_type"] !== "app-client-configuration-change") {
+                continue;
             }
-            foreach($json["payload"]["configuration"] as $configuration) {
+            foreach ($json["payload"]["configuration"] as $configuration) {
                 if (stripos($configuration["name"], "sca_enabled") !== false) {
-                    var_dump($configuration);
-                    return true;
+                    $found = $configuration;
+                    break 2;
                 }
             }
-            return false;
-        });
-        if (count($found) == 1) {
+        }
+        if ($found) {
+            var_dump($found);
             var_dump("Sent");
             break;
         }

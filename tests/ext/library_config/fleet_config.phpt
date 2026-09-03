@@ -18,6 +18,8 @@ copy(__DIR__.'/fleet_config.yaml', '/tmp/test_c_fleet_config.yaml');
 _DD_TEST_LIBRARY_CONFIG_FLEET_FILE=/tmp/test_c_fleet_config.yaml
 _DD_TEST_LIBRARY_CONFIG_LOCAL_FILE=/foo
 DD_TRACE_SPANS_LIMIT=42
+DD_TRACE_AGENT_TIMEOUT=200
+DD_TRACE_RETRY_INTERVAL=1
 --INI--
 datadog.trace.agent_url="file://{PWD}/fleet-config-telemetry.out"
 --FILE--
@@ -42,7 +44,7 @@ for ($i = 0; $i < 100; ++$i) {
     ("us" . "leep")(100000);
     if (file_exists(__DIR__ . '/fleet-config-telemetry.out')) {
         foreach (file(__DIR__ . '/fleet-config-telemetry.out') as $l) {
-            if ($l) {
+            if ($l && $l[0] == '{') {
                 $json = json_decode($l, true);
                 $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
                 foreach ($batch as $json) {

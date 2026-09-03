@@ -12,7 +12,7 @@
 | `benchmarks-appsec` | same | Runs appsec microbenchmarks; produces `candidate.tar.gz` and `baseline.tar.gz` artifacts |
 | `benchmarks-profiler` | same | Runs profiler microbenchmarks |
 | `macrobenchmarks: [{PHP_VERSION}]` | `486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:php_laravel-realworld` | Runs a Laravel Realworld application under k6 load at three traffic levels; PHP 7.4 and 8.1 |
-| `check-big-regressions` | `registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:latest` | Post-benchmark gate: fails if `benchmarks-tracer` results contain a regression above threshold |
+| `check-big-regressions` | `registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu@sha256:b682acae509fa391ac559705b66df07cac876e4c46641d2457077972a1c0bbb8` | Post-benchmark gate: fails if `benchmarks-tracer` results contain a regression above threshold |
 | `check-slo-breaches` | (benchmarking-platform-tools template) | Post-macrobenchmark gate: evaluates SLO breaches |
 | `notify-slo-breaches` | (benchmarking-platform-tools template) | Posts SLO breach notifications to `#guild-dd-php` Slack channel |
 

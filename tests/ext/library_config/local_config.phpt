@@ -18,6 +18,8 @@ copy(__DIR__.'/local_config.yaml', '/tmp/test_c_local_config.yaml');
 _DD_TEST_LIBRARY_CONFIG_FLEET_FILE=/foo
 _DD_TEST_LIBRARY_CONFIG_LOCAL_FILE=/tmp/test_c_local_config.yaml
 DD_TRACE_SPANS_LIMIT=42
+DD_TRACE_AGENT_TIMEOUT=200
+DD_TRACE_RETRY_INTERVAL=1
 --INI--
 datadog.trace.agent_url="file://{PWD}/local-config-telemetry.out"
 --FILE--
@@ -41,29 +43,32 @@ dd_trace_internal_fn("finalize_telemetry");
 for ($i = 0; $i < 100; ++$i) {
     ("us" . "leep")(100000);
     if (file_exists(__DIR__ . '/local-config-telemetry.out')) {
+        $configurations = [];
         foreach (file(__DIR__ . '/local-config-telemetry.out') as $l) {
-            if ($l) {
+            if ($l && $l[0] == '{') {
+                // On PHP <= 7.3, another PHP process sends telemetry before
+                // the stable config file is taken into account.
+                if (PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION <= 3 && strpos($l, '42_local_config') === false) {
+                    continue;
+                }
                 $json = json_decode($l, true);
                 $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
                 foreach ($batch as $json) {
-                    if ($json["request_type"] == "app-client-configuration-change") {
-                        $cfg = $json["payload"]["configuration"];
-
-                        // Hack: On PHP <= 7.3, another PHP process is sending telemetry data
-                        // before the stable config file is taken into account.
-                        if (PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION <= 3) {
-                            if (strpos($l, '42_local_config') === false) {
-                                continue;
-                            }
+                    if ($json["request_type"] == "app-started" || $json["request_type"] == "app-client-configuration-change") {
+                        foreach ($json["payload"]["configuration"] as $configuration) {
+                            $configurations[$configuration["name"]] = $configuration;
                         }
-
-                        var_dump(array_values(array_filter($cfg, function ($c) {
-                            return in_array($c["name"], ['DD_SERVICE', 'DD_ENV', 'DD_DYNAMIC_INSTRUMENTATION_ENABLED', 'DD_TRACE_SPANS_LIMIT', 'DD_TRACE_GENERATE_ROOT_SPAN']);
-                        })));
-                        break 3;
                     }
                 }
             }
+        }
+
+        $expectedNames = ['DD_ENV', 'DD_SERVICE', 'DD_TRACE_GENERATE_ROOT_SPAN', 'DD_TRACE_SPANS_LIMIT', 'DD_DYNAMIC_INSTRUMENTATION_ENABLED'];
+        if (count(array_intersect($expectedNames, array_keys($configurations))) == count($expectedNames)) {
+            var_dump(array_map(function ($name) use ($configurations) {
+                return $configurations[$name];
+            }, $expectedNames));
+            break;
         }
     }
 }

@@ -12,6 +12,8 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 _DD_LOAD_TEST_INTEGRATIONS=1
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
 DD_TRACE_FILESYSTEM_ENABLED=0
+DD_TRACE_AGENT_TIMEOUT=200
+DD_TRACE_RETRY_INTERVAL=1
 --INI--
 datadog.trace.agent_url="file://{PWD}/integration-telemetry-04.out"
 --FILE--
@@ -25,7 +27,7 @@ namespace
         usleep(100000);
         if (file_exists($file )) {
             foreach (file($file) as $l) {
-                if ($l) {
+                if ($l && $l[0] == '{') {
                     $json = json_decode($l, true);
                     $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
                     foreach ($batch as $json) {
@@ -46,7 +48,7 @@ array(1) {
   ["integrations"]=>
   array(1) {
     [0]=>
-    array(5) {
+    array(6) {
       ["name"]=>
       string(10) "filesystem"
       ["enabled"]=>
@@ -56,6 +58,8 @@ array(1) {
       ["compatible"]=>
       NULL
       ["auto_enabled"]=>
+      NULL
+      ["error"]=>
       NULL
     }
   }

@@ -14,11 +14,24 @@
 const char *datadog_extension_build_id(void) { return ZEND_EXTENSION_BUILD_ID; }
 const char *datadog_module_build_id(void) { return ZEND_MODULE_BUILD_ID; }
 
-uint8_t *datadog_runtime_id = NULL;
+#ifdef __linux__
+// Standard OTel context providers export this TLS symbol globally. Cache its
+// address per thread because dynamic TLS addresses differ between threads.
+static void *datadog_php_profiling_inactive_otel_thread_context = NULL;
+static __thread void **datadog_php_profiling_otel_thread_context_slot = NULL;
 
-static void locate_datadog_runtime_id(const zend_extension *extension) {
-    datadog_runtime_id = DL_FETCH_SYMBOL(extension->handle, "datadog_runtime_id");
+const void *datadog_php_profiling_get_otel_thread_context(void) {
+    if (!datadog_php_profiling_otel_thread_context_slot) {
+        datadog_php_profiling_otel_thread_context_slot =
+            DL_FETCH_SYMBOL(NULL, "otel_thread_ctx_v1");
+        if (!datadog_php_profiling_otel_thread_context_slot) {
+            datadog_php_profiling_otel_thread_context_slot =
+                &datadog_php_profiling_inactive_otel_thread_context;
+        }
+    }
+    return *datadog_php_profiling_otel_thread_context_slot;
 }
+#endif
 
 static void locate_ddtrace_get_profiling_context(const zend_extension *extension) {
     ddtrace_profiling_context (*get_profiling)(void) =
@@ -167,7 +180,6 @@ void datadog_php_profiling_startup(zend_extension *extension) {
         const zend_extension *maybe_ddtrace = (zend_extension *)item->data;
         if (maybe_ddtrace != extension && is_ddtrace_extension(maybe_ddtrace)) {
             locate_ddtrace_get_profiling_context(maybe_ddtrace);
-            locate_datadog_runtime_id(maybe_ddtrace);
             locate_datadog_process_tags_get_serialized(maybe_ddtrace);
             break;
         }
@@ -654,7 +666,7 @@ bool ddog_php_jit_enabled() {
     }
 
     // Check opcache.jit_buffer_size, no buffer -> no JIT
-    char *buffer_size_str = zend_ini_string("opcache.jit_buffer_size", sizeof("opcache.jit_buffer_size") - 1, 0);
+    const char *buffer_size_str = zend_ini_string("opcache.jit_buffer_size", sizeof("opcache.jit_buffer_size") - 1, 0);
     if (!buffer_size_str || strlen(buffer_size_str) == 0 || strcmp(buffer_size_str, "0") == 0) {
         return false;
     }
@@ -666,7 +678,7 @@ bool ddog_php_jit_enabled() {
     }
 
     // Finally check the opcache.jit setting
-    char *jit_str = zend_ini_string("opcache.jit", sizeof("opcache.jit") - 1, 0);
+    const char *jit_str = zend_ini_string("opcache.jit", sizeof("opcache.jit") - 1, 0);
     if (!jit_str || strlen(jit_str) == 0 ||
         strcmp(jit_str, "disable") == 0 ||
         strcmp(jit_str, "off") == 0 ||
@@ -685,6 +697,8 @@ bool ddog_php_jit_enabled() {
 #if PHP_VERSION_ID < 70200
 #define zend_parse_parameters_none_throw() \
     (EXPECTED(ZEND_NUM_ARGS() == 0) ? SUCCESS : zend_parse_parameters_throw(ZEND_NUM_ARGS(), ""))
+#elif PHP_VERSION_ID >= 80600
+#define zend_parse_parameters_none_throw() zend_parse_parameters_none()
 #endif
 
 #if CFG_TRIGGER_TIME_SAMPLE

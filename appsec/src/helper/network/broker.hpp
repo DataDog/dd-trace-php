@@ -30,8 +30,8 @@ public:
 
 class broker : public base_broker {
 public:
-    // message body size limit (700 KB)
-    static constexpr std::size_t max_msg_body_size = 750UL * 1024UL;
+    // message body size limit (10 MiB)
+    static constexpr std::size_t max_msg_body_size = 10UL * 1024UL * 1024UL;
 
     explicit broker(std::unique_ptr<base_socket> &&socket)
         : socket_(std::move(socket))

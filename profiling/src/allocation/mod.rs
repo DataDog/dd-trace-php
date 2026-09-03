@@ -2,11 +2,11 @@ mod profiling_stats;
 
 pub use profiling_stats::*;
 
-use crate::bindings::{self as zend};
-use crate::config::SystemSettings;
-use crate::module_globals;
-use crate::profiling::Profiler;
-use crate::{RefCellExt, REQUEST_LOCALS};
+use crate::profiling::bindings::{self as zend};
+use crate::profiling::config::SystemSettings;
+use crate::profiling::module_globals;
+use crate::profiling::profiler::Profiler;
+use crate::profiling::{RefCellExt, REQUEST_LOCALS};
 use core::cell::Cell;
 use core::ptr;
 use libc::size_t;
@@ -14,7 +14,7 @@ use log::{debug, trace};
 use rand_distr::{Distribution, Poisson};
 use std::ffi::c_void;
 use std::num::{NonZero, NonZeroU32, NonZeroU64};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 
 #[cfg(not(php_zts))]
 use rand::rngs::StdRng;
@@ -24,9 +24,9 @@ use rand::rngs::ThreadRng;
 use rand::SeedableRng;
 
 #[cfg(php_zend_mm_set_custom_handlers_ex)]
-use crate::allocation::allocation_ge84::ZendMMState;
+use crate::profiling::allocation::allocation_ge84::ZendMMState;
 #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
-use crate::allocation::allocation_le83::ZendMMState;
+use crate::profiling::allocation::allocation_le83::ZendMMState;
 
 /// Gets a pointer to the Cell<ZendMMState> from PHP globals.
 ///
@@ -39,20 +39,46 @@ pub(crate) unsafe fn get_zend_mm_state() -> *mut Cell<ZendMMState> {
     ptr::addr_of_mut!((*globals).zend_mm_state)
 }
 
+#[cfg(php_zts)]
+#[inline(always)]
+pub(crate) unsafe fn current_execute_data_from_cache(
+    ls_cache: *mut c_void,
+) -> *mut zend::zend_execute_data {
+    // PHP 7.4 introduced fast globals offsets. Older versions use the TSRM resource ID.
+    #[cfg(php_zts_fast_globals)]
+    let globals = {
+        let offset = ptr::addr_of!(zend::executor_globals_offset).read();
+        ls_cache
+            .byte_add(offset)
+            .cast::<zend::zend_executor_globals>()
+    };
+    #[cfg(not(php_zts_fast_globals))]
+    let globals = {
+        let id = ptr::addr_of!(zend::executor_globals_id).read();
+        module_globals::get_tsrm_resource_from_cache(ls_cache, id)
+            .cast::<zend::zend_executor_globals>()
+    };
+    ptr::addr_of!((*globals).current_execute_data).read()
+}
+
 /// Macros for accessing ZendMMState from PHP globals.
 /// These are shared between PHP 8.3- and 8.4+ implementations.
 /// They are exported at the crate root and can be used in submodules.
 #[macro_export]
 macro_rules! tls_zend_mm_state_copy {
     () => {
-        unsafe { (*$crate::allocation::get_zend_mm_state()).get() }
+        unsafe { (*$crate::profiling::allocation::get_zend_mm_state()).get() }
     };
 }
 
 #[macro_export]
 macro_rules! tls_zend_mm_state_get {
     ($x:ident) => {
-        unsafe { (*$crate::allocation::get_zend_mm_state()).get().$x }
+        unsafe {
+            (*$crate::profiling::allocation::get_zend_mm_state())
+                .get()
+                .$x
+        }
     };
 }
 
@@ -61,7 +87,7 @@ macro_rules! tls_zend_mm_state_set {
     ($x:expr) => {{
         let value = $x;
         unsafe {
-            (*$crate::allocation::get_zend_mm_state()).set(value);
+            (*$crate::profiling::allocation::get_zend_mm_state()).set(value);
         }
     }};
 }
@@ -70,6 +96,56 @@ macro_rules! tls_zend_mm_state_set {
 pub mod allocation_ge84;
 #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
 pub mod allocation_le83;
+
+// Handler-selection tests retain callbacks in a binary that is not loaded by PHP.
+#[cfg(all(test, not(php_zts)))]
+#[export_name = "executor_globals"]
+static mut TEST_EXECUTOR_GLOBALS: core::mem::MaybeUninit<zend::zend_executor_globals> =
+    core::mem::MaybeUninit::zeroed();
+
+#[cfg(all(test, php_zts, php_zts_fast_globals))]
+#[export_name = "executor_globals_offset"]
+static mut TEST_EXECUTOR_GLOBALS_OFFSET: usize = 0;
+
+#[cfg(all(test, not(php_debug)))]
+#[no_mangle]
+unsafe extern "C" fn _zend_mm_free(_heap: *mut zend::_zend_mm_heap, _ptr: *mut c_void) {}
+
+#[cfg(all(test, php_debug))]
+#[no_mangle]
+unsafe extern "C" fn _zend_mm_free(
+    _heap: *mut zend::_zend_mm_heap,
+    _ptr: *mut c_void,
+    _file: *const libc::c_char,
+    _line: libc::c_uint,
+    _orig_file: *const libc::c_char,
+    _orig_line: libc::c_uint,
+) {
+}
+
+#[cfg(all(test, not(php_debug)))]
+#[no_mangle]
+unsafe extern "C" fn _zend_mm_realloc(
+    _heap: *mut zend::_zend_mm_heap,
+    _ptr: *mut c_void,
+    _len: size_t,
+) -> *mut c_void {
+    ptr::null_mut()
+}
+
+#[cfg(all(test, php_debug))]
+#[no_mangle]
+unsafe extern "C" fn _zend_mm_realloc(
+    _heap: *mut zend::_zend_mm_heap,
+    _ptr: *mut c_void,
+    _len: size_t,
+    _file: *const libc::c_char,
+    _line: libc::c_uint,
+    _orig_file: *const libc::c_char,
+    _orig_line: libc::c_uint,
+) -> *mut c_void {
+    ptr::null_mut()
+}
 
 /// Default sampling interval in bytes (4 MiB).
 pub const DEFAULT_ALLOCATION_SAMPLING_INTERVAL: NonZeroU32 = NonZero::new(1024 * 4096).unwrap();
@@ -91,7 +167,7 @@ pub static ALLOCATION_PROFILING_COUNT: AtomicU64 = AtomicU64::new(0);
 pub static ALLOCATION_PROFILING_SIZE: AtomicU64 = AtomicU64::new(0);
 
 pub struct AllocationProfilingStats {
-    /// number of bytes until next sample collection
+    /// Number of bytes remaining until the next sample collection.
     next_sample: i64,
     poisson: Poisson<f64>,
     #[cfg(php_zts)]
@@ -122,41 +198,46 @@ impl AllocationProfilingStats {
 
     fn should_collect_allocation(&mut self, len: size_t) -> bool {
         self.next_sample -= len as i64;
-
         if self.next_sample > 0 {
             return false;
         }
 
         self.next_sampling_interval();
-
         true
     }
 }
 
 /// Collect an allocation sample and optionally track it for live heap profiling.
 ///
+/// # Safety
+/// `execute_data` must be null or a valid pointer provided by the engine. The
+/// profiler may walk the execution frames reachable through it.
+///
 /// # Arguments
 /// * `ptr` - The pointer returned by the allocator (used for live heap tracking)
 /// * `len` - The size of the allocation in bytes
 #[cold]
-pub fn collect_allocation(ptr: *mut c_void, len: size_t) {
+pub unsafe fn collect_allocation(
+    interrupt_count: &AtomicU32,
+    execute_data: *mut zend::zend_execute_data,
+    ptr: *mut c_void,
+    len: size_t,
+) {
     if let Some(profiler) = Profiler::get() {
         // Check if there's a pending time interrupt that we can handle now
         // instead of waiting for an interrupt handler. This is slightly more
         // accurate and efficient, win-win.
-        let interrupt_count = REQUEST_LOCALS
-            .try_with_borrow(|locals| locals.interrupt_count.swap(0, Ordering::SeqCst))
-            .unwrap_or(0);
+        let pending_interrupts = interrupt_count.swap(0, Ordering::Relaxed);
 
         // SAFETY: execute_data was provided by the engine, and the profiler
-        // doesn't mutate it.
+        // only reads the execution frames reachable through it.
         unsafe {
             profiler.collect_allocations(
-                zend::ddog_php_prof_get_current_execute_data(),
+                execute_data,
                 ptr,
                 1_i64,
                 len as i64,
-                (interrupt_count > 0).then_some(interrupt_count),
+                (pending_interrupts > 0).then_some(pending_interrupts),
             )
         };
     }
@@ -261,19 +342,8 @@ pub fn alloc_prof_rshutdown() {
     allocation_ge84::alloc_prof_rshutdown(heap_live_enabled);
 }
 
+#[cfg(php_zend_mm_set_custom_handlers_ex)]
 #[track_caller]
 fn initialization_panic() -> ! {
     panic!("Allocation profiler was not initialized properly. Please fill an issue stating the PHP version and the backtrace from this panic.");
-}
-
-unsafe fn alloc_prof_panic_alloc(_len: size_t) -> *mut c_void {
-    initialization_panic();
-}
-
-unsafe fn alloc_prof_panic_realloc(_prev_ptr: *mut c_void, _len: size_t) -> *mut c_void {
-    initialization_panic();
-}
-
-unsafe fn alloc_prof_panic_free(_ptr: *mut c_void) {
-    initialization_panic();
 }

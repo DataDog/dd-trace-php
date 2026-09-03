@@ -21,13 +21,13 @@ jobs:
       CARGO_TARGET_DIR: /tmp/build-cargo
       RUST_TOOLCHAIN: nightly-2025-06-13
     container:
-      image: datadog/dd-trace-ci:php-${{matrix.php-version}}_bookworm-9
+      image: datadog/dd-trace-ci:php-${{matrix.php-version}}_bookworm-10
       # https://docs.github.com/en/actions/creating-actions/dockerfile-support-for-github-actions#user
       options: --user root
 
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
           submodules: true
@@ -53,14 +53,18 @@ jobs:
         run: |
           set -eux
           switch-php ${{ matrix.php-build }}
-          cd profiling
           export CC=clang-20
           export CFLAGS='-fsanitize=address -fsanitize-address-use-after-scope -fno-omit-frame-pointer'
           export LDFLAGS='-fsanitize=address -shared-libasan'
           export RUSTC_LINKER=lld-20
-          triplet=$(uname -m)-unknown-linux-gnu
-          RUSTFLAGS='-Zsanitizer=address -C force-frame-pointers=yes' cargo +${RUST_TOOLCHAIN} build -Zbuild-std=std,panic_abort --target $triplet --profile profiler-release
-          cp -v "$CARGO_TARGET_DIR/$triplet/profiler-release/libdatadog_php_profiling.so" "$(php-config --extension-dir)/datadog-profiling.so"
+          rustup override set "${RUST_TOOLCHAIN}"
+          export RUSTFLAGS='-Zsanitizer=address -C force-frame-pointers=yes'
+          export DDTRACE_PROFILING_TARGET="$(uname -m)-unknown-linux-gnu"
+          export DDTRACE_PROFILING_CARGO_BUILD_FLAGS='-Zbuild-std=std,panic_abort'
+          phpize
+          ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling --disable-ddtrace-rust-debug
+          make -j"$(nproc)"
+          cp -v modules/datadog-profiling.so "$(php-config --extension-dir)/datadog-profiling.so"
 
       - name: Run phpt tests
         run: |
@@ -86,12 +90,12 @@ jobs:
       CARGO_TARGET_DIR: /tmp/build-cargo
       UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
     container:
-      image: datadog/dd-trace-ci:php-8.5_bookworm-9
+      image: datadog/dd-trace-ci:php-8.5_bookworm-10
       options: --user root
 
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
           submodules: true
@@ -117,15 +121,16 @@ jobs:
         run: |
           set -eux
           switch-php ${{ matrix.php-build }}
-          cd profiling
           export CC=clang-20
           export CXX=clang++-20
           export CFLAGS='-fsanitize=undefined,local-bounds -fno-sanitize-recover=all -fno-omit-frame-pointer'
           export LDFLAGS='-fsanitize=undefined,local-bounds -fno-sanitize-recover=all'
           export RUSTC_LINKER=clang-20
           export RUSTFLAGS='-C link-arg=-fsanitize=undefined,local-bounds -C link-arg=-fno-sanitize-recover=all'
-          cargo build --profile profiler-release
-          cp -v "$CARGO_TARGET_DIR/profiler-release/libdatadog_php_profiling.so" "$(php-config --extension-dir)/datadog-profiling.so"
+          phpize
+          ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling
+          make -j"$(nproc)"
+          cp -v modules/datadog-profiling.so "$(php-config --extension-dir)/datadog-profiling.so"
 
       - name: Run phpt tests
         run: |

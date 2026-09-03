@@ -75,7 +75,7 @@ array(2) {
     }
   }
   [1]=>
-  array(10) {
+  array(11) {
     ["trace_id"]=>
     string(2) "42"
     ["span_id"]=>
@@ -98,6 +98,11 @@ array(2) {
     array(1) {
       ["_dd.origin"]=>
       string(7) "datadog"
+    }
+    ["metrics"]=>
+    array(1) {
+      ["_dd.apm.enabled"]=>
+      float(0)
     }
   }
 }

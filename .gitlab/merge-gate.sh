@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
-# Merge gate: passes iff every non-flaky job in this pipeline (and its triggered
-# child pipelines) succeeded. It collects failed jobs via the GitLab API and
-# classifies each against the glob patterns in .gitlab/flaky-jobs.txt; a failure
-# matching no pattern is a real regression and fails the gate. See the
-# `merge-gate` job in .gitlab-ci.yml.
+# Merge gate: passes iff every required job in this pipeline (and its triggered
+# child pipelines) succeeded. Required means: not allow_failure, and not matching
+# a glob in .gitlab/flaky-jobs.txt. A failure that is neither is a real
+# regression and fails the gate. See the `merge-gate` job in .gitlab-ci.yml.
 set -uo pipefail
 
 # Short-lived GitLab API token, same path as `analyze and create pr`
@@ -35,21 +34,28 @@ while read -r child; do
   [ -n "${child}" ] && pipelines+=("${child}")
 done < <(echo "${bridges}" | jq -r '.[] | select(.downstream_pipeline != null) | .downstream_pipeline.id')
 
-# Collect the names of all failed jobs across those pipelines.
+# Collect the names of all failed jobs across those pipelines. `scope[]=failed`
+# also returns allow_failure jobs (their status is "failed" too).
 : > failed_jobs.txt
+: > allowed_failures.txt
 for pid in "${pipelines[@]}"; do
   for page in 1 2 3 4 5; do
     data=$(curl -g -sf -H "${AUTH}" \
       "${GITLAB_API}/projects/${CI_PROJECT_ID}/pipelines/${pid}/jobs?scope[]=failed&per_page=100&page=${page}" || echo "[]")
-    echo "${data}" | jq -r '.[] | select(.status == "failed") | .name' >> failed_jobs.txt
+    echo "${data}" | jq -r '.[] | select(.status == "failed" and .allow_failure != true) | .name' >> failed_jobs.txt
+    echo "${data}" | jq -r '.[] | select(.status == "failed" and .allow_failure == true) | .name' >> allowed_failures.txt
     [ "$(echo "${data}" | jq 'length')" -lt 100 ] && break
   done
 done
 sort -u failed_jobs.txt -o failed_jobs.txt
+sort -u allowed_failures.txt -o allowed_failures.txt
 
 # Load flaky globs and classify each failure.
 mapfile -t GLOBS < <(grep -vE '^[[:space:]]*(#|$)' .gitlab/flaky-jobs.txt)
-echo "Loaded ${#GLOBS[@]} flaky patterns; $(wc -l < failed_jobs.txt) distinct failed job(s)."
+echo "Loaded ${#GLOBS[@]} flaky patterns; $(wc -l < failed_jobs.txt) required failed job(s), $(wc -l < allowed_failures.txt) allowed-to-fail."
+while IFS= read -r job; do
+  [ -n "${job}" ] && echo "  ~ allowed to fail:   ${job}"
+done < allowed_failures.txt
 blocking=0
 while IFS= read -r job; do
   [ -z "${job}" ] && continue

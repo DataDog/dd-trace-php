@@ -10,6 +10,8 @@ require __DIR__ . '/../includes/clear_skipif_telemetry.inc'
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
+DD_TRACE_AGENT_TIMEOUT=200
+DD_TRACE_RETRY_INTERVAL=1
 --INI--
 datadog.trace.agent_url="file://{PWD}/simple-telemetry.out"
 --FILE--
@@ -33,7 +35,7 @@ for ($i = 0; $i < 300; ++$i) {
     if (file_exists(__DIR__ . '/simple-telemetry.out')) {
         $batches = [];
         foreach (file(__DIR__ . '/simple-telemetry.out') as $l) {
-            if ($l) {
+            if ($l && $l[0] == '{') {
                 $json = json_decode($l, true);
                 if ($json["application"]["service_name"] == "background_sender-php-service" || $json["application"]["service_name"] == "datadog-ipc-helper") {
                     continue;

@@ -1,8 +1,13 @@
 #include "distributed_tracing_headers.h"
 #include "configuration.h"
+#ifdef __linux__
+#include "otel_context.h"
+#endif
 #include "random.h"
 #include "tracer_tag_propagation/tracer_tag_propagation.h"
 #include "serializer.h"
+#include "trace_context.h"
+#include "zend_string.h"
 #include <config/config_ini.h>
 #include <headers/headers.h>
 
@@ -347,6 +352,8 @@ static ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids_t
                 .low = ddtrace_parse_hex_span_id_str(&tracedata->trace_id[16], 16)
         };
         uint64_t parent_id = ddtrace_parse_hex_span_id_str(tracedata->parent_id, 16);
+        uint8_t trace_flags = (uint8_t)ddtrace_parse_hex_span_id_str(tracedata->trace_flags, 2)
+            & DDTRACE_TRACE_FLAGS_SUPPORTED;
 
         zend_string_release(traceparent);
 
@@ -354,9 +361,10 @@ static ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids_t
             return result;
         }
 
+        result.trace_flags = trace_flags;
         result.trace_id = trace_id;
         result.parent_id = parent_id;
-        result.priority_sampling = (tracedata->trace_flags[1] & 1) == (tracedata->trace_flags[1] <= '9'); // ('a' & 1) == 1
+        result.priority_sampling = (result.trace_flags & DDTRACE_TRACE_FLAG_SAMPLED) != 0;
 
         zend_string *span_parent_key = zend_string_init("_dd.parent_id", strlen("_dd.parent_id"), 0);
 
@@ -519,6 +527,9 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
             }
 
             result = func(read_header, data);
+            if (result.trace_id.low || result.trace_id.high) {
+                result.context_headers = zend_string_copy(extraction_style);
+            }
 
             // As an exception, the x-datadog-origin can be submitted standalone, without valid trace id
             if (existing_origin) {
@@ -535,6 +546,7 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
             ddtrace_distributed_tracing_result new_result = func(read_header, data);
 
             if (result.trace_id.low == new_result.trace_id.low && result.trace_id.high == new_result.trace_id.high) {
+                result.trace_flags |= new_result.trace_flags & DDTRACE_TRACE_FLAG_RANDOM;
                 if (!result.tracestate && new_result.tracestate) {
                     result.tracestate = new_result.tracestate;
                     new_result.tracestate = NULL;
@@ -617,6 +629,70 @@ void apply_baggage_span_tags(zend_string *key, zval *val, zend_array *meta) {
 void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result *result, ddtrace_root_span_data *span) {
     zval zv;
 
+    switch (get_DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT()) {
+    // behavior=ignore: drop all extracted context including baggage
+    case DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT_IGNORE:
+        zend_hash_destroy(&result->propagated_tags);
+        zend_hash_destroy(&result->meta_tags);
+        zend_hash_destroy(&result->tracestate_unknown_dd_keys);
+        zend_hash_destroy(&result->baggage);
+        if (result->origin) { zend_string_release(result->origin); }
+        if (result->tracestate) { zend_string_release(result->tracestate); }
+        if (result->context_headers) { zend_string_release(result->context_headers); }
+        return;
+    // behavior=restart: start fresh trace; upstream captured as span link, baggage preserved
+    case DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT_RESTART:
+        if (result->trace_id.low || result->trace_id.high) {
+            zval link_zv;
+            object_init_ex(&link_zv, ddtrace_ce_span_link);
+            ddtrace_span_link *link = (ddtrace_span_link *)Z_OBJ(link_zv);
+            ddtrace_build_span_link_from_result(result, link);
+            zend_hash_clean(Z_ARR(link->property_attributes));
+
+            result->trace_id = (datadog_trace_id){0};
+            result->parent_id = 0;
+            result->priority_sampling = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
+
+            zval reason_str;
+            ZVAL_STR(&reason_str, zend_string_init(ZEND_STRL("propagation_behavior_extract"), 0));
+            zend_hash_str_update(Z_ARR(link->property_attributes), ZEND_STRL("reason"), &reason_str);
+
+            if (result->context_headers) {
+                zval context_headers_zv;
+                ZVAL_STR(&context_headers_zv, zend_string_copy(result->context_headers));
+                zend_hash_str_update(Z_ARR(link->property_attributes), ZEND_STRL("context_headers"), &context_headers_zv);
+            }
+
+            if (span) {
+                zend_array *links = ddtrace_property_array(&span->property_links);
+                zend_hash_next_index_insert(links, &link_zv);
+            } else {
+                zval_ptr_dtor(&DDTRACE_G(pending_upstream_span_link));
+                ZVAL_COPY_VALUE(&DDTRACE_G(pending_upstream_span_link), &link_zv);
+            }
+
+            zend_hash_clean(&result->meta_tags);
+            zend_hash_clean(&result->propagated_tags);
+            zend_hash_clean(&result->tracestate_unknown_dd_keys);
+            if (result->origin) {
+                zend_string_release(result->origin);
+                result->origin = NULL;
+            }
+            if (result->tracestate) {
+                zend_string_release(result->tracestate);
+                result->tracestate = NULL;
+            }
+            if (result->context_headers) {
+                zend_string_release(result->context_headers);
+                result->context_headers = NULL;
+            }
+        }
+        break;
+    // behavior=continue: inherit upstream context normally
+    case DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT_CONTINUE:
+        break;
+    }
+
     zend_array *root_meta = span ? ddtrace_property_array(&span->property_meta) : &DDTRACE_G(root_span_tags_preset);
     if (span) {
         zend_string *tagname;
@@ -667,7 +743,11 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         if (result->trace_id.low || result->trace_id.high) {
             span->trace_id = result->trace_id;
             span->parent_id = result->parent_id;
+            span->trace_flags = result->trace_flags & DDTRACE_TRACE_FLAG_RANDOM;
             ddtrace_update_root_id_properties(span);
+#ifdef __linux__
+            ddtrace_otel_update_trace_id(span);
+#endif
         }
     } else {
         zend_hash_destroy(&DDTRACE_G(propagated_root_span_tags));
@@ -696,6 +776,7 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         if (result->trace_id.low || result->trace_id.high) {
             DDTRACE_G(distributed_trace_id) = result->trace_id;
             DDTRACE_G(distributed_parent_trace_id) = result->parent_id;
+            DDTRACE_G(distributed_trace_flags) = result->trace_flags & DDTRACE_TRACE_FLAG_RANDOM;
         }
     }
 
@@ -728,6 +809,8 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
             ddtrace_set_priority_sampling_on_span(span, result->priority_sampling, DD_MECHANISM_DEFAULT);
         }
     }
+
+    if (result->context_headers) { zend_string_release(result->context_headers); }
 }
 
 bool ddtrace_read_zai_header(zai_str zai_header, const char *lowercase_header, zend_string **header_value, void *data) {

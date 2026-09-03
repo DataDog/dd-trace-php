@@ -11,6 +11,8 @@ require __DIR__ . '/../includes/clear_skipif_telemetry.inc'
 DD_TRACE_GENERATE_ROOT_SPAN=0
 _DD_LOAD_TEST_INTEGRATIONS=1
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
+DD_TRACE_AGENT_TIMEOUT=200
+DD_TRACE_RETRY_INTERVAL=1
 --INI--
 datadog.trace.agent_url="file://{PWD}/integration-telemetry.out"
 --FILE--
@@ -48,7 +50,7 @@ namespace
         ("us" . "leep")(100000);
         if (file_exists(__DIR__ . '/integration-telemetry.out')) {
             foreach (file(__DIR__ . '/integration-telemetry.out') as $l) {
-                if ($l) {
+                if ($l && $l[0] == '{') {
                     $json = json_decode($l, true);
                     $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
                     foreach ($batch as $json) {
@@ -78,7 +80,7 @@ array(1) {
   ["integrations"]=>
   array(1) {
     [0]=>
-    array(5) {
+    array(6) {
       ["name"]=>
       string(37) "ddtrace\test\testsandboxedintegration"
       ["enabled"]=>
@@ -88,6 +90,8 @@ array(1) {
       ["compatible"]=>
       NULL
       ["auto_enabled"]=>
+      NULL
+      ["error"]=>
       NULL
     }
   }

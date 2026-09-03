@@ -10,6 +10,8 @@ require __DIR__ . '/../includes/clear_skipif_telemetry.inc'
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
+DD_TRACE_AGENT_TIMEOUT=200
+DD_TRACE_RETRY_INTERVAL=1
 --INI--
 datadog.trace.agent_url="file://{PWD}/composer-telemetry.out"
 --FILE--
@@ -27,7 +29,7 @@ for ($i = 0; $i < 300; ++$i) {
     ("us" . "leep")(100000);
     if (file_exists(__DIR__ . '/composer-telemetry.out')) {
         foreach (file(__DIR__ . '/composer-telemetry.out') as $l) {
-            if ($l) {
+            if ($l && $l[0] == '{') {
                 $json = json_decode($l, true);
                 $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
                 foreach ($batch as $json) {
@@ -55,12 +57,16 @@ Array
                 (
                     [name] => datadog/dd-trace
                     [version] => dev-master
+                    [hash] => 
+                    [metadata] => 
                 )
 
             [1] => Array
                 (
                     [name] => ext-Core
                     [version] => %s
+                    [hash] => 
+                    [metadata] => 
                 )
 %a
         )

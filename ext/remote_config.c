@@ -6,9 +6,7 @@
 #include <components/log/log.h>
 #include "threads.h"
 #include <tracer/tracer_api.h>
-#ifndef _WIN32
-#include <signal.h>
-#endif
+#include <tracer/live_debugger.h>
 
 #if PHP_VERSION_ID < 70100
 #include <interceptor/php7/interceptor.h>
@@ -65,6 +63,16 @@ void datadog_check_for_new_config_now(void) {
 static void dd_sigvtalarm_handler(int signal, siginfo_t *siginfo, void *ctx) {
     UNUSED(signal, siginfo, ctx);
     datadog_set_all_thread_vm_interrupt();
+
+#if defined(__linux__) && defined(ZTS)
+    if (!tsrm_is_managed_thread()) {
+        return;
+    }
+#endif
+
+#ifdef DDTRACE
+    ddtrace_live_debugger_handle_sigvtalarm();
+#endif
 }
 #endif
 
@@ -106,7 +114,11 @@ static zend_string *dd_dynamic_configuration_update(ddog_CharSlice config, zend_
 }
 
 void datadog_minit_remote_config(void) {
+#ifdef DDTRACE
     ddog_setup_remote_config(dd_dynamic_configuration_update, &ddtrace_live_debugger_setup);
+#else
+    ddog_setup_remote_config(dd_dynamic_configuration_update, NULL);
+#endif
     dd_prev_interrupt_function = zend_interrupt_function;
     zend_interrupt_function = dd_vm_interrupt;
 

@@ -1,10 +1,10 @@
-use crate::profiling::{extract_function_name, Profiler};
-use crate::sapi::Sapi;
-use crate::zend::{
+use crate::profiling::profiler::{extract_function_name, Profiler};
+use crate::profiling::sapi::Sapi;
+use crate::profiling::zend::{
     self, zai_str_from_zstr, zend_execute_data, zend_get_executed_filename_ex, zval,
     InternalFunctionHandler,
 };
-use crate::{RefCellExt, REQUEST_LOCALS, SAPI};
+use crate::profiling::{RefCellExt, REQUEST_LOCALS, SAPI};
 use libc::c_char;
 use libdd_common::cstr;
 use log::{error, trace};
@@ -478,7 +478,7 @@ fn timeline_idle_start() {
 /// This function is run during the RINIT phase and reports any `IDLE_SINCE` duration as an idle
 /// period for this PHP thread.
 /// # SAFETY
-/// Must be called only in rinit and after [crate::config::first_rinit].
+/// Must be called only in rinit and after [crate::profiling::config::first_rinit].
 pub unsafe fn timeline_rinit() {
     if !REQUEST_LOCALS.borrow_or_false(|locals| locals.system_settings().profiling_timeline_enabled)
     {
@@ -527,7 +527,7 @@ pub fn timeline_prshutdown() {
 /// period for this PHP thread. This will report the last `IDLE_SINCE` duration created in the last
 /// `P-RSHUTDOWN` (just above) when the PHP process is shutting down.
 /// # Saftey
-/// Must be called in shutdown before [crate::config::shutdown].
+/// Must be called in shutdown before [crate::profiling::config::shutdown].
 pub(crate) fn timeline_mshutdown() {
     timeline_idle_stop();
 
@@ -539,6 +539,13 @@ pub(crate) fn timeline_mshutdown() {
             zend::sapi_module.deactivate = PREV_FRANKEN_PHP_SAPI_DEACTIVATE;
             PREV_FRANKEN_PHP_SAPI_ACTIVATE = None;
             PREV_FRANKEN_PHP_SAPI_DEACTIVATE = None;
+        }
+    }
+
+    #[cfg(php_opcache_restart_hook)]
+    {
+        unsafe {
+            zend::zend_accel_schedule_restart_hook = PREV_ZEND_ACCEL_SCHEDULE_RESTART_HOOK;
         }
     }
 

@@ -1,8 +1,8 @@
 //! Definitions for interacting with the profiler from a C API, such as the
 //! ddtrace extension.
 
-use crate::bindings::ZaiStr;
-use crate::runtime_id;
+use crate::profiling::bindings::ZaiStr;
+use crate::profiling::runtime_id;
 
 #[no_mangle]
 pub extern "C" fn datadog_profiling_notify_trace_finished(
@@ -10,7 +10,7 @@ pub extern "C" fn datadog_profiling_notify_trace_finished(
     span_type: ZaiStr,
     resource: ZaiStr,
 ) {
-    crate::notify_trace_finished(
+    crate::profiling::notify_trace_finished(
         local_root_span_id,
         span_type.to_string_lossy(),
         resource.to_string_lossy(),
@@ -38,7 +38,7 @@ pub extern "C" fn datadog_profiling_runtime_id() -> Uuid {
 #[cfg(feature = "trigger_time_sample")]
 #[no_mangle]
 extern "C" fn ddog_php_prof_trigger_time_sample() {
-    use crate::RefCellExt;
+    use crate::profiling::RefCellExt;
     use log::error;
     use std::sync::atomic::Ordering;
 
@@ -46,7 +46,10 @@ extern "C" fn ddog_php_prof_trigger_time_sample() {
         if locals.system_settings().profiling_enabled {
             // Safety: only vm interrupts are stored there, or possibly null (edges only).
             if let Some(vm_interrupt) = unsafe { locals.vm_interrupt_addr.as_ref() } {
-                locals.interrupt_count.fetch_add(1, Ordering::SeqCst);
+                // SAFETY: this callback runs on an initialized PHP request thread.
+                let globals = unsafe { crate::profiling::module_globals::get_profiler_globals() };
+                // SAFETY: the current thread's module globals are valid through GSHUTDOWN.
+                unsafe { (*globals).interrupt_count.fetch_add(1, Ordering::Relaxed) };
                 vm_interrupt.store(true, Ordering::SeqCst);
             }
         }
@@ -57,7 +60,7 @@ extern "C" fn ddog_php_prof_trigger_time_sample() {
     }
 }
 
-pub use crate::wall_time::ddog_php_prof_interrupt_function;
+pub use crate::profiling::wall_time::ddog_php_prof_interrupt_function;
 
 #[cfg(test)]
 mod tests {

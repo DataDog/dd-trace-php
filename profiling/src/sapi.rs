@@ -1,4 +1,4 @@
-use crate::zend::sapi_request_info;
+use crate::profiling::zend::sapi_request_info;
 use log::warn;
 use std::borrow::Cow;
 use std::ffi::{CStr, OsStr};
@@ -109,7 +109,7 @@ impl Display for Sapi {
 
 #[cfg(test)]
 mod tests {
-    use crate::Sapi;
+    use crate::profiling::Sapi;
 
     #[test]
     fn test_is_recognized_sapi() {

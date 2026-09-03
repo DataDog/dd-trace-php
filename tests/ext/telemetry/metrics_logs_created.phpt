@@ -11,6 +11,8 @@ require __DIR__ . '/../includes/clear_skipif_telemetry.inc'
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
 DD_TRACE_LOG_LEVEL=warn
+DD_TRACE_AGENT_TIMEOUT=200
+DD_TRACE_RETRY_INTERVAL=1
 --INI--
 datadog.trace.agent_url="file://{PWD}/metrics-logs-created-telemetry.out"
 --FILE--
@@ -24,7 +26,7 @@ for ($i = 0; $i < 300; ++$i) {
     ("us" . "leep")(100000);
     if (file_exists(__DIR__ . '/metrics-logs-created-telemetry.out')) {
         foreach (file(__DIR__ . '/metrics-logs-created-telemetry.out') as $l) {
-            if ($l) {
+            if ($l && $l[0] == '{') {
                 $json = json_decode($l, true);
                 if (($json["application"]["language_version"] ?? "") == "SIDECAR") {
                     continue;

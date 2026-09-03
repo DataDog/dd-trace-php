@@ -59,15 +59,15 @@ foreach ($profiler_minor_major_targets as $version) {
     - '# NTS'
     - '# Use if/then instead of `command -v switch-php && switch-php` — the && form exits 1 when switch-php is absent, which FF_ENABLE_BASH_EXIT_CODE_CHECK treats as a job failure'
     - if command -v switch-php > /dev/null 2>&1; then switch-php "${PHP_MAJOR_MINOR}"; fi
-    - cargo build --profile profiler-release --all-features
-    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/nts-results.xml" php profiling/tests/run-tests.php -d "extension=/mnt/ramdisk/cargo/profiler-release/libdatadog_php_profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
+    - (cd ..; phpize && DDTRACE_PROFILING_FEATURES="debug_stats,stack_walking_tests,test,tracing,tracing-subscriber,trigger_time_sample" ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling && make -j$(nproc))
+    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/nts-results.xml" php profiling/tests/run-tests.php -d "extension=${CI_PROJECT_DIR}/modules/datadog-profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
 
-    - touch build.rs #make sure `build.rs` gets executed after `switch-php` call
 
     - '# ZTS'
     - if command -v switch-php > /dev/null 2>&1; then switch-php "${PHP_MAJOR_MINOR}-zts"; fi
-    - cargo build --profile profiler-release --all-features
-    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/zts-results.xml" php profiling/tests/run-tests.php -d "extension=/mnt/ramdisk/cargo/profiler-release/libdatadog_php_profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
+    - touch ../profiling/build.rs # force regeneration after switch-php changes the php-config symlink target
+    - (cd ..; make distclean || true; phpize && DDTRACE_PROFILING_FEATURES="debug_stats,stack_walking_tests,test,tracing,tracing-subscriber,trigger_time_sample" ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling && make -j$(nproc))
+    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/zts-results.xml" php profiling/tests/run-tests.php -d "extension=${CI_PROJECT_DIR}/modules/datadog-profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
   after_script:
     - |
       if [ "${IMAGE_SUFFIX}" != "_centos-7" ]; then
@@ -85,7 +85,7 @@ foreach ($profiler_minor_major_targets as $version) {
 "clippy NTS":
   stage: test
   tags: [ "arch:amd64" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-9
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-10
   variables:
     KUBERNETES_CPU_REQUEST: 5
     KUBERNETES_CPU_LIMIT: 5
@@ -102,14 +102,12 @@ foreach ($profiler_minor_major_targets as $version) {
       - PHP_MAJOR_MINOR: *all_profiler_targets
   script:
     - switch-php nts # not compatible with debug
-    - cd profiling
-    - sed -i -e "s/crate-type.*$/crate-type = [\"rlib\"]/g" Cargo.toml
-    - cargo clippy --all-targets --all-features -- -D warnings -Aunknown-lints
+    - cargo clippy --all-targets --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample -- -D warnings -Aunknown-lints
 
 "Cargo test":
   stage: test
   tags: [ "arch:amd64" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.5_bookworm-9
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.5_bookworm-10
   variables:
     KUBERNETES_CPU_REQUEST: 5
     KUBERNETES_CPU_LIMIT: 5
@@ -122,14 +120,16 @@ foreach ($profiler_minor_major_targets as $version) {
     # CARGO_TARGET_DIR: /mnt/ramdisk/cargo # ramdisk??
     libdir: /tmp/datadog-profiling
   script:
-    - switch-php nts # not compatible with debug
-    - cd profiling
-    - cargo test --all-features
+    - switch-php nts
+    - cargo test --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample
+    - touch profiling/build.rs # make sure the build helper runs after switch-php
+    - switch-php zts
+    - cargo test --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample
 
 "PHP language tests":
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-9
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-10
   variables:
     KUBERNETES_CPU_REQUEST: 5
     KUBERNETES_CPU_LIMIT: 5
@@ -143,6 +143,7 @@ foreach ($profiler_minor_major_targets as $version) {
     libdir: /tmp/datadog-profiling
     SKIP_ONLINE_TESTS: "1"
     REPORT_EXIT_STATUS: "1"
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
     DD_PROFILING_OUTPUT_PPROF: /tmp/
     XFAIL_LIST: dockerfiles/ci/xfail_tests/${PHP_MAJOR_MINOR}.list
   parallel:
@@ -153,10 +154,10 @@ foreach ($profiler_minor_major_targets as $version) {
   script:
     - unset DD_SERVICE; unset DD_ENV
     - command -v switch-php && switch-php "${FLAVOUR}"
-    - cd profiling
-    - cargo build --profile profiler-release
-    - cd ..
-    - echo "extension=/tmp/cargo/profiler-release/libdatadog_php_profiling.so" > /opt/php/${FLAVOUR}/conf.d/profiling.ini
+    - phpize
+    - ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling
+    - make -j$(nproc)
+    - echo "extension=${CI_PROJECT_DIR}/modules/datadog-profiling.so" > /opt/php/${FLAVOUR}/conf.d/profiling.ini
     - php -v
     # Fail loudly if the profiler did not load: otherwise the language tests
     # would run profiler-less and pass, giving a false green.
@@ -164,4 +165,55 @@ foreach ($profiler_minor_major_targets as $version) {
     - cat "${XFAIL_LIST}" profiling/tests/php-language-xfail.list > /tmp/profiler-php-language-xfail.list
     - "if php -r 'exit(PHP_VERSION_ID < 80400 ? 0 : 1);'; then cat profiling/tests/php-language-xfail-pre84.list >> /tmp/profiler-php-language-xfail.list; fi"
     - export XFAIL_LIST=/tmp/profiler-php-language-xfail.list
+    - ulimit -c unlimited
     - .gitlab/run_php_language_tests.sh
+  after_script:
+    - |
+      output="${CI_PROJECT_DIR}/artifacts/php-language-tests"
+      mkdir -p "${output}"
+
+      # Core files are written relative to the crashing process's working
+      # directory when core_pattern is not absolute. PHPT processes run from
+      # their test directories, so looking only for /usr/local/src/php/core
+      # misses crashes such as ext/pcntl/tests/core. The pattern may also add
+      # the PID, producing core.<pid>.
+      core_pattern=$(cat /proc/sys/kernel/core_pattern 2>&1)
+      {
+        echo "core_pattern: ${core_pattern}"
+        echo "core ulimit: $(ulimit -c)"
+      } | tee "${output}/core-diagnostics.txt"
+
+      search_roots=(/usr/local/src/php "${CI_PROJECT_DIR}")
+      if [[ "${core_pattern}" == /* ]]; then
+        search_roots+=("$(dirname "${core_pattern}")")
+      fi
+
+      # Accommodate patterns such as core, core.%p, and core.%e.%p. Filtering
+      # with file avoids mistaking source files whose names begin with "core"
+      # for process core dumps.
+      mapfile -d '' cores < <(
+        while IFS= read -r -d '' candidate; do
+          if file -b "${candidate}" 2>/dev/null | grep -q 'core file'; then
+            printf '%s\0' "${candidate}"
+          fi
+        done < <(find "${search_roots[@]}" -type f -name 'core*' -print0 2>/dev/null)
+      )
+      echo "core files found: ${#cores[@]}" | tee -a "${output}/core-diagnostics.txt"
+
+      for i in "${!cores[@]}"; do
+        core="${cores[$i]}"
+        echo "core ${i}: ${core}" | tee -a "${output}/core-diagnostics.txt"
+        gdb --batch \
+          -ex "set pagination off" \
+          -ex "info threads" \
+          -ex "thread apply all bt full" \
+          -ex "thread apply all info registers" \
+          -ex "info sharedlibrary" \
+          /usr/local/bin/php "${core}" > "${output}/gdb-backtrace-${i}.txt" 2>&1 || true
+        mv "${core}" "${output}/core-${i}"
+      done
+    - .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:profiling/"
+  artifacts:
+    when: on_failure
+    paths:
+      - artifacts/php-language-tests/

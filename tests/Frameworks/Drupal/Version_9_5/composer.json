@@ -12,7 +12,8 @@
         "composer/installers": "^1.9",
         "drupal/core": "self.version",
         "drupal/core-project-message": "self.version",
-        "drupal/core-vendor-hardening": "self.version"
+        "drupal/core-vendor-hardening": "self.version",
+        "symfony/deprecation-contracts": "^2.5"
     },
     "require-dev": {
         "behat/mink": "^1.8",
@@ -115,7 +116,7 @@
         "post-update-cmd": [
             "Drupal\\Composer\\Composer::generateMetapackages",
             "Drupal\\Composer\\Composer::generateComponentPackages",
-            "(chmod a+w sites/default || sudo chmod a+w sites/default) && rm -rf sites/default/files && rm -f sites/default/settings.php && php scripts/erase_drupal_db.php && php core/scripts/drupal install minimal"
+            "(chmod a+w sites/default || sudo chmod a+w sites/default) && rm -rf sites/default/files && rm -f sites/default/settings.php && php scripts/erase_drupal_db.php && bash -c 'set -o pipefail; php core/scripts/drupal install minimal | grep -v Password:'"
         ],
         "phpcs": "phpcs --standard=core/phpcs.xml.dist --parallel=$(nproc) --",
         "phpcbf": "phpcbf --standard=core/phpcs.xml.dist --parallel=$(nproc) --"

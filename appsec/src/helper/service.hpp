@@ -379,6 +379,8 @@ template <> struct fmt::formatter<ddog_MetricType> {
             return fmt::format_to(ctx.out(), "COUNT");
         case DDOG_METRIC_TYPE_DISTRIBUTION:
             return fmt::format_to(ctx.out(), "DISTRIBUTION");
+        case DDOG_METRIC_TYPE_RATE:
+            return fmt::format_to(ctx.out(), "RATE");
         }
         return fmt::format_to(ctx.out(), "UNKNOWN");
     }

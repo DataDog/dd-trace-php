@@ -9,8 +9,7 @@ DD_TRACE_AGENT_PORT=80
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_DYNAMIC_INSTRUMENTATION_ENABLED=1
 DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=0.1
---INI--
-datadog.trace.agent_test_session_token=live-debugger/span_probe_class
+DD_TRACE_AGENT_TEST_SESSION_TOKEN=live-debugger/span_probe_class
 --FILE--
 <?php
 
@@ -49,17 +48,38 @@ var_dump(Delayed::foo());
 $dlr = new DebuggerLogReplayer;
 $ordered = [];
 $events = 0;
+$log = null;
+$lastResponse = null;
+$lastError = null;
 $time = time();
 do {
     try {
-        $log = $dlr->waitForDiagnosticsDataAndReplay();
-        foreach (json_decode($log["files"]["event"]["contents"], true) as $payload) {
+        $candidate = $dlr->waitForDiagnosticsDataAndReplay();
+        $lastResponse = $candidate;
+        if (!isset($candidate["files"]["event"]["contents"])) {
+            throw new UnexpectedValueException("Diagnostics response has no event contents");
+        }
+
+        $payloads = json_decode($candidate["files"]["event"]["contents"], true);
+        if (!is_array($payloads)) {
+            throw new UnexpectedValueException("Invalid diagnostics JSON: " . json_last_error_msg());
+        }
+
+        $log = $candidate;
+        foreach ($payloads as $payload) {
+            if (!isset(
+                $payload["debugger"]["diagnostics"]["probeId"],
+                $payload["debugger"]["diagnostics"]["status"],
+                $payload["timestamp"]
+            )) {
+                throw new UnexpectedValueException("Invalid diagnostics payload");
+            }
             $diagnostic = $payload["debugger"]["diagnostics"];
             $ordered[$diagnostic["probeId"]][$payload["timestamp"]][] = $diagnostic["status"];
             ++$events;
         }
     } catch (Exception $e) {
-        // handle the timeout?
+        $lastError = $e;
     }
 } while ($events < 4 && $time > time() - 30);
 ksort($ordered);
@@ -69,6 +89,24 @@ foreach ($ordered as &$value) {
         uasort($v, function($a, $b) { $map = ["RECEIVED" => 0, "INSTALLED" => 1, "EMITTING" => 2]; return $map[$a] - $map[$b]; });
     }
 }
+unset($value, $v);
+
+if ($events < 4) {
+    printf("ERROR: Received %d of 4 expected debugger diagnostic events.\n", $events);
+    if ($lastError) {
+        printf("Last error: %s\n", $lastError->getMessage());
+    }
+    echo "Captured statuses:\n";
+    var_dump($ordered);
+    echo "Observed debugger requests:\n";
+    var_dump($dlr->getDiagnosticsRequestSummary());
+    if ($lastResponse !== null) {
+        echo "Last diagnostics response:\n";
+        var_dump($lastResponse);
+    }
+    exit;
+}
+
 var_dump($log["uri"]);
 var_dump($log["files"]["event"]["name"]);
 foreach ($ordered as $id => $statuses) {

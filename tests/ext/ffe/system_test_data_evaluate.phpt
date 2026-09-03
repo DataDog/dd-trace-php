@@ -101,7 +101,9 @@ function require_feature_flag_api($root)
         'AbstractLogger',
         'NullLogger',
         'InterpolateTrait',
-        'TriggerErrorLogger',
+        'ErrorLogLogger',
+        'Logger',
+        'NonThrowingLogger',
     ) as $classFile) {
         require_once $logRoot . '/' . $classFile . '.php';
     }
@@ -112,6 +114,8 @@ function require_feature_flag_api($root)
         'EvaluationReason',
         'EvaluationErrorCode',
         'EvaluationDetails',
+        'SpanEnrichmentAccumulator',
+        'SpanEnrichmentRegistry',
     ) as $classFile) {
         require_once $apiRoot . '/' . $classFile . '.php';
     }
@@ -150,6 +154,16 @@ function run_fixture_case($client, $fileName, $index, array $case, array &$failu
         $case['defaultValue'],
         $context
     );
+
+    $providerState = $details->getProviderState();
+    if (($providerState['productionRuntime'] ?? null) !== true) {
+        $failures[] = $fileName . '#' . $index . ': productionRuntime must be true';
+    }
+    if (($providerState['reason'] ?? null) !== 'ready') {
+        $failures[] = $fileName . '#' . $index
+            . ': runtime reason got=' . encode_value($providerState['reason'] ?? null)
+            . ' want="ready"';
+    }
 
     if (!array_key_exists('value', $case['result'])) {
         $failures[] = $fileName . '#' . $index . ': result must include value';

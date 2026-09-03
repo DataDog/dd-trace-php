@@ -4,10 +4,13 @@ mod clocks;
 mod config;
 mod logging;
 pub mod module_globals;
-pub mod profiling;
+pub mod profiler;
 mod pthread;
 mod sapi;
 mod wall_time;
+
+mod process_context;
+mod profile_tags;
 
 #[cfg(php_run_time_cache)]
 mod string_set;
@@ -26,8 +29,8 @@ mod exception;
 mod timeline;
 mod vec_ext;
 
-use crate::config::SystemSettings;
-use crate::zend::datadog_sapi_globals_request_info;
+use crate::profiling::config::SystemSettings;
+use crate::profiling::zend::datadog_sapi_globals_request_info;
 use bindings::{
     self as zend, ddog_php_prof_php_version, ddog_php_prof_php_version_id, ZendExtension,
     ZendResult,
@@ -35,9 +38,10 @@ use bindings::{
 use clocks::*;
 use core::ffi::{c_char, c_int, CStr};
 use core::ptr;
-use libdd_common::{cstr, tag, tag::Tag};
+use libdd_common::cstr;
 use log::{debug, error, info, trace, warn};
-use profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
+use profile_tags::{ProfileTagSegment, UnifiedServiceTagSegment};
+use profiler::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
 use sapi::Sapi;
 use std::borrow::Cow;
 use std::cell::{BorrowError, BorrowMutError, RefCell};
@@ -93,32 +97,39 @@ static mut RUNTIME_PHP_VERSION: &str = {
 /// # Safety
 /// The first time this is accessed must be after config is initialized in
 /// the first RINIT and before mshutdown!
-static GLOBAL_TAGS: LazyLock<Vec<Tag>> = LazyLock::new(|| {
-    let mut tags = vec![
-        tag!("language", "php"),
-        tag!("profiler_version", env!("PROFILER_VERSION")),
-        // SAFETY: calling getpid() is safe.
-        Tag::new("process_id", unsafe { libc::getpid() }.to_string())
-            .expect("process_id tag to be valid"),
-        Tag::new("runtime-id", runtime_id().to_string()).expect("runtime-id tag to be valid"),
-    ];
-
-    // This should probably be "language_version", but this is the
-    // standardized tag name.
-    // SAFETY: PHP_VERSION is safe to access in rinit (only
-    // mutated during minit).
-    add_tag(&mut tags, "runtime_version", unsafe { RUNTIME_PHP_VERSION });
-    add_tag(&mut tags, "php.sapi", SAPI.as_ref());
+/// Process-common profile tags serialized once and shared by every sample.
+pub(crate) static GLOBAL_TAGS: LazyLock<Arc<ProfileTagSegment>> = LazyLock::new(|| {
+    #[cfg(target_os = "linux")]
+    let runtime_id = process_context::runtime_id().unwrap_or_else(|| runtime_id().to_string());
+    #[cfg(not(target_os = "linux"))]
+    let runtime_id = runtime_id().to_string();
+    // SAFETY: calling getpid() is safe.
+    let process_id = unsafe { libc::getpid() }.to_string();
     // In case we ever add PHP debug build support, we should add `zend-zts-debug` and
     // `zend-nts-debug`. For the time being we only support `zend-zts-ndebug` and
-    // `zend-nts-ndebug`
+    // `zend-nts-ndebug`.
     let runtime_engine = if cfg!(php_zts) {
         "zend-zts-ndebug"
     } else {
         "zend-nts-ndebug"
     };
-    add_tag(&mut tags, "runtime_engine", runtime_engine);
-    tags
+    let values = [
+        ("language", "php"),
+        ("profiler_version", env!("PROFILER_VERSION")),
+        ("process_id", process_id.as_str()),
+        ("runtime-id", runtime_id.as_str()),
+        // This should probably be "language_version", but this is the
+        // standardized tag name.
+        // SAFETY: PHP_VERSION is only mutated during MINIT and this is first
+        // accessed during RINIT.
+        ("runtime_version", unsafe { RUNTIME_PHP_VERSION }),
+        ("php.sapi", SAPI.as_ref()),
+        ("runtime_engine", runtime_engine),
+    ];
+    Arc::new(
+        ProfileTagSegment::try_from_kv_slice(&values)
+            .expect("process-common profile tags to be valid and allocatable"),
+    )
 });
 
 /// The Server API the profiler is running under.
@@ -153,16 +164,15 @@ static SAPI: LazyLock<Sapi> = LazyLock::new(|| {
 /// so whatever it is replaced with needs to also follow the
 /// initialize-on-first-use pattern.
 static RUNTIME_ID: OnceLock<Uuid> = OnceLock::new();
-// If ddtrace is loaded, we fetch the uuid from there instead
-extern "C" {
-    pub static datadog_runtime_id: *const Uuid;
-}
 
 /// Module dependencies for the profiler extension.
-static MODULE_DEPS: [zend::ModuleDep; 8] = [
+static MODULE_DEPS: [zend::ModuleDep; 9] = [
     zend::ModuleDep::required(cstr!("standard")),
     zend::ModuleDep::required(cstr!("json")),
+    // Load after optional context publishers so their Process and Thread Context
+    // are available when profiling starts.
     zend::ModuleDep::optional(cstr!("ddtrace")),
+    zend::ModuleDep::optional(cstr!("opentelemetry")),
     // Optionally, be dependent on these event extensions so that the functions they provide
     // are registered in the function table and we can hook into them.
     zend::ModuleDep::optional(cstr!("ev")),
@@ -409,12 +419,10 @@ extern "C" fn prshutdown() -> ZendResult {
 }
 
 pub struct RequestLocals {
-    pub env: Option<String>,
-    pub service: Option<String>,
-    pub version: Option<String>,
-    pub git_commit_sha: Option<String>,
-    pub git_repository_url: Option<String>,
-    pub tags: Vec<Tag>,
+    pub(crate) identity: process_context::ProcessIdentity,
+    pub(crate) unified_service_tags: Arc<UnifiedServiceTagSegment>,
+    pub(crate) git_tags: Option<Arc<ProfileTagSegment>>,
+    pub(crate) custom_tags: Option<Arc<ProfileTagSegment>>,
 
     /// SystemSettings are global. Note that if this is being read in fringe
     /// conditions such as in mshutdown when there were no requests served,
@@ -425,7 +433,6 @@ pub struct RequestLocals {
     pub system_settings: ptr::NonNull<SystemSettings>,
     pub profiling_experimental_heap_live_enabled: bool,
 
-    pub interrupt_count: AtomicU32,
     pub vm_interrupt_addr: *const AtomicBool,
 }
 
@@ -442,15 +449,12 @@ impl RequestLocals {
 impl Default for RequestLocals {
     fn default() -> RequestLocals {
         RequestLocals {
-            env: None,
-            service: None,
-            version: None,
-            git_commit_sha: None,
-            git_repository_url: None,
-            tags: vec![],
+            identity: process_context::ProcessIdentity::default(),
+            unified_service_tags: Arc::default(),
+            git_tags: None,
+            custom_tags: None,
             system_settings: SystemSettings::get(),
             profiling_experimental_heap_live_enabled: false,
-            interrupt_count: AtomicU32::new(0),
             vm_interrupt_addr: ptr::null_mut(),
         }
     }
@@ -523,24 +527,26 @@ thread_local! {
     });
 
     static REQUEST_LOCALS: RefCell<RequestLocals> = RefCell::new(RequestLocals::default());
-
-    /// The tags for this thread/request. These get sent to other threads,
-    /// which is why they are Arc. However, they are wrapped in a RefCell
-    /// because the values _can_ change from request to request depending on
-    /// the values sent in the SAPI for env, service, version, etc. They get
-    /// reset at the end of the request.
-    static TAGS: RefCell<Arc<Vec<Tag>>> = RefCell::new(Arc::new(Vec::new()));
 }
 
 /// Gets the runtime-id for the process. Do not call before RINIT!
 fn runtime_id() -> &'static Uuid {
-    RUNTIME_ID
-        .get_or_init(|| unsafe { datadog_runtime_id.as_ref() }.map_or_else(Uuid::new_v4, |u| *u))
+    RUNTIME_ID.get_or_init(|| {
+        // Resolve dynamically so the separately loaded tracer remains authoritative. The root
+        // package also contains a common runtime-id symbol, so treating this as an extern pointer
+        // would both use the wrong ABI and make a standalone profiler unsafe.
+        let symbol = unsafe { libc::dlsym(libc::RTLD_DEFAULT, c"datadog_runtime_id".as_ptr()) }
+            .cast::<Uuid>();
+        unsafe { symbol.as_ref() }
+            .filter(|id| !id.is_nil())
+            .copied()
+            .unwrap_or_else(Uuid::new_v4)
+    })
 }
 
 extern "C" fn activate() {
     // SAFETY: calling in activate as required.
-    unsafe { profiling::stack_walking::activate() };
+    unsafe { profiler::stack_walking::activate() };
 }
 
 /// The mut here is *only* for resetting this back to uninitialized each minit.
@@ -587,9 +593,9 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
 
         // SAFETY: We are after first rinit and before mshutdown.
         unsafe {
-            locals.env = config::env();
-            locals.service = config::service().or_else(|| {
-                match *SAPI {
+            locals.identity = process_context::ProcessIdentity {
+                env: config::env(),
+                service: config::service().or_else(|| match *SAPI {
                     Sapi::Cli => {
                         // SAFETY: sapi globals are safe to access during rinit
                         SAPI.request_script_name(datadog_sapi_globals_request_info())
@@ -597,44 +603,72 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                             .or(Some(String::from("cli.command")))
                     }
                     _ => Some(String::from("web.request")),
-                }
-            });
-            locals.version = config::version();
-            locals.git_commit_sha = config::git_commit_sha();
-            locals.git_repository_url = config::git_repository_url().map(|val| {
+                }),
+                version: config::version(),
+            };
+
+            let git_commit_sha = config::git_commit_sha();
+            let git_repository_url = config::git_repository_url().map(|value| {
                 // Remove potential credentials, customers are encouraged to not send those anyway.
-                if let Some(at_pos) = val.find("@") {
-                    if let Some(proto_pos) = val.find("://") {
-                        // Keep protocol, but remove credentials
-                        format!("{}{}", &val[..(proto_pos + 3)], &val[(at_pos + 1)..])
+                if let Some(at_pos) = value.find('@') {
+                    if let Some(proto_pos) = value.find("://") {
+                        format!("{}{}", &value[..(proto_pos + 3)], &value[(at_pos + 1)..])
                     } else {
-                        // No protocol, just remove everything before @
-                        val[(at_pos + 1)..].to_string()
+                        value[(at_pos + 1)..].to_owned()
                     }
                 } else {
-                    val
+                    value
                 }
             });
-
-            let (tags, maybe_err) = config::tags();
-            if let Some(err) = maybe_err {
-                // DD_TAGS can change on each request, so this warns on every
-                // request. Maybe we should cache the error string and only
-                // emit warnings for new ones?
-                warn!("{err}");
+            let mut git = [("", ""); 2];
+            let mut git_len = 0;
+            if let Some(value) = git_commit_sha.as_deref() {
+                git[git_len] = ("git.commit.sha", value);
+                git_len += 1;
             }
-            locals.tags = tags;
+            if let Some(value) = git_repository_url.as_deref() {
+                git[git_len] = ("git.repository_url", value);
+                git_len += 1;
+            }
+            locals.git_tags = (git_len != 0)
+                .then(|| ProfileTagSegment::try_from_kv_slice(&git[..git_len]).map(Arc::new))
+                .transpose()?;
+
+            locals.unified_service_tags = Arc::new(UnifiedServiceTagSegment::try_new(
+                locals.identity.service.as_deref().unwrap_or_default(),
+                locals.identity.env.as_deref().unwrap_or_default(),
+                locals.identity.version.as_deref().unwrap_or_default(),
+            )?);
+
+            let mut custom = ProfileTagSegment::default();
+            if let Some(tags) = config::tags() {
+                if let Some(error) = custom.try_push_tags(&tags)? {
+                    // DD_TAGS can change on each request, so this warns on every
+                    // request. Maybe we should cache the error string and only
+                    // emit warnings for new ones?
+                    warn!("{error}");
+                }
+            }
+            locals.custom_tags = (custom.len() != 0).then(|| Arc::new(custom));
             locals.profiling_experimental_heap_live_enabled = system_settings
                 .as_ref()
                 .profiling_experimental_heap_live_enabled
                 && config::profiling_experimental_heap_live_enabled_current();
         }
         locals.system_settings = system_settings;
+        Ok::<(), profile_tags::ProfileTagError>(())
     });
 
-    if let Err(err) = result {
-        error!("failed to borrow request locals in rinit: {err}");
-        return ZendResult::Failure;
+    match result {
+        Ok(Ok(())) => {}
+        Ok(Err(error)) => {
+            error!("failed to construct request profile tags in rinit: {error}");
+            return ZendResult::Failure;
+        }
+        Err(error) => {
+            error!("failed to borrow request locals in rinit: {error}");
+            return ZendResult::Failure;
+        }
     }
 
     // Preloading happens before zend_post_startup_cb is called for the first
@@ -711,42 +745,22 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
             let wall_time_enabled = system_settings.profiling_wall_time_enabled;
             CLOCKS.with_borrow_mut(|clocks| clocks.initialize(cpu_time_enabled));
 
-            TAGS.set({
-                // SAFETY: accessing in RINIT after config is initialized.
-                let globals = GLOBAL_TAGS.deref();
-                let extra_tags_len = locals.service.is_some() as usize
-                    + locals.env.is_some() as usize
-                    + locals.version.is_some() as usize
-                    + locals.git_commit_sha.is_some() as usize
-                    + locals.git_repository_url.is_some() as usize;
-
-                let mut tags = Vec::new();
-                tags.reserve_exact(globals.len() + extra_tags_len + locals.tags.len());
-                tags.extend_from_slice(globals.as_slice());
-                add_optional_tag(&mut tags, "service", &locals.service);
-                add_optional_tag(&mut tags, "env", &locals.env);
-                add_optional_tag(&mut tags, "version", &locals.version);
-                add_optional_tag(&mut tags, "git.commit.sha", &locals.git_commit_sha);
-                add_optional_tag(&mut tags, "git.repository_url", &locals.git_repository_url);
-                tags.extend_from_slice(locals.tags.as_slice());
-                Arc::new(tags)
-            });
-
             // Only add interrupt if cpu- or wall-time is enabled.
             if !(cpu_time_enabled | wall_time_enabled) {
                 return;
             }
 
             if let Some(profiler) = Profiler::get() {
+                // SAFETY: PHP module globals are initialized for this request thread.
+                let globals = unsafe { module_globals::get_profiler_globals() };
                 let interrupt = VmInterrupt {
-                    interrupt_count_ptr: &locals.interrupt_count as *const AtomicU32,
+                    // SAFETY: `globals` is valid until this thread's GSHUTDOWN.
+                    interrupt_count_ptr: unsafe { ptr::addr_of!((*globals).interrupt_count) },
                     engine_ptr: locals.vm_interrupt_addr,
                 };
                 profiler.add_interrupt(interrupt);
             }
         });
-    } else {
-        TAGS.set(Arc::default());
     }
 
     allocation::rinit();
@@ -755,20 +769,6 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     unsafe { timeline::timeline_rinit() };
 
     ZendResult::Success
-}
-
-fn add_optional_tag<T: AsRef<str>>(tags: &mut Vec<Tag>, key: &str, value: &Option<T>) {
-    if let Some(value) = value {
-        add_tag(tags, key, value.as_ref());
-    }
-}
-
-fn add_tag(tags: &mut Vec<Tag>, key: &str, value: &str) {
-    assert!(!value.is_empty());
-    match Tag::new(key, value) {
-        Ok(tag) => tags.push(tag),
-        Err(err) => warn!("invalid {key} tag: {err}"),
-    }
 }
 
 extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
@@ -784,7 +784,7 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
         return ZendResult::Success;
     }
 
-    profiling::stack_walking::rshutdown();
+    profiler::stack_walking::rshutdown();
 
     // Not logging, rshutdown could be quite spammy.
     _ = REQUEST_LOCALS.try_with_borrow(|locals| {
@@ -795,8 +795,11 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
         // and we don't need to optimize for that.
         if system_settings.profiling_enabled {
             if let Some(profiler) = Profiler::get() {
+                // SAFETY: PHP module globals remain initialized through RSHUTDOWN.
+                let globals = unsafe { module_globals::get_profiler_globals() };
                 let interrupt = VmInterrupt {
-                    interrupt_count_ptr: &locals.interrupt_count,
+                    // SAFETY: `globals` remains valid until this thread's GSHUTDOWN.
+                    interrupt_count_ptr: unsafe { ptr::addr_of!((*globals).interrupt_count) },
                     engine_ptr: locals.vm_interrupt_addr,
                 };
                 profiler.remove_interrupt(interrupt);
@@ -980,9 +983,18 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
         zend::php_info_print_table_row(2, key, agent_endpoint.as_ptr());
 
         let vars = [
-            (c"Application's Environment (DD_ENV)".as_ptr(), &locals.env),
-            (c"Application's Service (DD_SERVICE)".as_ptr(), &locals.service),
-            (c"Application's Version (DD_VERSION)".as_ptr(), &locals.version),
+            (
+                c"Application's Environment (DD_ENV)".as_ptr(),
+                &locals.identity.env,
+            ),
+            (
+                c"Application's Service (DD_SERVICE)".as_ptr(),
+                &locals.identity.service,
+            ),
+            (
+                c"Application's Version (DD_VERSION)".as_ptr(),
+                &locals.identity.version,
+            ),
         ];
 
         for (key, value) in vars {
@@ -1060,7 +1072,9 @@ extern "C" fn shutdown(extension: *mut ZendExtension) {
     // SAFETY: calling in Zend Extension shutdown as required.
     if let Err(err) = unsafe { Profiler::shutdown(Duration::from_secs(2)) } {
         let num_failures = err.num_failures;
-        error!("{num_failures} thread(s) failed to join, intentionally leaking the extension's handle to prevent unloading");
+        error!(
+            "{num_failures} thread(s) failed to join, intentionally leaking the extension's handle to prevent unloading"
+        );
         // SAFETY: during mshutdown, we have ownership of the extension struct.
         // Our threads (which failed to join) do not mutate this struct at all
         // either, providing no races.
@@ -1110,6 +1124,8 @@ fn notify_trace_finished(local_root_span_id: u64, span_type: Cow<str>, resource:
     });
 
     if let Err(err) = result {
-        debug!("tracer failed to notify profiler about a finished trace because the request locals could not be borrowed: {err}");
+        debug!(
+            "tracer failed to notify profiler about a finished trace because the request locals could not be borrowed: {err}"
+        );
     }
 }

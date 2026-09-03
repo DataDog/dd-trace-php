@@ -12,8 +12,9 @@ use DDTrace\FeatureFlags\Internal\Evaluator;
 use DDTrace\FeatureFlags\Internal\Metric\EvaluationMetric;
 use DDTrace\FeatureFlags\Internal\Metric\EvaluationMetricRecorder;
 use DDTrace\FeatureFlags\Internal\NativeEvaluator;
+use DDTrace\Log\Logger as GlobalLogger;
 use DDTrace\Log\LoggerInterface;
-use DDTrace\Log\TriggerErrorLogger;
+use DDTrace\Log\NonThrowingLogger;
 use OpenFeature\implementation\provider\AbstractProvider;
 use OpenFeature\implementation\provider\ResolutionDetailsBuilder;
 use OpenFeature\implementation\provider\ResolutionError;
@@ -30,8 +31,8 @@ final class DataDogProvider extends AbstractProvider
     protected static string $NAME = 'Datadog';
 
     private Evaluator $evaluator;
-    private LoggerInterface $warningLogger;
-    private bool $warnedAboutNonProductionRuntime = false;
+    private LoggerInterface $datadogLogger;
+    private bool $warnedAboutRuntimeNotReady = false;
     private EvaluationMetricRecorder $metricRecorder;
 
     public function __construct(?LoggerInterface $logger = null)
@@ -39,7 +40,7 @@ final class DataDogProvider extends AbstractProvider
         // Native evaluation metrics are disabled here because OpenFeature owns
         // the final provider outcome, including OF-level type mismatch mapping.
         $this->evaluator = NativeEvaluator::create(false);
-        $this->warningLogger = $logger ?: new TriggerErrorLogger();
+        $this->datadogLogger = new NonThrowingLogger($logger ?: GlobalLogger::get());
         $this->metricRecorder = EvaluationMetricRecorder::createDefault();
     }
 
@@ -111,12 +112,15 @@ final class DataDogProvider extends AbstractProvider
         mixed $defaultValue,
         ?EvaluationContext $context
     ): ResolutionDetailsInterface {
-        $details = $this->evaluate($flagKey, $expectedType, $defaultValue, $this->normalizeContext($context));
-        $this->warnIfNonProductionRuntime($details);
+        $normalizedContext = $this->normalizeContext($context);
+        $details = $this->evaluate($flagKey, $expectedType, $defaultValue, $normalizedContext);
+        $this->warnIfRuntimeNotReady($details);
         // The PHP OpenFeature SDK does not pass ResolutionDetails to finally
         // hooks, so PHP records metrics here after native evaluation has the
         // final provider result.
         $this->recordEvaluationMetric($flagKey, $details);
+        // APM span enrichment is recorded inside NativeEvaluator::evaluate()
+        // (the shared choke point), so there is nothing to do here.
 
         $builder = (new ResolutionDetailsBuilder())
             ->withValue($details->getValue())
@@ -211,24 +215,23 @@ final class DataDogProvider extends AbstractProvider
         ];
     }
 
-    private function warnIfNonProductionRuntime(EvaluationDetails $details): void
+    private function warnIfRuntimeNotReady(EvaluationDetails $details): void
     {
-        if ($this->warnedAboutNonProductionRuntime) {
+        if ($this->warnedAboutRuntimeNotReady) {
             return;
         }
 
-        $providerState = $details->getProviderState();
-        if (!array_key_exists('productionRuntime', $providerState) || $providerState['productionRuntime'] !== false) {
+        if ($details->getErrorCode() !== EvaluationErrorCode::PROVIDER_NOT_READY) {
             return;
         }
 
         $message = $details->getErrorMessage();
         if (!is_string($message) || $message === '') {
-            $message = 'Datadog-backed PHP OpenFeature evaluation is not fully enabled yet.';
+            $message = 'Datadog-backed PHP OpenFeature evaluation is not ready. Returning the default value.';
         }
 
-        $this->warningLogger->warning($message);
-        $this->warnedAboutNonProductionRuntime = true;
+        $this->warnedAboutRuntimeNotReady = true;
+        $this->datadogLogger->warning($message);
     }
 
     private function mapReason(string $reason): string

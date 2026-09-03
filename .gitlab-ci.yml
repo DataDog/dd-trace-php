@@ -15,11 +15,6 @@ variables:
     description: "Run a specific datadog-reliability-env branch downstream"
   SYSTEM_TESTS_LIBRARY: php
 
-include:
-  - project: DataDog/apm-reliability/libdatadog-build
-    ref: 5826819695d93286569e70ed087ae6bf906ce2c3
-    file: templates/ci_authenticated_job.yml
-
 generate-templates:
   stage: build
   image: registry.ddbuild.io/images/mirror/php:8.2-cli

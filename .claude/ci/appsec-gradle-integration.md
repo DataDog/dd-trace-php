@@ -278,7 +278,7 @@ If you need to inspect sidecar/helper or PHP issues:
   (`pref -f dd-ipc-helper`) or to PHP (usually an apache or an FPM worker -- if
   you're investigating code run during processes it will not be the master
   process). sidecar requires as a first command `file /proc/<pid>/exe`).
-* See [gdb.md](../gdb.md) for more information on how to run gdb. Always read
+* See [gdb.md](../debugging/gdb.md) for more information on how to run gdb. Always read
   this file before attempting to use gdb.
 
 ## Gotchas

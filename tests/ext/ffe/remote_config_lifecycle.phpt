@@ -8,8 +8,7 @@ DD_TRACE_AGENT_PORT=80
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=0.01
 DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED=1
---INI--
-datadog.trace.agent_test_session_token=ffe/remote_config_lifecycle
+DD_TRACE_AGENT_TEST_SESSION_TOKEN=ffe/remote_config_lifecycle
 --FILE--
 <?php
 require __DIR__ . "/../remote_config/remote_config.inc";
@@ -84,7 +83,7 @@ reset_request_replayer();
 before=false
 loaded=true
 has_config_after_add=true
-success={"valueJson":"\"blue\"","variant":"blue","allocationKey":"alloc-string","reason":0,"errorCode":0,"doLog":true,"providerState":[],"errorMessage":null,"hasConfig":null,"configVersion":null}
+success={"valueJson":"\"blue\"","variant":"blue","allocationKey":"alloc-string","reason":0,"errorCode":0,"doLog":true,"serialId":7,"providerState":[],"errorMessage":null,"hasConfig":null,"configVersion":null}
 removed=true
 has_config_after_remove=false
 version_increased=true

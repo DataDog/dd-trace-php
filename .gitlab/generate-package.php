@@ -48,13 +48,13 @@ $build_platforms = [
 $asan_build_platforms = [
     [
         "triplet" => "x86_64-unknown-linux-gnu",
-        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_bookworm-9",
+        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_bookworm-10",
         "arch" => "amd64",
         "host_os" => "linux-gnu",
     ],
     [
         "triplet" => "aarch64-unknown-linux-gnu",
-        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_bookworm-9",
+        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_bookworm-10",
         "arch" => "arm64",
         "host_os" => "linux-gnu",
     ]
@@ -104,7 +104,9 @@ stages:
   - gate
   - notify
   - verify
-  - shared-pipeline # OCI packaging
+  - shared-pipeline-build # OCI packaging
+  - shared-pipeline-test
+  - shared-pipeline-publish
   - php-laravel-realworld-parallel
   - php-laravel-realworld-parallel-slo
   - php-symfony-realworld-parallel
@@ -122,6 +124,8 @@ variables:
   # One pipeline injection package size ratchet
   OCI_PACKAGE_MAX_SIZE_BYTES: 150_000_000
   LIB_INJECTION_IMAGE_MAX_SIZE_BYTES: 210_000_000
+
+  REPO_NOTIFICATION_CHANNEL: "#guild-dd-php"
 
 include:
   - local: .gitlab/one-pipeline.locked.yml
@@ -311,7 +315,7 @@ if ($suffix == "-alpine") {
 
 "compile appsec helper":
   stage: appsec
-  image: "registry.ddbuild.io/images/mirror/b1o7r7e0/nginx_musl_toolchain"
+  image: "registry.ddbuild.io/images/mirror/b1o7r7e0/nginx_musl_toolchain@sha256:54dcb1180d439b8e77df1caad55259401051b358448c9bb13f742b1c106dd1eb"
   tags: [ "arch:$ARCH" ]
   needs: [ "prepare code" ]
   parallel:
@@ -347,7 +351,7 @@ if ($suffix == "-alpine") {
 
 "pecl build":
   stage: tracing
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-7.4_bookworm-9"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-7.4_bookworm-10"
   tags: [ "arch:amd64" ]
   needs: [ "prepare code" ]
   script:
@@ -397,7 +401,7 @@ foreach ($build_platforms as $platform) {
 <?php foreach ($arch_targets as $arch): ?>
 "aggregate tracing extension: [<?= $arch ?>]":
   stage: tracing
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-7.4_bookworm-9"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-7.4_bookworm-10"
   tags: [ "arch:amd64" ]
   script: ls ./
   variables:
@@ -443,6 +447,11 @@ foreach ($build_platforms as $platform) {
     TRIPLET: "<?= $platform['triplet'] ?>"
     ARCH: "<?= $platform['arch'] ?>"
     HOST_OS: "<?= $platform['host_os'] ?>"
+<?php if ($platform['host_os'] === "linux-gnu"): ?>
+    CC: clang
+    CXX: clang++
+    CARGO_TARGET_<?= strtoupper(str_replace('-', '_', $platform['triplet'])) ?>_LINKER: clang
+<?php endif; ?>
     CARGO_BUILD_JOBS: 16
     KUBERNETES_CPU_REQUEST: 16
     KUBERNETES_MEMORY_REQUEST: 5Gi
@@ -574,8 +583,8 @@ foreach ($windows_build_platforms as $platform) {
     # Only transient network failures (e.g. crates.io DNS) get exit 75 for GitLab auto-retry; real compile breaks keep their native code and fail fast.
     if ($ntsCode -ne 0) { if (Select-String -Path nts-build.log -Pattern 'Could not resolve host','spurious network error','failed to download' -Quiet) { Write-Host "Transient network failure during nts build; exiting 75 so GitLab auto-retries (see default retry.exit_codes in generate-common.php)"; exit 75 } else { exit $ntsCode } }
 
-    # Reuse libdatadog build (fail if move fails)
-    docker exec ${CONTAINER_NAME} powershell.exe -Command "`$ErrorActionPreference='Stop'; `$PSNativeCommandUseErrorActionPreference=`$true; New-Item -ItemType Directory -Force -Path 'app\\x64\\Release_TS' | Out-Null; Move-Item 'app\\x64\\Release\\target' 'app\\x64\\Release_TS\\target' -ErrorAction Stop"
+    # Reuse the common/tracer Cargo build (fail if move fails)
+    docker exec ${CONTAINER_NAME} powershell.exe -Command "`$ErrorActionPreference='Stop'; `$PSNativeCommandUseErrorActionPreference=`$true; New-Item -ItemType Directory -Force -Path 'app\\x64\\Release_TS' | Out-Null; Move-Item 'app\\x64\\Release\\target-common' 'app\\x64\\Release_TS\\target-common' -ErrorAction Stop"
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }  # local file move, not network — fail fast (no retry)
 
     # Build zts (fail fast on any step); capture combined output for failure classification.
@@ -1024,9 +1033,7 @@ endforeach;
         IMAGE:
           - alpine:3.8
           - alpine:3.9
-          - alpine:3.10
           - alpine:3.11
-          - alpine:3.12
           - alpine:3.15
         INSTALL_TYPE: &verify_install_types
         - php_installer
@@ -1035,9 +1042,8 @@ endforeach;
         IMAGE:
           - alpine:3.15
           - alpine:3.16
-          - alpine:3.17
-          - alpine:3.20
-          - alpine:latest
+          - alpine:3.21
+          - alpine:3.24
         INSTALL_TYPE: *verify_install_types
       - IMAGE: <?= json_encode(array_map(function ($v) { return "php:$v-fpm-alpine"; }, $all_minor_major_targets)), "\n" ?>
         INSTALL_TYPE: *verify_install_types
@@ -1195,7 +1201,7 @@ endforeach;
 
 "pecl tests":
   stage: verify
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_VERSION}_bookworm-9"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_VERSION}_bookworm-10"
   tags: [ "arch:amd64" ]
   services:
     - !reference [.services, request-replayer]
@@ -1217,6 +1223,8 @@ endforeach;
     - pecl install datadog_trace.tgz
     - echo "extension=ddtrace.so" | sudo tee $(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}')/ddtrace.ini
     - php --ri=ddtrace
+    # The Fabric proxy changes network failure semantics in PECL tests.
+    - unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy
     - TERM=dumb HTTPBIN_HOSTNAME=httpbin-integration HTTPBIN_PORT=8080 DATADOG_HAVE_DEV_ENV=1 DD_TRACE_GIT_METADATA_ENABLED=0 pecl run-tests --showdiff --ini=" -d datadog.trace.sources_path=" -p datadog_trace
   after_script:
     - mkdir artifacts
@@ -1228,7 +1236,7 @@ endforeach;
 
 "min install tests":
   stage: verify
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.0-shared-ext-9
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.0-shared-ext-10
   tags: [ "arch:amd64" ]
   variables:
     MAX_TEST_PARALLELISM: 8
@@ -1330,6 +1338,7 @@ endforeach;
         - APPSEC_API_SECURITY
         - APPSEC_API_SECURITY_RC
         - APPSEC_API_SECURITY_NO_RESPONSE_BODY
+        - APPSEC_STANDALONE_APM_STANDALONE
         - APPSEC_RUNTIME_ACTIVATION
         - INTEGRATIONS
         - CROSSED_TRACING_LIBRARIES
@@ -1353,6 +1362,7 @@ endforeach;
         - APPSEC_API_SECURITY
         - APPSEC_API_SECURITY_RC
         - APPSEC_API_SECURITY_NO_RESPONSE_BODY
+        - APPSEC_STANDALONE_APM_STANDALONE
         - APPSEC_RUNTIME_ACTIVATION
         - INTEGRATIONS
         - CROSSED_TRACING_LIBRARIES
@@ -1411,7 +1421,7 @@ $system_tests_weblogs = [
   variables:
     VALGRIND: false
     ARCH: "<?= $arch ?>"
-    CONTAINER_SUFFIX: bookworm-9
+    CONTAINER_SUFFIX: bookworm-10
     LOADER_IMAGE_REPO: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci"
   needs:
     - job: "package loader: [<?= $arch ?>]"
@@ -1505,6 +1515,41 @@ $system_tests_weblogs = [
   script:
     - ./bin/test.sh
 
+# Regression test for the loader crashing the Apache parent on "apachectl graceful", i.e. on a
+# second php_module_startup() in the same process after the loader .so got re-mapped elsewhere
+# while the injected ddtrace.so/profiler stayed resident.
+"Loader Apache reload test on <?= $arch ?>":
+  stage: verify
+  image: "${LOADER_IMAGE_REPO}:php-${MAJOR_MINOR}_${CONTAINER_SUFFIX}"
+  tags: [ "arch:$ARCH" ]
+  variables:
+    ARCH: "<?= $arch ?>"
+    CONTAINER_SUFFIX: bookworm-10
+    LOADER_IMAGE_REPO: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci"
+  needs:
+    - job: "package loader: [<?= $arch ?>]"
+      artifacts: true
+  parallel:
+    matrix:
+      # 7.4 is the version the crash was reported on and reproduces reliably; the newer ones are
+      # there to keep the mod_php reload path covered going forward.
+      - MAJOR_MINOR:
+          - "7.4"
+          - "8.3"
+          - "8.5"
+        PHP_FLAVOUR: nts
+  before_script:
+<?php unset_dd_runner_env_vars() ?>
+    - switch-php $PHP_FLAVOUR
+    - mkdir -p extracted/
+    - tar --no-same-owner --no-same-permissions --touch -xzf packages/dd-library-php-ssi-*-linux.tar.gz -C extracted/
+    - export DD_LOADER_PACKAGE_PATH=${PWD}/extracted/dd-library-php-ssi
+    - cd loader
+    - mkdir -p modules
+    - cp ${DD_LOADER_PACKAGE_PATH}/linux-gnu/loader/dd_library_loader.so modules/
+  script:
+    - ./bin/test_apache_reload.sh
+
 <?php endforeach; ?>
 
 "publish to public s3":
@@ -1569,7 +1614,8 @@ foreach ($arch_targets as $arch) {
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       when: never
-    - when: on_success
+    - when: always
+  allow_failure: true
   variables:
     GIT_STRATEGY: none
   script:
@@ -1589,7 +1635,7 @@ foreach ($arch_targets as $arch) {
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       when: never
-    - when: on_success
+    - when: always
   needs:
     - job: "publish docker image for system tests (token)"
       artifacts: true
@@ -1601,8 +1647,7 @@ foreach ($arch_targets as $arch) {
       artifacts: true
   variables:
     GIT_STRATEGY: none
-  allow_failure:
-    exit_codes: 3
+  allow_failure: true
   script: |
     set -e
     IMAGE="ghcr.io/datadog/dd-trace-php/dd-library-php:${CI_COMMIT_REF_SLUG}"
@@ -1672,8 +1717,8 @@ foreach ($arch_targets as $arch) {
     - docker buildx rm "system-tests-builder-${CI_JOB_ID}" || true
 
 "bundle for reliability env":
-  stage: shared-pipeline
-  image: registry.ddbuild.io/ci/libdatadog-build/ci_docker_base:67145216
+  stage: shared-pipeline-build
+  image: registry.ddbuild.io/images/base/gbi-ubuntu_2404:release
   tags: [ "arch:amd64" ]
   rules:
     - if: $NIGHTLY_BUILD
@@ -1696,7 +1741,7 @@ foreach ($arch_targets as $arch) {
       else
         echo "UPSTREAM_TRACER_VERSION=$(<VERSION)" > upstream.env
       fi
-    - mv packages/dd-library-php-*-x86_64-linux-gnu.tar.gz dd-library-php-x86_64-linux-gnu.tar.gz
+    - cp packages/dd-library-php-*-x86_64-linux-gnu.tar.gz dd-library-php-x86_64-linux-gnu.tar.gz
     - tar -cf 'datadog-setup-x86_64-linux-gnu.tar' 'datadog-setup.php' 'dd-library-php-x86_64-linux-gnu.tar.gz'
   artifacts:
     paths:
@@ -1704,12 +1749,15 @@ foreach ($arch_targets as $arch) {
       - 'datadog-setup-x86_64-linux-gnu.tar'
 
 deploy_to_reliability_env:
-  stage: shared-pipeline
+  stage: shared-pipeline-publish
   allow_failure: true
   needs:
     - job: "bundle for reliability env"
   rules:
-   - when: on_success
+    - if: $NIGHTLY_BUILD == "true"
+      when: on_success
+    - when: manual
+      allow_failure: true
   trigger:
     project: DataDog/apm-reliability/datadog-reliability-env
     branch: $RELIABILITY_ENV_BRANCH
@@ -1759,7 +1807,7 @@ deploy_to_reliability_env:
 
 "upload SSI debug symbols":
   stage: pre-release
-  image: registry.ddbuild.io/ci/async-profiler-build:v71888475-datadog-ci
+  image: registry.ddbuild.io/images/bazel:dynamic-22.04
   tags: [ "arch:amd64" ]
   only:
     - tags

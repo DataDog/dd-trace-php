@@ -307,6 +307,27 @@ ddog_MaybeError ddog_sidecar_send_trace_v04_bytes(struct ddog_SidecarTransport *
                                                   ddog_CharSlice data,
                                                   const struct ddog_TracerHeaderTags *tracer_header_tags);
 
+/**
+ * Sends a V1-encoded trace to the sidecar via shared memory. The sidecar decodes the V1
+ * `TracerPayload`, can inspect it, and re-encodes it as V1 msgpack on the way to the agent's
+ * `/v1.0/traces` endpoint.
+ */
+ddog_MaybeError ddog_sidecar_send_trace_v1_shm(struct ddog_SidecarTransport **transport,
+                                               const struct ddog_InstanceId *instance_id,
+                                               struct ddog_ShmHandle *shm_handle,
+                                               uintptr_t len,
+                                               const struct ddog_TracerHeaderTags *tracer_header_tags);
+
+/**
+ * Sends a V1-encoded trace as bytes to the sidecar. The sidecar decodes the V1 `TracerPayload`,
+ * can inspect it, and re-encodes it as V1 msgpack on the way to the agent's `/v1.0/traces`
+ * endpoint.
+ */
+ddog_MaybeError ddog_sidecar_send_trace_v1_bytes(struct ddog_SidecarTransport **transport,
+                                                 const struct ddog_InstanceId *instance_id,
+                                                 ddog_CharSlice data,
+                                                 const struct ddog_TracerHeaderTags *tracer_header_tags);
+
 ddog_MaybeError ddog_sidecar_send_debugger_data(struct ddog_SidecarTransport **transport,
                                                 const struct ddog_InstanceId *instance_id,
                                                 ddog_QueueId queue_id,
@@ -332,6 +353,21 @@ ddog_MaybeError ddog_sidecar_send_ffe_exposure_batch(struct ddog_SidecarTranspor
                                                      const ddog_QueueId *queue_id,
                                                      const struct ddog_FfeTelemetryContext *context,
                                                      struct ddog_Slice_FfeExposure exposures);
+
+/**
+ * Send structured FFE flag evaluation events to the sidecar. The sidecar owns
+ * JSON serialization and Agent EVP delivery. This function is caller-driven;
+ * callers must aggregate and bound event cardinality before passing a batch.
+ *
+ * # Safety
+ * `context` and every element in `flag_evaluations` must contain valid UTF-8
+ * `CharSlice` values. Empty `flag_evaluations` is a no-op.
+ */
+ddog_MaybeError ddog_sidecar_send_ffe_flag_evaluation_batch(struct ddog_SidecarTransport **transport,
+                                                            const struct ddog_InstanceId *instance_id,
+                                                            const ddog_QueueId *queue_id,
+                                                            const struct ddog_FfeTelemetryContext *context,
+                                                            struct ddog_Slice_FfeFlagEvaluation flag_evaluations);
 
 /**
  * Send structured FFE evaluation metric events to the sidecar. The sidecar
@@ -441,11 +477,6 @@ ddog_MaybeError ddog_sidecar_set_test_session_token(struct ddog_SidecarTransport
  */
 void ddog_sidecar_reconnect(struct ddog_SidecarTransport **transport,
                             struct ddog_SidecarTransport *(*factory)(void));
-
-/**
- * Return the path of the crashtracker unix domain socket.
- */
-ddog_CharSlice ddog_sidecar_get_crashtracker_unix_socket_path(void);
 
 /**
  * Gets an agent info reader.

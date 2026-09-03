@@ -1,7 +1,9 @@
 #ifndef DDTRACE_GLOBALS_H
 #define DDTRACE_GLOBALS_H
+#include <signal.h>
 #ifndef _WIN32
 #include <dogstatsd_client/client.h>
+#include <time.h>
 #endif
 
 #include <ext/datadog.h>
@@ -21,6 +23,8 @@ typedef struct dd_refcounted_linked dd_refcounted_linked;
 typedef struct {
     zend_arena *arena;
     dd_refcounted_linked *ephemerals;
+    // Approximate serialized size of the snapshot captured so far, see ddtrace_charge_capture_size().
+    size_t captured_size;
 } dd_capture_arena;
 
 typedef struct {
@@ -66,11 +70,26 @@ typedef struct {
     int64_t compile_time_microseconds;
     datadog_trace_id distributed_trace_id;
     uint64_t distributed_parent_trace_id;
+    uint8_t distributed_trace_flags;
     zend_string *dd_origin;
     zend_reference *curl_multi_injecting_spans;
 
     dd_capture_arena debugger_capture_arena;
     ddog_Vec_DebuggerPayload exception_debugger_buffer;
+    volatile sig_atomic_t debugger_capture_timed_out;
+    volatile sig_atomic_t debugger_capture_abort_reason; // one of DD_CAPTURE_ABORT_*
+#ifndef _WIN32
+    volatile uint64_t capture_deadline_ns;
+#ifdef __linux__
+    timer_t capture_timer;
+    int capture_timer_active;
+#endif
+#else
+    HANDLE capture_timer_handle;
+    // Stable pointers to the two fields above, handed to CreateTimerQueueTimer so its callback
+    // (running on an unrelated timer-pool thread, where TSRM globals aren't resolvable) can reach them.
+    volatile sig_atomic_t *capture_timeout_flags[2];
+#endif
     HashTable active_live_debugger_hooks;
     HashTable *agent_rate_by_service;
 
@@ -89,6 +108,7 @@ typedef struct {
     zend_object *git_object;
 
     bool inferred_span_created;
+    zval pending_upstream_span_link; // span link queued by PROPAGATION_BEHAVIOR_EXTRACT=restart; consumed on root span open
 
     HashTable resource_weak_storage;
     dtor_func_t resource_dtor_func;

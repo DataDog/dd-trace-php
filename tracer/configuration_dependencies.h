@@ -1,5 +1,6 @@
 #include "configuration.h"
 #include "tracer_otel_config.h"
+#include <ext/otel_config.h>
 #include "span.h"
 #include "random.h"
 #include "ip_extraction.h"
@@ -15,6 +16,21 @@ static bool dd_parse_dbm_mode(zai_str value, zval *decoded_value, bool persisten
         ZVAL_LONG(decoded_value, DD_TRACE_DBM_PROPAGATION_FULL);
     } else if (zai_str_eq_ci_cstr(value, "dynamic_service")) {
         ZVAL_LONG(decoded_value, DD_TRACE_DBM_PROPAGATION_DYNAMIC_SERVICE);
+    } else {
+        return false;
+    }
+
+    return true;
+}
+
+static bool dd_parse_propagation_behavior_extract(zai_str value, zval *decoded_value, bool persistent) {
+    UNUSED(persistent);
+    if (zai_str_eq_ci_cstr(value, "continue")) {
+        ZVAL_LONG(decoded_value, DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT_CONTINUE);
+    } else if (zai_str_eq_ci_cstr(value, "restart")) {
+        ZVAL_LONG(decoded_value, DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT_RESTART);
+    } else if (zai_str_eq_ci_cstr(value, "ignore")) {
+        ZVAL_LONG(decoded_value, DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT_IGNORE);
     } else {
         return false;
     }

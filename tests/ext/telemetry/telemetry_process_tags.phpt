@@ -12,6 +12,8 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 _DD_LOAD_TEST_INTEGRATIONS=1
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
 DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED=1
+DD_TRACE_AGENT_TIMEOUT=200
+DD_TRACE_RETRY_INTERVAL=1
 --INI--
 datadog.trace.agent_url="file://{PWD}/process-tags-telemetry.out"
 --FILE--
@@ -31,7 +33,7 @@ for ($i = 0; $i < 300; ++$i) {
     ("us" . "leep")(100000);
     if (file_exists(__DIR__ . '/process-tags-telemetry.out')) {
         foreach (file(__DIR__ . '/process-tags-telemetry.out') as $l) {
-            if ($l) {
+            if ($l && $l[0] == '{') {
                 $json = json_decode($l, true);
                 var_dump($json["application"]["process_tags"]);
                 break 2;

@@ -84,7 +84,11 @@ void datadog_phpinfo() {
     php_info_print_box_end();
 
     php_info_print_table_start();
+#ifdef DDTRACE
     php_info_print_table_row(2, "Datadog tracing support", datadog_disable ? "disabled" : "enabled");
+#else
+    php_info_print_table_row(2, "Datadog tracing support", "disabled (not built)");
+#endif
     php_info_print_table_row(2, "Version", PHP_DDTRACE_VERSION);
     dd_info_tracer_config();
     php_info_print_table_end();

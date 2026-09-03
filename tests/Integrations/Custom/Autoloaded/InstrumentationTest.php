@@ -112,9 +112,10 @@ final class InstrumentationTest extends WebFrameworkTestCase
             [
                 "name" => "pdo",
                 "enabled" => true,
-                'version' => null,
+                'version' => '',
                 'compatible' => null,
                 'auto_enabled' => null,
+                'error' => null,
             ],
             [
                 "name" => "exec",
@@ -122,6 +123,7 @@ final class InstrumentationTest extends WebFrameworkTestCase
                 "version" => "",
                 'compatible' => null,
                 'auto_enabled' => null,
+                'error' => null,
             ],
             [
                 "name" => "logs",
@@ -129,6 +131,7 @@ final class InstrumentationTest extends WebFrameworkTestCase
                 "version" => "",
                 'compatible' => null,
                 'auto_enabled' => null,
+                'error' => null,
             ]
         ], $payloads[2]["payload"]["integrations"]);
 

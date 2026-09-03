@@ -53,5 +53,5 @@ old_metrics_forwarder_exists=false
 old_exposure_forwarder_exists=false
 recorded=true
 load=true
-evaluation_without_native_metric={"valueJson":"\"blue\"","variant":"blue","allocationKey":"alloc-string","reason":0,"errorCode":0,"doLog":true,"providerState":[],"errorMessage":null,"hasConfig":null,"configVersion":null}
-missing_flag_without_native_metric={"valueJson":"null","variant":null,"allocationKey":null,"reason":5,"errorCode":3,"doLog":false,"providerState":[],"errorMessage":null,"hasConfig":null,"configVersion":null}
+evaluation_without_native_metric={"valueJson":"\"blue\"","variant":"blue","allocationKey":"alloc-string","reason":0,"errorCode":0,"doLog":true,"serialId":7,"providerState":[],"errorMessage":null,"hasConfig":null,"configVersion":null}
+missing_flag_without_native_metric={"valueJson":"null","variant":null,"allocationKey":null,"reason":5,"errorCode":3,"doLog":false,"serialId":null,"providerState":[],"errorMessage":null,"hasConfig":null,"configVersion":null}

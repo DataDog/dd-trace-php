@@ -20,6 +20,19 @@ void datadog_report_otel_cfg_telemetry_invalid(const char *otel_cfg, const char 
     }
 }
 
+bool ddtrace_conf_otel_traces_exporter(zai_env_buffer *buf, bool pre_rinit) {
+    if (datadog_get_otel_value((zai_str) ZAI_STRL("OTEL_TRACES_EXPORTER"), buf, pre_rinit)) {
+        if (strcmp(buf->ptr, "none") == 0) {
+            buf->ptr = "0";
+            buf->len = 1;
+            return true;
+        }
+        LOG_ONCE(WARN, "OTEL_TRACES_EXPORTER has invalid value: %s", buf->ptr);
+        datadog_report_otel_cfg_telemetry_invalid("otel_traces_exporter", "dd_trace_enabled", pre_rinit);
+    }
+    return false;
+}
+
 bool datadog_get_otel_value(zai_str str, zai_env_buffer *buf, bool pre_rinit) {
     if (!pre_rinit && zai_sapi_getenv(str, buf) == ZAI_ENV_SUCCESS) return true;
     zai_option_str sys = zai_sys_getenv(str);
@@ -80,7 +93,8 @@ static bool ddtrace_conf_otel_resource_attributes_special(const char *tag, int l
 }
 
 bool ddtrace_conf_otel_resource_attributes_env(zai_env_buffer *buf, bool pre_rinit) {
-    return ddtrace_conf_otel_resource_attributes_special(ZEND_STRL("deployment.environment"), buf, pre_rinit);
+    return ddtrace_conf_otel_resource_attributes_special(ZEND_STRL("deployment.environment.name"), buf, pre_rinit)
+        || ddtrace_conf_otel_resource_attributes_special(ZEND_STRL("deployment.environment"), buf, pre_rinit);
 }
 
 bool ddtrace_conf_otel_resource_attributes_version(zai_env_buffer *buf, bool pre_rinit) {
@@ -111,13 +125,20 @@ bool ddtrace_conf_otel_resource_attributes_tags(zai_env_buffer *buf, bool pre_ri
                 ++cur;
             }
             key_start = cur + 1;
+            if (key_end - key == strlen("deployment.environment.name") && memcmp(key, ZEND_STRL("deployment.environment.name")) == 0) {
+                --cur;
+                continue;
+            }
             if (key_end - key == strlen("deployment.environment") && memcmp(key, ZEND_STRL("deployment.environment")) == 0) {
+                --cur;
                 continue;
             }
             if (key_end - key == strlen("service.name") && memcmp(key, ZEND_STRL("service.name")) == 0) {
+                --cur;
                 continue;
             }
             if (key_end - key == strlen("service.version") && memcmp(key, ZEND_STRL("service.version")) == 0) {
+                --cur;
                 continue;
             }
             memmove(out, key, cur - key);

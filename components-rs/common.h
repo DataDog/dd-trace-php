@@ -52,8 +52,6 @@
 
 typedef struct ddog_Endpoint ddog_Endpoint;
 
-typedef struct ddog_Tag ddog_Tag;
-
 /**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,
  * never from C.
@@ -285,6 +283,9 @@ typedef enum ddog_ConfigurationOrigin {
   DDOG_CONFIGURATION_ORIGIN_LOCAL_STABLE_CONFIG,
   DDOG_CONFIGURATION_ORIGIN_FLEET_STABLE_CONFIG,
   DDOG_CONFIGURATION_ORIGIN_CALCULATED,
+  DDOG_CONFIGURATION_ORIGIN_OTEL_ENV_VAR,
+  DDOG_CONFIGURATION_ORIGIN_INI,
+  DDOG_CONFIGURATION_ORIGIN_UNKNOWN,
 } ddog_ConfigurationOrigin;
 
 typedef enum ddog_DynamicConfigUpdateMode {
@@ -351,12 +352,17 @@ typedef enum ddog_MetricNamespace {
   DDOG_METRIC_NAMESPACE_TELEMETRY,
   DDOG_METRIC_NAMESPACE_APM,
   DDOG_METRIC_NAMESPACE_SIDECAR,
+  DDOG_METRIC_NAMESPACE_CIVISIBILITY,
+  DDOG_METRIC_NAMESPACE_MLOBS,
+  DDOG_METRIC_NAMESPACE_DDTRACEAPI,
+  DDOG_METRIC_NAMESPACE_AI_GUARD,
 } ddog_MetricNamespace;
 
 typedef enum ddog_MetricType {
   DDOG_METRIC_TYPE_GAUGE,
   DDOG_METRIC_TYPE_COUNT,
   DDOG_METRIC_TYPE_DISTRIBUTION,
+  DDOG_METRIC_TYPE_RATE,
 } ddog_MetricType;
 
 typedef enum ddog_ProbeStatus {
@@ -412,8 +418,12 @@ typedef enum ddog_RemoteConfigCapabilities {
   DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_ENABLE_LIVE_DEBUGGING = 41,
   DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_DD_MULTICONFIG = 42,
   DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_TRACE_TAGGING_RULES = 43,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_EXTENDED_DATA_COLLECTION = 44,
   DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_MULTICONFIG = 45,
   DDOG_REMOTE_CONFIG_CAPABILITIES_FFE_FLAG_CONFIGURATION_RULES = 46,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_DD_DATA_STREAMS_TRANSACTION_EXTRACTORS = 47,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_LLM_OBS_ACTIVATION = 48,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RAW_RESPONSE_BODY = 49,
 } ddog_RemoteConfigCapabilities;
 
 typedef enum ddog_RemoteConfigProduct {
@@ -425,7 +435,9 @@ typedef enum ddog_RemoteConfigProduct {
   DDOG_REMOTE_CONFIG_PRODUCT_ASM_DD,
   DDOG_REMOTE_CONFIG_PRODUCT_ASM_FEATURES,
   DDOG_REMOTE_CONFIG_PRODUCT_FFE_FLAGS,
-  DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGER,
+  DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGING,
+  DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGING_SYMBOL_DB,
+  DDOG_REMOTE_CONFIG_PRODUCT_DEBUG,
 } ddog_RemoteConfigProduct;
 
 typedef enum ddog_SpanProbeTarget {
@@ -478,12 +490,16 @@ typedef struct ddog_SidecarTransport ddog_SidecarTransport;
  */
 typedef struct ddog_SpanConcentrator ddog_SpanConcentrator;
 
+typedef struct _zend_string *ddog_OwnedZendString;
+
 typedef struct ddog_FfeResult {
   _zend_string * value_json;
   _zend_string * variant;
   _zend_string * allocation_key;
   int32_t reason;
   int32_t error_code;
+  int32_t serial_id;
+  bool has_serial_id;
   bool do_log;
   bool valid;
 } ddog_FfeResult;
@@ -523,8 +539,6 @@ typedef struct ddog_Tag {
   ddog_CharSlice name;
   const struct ddog_DslString *value;
 } ddog_Tag;
-
-typedef struct _zend_string *ddog_OwnedZendString;
 
 typedef struct _zend_string *(*ddog_DynamicConfigUpdate)(ddog_CharSlice config,
                                                          ddog_OwnedZendString value,
@@ -786,6 +800,30 @@ typedef const char *(*ddog_RootTagLookupFn)(const void *ctx,
                                             uintptr_t *out_len);
 
 /**
+ * Holds the raw parts of a Rust Vec; it should only be created from Rust,
+ * never from C.
+ */
+typedef struct ddog_Vec_RemoteConfigProduct {
+  const enum ddog_RemoteConfigProduct *ptr;
+  uintptr_t len;
+  uintptr_t capacity;
+} ddog_Vec_RemoteConfigProduct;
+
+typedef struct ddog_Vec_RemoteConfigProduct ddog_VecRemoteConfigProduct;
+
+/**
+ * Holds the raw parts of a Rust Vec; it should only be created from Rust,
+ * never from C.
+ */
+typedef struct ddog_Vec_RemoteConfigCapabilities {
+  const enum ddog_RemoteConfigCapabilities *ptr;
+  uintptr_t len;
+  uintptr_t capacity;
+} ddog_Vec_RemoteConfigCapabilities;
+
+typedef struct ddog_Vec_RemoteConfigCapabilities ddog_VecRemoteConfigCapabilities;
+
+/**
  * A 128-bit (16 byte) buffer containing the UUID.
  *
  * # ABI
@@ -891,30 +929,6 @@ typedef uint8_t ddog_Bytes[16];
  * The `Uuid` type is always guaranteed to be have the same ABI as [`Bytes`].
  */
 typedef ddog_Bytes ddog_Uuid;
-
-/**
- * Holds the raw parts of a Rust Vec; it should only be created from Rust,
- * never from C.
- */
-typedef struct ddog_Vec_RemoteConfigProduct {
-  const enum ddog_RemoteConfigProduct *ptr;
-  uintptr_t len;
-  uintptr_t capacity;
-} ddog_Vec_RemoteConfigProduct;
-
-typedef struct ddog_Vec_RemoteConfigProduct ddog_VecRemoteConfigProduct;
-
-/**
- * Holds the raw parts of a Rust Vec; it should only be created from Rust,
- * never from C.
- */
-typedef struct ddog_Vec_RemoteConfigCapabilities {
-  const enum ddog_RemoteConfigCapabilities *ptr;
-  uintptr_t len;
-  uintptr_t capacity;
-} ddog_Vec_RemoteConfigCapabilities;
-
-typedef struct ddog_Vec_RemoteConfigCapabilities ddog_VecRemoteConfigCapabilities;
 
 #define ddog_DYANMIC_CONFIG_UPDATE_UNMODIFIED (_zend_string*)1
 
@@ -1110,9 +1124,10 @@ typedef struct ddog_TelemetryWorkerBuilder ddog_TelemetryWorkerBuilder;
  * The worker won't send data to the agent until you call `TelemetryWorkerHandle::send_start`
  *
  * To stop the worker, call `TelemetryWorkerHandle::send_stop` which trigger flush asynchronously
- * then `TelemetryWorkerHandle::wait_for_shutdown`
+ * then `TelemetryWorkerHandle::wait_for_shutdown` (native only — wasm callers rely on the
+ * SharedRuntime worker JoinHandle instead).
  */
-typedef struct ddog_TelemetryWorkerHandle ddog_TelemetryWorkerHandle;
+typedef struct ddog_TelemetryWorkerHandle_NativeCapabilities ddog_TelemetryWorkerHandle_NativeCapabilities;
 
 typedef enum ddog_Option_U64_Tag {
   DDOG_OPTION_U64_SOME_U64,
@@ -1127,6 +1142,12 @@ typedef struct ddog_Option_U64 {
     };
   };
 } ddog_Option_U64;
+
+/**
+ * FFI-facing alias: the C ABI surface is native-only, so the worker handle is
+ * always pinned to [`NativeCapabilities`].
+ */
+typedef struct ddog_TelemetryWorkerHandle_NativeCapabilities ddog_TelemetryWorkerHandle;
 
 typedef enum ddog_Option_Bool_Tag {
   DDOG_OPTION_BOOL_SOME_BOOL,
@@ -1194,6 +1215,7 @@ typedef struct ddog_NativeFile {
 
 typedef struct ddog_SidecarFlushOptions {
   bool traces_and_stats;
+  bool flag_evaluations;
   bool telemetry;
 } ddog_SidecarFlushOptions;
 
@@ -1225,6 +1247,8 @@ typedef struct ddog_FfeExposure {
   ddog_CharSlice subject_attributes_json;
   ddog_CharSlice allocation_key;
   ddog_CharSlice variant;
+  int32_t serial_id;
+  bool has_serial_id;
 } ddog_FfeExposure;
 
 typedef struct ddog_Slice_FfeExposure {
@@ -1240,6 +1264,40 @@ typedef struct ddog_Slice_FfeExposure {
    */
   uintptr_t len;
 } ddog_Slice_FfeExposure;
+
+typedef struct ddog_FfeFlagEvaluation {
+  int64_t timestamp_ms;
+  ddog_CharSlice flag_key;
+  int64_t first_evaluation_ms;
+  int64_t last_evaluation_ms;
+  uint64_t evaluation_count;
+  ddog_CharSlice variant;
+  ddog_CharSlice allocation_key;
+  ddog_CharSlice targeting_rule_key;
+  ddog_CharSlice targeting_key;
+  /**
+   * UTF-8 JSON object. Empty, invalid, or non-object JSON is omitted. Object
+   * values are pruned to 256 leaf fields, 256-byte string values, and four
+   * levels of nested context depth.
+   */
+  ddog_CharSlice evaluation_context_json;
+  ddog_CharSlice error_message;
+  bool runtime_default_used;
+} ddog_FfeFlagEvaluation;
+
+typedef struct ddog_Slice_FfeFlagEvaluation {
+  /**
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
+   */
+  const struct ddog_FfeFlagEvaluation *ptr;
+  /**
+   * The number of elements (not bytes) that `.ptr` points to. Must be less
+   * than or equal to [isize::MAX].
+   */
+  uintptr_t len;
+} ddog_Slice_FfeFlagEvaluation;
 
 typedef struct ddog_FfeEvaluationMetric {
   ddog_CharSlice flag_key;

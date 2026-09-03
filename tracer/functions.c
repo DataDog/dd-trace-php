@@ -9,8 +9,13 @@
 #include "ffe.h"
 #include "handlers_exception.h"
 #include "memory_limit.h"
+#ifdef __linux__
+#include "otel_context.h"
+#include <components-rs/datadog.h>
+#endif
 #include "random.h"
 #include "serializer.h"
+#include "trace_context.h"
 #include "weak_resources.h"
 #include <ext/startup_logging.h>
 #include "handlers_http.h"
@@ -231,6 +236,23 @@ PHP_METHOD(DDTrace_SpanLink, jsonSerialize) {
     RETURN_ARR(array);
 }
 
+void ddtrace_build_span_link_from_result(ddtrace_distributed_tracing_result *result, ddtrace_span_link *link) {
+    ZVAL_STR(&link->property_trace_id, datadog_trace_id_as_hex_string(result->trace_id));
+    ZVAL_STR(&link->property_span_id, ddtrace_span_id_as_hex_string(result->parent_id));
+
+    array_init(&link->property_attributes);
+    zend_hash_copy(Z_ARR(link->property_attributes), &result->meta_tags, (copy_ctor_func_t)zval_add_ref);
+
+    zend_string *propagated_tags = ddtrace_format_propagated_tags(&result->propagated_tags, &result->meta_tags);
+    zend_string *full_tracestate = ddtrace_format_tracestate(result->tracestate, 0, result->origin, result->priority_sampling, propagated_tags, &result->tracestate_unknown_dd_keys);
+    if (propagated_tags) {
+        zend_string_release(propagated_tags);
+    }
+    if (full_tracestate) {
+        ZVAL_STR(&link->property_trace_state, full_tracestate);
+    }
+}
+
 static ddtrace_distributed_tracing_result dd_parse_distributed_tracing_headers_function(INTERNAL_FUNCTION_PARAMETERS, bool *success);
 ZEND_METHOD(DDTrace_SpanLink, fromHeaders) {
     bool success;
@@ -245,21 +267,10 @@ ZEND_METHOD(DDTrace_SpanLink, fromHeaders) {
         return;
     }
 
-    ZVAL_STR(&link->property_trace_id, datadog_trace_id_as_hex_string(result.trace_id));
-    ZVAL_STR(&link->property_span_id, ddtrace_span_id_as_hex_string(result.parent_id));
-    array_init(&link->property_attributes);
-    zend_hash_copy(Z_ARR(link->property_attributes), &result.meta_tags, NULL);
+    ddtrace_build_span_link_from_result(&result, link);
 
-    zend_string *propagated_tags = ddtrace_format_propagated_tags(&result.propagated_tags, &result.meta_tags);
-    zend_string *full_tracestate = ddtrace_format_tracestate(result.tracestate, 0, result.origin, result.priority_sampling, propagated_tags, &result.tracestate_unknown_dd_keys);
-    if (propagated_tags) {
-        zend_string_release(propagated_tags);
-    }
-    if (full_tracestate) {
-        ZVAL_STR(&link->property_trace_state, full_tracestate);
-    }
-
-    result.meta_tags.pDestructor = NULL; // we moved values directly
+    // The span link took its own references (zval_add_ref) on the copied values, so destroy
+    // meta_tags normally to release the references it still owns.
     zend_hash_destroy(&result.meta_tags);
     zend_hash_destroy(&result.propagated_tags);
     zend_hash_destroy(&result.tracestate_unknown_dd_keys);
@@ -530,7 +541,12 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
 #endif
     ddtrace_root_span_data *span = ROOTSPANDATA(obj);
     zval zv;
+    bool trace_id_changed = false;
+    bool trace_id_random = false;
     bool root_span_data_changed = false;
+#ifdef __linux__
+    bool sampling_priority_changed = false;
+#endif
     if (zend_string_equals_literal(prop_name, "parentId")) {
         if (Z_TYPE_P(value) == IS_LONG && Z_LVAL_P(value)) {
             span->parent_id = (uint64_t) Z_LVAL_P(value);
@@ -554,7 +570,9 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
                 .time = get_DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED() ? span->start / ZEND_NANO_IN_SEC : 0,
             };
             value = &span->property_id;
+            trace_id_random = true;
         }
+        trace_id_changed = true;
         cache_slot = NULL;
     } else if (zend_string_equals_literal(prop_name, "service")) {
         if (ddtrace_span_is_entrypoint_root(&span->span) && !zend_is_identical(&span->property_service, value)) {
@@ -573,6 +591,9 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
         cache_slot = NULL;
     } else if (zend_string_equals_literal(prop_name, "samplingPriority")) {
         span->explicit_sampling_priority = zval_get_long(value) != DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
+#ifdef __linux__
+        sampling_priority_changed = true;
+#endif
         cache_slot = NULL;
     }
 
@@ -581,7 +602,22 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
 #else
     ddtrace_span_data_readonly(object, member, value, cache_slot);
 #endif
+    if (trace_id_changed) {
+        span->trace_flags = (span->trace_flags & ~DDTRACE_TRACE_FLAG_RANDOM)
+            | (trace_id_random ? DDTRACE_TRACE_FLAG_RANDOM : 0);
+#ifdef __linux__
+        ddtrace_otel_update_trace_id(span);
+#endif
+    }
+#ifdef __linux__
+    if (sampling_priority_changed) {
+        ddtrace_otel_update_trace_flags(span);
+    }
+#endif
     if (root_span_data_changed) {
+#ifdef __linux__
+        ddtrace_otel_update_attribute_values(span);
+#endif
         ddtrace_sidecar_submit_root_span_data();
     }
 #if PHP_VERSION_ID >= 70400
@@ -1864,7 +1900,9 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
             targeting_key,
             subject_attributes_json,
             allocation_key,
-            variant
+            variant,
+            result.serial_id,
+            result.has_serial_id
         );
         zend_string_release(subject_attributes_json);
     }
@@ -1876,6 +1914,13 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     ddtrace_ffe_update_long_property(return_value, ZEND_STRL("reason"), ddtrace_ffe_effective_reason(result.reason, result.error_code));
     ddtrace_ffe_update_long_property(return_value, ZEND_STRL("errorCode"), result.error_code);
     ddtrace_ffe_update_bool_property(return_value, ZEND_STRL("doLog"), result.do_log);
+    // serialId is only populated when the native result actually carried one
+    // (has_serial_id). It stays null otherwise so the PHP accumulator can use
+    // the Pattern B "missing variant => runtime default" branch, rather than
+    // mistaking a 0 sentinel for a real serial id.
+    if (result.has_serial_id) {
+        ddtrace_ffe_update_long_property(return_value, ZEND_STRL("serialId"), (zend_long)result.serial_id);
+    }
     ddtrace_ffe_update_empty_array_property(return_value, ZEND_STRL("providerState"));
 }
 
@@ -2035,6 +2080,10 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             if (datadog_process_tags_enabled()) {
                 datadog_process_tags_reload();
                 datadog_sidecar_update_process_tags();
+#ifdef __linux__
+                zend_string *process_tags = datadog_process_tags_get_serialized();
+                datadog_publish_otel_process_context(dd_zend_string_to_CharSlice(process_tags));
+#endif
             }
             RETVAL_TRUE;
         } else if (params_count == 1 && FUNCTION_NAME_MATCHES("set_container_tags_hash")) {
@@ -2119,6 +2168,31 @@ PHP_FUNCTION(dd_trace_internal_fn) {
                 waited += 10;
             }
             RETVAL_BOOL(ddog_is_agent_info_ready());
+        // await_ffe_config is a test/debug helper (like the other
+        // dd_trace_internal_fn helpers): it actively pumps Remote Config and can
+        // block for up to 5s, so long-running CLI test servers (the system-tests
+        // parametric app / ffe-dogfooding harness) can deterministically wait for
+        // the pushed UFC before evaluating.
+        } else if (FUNCTION_NAME_MATCHES("await_ffe_config")) {
+            // Block until the sidecar has delivered an FFE (FFE_FLAGS) Remote Config update and the
+            // worker has applied it. In long-running CLI servers (e.g. the parametric apps) the
+            // SIGVTALRM-driven remote-config refresh is starved because the process spends most of
+            // its time blocked in IO rather than burning CPU time, so an evaluation issued right
+            // after the agent ACKnowledges the config would otherwise still see no config and fall
+            // back to defaults. Actively pump remote configs here (same shape as await_agent_info)
+            // so feature-flag evaluation observes the pushed UFC. Times out after 5 seconds.
+            uint32_t timeout_ms = 5000;
+            if (params_count == 1) {
+                timeout_ms = (uint32_t)Z_LVAL_P(ZVAL_VARARG_PARAM(params, 0));
+            }
+            uint32_t waited = 0;
+            while (!ddog_ffe_has_config() && waited < timeout_ms) {
+                // Actively read the SHM so we pick up the update the sidecar wrote.
+                datadog_check_for_new_config_now();
+                usleep(10000); // 10ms
+                waited += 10;
+            }
+            RETVAL_BOOL(ddog_ffe_has_config());
         } else if (FUNCTION_NAME_MATCHES("get_loaded_remote_configs")) {
             // Returns a PHP array mapping loaded RC config IDs to their content summary.
             // e.g. ["datadog/2/LIVE_DEBUGGING/logProbe_log.../config" => ["type"=>"probe","id"=>"log..."]]
@@ -2255,6 +2329,7 @@ PHP_FUNCTION(dd_trace_set_trace_id) {
     datadog_trace_id new_trace_id = ddtrace_parse_userland_trace_id(trace_id);
     if (new_trace_id.low || new_trace_id.high || (ZSTR_LEN(trace_id) == 1 && ZSTR_VAL(trace_id)[0] == '0')) {
         DDTRACE_G(distributed_trace_id) = new_trace_id;
+        DDTRACE_G(distributed_trace_flags) = new_trace_id.low || new_trace_id.high ? 0 : DDTRACE_TRACE_FLAG_RANDOM;
         RETURN_TRUE;
     }
 
@@ -2688,13 +2763,19 @@ PHP_FUNCTION(DDTrace_set_distributed_tracing_context) {
                 .low = root_span->span_id,
                 .time = get_DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED() ? root_span->start / ZEND_NANO_IN_SEC : 0,
             };
+            root_span->trace_flags = DDTRACE_TRACE_FLAG_RANDOM;
         } else {
             root_span->trace_id = new_trace_id;
+            root_span->trace_flags = 0;
         }
         ddtrace_update_root_id_properties(root_span);
+#ifdef __linux__
+        ddtrace_otel_update_trace_id(root_span);
+#endif
     } else {
         DDTRACE_G(distributed_trace_id) = new_trace_id;
         DDTRACE_G(distributed_parent_trace_id) = new_parent_id;
+        DDTRACE_G(distributed_trace_flags) = new_trace_id.low || new_trace_id.high ? 0 : DDTRACE_TRACE_FLAG_RANDOM;
     }
 
     if (origin) {

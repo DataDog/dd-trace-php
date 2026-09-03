@@ -35,6 +35,16 @@ final class InteroperabilityTest extends BaseTestCase
 {
     use TracerTestTrait, SpanAssertionTrait;
 
+    /**
+     * The OTel context level 2 random state flag.
+     *
+     * This exists instead of using ::RANDOM on the SDK because that requires v1.8 and we support
+     * older versions to support PHP 7.
+     *
+     * @see https://www.w3.org/TR/trace-context-2/#random-trace-id-flag
+     */
+    private const TRACE_FLAG_RANDOM = 0x02;
+
     // TODO: Implement AttributesBuilder and add a method to retrieve the attributeCountLimit
 
     public function ddSetUp(): void
@@ -250,6 +260,8 @@ final class InteroperabilityTest extends BaseTestCase
             $OTelScope = $OTelSpan->activate();
 
             $currentSpan = Span::getCurrent();
+            $traceFlags = $currentSpan->getContext()->getTraceFlags();
+            $this->assertSame(TraceFlags::SAMPLED | self::TRACE_FLAG_RANDOM, $traceFlags);
             $this->assertSame($ddSpan, $currentSpan->getDDSpan());
 
             $OTelScope->detach();
@@ -607,6 +619,76 @@ final class InteroperabilityTest extends BaseTestCase
                         )
                 ),
         ], true, false);
+    }
+
+    public function testW3CInteroperabilityWithPropagationBehaviorRestart()
+    {
+        self::putEnvAndReloadConfig(['DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT=restart']);
+        try {
+            $this->isolateTracer(function () {
+                $tracer = self::getTracer();
+                $propagator = TraceContextPropagator::getInstance();
+
+                $carrier = [
+                    TraceContextPropagator::TRACEPARENT => '00-ff0000000000051791e0000000000041-ff00051791e00041-01',
+                ];
+
+                $context = $propagator->extract($carrier);
+
+                $OTelRootSpan = $tracer->spanBuilder("otel.root.span")
+                    ->setParent($context)
+                    ->startSpan();
+
+                $root = \DDTrace\root_span();
+
+                // Fresh trace: different from upstream trace ID
+                $this->assertNotSame('ff0000000000051791e0000000000041', $root->traceId);
+
+                // Span link capturing the upstream context
+                $this->assertCount(1, $root->links);
+                $link = $root->links[0];
+                $this->assertSame('ff0000000000051791e0000000000041', $link->traceId);
+                $this->assertSame('ff00051791e00041', $link->spanId);
+                $this->assertSame('propagation_behavior_extract', $link->attributes['reason'] ?? null);
+
+                $OTelRootSpan->end();
+            });
+        } finally {
+            self::putEnvAndReloadConfig(['DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT=continue']);
+        }
+    }
+
+    public function testW3CInteroperabilityWithPropagationBehaviorIgnore()
+    {
+        self::putEnvAndReloadConfig(['DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT=ignore']);
+        try {
+            $this->isolateTracer(function () {
+                $tracer = self::getTracer();
+                $propagator = TraceContextPropagator::getInstance();
+
+                $carrier = [
+                    TraceContextPropagator::TRACEPARENT => '00-ff0000000000051791e0000000000041-ff00051791e00041-01',
+                ];
+
+                $context = $propagator->extract($carrier);
+
+                $OTelRootSpan = $tracer->spanBuilder("otel.root.span")
+                    ->setParent($context)
+                    ->startSpan();
+
+                $root = \DDTrace\root_span();
+
+                // Fresh trace: no parent ID
+                $this->assertSame(0, $root->parentId ?? 0);
+
+                // No span links
+                $this->assertCount(0, $root->links);
+
+                $OTelRootSpan->end();
+            });
+        } finally {
+            self::putEnvAndReloadConfig(['DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT=continue']);
+        }
     }
 
     public function testW3CInteroperability()
@@ -1328,7 +1410,7 @@ final class InteroperabilityTest extends BaseTestCase
     {
         // //1. OpenTelemetry Baggage is Propagated to Datadog
         $otelToDatadog = $this->isolateTracer(function () {
-            $tracer = (new TracerProvider())->getTracer('OpenTelemetry.TestTracer');
+            $tracer = (new TracerProvider([], new AlwaysOnSampler()))->getTracer('OpenTelemetry.TestTracer');
 
             $parentSpan = $tracer->spanBuilder('parent')
                 ->setSpanKind(SpanKind::KIND_CLIENT)
@@ -1357,7 +1439,7 @@ final class InteroperabilityTest extends BaseTestCase
             $span->name = "dd.span";
             $span->baggage["dd_key"] = "dd_value";
 
-            $tracer = (new TracerProvider())->getTracer('OpenTelemetry.TestTracer');
+            $tracer = (new TracerProvider([], new AlwaysOnSampler()))->getTracer('OpenTelemetry.TestTracer');
             $baggage = Baggage::getCurrent();
 
             $this->assertSame('dd_value', $baggage->getValue('dd_key'));
@@ -1366,7 +1448,7 @@ final class InteroperabilityTest extends BaseTestCase
 
         // 3. Conflict Handling Between OpenTelemetry and Datadog Baggage Keys
         $datadogAndOtelSharingKeys = $this->isolateTracer(function () {
-            $tracer = (new TracerProvider())->getTracer('OpenTelemetry.TestTracer');
+            $tracer = (new TracerProvider([], new AlwaysOnSampler()))->getTracer('OpenTelemetry.TestTracer');
 
             $parentSpan = $tracer->spanBuilder('parent')
                 ->setSpanKind(SpanKind::KIND_SERVER)
@@ -1396,7 +1478,7 @@ final class InteroperabilityTest extends BaseTestCase
 
         // 4. OpenTelemetry Baggage Removal Reflects in Datadog
         $otelDeletedOnDatadog = $this->isolateTracer(function () {
-            $tracer = (new TracerProvider())->getTracer('OpenTelemetry.TestTracer');
+            $tracer = (new TracerProvider([], new AlwaysOnSampler()))->getTracer('OpenTelemetry.TestTracer');
 
             $baggage = Baggage::getBuilder()
                 ->set('otel_key', 'otel_value')

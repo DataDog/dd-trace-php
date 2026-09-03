@@ -3,14 +3,16 @@
 namespace DDTrace\FeatureFlags;
 
 use DDTrace\FeatureFlags\Internal\NativeEvaluator;
+use DDTrace\Log\Logger as GlobalLogger;
 use DDTrace\Log\LoggerInterface;
-use DDTrace\Log\TriggerErrorLogger;
+use DDTrace\Log\NonThrowingLogger;
 
 final class Client
 {
     private $evaluator;
+    /** @var LoggerInterface */
     private $logger;
-    private $warnedAboutNonProductionRuntime = false;
+    private $warnedAboutRuntimeNotReady = false;
 
     public function __construct($logger = null)
     {
@@ -19,7 +21,7 @@ final class Client
         }
 
         $this->evaluator = NativeEvaluator::create();
-        $this->logger = $logger ?: new TriggerErrorLogger();
+        $this->logger = new NonThrowingLogger($logger ?: GlobalLogger::get());
     }
 
     /**
@@ -115,7 +117,7 @@ final class Client
             $attributes
         );
 
-        $this->warnIfNonProductionRuntime($details);
+        $this->warnIfRuntimeNotReady($details);
 
         return $details;
     }
@@ -139,24 +141,23 @@ final class Client
         return array($targetingKey, $attributes);
     }
 
-    private function warnIfNonProductionRuntime(EvaluationDetails $details)
+    private function warnIfRuntimeNotReady(EvaluationDetails $details)
     {
-        if ($this->warnedAboutNonProductionRuntime) {
+        if ($this->warnedAboutRuntimeNotReady) {
             return;
         }
 
-        $providerState = $details->getProviderState();
-        if (!array_key_exists('productionRuntime', $providerState) || $providerState['productionRuntime'] !== false) {
+        if ($details->getErrorCode() !== EvaluationErrorCode::PROVIDER_NOT_READY) {
             return;
         }
 
         $message = $details->getErrorMessage();
         if (!is_string($message) || $message === '') {
-            $message = 'Datadog-backed PHP feature flag evaluation is running without exposure and metric reporting in this milestone.';
+            $message = 'Datadog-backed PHP feature flag evaluation is not ready. Returning the default value.';
         }
 
+        $this->warnedAboutRuntimeNotReady = true;
         $this->logger->warning($message);
-        $this->warnedAboutNonProductionRuntime = true;
     }
 
     private function expectFlagKey($flagKey)

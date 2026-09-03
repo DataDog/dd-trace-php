@@ -7,8 +7,7 @@ DD_AGENT_HOST=request-replayer
 DD_TRACE_AGENT_PORT=80
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=0.1
---INI--
-datadog.trace.agent_test_session_token=remote-config/dynamic_config_multiconfig
+DD_TRACE_AGENT_TEST_SESSION_TOKEN=remote-config/dynamic_config_multiconfig
 --FILE--
 <?php
 
@@ -32,6 +31,9 @@ $specific_path = put_dynamic_config_file([
 ]);
 
 dd_trace_internal_fn("await_remote_config");
+if (ini_get("datadog.trace.sample_rate") == "0.3") { // possible race condition, just re-poll
+    dd_trace_internal_fn("await_remote_config");
+}
 
 // Specific config wins for sample_rate; org-level provides log_injection.
 print "After both configs:\n";

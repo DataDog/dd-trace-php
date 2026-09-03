@@ -21,9 +21,9 @@ add_custom_target(libdatadog_stamp
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
 set(EXPORTS_FILE "${CMAKE_BINARY_DIR}/ddtrace_exports.version")
 add_custom_target(ddtrace_exports
-    COMMAND bash -c "{ echo -e '{\\nglobal:'; sed 's/$/;/' '${CMAKE_SOURCE_DIR}'/../datadog.sym; echo -e 'local:\\n*;\\n};'; } > '${EXPORTS_FILE}'"
+    COMMAND bash -c "{ echo -e '{\\nglobal:'; sed 's/$/;/' '${CMAKE_SOURCE_DIR}'/../datadog-linux.sym; echo -e 'local:\\n*;\\n};'; } > '${EXPORTS_FILE}'"
     BYPRODUCT ${EXPORTS_FILE}
-    DEPENDS ${CMAKE_SOURCE_DIR}/../datadog.sym
+    DEPENDS ${CMAKE_SOURCE_DIR}/../datadog-linux.sym
     VERBATIM
 )
 elseif(APPLE)
@@ -56,7 +56,7 @@ ExternalProject_Add(components_rs_proj
     PREFIX ${CMAKE_BINARY_DIR}/components_rs
     SOURCE_DIR ${CMAKE_SOURCE_DIR}/../components-rs
     CONFIGURE_COMMAND ""
-    BUILD_COMMAND RUSTC_BOOTSTRAP=1 ${CARGO_BUILD_ENV} ${CARGO_BUILD_CMD} --target-dir=${CMAKE_BINARY_DIR}/components_rs
+    BUILD_COMMAND ${CARGO_BUILD_ENV} ${CARGO_BUILD_CMD} --target-dir=${CMAKE_BINARY_DIR}/components_rs
     INSTALL_COMMAND ""
     DEPENDS libdatadog_stamp
     BUILD_IN_SOURCE TRUE

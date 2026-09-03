@@ -36,6 +36,13 @@
         "default": "true"
       }
     ],
+    "DD_APPSEC_AGENTIC_ONBOARDING": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": ""
+      }
+    ],
     "DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING_ENABLED": [
       {
         "implementation": "A",
@@ -177,6 +184,13 @@
         "implementation": "A",
         "type": "boolean",
         "default": "true"
+      }
+    ],
+    "DD_APPSEC_RAW_RESPONSE_BODY_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
       }
     ],
     "DD_APPSEC_RULES": [
@@ -333,6 +347,13 @@
         "default": "http://localhost:8125"
       }
     ],
+    "DD_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT_MS": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "15"
+      }
+    ],
     "DD_DYNAMIC_INSTRUMENTATION_ENABLED": [
       {
         "implementation": "A",
@@ -390,6 +411,13 @@
       }
     ],
     "DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED": [
       {
         "implementation": "A",
         "type": "boolean",
@@ -779,9 +807,9 @@
     ],
     "DD_TRACE_AGENT_TIMEOUT": [
       {
-        "implementation": "B",
+        "implementation": "C",
         "type": "int",
-        "default": "500"
+        "default": "3000"
       }
     ],
     "DD_TRACE_AGENT_URL": [
@@ -1993,6 +2021,13 @@
         "implementation": "A",
         "type": "boolean",
         "default": "false"
+      }
+    ],
+    "DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT": [
+      {
+        "implementation": "B",
+        "type": "string",
+        "default": "continue"
       }
     ],
     "DD_TRACE_PROPAGATION_STYLE": [
