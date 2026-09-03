@@ -239,9 +239,9 @@ pub unsafe extern "C" fn callback(
         std::str::from_utf8(image_name).unwrap_or("[Unknown]")
     };
 
-    // I guess if we try to hook into GOT from `linux-vdso` or `ld-linux` our best outcome will be
-    // that nothing happens, but most likely we'll crash and we should avoid that.
-    if name.contains("linux-vdso") || name.contains("ld-linux") {
+    // I guess if we try to hook into GOT from `linux-vdso`, `ld-linux` or `ld-musl` our best
+    // outcome will be that nothing happens, but most likely we'll crash and we should avoid that.
+    if name.contains("linux-vdso") || name.contains("ld-linux") || name.contains("ld-musl") {
         return 0;
     }
 
