@@ -448,58 +448,277 @@ void ddog_init_span_func(void (*free_func)(ddog_OwnedZendString),
                          void (*addref_func)(struct _zend_string*),
                          ddog_OwnedZendString (*init_func)(ddog_CharSlice));
 
-void ddog_set_span_service_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
+/**
+ * Appends a chunk carrying the 128-bit trace id (high/low halves), returning its index.
+ */
+uintptr_t ddog_new_chunk(ddog_TracerPayloadV1Builder *builder,
+                         uint64_t trace_id_high,
+                         uint64_t trace_id_low);
 
-void ddog_set_span_name_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
+/**
+ * Appends an empty span to `chunk`, returning its index.
+ */
+uintptr_t ddog_new_span(ddog_TracerPayloadV1Builder *builder, uintptr_t chunk);
 
-void ddog_set_span_resource_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
+/**
+ * Appends an empty link to a span, returning its index.
+ */
+uintptr_t ddog_new_link(ddog_TracerPayloadV1Builder *builder, uintptr_t chunk, uintptr_t span);
 
-void ddog_set_span_type_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
+/**
+ * Appends an empty event to a span, returning its index.
+ */
+uintptr_t ddog_new_event(ddog_TracerPayloadV1Builder *builder, uintptr_t chunk, uintptr_t span);
 
-void ddog_add_span_meta_zstr(ddog_SpanBytes *ptr,
-                             struct _zend_string *key,
-                             struct _zend_string *val);
+void ddog_span_set_id(ddog_TracerPayloadV1Builder *builder,
+                      uintptr_t chunk,
+                      uintptr_t span,
+                      uint64_t value);
 
-void ddog_add_CharSlice_span_meta_zstr(ddog_SpanBytes *ptr,
-                                       ddog_CharSlice key,
-                                       struct _zend_string *val);
+void ddog_span_set_parent_id(ddog_TracerPayloadV1Builder *builder,
+                             uintptr_t chunk,
+                             uintptr_t span,
+                             uint64_t value);
 
-void ddog_add_zstr_span_meta_str(ddog_SpanBytes *ptr, struct _zend_string *key, const char *val);
+void ddog_span_set_start(ddog_TracerPayloadV1Builder *builder,
+                         uintptr_t chunk,
+                         uintptr_t span,
+                         int64_t value);
 
-void ddog_add_str_span_meta_str(ddog_SpanBytes *ptr, const char *key, const char *val);
+void ddog_span_set_duration(ddog_TracerPayloadV1Builder *builder,
+                            uintptr_t chunk,
+                            uintptr_t span,
+                            int64_t value);
 
-void ddog_add_str_span_meta_zstr(ddog_SpanBytes *ptr, const char *key, struct _zend_string *val);
+void ddog_span_set_error(ddog_TracerPayloadV1Builder *builder,
+                         uintptr_t chunk,
+                         uintptr_t span,
+                         bool error);
 
-void ddog_add_str_span_meta_CharSlice(ddog_SpanBytes *ptr, const char *key, ddog_CharSlice val);
+void ddog_set_span_service_zstr(ddog_TracerPayloadV1Builder *builder,
+                                uintptr_t chunk,
+                                uintptr_t span,
+                                struct _zend_string *str);
 
-void ddog_del_span_meta_zstr(ddog_SpanBytes *ptr, struct _zend_string *key);
+void ddog_set_span_name_zstr(ddog_TracerPayloadV1Builder *builder,
+                             uintptr_t chunk,
+                             uintptr_t span,
+                             struct _zend_string *str);
 
-void ddog_del_span_meta_str(ddog_SpanBytes *ptr, const char *key);
+void ddog_set_span_resource_zstr(ddog_TracerPayloadV1Builder *builder,
+                                 uintptr_t chunk,
+                                 uintptr_t span,
+                                 struct _zend_string *str);
 
-bool ddog_has_span_meta_zstr(ddog_SpanBytes *ptr, struct _zend_string *key);
+void ddog_set_span_type_zstr(ddog_TracerPayloadV1Builder *builder,
+                             uintptr_t chunk,
+                             uintptr_t span,
+                             struct _zend_string *str);
 
-bool ddog_has_span_meta_str(ddog_SpanBytes *ptr, const char *key);
+void ddog_set_span_env(ddog_TracerPayloadV1Builder *builder,
+                       uintptr_t chunk,
+                       uintptr_t span,
+                       ddog_CharSlice value);
 
-ddog_CharSlice ddog_get_span_meta_str(ddog_SpanBytes *span, const char *key);
+void ddog_set_span_version(ddog_TracerPayloadV1Builder *builder,
+                           uintptr_t chunk,
+                           uintptr_t span,
+                           ddog_CharSlice value);
 
-void ddog_add_span_metrics_zstr(ddog_SpanBytes *ptr, struct _zend_string *key, double val);
+void ddog_set_span_component(ddog_TracerPayloadV1Builder *builder,
+                             uintptr_t chunk,
+                             uintptr_t span,
+                             ddog_CharSlice value);
 
-bool ddog_has_span_metrics_zstr(ddog_SpanBytes *ptr, struct _zend_string *key);
+/**
+ * Sets the span kind from an OTEL wire value (unset/unknown → Internal).
+ */
+void ddog_set_span_kind(ddog_TracerPayloadV1Builder *builder,
+                        uintptr_t chunk,
+                        uintptr_t span,
+                        uint32_t kind);
 
-void ddog_del_span_metrics_zstr(ddog_SpanBytes *ptr, struct _zend_string *key);
+/**
+ * Sets the span kind from a v0.4 `span.kind` meta string (mapping owned by libdatadog's
+ * `SpanKind::from_meta`; unknown → Internal).
+ */
+void ddog_set_span_kind_str(ddog_TracerPayloadV1Builder *builder,
+                            uintptr_t chunk,
+                            uintptr_t span,
+                            ddog_CharSlice value);
 
-void ddog_add_span_metrics_str(ddog_SpanBytes *ptr, const char *key, double val);
+void ddog_add_span_attr_cs_cs(ddog_TracerPayloadV1Builder *builder,
+                              uintptr_t chunk,
+                              uintptr_t span,
+                              ddog_CharSlice key,
+                              ddog_CharSlice value);
 
-bool ddog_get_span_metrics_str(ddog_SpanBytes *ptr, const char *key, double *result);
+void ddog_add_span_attr_lit_cs(ddog_TracerPayloadV1Builder *builder,
+                               uintptr_t chunk,
+                               uintptr_t span,
+                               const char *key,
+                               ddog_CharSlice value);
 
-void ddog_del_span_metrics_str(ddog_SpanBytes *ptr, const char *key);
+void ddog_add_span_attr_zstr_cs(ddog_TracerPayloadV1Builder *builder,
+                                uintptr_t chunk,
+                                uintptr_t span,
+                                struct _zend_string *key,
+                                ddog_CharSlice value);
 
-void ddog_add_span_meta_struct_zstr(ddog_SpanBytes *ptr,
+void ddog_add_span_attr_zstr_zstr(ddog_TracerPayloadV1Builder *builder,
+                                  uintptr_t chunk,
+                                  uintptr_t span,
+                                  struct _zend_string *key,
+                                  struct _zend_string *value);
+
+/**
+ * Adds a numeric (double) attribute under a `CharSlice` key.
+ */
+void ddog_add_span_attr_double_cs(ddog_TracerPayloadV1Builder *builder,
+                                  uintptr_t chunk,
+                                  uintptr_t span,
+                                  ddog_CharSlice key,
+                                  double value);
+
+/**
+ * Adds a numeric (double) attribute under a static C literal key.
+ */
+void ddog_add_span_attr_double_lit(ddog_TracerPayloadV1Builder *builder,
+                                   uintptr_t chunk,
+                                   uintptr_t span,
+                                   const char *key,
+                                   double value);
+
+/**
+ * Adds a numeric (double) attribute under a `ZendString` key.
+ */
+void ddog_add_span_attr_double_zstr(ddog_TracerPayloadV1Builder *builder,
+                                    uintptr_t chunk,
+                                    uintptr_t span,
                                     struct _zend_string *key,
-                                    struct _zend_string *val);
+                                    double value);
 
-void ddog_add_zstr_span_meta_struct_CharSlice(ddog_SpanBytes *ptr,
-                                              struct _zend_string *key,
-                                              ddog_CharSlice val);
+/**
+ * Adds a bytes-valued attribute (v0.4 `meta_struct`) under a `ZendString` key. The value bytes are
+ * copied verbatim and encoded as msgpack `bin`.
+ */
+void ddog_add_span_attr_bytes_zstr(ddog_TracerPayloadV1Builder *builder,
+                                   uintptr_t chunk,
+                                   uintptr_t span,
+                                   struct _zend_string *key,
+                                   ddog_CharSlice value);
+
+/**
+ * Whether the span carries an attribute under `key` (`ZendString`). Mirrors the v0.4
+ * `has_span_meta`/`has_span_metrics` guard so the generic loops never overwrite a promoted value.
+ */
+bool ddog_has_span_attr_zstr(const ddog_TracerPayloadV1Builder *builder,
+                             uintptr_t chunk,
+                             uintptr_t span,
+                             struct _zend_string *key);
+
+/**
+ * Removes the attribute under a static C literal `key`, returning whether it was present.
+ */
+bool ddog_del_span_attr_lit(ddog_TracerPayloadV1Builder *builder,
+                            uintptr_t chunk,
+                            uintptr_t span,
+                            const char *key);
+
+/**
+ * Copies the attribute under a static C literal `key` from `from_span` onto `to_span` (both within
+ * `chunk`), returning whether the source carried it. When `delete_source` is set, it is also removed
+ * from the source. Replicates the v0.4 `transfer_meta_data`/`transfer_metrics_data` inferred-span
+ * merge; the unified V1 map subsumes both string and numeric cases with a type-preserving copy. The
+ * read (clone) completes before any mutable borrow, so the whole op routes through a single `&mut`.
+ */
+bool ddog_transfer_span_attr(ddog_TracerPayloadV1Builder *builder,
+                             uintptr_t chunk,
+                             uintptr_t from_span,
+                             uintptr_t to_span,
+                             const char *key,
+                             bool delete_source);
+
+void ddog_set_chunk_origin(ddog_TracerPayloadV1Builder *builder,
+                           uintptr_t chunk,
+                           ddog_CharSlice origin);
+
+void ddog_set_chunk_dropped_trace(ddog_TracerPayloadV1Builder *builder,
+                                  uintptr_t chunk,
+                                  bool dropped);
+
+void ddog_set_chunk_sampling_priority(ddog_TracerPayloadV1Builder *builder,
+                                      uintptr_t chunk,
+                                      int32_t priority);
+
+void ddog_set_chunk_sampling_mechanism(ddog_TracerPayloadV1Builder *builder,
+                                       uintptr_t chunk,
+                                       uint32_t mechanism);
+
+void ddog_link_set_trace_id(ddog_TracerPayloadV1Builder *builder,
+                            uintptr_t chunk,
+                            uintptr_t span,
+                            uintptr_t link,
+                            uint64_t trace_id_high,
+                            uint64_t trace_id_low);
+
+void ddog_link_set_span_id(ddog_TracerPayloadV1Builder *builder,
+                           uintptr_t chunk,
+                           uintptr_t span,
+                           uintptr_t link,
+                           uint64_t value);
+
+void ddog_link_set_tracestate(ddog_TracerPayloadV1Builder *builder,
+                              uintptr_t chunk,
+                              uintptr_t span,
+                              uintptr_t link,
+                              ddog_CharSlice value);
+
+void ddog_link_add_attr_str(ddog_TracerPayloadV1Builder *builder,
+                            uintptr_t chunk,
+                            uintptr_t span,
+                            uintptr_t link,
+                            ddog_CharSlice key,
+                            ddog_CharSlice value);
+
+void ddog_event_set_name(ddog_TracerPayloadV1Builder *builder,
+                         uintptr_t chunk,
+                         uintptr_t span,
+                         uintptr_t event,
+                         ddog_CharSlice value);
+
+void ddog_event_set_time(ddog_TracerPayloadV1Builder *builder,
+                         uintptr_t chunk,
+                         uintptr_t span,
+                         uintptr_t event,
+                         uint64_t time_unix_nano);
+
+void ddog_event_add_attr_str(ddog_TracerPayloadV1Builder *builder,
+                             uintptr_t chunk,
+                             uintptr_t span,
+                             uintptr_t event,
+                             ddog_CharSlice key,
+                             ddog_CharSlice value);
+
+void ddog_event_add_attr_int(ddog_TracerPayloadV1Builder *builder,
+                             uintptr_t chunk,
+                             uintptr_t span,
+                             uintptr_t event,
+                             ddog_CharSlice key,
+                             int64_t value);
+
+void ddog_event_add_attr_double(ddog_TracerPayloadV1Builder *builder,
+                                uintptr_t chunk,
+                                uintptr_t span,
+                                uintptr_t event,
+                                ddog_CharSlice key,
+                                double value);
+
+void ddog_event_add_attr_bool(ddog_TracerPayloadV1Builder *builder,
+                              uintptr_t chunk,
+                              uintptr_t span,
+                              uintptr_t event,
+                              ddog_CharSlice key,
+                              bool value);
 
 #endif  /* DDTRACE_PHP_H */
