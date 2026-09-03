@@ -104,8 +104,8 @@ Version => %s
 Injection success => false
 Injection error => Incompatible runtime
 Extra config => datadog.trace.sources_path=%s/trace/src
-datadog.profiling.enabled=0
 ddtrace.disable=1
+datadog.profiling.enabled=0
 
 %A
 OPcache JIT is enabled and may cause instability. ddtrace will be disabled unless the environment DD_INJECT_FORCE is set to '1', 'true', 'yes' or 'on'
