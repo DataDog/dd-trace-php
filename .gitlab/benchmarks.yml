@@ -232,6 +232,11 @@ check-big-regressions:
 
 .macrobenchmarks:
   stage: benchmarks
+  needs:
+    - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+    - job: datadog-setup.php
+      artifacts: true
   rules: *macrobenchmarks-rules
   tags: ["runner:apm-k8s-same-cpu"]
   timeout: 1h
