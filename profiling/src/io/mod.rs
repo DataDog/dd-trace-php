@@ -31,13 +31,15 @@ struct ErrnoBackup {
 impl ErrnoBackup {
     /// Snapshots the current `errno` value.
     #[inline]
-    unsafe fn new() -> Self {
+    fn new() -> Self {
+        // SAFETY: libc::__errno_location() (Linux) / libc::__error() (macOS) returns a valid,
+        // non-null pointer to the calling thread's errno lvalue, safe for reading.
         #[cfg(target_os = "linux")]
-        let location = libc::__errno_location();
+        let location = unsafe { libc::__errno_location() };
         #[cfg(target_os = "macos")]
-        let location = libc::__error();
+        let location = unsafe { libc::__error() };
         Self {
-            errno: *location,
+            errno: unsafe { *location },
             location,
         }
     }

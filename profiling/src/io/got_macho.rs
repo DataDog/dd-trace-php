@@ -681,8 +681,9 @@ pub unsafe fn restore_symbols(restores: &mut Vec<GotSlotRestore>) -> bool {
 fn seg_name(seg: &libc::segment_command_64) -> &str {
     let bytes = &seg.segname;
     let len = bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len());
-    // SAFETY: segment names are always ASCII; cast from &[i8] to &[u8] is safe
-    // because i8 and u8 have the same size and alignment.
+    // SAFETY: `seg.segname` is a fixed 16-byte array that outlives the returned reference.
+    // Casting from `*const c_char` (`*const i8`) to `*const u8` is safe because `i8` and `u8`
+    // have identical size (1 byte) and alignment, and `len` is bounded by the array length.
     let bytes: &[u8] = unsafe { std::slice::from_raw_parts(bytes.as_ptr() as *const u8, len) };
     std::str::from_utf8(bytes).unwrap_or("")
 }
