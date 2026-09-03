@@ -113,6 +113,10 @@ DATADOG_PUBLIC ddog_SidecarTransport **ddtrace_get_sidecar_transport(void) {
 }
 #endif
 
+static ddog_SidecarTransport *datadog_sidecar_connect_callback(void) {
+    return datadog_sidecar_connect(false);
+}
+
 static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_fork, const char *logpath) {
     if (!datadog_ffi_try("Failed starting AppSec in sidecar",
             ddog_sidecar_ensure_appsec_started(transport))) {
@@ -254,8 +258,9 @@ static ddog_SidecarTransport *dd_sidecar_connect(bool as_worker, bool is_fork) {
 
     ddog_SidecarTransport *sidecar_transport;
     if (as_worker) {
-        if (!datadog_ffi_try("Failed connecting to the sidecar as worker",
-                             ddog_sidecar_connect_worker((int32_t)datadog_sidecar_master_pid, &sidecar_transport))) {
+        // The parent might have exited when this is reached. No need for an error-level message here, that's expected. Handle it gracefully.
+        ddog_MaybeError connect_worker_err = ddog_sidecar_connect_worker((int32_t)datadog_sidecar_master_pid, &sidecar_transport);
+        if (connect_worker_err.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
 #ifdef _WIN32
             int32_t current_pid = (int32_t)GetCurrentProcessId();
 #else
@@ -263,6 +268,7 @@ static ddog_SidecarTransport *dd_sidecar_connect(bool as_worker, bool is_fork) {
 #endif
             // If we're an orphaned child, promote this process to master so traces can still be submitted.
             if (current_pid != datadog_sidecar_master_pid) {
+                ddog_MaybeError_drop(connect_worker_err);
                 LOG(INFO, "Parent's sidecar listener gone (child PID=%d, master=%d), promoting to master",
                     current_pid, datadog_sidecar_master_pid);
                 datadog_sidecar_master_pid = current_pid;
@@ -274,12 +280,17 @@ static ddog_SidecarTransport *dd_sidecar_connect(bool as_worker, bool is_fork) {
                     return NULL;
                 }
             } else {
+                ddog_CharSlice connect_worker_err_msg = ddog_Error_message(&connect_worker_err.some);
+                LOG(ERROR, "Failed connecting to the sidecar as worker: %.*s", (int) connect_worker_err_msg.len, connect_worker_err_msg.ptr);
+                ddog_MaybeError_drop(connect_worker_err);
                 LOG(ERROR, "Failed connecting to own sidecar master listener (PID=%d)", current_pid);
                 dd_free_endpoints();
                 return NULL;
             }
         }
         datadog_sidecar_active_mode = DD_SIDECAR_CONNECTION_THREAD;
+        // Worker connections fall back to becoming master, when their connection to the parent gets lost
+        datadog_sidecar_set_reconnect_fn(&sidecar_transport, datadog_sidecar_connect_callback);
     } else {
         if (!datadog_ffi_try("Failed connecting to the sidecar (subprocess mode)",
                 ddog_sidecar_connect_php(&sidecar_transport, logpath,
@@ -392,10 +403,6 @@ ddog_SidecarTransport *datadog_sidecar_connect(bool is_fork) {
     }
 
     return transport;
-}
-
-static ddog_SidecarTransport *datadog_sidecar_connect_callback(void) {
-    return datadog_sidecar_connect(false);
 }
 
 static bool datadog_sidecar_configure_appsec(bool *appsec_activation, bool *appsec_config) {

@@ -267,14 +267,22 @@ pub extern "C" fn ddog_sidecar_connect_php(
 pub extern "C" fn datadog_sidecar_reconnect(
     transport: &mut Box<SidecarTransport>,
     factory: unsafe extern "C" fn() -> Option<Box<SidecarTransport>>,
-) {
+) -> bool {
     transport.reconnect(|| unsafe {
         let sidecar = factory();
         if sidecar.is_some() {
             LazyStatic::initialize(&SHM_LIMITER);
         }
         sidecar
-    });
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn datadog_sidecar_set_reconnect_fn(
+    transport: &mut Box<SidecarTransport>,
+    factory: unsafe extern "C" fn() -> Option<Box<SidecarTransport>>,
+) {
+    transport.reconnect_fn = Some(Box::new(move || unsafe { factory() }));
 }
 
 lazy_static! {

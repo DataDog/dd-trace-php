@@ -265,8 +265,11 @@ ddog_MaybeError ddog_sidecar_connect_php(struct ddog_SidecarTransport **connecti
                                          uint64_t backpressure_bytes,
                                          uint64_t backpressure_queue);
 
-void datadog_sidecar_reconnect(struct ddog_SidecarTransport **transport,
+bool datadog_sidecar_reconnect(struct ddog_SidecarTransport **transport,
                                struct ddog_SidecarTransport *(*factory)(void));
+
+void datadog_sidecar_set_reconnect_fn(struct ddog_SidecarTransport **transport,
+                                      struct ddog_SidecarTransport *(*factory)(void));
 
 bool ddog_shm_limiter_inc(const struct ddog_MaybeShmLimiter *limiter, uint32_t limit);
 
