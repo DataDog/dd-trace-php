@@ -447,6 +447,8 @@ typedef enum ddog_SpanProbeTarget {
 
 typedef struct ddog_AgentInfoReader ddog_AgentInfoReader;
 
+typedef struct ddog_Config ddog_Config;
+
 typedef struct ddog_DebuggerPayload ddog_DebuggerPayload;
 
 typedef struct ddog_DslString ddog_DslString;
@@ -725,6 +727,24 @@ typedef struct ddog_Vec_DebuggerPayload {
 typedef uint64_t ddog_QueueId;
 
 /**
+ * A generic result type for when an operation may fail,
+ * but there's nothing to return in the case of success.
+ */
+typedef enum ddog_VoidResult_Tag {
+  DDOG_VOID_RESULT_OK,
+  DDOG_VOID_RESULT_ERR,
+} ddog_VoidResult_Tag;
+
+typedef struct ddog_VoidResult {
+  ddog_VoidResult_Tag tag;
+  union {
+    struct {
+      struct ddog_Error err;
+    };
+  };
+} ddog_VoidResult;
+
+/**
  * A (key, value) pair for peer-service tags, borrowed from PHP/concentrator memory.
  */
 typedef struct ddog_PhpPeerTag {
@@ -953,8 +973,6 @@ typedef enum ddog_FieldType {
   DDOG_FIELD_TYPE_ARG,
   DDOG_FIELD_TYPE_LOCAL,
 } ddog_FieldType;
-
-typedef struct ddog_Config ddog_Config;
 
 typedef struct ddog_Entry ddog_Entry;
 
@@ -1355,13 +1373,6 @@ typedef struct ddog_SenderParameters {
   ddog_CharSlice url;
 } ddog_SenderParameters;
 
-typedef enum ddog_crasht_BuildIdType {
-  DDOG_CRASHT_BUILD_ID_TYPE_GNU,
-  DDOG_CRASHT_BUILD_ID_TYPE_GO,
-  DDOG_CRASHT_BUILD_ID_TYPE_PDB,
-  DDOG_CRASHT_BUILD_ID_TYPE_SHA1,
-} ddog_crasht_BuildIdType;
-
 /**
  * Raw AppSec response returned by `ddog_sidecar_send_appsec_message`.
  *
@@ -1377,6 +1388,13 @@ typedef struct ddog_AppsecCResponse {
    */
   bool disconnect;
 } ddog_AppsecCResponse;
+
+typedef enum ddog_crasht_BuildIdType {
+  DDOG_CRASHT_BUILD_ID_TYPE_GNU,
+  DDOG_CRASHT_BUILD_ID_TYPE_GO,
+  DDOG_CRASHT_BUILD_ID_TYPE_PDB,
+  DDOG_CRASHT_BUILD_ID_TYPE_SHA1,
+} ddog_crasht_BuildIdType;
 
 /**
  * Result type for runtime callback registration
@@ -1525,24 +1543,6 @@ typedef struct ddog_crasht_CrashInfoBuilder ddog_crasht_CrashInfoBuilder;
 typedef struct ddog_crasht_StackFrame ddog_crasht_StackFrame;
 
 typedef struct ddog_crasht_StackTrace ddog_crasht_StackTrace;
-
-/**
- * A generic result type for when an operation may fail,
- * but there's nothing to return in the case of success.
- */
-typedef enum ddog_VoidResult_Tag {
-  DDOG_VOID_RESULT_OK,
-  DDOG_VOID_RESULT_ERR,
-} ddog_VoidResult_Tag;
-
-typedef struct ddog_VoidResult {
-  ddog_VoidResult_Tag tag;
-  union {
-    struct {
-      struct ddog_Error err;
-    };
-  };
-} ddog_VoidResult;
 
 typedef struct ddog_crasht_Slice_CharSlice {
   /**

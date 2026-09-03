@@ -237,16 +237,12 @@ ddog_MaybeError ddog_send_debugger_diagnostics(const struct ddog_RemoteConfigSta
                                                const struct ddog_Probe *probe,
                                                uint64_t timestamp);
 
-void ddog_sidecar_enable_appsec(ddog_CharSlice log_file_path,
-                                ddog_CharSlice log_level);
+struct ddog_VoidResult datadog_crasht_init_with_sidecar(struct ddog_Config ffi_config,
+                                                        ddog_crasht_Metadata metadata,
+                                                        struct ddog_SidecarTransport *transport,
+                                                        int32_t sidecar_master_pid);
 
-#ifndef _WIN32
-struct ddog_VoidResult datadog_crasht_init_with_sidecar(
-    struct ddog_crasht_Config config,
-    struct ddog_crasht_Metadata metadata,
-    struct ddog_SidecarTransport *transport,
-    int32_t sidecar_master_pid);
-#endif
+void ddog_sidecar_enable_appsec(ddog_CharSlice log_file_path, ddog_CharSlice log_level);
 
 /**
  * Starts a thread-mode master listener with the PHP-linked AppSec backend
