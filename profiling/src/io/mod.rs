@@ -102,6 +102,32 @@ unsafe fn restore_slot_if_owned(restore: &GotSlotRestore) -> bool {
 static mut ORIG_POLL: unsafe extern "C" fn(*mut libc::pollfd, libc::nfds_t, c_int) -> i32 =
     libc::poll;
 
+fn eval_poll_events(ret: i32, fds: &[libc::pollfd]) -> (bool, bool) {
+    let mut has_read = false;
+    let mut has_write = false;
+
+    for pfd in fds {
+        let mask = match ret {
+            0 => pfd.events,
+            _ if pfd.revents == 0 => continue,
+            _ if pfd.revents & (libc::POLLIN | libc::POLLOUT) == 0 => pfd.events,
+            _ => pfd.revents,
+        };
+
+        if (mask & libc::POLLIN) != 0 {
+            has_read = true;
+        }
+        if (mask & libc::POLLOUT) != 0 {
+            has_write = true;
+        }
+        if has_read && has_write {
+            break;
+        }
+    }
+
+    (has_read, has_write)
+}
+
 /// The `poll()` libc call has only every been observed when reading/writing to/from a socket,
 /// never when reading/writing to a file. There are two known cases in PHP:
 /// - the PHP stream layer (e.g. `file_get_contents("proto://url")`)
@@ -120,36 +146,22 @@ unsafe extern "C" fn observed_poll(
     let _errno_backup = ErrnoBackup::new();
     let duration = start.elapsed();
 
-    if !fds.is_null() {
+    if ret >= 0 && nfds > 0 && !fds.is_null() {
         let duration_nanos = duration.as_nanos() as u64;
-        if (*fds).revents & 1 == 1 {
-            // requested events contains reading
-            if SOCKET_READ_TIME_PROFILING_STATS
+        let slice = unsafe { std::slice::from_raw_parts(fds, nfds as usize) };
+        let (has_read, has_write) = eval_poll_events(ret, slice);
+
+        if has_read
+            && SOCKET_READ_TIME_PROFILING_STATS
                 .borrow_mut_or_false(|io| io.should_collect(duration_nanos))
-            {
-                collect_socket_read_time(duration_nanos);
-            }
-        } else if (*fds).revents & 4 == 4 {
-            // requested events contains writing
-            if SOCKET_WRITE_TIME_PROFILING_STATS
+        {
+            collect_socket_read_time(duration_nanos);
+        }
+        if has_write
+            && SOCKET_WRITE_TIME_PROFILING_STATS
                 .borrow_mut_or_false(|io| io.should_collect(duration_nanos))
-            {
-                collect_socket_write_time(duration_nanos);
-            }
-        } else if (*fds).events & 1 == 1 {
-            // socket became readable
-            if SOCKET_READ_TIME_PROFILING_STATS
-                .borrow_mut_or_false(|io| io.should_collect(duration_nanos))
-            {
-                collect_socket_read_time(duration_nanos);
-            }
-        } else if (*fds).events & 4 == 4 {
-            // socket became writeable
-            if SOCKET_WRITE_TIME_PROFILING_STATS
-                .borrow_mut_or_false(|io| io.should_collect(duration_nanos))
-            {
-                collect_socket_write_time(duration_nanos);
-            }
+        {
+            collect_socket_write_time(duration_nanos);
         }
     }
 
@@ -784,7 +796,9 @@ pub fn io_prof_mshutdown() -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{restore_matches_image, slot_fits_range, ErrnoBackup, GotSlotRestore};
+    use super::{
+        eval_poll_events, restore_matches_image, slot_fits_range, ErrnoBackup, GotSlotRestore,
+    };
     use static_assertions::assert_not_impl_any;
 
     assert_not_impl_any!(ErrnoBackup: Send, Sync);
@@ -816,5 +830,65 @@ mod tests {
         assert!(unsafe { super::got_elf64::restore_symbols(&mut restores) });
         #[cfg(target_os = "macos")]
         assert!(unsafe { super::got_macho::restore_symbols(&mut restores) });
+    }
+
+    #[test]
+    fn test_eval_poll_events_ready() {
+        let fds = [libc::pollfd {
+            fd: 3,
+            events: libc::POLLIN | libc::POLLOUT,
+            revents: libc::POLLIN,
+        }];
+        assert_eq!(eval_poll_events(1, &fds), (true, false));
+
+        let fds_both = [libc::pollfd {
+            fd: 3,
+            events: libc::POLLIN | libc::POLLOUT,
+            revents: libc::POLLIN | libc::POLLOUT,
+        }];
+        assert_eq!(eval_poll_events(1, &fds_both), (true, true));
+    }
+
+    #[test]
+    fn test_eval_poll_events_timeout() {
+        let fds = [libc::pollfd {
+            fd: 3,
+            events: libc::POLLIN,
+            revents: 0,
+        }];
+        assert_eq!(eval_poll_events(0, &fds), (true, false));
+    }
+
+    #[test]
+    fn test_eval_poll_events_hangup() {
+        let fds = [libc::pollfd {
+            fd: 3,
+            events: libc::POLLOUT,
+            revents: libc::POLLHUP,
+        }];
+        assert_eq!(eval_poll_events(1, &fds), (false, true));
+    }
+
+    #[test]
+    fn test_eval_poll_events_multiple_fds() {
+        let fds = [
+            libc::pollfd {
+                fd: 3,
+                events: libc::POLLIN,
+                revents: 0,
+            },
+            libc::pollfd {
+                fd: 4,
+                events: libc::POLLOUT,
+                revents: libc::POLLOUT,
+            },
+        ];
+        assert_eq!(eval_poll_events(1, &fds), (false, true));
+    }
+
+    #[test]
+    fn test_eval_poll_events_empty() {
+        assert_eq!(eval_poll_events(0, &[]), (false, false));
+        assert_eq!(eval_poll_events(1, &[]), (false, false));
     }
 }
