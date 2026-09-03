@@ -35,13 +35,17 @@ unsafe fn override_got_entry(
 ) -> bool {
     let phdr = (*info).dlpi_phdr;
 
-    // Locate the dynamic programm header (`PT_DYNAMIC`)
+    // Locate the dynamic program header (`PT_DYNAMIC`) and RELRO segment (`PT_GNU_RELRO`)
     let mut dyn_ptr: *const Elf64_Dyn = ptr::null();
+    let mut relro_range: Option<(usize, usize)> = None;
     for i in 0..(*info).dlpi_phnum {
         let phdr_i = phdr.offset(i as isize);
         if (*phdr_i).p_type == PT_DYNAMIC {
             dyn_ptr = ((*info).dlpi_addr as usize + (*phdr_i).p_vaddr as usize) as *const Elf64_Dyn;
-            break;
+        } else if (*phdr_i).p_type == libc::PT_GNU_RELRO {
+            let start = (*info).dlpi_addr as usize + (*phdr_i).p_vaddr as usize;
+            let end = start + (*phdr_i).p_memsz as usize;
+            relro_range = Some((start, end));
         }
     }
     if dyn_ptr.is_null() {
@@ -140,14 +144,21 @@ unsafe fn override_got_entry(
                 let got_entry =
                     ((*info).dlpi_addr as usize + (*rel).r_offset as usize) as *mut *mut ();
 
-                // Change memory protection so we can write to the GOT entry
+                let is_relro = if let Some((start, end)) = relro_range {
+                    (got_entry as usize) >= start && (got_entry as usize) < end
+                } else {
+                    false
+                };
+
+                // Change memory protection so we can write to the GOT entry if protected by RELRO
                 let page_size = libc::sysconf(libc::_SC_PAGESIZE) as usize;
                 let aligned_addr = (got_entry as usize) & !(page_size - 1);
-                if libc::mprotect(
-                    aligned_addr as *mut c_void,
-                    page_size,
-                    libc::PROT_READ | libc::PROT_WRITE,
-                ) != 0
+                if is_relro
+                    && libc::mprotect(
+                        aligned_addr as *mut c_void,
+                        page_size,
+                        libc::PROT_READ | libc::PROT_WRITE,
+                    ) != 0
                 {
                     let err = *libc::__errno_location();
                     trace!("mprotect failed: {}", err);
@@ -182,6 +193,10 @@ unsafe fn override_got_entry(
                     replacement: overwrite.new_func as usize,
                 });
                 *got_entry = overwrite.new_func;
+
+                if is_relro {
+                    libc::mprotect(aligned_addr as *mut c_void, page_size, libc::PROT_READ);
+                }
                 continue;
             }
         }
