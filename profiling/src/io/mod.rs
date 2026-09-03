@@ -12,7 +12,6 @@ use rustc_hash::FxHashMap;
 use std::cell::RefCell;
 use std::mem::MaybeUninit;
 use std::os::unix::io::RawFd;
-use std::ptr;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
@@ -56,7 +55,6 @@ impl Drop for ErrnoBackup {
 pub struct GotSymbolOverwrite {
     pub symbol_name: &'static str,
     pub new_func: *mut (),
-    pub orig_func: *mut *mut (),
 }
 
 pub struct GotHookState<'a> {
@@ -99,9 +97,6 @@ unsafe fn restore_slot_if_owned(restore: &GotSlotRestore) -> bool {
     true
 }
 
-static mut ORIG_POLL: unsafe extern "C" fn(*mut libc::pollfd, libc::nfds_t, c_int) -> i32 =
-    libc::poll;
-
 fn eval_poll_events(ret: i32, fds: &[libc::pollfd]) -> (bool, bool) {
     let mut has_read = false;
     let mut has_write = false;
@@ -142,7 +137,7 @@ unsafe extern "C" fn observed_poll(
     timeout: c_int,
 ) -> i32 {
     let start = Instant::now();
-    let ret = ORIG_POLL(fds, nfds, timeout);
+    let ret = libc::poll(fds, nfds, timeout);
     let _errno_backup = ErrnoBackup::new();
     let duration = start.elapsed();
 
@@ -168,8 +163,6 @@ unsafe extern "C" fn observed_poll(
     ret
 }
 
-static mut ORIG_RECV: unsafe extern "C" fn(c_int, *mut c_void, usize, c_int) -> isize = libc::recv;
-
 unsafe extern "C" fn observed_recv(
     socket: c_int,
     buf: *mut c_void,
@@ -177,7 +170,7 @@ unsafe extern "C" fn observed_recv(
     flags: c_int,
 ) -> isize {
     let start = Instant::now();
-    let len = ORIG_RECV(socket, buf, length, flags);
+    let len = libc::recv(socket, buf, length, flags);
     let _errno_backup = ErrnoBackup::new();
     let duration = start.elapsed();
 
@@ -195,9 +188,6 @@ unsafe extern "C" fn observed_recv(
 
     len
 }
-
-static mut ORIG_RECVMSG: unsafe extern "C" fn(c_int, *mut libc::msghdr, c_int) -> isize =
-    libc::recvmsg;
 
 unsafe extern "C" fn observed_recvmsg(
     socket: c_int,
@@ -205,7 +195,7 @@ unsafe extern "C" fn observed_recvmsg(
     flags: c_int,
 ) -> isize {
     let start = Instant::now();
-    let len = ORIG_RECVMSG(socket, msg, flags);
+    let len = libc::recvmsg(socket, msg, flags);
     let _errno_backup = ErrnoBackup::new();
     let duration = start.elapsed();
 
@@ -223,15 +213,6 @@ unsafe extern "C" fn observed_recvmsg(
 
     len
 }
-
-static mut ORIG_RECVFROM: unsafe extern "C" fn(
-    c_int,
-    *mut c_void,
-    usize,
-    c_int,
-    *mut libc::sockaddr,
-    *mut libc::socklen_t,
-) -> isize = libc::recvfrom;
 
 unsafe extern "C" fn observed_recvfrom(
     socket: c_int,
@@ -242,7 +223,7 @@ unsafe extern "C" fn observed_recvfrom(
     address_len: *mut libc::socklen_t,
 ) -> isize {
     let start = Instant::now();
-    let len = ORIG_RECVFROM(socket, buf, length, flags, address, address_len);
+    let len = libc::recvfrom(socket, buf, length, flags, address, address_len);
     let _errno_backup = ErrnoBackup::new();
     let duration = start.elapsed();
 
@@ -261,8 +242,6 @@ unsafe extern "C" fn observed_recvfrom(
     len
 }
 
-static mut ORIG_SEND: unsafe extern "C" fn(c_int, *const c_void, usize, c_int) -> isize =
-    libc::send;
 unsafe extern "C" fn observed_send(
     socket: c_int,
     buf: *const c_void,
@@ -270,7 +249,7 @@ unsafe extern "C" fn observed_send(
     flags: c_int,
 ) -> isize {
     let start = Instant::now();
-    let len = ORIG_SEND(socket, buf, length, flags);
+    let len = libc::send(socket, buf, length, flags);
     let _errno_backup = ErrnoBackup::new();
     let duration = start.elapsed();
 
@@ -289,15 +268,13 @@ unsafe extern "C" fn observed_send(
     len
 }
 
-static mut ORIG_SENDMSG: unsafe extern "C" fn(c_int, *const libc::msghdr, c_int) -> isize =
-    libc::sendmsg;
 unsafe extern "C" fn observed_sendmsg(
     socket: c_int,
     msg: *const libc::msghdr,
     flags: c_int,
 ) -> isize {
     let start = Instant::now();
-    let len = ORIG_SENDMSG(socket, msg, flags);
+    let len = libc::sendmsg(socket, msg, flags);
     let _errno_backup = ErrnoBackup::new();
     let duration = start.elapsed();
 
@@ -316,12 +293,6 @@ unsafe extern "C" fn observed_sendmsg(
     len
 }
 
-static mut ORIG_FWRITE: unsafe extern "C" fn(
-    *const c_void,
-    usize,
-    usize,
-    *mut libc::FILE,
-) -> usize = libc::fwrite;
 unsafe extern "C" fn observed_fwrite(
     ptr: *const c_void,
     size: usize,
@@ -329,7 +300,7 @@ unsafe extern "C" fn observed_fwrite(
     stream: *mut libc::FILE,
 ) -> usize {
     let start = Instant::now();
-    let len = ORIG_FWRITE(ptr, size, nobj, stream);
+    let len = libc::fwrite(ptr, size, nobj, stream);
     let _errno_backup = ErrnoBackup::new();
     let duration = start.elapsed();
 
@@ -347,10 +318,9 @@ unsafe extern "C" fn observed_fwrite(
     len
 }
 
-static mut ORIG_WRITE: unsafe extern "C" fn(c_int, *const c_void, usize) -> isize = libc::write;
 unsafe extern "C" fn observed_write(fd: c_int, buf: *const c_void, count: usize) -> isize {
     let start = Instant::now();
-    let len = ORIG_WRITE(fd, buf, count);
+    let len = libc::write(fd, buf, count);
     let _errno_backup = ErrnoBackup::new();
     let duration = start.elapsed();
 
@@ -387,8 +357,6 @@ unsafe extern "C" fn observed_write(fd: c_int, buf: *const c_void, count: usize)
     len
 }
 
-static mut ORIG_FREAD: unsafe extern "C" fn(*mut c_void, usize, usize, *mut libc::FILE) -> usize =
-    libc::fread;
 // So far there seems to be only one situation where a file is read using `fread()` instead of
 // `read()` in PHP and that is when compiling a PHP file, triggered by it being the start file or a
 // userland call to `include()`/`require()` functions.
@@ -399,7 +367,7 @@ unsafe extern "C" fn observed_fread(
     stream: *mut libc::FILE,
 ) -> usize {
     let start = Instant::now();
-    let len = ORIG_FREAD(ptr, size, nobj, stream);
+    let len = libc::fread(ptr, size, nobj, stream);
     let _errno_backup = ErrnoBackup::new();
     let duration = start.elapsed();
 
@@ -417,10 +385,9 @@ unsafe extern "C" fn observed_fread(
     len
 }
 
-static mut ORIG_READ: unsafe extern "C" fn(c_int, *mut c_void, usize) -> isize = libc::read;
 unsafe extern "C" fn observed_read(fd: c_int, buf: *mut c_void, count: usize) -> isize {
     let start = Instant::now();
-    let len = ORIG_READ(fd, buf, count);
+    let len = libc::read(fd, buf, count);
     let _errno_backup = ErrnoBackup::new();
     let duration = start.elapsed();
 
@@ -455,10 +422,9 @@ unsafe extern "C" fn observed_read(fd: c_int, buf: *mut c_void, count: usize) ->
     len
 }
 
-static mut ORIG_CLOSE: unsafe extern "C" fn(i32) -> i32 = libc::close;
 /// The sole purpose of this function is to remove the `fd` from the `FD_CACHE`
 unsafe extern "C" fn observed_close(fd: i32) -> i32 {
-    let ret = ORIG_CLOSE(fd);
+    let ret = libc::close(fd);
     let _errno_backup = ErrnoBackup::new();
     let cache = FD_CACHE.get_or_init(|| Mutex::new(FxHashMap::default()));
     let mut cache = cache.lock().unwrap();
@@ -708,57 +674,46 @@ pub fn io_prof_first_rinit() {
                 GotSymbolOverwrite {
                     symbol_name: "recv",
                     new_func: observed_recv as *mut (),
-                    orig_func: ptr::addr_of_mut!(ORIG_RECV) as *mut _ as *mut *mut (),
                 },
                 GotSymbolOverwrite {
                     symbol_name: "recvmsg",
                     new_func: observed_recvmsg as *mut (),
-                    orig_func: ptr::addr_of_mut!(ORIG_RECVMSG) as *mut _ as *mut *mut (),
                 },
                 GotSymbolOverwrite {
                     symbol_name: "recvfrom",
                     new_func: observed_recvfrom as *mut (),
-                    orig_func: ptr::addr_of_mut!(ORIG_RECVFROM) as *mut _ as *mut *mut (),
                 },
                 GotSymbolOverwrite {
                     symbol_name: "send",
                     new_func: observed_send as *mut (),
-                    orig_func: ptr::addr_of_mut!(ORIG_SEND) as *mut _ as *mut *mut (),
                 },
                 GotSymbolOverwrite {
                     symbol_name: "sendmsg",
                     new_func: observed_sendmsg as *mut (),
-                    orig_func: ptr::addr_of_mut!(ORIG_SENDMSG) as *mut _ as *mut *mut (),
                 },
                 GotSymbolOverwrite {
                     symbol_name: "write",
                     new_func: observed_write as *mut (),
-                    orig_func: ptr::addr_of_mut!(ORIG_WRITE) as *mut _ as *mut *mut (),
                 },
                 GotSymbolOverwrite {
                     symbol_name: "read",
                     new_func: observed_read as *mut (),
-                    orig_func: ptr::addr_of_mut!(ORIG_READ) as *mut _ as *mut *mut (),
                 },
                 GotSymbolOverwrite {
                     symbol_name: "fwrite",
                     new_func: observed_fwrite as *mut (),
-                    orig_func: ptr::addr_of_mut!(ORIG_FWRITE) as *mut _ as *mut *mut (),
                 },
                 GotSymbolOverwrite {
                     symbol_name: "fread",
                     new_func: observed_fread as *mut (),
-                    orig_func: ptr::addr_of_mut!(ORIG_FREAD) as *mut _ as *mut *mut (),
                 },
                 GotSymbolOverwrite {
                     symbol_name: "close",
                     new_func: observed_close as *mut (),
-                    orig_func: ptr::addr_of_mut!(ORIG_CLOSE) as *mut _ as *mut *mut (),
                 },
                 GotSymbolOverwrite {
                     symbol_name: "poll",
                     new_func: observed_poll as *mut (),
-                    orig_func: ptr::addr_of_mut!(ORIG_POLL) as *mut _ as *mut *mut (),
                 },
             ];
             let mut restores = GOT_SLOT_RESTORES.lock().unwrap();

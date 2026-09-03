@@ -529,16 +529,12 @@ unsafe fn rebind_symbols_in_section(
             }
 
             trace!(
-                "Overriding symbol pointer for {} at {:p} pointing to {:p} (orig function at {:p})",
+                "Overriding symbol pointer for {} at {:p} pointing to {:p}",
                 overwrite.symbol_name,
                 slot,
                 *slot,
-                *overwrite.orig_func,
             );
 
-            // Keep the existing single call-through pointer, but record the exact value of every
-            // slot so MSHUTDOWN can restore images which resolve this symbol differently.
-            *overwrite.orig_func = original as *mut ();
             restores.push(GotSlotRestore {
                 image,
                 image_name: image_name.into(),

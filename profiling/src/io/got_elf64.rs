@@ -173,20 +173,13 @@ unsafe fn override_got_entry(
                 }
 
                 trace!(
-                    "Overriding GOT entry for {} at offset {:?} (abs: {:p}) pointing to {:p} (orig function at {:p})",
+                    "Overriding GOT entry for {} at offset {:?} (abs: {:p}) pointing to {:p}",
                     overwrite.symbol_name,
                     (*rel).r_offset,
                     got_entry,
                     original,
-                    *overwrite.orig_func
                 );
 
-                // This works for musl based linux distros, but not for libc once
-                *overwrite.orig_func = libc::dlsym(libc::RTLD_NEXT, name_ptr) as *mut ();
-                if (*overwrite.orig_func).is_null() {
-                    // libc linux fallback
-                    *overwrite.orig_func = original;
-                }
                 state.restores.push(GotSlotRestore {
                     image: (*info).dlpi_addr as usize,
                     image_name: image_name.into(),
