@@ -719,8 +719,11 @@ void dd_command_process_meta(mpack_node_t root, zend_object *nonnull span)
             key_str, key_len, val_str, val_len);
     }
 
-    if (has_schemas && !get_DD_APM_TRACING_ENABLED()) {
-        dd_trace_emit_asm_event();
+    if (has_schemas) {
+        dd_telemetry_note_schema_extracted();
+        if (!get_DD_APM_TRACING_ENABLED()) {
+            dd_trace_emit_asm_event();
+        }
     }
 }
 

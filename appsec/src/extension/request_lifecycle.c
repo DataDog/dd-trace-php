@@ -39,7 +39,8 @@ static void _set_cur_span(zend_object *nullable span);
 static void _reset_globals(void);
 const zend_array *nonnull _get_server_equiv(
     const zend_array *nonnull superglob_equiv);
-static uint64_t _calc_sampling_key(zend_object *root_span, int status_code);
+static uint64_t _calc_sampling_key(zend_object *root_span, int status_code,
+    dd_api_sec_outcome *nonnull outcome);
 static void _register_testing_objects(void);
 
 static bool _enabled_user_req;
@@ -388,6 +389,7 @@ static void _do_request_finish_php(bool ignore_verdict)
 
     if (conn && DDAPPSEC_G(active)) {
         const int status_code = SG(sapi_headers).http_response_code;
+        dd_api_sec_outcome api_sec_outcome;
         ctx = (struct req_shutdown_info){
             .req_info.root_span = dd_req_lifecycle_get_cur_span(),
             .req_info.client_ip = dd_req_lifecycle_get_client_ip(),
@@ -395,7 +397,8 @@ static void _do_request_finish_php(bool ignore_verdict)
             .resp_headers_fmt = RESP_HEADERS_LLIST,
             .resp_headers_llist = &SG(sapi_headers).headers,
             .entity = dd_response_body_buffered(),
-            .api_sec_samp_key = _calc_sampling_key(_cur_req_span, status_code),
+            .api_sec_samp_key = _calc_sampling_key(
+                _cur_req_span, status_code, &api_sec_outcome),
         };
 
         struct timespec shutdown_start = dd_monotime_start();
@@ -412,6 +415,8 @@ static void _do_request_finish_php(bool ignore_verdict)
             mlog_g(dd_log_info, "request shutdown failed: %s",
                 dd_result_to_string(res));
         }
+
+        dd_telemetry_add_api_security_request(_cur_req_span, api_sec_outcome);
     }
 
     dd_helper_rshutdown();
@@ -438,6 +443,7 @@ static zend_array *_do_request_finish_user_req(bool ignore_verdict,
     struct req_shutdown_info ctx = {0};
 
     if (conn && DDAPPSEC_G(active)) {
+        dd_api_sec_outcome api_sec_outcome;
         ctx = (struct req_shutdown_info){
             .req_info.root_span = dd_req_lifecycle_get_cur_span(),
             .req_info.client_ip = dd_req_lifecycle_get_client_ip(),
@@ -445,7 +451,8 @@ static zend_array *_do_request_finish_user_req(bool ignore_verdict,
             .resp_headers_fmt = RESP_HEADERS_MAP_STRING_LIST,
             .resp_headers_arr = resp_headers ? resp_headers : &zend_empty_array,
             .entity = entity,
-            .api_sec_samp_key = _calc_sampling_key(_cur_req_span, status_code),
+            .api_sec_samp_key = _calc_sampling_key(
+                _cur_req_span, status_code, &api_sec_outcome),
         };
 
         struct timespec shutdown_start = dd_monotime_start();
@@ -462,6 +469,8 @@ static zend_array *_do_request_finish_user_req(bool ignore_verdict,
             mlog_g(dd_log_info, "request shutdown failed: %s",
                 dd_result_to_string(res));
         }
+
+        dd_telemetry_add_api_security_request(_cur_req_span, api_sec_outcome);
     }
 
     dd_helper_rshutdown();
@@ -1003,8 +1012,11 @@ static inline uint64_t _hash_zend_string(
     return _hash_string(hash, ZSTR_VAL(str), ZSTR_LEN(str));
 }
 
-static uint64_t _calc_sampling_key(zend_object *root_span, int status_code)
+static uint64_t _calc_sampling_key(zend_object *root_span, int status_code,
+    dd_api_sec_outcome *nonnull outcome)
 {
+    *outcome = DD_API_SEC_SKIP;
+
     if (!get_DD_API_SECURITY_ENABLED()) {
         return 0;
     }
@@ -1079,14 +1091,16 @@ static uint64_t _calc_sampling_key(zend_object *root_span, int status_code)
     }
 
     if (!route_or_endpoint) {
-        goto error;
+        goto missing_route;
     }
 
     zval *method =
         zend_hash_str_find(Z_ARRVAL_P(meta), ZEND_STRL("http.method"));
     if (!method || Z_TYPE_P(method) != IS_STRING) {
         mlog_g(dd_log_debug, "No http.method tag; not sampling");
-        goto error;
+        // we treat the absence of http.method also as a missing route, because
+        // it also prevents schema extraction and it's sort of part of the route
+        goto missing_route;
     }
 
     // use fnv-1a hash with: <route_or_endpoint> NULL <http.method tag> NULL
@@ -1113,9 +1127,17 @@ static uint64_t _calc_sampling_key(zend_object *root_span, int status_code)
     if (free_route_or_endpoint) {
         zend_string_release(route_or_endpoint);
     }
+    *outcome = DD_API_SEC_EVALUATED;
     return hash;
 
-error:
+missing_route:
+    // Neither the route nor a stand-in for it could be determined. 404s are
+    // excluded: an endpoint that does not exist has no route to speak of, so
+    // counting it would be misleading
+    if (status_code != HTTP_NOT_FOUND) {
+        *outcome = DD_API_SEC_MISSING_ROUTE;
+    }
+
     if (free_route_or_endpoint) {
         zend_string_release(route_or_endpoint);
     }
