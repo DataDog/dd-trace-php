@@ -59,13 +59,14 @@ for ($i = 0; $i < $maxIterations; $i++)
 		continue;
     }
 
-	// Ignore zeros until we've seen the first 1
+	// Ignore drops until we've seen the first 1
 	if ($picked == 0) {
 		continue;
 	}
 
-	// After first 1, count zeros
-	if ($sampling == 0) {
+	// After first 1, count drops. On the in-process v0.4 wire a dropped p0 trace
+	// is downgraded to priority -1 (decision #3), so a drop is -1 here, not 0.
+	if ($sampling == -1) {
 		$notPicked++;
 	}
     if ($picked == 1 && $notPicked == 2) {

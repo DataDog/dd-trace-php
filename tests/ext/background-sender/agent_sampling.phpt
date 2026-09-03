@@ -59,10 +59,10 @@ echo "Specific sampling: {$get_sampling()}\n";
 
 ?>
 --EXPECTF--
-[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for http://request-replayer:80
+[ddtrace] [info] [%d] Flushing 1 v0.4 trace(s) to send-queue for http://request-replayer:80
 Initial sampling: 1
-[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for http://request-replayer:80
-Generic sampling: 0
-[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for http://request-replayer:80
+[ddtrace] [info] [%d] Flushing 1 v0.4 trace(s) to send-queue for http://request-replayer:80
+Generic sampling: -1
+[ddtrace] [info] [%d] Flushing 1 v0.4 trace(s) to send-queue for http://request-replayer:80
 Specific sampling: 1
 [ddtrace] [info] [%d] No finished traces to be sent to the agent
