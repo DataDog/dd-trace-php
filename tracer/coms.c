@@ -752,8 +752,9 @@ static ddtrace_coms_stack_t *dd_coms_attempt_acquire_stack(void) {
 #define TRACE_PATH_STR "/v0.4/traces"
 #define TRACE_PATH_V1_STR "/v1.0/traces"
 
-// Removable v0.4->v1 bolt-on: when set, the writer POSTs the (transcoded) V1 payload to /v1.0/traces
-// instead of /v0.4/traces. Toggled per flush by auto_flush from the agent-capability check.
+// Removable v0.4 bolt-on: when set, the writer POSTs the native V1 payload to /v1.0/traces; when
+// clear it POSTs the v0.4-downgraded payload to /v0.4/traces. Toggled per flush by auto_flush from
+// the agent-capability check.
 static _Atomic(bool) dd_coms_use_v1_traces_endpoint = ATOMIC_VAR_INIT(false);
 
 void ddtrace_coms_set_v1_traces_endpoint(bool enabled) {

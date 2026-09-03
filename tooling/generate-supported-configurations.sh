@@ -463,11 +463,7 @@ extract_c_supported_configurations() {
 #undef PHP_VERSION_ID
 #define PHP_VERSION_ID $PHP_VERSION_ID
 #undef DD_SIDECAR_TRACE_SENDER_DEFAULT
-#if PHP_VERSION_ID >= 80300
 #define DD_SIDECAR_TRACE_SENDER_DEFAULT true
-#else
-#define DD_SIDECAR_TRACE_SENDER_DEFAULT false
-#endif
 #undef DD_APPSEC_HELPER_RUST_REDIRECTION_DEFAULT
 #define DD_APPSEC_HELPER_RUST_REDIRECTION_DEFAULT "true"
 // Do not expand CALIASES() directly, otherwise parameter counting in macros is broken.

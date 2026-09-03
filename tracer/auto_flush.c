@@ -26,16 +26,12 @@ ZEND_EXTERN_MODULE_GLOBALS(datadog);
 ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles, bool fast_shutdown) {
     bool success = true;
 
-    // The sidecar sender always emits the native V1 wire (the sidecar negotiates V1-vs-V0.4 with the
-    // agent and downgrades if needed). On this path serialization builds the native V1 payload
-    // directly into the builder (no V0.4 intermediate); the in-process (<=8.2) path builds V0.4.
-    bool use_sidecar = get_global_DD_TRACE_SIDECAR_TRACE_SENDER() && DATADOG_G(sidecar);
-    ddtrace_v1_ctx v1_ctx = {.builder = NULL, .chunk = DD_V1_CHUNK_NONE};
-    ddtrace_v1_ctx *v1 = NULL;
-    if (use_sidecar) {
-        v1_ctx.builder = ddog_v1_new_builder();
-        v1 = &v1_ctx;
-    }
+    // Serialization always builds the native V1 payload directly into the builder (no V0.4
+    // intermediate). The sidecar sender consumes the builder and negotiates V1-vs-V0.4 with the
+    // agent internally; the in-process (<=8.2) sender serializes the builder to V1 bytes, or
+    // downgrades it to v0.4 bytes, at flush time.
+    ddtrace_v1_ctx v1_ctx = {.builder = ddog_v1_new_builder(), .chunk = DD_V1_CHUNK_NONE};
+    ddtrace_v1_ctx *v1 = &v1_ctx;
 
     ddog_TracesBytes *traces = ddog_get_traces();
     if (collect_cycles) {
@@ -48,16 +44,15 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
     // PG(during_request_startup) will only be set to 0 upon execution of any PHP code.
     // e.g. php-fpm call with uri pointing to non-existing file, fpm status page, ...
     if (!force_on_startup && PG(during_request_startup)) {
-        if (v1) ddog_v1_free_builder(v1->builder);
+        ddog_v1_free_builder(v1->builder);
         ddog_free_traces(traces);
         return SUCCESS;
     }
 
-    // On the V1 path spans are built into the builder, not the (empty) V0.4 traces, so gate on the
-    // builder's chunk count instead.
-    size_t payload_count = v1 ? ddog_v1_get_chunk_count(v1->builder) : ddog_get_traces_size(traces);
+    // Spans are built into the builder, not the (empty) V0.4 traces, so gate on the chunk count.
+    size_t payload_count = ddog_v1_get_chunk_count(v1->builder);
     if (!payload_count) {
-        if (v1) ddog_v1_free_builder(v1->builder);
+        ddog_v1_free_builder(v1->builder);
         ddog_free_traces(traces);
         LOG(INFO, "No finished traces to be sent to the agent");
         return SUCCESS;
@@ -101,40 +96,33 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
             };
             ddog_send_traces_to_sidecar_v1(v1->builder, &parameters, &metadata);  // consumes the builder
         } else {
+            ddog_v1_free_builder(v1->builder);  // not handed to any FFI on this path
             LOGEV(INFO, {
                 log("Skipping flushing trace as connection to sidecar failed");
             });
         }
     } else {
 #ifndef _WIN32
-        // Removable v0.4->v1 bolt-on: the in-process (<=8.2) sender builds V0.4 (above); if the agent
-        // advertises /v1.0/traces we transcode the already-built V0.4 collection into a single native
-        // V1 payload and POST it to /v1.0/traces, otherwise we POST the V0.4 bytes to /v0.4/traces.
-        // Deleting this whole `if (send_v1)` branch + the endpoint flag reverts to V0.4-only.
-        bool send_v1 = ddtrace_agent_supports_v1_traces();
-        ddtrace_coms_set_v1_traces_endpoint(send_v1);
-        if (send_v1) {
-            uint8_t formatted_runtime_id[36];
-            datadog_format_runtime_id(&formatted_runtime_id);
-            ddog_TracerMetadataV1 metadata = {
-                .hostname = dd_zend_string_to_CharSlice(get_DD_HOSTNAME()),
-                .env = dd_zend_string_to_CharSlice(get_DD_ENV()),
-                .app_version = dd_zend_string_to_CharSlice(get_DD_VERSION()),
-                .runtime_id = (ddog_CharSlice) {.ptr = (char *) formatted_runtime_id, .len = sizeof(formatted_runtime_id)},
-                .git_commit_sha = dd_zend_string_to_CharSlice(get_DD_GIT_COMMIT_SHA()),
-            };
-            ddog_CharSlice container_id = ddtrace_get_container_id();
-            ddog_CharSlice payload = ddog_serialize_trace_v04_as_v1_into_charslice(
-                traces, &metadata, container_id, DDOG_CHARSLICE_C("php"), php_version_rt,
-                DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION));
+        // Removable v0.4 bolt-on for the in-process (<=8.2) sender. The in-process sender ALWAYS
+        // downgrades the native V1 builder to the in-memory v0.4 collection and sends EACH trace
+        // individually to /v0.4/traces. A native V1 payload is a single msgpack MAP, which the
+        // background sender's array-of-1 framing (comms_php.c mpack_expect_array_match) cannot parse
+        // and would silently drop; a coms.c framing rewrite for native V1 in-process is deferred, so
+        // the in-process path never uses /v1.0/traces. The background sender
+        // (ddtrace_send_traces_via_thread) frames one trace at a time (msgpack array-of-1), so we
+        // send one downgraded trace per call.
+        // Deleting this whole v0.4-downgrade bolt-on + the endpoint pin reverts to V1-only.
+        ddtrace_coms_set_v1_traces_endpoint(false);
+        // Downgrade consumes v1->builder and returns the decoded v0.4 collection; free it below.
+        ddog_TracesBytes *v04_traces = ddog_downgrade_v1_builder_to_v04_traces(v1->builder);
+        size_t trace_count = ddog_get_traces_size(v04_traces);
+        for (size_t i = 0; i < trace_count; i++) {
+            // One msgpack array-of-1 per trace, matching the background sender's framing.
+            ddog_CharSlice payload = ddog_serialize_trace_into_charslice(ddog_get_trace(v04_traces, i));
             if (payload.len > 0 && payload.len <= limit) {
-                success = ddtrace_send_traces_via_thread(ddog_get_traces_size(traces), payload.ptr, payload.len);
-                if (success) {
-                    LOGEV(INFO, {
-                        log("Flushing V1 payload of %zu bytes to send-queue for %s/v1.0/traces", payload.len, url);
-                    });
+                if (!ddtrace_send_traces_via_thread(1, payload.ptr, payload.len)) {
+                    success = false;
                 }
-                dd_prepare_for_new_trace();
             } else {
                 if (payload.len > limit) {
                     LOG(ERROR, "Agent request payload of %zu bytes exceeds configured %zu byte limit; dropping request", payload.len, limit);
@@ -142,34 +130,16 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                 success = false;
             }
             ddog_free_charslice(payload);
-        } else {
-            success = true;
-            size_t length = ddog_get_traces_size(traces);
-            for (size_t i = 0; i < length; i++) {
-                ddog_TraceBytes *trace = ddog_get_trace(traces, i);
-                ddog_CharSlice serialized_trace = ddog_serialize_trace_into_charslice(trace);
-
-                if (serialized_trace.len > 0) {
-                    if (serialized_trace.len > limit) {
-                        LOG(ERROR, "Agent request payload of %zu bytes exceeds configured %zu byte limit; dropping request", serialized_trace.len, limit);
-                        success = false;
-                    } else {
-                        success = ddtrace_send_traces_via_thread(1, serialized_trace.ptr, serialized_trace.len);
-                        if (success) {
-                            LOGEV(INFO, {
-                                log("Flushing trace of size %d to send-queue for %s", ddog_get_trace_size(trace), url);
-                            });
-                        }
-                        dd_prepare_for_new_trace();
-                    }
-
-                    ddog_free_charslice(serialized_trace);
-                } else {
-                    success = false;
-                }
-            }
         }
+        if (success) {
+            LOGEV(INFO, {
+                log("Flushing %zu v0.4 trace(s) to send-queue for %s", trace_count, url);
+            });
+        }
+        dd_prepare_for_new_trace();
+        ddog_free_traces(v04_traces);
 #else
+        ddog_v1_free_builder(v1->builder);  // in-process sender unavailable on Windows; not consumed
         success = false;
 #endif
     }
