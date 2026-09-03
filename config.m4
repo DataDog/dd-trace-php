@@ -443,11 +443,12 @@ if test "$PHP_DDTRACE" != "no" && { test "$PHP_DDTRACE_PROFILING" = "no" || test
     fi
     EXTRA_LDFLAGS="$EXTRA_LDFLAGS -export-symbols $DDTRACE_EXPORT_SYMBOLS -flto -fuse-linker-plugin"
 
-    dnl On Linux: set the ELF entry point so ddtrace.so can be exec'd directly by ld.so
-    dnl for sidecar spawning (no trampoline binary, no memfd, no temp files).
+    dnl On Linux: discard unreachable function and data sections from the Rust static
+    dnl archive, and set the ELF entry point so ddtrace.so can be exec'd directly by
+    dnl ld.so for sidecar spawning (no trampoline binary, no memfd, no temp files).
     case $host_os in
       linux*)
-        EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Wl,-e,ddog_spawn_direct_entry"
+        EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Wl,--gc-sections -Wl,-e,ddog_spawn_direct_entry"
       ;;
     esac
 
