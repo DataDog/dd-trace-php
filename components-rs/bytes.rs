@@ -155,14 +155,10 @@ fn convert_literal_to_bytes_string(string: *const c_char) -> BytesString {
 }
 
 // ---------------------------------------------------------------------------
-// Native V1 fill surface
-//
-// The functions below are the *only* C-facing surface for building a trace payload: they fill the
-// native V1 model held by `TracerPayloadV1Builder` directly (no v0.4 `SpanBytes` is ever built).
-// Chunks/spans/links/events are addressed by their `usize` index; C holds those indices in its
-// `dd_span_sink`/`ddtrace_v1_ctx` handles and passes them back on every call. Soundness (Stacked
-// Borrows): each call takes a single `&mut TracerPayloadV1Builder` (or `&` for reads) and resolves
-// the target by index, so no `&mut` into the payload is ever handed out to C and outlives a call.
+// Native V1 fill surface: the only C-facing surface for building a payload, filling the
+// `TracerPayloadV1Builder` model directly. Chunks/spans/links/events are addressed by `usize` index
+// (held C-side in `dd_span_sink`/`ddtrace_v1_ctx`). Stacked-Borrows soundness: each call takes one
+// `&mut` (or `&`) and resolves by index, so no `&mut` into the payload ever escapes to C.
 // ---------------------------------------------------------------------------
 
 /// Sets a V1 string field from a `CharSlice`, leaving it unchanged for an empty slice (matches the
@@ -590,11 +586,10 @@ pub extern "C" fn ddog_del_span_attr_lit(
     }
 }
 
-/// Copies the attribute under a static C literal `key` from `from_span` onto `to_span` (both within
-/// `chunk`), returning whether the source carried it. When `delete_source` is set, it is also removed
-/// from the source. Replicates the v0.4 `transfer_meta_data`/`transfer_metrics_data` inferred-span
-/// merge; the unified V1 map subsumes both string and numeric cases with a type-preserving copy. The
-/// read (clone) completes before any mutable borrow, so the whole op routes through a single `&mut`.
+/// Copies the attribute `key` from `from_span` onto `to_span` (within `chunk`), returning whether
+/// the source had it; removes it from the source when `delete_source` is set. Type-preserving, so it
+/// covers the v0.4 meta and metrics transfer cases. The clone completes before the mutable borrow,
+/// so the op routes through a single `&mut`.
 #[no_mangle]
 pub extern "C" fn ddog_transfer_span_attr(
     builder: &mut TracerPayloadV1Builder,

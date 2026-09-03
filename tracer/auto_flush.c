@@ -26,10 +26,9 @@ ZEND_EXTERN_MODULE_GLOBALS(datadog);
 ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles, bool fast_shutdown) {
     bool success = true;
 
-    // Serialization always builds the native V1 payload directly into the builder (no V0.4
-    // intermediate). The sidecar sender consumes the builder and negotiates V1-vs-V0.4 with the
-    // agent internally; the in-process (<=8.2) sender serializes the builder to V1 bytes, or
-    // downgrades it to v0.4 bytes, at flush time.
+    // Serialization builds the native V1 payload directly into the builder (no v0.4 intermediate).
+    // The sidecar consumes it and negotiates V1-vs-v0.4 with the agent; the in-process (<=8.2)
+    // sender downgrades it to v0.4 bytes at flush time.
     ddtrace_v1_ctx v1_ctx = {.builder = ddog_v1_new_builder(), .chunk = DD_V1_CHUNK_NONE};
     ddtrace_v1_ctx *v1 = &v1_ctx;
 
@@ -81,10 +80,9 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                 .buffer_size = get_global_DD_TRACE_BUFFER_SIZE(),
                 .url = (ddog_CharSlice) {.ptr = url, .len = strlen(url)},
             };
-            // The sidecar always receives the native V1 payload and negotiates/downgrades with the
-            // agent. Shrunk V1 metadata: lang/lang_version/tracer_version/container_id are sourced
-            // from parameters.tracer_headers_tags inside the FFI; process tags travel as the span
-            // meta "_dd.tags.process" emitted during serialization.
+            // The sidecar receives the native V1 payload and negotiates/downgrades with the agent.
+            // lang/tracer_version/container_id come from parameters.tracer_headers_tags in the FFI;
+            // process tags travel as the span meta "_dd.tags.process".
             uint8_t formatted_runtime_id[36];
             datadog_format_runtime_id(&formatted_runtime_id);
             ddog_TracerMetadataV1 metadata = {
@@ -103,15 +101,11 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
         }
     } else {
 #ifndef _WIN32
-        // Removable v0.4 bolt-on for the in-process (<=8.2) sender. The in-process sender ALWAYS
-        // downgrades the native V1 builder to the in-memory v0.4 collection and sends EACH trace
-        // individually to /v0.4/traces. A native V1 payload is a single msgpack MAP, which the
-        // background sender's array-of-1 framing (comms_php.c mpack_expect_array_match) cannot parse
-        // and would silently drop; a coms.c framing rewrite for native V1 in-process is deferred, so
-        // the in-process path never uses /v1.0/traces. The background sender
-        // (ddtrace_send_traces_via_thread) frames one trace at a time (msgpack array-of-1), so we
-        // send one downgraded trace per call.
-        // Deleting this whole v0.4-downgrade bolt-on + the endpoint pin reverts to V1-only.
+        // Removable v0.4 bolt-on for the in-process (<=8.2) sender: it downgrades the V1 builder to
+        // the v0.4 collection and sends each trace to /v0.4/traces. The background sender's
+        // array-of-1 framing (comms_php.c mpack_expect_array_match) can't parse a native V1 payload
+        // (a single msgpack MAP), so in-process never uses /v1.0/traces. Deleting this bolt-on +
+        // the endpoint pin reverts to V1-only.
         ddtrace_coms_set_v1_traces_endpoint(false);
         // Downgrade consumes v1->builder and returns the decoded v0.4 collection; free it below.
         ddog_TracesBytes *v04_traces = ddog_downgrade_v1_builder_to_v04_traces(v1->builder);

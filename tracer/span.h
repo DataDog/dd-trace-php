@@ -15,19 +15,16 @@
 #include "otel_context.h"
 #endif
 
-// Sidecar V1 payload build context. When non-NULL, span serialization also emits each finished
-// span into the native V1 builder (built from the completed V0.4 span + the still-alive PHP span
-// for native links/events). `chunk` is DD_V1_CHUNK_NONE until the first span of the current stack
-// creates its chunk; ddtrace_serialize_closed_spans resets it per stack.
+// V1 payload build context threaded through serialization. `chunk` is DD_V1_CHUNK_NONE until the
+// first span of the current stack creates its chunk (ddtrace_serialize_closed_spans resets it per stack).
 #define DD_V1_CHUNK_NONE ((uintptr_t)-1)
 typedef struct {
     struct ddog_TracerPayloadV1Builder *builder;
     uintptr_t chunk;
 } ddtrace_v1_ctx;
 
-// Write target for span finalization: the native v1 builder chunk/span, built directly with no
-// v0.4 intermediate. A zero-initialized sink (builder NULL) is the "no span" sentinel returned for
-// dropped spans.
+// Write target for span finalization (a native v1 builder chunk/span). A zero-initialized sink
+// (builder NULL) is the "no span" sentinel returned for dropped spans.
 typedef struct {
     struct ddog_TracerPayloadV1Builder *builder; // non-NULL on the v1 path
     uintptr_t chunk;

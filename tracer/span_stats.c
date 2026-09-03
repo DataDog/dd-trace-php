@@ -107,9 +107,9 @@ void ddtrace_precompute_span(ddtrace_span_data *span, ddtrace_span_precomputed *
         pre->type = datadog_convert_to_str(prop_type);
     }
 
-    // Env: span property first, then the deprecated meta["env"] fallback — mirrors the serializer's
-    // promotion precedence (serializer.c). DD_TAGS "env" is merged into meta (not the property) when
-    // DD_ENV is unset, so without the fallback stats would bucket by empty env while traces carry it.
+    // Env: property first, then meta["env"] fallback, matching the serializer's promotion
+    // (serializer.c). DD_TAGS "env" lands in meta when DD_ENV is unset, so without the fallback
+    // stats would bucket by empty env while traces carry it.
     pre->env = NULL;
     zval *prop_env = &span->property_env;
     ZVAL_DEREF(prop_env);
@@ -389,9 +389,8 @@ void ddtrace_feed_span_to_concentrator(ddtrace_span_data *span, const ddtrace_sp
         version_zstr = Z_STR_P(root_version_zv);
     } else {
         version_zstr = get_DD_VERSION();
-        // DD_TAGS "version" (DD_VERSION unset) is merged into meta, not the property, and meta is
-        // deleted during promotion — so fall back to the precomputed value (property-first,
-        // meta-fallback) to keep stats bucketed by the same version as the trace wire.
+        // When DD_VERSION is unset, DD_TAGS "version" lives only in meta (deleted during promotion),
+        // so fall back to pre->version to keep stats bucketed by the trace's version.
         if (ZSTR_LEN(version_zstr) == 0 && pre->version) {
             version_zstr = pre->version;
         }

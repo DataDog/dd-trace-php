@@ -924,16 +924,12 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
 }
 
 // --- Span finalization sink (native V1) ---
-// ddtrace_serialize_span_to_rust_span runs one finalization body and routes every field/meta/metrics
-// write through a dd_span_sink into the native V1 builder chunk/span. Promoted keys (env/version/
-// component/span.kind to span setters; _dd.origin/_dd.p.dm/_sampling_priority_v1 to chunk fields;
-// _dd.p.tid dropped as it's carried by the chunk's 128-bit trace id; links/events emitted natively)
-// are handled up front in the finalization body, so the sink ops below just add plain attributes.
+// Every field/meta/metrics write routes through a dd_span_sink into the native V1 builder chunk/span.
+// Promoted keys (env/version/component/span.kind, _dd.origin/_dd.p.dm/_sampling_priority_v1, and the
+// dropped _dd.p.tid) are handled up front, so the sink ops below just add plain attributes.
 
-// --- Sink write ops: each finalization write targets the native V1 builder span ---
-
-// The four meta-string sink ops below have external linkage: exception_serialize.c writes span meta
-// through them (declared in serializer.h).
+// The four meta-string sink ops with external linkage are used by exception_serialize.c (declared
+// in serializer.h).
 void dd_sink_meta_cs_cs(dd_span_sink *s, ddog_CharSlice key, ddog_CharSlice val) {
     ddog_add_span_attr_cs_cs(s->builder, s->chunk, s->span, key, val);
 }
@@ -1001,10 +997,9 @@ void transfer_span_metric(dd_span_sink *src, dd_span_sink *dst, const char *key,
     ddog_transfer_span_attr(src->builder, src->chunk, src->span, dst->span, key, delete_source);
 }
 
-// Adds a string-valued V1 attribute from a zval: scalars via the usual string conversion,
-// arrays/objects JSON-encoded (the V1 attribute FFI has no array/object variant, so JSON preserves
-// the data instead of losing it to a bare "Array" cast). `add(b, chunk, span, extra, key, val)` is
-// the target FFI (span or link attribute), `extra` its extra index (unused for spans).
+// Adds a string-valued V1 attribute from a zval: scalars string-converted, arrays/objects
+// JSON-encoded (the V1 attribute FFI has no array/object variant, so JSON avoids a lossy "Array"
+// cast). `add_call` is the target FFI (span or link attribute).
 #define DD_V1_ADD_ZVAL_STR(add_call, val_zv)                                                  \
     do {                                                                                      \
         zval *_v = (val_zv);                                                                  \
@@ -1815,11 +1810,9 @@ dd_span_sink ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_T
         }
     }
 
-    // Promote span-level fields (env/version/component/span.kind from the property, falling back to
-    // meta) and chunk-level fields (_dd.origin/_dd.p.dm) up front, deleting the corresponding meta
-    // keys so the copy loop below carries only plain attributes. env/version are property-FIRST with a
-    // meta FALLBACK: when DD_ENV/DD_VERSION are unset, DD_TAGS "env"/"version" are merged into meta by
-    // ddtrace_set_global_span_properties, so promoting only the property would silently drop them.
+    // Promote span/chunk fields up front, then delete their meta keys so the copy loop carries only
+    // plain attributes. env/version are property-first with a meta fallback: when DD_ENV/DD_VERSION
+    // are unset, DD_TAGS "env"/"version" land in meta, so promoting only the property would drop them.
     if (pre.env) {
         ddog_set_span_env(sink.builder, sink.chunk, sink.span, dd_zend_string_to_CharSlice(pre.env));
     } else if (meta) {
@@ -2072,14 +2065,10 @@ dd_span_sink ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_T
     if (inferred_span) {
         inferred_sink = ddtrace_serialize_span_to_rust_span(inferred_span, trace, v1);
     }
-    // The inferred recursion returns the {0} sentinel (builder NULL) when the inferred span was
-    // dropped (e.g. a p0 trace fed to the stats concentrator). Skip the index-based transfers and
-    // set_error then — dst->span would otherwise default to index 0, corrupting a real span, and
-    // set_error would deref a NULL builder. Mirrors master's NULL-destination no-op.
+    // A dropped inferred span returns the {0} sentinel (builder NULL); skip the transfers then, else
+    // dst->span defaults to index 0 (corrupting a real span) and set_error derefs a NULL builder.
+    // (Spans are addressed by stable index, so the recursion doesn't invalidate this sink.)
     if (inferred_sink.builder) {
-        // The V1 builder addresses spans by stable index, so the inferred recursion does not
-        // invalidate this span's sink.
-
         transfer_span_metric(&sink, &inferred_sink, "_dd.agent_psr", true);
         transfer_span_metric(&sink, &inferred_sink, "_dd.rule_psr", true);
         transfer_span_metric(&sink, &inferred_sink, "_dd.limit_psr", true);
@@ -2141,10 +2130,8 @@ static void dd_v1_attr_value_to_zval(ddog_TracerPayloadV1Builder *b, uintptr_t c
     }
 }
 
-// Introspection reader for the native V1 builder. Reflects the V1 model: promoted fields
-// (env/version/component/span_kind) and chunk-level fields
-// (origin/sampling_priority/sampling_mechanism) are surfaced directly, and the unified typed attribute
-// map is exposed under "attributes"; links and events are surfaced natively.
+// Introspection reader for the native V1 builder: promoted and chunk-level fields are surfaced
+// directly, the unified typed attribute map under "attributes", and links/events natively.
 zval dd_serialize_rust_v1_to_zval(ddog_TracerPayloadV1Builder *b) {
     zval traces_zv;
     array_init(&traces_zv);
@@ -2221,10 +2208,8 @@ zval dd_serialize_rust_v1_to_zval(ddog_TracerPayloadV1Builder *b) {
                     ddog_CharSlice key = ddog_v1_get_span_attr_key(b, c, j, k);
                     zval value_zv;
                     dd_v1_attr_value_to_zval(b, c, j, k, &value_zv);
-                    // Bytes-typed attributes are v0.4 meta_struct entries (the only source of
-                    // bytes attrs on this path). Surface them under a dedicated "meta_struct" key,
-                    // mirroring the v0.4 reader, instead of mixing raw msgpack blobs into the
-                    // readable attribute map.
+                    // Bytes-typed attributes are v0.4 meta_struct entries; surface them under
+                    // "meta_struct" (as the v0.4 reader did), not mixed into the attribute map.
                     if (ddog_v1_get_span_attr_type(b, c, j, k) == ddog_DDOG_V1_ATTR_BYTES) {
                         zend_hash_str_update(Z_ARR(meta_struct_zv), key.ptr, key.len, &value_zv);
                     } else {
