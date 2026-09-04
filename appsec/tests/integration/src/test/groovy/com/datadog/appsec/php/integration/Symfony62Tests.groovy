@@ -43,7 +43,7 @@ class Symfony62Tests {
                     baseTag: 'apache2-mod-php',
                     phpVersion: phpVersion,
                     phpVariant: variant,
-                    www: 'symfony62',
+                    www: '../../../tests/Frameworks/Symfony/Version_6_2',
             )
 
     @Test
@@ -205,12 +205,20 @@ class Symfony62Tests {
             endpoints.size() > 0
         })
 
-        assert endpoints.size() == 6
+        assert endpoints.size() == 14
         assert endpoints.find { it.path == '/' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /' } != null
         assert endpoints.find { it.path == '/dynamic-path/{param01}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /dynamic-path/{param01}' } != null
-        assert endpoints.find { it.path == '/login' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /login' } != null
-        assert endpoints.find { it.path == '/_error/{code}.{_format}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /_error/{code}.{_format}' } != null
-        assert endpoints.find { it.path == '/register' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /register' } != null
         assert endpoints.find { it.path == '/caminho-dinamico/{param01}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /caminho-dinamico/{param01}' } != null
+        assert endpoints.find { it.path == '/login' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /login' } != null
+        assert endpoints.find { it.path == '/register' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /register' } != null
+        assert endpoints.find { it.path == '/simple' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /simple' } != null
+        assert endpoints.find { it.path == '/simple_view' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /simple_view' } != null
+        assert endpoints.find { it.path == '/dynamic_route/{param01}/{param02}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /dynamic_route/{param01}/{param02}' } != null
+        assert endpoints.find { it.path == '/error' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /error' } != null
+        assert endpoints.find { it.path == '/behind_auth' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /behind_auth' } != null
+        assert endpoints.find { it.path == '/telemetry' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /telemetry' } != null
+        assert endpoints.find { it.path == '/lucky/number' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /lucky/number' } != null
+        assert endpoints.find { it.path == '/lucky/fail' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /lucky/fail' } != null
+        assert endpoints.find { it.path == '/_error/{code}.{_format}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /_error/{code}.{_format}' } != null
     }
 }

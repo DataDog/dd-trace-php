@@ -42,13 +42,13 @@
     "autoload": {
         "psr-4": {
             "App\\": "src/"
-        },
-        "files": ["../../../Appsec/Mock.php"]
+        }
     },
     "autoload-dev": {
         "psr-4": {
             "App\\Tests\\": "tests/"
-        }
+        },
+        "files": ["../../../Appsec/Mock.php"]
     },
     "replace": {
         "symfony/polyfill-ctype": "*",
