@@ -57,7 +57,8 @@ use uuid::Uuid;
 /// interior null bytes and must be null terminated.
 static PROFILER_NAME: &CStr = c"datadog-profiling";
 
-/// Samples `-ln(U) * mean`, clamped to `[8, 20 * mean]` like libdatadog.
+/// Draws the exponential sampling distance assumed by libdatadog's upscaler,
+/// clamped to `[8, 20 * mean]`.
 fn sample_exponential_interval(rng: &mut impl Rng, mean: f64) -> f64 {
     let sample: f64 = rng.random();
     let sample = if sample <= 0.0 { 1e-10 } else { sample };
