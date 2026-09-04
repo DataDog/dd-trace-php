@@ -237,12 +237,25 @@ pub unsafe extern "C" fn callback(
     0
 }
 
-pub unsafe fn restore_symbols(restores: &mut Vec<GotSlotRestore>) {
-    libc::dl_iterate_phdr(
-        Some(restore_callback),
-        restores as *mut _ as *mut libc::c_void,
-    );
+struct RestoreState<'a> {
+    restores: &'a [GotSlotRestore],
+    complete: bool,
+}
+
+pub unsafe fn restore_symbols(restores: &mut Vec<GotSlotRestore>) -> bool {
+    let complete = {
+        let mut state = RestoreState {
+            restores,
+            complete: true,
+        };
+        libc::dl_iterate_phdr(
+            Some(restore_callback),
+            &mut state as *mut _ as *mut libc::c_void,
+        );
+        state.complete
+    };
     restores.clear();
+    complete
 }
 
 unsafe fn slot_belongs_to_image(info: *mut dl_phdr_info, slot: usize) -> bool {
@@ -264,7 +277,9 @@ unsafe extern "C" fn restore_callback(
     _size: usize,
     data: *mut c_void,
 ) -> c_int {
-    let restores = &mut *(data as *mut Vec<GotSlotRestore>);
+    let state = &mut *(data as *mut RestoreState<'_>);
+    let restores = state.restores;
+    let complete = &mut state.complete;
     let image = (*info).dlpi_addr as usize;
     let image_name = if (*info).dlpi_name.is_null() {
         &[][..]
@@ -283,6 +298,7 @@ unsafe extern "C" fn restore_callback(
                 "Not restoring GOT entry at {:#x}: it is outside the loaded image",
                 restore.slot
             );
+            *complete = false;
             continue;
         }
         let slot = restore.slot as *mut *mut ();
@@ -291,6 +307,7 @@ unsafe extern "C" fn restore_callback(
                 "Not restoring GOT entry at {:p}: it was replaced after our hook",
                 slot
             );
+            *complete = false;
             continue;
         }
 
@@ -303,11 +320,14 @@ unsafe extern "C" fn restore_callback(
         {
             let err = *libc::__errno_location();
             trace!("mprotect failed while restoring GOT entry at {slot:p}: {err}");
+            *complete = false;
             continue;
         }
 
         if restore_slot_if_owned(restore) {
             trace!("Restored GOT entry at {slot:p}");
+        } else {
+            *complete = false;
         }
     }
 

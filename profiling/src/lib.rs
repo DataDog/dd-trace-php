@@ -80,6 +80,12 @@ static PROFILER_VERSION_STR: &str = const {
 /// compile-time. Its value is overwritten during minit.
 static RUNTIME_PHP_VERSION_ID: AtomicU32 = AtomicU32::new(zend::PHP_VERSION_ID);
 
+#[cfg(all(
+    feature = "io_profiling",
+    any(target_os = "linux", target_os = "macos")
+))]
+static IO_HOOKS_SAFE_TO_UNLOAD: AtomicBool = AtomicBool::new(true);
+
 /// Version str of PHP at run-time, not the version it was built against at
 /// compile-time. Its value is overwritten during minit, unless there are
 /// errors at run-time, and then the compile-time value will still remain.
@@ -1033,7 +1039,9 @@ extern "C" fn mshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
         feature = "io_profiling",
         any(target_os = "linux", target_os = "macos")
     ))]
-    io::io_prof_mshutdown();
+    if !io::io_prof_mshutdown() {
+        IO_HOOKS_SAFE_TO_UNLOAD.store(false, Ordering::Relaxed);
+    }
 
     ZendResult::Success
 }
@@ -1084,6 +1092,18 @@ extern "C" fn shutdown(extension: *mut ZendExtension) {
         // SAFETY: during mshutdown, we have ownership of the extension struct.
         // Our threads (which failed to join) do not mutate this struct at all
         // either, providing no races.
+        unsafe { (*extension).handle = ptr::null_mut() }
+    }
+
+    #[cfg(all(
+        feature = "io_profiling",
+        any(target_os = "linux", target_os = "macos")
+    ))]
+    if !IO_HOOKS_SAFE_TO_UNLOAD.load(Ordering::Relaxed) {
+        error!(
+            "I/O hooks could not be fully restored, intentionally leaking the extension's handle to prevent unloading"
+        );
+        // SAFETY: during shutdown, we have ownership of the extension struct.
         unsafe { (*extension).handle = ptr::null_mut() }
     }
 

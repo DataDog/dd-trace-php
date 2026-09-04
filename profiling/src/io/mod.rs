@@ -767,14 +767,18 @@ pub fn io_prof_first_rinit() {
     }
 }
 
-pub fn io_prof_mshutdown() {
+pub fn io_prof_mshutdown() -> bool {
     let mut restores = GOT_SLOT_RESTORES.lock().unwrap();
     unsafe {
         #[cfg(target_os = "linux")]
-        got_elf64::restore_symbols(&mut restores);
+        {
+            got_elf64::restore_symbols(&mut restores)
+        }
 
         #[cfg(target_os = "macos")]
-        got_macho::restore_symbols(&mut restores);
+        {
+            got_macho::restore_symbols(&mut restores)
+        }
     }
 }
 
@@ -803,5 +807,14 @@ mod tests {
         assert!(slot_fits_range(0x1800, 0x1000, 0x1000));
         assert!(!slot_fits_range(0x2000, 0x1000, 0x1000));
         assert!(!slot_fits_range(usize::MAX, 0x1000, 0x1000));
+    }
+
+    #[test]
+    fn no_hooks_are_safe_to_unload() {
+        let mut restores = Vec::new();
+        #[cfg(target_os = "linux")]
+        assert!(unsafe { super::got_elf64::restore_symbols(&mut restores) });
+        #[cfg(target_os = "macos")]
+        assert!(unsafe { super::got_macho::restore_symbols(&mut restores) });
     }
 }

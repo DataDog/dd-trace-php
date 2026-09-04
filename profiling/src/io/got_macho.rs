@@ -574,9 +574,10 @@ unsafe fn slot_belongs_to_image(
     false
 }
 
-pub unsafe fn restore_symbols(restores: &mut Vec<GotSlotRestore>) {
+pub unsafe fn restore_symbols(restores: &mut Vec<GotSlotRestore>) -> bool {
     let image_count = _dyld_image_count();
     let page_size = libc::sysconf(libc::_SC_PAGESIZE) as usize;
+    let mut complete = true;
 
     for i in 0..image_count {
         let header = _dyld_get_image_header(i);
@@ -601,6 +602,7 @@ pub unsafe fn restore_symbols(restores: &mut Vec<GotSlotRestore>) {
                     "Not restoring symbol pointer at {:#x}: it is outside the loaded image",
                     restore.slot
                 );
+                complete = false;
                 continue;
             }
             let slot = restore.slot as *mut *mut ();
@@ -609,6 +611,7 @@ pub unsafe fn restore_symbols(restores: &mut Vec<GotSlotRestore>) {
                     "Not restoring symbol pointer at {:p}: it was replaced after our hook",
                     slot
                 );
+                complete = false;
                 continue;
             }
 
@@ -625,12 +628,15 @@ pub unsafe fn restore_symbols(restores: &mut Vec<GotSlotRestore>) {
                     trace!(
                         "vm_protect failed while restoring symbol pointer at {slot:p}: kern_return {result}"
                     );
+                    complete = false;
                     continue;
                 }
             }
 
             if restore_slot_if_owned(restore) {
                 trace!("Restored symbol pointer at {slot:p}");
+            } else {
+                complete = false;
             }
 
             if restore.is_data_const {
@@ -647,6 +653,7 @@ pub unsafe fn restore_symbols(restores: &mut Vec<GotSlotRestore>) {
     }
 
     restores.clear();
+    complete
 }
 
 /// Extract the segment name from a `segment_command_64` as a `&str`.
