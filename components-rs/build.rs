@@ -15,6 +15,7 @@ fn main() {
         && std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("linux")
     {
         println!("cargo:rustc-cdylib-link-arg=-Wl,-e,ddog_spawn_direct_entry");
+        println!("cargo:rustc-cdylib-link-arg=-Wl,-soname,libdatadog_php.so");
     }
 
     if std::env::var_os("CARGO_FEATURE_PROFILING").is_some() {

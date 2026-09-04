@@ -167,7 +167,9 @@ if (PHP_DDTRACE != 'no') {
 		return files;
 	}
 
-	var rust_files = recursivelySearchRustFiles(configure_module_dirname + "/libdatadog").concat(recursivelySearchRustFiles(configure_module_dirname + "/components-rs"));
+	var rust_files = recursivelySearchRustFiles(configure_module_dirname + "/libdatadog")
+		.concat(recursivelySearchRustFiles(configure_module_dirname + "/components-rs"))
+		.concat(recursivelySearchRustFiles(configure_module_dirname + "/sidecar"));
 	rust_files.push(condense_path(configure_module_dirname + "/Cargo.toml"));
 	rust_files.push(condense_path(configure_module_dirname + "/Cargo.lock"));
 
@@ -184,7 +186,8 @@ if (PHP_DDTRACE != 'no') {
 	// Not supported yet on Windows: --cfg tokio_unstable --cfg tokio_taskdump
 	frag_out.WriteLine("!endif");
 	frag_out.WriteLine(cargo_lib + ": " + rust_files.join(" "));
-	var build_cargo = "\t$(CARGO) build --package datadog-php " + (ddtrace_cargo_profile == "release" ? "--profile tracer-release" : "");
+	// The Windows extension links the Rust static library; the cdylib is only used by Unix SSI builds.
+	var build_cargo = "\t$(CARGO) rustc --package datadog-php --lib --crate-type staticlib " + (ddtrace_cargo_profile == "release" ? "--profile tracer-release" : "");
 	if (configure_module_dirname.match(/^[A-Z]:/)) {
 		frag_out.WriteLine(build_cargo);
 	} else {
@@ -201,12 +204,11 @@ if (PHP_DDTRACE != 'no') {
 	var defpath = configure_module_dirname + "/ddtrace.def";
 	deffile = FSO.CreateTextFile(defpath, true);
 	deffile.WriteLine("EXPORTS");
-	var contents = FSO.OpenTextFile(configure_module_dirname + "/datadog.sym", 1).ReadAll();
-	contents = contents.replace(/ddog_crashtracker_entry_point\s*/, ""); // unix-only symbol
-    contents = contents + "\n" + FSO.OpenTextFile(configure_module_dirname + "/datadog-windows.sym", 1).ReadAll();
-	if (!PHP_DDTRACE_SHARED) {
-		contents = contents.replace(/get_module\s*/, "");
-	}
+	var contents = FSO.OpenTextFile(configure_module_dirname + "/ddtrace-extension.sym", 1).ReadAll();
+	contents = contents + "\n" + FSO.OpenTextFile(
+		configure_module_dirname + "/ddtrace-extension-windows.sym", 1).ReadAll();
+	contents = contents + "\n" + FSO.OpenTextFile(
+		configure_module_dirname + "/components-rs/libdatadog-php.sym", 1).ReadAll();
 	deffile.Write(contents);
 	deffile.Close();
 

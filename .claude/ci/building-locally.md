@@ -28,13 +28,7 @@ Before any build, ensure the relevant submodules are initialised
 # Tracer extension (ddtrace.so) — needs libdatadog
 git submodule update --init libdatadog
 
-# Appsec extension or helper — needs these additionally
-git submodule update --init \
-  appsec/third_party/libddwaf \
-  appsec/third_party/msgpack-c \
-  appsec/third_party/cpp-base64
-
-# Appsec helper rust — needs libddwaf-rust
+# Appsec extension/helper — needs libddwaf-rust
 git submodule update --init --recursive \
   appsec/third_party/libddwaf-rust
 ```
@@ -186,7 +180,7 @@ from the CI release build above (builds test targets, uses libc++):
 
 ```bash
 mkdir -p appsec/build && cd appsec/build
-cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_HELPER=OFF \
+cmake .. -DCMAKE_BUILD_TYPE=Debug \
   -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
   -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" \
   -DDD_APPSEC_TESTING=ON
@@ -196,47 +190,23 @@ make -j$(nproc) xtest
 For ASAN, add `-DENABLE_ASAN=ON` to cmake. See
 [appsec-native-tests.md](appsec-native-tests.md) for full details.
 
-## Appsec Helpers
+## Embedded AppSec Helper
 
-The tarball needs two helper binaries in `appsec_$(uname -m)/`:
-`libddappsec-helper.so` (C++) and `libddappsec-helper-rust.so`
-(Rust), plus `appsec/recommended.json`.
-
-### Rust helper
-
-Image is on Docker Hub. Output: `appsec_$(uname -m)/libddappsec-helper-rust.so`.
+The Rust AppSec helper is a workspace crate embedded in the tracer's sidecar
+component. Run its checks through the integration Gradle project:
 
 ```bash
 git submodule update --init --recursive \
   appsec/third_party/libddwaf-rust
 
-.claude/ci/dockerh --cache compile-appsec-helper-rust --overlayfs \
-    datadog/dd-appsec-php-ci:nginx-fpm-php-8.5-release-musl \
-    -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
-    -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
-    -- bash .gitlab/build-appsec-helper-rust.sh
+cd appsec/tests/integration
+./gradlew testHelperRust --info
+./gradlew buildPortableLibdatadogPhp --info
 ```
 
-### C++ helper
-
-The CI image (`nginx_musl_toolchain`) lives at
-`registry.ddbuild.io/images/mirror/b1o7r7e0/nginx_musl_toolchain`
-(not on Docker Hub). Transfer it via
-`docker save ... | ssh HOST docker load` if needed. Output:
-`appsec_$(uname -m)/libddappsec-helper.so` + `recommended.json`.
-
-```bash
-git submodule update --init \
-  appsec/third_party/libddwaf \
-  appsec/third_party/msgpack-c \
-  appsec/third_party/cpp-base64
-
-.claude/ci/dockerh --cache compile-appsec-helper-cpp --overlayfs \
-    registry.ddbuild.io/images/mirror/b1o7r7e0/nginx_musl_toolchain \
-    -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
-    -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
-    -- bash .gitlab/build-appsec-helper.sh
-```
+The release package needs the AppSec extensions in
+`appsec_$(uname -m)/` and `appsec/recommended.json`; there is no standalone
+helper artifact.
 
 ## Profiler Extension
 
@@ -327,9 +297,8 @@ platforms and fails if artifacts are missing.
 compiled `.so` files:
 - `extensions_$(uname -m)/` — ddtrace extensions
   (`ddtrace-{API}[-zts|-debug|-debug-zts].so`)
-- `appsec_$(uname -m)/` — appsec extensions (`ddappsec-{API}[-zts].so`) +
-  helpers (`libddappsec-helper.so` and `libddappsec-helper-rust.so`) +
-  `recommended.json`
+- `appsec_$(uname -m)/` — appsec extensions (`ddappsec-{API}[-zts].so`)
+- `appsec/recommended.json` — bundled AppSec rules
 - `datadog-profiling/{triplet}/lib/php/{API}/` — profiler
   extensions
 
@@ -466,7 +435,7 @@ troubleshooting but not for performance testing.
 # Tracer only (gnu, x86_64, PHP 8.2, NTS)
 tooling/bin/build-debug-artifact gnu-x86_64-8.2-nts
 
-# Tracer + appsec (extension + both helpers) + profiler
+# Tracer + appsec (extension + embedded helper) + profiler
 tooling/bin/build-debug-artifact gnu-x86_64-8.2-nts --appsec --profiler
 
 # Musl/arm64 variant, custom output directory (preferred if the location is somewhere else)

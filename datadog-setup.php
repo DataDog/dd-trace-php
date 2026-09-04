@@ -149,7 +149,7 @@ class IniRecord
  */
 function config_list(array $options)
 {
-    $iniSettings = get_ini_settings('', '', '');
+    $iniSettings = get_ini_settings('', '');
 
     // The first 3 are 'extension' type of settings.
     $iniSettings = array_slice($iniSettings, CMD_CONFIG_NUM_SHIFT);
@@ -531,7 +531,6 @@ function install($options)
     $tmpArchiveRoot = $tmpDir . '/dd-library-php';
     $tmpArchiveTraceRoot = $tmpDir . '/dd-library-php/trace';
     $tmpArchiveAppsecRoot = $tmpDir . '/dd-library-php/appsec';
-    $tmpArchiveAppsecLib = "{$tmpArchiveAppsecRoot}/lib";
     $tmpArchiveAppsecEtc = "{$tmpArchiveAppsecRoot}/etc";
     $tmpArchiveProfilingRoot = $tmpDir . '/dd-library-php/profiling';
     $tmpSrcDir = $tmpArchiveTraceRoot . '/src';
@@ -593,12 +592,8 @@ function install($options)
     warn_if_not_traversable($installDir);
     echo "Installed required source files to '$installDir'\n";
 
-    // Appsec helper and rules
+    // Appsec rules
     if (file_exists($tmpArchiveAppsecRoot)) {
-        execute_or_exit(
-            "Cannot copy files from '$tmpArchiveAppsecLib' to '$installDir'",
-            (IS_WINDOWS ? "xcopy /s /e /y /g /b /o /h " : "cp -rf ") . escapeshellarg("$tmpArchiveAppsecLib") . ' ' . escapeshellarg($installDir)
-        );
         execute_or_exit(
             "Cannot copy files from '$tmpArchiveAppsecEtc' to '$installDir'",
             (IS_WINDOWS ? "xcopy /s /e /y /g /b /o /h " : "cp -r ") . escapeshellarg("$tmpArchiveAppsecEtc") . ' ' . escapeshellarg($installDir)
@@ -676,8 +671,6 @@ function install($options)
             $appsecExtensionDestination = $extDir . '/' . EXTENSION_PREFIX . 'ddappsec.' . EXTENSION_SUFFIX;
             safe_copy_extension($appsecExtensionRealPath, $appsecExtensionDestination);
         }
-        $appSecHelperPath = $installDir . '/lib/libddappsec-helper.so';
-
         $iniPathsFromUser = isset($options[OPT_PHP_INI]);
         if ($iniPathsFromUser) {
             $iniFilePaths = $options[OPT_PHP_INI];
@@ -767,8 +760,6 @@ function install($options)
                     : ("ddappsec" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX));
                 $replacements += [
                     '(^\s*;?\s*extension\s*=\s*.*ddappsec.*)m' => "extension = $iniAppsecExtension",
-                    // Update helper path
-                    '(datadog.appsec.helper_path\s*=.*)' => "datadog.appsec.helper_path = $appSecHelperPath",
                     // Update and comment rules path
                     '(^[\s;]*datadog.appsec.rules\s*=\s*' . $rulesPathRegex . ')m' => "; datadog.appsec.rules = " . $appSecRulesPath,
                 ];
@@ -789,7 +780,7 @@ function install($options)
 
             add_missing_ini_settings(
                 $iniFilePath,
-                get_ini_settings($installDirSrcDir, $appSecHelperPath, $appSecRulesPath),
+                get_ini_settings($installDirSrcDir, $appSecRulesPath),
                 $replacements
             );
 
@@ -2222,11 +2213,10 @@ function map_env_to_ini($env)
  *                                    the setting.
  *
  * @param string $sourcesDir
- * @param string $appsecHelperPath
  * @param string $appsecRulesPath
  * @return array
  */
-function get_ini_settings($sourcesDir, $appsecHelperPath, $appsecRulesPath)
+function get_ini_settings($sourcesDir, $appsecRulesPath)
 {
     // phpcs:disable Generic.Files.LineLength.TooLong
     return [
@@ -2594,52 +2584,21 @@ function get_ini_settings($sourcesDir, $appsecHelperPath, $appsecRulesPath)
             ],
         ],
         [
-            'name' => 'datadog.appsec.helper_path',
-            'default' => $appsecHelperPath,
-            'commented' => false,
-            'description' => [
-                'The path to the shared library that the appsec extension loads in the sidecar.',
-                'This ini setting is configured by the installer',
-            ],
-        ],
-        [
             'name' => 'datadog.appsec.rules',
             'default' => $appsecRulesPath,
             'commented' => true,
             'description' => [
                 'Optional path to a custom rules json file. When this setting is not configured,',
-                'the Rust helper uses its embedded default rules and the C++ helper uses the',
-                'default rules file installed next to the helper.',
-            ],
-        ],
-        [
-            'name' => 'datadog.appsec.helper_runtime_path',
-            'default' => '/tmp/',
-            'commented' => true,
-            'description' => [
-                'The directory where to place the lock file and the UNIX socket that the',
-                'extension uses communicate with the helper inside sidecar. Ultimately,',
-                'the paths include the version of the extension and uid/gid.',
-            ],
-        ],
-        [
-            'name' => 'datadog.appsec.helper_rust_redirection',
-            'default' => 'false',
-            'commented' => true,
-            'description' => [
-                'Whether to use the new implementation of the AppSec helper.',
-                'This is trying by looking for a file named libddappsec-helper-rust.so',
-                'next to the value specified in datadog.appsec.helper_runtime_path.',
-                'Defaults to  true on PHP 8.5.',
+                'the helper uses its embedded default rules.',
             ],
         ],
         [
             'name' => 'datadog.appsec.helper_log_file',
-            'default' => '/dev/null',
+            'default' => '<sidecar log>',
             'commented' => true,
             'description' => [
-                'The location of the log file of the helper. This defaults to /dev/null',
-                '(the log messages will be discarded).',
+                'The location of the log file of the helper. By default, helper messages are',
+                'written to the sidecar log. Set this to a file path to use a separate log.',
             ],
         ],
         [

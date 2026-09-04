@@ -6,18 +6,11 @@ RUN apt-get update && apt-get install -y \
   build-essential \
   curl \
   git \
-  gnupg \
-  libncurses5-dev \
-  lld \
-  lsb-release \
   patchelf \
-  software-properties-common \
-  wget \
   wget \
   xz-utils \
   && rm -rf /var/lib/apt/lists/*
 
-RUN ln -s /bin/sed /usr/bin/sed
 COPY . /build/
 
 RUN wget https://github.com/Kitware/CMake/releases/download/v3.28.0/cmake-3.28.0-linux-$(arch | sed s/arm/aarch/).tar.gz && \

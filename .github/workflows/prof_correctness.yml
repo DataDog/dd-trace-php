@@ -100,7 +100,7 @@ jobs:
           export DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1
           php -v
           php -d extension=modules/datadog-profiling.so --ri datadog-profiling
-          for test_case in "allocations" "time" "strange_frames" "timeline" "exceptions" "io" "io_upscaling" "allocation_time_combined" "generators"; do
+          for test_case in "allocations" "time" "strange_frames" "timeline" "exceptions" "io" "socket_io" "io_upscaling" "allocation_time_combined" "generators"; do
               mkdir -p profiling/tests/correctness/"$test_case"/
               export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/"$test_case"/test.pprof
               php -d extension="${PWD}/modules/datadog-profiling.so" "profiling/tests/correctness/${test_case}.php"
@@ -119,7 +119,7 @@ jobs:
           export DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1
           php -v
           php -d extension=modules/datadog-profiling.so --ri datadog-profiling
-          for test_case in "allocations" "time" "strange_frames" "timeline" "exceptions" "io" "io_upscaling" "allocation_time_combined" "generators"; do
+          for test_case in "allocations" "time" "strange_frames" "timeline" "exceptions" "io" "socket_io" "io_upscaling" "allocation_time_combined" "generators"; do
               mkdir -p profiling/tests/correctness/"$test_case"/
               export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/"$test_case"/test.pprof
               php -d extension=$PWD/modules/datadog-profiling.so profiling/tests/correctness/"$test_case".php
@@ -202,6 +202,12 @@ jobs:
         with:
           expected_json: profiling/tests/correctness/io.json
           pprof_path: profiling/tests/correctness/io/
+
+      - name: Check profiler correctness for socket IO
+        uses: Datadog/prof-correctness/analyze@main
+        with:
+          expected_json: profiling/tests/correctness/socket_io.json
+          pprof_path: profiling/tests/correctness/socket_io/
 
       - name: Check profiler correctness for IO upscaling
         uses: Datadog/prof-correctness/analyze@main
