@@ -9,6 +9,7 @@ use libc::{c_char, c_int, c_void, dl_phdr_info};
 use log::{error, trace};
 use std::ffi::CStr;
 use std::ptr;
+use std::sync::OnceLock;
 
 fn elf64_r_type(info: Elf64_Xword) -> u32 {
     (info & 0xffffffff) as u32
@@ -35,16 +36,22 @@ unsafe fn override_got_entry(
 ) -> bool {
     let phdr = (*info).dlpi_phdr;
 
-    // Locate the dynamic programm header (`PT_DYNAMIC`)
+    // Locate the dynamic program header (`PT_DYNAMIC`) and RELRO segment (`PT_GNU_RELRO`)
     let mut dyn_ptr: *const Elf64_Dyn = ptr::null();
+    let mut dyn_count: usize = 0;
+    let mut relro_range: Option<(usize, usize)> = None;
     for i in 0..(*info).dlpi_phnum {
         let phdr_i = phdr.offset(i as isize);
         if (*phdr_i).p_type == PT_DYNAMIC {
             dyn_ptr = ((*info).dlpi_addr as usize + (*phdr_i).p_vaddr as usize) as *const Elf64_Dyn;
-            break;
+            dyn_count = (*phdr_i).p_memsz as usize / std::mem::size_of::<Elf64_Dyn>();
+        } else if (*phdr_i).p_type == libc::PT_GNU_RELRO {
+            let start = (*info).dlpi_addr as usize + (*phdr_i).p_vaddr as usize;
+            let end = start + (*phdr_i).p_memsz as usize;
+            relro_range = Some((start, end));
         }
     }
-    if dyn_ptr.is_null() {
+    if dyn_ptr.is_null() || dyn_count == 0 {
         trace!("Failed to locate dynamic section");
         return false;
     }
@@ -63,7 +70,7 @@ unsafe fn override_got_entry(
     // - on glibc, addresses are absolutes
     // https://elixir.bootlin.com/glibc/glibc-2.36/source/elf/get-dynamic-info.h#L84
     let mut dyn_iter = dyn_ptr;
-    loop {
+    for _ in 0..dyn_count {
         let d_tag = (*dyn_iter).d_tag as u32;
         if d_tag == DT_NULL {
             break;
@@ -112,27 +119,26 @@ unsafe fn override_got_entry(
 
     let num_relocs = rel_plt_size / std::mem::size_of::<Elf64_Rela>();
 
-    // For each symbol we want to overwrite (from `overwrites`), we scan the relocation entries.
-    // Once the matching symbol name is found, patch its GOT entry to point to our new function.
-    for overwrite in state.overwrites.iter_mut() {
-        for i in 0..num_relocs {
-            let rel = rel_plt.add(i);
-            let r_type = elf64_r_type((*rel).r_info);
+    // Scan relocation entries once and match against symbols we want to overwrite.
+    for i in 0..num_relocs {
+        let rel = rel_plt.add(i);
+        let r_type = elf64_r_type((*rel).r_info);
 
-            // Only handle JUMP_SLOT relocations
-            if r_type != R_AARCH64_JUMP_SLOT && r_type != R_X86_64_JUMP_SLOT {
-                continue;
-            }
+        // Only handle JUMP_SLOT relocations
+        if r_type != R_AARCH64_JUMP_SLOT && r_type != R_X86_64_JUMP_SLOT {
+            continue;
+        }
 
-            // Get the symbol index for this relocation, then the symbol struct
-            let sym_index = elf64_r_sym((*rel).r_info) as usize;
-            let sym = symtab.add(sym_index);
+        // Get the symbol index for this relocation, then the symbol struct
+        let sym_index = elf64_r_sym((*rel).r_info) as usize;
+        let sym = symtab.add(sym_index);
 
-            // Access the symbol name via the string table
-            let name_offset = (*sym).st_name as isize;
-            let name_ptr = strtab.offset(name_offset);
-            let name = CStr::from_ptr(name_ptr).to_str().unwrap_or("");
+        // Access the symbol name via the string table
+        let name_offset = (*sym).st_name as isize;
+        let name_ptr = strtab.offset(name_offset);
+        let name = CStr::from_ptr(name_ptr).to_str().unwrap_or("");
 
+        for overwrite in state.overwrites.iter_mut() {
             if name == overwrite.symbol_name {
                 // Calculate the GOT entry address. Per the ELF spec, `r_offset` for pointer-sized
                 // relocations (such as GOT entries) is guaranteed to be pointer-aligned, see:
@@ -140,14 +146,21 @@ unsafe fn override_got_entry(
                 let got_entry =
                     ((*info).dlpi_addr as usize + (*rel).r_offset as usize) as *mut *mut ();
 
-                // Change memory protection so we can write to the GOT entry
+                let is_relro = if let Some((start, end)) = relro_range {
+                    (got_entry as usize) >= start && (got_entry as usize) < end
+                } else {
+                    false
+                };
+
+                // Change memory protection so we can write to the GOT entry if protected by RELRO
                 let page_size = libc::sysconf(libc::_SC_PAGESIZE) as usize;
                 let aligned_addr = (got_entry as usize) & !(page_size - 1);
-                if libc::mprotect(
-                    aligned_addr as *mut c_void,
-                    page_size,
-                    libc::PROT_READ | libc::PROT_WRITE,
-                ) != 0
+                if is_relro
+                    && libc::mprotect(
+                        aligned_addr as *mut c_void,
+                        page_size,
+                        libc::PROT_READ | libc::PROT_WRITE,
+                    ) != 0
                 {
                     let err = *libc::__errno_location();
                     trace!("mprotect failed: {}", err);
@@ -160,20 +173,13 @@ unsafe fn override_got_entry(
                 }
 
                 trace!(
-                    "Overriding GOT entry for {} at offset {:?} (abs: {:p}) pointing to {:p} (orig function at {:p})",
+                    "Overriding GOT entry for {} at offset {:?} (abs: {:p}) pointing to {:p}",
                     overwrite.symbol_name,
                     (*rel).r_offset,
                     got_entry,
                     original,
-                    *overwrite.orig_func
                 );
 
-                // This works for musl based linux distros, but not for libc once
-                *overwrite.orig_func = libc::dlsym(libc::RTLD_NEXT, name_ptr) as *mut ();
-                if (*overwrite.orig_func).is_null() {
-                    // libc linux fallback
-                    *overwrite.orig_func = original;
-                }
                 state.restores.push(GotSlotRestore {
                     image: (*info).dlpi_addr as usize,
                     image_name: image_name.into(),
@@ -182,7 +188,11 @@ unsafe fn override_got_entry(
                     replacement: overwrite.new_func as usize,
                 });
                 *got_entry = overwrite.new_func;
-                continue;
+
+                if is_relro {
+                    libc::mprotect(aligned_addr as *mut c_void, page_size, libc::PROT_READ);
+                }
+                break;
             }
         }
     }
@@ -198,13 +208,20 @@ pub unsafe extern "C" fn callback(
 ) -> c_int {
     let state = &mut *(data as *mut GotHookState);
 
-    // detect myself ...
-    let mut my_info: libc::Dl_info = std::mem::zeroed();
-    if libc::dladdr(callback as *const c_void, &mut my_info) == 0 {
-        error!("Did not find my own `dladdr` and therefore can't hook into the GOT.");
+    // detect myself (cached once across iterations)
+    static MY_BASE_ADDR: OnceLock<usize> = OnceLock::new();
+    let my_base_addr = *MY_BASE_ADDR.get_or_init(|| {
+        let mut my_info: libc::Dl_info = unsafe { std::mem::zeroed() };
+        if unsafe { libc::dladdr(callback as *const c_void, &mut my_info) } == 0 {
+            error!("Did not find my own `dladdr` and therefore can't hook into the GOT.");
+            0
+        } else {
+            my_info.dli_fbase as usize
+        }
+    });
+    if my_base_addr == 0 {
         return 0;
     }
-    let my_base_addr = my_info.dli_fbase as usize;
     let module_base_addr = (*info).dlpi_addr as usize;
     if module_base_addr == my_base_addr {
         // "this" lib is actually me: skipping GOT hooking for myself
@@ -222,9 +239,9 @@ pub unsafe extern "C" fn callback(
         std::str::from_utf8(image_name).unwrap_or("[Unknown]")
     };
 
-    // I guess if we try to hook into GOT from `linux-vdso` or `ld-linux` our best outcome will be
-    // that nothing happens, but most likely we'll crash and we should avoid that.
-    if name.contains("linux-vdso") || name.contains("ld-linux") {
+    // I guess if we try to hook into GOT from `linux-vdso`, `ld-linux` or `ld-musl` our best
+    // outcome will be that nothing happens, but most likely we'll crash and we should avoid that.
+    if name.contains("linux-vdso") || name.contains("ld-linux") || name.contains("ld-musl") {
         return 0;
     }
 

@@ -12,7 +12,6 @@ use rustc_hash::FxHashMap;
 use std::cell::RefCell;
 use std::mem::MaybeUninit;
 use std::os::unix::io::RawFd;
-use std::ptr;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
@@ -32,13 +31,15 @@ struct ErrnoBackup {
 impl ErrnoBackup {
     /// Snapshots the current `errno` value.
     #[inline]
-    unsafe fn new() -> Self {
+    fn new() -> Self {
+        // SAFETY: libc::__errno_location() (Linux) / libc::__error() (macOS) returns a valid,
+        // non-null pointer to the calling thread's errno lvalue, safe for reading.
         #[cfg(target_os = "linux")]
-        let location = libc::__errno_location();
+        let location = unsafe { libc::__errno_location() };
         #[cfg(target_os = "macos")]
-        let location = libc::__error();
+        let location = unsafe { libc::__error() };
         Self {
-            errno: *location,
+            errno: unsafe { *location },
             location,
         }
     }
@@ -56,7 +57,6 @@ impl Drop for ErrnoBackup {
 pub struct GotSymbolOverwrite {
     pub symbol_name: &'static str,
     pub new_func: *mut (),
-    pub orig_func: *mut *mut (),
 }
 
 pub struct GotHookState<'a> {
@@ -99,8 +99,36 @@ unsafe fn restore_slot_if_owned(restore: &GotSlotRestore) -> bool {
     true
 }
 
-static mut ORIG_POLL: unsafe extern "C" fn(*mut libc::pollfd, libc::nfds_t, c_int) -> i32 =
-    libc::poll;
+#[inline]
+fn is_zend_thread() -> bool {
+    REQUEST_LOCALS.borrow_or_false(|locals| !locals.vm_interrupt_addr.is_null())
+}
+
+fn eval_poll_events(ret: i32, fds: &[libc::pollfd]) -> (bool, bool) {
+    let mut has_read = false;
+    let mut has_write = false;
+
+    for pfd in fds {
+        let mask = match ret {
+            0 => pfd.events,
+            _ if pfd.revents == 0 => continue,
+            _ if pfd.revents & (libc::POLLIN | libc::POLLOUT) == 0 => pfd.events,
+            _ => pfd.revents,
+        };
+
+        if (mask & libc::POLLIN) != 0 {
+            has_read = true;
+        }
+        if (mask & libc::POLLOUT) != 0 {
+            has_write = true;
+        }
+        if has_read && has_write {
+            break;
+        }
+    }
+
+    (has_read, has_write)
+}
 
 /// The `poll()` libc call has only every been observed when reading/writing to/from a socket,
 /// never when reading/writing to a file. There are two known cases in PHP:
@@ -115,48 +143,36 @@ unsafe extern "C" fn observed_poll(
     nfds: libc::nfds_t,
     timeout: c_int,
 ) -> i32 {
+    if !is_zend_thread() {
+        return libc::poll(fds, nfds, timeout);
+    }
+
     let start = Instant::now();
-    let ret = ORIG_POLL(fds, nfds, timeout);
+    let ret = libc::poll(fds, nfds, timeout);
     let _errno_backup = ErrnoBackup::new();
     let duration = start.elapsed();
 
-    if !fds.is_null() {
+    if ret >= 0 && nfds > 0 && !fds.is_null() {
         let duration_nanos = duration.as_nanos() as u64;
-        if (*fds).revents & 1 == 1 {
-            // requested events contains reading
-            if SOCKET_READ_TIME_PROFILING_STATS
+        let slice = unsafe { std::slice::from_raw_parts(fds, nfds as usize) };
+        let (has_read, has_write) = eval_poll_events(ret, slice);
+
+        if has_read
+            && SOCKET_READ_TIME_PROFILING_STATS
                 .borrow_mut_or_false(|io| io.should_collect(duration_nanos))
-            {
-                collect_socket_read_time(duration_nanos);
-            }
-        } else if (*fds).revents & 4 == 4 {
-            // requested events contains writing
-            if SOCKET_WRITE_TIME_PROFILING_STATS
+        {
+            collect_socket_read_time(duration_nanos);
+        }
+        if has_write
+            && SOCKET_WRITE_TIME_PROFILING_STATS
                 .borrow_mut_or_false(|io| io.should_collect(duration_nanos))
-            {
-                collect_socket_write_time(duration_nanos);
-            }
-        } else if (*fds).events & 1 == 1 {
-            // socket became readable
-            if SOCKET_READ_TIME_PROFILING_STATS
-                .borrow_mut_or_false(|io| io.should_collect(duration_nanos))
-            {
-                collect_socket_read_time(duration_nanos);
-            }
-        } else if (*fds).events & 4 == 4 {
-            // socket became writeable
-            if SOCKET_WRITE_TIME_PROFILING_STATS
-                .borrow_mut_or_false(|io| io.should_collect(duration_nanos))
-            {
-                collect_socket_write_time(duration_nanos);
-            }
+        {
+            collect_socket_write_time(duration_nanos);
         }
     }
 
     ret
 }
-
-static mut ORIG_RECV: unsafe extern "C" fn(c_int, *mut c_void, usize, c_int) -> isize = libc::recv;
 
 unsafe extern "C" fn observed_recv(
     socket: c_int,
@@ -164,8 +180,12 @@ unsafe extern "C" fn observed_recv(
     length: usize,
     flags: c_int,
 ) -> isize {
+    if !is_zend_thread() {
+        return libc::recv(socket, buf, length, flags);
+    }
+
     let start = Instant::now();
-    let len = ORIG_RECV(socket, buf, length, flags);
+    let len = libc::recv(socket, buf, length, flags);
     let _errno_backup = ErrnoBackup::new();
     let duration = start.elapsed();
 
@@ -183,17 +203,18 @@ unsafe extern "C" fn observed_recv(
 
     len
 }
-
-static mut ORIG_RECVMSG: unsafe extern "C" fn(c_int, *mut libc::msghdr, c_int) -> isize =
-    libc::recvmsg;
 
 unsafe extern "C" fn observed_recvmsg(
     socket: c_int,
     msg: *mut libc::msghdr,
     flags: c_int,
 ) -> isize {
+    if !is_zend_thread() {
+        return libc::recvmsg(socket, msg, flags);
+    }
+
     let start = Instant::now();
-    let len = ORIG_RECVMSG(socket, msg, flags);
+    let len = libc::recvmsg(socket, msg, flags);
     let _errno_backup = ErrnoBackup::new();
     let duration = start.elapsed();
 
@@ -211,15 +232,6 @@ unsafe extern "C" fn observed_recvmsg(
 
     len
 }
-
-static mut ORIG_RECVFROM: unsafe extern "C" fn(
-    c_int,
-    *mut c_void,
-    usize,
-    c_int,
-    *mut libc::sockaddr,
-    *mut libc::socklen_t,
-) -> isize = libc::recvfrom;
 
 unsafe extern "C" fn observed_recvfrom(
     socket: c_int,
@@ -229,8 +241,12 @@ unsafe extern "C" fn observed_recvfrom(
     address: *mut libc::sockaddr,
     address_len: *mut libc::socklen_t,
 ) -> isize {
+    if !is_zend_thread() {
+        return libc::recvfrom(socket, buf, length, flags, address, address_len);
+    }
+
     let start = Instant::now();
-    let len = ORIG_RECVFROM(socket, buf, length, flags, address, address_len);
+    let len = libc::recvfrom(socket, buf, length, flags, address, address_len);
     let _errno_backup = ErrnoBackup::new();
     let duration = start.elapsed();
 
@@ -249,16 +265,18 @@ unsafe extern "C" fn observed_recvfrom(
     len
 }
 
-static mut ORIG_SEND: unsafe extern "C" fn(c_int, *const c_void, usize, c_int) -> isize =
-    libc::send;
 unsafe extern "C" fn observed_send(
     socket: c_int,
     buf: *const c_void,
     length: usize,
     flags: c_int,
 ) -> isize {
+    if !is_zend_thread() {
+        return libc::send(socket, buf, length, flags);
+    }
+
     let start = Instant::now();
-    let len = ORIG_SEND(socket, buf, length, flags);
+    let len = libc::send(socket, buf, length, flags);
     let _errno_backup = ErrnoBackup::new();
     let duration = start.elapsed();
 
@@ -277,15 +295,17 @@ unsafe extern "C" fn observed_send(
     len
 }
 
-static mut ORIG_SENDMSG: unsafe extern "C" fn(c_int, *const libc::msghdr, c_int) -> isize =
-    libc::sendmsg;
 unsafe extern "C" fn observed_sendmsg(
     socket: c_int,
     msg: *const libc::msghdr,
     flags: c_int,
 ) -> isize {
+    if !is_zend_thread() {
+        return libc::sendmsg(socket, msg, flags);
+    }
+
     let start = Instant::now();
-    let len = ORIG_SENDMSG(socket, msg, flags);
+    let len = libc::sendmsg(socket, msg, flags);
     let _errno_backup = ErrnoBackup::new();
     let duration = start.elapsed();
 
@@ -304,20 +324,18 @@ unsafe extern "C" fn observed_sendmsg(
     len
 }
 
-static mut ORIG_FWRITE: unsafe extern "C" fn(
-    *const c_void,
-    usize,
-    usize,
-    *mut libc::FILE,
-) -> usize = libc::fwrite;
 unsafe extern "C" fn observed_fwrite(
     ptr: *const c_void,
     size: usize,
     nobj: usize,
     stream: *mut libc::FILE,
 ) -> usize {
+    if !is_zend_thread() {
+        return libc::fwrite(ptr, size, nobj, stream);
+    }
+
     let start = Instant::now();
-    let len = ORIG_FWRITE(ptr, size, nobj, stream);
+    let len = libc::fwrite(ptr, size, nobj, stream);
     let _errno_backup = ErrnoBackup::new();
     let duration = start.elapsed();
 
@@ -325,20 +343,23 @@ unsafe extern "C" fn observed_fwrite(
     if FILE_WRITE_TIME_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(duration_nanos)) {
         collect_file_write_time(duration_nanos);
     }
-    if len > 0 {
-        let len_u64 = len as u64;
-        if FILE_WRITE_SIZE_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(len_u64)) {
-            collect_file_write_size(len_u64);
-        }
+    let bytes = (len as u64).saturating_mul(size as u64);
+    if bytes > 0
+        && FILE_WRITE_SIZE_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(bytes))
+    {
+        collect_file_write_size(bytes);
     }
 
     len
 }
 
-static mut ORIG_WRITE: unsafe extern "C" fn(c_int, *const c_void, usize) -> isize = libc::write;
 unsafe extern "C" fn observed_write(fd: c_int, buf: *const c_void, count: usize) -> isize {
+    if !is_zend_thread() {
+        return libc::write(fd, buf, count);
+    }
+
     let start = Instant::now();
-    let len = ORIG_WRITE(fd, buf, count);
+    let len = libc::write(fd, buf, count);
     let _errno_backup = ErrnoBackup::new();
     let duration = start.elapsed();
 
@@ -375,8 +396,6 @@ unsafe extern "C" fn observed_write(fd: c_int, buf: *const c_void, count: usize)
     len
 }
 
-static mut ORIG_FREAD: unsafe extern "C" fn(*mut c_void, usize, usize, *mut libc::FILE) -> usize =
-    libc::fread;
 // So far there seems to be only one situation where a file is read using `fread()` instead of
 // `read()` in PHP and that is when compiling a PHP file, triggered by it being the start file or a
 // userland call to `include()`/`require()` functions.
@@ -386,8 +405,12 @@ unsafe extern "C" fn observed_fread(
     nobj: usize,
     stream: *mut libc::FILE,
 ) -> usize {
+    if !is_zend_thread() {
+        return libc::fread(ptr, size, nobj, stream);
+    }
+
     let start = Instant::now();
-    let len = ORIG_FREAD(ptr, size, nobj, stream);
+    let len = libc::fread(ptr, size, nobj, stream);
     let _errno_backup = ErrnoBackup::new();
     let duration = start.elapsed();
 
@@ -395,20 +418,23 @@ unsafe extern "C" fn observed_fread(
     if FILE_READ_TIME_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(duration_nanos)) {
         collect_file_read_time(duration_nanos);
     }
-    if len > 0 {
-        let len_u64 = len as u64;
-        if FILE_READ_SIZE_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(len_u64)) {
-            collect_file_read_size(len_u64);
-        }
+    let bytes = (len as u64).saturating_mul(size as u64);
+    if bytes > 0
+        && FILE_READ_SIZE_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(bytes))
+    {
+        collect_file_read_size(bytes);
     }
 
     len
 }
 
-static mut ORIG_READ: unsafe extern "C" fn(c_int, *mut c_void, usize) -> isize = libc::read;
 unsafe extern "C" fn observed_read(fd: c_int, buf: *mut c_void, count: usize) -> isize {
+    if !is_zend_thread() {
+        return libc::read(fd, buf, count);
+    }
+
     let start = Instant::now();
-    let len = ORIG_READ(fd, buf, count);
+    let len = libc::read(fd, buf, count);
     let _errno_backup = ErrnoBackup::new();
     let duration = start.elapsed();
 
@@ -443,10 +469,9 @@ unsafe extern "C" fn observed_read(fd: c_int, buf: *mut c_void, count: usize) ->
     len
 }
 
-static mut ORIG_CLOSE: unsafe extern "C" fn(i32) -> i32 = libc::close;
 /// The sole purpose of this function is to remove the `fd` from the `FD_CACHE`
 unsafe extern "C" fn observed_close(fd: i32) -> i32 {
-    let ret = ORIG_CLOSE(fd);
+    let ret = libc::close(fd);
     let _errno_backup = ErrnoBackup::new();
     let cache = FD_CACHE.get_or_init(|| Mutex::new(FxHashMap::default()));
     let mut cache = cache.lock().unwrap();
@@ -625,15 +650,6 @@ impl IOProfilingStats {
     }
 
     fn should_collect(&mut self, value: u64) -> bool {
-        let zend_thread =
-            REQUEST_LOCALS.borrow_or_false(|locals| !locals.vm_interrupt_addr.is_null());
-        if !zend_thread {
-            // `curl_exec()` for example will spawn a new thread for name resolution. GOT hooking
-            // follows threads and as such we might sample from another (non PHP) thread even in a
-            // NTS build of PHP. We have observed crashes for these cases, so instead of crashing
-            // (or risking a crash) we refrain from collection I/O.
-            return false;
-        }
         if let Some(next_sample) = self.next_sample.checked_sub(value) {
             self.next_sample = next_sample;
             return false;
@@ -696,57 +712,46 @@ pub fn io_prof_first_rinit() {
                 GotSymbolOverwrite {
                     symbol_name: "recv",
                     new_func: observed_recv as *mut (),
-                    orig_func: ptr::addr_of_mut!(ORIG_RECV) as *mut _ as *mut *mut (),
                 },
                 GotSymbolOverwrite {
                     symbol_name: "recvmsg",
                     new_func: observed_recvmsg as *mut (),
-                    orig_func: ptr::addr_of_mut!(ORIG_RECVMSG) as *mut _ as *mut *mut (),
                 },
                 GotSymbolOverwrite {
                     symbol_name: "recvfrom",
                     new_func: observed_recvfrom as *mut (),
-                    orig_func: ptr::addr_of_mut!(ORIG_RECVFROM) as *mut _ as *mut *mut (),
                 },
                 GotSymbolOverwrite {
                     symbol_name: "send",
                     new_func: observed_send as *mut (),
-                    orig_func: ptr::addr_of_mut!(ORIG_SEND) as *mut _ as *mut *mut (),
                 },
                 GotSymbolOverwrite {
                     symbol_name: "sendmsg",
                     new_func: observed_sendmsg as *mut (),
-                    orig_func: ptr::addr_of_mut!(ORIG_SENDMSG) as *mut _ as *mut *mut (),
                 },
                 GotSymbolOverwrite {
                     symbol_name: "write",
                     new_func: observed_write as *mut (),
-                    orig_func: ptr::addr_of_mut!(ORIG_WRITE) as *mut _ as *mut *mut (),
                 },
                 GotSymbolOverwrite {
                     symbol_name: "read",
                     new_func: observed_read as *mut (),
-                    orig_func: ptr::addr_of_mut!(ORIG_READ) as *mut _ as *mut *mut (),
                 },
                 GotSymbolOverwrite {
                     symbol_name: "fwrite",
                     new_func: observed_fwrite as *mut (),
-                    orig_func: ptr::addr_of_mut!(ORIG_FWRITE) as *mut _ as *mut *mut (),
                 },
                 GotSymbolOverwrite {
                     symbol_name: "fread",
                     new_func: observed_fread as *mut (),
-                    orig_func: ptr::addr_of_mut!(ORIG_FREAD) as *mut _ as *mut *mut (),
                 },
                 GotSymbolOverwrite {
                     symbol_name: "close",
                     new_func: observed_close as *mut (),
-                    orig_func: ptr::addr_of_mut!(ORIG_CLOSE) as *mut _ as *mut *mut (),
                 },
                 GotSymbolOverwrite {
                     symbol_name: "poll",
                     new_func: observed_poll as *mut (),
-                    orig_func: ptr::addr_of_mut!(ORIG_POLL) as *mut _ as *mut *mut (),
                 },
             ];
             let mut restores = GOT_SLOT_RESTORES.lock().unwrap();
@@ -784,7 +789,9 @@ pub fn io_prof_mshutdown() -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{restore_matches_image, slot_fits_range, ErrnoBackup, GotSlotRestore};
+    use super::{
+        eval_poll_events, restore_matches_image, slot_fits_range, ErrnoBackup, GotSlotRestore,
+    };
     use static_assertions::assert_not_impl_any;
 
     assert_not_impl_any!(ErrnoBackup: Send, Sync);
@@ -816,5 +823,65 @@ mod tests {
         assert!(unsafe { super::got_elf64::restore_symbols(&mut restores) });
         #[cfg(target_os = "macos")]
         assert!(unsafe { super::got_macho::restore_symbols(&mut restores) });
+    }
+
+    #[test]
+    fn test_eval_poll_events_ready() {
+        let fds = [libc::pollfd {
+            fd: 3,
+            events: libc::POLLIN | libc::POLLOUT,
+            revents: libc::POLLIN,
+        }];
+        assert_eq!(eval_poll_events(1, &fds), (true, false));
+
+        let fds_both = [libc::pollfd {
+            fd: 3,
+            events: libc::POLLIN | libc::POLLOUT,
+            revents: libc::POLLIN | libc::POLLOUT,
+        }];
+        assert_eq!(eval_poll_events(1, &fds_both), (true, true));
+    }
+
+    #[test]
+    fn test_eval_poll_events_timeout() {
+        let fds = [libc::pollfd {
+            fd: 3,
+            events: libc::POLLIN,
+            revents: 0,
+        }];
+        assert_eq!(eval_poll_events(0, &fds), (true, false));
+    }
+
+    #[test]
+    fn test_eval_poll_events_hangup() {
+        let fds = [libc::pollfd {
+            fd: 3,
+            events: libc::POLLOUT,
+            revents: libc::POLLHUP,
+        }];
+        assert_eq!(eval_poll_events(1, &fds), (false, true));
+    }
+
+    #[test]
+    fn test_eval_poll_events_multiple_fds() {
+        let fds = [
+            libc::pollfd {
+                fd: 3,
+                events: libc::POLLIN,
+                revents: 0,
+            },
+            libc::pollfd {
+                fd: 4,
+                events: libc::POLLOUT,
+                revents: libc::POLLOUT,
+            },
+        ];
+        assert_eq!(eval_poll_events(1, &fds), (false, true));
+    }
+
+    #[test]
+    fn test_eval_poll_events_empty() {
+        assert_eq!(eval_poll_events(0, &[]), (false, false));
+        assert_eq!(eval_poll_events(1, &[]), (false, false));
     }
 }
