@@ -3018,7 +3018,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-data-pipeline-core"
-version = "1.0.0"
+version = "0.1.0"
 dependencies = [
  "bytes",
  "futures",
@@ -3185,7 +3185,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-live-debugger"
-version = "1.0.0"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "bytes",
