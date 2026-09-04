@@ -27,6 +27,9 @@ Changelog for older versions can be found in our [release page](https://github.c
 ### Changed
 - Improve profiler throughput by ~1% by gating debug-only runtime cache stats behind a build feature #4130
 
+### Fixed
+- Restore I/O GOT hooks on module shutdown #4154
+
 ### Internal
 - Align zstd compression behavior across targets in the profiler's uploader DataDog/libdatadog#2400
 
