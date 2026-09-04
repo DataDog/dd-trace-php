@@ -983,10 +983,12 @@ pub(crate) fn minit(_module_number: libc::c_int) {
         // table in combined mode; standalone initialized it above.
         let mut system_settings = SystemSettings::new();
 
-        // Initialize logging before allocation's rinit, as it logs.
-        #[cfg(debug_assertions)]
-        log::set_max_level(system_settings.profiling_log_level);
-        #[cfg(not(debug_assertions))]
+        // Initialize logging before allocation's rinit, as it logs. This is
+        // also the earliest point any profiling module log message should
+        // be emitted: it's the first point at which datadog.profiling.log_level
+        // is resolvable (system-scoped: INI/env/stable-config), so there is
+        // no configured level to honor any earlier than this, in either
+        // debug or release builds.
         crate::profiling::logging::log_init(system_settings.profiling_log_level);
 
         SystemSettings::log_state(

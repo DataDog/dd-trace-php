@@ -280,16 +280,21 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
         }
     }
 
-    // todo: merge these lifecycle things to tracing feature?
-    // When developing the extension, it's useful to see log messages that
-    // occur before the user can configure the log level. However, if we
-    // initialized the logger here unconditionally, then they'd have no way to
-    // hide these messages. That's why it's done only for debug builds.
-    #[cfg(debug_assertions)]
-    {
-        logging::log_init(log::LevelFilter::Trace);
-        trace!("MINIT({_type}, {module_number})");
-    }
+    // config::minit() is called as early as possible in MINIT, immediately
+    // after the checks above, because it's what initializes the `log` crate's
+    // logger (see config::minit()'s call to logging::log_init(), gated by
+    // datadog.profiling.log_level). Every `log`-crate macro call (trace!,
+    // debug!, warn!, error!, ...) anywhere in this function is a silent
+    // no-op until a logger is installed and its level is raised above the
+    // crate-wide default of Off, so calling config::minit() any later would
+    // silently swallow genuine startup diagnostics -- such as the
+    // `error!` calls in the tracing-subscriber setup below, or the `warn!`
+    // in the PHP_VERSION detection further down -- regardless of what the
+    // user configured. System-scoped config (INI/env/stable-config) is
+    // genuinely resolvable this early: config::minit() calls
+    // zai_config_first_time_rinit(false) internally to make it so.
+    config::minit(module_number);
+    trace!("MINIT({_type}, {module_number})");
 
     #[cfg(feature = "tracing-subscriber")]
     {
@@ -355,8 +360,6 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
             Err(err) => warn!("failed to detect PHP_VERSION at runtime: {err}"),
         };
     }
-
-    config::minit(module_number);
 
     // Force early initialization of the HTTPS connector while we're still
     // single-threaded. This ensures rustls-native-certs reads SSL_CERT_FILE
