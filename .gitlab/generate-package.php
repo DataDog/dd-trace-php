@@ -1395,7 +1395,25 @@ $system_tests_weblogs = [
   script:
     - DD_API_KEY=$(cat /tmp/.dd-api-key 2>/dev/null) || { echo "Failed to fetch DD_API_KEY"; exit 1; }
     - export DD_API_KEY
-    - SCENARIOS=$(PYTHONPATH=. venv/bin/python utils/scripts/compute-workflow-parameters.py php -g tracer_release -f json | python3 -c "import sys,json;d=json.load(sys.stdin);s=set();[s.update(v['scenarios']) for v in d.values() if isinstance(v,dict) and 'scenarios' in v];print(' '.join(sorted(s)))")
+    - |
+      set -o pipefail
+      SCENARIOS=$(
+        PYTHONPATH=. venv/bin/python utils/scripts/compute-workflow-parameters.py php -g tracer_release --excluded-scenarios PARAMETRIC -f json |
+          python3 -c '
+      import json, sys
+
+      data = json.load(sys.stdin)
+      scenarios = {
+          scenario
+          for job in data["endtoend_defs"]["parallel_jobs"]
+          for scenario in job["scenarios"]
+      }
+      invalid = any(not isinstance(scenario, str) or not scenario or any(character.isspace() for character in scenario) for scenario in scenarios)
+      if not scenarios or invalid or "PARAMETRIC" in scenarios:
+          raise SystemExit(1)
+      print(" ".join(sorted(scenarios)))
+      '
+      ) || { echo "Failed to compute tracer-release scenarios"; exit 1; }
     - FAILED=""; for S in $SCENARIOS; do echo "=== Running $S ==="; ./run.sh $S || FAILED="$FAILED $S"; done; if [ -n "$FAILED" ]; then echo "Failed scenarios:$FAILED"; exit 1; fi
 
 <?php endforeach; ?>
