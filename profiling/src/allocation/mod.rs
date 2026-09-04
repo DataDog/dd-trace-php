@@ -11,7 +11,7 @@ use core::cell::Cell;
 use core::ptr;
 use libc::size_t;
 use log::{debug, trace};
-use rand_distr::{Distribution, Poisson};
+use rand::Rng;
 use std::ffi::c_void;
 use std::num::{NonZero, NonZeroU32, NonZeroU64};
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
@@ -150,7 +150,7 @@ unsafe extern "C" fn _zend_mm_realloc(
 /// Default sampling interval in bytes (4 MiB).
 pub const DEFAULT_ALLOCATION_SAMPLING_INTERVAL: NonZeroU32 = NonZero::new(1024 * 4096).unwrap();
 
-/// Sampling distance feed into poison sampling algo. This must be > 0.
+/// Mean distance between allocation samples in bytes. This must be > 0.
 pub static ALLOCATION_PROFILING_INTERVAL: AtomicU64 =
     AtomicU64::new(DEFAULT_ALLOCATION_SAMPLING_INTERVAL.get() as u64);
 
@@ -169,7 +169,7 @@ pub static ALLOCATION_PROFILING_SIZE: AtomicU64 = AtomicU64::new(0);
 pub struct AllocationProfilingStats {
     /// Number of bytes remaining until the next sample collection.
     next_sample: i64,
-    poisson: Poisson<f64>,
+    mean: f64,
     #[cfg(php_zts)]
     rng: ThreadRng,
     #[cfg(not(php_zts))]
@@ -178,11 +178,9 @@ pub struct AllocationProfilingStats {
 
 impl AllocationProfilingStats {
     fn new(sampling_distance: NonZeroU64) -> AllocationProfilingStats {
-        // SAFETY: this will only error if lambda <= 0, and it's NonZeroU64.
-        let poisson = unsafe { Poisson::new(sampling_distance.get() as f64).unwrap_unchecked() };
         let mut stats = AllocationProfilingStats {
             next_sample: 0,
-            poisson,
+            mean: sampling_distance.get() as f64,
             #[cfg(php_zts)]
             rng: rand::rng(),
             #[cfg(not(php_zts))]
@@ -193,7 +191,12 @@ impl AllocationProfilingStats {
     }
 
     fn next_sampling_interval(&mut self) {
-        self.next_sample = self.poisson.sample(&mut self.rng) as i64;
+        // Exponential distances give the upscaler's probability: 1 - exp(-size / mean).
+        let u: f64 = self.rng.random();
+        let u = if u <= 0.0 { 1e-10 } else { u };
+        let v = -u.ln() * self.mean;
+        // Clamp to [8, 20 * mean], matching the libdatadog sampler.
+        self.next_sample = v.clamp(8.0, 20.0 * self.mean) as i64;
     }
 
     fn should_collect_allocation(&mut self, len: size_t) -> bool {
@@ -340,6 +343,34 @@ pub fn alloc_prof_rshutdown() {
     allocation_le83::alloc_prof_rshutdown(heap_live_enabled);
     #[cfg(php_zend_mm_set_custom_handlers_ex)]
     allocation_ge84::alloc_prof_rshutdown(heap_live_enabled);
+}
+
+#[cfg(all(test, not(php_zts)))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn allocation_sampling_matches_upscaling_probability() {
+        let mean = DEFAULT_ALLOCATION_SAMPLING_INTERVAL.get() as f64;
+        let trials = 100_000;
+        for ratio in [0.1, 1.1, 3.0] {
+            let size = (ratio * mean) as usize;
+            let mut stats =
+                AllocationProfilingStats::new(DEFAULT_ALLOCATION_SAMPLING_INTERVAL.into());
+            stats.rng = StdRng::seed_from_u64(42);
+            stats.next_sampling_interval();
+            let sampled = (0..trials)
+                .filter(|_| stats.should_collect_allocation(size))
+                .count();
+            let probability = 1.0 - (-(size as f64) / mean).exp();
+            let expected = trials as f64 * probability;
+            let sigma = (expected * (1.0 - probability)).sqrt();
+            assert!(
+                (sampled as f64 - expected).abs() < 8.0 * sigma,
+                "size={size}: sampled {sampled}, expected {expected}"
+            );
+        }
+    }
 }
 
 #[cfg(php_zend_mm_set_custom_handlers_ex)]
