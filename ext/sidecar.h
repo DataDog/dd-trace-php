@@ -29,6 +29,12 @@ extern dd_sidecar_active_mode_t datadog_sidecar_active_mode;
 extern int32_t datadog_sidecar_master_pid;
 
 DATADOG_PUBLIC const uint8_t *datadog_get_formatted_session_id(void);
+DATADOG_PUBLIC uint64_t datadog_get_sidecar_queue_id(void);
+#ifdef ZTS
+DATADOG_PUBLIC ddog_SidecarTransport **ddtrace_get_sidecar_transport(void *tsrm_ls);
+#else
+DATADOG_PUBLIC ddog_SidecarTransport **ddtrace_get_sidecar_transport(void);
+#endif
 struct telemetry_rc_info {
     const char *rc_path;
     zend_string *service_name;

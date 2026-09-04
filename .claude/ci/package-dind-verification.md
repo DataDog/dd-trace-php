@@ -42,7 +42,7 @@ The `_no_ddtrace` variants run without ddtrace loaded, serving as a baseline to
 confirm the framework itself is not broken.
 
 **Upstream artifacts needed:**
-- `package extension: [amd64, x86_64-unknown-linux-gnu]`
+- `package extension (installers): [amd64, x86_64-unknown-linux-gnu]`
 
 ### installer tests
 
@@ -50,8 +50,8 @@ Verifies that `datadog-setup.php` can correctly install the extension from the
 built packages. Tests both amd64 and arm64 packages.
 
 **Upstream artifacts needed:**
-- `package extension: [amd64, x86_64-unknown-linux-gnu]`
-- `package extension: [arm64, aarch64-unknown-linux-gnu]`
+- `package extension (bundles): [amd64, x86_64-unknown-linux-gnu]`
+- `package extension (bundles): [arm64, aarch64-unknown-linux-gnu]`
 - `datadog-setup.php`
 
 ### randomized tests
@@ -65,8 +65,8 @@ The no-asan variant uses the regular glibc package; the asan variant uses the
 ASAN-instrumented package to catch memory errors.
 
 **Upstream artifacts needed:**
-- `package extension: [amd64, x86_64-unknown-linux-gnu]` (no-asan) or `package
-  extension asan` (asan variant)
+- `package extension (bundles): [amd64, x86_64-unknown-linux-gnu]` (no-asan) or
+  `package extension asan` (asan variant)
 
 ## Reproducing Locally
 
@@ -74,7 +74,8 @@ All DinD verification jobs need packaged artifacts from upstream
 compile/package jobs. Two ways to obtain them:
 
 - **From CI:** use `tooling/bin/download-artifacts` (e.g., `--preset
-  extension-amd64-gnu`, `--preset extension-asan`, `--preset datadog-setup`).
+  extension-amd64-gnu-installers`, `--preset extension-amd64-gnu-bundles`,
+  `--preset extension-asan`, `--preset datadog-setup`).
   See "Downloading artifacts" in [index.md](index.md).
 - **Build locally:** see the ".deb from source" section below.
 
@@ -155,7 +156,7 @@ The `dockerfiles/frameworks/Makefile` has two modes:
 make -f dockerfiles/frameworks/Makefile wordpress
 
 # Test with your own build:
-tooling/bin/download-artifacts --preset extension-amd64-gnu
+tooling/bin/download-artifacts --preset extension-amd64-gnu-installers
 mkdir -p build/packages
 cp packages/datadog-php-tracer_*.deb build/packages/
 CI=true make -f dockerfiles/frameworks/Makefile wordpress
@@ -235,7 +236,7 @@ The key pieces that must all agree:
 **Option A -- From CI artifacts:**
 
 ```bash
-tooling/bin/download-artifacts --preset extension-amd64-gnu \
+tooling/bin/download-artifacts --preset extension-amd64-gnu-bundles \
   -o /tmp/ci-artifacts-gnu
 tooling/bin/download-artifacts --preset extension-amd64-musl \
   -o /tmp/ci-artifacts-musl

@@ -281,20 +281,6 @@ static void ddtrace_pre_minit_hook(injected_ext *config, zend_module_entry *modu
     }
 }
 
-static void appsec_pre_minit_hook(injected_ext *config, zend_module_entry *module) {
-    UNUSED(module);
-
-    HashTable *configuration_hash = php_ini_get_configuration_hash();
-    if (configuration_hash) {
-        char *helper_path;
-        if (asprintf(&helper_path, "%s/appsec/lib/libddappsec-helper.so", package_path) == -1) {
-            return;
-        }
-        ddloader_ini_set_configuration(config, ZEND_STRL("datadog.appsec.helper_path"), helper_path, strlen(helper_path));
-        free(helper_path);
-    }
-}
-
 static void profiling_pre_minit_hook(injected_ext *config, zend_module_entry *module) {
     UNUSED(module);
 
@@ -330,7 +316,7 @@ injected_ext ddloader_injected_ext_config[EXT_COUNT] = {
             ZEND_MOD_END
         })),
     [EXT_DDAPPSEC] = DECLARE_INJECTED_EXT(
-        "ddappsec", "appsec", PHP_70_VERSION, NULL, appsec_pre_minit_hook,
+        "ddappsec", "appsec", PHP_70_VERSION, NULL, NULL,
         ((zend_module_dep[]){
             ZEND_MOD_OPTIONAL("json")
             ZEND_MOD_OPTIONAL("ddtrace")

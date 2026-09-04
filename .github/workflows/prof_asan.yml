@@ -58,7 +58,7 @@ jobs:
           export LDFLAGS='-fsanitize=address -shared-libasan'
           export RUSTC_LINKER=lld-20
           rustup override set "${RUST_TOOLCHAIN}"
-          export RUSTFLAGS='-Zsanitizer=address -C force-frame-pointers=yes'
+          export RUSTFLAGS='-Zsanitizer=address -C force-frame-pointers=yes -C link-arg=-fsanitize=address -C link-arg=-shared-libasan'
           export DDTRACE_PROFILING_TARGET="$(uname -m)-unknown-linux-gnu"
           export DDTRACE_PROFILING_CARGO_BUILD_FLAGS='-Zbuild-std=std,panic_abort'
           phpize

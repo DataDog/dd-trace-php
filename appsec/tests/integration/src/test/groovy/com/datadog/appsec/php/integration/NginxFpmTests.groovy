@@ -59,8 +59,6 @@ class NginxFpmTests implements CommonTests {
      */
     @Test
     void 'no unexpected RequestInit due to RSHUTDOWN OOM bail'() {
-        Assumptions.assumeTrue(TestParams.usesHelperRust(),
-                'the C++ helper silently swallows out-of-order commands.')
         // PHP 8.3 release only (zts already excluded at class level): the debug
         // allocator's heap-protection turns the mid-allocation OOM bailout into
         // a spurious "zend_mm_heap corrupted" SIGABRT that masks the real bug.

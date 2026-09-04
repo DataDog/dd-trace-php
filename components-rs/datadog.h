@@ -237,11 +237,24 @@ ddog_MaybeError ddog_send_debugger_diagnostics(const struct ddog_RemoteConfigSta
                                                const struct ddog_Probe *probe,
                                                uint64_t timestamp);
 
-void ddog_sidecar_enable_appsec(ddog_CharSlice shared_lib_path,
-                                ddog_CharSlice socket_file_path,
-                                ddog_CharSlice lock_file_path,
-                                ddog_CharSlice log_file_path,
-                                ddog_CharSlice log_level);
+struct ddog_VoidResult datadog_crasht_init_with_sidecar(struct ddog_Config ffi_config,
+                                                        ddog_crasht_Metadata metadata,
+                                                        struct ddog_SidecarTransport *transport,
+                                                        int32_t sidecar_master_pid);
+
+void ddog_sidecar_enable_appsec(ddog_CharSlice log_file_path, ddog_CharSlice log_level);
+
+/**
+ * Starts a thread-mode master listener with the PHP-linked AppSec backend
+ * registered in the listener's process.
+ */
+ddog_MaybeError ddog_sidecar_connect_master_php(int32_t pid);
+
+/**
+ * Ensures the connected sidecar's AppSec backend is started using the
+ * configuration captured from the PHP extension.
+ */
+ddog_MaybeError ddog_sidecar_ensure_appsec_started(struct ddog_SidecarTransport **transport);
 
 ddog_MaybeError ddog_sidecar_connect_php(struct ddog_SidecarTransport **connection,
                                          const char *error_path,
@@ -252,8 +265,11 @@ ddog_MaybeError ddog_sidecar_connect_php(struct ddog_SidecarTransport **connecti
                                          uint64_t backpressure_bytes,
                                          uint64_t backpressure_queue);
 
-void datadog_sidecar_reconnect(struct ddog_SidecarTransport **transport,
+bool datadog_sidecar_reconnect(struct ddog_SidecarTransport **transport,
                                struct ddog_SidecarTransport *(*factory)(void));
+
+void datadog_sidecar_set_reconnect_fn(struct ddog_SidecarTransport **transport,
+                                      struct ddog_SidecarTransport *(*factory)(void));
 
 bool ddog_shm_limiter_inc(const struct ddog_MaybeShmLimiter *limiter, uint32_t limit);
 

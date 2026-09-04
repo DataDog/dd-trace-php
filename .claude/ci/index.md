@@ -137,7 +137,7 @@ which does not exist anymore in its original location)
 - **Alpine compile images:** `php-compile-extension-alpine-{ver}` (e.g.
   `php-compile-extension-alpine-8.3`). No bookworm/centos suffix.
 - **Appsec helper rust image:** `dd-appsec-php-ci:nginx-fpm-php-8.5-release-musl`
-  (on Docker Hub, unlike the defunct C++ helper image).
+  (on Docker Hub).
 
 **`switch-php` variant naming differs between images.** On centos-7 images,
 PHP variants under `/opt/php/` are version-prefixed: `8.3`, `8.3-debug`,
@@ -207,7 +207,8 @@ Use `tooling/bin/download-artifacts` to download CI artifacts from GitLab jobs.
 
 **Modes:**
 - `--preset KEY` — download a well-known artifact by key (e.g., `ssi-amd64`,
-  `extension-amd64-gnu`, `datadog-setup`). Use `--list-presets` to see all.
+  `extension-amd64-gnu-installers`, `extension-amd64-gnu-bundles`,
+  `datadog-setup`). Use `--list-presets` to see all.
 - `--job-name NAME` — download artifacts from a job matched by name (substring).
 - `--job-id ID` — download artifacts directly by job ID (no pipeline needed).
 - `--list-presets` — show available preset keys.
@@ -251,14 +252,14 @@ this file instead of duplicating build commands.
 
 ## Job groups
 
-### Group A — Native Linux unit / extension / helper tests
+### Group A — Native Linux unit and extension tests
 
 Runner: `arch:amd64` + `arch:arm64`
-Image: `datadog/dd-trace-ci:php-{version}_bookworm-6` or `datadog/dd-trace-ci:bookworm-6`
+Image: `datadog/dd-trace-ci:php-{version}_bookworm-6`
 No Docker daemon — tests run directly in the container.
 
 → **[appsec-native-tests.md](appsec-native-tests.md)**
-Covers: `test appsec extension`, `test appsec helper asan`, `appsec lint`, `appsec code coverage`
+Covers: `test appsec extension`, `appsec lint`, `appsec code coverage`
 
 → **[shared-zai-tea-tests.md](shared-zai-tea-tests.md)**
 Covers: `Build & Test Tea`, `Extension Tea Tests`, `Zend Abstract Interface Tests`,
@@ -314,7 +315,7 @@ Produces `.so` artifacts consumed by Groups B, C, H.
 → **[compile-artifacts.md](compile-artifacts.md)**
 Covers: `compile extension: debug/release/zts/...` (tracer pipeline),
 `compile tracing extension / sidecar / loader / asan` (package pipeline),
-`compile appsec extension`, `compile appsec helper`, `compile appsec helper rust`,
+`compile appsec extension`,
 `compile profiler extension`, `compile extension windows`, `link tracing extension`,
 `aggregate tracing extension`, `pecl build`, `prepare code`, `cache cargo deps`
 
@@ -329,7 +330,6 @@ Script: installs Java → Gradle → Gradle spins up Docker containers (PHP + he
 → **[appsec-gradle-integration.md](appsec-gradle-integration.md)**
 Covers: `appsec integration tests [test7.0..test8.5-*]`,
 `appsec integration tests (ssi) [test8.3-release-ssi]`,
-`appsec integration tests (helper-rust) [test7.4, test8.1, test8.3-debug, test8.4-zts, test8.5-musl]`,
 `helper-rust build and test`, `helper-rust code coverage`, `helper-rust integration coverage`
 
 *Note: Basic instructions are also in `appsec/helper-rust/CLAUDE.md`.*

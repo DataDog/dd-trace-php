@@ -47,8 +47,9 @@ created.
 ## Building the images
 
 These can be fetched from docker hub, but if you need to build them yourself,
-do `./gradlew buildAll`. You can also build a specific image. You can see the
-list of these individual tasks with `./gradlew tasks --all`.
+do `./gradlew buildAll -PfloatingImageTags`. You can also build a specific
+image. You can see the list of these individual tasks with
+`./gradlew tasks --all`.
 
 To then use these images, loaded locally in your docker instance, you need to
 run the tests with `-PfloatingImageTags=true`. Otherwise, the image digests
@@ -57,17 +58,24 @@ used instead.
 
 ## Updating the images on Docker Hub
 
-Pushing new images to Docker Hub requires logging in with a Docker Hub account
-that has access to the
-[`dd-appsec-php-ci`](https://hub.docker.com/r/datadog/dd-appsec-php-ci)
-repository. It's not currently possible to do this via Gitlab CI.
+The preferred workflow is the manual AppSec jobs in the GitLab child pipeline:
 
-You need an arm64 and an amd64 machine. On each, you'll run `./gradlew pushAll`.
-This will push images with the `-$ARCH` suffix in their tag. You then to run
-(once) `./gradlew pushMultiArch`.
+1. Run both `push appsec images` matrix jobs. They build on native amd64 and
+   arm64 Docker-in-Docker runners and push architecture-specific tags to
+   `registry.ddbuild.io/ci/dd-trace-php/dd-appsec-php-ci`.
+2. Run `push appsec docker images multiarch`. It creates and signs the internal
+   multi-architecture manifests.
+3. Run the required `publish appsec docker images` matrix jobs. They use
+   artifact-gateway to mirror internal tags to the public
+   [`datadog/dd-appsec-php-ci`](https://hub.docker.com/r/datadog/dd-appsec-php-ci)
+   repository.
+4. Run `./gradlew generateTagMappings` after publication
+   and submit the updated `gradle/tag_mappings.gradle`.
 
-Finally, you need to run `./gradlew generateTagMappings` and submit a PR with
-the modified `tag_mappings.gradle`.
+For local publication, `pushAll` and `pushMultiArch` still default directly to
+`datadog/dd-appsec-php-ci`. Pass `-PfloatingImageTags` while building new tags.
+The CI jobs override the push repository with `-PpushRepo` without changing the
+local image names used by dependent Dockerfiles.
 
 ## Cleaning
 
@@ -76,4 +84,3 @@ state for a specific test (e.g. composer packages), you can remove the
 corresponding volumes, (see `docker volume ls`).
 
 You can also completely clean the project with `./gradlew clean`.
-

@@ -26,8 +26,8 @@ PHP_ARG_WITH(ddtrace-cargo, where cargo is located for rust code compilation,
 PHP_ARG_ENABLE(ddtrace-rust-debug, whether to compile rust in debug mode,
   [  --enable-ddtrace-rust-debug Build rust code in debug mode (significantly slower)], [[$( (if test x"$ext_shared" = x"yes"; then $GREP -q "ZEND_DEBUG 1" $("$PHP_CONFIG" --include-dir)/main/php_config.h; else test x"$PHP_DEBUG" = x"yes"; fi) && echo yes || echo no)]], [no])
 
-PHP_ARG_ENABLE(ddtrace-rust-library-split, whether to not link the rust library against the extension at compile time,
-  [  --enable-ddtrace-rust-library-split Do not build nor link against the rust code], no, no)
+PHP_ARG_ENABLE(ddtrace-rust-library-split, whether to keep the rust library separate from the extension,
+  [  --enable-ddtrace-rust-library-split Do not build or statically link the rust code], no, no)
 
 DDTRACE_PHP_CONFIG=$(command -v "$PHP_CONFIG" 2>/dev/null || echo "$PHP_CONFIG")
 PHP_SUBST(DDTRACE_PHP_CONFIG)
@@ -390,7 +390,15 @@ if test "$PHP_DDTRACE" != "no" && test "$PHP_DDTRACE_PROFILING" = "no"; then
 
   dnl sidecar requires us to be linked against libm for pow and powf and librt for shm_* functions
   AC_CHECK_LIBM
-  EXTRA_LDFLAGS="$EXTRA_LDFLAGS $LIBM"
+  dnl Deliberately not in EXTRA_LDFLAGS: those land before libdatadog_php.a on
+  dnl the link line, so they would not satisfy its undefined symbols. Note that
+  dnl the relinks in .gitlab/compile_extension.sh and
+  dnl .gitlab/link-tracing-extension.sh are driven solely by
+  dnl ddtrace-fat.ldflags
+  dnl and add no libm of their own, so it has to be in that file too.
+  EXTRA_LIBS="$EXTRA_LIBS $LIBM"
+  DDTRACE_SHARED_LIBADD="${DDTRACE_SHARED_LIBADD:-} $LIBM"
+  ddtrace_ldflags_file_extra="$ddtrace_ldflags_file_extra $LIBM"
   dnl as well as explicitly for pthread_atfork
   PTHREADS_CHECK
   EXTRA_CFLAGS="$EXTRA_CFLAGS $ac_cv_pthreads_cflags"
@@ -408,35 +416,62 @@ if test "$PHP_DDTRACE" != "no" && test "$PHP_DDTRACE_PROFILING" = "no"; then
   esac
 
   PHP_CHECK_LIBRARY(curl, curl_easy_setopt,
-    [PHP_ADD_LIBRARY(curl, , EXTRA_LDFLAGS)],
+    [case " $LDFLAGS " in
+       *" -Wl,-Bdynamic "*)
+         EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Wl,-Bdynamic,-lcurl,-Bstatic"
+         ;;
+       *)
+         PHP_ADD_LIBRARY(curl, , EXTRA_LDFLAGS)
+         ;;
+     esac],
     [AC_MSG_ERROR([cannot find or include curl])])
 
   AC_CHECK_HEADER(time.h, [], [AC_MSG_ERROR([Cannot find or include time.h])])
 
+  ddtrace_fat_ldflags="$EXTRA_LDFLAGS"
   if test "$ext_shared" = "yes"; then
-    dnl Only export the platform's listed symbols, which should all be marked as
-    dnl DATADOG_PUBLIC in their source files as well.
-    EXTRA_CFLAGS="$EXTRA_CFLAGS -fvisibility=hidden"
-    if test "$PHP_DDTRACE_TRACER" = "no"; then
-      case $host_os in
-        linux*) DDTRACE_EXPORT_SYMBOLS="$ext_srcdir/datadog-common-linux.sym" ;;
-        *) DDTRACE_EXPORT_SYMBOLS="$ext_srcdir/datadog-common.sym" ;;
-      esac
-    else
-      case $host_os in
-        linux*) DDTRACE_EXPORT_SYMBOLS="$ext_srcdir/datadog-linux.sym" ;;
-        *) DDTRACE_EXPORT_SYMBOLS="$ext_srcdir/datadog.sym" ;;
-      esac
-    fi
-    EXTRA_LDFLAGS="$EXTRA_LDFLAGS -export-symbols $DDTRACE_EXPORT_SYMBOLS -flto -fuse-linker-plugin"
+    ddtrace_slim_export_symbols="$ext_builddir/ddtrace-slim.sym"
+    cat "$ext_srcdir/ddtrace-extension.sym" > "$ddtrace_slim_export_symbols"
 
-    dnl On Linux: set the ELF entry point so ddtrace.so can be exec'd directly by ld.so
-    dnl for sidecar spawning (no trampoline binary, no memfd, no temp files).
     case $host_os in
       linux*)
-        EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Wl,-e,ddog_spawn_direct_entry"
+        cat "$ext_srcdir/ddtrace-extension-linux.sym" \
+          >> "$ddtrace_slim_export_symbols"
       ;;
     esac
+
+    ddtrace_fat_export_symbols="$ext_builddir/ddtrace-fat.sym"
+    cat "$ddtrace_slim_export_symbols" \
+      "$ext_srcdir/components-rs/libdatadog-php.sym" \
+      "$ext_srcdir/components-rs/libdatadog-php-unix.sym" \
+      > "$ddtrace_fat_export_symbols"
+
+    case $host_os in
+      linux*)
+        cat "$ext_srcdir/components-rs/libdatadog-php-linux.sym" \
+          >> "$ddtrace_fat_export_symbols"
+      ;;
+    esac
+
+    dnl Only export the symbols selected above, which should all be marked as
+    dnl DATADOG_PUBLIC in their source files.
+    EXTRA_CFLAGS="$EXTRA_CFLAGS -fvisibility=hidden"
+    ddtrace_slim_ldflags="$EXTRA_LDFLAGS -flto -fuse-linker-plugin"
+    ddtrace_fat_ldflags="$ddtrace_slim_ldflags"
+
+    case $host_os in
+      linux*)
+        dnl A fat Linux ddtrace.so is also the sidecar executable. When ld.so
+        dnl executes it directly, it jumps to this ELF entry point.
+        ddtrace_fat_ldflags="$ddtrace_fat_ldflags -Wl,-e,ddog_spawn_direct_entry"
+      ;;
+    esac
+
+    if test "$PHP_DDTRACE_RUST_LIBRARY_SPLIT" = "no"; then
+      EXTRA_LDFLAGS="$ddtrace_fat_ldflags -export-symbols $ddtrace_fat_export_symbols"
+    else
+      EXTRA_LDFLAGS="$ddtrace_slim_ldflags -export-symbols $ddtrace_slim_export_symbols"
+    fi
 
     PHP_SUBST(EXTRA_CFLAGS)
     PHP_SUBST(EXTRA_LDFLAGS)
@@ -518,10 +553,26 @@ EOT
     fi
   fi
 
-  if test "$PHP_DDTRACE_RUST_LIBRARY_SPLIT" != "no"; then
+  if test "$PHP_DDTRACE_RUST_LIBRARY" != "-" && \
+      test "$PHP_DDTRACE_RUST_LIBRARY_SPLIT" != "no"; then
+    dnl libtool drops an unreferenced absolute DSO from shared_objects_ddtrace.
+    dnl Pass it through as ordered linker arguments so it remains a DT_NEEDED
+    dnl dependency without pulling its contents into ddtrace.so.
+    case $host_os in
+      linux*)
+        DDTRACE_SHARED_LIBADD="$DDTRACE_SHARED_LIBADD \
+-Wl,--push-state,-Bdynamic,--no-as-needed,$PHP_DDTRACE_RUST_LIBRARY,--pop-state"
+        ;;
+      darwin*)
+        DDTRACE_SHARED_LIBADD="$DDTRACE_SHARED_LIBADD \
+-Wl,-needed_library,$PHP_DDTRACE_RUST_LIBRARY"
+        ;;
+    esac
     ddtrace_rust_lib=""
   elif test "$PHP_DDTRACE_RUST_LIBRARY" != "-"; then
     ddtrace_rust_lib="$PHP_DDTRACE_RUST_LIBRARY"
+  elif test "$PHP_DDTRACE_RUST_LIBRARY_SPLIT" != "no"; then
+    ddtrace_rust_lib=""
   else
     dnl consider it debug if -g is specified (but not -g0)
     ddtrace_cargo_profile=$(test "$PHP_DDTRACE_RUST_DEBUG" != "no" && echo debug || echo tracer-release)
@@ -533,7 +584,7 @@ EOT
     fi
 
     cat <<EOT >> Makefile.fragments
-$ddtrace_rust_lib: $( (find "$ext_srcdir/components-rs" -name "*.rs"; find "$ext_srcdir" -maxdepth 1 -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -not -path "*/target/*"; find "$ext_srcdir/libdatadog" -name "*.rs" -not -path "*/target/*") 2>/dev/null | tr '\n' ' ' )
+$ddtrace_rust_lib: $( (find "$ext_srcdir/components-rs" -name "*.rs"; find "$ext_srcdir/sidecar" -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/appsec/helper-rust" -name "*.rs" -o -name "*.c" -o -name "Cargo.toml" -o -name "build.rs"; find "$ext_srcdir" -maxdepth 1 -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -not -path "*/target/*"; find "$ext_srcdir/libdatadog" -name "*.rs" -not -path "*/target/*") 2>/dev/null | tr '\n' ' ' )
 	(cd "$ext_srcdir"; PHP_CONFIG="\$(DDTRACE_PHP_CONFIG)" CARGO_FEATURES="$ddtrace_cargo_features" CARGO_TARGET_DIR=\$(builddir)/target-common/ SHARED=$(test "$ext_shared" = "yes" && echo 1) PROFILE="$ddtrace_cargo_profile" host_os="$host_os" DDTRACE_CARGO="\$(DDTRACE_CARGO)" $(if test "$PHP_DDTRACE_SANITIZE" != "no"; then echo COMPILE_ASAN=1; fi) sh ./compile_rust.sh \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+"))
 EOT
   fi
@@ -557,5 +608,6 @@ WEAKEN
     PHP_GLOBAL_OBJS="$ddtrace_rust_lib $PHP_GLOBAL_OBJS"
   fi
 
-  echo "$EXTRA_LDFLAGS $EXTRA_CFLAGS" > ddtrace.ldflags
+  dnl These flags are consumed by out-of-tree fat links.
+  echo "$ddtrace_fat_ldflags $EXTRA_CFLAGS$ddtrace_ldflags_file_extra" > ddtrace-fat.ldflags
 fi

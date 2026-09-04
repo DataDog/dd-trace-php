@@ -25,10 +25,8 @@ make -j static &
 wait
 
 # Link extension
-if [ "$(uname -s)" = "Linux" ]; then
-  export_symbols_file="datadog-linux.sym"
-else
-  export_symbols_file="datadog.sym"
-fi
-sed -i -E "s#-export-symbols [^ ]+#-Wl,--retain-symbols-file=${export_symbols_file}#g" "${EXTENSION_DIR}/ddtrace.ldflags"
-cc -shared -Wl,-whole-archive ${MODULES_DIR}/ddtrace.a -Wl,-no-whole-archive $(cat ${EXTENSION_DIR}/ddtrace.ldflags) ${CARGO_TARGET_DIR}/debug/libdatadog_php.a -Wl,-soname -Wl,ddtrace.so -o ${MODULES_DIR}/ddtrace.so
+cc -shared -Wl,-whole-archive "${MODULES_DIR}/ddtrace.a" \
+  -Wl,-no-whole-archive $(cat "${EXTENSION_DIR}/ddtrace-fat.ldflags") \
+  -Wl,--retain-symbols-file="${EXTENSION_DIR}/ddtrace-fat.sym" \
+  "${CARGO_TARGET_DIR}/debug/libdatadog_php.a" \
+  -Wl,-soname -Wl,ddtrace.so -o "${MODULES_DIR}/ddtrace.so"

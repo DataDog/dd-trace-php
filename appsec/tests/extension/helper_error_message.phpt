@@ -12,16 +12,16 @@ require __DIR__ . '/inc/logging.php';
 
 $helper = Helper::createInitedRun([
     response_list(response("error", []))
-]);
+], ['no_wait_shutdown' => true]);
 
 var_dump(rinit());
 
-match_log("/Helper responded with an error\. Check helper logs/");
-match_log("/request init failed: dd_helper_error/");
+match_log("/Helper responded with an error and removed this client\. Check helper logs/");
+match_log("/request_init\/config_sync failed with dd_helper_fatal/");
 
 ?>
 --EXPECTF--
 bool(true)
-found message in log matching /Helper responded with an error\. Check helper logs/
-found message in log matching /request init failed: dd_helper_error/
+found message in log matching /Helper responded with an error and removed this client\. Check helper logs/
+found message in log matching /request_init\/config_sync failed with dd_helper_fatal/
 

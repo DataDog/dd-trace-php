@@ -10,7 +10,6 @@
 
 import argparse
 import asyncio
-import os
 import subprocess
 import sys
 import time
@@ -83,6 +82,22 @@ def get_github_token() -> str | None:
         if result.returncode == 0:
             token = result.stdout.strip()
             return token if token else None
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    return None
+
+
+def get_gitlab_token() -> str | None:
+    """Get a GitLab OAuth token via ddtool auth gitlab token."""
+    try:
+        result = subprocess.run(
+            ["ddtool", "auth", "gitlab", "token"],
+            capture_output=True, text=True, timeout=10
+        )
+        if result.returncode == 0:
+            token = result.stdout.strip()
+            if token:
+                return token
     except (FileNotFoundError, subprocess.TimeoutExpired):
         pass
     return None
@@ -468,9 +483,13 @@ async def run(args):
 
 
 async def _run(args):
-    token = os.environ.get("GITLAB_PERSONAL_ACCESS_TOKEN", "").strip()
+    token = get_gitlab_token()
     if not token:
-        print("Error: GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set or empty", file=sys.stderr)
+        print(
+            "Error: could not obtain a GitLab token via "
+            "'ddtool auth gitlab token'",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     # Resolve SHA for GitHub Actions (not available when --pipeline is given)
@@ -486,7 +505,7 @@ async def _run(args):
         print("Warning: could not get GitHub token via 'ddtool auth github token' — skipping GitHub Actions monitoring", file=sys.stderr)
 
     gl_connector = aiohttp.TCPConnector(limit=20)
-    gl_headers = {"PRIVATE-TOKEN": token}
+    gl_headers = {"Authorization": f"Bearer {token}"}
 
     gh_session: aiohttp.ClientSession | None = None
     gh_connector: aiohttp.TCPConnector | None = None

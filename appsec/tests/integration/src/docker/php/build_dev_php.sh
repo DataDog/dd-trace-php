@@ -268,7 +268,11 @@ function build_php {
     ldflags="$ldflags -fsanitize=address"
   fi
   if [[ $version_id -lt 70400 ]]; then
-    options+=(--enable-hash --enable-libxml=shared)
+    options+=(
+      --enable-hash
+      --enable-libxml=shared
+      --with-libxml-dir="$HOME/php/libxml2"
+    )
   else
     # 7.4+
     options+=(--with-libxml=shared)
@@ -438,7 +442,8 @@ function install_libxml2 {
 
   mkdir -p "$build_dir"
   cd "$build_dir"
-  CXXFLAGS="-g -ggdb -O0" "$source_dir/configure" --prefix="$install_dir"
+  CXXFLAGS="-g -ggdb -O0" "$source_dir/configure" \
+    --prefix="$install_dir" --without-python
 
   make -j && make install
   touch "$install_dir/.installed"

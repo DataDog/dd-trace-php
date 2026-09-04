@@ -7,7 +7,10 @@
 
 #include "attributes.h"
 #include <stdbool.h>
+#include <stdint.h>
 #include <zend.h>
+
+#include <components-rs/common.h>
 
 static const int PRIORITY_SAMPLING_AUTO_KEEP = 1;
 static const int PRIORITY_SAMPLING_AUTO_REJECT = 0;
@@ -63,6 +66,16 @@ void dd_trace_span_add_propagated_tags(
 const uint8_t *nullable dd_trace_get_formatted_session_id(void);
 zend_string *nullable dd_trace_get_formatted_runtime_id(bool persistent);
 uint64_t dd_trace_get_sidecar_queue_id(void);
+
+#ifdef ZTS
+ddog_AppsecCResponse dd_trace_send_appsec_message(
+    uint64_t client_id, void *nullable tsrm_ls,
+    const uint8_t *nonnull request, size_t request_len);
+#else
+ddog_AppsecCResponse dd_trace_send_appsec_message(
+    uint64_t client_id, const uint8_t *nonnull request, size_t request_len);
+#endif
+void dd_trace_free_appsec_message_response(ddog_AppsecCResponse response);
 
 // Set sampling priority on root span
 void dd_trace_set_priority_sampling_on_span_zobj(zend_object *nonnull root_span,

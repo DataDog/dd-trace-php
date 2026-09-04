@@ -273,10 +273,15 @@ void dd_find_and_apply_verdict_for_user(zend_string *nullable user_id,
     struct block_params block_params = {0};
     dd_result res = dd_request_exec(
         conn, Z_ARRVAL(data_zv), &(struct req_exec_opts){0}, &block_params);
-    if (res == dd_network) {
-        mlog_g(dd_log_info, "request_exec failed with dd_network; closing "
-                            "connection to helper");
-        dd_helper_close_conn();
+    if (res == dd_helper_say_goobye || res == dd_helper_fatal) {
+        mlog_g(dd_log_info, "request_exec failed with dd_helper_say_goobye or "
+                            "dd_helper_fatal; closing connection to helper");
+        bool goodbye = res == dd_helper_say_goobye;
+        dd_helper_close_conn(
+            goodbye, LSTRARG("request_exec failed with dd_helper_say_goodbye "
+                             "or dd_helper_fatal"));
+    } else if (res == dd_error) {
+        mlog_g(dd_log_info, "request_exec failed with dd_error");
     }
 
     zend_array_destroy(Z_ARRVAL(data_zv));
