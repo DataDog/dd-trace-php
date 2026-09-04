@@ -298,7 +298,9 @@ void zai_config_first_time_rinit(bool in_request) {
 
     for (uint16_t i = 0; i < zai_config_memoized_entries_count; i++) {
         zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
-        zai_config_find_and_set_value(memoized, i, in_request);
+        if (!in_request || memoized->ini_change != zai_config_minit_ini_change) {
+            zai_config_find_and_set_value(memoized, i, in_request);
+        }
 #if PHP_VERSION_ID >= 70300
         zai_config_intern_zval(&memoized->decoded_value);
 #else
@@ -331,4 +333,8 @@ bool zai_config_system_ini_change(zval *old_value, zval *new_value, zend_string 
     (void)new_value;
     (void)new_str;
     return false;
+}
+
+bool zai_config_minit_ini_change(zval *old_value, zval *new_value, zend_string *new_str) {
+    return zai_config_system_ini_change(old_value, new_value, new_str);
 }
