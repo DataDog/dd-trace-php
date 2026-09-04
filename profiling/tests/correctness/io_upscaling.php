@@ -2,7 +2,7 @@
 // Test file I/O upscaling with operations below the 100 KiB sampling interval.
 
 const OPERATION_SIZE = 10 * 1024;
-const OPERATION_COUNT = 25;
+const OPERATION_COUNT = 163840;
 
 function write_operations($handle, $data) {
     for ($i = 0; $i < OPERATION_COUNT; $i++) {
