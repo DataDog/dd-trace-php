@@ -199,7 +199,8 @@ windows_test_c_job("windows test_c: zts", "zts", [
 
 "macos test_c":
   stage: test
-  tags: ["macos:sonoma-arm64"]
+  tags: ["macos:tart"]
+  image: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/ci-platform-machine-images/tart-vm:shared-sonoma-latest"
   variables:
     PHP_MACOS_VERSION: "8.5.7"
     PHP_INSTALL_DIR: "/tmp/php-macos-${PHP_MACOS_VERSION}"
