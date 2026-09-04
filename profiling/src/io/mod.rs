@@ -66,6 +66,7 @@ pub struct GotHookState<'a> {
 
 pub struct GotSlotRestore {
     pub image: usize,
+    pub image_name: Box<[u8]>,
     pub slot: usize,
     pub original: usize,
     pub replacement: usize,
@@ -74,6 +75,20 @@ pub struct GotSlotRestore {
 }
 
 static GOT_SLOT_RESTORES: Mutex<Vec<GotSlotRestore>> = Mutex::new(Vec::new());
+
+fn restore_matches_image(restore: &GotSlotRestore, image: usize, image_name: &[u8]) -> bool {
+    restore.image == image && restore.image_name.as_ref() == image_name
+}
+
+fn slot_fits_range(slot: usize, start: usize, size: usize) -> bool {
+    let Some(end) = start.checked_add(size) else {
+        return false;
+    };
+    let Some(slot_end) = slot.checked_add(std::mem::size_of::<*mut ()>()) else {
+        return false;
+    };
+    slot >= start && slot_end <= end
+}
 
 unsafe fn restore_slot_if_owned(restore: &GotSlotRestore) -> bool {
     let slot = restore.slot as *mut *mut ();
@@ -765,8 +780,28 @@ pub fn io_prof_mshutdown() {
 
 #[cfg(test)]
 mod tests {
-    use super::ErrnoBackup;
+    use super::{restore_matches_image, slot_fits_range, ErrnoBackup, GotSlotRestore};
     use static_assertions::assert_not_impl_any;
 
     assert_not_impl_any!(ErrnoBackup: Send, Sync);
+
+    #[test]
+    fn restore_requires_same_image_and_mapped_slot() {
+        let restore = GotSlotRestore {
+            image: 0x1000,
+            image_name: Box::from(&b"image"[..]),
+            slot: 0x1800,
+            original: 0,
+            replacement: 1,
+            #[cfg(target_os = "macos")]
+            is_data_const: false,
+        };
+
+        assert!(restore_matches_image(&restore, 0x1000, b"image"));
+        assert!(!restore_matches_image(&restore, 0x2000, b"image"));
+        assert!(!restore_matches_image(&restore, 0x1000, b"replacement"));
+        assert!(slot_fits_range(0x1800, 0x1000, 0x1000));
+        assert!(!slot_fits_range(0x2000, 0x1000, 0x1000));
+        assert!(!slot_fits_range(usize::MAX, 0x1000, 0x1000));
+    }
 }

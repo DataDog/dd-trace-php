@@ -49,7 +49,10 @@
 // - Apple dyld source: https://opensource.apple.com/source/dyld/
 // - Mach-O headers: <mach-o/loader.h>, <mach-o/nlist.h>
 
-use super::{restore_slot_if_owned, GotHookState, GotSlotRestore, GotSymbolOverwrite};
+use super::{
+    restore_matches_image, restore_slot_if_owned, slot_fits_range, GotHookState, GotSlotRestore,
+    GotSymbolOverwrite,
+};
 use libc::{c_char, c_void};
 use log::{error, trace};
 use mach2::loader;
@@ -259,13 +262,14 @@ pub unsafe fn rebind_symbols(state: &mut GotHookState) {
 
         let slide = _dyld_get_image_vmaddr_slide(i);
         let name_ptr = _dyld_get_image_name(i);
-        let name = if name_ptr.is_null() {
-            "[Unknown]"
+        let image_name = if name_ptr.is_null() {
+            &[][..]
         } else {
-            CStr::from_ptr(name_ptr).to_str().unwrap_or("[Unknown]")
+            CStr::from_ptr(name_ptr).to_bytes()
         };
+        let name = std::str::from_utf8(image_name).unwrap_or("[Unknown]");
 
-        if rebind_symbols_for_image(header, slide, state) {
+        if rebind_symbols_for_image(header, slide, image_name, state) {
             trace!("Hooked into {name}");
         } else {
             trace!("Hooking {name} skipped or failed");
@@ -287,6 +291,7 @@ pub unsafe fn rebind_symbols(state: &mut GotHookState) {
 unsafe fn rebind_symbols_for_image(
     header: *const loader::mach_header,
     slide: isize,
+    image_name: &[u8],
     state: &mut GotHookState,
 ) -> bool {
     if (*header).magic != libc::MH_MAGIC_64 {
@@ -387,6 +392,7 @@ unsafe fn rebind_symbols_for_image(
 
                     if rebind_symbols_in_section(
                         header as usize,
+                        image_name,
                         section,
                         slide,
                         symtab,
@@ -421,6 +427,7 @@ unsafe fn rebind_symbols_for_image(
 ///    function and replace it with our instrumented version.
 unsafe fn rebind_symbols_in_section(
     image: usize,
+    image_name: &[u8],
     section: &Section64,
     slide: isize,
     symtab: *const Nlist64,
@@ -512,6 +519,7 @@ unsafe fn rebind_symbols_in_section(
             *overwrite.orig_func = original as *mut ();
             restores.push(GotSlotRestore {
                 image,
+                image_name: image_name.into(),
                 slot: slot as usize,
                 original: original as usize,
                 replacement: overwrite.new_func as usize,
@@ -540,6 +548,32 @@ unsafe fn rebind_symbols_in_section(
     hooked
 }
 
+unsafe fn slot_belongs_to_image(
+    header: *const loader::mach_header,
+    slide: isize,
+    slot: usize,
+) -> bool {
+    if (*header).magic != libc::MH_MAGIC_64 {
+        return false;
+    }
+
+    let mut cmd_ptr = (header as *const u8).add(std::mem::size_of::<MachHeader64>());
+    for _ in 0..(*header).ncmds {
+        let lc = &*(cmd_ptr as *const libc::load_command);
+        if lc.cmd == LC_SEGMENT_64 {
+            let seg = &*(cmd_ptr as *const libc::segment_command_64);
+            let start = (slide as usize).wrapping_add(seg.vmaddr as usize);
+            if seg.initprot != libc::VM_PROT_NONE
+                && slot_fits_range(slot, start, seg.vmsize as usize)
+            {
+                return true;
+            }
+        }
+        cmd_ptr = cmd_ptr.add(lc.cmdsize as usize);
+    }
+    false
+}
+
 pub unsafe fn restore_symbols(restores: &mut Vec<GotSlotRestore>) {
     let image_count = _dyld_image_count();
     let page_size = libc::sysconf(libc::_SC_PAGESIZE) as usize;
@@ -549,12 +583,26 @@ pub unsafe fn restore_symbols(restores: &mut Vec<GotSlotRestore>) {
         if header.is_null() {
             continue;
         }
+        let slide = _dyld_get_image_vmaddr_slide(i);
+        let name_ptr = _dyld_get_image_name(i);
+        let image_name = if name_ptr.is_null() {
+            &[][..]
+        } else {
+            CStr::from_ptr(name_ptr).to_bytes()
+        };
 
         for restore in restores
             .iter()
             .rev()
-            .filter(|restore| restore.image == header as usize)
+            .filter(|restore| restore_matches_image(restore, header as usize, image_name))
         {
+            if !slot_belongs_to_image(header, slide, restore.slot) {
+                trace!(
+                    "Not restoring symbol pointer at {:#x}: it is outside the loaded image",
+                    restore.slot
+                );
+                continue;
+            }
             let slot = restore.slot as *mut *mut ();
             if *slot as usize != restore.replacement {
                 trace!(

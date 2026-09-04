@@ -1,7 +1,9 @@
-use super::{restore_slot_if_owned, GotHookState, GotSlotRestore};
+use super::{
+    restore_matches_image, restore_slot_if_owned, slot_fits_range, GotHookState, GotSlotRestore,
+};
 use crate::profiling::bindings::{
     Elf64_Dyn, Elf64_Rela, Elf64_Sym, Elf64_Xword, DT_JMPREL, DT_NULL, DT_PLTRELSZ, DT_STRTAB,
-    DT_SYMTAB, PT_DYNAMIC, R_AARCH64_JUMP_SLOT, R_X86_64_JUMP_SLOT,
+    DT_SYMTAB, PT_DYNAMIC, PT_LOAD, R_AARCH64_JUMP_SLOT, R_X86_64_JUMP_SLOT,
 };
 use libc::{c_char, c_int, c_void, dl_phdr_info};
 use log::{error, trace};
@@ -26,7 +28,11 @@ fn elf64_r_sym(info: Elf64_Xword) -> u32 {
 /// arithmetics are safe because the dynamic library the `info` is pointing to was loaded by the
 /// dynamic linker prior to us messing with the global offset table. If the dynamic library would
 /// not be a valid ELF64, the dynamic linker would have not loaded it.
-unsafe fn override_got_entry(info: *mut dl_phdr_info, state: &mut GotHookState) -> bool {
+unsafe fn override_got_entry(
+    info: *mut dl_phdr_info,
+    image_name: &[u8],
+    state: &mut GotHookState,
+) -> bool {
     let phdr = (*info).dlpi_phdr;
 
     // Locate the dynamic programm header (`PT_DYNAMIC`)
@@ -170,6 +176,7 @@ unsafe fn override_got_entry(info: *mut dl_phdr_info, state: &mut GotHookState) 
                 }
                 state.restores.push(GotSlotRestore {
                     image: (*info).dlpi_addr as usize,
+                    image_name: image_name.into(),
                     slot: got_entry as usize,
                     original: original as usize,
                     replacement: overwrite.new_func as usize,
@@ -204,12 +211,15 @@ pub unsafe extern "C" fn callback(
         return 0;
     }
 
-    let name = if (*info).dlpi_name.is_null() || *(*info).dlpi_name == 0 {
+    let image_name = if (*info).dlpi_name.is_null() {
+        &[][..]
+    } else {
+        CStr::from_ptr((*info).dlpi_name).to_bytes()
+    };
+    let name = if image_name.is_empty() {
         "[Executable]"
     } else {
-        CStr::from_ptr((*info).dlpi_name)
-            .to_str()
-            .unwrap_or("[Unknown]")
+        std::str::from_utf8(image_name).unwrap_or("[Unknown]")
     };
 
     // I guess if we try to hook into GOT from `linux-vdso` or `ld-linux` our best outcome will be
@@ -218,7 +228,7 @@ pub unsafe extern "C" fn callback(
         return 0;
     }
 
-    if override_got_entry(info, state) {
+    if override_got_entry(info, image_name, state) {
         trace!("Hooked into {name}");
     } else {
         trace!("Hooking {name} failed");
@@ -235,6 +245,20 @@ pub unsafe fn restore_symbols(restores: &mut Vec<GotSlotRestore>) {
     restores.clear();
 }
 
+unsafe fn slot_belongs_to_image(info: *mut dl_phdr_info, slot: usize) -> bool {
+    for i in 0..(*info).dlpi_phnum {
+        let phdr = &*(*info).dlpi_phdr.add(i as usize);
+        if phdr.p_type != PT_LOAD {
+            continue;
+        }
+        let start = ((*info).dlpi_addr as usize).wrapping_add(phdr.p_vaddr as usize);
+        if slot_fits_range(slot, start, phdr.p_memsz as usize) {
+            return true;
+        }
+    }
+    false
+}
+
 unsafe extern "C" fn restore_callback(
     info: *mut dl_phdr_info,
     _size: usize,
@@ -242,13 +266,25 @@ unsafe extern "C" fn restore_callback(
 ) -> c_int {
     let restores = &mut *(data as *mut Vec<GotSlotRestore>);
     let image = (*info).dlpi_addr as usize;
+    let image_name = if (*info).dlpi_name.is_null() {
+        &[][..]
+    } else {
+        CStr::from_ptr((*info).dlpi_name).to_bytes()
+    };
     let page_size = libc::sysconf(libc::_SC_PAGESIZE) as usize;
 
     for restore in restores
         .iter()
         .rev()
-        .filter(|restore| restore.image == image)
+        .filter(|restore| restore_matches_image(restore, image, image_name))
     {
+        if !slot_belongs_to_image(info, restore.slot) {
+            trace!(
+                "Not restoring GOT entry at {:#x}: it is outside the loaded image",
+                restore.slot
+            );
+            continue;
+        }
         let slot = restore.slot as *mut *mut ();
         if *slot as usize != restore.replacement {
             trace!(
