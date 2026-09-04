@@ -451,8 +451,12 @@ def buildTracerSsiTask = { String version, String variant ->
                         make /project/tmp/build_extension/modules/ddtrace.so
                     cp /project/tmp/build_extension/modules/ddtrace.so /tracer-ssi/ddtrace.so
 
-                    # Build libdatadog_php.so (cdylib) via compile_rust.sh.
+                    # Build libdatadog_php.so (cdylib) via compile_rust.sh. Unlike the `make`
+                    # call above, this invokes compile_rust.sh directly, so DDTRACE_PHP_INCLUDES
+                    # (needed by components-rs/config_codegen.rs to preprocess ext/configuration.h)
+                    # must be exported by hand instead of coming from Make's INCLUDES.
                     CARGO_TARGET_DIR=/project/tmp/target \\
+                        DDTRACE_PHP_INCLUDES="\$(php-config --includes)" \\
                         SHARED=1 PROFILE=${cargoProfile} host_os=linux ./compile_rust.sh
                     cp /project/tmp/target/${cargoProfile}/libdatadog_php.so /tracer-ssi/libdatadog_php.so
 

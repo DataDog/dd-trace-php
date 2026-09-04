@@ -7,14 +7,23 @@ else()
     # because it references symbols that are provided by the final ddtrace extension.
     set(CARGO_BUILD_CMD "cargo rustc --lib --crate-type staticlib")
 endif()
-set(CARGO_BUILD_ENV "") # Initialize to empty
+# components-rs/config_codegen.rs preprocesses ext/configuration.h (and, for combined
+# tracer+profiling builds, profiling/configuration.h) at build time to generate the Rust
+# configuration IDs, so it needs PHP's include path even though this is otherwise a plain
+# `cargo build`/`cargo rustc` invocation with no other PHP awareness.
+execute_process(
+    COMMAND ${PhpConfig_EXECUTABLE} --includes
+    RESULT_VARIABLE PhpConfig_INCLUDES_RESULT
+    OUTPUT_VARIABLE PhpConfig_INCLUDES
+    OUTPUT_STRIP_TRAILING_WHITESPACE COMMAND_ERROR_IS_FATAL ANY)
+set(CARGO_BUILD_ENV "DDTRACE_PHP_INCLUDES='${PhpConfig_INCLUDES}'")
 
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CARGO_BUILD_CMD "${CARGO_BUILD_CMD} --release")
 elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
     set(CARGO_BUILD_CMD "${CARGO_BUILD_CMD} --release")
-    set(CARGO_BUILD_ENV RUSTFLAGS='-C\ debuginfo=2')
+    set(CARGO_BUILD_ENV "${CARGO_BUILD_ENV} RUSTFLAGS='-C\ debuginfo=2'")
 endif()
 
 set(LIBDATADOG_DIR "${CMAKE_SOURCE_DIR}/../libdatadog")
