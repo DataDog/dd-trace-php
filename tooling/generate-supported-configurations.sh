@@ -18,6 +18,7 @@ readonly PROFILING_CONFIG_FILE="profiling/src/config.rs"
 readonly GENERATOR_SCRIPT_FILE="tooling/generate-supported-configurations.sh"
 readonly CONFIG_GENERATION_INPUT_FILES=(
     "${CONFIG_HEADER_FILES[@]}"
+    "tracer/configuration.h"
     "${OTEL_CONFIG_FILES[@]}"
     "${PROFILING_CONFIG_FILE}"
     "${GENERATOR_SCRIPT_FILE}"
@@ -121,20 +122,29 @@ function add_supported_entry(&$supported, $name, $entry) {
     }
 }
 
-function add_otel_entries(&$supported, $names, $metadata) {
+function add_otel_entries(&$supported, $names, $metadata, $sensitiveNames = []) {
     $names = array_unique($names);
     sort($names);
     foreach ($names as $name) {
+        $sensitive = isset($sensitiveNames[$name]);
         if (isset($metadata[$name])) {
             // The SDK metadata table is authoritative for OTEL vars: overwrite any
             // entry derived from an extension CONFIG of the same name (e.g.
             // OTEL_EXPORTER_OTLP_METRICS_ENDPOINT) so the published default is the
             // SDK's rather than the extension's runtime resolution.
             [$type, $default] = $metadata[$name];
-            $supported[$name] = [["implementation" => "A", "type" => $type, "default" => $default]];
+            $entry = ["implementation" => "A", "type" => $type, "default" => $default];
+            if ($sensitive) {
+                $entry["sensitive"] = true;
+            }
+            $supported[$name] = [$entry];
         } else {
             // Not in the table: an OTEL var resolved by the SDK that we don't model.
-            add_supported_entry($supported, $name, ["implementation" => "A", "type" => "string", "default" => ""]);
+            $entry = ["implementation" => "A", "type" => "string", "default" => ""];
+            if ($sensitive) {
+                $entry["sensitive"] = true;
+            }
+            add_supported_entry($supported, $name, $entry);
         }
     }
 }
@@ -273,17 +283,22 @@ $supported = [];
 foreach (explode("|NEXT_CONFIG|", file_get_contents("php://stdin")) as $configLine) {
     $configLine = preg_replace('((\\\\{2})*\K"\s*")', '', $configLine);
     $config = str_getcsv(trim($configLine), ",", '"', '\\');
-    if (count($config) < 3) {
+    if (count($config) < 4) {
         continue;
     }
-    [$type, $name, $default] = array_map('trim', array_slice($config, 0, 3));
-    $aliases = count($config) > 3 ? array_slice($config, 3) : [];
+    [$type, $name, $default, $args] = array_map('trim', array_slice($config, 0, 4));
+    $aliases = count($config) > 4 ? array_slice($config, 4) : [];
     $mappedType = map_type($type);
     $entry = [
         "implementation" => "A",
         "type" => $mappedType,
         "default" => normalize_default($default, $mappedType, $name),
     ];
+    // $args is the stringized designated-initializer tail of the CONFIG/CALIAS
+    // macro invocation (e.g. ".ini_change = ..., .sensitive = 1").
+    if (preg_match('/\.sensitive\s*=\s*(1|true)\b/', $args)) {
+        $entry["sensitive"] = true;
+    }
     $norm = normalize_aliases($aliases, $name);
     if (!empty($norm)) {
         sort($norm);
@@ -343,16 +358,14 @@ foreach ($otelPaths as $otelPath) {
     }
 }
 
-// OTEL configs read by the OpenTelemetry SDK rather than the extension (e.g.
-// OTEL_EXPORTER_OTLP_HEADERS), enumerated in the PHP telemetry whitelist.
-// Scope to the OTEL_CONFIG_WHITELIST array literal so unrelated OTEL_ mentions
-// elsewhere in the file (comments, error strings) can't be published.
-$otelWhitelistPath = "../src/DDTrace/OpenTelemetry/Configuration.php";
-if (file_exists($otelWhitelistPath)
-    && preg_match('/OTEL_CONFIG_WHITELIST\s*=\s*\[(.*?)\]/s', file_get_contents($otelWhitelistPath), $whitelistMatch)) {
-    preg_match_all('/\'(OTEL_[A-Z0-9_]+)\'/', $whitelistMatch[1], $m);
-    add_otel_entries($supported, $m[1], $otelMetadata);
-}
+$otelWhitelistSource = file_get_contents("../src/DDTrace/OpenTelemetry/Configuration.php");
+preg_match('/OTEL_CONFIG_WHITELIST\s*=\s*\[(.*?)\]/s', $otelWhitelistSource, $whitelistMatch);
+preg_match_all('/\'(OTEL_[A-Z0-9_]+)\'/', $whitelistMatch[1], $m);
+$otelNames = $m[1];
+preg_match('/OTEL_SENSITIVE_CONFIGURATIONS\s*=\s*\[(.*?)\]/s', $otelWhitelistSource, $sensitiveMatch);
+preg_match_all('/\'(OTEL_[A-Z0-9_]+)\'/', $sensitiveMatch[1], $m);
+$otelSensitiveNames = $m[1];
+add_otel_entries($supported, array_merge($otelNames, $otelSensitiveNames), $otelMetadata, array_fill_keys($otelSensitiveNames, true));
 
 $profilingPath = "../profiling/src/config.rs";
 add_rust_profiling_configurations($supported, $profilingPath);
@@ -475,9 +488,11 @@ extract_c_supported_configurations() {
 #define CUSTOM(id) id
 // Preserve the literal config type tokens (e.g. CUSTOM(INT)) so the generator can
 // map them to the correct JSON schema type.
-#define CONFIG(type, name, default_value, ...) CALIAS(#type, name, default_value,)
+// Forward the designated-initializer tail (.ini_change = ..., .sensitive = true,
+// etc.) so it can be stringized below
+#define CONFIG(type, name, default_value, ...) CALIAS(#type, name, default_value, ,##__VA_ARGS__)
 #define SYSCFG(type, name, default_value, ...) CONFIG(type, name, default_value, __VA_ARGS__)
-#define CALIAS(type, name, default_value, aliases, ...) type, #name, default_value EXPAND(ALT##aliases) |NEXT_CONFIG|
+#define CALIAS(type, name, default_value, aliases, ...) type, #name, default_value, #__VA_ARGS__ EXPAND(ALT##aliases) |NEXT_CONFIG|
 
 JSON_CONFIGURATION_MARKER
 #ifdef DD_ALL_CONFIGURATIONS
