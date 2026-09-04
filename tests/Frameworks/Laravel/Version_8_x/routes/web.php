@@ -56,3 +56,17 @@ Route::get('/telemetry', function () {
 
 // This route has to remain unnamed so we test both route cached and not cached.
 Route::get('/unnamed-route', [RouteCachingController::class, 'unnamed']);
+
+Route::get('/normalized-optional/{value?}', function ($value = null) {
+    return response($value ?? 'absent');
+});
+
+Route::get('/normalized-default/{format?}', function ($format = null) {
+    return response($format);
+})->defaults('format', 'html');
+
+Route::get('/normalized-ambiguous/{name}.{ext?}', function ($name, $ext = null) {
+    return response($name . '/' . ($ext ?? 'absent'));
+})->where('name', '.+')
+    ->where('ext', 'pdf|json')
+    ->defaults('ext', 'html');

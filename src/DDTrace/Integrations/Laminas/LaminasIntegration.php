@@ -284,6 +284,95 @@ class LaminasIntegration extends Integration
                     $httpRoute = LaminasIntegration::httpRouteTemplateFromNamedRouteStack($this, (string) $routeName);
                     if ($httpRoute !== null && $httpRoute !== '') {
                         $rootSpan->meta[Tag::HTTP_ROUTE] = $httpRoute;
+                        if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()
+                            && dd_trace_env_config("DD_API_SECURITY_ENABLED")) {
+                            $allParams = method_exists($routeMatch, 'getParams') ? ($routeMatch->getParams() ?? []) : [];
+                            $urlPath = method_exists($request, 'getUri') ? $request->getUri()->getPath() : null;
+                            // Build a stable cache key that encodes only which optional
+                            // components participated, not the raw URL (which would cause
+                            // one cache entry per distinct request value — 500-entry churn).
+                            //
+                            // Regex routes (%param% spec): use the route's actual regex to
+                            // determine which named captures matched the URL.
+                            // Bracket routes ([/:param]): collect optional colon-params whose
+                            // values appear in the URL as a presence key; also include
+                            // static-only optional sections.
+                            // Fully-required routes: template alone is sufficient.
+                            $urlMatchedFromRegex = null;
+                            if ($urlPath !== null && strpos($httpRoute, '%') !== false) {
+                                // Regex route: use actual route regex for accurate presence.
+                                // Protected property access via Closure::bind (avoids
+                                // ReflectionProperty issues inside DDTrace sandbox).
+                                try {
+                                    $_leafRoute = LaminasIntegration::getLeafRouteFromNamedRouteStack($this, (string) $routeName);
+                                    if ($_leafRoute instanceof \Laminas\Router\Http\Regex) {
+                                        $_routeRegex = \Closure::bind(
+                                            static function ($r) { return $r->regex; },
+                                            null,
+                                            \Laminas\Router\Http\Regex::class
+                                        )($_leafRoute);
+                                        if ($_routeRegex !== null &&
+                                            @preg_match('(^' . $_routeRegex . '$)', $urlPath, $_rxm) === 1) {
+                                            $urlMatchedFromRegex = [];
+                                            foreach ($_rxm as $_k => $_v) {
+                                                if (!is_string($_k) || $_v === '') {
+                                                    continue;
+                                                }
+                                                $urlMatchedFromRegex[$_k] = rawurldecode($_v);
+                                            }
+                                        }
+                                        unset($_routeRegex, $_rxm, $_k, $_v);
+                                    }
+                                    unset($_leafRoute);
+                                } catch (\Throwable $_ex) {
+                                    unset($_leafRoute, $_routeRegex, $_rxm, $_k, $_v, $_ex);
+                                    $urlMatchedFromRegex = null;
+                                }
+                                $_braceTemp = preg_replace('/%([a-zA-Z_][a-zA-Z0-9_]*)%/', '{$1}', $httpRoute);
+                                $_urlMatchedKeys = array_keys(
+                                    $urlMatchedFromRegex ?? \DDTrace\Util\RouteNormalizer::inferSymfonyRouteParams($_braceTemp, $urlPath)
+                                );
+                                sort($_urlMatchedKeys);
+                                $cacheKey = $httpRoute . '#' . implode(',', $_urlMatchedKeys);
+                                unset($_braceTemp, $_urlMatchedKeys);
+                            } elseif (strpos($httpRoute, '[') !== false) {
+                                // Bracket-optional route: encode which optional colon-params
+                                // have values that appear in the URL path (position > 0 to
+                                // avoid matching the mandatory route prefix with a default).
+                                // Also include static-only optional sections ([/draft] etc.)
+                                // so absent/present shapes get distinct cache keys.
+                                preg_match_all('/:([a-zA-Z_][a-zA-Z0-9_-]*)/', $httpRoute, $_pm);
+                                $_present = [];
+                                foreach ($_pm[1] as $_p) {
+                                    if (isset($allParams[$_p]) && $urlPath !== null &&
+                                        strpos($urlPath, '/' . (string)$allParams[$_p]) > 0) {
+                                        $_present[] = $_p;
+                                    }
+                                }
+                                preg_match_all('/\[([^\[\]]*)\]/', $httpRoute, $_sm);
+                                foreach ($_sm[1] as $_s) {
+                                    if ($urlPath !== null && !preg_match('/:/', $_s) &&
+                                        strpos($urlPath, $_s) > 0) {
+                                        $_present[] = 'static:' . $_s;
+                                    }
+                                }
+                                sort($_present);
+                                $cacheKey = $httpRoute . '#' . implode(',', $_present);
+                                unset($_pm, $_sm, $_present, $_p, $_s);
+                            } else {
+                                $cacheKey = $httpRoute;
+                            }
+                            $normalizedRoute = \DDTrace\routing_cache_get($cacheKey);
+                            if ($normalizedRoute === false) {
+                                $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromLaminas($httpRoute, $allParams, $urlPath, $urlMatchedFromRegex);
+                                if ($normalizedRoute !== null) {
+                                    \DDTrace\routing_cache_set($cacheKey, $normalizedRoute);
+                                }
+                            }
+                            if ($normalizedRoute !== null && $normalizedRoute !== false) {
+                                $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                            }
+                        }
                     }
                 }
 
@@ -1155,6 +1244,29 @@ class LaminasIntegration extends Integration
                 self::walkRouteStackCollectEndpointRows($rootRouter, $route, $qualifiedName, $rows);
             }
         }
+    }
+
+    public static function getLeafRouteFromNamedRouteStack($stack, string $matchedName)
+    {
+        $segments = \explode('/', $matchedName, 2);
+        $route = self::laminasGetNamedRouteFromStack($stack, $segments[0]);
+        if ($route === null) {
+            return null;
+        }
+        $hasChild = isset($segments[1]);
+        if ($route instanceof \Laminas\Router\Http\Part) {
+            if (!$hasChild) {
+                $rp = new ReflectionProperty($route, 'route');
+                $rp->setAccessible(true);
+                return $rp->getValue($route);
+            }
+            self::laminasMaterializePartChildRoutes($route);
+            return self::getLeafRouteFromNamedRouteStack($route, $segments[1]);
+        }
+        if ($hasChild) {
+            return null;
+        }
+        return $route;
     }
 
     public static function httpRouteTemplateFromNamedRouteStack($stack, string $matchedName): ?string

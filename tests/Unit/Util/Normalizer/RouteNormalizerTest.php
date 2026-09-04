@@ -1,0 +1,453 @@
+<?php
+
+namespace DDTrace\Tests\Unit\Util\Normalizer;
+
+use DDTrace\Tests\Common\BaseTestCase;
+use DDTrace\Util\RouteNormalizer;
+
+class RouteNormalizerTest extends BaseTestCase
+{
+    // encodeStaticSegment
+
+    public function testEncodeStaticSegmentAllowed()
+    {
+        $this->assertSame('hello', RouteNormalizer::encodeStaticSegment('hello'));
+        $this->assertSame('Hello-World_v1.0~test', RouteNormalizer::encodeStaticSegment('Hello-World_v1.0~test'));
+    }
+
+    public function testEncodeStaticSegmentEncodesReserved()
+    {
+        $this->assertSame('dump-request', RouteNormalizer::encodeStaticSegment('dump-request'));
+        $this->assertSame('foo%40bar', RouteNormalizer::encodeStaticSegment('foo@bar'));
+        $this->assertSame('foo%20bar', RouteNormalizer::encodeStaticSegment('foo bar'));
+    }
+
+    public function testEncodeStaticSegmentPreservesExistingPercentEncoding()
+    {
+        $this->assertSame('%2F', RouteNormalizer::encodeStaticSegment('%2F'));
+        $this->assertSame('%2F', RouteNormalizer::encodeStaticSegment('%2f'));
+    }
+
+    // encodeParamName
+
+    public function testEncodeParamNamePreservesNormal()
+    {
+        $this->assertSame('id', RouteNormalizer::encodeParamName('id'));
+        $this->assertSame('user_id', RouteNormalizer::encodeParamName('user_id'));
+    }
+
+    public function testEncodeParamNameEncodesPlusSign()
+    {
+        $this->assertSame('foo%2Bbar', RouteNormalizer::encodeParamName('foo+bar'));
+    }
+
+    public function testEncodeParamNameEncodesReserved()
+    {
+        $this->assertSame('foo%23bar', RouteNormalizer::encodeParamName('foo#bar'));
+    }
+
+    // normalizeFromLaravel
+
+    public function testLaravelSimpleRoute()
+    {
+        $this->assertSame('/users', RouteNormalizer::normalizeFromLaravel('/users'));
+        $this->assertSame('/users/{id}', RouteNormalizer::normalizeFromLaravel('/users/{id}'));
+    }
+
+    public function testLaravelOptionalParamPresent()
+    {
+        $result = RouteNormalizer::normalizeFromLaravel('/users/{id}/{format?}', ['id' => '1', 'format' => 'json']);
+        $this->assertSame('/users/{id}/{format}', $result);
+    }
+
+    public function testLaravelOptionalParamAbsent()
+    {
+        $result = RouteNormalizer::normalizeFromLaravel('/users/{id}/{format?}', ['id' => '1']);
+        $this->assertSame('/users/{id}', $result);
+    }
+
+    public function testLaravelMixedSegmentTwoParams()
+    {
+        // /photos/{id}.{format} → both in same URL segment → combined
+        $result = RouteNormalizer::normalizeFromLaravel('/photos/{id}.{format}', ['id' => '1', 'format' => 'jpg']);
+        $this->assertSame('/photos/{id+format}', $result);
+    }
+
+    public function testLaravelMixedSegmentOptionalFormat()
+    {
+        // /posts/:id(.:format) style — optional format present
+        $result = RouteNormalizer::normalizeFromLaravel('/posts/{id}/{format?}', ['id' => '1', 'format' => 'json']);
+        $this->assertSame('/posts/{id}/{format}', $result);
+
+        // optional format absent
+        $result = RouteNormalizer::normalizeFromLaravel('/posts/{id}/{format?}', ['id' => '1']);
+        $this->assertSame('/posts/{id}', $result);
+    }
+
+    public function testLaravelRequiredParamBesideAbsentOptional()
+    {
+        // {name} is required; {ext?} is absent — must keep {name}, not drop the whole segment
+        $result = RouteNormalizer::normalizeFromLaravel('/files/{name}.{ext?}', ['name' => 'foo']);
+        $this->assertSame('/files/{name}', $result);
+    }
+
+    public function testLaravelRequiredParamBesideAbsentOptionalBothPresent()
+    {
+        $result = RouteNormalizer::normalizeFromLaravel('/files/{name}.{ext?}', ['name' => 'foo', 'ext' => 'txt']);
+        $this->assertSame('/files/{name+ext}', $result);
+    }
+
+    public function testLaravelDeeperRoute()
+    {
+        $result = RouteNormalizer::normalizeFromLaravel('/dashboard/shared_widget_update/{id}/{widget_id}');
+        $this->assertSame('/dashboard/shared_widget_update/{id}/{widget_id}', $result);
+    }
+
+    public function testLaravelTrailingSlash()
+    {
+        $result = RouteNormalizer::normalizeFromLaravel('/users/{id}/');
+        $this->assertSame('/users/{id}/', $result);
+    }
+
+    public function testLaravelRoot()
+    {
+        $this->assertSame('/', RouteNormalizer::normalizeFromLaravel('/'));
+    }
+
+    // normalizeFromSymfony
+
+    public function testSymfonySimpleRoute()
+    {
+        $this->assertSame('/sleep/{seconds}', RouteNormalizer::normalizeFromSymfony('/sleep/{seconds}'));
+    }
+
+    public function testSymfonyMixedSegment()
+    {
+        // Symfony may produce routes like /posts/{id}.{_format}
+        $result = RouteNormalizer::normalizeFromSymfony('/posts/{id}.{_format}');
+        $this->assertSame('/posts/{id+_format}', $result);
+    }
+
+    public function testSymfonyStaticOnlyRoute()
+    {
+        $this->assertSame('/dump-request', RouteNormalizer::normalizeFromSymfony('/dump-request'));
+    }
+
+    public function testSymfonyOptionalParamAbsent()
+    {
+        // /blog/{page} requested as /blog — page has a default and was not in the URL
+        $result = RouteNormalizer::normalizeFromSymfony('/blog/{page}', []);
+        $this->assertSame('/blog', $result);
+    }
+
+    public function testSymfonyOptionalParamPresent()
+    {
+        // /blog/{page} requested as /blog/2 — page was in the URL
+        $result = RouteNormalizer::normalizeFromSymfony('/blog/{page}', ['page' => '2']);
+        $this->assertSame('/blog/{page}', $result);
+    }
+
+    public function testSymfonyRequiredParamsAlwaysKept()
+    {
+        // All params present — nothing dropped
+        $result = RouteNormalizer::normalizeFromSymfony('/users/{id}/posts/{post_id}', ['id' => '1', 'post_id' => '5']);
+        $this->assertSame('/users/{id}/posts/{post_id}', $result);
+    }
+
+    public function testSymfonyTrailingOptionalAbsent()
+    {
+        // /users/{id}/posts/{post_id} with only id in URL — post_id absent
+        $result = RouteNormalizer::normalizeFromSymfony('/users/{id}/posts/{post_id}', ['id' => '1']);
+        $this->assertSame('/users/{id}/posts', $result);
+    }
+
+    public function testSymfonyNoMatchedParamsArgKeepsAll()
+    {
+        // null matchedParams → old behaviour, no params dropped
+        $result = RouteNormalizer::normalizeFromSymfony('/blog/{page}');
+        $this->assertSame('/blog/{page}', $result);
+    }
+
+    // inferSymfonyRouteParams — used to build the cache key in SymfonyIntegration
+
+    public function testInferSymfonyRouteParamsRequiredParamsAlwaysPresent()
+    {
+        $params = RouteNormalizer::inferSymfonyRouteParams('/users/{id}', '/users/42');
+        $this->assertArrayHasKey('id', $params);
+    }
+
+    public function testInferSymfonyRouteParamsOptionalParamAbsent()
+    {
+        // Route /posts/{page} where page has a Symfony default — URL /posts does not include page.
+        // The integration code uses array_keys($params) as cache key suffix; this must be []
+        // so that the 'absent' cache entry is distinct from the 'present' one.
+        $params = RouteNormalizer::inferSymfonyRouteParams('/posts/{page}', '/posts');
+        $this->assertSame([], $params);
+    }
+
+    public function testInferSymfonyRouteParamsOptionalParamPresent()
+    {
+        // URL /posts/2 provides page explicitly — must be in the returned params.
+        $params = RouteNormalizer::inferSymfonyRouteParams('/posts/{page}', '/posts/2');
+        $this->assertArrayHasKey('page', $params);
+    }
+
+    public function testInferSymfonyRouteParamsCacheKeysDiffer()
+    {
+        // Core invariant for correct cache behaviour: the two URL patterns for the same route
+        // produce different param key sets, so the cache key suffix encodes presence/absence.
+        $absent  = array_keys(RouteNormalizer::inferSymfonyRouteParams('/posts/{page}', '/posts'));
+        $present = array_keys(RouteNormalizer::inferSymfonyRouteParams('/posts/{page}', '/posts/2'));
+        $this->assertNotSame($absent, $present);
+
+        // And normalizeFromSymfony produces the correct result for each case.
+        $this->assertSame('/posts', RouteNormalizer::normalizeFromSymfony(
+            '/posts/{page}',
+            RouteNormalizer::inferSymfonyRouteParams('/posts/{page}', '/posts')
+        ));
+        $this->assertSame('/posts/{page}', RouteNormalizer::normalizeFromSymfony(
+            '/posts/{page}',
+            RouteNormalizer::inferSymfonyRouteParams('/posts/{page}', '/posts/2')
+        ));
+    }
+
+    // normalizeFromLaminas
+
+    public function testLaminasSimpleColon()
+    {
+        $this->assertSame('/users/{id}', RouteNormalizer::normalizeFromLaminas('/users/:id'));
+    }
+
+    public function testLaminasOptionalPresent()
+    {
+        $result = RouteNormalizer::normalizeFromLaminas('/users/:id[.:format]', ['id' => '1', 'format' => 'json']);
+        $this->assertSame('/users/{id+format}', $result);
+    }
+
+    public function testLaminasOptionalAbsent()
+    {
+        $result = RouteNormalizer::normalizeFromLaminas('/users/:id[.:format]', ['id' => '1']);
+        $this->assertSame('/users/{id}', $result);
+    }
+
+    public function testLaminasMultiParamOptionalPresent()
+    {
+        // Both params in the section present and appear in the URL → expand
+        $result = RouteNormalizer::normalizeFromLaminas(
+            '/archive[/:year/:month]',
+            ['year' => '2024', 'month' => '08'],
+            '/archive/2024/08'
+        );
+        $this->assertSame('/archive/{year}/{month}', $result);
+    }
+
+    public function testLaminasMultiParamOptionalAbsent()
+    {
+        // Both params injected by middleware but absent from URL → do not expand
+        $result = RouteNormalizer::normalizeFromLaminas(
+            '/archive[/:year/:month]',
+            ['year' => '2024', 'month' => '08'],
+            '/archive'
+        );
+        $this->assertSame('/archive', $result);
+    }
+
+    public function testLaminasNestedOptionalBothPresent()
+    {
+        $result = RouteNormalizer::normalizeFromLaminas(
+            '/foo[/:bar[/:baz]]',
+            ['bar' => 'a', 'baz' => 'b'],
+            '/foo/a/b'
+        );
+        $this->assertSame('/foo/{bar}/{baz}', $result);
+    }
+
+    public function testLaminasNestedOptionalOnlyOuterPresent()
+    {
+        $result = RouteNormalizer::normalizeFromLaminas(
+            '/foo[/:bar[/:baz]]',
+            ['bar' => 'a'],
+            '/foo/a'
+        );
+        $this->assertSame('/foo/{bar}', $result);
+    }
+
+    public function testLaminasRegexRouteSpec()
+    {
+        // Laminas\Router\Http\Regex uses %param% spec format for URL generation
+        $this->assertSame('/blog/{id}', RouteNormalizer::normalizeFromLaminas('/blog/%id%'));
+        $this->assertSame('/user/{id}/{name}', RouteNormalizer::normalizeFromLaminas('/user/%id%/%name%'));
+    }
+
+    public function testLaminasRegexRouteOptionalFormatAbsent()
+    {
+        // Route defaults inject format='html' even when the URL has no .html extension.
+        // Only params actually present in the URL path should appear in the normalized route.
+        $result = RouteNormalizer::normalizeFromLaminas(
+            '/normalized-regex/%id%.%format%',
+            ['id' => 'article', 'format' => 'html', 'controller' => 'C', 'action' => 'index'],
+            '/normalized-regex/article'
+        );
+        $this->assertSame('/normalized-regex/{id}', $result);
+    }
+
+    public function testLaminasRegexRouteOptionalFormatPresent()
+    {
+        $result = RouteNormalizer::normalizeFromLaminas(
+            '/normalized-regex/%id%.%format%',
+            ['id' => 'article', 'format' => 'html', 'controller' => 'C', 'action' => 'index'],
+            '/normalized-regex/article.html'
+        );
+        $this->assertSame('/normalized-regex/{id+format}', $result);
+    }
+
+    public function testLaminasLiteralRoute()
+    {
+        $this->assertSame('/dump-request', RouteNormalizer::normalizeFromLaminas('/dump-request'));
+    }
+
+    public function testLaminasWildcard()
+    {
+        // Wildcard routes produce '/*' from laminasSegmentPartsToRouteTemplate
+        $result = RouteNormalizer::normalizeFromLaminas('/*');
+        $this->assertSame('/{param1}', $result);
+    }
+
+    // normalizeFromWordPress
+
+    public function testWordPressSimpleRegex()
+    {
+        $result = RouteNormalizer::normalizeFromWordPress('^blog/([^/]+)/?$');
+        $this->assertSame('/blog/{param1}', $result);
+    }
+
+    public function testWordPressStaticRule()
+    {
+        $result = RouteNormalizer::normalizeFromWordPress('^about/?$');
+        $this->assertSame('/about', $result);
+    }
+
+    public function testWordPressMultipleGroups()
+    {
+        $result = RouteNormalizer::normalizeFromWordPress('^([^/]+)/([^/]+)/?$');
+        $this->assertSame('/{param1}/{param2}', $result);
+    }
+
+    public function testWordPressOptionalGroupAbsent()
+    {
+        // Optional second segment not present in URL — must not emit phantom {param2}
+        $result = RouteNormalizer::normalizeFromWordPress('^([^/]+)(?:/([0-9]+))?/?$', 'simple');
+        $this->assertSame('/{param1}', $result);
+    }
+
+    public function testWordPressOptionalGroupPresent()
+    {
+        $result = RouteNormalizer::normalizeFromWordPress('^([^/]+)(?:/([0-9]+))?/?$', 'simple/123');
+        $this->assertSame('/{param1}/{param2}', $result);
+    }
+
+    public function testWordPressOptionalGroupNoUrlPath()
+    {
+        // Without URL path, fall back to emitting all groups (backward-compatible)
+        $result = RouteNormalizer::normalizeFromWordPress('^([^/]+)(?:/([0-9]+))?/?$');
+        $this->assertSame('/{param1}/{param2}', $result);
+    }
+
+    public function testWordPressRootRule()
+    {
+        $result = RouteNormalizer::normalizeFromWordPress('^/?$');
+        $this->assertSame('/', $result);
+    }
+
+    public function testWordPressMultipleCaptureGroupsInOneSegment()
+    {
+        // Two capture groups in the same slash-separated segment → combined with +
+        // The static prefix "post-" is dropped as the whole mixed segment is treated as dynamic
+        $result = RouteNormalizer::normalizeFromWordPress('^post-([^/]+)-([0-9]+)/?$');
+        $this->assertSame('/{param1+param2}', $result);
+    }
+
+    public function testWordPressStaticPrefixNotSeparateElement()
+    {
+        // F-07: static prefix before a capture must NOT become a separate segment element.
+        // "post-([^/]+)" is a single URL segment → one RFC element.
+        $result = RouteNormalizer::normalizeFromWordPress('^post-([^/]+)$', 'post-hello');
+        $this->assertSame('/{param1}', $result);
+    }
+
+    public function testWordPressAbsentOptionalCaptureSkipped()
+    {
+        // F-11: when an inner optional capture did not participate (empty string in captures),
+        // it must not produce a phantom {paramN}.
+        $result = RouteNormalizer::normalizeFromWordPress('^(?:([^/]+)-)?([^/]+)$', 'x');
+        $this->assertSame('/{param2}', $result);
+    }
+
+    public function testWordPressBothCapturesPresentInOptionalGroup()
+    {
+        $result = RouteNormalizer::normalizeFromWordPress('^(?:([^/]+)-)?([^/]+)$', 'foo-x');
+        $this->assertSame('/{param1+param2}', $result);
+    }
+
+    public function testStaticPrefixLeadingTildePreservedWhenOptionalAbsent()
+    {
+        // F-04: rtrim — a leading special char like '~' must survive when the optional
+        // param is absent. Old behaviour: trim('~foo.', '.-_~') = 'foo'. Fixed: rtrim.
+        $result = RouteNormalizer::normalizeFromLaravel('~foo.{ext?}', []);
+        $this->assertSame('/~foo', $result);
+    }
+
+    public function testLaminasWildcardAfterPercentParam()
+    {
+        // F-10: uniqueParamName must skip %param1% when choosing a name for the wildcard.
+        $result = RouteNormalizer::normalizeFromLaminas('/foo/%param1%/*');
+        $this->assertSame('/foo/{param1}/{param2}', $result);
+    }
+
+    // RFC examples
+
+    public function testRfcExampleFastApi()
+    {
+        // http.route: /dashboard/shared_widget_update/{id}/{widget_id}
+        $result = RouteNormalizer::normalizeFromLaravel('/dashboard/shared_widget_update/{id}/{widget_id}');
+        $this->assertSame('/dashboard/shared_widget_update/{id}/{widget_id}', $result);
+    }
+
+    public function testRfcExampleDjangoDumpRequest()
+    {
+        // http.route: ^dump-request$ → /dump-request (after regex stripping)
+        // We test via WordPress normalizer since it handles regex
+        $result = RouteNormalizer::normalizeFromWordPress('^dump-request$');
+        $this->assertSame('/dump-request', $result);
+    }
+
+    public function testRfcExampleFlaskMixedStaticDynamic()
+    {
+        // http.route: /users/user-<id> → /users/{id}
+        // Flask wraps static+dynamic in same segment; normalizer drops static prefix
+        $result = RouteNormalizer::normalizeFromLaravel('/users/{id}');
+        $this->assertSame('/users/{id}', $result);
+    }
+
+    public function testRfcExampleRailsMandatoryFormat()
+    {
+        // http.route: /photos/:id.:format → /photos/{id+format}
+        // Laminas uses the same :param syntax as CakePHP/Rails for this pattern.
+        $result = RouteNormalizer::normalizeFromLaminas('/photos/:id.:format');
+        $this->assertSame('/photos/{id+format}', $result);
+    }
+
+    public function testRfcExampleRailsOptionalFormatPresent()
+    {
+        // /posts/:id(.:format) with format present → /posts/{id+format}
+        $result = RouteNormalizer::normalizeFromLaminas('/posts/:id[.:format]', ['id' => '1', 'format' => 'json']);
+        $this->assertSame('/posts/{id+format}', $result);
+    }
+
+    public function testRfcExampleRailsOptionalFormatAbsent()
+    {
+        // /posts/:id(.:format) without format → /posts/{id}
+        $result = RouteNormalizer::normalizeFromLaminas('/posts/:id[.:format]', ['id' => '1']);
+        $this->assertSame('/posts/{id}', $result);
+    }
+}
