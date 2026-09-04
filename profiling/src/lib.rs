@@ -58,11 +58,11 @@ use uuid::Uuid;
 static PROFILER_NAME: &CStr = c"datadog-profiling";
 
 /// Draws the exponential sampling distance assumed by libdatadog's upscaler,
-/// clamped to `[8, 20 * mean]`.
+/// rounded up to whole units and clamped to `[1, 20 * mean]`.
 fn sample_exponential_interval(rng: &mut impl Rng, mean: f64) -> f64 {
     let sample: f64 = rng.random();
     let sample = if sample <= 0.0 { 1e-10 } else { sample };
-    (-sample.ln() * mean).clamp(8.0, 20.0 * mean)
+    (-sample.ln() * mean).ceil().clamp(1.0, 20.0 * mean)
 }
 
 // SAFETY: PROFILER_NAME is a valid utf8 string.

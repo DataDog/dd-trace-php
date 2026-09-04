@@ -345,12 +345,17 @@ mod tests {
 
     #[test]
     fn allocation_sampling_matches_upscaling_probability() {
-        let mean = DEFAULT_ALLOCATION_SAMPLING_INTERVAL.get() as f64;
+        let default_mean = DEFAULT_ALLOCATION_SAMPLING_INTERVAL.get() as f64;
         let trials = 100_000;
-        for ratio in [0.1, 1.1, 3.0] {
-            let size = (ratio * mean) as usize;
-            let mut stats =
-                AllocationProfilingStats::new(DEFAULT_ALLOCATION_SAMPLING_INTERVAL.into());
+        for (mean, size) in [
+            (default_mean, (0.1 * default_mean) as usize),
+            (default_mean, (1.1 * default_mean) as usize),
+            (default_mean, (3.0 * default_mean) as usize),
+            (1.0, 1),
+            (1.0, 4),
+            (4.0, 4),
+        ] {
+            let mut stats = AllocationProfilingStats::new(NonZeroU64::new(mean as u64).unwrap());
             stats.rng = StdRng::seed_from_u64(42);
             stats.next_sampling_interval();
             let sampled = (0..trials)
@@ -361,7 +366,7 @@ mod tests {
             let sigma = (expected * (1.0 - probability)).sqrt();
             assert!(
                 (sampled as f64 - expected).abs() < 8.0 * sigma,
-                "size={size}: sampled {sampled}, expected {expected}"
+                "mean={mean}, size={size}: sampled {sampled}, expected {expected}"
             );
         }
     }

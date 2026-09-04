@@ -632,8 +632,8 @@ impl IOProfilingStats {
             // (or risking a crash) we refrain from collection I/O.
             return false;
         }
-        if let Some(next_sample) = self.next_sample.checked_sub(value) {
-            self.next_sample = next_sample;
+        if self.next_sample > value {
+            self.next_sample -= value;
             return false;
         }
         self.next_sampling_interval();
@@ -805,6 +805,20 @@ mod tests {
         assert!(slot_fits_range(0x1800, 0x1000, 0x1000));
         assert!(!slot_fits_range(0x2000, 0x1000, 0x1000));
         assert!(!slot_fits_range(usize::MAX, 0x1000, 0x1000));
+    }
+
+    #[test]
+    fn sampling_collects_at_interval_boundary() {
+        let vm_interrupt = std::sync::atomic::AtomicBool::new(false);
+        let previous = super::REQUEST_LOCALS.with_borrow_mut(|locals| {
+            std::mem::replace(&mut locals.vm_interrupt_addr, &vm_interrupt)
+        });
+        let mut stats = super::IOProfilingStats::new(100);
+        stats.next_sample = 8;
+        assert!(!stats.should_collect(0));
+        assert!(!stats.should_collect(4));
+        assert!(stats.should_collect(4));
+        super::REQUEST_LOCALS.with_borrow_mut(|locals| locals.vm_interrupt_addr = previous);
     }
 
     #[test]
