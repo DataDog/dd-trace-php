@@ -93,7 +93,7 @@ if test "$PHP_DDTRACE_PROFILING" != "no"; then
 .PHONY: ddtrace-profiler-rust-build
 ddtrace-profiler-rust-build:
 
-$profiler_rust_lib: ddtrace-profiler-rust-build \$(shell for dir in \$(srcdir)/components-rs \$(srcdir)/profiling \$(srcdir)/libdatadog \$(srcdir)/../../libdatadog; do test ! -d \$\$dir || find \$\$dir \( -type f -o -type l \) \( -name '*.rs' -o -name '*.c' -o -name '*.h' -o -name Cargo.toml \) -not -path '*/target/*' -not -path '*/.git/*'; done) \$(srcdir)/ext/configuration.h \$(srcdir)/ext/configuration_helpers.h \$(srcdir)/ext/configuration_shared.h \$(srcdir)/tracer/configuration.h \$(srcdir)/ext/handlers_api.c \$(srcdir)/ext/handlers_api.h \$(srcdir)/Cargo.toml \$(srcdir)/Cargo.lock \$(srcdir)/VERSION
+$profiler_rust_lib: ddtrace-profiler-rust-build \$(shell for dir in \$(srcdir)/components-rs \$(srcdir)/profiling \$(srcdir)/libdatadog \$(srcdir)/../../libdatadog; do test ! -d \$\$dir || find \$\$dir \( -type f -o -type l \) \( -name '*.rs' -o -name '*.c' -o -name '*.h' -o -name Cargo.toml \) -not -path '*/target/*' -not -path '*/.git/*'; done) \$(srcdir)/ext/configuration.h \$(srcdir)/ext/configuration_helpers.h \$(srcdir)/ext/configuration_shared.h \$(srcdir)/tracer/configuration.h \$(srcdir)/ext/handlers_api.c \$(srcdir)/ext/handlers_api.h \$(srcdir)/Cargo.toml \$(srcdir)/Cargo.lock \$(srcdir)/VERSION \$(builddir)/Makefile
 	(cd "\$(srcdir)"; DDTRACE_PHP_INCLUDES="\$(INCLUDES)" CARGO_TARGET_DIR="$profiler_target_dir" RUSTFLAGS="\$(RUSTFLAGS) --cfg tokio_unstable" "\$(DDTRACE_CARGO)" build $DDTRACE_PROFILING_CARGO_BUILD_FLAGS $profiler_target_arg --no-default-features --features "profiling${DDTRACE_PROFILING_FEATURES:+,$DDTRACE_PROFILING_FEATURES}" $(test "$profiler_cargo_profile" = debug || echo --profile "$profiler_cargo_profile") \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+") \$(shell echo "\$(MAKEFLAGS)" | $EGREP -q -e '--silent' -e '^[[^ -]]*s' && echo --quiet))
 
 \$(phplibdir)/datadog-profiling.la: $profiler_rust_lib
@@ -558,8 +558,23 @@ EOT
     fi
     ddtrace_cargo_build_flags="${ddtrace_cargo_build_flags:-}"
 
+    dnl `make` only reruns a rule when a listed prerequisite is newer than
+    dnl the target; it has no idea that the recipe's own command-line
+    dnl environment (DDTRACE_PHP_INCLUDES, CARGO_FEATURES, ...) can change
+    dnl between configure runs that reuse the same CARGO_TARGET_DIR and
+    dnl target file path (e.g. an NTS build followed by a ZTS build, or a
+    dnl tracer-only build followed by a combined one, sharing an externally
+    dnl set CARGO_TARGET_DIR). Without this, `make` would leave a stale,
+    dnl ABI-incompatible libdatadog_php.a in place and relink it as-is
+    dnl instead of rebuilding it. The generated top-level Makefile already
+    dnl captures this: its `INCLUDES = ...` line is derived from whichever
+    dnl php-config was on PATH when configure ran (NTS vs ZTS resolve to
+    dnl different php-config binaries and therefore different INCLUDES),
+    dnl and config.status rewrites Makefile with a fresh mtime on every
+    dnl configure run. Listing it as a prerequisite is enough to make `make`
+    dnl notice and rebuild.
     cat <<EOT >> Makefile.fragments
-$ddtrace_rust_lib: $( (find "$ext_srcdir/components-rs" -name "*.rs"; find "$ext_srcdir/profiling" \( -name "*.rs" -o -name "*.c" -o -name "*.h" \); find "$ext_srcdir/zend_abstract_interface" \( -name "*.c" -o -name "*.h" \); find "$ext_srcdir" -maxdepth 1 -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -not -path "*/target/*"; find "$ext_srcdir/libdatadog" -name "*.rs" -not -path "*/target/*") 2>/dev/null | tr '\n' ' ' ) $ext_srcdir/ext/configuration.h $ext_srcdir/ext/configuration_helpers.h $ext_srcdir/ext/configuration_shared.h $ext_srcdir/tracer/configuration.h
+$ddtrace_rust_lib: $( (find "$ext_srcdir/components-rs" -name "*.rs"; find "$ext_srcdir/profiling" \( -name "*.rs" -o -name "*.c" -o -name "*.h" \); find "$ext_srcdir/zend_abstract_interface" \( -name "*.c" -o -name "*.h" \); find "$ext_srcdir" -maxdepth 1 -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -not -path "*/target/*"; find "$ext_srcdir/libdatadog" -name "*.rs" -not -path "*/target/*") 2>/dev/null | tr '\n' ' ' ) $ext_srcdir/ext/configuration.h $ext_srcdir/ext/configuration_helpers.h $ext_srcdir/ext/configuration_shared.h $ext_srcdir/tracer/configuration.h $ext_builddir/Makefile
 	(cd "$ext_srcdir"; DDTRACE_PHP_INCLUDES="\$(INCLUDES)" CARGO_FEATURES="$ddtrace_cargo_features" CARGO_TARGET_DIR="$ddtrace_target_dir/" SHARED=$(test "$ext_shared" = "yes" && echo 1) PROFILE="$ddtrace_cargo_profile" host_os="$host_os" DDTRACE_CARGO="\$(DDTRACE_CARGO)" $(if test "$PHP_DDTRACE_SANITIZE" != "no"; then echo COMPILE_ASAN=1; fi) sh ./compile_rust.sh $ddtrace_cargo_build_flags \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+") \$(shell echo "\$(MAKEFLAGS)" | $EGREP -q -e '--silent' -e '^[[^ -]]*s' && echo --quiet))
 EOT
   fi
