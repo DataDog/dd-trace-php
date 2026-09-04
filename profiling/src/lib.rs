@@ -42,6 +42,7 @@ use libdd_common::cstr;
 use log::{debug, error, info, trace, warn};
 use profile_tags::{ProfileTagSegment, UnifiedServiceTagSegment};
 use profiler::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
+use rand::Rng;
 use sapi::Sapi;
 use std::borrow::Cow;
 use std::cell::{BorrowError, BorrowMutError, RefCell};
@@ -55,6 +56,13 @@ use uuid::Uuid;
 /// Name of the profiling module and zend_extension. Must not contain any
 /// interior null bytes and must be null terminated.
 static PROFILER_NAME: &CStr = c"datadog-profiling";
+
+/// Samples `-ln(U) * mean`, clamped to `[8, 20 * mean]` like libdatadog.
+fn sample_exponential_interval(rng: &mut impl Rng, mean: f64) -> f64 {
+    let sample: f64 = rng.random();
+    let sample = if sample <= 0.0 { 1e-10 } else { sample };
+    (-sample.ln() * mean).clamp(8.0, 20.0 * mean)
+}
 
 // SAFETY: PROFILER_NAME is a valid utf8 string.
 static PROFILER_NAME_STR: &str = match PROFILER_NAME.to_str() {

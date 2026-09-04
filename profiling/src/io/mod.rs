@@ -4,10 +4,9 @@ pub mod got_elf64;
 pub mod got_macho;
 
 use crate::profiling::profiler::Profiler;
-use crate::profiling::{zend, RefCellExt, REQUEST_LOCALS};
+use crate::profiling::{sample_exponential_interval, zend, RefCellExt, REQUEST_LOCALS};
 use libc::{c_int, c_void, fstat, stat, S_IFMT, S_IFSOCK};
 use rand::rngs::ThreadRng;
-use rand::Rng;
 use rustc_hash::FxHashMap;
 use std::cell::RefCell;
 use std::mem::MaybeUninit;
@@ -620,14 +619,7 @@ impl IOProfilingStats {
     }
 
     fn next_sampling_interval(&mut self) {
-        // Draw inter-sample distance from an exponential distribution: -ln(U) * mean
-        let u: f64 = self.rng.random();
-        let u = if u <= 0.0 { 1e-10 } else { u };
-        let v = -u.ln() * self.mean;
-        // Clamp to [8, 20 * mean] matching libdatadog sampler
-        let vmax = 20.0 * self.mean;
-        let v = v.clamp(8.0, vmax);
-        self.next_sample = v as u64;
+        self.next_sample = sample_exponential_interval(&mut self.rng, self.mean) as u64;
     }
 
     fn should_collect(&mut self, value: u64) -> bool {

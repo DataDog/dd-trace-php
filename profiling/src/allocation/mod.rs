@@ -6,12 +6,11 @@ use crate::profiling::bindings::{self as zend};
 use crate::profiling::config::SystemSettings;
 use crate::profiling::module_globals;
 use crate::profiling::profiler::Profiler;
-use crate::profiling::{RefCellExt, REQUEST_LOCALS};
+use crate::profiling::{sample_exponential_interval, RefCellExt, REQUEST_LOCALS};
 use core::cell::Cell;
 use core::ptr;
 use libc::size_t;
 use log::{debug, trace};
-use rand::Rng;
 use std::ffi::c_void;
 use std::num::{NonZero, NonZeroU32, NonZeroU64};
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
@@ -191,12 +190,7 @@ impl AllocationProfilingStats {
     }
 
     fn next_sampling_interval(&mut self) {
-        // Exponential distances give the upscaler's probability: 1 - exp(-size / mean).
-        let u: f64 = self.rng.random();
-        let u = if u <= 0.0 { 1e-10 } else { u };
-        let v = -u.ln() * self.mean;
-        // Clamp to [8, 20 * mean], matching the libdatadog sampler.
-        self.next_sample = v.clamp(8.0, 20.0 * self.mean) as i64;
+        self.next_sample = sample_exponential_interval(&mut self.rng, self.mean) as i64;
     }
 
     fn should_collect_allocation(&mut self, len: size_t) -> bool {
