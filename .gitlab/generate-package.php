@@ -163,6 +163,28 @@ foreach ($arch_targets as $arch) {
 }
 ?>
 
+# Local override: the shared one-pipeline.yml template only reports the
+# final decomposed image size against LIB_INJECTION_IMAGE_MAX_SIZE_BYTES, not
+# what's actually inside it. This prints a per-file size breakdown of both
+# architectures' decomposed package contents (which the template's own
+# script already produces at /scripts/lib-injection/decomposed-{amd64,arm64}/
+# contents, before the size check runs) so we can see what's driving the
+# size without needing to reproduce the build locally. Runs unconditionally
+# (not just on failure) so we always have a trend, not just a snapshot when
+# it's already over threshold.
+create-multiarch-lib-injection-image:
+  after_script:
+    - |
+      for arch in amd64 arm64; do
+        dir="/scripts/lib-injection/decomposed-${arch}/contents"
+        if [ -d "$dir" ]; then
+          echo "=== ${arch} decomposed package contents (total: $(du -sh "$dir" | cut -f1)) ==="
+          find "$dir" -type f -printf '%s\t%p\n' | sort -rn | awk 'BEGIN{FS="\t"} {printf "%10.1f MB  %s\n", $1/1048576, $2}' | head -50
+        else
+          echo "=== ${arch} decomposed package directory not found at ${dir} ==="
+        fi
+      done
+
 requirements_json_test:
   rules:
     - when: on_success
@@ -1284,6 +1306,12 @@ endforeach;
     PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
     APT_CACHE: $CI_PROJECT_DIR/.cache/apt
     DOCKER_DEFAULT_PLATFORM: linux/amd64
+    # Override these to point at a fork/branch of system-tests (e.g. while a fix there
+    # is pending review/merge) without needing to touch this file.
+    SYSTEM_TESTS_REPO: "https://github.com/DataDog/system-tests.git"
+    # TODO: point back at "main" once DataDog/system-tests@levi/common-extension-2's
+    # install_ddtrace.sh profiling-marker fix has been merged upstream.
+    SYSTEM_TESTS_REF: "levi/common-extension-2"
     # TODO DD_API_KEY; SYSTEM_TESTS_AWS_ACCESS_KEY_ID; SYSTEM_TESTS_AWS_SECRET_ACCESS_KEY
   needs:
     - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
@@ -1313,7 +1341,7 @@ endforeach;
       pip install -U pip virtualenv
 <?php dockerhub_login() ?>
     - /tmp/vault kv get --format=json "kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key" 2>/dev/null | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['data']['key'])" > /tmp/.dd-api-key 2>/dev/null || true
-    - git clone https://github.com/DataDog/system-tests.git
+    - git clone --branch "$SYSTEM_TESTS_REF" --depth 1 "$SYSTEM_TESTS_REPO" system-tests
     - mv packages/{datadog-setup.php,dd-library-php-*x86_64-linux-gnu.tar.gz} system-tests/binaries
     - cd system-tests
     - ./build.sh $BUILD_SH_ARGS
