@@ -186,8 +186,16 @@ stages:
     PHP_INSTALL_DIR: "/tmp/php-macos-${PHP_MACOS_VERSION}"
     _DD_DEBUG_SIDECAR_LOG_LEVEL: trace
     _DD_DEBUG_SIDECAR_LOG_METHOD: "file://${CI_PROJECT_DIR}/artifacts/sidecar.log"
-    _DD_DEBUG_AGENT_INFO_FILE: "${CI_PROJECT_DIR}/artifacts/agent_info_debug.log"
   before_script:
+    # This bare-metal Tart VM has DD_AGENT_HOST/DD_TRACE_AGENT_PORT injected into
+    # its environment pointing at a real agent on the host (for the runner's own
+    # infra monitoring), unlike containerized Linux jobs. Those env vars take
+    # precedence over the test harness's `-d datadog.agent_host=... -d
+    # datadog.trace.agent_port=1` INI overrides meant to guarantee no agent is
+    # reachable, so the sidecar was reaching a real agent and getting back a
+    # real (if generic) "default_env", breaking test determinism. Unset these
+    # alongside the other DD_* vars GitLab auto-injects for infra purposes.
+    - unset DD_SERVICE DD_ENV DD_TAGS DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED DD_AGENT_HOST DD_TRACE_AGENT_PORT
     - brew install pkg-config openssl re2c bison libxml2 oniguruma libzip libsodium
     - mkdir -p /tmp/php-build "${CI_PROJECT_DIR}/artifacts/tests"
     - curl -fL "https://github.com/php/php-src/archive/refs/tags/php-${PHP_MACOS_VERSION}.tar.gz" | tar xz -C /tmp/php-build
@@ -215,7 +223,6 @@ stages:
     - export PATH="${PHP_INSTALL_DIR}/bin:${PATH}"
     - export TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
     - php --version
-    - env | sort > "${CI_PROJECT_DIR}/artifacts/job_env.log"
     - make -j"$(sysctl -n hw.ncpu)"
     - timeout 20m make test_c
   after_script:
