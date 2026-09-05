@@ -186,6 +186,7 @@ stages:
     PHP_INSTALL_DIR: "/tmp/php-macos-${PHP_MACOS_VERSION}"
     _DD_DEBUG_SIDECAR_LOG_LEVEL: trace
     _DD_DEBUG_SIDECAR_LOG_METHOD: "file://${CI_PROJECT_DIR}/artifacts/sidecar.log"
+    _DD_DEBUG_AGENT_INFO_FILE: "${CI_PROJECT_DIR}/artifacts/agent_info_debug.log"
   before_script:
     - brew install pkg-config openssl re2c bison libxml2 oniguruma libzip libsodium
     - mkdir -p /tmp/php-build "${CI_PROJECT_DIR}/artifacts/tests"
@@ -214,6 +215,7 @@ stages:
     - export PATH="${PHP_INSTALL_DIR}/bin:${PATH}"
     - export TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
     - php --version
+    - env | sort > "${CI_PROJECT_DIR}/artifacts/job_env.log"
     - make -j"$(sysctl -n hw.ncpu)"
     - timeout 20m make test_c
   after_script:
