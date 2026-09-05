@@ -195,7 +195,7 @@ stages:
     # reachable, so the sidecar was reaching a real agent and getting back a
     # real (if generic) "default_env", breaking test determinism. Unset these
     # alongside the other DD_* vars GitLab auto-injects for infra purposes.
-    - unset DD_SERVICE DD_ENV DD_TAGS DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED DD_AGENT_HOST DD_TRACE_AGENT_PORT
+    - unset DD_SERVICE DD_ENV DD_TAGS DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED DD_AGENT_HOST DD_TRACE_AGENT_PORT DD_DOGSTATSD_PORT
     - brew install pkg-config openssl re2c bison libxml2 oniguruma libzip libsodium
     - mkdir -p /tmp/php-build "${CI_PROJECT_DIR}/artifacts/tests"
     - curl -fL "https://github.com/php/php-src/archive/refs/tags/php-${PHP_MACOS_VERSION}.tar.gz" | tar xz -C /tmp/php-build

@@ -149,7 +149,10 @@ static zend_always_inline zend_string *dd_crasht_find_ini_by_tag(ddog_CharSlice 
     // On PHP 8.0+ these INI should all exist, but guard against the NULL case
     // in case something goes wrong, or this changes in a future version.
     if (UNEXPECTED(!value)) {
-        LOG(DEBUG,
+        // trace, not debug: this is expected whenever opcache/JIT aren't compiled in (e.g.
+        // the macOS CI build), and fires on every crashtracker setup, polluting test diffs
+        // captured with DD_TRACE_DEBUG=1.
+        LOG(TRACE,
             "crashtracker setup: INI \"%.*s\" not found (maybe compiled out in this PHP build)",
             (int) ini.len, ini.ptr);
     }
