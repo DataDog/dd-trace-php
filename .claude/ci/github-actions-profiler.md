@@ -57,31 +57,29 @@ being tested.
 
 ### Build the profiler extension
 
-Loadable artifacts must go through phpize/configure/Make from the repository root.
+Loadable artifacts must go through the root `Makefile`'s `compile_combined` /
+`compile_profiler` targets, not naked `phpize`/`configure`/`make` in the repo
+root -- that would overwrite the tracked top-level `Makefile` itself. These
+targets build in an isolated `tmp/build_{combined,profiler}/` copy instead.
 Do not load a Cargo target-directory cdylib.
 
 ```bash
-# Standalone NTS example (PHP 8.3)
-dockerh --cache profiler-8.3-nts --php nts datadog/dd-trace-ci:php-8.3_bookworm-10 -- bash -c '
+# Standalone NTS example (PHP 8.3) -- only for testing the standalone artifact
+# itself; prefer the combined example below for general local testing.
+dockerh --cache profiler-8.3-nts-standalone --php nts datadog/dd-trace-ci:php-8.3_bookworm-10 -- bash -c '
 cd /project/dd-trace-php
-phpize
-DDTRACE_PROFILING_FEATURES=trigger_time_sample \
-  ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling --disable-ddtrace-rust-debug
-make -j"$(nproc)"
+make compile_profiler -j"$(nproc)"
 '
 
-# Combined ZTS example (PHP 8.5)
+# Combined ZTS example (PHP 8.5) -- matches what CI ships/tests
 dockerh --cache profiler-8.5-zts --php zts datadog/dd-trace-ci:php-8.5_bookworm-10 -- bash -c '
 cd /project/dd-trace-php
-phpize
-DDTRACE_PROFILING_FEATURES=trigger_time_sample \
-  ./configure --enable-ddtrace-tracer --enable-ddtrace-profiling --disable-ddtrace-rust-debug
-make -j"$(nproc)"
+make compile_combined -j"$(nproc)"
 '
 ```
 
-The supported outputs are `modules/datadog-profiling.so` and
-`modules/ddtrace.so`, respectively. Use separate caches for PHP versions and NTS/ZTS
+The supported outputs are `tmp/build_profiler/modules/datadog-profiling.so` and
+`tmp/build_combined/modules/ddtrace.so`, respectively. Use separate caches for PHP versions and NTS/ZTS
 variants.
 
 ### Run a single test case
@@ -102,7 +100,7 @@ TEST_CASE=allocations
 OUT=/project/dd-trace-php/tmp/correctness/$TEST_CASE
 mkdir -p $OUT
 DD_PROFILING_OUTPUT_PPROF=$OUT/test.pprof \
-  php -d extension=/project/dd-trace-php/modules/datadog-profiling.so \
+  php -d extension=/project/dd-trace-php/tmp/build_profiler/modules/datadog-profiling.so \
       /project/dd-trace-php/profiling/tests/correctness/$TEST_CASE.php
 ls -la $OUT/
 '
@@ -199,17 +197,17 @@ frame name formatting. The implementation is in `profiling/src/capi.rs` and
 
 ## Debug Build
 
-Select Rust debug mode through configure, then consume the Make output:
+Select Rust debug mode via `RUST_DEBUG_BUILD=1` (maps to
+`--enable-ddtrace-rust-debug` in the root `Makefile`'s `$(BUILD_DIR)/Makefile`
+rule), then consume the Make output. Do not run `phpize`/`configure` directly
+in the repo root:
 
 ```bash
-phpize
-DDTRACE_PROFILING_FEATURES=trigger_time_sample \
-  ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling --enable-ddtrace-rust-debug
-make -j"$(nproc)"
+RUST_DEBUG_BUILD=1 make compile_profiler -j"$(nproc)"
 ```
 
-The artifact remains `modules/datadog-profiling.so`. Profiling PHPT and correctness
-expectations are intended for optimized builds.
+The artifact remains `tmp/build_profiler/modules/datadog-profiling.so`. Profiling
+PHPT and correctness expectations are intended for optimized builds.
 
 ## ZTS tests -- parallel PECL extension
 
@@ -241,10 +239,11 @@ rustup override set nightly-2025-06-13
 export RUSTFLAGS="-Zsanitizer=address -C force-frame-pointers=yes"
 export DDTRACE_PROFILING_TARGET="$(uname -m)-unknown-linux-gnu"
 export DDTRACE_PROFILING_CARGO_BUILD_FLAGS="-Zbuild-std=std,panic_abort"
-phpize
-./configure --disable-ddtrace-tracer --enable-ddtrace-profiling --disable-ddtrace-rust-debug
-make -j"$(nproc)"
-cp -v modules/datadog-profiling.so \
+# CI runs phpize/configure/make directly since its checkout is ephemeral; do not
+# do that here -- use the root Makefile target instead so a persistent local
+# checkout is not left with a clobbered top-level Makefile.
+make compile_profiler -j"$(nproc)"
+cp -v tmp/build_profiler/modules/datadog-profiling.so \
   "$(php-config --extension-dir)/datadog-profiling.so"
 
 # run-tests.php writes temp files next to .phpt files, so both must be in a writable dir.

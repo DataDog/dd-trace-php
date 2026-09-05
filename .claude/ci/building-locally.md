@@ -240,21 +240,50 @@ git submodule update --init \
 
 ## Profiler Extension
 
-### For correctness tests (bookworm)
+**Do not run `phpize`/`configure` directly in the repo root** -- it overwrites
+the tracked top-level `Makefile` (and `Makefile.fragments`/`Makefile.objects`)
+with a generated one, corrupting the checkout for every other target. Always
+go through the root `Makefile`'s own targets below, which copy sources into an
+isolated `tmp/build_{combined,profiler}/` directory (via the `all` target's
+`$(BUILD_DIR)/configure` prerequisite) before running `phpize`/`configure`/`make`
+there -- the checked-out root `Makefile`/`configure` are never touched.
 
-Build the loadable extension through phpize/configure/Make from the repository
-root. Make owns the Cargo feature set, PHP headers, target directory, and final
-module name:
+### Combined tracer+profiler (preferred -- matches what CI ships)
+
+Most local profiler work should build the **combined** `ddtrace.so` (tracer +
+profiling in one extension), since that's the only artifact CI packages and
+tests as of the combined-extension milestone. Use `make compile_combined`
+(or `make install_combined` to also copy it into the PHP extension dir and
+register it via `ddtrace.ini`):
 
 ```bash
 dockerh --cache profiler-8.3-nts --php nts \
   datadog/dd-trace-ci:php-8.3_bookworm-10 -- bash -c '
 cd /project/dd-trace-php
-phpize
-DDTRACE_PROFILING_FEATURES=trigger_time_sample \
-  ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling --disable-ddtrace-rust-debug
-make -j"$(nproc)"
-php -n -d extension=modules/datadog-profiling.so --ri datadog-profiling
+make compile_combined -j"$(nproc)"
+php -n -d extension=tmp/build_combined/modules/ddtrace.so --ri ddtrace
+'
+```
+
+`compile_combined` sets `EXTRA_CONFIGURE_OPTIONS="--enable-ddtrace-tracer
+--enable-ddtrace-profiling"` and `DDTRACE_PROFILING_FEATURES=trigger_time_sample`,
+and builds in `tmp/build_combined/` (`BUILD_SUFFIX=combined`) so it doesn't
+collide with a plain tracer-only `tmp/build_extension/` build in the same
+checkout.
+
+### Standalone profiler (only for testing the standalone artifact itself)
+
+The standalone `datadog-profiling.so` (no tracer) is not built or shipped by
+CI anymore -- only use this when specifically testing standalone/combined
+conflict behavior or other standalone-specific code paths, not as a general
+substitute for the combined build above:
+
+```bash
+dockerh --cache profiler-8.3-nts-standalone --php nts \
+  datadog/dd-trace-ci:php-8.3_bookworm-10 -- bash -c '
+cd /project/dd-trace-php
+make compile_profiler -j"$(nproc)"
+php -n -d extension=tmp/build_profiler/modules/datadog-profiling.so --ri datadog-profiling
 '
 ```
 
