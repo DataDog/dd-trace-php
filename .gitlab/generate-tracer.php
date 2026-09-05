@@ -152,7 +152,7 @@ function windows_test_c_job($job_name, $thread_safety, $targets) {
     docker exec ${CONTAINER_NAME} powershell.exe "cd app; switch-php <?= $thread_safety ?>; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake"
 
     # Set test environment variables
-    docker exec ${CONTAINER_NAME} powershell.exe "setx DD_AUTOLOAD_NO_COMPILE true; setx DATADOG_HAVE_DEV_ENV 1; setx DD_TRACE_GIT_METADATA_ENABLED 0"
+    docker exec ${CONTAINER_NAME} powershell.exe "setx DD_AUTOLOAD_NO_COMPILE true; setx DATADOG_HAVE_DEV_ENV 1; setx DD_TRACE_GIT_METADATA_ENABLED 0; setx DD_TRACE_IGNORE_AGENT_SAMPLING_RATES 1; setx DD_TRACE_RATE_LIMIT 1000000"
 
     # Exclude tests that deadlock the php-cgi SKIPIF skip-task on Windows.
 <?php foreach ([
