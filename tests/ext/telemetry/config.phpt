@@ -131,6 +131,15 @@ Array
 
     [6] => Array
         (
+            [name] => DD_TRACE_RATE_LIMIT
+            [value] => 1000000
+            [origin] => env_var
+            [config_id] => 
+            [seq_id] => 
+        )
+
+    [7] => Array
+        (
             [name] => DD_TRACE_IGNORE_AGENT_SAMPLING_RATES
             [value] => 1
             [origin] => env_var
@@ -138,7 +147,7 @@ Array
             [seq_id] => 
         )
 
-    [7] => Array
+    [8] => Array
         (
             [name] => DD_TRACE_GENERATE_ROOT_SPAN
             [value] => 0
@@ -147,7 +156,7 @@ Array
             [seq_id] => 
         )
 
-    [8] => Array
+    [9] => Array
         (
             [name] => ssi_forced_injection_enabled
             [value] => False
