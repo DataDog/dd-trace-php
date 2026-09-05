@@ -1,13 +1,6 @@
 use crate::bytes::{dangling_zend_string, OwnedZendString, ZendString};
 use crate::sidecar::MaybeShmLimiter;
 use datadog_ffe::rules_based::{Configuration, UniversalFlagConfig};
-use datadog_live_debugger::debugger_defs::{DebuggerData, DebuggerPayload};
-use datadog_live_debugger::{FilterList, LiveDebuggingData, ServiceConfiguration};
-use datadog_live_debugger_ffi::data::Probe;
-use datadog_live_debugger_ffi::evaluator::{ddog_register_expr_evaluator, Evaluator};
-use datadog_live_debugger_ffi::send_data::{
-    ddog_debugger_diagnostics_create_unboxed, ddog_snapshot_redacted_type,
-};
 use datadog_sidecar::service::blocking::SidecarTransport;
 use datadog_sidecar::service::{InstanceId, QueueId};
 use datadog_sidecar::shm_remote_config::{RemoteConfigManager, RemoteConfigUpdate};
@@ -17,6 +10,13 @@ use libdd_common::tag::Tag;
 use libdd_common::Endpoint;
 use libdd_common_ffi::slice::AsBytes;
 use libdd_common_ffi::{CharSlice, MaybeError};
+use libdd_live_debugger::debugger_defs::{DebuggerData, DebuggerPayload};
+use libdd_live_debugger::{FilterList, LiveDebuggingData, ServiceConfiguration};
+use libdd_live_debugger_ffi::data::Probe;
+use libdd_live_debugger_ffi::evaluator::{ddog_register_expr_evaluator, Evaluator};
+use libdd_live_debugger_ffi::send_data::{
+    ddog_debugger_diagnostics_create_unboxed, ddog_snapshot_redacted_type,
+};
 use libdd_remote_config::config::dynamic::{
     Configs, DynamicConfigFile, TracingSamplingRuleProvenance,
 };

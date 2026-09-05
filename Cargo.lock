@@ -1233,47 +1233,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d7a1e2f27636f116493b8b860f5546edb47c8d8f8ea73e1d2a20be88e28d1fea"
 
 [[package]]
-name = "datadog-live-debugger"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "bytes",
- "constcat",
- "futures",
- "http 1.4.2",
- "libdd-capabilities",
- "libdd-capabilities-impl",
- "libdd-common",
- "libdd-data-pipeline",
- "libdd-remote-config",
- "percent-encoding",
- "serde",
- "serde_json",
- "smallvec",
- "strum",
- "strum_macros",
- "sys-info",
- "tokio",
- "uuid",
-]
-
-[[package]]
-name = "datadog-live-debugger-ffi"
-version = "0.0.1"
-dependencies = [
- "build_common",
- "datadog-live-debugger",
- "libdd-common",
- "libdd-common-ffi",
- "log",
- "percent-encoding",
- "serde_json",
- "tokio",
- "tokio-util",
- "uuid",
-]
-
-[[package]]
 name = "datadog-php"
 version = "0.0.1"
 dependencies = [
@@ -1289,8 +1248,6 @@ dependencies = [
  "criterion-perf-events",
  "crossbeam-channel",
  "dashmap",
- "datadog-live-debugger",
- "datadog-live-debugger-ffi",
  "datadog-sidecar",
  "datadog-sidecar-ffi",
  "ddtrace-sidecar",
@@ -1311,6 +1268,8 @@ dependencies = [
  "libdd-ipc",
  "libdd-library-config",
  "libdd-library-config-ffi",
+ "libdd-live-debugger",
+ "libdd-live-debugger-ffi",
  "libdd-profiling",
  "libdd-remote-config",
  "libdd-telemetry",
@@ -1355,7 +1314,6 @@ dependencies = [
  "chrono",
  "console-subscriber",
  "crossbeam-utils",
- "datadog-live-debugger",
  "datadog-sidecar-macros",
  "futures",
  "http 1.4.2",
@@ -1373,6 +1331,7 @@ dependencies = [
  "libdd-ffe",
  "libdd-ipc",
  "libdd-ipc-macros",
+ "libdd-live-debugger",
  "libdd-remote-config",
  "libdd-telemetry",
  "libdd-tinybytes",
@@ -1410,7 +1369,6 @@ dependencies = [
 name = "datadog-sidecar-ffi"
 version = "0.0.1"
 dependencies = [
- "datadog-live-debugger",
  "datadog-sidecar",
  "http 1.4.2",
  "libc 0.2.186",
@@ -1420,6 +1378,7 @@ dependencies = [
  "libdd-crashtracker-ffi",
  "libdd-dogstatsd-client",
  "libdd-ipc",
+ "libdd-live-debugger",
  "libdd-remote-config",
  "libdd-telemetry",
  "libdd-telemetry-ffi",
@@ -3222,6 +3181,47 @@ dependencies = [
  "cc",
  "libc 0.2.186",
  "paste",
+]
+
+[[package]]
+name = "libdd-live-debugger"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "constcat",
+ "futures",
+ "http 1.4.2",
+ "libdd-capabilities",
+ "libdd-capabilities-impl",
+ "libdd-common",
+ "libdd-data-pipeline",
+ "libdd-remote-config",
+ "percent-encoding",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "strum",
+ "strum_macros",
+ "sys-info",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "libdd-live-debugger-ffi"
+version = "0.0.1"
+dependencies = [
+ "build_common",
+ "libdd-common",
+ "libdd-common-ffi",
+ "libdd-live-debugger",
+ "log",
+ "percent-encoding",
+ "serde_json",
+ "tokio",
+ "tokio-util",
+ "uuid",
 ]
 
 [[package]]
