@@ -38,6 +38,8 @@ typedef bool (*zai_config_apply_ini_change)(zval *old_value, zval *new_value, ze
 typedef bool (*zai_env_config_fallback)(zai_env_buffer *buf, bool pre_rinit);
 
 bool zai_config_system_ini_change(zval *old_value, zval *new_value, zend_string *new_str);
+// A PHP_INI_SYSTEM value that cannot be refreshed from SAPI config after MINIT.
+bool zai_config_minit_ini_change(zval *old_value, zval *new_value, zend_string *new_str);
 
 bool zai_config_is_modified(zai_config_id entry_id);
 void zai_config_change_default_ini(zai_config_id entry_id, zai_str str);

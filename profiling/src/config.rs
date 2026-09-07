@@ -2,9 +2,9 @@ use crate::profiling::bindings::zai_config_type::*;
 use crate::profiling::bindings::{
     datadog_php_profiling_copy_string_view_into_zval, ddog_php_prof_config_is_set_by_user,
     ddog_php_prof_get_memoized_config, zai_config_entry, zai_config_get_value, zai_config_minit,
-    zai_config_name, zai_config_system_ini_change, zend_ini_entry, zend_long, zend_string,
-    zend_write, zval, StringError, ZaiStr, IS_FALSE, IS_LONG, IS_TRUE, ZAI_CONFIG_NAME_BUFSIZ,
-    ZEND_INI_DISPLAY_ORIG,
+    zai_config_minit_ini_change, zai_config_name, zai_config_system_ini_change, zend_ini_entry,
+    zend_long, zend_string, zend_write, zval, StringError, ZaiStr, IS_FALSE, IS_LONG, IS_TRUE,
+    ZAI_CONFIG_NAME_BUFSIZ, ZEND_INI_DISPLAY_ORIG,
 };
 use crate::profiling::zend::zai_str_from_zstr;
 use crate::profiling::{allocation, bindings};
@@ -415,7 +415,7 @@ pub(crate) enum ConfigId {
     ProfilingExceptionEnabled,
     ProfilingExceptionMessageEnabled,
     ProfilingExceptionSamplingDistance,
-    ProfilingExperimentalIOEnabled,
+    ProfilingIOEnabled,
     ProfilingLogLevel,
     ProfilingOutputPprof,
     ProfilingWallTimeEnabled,
@@ -450,7 +450,7 @@ impl ConfigId {
             ProfilingExceptionEnabled => b"DD_PROFILING_EXCEPTION_ENABLED\0",
             ProfilingExceptionMessageEnabled => b"DD_PROFILING_EXCEPTION_MESSAGE_ENABLED\0",
             ProfilingExceptionSamplingDistance => b"DD_PROFILING_EXCEPTION_SAMPLING_DISTANCE\0",
-            ProfilingExperimentalIOEnabled => b"DD_PROFILING_EXPERIMENTAL_IO_ENABLED\0",
+            ProfilingIOEnabled => b"DD_PROFILING_IO_ENABLED\0",
             ProfilingLogLevel => b"DD_PROFILING_LOG_LEVEL\0",
 
             // Note: this group is meant only for debugging and testing. Please
@@ -489,7 +489,7 @@ static DEFAULT_SYSTEM_SETTINGS: SystemSettings = SystemSettings {
     profiling_exception_enabled: true,
     profiling_exception_message_enabled: false,
     profiling_wall_time_enabled: true,
-    profiling_io_enabled: false,
+    profiling_io_enabled: true,
     output_pprof: None,
     profiling_exception_sampling_distance: 100,
     profiling_log_level: LevelFilter::Off,
@@ -625,11 +625,10 @@ unsafe fn profiling_exception_sampling_distance() -> u32 {
 /// rinit, and before it is uninitialized in mshutdown.
 unsafe fn profiling_io_enabled() -> bool {
     profiling_enabled()
-        && (profiling_experimental_features_enabled()
-            || get_system_bool(
-                ProfilingExperimentalIOEnabled,
-                DEFAULT_SYSTEM_SETTINGS.profiling_io_enabled,
-            ))
+        && get_system_bool(
+            ProfilingIOEnabled,
+            DEFAULT_SYSTEM_SETTINGS.profiling_io_enabled,
+        )
 }
 
 /// # Safety
@@ -1002,6 +1001,9 @@ pub(crate) fn minit(module_number: libc::c_int) {
             )]
         };
 
+        const IO_ALIASES: &[ZaiStr] =
+            unsafe { &[ZaiStr::literal(b"DD_PROFILING_EXPERIMENTAL_IO_ENABLED\0")] };
+
         // Note that function pointers cannot appear in const functions, so we
         // can't extract each entry into a helper function.
         static mut ENTRIES: &mut [zai_config_entry] = unsafe {
@@ -1150,13 +1152,13 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     sensitive: false,
                 },
                 zai_config_entry {
-                    id: transmute::<ConfigId, u16>(ProfilingExperimentalIOEnabled),
-                    name: ProfilingExperimentalIOEnabled.env_var_name(),
+                    id: transmute::<ConfigId, u16>(ProfilingIOEnabled),
+                    name: ProfilingIOEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
-                    default_encoded_value: ZaiStr::literal(b"0\0"),
-                    aliases: ptr::null_mut(),
-                    aliases_count: 0,
-                    ini_change: Some(zai_config_system_ini_change),
+                    default_encoded_value: ZaiStr::literal(b"1\0"),
+                    aliases: IO_ALIASES.as_ptr(),
+                    aliases_count: IO_ALIASES.len() as u8,
+                    ini_change: Some(zai_config_minit_ini_change),
                     parser: None,
                     displayer: None,
                     env_config_fallback: None,
@@ -1429,6 +1431,7 @@ mod tests {
                 b"DD_PROFILING_TIMELINE_ENABLED\0",
                 "datadog.profiling.timeline_enabled",
             ),
+            (b"DD_PROFILING_IO_ENABLED\0", "datadog.profiling.io_enabled"),
             (
                 b"DD_PROFILING_EXPERIMENTAL_IO_ENABLED\0",
                 "datadog.profiling.experimental_io_enabled",
