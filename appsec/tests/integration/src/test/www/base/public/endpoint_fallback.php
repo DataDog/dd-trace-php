@@ -68,6 +68,22 @@ switch ($case) {
         ]);
         break;
 
+    case 'missing_route':
+        unset($rootSpan->meta["http.route"]);
+        unset($rootSpan->meta["http.endpoint"]);
+        unset($rootSpan->meta["http.url"]);
+        $rootSpan->meta["http.method"] = "GET";
+
+        header("Content-Type: application/json");
+        http_response_code(200);
+
+        echo json_encode([
+            "status" => "ok",
+            "test_case" => "missing_route",
+            "messages" => ["test", "data"],
+        ]);
+        break;
+
     default:
         header("Content-Type: application/json");
         http_response_code(400);
@@ -75,7 +91,7 @@ switch ($case) {
         echo json_encode([
             "status" => "error",
             "test_case" => "unknown",
-            "message" => "Invalid case parameter. Valid values: with_route, with_endpoint, 404, computed"
+            "message" => "Invalid case parameter. Valid values: with_route, with_endpoint, 404, computed, missing_route"
         ]);
         break;
 }
