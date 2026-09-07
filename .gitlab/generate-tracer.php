@@ -9,6 +9,8 @@ $services = array_combine($m[1], $m[1]);
 
 const ASSERT_NO_MEMLEAKS = ' 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }';
 
+const ZTS_MAKE_TARGETS = ['test_integrations_frankenphp'];
+
 function after_script($execute_dir = ".", $has_test_agent = false) {
 ?>
 
@@ -655,8 +657,34 @@ foreach ($matches as $m) {
     }
 }
 
+// Only build the ZTS extension for the versions that actually have a ZTS-only suite, so this does
+// not add a build for every PHP version in the matrix.
+$zts_versions = [];
+foreach ($jobs as $type_jobs) {
+    foreach ($type_jobs as $target => $versions) {
+        if (in_array($target, ZTS_MAKE_TARGETS, true)) {
+            $zts_versions = array_merge($zts_versions, $versions);
+        }
+    }
+}
+$zts_versions = array_values(array_unique($zts_versions));
+if ($zts_versions):
+?>
+"compile extension: zts":
+  extends: "compile extension: debug"
+  variables:
+    SWITCH_PHP_VERSION: "zts"
+  parallel:
+    matrix:
+      - PHP_MAJOR_MINOR: <?= json_encode($zts_versions), "\n" ?>
+        ARCH: "amd64"
+
+<?php
+endif;
+
 foreach ($jobs as $type => $type_jobs):
     foreach ($type_jobs as $target => $versions):
+        $php_variant = in_array($target, ZTS_MAKE_TARGETS, true) ? "zts" : "debug";
         foreach ($versions as $major_minor):
             $sapis = $type == "web" && version_compare($major_minor, "7.2", ">=") ? ["cli-server", "cgi-fcgi", "apache2handler"] : [""];
             if ($target == "test_web_custom" && in_array("cli-server", $sapis)) {
@@ -668,7 +696,7 @@ foreach ($jobs as $type => $type_jobs):
   extends: .cli_integration_test
   stage: "<?= $type ?> test"
   needs:
-    - job: "compile extension: debug"
+    - job: "compile extension: <?= $php_variant ?>"
       parallel:
         matrix:
           - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
@@ -694,6 +722,7 @@ foreach ($services as $part => $service) {
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     MAKE_TARGET: "<?= $target ?>"
     ARCH: "amd64"
+    SWITCH_PHP_VERSION: "<?= $php_variant ?>"
 <?php if ($sapi): ?>
     DD_TRACE_TEST_SAPI: "<?= $sapi ?>"
 <?php endif; ?>

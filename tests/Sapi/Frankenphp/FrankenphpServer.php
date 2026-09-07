@@ -92,9 +92,27 @@ final class FrankenphpServer implements Sapi
         exec(__DIR__ . "/../../../tooling/bin/install-frankenphp.sh");
     }
 
+    /**
+     * The CI images ship /usr/local/bin/frankenphp as a symlink pointing at the binary that
+     * install-frankenphp.sh still has to produce, while the official FrankenPHP images ship a real
+     * binary there. readlink() fails on the latter, so only resolve the link when there is one --
+     * otherwise we would rebuild FrankenPHP from source in an image that already has it.
+     *
+     * @return bool
+     */
+    private static function isFrankenphpInstalled()
+    {
+        $path = "/usr/local/bin/frankenphp";
+        if (is_link($path)) {
+            $target = readlink($path);
+            return $target !== false && file_exists($target);
+        }
+        return is_executable($path);
+    }
+
     public function start()
     {
-        if (!file_exists(readlink("/usr/local/bin/frankenphp"))) {
+        if (!self::isFrankenphpInstalled()) {
             self::installFrankenphp();
         }
 
@@ -123,6 +141,40 @@ final class FrankenphpServer implements Sapi
     {
         error_log("[frankenphp] Stopping...");
         $this->process->stop(0);
+    }
+
+    /**
+     * Sends SIGTERM and gives the server up to $timeout seconds to shut down by itself, rather than
+     * following up with SIGKILL right away like stop() does.
+     *
+     * This is what exercises the tracer's SIGTERM handler (ext/signals.c): with a sidecar attached
+     * it has to hand the signal back to the Go runtime, and if it fails to, FrankenPHP never sees
+     * the signal and only dies once something SIGKILLs it.
+     *
+     * @param int $timeout seconds to wait for a graceful exit
+     * @return bool whether the server exited on its own within $timeout
+     */
+    public function stopGracefully($timeout = 15)
+    {
+        if (!$this->process || !$this->process->isRunning()) {
+            return true;
+        }
+
+        error_log("[frankenphp] Sending SIGTERM, waiting up to {$timeout}s for a graceful exit...");
+        $this->process->signal(SIGTERM);
+
+        $deadline = microtime(true) + $timeout;
+        while (microtime(true) < $deadline) {
+            if (!$this->process->isRunning()) {
+                error_log("[frankenphp] Exited with code " . var_export($this->process->getExitCode(), true));
+                return true;
+            }
+            usleep(50 * 1000);
+        }
+
+        error_log("[frankenphp] Still running {$timeout}s after SIGTERM; killing it.");
+        $this->process->stop(0);
+        return false;
     }
 
     public function isFastCgi()

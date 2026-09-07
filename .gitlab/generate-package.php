@@ -2,6 +2,8 @@
 
 include "generate-common.php";
 
+const FRANKENPHP_ALPINE_PHP_VERSION = "8.5";
+
 $build_platforms = [
     [
         "triplet" => "x86_64-alpine-linux-musl",
@@ -822,6 +824,54 @@ endforeach;
     - phpize # run phpize just to get run-tests.php
   script:
     - php run-tests.php -p $(which php) -d datadog.remote_config_enabled=false --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext/profiling
+
+# The tracer pipeline only runs the FrankenPHP suite on amd64/glibc. musl differs in ways that bite specifically here - see issue #4163, where the SIGTERM handler's clone() is rejected outright by musl and FrankenPHP consequently never shuts down.
+# Thus we so run the same suite once against the official FrankenPHP image on arm64/Alpine.
+"frankenphp test on arm64 alpine":
+  stage: verify
+  image: registry.ddbuild.io/images/mirror/dunglas/frankenphp:php<?= FRANKENPHP_ALPINE_PHP_VERSION ?>-alpine
+  tags: [ "arch:arm64" ]
+  needs:
+    - job: "package extension: [arm64, aarch64-alpine-linux-musl]"
+      artifacts: true
+  services:
+    - !reference [.services, test-agent]
+    - !reference [.services, request-replayer]
+    - !reference [.services, httpbin-integration]
+  variables:
+    KUBERNETES_CPU_REQUEST: 2 # one for PHP and one for the webserver
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 4Gi
+    COMPOSER_PROCESS_TIMEOUT: 0
+    DD_AGENT_HOST: test-agent
+    DD_TRACE_AGENT_PORT: 9126
+    HTTPBIN_HOSTNAME: httpbin-integration
+    HTTPBIN_PORT: 8080
+    WAIT_FOR: test-agent:9126
+  before_script:
+<?php unset_dd_runner_env_vars() ?>
+    # coreutils/findutils/grep: the Makefile and the artifact-collection scripts rely on GNU flags that BusyBox does not implement.
+    - apk add --no-cache bash composer coreutils curl findutils git grep libgcc make || exit 75
+    - git config --global --add safe.directory "${CI_PROJECT_DIR}"
+    - git config --global --add safe.directory "${CI_PROJECT_DIR}/*"
+    - mkdir -p tmp/build_extension/modules artifacts
+    - tar -xzf packages/dd-library-php-*-aarch64-linux-musl.tar.gz
+    - php_api=$(php -i | awk '/^PHP[ \t]+API[ \t]+=>/ { print $NF }')
+    - cp "dd-library-php/trace/ext/${php_api}/ddtrace-zts.so" tmp/build_extension/modules/ddtrace.so
+    - COMPOSER_MEMORY_LIMIT=-1 composer update --no-interaction
+    - make composer_tests_update
+    - .gitlab/wait-for-service-ready.sh
+  script:
+    # The Fabric proxy changes network failure semantics in integration tests.
+    - unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy
+    - DD_TRACE_AGENT_TIMEOUT=1000 make test_integrations_frankenphp PHPUNIT_JUNIT="artifacts/tests/results.xml"
+  after_script:
+    - .gitlab/collect_artifacts.sh .
+    - find tests -type f \( -name 'frankenphp_error.log' -o -name 'phpunit_error.log' \) -exec cp --parents '{}' artifacts \;
+  artifacts:
+    paths:
+      - "artifacts/"
+    when: "always"
 
 .randomized_tests:
   stage: verify
