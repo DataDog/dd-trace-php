@@ -1,6 +1,8 @@
-use crate::profiling::Profiler;
-use crate::zend::{self, zend_execute_data, zend_generator, zval, InternalFunctionHandler};
-use crate::{RefCellExt, REQUEST_LOCALS};
+use crate::profiling::profiler::Profiler;
+use crate::profiling::zend::{
+    self, zend_execute_data, zend_generator, zval, InternalFunctionHandler,
+};
+use crate::profiling::{RefCellExt, REQUEST_LOCALS};
 use log::{error, info};
 use rand::rngs::ThreadRng;
 use std::cell::RefCell;

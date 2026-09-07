@@ -9,6 +9,15 @@ RUN powershell "Invoke-WebRequest https://ftp.nluug.nl/pub/vim/pc/vim90w32.zip -
 
 RUN powershell "Invoke-WebRequest https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe -OutFile /tmp/rustup-init.exe; cmd /S /C /tmp/rustup-init.exe --profile minimal -y --default-toolchain=1.87.0; Remove-Item /tmp/rustup-init.exe"
 
+# Cargo's bundled libgit2 fails to check out some deeply nested git
+# dependencies on Windows (e.g. rust-tuf's interop-tests fixtures, pulled in
+# via libdd-remote-config) with "path too long", since libgit2 doesn't use
+# \\?\ verbatim paths on checkout. Real git.exe handles long paths correctly
+# with core.longpaths, so make cargo shell out to it for git dependencies.
+RUN choco install -y git
+RUN git config --system core.longpaths true
+RUN powershell "[Environment]::SetEnvironmentVariable('CARGO_NET_GIT_FETCH_WITH_CLI', 'true', 'Machine')"
+
 RUN choco install -y cmake
 RUN choco install -y nasm
 RUN choco install -y llvm

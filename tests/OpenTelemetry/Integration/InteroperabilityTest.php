@@ -35,6 +35,16 @@ final class InteroperabilityTest extends BaseTestCase
 {
     use TracerTestTrait, SpanAssertionTrait;
 
+    /**
+     * The OTel context level 2 random state flag.
+     *
+     * This exists instead of using ::RANDOM on the SDK because that requires v1.8 and we support
+     * older versions to support PHP 7.
+     *
+     * @see https://www.w3.org/TR/trace-context-2/#random-trace-id-flag
+     */
+    private const TRACE_FLAG_RANDOM = 0x02;
+
     // TODO: Implement AttributesBuilder and add a method to retrieve the attributeCountLimit
 
     public function ddSetUp(): void
@@ -250,6 +260,8 @@ final class InteroperabilityTest extends BaseTestCase
             $OTelScope = $OTelSpan->activate();
 
             $currentSpan = Span::getCurrent();
+            $traceFlags = $currentSpan->getContext()->getTraceFlags();
+            $this->assertSame(TraceFlags::SAMPLED | self::TRACE_FLAG_RANDOM, $traceFlags);
             $this->assertSame($ddSpan, $currentSpan->getDDSpan());
 
             $OTelScope->detach();

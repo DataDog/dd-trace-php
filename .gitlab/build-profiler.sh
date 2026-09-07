@@ -9,22 +9,16 @@ if [ -d '/opt/rh/devtoolset-7' ] ; then
     source scl_source enable devtoolset-7
     set -eo pipefail
 fi
-
-# On CentOS 7 aarch64, clang's resource dir isn't on the default include path,
-# causing bindgen to fail with "stddef.h not found".
 if [ -d '/opt/rh/devtoolset-7' ] && [ "$(uname -m)" = "aarch64" ]; then
     export BINDGEN_EXTRA_CLANG_ARGS="-I$(clang --print-resource-dir)/include"
 fi
 
 set -u
-
 prefix="$1"
-mkdir -vp "${prefix}"
-
-# Check for thread safety mode argument
 thread_safety="${2:-nts}"
+mkdir -vp "${prefix}"
+prefix="$(cd "${prefix}" && pwd)"
 
-# Switch PHP based on thread safety mode
 if [ "$thread_safety" = "zts" ]; then
     switch-php "${PHP_VERSION}-zts"
     output_file="${prefix}/datadog-profiling-zts.so"
@@ -33,14 +27,14 @@ else
     output_file="${prefix}/datadog-profiling.so"
 fi
 
-cd profiling
-CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-target}"
-echo "${CARGO_TARGET_DIR}"
-if [ "$thread_safety" = "zts" ]; then
-    touch build.rs  # Ensure build.rs executes after switch-php for ZTS
-fi
-cargo build --profile profiler-release
-cd -
-
-cp -v "${CARGO_TARGET_DIR}/profiler-release/libdatadog_php_profiling.so" "${output_file}"
+# Loadable profiler artifacts must go through the supported PHP build path.
+build_dir="/tmp/ddtrace-build-profiler-${thread_safety}"
+rm -rf "${build_dir}"
+mkdir -p "${build_dir}/src"
+tar -cf - --exclude=.git --exclude=tmp . | tar -xf - -C "${build_dir}/src"
+cd "${build_dir}/src"
+phpize
+./configure --disable-ddtrace-tracer --enable-ddtrace-profiling
+make -j"$(nproc)"
+cp -v modules/datadog-profiling.so "${output_file}"
 objcopy --compress-debug-sections "${output_file}"

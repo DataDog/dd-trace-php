@@ -11,7 +11,6 @@ file.
 | `test appsec extension: [{ver}, {arch}, debug]` | `datadog/dd-trace-ci:php-{ver}_bookworm-6` | Builds appsec PHP extension + runs phpunit `.phpt` tests |
 | `test appsec extension: [{ver}, {arch}, debug-zts]` | same | ZTS variant |
 | `test appsec extension: [{ver}, {arch}, debug-zts-asan]` | same | ASAN variant (PHP 7.4+) |
-| `test appsec helper asan` | `datadog/dd-trace-ci:bookworm-6` | Builds C++ helper with ASAN, runs gtest suite |
 | `appsec lint` | `datadog/dd-trace-ci:php-8.3_bookworm-6` | clang-format + clang-tidy |
 | `appsec code coverage` | `datadog/dd-trace-ci:php-8.3_bookworm-6` | Coverage instrumented build (not needed locally) |
 
@@ -52,7 +51,7 @@ sudo apt-get update -qq && sudo apt-get install -y -qq \
 # (cmake's xtest target builds ddtrace.so automatically as a dependency)
 mkdir -p appsec/build
 cd appsec/build
-cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_HELPER=OFF \
+cmake .. -DCMAKE_BUILD_TYPE=Debug \
   -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" \
   -DDD_APPSEC_TESTING=ON
 ASAN_OPTIONS=malloc_context_size=0 make -j$(nproc) xtest
@@ -75,7 +74,7 @@ cache name (e.g. `appsec-ext-8.3-debug-asan`) since the cmake cache is
 incompatible:
 
 ```bash
-cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_HELPER=OFF \
+cmake .. -DCMAKE_BUILD_TYPE=Debug \
   -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" \
   -DDD_APPSEC_TESTING=ON -DENABLE_ASAN=ON
 ASAN_OPTIONS=malloc_context_size=0 make -j4 xtest
@@ -143,77 +142,6 @@ reuse it. To force a full rebuild:
 docker volume rm php-appsec-8.3-debug php-tracer-8.3-debug
 ```
 
-## Helper tests (C++ ASAN)
-
-The C++ helper tests use the `bookworm-6` image (no PHP needed). The
-binary is a gtest executable. With `--overlayfs --root`, all writes
-(including `appsec/build-helper`) persist in the Docker volume
-automatically — no manual bind mount needed.
-
-### Full suite
-
-```bash
-.claude/ci/dockerh --cache appsec-helper --overlayfs --root \
-  datadog/dd-trace-ci:bookworm-6 -- bash -c '
-set -e
-apt-get update -qq && apt-get install -y -qq \
-  libc++-17-dev libc++abi-17-dev > /dev/null 2>&1
-# Required: libddwaf submodule dir may trigger git's safe.directory check.
-git config --global --add safe.directory \
-  /project/dd-trace-php/appsec/third_party/libddwaf
-mkdir -p appsec/build-helper
-cd appsec/build-helper
-cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF \
-  -DDD_APPSEC_ENABLE_COVERAGE=OFF -DDD_APPSEC_TESTING=ON \
-  -DCMAKE_CXX_FLAGS="-stdlib=libc++ -fsanitize=address -fsanitize=leak -DASAN_BUILD" \
-  -DCMAKE_C_FLAGS="-fsanitize=address -fsanitize=leak -DASAN_BUILD" \
-  -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" \
-  -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak"
-make -j$(nproc) ddappsec_helper_test
-cd /project/dd-trace-php
-./appsec/build-helper/tests/helper/ddappsec_helper_test
-'
-```
-
-`clang-tidy-17` is not needed here — omitting it saves ~5–8 seconds of
-apt time. CI installs it via a shared `before_script` template.
-
-CI also passes `-DBOOST_CACHE_PREFIX=$CI_PROJECT_DIR/boost-cache` and
-`-DCLANG_TIDY=/usr/bin/run-clang-tidy-17` to cmake. The first only
-affects where the Boost cache lands (not a correctness issue locally).
-The second means CI silently runs clang-tidy checks during the helper
-build that are skipped locally.
-
-### Single test
-
-Once built, the pre-built binary can be re-run without rebuilding, but
-the `libc++` runtime must still be installed (container rootfs is not
-persisted by `--overlayfs`):
-
-```bash
-.claude/ci/dockerh --cache appsec-helper --overlayfs --root \
-  datadog/dd-trace-ci:bookworm-6 -- bash -c '
-apt-get update -qq && apt-get install -y -qq libc++1-17 libc++abi1-17 > /dev/null 2>&1
-./appsec/build-helper/tests/helper/ddappsec_helper_test \
-  --gtest_filter="WafTest.TraceAttributesAreSent"
-'
-```
-
-The filter supports wildcards: `--gtest_filter="WafTest.*"` runs all
-tests in the `WafTest` suite. Use `--gtest_list_tests` to see available
-tests.
-
-### Without ASAN
-
-For a faster non-ASAN build (useful when debugging test logic rather than
-memory issues), drop the sanitizer flags:
-
-```bash
-cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF \
-  -DDD_APPSEC_TESTING=ON \
-  -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++"
-```
-
 ## Appsec lint
 
 This can easily run locally:
@@ -239,12 +167,6 @@ make tidy_fix    # fix clang-tidy violations
   source. Subsequent builds reuse the cached Boost in
   `~/.cache/dd-ci/<NAME>/appsec/build/boost_cache/` (extension tests) or
   in the `php-appsec-boost-cache` Docker volume (Gradle).
-
-- `appsec/build-helper` (helper tests) is **not** a `dockerh` cache
-  overlay. Pass it explicitly as `-v ~/.cache/dd-ci/appsec-helper/appsec/build-helper:...`
-  (see the Helper tests section). Files are owned by root because helper
-  tests run with `--user root`; clean up with
-  `docker run --rm -v ~/.cache/dd-ci/appsec-helper/appsec:/w alpine rm -rf /w/build-helper`.
 
 - The `libc++-17-dev` and `libc++abi-17-dev` packages must be installed
   in every new container — the cmake cache references libc++ headers and

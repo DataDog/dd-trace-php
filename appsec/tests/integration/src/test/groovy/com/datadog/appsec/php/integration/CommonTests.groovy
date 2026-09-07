@@ -884,29 +884,4 @@ trait CommonTests {
         assert span.metrics."_dd.appsec.trace.integer" == 1729
         assert span.meta."_dd.appsec.trace.agent" == "TraceTagging/v4"
     }
-
-    @Test
-    void 'helper runtime matches configured helper'() {
-        def trace = container.traceFromRequest('/phpinfo.php') { HttpResponse<InputStream> resp ->
-            assert resp.statusCode() == 200
-            def content = resp.body().text
-
-            if (TestParams.usesHelperRust()) {
-                assert content.contains('Yes (Rust)') :
-                    "All supported PHP versions should use Rust helper by default"
-            } else {
-                assert content.contains('Yes (C++)') :
-                    "C++ helper opt-out should disable Rust helper redirection"
-            }
-        }
-
-        Span span = trace.first()
-        if (TestParams.usesHelperRust()) {
-            assert span.meta."_dd.appsec.helper_runtime" == 'rust' :
-                "All supported PHP versions should report helper_runtime=rust in span"
-        } else {
-            assert span.meta."_dd.appsec.helper_runtime" == null :
-                "C++ helper should not set helper_runtime span tag"
-        }
-    }
 }

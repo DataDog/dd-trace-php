@@ -1,6 +1,9 @@
 #include "ddtrace.h"
 #include "configuration.h"
 #include "handlers_fiber.h"
+#ifdef __linux__
+#include "otel_context.h"
+#endif
 #include "span.h"
 #include <Zend/zend_extensions.h>
 #include <Zend/zend_observer.h>
@@ -130,6 +133,9 @@ static void dd_observe_fiber_switch(zend_fiber_context *from, zend_fiber_context
 
     from->reserved[dd_resource_handle] = DDTRACE_G(active_stack);
     DDTRACE_G(active_stack) = to_stack;
+#ifdef __linux__
+    ddtrace_otel_attach_stack(to_stack);
+#endif
 }
 
 static void dd_observe_fiber_init(zend_fiber_context *context) {

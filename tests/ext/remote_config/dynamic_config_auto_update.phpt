@@ -11,8 +11,7 @@ DD_TRACE_AGENT_FLUSH_INTERVAL=333
 DD_DYNAMIC_INSTRUMENTATION_ENABLED=0
 DD_EXCEPTION_REPLAY_ENABLED=1
 DD_CODE_ORIGIN_FOR_SPANS_ENABLED=1
---INI--
-datadog.trace.agent_test_session_token=remote-config/dynamic_config_auto_update
+DD_TRACE_AGENT_TEST_SESSION_TOKEN=remote-config/dynamic_config_auto_update
 --FILE--
 <?php
 

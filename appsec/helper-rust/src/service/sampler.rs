@@ -204,7 +204,7 @@ impl SchemaSampler {
         }
 
         // most recent at the top
-        entries.sort_by(|a, b| b.data.last_accessed.cmp(&a.data.last_accessed));
+        entries.sort_by_key(|entry| std::cmp::Reverse(entry.data.last_accessed));
 
         let count = std::cmp::min(entries.len(), MAX_ITEMS * 2 / 3);
         for ce in entries.into_iter().take(count) {

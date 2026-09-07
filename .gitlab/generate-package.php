@@ -45,6 +45,32 @@ $build_platforms = [
     ]
 ];
 
+/**
+ * Names of the packaging jobs of a build platform.
+ *
+ * The linux-gnu platforms are split into two jobs: one building the native
+ * installers (.rpm/.deb/.tar.gz) and one building the final per-PHP-API
+ * bundles; keeping them together overflows the project's max_artifacts_size.
+ * The musl platforms only build .apk and remain a single job.
+ *
+ * $kind is "installers", "bundles" or "all".
+ */
+function package_extension_jobs(array $platform, string $kind = "all"): array
+{
+    if ($platform['host_os'] !== "linux-gnu") {
+        return ["package extension: [{$platform['arch']}, {$platform['triplet']}]"];
+    }
+
+    $jobs = [];
+    if ($kind === "all" || $kind === "installers") {
+        $jobs[] = "package extension (installers): [{$platform['arch']}, {$platform['triplet']}]";
+    }
+    if ($kind === "all" || $kind === "bundles") {
+        $jobs[] = "package extension (bundles): [{$platform['arch']}, {$platform['triplet']}]";
+    }
+    return $jobs;
+}
+
 $asan_build_platforms = [
     [
         "triplet" => "x86_64-unknown-linux-gnu",
@@ -72,26 +98,6 @@ $windows_build_platforms = [
     ],
 ];
 
-$appsec_helper_rust_image_tag = "nginx-fpm-php-8.5-release-musl";
-$appsec_helper_rust_image = appsec_image_from_tag_mapping($appsec_helper_rust_image_tag);
-
-function appsec_image_from_tag_mapping(string $tag): string
-{
-    $tag_mappings_file = __DIR__ . "/../appsec/tests/integration/gradle/tag_mappings.gradle";
-    $tag_mappings = file_get_contents($tag_mappings_file);
-    if ($tag_mappings === false) {
-        throw new RuntimeException("Failed to read $tag_mappings_file");
-    }
-
-    if (!preg_match("/['\"]" . preg_quote($tag, "/") . "['\"]\\s*:\\s*['\"]([^'\"]+)['\"]/", $tag_mappings, $matches)) {
-        throw new RuntimeException("Tag $tag not found in $tag_mappings_file");
-    }
-
-    $repo = "registry.ddbuild.io/images/mirror/datadog/dd-appsec-php-ci";
-    $image_ref = $matches[1];
-    return str_starts_with($image_ref, "sha256:") ? "$repo@$image_ref" : "$repo:$image_ref";
-}
-
 ?>
 
 stages:
@@ -104,7 +110,9 @@ stages:
   - gate
   - notify
   - verify
-  - shared-pipeline # OCI packaging
+  - shared-pipeline-build # OCI packaging
+  - shared-pipeline-test
+  - shared-pipeline-publish
   - php-laravel-realworld-parallel
   - php-laravel-realworld-parallel-slo
   - php-symfony-realworld-parallel
@@ -122,6 +130,8 @@ variables:
   # One pipeline injection package size ratchet
   OCI_PACKAGE_MAX_SIZE_BYTES: 150_000_000
   LIB_INJECTION_IMAGE_MAX_SIZE_BYTES: 210_000_000
+
+  REPO_NOTIFICATION_CHANNEL: "#guild-dd-php"
 
 include:
   - local: .gitlab/one-pipeline.locked.yml
@@ -309,42 +319,6 @@ if ($suffix == "-alpine") {
 }
 ?>
 
-"compile appsec helper":
-  stage: appsec
-  image: "registry.ddbuild.io/images/mirror/b1o7r7e0/nginx_musl_toolchain@sha256:54dcb1180d439b8e77df1caad55259401051b358448c9bb13f742b1c106dd1eb"
-  tags: [ "arch:$ARCH" ]
-  needs: [ "prepare code" ]
-  parallel:
-    matrix:
-      - ARCH: ["amd64", "arm64" ]
-  variables:
-    MAKE_JOBS: 12
-    KUBERNETES_CPU_REQUEST: 12
-    KUBERNETES_MEMORY_REQUEST: 4Gi
-    KUBERNETES_MEMORY_LIMIT: 8Gi
-  script: .gitlab/build-appsec-helper.sh
-  artifacts:
-    paths:
-      - "appsec_*"
-
-"compile appsec helper rust":
-  stage: appsec
-  image: "<?= $appsec_helper_rust_image ?>"
-  tags: [ "arch:$ARCH" ]
-  needs: [ "prepare code" ]
-  parallel:
-    matrix:
-      - ARCH: ["amd64", "arm64" ]
-  variables:
-    MAKE_JOBS: 12
-    KUBERNETES_CPU_REQUEST: 12
-    KUBERNETES_MEMORY_REQUEST: 8Gi
-    KUBERNETES_MEMORY_LIMIT: 12Gi
-  script: .gitlab/build-appsec-helper-rust.sh
-  artifacts:
-    paths:
-      - "appsec_*"
-
 "pecl build":
   stage: tracing
   image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-7.4_bookworm-10"
@@ -387,7 +361,8 @@ foreach ($build_platforms as $platform) {
     paths:
       - "extensions_*"
       - "standalone_*"
-      - "ddtrace_*.ldflags"
+      - "ddtrace_*-fat.ldflags"
+      - "ddtrace_*-fat.sym"
 
 <?php
     }
@@ -419,7 +394,8 @@ foreach ($build_platforms as $platform) {
     paths:
       - "extensions_*"
       - "standalone_*"
-      - "ddtrace_*.ldflags"
+      - "ddtrace_*-fat.ldflags"
+      - "ddtrace_*-fat.sym"
 <?php
 endforeach;
 ?>
@@ -579,8 +555,8 @@ foreach ($windows_build_platforms as $platform) {
     # Only transient network failures (e.g. crates.io DNS) get exit 75 for GitLab auto-retry; real compile breaks keep their native code and fail fast.
     if ($ntsCode -ne 0) { if (Select-String -Path nts-build.log -Pattern 'Could not resolve host','spurious network error','failed to download' -Quiet) { Write-Host "Transient network failure during nts build; exiting 75 so GitLab auto-retries (see default retry.exit_codes in generate-common.php)"; exit 75 } else { exit $ntsCode } }
 
-    # Reuse libdatadog build (fail if move fails)
-    docker exec ${CONTAINER_NAME} powershell.exe -Command "`$ErrorActionPreference='Stop'; `$PSNativeCommandUseErrorActionPreference=`$true; New-Item -ItemType Directory -Force -Path 'app\\x64\\Release_TS' | Out-Null; Move-Item 'app\\x64\\Release\\target' 'app\\x64\\Release_TS\\target' -ErrorAction Stop"
+    # Reuse the common/tracer Cargo build (fail if move fails)
+    docker exec ${CONTAINER_NAME} powershell.exe -Command "`$ErrorActionPreference='Stop'; `$PSNativeCommandUseErrorActionPreference=`$true; New-Item -ItemType Directory -Force -Path 'app\\x64\\Release_TS' | Out-Null; Move-Item 'app\\x64\\Release\\target-common' 'app\\x64\\Release_TS\\target-common' -ErrorAction Stop"
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }  # local file move, not network — fail fast (no retry)
 
     # Build zts (fail fast on any step); capture combined output for failure classification.
@@ -640,18 +616,10 @@ foreach ($build_platforms as $platform) {
       - "packages/"
 
 <?php
-foreach ($build_platforms as $platform) {
+// The needs: graph is identical for every "package extension" job of a given
+// platform, whether it builds the native installers or the final bundles.
+$package_extension_needs = function (array $platform) use ($php_versions_to_abi, $profiler_minor_major_targets) {
 ?>
-"package extension: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
-  extends: .package_extension_base
-  variables:
-    ARCH: "<?= $platform['arch'] ?>"
-    TRIPLET: "<?= $platform['triplet'] ?>"
-  script:
-    - make -j 4 <?= implode(' ', $platform['targets']) ?>
-
-    - ./tooling/bin/generate-final-artifact.sh $(<VERSION) "build/packages" "${CI_PROJECT_DIR}"
-    - mv build/packages/ packages/
   needs:
     - job: "prepare code"
       artifacts: true
@@ -671,22 +639,8 @@ foreach ($build_platforms as $platform) {
     - job: "compile appsec extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
 <?php
-}
+    }
 ?>
-
-    # Compile appsec helper (C++)
-    - job: "compile appsec helper"
-      parallel:
-        matrix:
-          - ARCH: "<?= $platform['arch'] ?>"
-      artifacts: true
-
-    # Compile appsec helper (Rust)
-    - job: "compile appsec helper rust"
-      parallel:
-        matrix:
-          - ARCH: "<?= $platform['arch'] ?>"
-      artifacts: true
 
 <?php
     foreach ($profiler_minor_major_targets as $major_minor) {
@@ -695,6 +649,55 @@ foreach ($build_platforms as $platform) {
     - job: "compile profiler extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
 <?php
+    }
+};
+
+foreach ($build_platforms as $platform) {
+    // The linux-gnu platforms produce both the native installers (.rpm/.deb/
+    // .tar.gz, one file bundling every extension) and the per-PHP-API "final
+    // artifact" bundles. Together those artifacts blow past the project's
+    // max_artifacts_size, so they are built by two independent jobs (the two
+    // steps share no state). The musl platforms only build .apk and stay in a
+    // single job.
+    if ($platform['host_os'] === 'linux-gnu') {
+?>
+"package extension (installers): [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
+  extends: .package_extension_base
+  variables:
+    ARCH: "<?= $platform['arch'] ?>"
+    TRIPLET: "<?= $platform['triplet'] ?>"
+  script:
+    - make -j 4 <?= implode(' ', $platform['targets']) ?>
+
+    - mv build/packages/ packages/
+<?php
+        $package_extension_needs($platform);
+?>
+
+"package extension (bundles): [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
+  extends: .package_extension_base
+  variables:
+    ARCH: "<?= $platform['arch'] ?>"
+    TRIPLET: "<?= $platform['triplet'] ?>"
+  script:
+    - ./tooling/bin/generate-final-artifact.sh $(<VERSION) "build/packages" "${CI_PROJECT_DIR}"
+    - mv build/packages/ packages/
+<?php
+        $package_extension_needs($platform);
+    } else {
+?>
+"package extension: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
+  extends: .package_extension_base
+  variables:
+    ARCH: "<?= $platform['arch'] ?>"
+    TRIPLET: "<?= $platform['triplet'] ?>"
+  script:
+    - make -j 4 <?= implode(' ', $platform['targets']) ?>
+
+    - ./tooling/bin/generate-final-artifact.sh $(<VERSION) "build/packages" "${CI_PROJECT_DIR}"
+    - mv build/packages/ packages/
+<?php
+        $package_extension_needs($platform);
     }
 }
 ?>
@@ -752,16 +755,6 @@ foreach ($asan_build_platforms as $platform) {
     - mv build/packages/ packages/
   needs:
     - job: "prepare code"
-      artifacts: true
-    - job: "compile appsec helper"
-      parallel:
-        matrix:
-          - ARCH: "<?= $arch ?>"
-      artifacts: true
-    - job: "compile appsec helper rust"
-      parallel:
-        matrix:
-          - ARCH: "<?= $arch ?>"
       artifacts: true
     - job: "compile loader: [linux-gnu, <?= $arch ?>]"
       artifacts: true
@@ -864,7 +857,7 @@ endforeach;
   extends: .randomized_tests
   tags: [ "docker-in-docker:amd64" ]
   needs:
-    - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
+    - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
 
 <?php endforeach; ?>
@@ -888,7 +881,7 @@ endforeach;
 #   variables:
 #     DOCKER_COMPOSE_DOWNLOAD_NAME: docker-compose-linux-aarch64
 #   needs:
-#     - job: "package extension: [arm64, aarch64-unknown-linux-gnu]"
+#     - job: "package extension (bundles): [arm64, aarch64-unknown-linux-gnu]"
 #       artifacts: true
 <?php endforeach; ?>
 
@@ -910,9 +903,9 @@ endforeach;
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   tags: [ "docker-in-docker:amd64" ]
   needs:
-    - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
+    - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
-    - job: "package extension: [arm64, aarch64-unknown-linux-gnu]"
+    - job: "package extension (bundles): [arm64, aarch64-unknown-linux-gnu]"
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
@@ -935,7 +928,7 @@ endforeach;
   image: registry.ddbuild.io/images/mirror/ubuntu:jammy
   tags: [ "arch:amd64" ]
   needs:
-    - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
+    - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
@@ -963,7 +956,7 @@ endforeach;
     KUBERNETES_MEMORY_REQUEST: 2Gi
     KUBERNETES_MEMORY_LIMIT: 4Gi
   needs:
-    - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
+    - job: "package extension (installers): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
   parallel:
     matrix:
@@ -1029,9 +1022,7 @@ endforeach;
         IMAGE:
           - alpine:3.8
           - alpine:3.9
-          - alpine:3.10
           - alpine:3.11
-          - alpine:3.12
           - alpine:3.15
         INSTALL_TYPE: &verify_install_types
         - php_installer
@@ -1040,9 +1031,8 @@ endforeach;
         IMAGE:
           - alpine:3.15
           - alpine:3.16
-          - alpine:3.17
-          - alpine:3.20
-          - alpine@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+          - alpine:3.21
+          - alpine:3.24
         INSTALL_TYPE: *verify_install_types
       - IMAGE: <?= json_encode(array_map(function ($v) { return "php:$v-fpm-alpine"; }, $all_minor_major_targets)), "\n" ?>
         INSTALL_TYPE: *verify_install_types
@@ -1076,7 +1066,9 @@ endforeach;
           - 83
         INSTALL_TYPE: *verify_install_types
   needs:
-    - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
+    - job: "package extension (installers): [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+    - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
@@ -1115,7 +1107,9 @@ endforeach;
           - "debian:bullseye-slim"
           - "debian:bookworm-slim"
   needs:
-    - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
+    - job: "package extension (installers): [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+    - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
@@ -1137,7 +1131,7 @@ endforeach;
     KUBERNETES_MEMORY_LIMIT: 4Gi
     PHP_VERSION: "<?= $major_minor ?>"
   needs:
-    - job: "package extension: [<?= $arch ?>, <?= $pkgprefix ?>-unknown-linux-gnu]"
+    - job: "package extension (installers): [<?= $arch ?>, <?= $pkgprefix ?>-unknown-linux-gnu]"
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
@@ -1243,7 +1237,7 @@ endforeach;
     DD_AGENT_HOST: 127.0.0.1
     DATADOG_HAVE_DEV_ENV: 1
   needs:
-    - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
+    - job: "package extension (installers): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
   services:
     - !reference [.services, request-replayer]
@@ -1279,7 +1273,7 @@ endforeach;
     DOCKER_DEFAULT_PLATFORM: linux/amd64
     # TODO DD_API_KEY; SYSTEM_TESTS_AWS_ACCESS_KEY_ID; SYSTEM_TESTS_AWS_SECRET_ACCESS_KEY
   needs:
-    - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
+    - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
@@ -1337,6 +1331,7 @@ endforeach;
         - APPSEC_API_SECURITY
         - APPSEC_API_SECURITY_RC
         - APPSEC_API_SECURITY_NO_RESPONSE_BODY
+        - APPSEC_STANDALONE_APM_STANDALONE
         - APPSEC_RUNTIME_ACTIVATION
         - INTEGRATIONS
         - CROSSED_TRACING_LIBRARIES
@@ -1360,6 +1355,7 @@ endforeach;
         - APPSEC_API_SECURITY
         - APPSEC_API_SECURITY_RC
         - APPSEC_API_SECURITY_NO_RESPONSE_BODY
+        - APPSEC_STANDALONE_APM_STANDALONE
         - APPSEC_RUNTIME_ACTIVATION
         - INTEGRATIONS
         - CROSSED_TRACING_LIBRARIES
@@ -1570,10 +1566,12 @@ $system_tests_weblogs = [
       artifacts: true
 <?php
 foreach ($build_platforms as $platform) {
+    foreach (package_extension_jobs($platform) as $job) {
 ?>
-    - job: "package extension: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+    - job: "<?= $job ?>"
       artifacts: true
 <?php
+    }
 }
 foreach ($arch_targets as $arch) {
 ?>
@@ -1638,9 +1636,9 @@ foreach ($arch_targets as $arch) {
       artifacts: true
     - job: "datadog-setup.php"
       artifacts: true
-    - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
+    - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
-    - job: "package extension: [arm64, aarch64-unknown-linux-gnu]"
+    - job: "package extension (bundles): [arm64, aarch64-unknown-linux-gnu]"
       artifacts: true
   variables:
     GIT_STRATEGY: none
@@ -1714,8 +1712,8 @@ foreach ($arch_targets as $arch) {
     - docker buildx rm "system-tests-builder-${CI_JOB_ID}" || true
 
 "bundle for reliability env":
-  stage: shared-pipeline
-  image: registry.ddbuild.io/ci/libdatadog-build/ci_docker_base:67145216
+  stage: shared-pipeline-build
+  image: registry.ddbuild.io/images/base/gbi-ubuntu_2404:release
   tags: [ "arch:amd64" ]
   rules:
     - if: $NIGHTLY_BUILD
@@ -1729,7 +1727,7 @@ foreach ($arch_targets as $arch) {
       artifacts: true
     - job: "datadog-setup.php"
       artifacts: true
-    - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
+    - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
   script:
     - |
@@ -1738,7 +1736,7 @@ foreach ($arch_targets as $arch) {
       else
         echo "UPSTREAM_TRACER_VERSION=$(<VERSION)" > upstream.env
       fi
-    - mv packages/dd-library-php-*-x86_64-linux-gnu.tar.gz dd-library-php-x86_64-linux-gnu.tar.gz
+    - cp packages/dd-library-php-*-x86_64-linux-gnu.tar.gz dd-library-php-x86_64-linux-gnu.tar.gz
     - tar -cf 'datadog-setup-x86_64-linux-gnu.tar' 'datadog-setup.php' 'dd-library-php-x86_64-linux-gnu.tar.gz'
   artifacts:
     paths:
@@ -1746,7 +1744,7 @@ foreach ($arch_targets as $arch) {
       - 'datadog-setup-x86_64-linux-gnu.tar'
 
 deploy_to_reliability_env:
-  stage: shared-pipeline
+  stage: shared-pipeline-publish
   allow_failure: true
   needs:
     - job: "bundle for reliability env"
@@ -1779,8 +1777,10 @@ deploy_to_reliability_env:
     - job: "package extension windows"
       artifacts: false
 <?php foreach ($build_platforms as $platform): ?>
-    - job: "package extension: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+<?php foreach (package_extension_jobs($platform) as $job): ?>
+    - job: "<?= $job ?>"
       artifacts: false
+<?php endforeach; ?>
 <?php endforeach; ?>
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
@@ -1804,7 +1804,7 @@ deploy_to_reliability_env:
 
 "upload SSI debug symbols":
   stage: pre-release
-  image: registry.ddbuild.io/ci/async-profiler-build:v71888475-datadog-ci
+  image: registry.ddbuild.io/images/bazel:dynamic-22.04
   tags: [ "arch:amd64" ]
   only:
     - tags
@@ -1844,8 +1844,10 @@ foreach ($arch_targets as $arch) {
     - job: "package extension windows"
       artifacts: true
 <?php foreach ($build_platforms as $platform): ?>
-    - job: "package extension: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+<?php foreach (package_extension_jobs($platform) as $job): ?>
+    - job: "<?= $job ?>"
       artifacts: true
+<?php endforeach; ?>
 <?php endforeach; ?>
   script:
     - echo "Using pre-generated GitHub token for release..."

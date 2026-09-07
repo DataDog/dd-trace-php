@@ -14,7 +14,7 @@
 
 All compile, link, and aggregate jobs (`compile tracing extension`,
 `compile tracing sidecar`, `link tracing extension`, `aggregate tracing extension`,
-`compile appsec extension`, `compile appsec helper`, `compile appsec helper rust`,
+`compile appsec extension`,
 `compile profiler extension`, `compile loader`, `compile extension windows`) are
 documented in [compile-artifacts.md](compile-artifacts.md).
 
@@ -33,7 +33,7 @@ documented in [compile-artifacts.md](compile-artifacts.md).
 | `publishing-gate` | (one-pipeline template) | Final gate before production promotion |
 | `publish to public s3` | `amazon/aws-cli:2.17.32` | Uploads packages to `s3://dd-trace-php-builds/{VERSION}/` |
 | `publish release to github` | `php:8.2-cli` | Creates GitHub release + uploads assets (release branches only) |
-| `bundle for reliability env` | `ci_docker_base:67145216` | Bundles setup script + tar for the reliability env |
+| `bundle for reliability env` | `gbi-ubuntu_2404:release` | Bundles setup script + tar for the reliability env |
 
 Runner: `arch:amd64` for all packaging and publishing jobs.
 
@@ -57,9 +57,7 @@ Platform matrix for `package extension`:
 ```
 compile tracing extension ─┐
   + link tracing extension  │
-compile appsec extension  ─┤
-compile appsec helper     ─┤→ generate-final-artifact.sh → .tar.gz
-compile appsec helper rust─┤         │
+compile appsec extension  ─┤ → generate-final-artifact.sh → .tar.gz
 compile profiler extension─┤         v
 compile loader            ─┘  nfpm → .deb/.rpm/.apk
                                      │
@@ -130,8 +128,8 @@ shown above.
   `bookworm`. See the "centos-7 vs bookworm" gotcha in
   [compile-artifacts.md](compile-artifacts.md) for details.
 
-- **`package loader` depends on many upstream compile jobs** — appsec helper (C++
-  and Rust), loader (glibc and musl), tracing extension aggregates, sidecar, all
+- **`package loader` depends on many upstream compile jobs** — loader (glibc
+  and musl), tracing extension aggregates, sidecar, all
   appsec and profiler extension versions. A single upstream failure blocks packaging.
   See [building-locally.md § SSI Loader Package Assembly](building-locally.md#ssi-loader-package-assembly)
   for local reproduction and important caveats (empty stubs do not work;

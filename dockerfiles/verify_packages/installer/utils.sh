@@ -159,6 +159,48 @@ assert_file_not_exists() {
     fi
 }
 
+assert_world_traversable() {
+    dir="${1}"
+    if ! [ -d "${dir}" ]; then
+        echo "Error: Directory '${dir}' does not exist\n"
+        exit 1
+    fi
+    if [ -n "$(find "${dir}" -maxdepth 0 ! -perm -001)" ]; then
+        echo "Error: Directory '${dir}' is not traversable by other users\n"
+        exit 1
+    fi
+    echo "Ok: Directory '${dir}' is traversable by other users\n"
+}
+
+assert_not_world_readable() {
+    file="${1}"
+    if ! [ -f "${file}" ]; then
+        echo "Error: '${file}' does not exist\n"
+        exit 1
+    fi
+    if [ -n "$(find "${file}" -maxdepth 0 -perm -004)" ]; then
+        echo "Error: '${file}' was widened to be readable by other users\n"
+        exit 1
+    fi
+    echo "Ok: '${file}' was left unreadable by other users\n"
+}
+
+# The installer must not let its umask leak into what it installs, as the PHP
+# process reading those files usually runs as another user.
+assert_world_readable_tree() {
+    path="${1}"
+    if ! [ -e "${path}" ]; then
+        echo "Error: '${path}' does not exist\n"
+        exit 1
+    fi
+    unreadable=$(find "${path}" \( -type f ! -perm -004 \) -o \( -type d ! -perm -005 \))
+    if [ -n "${unreadable}" ]; then
+        echo "Error: not readable by other users under '${path}':\n${unreadable}\n"
+        exit 1
+    fi
+    echo "Ok: Everything under '${path}' is readable by other users\n"
+}
+
 install_legacy_ddtrace() (
     version=$1
     curl -L --output "/tmp/legacy-${version}.tar.gz" \

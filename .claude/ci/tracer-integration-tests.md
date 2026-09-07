@@ -75,7 +75,7 @@ substring.
 | Service | Image | Alias | Port | Purpose |
 |---------|-------|-------|------|---------|
 | test-agent | `ddapm-test-agent:v1.22.1` | `test-agent` | 9126 | Receives traces; validates snapshots |
-| request-replayer | `dd-trace-ci:php-request-replayer-*` | `request-replayer` | 80 | HTTP request replay |
+| request-replayer | `request-replayer:*` | `request-replayer` | 80 | HTTP request replay |
 | httpbin | `kong/httpbin:0.2.2` | `httpbin-integration` | 8080 | HTTP echo service |
 
 ### Additional services by target substring

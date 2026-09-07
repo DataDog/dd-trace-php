@@ -20,10 +20,9 @@ for which submodules each build target needs. Quick reference:
 
 ```bash
 git submodule update --init \
-  appsec/third_party/libddwaf \
-  appsec/third_party/msgpack-c \
-  appsec/third_party/cpp-base64 \
   libdatadog
+git submodule update --init --recursive \
+  appsec/third_party/libddwaf-rust
 ```
 
 ¶5 Never "fix" tests by disabling them.

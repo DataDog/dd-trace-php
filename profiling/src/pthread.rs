@@ -1,5 +1,5 @@
-use crate::allocation::alloc_prof_rshutdown;
-use crate::{config, Profiler};
+use crate::profiling::allocation::alloc_prof_rshutdown;
+use crate::profiling::{config, Profiler};
 use log::trace;
 
 pub(crate) fn startup() {
@@ -15,6 +15,8 @@ extern "C" fn prepare() {
     if let Some(profiler) = Profiler::get() {
         trace!("Preparing profiler for upcomming fork call.");
         let _ = profiler.fork_prepare();
+        #[cfg(target_os = "linux")]
+        crate::profiling::process_context::invalidate_before_fork();
     }
 }
 

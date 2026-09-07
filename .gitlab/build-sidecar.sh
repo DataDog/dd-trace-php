@@ -21,4 +21,5 @@ fi
 
 SHARED=1 PROFILE=tracer-release host_os="${HOST_OS}" ./compile_rust.sh
 cp -v "${CARGO_TARGET_DIR:-target}/tracer-release/libdatadog_php.a" "libdatadog_php_$(uname -m)${suffix}.a"
-objcopy --compress-debug-sections "${CARGO_TARGET_DIR:-target}/tracer-release/libdatadog_php.so" "libdatadog_php_$(uname -m)${suffix}.so"
+output="libdatadog_php_$(uname -m)${suffix}.so"
+objcopy --compress-debug-sections "${CARGO_TARGET_DIR:-target}/tracer-release/libdatadog_php.so" "${output}"

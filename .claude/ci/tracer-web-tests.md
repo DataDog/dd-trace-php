@@ -62,7 +62,7 @@ All web test jobs use four GitLab service containers:
 | Service | Image | Alias | Port | Purpose |
 |---------|-------|-------|------|---------|
 | test-agent | `ddapm-test-agent:v1.22.1` | `test-agent` | 9126 | Receives traces; validates snapshots |
-| request-replayer | `dd-trace-ci:php-request-replayer-*` | `request-replayer` | 80 | Replays HTTP requests for trace forwarding |
+| request-replayer | `request-replayer:*` | `request-replayer` | 80 | Replays HTTP requests for trace forwarding |
 | httpbin | `kong/httpbin:0.2.2` | `httpbin-integration` | 80 | HTTP echo service for curl/guzzle tests |
 | mysql | `dd-trace-ci:php-mysql-dev-5.6` | `mysql-integration` | 3306 | MySQL for WordPress, Drupal, Magento, etc. |
 

@@ -17,7 +17,11 @@ $ctx = stream_context_create([
         'content' => '{"config":{"default_env":"test_env"}}'
     ]
 ]);
-file_get_contents("http://request-replayer/set-agent-info", false, $ctx);
+$response = @file_get_contents("http://request-replayer/set-agent-info", false, $ctx);
+if ($response === false) {
+    $error = error_get_last();
+    die("request-replayer setup failed: " . ($error ? $error['message'] : 'unknown error'));
+}
 ?>
 --ENV--
 DD_AGENT_HOST=request-replayer
@@ -37,9 +41,15 @@ $rr = new RequestReplayer();
 $span = \DDTrace\start_span();
 
 // make sure sidecar keeps up with us
-dd_trace_internal_fn('await_agent_info');
+$agentInfoReady = dd_trace_internal_fn('await_agent_info');
 
 \DDTrace\close_span();
+if ($span->env !== 'test_env') {
+    if (!$agentInfoReady) {
+        echo "Timed out waiting for agent info after 5000ms\n";
+    }
+    echo 'Cached agent info: ', json_encode(dd_trace_internal_fn('get_agent_info')), "\n";
+}
 var_dump($span->env);
 
 ?>

@@ -10,9 +10,9 @@ rm -v trigger-{0..2}.txt
 
 set -eu
 
-cargo build --release --features "allocation_profiling,exception_profiling,io_profiling,timeline,tracing-subscriber,trigger_time_sample"
+make -C ../../.. compile_profiler
 
-RUST_LOG=trace php -c . -dextension=$PWD/../../../target/release/libdatadog_php_profiling.so -S 0.0.0.0:8080 -t public &> output.txt &
+RUST_LOG=trace php -c . -dextension="$PWD/../../../tmp/build_profiler/modules/datadog-profiling.so" -S 0.0.0.0:8080 -t public &> output.txt &
 pid=$!
 
 # https://measuringu.com/sample-size-recommendations/

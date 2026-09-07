@@ -60,7 +60,7 @@ if(PhpConfig_EXECUTABLE)
   execute_process(
     COMMAND ${PhpConfig_EXECUTABLE} --ldflags
     RESULT_VARIABLE PhpConfig_LDFLAGS_RESULT
-    OUTPUT_VARIABLE PhpConfig_LIBRARY_DIRS
+    OUTPUT_VARIABLE PhpConfig_LDFLAGS
     OUTPUT_STRIP_TRAILING_WHITESPACE COMMAND_ERROR_IS_FATAL ANY)
 
   execute_process(
@@ -110,10 +110,35 @@ find_package_handle_standard_args(
 
 if(PhpConfig_FOUND)
   separate_arguments(PhpConfig_INCLUDE_DIRS)
-  separate_arguments(PhpConfig_LIBRARY_DIRS)
+  separate_arguments(PhpConfig_LDFLAGS)
 
   string(REPLACE "-I" "" PhpConfig_INCLUDE_DIRS "${PhpConfig_INCLUDE_DIRS}")
-  string(REPLACE "-L" "" PhpConfig_LIBRARY_DIRS "${PhpConfig_LIBRARY_DIRS}")
+
+  set(PhpConfig_LIBRARY_DIRS)
+  set(PhpConfig_LINK_OPTIONS)
+  set(_PhpConfig_EXPECT_LIBRARY_DIR FALSE)
+  foreach(_PhpConfig_LDFLAG IN LISTS PhpConfig_LDFLAGS)
+    if(_PhpConfig_EXPECT_LIBRARY_DIR)
+      list(APPEND PhpConfig_LIBRARY_DIRS "${_PhpConfig_LDFLAG}")
+      set(_PhpConfig_EXPECT_LIBRARY_DIR FALSE)
+    elseif(_PhpConfig_LDFLAG STREQUAL "-L")
+      set(_PhpConfig_EXPECT_LIBRARY_DIR TRUE)
+    elseif(_PhpConfig_LDFLAG MATCHES "^-L(.+)$")
+      list(APPEND PhpConfig_LIBRARY_DIRS "${CMAKE_MATCH_1}")
+    elseif(_PhpConfig_LDFLAG STREQUAL "-pie" OR
+           _PhpConfig_LDFLAG STREQUAL "-static-pie" OR
+           _PhpConfig_LDFLAG STREQUAL "-Wl,-pie" OR
+           _PhpConfig_LDFLAG STREQUAL "-Wl,-static-pie")
+      # php-config describes the PHP executable. These flags override the
+      # output kind selected by add_library(... SHARED) when propagated to an
+      # extension link, so do not apply them to consumers.
+    else()
+      list(APPEND PhpConfig_LINK_OPTIONS "${_PhpConfig_LDFLAG}")
+    endif()
+  endforeach()
+  if(_PhpConfig_EXPECT_LIBRARY_DIR)
+    list(APPEND PhpConfig_LINK_OPTIONS "-L")
+  endif()
 
   mark_as_advanced(PhpConfig_EXECUTABLE)
 
@@ -124,6 +149,7 @@ if(PhpConfig_FOUND)
   add_library(PhpConfig INTERFACE)
   target_include_directories(PhpConfig SYSTEM INTERFACE ${PhpConfig_INCLUDE_DIRS})
   target_link_directories(PhpConfig INTERFACE ${PhpConfig_LIBRARY_DIRS})
+  target_link_options(PhpConfig INTERFACE ${PhpConfig_LINK_OPTIONS})
   target_compile_features(PhpConfig INTERFACE c_std_99)
 
   #[[ Do not link these automatically, as they are probably unused and can

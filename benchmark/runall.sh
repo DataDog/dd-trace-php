@@ -6,15 +6,14 @@ if [ "$SCENARIO" = "profiler" ]; then
   # Run Profiling Benchmarks
   cd ../profiling/
 
-  cargo build --release --features trigger_time_sample
+  make -C .. compile_profiler
 
   sirun benches/timeline.json > "$ARTIFACTS_DIR/sirun_timeline.ndjson"
 
   sirun benches/exceptions.json > "$ARTIFACTS_DIR/sirun_exceptions.ndjson"
 
-  sed -i -e "s/crate-type.*$/crate-type = [\"rlib\"]/g" Cargo.toml
-
-  cargo bench --features stack_walking_tests -- --noplot
+  PHP_CONFIG="$(command -v php-config)" cargo bench --no-default-features \
+    --features profiling,test,stack_walking_tests -- --noplot
 elif [ "$SCENARIO" = "tracer" ]; then
   # Run Trace Benchmarks
   cd ..

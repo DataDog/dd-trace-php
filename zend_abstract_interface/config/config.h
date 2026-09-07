@@ -45,6 +45,7 @@ struct zai_config_entry_s {
     zai_custom_parse parser;
     zai_custom_display displayer;
     zai_env_config_fallback env_config_fallback;
+    bool sensitive;
 };
 
 struct zai_config_name_s {
@@ -76,6 +77,7 @@ struct zai_config_memoized_entry_s {
     zai_custom_parse parser;
     zai_custom_display displayer;
     zai_env_config_fallback env_config_fallback;
+    bool sensitive;
     ZEND_INI_MH((*original_on_modify)); // when some other extension has registered that INI
 };
 

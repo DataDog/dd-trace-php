@@ -30,6 +30,13 @@ const OPT_INI_SETTING = 'd';
 // Release version is set while generating the final release files
 const RELEASE_VERSION = '@release_version@';
 
+// Modes set explicitly, so that the install does not depend on the caller's umask
+const MODE_FILE = 0644;
+const MODE_DIR = 0755;
+
+// The INI file the installer creates in the INI scan directory
+const DEFAULT_INI_FILE_NAME = '98-ddtrace.ini';
+
 // phpcs:disable Generic.Files.LineLength.TooLong
 // For testing purposes, we need an alternate repo where we can push bundles that includes changes that we are
 // trying to test, as the previously released versions would not have those changes.
@@ -142,7 +149,7 @@ class IniRecord
  */
 function config_list(array $options)
 {
-    $iniSettings = get_ini_settings('', '', '');
+    $iniSettings = get_ini_settings('', '');
 
     // The first 3 are 'extension' type of settings.
     $iniSettings = array_slice($iniSettings, CMD_CONFIG_NUM_SHIFT);
@@ -351,6 +358,7 @@ function cmd_config_set(array $options)
                         }
                         continue;
                     } else {
+                        set_mode($iniFile, MODE_FILE);
                         echo "Success.\n";
                     }
                 }
@@ -523,7 +531,6 @@ function install($options)
     $tmpArchiveRoot = $tmpDir . '/dd-library-php';
     $tmpArchiveTraceRoot = $tmpDir . '/dd-library-php/trace';
     $tmpArchiveAppsecRoot = $tmpDir . '/dd-library-php/appsec';
-    $tmpArchiveAppsecLib = "{$tmpArchiveAppsecRoot}/lib";
     $tmpArchiveAppsecEtc = "{$tmpArchiveAppsecRoot}/etc";
     $tmpArchiveProfilingRoot = $tmpDir . '/dd-library-php/profiling';
     $tmpSrcDir = $tmpArchiveTraceRoot . '/src';
@@ -573,28 +580,26 @@ function install($options)
     $installDirSourcesDir = $installDir . '/dd-trace-sources';
     $installDirSrcDir = $installDirSourcesDir . '/src';
     // copying sources to the final destination
-    if (!file_exists($installDirSourcesDir)) {
-        execute_or_exit(
-            "Cannot create directory '$installDirSourcesDir'",
-            "mkdir " . (IS_WINDOWS ? "" : "-p ") . escapeshellarg($installDirSourcesDir)
-        );
-    }
+    create_directory_or_exit("Cannot create directory '$installDirSourcesDir'", $installDirSourcesDir);
     execute_or_exit(
         "Cannot copy files from '$tmpSrcDir' to '$installDirSourcesDir'",
         (IS_WINDOWS ? "echo d | xcopy /s /e /y /g /b /o /h " : "cp -r ") . escapeshellarg("$tmpSrcDir") . ' ' . escapeshellarg($installDirSrcDir)
     );
+    // These two are ours whether we created them or not, so repair a bad umask
+    set_mode($options[OPT_INSTALL_DIR], MODE_DIR);
+    set_mode($installDir, MODE_DIR);
+    set_mode_recursive($installDirSourcesDir);
+    warn_if_not_traversable($installDir);
     echo "Installed required source files to '$installDir'\n";
 
-    // Appsec helper and rules
+    // Appsec rules
     if (file_exists($tmpArchiveAppsecRoot)) {
-        execute_or_exit(
-            "Cannot copy files from '$tmpArchiveAppsecLib' to '$installDir'",
-            (IS_WINDOWS ? "xcopy /s /e /y /g /b /o /h " : "cp -rf ") . escapeshellarg("$tmpArchiveAppsecLib") . ' ' . escapeshellarg($installDir)
-        );
         execute_or_exit(
             "Cannot copy files from '$tmpArchiveAppsecEtc' to '$installDir'",
             (IS_WINDOWS ? "xcopy /s /e /y /g /b /o /h " : "cp -r ") . escapeshellarg("$tmpArchiveAppsecEtc") . ' ' . escapeshellarg($installDir)
         );
+        set_mode_recursive($installDir . '/lib');
+        set_mode_recursive($installDir . '/etc');
     }
     $appSecRulesPath = $installDir . '/etc/recommended.json';
 
@@ -633,6 +638,7 @@ function install($options)
 
         $extDir = isset($options[OPT_EXTENSION_DIR]) ? $options[OPT_EXTENSION_DIR] : $phpProperties[EXTENSION_DIR];
         echo "Installing extension to $extDir\n";
+        warn_if_not_traversable($extDir);
 
         // Trace
         $extensionRealPath = "$tmpArchiveTraceRoot/ext/$extensionVersion/"
@@ -665,9 +671,8 @@ function install($options)
             $appsecExtensionDestination = $extDir . '/' . EXTENSION_PREFIX . 'ddappsec.' . EXTENSION_SUFFIX;
             safe_copy_extension($appsecExtensionRealPath, $appsecExtensionDestination);
         }
-        $appSecHelperPath = $installDir . '/lib/libddappsec-helper.so';
-
-        if (isset($options[OPT_PHP_INI])) {
+        $iniPathsFromUser = isset($options[OPT_PHP_INI]);
+        if ($iniPathsFromUser) {
             $iniFilePaths = $options[OPT_PHP_INI];
         } else {
             $iniFilePaths = find_main_ini_files($phpProperties);
@@ -678,24 +683,29 @@ function install($options)
 
             if (!file_exists($iniFilePath)) {
                 $iniDir = dirname($iniFilePath);
-                if (!file_exists($iniDir)) {
-                    execute_or_exit(
-                        "Cannot create directory '$iniDir'",
-                        "mkdir " . (IS_WINDOWS ? "" : "-p ") . escapeshellarg($iniDir)
-                    );
-                }
+                create_directory_or_exit("Cannot create directory '$iniDir'", $iniDir);
 
                 if (false === file_put_contents($iniFilePath, '')) {
                     print_error_and_exit("Cannot create INI file $iniFilePath");
                 }
+                // Unconditional: we just created it, so there is no user mode to preserve
+                set_mode($iniFilePath, MODE_FILE);
                 echo "Created INI file '$iniFilePath'\n";
             } else {
                 echo "Updating existing INI file '$iniFilePath'";
                 if (is_link($iniFilePath)) {
-                    $iniFilePath = readlink($iniFilePath);
+                    // realpath(), not readlink(): the target may be relative
+                    $iniFilePath = realpath($iniFilePath);
                     echo " which is a symlink to '$iniFilePath'";
                 }
                 echo "\n";
+
+                // A previous run may have created it with a restrictive umask
+                if (is_managed_ini_file($iniFilePath, $phpProperties, $iniPathsFromUser)) {
+                    set_mode($iniFilePath, MODE_FILE);
+                } else {
+                    warn_if_not_world_readable($iniFilePath);
+                }
 
                 $replacements += [
                     // Old name is deprecated
@@ -750,8 +760,6 @@ function install($options)
                     : ("ddappsec" . (IS_WINDOWS ? "" : "." . EXTENSION_SUFFIX));
                 $replacements += [
                     '(^\s*;?\s*extension\s*=\s*.*ddappsec.*)m' => "extension = $iniAppsecExtension",
-                    // Update helper path
-                    '(datadog.appsec.helper_path\s*=.*)' => "datadog.appsec.helper_path = $appSecHelperPath",
                     // Update and comment rules path
                     '(^[\s;]*datadog.appsec.rules\s*=\s*' . $rulesPathRegex . ')m' => "; datadog.appsec.rules = " . $appSecRulesPath,
                 ];
@@ -772,7 +780,7 @@ function install($options)
 
             add_missing_ini_settings(
                 $iniFilePath,
-                get_ini_settings($installDirSrcDir, $appSecHelperPath, $appSecRulesPath),
+                get_ini_settings($installDirSrcDir, $appSecRulesPath),
                 $replacements
             );
 
@@ -831,7 +839,7 @@ function find_all_ini_files(array $phpProperties)
                 continue;
             }
             $iniFile = $path . '/' . $ini;
-            if (strpos($ini, '98-ddtrace.ini') !== false) {
+            if (strpos($ini, DEFAULT_INI_FILE_NAME) !== false) {
                 array_unshift($iniFilePaths, $iniFile);
             } else {
                 $iniFilePaths[] = $iniFile;
@@ -887,19 +895,14 @@ function find_main_ini_files(array $phpProperties)
             $phpProperties[INI_SCANDIR] = current(array_filter(explode(\PATH_SEPARATOR, $phpProperties[INI_SCANDIR])));
         }
 
-        $iniFileName = '98-ddtrace.ini';
+        $iniFileName = DEFAULT_INI_FILE_NAME;
         // Search for pre-existing files with extension = ddtrace.so to avoid conflicts
         // See issue https://github.com/DataDog/dd-trace-php/issues/1833
         if (is_dir($phpProperties[INI_SCANDIR])) {
             foreach (scandir($phpProperties[INI_SCANDIR]) as $ini) {
                 $path = "{$phpProperties[INI_SCANDIR]}/$ini";
-                if (is_file($path)) {
-                    // match /path/to/ddtrace.so, plain extension = ddtrace or future extensions like ddtrace.dll
-                    if (preg_match("(^\s*extension\s*=\s*(\S*ddtrace)\b)m", file_get_contents($path), $res)) {
-                        if (basename($res[1]) == "ddtrace") {
-                            $iniFileName = $ini;
-                        }
-                    }
+                if (is_file($path) && loads_ddtrace_extension(file_get_contents($path))) {
+                    $iniFileName = $ini;
                 }
             }
         }
@@ -926,6 +929,237 @@ function find_main_ini_files(array $phpProperties)
 }
 
 /**
+ * Whether `$contents` enables our extension, which is what makes an INI file the
+ * one loading ddtrace. Shared with `is_managed_ini_file()` so that the file we
+ * adopt is exactly the file we consider ours.
+ *
+ * @param string $contents
+ * @return bool
+ */
+function loads_ddtrace_extension($contents)
+{
+    // match /path/to/ddtrace.so, plain extension = ddtrace or future extensions like ddtrace.dll
+    if (!preg_match("(^\s*extension\s*=\s*(\S*ddtrace)\b)m", $contents, $res)) {
+        return false;
+    }
+
+    return basename($res[1]) == "ddtrace";
+}
+
+/**
+ * Whether the installer owns `$iniFilePath` and may therefore set its mode.
+ *
+ * A file qualifies only if it sits in an INI scan directory *and* is evidently
+ * ours. Being in a scan directory is not enough on its own: a drop-in there may
+ * be the user's and deliberately unreadable because it holds credentials, and so
+ * may a php.ini, which `--ini` can point at.
+ *
+ * @param string $iniFilePath
+ * @param array $phpProperties
+ * @param bool $userSupplied Whether the path comes from `--ini` rather than from
+ *                           `find_main_ini_files()`
+ * @return bool
+ */
+function is_managed_ini_file($iniFilePath, array $phpProperties, $userSupplied)
+{
+    if (!isset($phpProperties[INI_SCANDIR])) {
+        return false;
+    }
+
+    $iniDir = realpath(dirname($iniFilePath));
+    if ($iniDir === false) {
+        return false;
+    }
+
+    $scanDirs = [];
+    // https://www.php.net/manual/en/configuration.file.php#configuration.file.scandir
+    foreach (array_filter(explode(\PATH_SEPARATOR, $phpProperties[INI_SCANDIR])) as $scanDir) {
+        $scanDirs[] = $scanDir;
+        // find_main_ini_files() also writes to the apache2 sibling on debian
+        $scanDirs[] = str_replace('/cli/conf.d', '/apache2/conf.d', $scanDir);
+    }
+
+    $inScanDir = false;
+    foreach ($scanDirs as $scanDir) {
+        if (realpath($scanDir) === $iniDir) {
+            $inScanDir = true;
+            break;
+        }
+    }
+
+    if (!$inScanDir) {
+        return false;
+    }
+
+    // The name we install under is ours wherever the path came from
+    if (basename($iniFilePath) === DEFAULT_INI_FILE_NAME) {
+        return true;
+    }
+
+    // A path handed to us with --ini is the user's, scan directory or not
+    if ($userSupplied) {
+        return false;
+    }
+
+    // Otherwise find_main_ini_files() adopted it, and it only adopts a file that
+    // already loads ddtrace, i.e. one an earlier run of ours wrote
+    $contents = @file_get_contents($iniFilePath);
+
+    return $contents !== false && loads_ddtrace_extension($contents);
+}
+
+/**
+ * Sets the mode of `$path` explicitly, so that the installed files do not depend
+ * on the umask of the user running the installer. A chmod may legitimately fail
+ * (not the owner, exotic filesystem, ...), which is only worth a warning.
+ *
+ * @param string $path
+ * @param int $mode
+ * @return void
+ */
+function set_mode($path, $mode)
+{
+    if (IS_WINDOWS) {
+        // chmod is essentially a no-op on Windows, so don't risk a spurious warning
+        return;
+    }
+    if (!@chmod($path, $mode)) {
+        print_warning(sprintf(
+            "Cannot set the permissions of '%s' to %o. It might not be readable by the user running PHP.",
+            $path,
+            $mode
+        ));
+    }
+}
+
+/**
+ * Same as `set_mode()`, applied to a whole installed tree: directories get
+ * MODE_DIR, files MODE_FILE. We install no executable, only shared objects,
+ * which are dlopen()ed and need no exec bit. Symlinks are skipped, as chmod
+ * would follow them outside of the tree.
+ *
+ * @param string $path
+ * @return void
+ */
+function set_mode_recursive($path)
+{
+    if (IS_WINDOWS || is_link($path)) {
+        return;
+    }
+
+    if (!is_dir($path)) {
+        set_mode($path, MODE_FILE);
+        return;
+    }
+
+    set_mode($path, MODE_DIR);
+    $entries = @scandir($path);
+    if ($entries === false) {
+        print_warning("Cannot list '$path'. Its contents might not be readable by the user running PHP.");
+        return;
+    }
+    foreach ($entries as $entry) {
+        if ($entry !== '.' && $entry !== '..') {
+            set_mode_recursive($path . '/' . $entry);
+        }
+    }
+}
+
+/**
+ * Warns when an INI file we wrote to but do not own is not world-readable. We
+ * leave its mode alone on purpose - a php.ini can hold credentials - but if the
+ * PHP user cannot read it the extension is never loaded, silently.
+ *
+ * A group-readable file is taken as deliberately restricted - the `0640
+ * root:www-data` layout is common and works - and left unmentioned, so that the
+ * warning stays advisory rather than nagging.
+ *
+ * @param string $iniFilePath
+ * @return void
+ */
+function warn_if_not_world_readable($iniFilePath)
+{
+    if (IS_WINDOWS) {
+        return;
+    }
+
+    $perms = @fileperms($iniFilePath);
+    if ($perms === false || ($perms & 0004) || ($perms & 0040)) {
+        return;
+    }
+
+    print_warning(
+        "INI file '$iniFilePath' is not readable by other users, and the "
+        . "installer does not change the mode of files it does not own. php-fpm "
+        . "and mod_php read it as root before dropping privileges, so this may "
+        . "not apply; if PHP reads it as another user, it will not load the "
+        . "extension. Run: chmod o+r " . escapeshellarg($iniFilePath)
+    );
+}
+
+/**
+ * Warns about the ancestors of `$path` that other users cannot traverse. We only
+ * set the mode of the directories we create, so a pre-existing restrictive parent
+ * would otherwise make the install silently unusable (dlopen() fails EACCES).
+ *
+ * @param string $path
+ * @return void
+ */
+function warn_if_not_traversable($path)
+{
+    if (IS_WINDOWS) {
+        return;
+    }
+
+    $dir = $path;
+    while (true) {
+        $perms = @fileperms($dir);
+        if ($perms !== false && !($perms & 0001)) {
+            print_warning(
+                "Directory '$dir' cannot be traversed by other users, so the "
+                . "user running PHP might not be able to load the extension. "
+                . "If PHP runs as another user, run: chmod o+x " . escapeshellarg($dir)
+            );
+        }
+        $parent = dirname($dir);
+        if ($parent === $dir) {
+            return;
+        }
+        $dir = $parent;
+    }
+}
+
+/**
+ * Creates `$dir` and its missing parents, then sets the mode of every directory
+ * it had to create. Parents that already existed are not touched, as they may
+ * belong to the user; `install()` re-asserts the modes of the ones we own.
+ *
+ * @param string $errorMessage
+ * @param string $dir
+ * @return void
+ */
+function create_directory_or_exit($errorMessage, $dir)
+{
+    $created = [];
+    for ($path = $dir; !file_exists($path); $path = dirname($path)) {
+        $created[] = $path;
+        if (dirname($path) === $path) {
+            break;
+        }
+    }
+
+    if (empty($created)) {
+        return;
+    }
+
+    execute_or_exit($errorMessage, "mkdir " . (IS_WINDOWS ? "" : "-p ") . escapeshellarg($dir));
+
+    foreach ($created as $path) {
+        set_mode($path, MODE_DIR);
+    }
+}
+
+/**
  * Copies an extension's file to a destination using copy+rename to avoid segfault if the file is loaded by php.
  *
  * @param string $source
@@ -943,15 +1177,14 @@ function safe_copy_extension($source, $destination)
     }
 
     $destinationDir = dirname($destination);
-    if (!file_exists($destinationDir)) {
-        execute_or_exit(
-            "Cannot create directory '$destinationDir'",
-            "mkdir " . (IS_WINDOWS ? "" : "-p ") . escapeshellarg($destinationDir)
-        );
-    }
+    create_directory_or_exit("Cannot create directory '$destinationDir'", $destinationDir);
 
     $tmpName = $destination . '.tmp';
-    copy($source, $tmpName);
+    if (!copy($source, $tmpName)) {
+        print_error_and_exit("Cannot copy '$source' to '$tmpName'");
+    }
+    // Before the rename, so the final path is never briefly unreadable by php
+    set_mode($tmpName, MODE_FILE);
     rename($tmpName, $destination);
     echo "Copied '$source' to '$destination'\n";
 }
@@ -973,7 +1206,7 @@ function uninstall($options)
             $extensionDir . '/' . EXTENSION_PREFIX . 'ddappsec.' . EXTENSION_SUFFIX,
         ];
 
-        $iniFileName = '98-ddtrace.ini';
+        $iniFileName = DEFAULT_INI_FILE_NAME;
         if (isset($phpProperties[INI_SCANDIR])) {
             $iniFilePaths = [$phpProperties[INI_SCANDIR] . '/' . $iniFileName];
 
@@ -1980,11 +2213,10 @@ function map_env_to_ini($env)
  *                                    the setting.
  *
  * @param string $sourcesDir
- * @param string $appsecHelperPath
  * @param string $appsecRulesPath
  * @return array
  */
-function get_ini_settings($sourcesDir, $appsecHelperPath, $appsecRulesPath)
+function get_ini_settings($sourcesDir, $appsecRulesPath)
 {
     // phpcs:disable Generic.Files.LineLength.TooLong
     return [
@@ -2352,52 +2584,21 @@ function get_ini_settings($sourcesDir, $appsecHelperPath, $appsecRulesPath)
             ],
         ],
         [
-            'name' => 'datadog.appsec.helper_path',
-            'default' => $appsecHelperPath,
-            'commented' => false,
-            'description' => [
-                'The path to the shared library that the appsec extension loads in the sidecar.',
-                'This ini setting is configured by the installer',
-            ],
-        ],
-        [
             'name' => 'datadog.appsec.rules',
             'default' => $appsecRulesPath,
             'commented' => true,
             'description' => [
                 'Optional path to a custom rules json file. When this setting is not configured,',
-                'the Rust helper uses its embedded default rules and the C++ helper uses the',
-                'default rules file installed next to the helper.',
-            ],
-        ],
-        [
-            'name' => 'datadog.appsec.helper_runtime_path',
-            'default' => '/tmp/',
-            'commented' => true,
-            'description' => [
-                'The directory where to place the lock file and the UNIX socket that the',
-                'extension uses communicate with the helper inside sidecar. Ultimately,',
-                'the paths include the version of the extension and uid/gid.',
-            ],
-        ],
-        [
-            'name' => 'datadog.appsec.helper_rust_redirection',
-            'default' => 'false',
-            'commented' => true,
-            'description' => [
-                'Whether to use the new implementation of the AppSec helper.',
-                'This is trying by looking for a file named libddappsec-helper-rust.so',
-                'next to the value specified in datadog.appsec.helper_runtime_path.',
-                'Defaults to  true on PHP 8.5.',
+                'the helper uses its embedded default rules.',
             ],
         ],
         [
             'name' => 'datadog.appsec.helper_log_file',
-            'default' => '/dev/null',
+            'default' => '<sidecar log>',
             'commented' => true,
             'description' => [
-                'The location of the log file of the helper. This defaults to /dev/null',
-                '(the log messages will be discarded).',
+                'The location of the log file of the helper. By default, helper messages are',
+                'written to the sidecar log. Set this to a file path to use a separate log.',
             ],
         ],
         [

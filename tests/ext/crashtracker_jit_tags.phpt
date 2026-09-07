@@ -20,7 +20,7 @@ opcache.enable_cli=1
 opcache.jit="tracing"
 opcache.jit_buffer_size=32M
 zend_extension=opcache.so
-datadog.trace.agent_test_session_token=tests/ext/crashtracker_segfault.phpt
+datadog.trace.agent_test_session_token=tests/ext/crashtracker_jit_tags.phpt
 --FILE--
 <?php
 

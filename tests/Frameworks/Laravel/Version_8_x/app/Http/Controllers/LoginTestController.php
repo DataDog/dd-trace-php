@@ -3,11 +3,10 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Http\RedirectResponse;
-use App\Providers\RouteServiceProvider;
 use App\Models\User;
 
 class LoginTestController extends Controller
@@ -20,7 +19,7 @@ class LoginTestController extends Controller
     {
         $credentials = [
             'email' => $request->get('email'),
-            'password' => 'password',
+            'password' => $request->query('password', 'password'),
         ];
 
         if (Auth::attempt($credentials)) {
@@ -30,7 +29,7 @@ class LoginTestController extends Controller
         return response('Invalid credentials', 403);
     }
 
-    public function register(Request $request): RedirectResponse
+    public function register(Request $request): Response
     {
         $request->validate([
             'name' => ['required'],
@@ -48,7 +47,7 @@ class LoginTestController extends Controller
 
         Auth::login($user);
 
-        return redirect(RouteServiceProvider::HOME);
+        return response('User created', 200);
     }
 
     public function behind_auth()

@@ -107,7 +107,8 @@ void datadog_patch_zend_call_known_function(void) {
         0xD61F01A0, // br x13
     };
     // The magical 12 is sizeof(absolute_jump_instrs) and hardcoded in the assembly above.
-    memcpy(zend_call_known_function, absolute_jump_instrs, 12);
+    // Cast needed: memcpy's void* param can't implicitly take a function designator.
+    memcpy((void *)(uintptr_t)zend_call_known_function, absolute_jump_instrs, 12);
     *(void **)(12 + (uintptr_t)zend_call_known_function) = dd_patched_zend_call_known_function;
 #else
     // $r10 doesn't really have special meaning
@@ -116,7 +117,8 @@ void datadog_patch_zend_call_known_function(void) {
         0x41, 0xFF, 0xE2 // jmp $r10
     };
     *(void **)&absolute_jump_instrs[2] = dd_patched_zend_call_known_function;
-    memcpy(zend_call_known_function, absolute_jump_instrs, sizeof(absolute_jump_instrs));
+    // Cast needed: memcpy's void* param can't implicitly take a function designator.
+    memcpy((void *)(uintptr_t)zend_call_known_function, absolute_jump_instrs, sizeof(absolute_jump_instrs));
 #endif
 
 #ifdef _WIN32

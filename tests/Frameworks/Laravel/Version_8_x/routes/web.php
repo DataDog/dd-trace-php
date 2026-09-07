@@ -3,6 +3,7 @@
 use App\Http\Controllers\CommonSpecsController;
 use App\Http\Controllers\EloquentTestController;
 use App\Http\Controllers\InternalErrorController;
+use App\Http\Controllers\MiscController;
 use App\Http\Controllers\QueueTestController;
 use App\Http\Controllers\RouteCachingController;
 use App\Http\Controllers\LoginTestController;
@@ -19,6 +20,11 @@ use Illuminate\Support\Facades\Route;
 | contains the "web" middleware group. Now create something great!
 |
 */
+
+Route::get('/', function () {
+    return view('welcome');
+});
+Route::get('/dynamic-path/{param01}', [MiscController::class, 'dynamicPath']);
 
 Route::get('simple', [CommonSpecsController::class, 'simple'])->name('simple_route');
 Route::get('simple_view', [CommonSpecsController::class, 'simple_view']);

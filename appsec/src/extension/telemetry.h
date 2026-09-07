@@ -18,7 +18,7 @@ void dd_telemetry_add_missing_user_login(const char *nonnull event_type,
 void dd_telemetry_add_missing_user_id(const char *nonnull event_type,
     size_t event_type_len, const char *nonnull framework, size_t framework_len);
 void dd_telemetry_startup(void);
-void dd_telemetry_mshutdown(void);
+void dd_telemetry_tshutdown(void);
 
 void dd_telemetry_rinit(void);
 void dd_telemetry_note_helper_string_meta(const char *nonnull key,
@@ -51,6 +51,9 @@ void dd_telemetry_note_schema_extracted(void);
 void dd_telemetry_add_api_security_request(
     zend_object *nullable root_span, dd_api_sec_outcome outcome);
 
+// Exchanged failed up to and including client_init
 void dd_telemetry_helper_conn_error(void);
+// client_init succeeded / obtained new client_id
 void dd_telemetry_helper_conn_success(void);
+// helper client abandoned (with or without goodbye) (except php worker shutdown)
 void dd_telemetry_helper_conn_close(void);

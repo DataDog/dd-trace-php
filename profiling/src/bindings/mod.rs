@@ -407,7 +407,7 @@ extern "C" {
     pub fn ddog_php_prof_is_post_startup() -> bool;
 }
 
-use crate::config::ConfigId;
+use crate::profiling::config::ConfigId;
 pub use zend_module_dep as ModuleDep;
 
 impl ModuleDep {
@@ -701,6 +701,7 @@ pub struct ZaiConfigEntry {
     pub parser: zai_custom_parse,
     pub displayer: zai_custom_display,
     pub env_config_fallback: zai_env_config_fallback,
+    pub sensitive: bool,
 }
 
 #[repr(C)]
@@ -717,6 +718,7 @@ pub struct ZaiConfigMemoizedEntry {
     pub parser: zai_custom_parse,
     pub displayer: zai_custom_display,
     pub env_config_fallback: zai_env_config_fallback,
+    pub sensitive: bool,
     pub original_on_modify: Option<
         unsafe extern "C" fn(
             entry: *mut zend_ini_entry,

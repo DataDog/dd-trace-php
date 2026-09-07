@@ -1,37 +1,38 @@
 Changelog for older versions can be found in our [release page](https://github.com/DataDog/dd-trace-php/releases).
 
 ## All products
-### Fixed
-- Surface SSI incompatible runtime (Xdebug, OPcache JIT) as `incompatible_runtime` injection metadata, so diagnostics can explain why profiles appear but traces are missing #4021
-- Sanitize crash report type and message for unhandled exceptions DataDog/libdatadog#2148
-
-### Changed
-- Crash reports for unhandled exceptions now include native stacks for every thread, including the crashing thread DataDog/libdatadog#2155
+### Added
+- Support the stable OpenTelemetry `deployment.environment.name` resource attribute, mapped to `DD_ENV` (in addition to the legacy `deployment.environment`) #4148
 
 ### Internal
-- Exclude PHP build PRs from the config telemetry monitor #3982
+- Exclude `DD_API_KEY` and OTLP exporter header values from configuration telemetry #3961
 
 ## Tracer
+### Changed
+- Add a 1 MB size limit to Dynamic Instrumentation capture snapshots #4126
+
 ### Fixed
-- Fix unbounded memory growth (leading to OOM) from `curl_multi_exec` parent spans when the span limit is already reached #4030
-- Fix a Live Debugger probe-removal use-after-free, tags leak, and PHP 7.x Windows crash #4036
+- Fix missing/mis-tagged `drupal.theme.render` spans on Drupal >= 11.3 and under early-returning renders #4145
+- Fix sidecar reconnection error handling DataDog/libdatadog#2463
+- Fix a sidecar listening-socket leak across forks DataDog/libdatadog#2447
 
 ### Internal
-- Signal whether the service name was user-set or auto-resolved via new `svc.user`/`svc.auto` process tags #3921, DataDog/libdatadog#2053
-- Correct published type/default metadata for `OTEL_*` SDK-sourced configs #4005
-- Avoid redundant sidecar notifications when updating per-request Dynamic Instrumentation config DataDog/libdatadog#2146
+- Reduce reconnect overhead for periodic background HTTP requests in the sidecar (telemetry/trace flushes) DataDog/libdatadog#2440
+- Reduce the number of HTTP requests sent for shutdown telemetry DataDog/libdatadog#2435
+- Feature Flag Evaluation: support arbitrary semver version formats and add serial-id tracking to exposure events DataDog/libdatadog#2413, DataDog/libdatadog#2402
+- Improve crash-report accuracy by filtering stack frames above the faulting frame DataDog/libdatadog#2428
+- Fix -flto -ffat-lto-objects builds DataDog/libdatadog#2460
 
 ## Profiling
-### Fixed
-- Fix an illegal-instruction crash on Apple AArch64 in generated PHP frameless-call trampolines #4038
-
 ### Changed
-- Faster string hashing and 3.7-5.3x faster statistical (Poisson) sampling via updated Rust dependencies #4038
+- Improve profiler throughput by ~1% by gating debug-only runtime cache stats behind a build feature #4130
 
-## AppSec
 ### Fixed
-- Avoid occasional "ruleset not found" errors after redeploys/upgrades by embedding a default ruleset in the Rust helper #4037
-- Pick up an upstream libddwaf fix avoiding an exception during user-resource comparison (bump to 2.0.1) #4033
+- Restore I/O GOT hooks on module shutdown #4154
 
 ### Internal
-- Avoid an extra buffer copy in the Rust helper's client protocol #4029
+- Align zstd compression behavior across targets in the profiler's uploader DataDog/libdatadog#2400
+
+## AppSec
+### Internal
+- Move appsec communication onto the sidecar; the appsec helper is now built into the sidecar instead of as a separate binary, and the legacy C++ helper is removed #3725

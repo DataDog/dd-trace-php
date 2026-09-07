@@ -13,7 +13,7 @@ ZEND_API zval *ZEND_FASTCALL zend_hash_update(HashTable *ht, zend_string *key, z
 ZEND_API zval *ZEND_FASTCALL _zend_hash_update(HashTable *ht, zend_string *key, zval *pData) __attribute__((weak));
 ZEND_API zend_result ZEND_FASTCALL zend_hash_str_del(HashTable *ht, const char *str, size_t len) __attribute__((weak));
 ZEND_API zval* ZEND_FASTCALL zend_hash_str_find(const HashTable *ht, const char *key, size_t len) __attribute__((weak));
-ZEND_API void * __zend_malloc(size_t len) __attribute__((weak));
+extern __typeof__(__zend_malloc) __zend_malloc __attribute__((weak));
 
 static bool ddloader_zstr_is_interned(int php_api_no, zend_string *key) {
     if (php_api_no <= 20170718) {  // PHP 7.0 - 7.2

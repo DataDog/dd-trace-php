@@ -23,9 +23,9 @@ reproduced by ext/pcntl/tests/waiting_on_sigchild_pcntl_wait.phpt:
     #3  std::sys::pal::unix::futex::futex_wait ()
     #4  std::sys::sync::thread_parking::futex::Parker::park_timeout ()
     ...
-    #15 run () at profiling/src/profiling/uploader.rs:157
-    #16 {closure#3} () at profiling/src/profiling/mod.rs:898
-    #17 ... at profiling/src/profiling/thread_utils.rs:45
+    #15 run () at profiling/src/profiler/uploader.rs:157
+    #16 {closure#3} () at profiling/src/profiler/mod.rs:898
+    #17 ... at profiling/src/profiler/thread_utils.rs:45
 --SKIPIF--
 <?php
 foreach (['datadog-profiling', 'pcntl'] as $extension)

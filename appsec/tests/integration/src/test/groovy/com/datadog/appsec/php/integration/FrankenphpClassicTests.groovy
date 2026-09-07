@@ -26,7 +26,7 @@ class FrankenphpClassicTests  implements CommonTests {
                     phpVersion: phpVersion,
                     phpVariant: variant,
                     www: 'base',
-            )
+                    )
                     .withCommand('classic')
                     .withEnv('DD_APPSEC_CLI_START_ON_RINIT', 'true')
                     .withEnv('OPCACHE', 'true')

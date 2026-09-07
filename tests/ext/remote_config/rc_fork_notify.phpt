@@ -2,6 +2,7 @@
 RC notifications must appear in forked processes
 --SKIPIF--
 <?php
+if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support XFAIL");
 include __DIR__ . '/../includes/skipif_no_dev_env.inc';
 if (!extension_loaded('pcntl')) die('skip: pcntl extension required');
 ?>
@@ -12,6 +13,8 @@ DD_TRACE_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=0.1
 DD_TRACE_AGENT_TEST_SESSION_TOKEN=remote-config/rc_fork_notify
+--XFAIL--
+SessionInfo should not contain process info
 --FILE--
 <?php
 

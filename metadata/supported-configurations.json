@@ -12,7 +12,8 @@
       {
         "implementation": "C",
         "type": "string",
-        "default": ""
+        "default": "",
+        "sensitive": true
       }
     ],
     "DD_API_SECURITY_ENABLED": [
@@ -83,9 +84,9 @@
     ],
     "DD_APPSEC_HELPER_LOG_FILE": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "string",
-        "default": "/dev/null"
+        "default": "<sidecar log>"
       }
     ],
     "DD_APPSEC_HELPER_LOG_LEVEL": [
@@ -93,27 +94,6 @@
         "implementation": "A",
         "type": "string",
         "default": "info"
-      }
-    ],
-    "DD_APPSEC_HELPER_PATH": [
-      {
-        "implementation": "A",
-        "type": "string",
-        "default": "/opt/datadog-php/bin/libddappsec-helper.so"
-      }
-    ],
-    "DD_APPSEC_HELPER_RUNTIME_PATH": [
-      {
-        "implementation": "A",
-        "type": "string",
-        "default": "/tmp"
-      }
-    ],
-    "DD_APPSEC_HELPER_RUST_REDIRECTION": [
-      {
-        "implementation": "B",
-        "type": "boolean",
-        "default": "true"
       }
     ],
     "DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML": [
@@ -2728,7 +2708,8 @@
       {
         "implementation": "A",
         "type": "map",
-        "default": ""
+        "default": "",
+        "sensitive": true
       }
     ],
     "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT": [
@@ -2742,7 +2723,8 @@
       {
         "implementation": "B",
         "type": "map",
-        "default": null
+        "default": null,
+        "sensitive": true
       }
     ],
     "OTEL_EXPORTER_OTLP_LOGS_PROTOCOL": [
@@ -2770,7 +2752,8 @@
       {
         "implementation": "A",
         "type": "map",
-        "default": null
+        "default": null,
+        "sensitive": true
       }
     ],
     "OTEL_EXPORTER_OTLP_METRICS_PROTOCOL": [

@@ -14,6 +14,37 @@ ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
 #include <tracer/configuration_dependencies.h>
 
+#ifndef DDTRACE
+bool datadog_alter_dd_service(zval *old_value, zval *new_value, zend_string *new_str) {
+    UNUSED(old_value, new_value);
+    if (DATADOG_G(request_initialized)) {
+        ddtrace_sidecar_submit_span_data_direct(&DATADOG_G(sidecar), NULL, new_str, get_DD_ENV(), get_DD_VERSION());
+    }
+    return true;
+}
+
+bool datadog_alter_dd_env(zval *old_value, zval *new_value, zend_string *new_str) {
+    UNUSED(old_value, new_value);
+    if (DATADOG_G(request_initialized)) {
+        ddtrace_sidecar_submit_span_data_direct(&DATADOG_G(sidecar), NULL, get_DD_SERVICE(), new_str, get_DD_VERSION());
+    }
+    return true;
+}
+
+bool datadog_alter_dd_version(zval *old_value, zval *new_value, zend_string *new_str) {
+    UNUSED(old_value, new_value);
+    if (DATADOG_G(request_initialized)) {
+        ddtrace_sidecar_submit_span_data_direct(&DATADOG_G(sidecar), NULL, get_DD_SERVICE(), get_DD_ENV(), new_str);
+    }
+    return true;
+}
+
+bool datadog_alter_dd_trace_disabled_config(zval *old_value, zval *new_value, zend_string *new_str) {
+    UNUSED(old_value, new_value, new_str);
+    return true;
+}
+#endif
+
 #define DD_TO_DATADOG_INC 5 /* "DD" expanded to "datadog" */
 
 #define APPLY_0(...)
@@ -159,14 +190,17 @@ bool datadog_config_minit(int module_number) {
 }
 
 void datadog_config_first_rinit() {
+#ifdef DDTRACE
     zend_ini_entry *internal_functions_ini =
         zai_config_memoized_entries[DATADOG_CONFIG_DD_TRACE_TRACED_INTERNAL_FUNCTIONS].ini_entries[0];
     zend_string *internal_functions_old = zend_string_copy(
         internal_functions_ini->modified ? internal_functions_ini->orig_value : internal_functions_ini->value);
+#endif
 
     zai_config_first_time_rinit(true);
     zai_config_rinit();
 
+#ifdef DDTRACE
     zend_string *internal_functions_new =
         internal_functions_ini->modified ? internal_functions_ini->orig_value : internal_functions_ini->value;
 
@@ -180,6 +214,7 @@ void datadog_config_first_rinit() {
             ZSTR_VAL(internal_functions_old), ZSTR_VAL(internal_functions_new));
     }
     zend_string_release(internal_functions_old);
+#endif
 
     if (!get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_APPSEC_SCA_ENABLED()) {
         LOG(WARN, "DD_APPSEC_SCA_ENABLED requires DD_INSTRUMENTATION_TELEMETRY_ENABLED in order to work");

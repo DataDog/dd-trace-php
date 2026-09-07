@@ -1,20 +1,19 @@
-use crate::bindings::zai_config_type::*;
-use crate::bindings::{
+use crate::profiling::bindings::zai_config_type::*;
+use crate::profiling::bindings::{
     datadog_php_profiling_copy_string_view_into_zval, ddog_php_prof_config_is_set_by_user,
     ddog_php_prof_get_memoized_config, zai_config_entry, zai_config_get_value, zai_config_minit,
     zai_config_name, zai_config_system_ini_change, zend_ini_entry, zend_long, zend_string,
     zend_write, zval, StringError, ZaiStr, IS_FALSE, IS_LONG, IS_TRUE, ZAI_CONFIG_NAME_BUFSIZ,
     ZEND_INI_DISPLAY_ORIG,
 };
-use crate::zend::zai_str_from_zstr;
-use crate::{allocation, bindings};
+use crate::profiling::zend::zai_str_from_zstr;
+use crate::profiling::{allocation, bindings};
 use core::fmt::{Display, Formatter};
 use core::mem::transmute;
 use core::ptr;
 use core::str::FromStr;
 pub use http::Uri;
 use libc::{c_char, c_int};
-use libdd_common::tag::{parse_tags, Tag};
 use log::{debug, error, warn, LevelFilter};
 use std::borrow::Cow;
 use std::ffi::CString;
@@ -776,11 +775,8 @@ pub(crate) unsafe fn git_repository_url() -> Option<String> {
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-pub(crate) unsafe fn tags() -> (Vec<Tag>, Option<String>) {
-    match get_str(Tags) {
-        None => (Vec::new(), None),
-        Some(dd_tags) => parse_tags(&dd_tags),
-    }
+pub(crate) unsafe fn tags() -> Option<String> {
+    get_str(Tags)
 }
 
 /// # Safety
@@ -1021,6 +1017,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: Some(parse_profiling_enabled),
                     displayer: Some(display_profiling_enabled),
                     env_config_fallback: None,
+                    sensitive: false,
                 },
                 zai_config_entry {
                     id: transmute::<ConfigId, u16>(ProfilingExperimentalFeaturesEnabled),
@@ -1033,6 +1030,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: None,
                     displayer: None,
                     env_config_fallback: None,
+                    sensitive: false,
                 },
                 zai_config_entry {
                     id: transmute::<ConfigId, u16>(ProfilingEndpointCollectionEnabled),
@@ -1045,6 +1043,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: None,
                     displayer: None,
                     env_config_fallback: None,
+                    sensitive: false,
                 },
                 zai_config_entry {
                     id: transmute::<ConfigId, u16>(ProfilingExperimentalCpuTimeEnabled),
@@ -1057,6 +1056,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: None,
                     displayer: None,
                     env_config_fallback: None,
+                    sensitive: false,
                 },
                 zai_config_entry {
                     id: transmute::<ConfigId, u16>(ProfilingAllocationEnabled),
@@ -1069,18 +1069,20 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: None,
                     displayer: None,
                     env_config_fallback: None,
+                    sensitive: false,
                 },
                 zai_config_entry {
                     id: transmute::<ConfigId, u16>(ProfilingAllocationSamplingDistance),
                     name: ProfilingAllocationSamplingDistance.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_CUSTOM,
-                    default_encoded_value: ZaiStr::literal(b"4194304\0"), // crate::allocation::DEFAULT_ALLOCATION_SAMPLING_INTERVAL
+                    default_encoded_value: ZaiStr::literal(b"4194304\0"), // crate::profiling::allocation::DEFAULT_ALLOCATION_SAMPLING_INTERVAL
                     aliases: ptr::null_mut(),
                     aliases_count: 0,
                     ini_change: Some(zai_config_system_ini_change),
                     parser: Some(parse_sampling_distance_filter),
                     displayer: None,
                     env_config_fallback: None,
+                    sensitive: false,
                 },
                 zai_config_entry {
                     id: transmute::<ConfigId, u16>(ProfilingExperimentalHeapLiveEnabled),
@@ -1093,6 +1095,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: None,
                     displayer: None,
                     env_config_fallback: None,
+                    sensitive: false,
                 },
                 zai_config_entry {
                     id: transmute::<ConfigId, u16>(ProfilingTimelineEnabled),
@@ -1105,6 +1108,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: None,
                     displayer: None,
                     env_config_fallback: None,
+                    sensitive: false,
                 },
                 zai_config_entry {
                     id: transmute::<ConfigId, u16>(ProfilingExceptionEnabled),
@@ -1117,6 +1121,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: None,
                     displayer: None,
                     env_config_fallback: None,
+                    sensitive: false,
                 },
                 zai_config_entry {
                     id: transmute::<ConfigId, u16>(ProfilingExceptionMessageEnabled),
@@ -1129,6 +1134,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: None,
                     displayer: None,
                     env_config_fallback: None,
+                    sensitive: false,
                 },
                 zai_config_entry {
                     id: transmute::<ConfigId, u16>(ProfilingExceptionSamplingDistance),
@@ -1141,6 +1147,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: Some(parse_sampling_distance_filter),
                     displayer: None,
                     env_config_fallback: None,
+                    sensitive: false,
                 },
                 zai_config_entry {
                     id: transmute::<ConfigId, u16>(ProfilingExperimentalIOEnabled),
@@ -1153,6 +1160,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: None,
                     displayer: None,
                     env_config_fallback: None,
+                    sensitive: false,
                 },
                 zai_config_entry {
                     id: transmute::<ConfigId, u16>(ProfilingLogLevel),
@@ -1165,6 +1173,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: Some(parse_level_filter),
                     displayer: None,
                     env_config_fallback: None,
+                    sensitive: false,
                 },
                 zai_config_entry {
                     id: transmute::<ConfigId, u16>(ProfilingOutputPprof),
@@ -1177,6 +1186,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: Some(parse_utf8_string),
                     displayer: None,
                     env_config_fallback: None,
+                    sensitive: false,
                 },
                 // At the moment, wall-time cannot be fully disabled. This only
                 // controls automatic collection (manual collection is still
@@ -1192,6 +1202,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: None,
                     displayer: None,
                     env_config_fallback: None,
+                    sensitive: false,
                 },
                 zai_config_entry {
                     id: transmute::<ConfigId, u16>(AgentHost),
@@ -1204,6 +1215,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: Some(parse_utf8_string),
                     displayer: None,
                     env_config_fallback: None,
+                    sensitive: false,
                 },
                 zai_config_entry {
                     id: transmute::<ConfigId, u16>(Env),
@@ -1216,6 +1228,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: Some(parse_utf8_string),
                     displayer: None,
                     env_config_fallback: None,
+                    sensitive: false,
                 },
                 zai_config_entry {
                     id: transmute::<ConfigId, u16>(Service),
@@ -1228,6 +1241,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: Some(parse_utf8_string),
                     displayer: None,
                     env_config_fallback: None,
+                    sensitive: false,
                 },
                 zai_config_entry {
                     id: transmute::<ConfigId, u16>(Tags),
@@ -1244,6 +1258,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: None,
                     displayer: None,
                     env_config_fallback: None,
+                    sensitive: false,
                 },
                 zai_config_entry {
                     id: transmute::<ConfigId, u16>(TraceAgentPort),
@@ -1256,6 +1271,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: Some(parse_utf8_string),
                     displayer: None,
                     env_config_fallback: None,
+                    sensitive: false,
                 },
                 zai_config_entry {
                     id: transmute::<ConfigId, u16>(TraceAgentUrl),
@@ -1268,6 +1284,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: Some(parse_utf8_string),
                     displayer: None,
                     env_config_fallback: None,
+                    sensitive: false,
                 },
                 zai_config_entry {
                     id: transmute::<ConfigId, u16>(Version),
@@ -1280,6 +1297,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: Some(parse_utf8_string),
                     displayer: None,
                     env_config_fallback: None,
+                    sensitive: false,
                 },
                 zai_config_entry {
                     id: transmute::<ConfigId, u16>(GitCommitSha),
@@ -1292,6 +1310,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: Some(parse_utf8_string),
                     displayer: None,
                     env_config_fallback: None,
+                    sensitive: false,
                 },
                 zai_config_entry {
                     id: transmute::<ConfigId, u16>(GitRepositoryUrl),
@@ -1304,6 +1323,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     parser: Some(parse_utf8_string),
                     displayer: None,
                     env_config_fallback: None,
+                    sensitive: false,
                 },
             ]
         };
@@ -1329,7 +1349,7 @@ pub(crate) fn minit(module_number: libc::c_int) {
         #[cfg(debug_assertions)]
         log::set_max_level(system_settings.profiling_log_level);
         #[cfg(not(debug_assertions))]
-        crate::logging::log_init(system_settings.profiling_log_level);
+        crate::profiling::logging::log_init(system_settings.profiling_log_level);
 
         SystemSettings::log_state(
             (*ptr::addr_of!(SYSTEM_SETTINGS)).state,

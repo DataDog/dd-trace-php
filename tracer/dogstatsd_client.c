@@ -21,7 +21,7 @@ static struct addrinfo *dd_alloc_unix_addr(const char *path, size_t len) {
     addrs->ai_next = NULL;
     addrs->ai_family = PF_UNIX;
     addrs->ai_protocol = 0;
-    addrs->ai_socktype = SOCK_STREAM;
+    addrs->ai_socktype = SOCK_DGRAM;
     addrs->ai_addrlen = sizeof(struct sockaddr_un);
     struct sockaddr_un *unixaddr = calloc(1, sizeof(struct sockaddr_un));
     addrs->ai_addr = (struct sockaddr *)unixaddr;

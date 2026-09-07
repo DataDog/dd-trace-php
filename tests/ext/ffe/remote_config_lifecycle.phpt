@@ -8,8 +8,7 @@ DD_TRACE_AGENT_PORT=80
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=0.01
 DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED=1
---INI--
-datadog.trace.agent_test_session_token=ffe/remote_config_lifecycle
+DD_TRACE_AGENT_TEST_SESSION_TOKEN=ffe/remote_config_lifecycle
 --FILE--
 <?php
 require __DIR__ . "/../remote_config/remote_config.inc";

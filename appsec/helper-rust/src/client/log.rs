@@ -33,14 +33,14 @@ pub fn log_error_with_backtrace_at(
         bt: &'a Backtrace,
     }
 
-    impl<'kvs> log::kv::Source for BacktraceKvs<'kvs> {
+    impl log::kv::Source for BacktraceKvs<'_> {
         fn visit<'a>(
             &'a self,
             visitor: &mut dyn log::kv::VisitSource<'a>,
         ) -> Result<(), log::kv::Error> {
             visitor.visit_pair(
                 log::kv::Key::from_str(ANYHOW_BACKTRACE_KEY),
-                log::kv::Value::from_display(self.bt),
+                log::kv::Value::from_display(&self.bt),
             )
         }
     }
@@ -61,7 +61,11 @@ pub fn log_error_with_backtrace_at(
         Box::new(EmptSource)
     };
 
-    log::logger().log(
+    let submit_and_log = |record: &log::Record<'_>| {
+        crate::telemetry::submit_error_to_telemetry(record);
+        log::logger().log(record);
+    };
+    submit_and_log(
         &log::Record::builder()
             .args(format_args!("{}", formatted_msg))
             .level(log::Level::Error)
@@ -81,7 +85,11 @@ pub trait TryGetBacktrace {
 impl TryGetBacktrace for anyhow::Error {
     #[inline]
     fn try_get_backtrace(&self) -> Option<&Backtrace> {
-        Some(self.backtrace())
+        let bt = self.backtrace();
+        match bt.status() {
+            std::backtrace::BacktraceStatus::Captured => Some(bt),
+            _ => None,
+        }
     }
 }
 
@@ -93,13 +101,21 @@ impl<T: ?Sized> TryGetBacktrace for &T {
 }
 
 macro_rules! client_log {
-    ($level:ident, $($arg:tt)*) => {
-        if let Ok(client_id) = $crate::client::log::CLIENT_ID.try_with(|id| *id) {
-            ::log::$level!("Client #{}: {}", client_id, format!($($arg)*));
-        } else {
-            ::log::$level!("{}", format!($($arg)*));
+    ($level:expr, $log_macro:ident, $($arg:tt)*) => {{
+        let target = module_path!();
+        if ::log::log_enabled!(target: target, $level) {
+            if let Ok(client_id) = $crate::client::log::CLIENT_ID.try_with(|id| *id) {
+                ::log::$log_macro!(
+                    target: target,
+                    "Client #{}: {}",
+                    client_id,
+                    ::std::format_args!($($arg)*)
+                );
+            } else {
+                ::log::$log_macro!(target: target, $($arg)*);
+            }
         }
-    };
+    }};
 }
 pub(crate) use client_log;
 
@@ -117,22 +133,30 @@ macro_rules! client_log_gen {
 pub(crate) use client_log_gen;
 
 macro_rules! trace {
-    ($($arg:tt)*) => { crate::client::log::client_log!(trace, $($arg)*) };
+    ($($arg:tt)*) => {
+        crate::client::log::client_log!(::log::Level::Trace, trace, $($arg)*)
+    };
 }
 pub(crate) use trace;
 
 macro_rules! debug {
-    ($($arg:tt)*) => { crate::client::log::client_log!(debug, $($arg)*) };
+    ($($arg:tt)*) => {
+        crate::client::log::client_log!(::log::Level::Debug, debug, $($arg)*)
+    };
 }
 pub(crate) use debug;
 
 macro_rules! info {
-    ($($arg:tt)*) => { crate::client::log::client_log!(info, $($arg)*) };
+    ($($arg:tt)*) => {
+        crate::client::log::client_log!(::log::Level::Info, info, $($arg)*)
+    };
 }
 pub(crate) use info;
 
 macro_rules! warning {
-    ($($arg:tt)*) => { crate::client::log::client_log!(warn, $($arg)*) };
+    ($($arg:tt)*) => {
+        crate::client::log::client_log!(::log::Level::Warn, warn, $($arg)*)
+    };
 }
 pub(crate) use warning;
 
@@ -246,4 +270,78 @@ pub fn fmt_bin(vec: &[u8]) -> impl std::fmt::Debug + '_ {
     }
 
     BinFormatter(vec)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fmt;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::{Mutex, Once};
+
+    use serial_test::serial;
+
+    use super::{debug, info, CLIENT_ID};
+
+    static LOGGER_INIT: Once = Once::new();
+    static FORMAT_CALLS: AtomicUsize = AtomicUsize::new(0);
+    static TEST_LOGGER: TestLogger = TestLogger {
+        messages: Mutex::new(Vec::new()),
+    };
+
+    struct TestLogger {
+        messages: Mutex<Vec<String>>,
+    }
+
+    impl log::Log for TestLogger {
+        fn enabled(&self, metadata: &log::Metadata<'_>) -> bool {
+            metadata.level() <= log::Level::Info
+                && metadata.target() == "ddappsec_helper::client::log::tests"
+        }
+
+        fn log(&self, record: &log::Record<'_>) {
+            if self.enabled(record.metadata()) {
+                self.messages
+                    .lock()
+                    .unwrap()
+                    .push(record.args().to_string());
+            }
+        }
+
+        fn flush(&self) {}
+    }
+
+    struct CountedDisplay;
+
+    impl fmt::Display for CountedDisplay {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            FORMAT_CALLS.fetch_add(1, Ordering::Relaxed);
+            f.write_str("formatted")
+        }
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn client_log_only_formats_messages_consumed_by_the_logger() {
+        LOGGER_INIT.call_once(|| {
+            log::set_logger(&TEST_LOGGER).unwrap();
+            log::set_max_level(log::LevelFilter::Trace);
+        });
+        FORMAT_CALLS.store(0, Ordering::Relaxed);
+        TEST_LOGGER.messages.lock().unwrap().clear();
+
+        CLIENT_ID
+            .scope(42, async {
+                debug!("filtered {}", CountedDisplay);
+                assert_eq!(FORMAT_CALLS.load(Ordering::Relaxed), 0);
+
+                info!("accepted {}", CountedDisplay);
+            })
+            .await;
+
+        assert_eq!(FORMAT_CALLS.load(Ordering::Relaxed), 1);
+        assert_eq!(
+            TEST_LOGGER.messages.lock().unwrap().as_slice(),
+            ["Client #42: accepted formatted"]
+        );
+    }
 }

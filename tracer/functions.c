@@ -9,8 +9,13 @@
 #include "ffe.h"
 #include "handlers_exception.h"
 #include "memory_limit.h"
+#ifdef __linux__
+#include "otel_context.h"
+#include <components-rs/datadog.h>
+#endif
 #include "random.h"
 #include "serializer.h"
+#include "trace_context.h"
 #include "weak_resources.h"
 #include <ext/startup_logging.h>
 #include "handlers_http.h"
@@ -536,7 +541,12 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
 #endif
     ddtrace_root_span_data *span = ROOTSPANDATA(obj);
     zval zv;
+    bool trace_id_changed = false;
+    bool trace_id_random = false;
     bool root_span_data_changed = false;
+#ifdef __linux__
+    bool sampling_priority_changed = false;
+#endif
     if (zend_string_equals_literal(prop_name, "parentId")) {
         if (Z_TYPE_P(value) == IS_LONG && Z_LVAL_P(value)) {
             span->parent_id = (uint64_t) Z_LVAL_P(value);
@@ -560,7 +570,9 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
                 .time = get_DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED() ? span->start / ZEND_NANO_IN_SEC : 0,
             };
             value = &span->property_id;
+            trace_id_random = true;
         }
+        trace_id_changed = true;
         cache_slot = NULL;
     } else if (zend_string_equals_literal(prop_name, "service")) {
         if (ddtrace_span_is_entrypoint_root(&span->span) && !zend_is_identical(&span->property_service, value)) {
@@ -579,6 +591,9 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
         cache_slot = NULL;
     } else if (zend_string_equals_literal(prop_name, "samplingPriority")) {
         span->explicit_sampling_priority = zval_get_long(value) != DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
+#ifdef __linux__
+        sampling_priority_changed = true;
+#endif
         cache_slot = NULL;
     }
 
@@ -587,7 +602,22 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
 #else
     ddtrace_span_data_readonly(object, member, value, cache_slot);
 #endif
+    if (trace_id_changed) {
+        span->trace_flags = (span->trace_flags & ~DDTRACE_TRACE_FLAG_RANDOM)
+            | (trace_id_random ? DDTRACE_TRACE_FLAG_RANDOM : 0);
+#ifdef __linux__
+        ddtrace_otel_update_trace_id(span);
+#endif
+    }
+#ifdef __linux__
+    if (sampling_priority_changed) {
+        ddtrace_otel_update_trace_flags(span);
+    }
+#endif
     if (root_span_data_changed) {
+#ifdef __linux__
+        ddtrace_otel_update_attribute_values(span);
+#endif
         ddtrace_sidecar_submit_root_span_data();
     }
 #if PHP_VERSION_ID >= 70400
@@ -1870,7 +1900,9 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
             targeting_key,
             subject_attributes_json,
             allocation_key,
-            variant
+            variant,
+            result.serial_id,
+            result.has_serial_id
         );
         zend_string_release(subject_attributes_json);
     }
@@ -1957,6 +1989,21 @@ PHP_FUNCTION(dd_trace_coms_trigger_writer_flush) {
 
 #define FUNCTION_NAME_MATCHES(function) zend_string_equals_literal(function_val, function)
 
+static bool ddtrace_otel_config_is_reportable(zend_string *name) {
+    static const char otel_prefix[] = "OTEL_";
+    static const char otlp_prefix[] = "OTEL_EXPORTER_OTLP";
+    static const char headers_suffix[] = "_HEADERS";
+    size_t name_len = ZSTR_LEN(name);
+    if (name_len < sizeof(otel_prefix) - 1
+        || memcmp(ZSTR_VAL(name), otel_prefix, sizeof(otel_prefix) - 1) != 0) {
+        return false;
+    }
+    return name_len < sizeof(otlp_prefix) + sizeof(headers_suffix) - 2
+        || memcmp(ZSTR_VAL(name), otlp_prefix, sizeof(otlp_prefix) - 1) != 0
+        || memcmp(ZSTR_VAL(name) + name_len - sizeof(headers_suffix) + 1,
+            headers_suffix, sizeof(headers_suffix) - 1) != 0;
+}
+
 PHP_FUNCTION(dd_trace_internal_fn) {
     UNUSED(execute_data);
     zval ***params = NULL;
@@ -2002,7 +2049,7 @@ PHP_FUNCTION(dd_trace_internal_fn) {
         } else if (params_count == 2 && FUNCTION_NAME_MATCHES("track_otel_config")) {
             zval *config_name = ZVAL_VARARG_PARAM(params, 0);
             zval *config_value = ZVAL_VARARG_PARAM(params, 1);
-            if (Z_TYPE_P(config_name) == IS_STRING) {
+            if (Z_TYPE_P(config_name) == IS_STRING && ddtrace_otel_config_is_reportable(Z_STR_P(config_name))) {
                 // Store the config name and value in the HashTable
                 zval value_copy;
                 ZVAL_COPY(&value_copy, config_value);
@@ -2043,6 +2090,10 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             if (datadog_process_tags_enabled()) {
                 datadog_process_tags_reload();
                 datadog_sidecar_update_process_tags();
+#ifdef __linux__
+                zend_string *process_tags = datadog_process_tags_get_serialized();
+                datadog_publish_otel_process_context(dd_zend_string_to_CharSlice(process_tags));
+#endif
             }
             RETVAL_TRUE;
         } else if (params_count == 1 && FUNCTION_NAME_MATCHES("set_container_tags_hash")) {
@@ -2233,6 +2284,7 @@ PHP_FUNCTION(dd_trace_set_trace_id) {
     datadog_trace_id new_trace_id = ddtrace_parse_userland_trace_id(trace_id);
     if (new_trace_id.low || new_trace_id.high || (ZSTR_LEN(trace_id) == 1 && ZSTR_VAL(trace_id)[0] == '0')) {
         DDTRACE_G(distributed_trace_id) = new_trace_id;
+        DDTRACE_G(distributed_trace_flags) = new_trace_id.low || new_trace_id.high ? 0 : DDTRACE_TRACE_FLAG_RANDOM;
         RETURN_TRUE;
     }
 
@@ -2666,13 +2718,19 @@ PHP_FUNCTION(DDTrace_set_distributed_tracing_context) {
                 .low = root_span->span_id,
                 .time = get_DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED() ? root_span->start / ZEND_NANO_IN_SEC : 0,
             };
+            root_span->trace_flags = DDTRACE_TRACE_FLAG_RANDOM;
         } else {
             root_span->trace_id = new_trace_id;
+            root_span->trace_flags = 0;
         }
         ddtrace_update_root_id_properties(root_span);
+#ifdef __linux__
+        ddtrace_otel_update_trace_id(root_span);
+#endif
     } else {
         DDTRACE_G(distributed_trace_id) = new_trace_id;
         DDTRACE_G(distributed_parent_trace_id) = new_parent_id;
+        DDTRACE_G(distributed_trace_flags) = new_trace_id.low || new_trace_id.high ? 0 : DDTRACE_TRACE_FLAG_RANDOM;
     }
 
     if (origin) {

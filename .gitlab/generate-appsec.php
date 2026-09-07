@@ -25,6 +25,25 @@ $ecrLoginSnippet = <<<'EOT'
       echo "Logging in to ECR"
       aws ecr get-login-password | docker login --username AWS --password-stdin 669783387624.dkr.ecr.us-east-1.amazonaws.com
 EOT;
+
+// Keep these groups aligned with allPushTasks in gradle/images.gradle.
+$appsecImageTagGroups = [];
+foreach ($all_minor_major_targets as $version) {
+    $tags = [];
+    foreach (["php", "apache2-mod-php", "apache2-fpm-php", "nginx-fpm-php"] as $prefix) {
+        foreach (["release", "debug", "release-zts"] as $variant) {
+            $tags[] = "$prefix-$version-$variant";
+        }
+    }
+    $appsecImageTagGroups["PHP $version"] = $tags;
+}
+$appsecImageTagGroups["other"] = [
+    "toolchain",
+    "php-deps",
+    "frankenphp-8.4-release-zts",
+    "php-buildonly-rust",
+    "nginx-fpm-php-8.5-release-musl",
+];
 ?>
 variables:
   FF_ENABLE_BASH_EXIT_CODE_CHECK: "true"
@@ -38,10 +57,12 @@ variables:
     description: "Your docker hub personal access token, can be created following this doc https://docs.docker.com/docker-hub/access-tokens/#create-an-access-token"
   CI_REGISTRY:
     value: "docker.io"
+  APPSEC_IMAGE_REPO: "registry.ddbuild.io/ci/dd-trace-php/dd-appsec-php-ci"
 
 stages:
   - test
   - docker-build
+  - docker-publish
 
 .appsec_test:
   tags: [ "arch:${ARCH}" ]
@@ -52,7 +73,6 @@ stages:
     - when: on_success
   before_script:
 <?php unset_dd_runner_env_vars() ?>
-    - git config --global --add safe.directory "$(pwd)/appsec/third_party/libddwaf"
     - sudo apt install -y clang-tidy-20 libc++-20-dev libc++abi-20-dev
     - mkdir -p appsec/build boost-cache boost-cache
   cache:
@@ -62,11 +82,54 @@ stages:
 
 .docker_push_job:
   stage: docker-build
+  timeout: 3h
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   before_script:
 <?php echo $ecrLoginSnippet, "\n"; ?>
-<?php dockerhub_login() ?>
     - apt update && apt install -y openjdk-17-jre
+
+.appsec_image_publish:
+  stage: docker-publish
+  needs:
+    - "push appsec docker images multiarch"
+  image: registry.ddbuild.io/agent-delivery/dd-pkg:v0.9.3
+  tags: [ "arch:arm64" ]
+  variables:
+    IMG_REGISTRIES: "dockerhub"
+    IMG_SIGNING: "false"
+    PUBLIC_IMAGES_PUBLISH_TIMEOUT: "1800"
+  script:
+    - |
+      set -euo pipefail
+      dd-pkg version
+
+      read -r -a tags <<< "${TAGS}"
+      pids=()
+      for tag in "${tags[@]}"; do
+        (
+          set -o pipefail
+          dd-pkg publish-image \
+            --timeout "${PUBLIC_IMAGES_PUBLISH_TIMEOUT}" \
+            --poll-interval 30 \
+            --signing="${IMG_SIGNING}" \
+            --registries "${IMG_REGISTRIES}" \
+            --sources "${APPSEC_IMAGE_REPO}:${tag}" \
+            --destinations "dd-appsec-php-ci:${tag}" 2>&1 \
+            | sed -u "s/^/[${tag}] /"
+        ) &
+        pids+=("$!")
+      done
+
+      failed=0
+      for i in "${!pids[@]}"; do
+        if wait "${pids[$i]}"; then
+          echo "Published ${tags[$i]}"
+        else
+          echo "Failed to publish ${tags[$i]}" >&2
+          failed=1
+        fi
+      done
+      exit "${failed}"
 
 "test appsec extension":
   stage: test
@@ -96,7 +159,7 @@ stages:
     - switch-php $SWITCH_PHP_VERSION
     - cd appsec/build
     - if [[ "$SWITCH_PHP_VERSION" == *"asan"* ]]; then ASAN_FLAG=ON; else ASAN_FLAG=OFF; fi
-    - "cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_HELPER=OFF
+    - "cmake .. -DCMAKE_BUILD_TYPE=Debug
       -DCMAKE_CXX_FLAGS='-stdlib=libc++' -DCMAKE_CXX_LINK_FLAGS='-stdlib=libc++'
 	  -DDD_APPSEC_TESTING=ON -DBOOST_CACHE_PREFIX=$CI_PROJECT_DIR/boost-cache
       -DENABLE_ASAN=$ASAN_FLAG"
@@ -112,7 +175,6 @@ stages:
     KUBERNETES_MEMORY_LIMIT: 30Gi
     DOCKER_LOOPBACK_SIZE: 30G
     ARCH: amd64
-    HELPER_FLAG: ""
     GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle-home"
     DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED: "0"
   before_script:
@@ -129,7 +191,7 @@ stages:
         TERM=dumb ./gradlew loadCaches --info
       fi
 
-      TERM=dumb ./gradlew $targets --info -Pbuildscan --scan -PcheckCoreDumps $HELPER_FLAG
+      TERM=dumb ./gradlew $targets --info -Pbuildscan --scan -PcheckCoreDumps
       TERM=dumb ./gradlew saveCaches --info
   after_script:
     - mkdir -p "${CI_PROJECT_DIR}/artifacts"
@@ -182,16 +244,6 @@ stages:
     matrix:
       - targets:
           - test8.3-release-ssi
-
-"appsec integration tests (helper-cpp)":
-  extends: .appsec_integration_tests
-  variables:
-    HELPER_FLAG: "-PuseHelperCpp"
-  parallel:
-    matrix:
-      - targets:
-          - test8.3-release
-          - test8.3-release-zts
 
 "helper-rust build and test":
   stage: test
@@ -289,7 +341,7 @@ stages:
     KUBERNETES_MEMORY_REQUEST: 24Gi
     KUBERNETES_MEMORY_LIMIT: 30Gi
     ARCH: amd64
-    DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED: "0"
+    GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle-home"
   before_script:
 <?php echo $ecrLoginSnippet, "\n"; ?>
 <?php dockerhub_login() ?>
@@ -302,21 +354,32 @@ stages:
         echo "Loading cache from $CACHE_PATH"
         TERM=dumb ./gradlew loadCaches --info
       fi
-      # Build helper-rust with coverage instrumentation
-      TERM=dumb ./gradlew buildHelperRustWithCoverage --info -Pbuildscan --scan
-      # Run integration tests with coverage-instrumented binary
-      TERM=dumb ./gradlew test8.3-debug --info -Pbuildscan --scan -PcheckCoreDumps -PuseHelperRustCoverage
-      # Generate coverage report from profraw files
-      TERM=dumb ./gradlew generateHelperRustIntegrationCoverage --info -Pbuildscan --scan
+
+      TERM=dumb ./gradlew buildPortableLibdatadogPhp \
+        --info -Pbuildscan --scan -PuseHelperRustCoverage
+
+      # Coverage-instrumented artifacts are bulky: this leaves ~6G of cargo
+      # intermediates in php-portable-libdatadog-php, over a quarter of the
+      # ~20G available, and the tests then run the disk out. The build copies
+      # libdatadog_php.so out of the target directory, and that copy is what
+      # both the tests and the coverage report use, so the intermediates are
+      # dead weight from here on. Unlike the cargo caches, this volume is not
+      # part of loadCaches/saveCaches, so nothing later reuses them either.
+      # Dropped here rather than in the Gradle task so local incremental
+      # rebuilds keep working.
+      docker run --rm -v php-portable-libdatadog-php:/vol alpine \
+        rm -rf /vol/cargo-target
+      TERM=dumb ./gradlew test8.3-release-ssi test8.4-release-zts-ssi \
+        --info -Pbuildscan --scan -PcheckCoreDumps -PuseHelperRustCoverage
       TERM=dumb ./gradlew saveCaches --info
     - |
-      echo "Extracting coverage data from Docker volume"
-      mkdir -p "$CI_PROJECT_DIR"/appsec/helper-rust
-      docker run --rm -v php-helper-rust-coverage:/vol alpine cat /vol/coverage-integration.lcov > "$CI_PROJECT_DIR"/appsec/helper-rust/coverage-integration.lcov
-    - |
       cd "$CI_PROJECT_DIR"
-      DD_COVERAGE_FLAGS=helper-rust-integration \
-        .gitlab/upload-code-coverage-to-datadog.sh appsec/helper-rust/coverage-integration.lcov
+      DD_COVERAGE_FLAGS=helper-rust-integration-8.3-release-ssi \
+        .gitlab/upload-code-coverage-to-datadog.sh \
+          appsec/tests/integration/build/reports/coverage/8.3-release-ssi/helper-rust-integration.lcov
+      DD_COVERAGE_FLAGS=helper-rust-integration-8.4-release-zts-ssi \
+        .gitlab/upload-code-coverage-to-datadog.sh \
+          appsec/tests/integration/build/reports/coverage/8.4-release-zts-ssi/helper-rust-integration.lcov
   after_script:
     - mkdir -p "${CI_PROJECT_DIR}/artifacts"
     - find appsec/tests/integration/build/test-results -name "*.xml" -exec cp --parents '{}' "${CI_PROJECT_DIR}/artifacts/" \; || true
@@ -327,7 +390,7 @@ stages:
       junit: "artifacts/**/test-results/**/TEST-*.xml"
     paths:
       - "artifacts/"
-      - appsec/helper-rust/coverage-integration.lcov
+      - appsec/tests/integration/build/reports/coverage/*/helper-rust-integration.lcov
     when: always
   cache:
     - key: "appsec int test cache"
@@ -359,11 +422,6 @@ stages:
       export PATH=$PATH:$HOME/.cargo/bin
       LLVM_PROFILE_FILE="/tmp/cov-ext/%p.profraw" \
         VERBOSE=1 make -j 4 xtest
-    - VERBOSE=1 make -j 4 ddappsec_helper_test
-    - |
-      cd ../..
-      LLVM_PROFILE_FILE="/tmp/cov-helper/%p.profraw" \
-        ./appsec/build/tests/helper/ddappsec_helper_test
     - |
       cd /tmp/cov-ext
       llvm-profdata-20 merge -sparse *.profraw -o default.profdata
@@ -371,16 +429,9 @@ stages:
         -format=lcov -instr-profile=default.profdata \
         > "$CI_PROJECT_DIR"/appsec/build/coverage-ext.lcov
     - |
-      cd /tmp/cov-helper
-      llvm-profdata-20 merge -sparse *.profraw -o default.profdata
-      llvm-cov-20 export "$CI_PROJECT_DIR"/appsec/build/tests/helper/ddappsec_helper_test \
-        -format=lcov -instr-profile=default.profdata \
-        > "$CI_PROJECT_DIR/appsec/build/coverage-helper.lcov"
-    - |
+      echo "Uploading coverage to Datadog"
       cd "$CI_PROJECT_DIR"
-      .gitlab/upload-code-coverage-to-datadog.sh \
-        appsec/build/coverage-ext.lcov \
-        appsec/build/coverage-helper.lcov
+      .gitlab/upload-code-coverage-to-datadog.sh appsec/build/coverage-ext.lcov
 
 
 "push appsec images":
@@ -390,9 +441,12 @@ stages:
     KUBERNETES_CPU_REQUEST: 8
     KUBERNETES_MEMORY_REQUEST: 16Gi
     KUBERNETES_MEMORY_LIMIT: 24Gi
+    # The DinD helper defaults to 20G, but this job retains >100 images with
+    # shared layers while it builds and pushes the complete matrix.
+    DOCKER_LOOPBACK_SIZE: 100G
+    DOCKER_LOOPBACK_PATH: "/var"
   parallel:
     matrix:
-# XXX: docker-in-docker:arm64 is not supported yet
       - ARCH: ["amd64", "arm64"]
   rules:
     - when: manual
@@ -400,22 +454,41 @@ stages:
   needs: []
   script:
     - cd appsec/tests/integration
-    - TERM=dumb ./gradlew pushAll --info -Pbuildscan --scan
+    - |
+      TERM=dumb ./gradlew pushAll --info -Pbuildscan --scan \
+        -PfloatingImageTags -PdockerArch="${ARCH}" \
+        -PpushRepo="${APPSEC_IMAGE_REPO}"
 
 "push appsec docker images multiarch":
   extends: .docker_push_job
+  tags: [ "arch:amd64" ]
+  id_tokens:
+    DDSIGN_ID_TOKEN:
+      aud: image-integrity
+  before_script:
+    - apt update && apt install -y openjdk-17-jre
   variables:
     KUBERNETES_CPU_REQUEST: 2
     KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 6Gi
     ARCH: amd64
-  rules:
-    - when: on_success
   needs:
-    - job: "push appsec images"
+    - "push appsec images"
   script:
     - cd appsec/tests/integration
-    - TERM=dumb ./gradlew pushMultiArch --info -Pbuildscan --scan
+    - |
+      TERM=dumb ./gradlew signMultiArch --info -Pbuildscan --scan \
+        -PfloatingImageTags -PpushRepo="${APPSEC_IMAGE_REPO}"
+
+<?php foreach ($appsecImageTagGroups as $group => $tags): ?>
+"publish appsec docker images: <?= $group ?>":
+  extends: .appsec_image_publish
+  variables:
+    TAGS: >-
+<?php foreach ($tags as $tag): ?>
+      <?= $tag, "\n" ?>
+<?php endforeach; ?>
+<?php endforeach; ?>
 
 "appsec lint":
   stage: test
@@ -436,83 +509,8 @@ stages:
         -DBOOST_CACHE_PREFIX="$CI_PROJECT_DIR/boost-cache" \
         -DCLANG_TIDY=/usr/bin/run-clang-tidy-20 \
         -DCLANG_FORMAT=/usr/bin/clang-format-20
-    - make -j 4 extension ddappsec-helper
+    - make -j 4 extension
     - make format tidy
-
-"test appsec helper asan":
-  stage: test
-  extends: .appsec_test
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:bookworm-10
-  variables:
-    KUBERNETES_CPU_REQUEST: 3
-    KUBERNETES_MEMORY_REQUEST: 3Gi
-    KUBERNETES_MEMORY_LIMIT: 4Gi
-  parallel:
-    matrix:
-      - ARCH: *arch_targets
-  script:
-    - cd appsec/build
-    - |
-      cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF \
-        -DDD_APPSEC_ENABLE_COVERAGE=OFF -DDD_APPSEC_TESTING=ON \
-        -DCMAKE_CXX_FLAGS="-stdlib=libc++ -fsanitize=address -fsanitize=leak \
-        -DASAN_BUILD" -DCMAKE_C_FLAGS="-fsanitize=address -fsanitize=leak \
-        -DASAN_BUILD" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" \
-        -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" \
-        -DBOOST_CACHE_PREFIX="$CI_PROJECT_DIR/boost-cache" \
-        -DCLANG_TIDY=/usr/bin/run-clang-tidy-20
-    - make -j 4 ddappsec_helper_test
-    - cd ../..; ./appsec/build/tests/helper/ddappsec_helper_test
-
-### Disabled: "we don't rely on the fuzzer these days as the protocol has been stable for a long time, so feel free to disable those jobs for now"
-#"fuzz appsec helper":
-#  stage: test
-#  extends: .appsec_test
-#  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:bookworm-10
-#  variables:
-#    KUBERNETES_CPU_REQUEST: 3
-#    KUBERNETES_MEMORY_REQUEST: 5Gi
-#    KUBERNETES_MEMORY_LIMIT: 6Gi
-#  parallel:
-#    matrix:
-#      - ARCH: *arch_targets
-#  script:
-#    - curl -LO https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-17.0.6.tar.gz
-#    - tar xzf llvmorg-17.0.6.tar.gz
-#    - cd llvm-project-llvmorg-17.0.6/compiler-rt
-#    - cmake . -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++"
-#    - make -j 4 fuzzer
-#    - fuzzer=$(realpath lib/linux/libclang_rt.fuzzer_no_main-*.a)
-#    - cd -
-#
-#    - cd appsec/build
-#    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" -DFUZZER_ARCHIVE_PATH=$fuzzer -DBOOST_CACHE_PREFIX=/boost-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-20
-#    - make -j 4 ddappsec_helper_fuzzer corpus_generator
-#    - cd ..
-#    - mkdir -p tests/fuzzer/{corpus,results,logs}
-#    - rm -f tests/fuzzer/corpus/*
-#
-#    - '# Run fuzzer in nop mode'
-#    - ./build/tests/fuzzer/corpus_generator tests/fuzzer/corpus 500
-#    - LLVM_PROFILE_FILE=off.profraw ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=off -max_total_time=60 -rss_limit_mb=4096 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
-#    - rm -f tests/fuzzer/corpus/*
-#
-#    - '# Run fuzzer in raw mode'
-#    - ./build/tests/fuzzer/corpus_generator tests/fuzzer/corpus 500
-#    - LLVM_PROFILE_FILE=raw.profraw ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=raw -max_total_time=60 -rss_limit_mb=4096 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
-#    - rm -f tests/fuzzer/corpus/*
-#
-#    - '# Run fuzzer in body mode'
-#    - ./build/tests/fuzzer/corpus_generator tests/fuzzer/corpus 500
-#    - LLVM_PROFILE_FILE=body.profraw ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=body -max_total_time=60 -rss_limit_mb=4096 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
-#
-#    - '# Generate coverage'
-#    - llvm-profdata-20 merge -sparse *.profraw -o default.profdata
-#    - llvm-cov-20 show build/tests/fuzzer/ddappsec_helper_fuzzer -instr-profile=default.profdata -ignore-filename-regex="(tests|third_party|build)" -format=html > fuzzer-coverage.html
-#    - llvm-cov-20 report -instr-profile default.profdata build/tests/fuzzer/ddappsec_helper_fuzzer -ignore-filename-regex="(tests|third_party|build)" -show-region-summary=false
-#  artifacts:
-#    paths:
-#     - appsec/fuzzer-coverage.html
 
 "check libxml2 version":
   stage: test

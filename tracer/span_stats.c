@@ -34,7 +34,9 @@ static const size_t GRPC_META_KEY_LENS[] = {
     sizeof("grpc.status.code") - 1,
 };
 
-// Maximum number of peer tags we handle per span (a hard cap to bound stack usage).
+// Maximum number of peer tags we collect per span (a hard cap to bound stack usage).
+// This bounds matched tags on a single span, not the number of peer tag keys configured by the
+// agent, which is larger and must be scanned in full.
 #define DDTRACE_MAX_PEER_TAGS 32
 
 void ddtrace_precompute_span(ddtrace_span_data *span, ddtrace_span_precomputed *pre) {
@@ -346,11 +348,8 @@ static void ddtrace_span_concentrator_feed_cb(const ddog_SpanConcentrator *c, vo
     if (pre->span_kind && (zend_string_equals_literal(pre->span_kind, "client") || zend_string_equals_literal(pre->span_kind, "producer") || zend_string_equals_literal(pre->span_kind, "consumer"))) {
         size_t peer_tag_keys_count = 0;
         const ddog_CharSlice *peer_tag_keys = ddog_span_concentrator_peer_tag_keys(c, &peer_tag_keys_count);
-        if (peer_tag_keys_count > DDTRACE_MAX_PEER_TAGS) {
-            peer_tag_keys_count = DDTRACE_MAX_PEER_TAGS;
-        }
         if (peer_tag_keys_count > 0 && peer_tag_keys) {
-            for (size_t i = 0; i < peer_tag_keys_count; i++) {
+            for (size_t i = 0; i < peer_tag_keys_count && actual_peer_tags < DDTRACE_MAX_PEER_TAGS; i++) {
                 const ddog_CharSlice *k = &peer_tag_keys[i];
                 zval *val = zend_hash_str_find(pre->meta, k->ptr, k->len);
                 if (val && Z_TYPE_P(val) == IS_STRING) {

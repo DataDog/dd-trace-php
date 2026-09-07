@@ -63,8 +63,13 @@ pub unsafe extern "C" fn ddog_apply_agent_info(
             *env_out = CharSlice::from_raw_parts(s.as_ptr() as *const c_char, s.len());
         }
         if changed {
-            if let Some(s) = info.container_tags_hash.as_deref().filter(|s| !s.is_empty()) {
-                *container_hash_out = CharSlice::from_raw_parts(s.as_ptr() as *const c_char, s.len());
+            if let Some(s) = info
+                .container_tags_hash
+                .as_deref()
+                .filter(|s| !s.is_empty())
+            {
+                *container_hash_out =
+                    CharSlice::from_raw_parts(s.as_ptr() as *const c_char, s.len());
             } else {
                 *container_hash_out = CharSlice::empty();
             }
@@ -83,7 +88,9 @@ pub unsafe extern "C" fn ddog_agent_info_as_json(reader: &mut AgentInfoReader) -
         if changed {
             info_to_concentrator_config(info);
         }
-        CString::new(serde_json::to_string(info).unwrap()).unwrap().into_raw()
+        CString::new(serde_json::to_string(info).unwrap())
+            .unwrap()
+            .into_raw()
     } else {
         std::ptr::null_mut()
     }
@@ -105,9 +112,7 @@ pub extern "C" fn ddog_agent_info_json_free(ptr: *mut c_char) {
 /// # Safety
 /// `reader` must be a valid pointer to an `AgentInfoReader`.
 #[no_mangle]
-pub unsafe extern "C" fn ddog_apply_agent_info_concentrator_config(
-    reader: &mut AgentInfoReader,
-) {
+pub unsafe extern "C" fn ddog_apply_agent_info_concentrator_config(reader: &mut AgentInfoReader) {
     let (changed, info) = reader.read();
     if !changed {
         return;

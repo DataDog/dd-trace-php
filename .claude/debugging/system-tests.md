@@ -233,7 +233,7 @@ PHP/tracer logs:
 logs/docker/weblog/logs/tracer.log      ← tracer LOG(ERROR, ...) output
 logs/docker/weblog/logs/php_error.log   ← php_log_err() / error_log() / trigger_error() output
 logs/docker/weblog/logs/appsec.log      ← appsec extension mlog() output
-logs/docker/weblog/logs/helper.log      ← appsec C++ helper SPDLOG_*() output
+logs/docker/weblog/logs/helper.log      ← appsec Rust helper log output
 logs/docker/weblog/logs/apache2/error.log  ← profiler error!() output (if log level enabled)
 ```
 
@@ -249,8 +249,7 @@ above. All verified empirically on the `apache-mod-8.2` weblog.
 | Tracer (C) | `LOG(ERROR, "fmt", args)` | `tracer.log` |
 | Tracer (C) | `php_log_err("msg")` | `php_error.log` |
 | Appsec extension (C) | `mlog(dd_log_error, "fmt", args)` | `appsec.log` + `php_error.log` |
-| Appsec C++ helper | `SPDLOG_ERROR("fmt", args)` | `helper.log` |
-| Appsec Rust helper | `log::error!("fmt", args)` | `helper.log` (only when Rust helper is active) |
+| Appsec Rust helper | `log::error!("fmt", args)` | `helper.log` |
 | Profiler (Rust) | `error!("msg")` | `apache2/error.log` (requires `datadog.profiling.log_level=error`) |
 
 **Methods that lose output** (verified with gdb):
