@@ -148,9 +148,7 @@ class LaravelIntegration extends Integration
                         if (strpos($httpRoute, '?}') !== false) {
                             // For routes with optional params, filter out default-injected values
                             // (e.g. ->defaults('format', 'html')) that weren't present in the URL.
-                            $matchedParams = self::laravelUrlMatchedParams(
-                                $httpRoute, $request->path(), $allParams
-                            );
+                            $matchedParams = self::laravelUrlMatchedParams($route, $request, $allParams);
                             // Cache key encodes which optional params are present
                             preg_match_all('/\{([^}]+)\?\}/', $httpRoute, $_opts);
                             $_present = [];
@@ -793,83 +791,36 @@ class LaravelIntegration extends Integration
      * Determine which Laravel optional params were actually present in the URL path
      * (vs. injected as route defaults via ->defaults()).
      *
-     * Walks the route URI template and URL path in parallel; an optional param is only
-     * included in the result when the URL has a non-empty segment at that position.
+     * Laravel applies defaults before exposing Route::parameters(), so use the same
+     * compiled regex that Laravel used to bind the request to identify URL captures.
      *
-     * @param string $routeUri  From $route->uri(), e.g. "normalized-default/{format?}"
-     * @param string $urlPath   From $request->path(), e.g. "normalized-default"
+     * @param object $route     Matched Laravel route
+     * @param object $request   Laravel request
      * @param array  $allParams From $route->parameters()
      * @return array
      */
-    private static function laravelUrlMatchedParams(string $routeUri, string $urlPath, array $allParams): array
+    private static function laravelUrlMatchedParams($route, $request, array $allParams): array
     {
-        $routeSegs = explode('/', trim($routeUri, '/'));
-        $urlSegs   = explode('/', trim($urlPath, '/'));
-        $matched   = [];
-        $urlIdx    = 0;
+        if (!method_exists($route, 'getCompiled') || !method_exists($route, 'parameterNames')) {
+            return $allParams;
+        }
 
-        foreach ($routeSegs as $seg) {
-            if (preg_match('/^\{([^}?:]+)\?\}$/', $seg, $m)) {
-                // Whole-segment optional param
-                if ($urlIdx < count($urlSegs) && $urlSegs[$urlIdx] !== '') {
-                    if (array_key_exists($m[1], $allParams)) {
-                        $matched[$m[1]] = $allParams[$m[1]];
-                    }
-                    $urlIdx++;
-                }
-            } elseif (preg_match('/^\{([^}?:]+)\}$/', $seg, $m)) {
-                // Whole-segment required param — always present
-                if (array_key_exists($m[1], $allParams)) {
-                    $matched[$m[1]] = $allParams[$m[1]];
-                }
-                $urlIdx++;
-            } elseif (strpos($seg, '{') !== false) {
-                // Mixed segment (e.g. "{name}.{ext?}"): use progressive regex matching
-                // to determine which params (including optional ones) appear in the URL.
-                if ($urlIdx < count($urlSegs) && $urlSegs[$urlIdx] !== '') {
-                    preg_match_all('/\{([^}?:]+)(\?)?\}/', $seg, $pm, PREG_SET_ORDER);
-                    $paramNames  = array_map(static function($m) { return $m[1]; }, $pm);
-                    $staticParts = preg_split('/\{[^}]+\}/', $seg);
-                    $n           = count($paramNames);
-                    $urlSeg      = $urlSegs[$urlIdx];
+        $compiled = $route->getCompiled();
+        if ($compiled === null || !method_exists($compiled, 'getRegex')) {
+            return $allParams;
+        }
 
-                    for ($k = $n; $k >= 1; $k--) {
-                        $regexBody = '';
-                        for ($ri = 0; $ri < $k; $ri++) {
-                            $regexBody .= preg_quote($staticParts[$ri], '/') . '(.+)';
-                        }
-                        if ($k === $n) {
-                            $regexBody .= preg_quote($staticParts[$n], '/');
-                        }
-                        if (@preg_match('/^' . $regexBody . '$/', $urlSeg, $_caps)) {
-                            // For optional params, verify the captured value matches
-                            // allParams. If it doesn't, the param is using a route
-                            // default injected by ->defaults() and was absent from the URL.
-                            $_valid = true;
-                            for ($ri = 0; $ri < $k; $ri++) {
-                                $_isOpt = !empty($pm[$ri][2]);
-                                if ($_isOpt && array_key_exists($paramNames[$ri], $allParams) &&
-                                    isset($_caps[$ri + 1]) &&
-                                    (string)$allParams[$paramNames[$ri]] !== (string)$_caps[$ri + 1]) {
-                                    $_valid = false;
-                                    break;
-                                }
-                            }
-                            if ($_valid) {
-                                for ($ri = 0; $ri < $k; $ri++) {
-                                    if (array_key_exists($paramNames[$ri], $allParams)) {
-                                        $matched[$paramNames[$ri]] = $allParams[$paramNames[$ri]];
-                                    }
-                                }
-                                break;
-                            }
-                        }
-                    }
-                    unset($_caps, $_valid, $_isOpt);
-                }
-                $urlIdx++;
-            } else {
-                $urlIdx++;
+        $path = method_exists($request, 'decodedPath') ? $request->decodedPath() : $request->path();
+        $matches = [];
+        if (@preg_match($compiled->getRegex(), '/' . ltrim($path, '/'), $matches) !== 1) {
+            return $allParams;
+        }
+
+        $matched = [];
+        foreach ($route->parameterNames() as $name) {
+            if (isset($matches[$name]) && is_string($matches[$name])
+                && strlen($matches[$name]) > 0 && array_key_exists($name, $allParams)) {
+                $matched[$name] = $allParams[$name];
             }
         }
 

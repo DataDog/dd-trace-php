@@ -70,3 +70,9 @@ Route::get('/normalized-ambiguous/{name}.{ext?}', function ($name, $ext = null) 
 })->where('name', '.+')
     ->where('ext', 'pdf|json')
     ->defaults('ext', 'html');
+
+Route::get('/normalized-equal-default/{name}.{ext?}', function ($name, $ext = null) {
+    return response($name . '/' . ($ext ?? 'absent'));
+})->where('name', '.+')
+    ->where('ext', 'pdf|json')
+    ->defaults('ext', 'txt');

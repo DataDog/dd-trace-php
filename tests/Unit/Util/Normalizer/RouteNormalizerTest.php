@@ -118,13 +118,19 @@ class RouteNormalizerTest extends BaseTestCase
 
     public function testSymfonySimpleRoute()
     {
-        $this->assertSame('/sleep/{seconds}', RouteNormalizer::normalizeFromSymfony('/sleep/{seconds}'));
+        $this->assertSame(
+            '/sleep/{seconds}',
+            RouteNormalizer::normalizeFromSymfony('/sleep/{seconds}', ['seconds' => '1'])
+        );
     }
 
     public function testSymfonyMixedSegment()
     {
         // Symfony may produce routes like /posts/{id}.{_format}
-        $result = RouteNormalizer::normalizeFromSymfony('/posts/{id}.{_format}');
+        $result = RouteNormalizer::normalizeFromSymfony(
+            '/posts/{id}.{_format}',
+            ['id' => '1', '_format' => 'json']
+        );
         $this->assertSame('/posts/{id+_format}', $result);
     }
 
@@ -161,54 +167,10 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertSame('/users/{id}/posts', $result);
     }
 
-    public function testSymfonyNoMatchedParamsArgKeepsAll()
+    public function testSymfonyDynamicRouteWithoutMatcherCapturesIsUnsupported()
     {
-        // null matchedParams → old behaviour, no params dropped
         $result = RouteNormalizer::normalizeFromSymfony('/blog/{page}');
-        $this->assertSame('/blog/{page}', $result);
-    }
-
-    // inferSymfonyRouteParams — used to build the cache key in SymfonyIntegration
-
-    public function testInferSymfonyRouteParamsRequiredParamsAlwaysPresent()
-    {
-        $params = RouteNormalizer::inferSymfonyRouteParams('/users/{id}', '/users/42');
-        $this->assertArrayHasKey('id', $params);
-    }
-
-    public function testInferSymfonyRouteParamsOptionalParamAbsent()
-    {
-        // Route /posts/{page} where page has a Symfony default — URL /posts does not include page.
-        // The integration code uses array_keys($params) as cache key suffix; this must be []
-        // so that the 'absent' cache entry is distinct from the 'present' one.
-        $params = RouteNormalizer::inferSymfonyRouteParams('/posts/{page}', '/posts');
-        $this->assertSame([], $params);
-    }
-
-    public function testInferSymfonyRouteParamsOptionalParamPresent()
-    {
-        // URL /posts/2 provides page explicitly — must be in the returned params.
-        $params = RouteNormalizer::inferSymfonyRouteParams('/posts/{page}', '/posts/2');
-        $this->assertArrayHasKey('page', $params);
-    }
-
-    public function testInferSymfonyRouteParamsCacheKeysDiffer()
-    {
-        // Core invariant for correct cache behaviour: the two URL patterns for the same route
-        // produce different param key sets, so the cache key suffix encodes presence/absence.
-        $absent  = array_keys(RouteNormalizer::inferSymfonyRouteParams('/posts/{page}', '/posts'));
-        $present = array_keys(RouteNormalizer::inferSymfonyRouteParams('/posts/{page}', '/posts/2'));
-        $this->assertNotSame($absent, $present);
-
-        // And normalizeFromSymfony produces the correct result for each case.
-        $this->assertSame('/posts', RouteNormalizer::normalizeFromSymfony(
-            '/posts/{page}',
-            RouteNormalizer::inferSymfonyRouteParams('/posts/{page}', '/posts')
-        ));
-        $this->assertSame('/posts/{page}', RouteNormalizer::normalizeFromSymfony(
-            '/posts/{page}',
-            RouteNormalizer::inferSymfonyRouteParams('/posts/{page}', '/posts/2')
-        ));
+        $this->assertNull($result);
     }
 
     // normalizeFromLaminas
@@ -275,8 +237,18 @@ class RouteNormalizerTest extends BaseTestCase
     public function testLaminasRegexRouteSpec()
     {
         // Laminas\Router\Http\Regex uses %param% spec format for URL generation
-        $this->assertSame('/blog/{id}', RouteNormalizer::normalizeFromLaminas('/blog/%id%'));
-        $this->assertSame('/user/{id}/{name}', RouteNormalizer::normalizeFromLaminas('/user/%id%/%name%'));
+        $this->assertSame('/blog/{id}', RouteNormalizer::normalizeFromLaminas(
+            '/blog/%id%',
+            ['id' => '1'],
+            null,
+            ['id' => '1']
+        ));
+        $this->assertSame('/user/{id}/{name}', RouteNormalizer::normalizeFromLaminas(
+            '/user/%id%/%name%',
+            ['id' => '1', 'name' => 'alice'],
+            null,
+            ['id' => '1', 'name' => 'alice']
+        ));
     }
 
     public function testLaminasRegexRouteOptionalFormatAbsent()
@@ -286,7 +258,8 @@ class RouteNormalizerTest extends BaseTestCase
         $result = RouteNormalizer::normalizeFromLaminas(
             '/normalized-regex/%id%.%format%',
             ['id' => 'article', 'format' => 'html', 'controller' => 'C', 'action' => 'index'],
-            '/normalized-regex/article'
+            '/normalized-regex/article',
+            ['id' => 'article']
         );
         $this->assertSame('/normalized-regex/{id}', $result);
     }
@@ -296,9 +269,20 @@ class RouteNormalizerTest extends BaseTestCase
         $result = RouteNormalizer::normalizeFromLaminas(
             '/normalized-regex/%id%.%format%',
             ['id' => 'article', 'format' => 'html', 'controller' => 'C', 'action' => 'index'],
-            '/normalized-regex/article.html'
+            '/normalized-regex/article.html',
+            ['id' => 'article', 'format' => 'html']
         );
         $this->assertSame('/normalized-regex/{id+format}', $result);
+    }
+
+    public function testLaminasRegexRouteWithoutMatcherCapturesIsUnsupported()
+    {
+        $result = RouteNormalizer::normalizeFromLaminas(
+            '/normalized-regex/%id%.%format%',
+            ['id' => 'article', 'format' => 'html'],
+            '/normalized-regex/article'
+        );
+        $this->assertNull($result);
     }
 
     public function testLaminasLiteralRoute()
@@ -317,19 +301,19 @@ class RouteNormalizerTest extends BaseTestCase
 
     public function testWordPressSimpleRegex()
     {
-        $result = RouteNormalizer::normalizeFromWordPress('^blog/([^/]+)/?$');
+        $result = RouteNormalizer::normalizeFromWordPress('^blog/([^/]+)/?$', 'blog/post');
         $this->assertSame('/blog/{param1}', $result);
     }
 
     public function testWordPressStaticRule()
     {
-        $result = RouteNormalizer::normalizeFromWordPress('^about/?$');
+        $result = RouteNormalizer::normalizeFromWordPress('^about/?$', 'about');
         $this->assertSame('/about', $result);
     }
 
     public function testWordPressMultipleGroups()
     {
-        $result = RouteNormalizer::normalizeFromWordPress('^([^/]+)/([^/]+)/?$');
+        $result = RouteNormalizer::normalizeFromWordPress('^([^/]+)/([^/]+)/?$', 'one/two');
         $this->assertSame('/{param1}/{param2}', $result);
     }
 
@@ -348,14 +332,14 @@ class RouteNormalizerTest extends BaseTestCase
 
     public function testWordPressOptionalGroupNoUrlPath()
     {
-        // Without URL path, fall back to emitting all groups (backward-compatible)
+        // A match is required to distinguish literals from capture participation.
         $result = RouteNormalizer::normalizeFromWordPress('^([^/]+)(?:/([0-9]+))?/?$');
-        $this->assertSame('/{param1}/{param2}', $result);
+        $this->assertNull($result);
     }
 
     public function testWordPressRootRule()
     {
-        $result = RouteNormalizer::normalizeFromWordPress('^/?$');
+        $result = RouteNormalizer::normalizeFromWordPress('^/?$', '');
         $this->assertSame('/', $result);
     }
 
@@ -363,8 +347,68 @@ class RouteNormalizerTest extends BaseTestCase
     {
         // Two capture groups in the same slash-separated segment → combined with +
         // The static prefix "post-" is dropped as the whole mixed segment is treated as dynamic
-        $result = RouteNormalizer::normalizeFromWordPress('^post-([^/]+)-([0-9]+)/?$');
+        $result = RouteNormalizer::normalizeFromWordPress('^post-([^/]+)-([0-9]+)/?$', 'post-title-42');
         $this->assertSame('/{param1+param2}', $result);
+    }
+
+    public function testWordPressPcreQuotedLiteral()
+    {
+        $result = RouteNormalizer::normalizeFromWordPress(
+            '^normalized-quoted-literal/\\Qfile.json\\E$',
+            'normalized-quoted-literal/file.json'
+        );
+        $this->assertSame('/normalized-quoted-literal/file.json', $result);
+    }
+
+    public function testWordPressQuotedNamedCaptures()
+    {
+        $result = RouteNormalizer::normalizeFromWordPress(
+            "^normalized-quoted-captures/(?'first'[^/]+)-(?'second'[^/]+)$",
+            'normalized-quoted-captures/first-second'
+        );
+        $this->assertSame('/normalized-quoted-captures/{first+second}', $result);
+    }
+
+    public function testWordPressNestedNamedCapturesUseMatchOrder()
+    {
+        $result = RouteNormalizer::normalizeFromWordPress(
+            '^(?<outer>(?<inner>[^/]+))$',
+            'value'
+        );
+        $this->assertSame('/{outer+inner}', $result);
+    }
+
+    public function testWordPressUncapturedDynamicPartIsUnsupported()
+    {
+        $result = RouteNormalizer::normalizeFromWordPress(
+            '^users/[a-z]+/posts/([^/]+)$',
+            'users/alice/posts/123'
+        );
+        $this->assertNull($result);
+    }
+
+    public function testWordPressUncapturedBackreferenceIsUnsupported()
+    {
+        $result = RouteNormalizer::normalizeFromWordPress('^pair/([^/]+)/\\1$', 'pair/alice/alice');
+        $this->assertNull($result);
+    }
+
+    public function testWordPressUncapturedPcreControlGroupIsUnsupported()
+    {
+        $result = RouteNormalizer::normalizeFromWordPress(
+            '^foo/(*atomic:[a-z]+)/tail$',
+            'foo/alice/tail'
+        );
+        $this->assertNull($result);
+    }
+
+    public function testWordPressFixedAlternativeMayVaryByMatch()
+    {
+        $result = RouteNormalizer::normalizeFromWordPress(
+            '^color/(?:red|blue)/([^/]+)$',
+            'color/red/123'
+        );
+        $this->assertSame('/color/red/{param1}', $result);
     }
 
     public function testWordPressStaticPrefixNotSeparateElement()
@@ -400,7 +444,12 @@ class RouteNormalizerTest extends BaseTestCase
     public function testLaminasWildcardAfterPercentParam()
     {
         // F-10: uniqueParamName must skip %param1% when choosing a name for the wildcard.
-        $result = RouteNormalizer::normalizeFromLaminas('/foo/%param1%/*');
+        $result = RouteNormalizer::normalizeFromLaminas(
+            '/foo/%param1%/*',
+            ['param1' => 'value'],
+            null,
+            ['param1' => 'value']
+        );
         $this->assertSame('/foo/{param1}/{param2}', $result);
     }
 
@@ -417,7 +466,7 @@ class RouteNormalizerTest extends BaseTestCase
     {
         // http.route: ^dump-request$ → /dump-request (after regex stripping)
         // We test via WordPress normalizer since it handles regex
-        $result = RouteNormalizer::normalizeFromWordPress('^dump-request$');
+        $result = RouteNormalizer::normalizeFromWordPress('^dump-request$', 'dump-request');
         $this->assertSame('/dump-request', $result);
     }
 

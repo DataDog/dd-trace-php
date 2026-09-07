@@ -205,6 +205,29 @@ return [
                     ],
                 ],
             ],
+            'regex_chain_ambiguous_default' => [
+                'type' => Regex::class,
+                'options' => [
+                    'regex' => '/normalized-regex-chain/' .
+                        '(?P<name>[^/]+)(?:\.(?P<ext>pdf|json))?',
+                    'spec' => '/normalized-regex-chain/%name%.%ext%',
+                    'defaults' => [
+                        'ext' => 'txt',
+                    ],
+                ],
+                'chain_routes' => [
+                    [
+                        'type' => Literal::class,
+                        'options' => [
+                            'route' => '/view',
+                            'defaults' => [
+                                'controller' => DynamicPathController::class,
+                                'action' => 'ambiguous',
+                            ],
+                        ],
+                    ],
+                ],
+            ],
             'normalized_encoded_optional' => [
                 'type' => Segment::class,
                 'options' => [
@@ -246,6 +269,37 @@ return [
                         'controller' => DynamicPathController::class,
                         'action' => 'index',
                         'value' => 'normalized-dynamic-prefix',
+                    ],
+                ],
+            ],
+            'normalized_repeated_default_optional' => [
+                'type' => Segment::class,
+                'options' => [
+                    'route' => '/normalized-repeated/:id[/:value]',
+                    'defaults' => [
+                        'controller' => DynamicPathController::class,
+                        'action' => 'index',
+                        'value' => 'foo',
+                    ],
+                ],
+            ],
+            'normalized_static_repeated_optional' => [
+                'type' => Segment::class,
+                'options' => [
+                    'route' => '/normalized-static-repeated/:id[/foo]',
+                    'defaults' => [
+                        'controller' => DynamicPathController::class,
+                        'action' => 'index',
+                    ],
+                ],
+            ],
+            'normalized_nested_static_optional' => [
+                'type' => Segment::class,
+                'options' => [
+                    'route' => '/normalized-nested-static[/draft[/preview]]',
+                    'defaults' => [
+                        'controller' => DynamicPathController::class,
+                        'action' => 'index',
                     ],
                 ],
             ],

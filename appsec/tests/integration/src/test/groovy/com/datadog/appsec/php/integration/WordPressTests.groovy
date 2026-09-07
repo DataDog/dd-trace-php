@@ -310,6 +310,35 @@ class WordPressTests {
 
     @Test
     @Order(11)
+    void 'PCRE quoted literals remain static route text'() {
+        Trace trace = CONTAINER.traceFromRequest('/normalized-quoted-literal/file.json/') {
+            HttpResponse<InputStream> response ->
+                assert response.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert span.meta.'http.route' == '^normalized-quoted-literal/\\Qfile.json\\E$'
+        assert span.meta.'_dd.appsec.normalized_route' ==
+                '/normalized-quoted-literal/file.json'
+    }
+
+    @Test
+    @Order(12)
+    void 'quoted PCRE named captures retain their framework names'() {
+        Trace trace = CONTAINER.traceFromRequest('/normalized-quoted-captures/first-second/') {
+            HttpResponse<InputStream> response ->
+                assert response.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert span.meta.'http.route' == "^normalized-quoted-captures/(?'first'[^/]+)-" +
+                "(?'second'[^/]+)\$"
+        assert span.meta.'_dd.appsec.normalized_route' ==
+                '/normalized-quoted-captures/{first+second}'
+    }
+
+    @Test
+    @Order(13)
     void 'normalized route is absent when API Security is disabled'() {
         PhpFpm fpm = new PhpFpm(CONTAINER)
         try {

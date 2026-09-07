@@ -81,7 +81,7 @@ class Laminas33Tests {
             endpoints.size() > 0
         })
 
-        assert endpoints.size() == 37
+        assert endpoints.size() == 41
         assert endpoints.find { it.path == '/' && it.method == '*' && it.operationName == 'http.request' && it.resourceName == '* /' } != null
         assert endpoints.find {
             it.path == '/application[/:action]' && it.method == '*' && it.operationName == 'http.request' && it.resourceName == '* /application[/:action]'
@@ -135,6 +135,11 @@ class Laminas33Tests {
                     '* /normalized-regex-ambiguous/%name%.%ext%'
         } != null
         assert endpoints.find {
+            it.path == '/normalized-regex-chain/%name%.%ext%/view' &&
+                    it.method == '*' && it.operationName == 'http.request' &&
+                    it.resourceName == '* /normalized-regex-chain/%name%.%ext%/view'
+        } != null
+        assert endpoints.find {
             it.path == '/normalized-encoded[/:slug]' && it.method == '*' &&
                     it.operationName == 'http.request' && it.resourceName == '* /normalized-encoded[/:slug]'
         } != null
@@ -151,6 +156,21 @@ class Laminas33Tests {
             it.path == '/normalized-dynamic-prefix[/:value]' && it.method == '*' &&
                     it.operationName == 'http.request' &&
                     it.resourceName == '* /normalized-dynamic-prefix[/:value]'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-repeated/:id[/:value]' && it.method == '*' &&
+                    it.operationName == 'http.request' &&
+                    it.resourceName == '* /normalized-repeated/:id[/:value]'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-static-repeated/:id[/foo]' &&
+                    it.method == '*' && it.operationName == 'http.request' &&
+                    it.resourceName == '* /normalized-static-repeated/:id[/foo]'
+        } != null
+        assert endpoints.find {
+            it.path == '/normalized-nested-static[/draft[/preview]]' &&
+                    it.method == '*' && it.operationName == 'http.request' &&
+                    it.resourceName == '* /normalized-nested-static[/draft[/preview]]'
         } != null
         assert endpoints.find {
             it.path == '/normalized-encoded-cache[/:slug]' && it.method == '*' &&
@@ -558,6 +578,77 @@ class Laminas33Tests {
 
     @Test
     @Order(23)
+    void 'Regex in a chain retains matcher capture participation'() {
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-regex-chain/report.txt/view').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+            assert resp.body() == 'report.txt/txt'
+        }
+
+        assert trace.first().meta.'http.route' ==
+                '/normalized-regex-chain/%name%.%ext%/view'
+        assert trace.first().meta.'_dd.appsec.normalized_route' ==
+                '/normalized-regex-chain/{name}/view'
+    }
+
+    @Test
+    @Order(24)
+    void 'repeated required and default values do not imply optional participation'() {
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-repeated/foo').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'http.route' == '/normalized-repeated/:id[/:value]'
+        assert trace.first().meta.'_dd.appsec.normalized_route' ==
+                '/normalized-repeated/{id}'
+    }
+
+    @Test
+    @Order(25)
+    void 'static optional text elsewhere in the URL does not imply participation'() {
+        Trace trace = container.traceFromRequest(
+                container.buildReq('/normalized-static-repeated/foo').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.first().meta.'http.route' ==
+                '/normalized-static-repeated/:id[/foo]'
+        assert trace.first().meta.'_dd.appsec.normalized_route' ==
+                '/normalized-static-repeated/{id}'
+    }
+
+    @Test
+    @Order(26)
+    void 'nested static optional shapes do not share a cached result'() {
+        Trace absentTrace = container.traceFromRequest(
+                container.buildReq('/normalized-nested-static').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert absentTrace.first().meta.'http.route' ==
+                '/normalized-nested-static[/draft[/preview]]'
+        assert absentTrace.first().meta.'_dd.appsec.normalized_route' ==
+                '/normalized-nested-static'
+
+        Trace outerPresentTrace = container.traceFromRequest(
+                container.buildReq('/normalized-nested-static/draft').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert outerPresentTrace.first().meta.'http.route' ==
+                '/normalized-nested-static[/draft[/preview]]'
+        assert outerPresentTrace.first().meta.'_dd.appsec.normalized_route' ==
+                '/normalized-nested-static/draft'
+    }
+
+    @Test
+    @Order(27)
     void 'normalized route is absent when API Security is disabled'() {
         try {
             def res = CONTAINER.execInContainer(

@@ -212,7 +212,7 @@ class Laravel8xTests {
             endpoints.size() > 0
         })
 
-        assert endpoints.size() == 30
+        assert endpoints.size() == 31
         assert endpoints.find { it.path == '/' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /' } != null
         assert endpoints.find { it.path == 'login/auth' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET login/auth' } != null
         assert endpoints.find { it.path == 'login/signup' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET login/signup' } != null
@@ -224,6 +224,11 @@ class Laravel8xTests {
             it.path == 'normalized-ambiguous/{name}.{ext?}' && it.method == 'GET' &&
                     it.operationName == 'http.request' &&
                     it.resourceName == 'GET normalized-ambiguous/{name}.{ext?}'
+        } != null
+        assert endpoints.find {
+            it.path == 'normalized-equal-default/{name}.{ext?}' && it.method == 'GET' &&
+                    it.operationName == 'http.request' &&
+                    it.resourceName == 'GET normalized-equal-default/{name}.{ext?}'
         } != null
     }
 
@@ -293,6 +298,22 @@ class Laravel8xTests {
 
     @Test
     @Order(14)
+    void 'route requirement excludes an optional whose default equals URL text'() {
+        HttpRequest req = container.buildReq('/normalized-equal-default/report.txt').GET().build()
+        Trace trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 200
+            assert re.body() == 'report.txt/txt'
+        }
+
+        Span span = trace.first()
+        assert span.meta.'http.route' ==
+                'normalized-equal-default/{name}.{ext?}'
+        assert span.meta.'_dd.appsec.normalized_route' ==
+                '/normalized-equal-default/{name}'
+    }
+
+    @Test
+    @Order(15)
     void 'normalized route is absent when API Security is disabled'() {
         try {
             def res = CONTAINER.execInContainer(

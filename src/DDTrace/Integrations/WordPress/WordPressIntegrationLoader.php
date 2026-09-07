@@ -737,30 +737,26 @@ class WordPressIntegrationLoader
                     if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()
                         && dd_trace_env_config("DD_API_SECURITY_ENABLED")) {
                         $urlPath = \property_exists($This, 'request') ? $This->request : null;
-                        // Key on per-capture participation bits, not the full URL or the
-                        // highest-index group, so routes with optional-group holes (e.g.
-                        // (?:([^/]+)-)? absent vs present) get distinct cache entries.
-                        $wpParticipation = null;
-                        if ($urlPath !== null) {
-                            if (@preg_match('#^' . $matchedRule . '#', trim($urlPath, '/'), $_wpc)) {
-                                $_bits = [];
-                                for ($_wi = 1; $_wi < count($_wpc); $_wi++) {
-                                    $_bits[] = (isset($_wpc[$_wi]) && $_wpc[$_wi] !== '') ? '1' : '0';
+                        $routeAnalysis = \DDTrace\Util\RouteNormalizer::analyzeWordPressRoute(
+                            $matchedRule,
+                            $urlPath
+                        );
+                        if ($routeAnalysis !== null) {
+                            $cacheKey = $matchedRule . '#' . $routeAnalysis['cache_signature'];
+                            $normalizedRoute = \DDTrace\routing_cache_get($cacheKey);
+                            if ($normalizedRoute === false) {
+                                $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromWordPress(
+                                    $matchedRule,
+                                    $urlPath,
+                                    $routeAnalysis
+                                );
+                                if ($normalizedRoute !== null) {
+                                    \DDTrace\routing_cache_set($cacheKey, $normalizedRoute);
                                 }
-                                $wpParticipation = implode('', $_bits);
-                                unset($_wpc, $_wi, $_bits);
                             }
-                        }
-                        $cacheKey = $matchedRule . '#' . ($wpParticipation ?? 'n');
-                        $normalizedRoute = \DDTrace\routing_cache_get($cacheKey);
-                        if ($normalizedRoute === false) {
-                            $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromWordPress($matchedRule, $urlPath);
-                            if ($normalizedRoute !== null) {
-                                \DDTrace\routing_cache_set($cacheKey, $normalizedRoute);
+                            if ($normalizedRoute !== null && $normalizedRoute !== false) {
+                                $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
                             }
-                        }
-                        if ($normalizedRoute !== null && $normalizedRoute !== false) {
-                            $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
                         }
                     }
                 }

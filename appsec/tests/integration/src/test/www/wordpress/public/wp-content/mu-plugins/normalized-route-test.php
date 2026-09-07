@@ -30,6 +30,16 @@ add_action('init', static function () {
         'index.php?normalized_route_test=1&normalized_value=$matches[1]-$matches[2]',
         'top'
     );
+    add_rewrite_rule(
+        '^normalized-quoted-literal/\Qfile.json\E$',
+        'index.php?normalized_route_test=1&normalized_value=quoted-literal',
+        'top'
+    );
+    add_rewrite_rule(
+        '^normalized-quoted-captures/(?\'first\'[^/]+)-(?\'second\'[^/]+)$',
+        'index.php?normalized_route_test=1&normalized_value=$matches[1]-$matches[2]',
+        'top'
+    );
 });
 
 add_filter('query_vars', static function (array $queryVars): array {
