@@ -135,7 +135,7 @@ pub const KNOWN_METRICS: &[KnownMetric] = &[
     },
     KnownMetric {
         name: RASP_RULE_DURATION_DIST,
-        metric_type: ddog_MetricType_DDOG_METRIC_TYPE_DISTRIBUTION,
+        metric_type: MetricType::Distribution,
     },
     KnownMetric {
         name: RASP_TIMEOUT,
