@@ -2,7 +2,7 @@
 
 include "generate-common.php";
 
-const FRANKENPHP_ALPINE_PHP_VERSION = "8.5";
+const FRANKENPHP_ALPINE_PHP_VERSION = "8.3.12";
 
 $build_platforms = [
     [
@@ -834,6 +834,8 @@ endforeach;
   needs:
     - job: "package extension: [arm64, aarch64-alpine-linux-musl]"
       artifacts: true
+    - job: "prepare code"
+      artifacts: true
   services:
     - !reference [.services, test-agent]
     - !reference [.services, request-replayer]
@@ -843,6 +845,7 @@ endforeach;
     KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 4Gi
     COMPOSER_PROCESS_TIMEOUT: 0
+    DD_TRACE_ASSUME_COMPILED: "1"
     DD_AGENT_HOST: test-agent
     DD_TRACE_AGENT_PORT: 9126
     HTTPBIN_HOSTNAME: httpbin-integration

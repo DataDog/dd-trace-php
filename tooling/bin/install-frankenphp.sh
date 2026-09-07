@@ -20,6 +20,7 @@ else
   ASAN=""
 fi
 
-CGO_CFLAGS="$(php-config --includes) $ASAN" CGO_LDFLAGS="$(php-config --ldflags) $(php-config --libs) $ASAN" go build
+# CGO_ENABLED=1 is not redundant: the CI images bake CGO_ENABLED=0 into the Go env, which drops every cgo file...
+CGO_ENABLED=1 CC="${CC:-cc}" CGO_CFLAGS="$(php-config --includes) $ASAN" CGO_LDFLAGS="$(php-config --ldflags) $(php-config --libs) $ASAN" go build
 
 mv frankenphp $(readlink /usr/local/bin/frankenphp)
