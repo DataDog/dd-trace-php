@@ -106,15 +106,13 @@ class FrankenphpIntegration extends Integration
 
                     $res = notify_commit(
                         $rootSpan,
-                        // http_response_code() returns false once the per-request SAPI state has
-                        // been reset, and notify_commit() rejects anything outside 100..599. Infer
-                        // it the same way the serializer already does for this SAPI (see
-                        // dd_set_entrypoint_root_span_props_end in tracer/serializer.c): a flat 200
-                        // would report success for a request that threw.
-                        // TODO: report the real status instead of inferring it.
-                        // $hookData->exception is the throwable the handler raised, and is set by
-                        // the time this end-hook runs; $rootSpan->exception is not yet.
-                        \http_response_code() ?: (isset($hookData->exception) ? 500 : 200),
+                        // The response has not been committed yet at this point, so the SAPI has
+                        // no status code and http_response_code() returns false -- which
+                        // notify_commit() rejects, as it only accepts 100..599. Fall back to the
+                        // status this SAPI ends up sending anyway.
+                        // TODO: report the real status rather than a fallback; appsec's
+                        // response_committed listeners see 200 whenever it is unavailable here.
+                        \http_response_code() ?: 200,
                         self::convertHeaders(\headers_list()),
                         null /* response body is available through special mechanisms */
                     );

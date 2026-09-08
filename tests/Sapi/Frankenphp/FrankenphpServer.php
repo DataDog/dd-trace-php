@@ -136,6 +136,15 @@ final class FrankenphpServer implements Sapi
         foreach ($this->envs as $env => $val) {
             $envString .= " $env=\"$val\"";
         }
+        // Hand the test-session token over at startup. Otherwise the only thing that sets it is the
+        // auto-prepend ini_set() from tests/bootstrap_common.php, which every FrankenPHP worker
+        // thread runs concurrently -- turning a one-shot "no token yet" -> "token" transition inside
+        // the tracer into an N-way race. Given it up front, MINIT applies it once while still
+        // single-threaded and each later ini_set() is a no-op.
+        $sessionToken = ini_get("datadog.trace.agent_test_session_token");
+        if (!empty($sessionToken)) {
+            $envString .= " DD_TRACE_AGENT_TEST_SESSION_TOKEN=\"$sessionToken\"";
+        }
         $processCmd = "$envString exec $cmd";
 
 
