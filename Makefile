@@ -33,7 +33,12 @@ RUST_DEBUG_BUILD ?= $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo 1)
 EXTRA_CONFIGURE_OPTIONS ?=
 ASSUME_COMPILED := ${DD_TRACE_ASSUME_COMPILED}
 MAX_TEST_PARALLELISM ?= $(shell nproc)
-ALL_TEST_ENV_OVERRIDE := DD_TRACE_IGNORE_AGENT_SAMPLING_RATES=1 DD_TRACE_GIT_METADATA_ENABLED=0 DD_CRASHTRACKER_RECEIVER_TIMEOUT_MS=15000 DD_TRACE_RATE_LIMIT=1000000
+# macOS CI runs on bare-metal runners that leak GitLab's infra-monitoring DD_* env vars into the
+# job, letting the sidecar reach a real agent and breaking test determinism (varying sample rates,
+# non-empty "env"). Linux CI runs in Docker with no such stray agent, and some tests (e.g.
+# tests/ext/background-sender/agent_sampling_sidecar.phpt) specifically need agent sampling rates
+# to NOT be ignored, so keep this macOS-only.
+ALL_TEST_ENV_OVERRIDE := $(if $(filter Darwin,$(shell uname -s)),DD_TRACE_IGNORE_AGENT_SAMPLING_RATES=1 DD_TRACE_RATE_LIMIT=1000000,$(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_TRACE_IGNORE_AGENT_SAMPLING_RATES=1)) DD_TRACE_GIT_METADATA_ENABLED=0 DD_CRASHTRACKER_RECEIVER_TIMEOUT_MS=15000
 
 VERSION := $(shell cat VERSION)
 
@@ -44,7 +49,12 @@ TRACER_SOURCES_INI := -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR)
 RUN_TESTS_IS_PARALLEL ?= $(shell test $(PHP_MAJOR_MINOR) -ge 74 && echo 1)
 
 # shuffle parallel tests to evenly distribute test load, avoiding a batch of 32 tests being request-replayer tests
-RUN_TESTS_CMD := DD_SERVICE= DD_ENV= REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKED_ALLOC=1 php -n -d 'memory_limit=-1' $(BUILD_DIR)/run-tests.php $(if $(QUIET_TESTS),,-g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP) $(if $(ASAN), --asan) --show-diff -n -p $(shell which php) -q $(if $(RUN_TESTS_IS_PARALLEL), --shuffle -j$(MAX_TEST_PARALLELISM)) -d datadog.agent_host=127.0.0.1 -d datadog.trace.agent_port=1
+#
+# On macOS CI, force a local, unreachable agent host/port so tests can't accidentally reach the
+# real agent that GitLab's bare-metal runner env leakage would otherwise point them at (see
+# ALL_TEST_ENV_OVERRIDE above). Linux tests that need a mock agent set DD_AGENT_HOST/DD_TRACE_AGENT_PORT
+# explicitly via --ENV--, which a global -d override here would clobber.
+RUN_TESTS_CMD := DD_SERVICE= DD_ENV= REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJECT_ROOT) USE_TRACKED_ALLOC=1 php -n -d 'memory_limit=-1' $(BUILD_DIR)/run-tests.php $(if $(QUIET_TESTS),,-g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP) $(if $(ASAN), --asan) --show-diff -n -p $(shell which php) -q $(if $(RUN_TESTS_IS_PARALLEL), --shuffle -j$(MAX_TEST_PARALLELISM)) $(if $(filter Darwin,$(shell uname -s)), -d datadog.agent_host=127.0.0.1 -d datadog.trace.agent_port=1)
 
 C_FILES = $(shell find components components-rs ext src/dogstatsd tracer zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES = $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name '*.yaml' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
