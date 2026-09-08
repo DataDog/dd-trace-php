@@ -459,11 +459,8 @@ class SymfonyIntegration extends Integration
                     if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()
                         && dd_trace_env_config("DD_API_SECURITY_ENABLED")) {
                         // Use the compiled route regex for accurate param presence detection.
-                        // Generic URL inference (inferSymfonyRouteParams) ignores route
-                        // requirements and can misidentify defaulted params as URL-matched
-                        // (e.g. {slug}.{format} with format=html|json requirement and URL
-                        // "foo.bar" — generic inference treats "bar" as format).
-                        // Fall back to generic inference when the route is unavailable.
+                        // Without it, omit the tag instead of inferring from the URL and
+                        // potentially treating a route default as a matched parameter.
                         $matchedParams = null;
                         if ($container->has('router')) {
                             $_r = $container->get('router');
@@ -473,7 +470,9 @@ class SymfonyIntegration extends Integration
                                     $_compiled = $_route->compile();
                                     if (method_exists($_compiled, 'getRegex')) {
                                         $_regex = $_compiled->getRegex();
-                                        if (@preg_match($_regex, $request->getPathInfo(), $_rxm) === 1) {
+                                        // Symfony's UrlMatcher matches the decoded path.
+                                        $_pathInfo = rawurldecode($request->getPathInfo());
+                                        if (@preg_match($_regex, $_pathInfo, $_rxm) === 1) {
                                             $matchedParams = [];
                                             foreach ($_rxm as $_k => $_v) {
                                                 if (is_string($_k) && $_v !== '') {
@@ -484,10 +483,10 @@ class SymfonyIntegration extends Integration
                                     }
                                 }
                             }
-                            unset($_r, $_route, $_compiled, $_regex, $_rxm, $_k, $_v);
+                            unset($_r, $_route, $_compiled, $_regex, $_pathInfo, $_rxm, $_k, $_v);
                         }
                         if ($matchedParams === null) {
-                            $matchedParams = \DDTrace\Util\RouteNormalizer::inferSymfonyRouteParams($path, $request->getPathInfo());
+                            return;
                         }
                         $cacheKey = $route_name . '|' . implode(',', array_keys($matchedParams));
                         $normalizedRoute = \DDTrace\routing_cache_get($cacheKey);

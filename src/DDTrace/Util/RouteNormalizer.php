@@ -23,24 +23,25 @@ class RouteNormalizer
      *
      * @param string     $path          Path template, e.g. "/users/{id}"
      * @param array|null $matchedParams Params actually present in the URL path (not including
-     *                                  route defaults); when provided, absent params are dropped
+     *                                  route defaults); required for dynamic routes
      * @return string|null
      */
     public static function normalizeFromSymfony(string $path, $matchedParams = null)
     {
-        if ($matchedParams !== null) {
-            // Mark params absent from the URL as optional so normalizeBraceSegment drops them.
-            // Use [^}?:]+ to match any param name including UTF-8 characters.
-            $path = preg_replace_callback(
-                '/\{([^}?:]+)\}/',
-                static function ($m) use ($matchedParams) {
-                    return array_key_exists($m[1], $matchedParams) ? $m[0] : '{' . $m[1] . '?}';
-                },
-                $path
-            );
-            return self::normalizeBraceRoute($path, $matchedParams);
+        if ($matchedParams === null) {
+            return self::normalizeBraceRoute($path, []);
         }
-        return self::normalizeBraceRoute($path, []);
+
+        // Mark params absent from the URL as optional so normalizeBraceSegment drops them.
+        // Use [^}?:]+ to match any param name including UTF-8 characters.
+        $path = preg_replace_callback(
+            '/\{([^}?:]+)\}/',
+            static function ($m) use ($matchedParams) {
+                return array_key_exists($m[1], $matchedParams) ? $m[0] : '{' . $m[1] . '?}';
+            },
+            $path
+        );
+        return self::normalizeBraceRoute($path, $matchedParams);
     }
 
     /**
@@ -55,6 +56,7 @@ class RouteNormalizer
      *                                   whose params were injected by middleware rather than
      *                                   matched from the URL (e.g. Laminas API Tools
      *                                   VersionListener sets :version even without a /v1/ prefix)
+     * @param array|null  $urlMatchedParams Parameters captured by the Regex route matcher
      * @return string|null
      */
     public static function normalizeFromLaminas(string $template, array $matchedParams = [], $urlPath = null, $urlMatchedParams = null)
@@ -68,34 +70,72 @@ class RouteNormalizer
         }
 
         // Segment routes use :param; Regex routes use %param% (spec format) — handle both.
-        // Detect Regex routes before conversion so we can apply URL-based param filtering.
+        // Detect Regex routes before conversion so matcher capture metadata can be applied.
         $hasPercentParams = (bool) preg_match('/%([a-zA-Z_][a-zA-Z0-9_]*)%/', $expanded);
+        // For Regex routes, defaults inject values into matchedParams even for captures absent
+        // from the URL (e.g. format='html' when no .html in path). Use $urlMatchedParams when
+        // provided by the integration; otherwise fall back to URL-value heuristic or treat all
+        // percent params as required when no URL info is available.
+        if ($hasPercentParams) {
+            if ($urlMatchedParams === null) {
+                if ($urlPath === null) {
+                    // No URL info: treat all percent params as required (present).
+                    $expanded = preg_replace('/%([a-zA-Z_][a-zA-Z0-9_]*)%/', '{$1}', $expanded);
+                    $urlMatchedParams = $matchedParams;
+                } else {
+                    // Heuristic: params whose values appear in the URL are treated as URL-matched.
+                    $inferred = [];
+                    foreach ($matchedParams as $name => $value) {
+                        if (strpos($expanded, '%' . $name . '%') === false) {
+                            continue;
+                        }
+                        $strValue = (string) $value;
+                        if ($strValue !== '' && (
+                            strpos($urlPath, $strValue) !== false ||
+                            strpos($urlPath, rawurlencode($strValue)) !== false ||
+                            strpos(strtolower($urlPath), strtolower(rawurlencode($strValue))) !== false
+                        )) {
+                            $inferred[$name] = $value;
+                        }
+                    }
+                    $expanded = preg_replace_callback(
+                        '/%([a-zA-Z_][a-zA-Z0-9_]*)%/',
+                        static function ($m) use ($inferred) {
+                            return array_key_exists($m[1], $inferred)
+                                ? '{' . $m[1] . '}'
+                                : '{' . $m[1] . '?}';
+                        },
+                        $expanded
+                    );
+                    $urlMatchedParams = $inferred;
+                }
+            } else {
+                $expanded = preg_replace_callback(
+                    '/%([a-zA-Z_][a-zA-Z0-9_]*)%/',
+                    static function ($m) use ($urlMatchedParams) {
+                        return array_key_exists($m[1], $urlMatchedParams)
+                            ? '{' . $m[1] . '}'
+                            : '{' . $m[1] . '?}';
+                    },
+                    $expanded
+                );
+            }
+        }
+
         $braceFormat = self::colonParamsToBraces($expanded);
         $braceFormat = self::percentParamsToBraces($braceFormat);
 
-        // For Regex routes the defaults array injects values into matchedParams even for
-        // optional captures absent from the URL (e.g. format='html' when no .html in path).
-        // Use the URL path to determine which params were actually URL-matched.
-        if ($hasPercentParams && $urlPath !== null) {
-            $effectiveUrlMatchedParams = $urlMatchedParams ?? self::inferSymfonyRouteParams($braceFormat, $urlPath);
-            $braceFormat = preg_replace_callback(
-                '/\{([^}?:]+)\}/',
-                static function ($m) use ($effectiveUrlMatchedParams) {
-                    return array_key_exists($m[1], $effectiveUrlMatchedParams) ? $m[0] : '{' . $m[1] . '?}';
-                },
-                $braceFormat
-            );
-            return self::normalizeBraceRoute($braceFormat, $effectiveUrlMatchedParams);
-        }
-
-        return self::normalizeBraceRoute($braceFormat, $matchedParams);
+        return self::normalizeBraceRoute(
+            $braceFormat,
+            $hasPercentParams ? $urlMatchedParams : $matchedParams
+        );
     }
 
     /**
      * Normalize a WordPress matched_rule (regex).
      *
      * WordPress route matching uses regex rules like "^blog/([^/]+)/?$".
-     * Named parameters are not available; placeholders param1, param2, … are used.
+     * PCRE supplies declared names; unnamed captures use param1, param2, ….
      *
      * @param string      $matchedRule Value of $wp->matched_rule
      * @param string|null $urlPath     Value of $wp->request; used to detect which
@@ -103,231 +143,482 @@ class RouteNormalizer
      *                                 in the match, so phantom segments are not emitted.
      * @return string|null
      */
-    public static function normalizeFromWordPress(string $matchedRule, $urlPath = null)
+    public static function normalizeFromWordPress(string $matchedRule, $urlPath = null, $analysis = null)
     {
-        // Re-run the regex against the actual URL to find which capture groups matched.
-        // Tracks each group individually so gaps from optional groups (e.g. (?:(...))?)
-        // that didn't participate are skipped instead of emitting phantom params.
-        $matchedGroups = null;
-        if ($urlPath !== null) {
-            // Strip both leading and trailing slashes: WordPress $wp->request often includes
-            // a trailing slash, but many WordPress regex rules end with `$` (no `/?`), so a
-            // trailing slash causes the match to fail and leaves $matchedGroups null — which
-            // then treats all optional capture groups as present and produces the wrong shape.
-            if (@preg_match('#^' . $matchedRule . '#', trim($urlPath, '/'), $captures)) {
-                $matchedGroups = [];
-                for ($i = 1; $i < count($captures); $i++) {
-                    if (isset($captures[$i]) && $captures[$i] !== '') {
-                        $matchedGroups[$i] = true;
-                    }
-                }
+        if ($analysis === null) {
+            $analysis = self::analyzeWordPressRoute($matchedRule, $urlPath);
+        }
+
+        return $analysis['normalized_route'] ?? null;
+    }
+
+    /**
+     * Match a WordPress rule and derive the route from PCRE's capture offsets.
+     *
+     * Literal alternatives and optional literals may produce distinct normalized
+     * routes. Rules that can consume variable text outside a capture are rejected,
+     * because their uncaptured request text would otherwise become a route constant.
+     *
+     * When $urlPath is null, a backward-compatible fallback is used that emits all
+     * capture groups without filtering by participation.
+     *
+     * @return array|null
+     */
+    public static function analyzeWordPressRoute(string $matchedRule, $urlPath = null)
+    {
+        if (!self::hasOnlyCapturedWordPressDynamics($matchedRule)) {
+            return null;
+        }
+
+        if ($urlPath === null) {
+            $normalized = self::normalizeWordPressRuleOnly($matchedRule);
+            if ($normalized === null) {
+                return null;
             }
+            return [
+                'normalized_route' => $normalized,
+                'cache_signature'  => $normalized,
+            ];
         }
 
-        $rule = ltrim($matchedRule, '^');
-        $rule = rtrim($rule, '$');
+        // WordPress uses # delimiters when selecting matched_rule, so an
+        // unescaped # could not occur in a rule that successfully matched.
+        $pattern = '#^' . $matchedRule . '#';
 
-        if (preg_match('#\\\\?/\?$#', $rule, $m)) {
-            $rule = substr($rule, 0, -strlen($m[0]));
+        $subject = trim($urlPath, '/');
+        $matches = [];
+        $flags = PREG_OFFSET_CAPTURE;
+        if (defined('PREG_UNMATCHED_AS_NULL')) {
+            $flags |= constant('PREG_UNMATCHED_AS_NULL');
+        }
+        if (@preg_match($pattern, $subject, $matches, $flags) !== 1) {
+            return null;
+        }
+        if ($matches[0][1] !== 0 || strlen($matches[0][0]) !== strlen($subject)) {
+            return null;
         }
 
-        $rule = trim($rule, '/');
-        if ($rule === '') {
+        $captures = self::wordPressNumericCaptures($matches);
+        if ($captures === null || !self::applyWordPressCaptureNames($matches, $captures)) {
+            return null;
+        }
+
+        $normalizedRoute = self::normalizeWordPressMatch($subject, $captures);
+        if ($normalizedRoute === null) {
+            return null;
+        }
+
+        return [
+            'normalized_route' => $normalizedRoute,
+            // This is bounded because uncaptured variable input was rejected above.
+            'cache_signature' => $normalizedRoute,
+        ];
+    }
+
+    /**
+     * Backward-compatible fallback for normalizeFromWordPress when no URL path is available.
+     *
+     * Parses the PCRE rule structure to identify capture groups and segment boundaries
+     * ('/') at capturing-depth 0. All capture groups are treated as present.
+     */
+    private static function normalizeWordPressRuleOnly(string $rule): ?string
+    {
+        // Strip anchors and common trailing patterns
+        $s = $rule;
+        if (isset($s[0]) && $s[0] === '^') {
+            $s = substr($s, 1);
+        }
+        if (substr($s, -3) === '/?$') {
+            $s = substr($s, 0, -3);
+        } elseif (substr($s, -2) === '/$') {
+            $s = substr($s, 0, -2);
+        } elseif (substr($s, -2) === '?$') {
+            $s = substr($s, 0, -2);
+        } elseif (substr($s, -1) === '$') {
+            $s = substr($s, 0, -1);
+        }
+        if (substr($s, -2) === '/?') {
+            $s = substr($s, 0, -2);
+        }
+
+        if ($s === '') {
             return '/';
         }
 
-        // Pull the path separator out of (?:/...) non-capturing groups so that
-        // splitRegexBySlash treats the embedded '/' as a real segment boundary.
-        // Pattern: (?:/foo) means "optional /foo segment" — the '/' belongs at top level.
-        $rule = str_replace('(?:/', '/(?:', $rule);
-
-        $segments = self::splitRegexBySlash($rule);
-        $normalizedSegments = [];
-        $paramIndex = 1;
-
-        foreach ($segments as $segment) {
-            if ($segment === '') {
-                continue;
-            }
-
-            if (preg_match('/[()[\].*+?|^${}\\\\]/', $segment)) {
-                // If the segment is entirely escaped static text (e.g. file\.json),
-                // decode the backslash escapes and emit it as a plain static segment.
-                if (self::isStaticEscapedRegex($segment)) {
-                    $decoded = preg_replace('/\\\\(.)/', '$1', $segment);
-                    if ($decoded !== '') {
-                        $normalizedSegments[] = self::encodeStaticSegment($decoded);
-                    }
-                    continue;
-                }
-
-                $prefixLen = strcspn($segment, '([{?*+|^$\\');
-                $dynamicPart = substr($segment, $prefixLen);
-                $groupNames = self::extractCaptureGroupNames($dynamicPart);
-                $groupCount = count($groupNames);
-
-                // Only emit a static prefix for purely-regex segments with no capture
-                // groups. When captures exist the whole segment (prefix + captures) maps
-                // to one RFC element, so the prefix must not become a separate element.
-                if ($prefixLen > 0 && $groupCount === 0) {
-                    $staticPart = rtrim(substr($segment, 0, $prefixLen), '/-._');
-                    if ($staticPart !== '') {
-                        $normalizedSegments[] = self::encodeStaticSegment($staticPart);
-                    }
-                }
-
-                if ($groupCount === 0) {
-                    if ($matchedGroups !== null && !isset($matchedGroups[$paramIndex])) {
-                        $paramIndex++;
-                        continue;
-                    }
-                    $normalizedSegments[] = '{param' . $paramIndex++ . '}';
-                } else {
-                    $params = [];
-                    for ($j = 0; $j < $groupCount; $j++) {
-                        if ($matchedGroups !== null && !isset($matchedGroups[$paramIndex])) {
-                            $paramIndex++;
-                            continue;
-                        }
-                        $name = $groupNames[$j] ?? null;
-                        $params[] = $name !== null ? self::encodeParamName($name) : 'param' . $paramIndex;
-                        $paramIndex++;
-                    }
-                    if (!empty($params)) {
-                        $normalizedSegments[] = '{' . implode('+', $params) . '}';
-                    }
-                }
-            } else {
-                $normalizedSegments[] = self::encodeStaticSegment($segment);
-            }
-        }
-
-        return '/' . implode('/', $normalizedSegments);
-    }
-
-    /**
-     * Split a regex string by '/' but not inside character classes [...] or groups (...).
-     * Prevents [^/] and (?:/...) from being split into multiple segments.
-     */
-    private static function splitRegexBySlash(string $str): array
-    {
-        $segments = [];
-        $current = '';
-        $len = strlen($str);
-        $bracketDepth = 0;
-        $parenDepth = 0;
-
-        for ($i = 0; $i < $len; $i++) {
-            $c = $str[$i];
-
-            if ($c === '\\' && $i + 1 < $len) {
-                $current .= $c . $str[$i + 1];
-                $i++;
-                continue;
-            }
-
-            if ($c === '[' && $parenDepth === 0) {
-                $bracketDepth++;
-                $current .= $c;
-            } elseif ($c === ']' && $bracketDepth > 0) {
-                $bracketDepth--;
-                $current .= $c;
-            } elseif ($c === '(' && $bracketDepth === 0) {
-                $parenDepth++;
-                $current .= $c;
-            } elseif ($c === ')' && $parenDepth > 0 && $bracketDepth === 0) {
-                $parenDepth--;
-                $current .= $c;
-            } elseif ($c === '/' && $bracketDepth === 0 && $parenDepth === 0) {
-                $segments[] = $current;
-                $current = '';
-            } else {
-                $current .= $c;
-            }
-        }
-
-        $segments[] = $current;
-        return $segments;
-    }
-
-    /**
-     * Returns true if $s is entirely made up of backslash-escaped characters and
-     * plain literal text, with no real regex metacharacters (captures, classes, etc.).
-     */
-    private static function isStaticEscapedRegex(string $s): bool
-    {
+        $captureNum = 0;
+        $groups = [];        // stack: true = capturing, false = non-capturing
+        $capturingDepth = 0;
+        $inClass = false;
+        $inQuote = false;
         $len = strlen($s);
+
+        $segments = [];
+        $currentSegment = ['static' => '', 'captures' => []];
+
         for ($i = 0; $i < $len; $i++) {
-            if ($s[$i] === '\\') {
-                if ($i + 1 >= $len) {
+            $char = $s[$i];
+
+            if ($inQuote) {
+                if ($char === '\\' && isset($s[$i + 1]) && $s[$i + 1] === 'E') {
+                    $inQuote = false;
+                    $i++;
+                }
+                continue;
+            }
+
+            if ($inClass) {
+                if ($char === '\\' && isset($s[$i + 1])) {
+                    $i++;
+                } elseif ($char === ']') {
+                    $inClass = false;
+                }
+                continue;
+            }
+
+            if ($char === '\\') {
+                if (!isset($s[$i + 1])) {
+                    break;
+                }
+                $next = $s[++$i];
+                if ($next === 'Q') {
+                    $inQuote = true;
+                }
+                continue;
+            }
+
+            if ($char === '[' && $capturingDepth > 0) {
+                $inClass = true;
+                continue;
+            }
+
+            if ($char === '(') {
+                $capturing = true;
+                if (substr($s, $i + 1, 2) === '?:') {
+                    $capturing = false;
+                    $i += 2;
+                } elseif (substr($s, $i + 1, 3) === '?P<') {
+                    $end = strpos($s, '>', $i + 4);
+                    if ($end !== false) {
+                        $i = $end;
+                    }
+                } elseif (substr($s, $i + 1, 2) === '?<'
+                    && isset($s[$i + 3]) && strpos('=!', $s[$i + 3]) === false) {
+                    $end = strpos($s, '>', $i + 3);
+                    if ($end !== false) {
+                        $i = $end;
+                    }
+                } elseif (isset($s[$i + 1]) && $s[$i + 1] === '?') {
+                    $capturing = false;
+                    $i++;
+                }
+                $groups[] = $capturing;
+                if ($capturing) {
+                    $captureNum++;
+                    if ($capturingDepth === 0) {
+                        $currentSegment['captures'][] = $captureNum;
+                    }
+                    $capturingDepth++;
+                }
+                continue;
+            }
+
+            if ($char === ')') {
+                $wasCapturing = array_pop($groups);
+                if ($wasCapturing) {
+                    $capturingDepth--;
+                }
+                if (isset($s[$i + 1]) && ($s[$i + 1] === '?' || $s[$i + 1] === '*' || $s[$i + 1] === '+')) {
+                    $i++;
+                } elseif (isset($s[$i + 1]) && $s[$i + 1] === '{') {
+                    $end = strpos($s, '}', $i + 1);
+                    if ($end !== false) {
+                        $i = $end;
+                    }
+                }
+                continue;
+            }
+
+            if ($capturingDepth > 0) {
+                continue;
+            }
+
+            // At capturingDepth === 0
+            if ($char === '/') {
+                $segments[] = $currentSegment;
+                $currentSegment = ['static' => '', 'captures' => []];
+            } elseif ($char === '?' || $char === '*' || $char === '+') {
+                // quantifier — skip
+            } elseif ($char === '{') {
+                $end = strpos($s, '}', $i);
+                if ($end !== false) {
+                    $i = $end;
+                }
+            } elseif ($char === '|') {
+                break; // take first alternative only
+            } elseif ($char !== '.') {
+                $currentSegment['static'] .= $char;
+            }
+        }
+
+        $segments[] = $currentSegment;
+
+        $normalized = [];
+        foreach ($segments as $seg) {
+            if (!empty($seg['captures'])) {
+                $params = array_map(static function ($n) { return 'param' . $n; }, $seg['captures']);
+                $normalized[] = '{' . implode('+', $params) . '}';
+            } elseif ($seg['static'] !== '') {
+                $normalized[] = self::encodeStaticSegment($seg['static']);
+            }
+        }
+
+        return '/' . implode('/', $normalized);
+    }
+
+    /**
+     * This is a rejection filter, not a PCRE parser. Capture bodies are opaque.
+     * Outside captures, only literal text, fixed alternatives, optional fixed text,
+     * and non-capturing wrappers are allowed.
+     */
+    private static function hasOnlyCapturedWordPressDynamics(string $rule): bool
+    {
+        $groups = [];
+        $captureDepth = 0;
+        $inClass = false;
+        $inQuote = false;
+        $length = strlen($rule);
+
+        for ($i = 0; $i < $length; $i++) {
+            $char = $rule[$i];
+
+            if ($inQuote) {
+                if ($char === '\\' && isset($rule[$i + 1]) && $rule[$i + 1] === 'E') {
+                    $inQuote = false;
+                    $i++;
+                }
+                continue;
+            }
+            if ($inClass) {
+                if ($char === '\\' && isset($rule[$i + 1])) {
+                    $i++;
+                } elseif ($char === ']') {
+                    $inClass = false;
+                }
+                continue;
+            }
+            if ($char === '\\') {
+                if (!isset($rule[$i + 1])) {
                     return false;
                 }
-                $i++;
-            } elseif (strpos('([{?*+|^$', $s[$i]) !== false) {
+                $escaped = $rule[++$i];
+                if ($escaped === 'Q') {
+                    $inQuote = true;
+                } elseif ($captureDepth === 0 && ctype_alnum($escaped)) {
+                    return false;
+                }
+                continue;
+            }
+            if ($char === '[') {
+                if ($captureDepth === 0) {
+                    return false;
+                }
+                $inClass = true;
+                continue;
+            }
+            if ($char === '(') {
+                $capturing = true;
+                if (isset($rule[$i + 1]) && $rule[$i + 1] === '*') {
+                    if ($captureDepth === 0) {
+                        return false;
+                    }
+                    $capturing = false;
+                } elseif (isset($rule[$i + 1]) && $rule[$i + 1] === '?') {
+                    $namedEnd = self::wordPressNamedCaptureEnd($rule, $i);
+                    if ($namedEnd !== null) {
+                        $i = $namedEnd;
+                    } elseif (substr($rule, $i + 1, 2) === '?:') {
+                        $capturing = false;
+                        $i += 2;
+                    } elseif ($captureDepth > 0) {
+                        // The outer capture covers everything consumed by this group.
+                        $capturing = false;
+                    } else {
+                        return false;
+                    }
+                }
+                $groups[] = $capturing;
+                if ($capturing) {
+                    $captureDepth++;
+                }
+                continue;
+            }
+            if ($char === ')') {
+                if (empty($groups)) {
+                    return false;
+                }
+                if (array_pop($groups)) {
+                    $captureDepth--;
+                }
+                continue;
+            }
+            if ($captureDepth === 0 && strpos('.[*+{', $char) !== false) {
                 return false;
             }
         }
-        return true;
+
+        return !$inClass && empty($groups);
     }
 
-    /**
-     * Extract capture group names from a regex segment.
-     * Named groups ((?P<name>...) or (?<name>...)) return their name; unnamed groups return null.
-     * Non-capturing groups (?:...) and lookarounds are not included.
-     */
-    private static function extractCaptureGroupNames(string $segment): array
+    /** @return int|null */
+    private static function wordPressNamedCaptureEnd(string $rule, int $open)
     {
-        $names = [];
-        $len = strlen($segment);
-        $inClass = false;
+        if (substr($rule, $open + 1, 3) === '?P<') {
+            $end = strpos($rule, '>', $open + 4);
+        } elseif (substr($rule, $open + 1, 2) === '?<'
+            && isset($rule[$open + 3]) && strpos('=!', $rule[$open + 3]) === false) {
+            $end = strpos($rule, '>', $open + 3);
+        } elseif (substr($rule, $open + 1, 2) === "?'") {
+            $end = strpos($rule, "'", $open + 3);
+        } else {
+            return null;
+        }
 
-        for ($i = 0; $i < $len; $i++) {
-            $c = $segment[$i];
+        return $end === false ? null : $end;
+    }
 
-            if ($c === '\\' && $i + 1 < $len) {
-                $i++;
+    /** @return array|null */
+    private static function wordPressNumericCaptures(array $matches)
+    {
+        $captures = [];
+        foreach ($matches as $key => $match) {
+            if (!is_int($key) || $key === 0) {
+                continue;
+            }
+            if (!is_array($match) || count($match) !== 2) {
+                return null;
+            }
+            $captures[$key] = [
+                'value' => $match[0],
+                'offset' => $match[1],
+                'present' => $match[1] >= 0 && $match[0] !== '',
+                'name' => null,
+            ];
+        }
+        ksort($captures);
+        return $captures;
+    }
+
+    private static function applyWordPressCaptureNames(array $matches, array &$captures): bool
+    {
+        $pendingName = null;
+        $pendingMatch = null;
+        foreach ($matches as $key => $match) {
+            if (is_string($key)) {
+                if ($pendingName !== null) {
+                    return false;
+                }
+                $pendingName = $key;
+                $pendingMatch = $match;
+                continue;
+            }
+            if ($key === 0 || $pendingName === null) {
+                continue;
+            }
+            if (!isset($captures[$key]) || $pendingMatch !== $match
+                || $captures[$key]['name'] !== null) {
+                return false;
+            }
+            $captures[$key]['name'] = $pendingName;
+            $pendingName = null;
+            $pendingMatch = null;
+        }
+        return $pendingName === null;
+    }
+
+    /** @return string|null */
+    private static function normalizeWordPressMatch(string $subject, array $captures)
+    {
+        if ($subject === '') {
+            return '/';
+        }
+
+        $values = explode('/', $subject);
+        $segments = [];
+        $offset = 0;
+        foreach ($values as $index => $value) {
+            $segments[$index] = [
+                'value' => $value,
+                'start' => $offset,
+                'end' => $offset + strlen($value),
+                'captures' => [],
+            ];
+            $offset = $segments[$index]['end'] + 1;
+        }
+
+        foreach ($captures as $index => &$capture) {
+            if (!$capture['present']) {
+                continue;
+            }
+            $captureEnd = $capture['offset'] + strlen($capture['value']);
+            $capture['first_segment'] = null;
+            $capture['last_segment'] = null;
+            foreach ($segments as $segmentIndex => &$segment) {
+                if ($capture['offset'] < $segment['end'] && $captureEnd > $segment['start']) {
+                    $segment['captures'][$index] = true;
+                    if ($capture['first_segment'] === null) {
+                        $capture['first_segment'] = $segmentIndex;
+                    }
+                    $capture['last_segment'] = $segmentIndex;
+                }
+            }
+            unset($segment);
+            if ($capture['first_segment'] === null) {
+                return null;
+            }
+        }
+        unset($capture);
+
+        $normalized = [];
+        for ($segmentIndex = 0; $segmentIndex < count($segments); $segmentIndex++) {
+            if (empty($segments[$segmentIndex]['captures'])) {
+                $normalized[] = self::encodeStaticSegment($segments[$segmentIndex]['value']);
                 continue;
             }
 
-            if ($c === '[' && !$inClass) {
-                $inClass = true;
-            } elseif ($c === ']' && $inClass) {
-                $inClass = false;
-            } elseif ($c === '(' && !$inClass) {
-                if ($i + 1 < $len && $segment[$i + 1] === '?') {
-                    // Named group (?P<name>...) — Python/PCRE syntax
-                    if ($i + 3 < $len && $segment[$i + 2] === 'P' && $segment[$i + 3] === '<') {
-                        $closePos = strpos($segment, '>', $i + 4);
-                        $names[] = $closePos !== false
-                            ? substr($segment, $i + 4, $closePos - ($i + 4))
-                            : null;
-                    // Named group (?<name>...) but not lookbehind (?<=...) / (?<!...)
-                    } elseif (
-                        $i + 2 < $len && $segment[$i + 2] === '<' &&
-                        isset($segment[$i + 3]) && $segment[$i + 3] !== '=' && $segment[$i + 3] !== '!'
-                    ) {
-                        $closePos = strpos($segment, '>', $i + 3);
-                        $names[] = $closePos !== false
-                            ? substr($segment, $i + 3, $closePos - ($i + 3))
-                            : null;
+            $lastSegment = $segmentIndex;
+            do {
+                $previousLast = $lastSegment;
+                foreach ($captures as $capture) {
+                    if (!$capture['present'] || $capture['first_segment'] > $lastSegment
+                        || $capture['last_segment'] < $segmentIndex) {
+                        continue;
                     }
-                    // (?:...), (?=...), etc. — not a capturing group, skip
-                } else {
-                    $names[] = null;
+                    $lastSegment = max($lastSegment, $capture['last_segment']);
                 }
+            } while ($lastSegment !== $previousLast);
+
+            $params = [];
+            foreach ($captures as $index => $capture) {
+                if (!$capture['present'] || $capture['first_segment'] > $lastSegment
+                    || $capture['last_segment'] < $segmentIndex) {
+                    continue;
+                }
+                $params[] = $capture['name'] !== null
+                    ? self::encodeParamName($capture['name'])
+                    : 'param' . $index;
             }
+            $normalized[] = '{' . implode('+', $params) . '}';
+            $segmentIndex = $lastSegment;
         }
 
-        return $names;
+        return '/' . implode('/', $normalized);
     }
 
     /**
      * Normalize a route that uses {param} notation.
      */
-    private static function normalizeBraceRoute(
-        string $route,
-        array $matchedParams
-    ) {
+    private static function normalizeBraceRoute(string $route, array $matchedParams)
+    {
         $route = trim($route);
         if ($route === '' || $route === '/') {
             return '/';
@@ -340,7 +631,7 @@ class RouteNormalizer
             $route = '/' . $route;
         }
 
-        // Strip inline constraints (e.g. Slim's {name:[^/]+} → {name}) before
+        // Strip inline constraints (e.g. {name:[^/]+} → {name}) before
         // splitting so that a '/' inside a constraint does not break the segment
         // split. The optional marker '?' is preserved: {name?:[0-9]+} → {name?}.
         $route = preg_replace('/\{([^}?:]+(\?)?):([^}]*)\}/', '{$1}', $route);
@@ -606,77 +897,5 @@ class RouteNormalizer
             }
         }
         return $result;
-    }
-
-    /**
-     * Infer which Symfony route parameters were actually present in the URL path
-     * (vs. injected as route defaults).
-     *
-     * Handles three kinds of template segments:
-     *  - Whole-segment param:  {id}           → matched if URL has a segment at that position
-     *  - Mixed segment:        {id}.{_format} → matched if URL segment matches template regex
-     *  - Static segment:       users          → no params extracted
-     *
-     * UTF-8 parameter names are supported.
-     */
-    public static function inferSymfonyRouteParams(string $template, string $urlPath): array
-    {
-        $templateSegments = array_values(array_filter(explode('/', $template), 'strlen'));
-        // Decode percent-encoded URL path so template literals (e.g. café) compare
-        // correctly against encoded URL segments (e.g. caf%C3%A9).
-        $urlSegments = array_values(array_filter(
-            array_map('rawurldecode', explode('/', $urlPath)),
-            'strlen'
-        ));
-
-        $matched = [];
-        $urlIdx  = 0;
-
-        foreach ($templateSegments as $seg) {
-            if (preg_match('/^\{([^}?:]+)\}$/', $seg, $m)) {
-                // Whole-segment param — present if there is a URL segment at this position
-                if ($urlIdx < count($urlSegments)) {
-                    $matched[$m[1]] = $urlSegments[$urlIdx];
-                }
-                $urlIdx++;
-            } elseif (preg_match('/\{/', $seg)) {
-                // Mixed segment (static text + one or more params): determine presence by
-                // trying to match the URL segment, dropping trailing optional params as needed.
-                if ($urlIdx < count($urlSegments)) {
-                    preg_match_all('/\{([^}?:]+)\}/', $seg, $pm);
-                    $paramNames  = $pm[1];
-                    $n           = count($paramNames);
-                    if ($n > 0) {
-                        $urlSeg      = $urlSegments[$urlIdx];
-                        $staticParts = preg_split('/\{[^}]+\}/', $seg);
-                        // Try with k params (k = n, n-1, ..., 1). Drop params from the right
-                        // until the URL segment matches. This handles optional trailing captures
-                        // that were injected as route defaults but absent from the URL.
-                        for ($k = $n; $k >= 1; $k--) {
-                            $regexBody = '';
-                            for ($i = 0; $i < $k; $i++) {
-                                $regexBody .= preg_quote($staticParts[$i], '/') . '(.+)';
-                            }
-                            // Only include the trailing static part for a full match
-                            if ($k === $n) {
-                                $regexBody .= preg_quote($staticParts[$n], '/');
-                            }
-                            if (@preg_match('/^' . $regexBody . '$/', $urlSeg)) {
-                                for ($i = 0; $i < $k; $i++) {
-                                    $matched[$paramNames[$i]] = true;
-                                }
-                                break;
-                            }
-                        }
-                    }
-                }
-                $urlIdx++;
-            } else {
-                // Pure static segment — advance URL position
-                $urlIdx++;
-            }
-        }
-
-        return $matched;
     }
 }
