@@ -513,7 +513,7 @@ if [[ -d /opt/homebrew/lib ]]; then
   export CPPFLAGS="${CPPFLAGS:-} -idirafter /opt/homebrew/include"
 fi
 export CXXFLAGS="${CXXFLAGS:-} -std=c++11"
-export CFLAGS="${CFLAGS:-} -Wno-implicit-function-declaration"
+export CFLAGS="${CFLAGS:-} -Wno-implicit-function-declaration -Wno-error=incompatible-pointer-types -Wno-error=discarded-qualifiers -Wno-error=implicit-int"
 
 install_openssl 1.0.2u
 install_openssl 1.1.1w
