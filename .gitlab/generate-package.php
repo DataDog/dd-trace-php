@@ -1277,7 +1277,7 @@ endforeach;
 
 .system_tests:
   stage: verify
-  image: registry.ddbuild.io/images/mirror/python:3.12-slim-bullseye
+  image: registry.ddbuild.io/images/mirror/python:3.12-slim-bookworm
   tags: [ "docker-in-docker:amd64" ]
   variables:
     TEST_LIBRARY: php
@@ -1306,24 +1306,8 @@ endforeach;
       mkdir -p $APT_CACHE/archives
       chown -R $(id -u):$(id -g) $CI_PROJECT_DIR/.cache
 
-      # Fix apt sources, as debian 11 is EOL: bullseye-security expired and part of its pool is purged from deb.debian.org
-      # Interim only - this is just a test driver, so it goes when python:3.12-slim-bookworm is mirrored; the codename guard makes the pin inert by itself
-      if [ "$(. /etc/os-release; echo $VERSION_CODENAME)" = "bullseye" ]; then
-        sed -i -e 's|http://deb.debian.org/debian-security|http://snapshot.debian.org/archive/debian-security/20260901T000000Z|g' \
-               -e 's|http://deb.debian.org/debian|http://snapshot.debian.org/archive/debian/20260901T000000Z|g' /etc/apt/sources.list
-        echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid-until
-      fi
-
       # Install system dependencies
       apt-get update -o dir::state::lists="$APT_CACHE/lists"
-      # apt-get update still exits 0 when the rewrite silently no-ops, so assert on the URIs apt would actually fetch from.
-      if [ "$(. /etc/os-release; echo $VERSION_CODENAME)" = "bullseye" ]; then
-        uris=$(apt-get install -y --print-uris --no-install-recommends -o dir::state::lists="$APT_CACHE/lists" ca-certificates curl git build-essential \
-               | grep -oE "https?://[a-z0-9.-]+" | sort -u || true)
-        bad=$(echo "$uris" | grep -v '^http://snapshot\.debian\.org$' || true)
-        if [ -z "$uris" ]; then echo "FAIL: could not resolve any apt URIs"; exit 1; fi
-        if [ -n "$bad" ]; then echo "FAIL: bullseye apt sources not pinned; apt would still fetch from: $bad"; exit 1; fi
-      fi
       apt-get install -y --no-install-recommends -o dir::state::lists="$APT_CACHE/lists" -o dir::cache::archives="$APT_CACHE/archives" ca-certificates curl git build-essential
       mkdir -p /etc/apt/keyrings
       curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
