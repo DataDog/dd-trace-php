@@ -1106,6 +1106,7 @@ endforeach;
         IMAGE:
           - "debian:bullseye-slim"
           - "debian:bookworm-slim"
+          - "debian:trixie-slim"
   needs:
     - job: "package extension (installers): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
@@ -1123,7 +1124,7 @@ endforeach;
 <?php foreach ([["8.1", "arm64", "aarch64"], ["7.0", "amd64", "x86_64"]] as [$major_minor, $arch, $pkgprefix]): ?>
 "verify .tar.gz: [<?= $arch ?>]":
   stage: verify
-  image: registry.ddbuild.io/images/mirror/debian:bullseye-slim
+  image: registry.ddbuild.io/images/mirror/debian:bookworm-slim
   tags: [ "arch:<?= $arch ?>" ]
   variables:
     KUBERNETES_CPU_REQUEST: 2
