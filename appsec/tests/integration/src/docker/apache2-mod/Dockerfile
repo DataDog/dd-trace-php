@@ -2,7 +2,12 @@ ARG PHP_VERSION
 ARG VARIANT
 FROM datadog/dd-appsec-php-ci:php-$PHP_VERSION-$VARIANT
 
-RUN apt-get update && apt-get install -y \
+RUN cat /usr/share/keyrings/debian-archive-bookworm-automatic.gpg \
+        /usr/share/keyrings/debian-archive-bookworm-security-automatic.gpg \
+        > /etc/apt/keyrings/bookworm-rsa.gpg && \
+    sed -i 's|Signed-By: .*|Signed-By: /etc/apt/keyrings/bookworm-rsa.gpg|' \
+        /etc/apt/sources.list.d/debian.sources && \
+    apt-get update && apt-get install -y \
     apache2 \
     && rm -rf /var/lib/apt/lists/*
 
