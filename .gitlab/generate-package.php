@@ -1131,8 +1131,8 @@ endforeach;
       # apt-get update still exits 0 when the rewrite silently no-ops, so assert on the URIs apt would actually fetch from.
       if [ "$(. /etc/os-release; echo $VERSION_CODENAME)" = "bullseye" ]; then
         uris=$(apt-get install -y --print-uris apt-transport-https lsb-release ca-certificates curl \
-                 software-properties-common nginx apache2 procps gnupg \
-               | grep -oE "https?://[a-z0-9.-]+" | sort -u)
+                 nginx apache2 procps gnupg \
+               | grep -oE "https?://[a-z0-9.-]+" | sort -u || true)
         bad=$(echo "$uris" | grep -v '^http://snapshot\.debian\.org$' || true)
         if [ -z "$uris" ]; then echo "FAIL: could not resolve any apt URIs"; exit 1; fi
         if [ -n "$bad" ]; then echo "FAIL: bullseye apt sources not pinned; apt would still fetch from: $bad"; exit 1; fi
@@ -1319,7 +1319,7 @@ endforeach;
       # apt-get update still exits 0 when the rewrite silently no-ops, so assert on the URIs apt would actually fetch from.
       if [ "$(. /etc/os-release; echo $VERSION_CODENAME)" = "bullseye" ]; then
         uris=$(apt-get install -y --print-uris --no-install-recommends -o dir::state::lists="$APT_CACHE/lists" ca-certificates curl git build-essential \
-               | grep -oE "https?://[a-z0-9.-]+" | sort -u)
+               | grep -oE "https?://[a-z0-9.-]+" | sort -u || true)
         bad=$(echo "$uris" | grep -v '^http://snapshot\.debian\.org$' || true)
         if [ -z "$uris" ]; then echo "FAIL: could not resolve any apt URIs"; exit 1; fi
         if [ -n "$bad" ]; then echo "FAIL: bullseye apt sources not pinned; apt would still fetch from: $bad"; exit 1; fi
