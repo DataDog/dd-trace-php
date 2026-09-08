@@ -89,7 +89,14 @@ final class FrankenphpServer implements Sapi
 
     private static function installFrankenphp()
     {
-        exec(__DIR__ . "/../../../tooling/bin/install-frankenphp.sh");
+        // Check the exit code: otherwise a failed build lets start() go on to exec a binary that
+        // is not there, and the suite reports every request as a bare connection failure instead
+        // of the build error that caused it.
+        exec(__DIR__ . "/../../../tooling/bin/install-frankenphp.sh 2>&1", $output, $exitCode);
+        if ($exitCode !== 0) {
+            $tail = implode("\n", array_slice($output, -30));
+            throw new \Exception("install-frankenphp.sh failed (exit {$exitCode}):\n" . $tail);
+        }
     }
 
     /**
@@ -114,6 +121,11 @@ final class FrankenphpServer implements Sapi
     {
         if (!self::isFrankenphpInstalled()) {
             self::installFrankenphp();
+            if (!self::isFrankenphpInstalled()) {
+                throw new \Exception(
+                    "install-frankenphp.sh succeeded but /usr/local/bin/frankenphp is still not runnable"
+                );
+            }
         }
 
         $cmd = sprintf(
