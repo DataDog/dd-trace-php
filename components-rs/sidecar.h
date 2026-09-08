@@ -43,6 +43,55 @@ struct ddog_ShmHandle *ddog_unmap_shm(struct ddog_MappedMem_ShmHandle *mapped);
 
 void ddog_drop_anon_shm_handle(struct ddog_ShmHandle*);
 
+struct ddog_ShmHandle *ddog_clone_anon_shm_handle(const struct ddog_ShmHandle *handle);
+
+/**
+ * Initialize a worker-owned wall-time profiling notification region.
+ *
+ * # Safety
+ *
+ * `pointer` must be writable, properly aligned, and valid for at least `size` bytes.
+ */
+bool ddog_wall_time_profiler_init_region(struct ddog_WallTimeShmRegion *pointer,
+                                         uintptr_t size,
+                                         pid_t pid);
+
+/**
+ * Consume the wall-time pending bit with acquire ordering.
+ *
+ * # Safety
+ *
+ * `pointer` must be null or point to a live, properly aligned shared region.
+ */
+bool ddog_wall_time_profiler_consume_wall(struct ddog_WallTimeShmRegion *pointer);
+
+/**
+ * Publish the wall-time pending bit with release ordering.
+ *
+ * # Safety
+ *
+ * `pointer` must be null or point to a live, properly aligned shared region.
+ */
+void ddog_wall_time_profiler_mark_wall(struct ddog_WallTimeShmRegion *pointer);
+
+/**
+ * Consume the remote-config pending bit with acquire ordering.
+ *
+ * # Safety
+ *
+ * `pointer` must be null or point to a live, properly aligned shared region.
+ */
+bool ddog_wall_time_profiler_consume_remote_config(struct ddog_WallTimeShmRegion *pointer);
+
+/**
+ * Publish the remote-config pending bit with release ordering.
+ *
+ * # Safety
+ *
+ * `pointer` must be null or point to a live, properly aligned shared region.
+ */
+void ddog_wall_time_profiler_mark_remote_config(struct ddog_WallTimeShmRegion *pointer);
+
 ddog_MaybeError ddog_create_agent_remote_config_writer(struct ddog_AgentRemoteConfigWriter_ShmHandle **writer,
                                                        struct ddog_ShmHandle **handle);
 
@@ -220,6 +269,26 @@ ddog_MaybeError ddog_sidecar_session_set_config(struct ddog_SidecarTransport **t
                                                 ddog_CharSlice root_service,
                                                 ddog_CharSlice root_session_id,
                                                 ddog_CharSlice parent_session_id);
+
+/**
+ * Register the worker's shared notification region with the sidecar.
+ *
+ * # Safety
+ *
+ * `transport` and `handle` must be live objects created by this library.
+ */
+ddog_MaybeError ddog_sidecar_register_wall_time_profiler(struct ddog_SidecarTransport **transport,
+                                                         const struct ddog_ShmHandle *handle);
+
+/**
+ * Unregister a worker's shared notification region from the sidecar.
+ *
+ * # Safety
+ *
+ * `transport` must be a live object created by this library.
+ */
+ddog_MaybeError ddog_sidecar_unregister_wall_time_profiler(struct ddog_SidecarTransport **transport,
+                                                           pid_t pid);
 
 /**
  * Updates the process_tags for an existing session.

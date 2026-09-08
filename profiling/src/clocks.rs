@@ -2,18 +2,23 @@ use cpu_time::ThreadTime;
 use std::time::Instant;
 
 pub struct Clocks {
+    pub initialized: bool,
     pub cpu_time: Option<ThreadTime>,
     pub wall_time: Instant,
 }
 
 impl Clocks {
     pub fn initialize(&mut self, cpu_time_enabled: bool) {
+        if self.initialized {
+            return;
+        }
         self.wall_time = Instant::now();
         self.cpu_time = if cpu_time_enabled {
             ThreadTime::try_now().ok()
         } else {
             None
         };
+        self.initialized = true;
     }
 
     #[inline(always)]
@@ -36,12 +41,14 @@ impl Clocks {
         }
     }
 
-    pub fn rotate_clocks(&mut self) -> (i64, i64) {
+    pub fn rotate_wall_clock(&mut self) -> i64 {
         let wall_now = Instant::now();
         let wall_time = wall_now.duration_since(self.wall_time);
         self.wall_time = wall_now;
-        let wall_time: i64 = wall_time.as_nanos().try_into().unwrap_or(i64::MAX);
+        wall_time.as_nanos().try_into().unwrap_or(i64::MAX)
+    }
 
+    pub fn rotate_cpu_clock(&mut self) -> i64 {
         // If CPU time is disabled, or if it's enabled but not available on the
         // platform, then `self.cpu_time` will be None.
         let cpu_time = if let Some(last_cpu_time) = self.cpu_time {
@@ -53,6 +60,30 @@ impl Clocks {
         } else {
             0
         };
-        (wall_time, cpu_time)
+        cpu_time
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+
+    #[test]
+    fn worker_clock_is_initialized_only_once() {
+        let initial_wall_time = Instant::now() - Duration::from_secs(2);
+        let mut clocks = Clocks {
+            initialized: false,
+            cpu_time: None,
+            wall_time: initial_wall_time,
+        };
+
+        clocks.initialize(false);
+        let worker_wall_time = clocks.wall_time;
+        assert!(worker_wall_time > initial_wall_time);
+
+        clocks.initialize(false);
+
+        assert_eq!(clocks.wall_time, worker_wall_time);
     }
 }

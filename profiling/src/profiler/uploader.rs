@@ -100,12 +100,25 @@ impl Uploader {
         &self,
         message: Box<UploadRequest>,
         last_cpu: &mut Option<ThreadTime>,
+        sequence: u64,
     ) -> anyhow::Result<u16> {
         let tags = message.index.tags.try_materialize()?;
         let profile = message.profile;
 
-        let agent_endpoint = &self.endpoint;
-        let endpoint = Endpoint::try_from(agent_endpoint)?;
+        let agent_endpoint = match &self.endpoint {
+            AgentEndpoint::File(path) => {
+                let runtime_id = tags
+                    .iter()
+                    .map(ToString::to_string)
+                    .find_map(|tag| tag.strip_prefix("runtime-id:").map(str::to_owned))
+                    .unwrap_or_else(|| format!("pid-{}", std::process::id()));
+                let mut output_path = path.to_path_buf().into_os_string();
+                output_path.push(format!(".{runtime_id}.{sequence}"));
+                AgentEndpoint::File(std::borrow::Cow::Owned(output_path.into()))
+            }
+            endpoint => endpoint.clone(),
+        };
+        let endpoint = Endpoint::try_from(&agent_endpoint)?;
         let mut exporter = libdd_profiling::exporter::ProfileExporter::new(
             PROFILER_NAME_STR,
             PROFILER_VERSION_STR,
@@ -157,16 +170,16 @@ impl Uploader {
                     },
 
                     Ok(UploadMessage::Upload(request)) => {
+                        i += 1;
                         match pprof_filename {
                             Some(filename) => {
                                 let filename_prefix = filename.as_ref();
                                 let r = request.profile.serialize_into_compressed_pprof(None, None).unwrap();
-                                i += 1;
                                 let name = format!("{filename_prefix}.{i}.zst");
                                 std::fs::write(&name, r.buffer).expect("write to succeed");
                                 info!("Successfully wrote profile to {name}");
                             },
-                            None => match self.upload(request, &mut last_cpu) {
+                            None => match self.upload(request, &mut last_cpu, i) {
                                 Ok(status) => {
                                     if status >= 400 {
                                         warn!("Unexpected HTTP status when sending profile (HTTP {status}).")

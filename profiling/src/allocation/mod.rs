@@ -215,7 +215,7 @@ impl AllocationProfilingStats {
 /// * `len` - The size of the allocation in bytes
 #[cold]
 pub unsafe fn collect_allocation(
-    interrupt_count: &AtomicU32,
+    _cpu_sample_count: &AtomicU32,
     execute_data: *mut zend::zend_execute_data,
     ptr: *mut c_void,
     len: size_t,
@@ -224,7 +224,7 @@ pub unsafe fn collect_allocation(
         // Check if there's a pending time interrupt that we can handle now
         // instead of waiting for an interrupt handler. This is slightly more
         // accurate and efficient, win-win.
-        let pending_interrupts = interrupt_count.swap(0, Ordering::Relaxed);
+        let (wall_samples, cpu_samples) = crate::profiling::wall_time::consume_time_samples();
 
         // SAFETY: execute_data was provided by the engine, and the profiler
         // only reads the execution frames reachable through it.
@@ -234,7 +234,7 @@ pub unsafe fn collect_allocation(
                 ptr,
                 1_i64,
                 len as i64,
-                (pending_interrupts > 0).then_some(pending_interrupts),
+                ((wall_samples != 0) || (cpu_samples != 0)).then_some((wall_samples, cpu_samples)),
             )
         };
     }

@@ -21,15 +21,18 @@ static void dd_vm_interrupt(zend_execute_data *execute_data) {
     if (dd_prev_interrupt_function) {
         dd_prev_interrupt_function(execute_data);
     }
-    if (DATADOG_G(remote_config_state) && DATADOG_G(reread_remote_configuration)) {
-        LOG(INFO, "Rereading remote configurations after interrupt");
+    bool reread = datadog_sidecar_consume_remote_config();
+    if (!reread && DATADOG_G(reread_remote_configuration)) {
         DATADOG_G(reread_remote_configuration) = 0;
+        reread = true;
+    }
+    if (DATADOG_G(remote_config_state) && reread) {
+        LOG(INFO, "Rereading remote configurations after interrupt");
         ddog_process_remote_configs(DATADOG_G(remote_config_state));
     }
 }
 
-// We need this exported to call it via CreateRemoteThread on Windows
-DATADOG_PUBLIC void datadog_set_all_thread_vm_interrupt(void) {
+void datadog_broadcast_vm_interrupt_only(void) {
     // broadcast interrupt to all threads on ZTS
 #if ZTS
     tsrm_mutex_lock(datadog_threads_mutex);
@@ -44,12 +47,19 @@ DATADOG_PUBLIC void datadog_set_all_thread_vm_interrupt(void) {
 #else
         DATADOG_G(zai_vm_interrupt) = 1;
 #endif
-        DATADOG_G(reread_remote_configuration) = 1;
 #if ZTS
     } ZEND_HASH_FOREACH_END();
 
     tsrm_mutex_unlock(datadog_threads_mutex);
 #endif
+}
+
+// We need this exported to call it via CreateRemoteThread on Windows.
+DATADOG_PUBLIC void datadog_set_all_thread_vm_interrupt(void) {
+    // Publish feature state before the VM interrupt wakeup.
+    datadog_sidecar_mark_remote_config();
+    DATADOG_G(reread_remote_configuration) = 1;
+    datadog_broadcast_vm_interrupt_only();
 }
 
 void datadog_check_for_new_config_now(void) {
@@ -62,7 +72,11 @@ void datadog_check_for_new_config_now(void) {
 #ifndef _WIN32
 static void dd_sigvtalarm_handler(int signal, siginfo_t *siginfo, void *ctx) {
     UNUSED(signal, siginfo, ctx);
-    datadog_set_all_thread_vm_interrupt();
+    if (!datadog_sidecar_has_wall_time_slot()) {
+        // Compatibility for processes which have no profiling slot registered.
+        DATADOG_G(reread_remote_configuration) = 1;
+    }
+    datadog_broadcast_vm_interrupt_only();
 
 #if defined(__linux__) && defined(ZTS)
     if (!tsrm_is_managed_thread()) {
