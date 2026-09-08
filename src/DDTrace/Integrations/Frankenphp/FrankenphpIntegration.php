@@ -106,19 +106,24 @@ class FrankenphpIntegration extends Integration
 
                     $res = notify_commit(
                         $rootSpan,
-                        // TODO: http_response_code() can return false - we want to report the real status here: appsec's response_committed listeners currently see 200 whenever the actual code is unavailable. Just a fallback for now.
-                        \http_response_code() ?: 200,
+                        // http_response_code() returns false once the per-request SAPI state has
+                        // been reset, and notify_commit() rejects anything outside 100..599. Infer
+                        // it the same way the serializer already does for this SAPI (see
+                        // dd_set_entrypoint_root_span_props_end in tracer/serializer.c): a flat 200
+                        // would report success for a request that threw.
+                        // TODO: report the real status instead of inferring it.
+                        \http_response_code() ?: (isset($rootSpan->exception) ? 500 : 200),
                         self::convertHeaders(\headers_list()),
                         null /* response body is available through special mechanisms */
                     );
 
                     // we did not block before and were now told to block
-                    if (!$hookData->data && $res) {
+                    if (!isset($hookData->data) && $res) {
                         $hookData->data = new FrankenphpAppSecException();
                         self::commitBlockingResponse($res);
                     }
 
-                    if ($hookData->data && !$rootSpan->exception) {
+                    if (isset($hookData->data) && !isset($rootSpan->exception)) {
                         $rootSpan->exception = $hookData->data;
                     }
                 },
