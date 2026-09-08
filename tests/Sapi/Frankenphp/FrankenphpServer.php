@@ -178,7 +178,10 @@ final class FrankenphpServer implements Sapi
         }
 
         error_log("[frankenphp] Sending SIGTERM, waiting up to {$timeout}s for a graceful exit...");
-        $this->process->signal(SIGTERM);
+        // SIGTERM is a pcntl constant, and pcntl is not loaded in every image this suite runs in
+        // (the official FrankenPHP one has posix but not pcntl). Process::signal() only wants the
+        // number, and Symfony sends it through posix_kill, so don't make the harness need pcntl.
+        $this->process->signal(defined('SIGTERM') ? \SIGTERM : 15);
 
         $deadline = microtime(true) + $timeout;
         while (microtime(true) < $deadline) {

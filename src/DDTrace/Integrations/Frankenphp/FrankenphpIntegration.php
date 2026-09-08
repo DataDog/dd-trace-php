@@ -112,7 +112,9 @@ class FrankenphpIntegration extends Integration
                         // dd_set_entrypoint_root_span_props_end in tracer/serializer.c): a flat 200
                         // would report success for a request that threw.
                         // TODO: report the real status instead of inferring it.
-                        \http_response_code() ?: (isset($rootSpan->exception) ? 500 : 200),
+                        // $hookData->exception is the throwable the handler raised, and is set by
+                        // the time this end-hook runs; $rootSpan->exception is not yet.
+                        \http_response_code() ?: (isset($hookData->exception) ? 500 : 200),
                         self::convertHeaders(\headers_list()),
                         null /* response body is available through special mechanisms */
                     );

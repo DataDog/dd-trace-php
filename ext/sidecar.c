@@ -27,22 +27,6 @@ ddog_Endpoint *datadog_endpoint;
 ddog_Endpoint *dogstatsd_endpoint; // always set when datadog_endpoint is set
 struct ddog_InstanceId *datadog_sidecar_instance_id;
 
-#if ZTS
-static MUTEX_T dd_test_session_token_mutex = NULL;
-#endif
-
-static void dd_endpoint_set_test_token_locked(ddog_Endpoint *endpoint, ddog_CharSlice token) {
-#if ZTS
-    if (dd_test_session_token_mutex) {
-        tsrm_mutex_lock(dd_test_session_token_mutex);
-        ddog_endpoint_set_test_token(endpoint, token);
-        tsrm_mutex_unlock(dd_test_session_token_mutex);
-        return;
-    }
-#endif
-    ddog_endpoint_set_test_token(endpoint, token);
-}
-
 // Best-effort pointer for the signal handler (SIGTERM/SIGINT). Set to the first
 // per-thread connection; never cleared until MSHUTDOWN. Not atomic: concurrent
 // shutdown is already a best-effort race for signal handlers, so atomicity of
@@ -56,10 +40,10 @@ int32_t datadog_sidecar_master_pid = 0;
 static inline void dd_set_endpoint_test_token(ddog_Endpoint *endpoint) {
     if (zai_config_is_initialized()) {
         if (ZSTR_LEN(get_DD_TRACE_AGENT_TEST_SESSION_TOKEN())) {
-            dd_endpoint_set_test_token_locked(endpoint, dd_zend_string_to_CharSlice(get_DD_TRACE_AGENT_TEST_SESSION_TOKEN()));
+            ddog_endpoint_set_test_token_if_changed(endpoint, dd_zend_string_to_CharSlice(get_DD_TRACE_AGENT_TEST_SESSION_TOKEN()));
         }
     } else if (ZSTR_LEN(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN())) {
-        dd_endpoint_set_test_token_locked(endpoint, dd_zend_string_to_CharSlice(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN()));
+        ddog_endpoint_set_test_token_if_changed(endpoint, dd_zend_string_to_CharSlice(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN()));
     }
 }
 
@@ -489,10 +473,6 @@ void datadog_sidecar_setup(ddog_RemoteConfigFlags flags) {
 }
 
 void datadog_sidecar_minit(void) {
-#if ZTS
-    dd_test_session_token_mutex = tsrm_mutex_alloc();
-#endif
-
 #ifdef _WIN32
     datadog_sidecar_master_pid = (int32_t)GetCurrentProcessId();
 #else
@@ -604,11 +584,6 @@ void datadog_sidecar_finalize(bool clear_id) {
 
 void datadog_sidecar_shutdown(void) {
     datadog_sidecar_for_signal = NULL;
-
-#if ZTS
-    tsrm_mutex_free(dd_test_session_token_mutex);
-    dd_test_session_token_mutex = NULL;
-#endif
 
     // In thread mode, drop the main thread's connection before shutting down the
     // listener to avoid deadlock.  GSHUTDOWN owns transport cleanup for all other
@@ -907,7 +882,7 @@ void datadog_sidecar_gshutdown(zend_datadog_globals *datadog_globals) {
 bool datadog_alter_test_session_token(zval *old_value, zval *new_value, zend_string *new_str) {
     UNUSED(old_value, new_str);
     if (datadog_endpoint) {
-        dd_endpoint_set_test_token_locked(datadog_endpoint, dd_zend_string_to_CharSlice(Z_STR_P(new_value)));
+        ddog_endpoint_set_test_token_if_changed(datadog_endpoint, dd_zend_string_to_CharSlice(Z_STR_P(new_value)));
     }
     if (DATADOG_G(sidecar)) {
         datadog_ffi_try("Failed updating test session token",
