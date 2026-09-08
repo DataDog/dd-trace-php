@@ -19,5 +19,4 @@ assert_appsec_version "${version}"
 assert_appsec_enabled
 
 assert_file_exists "$(get_php_extension_dir)"/ddappsec.so
-assert_file_exists /opt/datadog/dd-library/${version}/lib/libddappsec-helper.so
 assert_file_exists /opt/datadog/dd-library/${version}/etc/recommended.json

@@ -32,7 +32,7 @@ pub fn report_diagnostics_errors(
     use libddwaf::object::WafObjectType;
 
     let path_label = rc_path.map_or("(bundled rules)", |p| p.as_str());
-    let parsed_key = match rc_path.map(|p| rc::ParsedConfigKey::from_rc_path(p)) {
+    let parsed_key = match rc_path.map(rc::ParsedConfigKey::from_rc_path) {
         Some(None) => {
             warning!("Failed to parse config key for {:?}", path_label);
             return;

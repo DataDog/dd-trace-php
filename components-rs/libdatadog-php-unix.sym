@@ -1,0 +1,4 @@
+ddog_crashtracker_entry_point
+ddtrace_sidecar_entry_point
+ddog_sidecar_send_appsec_message
+ddog_sidecar_appsec_response_drop

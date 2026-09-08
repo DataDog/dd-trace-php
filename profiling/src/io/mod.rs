@@ -59,6 +59,46 @@ pub struct GotSymbolOverwrite {
     pub orig_func: *mut *mut (),
 }
 
+pub struct GotHookState<'a> {
+    pub overwrites: &'a mut [GotSymbolOverwrite],
+    pub restores: &'a mut Vec<GotSlotRestore>,
+}
+
+pub struct GotSlotRestore {
+    pub image: usize,
+    pub image_name: Box<[u8]>,
+    pub slot: usize,
+    pub original: usize,
+    pub replacement: usize,
+    #[cfg(target_os = "macos")]
+    pub is_data_const: bool,
+}
+
+static GOT_SLOT_RESTORES: Mutex<Vec<GotSlotRestore>> = Mutex::new(Vec::new());
+
+fn restore_matches_image(restore: &GotSlotRestore, image: usize, image_name: &[u8]) -> bool {
+    restore.image == image && restore.image_name.as_ref() == image_name
+}
+
+fn slot_fits_range(slot: usize, start: usize, size: usize) -> bool {
+    let Some(end) = start.checked_add(size) else {
+        return false;
+    };
+    let Some(slot_end) = slot.checked_add(std::mem::size_of::<*mut ()>()) else {
+        return false;
+    };
+    slot >= start && slot_end <= end
+}
+
+unsafe fn restore_slot_if_owned(restore: &GotSlotRestore) -> bool {
+    let slot = restore.slot as *mut *mut ();
+    if *slot as usize != restore.replacement {
+        return false;
+    }
+    *slot = restore.original as *mut ();
+    true
+}
+
 static mut ORIG_POLL: unsafe extern "C" fn(*mut libc::pollfd, libc::nfds_t, c_int) -> i32 =
     libc::poll;
 
@@ -709,22 +749,72 @@ pub fn io_prof_first_rinit() {
                     orig_func: ptr::addr_of_mut!(ORIG_POLL) as *mut _ as *mut *mut (),
                 },
             ];
+            let mut restores = GOT_SLOT_RESTORES.lock().unwrap();
+            let mut state = GotHookState {
+                overwrites: &mut overwrites,
+                restores: &mut restores,
+            };
+
             #[cfg(target_os = "linux")]
             libc::dl_iterate_phdr(
                 Some(got_elf64::callback),
-                &mut overwrites as *mut _ as *mut libc::c_void,
+                &mut state as *mut _ as *mut libc::c_void,
             );
 
             #[cfg(target_os = "macos")]
-            got_macho::rebind_symbols(&mut overwrites);
+            got_macho::rebind_symbols(&mut state);
         };
+    }
+}
+
+pub fn io_prof_mshutdown() -> bool {
+    let mut restores = GOT_SLOT_RESTORES.lock().unwrap();
+    unsafe {
+        #[cfg(target_os = "linux")]
+        {
+            got_elf64::restore_symbols(&mut restores)
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            got_macho::restore_symbols(&mut restores)
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::ErrnoBackup;
+    use super::{restore_matches_image, slot_fits_range, ErrnoBackup, GotSlotRestore};
     use static_assertions::assert_not_impl_any;
 
     assert_not_impl_any!(ErrnoBackup: Send, Sync);
+
+    #[test]
+    fn restore_requires_same_image_and_mapped_slot() {
+        let restore = GotSlotRestore {
+            image: 0x1000,
+            image_name: Box::from(&b"image"[..]),
+            slot: 0x1800,
+            original: 0,
+            replacement: 1,
+            #[cfg(target_os = "macos")]
+            is_data_const: false,
+        };
+
+        assert!(restore_matches_image(&restore, 0x1000, b"image"));
+        assert!(!restore_matches_image(&restore, 0x2000, b"image"));
+        assert!(!restore_matches_image(&restore, 0x1000, b"replacement"));
+        assert!(slot_fits_range(0x1800, 0x1000, 0x1000));
+        assert!(!slot_fits_range(0x2000, 0x1000, 0x1000));
+        assert!(!slot_fits_range(usize::MAX, 0x1000, 0x1000));
+    }
+
+    #[test]
+    fn no_hooks_are_safe_to_unload() {
+        let mut restores = Vec::new();
+        #[cfg(target_os = "linux")]
+        assert!(unsafe { super::got_elf64::restore_symbols(&mut restores) });
+        #[cfg(target_os = "macos")]
+        assert!(unsafe { super::got_macho::restore_symbols(&mut restores) });
+    }
 }

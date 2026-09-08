@@ -30,7 +30,7 @@ include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createRun([
     response_list(
-        response_client_init(['ok', phpversion('ddappsec'), [],
+        response_client_init(['ok', phpversion('ddappsec'), 1, [],
         ["meta_1" => "value_1", "meta_2" => "value_2"],
         ["metric_1" => 2.0, "metric_2" => 10.0], null])
     ),

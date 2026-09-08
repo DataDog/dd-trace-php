@@ -291,20 +291,6 @@ static void ddtrace_pre_minit_hook(injected_ext *config, zend_module_entry *modu
     }
 }
 
-static void appsec_pre_minit_hook(injected_ext *config, zend_module_entry *module) {
-    UNUSED(module);
-
-    HashTable *configuration_hash = php_ini_get_configuration_hash();
-    if (configuration_hash) {
-        char *helper_path;
-        if (asprintf(&helper_path, "%s/appsec/lib/libddappsec-helper.so", package_path) == -1) {
-            return;
-        }
-        ddloader_ini_set_configuration(config, ZEND_STRL("datadog.appsec.helper_path"), helper_path, strlen(helper_path));
-        free(helper_path);
-    }
-}
-
 static void profiling_pre_minit_hook(injected_ext *config, zend_module_entry *module) {
     UNUSED(module);
 
@@ -340,7 +326,7 @@ injected_ext ddloader_injected_ext_config[EXT_COUNT] = {
             ZEND_MOD_END
         })),
     [EXT_DDAPPSEC] = DECLARE_INJECTED_EXT(
-        "ddappsec", "appsec", PHP_70_VERSION, NULL, appsec_pre_minit_hook,
+        "ddappsec", "appsec", PHP_70_VERSION, NULL, NULL,
         ((zend_module_dep[]){
             ZEND_MOD_OPTIONAL("json")
             ZEND_MOD_OPTIONAL("ddtrace")
@@ -754,10 +740,21 @@ static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
     zend_string *old_name = ddloader_zend_string_init(php_api_no, config->tmp_name, strlen(config->tmp_name), 1);
     Bucket *bucket = (Bucket *)zend_hash_find(&module_registry, old_name);
     ddloader_zend_string_release(php_api_no, old_name);
+    if (!bucket) {
+        TELEMETRY(REASON_ERROR, config, "injected_ext_not_found", "Extension '%s' not found in the module registry", config->tmp_name);
+        return SUCCESS;
+    }
 
+    /**
+     * The new key must be a *permanent interned* string, exactly like the ones zend_register_module_ex() creates for every other module.
+     * Opcache moves every module_registry key into its shared memory interned string buffer at the end of php_module_startup(), and maps them back out again at the start of php_module_shutdown() by looking each one up in the permanent interned string table.
+     */
     zend_string *new_name = ddloader_zend_string_init(php_api_no, config->ext_name, strlen(config->ext_name), 1);
+    new_name = ddloader_zend_new_interned_string(php_api_no, new_name);
     ddloader_zend_hash_set_bucket_key(php_api_no, &module_registry, bucket, new_name);
-    ddloader_zend_string_release(php_api_no, new_name);
+    if (!ddloader_zstr_is_interned(php_api_no, new_name)) {
+        ddloader_zend_string_release(php_api_no, new_name);
+    }
 
     module = ddloader_zend_hash_str_find_ptr(php_api_no, &module_registry, config->ext_name, strlen(config->ext_name));
     if (!module) {
@@ -805,12 +802,13 @@ static void ddloader_restore_so_module_entry(injected_ext *config) {
         return;
     }
 
-    module_entry->name = config->ext_name;
+    module_entry->name = config->orig_module_name;
     module_entry->module_startup_func = config->orig_module_startup_func;
     module_entry->deps = config->orig_module_deps;
     module_entry->functions = config->orig_module_functions;
 
     config->so_module_entry = NULL;
+    config->orig_module_name = NULL;
     config->orig_module_startup_func = NULL;
     config->orig_module_deps = NULL;
     config->orig_module_functions = NULL;
@@ -904,8 +902,9 @@ static int ddloader_load_extension(unsigned int php_api_no, char *module_build_i
      * our injected extension will be started up after the real one (if it's loaded!), and finally we
      * wrap the MINIT function to perform our checks there.
      */
-    module_entry->name = config->tmp_name;
     config->so_module_entry = module_entry;
+    config->orig_module_name = module_entry->name;
+    module_entry->name = config->tmp_name;
 
     config->orig_module_startup_func = module_entry->module_startup_func;
     module_entry->module_startup_func = ZEND_MODULE_STARTUP_N(ddloader_injected_extension_minit);

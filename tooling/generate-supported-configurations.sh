@@ -148,20 +148,29 @@ function add_supported_entry(&$supported, $name, $entry) {
     }
 }
 
-function add_otel_entries(&$supported, $names, $metadata) {
+function add_otel_entries(&$supported, $names, $metadata, $sensitiveNames = []) {
     $names = array_unique($names);
     sort($names);
     foreach ($names as $name) {
+        $sensitive = isset($sensitiveNames[$name]);
         if (isset($metadata[$name])) {
             // The SDK metadata table is authoritative for OTEL vars: overwrite any
             // entry derived from an extension CONFIG of the same name (e.g.
             // OTEL_EXPORTER_OTLP_METRICS_ENDPOINT) so the published default is the
             // SDK's rather than the extension's runtime resolution.
             [$type, $default] = $metadata[$name];
-            $supported[$name] = [["implementation" => "A", "type" => $type, "default" => $default]];
+            $entry = ["implementation" => "A", "type" => $type, "default" => $default];
+            if ($sensitive) {
+                $entry["sensitive"] = true;
+            }
+            $supported[$name] = [$entry];
         } else {
             // Not in the table: an OTEL var resolved by the SDK that we don't model.
-            add_supported_entry($supported, $name, ["implementation" => "A", "type" => "string", "default" => ""]);
+            $entry = ["implementation" => "A", "type" => "string", "default" => ""];
+            if ($sensitive) {
+                $entry["sensitive"] = true;
+            }
+            add_supported_entry($supported, $name, $entry);
         }
     }
 }
@@ -171,7 +180,7 @@ foreach (explode("|NEXT_CONFIG|", file_get_contents("php://stdin")) as $configLi
     [$configLine, $options] = array_pad(explode("|CONFIG_OPTIONS|", $configLine, 2), 2, '');
     $configLine = preg_replace('((\\\\{2})*\K"\s*")', '', $configLine);
     $config = str_getcsv(trim($configLine), ",", '"', '\\');
-    if (count($config) < 3) {
+    if (count($config) < 4) {
         continue;
     }
     [$type, $name, $default] = array_map('trim', array_slice($config, 0, 3));
@@ -184,6 +193,13 @@ foreach (explode("|NEXT_CONFIG|", file_get_contents("php://stdin")) as $configLi
         "type" => $mappedType,
         "default" => normalize_default($default, $mappedType, $name),
     ];
+    // $options is the stringized designated-initializer tail of the CONFIG/CALIAS
+    // macro invocation (e.g. ".ini_change = ..., .sensitive = 1"), captured above
+    // via the |CONFIG_OPTIONS| marker rather than as a CSV field, so it can't be
+    // confused by embedded commas.
+    if (preg_match('/\.sensitive\s*=\s*(1|true)\b/', $options)) {
+        $entry["sensitive"] = true;
+    }
     $norm = normalize_aliases($aliases, $name);
     if (!empty($norm)) {
         sort($norm);
@@ -243,16 +259,14 @@ foreach ($otelPaths as $otelPath) {
     }
 }
 
-// OTEL configs read by the OpenTelemetry SDK rather than the extension (e.g.
-// OTEL_EXPORTER_OTLP_HEADERS), enumerated in the PHP telemetry whitelist.
-// Scope to the OTEL_CONFIG_WHITELIST array literal so unrelated OTEL_ mentions
-// elsewhere in the file (comments, error strings) can't be published.
-$otelWhitelistPath = "../src/DDTrace/OpenTelemetry/Configuration.php";
-if (file_exists($otelWhitelistPath)
-    && preg_match('/OTEL_CONFIG_WHITELIST\s*=\s*\[(.*?)\]/s', file_get_contents($otelWhitelistPath), $whitelistMatch)) {
-    preg_match_all('/\'(OTEL_[A-Z0-9_]+)\'/', $whitelistMatch[1], $m);
-    add_otel_entries($supported, $m[1], $otelMetadata);
-}
+$otelWhitelistSource = file_get_contents("../src/DDTrace/OpenTelemetry/Configuration.php");
+preg_match('/OTEL_CONFIG_WHITELIST\s*=\s*\[(.*?)\]/s', $otelWhitelistSource, $whitelistMatch);
+preg_match_all('/\'(OTEL_[A-Z0-9_]+)\'/', $whitelistMatch[1], $m);
+$otelNames = $m[1];
+preg_match('/OTEL_SENSITIVE_CONFIGURATIONS\s*=\s*\[(.*?)\]/s', $otelWhitelistSource, $sensitiveMatch);
+preg_match_all('/\'(OTEL_[A-Z0-9_]+)\'/', $sensitiveMatch[1], $m);
+$otelSensitiveNames = $m[1];
+add_otel_entries($supported, array_merge($otelNames, $otelSensitiveNames), $otelMetadata, array_fill_keys($otelSensitiveNames, true));
 
 if (empty($supported)) {
     fwrite(STDERR, "Error: no supported configurations were generated\n");
@@ -367,8 +381,6 @@ extract_c_supported_configurations() {
 #else
 #define DD_SIDECAR_TRACE_SENDER_DEFAULT false
 #endif
-#undef DD_APPSEC_HELPER_RUST_REDIRECTION_DEFAULT
-#define DD_APPSEC_HELPER_RUST_REDIRECTION_DEFAULT "true"
 // Do not expand CALIASES() directly, otherwise parameter counting in macros is broken.
 #define ALTCALIASES(...) ,##__VA_ARGS__
 #define ALT
@@ -376,6 +388,11 @@ extract_c_supported_configurations() {
 #define CUSTOM(id) id
 // Preserve the literal config type tokens (e.g. CUSTOM(INT)) so the generator can
 // map them to the correct JSON schema type.
+// The designated-initializer tail (.ini_change = ..., .sensitive = true, etc.) is
+// forwarded after a |CONFIG_OPTIONS| marker rather than as a plain CSV field, so
+// the PHP parser can split it out before CSV-parsing the rest of the line -- an
+// embedded comma in that tail (e.g. "a, b") would otherwise be indistinguishable
+// from a real field separator.
 #define CONFIG(type, name, default_value, ...) \
     #type, #name, default_value, |CONFIG_OPTIONS| #__VA_ARGS__ |NEXT_CONFIG|
 #define SYSCFG(type, name, default_value, ...) CONFIG(type, name, default_value, __VA_ARGS__)

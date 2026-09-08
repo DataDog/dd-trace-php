@@ -26,7 +26,6 @@ Disabled test_c run:*
 Extension Tea Tests:*
 framework test:*
 generate-lib-init-pinned-tag-values
-helper-rust integration coverage
 installer tests
 K8S_LIB_INJECTION_UDS:*
 linux-php-laravel-realworld-parallel

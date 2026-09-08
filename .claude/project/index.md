@@ -29,7 +29,7 @@ components/              PHP-agnostic C, one .h/.c + tests/ each (CMake).
 components-rs/           PHP-specific Rust wrapping libdatadog.
 libdatadog/              Datadog shared Rust library (git submodule).
 zend_abstract_interface/ Zend engine abstraction across PHP versions (ZAI).
-appsec/                  Application security (extension + C++/Rust helpers).
+appsec/                  Application security (extension + embedded helper).
 profiling/               Rust profiler extension.
 loader/                  SSI loader.
 tea/                     Test harness for ZAI/components.

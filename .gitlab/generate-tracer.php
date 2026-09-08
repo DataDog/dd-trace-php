@@ -108,13 +108,17 @@ stages:
       - PHP_MAJOR_MINOR: *asan_minor_major_targets
         ARCH: *arch_targets
 
-"windows test_c":
+<?php
+function windows_test_c_job($job_name, $thread_safety, $targets) {
+    $build_dir = $thread_safety === "zts" ? "Release_TS" : "Release";
+?>
+"<?= $job_name ?>":
   stage: test
   tags: [ "windows-v2:2019"]
   needs: []
   parallel:
     matrix:
-      - PHP_MAJOR_MINOR: <?= json_encode($windows_minor_major_targets) ?>
+      - PHP_MAJOR_MINOR: <?= json_encode($targets) ?>
 
   variables:
     CONTAINER_NAME: $CI_JOB_NAME_SLUG
@@ -141,9 +145,9 @@ stages:
     docker exec ${CONTAINER_NAME} powershell.exe -Command "`$ErrorActionPreference='Stop'; Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\FileSystem' -Name LongPathsEnabled -Value 1 -Type DWord"
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }  # local registry tweak, not network — fail fast (no retry)
 
-    # Build nts. PowerShell does not automatically fail when a native command
-    # returns non-zero, so propagate docker/nmake failures explicitly.
-    docker exec ${CONTAINER_NAME} powershell.exe "cd app; switch-php nts; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake"
+    # Build <?= $thread_safety ?>. PowerShell does not automatically fail when a
+    # native command returns non-zero, so propagate docker/nmake failures explicitly.
+    docker exec ${CONTAINER_NAME} powershell.exe "cd app; switch-php <?= $thread_safety ?>; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake"
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     # Set test environment variables
@@ -158,7 +162,7 @@ stages:
 <?php endforeach ?>
 
     # Run extension tests
-    docker exec --env _DD_DEBUG_SIDECAR_LOG_LEVEL=trace --env _DD_DEBUG_SIDECAR_LOG_METHOD=file://C:/Users/ContainerAdministrator/app/sidecar.log ${CONTAINER_NAME} powershell.exe 'cd app; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\Release\php_ddtrace.dll" "${pwd}\tests\ext"'
+    docker exec --env _DD_DEBUG_SIDECAR_LOG_LEVEL=trace --env _DD_DEBUG_SIDECAR_LOG_METHOD=file://C:/Users/ContainerAdministrator/app/sidecar.log ${CONTAINER_NAME} powershell.exe 'cd app; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\<?= $build_dir ?>\php_ddtrace.dll" "${pwd}\tests\ext"'
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
   after_script:
     - |
@@ -177,9 +181,22 @@ stages:
   artifacts:
     paths:
       - sidecar.log
-      - x64/Release/php_ddtrace.dll
-      - x64/Release/php_ddtrace.pdb
+      - x64/<?= $build_dir ?>/php_ddtrace.dll
+      - x64/<?= $build_dir ?>/php_ddtrace.pdb
       - dumps
+<?php
+}
+
+windows_test_c_job("windows test_c", "nts", $windows_minor_major_targets);
+
+echo "\n";
+
+// Oldest and newest supported Windows targets, kept in sync automatically.
+windows_test_c_job("windows test_c: zts", "zts", [
+    reset($windows_minor_major_targets),
+    end($windows_minor_major_targets),
+]);
+?>
 
 
 "Prepare code":

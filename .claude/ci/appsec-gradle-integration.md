@@ -8,9 +8,8 @@ file.
 
 | CI Job | Image | What it does |
 |--------|-------|-------------|
-| `appsec integration tests: [{target}]` | `docker:29.4.0-noble` | Gradle integration tests with Rust helper by default (release/zts/musl variants) |
-| `appsec integration tests (helper-cpp): [{target}]` | same | Same tests with Rust helper redirection disabled (`-PuseHelperCpp`); PHP 8.3 release and release-zts |
-| `appsec integration tests (ssi): [{target}]` | same | SSI mode (PHP 8.3 only), Rust helper by default |
+| `appsec integration tests: [{target}]` | `docker:29.4.0-noble` | Gradle integration tests with embedded AppSec (release/zts/musl variants) |
+| `appsec integration tests (ssi): [{target}]` | same | SSI mode (ordinary CI covers PHP 8.3) |
 | `helper-rust build and test` | same | `cargo fmt --check` + build + unit tests |
 | `helper-rust code coverage` | same | Unit test coverage via `cargo-llvm-cov` |
 | `helper-rust integration coverage` | same | Integration coverage collection (not needed locally) |
@@ -60,25 +59,16 @@ The `--tests` filter accepts:
 - Class only: `"*Apache2FpmTests*"` or `"com.datadog.appsec.php.integration.Apache2FpmTests"`
 - Wildcard: `"*FpmTests*"`
 
-### Rust helper (default)
+### Embedded Rust helper
 
 ```bash
 ./gradlew test8.3-debug --info \
     --tests "com.datadog.appsec.php.integration.Apache2FpmTests.Pool environment"
 ```
 
-This builds the Rust helper via the `buildHelperRust` task (musl build, works on both glibc and musl targets), stores the binary in the `php-helper-rust` Docker volume, and mounts it alongside the C++ helper so `DD_APPSEC_HELPER_RUST_REDIRECTION` can select it.
-
-### C++ helper opt-out
-
-Add `-PuseHelperCpp` to disable Rust helper redirection:
-
-```bash
-./gradlew test8.3-debug -PuseHelperCpp --info \
-    --tests "com.datadog.appsec.php.integration.Apache2FpmTests.Pool environment"
-```
-
-This sets `DD_APPSEC_HELPER_RUST_REDIRECTION=false` in the test container. The Rust helper may still be built and mounted, but the extension uses the C++ helper from the `buildAppsec-*` task.
+The tracer build embeds `appsec/helper-rust` into its Rust sidecar component.
+SSI targets use `buildPortableLibdatadogPhp` to build a musl-based
+`libdatadog_php.so` that can load on glibc and musl targets.
 
 ## Image Tags
 
@@ -100,7 +90,7 @@ Pattern: `test{version}-{variant}`
 | `debug` | Debug build (assertions enabled) |
 | `release-zts` | Thread-safe build |
 | `release-musl` | Alpine/musl (only `8.5-release-musl`) |
-| `release-ssi` / `debug-ssi` | SSI mode (only PHP 8.3) |
+| `release-ssi` / `debug-ssi` | SSI mode; ordinary CI covers PHP 8.3 and coverage also runs PHP 8.4 ZTS |
 
 Full list: `./gradlew tasks --group=Verification`
 
@@ -108,19 +98,18 @@ Full list: `./gradlew tasks --group=Verification`
 
 | Task | Description |
 |---|---|
-| `buildHelperRust` | Build helper-rust with musl (universal binary). Output in `php-helper-rust` volume. |
-| `testHelperRust` | `cargo fmt --check` + `cargo build --release` + `cargo test --release` (runs inside `php-deps` image) |
+| `testHelperRust` | Workspace-scoped `cargo fmt`, Clippy, build, and unit tests for `helper-rust` |
 | `coverageHelperRust` | Unit test coverage via `cargo-llvm-cov`. Output: `php-helper-rust-coverage` volume. |
-| `buildHelperRustWithCoverage` | Build with `-C instrument-coverage` for integration coverage collection. |
-| `generateHelperRustIntegrationCoverage` | Merge `.profraw` files into lcov after integration run. |
+| `buildPortableLibdatadogPhp` | Build the portable sidecar library, with helper coverage when `-PuseHelperRustCoverage` is set |
+| `generateHelperRustIntegrationCoverage-{id}` | Merge sidecar `.profraw` files into lcov after a coverage run |
 
 ### Build tasks
 
 | Task | Description |
 |---|---|
 | `buildTracer-{v}-{var}` | Build ddtrace.so for given PHP version/variant |
-| `buildAppsec-{v}-{var}` | Build ddappsec.so (C++ extension + helper) |
-| `buildHelperRust` | Build Rust helper (musl, universal) |
+| `buildAppsec-{v}-{var}` | Build ddappsec.so |
+| `buildPortableLibdatadogPhp` | Build portable `libdatadog_php.so` for SSI |
 | `buildLibddwaf` | Build libddwaf shared library |
 
 ### Other tasks
@@ -142,7 +131,7 @@ Start a test container without running tests (for manual debugging):
 ./gradlew runMain8.3-release -PtestClass=com.datadog.appsec.php.integration.Apache2FpmTests
 ```
 
-The `-PtestClass` property is required (the task is not created without it). Add `-PuseHelperCpp` to opt out of Rust helper redirection, or `-PhelperBinary=...` to bind-mount an explicit helper binary.
+The `-PtestClass` property is required (the task is not created without it).
 
 SSI variant:
 
@@ -165,15 +154,11 @@ build/test-logs/com.datadog.appsec.php.integration.Apache2FpmTests-8.3-debug/
 ├── access.log
 ├── appsec.log         # PHP extension appsec log
 ├── error.log          # Apache error log
-├── helper.log         # Helper process log (C++ or Rust)
+├── helper.log         # Embedded AppSec helper log
 ├── php_error.log
 ├── php_fpm_error.log
 └── sidecar.log
 ```
-
-To distinguish which helper ran, check `helper.log`:
-- Rust: starts with `[INFO] AppSec helper starting`
-- C++: starts with `[info]` lines like `Started listening on abstract socket`
 
 ## Musl/Alpine Target
 
@@ -183,19 +168,21 @@ The `test8.5-release-musl` target uses an Alpine-based nginx+fpm image. Tests ta
 ./gradlew test8.5-release-musl --info
 ```
 
-The `buildHelperRust` task already produces a musl-linked binary (built on Alpine with `cargo +nightly`, using LLVM libunwind). The `patchelf --remove-needed libc.musl-*` step makes it load on both musl and glibc systems.
+`buildPortableLibdatadogPhp` builds against musl with the portable PHP build
+image (also rebuilding std with LLVM libunwind for backtrace support). The
+image's linker wrapper adds the glibc compatibility object and required
+`DT_NEEDED` entries to the shared library. The static library does not invoke
+the linker and therefore does not include the compatibility object.
 
 ## CI Job Mapping
 
 | CI Job | Gradle Command |
 |---|---|
 | `appsec integration tests: [test8.3-release]` | `./gradlew test8.3-release` |
-| `appsec integration tests (helper-cpp): [test8.3-release]` | `./gradlew test8.3-release -PuseHelperCpp` |
-| `appsec integration tests (helper-cpp): [test8.3-release-zts]` | `./gradlew test8.3-release-zts -PuseHelperCpp` |
 | `appsec integration tests (ssi): [test8.3-release-ssi]` | `./gradlew test8.3-release-ssi` |
 | `helper-rust build and test` | `./gradlew testHelperRust` |
 | `helper-rust code coverage` | `./gradlew coverageHelperRust` |
-| `helper-rust integration coverage` | `./gradlew buildHelperRustWithCoverage` then integration test with `-PuseHelperRustCoverage` |
+| `helper-rust integration coverage` | `./gradlew buildPortableLibdatadogPhp -PuseHelperRustCoverage` then SSI tests with the same property |
 
 CI also passes `--scan -Pbuildscan` for Gradle build scans, which is optional locally.
 
@@ -205,18 +192,18 @@ Gradle uses named Docker volumes for build artifacts and caches. Key volumes:
 
 | Volume | Contents |
 |---|---|
-| `php-helper-rust` | `libddappsec-helper.so` (Rust helper binary) |
+| `php-portable-libdatadog-php` | Portable `libdatadog_php.so` used by SSI tests |
 | `php-tracer-{v}-{var}` | Built `ddtrace.so` |
-| `php-appsec-{v}-{var}` | Built `ddappsec.so` + C++ helper |
+| `php-appsec-{v}-{var}` | Built `ddappsec.so` |
 | `php-tracer-cargo-cache` | Cargo registry cache |
 | `php-tracer-cargo-cache-git` | Cargo git cache |
 | `php-appsec-boost-cache` | Boost build cache |
-| `php-helper-rust-coverage` | Coverage-instrumented binary + profraw files |
+| `php-helper-rust-coverage` | Helper unit-test coverage output |
 
 To force a rebuild, remove the relevant volume:
 
 ```bash
-docker volume rm php-helper-rust
+docker volume rm php-portable-libdatadog-php
 ```
 
 To clean everything:
@@ -285,7 +272,9 @@ If you need to inspect sidecar/helper or PHP issues:
 
 - The `test` task itself is disabled (`tasks['test'].enabled = false`). Use versioned tasks like `test8.3-debug`.
 - Docker images are pulled from `docker.io/datadog/dd-appsec-php-ci`. Without `-PfloatingImageTags`, images are resolved by SHA256 digest from `gradle/tag_mappings.gradle`. If a digest is not locally available, Docker will pull it.
-- The `buildHelperRust` task uses the `nginx-fpm-php-8.5-release-musl` image (Alpine with Rust nightly). This image must be available locally or pullable.
+- `buildPortableLibdatadogPhp` uses the
+  `nginx-fpm-php-8.5-release-musl` image with nightly Rust. The image must
+  be available locally or pullable.
 - On first run, Gradle downloads its wrapper, dependencies, and Docker images. Expect 5-10 minutes. Subsequent runs with warm caches take ~20-50 seconds for a single test.
 - **c-ares DNS failure in Alpine containers.** Alpine's `curl` and `git` use
   c-ares for DNS, which fails to resolve hosts when the DNS server includes

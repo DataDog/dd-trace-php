@@ -26,7 +26,6 @@ retry_or_tempfail apt-get install -y \
     lsb-release \
     ca-certificates \
     curl \
-    software-properties-common \
     nginx \
     apache2 \
     procps \

@@ -47,7 +47,7 @@ enum datadog_sidecar_connection_mode {
     DD_COMMON_AGENT_HOST_CONFIGURATION                                                                          \
     CONFIG(STRING, DD_DOGSTATSD_URL, "http://localhost:8125")                                                  \
     CONFIG(STRING, DD_DOGSTATSD_HOST, "localhost")                                                             \
-    CONFIG(STRING, DD_API_KEY, "", .ini_change = zai_config_system_ini_change)                                 \
+    CONFIG(STRING, DD_API_KEY, "", .ini_change = zai_config_system_ini_change, .sensitive = true)              \
     CONFIG(INT, DD_DOGSTATSD_PORT, "8125")                                                                     \
     DD_COMMON_ENV_CONFIGURATION                                                                                \
     DD_COMMON_SERVICE_CONFIGURATION                                                                            \

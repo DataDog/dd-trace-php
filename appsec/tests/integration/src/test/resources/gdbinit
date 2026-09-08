@@ -2,3 +2,69 @@ set verbose off
 set confirm off
 handle SIGPIPE nostop print pass
 catch throw
+
+python
+import gdb
+
+_datadog_sidecar_symbols_loaded = set()
+
+
+def _load_datadog_sidecar_symbols(_event):
+    inferior = gdb.selected_inferior()
+    if not inferior.pid or inferior.num in _datadog_sidecar_symbols_loaded:
+        return
+
+    try:
+        with open("/proc/{}/cmdline".format(inferior.pid), "rb") as cmdline:
+            argv0 = cmdline.read().split(b"\0", 1)[0]
+        if argv0 != b"datadog-ipc-helper":
+            return
+
+        with open("/proc/{}/maps".format(inferior.pid)) as maps:
+            mappings = maps.readlines()
+    except OSError:
+        return
+
+    for mapping in mappings:
+        fields = mapping.split(None, 5)
+        if len(fields) != 6:
+            continue
+
+        library_path = fields[5].strip()
+        if (
+            int(fields[2], 16) != 0
+            or not library_path.endswith(
+                ("/libdatadog_php.so", "/ddtrace.so")
+            )
+        ):
+            continue
+
+        load_bias = int(fields[0].split("-", 1)[0], 16)
+        escaped_path = library_path.replace("\\", "\\\\").replace('"', '\\"')
+
+        # Direct exec makes ld.so the executable, so GDB cannot associate the
+        # datadog-ipc-helper link map with the sidecar DSO by itself.
+        _datadog_sidecar_symbols_loaded.add(inferior.num)
+        gdb.write(
+            "Loading sidecar symbols from {} at {:#x}\n".format(
+                library_path, load_bias
+            )
+        )
+        try:
+            gdb.execute(
+                'add-symbol-file "{}" -o {:#x}'.format(
+                    escaped_path, load_bias
+                )
+            )
+        except gdb.error:
+            _datadog_sidecar_symbols_loaded.remove(inferior.num)
+            raise
+        return
+
+
+gdb.events.new_objfile.connect(_load_datadog_sidecar_symbols)
+end
+
+define hookpost-attach
+    python _load_datadog_sidecar_symbols(None)
+end

@@ -162,6 +162,7 @@ static zai_config_memoized_entry *zai_config_memoize_entry(zai_config_entry *ent
     memoized->original_on_modify = NULL;
     memoized->env_config_fallback = entry->env_config_fallback;
     memoized->ini_change = entry->ini_change;
+    memoized->sensitive = entry->sensitive;
 
     return memoized;
 }

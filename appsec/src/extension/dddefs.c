@@ -10,8 +10,10 @@ const char *nonnull dd_result_to_string(dd_result result)
     switch (result) {
     case dd_success:
         return "dd_success";
-    case dd_network:
-        return "dd_network";
+    case dd_helper_say_goobye:
+        return "dd_helper_say_goobye";
+    case dd_helper_fatal:
+        return "dd_helper_fatal";
     case dd_should_block:
         return "dd_should_block";
     case dd_should_redirect:
@@ -22,8 +24,6 @@ const char *nonnull dd_result_to_string(dd_result result)
         return "dd_error";
     case dd_try_later:
         return "dd_try_later";
-    case dd_helper_error:
-        return "dd_helper_error";
     default:
         return "unknown";
     }
