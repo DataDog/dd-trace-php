@@ -853,8 +853,14 @@ endforeach;
     WAIT_FOR: test-agent:9126
   before_script:
 <?php unset_dd_runner_env_vars() ?>
-    # coreutils/findutils/grep: the Makefile and the artifact-collection scripts rely on GNU flags that BusyBox does not implement.
-    - apk add --no-cache bash composer coreutils curl findutils git grep libgcc make || exit 75
+    # coreutils/findutils/grep: the Makefile and the artifact-collection scripts rely on GNU flags
+    # that BusyBox does not implement. Deliberately not apk's `composer`: that pulls in Alpine's
+    # own php83, and composer would then resolve the test requirements against that PHP instead of
+    # the image's ZTS build (which is the one under test).
+    - apk add --no-cache bash coreutils curl findutils git grep libgcc make || exit 75
+    - install-php-extensions zip || exit 75
+    - php -r "copy('https://getcomposer.org/installer', '/tmp/composer-setup.php');"
+    - php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer
     - git config --global --add safe.directory "${CI_PROJECT_DIR}"
     - git config --global --add safe.directory "${CI_PROJECT_DIR}/*"
     - mkdir -p tmp/build_extension/modules artifacts

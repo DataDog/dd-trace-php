@@ -134,7 +134,12 @@ final class FrankenphpServer implements Sapi
         }
 
         $this->process = new Process($processCmd);
-        $this->process->start();
+        // Persist whatever Caddy/FrankenPHP write to stdout/stderr to have CI artifacts.
+        $logWriter = fopen(dirname($this->indexFile) . '/' . self::ERROR_LOG, "a");
+        $this->process->start(function ($type, $buffer) use ($logWriter) {
+            fwrite($logWriter, $buffer);
+            fflush($logWriter);
+        });
     }
 
     public function stop()

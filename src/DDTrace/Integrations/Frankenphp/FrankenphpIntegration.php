@@ -51,6 +51,7 @@ class FrankenphpIntegration extends Integration
                     $rootSpan = $hook->span(new SpanStack());
                     $rootSpan->name = "web.request";
                     $rootSpan->service = \ddtrace_config_app_name('frankenphp');
+                    Integration::tagFrameworkServiceSource($rootSpan, self::NAME);
                     $rootSpan->type = Type::WEB_SERVLET;
                     $rootSpan->meta[Tag::COMPONENT] = self::NAME;
                     $rootSpan->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_SERVER;

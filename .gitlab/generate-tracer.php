@@ -630,7 +630,7 @@ endforeach;
     - unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy
     - DD_TRACE_AGENT_TIMEOUT=1000 make $MAKE_TARGET RUST_DEBUG_BUILD=1 PHPUNIT_JUNIT="artifacts/tests/results.xml" <?= ASSERT_NO_MEMLEAKS ?>
 <?php after_script(".", true); ?>
-    - find tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' \) -exec cp --parents '{}' artifacts \;
+    - find tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'frankenphp_error.log' -o -name 'dd_php_error.log' \) -exec cp --parents '{}' artifacts \;
     - make tested_versions && cp tests/tested_versions/tested_versions.json artifacts/tested_versions_${MAKE_TARGET}_${PHP_MAJOR_MINOR}_${DD_TRACE_TEST_SAPI:-cli}.json
 
 <?php
