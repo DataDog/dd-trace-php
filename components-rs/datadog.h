@@ -271,6 +271,8 @@ bool datadog_sidecar_reconnect(struct ddog_SidecarTransport **transport,
 void datadog_sidecar_set_reconnect_fn(struct ddog_SidecarTransport **transport,
                                       struct ddog_SidecarTransport *(*factory)(void));
 
+void datadog_sidecar_clear_reconnect_fn(struct ddog_SidecarTransport **transport);
+
 bool ddog_shm_limiter_inc(const struct ddog_MaybeShmLimiter *limiter, uint32_t limit);
 
 bool ddog_exception_hash_limiter_inc(struct ddog_SidecarTransport *connection,

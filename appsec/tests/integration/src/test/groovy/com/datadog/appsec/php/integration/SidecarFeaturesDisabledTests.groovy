@@ -77,18 +77,14 @@ class SidecarFeaturesDisabledTests {
                 'sed', '-i', 's/^datadog.appsec.enabled.*$/datadog.appsec.enabled=false/', '/etc/php/php.ini')
         assert res.exitCode == 0
 
-        // Restart Apache before killing the sidecar so that existing workers
-        // shut down cleanly, taking their reconnect callbacks with them. If we
-        // kill the sidecar first the reconnect mechanism spawns a new sidecar
-        // subprocess that then becomes an orphan and is still found by pgrep.
-        res = CONTAINER.execInContainer('service', 'apache2', 'restart')
-        assert res.exitCode == 0
-
         res = CONTAINER.execInContainer(
                 '/bin/bash', '-c', '''
                     pid=`pgrep -f [d]atadog-ipc-helper`;
                     if [ -n "$pid" ]; then echo "Helper is running: $pid";
                     kill -9 $pid; fi''')
+        assert res.exitCode == 0
+
+        res = CONTAINER.execInContainer('service', 'apache2', 'restart')
         assert res.exitCode == 0
 
         HttpRequest req = CONTAINER.buildReq('/hello.php')

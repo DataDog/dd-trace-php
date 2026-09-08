@@ -551,6 +551,9 @@ void datadog_sidecar_handle_fork(void) {
 
 void datadog_sidecar_ensure_active(void) {
     if (DATADOG_G(sidecar)) {
+        // Restore reconnect_fn cleared during the previous RSHUTDOWN so that automatic
+        // reconnects work again for this request.
+        datadog_sidecar_set_reconnect_fn(&DATADOG_G(sidecar), datadog_sidecar_connect_callback);
         datadog_sidecar_reconnect(&DATADOG_G(sidecar), datadog_sidecar_connect_callback);
     } else if (datadog_endpoint) {
         // First RINIT on this thread: the process-level setup already ran (endpoint is
@@ -566,6 +569,10 @@ void datadog_sidecar_finalize(bool clear_id) {
     if (!DATADOG_G(sidecar) || !DATADOG_G(request_initialized)) {
         return;
     }
+
+    // Prevent reconnect during shutdown: avoid spawning a new sidecar just to deliver
+    // goodbye messages. Reconnect is restored at the start of the next RINIT.
+    datadog_sidecar_clear_reconnect_fn(&DATADOG_G(sidecar));
 
     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         datadog_telemetry_finalize();
@@ -583,6 +590,10 @@ void datadog_sidecar_finalize(bool clear_id) {
 }
 
 void datadog_sidecar_shutdown(void) {
+    // Prevent reconnect from firing during shutdown-phase sidecar calls.
+    if (DATADOG_G(sidecar)) {
+        datadog_sidecar_clear_reconnect_fn(&DATADOG_G(sidecar));
+    }
     datadog_sidecar_for_signal = NULL;
 
     // In thread mode, drop the main thread's connection before shutting down the
@@ -870,6 +881,8 @@ void datadog_sidecar_rshutdown(void) {
 
 void datadog_sidecar_gshutdown(zend_datadog_globals *datadog_globals) {
     if (datadog_globals->sidecar) {
+        datadog_sidecar_clear_reconnect_fn(&datadog_globals->sidecar);
+
         if (datadog_globals->sidecar == datadog_sidecar_for_signal) {
             datadog_sidecar_for_signal = NULL;
         }
