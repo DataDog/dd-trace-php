@@ -1,12 +1,12 @@
 {
   "scale_by_duration": false,
   "test_name": "php_io_upscaling",
-  "note": "PHP currently splits each 10 KiB fread into 8 KiB and 2 KiB reads; this test intentionally does not override that default. Two sampled 10 KiB writes upscale to 215211 bytes, while two sampled 8 KiB reads upscale to 213101 bytes.",
+  "note": "163840 10 KiB operations produce 1677721600 bytes (1600 MiB). With a 100 KiB sampling interval, about 16000 samples per metric give roughly 0.8% standard deviation in estimated bytes; the 6% margin exceeds seven standard deviations.",
   "stacks": [
     {
       "profile-type": "file-io-write-size",
-      "error-margin": 5,
-      "value-matching-sum": 215211,
+      "error-margin": 6,
+      "value-matching-sum": 1677721600,
       "stack-content": [
         {
           "regular_expression": "<?php;main;write_operations;standard\\|fwrite$"
@@ -15,8 +15,8 @@
     },
     {
       "profile-type": "file-io-read-size",
-      "error-margin": 5,
-      "value-matching-sum": 213101,
+      "error-margin": 6,
+      "value-matching-sum": 1677721600,
       "stack-content": [
         {
           "regular_expression": "<?php;main;read_operations;standard\\|fread$"

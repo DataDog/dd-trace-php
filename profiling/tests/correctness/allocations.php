@@ -3,30 +3,24 @@
 function a()
 {
     $a = str_repeat("a", 1024 * 12_000);
-    str_replace('a', 'b', $a);
+    // One replacement still allocates a full copy, without per-byte work.
+    $a[0] = 'b';
+    str_replace('b', 'c', $a);
 }
 
 function b()
 {
     $a = str_repeat("a", 1024 * 6_000);
-    str_replace('a', 'b', $a);
+    $a[0] = 'b';
+    str_replace('b', 'c', $a);
 }
 
 function main()
 {
-    $duration = $_ENV["EXECUTION_TIME"] ?? 10;
-    $end = microtime(true) + $duration;
-    while (microtime(true) < $end) {
-        $start = microtime(true);
+    // Fixed work makes allocation totals independent of machine speed.
+    for ($i = 0; $i < 512; $i++) {
         a();
         b();
-        $elapsed = microtime(true) - $start;
-        // sleep for the remainder to 100 ms
-        // so we end up doing 10 iterations per second
-        $sleep = (0.1 - $elapsed);
-        if ($sleep > 0.0) {
-            usleep((int) ($sleep * 1_000_000));
-        }
     }
 }
 main();
