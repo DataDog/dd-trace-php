@@ -1118,7 +1118,25 @@ endforeach;
 <?php dockerhub_login() ?>
     - mkdir build
     - mv packages build
+    - '# Fix apt sources, as debian 11 is EOL: bullseye-security expired and part of its pool is purged from deb.debian.org'
+    - '# Pinned at the snapshot taken when bullseye LTS ended (2026-08-31), so there is nothing newer for the pin to drift from'
+    - |
+      if [ "$(. /etc/os-release; echo $VERSION_CODENAME)" = "bullseye" ]; then
+        sed -i -e 's|http://deb.debian.org/debian-security|http://snapshot.debian.org/archive/debian-security/20260901T000000Z|g' \
+               -e 's|http://deb.debian.org/debian|http://snapshot.debian.org/archive/debian/20260901T000000Z|g' /etc/apt/sources.list
+        echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid-until
+      fi
     - apt-get update || exit 75
+    - |
+      # apt-get update still exits 0 when the rewrite silently no-ops, so assert on the URIs apt would actually fetch from.
+      if [ "$(. /etc/os-release; echo $VERSION_CODENAME)" = "bullseye" ]; then
+        uris=$(apt-get install -y --print-uris apt-transport-https lsb-release ca-certificates curl \
+                 software-properties-common nginx apache2 procps gnupg \
+               | grep -oE "https?://[a-z0-9.-]+" | sort -u)
+        bad=$(echo "$uris" | grep -v '^http://snapshot\.debian\.org$' || true)
+        if [ -z "$uris" ]; then echo "FAIL: could not resolve any apt URIs"; exit 1; fi
+        if [ -n "$bad" ]; then echo "FAIL: bullseye apt sources not pinned; apt would still fetch from: $bad"; exit 1; fi
+      fi
     - apt-get install -y curl || exit 75
 
 <?php foreach ([["8.1", "arm64", "aarch64"], ["7.0", "amd64", "x86_64"]] as [$major_minor, $arch, $pkgprefix]): ?>
