@@ -1122,6 +1122,8 @@ endforeach;
     - '# Pinned at the snapshot taken when bullseye LTS ended (2026-08-31), so there is nothing newer for the pin to drift from'
     - |
       if [ "$(. /etc/os-release; echo $VERSION_CODENAME)" = "bullseye" ]; then
+        # Say so rather than skipping: a bullseye image with deb822 sources would otherwise fail later as exit 75, which reads as infra flakiness.
+        if [ ! -f /etc/apt/sources.list ]; then echo "FAIL: bullseye image has no /etc/apt/sources.list; the snapshot pin does not apply to this layout"; exit 1; fi
         sed -i -e 's|http://deb.debian.org/debian-security|http://snapshot.debian.org/archive/debian-security/20260901T000000Z|g' \
                -e 's|http://deb.debian.org/debian|http://snapshot.debian.org/archive/debian/20260901T000000Z|g' /etc/apt/sources.list
         echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid-until
