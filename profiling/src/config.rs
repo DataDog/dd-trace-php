@@ -198,6 +198,7 @@ impl SystemSettings {
 pub enum AgentEndpoint {
     Uri(Uri),
     Socket(Cow<'static, Path>),
+    File(Cow<'static, Path>),
 }
 
 impl AgentEndpoint {
@@ -254,6 +255,9 @@ impl TryFrom<&AgentEndpoint> for libdd_common::Endpoint {
         let endpoint = match value {
             AgentEndpoint::Uri(uri) => libdd_profiling::exporter::config::agent(uri.clone()),
             AgentEndpoint::Socket(path) => libdd_profiling::exporter::config::agent_uds(path),
+            AgentEndpoint::File(path) => {
+                libdd_profiling::exporter::config::file(path.to_string_lossy())
+            }
         }?;
         Ok(endpoint.with_timeout(AGENT_ENDPOINT_TIMEOUT_MS))
     }
@@ -264,6 +268,7 @@ impl Display for AgentEndpoint {
         match self {
             AgentEndpoint::Uri(uri) => write!(f, "{uri}"),
             AgentEndpoint::Socket(path) => write!(f, "unix://{}", path.to_string_lossy()),
+            AgentEndpoint::File(path) => write!(f, "file://{}", path.to_string_lossy()),
         }
     }
 }
@@ -283,8 +288,10 @@ fn detect_uri_from_config(
      *  4. http://localhost:8126
      */
     if let Some(trace_agent_url) = url {
-        // check for UDS first
-        if let Some(path) = trace_agent_url.strip_prefix("unix://") {
+        // File dumps and UDS endpoints need paths preserved outside http::Uri.
+        if let Some(path) = trace_agent_url.strip_prefix("file://") {
+            return AgentEndpoint::File(Cow::Owned(PathBuf::from(path)));
+        } else if let Some(path) = trace_agent_url.strip_prefix("unix://") {
             let path = PathBuf::from(path);
             if path.exists() {
                 return AgentEndpoint::Socket(Cow::Owned(path));
@@ -570,7 +577,7 @@ unsafe fn profiling_output_pprof() -> Option<Cow<'static, str>> {
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// first rinit, and before it is uninitialized in mshutdown.
-unsafe fn profiling_wall_time_enabled() -> bool {
+pub(crate) unsafe fn profiling_wall_time_enabled() -> bool {
     profiling_enabled() && get_system_bool(ProfilingWallTimeEnabled, true)
 }
 
@@ -1048,6 +1055,15 @@ mod tests {
         let endpoint =
             detect_uri_from_config(Some(Cow::Owned("http://[::1]:8126".to_owned())), None, None);
         let expected = AgentEndpoint::Uri(Uri::from_static("http://[::1]:8126"));
+        assert_eq!(endpoint, expected);
+
+        // file dump
+        let endpoint = detect_uri_from_config(
+            Some(Cow::Owned("file:///tmp/profile.http".to_owned())),
+            None,
+            None,
+        );
+        let expected = AgentEndpoint::File(Cow::Owned(PathBuf::from("/tmp/profile.http")));
         assert_eq!(endpoint, expected);
 
         // fallback on non existing UDS

@@ -28,7 +28,7 @@ use crate::profiling::exception::EXCEPTION_PROFILING_INTERVAL;
 #[cfg(target_os = "linux")]
 use crate::profiling::process_context::{ProcessIdentityRef, ThreadContextRead};
 use crate::profiling::profile_tags::ProfileTags;
-use crate::profiling::{Clocks, RefCellExt, CLOCKS, GLOBAL_TAGS, REQUEST_LOCALS};
+use crate::profiling::{RefCellExt, CLOCKS, GLOBAL_TAGS, REQUEST_LOCALS};
 use chrono::Utc;
 use core::mem::forget;
 use core::{ptr, str};
@@ -114,8 +114,9 @@ pub(crate) fn update_cpu_time_counter(last: &mut Option<ThreadTime>, counter: &A
 ///  3. Off by default types.
 #[derive(Clone, Default, Debug)]
 pub struct SampleValues {
-    interrupt_count: i64,
+    wall_samples: i64,
     wall_time: i64,
+    cpu_samples: i64,
     cpu_time: i64,
     alloc_samples: i64,
     alloc_size: i64,
@@ -141,7 +142,7 @@ pub struct SampleValues {
     file_io_write_size_samples: i64,
 }
 
-const WALL_TIME_PERIOD: Duration = Duration::from_millis(10);
+const WALL_TIME_NOMINAL_PERIOD: Duration = Duration::from_millis(10);
 
 #[derive(Debug, Clone)]
 struct WallTime {
@@ -327,7 +328,6 @@ pub struct Profiler {
 
 struct TimeCollector {
     fork_barrier: Arc<Barrier>,
-    interrupt_manager: Arc<InterruptManager>,
     message_receiver: Receiver<ProfilerMessage>,
     upload_sender: Sender<UploadMessage>,
     upload_period: Duration,
@@ -497,7 +497,7 @@ impl TimeCollector {
         // check if we have the `exception-samples` sample types
         let exception_samples_offset = get_offset(ApiSampleType::ExceptionSamples);
 
-        let period = WALL_TIME_PERIOD.as_nanos();
+        let period = WALL_TIME_NOMINAL_PERIOD.as_nanos();
         let mut profile = InternalProfile::try_new(
             &sample_types,
             Some(Period {
@@ -748,30 +748,15 @@ impl TimeCollector {
         let mut profiles: HashMap<Arc<ProfileIndex>, InternalProfile> = HashMap::with_capacity(1);
 
         debug!(
-            "Started with an upload period of {} seconds and approximate wall-time period of {} milliseconds.",
-            UPLOAD_PERIOD.as_secs(),
-            WALL_TIME_PERIOD.as_millis()
+            "Started with an upload period of {} seconds.",
+            UPLOAD_PERIOD.as_secs()
         );
 
-        let wall_timer = crossbeam_channel::tick(WALL_TIME_PERIOD);
         let upload_tick = crossbeam_channel::tick(self.upload_period);
-        let never = crossbeam_channel::never();
         let mut running = true;
         let mut last_cpu = ThreadTime::try_now().ok();
 
         while running {
-            // The crossbeam_channel::select! doesn't have the ability to
-            // optionally recv something. Instead, if the tick channel
-            // shouldn't be selected on, then pass the never channel for that
-            // iteration instead, keeping the code structure of the recvs the
-            // same. Since the never channel will never be ready, this
-            // effectively makes that branch optional for that loop iteration.
-            let timer = if self.interrupt_manager.has_interrupts() {
-                &wall_timer
-            } else {
-                &never
-            };
-
             crossbeam_channel::select! {
 
                 recv(self.message_receiver) -> result => {
@@ -808,15 +793,6 @@ impl TimeCollector {
                             break;
                         }
                     }
-                },
-
-                recv(timer) -> message => match message {
-                    Ok(_) => self.interrupt_manager.trigger_interrupts(),
-
-                    Err(err) => {
-                        warn!("{err}");
-                        break;
-                    },
                 },
 
                 recv(upload_tick) -> message => {
@@ -879,7 +855,6 @@ impl Profiler {
         let sample_types_filter = SampleTypeFilter::new(system_settings);
         let time_collector = TimeCollector {
             fork_barrier: fork_barrier.clone(),
-            interrupt_manager: interrupt_manager.clone(),
             message_receiver,
             upload_sender: upload_sender.clone(),
             upload_period: UPLOAD_PERIOD,
@@ -1176,14 +1151,31 @@ impl Profiler {
     /// it's enabled and available.
     #[export_name = "ddog_php_prof_collect_time"]
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
-    pub fn collect_time(&self, execute_data: *mut zend_execute_data, interrupt_count: u32) {
+    pub fn collect_time(
+        &self,
+        execute_data: *mut zend_execute_data,
+        wall_samples: u32,
+        cpu_samples: u32,
+    ) {
         // todo: should probably exclude the wall and CPU time used by collecting the sample.
-        let interrupt_count = interrupt_count as i64;
         let result = self.collect_stack_sample_timed(execute_data);
         match result {
             Ok(frames) => {
                 let depth = frames.len();
-                let (wall_time, cpu_time) = CLOCKS.with_borrow_mut(Clocks::rotate_clocks);
+                let (wall_time, cpu_time) = CLOCKS.with_borrow_mut(|clocks| {
+                    (
+                        if wall_samples != 0 {
+                            clocks.rotate_wall_clock()
+                        } else {
+                            0
+                        },
+                        if cpu_samples != 0 {
+                            clocks.rotate_cpu_clock()
+                        } else {
+                            0
+                        },
+                    )
+                });
 
                 let labels = Profiler::common_labels(0);
                 let n_labels = labels.len();
@@ -1193,8 +1185,9 @@ impl Profiler {
                 match self.prepare_and_send_message(
                     frames,
                     SampleValues {
-                        interrupt_count,
+                        wall_samples: i64::from(wall_samples),
                         wall_time,
+                        cpu_samples: i64::from(cpu_samples),
                         cpu_time,
                         ..Default::default()
                     },
@@ -1217,7 +1210,7 @@ impl Profiler {
 
     /// Collect a stack sample with memory allocations, and optionally time data.
     ///
-    /// When `interrupt_count` is provided, this piggybacks time sampling onto
+    /// When `time_samples` is provided, this piggybacks time sampling onto
     /// allocation sampling to avoid redundant stack walks.
     ///
     /// If heap live profiling is enabled, the allocation is tracked for later
@@ -1233,21 +1226,40 @@ impl Profiler {
         ptr: *mut std::ffi::c_void,
         alloc_samples: i64,
         alloc_size: i64,
-        interrupt_count: Option<u32>,
+        time_samples: Option<(u32, u32)>,
     ) {
         let result = self.collect_stack_sample_timed(execute_data);
         match result {
             Ok(frames) => {
                 let depth = frames.len();
 
-                // Optionally collect time data when interrupt_count is provided
-                let (interrupt_count, wall_time, cpu_time, timestamp) =
-                    if let Some(count) = interrupt_count {
-                        let (wall_time, cpu_time) = CLOCKS.with_borrow_mut(Clocks::rotate_clocks);
+                // Optionally collect independently-triggered wall/CPU data.
+                let (wall_samples, wall_time, cpu_samples, cpu_time, timestamp) =
+                    if let Some((wall_samples, cpu_samples)) = time_samples {
+                        let (wall_time, cpu_time) = CLOCKS.with_borrow_mut(|clocks| {
+                            (
+                                if wall_samples != 0 {
+                                    clocks.rotate_wall_clock()
+                                } else {
+                                    0
+                                },
+                                if cpu_samples != 0 {
+                                    clocks.rotate_cpu_clock()
+                                } else {
+                                    0
+                                },
+                            )
+                        });
                         let timestamp = self.get_timeline_timestamp();
-                        (count as i64, wall_time, cpu_time, timestamp)
+                        (
+                            i64::from(wall_samples),
+                            wall_time,
+                            i64::from(cpu_samples),
+                            cpu_time,
+                            timestamp,
+                        )
                     } else {
-                        (0, 0, 0, NO_TIMESTAMP)
+                        (0, 0, 0, 0, NO_TIMESTAMP)
                     };
 
                 let labels = Profiler::common_labels(0);
@@ -1256,8 +1268,9 @@ impl Profiler {
                 // Note: heap_live_samples/heap_live_size are NOT included here.
                 // They are emitted in batches at profile export time (like .NET profiler).
                 let sample_values = SampleValues {
-                    interrupt_count,
+                    wall_samples,
                     wall_time,
+                    cpu_samples,
                     cpu_time,
                     alloc_samples,
                     alloc_size,
@@ -1286,7 +1299,7 @@ impl Profiler {
                 {
                     Ok(_) => {
                         trace!(
-                            "Sent stack sample of {depth} frames, {n_labels} labels, {alloc_size} bytes allocated, {alloc_samples} allocations, and {interrupt_count} time interrupts to profiler."
+                            "Sent stack sample of {depth} frames, {n_labels} labels, {alloc_size} bytes allocated, {alloc_samples} allocations, {wall_samples} wall samples, and {cpu_samples} CPU samples to profiler."
                         );
                         if let Some(tracked) = tracked {
                             if self.track_allocation(ptr as usize, tracked) {
@@ -1989,9 +2002,10 @@ mod tests {
 
     pub fn get_samples() -> SampleValues {
         SampleValues {
-            interrupt_count: 10,
+            wall_samples: 10,
             wall_time: 20,
-            cpu_time: 30,
+            cpu_samples: 30,
+            cpu_time: 31,
             alloc_samples: 40,
             alloc_size: 50,
             heap_live_samples: 55,
@@ -2035,13 +2049,14 @@ mod tests {
         assert_eq!(
             message.key.sample_types,
             vec![
-                ValueType::new("sample", "count"),
+                ValueType::new("wall-samples", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
+                ValueType::new("cpu-samples", "count"),
                 ValueType::new("cpu-time", "nanoseconds"),
                 ValueType::new("timeline", "nanoseconds"),
             ]
         );
-        assert_eq!(message.value.sample_values, vec![10, 20, 30, 60]);
+        assert_eq!(message.value.sample_values, vec![10, 20, 30, 31, 60]);
         assert_eq!(message.value.timestamp, 900);
     }
 }

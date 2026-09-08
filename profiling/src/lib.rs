@@ -586,6 +586,7 @@ impl<T> RefCellExt<T> for LocalKey<RefCell<T>> {
 
 thread_local! {
     static CLOCKS: RefCell<Clocks> = RefCell::new(Clocks {
+        initialized: false,
         cpu_time: None,
         wall_time: Instant::now(),
     });
@@ -831,7 +832,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                 let globals = unsafe { module_globals::get_profiler_globals() };
                 let interrupt = VmInterrupt {
                     // SAFETY: `globals` is valid until this thread's GSHUTDOWN.
-                    interrupt_count_ptr: unsafe { ptr::addr_of!((*globals).interrupt_count) },
+                    cpu_sample_count_ptr: unsafe { ptr::addr_of!((*globals).cpu_sample_count) },
                     engine_ptr: locals.vm_interrupt_addr,
                 };
                 profiler.add_interrupt(interrupt);
@@ -875,7 +876,7 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
                 let globals = unsafe { module_globals::get_profiler_globals() };
                 let interrupt = VmInterrupt {
                     // SAFETY: `globals` remains valid until this thread's GSHUTDOWN.
-                    interrupt_count_ptr: unsafe { ptr::addr_of!((*globals).interrupt_count) },
+                    cpu_sample_count_ptr: unsafe { ptr::addr_of!((*globals).cpu_sample_count) },
                     engine_ptr: locals.vm_interrupt_addr,
                 };
                 profiler.remove_interrupt(interrupt);
@@ -1221,6 +1222,12 @@ pub extern "C" fn ddog_php_prof_is_enabled() -> bool {
     // SAFETY: the combined lifecycle calls this after profiler RINIT and before
     // profiler RSHUTDOWN tears down request configuration.
     unsafe { config::profiling_enabled() }
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_php_prof_should_enable_wall_time_sidecar() -> bool {
+    // Called after config::first_rinit() by the combined extension lifecycle.
+    unsafe { config::profiling_enabled() && config::profiling_wall_time_enabled() }
 }
 
 #[no_mangle]

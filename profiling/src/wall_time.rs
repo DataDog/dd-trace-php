@@ -7,6 +7,18 @@ use crate::profiling::profiler::Profiler;
 use core::ptr;
 use core::sync::atomic::Ordering;
 
+unsafe extern "C" {
+    fn datadog_sidecar_consume_wall_time_sample() -> bool;
+}
+
+pub(crate) fn consume_time_samples() -> (u32, u32) {
+    // Combined Linux build: the C side owns the worker's shared-memory mapping.
+    let wall_samples = u32::from(unsafe { datadog_sidecar_consume_wall_time_sample() });
+    let cpu_samples = unsafe { &(*module_globals::get_profiler_globals()).cpu_sample_count }
+        .swap(0, Ordering::Acquire);
+    (wall_samples, cpu_samples)
+}
+
 #[cfg(not(php_frameless))]
 mod execute_internal {
     use super::*;
@@ -109,29 +121,23 @@ static mut PREV_INTERRUPT_FUNCTION: Option<VmInterruptFn> = None;
 #[no_mangle]
 #[inline(never)]
 pub extern "C" fn ddog_php_prof_interrupt_function(execute_data: *mut zend_execute_data) {
-    // SAFETY: interrupt callbacks run while the current PHP thread's module globals are valid.
-    let atomic_count = unsafe { &(*module_globals::get_profiler_globals()).interrupt_count };
-
-    /* Other extensions/modules or the engine itself may trigger an
-     * interrupt, but given how expensive it is to gather a stack trace,
-     * it should only be done if we triggered it ourselves. So
-     * interrupt_count serves dual purposes:
-     *  1. Track how many interrupts there were.
-     *  2. Ensure we don't collect on someone else's interrupt.
-     */
-    let interrupt_count = atomic_count.swap(0, Ordering::Relaxed);
-    if interrupt_count == 0 {
+    let (wall_samples, cpu_samples) = consume_time_samples();
+    if wall_samples == 0 && cpu_samples == 0 {
         return;
     }
-    collect_time_if_enabled(execute_data, interrupt_count);
+    collect_time_if_enabled(execute_data, wall_samples, cpu_samples);
 }
 
 #[inline(never)]
 #[export_name = "ddog_php_prof_collect_time_if_enabled"]
-extern "C" fn collect_time_if_enabled(execute_data: *mut zend_execute_data, interrupt_count: u32) {
+extern "C" fn collect_time_if_enabled(
+    execute_data: *mut zend_execute_data,
+    wall_samples: u32,
+    cpu_samples: u32,
+) {
     if let Some(profiler) = Profiler::get() {
         // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-        profiler.collect_time(execute_data, interrupt_count);
+        profiler.collect_time(execute_data, wall_samples, cpu_samples);
     }
 }
 
@@ -142,13 +148,11 @@ mod frameless {
         use crate::profiling::bindings::{
             zend_flf_functions, zend_flf_handlers, zend_frameless_function_info,
         };
-        use crate::profiling::module_globals;
         use crate::profiling::wall_time::collect_time_if_enabled;
         use crate::profiling::zend;
         use dynasmrt::{dynasm, DynasmApi, ExecutableBuffer};
         use log::error;
         use std::ffi::c_void;
-        use std::sync::atomic::Ordering;
 
         #[cfg(target_arch = "aarch64")]
         use dynasmrt::aarch64::Assembler;
@@ -272,17 +276,14 @@ mod frameless {
         pub extern "C" fn ddog_php_prof_icall_trampoline_target() {
             // SAFETY: frameless handlers run while the current PHP thread's module globals are
             // valid. Retain the pointer so the authoritative swap reuses the same TSRM lookup.
-            let atomic_count =
-                unsafe { &(*module_globals::get_profiler_globals()).interrupt_count };
-
-            let interrupt_count = atomic_count.swap(0, Ordering::Relaxed);
-            if interrupt_count == 0 {
+            let (wall_samples, cpu_samples) = super::super::consume_time_samples();
+            if wall_samples == 0 && cpu_samples == 0 {
                 return;
             }
 
             // Fetching execute data is intentionally delayed until a profiler interrupt is pending.
             let execute_data = unsafe { zend::ddog_php_prof_get_current_execute_data() };
-            collect_time_if_enabled(execute_data, interrupt_count);
+            collect_time_if_enabled(execute_data, wall_samples, cpu_samples);
         }
     }
 

@@ -30,7 +30,7 @@ pub struct ProfilerGlobals {
     /// The profiler timer thread updates this through a pointer registered by
     /// the PHP thread, so the value must remain atomic despite living in
     /// thread-local PHP module globals.
-    pub interrupt_count: AtomicU32,
+    pub cpu_sample_count: AtomicU32,
     #[cfg(target_os = "linux")]
     pub(crate) process_context: RefCell<ProcessContextCache>,
     /// Per-thread allocation sampling state. Kept in PHP globals so allocator
@@ -55,7 +55,7 @@ pub static mut GLOBALS_ID: i32 = 0;
 ))]
 pub static mut GLOBALS: ProfilerGlobals = ProfilerGlobals {
     zend_mm_state: Cell::new(ZendMMState::new()),
-    interrupt_count: AtomicU32::new(0),
+    cpu_sample_count: AtomicU32::new(0),
     #[cfg(target_os = "linux")]
     process_context: RefCell::new(ProcessContextCache::new()),
     allocation_profiling_stats: UnsafeCell::new(MaybeUninit::uninit()),
@@ -162,7 +162,7 @@ pub unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
     {
         let globals = _globals_ptr.cast::<ProfilerGlobals>();
         (*globals).zend_mm_state = Cell::new(ZendMMState::new());
-        (*globals).interrupt_count = AtomicU32::new(0);
+        (*globals).cpu_sample_count = AtomicU32::new(0);
         #[cfg(target_os = "linux")]
         ptr::addr_of_mut!((*globals).process_context)
             .write(RefCell::new(ProcessContextCache::new()));

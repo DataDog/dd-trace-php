@@ -10,6 +10,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <sys/types.h>
 
 #define DDOG_CHARSLICE_C(string) \
 /* NOTE: Compilation fails if you pass in a char* instead of a literal */ ((ddog_CharSlice){ .ptr = "" string, .len = sizeof(string) - 1 })
@@ -2054,6 +2055,12 @@ typedef struct ddog_Result_TracerMemfdHandle {
     };
   };
 } ddog_Result_TracerMemfdHandle;
+
+typedef struct ddog_WallTimeShmRegion {
+  pid_t pid;
+  uint32_t wall_sample_pending;
+  uint32_t config_reread_pending;
+} ddog_WallTimeShmRegion;
 
 #ifdef __cplusplus
 extern "C" {

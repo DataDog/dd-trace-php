@@ -20,6 +20,9 @@
 #ifndef _WIN32
 #include <tracer/coms.h>
 #endif
+#ifdef PROFILING
+#include <profiling/src/lifecycle.h>
+#endif
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
@@ -32,6 +35,104 @@ struct ddog_InstanceId *datadog_sidecar_instance_id;
 // shutdown is already a best-effort race for signal handlers, so atomicity of
 // the pointer load alone would not prevent the underlying use-after-free.
 ddog_SidecarTransport *datadog_sidecar_for_signal = NULL;
+
+#ifdef PROFILING
+static struct ddog_ShmHandle *datadog_wall_time_shm_handle;
+static struct ddog_MappedMem_ShmHandle *datadog_wall_time_shm_mapping;
+static struct ddog_WallTimeShmRegion *datadog_wall_time_shm_pointer;
+static pid_t datadog_wall_time_pid;
+
+_Static_assert(sizeof(struct ddog_WallTimeShmRegion) == 12, "wall-time shm region layout mismatch");
+
+static bool dd_sidecar_register_wall_time(ddog_SidecarTransport **transport) {
+    return datadog_wall_time_shm_handle && transport && *transport &&
+           datadog_ffi_try("Failed registering wall-time profiler with sidecar",
+                           ddog_sidecar_register_wall_time_profiler(transport, datadog_wall_time_shm_handle));
+}
+
+static void dd_sidecar_drop_wall_time_mapping(void) {
+    datadog_wall_time_shm_pointer = NULL;
+    if (datadog_wall_time_shm_mapping) {
+        struct ddog_ShmHandle *mapped_handle = ddog_unmap_shm(datadog_wall_time_shm_mapping);
+        datadog_wall_time_shm_mapping = NULL;
+        ddog_drop_anon_shm_handle(mapped_handle);
+    }
+    if (datadog_wall_time_shm_handle) {
+        ddog_drop_anon_shm_handle(datadog_wall_time_shm_handle);
+        datadog_wall_time_shm_handle = NULL;
+    }
+    datadog_wall_time_pid = 0;
+}
+
+bool datadog_sidecar_wall_time_rinit(void) {
+    if (!ddog_php_prof_should_enable_wall_time_sidecar()) {
+        return true;
+    }
+    if (datadog_wall_time_shm_handle) {
+        return true;
+    }
+    if (!DATADOG_G(sidecar)) {
+        return false;
+    }
+
+    size_t mapping_size = 0;
+    void *mapping_pointer = NULL;
+    if (!datadog_ffi_try("Failed allocating wall-time profiler shared memory",
+                         ddog_alloc_anon_shm_handle(sizeof(struct ddog_WallTimeShmRegion),
+                                                    &datadog_wall_time_shm_handle))) {
+        return false;
+    }
+    struct ddog_ShmHandle *mapping_handle = ddog_clone_anon_shm_handle(datadog_wall_time_shm_handle);
+    if (!datadog_ffi_try("Failed mapping wall-time profiler shared memory",
+                         ddog_map_shm(mapping_handle, &datadog_wall_time_shm_mapping,
+                                      &mapping_pointer, &mapping_size))) {
+        dd_sidecar_drop_wall_time_mapping();
+        return false;
+    }
+    datadog_wall_time_shm_pointer = mapping_pointer;
+    datadog_wall_time_pid = getpid();
+    if (!ddog_wall_time_profiler_init_region(datadog_wall_time_shm_pointer, mapping_size,
+                                             datadog_wall_time_pid) ||
+        !dd_sidecar_register_wall_time(&DATADOG_G(sidecar))) {
+        dd_sidecar_drop_wall_time_mapping();
+        return false;
+    }
+    return true;
+}
+
+bool datadog_sidecar_consume_wall_time_sample(void) {
+    return datadog_wall_time_shm_pointer &&
+           ddog_wall_time_profiler_consume_wall(datadog_wall_time_shm_pointer);
+}
+
+bool datadog_sidecar_mark_wall_time_sample(void) {
+    if (!datadog_wall_time_shm_pointer) {
+        return false;
+    }
+    ddog_wall_time_profiler_mark_wall(datadog_wall_time_shm_pointer);
+    return true;
+}
+
+bool datadog_sidecar_consume_remote_config(void) {
+    return datadog_wall_time_shm_pointer &&
+           ddog_wall_time_profiler_consume_remote_config(datadog_wall_time_shm_pointer);
+}
+
+bool datadog_sidecar_has_wall_time_slot(void) {
+    return datadog_wall_time_shm_pointer != NULL;
+}
+
+void datadog_sidecar_mark_remote_config(void) {
+    if (datadog_wall_time_shm_pointer) {
+        ddog_wall_time_profiler_mark_remote_config(datadog_wall_time_shm_pointer);
+    }
+}
+
+void datadog_sidecar_wall_time_handle_fork(void) {
+    // Do not unregister: the inherited slot belongs to the parent process.
+    dd_sidecar_drop_wall_time_mapping();
+}
+#endif
 
 // Connection mode tracking
 dd_sidecar_active_mode_t datadog_sidecar_active_mode = DD_SIDECAR_CONNECTION_NONE;
@@ -217,6 +318,11 @@ static void dd_sidecar_on_reconnect(ddog_SidecarTransport *transport) {
     }
 
     dd_sidecar_post_connect(&transport, false, logpath);
+#ifdef PROFILING
+    if (datadog_wall_time_shm_handle && !dd_sidecar_register_wall_time(&transport)) {
+        abort();
+    }
+#endif
 
     tsrm_mutex_lock(DATADOG_G(sidecar_universal_service_tags_mutex));
 
@@ -439,6 +545,9 @@ bool datadog_sidecar_should_enable(ddog_RemoteConfigFlags *flags) {
 #ifdef TRACER
     enable_sidecar = ddtrace_update_remote_config_flags(flags) || enable_sidecar;
 #endif
+#ifdef PROFILING
+    enable_sidecar = ddog_php_prof_should_enable_wall_time_sidecar() || enable_sidecar;
+#endif
 
     return enable_sidecar;
 }
@@ -489,6 +598,9 @@ void datadog_sidecar_minit(void) {
 
 void datadog_sidecar_handle_fork(void) {
 #ifndef _WIN32
+#ifdef PROFILING
+    datadog_sidecar_wall_time_handle_fork();
+#endif
     ddog_RemoteConfigFlags flags = {0};
     bool enable_sidecar = datadog_sidecar_should_enable(&flags);
 
@@ -612,6 +724,14 @@ void datadog_sidecar_shutdown(void) {
         datadog_sidecar_clear_reconnect_fn(&DATADOG_G(sidecar));
     }
     datadog_sidecar_for_signal = NULL;
+
+#ifdef PROFILING
+    if (datadog_wall_time_shm_handle && DATADOG_G(sidecar)) {
+        datadog_ffi_try("Failed unregistering wall-time profiler from sidecar",
+                        ddog_sidecar_unregister_wall_time_profiler(&DATADOG_G(sidecar), datadog_wall_time_pid));
+    }
+    dd_sidecar_drop_wall_time_mapping();
+#endif
 
     // In thread mode, drop the main thread's connection before shutting down the
     // listener to avoid deadlock.  GSHUTDOWN owns transport cleanup for all other

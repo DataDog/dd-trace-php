@@ -2,7 +2,7 @@ use crate::profiling::config::SystemSettings;
 use crate::profiling::profiler::{SampleValues, ValueType};
 use libdd_profiling::api::{SampleType as ApiSampleType, ValueType as ApiValueType};
 
-const MAX_SAMPLE_TYPES: usize = 25;
+const MAX_SAMPLE_TYPES: usize = 26;
 
 #[derive(Clone)]
 pub struct SampleTypeFilter {
@@ -14,8 +14,9 @@ impl SampleTypeFilter {
     pub fn new(system_settings: &SystemSettings) -> Self {
         // Lay this out in the same order as SampleValues.
         static SAMPLE_TYPES: &[ApiSampleType; MAX_SAMPLE_TYPES] = &[
-            ApiSampleType::Sample,
+            ApiSampleType::WallSamples,
             ApiSampleType::WallTime,
+            ApiSampleType::CpuSamples,
             ApiSampleType::CpuTime,
             ApiSampleType::AllocSamples,
             ApiSampleType::AllocSize,
@@ -49,43 +50,46 @@ impl SampleTypeFilter {
         let mut sample_types_mask = [false; MAX_SAMPLE_TYPES];
 
         if system_settings.profiling_enabled {
-            // sample, wall-time, cpu-time
-            let len = 2 + system_settings.profiling_experimental_cpu_time_enabled as usize;
-            sample_types.extend_from_slice(&all_sample_types[0..len]);
+            // wall-samples, wall-time
+            sample_types.extend_from_slice(&all_sample_types[0..2]);
             sample_types_mask[0] = true;
             sample_types_mask[1] = true;
-            sample_types_mask[2] = system_settings.profiling_experimental_cpu_time_enabled;
+            if system_settings.profiling_experimental_cpu_time_enabled {
+                sample_types.extend_from_slice(&all_sample_types[2..4]);
+                sample_types_mask[2] = true;
+                sample_types_mask[3] = true;
+            }
 
             // alloc-samples, alloc-size
             if system_settings.profiling_allocation_enabled {
-                sample_types.extend_from_slice(&all_sample_types[3..5]);
-                sample_types_mask[3] = true;
+                sample_types.extend_from_slice(&all_sample_types[4..6]);
                 sample_types_mask[4] = true;
+                sample_types_mask[5] = true;
             }
 
             // heap-live-samples, heap-live-size (indices 5, 6)
             if system_settings.profiling_allocation_enabled
                 && system_settings.profiling_experimental_heap_live_enabled
             {
-                sample_types.extend_from_slice(&all_sample_types[5..7]);
-                sample_types_mask[5] = true;
+                sample_types.extend_from_slice(&all_sample_types[6..8]);
                 sample_types_mask[6] = true;
-            }
-
-            if system_settings.profiling_timeline_enabled {
-                sample_types.push(all_sample_types[7]);
                 sample_types_mask[7] = true;
             }
 
-            if system_settings.profiling_exception_enabled {
+            if system_settings.profiling_timeline_enabled {
                 sample_types.push(all_sample_types[8]);
                 sample_types_mask[8] = true;
             }
 
+            if system_settings.profiling_exception_enabled {
+                sample_types.push(all_sample_types[9]);
+                sample_types_mask[9] = true;
+            }
+
             #[cfg(feature = "io_profiling")]
             if system_settings.profiling_io_enabled {
-                // I/O sample types are at indices 9..=24
-                for i in 9..=24 {
+                // I/O sample types are at indices 10..=25
+                for i in 10..=25 {
                     sample_types.push(all_sample_types[i]);
                     sample_types_mask[i] = true;
                 }
@@ -106,8 +110,9 @@ impl SampleTypeFilter {
         // Lay this out in the same order as SampleValues.
         // Allows us to slice the SampleValues as if they were an array.
         let values: [i64; MAX_SAMPLE_TYPES] = [
-            sample_values.interrupt_count,
+            sample_values.wall_samples,
             sample_values.wall_time,
+            sample_values.cpu_samples,
             sample_values.cpu_time,
             sample_values.alloc_samples,
             sample_values.alloc_size,
@@ -178,7 +183,7 @@ mod tests {
         assert_filter(
             &settings,
             vec![
-                ValueType::new("sample", "count"),
+                ValueType::new("wall-samples", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
             ],
             vec![10, 20],
@@ -195,11 +200,12 @@ mod tests {
         assert_filter(
             &settings,
             vec![
-                ValueType::new("sample", "count"),
+                ValueType::new("wall-samples", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
+                ValueType::new("cpu-samples", "count"),
                 ValueType::new("cpu-time", "nanoseconds"),
             ],
-            vec![10, 20, 30],
+            vec![10, 20, 30, 31],
         );
     }
 
@@ -213,7 +219,7 @@ mod tests {
         assert_filter(
             &settings,
             vec![
-                ValueType::new("sample", "count"),
+                ValueType::new("wall-samples", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
                 ValueType::new("alloc-samples", "count"),
                 ValueType::new("alloc-size", "bytes"),
@@ -232,13 +238,14 @@ mod tests {
         assert_filter(
             &settings,
             vec![
-                ValueType::new("sample", "count"),
+                ValueType::new("wall-samples", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
+                ValueType::new("cpu-samples", "count"),
                 ValueType::new("cpu-time", "nanoseconds"),
                 ValueType::new("alloc-samples", "count"),
                 ValueType::new("alloc-size", "bytes"),
             ],
-            vec![10, 20, 30, 40, 50],
+            vec![10, 20, 30, 31, 40, 50],
         );
     }
 
@@ -252,12 +259,13 @@ mod tests {
         assert_filter(
             &settings,
             vec![
-                ValueType::new("sample", "count"),
+                ValueType::new("wall-samples", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
+                ValueType::new("cpu-samples", "count"),
                 ValueType::new("cpu-time", "nanoseconds"),
                 ValueType::new("exception-samples", "count"),
             ],
-            vec![10, 20, 30, 70],
+            vec![10, 20, 30, 31, 70],
         );
     }
 
@@ -272,7 +280,7 @@ mod tests {
         assert_filter(
             &settings,
             vec![
-                ValueType::new("sample", "count"),
+                ValueType::new("wall-samples", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
                 ValueType::new("alloc-samples", "count"),
                 ValueType::new("alloc-size", "bytes"),
@@ -295,7 +303,7 @@ mod tests {
         assert_filter(
             &settings,
             vec![
-                ValueType::new("sample", "count"),
+                ValueType::new("wall-samples", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
             ],
             vec![10, 20],
@@ -313,15 +321,16 @@ mod tests {
         assert_filter(
             &settings,
             vec![
-                ValueType::new("sample", "count"),
+                ValueType::new("wall-samples", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
+                ValueType::new("cpu-samples", "count"),
                 ValueType::new("cpu-time", "nanoseconds"),
                 ValueType::new("alloc-samples", "count"),
                 ValueType::new("alloc-size", "bytes"),
                 ValueType::new("heap-live-samples", "count"),
                 ValueType::new("heap-live-size", "bytes"),
             ],
-            vec![10, 20, 30, 40, 50, 55, 56],
+            vec![10, 20, 30, 31, 40, 50, 55, 56],
         );
     }
 
@@ -334,7 +343,7 @@ mod tests {
         assert_filter(
             &settings,
             vec![
-                ValueType::new("sample", "count"),
+                ValueType::new("wall-samples", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
                 ValueType::new("socket-read-time", "nanoseconds"),
                 ValueType::new("socket-read-time-samples", "count"),

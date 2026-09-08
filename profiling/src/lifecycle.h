@@ -15,6 +15,7 @@ int ddog_php_prof_mshutdown(int type, int module_number);
 int ddog_php_prof_rinit(int type, int module_number);
 int ddog_php_prof_rshutdown(int type, int module_number);
 bool ddog_php_prof_is_enabled(void);
+bool ddog_php_prof_should_enable_wall_time_sidecar(void);
 int ddog_php_prof_post_deactivate(void);
 void ddog_php_prof_minfo(zend_module_entry *module);
 

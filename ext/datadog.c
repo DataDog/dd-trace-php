@@ -681,6 +681,12 @@ static PHP_RINIT_FUNCTION(datadog) {
 
     datadog_sidecar_rinit();
 
+#ifdef PROFILING
+    if (datadog_profiling_initialized && !datadog_sidecar_wall_time_rinit()) {
+        return FAILURE;
+    }
+#endif
+
 #ifdef TRACER
     pthread_once(&dd_tracer_first_rinit_control, ddtrace_first_rinit);
     ddtrace_rinit_early();
