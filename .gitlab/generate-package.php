@@ -1524,9 +1524,11 @@ $system_tests_weblogs = [
       artifacts: true
   parallel:
     matrix:
-      # 7.4 is the version the crash was reported on and reproduces reliably; the newer ones are
-      # there to keep the mod_php reload path covered going forward.
+      # 7.4 is the version the first crash was reported on and reproduces reliably. 7.3 is the one
+      # where opcache still frees its shared memory in MSHUTDOWN, which is what APMS-20476 tripped
+      # over. The newer ones keep the mod_php reload path covered going forward.
       - MAJOR_MINOR:
+          - "7.3"
           - "7.4"
           - "8.3"
           - "8.5"

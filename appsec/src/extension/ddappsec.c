@@ -133,7 +133,8 @@ static void ddappsec_sort_modules(void *base, size_t count, size_t siz,
     for (Bucket *module = base, *end = module + count, *ddappsec_module = NULL;
         module < end; ++module) {
         zend_module_entry *m = (zend_module_entry *)Z_PTR(module->val);
-        if (m->name == ddappsec_module_entry.name) {
+        // Compare by value to avoid confusion with the SSI replaced name
+        if (strcmp(m->name, PHP_DDAPPSEC_EXTNAME) == 0) {
             ddappsec_module = module;
             continue;
         }
