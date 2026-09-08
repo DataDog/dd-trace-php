@@ -451,12 +451,23 @@ stages:
   rules:
     - when: manual
   needs: []
+  artifacts:
+    when: on_failure
+    paths:
+      - appsec/tests/integration/appsec-image-push.log.gz
   script:
     - cd appsec/tests/integration
     - |
+      set +e
       TERM=dumb ./gradlew pushAll --info -Pbuildscan --scan \
         -PfloatingImageTags -PdockerArch="${ARCH}" \
-        -PpushRepo="${APPSEC_IMAGE_REPO}"
+        -PpushRepo="${APPSEC_IMAGE_REPO}" 2>&1 | tee appsec-image-push.log > /dev/null
+      gradle_status="${PIPESTATUS[0]}"
+      set -e
+      if [ "$gradle_status" -ne 0 ]; then
+        gzip appsec-image-push.log
+        exit "$gradle_status"
+      fi
 
 "push appsec docker images multiarch":
   extends: .docker_push_job
