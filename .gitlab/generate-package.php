@@ -858,7 +858,9 @@ endforeach;
     # own php83, and composer would then resolve the test requirements against that PHP instead of
     # the image's ZTS build (which is the one under test).
     - apk add --no-cache bash coreutils curl findutils git grep libgcc make || exit 75
-    - install-php-extensions zip || exit 75
+    # The only two the official image lacks out of what composer.json and tests/composer.json ask
+    # for (zip for the root install, sockets for tests/).
+    - install-php-extensions sockets zip || exit 75
     - php -r "copy('https://getcomposer.org/installer', '/tmp/composer-setup.php');"
     - php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer
     - git config --global --add safe.directory "${CI_PROJECT_DIR}"

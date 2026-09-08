@@ -657,34 +657,9 @@ foreach ($matches as $m) {
     }
 }
 
-// Only build the ZTS extension for the versions that actually have a ZTS-only suite, so this does
-// not add a build for every PHP version in the matrix.
-$zts_versions = [];
-foreach ($jobs as $type_jobs) {
-    foreach ($type_jobs as $target => $versions) {
-        if (in_array($target, ZTS_MAKE_TARGETS, true)) {
-            $zts_versions = array_merge($zts_versions, $versions);
-        }
-    }
-}
-$zts_versions = array_values(array_unique($zts_versions));
-if ($zts_versions):
-?>
-"compile extension: zts":
-  extends: "compile extension: debug"
-  variables:
-    SWITCH_PHP_VERSION: "zts"
-  parallel:
-    matrix:
-      - PHP_MAJOR_MINOR: <?= json_encode($zts_versions), "\n" ?>
-        ARCH: "amd64"
-
-<?php
-endif;
-
 foreach ($jobs as $type => $type_jobs):
     foreach ($type_jobs as $target => $versions):
-        $php_variant = in_array($target, ZTS_MAKE_TARGETS, true) ? "zts" : "debug";
+        $php_variant = in_array($target, ZTS_MAKE_TARGETS, true) ? "debug-zts-asan" : "debug";
         foreach ($versions as $major_minor):
             $sapis = $type == "web" && version_compare($major_minor, "7.2", ">=") ? ["cli-server", "cgi-fcgi", "apache2handler"] : [""];
             if ($target == "test_web_custom" && in_array("cli-server", $sapis)) {
@@ -723,6 +698,11 @@ foreach ($services as $part => $service) {
     MAKE_TARGET: "<?= $target ?>"
     ARCH: "amd64"
     SWITCH_PHP_VERSION: "<?= $php_variant ?>"
+<?php if ($php_variant === "debug-zts-asan"): ?>
+    # These are inherited by the SAPI the harness spawns, which is where we need them. detect_leaks is off on purpose: PHP and Go both leak plenty on a killed server.
+    _DD_SIDECAR_WATCHDOG_MAX_MEMORY: 2147483648
+    ASAN_OPTIONS: abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1:detect_leaks=0
+<?php endif; ?>
 <?php if ($sapi): ?>
     DD_TRACE_TEST_SAPI: "<?= $sapi ?>"
 <?php endif; ?>

@@ -106,7 +106,8 @@ class FrankenphpIntegration extends Integration
 
                     $res = notify_commit(
                         $rootSpan,
-                        \http_response_code(),
+                        // TODO: http_response_code() can return false - we want to report the real status here: appsec's response_committed listeners currently see 200 whenever the actual code is unavailable. Just a fallback for now.
+                        \http_response_code() ?: 200,
                         self::convertHeaders(\headers_list()),
                         null /* response body is available through special mechanisms */
                     );
