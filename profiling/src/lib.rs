@@ -29,7 +29,7 @@ mod exception;
 mod timeline;
 mod vec_ext;
 
-use crate::profiling::config::SystemSettings;
+use crate::profiling::config::{SystemSettings, CPU_TIME_PROFILING_SUPPORTED};
 use crate::profiling::zend::datadog_sapi_globals_request_info;
 use bindings::{
     self as zend, ddog_php_prof_php_version, ddog_php_prof_php_version_id, ZendExtension,
@@ -818,7 +818,8 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     if system_settings.profiling_enabled {
         // Not logging, rinit could be quite spammy.
         _ = REQUEST_LOCALS.try_with_borrow(|locals| {
-            let cpu_time_enabled = system_settings.profiling_experimental_cpu_time_enabled;
+            let cpu_time_enabled = CPU_TIME_PROFILING_SUPPORTED
+                && system_settings.profiling_experimental_cpu_time_enabled;
             let wall_time_enabled = system_settings.profiling_wall_time_enabled;
             CLOCKS.with_borrow_mut(|clocks| clocks.initialize(cpu_time_enabled));
 
@@ -1234,11 +1235,12 @@ pub extern "C" fn ddog_php_prof_should_enable_wall_time_sidecar() -> bool {
 pub extern "C" fn ddog_php_prof_should_enable_cpu_time() -> bool {
     // config::minit() materializes system settings before the combined MINIT
     // calls this; first RINIT refreshes the same settings before later calls.
-    unsafe {
-        SystemSettings::get()
-            .as_ref()
-            .profiling_experimental_cpu_time_enabled
-    }
+    CPU_TIME_PROFILING_SUPPORTED
+        && unsafe {
+            SystemSettings::get()
+                .as_ref()
+                .profiling_experimental_cpu_time_enabled
+        }
 }
 
 #[no_mangle]

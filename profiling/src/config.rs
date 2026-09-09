@@ -19,6 +19,10 @@ use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use std::{slice, str};
 
+/// Whether this platform can interrupt a specific PHP thread after it consumes
+/// a CPU-time interval. A readable thread CPU clock alone is not sufficient.
+pub(crate) const CPU_TIME_PROFILING_SUPPORTED: bool = cfg!(target_os = "linux");
+
 #[derive(Copy, Clone, Debug, Default)]
 pub enum SystemSettingsState {
     /// Indicates the system settings are not aware of the configuration at
@@ -464,7 +468,8 @@ unsafe fn profiling_endpoint_collection_enabled() -> bool {
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 unsafe fn profiling_experimental_cpu_time_enabled() -> bool {
-    profiling_enabled()
+    CPU_TIME_PROFILING_SUPPORTED
+        && profiling_enabled()
         && (profiling_experimental_features_enabled()
             || get_system_bool(
                 ProfilingExperimentalCpuTimeEnabled,

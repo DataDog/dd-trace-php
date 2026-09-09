@@ -1,4 +1,4 @@
-use crate::profiling::config::SystemSettings;
+use crate::profiling::config::{SystemSettings, CPU_TIME_PROFILING_SUPPORTED};
 use crate::profiling::profiler::{SampleValues, ValueType};
 use libdd_profiling::api::{SampleType as ApiSampleType, ValueType as ApiValueType};
 
@@ -56,7 +56,9 @@ impl SampleTypeFilter {
                 sample_types_mask[0] = true;
                 sample_types_mask[1] = true;
             }
-            if system_settings.profiling_experimental_cpu_time_enabled {
+            if CPU_TIME_PROFILING_SUPPORTED
+                && system_settings.profiling_experimental_cpu_time_enabled
+            {
                 sample_types.extend_from_slice(&all_sample_types[2..4]);
                 sample_types_mask[2] = true;
                 sample_types_mask[3] = true;
@@ -193,6 +195,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_os = "linux")]
     fn filter_with_cpu_time() {
         let mut settings = get_system_settings();
         settings.profiling_enabled = true;
@@ -212,6 +215,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_os = "linux")]
     fn filter_with_cpu_time_only() {
         let mut settings = get_system_settings();
         settings.profiling_enabled = true;
@@ -226,6 +230,24 @@ mod tests {
                 ValueType::new("cpu-time", "nanoseconds"),
             ],
             vec![30, 31],
+        );
+    }
+
+    #[test]
+    #[cfg(not(target_os = "linux"))]
+    fn filter_omits_cpu_time_on_unsupported_platforms() {
+        let mut settings = get_system_settings();
+        settings.profiling_enabled = true;
+        settings.profiling_allocation_enabled = false;
+        settings.profiling_experimental_cpu_time_enabled = true;
+
+        assert_filter(
+            &settings,
+            vec![
+                ValueType::new("wall-samples", "count"),
+                ValueType::new("wall-time", "nanoseconds"),
+            ],
+            vec![10, 20],
         );
     }
 
@@ -249,6 +271,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_os = "linux")]
     fn filter_with_allocations_and_cpu_time() {
         let mut settings = get_system_settings();
         settings.profiling_enabled = true;
@@ -270,6 +293,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_os = "linux")]
     fn filter_with_cpu_time_and_exceptions() {
         let mut settings = get_system_settings();
         settings.profiling_enabled = true;
@@ -331,6 +355,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_os = "linux")]
     fn filter_with_allocations_and_heap_live_and_cpu_time() {
         let mut settings = get_system_settings();
         settings.profiling_enabled = true;
