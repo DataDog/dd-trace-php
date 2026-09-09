@@ -7,15 +7,10 @@ use crate::profiling::profiler::Profiler;
 use core::ptr;
 use core::sync::atomic::Ordering;
 
-unsafe extern "C" {
-    fn datadog_sidecar_consume_wall_time_sample() -> bool;
-}
-
 pub(crate) fn consume_time_samples() -> (u32, u32) {
-    // Combined Linux build: the C side owns the worker's shared-memory mapping.
-    let wall_samples = u32::from(unsafe { datadog_sidecar_consume_wall_time_sample() });
-    let cpu_samples = unsafe { &(*module_globals::get_profiler_globals()).cpu_sample_count }
-        .swap(0, Ordering::Acquire);
+    let globals = unsafe { &*module_globals::get_profiler_globals() };
+    let wall_samples = u32::from(globals.wall_sample_pending.swap(false, Ordering::Acquire));
+    let cpu_samples = globals.cpu_sample_count.swap(0, Ordering::Acquire);
     (wall_samples, cpu_samples)
 }
 

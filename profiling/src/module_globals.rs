@@ -8,7 +8,7 @@ use core::mem::MaybeUninit;
     test
 ))]
 use core::ptr;
-use core::sync::atomic::AtomicU32;
+use core::sync::atomic::{AtomicBool, AtomicU32};
 
 #[cfg(target_os = "linux")]
 use crate::profiling::process_context::ProcessContextCache;
@@ -25,7 +25,9 @@ pub struct ProfilerGlobals {
     /// Wrapped in `Cell` to prevent torn reads/writes when allocation hooks
     /// are called re-entrantly during `rinit()`/`rshutdown()`.
     pub zend_mm_state: Cell<ZendMMState>,
-    /// Number of profiler time interrupts pending for this PHP thread.
+    /// Whether a wall-time sample is pending for this PHP thread.
+    pub wall_sample_pending: AtomicBool,
+    /// Number of CPU-time samples pending for this PHP thread.
     ///
     /// The profiler timer thread updates this through a pointer registered by
     /// the PHP thread, so the value must remain atomic despite living in
@@ -55,6 +57,7 @@ pub static mut GLOBALS_ID: i32 = 0;
 ))]
 pub static mut GLOBALS: ProfilerGlobals = ProfilerGlobals {
     zend_mm_state: Cell::new(ZendMMState::new()),
+    wall_sample_pending: AtomicBool::new(false),
     cpu_sample_count: AtomicU32::new(0),
     #[cfg(target_os = "linux")]
     process_context: RefCell::new(ProcessContextCache::new()),
@@ -162,6 +165,7 @@ pub unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
     {
         let globals = _globals_ptr.cast::<ProfilerGlobals>();
         (*globals).zend_mm_state = Cell::new(ZendMMState::new());
+        (*globals).wall_sample_pending = AtomicBool::new(false);
         (*globals).cpu_sample_count = AtomicU32::new(0);
         #[cfg(target_os = "linux")]
         ptr::addr_of_mut!((*globals).process_context)

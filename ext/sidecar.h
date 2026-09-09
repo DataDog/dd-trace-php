@@ -63,7 +63,6 @@ bool datadog_sidecar_consume_wall_time_sample(void);
 bool datadog_sidecar_mark_wall_time_sample(void);
 bool datadog_sidecar_consume_remote_config_from_wall_time_slot(void);
 bool datadog_sidecar_has_wall_time_slot(void);
-void datadog_sidecar_mark_remote_config(void);
 #endif
 void datadog_force_new_instance_id(void);
 void datadog_sidecar_push_tag(ddog_Vec_Tag *vec, ddog_CharSlice key, ddog_CharSlice value);

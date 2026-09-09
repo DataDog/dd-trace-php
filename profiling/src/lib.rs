@@ -36,7 +36,7 @@ use bindings::{
     ZendResult,
 };
 use clocks::*;
-use core::ffi::{c_char, c_int, CStr};
+use core::ffi::{c_char, c_int, c_void, CStr};
 use core::ptr;
 #[cfg(all(feature = "profiling", not(feature = "tracer")))]
 use libdd_common::cstr;
@@ -1241,6 +1241,19 @@ pub extern "C" fn ddog_php_prof_should_enable_cpu_time() -> bool {
                 .as_ref()
                 .profiling_experimental_cpu_time_enabled
         }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ddog_php_prof_mark_wall_time_sample(profiling_globals: *mut c_void) {
+    if let Some(globals) = unsafe {
+        profiling_globals
+            .cast::<module_globals::ProfilerGlobals>()
+            .as_ref()
+    } {
+        globals
+            .wall_sample_pending
+            .store(true, core::sync::atomic::Ordering::Release);
+    }
 }
 
 #[no_mangle]
