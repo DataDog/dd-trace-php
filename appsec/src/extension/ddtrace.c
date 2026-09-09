@@ -77,6 +77,10 @@ static zend_string *(*nullable _ddtrace_guess_endpoint_from_url)(
 static ddog_AppsecCResponse (*nullable _ddog_sidecar_send_appsec_message)(
     ddog_SidecarTransport *nonnull *nonnull transport, uint64_t client_id,
     ddog_CharSlice data);
+static ddog_AppsecCResponse (
+    *nullable _datadog_sidecar_send_appsec_message_without_reconnect)(
+    ddog_SidecarTransport *nonnull *nonnull transport, uint64_t client_id,
+    ddog_CharSlice data);
 static void (*nullable _ddog_sidecar_appsec_response_drop)(
     ddog_AppsecCResponse response);
 
@@ -132,6 +136,8 @@ static void dd_trace_load_symbols(zend_module_entry *module)
         _ddtrace_guess_endpoint_from_url, "ddtrace_guess_endpoint_from_url");
     ASSIGN_DLSYM(
         _ddog_sidecar_send_appsec_message, "ddog_sidecar_send_appsec_message");
+    ASSIGN_DLSYM(_datadog_sidecar_send_appsec_message_without_reconnect,
+        "datadog_sidecar_send_appsec_message_without_reconnect");
     ASSIGN_DLSYM(_ddog_sidecar_appsec_response_drop,
         "ddog_sidecar_appsec_response_drop");
 }
@@ -395,10 +401,11 @@ uint64_t dd_trace_get_sidecar_queue_id(void)
 
 #ifdef ZTS
 ddog_AppsecCResponse dd_trace_send_appsec_message(uint64_t client_id,
-    void *nullable tsrm_ls, const uint8_t *nonnull request, size_t request_len)
+    void *nullable tsrm_ls, const uint8_t *nonnull request, size_t request_len,
+    bool reconnect_sidecar)
 #else
-ddog_AppsecCResponse dd_trace_send_appsec_message(
-    uint64_t client_id, const uint8_t *nonnull request, size_t request_len)
+ddog_AppsecCResponse dd_trace_send_appsec_message(uint64_t client_id,
+    const uint8_t *nonnull request, size_t request_len, bool reconnect_sidecar)
 #endif
 {
 #ifdef TESTING
@@ -412,6 +419,7 @@ ddog_AppsecCResponse dd_trace_send_appsec_message(
 #endif
 
     if (!_ddtrace_get_sidecar_transport || !_ddog_sidecar_send_appsec_message ||
+        !_datadog_sidecar_send_appsec_message_without_reconnect ||
         !_ddog_sidecar_appsec_response_drop) {
         mlog_once(dd_log_error,
             "Could not communicate with the helper. Some symbols are missing");
@@ -436,7 +444,11 @@ ddog_AppsecCResponse dd_trace_send_appsec_message(
         .len = request_len,
     };
 
-    return _ddog_sidecar_send_appsec_message(
+    if (reconnect_sidecar) {
+        return _ddog_sidecar_send_appsec_message(
+            &sidecar, client_id, request_slice);
+    }
+    return _datadog_sidecar_send_appsec_message_without_reconnect(
         &sidecar, client_id, request_slice);
 }
 
