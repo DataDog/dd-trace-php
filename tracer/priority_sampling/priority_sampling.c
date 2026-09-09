@@ -389,6 +389,11 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
                              &limit_zv);
     }
 
+    span->otel_sampling_rate = sample_rate;
+    span->otel_sampling_decision = mechanism == DD_MECHANISM_MANUAL || mechanism == DD_MECHANISM_ASM || limited || sample_rate <= 0
+        ? DDTRACE_OTEL_SAMPLING_DECISION_NON_PROBABILITY
+        : DDTRACE_OTEL_SAMPLING_DECISION_PROBABILITY;
+
     zval priority_zv;
     ZVAL_LONG(&priority_zv, priority);
     datadog_assign_variable(&span->property_sampling_priority, &priority_zv);
@@ -451,6 +456,9 @@ void ddtrace_set_priority_sampling_on_span(ddtrace_root_span_data *root_span, ze
         dd_update_decision_maker_tag(root_span, mechanism);
         // Default is never explicit - e.g. distributed tracing.
         root_span->explicit_sampling_priority = mechanism != DD_MECHANISM_DEFAULT;
+        root_span->otel_sampling_decision = mechanism == DD_MECHANISM_DEFAULT
+            ? DDTRACE_OTEL_SAMPLING_DECISION_INHERITED
+            : DDTRACE_OTEL_SAMPLING_DECISION_NON_PROBABILITY;
     }
 }
 

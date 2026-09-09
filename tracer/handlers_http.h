@@ -6,6 +6,7 @@
 #include "random.h"
 #include "tracer_tag_propagation/tracer_tag_propagation.h"
 #include "span.h"
+#include "otel_sampling.h"
 #include "trace_context.h"
 #include <Zend/zend_smart_str.h>
 #include <components/log/log.h>
@@ -405,7 +406,13 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
                     propagated_span_id = ddtrace_parse_hex_span_id(old_parent_id);
                 }
 
-                zend_string *full_tracestate = ddtrace_format_tracestate(tracestate, propagated_span_id, origin, sampling_priority, propagated_tags, tracestate_unknown_dd_keys);
+                zend_string *base_tracestate = ddtrace_format_tracestate(tracestate, propagated_span_id, origin, sampling_priority, propagated_tags, tracestate_unknown_dd_keys);
+                zend_string *full_tracestate = ddtrace_otel_sampling_update_tracestate(
+                    base_tracestate,
+                    trace_id.low,
+                    sampling_priority,
+                    root ? root->otel_sampling_decision : DDTRACE_OTEL_SAMPLING_DECISION_INHERITED,
+                    root ? root->otel_sampling_rate : 0);
                 if (full_tracestate) {
                     ADD_HEADER("tracestate", "%.*s", (int)ZSTR_LEN(full_tracestate), ZSTR_VAL(full_tracestate));
                     zend_string_release(full_tracestate);

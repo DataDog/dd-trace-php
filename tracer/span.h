@@ -126,6 +126,8 @@ struct ddtrace_root_span_data {
     uint64_t parent_id;
     uint8_t trace_flags;
     ddtrace_rule_result sampling_rule;
+    double otel_sampling_rate;
+    enum ddtrace_otel_sampling_decision otel_sampling_decision;
 #ifdef __linux__
     datadog_otel_thr_ctx_rec otel_context;
     // Incremented when this root is the entrypoint whose inherited identity changed.

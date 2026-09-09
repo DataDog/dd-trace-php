@@ -23,6 +23,12 @@ enum dd_sampling_mechanism {
     DD_MECHANISM_REMOTE_DYNAMIC_RULE = 12,
 };
 
+enum ddtrace_otel_sampling_decision {
+    DDTRACE_OTEL_SAMPLING_DECISION_INHERITED,
+    DDTRACE_OTEL_SAMPLING_DECISION_PROBABILITY,
+    DDTRACE_OTEL_SAMPLING_DECISION_NON_PROBABILITY,
+};
+
 void ddtrace_set_priority_sampling_on_root(zend_long priority, enum dd_sampling_mechanism mechanism);
 void ddtrace_set_priority_sampling_on_span(ddtrace_root_span_data *root_span, zend_long priority, enum dd_sampling_mechanism mechanism);
 DATADOG_PUBLIC void ddtrace_set_priority_sampling_on_span_zobj(zend_object *root_span, zend_long priority, enum dd_sampling_mechanism mechanism);

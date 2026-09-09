@@ -591,6 +591,9 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
         cache_slot = NULL;
     } else if (zend_string_equals_literal(prop_name, "samplingPriority")) {
         span->explicit_sampling_priority = zval_get_long(value) != DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
+        span->otel_sampling_decision = span->explicit_sampling_priority
+            ? DDTRACE_OTEL_SAMPLING_DECISION_NON_PROBABILITY
+            : DDTRACE_OTEL_SAMPLING_DECISION_INHERITED;
 #ifdef __linux__
         sampling_priority_changed = true;
 #endif
