@@ -238,6 +238,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/otel_config.c \
     ext/phpinfo.c \
     ext/process_tags.c \
+    ext/profiling_cpu_time.c \
     ext/remote_config.c \
     ext/sidecar.c \
     ext/signals.c \

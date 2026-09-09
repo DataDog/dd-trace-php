@@ -142,7 +142,7 @@ pub struct SampleValues {
     file_io_write_size_samples: i64,
 }
 
-const WALL_TIME_NOMINAL_PERIOD: Duration = Duration::from_millis(10);
+const TIME_PROFILING_NOMINAL_PERIOD: Duration = Duration::from_millis(10);
 
 #[derive(Debug, Clone)]
 struct WallTime {
@@ -497,11 +497,20 @@ impl TimeCollector {
         // check if we have the `exception-samples` sample types
         let exception_samples_offset = get_offset(ApiSampleType::ExceptionSamples);
 
-        let period = WALL_TIME_NOMINAL_PERIOD.as_nanos();
+        // pprof permits only one period type. Prefer wall time when both
+        // independent samplers are enabled; use CPU time for CPU-only profiles.
+        let period_sample_type = if sample_types.contains(&ApiSampleType::WallTime) {
+            ApiSampleType::WallTime
+        } else if sample_types.contains(&ApiSampleType::CpuTime) {
+            ApiSampleType::CpuTime
+        } else {
+            ApiSampleType::WallTime
+        };
+        let period = TIME_PROFILING_NOMINAL_PERIOD.as_nanos();
         let mut profile = InternalProfile::try_new(
             &sample_types,
             Some(Period {
-                sample_type: ApiSampleType::WallTime,
+                sample_type: period_sample_type,
                 value: period.min(i64::MAX as u128) as i64,
             }),
         )
