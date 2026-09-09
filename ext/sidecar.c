@@ -36,7 +36,7 @@ struct ddog_InstanceId *datadog_sidecar_instance_id;
 // the pointer load alone would not prevent the underlying use-after-free.
 ddog_SidecarTransport *datadog_sidecar_for_signal = NULL;
 
-#ifdef PROFILING
+#if defined(PROFILING) && !defined(_WIN32)
 static struct ddog_ShmHandle *datadog_wall_time_shm_handle;
 static struct ddog_MappedMem_ShmHandle *datadog_wall_time_shm_mapping;
 static struct ddog_WallTimeShmRegion *datadog_wall_time_shm_pointer;
@@ -312,7 +312,7 @@ static void dd_sidecar_on_reconnect(ddog_SidecarTransport *transport) {
     }
 
     dd_sidecar_post_connect(&transport, false, logpath);
-#ifdef PROFILING
+#if defined(PROFILING) && !defined(_WIN32)
     if (datadog_wall_time_shm_handle && !dd_sidecar_register_wall_time(&transport)) {
         abort();
     }
@@ -719,7 +719,7 @@ void datadog_sidecar_shutdown(void) {
     }
     datadog_sidecar_for_signal = NULL;
 
-#ifdef PROFILING
+#if defined(PROFILING) && !defined(_WIN32)
     if (datadog_wall_time_shm_handle && DATADOG_G(sidecar)) {
         datadog_ffi_try("Failed unregistering wall-time profiler from sidecar",
                         ddog_sidecar_unregister_wall_time_profiler(&DATADOG_G(sidecar), datadog_wall_time_pid));
