@@ -549,11 +549,28 @@ void datadog_sidecar_handle_fork(void) {
 #endif
 }
 
+// Reconnect factory for subprocess mode: creates a fresh transport and immediately
+// re-registers per-request state (service tags, env, etc.) via dd_sidecar_on_reconnect,
+// which ddog_sidecar_connect_php alone would not do for a caller-initiated reconnect.
+static ddog_SidecarTransport *dd_sidecar_subprocess_reconnect(void) {
+    ddog_SidecarTransport *transport = datadog_sidecar_connect(false);
+    if (transport) {
+        dd_sidecar_on_reconnect(transport);
+    }
+    return transport;
+}
+
 void datadog_sidecar_ensure_active(void) {
     if (DATADOG_G(sidecar)) {
         // Restore reconnect_fn cleared during the previous RSHUTDOWN so that automatic
         // reconnects work again for this request.
-        datadog_sidecar_set_reconnect_fn(&DATADOG_G(sidecar), datadog_sidecar_connect_callback);
+        if (datadog_sidecar_active_mode == DD_SIDECAR_CONNECTION_SUBPROCESS) {
+            // Subprocess mode: the reconnect_fn must call dd_sidecar_on_reconnect to
+            // re-register per-request universal service tags on the new transport.
+            datadog_sidecar_set_reconnect_fn(&DATADOG_G(sidecar), dd_sidecar_subprocess_reconnect);
+        } else {
+            datadog_sidecar_set_reconnect_fn(&DATADOG_G(sidecar), datadog_sidecar_connect_callback);
+        }
         datadog_sidecar_reconnect(&DATADOG_G(sidecar), datadog_sidecar_connect_callback);
     } else if (datadog_endpoint) {
         // First RINIT on this thread: the process-level setup already ran (endpoint is
