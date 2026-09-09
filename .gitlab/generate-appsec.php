@@ -461,7 +461,7 @@ stages:
       set +e
       TERM=dumb ./gradlew pushAll --info -Pbuildscan --scan \
         -PfloatingImageTags -PdockerArch="${ARCH}" \
-        -PpushRepo="${APPSEC_IMAGE_REPO}" 2>&1 | tee appsec-image-push.log > /dev/null
+        -PpushRepo="${APPSEC_IMAGE_REPO}" 2>&1 | tee appsec-image-push.log
       gradle_status="${PIPESTATUS[0]}"
       set -e
       if [ "$gradle_status" -ne 0 ]; then
