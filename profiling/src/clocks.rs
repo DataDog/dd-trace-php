@@ -51,7 +51,7 @@ impl Clocks {
     pub fn rotate_cpu_clock(&mut self) -> i64 {
         // If CPU time is disabled, or if it's enabled but not available on the
         // platform, then `self.cpu_time` will be None.
-        let cpu_time = if let Some(last_cpu_time) = self.cpu_time {
+        if let Some(last_cpu_time) = self.cpu_time {
             let now = ThreadTime::try_now()
                 .expect("CPU time to work since it's worked before during this process");
             let cpu_time = Self::cpu_sub(now, last_cpu_time);
@@ -59,8 +59,7 @@ impl Clocks {
             cpu_time
         } else {
             0
-        };
-        cpu_time
+        }
     }
 }
 
