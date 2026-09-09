@@ -2042,7 +2042,7 @@ mod tests {
 
     #[test]
     #[cfg(not(miri))]
-    fn profiler_prepare_sample_message_works_cpu_time_and_timeline() {
+    fn profiler_prepare_sample_message_filters_unsupported_cpu_time() {
         let frames = get_frames();
         let samples = get_samples();
         let mut settings = get_system_settings();
@@ -2055,17 +2055,29 @@ mod tests {
 
         let message: SampleMessage = profiler.prepare_sample_message(frames, samples, labels, 900);
 
-        assert_eq!(
-            message.key.sample_types,
-            vec![
-                ValueType::new("wall-samples", "count"),
-                ValueType::new("wall-time", "nanoseconds"),
-                ValueType::new("cpu-samples", "count"),
-                ValueType::new("cpu-time", "nanoseconds"),
-                ValueType::new("timeline", "nanoseconds"),
-            ]
-        );
-        assert_eq!(message.value.sample_values, vec![10, 20, 30, 31, 60]);
+        let (expected_types, expected_values) = if cfg!(target_os = "linux") {
+            (
+                vec![
+                    ValueType::new("wall-samples", "count"),
+                    ValueType::new("wall-time", "nanoseconds"),
+                    ValueType::new("cpu-samples", "count"),
+                    ValueType::new("cpu-time", "nanoseconds"),
+                    ValueType::new("timeline", "nanoseconds"),
+                ],
+                vec![10, 20, 30, 31, 60],
+            )
+        } else {
+            (
+                vec![
+                    ValueType::new("wall-samples", "count"),
+                    ValueType::new("wall-time", "nanoseconds"),
+                    ValueType::new("timeline", "nanoseconds"),
+                ],
+                vec![10, 20, 60],
+            )
+        };
+        assert_eq!(message.key.sample_types, expected_types);
+        assert_eq!(message.value.sample_values, expected_values);
         assert_eq!(message.value.timestamp, 900);
     }
 }
