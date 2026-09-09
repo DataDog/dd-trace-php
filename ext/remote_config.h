@@ -11,6 +11,5 @@ void datadog_check_for_new_config_now(void);
 
 
 DATADOG_PUBLIC void datadog_set_all_thread_vm_interrupt(void);
-void datadog_broadcast_vm_interrupt_only(void);
 
 #endif

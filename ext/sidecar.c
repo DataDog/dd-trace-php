@@ -122,12 +122,6 @@ bool datadog_sidecar_has_wall_time_slot(void) {
     return datadog_wall_time_shm_pointer != NULL;
 }
 
-void datadog_sidecar_mark_remote_config(void) {
-    if (datadog_wall_time_shm_pointer) {
-        ddog_wall_time_profiler_mark_remote_config(datadog_wall_time_shm_pointer);
-    }
-}
-
 void datadog_sidecar_wall_time_handle_fork(void) {
     // Do not unregister: the inherited slot belongs to the parent process.
     dd_sidecar_drop_wall_time_mapping();

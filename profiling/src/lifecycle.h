@@ -17,6 +17,7 @@ int ddog_php_prof_rshutdown(int type, int module_number);
 bool ddog_php_prof_is_enabled(void);
 bool ddog_php_prof_should_enable_wall_time_sidecar(void);
 bool ddog_php_prof_should_enable_cpu_time(void);
+void ddog_php_prof_mark_wall_time_sample(void *profiling_globals);
 void ddog_php_prof_mark_cpu_time_samples(uint32_t samples);
 int ddog_php_prof_post_deactivate(void);
 void ddog_php_prof_minfo(zend_module_entry *module);

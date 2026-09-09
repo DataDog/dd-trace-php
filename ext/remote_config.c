@@ -5,6 +5,9 @@
 #include <zai_string/string.h>
 #include <components/log/log.h>
 #include "threads.h"
+#ifdef PROFILING
+#include <profiling/src/lifecycle.h>
+#endif
 #include <tracer/tracer_api.h>
 #include <tracer/live_debugger.h>
 
@@ -21,13 +24,9 @@ static void dd_vm_interrupt(zend_execute_data *execute_data) {
     if (dd_prev_interrupt_function) {
         dd_prev_interrupt_function(execute_data);
     }
-    bool reread = false;
-#ifdef PROFILING
-    reread = datadog_sidecar_consume_remote_config_from_wall_time_slot();
-#endif
-    if (!reread && DATADOG_G(reread_remote_configuration)) {
+    bool reread = DATADOG_G(reread_remote_configuration);
+    if (reread) {
         DATADOG_G(reread_remote_configuration) = 0;
-        reread = true;
     }
     if (DATADOG_G(remote_config_state) && reread) {
         LOG(INFO, "Rereading remote configurations after interrupt");
@@ -35,14 +34,24 @@ static void dd_vm_interrupt(zend_execute_data *execute_data) {
     }
 }
 
-void datadog_broadcast_vm_interrupt_only(void) {
-    // broadcast interrupt to all threads on ZTS
+static void datadog_broadcast_vm_interrupt(bool wall_time_pending, bool remote_config_pending) {
+    // Publish each thread's feature state before its VM interrupt wakeup.
 #if ZTS
     tsrm_mutex_lock(datadog_threads_mutex);
 
     void *TSRMLS_CACHE; // EG() accesses a variable named TSRMLS_CACHE. Make use of variable shadowing in scopes...
     ZEND_HASH_FOREACH_PTR(&datadog_tls_bases, TSRMLS_CACHE) {
 #endif
+#ifdef PROFILING
+        if (wall_time_pending) {
+            ddog_php_prof_mark_wall_time_sample(DATADOG_G(profiling_globals));
+        }
+#else
+        UNUSED(wall_time_pending);
+#endif
+        if (remote_config_pending) {
+            DATADOG_G(reread_remote_configuration) = 1;
+        }
 #if PHP_VERSION_ID >= 80200
         zend_atomic_bool_store_ex(&EG(vm_interrupt), 1);
 #elif PHP_VERSION_ID >= 70100
@@ -59,12 +68,7 @@ void datadog_broadcast_vm_interrupt_only(void) {
 
 // We need this exported to call it via CreateRemoteThread on Windows.
 DATADOG_PUBLIC void datadog_set_all_thread_vm_interrupt(void) {
-    // Publish feature state before the VM interrupt wakeup.
-#ifdef PROFILING
-    datadog_sidecar_mark_remote_config();
-#endif
-    DATADOG_G(reread_remote_configuration) = 1;
-    datadog_broadcast_vm_interrupt_only();
+    datadog_broadcast_vm_interrupt(false, true);
 }
 
 void datadog_check_for_new_config_now(void) {
@@ -77,15 +81,15 @@ void datadog_check_for_new_config_now(void) {
 #ifndef _WIN32
 static void dd_sigvtalarm_handler(int signal, siginfo_t *siginfo, void *ctx) {
     UNUSED(signal, siginfo, ctx);
+    bool wall_time_pending = false;
+    bool remote_config_pending = true;
 #ifdef PROFILING
-    if (!datadog_sidecar_has_wall_time_slot()) {
-        // Compatibility for processes which have no profiling slot registered.
-        DATADOG_G(reread_remote_configuration) = 1;
+    if (datadog_sidecar_has_wall_time_slot()) {
+        wall_time_pending = datadog_sidecar_consume_wall_time_sample();
+        remote_config_pending = datadog_sidecar_consume_remote_config_from_wall_time_slot();
     }
-#else
-    DATADOG_G(reread_remote_configuration) = 1;
 #endif
-    datadog_broadcast_vm_interrupt_only();
+    datadog_broadcast_vm_interrupt(wall_time_pending, remote_config_pending);
 
 #if defined(__linux__) && defined(ZTS)
     if (!tsrm_is_managed_thread()) {
