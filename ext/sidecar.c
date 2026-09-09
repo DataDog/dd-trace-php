@@ -113,7 +113,7 @@ bool datadog_sidecar_mark_wall_time_sample(void) {
     return true;
 }
 
-bool datadog_sidecar_consume_remote_config(void) {
+bool datadog_sidecar_consume_remote_config_from_wall_time_slot(void) {
     return datadog_wall_time_shm_pointer &&
            ddog_wall_time_profiler_consume_remote_config(datadog_wall_time_shm_pointer);
 }

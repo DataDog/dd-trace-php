@@ -21,7 +21,10 @@ static void dd_vm_interrupt(zend_execute_data *execute_data) {
     if (dd_prev_interrupt_function) {
         dd_prev_interrupt_function(execute_data);
     }
-    bool reread = datadog_sidecar_consume_remote_config();
+    bool reread = false;
+#ifdef PROFILING
+    reread = datadog_sidecar_consume_remote_config_from_wall_time_slot();
+#endif
     if (!reread && DATADOG_G(reread_remote_configuration)) {
         DATADOG_G(reread_remote_configuration) = 0;
         reread = true;
@@ -57,7 +60,9 @@ void datadog_broadcast_vm_interrupt_only(void) {
 // We need this exported to call it via CreateRemoteThread on Windows.
 DATADOG_PUBLIC void datadog_set_all_thread_vm_interrupt(void) {
     // Publish feature state before the VM interrupt wakeup.
+#ifdef PROFILING
     datadog_sidecar_mark_remote_config();
+#endif
     DATADOG_G(reread_remote_configuration) = 1;
     datadog_broadcast_vm_interrupt_only();
 }
@@ -72,10 +77,14 @@ void datadog_check_for_new_config_now(void) {
 #ifndef _WIN32
 static void dd_sigvtalarm_handler(int signal, siginfo_t *siginfo, void *ctx) {
     UNUSED(signal, siginfo, ctx);
+#ifdef PROFILING
     if (!datadog_sidecar_has_wall_time_slot()) {
         // Compatibility for processes which have no profiling slot registered.
         DATADOG_G(reread_remote_configuration) = 1;
     }
+#else
+    DATADOG_G(reread_remote_configuration) = 1;
+#endif
     datadog_broadcast_vm_interrupt_only();
 
 #if defined(__linux__) && defined(ZTS)

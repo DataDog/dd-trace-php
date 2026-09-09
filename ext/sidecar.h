@@ -56,13 +56,15 @@ void datadog_sidecar_update_process_tags(void);
 void datadog_sidecar_refresh_user_service_defined(void);
 void datadog_sidecar_finalize(bool clear_id);
 void datadog_sidecar_shutdown(void);
+#ifdef PROFILING
 bool datadog_sidecar_wall_time_rinit(void);
 void datadog_sidecar_wall_time_handle_fork(void);
 bool datadog_sidecar_consume_wall_time_sample(void);
 bool datadog_sidecar_mark_wall_time_sample(void);
-bool datadog_sidecar_consume_remote_config(void);
+bool datadog_sidecar_consume_remote_config_from_wall_time_slot(void);
 bool datadog_sidecar_has_wall_time_slot(void);
 void datadog_sidecar_mark_remote_config(void);
+#endif
 void datadog_force_new_instance_id(void);
 void datadog_sidecar_push_tag(ddog_Vec_Tag *vec, ddog_CharSlice key, ddog_CharSlice value);
 void datadog_sidecar_push_tags(ddog_Vec_Tag *vec, zval *tags);
