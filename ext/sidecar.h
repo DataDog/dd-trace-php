@@ -56,7 +56,7 @@ void datadog_sidecar_update_process_tags(void);
 void datadog_sidecar_refresh_user_service_defined(void);
 void datadog_sidecar_finalize(bool clear_id);
 void datadog_sidecar_shutdown(void);
-#ifdef PROFILING
+#if defined(PROFILING) && !defined(_WIN32)
 bool datadog_sidecar_wall_time_rinit(void);
 void datadog_sidecar_wall_time_handle_fork(void);
 bool datadog_sidecar_consume_wall_time_sample(void);

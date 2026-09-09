@@ -2056,11 +2056,13 @@ typedef struct ddog_Result_TracerMemfdHandle {
   };
 } ddog_Result_TracerMemfdHandle;
 
+#if !defined(_WIN32)
 typedef struct ddog_WallTimeShmRegion {
   pid_t pid;
   uint32_t wall_sample_pending;
   uint32_t config_reread_pending;
 } ddog_WallTimeShmRegion;
+#endif
 
 #ifdef __cplusplus
 extern "C" {

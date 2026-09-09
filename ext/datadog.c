@@ -688,7 +688,7 @@ static PHP_RINIT_FUNCTION(datadog) {
 
     datadog_sidecar_rinit();
 
-#ifdef PROFILING
+#if defined(PROFILING) && !defined(_WIN32)
     if (datadog_profiling_initialized && !datadog_sidecar_wall_time_rinit()) {
         return FAILURE;
     }

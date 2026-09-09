@@ -45,6 +45,7 @@ void ddog_drop_anon_shm_handle(struct ddog_ShmHandle*);
 
 struct ddog_ShmHandle *ddog_clone_anon_shm_handle(const struct ddog_ShmHandle *handle);
 
+#if !defined(_WIN32)
 /**
  * Initialize a worker-owned wall-time profiling notification region.
  *
@@ -91,6 +92,7 @@ bool ddog_wall_time_profiler_consume_remote_config(struct ddog_WallTimeShmRegion
  * `pointer` must be null or point to a live, properly aligned shared region.
  */
 void ddog_wall_time_profiler_mark_remote_config(struct ddog_WallTimeShmRegion *pointer);
+#endif
 
 ddog_MaybeError ddog_create_agent_remote_config_writer(struct ddog_AgentRemoteConfigWriter_ShmHandle **writer,
                                                        struct ddog_ShmHandle **handle);
@@ -270,6 +272,7 @@ ddog_MaybeError ddog_sidecar_session_set_config(struct ddog_SidecarTransport **t
                                                 ddog_CharSlice root_session_id,
                                                 ddog_CharSlice parent_session_id);
 
+#if !defined(_WIN32)
 /**
  * Register the worker's shared notification region with the sidecar.
  *
@@ -289,6 +292,7 @@ ddog_MaybeError ddog_sidecar_register_wall_time_profiler(struct ddog_SidecarTran
  */
 ddog_MaybeError ddog_sidecar_unregister_wall_time_profiler(struct ddog_SidecarTransport **transport,
                                                            pid_t pid);
+#endif
 
 /**
  * Updates the process_tags for an existing session.

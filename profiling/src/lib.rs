@@ -1228,7 +1228,12 @@ pub extern "C" fn ddog_php_prof_is_enabled() -> bool {
 #[no_mangle]
 pub extern "C" fn ddog_php_prof_should_enable_wall_time_sidecar() -> bool {
     // Called after config::first_rinit() by the combined extension lifecycle.
-    unsafe { config::profiling_enabled() && config::profiling_wall_time_enabled() }
+    #[cfg(unix)]
+    unsafe {
+        config::profiling_enabled() && config::profiling_wall_time_enabled()
+    }
+    #[cfg(not(unix))]
+    false
 }
 
 #[no_mangle]
