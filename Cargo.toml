@@ -51,8 +51,8 @@ libdd-common = { path = "libdatadog/libdd-common", features = ["cgroup_testing"]
 libdd-common-ffi = { path = "libdatadog/libdd-common-ffi", default-features = false }
 libdd-telemetry = { path = "libdatadog/libdd-telemetry" }
 libdd-telemetry-ffi = { path = "libdatadog/libdd-telemetry-ffi", default-features = false }
-datadog-live-debugger = { path = "libdatadog/datadog-live-debugger" }
-datadog-live-debugger-ffi = { path = "libdatadog/datadog-live-debugger-ffi", default-features = false }
+libdd-live-debugger = { path = "libdatadog/libdd-live-debugger" }
+libdd-live-debugger-ffi = { path = "libdatadog/libdd-live-debugger-ffi", default-features = false }
 libdd-ipc = { path = "libdatadog/libdd-ipc" }
 datadog-ffe = { package = "libdd-ffe", path = "libdatadog/libdd-ffe" }
 libdd-remote-config = { path = "libdatadog/libdd-remote-config" }

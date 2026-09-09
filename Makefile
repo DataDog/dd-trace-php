@@ -456,8 +456,8 @@ generate_cbindgen: cbindgen_binary # Regenerate components-rs/datadog.h componen
 		$(command rustup && echo run nightly --) cbindgen --crate libdd-common-ffi \
 			--config libdd-common-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/common.h; \
-		$(command rustup && echo run nightly --) cbindgen --crate datadog-live-debugger-ffi  \
-			--config datadog-live-debugger-ffi/cbindgen.toml \
+		$(command rustup && echo run nightly --) cbindgen --crate libdd-live-debugger-ffi  \
+			--config libdd-live-debugger-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/live-debugger.h; \
 		$(command rustup && echo run nightly --) cbindgen --crate libdd-telemetry-ffi  \
 			--config libdd-telemetry-ffi/cbindgen.toml \
