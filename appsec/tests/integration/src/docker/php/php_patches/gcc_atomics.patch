@@ -2,10 +2,6 @@ diff --git a/Zend/zend_atomic.h b/Zend/zend_atomic.h
 index 176871c428..e291d4f9ee 100644
 --- a/Zend/zend_atomic.h
 +++ b/Zend/zend_atomic.h
-@@ -21,7 +21,7 @@
-
- /* Builtins are used to avoid library linkage */
+@@ -24 +24 @@
 -#if __has_feature(c_atomic)
 +#if __has_feature(c_atomic) && defined(__clang__)
- #define       HAVE_C11_ATOMICS 1
- #elif ZEND_GCC_PREREQ(4, 7)
