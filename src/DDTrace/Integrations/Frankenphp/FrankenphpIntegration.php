@@ -51,6 +51,7 @@ class FrankenphpIntegration extends Integration
                     $rootSpan = $hook->span(new SpanStack());
                     $rootSpan->name = "web.request";
                     $rootSpan->service = \ddtrace_config_app_name('frankenphp');
+                    Integration::tagFrameworkServiceSource($rootSpan, self::NAME);
                     $rootSpan->type = Type::WEB_SERVLET;
                     $rootSpan->meta[Tag::COMPONENT] = self::NAME;
                     $rootSpan->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_SERVER;
@@ -105,18 +106,24 @@ class FrankenphpIntegration extends Integration
 
                     $res = notify_commit(
                         $rootSpan,
-                        \http_response_code(),
+                        // The response has not been committed yet at this point, so the SAPI has
+                        // no status code and http_response_code() returns false -- which
+                        // notify_commit() rejects, as it only accepts 100..599. Fall back to the
+                        // status this SAPI ends up sending anyway.
+                        // TODO: report the real status rather than a fallback; appsec's
+                        // response_committed listeners see 200 whenever it is unavailable here.
+                        \http_response_code() ?: 200,
                         self::convertHeaders(\headers_list()),
                         null /* response body is available through special mechanisms */
                     );
 
                     // we did not block before and were now told to block
-                    if (!$hookData->data && $res) {
+                    if (!isset($hookData->data) && $res) {
                         $hookData->data = new FrankenphpAppSecException();
                         self::commitBlockingResponse($res);
                     }
 
-                    if ($hookData->data && !$rootSpan->exception) {
+                    if (isset($hookData->data) && !isset($rootSpan->exception)) {
                         $rootSpan->exception = $hookData->data;
                     }
                 },

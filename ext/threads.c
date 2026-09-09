@@ -140,3 +140,77 @@ int tsrm_mutex_unlock(MUTEX_T mutexp)
 
 
 #endif
+
+#ifdef __linux__
+
+/* datadog_clone_thread(): clone(2), issued directly rather than through libc.
+ *
+ * We cannot use the libc wrapper. musl refuses CLONE_THREAD (as well as CLONE_SETTLS and CLONE_CHILD_CLEARTID) with EINVAL and never issues the syscall at all.
+ * Hence we have to do the gruntwork ourselves, to work around that musl limitation.
+ */
+
+#if defined(__x86_64__)
+__asm__(
+    ".text\n"
+    ".globl datadog_clone_thread\n"
+    ".hidden datadog_clone_thread\n"
+    ".type datadog_clone_thread,@function\n"
+    "datadog_clone_thread:\n"
+    /* in: rdi = fn, rsi = stack_top, edx = flags, rcx = arg */
+    "   andq  $-16, %rsi\n"           /* align the child stack */
+    "   subq  $16, %rsi\n"            /* hand fn and arg over on it */
+    "   movq  %rdi, 0(%rsi)\n"
+    "   movq  %rcx, 8(%rsi)\n"
+    /* syscall: rdi = flags, rsi = newsp, rdx = parent_tid, r10 = child_tid, r8 = tls */
+    "   movl  %edx, %edi\n"
+    "   xorl  %edx, %edx\n"
+    "   xorl  %r10d, %r10d\n"
+    "   xorl  %r8d, %r8d\n"
+    "   movl  $56, %eax\n"            /* SYS_clone */
+    "   syscall\n"
+    "   testq %rax, %rax\n"           /* parent: tid or -errno; child: 0 */
+    "   jnz   1f\n"
+    "   xorl  %ebp, %ebp\n"           /* end the frame pointer chain */
+    "   popq  %rax\n"                 /* fn */
+    "   popq  %rdi\n"                 /* arg */
+    "   callq *%rax\n"
+    "   movl  %eax, %edi\n"           /* fn's return value is the thread's exit status */
+    "   movl  $60, %eax\n"            /* SYS_exit -- this thread only, not exit_group */
+    "   syscall\n"
+    "   hlt\n"                        /* unreachable */
+    "1: ret\n"
+    ".size datadog_clone_thread,.-datadog_clone_thread\n");
+#elif defined(__aarch64__)
+__asm__(
+    ".text\n"
+    ".globl datadog_clone_thread\n"
+    ".hidden datadog_clone_thread\n"
+    ".type datadog_clone_thread,%function\n"
+    "datadog_clone_thread:\n"
+    /* in: x0 = fn, x1 = stack_top, w2 = flags, x3 = arg */
+    "   and   x1, x1, #-16\n"         /* align the child stack */
+    "   stp   x0, x3, [x1, #-16]!\n"  /* hand fn and arg over on it; x1 becomes newsp */
+    /* syscall: x0 = flags, x1 = newsp, x2 = parent_tid, x3 = tls, x4 = child_tid */
+    "   mov   w0, w2\n"
+    "   mov   x2, #0\n"
+    "   mov   x3, #0\n"
+    "   mov   x4, #0\n"
+    "   mov   x8, #220\n"             /* SYS_clone */
+    "   svc   #0\n"
+    "   cbz   x0, 1f\n"               /* parent: tid or -errno; child: 0 */
+    "   ret\n"
+    "1: ldp   x1, x0, [sp], #16\n"    /* x1 = fn, x0 = arg */
+    "   mov   x29, #0\n"              /* end the frame pointer chain */
+    "   blr   x1\n"                   /* fn's return value is left in w0 */
+    "   mov   w8, #93\n"              /* SYS_exit -- this thread only, not exit_group */
+    "   svc   #0\n"
+    "   brk   #0\n"                   /* unreachable */
+    ".size datadog_clone_thread,.-datadog_clone_thread\n");
+#else
+#include <sched.h>
+int datadog_clone_thread(int (*fn)(void *), void *stack_top, int flags, void *arg) {
+    return clone(fn, stack_top, flags, arg);
+}
+#endif
+
+#endif

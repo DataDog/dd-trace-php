@@ -1,7 +1,7 @@
 <?php
 // Test socket I/O profiling over a loopback connection on an ephemeral port.
 
-const OPERATION_COUNT = 4096;
+const OPERATION_COUNT = 65536;
 const OPERATION_SIZE = 8 * 1024;
 
 function read_from_socket($socket, $length) {

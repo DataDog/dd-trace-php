@@ -56,16 +56,30 @@
 
 #include <stdio.h>
 
+#include <php.h>
+
 #define NN 312
 #define MM 156
 #define MATRIX_A 0xB5026F5AA96619E9ULL
 #define UM 0xFFFFFFFF80000000ULL /* Most significant 33 bits */
 #define LM 0x7FFFFFFFULL /* Least significant 31 bits */
 
+/* Local modification: the state is thread-local (ZEND_TLS, so only on ZTS builds -- an NTS process
+ * never runs two requests at once).
+ *
+ * ddtrace seeds this per request (ddtrace_seed_prng from RINIT) and draws from it per span, so on
+ * ZTS several threads hit it at once -- FrankenPHP runs dozens of PHP threads. Sharing the state
+ * then indexes mt[] out of bounds, because `mti` is both the loop counter of init_genrand64() and
+ * the cursor of genrand64_int64(): a thread can pass the `mti >= NN` check and then index mt[]
+ * after another thread has already advanced `mti` past the end.
+ *
+ * Per-thread state removes the sharing instead of guarding it, so no lock lands on the span-id
+ * path. Each thread just draws from its own stream.
+ */
 /* The array for the state vector */
-static unsigned long long mt[NN]; 
+ZEND_TLS unsigned long long mt[NN];
 /* mti==NN+1 means mt[NN] is not initialized */
-static int mti=NN+1; 
+ZEND_TLS int mti=NN+1;
 
 /* initializes mt[NN] with a seed */
 void init_genrand64(unsigned long long seed)

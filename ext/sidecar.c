@@ -40,10 +40,10 @@ int32_t datadog_sidecar_master_pid = 0;
 static inline void dd_set_endpoint_test_token(ddog_Endpoint *endpoint) {
     if (zai_config_is_initialized()) {
         if (ZSTR_LEN(get_DD_TRACE_AGENT_TEST_SESSION_TOKEN())) {
-            ddog_endpoint_set_test_token(endpoint, dd_zend_string_to_CharSlice(get_DD_TRACE_AGENT_TEST_SESSION_TOKEN()));
+            ddog_endpoint_set_test_token_if_changed(endpoint, dd_zend_string_to_CharSlice(get_DD_TRACE_AGENT_TEST_SESSION_TOKEN()));
         }
     } else if (ZSTR_LEN(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN())) {
-        ddog_endpoint_set_test_token(endpoint, dd_zend_string_to_CharSlice(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN()));
+        ddog_endpoint_set_test_token_if_changed(endpoint, dd_zend_string_to_CharSlice(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN()));
     }
 }
 
@@ -895,7 +895,7 @@ void datadog_sidecar_gshutdown(zend_datadog_globals *datadog_globals) {
 bool datadog_alter_test_session_token(zval *old_value, zval *new_value, zend_string *new_str) {
     UNUSED(old_value, new_str);
     if (datadog_endpoint) {
-        ddog_endpoint_set_test_token(datadog_endpoint, dd_zend_string_to_CharSlice(Z_STR_P(new_value)));
+        ddog_endpoint_set_test_token_if_changed(datadog_endpoint, dd_zend_string_to_CharSlice(Z_STR_P(new_value)));
     }
     if (DATADOG_G(sidecar)) {
         datadog_ffi_try("Failed updating test session token",

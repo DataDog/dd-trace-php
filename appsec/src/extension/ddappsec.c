@@ -133,7 +133,8 @@ static void ddappsec_sort_modules(void *base, size_t count, size_t siz,
     for (Bucket *module = base, *end = module + count, *ddappsec_module = NULL;
         module < end; ++module) {
         zend_module_entry *m = (zend_module_entry *)Z_PTR(module->val);
-        if (m->name == ddappsec_module_entry.name) {
+        // Compare by value to avoid confusion with the SSI replaced name
+        if (strcmp(m->name, PHP_DDAPPSEC_EXTNAME) == 0) {
             ddappsec_module = module;
             continue;
         }
@@ -630,12 +631,6 @@ PHP_FUNCTION(datadog_appsec_push_addresses)
         RETURN_FALSE;
     }
 
-    if (!dd_req_lifecycle_is_active()) {
-        mlog_g(dd_log_info,
-            "Not running inside a tracked request; skipping push_addresses");
-        RETURN_FALSE;
-    }
-
     zval *addresses;
     zend_string *rasp_rule = NULL;
     zend_string *rule_variant = NULL;
@@ -644,9 +639,19 @@ PHP_FUNCTION(datadog_appsec_push_addresses)
         RETURN_FALSE;
     }
 
-    if (rasp_rule && ZSTR_LEN(rasp_rule) > 0 &&
-        !get_global_DD_APPSEC_RASP_ENABLED()) {
+    bool is_rasp = rasp_rule != NULL && ZSTR_LEN(rasp_rule) > 0;
+
+    if (is_rasp && !get_global_DD_APPSEC_RASP_ENABLED()) {
         mlog(dd_log_debug, "RASP is not enabled; skipping push_addresses");
+        RETURN_FALSE;
+    }
+
+    if (!dd_req_lifecycle_is_active()) {
+        mlog_g(dd_log_info,
+            "Not running inside a tracked request; skipping push_addresses");
+        if (is_rasp) {
+            dd_telemetry_add_rasp_rule_skipped(rasp_rule, rule_variant);
+        }
         RETURN_FALSE;
     }
 
@@ -663,7 +668,7 @@ PHP_FUNCTION(datadog_appsec_push_addresses)
     dd_result res =
         dd_request_exec(conn, Z_ARRVAL_P(addresses), &opts, &block_params);
 
-    if (opts.rasp_rule && ZSTR_LEN(opts.rasp_rule) > 0) {
+    if (is_rasp) {
         dd_duration_rasp_ext_account(&start);
     } else {
         dd_duration_waf_ext_account(&start);

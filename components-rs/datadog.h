@@ -530,6 +530,20 @@ ddog_Configurator *ddog_library_configurator_new_dummy(bool debug_logs, ddog_Cha
 
 uint64_t dd_fnv1a_64(const uint8_t *data, uintptr_t len);
 
+/**
+ * Sets the endpoint's test session token, but only when it actually differs from the one already
+ * there.
+ *
+ * `ddog_endpoint_set_test_token` assigns unconditionally, which drops the previous `String`. The
+ * endpoints are process-globals in the PHP extension while the writers run per thread (an INI
+ * change handler, and the sidecar connect path), so another thread cloning the same `Endpoint`
+ * reads a freed string -- a use-after-free that only shows up on ZTS with concurrent requests.
+ *
+ * A test run assigns the same token throughout, so comparing first means the swap, and therefore
+ * the race, never happens. Assigning a genuinely different token from a thread remains unsafe.
+ */
+void ddog_endpoint_set_test_token_if_changed(struct ddog_Endpoint *endpoint, ddog_CharSlice token);
+
 const char *ddog_normalize_process_tag_value(ddog_CharSlice tag_value);
 
 void ddog_free_normalized_tag_value(const char *ptr);
