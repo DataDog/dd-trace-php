@@ -17,6 +17,7 @@
 #include "ffi_utils.h"
 #include "phpinfo.h"
 #include "process_tags.h"
+#include "profiling_cpu_time.h"
 #include "remote_config.h"
 #include "sidecar.h"
 #include "signals.h"
@@ -396,6 +397,7 @@ static void dd_clean_main_thread_locals() {
 static PHP_GSHUTDOWN_FUNCTION(datadog) {
 #ifdef PROFILING
     if (datadog_globals->profiling_globals) {
+        datadog_profiling_cpu_time_gshutdown(datadog_globals);
         ddog_php_prof_gshutdown(datadog_globals->profiling_globals);
         pefree(datadog_globals->profiling_globals, true);
         datadog_globals->profiling_globals = NULL;
@@ -577,6 +579,10 @@ static PHP_MINIT_FUNCTION(datadog) {
         return FAILURE;
     }
     datadog_profiling_initialized = true;
+    if (!datadog_profiling_cpu_time_minit()) {
+        PHP_MSHUTDOWN(datadog)(type, module_number);
+        return FAILURE;
+    }
 #endif
     if (datadog_register_zend_extension() != SUCCESS) {
         PHP_MSHUTDOWN(datadog)(type, module_number);
@@ -589,6 +595,7 @@ static PHP_MSHUTDOWN_FUNCTION(datadog) {
     UNUSED(module_number, type);
 
 #ifdef PROFILING
+    datadog_profiling_cpu_time_mshutdown();
     int profiler_result = datadog_profiling_initialized ? ddog_php_prof_mshutdown(type, module_number) : SUCCESS;
 #endif
 #ifdef TRACER
@@ -697,6 +704,9 @@ static PHP_RINIT_FUNCTION(datadog) {
         if (ddog_php_prof_rinit(type, module_number) != SUCCESS) {
             return FAILURE;
         }
+        if (!datadog_profiling_cpu_time_rinit(ddog_php_prof_should_enable_cpu_time())) {
+            return FAILURE;
+        }
 #ifdef TRACER
         ddtrace_set_profiling_notify_enabled(ddog_php_prof_is_enabled());
 #endif
@@ -731,6 +741,7 @@ static PHP_RSHUTDOWN_FUNCTION(datadog) {
     UNUSED(module_number, type);
 
 #ifdef PROFILING
+    datadog_profiling_cpu_time_rshutdown();
     int profiler_result = datadog_profiling_initialized ? ddog_php_prof_rshutdown(type, module_number) : SUCCESS;
 #endif
 

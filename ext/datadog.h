@@ -7,6 +7,11 @@
 #include <php.h>
 #include <stdbool.h>
 #include <stdint.h>
+#if defined(PROFILING) && defined(__linux__)
+#include <signal.h>
+#include <sys/types.h>
+#include <time.h>
+#endif
 #include <components-rs/common.h>
 #include <components/sapi/sapi.h>
 
@@ -85,6 +90,13 @@ ZEND_BEGIN_MODULE_GLOBALS(datadog)
 
 #ifdef PROFILING
     void *profiling_globals;
+#ifdef __linux__
+    timer_t profiling_cpu_timer;
+    struct timespec profiling_cpu_timer_remaining;
+    pid_t profiling_cpu_timer_pid;
+    volatile sig_atomic_t profiling_cpu_timer_created;
+    volatile sig_atomic_t profiling_cpu_timer_armed;
+#endif
 #endif
 
 #ifdef TRACER

@@ -1231,6 +1231,31 @@ pub extern "C" fn ddog_php_prof_should_enable_wall_time_sidecar() -> bool {
 }
 
 #[no_mangle]
+pub extern "C" fn ddog_php_prof_should_enable_cpu_time() -> bool {
+    // config::minit() materializes system settings before the combined MINIT
+    // calls this; first RINIT refreshes the same settings before later calls.
+    unsafe {
+        SystemSettings::get()
+            .as_ref()
+            .profiling_experimental_cpu_time_enabled
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_php_prof_mark_cpu_time_samples(samples: u32) {
+    use core::sync::atomic::Ordering;
+
+    // The SIGRTMIN timer is targeted at the PHP thread which owns these globals.
+    // Relaxed ordering is sufficient: publishing EG(vm_interrupt) is the wakeup.
+    let globals = unsafe { module_globals::get_profiler_globals() };
+    unsafe {
+        (*globals)
+            .cpu_sample_count
+            .fetch_add(samples, Ordering::Relaxed)
+    };
+}
+
+#[no_mangle]
 pub extern "C" fn ddog_php_prof_post_deactivate() -> ZendResult {
     prshutdown()
 }

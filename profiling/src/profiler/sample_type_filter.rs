@@ -50,10 +50,12 @@ impl SampleTypeFilter {
         let mut sample_types_mask = [false; MAX_SAMPLE_TYPES];
 
         if system_settings.profiling_enabled {
-            // wall-samples, wall-time
-            sample_types.extend_from_slice(&all_sample_types[0..2]);
-            sample_types_mask[0] = true;
-            sample_types_mask[1] = true;
+            if system_settings.profiling_wall_time_enabled {
+                // wall-samples, wall-time
+                sample_types.extend_from_slice(&all_sample_types[0..2]);
+                sample_types_mask[0] = true;
+                sample_types_mask[1] = true;
+            }
             if system_settings.profiling_experimental_cpu_time_enabled {
                 sample_types.extend_from_slice(&all_sample_types[2..4]);
                 sample_types_mask[2] = true;
@@ -206,6 +208,24 @@ mod tests {
                 ValueType::new("cpu-time", "nanoseconds"),
             ],
             vec![10, 20, 30, 31],
+        );
+    }
+
+    #[test]
+    fn filter_with_cpu_time_only() {
+        let mut settings = get_system_settings();
+        settings.profiling_enabled = true;
+        settings.profiling_wall_time_enabled = false;
+        settings.profiling_allocation_enabled = false;
+        settings.profiling_experimental_cpu_time_enabled = true;
+
+        assert_filter(
+            &settings,
+            vec![
+                ValueType::new("cpu-samples", "count"),
+                ValueType::new("cpu-time", "nanoseconds"),
+            ],
+            vec![30, 31],
         );
     }
 
