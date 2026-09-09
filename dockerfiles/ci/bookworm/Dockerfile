@@ -307,7 +307,7 @@ RUN set -eux; \
     chown circleci:circleci $PHP_INSTALL_DIR;
 
 # rust sha256sum generated locally after verifying it with sha256
-ARG RUST_VERSION="1.87.0"
+ARG RUST_VERSION="1.88.0"
 ARG RUST_NIGHTLY_VERSION="-2025-06-13"
 # Mount a cache into /rust/cargo if you want to pre-fetch packages or something
 ENV CARGO_HOME=/rust/cargo
