@@ -569,11 +569,17 @@ def buildTracerSsiTask = { String version, String variant ->
                         grep -qx libdatadog_php.so
                     cp "\$TRACER" /tracer-ssi/ddtrace.so
 
-                    # libdatadog_php.so comes prebuilt from buildPortableLibdatadogPhp (see that
-                    # task below), which runs once in the php-buildonly-rust image and is shared
-                    # across every PHP version in the integration matrix -- see the
-                    # DDTRACE_PHP_INCLUDES comment on portableLibdatadogPhpCommand for why that is
-                    # safe despite config_codegen.rs needing real PHP headers.
+                    # NOTE: libdatadog_php.so now comes prebuilt from buildPortableLibdatadogPhp
+                    # (see that task below), which runs in the php-buildonly-rust image -- a
+                    # PHP-version-independent Rust build environment with no real PHP dev headers.
+                    # components-rs/config_codegen.rs (which preprocesses ext/configuration.h and
+                    # therefore needs real PHP headers via DDTRACE_PHP_INCLUDES) runs unconditionally
+                    # from components-rs/build.rs, so this task is expected to break once
+                    # config_codegen.rs exists in this tree -- needs a deliberate fix (e.g. a
+                    # reference/synthetic PHP header set for preprocessing only, or excluding this
+                    # portable build from needing generated config accessors) rather than just
+                    # exporting DDTRACE_PHP_INCLUDES, since there is no single PHP version's real
+                    # headers to point it at here.
                     cp /portable-rust/libdatadog_php.so \\
                         /tracer-ssi/libdatadog_php.so
 
@@ -1142,27 +1148,16 @@ if (useHelperRustCoverage) {
 }
 def portableLibdatadogPhpBuildMode = useHelperRustCoverage ?
         'helper-rust-coverage' : 'default'
-// components-rs/build.rs unconditionally calls config_codegen::build(), which
-// preprocesses ext/configuration.h and needs DDTRACE_PHP_INCLUDES pointing at a
-// real PHP include dir. This build has no PHP under test -- libdatadog_php.so is
-// built once here and shared across every PHP version in the integration matrix
-// -- but config_codegen.rs only extracts the CONFIG()/CALIAS() macro list, which
-// does not vary by PHP version (see config.m4/config_codegen.rs). So rather than
-// pin one SDK from php-buildonly-rust's image (which would silently go stale the
-// day that version drops out of testMatrix), just discover whichever one happens
-// to be present.
+// FIXME(combined-extension merge): this build has no real PHP dev headers (see
+// php-buildonly-rust/Dockerfile), but components-rs/build.rs unconditionally calls
+// config_codegen::build(), which preprocesses ext/configuration.h and needs
+// DDTRACE_PHP_INCLUDES pointing at a real PHP include dir. Needs a deliberate fix,
+// not a quick env var -- there is no single PHP version's headers to use here since
+// this artifact is intentionally built once and shared across all PHP versions.
 def portableLibdatadogPhpCommand = '''
         RUST_TARGET="$(uname -m)-unknown-linux-musl"
         RUST_TOOLCHAIN="nightly-$RUST_TARGET"
         export CARGO_TARGET_DIR=/portable-rust/cargo-target
-        for php_config in /opt/php/*/bin/php-config; do
-            export DDTRACE_PHP_INCLUDES="$("$php_config" --includes)"
-            break
-        done
-        if [ -z "${DDTRACE_PHP_INCLUDES:-}" ]; then
-            echo "No php-config found under /opt/php/*/bin -- cannot determine PHP headers for config_codegen.rs" >&2
-            exit 1
-        fi
 
         cd /project
         RUSTFLAGS='@RUSTFLAGS@' \
