@@ -221,7 +221,8 @@ class RouteNormalizer
      * Parses the PCRE rule structure to identify capture groups and segment boundaries
      * ('/') at capturing-depth 0. All capture groups are treated as present.
      */
-    private static function normalizeWordPressRuleOnly(string $rule): ?string
+    /** @return string|null */
+    private static function normalizeWordPressRuleOnly(string $rule)
     {
         // Strip anchors and common trailing patterns
         $s = $rule;
