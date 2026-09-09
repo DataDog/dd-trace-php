@@ -306,6 +306,10 @@ function build_php {
     patch -p1 < "$REPO_ROOT"/php_patches/recent_icu.patch
     touch .patch_ns_icu
   fi
+  if [[ $version_id -ge 80200 && $version_id -lt 80400 && ! -f .patch_gcc_atomics ]]; then
+    patch -p1 < "$REPO_ROOT"/php_patches/gcc_atomics.patch
+    touch .patch_gcc_atomics
+  fi
 
   rm -rf "$build_dir"
   mkdir -p "$build_dir"
@@ -513,7 +517,7 @@ if [[ -d /opt/homebrew/lib ]]; then
   export CPPFLAGS="${CPPFLAGS:-} -idirafter /opt/homebrew/include"
 fi
 export CXXFLAGS="${CXXFLAGS:-} -std=c++11"
-export CFLAGS="${CFLAGS:-} -Wno-implicit-function-declaration"
+export CFLAGS="${CFLAGS:-} -Wno-implicit-function-declaration -Wno-error=incompatible-pointer-types -Wno-error=discarded-qualifiers -Wno-error=implicit-int -Wno-error=int-conversion"
 
 install_openssl 1.0.2u
 install_openssl 1.1.1w
