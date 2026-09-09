@@ -670,6 +670,9 @@ impl<'a> ZaiStr<'a> {
     }
 
     #[inline]
+    // c_char is unsigned on some targets and signed on others, so this cast is
+    // redundant only on a subset of the supported platforms.
+    #[allow(clippy::unnecessary_cast)]
     pub fn as_bytes(&self) -> &'a [u8] {
         debug_assert!(!self.ptr.is_null());
         let len = self.len;
