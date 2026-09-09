@@ -516,6 +516,34 @@ pub unsafe extern "C" fn dd_fnv1a_64(data: *const u8, len: usize) -> u64 {
     hash
 }
 
+/// Sets the endpoint's test session token, but only when it actually differs from the one already
+/// there.
+///
+/// In our ZTS runs we sometimes set it, but always to the same value. This extra check prevents
+/// possible use-after-free in our test suite, given that it there only ever transitions from None
+/// to Some().
+#[no_mangle]
+pub extern "C" fn ddog_endpoint_set_test_token_if_changed(
+    endpoint: &mut Endpoint,
+    token: CharSlice,
+) {
+    let new_token = token.to_utf8_lossy();
+    let unchanged = match &endpoint.test_token {
+        Some(current) => current.as_ref() == new_token.as_ref(),
+        None => new_token.is_empty(),
+    };
+
+    if unchanged {
+        return;
+    }
+
+    endpoint.test_token = if new_token.is_empty() {
+        None
+    } else {
+        Some(Cow::Owned(new_token.into_owned()))
+    };
+}
+
 #[no_mangle]
 pub extern "C" fn ddog_normalize_process_tag_value(tag_value: CharSlice) -> *const c_char {
     let value = tag_value.to_utf8_lossy();

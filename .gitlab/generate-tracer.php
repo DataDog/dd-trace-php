@@ -9,6 +9,8 @@ $services = array_combine($m[1], $m[1]);
 
 const ASSERT_NO_MEMLEAKS = ' 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }';
 
+const ZTS_MAKE_TARGETS = ['test_integrations_frankenphp'];
+
 function after_script($execute_dir = ".", $has_test_agent = false) {
 ?>
 
@@ -649,7 +651,7 @@ endforeach;
     - unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy
     - DD_TRACE_AGENT_TIMEOUT=1000 make $MAKE_TARGET RUST_DEBUG_BUILD=1 PHPUNIT_JUNIT="artifacts/tests/results.xml" <?= ASSERT_NO_MEMLEAKS ?>
 <?php after_script(".", true); ?>
-    - find tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' \) -exec cp --parents '{}' artifacts \;
+    - find tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'frankenphp_error.log' -o -name 'dd_php_error.log' \) -exec cp --parents '{}' artifacts \;
     - make tested_versions && cp tests/tested_versions/tested_versions.json artifacts/tested_versions_${MAKE_TARGET}_${PHP_MAJOR_MINOR}_${DD_TRACE_TEST_SAPI:-cli}.json
 
 <?php
@@ -678,6 +680,7 @@ foreach ($matches as $m) {
 
 foreach ($jobs as $type => $type_jobs):
     foreach ($type_jobs as $target => $versions):
+        $php_variant = in_array($target, ZTS_MAKE_TARGETS, true) ? "debug-zts-asan" : "debug";
         foreach ($versions as $major_minor):
             $sapis = $type == "web" && version_compare($major_minor, "7.2", ">=") ? ["cli-server", "cgi-fcgi", "apache2handler"] : [""];
             if ($target == "test_web_custom" && in_array("cli-server", $sapis)) {
@@ -689,7 +692,7 @@ foreach ($jobs as $type => $type_jobs):
   extends: .cli_integration_test
   stage: "<?= $type ?> test"
   needs:
-    - job: "compile extension: debug"
+    - job: "compile extension: <?= $php_variant ?>"
       parallel:
         matrix:
           - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
@@ -715,6 +718,12 @@ foreach ($services as $part => $service) {
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     MAKE_TARGET: "<?= $target ?>"
     ARCH: "amd64"
+    SWITCH_PHP_VERSION: "<?= $php_variant ?>"
+<?php if ($php_variant === "debug-zts-asan"): ?>
+    # These are inherited by the SAPI the harness spawns, which is where we need them. detect_leaks is off on purpose: PHP and Go both leak plenty on a killed server.
+    _DD_SIDECAR_WATCHDOG_MAX_MEMORY: 2147483648
+    ASAN_OPTIONS: abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1:detect_leaks=0
+<?php endif; ?>
 <?php if ($sapi): ?>
     DD_TRACE_TEST_SAPI: "<?= $sapi ?>"
 <?php endif; ?>

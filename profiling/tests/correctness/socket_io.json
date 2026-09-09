@@ -1,39 +1,39 @@
 {
   "scale_by_duration": false,
   "test_name": "php_socket_io",
-  "note": "4096 small and 8192 large 8 KiB operations produce 100663296 bytes (96 MiB).",
+  "note": "65536 small and 131072 large 8 KiB operations produce 1610612736 bytes (1536 MiB). With a 100 KiB sampling interval, about 15100 samples per metric give roughly 0.78% standard deviation in estimated bytes and 0.37 percentage points in stack shares. The 6% byte margin and 3-point share margin exceed seven and eight standard deviations, respectively.",
   "stacks": [
     {
       "profile-type": "socket-write-size",
-      "error-margin": 1,
-      "value-matching-sum": 100663296,
+      "error-margin": 6,
+      "value-matching-sum": 1610612736,
       "stack-content": [
         {
           "regular_expression": "<?php;main;small_socket_writes;standard\\|fwrite$",
           "percent": 33,
-          "error_margin": 2
+          "error_margin": 3
         },
         {
           "regular_expression": "<?php;main;large_socket_writes;standard\\|fwrite$",
           "percent": 66,
-          "error_margin": 2
+          "error_margin": 3
         }
       ]
     },
     {
       "profile-type": "socket-read-size",
-      "error-margin": 1,
-      "value-matching-sum": 100663296,
+      "error-margin": 6,
+      "value-matching-sum": 1610612736,
       "stack-content": [
         {
           "regular_expression": "<?php;main;small_socket_writes;read_from_socket;standard\\|fread$",
           "percent": 33,
-          "error_margin": 2
+          "error_margin": 3
         },
         {
           "regular_expression": "<?php;main;large_socket_writes;read_from_socket;standard\\|fread$",
           "percent": 66,
-          "error_margin": 2
+          "error_margin": 3
         }
       ]
     }
