@@ -517,7 +517,19 @@ struct ddog_AppsecCResponse ddog_sidecar_send_appsec_message(struct ddog_Sidecar
                                                              ddog_CharSlice data);
 
 /**
- * Frees an `AppsecCResponse` that was returned by `ddog_sidecar_send_appsec_message`.
+ * Sends an AppSec message once, without reconnecting the sidecar on failure.
+ *
+ * The response is allocated by the sidecar and must be freed with
+ * `ddog_sidecar_appsec_response_drop` when the caller is done with it.
+ *
+ * Returns a zeroed `ddog_AppsecCResponse` (null ptr) on transport errors.
+ */
+struct ddog_AppsecCResponse datadog_sidecar_send_appsec_message_without_reconnect(struct ddog_SidecarTransport **transport,
+                                                                                  uint64_t client_id,
+                                                                                  ddog_CharSlice data);
+
+/**
+ * Frees an `AppsecCResponse` returned by an AppSec message function.
  */
 void ddog_sidecar_appsec_response_drop(struct ddog_AppsecCResponse response);
 
