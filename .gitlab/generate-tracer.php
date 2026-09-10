@@ -200,16 +200,12 @@ windows_test_c_job("windows test_c: zts", "zts", [
 
 "Prepare code":
   stage: compile
-  image: registry.ddbuild.io/images/mirror/php:8.2-cli
+  image: registry.ddbuild.io/images/mirror/composer:2
   tags: [ "arch:amd64" ]
   needs: []
   variables:
     KUBERNETES_CPU_REQUEST: 1
     KUBERNETES_MEMORY_REQUEST: 2Gi
-  before_script:
-    - apt update && apt install -y unzip
-    - php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" && php composer-setup.php && mv composer.phar /usr/local/bin/composer
-    - composer update --no-interaction
   script:
     - make generate
   artifacts:
