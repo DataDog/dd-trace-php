@@ -245,6 +245,7 @@ void ddtrace_build_span_link_from_result(ddtrace_distributed_tracing_result *res
 
     zend_string *propagated_tags = ddtrace_format_propagated_tags(&result->propagated_tags, &result->meta_tags);
     zend_string *full_tracestate = ddtrace_format_tracestate(result->tracestate, 0, result->origin, result->priority_sampling, propagated_tags, &result->tracestate_unknown_dd_keys);
+    full_tracestate = ddtrace_otel_sampling_limit_tracestate(full_tracestate);
     if (propagated_tags) {
         zend_string_release(propagated_tags);
     }
@@ -281,6 +282,9 @@ ZEND_METHOD(DDTrace_SpanLink, fromHeaders) {
     }
     if (result.tracestate) {
         zend_string_release(result.tracestate);
+    }
+    if (result.context_headers) {
+        zend_string_release(result.context_headers);
     }
 }
 

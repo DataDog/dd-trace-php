@@ -386,6 +386,21 @@ static zend_string* ddtrace_otel_limit_oversized_tracestate(
   return limited.s;
 }
 
+zend_string* ddtrace_otel_sampling_limit_tracestate(
+    zend_string* tracestate) {
+  if (!tracestate) {
+    return NULL;
+  }
+
+  ddtrace_otel_tracestate_members members =
+      ddtrace_otel_scan_tracestate(tracestate);
+  if (members.member_count <= DDTRACE_TRACESTATE_MAX_MEMBERS &&
+      ZSTR_LEN(tracestate) <= DDTRACE_TRACESTATE_MAX_LEN) {
+    return tracestate;
+  }
+  return ddtrace_otel_limit_oversized_tracestate(tracestate);
+}
+
 static char* ddtrace_otel_write_generated_member(
     char* output, const ddtrace_otel_fields* fields) {
   memcpy(output, "ot=rv:", 6);
@@ -544,11 +559,7 @@ zend_string* ddtrace_otel_sampling_update_tracestate(
           tracestate, trace_id, sampling_priority, sample_rate,
           members.member_count);
     }
-    if (members.member_count <= DDTRACE_TRACESTATE_MAX_MEMBERS &&
-        ZSTR_LEN(tracestate) <= DDTRACE_TRACESTATE_MAX_LEN) {
-      return tracestate;
-    }
-    return ddtrace_otel_limit_oversized_tracestate(tracestate);
+    return ddtrace_otel_sampling_limit_tracestate(tracestate);
   }
 
   return ddtrace_otel_rewrite_existing_member(

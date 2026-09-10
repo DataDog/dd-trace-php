@@ -4,6 +4,9 @@
 #include "ddtrace.h"
 #include "priority_sampling/priority_sampling.h"
 
+// Takes ownership of tracestate and applies the W3C byte and member limits.
+zend_string* ddtrace_otel_sampling_limit_tracestate(zend_string* tracestate);
+
 // Takes ownership of tracestate and returns the normalized replacement.
 zend_string* ddtrace_otel_sampling_update_tracestate(zend_string* tracestate, uint64_t trace_id, zend_long sampling_priority,
                                                      enum ddtrace_otel_sampling_decision decision, double sample_rate);

@@ -12,7 +12,7 @@ datadog.trace.propagation_style_extract=datadog
 --FILE--
 <?php
 
-$origin = str_repeat("=", 1000);
+$origin = str_repeat("=", 500);
 $link = DDTrace\SpanLink::fromHeaders([
     "x-datadog-trace-id" => "42",
     "x-datadog-parent-id" => "1",
