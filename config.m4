@@ -559,7 +559,9 @@ EOT
     if test "$PHP_DDTRACE_SIDECAR_MOCKGEN" != "-"; then
       ddtrace_mockgen_invocation="HOST= TARGET= $PHP_DDTRACE_SIDECAR_MOCKGEN"
     else
-      ddtrace_mockgen_invocation="cd \"$ext_srcdir/components-rs/php_sidecar_mockgen\"; HOST= TARGET= CARGO_TARGET_DIR=\$(builddir)/target_mockgen/ \$(DDTRACE_CARGO) run \$(shell echo \"\$(MAKEFLAGS)\" | $EGREP -q -e '--silent' -e '^[[^ -]]*s' && echo --quiet)"
+      dnl The mock generator is a build-time host tool. Do not apply extension
+      dnl sanitizer flags to it or its build scripts and procedural macros.
+      ddtrace_mockgen_invocation="cd \"$ext_srcdir/components-rs/php_sidecar_mockgen\"; HOST= TARGET= CFLAGS= CXXFLAGS= CPPFLAGS= LDFLAGS= RUSTFLAGS= CARGO_TARGET_DIR=\$(builddir)/target_mockgen/ \$(DDTRACE_CARGO) run \$(shell echo \"\$(MAKEFLAGS)\" | $EGREP -q -e '--silent' -e '^[[^ -]]*s' && echo --quiet)"
     fi
   fi
 
