@@ -46,10 +46,14 @@ fails:
    repo-specific invariants that are not a PHPCS sniff (forbidden
    APIs, generated-file drift, naming, and so on).
 
-Today PHPCS enables one sniff only:
-`Generic.VersionControl.GitMergeConflict`. That is a safety check, not
-a style rule. PHPCS requires at least one sniff or it errors. PSR-12
-and formatting rules are off.
+Enabled sniffs are version-agnostic safety checks that already pass
+on `src/` (merge-conflict markers, BOM, LF line endings, open/close
+tags, backticks, `goto`, `FIXME`, `eval`). They are not a style
+guide.
+
+Sniffs that are close to passing, or that can fail when the runner
+PHP or PHPCS version changes (`php -l`, deprecated functions), are
+left commented in `phpcs.xml`. PSR-12 and formatting rules are off.
 
 Scope is first-party `src/` only. Generated bridge files and
 `tests/Frameworks/` are out of scope.
