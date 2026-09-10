@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<ruleset name="dd-trace-php CI lint">
+    <description>
+        Placeholder PHPCS ruleset for the blocking CI lint job.
+        Style and formatting rules are intentionally off. Enable
+        individual sniffs here only after the tree already complies.
+    </description>
+
+    <!-- First-party userland only. Not tests/Frameworks or generated code. -->
+    <file>../../src</file>
+
+    <arg name="extensions" value="php"/>
+    <arg name="colors"/>
+
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+    <exclude-pattern>src/bridge/_generated_*.php</exclude-pattern>
+
+    <!--
+        PHPCS errors if zero sniffs are registered, so keep exactly one
+        version-agnostic safety check. This is not a style rule.
+
+        Add more sniffs one at a time, for example:
+          <rule ref="Generic.Files.ByteOrderMark"/>
+          <rule ref="Generic.Files.EndFileNewline"/>
+        Do not <rule ref="PSR12"/> until src/ has been cleaned up.
+    -->
+    <rule ref="Generic.VersionControl.GitMergeConflict"/>
+</ruleset>
