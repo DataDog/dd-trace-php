@@ -25,7 +25,13 @@ function propagate(string $tracestate, bool $sampled = true, bool $manualKeep = 
 
 function ot(string $tracestate): string
 {
-    return preg_match('/(?:^|,)ot=([^,]+)/', $tracestate, $matches) ? $matches[1] : '<absent>';
+    foreach (explode(',', $tracestate) as $member) {
+        $member = ltrim($member, " \t");
+        if (strncmp($member, 'ot=', 3) === 0) {
+            return substr($member, 3);
+        }
+    }
+    return '<absent>';
 }
 
 function locallyDecide(string $tracestate): string
