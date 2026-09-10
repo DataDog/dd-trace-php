@@ -258,6 +258,26 @@ If the output differs from the committed
 `metadata/supported-configurations.json`, the CI job fails. Fix by
 running the script locally and committing the result.
 
+## PHP lint
+
+No extension build. Needs PHP and Composer only.
+
+```bash
+bash tooling/php-lint/run.sh
+```
+
+Or, with the CI image:
+
+```bash
+.claude/ci/dockerh --cache php-lint --overlayfs --php nts \
+  datadog/dd-trace-ci:php-8.5_bookworm-10 -- \
+  bash tooling/php-lint/run.sh
+```
+
+PHPCS rules live in `tooling/php-lint/phpcs.xml`. Custom checks go in
+`tooling/php-lint/scripts/` (`*.php` or `*.sh`). See
+`tooling/php-lint/README.md`.
+
 ## Gotchas
 
 - **TEA must be built before ZAI or Extension Tea Tests, using the same `--cache` name.**
