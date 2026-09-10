@@ -477,7 +477,7 @@ static ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids_t
             ZSTR_LEN(result.tracestate) = persist - ZSTR_VAL(result.tracestate);
             zend_string *normalized_tracestate = ddtrace_otel_sampling_update_tracestate(
                 result.tracestate, trace_id.low, result.priority_sampling, DDTRACE_OTEL_SAMPLING_DECISION_INHERITED, 0);
-            result.tracestate = normalized_tracestate ?: zend_string_init("", 0, 0);
+            result.tracestate = normalized_tracestate ? normalized_tracestate : zend_string_init("", 0, 0);
             zend_string_release(tracestate);
         }
 
