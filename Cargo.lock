@@ -1233,47 +1233,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d7a1e2f27636f116493b8b860f5546edb47c8d8f8ea73e1d2a20be88e28d1fea"
 
 [[package]]
-name = "datadog-live-debugger"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "bytes",
- "constcat",
- "futures",
- "http 1.4.2",
- "libdd-capabilities",
- "libdd-capabilities-impl",
- "libdd-common",
- "libdd-data-pipeline",
- "libdd-remote-config",
- "percent-encoding",
- "serde",
- "serde_json",
- "smallvec",
- "strum",
- "strum_macros",
- "sys-info",
- "tokio",
- "uuid",
-]
-
-[[package]]
-name = "datadog-live-debugger-ffi"
-version = "0.0.1"
-dependencies = [
- "build_common",
- "datadog-live-debugger",
- "libdd-common",
- "libdd-common-ffi",
- "log",
- "percent-encoding",
- "serde_json",
- "tokio",
- "tokio-util",
- "uuid",
-]
-
-[[package]]
 name = "datadog-php"
 version = "0.0.1"
 dependencies = [
@@ -1289,8 +1248,6 @@ dependencies = [
  "criterion-perf-events",
  "crossbeam-channel",
  "dashmap",
- "datadog-live-debugger",
- "datadog-live-debugger-ffi",
  "datadog-sidecar",
  "datadog-sidecar-ffi",
  "ddtrace-sidecar",
@@ -1311,6 +1268,8 @@ dependencies = [
  "libdd-ipc",
  "libdd-library-config",
  "libdd-library-config-ffi",
+ "libdd-live-debugger",
+ "libdd-live-debugger-ffi",
  "libdd-profiling",
  "libdd-remote-config",
  "libdd-telemetry",
@@ -1355,7 +1314,6 @@ dependencies = [
  "chrono",
  "console-subscriber",
  "crossbeam-utils",
- "datadog-live-debugger",
  "datadog-sidecar-macros",
  "futures",
  "http 1.4.2",
@@ -1373,6 +1331,7 @@ dependencies = [
  "libdd-ffe",
  "libdd-ipc",
  "libdd-ipc-macros",
+ "libdd-live-debugger",
  "libdd-remote-config",
  "libdd-telemetry",
  "libdd-tinybytes",
@@ -1384,7 +1343,7 @@ dependencies = [
  "nix 0.29.0",
  "prctl",
  "priority-queue",
- "rand 0.8.5",
+ "rand 0.8.8",
  "rmp-serde",
  "sendfd",
  "serde",
@@ -1410,7 +1369,6 @@ dependencies = [
 name = "datadog-sidecar-ffi"
 version = "0.0.1"
 dependencies = [
- "datadog-live-debugger",
  "datadog-sidecar",
  "http 1.4.2",
  "libc 0.2.186",
@@ -1420,6 +1378,7 @@ dependencies = [
  "libdd-crashtracker-ffi",
  "libdd-dogstatsd-client",
  "libdd-ipc",
+ "libdd-live-debugger",
  "libdd-remote-config",
  "libdd-telemetry",
  "libdd-telemetry-ffi",
@@ -2040,9 +1999,9 @@ dependencies = [
 
 [[package]]
 name = "h2"
-version = "0.4.8"
+version = "0.4.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5017294ff4bb30944501348f6f8e42e6ad28f42c8bbef7a74029aff064a4e3c2"
+checksum = "ef8e5e5a340588f4452631496976cf8636d4a7ecf600239fdc27615d2530bc16"
 dependencies = [
  "atomic-waker",
  "bytes",
@@ -2859,7 +2818,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-capabilities"
-version = "3.0.0"
+version = "3.0.1"
 dependencies = [
  "anyhow",
  "bytes",
@@ -2871,7 +2830,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-capabilities-impl"
-version = "4.0.0"
+version = "5.0.0"
 dependencies = [
  "anyhow",
  "bytes",
@@ -2885,7 +2844,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-common"
-version = "5.2.0"
+version = "6.0.0"
 dependencies = [
  "anyhow",
  "bytes",
@@ -2911,7 +2870,7 @@ dependencies = [
  "nix 0.29.0",
  "pin-project",
  "proptest",
- "rand 0.8.5",
+ "rand 0.8.8",
  "regex",
  "regex-lite",
  "reqwest 0.13.2",
@@ -2947,7 +2906,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-crashtracker"
-version = "2.0.1"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "blazesym",
@@ -2972,7 +2931,7 @@ dependencies = [
  "os_info",
  "page_size",
  "portable-atomic",
- "rand 0.8.5",
+ "rand 0.8.8",
  "schemars",
  "serde",
  "serde_json",
@@ -3006,7 +2965,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-data-pipeline"
-version = "9.0.0"
+version = "10.0.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -3040,7 +2999,7 @@ dependencies = [
  "libdd-trace-stats",
  "libdd-trace-utils",
  "prost",
- "rand 0.8.5",
+ "rand 0.8.8",
  "regex",
  "rmp-serde",
  "serde",
@@ -3082,13 +3041,13 @@ dependencies = [
  "prost",
  "prost-build",
  "protoc-bin-vendored",
- "rand 0.8.5",
+ "rand 0.8.8",
  "rand_chacha 0.3.1",
 ]
 
 [[package]]
 name = "libdd-dogstatsd-client"
-version = "5.0.0"
+version = "6.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3103,7 +3062,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-ffe"
-version = "1.0.0"
+version = "2.0.0"
 dependencies = [
  "bincode",
  "chrono",
@@ -3141,7 +3100,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-ipc"
-version = "1.0.0"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3174,7 +3133,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-ipc-macros"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
@@ -3191,7 +3150,7 @@ dependencies = [
  "libdd-trace-protobuf",
  "memfd",
  "prost",
- "rand 0.8.5",
+ "rand 0.8.8",
  "rmp",
  "rmp-serde",
  "serde",
@@ -3222,6 +3181,47 @@ dependencies = [
  "cc",
  "libc 0.2.186",
  "paste",
+]
+
+[[package]]
+name = "libdd-live-debugger"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "constcat",
+ "futures",
+ "http 1.4.2",
+ "libdd-capabilities",
+ "libdd-capabilities-impl",
+ "libdd-common",
+ "libdd-data-pipeline",
+ "libdd-remote-config",
+ "percent-encoding",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "strum",
+ "strum_macros",
+ "sys-info",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "libdd-live-debugger-ffi"
+version = "0.0.1"
+dependencies = [
+ "build_common",
+ "libdd-common",
+ "libdd-common-ffi",
+ "libdd-live-debugger",
+ "log",
+ "percent-encoding",
+ "serde_json",
+ "tokio",
+ "tokio-util",
+ "uuid",
 ]
 
 [[package]]
@@ -3265,7 +3265,7 @@ dependencies = [
  "parking_lot",
  "proptest",
  "prost",
- "rand 0.8.5",
+ "rand 0.8.8",
  "reqwest 0.13.2",
  "rustc-hash 2.1.3",
  "rustls",
@@ -3293,7 +3293,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-remote-config"
-version = "4.0.0"
+version = "5.0.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -3315,7 +3315,7 @@ dependencies = [
  "libdd-tuf",
  "manual_future",
  "prost",
- "rand 0.8.5",
+ "rand 0.8.8",
  "ring",
  "serde",
  "serde_json",
@@ -3333,7 +3333,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-shared-runtime"
-version = "3.0.0"
+version = "4.0.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -3349,7 +3349,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-telemetry"
-version = "7.0.0"
+version = "8.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3398,7 +3398,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-tinybytes"
-version = "1.1.2"
+version = "1.1.3"
 dependencies = [
  "libdd-tinybytes",
  "once_cell",
@@ -3419,12 +3419,12 @@ dependencies = [
  "criterion",
  "duplicate 0.4.1",
  "libdd-trace-protobuf",
- "rand 0.8.5",
+ "rand 0.8.8",
 ]
 
 [[package]]
 name = "libdd-trace-obfuscation"
-version = "7.0.0"
+version = "8.0.0"
 dependencies = [
  "anyhow",
  "criterion",
@@ -3456,7 +3456,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-stats"
-version = "8.0.0"
+version = "9.0.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -3476,7 +3476,7 @@ dependencies = [
  "libdd-trace-obfuscation",
  "libdd-trace-protobuf",
  "libdd-trace-utils",
- "rand 0.8.5",
+ "rand 0.8.8",
  "rmp-serde",
  "serde",
  "tokio",
@@ -3487,7 +3487,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-utils"
-version = "11.0.0"
+version = "12.0.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -3515,7 +3515,7 @@ dependencies = [
  "libdd-trace-protobuf",
  "libdd-trace-utils",
  "prost",
- "rand 0.8.5",
+ "rand 0.8.8",
  "rmp",
  "rmp-serde",
  "rmpv",
@@ -4266,7 +4266,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d43f3220d96e0080cc9ea234978ccd80d904eafb17be31bb0f76daaea6493082"
 dependencies = [
  "phf_shared",
- "rand 0.8.5",
+ "rand 0.8.8",
 ]
 
 [[package]]
@@ -4518,7 +4518,7 @@ dependencies = [
  "bitflags 2.13.0",
  "lazy_static",
  "num-traits",
- "rand 0.8.5",
+ "rand 0.8.8",
  "rand_chacha 0.3.1",
  "rand_xorshift",
  "regex-syntax",
@@ -4729,9 +4729,9 @@ dependencies = [
 
 [[package]]
 name = "rand"
-version = "0.8.5"
+version = "0.8.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34af8d1a0e25924bc5b7c43c079c942339d8f0a8b57c39049bef581b46327404"
+checksum = "e058c7de0b26af77780c769414d6257830bb240f3c38477dbc2c16e5f54d6d4c"
 dependencies = [
  "libc 0.2.186",
  "rand_chacha 0.3.1",

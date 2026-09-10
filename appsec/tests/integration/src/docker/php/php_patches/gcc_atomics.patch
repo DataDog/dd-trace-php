@@ -1,0 +1,7 @@
+diff --git a/Zend/zend_atomic.h b/Zend/zend_atomic.h
+index 176871c428..e291d4f9ee 100644
+--- a/Zend/zend_atomic.h
++++ b/Zend/zend_atomic.h
+@@ -24 +24 @@
+-#if __has_feature(c_atomic)
++#if __has_feature(c_atomic) && defined(__clang__)
