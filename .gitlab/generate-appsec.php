@@ -340,6 +340,9 @@ stages:
     KUBERNETES_CPU_REQUEST: 8
     KUBERNETES_MEMORY_REQUEST: 24Gi
     KUBERNETES_MEMORY_LIMIT: 30Gi
+    # Coverage instrumentation makes this build strictly bigger than the 30G
+    # its non-coverage sibling needs, and the DinD helper only defaults to 20G.
+    DOCKER_LOOPBACK_SIZE: 50G
     ARCH: amd64
     GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle-home"
   before_script:
@@ -355,8 +358,21 @@ stages:
         TERM=dumb ./gradlew loadCaches --info
       fi
 
+      echo "=== disk before buildPortableLibdatadogPhp ==="
+      df -h /
+      docker system df
+      docker run --rm -v php-portable-libdatadog-php:/vol alpine df -h /vol
+
+      # Keep the exit status but always report disk after the build: an
+      # exhausted loopback is the hypothesis these numbers exist to settle.
       TERM=dumb ./gradlew buildPortableLibdatadogPhp \
-        --info -Pbuildscan --scan -PuseHelperRustCoverage
+        --info -Pbuildscan --scan -PuseHelperRustCoverage && rc=0 || rc=$?
+
+      echo "=== disk after buildPortableLibdatadogPhp (gradle exit $rc) ==="
+      df -h /
+      docker system df
+      docker run --rm -v php-portable-libdatadog-php:/vol alpine df -h /vol
+      [ "$rc" -eq 0 ] || exit "$rc"
 
       # Coverage-instrumented artifacts are bulky: this leaves ~6G of cargo
       # intermediates in php-portable-libdatadog-php, over a quarter of the
