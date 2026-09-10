@@ -163,8 +163,6 @@ class LaminasIntegration extends Integration
             }
         );
 
-
-
         // Overall application flow
         trace_method(
             'Laminas\Mvc\Application',
@@ -894,7 +892,7 @@ class LaminasIntegration extends Integration
                     return $routeSpec;
                 }
             }
-            
+
             if (
                 method_exists($matchedRoute, 'getRoute')
                 && !($matchedRoute instanceof \Laminas\Router\RouteStackInterface)
@@ -976,7 +974,7 @@ class LaminasIntegration extends Integration
 
         return null;
     }
-    
+
     private static function laminasSegmentPartsToRouteTemplate(array $parts): string
     {
         $buf = '';

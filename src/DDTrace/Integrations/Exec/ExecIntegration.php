@@ -67,7 +67,6 @@ class ExecIntegration extends Integration
             }
         );
 
-
         /*
          * This instrumentation works by creating a span on the enter callback, and then
          * associating this span with the resource returned by proc_open. This association
@@ -397,7 +396,6 @@ class ExecIntegration extends Integration
                 // do not adjust prevEnd so the separator is found again next time
                 return true;
             }
-
 
             if (self::matchEnvVariableAssignment($text, $matches)) {
                 // matches a valid name for an environment variable

@@ -42,7 +42,6 @@ class NetteIntegration extends Integration
         \DDTrace\hook_method('Nette\Configurator', '__construct', $setRootSpanFn);
         \DDTrace\hook_method('Nette\Bootstrap\Configurator', '__construct', $setRootSpanFn);
 
-
         \DDTrace\trace_method(
             'Nette\Configurator',
             'createRobotLoader',
