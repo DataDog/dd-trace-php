@@ -180,7 +180,7 @@ static zend_string* ddtrace_otel_rebuild_value(
     fields.threshold = NULL;
     fields.threshold_len = 0;
   } else if (decision == DDTRACE_OTEL_SAMPLING_DECISION_PROBABILITY &&
-             !fields.random_value && !fields.threshold && sample_rate > 0) {
+             sample_rate > 0) {
     ddtrace_otel_generate_fields(&fields, generated_random_value,
                                  generated_threshold, trace_id,
                                  sampling_priority, sample_rate);
