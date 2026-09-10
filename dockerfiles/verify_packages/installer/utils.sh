@@ -32,7 +32,7 @@ assert_no_ddtrace() {
 }
 
 assert_no_profiler() {
-    if php -r 'exit(filter_var(ini_get("datadog.profiling.enabled"), FILTER_VALIDATE_BOOL) ? 0 : 1);'; then
+    if php -r 'exit(filter_var(ini_get("datadog.profiling.enabled"), FILTER_VALIDATE_BOOLEAN) ? 0 : 1);'; then
         echo "---\nError: profiler should not be enabled\n---\n${1}\n---\n"
         exit 1
     fi
@@ -71,8 +71,19 @@ assert_no_appsec() {
 }
 
 assert_profiler_version() {
-    assert_ddtrace_version "${1}"
-    assert_profiler_installed
+    expected_version=${1}
+    output="$(php -v)"
+    if [ -z "${output##*with datadog-profiling*}" ]; then
+        if [ -z "${output##*datadog-profiling v${expected_version}*}" ]; then
+            echo "---\nOk: datadog-profiling version '${expected_version}' is correctly installed\n---\n${output}\n---\n"
+        else
+            echo "---\nError: Wrong datadog-profiling version. Expected: ${expected_version}\n---\n${output}\n---\n"
+            exit 1
+        fi
+    else
+        assert_ddtrace_version "${expected_version}"
+        assert_profiler_installed
+    fi
 }
 
 assert_tracer_installed() {
@@ -88,7 +99,7 @@ assert_tracer_installed() {
 
 assert_profiler_installed() {
     php_bin=${1:-php}
-    if "$php_bin" -r '$value = ini_get("datadog.profiling.enabled"); exit($value !== false && filter_var($value, FILTER_VALIDATE_BOOL) ? 0 : 1);'; then
+    if "$php_bin" -r '$value = ini_get("datadog.profiling.enabled"); exit($value !== false && filter_var($value, FILTER_VALIDATE_BOOLEAN) ? 0 : 1);'; then
         echo "Ok: Profiling is available and enabled in ddtrace"
     else
         echo "Error: Profiling should be available and enabled in ddtrace"
