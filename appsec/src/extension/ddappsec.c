@@ -195,15 +195,19 @@ static PHP_GINIT_FUNCTION(ddappsec)
     if (!is_main_thread) {
 #    if defined(__linux__)
         extern void *__dso_handle;
-        // adds a dependency on glibc 2.18
-        extern int __cxa_thread_atexit_impl(
-            void (*func)(void *), void *arg, void *dso_handle);
-        __cxa_thread_atexit_impl(_tshutdown_handler, NULL, __dso_handle);
+        // Weak because musl exports no __cxa_thread_atexit_impl (it is a glibc
+        // 2.18 internal); a strong reference makes dlopen() of this DSO fail.
+        extern int __cxa_thread_atexit_impl(void (*func)(void *), void *arg,
+            void *dso_handle) __attribute__((weak));
+        if (__cxa_thread_atexit_impl) {
+            __cxa_thread_atexit_impl(_tshutdown_handler, NULL, __dso_handle);
+            ddappsec_globals->registered_thread_local_dtor = true;
+        }
 #    elif defined(__APPLE__)
         extern void _tlv_atexit(void (*termFunc)(void *), void *objAddr);
         _tlv_atexit(_tshutdown_handler, NULL);
-#    endif
         ddappsec_globals->registered_thread_local_dtor = true;
+#    endif
     }
 #endif
 }
