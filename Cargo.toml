@@ -31,6 +31,14 @@ bench = false
 
 [features]
 default = ["tracer"]
+# TODO: "tracer" is a misleading name for what this actually gates: it pulls in
+# the ddtrace-sidecar crate (sidecar entrypoint for direct-spawn + AppSec backend
+# registration) and switches components-rs/build.rs to produce the shared
+# "common native component" artifact shape (custom entrypoint, `libdatadog_php.so`
+# soname) rather than the standalone-profiler-shaped one. It has nothing to do
+# with tracer-specific logic per se -- both the combined ddtrace.so *and* the
+# standalone SSI libdatadog_php.so need it, precisely because they're both this
+# "common" artifact. Consider renaming to something like "sidecar" or "common".
 tracer = ["dep:ddtrace-sidecar"]
 helper-rust-coverage = ["ddtrace-sidecar/helper-rust-coverage"]
 profiling = [

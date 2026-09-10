@@ -37,6 +37,15 @@ pub mod profiling;
 pub mod agent_info;
 #[cfg(not(all(feature = "profiling", not(feature = "tracer"))))]
 pub mod bytes;
+// Only the profiler consumes ConfigId/CONFIG_COUNT/the generated accessors (see
+// profiling/src/config.rs, profiling/src/lib.rs, profiling/src/bindings/mod.rs).
+// The module itself, and the build.rs codegen step that generates its content,
+// both live under profiling/ (see profiling/config_id.rs, profiling/build.rs,
+// profiling/config_codegen.rs) rather than here, so a tracer-only build never
+// even sees code that would preprocess ext/configuration.h through a C compiler
+// -- not just gated off, but physically absent from this crate's shared build.rs.
+#[cfg(feature = "profiling")]
+#[path = "../profiling/config_id.rs"]
 pub mod config;
 #[cfg(not(all(feature = "profiling", not(feature = "tracer"))))]
 pub mod ffe;

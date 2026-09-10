@@ -1,5 +1,3 @@
-#[path = "config_codegen.rs"]
-mod config_codegen;
 #[path = "../profiling/build.rs"]
 mod profiling_build;
 
@@ -64,6 +62,4 @@ fn main() {
     if std::env::var_os("CARGO_FEATURE_PROFILING").is_some() {
         profiling_build::build();
     }
-
-    config_codegen::build();
 }

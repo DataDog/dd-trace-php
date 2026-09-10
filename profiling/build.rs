@@ -4,7 +4,19 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::{env, fs};
 
+#[path = "config_codegen.rs"]
+mod config_codegen;
+
 pub fn build() {
+    // ConfigId/CONFIG_COUNT/the generated accessors are consumed only by
+    // profiling/src/config.rs (see profiling/config_id.rs and this crate's
+    // cfg(feature = "profiling") gate in components-rs/lib.rs), so this codegen
+    // lives and runs here rather than in components-rs/build.rs -- a tracer-only
+    // build (e.g. libdatadog_php.so, shared across every PHP version in SSI/the
+    // portable-lib test harness) never needs to preprocess ext/configuration.h
+    // through a C compiler at all, and now structurally can't be made to.
+    config_codegen::build();
+
     // Make owns PHP toolchain selection and passes its generated include flags
     // into Cargo. Do not rediscover a potentially different PHP installation.
     println!("cargo:rerun-if-env-changed=DDTRACE_PHP_INCLUDES");
