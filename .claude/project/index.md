@@ -100,7 +100,10 @@ Toolchain is pinned — see `Cargo.toml` (`rust-version`) and
 - **C/C++:** follow existing patterns; gate version differences on
   `PHP_VERSION_ID`; keep `components/` free of the Zend API; treat the trace
   sender / sidecar paths as thread-safe.
-- **PHP:** PSR-2. `composer lint`, `composer fix-lint`. Userland in `src/`.
+- **PHP:** PSR-2. `composer lint`, `composer fix-lint` (local, not CI).
+  CI gate: `composer ci-lint`. See
+  [tooling/php-lint/README.md](../../tooling/php-lint/README.md).
+  Userland in `src/`.
 - **Rust:** standard conventions; keep the FFI boundary small.
 
 ## Pointers (don't duplicate these here)

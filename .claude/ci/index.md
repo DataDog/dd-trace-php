@@ -261,7 +261,8 @@ Covers: `test appsec extension`, `appsec lint`, `appsec code coverage`
 
 → **[shared-zai-tea-tests.md](shared-zai-tea-tests.md)**
 Covers: `Build & Test Tea`, `Extension Tea Tests`, `Zend Abstract Interface Tests`,
-`ZAI Shared Tests`, `C components ASAN/UBSAN`, `Configuration Consistency`
+`ZAI Shared Tests`, `C components ASAN/UBSAN`, `Configuration Consistency`,
+`PHP lint`
 
 → **[tracer-unit-tests.md](tracer-unit-tests.md)**
 Covers: `Unit tests`, `PHP Language Tests`, `test_c`, `ASAN test_c`, `Opcache tests`,

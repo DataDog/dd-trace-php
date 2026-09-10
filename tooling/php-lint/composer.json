@@ -1,0 +1,14 @@
+{
+    "private": true,
+    "description": "Isolated PHP_CodeSniffer install for the CI lint job",
+    "require": {
+        "php": ">=7.4",
+        "squizlabs/php_codesniffer": "^3.10"
+    },
+    "config": {
+        "sort-packages": true,
+        "audit": {
+            "block-insecure": false
+        }
+    }
+}
