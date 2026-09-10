@@ -1,0 +1,81 @@
+<?xml version="1.0"?>
+<ruleset name="dd-trace-php CI lint">
+    <description>
+        Placeholder PHPCS ruleset for the blocking CI lint job.
+        Only version-agnostic safety checks that already pass on src/
+        are enabled. Style and formatting rules stay off.
+    </description>
+
+    <!-- First-party userland only. Not tests/Frameworks or generated code. -->
+    <file>../../src</file>
+
+    <arg name="extensions" value="php"/>
+    <arg name="colors"/>
+
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+    <exclude-pattern>src/bridge/_generated_*.php</exclude-pattern>
+
+    <!--
+        Enabled: mechanical safety checks. They inspect file shape or
+        tokens, not the runner's PHP parser, so they do not flip when
+        CI moves between PHP 7.0 and current.
+        Do not add <rule ref="PSR12"/> until src/ has been cleaned up.
+    -->
+    <rule ref="Generic.VersionControl.GitMergeConflict"/>
+    <rule ref="Generic.Files.ByteOrderMark"/>
+    <rule ref="Generic.Files.LineEndings">
+        <properties>
+            <property name="eolChar" value="\n"/>
+        </properties>
+    </rule>
+    <rule ref="Generic.PHP.DisallowShortOpenTag"/>
+    <rule ref="Generic.PHP.DisallowAlternativePHPTags"/>
+    <rule ref="Generic.PHP.CharacterBeforePHPOpeningTag"/>
+    <rule ref="PSR12.Files.OpenTag"/>
+    <rule ref="PSR2.Files.ClosingTag"/>
+    <rule ref="Generic.PHP.BacktickOperator"/>
+    <rule ref="Generic.PHP.DiscourageGoto"/>
+    <rule ref="Generic.Commenting.Fixme"/>
+    <rule ref="Squiz.PHP.Eval"/>
+
+    <!--
+        Close, but not clean on current src/. Uncomment after a
+        scoped cleanup (or land the cleanup in the same change).
+
+        Generic.Files.EndFileNewline
+            6 files missing a final newline:
+            Integrations/MongoDB/DatadogSubscriber{Loader,WithReturnTypes,WithoutReturnTypes}.php
+            OpenTelemetry/Detectors/{Environment,Service}.php
+            ddtrace_php_api.stubs.php
+
+        Squiz.WhiteSpace.SuperfluousWhitespace
+            trailing whitespace in LaminasIntegration.php, PDOIntegration.php
+
+        Generic.WhiteSpace.DisallowTabIndent
+            tabs in Integrations/Symfony/EndpointCatalog.php
+
+        Generic.Commenting.Todo
+            TODO in FrankenphpIntegration.php, OpenTelemetry/Context.php,
+            bridge/_files_tracer.php
+
+        <rule ref="Generic.Files.EndFileNewline"/>
+        <rule ref="Squiz.WhiteSpace.SuperfluousWhitespace"/>
+        <rule ref="Generic.WhiteSpace.DisallowTabIndent"/>
+        <rule ref="Generic.Commenting.Todo"/>
+    -->
+
+    <!--
+        Version or tool-upgrade risk. Leave off until we accept that.
+
+        Generic.PHP.Syntax
+            runs php -l with the job's PHP. A file valid on 7.0 can fail
+            on 8.x (and the reverse) without any source change.
+
+        Generic.PHP.DeprecatedFunctions
+            current src/ has no hits, but the sniff list grows with
+            PHPCS releases and tracks language deprecations.
+
+        <rule ref="Generic.PHP.Syntax"/>
+        <rule ref="Generic.PHP.DeprecatedFunctions"/>
+    -->
+</ruleset>
