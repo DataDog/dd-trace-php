@@ -17,6 +17,6 @@ usleep(10000);
 var_dump((bool)PHP_ZTS);
 ?>
 --EXPECTREGEX--
-.*Started with an upload period of 67 seconds and approximate wall-time period of 10 milliseconds.
+.*Started with an upload period of 67 seconds.
 .*bool\(true\)
 .*
