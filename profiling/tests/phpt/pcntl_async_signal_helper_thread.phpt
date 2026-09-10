@@ -1,16 +1,16 @@
 --TEST--
-[profiling] async PHP signal handlers must not run on profiler helper threads
+[profiling] async PHP signal handlers must not run on extension helper threads
 --DESCRIPTION--
 Regression test for a crash when a PHP script installs an async signal handler
 (pcntl_async_signals(true) + pcntl_signal()) for a signal the Zend Engine does
 not itself register, e.g. SIGCHLD.
 
-The profiler's helper threads (`ddprof_time`, `ddprof_upload`) only masked the
-fixed set of signals the Zend Engine uses, so the kernel could deliver SIGCHLD
-to one of them. pcntl's handler then ran on a thread with no valid PHP/TSRM
-context and dereferenced the thread-local PCNTL_G, segfaulting. The fix is to
-block every (non-fault) signal on the helper threads so async signals are
-delivered to a PHP thread.
+Extension helper threads have no valid PHP/TSRM context. If they only mask the
+fixed set of signals used by Zend, the kernel can deliver SIGCHLD to one of
+them. pcntl's handler then dereferences the thread-local PCNTL_G and segfaults.
+This originally affected profiler threads (`ddprof_time`, `ddprof_upload`) and,
+in combined builds, also affects the tracer writer thread. Every helper thread
+must block all non-fault signals so async signals are delivered to a PHP thread.
 
 Only crashes on ZTS, where PCNTL_G is thread-local. Observed on PHP 8.4 ZTS,
 reproduced by ext/pcntl/tests/waiting_on_sigchild_pcntl_wait.phpt:
@@ -42,18 +42,8 @@ if (getenv('SKIP_ASAN'))
 --ENV--
 DD_PROFILING_ENABLED=yes
 DD_PROFILING_LOG_LEVEL=off
-; This test is specifically about the profiler's own helper threads
-; (ddprof_time/ddprof_upload) not eating async signals meant for a PHP
-; thread -- it is not about the tracer/sidecar/telemetry. Since CI now only
-; builds and tests the combined ddtrace.so, all of that machinery starts up
-; here too purely as a side effect of the extension being combined, adding
-; background threads/a sidecar connection attempt/CPU contention that has
-; nothing to do with what this test verifies and makes its timing-sensitive
-; SIGCHLD-reaping loop flakier on constrained CI runners. Disable every
-; flag that gates datadog_sidecar_should_enable() (see ext/sidecar.c) so no
-; sidecar connection is attempted at all, keeping this test's timing budget
-; focused on the profiler. DD_TRACE_ENABLED is deliberately not part of
-; that gate (see datadog_sidecar_should_enable()), so it is not listed here.
+; Keep unrelated sidecar/telemetry threads out of this test. The combined
+; extension's tracer writer remains active so its signal mask is covered too.
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
 DD_TRACE_SIDECAR_TRACE_SENDER=0
 DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED=0

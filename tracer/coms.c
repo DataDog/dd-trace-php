@@ -1095,12 +1095,6 @@ static void dd_signal_data_processed(struct _writer_loop_data_t *writer) {
     }
 }
 
-#ifdef __CYGWIN__
-#define TIMEOUT_SIG SIGALRM
-#else
-#define TIMEOUT_SIG SIGPROF
-#endif
-
 static void dd_writer_loop_cleanup(void *ctx) {
     dd_signal_writer_finished((struct _writer_loop_data_t *)ctx);
 #ifdef CXA_THREAD_ATEXIT_WRAPPER
@@ -1110,18 +1104,19 @@ static void dd_writer_loop_cleanup(void *ctx) {
 
 static void *dd_writer_loop(void *_) {
     UNUSED(_);
-    /* This thread must not handle signals intended for the PHP threads.
-     * See Zend/zend_signal.c for which signals it registers.
+    /* This helper thread has no valid PHP/TSRM context, so it must not
+     * handle any asynchronous signal that a PHP script can register through
+     * pcntl_signal(). Keep synchronous fault signals unblocked so genuine
+     * faults in the writer are still reported.
      */
     sigset_t sigset;
-    sigemptyset(&sigset);
-    sigaddset(&sigset, TIMEOUT_SIG);
-    sigaddset(&sigset, SIGHUP);
-    sigaddset(&sigset, SIGINT);
-    sigaddset(&sigset, SIGQUIT);
-    sigaddset(&sigset, SIGTERM);
-    sigaddset(&sigset, SIGUSR1);
-    sigaddset(&sigset, SIGUSR2);
+    sigfillset(&sigset);
+    sigdelset(&sigset, SIGSEGV);
+    sigdelset(&sigset, SIGBUS);
+    sigdelset(&sigset, SIGFPE);
+    sigdelset(&sigset, SIGILL);
+    sigdelset(&sigset, SIGABRT);
+    sigdelset(&sigset, SIGTRAP);
     pthread_sigmask(SIG_BLOCK, &sigset, NULL);
 
     struct _writer_loop_data_t *volatile writer = dd_get_writer();
