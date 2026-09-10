@@ -285,6 +285,11 @@ pub extern "C" fn datadog_sidecar_set_reconnect_fn(
     transport.reconnect_fn = Some(Box::new(move || unsafe { factory() }));
 }
 
+#[no_mangle]
+pub extern "C" fn datadog_sidecar_clear_reconnect_fn(transport: &mut Box<SidecarTransport>) {
+    transport.reconnect_fn = None;
+}
+
 lazy_static! {
     pub static ref SHM_LIMITER: Option<ShmLimiterMemory<()>> =
         ShmLimiterMemory::open(&shm_limiter_path()).map_or_else(
