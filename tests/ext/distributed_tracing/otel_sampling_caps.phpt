@@ -38,6 +38,18 @@ $tracestate = headersWithTracestate(implode(',', $largeVendors))['tracestate'];
 echo 'bytes=', strlen($tracestate) <= 512 ? 'within-cap' : 'over-cap',
     ' complete=', substr($tracestate, -1) === 'x' ? 'yes' : 'no', PHP_EOL;
 
+$largeDatadog = 'dd=p:0000000000000001;t.large:' . str_repeat('x', 470);
+$tracestate = headersWithTracestate($largeDatadog)['tracestate'];
+$members = explode(',', $tracestate);
+echo 'owned-bytes=', strlen($tracestate) <= 512 ? 'within-cap' : 'over-cap',
+    ' leading=', implode(',', array_map(
+        function (string $member): string {
+            return strstr($member, '=', true);
+        },
+        array_slice($members, 0, 2)
+    )),
+    ' large=', strpos($tracestate, 't.large:') === false ? 'dropped' : 'kept', PHP_EOL;
+
 $oversizedUnknown = 'future:' . str_repeat('x', 230) . ';next:value';
 $tracestate = headersWithTracestate('ot=' . $oversizedUnknown)['tracestate'];
 preg_match('/(?:^|,)ot=([^,]+)/', $tracestate, $matches);
@@ -49,4 +61,5 @@ echo 'ot-bytes=', strlen($matches[1]),
 --EXPECTF--
 members=32 leading=dd,ot
 bytes=within-cap complete=yes
+owned-bytes=within-cap leading=dd,ot large=dropped
 ot-bytes=33 future=dropped next=kept

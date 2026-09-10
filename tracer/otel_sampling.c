@@ -302,6 +302,30 @@ static bool ddtrace_otel_append_member(smart_str* result, const char* member,
   return true;
 }
 
+static size_t ddtrace_otel_datadog_member_prefix_len(
+    const ddtrace_otel_tracestate_members* members) {
+  size_t datadog_member_len = members->datadog_member_len;
+  if (!members->otel_member) {
+    return datadog_member_len;
+  }
+
+  size_t reserved_otel_len = members->otel_member_len + 1;
+  if (reserved_otel_len >= DDTRACE_TRACESTATE_MAX_LEN) {
+    return 0;
+  }
+
+  size_t max_datadog_len = DDTRACE_TRACESTATE_MAX_LEN - reserved_otel_len;
+  if (datadog_member_len <= max_datadog_len) {
+    return datadog_member_len;
+  }
+
+  while (max_datadog_len > 0 &&
+         members->datadog_member[max_datadog_len] != ';') {
+    --max_datadog_len;
+  }
+  return max_datadog_len;
+}
+
 static void ddtrace_otel_append_value_member(smart_str* result,
                                              const char key[2],
                                              zend_string* value) {
@@ -328,8 +352,12 @@ static zend_string* ddtrace_otel_limit_oversized_tracestate(
   smart_str limited = {0};
   size_t member_count = 0;
   if (members.datadog_member) {
-    ddtrace_otel_append_member(&limited, members.datadog_member,
-                               members.datadog_member_len, &member_count);
+    size_t datadog_member_len =
+        ddtrace_otel_datadog_member_prefix_len(&members);
+    if (datadog_member_len) {
+      ddtrace_otel_append_member(&limited, members.datadog_member,
+                                 datadog_member_len, &member_count);
+    }
   }
   if (members.otel_member) {
     ddtrace_otel_append_member(&limited, members.otel_member,
