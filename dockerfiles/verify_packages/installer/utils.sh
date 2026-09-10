@@ -100,9 +100,9 @@ assert_tracer_installed() {
 assert_profiler_installed() {
     php_bin=${1:-php}
     if "$php_bin" -r '$value = ini_get("datadog.profiling.enabled"); exit($value !== false && filter_var($value, FILTER_VALIDATE_BOOLEAN) ? 0 : 1);'; then
-        echo "Ok: Profiling is available and enabled in ddtrace"
+        echo "Ok: Profiling is available and enabled"
     else
-        echo "Error: Profiling should be available and enabled in ddtrace"
+        echo "Error: Profiling should be available and enabled"
         exit 1
     fi
 }

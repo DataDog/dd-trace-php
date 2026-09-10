@@ -9,9 +9,16 @@ switch-php debug
 # Initially no ddtrace
 assert_no_ddtrace
 
-# Install the profiling-capable debug module using the PHP installer.
+# Install the profiling-capable debug module from the package under test.
 version=$(cat VERSION)
-php ./build/packages/datadog-setup.php --php-bin php --enable-profiling
+uname=$(uname -a)
+arch=$(if [ -z "${uname##*arm*}" ] || [ -z "${uname##*aarch*}" ]; then echo aarch64; else echo x86_64; fi)
+bundle="./build/packages/dd-library-php-${version}-${arch}-linux-gnu.tar.gz"
+if ! [ -f "${bundle}" ]; then
+    echo "SKIPPED: this test runs only in CI as it requires the .tar.gz at a specific path"
+    exit 0
+fi
+php ./build/packages/datadog-setup.php --php-bin php --enable-profiling --file "${bundle}"
 assert_ddtrace_version "${version}"
 
 assert_file_exists "$(get_php_extension_dir)"/ddtrace.so
