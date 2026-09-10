@@ -42,6 +42,22 @@ if (getenv('SKIP_ASAN'))
 --ENV--
 DD_PROFILING_ENABLED=yes
 DD_PROFILING_LOG_LEVEL=off
+; This test is specifically about the profiler's own helper threads
+; (ddprof_time/ddprof_upload) not eating async signals meant for a PHP
+; thread -- it is not about the tracer/sidecar/telemetry. Since CI now only
+; builds and tests the combined ddtrace.so, all of that machinery starts up
+; here too purely as a side effect of the extension being combined, adding
+; background threads/a sidecar connection attempt/CPU contention that has
+; nothing to do with what this test verifies and makes its timing-sensitive
+; SIGCHLD-reaping loop flakier on constrained CI runners. Disable every
+; flag that gates datadog_sidecar_should_enable() (see ext/sidecar.c) so no
+; sidecar connection is attempted at all, keeping this test's timing budget
+; focused on the profiler. DD_TRACE_ENABLED is deliberately not part of
+; that gate (see datadog_sidecar_should_enable()), so it is not listed here.
+DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
+DD_TRACE_SIDECAR_TRACE_SENDER=0
+DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED=0
+DD_METRICS_OTEL_ENABLED=0
 --FILE--
 <?php
 
