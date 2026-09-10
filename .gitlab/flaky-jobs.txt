@@ -1,23 +1,16 @@
 # flaky-jobs.txt — glob patterns for CI jobs EXCLUDED from the merge gate.
 
 aggregate tested versions
-appsec code coverage
 appsec integration tests (ssi):*
 appsec integration tests:*
-ASAN Internal api randomized tests:*
 ASAN test_c with multiple observers:*
 ASAN test_c:*
-check libxml2 version
 create-multiarch-lib-injection-image
 Extension Tea Tests:*
 framework test:*
 generate-lib-init-pinned-tag-values
-helper-rust integration coverage
 installer tests
-linux-php-wordpress-parallel
 Loader test on amd64 libc:*
-Loader test on arm64 alpine
-Loader test on arm64 libc:*
 macrobenchmarks:*
 min install tests
 package-oci:*
@@ -27,20 +20,14 @@ PHP language tests:*
 php-laravel-realworld-parallel-check-slo-breaches
 php-symfony-realworld-parallel-check-slo-breaches
 php-symfony-realworld-parallel-generate-slos
-php-wordpress-parallel-check-slo-breaches
-php-wordpress-parallel-generate-slos
-php-wordpress-parallel-upload-results
 profiling tests:*
 randomized tests:*
 test appsec extension:*
 test_distributed_tracing:*
 test_extension_ci:*
-test_integrations_amqp_latest:*
 test_integrations_frankenphp:*
 test_integrations_guzzle_latest:*
 test_integrations_kafka:*
-test_integrations_memcache:*
-test_integrations_ratchet:*
 test_integrations_sqlsrv:*
 test_integrations_swoole_5:*
 test_metrics:*
