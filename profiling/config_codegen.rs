@@ -32,7 +32,7 @@ RUST_CONFIG_MARKER
 RUST_CONFIGURATIONS
 "#;
 
-pub fn build() {
+pub fn build(php_includes: &str) {
     let out_dir = env::var("OUT_DIR").expect("OUT_DIR not set");
     let probe_path = Path::new(&out_dir).join("config_probe.c");
     fs::write(&probe_path, PROBE_SOURCE).expect("failed to write config_probe.c");
@@ -51,7 +51,16 @@ pub fn build() {
     if env::var_os("CARGO_FEATURE_PROFILING").is_some() {
         cc_build.define("PROFILING", None);
     }
-    configure_php_build(&mut cc_build);
+    // php_includes is the same real, correct set of -I flags Make already
+    // validated for the PHP version this build is targeting (profiling/build.rs
+    // requires DDTRACE_PHP_INCLUDES before calling this function at all), so
+    // just reuse it rather than rediscovering or stubbing out PHP headers.
+    for include in php_includes
+        .split_whitespace()
+        .filter_map(|flag| flag.strip_prefix("-I"))
+    {
+        cc_build.include(include);
+    }
 
     let expanded = String::from_utf8(cc_build.expand())
         .expect("config preprocessor output was not valid UTF-8");
@@ -114,25 +123,4 @@ fn render_accessors(ty: &str, name: &str) -> String {
         "#[cfg(feature = \"profiling\")]\n#[allow(dead_code, non_snake_case)]\npub(crate) unsafe fn get_{name}() -> {return_type} {{\n    crate::profiling::config::{current}(ConfigId::{name})\n}}\n\
          #[cfg(feature = \"profiling\")]\n#[allow(dead_code, non_snake_case)]\npub(crate) unsafe fn get_global_{name}() -> {return_type} {{\n    crate::profiling::config::{memoized}(ConfigId::{name})\n}}\n\n"
     )
-}
-
-// This probe only ever runs the C preprocessor (never a real compile), purely to
-// expand the CONFIG()/CALIAS() X-macro list in ext/configuration.h into a flat,
-// textual `type, name` record per entry. That expansion never depends on the
-// *content* of any PHP header -- only on `#include` directives resolving to *some*
-// file on disk (ext/configuration.h transitively includes real PHP headers for
-// declarations this codegen step never looks at). So rather than require a real
-// PHP installation -- which loadable extensions have via Make's INCLUDES, but
-// which some build contexts genuinely don't have one "correct" instance of (e.g.
-// buildPortableLibdatadogPhp in appsec/tests/integration/build.gradle, which
-// builds one Rust artifact shared across every PHP version in the test matrix) --
-// point the preprocessor at a small set of bundled empty stub headers instead.
-// See config_codegen_php_stubs/README.md for what to do if this ever needs a new
-// stub (it will fail loudly with a `file not found` naming the missing path).
-fn configure_php_build(build: &mut cc::Build) {
-    build.include("profiling/config_codegen_php_stubs");
-    build.include("profiling/config_codegen_php_stubs/main");
-    build.include("profiling/config_codegen_php_stubs/TSRM");
-    build.include("profiling/config_codegen_php_stubs/Zend");
-    build.include("profiling/config_codegen_php_stubs/ext");
 }

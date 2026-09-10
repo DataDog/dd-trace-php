@@ -8,21 +8,24 @@ use std::{env, fs};
 mod config_codegen;
 
 pub fn build() {
-    // ConfigId/CONFIG_COUNT/the generated accessors are consumed only by
-    // profiling/src/config.rs (see profiling/config_id.rs and this crate's
-    // cfg(feature = "profiling") gate in components-rs/lib.rs), so this codegen
-    // lives and runs here rather than in components-rs/build.rs -- a tracer-only
-    // build (e.g. libdatadog_php.so, shared across every PHP version in SSI/the
-    // portable-lib test harness) never needs to preprocess ext/configuration.h
-    // through a C compiler at all, and now structurally can't be made to.
-    config_codegen::build();
-
     // Make owns PHP toolchain selection and passes its generated include flags
     // into Cargo. Do not rediscover a potentially different PHP installation.
     println!("cargo:rerun-if-env-changed=DDTRACE_PHP_INCLUDES");
     let php_includes = env::var("DDTRACE_PHP_INCLUDES")
         .expect("DDTRACE_PHP_INCLUDES is required; build through phpize/configure/Make");
     let php_include_root = php_include_root(&php_includes);
+
+    // ConfigId/CONFIG_COUNT/the generated accessors are consumed only by
+    // profiling/src/config.rs (see profiling/config_id.rs and this crate's
+    // cfg(feature = "profiling") gate in components-rs/lib.rs), so this codegen
+    // lives and runs here rather than in components-rs/build.rs -- a tracer-only
+    // build (e.g. libdatadog_php.so, shared across every PHP version in SSI/the
+    // portable-lib test harness) never needs to preprocess ext/configuration.h
+    // through a C compiler at all. This function only ever runs after the
+    // DDTRACE_PHP_INCLUDES check above has already succeeded, so it always has
+    // real, correct PHP headers for whichever PHP version Make is building
+    // against -- no stub headers needed.
+    config_codegen::build(&php_includes);
 
     // Read the version from the VERSION file
     let version = fs::read_to_string("VERSION")
