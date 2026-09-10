@@ -30,7 +30,8 @@ typedef struct _dd_helper_response {
 enum { DD_CONN_REQUEST_HEADER_SIZE = 8 };
 
 dd_result dd_conn_roundtrip(dd_conn *nonnull conn, char *nonnull request,
-    size_t request_len, dd_helper_response *nonnull response_out);
+    size_t request_len, bool reconnect_sidecar,
+    dd_helper_response *nonnull response_out);
 void dd_helper_response_destroy(dd_helper_response *nonnull response);
 
 // for helper_process

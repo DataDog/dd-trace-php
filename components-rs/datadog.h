@@ -271,6 +271,8 @@ bool datadog_sidecar_reconnect(struct ddog_SidecarTransport **transport,
 void datadog_sidecar_set_reconnect_fn(struct ddog_SidecarTransport **transport,
                                       struct ddog_SidecarTransport *(*factory)(void));
 
+void datadog_sidecar_clear_reconnect_fn(struct ddog_SidecarTransport **transport);
+
 bool ddog_shm_limiter_inc(const struct ddog_MaybeShmLimiter *limiter, uint32_t limit);
 
 bool ddog_exception_hash_limiter_inc(struct ddog_SidecarTransport *connection,
@@ -527,6 +529,20 @@ ddog_MaybeError datadog_crashtracker_init(const struct ddog_Endpoint *endpoint,
 ddog_Configurator *ddog_library_configurator_new_dummy(bool debug_logs, ddog_CharSlice language);
 
 uint64_t dd_fnv1a_64(const uint8_t *data, uintptr_t len);
+
+/**
+ * Sets the endpoint's test session token, but only when it actually differs from the one already
+ * there.
+ *
+ * `ddog_endpoint_set_test_token` assigns unconditionally, which drops the previous `String`. The
+ * endpoints are process-globals in the PHP extension while the writers run per thread (an INI
+ * change handler, and the sidecar connect path), so another thread cloning the same `Endpoint`
+ * reads a freed string -- a use-after-free that only shows up on ZTS with concurrent requests.
+ *
+ * A test run assigns the same token throughout, so comparing first means the swap, and therefore
+ * the race, never happens. Assigning a genuinely different token from a thread remains unsafe.
+ */
+void ddog_endpoint_set_test_token_if_changed(struct ddog_Endpoint *endpoint, ddog_CharSlice token);
 
 const char *ddog_normalize_process_tag_value(ddog_CharSlice tag_value);
 

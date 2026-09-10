@@ -9,6 +9,8 @@ $services = array_combine($m[1], $m[1]);
 
 const ASSERT_NO_MEMLEAKS = ' 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }';
 
+const ZTS_MAKE_TARGETS = ['test_integrations_frankenphp'];
+
 function after_script($execute_dir = ".", $has_test_agent = false) {
 ?>
 
@@ -108,13 +110,17 @@ stages:
       - PHP_MAJOR_MINOR: *asan_minor_major_targets
         ARCH: *arch_targets
 
-"windows test_c":
+<?php
+function windows_test_c_job($job_name, $thread_safety, $targets) {
+    $build_dir = $thread_safety === "zts" ? "Release_TS" : "Release";
+?>
+"<?= $job_name ?>":
   stage: test
   tags: [ "windows-v2:2019"]
   needs: []
   parallel:
     matrix:
-      - PHP_MAJOR_MINOR: <?= json_encode($windows_minor_major_targets) ?>
+      - PHP_MAJOR_MINOR: <?= json_encode($targets) ?>
 
   variables:
     CONTAINER_NAME: $CI_JOB_NAME_SLUG
@@ -141,8 +147,9 @@ stages:
     docker exec ${CONTAINER_NAME} powershell.exe -Command "`$ErrorActionPreference='Stop'; Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\FileSystem' -Name LongPathsEnabled -Value 1 -Type DWord"
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }  # local registry tweak, not network — fail fast (no retry)
 
-    # Build nts
-    docker exec ${CONTAINER_NAME} powershell.exe "cd app; switch-php nts; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake"
+    # Build <?= $thread_safety ?>
+
+    docker exec ${CONTAINER_NAME} powershell.exe "cd app; switch-php <?= $thread_safety ?>; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake"
 
     # Set test environment variables
     docker exec ${CONTAINER_NAME} powershell.exe "setx DD_AUTOLOAD_NO_COMPILE true; setx DATADOG_HAVE_DEV_ENV 1; setx DD_TRACE_GIT_METADATA_ENABLED 0"
@@ -155,7 +162,7 @@ stages:
 <?php endforeach ?>
 
     # Run extension tests
-    docker exec ${CONTAINER_NAME} powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_LEVEL=trace; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\Release\php_ddtrace.dll" "${pwd}\tests\ext"'
+    docker exec ${CONTAINER_NAME} powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_LEVEL=trace; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\<?= $build_dir ?>\php_ddtrace.dll" "${pwd}\tests\ext"'
   after_script:
     - |
         docker exec ${CONTAINER_NAME} cmd.exe /s /c xcopy /y /c /s /e C:\ProgramData\Microsoft\Windows\WER\ReportQueue .\app\dumps\
@@ -173,9 +180,22 @@ stages:
   artifacts:
     paths:
       - sidecar.log
-      - x64/Release/php_ddtrace.dll
-      - x64/Release/php_ddtrace.pdb
+      - x64/<?= $build_dir ?>/php_ddtrace.dll
+      - x64/<?= $build_dir ?>/php_ddtrace.pdb
       - dumps
+<?php
+}
+
+windows_test_c_job("windows test_c", "nts", $windows_minor_major_targets);
+
+echo "\n";
+
+// Oldest and newest supported Windows targets, kept in sync automatically.
+windows_test_c_job("windows test_c: zts", "zts", [
+    reset($windows_minor_major_targets),
+    end($windows_minor_major_targets),
+]);
+?>
 
 
 "Prepare code":
@@ -628,7 +648,7 @@ endforeach;
     - unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy
     - DD_TRACE_AGENT_TIMEOUT=1000 make $MAKE_TARGET RUST_DEBUG_BUILD=1 PHPUNIT_JUNIT="artifacts/tests/results.xml" <?= ASSERT_NO_MEMLEAKS ?>
 <?php after_script(".", true); ?>
-    - find tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' \) -exec cp --parents '{}' artifacts \;
+    - find tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'frankenphp_error.log' -o -name 'dd_php_error.log' \) -exec cp --parents '{}' artifacts \;
     - make tested_versions && cp tests/tested_versions/tested_versions.json artifacts/tested_versions_${MAKE_TARGET}_${PHP_MAJOR_MINOR}_${DD_TRACE_TEST_SAPI:-cli}.json
 
 <?php
@@ -657,6 +677,7 @@ foreach ($matches as $m) {
 
 foreach ($jobs as $type => $type_jobs):
     foreach ($type_jobs as $target => $versions):
+        $php_variant = in_array($target, ZTS_MAKE_TARGETS, true) ? "debug-zts-asan" : "debug";
         foreach ($versions as $major_minor):
             $sapis = $type == "web" && version_compare($major_minor, "7.2", ">=") ? ["cli-server", "cgi-fcgi", "apache2handler"] : [""];
             if ($target == "test_web_custom" && in_array("cli-server", $sapis)) {
@@ -668,7 +689,7 @@ foreach ($jobs as $type => $type_jobs):
   extends: .cli_integration_test
   stage: "<?= $type ?> test"
   needs:
-    - job: "compile extension: debug"
+    - job: "compile extension: <?= $php_variant ?>"
       parallel:
         matrix:
           - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
@@ -694,6 +715,12 @@ foreach ($services as $part => $service) {
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     MAKE_TARGET: "<?= $target ?>"
     ARCH: "amd64"
+    SWITCH_PHP_VERSION: "<?= $php_variant ?>"
+<?php if ($php_variant === "debug-zts-asan"): ?>
+    # These are inherited by the SAPI the harness spawns, which is where we need them. detect_leaks is off on purpose: PHP and Go both leak plenty on a killed server.
+    _DD_SIDECAR_WATCHDOG_MAX_MEMORY: 2147483648
+    ASAN_OPTIONS: abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1:detect_leaks=0
+<?php endif; ?>
 <?php if ($sapi): ?>
     DD_TRACE_TEST_SAPI: "<?= $sapi ?>"
 <?php endif; ?>
