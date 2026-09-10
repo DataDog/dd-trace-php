@@ -2,12 +2,6 @@ use crate::profiling::allocation;
 use core::cell::{Cell, UnsafeCell};
 use core::ffi::c_void;
 use core::mem::MaybeUninit;
-#[cfg(any(
-    not(all(feature = "profiling", feature = "tracer")),
-    target_os = "linux",
-    test
-))]
-use core::ptr;
 use core::sync::atomic::{AtomicBool, AtomicU32};
 
 #[cfg(target_os = "linux")]
@@ -59,6 +53,14 @@ pub static mut GLOBALS: ProfilerGlobals = ProfilerGlobals {
     allocation_profiling_stats: UnsafeCell::new(MaybeUninit::uninit()),
 };
 
+/// Cached pointer to the profiler globals in NTS builds. There is exactly one
+/// PHP thread per process in NTS, so the pointer handed to `ginit()` is stable
+/// for the whole process lifetime. In standalone builds it points to
+/// [`GLOBALS`]; in combined builds it points to the profiler globals allocated
+/// by `PHP_GINIT_FUNCTION(datadog)`.
+#[cfg(all(not(php_zts), not(test)))]
+static mut NTS_PROFILING_GLOBALS: *mut ProfilerGlobals = core::ptr::null_mut();
+
 #[cfg(php_zts)]
 mod zts {
     use core::ffi::c_void;
@@ -100,7 +102,7 @@ pub unsafe fn get_tsrm_resource_from_cache(ls_cache: *mut c_void, id: i32) -> *m
 pub unsafe fn get_profiler_globals_from_cache(ls_cache: *mut c_void) -> *mut ProfilerGlobals {
     // SAFETY: As long as this is called during the times documented by
     // get_profiler_globals(), GLOBALS_ID will be set by PHP.
-    let id = ptr::addr_of!(GLOBALS_ID).read();
+    let id = core::ptr::addr_of!(GLOBALS_ID).read();
     get_tsrm_resource_from_cache(ls_cache, id).cast()
 }
 
@@ -124,12 +126,21 @@ pub unsafe fn get_profiler_globals_from_cache(_ls_cache: *mut c_void) -> *mut Pr
 /// - Must not be called after `GSHUTDOWN`.
 #[inline]
 pub unsafe fn get_profiler_globals() -> *mut ProfilerGlobals {
-    #[cfg(not(test))]
+    // ZTS uses per-thread globals, so resolve them through C's static TSRMLS cache.
+    #[cfg(all(php_zts, not(test)))]
     {
         unsafe extern "C" {
             fn datadog_php_profiling_globals() -> *mut c_void;
         }
         datadog_php_profiling_globals().cast()
+    }
+
+    // In NTS, the pointer passed to `ginit()` is process-lifetime-stable for
+    // both standalone and combined builds. Caching it gives both builds the
+    // same fast path and avoids an FFI call in combined builds.
+    #[cfg(all(not(php_zts), not(test)))]
+    {
+        NTS_PROFILING_GLOBALS
     }
 
     #[cfg(all(test, php_zts))]
@@ -139,7 +150,7 @@ pub unsafe fn get_profiler_globals() -> *mut ProfilerGlobals {
 
     #[cfg(all(not(php_zts), test))]
     {
-        ptr::addr_of_mut!(GLOBALS)
+        core::ptr::addr_of_mut!(GLOBALS)
     }
 }
 
@@ -160,9 +171,16 @@ pub unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
         (*globals).wall_sample_pending = AtomicBool::new(false);
         (*globals).cpu_sample_count = AtomicU32::new(0);
         #[cfg(target_os = "linux")]
-        ptr::addr_of_mut!((*globals).process_context)
+        core::ptr::addr_of_mut!((*globals).process_context)
             .write(RefCell::new(ProcessContextCache::new()));
         (*globals).allocation_profiling_stats = UnsafeCell::new(MaybeUninit::uninit());
+    }
+
+    // GINIT runs exactly once per process in NTS, before any allocation-
+    // profiling hook can observe this pointer.
+    #[cfg(all(not(php_zts), not(test)))]
+    {
+        NTS_PROFILING_GLOBALS = _globals_ptr.cast();
     }
 
     // SAFETY: this is called in thread ginit as expected, and no other places.
@@ -187,11 +205,18 @@ pub unsafe extern "C" fn gshutdown(_globals_ptr: *mut c_void) {
         // The NTS-test GLOBALS static is reused across ginit/gshutdown cycles,
         // so it must not be dropped in place.
         #[cfg(any(php_zts, not(test)))]
-        ptr::drop_in_place(ptr::addr_of_mut!((*globals).process_context));
+        core::ptr::drop_in_place(core::ptr::addr_of_mut!((*globals).process_context));
     }
 
     // SAFETY: this is called in thread gshutdown as expected, no other places.
     allocation::gshutdown();
+
+    // All Rust shutdown work is complete, so the backing globals can no
+    // longer be accessed through the cache.
+    #[cfg(all(not(php_zts), not(test)))]
+    {
+        NTS_PROFILING_GLOBALS = core::ptr::null_mut();
+    }
 }
 
 #[no_mangle]
