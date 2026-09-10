@@ -77,6 +77,13 @@ class SidecarFeaturesDisabledTests {
                 'sed', '-i', 's/^datadog.appsec.enabled.*$/datadog.appsec.enabled=false/', '/etc/php/php.ini')
         assert res.exitCode == 0
 
+        // Stop the AppSec-enabled workers before killing the sidecar. Otherwise
+        // a worker can observe the broken transport and respawn the sidecar
+        // while Apache is restarting, leaving an orphan helper behind even
+        // though the replacement workers have AppSec disabled.
+        res = CONTAINER.execInContainer('service', 'apache2', 'stop')
+        assert res.exitCode == 0
+
         res = CONTAINER.execInContainer(
                 '/bin/bash', '-c', '''
                     pid=`pgrep -f [d]atadog-ipc-helper`;
@@ -84,7 +91,7 @@ class SidecarFeaturesDisabledTests {
                     kill -9 $pid; fi''')
         assert res.exitCode == 0
 
-        res = CONTAINER.execInContainer('service', 'apache2', 'restart')
+        res = CONTAINER.execInContainer('service', 'apache2', 'start')
         assert res.exitCode == 0
 
         HttpRequest req = CONTAINER.buildReq('/hello.php')
