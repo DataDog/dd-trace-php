@@ -389,7 +389,33 @@ static inline const zend_function *dd_zend_get_closure_method_def(zend_object *o
 
 #define ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(pass_by_ref, name, classname, allow_null, default_value) ZEND_ARG_OBJ_INFO(pass_by_ref, name, classname, allow_null)
 #define ZEND_ARG_OBJ_TYPE_MASK(pass_by_ref, name, class_name, type_mask, default_value) ZEND_ARG_INFO(pass_by_ref, name)
-#define zend_declare_typed_property(ce, name, default, visibility, doc_comment, type) zend_declare_property_ex(ce, name, default, visibility, doc_comment); (void)type
+
+#if PHP_VERSION_ID >= 70000 && PHP_VERSION_ID < 70200 && defined(ZTS)
+/* PHP 7.0-7.1 ZTS destroys its process-wide interned strings before destroying
+ * the main thread's copied class table. A generated property declaration may
+ * pass ZSTR_KNOWN() here, leaving the copied property info pointing at an
+ * already-freed string during tsrm_shutdown(). Store a regular persistent
+ * string instead.
+ */
+static inline int datadog_declare_property_ex(zend_class_entry *ce, zend_string *name, zval *property,
+                                               int access_type, zend_string *doc_comment) {
+    if (!ZSTR_IS_INTERNED(name)) {
+        return zend_declare_property_ex(ce, name, property, access_type, doc_comment);
+    }
+
+    zend_string *persistent_name = zend_string_init(ZSTR_VAL(name), ZSTR_LEN(name), true);
+    int result = zend_declare_property_ex(ce, persistent_name, property, access_type, doc_comment);
+    zend_string_release_ex(persistent_name, true);
+    return result;
+}
+#define zend_declare_typed_property(ce, name, default, visibility, doc_comment, type) \
+    datadog_declare_property_ex(ce, name, default, visibility, doc_comment); (void)type
+
+#else
+#define zend_declare_typed_property(ce, name, default, visibility, doc_comment, type) \
+    zend_declare_property_ex(ce, name, default, visibility, doc_comment); (void)type
+#endif
+
 #define ZEND_TYPE_INIT_MASK(type) NULL
 #define ZEND_TYPE_INIT_CLASS(class_name, allow_null, extra_flags) NULL; zend_string_release(class_name)
 
