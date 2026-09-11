@@ -1,48 +1,61 @@
-# profiling/ — Rust profiler extension
+# profiling/ — PHP SDK profiling module
 
 ## What it is
 
-A separate Rust `cdylib` extension for continuous CPU/wall-time profiling,
-heap allocation, exception, and I/O profiling. Uploads pprof directly to the
-agent.
+The Rust profiling product for continuous CPU/wall-time, allocation, heap,
+exception, and I/O profiling. It can be built into the combined `ddtrace.so`
+or, for OTel and future integrations, as the standalone
+`datadog-profiling.so`. Profiles upload directly to the agent.
 
-## Key files & dirs
+## Key files and directories
 
-- `profiling/Cargo.toml` — `cdylib`; depends on `libdd-profiling`/`alloc`/
-  `common` from libdatadog.
-- `profiling/rust-toolchain.toml` — pins Rust (distinct from the workspace
-  toolchain).
-- `profiling/src/lib.rs` — module entry: `minit`/`rinit`/`prshutdown`, Zend
-  interrupt registration.
-- `profiling/src/profiling/` — `mod.rs` (`Profiler` + `SampleValues`),
-  `interrupts.rs`, `backtrace.rs`, `stack_walking.rs`, `uploader.rs`,
-  `thread_utils.rs`.
-- `profiling/src/allocation/` — `allocation_ge84.rs` (PHP 8.4+),
-  `allocation_le83.rs` (≤8.3).
+- Root `Cargo.toml` — owns the `datadog-php` package and its `profiling`
+  feature; profiling is not a separate Cargo package.
+- `profiling/src/lib.rs` — shared profiler lifecycle and the standalone PHP
+  module/Zend-extension wrappers.
+- `profiling/src/lifecycle.h` — C lifecycle API used by combined `ddtrace.so`.
+- `profiling/src/profiling/` — profiler, interrupts, stack walking, uploader,
+  and thread utilities.
+- `profiling/src/allocation/` — version-specific PHP allocation hooks.
+- `profiling/configuration.h` and `profiling/src/configuration.c` — generated
+  configuration declarations and the standalone ZAI host.
 - `profiling/src/config.rs`, `profiling/src/capi.rs`.
-- `profiling/build.rs` — bindgen + `php-config` feature detection.
+- `profiling/build.rs` — bindgen, PHP capability detection, and private C
+  support compiled as part of the root package build.
 - `profiling/src/php_ffi.{c,h}`.
 
 ## How it fits
 
-`minit` registers a hybrid module + zend_extension; `rinit` starts a
-per-request `Profiler` sampling on VM interrupt (~10ms) and hooks
-`zend_execute_internal`. Samples wall/CPU/alloc/heap/exception; uploads
-pprof via a background thread; `prshutdown` flushes.
+Both artifacts call the same profiler lifecycle implementation. Standalone
+mode supplies its own PHP module, Zend extension, globals, and ZAI runtime.
+Combined mode is dispatched by `ext/datadog.c`, uses ddtrace-owned globals and
+aggregate ZAI configuration, and links tracer/common integrations directly.
+The standalone profiler may coexist with the OTel SDK tracer, but loading it
+alongside any `ddtrace.so` artifact is unsupported and rejected.
 
-Builds independently from the tracer; depends on libdatadog for pprof. The
-main tracer looks up `ddog_php_prof_interrupt_function` by symbol to call on
-interrupt (see [tracer.md](tracer.md)). Not sidecar-dependent — it uploads
-directly (contrast with [sidecar.md](sidecar.md)). `build.rs` reads
-`../VERSION`.
+## Building
+
+Loadable PHP artifacts must be built from the repository root through
+phpize/configure/Make; direct Cargo output is not a supported extension:
+
+```sh
+phpize
+./configure --disable-ddtrace-tracer --enable-ddtrace-profiling # standalone
+# or: ./configure --enable-ddtrace-tracer --enable-ddtrace-profiling # combined
+make -j"$(nproc)"
+```
+
+Make/configure select the Cargo features, target directory, PHP headers,
+sanitizer flags, and output module name. Cargo remains appropriate for Rust
+unit tests, clippy, and benchmarks, but not extension validation.
 
 ## Gotchas
 
-- Pinned `rust-toolchain.toml`, not the workspace default.
-- `CARGO_TARGET_DIR` must be set (the Makefile uses `tmp/build_profiler`).
-- `cdylib` is release-only — phpt tests fail on debug builds.
-- Allocation hook differs: PHP 8.4+ vs ≤8.3 use different modules.
+- The toolchain is pinned by the repository's Rust toolchain files.
+- PHPT and integration validation must load `modules/datadog-profiling.so` or
+  `modules/ddtrace.so`, never a Cargo target-directory cdylib.
+- Allocation hooks differ between PHP 8.4+ and earlier PHP versions.
 - `io_profiling` is Linux/macOS only.
-- `trigger_time_sample` is a debug-only build feature.
+- `trigger_time_sample` is a test/benchmark build feature.
 - For build/test detail see
   [../ci/building-locally.md](../ci/building-locally.md).

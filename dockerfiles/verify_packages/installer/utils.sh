@@ -32,12 +32,11 @@ assert_no_ddtrace() {
 }
 
 assert_no_profiler() {
-    output="$(php -v)"
-    if [ -z "${output##*datadog-profiling*}" ]; then
-        echo "---\nError: profiler should not be installed\n---\n${1}\n---\n"
+    if php -r 'exit(filter_var(ini_get("datadog.profiling.enabled"), FILTER_VALIDATE_BOOLEAN) ? 0 : 1);'; then
+        echo "---\nError: profiler should not be enabled\n---\n${1}\n---\n"
         exit 1
     fi
-    echo "Ok: profiler is not installed"
+    echo "Ok: profiler is not enabled"
 }
 
 assert_ddtrace_version() (
@@ -72,12 +71,18 @@ assert_no_appsec() {
 }
 
 assert_profiler_version() {
+    expected_version=${1}
     output="$(php -v)"
-    if [ -z "${output##*datadog-profiling v${1}*}" ]; then
-        echo "---\nOk: datadog-profiling version '${1}' is correctly installed\n---\n${output}\n---\n"
+    if [ -z "${output##*with datadog-profiling*}" ]; then
+        if [ -z "${output##*datadog-profiling v${expected_version}*}" ]; then
+            echo "---\nOk: datadog-profiling version '${expected_version}' is correctly installed\n---\n${output}\n---\n"
+        else
+            echo "---\nError: Wrong datadog-profiling version. Expected: ${expected_version}\n---\n${output}\n---\n"
+            exit 1
+        fi
     else
-        echo "---\nError: Wrong datadog-profiling version. Expected: ${1}\n---\n${output}\n---\n"
-        exit 1
+        assert_ddtrace_version "${expected_version}"
+        assert_profiler_installed
     fi
 }
 
@@ -94,11 +99,10 @@ assert_tracer_installed() {
 
 assert_profiler_installed() {
     php_bin=${1:-php}
-    output="$($php_bin -v)"
-    if [ -z "${output##*with datadog-profiling*}" ]; then
-        echo "---\nOk: Profiler is installed\n---\n${output}\n---\n"
+    if "$php_bin" -r '$value = ini_get("datadog.profiling.enabled"); exit($value !== false && filter_var($value, FILTER_VALIDATE_BOOLEAN) ? 0 : 1);'; then
+        echo "Ok: Profiling is available and enabled"
     else
-        echo "---\nError: Profiler should be installed\n---\n${output}\n---\n"
+        echo "Error: Profiling should be available and enabled"
         exit 1
     fi
 }

@@ -1,7 +1,7 @@
 #include <ext/datadog.h>
 #include <Zend/zend_extensions.h>
 
-#ifdef DDTRACE
+#ifdef TRACER
 // Primary lifecycle
 int ddtrace_startup(void);
 void ddtrace_shutdown(void);
@@ -19,6 +19,9 @@ void ddtrace_rinit_early(void);
 void ddtrace_rinit(void);
 void ddtrace_rshutdown(bool fast_shutdown);
 void ddtrace_post_deactivate(void);
+#ifdef PROFILING
+void ddtrace_set_profiling_notify_enabled(bool enabled);
+#endif
 
 // fork handling
 void ddtrace_internal_handle_fork(void);
@@ -39,7 +42,7 @@ void ddtrace_live_debugger_rshutdown(void);
 #endif
 
 // Miscellaneous stuff with fallback functions
-#ifdef DDTRACE
+#ifdef TRACER
 ddog_DynamicInstrumentationConfigState ddtrace_dynamic_instrumentation_state(void);
 void ddtrace_populate_span_data(ddtrace_span_data *span, zend_string **service, zend_string **env, zend_string **version);
 #else

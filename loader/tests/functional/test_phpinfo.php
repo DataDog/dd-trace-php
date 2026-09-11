@@ -59,6 +59,7 @@ Version => %s
 Injection success => true
 Injection error =>
 Extra config => datadog.trace.sources_path=%s/trace/src
+datadog.profiling.enabled=0
 
 Logs => Found extension file: %s
 %A
@@ -69,12 +70,8 @@ Application instrumentation bootstrapping complete ('ddtrace')
 Version => %s
 Injection success => true
 Injection error =>
-Extra config => datadog.profiling.enabled=0
-
-Logs => Found extension file: %s
-%A
-Application instrumentation bootstrapping complete ('datadog-profiling')
-%A
+Extra config => provided by combined ddtrace
+Logs =>%A
 
   => ddappsec
 Version => %s

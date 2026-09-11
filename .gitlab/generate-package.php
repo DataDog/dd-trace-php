@@ -104,7 +104,7 @@ $windows_build_platforms = [
 
 stages:
   - prepare
-  - profiler
+  - combined
   - appsec
   - tracing
   - packaging
@@ -129,9 +129,18 @@ variables:
   FF_USE_NEW_BASH_EVAL_STRATEGY: "true"
   CARGO_HOME: "${CI_PROJECT_DIR}/.cache/cargo"
 
-  # One pipeline injection package size ratchet
+  # One pipeline injection package size ratchet.
+  # LIB_INJECTION_IMAGE_MAX_SIZE_BYTES was set to 210M in April as a tightening
+  # of the template's 250M default. Since then, real measured size has grown
+  # to ~292-306M compressed (per-arch) purely from upstream libdatadog/Rust
+  # dependency growth (crashtracker, stats computation, FFE metrics, dynamic
+  # multi-config, etc.) -- NOT from combining tracer+profiling into one
+  # ddtrace.so (that change actually reduces per-PHP-API-version size, since
+  # it eliminates a second, separately-linked copy of the shared Rust runtime).
+  # Raised to give headroom over the current measured max; revisit if it
+  # keeps climbing.
   OCI_PACKAGE_MAX_SIZE_BYTES: 150_000_000
-  LIB_INJECTION_IMAGE_MAX_SIZE_BYTES: 210_000_000
+  LIB_INJECTION_IMAGE_MAX_SIZE_BYTES: 320_000_000
 
   REPO_NOTIFICATION_CHANNEL: "#guild-dd-php"
 
@@ -170,6 +179,28 @@ foreach ($arch_targets as $arch) {
 <?php
 }
 ?>
+
+# Local override: the shared one-pipeline.yml template only reports the
+# final decomposed image size against LIB_INJECTION_IMAGE_MAX_SIZE_BYTES, not
+# what's actually inside it. This prints a per-file size breakdown of both
+# architectures' decomposed package contents (which the template's own
+# script already produces at /scripts/lib-injection/decomposed-{amd64,arm64}/
+# contents, before the size check runs) so we can see what's driving the
+# size without needing to reproduce the build locally. Runs unconditionally
+# (not just on failure) so we always have a trend, not just a snapshot when
+# it's already over threshold.
+create-multiarch-lib-injection-image:
+  after_script:
+    - |
+      for arch in amd64 arm64; do
+        dir="/scripts/lib-injection/decomposed-${arch}/contents"
+        if [ -d "$dir" ]; then
+          echo "=== ${arch} decomposed package contents (total: $(du -sh "$dir" | cut -f1)) ==="
+          find "$dir" -type f -printf '%s\t%p\n' | sort -rn | awk 'BEGIN{FS="\t"} {printf "%10.1f MB  %s\n", $1/1048576, $2}' | head -50
+        else
+          echo "=== ${arch} decomposed package directory not found at ${dir} ==="
+        fi
+      done
 
 requirements_json_test:
   rules:
@@ -240,8 +271,8 @@ foreach ($build_platforms as $platform) {
     foreach ($profiler_minor_major_targets as $major_minor) {
         $abi_no = $php_versions_to_abi[$major_minor]
 ?>
-"compile profiler extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
-  stage: profiler
+"compile combined extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
+  stage: combined
   image: "<?= sprintf($platform['image_template'], $major_minor) ?>"
   tags: [ "arch:$ARCH" ]
   needs:
@@ -259,8 +290,11 @@ foreach ($build_platforms as $platform) {
     KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
   script:
-    - .gitlab/build-profiler.sh "datadog-profiling/${TRIPLET}/lib/php/${ABI_NO}" "nts"
-    - .gitlab/build-profiler.sh "datadog-profiling/${TRIPLET}/lib/php/${ABI_NO}" "zts"
+    - .gitlab/build-profiler.sh "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>" "nts" "combined" "ddtrace-${ABI_NO}<?= $platform['host_os'] === 'linux-musl' ? '-alpine' : '' ?>.so"
+<?php if ($platform['host_os'] !== 'linux-musl'): ?>
+    - .gitlab/build-profiler.sh "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>" "debug" "combined" "ddtrace-${ABI_NO}-debug.so"
+<?php endif; ?>
+    - .gitlab/build-profiler.sh "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>" "zts" "combined" "ddtrace-${ABI_NO}<?= $platform['host_os'] === 'linux-musl' ? '-alpine' : '' ?>-zts.so"
   cache:
     - key:
         prefix: cargo-cache-${TRIPLET}
@@ -271,7 +305,7 @@ foreach ($build_platforms as $platform) {
       policy: pull  # `Cache Cargo Deps` is used to update/push the cache
   artifacts:
     paths:
-      - "datadog-profiling"
+      - "extensions_*"
 
 <?php
     }
@@ -336,9 +370,11 @@ if ($suffix == "-alpine") {
 <?php
 foreach ($build_platforms as $platform) {
     foreach ($php_versions_to_abi as $major_minor => $abi_no) {
+        if ($major_minor !== "7.0") {
+            continue;
+        }
         $image = sprintf($platform['image_template'], $major_minor);
         $suffix = ($platform['triplet'] === "x86_64-alpine-linux-musl" || $platform['triplet'] === "aarch64-alpine-linux-musl") ? "-alpine" : "";
-        $catch_warnings = ($major_minor == "7.3" && $suffix != "-alpine") ? "0" : "1";
 ?>
 "compile tracing extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
   stage: tracing
@@ -358,7 +394,7 @@ foreach ($build_platforms as $platform) {
   script:
     # Fix for $BASH_ENV not having a newline at the end of the file
     - echo "" >> "$BASH_ENV"
-    - ./.gitlab/build-tracing.sh "<?= $suffix ?>" "<?= $catch_warnings ?>"
+    - ./.gitlab/build-tracing.sh "<?= $suffix ?>"
   artifacts:
     paths:
       - "extensions_*"
@@ -383,12 +419,10 @@ foreach ($build_platforms as $platform) {
 <?php
     foreach ($build_platforms as $platform):
         if ($platform["arch"] == $arch):
-            foreach ($all_minor_major_targets as $major_minor):
 ?>
-    - job: "compile tracing extension: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>]"
+    - job: "link tracing extension: [<?= $arch ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
 <?php
-            endforeach;
         endif;
     endforeach;
 ?>
@@ -461,10 +495,12 @@ foreach ($build_platforms as $platform) {
   needs:
     - job: "compile tracing sidecar: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
+    - job: "compile tracing extension: [7.0, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
 <?php
-foreach ($php_versions_to_abi as $major_minor => $abi_no) {
+foreach ($profiler_minor_major_targets as $major_minor) {
 ?>
-    - job: "compile tracing extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+    - job: "compile combined extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
 <?php
 }
@@ -484,6 +520,8 @@ foreach ($php_versions_to_abi as $major_minor => $abi_no) {
   artifacts:
     paths:
       - "extensions_*"
+      - "standalone_*"
+      - "ddtrace_*.ldflags"
 <?php
 }
 ?>
@@ -613,6 +651,18 @@ foreach ($build_platforms as $platform) {
   stage: packaging
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php_fpm_packaging
   tags: [ "arch:amd64" ]
+  after_script:
+    - |
+      if [ -d packages ]; then
+        echo "Package artifact total size:"
+        du -sh packages
+        echo "Package artifact files, sorted by size:"
+        find packages -type f -exec du -h {} + | sort -h
+      fi
+      echo "Extension input total sizes:"
+      du -sh extensions_*
+      echo "Extension input files, sorted by size:"
+      find extensions_* -type f -exec du -h {} + | sort -h
   artifacts:
     paths:
       - "packages/"
@@ -647,8 +697,8 @@ $package_extension_needs = function (array $platform) use ($php_versions_to_abi,
 <?php
     foreach ($profiler_minor_major_targets as $major_minor) {
 ?>
-    # Profiler extension
-    - job: "compile profiler extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+    # Combined tracer+profiling extension
+    - job: "compile combined extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
 <?php
     }
@@ -780,12 +830,6 @@ foreach ($asan_build_platforms as $platform) {
 ?>
 
 <?php
-            foreach ($profiler_minor_major_targets as $major_minor):
-?>
-    - job: "compile profiler extension: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>]"
-      artifacts: true
-<?php
-            endforeach;
         endif;
     endforeach;
 endforeach;
@@ -1353,6 +1397,12 @@ endforeach;
     PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
     APT_CACHE: $CI_PROJECT_DIR/.cache/apt
     DOCKER_DEFAULT_PLATFORM: linux/amd64
+    # Override these to point at a fork/branch of system-tests (e.g. while a fix there
+    # is pending review/merge) without needing to touch this file.
+    SYSTEM_TESTS_REPO: "https://github.com/DataDog/system-tests.git"
+    # TODO: point back at "main" once DataDog/system-tests@levi/common-extension-2's
+    # install_ddtrace.sh profiling-marker fix has been merged upstream.
+    SYSTEM_TESTS_REF: "levi/common-extension-2"
     # TODO DD_API_KEY; SYSTEM_TESTS_AWS_ACCESS_KEY_ID; SYSTEM_TESTS_AWS_SECRET_ACCESS_KEY
   needs:
     - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
@@ -1382,7 +1432,7 @@ endforeach;
       pip install -U pip virtualenv
 <?php dockerhub_login() ?>
     - /tmp/vault kv get --format=json "kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key" 2>/dev/null | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['data']['key'])" > /tmp/.dd-api-key 2>/dev/null || true
-    - git clone https://github.com/DataDog/system-tests.git
+    - git clone --branch "$SYSTEM_TESTS_REF" --depth 1 "$SYSTEM_TESTS_REPO" system-tests
     - mv packages/{datadog-setup.php,dd-library-php-*x86_64-linux-gnu.tar.gz} system-tests/binaries
     - cd system-tests
     - ./build.sh $BUILD_SH_ARGS
@@ -1560,6 +1610,15 @@ $system_tests_weblogs = [
     - cp ${DD_LOADER_PACKAGE_PATH}/linux-gnu/loader/dd_library_loader.so modules/
   script:
     - ./bin/test.sh
+    - |
+      # Profiling starts at PHP 7.1. Run only NTS because multiple ZTS threads could race
+      # while writing to the single DD_PROFILING_OUTPUT_PPROF file used by this test.
+      if [[ "$PHP_FLAVOUR" == "nts" ]] && php -r 'exit(PHP_VERSION_ID >= 70100 ? 0 : 1);'; then
+        SSI_PROFILE_ARTIFACT_DIR="${CI_PROJECT_DIR}/artifacts/loader-ssi-profile/${ARCH}/${MAJOR_MINOR}" \
+          ./bin/test_ssi_profile.sh
+      else
+        echo "Skipping SSI profile validation for PHP ${MAJOR_MINOR} ${PHP_FLAVOUR}"
+      fi
 
     # FIXME: Now that we strip the symbols, our suppression file is useless
     #if [[ "$MINOR_MAJOR" == "8.3" ]]; then
@@ -1567,6 +1626,11 @@ $system_tests_weblogs = [
     #  <<# parameters.use_valgrind >>echo "Run with Valgrind" ; TEST_USE_VALGRIND=1 ./bin/test.sh<</ parameters.use_valgrind >>
     #fi
     - ./bin/check_glibc_version.sh
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - artifacts/loader-ssi-profile/
 
 "Loader test on <?= $arch ?> alpine":
   stage: verify

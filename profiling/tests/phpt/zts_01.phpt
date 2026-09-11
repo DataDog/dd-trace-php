@@ -2,7 +2,7 @@
 [profiling] test that the profiler works in a ZTS build, loads and exists and does not segfault
 --SKIPIF--
 <?php
-if (!extension_loaded('datadog-profiling'))
+if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
     echo "skip: test requires Datadog Continuous Profiler\n";
 if (!PHP_ZTS) {
     echo "skip: test requires PHP ZTS\n";

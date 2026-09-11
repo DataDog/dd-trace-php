@@ -36,6 +36,7 @@ Version => %s
 Injection success => true
 Injection error =>
 Extra config => datadog.trace.sources_path=%s/trace/src
+datadog.profiling.enabled=0
 
 %A
 EOT
@@ -66,6 +67,7 @@ Version => %s
 Injection success => true
 Injection error =>
 Extra config => datadog.trace.sources_path=%s/trace/src
+datadog.profiling.enabled=0
 
 %A
 EOT
@@ -103,6 +105,7 @@ Injection success => false
 Injection error => Incompatible runtime
 Extra config => datadog.trace.sources_path=%s/trace/src
 ddtrace.disable=1
+datadog.profiling.enabled=0
 
 %A
 OPcache JIT is enabled and may cause instability. ddtrace will be disabled unless the environment DD_INJECT_FORCE is set to '1', 'true', 'yes' or 'on'
@@ -141,7 +144,7 @@ EOS
     // JIT enabled + force injection via ENV
     [
         "config" => "-dzend_extension=opcache -dopcache.enable_cli=1 -ddatadog.trace.cli_enabled=1 -dopcache.jit_buffer_size=32M -dopcache.jit=tracing",
-        "env" => ['DD_INJECT_FORCE=1'],
+        "env" => ['DD_INJECT_FORCE=1', 'DD_PROFILING_ENABLED=1'],
         "must_not_contain" => [],
         "must_contain" => [
             $msg_forced,
@@ -169,6 +172,7 @@ Version => %s
 Injection success => true
 Injection error =>
 Extra config => datadog.trace.sources_path=%s/trace/src
+datadog.profiling.enabled=0
 
 %A
 OPcache JIT is enabled and may cause instability. Ignoring as DD_INJECT_FORCE is enabled
@@ -179,6 +183,7 @@ EOT
     // JIT enabled + force injection via INI
     [
         "config" => "-dzend_extension=opcache -dopcache.enable_cli=1 -ddatadog.trace.cli_enabled=1 -ddatadog.loader.force_inject=1 -dopcache.jit_buffer_size=32M -dopcache.jit=tracing",
+        "env" => ['DD_PROFILING_ENABLED=1'],
         "must_not_contain" => [],
         "must_contain" => [
             $msg_forced,
@@ -206,6 +211,7 @@ Version => %s
 Injection success => true
 Injection error =>
 Extra config => datadog.trace.sources_path=%s/trace/src
+datadog.profiling.enabled=0
 
 %A
 OPcache JIT is enabled and may cause instability. Ignoring as DD_INJECT_FORCE is enabled

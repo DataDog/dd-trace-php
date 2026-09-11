@@ -30,7 +30,6 @@ foreach ($profiler_minor_major_targets as $version) {
     KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
     KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
     CARGO_TARGET_DIR: /mnt/ramdisk/cargo # ramdisk??
-    libdir: /tmp/datadog-profiling
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *all_profiler_targets
@@ -56,18 +55,36 @@ foreach ($profiler_minor_major_targets as $version) {
     - unset DD_SERVICE; unset DD_ENV
     - mkdir -p "${CI_PROJECT_DIR}/artifacts/profiler-tests"
 
-    - '# NTS'
+    # CI only builds and tests the combined ddtrace.so (tracer + profiling),
+    # since that's the only artifact we package and ship. The standalone
+    # datadog-profiling.so build path is intentionally not exercised here;
+    # the phpt suite itself remains compatible with a standalone build (see
+    # the `extension_loaded('datadog-profiling') || ini_get(...)` skip
+    # patterns throughout profiling/tests/phpt) so it still works if someone
+    # builds standalone locally, but CI has no need to spend time on it.
+    - '# NTS combined (tracer + profiling in one ddtrace.so, as shipped)'
     - '# Use if/then instead of `command -v switch-php && switch-php` — the && form exits 1 when switch-php is absent, which FF_ENABLE_BASH_EXIT_CODE_CHECK treats as a job failure'
     - if command -v switch-php > /dev/null 2>&1; then switch-php "${PHP_MAJOR_MINOR}"; fi
-    - (cd ..; phpize && DDTRACE_PROFILING_FEATURES="debug_stats,stack_walking_tests,test,tracing,tracing-subscriber,trigger_time_sample" ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling && make -j$(nproc))
-    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/nts-results.xml" php profiling/tests/run-tests.php -d "extension=${CI_PROJECT_DIR}/modules/datadog-profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
+    - (cd ..; phpize && DDTRACE_PROFILING_FEATURES="debug_stats,stack_walking_tests,test,tracing,tracing-subscriber,trigger_time_sample" ./configure --enable-ddtrace-tracer --enable-ddtrace-profiling && make -j$(nproc))
+    - test -f "${CI_PROJECT_DIR}/modules/ddtrace.so" || { echo "ERROR combined build did not produce modules/ddtrace.so"; find "${CI_PROJECT_DIR}/modules" -maxdepth 1 -type f -print; exit 1; }
+    - php -d "extension=${CI_PROJECT_DIR}/modules/ddtrace.so" -r 'if (!extension_loaded("ddtrace") || ini_get("datadog.profiling.enabled") === false) { exit(1); }'
+    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/nts-combined-results.xml" php profiling/tests/run-tests.php -d "extension=${CI_PROJECT_DIR}/modules/ddtrace.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
 
-
-    - '# ZTS'
+    # Re-running configure/make below switches from NTS to ZTS PHP headers
+    # while reusing the same checkout and CARGO_TARGET_DIR. `make`'s
+    # Rust-library rule now lists the generated top-level Makefile as a
+    # prerequisite (see config.m4), and that Makefile's `INCLUDES = ...`
+    # line changes between NTS and ZTS configure runs, so `make` correctly
+    # detects the change and rebuilds libdatadog_php.a instead of reusing the
+    # NTS-flavoured archive. Without that fix, this phase would silently
+    # relink a stale, ABI-incompatible archive into ddtrace.so, producing a
+    # combined ZTS build that segfaults immediately on load.
+    - '# ZTS combined (tracer + profiling in one ddtrace.so, as shipped)'
     - if command -v switch-php > /dev/null 2>&1; then switch-php "${PHP_MAJOR_MINOR}-zts"; fi
-    - touch ../profiling/build.rs # force regeneration after switch-php changes the php-config symlink target
-    - (cd ..; make distclean || true; phpize && DDTRACE_PROFILING_FEATURES="debug_stats,stack_walking_tests,test,tracing,tracing-subscriber,trigger_time_sample" ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling && make -j$(nproc))
-    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/zts-results.xml" php profiling/tests/run-tests.php -d "extension=${CI_PROJECT_DIR}/modules/datadog-profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
+    - (cd ..; make distclean || true; phpize && DDTRACE_PROFILING_FEATURES="debug_stats,stack_walking_tests,test,tracing,tracing-subscriber,trigger_time_sample" ./configure --enable-ddtrace-tracer --enable-ddtrace-profiling && make -j$(nproc))
+    - test -f "${CI_PROJECT_DIR}/modules/ddtrace.so" || { echo "ERROR combined ZTS build did not produce modules/ddtrace.so"; find "${CI_PROJECT_DIR}/modules" -maxdepth 1 -type f -print; exit 1; }
+    - php -d "extension=${CI_PROJECT_DIR}/modules/ddtrace.so" -r 'if (!extension_loaded("ddtrace") || ini_get("datadog.profiling.enabled") === false) { exit(1); }'
+    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/zts-combined-results.xml" php profiling/tests/run-tests.php -d "extension=${CI_PROJECT_DIR}/modules/ddtrace.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
   after_script:
     - |
       if [ "${IMAGE_SUFFIX}" != "_centos-7" ]; then
@@ -96,13 +113,12 @@ foreach ($profiler_minor_major_targets as $version) {
     KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
     KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
     # CARGO_TARGET_DIR: /mnt/ramdisk/cargo # ramdisk??
-    libdir: /tmp/datadog-profiling
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *all_profiler_targets
   script:
     - switch-php nts # not compatible with debug
-    - cargo clippy --all-targets --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample -- -D warnings -Aunknown-lints
+    - DDTRACE_PHP_INCLUDES="$(php-config --includes)" cargo clippy --all-targets --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample -- -D warnings -Aunknown-lints
 
 "Cargo test":
   stage: test
@@ -118,13 +134,11 @@ foreach ($profiler_minor_major_targets as $version) {
     KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
     KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
     # CARGO_TARGET_DIR: /mnt/ramdisk/cargo # ramdisk??
-    libdir: /tmp/datadog-profiling
   script:
     - switch-php nts
-    - cargo test --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample
-    - touch profiling/build.rs # make sure the build helper runs after switch-php
+    - DDTRACE_PHP_INCLUDES="$(php-config --includes)" cargo test --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample
     - switch-php zts
-    - cargo test --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample
+    - DDTRACE_PHP_INCLUDES="$(php-config --includes)" cargo test --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample
 
 "PHP language tests":
   stage: test
@@ -140,7 +154,6 @@ foreach ($profiler_minor_major_targets as $version) {
     KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
     KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
     CARGO_TARGET_DIR: /tmp/cargo
-    libdir: /tmp/datadog-profiling
     SKIP_ONLINE_TESTS: "1"
     REPORT_EXIT_STATUS: "1"
     TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"

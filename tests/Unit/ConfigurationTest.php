@@ -256,6 +256,12 @@ EOD;
         $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], \dd_trace_env_config("DD_TAGS"));
     }
 
+    public function testGlobalTagsDuplicateKeysUseLastValue()
+    {
+        $this->putEnvAndReloadConfig(['DD_TAGS=location:utah,location:usa']);
+        $this->assertSame(['location' => 'usa'], \dd_trace_env_config("DD_TAGS"));
+    }
+
     public function testGlobalTagsWhitespaceSeparated()
     {
         $this->putEnvAndReloadConfig(['DD_TAGS=key1:value1 key2:value2']);

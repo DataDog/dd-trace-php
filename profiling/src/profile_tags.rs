@@ -3,7 +3,6 @@
 
 use libdd_common::tag::{parse_tags, Tag, TagParser, TagValidationError};
 use std::collections::TryReserveError;
-use std::fmt::Write;
 use std::hash::{Hash, Hasher};
 use std::ops::Range;
 use std::sync::Arc;
@@ -76,42 +75,58 @@ impl ProfileTagSegment {
         Ok(())
     }
 
-    pub(crate) fn try_push_tags(&mut self, input: &str) -> Result<Option<String>, ProfileTagError> {
-        let (tag_count, storage_len) = TagParser::new(input).try_fold(
-            (0usize, 0usize),
-            |(count, len), result| match result {
-                Ok(tag) => Ok::<_, ProfileTagError>((
-                    count
-                        .checked_add(1)
-                        .ok_or(ProfileTagError::CapacityOverflow)?,
-                    len.checked_add(tag.len())
-                        .and_then(|len| len.checked_add(1))
-                        .ok_or(ProfileTagError::CapacityOverflow)?,
-                )),
-                Err(_) => Ok((count, len)),
-            },
-        )?;
-        self.try_reserve(tag_count, storage_len)?;
-
+    pub(crate) fn try_push_kv_tags(
+        &mut self,
+        tags: &[(String, String)],
+    ) -> Result<Option<String>, ProfileTagError> {
+        let mut valid_count = 0usize;
+        let mut storage_len = 0usize;
         let mut errors = String::new();
-        for result in TagParser::new(input) {
-            match result {
-                Ok(tag) => self.push_serialized_validated(tag),
-                Err(error) => {
-                    let additional = error
-                        .value
-                        .len()
-                        .checked_add(64)
-                        .ok_or(ProfileTagError::CapacityOverflow)?;
-                    errors.try_reserve(additional)?;
-                    if errors.is_empty() {
-                        errors.push_str("Errors while parsing tags: ");
-                    } else {
-                        errors.push_str(", ");
-                    }
-                    // Writing to String only fails if its formatter does, which it does not.
-                    let _ = write!(errors, "{error}");
+
+        for (key, value) in tags {
+            let error = if value.is_empty() {
+                TagParser::new(key)
+                    .next()
+                    .expect("configuration maps cannot contain empty keys")
+                    .err()
+                    .map(|error| error.to_string())
+            } else {
+                Tag::validate(key, value)
+                    .err()
+                    .map(|error| error.to_string())
+            };
+            if let Some(error) = error {
+                errors.try_reserve(error.len().saturating_add(2))?;
+                if errors.is_empty() {
+                    errors.push_str("Errors while parsing tags: ");
+                } else {
+                    errors.push_str(", ");
                 }
+                errors.push_str(&error);
+                continue;
+            }
+
+            valid_count = valid_count
+                .checked_add(1)
+                .ok_or(ProfileTagError::CapacityOverflow)?;
+            storage_len = storage_len
+                .checked_add(key.len())
+                .and_then(|len| len.checked_add(value.len()))
+                .and_then(|len| len.checked_add(if value.is_empty() { 1 } else { 2 }))
+                .ok_or(ProfileTagError::CapacityOverflow)?;
+        }
+
+        self.try_reserve(valid_count, storage_len)?;
+        for (key, value) in tags {
+            let valid = if value.is_empty() {
+                TagParser::new(key)
+                    .next()
+                    .is_some_and(|result| result.is_ok())
+            } else {
+                Tag::validate(key, value).is_ok()
+            };
+            if valid {
+                self.push_validated(key, value);
             }
         }
 
@@ -121,16 +136,10 @@ impl ProfileTagSegment {
     fn push_validated(&mut self, key: &str, value: &str) {
         let start = self.storage.len();
         self.storage.push_str(key);
-        self.storage.push(':');
-        self.storage.push_str(value);
-        let end = self.storage.len();
-        self.storage.push(',');
-        self.tags.push(start..end);
-    }
-
-    fn push_serialized_validated(&mut self, tag: &str) {
-        let start = self.storage.len();
-        self.storage.push_str(tag);
+        if !value.is_empty() {
+            self.storage.push(':');
+            self.storage.push_str(value);
+        }
         let end = self.storage.len();
         self.storage.push(',');
         self.tags.push(start..end);
@@ -307,6 +316,21 @@ mod tests {
     use super::*;
 
     #[test]
+    fn map_tags_are_materialized_as_key_value_tags() {
+        let tags = vec![
+            ("location".to_owned(), "usa".to_owned()),
+            ("region".to_owned(), "west".to_owned()),
+            ("standalone".to_owned(), String::new()),
+        ];
+        let mut segment = ProfileTagSegment::default();
+        assert_eq!(segment.try_push_kv_tags(&tags).unwrap(), None);
+        assert_eq!(
+            segment.iter().collect::<Vec<_>>(),
+            ["location:usa", "region:west", "standalone"]
+        );
+    }
+
+    #[test]
     fn serialized_storage_defines_segment_identity() {
         use std::collections::hash_map::DefaultHasher;
 
@@ -338,18 +362,20 @@ mod tests {
 
     #[test]
     fn segment_uses_one_comma_separated_string() {
-        let mut segment =
-            ProfileTagSegment::try_from_kv_slice(&[("service", "checkout"), ("env", "production")])
-                .unwrap();
-        segment.try_push_tags("standalone").unwrap();
+        let segment = ProfileTagSegment::try_from_kv_slice(&[
+            ("service", "checkout"),
+            ("env", "production"),
+            ("standalone", "enabled"),
+        ])
+        .unwrap();
 
         assert_eq!(
             segment.storage,
-            "service:checkout,env:production,standalone,"
+            "service:checkout,env:production,standalone:enabled,"
         );
         assert_eq!(
             segment.iter().collect::<Vec<_>>(),
-            ["service:checkout", "env:production", "standalone"]
+            ["service:checkout", "env:production", "standalone:enabled"]
         );
     }
 }

@@ -8,7 +8,7 @@ Both of these are uninitialized for non-PHP threads since they never went throug
 See https://github.com/DataDog/dd-trace-php/pull/3542 for the fix
 --SKIPIF--
 <?php
-if (!extension_loaded('datadog-profiling'))
+if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
   die("skip: test requires datadog-profiling");
 if (PHP_ZTS)
   die("skip: test only applies to NTS builds");

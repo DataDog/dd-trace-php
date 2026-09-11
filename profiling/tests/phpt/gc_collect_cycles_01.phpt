@@ -5,7 +5,7 @@ This will check if for every garbage collection event a debug print will happen,
 indicating that gc events in the engine are sampled for the timeline feature.
 --SKIPIF--
 <?php
-if (!extension_loaded('datadog-profiling'))
+if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
     echo "skip: test requires Datadog Continuous Profiler\n";
 ob_start();
 phpinfo(INFO_MODULES);

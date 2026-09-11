@@ -408,6 +408,22 @@ prod:
 strict:
 	$(eval CFLAGS=-Wall -Werror -Wextra)
 
+# Combined tracer+profiling in a single ddtrace.so, as shipped to users. This is
+# the target most people should use locally when they need profiling -- the
+# standalone profiler below (compile_profiler/install_profiler) is only for
+# testing the legacy standalone artifact itself, not a general substitute.
+compile_combined:
+	DDTRACE_PROFILING_FEATURES=trigger_time_sample $(MAKE) BUILD_SUFFIX=combined EXTRA_CONFIGURE_OPTIONS="--enable-ddtrace-tracer --enable-ddtrace-profiling" all
+
+install_combined: compile_combined
+	$(SUDO) cp $(PROJECT_ROOT)/tmp/build_combined/modules/ddtrace.so $(PHP_EXTENSION_DIR)/ddtrace.so
+
+install_all_combined: install_combined install_ini
+
+# Standalone profiler only (no tracer). Not what CI ships or what most local
+# testing needs -- prefer compile_combined/install_combined unless you're
+# specifically testing the standalone artifact (e.g. standalone/combined
+# conflict tests).
 compile_profiler:
 	DDTRACE_PROFILING_FEATURES=trigger_time_sample $(MAKE) BUILD_SUFFIX=profiler PROFILING=1 EXTRA_CONFIGURE_OPTIONS="--disable-ddtrace-tracer --enable-ddtrace-profiling" all
 
@@ -490,6 +506,9 @@ define FPM_FILES
 	extensions_$(shell test $(1) = arm64 && echo aarch64 || echo $(1))/=$(EXT_DIR)/extensions \
 		$(shell test $(1) = windows || echo package/post-install.sh=$(EXT_DIR)/bin/post-install.sh) package/ddtrace.ini.example=$(EXT_DIR)/etc/ \
 		docs=$(EXT_DIR)/docs README.md=$(EXT_DIR)/docs/README.md \
+		profiling/LICENSE=$(EXT_DIR)/docs/profiling/LICENSE \
+		profiling/LICENSE-3rdparty.csv=$(EXT_DIR)/docs/profiling/LICENSE-3rdparty.csv \
+		profiling/NOTICE=$(EXT_DIR)/docs/profiling/NOTICE \
 		src=$(EXT_DIR)/dd-trace-sources
 endef
 define FPM_OPTS

@@ -86,7 +86,7 @@ Used before running tracer unit tests, .phpt tests, etc.:
 
 ```bash
 .claude/ci/dockerh --cache tracer-8.3-debug --overlayfs --php debug \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-10 -- bash -c '
 set -e
 git submodule update --init libdatadog
 make -j$(nproc) all
@@ -132,7 +132,7 @@ Reproduces the `compile extension: debug` CI job exactly:
 
 ```bash
 .claude/ci/dockerh --cache tracer-8.3-debug --overlayfs --root \
-    datadog/dd-trace-ci:php-8.3_bookworm-6 \
+    datadog/dd-trace-ci:php-8.3_bookworm-10 \
     -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
     -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
     -e SHARED=1 \
@@ -150,7 +150,7 @@ enables `-fsanitize=address` in the Rust sidecar.
 ```bash
 .claude/ci/dockerh --cache tracer-8.3-asan --overlayfs \
   --php debug-zts-asan \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-10 -- bash -c '
 set -e
 export COMPILE_ASAN=1
 make -j$(nproc) all
@@ -210,17 +210,50 @@ helper artifact.
 
 ## Profiler Extension
 
-### For correctness tests (bookworm)
+**Do not run `phpize`/`configure` directly in the repo root** -- it overwrites
+the tracked top-level `Makefile` (and `Makefile.fragments`/`Makefile.objects`)
+with a generated one, corrupting the checkout for every other target. Always
+go through the root `Makefile`'s own targets below, which copy sources into an
+isolated `tmp/build_{combined,profiler}/` directory (via the `all` target's
+`$(BUILD_DIR)/configure` prerequisite) before running `phpize`/`configure`/`make`
+there -- the checked-out root `Makefile`/`configure` are never touched.
 
-`CARGO_TARGET_DIR` **must** be set explicitly (see
-[github-actions-profiler.md](github-actions-profiler.md) for why):
+### Combined tracer+profiler (preferred -- matches what CI ships)
+
+Most local profiler work should build the **combined** `ddtrace.so` (tracer +
+profiling in one extension), since that's the only artifact CI packages and
+tests as of the combined-extension milestone. Use `make compile_combined`
+(or `make install_combined` to also copy it into the PHP extension dir and
+register it via `ddtrace.ini`):
 
 ```bash
 dockerh --cache profiler-8.3-nts --php nts \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
-export CARGO_TARGET_DIR=/project/dd-trace-php/target
-cd profiling && cargo rustc --features=trigger_time_sample \
-  --profile profiler-release --crate-type=cdylib
+  datadog/dd-trace-ci:php-8.3_bookworm-10 -- bash -c '
+cd /project/dd-trace-php
+make compile_combined -j"$(nproc)"
+php -n -d extension=tmp/build_combined/modules/ddtrace.so --ri ddtrace
+'
+```
+
+`compile_combined` sets `EXTRA_CONFIGURE_OPTIONS="--enable-ddtrace-tracer
+--enable-ddtrace-profiling"` and `DDTRACE_PROFILING_FEATURES=trigger_time_sample`,
+and builds in `tmp/build_combined/` (`BUILD_SUFFIX=combined`) so it doesn't
+collide with a plain tracer-only `tmp/build_extension/` build in the same
+checkout.
+
+### Standalone profiler (only for testing the standalone artifact itself)
+
+The standalone `datadog-profiling.so` (no tracer) is not built or shipped by
+CI anymore -- only use this when specifically testing standalone/combined
+conflict behavior or other standalone-specific code paths, not as a general
+substitute for the combined build above:
+
+```bash
+dockerh --cache profiler-8.3-nts-standalone --php nts \
+  datadog/dd-trace-ci:php-8.3_bookworm-10 -- bash -c '
+cd /project/dd-trace-php
+make compile_profiler -j"$(nproc)"
+php -n -d extension=tmp/build_profiler/modules/datadog-profiling.so --ri datadog-profiling
 '
 ```
 
@@ -228,23 +261,23 @@ cd profiling && cargo rustc --features=trigger_time_sample \
 
 Bookworm is too recent for binary compatibility purposes.
 
-`build-profiler.sh` takes two arguments: the output directory prefix
-and the thread safety mode (`nts` or `zts`). It calls `switch-php`
-internally, so use `--root` (not `--php`). The output prefix must
-match the directory layout expected by `generate-final-artifact.sh`:
-`datadog-profiling/{triplet}/lib/php/{PHP_API}/`.
+`build-profiler.sh` takes an output directory prefix, the thread safety mode
+(`nts` or `zts`), and an optional `combined` artifact mode. Package jobs use
+combined mode. It calls `switch-php` internally, so use `--root` (not
+`--php`). The output prefix must match the directory layout expected by
+`generate-final-artifact.sh`: `combined-ddtrace/{triplet}/lib/php/{PHP_API}/`.
 
 Build one PHP version at a time (each centos-7 image ships one
 version). For a single version (e.g. 8.2, ABI `20220829`):
 
 ```bash
-.claude/ci/dockerh --cache compile-profiler-8.2-gnu --overlayfs \
+.claude/ci/dockerh --cache compile-combined-8.2-gnu --overlayfs \
     --root \
     datadog/dd-trace-ci:php-8.2_centos-7 \
     -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
     -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
     -- bash -c 'PHP_VERSION=8.2 bash .gitlab/build-profiler.sh \
-      datadog-profiling/x86_64-unknown-linux-gnu/lib/php/20220829 nts'
+      combined-ddtrace/x86_64-unknown-linux-gnu/lib/php/20220829 nts combined'
 ```
 
 ## Sidecar (Rust)
@@ -297,10 +330,16 @@ platforms and fails if artifacts are missing.
 compiled `.so` files:
 - `extensions_$(uname -m)/` — ddtrace extensions
   (`ddtrace-{API}[-zts|-debug|-debug-zts].so`)
-- `appsec_$(uname -m)/` — appsec extensions (`ddappsec-{API}[-zts].so`)
+- `appsec_$(uname -m)/` — appsec extensions (`ddappsec-{API}[-zts].so`); the
+  helper is now embedded in the sidecar (see `packaging-oci.md`), so there are
+  no separate `libddappsec-helper*.so` inputs anymore
 - `appsec/recommended.json` — bundled AppSec rules
-- `datadog-profiling/{triplet}/lib/php/{API}/` — profiler
-  extensions
+- `extensions_$(uname -m)/` also supplies the combined tracer+profiling
+  `ddtrace.so` artifacts directly for PHP versions >= 20160303 (profiling is
+  built into the same `ddtrace.so` rather than a separate
+  `combined-ddtrace/`/`datadog-profiling/` tree); the script writes a
+  `.ddtrace[-zts|-debug].profiling` marker file per API version alongside
+  each `ddtrace.so` so `datadog-setup.php` can detect profiling support
 
 Missing files cause hard `cp` failures. This means that we need to build (or
 download from CI) all these individual artifacts. This is rarely desirable when

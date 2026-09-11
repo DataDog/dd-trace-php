@@ -9,7 +9,7 @@ if (PHP_VERSION_ID < 80120 || PHP_VERSION_ID >= 80200 && PHP_VERSION_ID < 80207 
     echo "skip: unpatched PHP version, so JIT should be inactive";
 if (PHP_VERSION_ID < 80000)
     echo "skip: JIT requires PHP >= 8.0", PHP_EOL;
-if (!extension_loaded('datadog-profiling'))
+if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
     echo "skip: test requires datadog-profiling", PHP_EOL;
 $arch = php_uname('m');
 if (PHP_VERSION_ID < 80100 && in_array($arch, ['aarch64', 'arm64']))
@@ -30,7 +30,7 @@ opcache.jit_buffer_size=4M
 <?php
 
 ob_start();
-$extension = new ReflectionExtension('datadog-profiling');
+$extension = new ReflectionExtension(extension_loaded('datadog-profiling') ? 'datadog-profiling' : 'ddtrace');
 $extension->info();
 $output = ob_get_clean();
 

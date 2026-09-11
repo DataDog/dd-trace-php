@@ -2,7 +2,7 @@
 [profiling] test exceptions being sampled in throwing fibers
 --SKIPIF--
 <?php
-if (!extension_loaded('datadog-profiling'))
+if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
     echo "skip: test requires Datadog Continuous Profiler\n";
 ob_start();
 phpinfo(INFO_MODULES);

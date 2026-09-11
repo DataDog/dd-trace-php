@@ -16,7 +16,7 @@ static zif_handler dd_pcntl_forkx_handler = NULL;
 
 
 static void dd_prefork() {
-#ifdef DDTRACE
+#ifdef TRACER
     ddtrace_internal_handle_prefork();
 #endif
 }
@@ -25,7 +25,7 @@ static void dd_handle_fork(zval *return_value) {
     if (Z_LVAL_P(return_value) == 0) {
         datadog_internal_handle_fork();
     } else {
-#ifdef DDTRACE
+#ifdef TRACER
         ddtrace_internal_handle_postfork();
 #endif
     }

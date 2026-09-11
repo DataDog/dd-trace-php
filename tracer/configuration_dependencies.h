@@ -66,68 +66,6 @@ static bool dd_parse_sidecar_connection_mode(zai_str value, zval *decoded_value,
     return true;
 }
 
-static bool dd_parse_tags(zai_str value, zval *decoded_value, bool persistent) {
-    ZVAL_ARR(decoded_value, pemalloc(sizeof(HashTable), persistent));
-    zend_hash_init(Z_ARR_P(decoded_value), 8, NULL, persistent ? ZVAL_INTERNAL_PTR_DTOR : ZVAL_PTR_DTOR, persistent);
-
-    if (value.len == 0) {
-        return true;
-    }
-
-    const char *str = value.ptr;
-    const char *end = str + value.len;
-    const char *current = str;
-
-    // Determine separator - prefer comma if present, otherwise use space
-    char sep = memchr(str, ',', value.len) ? ',': ' ';
-
-    while (current < end) {
-        // Skip leading whitespace
-        while (current < end && (*current == ' ' || *current == sep)) current++;
-        if (current == end) {
-            // Abort if only separators are remaining
-            break;
-        }
-
-        // Find next separator, this will be the end of the tag
-        const char *tag_end = memchr(current, sep, end - current);
-        if (!tag_end) {
-            tag_end = end;
-        }
-        // Prepare key and value
-        // Initialize key to be the entire tag and value to be empty
-        const char *key_start = current;
-        const char *key_end = tag_end;
-        const char *val_start = tag_end;
-        const char *val_end = tag_end;
-        // If the tag has a colon, use the index of the colon to split the tag into key and value
-        const char *colon = memchr(current, ':', tag_end - current);
-        if (colon) {
-            // Tag has a colon, use the index of the colon to  split into key and value
-            key_end = colon;
-            val_start = colon + 1;
-        }
-
-        // Strip whitespace from key
-        while (key_start < key_end && *key_start == ' ') key_start++;
-        while (key_end > key_start && key_end[-1] == ' ') key_end--;
-        // Only add if key is non-empty
-        if (key_start != key_end) {
-            // Strip whitespace from value
-            while (val_start < val_end && *val_start == ' ') val_start++;
-            while (val_end > val_start && val_end[-1] == ' ') val_end--;
-
-            zval val;
-            ZVAL_STR(&val, zend_string_init(val_start, val_end - val_start, persistent));
-            zend_hash_str_update(Z_ARRVAL_P(decoded_value), key_start, key_end - key_start, &val);
-        }
-        // Move to the start of the next tag
-        current = tag_end + 1;
-    }
-
-    return true;
-}
-
 // Custom parser to ensure security-testing headers are always captured.
 static bool dd_parse_header_tags(zai_str value, zval *decoded_value, bool persistent) {
     if (!zai_config_decode_value(value, ZAI_CONFIG_TYPE_SET_OR_MAP_LOWERCASE, NULL, decoded_value, persistent)) {
