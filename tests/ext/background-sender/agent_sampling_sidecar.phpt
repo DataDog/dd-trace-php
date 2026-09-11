@@ -18,6 +18,9 @@ datadog.trace.agent_test_session_token=background-sender/agent_sampling_sidecar
 <?php
 include __DIR__ . '/../includes/request_replayer.inc';
 
+$contents = [];
+$filename = null;
+
 // Wait until the sidecar has published this test invocation's response. Each
 // invocation uses random markers so a repeated or parallel run cannot match a
 // stale shared-memory file left by an earlier process.
@@ -29,6 +32,9 @@ function checkUpdated($marker) {
                 if (@filesize($f) < 5000) {
                     $file = @file_get_contents($f);
                     if (@strpos($file, $marker) !== false) {
+                        global $contents, $filename;
+                        $filename = $f;
+                        $contents[] = bin2hex($file);
                         return;
                     }
                 }
@@ -36,19 +42,30 @@ function checkUpdated($marker) {
             $fn = "us" . "leep"; // do not retry
             $fn(100000);
         } while (--$retries);
+        foreach (glob("/dev/shm/*") as $f) {
+            var_dump($f, bin2hex(file_get_contents($f)));
+        }
         throw new RuntimeException("Timed out waiting for sidecar sampling configuration marker: {$marker}");
+    }
+}
+
+function recordContents() {
+    if (PHP_OS === "Linux") {
+        global $contents, $filename;
+        $contents[] = bin2hex(file_get_contents($filename));
     }
 }
 
 $rr = new RequestReplayer();
 $rr->replayRequest(); // cleanup possible leftover
 
-$get_sampling = function($label, $expected) use ($rr) {
+$errors = [];
+$get_sampling = function($label, $expected) use ($rr, &$errors) {
     $root = json_decode($rr->waitForDataAndReplay()["body"], true);
     $spans = $root["chunks"][0]["spans"] ?? $root[0];
     $priority = $spans[0]["metrics"]["_sampling_priority_v1"];
     if ($priority != $expected) {
-        throw new RuntimeException("{$label} sampling priority: expected {$expected}, got {$priority}");
+        $errors[] = "{$label} sampling priority: expected {$expected}, got {$priority}";
     }
     return $priority;
 };
@@ -68,8 +85,10 @@ checkUpdated($firstMarker);
 
 $rr->setResponse(["rate_by_service" => ["service:,env:" => 0, "service:foo,env:none" => 1, $secondMarker => 0]]);
 
+recordContents();
 \DDTrace\start_span();
 \DDTrace\close_span();
+recordContents();
 
 checkUpdated($secondMarker);
 
@@ -78,12 +97,23 @@ echo "Generic sampling: {$get_sampling('Generic', 0)}\n";
 // reset it for other tests
 $rr->setResponse(["rate_by_service" => []]);
 
+recordContents();
 $s = \DDTrace\start_span();
 $s->service = "foo";
 $s->env = "none";
 \DDTrace\close_span();
+recordContents();
 
 echo "Specific sampling: {$get_sampling('Specific', 1)}\n";
+
+if ($errors) {
+    foreach ($errors as $error) {
+        echo "{$error}\n";
+    }
+    if (PHP_OS === "Linux") {
+        var_dump($contents);
+    }
+}
 
 ?>
 --EXPECTF--
