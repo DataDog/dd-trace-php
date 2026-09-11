@@ -364,7 +364,7 @@ REGEX;
 
     public static function useQuestionMarkPlaceholders($query)
     {
-        // Avoid 
+        // Avoid
         if (\strlen($query) > 10000) {
             return $query;
         }

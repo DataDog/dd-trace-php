@@ -82,7 +82,6 @@ class MemcacheIntegration extends Integration
         \DDTrace\trace_method('Memcache', 'cas', $memcache_cas);
         \DDTrace\trace_function('memcache_cas', self::wrapClosureForTraceFunction($memcache_cas));
 
-
         return Integration::LOADED;
     }
 

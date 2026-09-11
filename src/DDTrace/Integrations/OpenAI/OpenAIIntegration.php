@@ -697,7 +697,6 @@ class OpenAIIntegration extends Integration
             $errorType = \get_class($span->exception);
         }
 
-
         $tags = [
             'env' => $span->env,
             'service' => $span->service,

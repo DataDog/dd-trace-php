@@ -28,6 +28,7 @@
             <property name="eolChar" value="\n"/>
         </properties>
     </rule>
+    <rule ref="Generic.Files.EndFileNewline"/>
     <rule ref="Generic.PHP.DisallowShortOpenTag"/>
     <rule ref="Generic.PHP.DisallowAlternativePHPTags"/>
     <rule ref="Generic.PHP.CharacterBeforePHPOpeningTag"/>
@@ -37,30 +38,17 @@
     <rule ref="Generic.PHP.DiscourageGoto"/>
     <rule ref="Generic.Commenting.Fixme"/>
     <rule ref="Squiz.PHP.Eval"/>
+    <rule ref="Squiz.WhiteSpace.SuperfluousWhitespace"/>
+    <rule ref="Generic.WhiteSpace.DisallowTabIndent"/>
 
     <!--
-        Close, but not clean on current src/. Uncomment after a
-        scoped cleanup (or land the cleanup in the same change).
-
-        Generic.Files.EndFileNewline
-            6 files missing a final newline:
-            Integrations/MongoDB/DatadogSubscriber{Loader,WithReturnTypes,WithoutReturnTypes}.php
-            OpenTelemetry/Detectors/{Environment,Service}.php
-            ddtrace_php_api.stubs.php
-
-        Squiz.WhiteSpace.SuperfluousWhitespace
-            trailing whitespace in LaminasIntegration.php, PDOIntegration.php
-
-        Generic.WhiteSpace.DisallowTabIndent
-            tabs in Integrations/Symfony/EndpointCatalog.php
+        Close, but not a mechanical fix. Uncomment after the TODOs
+        are resolved or dropped.
 
         Generic.Commenting.Todo
             TODO in FrankenphpIntegration.php, OpenTelemetry/Context.php,
             bridge/_files_tracer.php
 
-        <rule ref="Generic.Files.EndFileNewline"/>
-        <rule ref="Squiz.WhiteSpace.SuperfluousWhitespace"/>
-        <rule ref="Generic.WhiteSpace.DisallowTabIndent"/>
         <rule ref="Generic.Commenting.Todo"/>
     -->
 
