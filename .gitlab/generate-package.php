@@ -1150,10 +1150,6 @@ endforeach;
 <?php dockerhub_login() ?>
     - mkdir build
     - mv packages build
-    # Older Alpine images bake HTTP repository URLs into /etc/apk/repositories.
-    # Use HTTPS before the first apk invocation so package installation works
-    # when plaintext HTTP egress is blocked.
-    - sed -i 's|^http://|https://|' /etc/apk/repositories
     - apk add --no-cache ca-certificates || exit 75 # see https://support.circleci.com/hc/en-us/articles/360016505753-Resolve-Certificate-Signed-By-Unknown-Authority-error-in-Alpine-images?flash_digest=39b76521a337cecacac0cc10cb28f3747bb5fc6a
     - apk add curl ${INSTALL_PACKAGES:-} || exit 75
 
