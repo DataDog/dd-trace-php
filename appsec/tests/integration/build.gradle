@@ -767,13 +767,14 @@ def buildCoverageReportTask = {
 def buildLoaderTask = { String version, String variant ->
     buildRunInDockerTask(
             baseName: 'buildLoader',
+            imageTag: 'php-buildonly-rust',
             version: version,
             variant: variant,
             needsTracer: false,
             needsAppsec: false,
             needsBoostCache: false,
             needsCargoCache: false,
-            description: 'Build dd_library_loader extension for PHP',
+            description: 'Build portable dd_library_loader extension for PHP',
             inputs: [
                     dirs: ['../../../loader'],
             ],
@@ -786,18 +787,19 @@ def buildLoaderTask = { String version, String variant ->
             ],
             command: [
                     '-e', '-c',
-                    '''
-                    PHP_PREFIX=$(dirname $(dirname $(php -r 'echo PHP_BINARY;')))
-                    echo "Using PHP from: $PHP_PREFIX"
+                    """
+                    export PHP_SDK_VERSION=${phpSdkVersion(version, variant)}
+                    PHP_PREFIX=/opt/php/\$PHP_SDK_VERSION
+                    echo "Using PHP SDK from: \$PHP_PREFIX"
                     cd /project/loader
                     make distclean 2>/dev/null || true
-                    $PHP_PREFIX/bin/phpize
+                    \$PHP_PREFIX/bin/phpize
                     rm -f config.cache
-                    ./configure --with-php-config=$PHP_PREFIX/bin/php-config
+                    ./configure --with-php-config=\$PHP_PREFIX/bin/php-config
                     make -j
                     cp modules/dd_library_loader.so /loader-build/
                     touch /loader-build/dd_library_loader.so
-                    '''
+                    """
             ]
     )
 }
