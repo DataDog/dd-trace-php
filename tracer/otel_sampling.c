@@ -111,9 +111,6 @@ static uint64_t ddtrace_otel_threshold_for(double sample_rate) {
 
   double threshold =
       round((1 - sample_rate) * (double)DDTRACE_OTEL_MAX_THRESHOLD);
-  if (threshold <= 0) {
-    return 0;
-  }
   if (threshold >= (double)DDTRACE_OTEL_MAX_THRESHOLD) {
     return DDTRACE_OTEL_MAX_ENCODABLE_THRESHOLD;
   }
