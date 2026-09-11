@@ -1,9 +1,7 @@
 #include "otel_sampling.h"
 
-#include <Zend/zend_smart_str.h>
 #include <math.h>
 
-#define DDTRACE_OTEL_MAX_VALUE_LEN 256
 #define DDTRACE_TRACESTATE_MAX_LEN 512
 #define DDTRACE_TRACESTATE_MAX_MEMBERS 32
 #define DDTRACE_OTEL_MAX_THRESHOLD (UINT64_C(1) << 56)
@@ -12,35 +10,27 @@
 static const uint64_t DDTRACE_OTEL_KNUTH_FACTOR = UINT64_C(1111111111111111111);
 
 typedef struct {
-  const char* random_value;
-  size_t random_value_len;
-  const char* threshold;
-  size_t threshold_len;
-} ddtrace_otel_fields;
-
-typedef struct {
   const char* datadog_member;
   size_t datadog_member_len;
   const char* otel_member;
   size_t otel_member_len;
-  const char* otel_value;
-  size_t otel_value_len;
   size_t member_count;
 } ddtrace_otel_tracestate_members;
 
-typedef struct {
-  size_t offset;
-  bool comma_before;
-  bool comma_after;
-} ddtrace_otel_insertion;
-
-static bool ddtrace_otel_is_lower_hex(const char* value, size_t len) {
+static bool ddtrace_otel_parse_lower_hex(const char* value, size_t len,
+                                         uint64_t* parsed) {
+  uint64_t result = 0;
   for (size_t i = 0; i < len; ++i) {
-    if (!((value[i] >= '0' && value[i] <= '9') ||
-          (value[i] >= 'a' && value[i] <= 'f'))) {
+    result <<= 4;
+    if (value[i] >= '0' && value[i] <= '9') {
+      result |= (uint64_t)(value[i] - '0');
+    } else if (value[i] >= 'a' && value[i] <= 'f') {
+      result |= (uint64_t)(value[i] - 'a' + 10);
+    } else {
       return false;
     }
   }
+  *parsed = result;
   return true;
 }
 
@@ -50,9 +40,23 @@ static bool ddtrace_otel_field_is(const char* field, size_t field_len,
          (field_len == 2 || field[2] == ':');
 }
 
-static ddtrace_otel_fields ddtrace_otel_parse_fields(const char* value,
-                                                     size_t value_len) {
-  ddtrace_otel_fields fields = {0};
+static void ddtrace_otel_append_unknown_field(
+    ddtrace_otel_sampling_state* state, const char* field, size_t field_len) {
+  size_t separator_len = state->unknown_fields_len ? 1 : 0;
+  if (state->unknown_fields_len + separator_len + field_len >
+      DDTRACE_OTEL_MAX_VALUE_LEN) {
+    return;
+  }
+  if (separator_len) {
+    state->unknown_fields[state->unknown_fields_len++] = ';';
+  }
+  memcpy(state->unknown_fields + state->unknown_fields_len, field, field_len);
+  state->unknown_fields_len += field_len;
+}
+
+void ddtrace_otel_sampling_parse(ddtrace_otel_sampling_state* state,
+                                 const char* value, size_t value_len) {
+  *state = (ddtrace_otel_sampling_state){0};
   const char* end = value + value_len;
 
   for (const char* field = value; field <= end;) {
@@ -63,11 +67,24 @@ static ddtrace_otel_fields ddtrace_otel_parse_fields(const char* value,
     size_t field_len = field_end - field;
 
     if (ddtrace_otel_field_is(field, field_len, "rv")) {
-      fields.random_value = field_len > 2 && field[2] == ':' ? field + 3 : NULL;
-      fields.random_value_len = fields.random_value ? field_len - 3 : 0;
+      state->random_value_len = 0;
+      if (field_len == 17 &&
+          ddtrace_otel_parse_lower_hex(field + 3, 14,
+                                       &state->random_value)) {
+        state->random_value_len = 14;
+      }
     } else if (ddtrace_otel_field_is(field, field_len, "th")) {
-      fields.threshold = field_len > 2 && field[2] == ':' ? field + 3 : NULL;
-      fields.threshold_len = fields.threshold ? field_len - 3 : 0;
+      state->threshold_len = 0;
+      size_t threshold_len = field_len > 2 && field[2] == ':'
+                                 ? field_len - 3
+                                 : 0;
+      if (threshold_len >= 1 && threshold_len <= 14 &&
+          ddtrace_otel_parse_lower_hex(field + 3, threshold_len,
+                                       &state->threshold)) {
+        state->threshold_len = threshold_len;
+      }
+    } else if (field_len) {
+      ddtrace_otel_append_unknown_field(state, field, field_len);
     }
 
     if (field_end == end) {
@@ -76,19 +93,6 @@ static ddtrace_otel_fields ddtrace_otel_parse_fields(const char* value,
     field = field_end + 1;
   }
 
-  if (fields.random_value_len != 14 ||
-      !ddtrace_otel_is_lower_hex(fields.random_value,
-                                 fields.random_value_len)) {
-    fields.random_value = NULL;
-    fields.random_value_len = 0;
-  }
-  if (fields.threshold_len < 1 || fields.threshold_len > 14 ||
-      !ddtrace_otel_is_lower_hex(fields.threshold, fields.threshold_len)) {
-    fields.threshold = NULL;
-    fields.threshold_len = 0;
-  }
-
-  return fields;
 }
 
 static void ddtrace_otel_append_field(smart_str* result, const char* field,
@@ -133,82 +137,25 @@ static uint64_t ddtrace_otel_reconcile_random_value(uint64_t random_value,
   return random_value;
 }
 
-static zend_string* ddtrace_otel_generate_value(uint64_t trace_id,
-                                                zend_long sampling_priority,
-                                                double sample_rate) {
-  uint64_t threshold_value = ddtrace_otel_threshold_for(sample_rate);
-  uint64_t random_value = ddtrace_otel_reconcile_random_value(
-      ddtrace_otel_derive_random_value(trace_id), threshold_value,
+void ddtrace_otel_sampling_decide_probability(
+    ddtrace_otel_sampling_state* state, uint64_t trace_id,
+    zend_long sampling_priority, double sample_rate) {
+  uint64_t threshold = ddtrace_otel_threshold_for(sample_rate);
+  state->random_value = ddtrace_otel_reconcile_random_value(
+      ddtrace_otel_derive_random_value(trace_id), threshold,
       sampling_priority > 0);
-
-  smart_str result = {0};
-  smart_str_append_printf(&result, "rv:%014" PRIx64 ";th:%014" PRIx64,
-                          random_value, threshold_value);
-  size_t minimum_len = sizeof("rv:00000000000000;th:0") - 1;
-  while (ZSTR_LEN(result.s) > minimum_len &&
-         ZSTR_VAL(result.s)[ZSTR_LEN(result.s) - 1] == '0') {
-    --ZSTR_LEN(result.s);
+  state->random_value_len = 14;
+  state->threshold_len = 14;
+  while (state->threshold_len > 1 && (threshold & 0xf) == 0) {
+    threshold >>= 4;
+    --state->threshold_len;
   }
-  smart_str_0(&result);
-  return result.s;
+  state->threshold = threshold;
 }
 
-static zend_string* ddtrace_otel_rebuild_value(
-    const char* otel_value, size_t otel_value_len, uint64_t trace_id,
-    zend_long sampling_priority, enum ddtrace_otel_sampling_decision decision,
-    double sample_rate) {
-  ddtrace_otel_fields fields =
-      ddtrace_otel_parse_fields(otel_value, otel_value_len);
-  zend_string* generated_value = NULL;
-
-  if (decision == DDTRACE_OTEL_SAMPLING_DECISION_NON_PROBABILITY) {
-    fields.threshold = NULL;
-    fields.threshold_len = 0;
-  } else if (decision == DDTRACE_OTEL_SAMPLING_DECISION_PROBABILITY &&
-             sample_rate > 0) {
-    generated_value = ddtrace_otel_generate_value(
-        trace_id, sampling_priority, sample_rate);
-  }
-
-  smart_str result = {0};
-  if (generated_value) {
-    smart_str_append(&result, generated_value);
-    zend_string_release(generated_value);
-  } else if (fields.random_value) {
-    smart_str_appends(&result, "rv:");
-    smart_str_appendl(&result, fields.random_value, fields.random_value_len);
-  }
-  if (!generated_value && fields.threshold) {
-    if (result.s) {
-      smart_str_appendc(&result, ';');
-    }
-    smart_str_appends(&result, "th:");
-    smart_str_appendl(&result, fields.threshold, fields.threshold_len);
-  }
-
-  const char* end = otel_value + otel_value_len;
-  for (const char* field = otel_value; field <= end;) {
-    const char* field_end = memchr(field, ';', end - field);
-    if (!field_end) {
-      field_end = end;
-    }
-    size_t field_len = field_end - field;
-
-    if (field_len && !ddtrace_otel_field_is(field, field_len, "rv") &&
-        !ddtrace_otel_field_is(field, field_len, "th")) {
-      ddtrace_otel_append_field(&result, field, field_len);
-    }
-
-    if (field_end == end) {
-      break;
-    }
-    field = field_end + 1;
-  }
-
-  if (result.s) {
-    smart_str_0(&result);
-  }
-  return result.s;
+void ddtrace_otel_sampling_decide_non_probability(
+    ddtrace_otel_sampling_state* state) {
+  state->threshold_len = 0;
 }
 
 static bool ddtrace_otel_is_member(const char* member, size_t member_len,
@@ -229,6 +176,83 @@ static bool ddtrace_otel_is_member(const char* member, size_t member_len,
   *value = member + 3;
   *value_len = member_len - 3;
   return true;
+}
+
+zend_string* ddtrace_otel_sampling_extract_tracestate(
+    zend_string* tracestate, ddtrace_otel_sampling_state* state) {
+  *state = (ddtrace_otel_sampling_state){0};
+  smart_str vendors = {0};
+  bool found_otel = false;
+  const char* raw = ZSTR_VAL(tracestate);
+  const char* end = raw + ZSTR_LEN(tracestate);
+
+  for (const char* member = raw; member < end;) {
+    const char* member_end = memchr(member, ',', end - member);
+    if (!member_end) {
+      member_end = end;
+    }
+    size_t member_len = member_end - member;
+    const char* otel_value;
+    size_t otel_value_len;
+
+    if (ddtrace_otel_is_member(member, member_len, &otel_value,
+                               &otel_value_len)) {
+      if (!found_otel) {
+        ddtrace_otel_sampling_parse(state, otel_value, otel_value_len);
+        found_otel = true;
+      }
+    } else if (member_len) {
+      if (vendors.s) {
+        smart_str_appendc(&vendors, ',');
+      }
+      smart_str_appendl(&vendors, member, member_len);
+    }
+
+    member = member_end == end ? end : member_end + 1;
+  }
+
+  if (vendors.s) {
+    smart_str_0(&vendors);
+    return vendors.s;
+  }
+  return zend_string_init("", 0, 0);
+}
+
+void ddtrace_otel_sampling_append_to_tracestate(
+    smart_str* tracestate, const ddtrace_otel_sampling_state* state) {
+  smart_str value = {0};
+  if (state->random_value_len) {
+    smart_str_append_printf(&value, "rv:%0*" PRIx64,
+                            state->random_value_len, state->random_value);
+  }
+  if (state->threshold_len) {
+    if (value.s) {
+      smart_str_appendc(&value, ';');
+    }
+    smart_str_append_printf(&value, "th:%0*" PRIx64,
+                            state->threshold_len, state->threshold);
+  }
+
+  const char* unknown = state->unknown_fields;
+  const char* end = unknown + state->unknown_fields_len;
+  for (const char* field = unknown; field < end;) {
+    const char* field_end = memchr(field, ';', end - field);
+    if (!field_end) {
+      field_end = end;
+    }
+    ddtrace_otel_append_field(&value, field, field_end - field);
+    field = field_end == end ? end : field_end + 1;
+  }
+
+  if (!value.s) {
+    return;
+  }
+  if (tracestate->s) {
+    smart_str_appendc(tracestate, ',');
+  }
+  smart_str_appends(tracestate, "ot=");
+  smart_str_append(tracestate, value.s);
+  smart_str_free(&value);
 }
 
 static bool ddtrace_tracestate_member_is(const char* member, size_t member_len,
@@ -260,8 +284,7 @@ static ddtrace_otel_tracestate_members ddtrace_otel_scan_tracestate(
       members.datadog_member = member;
       members.datadog_member_len = member_len;
     } else if (!members.otel_member &&
-               ddtrace_otel_is_member(member, member_len, &members.otel_value,
-                                      &members.otel_value_len)) {
+               ddtrace_tracestate_member_is(member, member_len, "ot")) {
       members.otel_member = member;
       members.otel_member_len = member_len;
     }
@@ -311,17 +334,6 @@ static size_t ddtrace_otel_datadog_member_prefix_len(
     --max_datadog_len;
   }
   return max_datadog_len;
-}
-
-static void ddtrace_otel_append_value_member(smart_str* result,
-                                             const char key[2],
-                                             zend_string* value) {
-  if (result->s) {
-    smart_str_appendc(result, ',');
-  }
-  smart_str_appendl(result, key, 2);
-  smart_str_appendc(result, '=');
-  smart_str_append(result, value);
 }
 
 // Takes ownership of a tracestate which is known to exceed a W3C limit.
@@ -386,157 +398,4 @@ zend_string* ddtrace_otel_sampling_limit_tracestate(
     return tracestate;
   }
   return ddtrace_otel_limit_oversized_tracestate(tracestate);
-}
-
-static ddtrace_otel_insertion ddtrace_otel_generated_member_insertion(
-    zend_string* tracestate) {
-  ddtrace_otel_insertion insertion = {0};
-  size_t raw_len = tracestate ? ZSTR_LEN(tracestate) : 0;
-  if (!raw_len) {
-    return insertion;
-  }
-
-  const char* first_comma = memchr(ZSTR_VAL(tracestate), ',', raw_len);
-  size_t first_member_len =
-      first_comma ? (size_t)(first_comma - ZSTR_VAL(tracestate)) : raw_len;
-  if (!ddtrace_tracestate_member_is(ZSTR_VAL(tracestate), first_member_len,
-                                    "dd")) {
-    insertion.comma_after = true;
-  } else if (first_comma) {
-    insertion.offset = first_member_len + 1;
-    insertion.comma_after = true;
-  } else {
-    insertion.offset = raw_len;
-    insertion.comma_before = true;
-  }
-
-  return insertion;
-}
-
-// Takes ownership of tracestate and inserts the generated member in-place.
-static zend_string* ddtrace_otel_insert_generated_member(
-    zend_string* tracestate, uint64_t trace_id, zend_long sampling_priority,
-    double sample_rate, size_t member_count) {
-  zend_string* generated_value = ddtrace_otel_generate_value(
-      trace_id, sampling_priority, sample_rate);
-
-  size_t raw_len = tracestate ? ZSTR_LEN(tracestate) : 0;
-  ddtrace_otel_insertion insertion =
-      ddtrace_otel_generated_member_insertion(tracestate);
-  size_t otel_member_len = 3 + ZSTR_LEN(generated_value);
-  size_t insertion_len =
-      otel_member_len + insertion.comma_before + insertion.comma_after;
-  size_t result_len = raw_len + insertion_len;
-  zend_string* result = tracestate
-                            ? zend_string_extend(tracestate, result_len, 0)
-                            : zend_string_alloc(result_len, 0);
-  char* raw = ZSTR_VAL(result);
-  memmove(raw + insertion.offset + insertion_len, raw + insertion.offset,
-          raw_len - insertion.offset);
-
-  char* output = raw + insertion.offset;
-  if (insertion.comma_before) {
-    *output++ = ',';
-  }
-  memcpy(output, "ot=", 3);
-  output += 3;
-  memcpy(output, ZSTR_VAL(generated_value), ZSTR_LEN(generated_value));
-  output += ZSTR_LEN(generated_value);
-  zend_string_release(generated_value);
-  if (insertion.comma_after) {
-    *output++ = ',';
-  }
-  ZEND_ASSERT(output == raw + insertion.offset + insertion_len);
-  ZSTR_VAL(result)[result_len] = '\0';
-
-  if (member_count + 1 <= DDTRACE_TRACESTATE_MAX_MEMBERS &&
-      ZSTR_LEN(result) <= DDTRACE_TRACESTATE_MAX_LEN) {
-    return result;
-  }
-  return ddtrace_otel_limit_oversized_tracestate(result);
-}
-
-// Takes ownership of tracestate and rewrites the first ot member. Any duplicate
-// ot members are dropped while the remaining member order is preserved.
-static zend_string* ddtrace_otel_rewrite_existing_member(
-    zend_string* tracestate, const ddtrace_otel_tracestate_members* members,
-    uint64_t trace_id, zend_long sampling_priority,
-    enum ddtrace_otel_sampling_decision decision, double sample_rate) {
-  zend_string* updated_value = ddtrace_otel_rebuild_value(
-      members->otel_value, members->otel_value_len, trace_id, sampling_priority,
-      decision, sample_rate);
-  smart_str result = {0};
-  size_t result_member_count = 0;
-  bool found_otel = false;
-
-  const char* raw = ZSTR_VAL(tracestate);
-  const char* end = raw + ZSTR_LEN(tracestate);
-  for (const char* member = raw; member < end;) {
-    const char* member_end = memchr(member, ',', end - member);
-    if (!member_end) {
-      member_end = end;
-    }
-    size_t member_len = member_end - member;
-    const char* otel_value;
-    size_t otel_value_len;
-
-    if (ddtrace_otel_is_member(member, member_len, &otel_value,
-                               &otel_value_len)) {
-      if (!found_otel) {
-        if (updated_value) {
-          ddtrace_otel_append_value_member(&result, "ot", updated_value);
-          ++result_member_count;
-        }
-        found_otel = true;
-      }
-    } else if (member_len) {
-      if (result.s) {
-        smart_str_appendc(&result, ',');
-      }
-      smart_str_appendl(&result, member, member_len);
-      ++result_member_count;
-    }
-
-    member = member_end == end ? end : member_end + 1;
-  }
-
-  if (updated_value) {
-    zend_string_release(updated_value);
-  }
-  zend_string_release(tracestate);
-  if (result.s) {
-    smart_str_0(&result);
-  }
-  if (result_member_count <= DDTRACE_TRACESTATE_MAX_MEMBERS &&
-      (!result.s || ZSTR_LEN(result.s) <= DDTRACE_TRACESTATE_MAX_LEN)) {
-    return result.s;
-  }
-  return ddtrace_otel_limit_oversized_tracestate(result.s);
-}
-
-zend_string* ddtrace_otel_sampling_update_tracestate(
-    zend_string* tracestate, uint64_t trace_id, zend_long sampling_priority,
-    enum ddtrace_otel_sampling_decision decision, double sample_rate) {
-  bool should_generate =
-      decision == DDTRACE_OTEL_SAMPLING_DECISION_PROBABILITY && sample_rate > 0;
-  if (!tracestate || ZSTR_LEN(tracestate) == 0) {
-    return should_generate
-               ? ddtrace_otel_insert_generated_member(
-                     tracestate, trace_id, sampling_priority, sample_rate, 0)
-               : tracestate;
-  }
-
-  ddtrace_otel_tracestate_members members =
-      ddtrace_otel_scan_tracestate(tracestate);
-  if (!members.otel_member) {
-    if (should_generate) {
-      return ddtrace_otel_insert_generated_member(
-          tracestate, trace_id, sampling_priority, sample_rate,
-          members.member_count);
-    }
-    return ddtrace_otel_sampling_limit_tracestate(tracestate);
-  }
-
-  return ddtrace_otel_rewrite_existing_member(
-      tracestate, &members, trace_id, sampling_priority, decision, sample_rate);
 }

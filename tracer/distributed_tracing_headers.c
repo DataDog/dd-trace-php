@@ -376,7 +376,28 @@ static ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids_t
             char *persist = ZSTR_VAL(result.tracestate);
             int commas = 0;
             size_t tags_size = 0;
+            bool found_otel = false;
             for (char *ptr = ZSTR_VAL(tracestate), *end = ptr + ZSTR_LEN(tracestate); ptr < end; ++ptr) {
+                // ot member
+                if (last_comma && ptr + 2 < end && ptr[0] == 'o' && ptr[1] == 't' && ptr[2] == '=') {
+                    while (persist > ZSTR_VAL(result.tracestate) && (persist[-1] == ' ' || persist[-1] == '\t')) {
+                        --persist;
+                    }
+                    char *value_start = ptr + 3;
+                    while (ptr < end && *ptr != ',') {
+                        ++ptr;
+                    }
+                    char *value_end = ptr;
+                    while (value_end > value_start && (value_end[-1] == ' ' || value_end[-1] == '\t')) {
+                        --value_end;
+                    }
+                    if (!found_otel) {
+                        ddtrace_otel_sampling_parse(&result.otel_sampling, value_start, value_end - value_start);
+                        found_otel = true;
+                    }
+                    continue;
+                }
+
                 // dd member
                 if (last_comma && ptr + 2 < end && ptr[0] == 'd' && ptr[1] == 'd' && (ptr[2] == '=' || ptr[2] == '\t' || ptr[2] == ' ')) {
                     // If there's dd= members, ignore x-datadog-tags fully
@@ -475,9 +496,6 @@ static ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids_t
             }
             *persist = 0; // and zero-terminate it
             ZSTR_LEN(result.tracestate) = persist - ZSTR_VAL(result.tracestate);
-            zend_string *normalized_tracestate = ddtrace_otel_sampling_update_tracestate(
-                result.tracestate, trace_id.low, result.priority_sampling, DDTRACE_OTEL_SAMPLING_DECISION_INHERITED, 0);
-            result.tracestate = normalized_tracestate ? normalized_tracestate : zend_string_init("", 0, 0);
             zend_string_release(tracestate);
         }
 
@@ -556,6 +574,7 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
                 if (!result.tracestate && new_result.tracestate) {
                     result.tracestate = new_result.tracestate;
                     new_result.tracestate = NULL;
+                    result.otel_sampling = new_result.otel_sampling;
 
                     zend_hash_destroy(&result.tracestate_unknown_dd_keys);
                     result.tracestate_unknown_dd_keys = new_result.tracestate_unknown_dd_keys;
@@ -658,6 +677,7 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
             result->trace_id = (datadog_trace_id){0};
             result->parent_id = 0;
             result->priority_sampling = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
+            result->otel_sampling = (ddtrace_otel_sampling_state){0};
 
             zval reason_str;
             ZVAL_STR(&reason_str, zend_string_init(ZEND_STRL("propagation_behavior_extract"), 0));
@@ -726,6 +746,7 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
             ZVAL_STR(&zv, result->tracestate);
             datadog_assign_variable(&span->property_tracestate, &zv);
         }
+        span->otel_sampling = result->otel_sampling;
 
         ZVAL_ARR(&zv, emalloc(sizeof(HashTable)));
         *Z_ARR(zv) = result->tracestate_unknown_dd_keys;
@@ -769,6 +790,7 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
             zend_string_release(DDTRACE_G(tracestate));
         }
         DDTRACE_G(tracestate) = result->tracestate;
+        DDTRACE_G(otel_sampling) = result->otel_sampling;
         zend_hash_destroy(&DDTRACE_G(baggage));
         DDTRACE_G(baggage) = result->baggage;
         zend_string *key;

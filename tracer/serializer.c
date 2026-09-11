@@ -850,8 +850,7 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
     if (parent_root) {
         ddtrace_inherit_span_properties(&span->span, &parent_root->span);
         ZVAL_COPY_DEREF(&span->property_origin, &parent_root->property_origin);
-        span->otel_sampling_rate = parent_root->otel_sampling_rate;
-        span->otel_sampling_decision = parent_root->otel_sampling_decision;
+        span->otel_sampling = parent_root->otel_sampling;
     } else {
         zval *prop_type = &span->property_type;
         zval *prop_name = &span->property_name;
@@ -890,6 +889,7 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
         if (DDTRACE_G(tracestate)) {
             ZVAL_STR_COPY(&span->property_tracestate, DDTRACE_G(tracestate));
         }
+        span->otel_sampling = DDTRACE_G(otel_sampling);
 
         SEPARATE_ARRAY(&span->property_propagated_tags);
         zend_hash_copy(Z_ARR(span->property_propagated_tags), &DDTRACE_G(propagated_root_span_tags), zval_add_ref);
@@ -904,7 +904,7 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
         if (DDTRACE_G(default_priority_sampling) != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
             ddtrace_set_priority_sampling_on_span(span, DDTRACE_G(default_priority_sampling), DD_MECHANISM_MANUAL);
             if (DDTRACE_G(propagated_priority_sampling) != DDTRACE_PRIORITY_SAMPLING_UNSET) {
-                span->otel_sampling_decision = DDTRACE_OTEL_SAMPLING_DECISION_INHERITED;
+                span->otel_sampling = DDTRACE_G(otel_sampling);
             }
         }
 
@@ -2217,4 +2217,3 @@ void ddtrace_serializer_startup()
 {
     ddtrace_user_req_add_listeners(&ser_user_req_listeners);
 }
-

@@ -76,7 +76,7 @@ rv:1234567890abcd
 foo:bar
 rv:65cd67504a538e
 <absent>
-foo=bar,ot=rv:6e6d1a75832a2f,something=else
+ot=rv:6e6d1a75832a2f,foo=bar,something=else
 rv:ef284ace7a91e1;th:e6666666666668;foo:bar
 rv:ef284ace7a91e1;th:e6666666666668;foo:bar
 rv:ef284ace7a91e1;th:e6666666666668;foo:bar

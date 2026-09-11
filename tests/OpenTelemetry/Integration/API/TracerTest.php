@@ -865,7 +865,7 @@ final class TracerTest extends BaseTestCase
                 ->setParent(Context::getCurrent()->withContextValue(Span::wrap($context)))
                 ->startSpan();
 
-            $this->assertRegularExpression('/^dd=p:[0-9a-f]{16};t.congo:t61rcWkgMzE;t.dm:-0,rojo=00f067aa0ba902b7,ot=rv:[0-9a-f]{14};th:0$/', (string)$child->getContext()->getTraceState());
+            $this->assertRegularExpression('/^dd=p:[0-9a-f]{16};t.congo:t61rcWkgMzE;t.dm:-0,ot=rv:[0-9a-f]{14};th:0,rojo=00f067aa0ba902b7$/', (string)$child->getContext()->getTraceState());
 
             $child->end();
             $span->end();
