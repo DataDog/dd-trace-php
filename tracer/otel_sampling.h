@@ -17,8 +17,7 @@ typedef struct {
 
 void ddtrace_otel_sampling_parse(ddtrace_otel_sampling_state *state, const char *value, size_t value_len);
 zend_string *ddtrace_otel_sampling_extract_tracestate(zend_string *tracestate, ddtrace_otel_sampling_state *state);
-void ddtrace_otel_sampling_decide_probability(ddtrace_otel_sampling_state *state, uint64_t trace_id,
-                                               zend_long sampling_priority, double sample_rate);
+void ddtrace_otel_sampling_decide_probability(ddtrace_otel_sampling_state *state, uint64_t trace_id, zend_long sampling_priority, double sample_rate);
 void ddtrace_otel_sampling_decide_non_probability(ddtrace_otel_sampling_state *state);
 void ddtrace_otel_sampling_append_to_tracestate(smart_str *tracestate, const ddtrace_otel_sampling_state *state);
 
