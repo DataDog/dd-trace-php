@@ -297,5 +297,3 @@ if(DD_APPSEC_PHP_SIDECAR_MOCKGEN)
     add_dependencies(ddtrace ddtrace_weaken_php_symbols)
 endif()
 add_dependencies(ddtrace ddtrace_exports)
-
-patch_away_libc(ddtrace)

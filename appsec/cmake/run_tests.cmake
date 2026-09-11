@@ -1,5 +1,7 @@
 if(DD_APPSEC_DDTRACE_ALT)
     set(DD_APPSEC_TRACER_EXT_FILE $<TARGET_FILE:ddtrace>)
+elseif(DD_APPSEC_TEST_TRACER)
+    set(DD_APPSEC_TRACER_EXT_FILE "${DD_APPSEC_TEST_TRACER}")
 else()
     get_filename_component(DD_APPSEC_TRACER_EXT_FILE "${CMAKE_SOURCE_DIR}/../tmp/build_extension/modules/ddtrace.so" REALPATH)
     get_target_property(_DD_APPSEC_PCRE2_INCLUDE_DIRS
@@ -18,6 +20,12 @@ else()
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/../)
 endif()
 
+if(DD_APPSEC_TEST_EXTENSION)
+    set(DD_APPSEC_TEST_EXTENSION_FILE "${DD_APPSEC_TEST_EXTENSION}")
+else()
+    set(DD_APPSEC_TEST_EXTENSION_FILE "$<TARGET_FILE:extension>")
+endif()
+
 add_custom_target(xtest-prepare
     COMMAND mkdir -p /tmp/appsec-ext-test)
 
@@ -29,7 +37,7 @@ add_custom_target(xtest
         run-tests-internal.php
         -n -c ${CMAKE_SOURCE_DIR}/tests/extension/test-php.ini
         -d "extension_dir=${CMAKE_BINARY_DIR}/extensions"
-        -d "extension=$<TARGET_FILE:extension>"
+        -d "extension=${DD_APPSEC_TEST_EXTENSION_FILE}"
         --show-diff
         ${CMAKE_SOURCE_DIR}/tests/extension/
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
@@ -41,6 +49,9 @@ if(DD_APPSEC_ENABLE_COVERAGE)
         "gcovr -r ${CMAKE_SOURCE_DIR} --html --html-details -s -d -o coverage.html")
 endif()
 
-add_dependencies(xtest xtest-prepare ddtrace)
+add_dependencies(xtest xtest-prepare)
+if(TARGET ddtrace)
+    add_dependencies(xtest ddtrace)
+endif()
 
 add_subdirectory(tests/mock_helper EXCLUDE_FROM_ALL)
