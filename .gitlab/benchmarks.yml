@@ -131,7 +131,9 @@ workflow:
   - if: '($CI_COMMIT_REF_NAME == "master" && ($NIGHTLY_BENCHMARKS || $CI_PIPELINE_SOURCE != "schedule")) || $CI_COMMIT_REF_NAME =~ /^ddtrace-/'
     when: always
     interruptible: false
-  - interruptible: true
+  - when: manual
+    allow_failure: true
+    interruptible: true
 
 .microbenchmarks:
   stage: benchmarks
