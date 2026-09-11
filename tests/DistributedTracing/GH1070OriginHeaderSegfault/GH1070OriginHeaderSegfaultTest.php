@@ -31,6 +31,7 @@ final class GH1070OriginHeaderSegfaultTest extends IntegrationTestCase
                 'DD_TRACE_DEBUG' => 1,
             ],
             [],
+            true,
             $curlInfo
         );
 

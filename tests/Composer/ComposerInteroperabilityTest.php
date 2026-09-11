@@ -30,6 +30,8 @@ class ComposerInteroperabilityTest extends BaseTestCase
 
     public function testComposerInteroperabilityWhenNoInitHook()
     {
+        // Empty traces are the expected result, so they must not trigger the retry
+        // used by tests which expect the agent to receive a trace.
         $traces = $this->inWebServer(
             function ($execute) {
                 $output = $execute(GetSpec::create('default', '/'));
@@ -43,7 +45,8 @@ class ComposerInteroperabilityTest extends BaseTestCase
             ],
             [
                 'datadog.trace.sources_path' => 'do_not_exists',
-            ]
+            ],
+            false
         );
 
         // Will fallback to installed sources, which does not include DDTrace, only api/, thus doing a Noop
