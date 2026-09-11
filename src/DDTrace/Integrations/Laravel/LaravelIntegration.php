@@ -140,7 +140,40 @@ class LaravelIntegration extends Integration
                     $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($request->fullUrl());
                 }
                 if (\method_exists($route, 'uri')) {
-                    $rootSpan->meta[Tag::HTTP_ROUTE] = $route->uri();
+                    $httpRoute = $route->uri();
+                    $rootSpan->meta[Tag::HTTP_ROUTE] = $httpRoute;
+                    if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()
+                        && dd_trace_env_config("DD_API_SECURITY_ENABLED")) {
+                        $allParams = \method_exists($route, 'parameters') ? ($route->parameters() ?? []) : [];
+                        if (strpos($httpRoute, '?}') !== false) {
+                            // For routes with optional params, filter out default-injected values
+                            // (e.g. ->defaults('format', 'html')) that weren't present in the URL.
+                            $matchedParams = self::laravelUrlMatchedParams($route, $request, $allParams);
+                            // Cache key encodes which optional params are present
+                            preg_match_all('/\{([^}]+)\?\}/', $httpRoute, $_opts);
+                            $_present = [];
+                            foreach ($_opts[1] as $_opt) {
+                                if (array_key_exists($_opt, $matchedParams)) {
+                                    $_present[] = $_opt;
+                                }
+                            }
+                            $cacheKey = $httpRoute . '#' . implode(',', $_present);
+                            unset($_opts, $_present, $_opt);
+                        } else {
+                            $matchedParams = $allParams;
+                            $cacheKey = $httpRoute;
+                        }
+                        $normalizedRoute = \DDTrace\routing_cache_get($cacheKey);
+                        if ($normalizedRoute === false) {
+                            $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromLaravel($httpRoute, $matchedParams);
+                            if ($normalizedRoute !== null) {
+                                \DDTrace\routing_cache_set($cacheKey, $normalizedRoute);
+                            }
+                        }
+                        if ($normalizedRoute !== null && $normalizedRoute !== false) {
+                            $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                        }
+                    }
                 }
                 if (\method_exists($route, 'parameters') && function_exists('\datadog\appsec\push_addresses')) {
                     $parameters = $route->parameters();
@@ -752,5 +785,45 @@ class LaravelIntegration extends Integration
         }
 
         return $routeName;
+    }
+
+    /**
+     * Determine which Laravel optional params were actually present in the URL path
+     * (vs. injected as route defaults via ->defaults()).
+     *
+     * Laravel applies defaults before exposing Route::parameters(), so use the same
+     * compiled regex that Laravel used to bind the request to identify URL captures.
+     *
+     * @param object $route     Matched Laravel route
+     * @param object $request   Laravel request
+     * @param array  $allParams From $route->parameters()
+     * @return array
+     */
+    private static function laravelUrlMatchedParams($route, $request, array $allParams): array
+    {
+        if (!method_exists($route, 'getCompiled') || !method_exists($route, 'parameterNames')) {
+            return $allParams;
+        }
+
+        $compiled = $route->getCompiled();
+        if ($compiled === null || !method_exists($compiled, 'getRegex')) {
+            return $allParams;
+        }
+
+        $path = method_exists($request, 'decodedPath') ? $request->decodedPath() : $request->path();
+        $matches = [];
+        if (@preg_match($compiled->getRegex(), '/' . ltrim($path, '/'), $matches) !== 1) {
+            return $allParams;
+        }
+
+        $matched = [];
+        foreach ($route->parameterNames() as $name) {
+            if (isset($matches[$name]) && is_string($matches[$name])
+                && strlen($matches[$name]) > 0 && array_key_exists($name, $allParams)) {
+                $matched[$name] = $allParams[$name];
+            }
+        }
+
+        return $matched;
     }
 }

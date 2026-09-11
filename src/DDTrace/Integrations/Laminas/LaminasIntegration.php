@@ -284,6 +284,92 @@ class LaminasIntegration extends Integration
                     $httpRoute = LaminasIntegration::httpRouteTemplateFromNamedRouteStack($this, (string) $routeName);
                     if ($httpRoute !== null && $httpRoute !== '') {
                         $rootSpan->meta[Tag::HTTP_ROUTE] = $httpRoute;
+                        if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()
+                            && dd_trace_env_config("DD_API_SECURITY_ENABLED")) {
+                            $allParams = method_exists($routeMatch, 'getParams') ? ($routeMatch->getParams() ?? []) : [];
+                            $urlPath = method_exists($request, 'getUri') ? $request->getUri()->getPath() : null;
+                            // Regex and bracket routes require the framework's compiled
+                            // matcher data. If it cannot be obtained, leave cacheKey null
+                            // and omit the normalized tag rather than infer from the URL.
+                            $urlMatchedFromRegex = null;
+                            $matchedSegmentTemplate = null;
+                            $urlMatchedFromSegment = null;
+                            $cacheKey = null;
+                            if (strpos($httpRoute, '%') !== false) {
+                                // Regex route: use actual route regex for accurate presence.
+                                if ($urlPath !== null) {
+                                    try {
+                                        $_leafRoute = LaminasIntegration::getLeafRouteFromNamedRouteStack(
+                                            $this,
+                                            (string) $routeName
+                                        );
+                                        $urlMatchedFromRegex = LaminasIntegration::inferLaminasRegexMatch(
+                                            $_leafRoute,
+                                            $urlPath
+                                        );
+                                        unset($_leafRoute);
+                                    } catch (\Throwable $_ex) {
+                                        unset($_leafRoute, $_ex);
+                                        $urlMatchedFromRegex = null;
+                                    }
+                                }
+                                if ($urlMatchedFromRegex !== null) {
+                                    $_urlMatchedKeys = array_keys($urlMatchedFromRegex);
+                                    sort($_urlMatchedKeys);
+                                    $cacheKey = $httpRoute . '#' . implode(',', $_urlMatchedKeys);
+                                    unset($_urlMatchedKeys);
+                                }
+                            } elseif (strpos($httpRoute, '[') !== false) {
+                                // Bracket-optional route: use Segment::match() to get
+                                // accurate capture participation without URL inference.
+                                try {
+                                    $_leafRoute = LaminasIntegration::getLeafRouteFromNamedRouteStack(
+                                        $this,
+                                        (string) $routeName
+                                    );
+                                    if ($_leafRoute instanceof \Laminas\Router\Http\Segment) {
+                                        $_segmentMatch = LaminasIntegration::inferLaminasSegmentMatch(
+                                            $_leafRoute,
+                                            $urlPath
+                                        );
+                                        if ($_segmentMatch !== null) {
+                                            $matchedSegmentTemplate = $_segmentMatch['template'];
+                                            $urlMatchedFromSegment = $_segmentMatch['params'];
+                                        }
+                                    }
+                                    unset($_leafRoute, $_segmentMatch);
+                                } catch (\Throwable $_ex) {
+                                    unset($_leafRoute, $_segmentMatch, $_ex);
+                                }
+
+                                if ($matchedSegmentTemplate !== null) {
+                                    $cacheKey = $httpRoute . '#' . $matchedSegmentTemplate;
+                                }
+                            } else {
+                                $cacheKey = $httpRoute;
+                            }
+                            if ($cacheKey !== null) {
+                                $normalizedRoute = \DDTrace\routing_cache_get($cacheKey);
+                                if ($normalizedRoute === false) {
+                                    $normalizationTemplate = $matchedSegmentTemplate ?? $httpRoute;
+                                    $normalizationParams = $urlMatchedFromSegment ?? $allParams;
+                                    $normalizationUrlPath = $matchedSegmentTemplate === null ? $urlPath : null;
+                                    $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromLaminas(
+                                        $normalizationTemplate,
+                                        $normalizationParams,
+                                        $normalizationUrlPath,
+                                        $urlMatchedFromRegex
+                                    );
+                                    if ($normalizedRoute !== null) {
+                                        \DDTrace\routing_cache_set($cacheKey, $normalizedRoute);
+                                    }
+                                    unset($normalizationTemplate, $normalizationParams, $normalizationUrlPath);
+                                }
+                                if ($normalizedRoute !== null && $normalizedRoute !== false) {
+                                    $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -1155,6 +1241,228 @@ class LaminasIntegration extends Integration
                 self::walkRouteStackCollectEndpointRows($rootRouter, $route, $qualifiedName, $rows);
             }
         }
+    }
+
+    /**
+     * Reproduce Regex::match() before Laminas merges route defaults.
+     */
+    public static function inferLaminasRegexMatch($route, string $urlPath)
+    {
+        if ($route instanceof \Laminas\Router\Http\Regex) {
+            $match = self::matchLaminasRegexComponent($route, $urlPath, null);
+            return $match === null ? null : $match['params'];
+        }
+
+        if (!($route instanceof \Laminas\Router\Http\Chain)) {
+            return null;
+        }
+
+        $offset = 0;
+        $params = [];
+        foreach (self::laminasGetChainRoutes($route) as $component) {
+            if ($component instanceof \Laminas\Router\Http\Regex) {
+                $match = self::matchLaminasRegexComponent($component, $urlPath, $offset);
+            } elseif ($component instanceof \Laminas\Router\Http\Literal) {
+                $match = self::matchLaminasLiteralComponent($component, $urlPath, $offset);
+            } else {
+                return null;
+            }
+            if ($match === null) {
+                return null;
+            }
+            $params = array_merge($params, $match['params']);
+            $offset += $match['length'];
+        }
+
+        return $offset === strlen($urlPath) ? $params : null;
+    }
+
+    private static function matchLaminasRegexComponent($route, string $urlPath, $offset)
+    {
+        $regex = \Closure::bind(
+            static function ($regexRoute) { return $regexRoute->regex; },
+            null,
+            \Laminas\Router\Http\Regex::class
+        )($route);
+        $pattern = $offset === null ? '(^' . $regex . '$)' : '(\G' . $regex . ')';
+        $matches = [];
+        if (@preg_match($pattern, $urlPath, $matches, 0, $offset ?? 0) !== 1) {
+            return null;
+        }
+
+        $params = [];
+        foreach ($matches as $name => $value) {
+            if (is_string($name) && $value !== '') {
+                $params[$name] = rawurldecode($value);
+            }
+        }
+
+        return ['params' => $params, 'length' => strlen($matches[0])];
+    }
+
+    private static function matchLaminasLiteralComponent($route, string $urlPath, int $offset)
+    {
+        $literal = \Closure::bind(
+            static function ($literalRoute) { return $literalRoute->route; },
+            null,
+            \Laminas\Router\Http\Literal::class
+        )($route);
+        if ($literal === '' || strpos($urlPath, $literal, $offset) !== $offset) {
+            return null;
+        }
+
+        return ['params' => [], 'length' => strlen($literal)];
+    }
+
+    /**
+     * Reproduce Segment::match() before Laminas merges route defaults.
+     *
+     * @return array{template: string, params: array}|null
+     */
+    public static function inferLaminasSegmentMatch(
+        \Laminas\Router\Http\Segment $route,
+        string $urlPath
+    ) {
+        $routeData = \Closure::bind(
+            static function ($segment) {
+                return [
+                    $segment->regex,
+                    $segment->paramMap,
+                    $segment->parts,
+                    $segment->translationKeys,
+                ];
+            },
+            null,
+            \Laminas\Router\Http\Segment::class
+        )($route);
+
+        if (!is_array($routeData) || count($routeData) !== 4 || !empty($routeData[3])) {
+            return null;
+        }
+
+        $matches = [];
+        if (@preg_match('(^' . $routeData[0] . '$)', $urlPath, $matches, PREG_OFFSET_CAPTURE) !== 1) {
+            return null;
+        }
+
+        $captures = [];
+        $params = [];
+        foreach ($routeData[1] as $group => $name) {
+            if (!isset($matches[$group][0]) || $matches[$group][0] === '') {
+                continue;
+            }
+            $captures[$name][] = [
+                'raw' => $matches[$group][0],
+                'offset' => $matches[$group][1],
+            ];
+            $params[$name] = rawurldecode($matches[$group][0]);
+        }
+
+        $states = [[
+            'offset' => 0,
+            'template' => '',
+            'capture_indexes' => [],
+        ]];
+        $states = self::matchLaminasSegmentParts($routeData[2], $urlPath, $captures, $states);
+        foreach ($states as $state) {
+            if ($state['offset'] !== strlen($urlPath)) {
+                continue;
+            }
+            foreach ($captures as $name => $values) {
+                if (($state['capture_indexes'][$name] ?? 0) !== count($values)) {
+                    continue 2;
+                }
+            }
+            return [
+                'template' => $state['template'],
+                'params' => $params,
+            ];
+        }
+
+        return null;
+    }
+
+    private static function matchLaminasSegmentParts(
+        array $parts,
+        string $urlPath,
+        array $captures,
+        array $states
+    ): array {
+        foreach ($parts as $part) {
+            $nextStates = [];
+            foreach ($states as $state) {
+                if ($part[0] === 'literal') {
+                    $literal = $part[1];
+                    if (substr($urlPath, $state['offset'], strlen($literal)) !== $literal) {
+                        continue;
+                    }
+                    $state['offset'] += strlen($literal);
+                    $state['template'] .= $literal;
+                    $nextStates[] = $state;
+                } elseif ($part[0] === 'parameter') {
+                    $name = $part[1];
+                    $captureIndex = $state['capture_indexes'][$name] ?? 0;
+                    if (!isset($captures[$name][$captureIndex])) {
+                        continue;
+                    }
+                    $capture = $captures[$name][$captureIndex];
+                    if ($capture['offset'] !== $state['offset']) {
+                        continue;
+                    }
+                    $state['offset'] += strlen($capture['raw']);
+                    $state['template'] .= ':' . $name;
+                    if (isset($part[2]) && $part[2] !== null && $part[2] !== '') {
+                        $state['template'] .= '{' . $part[2] . '}';
+                    }
+                    $state['capture_indexes'][$name] = $captureIndex + 1;
+                    $nextStates[] = $state;
+                } elseif ($part[0] === 'optional') {
+                    $optionalStates = self::matchLaminasSegmentParts(
+                        $part[1],
+                        $urlPath,
+                        $captures,
+                        [$state]
+                    );
+                    foreach ($optionalStates as $optionalState) {
+                        $nextStates[] = $optionalState;
+                    }
+                    $nextStates[] = $state;
+                } else {
+                    // Translated literals require the router's match options. Fall back
+                    // rather than attempting a potentially inaccurate reconstruction.
+                    return [];
+                }
+            }
+            $states = $nextStates;
+            if (empty($states)) {
+                break;
+            }
+        }
+
+        return $states;
+    }
+
+    public static function getLeafRouteFromNamedRouteStack($stack, string $matchedName)
+    {
+        $segments = \explode('/', $matchedName, 2);
+        $route = self::laminasGetNamedRouteFromStack($stack, $segments[0]);
+        if ($route === null) {
+            return null;
+        }
+        $hasChild = isset($segments[1]);
+        if ($route instanceof \Laminas\Router\Http\Part) {
+            if (!$hasChild) {
+                $rp = new ReflectionProperty($route, 'route');
+                $rp->setAccessible(true);
+                return $rp->getValue($route);
+            }
+            self::laminasMaterializePartChildRoutes($route);
+            return self::getLeafRouteFromNamedRouteStack($route, $segments[1]);
+        }
+        if ($hasChild) {
+            return null;
+        }
+        return $route;
     }
 
     public static function httpRouteTemplateFromNamedRouteStack($stack, string $matchedName): ?string

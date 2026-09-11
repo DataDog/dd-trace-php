@@ -732,7 +732,33 @@ class WordPressIntegrationLoader
                 function_exists('is_404') && is_404() === false) {
                 $rootSpan = \DDTrace\root_span();
                 if (\property_exists($This, 'matched_rule')) {
-                    $rootSpan->meta[Tag::HTTP_ROUTE] = $This->matched_rule;
+                    $matchedRule = $This->matched_rule;
+                    $rootSpan->meta[Tag::HTTP_ROUTE] = $matchedRule;
+                    if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()
+                        && dd_trace_env_config("DD_API_SECURITY_ENABLED")) {
+                        $urlPath = \property_exists($This, 'request') ? $This->request : null;
+                        $routeAnalysis = \DDTrace\Util\RouteNormalizer::analyzeWordPressRoute(
+                            $matchedRule,
+                            $urlPath
+                        );
+                        if ($routeAnalysis !== null) {
+                            $cacheKey = $matchedRule . '#' . $routeAnalysis['cache_signature'];
+                            $normalizedRoute = \DDTrace\routing_cache_get($cacheKey);
+                            if ($normalizedRoute === false) {
+                                $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromWordPress(
+                                    $matchedRule,
+                                    $urlPath,
+                                    $routeAnalysis
+                                );
+                                if ($normalizedRoute !== null) {
+                                    \DDTrace\routing_cache_set($cacheKey, $normalizedRoute);
+                                }
+                            }
+                            if ($normalizedRoute !== null && $normalizedRoute !== false) {
+                                $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
+                            }
+                        }
+                    }
                 }
             }
         });
