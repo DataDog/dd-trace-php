@@ -117,14 +117,6 @@ static uint64_t ddtrace_otel_threshold_for(double sample_rate) {
   return (uint64_t)threshold;
 }
 
-static void ddtrace_otel_encode_56_bit_hex(uint64_t value, char output[14]) {
-  static const char hex_digits[] = "0123456789abcdef";
-  for (size_t i = 14; i > 0; --i) {
-    output[i - 1] = hex_digits[value & 0xf];
-    value >>= 4;
-  }
-}
-
 static uint64_t ddtrace_otel_derive_random_value(uint64_t trace_id) {
   return ~(trace_id * DDTRACE_OTEL_KNUTH_FACTOR) >> 8;
 }
@@ -141,27 +133,24 @@ static uint64_t ddtrace_otel_reconcile_random_value(uint64_t random_value,
   return random_value;
 }
 
-static void ddtrace_otel_generate_fields(ddtrace_otel_fields* fields,
-                                         char random_value[14],
-                                         char threshold[14], uint64_t trace_id,
-                                         zend_long sampling_priority,
-                                         double sample_rate) {
+static zend_string* ddtrace_otel_generate_value(uint64_t trace_id,
+                                                zend_long sampling_priority,
+                                                double sample_rate) {
   uint64_t threshold_value = ddtrace_otel_threshold_for(sample_rate);
-  uint64_t random_value_int = ddtrace_otel_reconcile_random_value(
+  uint64_t random_value = ddtrace_otel_reconcile_random_value(
       ddtrace_otel_derive_random_value(trace_id), threshold_value,
       sampling_priority > 0);
 
-  ddtrace_otel_encode_56_bit_hex(random_value_int, random_value);
-  ddtrace_otel_encode_56_bit_hex(threshold_value, threshold);
-
-  size_t threshold_len = 14;
-  while (threshold_len > 1 && threshold[threshold_len - 1] == '0') {
-    --threshold_len;
+  smart_str result = {0};
+  smart_str_append_printf(&result, "rv:%014" PRIx64 ";th:%014" PRIx64,
+                          random_value, threshold_value);
+  size_t minimum_len = sizeof("rv:00000000000000;th:0") - 1;
+  while (ZSTR_LEN(result.s) > minimum_len &&
+         ZSTR_VAL(result.s)[ZSTR_LEN(result.s) - 1] == '0') {
+    --ZSTR_LEN(result.s);
   }
-  fields->random_value = random_value;
-  fields->random_value_len = 14;
-  fields->threshold = threshold;
-  fields->threshold_len = threshold_len;
+  smart_str_0(&result);
+  return result.s;
 }
 
 static zend_string* ddtrace_otel_rebuild_value(
@@ -170,25 +159,26 @@ static zend_string* ddtrace_otel_rebuild_value(
     double sample_rate) {
   ddtrace_otel_fields fields =
       ddtrace_otel_parse_fields(otel_value, otel_value_len);
-  char generated_random_value[14];
-  char generated_threshold[14];
+  zend_string* generated_value = NULL;
 
   if (decision == DDTRACE_OTEL_SAMPLING_DECISION_NON_PROBABILITY) {
     fields.threshold = NULL;
     fields.threshold_len = 0;
   } else if (decision == DDTRACE_OTEL_SAMPLING_DECISION_PROBABILITY &&
              sample_rate > 0) {
-    ddtrace_otel_generate_fields(&fields, generated_random_value,
-                                 generated_threshold, trace_id,
-                                 sampling_priority, sample_rate);
+    generated_value = ddtrace_otel_generate_value(
+        trace_id, sampling_priority, sample_rate);
   }
 
   smart_str result = {0};
-  if (fields.random_value) {
+  if (generated_value) {
+    smart_str_append(&result, generated_value);
+    zend_string_release(generated_value);
+  } else if (fields.random_value) {
     smart_str_appends(&result, "rv:");
     smart_str_appendl(&result, fields.random_value, fields.random_value_len);
   }
-  if (fields.threshold) {
+  if (!generated_value && fields.threshold) {
     if (result.s) {
       smart_str_appendc(&result, ';');
     }
@@ -398,18 +388,6 @@ zend_string* ddtrace_otel_sampling_limit_tracestate(
   return ddtrace_otel_limit_oversized_tracestate(tracestate);
 }
 
-static char* ddtrace_otel_write_generated_member(
-    char* output, const ddtrace_otel_fields* fields) {
-  memcpy(output, "ot=rv:", 6);
-  output += 6;
-  memcpy(output, fields->random_value, fields->random_value_len);
-  output += fields->random_value_len;
-  memcpy(output, ";th:", 4);
-  output += 4;
-  memcpy(output, fields->threshold, fields->threshold_len);
-  return output + fields->threshold_len;
-}
-
 static ddtrace_otel_insertion ddtrace_otel_generated_member_insertion(
     zend_string* tracestate) {
   ddtrace_otel_insertion insertion = {0};
@@ -439,17 +417,13 @@ static ddtrace_otel_insertion ddtrace_otel_generated_member_insertion(
 static zend_string* ddtrace_otel_insert_generated_member(
     zend_string* tracestate, uint64_t trace_id, zend_long sampling_priority,
     double sample_rate, size_t member_count) {
-  ddtrace_otel_fields fields = {0};
-  char random_value[14];
-  char threshold[14];
-  ddtrace_otel_generate_fields(&fields, random_value, threshold, trace_id,
-                               sampling_priority, sample_rate);
+  zend_string* generated_value = ddtrace_otel_generate_value(
+      trace_id, sampling_priority, sample_rate);
 
   size_t raw_len = tracestate ? ZSTR_LEN(tracestate) : 0;
   ddtrace_otel_insertion insertion =
       ddtrace_otel_generated_member_insertion(tracestate);
-  size_t otel_member_len =
-      3 + 3 + fields.random_value_len + 1 + 3 + fields.threshold_len;
+  size_t otel_member_len = 3 + ZSTR_LEN(generated_value);
   size_t insertion_len =
       otel_member_len + insertion.comma_before + insertion.comma_after;
   size_t result_len = raw_len + insertion_len;
@@ -464,7 +438,11 @@ static zend_string* ddtrace_otel_insert_generated_member(
   if (insertion.comma_before) {
     *output++ = ',';
   }
-  output = ddtrace_otel_write_generated_member(output, &fields);
+  memcpy(output, "ot=", 3);
+  output += 3;
+  memcpy(output, ZSTR_VAL(generated_value), ZSTR_LEN(generated_value));
+  output += ZSTR_LEN(generated_value);
+  zend_string_release(generated_value);
   if (insertion.comma_after) {
     *output++ = ',';
   }
