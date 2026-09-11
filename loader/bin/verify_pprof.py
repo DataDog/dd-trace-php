@@ -233,8 +233,9 @@ def validate_profile(data):
 
     expected = ["ssi_profile_leaf", "ssi_profile_middle", "ssi_profile_root"]
     observed_stacks = []
-    matching_stack = None
-    positive_time_sample = False
+    expected_stack_samples = []
+    matching_wall_stack = None
+    matching_cpu_stack = None
     samples = nested_messages(data, 2, "profile")
     for index, message in enumerate(samples):
         location_ids = integer_values(message, 1, "sample[{}]".format(index))
@@ -258,18 +259,23 @@ def validate_profile(data):
             if name == expected[cursor]:
                 cursor += 1
                 if cursor == len(expected):
-                    matching_stack = stack
                     break
-
-        for (sample_type, _unit), value in zip(sample_types, values):
-            if sample_type in ("wall-time", "cpu-time") and value > 0:
-                positive_time_sample = True
+        stack_matches = cursor == len(expected)
+        values_by_type = {
+            sample_type: value
+            for (sample_type, _unit), value in zip(sample_types, values)
+        }
+        if stack_matches:
+            expected_stack_samples.append((stack, values_by_type))
+            if values_by_type.get("wall-time", 0) > 0:
+                matching_wall_stack = stack
+            if values_by_type.get("cpu-time", 0) > 0:
+                matching_cpu_stack = stack
 
     if not samples:
         raise ProfileError("profile: contains no samples")
-    if not positive_time_sample:
-        raise ProfileError("profile: contains no positive wall-time or CPU-time sample")
-    if matching_stack is None:
+
+    if not expected_stack_samples:
         relevant = []
         for stack in observed_stacks:
             if any(name.startswith("ssi_profile_") for name in stack):
@@ -280,11 +286,29 @@ def validate_profile(data):
         raise ProfileError(
             "no sample contained leaf <- middle <- root; relevant observed stacks: {}".format(detail))
 
+    observed_values = "; ".join(
+        "wall-time={}, cpu-time={}".format(
+            values_by_type.get("wall-time", "missing"),
+            values_by_type.get("cpu-time", "missing"),
+        )
+        for _stack, values_by_type in expected_stack_samples[:5]
+    )
+    if matching_wall_stack is None:
+        raise ProfileError(
+            "no sample with leaf <- middle <- root had positive wall-time; observed values: {}".format(
+                observed_values))
+    if sys.platform.startswith("linux") and matching_cpu_stack is None:
+        raise ProfileError(
+            "no sample with leaf <- middle <- root had positive CPU-time on Linux; observed values: {}".format(
+                observed_values))
+
     print("Profile validation passed")
     print("  sample types: {}".format(
         ", ".join("{}/{}".format(name, unit) for name, unit in sample_types)))
     print("  samples: {}".format(len(samples)))
-    print("  matched stack: {}".format(" <- ".join(matching_stack)))
+    print("  wall-time stack: {}".format(" <- ".join(matching_wall_stack)))
+    if sys.platform.startswith("linux"):
+        print("  CPU-time stack: {}".format(" <- ".join(matching_cpu_stack)))
 
 
 def main():
