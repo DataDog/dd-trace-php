@@ -8,6 +8,7 @@
 #include "tracer_tag_propagation/tracer_tag_propagation.h"
 #include "serializer.h"
 #include "trace_context.h"
+#include "tracestate.h"
 #include "zend_string.h"
 #include <config/config_ini.h>
 #include <headers/headers.h>
@@ -477,14 +478,16 @@ static ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids_t
                     --trimmed_end;
                 }
                 size_t trimmed_len = trimmed_end - trimmed_member;
+                bool is_datadog_member = ddtrace_tracestate_member_is(trimmed_member, trimmed_len, "dd") ||
+                                         (trimmed_len >= 3 && trimmed_member[0] == 'd' && trimmed_member[1] == 'd' &&
+                                          (trimmed_member[2] == ' ' || trimmed_member[2] == '\t'));
 
-                if (trimmed_len >= 3 && memcmp(trimmed_member, "ot=", 3) == 0) {
+                if (ddtrace_tracestate_member_is(trimmed_member, trimmed_len, "ot")) {
                     if (!found_otel) {
                         ddtrace_otel_sampling_parse(&result.otel_sampling, trimmed_member + 3, trimmed_len - 3);
                         found_otel = true;
                     }
-                } else if (trimmed_len >= 3 && trimmed_member[0] == 'd' && trimmed_member[1] == 'd' &&
-                           (trimmed_member[2] == '=' || trimmed_member[2] == ' ' || trimmed_member[2] == '\t')) {
+                } else if (is_datadog_member) {
                     // If there's a dd member, ignore x-datadog-tags fully.
                     ddtrace_parse_datadog_tracestate_member(&result, trimmed_member, trimmed_end, &tags_size,
                                                              &span_parent_key);

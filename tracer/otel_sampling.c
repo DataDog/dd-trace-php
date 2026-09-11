@@ -1,4 +1,5 @@
 #include "otel_sampling.h"
+#include "tracestate.h"
 
 #include <math.h>
 
@@ -224,14 +225,6 @@ void ddtrace_otel_sampling_append_to_tracestate(smart_str* tracestate, const ddt
   smart_str_appends(tracestate, "ot=");
   smart_str_append(tracestate, value.s);
   smart_str_free(&value);
-}
-
-static bool ddtrace_tracestate_member_is(const char* member, size_t member_len, const char* key) {
-  while (member_len && (*member == ' ' || *member == '\t')) {
-    ++member;
-    --member_len;
-  }
-  return member_len >= 3 && member[0] == key[0] && member[1] == key[1] && member[2] == '=';
 }
 
 static ddtrace_otel_tracestate_members ddtrace_otel_scan_tracestate(zend_string* tracestate) {
