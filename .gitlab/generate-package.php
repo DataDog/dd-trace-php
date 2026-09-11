@@ -1610,6 +1610,15 @@ $system_tests_weblogs = [
     - cp ${DD_LOADER_PACKAGE_PATH}/linux-gnu/loader/dd_library_loader.so modules/
   script:
     - ./bin/test.sh
+    - |
+      # Profiling starts at PHP 7.1. Run only NTS because multiple ZTS threads could race
+      # while writing to the single DD_PROFILING_OUTPUT_PPROF file used by this test.
+      if [[ "$PHP_FLAVOUR" == "nts" ]] && php -r 'exit(PHP_VERSION_ID >= 70100 ? 0 : 1);'; then
+        SSI_PROFILE_ARTIFACT_DIR="${CI_PROJECT_DIR}/artifacts/loader-ssi-profile/${ARCH}/${MAJOR_MINOR}" \
+          ./bin/test_ssi_profile.sh
+      else
+        echo "Skipping SSI profile validation for PHP ${MAJOR_MINOR} ${PHP_FLAVOUR}"
+      fi
 
     # FIXME: Now that we strip the symbols, our suppression file is useless
     #if [[ "$MINOR_MAJOR" == "8.3" ]]; then
@@ -1617,30 +1626,6 @@ $system_tests_weblogs = [
     #  <<# parameters.use_valgrind >>echo "Run with Valgrind" ; TEST_USE_VALGRIND=1 ./bin/test.sh<</ parameters.use_valgrind >>
     #fi
     - ./bin/check_glibc_version.sh
-
-# Exercise the complete production SSI profiling path on every supported PHP minor:
-# universal loader -> packaged extension -> stack walking -> serialized pprof.
-"Loader SSI profiling stack test on <?= $arch ?>":
-  stage: verify
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${MAJOR_MINOR}_bookworm-10"
-  tags: [ "arch:<?= $arch ?>" ]
-  needs:
-    - job: "package loader: [<?= $arch ?>]"
-      artifacts: true
-  parallel:
-    matrix:
-      - MAJOR_MINOR: <?= json_encode($profiler_minor_major_targets), "\n" ?>
-  before_script:
-<?php unset_dd_runner_env_vars() ?>
-    - switch-php nts
-    - mkdir extracted/
-    - tar --no-same-owner --no-same-permissions --touch -xzf packages/dd-library-php-ssi-*-linux.tar.gz -C extracted/
-    - export DD_LOADER_PACKAGE_PATH=${PWD}/extracted/dd-library-php-ssi
-    - cd loader
-    - mkdir -p modules
-    - cp ${DD_LOADER_PACKAGE_PATH}/linux-gnu/loader/dd_library_loader.so modules/
-  script:
-    - SSI_PROFILE_ARTIFACT_DIR="${CI_PROJECT_DIR}/artifacts/loader-ssi-profile/${MAJOR_MINOR}" ./bin/test_ssi_profile.sh
   artifacts:
     when: always
     expire_in: 1 week
