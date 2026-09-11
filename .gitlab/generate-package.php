@@ -1618,6 +1618,35 @@ $system_tests_weblogs = [
     #fi
     - ./bin/check_glibc_version.sh
 
+# Exercise the complete production SSI profiling path on every supported PHP minor:
+# universal loader -> packaged extension -> stack walking -> serialized pprof.
+"Loader SSI profiling stack test on <?= $arch ?>":
+  stage: verify
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${MAJOR_MINOR}_bookworm-10"
+  tags: [ "arch:<?= $arch ?>" ]
+  needs:
+    - job: "package loader: [<?= $arch ?>]"
+      artifacts: true
+  parallel:
+    matrix:
+      - MAJOR_MINOR: <?= json_encode($profiler_minor_major_targets), "\n" ?>
+  before_script:
+<?php unset_dd_runner_env_vars() ?>
+    - switch-php nts
+    - mkdir extracted/
+    - tar --no-same-owner --no-same-permissions --touch -xzf packages/dd-library-php-ssi-*-linux.tar.gz -C extracted/
+    - export DD_LOADER_PACKAGE_PATH=${PWD}/extracted/dd-library-php-ssi
+    - cd loader
+    - mkdir -p modules
+    - cp ${DD_LOADER_PACKAGE_PATH}/linux-gnu/loader/dd_library_loader.so modules/
+  script:
+    - SSI_PROFILE_ARTIFACT_DIR="${CI_PROJECT_DIR}/artifacts/loader-ssi-profile/${MAJOR_MINOR}" ./bin/test_ssi_profile.sh
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - artifacts/loader-ssi-profile/
+
 "Loader test on <?= $arch ?> alpine":
   stage: verify
   image: "registry.ddbuild.io/images/mirror/alpine:3.20"
