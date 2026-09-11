@@ -1,4 +1,5 @@
 #include "distributed_tracing_headers.h"
+#include "otel_sampling.h"
 #include "configuration.h"
 #ifdef __linux__
 #include "otel_context.h"
@@ -7,11 +8,14 @@
 #include "tracer_tag_propagation/tracer_tag_propagation.h"
 #include "serializer.h"
 #include "trace_context.h"
+#include "tracestate.h"
 #include "zend_string.h"
 #include <config/config_ini.h>
 #include <headers/headers.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
+
+#define DDTRACE_TRACESTATE_MAX_VENDOR_MEMBERS 30
 
 static inline bool dd_is_hex_char(char chr) {
     return (chr >= '0' && chr <= '9') || (chr >= 'a' && chr <= 'f');
@@ -54,6 +58,89 @@ static inline int hex2int(char c) {
     return (c >= '0' && c <= '9') ? c - '0' :
            (c >= 'a' && c <= 'f') ? c - 'a' + 10 :
            (c >= 'A' && c <= 'F') ? c - 'A' + 10 : -1;
+}
+
+static void ddtrace_parse_datadog_tracestate_member(ddtrace_distributed_tracing_result *result, char *member,
+                                                     char *member_end, size_t *tags_size,
+                                                     zend_string **span_parent_key) {
+    while (member < member_end && *member != '=') {
+        ++member;
+    }
+
+    while (member < member_end) {
+        char *keystart = ++member;
+        while (member < member_end && *member != ';' && *member != ':') {
+            ++member;
+        }
+        size_t keylen = member - keystart;
+        if (member >= member_end) {
+            break;
+        }
+
+        char *valuestart = ++member;
+        while (member < member_end && *member != ';') {
+            ++member;
+        }
+        char *valueend = member;
+        while (valueend > valuestart && (valueend[-1] == ' ' || valueend[-1] == '\t')) {
+            --valueend;
+        }
+        size_t valuelen = valueend - valuestart;
+
+        if (keylen == 1 && keystart[0] == 'p') {
+            if (*span_parent_key) {
+                zval zv;
+                ZVAL_STRINGL(&zv, valuestart, valuelen);
+                zend_hash_update(&result->meta_tags, *span_parent_key, &zv);
+                zend_string_release(*span_parent_key);
+                *span_parent_key = NULL;
+            }
+        } else if (keylen == 1 && keystart[0] == 's') {
+            int extracted_priority = strtol(valuestart, NULL, 10);
+            if ((result->priority_sampling > 0) == (extracted_priority > 0)) {
+                result->priority_sampling = extracted_priority;
+            } else {
+                result->conflicting_sampling_priority = true;
+            }
+        } else if (keylen == 1 && keystart[0] == 'o') {
+            if (result->origin) {
+                zend_string_release(result->origin);
+            }
+            result->origin = zend_string_init(valuestart, valuelen, 0);
+            for (char *valptr = ZSTR_VAL(result->origin), *valend = valptr + valuelen; valptr < valend; ++valptr) {
+                if (*valptr == '~') {
+                    *valptr = '=';
+                }
+            }
+        } else if (keylen > 2 && keystart[0] == 't' && keystart[1] == '.') {
+            *tags_size += keylen + sizeof("_dd.") + valuelen;
+            if (*tags_size < 512) {
+                zend_string *tag_name = zend_strpprintf(0, "_dd.p.%.*s", (int)keylen - 2, keystart + 2);
+                zval zv;
+                ZVAL_STRINGL(&zv, valuestart, valuelen);
+                for (char *valptr = Z_STRVAL(zv), *valend = valptr + valuelen; valptr < valend; ++valptr) {
+                    if (*valptr == '~') {
+                        *valptr = '=';
+                    }
+                }
+                zend_hash_update(&result->meta_tags, tag_name, &zv);
+                zend_hash_add_empty_element(&result->propagated_tags, tag_name);
+                zend_string_release(tag_name);
+            } else {
+                zval error_zv;
+                ZVAL_STRING(&error_zv, "extract_max_size");
+                zend_hash_str_update(&result->meta_tags, ZEND_STRL("_dd.propagation_error"), &error_zv);
+            }
+        } else if (zend_hash_num_elements(&result->tracestate_unknown_dd_keys) < 100) {
+            zval zv;
+            ZVAL_STRINGL(&zv, valuestart, valuelen);
+            zend_hash_str_update(&result->tracestate_unknown_dd_keys, keystart, keylen, &zv);
+        }
+
+        if (member >= member_end || *member != ';') {
+            break;
+        }
+    }
 }
 
 static void ddtrace_deserialize_baggage(char *baggage_ptr, char *baggage_end, HashTable *baggage) {
@@ -370,105 +457,51 @@ static ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids_t
 
         // header format: "[*,]dd=p:0000000000000111;s:1;o:rum;t.dm:-4;t.usr.id:12345[,*]"
         if (read_header((zai_str)ZAI_STRL("TRACESTATE"), "tracestate", &tracestate, data)) {
-            bool last_comma = true;
             result.tracestate = zend_string_alloc(ZSTR_LEN(tracestate), 0);
             char *persist = ZSTR_VAL(result.tracestate);
-            int commas = 0;
             size_t tags_size = 0;
-            for (char *ptr = ZSTR_VAL(tracestate), *end = ptr + ZSTR_LEN(tracestate); ptr < end; ++ptr) {
-                // dd member
-                if (last_comma && ptr + 2 < end && ptr[0] == 'd' && ptr[1] == 'd' && (ptr[2] == '=' || ptr[2] == '\t' || ptr[2] == ' ')) {
-                    // If there's dd= members, ignore x-datadog-tags fully
-                    while (ptr < end && *ptr != '=') {
-                        ++ptr;
+            size_t vendor_member_count = 0;
+            bool found_otel = false;
+            char *end = ZSTR_VAL(tracestate) + ZSTR_LEN(tracestate);
+            for (char *member = ZSTR_VAL(tracestate); member < end;) {
+                char *member_end = memchr(member, ',', end - member);
+                if (!member_end) {
+                    member_end = end;
+                }
+
+                char *trimmed_member = member;
+                while (trimmed_member < member_end && (*trimmed_member == ' ' || *trimmed_member == '\t')) {
+                    ++trimmed_member;
+                }
+                char *trimmed_end = member_end;
+                while (trimmed_end > trimmed_member && (trimmed_end[-1] == ' ' || trimmed_end[-1] == '\t')) {
+                    --trimmed_end;
+                }
+                size_t trimmed_len = trimmed_end - trimmed_member;
+                bool is_datadog_member = ddtrace_tracestate_member_is(trimmed_member, trimmed_len, "dd") ||
+                                         (trimmed_len >= 3 && trimmed_member[0] == 'd' && trimmed_member[1] == 'd' &&
+                                          (trimmed_member[2] == ' ' || trimmed_member[2] == '\t'));
+
+                if (ddtrace_tracestate_member_is(trimmed_member, trimmed_len, "ot")) {
+                    if (!found_otel) {
+                        ddtrace_otel_sampling_parse(&result.otel_sampling, trimmed_member + 3, trimmed_len - 3);
+                        found_otel = true;
                     }
-
-                    do {
-                        char *keystart = ++ptr;
-                        while (ptr < end && *ptr != ';' && *ptr != ',' && *ptr != ':') {
-                            ++ptr;
-                        }
-                        size_t keylen = ptr - keystart;
-                        if (ptr >= end) {
-                            break;
-                        }
-                        char *valuestart = ++ptr;
-                        while (ptr < end && *ptr != ';' && *ptr != ',') {
-                            ++ptr;
-                        }
-                        char *valueend = ptr;
-                        while (*valueend == ' ' || *valueend == '\t') {
-                            --valueend;
-                        }
-                        size_t valuelen = valueend - valuestart;
-
-                        if (keylen == 1 && keystart[0] == 'p') {
-                            if (span_parent_key) {
-                                zval zv;
-                                ZVAL_STRINGL(&zv, valuestart, valuelen);
-                                zend_hash_update(&result.meta_tags, span_parent_key, &zv);
-                                zend_string_release(span_parent_key);
-                                span_parent_key = NULL;
-                            }
-                        } else if (keylen == 1 && keystart[0] == 's') {
-                            int extraced_priority = strtol(valuestart, NULL, 10);
-                            if ((result.priority_sampling > 0) == (extraced_priority > 0)) {
-                                result.priority_sampling = extraced_priority;
-                            } else {
-                                result.conflicting_sampling_priority = true;
-                            }
-                        } else if (keylen == 1 && keystart[0] == 'o') {
-                            if (result.origin) {
-                                zend_string_release(result.origin);
-                            }
-                            result.origin = zend_string_init(valuestart, valuelen, 0);
-                            for (char *valptr = ZSTR_VAL(result.origin), *valend = valptr + valuelen; valptr < valend; ++valptr) {
-                                if (*valptr == '~') {
-                                    *valptr = '=';
-                                }
-                            }
-                        } else if (keylen > 2 && keystart[0] == 't' && keystart[1] == '.') {
-                            tags_size += keylen + sizeof("_dd.") + valuelen;
-                            if (tags_size < 512) {
-                                zend_string *tag_name = zend_strpprintf(0, "_dd.p.%.*s", (int) keylen - 2, keystart + 2);
-                                zval zv;
-                                ZVAL_STRINGL(&zv, valuestart, valuelen);
-                                for (char *valptr = Z_STRVAL(zv), *valend = valptr + valuelen; valptr < valend; ++valptr) {
-                                    if (*valptr == '~') {
-                                        *valptr = '=';
-                                    }
-                                }
-                                zend_hash_update(&result.meta_tags, tag_name, &zv);
-                                zend_hash_add_empty_element(&result.propagated_tags, tag_name);
-                                zend_string_release(tag_name);
-                            } else {
-                                zval error_zv;
-                                ZVAL_STRING(&error_zv, "extract_max_size");
-                                zend_hash_str_update(&result.meta_tags, ZEND_STRL("_dd.propagation_error"), &error_zv);
-                            }
-                        } else {
-                            if (zend_hash_num_elements(&result.tracestate_unknown_dd_keys) < 100) {
-                                zval zv;
-                                ZVAL_STRINGL(&zv, valuestart, valuelen);
-                                zend_hash_str_update(&result.tracestate_unknown_dd_keys, keystart, keylen, &zv);
-                            }
-                        }
-                    } while (*ptr == ';');
-
-                    continue;
-                }
-                *(persist++) = *ptr;
-
-                if (*ptr == ' ' || *ptr == '\t') {
-                    continue;
+                } else if (is_datadog_member) {
+                    // If there's a dd member, ignore x-datadog-tags fully.
+                    ddtrace_parse_datadog_tracestate_member(&result, trimmed_member, trimmed_end, &tags_size,
+                                                             &span_parent_key);
+                } else if (trimmed_len && vendor_member_count < DDTRACE_TRACESTATE_MAX_VENDOR_MEMBERS) {
+                    if (vendor_member_count) {
+                        *persist++ = ',';
+                    }
+                    size_t member_len = member_end - member;
+                    memcpy(persist, member, member_len);
+                    persist += member_len;
+                    ++vendor_member_count;
                 }
 
-                last_comma = *ptr == ',';
-                // preserve only up to 31 vendor specific values, excluding our own
-                if (last_comma && ++commas == 30) {
-                    --persist;
-                    break;
-                }
+                member = member_end == end ? end : member_end + 1;
             }
             *persist = 0; // and zero-terminate it
             ZSTR_LEN(result.tracestate) = persist - ZSTR_VAL(result.tracestate);
@@ -550,6 +583,7 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
                 if (!result.tracestate && new_result.tracestate) {
                     result.tracestate = new_result.tracestate;
                     new_result.tracestate = NULL;
+                    result.otel_sampling = new_result.otel_sampling;
 
                     zend_hash_destroy(&result.tracestate_unknown_dd_keys);
                     result.tracestate_unknown_dd_keys = new_result.tracestate_unknown_dd_keys;
@@ -652,6 +686,7 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
             result->trace_id = (datadog_trace_id){0};
             result->parent_id = 0;
             result->priority_sampling = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
+            result->otel_sampling = (ddtrace_otel_sampling_state){0};
 
             zval reason_str;
             ZVAL_STR(&reason_str, zend_string_init(ZEND_STRL("propagation_behavior_extract"), 0));
@@ -720,6 +755,7 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
             ZVAL_STR(&zv, result->tracestate);
             datadog_assign_variable(&span->property_tracestate, &zv);
         }
+        span->otel_sampling = result->otel_sampling;
 
         ZVAL_ARR(&zv, emalloc(sizeof(HashTable)));
         *Z_ARR(zv) = result->tracestate_unknown_dd_keys;
@@ -763,6 +799,7 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
             zend_string_release(DDTRACE_G(tracestate));
         }
         DDTRACE_G(tracestate) = result->tracestate;
+        DDTRACE_G(otel_sampling) = result->otel_sampling;
         zend_hash_destroy(&DDTRACE_G(baggage));
         DDTRACE_G(baggage) = result->baggage;
         zend_string *key;

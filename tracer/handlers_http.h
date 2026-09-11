@@ -6,13 +6,14 @@
 #include "random.h"
 #include "tracer_tag_propagation/tracer_tag_propagation.h"
 #include "span.h"
+#include "otel_sampling.h"
 #include "trace_context.h"
 #include <Zend/zend_smart_str.h>
 #include <components/log/log.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
-static inline zend_string *ddtrace_format_tracestate(zend_string *tracestate, uint64_t span_id, zend_string *origin, zend_long sampling_priority, zend_string *propagated_tags, zend_array *tracestate_unknown_dd_keys) {
+static inline zend_string *ddtrace_format_tracestate(zend_string *tracestate, uint64_t span_id, zend_string *origin, zend_long sampling_priority, zend_string *propagated_tags, zend_array *tracestate_unknown_dd_keys, const ddtrace_otel_sampling_state *otel_sampling) {
     smart_str str = {0};
 
     if (span_id) {
@@ -91,6 +92,7 @@ static inline zend_string *ddtrace_format_tracestate(zend_string *tracestate, ui
     } ZEND_HASH_FOREACH_END();
 
     bool hasdd = str.s != NULL;
+    ddtrace_otel_sampling_append_to_tracestate(&str, otel_sampling);
     if (tracestate && ZSTR_LEN(tracestate) > 0) {
         if (str.s) {
             smart_str_appendc(&str, ',');
@@ -405,7 +407,9 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
                     propagated_span_id = ddtrace_parse_hex_span_id(old_parent_id);
                 }
 
-                zend_string *full_tracestate = ddtrace_format_tracestate(tracestate, propagated_span_id, origin, sampling_priority, propagated_tags, tracestate_unknown_dd_keys);
+                const ddtrace_otel_sampling_state *otel_sampling = root ? &root->otel_sampling : &DDTRACE_G(otel_sampling);
+                zend_string *full_tracestate = ddtrace_format_tracestate(tracestate, propagated_span_id, origin, sampling_priority, propagated_tags, tracestate_unknown_dd_keys, otel_sampling);
+                full_tracestate = ddtrace_otel_sampling_limit_tracestate(full_tracestate);
                 if (full_tracestate) {
                     ADD_HEADER("tracestate", "%.*s", (int)ZSTR_LEN(full_tracestate), ZSTR_VAL(full_tracestate));
                     zend_string_release(full_tracestate);
