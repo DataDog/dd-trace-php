@@ -28,7 +28,7 @@ The easiest way to get the development environment set up is to install [Docker]
 
 ### PHP linting
 
-The PHP tracer conforms to the [PSR-2 coding style guide](https://www.php-fig.org/psr/psr-2/). The code style is checked with [PHP_CodeSniffer](https://github.com/squizlabs/PHP_CodeSniffer) which can be invoked with the following command:
+The PHP tracer conforms to the [PSR-2 coding style guide](https://www.php-fig.org/psr/psr-2/). The code style is checked with [PHP_CodeSniffer](https://github.com/PHPCSStandards/PHP_CodeSniffer) which can be invoked with the following command:
 
 ```bash
 $ composer lint
