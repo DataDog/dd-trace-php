@@ -255,10 +255,13 @@ windows_test_c_job("windows test_c: zts", "zts", [
       # `sudo -b` (not `sudo ... &`): a non-interactive shell's `&` doesn't put the
       # backgrounded job in its own process group, so it stays in sudo's -- and sudo,
       # with pty allocation (common on macOS), waits for the whole process group to exit
-      # before returning. That left the CI job hanging forever after the test suite
-      # finished. `-b` is sudo's own flag for backgrounding the command, so sudo itself
-      # returns immediately instead of waiting on this long-lived server.
-      sudo -b bash -c "cd '${CI_PROJECT_DIR}/dockerfiles/services/request-replayer/src' && PHP_CLI_SERVER_WORKERS='${PHP_CLI_SERVER_WORKERS}' DD_REQUEST_DUMPER_FILE='${DD_REQUEST_DUMPER_FILE}' exec '${REQUEST_REPLAYER_PHP}' -S 127.0.0.1:80 index.php < /dev/null > '${CI_PROJECT_DIR}/artifacts/request-replayer.log' 2>&1"
+      # before returning. `-b` is sudo's own flag for backgrounding the command, so sudo
+      # itself returns immediately instead of waiting on this long-lived server. Even so,
+      # explicitly kill the server in after_script below (via its captured PID) rather than
+      # relying purely on detachment: the job still hung once even with -b, most likely
+      # some other inherited handle back to the runner's own output pipe, and killing it
+      # outright sidesteps whatever that is rather than chasing it further.
+      sudo -b bash -c "cd '${CI_PROJECT_DIR}/dockerfiles/services/request-replayer/src' && PHP_CLI_SERVER_WORKERS='${PHP_CLI_SERVER_WORKERS}' DD_REQUEST_DUMPER_FILE='${DD_REQUEST_DUMPER_FILE}' nohup '${REQUEST_REPLAYER_PHP}' -S 127.0.0.1:80 index.php < /dev/null > '${CI_PROJECT_DIR}/artifacts/request-replayer.log' 2>&1 & echo \$! > '${CI_PROJECT_DIR}/artifacts/request-replayer.pid'"
   script:
     - export PATH="${PHP_INSTALL_DIR}/bin:${PATH}"
     - export TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
@@ -268,6 +271,7 @@ windows_test_c_job("windows test_c: zts", "zts", [
   after_script:
     - mkdir -p "${CI_PROJECT_DIR}/artifacts/diffs"
     - find . -type f \( -name '*.diff' -o -name '*.mem' \) -not -path '*/vendor/*' -exec cp '{}' "${CI_PROJECT_DIR}/artifacts/diffs/" \; || true
+    - test -f "${CI_PROJECT_DIR}/artifacts/request-replayer.pid" && sudo kill -9 "$(cat "${CI_PROJECT_DIR}/artifacts/request-replayer.pid")" || true
   artifacts:
     when: always
     reports:
