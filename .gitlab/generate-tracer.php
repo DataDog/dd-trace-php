@@ -252,7 +252,13 @@ windows_test_c_job("windows test_c: zts", "zts", [
       "${REQUEST_REPLAYER_PHP}" -r "copy('https://getcomposer.org/installer', '/tmp/composer-setup.php');"
       "${REQUEST_REPLAYER_PHP}" /tmp/composer-setup.php --install-dir=/tmp --filename=composer.phar
       (cd dockerfiles/services/request-replayer/src && "${REQUEST_REPLAYER_PHP}" /tmp/composer.phar install --no-interaction)
-      sudo bash -c "cd '${CI_PROJECT_DIR}/dockerfiles/services/request-replayer/src' && PHP_CLI_SERVER_WORKERS='${PHP_CLI_SERVER_WORKERS}' DD_REQUEST_DUMPER_FILE='${DD_REQUEST_DUMPER_FILE}' nohup '${REQUEST_REPLAYER_PHP}' -S 127.0.0.1:80 index.php > '${CI_PROJECT_DIR}/artifacts/request-replayer.log' 2>&1 & disown"
+      # `sudo -b` (not `sudo ... &`): a non-interactive shell's `&` doesn't put the
+      # backgrounded job in its own process group, so it stays in sudo's -- and sudo,
+      # with pty allocation (common on macOS), waits for the whole process group to exit
+      # before returning. That left the CI job hanging forever after the test suite
+      # finished. `-b` is sudo's own flag for backgrounding the command, so sudo itself
+      # returns immediately instead of waiting on this long-lived server.
+      sudo -b bash -c "cd '${CI_PROJECT_DIR}/dockerfiles/services/request-replayer/src' && PHP_CLI_SERVER_WORKERS='${PHP_CLI_SERVER_WORKERS}' DD_REQUEST_DUMPER_FILE='${DD_REQUEST_DUMPER_FILE}' exec '${REQUEST_REPLAYER_PHP}' -S 127.0.0.1:80 index.php < /dev/null > '${CI_PROJECT_DIR}/artifacts/request-replayer.log' 2>&1"
   script:
     - export PATH="${PHP_INSTALL_DIR}/bin:${PATH}"
     - export TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
