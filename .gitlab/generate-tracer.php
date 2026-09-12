@@ -223,6 +223,7 @@ windows_test_c_job("windows test_c: zts", "zts", [
         --prefix="${PHP_INSTALL_DIR}" \
         --enable-debug \
         --enable-zts \
+        --enable-pcntl \
         --without-iconv \
         --with-openssl="$(brew --prefix openssl)" \
         --with-libxml \
