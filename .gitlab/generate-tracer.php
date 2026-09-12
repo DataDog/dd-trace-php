@@ -206,10 +206,15 @@ windows_test_c_job("windows test_c: zts", "zts", [
     PHP_INSTALL_DIR: "/tmp/php-macos-${PHP_MACOS_VERSION}"
     _DD_DEBUG_SIDECAR_LOG_LEVEL: trace
     _DD_DEBUG_SIDECAR_LOG_METHOD: "file://${CI_PROJECT_DIR}/artifacts/sidecar.log"
+    # Enables tests gated by tests/ext/includes/skipif_no_dev_env.inc (see request-replayer
+    # setup below), matching the Linux/Windows jobs' dev-env-dependent test coverage.
+    DATADOG_HAVE_DEV_ENV: 1
+    PHP_CLI_SERVER_WORKERS: "16"
+    DD_REQUEST_DUMPER_FILE: dump.json
   before_script:
     # Strip the noisy DD_* env vars from the locally installed agent
     - unset DD_SERVICE DD_ENV DD_TAGS DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED DD_AGENT_HOST DD_TRACE_AGENT_PORT DD_DOGSTATSD_PORT
-    - brew install pkg-config openssl re2c bison libxml2 oniguruma libzip libsodium
+    - brew install pkg-config openssl re2c bison libxml2 oniguruma libzip libsodium php
     - mkdir -p /tmp/php-build "${CI_PROJECT_DIR}/artifacts/tests"
     - curl -fL "https://github.com/php/php-src/archive/refs/tags/php-${PHP_MACOS_VERSION}.tar.gz" | tar xz -C /tmp/php-build
     - cd "/tmp/php-build/php-src-php-${PHP_MACOS_VERSION}"
@@ -233,6 +238,21 @@ windows_test_c_job("windows test_c: zts", "zts", [
     - make install
     - cd "${CI_PROJECT_DIR}"
     - rustup update stable && rustup default stable
+    - |
+      # There's no Docker service network on the macOS Tart runner (unlike the Linux/Windows
+      # jobs' "request-replayer" service container), so run request-replayer as a native
+      # background process on loopback instead, and alias its hostname via /etc/hosts so
+      # tests that hardcode "request-replayer" (see tests/Common/TracerTestTrait.php et al.)
+      # resolve it the same way. Uses brew's php (bundles curl + gmp, both required -- see
+      # dockerfiles/services/request-replayer/linux.Dockerfile and index.php's
+      # UnpackOptions::BIGINT_AS_GMP) rather than our from-source test build, which has
+      # neither and is a separate, unrelated PHP install.
+      grep -q '[[:space:]]request-replayer$' /etc/hosts || sudo bash -c 'echo "127.0.0.1 request-replayer" >> /etc/hosts'
+      REQUEST_REPLAYER_PHP="$(brew --prefix php)/bin/php"
+      "${REQUEST_REPLAYER_PHP}" -r "copy('https://getcomposer.org/installer', '/tmp/composer-setup.php');"
+      "${REQUEST_REPLAYER_PHP}" /tmp/composer-setup.php --install-dir=/tmp --filename=composer.phar
+      (cd dockerfiles/services/request-replayer/src && "${REQUEST_REPLAYER_PHP}" /tmp/composer.phar install --no-interaction)
+      sudo bash -c "cd '${CI_PROJECT_DIR}/dockerfiles/services/request-replayer/src' && PHP_CLI_SERVER_WORKERS='${PHP_CLI_SERVER_WORKERS}' DD_REQUEST_DUMPER_FILE='${DD_REQUEST_DUMPER_FILE}' nohup '${REQUEST_REPLAYER_PHP}' -S 127.0.0.1:80 index.php > '${CI_PROJECT_DIR}/artifacts/request-replayer.log' 2>&1 & disown"
   script:
     - export PATH="${PHP_INSTALL_DIR}/bin:${PATH}"
     - export TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
