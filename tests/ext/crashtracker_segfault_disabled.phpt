@@ -8,6 +8,11 @@ if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not supp
 if (getenv('DD_TRACE_CLI_ENABLED') === '0') die("skip: tracer is disabled");
 if (PHP_VERSION_ID < 70200) die("skip: TEST_PHP_EXTRA_ARGS is only available on PHP 7.2+");
 include __DIR__ . '/includes/skipif_no_dev_env.inc';
+// Crashtracking isn't supported on macOS. Separately, this test's own diff also picks up
+// macOS /bin/sh's own "Segmentation fault: 11" job-control notice on stderr (not suppressed
+// by the test's own "2>/dev/null", which only covers the child's stderr) -- either issue
+// alone would fail this test there.
+if (PHP_OS === "Darwin") die("skip: crashtracker is not supported on macOS");
 ?>
 --ENV--
 DD_TRACE_LOG_LEVEL=0

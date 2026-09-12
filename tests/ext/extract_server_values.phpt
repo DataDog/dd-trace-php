@@ -1,7 +1,14 @@
 --TEST--
 Test invalid $_SERVER values are properly ignored
 --SKIPIF--
-<?php if (!extension_loaded('pcntl')) die('skip: pcntl extension required'); ?>
+<?php
+if (!extension_loaded('pcntl')) die('skip: pcntl extension required');
+// The re-exec trick below needs the *full* original invocation (interpreter + its own -n/-d
+// flags + script args, e.g. so the ddtrace extension is still loaded after re-exec), which only
+// Linux's /proc/<pid>/cmdline exposes precisely and portably; macOS has no equivalent short of
+// ext-ffi + sysctl(KERN_PROCARGS2).
+if (PHP_OS === "Darwin") die('skip: re-exec via /proc/<pid>/cmdline is Linux-only');
+?>
 --ENV--
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
