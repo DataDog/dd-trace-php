@@ -268,6 +268,13 @@ windows_test_c_job("windows test_c: zts", "zts", [
     - php --version
     - make -j"$(sysctl -n hw.ncpu)"
     - timeout 20m make test_c
+    # GitLab's "step_script" (before_script + script) itself doesn't return while
+    # request-replayer is still alive -- confirmed by a run where the test suite finished
+    # cleanly (0 failures) but the job then sat idle until GitLab's own 1h job timeout
+    # killed it, with after_script never even starting. So kill it here, at the end of
+    # script itself, not only in after_script (kept below as a backstop for a failing
+    # script: that never reaches this line).
+    - test -f "${CI_PROJECT_DIR}/artifacts/request-replayer.pid" && sudo kill -9 "$(cat "${CI_PROJECT_DIR}/artifacts/request-replayer.pid")" || true
   after_script:
     - mkdir -p "${CI_PROJECT_DIR}/artifacts/diffs"
     - find . -type f \( -name '*.diff' -o -name '*.mem' \) -not -path '*/vendor/*' -exec cp '{}' "${CI_PROJECT_DIR}/artifacts/diffs/" \; || true
