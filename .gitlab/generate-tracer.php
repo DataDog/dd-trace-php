@@ -233,7 +233,10 @@ windows_test_c_job("windows test_c: zts", "zts", [
         --with-openssl="$(brew --prefix openssl)" \
         --with-libxml \
         --enable-mbstring \
-        --with-sodium
+        --with-sodium \
+        --with-curl \
+        --enable-sockets \
+        --with-ffi
     - make -j"$(sysctl -n hw.ncpu)"
     - make install
     - cd "${CI_PROJECT_DIR}"
