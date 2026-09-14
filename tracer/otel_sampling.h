@@ -1,8 +1,7 @@
 #ifndef DD_OTEL_SAMPLING_H
 #define DD_OTEL_SAMPLING_H
 
-#include <Zend/zend_smart_str.h>
-#include <php.h>
+#include <ext/compatibility.h>
 
 #define DDTRACE_OTEL_MAX_VALUE_LEN 256
 
