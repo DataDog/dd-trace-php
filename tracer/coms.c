@@ -130,32 +130,24 @@ void ddtrace_coms_mshutdown_proxy_env(void) {
     ddtrace_env_all_proxy = NULL;
 }
 
-static bool dd_is_memory_pressure_high(void) {
-    ddtrace_coms_stack_t *stack = atomic_load(&ddtrace_coms_globals.current_stack);
-    if (stack) {
-        int64_t used = (((double)atomic_load(&stack->position) / (double)stack->size) * 100);
-        return used > get_global_DD_TRACE_BETA_HIGH_MEMORY_PRESSURE_PERCENT();
-    } else {
-        return false;
-    }
-}
+static ddtrace_coms_stack_t *dd_pin_current_stack(void);
 
 /* Is called internally in the context of the PHP thread and actually attempts at storing the payload to send. If
  * there is not enough memory left in the currently active stack, it does not attempt to generate a new stack, instead
  * it returns a `ENOMEM` code that should be read by the invoker that can manually decide to ask for a larger stack.
  */
-static uint32_t dd_store_data(group_id_t group_id, const char *src, size_t size) {
-    ddtrace_coms_stack_t *stack = atomic_load(&ddtrace_coms_globals.current_stack);
+static uint32_t dd_store_data(group_id_t group_id, const char *src, size_t size, bool *memory_pressure_high) {
+    *memory_pressure_high = false;
+    ddtrace_coms_stack_t *stack = dd_pin_current_stack();
     if (stack == NULL) {
         // no stack to save data to
         return ENOMEM;
     }
 
     size_t size_to_alloc = size + sizeof(size_t) + sizeof(group_id_t);
-
-    atomic_fetch_add(&stack->refcount, 1);
-
     size_t position = atomic_fetch_add(&stack->position, size_to_alloc);
+    int64_t used = (((double)atomic_load(&stack->position) / (double)stack->size) * 100);
+    *memory_pressure_high = used > get_global_DD_TRACE_BETA_HIGH_MEMORY_PRESSURE_PERCENT();
     if ((position + size_to_alloc) > stack->size) {
         // allocation failed
         atomic_fetch_sub(&stack->refcount, 1);
@@ -435,14 +427,37 @@ static struct _writer_loop_data_t global_writer = {.thread = NULL,
 
 static struct _writer_loop_data_t *dd_get_writer() { return &global_writer; }
 
-static bool ddtrace_coms_threadsafe_rotate_stack(bool attempt_allocate_new, size_t min_size) {
-    struct _writer_loop_data_t *writer = dd_get_writer();
-    bool rv = false;
-    if (writer->thread) {
-        pthread_mutex_lock(&writer->thread->stack_rotation_mutex);
-        rv = dd_coms_unsafe_rotate_stack(attempt_allocate_new, min_size);
-        pthread_mutex_unlock(&writer->thread->stack_rotation_mutex);
+static struct _writer_thread_variables_t *dd_lock_stack_rotation(void) {
+    struct _writer_thread_variables_t *thread = dd_get_writer()->thread;
+    if (thread) {
+        pthread_mutex_lock(&thread->stack_rotation_mutex);
     }
+    return thread;
+}
+
+static void dd_unlock_stack_rotation(struct _writer_thread_variables_t *thread) {
+    if (thread) {
+        pthread_mutex_unlock(&thread->stack_rotation_mutex);
+    }
+}
+
+static ddtrace_coms_stack_t *dd_pin_current_stack(void) {
+    struct _writer_thread_variables_t *thread = dd_lock_stack_rotation();
+    ddtrace_coms_stack_t *stack = atomic_load(&ddtrace_coms_globals.current_stack);
+    if (stack) {
+        atomic_fetch_add(&stack->refcount, 1);
+    }
+    dd_unlock_stack_rotation(thread);
+    return stack;
+}
+
+static bool ddtrace_coms_threadsafe_rotate_stack(bool attempt_allocate_new, size_t min_size) {
+    struct _writer_thread_variables_t *thread = dd_lock_stack_rotation();
+    bool rv = false;
+    if (thread) {
+        rv = dd_coms_unsafe_rotate_stack(attempt_allocate_new, min_size);
+    }
+    dd_unlock_stack_rotation(thread);
     return rv;
 }
 
@@ -458,9 +473,10 @@ bool ddtrace_coms_buffer_data(uint32_t group_id, const char *data, size_t size) 
         }
     }
 
-    uint32_t store_result = dd_store_data(group_id, data, size);
+    bool memory_pressure_high = false;
+    uint32_t store_result = dd_store_data(group_id, data, size, &memory_pressure_high);
 
-    if (dd_is_memory_pressure_high()) {
+    if (memory_pressure_high) {
         ddtrace_coms_trigger_writer_flush();
     }
 
@@ -468,7 +484,7 @@ bool ddtrace_coms_buffer_data(uint32_t group_id, const char *data, size_t size) 
         size_t padding = 2;
         ddtrace_coms_threadsafe_rotate_stack(true, size + padding);
         ddtrace_coms_trigger_writer_flush();
-        store_result = dd_store_data(group_id, data, size);
+        store_result = dd_store_data(group_id, data, size, &memory_pressure_high);
     }
 
     return store_result == 0;
@@ -731,21 +747,21 @@ static void dd_deinit_read_userdata(void *userdata) {
 }
 
 static ddtrace_coms_stack_t *dd_coms_attempt_acquire_stack(void) {
+    struct _writer_thread_variables_t *thread = dd_lock_stack_rotation();
     ddtrace_coms_stack_t *stack = NULL;
 
-    if (!ddtrace_coms_globals.stacks) {
-        return NULL;
-    }
-
-    for (size_t i = 0; i < ddtrace_coms_globals.max_backlog_size; i++) {
-        ddtrace_coms_stack_t *stack_tmp = ddtrace_coms_globals.stacks[i];
-        if (stack_tmp && atomic_load(&stack_tmp->refcount) == 0 && atomic_load(&stack_tmp->bytes_written) > 0) {
-            stack = stack_tmp;
-            ddtrace_coms_globals.stacks[i] = NULL;
-            break;
+    if (ddtrace_coms_globals.stacks) {
+        for (size_t i = 0; i < ddtrace_coms_globals.max_backlog_size; i++) {
+            ddtrace_coms_stack_t *stack_tmp = ddtrace_coms_globals.stacks[i];
+            if (stack_tmp && atomic_load(&stack_tmp->refcount) == 0 && atomic_load(&stack_tmp->bytes_written) > 0) {
+                stack = stack_tmp;
+                ddtrace_coms_globals.stacks[i] = NULL;
+                break;
+            }
         }
     }
 
+    dd_unlock_stack_rotation(thread);
     return stack;
 }
 

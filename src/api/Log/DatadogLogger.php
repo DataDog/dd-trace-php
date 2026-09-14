@@ -147,7 +147,6 @@ final class DatadogLogger
 
         $date = \DateTime::createFromFormat('U.u', microtime(true));
 
-
         $record = [
             'message' => $message,
             'status' => $level,
