@@ -43,6 +43,7 @@ $appsecImageTagGroups["other"] = [
     "frankenphp-8.4-release-zts",
     "php-buildonly-rust",
     "nginx-fpm-php-8.5-release-musl",
+    "apache2-mod-php-8.5-release-zts-musl",
 ];
 ?>
 variables:
@@ -448,7 +449,6 @@ stages:
       echo "Uploading coverage to Datadog"
       cd "$CI_PROJECT_DIR"
       .gitlab/upload-code-coverage-to-datadog.sh appsec/build/coverage-ext.lcov
-
 
 "push appsec images":
   extends: .docker_push_job
