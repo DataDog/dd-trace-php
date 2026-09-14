@@ -60,6 +60,6 @@ echo 'ot-bytes=', strlen($matches[1]),
 ?>
 --EXPECTF--
 members=32 leading=dd,ot
-bytes=within-cap complete=yes
-owned-bytes=within-cap leading=dd,ot large=dropped
+bytes=within-cap complete=no
+owned-bytes=within-cap leading=dd,ot large=kept
 ot-bytes=33 future=dropped next=kept
