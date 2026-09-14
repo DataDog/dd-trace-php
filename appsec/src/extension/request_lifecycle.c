@@ -39,7 +39,8 @@ static void _set_cur_span(zend_object *nullable span);
 static void _reset_globals(void);
 const zend_array *nonnull _get_server_equiv(
     const zend_array *nonnull superglob_equiv);
-static uint64_t _calc_sampling_key(zend_object *root_span, int status_code);
+static uint64_t _calc_sampling_key(zend_object *root_span, int status_code,
+    dd_api_sec_outcome *nonnull outcome);
 static void _register_testing_objects(void);
 
 static bool _enabled_user_req;
@@ -221,7 +222,11 @@ static zend_array *nullable _do_request_begin(
         .entity = rbe,
     };
 
+    // we want to retry once only if we're connected from a previous request
+    int retries_left = dd_helper_mgr_cur_conn() ? 1 : 0;
+
     // connect/client_init
+retry:;
     dd_conn *conn =
         dd_helper_mgr_acquire_conn((client_init_func)dd_client_init, &req_info);
     if (conn == NULL) {
@@ -258,24 +263,40 @@ static zend_array *nullable _do_request_begin(
         dd_duration_waf_ext_account(&start);
     }
 
-    if (rbe) {
-        zend_string_release(rbe);
-    }
-
     // we might have been disabled by request_init
 
     zend_array *spec = NULL;
-    if (res == dd_network) {
+    if (res == dd_helper_say_goobye) {
+        mlog_g(dd_log_info, "request_init/config_sync failed with "
+                            "dd_helper_say_goobye; closing "
+                            "connection to helper");
+        dd_helper_close_conn(true,
+            LSTRARG(
+                "request_init/config_sync failed with dd_helper_say_goobye"));
+    } else if (res == dd_helper_fatal) {
         mlog_g(dd_log_info,
-            "request_init/config_sync failed with dd_network; closing "
+            "request_init/config_sync failed with dd_helper_fatal; closing "
             "connection to helper");
-        dd_helper_close_conn();
+        dd_helper_close_conn(false,
+            LSTRARG("request_init/config_sync failed with dd_helper_fatal"));
     } else if (res == dd_should_block || res == dd_should_redirect) {
         spec = dd_req_lifecycle_abort(
             REQUEST_STAGE_REQUEST_BEGIN, res, &req_info.req_info.block_params);
     } else if (res != dd_success && res != dd_should_record) {
         mlog_g(
             dd_log_info, "request init failed: %s", dd_result_to_string(res));
+    }
+
+    if (retries_left > 0 &&
+        (res == dd_helper_say_goobye || res == dd_helper_fatal)) {
+        mlog_g(dd_log_info,
+            "Trying to to connect to the helper %d more time(s)", retries_left);
+        retries_left--;
+        goto retry;
+    }
+
+    if (rbe) {
+        zend_string_release(rbe);
     }
 
     dd_request_abort_destroy_block_params(&req_info.req_info.block_params);
@@ -309,8 +330,9 @@ void dd_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
                 "Bailout in request shutdown; disconnecting from helper");
         }
         _reset_globals();
-        dd_helper_close_conn(); // note: not completely bailout-safe,
-                                // but should be fine with the raised mem limit
+        // dd_helper_close_conn may debug-log and allocate; keep the raised
+        // memory limit in place.
+        dd_helper_close_conn(false, NULL, 0);
     }
     zend_end_try();
 
@@ -366,11 +388,14 @@ static void _do_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
             dd_result res = dd_config_sync(conn,
                 &(struct config_sync_data){.rem_cfg_path = _last_rem_cfg_path,
                     .telemetry_settings = dd_trace_get_telemetry_rc_info()});
-            if (res == dd_network) {
-                mlog_g(dd_log_info, "request_init/config_sync failed with "
-                                    "dd_network; closing "
-                                    "connection to helper");
-                dd_helper_close_conn();
+            if (res == dd_helper_say_goobye || res == dd_helper_fatal) {
+                mlog_g(dd_log_info,
+                    "request_init/config_sync failed with dd_helper_say_goobye "
+                    "or dd_helper_fatal; closing connection to helper");
+                bool goodbye = res == dd_helper_say_goobye;
+                dd_helper_close_conn(goodbye,
+                    LSTRARG("request_init/config_sync failed with "
+                            "dd_helper_say_goobye or dd_helper_fatal"));
             } else if (res) {
                 mlog_g(dd_log_info,
                     "Failed to sync remote config path on rshutdown: %s",
@@ -388,6 +413,7 @@ static void _do_request_finish_php(bool ignore_verdict)
 
     if (conn && DDAPPSEC_G(active)) {
         const int status_code = SG(sapi_headers).http_response_code;
+        dd_api_sec_outcome api_sec_outcome;
         ctx = (struct req_shutdown_info){
             .req_info.root_span = dd_req_lifecycle_get_cur_span(),
             .req_info.client_ip = dd_req_lifecycle_get_client_ip(),
@@ -395,23 +421,28 @@ static void _do_request_finish_php(bool ignore_verdict)
             .resp_headers_fmt = RESP_HEADERS_LLIST,
             .resp_headers_llist = &SG(sapi_headers).headers,
             .entity = dd_response_body_buffered(),
-            .api_sec_samp_key = _calc_sampling_key(_cur_req_span, status_code),
+            .api_sec_samp_key = _calc_sampling_key(
+                _cur_req_span, status_code, &api_sec_outcome),
         };
 
         struct timespec shutdown_start = dd_monotime_start();
         int res = dd_request_shutdown(conn, &ctx);
         dd_duration_waf_ext_account(&shutdown_start);
-        if (res == dd_network) {
+        if (res == dd_helper_say_goobye || res == dd_helper_fatal) {
             mlog_g(dd_log_info,
-                "request_shutdown failed with dd_network; closing "
-                "connection to helper");
-            dd_helper_close_conn();
+                "request_shutdown failed with dd_helper_say_goobye or "
+                "dd_helper_fatal; closing connection to helper");
+            bool goodbye = res == dd_helper_say_goobye;
+            dd_helper_close_conn(
+                goodbye, LSTRARG("request_shutdown failed with dd_helper_..."));
         } else if (res == dd_should_block || res == dd_should_redirect) {
             verdict = ignore_verdict ? dd_success : res;
         } else if (res) {
             mlog_g(dd_log_info, "request shutdown failed: %s",
                 dd_result_to_string(res));
         }
+
+        dd_telemetry_add_api_security_request(_cur_req_span, api_sec_outcome);
     }
 
     dd_helper_rshutdown();
@@ -438,6 +469,7 @@ static zend_array *_do_request_finish_user_req(bool ignore_verdict,
     struct req_shutdown_info ctx = {0};
 
     if (conn && DDAPPSEC_G(active)) {
+        dd_api_sec_outcome api_sec_outcome;
         ctx = (struct req_shutdown_info){
             .req_info.root_span = dd_req_lifecycle_get_cur_span(),
             .req_info.client_ip = dd_req_lifecycle_get_client_ip(),
@@ -445,23 +477,28 @@ static zend_array *_do_request_finish_user_req(bool ignore_verdict,
             .resp_headers_fmt = RESP_HEADERS_MAP_STRING_LIST,
             .resp_headers_arr = resp_headers ? resp_headers : &zend_empty_array,
             .entity = entity,
-            .api_sec_samp_key = _calc_sampling_key(_cur_req_span, status_code),
+            .api_sec_samp_key = _calc_sampling_key(
+                _cur_req_span, status_code, &api_sec_outcome),
         };
 
         struct timespec shutdown_start = dd_monotime_start();
         int res = dd_request_shutdown(conn, &ctx);
         dd_duration_waf_ext_account(&shutdown_start);
-        if (res == dd_network) {
+        if (res == dd_helper_say_goobye || res == dd_helper_fatal) {
             mlog_g(dd_log_info,
-                "request_shutdown failed with dd_network; closing "
-                "connection to helper");
-            dd_helper_close_conn();
+                "request_shutdown failed with dd_helper_say_goobye or "
+                "dd_helper_fatal; closing connection to helper");
+            bool goodbye = res == dd_helper_say_goobye;
+            dd_helper_close_conn(
+                goodbye, LSTRARG("request_shutdown failed with dd_helper_..."));
         } else if (res == dd_should_block || res == dd_should_redirect) {
             verdict = ignore_verdict ? dd_success : res;
         } else if (res) {
             mlog_g(dd_log_info, "request shutdown failed: %s",
                 dd_result_to_string(res));
         }
+
+        dd_telemetry_add_api_security_request(_cur_req_span, api_sec_outcome);
     }
 
     dd_helper_rshutdown();
@@ -1003,8 +1040,11 @@ static inline uint64_t _hash_zend_string(
     return _hash_string(hash, ZSTR_VAL(str), ZSTR_LEN(str));
 }
 
-static uint64_t _calc_sampling_key(zend_object *root_span, int status_code)
+static uint64_t _calc_sampling_key(zend_object *root_span, int status_code,
+    dd_api_sec_outcome *nonnull outcome)
 {
+    *outcome = DD_API_SEC_SKIP;
+
     if (!get_DD_API_SECURITY_ENABLED()) {
         return 0;
     }
@@ -1079,14 +1119,16 @@ static uint64_t _calc_sampling_key(zend_object *root_span, int status_code)
     }
 
     if (!route_or_endpoint) {
-        goto error;
+        goto missing_route;
     }
 
     zval *method =
         zend_hash_str_find(Z_ARRVAL_P(meta), ZEND_STRL("http.method"));
     if (!method || Z_TYPE_P(method) != IS_STRING) {
         mlog_g(dd_log_debug, "No http.method tag; not sampling");
-        goto error;
+        // we treat the absence of http.method also as a missing route, because
+        // it also prevents schema extraction and it's sort of part of the route
+        goto missing_route;
     }
 
     // use fnv-1a hash with: <route_or_endpoint> NULL <http.method tag> NULL
@@ -1113,9 +1155,17 @@ static uint64_t _calc_sampling_key(zend_object *root_span, int status_code)
     if (free_route_or_endpoint) {
         zend_string_release(route_or_endpoint);
     }
+    *outcome = DD_API_SEC_EVALUATED;
     return hash;
 
-error:
+missing_route:
+    // Neither the route nor a stand-in for it could be determined. 404s are
+    // excluded: an endpoint that does not exist has no route to speak of, so
+    // counting it would be misleading
+    if (status_code != HTTP_NOT_FOUND) {
+        *outcome = DD_API_SEC_MISSING_ROUTE;
+    }
+
     if (free_route_or_endpoint) {
         zend_string_release(route_or_endpoint);
     }

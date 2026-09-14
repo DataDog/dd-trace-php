@@ -31,13 +31,8 @@ endif()
 
 set(FILE_LIST "")
 
-if(DD_APPSEC_BUILD_HELPER)
-    file(GLOB_RECURSE HELPER_FILES ${HELPER_SOURCE_DIR}/*.*pp tests/helper/**.cpp tests/helper/**.hpp)
-    list(APPEND FILE_LIST ${HELPER_FILES})
-endif()
-
 if(DD_APPSEC_BUILD_EXTENSION)
-    file(GLOB_RECURSE EXTENSION_FILES ${EXT_SOURCE_DIR}/*.c ${EXT_SOURCE_DIR}/*.cpp tests/helper/*.h tests/bench_helper/*.cc)
+    file(GLOB_RECURSE EXTENSION_FILES ${EXT_SOURCE_DIR}/*.c ${EXT_SOURCE_DIR}/*.cpp)
     list(APPEND FILE_LIST ${EXTENSION_FILES})
 endif()
 
@@ -61,12 +56,3 @@ add_custom_target(format_fix_chg
     COMMAND bash -c "git status --porcelain=1 :/appsec/ | grep -E '\.(c|h|cpp|hpp)$$' | awk '{ print \"${CMAKE_SOURCE_DIR}/../\" $NF }' | xargs '${CLANG_FORMAT}' --dry-run"
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     VERBATIM)
-
-if(DD_APPSEC_BUILD_HELPER)
-    add_custom_command(TARGET format POST_BUILD
-        COMMAND cargo fmt --check
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/helper-rust)
-    add_custom_command(TARGET format_fix POST_BUILD
-        COMMAND cargo fmt
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/helper-rust)
-endif()

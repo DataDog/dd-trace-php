@@ -26,4 +26,8 @@ TSRM_API int tsrm_mutex_lock(MUTEX_T mutexp);
 TSRM_API int tsrm_mutex_unlock(MUTEX_T mutexp);
 #endif
 
+#ifdef __linux__
+int datadog_clone_thread(int (*fn)(void *), void *stack_top, int flags, void *arg);
+#endif
+
 #endif // DATADOG_THREADS_H

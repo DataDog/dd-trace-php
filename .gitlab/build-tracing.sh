@@ -33,7 +33,10 @@ make clean && make -j "${MAKE_JOBS}" static
 objcopy --compress-debug-sections tmp/build_extension/modules/ddtrace.so "standalone_$(uname -m)/ddtrace-${PHP_API}${suffix}.so"
 cp -v tmp/build_extension/modules/ddtrace.a "extensions_$(uname -m)/ddtrace-${PHP_API}${suffix}.a"
 if [ "${PHP_VERSION}" = "7.0" ]; then
-  cp -v tmp/build_extension/ddtrace.ldflags "ddtrace_$(uname -m)${suffix}.ldflags"
+  cp -v tmp/build_extension/ddtrace-fat.ldflags \
+    "ddtrace_$(uname -m)${suffix}-fat.ldflags"
+  cp -v tmp/build_extension/ddtrace-fat.sym \
+    "ddtrace_$(uname -m)${suffix}-fat.sym"
 fi
 
 if [ "${suffix}" != "-alpine" ]; then

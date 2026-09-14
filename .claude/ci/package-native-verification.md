@@ -137,17 +137,17 @@ All jobs need artifacts from packaging jobs (Group I / Group D):
 | Job | Needs |
 |-----|-------|
 | `verify alpine` | `package extension: [amd64, x86_64-alpine-linux-musl]` + `datadog-setup.php` |
-| `verify centos` | `package extension: [amd64, x86_64-unknown-linux-gnu]` + `datadog-setup.php` |
-| `verify debian` | `package extension: [amd64, x86_64-unknown-linux-gnu]` + `datadog-setup.php` |
-| `verify .tar.gz: [amd64]` | `package extension: [amd64, x86_64-unknown-linux-gnu]` + `datadog-setup.php` |
-| `verify .tar.gz: [arm64]` | `package extension: [arm64, aarch64-unknown-linux-gnu]` + `datadog-setup.php` |
+| `verify centos` | `package extension (installers): [amd64, x86_64-unknown-linux-gnu]` + `package extension (bundles): [amd64, x86_64-unknown-linux-gnu]` + `datadog-setup.php` |
+| `verify debian` | `package extension (installers): [amd64, x86_64-unknown-linux-gnu]` + `package extension (bundles): [amd64, x86_64-unknown-linux-gnu]` + `datadog-setup.php` |
+| `verify .tar.gz: [amd64]` | `package extension (installers): [amd64, x86_64-unknown-linux-gnu]` + `datadog-setup.php` |
+| `verify .tar.gz: [arm64]` | `package extension (installers): [arm64, aarch64-unknown-linux-gnu]` + `datadog-setup.php` |
 | `verify no json ext` | `package extension: [amd64, x86_64-alpine-linux-musl]` |
 | `verify windows` | `package extension windows` + `datadog-setup.php` |
 | `Loader test on {arch} libc` | `package loader: [{arch}]` |
 | `Loader test on {arch} alpine` | `package loader: [{arch}]` |
-| `min install tests` | `package extension: [amd64, x86_64-unknown-linux-gnu]` |
+| `min install tests` | `package extension (installers): [amd64, x86_64-unknown-linux-gnu]` |
 | `pecl tests` | `pecl build` |
-| `test early PHP 8.1` | `package extension: [amd64, x86_64-unknown-linux-gnu]` + `datadog-setup.php` |
+| `test early PHP 8.1` | `package extension (bundles): [amd64, x86_64-unknown-linux-gnu]` + `datadog-setup.php` |
 | `x-profiling phpt tests on Alpine` | `package extension: [amd64, x86_64-alpine-linux-musl]` + `datadog-setup.php` |
 
 ## Reproducing Locally
@@ -156,7 +156,8 @@ Most of these jobs are difficult to reproduce locally because they require packa
 artifacts from upstream compile/package jobs. Two ways to obtain them:
 
 - **From CI:** use `tooling/bin/download-artifacts` to download preset packages
-  (e.g., `--preset extension-amd64-gnu`, `--preset ssi-amd64`, `--preset datadog-setup`).
+  (e.g., `--preset extension-amd64-gnu-installers`, `--preset extension-amd64-gnu-bundles`,
+  `--preset ssi-amd64`, `--preset datadog-setup`).
   See the "Downloading artifacts" section in [index.md](index.md) for full usage.
 - **Build locally:** follow [compile-artifacts.md](compile-artifacts.md) to compile
   the extension and packaging artifacts from source.

@@ -21,6 +21,7 @@ static const dd_command_spec _spec = {
     .name = "config_sync",
     .name_len = sizeof("config_sync") - 1,
     .num_args = 2,
+    .reconnect_sidecar = true,
     .outgoing_cb = _request_pack,
     .incoming_cb = dd_command_process_config_sync,
     .config_features_cb = dd_command_process_config_features,

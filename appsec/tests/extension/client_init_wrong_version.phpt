@@ -9,9 +9,9 @@ include __DIR__ . '/inc/mock_helper.php';
 $obj = new ArrayObject();
 $helper = Helper::createRun([
     response_list(
-        response_client_init(['ok', '0.0.0',[],$obj,$obj,null])
+        response_client_init(['ok', '0.0.0', 1, [],$obj,$obj,null])
     )
-]);
+], ['no_wait_shutdown' => true]);
 
 var_dump(rinit());
 

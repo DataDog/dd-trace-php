@@ -301,6 +301,21 @@ final class WebServer
     }
 
     /**
+     * Ask the SAPI to shut down on SIGTERM alone, without an immediate SIGKILL behind it.
+     *
+     * @param int $timeout seconds to wait for a graceful exit
+     * @return bool whether the SAPI exited on its own within $timeout
+     */
+    public function stopGracefully($timeout = 15)
+    {
+        if (!$this->sapi || !\method_exists($this->sapi, "stopGracefully")) {
+            Assert::markTestSkipped("Graceful webserver shutdown not supported for this SAPI");
+        }
+
+        return $this->sapi->stopGracefully($timeout);
+    }
+
+    /**
      * Teardown promptly.
      */
     public function stop()

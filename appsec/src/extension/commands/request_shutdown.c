@@ -31,6 +31,7 @@ static const dd_command_spec _spec = {
     .name_len = sizeof("request_shutdown") - 1,
     .num_args =
         4, // a map, api sec sampling key, sidecar queue id, input_truncated
+    .reconnect_sidecar = false,
     .outgoing_cb = _request_pack,
     .incoming_cb = dd_command_proc_resp_verd_span_data,
     .config_features_cb = dd_command_process_config_features_unexpected,

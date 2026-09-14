@@ -14,6 +14,7 @@ child pipeline; all job definitions and matrices are inline.
 | `C components ASAN` | `dd-trace-ci:centos-7`, `dd-trace-ci:php-compile-extension-alpine`, `dd-trace-ci:bookworm-6` | Builds C components (`components/`) with ASAN (on Debian) or plain Debug (on CentOS/Alpine), runs ctest |
 | `C components UBSAN` | `dd-trace-ci:bookworm-6` | Builds C components with UBSAN, runs ctest with `--repeat until-fail:10` |
 | `Configuration Consistency` | `dd-trace-ci:php-{latest}_bookworm-6` | Runs `tooling/generate-supported-configurations.sh` and verifies `metadata/supported-configurations.json` is up-to-date |
+| `PHP lint` | `dd-trace-ci:php-{latest}_bookworm-10` | Nearly-empty PHPCS + custom scripts over `src/`; see `tooling/php-lint/` |
 
 Runner: `arch:amd64` (all jobs in this pipeline are amd64-only)
 
@@ -30,6 +31,8 @@ Matrix:
   ASAN toolchain only on Debian (bookworm).
 - **C components UBSAN**: bookworm-6 only.
 - **Configuration Consistency**: latest PHP version, single run.
+- **PHP lint**: latest PHP version, NTS, single run. No extension
+  build. Does not clone submodules.
 
 ## What It Tests
 
@@ -61,6 +64,11 @@ behavior respectively.
 **Configuration Consistency** verifies that the checked-in
 `metadata/supported-configurations.json` matches what the generator
 script produces from current source. Fails if they diverge.
+
+**PHP lint** is a blocking placeholder over first-party `src/`: PHPCS
+with almost no rules, plus optional scripts in
+`tooling/php-lint/scripts/`. See `tooling/php-lint/README.md`. It does
+not compile the extension and is not a PSR-12 / formatter gate.
 
 ## Build & Test Tea
 
@@ -249,6 +257,26 @@ absorbs this into the overlay volume.
 If the output differs from the committed
 `metadata/supported-configurations.json`, the CI job fails. Fix by
 running the script locally and committing the result.
+
+## PHP lint
+
+No extension build. Needs PHP and Composer only.
+
+```bash
+bash tooling/php-lint/run.sh
+```
+
+Or, with the CI image:
+
+```bash
+.claude/ci/dockerh --cache php-lint --overlayfs --php nts \
+  datadog/dd-trace-ci:php-8.5_bookworm-10 -- \
+  bash tooling/php-lint/run.sh
+```
+
+PHPCS rules live in `tooling/php-lint/phpcs.xml`. Custom checks go in
+`tooling/php-lint/scripts/` (`*.php` or `*.sh`). See
+`tooling/php-lint/README.md`.
 
 ## Gotchas
 

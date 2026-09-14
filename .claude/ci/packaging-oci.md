@@ -14,7 +14,7 @@
 
 All compile, link, and aggregate jobs (`compile tracing extension`,
 `compile tracing sidecar`, `link tracing extension`, `aggregate tracing extension`,
-`compile appsec extension`, `compile appsec helper`, `compile appsec helper rust`,
+`compile appsec extension`,
 `compile profiler extension`, `compile loader`, `compile extension windows`) are
 documented in [compile-artifacts.md](compile-artifacts.md).
 
@@ -57,9 +57,7 @@ Platform matrix for `package extension`:
 ```
 compile tracing extension ─┐
   + link tracing extension  │
-compile appsec extension  ─┤
-compile appsec helper     ─┤→ generate-final-artifact.sh → .tar.gz
-compile appsec helper rust─┤         │
+compile appsec extension  ─┤ → generate-final-artifact.sh → .tar.gz
 compile profiler extension─┤         v
 compile loader            ─┘  nfpm → .deb/.rpm/.apk
                                      │
@@ -130,8 +128,8 @@ shown above.
   `bookworm`. See the "centos-7 vs bookworm" gotcha in
   [compile-artifacts.md](compile-artifacts.md) for details.
 
-- **`package loader` depends on many upstream compile jobs** — appsec helper (C++
-  and Rust), loader (glibc and musl), tracing extension aggregates, sidecar, all
+- **`package loader` depends on many upstream compile jobs** — loader (glibc
+  and musl), tracing extension aggregates, sidecar, all
   appsec and profiler extension versions. A single upstream failure blocks packaging.
   See [building-locally.md § SSI Loader Package Assembly](building-locally.md#ssi-loader-package-assembly)
   for local reproduction and important caveats (empty stubs do not work;

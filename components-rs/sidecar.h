@@ -504,6 +504,35 @@ void ddog_drop_agent_info_reader(struct ddog_AgentInfoReader*);
 
 void ddog_sidecar_send_garbage(struct ddog_SidecarTransport **transport);
 
+/**
+ * Sends an AppSec message from the PHP extension through the sidecar to the registered helper.
+ *
+ * The response is allocated by the sidecar and must be freed with
+ * `ddog_sidecar_appsec_response_drop` when the caller is done with it.
+ *
+ * Returns a zeroed `ddog_AppsecCResponse` (null ptr) on transport errors.
+ */
+struct ddog_AppsecCResponse ddog_sidecar_send_appsec_message(struct ddog_SidecarTransport **transport,
+                                                             uint64_t client_id,
+                                                             ddog_CharSlice data);
+
+/**
+ * Sends an AppSec message once, without reconnecting the sidecar on failure.
+ *
+ * The response is allocated by the sidecar and must be freed with
+ * `ddog_sidecar_appsec_response_drop` when the caller is done with it.
+ *
+ * Returns a zeroed `ddog_AppsecCResponse` (null ptr) on transport errors.
+ */
+struct ddog_AppsecCResponse datadog_sidecar_send_appsec_message_without_reconnect(struct ddog_SidecarTransport **transport,
+                                                                                  uint64_t client_id,
+                                                                                  ddog_CharSlice data);
+
+/**
+ * Frees an `AppsecCResponse` returned by an AppSec message function.
+ */
+void ddog_sidecar_appsec_response_drop(struct ddog_AppsecCResponse response);
+
 ddog_TracesBytes *ddog_get_traces(void);
 
 void ddog_free_traces(ddog_TracesBytes *_traces);

@@ -1,54 +1,59 @@
 {
-  "scale_by_duration": true,
+  "scale_by_duration": false,
   "test_name": "php_allocations",
+  "note": "512 iterations allocate 18874368000 payload bytes in 2048 strings; string headers add less than 0.001%. At the 4 MiB interval, p = 1 - exp(-size / interval) is 0.9466 or 0.7689. Binomial sampling gives relative standard deviations of 0.76% for total bytes and 0.93% for total count; the 6% margins exceed six standard deviations. Approximate stack-share standard deviations are at most 0.36 percentage points for bytes and 0.49 for count; the 3-point margins exceed six standard deviations. The analyzer truncates shares to integer percentages, hence 33/16 for the exact 1/3 and 1/6 byte shares.",
   "stacks": [
     {
       "profile-type": "alloc-size",
+      "value-matching-sum": 18874368000,
+      "error-margin": 6,
       "stack-content": [
         {
           "regular_expression": "<?php;main;a;standard\\|str_repeat$",
           "percent": 33,
-          "error_margin": 5
+          "error_margin": 3
         },
         {
           "regular_expression": "<?php;main;a;standard\\|str_replace$",
           "percent": 33,
-          "error_margin": 5
+          "error_margin": 3
         },
         {
           "regular_expression": "<?php;main;b;standard\\|str_repeat$",
           "percent": 16,
-          "error_margin": 5
+          "error_margin": 3
         },
         {
           "regular_expression": "<?php;main;b;standard\\|str_replace$",
           "percent": 16,
-          "error_margin": 5
+          "error_margin": 3
         }
       ]
     },
     {
       "profile-type": "alloc-samples",
+      "value-matching-sum": 2048,
+      "error-margin": 6,
       "stack-content": [
         {
           "regular_expression": "<?php;main;a;standard\\|str_repeat$",
           "percent": 25,
-          "error_margin": 5
+          "error_margin": 3
         },
         {
           "regular_expression": "<?php;main;a;standard\\|str_replace$",
           "percent": 25,
-          "error_margin": 5
+          "error_margin": 3
         },
         {
           "regular_expression": "<?php;main;b;standard\\|str_repeat$",
           "percent": 25,
-          "error_margin": 5
+          "error_margin": 3
         },
         {
           "regular_expression": "<?php;main;b;standard\\|str_replace$",
           "percent": 25,
-          "error_margin": 5
+          "error_margin": 3
         }
       ]
     }

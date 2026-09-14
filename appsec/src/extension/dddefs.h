@@ -11,13 +11,13 @@
 // Error codes
 typedef enum {
     dd_success = 0,
-    dd_network,      // error in communication; connection should be abandoned
+    dd_helper_say_goobye,  // error in helper communication; goodbye can still be sent
+    dd_helper_fatal,      // error in helper communication; connection should be abandoned
     dd_should_block, // caller should abort the request
     dd_should_redirect, // caller should redirect the request
     dd_should_record,
-    dd_error,       // misc error
-    dd_try_later,   // non-fatal error, try again
-    dd_helper_error // helper failed to process message (non-fatal)
+    dd_error,           // misc error
+    dd_try_later,       // non-fatal error, try again
 } dd_result;
 
 const char *nonnull dd_result_to_string(dd_result result);

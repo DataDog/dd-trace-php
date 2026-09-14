@@ -101,6 +101,11 @@ pub struct RaspRuleMetrics {
 
     /// Total number of RASP rule timeouts
     pub timeouts: u32,
+
+    /// Duration of each individual libddwaf call, for the rasp.rule.duration
+    /// distribution. Unlike rasp.duration, which is the per-request cumulative
+    /// sum, this metric records one observation per call.
+    pub durations: Vec<Duration>,
 }
 
 impl WafMetrics {
@@ -180,6 +185,7 @@ impl WafMetrics {
             .entry((rule_type.to_string(), rule_variant.to_string()))
             .or_default();
         entry.evals += 1;
+        entry.durations.push(run_output.duration());
         if run_output.has_events() {
             if run_output.is_blocking() {
                 entry.matches_blocked += 1;
@@ -234,8 +240,11 @@ impl telemetry::TelemetryMetricsGenerator for WafMetrics {
         // RFC-1012: all boolean tags must be emitted regardless of value.
         let mut tags = base_tags.clone();
         tags.add("rule_triggered", bool_tag(self.had_triggers));
-        // block_failure is not tracked: the PHP layer is assumed to always succeed at blocking.
+        // The PHP layer is assumed to always succeed at blocking.
         // Therefore request_blocked == "WAF requested a block" == "block succeeded".
+        if self.request_blocked {
+            tags.add("block_failure", "false");
+        }
         // request_excluded is not tracked: libddwaf applies exclusion filters internally and
         // does not expose whether a request was excluded in RunOutput.
         tags.add("request_blocked", bool_tag(self.request_blocked));
@@ -303,6 +312,15 @@ impl telemetry::TelemetryMetricsGenerator for WafMetrics {
                     telemetry::RASP_RULE_MATCH,
                     metrics.matches_blocked as f64,
                     match_tags,
+                );
+            }
+
+            // rasp.rule.duration distribution: one observation per libddwaf call, in microseconds
+            for duration in &metrics.durations {
+                submitter.submit_metric(
+                    telemetry::RASP_RULE_DURATION_DIST,
+                    duration.as_micros() as f64,
+                    tags.clone(),
                 );
             }
 

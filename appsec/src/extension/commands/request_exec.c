@@ -29,6 +29,7 @@ static const dd_command_spec _spec = {
     .name = "request_exec",
     .name_len = sizeof("request_exec") - 1,
     .num_args = 2,
+    .reconnect_sidecar = true,
     .outgoing_cb = _pack_command,
     .incoming_cb = dd_command_proc_resp_verd_span_data,
     .config_features_cb = dd_command_process_config_features_unexpected,

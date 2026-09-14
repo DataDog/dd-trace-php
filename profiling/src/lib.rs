@@ -42,6 +42,7 @@ use libdd_common::cstr;
 use log::{debug, error, info, trace, warn};
 use profile_tags::{ProfileTagSegment, UnifiedServiceTagSegment};
 use profiler::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
+use rand::Rng;
 use sapi::Sapi;
 use std::borrow::Cow;
 use std::cell::{BorrowError, BorrowMutError, RefCell};
@@ -55,6 +56,14 @@ use uuid::Uuid;
 /// Name of the profiling module and zend_extension. Must not contain any
 /// interior null bytes and must be null terminated.
 static PROFILER_NAME: &CStr = c"datadog-profiling";
+
+/// Draws the exponential sampling distance assumed by libdatadog's upscaler,
+/// rounded up to whole units and clamped to `[1, 20 * mean]`.
+fn sample_exponential_interval(rng: &mut impl Rng, mean: f64) -> f64 {
+    let sample: f64 = rng.random();
+    let sample = if sample <= 0.0 { 1e-10 } else { sample };
+    (-sample.ln() * mean).ceil().clamp(1.0, 20.0 * mean)
+}
 
 // SAFETY: PROFILER_NAME is a valid utf8 string.
 static PROFILER_NAME_STR: &str = match PROFILER_NAME.to_str() {
@@ -79,6 +88,12 @@ static PROFILER_VERSION_STR: &str = const {
 /// Version ID of PHP at run-time, not the version it was built against at
 /// compile-time. Its value is overwritten during minit.
 static RUNTIME_PHP_VERSION_ID: AtomicU32 = AtomicU32::new(zend::PHP_VERSION_ID);
+
+#[cfg(all(
+    feature = "io_profiling",
+    any(target_os = "linux", target_os = "macos")
+))]
+static IO_HOOKS_SAFE_TO_UNLOAD: AtomicBool = AtomicBool::new(true);
 
 /// Version str of PHP at run-time, not the version it was built against at
 /// compile-time. Its value is overwritten during minit, unless there are
@@ -1029,6 +1044,14 @@ extern "C" fn mshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     // SAFETY: calling in mshutdown as required.
     unsafe { Profiler::stop(Duration::from_secs(1)) };
 
+    #[cfg(all(
+        feature = "io_profiling",
+        any(target_os = "linux", target_os = "macos")
+    ))]
+    if !io::io_prof_mshutdown() {
+        IO_HOOKS_SAFE_TO_UNLOAD.store(false, Ordering::Relaxed);
+    }
+
     ZendResult::Success
 }
 
@@ -1078,6 +1101,18 @@ extern "C" fn shutdown(extension: *mut ZendExtension) {
         // SAFETY: during mshutdown, we have ownership of the extension struct.
         // Our threads (which failed to join) do not mutate this struct at all
         // either, providing no races.
+        unsafe { (*extension).handle = ptr::null_mut() }
+    }
+
+    #[cfg(all(
+        feature = "io_profiling",
+        any(target_os = "linux", target_os = "macos")
+    ))]
+    if !IO_HOOKS_SAFE_TO_UNLOAD.load(Ordering::Relaxed) {
+        error!(
+            "I/O hooks could not be fully restored, intentionally leaking the extension's handle to prevent unloading"
+        );
+        // SAFETY: during shutdown, we have ownership of the extension struct.
         unsafe { (*extension).handle = ptr::null_mut() }
     }
 

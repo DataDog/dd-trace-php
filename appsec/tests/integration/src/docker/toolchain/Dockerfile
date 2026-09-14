@@ -1,23 +1,16 @@
 ARG DOCKER_REGISTRY
-FROM ${DOCKER_REGISTRY}/library/debian@sha256:08db48d59c0a91afb802ebafc921be3154e200c452e4d0b19634b426b03e0e25 AS toolchain
+FROM ${DOCKER_REGISTRY}/library/debian@sha256:f324c7ff54321e8d9c588493a20244965938ce0aa50bbd1022d38010e9ffc4b1 AS toolchain
 
 RUN apt-get update && apt-get install -y \
   binutils \
   build-essential \
   curl \
   git \
-  gnupg \
-  libncurses5-dev \
-  lld \
-  lsb-release \
   patchelf \
-  software-properties-common \
-  wget \
   wget \
   xz-utils \
   && rm -rf /var/lib/apt/lists/*
 
-RUN ln -s /bin/sed /usr/bin/sed
 COPY . /build/
 
 RUN wget https://github.com/Kitware/CMake/releases/download/v3.28.0/cmake-3.28.0-linux-$(arch | sed s/arm/aarch/).tar.gz && \

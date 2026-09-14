@@ -237,11 +237,24 @@ ddog_MaybeError ddog_send_debugger_diagnostics(const struct ddog_RemoteConfigSta
                                                const struct ddog_Probe *probe,
                                                uint64_t timestamp);
 
-void ddog_sidecar_enable_appsec(ddog_CharSlice shared_lib_path,
-                                ddog_CharSlice socket_file_path,
-                                ddog_CharSlice lock_file_path,
-                                ddog_CharSlice log_file_path,
-                                ddog_CharSlice log_level);
+struct ddog_VoidResult datadog_crasht_init_with_sidecar(struct ddog_Config ffi_config,
+                                                        ddog_crasht_Metadata metadata,
+                                                        struct ddog_SidecarTransport *transport,
+                                                        int32_t sidecar_master_pid);
+
+void ddog_sidecar_enable_appsec(ddog_CharSlice log_file_path, ddog_CharSlice log_level);
+
+/**
+ * Starts a thread-mode master listener with the PHP-linked AppSec backend
+ * registered in the listener's process.
+ */
+ddog_MaybeError ddog_sidecar_connect_master_php(int32_t pid);
+
+/**
+ * Ensures the connected sidecar's AppSec backend is started using the
+ * configuration captured from the PHP extension.
+ */
+ddog_MaybeError ddog_sidecar_ensure_appsec_started(struct ddog_SidecarTransport **transport);
 
 ddog_MaybeError ddog_sidecar_connect_php(struct ddog_SidecarTransport **connection,
                                          const char *error_path,
@@ -252,8 +265,13 @@ ddog_MaybeError ddog_sidecar_connect_php(struct ddog_SidecarTransport **connecti
                                          uint64_t backpressure_bytes,
                                          uint64_t backpressure_queue);
 
-void datadog_sidecar_reconnect(struct ddog_SidecarTransport **transport,
+bool datadog_sidecar_reconnect(struct ddog_SidecarTransport **transport,
                                struct ddog_SidecarTransport *(*factory)(void));
+
+void datadog_sidecar_set_reconnect_fn(struct ddog_SidecarTransport **transport,
+                                      struct ddog_SidecarTransport *(*factory)(void));
+
+void datadog_sidecar_clear_reconnect_fn(struct ddog_SidecarTransport **transport);
 
 bool ddog_shm_limiter_inc(const struct ddog_MaybeShmLimiter *limiter, uint32_t limit);
 
@@ -511,6 +529,20 @@ ddog_MaybeError datadog_crashtracker_init(const struct ddog_Endpoint *endpoint,
 ddog_Configurator *ddog_library_configurator_new_dummy(bool debug_logs, ddog_CharSlice language);
 
 uint64_t dd_fnv1a_64(const uint8_t *data, uintptr_t len);
+
+/**
+ * Sets the endpoint's test session token, but only when it actually differs from the one already
+ * there.
+ *
+ * `ddog_endpoint_set_test_token` assigns unconditionally, which drops the previous `String`. The
+ * endpoints are process-globals in the PHP extension while the writers run per thread (an INI
+ * change handler, and the sidecar connect path), so another thread cloning the same `Endpoint`
+ * reads a freed string -- a use-after-free that only shows up on ZTS with concurrent requests.
+ *
+ * A test run assigns the same token throughout, so comparing first means the swap, and therefore
+ * the race, never happens. Assigning a genuinely different token from a thread remains unsafe.
+ */
+void ddog_endpoint_set_test_token_if_changed(struct ddog_Endpoint *endpoint, ddog_CharSlice token);
 
 const char *ddog_normalize_process_tag_value(ddog_CharSlice tag_value);
 

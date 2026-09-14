@@ -15,12 +15,22 @@ ZEND_API zend_result ZEND_FASTCALL zend_hash_str_del(HashTable *ht, const char *
 ZEND_API zval* ZEND_FASTCALL zend_hash_str_find(const HashTable *ht, const char *key, size_t len) __attribute__((weak));
 extern __typeof__(__zend_malloc) __zend_malloc __attribute__((weak));
 
-static bool ddloader_zstr_is_interned(int php_api_no, zend_string *key) {
+bool ddloader_zstr_is_interned(int php_api_no, zend_string *key) {
     if (php_api_no <= 20170718) {  // PHP 7.0 - 7.2
         return GC_TYPE_INFO(key) & (PHP_70_71_72_IS_STR_INTERNED << 8);
     }
 
     return ZSTR_IS_INTERNED(key);
+}
+
+zend_string *ddloader_zend_new_interned_string(int php_api_no, zend_string *str) {
+    UNUSED(php_api_no);
+
+    if (!zend_new_interned_string) {
+        return str;
+    }
+
+    return zend_new_interned_string(str);
 }
 
 static zend_string *php70_71_72_zend_string_alloc(size_t len, int persistent) {

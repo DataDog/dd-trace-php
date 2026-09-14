@@ -111,8 +111,6 @@ if(DD_APPSEC_EXTENSION_STATIC_LIBSTDCXX AND NOT APPLE)
     target_link_options(extension PRIVATE -static-libstdc++)
 endif()
 
-patch_away_libc(extension)
-
 if(DD_APPSEC_TESTING)
     maybe_enable_coverage(extension)
 

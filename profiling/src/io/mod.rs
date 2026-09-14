@@ -4,10 +4,9 @@ pub mod got_elf64;
 pub mod got_macho;
 
 use crate::profiling::profiler::Profiler;
-use crate::profiling::{zend, RefCellExt, REQUEST_LOCALS};
+use crate::profiling::{sample_exponential_interval, zend, RefCellExt, REQUEST_LOCALS};
 use libc::{c_int, c_void, fstat, stat, S_IFMT, S_IFSOCK};
 use rand::rngs::ThreadRng;
-use rand_distr::{Distribution, Poisson};
 use rustc_hash::FxHashMap;
 use std::cell::RefCell;
 use std::mem::MaybeUninit;
@@ -57,6 +56,46 @@ pub struct GotSymbolOverwrite {
     pub symbol_name: &'static str,
     pub new_func: *mut (),
     pub orig_func: *mut *mut (),
+}
+
+pub struct GotHookState<'a> {
+    pub overwrites: &'a mut [GotSymbolOverwrite],
+    pub restores: &'a mut Vec<GotSlotRestore>,
+}
+
+pub struct GotSlotRestore {
+    pub image: usize,
+    pub image_name: Box<[u8]>,
+    pub slot: usize,
+    pub original: usize,
+    pub replacement: usize,
+    #[cfg(target_os = "macos")]
+    pub is_data_const: bool,
+}
+
+static GOT_SLOT_RESTORES: Mutex<Vec<GotSlotRestore>> = Mutex::new(Vec::new());
+
+fn restore_matches_image(restore: &GotSlotRestore, image: usize, image_name: &[u8]) -> bool {
+    restore.image == image && restore.image_name.as_ref() == image_name
+}
+
+fn slot_fits_range(slot: usize, start: usize, size: usize) -> bool {
+    let Some(end) = start.checked_add(size) else {
+        return false;
+    };
+    let Some(slot_end) = slot.checked_add(std::mem::size_of::<*mut ()>()) else {
+        return false;
+    };
+    slot >= start && slot_end <= end
+}
+
+unsafe fn restore_slot_if_owned(restore: &GotSlotRestore) -> bool {
+    let slot = restore.slot as *mut *mut ();
+    if *slot as usize != restore.replacement {
+        return false;
+    }
+    *slot = restore.original as *mut ();
+    true
 }
 
 static mut ORIG_POLL: unsafe extern "C" fn(*mut libc::pollfd, libc::nfds_t, c_int) -> i32 =
@@ -563,17 +602,16 @@ fn collect_file_write_size(value: u64) {
 
 pub struct IOProfilingStats {
     next_sample: u64,
-    poisson: Poisson<f64>,
+    mean: f64,
     rng: ThreadRng,
 }
 
 impl IOProfilingStats {
-    fn new(lambda: f64) -> Self {
-        // Safety: this will only error if lambda <= 0
-        let poisson = Poisson::new(lambda).unwrap();
+    fn new(mean: u64) -> Self {
+        assert!(mean > 0);
         let mut stats = IOProfilingStats {
+            mean: mean as f64,
             next_sample: 0,
-            poisson,
             rng: rand::rng(),
         };
         stats.next_sampling_interval();
@@ -581,7 +619,7 @@ impl IOProfilingStats {
     }
 
     fn next_sampling_interval(&mut self) {
-        self.next_sample = self.poisson.sample(&mut self.rng) as u64;
+        self.next_sample = sample_exponential_interval(&mut self.rng, self.mean) as u64;
     }
 
     fn should_collect(&mut self, value: u64) -> bool {
@@ -594,8 +632,8 @@ impl IOProfilingStats {
             // (or risking a crash) we refrain from collection I/O.
             return false;
         }
-        if let Some(next_sample) = self.next_sample.checked_sub(value) {
-            self.next_sample = next_sample;
+        if self.next_sample > value {
+            self.next_sample -= value;
             return false;
         }
         self.next_sampling_interval();
@@ -606,42 +644,42 @@ impl IOProfilingStats {
 thread_local! {
     static SOCKET_READ_TIME_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            SOCKET_READ_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
+            SOCKET_READ_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed),
         )
     );
     static SOCKET_WRITE_TIME_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            SOCKET_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
+            SOCKET_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed),
         )
     );
     static FILE_READ_TIME_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            FILE_READ_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
+            FILE_READ_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed),
         )
     );
     static FILE_WRITE_TIME_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            FILE_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
+            FILE_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed),
         )
     );
     static SOCKET_READ_SIZE_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            SOCKET_READ_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
+            SOCKET_READ_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed),
         )
     );
     static SOCKET_WRITE_SIZE_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            SOCKET_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
+            SOCKET_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed),
         )
     );
     static FILE_READ_SIZE_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            FILE_READ_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
+            FILE_READ_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed),
         )
     );
     static FILE_WRITE_SIZE_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            FILE_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
+            FILE_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed),
         )
     );
 }
@@ -709,22 +747,86 @@ pub fn io_prof_first_rinit() {
                     orig_func: ptr::addr_of_mut!(ORIG_POLL) as *mut _ as *mut *mut (),
                 },
             ];
+            let mut restores = GOT_SLOT_RESTORES.lock().unwrap();
+            let mut state = GotHookState {
+                overwrites: &mut overwrites,
+                restores: &mut restores,
+            };
+
             #[cfg(target_os = "linux")]
             libc::dl_iterate_phdr(
                 Some(got_elf64::callback),
-                &mut overwrites as *mut _ as *mut libc::c_void,
+                &mut state as *mut _ as *mut libc::c_void,
             );
 
             #[cfg(target_os = "macos")]
-            got_macho::rebind_symbols(&mut overwrites);
+            got_macho::rebind_symbols(&mut state);
         };
+    }
+}
+
+pub fn io_prof_mshutdown() -> bool {
+    let mut restores = GOT_SLOT_RESTORES.lock().unwrap();
+    unsafe {
+        #[cfg(target_os = "linux")]
+        {
+            got_elf64::restore_symbols(&mut restores)
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            got_macho::restore_symbols(&mut restores)
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::ErrnoBackup;
+    use super::{restore_matches_image, slot_fits_range, ErrnoBackup, GotSlotRestore};
     use static_assertions::assert_not_impl_any;
 
     assert_not_impl_any!(ErrnoBackup: Send, Sync);
+
+    #[test]
+    fn restore_requires_same_image_and_mapped_slot() {
+        let restore = GotSlotRestore {
+            image: 0x1000,
+            image_name: Box::from(&b"image"[..]),
+            slot: 0x1800,
+            original: 0,
+            replacement: 1,
+            #[cfg(target_os = "macos")]
+            is_data_const: false,
+        };
+
+        assert!(restore_matches_image(&restore, 0x1000, b"image"));
+        assert!(!restore_matches_image(&restore, 0x2000, b"image"));
+        assert!(!restore_matches_image(&restore, 0x1000, b"replacement"));
+        assert!(slot_fits_range(0x1800, 0x1000, 0x1000));
+        assert!(!slot_fits_range(0x2000, 0x1000, 0x1000));
+        assert!(!slot_fits_range(usize::MAX, 0x1000, 0x1000));
+    }
+
+    #[test]
+    fn sampling_collects_at_interval_boundary() {
+        let vm_interrupt = std::sync::atomic::AtomicBool::new(false);
+        let previous = super::REQUEST_LOCALS.with_borrow_mut(|locals| {
+            std::mem::replace(&mut locals.vm_interrupt_addr, &vm_interrupt)
+        });
+        let mut stats = super::IOProfilingStats::new(100);
+        stats.next_sample = 8;
+        assert!(!stats.should_collect(0));
+        assert!(!stats.should_collect(4));
+        assert!(stats.should_collect(4));
+        super::REQUEST_LOCALS.with_borrow_mut(|locals| locals.vm_interrupt_addr = previous);
+    }
+
+    #[test]
+    fn no_hooks_are_safe_to_unload() {
+        let mut restores = Vec::new();
+        #[cfg(target_os = "linux")]
+        assert!(unsafe { super::got_elf64::restore_symbols(&mut restores) });
+        #[cfg(target_os = "macos")]
+        assert!(unsafe { super::got_macho::restore_symbols(&mut restores) });
+    }
 }

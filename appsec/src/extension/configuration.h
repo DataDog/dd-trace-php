@@ -26,12 +26,8 @@ extern bool runtime_config_first_init;
 #define DEFAULT_OBFUSCATOR_VALUE_REGEX                                         \
     "(?i)(?:p(?:ass)?w(?:or)?d|pass(?:[_-]?phrase)?|secret(?:[_-]?key)?|(?:(?:api|private|public|access)[_-]?)key(?:[_-]?id)?|(?:(?:auth|access|id|refresh)[_-]?)?token|consumer[_-]?(?:id|key|secret)|sign(?:ed|ature)?|auth(?:entication|orization)?|jsessionid|phpsessid|asp\\.net(?:[_-]|-)sessionid|sid|jwt)(?:\\s*=([^;&]+)|\"\\s*:\\s*(\"[^\"]+\"|\\d+))|bearer\\s+([a-z0-9\\._\\-]+)|token\\s*:\\s*([a-z0-9]{13})|gh[opsu]_([0-9a-zA-Z]{36})|ey[I-L][\\w=-]+\\.(ey[I-L][\\w=-]+(?:\\.[\\w.+\\/=-]+)?)|[\\-]{5}BEGIN[a-z\\s]+PRIVATE\\sKEY[\\-]{5}([^\\-]+)[\\-]{5}END[a-z\\s]+PRIVATE\\sKEY|ssh-rsa\\s*([a-z0-9\\/\\.+]{100,})"
 
-#define DD_BASE(path) "/opt/datadog-php/" path
-
-#define DD_APPSEC_HELPER_RUST_REDIRECTION_DEFAULT "true"
-
 // clang-format off
-#define DD_CONFIGURATION_GENERAL \
+#define DD_CONFIGURATION \
     CONFIG(BOOL, DD_APPSEC_ENABLED, "false", .ini_change = zai_config_system_ini_change)                                              \
     SYSCFG(BOOL, DD_APPSEC_CLI_START_ON_RINIT, "false")                                                                               \
     SYSCFG(STRING, DD_APPSEC_RULES, "")                                                                                               \
@@ -47,13 +43,11 @@ extern bool runtime_config_first_init;
     SYSCFG(BOOL, DD_APPSEC_TESTING_INVALID_COMMAND, "false")                                                                           \
     CONFIG(CUSTOM(INT), DD_APPSEC_LOG_LEVEL, "warn", .parser = dd_parse_log_level)                                                    \
     SYSCFG(STRING, DD_APPSEC_LOG_FILE, "php_error_reporting")                                                                         \
-    CONFIG(STRING, DD_APPSEC_HELPER_PATH, DD_BASE("bin/libddappsec-helper.so"))                                                       \
-    SYSCFG(BOOL, DD_APPSEC_HELPER_RUST_REDIRECTION, DD_APPSEC_HELPER_RUST_REDIRECTION_DEFAULT)                                        \
     SYSCFG(BOOL, DD_APPSEC_STACK_TRACE_ENABLED, "true")                                                                               \
     SYSCFG(BOOL, DD_APPSEC_RASP_ENABLED , "true")                                                                                     \
     SYSCFG(INT, DD_APPSEC_MAX_STACK_TRACE_DEPTH, "32")                                                                                \
     SYSCFG(INT, DD_APPSEC_MAX_STACK_TRACES, "2")                                                                                      \
-    SYSCFG(STRING, DD_APPSEC_HELPER_LOG_FILE, "/dev/null")                                                                            \
+    SYSCFG(STRING, DD_APPSEC_HELPER_LOG_FILE, "<sidecar log>")                                                                        \
     SYSCFG(STRING, DD_APPSEC_HELPER_LOG_LEVEL, "info")                                                                                \
     CONFIG(STRING, DD_SERVICE, "")                                                                                                    \
     CONFIG(STRING, DD_ENV, "")                                                                                                        \
@@ -73,16 +67,6 @@ extern bool runtime_config_first_init;
     CONFIG(BOOL, DD_APM_TRACING_ENABLED, "true")                                                                                      \
     CONFIG(BOOL, DD_API_SECURITY_ENABLED, "true", .ini_change = zai_config_system_ini_change)                                         \
     CONFIG(DOUBLE, DD_API_SECURITY_SAMPLE_DELAY, "30", .ini_change = zai_config_system_ini_change)
-
-#ifdef __linux__
-#define DD_CONFIGURATION \
-    DD_CONFIGURATION_GENERAL \
-    CONFIG(STRING, DD_APPSEC_HELPER_RUNTIME_PATH, "@/ddappsec", .ini_change = dd_on_runtime_path_update)
-#else
-#define DD_CONFIGURATION \
-    DD_CONFIGURATION_GENERAL \
-    CONFIG(STRING, DD_APPSEC_HELPER_RUNTIME_PATH, "/tmp", .ini_change = dd_on_runtime_path_update)
-#endif
 // clang-format on
 
 #define CALIAS CONFIG

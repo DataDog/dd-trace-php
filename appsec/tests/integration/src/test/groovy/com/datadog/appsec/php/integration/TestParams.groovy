@@ -20,11 +20,8 @@ class TestParams {
     static String getVariant() {
         System.getProperty('VARIANT') ?: ''
     }
-    static boolean usesHelperCpp() {
-        System.getProperty('USE_HELPER_CPP') != null
-    }
     static boolean usesHelperRust() {
-        !usesHelperCpp()
+        true
     }
     static String getTracerVersion() {
         System.getProperty('TRACER_VERSION') ?: ''

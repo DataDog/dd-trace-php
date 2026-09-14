@@ -268,7 +268,11 @@ function build_php {
     ldflags="$ldflags -fsanitize=address"
   fi
   if [[ $version_id -lt 70400 ]]; then
-    options+=(--enable-hash --enable-libxml=shared)
+    options+=(
+      --enable-hash
+      --enable-libxml=shared
+      --with-libxml-dir="$HOME/php/libxml2"
+    )
   else
     # 7.4+
     options+=(--with-libxml=shared)
@@ -301,6 +305,10 @@ function build_php {
   if [[ $version_id -lt 70300 && $version_id -ge 70000 && ! -f .patch_ns_icu ]]; then
     patch -p1 < "$REPO_ROOT"/php_patches/recent_icu.patch
     touch .patch_ns_icu
+  fi
+  if [[ $version_id -ge 80200 && $version_id -lt 80400 && ! -f .patch_gcc_atomics ]]; then
+    patch -p1 < "$REPO_ROOT"/php_patches/gcc_atomics.patch
+    touch .patch_gcc_atomics
   fi
 
   rm -rf "$build_dir"
@@ -438,7 +446,8 @@ function install_libxml2 {
 
   mkdir -p "$build_dir"
   cd "$build_dir"
-  CXXFLAGS="-g -ggdb -O0" "$source_dir/configure" --prefix="$install_dir"
+  CXXFLAGS="-g -ggdb -O0" "$source_dir/configure" \
+    --prefix="$install_dir" --without-python
 
   make -j && make install
   touch "$install_dir/.installed"
@@ -508,7 +517,7 @@ if [[ -d /opt/homebrew/lib ]]; then
   export CPPFLAGS="${CPPFLAGS:-} -idirafter /opt/homebrew/include"
 fi
 export CXXFLAGS="${CXXFLAGS:-} -std=c++11"
-export CFLAGS="${CFLAGS:-} -Wno-implicit-function-declaration"
+export CFLAGS="${CFLAGS:-} -Wno-implicit-function-declaration -Wno-error=incompatible-pointer-types -Wno-error=discarded-qualifiers -Wno-error=implicit-int -Wno-error=int-conversion"
 
 install_openssl 1.0.2u
 install_openssl 1.1.1w

@@ -144,6 +144,18 @@ stages:
         exit 1
       fi
 
+"PHP lint":
+  tags: [ "arch:amd64" ]
+  stage: test
+  needs: []
+  variables:
+    PHP_MAJOR_MINOR: "<?= $all_minor_major_targets[count($all_minor_major_targets) - 1] ?>"
+    GIT_SUBMODULE_STRATEGY: none
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-10"
+  script:
+    - switch-php nts
+    - bash tooling/php-lint/run.sh
+
 <?php
 foreach ($all_minor_major_targets as $major_minor):
     foreach ($switch_php_versions as $switch_php_version):

@@ -31,8 +31,10 @@ const PRESET_JOBS = [
     'datadog-setup'          => 'datadog-setup.php',
     'ssi-amd64'              => 'package loader: [amd64]',
     'ssi-aarch64'            => 'package loader: [arm64]',
-    'extension-amd64-gnu'    => 'package extension: [amd64, x86_64-unknown-linux-gnu]',
-    'extension-aarch64-gnu'  => 'package extension: [arm64, aarch64-unknown-linux-gnu]',
+    'extension-amd64-gnu-installers'    => 'package extension (installers): [amd64, x86_64-unknown-linux-gnu]',
+    'extension-amd64-gnu-bundles'       => 'package extension (bundles): [amd64, x86_64-unknown-linux-gnu]',
+    'extension-aarch64-gnu-installers'  => 'package extension (installers): [arm64, aarch64-unknown-linux-gnu]',
+    'extension-aarch64-gnu-bundles'     => 'package extension (bundles): [arm64, aarch64-unknown-linux-gnu]',
     'extension-amd64-musl'   => 'package extension: [amd64, x86_64-alpine-linux-musl]',
     'extension-aarch64-musl' => 'package extension: [arm64, aarch64-alpine-linux-musl]',
     'extension-windows'      => 'package extension windows',
@@ -41,10 +43,6 @@ const PRESET_JOBS = [
     'link-tracing-aarch64-gnu'  => 'link tracing extension: [arm64, aarch64-unknown-linux-gnu]',
     'link-tracing-amd64-musl'   => 'link tracing extension: [amd64, x86_64-alpine-linux-musl]',
     'link-tracing-aarch64-musl' => 'link tracing extension: [arm64, aarch64-alpine-linux-musl]',
-    'appsec-helper-cpp-amd64'   => 'compile appsec helper: [amd64]',
-    'appsec-helper-cpp-aarch64' => 'compile appsec helper: [arm64]',
-    'appsec-helper-rust-amd64'  => 'compile appsec helper rust: [amd64]',
-    'appsec-helper-rust-aarch64'=> 'compile appsec helper rust: [arm64]',
 ];
 
 const PIPELINE_DISCOVERY_TIMEOUT = 300;

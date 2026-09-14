@@ -22,7 +22,7 @@ var_dump(backoff_status());
 --EXPECTF--
 rinit:
 
-Warning: datadog\appsec\testing\rinit(): [ddappsec] Error %s for command request_init: dd_network in %s on line %d
+Warning: datadog\appsec\testing\rinit(): [ddappsec] Error %s for command request_init: dd_helper_fatal in %s on line %d
 bool(true)
 rshutdown:
 bool(true)

@@ -140,9 +140,7 @@ in `binaries/`.
 | File in `binaries/` | What it replaces |
 |---------------------|-----------------|
 | `ddtrace.so` | The installed `ddtrace.so` (searched under `/root`, `/opt`, `/usr/lib/php`) |
-| `ddappsec.so` + `libddappsec-helper.so` | Both required together; replaces appsec extension and C++ helper |
-| `libddappsec-helper-rust.so` | Placed alongside the C++ helper (enables `DD_APPSEC_HELPER_RUST_REDIRECTION`) |
-| `libddwaf.so` | Placed alongside the C++ helper |
+| `ddappsec.so` | The installed appsec extension |
 
 **Hard constraints — this approach only works if all three hold:**
 
@@ -231,30 +229,8 @@ Logs are written to `logs_<scenario>/` (or `logs/` for default) and
 `logs_parametric/` under the `system-tests/` directory. Inside:
 
 - `docker/weblog/logs/` -- PHP/weblog application logs
-- `docker/weblog/logs/helper.log` -- AppSec helper logs (see
-  `appsec/helper-rust/CLAUDE.md` for how to distinguish C++ vs Rust
-  helper output)
+- `docker/weblog/logs/helper.log` -- embedded AppSec helper logs
 - `interfaces/` -- captured agent traffic
-
-## Using a custom helper-rust binary
-
-To test with a locally-built Rust AppSec helper instead of the one
-bundled in the package:
-
-```bash
-# Build the helper via Gradle
-cd appsec/tests/integration
-./gradlew buildHelperRust --info
-
-# Extract from Docker volume
-docker run -i --rm -v php-helper-rust:/vol alpine \
-  cat /vol/libddappsec-helper.so > /path/to/system-tests/binaries/libddappsec-helper.so
-
-# Then rebuild the weblog and run as usual
-cd /path/to/system-tests
-./build.sh php
-./run.sh APPSEC_API_SECURITY
-```
 
 ## Gotchas
 
@@ -306,16 +282,15 @@ cd /path/to/system-tests
   `system-tests/logs/` -- these directories are always uploaded
   regardless of job success or failure (`when: always`).
 
-- **AppSec events silently missing when appsec artifacts are absent.** When
-  `libddappsec-helper.so`, `ddappsec.so`, or `recommended.json` do not reach
-  the weblog Docker image, the sidecar's `maybe_start_appsec()` skips WAF
-  loading without any visible error. All AppSec-related scenarios (`default`,
-  `APPSEC_API_SECURITY*`) will report "No appsec event validates this
-  condition" or "No telemetry data to validate on".
-  After any change to `generate-package.php` or the tarball assembly that
-  touches helper packaging, confirm that
-  `libddappsec-helper.so` is present inside the assembled `.tar.gz`
-  before running system tests.
+- **AppSec events silently missing when `ddappsec.so` is absent.** When
+  `ddappsec.so` does not reach the weblog Docker image, the sidecar's AppSec
+  setup skips WAF loading without any visible error. All AppSec-related
+  scenarios (`default`, `APPSEC_API_SECURITY*`) will report "No appsec event
+  validates this condition" or "No telemetry data to validate on".
+  After changing `generate-package.php` or the tarball assembly, confirm that
+  `ddappsec.so` is present inside the assembled `.tar.gz` before running
+  system tests. (`recommended.json` is embedded in the helper-rust binary,
+  not shipped as a separate file.)
 
 - **Sidecar log level must be `debug` to see startup confirmation.**
   The default log level filters out the "Starting sidecar" message. When

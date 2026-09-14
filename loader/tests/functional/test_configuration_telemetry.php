@@ -12,6 +12,8 @@ $output = runCLI('-r "echo \'foo\'; dd_trace_internal_fn(\'finalize_telemetry\')
     'DD_INJECTION_ENABLED=tracer', // Normally set by the injector
     'DD_SERVICE=loader',
     'DD_TRACE_GENERATE_ROOT_SPAN=0',
+    'DD_API_KEY=SENTINEL_DD_API_KEY',
+    'DD_VERSION=1.2.3-loader-test',
 ]);
 
 assertMatchesFormat($output, '%A"loaded_by_ssi":true%s%A');
@@ -31,3 +33,9 @@ do {
 assertContains($content, $instrumentationSource);
 assertContains($content, '{"name":"ssi_injection_enabled","value":"tracer","origin":"env_var","config_id":null,"seq_id":null}');
 assertContains($content, '{"name":"ssi_forced_injection_enabled","value":"True","origin":"env_var","config_id":null,"seq_id":null}');
+
+assertNotContains($content, 'SENTINEL_DD_API_KEY');
+assertNotContains($content, '"name":"DD_API_KEY"');
+assertNotContains($content, '"name":"DD_TRACE_ENABLED"');
+
+assertContains($content, '{"name":"DD_VERSION","value":"1.2.3-loader-test","origin":"env_var","config_id":null,"seq_id":null}');

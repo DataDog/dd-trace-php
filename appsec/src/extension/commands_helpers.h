@@ -15,6 +15,8 @@ typedef struct _dd_command_spec {
     const char *nonnull name;
     size_t name_len;
     size_t num_args; // outgoing args
+    // Whether a failed exchange may reconnect to the sidecar and try again.
+    bool reconnect_sidecar;
     dd_result (*nonnull outgoing_cb)(
         mpack_writer_t *nonnull writer, void *unspecnull ctx);
     dd_result (*nonnull incoming_cb)(mpack_node_t root, void *unspecnull ctx);
@@ -27,9 +29,6 @@ dd_result ATTR_WARN_UNUSED dd_command_exec(dd_conn *nonnull conn,
 
 dd_result ATTR_WARN_UNUSED dd_command_exec_req_info(dd_conn *nonnull conn,
     const dd_command_spec *nonnull spec, struct req_info *nonnull ctx);
-
-dd_result ATTR_WARN_UNUSED dd_command_exec_cred(dd_conn *nonnull conn,
-    const dd_command_spec *nonnull spec, void *unspecnull ctx);
 
 /* Baked response */
 dd_result dd_command_proc_resp_verd_span_data(mpack_node_t root,
