@@ -1,6 +1,11 @@
 # Default owners
 * @DataDog/apm-php @DataDog/apm-php-core
 
+# Agent review skill and eval suite (explicit so MergeGate shows an owner)
+/.agents/ @DataDog/apm-php @DataDog/apm-php-core
+/.llm-validation/ @DataDog/apm-php @DataDog/apm-php-core
+/AGENTS.md @DataDog/apm-php @DataDog/apm-php-core
+
 # Profiling team
 /profiling/ @DataDog/profiling-php @DataDog/apm-php-core
 
