@@ -20,6 +20,9 @@ $generator = new StubsGenerator();
 $finder = Finder::create()->in($SRC_DIR)->path($files)->sortByName();
 
 $stubs = $generator->generate($finder)->prettyPrint(new CustomPrinter());
+if ($stubs === '' || substr($stubs, -1) !== "\n") {
+    $stubs .= "\n";
+}
 
 $outputFile = $SRC_DIR . "ddtrace_php_api.stubs.php";
 file_put_contents($outputFile, $stubs);
