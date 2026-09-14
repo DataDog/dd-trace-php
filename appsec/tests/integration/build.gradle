@@ -345,6 +345,10 @@ def phpSdkVersion = { String version, String variant ->
     variant in ['release', 'release-musl'] ? version : "$version-$variant"
 }
 
+def portableBuildVariant = { String variant ->
+    variant == 'release-musl' ? 'release' : variant
+}
+
 def buildTracerTask = { String version, String variant ->
     buildRunInDockerTask(
             baseName: 'buildTracer',
@@ -355,7 +359,7 @@ def buildTracerTask = { String version, String variant ->
             needsAppsec: false,
             needsBoostCache: false,
             needsCargoCache: false,
-            description: 'Build tracer for PHP',
+            description: 'Build portable tracer extension for PHP',
             inputs: [
                     dirs: [
                             '../../../ext',
@@ -798,47 +802,64 @@ def buildLoaderTask = { String version, String variant ->
     )
 }
 
-def buildAppSecTask = { String version, String variant, altBaseTag = null ->
+def buildAppSecTask = { String version, String variant ->
     def buildType = variant.contains('debug') ? 'Debug' : 'RelWithDebInfo'
     buildRunInDockerTask(
             baseName: 'buildAppsec',
-            baseTag: altBaseTag ?: 'php',
+            imageTag: 'php-buildonly-rust',
             version: version,
             variant: variant,
             needsTracer: false,
             needsCargoCache: false,
-            description: 'Build appsec for PHP',
+            description: 'Build portable appsec extension for PHP',
             inputs: [
                     dirs: [
                             '../../../cmake',
+                            '../../../components-rs',
                             '../../../zend_abstract_interface',
                             '../../cmake',
                             '../../third_party',
                             '../../src'],
-                    files: ['../../CMakeLists.txt'],
+                    files: [
+                            '../../../VERSION',
+                            '../../CMakeLists.txt'],
             ],
             outputs: [
                     volume: 'php-appsec',
                     files: ['ddappsec.so'],
             ],
+            volumes: [
+                    ("php-appsec-buildonly-${version}-${variant}"): [
+                            mountPoint: '/project/tmp',
+                    ],
+            ],
             command: [
                     '-e', '-c',
                     """
-                    cd /appsec
-                    test -f CMakeCache.txt || \\
-                        cmake -DCMAKE_BUILD_TYPE=$buildType \\
-                              -DCMAKE_INSTALL_PREFIX=/appsec \\
-                              -DDD_APPSEC_ENABLE_PATCHELF_LIBC=ON \\
-                              -DDD_APPSEC_TESTING=ON \\
-                              -DBOOST_CACHE_PREFIX=/var/boost-cache /project/appsec
-                    make -j extension && \\
-                        touch ddappsec.so
+                    cd /project/tmp
+
+                    export PHP_SDK_VERSION=${phpSdkVersion(version, variant)}
+                    cmake -DCMAKE_BUILD_TYPE=$buildType \\
+                          -DCMAKE_C_FLAGS=-Wno-static-in-inline \\
+                          -DCMAKE_INSTALL_PREFIX=/appsec \\
+                          -DDD_APPSEC_TESTING=OFF \\
+                          -DBOOST_CACHE_PREFIX=/var/boost-cache \\
+                          /project/appsec
+                    make -j extension
+                    versionInfo=\$(readelf --version-info ddappsec.so)
+                    if grep -q 'GLIBC_' <<< \"\$versionInfo\"; then
+                        echo 'ddappsec.so has versioned glibc symbols' >&2
+                        exit 1
+                    fi
+                    cp ddappsec.so /appsec/ddappsec.so
+                    touch /appsec/ddappsec.so
                 """
             ]
     )
 }
 
 def runUnitTestsTask = { String phpVersion, String variant ->
+    def buildType = variant.contains('debug') ? 'Debug' : 'RelWithDebInfo'
     def env = ''
     if (project.hasProperty('tests')) {
         env = "TESTS='${project.getProperty('tests')}' "
@@ -848,21 +869,37 @@ def runUnitTestsTask = { String phpVersion, String variant ->
             baseTag: 'php',
             version: phpVersion,
             variant: variant,
-            needsBoostCache: false,
+            needsAppsec: false,
             needsCargoCache: false,
-            description: 'Build appsec for PHP',
+            description: 'Run appsec extension tests for PHP',
+            volumes: [
+                    ("php-appsec-${phpVersion}-${variant}"): [
+                            mountPoint: '/appsec-artifact',
+                            readonly: true,
+                    ],
+                    ("php-appsec-unit-${phpVersion}-${variant}"): [
+                            mountPoint: '/appsec',
+                    ],
+            ],
             command: [
                     '-e', '-c',
                     """
                     cd /appsec
+                    cmake -DCMAKE_BUILD_TYPE=$buildType \\
+                          -DCMAKE_INSTALL_PREFIX=/appsec \\
+                          -DDD_APPSEC_TEST_EXTENSION=/appsec-artifact/ddappsec.so \\
+                          -DDD_APPSEC_TEST_TRACER=/project/tmp/build_extension/modules/ddtrace.so \\
+                          -DDD_APPSEC_TESTING=ON \\
+                          -DBOOST_CACHE_PREFIX=/var/boost-cache \\
+                          /project/appsec
                     ${env}make -j xtest
                     """
             ]
     )
 
     task.configure {
-        dependsOn "buildTracer-$phpVersion-$variant"
-        dependsOn "buildAppsec-$phpVersion-$variant"
+        dependsOn "buildTracer-$phpVersion-${portableBuildVariant(variant)}"
+        dependsOn "buildAppsec-$phpVersion-${portableBuildVariant(variant)}"
     }
 }
 
@@ -881,8 +918,8 @@ def runMainTask = { String phpVersion, String variant ->
         systemProperty 'PHP_VERSION', phpVersion
         systemProperty 'VARIANT', variant
 
-        dependsOn "buildTracer-$phpVersion-$variant"
-        dependsOn "buildAppsec-$phpVersion-$variant"
+        dependsOn "buildTracer-$phpVersion-${portableBuildVariant(variant)}"
+        dependsOn "buildAppsec-$phpVersion-${portableBuildVariant(variant)}"
     }
 }
 
@@ -892,12 +929,10 @@ def runMainTask = { String phpVersion, String variant ->
 
     def isMusl = variant =~ /\bmusl\b/
 
-    buildTracerTask(phpVersion, variant)
     if (!isMusl) {
+        buildTracerTask(phpVersion, variant)
         buildTracerCmakeTask(phpVersion, variant)
-    }
-    buildAppSecTask(phpVersion, variant, isMusl ? 'nginx-fpm-php' : null)
-    if (!isMusl) {
+        buildAppSecTask(phpVersion, variant)
         runUnitTestsTask(phpVersion, variant)
     }
     if (project.hasProperty('testClass')) {
@@ -942,8 +977,9 @@ def runMainTask = { String phpVersion, String variant ->
             it.systemProperty 'USE_CMAKE', 'true'
         }
 
-        dependsOn project.hasProperty('useCmake') ? "buildTracerCmake-${phpVersion}-${variant}" : "buildTracer-${phpVersion}-${variant}"
-        dependsOn "buildAppsec-${phpVersion}-${variant}"
+        String artifactVariant = portableBuildVariant(variant)
+        dependsOn project.hasProperty('useCmake') ? "buildTracerCmake-${phpVersion}-${artifactVariant}" : "buildTracer-${phpVersion}-${artifactVariant}"
+        dependsOn "buildAppsec-${phpVersion}-${artifactVariant}"
 
         if (phpVersion in ['7.0', '7.1']) {
             dependsOn downloadComposerOld

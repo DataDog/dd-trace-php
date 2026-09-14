@@ -544,8 +544,9 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         withFileSystemBind('src/test/resources/gdbinit', '/root/.gdbinit', BindMode.READ_ONLY)
         withFileSystemBind('src/test/bin/enable_extensions.sh',
                 '/usr/local/bin/enable_extensions.sh', BindMode.READ_ONLY)
+        String artifactVariant = phpVariant == 'release-musl' ? 'release' : phpVariant
         if (System.getProperty('SSI')) {
-            addVolumeMount("php-appsec-$phpVersion-$phpVariant", '/appsec')
+            addVolumeMount("php-appsec-$phpVersion-$artifactVariant", '/appsec')
             def ssiTracerVol = System.getProperty('USE_CMAKE')
                 ? "php-tracer-ssi-cmake-$phpVersion-$phpVariant"
                 : "php-tracer-ssi-$phpVersion-$phpVariant"
@@ -580,10 +581,10 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
                 cmd.hostConfig.withCapAdd(com.github.dockerjava.api.model.Capability.SYS_PTRACE)
             }
         } else {
-            addVolumeMount("php-appsec-$phpVersion-$phpVariant", '/appsec')
+            addVolumeMount("php-appsec-$phpVersion-$artifactVariant", '/appsec')
             def tracerVol = System.getProperty('USE_CMAKE')
-                ? "php-tracer-cmake-$phpVersion-$phpVariant"
-                : "php-tracer-$phpVersion-$phpVariant"
+                ? "php-tracer-cmake-$phpVersion-$artifactVariant"
+                : "php-tracer-$phpVersion-$artifactVariant"
             addVolumeMount(tracerVol, '/project/tmp')
         }
         withEnv 'RUST_BACKTRACE', '1'
