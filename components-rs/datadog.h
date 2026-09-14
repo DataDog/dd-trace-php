@@ -269,17 +269,17 @@ void ddog_shutdown_remote_config(struct ddog_RemoteConfigState*);
  * span-decoration / log allocations) by consuming it; borrowed `CharSlice`s are
  * left untouched. Called from `dd_probe_dtor` when a probe is uninstalled.
  */
-void ddog_drop_probe(ddog_Probe);
+void ddog_drop_probe(struct ddog_Probe);
 
 void ddog_log_debugger_data(const struct ddog_Vec_DebuggerPayload *payloads);
 
-void ddog_log_debugger_datum(const ddog_DebuggerPayload *payload);
+void ddog_log_debugger_datum(const struct ddog_DebuggerPayload *payload);
 
 ddog_MaybeError ddog_send_debugger_diagnostics(const struct ddog_RemoteConfigState *remote_config_state,
                                                struct ddog_SidecarTransport **transport,
                                                const struct ddog_InstanceId *instance_id,
                                                ddog_QueueId queue_id,
-                                               const ddog_Probe *probe,
+                                               const struct ddog_Probe *probe,
                                                uint64_t timestamp);
 
 struct ddog_VoidResult datadog_crasht_init_with_sidecar(struct ddog_Config ffi_config,
