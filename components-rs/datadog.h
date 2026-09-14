@@ -27,6 +27,51 @@ extern uint8_t datadog_formatted_root_session_id[36];
 
 extern uint8_t datadog_formatted_parent_session_id[36];
 
+#if defined(DDTRACE_PROFILING)
+ddog_ZendResult ddog_php_prof_minit(int _type, int module_number);
+#endif
+
+#if defined(DDTRACE_PROFILING)
+ddog_ZendResult ddog_php_prof_post_deactivate(void);
+#endif
+
+#if defined(DDTRACE_PROFILING)
+void ddog_php_prof_zend_activate(void);
+#endif
+
+#if defined(DDTRACE_PROFILING)
+ddog_ZendResult ddog_php_prof_rinit(int _type, int _module_number);
+#endif
+
+#if defined(DDTRACE_PROFILING)
+ddog_ZendResult ddog_php_prof_rshutdown(int _type, int _module_number);
+#endif
+
+#if defined(DDTRACE_PROFILING)
+/**
+ * Prints the module info. Calls many C functions from the Zend Engine,
+ * including calling variadic functions. It's essentially all unsafe, so be
+ * careful, and do not call this manually (only let the engine call it).
+ */
+void ddog_php_prof_minfo(ddog_ModuleEntry *module_ptr);
+#endif
+
+#if defined(DDTRACE_PROFILING)
+ddog_ZendResult ddog_php_prof_mshutdown(int _type, int _module_number);
+#endif
+
+#if defined(DDTRACE_PROFILING)
+ddog_ZendResult ddog_php_prof_zend_startup(ddog_ZendExtension *extension);
+#endif
+
+#if defined(DDTRACE_PROFILING)
+void ddog_php_prof_zend_shutdown(ddog_ZendExtension *extension);
+#endif
+
+#if defined(DDTRACE_PROFILING)
+bool ddog_php_prof_is_enabled(void);
+#endif
+
 /**
  * Read all agent /info data in one SHM read and apply env, container-hash and concentrator
  * config atomically.
@@ -224,17 +269,17 @@ void ddog_shutdown_remote_config(struct ddog_RemoteConfigState*);
  * span-decoration / log allocations) by consuming it; borrowed `CharSlice`s are
  * left untouched. Called from `dd_probe_dtor` when a probe is uninstalled.
  */
-void ddog_drop_probe(struct ddog_Probe);
+void ddog_drop_probe(ddog_Probe);
 
 void ddog_log_debugger_data(const struct ddog_Vec_DebuggerPayload *payloads);
 
-void ddog_log_debugger_datum(const struct ddog_DebuggerPayload *payload);
+void ddog_log_debugger_datum(const ddog_DebuggerPayload *payload);
 
 ddog_MaybeError ddog_send_debugger_diagnostics(const struct ddog_RemoteConfigState *remote_config_state,
                                                struct ddog_SidecarTransport **transport,
                                                const struct ddog_InstanceId *instance_id,
                                                ddog_QueueId queue_id,
-                                               const struct ddog_Probe *probe,
+                                               const ddog_Probe *probe,
                                                uint64_t timestamp);
 
 struct ddog_VoidResult datadog_crasht_init_with_sidecar(struct ddog_Config ffi_config,
@@ -483,6 +528,8 @@ void datadog_generate_runtime_id(void);
 void datadog_generate_session_id(void);
 
 void datadog_format_runtime_id(uint8_t (*buf)[36]);
+
+bool datadog_bytes_are_valid_utf8(const uint8_t *bytes, uintptr_t len);
 
 #if defined(__linux__)
 /**

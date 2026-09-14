@@ -8,6 +8,7 @@
 #include "sidecar.h"
 #include "otel_config.h"
 #include <components/log/log.h>
+#include <components-rs/datadog.h>
 #include <zai_string/string.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
@@ -44,6 +45,22 @@ bool datadog_alter_dd_trace_disabled_config(zval *old_value, zval *new_value, ze
     return true;
 }
 #endif
+
+bool datadog_config_parse_utf8_string(zai_str value, zval *decoded_value, bool persistent) {
+    if (value.len == 0) {
+        if (persistent) {
+            ZVAL_EMPTY_PSTRING(decoded_value);
+        } else {
+            ZVAL_EMPTY_STRING(decoded_value);
+        }
+        return true;
+    }
+    if (!datadog_bytes_are_valid_utf8((const uint8_t *)value.ptr, value.len)) {
+        return false;
+    }
+    ZVAL_STR(decoded_value, zend_string_init(value.ptr, value.len, persistent));
+    return true;
+}
 
 #define DD_TO_DATADOG_INC 5 /* "DD" expanded to "datadog" */
 

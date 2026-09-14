@@ -1,9 +1,11 @@
 #include "php_ffi.h"
 
-#if defined(TRACER) && defined(PROFILING)
+#ifdef PROFILING
 #include <ext/configuration.h>
+#ifdef TRACER
 #include <ext/process_tags.h>
 #include <tracer/profiling.h>
+#endif
 #endif
 
 #include <assert.h>
@@ -177,20 +179,10 @@ void datadog_php_profiling_startup(zend_extension *extension) {
 
 void *datadog_php_profiling_vm_interrupt_addr(void) { return &EG(vm_interrupt); }
 
-void datadog_php_profiling_conflicting_extension_error(void) {
-    php_error_docref(NULL, E_CORE_WARNING,
-                     "datadog-profiling cannot be loaded alongside ddtrace; "
-                     "use combined ddtrace profiling support instead");
-}
-
 void datadog_php_profiling_config_count_error(uint16_t c_count, uintptr_t rust_count) {
     php_error_docref(NULL, E_CORE_WARNING,
                      "generated configuration table mismatch (C=%u, Rust=%zu)",
                      (unsigned)c_count, (size_t)rust_count);
-}
-
-zend_module_entry *datadog_get_module_entry(const char *str, uintptr_t len) {
-    return zend_hash_str_find_ptr(&module_registry, str, len);
 }
 
 bool ddog_php_prof_config_visit_map(uint16_t config_id, bool memoized,
@@ -216,7 +208,7 @@ bool ddog_php_prof_config_visit_map(uint16_t config_id, bool memoized,
     return true;
 }
 
-#if defined(TRACER) && defined(PROFILING)
+#ifdef PROFILING
 uint16_t ddog_php_prof_config_count(void) { return DATADOG_CONFIG_COUNT; }
 #endif
 
@@ -234,29 +226,6 @@ void datadog_php_profiling_install_internal_function_handler(
         *handler.old_handler = old_handler->internal_function.handler;
         old_handler->internal_function.handler = handler.new_handler;
     }
-}
-
-void datadog_php_profiling_copy_string_view_into_zval(zval *dest, zai_str view,
-                                                      bool persistent) {
-    ZEND_ASSERT(dest);
-
-#ifdef CFG_TEST
-    (void)dest;
-    (void)view;
-    (void)persistent;
-    ZEND_ASSERT(0);
-#else
-    if (view.len == 0) {
-        if (persistent) {
-            ZVAL_EMPTY_PSTRING(dest);
-        } else {
-            ZVAL_EMPTY_STRING(dest);
-        }
-    } else {
-        ZEND_ASSERT(view.ptr);
-        ZVAL_STR(dest, zend_string_init(view.ptr, view.len, persistent));
-    }
-#endif
 }
 
 void ddog_php_prof_copy_long_into_zval(zval *dest, long num) {

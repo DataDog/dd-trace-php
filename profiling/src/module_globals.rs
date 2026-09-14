@@ -38,21 +38,16 @@ pub struct ProfilerGlobals {
     pub allocation_profiling_stats: UnsafeCell<MaybeUninit<allocation::AllocationProfilingStats>>,
 }
 
-/// We need TSRM to call into GINIT and GSHUTDOWN to observe spawning and
-/// joining threads. This will be pointed to by the
-/// [`ModuleEntry::globals_id_ptr`] in the `zend_module_entry` and the TSRM
-/// will store it's thread-safe-resource id here; see:
-/// <https://github.com/php/php-src/blob/5ce36453d66143548485cb57fb19bf4157ab60c2/Zend/zend_API.h#L253>
-#[cfg(all(php_zts, all(feature = "profiling", not(feature = "tracer"))))]
+/// Only used by unit tests, which don't link the real PHP engine or
+/// ext/datadog.c: it stands in for the TSRM resource id that a dedicated
+/// `zend_module_entry::globals_id_ptr` would otherwise receive. Otherwise
+/// `datadog_globals.profiling_globals` are used: see [`get_profiler_globals`].
+#[cfg(all(php_zts, test))]
 pub static mut GLOBALS_ID: i32 = 0;
 
-/// Module globals for NTS builds. In NTS mode, PHP uses this static directly.
-/// The `globals_ctor` function will re-initialize this (though it's already
-/// initialized here).
-#[cfg(all(
-    not(php_zts),
-    any(not(all(feature = "profiling", feature = "tracer")), test)
-))]
+/// Module globals stand-in for unit tests on NTS builds, which don't link the
+/// real PHP engine or ext/datadog.c.
+#[cfg(all(not(php_zts), test))]
 pub static mut GLOBALS: ProfilerGlobals = ProfilerGlobals {
     zend_mm_state: Cell::new(ZendMMState::new()),
     interrupt_count: AtomicU32::new(0),
@@ -97,7 +92,7 @@ pub unsafe fn get_tsrm_resource_from_cache(ls_cache: *mut c_void, id: i32) -> *m
     zts::tsrmg_bulk(ls_cache, id)
 }
 
-#[cfg(all(php_zts, all(feature = "profiling", not(feature = "tracer"))))]
+#[cfg(all(php_zts, test))]
 #[inline]
 pub unsafe fn get_profiler_globals_from_cache(ls_cache: *mut c_void) -> *mut ProfilerGlobals {
     // SAFETY: As long as this is called during the times documented by
@@ -106,11 +101,12 @@ pub unsafe fn get_profiler_globals_from_cache(ls_cache: *mut c_void) -> *mut Pro
     get_tsrm_resource_from_cache(ls_cache, id).cast()
 }
 
-#[cfg(all(php_zts, all(feature = "profiling", feature = "tracer")))]
+#[cfg(all(php_zts, not(test)))]
 #[inline]
 pub unsafe fn get_profiler_globals_from_cache(_ls_cache: *mut c_void) -> *mut ProfilerGlobals {
-    // Combined storage is owned by the current thread's ddtrace globals. The C
-    // accessor uses PHP's static TSRMLS cache, matching DATADOG_G access.
+    // Storage is owned by ext/datadog.c's shared `datadog_globals` outside
+    // of tests. The C accessor uses PHP's static TSRMLS cache, matching
+    // DATADOG_G access.
     get_profiler_globals()
 }
 
@@ -125,7 +121,7 @@ pub unsafe fn get_profiler_globals_from_cache(_ls_cache: *mut c_void) -> *mut Pr
 /// - Must not be called after `GSHUTDOWN`.
 #[inline]
 pub unsafe fn get_profiler_globals() -> *mut ProfilerGlobals {
-    #[cfg(all(all(feature = "profiling", feature = "tracer"), not(test)))]
+    #[cfg(not(test))]
     {
         unsafe extern "C" {
             fn datadog_php_profiling_globals() -> *mut c_void;
@@ -133,15 +129,12 @@ pub unsafe fn get_profiler_globals() -> *mut ProfilerGlobals {
         datadog_php_profiling_globals().cast()
     }
 
-    #[cfg(all(not(all(feature = "profiling", feature = "tracer")), php_zts))]
+    #[cfg(all(test, php_zts))]
     {
         get_profiler_globals_from_cache(get_tsrm_ls_cache())
     }
 
-    #[cfg(all(
-        not(php_zts),
-        any(not(all(feature = "profiling", feature = "tracer")), test)
-    ))]
+    #[cfg(all(not(php_zts), test))]
     {
         ptr::addr_of_mut!(GLOBALS)
     }
@@ -156,9 +149,8 @@ pub unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
     #[cfg(php_zts)]
     crate::profiling::timeline::timeline_ginit();
 
-    // Initialize PHP globals for ZTS builds. For NTS builds, this was already
-    // done in its const initializer.
-    #[cfg(any(php_zts, all(feature = "profiling", feature = "tracer")))]
+    // Initialize ZTS globals for tests.
+    #[cfg(any(php_zts, not(test)))]
     {
         let globals = _globals_ptr.cast::<ProfilerGlobals>();
         (*globals).zend_mm_state = Cell::new(ZendMMState::new());
@@ -188,7 +180,9 @@ pub unsafe extern "C" fn gshutdown(_globals_ptr: *mut c_void) {
         if let Ok(mut cache) = (*globals).process_context.try_borrow_mut() {
             cache.reset();
         }
-        #[cfg(any(php_zts, all(feature = "profiling", feature = "tracer")))]
+        // The NTS-test GLOBALS static is reused across ginit/gshutdown cycles,
+        // so it must not be dropped in place.
+        #[cfg(any(php_zts, not(test)))]
         ptr::drop_in_place(ptr::addr_of_mut!((*globals).process_context));
     }
 

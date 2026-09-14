@@ -265,7 +265,7 @@ static void datadog_deactivate(void) {
 #endif
 }
 
-static zend_extension dd_zend_extension_entry = {"ddtrace",
+static zend_extension dd_zend_extension_entry = {PHP_DDTRACE_EXTNAME,
                                                   PHP_DDTRACE_VERSION,
                                                   "Datadog",
                                                   "https://github.com/DataDog/dd-trace-php",
@@ -484,12 +484,21 @@ static PHP_MINIT_FUNCTION(datadog) {
 #ifdef PROFILING
     datadog_profiling_initialized = false;
 #endif
+#if defined(PROFILING) && !defined(TRACER)
+    if (zend_hash_str_exists(&module_registry, ZEND_STRL("ddtrace"))) {
+        zend_error(E_CORE_WARNING,
+                   "datadog-profiling cannot be loaded alongside ddtrace; "
+                   "use combined ddtrace profiling support instead");
+        return FAILURE;
+    }
+#else
     if (zend_hash_str_exists(&module_registry, ZEND_STRL("datadog-profiling"))) {
         zend_error(E_CORE_WARNING,
                    "datadog-profiling cannot be loaded alongside ddtrace; "
                    "use combined ddtrace profiling support instead");
         return FAILURE;
     }
+#endif
 
     zval *php_version = zend_get_constant_str(ZEND_STRL("PHP_VERSION"));
     if (php_version && Z_TYPE_P(php_version) == IS_STRING) {

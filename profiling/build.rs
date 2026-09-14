@@ -94,20 +94,6 @@ fn macro_value<'a>(contents: &'a str, name: &str) -> Option<&'a str> {
     })
 }
 
-const ZAI_H_FILES: &[&str] = &[
-    "zend_abstract_interface/zai_assert/zai_assert.h",
-    "zend_abstract_interface/zai_string/string.h",
-    "zend_abstract_interface/config/config.h",
-    "zend_abstract_interface/config/config_decode.h",
-    "zend_abstract_interface/config/config_ini.h",
-    "zend_abstract_interface/config/config_stable_file.h",
-    "zend_abstract_interface/env/env.h",
-    "zend_abstract_interface/exceptions/exceptions.h",
-    "zend_abstract_interface/json/json.h",
-    "components-rs/common.h",
-    "components-rs/library-config.h",
-];
-
 #[allow(clippy::too_many_arguments)]
 fn build_zend_php_ffis(
     php_includes: &str,
@@ -121,31 +107,8 @@ fn build_zend_php_ffis(
 ) {
     println!("cargo:rerun-if-changed=profiling/src/php_ffi.h");
     println!("cargo:rerun-if-changed=profiling/src/php_ffi.c");
-    println!("cargo:rerun-if-changed=profiling/src/configuration.c");
-    println!("cargo:rerun-if-changed=profiling/configuration.h");
-    println!("cargo:rerun-if-changed=ext/configuration_shared.h");
-    println!("cargo:rerun-if-changed=ext/configuration_tags.c");
-    println!("cargo:rerun-if-changed=ext/handlers_api.c");
-    println!("cargo:rerun-if-changed=ext/handlers_api.h");
+    println!("cargo:rerun-if-changed=zend_abstract_interface/zai_string/string.c");
 
-    // Profiling only needs config, exceptions and its dependencies.
-    let zai_c_files = [
-        "zend_abstract_interface/config/config_decode.c",
-        "zend_abstract_interface/config/config_ini.c",
-        "zend_abstract_interface/config/config_stable_file.c",
-        "zend_abstract_interface/config/config.c",
-        "zend_abstract_interface/config/config_runtime.c",
-        "zend_abstract_interface/env/env.c",
-        "zend_abstract_interface/exceptions/exceptions.c",
-        "zend_abstract_interface/json/json.c",
-        "zend_abstract_interface/zai_string/string.c",
-    ];
-
-    for file in zai_c_files.iter().chain(ZAI_H_FILES.iter()) {
-        println!("cargo:rerun-if-changed={file}");
-    }
-
-    let files = ["profiling/src/php_ffi.c", "ext/handlers_api.c"];
     let post_startup_cb = if post_startup_cb { "1" } else { "0" };
     let preload = if preload { "1" } else { "0" };
     let fibers = if fibers { "1" } else { "0" };
@@ -162,14 +125,10 @@ fn build_zend_php_ffis(
 
     let combined = env::var_os("CARGO_FEATURE_TRACER").is_some();
     let mut build = cc::Build::new();
+    build.file("profiling/src/php_ffi.c");
+    #[cfg(feature = "test")]
+    build.file("zend_abstract_interface/zai_string/string.c");
     build
-        .files(files)
-        .files(if combined { &[][..] } else { &zai_c_files[..] })
-        .files(if combined {
-            &[][..]
-        } else {
-            &["profiling/src/configuration.c", "ext/configuration_tags.c"][..]
-        })
         .define("CFG_POST_STARTUP_CB", post_startup_cb)
         .define("CFG_PRELOAD", preload)
         .define("CFG_FIBERS", fibers)

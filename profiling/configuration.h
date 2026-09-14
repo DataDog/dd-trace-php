@@ -4,13 +4,11 @@
 #include <stdbool.h>
 #include <main/php.h>
 #include <config/config.h>
-#include <ext/configuration_shared.h>
 
 bool ddog_php_prof_config_parse_sampling_distance(zai_str value, zval *decoded_value, bool persistent);
 bool ddog_php_prof_config_parse_log_level(zai_str value, zval *decoded_value, bool persistent);
 bool ddog_php_prof_config_parse_enabled(zai_str value, zval *decoded_value, bool persistent);
 void ddog_php_prof_config_display_enabled(zend_ini_entry *ini_entry, int type);
-bool ddog_php_prof_config_parse_utf8_string(zai_str value, zval *decoded_value, bool persistent);
 
 #ifdef TRACER
 #define DDTRACE_PROFILING_ENABLED_DEFAULT "0"
@@ -42,12 +40,8 @@ bool ddog_php_prof_config_parse_utf8_string(zai_str value, zval *decoded_value, 
     CONFIG(BOOL, DD_PROFILING_EXPERIMENTAL_IO_ENABLED, "0", .ini_change = zai_config_system_ini_change)            \
     CONFIG(CUSTOM(INT), DD_PROFILING_LOG_LEVEL, "off", .ini_change = zai_config_system_ini_change,                 \
            .parser = ddog_php_prof_config_parse_log_level)                                                           \
-    CONFIG(STRING, DD_PROFILING_OUTPUT_PPROF, "", .ini_change = zai_config_system_ini_change,                      \
-           .parser = ddog_php_prof_config_parse_utf8_string)                                                         \
+    CONFIG(CUSTOM(STRING), DD_PROFILING_OUTPUT_PPROF, "", .ini_change = zai_config_system_ini_change,               \
+           .parser = datadog_config_parse_utf8_string)                                                               \
     CONFIG(BOOL, DD_PROFILING_WALLTIME_ENABLED, "1", .ini_change = zai_config_system_ini_change)
-
-#define DDTRACE_PROFILING_ALL_CONFIGURATIONS \
-    DDTRACE_PROFILING_CONFIGURATION          \
-    DATADOG_SHARED_CONFIGURATION
 
 #endif /* DDTRACE_PROFILING_CONFIGURATION_H */
