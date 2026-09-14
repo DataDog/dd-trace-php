@@ -19,6 +19,7 @@
 #include "datadog.h"
 #include "ffi_utils.h"
 #include "sidecar.h"
+#include "threads.h"
 #include "version.h"
 #include <components/log/log.h>
 #include "logging.h"
@@ -355,8 +356,11 @@ static void dd_sigint_sigterm_handler(int sig, siginfo_t *si, void *uc) {
     if (datadog_sidecar_for_signal) {
         // Spawn a thread using clone() to perform sidecar cleanup asynchronously to avoid async unsafeness in the signal handler
         void *stack_top = dd_signal_async_stack + dd_signal_async_stack_size;
-        int flags = CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD;
-        clone(dd_sigterm_cleanup_thread, stack_top, flags, NULL);
+        int flags = CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD | CLONE_SYSVSEM;
+        if (datadog_clone_thread(dd_sigterm_cleanup_thread, stack_top, flags, NULL) < 0) {
+            // If the cleanup thread could not be started, we just do it ourselves. Will block, but that's okay then.
+            dd_call_prev_handler(true);
+        }
     } else {
         dd_call_prev_handler(false);
     }

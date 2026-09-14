@@ -57,6 +57,7 @@
     "minimum-stability": "dev",
     "prefer-stable": true,
     "scripts": {
+        "ci-lint": "bash tooling/php-lint/run.sh",
         "fix-lint": "phpcbf",
         "lint": "phpcs -s --ignore=src/Integrations/Integrations/ZendFramework/V1/Ddtrace.php,dockerfiles/,tests/xdebug/",
         "static-analyze": [

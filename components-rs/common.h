@@ -1374,7 +1374,7 @@ typedef struct ddog_SenderParameters {
 } ddog_SenderParameters;
 
 /**
- * Raw AppSec response returned by `ddog_sidecar_send_appsec_message`.
+ * Raw AppSec response returned by the AppSec message functions.
  *
  * When `ptr` is non-null, the response must be freed by calling
  * `ddog_sidecar_appsec_response_drop`.

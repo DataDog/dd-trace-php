@@ -37,7 +37,8 @@ void dd_conn_init(dd_conn *nonnull conn)
 }
 
 dd_result dd_conn_roundtrip(dd_conn *nonnull conn, char *nonnull request,
-    size_t request_len, dd_helper_response *nonnull response_out)
+    size_t request_len, bool reconnect_sidecar,
+    dd_helper_response *nonnull response_out)
 {
     if (conn == NULL) {
         return dd_error;
@@ -65,10 +66,11 @@ dd_result dd_conn_roundtrip(dd_conn *nonnull conn, char *nonnull request,
 #ifdef ZTS
     ddog_AppsecCResponse response =
         dd_trace_send_appsec_message(conn->client_id, DDAPPSEC_G(ts_ls_cache),
-            (const uint8_t *)request, request_len);
+            (const uint8_t *)request, request_len, reconnect_sidecar);
 #else
-    ddog_AppsecCResponse response = dd_trace_send_appsec_message(
-        conn->client_id, (const uint8_t *)request, request_len);
+    ddog_AppsecCResponse response =
+        dd_trace_send_appsec_message(conn->client_id, (const uint8_t *)request,
+            request_len, reconnect_sidecar);
 #endif
 
     dd_result ret;

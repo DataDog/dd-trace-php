@@ -75,6 +75,8 @@ extern zend_string *zend_empty_string;
 #if PHP_VERSION_ID < 70300
 extern const HashTable zend_empty_array;
 
+#    define zend_hash_find_ex(ht, key, known) zend_hash_find(ht, key)
+
 #    define GC_ADDREF(x) (++GC_REFCOUNT(x))
 #    define GC_DELREF(x) (--GC_REFCOUNT(x))
 static zend_always_inline void _gc_try_addref(zend_refcounted_h *_rc)

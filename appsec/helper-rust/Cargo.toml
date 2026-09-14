@@ -24,7 +24,7 @@ libc = "0.2"
 arc-swap = "1.7"
 crossbeam-epoch = "0.9"  # Epoch-based memory reclamation
 libddwaf = { path = "../third_party/libddwaf-rust/crates/libddwaf" }
-libddwaf-sys = { path = "../third_party/libddwaf-rust/crates/libddwaf-sys", default-features = false }
+libddwaf-sys = { path = "../third_party/libddwaf-rust/crates/libddwaf-sys", default-features = false, features = ["ring"] }
 datadog-sidecar = { path = "../../libdatadog/datadog-sidecar", default-features = false, features = ["tracing"] }
 libdd-common = { path = "../../libdatadog/libdd-common" }
 libdd-remote-config = { path = "../../libdatadog/libdd-remote-config" }

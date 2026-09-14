@@ -50,6 +50,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'frankenphp',
+                        '_dd.svc_src' => 'frankenphp',
                     ]),
                 ],
                 'A GET request with an exception' => [
@@ -64,7 +65,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '500',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'frankenphp',
-                    ])->setError('Exception', 'Uncaught Exception: Error page', true),
+                        '_dd.svc_src' => 'frankenphp',
+                    ])->setError('Exception', 'Uncaught Exception (500): Error page in %s:%d', true),
                 ],
             ],
             true

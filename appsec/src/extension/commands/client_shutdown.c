@@ -19,6 +19,7 @@ static const dd_command_spec _spec = {
     .name = "client_shutdown",
     .name_len = sizeof("client_shutdown") - 1,
     .num_args = 1,
+    .reconnect_sidecar = false,
     .outgoing_cb = _pack_command,
     .incoming_cb = _process_response,
     .config_features_cb = dd_command_process_config_features_unexpected,
