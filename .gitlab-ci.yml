@@ -17,6 +17,17 @@ variables:
     description: "Run a specific datadog-reliability-env branch downstream"
   SYSTEM_TESTS_LIBRARY: php
 
+include:
+  - project: "ddoghq/llm-validation-platform"
+    ref: &llmval_platform_sha "c331696647a78672101002ba48ccebbd41b0fae8"
+    file: "/ci/llm-validation.gitlab-ci.yml"
+
+"llm validation":
+  variables:
+    LLMVAL_PLATFORM_PROJECT: "ddoghq/llm-validation-platform"
+    LLMVAL_PLATFORM_REF: *llmval_platform_sha
+    LLMVAL_BASE_REF: "master"
+
 generate-templates:
   stage: build
   image: registry.ddbuild.io/images/mirror/php:8.2-cli

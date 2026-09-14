@@ -1,0 +1,33 @@
+# LLM Validation Platform — dd-trace-php config
+#
+# Starter suite for the dd-apm-sdk-review skill. One case on purpose.
+model: claude-sonnet-5
+runs: 2
+
+instruction_files:
+  - AGENTS.md
+  - .agents/skills/dd-apm-sdk-review/SKILL.md
+  - .agents/skills/dd-apm-sdk-review/reviewers/_common.md
+  - .agents/skills/dd-apm-sdk-review/reviewers/conventions.md
+  - .agents/skills/dd-apm-sdk-review/review-without-harness.md
+  - .agents/dd-apm-sdk-review-overrides/repo-context.md
+  - .agents/dd-apm-sdk-review-overrides/reviewers/conventions.md
+
+default_level: gate
+presets:
+  gate:
+    cases:
+      - php-conventions-psr2
+    runs: 2
+  minimum:
+    cases:
+      - php-conventions-psr2
+    runs: 2
+  full:
+    runs: 2
+
+policy:
+  noise_threshold: 1.0
+  pairwise_win_floor: 0.45
+  blocking_fail_floor: 0.45
+  blocking_fail_ci_upper: 0.55
