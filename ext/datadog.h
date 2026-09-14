@@ -101,7 +101,11 @@ ZEND_END_MODULE_GLOBALS(datadog)
 #  define DATADOG_GLOBALS_PTR() (&datadog_globals)
 #endif
 
+#if defined(PROFILING) && !defined(TRACER)
+#define PHP_DDTRACE_EXTNAME "datadog-profiling"
+#else
 #define PHP_DDTRACE_EXTNAME "ddtrace"
+#endif
 #ifndef PHP_DDTRACE_VERSION
 #define PHP_DDTRACE_VERSION "0.0.0-unknown"
 #endif

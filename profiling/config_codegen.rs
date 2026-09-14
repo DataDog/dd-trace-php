@@ -12,13 +12,8 @@ use std::path::Path;
 const MARKER: &str = "RUST_CONFIG_MARKER";
 
 const PROBE_SOURCE: &str = r#"
-#if defined(PROFILING) && !defined(TRACER)
-#include "profiling/configuration.h"
-#define RUST_CONFIGURATIONS DDTRACE_PROFILING_ALL_CONFIGURATIONS
-#else
 #include "ext/configuration.h"
 #define RUST_CONFIGURATIONS DD_ALL_CONFIGURATIONS
-#endif
 
 #define CUSTOM(type) type
 #define SET MAP
@@ -97,7 +92,6 @@ pub fn build(php_includes: &str) {
     for path in [
         "ext/configuration.h",
         "ext/configuration_helpers.h",
-        "ext/configuration_shared.h",
         "tracer/configuration.h",
         "profiling/configuration.h",
     ] {

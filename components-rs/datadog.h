@@ -27,6 +27,51 @@ extern uint8_t datadog_formatted_root_session_id[36];
 
 extern uint8_t datadog_formatted_parent_session_id[36];
 
+#if defined(DDTRACE_PROFILING)
+ddog_ZendResult ddog_php_prof_minit(int _type, int module_number);
+#endif
+
+#if defined(DDTRACE_PROFILING)
+ddog_ZendResult ddog_php_prof_post_deactivate(void);
+#endif
+
+#if defined(DDTRACE_PROFILING)
+void ddog_php_prof_zend_activate(void);
+#endif
+
+#if defined(DDTRACE_PROFILING)
+ddog_ZendResult ddog_php_prof_rinit(int _type, int _module_number);
+#endif
+
+#if defined(DDTRACE_PROFILING)
+ddog_ZendResult ddog_php_prof_rshutdown(int _type, int _module_number);
+#endif
+
+#if defined(DDTRACE_PROFILING)
+/**
+ * Prints the module info. Calls many C functions from the Zend Engine,
+ * including calling variadic functions. It's essentially all unsafe, so be
+ * careful, and do not call this manually (only let the engine call it).
+ */
+void ddog_php_prof_minfo(ddog_ModuleEntry *module_ptr);
+#endif
+
+#if defined(DDTRACE_PROFILING)
+ddog_ZendResult ddog_php_prof_mshutdown(int _type, int _module_number);
+#endif
+
+#if defined(DDTRACE_PROFILING)
+ddog_ZendResult ddog_php_prof_zend_startup(ddog_ZendExtension *extension);
+#endif
+
+#if defined(DDTRACE_PROFILING)
+void ddog_php_prof_zend_shutdown(ddog_ZendExtension *extension);
+#endif
+
+#if defined(DDTRACE_PROFILING)
+bool ddog_php_prof_is_enabled(void);
+#endif
+
 /**
  * Read all agent /info data in one SHM read and apply env, container-hash and concentrator
  * config atomically.
@@ -224,17 +269,17 @@ void ddog_shutdown_remote_config(struct ddog_RemoteConfigState*);
  * span-decoration / log allocations) by consuming it; borrowed `CharSlice`s are
  * left untouched. Called from `dd_probe_dtor` when a probe is uninstalled.
  */
-void ddog_drop_probe(struct ddog_Probe);
+void ddog_drop_probe(ddog_Probe);
 
 void ddog_log_debugger_data(const struct ddog_Vec_DebuggerPayload *payloads);
 
-void ddog_log_debugger_datum(const struct ddog_DebuggerPayload *payload);
+void ddog_log_debugger_datum(const ddog_DebuggerPayload *payload);
 
 ddog_MaybeError ddog_send_debugger_diagnostics(const struct ddog_RemoteConfigState *remote_config_state,
                                                struct ddog_SidecarTransport **transport,
                                                const struct ddog_InstanceId *instance_id,
                                                ddog_QueueId queue_id,
-                                               const struct ddog_Probe *probe,
+                                               const ddog_Probe *probe,
                                                uint64_t timestamp);
 
 struct ddog_VoidResult datadog_crasht_init_with_sidecar(struct ddog_Config ffi_config,
@@ -484,6 +529,8 @@ void datadog_generate_session_id(void);
 
 void datadog_format_runtime_id(uint8_t (*buf)[36]);
 
+bool datadog_bytes_are_valid_utf8(const uint8_t *bytes, uintptr_t len);
+
 #if defined(__linux__)
 /**
  * Publish or update dd-trace-php's standard Linux OTel Process Context.
@@ -534,13 +581,9 @@ uint64_t dd_fnv1a_64(const uint8_t *data, uintptr_t len);
  * Sets the endpoint's test session token, but only when it actually differs from the one already
  * there.
  *
- * `ddog_endpoint_set_test_token` assigns unconditionally, which drops the previous `String`. The
- * endpoints are process-globals in the PHP extension while the writers run per thread (an INI
- * change handler, and the sidecar connect path), so another thread cloning the same `Endpoint`
- * reads a freed string -- a use-after-free that only shows up on ZTS with concurrent requests.
- *
- * A test run assigns the same token throughout, so comparing first means the swap, and therefore
- * the race, never happens. Assigning a genuinely different token from a thread remains unsafe.
+ * In our ZTS runs we sometimes set it, but always to the same value. This extra check prevents
+ * possible use-after-free in our test suite, given that it there only ever transitions from None
+ * to Some().
  */
 void ddog_endpoint_set_test_token_if_changed(struct ddog_Endpoint *endpoint, ddog_CharSlice token);
 

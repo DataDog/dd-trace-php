@@ -66,19 +66,9 @@ const char *datadog_module_build_id(void);
 sapi_request_info datadog_sapi_globals_request_info();
 
 /**
- * Lookup module by name in the module registry. Returns NULL if not found.
- * This is meant to be called from Rust, so it uses uintptr_t, not size_t, for
- * the length for convenience.
- */
-zend_module_entry *datadog_get_module_entry(const char *str, uintptr_t len);
-
-/**
  * Fetches the VM interrupt address of the calling PHP thread.
  */
 void *datadog_php_profiling_vm_interrupt_addr(void);
-
-/** Reports that standalone profiler and ddtrace were loaded together. */
-void datadog_php_profiling_conflicting_extension_error(void);
 
 /** Visits each string key/value in a decoded map configuration. */
 typedef bool (*ddog_php_prof_config_map_visitor)(void *context,
@@ -130,18 +120,6 @@ typedef struct {
 
 void datadog_php_profiling_install_internal_function_handler(
     datadog_php_profiling_internal_function_handler handler);
-
-/**
- * Copies the bytes represented by `view` into a zend_string, which is stored
- * in `dest`, passing `persistent` along so the right allocator is used.
- *
- * Does an empty string optimization.
- *
- * `dest` is expected to be uninitialized. Any existing content will not be
- * dtor'.
- */
-void datadog_php_profiling_copy_string_view_into_zval(zval *dest, zai_str view,
-                                                      bool persistent);
 
 /**
  * Copies the number in `num` into a zval, which is stored in `dest`

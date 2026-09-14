@@ -40,20 +40,25 @@ enum datadog_sidecar_connection_mode {
 #define DD_CRASHTRACKING_ENABLED_DEFAULT "true"
 #endif
 
-#include "configuration_shared.h"
-
 #define DATADOG_CONFIGURATION                                                                                  \
-    DD_COMMON_TRACE_AGENT_URL_CONFIGURATION                                                                    \
-    DD_COMMON_AGENT_HOST_CONFIGURATION                                                                          \
+    CONFIG(CUSTOM(STRING), DD_TRACE_AGENT_URL, "", .ini_change = zai_config_system_ini_change,                 \
+           .parser = datadog_config_parse_utf8_string)                                                         \
+    CONFIG(CUSTOM(STRING), DD_AGENT_HOST, "localhost", .ini_change = zai_config_system_ini_change,             \
+           .parser = datadog_config_parse_utf8_string)                                                         \
     CONFIG(STRING, DD_DOGSTATSD_URL, "http://localhost:8125")                                                  \
     CONFIG(STRING, DD_DOGSTATSD_HOST, "localhost")                                                             \
     CONFIG(STRING, DD_API_KEY, "", .ini_change = zai_config_system_ini_change, .sensitive = true)              \
     CONFIG(INT, DD_DOGSTATSD_PORT, "8125")                                                                     \
-    DD_COMMON_ENV_CONFIGURATION                                                                                \
-    DD_COMMON_SERVICE_CONFIGURATION                                                                            \
+    CONFIG(CUSTOM(STRING), DD_ENV, "", .ini_change = datadog_alter_dd_env,                                     \
+           .env_config_fallback = ddtrace_conf_otel_resource_attributes_env,                                   \
+           .parser = datadog_config_parse_utf8_string)                                                         \
+    CONFIG(CUSTOM(STRING), DD_SERVICE, "", .ini_change = datadog_alter_dd_service,                             \
+           .env_config_fallback = ddtrace_conf_otel_service_name,                                              \
+           .parser = datadog_config_parse_utf8_string)                                                         \
     CONFIG(MAP, DD_SERVICE_MAPPING, "")                                                                        \
-    DD_COMMON_TAGS_CONFIGURATION                                                                               \
-    DD_COMMON_TRACE_AGENT_PORT_CONFIGURATION                                                                   \
+    CONFIG(CUSTOM(MAP), DD_TAGS, "",                                                                           \
+           .env_config_fallback = ddtrace_conf_otel_resource_attributes_tags, .parser = dd_parse_tags)         \
+    CONFIG(INT, DD_TRACE_AGENT_PORT, "8126", .ini_change = zai_config_system_ini_change)                       \
     CONFIG(BOOL, DD_TRACE_CLI_ENABLED, "true")                                                                 \
     CONFIG(BOOL, DD_TRACE_DEBUG, "false", .ini_change = datadog_alter_dd_trace_debug)                          \
     CONFIG(BOOL, DD_TRACE_ENABLED, "true", .ini_change = datadog_alter_dd_trace_disabled_config,               \
@@ -84,7 +89,9 @@ enum datadog_sidecar_connection_mode {
     CONFIG(BOOL, DD_TRACE_STARTUP_LOGS, "true")                                                                \
     CONFIG(BOOL, DD_TRACE_ONCE_LOGS, "true")                                                                   \
     CONFIG(BOOL, DD_TRACE_AGENTLESS, "false", .ini_change = zai_config_system_ini_change)                      \
-    DD_COMMON_VERSION_CONFIGURATION                                                                            \
+    CONFIG(CUSTOM(STRING), DD_VERSION, "", .ini_change = datadog_alter_dd_version,                             \
+           .env_config_fallback = ddtrace_conf_otel_resource_attributes_version,                               \
+           .parser = datadog_config_parse_utf8_string)                                                         \
     CONFIG(STRING, OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, "",                                                    \
            .ini_change = zai_config_system_ini_change,                                                         \
            .env_config_fallback = ddtrace_conf_otel_otlp_endpoint)                                             \
@@ -100,8 +107,8 @@ enum datadog_sidecar_connection_mode {
            .env_config_fallback = ddtrace_conf_otel_log_level)                                                 \
     CONFIG(BOOL, DD_APPSEC_SCA_ENABLED, "false", .ini_change = zai_config_system_ini_change)                   \
     CONFIG(BOOL, DD_TRACE_GIT_METADATA_ENABLED, "true")                                                        \
-    DD_COMMON_GIT_COMMIT_SHA_CONFIGURATION                                                                     \
-    DD_COMMON_GIT_REPOSITORY_URL_CONFIGURATION                                                                 \
+    CONFIG(CUSTOM(STRING), DD_GIT_COMMIT_SHA, "", .parser = datadog_config_parse_utf8_string)                  \
+    CONFIG(CUSTOM(STRING), DD_GIT_REPOSITORY_URL, "", .parser = datadog_config_parse_utf8_string)              \
     CONFIG(BOOL, DD_INJECT_FORCE, "false", .ini_change = zai_config_system_ini_change)                         \
     CONFIG(DOUBLE, DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS, "5.0", .ini_change = zai_config_system_ini_change)  \
     CONFIG(BOOL, DD_REMOTE_CONFIG_ENABLED, "true", .ini_change = zai_config_system_ini_change)                 \

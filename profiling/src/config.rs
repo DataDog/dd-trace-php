@@ -1,8 +1,7 @@
 use crate::profiling::bindings::{
-    datadog_php_profiling_copy_string_view_into_zval, ddog_php_prof_config_is_set_by_user,
-    ddog_php_prof_get_memoized_config, zai_config_get_value, zend_ini_entry, zend_long,
-    zend_string, zend_write, zval, StringError, ZaiStr, IS_FALSE, IS_LONG, IS_TRUE,
-    ZEND_INI_DISPLAY_ORIG,
+    ddog_php_prof_config_is_set_by_user, ddog_php_prof_get_memoized_config, zai_config_get_value,
+    zend_ini_entry, zend_long, zend_string, zend_write, zval, StringError, ZaiStr, IS_FALSE,
+    IS_LONG, IS_TRUE, ZEND_INI_DISPLAY_ORIG,
 };
 use crate::profiling::zend::zai_str_from_zstr;
 use crate::profiling::{allocation, bindings};
@@ -945,42 +944,12 @@ pub unsafe extern "C" fn ddog_php_prof_config_display_enabled(
     }
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn ddog_php_prof_config_parse_utf8_string(
-    value: ZaiStr,
-    decoded_value: *mut zval,
-    persistent: bool,
-) -> bool {
-    if value.is_empty() || decoded_value.is_null() {
-        return false;
-    }
-
-    match value.into_utf8() {
-        Ok(utf8) => {
-            let view = ZaiStr::from(utf8);
-            datadog_php_profiling_copy_string_view_into_zval(decoded_value, view, persistent);
-            true
-        }
-        Err(e) => {
-            warn!("Error while running config::parse_utf8_string(): {}", e);
-            false
-        }
-    }
-}
-
 pub(crate) fn minit(_module_number: libc::c_int) {
     unsafe {
-        #[cfg(all(feature = "profiling", not(feature = "tracer")))]
-        {
-            assert!(bindings::ddog_php_prof_config_minit(_module_number));
-
-            // Make system INI settings available during MINIT, for example
-            // for allocation_sampling_distance.
-            bindings::zai_config_first_time_rinit(false);
-        }
-
-        // SAFETY: common configuration has already initialized the aggregate
-        // table in combined mode; standalone initialized it above.
+        // SAFETY: ext/configuration.c's datadog_config_minit() has already
+        // initialized the aggregate config table (and made system INI
+        // settings available via zai_config_first_time_rinit) unconditionally,
+        // in every mode, before this is called.
         let mut system_settings = SystemSettings::new();
 
         // Initialize logging before allocation's rinit, as it logs. This is
