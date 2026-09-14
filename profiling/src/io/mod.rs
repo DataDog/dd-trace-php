@@ -108,6 +108,10 @@ fn eval_poll_events(ret: i32, fds: &[libc::pollfd]) -> (bool, bool) {
     let mut has_write = false;
 
     for pfd in fds {
+        if pfd.fd < 0 {
+            continue;
+        }
+
         let mask = match ret {
             0 => pfd.events,
             _ if pfd.revents == 0 => continue,
@@ -871,6 +875,13 @@ mod tests {
             revents: 0,
         }];
         assert_eq!(eval_poll_events(0, &fds), (true, false));
+
+        let disabled_fds = [libc::pollfd {
+            fd: -1,
+            events: libc::POLLIN | libc::POLLOUT,
+            revents: 0,
+        }];
+        assert_eq!(eval_poll_events(0, &disabled_fds), (false, false));
     }
 
     #[test]
