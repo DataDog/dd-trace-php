@@ -111,7 +111,6 @@ class MemcachedIntegration extends Integration
                 }
                 $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
 
-                MemcachedIntegration::markForTraceAnalytics($span, $command);
             }
         );
     }
@@ -133,7 +132,6 @@ class MemcachedIntegration extends Integration
                 }
                 $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
 
-                MemcachedIntegration::markForTraceAnalytics($span, $command);
             }
         );
     }
@@ -151,7 +149,6 @@ class MemcachedIntegration extends Integration
                 MemcachedIntegration::setServerTags($span, $this);
                 $span->meta['memcached.query'] = $command . ' ' . MemcachedIntegration::obfuscateIfNeeded($args[0], ',');
                 $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-                MemcachedIntegration::markForTraceAnalytics($span, $command);
             }
         );
     }
@@ -171,7 +168,6 @@ class MemcachedIntegration extends Integration
                 $query = "$command " . MemcachedIntegration::obfuscateIfNeeded($args[1], ',');
                 $span->meta['memcached.query'] = $query;
                 $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-                MemcachedIntegration::markForTraceAnalytics($span, $command);
             }
         );
     }
@@ -218,28 +214,6 @@ class MemcachedIntegration extends Integration
         if (isset($servers[0]['host'], $servers[0]['port'])) {
             $span->meta[Tag::TARGET_HOST] = $servers[0]['host'];
             $span->meta[Tag::TARGET_PORT] = $servers[0]['port'];
-        }
-    }
-
-    /**
-     * @param SpanData $span
-     * @param string $command
-     */
-    public static function markForTraceAnalytics(SpanData $span, $command)
-    {
-        $commandsForAnalytics = [
-            'add',
-            'addByKey',
-            'delete',
-            'deleteByKey',
-            'get',
-            'getByKey',
-            'set',
-            'setByKey',
-        ];
-
-        if (in_array($command, $commandsForAnalytics)) {
-            self::addTraceAnalyticsIfEnabled($span);
         }
     }
 

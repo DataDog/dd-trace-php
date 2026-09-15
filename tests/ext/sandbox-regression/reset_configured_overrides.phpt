@@ -1,5 +1,5 @@
 --TEST--
-[Sandbox regression] Traced functions and methods are untraced with reset
+[Sandbox regression] Re-tracing a function/method adds an additional hook (hooks stack)
 --FILE--
 <?php
 class Test {
@@ -24,12 +24,6 @@ $object = new Test();
 $object->m();
 test();
 
-echo (dd_trace_reset() ? "TRUE": "FALSE") . PHP_EOL;
-
-// Cannot call a function while it is not traced and later expect it to trace
-//$object->m();
-//test();
-
 DDTrace\trace_method("Test", "m", function(){
     echo "METHOD HOOK2" . PHP_EOL;
 });
@@ -47,7 +41,6 @@ METHOD
 METHOD HOOK
 FUNCTION
 FUNCTION HOOK
-TRUE
 METHOD
 METHOD HOOK2
 METHOD HOOK

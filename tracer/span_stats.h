@@ -27,17 +27,13 @@ typedef struct {
     zend_string *type;       /* resolved span type */
     zend_string *env;        /* from span->property_env; NULL when empty */
     zend_string *version;    /* from span->root->property_version; NULL when empty */
-    zend_string *span_kind;   /* meta["span.kind"], NULL if absent or not a string */
+    zend_string *span_kind;   /* owned copy of meta["span.kind"], NULL if absent or not a string */
 
     /* True when the value came from a meta override (serializer must delete that meta key) */
     bool service_from_meta;
     bool name_from_meta;
     bool resource_from_meta;
     bool type_from_meta;
-
-    /* True when the span's meta hash contains a deprecated "env"/"version" key */
-    bool env_deprecated;
-    bool version_deprecated;
 
     bool has_exception; /* when span->property_exception holds a Throwable */
     bool ignore_error;

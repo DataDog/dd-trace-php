@@ -51,9 +51,5 @@ int(1)
 int(1)
 spans(\DDTrace\SpanData) (2) {
   simpleclass (traced_attribute_delayed.php, simpleclass, cli)
-    _dd.p.dm => -0
-    _dd.p.tid => %s
   simplefunc (traced_attribute_delayed.php, simplefunc, cli)
-    _dd.p.dm => -0
-    _dd.p.tid => %s
 }

@@ -28,9 +28,11 @@ var_dump(dd_clean_spans());
 [ddtrace] [warning] [%d] Found unfinished span while automatically closing spans with name 'my precious span'
 array(2) {
   [0]=>
-  array(9) {
+  array(11) {
     ["trace_id"]=>
     string(%d) "%d"
+    ["trace_id_high"]=>
+    string(16) "%s"
     ["span_id"]=>
     string(%d) "%d"
     ["parent_id"]=>
@@ -47,11 +49,15 @@ array(2) {
     string(41) "start_span_without_closing_autofinish.php"
     ["type"]=>
     string(3) "cli"
+    ["span_kind"]=>
+    int(1)
   }
   [1]=>
-  array(9) {
+  array(11) {
     ["trace_id"]=>
     string(%d) "%d"
+    ["trace_id_high"]=>
+    string(16) "%s"
     ["span_id"]=>
     string(%d) "%d"
     ["parent_id"]=>
@@ -68,6 +74,8 @@ array(2) {
     string(41) "start_span_without_closing_autofinish.php"
     ["type"]=>
     string(3) "cli"
+    ["span_kind"]=>
+    int(1)
   }
 }
 [ddtrace] [error] [%d] There is no user-span on the top of the stack. Cannot close.

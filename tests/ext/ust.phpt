@@ -30,6 +30,8 @@ array(2) {
   array(%d) {
     ["trace_id"]=>
     string(%d) "%s"
+    ["trace_id_high"]=>
+    string(16) "%s"
     ["span_id"]=>
     string(%d) "%s"
     ["start"]=>
@@ -44,32 +46,29 @@ array(2) {
     string(12) "version_test"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
+    ["env"]=>
+    string(8) "env_test"
+    ["version"]=>
+    string(5) "5.2.0"
+    ["span_kind"]=>
+    int(1)
+    ["sampling_priority"]=>
+    int(1)
+    ["sampling_mechanism"]=>
+    int(0)
+    ["attributes"]=>
     array(%d) {
-      ["_dd.p.dm"]=>
-      string(2) "-0"
-      ["_dd.p.tid"]=>
-      string(16) "%s"
-      ["env"]=>
-      string(8) "env_test"
       ["runtime-id"]=>
       string(36) "%s"
-      ["version"]=>
-      string(5) "5.2.0"
-    }
-    ["metrics"]=>
-    array(%d) {
+      ["process_id"]=>
+      float(%f)
       ["_dd.agent_psr"]=>
-      float(1)
-      ["_sampling_priority_v1"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
-      ["php.memory.peak_real_usage_bytes"]=>
-      float(%f)
       ["php.memory.peak_usage_bytes"]=>
       float(%f)
-      ["process_id"]=>
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
     }
   }
@@ -77,6 +76,8 @@ array(2) {
   array(%d) {
     ["trace_id"]=>
     string(%d) "%s"
+    ["trace_id_high"]=>
+    string(16) "%s"
     ["span_id"]=>
     string(%d) "%s"
     ["start"]=>
@@ -91,27 +92,24 @@ array(2) {
     string(13) "no dd_service"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
+    ["env"]=>
+    string(8) "env_test"
+    ["span_kind"]=>
+    int(1)
+    ["sampling_priority"]=>
+    int(1)
+    ["sampling_mechanism"]=>
+    int(0)
+    ["attributes"]=>
     array(%d) {
-      ["_dd.p.dm"]=>
-      string(2) "-0"
-      ["_dd.p.tid"]=>
-      string(16) "%s"
-      ["_dd.svc_src"]=>
-      string(1) "m"
-      ["env"]=>
-      string(8) "env_test"
       ["runtime-id"]=>
       string(36) "%s"
-    }
-    ["metrics"]=>
-    array(%d) {
-      ["_dd.agent_psr"]=>
-      float(1)
-      ["_sampling_priority_v1"]=>
-      float(1)
+      ["_dd.svc_src"]=>
+      string(1) "m"
       ["process_id"]=>
       float(%f)
+      ["_dd.agent_psr"]=>
+      float(1)
     }
   }
 }

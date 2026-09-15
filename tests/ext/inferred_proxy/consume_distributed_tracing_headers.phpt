@@ -48,6 +48,7 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
 [
     {
         "trace_id": "13930160852258120406",
+        "trace_id_high": "%s",
         "span_id": "13930160852258120406",
         "parent_id": "11788048577503494824",
         "start": 120000000,
@@ -56,21 +57,23 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
         "resource": "consume_distributed_tracing_headers.php",
         "service": "aws-server",
         "type": "cli",
-        "meta": {
-            "env": "local-prod",
-            "http.url": "http:\/\/localhost:8888\/foo",
+        "env": "local-prod",
+        "version": "1.0",
+        "span_kind": 1,
+        "sampling_priority": 1,
+        "sampling_mechanism": 0,
+        "attributes": {
             "runtime-id": "%s",
-            "version": "1.0"
-        },
-        "metrics": {
+            "http.url": "http:\/\/localhost:8888\/foo",
+            "process_id": %d,
             "php.compilation.total_time_ms": %f,
-            "php.memory.peak_real_usage_bytes": %d,
             "php.memory.peak_usage_bytes": %d,
-            "process_id": %d
+            "php.memory.peak_real_usage_bytes": %d
         }
     },
     {
         "trace_id": "13930160852258120406",
+        "trace_id_high": "%s",
         "span_id": "11788048577503494824",
         "start": %d,
         "duration": %d,
@@ -78,24 +81,23 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
         "resource": "GET \/test",
         "service": "example.com",
         "type": "web",
-        "meta": {
-            "_dd.p.dm": "-0",
-            "_dd.p.tid": "%s",
-            "component": "aws-apigateway",
-            "env": "local-prod",
+        "env": "local-prod",
+        "version": "1.0",
+        "component": "aws-apigateway",
+        "span_kind": 1,
+        "sampling_priority": 1,
+        "sampling_mechanism": 0,
+        "attributes": {
             "http.method": "GET",
             "http.url": "example.com\/test",
             "stage": "aws-prod",
-            "version": "1.0"
-        },
-        "metrics": {
-            "_dd.agent_psr": 1,
             "_dd.inferred_span": 1,
-            "_sampling_priority_v1": 1
+            "_dd.agent_psr": 1
         }
     },
     {
         "trace_id": "13930160852258120406",
+        "trace_id_high": "%s",
         "span_id": "13874630024467741450",
         "parent_id": "13930160852258120406",
         "start": 130000000,
@@ -104,9 +106,10 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
         "resource": "child",
         "service": "aws-server",
         "type": "cli",
-        "meta": {
-            "env": "local-prod",
-            "version": "1.0"
-        }
+        "env": "local-prod",
+        "version": "1.0",
+        "span_kind": 1,
+        "sampling_priority": 1,
+        "sampling_mechanism": 0
     }
 ]

@@ -15,6 +15,22 @@
 #include "otel_context.h"
 #endif
 
+// V1 payload build context threaded through serialization. `chunk` is DD_V1_CHUNK_NONE until the
+// first span of the current stack creates its chunk (ddtrace_serialize_closed_spans resets it per stack).
+#define DD_V1_CHUNK_NONE ((uintptr_t)-1)
+typedef struct {
+    struct ddog_TracerPayloadV1Builder *builder;
+    uintptr_t chunk;
+} ddtrace_v1_ctx;
+
+// Write target for span finalization (a native v1 builder chunk/span). A zero-initialized sink
+// (builder NULL) is the "no span" sentinel returned for dropped spans.
+typedef struct {
+    struct ddog_TracerPayloadV1Builder *builder; // non-NULL on the v1 path
+    uintptr_t chunk;
+    uintptr_t span;
+} dd_span_sink;
+
 #define DDTRACE_DROPPED_SPAN (-1ull)
 #define DDTRACE_SILENTLY_DROPPED_SPAN (-2ull)
 
@@ -51,8 +67,6 @@ typedef union ddtrace_span_properties {
         zval property_name;
         zval property_resource;
         zval property_service;
-        zval property_env;
-        zval property_version;
         zval property_meta_struct;
         zval property_type;
         zval property_meta;
@@ -75,6 +89,11 @@ typedef union ddtrace_span_properties {
         };
         zval property_on_close;
         zval property_baggage;
+        zval property_env;
+        zval property_version;
+        zval property_component;
+        zval property_span_kind;
+        zval property_attributes;
     };
 } ddtrace_span_properties;
 
@@ -148,6 +167,7 @@ struct ddtrace_root_span_data {
     zval property_origin;
     zval property_propagated_tags;
     zval property_sampling_priority;
+    zval property_sampling_mechanism;
     zval property_propagated_sampling_priority;
     zval property_tracestate;
     zval property_tracestate_tags;
@@ -155,6 +175,7 @@ struct ddtrace_root_span_data {
     zval property_trace_id;
     zval property_git_metadata;
     zval property_inferred_span;
+    zval property_hostname;
 };
 
 static inline ddtrace_root_span_data *ROOTSPANDATA(zend_object *obj) {
@@ -175,6 +196,7 @@ struct ddtrace_span_stack {
                 ddtrace_span_properties *active;
             };
             zval property_span_creation_observers;
+            zval property_attributes;
         };
     };
     struct ddtrace_root_span_data *root_span;
@@ -273,8 +295,8 @@ void ddtrace_close_top_span_without_stack_swap(ddtrace_span_data *span);
 void ddtrace_close_all_open_spans(bool force_close_root_span);
 void ddtrace_drop_span(ddtrace_span_data *span);
 void ddtrace_mark_all_span_stacks_flushable(void);
-void ddtrace_serialize_closed_spans(ddog_TracesBytes *traces, bool fast_shutdown);
-void ddtrace_serialize_closed_spans_with_cycle(ddog_TracesBytes *traces, bool fast_shutdown);
+void ddtrace_serialize_closed_spans(ddog_TracesBytes *traces, ddtrace_v1_ctx *v1, bool fast_shutdown);
+void ddtrace_serialize_closed_spans_with_cycle(ddog_TracesBytes *traces, ddtrace_v1_ctx *v1, bool fast_shutdown);
 zend_string *ddtrace_span_id_as_string(uint64_t id);
 zend_string *datadog_trace_id_as_string(datadog_trace_id id);
 zend_string *ddtrace_span_id_as_hex_string(uint64_t id);

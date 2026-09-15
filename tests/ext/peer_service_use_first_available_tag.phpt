@@ -36,9 +36,11 @@ var_dump(dd_clean_spans());
 --EXPECTF--
 array(3) {
   [0]=>
-  array(10) {
+  array(12) {
     ["trace_id"]=>
     string(%d) "%d"
+    ["trace_id_high"]=>
+    string(16) "%s"
     ["span_id"]=>
     string(%d) "%d"
     ["parent_id"]=>
@@ -55,20 +57,24 @@ array(3) {
     string(40) "peer_service_use_first_available_tag.php"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
+    ["span_kind"]=>
+    int(1)
+    ["attributes"]=>
     array(3) {
-      ["_dd.peer.service.source"]=>
-      string(13) "net.peer.name"
       ["net.peer.name"]=>
       string(15) "db1.example.com"
+      ["_dd.peer.service.source"]=>
+      string(13) "net.peer.name"
       ["peer.service"]=>
       string(15) "db1.example.com"
     }
   }
   [1]=>
-  array(10) {
+  array(12) {
     ["trace_id"]=>
     string(%d) "%d"
+    ["trace_id_high"]=>
+    string(16) "%s"
     ["span_id"]=>
     string(%d) "%d"
     ["parent_id"]=>
@@ -85,22 +91,26 @@ array(3) {
     string(40) "peer_service_use_first_available_tag.php"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
+    ["span_kind"]=>
+    int(1)
+    ["attributes"]=>
     array(4) {
-      ["_dd.peer.service.source"]=>
-      string(11) "db.instance"
       ["db.instance"]=>
       string(3) "db1"
       ["net.peer.name"]=>
       string(15) "db1.example.com"
+      ["_dd.peer.service.source"]=>
+      string(11) "db.instance"
       ["peer.service"]=>
       string(3) "db1"
     }
   }
   [2]=>
-  array(10) {
+  array(12) {
     ["trace_id"]=>
     string(%d) "%d"
+    ["trace_id_high"]=>
+    string(16) "%s"
     ["span_id"]=>
     string(%d) "%d"
     ["parent_id"]=>
@@ -117,12 +127,14 @@ array(3) {
     string(40) "peer_service_use_first_available_tag.php"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
+    ["span_kind"]=>
+    int(1)
+    ["attributes"]=>
     array(3) {
-      ["_dd.peer.service.source"]=>
-      string(11) "db.instance"
       ["db.instance"]=>
       string(3) "db1"
+      ["_dd.peer.service.source"]=>
+      string(11) "db.instance"
       ["peer.service"]=>
       string(3) "db1"
     }
