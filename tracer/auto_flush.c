@@ -32,11 +32,10 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
     ddtrace_v1_ctx v1_ctx = {.builder = ddog_v1_new_builder(), .chunk = DD_V1_CHUNK_NONE};
     ddtrace_v1_ctx *v1 = &v1_ctx;
 
-    ddog_TracesBytes *traces = ddog_get_traces();
     if (collect_cycles) {
-        ddtrace_serialize_closed_spans_with_cycle(traces, v1, fast_shutdown);
+        ddtrace_serialize_closed_spans_with_cycle(v1, fast_shutdown);
     } else {
-        ddtrace_serialize_closed_spans(traces, v1, fast_shutdown);
+        ddtrace_serialize_closed_spans(v1, fast_shutdown);
     }
 
     // Prevent traces from requests not executing any PHP code:
@@ -44,7 +43,6 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
     // e.g. php-fpm call with uri pointing to non-existing file, fpm status page, ...
     if (!force_on_startup && PG(during_request_startup)) {
         ddog_v1_free_builder(v1->builder);
-        ddog_free_traces(traces);
         return SUCCESS;
     }
 
@@ -52,7 +50,6 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
     size_t payload_count = ddog_v1_get_chunk_count(v1->builder);
     if (!payload_count) {
         ddog_v1_free_builder(v1->builder);
-        ddog_free_traces(traces);
         LOG(INFO, "No finished traces to be sent to the agent");
         return SUCCESS;
     }
@@ -139,7 +136,6 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
     }
 
     free(url);
-    ddog_free_traces(traces);
 
     return success ? SUCCESS : FAILURE;
 }

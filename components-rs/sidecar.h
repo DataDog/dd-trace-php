@@ -556,15 +556,11 @@ struct ddog_AppsecCResponse datadog_sidecar_send_appsec_message_without_reconnec
  */
 void ddog_sidecar_appsec_response_drop(struct ddog_AppsecCResponse response);
 
-ddog_TracesBytes *ddog_get_traces(void);
-
 void ddog_free_traces(ddog_TracesBytes *_traces);
 
 uintptr_t ddog_get_traces_size(const ddog_TracesBytes *traces);
 
 ddog_TraceBytes *ddog_get_trace(ddog_TracesBytes *traces, uintptr_t index);
-
-ddog_TraceBytes *ddog_traces_new_trace(ddog_TracesBytes *traces);
 
 /**
  * Serializes one v0.4 trace as a msgpack array-of-1, the framing the background sender
