@@ -7,14 +7,15 @@ cases:
   - id: php-conventions-psr2
     files:
       - CONTRIBUTING.md
+      - phpcs.xml
       - .agents/skills/dd-apm-sdk-review/reviewers/conventions.md
       - .agents/skills/dd-apm-sdk-review/reviewers/_common.md
       - .agents/dd-apm-sdk-review-overrides/reviewers/conventions.md
     input: |
       Apply this repo's conventions-review criteria (reviewers/conventions.md, its
       .agents/dd-apm-sdk-review-overrides/reviewers/conventions.md override, _common.md,
-      and CONTRIBUTING.md § "PHP linting") to the following change. No git checkout
-      available — this snippet is the entire change to review.
+      CONTRIBUTING.md § "PHP linting", and phpcs.xml) to the following change. No git
+      checkout available — this snippet is the entire change to review.
 
       ```php
       <?php
@@ -30,9 +31,9 @@ cases:
           }
       ```
     expected_criteria:
-      - Flags that the snippet does not follow PSR-2 (brace placement / indent).
+      - Flags that the snippet does not follow the phpcs ruleset (PSR-12 brace placement / indent).
       - Names the repo check — `composer lint` (fix with `composer fix-lint`).
-      - Does not invent a different house style than PSR-2.
+      - Does not invent a different house style than `phpcs.xml` / PSR-12.
     bad_signals:
-      - Approves the Allman-brace / tab-indented layout as this repo's style.
-      - Claims PHP style is not enforced here.
+      - Approves the Allman-brace layout as this repo's style.
+      - Claims this repo has no documented PHP style standard.

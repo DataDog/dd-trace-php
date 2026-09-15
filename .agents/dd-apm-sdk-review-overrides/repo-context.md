@@ -4,4 +4,10 @@ Read only by the orchestrator (Step 0 of `SKILL.md`), not by individual reviewer
 
 ## Related skills in this repo
 
-This repo has no other agent skills yet. Omit a "Related skills" list until one exists.
+Existing skills live under `.claude/skills/`. Cite them as authoritative for their area. Do not invoke them, and they must not invoke this skill:
+
+- `check-ci` — GitLab CI / GitHub Actions watch and failure investigation
+- `crash-analysis` — wild crash reports (`event.json`) for this tracer
+- `release-notes` — `CHANGELOG.md` for a minor/major release
+
+`.claude/skills/dd-apm-sdk-review` is a symlink to `.agents/skills/dd-apm-sdk-review`. No name clash.
