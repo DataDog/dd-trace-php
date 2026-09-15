@@ -110,7 +110,9 @@ static mut PREV_INTERRUPT_FUNCTION: Option<VmInterruptFn> = None;
 #[inline(never)]
 pub extern "C" fn ddog_php_prof_interrupt_function(execute_data: *mut zend_execute_data) {
     // SAFETY: interrupt callbacks run while the current PHP thread's module globals are valid.
-    let atomic_count = unsafe { &(*module_globals::get_profiler_globals()).interrupt_count };
+    let globals = unsafe { module_globals::get_profiler_globals() };
+    // SAFETY: `globals` remains valid for the duration of the callback.
+    let atomic_count = unsafe { &(*globals).interrupt_count };
 
     /* Other extensions/modules or the engine itself may trigger an
      * interrupt, but given how expensive it is to gather a stack trace,
@@ -123,15 +125,19 @@ pub extern "C" fn ddog_php_prof_interrupt_function(execute_data: *mut zend_execu
     if interrupt_count == 0 {
         return;
     }
-    collect_time_if_enabled(execute_data, interrupt_count);
+    collect_time_if_enabled(execute_data, globals, interrupt_count);
 }
 
 #[inline(never)]
 #[export_name = "ddog_php_prof_collect_time_if_enabled"]
-extern "C" fn collect_time_if_enabled(execute_data: *mut zend_execute_data, interrupt_count: u32) {
+extern "C" fn collect_time_if_enabled(
+    execute_data: *mut zend_execute_data,
+    globals: *mut module_globals::ProfilerGlobals,
+    interrupt_count: u32,
+) {
     if let Some(profiler) = Profiler::get() {
-        // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-        profiler.collect_time(execute_data, interrupt_count);
+        // SAFETY: execute_data and globals were provided by the engine.
+        unsafe { profiler.collect_time(execute_data, globals, interrupt_count) };
     }
 }
 
@@ -271,9 +277,10 @@ mod frameless {
         #[inline(never)]
         pub extern "C" fn ddog_php_prof_icall_trampoline_target() {
             // SAFETY: frameless handlers run while the current PHP thread's module globals are
-            // valid. Retain the pointer so the authoritative swap reuses the same TSRM lookup.
-            let atomic_count =
-                unsafe { &(*module_globals::get_profiler_globals()).interrupt_count };
+            // valid. Retain the pointer so stack walking reuses the same TSRM lookup.
+            let globals = unsafe { module_globals::get_profiler_globals() };
+            // SAFETY: `globals` remains valid for the duration of the callback.
+            let atomic_count = unsafe { &(*globals).interrupt_count };
 
             let interrupt_count = atomic_count.swap(0, Ordering::Relaxed);
             if interrupt_count == 0 {
@@ -282,7 +289,7 @@ mod frameless {
 
             // Fetching execute data is intentionally delayed until a profiler interrupt is pending.
             let execute_data = unsafe { zend::ddog_php_prof_get_current_execute_data() };
-            collect_time_if_enabled(execute_data, interrupt_count);
+            collect_time_if_enabled(execute_data, globals, interrupt_count);
         }
     }
 

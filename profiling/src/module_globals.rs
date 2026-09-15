@@ -1,6 +1,11 @@
 use crate::profiling::allocation;
-#[cfg(all(not(php_zts), php_run_time_cache, not(feature = "stack_walking_tests")))]
+#[cfg(all(php_run_time_cache, not(feature = "stack_walking_tests")))]
 use crate::profiling::string_set::StringSet;
+#[cfg(any(
+    target_os = "linux",
+    all(php_run_time_cache, not(feature = "stack_walking_tests"))
+))]
+use core::cell::RefCell;
 use core::cell::{Cell, UnsafeCell};
 use core::ffi::c_void;
 use core::mem::MaybeUninit;
@@ -9,8 +14,6 @@ use core::sync::atomic::AtomicU32;
 
 #[cfg(target_os = "linux")]
 use crate::profiling::process_context::ProcessContextCache;
-#[cfg(target_os = "linux")]
-use core::cell::RefCell;
 
 #[cfg(php_zend_mm_set_custom_handlers_ex)]
 use crate::profiling::allocation::allocation_ge84::ZendMMState;
@@ -33,9 +36,9 @@ pub struct ProfilerGlobals {
     /// Per-thread allocation sampling state. Kept in PHP globals so allocator
     /// hooks can reuse an already-resolved TSRM cache instead of accessing Rust TLS.
     pub allocation_profiling_stats: UnsafeCell<MaybeUninit<allocation::AllocationProfilingStats>>,
-    /// Owns strings referenced by Zend's process-global runtime caches in NTS.
-    #[cfg(all(not(php_zts), php_run_time_cache, not(feature = "stack_walking_tests")))]
-    pub(crate) cached_strings: UnsafeCell<MaybeUninit<StringSet>>,
+    /// Owns strings referenced by Zend's runtime caches.
+    #[cfg(all(php_run_time_cache, not(feature = "stack_walking_tests")))]
+    pub(crate) cached_strings: UnsafeCell<MaybeUninit<RefCell<StringSet>>>,
 }
 
 /// We need TSRM to call into GINIT and GSHUTDOWN to observe spawning and
@@ -149,11 +152,11 @@ pub unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
         (*globals).allocation_profiling_stats = UnsafeCell::new(MaybeUninit::uninit());
     }
 
-    #[cfg(all(not(php_zts), php_run_time_cache, not(feature = "stack_walking_tests")))]
+    #[cfg(all(php_run_time_cache, not(feature = "stack_walking_tests")))]
     {
-        // SAFETY: NTS GINIT has exclusive access to the process-global state.
-        let globals = unsafe { get_profiler_globals() };
-        unsafe { (*(*globals).cached_strings.get()).write(StringSet::new()) };
+        let globals = _globals_ptr.cast::<ProfilerGlobals>();
+        // SAFETY: GINIT has exclusive access to this thread's module globals.
+        unsafe { (*(*globals).cached_strings.get()).write(RefCell::new(StringSet::new())) };
     }
 
     // SAFETY: this is called in thread ginit as expected, and no other places.
@@ -182,10 +185,10 @@ pub unsafe extern "C" fn gshutdown(_globals_ptr: *mut c_void) {
     // SAFETY: this is called in thread gshutdown as expected, no other places.
     allocation::gshutdown();
 
-    #[cfg(all(not(php_zts), php_run_time_cache, not(feature = "stack_walking_tests")))]
+    #[cfg(all(php_run_time_cache, not(feature = "stack_walking_tests")))]
     {
-        // SAFETY: NTS GSHUTDOWN has exclusive access to the state initialized in GINIT.
-        let globals = unsafe { get_profiler_globals() };
+        let globals = _globals_ptr.cast::<ProfilerGlobals>();
+        // SAFETY: GSHUTDOWN has exclusive access to the state initialized in GINIT.
         unsafe { (*(*globals).cached_strings.get()).assume_init_drop() };
     }
 }

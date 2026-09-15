@@ -360,12 +360,7 @@ unsafe fn alloc_prof_malloc_impl<const CUSTOM: bool>(len: size_t) -> *mut c_void
     }
 
     if ProfilerGlobals::should_collect(globals, len) {
-        collect_allocation(
-            unsafe { &(*globals).interrupt_count },
-            execute_data,
-            ptr,
-            len,
-        );
+        collect_allocation(globals, execute_data, ptr, len);
     }
 
     ptr
@@ -557,12 +552,7 @@ unsafe fn alloc_prof_realloc_impl<const UNTRACK: bool, const CUSTOM: bool>(
     }
 
     if ProfilerGlobals::should_collect(globals, len) {
-        collect_allocation(
-            unsafe { &(*globals).interrupt_count },
-            execute_data,
-            ptr,
-            len,
-        );
+        collect_allocation(globals, execute_data, ptr, len);
     }
 
     ptr

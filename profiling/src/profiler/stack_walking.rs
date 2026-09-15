@@ -36,11 +36,11 @@ pub struct ZendFrame {
 
 #[derive(thiserror::Error, Debug)]
 pub enum CollectStackSampleError {
-    #[error("failed to borrow request locals: already destroyed")]
+    #[error("failed to borrow string cache: already destroyed")]
     AccessError(#[from] std::thread::AccessError),
-    #[error("failed to borrow request locals: non-mutable borrow while mutably borrowed")]
+    #[error("failed to borrow string cache: non-mutable borrow while mutably borrowed")]
     BorrowError(#[from] std::cell::BorrowError),
-    #[error("failed to borrow request locals: mutable borrow while mutably borrowed")]
+    #[error("failed to borrow string cache: mutable borrow while mutably borrowed")]
     BorrowMutError(#[from] std::cell::BorrowMutError),
     #[error(transparent)]
     TryReserveError(#[from] std::collections::TryReserveError),
@@ -172,16 +172,16 @@ unsafe fn extract_file_and_line(
 #[cfg(php_run_time_cache)]
 mod detail {
     use super::*;
-    #[cfg(all(not(php_zts), not(feature = "stack_walking_tests")))]
-    use crate::profiling::module_globals;
+    #[cfg(not(feature = "stack_walking_tests"))]
+    use crate::profiling::module_globals::{self, ProfilerGlobals};
     use crate::profiling::string_set::StringSet;
-    #[cfg(any(php_zts, feature = "stack_walking_tests", feature = "debug_stats"))]
+    #[cfg(any(feature = "stack_walking_tests", feature = "debug_stats"))]
     use crate::profiling::RefCellExt;
-    #[cfg(any(php_zts, feature = "stack_walking_tests"))]
+    #[cfg(feature = "stack_walking_tests")]
     use crate::profiling::RefCellExtError;
     use libdd_profiling::profiles::collections::ThinStr;
     use log::{debug, trace};
-    #[cfg(any(php_zts, feature = "stack_walking_tests", feature = "debug_stats"))]
+    #[cfg(any(feature = "stack_walking_tests", feature = "debug_stats"))]
     use std::cell::RefCell;
     use std::ffi::c_void;
 
@@ -256,7 +256,7 @@ mod detail {
         }
     }
 
-    #[cfg(any(php_zts, feature = "stack_walking_tests"))]
+    #[cfg(feature = "stack_walking_tests")]
     thread_local! {
         static CACHED_STRINGS: RefCell<StringSet> = RefCell::new(StringSet::new());
     }
@@ -267,16 +267,22 @@ mod detail {
             const { RefCell::new(FunctionRunTimeCacheStats::new()) }
     }
 
-    /// Returns the NTS process-global string cache.
+    /// Runs a closure with the string cache from the provided module globals.
     ///
     /// # Safety
-    /// The cache must be initialized, and PHP must not be executing concurrently
-    /// or re-enter stack collection.
-    #[cfg(all(not(php_zts), not(feature = "stack_walking_tests")))]
-    unsafe fn cached_strings_mut() -> &'static mut StringSet {
-        // SAFETY: the caller guarantees exclusive access after GINIT and before GSHUTDOWN.
-        let globals = unsafe { module_globals::get_profiler_globals() };
-        unsafe { (*(*globals).cached_strings.get()).assume_init_mut() }
+    /// `globals` must point to initialized module globals for the current PHP thread.
+    #[cfg(not(feature = "stack_walking_tests"))]
+    unsafe fn try_with_cached_strings<F, R>(
+        globals: *mut ProfilerGlobals,
+        f: F,
+    ) -> Result<R, std::cell::BorrowMutError>
+    where
+        F: FnOnce(&mut StringSet) -> R,
+    {
+        // SAFETY: the caller guarantees the cache was initialized in GINIT.
+        let cell = unsafe { (*(*globals).cached_strings.get()).assume_init_ref() };
+        let mut strings = cell.try_borrow_mut()?;
+        Ok(f(&mut strings))
     }
 
     /// # Safety
@@ -312,19 +318,20 @@ mod detail {
             });
         }
 
-        #[cfg(any(php_zts, feature = "stack_walking_tests"))]
-        {
-            let result = CACHED_STRINGS.try_with_borrow_mut(reset_if_too_large);
-            if let Err(err) = result {
-                // Debug level because rshutdown could be quite spammy.
-                debug!("failed to borrow request locals in rshutdown: {err}");
-            }
-        }
+        #[cfg(feature = "stack_walking_tests")]
+        let result = CACHED_STRINGS.try_with_borrow_mut(reset_if_too_large);
 
-        #[cfg(all(not(php_zts), not(feature = "stack_walking_tests")))]
-        unsafe {
-            // SAFETY: NTS request shutdown has exclusive access to PHP globals.
-            reset_if_too_large(cached_strings_mut());
+        #[cfg(not(feature = "stack_walking_tests"))]
+        let result = {
+            // SAFETY: module globals remain initialized through RSHUTDOWN.
+            let globals = unsafe { module_globals::get_profiler_globals() };
+            // SAFETY: `globals` points to the current PHP thread's initialized globals.
+            unsafe { try_with_cached_strings(globals, reset_if_too_large) }
+        };
+
+        if let Err(err) = result {
+            // Debug level because rshutdown could be quite spammy.
+            debug!("failed to borrow request locals in rshutdown: {err}");
         }
     }
 
@@ -417,10 +424,11 @@ mod detail {
     #[inline(never)]
     pub fn collect_stack_sample(
         execute_data: *mut zend_execute_data,
+        #[cfg(not(feature = "stack_walking_tests"))] globals: *mut ProfilerGlobals,
     ) -> Result<Backtrace, CollectStackSampleError> {
         #[cfg(feature = "tracing")]
         let _span = tracing::trace_span!("collect_stack_sample").entered();
-        #[cfg(any(php_zts, feature = "stack_walking_tests"))]
+        #[cfg(feature = "stack_walking_tests")]
         {
             CACHED_STRINGS
                 .try_with_borrow_mut(|set| collect_stack_sample_cached(execute_data, set))
@@ -431,10 +439,14 @@ mod detail {
                 })
         }
 
-        #[cfg(all(not(php_zts), not(feature = "stack_walking_tests")))]
-        unsafe {
-            // SAFETY: NTS executes PHP serially and stack collection is not re-entrant.
-            collect_stack_sample_cached(execute_data, cached_strings_mut())
+        #[cfg(not(feature = "stack_walking_tests"))]
+        {
+            // SAFETY: the caller passes the current PHP thread's initialized globals.
+            unsafe {
+                try_with_cached_strings(globals, |set| {
+                    collect_stack_sample_cached(execute_data, set)
+                })?
+            }
         }
     }
 

@@ -13,7 +13,7 @@ use libc::size_t;
 use log::{debug, trace};
 use std::ffi::c_void;
 use std::num::{NonZero, NonZeroU32, NonZeroU64};
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 #[cfg(not(php_zts))]
 use rand::rngs::StdRng;
@@ -207,6 +207,7 @@ impl AllocationProfilingStats {
 /// Collect an allocation sample and optionally track it for live heap profiling.
 ///
 /// # Safety
+/// `globals` must point to initialized module globals for the current PHP thread.
 /// `execute_data` must be null or a valid pointer provided by the engine. The
 /// profiler may walk the execution frames reachable through it.
 ///
@@ -215,7 +216,7 @@ impl AllocationProfilingStats {
 /// * `len` - The size of the allocation in bytes
 #[cold]
 pub unsafe fn collect_allocation(
-    interrupt_count: &AtomicU32,
+    globals: *mut module_globals::ProfilerGlobals,
     execute_data: *mut zend::zend_execute_data,
     ptr: *mut c_void,
     len: size_t,
@@ -224,13 +225,14 @@ pub unsafe fn collect_allocation(
         // Check if there's a pending time interrupt that we can handle now
         // instead of waiting for an interrupt handler. This is slightly more
         // accurate and efficient, win-win.
-        let pending_interrupts = interrupt_count.swap(0, Ordering::Relaxed);
+        let pending_interrupts = unsafe { (*globals).interrupt_count.swap(0, Ordering::Relaxed) };
 
-        // SAFETY: execute_data was provided by the engine, and the profiler
-        // only reads the execution frames reachable through it.
+        // SAFETY: globals and execute_data were provided by the engine, and the profiler
+        // only reads the execution frames reachable through them.
         unsafe {
             profiler.collect_allocations(
                 execute_data,
+                globals,
                 ptr,
                 1_i64,
                 len as i64,
