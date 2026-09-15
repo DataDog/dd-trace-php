@@ -109,7 +109,6 @@ class WordPressIntegration extends Integration
             }
         );
 
-
         \DDTrace\hook_function(
             'register_new_user',
             null,
@@ -154,7 +153,6 @@ class WordPressIntegration extends Integration
                 }
             }
         );
-
 
         return self::LOADED;
     }
