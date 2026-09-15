@@ -762,6 +762,34 @@ impl TimeCollector {
         }
     }
 
+    fn handle_message(
+        &self,
+        message: ProfilerMessage,
+        profiles: &mut FxHashMap<Arc<ProfileIndex>, InternalProfile>,
+        last_wall_export: &mut WallTime,
+        last_cpu: &mut Option<ThreadTime>,
+    ) -> bool {
+        match message {
+            ProfilerMessage::Sample(sample) => {
+                Self::handle_sample_message(sample, profiles, last_wall_export)
+            }
+            ProfilerMessage::LocalRootSpanResource(message) => {
+                Self::handle_resource_message(message, profiles)
+            }
+            ProfilerMessage::Cancel => {
+                update_cpu_time_counter(last_cpu, &DDPROF_TIME_CPU_TIME_NS);
+                *last_wall_export = self.handle_timeout(profiles, last_wall_export);
+                return false;
+            }
+            ProfilerMessage::Pause => {
+                self.fork_barrier.wait();
+                self.fork_barrier.wait();
+            }
+            ProfilerMessage::Wake => {}
+        }
+        true
+    }
+
     pub fn run(self) {
         let mut last_wall_export = WallTime::now();
         let mut profiles: FxHashMap<Arc<ProfileIndex>, InternalProfile> =
@@ -794,39 +822,34 @@ impl TimeCollector {
 
             crossbeam_channel::select! {
 
-                recv(self.message_receiver) -> result => {
-                    match result {
-                        Ok(message) => match message {
-                            ProfilerMessage::Sample(sample) =>
-                                Self::handle_sample_message(sample, &mut profiles, &last_wall_export),
-                            ProfilerMessage::LocalRootSpanResource(message) =>
-                                Self::handle_resource_message(message, &mut profiles),
-                            ProfilerMessage::Cancel => {
-                                // flush what we have before exiting
-                                update_cpu_time_counter(&mut last_cpu, &DDPROF_TIME_CPU_TIME_NS);
-                                last_wall_export = self.handle_timeout(&mut profiles, &last_wall_export);
-                                running = false;
-                            },
-                            ProfilerMessage::Pause => {
-                                // First, wait for every thread to finish what
-                                // they are currently doing.
-                                self.fork_barrier.wait();
-                                // Then, wait for the fork to be completed.
-                                self.fork_barrier.wait();
-                            },
-                            // The purpose is to wake up and sync the state of
-                            // the interrupt manager.
-                            ProfilerMessage::Wake => {}
-                        },
-
-                        Err(_) => {
-                            /* Docs say:
-                             * > A message could not be received because the
-                             * > channel is empty and disconnected.
-                             * If this happens, let's just break and end.
-                             */
-                            break;
+                recv(self.message_receiver) -> result => match result {
+                    Ok(message) => {
+                        running = self.handle_message(
+                            message,
+                            &mut profiles,
+                            &mut last_wall_export,
+                            &mut last_cpu,
+                        );
+                        for message in self.message_receiver.try_iter().take(99) {
+                            if !running {
+                                break;
+                            }
+                            running = self.handle_message(
+                                message,
+                                &mut profiles,
+                                &mut last_wall_export,
+                                &mut last_cpu,
+                            );
                         }
+                    },
+
+                    Err(_) => {
+                        /* Docs say:
+                         * > A message could not be received because the
+                         * > channel is empty and disconnected.
+                         * If this happens, let's just break and end.
+                         */
+                        break;
                     }
                 },
 
