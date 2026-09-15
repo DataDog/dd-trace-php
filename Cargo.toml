@@ -152,17 +152,6 @@ inherits = "release"
 panic = "abort"
 inherits = "release"
 
-# These are to satistfy the build with libdatadog as a path dependency inside
-# components-rs. There may be a better way to fix this, but I'm alreday two
-# tasks removed from what I'm trying to do, so pushing forward.
-#
-# Every dependency that a libdatadog crate inherits via `{ workspace = true }`
-# must be declared here, because those crates resolve their workspace
-# inheritance against this manifest when built as path dependencies. Keep this
-# list in sync with libdatadog's own `[workspace.dependencies]`; libdatadog
-# #2253 consolidated `anyhow`, `serde`, `tokio` and `tracing` to the workspace
-# level, and later work moved the rest of libdatadog's shared deps there too, so
-# the full list is mirrored here.
 [workspace.dependencies]
 allocator-api2 = { version = "0.2.21", default-features = false }
 anyhow = { version = "1.0", default-features = false }

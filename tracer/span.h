@@ -15,13 +15,13 @@
 #include "otel_context.h"
 #endif
 
-// V1 payload build context threaded through serialization. `chunk` is DD_V1_CHUNK_NONE until the
+// V1 payload build context threaded through serialization. `chunk` is DD_CHUNK_NONE until the
 // first span of the current stack creates its chunk (ddtrace_serialize_closed_spans resets it per stack).
-#define DD_V1_CHUNK_NONE ((uintptr_t)-1)
+#define DD_CHUNK_NONE ((uintptr_t)-1)
 typedef struct {
     struct ddog_TracerPayloadV1Builder *builder;
     uintptr_t chunk;
-} ddtrace_v1_ctx;
+} ddtrace_serialize_ctx;
 
 // Write target for span finalization (a native v1 builder chunk/span). A zero-initialized sink
 // (builder NULL) is the "no span" sentinel returned for dropped spans.
@@ -295,8 +295,8 @@ void ddtrace_close_top_span_without_stack_swap(ddtrace_span_data *span);
 void ddtrace_close_all_open_spans(bool force_close_root_span);
 void ddtrace_drop_span(ddtrace_span_data *span);
 void ddtrace_mark_all_span_stacks_flushable(void);
-void ddtrace_serialize_closed_spans(ddtrace_v1_ctx *v1, bool fast_shutdown);
-void ddtrace_serialize_closed_spans_with_cycle(ddtrace_v1_ctx *v1, bool fast_shutdown);
+void ddtrace_serialize_closed_spans(ddtrace_serialize_ctx *ctx, bool fast_shutdown);
+void ddtrace_serialize_closed_spans_with_cycle(ddtrace_serialize_ctx *ctx, bool fast_shutdown);
 zend_string *ddtrace_span_id_as_string(uint64_t id);
 zend_string *datadog_trace_id_as_string(datadog_trace_id id);
 zend_string *ddtrace_span_id_as_hex_string(uint64_t id);

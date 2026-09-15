@@ -28,27 +28,27 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
 
     // Serialization fills the native V1 builder directly (no v0.4 intermediate). The sidecar
     // negotiates V1-vs-v0.4; the in-process (<=8.2) sender downgrades to v0.4 at flush time.
-    ddtrace_v1_ctx v1_ctx = {.builder = ddog_v1_new_builder(), .chunk = DD_V1_CHUNK_NONE};
-    ddtrace_v1_ctx *v1 = &v1_ctx;
+    ddtrace_serialize_ctx serialize_ctx = {.builder = ddog_v1_new_builder(), .chunk = DD_CHUNK_NONE};
+    ddtrace_serialize_ctx *ctx = &serialize_ctx;
 
     if (collect_cycles) {
-        ddtrace_serialize_closed_spans_with_cycle(v1, fast_shutdown);
+        ddtrace_serialize_closed_spans_with_cycle(ctx, fast_shutdown);
     } else {
-        ddtrace_serialize_closed_spans(v1, fast_shutdown);
+        ddtrace_serialize_closed_spans(ctx, fast_shutdown);
     }
 
     // Prevent traces from requests not executing any PHP code:
     // PG(during_request_startup) will only be set to 0 upon execution of any PHP code.
     // e.g. php-fpm call with uri pointing to non-existing file, fpm status page, ...
     if (!force_on_startup && PG(during_request_startup)) {
-        ddog_v1_free_builder(v1->builder);
+        ddog_v1_free_builder(ctx->builder);
         return SUCCESS;
     }
 
     // Spans are built into the builder, not the (empty) V0.4 traces, so gate on the chunk count.
-    size_t payload_count = ddog_v1_get_chunk_count(v1->builder);
+    size_t payload_count = ddog_v1_get_chunk_count(ctx->builder);
     if (!payload_count) {
-        ddog_v1_free_builder(v1->builder);
+        ddog_v1_free_builder(ctx->builder);
         LOG(INFO, "No finished traces to be sent to the agent");
         return SUCCESS;
     }
@@ -87,9 +87,9 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                 .runtime_id = (ddog_CharSlice) {.ptr = (char *) formatted_runtime_id, .len = sizeof(formatted_runtime_id)},
                 .git_commit_sha = dd_zend_string_to_CharSlice(get_DD_GIT_COMMIT_SHA()),
             };
-            ddog_send_traces_to_sidecar_v1(v1->builder, &parameters, &metadata);  // consumes the builder
+            ddog_send_traces_to_sidecar_v1(ctx->builder, &parameters, &metadata);  // consumes the builder
         } else {
-            ddog_v1_free_builder(v1->builder);  // not handed to any FFI on this path
+            ddog_v1_free_builder(ctx->builder);  // not handed to any FFI on this path
             LOGEV(INFO, {
                 log("Skipping flushing trace as connection to sidecar failed");
             });
@@ -99,8 +99,8 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
         // Removable v0.4 bolt-on: the in-process (<=8.2) background sender's array-of-1 framing can't
         // parse a native V1 payload (one msgpack MAP), so it downgrades to v0.4 traces. Delete to revert.
         ddtrace_coms_set_v1_traces_endpoint(false);
-        // Consumes v1->builder; returns a v0.4 collection to free below.
-        ddog_TracesBytes *v04_traces = ddog_downgrade_v1_builder_to_v04_traces(v1->builder);
+        // Consumes ctx->builder; returns a v0.4 collection to free below.
+        ddog_TracesBytes *v04_traces = ddog_downgrade_v1_builder_to_v04_traces(ctx->builder);
         size_t trace_count = ddog_get_traces_size(v04_traces);
         for (size_t i = 0; i < trace_count; i++) {
             // One msgpack array-of-1 per trace, matching the background sender's framing.
@@ -125,7 +125,7 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
         dd_prepare_for_new_trace();
         ddog_free_traces(v04_traces);
 #else
-        ddog_v1_free_builder(v1->builder);  // in-process sender unavailable on Windows; not consumed
+        ddog_v1_free_builder(ctx->builder);  // in-process sender unavailable on Windows; not consumed
         success = false;
 #endif
     }

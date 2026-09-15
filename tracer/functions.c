@@ -1104,13 +1104,13 @@ PHP_FUNCTION(dd_trace_serialize_closed_spans) {
 
     // Introspection is a debug view: always finalize into the in-memory V1 builder (no sidecar
     // needed) and read it back via the V1 getters, so the shape is uniform across versions/senders.
-    ddtrace_v1_ctx v1_ctx = {.builder = ddog_v1_new_builder(), .chunk = DD_V1_CHUNK_NONE};
-    ddtrace_v1_ctx *v1 = &v1_ctx;
+    ddtrace_serialize_ctx serialize_ctx = {.builder = ddog_v1_new_builder(), .chunk = DD_CHUNK_NONE};
+    ddtrace_serialize_ctx *ctx = &serialize_ctx;
 
-    ddtrace_serialize_closed_spans_with_cycle(v1, false);
+    ddtrace_serialize_closed_spans_with_cycle(ctx, false);
 
-    zval traces_zv = dd_serialize_rust_v1_to_zval(v1->builder);
-    ddog_v1_free_builder(v1->builder);
+    zval traces_zv = dd_serialize_rust_to_zval(ctx->builder);
+    ddog_v1_free_builder(ctx->builder);
 
     if (zend_hash_num_elements(Z_ARR(traces_zv)) == 1) {
         ZVAL_COPY(return_value, zend_hash_get_current_data(Z_ARR(traces_zv)));

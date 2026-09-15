@@ -1160,7 +1160,7 @@ void ddtrace_drop_span(ddtrace_span_data *span) {
     dd_drop_span(span, false);
 }
 
-void ddtrace_serialize_closed_spans(ddtrace_v1_ctx *v1, bool fast_shutdown) {
+void ddtrace_serialize_closed_spans(ddtrace_serialize_ctx *ctx, bool fast_shutdown) {
     if (DDTRACE_G(top_closed_stack)) {
         ddtrace_span_stack *rootstack = DDTRACE_G(top_closed_stack);
         DDTRACE_G(top_closed_stack) = NULL;
@@ -1174,8 +1174,8 @@ void ddtrace_serialize_closed_spans(ddtrace_v1_ctx *v1, bool fast_shutdown) {
                 stack = next_stack;
                 next_stack = stack->next;
             }
-            if (v1) {
-                v1->chunk = DD_V1_CHUNK_NONE;  // one V1 chunk per V0.4 trace
+            if (ctx) {
+                ctx->chunk = DD_CHUNK_NONE;  // one V1 chunk per V0.4 trace
             }
 
             do {
@@ -1185,7 +1185,7 @@ void ddtrace_serialize_closed_spans(ddtrace_v1_ctx *v1, bool fast_shutdown) {
                 do {
                     ddtrace_span_data *tmp = span;
                     span = tmp->next;
-                    ddtrace_serialize_span_to_rust_span(tmp, v1);
+                    ddtrace_serialize_span_to_rust_span(tmp, ctx);
 #if PHP_VERSION_ID < 70400
                     // remove the artificially increased RC while closing again
                     GC_SET_REFCOUNT(&tmp->std, GC_REFCOUNT(&tmp->std) - DD_RC_CLOSED_MARKER);
@@ -1212,10 +1212,10 @@ void ddtrace_serialize_closed_spans(ddtrace_v1_ctx *v1, bool fast_shutdown) {
     DDTRACE_G(dropped_spans_count) = 0;
 }
 
-void ddtrace_serialize_closed_spans_with_cycle(ddtrace_v1_ctx *v1, bool fast_shutdown) {
+void ddtrace_serialize_closed_spans_with_cycle(ddtrace_serialize_ctx *ctx, bool fast_shutdown) {
     // We need to loop here, as closing the last span root stack could add other spans here
     while (DDTRACE_G(top_closed_stack)) {
-        ddtrace_serialize_closed_spans(v1, fast_shutdown);
+        ddtrace_serialize_closed_spans(ctx, fast_shutdown);
         if (DDTRACE_G(open_spans_count)) {
             // Also flush possible cycles here, if there are remaining open spans
             gc_collect_cycles();
