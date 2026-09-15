@@ -23,13 +23,13 @@ include:
     file: "/ci/llm-validation.gitlab-ci.yml"
 
 "llm validation":
-  # Same image as the platform template and the other tracer llm-validation jobs.
-  image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:newest
   variables:
-    LLMVAL_IMAGE: "registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:newest"
     LLMVAL_PLATFORM_PROJECT: "ddoghq/llm-validation-platform"
     LLMVAL_PLATFORM_REF: *llmval_platform_sha
     LLMVAL_BASE_REF: "master"
+    # Repo-wide default is recursive (libdatadog, etc.). JS/Java skip submodules
+    # on this job; inherit that so the gate does not clone GitHub before run.sh.
+    GIT_SUBMODULE_STRATEGY: none
 
 generate-templates:
   stage: build
