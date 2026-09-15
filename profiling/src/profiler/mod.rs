@@ -41,9 +41,9 @@ use libdd_profiling::api::{
 };
 use libdd_profiling::internal::Profile as InternalProfile;
 use log::{debug, info, trace, warn};
-use rustc_hash::{FxBuildHasher, FxHashMap};
+use rustc_hash::{FxBuildHasher, FxHashMap, FxHasher};
 use std::borrow::Cow;
-use std::hash::Hash;
+use std::hash::{Hash, Hasher};
 use std::num::NonZeroI64;
 use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU64, AtomicUsize, Ordering};
@@ -227,10 +227,30 @@ impl ValueType {
 /// This information is expected to be mostly stable for a process, but it may
 /// not be if an Apache reload occurs and it adjusts the service name, or if
 /// Apache per-dir settings use different service name, etc.
-#[derive(Debug, Eq, PartialEq, Hash)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct ProfileIndex {
     pub sample_types: Vec<ValueType>,
     pub tags: ProfileTags,
+    hash: u64,
+}
+
+impl ProfileIndex {
+    fn new(sample_types: Vec<ValueType>, tags: ProfileTags) -> Self {
+        let mut hasher = FxHasher::default();
+        sample_types.hash(&mut hasher);
+        tags.hash(&mut hasher);
+        Self {
+            sample_types,
+            tags,
+            hash: hasher.finish(),
+        }
+    }
+}
+
+impl Hash for ProfileIndex {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.hash.hash(state);
+    }
 }
 
 #[derive(Debug)]
@@ -932,6 +952,20 @@ impl Profiler {
             live_heap_tracker,
             live_heap_tracker_count,
         }
+    }
+
+    pub(crate) fn cache_profile_index(&self) {
+        REQUEST_LOCALS.with_borrow_mut(|locals| {
+            locals.profile_index = Some(Arc::new(ProfileIndex::new(
+                self.sample_types_filter.sample_types(),
+                ProfileTags {
+                    common: Arc::clone(&GLOBAL_TAGS),
+                    unified_service: Arc::clone(&locals.unified_service_tags),
+                    git: locals.git_tags.as_ref().map(Arc::clone),
+                    custom: locals.custom_tags.as_ref().map(Arc::clone),
+                },
+            )));
+        });
     }
 
     pub fn add_interrupt(&self, interrupt: VmInterrupt) {
@@ -1925,14 +1959,18 @@ impl Profiler {
         //  1. Nobody should be calling this when it's disabled anyway.
         //  2. It would require tracking more state and/or spending CPU on
         //     something that shouldn't be done anyway (see #1).
-        let sample_types = self.sample_types_filter.sample_types();
         let sample_values = self.sample_types_filter.filter(samples);
+        let key = REQUEST_LOCALS
+            .with_borrow(|locals| locals.profile_index.as_ref().map(Arc::clone))
+            .unwrap_or_else(|| {
+                Arc::new(ProfileIndex::new(
+                    self.sample_types_filter.sample_types(),
+                    labels.profile_tags,
+                ))
+            });
 
         SampleMessage {
-            key: Arc::new(ProfileIndex {
-                sample_types,
-                tags: labels.profile_tags,
-            }),
+            key,
             value: SampleData {
                 frames: Arc::new(frames),
                 labels: Arc::new(labels.labels),
@@ -2018,6 +2056,28 @@ mod tests {
     }
 
     #[test]
+    fn cached_profile_hash_preserves_semantic_identity() {
+        let create_index = || {
+            Arc::new(ProfileIndex::new(
+                vec![ValueType::new("sample", "count")],
+                ProfileTags {
+                    common: Arc::default(),
+                    unified_service: Arc::default(),
+                    git: None,
+                    custom: None,
+                },
+            ))
+        };
+        let first = create_index();
+        let second = create_index();
+        assert!(!Arc::ptr_eq(&first, &second));
+
+        let mut profiles = FxHashMap::default();
+        profiles.insert(first, 42);
+        assert_eq!(profiles.get(&second), Some(&42));
+    }
+
+    #[test]
     #[cfg(not(miri))]
     fn profiler_prepare_sample_message_works_cpu_time_and_timeline() {
         let frames = get_frames();
@@ -2028,9 +2088,14 @@ mod tests {
         settings.profiling_timeline_enabled = true;
 
         let profiler = Profiler::new(&settings);
+        profiler.cache_profile_index();
         let labels = Profiler::common_labels(0);
 
         let message: SampleMessage = profiler.prepare_sample_message(frames, samples, labels, 900);
+        let cached_key = REQUEST_LOCALS.with_borrow(|locals| {
+            Arc::clone(locals.profile_index.as_ref().expect("cached profile index"))
+        });
+        assert!(Arc::ptr_eq(&message.key, &cached_key));
 
         assert_eq!(
             message.key.sample_types,
