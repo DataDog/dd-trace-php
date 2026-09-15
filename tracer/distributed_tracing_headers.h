@@ -2,6 +2,7 @@
 #define DD_DISTRIBUTED_TRACING_HEADERS_H
 
 #include "ddtrace.h"
+#include "otel_sampling.h"
 #include "priority_sampling/priority_sampling.h"
 #include <zai_string/string.h>
 
@@ -10,6 +11,7 @@ typedef struct {
     uint64_t parent_id;
     zend_string *origin;
     zend_string *tracestate;
+    ddtrace_otel_sampling_state otel_sampling;
     HashTable baggage;
     HashTable tracestate_unknown_dd_keys;
     HashTable propagated_tags;
