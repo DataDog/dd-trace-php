@@ -9,7 +9,7 @@ exclude = ["appsec/third_party/libddwaf-rust"]
 resolver = "2"
 
 [workspace.package]
-rust-version = "1.91.0"
+rust-version = "1.91.1"
 edition = "2021"
 version = "0.0.1"
 license = "Apache-2.0"

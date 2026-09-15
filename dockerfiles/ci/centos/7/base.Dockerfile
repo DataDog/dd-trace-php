@@ -226,9 +226,9 @@ RUN yum install -y --nogpgcheck devtoolset-9 \
 
 
 # rust sha256sum generated locally after verifying it with sha256
-ARG RUST_VERSION="1.91.0"
-ARG RUST_SHA256_ARM="29c5a608861cc9c06d3f86852a7d7b1a868de2d7ab90d4ff625aeebfb9383390"
-ARG RUST_SHA256_X86="bad9a353330d9f409fe9db790da5701074112f804073506bb2808dd97b940b3c"
+ARG RUST_VERSION="1.91.1"
+ARG RUST_SHA256_ARM="50213385f288b8760b2efd54ac066ef9a76475e778cbe3b0fcbd3f898fc00674"
+ARG RUST_SHA256_X86="1c955c040dd087e4751d15588ddec288b4208bea16f8ec5046c164877e55fff7"
 # Mount a cache into /rust/cargo if you want to pre-fetch packages or something
 ENV CARGO_HOME=/rust/cargo
 ENV RUSTUP_HOME=/rust/rustup

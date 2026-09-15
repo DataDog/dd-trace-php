@@ -19,7 +19,7 @@ jobs:
       CARGO_HOME: /rust/cargo
       RUSTUP_HOME: /rust/rustup
       CARGO_TARGET_DIR: /tmp/build-cargo
-      RUST_TOOLCHAIN: nightly-2025-06-13
+      RUST_TOOLCHAIN: nightly-2025-10-31
     container:
       image: datadog/dd-trace-ci:php-${{matrix.php-version}}_bookworm-11
       # https://docs.github.com/en/actions/creating-actions/dockerfile-support-for-github-actions#user
