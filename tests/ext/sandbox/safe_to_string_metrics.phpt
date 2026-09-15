@@ -33,7 +33,10 @@ call_user_func_array('metrics_to_string', $allTheTypes);
 
 list($span) = dd_trace_serialize_closed_spans();
 $last = -1;
-foreach ($span['metrics'] as $key => $value) {
+foreach ($span['attributes'] as $key => $value) {
+    if (strpos($key, 'arg.') !== 0) {
+        continue;
+    }
     $index = (int)substr($key, 4);
     if ($last != $index) {
         echo PHP_EOL;

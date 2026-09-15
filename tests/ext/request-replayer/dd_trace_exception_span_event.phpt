@@ -8,6 +8,7 @@ DD_TRACE_AGENT_PORT=80
 DD_TRACE_AGENT_FLUSH_INTERVAL=333
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
+DD_TRACE_SIDECAR_TRACE_SENDER=0
 --INI--
 datadog.trace.agent_test_session_token=dd_trace_exception_span_event
 --FILE--
@@ -49,8 +50,27 @@ $root = json_decode($replay["body"], true);
 $spans = $root["chunks"][0]["spans"] ?? $root[0];
 $span = $spans[0];
 
-var_dump($span['meta']['events']);
+// The tracer always builds the native V1 payload, so span events are emitted as native span events
+// (a `span_events` array) instead of the legacy meta["events"] JSON blob. This test pins the
+// in-process sender (DD_TRACE_SIDECAR_TRACE_SENDER=0), which downgrades to the native V0.4
+// `span_events` field: it is the only wire on which the request-replayer surfaces the native event
+// shape (its v1 decoder folds events back into meta["events"] for v0.4 comparability). Native event
+// attributes are OTEL AnyValue-typed maps ({"type":0,"string_value":...}); assert order-independently.
+$event = $span['span_events'][0];
+$attrs = $event['attributes'];
+var_dump($event['name']);
+// The user-provided "exception.message" overrides the exception's own message (builder last-write-wins).
+var_dump($attrs['exception.message']['string_value']);
+var_dump($attrs['exception.type']['string_value']);
+var_dump($attrs['custom.attribute']['string_value']);
+var_dump($attrs['exception.stacktrace']['string_value']);
 ?>
 --EXPECTF--
 Caught exception: Exception in method
-string(%d) "[{"name":"exception","time_unix_nano":%d,"attributes":{"exception.message":"override message","exception.type":"Exception","exception.stacktrace":"#0 %s(%d): ExceptionClass->{%s}()\n#1 %s(%d): ExceptionClass->exceptionMethod()\n#2 {main}","custom.attribute":"custom value"}}]"
+string(9) "exception"
+string(16) "override message"
+string(9) "Exception"
+string(12) "custom value"
+string(%d) "#0 %s(%d): ExceptionClass->{%s}()
+#1 %s(%d): ExceptionClass->exceptionMethod()
+#2 {main}"

@@ -29,3 +29,18 @@ void datadog_apply_agent_info(void) {
         zend_string_release(hash_str);
     }
 }
+
+bool ddtrace_agent_supports_v1_traces(void) {
+    if (!DATADOG_G(agent_info_reader)) {
+        return false;
+    }
+    // The agent /info payload lists supported endpoints (e.g. "endpoints":["/v0.4/traces",
+    // "/v1.0/traces",...]); a substring probe of that JSON is sufficient to gate the transcode.
+    char *json = ddog_agent_info_as_json(DATADOG_G(agent_info_reader));
+    if (!json) {
+        return false;
+    }
+    bool supported = strstr(json, "/v1.0/traces") != NULL;
+    ddog_agent_info_json_free(json);
+    return supported;
+}

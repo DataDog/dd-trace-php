@@ -920,7 +920,8 @@ final class InteroperabilityTest extends BaseTestCase
         $this->assertSame('new.name', $span['resource']);
         $this->assertSame('new.service.name', $span['service']);
         $this->assertSame('new.span.type', $span['type']);
-        $this->assertEquals(1.0, $span['metrics']['_dd1.sr.eausr']);
+        // App Analytics is deprecated and a no-op: analytics.event no longer emits _dd1.sr.eausr.
+        $this->assertArrayNotHasKey('_dd1.sr.eausr', $span['metrics']);
     }
 
     public function testHasEnded()

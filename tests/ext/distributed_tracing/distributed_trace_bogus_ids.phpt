@@ -21,9 +21,11 @@ var_dump(dd_clean_spans());
 --EXPECTF--
 array(1) {
   [0]=>
-  array(10) {
+  array(14) {
     ["trace_id"]=>
     string(%d) "%d"
+    ["trace_id_high"]=>
+    string(16) "%s"
     ["span_id"]=>
     string(%d) "%d"
     ["start"]=>
@@ -38,30 +40,27 @@ array(1) {
     string(31) "distributed_trace_bogus_ids.php"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
-    array(4) {
-      ["_dd.origin"]=>
-      string(7) "datadog"
-      ["_dd.p.dm"]=>
-      string(2) "-0"
-      ["_dd.p.tid"]=>
-      string(16) "%s"
+    ["span_kind"]=>
+    int(1)
+    ["sampling_priority"]=>
+    int(1)
+    ["sampling_mechanism"]=>
+    int(0)
+    ["origin"]=>
+    string(7) "datadog"
+    ["attributes"]=>
+    array(6) {
       ["runtime-id"]=>
       string(36) "%s"
-    }
-    ["metrics"]=>
-    array(6) {
+      ["process_id"]=>
+      float(%f)
       ["_dd.agent_psr"]=>
-      float(1)
-      ["_sampling_priority_v1"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
-      ["php.memory.peak_real_usage_bytes"]=>
-      float(%f)
       ["php.memory.peak_usage_bytes"]=>
       float(%f)
-      ["process_id"]=>
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
     }
   }
