@@ -135,7 +135,7 @@ stages:
 "test appsec extension":
   stage: test
   extends: .appsec_test
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-10
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11
   variables:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_CPU_LIMIT: 3
@@ -419,7 +419,7 @@ stages:
 "appsec code coverage":
   stage: test
   extends: .appsec_test
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.3_bookworm-10
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.3_bookworm-11
   variables:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 3Gi
@@ -428,12 +428,12 @@ stages:
   script:
     - |
       echo "Installing dependencies"
-      sudo apt-get update && sudo apt-get install -y jq gcovr llvm-20 clang-20
+      sudo apt-get update && sudo apt-get install -y jq gcovr llvm-21 clang-21
     - cd appsec/build
     - |
       cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=ON \
         -DDD_APPSEC_TESTING=ON -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
-        -DCMAKE_C_COMPILER=/usr/bin/clang-20 -DCMAKE_CXX_COMPILER=/usr/bin/clang++-20 \
+        -DCMAKE_C_COMPILER=/usr/bin/clang-21 -DCMAKE_CXX_COMPILER=/usr/bin/clang++-21 \
         -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" \
         -DBOOST_CACHE_PREFIX="$CI_PROJECT_DIR/boost-cache"
     - |
@@ -442,8 +442,8 @@ stages:
         VERBOSE=1 make -j 4 xtest
     - |
       cd /tmp/cov-ext
-      llvm-profdata-20 merge -sparse *.profraw -o default.profdata
-      llvm-cov-20 export "$CI_PROJECT_DIR"/appsec/build/ddappsec.so \
+      llvm-profdata-21 merge -sparse *.profraw -o default.profdata
+      llvm-cov-21 export "$CI_PROJECT_DIR"/appsec/build/ddappsec.so \
         -format=lcov -instr-profile=default.profdata \
         > "$CI_PROJECT_DIR"/appsec/build/coverage-ext.lcov
     - |
@@ -520,7 +520,7 @@ stages:
 "appsec lint":
   stage: test
   extends: .appsec_test
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.3_bookworm-10
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.3_bookworm-11
   variables:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 9Gi
