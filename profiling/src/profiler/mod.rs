@@ -27,7 +27,7 @@ use crate::profiling::config::SystemSettings;
 use crate::profiling::exception::EXCEPTION_PROFILING_INTERVAL;
 #[cfg(target_os = "linux")]
 use crate::profiling::process_context::{ProcessIdentityRef, ThreadContextRead};
-use crate::profiling::profile_tags::ProfileTags;
+use crate::profiling::profile_tags::{ProfileTagSegment, ProfileTags};
 use crate::profiling::{Clocks, RefCellExt, CLOCKS, GLOBAL_TAGS, REQUEST_LOCALS};
 use chrono::Utc;
 use core::mem::forget;
@@ -1001,20 +1001,6 @@ impl Profiler {
             live_heap_tracker,
             live_heap_tracker_count,
         }
-    }
-
-    pub(crate) fn cache_profile_index(&self) {
-        REQUEST_LOCALS.with_borrow_mut(|locals| {
-            locals.profile_index = Some(Arc::new(ProfileIndex::new(
-                self.sample_types_filter.sample_types(),
-                ProfileTags {
-                    common: Arc::clone(&GLOBAL_TAGS),
-                    unified_service: Arc::clone(&locals.unified_service_tags),
-                    git: locals.git_tags.as_ref().map(Arc::clone),
-                    custom: locals.custom_tags.as_ref().map(Arc::clone),
-                },
-            )));
-        });
     }
 
     pub fn add_interrupt(&self, interrupt: VmInterrupt) {
@@ -2010,20 +1996,44 @@ impl Profiler {
         //  2. It would require tracking more state and/or spending CPU on
         //     something that shouldn't be done anyway (see #1).
         let sample_values = self.sample_types_filter.filter(samples);
-        let key = REQUEST_LOCALS
-            .with_borrow(|locals| locals.profile_index.as_ref().map(Arc::clone))
-            .unwrap_or_else(|| {
-                Arc::new(ProfileIndex::new(
-                    self.sample_types_filter.sample_types(),
-                    labels.profile_tags,
-                ))
-            });
+        let SampleLabels {
+            labels,
+            profile_tags,
+        } = labels;
+        let key = REQUEST_LOCALS.with_borrow_mut(|locals| {
+            if let Some(cached) = locals.profile_index.as_ref() {
+                let cached_tags = &cached.tags;
+                let same_optional_segment =
+                    |cached: &Option<Arc<ProfileTagSegment>>,
+                     current: &Option<Arc<ProfileTagSegment>>| match (
+                        cached, current,
+                    ) {
+                        (Some(cached), Some(current)) => Arc::ptr_eq(cached, current),
+                        (None, None) => true,
+                        _ => false,
+                    };
+                if Arc::ptr_eq(&cached_tags.common, &profile_tags.common)
+                    && Arc::ptr_eq(&cached_tags.unified_service, &profile_tags.unified_service)
+                    && same_optional_segment(&cached_tags.git, &profile_tags.git)
+                    && same_optional_segment(&cached_tags.custom, &profile_tags.custom)
+                {
+                    return Arc::clone(cached);
+                }
+            }
+
+            let key = Arc::new(ProfileIndex::new(
+                self.sample_types_filter.sample_types(),
+                profile_tags,
+            ));
+            locals.profile_index = Some(Arc::clone(&key));
+            key
+        });
 
         SampleMessage {
             key,
             value: SampleData {
                 frames: MaybeShared::Owned(frames),
-                labels: MaybeShared::Owned(labels.labels),
+                labels: MaybeShared::Owned(labels),
                 sample_values,
                 timestamp,
             },
@@ -2039,6 +2049,7 @@ pub struct JoinError {
 mod tests {
     use super::*;
     use crate::profiling::config::SystemSettingsState;
+    use crate::profiling::profile_tags::UnifiedServiceTagSegment;
     use crate::profiling::{
         allocation::DEFAULT_ALLOCATION_SAMPLING_INTERVAL, config::AgentEndpoint,
     };
@@ -2128,6 +2139,64 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(miri))]
+    fn profile_index_cache_tracks_sample_identity_changes() {
+        let settings = get_system_settings();
+        let profiler = Profiler::new(&settings);
+        REQUEST_LOCALS.with_borrow_mut(|locals| locals.profile_index = None);
+
+        let profile_tags = ProfileTags {
+            common: Arc::default(),
+            unified_service: Arc::new(UnifiedServiceTagSegment::try_new("first", "", "").unwrap()),
+            git: None,
+            custom: None,
+        };
+        let first = profiler.prepare_sample_message(
+            Backtrace::default(),
+            SampleValues::default(),
+            SampleLabels {
+                labels: Vec::new(),
+                profile_tags: ProfileTags {
+                    common: Arc::clone(&profile_tags.common),
+                    unified_service: Arc::clone(&profile_tags.unified_service),
+                    git: None,
+                    custom: None,
+                },
+            },
+            NO_TIMESTAMP,
+        );
+        let reused = profiler.prepare_sample_message(
+            Backtrace::default(),
+            SampleValues::default(),
+            SampleLabels {
+                labels: Vec::new(),
+                profile_tags,
+            },
+            NO_TIMESTAMP,
+        );
+        assert!(Arc::ptr_eq(&first.key, &reused.key));
+
+        let changed = profiler.prepare_sample_message(
+            Backtrace::default(),
+            SampleValues::default(),
+            SampleLabels {
+                labels: Vec::new(),
+                profile_tags: ProfileTags {
+                    common: Arc::default(),
+                    unified_service: Arc::new(
+                        UnifiedServiceTagSegment::try_new("second", "", "").unwrap(),
+                    ),
+                    git: None,
+                    custom: None,
+                },
+            },
+            NO_TIMESTAMP,
+        );
+        assert!(!Arc::ptr_eq(&reused.key, &changed.key));
+        assert!(changed.key.tags.unified_service.matches("second", "", ""));
+    }
+
+    #[test]
     fn owned_payload_can_be_shared() {
         let mut payload = MaybeShared::Owned(vec![42]);
         let shared = payload.share();
@@ -2147,7 +2216,7 @@ mod tests {
         settings.profiling_timeline_enabled = true;
 
         let profiler = Profiler::new(&settings);
-        profiler.cache_profile_index();
+        REQUEST_LOCALS.with_borrow_mut(|locals| locals.profile_index = None);
         let labels = Profiler::common_labels(0);
 
         let message: SampleMessage = profiler.prepare_sample_message(frames, samples, labels, 900);

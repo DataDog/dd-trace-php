@@ -607,6 +607,9 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     let result = REQUEST_LOCALS.try_with_borrow_mut(|locals| {
         // SAFETY: we are in rinit on a PHP thread.
         locals.vm_interrupt_addr = unsafe { zend::datadog_php_profiling_vm_interrupt_addr() };
+        // Profile identity is populated lazily from the first sample's actual
+        // context and replaced if that context changes during the request.
+        locals.profile_index = None;
 
         // SAFETY: We are after first rinit and before mshutdown.
         unsafe {
@@ -754,9 +757,6 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     });
 
     Profiler::init(system_settings);
-    if let Some(profiler) = Profiler::get() {
-        profiler.cache_profile_index();
-    }
 
     if system_settings.profiling_enabled {
         // Not logging, rinit could be quite spammy.
