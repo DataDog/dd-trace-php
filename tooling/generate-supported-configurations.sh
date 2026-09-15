@@ -10,7 +10,7 @@ readonly CONFIG_HEADER_FILES=(
     "appsec/src/extension/configuration.h"
 )
 readonly CONFIG_DEPENDENCY_FILES=(
-    "ext/configuration_shared.h"
+    "tracer/configuration_dependencies.h"
     "tracer/configuration.h"
     "profiling/configuration.h"
 )

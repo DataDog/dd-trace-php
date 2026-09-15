@@ -17,8 +17,8 @@ or, for OTel and future integrations, as the standalone
 - `profiling/src/profiling/` — profiler, interrupts, stack walking, uploader,
   and thread utilities.
 - `profiling/src/allocation/` — version-specific PHP allocation hooks.
-- `profiling/configuration.h` and `profiling/src/configuration.c` — generated
-  configuration declarations and the standalone ZAI host.
+- `profiling/configuration.h` — profiling configuration declarations consumed
+  by the shared ZAI host in `ext/configuration.c`.
 - `profiling/src/config.rs`, `profiling/src/capi.rs`.
 - `profiling/build.rs` — bindgen, PHP capability detection, and private C
   support compiled as part of the root package build.
