@@ -11,9 +11,8 @@
 #define DD_INTEGRATION_ANALYTICS_ENABLED_DEFAULT false
 #define DD_INTEGRATION_ANALYTICS_SAMPLE_RATE_DEFAULT 1.0
 
-// Sidecar is now the default trace sender on ALL PHP versions (in-process coms.c sender stays as an
-// explicit DD_TRACE_SIDECAR_TRACE_SENDER=0 opt-in). Thread-mode sidecar is not pcntl_fork()-safe, so
-// forking apps on <=8.2 must use DD_TRACE_SIDECAR_CONNECTION_MODE=subprocess (auto already falls back).
+// Sidecar is the default trace sender on all PHP versions (in-process coms.c sender is the
+// DD_TRACE_SIDECAR_TRACE_SENDER=0 opt-in). Thread mode isn't pcntl_fork()-safe; auto falls back.
 #define DD_SIDECAR_TRACE_SENDER_DEFAULT true
 
 #if _BUILD_FROM_PECL_

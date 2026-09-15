@@ -154,12 +154,9 @@ fn convert_literal_to_bytes_string(string: *const c_char) -> BytesString {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Native V1 fill surface: the only C-facing surface for building a payload, filling the
-// `TracerPayloadV1Builder` model directly. Chunks/spans/links/events are addressed by `usize` index
-// (held C-side in `dd_span_sink`/`ddtrace_v1_ctx`). Stacked-Borrows soundness: each call takes one
-// `&mut` (or `&`) and resolves by index, so no `&mut` into the payload ever escapes to C.
-// ---------------------------------------------------------------------------
+// Native V1 fill surface: builds the `TracerPayloadV1Builder` directly, addressing chunks/spans/
+// links/events by `usize` index. Stacked-Borrows soundness: each call takes one `&mut` and resolves
+// by index, so no `&mut` into the payload ever escapes to C.
 
 /// Sets a V1 string field from a `CharSlice`, leaving it unchanged for an empty slice (matches the
 /// builder's `set_string_field` skip-empty semantics so absent values are omitted on the wire).
@@ -586,10 +583,8 @@ pub extern "C" fn ddog_del_span_attr_lit(
     }
 }
 
-/// Copies the attribute `key` from `from_span` onto `to_span` (within `chunk`), returning whether
-/// the source had it; removes it from the source when `delete_source` is set. Type-preserving, so it
-/// covers the v0.4 meta and metrics transfer cases. The clone completes before the mutable borrow,
-/// so the op routes through a single `&mut`.
+/// Copies the attribute `key` from `from_span` onto `to_span` (within `chunk`), returning whether the
+/// source had it; removes it from the source when `delete_source` is set. Type-preserving.
 #[no_mangle]
 pub extern "C" fn ddog_transfer_span_attr(
     builder: &mut TracerPayloadV1Builder,

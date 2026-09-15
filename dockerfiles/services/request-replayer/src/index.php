@@ -292,9 +292,8 @@ switch ($uri) {
         });
         break;
     case '/info':
-        // Default advertises /v1.0/traces so the sidecar (8.3+) and the in-process (<=8.2) sender
-        // both negotiate the v1 wire. Tests that need a specific /info still override it via
-        // /set-agent-info (the written file is served verbatim, untouched by this default).
+        // Default advertises /v1.0/traces so both senders negotiate the v1 wire. Tests needing a
+        // specific /info override it via /set-agent-info (that file is served verbatim).
         $default_info = json_encode([
             "endpoints" => [
                 "/v0.4/traces",
