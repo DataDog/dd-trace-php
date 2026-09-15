@@ -76,7 +76,7 @@ class PhpFpm {
 
     /** PIDs of the current pool worker processes (the master is excluded). */
     List<String> workerPids() {
-        container.execInContainer('bash', '-c', "pgrep -f 'php-fpm: pool' || true")
+        container.execInContainer('bash', '-c', "pgrep -f '[p]hp-fpm: pool' || true")
                 .stdout.readLines()*.trim().findAll { it }
     }
 

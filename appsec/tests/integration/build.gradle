@@ -40,6 +40,8 @@ dependencies {
     implementation 'com.google.guava:guava:33.4.8-jre'
     implementation 'org.msgpack:msgpack-core:0.9.9'
     implementation 'io.javalin:javalin:6.7.0'
+    implementation 'io.grpc:grpc-netty-shaded:1.83.1'
+    implementation 'io.grpc:grpc-stub:1.83.1'
 
     implementation platform('org.testcontainers:testcontainers-bom:2.0.3')
     implementation 'org.testcontainers:testcontainers-mysql'
@@ -151,6 +153,12 @@ task downloadComposer(type: Download) {
             commandLine 'chmod', '+x', outputFiles.first().toString()
         }
     }
+}
+
+task downloadGrpcPhp(type: Download) {
+    src 'https://pecl.php.net/get/grpc-1.83.1.tgz'
+    dest 'build/grpc-1.83.1.tgz'
+    overwrite false
 }
 
 def buildRunInDockerTask = { Map options ->
@@ -348,6 +356,164 @@ def phpSdkVersion = { String version, String variant ->
 def portableBuildVariant = { String variant ->
     variant == 'release-musl' ? 'release' : variant
 }
+
+def isGrpcTestSpec = { String version, String variant ->
+    version == '8.5' && variant == 'release'
+}
+
+buildRunInDockerTask(
+        baseName: 'buildGrpc',
+        imageTag: 'php-buildonly-rust',
+        version: '8.5',
+        variant: 'release',
+        needsTracer: false,
+        needsAppsec: false,
+        needsBoostCache: false,
+        needsCargoCache: false,
+        description: 'Build portable gRPC extension for PHP',
+        inputs: [files: ['build/grpc-1.83.1.tgz']],
+        outputs: [
+                volume: 'php-grpc',
+                files: ['grpc.so'],
+        ],
+        volumes: [
+                'php-grpc-8.5-release': [mountPoint: '/grpc'],
+        ],
+        taskDependencies: ['downloadGrpcPhp'],
+        command: [
+                '-e', '-c',
+                """
+                GRPC_ARCHIVE=/project/appsec/tests/integration/build/grpc-1.83.1.tgz
+                printf '%s  %s\n' \
+                    'cb06519b1382f57ba6f5358504cb37e933d5a5892553300877fd4f3b04cf0560' \
+                    "\$GRPC_ARCHIVE" | sha256sum -c -
+
+                BUILD_DIR=\$(mktemp -d /tmp/grpc-php-8.5-release.XXXXXX)
+                trap 'rm -rf "\$BUILD_DIR"' EXIT
+                tar -xzf "\$GRPC_ARCHIVE" --strip-components=1 \
+                    -C "\$BUILD_DIR"
+                cd "\$BUILD_DIR"
+
+                # The PECL build compiles with C++ but links through CC and
+                # explicitly adds libstdc++. Use the C++ driver so Clang's
+                # -static-libstdc++ embeds the selected libc++ runtime.
+                sed -i \
+                    -e '/PHP_ADD_LIBRARY(stdc++,1,GRPC_SHARED_LIBADD)/d' \
+                    -e '/DGRPC_XDS_USER_AGENT_VERSION_SUFFIX=/ s/)\$/, yes)/' \
+                    config.m4
+                export PHP_SDK_VERSION=8.5
+                export CXX='musl-clang++ -stdlib=libc++'
+                export LDFLAGS="\${LDFLAGS:-} -static-libstdc++"
+                phpize
+                ./configure --enable-grpc \
+                    --with-php-config=/opt/php/8.5/bin/php-config
+                make -s -j\$(nproc) \
+                    LIBTOOL="\$BUILD_DIR/libtool --silent"
+
+                MODULE="\$BUILD_DIR/modules/grpc.so"
+                test -s "\$MODULE"
+                if /opt/php/8.5/bin/php-config --configure-options | \
+                        grep -q -- '--enable-zts'; then
+                    echo 'grpc.so was built against a ZTS PHP SDK' >&2
+                    exit 1
+                fi
+                strings "\$MODULE" | grep -qF '1.83.1'
+                if readelf --dynamic "\$MODULE" | \
+                        grep -Eq 'NEEDED.*lib(c[+][+]|stdc[+][+])'; then
+                    echo 'grpc.so has a dynamic C++ runtime dependency' >&2
+                    exit 1
+                fi
+                if ! readelf --symbols --wide "\$MODULE" | \
+                        grep -qF '_ZNSt3__1'; then
+                    echo 'grpc.so was not linked with libc++' >&2
+                    exit 1
+                fi
+                if readelf --version-info "\$MODULE" | grep -q GLIBC_; then
+                    echo 'grpc.so is not portable: found a GLIBC symbol version' >&2
+                    exit 1
+                fi
+
+                install -m 0755 "\$MODULE" /grpc/grpc.so.tmp
+                mv /grpc/grpc.so.tmp /grpc/grpc.so
+                touch /grpc/grpc.so
+                """
+        ]
+)
+
+buildRunInDockerTask(
+        baseName: 'buildProfiler',
+        imageTag: 'php-buildonly-rust',
+        version: '8.5',
+        variant: 'release',
+        needsTracer: false,
+        needsAppsec: false,
+        needsBoostCache: false,
+        description: 'Build portable profiler extension for PHP',
+        inputs: [
+                dirs: [
+                        '../../../components',
+                        '../../../components-rs',
+                        '../../../ext',
+                        '../../../libdatadog',
+                        '../../../m4',
+                        '../../../profiling',
+                        '../../../tracer',
+                        '../../../zend_abstract_interface',
+                ],
+                files: [
+                        '../../../Cargo.lock',
+                        '../../../Cargo.toml',
+                        '../../../Makefile',
+                        '../../../VERSION',
+                        '../../../config.m4',
+                        '../../../rust-toolchain.toml',
+                ],
+        ],
+        outputs: [
+                volume: 'php-profiler',
+                files: ['datadog-profiling.so'],
+        ],
+        volumes: [
+                'php-profiler-buildonly-8.5-release': [
+                        mountPoint: '/project/tmp',
+                ],
+                'php-profiler-8.5-release': [mountPoint: '/profiler'],
+        ],
+        command: [
+                '-e', '-c',
+                """
+                cd /project
+                PHPRC= \\
+                    PHP_SDK_VERSION=8.5 \\
+                    DDTRACE_PROFILING_FEATURES=trigger_time_sample \\
+                    RUSTFLAGS='-C target-feature=-crt-static -C linker=musl-clang' \\
+                    make -j\$(nproc) \\
+                        BUILD_SUFFIX=profiler \\
+                        PROFILING=1 \\
+                        EXTRA_CONFIGURE_OPTIONS="--disable-ddtrace-tracer \\
+                            --enable-ddtrace-profiling" \\
+                        /project/tmp/build_profiler/modules/datadog-profiling.so
+
+                MODULE=/project/tmp/build_profiler/modules/datadog-profiling.so
+                test -s "\$MODULE"
+                if /opt/php/8.5/bin/php-config --configure-options | \\
+                        grep -q -- '--enable-zts'; then
+                    echo 'profiler was built against a ZTS PHP SDK' >&2
+                    exit 1
+                fi
+                if readelf --version-info "\$MODULE" | grep -q GLIBC_; then
+                    echo 'profiler is not portable: found a GLIBC symbol version' >&2
+                    exit 1
+                fi
+
+                install -m 0755 "\$MODULE" \\
+                    /profiler/datadog-profiling.so.tmp
+                mv /profiler/datadog-profiling.so.tmp \\
+                    /profiler/datadog-profiling.so
+                touch /profiler/datadog-profiling.so
+                """
+        ]
+)
 
 def buildTracerTask = { String version, String variant ->
     buildRunInDockerTask(
@@ -920,6 +1086,10 @@ def runMainTask = { String phpVersion, String variant ->
 
         dependsOn "buildTracer-$phpVersion-${portableBuildVariant(variant)}"
         dependsOn "buildAppsec-$phpVersion-${portableBuildVariant(variant)}"
+        if (isGrpcTestSpec(phpVersion, variant)) {
+            dependsOn 'buildGrpc-8.5-release'
+            dependsOn 'buildProfiler-8.5-release'
+        }
     }
 }
 
@@ -980,6 +1150,10 @@ def runMainTask = { String phpVersion, String variant ->
         String artifactVariant = portableBuildVariant(variant)
         dependsOn project.hasProperty('useCmake') ? "buildTracerCmake-${phpVersion}-${artifactVariant}" : "buildTracer-${phpVersion}-${artifactVariant}"
         dependsOn "buildAppsec-${phpVersion}-${artifactVariant}"
+        if (isGrpcTestSpec(phpVersion, variant)) {
+            dependsOn 'buildGrpc-8.5-release'
+            dependsOn 'buildProfiler-8.5-release'
+        }
 
         if (phpVersion in ['7.0', '7.1']) {
             dependsOn downloadComposerOld
@@ -1016,6 +1190,10 @@ if (project.hasProperty('testClass')) {
             dependsOn "buildLoader-${phpVersion}-${variant}"
             dependsOn "buildAppsec-${phpVersion}-${variant}"
             dependsOn downloadComposer
+            if (isGrpcTestSpec(phpVersion, variant)) {
+                dependsOn 'buildGrpc-8.5-release'
+                dependsOn 'buildProfiler-8.5-release'
+            }
         }
     }
 }
@@ -1096,6 +1274,10 @@ testMatrix.each { ssiSpec ->
         dependsOn "buildLoader-${phpVersion}-${variant}"
         dependsOn "buildAppsec-${phpVersion}-${variant}"
         dependsOn downloadComposer
+        if (isGrpcTestSpec(phpVersion, variant)) {
+            dependsOn 'buildGrpc-8.5-release'
+            dependsOn 'buildProfiler-8.5-release'
+        }
     }
 }
 

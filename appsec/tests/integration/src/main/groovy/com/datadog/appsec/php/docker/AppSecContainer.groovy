@@ -587,6 +587,21 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
                 : "php-tracer-$phpVersion-$artifactVariant"
             addVolumeMount(tracerVol, '/project/tmp')
         }
+        if (options.get('needsGrpc', false)) {
+            if (phpVersion != '8.5' || phpVariant != 'release') {
+                throw new IllegalArgumentException(
+                        'The gRPC test artifact is only built for PHP 8.5 release')
+            }
+            addVolumeMount("php-grpc-$phpVersion-$phpVariant", '/grpc')
+        }
+        if (options.get('needsProfiler', false)) {
+            if (phpVersion != '8.5' || phpVariant != 'release') {
+                throw new IllegalArgumentException(
+                        'The profiler test artifact is only built for PHP 8.5 release')
+            }
+            addVolumeMount(
+                    "php-profiler-$phpVersion-$phpVariant", '/profiler')
+        }
         withEnv 'RUST_BACKTRACE', '1'
 
         String fullWorkVolume = "php-workvol-$workVolume-$phpVersion-$phpVariant"
