@@ -72,3 +72,8 @@ tests/tested_versions
 .gitlab/*-gen.yml
 .gitlab-ci-local/
 /.claude/settings.local.json
+
+# LLM Validation local/CI artifacts
+.llm-validation/results.json
+.llm-validation/report.md
+.llm-validation/details.json

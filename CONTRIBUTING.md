@@ -26,6 +26,10 @@ The easiest way to get the development environment set up is to install [Docker]
 
 ## Developing and testing locally
 
+### LLM Validation
+
+GitLab job `"llm validation"` from [`ddoghq/llm-validation-platform`](https://github.com/ddoghq/llm-validation-platform). It is an A/B eval of the `dd-apm-sdk-review` skill, not a PHPUnit run. Cases live in [`.llm-validation/`](./.llm-validation/); how to add one is in [`.llm-validation/README.md`](./.llm-validation/README.md).
+
 ### PHP linting
 
 The PHP tracer conforms to the [PSR-2 coding style guide](https://www.php-fig.org/psr/psr-2/). The code style is checked with [PHP_CodeSniffer](https://github.com/squizlabs/PHP_CodeSniffer) which can be invoked with the following command:
