@@ -40,6 +40,15 @@ To try to automatically fix the code style, you can run:
 $ composer fix-lint
 ```
 
+CI does **not** run that PSR ruleset. It runs a separate, nearly-empty
+gate so PRs have a hook that can grow without reformatting the tree:
+
+```bash
+$ composer ci-lint
+```
+
+See [tooling/php-lint/README.md](tooling/php-lint/README.md).
+
 ### Testing
 
 #### Start your container

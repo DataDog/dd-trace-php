@@ -2,6 +2,7 @@
 !/tracer/vendor
 tmp/
 composer.lock*
+!tests/Frameworks/Symfony/Version_6_2/composer.lock
 **/core*
 .DS_Store
 .scenarios.lock/
