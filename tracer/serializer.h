@@ -6,7 +6,7 @@
 int ddtrace_serialize_simple_array(zval *trace, zval *retval);
 int ddtrace_serialize_simple_array_into_c_string(zval *trace, char **data_p, size_t *size_p);
 
-dd_span_sink ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_TraceBytes *trace, ddtrace_v1_ctx *v1);
+dd_span_sink ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtrace_v1_ctx *v1);
 zval dd_serialize_rust_v1_to_zval(struct ddog_TracerPayloadV1Builder *builder);
 
 // Span-meta sink ops with external linkage (routing shared with exception_serialize.c). Each writes

@@ -1109,8 +1109,7 @@ PHP_FUNCTION(dd_trace_serialize_closed_spans) {
     ddtrace_v1_ctx v1_ctx = {.builder = ddog_v1_new_builder(), .chunk = DD_V1_CHUNK_NONE};
     ddtrace_v1_ctx *v1 = &v1_ctx;
 
-    ddog_TracesBytes *traces = ddog_get_traces();
-    ddtrace_serialize_closed_spans_with_cycle(traces, v1, false);
+    ddtrace_serialize_closed_spans_with_cycle(v1, false);
 
     zval traces_zv = dd_serialize_rust_v1_to_zval(v1->builder);
     ddog_v1_free_builder(v1->builder);
@@ -1129,7 +1128,6 @@ PHP_FUNCTION(dd_trace_serialize_closed_spans) {
         } ZEND_HASH_FOREACH_END();
     }
 
-    ddog_free_traces(traces);
     zval_ptr_dtor(&traces_zv);
 
     ddtrace_free_span_stacks(false);

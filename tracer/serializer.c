@@ -1471,7 +1471,7 @@ void ddtrace_shutdown_span_sampling_limiter(void) {
     zend_hash_destroy(&dd_span_sampling_limiters);
 }
 
-dd_span_sink ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_TraceBytes *trace, ddtrace_v1_ctx *v1) {
+dd_span_sink ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtrace_v1_ctx *v1) {
     zend_array *meta = ddtrace_property_array(&span->property_meta);
     zend_array *metrics = ddtrace_property_array(&span->property_metrics);
 
@@ -2063,7 +2063,7 @@ dd_span_sink ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_T
 
     dd_span_sink inferred_sink = {0};
     if (inferred_span) {
-        inferred_sink = ddtrace_serialize_span_to_rust_span(inferred_span, trace, v1);
+        inferred_sink = ddtrace_serialize_span_to_rust_span(inferred_span, v1);
     }
     // A dropped inferred span returns the {0} sentinel (builder NULL); skip the transfers then, else
     // dst->span defaults to index 0 (corrupting a real span) and set_error derefs a NULL builder.
