@@ -165,7 +165,11 @@ static bool _ignore_run_time_cache = false;
 
 void datadog_php_profiling_startup(zend_extension *extension) {
 #if CFG_RUN_TIME_CACHE  // defined by build.rs
+#ifdef CFG_TEST
+    _ignore_run_time_cache = false;
+#else
     _ignore_run_time_cache = strcmp(sapi_module.name, "cli") == 0;
+#endif
 #endif
 
     datadog_php_profiling_get_profiling_context = noop_get_profiling_context;
@@ -731,6 +735,19 @@ static void* native_thread_alloc_func(void* arg) {
     return NULL;
 }
 
+typedef struct {
+    zend_fcall_info fci;
+    zend_fcall_info_cache fcc;
+    int result;
+    zval retval;
+} native_thread_callback;
+
+static void* native_thread_callback_func(void* arg) {
+    native_thread_callback *callback = (native_thread_callback *)arg;
+    callback->result = zend_call_function(&callback->fci, &callback->fcc);
+    return NULL;
+}
+
 // Test function to simulate what ext-grpc does: create a native thread (not a
 // PHP thread) and trigger memory allocation on it. This tests that the
 // allocation profiler correctly handles allocations from non-PHP threads in NTS
@@ -751,6 +768,46 @@ static ZEND_FUNCTION(Datadog_Profiling_run_alloc_on_native_thread) {
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_Datadog_Profiling_run_alloc_on_native_thread, 0, 0, 0)
 ZEND_END_ARG_INFO()
+
+static ZEND_FUNCTION(Datadog_Profiling_run_on_native_thread) {
+    zval *callable;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_ZVAL(callable)
+    ZEND_PARSE_PARAMETERS_END();
+
+    native_thread_callback callback = {0};
+    char *error = NULL;
+    if (zend_fcall_info_init(
+            callable, 0, &callback.fci, &callback.fcc, NULL, &error) == FAILURE) {
+        php_error_docref(NULL, E_WARNING, "Invalid callback: %s", error ? error : "");
+        if (error) {
+            efree(error);
+        }
+        RETURN_FALSE;
+    }
+
+    ZVAL_UNDEF(&callback.retval);
+    callback.fci.retval = &callback.retval;
+
+    pthread_t thread;
+    if (pthread_create(&thread, NULL, native_thread_callback_func, &callback) != 0) {
+        php_error_docref(NULL, E_WARNING, "Failed to create native thread");
+        RETURN_FALSE;
+    }
+
+    pthread_join(thread, NULL);
+
+    if (!Z_ISUNDEF(callback.retval)) {
+        zval_ptr_dtor(&callback.retval);
+    }
+
+    RETURN_BOOL(callback.result == SUCCESS);
+}
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_Datadog_Profiling_run_on_native_thread, 0, 0, 1)
+    ZEND_ARG_INFO(0, callback)
+ZEND_END_ARG_INFO()
 #endif
 
 static const zend_function_entry functions[] = {
@@ -768,6 +825,12 @@ static const zend_function_entry functions[] = {
         run_alloc_on_native_thread,
         ZEND_FN(Datadog_Profiling_run_alloc_on_native_thread),
         arginfo_Datadog_Profiling_run_alloc_on_native_thread
+    )
+    ZEND_NS_NAMED_FE(
+        "Datadog\\Profiling",
+        run_on_native_thread,
+        ZEND_FN(Datadog_Profiling_run_on_native_thread),
+        arginfo_Datadog_Profiling_run_on_native_thread
     )
 #endif
     ZEND_FE_END
