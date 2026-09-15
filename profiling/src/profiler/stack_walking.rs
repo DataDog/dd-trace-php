@@ -172,10 +172,16 @@ unsafe fn extract_file_and_line(
 #[cfg(php_run_time_cache)]
 mod detail {
     use super::*;
+    #[cfg(all(not(php_zts), not(feature = "stack_walking_tests")))]
+    use crate::profiling::module_globals;
     use crate::profiling::string_set::StringSet;
-    use crate::profiling::{RefCellExt, RefCellExtError};
+    #[cfg(any(php_zts, feature = "stack_walking_tests", feature = "debug_stats"))]
+    use crate::profiling::RefCellExt;
+    #[cfg(any(php_zts, feature = "stack_walking_tests"))]
+    use crate::profiling::RefCellExtError;
     use libdd_profiling::profiles::collections::ThinStr;
     use log::{debug, trace};
+    #[cfg(any(php_zts, feature = "stack_walking_tests", feature = "debug_stats"))]
     use std::cell::RefCell;
     use std::ffi::c_void;
 
@@ -183,7 +189,7 @@ mod detail {
         /// Refers to a function's run time cache reserved by this extension.
         cache_slots: &'a mut [usize; 2],
 
-        /// Refers to the string set in the thread-local storage.
+        /// Refers to the set owning strings in the function's runtime cache.
         string_set: &'a mut StringSet,
     }
 
@@ -250,17 +256,49 @@ mod detail {
         }
     }
 
+    #[cfg(any(php_zts, feature = "stack_walking_tests"))]
     thread_local! {
         static CACHED_STRINGS: RefCell<StringSet> = RefCell::new(StringSet::new());
-        #[cfg(feature = "debug_stats")]
+    }
+
+    #[cfg(feature = "debug_stats")]
+    thread_local! {
         static FUNCTION_CACHE_STATS: RefCell<FunctionRunTimeCacheStats> =
             const { RefCell::new(FunctionRunTimeCacheStats::new()) }
+    }
+
+    /// Returns the NTS process-global string cache.
+    ///
+    /// # Safety
+    /// The cache must be initialized, and PHP must not be executing concurrently
+    /// or re-enter stack collection.
+    #[cfg(all(not(php_zts), not(feature = "stack_walking_tests")))]
+    unsafe fn cached_strings_mut() -> &'static mut StringSet {
+        // SAFETY: the caller guarantees exclusive access after GINIT and before GSHUTDOWN.
+        let globals = unsafe { module_globals::get_profiler_globals() };
+        unsafe { (*(*globals).cached_strings.get()).assume_init_mut() }
     }
 
     /// # Safety
     /// Must be called in Zend Extension activate.
     #[inline]
     pub unsafe fn activate() {}
+
+    fn reset_if_too_large(string_set: &mut StringSet) {
+        // A slow ramp up to 2 MiB is probably _not_ going to look like a
+        // memory leak. A higher threshold may make a user suspect a leak.
+        const THRESHOLD: usize = 2 * 1024 * 1024;
+
+        let used_bytes = string_set.arena_used_bytes();
+        if used_bytes > THRESHOLD {
+            debug!("string cache arena is using {used_bytes} bytes which exceeds the {THRESHOLD} byte threshold, resetting");
+            // Note that this cannot be done _during_ a request. The ThinStrs
+            // inside the run time cache need to remain valid during the request.
+            *string_set = StringSet::new();
+        } else {
+            trace!("string cache arena is using {used_bytes} bytes which is less than the {THRESHOLD} byte threshold");
+        }
+    }
 
     #[inline]
     pub fn rshutdown() {
@@ -274,26 +312,19 @@ mod detail {
             });
         }
 
-        let result = CACHED_STRINGS.try_with_borrow_mut(|string_set| {
-            // A slow ramp up to 2 MiB is probably _not_ going to look like a
-            // memory leak. A higher threshold may make a user suspect a leak.
-            const THRESHOLD: usize = 2 * 1024 * 1024;
-
-            let used_bytes = string_set.arena_used_bytes();
-            if used_bytes > THRESHOLD {
-                debug!("string cache arena is using {used_bytes} bytes which exceeds the {THRESHOLD} byte threshold, resetting");
-                // Note that this cannot be done _during_ a request. The
-                // ThinStrs inside the run time cache need to remain valid
-                // during the request.
-                *string_set = StringSet::new();
-            } else {
-                trace!("string cache arena is using {used_bytes} bytes which is less than the {THRESHOLD} byte threshold");
+        #[cfg(any(php_zts, feature = "stack_walking_tests"))]
+        {
+            let result = CACHED_STRINGS.try_with_borrow_mut(reset_if_too_large);
+            if let Err(err) = result {
+                // Debug level because rshutdown could be quite spammy.
+                debug!("failed to borrow request locals in rshutdown: {err}");
             }
-        });
+        }
 
-        if let Err(err) = result {
-            // Debug level because rshutdown could be quite spammy.
-            debug!("failed to borrow request locals in rshutdown: {err}");
+        #[cfg(all(not(php_zts), not(feature = "stack_walking_tests")))]
+        unsafe {
+            // SAFETY: NTS request shutdown has exclusive access to PHP globals.
+            reset_if_too_large(cached_strings_mut());
         }
     }
 
@@ -389,13 +420,22 @@ mod detail {
     ) -> Result<Backtrace, CollectStackSampleError> {
         #[cfg(feature = "tracing")]
         let _span = tracing::trace_span!("collect_stack_sample").entered();
-        CACHED_STRINGS
-            .try_with_borrow_mut(|set| collect_stack_sample_cached(execute_data, set))
-            .unwrap_or_else(|err| match err {
-                RefCellExtError::AccessError(e) => Err(e.into()),
-                RefCellExtError::BorrowError(e) => Err(e.into()),
-                RefCellExtError::BorrowMutError(e) => Err(e.into()),
-            })
+        #[cfg(any(php_zts, feature = "stack_walking_tests"))]
+        {
+            CACHED_STRINGS
+                .try_with_borrow_mut(|set| collect_stack_sample_cached(execute_data, set))
+                .unwrap_or_else(|err| match err {
+                    RefCellExtError::AccessError(e) => Err(e.into()),
+                    RefCellExtError::BorrowError(e) => Err(e.into()),
+                    RefCellExtError::BorrowMutError(e) => Err(e.into()),
+                })
+        }
+
+        #[cfg(all(not(php_zts), not(feature = "stack_walking_tests")))]
+        unsafe {
+            // SAFETY: NTS executes PHP serially and stack collection is not re-entrant.
+            collect_stack_sample_cached(execute_data, cached_strings_mut())
+        }
     }
 
     unsafe fn collect_call_frame(
