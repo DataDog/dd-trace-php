@@ -332,8 +332,9 @@ unsafe fn rebind_symbols_for_image(
                     // file. At runtime, __LINKEDIT is mapped at (vmaddr + slide). By subtracting
                     // the file offset of __LINKEDIT itself, we get a base we can add any file
                     // offset to in order to get a valid runtime pointer.
-                    linkedit_base =
-                        (slide as usize).wrapping_add(seg.vmaddr as usize) - seg.fileoff as usize;
+                    linkedit_base = (slide as usize)
+                        .wrapping_add(seg.vmaddr as usize)
+                        .wrapping_sub(seg.fileoff as usize);
                     linkedit_found = true;
                 }
             }
@@ -397,7 +398,10 @@ unsafe fn rebind_symbols_for_image(
                         slide,
                         symtab,
                         strtab,
+                        (*symtab_cmd).nsyms as usize,
+                        (*symtab_cmd).strsize as usize,
                         indirect_symtab,
+                        (*dysymtab_cmd).nindirectsyms as usize,
                         &mut *state.overwrites,
                         &mut *state.restores,
                         segname == "__DATA_CONST",
@@ -432,7 +436,10 @@ unsafe fn rebind_symbols_in_section(
     slide: isize,
     symtab: *const Nlist64,
     strtab: *const c_char,
+    nsyms: usize,
+    strsize: usize,
     indirect_symtab: *const u32,
+    nindirectsyms: usize,
     overwrites: &mut [GotSymbolOverwrite],
     restores: &mut Vec<GotSlotRestore>,
     is_data_const: bool,
@@ -443,7 +450,14 @@ unsafe fn rebind_symbols_in_section(
 
     // The indirect symbol table entries for this section start at index `section.reserved1`.
     // Entry `indirect_sym_indices[i]` tells us which symbol table entry corresponds to slot `i`.
-    let indirect_sym_indices = indirect_symtab.add(section.reserved1 as usize);
+    let indirect_sym_start = section.reserved1 as usize;
+    let Some(indirect_sym_end) = indirect_sym_start.checked_add(num_indirect_syms) else {
+        return false;
+    };
+    if indirect_sym_end > nindirectsyms {
+        return false;
+    }
+    let indirect_sym_indices = indirect_symtab.add(indirect_sym_start);
 
     // The actual pointer slots in memory (adjusted by ASLR slide).
     let symbol_ptrs = ((slide as usize).wrapping_add(section.addr as usize)) as *mut *mut c_void;
@@ -456,19 +470,27 @@ unsafe fn rebind_symbols_in_section(
         let symtab_index = *indirect_sym_indices.add(i);
 
         // Skip special entries that don't refer to real external symbols
-        if symtab_index == INDIRECT_SYMBOL_LOCAL
-            || symtab_index == INDIRECT_SYMBOL_ABS
-            || symtab_index == (INDIRECT_SYMBOL_LOCAL | INDIRECT_SYMBOL_ABS)
-        {
+        if (symtab_index & (INDIRECT_SYMBOL_LOCAL | INDIRECT_SYMBOL_ABS)) != 0 {
+            continue;
+        }
+
+        if symtab_index as usize >= nsyms {
             continue;
         }
 
         // Step 2: Look up the symbol in the symbol table to get its name
         let nlist = &*symtab.add(symtab_index as usize);
-        let name_ptr = strtab.add(nlist.n_strx as usize);
-        let name = match CStr::from_ptr(name_ptr).to_str() {
-            Ok(n) => n,
-            Err(_) => continue,
+        let name_offset = nlist.n_strx as usize;
+        if name_offset >= strsize {
+            continue;
+        }
+        let name_bytes =
+            std::slice::from_raw_parts(strtab.add(name_offset) as *const u8, strsize - name_offset);
+        let Ok(name) = CStr::from_bytes_until_nul(name_bytes) else {
+            continue;
+        };
+        let Ok(name) = name.to_str() else {
+            continue;
         };
 
         // Step 3: Strip the Mach-O leading underscore (e.g. "_recv" → "recv") so we can
@@ -507,16 +529,12 @@ unsafe fn rebind_symbols_in_section(
             }
 
             trace!(
-                "Overriding symbol pointer for {} at {:p} pointing to {:p} (orig function at {:p})",
+                "Overriding symbol pointer for {} at {:p} pointing to {:p}",
                 overwrite.symbol_name,
                 slot,
                 *slot,
-                *overwrite.orig_func,
             );
 
-            // Keep the existing single call-through pointer, but record the exact value of every
-            // slot so MSHUTDOWN can restore images which resolve this symbol differently.
-            *overwrite.orig_func = original as *mut ();
             restores.push(GotSlotRestore {
                 image,
                 image_name: image_name.into(),
@@ -663,8 +681,9 @@ pub unsafe fn restore_symbols(restores: &mut Vec<GotSlotRestore>) -> bool {
 fn seg_name(seg: &libc::segment_command_64) -> &str {
     let bytes = &seg.segname;
     let len = bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len());
-    // SAFETY: segment names are always ASCII; cast from &[i8] to &[u8] is safe
-    // because i8 and u8 have the same size and alignment.
+    // SAFETY: `seg.segname` is a fixed 16-byte array that outlives the returned reference.
+    // Casting from `*const c_char` (`*const i8`) to `*const u8` is safe because `i8` and `u8`
+    // have identical size (1 byte) and alignment, and `len` is bounded by the array length.
     let bytes: &[u8] = unsafe { std::slice::from_raw_parts(bytes.as_ptr() as *const u8, len) };
     std::str::from_utf8(bytes).unwrap_or("")
 }
