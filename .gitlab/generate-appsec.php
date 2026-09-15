@@ -238,6 +238,7 @@ stages:
           - test8.5-release
           - test8.5-release-zts
           - test8.5-release-musl
+          - test8.5-release-zts-musl
 
 "appsec integration tests (ssi)":
   extends: .appsec_integration_tests
