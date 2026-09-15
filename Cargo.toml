@@ -47,7 +47,7 @@ tracing-subscriber = ["tracing"]
 trigger_time_sample = ["profiling"]
 
 [dependencies]
-libdd-common = { path = "libdatadog/libdd-common", features = ["cgroup_testing"] }
+libdd-common = { path = "libdatadog/libdd-common", features = ["cgroup_testing", "hyper-proxy"] }
 libdd-common-ffi = { path = "libdatadog/libdd-common-ffi", default-features = false }
 libdd-telemetry = { path = "libdatadog/libdd-telemetry" }
 libdd-telemetry-ffi = { path = "libdatadog/libdd-telemetry-ffi", default-features = false }
@@ -68,7 +68,14 @@ libdd-crashtracker-ffi = { path = "libdatadog/libdd-crashtracker-ffi", default-f
 libdd-library-config-ffi = { path = "libdatadog/libdd-library-config-ffi", default-features = false }
 spawn_worker = { path = "libdatadog/spawn_worker" }
 anyhow = "1.0"
+arc-swap = "1.7.1"
+base64 = "0.22"
 const-str = "0.5.6"
+fastrand = "2"
+flate2 = { version = "1.0", default-features = false, features = ["rust_backend"] }
+futures-util = "0.3"
+http-body-util = "0.1"
+hyper = { version = "1.6", features = ["client", "http1"] }
 itertools = "0.11.0"
 serde = "1.0.196"
 simd-json = "0.14.1"
@@ -79,10 +86,13 @@ env_logger = "0.11"
 zwohash = "0.1.2"
 uuid = { version = "1.0", features = ["v4"] }
 paste = "1"
+percent-encoding = "2.1"
 tempfile = "3.3"
 tracing = { version = "0.1", default-features = false, features = ["std", "attributes"] }
 tracing-core = "0.1.32"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["std", "fmt", "env-filter", "smallvec"] }
+tokio = { version = "1.36", features = ["macros", "rt", "sync", "time"] }
+tokio-util = "0.7.11"
 serde_json = "1.0.113"
 regex = "1.10.5"
 regex-automata = "0.4.5"
