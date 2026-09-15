@@ -25,6 +25,7 @@ use crate::profiling::bindings::{
 };
 use crate::profiling::config::SystemSettings;
 use crate::profiling::exception::EXCEPTION_PROFILING_INTERVAL;
+use crate::profiling::module_globals::{self, ProfilerGlobals};
 #[cfg(target_os = "linux")]
 use crate::profiling::process_context::{ProcessIdentityRef, ThreadContextRead};
 use crate::profiling::profile_tags::ProfileTags;
@@ -1150,12 +1151,18 @@ impl Profiler {
         unsafe { (*system_settings).profiling_timeline_enabled }
     }
 
-    fn collect_stack_sample_timed(
+    /// # Safety
+    /// `globals` must point to initialized module globals for the current PHP thread.
+    unsafe fn collect_stack_sample_timed(
         &self,
         execute_data: *mut zend_execute_data,
+        _globals: *mut ProfilerGlobals,
     ) -> Result<Backtrace, CollectStackSampleError> {
         let start = ThreadTime::try_now().ok();
+        #[cfg(any(not(php_run_time_cache), feature = "stack_walking_tests"))]
         let result = collect_stack_sample(execute_data);
+        #[cfg(all(php_run_time_cache, not(feature = "stack_walking_tests")))]
+        let result = collect_stack_sample(execute_data, _globals);
         STACK_WALK_COUNT.fetch_add(1, Ordering::Relaxed);
         if let Some(start) = start {
             if let Ok(end) = ThreadTime::try_now() {
@@ -1174,12 +1181,21 @@ impl Profiler {
 
     /// Collect a stack sample with elapsed wall time. Collects CPU time if
     /// it's enabled and available.
+    ///
+    /// # Safety
+    /// `globals` must point to initialized module globals for the current PHP thread.
     #[export_name = "ddog_php_prof_collect_time"]
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
-    pub fn collect_time(&self, execute_data: *mut zend_execute_data, interrupt_count: u32) {
+    pub unsafe fn collect_time(
+        &self,
+        execute_data: *mut zend_execute_data,
+        globals: *mut ProfilerGlobals,
+        interrupt_count: u32,
+    ) {
         // todo: should probably exclude the wall and CPU time used by collecting the sample.
         let interrupt_count = interrupt_count as i64;
-        let result = self.collect_stack_sample_timed(execute_data);
+        // SAFETY: upheld by this function's caller.
+        let result = unsafe { self.collect_stack_sample_timed(execute_data, globals) };
         match result {
             Ok(frames) => {
                 let depth = frames.len();
@@ -1224,18 +1240,21 @@ impl Profiler {
     /// cancellation when freed.
     ///
     /// # Safety
+    /// `globals` must point to initialized module globals for the current PHP thread.
     /// `execute_data` must be null or a valid pointer provided by the engine.
     /// The profiler walks the execution frames reachable through it.
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
     pub unsafe fn collect_allocations(
         &self,
         execute_data: *mut zend_execute_data,
+        globals: *mut ProfilerGlobals,
         ptr: *mut std::ffi::c_void,
         alloc_samples: i64,
         alloc_size: i64,
         interrupt_count: Option<u32>,
     ) {
-        let result = self.collect_stack_sample_timed(execute_data);
+        // SAFETY: upheld by this function's caller.
+        let result = unsafe { self.collect_stack_sample_timed(execute_data, globals) };
         match result {
             Ok(frames) => {
                 let depth = frames.len();
@@ -1316,7 +1335,10 @@ impl Profiler {
         exception: String,
         message: Option<String>,
     ) {
-        let result = self.collect_stack_sample_timed(execute_data);
+        // SAFETY: exception hooks run while the current PHP thread's globals are initialized.
+        let globals = unsafe { module_globals::get_profiler_globals() };
+        // SAFETY: `globals` points to the current PHP thread's initialized globals.
+        let result = unsafe { self.collect_stack_sample_timed(execute_data, globals) };
         match result {
             Ok(frames) => {
                 let depth = frames.len();
@@ -1747,7 +1769,10 @@ impl Profiler {
     where
         F: FnOnce(&mut SampleValues),
     {
-        let result = self.collect_stack_sample_timed(execute_data);
+        // SAFETY: I/O hooks run while the current PHP thread's globals are initialized.
+        let globals = unsafe { module_globals::get_profiler_globals() };
+        // SAFETY: `globals` points to the current PHP thread's initialized globals.
+        let result = unsafe { self.collect_stack_sample_timed(execute_data, globals) };
         match result {
             Ok(frames) => {
                 let depth = frames.len();
