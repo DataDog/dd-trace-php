@@ -32,7 +32,8 @@ include:
     GIT_SUBMODULE_STRATEGY: none
     # dd-trace-php's fabric-proxy 403s NodeSource/npm/dot.net; JS/Java SAs allow
     # them. Bypass the proxy for the hosts run.sh needs (CIEXE-714 annotation).
-    KUBERNETES_POD_ANNOTATIONS_NODESOURCE: "beta.fabric.datadoghq.com/no-proxy-additions=deb.nodesource.com,registry.npmjs.org,dot.net"
+    # dot.net 301s to builds.dotnet.microsoft.com; the install script also uses aka.ms.
+    KUBERNETES_POD_ANNOTATIONS_NODESOURCE: "beta.fabric.datadoghq.com/no-proxy-additions=deb.nodesource.com,registry.npmjs.org,dot.net,builds.dotnet.microsoft.com,aka.ms"
 
 generate-templates:
   stage: build
