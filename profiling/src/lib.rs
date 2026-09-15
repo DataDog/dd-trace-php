@@ -41,7 +41,7 @@ use core::ptr;
 use libdd_common::cstr;
 use log::{debug, error, info, trace, warn};
 use profile_tags::{ProfileTagSegment, UnifiedServiceTagSegment};
-use profiler::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
+use profiler::{LocalRootSpanResourceMessage, ProfileIndex, Profiler, VmInterrupt};
 use rand::Rng;
 use sapi::Sapi;
 use std::borrow::Cow;
@@ -438,6 +438,7 @@ pub struct RequestLocals {
     pub(crate) unified_service_tags: Arc<UnifiedServiceTagSegment>,
     pub(crate) git_tags: Option<Arc<ProfileTagSegment>>,
     pub(crate) custom_tags: Option<Arc<ProfileTagSegment>>,
+    pub(crate) profile_index: Option<Arc<ProfileIndex>>,
 
     /// SystemSettings are global. Note that if this is being read in fringe
     /// conditions such as in mshutdown when there were no requests served,
@@ -468,6 +469,7 @@ impl Default for RequestLocals {
             unified_service_tags: Arc::default(),
             git_tags: None,
             custom_tags: None,
+            profile_index: None,
             system_settings: SystemSettings::get(),
             profiling_experimental_heap_live_enabled: false,
             vm_interrupt_addr: ptr::null_mut(),
@@ -752,6 +754,9 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     });
 
     Profiler::init(system_settings);
+    if let Some(profiler) = Profiler::get() {
+        profiler.cache_profile_index();
+    }
 
     if system_settings.profiling_enabled {
         // Not logging, rinit could be quite spammy.
