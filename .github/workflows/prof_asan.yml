@@ -62,7 +62,7 @@ jobs:
           export DDTRACE_PROFILING_TARGET="$(uname -m)-unknown-linux-gnu"
           export DDTRACE_PROFILING_CARGO_BUILD_FLAGS='-Zbuild-std=std,panic_abort'
           phpize
-          ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling --disable-ddtrace-rust-debug
+          DDTRACE_PROFILING_FEATURES="debug_stats,test,tracing,tracing-subscriber,trigger_time_sample" ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling --disable-ddtrace-rust-debug
           make -j"$(nproc)"
           cp -v modules/datadog-profiling.so "$(php-config --extension-dir)/datadog-profiling.so"
 
@@ -128,7 +128,7 @@ jobs:
           export RUSTC_LINKER=clang-20
           export RUSTFLAGS='-C link-arg=-fsanitize=undefined,local-bounds -C link-arg=-fno-sanitize-recover=all'
           phpize
-          ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling
+          DDTRACE_PROFILING_FEATURES="debug_stats,test,tracing,tracing-subscriber,trigger_time_sample" ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling
           make -j"$(nproc)"
           cp -v modules/datadog-profiling.so "$(php-config --extension-dir)/datadog-profiling.so"
 
