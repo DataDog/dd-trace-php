@@ -576,6 +576,7 @@ fn apple_linker_flags() {
         "_zend_alter_ini_entry_ex",
         "_zend_ce_throwable",
         "_zend_call_function",
+        "_zend_call_stack_init",
         "_zend_compile_file",
         "_zend_compile_string",
         "_zend_empty_string",

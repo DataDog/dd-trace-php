@@ -744,7 +744,22 @@ typedef struct {
 
 static void* native_thread_callback_func(void* arg) {
     native_thread_callback *callback = (native_thread_callback *)arg;
+
+#ifdef ZEND_CHECK_STACK_LIMIT
+    zend_call_stack original_call_stack = EG(call_stack);
+    void *original_stack_base = EG(stack_base);
+    void *original_stack_limit = EG(stack_limit);
+    zend_call_stack_init();
+#endif
+
     callback->result = zend_call_function(&callback->fci, &callback->fcc);
+
+#ifdef ZEND_CHECK_STACK_LIMIT
+    EG(call_stack) = original_call_stack;
+    EG(stack_base) = original_stack_base;
+    EG(stack_limit) = original_stack_limit;
+#endif
+
     return NULL;
 }
 
