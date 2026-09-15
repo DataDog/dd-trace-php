@@ -52,10 +52,7 @@ use std::sync::{Arc, Barrier, OnceLock};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-#[cfg(all(
-    any(target_os = "linux", target_os = "macos"),
-    feature = "io_profiling"
-))]
+#[cfg(feature = "io_profiling")]
 use crate::profiling::io::{
     FILE_READ_SIZE_PROFILING_INTERVAL, FILE_READ_TIME_PROFILING_INTERVAL,
     FILE_WRITE_SIZE_PROFILING_INTERVAL, FILE_WRITE_TIME_PROFILING_INTERVAL,
@@ -143,6 +140,8 @@ pub struct SampleValues {
 }
 
 const TIME_PROFILING_NOMINAL_PERIOD: Duration = Duration::from_millis(10);
+#[cfg(target_os = "macos")]
+const LOCAL_WALL_TIME_PERIOD: Duration = Duration::from_millis(10);
 
 #[derive(Debug, Clone)]
 struct WallTime {
@@ -328,6 +327,8 @@ pub struct Profiler {
 
 struct TimeCollector {
     fork_barrier: Arc<Barrier>,
+    #[cfg(target_os = "macos")]
+    interrupt_manager: Arc<InterruptManager>,
     message_receiver: Receiver<ProfilerMessage>,
     upload_sender: Sender<UploadMessage>,
     upload_period: Duration,
@@ -341,6 +342,45 @@ struct TimeCollector {
 }
 
 impl TimeCollector {
+    fn handle_profiler_message(
+        &self,
+        result: Result<ProfilerMessage, crossbeam_channel::RecvError>,
+        profiles: &mut HashMap<Arc<ProfileIndex>, InternalProfile>,
+        last_wall_export: &mut WallTime,
+        last_cpu: &mut Option<ThreadTime>,
+    ) -> bool {
+        match result {
+            Ok(message) => match message {
+                ProfilerMessage::Sample(sample) => {
+                    Self::handle_sample_message(sample, profiles, last_wall_export)
+                }
+                ProfilerMessage::LocalRootSpanResource(message) => {
+                    Self::handle_resource_message(message, profiles)
+                }
+                ProfilerMessage::Cancel => {
+                    // Flush what we have before exiting.
+                    update_cpu_time_counter(last_cpu, &DDPROF_TIME_CPU_TIME_NS);
+                    *last_wall_export = self.handle_timeout(profiles, last_wall_export);
+                    return false;
+                }
+                ProfilerMessage::Pause => {
+                    // First, wait for every thread to finish what they are currently doing.
+                    self.fork_barrier.wait();
+                    // Then, wait for the fork to be completed.
+                    self.fork_barrier.wait();
+                }
+                // The purpose is to wake up and sync the state of the interrupt manager.
+                ProfilerMessage::Wake => {}
+            },
+            Err(_) => {
+                // The channel is empty and disconnected, so end the thread.
+                return false;
+            }
+        }
+
+        true
+    }
+
     /// Collects batched heap-live samples from the tracker and adds them to profiles.
     /// This should be called before exporting profiles to ensure heap-live data is included.
     fn collect_batched_heap_live_samples(
@@ -454,10 +494,7 @@ impl TimeCollector {
         );
 
         // check if we have the IO sample types
-        #[cfg(all(
-            any(target_os = "linux", target_os = "macos"),
-            feature = "io_profiling"
-        ))]
+        #[cfg(feature = "io_profiling")]
         let (
             socket_read_time_offset,
             socket_read_time_samples_offset,
@@ -555,10 +592,7 @@ impl TimeCollector {
             }
         }
 
-        #[cfg(all(
-            any(target_os = "linux", target_os = "macos"),
-            feature = "io_profiling"
-        ))]
+        #[cfg(feature = "io_profiling")]
         {
             let add_io_upscaling_rule =
                 |profile: &mut InternalProfile,
@@ -761,47 +795,60 @@ impl TimeCollector {
             UPLOAD_PERIOD.as_secs()
         );
 
+        #[cfg(target_os = "macos")]
+        let wall_timer = crossbeam_channel::tick(LOCAL_WALL_TIME_PERIOD);
+        #[cfg(target_os = "macos")]
+        let never = crossbeam_channel::never();
         let upload_tick = crossbeam_channel::tick(self.upload_period);
         let mut running = true;
         let mut last_cpu = ThreadTime::try_now().ok();
 
         while running {
-            crossbeam_channel::select! {
+            #[cfg(target_os = "macos")]
+            {
+                // Do not service the timer while no PHP request threads are registered.
+                let timer = if self.interrupt_manager.has_interrupts() {
+                    &wall_timer
+                } else {
+                    &never
+                };
 
-                recv(self.message_receiver) -> result => {
-                    match result {
-                        Ok(message) => match message {
-                            ProfilerMessage::Sample(sample) =>
-                                Self::handle_sample_message(sample, &mut profiles, &last_wall_export),
-                            ProfilerMessage::LocalRootSpanResource(message) =>
-                                Self::handle_resource_message(message, &mut profiles),
-                            ProfilerMessage::Cancel => {
-                                // flush what we have before exiting
-                                update_cpu_time_counter(&mut last_cpu, &DDPROF_TIME_CPU_TIME_NS);
-                                last_wall_export = self.handle_timeout(&mut profiles, &last_wall_export);
-                                running = false;
-                            },
-                            ProfilerMessage::Pause => {
-                                // First, wait for every thread to finish what
-                                // they are currently doing.
-                                self.fork_barrier.wait();
-                                // Then, wait for the fork to be completed.
-                                self.fork_barrier.wait();
-                            },
-                            // The purpose is to wake up and sync the state of
-                            // the interrupt manager.
-                            ProfilerMessage::Wake => {}
+                crossbeam_channel::select! {
+                    recv(self.message_receiver) -> result => {
+                        running = self.handle_profiler_message(
+                            result,
+                            &mut profiles,
+                            &mut last_wall_export,
+                            &mut last_cpu,
+                        );
+                    },
+
+                    recv(timer) -> message => match message {
+                        Ok(_) => self.interrupt_manager.trigger_time_interrupts(),
+                        Err(err) => {
+                            warn!("{err}");
+                            running = false;
                         },
+                    },
 
-                        Err(_) => {
-                            /* Docs say:
-                             * > A message could not be received because the
-                             * > channel is empty and disconnected.
-                             * If this happens, let's just break and end.
-                             */
-                            break;
+                    recv(upload_tick) -> message => {
+                        if message.is_ok() {
+                            update_cpu_time_counter(&mut last_cpu, &DDPROF_TIME_CPU_TIME_NS);
+                            last_wall_export = self.handle_timeout(&mut profiles, &last_wall_export);
                         }
-                    }
+                    },
+                }
+            }
+
+            #[cfg(not(target_os = "macos"))]
+            crossbeam_channel::select! {
+                recv(self.message_receiver) -> result => {
+                    running = self.handle_profiler_message(
+                        result,
+                        &mut profiles,
+                        &mut last_wall_export,
+                        &mut last_cpu,
+                    );
                 },
 
                 recv(upload_tick) -> message => {
@@ -864,6 +911,8 @@ impl Profiler {
         let sample_types_filter = SampleTypeFilter::new(system_settings);
         let time_collector = TimeCollector {
             fork_barrier: fork_barrier.clone(),
+            #[cfg(target_os = "macos")]
+            interrupt_manager: interrupt_manager.clone(),
             message_receiver,
             upload_sender: upload_sender.clone(),
             upload_period: UPLOAD_PERIOD,
@@ -1673,10 +1722,7 @@ impl Profiler {
         }
     }
 
-    #[cfg(all(
-        feature = "io_profiling",
-        any(target_os = "linux", target_os = "macos")
-    ))]
+    #[cfg(feature = "io_profiling")]
     pub fn collect_socket_read_time(&self, ed: *mut zend_execute_data, socket_io_read_time: i64) {
         self.collect_io(ed, |vals| {
             vals.socket_read_time = socket_io_read_time;
@@ -1684,10 +1730,7 @@ impl Profiler {
         })
     }
 
-    #[cfg(all(
-        feature = "io_profiling",
-        any(target_os = "linux", target_os = "macos")
-    ))]
+    #[cfg(feature = "io_profiling")]
     pub fn collect_socket_write_time(&self, ed: *mut zend_execute_data, socket_io_write_time: i64) {
         self.collect_io(ed, |vals| {
             vals.socket_write_time = socket_io_write_time;
@@ -1695,10 +1738,7 @@ impl Profiler {
         })
     }
 
-    #[cfg(all(
-        feature = "io_profiling",
-        any(target_os = "linux", target_os = "macos")
-    ))]
+    #[cfg(feature = "io_profiling")]
     pub fn collect_file_read_time(&self, ed: *mut zend_execute_data, file_io_read_time: i64) {
         self.collect_io(ed, |vals| {
             vals.file_io_read_time = file_io_read_time;
@@ -1706,10 +1746,7 @@ impl Profiler {
         })
     }
 
-    #[cfg(all(
-        feature = "io_profiling",
-        any(target_os = "linux", target_os = "macos")
-    ))]
+    #[cfg(feature = "io_profiling")]
     pub fn collect_file_write_time(&self, ed: *mut zend_execute_data, file_io_write_time: i64) {
         self.collect_io(ed, |vals| {
             vals.file_io_write_time = file_io_write_time;
@@ -1717,10 +1754,7 @@ impl Profiler {
         })
     }
 
-    #[cfg(all(
-        feature = "io_profiling",
-        any(target_os = "linux", target_os = "macos")
-    ))]
+    #[cfg(feature = "io_profiling")]
     pub fn collect_socket_read_size(&self, ed: *mut zend_execute_data, socket_io_read_size: i64) {
         self.collect_io(ed, |vals| {
             vals.socket_read_size = socket_io_read_size;
@@ -1728,10 +1762,7 @@ impl Profiler {
         })
     }
 
-    #[cfg(all(
-        feature = "io_profiling",
-        any(target_os = "linux", target_os = "macos")
-    ))]
+    #[cfg(feature = "io_profiling")]
     pub fn collect_socket_write_size(&self, ed: *mut zend_execute_data, socket_io_write_size: i64) {
         self.collect_io(ed, |vals| {
             vals.socket_write_size = socket_io_write_size;
@@ -1739,10 +1770,7 @@ impl Profiler {
         })
     }
 
-    #[cfg(all(
-        feature = "io_profiling",
-        any(target_os = "linux", target_os = "macos")
-    ))]
+    #[cfg(feature = "io_profiling")]
     pub fn collect_file_read_size(&self, ed: *mut zend_execute_data, file_io_read_size: i64) {
         self.collect_io(ed, |vals| {
             vals.file_io_read_size = file_io_read_size;
@@ -1750,10 +1778,7 @@ impl Profiler {
         })
     }
 
-    #[cfg(all(
-        feature = "io_profiling",
-        any(target_os = "linux", target_os = "macos")
-    ))]
+    #[cfg(feature = "io_profiling")]
     pub fn collect_file_write_size(&self, ed: *mut zend_execute_data, file_io_write_size: i64) {
         self.collect_io(ed, |vals| {
             vals.file_io_write_size = file_io_write_size;
@@ -1761,10 +1786,7 @@ impl Profiler {
         })
     }
 
-    #[cfg(all(
-        feature = "io_profiling",
-        any(target_os = "linux", target_os = "macos")
-    ))]
+    #[cfg(feature = "io_profiling")]
     pub fn collect_io<F>(&self, execute_data: *mut zend_execute_data, set_value: F)
     where
         F: FnOnce(&mut SampleValues),
@@ -2042,7 +2064,7 @@ mod tests {
 
     #[test]
     #[cfg(not(miri))]
-    fn profiler_prepare_sample_message_filters_unsupported_cpu_time() {
+    fn profiler_prepare_sample_message_filters_cpu_time() {
         let frames = get_frames();
         let samples = get_samples();
         let mut settings = get_system_settings();
@@ -2055,27 +2077,14 @@ mod tests {
 
         let message: SampleMessage = profiler.prepare_sample_message(frames, samples, labels, 900);
 
-        let (expected_types, expected_values) = if cfg!(target_os = "linux") {
-            (
-                vec![
-                    ValueType::new("wall-samples", "count"),
-                    ValueType::new("wall-time", "nanoseconds"),
-                    ValueType::new("cpu-samples", "count"),
-                    ValueType::new("cpu-time", "nanoseconds"),
-                    ValueType::new("timeline", "nanoseconds"),
-                ],
-                vec![10, 20, 30, 31, 60],
-            )
-        } else {
-            (
-                vec![
-                    ValueType::new("wall-samples", "count"),
-                    ValueType::new("wall-time", "nanoseconds"),
-                    ValueType::new("timeline", "nanoseconds"),
-                ],
-                vec![10, 20, 60],
-            )
-        };
+        let expected_types = vec![
+            ValueType::new("wall-samples", "count"),
+            ValueType::new("wall-time", "nanoseconds"),
+            ValueType::new("cpu-samples", "count"),
+            ValueType::new("cpu-time", "nanoseconds"),
+            ValueType::new("timeline", "nanoseconds"),
+        ];
+        let expected_values = vec![10, 20, 30, 31, 60];
         assert_eq!(message.key.sample_types, expected_types);
         assert_eq!(message.value.sample_values, expected_values);
         assert_eq!(message.value.timestamp, 900);

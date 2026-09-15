@@ -18,10 +18,7 @@ mod string_set;
 #[macro_use]
 mod allocation;
 
-#[cfg(all(
-    feature = "io_profiling",
-    any(target_os = "linux", target_os = "macos")
-))]
+#[cfg(feature = "io_profiling")]
 mod io;
 
 mod exception;
@@ -29,7 +26,7 @@ mod exception;
 mod timeline;
 mod vec_ext;
 
-use crate::profiling::config::{SystemSettings, CPU_TIME_PROFILING_SUPPORTED};
+use crate::profiling::config::SystemSettings;
 use crate::profiling::zend::datadog_sapi_globals_request_info;
 use bindings::{
     self as zend, ddog_php_prof_php_version, ddog_php_prof_php_version_id, ZendExtension,
@@ -90,10 +87,7 @@ static PROFILER_VERSION_STR: &str = const {
 /// compile-time. Its value is overwritten during minit.
 static RUNTIME_PHP_VERSION_ID: AtomicU32 = AtomicU32::new(zend::PHP_VERSION_ID);
 
-#[cfg(all(
-    feature = "io_profiling",
-    any(target_os = "linux", target_os = "macos")
-))]
+#[cfg(feature = "io_profiling")]
 static IO_HOOKS_SAFE_TO_UNLOAD: AtomicBool = AtomicBool::new(true);
 
 /// Version str of PHP at run-time, not the version it was built against at
@@ -658,10 +652,7 @@ pub extern "C" fn ddog_php_prof_rinit(_type: c_int, _module_number: c_int) -> Ze
 
         exception::exception_profiling_first_rinit();
 
-        #[cfg(all(
-            feature = "io_profiling",
-            any(target_os = "linux", target_os = "macos")
-        ))]
+        #[cfg(feature = "io_profiling")]
         io::io_prof_first_rinit();
 
         allocation::first_rinit(system_settings);
@@ -672,8 +663,7 @@ pub extern "C" fn ddog_php_prof_rinit(_type: c_int, _module_number: c_int) -> Ze
     if system_settings.profiling_enabled {
         // Not logging, rinit could be quite spammy.
         _ = REQUEST_LOCALS.try_with_borrow(|locals| {
-            let cpu_time_enabled = CPU_TIME_PROFILING_SUPPORTED
-                && system_settings.profiling_experimental_cpu_time_enabled;
+            let cpu_time_enabled = system_settings.profiling_experimental_cpu_time_enabled;
             let wall_time_enabled = system_settings.profiling_wall_time_enabled;
             CLOCKS.with_borrow_mut(|clocks| clocks.initialize(cpu_time_enabled));
 
@@ -686,6 +676,11 @@ pub extern "C" fn ddog_php_prof_rinit(_type: c_int, _module_number: c_int) -> Ze
                 // SAFETY: PHP module globals are initialized for this request thread.
                 let globals = unsafe { module_globals::get_profiler_globals() };
                 let interrupt = VmInterrupt {
+                    #[cfg(target_os = "macos")]
+                    // SAFETY: `globals` is valid until this thread's GSHUTDOWN.
+                    wall_sample_pending_ptr: unsafe {
+                        ptr::addr_of!((*globals).wall_sample_pending)
+                    },
                     // SAFETY: `globals` is valid until this thread's GSHUTDOWN.
                     cpu_sample_count_ptr: unsafe { ptr::addr_of!((*globals).cpu_sample_count) },
                     engine_ptr: locals.vm_interrupt_addr,
@@ -731,6 +726,11 @@ pub extern "C" fn ddog_php_prof_rshutdown(_type: c_int, _module_number: c_int) -
                 // SAFETY: PHP module globals remain initialized through RSHUTDOWN.
                 let globals = unsafe { module_globals::get_profiler_globals() };
                 let interrupt = VmInterrupt {
+                    #[cfg(target_os = "macos")]
+                    // SAFETY: `globals` remains valid until this thread's GSHUTDOWN.
+                    wall_sample_pending_ptr: unsafe {
+                        ptr::addr_of!((*globals).wall_sample_pending)
+                    },
                     // SAFETY: `globals` remains valid until this thread's GSHUTDOWN.
                     cpu_sample_count_ptr: unsafe { ptr::addr_of!((*globals).cpu_sample_count) },
                     engine_ptr: locals.vm_interrupt_addr,
@@ -965,10 +965,7 @@ pub extern "C" fn ddog_php_prof_mshutdown(_type: c_int, _module_number: c_int) -
     // SAFETY: calling in mshutdown as required.
     unsafe { Profiler::stop(Duration::from_secs(1)) };
 
-    #[cfg(all(
-        feature = "io_profiling",
-        any(target_os = "linux", target_os = "macos")
-    ))]
+    #[cfg(feature = "io_profiling")]
     if !io::io_prof_mshutdown() {
         IO_HOOKS_SAFE_TO_UNLOAD.store(false, Ordering::Relaxed);
     }
@@ -1027,10 +1024,7 @@ pub extern "C" fn ddog_php_prof_zend_shutdown(extension: *mut ZendExtension) {
         unsafe { (*extension).handle = ptr::null_mut() }
     }
 
-    #[cfg(all(
-        feature = "io_profiling",
-        any(target_os = "linux", target_os = "macos")
-    ))]
+    #[cfg(feature = "io_profiling")]
     if !IO_HOOKS_SAFE_TO_UNLOAD.load(Ordering::Relaxed) {
         error!(
             "I/O hooks could not be fully restored, intentionally leaking the extension's handle to prevent unloading"
@@ -1056,11 +1050,11 @@ pub extern "C" fn ddog_php_prof_is_enabled() -> bool {
 #[no_mangle]
 pub extern "C" fn ddog_php_prof_should_enable_wall_time_sidecar() -> bool {
     // Called after config::first_rinit() by the combined extension lifecycle.
-    #[cfg(unix)]
+    #[cfg(target_os = "linux")]
     unsafe {
         config::profiling_enabled() && config::profiling_wall_time_enabled()
     }
-    #[cfg(not(unix))]
+    #[cfg(not(target_os = "linux"))]
     false
 }
 
@@ -1068,12 +1062,11 @@ pub extern "C" fn ddog_php_prof_should_enable_wall_time_sidecar() -> bool {
 pub extern "C" fn ddog_php_prof_should_enable_cpu_time() -> bool {
     // config::minit() materializes system settings before the combined MINIT
     // calls this; first RINIT refreshes the same settings before later calls.
-    CPU_TIME_PROFILING_SUPPORTED
-        && unsafe {
-            SystemSettings::get()
-                .as_ref()
-                .profiling_experimental_cpu_time_enabled
-        }
+    unsafe {
+        SystemSettings::get()
+            .as_ref()
+            .profiling_experimental_cpu_time_enabled
+    }
 }
 
 #[no_mangle]
