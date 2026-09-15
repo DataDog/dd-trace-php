@@ -178,9 +178,9 @@ trait TracerTestTrait
      * This method executes a request into an ad-hoc web server configured with the provided envs and inis that is
      * created and destroyed with the scope of this test.
      */
-    public function inWebServer($fn, $rootPath, $envs = [], $inis = [], &$curlInfo = null)
+    public function inWebServer($fn, $rootPath, $envs = [], $inis = [], $retryOnEmptyTraces = true, &$curlInfo = null)
     {
-        $retries = 1;
+        $retries = $retryOnEmptyTraces ? 1 : 0;
         do {
             self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT=666666'); // Arbitrarily high value to avoid flakiness
             self::putEnv('DD_TRACE_AGENT_RETRIES=3');
