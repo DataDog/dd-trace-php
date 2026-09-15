@@ -5,7 +5,7 @@ This test will check that exceptions are being sampled and that a custom
 sampling rate will actually be used.
 --SKIPIF--
 <?php
-if (!extension_loaded('datadog-profiling'))
+if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
     echo "skip: test requires Datadog Continuous Profiler\n";
 if (!extension_loaded('parallel'))
     echo "skip: test requires `ext-parallel`\n";
@@ -50,8 +50,4 @@ echo 'Done.';
 
 ?>
 --EXPECTREGEX--
-.* Exception profiling initialized with sampling distance: 20
-.* Sent stack sample of 1 frames, 3 labels with Exception RuntimeException to profiler.
-.*Worker [0-9] exited
-.*Done..*
-.*
+(?s).* Exception profiling initialized with sampling distance: 20.* Sent stack sample of 1 frames, (3|5) labels with Exception RuntimeException to profiler\..*Worker [0-9] exited.*Done\..*

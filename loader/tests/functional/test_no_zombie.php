@@ -5,31 +5,33 @@ skip_if_php5();
 
 $telemetryLogPath = tempnam(sys_get_temp_dir(), 'test_loader_');
 
-// Build the command to run PHP with the loader
+// Build the command to run PHP with the loader. "exec" makes the proc_open PID
+// the PHP PID instead of the intermediate shell PID.
 $cmd = sprintf(
-    'FAKE_FORWARDER_LOG_PATH=%s DD_TELEMETRY_FORWARDER_PATH=%s php -n -dzend_extension=%s -r "sleep(1);"',
+    'exec env FAKE_FORWARDER_LOG_PATH=%s DD_TELEMETRY_FORWARDER_PATH=%s %s -n -dzend_extension=%s -r "sleep(1);"',
     escapeshellarg($telemetryLogPath),
     escapeshellarg(__DIR__.'/../../bin/fake_forwarder.sh'),
+    escapeshellarg(PHP_BINARY),
     escapeshellarg(getLoaderAbsolutePath())
 );
 
+$process = null;
 try {
-    // Start the PHP process in background and get its PID
+    // Do not use pipes here. A telemetry descendant can inherit them and keep
+    // stream_get_contents() waiting for EOF after the PHP process has exited.
     $descriptors = [
-        0 => ['pipe', 'r'],
-        1 => ['pipe', 'w'],
-        2 => ['pipe', 'w'],
+        0 => ['file', '/dev/null', 'r'],
+        1 => ['file', '/dev/null', 'a'],
+        2 => ['file', '/dev/null', 'a'],
     ];
 
-    $process = proc_open($cmd . ' & echo $!', $descriptors, $pipes);
+    $process = proc_open($cmd, $descriptors, $pipes);
     if (!is_resource($process)) {
         throw new \Exception("Failed to start PHP process");
     }
 
-    // Get the real PHP PID from the output
-    $firstLine = fgets($pipes[1]);
-    $phpPid = (int)trim($firstLine);
-
+    $status = proc_get_status($process);
+    $phpPid = (int)$status['pid'];
     if ($phpPid <= 0) {
         throw new \Exception("Failed to get PHP PID");
     }
@@ -38,36 +40,56 @@ try {
         echo "[debug] PHP PID: $phpPid\n";
     }
 
-    // Wait for the telemetry fork to happen and complete
-    usleep(300000); // 300ms
+    // Wait for the telemetry fork to happen and complete.
+    usleep(300000);
 
-    // Check for zombie processes that are children of the PHP process
-    $zombieCheckCmd = sprintf('ps --ppid %d -o pid,state,comm --no-headers 2>/dev/null || echo "NO_CHILDREN"', $phpPid);
-    $zombieOutput = shell_exec($zombieCheckCmd);
-
-    if (debug()) {
-        echo "[debug] Children processes:\n" . $zombieOutput . "\n";
+    $childrenPath = sprintf('/proc/%d/task/%d/children', $phpPid, $phpPid);
+    if (!is_readable($childrenPath)) {
+        throw new \Exception("Unable to inspect child processes for PHP PID $phpPid");
     }
 
-    $zombieCount = substr_count($zombieOutput, ' Z ');
+    $zombies = [];
+    $children = preg_split('/\s+/', trim(file_get_contents($childrenPath)), -1, PREG_SPLIT_NO_EMPTY);
+    foreach ($children as $childPid) {
+        $stat = @file_get_contents('/proc/'.$childPid.'/stat');
+        if ($stat === false) {
+            continue; // The child was reaped while it was being inspected.
+        }
 
-    // Wait for the PHP process to finish
-    $waitCmd = sprintf('wait %d 2>/dev/null; echo $?', $phpPid);
-    $phpExitCode = (int)trim(shell_exec($waitCmd));
+        // /proc/<pid>/stat begins with "pid (comm) state"; comm may contain spaces.
+        $stateOffset = strrpos($stat, ') ');
+        $state = $stateOffset === false ? null : substr($stat, $stateOffset + 2, 1);
+        if ($state === 'Z') {
+            $zombies[] = $childPid;
+        }
+    }
 
-    // Read the remaining output and close pipes
-    $output = stream_get_contents($pipes[1]);
-    $errors = stream_get_contents($pipes[2]);
-    fclose($pipes[0]);
-    fclose($pipes[1]);
-    fclose($pipes[2]);
+    if ($zombies) {
+        throw new \Exception('FAILED: Zombie process detected after telemetry fork: '.implode(', ', $zombies));
+    }
+
+    // Bound the test independently of inherited descriptors or descendants.
+    $deadline = microtime(true) + 5;
+    do {
+        $status = proc_get_status($process);
+        if (!$status['running']) {
+            break;
+        }
+        usleep(10000);
+    } while (microtime(true) < $deadline);
+
+    if ($status['running']) {
+        proc_terminate($process);
+        throw new \Exception("PHP process did not exit within 5 seconds");
+    }
+
     proc_close($process);
-
-    if ($zombieCount > 0) {
-        throw new \Exception("FAILED: Zombie process detected after telemetry fork! Found $zombieCount zombie(s)");
-    }
-
+    $process = null;
     echo "OK: No zombie processes detected\n";
 } finally {
+    if (is_resource($process)) {
+        proc_terminate($process);
+        proc_close($process);
+    }
     @unlink($telemetryLogPath);
 }

@@ -8,11 +8,11 @@ file.
 
 | CI Job | Image | What it does |
 |--------|-------|-------------|
-| `test appsec extension: [{ver}, {arch}, debug]` | `datadog/dd-trace-ci:php-{ver}_bookworm-6` | Builds appsec PHP extension + runs phpunit `.phpt` tests |
+| `test appsec extension: [{ver}, {arch}, debug]` | `datadog/dd-trace-ci:php-{ver}_bookworm-10` | Builds appsec PHP extension + runs phpunit `.phpt` tests |
 | `test appsec extension: [{ver}, {arch}, debug-zts]` | same | ZTS variant |
 | `test appsec extension: [{ver}, {arch}, debug-zts-asan]` | same | ASAN variant (PHP 7.4+) |
-| `appsec lint` | `datadog/dd-trace-ci:php-8.3_bookworm-6` | clang-format + clang-tidy |
-| `appsec code coverage` | `datadog/dd-trace-ci:php-8.3_bookworm-6` | Coverage instrumented build (not needed locally) |
+| `appsec lint` | `datadog/dd-trace-ci:php-8.3_bookworm-10` | clang-format + clang-tidy |
+| `appsec code coverage` | `datadog/dd-trace-ci:php-8.3_bookworm-10` | Coverage instrumented build (not needed locally) |
 
 Runner: `arch:amd64` + `arch:arm64`
 Matrix: PHP 7.0+ × {debug, debug-zts, debug-zts-asan (7.4+)}
@@ -24,7 +24,7 @@ Docker option between the image name and `--`:
 
 ```bash
 .claude/ci/dockerh --cache appsec-ext-8.3-debug-arm64 --overlayfs --php debug \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 --platform linux/arm64 -- bash -c '...'
+  datadog/dd-trace-ci:php-8.3_bookworm-10 --platform linux/arm64 -- bash -c '...'
 ```
 
 ## Why `--overlayfs` is needed
@@ -42,7 +42,7 @@ All commands are run from the repo root. Replace `8.3` with the desired PHP vers
 
 ```bash
 .claude/ci/dockerh --cache appsec-ext-8.3-debug --overlayfs --php debug \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-10 -- bash -c '
 set -e
 sudo apt-get update -qq && sudo apt-get install -y -qq \
   libc++-17-dev libc++abi-17-dev > /dev/null 2>&1
@@ -89,7 +89,7 @@ to save ~10 seconds:
 
 ```bash
 .claude/ci/dockerh --cache appsec-ext-8.3-debug --overlayfs --php debug \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-10 -- bash -c '
 sudo apt-get update -qq && sudo apt-get install -y -qq \
   libc++-17-dev libc++abi-17-dev > /dev/null 2>&1
 cd appsec/build

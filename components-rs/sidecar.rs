@@ -33,12 +33,27 @@ fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
     {
         cfg.spawn_without_trampoline = true;
     }
+    // ddtrace-sidecar's custom entrypoint only exists to register the AppSec
+    // backend linked into the PHP extension; the standalone profiler has no
+    // AppSec backend to register, so it connects the plain daemon entrypoint.
+    #[cfg(feature = "tracer")]
+    {
+        ddtrace_sidecar::start_or_connect_to_sidecar(cfg)
+    }
+    #[cfg(not(feature = "tracer"))]
+    {
+        datadog_sidecar::start_or_connect_to_sidecar(cfg)
+    }
+}
+
+#[cfg(all(not(any(windows, php_shared_build)), feature = "tracer"))]
+fn run_sidecar(cfg: config::Config) -> anyhow::Result<SidecarTransport> {
     ddtrace_sidecar::start_or_connect_to_sidecar(cfg)
 }
 
-#[cfg(not(any(windows, php_shared_build)))]
+#[cfg(all(not(any(windows, php_shared_build)), not(feature = "tracer")))]
 fn run_sidecar(cfg: config::Config) -> anyhow::Result<SidecarTransport> {
-    ddtrace_sidecar::start_or_connect_to_sidecar(cfg)
+    datadog_sidecar::start_or_connect_to_sidecar(cfg)
 }
 
 #[no_mangle]
@@ -154,7 +169,7 @@ pub extern "C" fn ddog_sidecar_enable_appsec(log_file_path: CharSlice, log_level
 /// registered in the listener's process.
 #[no_mangle]
 pub extern "C" fn ddog_sidecar_connect_master_php(pid: i32) -> MaybeError {
-    #[cfg(unix)]
+    #[cfg(all(unix, feature = "tracer"))]
     ddtrace_sidecar::register_appsec_backend();
 
     datadog_sidecar_ffi::ddog_sidecar_connect_master(pid)
