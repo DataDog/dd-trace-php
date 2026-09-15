@@ -254,13 +254,39 @@ impl Hash for ProfileIndex {
 }
 
 #[derive(Debug)]
+pub enum MaybeShared<T> {
+    Owned(T),
+    Shared(Arc<T>),
+}
+
+impl<T> Deref for MaybeShared<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Owned(value) => value,
+            Self::Shared(value) => value,
+        }
+    }
+}
+
+impl<T: Default> MaybeShared<T> {
+    fn share(&mut self) -> Arc<T> {
+        match self {
+            Self::Owned(value) => {
+                let shared = Arc::new(std::mem::take(value));
+                *self = Self::Shared(Arc::clone(&shared));
+                shared
+            }
+            Self::Shared(value) => Arc::clone(value),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct SampleData {
-    /// Wrapped in Arc so a single allocation can be shared between the
-    /// in-flight sample message and the heap-live tracker (and re-shared
-    /// across batched heap-live emissions on each export).
-    pub frames: Arc<Backtrace>,
-    /// See `frames`.
-    pub labels: Arc<Vec<Label>>,
+    pub frames: MaybeShared<Backtrace>,
+    pub labels: MaybeShared<Vec<Label>>,
     pub sample_values: Vec<i64>,
     pub timestamp: i64,
 }
@@ -394,8 +420,8 @@ impl TimeCollector {
             let message = SampleMessage {
                 key: Arc::clone(&tracked.key),
                 value: SampleData {
-                    frames: Arc::clone(&tracked.frames),
-                    labels: Arc::clone(&tracked.labels),
+                    frames: MaybeShared::Shared(Arc::clone(&tracked.frames)),
+                    labels: MaybeShared::Shared(Arc::clone(&tracked.labels)),
                     sample_values,
                     timestamp: NO_TIMESTAMP,
                 },
@@ -1321,7 +1347,8 @@ impl Profiler {
                     ..Default::default()
                 };
 
-                let message = self.prepare_sample_message(frames, sample_values, labels, timestamp);
+                let mut message =
+                    self.prepare_sample_message(frames, sample_values, labels, timestamp);
 
                 // Pre-clone Arcs before try_send consumes `message`, but only
                 // insert into the tracker after a successful send to avoid
@@ -1329,8 +1356,8 @@ impl Profiler {
                 let tracked = if self.is_heap_live_enabled() && !ptr.is_null() {
                     Some(LiveHeapSample {
                         key: Arc::clone(&message.key),
-                        frames: Arc::clone(&message.value.frames),
-                        labels: Arc::clone(&message.value.labels),
+                        frames: message.value.frames.share(),
+                        labels: message.value.labels.share(),
                         allocation_size: alloc_size,
                     })
                 } else {
@@ -1995,8 +2022,8 @@ impl Profiler {
         SampleMessage {
             key,
             value: SampleData {
-                frames: Arc::new(frames),
-                labels: Arc::new(labels.labels),
+                frames: MaybeShared::Owned(frames),
+                labels: MaybeShared::Owned(labels.labels),
                 sample_values,
                 timestamp,
             },
@@ -2098,6 +2125,15 @@ mod tests {
         let mut profiles = FxHashMap::default();
         profiles.insert(first, 42);
         assert_eq!(profiles.get(&second), Some(&42));
+    }
+
+    #[test]
+    fn owned_payload_can_be_shared() {
+        let mut payload = MaybeShared::Owned(vec![42]);
+        let shared = payload.share();
+        assert_eq!(payload.as_slice(), [42]);
+        assert_eq!(shared.as_slice(), [42]);
+        assert!(matches!(payload, MaybeShared::Shared(_)));
     }
 
     #[test]
