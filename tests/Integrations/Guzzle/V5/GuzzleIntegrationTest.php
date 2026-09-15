@@ -46,7 +46,6 @@ class GuzzleIntegrationTest extends IntegrationTestCase
     {
         return [
             'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
-            'DD_CURL_ANALYTICS_ENABLED',
             'DD_DISTRIBUTED_TRACING',
             'DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN',
             'DD_TRACE_MEMORY_LIMIT',

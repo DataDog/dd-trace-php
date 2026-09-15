@@ -55,23 +55,23 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
         "resource": "GET \/foo",
         "service": "aws-server",
         "type": "web",
-        "meta": {
-            "_dd.origin": "rum",
-            "_dd.p.usr.id": "12345",
-            "_dd.parent_id": "00000000000000bb",
-            "env": "local-prod",
-            "http.method": "GET",
-            "http.status_code": "200",
-            "http.url": "http:\/\/localhost:8888\/foo",
+        "env": "local-prod",
+        "version": "1.0",
+        "span_kind": 2,
+        "sampling_priority": 1,
+        "sampling_mechanism": 4,
+        "origin": "rum",
+        "attributes": {
             "runtime-id": "%s",
-            "span.kind": "server",
-            "version": "1.0"
-        },
-        "metrics": {
+            "http.url": "http:\/\/localhost:8888\/foo",
+            "http.method": "GET",
+            "_dd.parent_id": "00000000000000bb",
+            "_dd.p.usr.id": "12345",
+            "http.status_code": "200",
+            "process_id": %d,
             "php.compilation.total_time_ms": %f,
-            "php.memory.peak_real_usage_bytes": %d,
             "php.memory.peak_usage_bytes": %d,
-            "process_id": %d
+            "php.memory.peak_real_usage_bytes": %d
         }
     },
     {
@@ -84,23 +84,21 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
         "resource": "GET \/test",
         "service": "example.com",
         "type": "web",
-        "meta": {
-            "_dd.origin": "rum",
-            "_dd.p.dm": "-4",
-            "_dd.p.tid": "0",
-            "_dd.p.usr.id": "12345",
-            "_dd.parent_id": "00000000000000bb",
-            "component": "aws-apigateway",
-            "env": "local-prod",
+        "env": "local-prod",
+        "version": "1.0",
+        "component": "aws-apigateway",
+        "span_kind": 1,
+        "sampling_priority": 1,
+        "sampling_mechanism": 4,
+        "origin": "rum",
+        "attributes": {
             "http.method": "GET",
-            "http.status_code": "200",
             "http.url": "example.com\/test",
             "stage": "aws-prod",
-            "version": "1.0"
-        },
-        "metrics": {
-            "_dd.inferred_span": 1,
-            "_sampling_priority_v1": 1
+            "_dd.parent_id": "00000000000000bb",
+            "_dd.p.usr.id": "12345",
+            "http.status_code": "200",
+            "_dd.inferred_span": 1
         }
     }
 ]

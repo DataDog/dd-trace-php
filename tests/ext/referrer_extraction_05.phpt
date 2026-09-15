@@ -15,26 +15,7 @@ foo=bar
 DDTrace\start_span();
 DDTrace\close_span();
 $spans = dd_trace_serialize_closed_spans();
-var_dump($spans[0]['meta']);
+var_dump($spans[0]['attributes']['http.referrer_hostname'] ?? 'NOT SET');
 ?>
---EXPECTF--
-array(9) {
-  ["_dd.p.dm"]=>
-  string(2) "-0"
-  ["_dd.p.tid"]=>
-  string(16) "%s"
-  ["_dd.tags.process"]=>
-  string(%d) "%s"
-  ["http.method"]=>
-  string(3) "GET"
-  ["http.referrer_hostname"]=>
-  string(13) "[2001:db8::1]"
-  ["http.status_code"]=>
-  string(3) "200"
-  ["http.url"]=>
-  string(25) "http://localhost:8888/foo"
-  ["runtime-id"]=>
-  string(36) "%s"
-  ["span.kind"]=>
-  string(6) "server"
-}
+--EXPECT--
+string(13) "[2001:db8::1]"

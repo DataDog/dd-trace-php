@@ -10,6 +10,7 @@ DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS=1
 DD_TRACE_AGENT_FLUSH_INTERVAL=666
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
+DD_TRACE_SIDECAR_TRACE_SENDER=0
 --INI--
 datadog.trace.agent_test_session_token=background-sender/agent_headers
 --FILE--
@@ -39,7 +40,7 @@ echo 'Done.' . PHP_EOL;
 
 ?>
 --EXPECTF--
-[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for http://request-replayer:80
+[ddtrace] [info] [%d] Flushing %d v0.4 trace(s) to send-queue for http://request-replayer:80
 
 content-type: application/msgpack
 datadog-meta-lang: php

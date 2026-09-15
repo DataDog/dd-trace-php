@@ -18,14 +18,6 @@ class CakePHPIntegration extends Integration
     public static $setStatusCodeFn;
     public static $parseRouteFn;
 
-    /**
-     * {@inheritdoc}
-     */
-    public static function requiresExplicitTraceAnalyticsEnabling(): bool
-    {
-        return false;
-    }
-
     public static function init(): int
     {
         self::$setRootSpanInfoFn = static function () {
@@ -35,7 +27,6 @@ class CakePHPIntegration extends Integration
             }
 
             self::$appName = \ddtrace_config_app_name(CakePHPIntegration::NAME);
-            self::addTraceAnalyticsIfEnabled($rootSpan);
             $rootSpan->service = self::$appName;
             Integration::tagFrameworkServiceSource($rootSpan, CakePHPIntegration::NAME);
             if ('cli' === PHP_SAPI) {
