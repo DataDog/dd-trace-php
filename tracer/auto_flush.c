@@ -26,9 +26,8 @@ ZEND_EXTERN_MODULE_GLOBALS(datadog);
 ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles, bool fast_shutdown) {
     bool success = true;
 
-    // Serialization builds the native V1 payload directly into the builder (no v0.4 intermediate).
-    // The sidecar consumes it and negotiates V1-vs-v0.4 with the agent; the in-process (<=8.2)
-    // sender downgrades it to v0.4 bytes at flush time.
+    // Serialization fills the native V1 builder directly (no v0.4 intermediate). The sidecar
+    // negotiates V1-vs-v0.4; the in-process (<=8.2) sender downgrades to v0.4 at flush time.
     ddtrace_v1_ctx v1_ctx = {.builder = ddog_v1_new_builder(), .chunk = DD_V1_CHUNK_NONE};
     ddtrace_v1_ctx *v1 = &v1_ctx;
 
@@ -77,9 +76,8 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                 .buffer_size = get_global_DD_TRACE_BUFFER_SIZE(),
                 .url = (ddog_CharSlice) {.ptr = url, .len = strlen(url)},
             };
-            // The sidecar receives the native V1 payload and negotiates/downgrades with the agent.
-            // lang/tracer_version/container_id come from parameters.tracer_headers_tags in the FFI;
-            // process tags travel as the span meta "_dd.tags.process".
+            // lang/tracer_version/container_id come from parameters.tracer_headers_tags; process
+            // tags travel as the span meta "_dd.tags.process".
             uint8_t formatted_runtime_id[36];
             datadog_format_runtime_id(&formatted_runtime_id);
             ddog_TracerMetadataV1 metadata = {
@@ -98,13 +96,10 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
         }
     } else {
 #ifndef _WIN32
-        // Removable v0.4 bolt-on for the in-process (<=8.2) sender: it downgrades the V1 builder to
-        // the v0.4 collection and sends each trace to /v0.4/traces. The background sender's
-        // array-of-1 framing (comms_php.c mpack_expect_array_match) can't parse a native V1 payload
-        // (a single msgpack MAP), so in-process never uses /v1.0/traces. Deleting this bolt-on +
-        // the endpoint pin reverts to V1-only.
+        // Removable v0.4 bolt-on: the in-process (<=8.2) background sender's array-of-1 framing can't
+        // parse a native V1 payload (one msgpack MAP), so it downgrades to v0.4 traces. Delete to revert.
         ddtrace_coms_set_v1_traces_endpoint(false);
-        // Downgrade consumes v1->builder and returns the decoded v0.4 collection; free it below.
+        // Consumes v1->builder; returns a v0.4 collection to free below.
         ddog_TracesBytes *v04_traces = ddog_downgrade_v1_builder_to_v04_traces(v1->builder);
         size_t trace_count = ddog_get_traces_size(v04_traces);
         for (size_t i = 0; i < trace_count; i++) {

@@ -1,27 +1,16 @@
 <?php
 
 /**
- * Decoder for the v1 (`/v1.0/traces`) msgpack wire format.
+ * Decoder for the v1 (`/v1.0/traces`) msgpack wire, normalizing it back to the v0.4-shaped
+ * `{"chunks":[{"spans":[...]}]}` view the PHPUnit tests read (TracerTestTrait::parseRawDumpedTraces07).
  *
- * The v1 wire (see libdatadog `libdd-trace-utils/src/msgpack_{encoder,decoder}/v1/`) differs from
- * v0.4 in three ways this decoder undoes so the PHPUnit tests keep reading the canonical v0.4-shaped
- * per-span view:
+ * The v1 wire (libdatadog `libdd-trace-utils/src/msgpack_{encoder,decoder}/v1/`) differs from v0.4 in
+ * three ways this decoder undoes:
  *   - Map keys are integer proto field numbers, not strings.
- *   - Strings use a streaming intern table: a value is either an inline msgpack `str` (which also
- *     appends to the table) or a msgpack `uint` index into it (index 0 == empty string).
- *   - Values in the unified `attributes` map are AnyValue-typed: [type_uint8, value] where type is
+ *   - Strings use a streaming intern table: an inline msgpack `str` (also appended to the table) or a
+ *     `uint` index into it (index 0 == empty string).
+ *   - `attributes` values are AnyValue-typed [type_uint8, value]:
  *     String(1)/Bool(2)/Double(3)/Int64(4)/Bytes(5)/Array(6)/KeyValueList(7).
- *
- * It normalizes a v1 payload back to `{"chunks":[{"spans":[ <v0.4 span> ]}]}` (the shape
- * TracerTestTrait::parseRawDumpedTraces07 reads), un-promoting:
- *   - span env/version/component -> meta; span kind (uint) -> meta['span.kind'] (Internal/1 dropped,
- *     matching v0.4 where an unset span.kind produces no meta entry);
- *   - chunk 128-bit trace_id -> per-span trace_id (low 64 bits, decimal) + meta['_dd.p.tid'] (high 64
- *     bits, hex) on the local-root span; chunk origin -> meta['_dd.origin']; chunk sampling_mechanism
- *     -> meta['_dd.p.dm'] (v0.4 "-N" form); chunk sampling_priority -> metrics['_sampling_priority_v1'];
- *   - the unified attributes map back into meta (String), metrics (Int/Double) and meta_struct (Bytes);
- *   - native span_links/span_events back into the meta['_dd.span_links'] / meta['events'] JSON strings
- *     the v0.4 wire carried.
  */
 class V1TraceDecoder
 {

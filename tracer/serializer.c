@@ -923,13 +923,8 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
     zend_hash_str_add_new(metrics, ZEND_STRL("process_id"), &pid);
 }
 
-// --- Span finalization sink (native V1) ---
-// Every field/meta/metrics write routes through a dd_span_sink into the native V1 builder chunk/span.
-// Promoted keys (env/version/component/span.kind, _dd.origin/_dd.p.dm/_sampling_priority_v1, and the
-// dropped _dd.p.tid) are handled up front, so the sink ops below just add plain attributes.
-
-// The four meta-string sink ops with external linkage are used by exception_serialize.c (declared
-// in serializer.h).
+// Span finalization sink: field/meta/metrics writes route through a dd_span_sink into the native V1
+// builder. Promoted keys are handled up front (below); the externally-linked ops serve exception_serialize.c.
 void dd_sink_meta_cs_cs(dd_span_sink *s, ddog_CharSlice key, ddog_CharSlice val) {
     ddog_add_span_attr_cs_cs(s->builder, s->chunk, s->span, key, val);
 }
@@ -997,9 +992,8 @@ void transfer_span_metric(dd_span_sink *src, dd_span_sink *dst, const char *key,
     ddog_transfer_span_attr(src->builder, src->chunk, src->span, dst->span, key, delete_source);
 }
 
-// Adds a string-valued V1 attribute from a zval: scalars string-converted, arrays/objects
-// JSON-encoded (the V1 attribute FFI has no array/object variant, so JSON avoids a lossy "Array"
-// cast). `add_call` is the target FFI (span or link attribute).
+// Adds a string-valued V1 attribute from a zval: arrays/objects are JSON-encoded (the attribute FFI
+// has no array/object variant, so JSON avoids a lossy "Array" cast). `add_call` is the target FFI.
 #define DD_V1_ADD_ZVAL_STR(add_call, val_zv)                                                  \
     do {                                                                                      \
         zval *_v = (val_zv);                                                                  \
@@ -1810,9 +1804,8 @@ dd_span_sink ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtrac
         }
     }
 
-    // Promote span/chunk fields up front, then delete their meta keys so the copy loop carries only
-    // plain attributes. env/version are property-first with a meta fallback: when DD_ENV/DD_VERSION
-    // are unset, DD_TAGS "env"/"version" land in meta, so promoting only the property would drop them.
+    // Promote span/chunk fields up front (meta keys deleted below). env/version are property-first
+    // with a meta fallback: DD_TAGS "env"/"version" land in meta when DD_ENV/DD_VERSION are unset.
     if (pre.env) {
         ddog_set_span_env(sink.builder, sink.chunk, sink.span, dd_zend_string_to_CharSlice(pre.env));
     } else if (meta) {
@@ -2067,7 +2060,6 @@ dd_span_sink ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtrac
     }
     // A dropped inferred span returns the {0} sentinel (builder NULL); skip the transfers then, else
     // dst->span defaults to index 0 (corrupting a real span) and set_error derefs a NULL builder.
-    // (Spans are addressed by stable index, so the recursion doesn't invalidate this sink.)
     if (inferred_sink.builder) {
         transfer_span_metric(&sink, &inferred_sink, "_dd.agent_psr", true);
         transfer_span_metric(&sink, &inferred_sink, "_dd.rule_psr", true);

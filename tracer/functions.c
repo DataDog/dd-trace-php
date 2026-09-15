@@ -1102,10 +1102,8 @@ PHP_FUNCTION(dd_trace_serialize_closed_spans) {
 
     ddtrace_mark_all_span_stacks_flushable();
 
-    // Introspection is a debug view and must be uniformly V1-shaped on ALL PHP versions,
-    // independent of which sender performs the actual wire flush. The native V1 builder is an
-    // in-memory structure and does not require an active sidecar, so we always finalize spans into
-    // it and read them back via the V1 getters. The wire flush stays sender-gated elsewhere.
+    // Introspection is a debug view: always finalize into the in-memory V1 builder (no sidecar
+    // needed) and read it back via the V1 getters, so the shape is uniform across versions/senders.
     ddtrace_v1_ctx v1_ctx = {.builder = ddog_v1_new_builder(), .chunk = DD_V1_CHUNK_NONE};
     ddtrace_v1_ctx *v1 = &v1_ctx;
 

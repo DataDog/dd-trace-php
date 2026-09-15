@@ -107,9 +107,8 @@ void ddtrace_precompute_span(ddtrace_span_data *span, ddtrace_span_precomputed *
         pre->type = datadog_convert_to_str(prop_type);
     }
 
-    // Env: property first, then meta["env"] fallback, matching the serializer's promotion
-    // (serializer.c). DD_TAGS "env" lands in meta when DD_ENV is unset, so without the fallback
-    // stats would bucket by empty env while traces carry it.
+    // Env: property first, then meta["env"] fallback (matching serializer.c promotion). Without the
+    // fallback, DD_TAGS "env" in meta (DD_ENV unset) would bucket stats by empty env vs the trace's.
     pre->env = NULL;
     zval *prop_env = &span->property_env;
     ZVAL_DEREF(prop_env);
