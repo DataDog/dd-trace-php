@@ -746,6 +746,13 @@ static void* native_thread_callback_func(void* arg) {
     native_thread_callback *callback = (native_thread_callback *)arg;
 
 #ifdef ZEND_CHECK_STACK_LIMIT
+    /*
+     * NTS executor globals are process-global, so this pthread inherits stack
+     * bounds initialized for the main thread. PHP would compare this thread's
+     * stack pointer against those bounds and report an immediate overflow.
+     * The main thread is blocked in pthread_join(), so temporarily replacing
+     * the bounds and restoring them before the join returns is safe.
+     */
     zend_call_stack original_call_stack = EG(call_stack);
     void *original_stack_base = EG(stack_base);
     void *original_stack_limit = EG(stack_limit);
