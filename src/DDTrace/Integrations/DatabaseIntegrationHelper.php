@@ -39,7 +39,15 @@ class DatabaseIntegrationHelper
                 "pgsql" => true,
             ];
 
-            if ($propagationMode == \DDTrace\DBM_PROPAGATION_FULL && (!isset($fullPropagationBackends[$backend]) || $preventFullMode)) {
+            // Prepared statements are downgraded to service mode because the statement is executed later, in a
+            // sibling span: the trace context available here is the prepare span's, not the executing span's.
+            // DD_DBM_TRACE_PREPARED_STATEMENTS lets an application accept that imprecision in exchange for a
+            // span-level link, which is otherwise unavailable to any framework that prepares every query.
+            if (
+                $propagationMode == \DDTrace\DBM_PROPAGATION_FULL
+                && (!isset($fullPropagationBackends[$backend])
+                    || ($preventFullMode && !\dd_trace_env_config("DD_DBM_TRACE_PREPARED_STATEMENTS")))
+            ) {
                 $propagationMode = \DDTrace\DBM_PROPAGATION_SERVICE;
             }
 

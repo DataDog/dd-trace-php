@@ -57,6 +57,7 @@ final class PDOTest extends IntegrationTestCase
             'DD_SERVICE_MAPPING',
             'DD_SERVICE',
             'DD_DBM_PROPAGATION_MODE',
+            'DD_DBM_TRACE_PREPARED_STATEMENTS',
         ];
     }
 
@@ -745,6 +746,56 @@ final class PDOTest extends IntegrationTestCase
         );
     }
 
+
+    public function testPreparedStatementUsesFullModeForDBMWhenTracingPreparedStatements()
+    {
+        $this->putEnvAndReloadConfig(['DD_DBM_PROPAGATION_MODE=full', 'DD_DBM_TRACE_PREPARED_STATEMENTS=true']);
+
+        $query = "SELECT * FROM tests WHERE id = ?";
+        $traces = $this->isolateTracer(function () use ($query) {
+            start_trace_span();
+
+            $pdo = $this->pdoInstance();
+            $stmt = $pdo->prepare($query);
+            $stmt->execute([1]);
+            $results = $stmt->fetchAll();
+            $this->assertEquals('Tom', $results[0]['name']);
+            $stmt->closeCursor();
+            $stmt = null;
+            $pdo = null;
+
+            close_span();
+        });
+
+        $prepareSpan = null;
+        $executeSpan = null;
+        foreach ($traces[0] as $span) {
+            if ($span['name'] === 'PDO.prepare') {
+                $prepareSpan = $span;
+            } elseif ($span['name'] === 'PDOStatement.execute') {
+                $executeSpan = $span;
+            }
+        }
+
+        $this->assertNotNull($prepareSpan, 'PDO.prepare span should exist');
+        $this->assertNotNull($executeSpan, 'PDOStatement.execute span should exist');
+
+        // Unchanged by the option: execute stays a sibling of prepare, and both resources stay clean
+        $this->assertEquals(
+            $prepareSpan['parent_id'],
+            $executeSpan['parent_id'],
+            'PDOStatement.execute should be a sibling of PDO.prepare'
+        );
+        $this->assertEquals($query, $prepareSpan['resource']);
+        $this->assertEquals($query, $executeSpan['resource']);
+
+        // Verify that FULL mode is used for the prepare span: its own context is what the comment carries
+        $this->assertSame(
+            'true',
+            $prepareSpan['meta']['_dd.dbm_trace_injected'] ?? null,
+            'PDO.prepare should use FULL mode'
+        );
+    }
     public function testDirectQueryHasNoParentIssues()
     {
         $query = "SELECT * FROM tests WHERE id=1";
