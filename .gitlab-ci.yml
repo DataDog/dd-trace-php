@@ -17,6 +17,26 @@ variables:
     description: "Run a specific datadog-reliability-env branch downstream"
   SYSTEM_TESTS_LIBRARY: php
 
+include:
+  - project: "ddoghq/llm-validation-platform"
+    ref: &llmval_platform_sha "c331696647a78672101002ba48ccebbd41b0fae8"
+    file: "/ci/llm-validation.gitlab-ci.yml"
+
+"llm validation":
+  variables:
+    LLMVAL_PLATFORM_PROJECT: "ddoghq/llm-validation-platform"
+    LLMVAL_PLATFORM_REF: *llmval_platform_sha
+    LLMVAL_BASE_REF: "master"
+    # Repo-wide default is recursive (libdatadog, etc.). JS/Java skip submodules
+    # on this job; inherit that so the gate does not clone GitHub before run.sh.
+    GIT_SUBMODULE_STRATEGY: none
+    # dd-trace-php's fabric-proxy 403s NodeSource/npm/dot.net/NuGet; JS/Java SAs allow
+    # them. Bypass the proxy for the hosts run.sh needs (CIEXE-714 annotation).
+    # Temporary: drop once ddoghq/dd-source#93032 (ACL) is deployed.
+    # dot.net 301s to builds.dotnet.microsoft.com; the install script also uses aka.ms.
+    # After the SDK lands, `dotnet build` restores from api.nuget.org.
+    KUBERNETES_POD_ANNOTATIONS_NODESOURCE: "beta.fabric.datadoghq.com/no-proxy-additions=deb.nodesource.com,registry.npmjs.org,dot.net,builds.dotnet.microsoft.com,aka.ms,api.nuget.org,nuget.org"
+
 generate-templates:
   stage: build
   image: registry.ddbuild.io/images/mirror/php:8.2-cli
