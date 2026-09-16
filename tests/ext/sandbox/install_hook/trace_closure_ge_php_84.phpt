@@ -71,33 +71,25 @@ include __DIR__ . '/../dd_dumper.inc';
 --EXPECTF--
 spans(\DDTrace\SpanData) (8) {
   intval (trace_closure_ge_php_84.php, 0, cli)
-    _dd.p.tid => %s
     result => 0
   {closure:%s.php:7\{closure} (trace_closure_ge_php_84.php, 1, cli)
-    _dd.p.tid => %s
     closure.declaration => %stests%cext%csandbox%cinstall_hook%ctrace_closure_ge_php_84.php:7
     result => 1
   test\foo.{closure} (trace_closure_ge_php_84.php, 2, cli)
-    _dd.p.tid => %s
     closure.declaration => %stests%cext%csandbox%cinstall_hook%ctrace_closure_ge_php_84.php:12
     result => 2
   test\bar.foo.{closure} (trace_closure_ge_php_84.php, 3, cli)
-    _dd.p.tid => %s
     closure.declaration => %stests%cext%csandbox%cinstall_hook%ctrace_closure_ge_php_84.php:19
     result => 3
   intval (trace_closure_ge_php_84.php, 0, cli)
-    _dd.p.tid => %s
     result => 1
   {closure:%s.php:7\{closure} (trace_closure_ge_php_84.php, 1, cli)
-    _dd.p.tid => %s
     closure.declaration => %stests%cext%csandbox%cinstall_hook%ctrace_closure_ge_php_84.php:7
     result => 2
   test\foo.{closure} (trace_closure_ge_php_84.php, 2, cli)
-    _dd.p.tid => %s
     closure.declaration => %stests%cext%csandbox%cinstall_hook%ctrace_closure_ge_php_84.php:12
     result => 3
   test\bar.foo.{closure} (trace_closure_ge_php_84.php, 3, cli)
-    _dd.p.tid => %s
     closure.declaration => %stests%cext%csandbox%cinstall_hook%ctrace_closure_ge_php_84.php:19
     result => 4
 }
