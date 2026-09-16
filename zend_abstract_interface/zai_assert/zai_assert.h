@@ -39,22 +39,32 @@
 #if __has_builtin(__builtin_assume)
 // At the time of writing, this is clang-only.
 #define ZAI_ASSUME(cond) __builtin_assume(cond)
-#elif defined(__GCC__)
+#elif defined(__GNUC__)
 // GCC has had these builtins a long, long time. Not guarding them.
+// Both branches must be void: in C++ (unlike C) the conditional operator
+// requires operand types to unify, and __builtin_unreachable() is void.
 #define ZAI_ASSUME(cond) \
-    (__builtin_expect(!(cond), 0) ? __builtin_unreachable() : true)
+    (__builtin_expect(!(cond), 0) ? (void)__builtin_unreachable() : (void)0)
 #else
 #define ZAI_ASSUME(cond) true
+#endif
+
+#if ZEND_DEBUG
+#define ZAI_ASSERT_IMPL(cond) assert(cond)
+#else
+#define ZAI_ASSERT_IMPL(cond) ZAI_ASSUME(cond)
 #endif
 
 /**
  * ZAI_ASSERT is like ZEND_ASSERT and C assert that it will expand into a valid
  * expression which returns true (if it fails, it will not return at all).
+ *
+ * Prevent -Wunused-value on GCC/clang, but use the comma operator on MSVC which doesn't support __extension__.
  */
-#if ZEND_DEBUG
-#define ZAI_ASSERT(cond) (assert(cond), true)
+#if defined(__GNUC__)
+#define ZAI_ASSERT(cond) (__extension__({ ZAI_ASSERT_IMPL(cond); true; }))
 #else
-#define ZAI_ASSERT(cond) (ZAI_ASSUME(cond), true)
+#define ZAI_ASSERT(cond) (ZAI_ASSERT_IMPL(cond), true)
 #endif
 
 #endif  // ZAI_ASSERT_H
