@@ -805,9 +805,9 @@ checksum = "f46ad14479a25103f283c0f10005961cf086d8dc42205bb44c46ac563475dca6"
 
 [[package]]
 name = "cmake"
-version = "0.1.57"
+version = "0.1.58"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75443c44cd6b379beb8c5b45d85d0773baf31cce901fe7bb252f4eff3008ef7d"
+checksum = "c0f78a02292a74a88ac736019ab962ece0bc380e3f977bf72e376c5d78ff0678"
 dependencies = [
  "cc",
 ]
@@ -3550,23 +3550,35 @@ dependencies = [
 
 [[package]]
 name = "libddwaf"
-version = "2.0.1"
+version = "2.1.0"
 dependencies = [
  "libddwaf-sys",
  "serde",
 ]
 
 [[package]]
+name = "libddwaf-src"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5acece08068121a621ebe522e42b18d57f45a973bd5ccbbdc590cdd249337015"
+dependencies = [
+ "cmake",
+ "link-cplusplus",
+]
+
+[[package]]
 name = "libddwaf-sys"
-version = "2.0.1"
+version = "2.1.0"
 dependencies = [
  "bindgen 0.72.1",
  "flate2",
  "hyper-rustls",
  "libc 0.2.186",
+ "libddwaf-src",
  "reqwest 0.12.28",
  "rustls",
  "tar",
+ "yoke-derive 0.8.2",
  "zstd",
 ]
 
@@ -4362,7 +4374,7 @@ version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "059a34f111a9dee2ce1ac2826a68b24601c4298cfeb1a587c3cb493d5ab46f52"
 dependencies = [
- "libc 0.2.186",
+ "libc 0.1.12",
  "nix 0.30.1",
 ]
 
@@ -7339,7 +7351,7 @@ checksum = "120e6aef9aa629e3d4f52dc8cc43a015c7724194c97dfaf45180d2daf2b77f40"
 dependencies = [
  "serde",
  "stable_deref_trait",
- "yoke-derive",
+ "yoke-derive 0.7.5",
  "zerofrom",
 ]
 
@@ -7348,6 +7360,18 @@ name = "yoke-derive"
 version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2380878cad4ac9aac1e2435f3eb4020e8374b5f13c296cb75b4620ff8e229154"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.118",
+ "synstructure",
+]
+
+[[package]]
+name = "yoke-derive"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "de844c262c8848816172cef550288e7dc6c7b7814b4ee56b3e1553f275f1858e"
 dependencies = [
  "proc-macro2",
  "quote",
