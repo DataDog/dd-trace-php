@@ -178,6 +178,8 @@ mod detail {
     use log::{debug, trace};
     use std::cell::RefCell;
     use std::ffi::c_void;
+    #[cfg(not(php_zts))]
+    use std::sync::LazyLock;
 
     struct StringCache<'a> {
         /// Refers to a function's run time cache reserved by this extension.
@@ -250,7 +252,29 @@ mod detail {
         }
     }
 
+    #[cfg(not(php_zts))]
+    struct NtsCachedStrings(RefCell<StringSet>);
+
+    // SAFETY: PHP NTS only accesses this cache from its single execution thread.
+    #[cfg(not(php_zts))]
+    unsafe impl Sync for NtsCachedStrings {}
+
+    #[cfg(not(php_zts))]
+    impl NtsCachedStrings {
+        fn try_with_borrow_mut<R>(
+            &self,
+            f: impl FnOnce(&mut StringSet) -> R,
+        ) -> Result<R, RefCellExtError> {
+            Ok(f(&mut *self.0.try_borrow_mut()?))
+        }
+    }
+
+    #[cfg(not(php_zts))]
+    static CACHED_STRINGS: LazyLock<NtsCachedStrings> =
+        LazyLock::new(|| NtsCachedStrings(RefCell::new(StringSet::new())));
+
     thread_local! {
+        #[cfg(php_zts)]
         static CACHED_STRINGS: RefCell<StringSet> = RefCell::new(StringSet::new());
         #[cfg(feature = "debug_stats")]
         static FUNCTION_CACHE_STATS: RefCell<FunctionRunTimeCacheStats> =
