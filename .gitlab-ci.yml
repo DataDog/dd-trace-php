@@ -30,10 +30,12 @@ include:
     # Repo-wide default is recursive (libdatadog, etc.). JS/Java skip submodules
     # on this job; inherit that so the gate does not clone GitHub before run.sh.
     GIT_SUBMODULE_STRATEGY: none
-    # dd-trace-php's fabric-proxy 403s NodeSource/npm/dot.net; JS/Java SAs allow
+    # dd-trace-php's fabric-proxy 403s NodeSource/npm/dot.net/NuGet; JS/Java SAs allow
     # them. Bypass the proxy for the hosts run.sh needs (CIEXE-714 annotation).
+    # Temporary: drop once ddoghq/dd-source#93032 (ACL) is deployed.
     # dot.net 301s to builds.dotnet.microsoft.com; the install script also uses aka.ms.
-    KUBERNETES_POD_ANNOTATIONS_NODESOURCE: "beta.fabric.datadoghq.com/no-proxy-additions=deb.nodesource.com,registry.npmjs.org,dot.net,builds.dotnet.microsoft.com,aka.ms"
+    # After the SDK lands, `dotnet build` restores from api.nuget.org.
+    KUBERNETES_POD_ANNOTATIONS_NODESOURCE: "beta.fabric.datadoghq.com/no-proxy-additions=deb.nodesource.com,registry.npmjs.org,dot.net,builds.dotnet.microsoft.com,aka.ms,api.nuget.org,nuget.org"
 
 generate-templates:
   stage: build
