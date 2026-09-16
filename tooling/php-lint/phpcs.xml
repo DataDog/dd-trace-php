@@ -42,6 +42,33 @@
     <rule ref="Generic.WhiteSpace.DisallowTabIndent"/>
 
     <!--
+        Enabled: recurring review-feedback theme, now mechanically enforced.
+
+        Over the trailing ~400 days of PR review activity, human reviewers
+        repeatedly had to flag calls to functions that are deprecated (or
+        outright unavailable) on some PHP version this repo still supports,
+        e.g.:
+          - "spl_object_hash is deprecated since PHP 8.6. You can simply
+            use spl_object_id." (Drupal integration)
+          - "Needs a PHP_VERSION_ID < 80000 check to avoid deprecations"
+            (Symfony integration)
+          - "this is php 7.4 syntax" (repo supports PHP 7.0+)
+          - "`const` was missing on the PHP 7.0 and 7.1 versions" (stub
+            signatures)
+        This class of feedback is exactly what Generic.PHP.DeprecatedFunctions
+        is built to catch mechanically: it walks the token stream for calls
+        to any function PHP itself reports as deprecated via
+        ReflectionFunction::isDeprecated() on the interpreter running phpcs
+        (the newest supported PHP in CI, see .gitlab/generate-common.php).
+        It does not parse the file with the runner's parser the way
+        Generic.PHP.Syntax does, so it carries none of that sniff's
+        cross-version syntax risk (see the note below). It was already
+        vetted as a zero-hit, low-risk candidate for src/ (see git history
+        of this file) — this change only turns it on.
+    -->
+    <rule ref="Generic.PHP.DeprecatedFunctions"/>
+
+    <!--
         Close, but not a mechanical fix. Uncomment after the TODOs
         are resolved or dropped.
 
@@ -59,11 +86,6 @@
             runs php -l with the job's PHP. A file valid on 7.0 can fail
             on 8.x (and the reverse) without any source change.
 
-        Generic.PHP.DeprecatedFunctions
-            current src/ has no hits, but the sniff list grows with
-            PHPCS releases and tracks language deprecations.
-
         <rule ref="Generic.PHP.Syntax"/>
-        <rule ref="Generic.PHP.DeprecatedFunctions"/>
     -->
 </ruleset>
