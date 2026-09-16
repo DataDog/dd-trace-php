@@ -59,13 +59,7 @@
  * ZAI_ASSERT is like ZEND_ASSERT and C assert that it will expand into a valid
  * expression which returns true (if it fails, it will not return at all).
  *
- * On GCC/Clang this is a statement expression rather than a plain comma
- * expression: with a comma expression, the trailing `true` is an unused
- * constant when ZAI_ASSERT is used as a bare statement (its most common
- * use), and GCC warns on it (-Wunused-value). Statement expressions are a
- * GNU extension unavailable on MSVC, so Windows (which only builds the
- * tracer, not the profiler) keeps the plain comma-expression form; MSVC
- * does not raise the equivalent warning there.
+ * Prevent -Wunused-value on GCC/clang, but use the comma operator on MSVC which doesn't support __extension__.
  */
 #if defined(__GNUC__)
 #define ZAI_ASSERT(cond) (__extension__({ ZAI_ASSERT_IMPL(cond); true; }))
