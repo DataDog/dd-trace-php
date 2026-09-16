@@ -73,7 +73,7 @@ stages:
     - when: on_success
   before_script:
 <?php unset_dd_runner_env_vars() ?>
-    - sudo apt install -y clang-tidy-20 libc++-20-dev libc++abi-20-dev
+    - sudo apt install -y clang-tidy-21 libc++-21-dev libc++abi-21-dev
     - mkdir -p appsec/build boost-cache boost-cache
   cache:
     - key: "appsec boost cache"
@@ -510,15 +510,15 @@ stages:
     KUBERNETES_MEMORY_LIMIT: 10Gi
     ARCH: amd64
   script:
-    - sudo apt install -y clang-format-20
+    - sudo apt install -y clang-format-21
     - cd appsec/build
     - |
       cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=OFF \
         -DDD_APPSEC_TESTING=OFF -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
         -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" \
         -DBOOST_CACHE_PREFIX="$CI_PROJECT_DIR/boost-cache" \
-        -DCLANG_TIDY=/usr/bin/run-clang-tidy-20 \
-        -DCLANG_FORMAT=/usr/bin/clang-format-20
+        -DCLANG_TIDY=/usr/bin/run-clang-tidy-21 \
+        -DCLANG_FORMAT=/usr/bin/clang-format-21
     - make -j 4 extension
     - make format tidy
 
