@@ -4,6 +4,10 @@ RC tracing_enabled=true during RINIT does not double-init request globals
 <?php
 include __DIR__ . '/../includes/skipif_no_dev_env.inc';
 if (!extension_loaded('pcntl')) die('skip: pcntl extension required');
+// Same constraint as extract_server_values.phpt: the re-exec trick below needs the full
+// original invocation, which only Linux's /proc/<pid>/cmdline exposes precisely and
+// portably; macOS has no equivalent short of ext-ffi + sysctl(KERN_PROCARGS2).
+if (PHP_OS === "Darwin") die('skip: re-exec via /proc/<pid>/cmdline is Linux-only');
 ?>
 --ENV--
 DD_AGENT_HOST=request-replayer

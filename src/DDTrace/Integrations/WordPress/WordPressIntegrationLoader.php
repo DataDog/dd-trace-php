@@ -232,7 +232,6 @@ class WordPressIntegrationLoader
             }
         });
 
-
         hook_function('wp_templating_constants', null, static function () {
             global $wp_theme_directories;
             if (empty($wp_theme_directories)) {

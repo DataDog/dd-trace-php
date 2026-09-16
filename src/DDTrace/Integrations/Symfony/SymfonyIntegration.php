@@ -631,7 +631,6 @@ class SymfonyIntegration extends Integration
             $span->meta[Tag::COMPONENT] = self::NAME;
             \DDTrace\root_span()->exception = $args[0];
 
-
             if (isset($retval) && \method_exists($retval, 'getStatusCode') && $retval->getStatusCode() < 500) {
                 // It means that the exception event associated with the exception had a response, which certainly
                 // means that the exception was handled.

@@ -152,7 +152,7 @@ function windows_test_c_job($job_name, $thread_safety, $targets) {
     docker exec ${CONTAINER_NAME} powershell.exe "cd app; switch-php <?= $thread_safety ?>; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake"
 
     # Set test environment variables
-    docker exec ${CONTAINER_NAME} powershell.exe "setx DD_AUTOLOAD_NO_COMPILE true; setx DATADOG_HAVE_DEV_ENV 1; setx DD_TRACE_GIT_METADATA_ENABLED 0"
+    docker exec ${CONTAINER_NAME} powershell.exe "setx DD_AUTOLOAD_NO_COMPILE true; setx DATADOG_HAVE_DEV_ENV 1; setx DD_TRACE_GIT_METADATA_ENABLED 0; setx DD_TRACE_IGNORE_AGENT_SAMPLING_RATES 1; setx DD_TRACE_RATE_LIMIT 1000000"
 
     # Exclude tests that deadlock the php-cgi SKIPIF skip-task on Windows.
 <?php foreach ([
@@ -196,6 +196,98 @@ windows_test_c_job("windows test_c: zts", "zts", [
     end($windows_minor_major_targets),
 ]);
 ?>
+
+"macos test_c":
+  stage: test
+  tags: ["macos:tart"]
+  image: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/ci-platform-machine-images/tart-vm:shared-sonoma-latest"
+  variables:
+    PHP_MACOS_VERSION: "8.5.9"
+    PHP_INSTALL_DIR: "/tmp/php-macos-${PHP_MACOS_VERSION}"
+    _DD_DEBUG_SIDECAR_LOG_LEVEL: trace
+    _DD_DEBUG_SIDECAR_LOG_METHOD: "file://${CI_PROJECT_DIR}/artifacts/sidecar.log"
+    # Enables tests gated by tests/ext/includes/skipif_no_dev_env.inc (see request-replayer
+    # setup below), matching the Linux/Windows jobs' dev-env-dependent test coverage.
+    DATADOG_HAVE_DEV_ENV: 1
+    PHP_CLI_SERVER_WORKERS: "16"
+    DD_REQUEST_DUMPER_FILE: dump.json
+  before_script:
+    # Strip the noisy DD_* env vars from the locally installed agent
+    - unset DD_SERVICE DD_ENV DD_TAGS DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED DD_AGENT_HOST DD_TRACE_AGENT_PORT DD_DOGSTATSD_PORT
+    - brew install pkg-config openssl re2c bison libxml2 oniguruma libzip libsodium php
+    - mkdir -p /tmp/php-build "${CI_PROJECT_DIR}/artifacts/tests"
+    - curl -fL "https://github.com/php/php-src/archive/refs/tags/php-${PHP_MACOS_VERSION}.tar.gz" | tar xz -C /tmp/php-build
+    - cd "/tmp/php-build/php-src-php-${PHP_MACOS_VERSION}"
+    - ./buildconf --force
+    - |
+      export PATH="$(brew --prefix bison)/bin:$(brew --prefix libxml2)/bin:${PATH}"
+      export PKG_CONFIG_PATH="$(brew --prefix libxml2)/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+      export LDFLAGS="-L$(brew --prefix libxml2)/lib ${LDFLAGS:-}"
+      export CPPFLAGS="-I$(brew --prefix libxml2)/include ${CPPFLAGS:-}"
+      ./configure \
+        --prefix="${PHP_INSTALL_DIR}" \
+        --enable-debug \
+        --enable-zts \
+        --enable-pcntl \
+        --without-iconv \
+        --with-openssl="$(brew --prefix openssl)" \
+        --with-libxml \
+        --enable-mbstring \
+        --with-sodium \
+        --with-curl \
+        --enable-sockets \
+        --with-ffi
+    - make -j"$(sysctl -n hw.ncpu)"
+    - make install
+    - cd "${CI_PROJECT_DIR}"
+    - rustup update stable && rustup default stable
+    - |
+      # There's no Docker service network on the macOS Tart runner (unlike the Linux/Windows
+      # jobs' "request-replayer" service container), so run request-replayer as a native
+      # background process on loopback instead, and alias its hostname via /etc/hosts so
+      # tests that hardcode "request-replayer" (see tests/Common/TracerTestTrait.php et al.)
+      # resolve it the same way. Uses brew's php (bundles curl + gmp, both required -- see
+      # dockerfiles/services/request-replayer/linux.Dockerfile and index.php's
+      # UnpackOptions::BIGINT_AS_GMP) rather than our from-source test build, which has
+      # neither and is a separate, unrelated PHP install.
+      grep -q '[[:space:]]request-replayer$' /etc/hosts || sudo bash -c 'echo "127.0.0.1 request-replayer" >> /etc/hosts'
+      REQUEST_REPLAYER_PHP="$(brew --prefix php)/bin/php"
+      "${REQUEST_REPLAYER_PHP}" -r "copy('https://getcomposer.org/installer', '/tmp/composer-setup.php');"
+      "${REQUEST_REPLAYER_PHP}" /tmp/composer-setup.php --install-dir=/tmp --filename=composer.phar
+      (cd dockerfiles/services/request-replayer/src && "${REQUEST_REPLAYER_PHP}" /tmp/composer.phar install --no-interaction)
+      # `sudo -b` (not `sudo ... &`): a non-interactive shell's `&` doesn't put the
+      # backgrounded job in its own process group, so it stays in sudo's -- and sudo,
+      # with pty allocation (common on macOS), waits for the whole process group to exit
+      # before returning. `-b` is sudo's own flag for backgrounding the command, so sudo
+      # itself returns immediately instead of waiting on this long-lived server. Even so,
+      # explicitly kill the server in after_script below (via its captured PID) rather than
+      # relying purely on detachment: the job still hung once even with -b, most likely
+      # some other inherited handle back to the runner's own output pipe, and killing it
+      # outright sidesteps whatever that is rather than chasing it further.
+      sudo -b bash -c "cd '${CI_PROJECT_DIR}/dockerfiles/services/request-replayer/src' && PHP_CLI_SERVER_WORKERS='${PHP_CLI_SERVER_WORKERS}' DD_REQUEST_DUMPER_FILE='${DD_REQUEST_DUMPER_FILE}' nohup '${REQUEST_REPLAYER_PHP}' -S 127.0.0.1:80 index.php < /dev/null > '${CI_PROJECT_DIR}/artifacts/request-replayer.log' 2>&1 & echo \$! > '${CI_PROJECT_DIR}/artifacts/request-replayer.pid'"
+  script:
+    - export PATH="${PHP_INSTALL_DIR}/bin:${PATH}"
+    - export TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
+    - php --version
+    - make -j"$(sysctl -n hw.ncpu)"
+    - timeout 20m make test_c
+    # GitLab's "step_script" (before_script + script) itself doesn't return while
+    # request-replayer is still alive -- confirmed by a run where the test suite finished
+    # cleanly (0 failures) but the job then sat idle until GitLab's own 1h job timeout
+    # killed it, with after_script never even starting. So kill it here, at the end of
+    # script itself, not only in after_script (kept below as a backstop for a failing
+    # script: that never reaches this line).
+    - test -f "${CI_PROJECT_DIR}/artifacts/request-replayer.pid" && sudo kill -9 "$(cat "${CI_PROJECT_DIR}/artifacts/request-replayer.pid")" || true
+  after_script:
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/diffs"
+    - find . -type f \( -name '*.diff' -o -name '*.mem' \) -not -path '*/vendor/*' -exec cp '{}' "${CI_PROJECT_DIR}/artifacts/diffs/" \; || true
+    - test -f "${CI_PROJECT_DIR}/artifacts/request-replayer.pid" && sudo kill -9 "$(cat "${CI_PROJECT_DIR}/artifacts/request-replayer.pid")" || true
+  artifacts:
+    when: always
+    reports:
+      junit: "artifacts/tests/php-tests.xml"
+    paths:
+      - "artifacts/"
 
 
 "Prepare code":
