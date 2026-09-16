@@ -48,11 +48,18 @@ fails:
 
 Enabled sniffs are version-agnostic safety checks (merge-conflict
 markers, BOM, LF line endings, final newline, no tabs, no trailing
-whitespace, open/close tags, backticks, `goto`, `FIXME`, `eval`).
-They are not a style guide.
+whitespace, open/close tags, backticks, `goto`, `FIXME`, `eval`), plus
+`Generic.PHP.DeprecatedFunctions`, which flags calls to any function
+the PHP interpreter running phpcs reports as deprecated via
+`ReflectionFunction::isDeprecated()`. That one is not purely a style
+choice: it exists because reviewers repeatedly had to catch
+deprecated/version-incompatible function usage by hand (e.g.
+`spl_object_hash` on PHP 8.6, missing `PHP_VERSION_ID` guards). It does
+not parse the file with the runner's parser the way `Generic.PHP.Syntax`
+does, so it does not carry that sniff's cross-PHP-version risk.
 
-`TODO` comments, `php -l`, and deprecated-function detection stay
-commented in `phpcs.xml`. PSR-12 is off.
+`TODO` comments and `php -l` stay commented out in `phpcs.xml`. PSR-12
+is off.
 
 Scope is first-party `src/` only. Generated bridge files and
 `tests/Frameworks/` are out of scope.
