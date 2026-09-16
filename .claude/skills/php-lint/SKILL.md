@@ -39,9 +39,6 @@ Do not add both for the same check.
   the version / tool-upgrade risk. Those stay commented in `phpcs.xml`.
 - Do not add `PHP lint` to `.gitlab/flaky-jobs.txt` or set
   `allow_failure`. The job is meant to block merge-gate.
-- `composer lint` / `composer fix-lint` use the root PSR-12
-  `phpcs.xml`. That is not CI. Do not run or expand that ruleset for
-  this job.
 
 ## Workflow — PHPCS sniff
 
