@@ -276,6 +276,16 @@ final class WebServer
 
         // Then start nginx (if needed)
         if ($this->sapi->isFastCgi()) {
+            // nginx turns an unbound upstream into a successful transfer carrying a 502, which
+            // the request retry loop cannot tell from a real response, so gate on the port here.
+            if (!$this->sapi->waitUntilServerRunning()) {
+                throw new \Exception(sprintf(
+                    'FastCGI SAPI failed to start within expected time on %s:%d',
+                    self::FCGI_HOST,
+                    self::FCGI_PORT
+                ));
+            }
+
             $this->server = new NginxServer(
                 $this->indexFile,
                 $this->host,
