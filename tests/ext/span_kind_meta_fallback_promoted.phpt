@@ -21,10 +21,10 @@ $spans = dd_trace_serialize_closed_spans();
 $root = $spans[0];
 // server == OTEL SpanKind 2; promoted from meta fallback (dd_span_kind_meta_to_otel). The serializer
 // consumes meta["span.kind"] once promoted, so the introspection (pre-encode builder) view no longer
-// carries it in meta; the wire decoders re-materialise span.kind in meta downstream.
+// carries it in the unified attributes map; the wire decoders re-materialise span.kind downstream.
 echo "span_kind=" . var_export($root["span_kind"] ?? null, true) . "\n";
-echo "meta.span.kind=" . var_export($root["meta"]["span.kind"] ?? null, true) . "\n";
+echo "attributes.span.kind=" . var_export($root["attributes"]["span.kind"] ?? null, true) . "\n";
 ?>
 --EXPECT--
 span_kind=2
-meta.span.kind=NULL
+attributes.span.kind=NULL

@@ -34,14 +34,15 @@ Array
             [resource] => sh
             [service] => ddtrace.php
             [type] => system
-            [meta] => Array
+            [component] => subprocess
+            [span_kind] => 1
+            [attributes] => Array
                 (
+                    [cmd.shell] => echo using passthru
+                    [_dd.code_origin.type] => exit
                     [_dd.code_origin.frames.1.file] => %s/fixtures/ddtrace.php
                     [_dd.code_origin.frames.1.line] => 13
-                    [_dd.code_origin.type] => exit
                     [cmd.exit_code] => 0
-                    [cmd.shell] => echo using passthru
-                    [component] => subprocess
                 )
 %A
 EOS

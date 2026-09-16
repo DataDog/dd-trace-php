@@ -21,14 +21,15 @@ $s->service = "web";
 
 $spans = dd_trace_serialize_closed_spans();
 $root = $spans[0];
-// env/version promoted from the DD_TAGS-sourced meta fallback; consumed from meta once promoted.
+// env/version promoted from the DD_TAGS-sourced meta fallback; deleted from the unified
+// attributes map once promoted to the dedicated top-level fields.
 echo "env=" . var_export($root["env"] ?? null, true) . "\n";
 echo "version=" . var_export($root["version"] ?? null, true) . "\n";
-echo "meta.env=" . var_export($root["meta"]["env"] ?? null, true) . "\n";
-echo "meta.version=" . var_export($root["meta"]["version"] ?? null, true) . "\n";
+echo "attributes.env=" . var_export($root["attributes"]["env"] ?? null, true) . "\n";
+echo "attributes.version=" . var_export($root["attributes"]["version"] ?? null, true) . "\n";
 ?>
 --EXPECT--
 env='staging'
 version='1.2.3'
-meta.env=NULL
-meta.version=NULL
+attributes.env=NULL
+attributes.version=NULL
