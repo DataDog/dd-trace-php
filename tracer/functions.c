@@ -235,6 +235,7 @@ static zend_object *dd_init_span_data_object(zend_class_entry *class_type, ddtra
     array_init(&span->property_events);
     array_init(&span->property_peer_service_sources);
     array_init(&span->property_on_close);
+    array_init(&span->property_attributes);
 #endif
     // Explicitly assign property-mapped NULLs
     span->stack = NULL;
@@ -283,6 +284,7 @@ static zend_object *ddtrace_span_stack_create(zend_class_entry *class_type) {
 #if PHP_VERSION_ID < 80000
     // Not handled in arginfo on these old versions
     array_init(&stack->property_span_creation_observers);
+    array_init(&stack->property_attributes);
 #endif
     return &stack->std;
 }

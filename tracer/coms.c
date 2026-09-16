@@ -772,15 +772,6 @@ static ddtrace_coms_stack_t *dd_coms_attempt_acquire_stack(void) {
 }
 
 #define TRACE_PATH_STR "/v0.4/traces"
-#define TRACE_PATH_V1_STR "/v1.0/traces"
-
-// Removable v0.4 bolt-on: selects the writer's trace endpoint (/v1.0/traces when set, else
-// /v0.4/traces). Toggled per flush by auto_flush from the agent-capability check.
-static _Atomic(bool) dd_coms_use_v1_traces_endpoint = ATOMIC_VAR_INIT(false);
-
-void ddtrace_coms_set_v1_traces_endpoint(bool enabled) {
-    atomic_store(&dd_coms_use_v1_traces_endpoint, enabled);
-}
 
 static struct curl_slist *dd_agent_curl_headers = NULL;
 
@@ -925,8 +916,8 @@ static void ddtrace_curl_set_hostname_generic(CURL *curl, const char *path) {
 }
 
 void ddtrace_curl_set_hostname(CURL *curl) {
-    const char *path = atomic_load(&dd_coms_use_v1_traces_endpoint) ? TRACE_PATH_V1_STR : TRACE_PATH_STR;
-    ddtrace_curl_set_hostname_generic(curl, path);
+    // The in-process (<=8.2) background sender is v0.4-only.
+    ddtrace_curl_set_hostname_generic(curl, TRACE_PATH_STR);
 }
 
 void ddtrace_curl_set_telemetry_url(CURL *curl) {
