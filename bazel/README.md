@@ -13,7 +13,7 @@ until all earlier stage targets pass locally and with Buildbarn.
 Install the pinned BuildBuddy CLI with:
 
 ```sh
-./tools/bazel/bootstrap-bb.sh
+bash tools/bazel/bootstrap-bb.sh
 ```
 
 The script downloads only a release asset selected by OS and architecture,
