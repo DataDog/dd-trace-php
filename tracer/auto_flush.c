@@ -7,7 +7,6 @@
 #include "coms.h"
 #endif
 #include "configuration.h"
-#include <ext/agent_info.h>
 #include <ext/ffi_utils.h>
 #include <ext/process_tags.h>
 #include <components/log/log.h>
@@ -98,7 +97,6 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
 #ifndef _WIN32
         // Removable v0.4 bolt-on: the in-process (<=8.2) background sender's array-of-1 framing can't
         // parse a native V1 payload (one msgpack MAP), so it downgrades to v0.4 traces. Delete to revert.
-        ddtrace_coms_set_v1_traces_endpoint(false);
         // Consumes ctx->builder; returns a v0.4 collection to free below.
         ddog_TracesBytes *v04_traces = ddog_downgrade_v1_builder_to_v04_traces(ctx->builder);
         size_t trace_count = ddog_get_traces_size(v04_traces);
@@ -109,6 +107,10 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                 if (!ddtrace_send_traces_via_thread(1, payload.ptr, payload.len)) {
                     success = false;
                 }
+                // Bump the coms group id per trace: the background sender sizes the outer msgpack
+                // array by the number of distinct group ids, so each trace needs its own id or N>1
+                // traces collapse to array-of-1 and the agent keeps only the first.
+                dd_prepare_for_new_trace();
             } else {
                 if (payload.len > limit) {
                     LOG(ERROR, "Agent request payload of %zu bytes exceeds configured %zu byte limit; dropping request", payload.len, limit);
@@ -122,7 +124,6 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                 log("Flushing %zu v0.4 trace(s) to send-queue for %s", trace_count, url);
             });
         }
-        dd_prepare_for_new_trace();
         ddog_free_traces(v04_traces);
 #else
         ddog_v1_free_builder(ctx->builder);  // in-process sender unavailable on Windows; not consumed
