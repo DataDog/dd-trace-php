@@ -152,6 +152,10 @@ package-trigger:
     PARENT_PIPELINE_ID: $CI_PIPELINE_ID
     GIT_SUBMODULE_PATHS: libdatadog tests/FeatureFlags/ffe-system-test-data appsec/third_party/libddwaf-rust
     NIGHTLY_BUILD: $NIGHTLY_BUILD
+    # CI_PIPELINE_SOURCE inside this child pipeline is always "parent_pipeline",
+    # regardless of what triggered the outer pipeline. Forward the real value
+    # explicitly so .gitlab/benchmarks.yml can key benchmark rules on it.
+    CI_PARENT_PIPELINE_SOURCE: $CI_PIPELINE_SOURCE
 
 # Runs after the full CI completes.  Triggered in two situations:
 #   1. Scheduled libdatadog CI run (SCHEDULED_LIBDATADOG_LATEST=true)

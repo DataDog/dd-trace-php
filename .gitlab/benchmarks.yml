@@ -52,7 +52,7 @@ workflow:
 .benchmarks-profiler-rules: &benchmarks-profiler-rules
   # Allows benchmark flakiness monitoring pipelines to run this job.
   # See https://github.com/DataDog/benchmarking-platform-tools/tree/main/scripts/stability#stability-monitoring-ci.
-  - if: '$CI_PIPELINE_SOURCE == "pipeline" && $CI_COMMIT_REF_NAME == "master"'
+  - if: '$CI_PARENT_PIPELINE_SOURCE == "pipeline" && $CI_COMMIT_REF_NAME == "master"'
     when: on_success
     interruptible: false
   - if: $CI_PIPELINE_SOURCE != "schedule" && $CI_COMMIT_REF_NAME == "master"
@@ -80,7 +80,7 @@ workflow:
 .benchmarks-appsec-rules: &benchmarks-appsec-rules
   # Allows benchmark flakiness monitoring pipelines to run this job.
   # See https://github.com/DataDog/benchmarking-platform-tools/tree/main/scripts/stability#stability-monitoring-ci.
-  - if: '$CI_PIPELINE_SOURCE == "pipeline" && $CI_COMMIT_REF_NAME == "master"'
+  - if: '$CI_PARENT_PIPELINE_SOURCE == "pipeline" && $CI_COMMIT_REF_NAME == "master"'
     when: on_success
     interruptible: false
   - if: $CI_PIPELINE_SOURCE != "schedule" && $CI_COMMIT_REF_NAME == "master"
@@ -108,7 +108,7 @@ workflow:
 .benchmarks-tracer-rules: &benchmarks-tracer-rules
   # Allows benchmark flakiness monitoring pipelines to run this job.
   # See https://github.com/DataDog/benchmarking-platform-tools/tree/main/scripts/stability#stability-monitoring-ci.
-  - if: '$CI_PIPELINE_SOURCE == "pipeline" && $CI_COMMIT_REF_NAME == "master"'
+  - if: '$CI_PARENT_PIPELINE_SOURCE == "pipeline" && $CI_COMMIT_REF_NAME == "master"'
     when: on_success
     interruptible: false
   - if: $CI_PIPELINE_SOURCE != "schedule" && $CI_COMMIT_REF_NAME == "master"
@@ -160,7 +160,7 @@ workflow:
     - |
       # Allows benchmark flakiness monitoring pipelines to run this job.
       # See https://github.com/DataDog/benchmarking-platform-tools/tree/main/scripts/stability#stability-monitoring-ci.
-      if [ "${CHECK_TRACER_FILE_CHANGES:-false}" = "true" ] && [ "${CI_PIPELINE_SOURCE}" != "pipeline" ]; then
+      if [ "${CHECK_TRACER_FILE_CHANGES:-false}" = "true" ] && [ "${CI_PARENT_PIPELINE_SOURCE}" != "pipeline" ]; then
         echo "Checking if tracer-related files changed..."
         git fetch origin master:master 2>/dev/null || true
         CHANGED_FILES=$(git diff --name-only HEAD master 2>/dev/null || echo "")
