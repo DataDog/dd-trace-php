@@ -197,7 +197,7 @@ foreach (["7.4", "8.0"] as $major_minor):
 ?>
 "ZAI Shared Tests: [<?= $major_minor ?>]":
   extends: .tea_test
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-<?= $major_minor ?>-shared-ext-10"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-<?= $major_minor ?>-shared-ext-11"
   needs:
     - job: "Build & Test Tea"
       parallel:
