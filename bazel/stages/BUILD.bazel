@@ -1,0 +1,5 @@
+load(":bootstrap_manifest.bzl", "bootstrap_manifest")
+
+package(default_visibility = ["//visibility:public"])
+
+bootstrap_manifest(name = "bootstrap_manifest")

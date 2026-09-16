@@ -1,0 +1,39 @@
+load(":matrix.bzl", "matrix_manifest")
+load(":php_toolchain.bzl", "php_sdk", "php_sdk_manifest")
+
+package(default_visibility = ["//visibility:public"])
+
+toolchain_type(name = "toolchain_type")
+
+matrix_manifest(name = "matrix")
+
+# Analysis/contract fixture: this keeps PhpToolchainInfo loaded and exercised
+# before the source-built PHP SDK targets land in stage two.
+php_sdk(
+    name = "provider_contract_sdk",
+    api = 20220829,
+    bundled_extensions = [
+        "json",
+        "opcache",
+    ],
+    generated_headers = ["testdata/php_config.h"],
+    include_paths = ["include/php"],
+    runtime_artifacts = ["testdata/php-runtime"],
+    sapis = [
+        "cli",
+        "cgi",
+        "fpm",
+        "embed",
+        "apache2handler",
+        "phpdbg",
+    ],
+    shared_extensions = ["ffi"],
+    target_arch = "amd64",
+    target_libc = "glibc",
+    version = "8.2.31",
+)
+
+php_sdk_manifest(
+    name = "provider_contract_manifest",
+    sdk = ":provider_contract_sdk",
+)

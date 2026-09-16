@@ -1,0 +1,56 @@
+module(
+    name = "dd_trace_php",
+    version = "0.1.0",
+)
+
+bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "rules_cc", version = "0.2.22")
+bazel_dep(name = "rules_rs", version = "0.0.111")
+
+# Expose the rules_rs-patched rules_rust repository so configurations can set
+# its channel build setting explicitly.
+rules_rust = use_extension("@rules_rs//rs:rules_rust.bzl", "rules_rust")
+use_repo(rules_rust, "rules_rust")
+
+# Keep stable compilation and ASan/nightly compilation as distinct toolchain
+# repositories. Only stable is registered globally; ASan target configurations
+# select nightly explicitly while generator/procedural-macro exec transitions
+# remain on the stable toolchain.
+rust_toolchains = use_extension("@rules_rs//rs/toolchains:module_extension.bzl", "toolchains")
+rust_toolchains.toolchain(
+    # rules_rs imports this canonical repository name for its own tools.
+    name = "default_rust_toolchains",
+    edition = "2021",
+    version = "1.87.0",
+)
+rust_toolchains.toolchain(
+    name = "rust_asan_toolchains",
+    edition = "2021",
+    version = "nightly/2025-06-13",
+)
+use_repo(
+    rust_toolchains,
+    "default_rust_toolchains",
+    "rust_asan_toolchains",
+)
+
+register_toolchains("@default_rust_toolchains//...")
+
+# Source archives are declared up front but fetched lazily when stage-two PHP
+# targets reference them. Downloads therefore happen during repository setup,
+# never from a compile or configure action.
+php_sources = use_extension("//bazel/php:repositories.bzl", "php_sources")
+use_repo(
+    php_sources,
+    "php_7_0",
+    "php_7_1",
+    "php_7_2",
+    "php_7_3",
+    "php_7_4",
+    "php_8_0",
+    "php_8_1",
+    "php_8_2",
+    "php_8_3",
+    "php_8_4",
+    "php_8_5",
+)

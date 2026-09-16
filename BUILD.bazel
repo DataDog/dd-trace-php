@@ -1,0 +1,17 @@
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "Cargo.lock",
+    "Cargo.toml",
+    "VERSION",
+])
+
+filegroup(
+    name = "stage1",
+    srcs = [
+        "//bazel/php:matrix.json",
+        "//bazel/php:provider_contract_manifest.json",
+        "//bazel/probes:exec_rust_toolchain_probe",
+        "//bazel/stages:bootstrap_manifest",
+    ],
+)
