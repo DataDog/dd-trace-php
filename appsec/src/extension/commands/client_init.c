@@ -29,6 +29,7 @@ static const dd_command_spec _spec = {
     .name = "client_init",
     .name_len = sizeof("client_init") - 1,
     .num_args = 8,
+    .reconnect_sidecar = true,
     .outgoing_cb = _pack_command,
     .incoming_cb = _process_response,
     .config_features_cb = dd_command_process_config_features_unexpected,

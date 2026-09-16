@@ -17,6 +17,27 @@ detect_service_type() {
   esac
 }
 
+# `wait-for` ships in the dd-trace-ci images, but not in every image we run jobs in -- the official
+# FrankenPHP one, for instance. Fall back to bash's /dev/tcp, so this needs no external tool.
+tcp_wait() {
+  local HOST=${1}
+  local PORT=${2}
+  local TIMEOUT=${3:-180}
+
+  if command -v wait-for > /dev/null 2>&1; then
+    if wait-for "${HOST}:${PORT}" --timeout="${TIMEOUT}"; then return 0; else return 1; fi
+  fi
+
+  local DEADLINE=$((SECONDS + TIMEOUT))
+  while [ ${SECONDS} -lt ${DEADLINE} ]; do
+    if (exec 3<> "/dev/tcp/${HOST}/${PORT}") 2> /dev/null; then
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
 wait_for_single_service() {
   local HOST=${1}
   local PORT=${2}
@@ -25,7 +46,7 @@ wait_for_single_service() {
   local RETRY_DELAY=${5:-5}
 
   echo "Waiting for ${HOST}:${PORT} to be reachable..."
-  if ! wait-for "${HOST}:${PORT}" --timeout=180; then
+  if ! tcp_wait "${HOST}" "${PORT}" 180; then
       echo "ERROR: Could not reach ${HOST}:${PORT}" >&2
       return 1
   fi

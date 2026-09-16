@@ -80,7 +80,8 @@ static void datadog_sort_modules(void *base, size_t count, size_t siz, compare_f
     // swap ddtrace and opcache for the rest of the modules lifecycle, so that opcache is always executed after ddtrace
     for (Bucket *module = base, *end = module + count, *datadog_module = NULL; module < end; ++module) {
         zend_module_entry *m = (zend_module_entry *)Z_PTR(module->val);
-        if (m->name == datadog_module_entry.name) {
+        // Compare by value to avoid confusion with the SSI replaced name
+        if (strcmp(m->name, PHP_DDTRACE_EXTNAME) == 0) {
             datadog_module = module;
         }
         if (datadog_module && strcmp(m->name, "Zend OPcache") == 0) {
@@ -345,6 +346,9 @@ int __cxa_thread_atexit_impl(void (*func)(void *), void *obj, void *dso_symbol) 
 static void dd_clean_main_thread_locals() {
     dd_run_rust_thread_destructors(NULL);
 }
+
+extern void *__dso_handle;
+int __cxa_atexit(void (*func)(void *), void *arg, void *dso_symbol);
 #endif
 
 static PHP_GSHUTDOWN_FUNCTION(datadog) {
@@ -424,7 +428,7 @@ static PHP_MINIT_FUNCTION(datadog) {
     if (datadog_active_sapi != DATADOG_PHP_SAPI_FRANKENPHP) {
         dd_is_main_thread = true;
         glibc__cxa_thread_atexit_impl = CXA_THREAD_ATEXIT_PHP;
-        atexit(dd_clean_main_thread_locals);
+        __cxa_atexit(dd_clean_main_thread_locals, NULL, __dso_handle);
     }
 #endif
 

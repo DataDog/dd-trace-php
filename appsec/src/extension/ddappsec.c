@@ -133,7 +133,8 @@ static void ddappsec_sort_modules(void *base, size_t count, size_t siz,
     for (Bucket *module = base, *end = module + count, *ddappsec_module = NULL;
         module < end; ++module) {
         zend_module_entry *m = (zend_module_entry *)Z_PTR(module->val);
-        if (m->name == ddappsec_module_entry.name) {
+        // Compare by value to avoid confusion with the SSI replaced name
+        if (strcmp(m->name, PHP_DDAPPSEC_EXTNAME) == 0) {
             ddappsec_module = module;
             continue;
         }
@@ -157,6 +158,35 @@ static int ddappsec_startup(zend_extension *extension)
     return SUCCESS;
 }
 
+// Native (not PHP) thread-local: the thread-exit destructor below may run after
+// PHP has already torn this thread's globals down.
+ZEND_TLS bool _tshutdown_ran;
+
+#if defined(ZTS) && defined(__linux__)
+// Fallback for libcs without __cxa_thread_atexit_impl (musl): a pthread key
+// whose destructor pthreads runs at thread exit. It takes no reference on this
+// DSO -- harmless here, since musl never unmaps one, so the destructor pointer
+// cannot outlive the image.
+static pthread_key_t _tshutdown_key;
+static int _tshutdown_key_err = -1;
+
+static void _create_tshutdown_key(void)
+{
+    _tshutdown_key_err =
+        pthread_key_create(&_tshutdown_key, _tshutdown_handler);
+}
+
+static void _register_pthread_tshutdown_dtor(void)
+{
+    static pthread_once_t once_control = PTHREAD_ONCE_INIT;
+    pthread_once(&once_control, _create_tshutdown_key);
+    if (_tshutdown_key_err == 0) {
+        // Any non-NULL value will do; pthreads skips keys whose value is NULL.
+        pthread_setspecific(_tshutdown_key, (void *)(uintptr_t)1);
+    }
+}
+#endif
+
 // GINIT/GSHUTDOWN run before/after MINIT/MSHUTDOWN
 static PHP_GINIT_FUNCTION(ddappsec)
 {
@@ -169,6 +199,7 @@ static PHP_GINIT_FUNCTION(ddappsec)
 
     memset(ddappsec_globals, '\0', sizeof(*ddappsec_globals)); // NOLINT
     ddappsec_globals->to_be_configured = true;
+    _tshutdown_ran = false; // a thread may be reused for fresh globals
 
 #if ZTS
     // Record which thread these globals belong to so GSHUTDOWN can tell whether
@@ -185,7 +216,7 @@ static PHP_GINIT_FUNCTION(ddappsec)
     // thread never exits, so the TLS destructor would pin ddappsec.so via
     // l_tls_dtor_count, which blocks DSO unload on apache graceful reload.
     // GSHUTDOWN calls _tshutdown_handler() directly for the main thread
-    // instead (see registered_thread_local_dtor below).
+    // instead (see GSHUTDOWN).
 #    if PHP_VERSION_ID >= 70200
     bool is_main_thread = tsrm_is_main_thread();
 #    else
@@ -194,15 +225,19 @@ static PHP_GINIT_FUNCTION(ddappsec)
     if (!is_main_thread) {
 #    if defined(__linux__)
         extern void *__dso_handle;
-        // adds a dependency on glibc 2.18
-        extern int __cxa_thread_atexit_impl(
-            void (*func)(void *), void *arg, void *dso_handle);
-        __cxa_thread_atexit_impl(_tshutdown_handler, NULL, __dso_handle);
+        // Weak because musl exports no __cxa_thread_atexit_impl (it is a glibc
+        // 2.18 internal); a strong reference makes dlopen() of this DSO fail.
+        extern int __cxa_thread_atexit_impl(void (*func)(void *), void *arg,
+            void *dso_handle) __attribute__((weak));
+        if (__cxa_thread_atexit_impl) {
+            __cxa_thread_atexit_impl(_tshutdown_handler, NULL, __dso_handle);
+        } else {
+            _register_pthread_tshutdown_dtor();
+        }
 #    elif defined(__APPLE__)
         extern void _tlv_atexit(void (*termFunc)(void *), void *objAddr);
         _tlv_atexit(_tshutdown_handler, NULL);
 #    endif
-        ddappsec_globals->registered_thread_local_dtor = true;
     }
 #endif
 }
@@ -210,6 +245,14 @@ static PHP_GINIT_FUNCTION(ddappsec)
 static void _tshutdown_handler(void *unspecnull ptr)
 {
     UNUSED(ptr);
+    // GSHUTDOWN and the thread-exit destructor can both target this thread;
+    // whichever runs first wins, as everything below is read from this thread's
+    // configuration, which the loser would find already freed.
+    if (_tshutdown_ran) {
+        return;
+    }
+    _tshutdown_ran = true;
+
     mlog_g(dd_log_debug, "Running tshutdown (thread %" PRIxPTR ")",
         (uintptr_t)pthread_self());
 
@@ -227,14 +270,12 @@ static PHP_GSHUTDOWN_FUNCTION(ddappsec)
 
 #if ZTS
     // _tshutdown_handler() frees native thread-local storage, so it must run on
-    // the thread that owns it. Run it here only if (a) no thread-local
-    // destructor was registered to run it (main thread, or a platform without a
-    // thread-exit destructor mechanism) and (b) GSHUTDOWN is actually executing
-    // on the owning thread rather than on the main thread cleaning up an
-    // already exited thread's globals -- in which case its TLS is out of reach
-    // and there is nothing we can do.
-    if (!ddappsec_globals->registered_thread_local_dtor &&
-        ddappsec_globals->ts_ls_cache == tsrm_get_ls_cache()) {
+    // the thread that owns it. Do it here whenever we are on that thread, which
+    // is also the only moment its configuration is guaranteed to still be
+    // mapped; the thread-local destructor registered in GINIT covers the other
+    // case, where we are the main thread cleaning up an already exited thread's
+    // globals and its TLS is out of reach.
+    if (ddappsec_globals->ts_ls_cache == tsrm_get_ls_cache()) {
         _tshutdown_handler(NULL);
     }
 #else
@@ -604,6 +645,7 @@ static PHP_FUNCTION(datadog_appsec_testing_send_invalid_command)
         .name = "invalid_command",
         .name_len = sizeof("invalid_command") - 1,
         .num_args = 1,
+        .reconnect_sidecar = true,
         .outgoing_cb = _pack_invalid_command,
         .incoming_cb = _process_invalid_response,
         .config_features_cb = dd_command_process_config_features_unexpected,
@@ -630,12 +672,6 @@ PHP_FUNCTION(datadog_appsec_push_addresses)
         RETURN_FALSE;
     }
 
-    if (!dd_req_lifecycle_is_active()) {
-        mlog_g(dd_log_info,
-            "Not running inside a tracked request; skipping push_addresses");
-        RETURN_FALSE;
-    }
-
     zval *addresses;
     zend_string *rasp_rule = NULL;
     zend_string *rule_variant = NULL;
@@ -644,9 +680,19 @@ PHP_FUNCTION(datadog_appsec_push_addresses)
         RETURN_FALSE;
     }
 
-    if (rasp_rule && ZSTR_LEN(rasp_rule) > 0 &&
-        !get_global_DD_APPSEC_RASP_ENABLED()) {
+    bool is_rasp = rasp_rule != NULL && ZSTR_LEN(rasp_rule) > 0;
+
+    if (is_rasp && !get_global_DD_APPSEC_RASP_ENABLED()) {
         mlog(dd_log_debug, "RASP is not enabled; skipping push_addresses");
+        RETURN_FALSE;
+    }
+
+    if (!dd_req_lifecycle_is_active()) {
+        mlog_g(dd_log_info,
+            "Not running inside a tracked request; skipping push_addresses");
+        if (is_rasp) {
+            dd_telemetry_add_rasp_rule_skipped(rasp_rule, rule_variant);
+        }
         RETURN_FALSE;
     }
 
@@ -663,7 +709,7 @@ PHP_FUNCTION(datadog_appsec_push_addresses)
     dd_result res =
         dd_request_exec(conn, Z_ARRVAL_P(addresses), &opts, &block_params);
 
-    if (opts.rasp_rule && ZSTR_LEN(opts.rasp_rule) > 0) {
+    if (is_rasp) {
         dd_duration_rasp_ext_account(&start);
     } else {
         dd_duration_waf_ext_account(&start);

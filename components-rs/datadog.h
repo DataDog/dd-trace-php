@@ -271,6 +271,8 @@ bool datadog_sidecar_reconnect(struct ddog_SidecarTransport **transport,
 void datadog_sidecar_set_reconnect_fn(struct ddog_SidecarTransport **transport,
                                       struct ddog_SidecarTransport *(*factory)(void));
 
+void datadog_sidecar_clear_reconnect_fn(struct ddog_SidecarTransport **transport);
+
 bool ddog_shm_limiter_inc(const struct ddog_MaybeShmLimiter *limiter, uint32_t limit);
 
 bool ddog_exception_hash_limiter_inc(struct ddog_SidecarTransport *connection,
@@ -527,6 +529,16 @@ ddog_MaybeError datadog_crashtracker_init(const struct ddog_Endpoint *endpoint,
 ddog_Configurator *ddog_library_configurator_new_dummy(bool debug_logs, ddog_CharSlice language);
 
 uint64_t dd_fnv1a_64(const uint8_t *data, uintptr_t len);
+
+/**
+ * Sets the endpoint's test session token, but only when it actually differs from the one already
+ * there.
+ *
+ * In our ZTS runs we sometimes set it, but always to the same value. This extra check prevents
+ * possible use-after-free in our test suite, given that it there only ever transitions from None
+ * to Some().
+ */
+void ddog_endpoint_set_test_token_if_changed(struct ddog_Endpoint *endpoint, ddog_CharSlice token);
 
 const char *ddog_normalize_process_tag_value(ddog_CharSlice tag_value);
 

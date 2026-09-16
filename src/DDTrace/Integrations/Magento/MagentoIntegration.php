@@ -624,7 +624,6 @@ class MagentoIntegration extends Integration
             }
         );
 
-
         // Events
         trace_method(
             'Magento\Framework\Event\ObserverInterface',
@@ -680,7 +679,6 @@ class MagentoIntegration extends Integration
                 }
             }
         );
-
 
         trace_method(
             'Magento\Sales\Model\Order\Email\Sender\OrderSender',

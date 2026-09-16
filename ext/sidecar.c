@@ -40,10 +40,10 @@ int32_t datadog_sidecar_master_pid = 0;
 static inline void dd_set_endpoint_test_token(ddog_Endpoint *endpoint) {
     if (zai_config_is_initialized()) {
         if (ZSTR_LEN(get_DD_TRACE_AGENT_TEST_SESSION_TOKEN())) {
-            ddog_endpoint_set_test_token(endpoint, dd_zend_string_to_CharSlice(get_DD_TRACE_AGENT_TEST_SESSION_TOKEN()));
+            ddog_endpoint_set_test_token_if_changed(endpoint, dd_zend_string_to_CharSlice(get_DD_TRACE_AGENT_TEST_SESSION_TOKEN()));
         }
     } else if (ZSTR_LEN(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN())) {
-        ddog_endpoint_set_test_token(endpoint, dd_zend_string_to_CharSlice(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN()));
+        ddog_endpoint_set_test_token_if_changed(endpoint, dd_zend_string_to_CharSlice(get_global_DD_TRACE_AGENT_TEST_SESSION_TOKEN()));
     }
 }
 
@@ -549,8 +549,28 @@ void datadog_sidecar_handle_fork(void) {
 #endif
 }
 
+// Reconnect factory for subprocess mode: creates a fresh transport and immediately
+// re-registers per-request state (service tags, env, etc.) via dd_sidecar_on_reconnect,
+// which ddog_sidecar_connect_php alone would not do for a caller-initiated reconnect.
+static ddog_SidecarTransport *dd_sidecar_subprocess_reconnect(void) {
+    ddog_SidecarTransport *transport = datadog_sidecar_connect(false);
+    if (transport) {
+        dd_sidecar_on_reconnect(transport);
+    }
+    return transport;
+}
+
 void datadog_sidecar_ensure_active(void) {
     if (DATADOG_G(sidecar)) {
+        // Restore reconnect_fn cleared during the previous RSHUTDOWN so that automatic
+        // reconnects work again for this request.
+        if (datadog_sidecar_active_mode == DD_SIDECAR_CONNECTION_SUBPROCESS) {
+            // Subprocess mode: the reconnect_fn must call dd_sidecar_on_reconnect to
+            // re-register per-request universal service tags on the new transport.
+            datadog_sidecar_set_reconnect_fn(&DATADOG_G(sidecar), dd_sidecar_subprocess_reconnect);
+        } else {
+            datadog_sidecar_set_reconnect_fn(&DATADOG_G(sidecar), datadog_sidecar_connect_callback);
+        }
         datadog_sidecar_reconnect(&DATADOG_G(sidecar), datadog_sidecar_connect_callback);
     } else if (datadog_endpoint) {
         // First RINIT on this thread: the process-level setup already ran (endpoint is
@@ -566,6 +586,10 @@ void datadog_sidecar_finalize(bool clear_id) {
     if (!DATADOG_G(sidecar) || !DATADOG_G(request_initialized)) {
         return;
     }
+
+    // Prevent reconnect during shutdown: avoid spawning a new sidecar just to deliver
+    // goodbye messages. Reconnect is restored at the start of the next RINIT.
+    datadog_sidecar_clear_reconnect_fn(&DATADOG_G(sidecar));
 
     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         datadog_telemetry_finalize();
@@ -583,6 +607,10 @@ void datadog_sidecar_finalize(bool clear_id) {
 }
 
 void datadog_sidecar_shutdown(void) {
+    // Prevent reconnect from firing during shutdown-phase sidecar calls.
+    if (DATADOG_G(sidecar)) {
+        datadog_sidecar_clear_reconnect_fn(&DATADOG_G(sidecar));
+    }
     datadog_sidecar_for_signal = NULL;
 
     // In thread mode, drop the main thread's connection before shutting down the
@@ -870,6 +898,8 @@ void datadog_sidecar_rshutdown(void) {
 
 void datadog_sidecar_gshutdown(zend_datadog_globals *datadog_globals) {
     if (datadog_globals->sidecar) {
+        datadog_sidecar_clear_reconnect_fn(&datadog_globals->sidecar);
+
         if (datadog_globals->sidecar == datadog_sidecar_for_signal) {
             datadog_sidecar_for_signal = NULL;
         }
@@ -882,7 +912,7 @@ void datadog_sidecar_gshutdown(zend_datadog_globals *datadog_globals) {
 bool datadog_alter_test_session_token(zval *old_value, zval *new_value, zend_string *new_str) {
     UNUSED(old_value, new_str);
     if (datadog_endpoint) {
-        ddog_endpoint_set_test_token(datadog_endpoint, dd_zend_string_to_CharSlice(Z_STR_P(new_value)));
+        ddog_endpoint_set_test_token_if_changed(datadog_endpoint, dd_zend_string_to_CharSlice(Z_STR_P(new_value)));
     }
     if (DATADOG_G(sidecar)) {
         datadog_ffi_try("Failed updating test session token",

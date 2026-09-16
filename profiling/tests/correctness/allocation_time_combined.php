@@ -13,7 +13,8 @@ function main() {
     $duration = $_ENV["EXECUTION_TIME"] ?? 10;
     $end = microtime(true) + $duration;
 
-    while (microtime(true) < $end) {
+    // Keep enough allocations for stable shares, even on slower CI workers.
+    for ($i = 0; $i < 128 || microtime(true) < $end; $i++) {
         // str_replace is frameless in PHP 8.4+ and allocates a new string
         $xs = str_repeat("x", 10_000_000); // 10MB source
         $ys = str_replace("x", "y", $xs); // 10MB allocation in frameless function

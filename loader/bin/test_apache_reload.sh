@@ -11,12 +11,19 @@
 # and the Apache parent dies with SIGSEGV (and the userland DDTrace\* functions disappear, because
 # the "original" function table was captured as NULL).
 #
+# opcache is enabled on purpose: it relocates every module_registry key into shared memory at the
+# end of php_module_startup() and maps them back out at the start of php_module_shutdown(). A key
+# the loader installed that is not a permanent interned string cannot be mapped back, so it keeps
+# pointing into a segment opcache unmaps in its own MSHUTDOWN, and zend_destroy_modules() dies
+# while releasing the module names (APMS-20476, PHP 7.3).
+#
 # This test therefore asserts, after each of several consecutive graceful reloads:
 #   1. the Apache *parent* pid is unchanged and still alive (apachectl graceful silently cold-starts
 #      a fresh httpd when the parent died, so the response alone proves nothing),
 #   2. requests still report ddtrace loaded, with the same phpversion('ddtrace'),
 #   3. function_exists('DDTrace\trace_function') is still true,
-#   4. the profiler is still loaded (it takes part in the resident-image situation).
+#   4. the profiler is still loaded (it takes part in the resident-image situation),
+#   5. opcache is loaded, so the run really did cover the shared memory interaction above.
 #
 # Required: DD_LOADER_PACKAGE_PATH pointing at an extracted dd-library-php-ssi package.
 # Optional: DD_LOADER_SO (defaults to ./modules/dd_library_loader.so), APACHE_RELOADS (default 3),
@@ -62,6 +69,8 @@ if [[ -z "${INI_SCAN_DIR}" || "${INI_SCAN_DIR}" == "(none)" ]]; then
     exit 1
 fi
 INI_FILE="${INI_SCAN_DIR}/98-dd-loader-reload-test.ini"
+OPCACHE_INI_FILE="${INI_SCAN_DIR}/10-dd-loader-reload-test-opcache.ini"
+LOG_CONF="/etc/apache2/conf-enabled/zz-dd-loader-reload-test-log.conf"
 
 # Apache reads the env of the process that starts it; mod_php then hands it to the loader.
 export DD_INJECTION_ENABLED=tracing
@@ -74,6 +83,10 @@ export DD_TRACE_STARTUP_LOGS=0
 . /etc/apache2/envvars
 $SUDO mkdir -p "${APACHE_RUN_DIR}" "${APACHE_LOCK_DIR}" "${APACHE_LOG_DIR}"
 
+# The images symlink Apache's error.log to /dev/stderr, which cannot be read back (and makes tail
+# block forever), so point it at a real file in the same directory for the diagnostics at the end.
+ERROR_LOG="${APACHE_LOG_DIR}/dd-loader-reload-test-error.log"
+
 PORTS_CONF="/etc/apache2/ports.conf"
 DEFAULT_SITE="/etc/apache2/sites-available/000-default.conf"
 BACKUP_SUFFIX=".dd-reload-test.bak"
@@ -81,7 +94,8 @@ BACKUP_SUFFIX=".dd-reload-test.bak"
 cleanup() {
     local rc=$?
     $SUDO -E apachectl stop >/dev/null 2>&1
-    $SUDO rm -f "${INI_FILE}" "${DOCROOT}/${TEST_SCRIPT_NAME}"
+    $SUDO rm -f "${INI_FILE}" "${OPCACHE_INI_FILE}" "${LOG_CONF}" "${ERROR_LOG}" \
+        "${DOCROOT}/${TEST_SCRIPT_NAME}"
     for conf in "${PORTS_CONF}" "${DEFAULT_SITE}"; do
         if [[ -f "${conf}${BACKUP_SUFFIX}" ]]; then
             $SUDO mv "${conf}${BACKUP_SUFFIX}" "${conf}"
@@ -104,15 +118,30 @@ echo "INI scan dir: ${INI_SCAN_DIR}"
 
 echo "zend_extension=${LOADER_SO}" | $SUDO tee "${INI_FILE}" >/dev/null
 
+# Loaded from a lower-numbered file, i.e. before the loader, like a distribution would.
+EXPECT_OPCACHE=0
+if [[ -f "$(php-config --extension-dir)/opcache.so" ]]; then
+    EXPECT_OPCACHE=1
+    cat <<'INI' | $SUDO tee "${OPCACHE_INI_FILE}" >/dev/null
+zend_extension=opcache.so
+opcache.enable=1
+opcache.interned_strings_buffer=8
+opcache.memory_consumption=64
+INI
+else
+    echo "WARNING: opcache.so not found; the shared memory interned string path is NOT covered"
+fi
+
 $SUDO mkdir -p "${DOCROOT}"
 cat <<'PHP' | $SUDO tee "${DOCROOT}/${TEST_SCRIPT_NAME}" >/dev/null
 <?php
 printf(
-    "ddtrace=%s version=%s trace_function=%s profiling=%s\n",
+    "ddtrace=%s version=%s trace_function=%s profiling=%s opcache=%s\n",
     extension_loaded('ddtrace') ? 'yes' : 'no',
     phpversion('ddtrace') ?: '-',
     function_exists('DDTrace\\trace_function') ? 'yes' : 'no',
-    extension_loaded('datadog-profiling') ? 'yes' : 'no'
+    extension_loaded('datadog-profiling') ? 'yes' : 'no',
+    extension_loaded('Zend OPcache') ? 'yes' : 'no'
 );
 PHP
 
@@ -134,6 +163,15 @@ parent_pid() {
     [[ -f "${APACHE_PID_FILE}" ]] && cat "${APACHE_PID_FILE}" 2>/dev/null
 }
 
+# "kill -0" also succeeds for a zombie, and a crashed Apache parent stays one until something
+# reaps it -- which nothing does when the container's pid 1 is not an init. Read the state instead.
+parent_alive() {
+    local pid="$1" state
+    [[ -n "${pid}" ]] || return 1
+    state="$(awk '{print $3}' "/proc/${pid}/stat" 2>/dev/null)" || return 1
+    [[ -n "${state}" && "${state}" != "Z" ]]
+}
+
 # ServerName goes in here too, so the log doesn't start with AH00558.
 $SUDO cp "${PORTS_CONF}" "${PORTS_CONF}${BACKUP_SUFFIX}"
 printf 'Listen %s:%s\nServerName %s\n' "${LISTEN_ADDR}" "${LISTEN_PORT}" "${LISTEN_ADDR}" \
@@ -142,6 +180,8 @@ if [[ -f "${DEFAULT_SITE}" && "${LISTEN_PORT}" != "80" ]]; then
     $SUDO cp "${DEFAULT_SITE}" "${DEFAULT_SITE}${BACKUP_SUFFIX}"
     $SUDO sed -i "s/\*:80/*:${LISTEN_PORT}/" "${DEFAULT_SITE}"
 fi
+printf 'ErrorLog %s\n' "${ERROR_LOG}" | $SUDO tee "${LOG_CONF}" >/dev/null
+$SUDO rm -f "${ERROR_LOG}"
 
 echo
 echo "Starting Apache on ${LISTEN_ADDR}:${LISTEN_PORT}"
@@ -175,6 +215,10 @@ assert_response() {
         echo "ERROR (${label}): the profiler is not loaded"
         failed=1
     fi
+    if [[ ${EXPECT_OPCACHE} -eq 1 && "${resp}" != *"opcache=yes"* ]]; then
+        echo "ERROR (${label}): opcache is not loaded, so this run did not cover it"
+        failed=1
+    fi
     if [[ "${resp}" != "${BASELINE}" ]]; then
         echo "ERROR (${label}): response changed"
         echo "  expected: ${BASELINE}"
@@ -198,9 +242,8 @@ for i in $(seq 1 "${RELOADS}"); do
     sleep 2
 
     NEW_PID="$(parent_pid)"
-    # Apache runs as root, so signal it through sudo (kill -0 would give EPERM otherwise).
-    if [[ -z "${NEW_PID}" ]] || ! $SUDO kill -0 "${NEW_PID}" 2>/dev/null; then
-        echo "ERROR: the Apache parent is gone after reload ${i} (pid file: '${NEW_PID:-missing}')"
+    if ! parent_alive "${NEW_PID}"; then
+        echo "ERROR: the Apache parent died during reload ${i} (pid file: '${NEW_PID:-missing}')"
         FAILED=1
         break
     fi
@@ -220,7 +263,7 @@ done
 echo
 if [[ ${FAILED} -ne 0 ]]; then
     echo "Apache error log tail:"
-    $SUDO tail -n 50 "${APACHE_LOG_DIR}/error.log" 2>/dev/null || true
+    tail -n 50 "${ERROR_LOG}" 2>/dev/null || true
     exit 1
 fi
 

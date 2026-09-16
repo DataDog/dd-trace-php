@@ -1,6 +1,7 @@
 {
   "scale_by_duration": true,
   "test_name": "php_allocation_time_combined",
+  "note": "Each iteration allocates three equal 10 MB strings: two in str_replace and one in str_repeat. With at least 128 iterations and p = 1 - exp(-10000000 / 4194304) = 0.9078, the binomial model gives an approximate share standard deviation of at most 0.77 percentage points. The 6-point margins allow over eight standard deviations, including the analyzer's integer truncation of the exact 2/3 and 1/3 shares.",
   "stacks": [
     {
       "profile-type": "alloc-size",
@@ -8,12 +9,12 @@
         {
           "regular_expression": "<?php;main;standard\\|str_replace$",
           "percent": 66,
-          "error_margin": 1
+          "error_margin": 6
         },
         {
           "regular_expression": "<?php;main;standard\\|str_repeat$",
           "percent": 33,
-          "error_margin": 1
+          "error_margin": 6
         }
       ]
     },
@@ -23,12 +24,12 @@
         {
           "regular_expression": "<?php;main;standard\\|str_replace$",
           "percent": 66,
-          "error_margin": 3
+          "error_margin": 6
         },
         {
           "regular_expression": "<?php;main;standard\\|str_repeat$",
           "percent": 33,
-          "error_margin": 3
+          "error_margin": 6
         }
       ]
     },

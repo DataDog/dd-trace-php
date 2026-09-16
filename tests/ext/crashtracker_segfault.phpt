@@ -8,6 +8,10 @@ if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not supp
 if (getenv('DD_TRACE_CLI_ENABLED') === '0') die("skip: tracer is disabled");
 if (PHP_VERSION_ID < 70200) die("skip: TEST_PHP_EXTRA_ARGS is only available on PHP 7.2+");
 include __DIR__ . '/includes/skipif_no_dev_env.inc';
+// Crashtracking isn't supported on macOS: the crash report never reaches the agent/
+// request-replayer the way it does on Linux (see also segfault_backtrace_disabled.phpt's
+// Darwin skip, which covers the related run-tests.php-visible-signal side of the same gap).
+if (PHP_OS === "Darwin") die("skip: crashtracker is not supported on macOS");
 ?>
 --ENV--
 DD_TRACE_LOG_LEVEL=0

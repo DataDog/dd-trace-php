@@ -4,10 +4,9 @@ pub mod got_elf64;
 pub mod got_macho;
 
 use crate::profiling::profiler::Profiler;
-use crate::profiling::{zend, RefCellExt, REQUEST_LOCALS};
+use crate::profiling::{sample_exponential_interval, zend, RefCellExt, REQUEST_LOCALS};
 use libc::{c_int, c_void, fstat, stat, S_IFMT, S_IFSOCK};
 use rand::rngs::ThreadRng;
-use rand_distr::{Distribution, Poisson};
 use rustc_hash::FxHashMap;
 use std::cell::RefCell;
 use std::mem::MaybeUninit;
@@ -603,17 +602,16 @@ fn collect_file_write_size(value: u64) {
 
 pub struct IOProfilingStats {
     next_sample: u64,
-    poisson: Poisson<f64>,
+    mean: f64,
     rng: ThreadRng,
 }
 
 impl IOProfilingStats {
-    fn new(lambda: f64) -> Self {
-        // Safety: this will only error if lambda <= 0
-        let poisson = Poisson::new(lambda).unwrap();
+    fn new(mean: u64) -> Self {
+        assert!(mean > 0);
         let mut stats = IOProfilingStats {
+            mean: mean as f64,
             next_sample: 0,
-            poisson,
             rng: rand::rng(),
         };
         stats.next_sampling_interval();
@@ -621,7 +619,7 @@ impl IOProfilingStats {
     }
 
     fn next_sampling_interval(&mut self) {
-        self.next_sample = self.poisson.sample(&mut self.rng) as u64;
+        self.next_sample = sample_exponential_interval(&mut self.rng, self.mean) as u64;
     }
 
     fn should_collect(&mut self, value: u64) -> bool {
@@ -634,8 +632,8 @@ impl IOProfilingStats {
             // (or risking a crash) we refrain from collection I/O.
             return false;
         }
-        if let Some(next_sample) = self.next_sample.checked_sub(value) {
-            self.next_sample = next_sample;
+        if self.next_sample > value {
+            self.next_sample -= value;
             return false;
         }
         self.next_sampling_interval();
@@ -646,42 +644,42 @@ impl IOProfilingStats {
 thread_local! {
     static SOCKET_READ_TIME_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            SOCKET_READ_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
+            SOCKET_READ_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed),
         )
     );
     static SOCKET_WRITE_TIME_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            SOCKET_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
+            SOCKET_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed),
         )
     );
     static FILE_READ_TIME_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            FILE_READ_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
+            FILE_READ_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed),
         )
     );
     static FILE_WRITE_TIME_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            FILE_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
+            FILE_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed),
         )
     );
     static SOCKET_READ_SIZE_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            SOCKET_READ_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
+            SOCKET_READ_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed),
         )
     );
     static SOCKET_WRITE_SIZE_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            SOCKET_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
+            SOCKET_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed),
         )
     );
     static FILE_READ_SIZE_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            FILE_READ_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
+            FILE_READ_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed),
         )
     );
     static FILE_WRITE_SIZE_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            FILE_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
+            FILE_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed),
         )
     );
 }
@@ -807,6 +805,20 @@ mod tests {
         assert!(slot_fits_range(0x1800, 0x1000, 0x1000));
         assert!(!slot_fits_range(0x2000, 0x1000, 0x1000));
         assert!(!slot_fits_range(usize::MAX, 0x1000, 0x1000));
+    }
+
+    #[test]
+    fn sampling_collects_at_interval_boundary() {
+        let vm_interrupt = std::sync::atomic::AtomicBool::new(false);
+        let previous = super::REQUEST_LOCALS.with_borrow_mut(|locals| {
+            std::mem::replace(&mut locals.vm_interrupt_addr, &vm_interrupt)
+        });
+        let mut stats = super::IOProfilingStats::new(100);
+        stats.next_sample = 8;
+        assert!(!stats.should_collect(0));
+        assert!(!stats.should_collect(4));
+        assert!(stats.should_collect(4));
+        super::REQUEST_LOCALS.with_borrow_mut(|locals| locals.vm_interrupt_addr = previous);
     }
 
     #[test]

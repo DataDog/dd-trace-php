@@ -45,11 +45,15 @@ static char ddtrace_disabled_result_reason[384] = {0};
 
 static bool already_done = false;
 
-#if defined(__MUSL__)
-# define OS_PATH "linux-musl/"
-#else
-# define OS_PATH "linux-gnu/"
-#endif
+extern char *gnu_get_libc_version(void) __attribute__((weak));
+
+static inline bool ddloader_host_is_musl(void) {
+    return gnu_get_libc_version == NULL;
+}
+
+static inline const char *ddloader_os_path(void) {
+    return ddloader_host_is_musl() ? "linux-musl/" : "linux-gnu/";
+}
 
 static ZEND_INI_MH(ddloader_OnUpdateForceInject) {
     (void)entry;
@@ -107,7 +111,7 @@ static char *ddtrace_pre_load_hook(injected_ext *config) {
     // as key). Musl only checks already loaded libraries if these were loaded
     // without a path (only that sets dso->shortname).
     char *libdatadog_php;
-    int res = asprintf(&libdatadog_php, "%s/%sloader/libdatadog_php.so", package_path, OS_PATH);
+    int res = asprintf(&libdatadog_php, "%s/%sloader/libdatadog_php.so", package_path, ddloader_os_path());
     if (res == -1) {
         return "asprintf error";
     }
@@ -610,7 +614,7 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
 
 static char *ddloader_find_ext_path(const char *ext_dir, const char *ext_name, int module_api, bool is_zts, bool is_debug) {
     char *full_path;
-    int res = asprintf(&full_path, "%s/%s%s/ext/%d/%s%s%s.so", package_path, OS_PATH, ext_dir, module_api, ext_name, is_zts ? "-zts" : "", is_debug ? "-debug" : "");
+    int res = asprintf(&full_path, "%s/%s%s/ext/%d/%s%s%s.so", package_path, ddloader_os_path(), ext_dir, module_api, ext_name, is_zts ? "-zts" : "", is_debug ? "-debug" : "");
     if (res == -1) {
         return NULL;
     }
@@ -730,10 +734,21 @@ static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
     zend_string *old_name = ddloader_zend_string_init(php_api_no, config->tmp_name, strlen(config->tmp_name), 1);
     Bucket *bucket = (Bucket *)zend_hash_find(&module_registry, old_name);
     ddloader_zend_string_release(php_api_no, old_name);
+    if (!bucket) {
+        TELEMETRY(REASON_ERROR, config, "injected_ext_not_found", "Extension '%s' not found in the module registry", config->tmp_name);
+        return SUCCESS;
+    }
 
+    /**
+     * The new key must be a *permanent interned* string, exactly like the ones zend_register_module_ex() creates for every other module.
+     * Opcache moves every module_registry key into its shared memory interned string buffer at the end of php_module_startup(), and maps them back out again at the start of php_module_shutdown() by looking each one up in the permanent interned string table.
+     */
     zend_string *new_name = ddloader_zend_string_init(php_api_no, config->ext_name, strlen(config->ext_name), 1);
+    new_name = ddloader_zend_new_interned_string(php_api_no, new_name);
     ddloader_zend_hash_set_bucket_key(php_api_no, &module_registry, bucket, new_name);
-    ddloader_zend_string_release(php_api_no, new_name);
+    if (!ddloader_zstr_is_interned(php_api_no, new_name)) {
+        ddloader_zend_string_release(php_api_no, new_name);
+    }
 
     module = ddloader_zend_hash_str_find_ptr(php_api_no, &module_registry, config->ext_name, strlen(config->ext_name));
     if (!module) {
@@ -774,12 +789,13 @@ static void ddloader_restore_so_module_entry(injected_ext *config) {
         return;
     }
 
-    module_entry->name = config->ext_name;
+    module_entry->name = config->orig_module_name;
     module_entry->module_startup_func = config->orig_module_startup_func;
     module_entry->deps = config->orig_module_deps;
     module_entry->functions = config->orig_module_functions;
 
     config->so_module_entry = NULL;
+    config->orig_module_name = NULL;
     config->orig_module_startup_func = NULL;
     config->orig_module_deps = NULL;
     config->orig_module_functions = NULL;
@@ -847,8 +863,9 @@ static int ddloader_load_extension(unsigned int php_api_no, char *module_build_i
      * our injected extension will be started up after the real one (if it's loaded!), and finally we
      * wrap the MINIT function to perform our checks there.
      */
-    module_entry->name = config->tmp_name;
     config->so_module_entry = module_entry;
+    config->orig_module_name = module_entry->name;
+    module_entry->name = config->tmp_name;
 
     config->orig_module_startup_func = module_entry->module_startup_func;
     module_entry->module_startup_func = ZEND_MODULE_STARTUP_N(ddloader_injected_extension_minit);
@@ -910,36 +927,7 @@ static inline void ddloader_configure() {
     package_path = getenv("DD_LOADER_PACKAGE_PATH");
 }
 
-static bool ddloader_libc_check() {
-    bool is_musl;
-    const char *error = dlerror();
-    // gnu_get_libc_version is available since glibc 2.1
-    char *(*get_libc_version)(void) = dlsym(RTLD_DEFAULT, "gnu_get_libc_version");
-    error = dlerror();
-    if (error == NULL && get_libc_version != NULL) {
-        is_musl = false;
-    } else {
-        is_musl = true;
-    }
-
-#if defined(__MUSL__)
-    if (!is_musl) {
-        return false;
-    }
-#else
-    if (is_musl) {
-        return false;
-    }
-#endif
-
-    return true;
-}
-
 static int ddloader_api_no_check(int api_no) {
-    if (!ddloader_libc_check()) {
-        return SUCCESS;
-    }
-
     if (already_done) {
         LOG(NULL, WARN, "dd_library_loader has been loaded multiple times, aborting");
         return SUCCESS;
@@ -1010,7 +998,7 @@ static int ddloader_api_no_check(int api_no) {
 
 static int ddloader_build_id_check(const char *build_id) {
     // Guardrail
-    if (!ddloader_libc_check() || !php_api_no || already_done) {
+    if (!php_api_no || already_done) {
         return SUCCESS;
     }
 

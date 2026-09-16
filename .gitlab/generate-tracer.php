@@ -9,6 +9,8 @@ $services = array_combine($m[1], $m[1]);
 
 const ASSERT_NO_MEMLEAKS = ' 2>&1 | tee /dev/stderr | { ! grep -qe "=== Total [0-9]+ memory leaks detected ==="; }';
 
+const ZTS_MAKE_TARGETS = ['test_integrations_frankenphp'];
+
 function after_script($execute_dir = ".", $has_test_agent = false) {
 ?>
 
@@ -108,13 +110,17 @@ stages:
       - PHP_MAJOR_MINOR: *asan_minor_major_targets
         ARCH: *arch_targets
 
-"windows test_c":
+<?php
+function windows_test_c_job($job_name, $thread_safety, $targets) {
+    $build_dir = $thread_safety === "zts" ? "Release_TS" : "Release";
+?>
+"<?= $job_name ?>":
   stage: test
   tags: [ "windows-v2:2019"]
   needs: []
   parallel:
     matrix:
-      - PHP_MAJOR_MINOR: <?= json_encode($windows_minor_major_targets) ?>
+      - PHP_MAJOR_MINOR: <?= json_encode($targets) ?>
 
   variables:
     CONTAINER_NAME: $CI_JOB_NAME_SLUG
@@ -141,11 +147,12 @@ stages:
     docker exec ${CONTAINER_NAME} powershell.exe -Command "`$ErrorActionPreference='Stop'; Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\FileSystem' -Name LongPathsEnabled -Value 1 -Type DWord"
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }  # local registry tweak, not network — fail fast (no retry)
 
-    # Build nts
-    docker exec ${CONTAINER_NAME} powershell.exe "cd app; switch-php nts; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake"
+    # Build <?= $thread_safety ?>
+
+    docker exec ${CONTAINER_NAME} powershell.exe "cd app; switch-php <?= $thread_safety ?>; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake"
 
     # Set test environment variables
-    docker exec ${CONTAINER_NAME} powershell.exe "setx DD_AUTOLOAD_NO_COMPILE true; setx DATADOG_HAVE_DEV_ENV 1; setx DD_TRACE_GIT_METADATA_ENABLED 0"
+    docker exec ${CONTAINER_NAME} powershell.exe "setx DD_AUTOLOAD_NO_COMPILE true; setx DATADOG_HAVE_DEV_ENV 1; setx DD_TRACE_GIT_METADATA_ENABLED 0; setx DD_TRACE_IGNORE_AGENT_SAMPLING_RATES 1; setx DD_TRACE_RATE_LIMIT 1000000"
 
     # Exclude tests that deadlock the php-cgi SKIPIF skip-task on Windows.
 <?php foreach ([
@@ -155,7 +162,7 @@ stages:
 <?php endforeach ?>
 
     # Run extension tests
-    docker exec ${CONTAINER_NAME} powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_LEVEL=trace; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\Release\php_ddtrace.dll" "${pwd}\tests\ext"'
+    docker exec ${CONTAINER_NAME} powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_LEVEL=trace; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\<?= $build_dir ?>\php_ddtrace.dll" "${pwd}\tests\ext"'
   after_script:
     - |
         docker exec ${CONTAINER_NAME} cmd.exe /s /c xcopy /y /c /s /e C:\ProgramData\Microsoft\Windows\WER\ReportQueue .\app\dumps\
@@ -173,9 +180,114 @@ stages:
   artifacts:
     paths:
       - sidecar.log
-      - x64/Release/php_ddtrace.dll
-      - x64/Release/php_ddtrace.pdb
+      - x64/<?= $build_dir ?>/php_ddtrace.dll
+      - x64/<?= $build_dir ?>/php_ddtrace.pdb
       - dumps
+<?php
+}
+
+windows_test_c_job("windows test_c", "nts", $windows_minor_major_targets);
+
+echo "\n";
+
+// Oldest and newest supported Windows targets, kept in sync automatically.
+windows_test_c_job("windows test_c: zts", "zts", [
+    reset($windows_minor_major_targets),
+    end($windows_minor_major_targets),
+]);
+?>
+
+"macos test_c":
+  stage: test
+  tags: ["macos:tart"]
+  image: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/ci-platform-machine-images/tart-vm:shared-sonoma-latest"
+  variables:
+    PHP_MACOS_VERSION: "8.5.9"
+    PHP_INSTALL_DIR: "/tmp/php-macos-${PHP_MACOS_VERSION}"
+    _DD_DEBUG_SIDECAR_LOG_LEVEL: trace
+    _DD_DEBUG_SIDECAR_LOG_METHOD: "file://${CI_PROJECT_DIR}/artifacts/sidecar.log"
+    # Enables tests gated by tests/ext/includes/skipif_no_dev_env.inc (see request-replayer
+    # setup below), matching the Linux/Windows jobs' dev-env-dependent test coverage.
+    DATADOG_HAVE_DEV_ENV: 1
+    PHP_CLI_SERVER_WORKERS: "16"
+    DD_REQUEST_DUMPER_FILE: dump.json
+  before_script:
+    # Strip the noisy DD_* env vars from the locally installed agent
+    - unset DD_SERVICE DD_ENV DD_TAGS DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED DD_AGENT_HOST DD_TRACE_AGENT_PORT DD_DOGSTATSD_PORT
+    - brew install pkg-config openssl re2c bison libxml2 oniguruma libzip libsodium php
+    - mkdir -p /tmp/php-build "${CI_PROJECT_DIR}/artifacts/tests"
+    - curl -fL "https://github.com/php/php-src/archive/refs/tags/php-${PHP_MACOS_VERSION}.tar.gz" | tar xz -C /tmp/php-build
+    - cd "/tmp/php-build/php-src-php-${PHP_MACOS_VERSION}"
+    - ./buildconf --force
+    - |
+      export PATH="$(brew --prefix bison)/bin:$(brew --prefix libxml2)/bin:${PATH}"
+      export PKG_CONFIG_PATH="$(brew --prefix libxml2)/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+      export LDFLAGS="-L$(brew --prefix libxml2)/lib ${LDFLAGS:-}"
+      export CPPFLAGS="-I$(brew --prefix libxml2)/include ${CPPFLAGS:-}"
+      ./configure \
+        --prefix="${PHP_INSTALL_DIR}" \
+        --enable-debug \
+        --enable-zts \
+        --enable-pcntl \
+        --without-iconv \
+        --with-openssl="$(brew --prefix openssl)" \
+        --with-libxml \
+        --enable-mbstring \
+        --with-sodium \
+        --with-curl \
+        --enable-sockets \
+        --with-ffi
+    - make -j"$(sysctl -n hw.ncpu)"
+    - make install
+    - cd "${CI_PROJECT_DIR}"
+    - rustup update stable && rustup default stable
+    - |
+      # There's no Docker service network on the macOS Tart runner (unlike the Linux/Windows
+      # jobs' "request-replayer" service container), so run request-replayer as a native
+      # background process on loopback instead, and alias its hostname via /etc/hosts so
+      # tests that hardcode "request-replayer" (see tests/Common/TracerTestTrait.php et al.)
+      # resolve it the same way. Uses brew's php (bundles curl + gmp, both required -- see
+      # dockerfiles/services/request-replayer/linux.Dockerfile and index.php's
+      # UnpackOptions::BIGINT_AS_GMP) rather than our from-source test build, which has
+      # neither and is a separate, unrelated PHP install.
+      grep -q '[[:space:]]request-replayer$' /etc/hosts || sudo bash -c 'echo "127.0.0.1 request-replayer" >> /etc/hosts'
+      REQUEST_REPLAYER_PHP="$(brew --prefix php)/bin/php"
+      "${REQUEST_REPLAYER_PHP}" -r "copy('https://getcomposer.org/installer', '/tmp/composer-setup.php');"
+      "${REQUEST_REPLAYER_PHP}" /tmp/composer-setup.php --install-dir=/tmp --filename=composer.phar
+      (cd dockerfiles/services/request-replayer/src && "${REQUEST_REPLAYER_PHP}" /tmp/composer.phar install --no-interaction)
+      # `sudo -b` (not `sudo ... &`): a non-interactive shell's `&` doesn't put the
+      # backgrounded job in its own process group, so it stays in sudo's -- and sudo,
+      # with pty allocation (common on macOS), waits for the whole process group to exit
+      # before returning. `-b` is sudo's own flag for backgrounding the command, so sudo
+      # itself returns immediately instead of waiting on this long-lived server. Even so,
+      # explicitly kill the server in after_script below (via its captured PID) rather than
+      # relying purely on detachment: the job still hung once even with -b, most likely
+      # some other inherited handle back to the runner's own output pipe, and killing it
+      # outright sidesteps whatever that is rather than chasing it further.
+      sudo -b bash -c "cd '${CI_PROJECT_DIR}/dockerfiles/services/request-replayer/src' && PHP_CLI_SERVER_WORKERS='${PHP_CLI_SERVER_WORKERS}' DD_REQUEST_DUMPER_FILE='${DD_REQUEST_DUMPER_FILE}' nohup '${REQUEST_REPLAYER_PHP}' -S 127.0.0.1:80 index.php < /dev/null > '${CI_PROJECT_DIR}/artifacts/request-replayer.log' 2>&1 & echo \$! > '${CI_PROJECT_DIR}/artifacts/request-replayer.pid'"
+  script:
+    - export PATH="${PHP_INSTALL_DIR}/bin:${PATH}"
+    - export TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
+    - php --version
+    - make -j"$(sysctl -n hw.ncpu)"
+    - timeout 20m make test_c
+    # GitLab's "step_script" (before_script + script) itself doesn't return while
+    # request-replayer is still alive -- confirmed by a run where the test suite finished
+    # cleanly (0 failures) but the job then sat idle until GitLab's own 1h job timeout
+    # killed it, with after_script never even starting. So kill it here, at the end of
+    # script itself, not only in after_script (kept below as a backstop for a failing
+    # script: that never reaches this line).
+    - test -f "${CI_PROJECT_DIR}/artifacts/request-replayer.pid" && sudo kill -9 "$(cat "${CI_PROJECT_DIR}/artifacts/request-replayer.pid")" || true
+  after_script:
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/diffs"
+    - find . -type f \( -name '*.diff' -o -name '*.mem' \) -not -path '*/vendor/*' -exec cp '{}' "${CI_PROJECT_DIR}/artifacts/diffs/" \; || true
+    - test -f "${CI_PROJECT_DIR}/artifacts/request-replayer.pid" && sudo kill -9 "$(cat "${CI_PROJECT_DIR}/artifacts/request-replayer.pid")" || true
+  artifacts:
+    when: always
+    reports:
+      junit: "artifacts/tests/php-tests.xml"
+    paths:
+      - "artifacts/"
 
 
 "Prepare code":
@@ -628,7 +740,7 @@ endforeach;
     - unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy
     - DD_TRACE_AGENT_TIMEOUT=1000 make $MAKE_TARGET RUST_DEBUG_BUILD=1 PHPUNIT_JUNIT="artifacts/tests/results.xml" <?= ASSERT_NO_MEMLEAKS ?>
 <?php after_script(".", true); ?>
-    - find tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' \) -exec cp --parents '{}' artifacts \;
+    - find tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'frankenphp_error.log' -o -name 'dd_php_error.log' \) -exec cp --parents '{}' artifacts \;
     - make tested_versions && cp tests/tested_versions/tested_versions.json artifacts/tested_versions_${MAKE_TARGET}_${PHP_MAJOR_MINOR}_${DD_TRACE_TEST_SAPI:-cli}.json
 
 <?php
@@ -657,6 +769,7 @@ foreach ($matches as $m) {
 
 foreach ($jobs as $type => $type_jobs):
     foreach ($type_jobs as $target => $versions):
+        $php_variant = in_array($target, ZTS_MAKE_TARGETS, true) ? "debug-zts-asan" : "debug";
         foreach ($versions as $major_minor):
             $sapis = $type == "web" && version_compare($major_minor, "7.2", ">=") ? ["cli-server", "cgi-fcgi", "apache2handler"] : [""];
             if ($target == "test_web_custom" && in_array("cli-server", $sapis)) {
@@ -668,7 +781,7 @@ foreach ($jobs as $type => $type_jobs):
   extends: .cli_integration_test
   stage: "<?= $type ?> test"
   needs:
-    - job: "compile extension: debug"
+    - job: "compile extension: <?= $php_variant ?>"
       parallel:
         matrix:
           - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
@@ -694,6 +807,12 @@ foreach ($services as $part => $service) {
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     MAKE_TARGET: "<?= $target ?>"
     ARCH: "amd64"
+    SWITCH_PHP_VERSION: "<?= $php_variant ?>"
+<?php if ($php_variant === "debug-zts-asan"): ?>
+    # These are inherited by the SAPI the harness spawns, which is where we need them. detect_leaks is off on purpose: PHP and Go both leak plenty on a killed server.
+    _DD_SIDECAR_WATCHDOG_MAX_MEMORY: 2147483648
+    ASAN_OPTIONS: abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1:detect_leaks=0
+<?php endif; ?>
 <?php if ($sapi): ?>
     DD_TRACE_TEST_SAPI: "<?= $sapi ?>"
 <?php endif; ?>

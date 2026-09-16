@@ -14,6 +14,7 @@ $env = [
     'DD_TRACE_AGENT_TIMEOUT' => 200,
     'DD_TRACE_RETRY_INTERVAL' => 1,
     'DD_AGENT_HOST' => 'invalid_host',
+    'DD_TRACE_AGENT_PORT' => '2',
     'DD_SERVICE' => 'foo_service',
     'DD_TAGS' => 'foo:tag',
 ];
@@ -33,7 +34,7 @@ var_dump(strncasecmp(PHP_OS, "WIN", 3) == 0 || isset($logs["agent_error"]));
 --EXPECTF--
 open_basedir_sources_allowed: false
 service: "foo_service"
-agent_url: "http://invalid_host:8126"
+agent_url: "http://invalid_host:2"
 tags: {"foo":"tag"}
 d%s.sources_path: "%s/includes/"
 open_basedir_configured: true

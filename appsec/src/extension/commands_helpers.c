@@ -41,7 +41,8 @@ typedef struct _dd_imsg {
 
 // if and only if this returns success, _imsg_destroy must be called
 static dd_result ATTR_WARN_UNUSED _imsg_recv(dd_imsg *nonnull imsg,
-    dd_conn *nonnull conn, dd_mpack_buffer *nonnull buffer);
+    dd_conn *nonnull conn, dd_mpack_buffer *nonnull buffer,
+    bool reconnect_sidecar);
 
 static inline ATTR_WARN_UNUSED mpack_error_t _imsg_destroy(
     dd_imsg *nonnull imsg);
@@ -84,7 +85,7 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn,
     }
 
     dd_imsg imsg = {0};
-    res = _imsg_recv(&imsg, conn, &omsg.buffer);
+    res = _imsg_recv(&imsg, conn, &omsg.buffer, spec->reconnect_sidecar);
     _dump_out_msg(dd_log_trace, &omsg.buffer);
     _omsg_destroy(&omsg);
     if (res) {
@@ -240,12 +241,13 @@ static inline void _omsg_destroy(dd_omsg *nonnull omsg)
 
 // incoming
 static ATTR_WARN_UNUSED dd_result _imsg_recv(dd_imsg *nonnull imsg,
-    dd_conn *nonnull conn, dd_mpack_buffer *nonnull buffer)
+    dd_conn *nonnull conn, dd_mpack_buffer *nonnull buffer,
+    bool reconnect_sidecar)
 {
     mlog(dd_log_debug, "Will exchange message with helper");
 
-    dd_result res = dd_conn_roundtrip(
-        conn, buffer->data, buffer->final_msg_size, &imsg->_response);
+    dd_result res = dd_conn_roundtrip(conn, buffer->data,
+        buffer->final_msg_size, reconnect_sidecar, &imsg->_response);
     if (res) {
         return res;
     }
@@ -702,8 +704,11 @@ void dd_command_process_meta(mpack_node_t root, zend_object *nonnull span)
             key_str, key_len, val_str, val_len);
     }
 
-    if (has_schemas && !get_DD_APM_TRACING_ENABLED()) {
-        dd_trace_emit_asm_event();
+    if (has_schemas) {
+        dd_telemetry_note_schema_extracted();
+        if (!get_DD_APM_TRACING_ENABLED()) {
+            dd_trace_emit_asm_event();
+        }
     }
 }
 
