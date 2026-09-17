@@ -13,6 +13,8 @@ include:
 # Allows benchmark flakiness monitoring pipelines to run a job.
 # See https://github.com/DataDog/benchmarking-platform-tools/tree/main/scripts/stability#stability-monitoring-ci.
 .on-master-and-parent-pipeline-source-on-success-and-not-interruptible: &on-master-and-parent-pipeline-source-on-success-and-not-interruptible
+  # $CI_PARENT_PIPELINE_SOURCE is set to $CI_PIPELINE_SOURCE on package-trigger's variables
+  # on .gitlab-ci.yml, so we propagate the original pipeline source from the parent down.
   if: '$CI_PARENT_PIPELINE_SOURCE == "pipeline" && $CI_COMMIT_REF_NAME == "master"'
   when: on_success
   interruptible: false
