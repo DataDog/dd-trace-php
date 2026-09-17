@@ -16,25 +16,6 @@ abstract class Integration implements \DDTrace\Integration
         return static::NAME;
     }
 
-    public static function addTraceAnalyticsIfEnabled(SpanData $span)
-    {
-        $name = static::NAME;
-        if (\DDTrace\Config\integration_analytics_enabled($name)
-            || (!static::requiresExplicitTraceAnalyticsEnabling() && \dd_trace_env_config("DD_TRACE_ANALYTICS_ENABLED"))) {
-            $span->metrics[Tag::ANALYTICS_KEY] = \DDTrace\Config\integration_analytics_sample_rate($name);
-        }
-    }
-
-    /**
-     * Whether this integration trace analytics configuration is not enabled when DD_TRACE_ANALYTICS_ENABLED=1 is specified.
-     *
-     * Trace Analytics are generally enabled by default for top-level integrations, i.e. frameworks and webservers.
-     */
-    public static function requiresExplicitTraceAnalyticsEnabling(): bool
-    {
-        return true;
-    }
-
     /**
      * Tells whether the provided integration should be loaded.
      */

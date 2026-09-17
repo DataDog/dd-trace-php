@@ -15,16 +15,11 @@ METHOD=POST
 DDTrace\start_span();
 DDTrace\close_span();
 $spans = dd_trace_serialize_closed_spans();
-var_dump($spans[0]['meta']);
+$postKeys = array_filter(array_keys($spans[0]['attributes']), function ($key) {
+    return strpos($key, 'http.request.post') === 0;
+});
+var_dump($postKeys);
 ?>
---EXPECTF--
-array(4) {
-  ["_dd.p.dm"]=>
-  string(2) "-0"
-  ["_dd.p.tid"]=>
-  string(16) "%s"
-  ["_dd.tags.process"]=>
-  string(%d) "%s"
-  ["runtime-id"]=>
-  string(36) "%s"
+--EXPECT--
+array(0) {
 }

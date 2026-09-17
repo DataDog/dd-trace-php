@@ -27,7 +27,7 @@ function makeRequest() {
 
     $closedSpans = dd_trace_serialize_closed_spans();
 
-    $rootMeta = $closedSpans[0]['meta'];
+    $rootMeta = $closedSpans[0]['attributes'];
     echo $rootMeta['_dd.git.repository_url'] . PHP_EOL;
     echo $rootMeta['_dd.git.commit.sha'] . PHP_EOL;
 
@@ -35,7 +35,7 @@ function makeRequest() {
     \DDTrace\close_span();
 
     $closedRoot = dd_trace_serialize_closed_spans();
-    $rootMeta2 = $closedRoot[0]['meta'];
+    $rootMeta2 = $closedRoot[0]['attributes'];
 
     echo $rootMeta2['_dd.git.repository_url'] . PHP_EOL;
     echo $rootMeta2['_dd.git.commit.sha'] . PHP_EOL;

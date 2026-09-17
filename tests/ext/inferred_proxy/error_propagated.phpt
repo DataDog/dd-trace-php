@@ -52,6 +52,7 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
 [
     {
         "trace_id": "13930160852258120406",
+        "trace_id_high": "%s",
         "span_id": "13930160852258120406",
         "parent_id": "11788048577503494824",
         "start": %d,
@@ -61,27 +62,28 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
         "service": "aws-server",
         "type": "web",
         "error": 1,
-        "meta": {
-            "env": "local-prod",
-            "error.message": "Uncaught Exception (500): An exception occurred in %serror_propagated.php:%d",
-            "error.stack": "#0 %serror_propagated.php(%d): oops()\n#1 {main}",
-            "error.type": "Exception",
+        "env": "local-prod",
+        "version": "1.0",
+        "span_kind": 2,
+        "sampling_priority": 1,
+        "sampling_mechanism": 0,
+        "attributes": {
+            "runtime-id": "%s",
+            "http.url": "http:\/\/localhost:8888\/foo",
             "http.method": "GET",
             "http.status_code": "500",
-            "http.url": "http:\/\/localhost:8888\/foo",
-            "runtime-id": "%s",
-            "span.kind": "server",
-            "version": "1.0"
-        },
-        "metrics": {
+            "error.type": "Exception",
+            "error.message": "Uncaught Exception (500): An exception occurred in %serror_propagated.php:%d",
+            "error.stack": "#0 %serror_propagated.php(%d): oops()\n#1 {main}",
+            "process_id": %d,
             "php.compilation.total_time_ms": %f,
-            "php.memory.peak_real_usage_bytes": %d,
             "php.memory.peak_usage_bytes": %d,
-            "process_id": %d
+            "php.memory.peak_real_usage_bytes": %d
         }
     },
     {
         "trace_id": "13930160852258120406",
+        "trace_id_high": "%s",
         "span_id": "11788048577503494824",
         "start": 100000000,
         "duration": %d,
@@ -90,24 +92,22 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
         "service": "example.com",
         "type": "web",
         "error": 1,
-        "meta": {
-            "_dd.p.dm": "-0",
-            "_dd.p.tid": "%s",
-            "component": "aws-apigateway",
-            "env": "local-prod",
-            "error.message": "Uncaught Exception (500): An exception occurred in %serror_propagated.php:%d",
-            "error.stack": "#0 %serror_propagated.php(%d): oops()\n#1 {main}",
-            "error.type": "Exception",
+        "env": "local-prod",
+        "version": "1.0",
+        "component": "aws-apigateway",
+        "span_kind": 1,
+        "sampling_priority": 1,
+        "sampling_mechanism": 0,
+        "attributes": {
             "http.method": "GET",
-            "http.status_code": "500",
             "http.url": "example.com\/test",
             "stage": "aws-prod",
-            "version": "1.0"
-        },
-        "metrics": {
-            "_dd.agent_psr": 1,
+            "http.status_code": "500",
+            "error.type": "Exception",
             "_dd.inferred_span": 1,
-            "_sampling_priority_v1": 1
+            "_dd.agent_psr": 1,
+            "error.message": "Uncaught Exception (500): An exception occurred in %serror_propagated.php:%d",
+            "error.stack": "#0 %serror_propagated.php(%d): oops()\n#1 {main}"
         }
     }
 ]

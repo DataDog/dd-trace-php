@@ -34,9 +34,11 @@ var_dump(dd_clean_spans());
 --EXPECTF--
 array(2) {
   [0]=>
-  array(10) {
+  array(12) {
     ["trace_id"]=>
     string(%d) "%d"
+    ["trace_id_high"]=>
+    string(16) "%s"
     ["span_id"]=>
     string(%d) "%d"
     ["parent_id"]=>
@@ -53,26 +55,30 @@ array(2) {
     string(26) "peer_service_remapping.php"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
+    ["span_kind"]=>
+    int(1)
+    ["attributes"]=>
     array(6) {
-      ["_dd.peer.service.source"]=>
-      string(12) "peer.service"
       ["db.instance"]=>
       string(3) "db1"
-      ["foo"]=>
-      string(3) "bar"
       ["net.peer.name"]=>
       string(3) "xyz"
+      ["foo"]=>
+      string(3) "bar"
       ["peer.service"]=>
       string(3) "net"
+      ["_dd.peer.service.source"]=>
+      string(12) "peer.service"
       ["peer.service.remapped_from"]=>
       string(13) "net.peer.name"
     }
   }
   [1]=>
-  array(10) {
+  array(12) {
     ["trace_id"]=>
     string(%d) "%d"
+    ["trace_id_high"]=>
+    string(16) "%s"
     ["span_id"]=>
     string(%d) "%d"
     ["parent_id"]=>
@@ -89,20 +95,22 @@ array(2) {
     string(26) "peer_service_remapping.php"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
+    ["span_kind"]=>
+    int(1)
+    ["attributes"]=>
     array(6) {
-      ["_dd.peer.service.source"]=>
-      string(11) "db.instance"
       ["db.instance"]=>
       string(3) "db1"
-      ["foo"]=>
-      string(3) "bar"
       ["net.peer.name"]=>
       string(3) "xyz"
-      ["peer.service"]=>
-      string(8) "database"
+      ["foo"]=>
+      string(3) "bar"
+      ["_dd.peer.service.source"]=>
+      string(11) "db.instance"
       ["peer.service.remapped_from"]=>
       string(3) "db1"
+      ["peer.service"]=>
+      string(8) "database"
     }
   }
 }

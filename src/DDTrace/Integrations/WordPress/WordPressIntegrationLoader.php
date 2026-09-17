@@ -204,7 +204,6 @@ class WordPressIntegrationLoader
             // Overwrite the default web integration
             $rootSpan = \DDTrace\root_span();
             if ($rootSpan) {
-                WordPressIntegration::addTraceAnalyticsIfEnabled($rootSpan);
                 $rootSpan->name = 'wordpress.request';
                 $rootSpan->service = \ddtrace_config_app_name(WordPressIntegration::NAME);;
                 $rootSpan->meta[Tag::COMPONENT] = WordPressIntegration::NAME;

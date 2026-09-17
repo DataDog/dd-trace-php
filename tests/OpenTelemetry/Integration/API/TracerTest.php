@@ -339,30 +339,33 @@ final class TracerTest extends BaseTestCase
     public function providerAnalyticsEvent()
     {
         return [
-            ["true", 1],
-            ["TRUE", 1],
-            ["True", 1],
-            ["false", 0],
-            ["False", 0],
-            ["FALSE", 0],
-            ["something-else", null],
-            [True, 1],
-            [False, 0],
-            ['t', 1],
-            ['T', 1],
-            ['f', 0],
-            ['F', 0],
-            ['1', 1],
-            ['0', 0],
-            ['fAlse', null],
-            ['trUe', null]
+            ["true"],
+            ["TRUE"],
+            ["True"],
+            ["false"],
+            ["False"],
+            ["FALSE"],
+            ["something-else"],
+            [True],
+            [False],
+            ['t'],
+            ['T'],
+            ['f'],
+            ['F'],
+            ['1'],
+            ['0'],
+            ['fAlse'],
+            ['trUe']
         ];
     }
 
     /**
+     * App Analytics is deprecated and a no-op: analytics.event no longer emits the
+     * _dd1.sr.eausr metric, but setting it must remain callable without error.
+     *
      * @dataProvider providerAnalyticsEvent
      */
-    public function testReservedAttributesOverridesAnalyticsEvent($analyticsEventValue, $expectedMetricValue)
+    public function testAnalyticsEventIsDeprecatedNoOp($analyticsEventValue)
     {
         $traces = $this->isolateTracer(function () use ($analyticsEventValue) {
             $tracer = self::getTracer();
@@ -374,12 +377,7 @@ final class TracerTest extends BaseTestCase
         });
 
         $span = $traces[0][0];
-        if ($expectedMetricValue !== null) {
-            $actualMetricValue = $span['metrics']['_dd1.sr.eausr'];
-            $this->assertEquals($expectedMetricValue, $actualMetricValue);
-        } else {
-            $this->assertArrayNotHasKey('_dd1.sr.eausr', $span['metrics']);
-        }
+        $this->assertArrayNotHasKey('_dd1.sr.eausr', $span['metrics']);
     }
 
     public function testSpanErrorStatus()
