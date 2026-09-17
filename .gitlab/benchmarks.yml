@@ -12,7 +12,7 @@ include:
 
 # Allows benchmark flakiness monitoring pipelines to run a job.
 # See https://github.com/DataDog/benchmarking-platform-tools/tree/main/scripts/stability#stability-monitoring-ci.
-.on-master-and-parent-pipeline-source-on-success-and-not-interruptible: &on-master-and-parent-pipeline-source-on-success-and-not-interruptible
+.on-master-and-parent-pipeline-source-pipeline-on-success-and-not-interruptible: &on-master-and-parent-pipeline-source-pipeline-on-success-and-not-interruptible
   if: '$CI_PARENT_PIPELINE_SOURCE == "pipeline" && $CI_COMMIT_REF_NAME == "master"'
   when: on_success
   interruptible: false
@@ -23,7 +23,7 @@ include:
   interruptible: false
 
 .macrobenchmarks-rules: &macrobenchmarks-rules
-  - <<: *on-master-and-parent-pipeline-source-on-success-and-not-interruptible
+  - <<: *on-master-and-parent-pipeline-source-pipeline-on-success-and-not-interruptible
   - <<: *on-master-or-nightly-benchmarks-or-release-on-success-and-not-interruptible
   - when: manual
     allow_failure: true
@@ -72,7 +72,7 @@ workflow:
     on_new_commit: interruptible
 
 .benchmarks-profiler-rules: &benchmarks-profiler-rules
-  - <<: *on-master-and-parent-pipeline-source-on-success-and-not-interruptible
+  - <<: *on-master-and-parent-pipeline-source-pipeline-on-success-and-not-interruptible
   - if: $CI_PIPELINE_SOURCE != "schedule" && $CI_COMMIT_REF_NAME == "master"
     changes:
       paths:
@@ -96,7 +96,7 @@ workflow:
     interruptible: true
 
 .benchmarks-appsec-rules: &benchmarks-appsec-rules
-  - <<: *on-master-and-parent-pipeline-source-on-success-and-not-interruptible
+  - <<: *on-master-and-parent-pipeline-source-pipeline-on-success-and-not-interruptible
   - if: $CI_PIPELINE_SOURCE != "schedule" && $CI_COMMIT_REF_NAME == "master"
     changes:
       paths:
@@ -120,7 +120,7 @@ workflow:
     interruptible: true
 
 .benchmarks-tracer-rules: &benchmarks-tracer-rules
-  - <<: *on-master-and-parent-pipeline-source-on-success-and-not-interruptible
+  - <<: *on-master-and-parent-pipeline-source-pipeline-on-success-and-not-interruptible
   - if: $CI_PIPELINE_SOURCE != "schedule" && $CI_COMMIT_REF_NAME == "master"
     when: on_success
     interruptible: false
