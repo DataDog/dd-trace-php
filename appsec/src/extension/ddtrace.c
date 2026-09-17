@@ -49,11 +49,11 @@ static void _register_testing_objects(void);
 static const uint8_t *(*nullable _datadog_get_formatted_session_id)(void);
 static uint64_t (*nullable _datadog_get_sidecar_queue_id)(void);
 #ifdef ZTS
-static ddog_SidecarTransport *nullable *nonnull (
-    *nullable _ddtrace_get_sidecar_transport)(void *nullable tsrm_ls);
+static ddog_SidecarTransport * nullable *
+    nonnull (*nullable _ddtrace_get_sidecar_transport)(void *nullable tsrm_ls);
 #else
-static ddog_SidecarTransport *nullable *nonnull (
-    *nullable _ddtrace_get_sidecar_transport)(void);
+static ddog_SidecarTransport * nullable *
+    nonnull (*nullable _ddtrace_get_sidecar_transport)(void);
 #endif
 static zend_object *(*nullable _ddtrace_get_root_span)(void);
 static void (*nullable _ddtrace_close_all_spans_and_flush)(void);
@@ -75,11 +75,11 @@ static void *(*nullable _ddtrace_emit_asm_event)(void);
 static zend_string *(*nullable _ddtrace_guess_endpoint_from_url)(
     const char *nonnull url, size_t url_len);
 static ddog_AppsecCResponse (*nullable _ddog_sidecar_send_appsec_message)(
-    ddog_SidecarTransport *nonnull *nonnull transport, uint64_t client_id,
+    ddog_SidecarTransport * nonnull * nonnull transport, uint64_t client_id,
     ddog_CharSlice data);
 static ddog_AppsecCResponse (
     *nullable _datadog_sidecar_send_appsec_message_without_reconnect)(
-    ddog_SidecarTransport *nonnull *nonnull transport, uint64_t client_id,
+    ddog_SidecarTransport * nonnull * nonnull transport, uint64_t client_id,
     ddog_CharSlice data);
 static void (*nullable _ddog_sidecar_appsec_response_drop)(
     ddog_AppsecCResponse response);

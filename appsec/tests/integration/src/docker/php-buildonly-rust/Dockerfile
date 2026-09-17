@@ -14,7 +14,7 @@ RUN rm /etc/musl-clang.conf
 
 RUN apk --no-cache add clang21-libclang curl curl-dev && \
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
-        sh -s -- --default-toolchain 1.87.0 --profile minimal -y && \
+        sh -s -- --default-toolchain 1.91.1 --profile minimal -y && \
     rustup component add rustfmt clippy llvm-tools-preview && \
     rust_toolchain="nightly-$(uname -m)-unknown-linux-musl" && \
     rustup toolchain install "$rust_toolchain" \

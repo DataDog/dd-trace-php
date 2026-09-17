@@ -14,7 +14,7 @@ child pipeline; all job definitions and matrices are inline.
 | `C components ASAN` | `dd-trace-ci:centos-7`, `dd-trace-ci:php-compile-extension-alpine`, `dd-trace-ci:bookworm-6` | Builds C components (`components/`) with ASAN (on Debian) or plain Debug (on CentOS/Alpine), runs ctest |
 | `C components UBSAN` | `dd-trace-ci:bookworm-6` | Builds C components with UBSAN, runs ctest with `--repeat until-fail:10` |
 | `Configuration Consistency` | `dd-trace-ci:php-{latest}_bookworm-6` | Runs `tooling/generate-supported-configurations.sh` and verifies `metadata/supported-configurations.json` is up-to-date |
-| `PHP lint` | `dd-trace-ci:php-{latest}_bookworm-10` | Nearly-empty PHPCS + custom scripts over `src/`; see `tooling/php-lint/` |
+| `PHP lint` | `dd-trace-ci:php-{latest}_bookworm-11` | Nearly-empty PHPCS + custom scripts over `src/`; see `tooling/php-lint/` |
 
 Runner: `arch:amd64` (all jobs in this pipeline are amd64-only)
 
@@ -270,7 +270,7 @@ Or, with the CI image:
 
 ```bash
 .claude/ci/dockerh --cache php-lint --overlayfs --php nts \
-  datadog/dd-trace-ci:php-8.5_bookworm-10 -- \
+  datadog/dd-trace-ci:php-8.5_bookworm-11 -- \
   bash tooling/php-lint/run.sh
 ```
 

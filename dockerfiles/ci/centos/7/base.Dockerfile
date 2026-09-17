@@ -194,7 +194,7 @@ RUN source scl_source enable devtoolset-7; set -ex; \
 ENV PKG_CONFIG_PATH="${PKG_CONFIG_PATH}:/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig:/usr/local/openssl/lib/pkgconfig:/usr/local/zlib/lib/pkgconfig:/usr/local/curl/lib/pkgconfig:/usr/local/sqlite3/lib/pkgconfig"
 
 # Caution, takes a very long time! Since we have to build one from source,
-# I picked LLVM 20, which matches Rust 1.87.
+# I picked LLVM 21, which matches Rust 1.91.
 # Ordinarily we leave sources, but LLVM is 2GiB just for the sources...
 # Minimum: libclang. Nice-to-have: full toolchain including linker to play
 # with cross-language link-time optimization. Needs to match rustc -Vv's llvm
@@ -211,7 +211,7 @@ RUN yum install -y --nogpgcheck devtoolset-9 \
   && cd - \
   && rm -fr "${SRC_DIR}/ninja" \
   && cd /usr/local/src \
-  && git clone --depth 1 -b release/20.x https://github.com/llvm/llvm-project.git \
+  && git clone --depth 1 -b release/21.x https://github.com/llvm/llvm-project.git \
   && mkdir -vp llvm-project/build \
   && cd llvm-project/build \
   && cmake -G Ninja -DLLVM_ENABLE_PROJECTS="clang;lld" -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local -DLLVM_INCLUDE_TESTS=OFF -DLLVM_ENABLE_BINDINGS=OFF -DLLVM_INSTALL_TOOLCHAIN_ONLY=ON ../llvm \
@@ -226,9 +226,9 @@ RUN yum install -y --nogpgcheck devtoolset-9 \
 
 
 # rust sha256sum generated locally after verifying it with sha256
-ARG RUST_VERSION="1.87.0"
-ARG RUST_SHA256_ARM="2c66e31d774a0dcd4422db74584ebc6362ff3ae90c452caff9d2fb912c821e8d"
-ARG RUST_SHA256_X86="1f6f18ce19387c42968a474cf175e67f99280614ded9c752d5d2e37af3204bcd"
+ARG RUST_VERSION="1.91.1"
+ARG RUST_SHA256_ARM="50213385f288b8760b2efd54ac066ef9a76475e778cbe3b0fcbd3f898fc00674"
+ARG RUST_SHA256_X86="1c955c040dd087e4751d15588ddec288b4208bea16f8ec5046c164877e55fff7"
 # Mount a cache into /rust/cargo if you want to pre-fetch packages or something
 ENV CARGO_HOME=/rust/cargo
 ENV RUSTUP_HOME=/rust/rustup
