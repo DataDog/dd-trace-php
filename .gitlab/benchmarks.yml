@@ -17,15 +17,17 @@ include:
   when: on_success
   interruptible: false
 
-.parallel-benchmark-rules: &parallel-benchmark-rules
+.on-master-or-nightly-benchmarks-or-release-on-success-and-not-interruptible: &on-master-or-nightly-benchmarks-or-release-on-success-and-not-interruptible
+  if: '($CI_COMMIT_REF_NAME == "master" && ($NIGHTLY_BENCHMARKS || $CI_PIPELINE_SOURCE != "schedule")) || $CI_COMMIT_REF_NAME =~ /^ddtrace-/'
+  when: on_success
+  interruptible: false
+
+.macrobenchmarks-rules: &macrobenchmarks-rules
   - <<: *on-master-and-parent-pipeline-source-on-success-and-not-interruptible
-  - if: '$CI_PIPELINE_SOURCE == "schedule"'
-    when: always
-  - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-    when: always
-    interruptible: false
+  - <<: *on-master-or-nightly-benchmarks-or-release-on-success-and-not-interruptible
   - when: manual
     allow_failure: true
+    interruptible: true
 
 linux-php-laravel-realworld-parallel:
   needs:
@@ -33,7 +35,7 @@ linux-php-laravel-realworld-parallel:
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
-  rules: *parallel-benchmark-rules
+  rules: *macrobenchmarks-rules
   variables:
     DD_TRACER_ARTIFACT_DIR: "$CI_PROJECT_DIR/packages"
 
@@ -43,7 +45,7 @@ linux-php-symfony-realworld-parallel:
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
-  rules: *parallel-benchmark-rules
+  rules: *macrobenchmarks-rules
   variables:
     DD_TRACER_ARTIFACT_DIR: "$CI_PROJECT_DIR/packages"
 
@@ -53,7 +55,7 @@ linux-php-wordpress-parallel:
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
-  rules: *parallel-benchmark-rules
+  rules: *macrobenchmarks-rules
   variables:
     DD_TRACER_ARTIFACT_DIR: "$CI_PROJECT_DIR/packages"
 
@@ -129,18 +131,6 @@ workflow:
     when: manual
     allow_failure: true
     interruptible: false
-  - when: manual
-    allow_failure: true
-    interruptible: true
-
-.on-master-or-nightly-benchmarks-or-release-on-success-and-not-interruptible: &on-master-or-nightly-benchmarks-or-release-on-success-and-not-interruptible
-  if: '($CI_COMMIT_REF_NAME == "master" && ($NIGHTLY_BENCHMARKS || $CI_PIPELINE_SOURCE != "schedule")) || $CI_COMMIT_REF_NAME =~ /^ddtrace-/'
-  when: on_success
-  interruptible: false
-
-.macrobenchmarks-rules: &macrobenchmarks-rules
-  - <<: *on-master-and-parent-pipeline-source-on-success-and-not-interruptible
-  - <<: *on-master-or-nightly-benchmarks-or-release-on-success-and-not-interruptible
   - when: manual
     allow_failure: true
     interruptible: true
