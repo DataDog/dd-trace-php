@@ -51,13 +51,16 @@ foreach ($span['attributes'] as $key => $value) {
 }
 ?>
 --EXPECTF--
-
 array(1) {
   [0]=>
   int(42)
 }
-arg.0.0: float(42)
-arg.0.1: float(0)
+arg.0: array(2) {
+  [0]=>
+  float(42)
+  [1]=>
+  float(0)
+}
 
 int(42)
 arg.1: float(42)
@@ -75,7 +78,10 @@ array(1) {
   [0]=>
   float(4.2)
 }
-arg.5.0: float(4.2)
+arg.5: array(1) {
+  [0]=>
+  float(4.2)
+}
 
 array(3) {
   [0]=>
@@ -85,9 +91,14 @@ array(3) {
   [2]=>
   float(3.3)
 }
-arg.6.0: float(1.1)
-arg.6.1: float(2.2)
-arg.6.2: float(3.3)
+arg.6: array(3) {
+  [0]=>
+  float(1.1)
+  [1]=>
+  float(2.2)
+  [2]=>
+  float(3.3)
+}
 
 array(3) {
   [0]=>
@@ -105,7 +116,19 @@ array(3) {
     float(3.3)
   }
 }
-arg.7.0.0: float(4.2)
-arg.7.0.1: float(42)
-arg.7.1: float(2.2)
-arg.7.2.0: float(3.3)
+arg.7: array(3) {
+  [0]=>
+  array(2) {
+    [0]=>
+    float(4.2)
+    [1]=>
+    float(42)
+  }
+  [1]=>
+  float(2.2)
+  [2]=>
+  array(1) {
+    [0]=>
+    float(3.3)
+  }
+}
