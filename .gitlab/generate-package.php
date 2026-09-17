@@ -1326,9 +1326,10 @@ endforeach;
     - !reference [.services, request-replayer]
     - !reference [.services, httpbin-integration]
   variables:
+    CARGO_BUILD_JOBS: 4
     KUBERNETES_CPU_REQUEST: 4
-    KUBERNETES_MEMORY_REQUEST: 3Gi
-    KUBERNETES_MEMORY_LIMIT: 5Gi
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
   parallel:
     matrix:
       - PHP_VERSION: <?= json_encode($all_minor_major_targets), "\n" ?>
@@ -1339,7 +1340,7 @@ endforeach;
 <?php unset_dd_runner_env_vars() ?>
     - cp ./pecl/datadog_trace-*.tgz ./datadog_trace.tgz
   script:
-    - pecl install datadog_trace.tgz
+    - enable_ddtrace_libddwaf_source=yes pecl install datadog_trace.tgz
     - echo "extension=ddtrace.so" | sudo tee $(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}')/ddtrace.ini
     - php --ri=ddtrace
     # The Fabric proxy changes network failure semantics in PECL tests.

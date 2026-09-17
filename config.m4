@@ -9,6 +9,9 @@ PHP_ARG_ENABLE(ddtrace, whether to enable Datadog support,
 PHP_ARG_ENABLE(ddtrace-tracer, whether to enable Datadog tracing support,
   [  --disable-ddtrace-tracer Disable Datadog tracing support], yes, no)
 
+PHP_ARG_ENABLE(ddtrace-libddwaf-source, whether to build libddwaf from source,
+  [  --enable-ddtrace-libddwaf-source Build libddwaf from source], no, no)
+
 PHP_ARG_ENABLE(ddtrace-profiling, whether to enable Datadog profiling support,
   [  --enable-ddtrace-profiling Build Datadog profiling support], no, no)
 
@@ -335,7 +338,17 @@ if test "$PHP_DDTRACE" != "no"; then
     DATADOG_EXTENSION_FLAGS="$DATADOG_EXTENSION_FLAGS -DPROFILING"
   fi
 
-  PHP_NEW_EXTENSION(ddtrace, $ALL_DATADOG_SOURCES, $ext_shared,, $DATADOG_EXTENSION_FLAGS)
+  if test "$PHP_DDTRACE_LIBDDWAF_SOURCE" != "no"; then
+    dnl libddwaf-src contains C++ objects. Use the same C++ driver for its
+    dnl CMake build and the final extension link so it selects the C++ runtime.
+    AC_PROG_CXX
+    ddtrace_cxx_env='CXX="$(CXX)"'
+    PHP_NEW_EXTENSION(ddtrace, $ALL_DATADOG_SOURCES, $ext_shared,, $DATADOG_EXTENSION_FLAGS, yes)
+  else
+    ddtrace_cxx_env=""
+    PHP_NEW_EXTENSION(ddtrace, $ALL_DATADOG_SOURCES, $ext_shared,, $DATADOG_EXTENSION_FLAGS)
+  fi
+
   PHP_ADD_BUILD_DIR($ext_builddir/ext, 1)
 
   if test "$PHP_DDTRACE_TRACER" = "no" && test "$PHP_DDTRACE_PROFILING" != "no"; then
@@ -558,14 +571,20 @@ EOT
       ddtrace_target_args="--target $DDTRACE_PROFILING_TARGET"
     fi
     ddtrace_rust_lib="$ddtrace_target_dir$ddtrace_target_path/$ddtrace_cargo_profile/libdatadog_php.a"
-    if test "$PHP_DDTRACE_TRACER" != "no" && test "$PHP_DDTRACE_PROFILING" != "no"; then
-      ddtrace_cargo_features="--no-default-features --features tracer,profiling${DDTRACE_PROFILING_FEATURES:+,$DDTRACE_PROFILING_FEATURES}"
+
+    ddtrace_cargo_feature_list=
+    if test "$PHP_DDTRACE_TRACER" != "no"; then
+      ddtrace_cargo_feature_list="tracer"
+    fi
+    if test "$PHP_DDTRACE_PROFILING" != "no"; then
+      ddtrace_cargo_feature_list="${ddtrace_cargo_feature_list:+$ddtrace_cargo_feature_list,}profiling${DDTRACE_PROFILING_FEATURES:+,$DDTRACE_PROFILING_FEATURES}"
       ddtrace_cargo_build_flags="$DDTRACE_PROFILING_CARGO_BUILD_FLAGS $ddtrace_target_args"
-    elif test "$PHP_DDTRACE_TRACER" != "no"; then
-      ddtrace_cargo_features="--features tracer"
-    elif test "$PHP_DDTRACE_PROFILING" != "no"; then
-      ddtrace_cargo_features="--no-default-features --features profiling${DDTRACE_PROFILING_FEATURES:+,$DDTRACE_PROFILING_FEATURES}"
-      ddtrace_cargo_build_flags="$DDTRACE_PROFILING_CARGO_BUILD_FLAGS $ddtrace_target_args"
+    fi
+    if test "$PHP_DDTRACE_TRACER" != "no" && test "$PHP_DDTRACE_LIBDDWAF_SOURCE" != "no"; then
+      ddtrace_cargo_feature_list="$ddtrace_cargo_feature_list,libddwaf-source-static"
+    fi
+    if test -n "$ddtrace_cargo_feature_list"; then
+      ddtrace_cargo_features="--no-default-features --features $ddtrace_cargo_feature_list"
     else
       ddtrace_cargo_features="--no-default-features"
     fi
@@ -592,7 +611,7 @@ dnl (tracer+profiling) crate depends on -- the sidecar crate and the appsec
 dnl Rust helper are real workspace dependencies of the `tracer` feature (see
 dnl Cargo.toml), so changes there must also trigger a relink here.
 $ddtrace_rust_lib: $( (find "$ext_srcdir/components-rs" -name "*.rs"; find "$ext_srcdir/profiling" \( -name "*.rs" -o -name "*.c" -o -name "*.h" \); find "$ext_srcdir/zend_abstract_interface" \( -name "*.c" -o -name "*.h" \); find "$ext_srcdir/sidecar" -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/appsec/helper-rust" -name "*.rs" -o -name "*.c" -o -name "Cargo.toml" -o -name "build.rs"; find "$ext_srcdir" -maxdepth 1 -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -not -path "*/target/*"; find "$ext_srcdir/libdatadog" -name "*.rs" -not -path "*/target/*") 2>/dev/null | tr '\n' ' ' ) $ext_srcdir/ext/configuration.h $ext_srcdir/ext/configuration_helpers.h $ext_srcdir/tracer/configuration.h $ext_builddir/Makefile
-	(cd "$ext_srcdir"; DDTRACE_PHP_INCLUDES="\$(INCLUDES)" CARGO_FEATURES="$ddtrace_cargo_features" CARGO_TARGET_DIR="$ddtrace_target_dir/" SHARED=$(test "$ext_shared" = "yes" && echo 1) PROFILE="$ddtrace_cargo_profile" host_os="$host_os" DDTRACE_CARGO="\$(DDTRACE_CARGO)" $(if test "$PHP_DDTRACE_SANITIZE" != "no"; then echo COMPILE_ASAN=1; fi) sh ./compile_rust.sh $ddtrace_cargo_build_flags \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+") \$(shell echo "\$(MAKEFLAGS)" | $EGREP -q -e '--silent' -e '^[[^ -]]*s' && echo --quiet))
+	(cd "$ext_srcdir"; PHP_CONFIG="\$(DDTRACE_PHP_CONFIG)" DDTRACE_PHP_INCLUDES="\$(INCLUDES)" CARGO_FEATURES="$ddtrace_cargo_features" CARGO_TARGET_DIR="$ddtrace_target_dir/" SHARED=$(test "$ext_shared" = "yes" && echo 1) PROFILE="$ddtrace_cargo_profile" host_os="$host_os" DDTRACE_CARGO="\$(DDTRACE_CARGO)" $ddtrace_cxx_env $(if test "$PHP_DDTRACE_SANITIZE" != "no"; then echo COMPILE_ASAN=1; fi) sh ./compile_rust.sh $ddtrace_cargo_build_flags \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+") \$(shell echo "\$(MAKEFLAGS)" | $EGREP -q -e '--silent' -e '^[[^ -]]*s' && echo --quiet))
 EOT
   fi
 
