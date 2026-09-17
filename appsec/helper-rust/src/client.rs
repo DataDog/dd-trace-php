@@ -550,8 +550,13 @@ async fn run_request(
                     use libddwaf::waf_map;
                     let context_processor = waf_map! {("extract-schema", true)};
 
-                    let old_len = req.data.len() as usize;
-                    let mut new_data = libddwaf::object::WafMap::new((old_len + 1) as u16);
+                    let old_len = req.data.len();
+                    let mut new_data = match libddwaf::object::WafMap::new(old_len + 1) {
+                        Ok(data) => data,
+                        Err(e) => {
+                            return Err(FatalRequestError(e.into(), response_tx).into());
+                        }
+                    };
                     for (i, entry) in req.data.into_iter().enumerate() {
                         new_data[i] = entry;
                     }
