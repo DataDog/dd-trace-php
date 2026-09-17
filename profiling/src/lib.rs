@@ -1,7 +1,7 @@
 pub mod bindings;
 pub mod capi;
 mod clocks;
-mod config;
+pub(crate) mod config;
 mod logging;
 pub mod module_globals;
 pub mod profiler;
@@ -38,7 +38,6 @@ use bindings::{
 use clocks::*;
 use core::ffi::{c_char, c_int, CStr};
 use core::ptr;
-use libdd_common::cstr;
 use log::{debug, error, info, trace, warn};
 use profile_tags::{ProfileTagSegment, UnifiedServiceTagSegment};
 use profiler::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
@@ -48,7 +47,9 @@ use std::borrow::Cow;
 use std::cell::{BorrowError, BorrowMutError, RefCell};
 use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::{Arc, LazyLock, Once, OnceLock};
+#[cfg(not(all(feature = "profiling", feature = "tracer")))]
+use std::sync::OnceLock;
+use std::sync::{Arc, LazyLock, Once};
 use std::thread::{AccessError, LocalKey};
 use std::time::{Duration, Instant};
 use uuid::Uuid;
@@ -178,68 +179,8 @@ static SAPI: LazyLock<Sapi> = LazyLock::new(|| {
 /// Additionally, the tracer is going to ask for this in its ACTIVATE handler,
 /// so whatever it is replaced with needs to also follow the
 /// initialize-on-first-use pattern.
+#[cfg(not(all(feature = "profiling", feature = "tracer")))]
 static RUNTIME_ID: OnceLock<Uuid> = OnceLock::new();
-
-/// Module dependencies for the profiler extension.
-static MODULE_DEPS: [zend::ModuleDep; 9] = [
-    zend::ModuleDep::required(cstr!("standard")),
-    zend::ModuleDep::required(cstr!("json")),
-    // Load after optional context publishers so their Process and Thread Context
-    // are available when profiling starts.
-    zend::ModuleDep::optional(cstr!("ddtrace")),
-    zend::ModuleDep::optional(cstr!("opentelemetry")),
-    // Optionally, be dependent on these event extensions so that the functions they provide
-    // are registered in the function table and we can hook into them.
-    zend::ModuleDep::optional(cstr!("ev")),
-    zend::ModuleDep::optional(cstr!("event")),
-    zend::ModuleDep::optional(cstr!("libevent")),
-    zend::ModuleDep::optional(cstr!("uv")),
-    zend::ModuleDep::end(),
-];
-
-/// The module entry for the profiler extension. Fields that aren't
-/// const-compatible are set in get_module().
-static mut MODULE: zend::ModuleEntry = zend::ModuleEntry {
-    deps: MODULE_DEPS.as_ptr(),
-    name: PROFILER_NAME.as_ptr(),
-    functions: ptr::null(), // Will be set in get_module()
-    module_startup_func: Some(minit),
-    module_shutdown_func: Some(mshutdown),
-    request_startup_func: Some(rinit),
-    request_shutdown_func: Some(rshutdown),
-    info_func: Some(minfo),
-    version: PROFILER_VERSION.as_ptr(),
-    globals_size: core::mem::size_of::<module_globals::ProfilerGlobals>(),
-    #[cfg(php_zts)]
-    globals_id_ptr: ptr::addr_of_mut!(module_globals::GLOBALS_ID),
-    #[cfg(not(php_zts))]
-    globals_ptr: ptr::addr_of_mut!(module_globals::GLOBALS).cast(),
-    globals_ctor: Some(module_globals::ginit),
-    globals_dtor: Some(module_globals::gshutdown),
-    post_deactivate_func: Some(prshutdown),
-    build_id: ptr::null(), // Will be set in get_module()
-    ..zend::ModuleEntry::new()
-};
-
-/// The function `get_module` is what makes this a PHP module.
-///
-/// # Safety
-///
-/// Do not call this function manually; it will be called by the engine.
-/// Generally it is  only called once, but if someone accidentally loads the
-/// module twice then it might get called more than once, though it will warn
-/// and not use the consecutive return value.
-#[no_mangle]
-pub unsafe extern "C" fn get_module() -> *mut zend::ModuleEntry {
-    let module = ptr::addr_of_mut!(MODULE);
-
-    // Set fields that aren't const-compatible.
-    unsafe {
-        ptr::addr_of_mut!((*module).functions).write(bindings::ddog_php_prof_functions);
-        ptr::addr_of_mut!((*module).build_id).write(bindings::datadog_module_build_id());
-    }
-    module
-}
 
 // Important note on the PHP lifecycle:
 // Based on how some SAPIs work and the documentation, one might expect that
@@ -253,17 +194,36 @@ pub unsafe extern "C" fn get_module() -> *mut zend::ModuleEntry {
 // actually be called more than once per process as well. This means some
 // mechanisms like std::sync::Once::call_once may not be suitable.
 // Be careful out there!
-extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
-    // todo: merge these lifecycle things to tracing feature?
-    // When developing the extension, it's useful to see log messages that
-    // occur before the user can configure the log level. However, if we
-    // initialized the logger here unconditionally, then they'd have no way to
-    // hide these messages. That's why it's done only for debug builds.
-    #[cfg(debug_assertions)]
+#[no_mangle]
+pub extern "C" fn ddog_php_prof_minit(_type: c_int, module_number: c_int) -> ZendResult {
     {
-        logging::log_init(log::LevelFilter::Trace);
-        trace!("MINIT({_type}, {module_number})");
+        let c_count = unsafe { bindings::ddog_php_prof_config_count() };
+        if c_count as usize != crate::config::CONFIG_COUNT {
+            unsafe {
+                bindings::datadog_php_profiling_config_count_error(
+                    c_count,
+                    crate::config::CONFIG_COUNT,
+                )
+            };
+            return ZendResult::Failure;
+        }
     }
+
+    // config::minit() is called as early as possible in MINIT, immediately
+    // after the checks above, because it's what initializes the `log` crate's
+    // logger (see config::minit()'s call to logging::log_init(), gated by
+    // datadog.profiling.log_level). Every `log`-crate macro call (trace!,
+    // debug!, warn!, error!, ...) anywhere in this function is a silent
+    // no-op until a logger is installed and its level is raised above the
+    // crate-wide default of Off, so calling config::minit() any later would
+    // silently swallow genuine startup diagnostics -- such as the
+    // `error!` calls in the tracing-subscriber setup below, or the `warn!`
+    // in the PHP_VERSION detection further down -- regardless of what the
+    // user configured. System-scoped config (INI/env/stable-config) is
+    // genuinely resolvable this early: datadog_config_minit() already called
+    // zai_config_first_time_rinit(false) to make it so, before this fn runs.
+    config::minit(module_number);
+    trace!("MINIT({_type}, {module_number})");
 
     #[cfg(feature = "tracing-subscriber")]
     {
@@ -330,8 +290,6 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
         };
     }
 
-    config::minit(module_number);
-
     // Force early initialization of the HTTPS connector while we're still
     // single-threaded. This ensures rustls-native-certs reads SSL_CERT_FILE
     // and SSL_CERT_DIR environment variables safely before any threads are
@@ -345,62 +303,8 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
     _ = std::sync::LazyLock::force(&libdd_common::entity_id::DD_EXTERNAL_ENV);
     _ = std::sync::LazyLock::force(&libdd_common::azure_app_services::AAS_METADATA);
 
-    // Use a hybrid extension hack to load as a module but have the
-    // zend_extension hooks available:
-    // https://www.phpinternalsbook.com/php7/extensions_design/zend_extensions.html#hybrid-extensions
-    // In this case, use the same technique as the tracer: transfer the module
-    // handle to the zend_extension as extensions have longer lifetimes than
-    // modules in the engine.
-    let handle = {
-        // Levi modified the engine for PHP 8.2 to stop copying the module:
-        // https://github.com/php/php-src/pull/8551
-        // Before then, the engine copied the module entry we provided. We
-        // find the module entry in the registry and modify it there instead
-        // of just modifying the result of get_module().
-        let str = PROFILER_NAME.as_ptr();
-        let len = PROFILER_NAME_STR.len();
-
-        // SAFETY: str is valid for at least len values.
-        let ptr = unsafe { zend::datadog_get_module_entry(str, len) };
-        if ptr.is_null() {
-            error!("Unable to locate our own module in the engine registry.");
-            return ZendResult::Failure;
-        }
-
-        // SAFETY: `ptr` was checked for nullability already. Transferring the
-        // handle from the module to the extension extends the lifetime, not
-        // shortens it, so it's safe. But of course, be sure the code below
-        // actually passes it to the extension.
-        unsafe {
-            let module = &mut *ptr;
-            let handle = module.handle;
-            module.handle = ptr::null_mut();
-            handle
-        }
-    };
-
-    // Currently, the engine is always copying this struct into a
-    // zend_llist_element. Every time a new PHP version is released, we should
-    // double-check zend_register_extension to ensure the address is not
-    // mutated nor stored. Well, hopefully we catch it _before_ a release.
-    let extension = ZendExtension {
-        name: PROFILER_NAME.as_ptr(),
-        version: PROFILER_VERSION.as_ptr().cast::<c_char>(),
-        author: c"Datadog".as_ptr(),
-        url: c"https://github.com/DataDog/dd-trace-php".as_ptr(),
-        copyright: c"Copyright Datadog".as_ptr(),
-        startup: Some(startup),
-        shutdown: Some(shutdown),
-        activate: Some(activate),
-        ..Default::default()
-    };
-
     // SAFETY: during minit there shouldn't be any threads to race against these writes.
     unsafe { wall_time::minit() };
-
-    // SAFETY: all arguments are valid for this C call.
-    // Note that on PHP 7 this never fails, and on PHP 8 it returns void.
-    unsafe { zend::zend_register_extension(&extension, handle) };
 
     timeline::timeline_minit();
 
@@ -420,13 +324,17 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
     ZendResult::Success
 }
 
-extern "C" fn prshutdown() -> ZendResult {
+#[no_mangle]
+pub extern "C" fn ddog_php_prof_post_deactivate() -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("PRSHUTDOWN");
 
     // ZAI config may be accessed indirectly via other modules RSHUTDOWN, so
     // delay this until the last possible time.
-    unsafe { bindings::zai_config_rshutdown() };
+    #[cfg(all(feature = "profiling", not(feature = "tracer")))]
+    unsafe {
+        bindings::zai_config_rshutdown()
+    };
 
     timeline::timeline_prshutdown();
 
@@ -545,11 +453,19 @@ thread_local! {
 }
 
 /// Gets the runtime-id for the process. Do not call before RINIT!
-fn runtime_id() -> &'static Uuid {
-    RUNTIME_ID.get_or_init(|| {
-        // Resolve dynamically so the separately loaded tracer remains authoritative. The root
-        // package also contains a common runtime-id symbol, so treating this as an extern pointer
-        // would both use the wrong ABI and make a standalone profiler unsafe.
+#[cfg(all(feature = "profiling", feature = "tracer"))]
+fn runtime_id() -> Uuid {
+    // Copy from the common extension's authoritative storage. Returning a
+    // shared reference to mutable C-owned storage would violate Rust aliasing
+    // when the common extension refreshes the ID after a fork.
+    unsafe { crate::datadog_runtime_id }
+}
+
+#[cfg(not(all(feature = "profiling", feature = "tracer")))]
+fn runtime_id() -> Uuid {
+    *RUNTIME_ID.get_or_init(|| {
+        // Retain compatibility with embedders that export Datadog's runtime-ID
+        // symbol without loading the ddtrace PHP extension.
         let symbol = unsafe { libc::dlsym(libc::RTLD_DEFAULT, c"datadog_runtime_id".as_ptr()) }
             .cast::<Uuid>();
         unsafe { symbol.as_ref() }
@@ -559,7 +475,8 @@ fn runtime_id() -> &'static Uuid {
     })
 }
 
-extern "C" fn activate() {
+#[no_mangle]
+pub extern "C" fn ddog_php_prof_zend_activate() {
     // SAFETY: calling in activate as required.
     unsafe { profiler::stack_walking::activate() };
 }
@@ -578,7 +495,8 @@ thread_local! {
 
 // If Failure is returned, the VM will do a C exit. Try hard to avoid that,
 // using it for catastrophic errors only.
-extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
+#[no_mangle]
+pub extern "C" fn ddog_php_prof_rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     #[cfg(feature = "tracing")]
     REQUEST_SPAN.set(Some(tracing::info_span!("request").entered()));
 
@@ -591,11 +509,8 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     // SAFETY: not being mutated during rinit.
     let once = unsafe { &*ptr::addr_of!(ZAI_CONFIG_ONCE) };
     once.call_once(|| unsafe {
-        bindings::zai_config_first_time_rinit(true);
         config::first_rinit();
     });
-
-    unsafe { bindings::zai_config_rinit() };
 
     // Needs to come after config::first_rinit, because that's what sets the
     // values to the ones in the configuration.
@@ -657,7 +572,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
 
             let mut custom = ProfileTagSegment::default();
             if let Some(tags) = config::tags() {
-                if let Some(error) = custom.try_push_tags(&tags)? {
+                if let Some(error) = custom.try_push_kv_tags(&tags)? {
                     // DD_TAGS can change on each request, so this warns on every
                     // request. Maybe we should cache the error string and only
                     // emit warnings for new ones?
@@ -786,7 +701,8 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     ZendResult::Success
 }
 
-extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
+#[no_mangle]
+pub extern "C" fn ddog_php_prof_rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     #[cfg(feature = "tracing")]
     let _rshutdown_span = tracing::info_span!("rshutdown").entered();
 
@@ -833,7 +749,8 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
 /// Prints the module info. Calls many C functions from the Zend Engine,
 /// including calling variadic functions. It's essentially all unsafe, so be
 /// careful, and do not call this manually (only let the engine call it).
-unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
+#[no_mangle]
+pub unsafe extern "C" fn ddog_php_prof_minfo(module_ptr: *mut zend::ModuleEntry) {
     // todo: merge these lifecycle things to tracing feature?
     #[cfg(debug_assertions)]
     trace!("MINFO({:p})", module_ptr);
@@ -1023,6 +940,7 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
 
         zend::php_info_print_table_end();
 
+        #[cfg(all(feature = "profiling", not(feature = "tracer")))]
         zend::display_ini_entries(module_ptr);
     });
 
@@ -1031,7 +949,8 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
     }
 }
 
-extern "C" fn mshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
+#[no_mangle]
+pub extern "C" fn ddog_php_prof_mshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     // todo: merge these lifecycle things to tracing feature?
     #[cfg(debug_assertions)]
     trace!("MSHUTDOWN({_type}, {_module_number})");
@@ -1055,7 +974,8 @@ extern "C" fn mshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     ZendResult::Success
 }
 
-extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
+#[no_mangle]
+pub extern "C" fn ddog_php_prof_zend_startup(extension: *mut ZendExtension) -> ZendResult {
     // todo: merge these lifecycle things to tracing feature?
     #[cfg(debug_assertions)]
     trace!("startup({:p})", extension);
@@ -1081,7 +1001,8 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
     ZendResult::Success
 }
 
-extern "C" fn shutdown(extension: *mut ZendExtension) {
+#[no_mangle]
+pub extern "C" fn ddog_php_prof_zend_shutdown(extension: *mut ZendExtension) {
     #[cfg(feature = "tracing")]
     let _shutdown_span = tracing::info_span!("shutdown").entered();
 
@@ -1121,11 +1042,13 @@ extern "C" fn shutdown(extension: *mut ZendExtension) {
     // anyway. If the join with the uploader times out, there could become a
     // data race condition.
     unsafe { config::shutdown() };
+}
 
-    // SAFETY: zai_config_mshutdown should be safe to call in shutdown instead
-    // of mshutdown.
-    unsafe { bindings::zai_config_mshutdown() };
-    unsafe { bindings::zai_json_shutdown_bindings() };
+#[no_mangle]
+pub extern "C" fn ddog_php_prof_is_enabled() -> bool {
+    // SAFETY: the combined lifecycle calls this after profiler RINIT and before
+    // profiler RSHUTDOWN tears down request configuration.
+    unsafe { config::profiling_enabled() }
 }
 
 /// Notifies the profiler a trace has finished so it can update information

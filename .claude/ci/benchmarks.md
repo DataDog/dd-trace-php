@@ -68,7 +68,7 @@ the link, so no special handling is needed.
 
 ```bash
 .claude/ci/dockerh --cache bench-82 --clean-cache --overlayfs --root \
-    datadog/dd-trace-ci:php-8.2_bookworm-6 \
+    datadog/dd-trace-ci:php-8.2_bookworm-10 \
     -e DD_TRACE_AUTOLOAD_NO_COMPILE=true \
     -- bash -c '
 git config --global --add safe.directory /project/dd-trace-php
@@ -93,7 +93,7 @@ Build step (skip if `.so` already in overlay or downloaded from CI):
 
 ```bash
 .claude/ci/dockerh --cache bench-82-split --overlayfs --root \
-    datadog/dd-trace-ci:php-8.2_bookworm-6 \
+    datadog/dd-trace-ci:php-8.2_bookworm-10 \
     -e SHARED=1 \
     -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
     -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
@@ -104,7 +104,7 @@ Benchmark step (every run — the ext dir is outside the overlay):
 
 ```bash
 .claude/ci/dockerh --cache bench-82-split --overlayfs --root \
-    datadog/dd-trace-ci:php-8.2_bookworm-6 \
+    datadog/dd-trace-ci:php-8.2_bookworm-10 \
     -e SHARED=1 \
     -e DD_TRACE_AUTOLOAD_NO_COMPILE=true \
     -- bash -c '
@@ -135,7 +135,7 @@ tooling/bin/download-artifacts \
 
 # Place it in the overlay via bind-mount
 .claude/ci/dockerh --cache bench-82-dl --overlayfs --root \
-    datadog/dd-trace-ci:php-8.2_bookworm-6 \
+    datadog/dd-trace-ci:php-8.2_bookworm-10 \
     -v /tmp/bench-ext:/tmp/bench-ext:ro \
     -- bash -c '
 mkdir -p tmp/build_extension/modules
