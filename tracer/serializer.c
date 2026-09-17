@@ -1128,54 +1128,128 @@ static void dd_span_events_to_rust(zend_array *events, ddog_TracerPayloadV1Build
     } ZEND_HASH_FOREACH_END();
 }
 
-static void dd_serialize_array_recursively(dd_span_sink *target, zend_string *str, zval *value, bool convert_to_double) {
+// Native V1 nested-attribute serialization. A PHP array/object value becomes a native V1
+// `List`/`KeyValue` (built via the staging AttrBuilder FFI) instead of C-side dotted-key flattening;
+// libdatadog's v0.4 downgrade re-flattens `List`/`KeyValue` to the identical dotted `key.<i>` /
+// `key.<member>` entries, so the v0.4 wire is byte-for-byte unchanged. To keep that parity exact,
+// leaves follow the bucket (not the PHP scalar type): the meta path (`to_double == false`) emits
+// `String` leaves via `datadog_convert_to_string`, the metrics path emits `double` leaves via
+// `zval_get_double` — matching what the old flatten wrote. Empty and recursion-guarded arrays emit
+// the same `""` / `0.0` scalar placeholder the old code did.
+
+static void dd_native_attr_emit(struct ddog_AttrBuilder *dest, bool dest_is_map, ddog_CharSlice key, zval *value, bool to_double);
+static void dd_native_fill_container(struct ddog_AttrBuilder *dest, bool dest_is_list, zend_array *arr, bool to_double);
+
+// Backing array of an array/object value; sets *release when the caller must
+// zend_release_properties() afterwards (object properties on PHP >= 7.4).
+static zend_array *dd_native_props(zval *value, bool *release) {
+    *release = false;
+    if (Z_TYPE_P(value) == IS_OBJECT) {
+#if PHP_VERSION_ID >= 70400
+        *release = true;
+        return zend_get_properties_for(value, ZEND_PROP_PURPOSE_JSON);
+#else
+        return Z_OBJPROP_P(value);
+#endif
+    }
+    return Z_ARR_P(value);
+}
+
+static inline void dd_native_release_props(zend_array *arr, bool release) {
+#if PHP_VERSION_ID >= 70400
+    if (release) {
+        zend_release_properties(arr);
+    }
+#else
+    (void)arr; (void)release;
+#endif
+}
+
+// Iterates `arr` into the open container `dest`: list elements append positionally, map members
+// insert under the string key (numeric keys as their decimal form, matching the old dotted keys).
+static void dd_native_fill_container(struct ddog_AttrBuilder *dest, bool dest_is_list, zend_array *arr, bool to_double) {
+    zval *val;
+    zend_string *str_key;
+    zend_ulong num_key;
+    ZEND_HASH_FOREACH_KEY_VAL_IND(arr, num_key, str_key, val) {
+        if (str_key && ZSTR_VAL(str_key)[0] == '\0' && ZSTR_LEN(str_key) > 0) {
+            continue; // Skip protected and private object members
+        }
+        if (dest_is_list) {
+            dd_native_attr_emit(dest, false, (ddog_CharSlice){0}, val, to_double);
+        } else {
+            char numbuf[24];
+            ddog_CharSlice mkey = str_key
+                ? dd_zend_string_to_CharSlice(str_key)
+                : (ddog_CharSlice){ .ptr = numbuf, .len = snprintf(numbuf, sizeof(numbuf), ZEND_ULONG_FMT, num_key) };
+            dd_native_attr_emit(dest, true, mkey, val, to_double);
+        }
+    } ZEND_HASH_FOREACH_END();
+}
+
+// Emits one `value` into an already-open nested container `dest` (a map member under `key`, or a
+// list element when !dest_is_map). Arrays/objects open a nested child; scalars and empty/recursive
+// arrays emit a typed leaf.
+static void dd_native_attr_emit(struct ddog_AttrBuilder *dest, bool dest_is_map, ddog_CharSlice key, zval *value, bool to_double) {
     ZVAL_DEREF(value);
 
     if (Z_TYPE_P(value) == IS_ARRAY || Z_TYPE_P(value) == IS_OBJECT) {
-        zend_array *arr;
-        if (Z_TYPE_P(value) == IS_OBJECT) {
-#if PHP_VERSION_ID >= 70400
-            arr = zend_get_properties_for(value, ZEND_PROP_PURPOSE_JSON);
-#else
-            arr = Z_OBJPROP_P(value);
-#endif
-        } else {
-            arr = Z_ARR_P(value);
-        }
+        bool release;
+        zend_array *arr = dd_native_props(value, &release);
         if (zend_hash_num_elements(arr) && !GC_IS_RECURSIVE(arr)) {
+            bool child_is_list = Z_TYPE_P(value) != IS_OBJECT && zend_array_is_list(arr);
+            struct ddog_AttrBuilder *child = child_is_list
+                ? (dest_is_map ? ddog_attr_map_open_list(dest, key) : ddog_attr_list_open_list(dest))
+                : (dest_is_map ? ddog_attr_map_open_map(dest, key) : ddog_attr_list_open_map(dest));
             GC_PROTECT_RECURSION(arr);
-
-            zval *val;
-            zend_string *str_key;
-            zend_ulong num_key;
-            ZEND_HASH_FOREACH_KEY_VAL_IND(arr, num_key, str_key, val) {
-                zend_string *key;
-                if (str_key) {
-                    if (ZSTR_VAL(str_key)[0] == '\0' && ZSTR_LEN(str_key) > 0) {
-                        // Skip protected and private members
-                        continue;
-                    }
-                    key = zend_strpprintf(0, "%.*s.%.*s", (int)ZSTR_LEN(str), ZSTR_VAL(str), (int)ZSTR_LEN(str_key), ZSTR_VAL(str_key));
-                } else {
-                    key = zend_strpprintf(0, "%.*s." ZEND_LONG_FMT, (int)ZSTR_LEN(str), ZSTR_VAL(str), num_key);
-                }
-                dd_serialize_array_recursively(target, key, val, convert_to_double);
-                zend_string_release(key);
-            } ZEND_HASH_FOREACH_END();
-
+            dd_native_fill_container(child, child_is_list, arr, to_double);
             GC_UNPROTECT_RECURSION(arr);
-        } else if (convert_to_double) {
+            ddog_attr_close(child);
+        } else if (to_double) {
+            if (dest_is_map) ddog_attr_map_put_double(dest, key, 0.0); else ddog_attr_list_push_double(dest, 0.0);
+        } else {
+            ddog_CharSlice empty = DDOG_CHARSLICE_C("");
+            if (dest_is_map) ddog_attr_map_put_str(dest, key, empty); else ddog_attr_list_push_str(dest, empty);
+        }
+        dd_native_release_props(arr, release);
+    } else if (to_double) {
+        double d = zval_get_double(value);
+        if (dest_is_map) ddog_attr_map_put_double(dest, key, d); else ddog_attr_list_push_double(dest, d);
+    } else {
+        zval val_as_string;
+        datadog_convert_to_string(&val_as_string, value);
+        ddog_CharSlice v = dd_zend_string_to_CharSlice(Z_STR(val_as_string));
+        if (dest_is_map) ddog_attr_map_put_str(dest, key, v); else ddog_attr_list_push_str(dest, v);
+        zval_ptr_dtor(&val_as_string);
+    }
+}
+
+// Top-level entry: serializes `value` as the span attribute named `str`. A non-empty array/object
+// opens a native `List`/`KeyValue`; scalars and empty/recursive arrays fall back to the existing
+// scalar sinks (byte-identical to the old flatten's top-level output).
+static void dd_native_attr_top(dd_span_sink *target, zend_string *str, zval *value, bool to_double) {
+    ZVAL_DEREF(value);
+
+    if (Z_TYPE_P(value) == IS_ARRAY || Z_TYPE_P(value) == IS_OBJECT) {
+        bool release;
+        zend_array *arr = dd_native_props(value, &release);
+        if (zend_hash_num_elements(arr) && !GC_IS_RECURSIVE(arr)) {
+            bool is_list = Z_TYPE_P(value) != IS_OBJECT && zend_array_is_list(arr);
+            ddog_CharSlice key_cs = dd_zend_string_to_CharSlice(str);
+            struct ddog_AttrBuilder *top = is_list
+                ? ddog_span_attr_open_list(target->builder, target->chunk, target->span, key_cs)
+                : ddog_span_attr_open_map(target->builder, target->chunk, target->span, key_cs);
+            GC_PROTECT_RECURSION(arr);
+            dd_native_fill_container(top, is_list, arr, to_double);
+            GC_UNPROTECT_RECURSION(arr);
+            ddog_attr_close(top);
+        } else if (to_double) {
             dd_sink_metrics_zstr(target, str, 0.0);
         } else {
             dd_sink_meta_zstr_str(target, str, "");
         }
-
-#if PHP_VERSION_ID >= 70400
-        if (Z_TYPE_P(value) == IS_OBJECT) {
-            zend_release_properties(arr);
-        }
-#endif
-    } else if (convert_to_double) {
+        dd_native_release_props(arr, release);
+    } else if (to_double) {
         dd_sink_metrics_zstr(target, str, zval_get_double(value));
     } else {
         zval val_as_string;
@@ -1186,11 +1260,11 @@ static void dd_serialize_array_recursively(dd_span_sink *target, zend_string *st
 }
 
 static void dd_serialize_array_meta_recursively(dd_span_sink *target, zend_string *str, zval *value) {
-    dd_serialize_array_recursively(target, str, value, false);
+    dd_native_attr_top(target, str, value, false);
 }
 
 static void dd_serialize_array_metrics_recursively(dd_span_sink *target, zend_string *str, zval *value) {
-    dd_serialize_array_recursively(target, str, value, true);
+    dd_native_attr_top(target, str, value, true);
 }
 
 static void dd_serialize_array_meta_struct_recursively(dd_span_sink *target, zend_string *str, zval *value) {
@@ -2101,23 +2175,60 @@ dd_span_sink ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtrac
     return sink;
 }
 
-// Reads a native V1 span attribute at index `idx` into a zval, typed per its DDOG_V1_ATTR_* tag.
-static void dd_attr_value_to_zval(ddog_TracerPayloadV1Builder *b, uintptr_t c, uintptr_t sp, uintptr_t idx, zval *out) {
-    switch (ddog_v1_get_span_attr_type(b, c, sp, idx)) {
+// Growable index path into a span's nested attribute tree (introspection read-back only).
+typedef struct { uintptr_t *data; size_t len; size_t cap; } dd_attr_path;
+
+static void dd_attr_path_push(dd_attr_path *p, uintptr_t idx) {
+    if (p->len == p->cap) {
+        p->cap = p->cap ? p->cap * 2 : 8;
+        p->data = erealloc(p->data, p->cap * sizeof(uintptr_t));
+    }
+    p->data[p->len++] = idx;
+}
+
+// Reads the native V1 span attribute at `path` into a zval, recursing into List/KeyValue so nested
+// attributes surface as nested PHP arrays (a list becomes a packed array, a KeyValue an assoc map).
+static void dd_attr_value_to_zval(ddog_TracerPayloadV1Builder *b, uintptr_t c, uintptr_t sp, dd_attr_path *path, zval *out) {
+    switch (ddog_v1_get_span_attr_child_type(b, c, sp, path->data, path->len)) {
         case ddog_DDOG_V1_ATTR_INT:
-            ZVAL_LONG(out, ddog_v1_get_span_attr_int(b, c, sp, idx));
+            ZVAL_LONG(out, ddog_v1_get_span_attr_child_int(b, c, sp, path->data, path->len));
             break;
         case ddog_DDOG_V1_ATTR_DOUBLE:
-            ZVAL_DOUBLE(out, ddog_v1_get_span_attr_double(b, c, sp, idx));
+            ZVAL_DOUBLE(out, ddog_v1_get_span_attr_child_double(b, c, sp, path->data, path->len));
             break;
         case ddog_DDOG_V1_ATTR_BOOL:
-            ZVAL_BOOL(out, ddog_v1_get_span_attr_bool(b, c, sp, idx));
+            ZVAL_BOOL(out, ddog_v1_get_span_attr_child_bool(b, c, sp, path->data, path->len));
             break;
         case ddog_DDOG_V1_ATTR_BYTES:
-            ZVAL_STR(out, dd_CharSlice_to_zend_string(ddog_v1_get_span_attr_bytes(b, c, sp, idx)));
+            ZVAL_STR(out, dd_CharSlice_to_zend_string(ddog_v1_get_span_attr_child_bytes(b, c, sp, path->data, path->len)));
             break;
-        default: // STRING (and any list/keyvalue that has no scalar accessor)
-            ZVAL_STR(out, dd_CharSlice_to_zend_string(ddog_v1_get_span_attr_str(b, c, sp, idx)));
+        case ddog_DDOG_V1_ATTR_LIST: {
+            array_init(out);
+            size_t n = ddog_v1_get_span_attr_child_count(b, c, sp, path->data, path->len);
+            for (size_t i = 0; i < n; i++) {
+                dd_attr_path_push(path, i);
+                zval v;
+                dd_attr_value_to_zval(b, c, sp, path, &v);
+                add_next_index_zval(out, &v);
+                path->len--;
+            }
+            break;
+        }
+        case ddog_DDOG_V1_ATTR_KEYVALUE: {
+            array_init(out);
+            size_t n = ddog_v1_get_span_attr_child_count(b, c, sp, path->data, path->len);
+            for (size_t i = 0; i < n; i++) {
+                dd_attr_path_push(path, i);
+                ddog_CharSlice mkey = ddog_v1_get_span_attr_child_key(b, c, sp, path->data, path->len);
+                zval v;
+                dd_attr_value_to_zval(b, c, sp, path, &v);
+                add_assoc_zval_ex(out, mkey.ptr, mkey.len, &v);
+                path->len--;
+            }
+            break;
+        }
+        default: // STRING
+            ZVAL_STR(out, dd_CharSlice_to_zend_string(ddog_v1_get_span_attr_child_str(b, c, sp, path->data, path->len)));
             break;
     }
 }
@@ -2196,10 +2307,13 @@ zval dd_serialize_rust_to_zval(ddog_TracerPayloadV1Builder *b) {
                 zval attrs_zv, meta_struct_zv;
                 array_init(&attrs_zv);
                 array_init(&meta_struct_zv);
+                dd_attr_path path = {0};
                 for (size_t k = 0; k < attr_count; k++) {
                     ddog_CharSlice key = ddog_v1_get_span_attr_key(b, c, j, k);
                     zval value_zv;
-                    dd_attr_value_to_zval(b, c, j, k, &value_zv);
+                    path.len = 0;
+                    dd_attr_path_push(&path, k);
+                    dd_attr_value_to_zval(b, c, j, &path, &value_zv);
                     // Bytes-typed attributes are v0.4 meta_struct entries; surface them under
                     // "meta_struct" (as the v0.4 reader did), not mixed into the attribute map.
                     if (ddog_v1_get_span_attr_type(b, c, j, k) == ddog_DDOG_V1_ATTR_BYTES) {
@@ -2207,6 +2321,9 @@ zval dd_serialize_rust_to_zval(ddog_TracerPayloadV1Builder *b) {
                     } else {
                         zend_hash_str_update(Z_ARR(attrs_zv), key.ptr, key.len, &value_zv);
                     }
+                }
+                if (path.data) {
+                    efree(path.data);
                 }
                 if (zend_hash_num_elements(Z_ARR(attrs_zv))) {
                     add_assoc_zval(&span_zv, "attributes", &attrs_zv);
