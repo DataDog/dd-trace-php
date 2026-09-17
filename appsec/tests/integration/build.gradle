@@ -727,7 +727,7 @@ def buildCoverageReportTask = {
             command: [
                     '-e', '-c',
                     """
-                RUST_TOOLCHAIN="nightly-\$(uname -m)-unknown-linux-musl"
+                RUST_TOOLCHAIN="nightly-2025-10-31-\$(uname -m)-unknown-linux-musl"
                 LLVM_TOOLS="\$(dirname "\$(rustc +\$RUST_TOOLCHAIN --print target-libdir)")/bin"
                 test -x "\$LLVM_TOOLS/llvm-profdata"
                 test -x "\$LLVM_TOOLS/llvm-cov"
@@ -1185,7 +1185,7 @@ def portableLibdatadogPhpBuildMode = useHelperRustCoverage ?
         'helper-rust-coverage' : 'default'
 def portableLibdatadogPhpCommand = '''
         RUST_TARGET="$(uname -m)-unknown-linux-musl"
-        RUST_TOOLCHAIN="nightly-$RUST_TARGET"
+        RUST_TOOLCHAIN="nightly-2025-10-31-$RUST_TARGET"
         export CARGO_TARGET_DIR=/portable-rust/cargo-target
 
         cd /project

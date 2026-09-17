@@ -16,7 +16,7 @@ RUN apk --no-cache add clang21-libclang curl curl-dev && \
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
         sh -s -- --default-toolchain 1.91.1 --profile minimal -y && \
     rustup component add rustfmt clippy llvm-tools-preview && \
-    rust_toolchain="nightly-$(uname -m)-unknown-linux-musl" && \
+    rust_toolchain="nightly-2025-10-31-$(uname -m)-unknown-linux-musl" && \
     rustup toolchain install "$rust_toolchain" \
         --profile minimal --component rust-src --component llvm-tools-preview && \
     architecture="$(uname -m)" && \
