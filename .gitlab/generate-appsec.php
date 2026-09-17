@@ -43,6 +43,7 @@ $appsecImageTagGroups["other"] = [
     "frankenphp-8.4-release-zts",
     "php-buildonly-rust",
     "nginx-fpm-php-8.5-release-musl",
+    "apache2-mod-php-8.5-release-zts-musl",
 ];
 ?>
 variables:
@@ -73,7 +74,7 @@ stages:
     - when: on_success
   before_script:
 <?php unset_dd_runner_env_vars() ?>
-    - sudo apt install -y clang-tidy-20 libc++-20-dev libc++abi-20-dev
+    - sudo apt install -y clang-tidy-21 libc++-21-dev libc++abi-21-dev
     - mkdir -p appsec/build boost-cache boost-cache
   cache:
     - key: "appsec boost cache"
@@ -134,7 +135,7 @@ stages:
 "test appsec extension":
   stage: test
   extends: .appsec_test
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-10
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11
   variables:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_CPU_LIMIT: 3
@@ -237,6 +238,7 @@ stages:
           - test8.5-release
           - test8.5-release-zts
           - test8.5-release-musl
+          - test8.5-release-zts-musl
 
 "appsec integration tests (ssi)":
   extends: .appsec_integration_tests
@@ -340,6 +342,9 @@ stages:
     KUBERNETES_CPU_REQUEST: 8
     KUBERNETES_MEMORY_REQUEST: 24Gi
     KUBERNETES_MEMORY_LIMIT: 30Gi
+    # Coverage instrumentation makes this build strictly bigger than the 30G
+    # its non-coverage sibling needs, and the DinD helper only defaults to 20G.
+    DOCKER_LOOPBACK_SIZE: 50G
     ARCH: amd64
     GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle-home"
   before_script:
@@ -355,8 +360,21 @@ stages:
         TERM=dumb ./gradlew loadCaches --info
       fi
 
+      echo "=== disk before buildPortableLibdatadogPhp ==="
+      df -h /
+      docker system df
+      docker run --rm -v php-portable-libdatadog-php:/vol alpine df -h /vol
+
+      # Keep the exit status but always report disk after the build: an
+      # exhausted loopback is the hypothesis these numbers exist to settle.
       TERM=dumb ./gradlew buildPortableLibdatadogPhp \
-        --info -Pbuildscan --scan -PuseHelperRustCoverage
+        --info -Pbuildscan --scan -PuseHelperRustCoverage && rc=0 || rc=$?
+
+      echo "=== disk after buildPortableLibdatadogPhp (gradle exit $rc) ==="
+      df -h /
+      docker system df
+      docker run --rm -v php-portable-libdatadog-php:/vol alpine df -h /vol
+      [ "$rc" -eq 0 ] || exit "$rc"
 
       # Coverage-instrumented artifacts are bulky: this leaves ~6G of cargo
       # intermediates in php-portable-libdatadog-php, over a quarter of the
@@ -401,7 +419,7 @@ stages:
 "appsec code coverage":
   stage: test
   extends: .appsec_test
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.3_bookworm-10
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.3_bookworm-11
   variables:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 3Gi
@@ -410,12 +428,12 @@ stages:
   script:
     - |
       echo "Installing dependencies"
-      sudo apt-get update && sudo apt-get install -y jq gcovr llvm-20 clang-20
+      sudo apt-get update && sudo apt-get install -y jq gcovr llvm-21 clang-21
     - cd appsec/build
     - |
       cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=ON \
         -DDD_APPSEC_TESTING=ON -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
-        -DCMAKE_C_COMPILER=/usr/bin/clang-20 -DCMAKE_CXX_COMPILER=/usr/bin/clang++-20 \
+        -DCMAKE_C_COMPILER=/usr/bin/clang-21 -DCMAKE_CXX_COMPILER=/usr/bin/clang++-21 \
         -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" \
         -DBOOST_CACHE_PREFIX="$CI_PROJECT_DIR/boost-cache"
     - |
@@ -424,15 +442,14 @@ stages:
         VERBOSE=1 make -j 4 xtest
     - |
       cd /tmp/cov-ext
-      llvm-profdata-20 merge -sparse *.profraw -o default.profdata
-      llvm-cov-20 export "$CI_PROJECT_DIR"/appsec/build/ddappsec.so \
+      llvm-profdata-21 merge -sparse *.profraw -o default.profdata
+      llvm-cov-21 export "$CI_PROJECT_DIR"/appsec/build/ddappsec.so \
         -format=lcov -instr-profile=default.profdata \
         > "$CI_PROJECT_DIR"/appsec/build/coverage-ext.lcov
     - |
       echo "Uploading coverage to Datadog"
       cd "$CI_PROJECT_DIR"
       .gitlab/upload-code-coverage-to-datadog.sh appsec/build/coverage-ext.lcov
-
 
 "push appsec images":
   extends: .docker_push_job
@@ -503,22 +520,22 @@ stages:
 "appsec lint":
   stage: test
   extends: .appsec_test
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.3_bookworm-10
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.3_bookworm-11
   variables:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 9Gi
     KUBERNETES_MEMORY_LIMIT: 10Gi
     ARCH: amd64
   script:
-    - sudo apt install -y clang-format-20
+    - sudo apt install -y clang-format-21
     - cd appsec/build
     - |
       cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=OFF \
         -DDD_APPSEC_TESTING=OFF -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
         -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" \
         -DBOOST_CACHE_PREFIX="$CI_PROJECT_DIR/boost-cache" \
-        -DCLANG_TIDY=/usr/bin/run-clang-tidy-20 \
-        -DCLANG_FORMAT=/usr/bin/clang-format-20
+        -DCLANG_TIDY=/usr/bin/run-clang-tidy-21 \
+        -DCLANG_FORMAT=/usr/bin/clang-format-21
     - make -j 4 extension
     - make format tidy
 

@@ -183,8 +183,6 @@ class DrupalIntegration extends Integration
             }
         );
 
-
-
         // View Metrics
         /*
         install_hook(
