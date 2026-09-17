@@ -154,9 +154,8 @@ package-trigger:
     NIGHTLY_BUILD: $NIGHTLY_BUILD
     # CI_PIPELINE_SOURCE inside this child pipeline is always "parent_pipeline",
     # regardless of what triggered the outer pipeline. Forward the real value
-    # explicitly so .gitlab/benchmarks.yml can key benchmark rules on it.
-    # See .on-master-and-parent-pipeline-source-on-success-and-not-interruptible
-    # in .gitlab/benchmarks.yml for the consumer side.
+    # explicitly so .gitlab/benchmarks.yml can key benchmark rules on it, so we
+    # propagate the original pipeline source from the parent down.
     CI_PARENT_PIPELINE_SOURCE: $CI_PIPELINE_SOURCE
 
 # Runs after the full CI completes.  Triggered in two situations:
