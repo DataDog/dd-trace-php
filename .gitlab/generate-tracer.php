@@ -729,6 +729,10 @@ endforeach;
     KUBERNETES_MEMORY_LIMIT: 4Gi
     SWITCH_PHP_VERSION: debug
     COMPOSER_VERSION: 2
+    # The PHPUnit runner is itself traced; with no agent it polls localhost:8126 and the
+    # shared sidecar fans each failure into every session's log, incl. dd_php_error.log.
+    DD_AGENT_HOST: "test-agent"
+    DD_TRACE_AGENT_PORT: "9126"
   before_script:
 <?php before_script_steps(true) ?>
     - if [[ "$MAKE_TARGET" != "test_composer" ]] || ! [[ "$PHP_MAJOR_MINOR" =~ 8.[01] ]]; then sudo composer self-update --$COMPOSER_VERSION --no-interaction; fi
