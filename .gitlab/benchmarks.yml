@@ -10,12 +10,33 @@ include:
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-php-wordpress-parallel.yml'
 
+# Allows benchmark flakiness monitoring pipelines to run a job.
+# See https://github.com/DataDog/benchmarking-platform-tools/tree/main/scripts/stability#stability-monitoring-ci.
+.on-master-and-pipeline-source-on-success-and-not-interruptible: &on-master-and-pipeline-source-on-success-and-not-interruptible
+  if: '$CI_PARENT_PIPELINE_SOURCE == "pipeline" && $CI_COMMIT_REF_NAME == "master"'
+  when: on_success
+  interruptible: false
+
+# .parallel-benchmark-template's rules (apm-sdks-benchmarks ci-parallel-template.yml)
+# only run on_success for schedule/master sources, falling back to manual
+# otherwise. Prepend a rule so these jobs run unattended too.
+.parallel-benchmark-rules: &parallel-benchmark-rules
+  - <<: *on-master-and-pipeline-source-on-success-and-not-interruptible
+  - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    when: always
+  - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    when: always
+    interruptible: false
+  - when: manual
+    allow_failure: true
+
 linux-php-laravel-realworld-parallel:
   needs:
     - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
+  rules: *parallel-benchmark-rules
   variables:
     DD_TRACER_ARTIFACT_DIR: "$CI_PROJECT_DIR/packages"
 
@@ -25,6 +46,7 @@ linux-php-symfony-realworld-parallel:
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
+  rules: *parallel-benchmark-rules
   variables:
     DD_TRACER_ARTIFACT_DIR: "$CI_PROJECT_DIR/packages"
 
@@ -34,6 +56,7 @@ linux-php-wordpress-parallel:
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
+  rules: *parallel-benchmark-rules
   variables:
     DD_TRACER_ARTIFACT_DIR: "$CI_PROJECT_DIR/packages"
 
@@ -50,11 +73,7 @@ workflow:
     on_new_commit: interruptible
 
 .benchmarks-profiler-rules: &benchmarks-profiler-rules
-  # Allows benchmark flakiness monitoring pipelines to run this job.
-  # See https://github.com/DataDog/benchmarking-platform-tools/tree/main/scripts/stability#stability-monitoring-ci.
-  - if: '$CI_PARENT_PIPELINE_SOURCE == "pipeline" && $CI_COMMIT_REF_NAME == "master"'
-    when: on_success
-    interruptible: false
+  - <<: *on-master-and-pipeline-source-on-success-and-not-interruptible
   - if: $CI_PIPELINE_SOURCE != "schedule" && $CI_COMMIT_REF_NAME == "master"
     changes:
       paths:
@@ -78,11 +97,7 @@ workflow:
     interruptible: true
 
 .benchmarks-appsec-rules: &benchmarks-appsec-rules
-  # Allows benchmark flakiness monitoring pipelines to run this job.
-  # See https://github.com/DataDog/benchmarking-platform-tools/tree/main/scripts/stability#stability-monitoring-ci.
-  - if: '$CI_PARENT_PIPELINE_SOURCE == "pipeline" && $CI_COMMIT_REF_NAME == "master"'
-    when: on_success
-    interruptible: false
+  - <<: *on-master-and-pipeline-source-on-success-and-not-interruptible
   - if: $CI_PIPELINE_SOURCE != "schedule" && $CI_COMMIT_REF_NAME == "master"
     changes:
       paths:
@@ -106,11 +121,7 @@ workflow:
     interruptible: true
 
 .benchmarks-tracer-rules: &benchmarks-tracer-rules
-  # Allows benchmark flakiness monitoring pipelines to run this job.
-  # See https://github.com/DataDog/benchmarking-platform-tools/tree/main/scripts/stability#stability-monitoring-ci.
-  - if: '$CI_PARENT_PIPELINE_SOURCE == "pipeline" && $CI_COMMIT_REF_NAME == "master"'
-    when: on_success
-    interruptible: false
+  - <<: *on-master-and-pipeline-source-on-success-and-not-interruptible
   - if: $CI_PIPELINE_SOURCE != "schedule" && $CI_COMMIT_REF_NAME == "master"
     when: on_success
     interruptible: false
@@ -131,6 +142,7 @@ workflow:
   interruptible: false
 
 .macrobenchmarks-rules: &macrobenchmarks-rules
+  - <<: *on-master-and-pipeline-source-on-success-and-not-interruptible
   - <<: *on-master-or-nightly-benchmarks-or-release-on-success-and-not-interruptible
   - when: manual
     allow_failure: true
