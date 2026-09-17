@@ -5,6 +5,7 @@ import com.datadog.appsec.php.docker.FailOnUnmatchedTraces
 import com.datadog.appsec.php.docker.InspectContainerHelper
 import com.datadog.appsec.php.model.Trace
 import groovy.util.logging.Slf4j
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.condition.DisabledIf
 import org.junit.jupiter.api.Test
 import org.testcontainers.junit.jupiter.Container
@@ -21,6 +22,7 @@ import static org.testcontainers.containers.Container.ExecResult
 
 @Testcontainers
 @Slf4j
+@Tag('zts-musl')
 class Apache2ModTests implements CommonTests {
     static boolean zts = variant.contains('zts')
 
@@ -46,7 +48,10 @@ class Apache2ModTests implements CommonTests {
         }
         assert trace.first().metrics."_dd.appsec.enabled" == 1.0d
 
-        ExecResult res = CONTAINER.execInContainer('service', 'apache2', 'reload')
+        List<String> reloadCommand = variant.contains('musl') ?
+                ['httpd', '-k', 'graceful'] :
+                ['service', 'apache2', 'reload']
+        ExecResult res = CONTAINER.execInContainer(*reloadCommand)
         if (res.exitCode != 0) {
             throw new AssertionError("Failed reloading apache2: $res.stderr")
         }

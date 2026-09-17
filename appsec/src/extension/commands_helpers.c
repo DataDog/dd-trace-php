@@ -46,7 +46,7 @@ static dd_result ATTR_WARN_UNUSED _imsg_recv(dd_imsg *nonnull imsg,
 
 static inline ATTR_WARN_UNUSED mpack_error_t _imsg_destroy(
     dd_imsg *nonnull imsg);
-static void _imsg_cleanup(dd_imsg *nullable *nonnull imsg);
+static void _imsg_cleanup(dd_imsg * nullable * nonnull imsg);
 
 static void _set_redirect_code_and_location(
     struct block_params *nonnull block_params,
@@ -276,7 +276,7 @@ static inline ATTR_WARN_UNUSED mpack_error_t _imsg_destroy(
     return mpack_tree_destroy(&imsg->_tree);
 }
 
-static void _imsg_cleanup(dd_imsg *nullable *nonnull imsg)
+static void _imsg_cleanup(dd_imsg * nullable * nonnull imsg)
 {
     dd_imsg **imsg_c = imsg;
     if (*imsg_c) {

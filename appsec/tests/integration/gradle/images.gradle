@@ -231,6 +231,20 @@ tasks.register('buildNginxFpm-8.5-release-musl', Exec) {
             'src/docker/nginx-fpm-musl')
 }
 
+tasks.register('buildApache2Mod-8.5-release-zts-musl', Exec) {
+    String image = "$repo:apache2-mod-php-8.5-release-zts-musl"
+    description = 'Build the Apache2 mod_php ZTS musl test image'
+    inputs.file file('src/docker/apache2-mod-zts-musl/Dockerfile')
+    inputs.file file('src/docker/apache2-mod-zts-musl/php.conf')
+    inputs.file file('src/docker/apache2-mod-zts-musl/start.sh')
+    outputs.upToDateWhen imageUpToDate(inputs, image)
+
+    commandLine(*dockerBuildCommand, *dockerMirrorArgs,
+            '-t', image,
+            '-f', 'src/docker/apache2-mod-zts-musl/Dockerfile',
+            'src/docker/apache2-mod-zts-musl')
+}
+
 tasks.register('buildPhpBuildonlyRustImage', Exec) {
     String image = "$repo:php-buildonly-rust"
     description = 'Build the portable PHP extension build image'
@@ -248,7 +262,8 @@ task buildAll {
             'buildAllNginxFpm',
             'buildFrankenPHP-8.4-release-zts',
             'buildPhpBuildonlyRustImage',
-            'buildNginxFpm-8.5-release-musl'
+            'buildNginxFpm-8.5-release-musl',
+            'buildApache2Mod-8.5-release-zts-musl'
 }
 
 def buildPushTask = { String tag, requirement ->
@@ -287,6 +302,7 @@ def allPushTasks = [
         buildPushTask("frankenphp-8.4-release-zts", 'buildFrankenPHP-8.4-release-zts'),
         buildPushTask("php-buildonly-rust", 'buildPhpBuildonlyRustImage'),
         buildPushTask("nginx-fpm-php-8.5-release-musl", 'buildNginxFpm-8.5-release-musl'),
+        buildPushTask("apache2-mod-php-8.5-release-zts-musl", 'buildApache2Mod-8.5-release-zts-musl'),
 ]
 tasks.register('pushAll') {
     dependsOn allPushTasks
