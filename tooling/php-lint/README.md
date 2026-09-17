@@ -16,9 +16,8 @@ bash tooling/php-lint/run.sh
 
 This repo supports many historical PHP versions (7.0 through current).
 A full formatter or PSR-12 gate would fight that: existing `src/` has
-drifted, `composer lint` is not run in CI, and version-specific syntax
-must stay legal. Enforcing a style guide on day one would create merge
-pain without catching bugs.
+drifted, and version-specific syntax must stay legal. Enforcing a
+style guide on day one would create merge pain without catching bugs.
 
 This job is the other extreme: a reliable PR hook that starts with
 almost no opinions. New rules are opt-in and added one at a time, only
@@ -56,10 +55,6 @@ commented in `phpcs.xml`. PSR-12 is off.
 
 Scope is first-party `src/` only. Generated bridge files and
 `tests/Frameworks/` are out of scope.
-
-This is separate from `composer lint` / `composer fix-lint`, which
-still use the root `phpcs.xml` PSR-12 ruleset for optional local
-cleanup.
 
 ## Adding a PHPCS rule
 
