@@ -2884,7 +2884,7 @@ dependencies = [
  "page_size",
  "portable-atomic",
  "rand 0.8.8",
- "schemars",
+ "schemars 0.8.21",
  "serde",
  "serde_json",
  "symbolic-common",
@@ -2972,6 +2972,7 @@ dependencies = [
 name = "libdd-data-pipeline-core"
 version = "1.0.0"
 dependencies = [
+ "anyhow",
  "bytes",
  "futures",
  "http 1.4.2",
@@ -2979,6 +2980,7 @@ dependencies = [
  "libdd-common",
  "libdd-tinybytes",
  "libdd-trace-obfuscation",
+ "libdd-trace-stats",
  "libdd-trace-utils",
  "serde_json",
  "thiserror 2.0.18",
@@ -5407,7 +5409,6 @@ version = "1.0.150"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8014e44b4736ed0538adeecded0fce2a272f22dc9578a7eb6b2d9993c74cfb9"
 dependencies = [
- "indexmap 2.12.1",
  "itoa 1.0.14",
  "memchr",
  "serde",

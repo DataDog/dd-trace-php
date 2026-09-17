@@ -1,7 +1,7 @@
 [submodule "libdatadog"]
 	path = libdatadog
 	url = https://github.com/DataDog/libdatadog
-	branch = main
+	branch = florian/fix-poisson-upscaling
 [submodule "tea/benchmarks/google-benchmark"]
 	path = tea/benchmarks/google-benchmark
 	url = https://github.com/google/benchmark.git
