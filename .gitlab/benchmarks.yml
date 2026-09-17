@@ -17,9 +17,6 @@ include:
   when: on_success
   interruptible: false
 
-# .parallel-benchmark-template's rules (apm-sdks-benchmarks ci-parallel-template.yml)
-# only run on_success for schedule/master sources, falling back to manual
-# otherwise. Prepend a rule so these jobs run unattended too.
 .parallel-benchmark-rules: &parallel-benchmark-rules
   - <<: *on-master-and-parent-pipeline-source-on-success-and-not-interruptible
   - if: '$CI_PIPELINE_SOURCE == "schedule"'
