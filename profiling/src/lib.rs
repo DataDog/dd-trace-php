@@ -840,195 +840,194 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
 
     let module = &*module_ptr;
 
-    let result = REQUEST_LOCALS.try_with_borrow(|locals| {
-        let system_settings = locals.system_settings();
-        let yes = c"true".as_ptr();
-        let yes_exp = c"true (all experimental features enabled)".as_ptr();
-        let no = c"false".as_ptr();
-        let no_all = c"false (profiling disabled)".as_ptr();
-        zend::php_info_print_table_start();
-        zend::php_info_print_table_row(2, c"Version".as_ptr(), module.version);
-        zend::php_info_print_table_row(
-            2,
-            c"Profiling Enabled".as_ptr(),
-            if system_settings.profiling_enabled { yes } else { no },
-        );
-
-        zend::php_info_print_table_row(
-            2,
-            c"Profiling Experimental Features Enabled".as_ptr(),
-            if system_settings.profiling_experimental_features_enabled {
-                yes
-            } else if system_settings.profiling_enabled {
-                no
-            } else {
-                no_all
-            },
-        );
-
-        zend::php_info_print_table_row(
-            2,
-            c"Experimental CPU Time Profiling Enabled".as_ptr(),
-            if system_settings.profiling_experimental_cpu_time_enabled {
-                if system_settings.profiling_experimental_features_enabled {
-                    yes_exp
-                } else {
-                    yes
-                }
-            } else if system_settings.profiling_enabled {
-                no
-            } else {
-                no_all
-            },
-        );
-
-                zend::php_info_print_table_row(
-                    2,
-                    c"Allocation Profiling Enabled".as_ptr(),
-                    if system_settings.profiling_allocation_enabled {
-                        yes
-                    } else if zend::ddog_php_jit_enabled() {
-                        // Work around version-specific issues.
-                        if cfg!(not(php_zend_mm_set_custom_handlers_ex)) {
-                            c"Not available due to JIT being active, see https://github.com/DataDog/dd-trace-php/pull/2088 for more information.".as_ptr()
-                        } else {
-                            c"Not available due to JIT being active, see https://github.com/DataDog/dd-trace-php/pull/3199 for more information.".as_ptr()
-                        }
-                    } else if system_settings.profiling_enabled {
-                        no
-                    } else {
-                        no_all
-                    }
-                );
-                zend::php_info_print_table_row(
-                    2,
-                    c"Experimental Heap Live Profiling Enabled".as_ptr(),
-                    if system_settings.profiling_experimental_heap_live_enabled {
-                        yes
-                    } else if !system_settings.profiling_allocation_enabled {
-                        c"false (requires allocation profiling)".as_ptr()
-                    } else if system_settings.profiling_enabled {
-                        no
-                    } else {
-                        no_all
-                    },
-                );
-                zend::php_info_print_table_row(
-                    2,
-                    c"Timeline Enabled".as_ptr(),
-                    if system_settings.profiling_timeline_enabled {
-                        yes
-                    } else if system_settings.profiling_enabled {
-                        no
-                    } else {
-                        no_all
-                    },
-                );
-
-                zend::php_info_print_table_row(
-                    2,
-                    c"Exception Profiling Enabled".as_ptr(),
-                    if system_settings.profiling_exception_enabled {
-                        yes
-                    } else if system_settings.profiling_enabled {
-                        no
-                    } else {
-                        no_all
-                    },
-                );
-
-
-        #[cfg(feature = "io_profiling")]
-        zend::php_info_print_table_row(
-            2,
-            c"I/O Profiling Enabled".as_ptr(),
-            if system_settings.profiling_io_enabled {
-                yes
-            } else if system_settings.profiling_enabled {
-                no
-            } else {
-                no_all
-            },
-        );
-        #[cfg(not(feature = "io_profiling"))]
-        zend::php_info_print_table_row(
-            2,
-            c"I/O Profiling Enabled".as_ptr(),
-            c"Not available. The profiler was built without I/O profiling support.".as_ptr(),
-        );
-
-        zend::php_info_print_table_row(
-            2,
-            c"Endpoint Collection Enabled".as_ptr(),
-            if system_settings.profiling_endpoint_collection_enabled {
-                yes
-            } else if system_settings.profiling_enabled {
-                no
-            } else {
-                no_all
-            },
-        );
-
-        zend::php_info_print_table_row(
-            2,
-            c"Platform's CPU Time API Works".as_ptr(),
-            if cpu_time::ThreadTime::try_now().is_ok() {
-                yes
-            } else {
-                no
-            },
-        );
-
-        let printable_log_level = if system_settings.profiling_enabled {
-            let mut log_level = format!("{}\0", system_settings.profiling_log_level);
-            log_level.make_ascii_lowercase();
-            Cow::from(log_level)
-        } else {
-            Cow::from(String::from("off (profiling disabled)\0"))
-        };
-
-        zend::php_info_print_table_row(
-            2,
-            c"Profiling Log Level".as_ptr(),
-            printable_log_level.as_ptr().cast::<c_char>()
-        );
-
-        let key = c"Profiling Agent Endpoint".as_ptr();
-        let agent_endpoint = format!("{}\0", system_settings.uri);
-        zend::php_info_print_table_row(2, key, agent_endpoint.as_ptr());
-
-        let vars = [
-            (
-                c"Application's Environment (DD_ENV)".as_ptr(),
-                &locals.identity.env,
-            ),
-            (
-                c"Application's Service (DD_SERVICE)".as_ptr(),
-                &locals.identity.service,
-            ),
-            (
-                c"Application's Version (DD_VERSION)".as_ptr(),
-                &locals.identity.version,
-            ),
-        ];
-
-        for (key, value) in vars {
-            let mut value = match value {
-                Some(string) => string.clone(),
-                None => String::new(),
-            };
-            value.push('\0');
-            zend::php_info_print_table_row(2, key, value.as_ptr().cast::<c_char>());
+    let (system_settings, env, service, version) = match REQUEST_LOCALS.try_with_borrow(|locals| {
+        (
+            locals.system_settings().clone(),
+            locals.identity.env.clone(),
+            locals.identity.service.clone(),
+            locals.identity.version.clone(),
+        )
+    }) {
+        Ok(values) => values,
+        Err(err) => {
+            error!("minfo failed to borrow request locals: {err}");
+            return;
         }
+    };
 
-        zend::php_info_print_table_end();
+    let yes = c"true".as_ptr();
+    let yes_exp = c"true (all experimental features enabled)".as_ptr();
+    let no = c"false".as_ptr();
+    let no_all = c"false (profiling disabled)".as_ptr();
+    zend::php_info_print_table_start();
+    zend::php_info_print_table_row(2, c"Version".as_ptr(), module.version);
+    zend::php_info_print_table_row(
+        2,
+        c"Profiling Enabled".as_ptr(),
+        if system_settings.profiling_enabled {
+            yes
+        } else {
+            no
+        },
+    );
 
-        zend::display_ini_entries(module_ptr);
-    });
+    zend::php_info_print_table_row(
+        2,
+        c"Profiling Experimental Features Enabled".as_ptr(),
+        if system_settings.profiling_experimental_features_enabled {
+            yes
+        } else if system_settings.profiling_enabled {
+            no
+        } else {
+            no_all
+        },
+    );
 
-    if let Err(err) = result {
-        error!("minfo failed to borrow request locals: {err}");
+    zend::php_info_print_table_row(
+        2,
+        c"Experimental CPU Time Profiling Enabled".as_ptr(),
+        if system_settings.profiling_experimental_cpu_time_enabled {
+            if system_settings.profiling_experimental_features_enabled {
+                yes_exp
+            } else {
+                yes
+            }
+        } else if system_settings.profiling_enabled {
+            no
+        } else {
+            no_all
+        },
+    );
+
+    zend::php_info_print_table_row(
+        2,
+        c"Allocation Profiling Enabled".as_ptr(),
+        if system_settings.profiling_allocation_enabled {
+            yes
+        } else if zend::ddog_php_jit_enabled() {
+            // Work around version-specific issues.
+            if cfg!(not(php_zend_mm_set_custom_handlers_ex)) {
+                c"Not available due to JIT being active, see https://github.com/DataDog/dd-trace-php/pull/2088 for more information.".as_ptr()
+            } else {
+                c"Not available due to JIT being active, see https://github.com/DataDog/dd-trace-php/pull/3199 for more information.".as_ptr()
+            }
+        } else if system_settings.profiling_enabled {
+            no
+        } else {
+            no_all
+        },
+    );
+    zend::php_info_print_table_row(
+        2,
+        c"Experimental Heap Live Profiling Enabled".as_ptr(),
+        if system_settings.profiling_experimental_heap_live_enabled {
+            yes
+        } else if !system_settings.profiling_allocation_enabled {
+            c"false (requires allocation profiling)".as_ptr()
+        } else if system_settings.profiling_enabled {
+            no
+        } else {
+            no_all
+        },
+    );
+    zend::php_info_print_table_row(
+        2,
+        c"Timeline Enabled".as_ptr(),
+        if system_settings.profiling_timeline_enabled {
+            yes
+        } else if system_settings.profiling_enabled {
+            no
+        } else {
+            no_all
+        },
+    );
+
+    zend::php_info_print_table_row(
+        2,
+        c"Exception Profiling Enabled".as_ptr(),
+        if system_settings.profiling_exception_enabled {
+            yes
+        } else if system_settings.profiling_enabled {
+            no
+        } else {
+            no_all
+        },
+    );
+
+    #[cfg(feature = "io_profiling")]
+    zend::php_info_print_table_row(
+        2,
+        c"I/O Profiling Enabled".as_ptr(),
+        if system_settings.profiling_io_enabled {
+            yes
+        } else if system_settings.profiling_enabled {
+            no
+        } else {
+            no_all
+        },
+    );
+    #[cfg(not(feature = "io_profiling"))]
+    zend::php_info_print_table_row(
+        2,
+        c"I/O Profiling Enabled".as_ptr(),
+        c"Not available. The profiler was built without I/O profiling support.".as_ptr(),
+    );
+
+    zend::php_info_print_table_row(
+        2,
+        c"Endpoint Collection Enabled".as_ptr(),
+        if system_settings.profiling_endpoint_collection_enabled {
+            yes
+        } else if system_settings.profiling_enabled {
+            no
+        } else {
+            no_all
+        },
+    );
+
+    zend::php_info_print_table_row(
+        2,
+        c"Platform's CPU Time API Works".as_ptr(),
+        if cpu_time::ThreadTime::try_now().is_ok() {
+            yes
+        } else {
+            no
+        },
+    );
+
+    let printable_log_level = if system_settings.profiling_enabled {
+        let mut log_level = format!("{}\0", system_settings.profiling_log_level);
+        log_level.make_ascii_lowercase();
+        Cow::from(log_level)
+    } else {
+        Cow::from(String::from("off (profiling disabled)\0"))
+    };
+
+    zend::php_info_print_table_row(
+        2,
+        c"Profiling Log Level".as_ptr(),
+        printable_log_level.as_ptr().cast::<c_char>(),
+    );
+
+    let key = c"Profiling Agent Endpoint".as_ptr();
+    let agent_endpoint = format!("{}\0", system_settings.uri);
+    zend::php_info_print_table_row(2, key, agent_endpoint.as_ptr());
+
+    let vars = [
+        (c"Application's Environment (DD_ENV)".as_ptr(), env),
+        (c"Application's Service (DD_SERVICE)".as_ptr(), service),
+        (c"Application's Version (DD_VERSION)".as_ptr(), version),
+    ];
+
+    for (key, value) in vars {
+        let mut value = value.unwrap_or_default();
+        value.push('\0');
+        zend::php_info_print_table_row(2, key, value.as_ptr().cast::<c_char>());
     }
+
+    zend::php_info_print_table_end();
+
+    zend::display_ini_entries(module_ptr);
 }
 
 extern "C" fn mshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
