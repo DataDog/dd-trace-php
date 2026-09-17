@@ -41,15 +41,15 @@ ZTS adds: `exceptions_zts`.
 
 ## Local Reproduction
 
-Use `.claude/ci/dockerh` with the `datadog/dd-trace-ci:php-<VERSION>_bookworm-10` image
+Use `.claude/ci/dockerh` with the `datadog/dd-trace-ci:php-<VERSION>_bookworm-11` image
 matching the PHP version under test (see `index.md` for image contents). The CI
 installs and uses clang-20 on ubuntu-24.04.
 
 Actions jobs use `shivammathur/setup-php` instead, but the same `dd-trace-ci`
 image is a suitable local substitute.
 
-**Image naming:** use `php-8.1_bookworm-10` for PHP 8.1 tests,
-`php-8.3_bookworm-10` for 8.3, etc. The version in the tag must match the PHP version
+**Image naming:** use `php-8.1_bookworm-11` for PHP 8.1 tests,
+`php-8.3_bookworm-11` for 8.3, etc. The version in the tag must match the PHP version
 being tested.
 
 **Cache naming:** use a separate `--cache` name per `(php-version, phpts)` pair (e.g.
@@ -66,13 +66,13 @@ Do not load a Cargo target-directory cdylib.
 ```bash
 # Standalone NTS example (PHP 8.3) -- only for testing the standalone artifact
 # itself; prefer the combined example below for general local testing.
-dockerh --cache profiler-8.3-nts-standalone --php nts datadog/dd-trace-ci:php-8.3_bookworm-10 -- bash -c '
+dockerh --cache profiler-8.3-nts-standalone --php nts datadog/dd-trace-ci:php-8.3_bookworm-11 -- bash -c '
 cd /project/dd-trace-php
 make compile_profiler -j"$(nproc)"
 '
 
 # Combined ZTS example (PHP 8.5) -- matches what CI ships/tests
-dockerh --cache profiler-8.5-zts --php zts datadog/dd-trace-ci:php-8.5_bookworm-10 -- bash -c '
+dockerh --cache profiler-8.5-zts --php zts datadog/dd-trace-ci:php-8.5_bookworm-11 -- bash -c '
 cd /project/dd-trace-php
 make compile_combined -j"$(nproc)"
 '
@@ -89,7 +89,7 @@ write pprof output there — no extra mounts needed:
 
 ```bash
 dockerh --cache profiler-8.3-nts --php nts \
-  datadog/dd-trace-ci:php-8.3_bookworm-10 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-11 -- bash -c '
 export DD_PROFILING_LOG_LEVEL=warn   # use "trace" only when debugging — trace is verbose and slows execution
 export DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=1
 export DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE=1
@@ -129,7 +129,7 @@ The pprof files are zstd-compressed protobuf. Use `go tool pprof` (available in 
 dd-trace-ci image) to inspect them. Pass `--user root` so `apt-get install` works:
 
 ```bash
-dockerh --cache profiler-8.3-nts --php nts datadog/dd-trace-ci:php-7.3_bookworm-10 --user root -- bash -c '
+dockerh --cache profiler-8.3-nts --php nts datadog/dd-trace-ci:php-7.3_bookworm-11 --user root -- bash -c '
 apt-get update -qq > /dev/null 2>&1 && apt-get install -y -qq zstd > /dev/null 2>&1
 
 PPROF_DIR=/project/dd-trace-php/tmp/correctness/allocations
@@ -229,14 +229,14 @@ and clang-20, then runs the `.phpt` test suite with `--asan`.
 
 ```bash
 dockerh --cache profiler-asan-8.3-nts --php nts-asan \
-  datadog/dd-trace-ci:php-8.3_bookworm-10 --user root --privileged -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-11 --user root --privileged -- bash -c '
 cd /project/dd-trace-php
-export CC=clang-20
+export CC=clang-21
 export CFLAGS="-fsanitize=address -fsanitize-address-use-after-scope -fno-omit-frame-pointer"
 export LDFLAGS="-fsanitize=address -shared-libasan"
-export RUSTC_LINKER=lld-20
-rustup override set nightly-2025-06-13
-export RUSTFLAGS="-Zsanitizer=address -C force-frame-pointers=yes"
+export RUSTC_LINKER=lld-21
+rustup override set nightly-2025-10-31
+export RUSTFLAGS="-Zsanitizer=address -Zexternal-clangrt -C force-frame-pointers=yes"
 export DDTRACE_PROFILING_TARGET="$(uname -m)-unknown-linux-gnu"
 export DDTRACE_PROFILING_CARGO_BUILD_FLAGS="-Zbuild-std=std,panic_abort"
 # CI runs phpize/configure/make directly since its checkout is ephemeral; do not
@@ -260,7 +260,7 @@ DD_PROFILING_OUTPUT_PPROF=/tmp/pprof \
 
 Requires `--user root --privileged` — ASAN needs both.
 
-The nightly toolchain version (`nightly-2025-06-13`) is pinned in
+The nightly toolchain version (`nightly-2025-10-31`) is pinned in
 `.github/workflows/prof_asan.yml`, not in `profiling/rust-toolchain.toml`. Check
 the workflow file for the current pinned version.
 

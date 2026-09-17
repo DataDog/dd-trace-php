@@ -391,6 +391,9 @@ int __cxa_thread_atexit_impl(void (*func)(void *), void *obj, void *dso_symbol) 
 static void dd_clean_main_thread_locals() {
     dd_run_rust_thread_destructors(NULL);
 }
+
+extern void *__dso_handle;
+int __cxa_atexit(void (*func)(void *), void *arg, void *dso_symbol);
 #endif
 
 static PHP_GSHUTDOWN_FUNCTION(datadog) {
@@ -515,7 +518,7 @@ static PHP_MINIT_FUNCTION(datadog) {
     if (datadog_active_sapi != DATADOG_PHP_SAPI_FRANKENPHP) {
         dd_is_main_thread = true;
         glibc__cxa_thread_atexit_impl = CXA_THREAD_ATEXIT_PHP;
-        atexit(dd_clean_main_thread_locals);
+        __cxa_atexit(dd_clean_main_thread_locals, NULL, __dso_handle);
     }
 #endif
 

@@ -46,11 +46,15 @@ static char ddtrace_disabled_result_reason[384] = {0};
 
 static bool already_done = false;
 
-#if defined(__MUSL__)
-# define OS_PATH "linux-musl/"
-#else
-# define OS_PATH "linux-gnu/"
-#endif
+extern char *gnu_get_libc_version(void) __attribute__((weak));
+
+static inline bool ddloader_host_is_musl(void) {
+    return gnu_get_libc_version == NULL;
+}
+
+static inline const char *ddloader_os_path(void) {
+    return ddloader_host_is_musl() ? "linux-musl/" : "linux-gnu/";
+}
 
 static ZEND_INI_MH(ddloader_OnUpdateForceInject) {
     (void)entry;
@@ -113,7 +117,7 @@ static char *ddtrace_pre_load_hook(injected_ext *config) {
     // as key). Musl only checks already loaded libraries if these were loaded
     // without a path (only that sets dso->shortname).
     char *libdatadog_php;
-    int res = asprintf(&libdatadog_php, "%s/%sloader/libdatadog_php.so", package_path, OS_PATH);
+    int res = asprintf(&libdatadog_php, "%s/%sloader/libdatadog_php.so", package_path, ddloader_os_path());
     if (res == -1) {
         return "asprintf error";
     }
@@ -620,7 +624,7 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
 
 static char *ddloader_find_ext_path(const char *ext_dir, const char *ext_name, int module_api, bool is_zts, bool is_debug) {
     char *full_path;
-    int res = asprintf(&full_path, "%s/%s%s/ext/%d/%s%s%s.so", package_path, OS_PATH, ext_dir, module_api, ext_name, is_zts ? "-zts" : "", is_debug ? "-debug" : "");
+    int res = asprintf(&full_path, "%s/%s%s/ext/%d/%s%s%s.so", package_path, ddloader_os_path(), ext_dir, module_api, ext_name, is_zts ? "-zts" : "", is_debug ? "-debug" : "");
     if (res == -1) {
         return NULL;
     }
@@ -966,36 +970,7 @@ static inline void ddloader_configure() {
     package_path = getenv("DD_LOADER_PACKAGE_PATH");
 }
 
-static bool ddloader_libc_check() {
-    bool is_musl;
-    const char *error = dlerror();
-    // gnu_get_libc_version is available since glibc 2.1
-    char *(*get_libc_version)(void) = dlsym(RTLD_DEFAULT, "gnu_get_libc_version");
-    error = dlerror();
-    if (error == NULL && get_libc_version != NULL) {
-        is_musl = false;
-    } else {
-        is_musl = true;
-    }
-
-#if defined(__MUSL__)
-    if (!is_musl) {
-        return false;
-    }
-#else
-    if (is_musl) {
-        return false;
-    }
-#endif
-
-    return true;
-}
-
 static int ddloader_api_no_check(int api_no) {
-    if (!ddloader_libc_check()) {
-        return SUCCESS;
-    }
-
     if (already_done) {
         LOG(NULL, WARN, "dd_library_loader has been loaded multiple times, aborting");
         return SUCCESS;
@@ -1066,7 +1041,7 @@ static int ddloader_api_no_check(int api_no) {
 
 static int ddloader_build_id_check(const char *build_id) {
     // Guardrail
-    if (!ddloader_libc_check() || !php_api_no || already_done) {
+    if (!php_api_no || already_done) {
         return SUCCESS;
     }
 

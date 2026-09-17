@@ -346,7 +346,7 @@ def phpSdkVersion = { String version, String variant ->
 }
 
 def portableBuildVariant = { String variant ->
-    variant == 'release-musl' ? 'release' : variant
+    variant.replace('-musl', '')
 }
 
 def buildTracerTask = { String version, String variant ->
@@ -778,13 +778,14 @@ def buildCoverageReportTask = {
 def buildLoaderTask = { String version, String variant ->
     buildRunInDockerTask(
             baseName: 'buildLoader',
+            imageTag: 'php-buildonly-rust',
             version: version,
             variant: variant,
             needsTracer: false,
             needsAppsec: false,
             needsBoostCache: false,
             needsCargoCache: false,
-            description: 'Build dd_library_loader extension for PHP',
+            description: 'Build portable dd_library_loader extension for PHP',
             inputs: [
                     dirs: ['../../../loader'],
             ],
@@ -797,18 +798,19 @@ def buildLoaderTask = { String version, String variant ->
             ],
             command: [
                     '-e', '-c',
-                    '''
-                    PHP_PREFIX=$(dirname $(dirname $(php -r 'echo PHP_BINARY;')))
-                    echo "Using PHP from: $PHP_PREFIX"
+                    """
+                    export PHP_SDK_VERSION=${phpSdkVersion(version, variant)}
+                    PHP_PREFIX=/opt/php/\$PHP_SDK_VERSION
+                    echo "Using PHP SDK from: \$PHP_PREFIX"
                     cd /project/loader
                     make distclean 2>/dev/null || true
-                    $PHP_PREFIX/bin/phpize
+                    \$PHP_PREFIX/bin/phpize
                     rm -f config.cache
-                    ./configure --with-php-config=$PHP_PREFIX/bin/php-config
+                    ./configure --with-php-config=\$PHP_PREFIX/bin/php-config
                     make -j
                     cp modules/dd_library_loader.so /loader-build/
                     touch /loader-build/dd_library_loader.so
-                    '''
+                    """
             ]
     )
 }
@@ -934,11 +936,15 @@ def runMainTask = { String phpVersion, String variant ->
     }
 }
 
-(testMatrix + [['8.5', 'release-musl']]).each { spec ->
+(testMatrix + [
+        ['8.5', 'release-musl'],
+        ['8.5', 'release-zts-musl'],
+]).each { spec ->
     String phpVersion = spec[0]
     String variant = spec[1]
 
     def isMusl = variant =~ /\bmusl\b/
+    def isMuslZts = isMusl && variant.contains('zts')
 
     if (!isMusl) {
         buildTracerTask(phpVersion, variant)
@@ -964,7 +970,9 @@ def runMainTask = { String phpVersion, String variant ->
                 excludeTags('slow')
             }
 
-            if (isMusl) {
+            if (isMuslZts) {
+                includeTags('zts-musl')
+            } else if (isMusl) {
                 includeTags('musl')
             }
         }
@@ -989,7 +997,9 @@ def runMainTask = { String phpVersion, String variant ->
         }
 
         String artifactVariant = portableBuildVariant(variant)
-        dependsOn project.hasProperty('useCmake') ? "buildTracerCmake-${phpVersion}-${artifactVariant}" : "buildTracer-${phpVersion}-${artifactVariant}"
+        dependsOn project.hasProperty('useCmake') ?
+                "buildTracerCmake-${phpVersion}-${artifactVariant}" :
+                "buildTracer-${phpVersion}-${artifactVariant}"
         dependsOn "buildAppsec-${phpVersion}-${artifactVariant}"
 
         if (phpVersion in ['7.0', '7.1']) {

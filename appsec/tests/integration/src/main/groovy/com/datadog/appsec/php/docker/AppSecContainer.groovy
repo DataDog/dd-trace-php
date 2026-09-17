@@ -544,7 +544,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         withFileSystemBind('src/test/resources/gdbinit', '/root/.gdbinit', BindMode.READ_ONLY)
         withFileSystemBind('src/test/bin/enable_extensions.sh',
                 '/usr/local/bin/enable_extensions.sh', BindMode.READ_ONLY)
-        String artifactVariant = phpVariant == 'release-musl' ? 'release' : phpVariant
+        String artifactVariant = phpVariant.replace('-musl', '')
         if (System.getProperty('SSI')) {
             addVolumeMount("php-appsec-$phpVersion-$artifactVariant", '/appsec')
             def ssiTracerVol = System.getProperty('USE_CMAKE')
