@@ -5,11 +5,11 @@ use crate::profiling::bindings::{
     Elf64_Dyn, Elf64_Rela, Elf64_Sym, Elf64_Xword, DT_JMPREL, DT_NULL, DT_PLTRELSZ, DT_STRTAB,
     DT_SYMTAB, PT_DYNAMIC, PT_LOAD, R_AARCH64_JUMP_SLOT, R_X86_64_JUMP_SLOT,
 };
+use core::ffi::CStr;
+use core::ptr;
 use libc::{c_char, c_int, c_void, dl_phdr_info};
 use log::{error, trace};
-use std::ffi::CStr;
-use std::ptr;
-use std::sync::OnceLock;
+use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 
 #[cfg(test)]
 mod tests;
@@ -259,18 +259,26 @@ pub unsafe extern "C" fn callback(
 ) -> c_int {
     let state = &mut *(data as *mut GotHookState);
 
-    // detect myself (cached once across iterations)
-    static MY_BASE_ADDR: OnceLock<usize> = OnceLock::new();
-    let my_base_addr = *MY_BASE_ADDR.get_or_init(|| {
+    // 0 = uninitialized, usize::MAX = failure (too high to be an image base)
+    static MY_BASE_ADDR: AtomicUsize = AtomicUsize::new(0);
+    let mut my_base_addr = MY_BASE_ADDR.load(Relaxed);
+    if my_base_addr == 0 {
         let mut my_info: libc::Dl_info = unsafe { std::mem::zeroed() };
-        if unsafe { libc::dladdr(callback as *const c_void, &mut my_info) } == 0 {
+        let resolved = if unsafe { libc::dladdr(callback as *const c_void, &mut my_info) } == 0
+            || my_info.dli_fbase.is_null()
+        {
             error!("Did not find my own `dladdr` and therefore can't hook into the GOT.");
-            0
+            usize::MAX
         } else {
             my_info.dli_fbase as usize
-        }
-    });
-    if my_base_addr == 0 {
+        };
+        // Concurrent lookups are harmless; use whichever result was published first.
+        my_base_addr = match MY_BASE_ADDR.compare_exchange(0, resolved, Relaxed, Relaxed) {
+            Ok(_) => resolved,
+            Err(cached) => cached,
+        };
+    }
+    if my_base_addr == usize::MAX {
         return 0;
     }
     let module_base_addr = (*info).dlpi_addr as usize;
