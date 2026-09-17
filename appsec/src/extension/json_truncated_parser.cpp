@@ -280,7 +280,7 @@ private:
             return false;
         }
 
-        zval *container = value_stack_.back();
+        const zval *container = value_stack_.back();
 
         if (Z_TYPE_P(container) == IS_ARRAY) {
             zval *new_val;

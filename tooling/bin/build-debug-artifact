@@ -247,7 +247,7 @@ cp tmp/build_extension/modules/ddtrace.so /output/ddtrace.so")"
 
 if [[ "$BUILD_PROFILER" == "1" ]]; then
     PROFILER_SCRIPT="$(_preamble "if [ -f /sbin/apk ] && [ \$(uname -m) = 'aarch64' ]; then
-    ln -sf ../lib/llvm20/bin/clang /usr/bin/clang
+    ln -sf ../lib/llvm21/bin/clang /usr/bin/clang
 fi
 make BUILD_SUFFIX=profiler PROFILING=1 RUST_DEBUG_BUILD=1 EXTRA_CONFIGURE_OPTIONS='--disable-ddtrace-tracer --enable-ddtrace-profiling'
 cp ${HOME_DIR}/tmp/build_profiler/modules/datadog-profiling.so /output/datadog-profiling${EXT_SUFFIX}.so")"

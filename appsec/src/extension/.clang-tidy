@@ -1,3 +1,5 @@
-Checks: '-fuchsia-trailing-return,-hicpp-vararg,-cppcoreguidelines-pro-type-vararg,-clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,-cppcoreguidelines-pro-bounds-array-to-pointer-decay'
+# clang-analyzer-security.ArrayBound misidentifies the zval member as the bounds
+# of its containing Bucket in PHP's ZEND_HASH_FOREACH_FROM macro (PHP 8.2+).
+Checks: '-fuchsia-trailing-return,-hicpp-vararg,-cppcoreguidelines-pro-type-vararg,-clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,-cppcoreguidelines-pro-bounds-array-to-pointer-decay,-clang-analyzer-security.ArrayBound'
 
 InheritParentConfig: true
