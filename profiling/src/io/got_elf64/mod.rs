@@ -11,12 +11,82 @@ use std::ffi::CStr;
 use std::ptr;
 use std::sync::OnceLock;
 
+#[cfg(test)]
+mod tests;
+
 fn elf64_r_type(info: Elf64_Xword) -> u32 {
     (info & 0xffffffff) as u32
 }
 
 fn elf64_r_sym(info: Elf64_Xword) -> u32 {
     (info >> 32) as u32
+}
+
+/// Temporarily make a RELRO GOT page writable. Ordinary writable GOT pages
+/// require no permission change. Explicit restoration reports failures; Drop
+/// also restores protection if a caller exits before reaching that step.
+struct GotPageProtection {
+    page: Option<(*mut c_void, usize)>,
+}
+
+impl GotPageProtection {
+    unsafe fn make_writable(info: *mut dl_phdr_info, slot: usize) -> Option<Self> {
+        let mut is_relro = false;
+        for i in 0..(*info).dlpi_phnum {
+            let phdr = &*(*info).dlpi_phdr.add(i as usize);
+            if phdr.p_type == libc::PT_GNU_RELRO {
+                let start = (*info).dlpi_addr as usize + phdr.p_vaddr as usize;
+                let end = start + phdr.p_memsz as usize;
+                if (start..end).contains(&slot) {
+                    is_relro = true;
+                    break;
+                }
+            }
+        }
+        if !is_relro {
+            return Some(Self { page: None });
+        }
+
+        let page_size = libc::sysconf(libc::_SC_PAGESIZE);
+        if page_size <= 0 {
+            error!("Failed to determine page size while changing GOT protection");
+            return None;
+        }
+        let page_size = page_size as usize;
+        let page = (slot & !(page_size - 1)) as *mut c_void;
+        if libc::mprotect(page, page_size, libc::PROT_READ | libc::PROT_WRITE) != 0 {
+            let err = *libc::__errno_location();
+            error!("Failed to make RELRO GOT page writable at {page:p}: {err}");
+            return None;
+        }
+        Some(Self {
+            page: Some((page, page_size)),
+        })
+    }
+
+    fn restore(mut self) -> bool {
+        self.restore_inner()
+    }
+
+    fn restore_inner(&mut self) -> bool {
+        let Some((page, page_size)) = self.page.take() else {
+            return true;
+        };
+        // SAFETY: make_writable obtained this page from a loaded image's GOT.
+        // The caller must keep the image loaded until this guard is restored.
+        if unsafe { libc::mprotect(page, page_size, libc::PROT_READ) } != 0 {
+            let err = unsafe { *libc::__errno_location() };
+            error!("Failed to restore RELRO GOT page protection at {page:p}: {err}");
+            return false;
+        }
+        true
+    }
+}
+
+impl Drop for GotPageProtection {
+    fn drop(&mut self) {
+        self.restore_inner();
+    }
 }
 
 /// Override the GOT entry for symbols specified in `overwrites`.
@@ -36,19 +106,15 @@ unsafe fn override_got_entry(
 ) -> bool {
     let phdr = (*info).dlpi_phdr;
 
-    // Locate the dynamic program header (`PT_DYNAMIC`) and RELRO segment (`PT_GNU_RELRO`)
+    // Locate the dynamic program header (`PT_DYNAMIC`).
     let mut dyn_ptr: *const Elf64_Dyn = ptr::null();
     let mut dyn_count: usize = 0;
-    let mut relro_range: Option<(usize, usize)> = None;
     for i in 0..(*info).dlpi_phnum {
         let phdr_i = phdr.offset(i as isize);
         if (*phdr_i).p_type == PT_DYNAMIC {
             dyn_ptr = ((*info).dlpi_addr as usize + (*phdr_i).p_vaddr as usize) as *const Elf64_Dyn;
             dyn_count = (*phdr_i).p_memsz as usize / std::mem::size_of::<Elf64_Dyn>();
-        } else if (*phdr_i).p_type == libc::PT_GNU_RELRO {
-            let start = (*info).dlpi_addr as usize + (*phdr_i).p_vaddr as usize;
-            let end = start + (*phdr_i).p_memsz as usize;
-            relro_range = Some((start, end));
+            break;
         }
     }
     if dyn_ptr.is_null() || dyn_count == 0 {
@@ -146,27 +212,6 @@ unsafe fn override_got_entry(
                 let got_entry =
                     ((*info).dlpi_addr as usize + (*rel).r_offset as usize) as *mut *mut ();
 
-                let is_relro = if let Some((start, end)) = relro_range {
-                    (got_entry as usize) >= start && (got_entry as usize) < end
-                } else {
-                    false
-                };
-
-                // Change memory protection so we can write to the GOT entry if protected by RELRO
-                let page_size = libc::sysconf(libc::_SC_PAGESIZE) as usize;
-                let aligned_addr = (got_entry as usize) & !(page_size - 1);
-                if is_relro
-                    && libc::mprotect(
-                        aligned_addr as *mut c_void,
-                        page_size,
-                        libc::PROT_READ | libc::PROT_WRITE,
-                    ) != 0
-                {
-                    let err = *libc::__errno_location();
-                    trace!("mprotect failed: {}", err);
-                    return false;
-                }
-
                 let original = *got_entry;
                 if original == overwrite.new_func {
                     continue;
@@ -180,17 +225,23 @@ unsafe fn override_got_entry(
                     original,
                 );
 
-                state.restores.push(GotSlotRestore {
+                // Allocate restore bookkeeping before making the page writable.
+                state.restores.reserve(1);
+                let restore = GotSlotRestore {
                     image: (*info).dlpi_addr as usize,
                     image_name: image_name.into(),
                     slot: got_entry as usize,
                     original: original as usize,
                     replacement: overwrite.new_func as usize,
-                });
+                };
+                let Some(protection) = GotPageProtection::make_writable(info, got_entry as usize)
+                else {
+                    return false;
+                };
+                state.restores.push(restore);
                 *got_entry = overwrite.new_func;
-
-                if is_relro {
-                    libc::mprotect(aligned_addr as *mut c_void, page_size, libc::PROT_READ);
+                if !protection.restore() {
+                    return false;
                 }
                 break;
             }
@@ -303,7 +354,6 @@ unsafe extern "C" fn restore_callback(
     } else {
         CStr::from_ptr((*info).dlpi_name).to_bytes()
     };
-    let page_size = libc::sysconf(libc::_SC_PAGESIZE) as usize;
 
     for restore in restores
         .iter()
@@ -328,22 +378,17 @@ unsafe extern "C" fn restore_callback(
             continue;
         }
 
-        let aligned_addr = restore.slot & !(page_size - 1);
-        if libc::mprotect(
-            aligned_addr as *mut c_void,
-            page_size,
-            libc::PROT_READ | libc::PROT_WRITE,
-        ) != 0
-        {
-            let err = *libc::__errno_location();
-            trace!("mprotect failed while restoring GOT entry at {slot:p}: {err}");
+        let Some(protection) = GotPageProtection::make_writable(info, restore.slot) else {
             *complete = false;
             continue;
-        }
-
-        if restore_slot_if_owned(restore) {
+        };
+        let restored = restore_slot_if_owned(restore);
+        // Restore protection even if the slot is no longer ours.
+        let protected = protection.restore();
+        if restored {
             trace!("Restored GOT entry at {slot:p}");
-        } else {
+        }
+        if !restored || !protected {
             *complete = false;
         }
     }
