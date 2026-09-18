@@ -54,6 +54,12 @@ DDTrace\start_span();
 report();
 DDTrace\root_span()->tracestate = 'vendor=value';
 report();
+DDTrace\root_span()->tracestate = 'ot=foo:only';
+echo 'empty vendors: ', DDTrace\root_span()->tracestate === '' ? 'yes' : 'no', PHP_EOL;
+report();
+DDTrace\root_span()->tracestate = '';
+DDTrace\root_span()->tracestate = '';
+report();
 DDTrace\close_span();
 
 // Replace global state as well as root-local state.
@@ -70,5 +76,8 @@ foo:nested
 foo:parent
 link retained
 foo:global
+<absent>
+empty vendors: yes
+foo:only
 <absent>
 foo:new-global

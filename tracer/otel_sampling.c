@@ -15,7 +15,6 @@ typedef struct {
   size_t datadog_member_len;
   const char* otel_member;
   size_t otel_member_len;
-  size_t member_count;
 } ddtrace_otel_tracestate_members;
 
 static bool ddtrace_otel_parse_lower_hex(const char* value, size_t len, uint64_t* parsed) {
@@ -38,9 +37,10 @@ static bool ddtrace_otel_field_is(const char* field, size_t field_len, const cha
   return field_len >= 2 && field[0] == key[0] && field[1] == key[1] && (field_len == 2 || field[2] == ':');
 }
 
-static void ddtrace_otel_append_field(smart_str* result, const char* field, size_t field_len) {
-  size_t separator_len = result->s ? 1 : 0;
-  if ((result->s ? ZSTR_LEN(result->s) : 0) + separator_len + field_len > DDTRACE_OTEL_MAX_VALUE_LEN) {
+static void ddtrace_otel_append_field(smart_str* result, const char* field, size_t field_len, size_t value_offset) {
+  size_t value_len = result->s ? ZSTR_LEN(result->s) - value_offset : 0;
+  size_t separator_len = value_len ? 1 : 0;
+  if (value_len + separator_len + field_len > DDTRACE_OTEL_MAX_VALUE_LEN) {
     return;
   }
   if (separator_len) {
@@ -76,7 +76,7 @@ void ddtrace_otel_sampling_parse(ddtrace_otel_sampling_state* state, const char*
         state->threshold_len = threshold_len;
       }
     } else if (field_len) {
-      ddtrace_otel_append_field(&unknown_fields, field, field_len);
+      ddtrace_otel_append_field(&unknown_fields, field, field_len, 0);
     }
 
     if (field_end == end) {
@@ -185,19 +185,27 @@ zend_string* ddtrace_otel_sampling_extract_tracestate(zend_string* tracestate, d
     smart_str_0(&vendors);
     return vendors.s;
   }
-  return zend_string_init("", 0, 0);
+  return ZSTR_EMPTY_ALLOC();
 }
 
 void ddtrace_otel_sampling_append_to_tracestate(smart_str* tracestate, const ddtrace_otel_sampling_state* state) {
-  smart_str value = {0};
+  if (!state->random_value_len && !state->threshold_len && !state->unknown_fields) {
+    return;
+  }
+  if (tracestate->s) {
+    smart_str_appendc(tracestate, ',');
+  }
+  smart_str_appends(tracestate, "ot=");
+  size_t value_offset = ZSTR_LEN(tracestate->s);
+
   if (state->random_value_len) {
-    smart_str_append_printf(&value, "rv:%0*" PRIx64, (int)state->random_value_len, (uint64_t)state->random_value);
+    smart_str_append_printf(tracestate, "rv:%0*" PRIx64, (int)state->random_value_len, (uint64_t)state->random_value);
   }
   if (state->threshold_len) {
-    if (value.s) {
-      smart_str_appendc(&value, ';');
+    if (state->random_value_len) {
+      smart_str_appendc(tracestate, ';');
     }
-    smart_str_append_printf(&value, "th:%0*" PRIx64, (int)state->threshold_len, (uint64_t)state->threshold);
+    smart_str_append_printf(tracestate, "th:%0*" PRIx64, (int)state->threshold_len, (uint64_t)state->threshold);
   }
 
   const char* unknown = state->unknown_fields ? ZSTR_VAL(state->unknown_fields) : "";
@@ -207,19 +215,9 @@ void ddtrace_otel_sampling_append_to_tracestate(smart_str* tracestate, const ddt
     if (!field_end) {
       field_end = end;
     }
-    ddtrace_otel_append_field(&value, field, field_end - field);
+    ddtrace_otel_append_field(tracestate, field, field_end - field, value_offset);
     field = field_end == end ? end : field_end + 1;
   }
-
-  if (!value.s) {
-    return;
-  }
-  if (tracestate->s) {
-    smart_str_appendc(tracestate, ',');
-  }
-  smart_str_appends(tracestate, "ot=");
-  smart_str_append(tracestate, value.s);
-  smart_str_free(&value);
 }
 
 static ddtrace_otel_tracestate_members ddtrace_otel_scan_tracestate(zend_string* tracestate) {
@@ -233,7 +231,6 @@ static ddtrace_otel_tracestate_members ddtrace_otel_scan_tracestate(zend_string*
       member_end = end;
     }
     size_t member_len = member_end - member;
-    ++members.member_count;
 
     if (!members.datadog_member && ddtrace_tracestate_member_is(member, member_len, "dd")) {
       members.datadog_member = member;
@@ -332,8 +329,21 @@ zend_string* ddtrace_otel_sampling_limit_tracestate(zend_string* tracestate) {
     return NULL;
   }
 
-  ddtrace_otel_tracestate_members members = ddtrace_otel_scan_tracestate(tracestate);
-  if (members.member_count <= DDTRACE_TRACESTATE_MAX_MEMBERS && ZSTR_LEN(tracestate) <= DDTRACE_TRACESTATE_MAX_LEN) {
+  // Most headers fit: only count separators here, and identify owned members when truncation is needed.
+  if (ZSTR_LEN(tracestate) <= DDTRACE_TRACESTATE_MAX_LEN) {
+    const char* member = ZSTR_VAL(tracestate);
+    const char* end = member + ZSTR_LEN(tracestate);
+    size_t member_count = 0;
+    while (member < end) {
+      if (++member_count > DDTRACE_TRACESTATE_MAX_MEMBERS) {
+        return ddtrace_otel_limit_oversized_tracestate(tracestate);
+      }
+      const char* separator = memchr(member, ',', end - member);
+      if (!separator) {
+        break;
+      }
+      member = separator + 1;
+    }
     return tracestate;
   }
   return ddtrace_otel_limit_oversized_tracestate(tracestate);

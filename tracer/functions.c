@@ -601,7 +601,7 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
         cache_slot = NULL;
     } else if (zend_string_equals_literal(prop_name, "tracestate") && Z_TYPE_P(value) == IS_STRING) {
         ZVAL_STR(&zv, ddtrace_otel_sampling_extract_tracestate(Z_STR_P(value), &span->otel_sampling));
-        Z_DELREF(zv); // zend_std_write_property will incref itself
+        Z_TRY_DELREF(zv); // zend_std_write_property will incref non-interned strings itself
         value = &zv;
         cache_slot = NULL;
     } else if (zend_string_equals_literal(prop_name, "samplingPriority")) {
