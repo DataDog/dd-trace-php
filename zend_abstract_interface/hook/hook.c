@@ -883,8 +883,9 @@ void zai_hook_resolve_file(zend_op_array *op_array) {
 }
 
 void zai_hook_unresolve_op_array(zend_op_array *op_array) {
-    // May be called in shutdown_executor, which is after extension rshutdown
-    if ((zend_long)zai_hook_tls->id == -1) {
+    // May run after RSHUTDOWN, or after GSHUTDOWN when Zend destroys the
+    // global function and class tables and the hook TLS has already been freed.
+    if (!zai_hook_tls || (zend_long)zai_hook_tls->id == -1) {
         return;
     }
 
