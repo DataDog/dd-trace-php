@@ -1136,40 +1136,36 @@ extern "C" fn shutdown(extension: *mut ZendExtension) {
 /// Notifies the profiler a trace has finished so it can update information
 /// for Endpoint Profiling.
 fn notify_trace_finished(local_root_span_id: u64, span_type: Cow<str>, resource: Cow<str>) {
-    let endpoint_collection_enabled = match REQUEST_LOCALS.try_with_borrow(|locals| {
-        let settings = locals.system_settings();
-        settings.profiling_enabled && settings.profiling_endpoint_collection_enabled
-    }) {
-        Ok(enabled) => enabled,
-        Err(err) => {
-            debug!(
-                "tracer failed to notify profiler about a finished trace because the request locals could not be borrowed: {err}"
-            );
-            return;
+    let result = REQUEST_LOCALS.try_with_borrow(|locals| {
+        let system_settings = locals.system_settings();
+        if system_settings.profiling_enabled && system_settings.profiling_endpoint_collection_enabled {
+            // Only gather Endpoint Profiling data for web spans, partly for PII reasons.
+            if span_type != "web" {
+                debug!(
+                    "Local root span id {local_root_span_id} ended but did not have a span type of 'web' (actual: '{span_type}'), so Endpoint Profiling data will not be sent."
+                );
+                return;
+            }
+
+            if let Some(profiler) = Profiler::get() {
+                let message = LocalRootSpanResourceMessage {
+                    local_root_span_id,
+                    resource: resource.into_owned(),
+                };
+                if let Err(err) = profiler.send_local_root_span_resource(message) {
+                    warn!("Failed to enqueue endpoint profiling information: {err}.");
+                } else {
+                    trace!(
+                        "Enqueued endpoint profiling information for span id: {local_root_span_id}."
+                    );
+                }
+            }
         }
-    };
+    });
 
-    if !endpoint_collection_enabled {
-        return;
-    }
-
-    // Only gather Endpoint Profiling data for web spans, partly for PII reasons.
-    if span_type != "web" {
+    if let Err(err) = result {
         debug!(
-            "Local root span id {local_root_span_id} ended but did not have a span type of 'web' (actual: '{span_type}'), so Endpoint Profiling data will not be sent."
+            "tracer failed to notify profiler about a finished trace because the request locals could not be borrowed: {err}"
         );
-        return;
-    }
-
-    if let Some(profiler) = Profiler::get() {
-        let message = LocalRootSpanResourceMessage {
-            local_root_span_id,
-            resource: resource.into_owned(),
-        };
-        if let Err(err) = profiler.send_local_root_span_resource(message) {
-            warn!("Failed to enqueue endpoint profiling information: {err}.");
-        } else {
-            trace!("Enqueued endpoint profiling information for span id: {local_root_span_id}.");
-        }
     }
 }
