@@ -16,6 +16,7 @@ typedef enum {
     EXT_CFG_INI_BAR_ALIASED_INT,
     EXT_CFG_INI_BAR_ALIASED_STRING,
     EXT_CFG_INI_BAZ_MAP_EMPTY,
+    EXT_CFG_INI_MINIT_BOOL,
 } ext_ini_cfg_id;
 
 static void ext_ini_env_to_ini_name(zai_str env_name, zai_config_name *ini_name) {
@@ -35,6 +36,7 @@ static PHP_MINIT_FUNCTION(zai_config_ini) {
         EXT_CFG_ALIASED_ENTRY(INI_BAR_ALIASED_INT, INT, "0", aliases_int),
         EXT_CFG_ALIASED_ENTRY(INI_BAR_ALIASED_STRING, STRING, "0", aliases_string),
         EXT_CFG_ENTRY(INI_BAZ_MAP_EMPTY, MAP, ""),
+        ZAI_CONFIG_ENTRY(EXT_CFG_INI_MINIT_BOOL, INI_MINIT_BOOL, BOOL, "1", .ini_change = zai_config_minit_ini_change),
     };
     if (!zai_config_minit(entries, (sizeof entries / sizeof entries[0]), ext_ini_env_to_ini_name, module_number)) {
         return FAILURE;
@@ -551,6 +553,7 @@ static char *second_consumer_sapi_getenv(char *name, size_t name_len) {
     if (second_consumer_sapi_phase == 0) {
         if (strcmp(name, "INI_FOO_STRING") == 0) return estrdup("sapi_val");
         if (strcmp(name, "INI_FOO_INT") == 0) return estrdup("2");
+        if (strcmp(name, "INI_MINIT_BOOL") == 0) return estrdup("0");
     } else if (second_consumer_sapi_phase == 1) {
         if (strcmp(name, "INI_FOO_INT") == 0) return estrdup("3");
     }
@@ -562,8 +565,8 @@ static char *second_consumer_sapi_getenv(char *name, size_t name_len) {
 //   1. SAPI is consulted on every rinit, including the first; sys env cache (set at minit) is the
 //      fallback when SAPI returns NULL — consulting SAPI on first rinit is required for backwards
 //      compatibility with health metrics
-//   2. SAPI env takes priority over sys env for ALL entries, including those with original_on_modify —
-//      the presence of a second consumer does not affect SAPI precedence
+//   2. SAPI env takes priority over sys env for regular entries, including those with
+//      original_on_modify; MINIT-only entries remain unchanged
 //   3. Sys env changes between requests are NOT reflected — the cache is immutable after minit (request 3)
 TEA_TEST_CASE_BARE("config/ini", "second consumer extension causes original_on_modify to be set", {
     REQUIRE(tea_sapi_sinit());
@@ -592,6 +595,10 @@ TEA_TEST_CASE_BARE("config/ini", "second consumer extension causes original_on_m
     REQUIRE(int_val != NULL);
     REQUIRE(Z_TYPE_P(int_val) == IS_LONG);
     REQUIRE(Z_LVAL_P(int_val) == 2);  // SAPI "2" overrides sys cache "1"
+
+    zval *minit_val = zai_config_get_value(EXT_CFG_INI_MINIT_BOOL);
+    REQUIRE(minit_val != NULL);
+    REQUIRE(Z_TYPE_P(minit_val) == IS_TRUE);  // SAPI "0" cannot replace the MINIT value
 
     REQUEST_END()
 
