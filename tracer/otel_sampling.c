@@ -119,12 +119,13 @@ void ddtrace_otel_sampling_decide_probability(ddtrace_otel_sampling_state* state
   uint64_t threshold = ddtrace_otel_threshold_for(sample_rate);
   state->random_value = ddtrace_otel_reconcile_random_value(ddtrace_otel_derive_random_value(trace_id), threshold, sampling_priority > 0);
   state->random_value_len = 14;
-  state->threshold_len = 14;
-  while (state->threshold_len > 1 && (threshold & 0xf) == 0) {
+  uint8_t threshold_len = threshold ? 14 : 1;
+  while (threshold_len > 1 && (threshold & 0xf) == 0) {
     threshold >>= 4;
-    --state->threshold_len;
+    --threshold_len;
   }
   state->threshold = threshold;
+  state->threshold_len = threshold_len;
 }
 
 void ddtrace_otel_sampling_decide_non_probability(ddtrace_otel_sampling_state* state) {
