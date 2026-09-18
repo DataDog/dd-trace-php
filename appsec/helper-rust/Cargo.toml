@@ -34,6 +34,7 @@ flate2 = "1.0"         # gzip compression for schemas
 
 [features]
 coverage = []
+source-static = ["libddwaf-sys/source-static"]
 
 [build-dependencies]
 cc = "1.0"
