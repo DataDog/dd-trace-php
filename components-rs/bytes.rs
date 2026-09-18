@@ -1,10 +1,11 @@
 use datadog_sidecar_ffi::span::{
-    TracerPayloadV1Builder, DDOG_V1_ATTR_BOOL, DDOG_V1_ATTR_BYTES, DDOG_V1_ATTR_DOUBLE,
-    DDOG_V1_ATTR_INT, DDOG_V1_ATTR_KEYVALUE, DDOG_V1_ATTR_LIST, DDOG_V1_ATTR_STRING,
+    ChunkNode, SpanNode, TracerPayloadV1Builder, DDOG_V1_ATTR_BOOL, DDOG_V1_ATTR_BYTES,
+    DDOG_V1_ATTR_DOUBLE, DDOG_V1_ATTR_INT, DDOG_V1_ATTR_KEYVALUE, DDOG_V1_ATTR_LIST,
+    DDOG_V1_ATTR_STRING,
 };
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
 use libdd_tinybytes::{Bytes, BytesString, RefCountedCell, RefCountedCellVTable};
-use libdd_trace_utils::span::v1::{AttributeValueBytes, SpanKind};
+use libdd_trace_utils::span::v1::{AttributeValueBytes, SpanEventBytes, SpanKind, SpanLinkBytes};
 use libdd_trace_utils::span::vec_map::VecMap;
 use std::borrow::Cow;
 use std::ffi::CStr;
@@ -157,9 +158,13 @@ fn convert_literal_to_bytes_string(string: *const c_char) -> BytesString {
     }
 }
 
-// Native V1 fill surface: builds the `TracerPayloadV1Builder` directly, addressing chunks/spans/
-// links/events by `usize` index. Stacked-Borrows soundness: each call takes one `&mut` and resolves
-// by index, so no `&mut` into the payload ever escapes to C.
+// Native V1 fill surface: builds the `TracerPayloadV1Builder` directly. Each chunk/span/link/event
+// is its own heap allocation; a creator returns the new node's raw pointer and per-node mutators
+// take only that pointer, materializing `&mut *ptr` against the node's own allocation. Stacked- and
+// Tree-Borrows soundness: a mutation never reborrows `&mut builder` (which would pop an outstanding
+// node pointer's tag), and a sibling push never moves an existing node, so a held pointer stays
+// valid across sibling pushes (the inferred-span case). The C caller keeps at most one live handle
+// per node in scope.
 
 /// Sets a V1 string field from a `CharSlice`, leaving it unchanged for an empty slice (matches the
 /// builder's `set_string_field` skip-empty semantics so absent values are omitted on the wire).
@@ -204,244 +209,189 @@ fn clone_attr(value: &AttributeValueBytes) -> AttributeValueBytes {
 
 // ------------------- Chunk / span / link / event creation -------------------
 
-/// Appends a chunk carrying the 128-bit trace id (high/low halves), returning its index.
+/// Appends a chunk carrying the 128-bit trace id (high/low halves), returning its node pointer.
 #[no_mangle]
 pub extern "C" fn ddog_new_chunk(
     builder: &mut TracerPayloadV1Builder,
     trace_id_high: u64,
     trace_id_low: u64,
-) -> usize {
+) -> *mut ChunkNode {
     builder.push_chunk(trace_id_high, trace_id_low)
 }
 
-/// Appends an empty span to `chunk`, returning its index.
+/// Number of spans already in `chunk` (so C can detect the first span of a chunk).
+///
+/// # Safety
+/// `chunk` must be a live chunk node pointer from [`ddog_new_chunk`].
 #[no_mangle]
-pub extern "C" fn ddog_new_span(builder: &mut TracerPayloadV1Builder, chunk: usize) -> usize {
-    builder.push_span(chunk)
+pub unsafe extern "C" fn ddog_chunk_span_count(chunk: *mut ChunkNode) -> usize {
+    (*chunk).span_count()
 }
 
-/// Appends an empty link to a span, returning its index.
+/// Appends an empty span to `chunk`, returning its node pointer.
+///
+/// # Safety
+/// `chunk` must be a live chunk node pointer from [`ddog_new_chunk`].
 #[no_mangle]
-pub extern "C" fn ddog_new_link(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-) -> usize {
-    builder.push_link(chunk, span)
+pub unsafe extern "C" fn ddog_new_span(chunk: *mut ChunkNode) -> *mut SpanNode {
+    (*chunk).push_span()
 }
 
-/// Appends an empty event to a span, returning its index.
+/// Appends an empty link to `span`, returning its node pointer.
+///
+/// # Safety
+/// `span` must be a live span node pointer from [`ddog_new_span`].
 #[no_mangle]
-pub extern "C" fn ddog_new_event(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-) -> usize {
-    builder.push_event(chunk, span)
+pub unsafe extern "C" fn ddog_new_link(span: *mut SpanNode) -> *mut SpanLinkBytes {
+    (*span).push_link()
+}
+
+/// Appends an empty event to `span`, returning its node pointer.
+///
+/// # Safety
+/// `span` must be a live span node pointer from [`ddog_new_span`].
+#[no_mangle]
+pub unsafe extern "C" fn ddog_new_event(span: *mut SpanNode) -> *mut SpanEventBytes {
+    (*span).push_event()
 }
 
 // ------------------- Span scalar fields -------------------
 
+/// # Safety
+/// `span` must be a live span node pointer from [`ddog_new_span`] (applies to every span mutator).
 #[no_mangle]
-pub extern "C" fn ddog_span_set_id(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-    value: u64,
-) {
-    if let Some(s) = builder.span_mut(chunk, span) {
-        s.span_id = value;
-    }
+pub unsafe extern "C" fn ddog_span_set_id(span: *mut SpanNode, value: u64) {
+    (*span).span_mut().span_id = value;
 }
 
+/// # Safety
+/// See [`ddog_span_set_id`].
 #[no_mangle]
-pub extern "C" fn ddog_span_set_parent_id(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-    value: u64,
-) {
-    if let Some(s) = builder.span_mut(chunk, span) {
-        s.parent_id = value;
-    }
+pub unsafe extern "C" fn ddog_span_set_parent_id(span: *mut SpanNode, value: u64) {
+    (*span).span_mut().parent_id = value;
 }
 
+/// # Safety
+/// See [`ddog_span_set_id`].
 #[no_mangle]
-pub extern "C" fn ddog_span_set_start(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-    value: i64,
-) {
-    if let Some(s) = builder.span_mut(chunk, span) {
-        s.start = value;
-    }
+pub unsafe extern "C" fn ddog_span_set_start(span: *mut SpanNode, value: i64) {
+    (*span).span_mut().start = value;
 }
 
+/// # Safety
+/// See [`ddog_span_set_id`].
 #[no_mangle]
-pub extern "C" fn ddog_span_set_duration(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-    value: i64,
-) {
-    if let Some(s) = builder.span_mut(chunk, span) {
-        s.duration = value;
-    }
+pub unsafe extern "C" fn ddog_span_set_duration(span: *mut SpanNode, value: i64) {
+    (*span).span_mut().duration = value;
 }
 
+/// # Safety
+/// See [`ddog_span_set_id`].
 #[no_mangle]
-pub extern "C" fn ddog_span_set_error(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-    error: bool,
-) {
-    if let Some(s) = builder.span_mut(chunk, span) {
-        s.error = error;
-    }
+pub unsafe extern "C" fn ddog_span_set_error(span: *mut SpanNode, error: bool) {
+    (*span).span_mut().error = error;
+}
+
+/// Reads the span error flag (used to mirror error state onto an inferred span).
+///
+/// # Safety
+/// See [`ddog_span_set_id`].
+#[no_mangle]
+pub unsafe extern "C" fn ddog_span_get_error(span: *mut SpanNode) -> bool {
+    (*span).span().error
 }
 
 // ------------------- Span string fields (ZendString, zero-copy refcounted) -------------------
 
+/// # Safety
+/// See [`ddog_span_set_id`].
 #[no_mangle]
-pub extern "C" fn ddog_set_span_service_zstr(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-    str: &mut ZendString,
-) {
-    if let Some(s) = builder.span_mut(chunk, span) {
-        s.service = convert_zend_to_bytes_string(str);
-    }
+pub unsafe extern "C" fn ddog_set_span_service_zstr(span: *mut SpanNode, str: &mut ZendString) {
+    (*span).span_mut().service = convert_zend_to_bytes_string(str);
 }
 
+/// # Safety
+/// See [`ddog_span_set_id`].
 #[no_mangle]
-pub extern "C" fn ddog_set_span_name_zstr(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-    str: &mut ZendString,
-) {
-    if let Some(s) = builder.span_mut(chunk, span) {
-        s.name = convert_zend_to_bytes_string(str);
-    }
+pub unsafe extern "C" fn ddog_set_span_name_zstr(span: *mut SpanNode, str: &mut ZendString) {
+    (*span).span_mut().name = convert_zend_to_bytes_string(str);
 }
 
+/// # Safety
+/// See [`ddog_span_set_id`].
 #[no_mangle]
-pub extern "C" fn ddog_set_span_resource_zstr(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-    str: &mut ZendString,
-) {
-    if let Some(s) = builder.span_mut(chunk, span) {
-        s.resource = convert_zend_to_bytes_string(str);
-    }
+pub unsafe extern "C" fn ddog_set_span_resource_zstr(span: *mut SpanNode, str: &mut ZendString) {
+    (*span).span_mut().resource = convert_zend_to_bytes_string(str);
 }
 
+/// # Safety
+/// See [`ddog_span_set_id`].
 #[no_mangle]
-pub extern "C" fn ddog_set_span_type_zstr(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-    str: &mut ZendString,
-) {
-    if let Some(s) = builder.span_mut(chunk, span) {
-        s.r#type = convert_zend_to_bytes_string(str);
-    }
+pub unsafe extern "C" fn ddog_set_span_type_zstr(span: *mut SpanNode, str: &mut ZendString) {
+    (*span).span_mut().r#type = convert_zend_to_bytes_string(str);
 }
 
 // ------------------- Promoted span fields (properties-direct) -------------------
 
+/// # Safety
+/// See [`ddog_span_set_id`].
 #[no_mangle]
-pub extern "C" fn ddog_set_span_env(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-    value: CharSlice,
-) {
-    if let Some(s) = builder.span_mut(chunk, span) {
-        set_field_cs(&mut s.env, value);
-    }
+pub unsafe extern "C" fn ddog_set_span_env(span: *mut SpanNode, value: CharSlice) {
+    set_field_cs(&mut (*span).span_mut().env, value);
 }
 
+/// # Safety
+/// See [`ddog_span_set_id`].
 #[no_mangle]
-pub extern "C" fn ddog_set_span_version(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-    value: CharSlice,
-) {
-    if let Some(s) = builder.span_mut(chunk, span) {
-        set_field_cs(&mut s.version, value);
-    }
+pub unsafe extern "C" fn ddog_set_span_version(span: *mut SpanNode, value: CharSlice) {
+    set_field_cs(&mut (*span).span_mut().version, value);
 }
 
+/// # Safety
+/// See [`ddog_span_set_id`].
 #[no_mangle]
-pub extern "C" fn ddog_set_span_component(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-    value: CharSlice,
-) {
-    if let Some(s) = builder.span_mut(chunk, span) {
-        set_field_cs(&mut s.component, value);
-    }
+pub unsafe extern "C" fn ddog_set_span_component(span: *mut SpanNode, value: CharSlice) {
+    set_field_cs(&mut (*span).span_mut().component, value);
 }
 
 /// Sets the span kind from an OTEL wire value (unset/unknown → Internal).
+///
+/// # Safety
+/// See [`ddog_span_set_id`].
 #[no_mangle]
-pub extern "C" fn ddog_set_span_kind(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-    kind: u32,
-) {
-    if let Some(s) = builder.span_mut(chunk, span) {
-        s.span_kind = SpanKind::from(kind);
-    }
+pub unsafe extern "C" fn ddog_set_span_kind(span: *mut SpanNode, kind: u32) {
+    (*span).span_mut().span_kind = SpanKind::from(kind);
 }
 
 /// Sets the span kind from a v0.4 `span.kind` meta string (mapping owned by libdatadog's
 /// `SpanKind::from_meta`; unknown → Internal).
+///
+/// # Safety
+/// See [`ddog_span_set_id`].
 #[no_mangle]
-pub extern "C" fn ddog_set_span_kind_str(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-    value: CharSlice,
-) {
-    let kind = SpanKind::from_meta(String::from_utf8_lossy(value.as_bytes().as_ref()).as_ref());
-    if let Some(s) = builder.span_mut(chunk, span) {
-        s.span_kind = kind;
-    }
+pub unsafe extern "C" fn ddog_set_span_kind_str(span: *mut SpanNode, value: CharSlice) {
+    (*span).span_mut().span_kind =
+        SpanKind::from_meta(String::from_utf8_lossy(value.as_bytes().as_ref()).as_ref());
 }
 
 // ------------------- Span attributes (unified V1 map, subsumes meta/metrics/meta_struct) -------------------
 
+/// # Safety
+/// See [`ddog_span_set_id`] (applies to every span-attribute mutator/reader below).
 #[no_mangle]
-pub extern "C" fn ddog_add_span_attr_cs_cs(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-    key: CharSlice,
-    value: CharSlice,
-) {
+pub unsafe extern "C" fn ddog_add_span_attr_cs_cs(span: *mut SpanNode, key: CharSlice, value: CharSlice) {
     let (key, value) = (
         convert_char_slice_to_bytes_string(key),
         AttributeValueBytes::String(convert_char_slice_to_bytes_string(value)),
     );
-    if let Some(s) = builder.span_mut(chunk, span) {
-        insert_attr(&mut s.attributes, key, value);
-    }
+    insert_attr(&mut (*span).span_mut().attributes, key, value);
 }
 
+/// # Safety
+/// See [`ddog_span_set_id`].
 #[no_mangle]
-pub extern "C" fn ddog_add_span_attr_lit_cs(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
+pub unsafe extern "C" fn ddog_add_span_attr_lit_cs(
+    span: *mut SpanNode,
     key: *const c_char,
     value: CharSlice,
 ) {
@@ -449,16 +399,14 @@ pub extern "C" fn ddog_add_span_attr_lit_cs(
         convert_literal_to_bytes_string(key),
         AttributeValueBytes::String(convert_char_slice_to_bytes_string(value)),
     );
-    if let Some(s) = builder.span_mut(chunk, span) {
-        insert_attr(&mut s.attributes, key, value);
-    }
+    insert_attr(&mut (*span).span_mut().attributes, key, value);
 }
 
+/// # Safety
+/// See [`ddog_span_set_id`].
 #[no_mangle]
-pub extern "C" fn ddog_add_span_attr_zstr_cs(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
+pub unsafe extern "C" fn ddog_add_span_attr_zstr_cs(
+    span: *mut SpanNode,
     key: &mut ZendString,
     value: CharSlice,
 ) {
@@ -466,16 +414,14 @@ pub extern "C" fn ddog_add_span_attr_zstr_cs(
         convert_zend_to_bytes_string(key),
         AttributeValueBytes::String(convert_char_slice_to_bytes_string(value)),
     );
-    if let Some(s) = builder.span_mut(chunk, span) {
-        insert_attr(&mut s.attributes, key, value);
-    }
+    insert_attr(&mut (*span).span_mut().attributes, key, value);
 }
 
+/// # Safety
+/// See [`ddog_span_set_id`].
 #[no_mangle]
-pub extern "C" fn ddog_add_span_attr_zstr_zstr(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
+pub unsafe extern "C" fn ddog_add_span_attr_zstr_zstr(
+    span: *mut SpanNode,
     key: &mut ZendString,
     value: &mut ZendString,
 ) {
@@ -483,63 +429,55 @@ pub extern "C" fn ddog_add_span_attr_zstr_zstr(
         convert_zend_to_bytes_string(key),
         AttributeValueBytes::String(convert_zend_to_bytes_string(value)),
     );
-    if let Some(s) = builder.span_mut(chunk, span) {
-        insert_attr(&mut s.attributes, key, value);
-    }
+    insert_attr(&mut (*span).span_mut().attributes, key, value);
 }
 
 /// Adds a numeric (double) attribute under a `CharSlice` key.
+///
+/// # Safety
+/// See [`ddog_span_set_id`].
 #[no_mangle]
-pub extern "C" fn ddog_add_span_attr_double_cs(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-    key: CharSlice,
-    value: f64,
-) {
+pub unsafe extern "C" fn ddog_add_span_attr_double_cs(span: *mut SpanNode, key: CharSlice, value: f64) {
     let key = convert_char_slice_to_bytes_string(key);
-    if let Some(s) = builder.span_mut(chunk, span) {
-        insert_attr(&mut s.attributes, key, AttributeValueBytes::Float(value));
-    }
+    insert_attr(&mut (*span).span_mut().attributes, key, AttributeValueBytes::Float(value));
 }
 
 /// Adds a numeric (double) attribute under a static C literal key.
+///
+/// # Safety
+/// See [`ddog_span_set_id`].
 #[no_mangle]
-pub extern "C" fn ddog_add_span_attr_double_lit(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
+pub unsafe extern "C" fn ddog_add_span_attr_double_lit(
+    span: *mut SpanNode,
     key: *const c_char,
     value: f64,
 ) {
     let key = convert_literal_to_bytes_string(key);
-    if let Some(s) = builder.span_mut(chunk, span) {
-        insert_attr(&mut s.attributes, key, AttributeValueBytes::Float(value));
-    }
+    insert_attr(&mut (*span).span_mut().attributes, key, AttributeValueBytes::Float(value));
 }
 
 /// Adds a numeric (double) attribute under a `ZendString` key.
+///
+/// # Safety
+/// See [`ddog_span_set_id`].
 #[no_mangle]
-pub extern "C" fn ddog_add_span_attr_double_zstr(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
+pub unsafe extern "C" fn ddog_add_span_attr_double_zstr(
+    span: *mut SpanNode,
     key: &mut ZendString,
     value: f64,
 ) {
     let key = convert_zend_to_bytes_string(key);
-    if let Some(s) = builder.span_mut(chunk, span) {
-        insert_attr(&mut s.attributes, key, AttributeValueBytes::Float(value));
-    }
+    insert_attr(&mut (*span).span_mut().attributes, key, AttributeValueBytes::Float(value));
 }
 
 /// Adds a bytes-valued attribute (v0.4 `meta_struct`) under a `ZendString` key. The value bytes are
 /// copied verbatim and encoded as msgpack `bin`.
+///
+/// # Safety
+/// See [`ddog_span_set_id`].
 #[no_mangle]
-pub extern "C" fn ddog_add_span_attr_bytes_zstr(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
+pub unsafe extern "C" fn ddog_add_span_attr_bytes_zstr(
+    span: *mut SpanNode,
     key: &mut ZendString,
     value: CharSlice,
 ) {
@@ -547,168 +485,123 @@ pub extern "C" fn ddog_add_span_attr_bytes_zstr(
         convert_zend_to_bytes_string(key),
         AttributeValueBytes::Bytes(Bytes::copy_from_slice(value.as_bytes())),
     );
-    if let Some(s) = builder.span_mut(chunk, span) {
-        insert_attr(&mut s.attributes, key, value);
-    }
+    insert_attr(&mut (*span).span_mut().attributes, key, value);
 }
 
 /// Whether the span carries an attribute under `key` (`ZendString`). Mirrors the v0.4
 /// `has_span_meta`/`has_span_metrics` guard so the generic loops never overwrite a promoted value.
+///
+/// # Safety
+/// See [`ddog_span_set_id`].
 #[no_mangle]
-pub extern "C" fn ddog_has_span_attr_zstr(
-    builder: &TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-    key: &mut ZendString,
-) -> bool {
+pub unsafe extern "C" fn ddog_has_span_attr_zstr(span: *mut SpanNode, key: &mut ZendString) -> bool {
     let key = convert_zend_to_bytes_string(key);
-    builder
-        .span(chunk, span)
-        .is_some_and(|s| s.attributes.contains_key(&key))
+    (*span).span().attributes.contains_key(&key)
 }
 
 /// Removes the attribute under a static C literal `key`, returning whether it was present.
+///
+/// # Safety
+/// See [`ddog_span_set_id`].
 #[no_mangle]
-pub extern "C" fn ddog_del_span_attr_lit(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-    key: *const c_char,
-) -> bool {
+pub unsafe extern "C" fn ddog_del_span_attr_lit(span: *mut SpanNode, key: *const c_char) -> bool {
     let key = convert_literal_to_bytes_string(key);
-    match builder.span_mut(chunk, span) {
-        Some(s) => {
-            let existed = s.attributes.contains_key(&key);
-            s.attributes.remove_slow(&key);
-            existed
-        }
-        None => false,
-    }
+    let attrs = &mut (*span).span_mut().attributes;
+    let existed = attrs.contains_key(&key);
+    attrs.remove_slow(&key);
+    existed
 }
 
-/// Copies the attribute `key` from `from_span` onto `to_span` (within `chunk`), returning whether the
-/// source had it; removes it from the source when `delete_source` is set. Type-preserving.
+/// Copies the attribute `key` from `from_span` onto `to_span`, returning whether the source had it;
+/// removes it from the source when `delete_source` is set. Type-preserving. The two spans are
+/// distinct allocations, so the read-clone and the write reborrow are sequenced against separate
+/// borrow stacks.
+///
+/// # Safety
+/// `from_span`/`to_span` must be live, distinct span node pointers from [`ddog_new_span`].
 #[no_mangle]
-pub extern "C" fn ddog_transfer_span_attr(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    from_span: usize,
-    to_span: usize,
+pub unsafe extern "C" fn ddog_transfer_span_attr(
+    from_span: *mut SpanNode,
+    to_span: *mut SpanNode,
     key: *const c_char,
     delete_source: bool,
 ) -> bool {
     let key = convert_literal_to_bytes_string(key);
-    let value = match builder.span(chunk, from_span).and_then(|s| s.attributes.get(&key)) {
+    let value = match (*from_span).span().attributes.get(&key) {
         Some(v) => clone_attr(v),
         None => return false,
     };
-    match builder.span_mut(chunk, to_span) {
-        Some(dst) => dst.attributes.insert(key.clone(), value),
-        None => return false,
-    };
+    (*to_span).span_mut().attributes.insert(key.clone(), value);
     if delete_source {
-        if let Some(src) = builder.span_mut(chunk, from_span) {
-            src.attributes.remove_slow(&key);
-        }
+        (*from_span).span_mut().attributes.remove_slow(&key);
     }
     true
 }
 
 // ------------------- Chunk-level fields -------------------
 
+/// # Safety
+/// `chunk` must be a live chunk node pointer from [`ddog_new_chunk`] (every chunk mutator below).
 #[no_mangle]
-pub extern "C" fn ddog_set_chunk_origin(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    origin: CharSlice,
-) {
-    if let Some(c) = builder.chunk_mut(chunk) {
-        set_field_cs(&mut c.origin, origin);
-    }
+pub unsafe extern "C" fn ddog_set_chunk_origin(chunk: *mut ChunkNode, origin: CharSlice) {
+    set_field_cs(&mut (*chunk).chunk_mut().origin, origin);
 }
 
+/// # Safety
+/// See [`ddog_set_chunk_origin`].
 #[no_mangle]
-pub extern "C" fn ddog_set_chunk_dropped_trace(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    dropped: bool,
-) {
-    if let Some(c) = builder.chunk_mut(chunk) {
-        c.dropped_trace = dropped;
-    }
+pub unsafe extern "C" fn ddog_set_chunk_dropped_trace(chunk: *mut ChunkNode, dropped: bool) {
+    (*chunk).chunk_mut().dropped_trace = dropped;
 }
 
+/// # Safety
+/// See [`ddog_set_chunk_origin`].
 #[no_mangle]
-pub extern "C" fn ddog_set_chunk_sampling_priority(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    priority: i32,
-) {
-    if let Some(c) = builder.chunk_mut(chunk) {
-        c.priority = Some(priority);
-    }
+pub unsafe extern "C" fn ddog_set_chunk_sampling_priority(chunk: *mut ChunkNode, priority: i32) {
+    (*chunk).chunk_mut().priority = Some(priority);
 }
 
+/// # Safety
+/// See [`ddog_set_chunk_origin`].
 #[no_mangle]
-pub extern "C" fn ddog_set_chunk_sampling_mechanism(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    mechanism: u32,
-) {
-    if let Some(c) = builder.chunk_mut(chunk) {
-        c.sampling_mechanism = Some(mechanism);
-    }
+pub unsafe extern "C" fn ddog_set_chunk_sampling_mechanism(chunk: *mut ChunkNode, mechanism: u32) {
+    (*chunk).chunk_mut().sampling_mechanism = Some(mechanism);
 }
 
 // ------------------- Span links -------------------
 
+/// # Safety
+/// `link` must be a live link node pointer from [`ddog_new_link`] (every link mutator below).
 #[no_mangle]
-pub extern "C" fn ddog_link_set_trace_id(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-    link: usize,
+pub unsafe extern "C" fn ddog_link_set_trace_id(
+    link: *mut SpanLinkBytes,
     trace_id_high: u64,
     trace_id_low: u64,
 ) {
-    if let Some(l) = builder.link_mut(chunk, span, link) {
-        l.trace_id[..8].copy_from_slice(&trace_id_high.to_be_bytes());
-        l.trace_id[8..].copy_from_slice(&trace_id_low.to_be_bytes());
-    }
+    let l = &mut *link;
+    l.trace_id[..8].copy_from_slice(&trace_id_high.to_be_bytes());
+    l.trace_id[8..].copy_from_slice(&trace_id_low.to_be_bytes());
 }
 
+/// # Safety
+/// See [`ddog_link_set_trace_id`].
 #[no_mangle]
-pub extern "C" fn ddog_link_set_span_id(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-    link: usize,
-    value: u64,
-) {
-    if let Some(l) = builder.link_mut(chunk, span, link) {
-        l.span_id = value;
-    }
+pub unsafe extern "C" fn ddog_link_set_span_id(link: *mut SpanLinkBytes, value: u64) {
+    (*link).span_id = value;
 }
 
+/// # Safety
+/// See [`ddog_link_set_trace_id`].
 #[no_mangle]
-pub extern "C" fn ddog_link_set_tracestate(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-    link: usize,
-    value: CharSlice,
-) {
-    if let Some(l) = builder.link_mut(chunk, span, link) {
-        set_field_cs(&mut l.tracestate, value);
-    }
+pub unsafe extern "C" fn ddog_link_set_tracestate(link: *mut SpanLinkBytes, value: CharSlice) {
+    set_field_cs(&mut (*link).tracestate, value);
 }
 
+/// # Safety
+/// See [`ddog_link_set_trace_id`].
 #[no_mangle]
-pub extern "C" fn ddog_link_add_attr_str(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-    link: usize,
+pub unsafe extern "C" fn ddog_link_add_attr_str(
+    link: *mut SpanLinkBytes,
     key: CharSlice,
     value: CharSlice,
 ) {
@@ -716,45 +609,30 @@ pub extern "C" fn ddog_link_add_attr_str(
         convert_char_slice_to_bytes_string(key),
         AttributeValueBytes::String(convert_char_slice_to_bytes_string(value)),
     );
-    if let Some(l) = builder.link_mut(chunk, span, link) {
-        insert_attr(&mut l.attributes, key, value);
-    }
+    insert_attr(&mut (*link).attributes, key, value);
 }
 
 // ------------------- Span events -------------------
 
+/// # Safety
+/// `event` must be a live event node pointer from [`ddog_new_event`] (every event mutator below).
 #[no_mangle]
-pub extern "C" fn ddog_event_set_name(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-    event: usize,
-    value: CharSlice,
-) {
-    if let Some(e) = builder.event_mut(chunk, span, event) {
-        set_field_cs(&mut e.name, value);
-    }
+pub unsafe extern "C" fn ddog_event_set_name(event: *mut SpanEventBytes, value: CharSlice) {
+    set_field_cs(&mut (*event).name, value);
 }
 
+/// # Safety
+/// See [`ddog_event_set_name`].
 #[no_mangle]
-pub extern "C" fn ddog_event_set_time(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-    event: usize,
-    time_unix_nano: u64,
-) {
-    if let Some(e) = builder.event_mut(chunk, span, event) {
-        e.time_unix_nano = time_unix_nano;
-    }
+pub unsafe extern "C" fn ddog_event_set_time(event: *mut SpanEventBytes, time_unix_nano: u64) {
+    (*event).time_unix_nano = time_unix_nano;
 }
 
+/// # Safety
+/// See [`ddog_event_set_name`].
 #[no_mangle]
-pub extern "C" fn ddog_event_add_attr_str(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-    event: usize,
+pub unsafe extern "C" fn ddog_event_add_attr_str(
+    event: *mut SpanEventBytes,
     key: CharSlice,
     value: CharSlice,
 ) {
@@ -762,67 +640,52 @@ pub extern "C" fn ddog_event_add_attr_str(
         convert_char_slice_to_bytes_string(key),
         AttributeValueBytes::String(convert_char_slice_to_bytes_string(value)),
     );
-    if let Some(e) = builder.event_mut(chunk, span, event) {
-        insert_attr(&mut e.attributes, key, value);
-    }
+    insert_attr(&mut (*event).attributes, key, value);
 }
 
+/// # Safety
+/// See [`ddog_event_set_name`].
 #[no_mangle]
-pub extern "C" fn ddog_event_add_attr_int(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-    event: usize,
-    key: CharSlice,
-    value: i64,
-) {
+pub unsafe extern "C" fn ddog_event_add_attr_int(event: *mut SpanEventBytes, key: CharSlice, value: i64) {
     let key = convert_char_slice_to_bytes_string(key);
-    if let Some(e) = builder.event_mut(chunk, span, event) {
-        insert_attr(&mut e.attributes, key, AttributeValueBytes::Int(value));
-    }
+    insert_attr(&mut (*event).attributes, key, AttributeValueBytes::Int(value));
 }
 
+/// # Safety
+/// See [`ddog_event_set_name`].
 #[no_mangle]
-pub extern "C" fn ddog_event_add_attr_double(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-    event: usize,
+pub unsafe extern "C" fn ddog_event_add_attr_double(
+    event: *mut SpanEventBytes,
     key: CharSlice,
     value: f64,
 ) {
     let key = convert_char_slice_to_bytes_string(key);
-    if let Some(e) = builder.event_mut(chunk, span, event) {
-        insert_attr(&mut e.attributes, key, AttributeValueBytes::Float(value));
-    }
+    insert_attr(&mut (*event).attributes, key, AttributeValueBytes::Float(value));
 }
 
+/// # Safety
+/// See [`ddog_event_set_name`].
 #[no_mangle]
-pub extern "C" fn ddog_event_add_attr_bool(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-    event: usize,
+pub unsafe extern "C" fn ddog_event_add_attr_bool(
+    event: *mut SpanEventBytes,
     key: CharSlice,
     value: bool,
 ) {
     let key = convert_char_slice_to_bytes_string(key);
-    if let Some(e) = builder.event_mut(chunk, span, event) {
-        insert_attr(&mut e.attributes, key, AttributeValueBytes::Bool(value));
-    }
+    insert_attr(&mut (*event).attributes, key, AttributeValueBytes::Bool(value));
 }
 
 // ------------------- Nested span attributes: staging builder (write side) -------------------
 //
 // Builds a nested `AttributeValue::List`/`KeyValue` for a span attribute out-of-band, then attaches
 // it in one shot. Each `AttrBuilder` is its own `Box` allocation (own-allocation provenance); the
-// raw `builder`/`parent` pointers it stashes are reborrowed exactly once — at the matching
+// raw `span`/`parent` pointers it stashes are reborrowed exactly once — at the matching
 // `ddog_attr_close` — and never while another live `&mut` to the same object exists. The C caller
 // contract keeping this Stacked-Borrows clean: while it holds an `*mut AttrBuilder` it makes ONLY
-// AttrBuilder FFI calls (push/put/open/close on the staging tree), never a `&mut TracerPayloadV1Builder`
-// FFI call, until the top-level close attaches the finished value via `span_mut`. Exactly one
-// container pointer is live per recursion level, and a child is fully built and closed (folded into
-// its parent by value) before the next sibling is appended.
+// AttrBuilder FFI calls (push/put/open/close on the staging tree), until the top-level close
+// attaches the finished value onto the span node it was opened against. Exactly one container
+// pointer is live per recursion level, and a child is fully built and closed (folded into its
+// parent by value) before the next sibling is appended.
 
 /// The partial nested value an `AttrBuilder` accumulates.
 enum PartialAttr {
@@ -841,11 +704,9 @@ impl PartialAttr {
 
 /// Where a finished `AttrBuilder` folds on close.
 enum Attach {
-    /// Top level: insert the finished value into `span[chunk][span].attributes` under `key`.
+    /// Top level: insert the finished value into the span node's attributes under `key`.
     Span {
-        builder: *mut TracerPayloadV1Builder,
-        chunk: usize,
-        span: usize,
+        span: *mut SpanNode,
         key: BytesString,
     },
     /// Append the finished value to the parent list.
@@ -890,38 +751,30 @@ unsafe fn map_of<'a>(
 
 // ---- Opening a nested container ----
 
-/// Opens a staging `List` attached to `span[chunk][span].attributes[key]` on close.
+/// Opens a staging `List` attached to `span.attributes[key]` on close.
+///
+/// # Safety
+/// `span` must be a live span node pointer from [`ddog_new_span`].
 #[no_mangle]
-pub extern "C" fn ddog_span_attr_open_list(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-    key: CharSlice,
-) -> *mut AttrBuilder {
+pub unsafe extern "C" fn ddog_span_attr_open_list(span: *mut SpanNode, key: CharSlice) -> *mut AttrBuilder {
     box_attr(
         PartialAttr::List(Vec::new()),
         Attach::Span {
-            builder: builder as *mut TracerPayloadV1Builder,
-            chunk,
             span,
             key: convert_char_slice_to_bytes_string(key),
         },
     )
 }
 
-/// Opens a staging `KeyValue` map attached to `span[chunk][span].attributes[key]` on close.
+/// Opens a staging `KeyValue` map attached to `span.attributes[key]` on close.
+///
+/// # Safety
+/// `span` must be a live span node pointer from [`ddog_new_span`].
 #[no_mangle]
-pub extern "C" fn ddog_span_attr_open_map(
-    builder: &mut TracerPayloadV1Builder,
-    chunk: usize,
-    span: usize,
-    key: CharSlice,
-) -> *mut AttrBuilder {
+pub unsafe extern "C" fn ddog_span_attr_open_map(span: *mut SpanNode, key: CharSlice) -> *mut AttrBuilder {
     box_attr(
         PartialAttr::Map(VecMap::new()),
         Attach::Span {
-            builder: builder as *mut TracerPayloadV1Builder,
-            chunk,
             span,
             key: convert_char_slice_to_bytes_string(key),
         },
@@ -1081,15 +934,8 @@ pub unsafe extern "C" fn ddog_attr_close(child: *mut AttrBuilder) {
                 m.insert(key, finished);
             }
         }
-        Attach::Span {
-            builder,
-            chunk,
-            span,
-            key,
-        } => {
-            if let Some(s) = (*builder).span_mut(chunk, span) {
-                insert_attr(&mut s.attributes, key, finished);
-            }
+        Attach::Span { span, key } => {
+            insert_attr(&mut (*span).span_mut().attributes, key, finished);
         }
     }
 }
@@ -1289,12 +1135,14 @@ mod staging_ffi_tests {
     #[test]
     fn build_nested_attrs_and_read_back() {
         let mut b = TracerPayloadV1Builder::default();
-        let chunk = b.push_chunk(0, 1);
-        let span = b.push_span(chunk);
+        let chunk_ptr = b.push_chunk(0, 1);
+        // Read-back getters address by index; the sole chunk/span are at 0/0.
+        let (chunk, span) = (0usize, 0usize);
+        let span_ptr = unsafe { (*chunk_ptr).push_span() };
 
         unsafe {
             // root: KeyValue { a: "x", n: 7, items: [ "first", 42, { flag: true } ] }
-            let root = ddog_span_attr_open_map(&mut b, chunk, span, cs("root"));
+            let root = ddog_span_attr_open_map(span_ptr, cs("root"));
             ddog_attr_map_put_str(root, cs("a"), cs("x"));
             ddog_attr_map_put_int(root, cs("n"), 7);
             let items = ddog_attr_map_open_list(root, cs("items"));
@@ -1307,7 +1155,7 @@ mod staging_ffi_tests {
             ddog_attr_close(root); // attach root map onto the span
 
             // A second top-level attribute: a List of one double.
-            let tl = ddog_span_attr_open_list(&mut b, chunk, span, cs("list"));
+            let tl = ddog_span_attr_open_list(span_ptr, cs("list"));
             ddog_attr_list_push_double(tl, 1.5);
             ddog_attr_close(tl);
         }
@@ -1370,11 +1218,12 @@ mod v04_parity_tests {
         CharSlice::from_bytes(s.as_bytes())
     }
 
-    fn one_span_builder() -> (TracerPayloadV1Builder, usize, usize) {
+    fn one_span_builder() -> (TracerPayloadV1Builder, *mut SpanNode) {
         let mut b = TracerPayloadV1Builder::default();
         let c = b.push_chunk(0, 1);
-        let s = b.push_span(c);
-        (b, c, s)
+        // Safety: `c` is the live chunk node just pushed.
+        let s = unsafe { (*c).push_span() };
+        (b, s)
     }
 
     /// Decodes v0.4 bytes (`[[span,...],...]`) and returns the first span's map.
@@ -1411,9 +1260,9 @@ mod v04_parity_tests {
     fn meta_nested_matches_old_flat_v04() {
         // NEW: meta attr "m" = { bar: [ "1", { key: "2" }, "" ], "5": "v" }
         // (String leaves, as the meta path stringifies — mirrors the old convert_to_double=false).
-        let (mut newb, c, s) = one_span_builder();
+        let (newb, s) = one_span_builder();
         unsafe {
-            let m = ddog_span_attr_open_map(&mut newb, c, s, cs("m"));
+            let m = ddog_span_attr_open_map(s, cs("m"));
             let bar = ddog_attr_map_open_list(m, cs("bar"));
             ddog_attr_list_push_str(bar, cs("1"));
             let e = ddog_attr_list_open_map(bar);
@@ -1426,11 +1275,13 @@ mod v04_parity_tests {
         }
 
         // OLD: the identical dotted keys the C flatten wrote, in traversal order.
-        let (mut oldb, c, s) = one_span_builder();
-        ddog_add_span_attr_cs_cs(&mut oldb, c, s, cs("m.bar.0"), cs("1"));
-        ddog_add_span_attr_cs_cs(&mut oldb, c, s, cs("m.bar.1.key"), cs("2"));
-        ddog_add_span_attr_cs_cs(&mut oldb, c, s, cs("m.bar.2"), cs(""));
-        ddog_add_span_attr_cs_cs(&mut oldb, c, s, cs("m.5"), cs("v"));
+        let (oldb, s) = one_span_builder();
+        unsafe {
+            ddog_add_span_attr_cs_cs(s, cs("m.bar.0"), cs("1"));
+            ddog_add_span_attr_cs_cs(s, cs("m.bar.1.key"), cs("2"));
+            ddog_add_span_attr_cs_cs(s, cs("m.bar.2"), cs(""));
+            ddog_add_span_attr_cs_cs(s, cs("m.5"), cs("v"));
+        }
 
         let new_span = first_span(&to_vec_from_v1(&newb.into_payload()));
         let old_span = first_span(&to_vec_from_v1(&oldb.into_payload()));
@@ -1446,9 +1297,9 @@ mod v04_parity_tests {
     fn metrics_nested_matches_old_flat_v04() {
         // NEW: metrics attr "mm" = { nums: [ 1.0, 2.5 ], deep: { x: 0.0 } }
         // (Float leaves, as the metrics path uses zval_get_double -> convert_to_double=true.)
-        let (mut newb, c, s) = one_span_builder();
+        let (newb, s) = one_span_builder();
         unsafe {
-            let mm = ddog_span_attr_open_map(&mut newb, c, s, cs("mm"));
+            let mm = ddog_span_attr_open_map(s, cs("mm"));
             let nums = ddog_attr_map_open_list(mm, cs("nums"));
             ddog_attr_list_push_double(nums, 1.0);
             ddog_attr_list_push_double(nums, 2.5);
@@ -1459,10 +1310,12 @@ mod v04_parity_tests {
             ddog_attr_close(mm);
         }
 
-        let (mut oldb, c, s) = one_span_builder();
-        ddog_add_span_attr_double_cs(&mut oldb, c, s, cs("mm.nums.0"), 1.0);
-        ddog_add_span_attr_double_cs(&mut oldb, c, s, cs("mm.nums.1"), 2.5);
-        ddog_add_span_attr_double_cs(&mut oldb, c, s, cs("mm.deep.x"), 0.0);
+        let (oldb, s) = one_span_builder();
+        unsafe {
+            ddog_add_span_attr_double_cs(s, cs("mm.nums.0"), 1.0);
+            ddog_add_span_attr_double_cs(s, cs("mm.nums.1"), 2.5);
+            ddog_add_span_attr_double_cs(s, cs("mm.deep.x"), 0.0);
+        }
 
         let new_span = first_span(&to_vec_from_v1(&newb.into_payload()));
         let old_span = first_span(&to_vec_from_v1(&oldb.into_payload()));
@@ -1472,5 +1325,135 @@ mod v04_parity_tests {
             "v0.4 metrics keys+values of native nesting must match the old flat dotted metrics"
         );
         assert_eq!(sorted_bucket(&new_span, "meta"), sorted_bucket(&old_span, "meta"));
+    }
+}
+
+#[cfg(test)]
+mod pointer_handle_miri_tests {
+    // The crux of Phase 2 comment A: prove the Box-per-node pointer model is UB-clean under Stacked
+    // AND Tree Borrows for the hazards the old index model was chosen to avoid. Run with
+    // `cargo +nightly miri test` under both `-Zmiri-stacked-borrows` and `-Zmiri-tree-borrows`.
+    use super::*;
+    use datadog_sidecar_ffi::span::{ddog_free_charslice, ddog_v1_span_debug_log};
+
+    fn cs(s: &str) -> CharSlice<'_> {
+        CharSlice::from_bytes(s.as_bytes())
+    }
+
+    // (a) The inferred-span hazard (serializer.c ~2059→2098): after a SECOND span is pushed into the
+    // same chunk, the outer frame keeps mutating and reading its ROOT span pointer with NO refetch.
+    #[test]
+    fn a_root_span_ptr_survives_sibling_push() {
+        let mut b = TracerPayloadV1Builder::default();
+        let chunk = b.push_chunk(0, 1);
+        unsafe {
+            let root = ddog_new_span(chunk);
+            ddog_span_set_id(root, 100);
+            ddog_span_set_error(root, true);
+            ddog_add_span_attr_lit_cs(root, c"moved".as_ptr(), cs("v"));
+
+            // The sibling push that reallocs `chunk.spans`; `root` must stay valid (own allocation).
+            let inferred = ddog_new_span(chunk);
+            ddog_span_set_id(inferred, 200);
+
+            // Use `root` AFTER the sibling push, with no refetch (mirrors the transfers/debug/del).
+            assert!(ddog_transfer_span_attr(root, inferred, c"moved".as_ptr(), true));
+            ddog_span_set_error(inferred, ddog_span_get_error(root));
+            let log = ddog_v1_span_debug_log(chunk, root);
+            assert!(!log.is_empty());
+            ddog_free_charslice(log);
+            assert!(!ddog_del_span_attr_lit(root, c"absent".as_ptr()));
+        }
+
+        let payload = b.into_payload();
+        let spans = &payload.chunks[0].spans;
+        assert_eq!(spans.len(), 2);
+        assert_eq!(spans[0].span_id, 100);
+        assert_eq!(spans[1].span_id, 200);
+        assert!(!spans[0].attributes.contains_key("moved"), "attr moved off root");
+        assert!(spans[1].attributes.contains_key("moved"), "attr moved onto inferred");
+    }
+
+    // (b) A deep nested List/KeyValue built via the staging FFI on a span node pointer, then folded
+    // through into_payload.
+    #[test]
+    fn b_nested_attr_build_on_span_ptr() {
+        let mut b = TracerPayloadV1Builder::default();
+        let chunk = b.push_chunk(0, 1);
+        unsafe {
+            let span = ddog_new_span(chunk);
+            let root = ddog_span_attr_open_map(span, cs("root"));
+            ddog_attr_map_put_int(root, cs("n"), 7);
+            let items = ddog_attr_map_open_list(root, cs("items"));
+            ddog_attr_list_push_str(items, cs("a"));
+            let nested = ddog_attr_list_open_map(items);
+            ddog_attr_map_put_bool(nested, cs("flag"), true);
+            ddog_attr_close(nested);
+            ddog_attr_close(items);
+            ddog_attr_close(root);
+        }
+        let payload = b.into_payload();
+        match payload.chunks[0].spans[0].attributes.get("root") {
+            Some(AttributeValueBytes::KeyValue(m)) => assert_eq!(m.len(), 2),
+            other => panic!("expected KeyValue, got {other:?}"),
+        }
+    }
+
+    // (c) Links and events built on a span pointer, each fully built before the next push.
+    #[test]
+    fn c_links_and_events_on_span_ptr() {
+        let mut b = TracerPayloadV1Builder::default();
+        let chunk = b.push_chunk(0, 1);
+        unsafe {
+            let span = ddog_new_span(chunk);
+            let l0 = ddog_new_link(span);
+            ddog_link_set_span_id(l0, 11);
+            ddog_link_add_attr_str(l0, cs("k"), cs("v"));
+            let l1 = ddog_new_link(span); // sibling push; l0 stays valid (own allocation)
+            ddog_link_set_span_id(l1, 22);
+            ddog_link_set_span_id(l0, 111); // still valid after the sibling push
+
+            let e0 = ddog_new_event(span);
+            ddog_event_set_name(e0, cs("evt"));
+            ddog_event_add_attr_int(e0, cs("n"), 5);
+            let e1 = ddog_new_event(span);
+            ddog_event_set_time(e1, 999);
+            ddog_event_set_name(e0, cs("evt0")); // e0 valid after e1's push
+        }
+        let payload = b.into_payload();
+        let span = &payload.chunks[0].spans[0];
+        assert_eq!(span.span_links.len(), 2);
+        assert_eq!(span.span_links[0].span_id, 111);
+        assert_eq!(span.span_events.len(), 2);
+        assert_eq!(span.span_events[0].name.as_str(), "evt0");
+    }
+
+    // (d) into_payload dedups duplicate keys, and a builder dropped WITHOUT into_payload frees every
+    // node box (Miri's leak/double-free checker is the assertion for the drop path).
+    #[test]
+    fn d_into_payload_dedup_and_drop() {
+        let mut b = TracerPayloadV1Builder::default();
+        let chunk = b.push_chunk(0, 1);
+        unsafe {
+            let span = ddog_new_span(chunk);
+            ddog_add_span_attr_cs_cs(span, cs("dup"), cs("first"));
+            ddog_add_span_attr_cs_cs(span, cs("dup"), cs("second"));
+        }
+        let payload = b.into_payload();
+        let attrs = &payload.chunks[0].spans[0].attributes;
+        assert_eq!(attrs.len(), 1, "duplicate keys deduped in into_payload");
+
+        // Drop path: build a populated builder and let it fall out of scope unconsumed.
+        let mut d = TracerPayloadV1Builder::default();
+        let c = d.push_chunk(0, 2);
+        unsafe {
+            let s = ddog_new_span(c);
+            ddog_new_link(s);
+            ddog_new_event(s);
+            let m = ddog_span_attr_open_map(s, cs("x"));
+            ddog_attr_map_put_int(m, cs("y"), 1);
+            ddog_attr_close(m);
+        }
+        drop(d);
     }
 }
