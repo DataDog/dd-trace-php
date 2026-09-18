@@ -559,6 +559,7 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
                 zend_hash_destroy(&result.tracestate_unknown_dd_keys);
             }
 
+            ddtrace_otel_sampling_clear(&result.otel_sampling);
             result = func(read_header, data);
             if (result.trace_id.low || result.trace_id.high) {
                 result.context_headers = zend_string_copy(extraction_style);
@@ -583,7 +584,7 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
                 if (!result.tracestate && new_result.tracestate) {
                     result.tracestate = new_result.tracestate;
                     new_result.tracestate = NULL;
-                    result.otel_sampling = new_result.otel_sampling;
+                    ddtrace_otel_sampling_copy(&result.otel_sampling, &new_result.otel_sampling);
 
                     zend_hash_destroy(&result.tracestate_unknown_dd_keys);
                     result.tracestate_unknown_dd_keys = new_result.tracestate_unknown_dd_keys;
@@ -615,6 +616,7 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
             zend_hash_destroy(&new_result.meta_tags);
             zend_hash_destroy(&new_result.propagated_tags);
             zend_hash_destroy(&new_result.tracestate_unknown_dd_keys);
+            ddtrace_otel_sampling_clear(&new_result.otel_sampling);
         }
     } ZEND_HASH_FOREACH_END();
 
@@ -673,6 +675,7 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         if (result->origin) { zend_string_release(result->origin); }
         if (result->tracestate) { zend_string_release(result->tracestate); }
         if (result->context_headers) { zend_string_release(result->context_headers); }
+        ddtrace_otel_sampling_clear(&result->otel_sampling);
         return;
     // behavior=restart: start fresh trace; upstream captured as span link, baggage preserved
     case DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT_RESTART:
@@ -686,7 +689,7 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
             result->trace_id = (datadog_trace_id){0};
             result->parent_id = 0;
             result->priority_sampling = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
-            result->otel_sampling = (ddtrace_otel_sampling_state){0};
+            ddtrace_otel_sampling_clear(&result->otel_sampling);
 
             zval reason_str;
             ZVAL_STR(&reason_str, zend_string_init(ZEND_STRL("propagation_behavior_extract"), 0));
@@ -755,7 +758,7 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
             ZVAL_STR(&zv, result->tracestate);
             datadog_assign_variable(&span->property_tracestate, &zv);
         }
-        span->otel_sampling = result->otel_sampling;
+        ddtrace_otel_sampling_copy(&span->otel_sampling, &result->otel_sampling);
 
         ZVAL_ARR(&zv, emalloc(sizeof(HashTable)));
         *Z_ARR(zv) = result->tracestate_unknown_dd_keys;
@@ -799,7 +802,7 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
             zend_string_release(DDTRACE_G(tracestate));
         }
         DDTRACE_G(tracestate) = result->tracestate;
-        DDTRACE_G(otel_sampling) = result->otel_sampling;
+        ddtrace_otel_sampling_copy(&DDTRACE_G(otel_sampling), &result->otel_sampling);
         zend_hash_destroy(&DDTRACE_G(baggage));
         DDTRACE_G(baggage) = result->baggage;
         zend_string *key;
@@ -817,6 +820,7 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         }
     }
 
+    ddtrace_otel_sampling_clear(&result->otel_sampling);
     result->meta_tags.pDestructor = NULL; // we moved values directly
     zend_hash_destroy(&result->meta_tags);
 

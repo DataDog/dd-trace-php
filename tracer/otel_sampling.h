@@ -6,13 +6,28 @@
 #define DDTRACE_OTEL_MAX_VALUE_LEN 256
 
 typedef struct {
-    uint64_t random_value;
-    uint64_t threshold;
-    size_t unknown_fields_len;
-    uint8_t random_value_len;
-    uint8_t threshold_len;
-    char unknown_fields[DDTRACE_OTEL_MAX_VALUE_LEN];
+    uint64_t random_value : 56;
+    uint64_t random_value_len : 8;
+    uint64_t threshold : 56;
+    uint64_t threshold_len : 8;
+    zend_string *unknown_fields; // Immutable, shared on copy; NULL when no unknown fields were received.
 } ddtrace_otel_sampling_state;
+
+static inline void ddtrace_otel_sampling_clear(ddtrace_otel_sampling_state *state) {
+    if (state->unknown_fields) {
+        zend_string_release(state->unknown_fields);
+    }
+    *state = (ddtrace_otel_sampling_state){0};
+}
+
+static inline void ddtrace_otel_sampling_copy(ddtrace_otel_sampling_state *dest, const ddtrace_otel_sampling_state *source) {
+    ddtrace_otel_sampling_state copy = *source;
+    if (copy.unknown_fields) {
+        zend_string_addref(copy.unknown_fields);
+    }
+    ddtrace_otel_sampling_clear(dest);
+    *dest = copy;
+}
 
 void ddtrace_otel_sampling_parse(ddtrace_otel_sampling_state *state, const char *value, size_t value_len);
 zend_string *ddtrace_otel_sampling_extract_tracestate(zend_string *tracestate, ddtrace_otel_sampling_state *state);

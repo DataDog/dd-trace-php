@@ -276,6 +276,7 @@ ZEND_METHOD(DDTrace_SpanLink, fromHeaders) {
     zend_hash_destroy(&result.propagated_tags);
     zend_hash_destroy(&result.tracestate_unknown_dd_keys);
     zend_hash_destroy(&result.baggage);
+    ddtrace_otel_sampling_clear(&result.otel_sampling);
 
     if (result.origin) {
         zend_string_release(result.origin);
@@ -435,6 +436,11 @@ static void ddtrace_span_data_free_storage(zend_object *object) {
     zend_object_std_dtor(object);
     // Prevent use after free after zend_objects_store_free_object_storage is called (e.g. preloading) [PHP < 8.1]
     memset(object->properties_table, 0, sizeof(ddtrace_span_data) - XtOffsetOf(ddtrace_span_data, std.properties_table));
+}
+
+static void ddtrace_root_span_data_free_storage(zend_object *object) {
+    ddtrace_otel_sampling_clear(&ROOTSPANDATA(object)->otel_sampling);
+    ddtrace_span_data_free_storage(object);
 }
 
 #if PHP_VERSION_ID < 80000
@@ -790,6 +796,7 @@ static void dd_register_span_data_ce(void) {
     memcpy(&ddtrace_root_span_data_handlers, &ddtrace_span_data_handlers, sizeof(zend_object_handlers));
     ddtrace_root_span_data_handlers.offset = XtOffsetOf(ddtrace_root_span_data, std);
     ddtrace_root_span_data_handlers.clone_obj = ddtrace_root_span_data_clone_obj;
+    ddtrace_root_span_data_handlers.free_obj = ddtrace_root_span_data_free_storage;
     ddtrace_root_span_data_handlers.write_property = ddtrace_root_span_data_write;
 
     ddtrace_ce_span_stack = register_class_DDTrace_SpanStack();
