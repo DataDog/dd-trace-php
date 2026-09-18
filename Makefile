@@ -1249,7 +1249,17 @@ RUN_WEB_BENCHES_WITH_DDPROF ?=
 define run_composer_with_retry
 	for i in $$(seq 1 $(MAX_RETRIES)); do \
 		echo "Attempting composer update (attempt $$i of $(MAX_RETRIES))..."; \
-		$(COMPOSER) --working-dir=$(if $1,$1,.) update $2 && break || (echo "Retry $$i failed, waiting 5 seconds before next attempt..." && sleep 5); \
+		if $(COMPOSER) --working-dir=$(if $1,$1,.) update $2; then \
+			break; \
+		else \
+			status=$$?; \
+		fi; \
+		if [ $$i -eq $(MAX_RETRIES) ]; then \
+			echo "Composer update failed after $(MAX_RETRIES) attempts." >&2; \
+			exit $$status; \
+		fi; \
+		echo "Retry $$i failed, waiting 5 seconds before next attempt..."; \
+		sleep 5; \
 	done \
 
 	mkdir -p /tmp/artifacts
