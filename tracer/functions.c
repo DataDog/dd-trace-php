@@ -244,7 +244,8 @@ void ddtrace_build_span_link_from_result(ddtrace_distributed_tracing_result *res
     zend_hash_copy(Z_ARR(link->property_attributes), &result->meta_tags, (copy_ctor_func_t)zval_add_ref);
 
     zend_string *propagated_tags = ddtrace_format_propagated_tags(&result->propagated_tags, &result->meta_tags);
-    zend_string *full_tracestate = ddtrace_format_tracestate(result->tracestate, 0, result->origin, result->priority_sampling, propagated_tags, &result->tracestate_unknown_dd_keys);
+    zend_string *full_tracestate = ddtrace_format_tracestate(result->tracestate, 0, result->origin, result->priority_sampling, propagated_tags, &result->tracestate_unknown_dd_keys, &result->otel_sampling);
+    full_tracestate = ddtrace_otel_sampling_limit_tracestate(full_tracestate);
     if (propagated_tags) {
         zend_string_release(propagated_tags);
     }
@@ -275,12 +276,16 @@ ZEND_METHOD(DDTrace_SpanLink, fromHeaders) {
     zend_hash_destroy(&result.propagated_tags);
     zend_hash_destroy(&result.tracestate_unknown_dd_keys);
     zend_hash_destroy(&result.baggage);
+    ddtrace_otel_sampling_clear(&result.otel_sampling);
 
     if (result.origin) {
         zend_string_release(result.origin);
     }
     if (result.tracestate) {
         zend_string_release(result.tracestate);
+    }
+    if (result.context_headers) {
+        zend_string_release(result.context_headers);
     }
 }
 
@@ -431,6 +436,11 @@ static void ddtrace_span_data_free_storage(zend_object *object) {
     zend_object_std_dtor(object);
     // Prevent use after free after zend_objects_store_free_object_storage is called (e.g. preloading) [PHP < 8.1]
     memset(object->properties_table, 0, sizeof(ddtrace_span_data) - XtOffsetOf(ddtrace_span_data, std.properties_table));
+}
+
+static void ddtrace_root_span_data_free_storage(zend_object *object) {
+    ddtrace_otel_sampling_clear(&ROOTSPANDATA(object)->otel_sampling);
+    ddtrace_span_data_free_storage(object);
 }
 
 #if PHP_VERSION_ID < 80000
@@ -589,8 +599,16 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
             root_span_data_changed = true;
         }
         cache_slot = NULL;
+    } else if (zend_string_equals_literal(prop_name, "tracestate") && Z_TYPE_P(value) == IS_STRING) {
+        ZVAL_STR(&zv, ddtrace_otel_sampling_extract_tracestate(Z_STR_P(value), &span->otel_sampling));
+        Z_TRY_DELREF(zv); // zend_std_write_property will incref non-interned strings itself
+        value = &zv;
+        cache_slot = NULL;
     } else if (zend_string_equals_literal(prop_name, "samplingPriority")) {
         span->explicit_sampling_priority = zval_get_long(value) != DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
+        if (span->explicit_sampling_priority) {
+            ddtrace_otel_sampling_decide_non_probability(&span->otel_sampling);
+        }
 #ifdef __linux__
         sampling_priority_changed = true;
 #endif
@@ -778,6 +796,7 @@ static void dd_register_span_data_ce(void) {
     memcpy(&ddtrace_root_span_data_handlers, &ddtrace_span_data_handlers, sizeof(zend_object_handlers));
     ddtrace_root_span_data_handlers.offset = XtOffsetOf(ddtrace_root_span_data, std);
     ddtrace_root_span_data_handlers.clone_obj = ddtrace_root_span_data_clone_obj;
+    ddtrace_root_span_data_handlers.free_obj = ddtrace_root_span_data_free_storage;
     ddtrace_root_span_data_handlers.write_property = ddtrace_root_span_data_write;
 
     ddtrace_ce_span_stack = register_class_DDTrace_SpanStack();

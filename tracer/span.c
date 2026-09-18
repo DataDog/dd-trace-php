@@ -833,6 +833,7 @@ static void dd_mark_closed_spans_flushable(ddtrace_span_stack *stack) {
                         ZVAL_LONG(&priority, PRIORITY_SAMPLING_AUTO_REJECT);
                         datadog_assign_variable(&root_span->property_sampling_priority, &priority);
                         root_span->explicit_sampling_priority = true;
+                        ddtrace_otel_sampling_decide_non_probability(&root_span->otel_sampling);
 #ifdef __linux__
                         ddtrace_otel_update_trace_flags(root_span);
 #endif
