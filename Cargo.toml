@@ -9,7 +9,7 @@ exclude = ["appsec/third_party/libddwaf-rust"]
 resolver = "2"
 
 [workspace.package]
-rust-version = "1.87.0"
+rust-version = "1.91.1"
 edition = "2021"
 version = "0.0.1"
 license = "Apache-2.0"
@@ -33,6 +33,7 @@ bench = false
 default = ["tracer"]
 tracer = ["dep:ddtrace-sidecar"]
 helper-rust-coverage = ["ddtrace-sidecar/helper-rust-coverage"]
+libddwaf-source-static = ["ddtrace-sidecar/libddwaf-source-static"]
 profiling = [
   "dep:cpu-time", "dep:crossbeam-channel", "dep:dashmap", "dep:dynasmrt",
   "dep:libdd-alloc", "dep:libdd-profiling", "dep:mach2", "dep:rand", "dep:rand_distr",

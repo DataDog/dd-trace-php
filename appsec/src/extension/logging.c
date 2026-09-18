@@ -277,7 +277,7 @@ static void _mlog_syslog(dd_log_level_t level, const char *format, va_list args,
 
     vspprintf(&message_data, 0, format, args);
 
-#if !defined(ZTS)
+#ifndef ZTS
     syslog(prio, "%s %d:%s %s",
 #else
     syslog(prio, "[%ld] %s:%d:%s %s", (long)tsrm_thread_id(),
@@ -378,7 +378,7 @@ static void _mlog_file(dd_log_level_t level, const char *format, va_list args,
         _format_time(time_str, sizeof time_str, &ts, 3);
     }
 
-#if !defined(ZTS)
+#ifndef ZTS
     data_len =
         spprintf(&data, 0, "[%s][%d][%s] %s at %s:%d:%s\n", time_str, getpid(),
 #else
