@@ -15,15 +15,17 @@ compile_rust.sh @Datadog/libdatadog-apm @DataDog/apm-php-core
 /src/ @DataDog/apm-idm-php @DataDog/apm-php-core
 
 # FFE (Feature Flagging & Experimentation) SDK Team
-/components-rs/ffe.rs @Datadog/libdatadog-apm @DataDog/feature-flagging-and-experimentation-sdk @DataDog/apm-php-core
+/components-rs/ffe.rs @DataDog/feature-flagging-and-experimentation-sdk
 /libdatadog @Datadog/libdatadog-apm @DataDog/feature-flagging-and-experimentation-sdk @DataDog/apm-php-core
-/src/api/FeatureFlags/ @DataDog/feature-flagging-and-experimentation-sdk @DataDog/apm-php-core
-/src/DDTrace/OpenFeature/ @DataDog/feature-flagging-and-experimentation-sdk @DataDog/apm-php-core
-/src/bridge/_files_openfeature.php @DataDog/feature-flagging-and-experimentation-sdk @DataDog/apm-php-core
-/tests/FeatureFlags/ @DataDog/feature-flagging-and-experimentation-sdk @DataDog/apm-php-core
-/tests/api/Unit/FeatureFlags/ @DataDog/feature-flagging-and-experimentation-sdk @DataDog/apm-php-core
-/tests/OpenFeature/ @DataDog/feature-flagging-and-experimentation-sdk @DataDog/apm-php-core
-/tests/ext/ffe/ @DataDog/feature-flagging-and-experimentation-sdk @DataDog/apm-php-core
+/src/api/FeatureFlags/ @DataDog/feature-flagging-and-experimentation-sdk
+/src/DDTrace/OpenFeature/ @DataDog/feature-flagging-and-experimentation-sdk
+/src/bridge/_files_openfeature.php @DataDog/feature-flagging-and-experimentation-sdk
+/tests/FeatureFlags/ @DataDog/feature-flagging-and-experimentation-sdk
+/tests/api/Unit/FeatureFlags/ @DataDog/feature-flagging-and-experimentation-sdk
+/tests/OpenFeature/ @DataDog/feature-flagging-and-experimentation-sdk
+/tests/ext/ffe/ @DataDog/feature-flagging-and-experimentation-sdk
+/tracer/ffe.c @DataDog/feature-flagging-and-experimentation-sdk
+/tracer/ffe.h @DataDog/feature-flagging-and-experimentation-sdk
 
 # Release files
 Cargo.lock @DataDog/apm-php @DataDog/profiling-php @Datadog/libdatadog-apm @DataDog/apm-php-core
