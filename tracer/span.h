@@ -16,19 +16,20 @@
 #endif
 
 // V1 payload build context threaded through serialization. `chunk` is DD_CHUNK_NONE until the
-// first span of the current stack creates its chunk (ddtrace_serialize_closed_spans resets it per stack).
-#define DD_CHUNK_NONE ((uintptr_t)-1)
+// first span of the current stack creates its chunk (ddtrace_serialize_closed_spans resets it per
+// stack). Under the Box-per-node model `chunk` is the chunk node pointer, stable across sibling pushes.
+#define DD_CHUNK_NONE (NULL)
 typedef struct {
     struct ddog_TracerPayloadV1Builder *builder;
-    uintptr_t chunk;
+    struct ddog_ChunkNode *chunk;
 } ddtrace_serialize_ctx;
 
-// Write target for span finalization (a native v1 builder chunk/span). A zero-initialized sink
-// (builder NULL) is the "no span" sentinel returned for dropped spans.
+// Write target for span finalization (a native v1 builder chunk/span node). A zero-initialized sink
+// (span NULL) is the "no span" sentinel returned for dropped spans. The node pointers stay valid
+// across sibling span pushes into the same chunk (the inferred-span case), so no refetch is needed.
 typedef struct {
-    struct ddog_TracerPayloadV1Builder *builder; // non-NULL on the v1 path
-    uintptr_t chunk;
-    uintptr_t span;
+    struct ddog_ChunkNode *chunk;
+    struct ddog_SpanNode *span; // non-NULL on the v1 path
 } dd_span_sink;
 
 #define DDTRACE_DROPPED_SPAN (-1ull)

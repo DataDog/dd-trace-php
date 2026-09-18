@@ -447,6 +447,11 @@ typedef enum ddog_SpanProbeTarget {
 
 typedef struct ddog_AgentInfoReader ddog_AgentInfoReader;
 
+/**
+ * Out-of-band staging builder for one nested attribute value. Opaque to C (`ddog_AttrBuilder *`).
+ */
+typedef struct ddog_AttrBuilder ddog_AttrBuilder;
+
 typedef struct ddog_Config ddog_Config;
 
 typedef struct ddog_DebuggerPayload ddog_DebuggerPayload;
@@ -1224,6 +1229,14 @@ typedef struct ddog_AgentRemoteConfigWriter_ShmHandle ddog_AgentRemoteConfigWrit
 typedef struct ddog_Arc_Target ddog_Arc_Target;
 
 /**
+ * A chunk node in the builder: its own heap allocation, so a `*mut ChunkNode` handed to C stays
+ * valid across sibling chunk pushes. Holds the chunk's scalar fields/attributes inline; its spans
+ * live as separate `Box` allocations (raw pointers here), folded into `chunk.spans` by
+ * [`TracerPayloadV1Builder::into_payload`].
+ */
+typedef struct ddog_ChunkNode ddog_ChunkNode;
+
+/**
  * Fundamental configuration of the RC client, which always must be set.
  */
 typedef struct ddog_ConfigInvariants ddog_ConfigInvariants;
@@ -1246,7 +1259,15 @@ typedef struct ddog_RuntimeMetadata ddog_RuntimeMetadata;
 typedef struct ddog_ShmHandle ddog_ShmHandle;
 
 /**
- * Builds a native V1 [`TracerPayloadBytes`] holding readable strings.
+ * A span node in the builder: its own heap allocation, so a held `*mut SpanNode` stays valid across
+ * sibling span pushes into the same chunk (the inferred-span case). Links/events are likewise
+ * separate `Box` allocations.
+ */
+typedef struct ddog_SpanNode ddog_SpanNode;
+
+/**
+ * Builds a native V1 [`TracerPayloadBytes`] holding readable strings. Each node is its own heap
+ * allocation (see the module docs); the builder owns the top-level chunk pointers.
  */
 typedef struct ddog_TracerPayloadV1Builder ddog_TracerPayloadV1Builder;
 

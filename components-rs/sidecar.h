@@ -498,12 +498,10 @@ void ddog_send_traces_to_sidecar(ddog_TracesBytes *traces,
                                  struct ddog_SenderParameters *parameters);
 
 /**
- * V1 counterpart of `ddog_send_traces_to_sidecar`: sends the native V1 payload from the
- * [`crate::span`] builder to the agent's `/v1.0/traces`. Consumes `builder`.
- *
- * Payload-level metadata is sourced at send time from `parameters.tracer_headers_tags` (lang etc.,
- * container_id) and `metadata`; lang_interpreter/lang_vendor go as HTTP header tags, not on the
- * wire.
+ * V1 counterpart of `ddog_send_traces_to_sidecar`: sends the [`crate::span`] builder's native V1
+ * payload to the agent's `/v1.0/traces`. Consumes `builder`. Payload metadata comes at send time
+ * from `parameters.tracer_headers_tags` and `metadata`; lang_interpreter/lang_vendor go as
+ * headers.
  */
 void ddog_send_traces_to_sidecar_v1(struct ddog_TracerPayloadV1Builder *builder,
                                     struct ddog_SenderParameters *parameters,
@@ -511,12 +509,10 @@ void ddog_send_traces_to_sidecar_v1(struct ddog_TracerPayloadV1Builder *builder,
 
 /**
  * Downgrades a native V1 builder to the in-memory v0.4 collection for the in-process `coms.c`
- * sender (PHP <= 8.2). Consumes `builder`, encodes to v0.4 msgpack, decodes back to the
- * collection.
- *
- * Returns the collection (not one whole-payload CharSlice) so `auto_flush` can frame each trace
- * individually for the background sender; a single CharSlice would silently drop extra traces of a
- * multi-trace payload. Empty collection on error; free with [`crate::span_v04::ddog_free_traces`].
+ * sender (PHP <= 8.2). Consumes `builder`. Returns the collection (not one whole-payload
+ * CharSlice) so `auto_flush` can frame each trace individually; a single CharSlice would drop
+ * extra traces of a multi-trace payload. Empty collection on error; free with
+ * [`crate::span_v04::ddog_free_traces`].
  */
 ddog_TracesBytes *ddog_downgrade_v1_builder_to_v04_traces(struct ddog_TracerPayloadV1Builder *builder);
 
@@ -555,19 +551,6 @@ struct ddog_AppsecCResponse datadog_sidecar_send_appsec_message_without_reconnec
  * Frees an `AppsecCResponse` returned by an AppSec message function.
  */
 void ddog_sidecar_appsec_response_drop(struct ddog_AppsecCResponse response);
-
-void ddog_free_traces(ddog_TracesBytes *_traces);
-
-uintptr_t ddog_get_traces_size(const ddog_TracesBytes *traces);
-
-ddog_TraceBytes *ddog_get_trace(ddog_TracesBytes *traces, uintptr_t index);
-
-/**
- * Serializes one v0.4 trace as a msgpack array-of-1, the framing the background sender
- * (`ddtrace_send_traces_via_thread`) expects. Returns an owned slice; free with
- * [`crate::span::ddog_free_charslice`].
- */
-ddog_CharSlice ddog_serialize_trace_into_charslice(ddog_TraceBytes *trace);
 
 /**
  * Creates a new, empty V1 payload builder. Free it with [`ddog_v1_free_builder`], or hand it to
@@ -969,28 +952,41 @@ bool ddog_v1_get_event_attr_bool(const struct ddog_TracerPayloadV1Builder *build
                                  uintptr_t idx);
 
 /**
- * Renders the span at `chunk`/`span` for dd-trace-php's `DD_TRACE_DEBUG` "Encoding span" line
- * (out-of-range index yields an empty slice). The returned owned slice must be freed with
- * [`ddog_free_charslice`], as for the v0.4 variant.
+ * Renders a span for dd-trace-php's `DD_TRACE_DEBUG` "Encoding span" line. Takes the owning
+ * chunk/span node pointers (the outer frame's still-live handles), so it works mid-build before the
+ * nodes are folded into the inline payload. The returned owned slice must be freed with
+ * [`ddog_free_charslice`].
+ *
+ * # Safety
+ * `chunk`/`span` must be live node pointers previously returned by `ddog_new_chunk`/`ddog_new_span`
+ * (with `span` a span of `chunk`).
  */
-ddog_CharSlice ddog_v1_span_debug_log(const struct ddog_TracerPayloadV1Builder *builder,
-                                      uintptr_t chunk,
-                                      uintptr_t span);
+ddog_CharSlice ddog_v1_span_debug_log(struct ddog_ChunkNode *chunk, struct ddog_SpanNode *span);
 
 /**
- * Frees an owned [`CharSlice`]. Note that some functions of this API return borrowed slices that
- * must NOT be freed. Only a few selected functions return slices that must be freed, and this is
- * mentioned explicitly in their documentation (the V1 [`ddog_v1_span_debug_log`] and the v0.4
- * [`crate::span_v04::ddog_serialize_trace_into_charslice`]).
- *
- * Every owned slice returned by this API allocates `len + 1` bytes (the payload plus a trailing
- * NUL terminator) via the global allocator, so it is reclaimed here with that exact shape. A
- * zero-length slice is always a borrowed/empty slice that owns no allocation.
+ * Frees an owned [`CharSlice`]. Only the few functions that document it return owned slices (the
+ * V1 [`ddog_v1_span_debug_log`] and the v0.4
+ * [`crate::span_v04::ddog_serialize_trace_into_charslice`]); borrowed slices must NOT be passed
+ * here. An owned slice allocates `len + 1` bytes (payload + NUL), reclaimed here with that exact
+ * shape; a zero-length slice is always borrowed and owns nothing.
  *
  * # Safety
  *
  * `slice` must be an owned char slice that has been returned by one of the functions of this API.
  */
 void ddog_free_charslice(ddog_CharSlice slice);
+
+void ddog_free_traces(ddog_TracesBytes *_traces);
+
+uintptr_t ddog_get_traces_size(const ddog_TracesBytes *traces);
+
+ddog_TraceBytes *ddog_get_trace(ddog_TracesBytes *traces, uintptr_t index);
+
+/**
+ * Serializes one v0.4 trace as a msgpack array-of-1, the framing the background sender
+ * (`ddtrace_send_traces_via_thread`) expects. Returns an owned slice; free with
+ * [`crate::span::ddog_free_charslice`].
+ */
+ddog_CharSlice ddog_serialize_trace_into_charslice(ddog_TraceBytes *trace);
 
 #endif  /* DDOG_SIDECAR_H */
