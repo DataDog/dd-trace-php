@@ -1,4 +1,6 @@
-FROM ghcr.io/cataphract/php-buildonly@sha256:148595c871b8a94073126ef463c0dd73e051345d31d905b7546056e8b8d37ccc
+ARG PHP_BUILDONLY_REPOSITORY=datadog/php-buildonly
+# datadog/php-buildonly:1.0.5
+FROM ${PHP_BUILDONLY_REPOSITORY}@sha256:1c5bdea65b77f83c1f0210a7c4f546a790a5f52a5b6ce85b4b80641e6127565a
 
 ENV CARGO_HOME=/root/.cargo \
     RUSTUP_HOME=/root/.rustup \
