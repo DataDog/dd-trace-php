@@ -845,8 +845,23 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
 
     let module = &*module_ptr;
 
-    let result = REQUEST_LOCALS.try_with_borrow(|locals| {
-        let system_settings = locals.system_settings();
+    let (system_settings, env, service, version) = match REQUEST_LOCALS.try_with_borrow(|locals| {
+        (
+            locals.system_settings().clone(),
+            locals.identity.env.clone(),
+            locals.identity.service.clone(),
+            locals.identity.version.clone(),
+        )
+    }) {
+        Ok(values) => values,
+        Err(err) => {
+            error!("minfo failed to borrow request locals: {err}");
+            return;
+        }
+    };
+
+    // PHP calls may re-enter the profiler through sampling hooks.
+    {
         let yes = c"true".as_ptr();
         let yes_exp = c"true (all experimental features enabled)".as_ptr();
         let no = c"false".as_ptr();
@@ -1003,18 +1018,9 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
         zend::php_info_print_table_row(2, key, agent_endpoint.as_ptr());
 
         let vars = [
-            (
-                c"Application's Environment (DD_ENV)".as_ptr(),
-                &locals.identity.env,
-            ),
-            (
-                c"Application's Service (DD_SERVICE)".as_ptr(),
-                &locals.identity.service,
-            ),
-            (
-                c"Application's Version (DD_VERSION)".as_ptr(),
-                &locals.identity.version,
-            ),
+            (c"Application's Environment (DD_ENV)".as_ptr(), &env),
+            (c"Application's Service (DD_SERVICE)".as_ptr(), &service),
+            (c"Application's Version (DD_VERSION)".as_ptr(), &version),
         ];
 
         for (key, value) in vars {
@@ -1029,10 +1035,6 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
         zend::php_info_print_table_end();
 
         zend::display_ini_entries(module_ptr);
-    });
-
-    if let Err(err) = result {
-        error!("minfo failed to borrow request locals: {err}");
     }
 }
 
