@@ -606,9 +606,13 @@ mod tests {
         unsafe {
             let fake_execute_data = zend::ddog_php_test_create_fake_zend_execute_data(3);
 
-            let mut string_set = crate::profiling::string_set::StringSet::new();
-            let stack =
-                detail::collect_stack_sample_cached(fake_execute_data, &mut string_set).unwrap();
+            #[cfg(php_run_time_cache)]
+            let stack = {
+                let mut string_set = crate::profiling::string_set::StringSet::new();
+                detail::collect_stack_sample_cached(fake_execute_data, &mut string_set).unwrap()
+            };
+            #[cfg(not(php_run_time_cache))]
+            let stack = collect_stack_sample(fake_execute_data).unwrap();
 
             assert_eq!(stack.len(), 3);
 
