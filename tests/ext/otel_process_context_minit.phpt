@@ -5,6 +5,7 @@ Linux OTel Process Context is published during MINIT
 if (PHP_OS !== 'Linux') die('skip: Linux only');
 if (PHP_VERSION_ID < 70200) die('skip: TEST_PHP_EXTRA_ARGS requires PHP 7.2+');
 if (!function_exists('proc_open')) die('skip: proc_open required');
+if (!function_exists('stream_socket_server')) die('skip: stream sockets required');
 if (!is_readable('/proc/self/maps')) die('skip: readable /proc maps required');
 if (!getenv('TEST_PHP_EXECUTABLE')) die('skip: TEST_PHP_EXECUTABLE required');
 if (getenv('PHP_PEAR_RUNTESTS') === '1') {
@@ -20,11 +21,24 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 
 $php = getenv('TEST_PHP_EXECUTABLE');
 $args = trim(getenv('TEST_PHP_ARGS') . ' ' . getenv('TEST_PHP_EXTRA_ARGS'));
+
+// PHP versions before 8.0 do not let the CLI server bind to port zero.
+$listener = stream_socket_server('tcp://127.0.0.1:0', $errorCode, $errorMessage);
+if (!is_resource($listener)) {
+    throw new RuntimeException("failed to reserve a port: $errorMessage ($errorCode)");
+}
+$address = stream_socket_get_name($listener, false);
+fclose($listener);
+if ($address === false || !preg_match('/:(\d+)$/', $address, $matches)) {
+    throw new RuntimeException('failed to determine the reserved port');
+}
+$port = $matches[1];
+
 $command = 'exec ' . escapeshellarg($php);
 if ($args !== '') {
     $command .= ' ' . $args;
 }
-$command .= ' -S 127.0.0.1:0 -t ' . escapeshellarg(__DIR__);
+$command .= ' -S 127.0.0.1:' . $port . ' -t ' . escapeshellarg(__DIR__);
 
 $process = proc_open(
     $command,
@@ -44,7 +58,8 @@ try {
     $pid = $status['pid'];
     $stderr = '';
     $started = false;
-    $deadline = microtime(true) + 5;
+    $startupTimeout = getenv('USE_ZEND_ALLOC') === '0' ? 30 : 5;
+    $deadline = microtime(true) + $startupTimeout;
 
     // The CLI server announces startup after MINIT, then waits for its first RINIT.
     do {
