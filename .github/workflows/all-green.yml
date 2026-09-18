@@ -1,0 +1,30 @@
+name: Check Pull Request CI Status
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  checks: read
+  statuses: read
+
+jobs:
+  all-jobs-are-green:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Ensure CI Success
+        uses: DataDog/ensure-ci-success@v1
+        with:
+          initial-delay-seconds: "100"  # what is the longest job that always run ?
+          max-retries: "60"
+          ignored-name-patterns: |
+            dd-gitlab/build
+            ci/circleci: test-test_extension_ci-8.4-medium+
+            ci/circleci: integration_snapshots-test_integrations-8.1
+            ci/circleci: integration_snapshots-test_integrations-8.2
+            ci/circleci: integration_snapshots-test_integrations-8.3
+            ci/circleci: integration_snapshots-test_integrations_coverage-8.2
+
