@@ -45,7 +45,6 @@ pub(crate) enum WorkerStartError {
 }
 
 /// Owns the poll thread and makes its lifecycle explicit around `fork`.
-/// PR 3 connects these methods to the tracer lifecycle hooks.
 pub(crate) struct AgentlessWorker {
     config: AgentlessWorkerConfig,
     state: Arc<PollState>,

@@ -423,7 +423,7 @@ mod tests {
     }
 
     #[test]
-    fn retry_delay_uses_the_cross_sdk_clamps_and_jitter() {
+    fn retry_delay_applies_clamps_and_jitter() {
         assert_eq!(
             retry_delay(Duration::from_secs(30), 1, 0.0),
             Duration::from_secs(4)

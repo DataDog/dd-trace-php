@@ -9,16 +9,14 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
 use std::sync::{Arc, LazyLock};
 
-// This module is wired into activation by the next change in the FFE stack.
 #[allow(dead_code)]
 pub(crate) mod agentless;
-// This module is wired into activation by the next change in the FFE stack.
 #[allow(dead_code)]
 pub(crate) mod settings;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
-#[allow(dead_code)] // Remaining states are connected by PR 3 activation wiring.
+#[allow(dead_code)]
 pub(crate) enum DeliveryState {
     Inactive,
     Starting,
@@ -42,7 +40,7 @@ static FFE_CONFIG: LazyLock<ArcSwapOption<Configuration>> =
 static FFE_VERSION: AtomicU64 = AtomicU64::new(0);
 static DELIVERY_STATE: AtomicU8 = AtomicU8::new(DeliveryState::Inactive as u8);
 
-#[allow(dead_code)] // Connected by PR 3 activation wiring.
+#[allow(dead_code)]
 pub(crate) fn delivery_state() -> DeliveryState {
     match DELIVERY_STATE.load(Ordering::Acquire) {
         value if value == DeliveryState::Starting as u8 => DeliveryState::Starting,
@@ -54,7 +52,7 @@ pub(crate) fn delivery_state() -> DeliveryState {
     }
 }
 
-#[allow(dead_code)] // Connected by PR 3 activation wiring.
+#[allow(dead_code)]
 pub(crate) fn set_delivery_state(state: DeliveryState) {
     DELIVERY_STATE.store(state as u8, Ordering::Release);
 }
