@@ -18,7 +18,7 @@ function headers(string $fields): array
     ];
 }
 
-function report(): void
+function report()
 {
     $headers = DDTrace\generate_distributed_tracing_headers(['tracecontext']);
     preg_match('/(?:^|,)ot=[^,]*?(foo:[^;,]+)/', $headers['tracestate'], $matches);

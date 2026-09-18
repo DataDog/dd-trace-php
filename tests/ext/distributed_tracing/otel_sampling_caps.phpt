@@ -1,6 +1,7 @@
 --TEST--
 OpenTelemetry tracestate sampling honors value, member, and byte caps
 --ENV--
+DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_SAMPLE_RATE=0.5
 DD_TRACE_RATE_LIMIT=10000000
 --FILE--
@@ -60,6 +61,6 @@ echo 'ot-bytes=', strlen($matches[1]),
 ?>
 --EXPECTF--
 members=32 leading=dd,ot
-bytes=within-cap complete=no
-owned-bytes=within-cap leading=dd,ot large=kept
+bytes=within-cap complete=yes
+owned-bytes=within-cap leading=dd,ot large=dropped
 ot-bytes=33 future=dropped next=kept

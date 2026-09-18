@@ -7,7 +7,7 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
 
-function report(): void
+function report()
 {
     $headers = DDTrace\generate_distributed_tracing_headers(['tracecontext']);
     preg_match('/(?:^|,)ot=[^,]*?(foo:[^;,]+)/', $headers['tracestate'], $matches);
