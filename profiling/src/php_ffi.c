@@ -748,9 +748,9 @@ static ZEND_FUNCTION(Datadog_Profiling_run_alloc_on_native_thread) {
         RETURN_FALSE;
     }
 
-    native_thread_alloc_func(NULL);
-
     pthread_join(thread, NULL);
+
+    native_thread_alloc_func(NULL);
 
     RETURN_TRUE;
 }

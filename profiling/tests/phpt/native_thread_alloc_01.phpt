@@ -1,11 +1,7 @@
 --TEST--
 [profiling] allocation profiling should not crash when allocation happens on non-PHP thread (ext-grpc compatibility)
 --DESCRIPTION--
-This test simulates what ext-grpc does: it creates a native thread (not a PHP thread) and triggers memory allocation on it. Before the fix, this would crash because:
-1. ThreadRng uses thread-local storage internally
-2. ALLOCATION_PROFILING_STATS was thread-local
-Both of these are uninitialized for non-PHP threads since they never went through GINIT. After the fix, NTS builds use a global static instead of TLS.
-See https://github.com/DataDog/dd-trace-php/pull/3542 for the fix
+This test simulates what ext-grpc does: it creates a native thread (not a PHP thread) and triggers allocation profiling on it. The native thread fills PHP runtime cache slots with pointers owned by the profiler's string cache. After that thread exits, the main thread reuses those slots. The string cache must therefore follow PHP globals rather than the native thread's Rust TLS lifetime.
 --SKIPIF--
 <?php
 if (!extension_loaded('datadog-profiling'))
