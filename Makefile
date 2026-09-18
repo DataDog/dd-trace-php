@@ -1519,6 +1519,7 @@ test_integrations_sqlsrv: global_test_run_dependencies
 	$(eval TEST_EXTRA_INI=-d extension=sqlsrv.so)
 	$(call run_tests_debug,tests/Integrations/SQLSRV)
 	$(eval TEST_EXTRA_INI=)
+test_integrations_swoole_5: TEST_EXTRA_INI += -d datadog.remote_config_enabled=0
 test_integrations_swoole_5: global_test_run_dependencies
 	$(call run_tests_debug,--testsuite=swoole-test)
 test_web_apigw: global_test_run_dependencies tests/Frameworks/Laravel/Latest/composer.lock-php$(PHP_MAJOR_MINOR) tests/Frameworks/Laravel/Octane/Latest/composer.lock-php$(PHP_MAJOR_MINOR) tests/Frameworks/Roadrunner/Version_2/composer.lock-php$(PHP_MAJOR_MINOR)
