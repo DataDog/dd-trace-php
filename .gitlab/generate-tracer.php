@@ -535,6 +535,9 @@ foreach ($all_minor_major_targets as $major_minor):
     KUBERNETES_MEMORY_LIMIT: 8Gi
     # Below the CPU request: each worker spawns its own valgrind process.
     MAX_TEST_PARALLELISM: 4
+    # Memcheck roughly doubles the sidecar's physical memory accounting. Keep
+    # it instrumented, but give its watchdog the same allowance as ASAN jobs.
+    _DD_SIDECAR_WATCHDOG_MAX_MEMORY: 2147483648
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
     KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
