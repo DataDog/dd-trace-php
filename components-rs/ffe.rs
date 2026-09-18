@@ -1,43 +1,85 @@
 use crate::bytes::MaybeOwnedZendString;
+use arc_swap::ArcSwapOption;
 use datadog_ffe::rules_based::{
     self as ffe, AssignmentReason, AssignmentValue, Attribute, Configuration, EvaluationContext,
     EvaluationError, ExpectedFlagType, Str, UniversalFlagConfig,
 };
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
-use std::cell::RefCell;
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
+use std::sync::{Arc, LazyLock};
 
-// This module is wired into activation by the next change in the FFE stack.
+#[allow(dead_code)]
+pub(crate) mod agentless;
 #[allow(dead_code)]
 pub(crate) mod settings;
 
-struct FfeState {
-    config: Option<Configuration>,
-    version: u64,
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(u8)]
+#[allow(dead_code)]
+pub(crate) enum DeliveryState {
+    Inactive,
+    Starting,
+    Ready,
+    Stale,
+    Stopped,
+    PermanentError,
 }
 
-thread_local! {
-    static FFE_STATE: RefCell<FfeState> = const { RefCell::new(FfeState {
-        config: None,
-        version: 0,
-    }) };
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ConfigurationTransition {
+    Ready,
+    Recovered,
+    Changed,
+    Stale,
+    Unchanged,
 }
 
-pub fn store_config(config: Configuration) {
-    FFE_STATE.with(|state| {
-        let mut state = state.borrow_mut();
-        state.config = Some(config);
-        state.version = state.version.wrapping_add(1);
-    });
+static FFE_CONFIG: LazyLock<ArcSwapOption<Configuration>> =
+    LazyLock::new(|| ArcSwapOption::new(None));
+static FFE_VERSION: AtomicU64 = AtomicU64::new(0);
+static DELIVERY_STATE: AtomicU8 = AtomicU8::new(DeliveryState::Inactive as u8);
+
+#[allow(dead_code)]
+pub(crate) fn delivery_state() -> DeliveryState {
+    match DELIVERY_STATE.load(Ordering::Acquire) {
+        value if value == DeliveryState::Starting as u8 => DeliveryState::Starting,
+        value if value == DeliveryState::Ready as u8 => DeliveryState::Ready,
+        value if value == DeliveryState::Stale as u8 => DeliveryState::Stale,
+        value if value == DeliveryState::Stopped as u8 => DeliveryState::Stopped,
+        value if value == DeliveryState::PermanentError as u8 => DeliveryState::PermanentError,
+        _ => DeliveryState::Inactive,
+    }
 }
 
-pub fn clear_config() {
-    FFE_STATE.with(|state| {
-        let mut state = state.borrow_mut();
-        state.config = None;
-        state.version = state.version.wrapping_add(1);
-    });
+#[allow(dead_code)]
+pub(crate) fn set_delivery_state(state: DeliveryState) {
+    DELIVERY_STATE.store(state as u8, Ordering::Release);
+}
+
+pub(crate) fn store_config(config: Configuration) -> ConfigurationTransition {
+    FFE_CONFIG.store(Some(Arc::new(config)));
+    FFE_VERSION.fetch_add(1, Ordering::AcqRel);
+
+    let previous = DELIVERY_STATE.swap(DeliveryState::Ready as u8, Ordering::AcqRel);
+    if previous == DeliveryState::Ready as u8 {
+        ConfigurationTransition::Changed
+    } else if previous == DeliveryState::Stale as u8 {
+        ConfigurationTransition::Recovered
+    } else {
+        ConfigurationTransition::Ready
+    }
+}
+
+pub(crate) fn clear_config() -> ConfigurationTransition {
+    FFE_CONFIG.store(None);
+    FFE_VERSION.fetch_add(1, Ordering::AcqRel);
+    let previous = DELIVERY_STATE.swap(DeliveryState::Stale as u8, Ordering::AcqRel);
+    if previous == DeliveryState::Stale as u8 {
+        ConfigurationTransition::Unchanged
+    } else {
+        ConfigurationTransition::Stale
+    }
 }
 
 #[no_mangle]
@@ -62,12 +104,12 @@ pub extern "C" fn ddog_ffe_load_config(json: CharSlice<'_>) -> bool {
 
 #[no_mangle]
 pub extern "C" fn ddog_ffe_has_config() -> bool {
-    FFE_STATE.with(|state| state.borrow().config.is_some())
+    FFE_CONFIG.load().is_some()
 }
 
 #[no_mangle]
 pub extern "C" fn ddog_ffe_config_version() -> u64 {
-    FFE_STATE.with(|state| state.borrow().version)
+    FFE_VERSION.load(Ordering::Acquire)
 }
 
 const REASON_STATIC: i32 = 0;
@@ -160,18 +202,16 @@ pub extern "C" fn ddog_ffe_evaluate(
     let attributes = parse_attributes(attributes, attributes_count);
     let context = EvaluationContext::new(targeting_key, Arc::new(attributes));
 
-    FFE_STATE.with(|state| {
-        let state = state.borrow();
-        let assignment = ffe::get_assignment(
-            state.config.as_ref(),
-            flag_key,
-            &context,
-            expected_type,
-            ffe::now(),
-        );
+    let config = FFE_CONFIG.load();
+    let assignment = ffe::get_assignment(
+        config.as_deref(),
+        flag_key,
+        &context,
+        expected_type,
+        ffe::now(),
+    );
 
-        result_from_assignment(assignment)
-    })
+    result_from_assignment(assignment)
 }
 
 fn parse_attributes(
@@ -302,9 +342,10 @@ mod tests {
     use std::mem;
     use std::ptr;
     use std::ptr::NonNull;
-    use std::sync::Once;
+    use std::sync::{Mutex, Once};
 
     static INIT_ZEND_STRING_FUNCTIONS: Once = Once::new();
+    static FFE_TEST_LOCK: Mutex<()> = Mutex::new(());
 
     fn setup_zend_string_functions() {
         INIT_ZEND_STRING_FUNCTIONS.call_once(|| unsafe {
@@ -410,6 +451,7 @@ mod tests {
 
     #[test]
     fn empty_targeting_key_is_not_dropped() {
+        let _guard = FFE_TEST_LOCK.lock().expect("FFE test lock");
         setup_zend_string_functions();
         clear_config();
         let config =
@@ -438,7 +480,8 @@ mod tests {
     }
 
     #[test]
-    fn configuration_state_is_thread_local() {
+    fn configuration_state_is_process_wide() {
+        let _guard = FFE_TEST_LOCK.lock().expect("FFE test lock");
         clear_config();
         let empty_version = ddog_ffe_config_version();
         assert!(!ddog_ffe_has_config());
@@ -448,19 +491,52 @@ mod tests {
         let loaded_version = ddog_ffe_config_version();
         assert_eq!(loaded_version, empty_version.wrapping_add(1));
 
-        let child = std::thread::spawn(|| {
-            assert!(!ddog_ffe_has_config());
-            assert_eq!(ddog_ffe_config_version(), 0);
+        let child = std::thread::spawn(move || {
+            assert!(ddog_ffe_has_config());
+            assert_eq!(ddog_ffe_config_version(), loaded_version);
 
             assert!(load_empty_config());
             assert!(ddog_ffe_has_config());
-            assert_eq!(ddog_ffe_config_version(), 1);
+            assert_eq!(ddog_ffe_config_version(), loaded_version.wrapping_add(1));
         });
 
         child.join().expect("child thread should not panic");
 
         assert!(ddog_ffe_has_config());
-        assert_eq!(ddog_ffe_config_version(), loaded_version);
+        assert_eq!(ddog_ffe_config_version(), loaded_version.wrapping_add(1));
+        clear_config();
+    }
+
+    #[test]
+    fn configuration_transitions_track_ready_stale_and_recovery() {
+        let _guard = FFE_TEST_LOCK.lock().expect("FFE test lock");
+        set_delivery_state(DeliveryState::Inactive);
+        clear_config();
+        assert_eq!(delivery_state(), DeliveryState::Stale);
+        assert_eq!(clear_config(), ConfigurationTransition::Unchanged);
+
+        let json = UniversalFlagConfig::from_json(EMPTY_CONFIG.as_bytes().to_vec())
+            .expect("test configuration");
+        assert_eq!(
+            store_config(Configuration::from_server_response(json)),
+            ConfigurationTransition::Recovered
+        );
+        assert_eq!(delivery_state(), DeliveryState::Ready);
+
+        let json = UniversalFlagConfig::from_json(EMPTY_CONFIG.as_bytes().to_vec())
+            .expect("test configuration");
+        assert_eq!(
+            store_config(Configuration::from_server_response(json)),
+            ConfigurationTransition::Changed
+        );
+
+        set_delivery_state(DeliveryState::Starting);
+        let json = UniversalFlagConfig::from_json(EMPTY_CONFIG.as_bytes().to_vec())
+            .expect("test configuration");
+        assert_eq!(
+            store_config(Configuration::from_server_response(json)),
+            ConfigurationTransition::Ready
+        );
         clear_config();
     }
 }
