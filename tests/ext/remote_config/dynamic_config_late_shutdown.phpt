@@ -3,9 +3,6 @@ Remote config is not reapplied after its request shutdown cleanup
 --SKIPIF--
 <?php
 include __DIR__ . '/../includes/skipif_no_dev_env.inc';
-if (!function_exists('posix_kill') || !defined('SIGVTALRM')) {
-    die('skip: POSIX signals are required');
-}
 ?>
 --ENV--
 DD_AGENT_HOST=request-replayer
@@ -30,12 +27,9 @@ final class LateRemoteConfigWrapper
 
     public function stream_close(): void
     {
-        // Resource destruction runs after module RSHUTDOWN. Make the pending
-        // Remote Config interrupt observable to the VM in that interval.
-        posix_kill(posix_getpid(), SIGVTALRM);
-        for ($i = 0; $i < 10; $i++) {
-            // execute opcodes until the VM services the interrupt
-        }
+        // Resource destruction runs after module RSHUTDOWN. Process Remote
+        // Config synchronously so this lifecycle boundary is deterministic.
+        dd_trace_internal_fn('process_remote_config');
         echo "late close completed\n";
     }
 }

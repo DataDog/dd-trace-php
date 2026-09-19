@@ -652,10 +652,6 @@ static PHP_RSHUTDOWN_FUNCTION(datadog) {
     bool fast_shutdown = is_zend_mm() && !EG(full_tables_cleanup);
 #endif
 
-    if (DATADOG_G(remote_config_state)) {
-        datadog_rshutdown_remote_config();
-    }
-
     if (!datadog_disable) {
         dd_shutdown_observer();
     }
@@ -668,6 +664,9 @@ static PHP_RSHUTDOWN_FUNCTION(datadog) {
     DATADOG_G(request_initialized) = false;
     /* A signal may have queued a Remote Config reread during RSHUTDOWN. */
     DATADOG_G(reread_remote_configuration) = 0;
+    if (DATADOG_G(remote_config_state)) {
+        datadog_rshutdown_remote_config();
+    }
 
     datadog_telemetry_rshutdown();
     datadog_sidecar_rshutdown();
