@@ -3,10 +3,6 @@
 
 #include "datadog_export.h"
 
-#ifdef _WIN32
-#include <minwindef.h>
-#endif
-
 void datadog_minit_remote_config(void);
 void datadog_mshutdown_remote_config(void);
 void datadog_rinit_remote_config(void);
@@ -15,7 +11,7 @@ void datadog_check_for_new_config_now(void);
 
 
 #ifdef _WIN32
-DATADOG_PUBLIC DWORD WINAPI datadog_set_all_thread_vm_interrupt(LPVOID unused);
+DATADOG_PUBLIC unsigned long __stdcall datadog_set_all_thread_vm_interrupt(void *unused);
 #else
 DATADOG_PUBLIC void datadog_set_all_thread_vm_interrupt(void);
 #endif

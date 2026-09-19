@@ -53,7 +53,7 @@ static void dd_set_all_thread_vm_interrupt(void) {
 
 // We need this exported to call it via CreateRemoteThread on Windows.
 #ifdef _WIN32
-DATADOG_PUBLIC DWORD WINAPI datadog_set_all_thread_vm_interrupt(LPVOID unused) {
+DATADOG_PUBLIC unsigned long __stdcall datadog_set_all_thread_vm_interrupt(void *unused) {
     UNUSED(unused);
     dd_set_all_thread_vm_interrupt();
     return 0;
