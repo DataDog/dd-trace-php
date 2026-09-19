@@ -30,6 +30,16 @@ final class FrankenphpServer implements Sapi
     private $configDir;
 
     /**
+     * @var string
+     */
+    private $host;
+
+    /**
+     * @var int
+     */
+    private $port;
+
+    /**
      * @var resource
      */
     private $logFile;
@@ -49,6 +59,8 @@ final class FrankenphpServer implements Sapi
     public function __construct($indexFile, $host, $port, array $envs = [], array $inis = [])
     {
         $this->indexFile = $indexFile;
+        $this->host = $host;
+        $this->port = $port;
         $this->envs = $envs;
 
         if (getenv('PHPUNIT_COVERAGE')) {
@@ -161,6 +173,41 @@ final class FrankenphpServer implements Sapi
             fwrite($logWriter, $buffer);
             fflush($logWriter);
         });
+
+        if (!$this->waitUntilServerRunning()) {
+            error_log("[frankenphp] Server never came up...");
+            return;
+        }
+        error_log("[frankenphp] Server is up and responding...");
+    }
+
+    /**
+     * Caddy may bind the port before FrankenPHP has booted its PHP threads, so waiting on the port
+     * alone still lets the first request of the suite sit in the worker queue. FrankenPHP logs
+     * "FrankenPHP started" only once every worker thread has reached frankenphp_handle_request().
+     *
+     * @return bool
+     */
+    public function waitUntilServerRunning()
+    {
+        for ($try = 0; $try < 600; $try++) {
+            if (strpos($this->process->getErrorOutput(), 'FrankenPHP started') !== false) {
+                $socket = @fsockopen($this->host, $this->port);
+                if ($socket !== false) {
+                    fclose($socket);
+                    return true;
+                }
+            }
+            if (!$this->process->isRunning()) {
+                // Died in startup (e.g. a rejected Caddyfile): surface why, rather than letting the
+                // suite report every request as a bare connection failure.
+                error_log("[frankenphp] Exited before serving: " . $this->process->getErrorOutput());
+                return false;
+            }
+            usleep(50000);
+        }
+
+        return false;
     }
 
     public function stop()
