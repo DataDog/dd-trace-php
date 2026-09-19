@@ -30,7 +30,9 @@ dd_trace_serialize_closed_spans();
 
 dd_trace_internal_fn("finalize_telemetry");
 
-for ($i = 0; $i < 300; ++$i) {
+// ASAN with sidecar trace logging can take over 30 seconds to drain queued actions.
+$maxAttempts = getenv('SKIP_ASAN') ? 600 : 300;
+for ($i = 0; $i < $maxAttempts; ++$i) {
     ("us" . "leep")(100000);
     if (file_exists(__DIR__ . '/simple-telemetry.out')) {
         $batches = [];
@@ -61,7 +63,7 @@ for ($i = 0; $i < 300; ++$i) {
         }
     }
 }
-if ($i == 300) {
+if ($i == $maxAttempts) {
     var_dump(file(__DIR__ . '/simple-telemetry.out'));
 }
 
