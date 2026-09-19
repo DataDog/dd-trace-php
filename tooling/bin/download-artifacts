@@ -56,7 +56,7 @@ function make_curl(string $token, string $url, array $opts = []) {
     $ch = curl_init($url);
     curl_setopt_array($ch, array(
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_HTTPHEADER     => array("PRIVATE-TOKEN: $token", "Accept: application/json"),
+        CURLOPT_HTTPHEADER     => array("Authorization: Bearer $token", "Accept: application/json"),
         CURLOPT_TIMEOUT        => 30,
         CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_HEADER         => true,
@@ -420,7 +420,7 @@ function download_artifacts_parallel(string $token, array $targets, string $outp
 
         $ch = curl_init($url);
         curl_setopt_array($ch, array(
-            CURLOPT_HTTPHEADER     => array("PRIVATE-TOKEN: $token"),
+            CURLOPT_HTTPHEADER     => array("Authorization: Bearer $token"),
             CURLOPT_TIMEOUT        => 600,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_FILE           => $fp,
@@ -690,6 +690,24 @@ function parse_args(array $argv): array {
 // Main
 // ---------------------------------------------------------------------------
 
+function get_gitlab_token(): string {
+    $output = array();
+    $exitCode = 0;
+    exec('ddtool auth gitlab token 2>/dev/null', $output, $exitCode);
+
+    $token = trim(implode("\n", $output));
+    if ($exitCode !== 0 || $token === '') {
+        fwrite(
+            STDERR,
+            "Error: could not obtain a GitLab token via "
+                . "'ddtool auth gitlab token'\n"
+        );
+        exit(1);
+    }
+
+    return $token;
+}
+
 function main(array $argv) {
     $args = parse_args($argv);
 
@@ -703,11 +721,7 @@ function main(array $argv) {
         return;
     }
 
-    $token = trim(getenv('GITLAB_PERSONAL_ACCESS_TOKEN') ?: '');
-    if ($token === '') {
-        fwrite(STDERR, "Error: GITLAB_PERSONAL_ACCESS_TOKEN not set\n");
-        exit(1);
-    }
+    $token = get_gitlab_token();
 
     $outputDir = $args['output_dir'];
     $tTotal = microtime(true);
