@@ -41,7 +41,7 @@ use core::ptr;
 use libdd_common::cstr;
 use log::{debug, error, info, trace, warn};
 use profile_tags::{ProfileTagSegment, UnifiedServiceTagSegment};
-use profiler::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
+use profiler::{LocalRootSpanResourceMessage, ProfileIndex, Profiler, VmInterrupt};
 use rand::Rng;
 use sapi::Sapi;
 use std::borrow::Cow;
@@ -438,6 +438,7 @@ pub struct RequestLocals {
     pub(crate) unified_service_tags: Arc<UnifiedServiceTagSegment>,
     pub(crate) git_tags: Option<Arc<ProfileTagSegment>>,
     pub(crate) custom_tags: Option<Arc<ProfileTagSegment>>,
+    pub(crate) profile_index: Option<Arc<ProfileIndex>>,
 
     /// SystemSettings are global. Note that if this is being read in fringe
     /// conditions such as in mshutdown when there were no requests served,
@@ -468,6 +469,7 @@ impl Default for RequestLocals {
             unified_service_tags: Arc::default(),
             git_tags: None,
             custom_tags: None,
+            profile_index: None,
             system_settings: SystemSettings::get(),
             profiling_experimental_heap_live_enabled: false,
             vm_interrupt_addr: ptr::null_mut(),
@@ -605,6 +607,9 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     let result = REQUEST_LOCALS.try_with_borrow_mut(|locals| {
         // SAFETY: we are in rinit on a PHP thread.
         locals.vm_interrupt_addr = unsafe { zend::datadog_php_profiling_vm_interrupt_addr() };
+        // Profile identity is populated lazily from the first sample's actual
+        // context and replaced if that context changes during the request.
+        locals.profile_index = None;
 
         // SAFETY: We are after first rinit and before mshutdown.
         unsafe {
@@ -840,8 +845,23 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
 
     let module = &*module_ptr;
 
-    let result = REQUEST_LOCALS.try_with_borrow(|locals| {
-        let system_settings = locals.system_settings();
+    let (system_settings, env, service, version) = match REQUEST_LOCALS.try_with_borrow(|locals| {
+        (
+            locals.system_settings().clone(),
+            locals.identity.env.clone(),
+            locals.identity.service.clone(),
+            locals.identity.version.clone(),
+        )
+    }) {
+        Ok(values) => values,
+        Err(err) => {
+            error!("minfo failed to borrow request locals: {err}");
+            return;
+        }
+    };
+
+    // PHP calls may re-enter the profiler through sampling hooks.
+    {
         let yes = c"true".as_ptr();
         let yes_exp = c"true (all experimental features enabled)".as_ptr();
         let no = c"false".as_ptr();
@@ -998,18 +1018,9 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
         zend::php_info_print_table_row(2, key, agent_endpoint.as_ptr());
 
         let vars = [
-            (
-                c"Application's Environment (DD_ENV)".as_ptr(),
-                &locals.identity.env,
-            ),
-            (
-                c"Application's Service (DD_SERVICE)".as_ptr(),
-                &locals.identity.service,
-            ),
-            (
-                c"Application's Version (DD_VERSION)".as_ptr(),
-                &locals.identity.version,
-            ),
+            (c"Application's Environment (DD_ENV)".as_ptr(), &env),
+            (c"Application's Service (DD_SERVICE)".as_ptr(), &service),
+            (c"Application's Version (DD_VERSION)".as_ptr(), &version),
         ];
 
         for (key, value) in vars {
@@ -1024,10 +1035,6 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
         zend::php_info_print_table_end();
 
         zend::display_ini_entries(module_ptr);
-    });
-
-    if let Err(err) = result {
-        error!("minfo failed to borrow request locals: {err}");
     }
 }
 
