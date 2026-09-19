@@ -1,4 +1,6 @@
-FROM ghcr.io/cataphract/php-buildonly@sha256:148595c871b8a94073126ef463c0dd73e051345d31d905b7546056e8b8d37ccc
+ARG PHP_BUILDONLY_REPOSITORY=datadog/php-buildonly
+# datadog/php-buildonly:1.0.5
+FROM ${PHP_BUILDONLY_REPOSITORY}@sha256:1c5bdea65b77f83c1f0210a7c4f546a790a5f52a5b6ce85b4b80641e6127565a
 
 ENV CARGO_HOME=/root/.cargo \
     RUSTUP_HOME=/root/.rustup \
@@ -15,10 +17,7 @@ RUN rm /etc/musl-clang.conf
 RUN apk --no-cache add clang21-libclang curl curl-dev && \
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
         sh -s -- --default-toolchain 1.91.1 --profile minimal -y && \
-    rustup component add rustfmt clippy llvm-tools-preview && \
-    rust_toolchain="nightly-$(uname -m)-unknown-linux-musl" && \
-    rustup toolchain install "$rust_toolchain" \
-        --profile minimal --component rust-src --component llvm-tools-preview && \
+    rustup component add rustfmt clippy rust-src llvm-tools-preview && \
     architecture="$(uname -m)" && \
     case "$architecture" in \
         aarch64) cargo_llvm_cov_sha256=3c299780e109d59fd77044e64734421d43c0067b92937a49be302fee66d04727 ;; \
