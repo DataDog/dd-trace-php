@@ -8,6 +8,7 @@ if (getenv('USE_ZEND_ALLOC') === '0' && !getenv("SKIP_ASAN")) die('skip timing s
 require __DIR__ . '/../includes/clear_skipif_telemetry.inc'
 ?>
 --ENV--
+_DD_DEBUG_SIDECAR_IPC_MODE=instance_per_process
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
 DD_TRACE_LOG_LEVEL=info,startup=off
