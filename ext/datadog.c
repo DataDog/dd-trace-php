@@ -666,6 +666,8 @@ static PHP_RSHUTDOWN_FUNCTION(datadog) {
 
     datadog_sidecar_finalize(true);
     DATADOG_G(request_initialized) = false;
+    /* A signal may have queued a Remote Config reread during RSHUTDOWN. */
+    DATADOG_G(reread_remote_configuration) = 0;
 
     datadog_telemetry_rshutdown();
     datadog_sidecar_rshutdown();
