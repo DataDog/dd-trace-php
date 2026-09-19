@@ -172,7 +172,7 @@ workflow:
       fi
     - git clone --branch dd-trace-php https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform /platform && cd /platform
     - ./steps/capture-hardware-software-info.sh
-    - BP_SCENARIO=$SCENARIO bp-runner bp-runner.yml --debug -t
+    - BP_SCENARIO=$SCENARIO bash "$CI_PROJECT_DIR/.gitlab/run-microbenchmarks.sh" bp-runner.yml --debug -t
     - ./steps/analyze-results.sh
     - "./steps/upload-results-to-s3.sh || :"
     - "./steps/post-pr-comment.sh || :"

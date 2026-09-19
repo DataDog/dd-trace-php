@@ -157,10 +157,27 @@ final class FrankenphpServer implements Sapi
         $this->process = new Process($processCmd);
         // Persist whatever Caddy/FrankenPHP write to stdout/stderr to have CI artifacts.
         $logWriter = fopen(dirname($this->indexFile) . '/' . self::ERROR_LOG, "a");
-        $this->process->start(function ($type, $buffer) use ($logWriter) {
+        $ready = false;
+        $startupOutput = '';
+        $this->process->start(function ($type, $buffer) use ($logWriter, &$ready, &$startupOutput) {
             fwrite($logWriter, $buffer);
             fflush($logWriter);
+            if (!$ready) {
+                $startupOutput .= $buffer;
+                $ready = strpos($startupOutput, '"msg":"serving initial configuration"') !== false;
+            }
         });
+
+        // Caddy can accept HTTP requests before FrankenPHP initializes its worker channels.
+        // Wait until every app has started before allowing a request to reach the server.
+        $deadline = microtime(true) + 30;
+        while (!$ready && $this->process->isRunning() && microtime(true) < $deadline) {
+            usleep(10 * 1000);
+        }
+        if (!$ready) {
+            $this->process->stop(0);
+            throw new \RuntimeException("FrankenPHP did not finish starting:\n" . $startupOutput);
+        }
     }
 
     public function stop()

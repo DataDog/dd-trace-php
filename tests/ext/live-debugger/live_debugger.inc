@@ -155,5 +155,5 @@ function await_probe_installation($trigger, $num = 1) {
         $last_id = $id;
     }
 
-    return $ret;
+    throw new RuntimeException("Probe installation timed out; $num probe(s) missing");
 }

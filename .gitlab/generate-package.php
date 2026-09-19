@@ -1319,6 +1319,8 @@ endforeach;
     DDAGENT_HOSTNAME: 127.0.0.1
     DD_AGENT_HOST: 127.0.0.1
     DATADOG_HAVE_DEV_ENV: 1
+    _DD_DEBUG_SIDECAR_LOG_LEVEL: trace
+    _DD_DEBUG_SIDECAR_LOG_METHOD: "file://${CI_PROJECT_DIR}/artifacts/sidecar.log"
   needs:
     - job: "package extension (installers): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
@@ -1327,6 +1329,7 @@ endforeach;
     - !reference [.services, httpbin-integration]
   before_script:
 <?php dockerhub_login() ?>
+    - mkdir -p artifacts
     - switch-php debug
   script:
     - sudo dpkg -i packages/*amd64*.deb

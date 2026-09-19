@@ -145,7 +145,7 @@ final class DatadogLogger
     private static function format(string $level, $message, array $context = []): string {
         $message = self::interpolate($message, $context);
 
-        $date = \DateTime::createFromFormat('U.u', microtime(true));
+        $date = \DateTime::createFromFormat('U.u', sprintf('%.6F', microtime(true)));
 
         $record = [
             'message' => $message,

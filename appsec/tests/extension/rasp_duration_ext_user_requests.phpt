@@ -19,7 +19,10 @@ define('NUM_CALLS', 20);
 
 $resps = array_merge(
     array(response_list(response_request_init([[['ok', []]], [], []]))),
-    array_fill(0, NUM_CALLS,
+    // Two known delays provide a lower bound for the accumulated duration.
+    array_fill(0, 2, ['delay' => 1, 'msg' =>
+        response_list(response_request_exec([[['ok', []]], [], [], [], false]))]),
+    array_fill(0, NUM_CALLS - 2,
     response_list(response_request_exec([[['ok', []]], [], [], [], false]))),
     array(
         response_list(response_request_shutdown([[['ok', []]], [], []])),
@@ -73,9 +76,9 @@ close_span(100.0);
 
 if (isset($duration1) && isset($duration2)) {
     echo "\nBoth requests have duration_ext metrics: yes\n";
-    if ($duration1 > $duration2) {
-        echo "First request has a larger duration_ext: yes\n";
-    }
+    // Independent requests may be descheduled for different amounts of time.
+    // Allow for timer clock differences while requiring more than one delay.
+    echo "First request includes both delays: " . ($duration1 >= 1500000 ? "yes" : "no") . "\n";
 }
 
 
@@ -90,4 +93,4 @@ Second request has duration_ext: yes
 Second request duration_ext is positive: yes
 
 Both requests have duration_ext metrics: yes
-First request has a larger duration_ext: yes
+First request includes both delays: yes

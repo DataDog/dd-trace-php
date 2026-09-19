@@ -1,5 +1,7 @@
 --TEST--
 Telemetry test with connection reset
+--CONFLICTS--
+all
 --SKIPIF--
 <?php
 if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support {PWD}");
