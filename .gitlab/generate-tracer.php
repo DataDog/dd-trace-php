@@ -162,6 +162,10 @@ function windows_test_c_job($job_name, $thread_safety, $targets) {
 <?php endforeach ?>
 
     # Run extension tests
+    # Write full WER dumps directly into the mounted artifact directory and
+    # keep WER enabled for every PHPT child process.
+    docker exec ${CONTAINER_NAME} powershell.exe -File C:\Users\ContainerAdministrator\app\.gitlab\enable-windows-test-dumps.ps1
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     docker exec -e _DD_DEBUG_SIDECAR_LOG_LEVEL=trace ${CONTAINER_NAME} powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\<?= $build_dir ?>\php_ddtrace.dll" "${pwd}\tests\ext"'
   after_script:
     - |
