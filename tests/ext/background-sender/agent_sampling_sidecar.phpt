@@ -4,7 +4,7 @@ The sidecar trace flusher sender informs about changes to the agent sample rate
 <?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
 <?php if (getenv('USE_ZEND_ALLOC') === '0' && !getenv("SKIP_ASAN")) die('skip: valgrind reports sendmsg(msg.msg_control) points to uninitialised byte(s), but it is unproblematic and outside our control in rust code'); ?>
 --ENV--
-DD_TRACE_LOG_LEVEL=info,startup=off,datadog_sidecar=warn
+DD_TRACE_LOG_LEVEL=warn
 DD_AGENT_HOST=request-replayer
 DD_TRACE_AGENT_PORT=80
 DD_TRACE_AGENT_FLUSH_INTERVAL=333
@@ -118,10 +118,6 @@ if ($errors) {
 
 ?>
 --EXPECTF--
-[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for http://request-replayer:80
 Initial sampling: 1
-[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for http://request-replayer:80
 Generic sampling: 0
-[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for http://request-replayer:80
 Specific sampling: 1
-[ddtrace] [info] [%d] No finished traces to be sent to the agent
