@@ -27,7 +27,7 @@ stages:
     - if [ -d "/opt/catch2" ]; then export CMAKE_PREFIX_PATH=/opt/catch2; fi
     - mkdir -p tmp/build_php_components_asan && cd tmp/build_php_components_asan
     - cmake $([ -f "/etc/debian_version" ] && echo "-DCMAKE_TOOLCHAIN_FILE=../../cmake/asan.cmake") -DCMAKE_BUILD_TYPE=Debug -DDATADOG_PHP_TESTING=ON ../../components
-    - make -j all
+    - bash "${CI_PROJECT_DIR}/.gitlab/run-make-with-infra-retry.sh" -j all
     - mkdir -p "${CI_PROJECT_DIR}/artifacts"
     - make test ARGS="--output-junit ${CI_PROJECT_DIR}/artifacts/components-asan-results.xml --output-on-failure"
   after_script:
