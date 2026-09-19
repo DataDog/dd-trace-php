@@ -98,6 +98,7 @@ class SQLSRVTest extends IntegrationTestCase
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
             'DD_SERVICE',
             'DD_DBM_PROPAGATION_MODE',
+            'DD_DBM_TRACE_PREPARED_STATEMENTS',
         ];
     }
 
@@ -419,6 +420,39 @@ class SQLSRVTest extends IntegrationTestCase
         );
     }
 
+
+    public function testPreparedStatementKeepsServiceModeForDBMWhenTracingPreparedStatements()
+    {
+        // sqlsrv is not a full-propagation backend, so the option must change nothing here
+        $this->putEnvAndReloadConfig(['DD_DBM_PROPAGATION_MODE=full', 'DD_DBM_TRACE_PREPARED_STATEMENTS=true']);
+
+        $query = "SELECT * FROM tests WHERE id = ?";
+        $traces = $this->isolateTracer(function () use ($query) {
+            start_trace_span();
+
+            $conn = $this->createConnection();
+            $stmt = sqlsrv_prepare($conn, $query, [1], ['Scrollable' => 'buffered']);
+            sqlsrv_execute($stmt);
+            sqlsrv_close($conn);
+
+            close_span();
+        });
+
+        $prepareSpan = null;
+        foreach ($traces[0] as $span) {
+            if ($span['name'] === 'sqlsrv_prepare') {
+                $prepareSpan = $span;
+            }
+        }
+
+        $this->assertNotNull($prepareSpan, 'sqlsrv_prepare span should exist');
+        $this->assertEquals($query, $prepareSpan['resource']);
+        $this->assertArrayNotHasKey(
+            '_dd.dbm_trace_injected',
+            $prepareSpan['meta'] ?? [],
+            'sqlsrv_prepare should still use SERVICE mode'
+        );
+    }
     public function testExecError()
     {
         $query = "SELECT * FROM non_existing_table";
