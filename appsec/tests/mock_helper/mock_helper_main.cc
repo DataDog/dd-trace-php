@@ -323,7 +323,7 @@ public:
                 throw std::runtime_error("JSON document has no 'msg' member");
             }
             auto &msg = doc_["msg"];
-            if (msg.IsArray()) {
+            if (!msg.IsArray()) {
                 throw std::runtime_error("Value of 'msg' member is no array");
             }
             writer << msg;
