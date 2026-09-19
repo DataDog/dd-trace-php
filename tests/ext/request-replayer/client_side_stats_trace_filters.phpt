@@ -8,7 +8,7 @@ if (PHP_VERSION_ID >= 80100) {
     echo "nocache\n";
 }
 // Configure the request-replayer to return these filter rules from the /info endpoint.
-// The sidecar will pick them up on its next poll cycle (triggered by the dummy flush below).
+// The test waits for the sidecar to receive these rules before creating spans.
 //
 // Filters configured:
 //   filter_tags.require:        filter_required:yes
@@ -45,6 +45,7 @@ DD_AGENT_HOST=request-replayer
 DD_TRACE_AGENT_PORT=80
 DD_TRACE_AGENT_FLUSH_INTERVAL=333
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
 DD_TRACE_SIDECAR_TRACE_SENDER=1
 DD_TRACE_STATS_COMPUTATION_ENABLED=1
@@ -120,48 +121,34 @@ makeSpan('GET /healthcheck', '', [
     'http.method'     => 'GET',
 ]);
 
-
+// Submit all cases together so a filtered span cannot arrive in a later batch
+// after the trace assertion has already completed.
+\DDTrace\flush();
 dd_trace_internal_fn('synchronous_flush');
 
-// Capture ALL trace requests from the second flush before consuming them.
-// The first flush's data was already consumed by waitForDataAndReplay() above, so only
-// second-flush requests remain.  Poll until at least one trace request arrives, then
-// collect everything that arrived in that batch.
-$secondFlushTraces = [];
-for ($i = 0; $i < 1000; $i++) {
-    usleep(50000);  // 50 ms  (same interval as RequestReplayer::flushInterval)
-    $reqs = $rr->replayAllRequests() ?? [];
-    $traces = array_values(array_filter($reqs, function ($r) {
-        return strpos($r['uri'] ?? '', 'traces') !== false;
-    }));
-    if (!empty($traces)) {
-        $secondFlushTraces = $traces;
-        break;
+// A previous pass can leave an empty trace request behind. Wait for a payload
+// containing spans, rather than stopping at the first request to /traces.
+$traceRequest = $rr->waitForRequest(function ($request) {
+    if (strpos($request['uri'] ?? '', 'traces') === false) {
+        return false;
     }
-}
+    $body = json_decode($request['body'] ?? '', true);
+    foreach ($body['chunks'] ?? $body ?? [] as $trace) {
+        if (!empty($trace['spans'] ?? $trace)) {
+            return true;
+        }
+    }
+    return false;
+});
 
-// Extract span names from every trace request in this flush.
+// Extract span names from the payload containing all test cases.
 $namesInTraces = [];
-foreach ($secondFlushTraces as $req) {
-    $body = json_decode($req['body'] ?? '', true);
-    if (!is_array($body)) continue;
-    if (isset($body['chunks'])) {
-        // v0.7 / sidecar format
-        foreach ($body['chunks'] as $chunk) {
-            foreach ($chunk['spans'] ?? [] as $span) {
-                $n = $span['name'] ?? '';
-                if ($n !== '') $namesInTraces[$n] = true;
-            }
-        }
-    } else {
-        // v0.4 format: array of traces, each trace is an array of spans
-        foreach ($body as $trace) {
-            if (!is_array($trace)) continue;
-            foreach ($trace as $span) {
-                $n = $span['name'] ?? '';
-                if ($n !== '') $namesInTraces[$n] = true;
-            }
-        }
+$body = json_decode($traceRequest['body'], true);
+// v0.7 contains chunks of spans; v0.4 contains arrays of spans directly.
+foreach ($body['chunks'] ?? $body as $trace) {
+    foreach ($trace['spans'] ?? $trace as $span) {
+        $n = $span['name'] ?? '';
+        if ($n !== '') $namesInTraces[$n] = true;
     }
 }
 ksort($namesInTraces);
@@ -170,9 +157,7 @@ foreach (array_keys($namesInTraces) as $n) {
 }
 
 // Wait for a stats payload that contains our service.
-// Stats from the second flush arrive a few seconds after waitForDataAndReplay() returns;
-// use a matcher so we wait for the right payload rather than returning the first one
-// (which contains the dummy span from the first flush).
+// Trace and stats requests can arrive independently.
 $statsRequest = $rr->waitForStats(function ($request) {
     $payload = json_decode($request['body'], true);
     foreach ($payload['Stats'] ?? [] as $bucket) {
