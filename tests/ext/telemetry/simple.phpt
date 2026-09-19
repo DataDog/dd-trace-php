@@ -37,6 +37,10 @@ for ($i = 0; $i < $maxAttempts; ++$i) {
     if (file_exists(__DIR__ . '/simple-telemetry.out')) {
         $batches = [];
         foreach (file(__DIR__ . '/simple-telemetry.out') as $l) {
+            // The sidecar may still be appending the last record; retry it next poll.
+            if (substr($l, -1) !== "\n") {
+                continue;
+            }
             if ($l && $l[0] == '{') {
                 $json = json_decode($l, true);
                 if ($json["application"]["service_name"] == "background_sender-php-service" || $json["application"]["service_name"] == "datadog-ipc-helper") {
