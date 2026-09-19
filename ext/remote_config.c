@@ -30,8 +30,7 @@ static void dd_vm_interrupt(zend_execute_data *execute_data) {
     }
 }
 
-// We need this exported to call it via CreateRemoteThread on Windows
-DATADOG_PUBLIC void datadog_set_all_thread_vm_interrupt(void) {
+static void dd_set_all_thread_vm_interrupt(void) {
     // broadcast interrupt to all threads on ZTS
 #if ZTS
     tsrm_mutex_lock(datadog_threads_mutex);
@@ -59,19 +58,32 @@ DATADOG_PUBLIC void datadog_set_all_thread_vm_interrupt(void) {
 #endif
 }
 
+// We need this exported to call it via CreateRemoteThread on Windows.
+#ifdef _WIN32
+DATADOG_PUBLIC unsigned long __stdcall datadog_set_all_thread_vm_interrupt(void *unused) {
+    UNUSED(unused);
+    dd_set_all_thread_vm_interrupt();
+    return 0;
+}
+#else
+DATADOG_PUBLIC void datadog_set_all_thread_vm_interrupt(void) {
+    dd_set_all_thread_vm_interrupt();
+}
+#endif
+
 void datadog_check_for_new_config_now(void) {
     if (DATADOG_G(request_initialized) && DATADOG_G(remote_config_state) &&
         !DATADOG_G(reread_remote_configuration) &&
         ddog_process_remote_configs(DATADOG_G(remote_config_state))) {
         // If we blocked the signal, notify the other threads too
-        datadog_set_all_thread_vm_interrupt();
+        dd_set_all_thread_vm_interrupt();
     }
 }
 
 #ifndef _WIN32
 static void dd_sigvtalarm_handler(int signal, siginfo_t *siginfo, void *ctx) {
     UNUSED(signal, siginfo, ctx);
-    datadog_set_all_thread_vm_interrupt();
+    dd_set_all_thread_vm_interrupt();
 
 #if defined(__linux__) && defined(ZTS)
     if (!tsrm_is_managed_thread()) {
@@ -140,7 +152,13 @@ void datadog_minit_remote_config(void) {
 }
 
 void datadog_mshutdown_remote_config(void) {
-#ifndef _WIN32
+#ifdef _WIN32
+    if (DATADOG_G(sidecar)) {
+        datadog_sidecar_clear_reconnect_fn(&DATADOG_G(sidecar));
+        datadog_ffi_try("Failed shutting down the sidecar session",
+                        ddog_sidecar_shutdown_session(&DATADOG_G(sidecar)));
+    }
+#else
     struct sigaction act = {0};
     act.sa_handler = SIG_IGN;
     sigaction(SIGVTALRM, &act, NULL);
