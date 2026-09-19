@@ -3,6 +3,10 @@
 
 #include "datadog_export.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 void datadog_minit_remote_config(void);
 void datadog_mshutdown_remote_config(void);
 void datadog_rinit_remote_config(void);
