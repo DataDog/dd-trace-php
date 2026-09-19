@@ -4,7 +4,7 @@
 #include "datadog_export.h"
 
 #ifdef _WIN32
-#include <windows.h>
+#include <minwindef.h>
 #endif
 
 void datadog_minit_remote_config(void);
