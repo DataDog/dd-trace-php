@@ -738,8 +738,8 @@ def buildCoverageReportTask = {
             command: [
                     '-e', '-c',
                     """
-                RUST_TOOLCHAIN="nightly-\$(uname -m)-unknown-linux-musl"
-                LLVM_TOOLS="\$(dirname "\$(rustc +\$RUST_TOOLCHAIN --print target-libdir)")/bin"
+                cd /project
+                LLVM_TOOLS="\$(dirname "\$(rustc --print target-libdir)")/bin"
                 test -x "\$LLVM_TOOLS/llvm-profdata"
                 test -x "\$LLVM_TOOLS/llvm-cov"
 
@@ -1188,7 +1188,11 @@ export CARGO_TARGET_DIR=/helper-rust-build/cargo-target
 
 def portableLibdatadogPhpFeatureArgs = useHelperRustCoverage ?
         '--features helper-rust-coverage' : ''
-def portableLibdatadogPhpRustFlags = '-C link-arg=/usr/lib/libunwind.a'
+// Backtraces need unwind tables panic=abort and only 1.92.0 enables them by default
+// We're not there yet
+// See https://github.com/rust-lang/rust/commit/fe66eaa67acc47525db6f13cf97d54780d87b805
+def portableLibdatadogPhpRustFlags = '-C link-arg=/usr/lib/libunwind.a' +
+        ' -C force-unwind-tables=yes'
 if (useHelperRustCoverage) {
     portableLibdatadogPhpRustFlags += ' -C instrument-coverage'
 }
@@ -1202,12 +1206,10 @@ def portableLibdatadogPhpBuildMode = useHelperRustCoverage ?
 // this artifact is intentionally built once and shared across all PHP versions.
 def portableLibdatadogPhpCommand = '''
         RUST_TARGET="$(uname -m)-unknown-linux-musl"
-        RUST_TOOLCHAIN="nightly-$RUST_TARGET"
         export CARGO_TARGET_DIR=/portable-rust/cargo-target
 
         cd /project
         RUSTFLAGS='@RUSTFLAGS@' \
-            RUST_TOOLCHAIN="$RUST_TOOLCHAIN" \
             SHARED=1 PROFILE=tracer-release host_os=linux-musl \
             ./compile_rust.sh @FEATURE_ARGS@ \
                 --package datadog-php \
@@ -1251,6 +1253,7 @@ def buildPortableLibdatadogPhp = buildRunInDockerTask(
                         '../../../Cargo.toml',
                         '../../../Cargo.lock',
                         '../../../compile_rust.sh',
+                        '../../../rust-toolchain.toml',
                         '../../../VERSION',
                         '../../../profiling/build.rs',
                         '../../../tracer/mod.rs',
