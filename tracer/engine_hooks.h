@@ -16,6 +16,9 @@ ZEND_EXTERN_MODULE_GLOBALS(datadog)
 
 void ddtrace_engine_hooks_minit(void);
 void ddtrace_fetch_profiling_symbols(void);
+#ifdef PROFILING
+void ddtrace_set_profiling_notify_enabled(bool enabled);
+#endif
 void ddtrace_engine_hooks_mshutdown(void);
 
 void ddtrace_compile_time_reset(void);

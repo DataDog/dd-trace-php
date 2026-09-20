@@ -25,29 +25,26 @@ assert.exception=1
 assert(php_sapi_name() !== 'cli');
 
 // Can't be in the SKIPIF for CGI requests for some reason
-assert(extension_loaded('datadog-profiling'));
+assert((extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false));
 assert(extension_loaded('dom'));
 
 ob_start();
-$extension = new ReflectionExtension('datadog-profiling');
+$extension = new ReflectionExtension(extension_loaded('datadog-profiling') ? 'datadog-profiling' : 'ddtrace');
 $extension->info();
 $output = ob_get_clean();
 
 $values = [];
 
-/* Expect two tables.
- *  1. Two column layout, first column is the key and second is the value.
- *  2. Three column layout for .ini settings. First is the directive, second
- *     is the local value, and last is the master value.
- * For this test, we're after the first table for DD_SERVICE.
- */
+// Standalone profiling has two tables. Combined ddtrace includes its common
+// diagnostics and INI tables as well, so locate the profiler row by content.
 $dom = new DOMDocument();
 assert($dom->loadHTML($output));
-$tables = iterator_to_array($dom->getElementsByTagName('table'));
-assert(count($tables) === 2);
-
-foreach ($tables[0]->getElementsByTagName('tr') as $row) {
-    [$key, $value] = iterator_to_array($row->getElementsByTagName('td'));
+foreach ($dom->getElementsByTagName('tr') as $row) {
+    $columns = iterator_to_array($row->getElementsByTagName('td'));
+    if (count($columns) !== 2) {
+        continue;
+    }
+    [$key, $value] = $columns;
     $key = html_entity_decode(trim($key->nodeValue));
     $value = html_entity_decode(trim($value->nodeValue));
     $values[$key] = $value;

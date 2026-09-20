@@ -8,13 +8,14 @@
 #include "sidecar.h"
 #include "otel_config.h"
 #include <components/log/log.h>
+#include <components-rs/datadog.h>
 #include <zai_string/string.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
 #include <tracer/configuration_dependencies.h>
 
-#ifndef DDTRACE
+#ifndef TRACER
 bool datadog_alter_dd_service(zval *old_value, zval *new_value, zend_string *new_str) {
     UNUSED(old_value, new_value);
     if (DATADOG_G(request_initialized)) {
@@ -45,6 +46,22 @@ bool datadog_alter_dd_trace_disabled_config(zval *old_value, zval *new_value, ze
 }
 #endif
 
+bool datadog_config_parse_utf8_string(zai_str value, zval *decoded_value, bool persistent) {
+    if (value.len == 0) {
+        if (persistent) {
+            ZVAL_EMPTY_PSTRING(decoded_value);
+        } else {
+            ZVAL_EMPTY_STRING(decoded_value);
+        }
+        return true;
+    }
+    if (!datadog_bytes_are_valid_utf8((const uint8_t *)value.ptr, value.len)) {
+        return false;
+    }
+    ZVAL_STR(decoded_value, zend_string_init(value.ptr, value.len, persistent));
+    return true;
+}
+
 #define DD_TO_DATADOG_INC 5 /* "DD" expanded to "datadog" */
 
 #define APPLY_0(...)
@@ -67,7 +84,7 @@ bool datadog_alter_dd_trace_disabled_config(zval *old_value, zval *new_value, ze
 #define CALIAS CONFIG
 #define CONFIG(...) 1,
 #define NUMBER_OF_CONFIGURATIONS sizeof((uint8_t[]){DD_ALL_CONFIGURATIONS})
-_Static_assert(NUMBER_OF_CONFIGURATIONS < ZAI_CONFIG_ENTRIES_COUNT_MAX,
+_Static_assert(NUMBER_OF_CONFIGURATIONS <= ZAI_CONFIG_ENTRIES_COUNT_MAX,
                "There are more config entries than ZAI_CONFIG_ENTRIES_COUNT_MAX.");
 #undef CONFIG
 #define CONFIG(type, name, ...)                                                \
@@ -154,6 +171,8 @@ static void dd_ini_env_to_ini_name(const zai_str env_name, zai_config_name *ini_
 
         if (env_name.ptr == strstr(env_name.ptr, "DD_TRACE_")) {
             ini_name->ptr[sizeof("datadog.trace") - 1] = '.';
+        } else if (env_name.ptr == strstr(env_name.ptr, "DD_PROFILING_")) {
+            ini_name->ptr[sizeof("datadog.profiling") - 1] = '.';
         } else if (env_name.ptr == strstr(env_name.ptr, "DD_APPSEC_")) {
             ini_name->ptr[sizeof("datadog.appsec") - 1] = '.';
         } else if (env_name.ptr == strstr(env_name.ptr, "DD_DYNAMIC_INSTRUMENTATION_")) {
@@ -190,7 +209,7 @@ bool datadog_config_minit(int module_number) {
 }
 
 void datadog_config_first_rinit() {
-#ifdef DDTRACE
+#ifdef TRACER
     zend_ini_entry *internal_functions_ini =
         zai_config_memoized_entries[DATADOG_CONFIG_DD_TRACE_TRACED_INTERNAL_FUNCTIONS].ini_entries[0];
     zend_string *internal_functions_old = zend_string_copy(
@@ -200,7 +219,7 @@ void datadog_config_first_rinit() {
     zai_config_first_time_rinit(true);
     zai_config_rinit();
 
-#ifdef DDTRACE
+#ifdef TRACER
     zend_string *internal_functions_new =
         internal_functions_ini->modified ? internal_functions_ini->orig_value : internal_functions_ini->value;
 

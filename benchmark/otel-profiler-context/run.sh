@@ -51,9 +51,10 @@ build_extensions() {
         -v "$VOLUME:/work" \
         "$IMAGE" \
         sh -c '
-            make -C /work -j"$(nproc)" all \
+            DDTRACE_PROFILING_FEATURES=trigger_time_sample \
+                make -C /work -j"$(nproc)" all \
+                EXTRA_CONFIGURE_OPTIONS="--enable-ddtrace-profiling" \
                 "CFLAGS=-O2 -g0 -DNDEBUG -Wall -Wextra"
-            make -C /work compile_profiler
         '
 }
 
@@ -90,7 +91,6 @@ benchmark_env=(
 php_command=(
     php -n
     -d extension=/work/tmp/build_extension/modules/ddtrace.so
-    -d extension=/work/tmp/build_profiler/modules/datadog-profiling.so
     /work/benchmark/otel-profiler-context/workload.php
 )
 

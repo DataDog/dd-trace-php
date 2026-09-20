@@ -1,5 +1,13 @@
 #include "php_ffi.h"
 
+#ifdef PROFILING
+#include <ext/configuration.h>
+#ifdef TRACER
+#include <ext/process_tags.h>
+#include <tracer/profiling.h>
+#endif
+#endif
+
 #include <assert.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -32,26 +40,6 @@ const void *datadog_php_profiling_get_otel_thread_context(void) {
     return *datadog_php_profiling_otel_thread_context_slot;
 }
 #endif
-
-static void locate_ddtrace_get_profiling_context(const zend_extension *extension) {
-    ddtrace_profiling_context (*get_profiling)(void) =
-        DL_FETCH_SYMBOL(extension->handle, "ddtrace_get_profiling_context");
-    if (EXPECTED(get_profiling)) {
-        datadog_php_profiling_get_profiling_context = get_profiling;
-    }
-}
-
-static void locate_datadog_process_tags_get_serialized(const zend_extension *extension) {
-    zend_string *(*get_process_tags)(void) =
-        DL_FETCH_SYMBOL(extension->handle, "datadog_process_tags_get_serialized");
-    if (EXPECTED(get_process_tags)) {
-        datadog_php_profiling_get_process_tags_serialized = get_process_tags;
-    }
-}
-
-static bool is_ddtrace_extension(const zend_extension *ext) {
-    return ext && ext->name && strcmp(ext->name, "ddtrace") == 0;
-}
 
 static ddtrace_profiling_context noop_get_profiling_context(void) {
     return (ddtrace_profiling_context){0, 0};
@@ -163,27 +151,23 @@ static post_startup_cb_result ddog_php_prof_post_startup_cb(void) {
 static bool _ignore_run_time_cache = false;
 #endif
 
+#if defined(TRACER) && defined(PROFILING)
+static ddtrace_profiling_context combined_get_profiling_context(void) {
+    struct ddtrace_profiling_context context = ddtrace_get_profiling_context();
+    return (ddtrace_profiling_context){context.local_root_span_id, context.span_id};
+}
+#endif
+
 void datadog_php_profiling_startup(zend_extension *extension) {
 #if CFG_RUN_TIME_CACHE  // defined by build.rs
     _ignore_run_time_cache = strcmp(sapi_module.name, "cli") == 0;
 #endif
 
-    datadog_php_profiling_get_profiling_context = noop_get_profiling_context;
-    datadog_php_profiling_get_process_tags_serialized = noop_get_process_tags_serialized;
-
-    /* Due to the optional dependency on ddtrace, the profiling module will be
-     * loaded after ddtrace if it's present, so ddtrace should always be found
-     * on startup and not need a message handler.
-     */
-    const zend_llist *list = &zend_extensions;
-    for (const zend_llist_element *item = list->head; item; item = item->next) {
-        const zend_extension *maybe_ddtrace = (zend_extension *)item->data;
-        if (maybe_ddtrace != extension && is_ddtrace_extension(maybe_ddtrace)) {
-            locate_ddtrace_get_profiling_context(maybe_ddtrace);
-            locate_datadog_process_tags_get_serialized(maybe_ddtrace);
-            break;
-        }
-    }
+    (void)extension;
+#if defined(TRACER) && defined(PROFILING)
+    datadog_php_profiling_get_profiling_context = combined_get_profiling_context;
+    datadog_php_profiling_get_process_tags_serialized = datadog_process_tags_get_serialized;
+#endif
 
 #if CFG_POST_STARTUP_CB // defined by build.rs
     _is_post_startup = false;
@@ -195,9 +179,38 @@ void datadog_php_profiling_startup(zend_extension *extension) {
 
 void *datadog_php_profiling_vm_interrupt_addr(void) { return &EG(vm_interrupt); }
 
-zend_module_entry *datadog_get_module_entry(const char *str, uintptr_t len) {
-    return zend_hash_str_find_ptr(&module_registry, str, len);
+void datadog_php_profiling_config_count_error(uint16_t c_count, uintptr_t rust_count) {
+    php_error_docref(NULL, E_CORE_WARNING,
+                     "generated configuration table mismatch (C=%u, Rust=%zu)",
+                     (unsigned)c_count, (size_t)rust_count);
 }
+
+bool ddog_php_prof_config_visit_map(uint16_t config_id, bool memoized,
+                                    void *context,
+                                    ddog_php_prof_config_map_visitor visitor) {
+    zval *map = memoized
+        ? &zai_config_memoized_entries[config_id].decoded_value
+        : zai_config_get_value(config_id);
+    if (!map || Z_TYPE_P(map) != IS_ARRAY || !visitor) {
+        return false;
+    }
+
+    zend_string *key;
+    zval *value;
+    ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(map), key, value) {
+        if (!key || Z_TYPE_P(value) != IS_STRING ||
+            !visitor(context, ZSTR_VAL(key), ZSTR_LEN(key),
+                     Z_STRVAL_P(value), Z_STRLEN_P(value))) {
+            return false;
+        }
+    } ZEND_HASH_FOREACH_END();
+
+    return true;
+}
+
+#ifdef PROFILING
+uint16_t ddog_php_prof_config_count(void) { return DATADOG_CONFIG_COUNT; }
+#endif
 
 ddtrace_profiling_context (*datadog_php_profiling_get_profiling_context)(void) =
     noop_get_profiling_context;
@@ -213,29 +226,6 @@ void datadog_php_profiling_install_internal_function_handler(
         *handler.old_handler = old_handler->internal_function.handler;
         old_handler->internal_function.handler = handler.new_handler;
     }
-}
-
-void datadog_php_profiling_copy_string_view_into_zval(zval *dest, zai_str view,
-                                                      bool persistent) {
-    ZEND_ASSERT(dest);
-
-#ifdef CFG_TEST
-    (void)dest;
-    (void)view;
-    (void)persistent;
-    ZEND_ASSERT(0);
-#else
-    if (view.len == 0) {
-        if (persistent) {
-            ZVAL_EMPTY_PSTRING(dest);
-        } else {
-            ZVAL_EMPTY_STRING(dest);
-        }
-    } else {
-        ZEND_ASSERT(view.ptr);
-        ZVAL_STR(dest, zend_string_init(view.ptr, view.len, persistent));
-    }
-#endif
 }
 
 void ddog_php_prof_copy_long_into_zval(zval *dest, long num) {

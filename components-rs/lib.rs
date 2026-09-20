@@ -33,29 +33,26 @@ pub mod tracer;
 #[path = "../profiling/src/lib.rs"]
 pub mod profiling;
 
-#[cfg(not(standalone_profiler))]
 pub mod agent_info;
-#[cfg(not(standalone_profiler))]
 pub mod bytes;
-#[cfg(not(standalone_profiler))]
+// Only the profiler consumes ConfigId/CONFIG_COUNT/the generated accessors (see
+// profiling/src/config.rs, profiling/src/lib.rs, profiling/src/bindings/mod.rs).
+// The module itself, and the build.rs codegen step that generates its content,
+// both live under profiling/ (see profiling/config_id.rs, profiling/build.rs,
+// profiling/config_codegen.rs) rather than here, so a tracer-only build never
+// even sees code that would preprocess ext/configuration.h through a C compiler
+// -- not just gated off, but physically absent from this crate's shared build.rs.
+#[cfg(feature = "profiling")]
+#[path = "../profiling/config_id.rs"]
+pub mod config;
 pub mod ffe;
-#[cfg(not(standalone_profiler))]
 pub mod log;
-#[cfg(not(standalone_profiler))]
 pub mod remote_config;
-#[cfg(not(standalone_profiler))]
 pub mod sidecar;
-#[cfg(not(standalone_profiler))]
 pub mod stats;
-#[cfg(not(standalone_profiler))]
 pub mod telemetry;
-#[cfg(not(standalone_profiler))]
 pub mod trace_filter;
 
-// A standalone profiler must retain the existing profiler-only ABI and size.
-// Cargo's `cdylib` keeps every `no_mangle` common export alive, even though the
-// profiler does not use them, so omit those exports only in profiler-only builds.
-#[cfg(not(standalone_profiler))]
 #[rustfmt::skip]
 mod common_exports {
 #[cfg(unix)]
@@ -149,6 +146,14 @@ pub extern "C" fn datadog_format_runtime_id(buf: &mut [u8; 36]) {
     // Safety: datadog_runtime_id is only supposed to be mutated from single-
     // threaded contexts, so reads should always be safe.
     unsafe { datadog_runtime_id.as_hyphenated().encode_lower(buf) };
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn datadog_bytes_are_valid_utf8(bytes: *const u8, len: usize) -> bool {
+    if len == 0 {
+        return true;
+    }
+    std::str::from_utf8(std::slice::from_raw_parts(bytes, len)).is_ok()
 }
 
 #[cfg(target_os = "linux")]
@@ -591,5 +596,4 @@ pub extern "C" fn ddog_free_normalized_tag_value(ptr: *const c_char) {
 }
 }
 
-#[cfg(not(standalone_profiler))]
 pub use common_exports::*;
