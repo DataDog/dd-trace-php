@@ -1504,6 +1504,7 @@ test_integrations_predis_2: global_test_run_dependencies tests/Integrations/Pred
 test_integrations_predis_latest: global_test_run_dependencies tests/Integrations/Predis/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Predis/Latest)
 test_integrations_frankenphp: global_test_run_dependencies
+	$(eval TEST_EXTRA_ENV=DD_TRACE_AGENT_PORT=9126 DD_AGENT_HOST=test-agent)
 	$(call run_tests_debug,--testsuite=frankenphp-test)
 test_integrations_roadrunner: global_test_run_dependencies tests/Frameworks/Roadrunner/Version_2/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Roadrunner/V2)
