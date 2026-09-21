@@ -616,6 +616,7 @@ fn apple_linker_flags() {
         "_zend_mm_shutdown",
         "_zend_new_interned_string",
         "_zend_observer_error_register",
+        "_zend_parse_parameters",
         "_zend_post_startup_cb",
         "_zend_register_extension",
         "_zend_register_ini_entries",

@@ -944,6 +944,8 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
             c"I/O Profiling Enabled".as_ptr(),
             if system_settings.profiling_io_enabled {
                 yes
+            } else if !zend::datadog_get_module_entry(c"grpc".as_ptr(), 4).is_null() {
+                c"false (incompatible with ext-grpc)".as_ptr()
             } else if system_settings.profiling_enabled {
                 no
             } else {
