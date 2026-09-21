@@ -815,7 +815,7 @@ void ddtrace_sidecar_submit_span_data_direct(ddog_SidecarTransport **transport, 
     const ddog_Vec_Tag *process_tags = datadog_process_tags_get_vec();
 
     bool changed = true;
-    if (DATADOG_G(remote_config_state)) {
+    if (DATADOG_G(request_initialized) && DATADOG_G(remote_config_state)) {
         changed = ddog_remote_configs_service_env_change(DATADOG_G(remote_config_state), service_slice, env_slice, version_slice, &DATADOG_G(active_global_tags), process_tags);
     }
 
@@ -853,7 +853,7 @@ void ddtrace_sidecar_submit_span_data_direct(ddog_SidecarTransport **transport, 
             ddog_sidecar_telemetry_filter_flush(transport, datadog_sidecar_instance_id, &DATADOG_G(sidecar_queue_id), datadog_telemetry_buffer(), datadog_telemetry_cache(), service_slice, env_slice));
     }
 
-    if (DATADOG_G(remote_config_state)) {
+    if (DATADOG_G(request_initialized) && DATADOG_G(remote_config_state)) {
         // Must happen after ddog_sidecar_set_universal_service_tags (session state fully initialized)
         ddog_process_remote_configs(DATADOG_G(remote_config_state));
     }
