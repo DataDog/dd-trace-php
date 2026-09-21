@@ -5,6 +5,13 @@ Don't dump backtrace when segmentation fault signal is raised and config is defa
 if (!extension_loaded('posix')) die('skip: posix extension required');
 if (getenv('SKIP_ASAN') || getenv('USE_ZEND_ALLOC') === '0') die("skip: intentionally causes segfaults");
 if (file_exists("/etc/os-release") && preg_match("/alpine/i", file_get_contents("/etc/os-release"))) die("skip Unsupported LIBC");
+// With the default config (crashtracking enabled), SIGSEGV handling is delegated entirely to
+// libdatadog's crashtracker (ext/signals.c's own handler only installs when crashtracking is
+// disabled, see the mutual-exclusion check in ddtrace_signals_minit). On macOS the crashtracker's
+// fork+receiver-process handling doesn't leave the process to die by/report the raw signal the
+// way run-tests.php expects (neither "Segmentation fault" text nor a Termsig=11/exit-code-139
+// process result appears), unlike on Linux.
+if (PHP_OS === "Darwin") die("skip: macOS crashtracker signal handling doesn't surface as Termsig=11/Segmentation fault the way run-tests.php expects");
 ?>
 --ENV--
 DD_LOG_BACKTRACE=0

@@ -345,6 +345,10 @@ def phpSdkVersion = { String version, String variant ->
     variant in ['release', 'release-musl'] ? version : "$version-$variant"
 }
 
+def portableBuildVariant = { String variant ->
+    variant.replace('-musl', '')
+}
+
 def buildTracerTask = { String version, String variant ->
     buildRunInDockerTask(
             baseName: 'buildTracer',
@@ -355,7 +359,7 @@ def buildTracerTask = { String version, String variant ->
             needsAppsec: false,
             needsBoostCache: false,
             needsCargoCache: false,
-            description: 'Build tracer for PHP',
+            description: 'Build portable tracer extension for PHP',
             inputs: [
                     dirs: [
                             '../../../ext',
@@ -723,8 +727,8 @@ def buildCoverageReportTask = {
             command: [
                     '-e', '-c',
                     """
-                RUST_TOOLCHAIN="nightly-\$(uname -m)-unknown-linux-musl"
-                LLVM_TOOLS="\$(dirname "\$(rustc +\$RUST_TOOLCHAIN --print target-libdir)")/bin"
+                cd /project
+                LLVM_TOOLS="\$(dirname "\$(rustc --print target-libdir)")/bin"
                 test -x "\$LLVM_TOOLS/llvm-profdata"
                 test -x "\$LLVM_TOOLS/llvm-cov"
 
@@ -763,13 +767,14 @@ def buildCoverageReportTask = {
 def buildLoaderTask = { String version, String variant ->
     buildRunInDockerTask(
             baseName: 'buildLoader',
+            imageTag: 'php-buildonly-rust',
             version: version,
             variant: variant,
             needsTracer: false,
             needsAppsec: false,
             needsBoostCache: false,
             needsCargoCache: false,
-            description: 'Build dd_library_loader extension for PHP',
+            description: 'Build portable dd_library_loader extension for PHP',
             inputs: [
                     dirs: ['../../../loader'],
             ],
@@ -782,63 +787,81 @@ def buildLoaderTask = { String version, String variant ->
             ],
             command: [
                     '-e', '-c',
-                    '''
-                    PHP_PREFIX=$(dirname $(dirname $(php -r 'echo PHP_BINARY;')))
-                    echo "Using PHP from: $PHP_PREFIX"
+                    """
+                    export PHP_SDK_VERSION=${phpSdkVersion(version, variant)}
+                    PHP_PREFIX=/opt/php/\$PHP_SDK_VERSION
+                    echo "Using PHP SDK from: \$PHP_PREFIX"
                     cd /project/loader
                     make distclean 2>/dev/null || true
-                    $PHP_PREFIX/bin/phpize
+                    \$PHP_PREFIX/bin/phpize
                     rm -f config.cache
-                    ./configure --with-php-config=$PHP_PREFIX/bin/php-config
+                    ./configure --with-php-config=\$PHP_PREFIX/bin/php-config
                     make -j
                     cp modules/dd_library_loader.so /loader-build/
                     touch /loader-build/dd_library_loader.so
-                    '''
+                    """
             ]
     )
 }
 
-def buildAppSecTask = { String version, String variant, altBaseTag = null ->
+def buildAppSecTask = { String version, String variant ->
     def buildType = variant.contains('debug') ? 'Debug' : 'RelWithDebInfo'
     buildRunInDockerTask(
             baseName: 'buildAppsec',
-            baseTag: altBaseTag ?: 'php',
+            imageTag: 'php-buildonly-rust',
             version: version,
             variant: variant,
             needsTracer: false,
             needsCargoCache: false,
-            description: 'Build appsec for PHP',
+            description: 'Build portable appsec extension for PHP',
             inputs: [
                     dirs: [
                             '../../../cmake',
+                            '../../../components-rs',
                             '../../../zend_abstract_interface',
                             '../../cmake',
                             '../../third_party',
                             '../../src'],
-                    files: ['../../CMakeLists.txt'],
+                    files: [
+                            '../../../VERSION',
+                            '../../CMakeLists.txt'],
             ],
             outputs: [
                     volume: 'php-appsec',
                     files: ['ddappsec.so'],
             ],
+            volumes: [
+                    ("php-appsec-buildonly-${version}-${variant}"): [
+                            mountPoint: '/project/tmp',
+                    ],
+            ],
             command: [
                     '-e', '-c',
                     """
-                    cd /appsec
-                    test -f CMakeCache.txt || \\
-                        cmake -DCMAKE_BUILD_TYPE=$buildType \\
-                              -DCMAKE_INSTALL_PREFIX=/appsec \\
-                              -DDD_APPSEC_ENABLE_PATCHELF_LIBC=ON \\
-                              -DDD_APPSEC_TESTING=ON \\
-                              -DBOOST_CACHE_PREFIX=/var/boost-cache /project/appsec
-                    make -j extension && \\
-                        touch ddappsec.so
+                    cd /project/tmp
+
+                    export PHP_SDK_VERSION=${phpSdkVersion(version, variant)}
+                    cmake -DCMAKE_BUILD_TYPE=$buildType \\
+                          -DCMAKE_C_FLAGS=-Wno-static-in-inline \\
+                          -DCMAKE_INSTALL_PREFIX=/appsec \\
+                          -DDD_APPSEC_TESTING=OFF \\
+                          -DBOOST_CACHE_PREFIX=/var/boost-cache \\
+                          /project/appsec
+                    make -j extension
+                    versionInfo=\$(readelf --version-info ddappsec.so)
+                    if grep -q 'GLIBC_' <<< \"\$versionInfo\"; then
+                        echo 'ddappsec.so has versioned glibc symbols' >&2
+                        exit 1
+                    fi
+                    cp ddappsec.so /appsec/ddappsec.so
+                    touch /appsec/ddappsec.so
                 """
             ]
     )
 }
 
 def runUnitTestsTask = { String phpVersion, String variant ->
+    def buildType = variant.contains('debug') ? 'Debug' : 'RelWithDebInfo'
     def env = ''
     if (project.hasProperty('tests')) {
         env = "TESTS='${project.getProperty('tests')}' "
@@ -848,21 +871,37 @@ def runUnitTestsTask = { String phpVersion, String variant ->
             baseTag: 'php',
             version: phpVersion,
             variant: variant,
-            needsBoostCache: false,
+            needsAppsec: false,
             needsCargoCache: false,
-            description: 'Build appsec for PHP',
+            description: 'Run appsec extension tests for PHP',
+            volumes: [
+                    ("php-appsec-${phpVersion}-${variant}"): [
+                            mountPoint: '/appsec-artifact',
+                            readonly: true,
+                    ],
+                    ("php-appsec-unit-${phpVersion}-${variant}"): [
+                            mountPoint: '/appsec',
+                    ],
+            ],
             command: [
                     '-e', '-c',
                     """
                     cd /appsec
+                    cmake -DCMAKE_BUILD_TYPE=$buildType \\
+                          -DCMAKE_INSTALL_PREFIX=/appsec \\
+                          -DDD_APPSEC_TEST_EXTENSION=/appsec-artifact/ddappsec.so \\
+                          -DDD_APPSEC_TEST_TRACER=/project/tmp/build_extension/modules/ddtrace.so \\
+                          -DDD_APPSEC_TESTING=ON \\
+                          -DBOOST_CACHE_PREFIX=/var/boost-cache \\
+                          /project/appsec
                     ${env}make -j xtest
                     """
             ]
     )
 
     task.configure {
-        dependsOn "buildTracer-$phpVersion-$variant"
-        dependsOn "buildAppsec-$phpVersion-$variant"
+        dependsOn "buildTracer-$phpVersion-${portableBuildVariant(variant)}"
+        dependsOn "buildAppsec-$phpVersion-${portableBuildVariant(variant)}"
     }
 }
 
@@ -881,23 +920,25 @@ def runMainTask = { String phpVersion, String variant ->
         systemProperty 'PHP_VERSION', phpVersion
         systemProperty 'VARIANT', variant
 
-        dependsOn "buildTracer-$phpVersion-$variant"
-        dependsOn "buildAppsec-$phpVersion-$variant"
+        dependsOn "buildTracer-$phpVersion-${portableBuildVariant(variant)}"
+        dependsOn "buildAppsec-$phpVersion-${portableBuildVariant(variant)}"
     }
 }
 
-(testMatrix + [['8.5', 'release-musl']]).each { spec ->
+(testMatrix + [
+        ['8.5', 'release-musl'],
+        ['8.5', 'release-zts-musl'],
+]).each { spec ->
     String phpVersion = spec[0]
     String variant = spec[1]
 
     def isMusl = variant =~ /\bmusl\b/
+    def isMuslZts = isMusl && variant.contains('zts')
 
-    buildTracerTask(phpVersion, variant)
     if (!isMusl) {
+        buildTracerTask(phpVersion, variant)
         buildTracerCmakeTask(phpVersion, variant)
-    }
-    buildAppSecTask(phpVersion, variant, isMusl ? 'nginx-fpm-php' : null)
-    if (!isMusl) {
+        buildAppSecTask(phpVersion, variant)
         runUnitTestsTask(phpVersion, variant)
     }
     if (project.hasProperty('testClass')) {
@@ -918,7 +959,9 @@ def runMainTask = { String phpVersion, String variant ->
                 excludeTags('slow')
             }
 
-            if (isMusl) {
+            if (isMuslZts) {
+                includeTags('zts-musl')
+            } else if (isMusl) {
                 includeTags('musl')
             }
         }
@@ -942,8 +985,11 @@ def runMainTask = { String phpVersion, String variant ->
             it.systemProperty 'USE_CMAKE', 'true'
         }
 
-        dependsOn project.hasProperty('useCmake') ? "buildTracerCmake-${phpVersion}-${variant}" : "buildTracer-${phpVersion}-${variant}"
-        dependsOn "buildAppsec-${phpVersion}-${variant}"
+        String artifactVariant = portableBuildVariant(variant)
+        dependsOn project.hasProperty('useCmake') ?
+                "buildTracerCmake-${phpVersion}-${artifactVariant}" :
+                "buildTracer-${phpVersion}-${artifactVariant}"
+        dependsOn "buildAppsec-${phpVersion}-${artifactVariant}"
 
         if (phpVersion in ['7.0', '7.1']) {
             dependsOn downloadComposerOld
@@ -1131,7 +1177,11 @@ export CARGO_TARGET_DIR=/helper-rust-build/cargo-target
 
 def portableLibdatadogPhpFeatureArgs = useHelperRustCoverage ?
         '--features helper-rust-coverage' : ''
-def portableLibdatadogPhpRustFlags = '-C link-arg=/usr/lib/libunwind.a'
+// Backtraces need unwind tables panic=abort and only 1.92.0 enables them by default
+// We're not there yet
+// See https://github.com/rust-lang/rust/commit/fe66eaa67acc47525db6f13cf97d54780d87b805
+def portableLibdatadogPhpRustFlags = '-C link-arg=/usr/lib/libunwind.a' +
+        ' -C force-unwind-tables=yes'
 if (useHelperRustCoverage) {
     portableLibdatadogPhpRustFlags += ' -C instrument-coverage'
 }
@@ -1139,12 +1189,10 @@ def portableLibdatadogPhpBuildMode = useHelperRustCoverage ?
         'helper-rust-coverage' : 'default'
 def portableLibdatadogPhpCommand = '''
         RUST_TARGET="$(uname -m)-unknown-linux-musl"
-        RUST_TOOLCHAIN="nightly-$RUST_TARGET"
         export CARGO_TARGET_DIR=/portable-rust/cargo-target
 
         cd /project
         RUSTFLAGS='@RUSTFLAGS@' \
-            RUST_TOOLCHAIN="$RUST_TOOLCHAIN" \
             SHARED=1 PROFILE=tracer-release host_os=linux-musl \
             ./compile_rust.sh @FEATURE_ARGS@ \
                 --package datadog-php \
@@ -1188,6 +1236,7 @@ def buildPortableLibdatadogPhp = buildRunInDockerTask(
                         '../../../Cargo.toml',
                         '../../../Cargo.lock',
                         '../../../compile_rust.sh',
+                        '../../../rust-toolchain.toml',
                         '../../../VERSION',
                         '../../../profiling/build.rs',
                         '../../../tracer/mod.rs',

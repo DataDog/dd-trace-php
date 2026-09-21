@@ -54,7 +54,6 @@ class LaravelIntegration extends Integration
             ini_set("datadog.trace.generate_root_span", 0);
         }
 
-
         \DDTrace\trace_method(
             'Illuminate\Foundation\Application',
             'handle',

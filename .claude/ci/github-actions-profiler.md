@@ -237,7 +237,7 @@ export CC=clang-17
 export CFLAGS="-fsanitize=address -fno-omit-frame-pointer"
 export LDFLAGS="-fsanitize=address -shared-libasan"
 export RUSTC_LINKER=lld-17
-RUST_TOOLCHAIN=nightly-2025-06-13
+RUST_TOOLCHAIN=nightly-2025-10-31
 
 cd profiling
 triplet=$(uname -m)-unknown-linux-gnu
@@ -260,7 +260,7 @@ DD_PROFILING_OUTPUT_PPROF=/tmp/pprof \
 
 Requires `--user root --privileged` — ASAN needs both.
 
-The nightly toolchain version (`nightly-2025-06-13`) is pinned in
+The nightly toolchain version (`nightly-2025-10-31`) is pinned in
 `.github/workflows/prof_asan.yml`, not in `profiling/rust-toolchain.toml`. Check
 the workflow file for the current pinned version.
 
