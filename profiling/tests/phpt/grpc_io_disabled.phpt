@@ -1,5 +1,8 @@
 --TEST--
 [profiling] ext-grpc disables I/O profiling even with all experimental features enabled
+--DESCRIPTION--
+gRPC itself leaks on unload, even without the profiler.
+ZEND_DONT_UNLOAD_MODULES=1 keeps its global references visible to LeakSanitizer.
 --EXTENSIONS--
 grpc
 --SKIPIF--
@@ -16,6 +19,7 @@ if (strpos($info, 'built without I/O profiling support') !== false)
 DD_PROFILING_ENABLED=yes
 DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=yes
 DD_PROFILING_EXPERIMENTAL_IO_ENABLED=no
+ZEND_DONT_UNLOAD_MODULES=1
 --INI--
 datadog.profiling.log_level=error
 --FILE--
