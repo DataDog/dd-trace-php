@@ -42,9 +42,9 @@ $path = put_dynamic_config_file([
 ]);
 
 \DDTrace\start_span();
-if (ini_get('datadog.logs_injection') !== '1') {
-    dd_trace_internal_fn('await_remote_config');
-}
+await_remote_config(function () {
+    return ini_get('datadog.logs_injection') === '1';
+});
 var_dump(ini_get('datadog.logs_injection'));
 
 stream_wrapper_register('late-remote-config', LateRemoteConfigWrapper::class);
