@@ -509,6 +509,11 @@ static PHP_MINIT_FUNCTION(datadog) {
     datadog_signals_minit();
 #endif
     ddtrace_set_container_cgroup_path((ddog_CharSlice){ .ptr = DATADOG_G(cgroup_file), .len = strlen(DATADOG_G(cgroup_file)) });
+#ifdef __linux__
+    // Publishing from the master lets worker children reuse inferred TLS offsets.
+    // Process tags are added on the first request in each process.
+    datadog_publish_otel_process_context(DDOG_CHARSLICE_C(""));
+#endif
 
     return SUCCESS;
 }
