@@ -20,12 +20,12 @@ final class LateRemoteConfigWrapper
 {
     public $context;
 
-    public function stream_open($path, $mode, $options, &$opened_path): bool
+    public function stream_open($path, $mode, $options, &$opened_path)
     {
         return true;
     }
 
-    public function stream_close(): void
+    public function stream_close()
     {
         // Resource destruction runs after module RSHUTDOWN. Process Remote
         // Config synchronously so this lifecycle boundary is deterministic.
