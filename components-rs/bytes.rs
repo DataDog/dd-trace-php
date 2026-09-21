@@ -709,6 +709,16 @@ enum Attach {
         span: *mut SpanNode,
         key: BytesString,
     },
+    /// Top level: insert the finished value into the link node's attributes under `key`.
+    Link {
+        link: *mut SpanLinkBytes,
+        key: BytesString,
+    },
+    /// Top level: insert the finished value into the event node's attributes under `key`.
+    Event {
+        event: *mut SpanEventBytes,
+        key: BytesString,
+    },
     /// Append the finished value to the parent list.
     ParentList { parent: *mut AttrBuilder },
     /// Insert the finished value into the parent map under `key`.
@@ -776,6 +786,78 @@ pub unsafe extern "C" fn ddog_span_attr_open_map(span: *mut SpanNode, key: CharS
         PartialAttr::Map(VecMap::new()),
         Attach::Span {
             span,
+            key: convert_char_slice_to_bytes_string(key),
+        },
+    )
+}
+
+/// Opens a staging `List` attached to `link.attributes[key]` on close.
+///
+/// # Safety
+/// `link` must be a live link node pointer from [`ddog_new_link`].
+#[no_mangle]
+pub unsafe extern "C" fn ddog_link_attr_open_list(
+    link: *mut SpanLinkBytes,
+    key: CharSlice,
+) -> *mut AttrBuilder {
+    box_attr(
+        PartialAttr::List(Vec::new()),
+        Attach::Link {
+            link,
+            key: convert_char_slice_to_bytes_string(key),
+        },
+    )
+}
+
+/// Opens a staging `KeyValue` map attached to `link.attributes[key]` on close.
+///
+/// # Safety
+/// `link` must be a live link node pointer from [`ddog_new_link`].
+#[no_mangle]
+pub unsafe extern "C" fn ddog_link_attr_open_map(
+    link: *mut SpanLinkBytes,
+    key: CharSlice,
+) -> *mut AttrBuilder {
+    box_attr(
+        PartialAttr::Map(VecMap::new()),
+        Attach::Link {
+            link,
+            key: convert_char_slice_to_bytes_string(key),
+        },
+    )
+}
+
+/// Opens a staging `List` attached to `event.attributes[key]` on close.
+///
+/// # Safety
+/// `event` must be a live event node pointer from [`ddog_new_event`].
+#[no_mangle]
+pub unsafe extern "C" fn ddog_event_attr_open_list(
+    event: *mut SpanEventBytes,
+    key: CharSlice,
+) -> *mut AttrBuilder {
+    box_attr(
+        PartialAttr::List(Vec::new()),
+        Attach::Event {
+            event,
+            key: convert_char_slice_to_bytes_string(key),
+        },
+    )
+}
+
+/// Opens a staging `KeyValue` map attached to `event.attributes[key]` on close.
+///
+/// # Safety
+/// `event` must be a live event node pointer from [`ddog_new_event`].
+#[no_mangle]
+pub unsafe extern "C" fn ddog_event_attr_open_map(
+    event: *mut SpanEventBytes,
+    key: CharSlice,
+) -> *mut AttrBuilder {
+    box_attr(
+        PartialAttr::Map(VecMap::new()),
+        Attach::Event {
+            event,
             key: convert_char_slice_to_bytes_string(key),
         },
     )
@@ -937,30 +1019,62 @@ pub unsafe extern "C" fn ddog_attr_close(child: *mut AttrBuilder) {
         Attach::Span { span, key } => {
             insert_attr(&mut (*span).span_mut().attributes, key, finished);
         }
+        Attach::Link { link, key } => {
+            insert_attr(&mut (*link).attributes, key, finished);
+        }
+        Attach::Event { event, key } => {
+            insert_attr(&mut (*event).attributes, key, finished);
+        }
     }
 }
 
-// ------------------- Nested span attributes: read-back (introspection) -------------------
+// ------------------- Nested attributes: read-back (introspection) -------------------
 //
-// Path-addressed getters mirroring the write side. `path[0]` indexes the span's top-level attribute
-// map; each further element indexes into the `List` (by position) or `KeyValue` (by member order)
-// reached so far. Every call re-walks the path from the span root under a fresh shared borrow, so no
-// borrow into the payload escapes to C between calls.
+// Path-addressed getters mirroring the write side, shared by spans, links and events. `node_kind`
+// selects the attribute map (`DDOG_V1_ATTR_NODE_*`): the span's own map, or one of its links/events
+// addressed by `node_idx`. `path[0]` indexes that top-level map; each further element indexes into
+// the `List` (by position) or `KeyValue` (by member order) reached so far. Every call re-walks the
+// path from the node root under a fresh shared borrow, so no borrow into the payload escapes to C.
 
-/// Resolves the nested attribute value at `path` (length `path_len`), or `None` if any step is out
-/// of range or descends into a scalar.
+/// The span's own attribute map.
+pub const DDOG_V1_ATTR_NODE_SPAN: u32 = 0;
+/// The attribute map of the link at `node_idx`.
+pub const DDOG_V1_ATTR_NODE_LINK: u32 = 1;
+/// The attribute map of the event at `node_idx`.
+pub const DDOG_V1_ATTR_NODE_EVENT: u32 = 2;
+
+/// The top-level attribute map of the selected node, or `None` if it does not exist.
 #[inline]
-unsafe fn resolve_span_attr<'a>(
+unsafe fn node_attrs<'a>(
     builder: &'a TracerPayloadV1Builder,
     chunk: usize,
     span: usize,
+    node_kind: u32,
+    node_idx: usize,
+) -> Option<&'a VecMap<BytesString, AttributeValueBytes>> {
+    match node_kind {
+        DDOG_V1_ATTR_NODE_LINK => Some(&builder.link(chunk, span, node_idx)?.attributes),
+        DDOG_V1_ATTR_NODE_EVENT => Some(&builder.event(chunk, span, node_idx)?.attributes),
+        _ => Some(&builder.span(chunk, span)?.attributes),
+    }
+}
+
+/// Resolves the nested attribute value at `path` (length `path_len`) under the selected node, or
+/// `None` if any step is out of range or descends into a scalar.
+#[inline]
+unsafe fn resolve_node_attr<'a>(
+    builder: &'a TracerPayloadV1Builder,
+    chunk: usize,
+    span: usize,
+    node_kind: u32,
+    node_idx: usize,
     path: *const usize,
     path_len: usize,
 ) -> Option<&'a AttributeValueBytes> {
-    let s = builder.span(chunk, span)?;
+    let attrs = node_attrs(builder, chunk, span, node_kind, node_idx)?;
     let path = std::slice::from_raw_parts(path, path_len);
     let (&first, rest) = path.split_first()?;
-    let mut cur = &s.attributes.iter().nth(first)?.1;
+    let mut cur = &attrs.iter().nth(first)?.1;
     for &idx in rest {
         cur = match cur {
             AttributeValueBytes::List(v) => v.get(idx)?,
@@ -986,14 +1100,16 @@ fn attr_tag(value: &AttributeValueBytes) -> u32 {
 
 /// Number of children of the `List`/`KeyValue` at `path` (0 for a scalar or out-of-range path).
 #[no_mangle]
-pub unsafe extern "C" fn ddog_v1_get_span_attr_child_count(
+pub unsafe extern "C" fn ddog_v1_get_node_attr_child_count(
     builder: &TracerPayloadV1Builder,
     chunk: usize,
     span: usize,
+    node_kind: u32,
+    node_idx: usize,
     path: *const usize,
     path_len: usize,
 ) -> usize {
-    match resolve_span_attr(builder, chunk, span, path, path_len) {
+    match resolve_node_attr(builder, chunk, span, node_kind, node_idx, path, path_len) {
         Some(AttributeValueBytes::List(v)) => v.len(),
         Some(AttributeValueBytes::KeyValue(m)) => m.len(),
         _ => 0,
@@ -1002,23 +1118,28 @@ pub unsafe extern "C" fn ddog_v1_get_span_attr_child_count(
 
 /// `DDOG_V1_ATTR_*` tag of the value at `path` (STRING for an out-of-range path).
 #[no_mangle]
-pub unsafe extern "C" fn ddog_v1_get_span_attr_child_type(
+pub unsafe extern "C" fn ddog_v1_get_node_attr_child_type(
     builder: &TracerPayloadV1Builder,
     chunk: usize,
     span: usize,
+    node_kind: u32,
+    node_idx: usize,
     path: *const usize,
     path_len: usize,
 ) -> u32 {
-    resolve_span_attr(builder, chunk, span, path, path_len).map_or(DDOG_V1_ATTR_STRING, attr_tag)
+    resolve_node_attr(builder, chunk, span, node_kind, node_idx, path, path_len)
+        .map_or(DDOG_V1_ATTR_STRING, attr_tag)
 }
 
 /// Member name of the value at `path` within its parent `KeyValue` (empty if the parent is a list
 /// or the path is out of range). `path` must have length >= 1.
 #[no_mangle]
-pub unsafe extern "C" fn ddog_v1_get_span_attr_child_key(
+pub unsafe extern "C" fn ddog_v1_get_node_attr_child_key(
     builder: &TracerPayloadV1Builder,
     chunk: usize,
     span: usize,
+    node_kind: u32,
+    node_idx: usize,
     path: *const usize,
     path_len: usize,
 ) -> CharSlice {
@@ -1029,14 +1150,16 @@ pub unsafe extern "C" fn ddog_v1_get_span_attr_child_key(
     let last = full[path_len - 1];
     let parent_len = path_len - 1;
     if parent_len == 0 {
-        // Parent is the span's top-level attribute map: the member name is the attribute name.
-        return match builder.span(chunk, span).and_then(|s| s.attributes.iter().nth(last)) {
+        // Parent is the node's top-level attribute map: the member name is the attribute name.
+        return match node_attrs(builder, chunk, span, node_kind, node_idx)
+            .and_then(|a| a.iter().nth(last))
+        {
             Some((k, _)) => CharSlice::from_bytes(k.as_str().as_bytes()),
             None => CharSlice::empty(),
         };
     }
     // Nested parent: resolve the container at the parent path and read the member name at `last`.
-    match resolve_span_attr(builder, chunk, span, path, parent_len) {
+    match resolve_node_attr(builder, chunk, span, node_kind, node_idx, path, parent_len) {
         Some(AttributeValueBytes::KeyValue(m)) => match m.iter().nth(last) {
             Some((k, _)) => CharSlice::from_bytes(k.as_str().as_bytes()),
             None => CharSlice::empty(),
@@ -1047,14 +1170,16 @@ pub unsafe extern "C" fn ddog_v1_get_span_attr_child_key(
 
 /// String value at `path` (empty if not a `String`).
 #[no_mangle]
-pub unsafe extern "C" fn ddog_v1_get_span_attr_child_str(
+pub unsafe extern "C" fn ddog_v1_get_node_attr_child_str(
     builder: &TracerPayloadV1Builder,
     chunk: usize,
     span: usize,
+    node_kind: u32,
+    node_idx: usize,
     path: *const usize,
     path_len: usize,
 ) -> CharSlice {
-    match resolve_span_attr(builder, chunk, span, path, path_len) {
+    match resolve_node_attr(builder, chunk, span, node_kind, node_idx, path, path_len) {
         Some(AttributeValueBytes::String(s)) => CharSlice::from_bytes(s.as_str().as_bytes()),
         _ => CharSlice::empty(),
     }
@@ -1062,14 +1187,16 @@ pub unsafe extern "C" fn ddog_v1_get_span_attr_child_str(
 
 /// Int value at `path` (0 if not an `Int`).
 #[no_mangle]
-pub unsafe extern "C" fn ddog_v1_get_span_attr_child_int(
+pub unsafe extern "C" fn ddog_v1_get_node_attr_child_int(
     builder: &TracerPayloadV1Builder,
     chunk: usize,
     span: usize,
+    node_kind: u32,
+    node_idx: usize,
     path: *const usize,
     path_len: usize,
 ) -> i64 {
-    match resolve_span_attr(builder, chunk, span, path, path_len) {
+    match resolve_node_attr(builder, chunk, span, node_kind, node_idx, path, path_len) {
         Some(AttributeValueBytes::Int(v)) => *v,
         _ => 0,
     }
@@ -1077,14 +1204,16 @@ pub unsafe extern "C" fn ddog_v1_get_span_attr_child_int(
 
 /// Double value at `path` (0.0 if not a `Float`).
 #[no_mangle]
-pub unsafe extern "C" fn ddog_v1_get_span_attr_child_double(
+pub unsafe extern "C" fn ddog_v1_get_node_attr_child_double(
     builder: &TracerPayloadV1Builder,
     chunk: usize,
     span: usize,
+    node_kind: u32,
+    node_idx: usize,
     path: *const usize,
     path_len: usize,
 ) -> f64 {
-    match resolve_span_attr(builder, chunk, span, path, path_len) {
+    match resolve_node_attr(builder, chunk, span, node_kind, node_idx, path, path_len) {
         Some(AttributeValueBytes::Float(v)) => *v,
         _ => 0.0,
     }
@@ -1092,29 +1221,33 @@ pub unsafe extern "C" fn ddog_v1_get_span_attr_child_double(
 
 /// Bool value at `path` (false if not a `Bool`).
 #[no_mangle]
-pub unsafe extern "C" fn ddog_v1_get_span_attr_child_bool(
+pub unsafe extern "C" fn ddog_v1_get_node_attr_child_bool(
     builder: &TracerPayloadV1Builder,
     chunk: usize,
     span: usize,
+    node_kind: u32,
+    node_idx: usize,
     path: *const usize,
     path_len: usize,
 ) -> bool {
     matches!(
-        resolve_span_attr(builder, chunk, span, path, path_len),
+        resolve_node_attr(builder, chunk, span, node_kind, node_idx, path, path_len),
         Some(AttributeValueBytes::Bool(true))
     )
 }
 
 /// Bytes value at `path` (empty if not `Bytes`).
 #[no_mangle]
-pub unsafe extern "C" fn ddog_v1_get_span_attr_child_bytes(
+pub unsafe extern "C" fn ddog_v1_get_node_attr_child_bytes(
     builder: &TracerPayloadV1Builder,
     chunk: usize,
     span: usize,
+    node_kind: u32,
+    node_idx: usize,
     path: *const usize,
     path_len: usize,
 ) -> CharSlice {
-    match resolve_span_attr(builder, chunk, span, path, path_len) {
+    match resolve_node_attr(builder, chunk, span, node_kind, node_idx, path, path_len) {
         Some(AttributeValueBytes::Bytes(b)) => CharSlice::from_bytes(b.as_ref()),
         _ => CharSlice::empty(),
     }
@@ -1160,42 +1293,77 @@ mod staging_ffi_tests {
             ddog_attr_close(tl);
         }
 
-        let path = |p: &[usize]| (p.as_ptr(), p.len());
+        // Read back through the span-kind node getters (`node_idx` unused for spans).
+        let sp = DDOG_V1_ATTR_NODE_SPAN;
         unsafe {
+            let ty = |p: &[usize]| ddog_v1_get_node_attr_child_type(&b, chunk, span, sp, 0, p.as_ptr(), p.len());
+            let cnt = |p: &[usize]| ddog_v1_get_node_attr_child_count(&b, chunk, span, sp, 0, p.as_ptr(), p.len());
+            let key = |p: &[usize]| ddog_v1_get_node_attr_child_key(&b, chunk, span, sp, 0, p.as_ptr(), p.len()).to_utf8_lossy().into_owned();
+            let s = |p: &[usize]| ddog_v1_get_node_attr_child_str(&b, chunk, span, sp, 0, p.as_ptr(), p.len()).to_utf8_lossy().into_owned();
+            let i = |p: &[usize]| ddog_v1_get_node_attr_child_int(&b, chunk, span, sp, 0, p.as_ptr(), p.len());
+            let d = |p: &[usize]| ddog_v1_get_node_attr_child_double(&b, chunk, span, sp, 0, p.as_ptr(), p.len());
+            let bl = |p: &[usize]| ddog_v1_get_node_attr_child_bool(&b, chunk, span, sp, 0, p.as_ptr(), p.len());
+
             // attr 0 = "root" (KeyValue with 3 members)
-            let (p, l) = path(&[0]);
-            assert_eq!(ddog_v1_get_span_attr_child_type(&b, chunk, span, p, l), DDOG_V1_ATTR_KEYVALUE);
-            assert_eq!(ddog_v1_get_span_attr_child_count(&b, chunk, span, p, l), 3);
-
+            assert_eq!(ty(&[0]), DDOG_V1_ATTR_KEYVALUE);
+            assert_eq!(cnt(&[0]), 3);
             // root.a == "x", root.n == 7
-            let (p, l) = path(&[0, 0]);
-            assert_eq!(ddog_v1_get_span_attr_child_key(&b, chunk, span, p, l).to_utf8_lossy(), "a");
-            assert_eq!(ddog_v1_get_span_attr_child_str(&b, chunk, span, p, l).to_utf8_lossy(), "x");
-            let (p, l) = path(&[0, 1]);
-            assert_eq!(ddog_v1_get_span_attr_child_int(&b, chunk, span, p, l), 7);
-
+            assert_eq!(key(&[0, 0]), "a");
+            assert_eq!(s(&[0, 0]), "x");
+            assert_eq!(i(&[0, 1]), 7);
             // root.items is a List of 3
-            let (p, l) = path(&[0, 2]);
-            assert_eq!(ddog_v1_get_span_attr_child_key(&b, chunk, span, p, l).to_utf8_lossy(), "items");
-            assert_eq!(ddog_v1_get_span_attr_child_type(&b, chunk, span, p, l), DDOG_V1_ATTR_LIST);
-            assert_eq!(ddog_v1_get_span_attr_child_count(&b, chunk, span, p, l), 3);
-
+            assert_eq!(key(&[0, 2]), "items");
+            assert_eq!(ty(&[0, 2]), DDOG_V1_ATTR_LIST);
+            assert_eq!(cnt(&[0, 2]), 3);
             // items[0] == "first", items[1] == 42, items[2] == { flag: true }
-            let (p, l) = path(&[0, 2, 0]);
-            assert_eq!(ddog_v1_get_span_attr_child_str(&b, chunk, span, p, l).to_utf8_lossy(), "first");
-            let (p, l) = path(&[0, 2, 1]);
-            assert_eq!(ddog_v1_get_span_attr_child_int(&b, chunk, span, p, l), 42);
-            let (p, l) = path(&[0, 2, 2]);
-            assert_eq!(ddog_v1_get_span_attr_child_type(&b, chunk, span, p, l), DDOG_V1_ATTR_KEYVALUE);
-            let (p, l) = path(&[0, 2, 2, 0]);
-            assert_eq!(ddog_v1_get_span_attr_child_key(&b, chunk, span, p, l).to_utf8_lossy(), "flag");
-            assert!(ddog_v1_get_span_attr_child_bool(&b, chunk, span, p, l));
-
+            assert_eq!(s(&[0, 2, 0]), "first");
+            assert_eq!(i(&[0, 2, 1]), 42);
+            assert_eq!(ty(&[0, 2, 2]), DDOG_V1_ATTR_KEYVALUE);
+            assert_eq!(key(&[0, 2, 2, 0]), "flag");
+            assert!(bl(&[0, 2, 2, 0]));
             // attr 1 = "list" (List with one double)
-            let (p, l) = path(&[1]);
-            assert_eq!(ddog_v1_get_span_attr_child_type(&b, chunk, span, p, l), DDOG_V1_ATTR_LIST);
-            let (p, l) = path(&[1, 0]);
-            assert_eq!(ddog_v1_get_span_attr_child_double(&b, chunk, span, p, l), 1.5);
+            assert_eq!(ty(&[1]), DDOG_V1_ATTR_LIST);
+            assert_eq!(d(&[1, 0]), 1.5);
+        }
+    }
+
+    // Nested attributes attached to LINK and EVENT node pointers, read back through the same node
+    // getters with the link/event node kinds.
+    #[test]
+    fn build_nested_link_and_event_attrs_and_read_back() {
+        let mut b = TracerPayloadV1Builder::default();
+        let chunk_ptr = b.push_chunk(0, 1);
+        let (chunk, span) = (0usize, 0usize);
+        let span_ptr = unsafe { (*chunk_ptr).push_span() };
+
+        unsafe {
+            // link[0].attributes = { nums: [ 1, 2 ] }
+            let link = ddog_new_link(span_ptr);
+            let nums = ddog_link_attr_open_list(link, cs("nums"));
+            ddog_attr_list_push_int(nums, 1);
+            ddog_attr_list_push_int(nums, 2);
+            ddog_attr_close(nums);
+
+            // event[0].attributes = { obj: { k: "v" } }
+            let event = ddog_new_event(span_ptr);
+            let obj = ddog_event_attr_open_map(event, cs("obj"));
+            ddog_attr_map_put_str(obj, cs("k"), cs("v"));
+            ddog_attr_close(obj);
+        }
+
+        let ln = DDOG_V1_ATTR_NODE_LINK;
+        let ev = DDOG_V1_ATTR_NODE_EVENT;
+        unsafe {
+            // link[0].nums is a List [1, 2]
+            assert_eq!(ddog_v1_get_node_attr_child_key(&b, chunk, span, ln, 0, [0usize].as_ptr(), 1).to_utf8_lossy(), "nums");
+            assert_eq!(ddog_v1_get_node_attr_child_type(&b, chunk, span, ln, 0, [0usize].as_ptr(), 1), DDOG_V1_ATTR_LIST);
+            assert_eq!(ddog_v1_get_node_attr_child_count(&b, chunk, span, ln, 0, [0usize].as_ptr(), 1), 2);
+            assert_eq!(ddog_v1_get_node_attr_child_int(&b, chunk, span, ln, 0, [0usize, 1].as_ptr(), 2), 2);
+
+            // event[0].obj is a KeyValue { k: "v" }
+            assert_eq!(ddog_v1_get_node_attr_child_type(&b, chunk, span, ev, 0, [0usize].as_ptr(), 1), DDOG_V1_ATTR_KEYVALUE);
+            assert_eq!(ddog_v1_get_node_attr_child_key(&b, chunk, span, ev, 0, [0usize, 0].as_ptr(), 2).to_utf8_lossy(), "k");
+            assert_eq!(ddog_v1_get_node_attr_child_str(&b, chunk, span, ev, 0, [0usize, 0].as_ptr(), 2).to_utf8_lossy(), "v");
         }
     }
 }
@@ -1326,6 +1494,78 @@ mod v04_parity_tests {
         );
         assert_eq!(sorted_bucket(&new_span, "meta"), sorted_bucket(&old_span, "meta"));
     }
+
+    /// `span[key]` (a msgpack map field) as a borrowed value.
+    fn field<'a>(v: &'a Value, key: &str) -> Option<&'a Value> {
+        match v {
+            Value::Map(m) => m.iter().find(|(k, _)| k.as_str() == Some(key)).map(|(_, v)| v),
+            _ => None,
+        }
+    }
+
+    #[test]
+    fn link_nested_attr_matches_old_json_string_v04() {
+        // NEW: native nested link attr `nums = [3, 4]` built through the staging FFI.
+        let (newb, s) = one_span_builder();
+        unsafe {
+            let link = ddog_new_link(s);
+            let nums = ddog_link_attr_open_list(link, cs("nums"));
+            ddog_attr_list_push_int(nums, 3);
+            ddog_attr_list_push_int(nums, 4);
+            ddog_attr_close(nums);
+        }
+        // OLD: the JSON string the pre-native serializer produced (json_encode([3,4])).
+        let (oldb, s) = one_span_builder();
+        unsafe {
+            let link = ddog_new_link(s);
+            ddog_link_add_attr_str(link, cs("nums"), cs("[3,4]"));
+        }
+
+        let new_span = first_span(&to_vec_from_v1(&newb.into_payload()));
+        let old_span = first_span(&to_vec_from_v1(&oldb.into_payload()));
+        let attr = |sp: &Value| {
+            field(field(&field(sp, "span_links").unwrap().as_array().unwrap()[0], "attributes").unwrap(), "nums")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_string()
+        };
+        assert_eq!(attr(&new_span), "[3,4]");
+        assert_eq!(attr(&new_span), attr(&old_span));
+    }
+
+    #[test]
+    fn event_nested_attr_matches_old_json_string_v04() {
+        // NEW: native nested event attr `nums = [3, 4]` built through the staging FFI.
+        let (newb, s) = one_span_builder();
+        unsafe {
+            let event = ddog_new_event(s);
+            let nums = ddog_event_attr_open_list(event, cs("nums"));
+            ddog_attr_list_push_int(nums, 3);
+            ddog_attr_list_push_int(nums, 4);
+            ddog_attr_close(nums);
+        }
+        // OLD: json_encode([3,4]) stored as a string event attribute.
+        let (oldb, s) = one_span_builder();
+        unsafe {
+            let event = ddog_new_event(s);
+            ddog_event_add_attr_str(event, cs("nums"), cs("[3,4]"));
+        }
+
+        let new_span = first_span(&to_vec_from_v1(&newb.into_payload()));
+        let old_span = first_span(&to_vec_from_v1(&oldb.into_payload()));
+        // Event attrs downgrade to `{"type":0,"string_value":<json>}`.
+        let attr = |sp: &Value| {
+            let a = field(&field(sp, "span_events").unwrap().as_array().unwrap()[0], "attributes").unwrap();
+            let nums = field(a, "nums").unwrap();
+            (
+                field(nums, "type").unwrap().as_u64().unwrap(),
+                field(nums, "string_value").unwrap().as_str().unwrap().to_string(),
+            )
+        };
+        assert_eq!(attr(&new_span), (0, "[3,4]".to_string()));
+        assert_eq!(attr(&new_span), attr(&old_span));
+    }
 }
 
 #[cfg(test)]
@@ -1399,7 +1639,10 @@ mod pointer_handle_miri_tests {
         }
     }
 
-    // (c) Links and events built on a span pointer, each fully built before the next push.
+    // (c) Links and events built on a span pointer, each fully built — including a deep nested
+    // List/KeyValue attribute staged onto the link/event node pointer — before the next push. The
+    // staging builder stashes the raw link/event node pointer and reborrows it only at the matching
+    // top-level `close`; this proves that reborrow is sound across sibling node pushes.
     #[test]
     fn c_links_and_events_on_span_ptr() {
         let mut b = TracerPayloadV1Builder::default();
@@ -1409,6 +1652,14 @@ mod pointer_handle_miri_tests {
             let l0 = ddog_new_link(span);
             ddog_link_set_span_id(l0, 11);
             ddog_link_add_attr_str(l0, cs("k"), cs("v"));
+            // Deep nested attr on l0: { tags: [ "a", { deep: 1 } ] } — fully built before l1.
+            let tags = ddog_link_attr_open_list(l0, cs("tags"));
+            ddog_attr_list_push_str(tags, cs("a"));
+            let deep = ddog_attr_list_open_map(tags);
+            ddog_attr_map_put_int(deep, cs("deep"), 1);
+            ddog_attr_close(deep);
+            ddog_attr_close(tags);
+
             let l1 = ddog_new_link(span); // sibling push; l0 stays valid (own allocation)
             ddog_link_set_span_id(l1, 22);
             ddog_link_set_span_id(l0, 111); // still valid after the sibling push
@@ -1416,6 +1667,13 @@ mod pointer_handle_miri_tests {
             let e0 = ddog_new_event(span);
             ddog_event_set_name(e0, cs("evt"));
             ddog_event_add_attr_int(e0, cs("n"), 5);
+            // Deep nested attr on e0: { meta: { list: [ true ] } } — fully built before e1.
+            let meta = ddog_event_attr_open_map(e0, cs("meta"));
+            let list = ddog_attr_map_open_list(meta, cs("list"));
+            ddog_attr_list_push_bool(list, true);
+            ddog_attr_close(list);
+            ddog_attr_close(meta);
+
             let e1 = ddog_new_event(span);
             ddog_event_set_time(e1, 999);
             ddog_event_set_name(e0, cs("evt0")); // e0 valid after e1's push
@@ -1424,8 +1682,16 @@ mod pointer_handle_miri_tests {
         let span = &payload.chunks[0].spans[0];
         assert_eq!(span.span_links.len(), 2);
         assert_eq!(span.span_links[0].span_id, 111);
+        match span.span_links[0].attributes.get("tags") {
+            Some(AttributeValueBytes::List(v)) => assert_eq!(v.len(), 2),
+            other => panic!("expected link List attr, got {other:?}"),
+        }
         assert_eq!(span.span_events.len(), 2);
         assert_eq!(span.span_events[0].name.as_str(), "evt0");
+        match span.span_events[0].attributes.get("meta") {
+            Some(AttributeValueBytes::KeyValue(m)) => assert_eq!(m.len(), 1),
+            other => panic!("expected event KeyValue attr, got {other:?}"),
+        }
     }
 
     // (d) into_payload dedups duplicate keys, and a builder dropped WITHOUT into_payload frees every

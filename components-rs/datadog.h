@@ -405,6 +405,38 @@ struct ddog_AttrBuilder *ddog_span_attr_open_list(ddog_SpanNode *span, ddog_Char
 struct ddog_AttrBuilder *ddog_span_attr_open_map(ddog_SpanNode *span, ddog_CharSlice key);
 
 /**
+ * Opens a staging `List` attached to `link.attributes[key]` on close.
+ *
+ * # Safety
+ * `link` must be a live link node pointer from [`ddog_new_link`].
+ */
+struct ddog_AttrBuilder *ddog_link_attr_open_list(ddog_SpanLinkBytes *link, ddog_CharSlice key);
+
+/**
+ * Opens a staging `KeyValue` map attached to `link.attributes[key]` on close.
+ *
+ * # Safety
+ * `link` must be a live link node pointer from [`ddog_new_link`].
+ */
+struct ddog_AttrBuilder *ddog_link_attr_open_map(ddog_SpanLinkBytes *link, ddog_CharSlice key);
+
+/**
+ * Opens a staging `List` attached to `event.attributes[key]` on close.
+ *
+ * # Safety
+ * `event` must be a live event node pointer from [`ddog_new_event`].
+ */
+struct ddog_AttrBuilder *ddog_event_attr_open_list(ddog_SpanEventBytes *event, ddog_CharSlice key);
+
+/**
+ * Opens a staging `KeyValue` map attached to `event.attributes[key]` on close.
+ *
+ * # Safety
+ * `event` must be a live event node pointer from [`ddog_new_event`].
+ */
+struct ddog_AttrBuilder *ddog_event_attr_open_map(ddog_SpanEventBytes *event, ddog_CharSlice key);
+
+/**
  * Opens a nested `List` appended to the parent list on close.
  */
 struct ddog_AttrBuilder *ddog_attr_list_open_list(struct ddog_AttrBuilder *list);
@@ -456,18 +488,22 @@ void ddog_attr_close(struct ddog_AttrBuilder *child);
 /**
  * Number of children of the `List`/`KeyValue` at `path` (0 for a scalar or out-of-range path).
  */
-uintptr_t ddog_v1_get_span_attr_child_count(const ddog_TracerPayloadV1Builder *builder,
+uintptr_t ddog_v1_get_node_attr_child_count(const ddog_TracerPayloadV1Builder *builder,
                                             uintptr_t chunk,
                                             uintptr_t span,
+                                            uint32_t node_kind,
+                                            uintptr_t node_idx,
                                             const uintptr_t *path,
                                             uintptr_t path_len);
 
 /**
  * `DDOG_V1_ATTR_*` tag of the value at `path` (STRING for an out-of-range path).
  */
-uint32_t ddog_v1_get_span_attr_child_type(const ddog_TracerPayloadV1Builder *builder,
+uint32_t ddog_v1_get_node_attr_child_type(const ddog_TracerPayloadV1Builder *builder,
                                           uintptr_t chunk,
                                           uintptr_t span,
+                                          uint32_t node_kind,
+                                          uintptr_t node_idx,
                                           const uintptr_t *path,
                                           uintptr_t path_len);
 
@@ -475,54 +511,66 @@ uint32_t ddog_v1_get_span_attr_child_type(const ddog_TracerPayloadV1Builder *bui
  * Member name of the value at `path` within its parent `KeyValue` (empty if the parent is a list
  * or the path is out of range). `path` must have length >= 1.
  */
-ddog_CharSlice ddog_v1_get_span_attr_child_key(const ddog_TracerPayloadV1Builder *builder,
+ddog_CharSlice ddog_v1_get_node_attr_child_key(const ddog_TracerPayloadV1Builder *builder,
                                                uintptr_t chunk,
                                                uintptr_t span,
+                                               uint32_t node_kind,
+                                               uintptr_t node_idx,
                                                const uintptr_t *path,
                                                uintptr_t path_len);
 
 /**
  * String value at `path` (empty if not a `String`).
  */
-ddog_CharSlice ddog_v1_get_span_attr_child_str(const ddog_TracerPayloadV1Builder *builder,
+ddog_CharSlice ddog_v1_get_node_attr_child_str(const ddog_TracerPayloadV1Builder *builder,
                                                uintptr_t chunk,
                                                uintptr_t span,
+                                               uint32_t node_kind,
+                                               uintptr_t node_idx,
                                                const uintptr_t *path,
                                                uintptr_t path_len);
 
 /**
  * Int value at `path` (0 if not an `Int`).
  */
-int64_t ddog_v1_get_span_attr_child_int(const ddog_TracerPayloadV1Builder *builder,
+int64_t ddog_v1_get_node_attr_child_int(const ddog_TracerPayloadV1Builder *builder,
                                         uintptr_t chunk,
                                         uintptr_t span,
+                                        uint32_t node_kind,
+                                        uintptr_t node_idx,
                                         const uintptr_t *path,
                                         uintptr_t path_len);
 
 /**
  * Double value at `path` (0.0 if not a `Float`).
  */
-double ddog_v1_get_span_attr_child_double(const ddog_TracerPayloadV1Builder *builder,
+double ddog_v1_get_node_attr_child_double(const ddog_TracerPayloadV1Builder *builder,
                                           uintptr_t chunk,
                                           uintptr_t span,
+                                          uint32_t node_kind,
+                                          uintptr_t node_idx,
                                           const uintptr_t *path,
                                           uintptr_t path_len);
 
 /**
  * Bool value at `path` (false if not a `Bool`).
  */
-bool ddog_v1_get_span_attr_child_bool(const ddog_TracerPayloadV1Builder *builder,
+bool ddog_v1_get_node_attr_child_bool(const ddog_TracerPayloadV1Builder *builder,
                                       uintptr_t chunk,
                                       uintptr_t span,
+                                      uint32_t node_kind,
+                                      uintptr_t node_idx,
                                       const uintptr_t *path,
                                       uintptr_t path_len);
 
 /**
  * Bytes value at `path` (empty if not `Bytes`).
  */
-ddog_CharSlice ddog_v1_get_span_attr_child_bytes(const ddog_TracerPayloadV1Builder *builder,
+ddog_CharSlice ddog_v1_get_node_attr_child_bytes(const ddog_TracerPayloadV1Builder *builder,
                                                  uintptr_t chunk,
                                                  uintptr_t span,
+                                                 uint32_t node_kind,
+                                                 uintptr_t node_idx,
                                                  const uintptr_t *path,
                                                  uintptr_t path_len);
 

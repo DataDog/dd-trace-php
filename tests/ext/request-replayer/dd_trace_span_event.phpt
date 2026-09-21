@@ -48,7 +48,8 @@ $span = $spans[0];
 // `span_events` field: it is the only wire on which the request-replayer surfaces the native event
 // shape (its v1 decoder folds events back into meta["events"] for v0.4 comparability). Native event
 // attributes are OTEL AnyValue-typed maps; we assert them order-independently. Array/object
-// attribute values have no native V1 attribute variant, so they are preserved as a JSON string.
+// attribute values ARE carried natively (List/KeyValue) on the V1 wire, but the v0.4 downgrade this
+// test observes reproduces the original json_encode string for old-agent compatibility.
 $event = $span['span_events'][0];
 $attrs = $event['attributes'];
 var_dump($event['name'], $event['time_unix_nano']);

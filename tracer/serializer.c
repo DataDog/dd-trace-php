@@ -1011,6 +1011,124 @@ void transfer_span_metric(dd_span_sink *src, dd_span_sink *dst, const char *key,
         }                                                                                     \
     } while (0)
 
+// --- Native nested attributes for LINKS and EVENTS ---------------------------------------------
+//
+// Link/event attributes have no nested representation on the v0.4 wire, so the pre-native tracer
+// json_encode()'d array values into a string. To carry them natively on V1 without changing the
+// v0.4 wire, libdatadog's v0.4 downgrade reproduces PHP's json_encode byte-for-byte from a native
+// List/KeyValue (see msgpack_encoder/v04/span_v1.rs). That reproduction only matches for leaves
+// whose Rust formatting is identical to PHP's: ints, bools, strings, finite decimal-range floats,
+// and nested arrays of those. `dd_attr_native_safe` gates on exactly that; anything else (null,
+// non-finite / scientific-notation floats, objects — which json_encode may route through
+// JsonSerializable / property mangling —, recursive arrays) keeps the old json-string path, which
+// is byte-identical by construction. Unlike the SPAN native path (which stringifies leaves to
+// mirror the dotted-key flatten), these leaves preserve the PHP scalar TYPE to match json_encode.
+
+// json_encode prints doubles in decimal notation for |x| in [1e-4, 1e17) (and 0); Rust's f64
+// Display matches it there. Outside that window json_encode switches to exponential, which Rust
+// does not reproduce, so such values fall back to the json-string path.
+static bool dd_double_json_native_safe(double d) {
+    if (!zend_finite(d)) {
+        return false;
+    }
+    double a = d < 0 ? -d : d;
+    return d == 0.0 || (a >= 1e-4 && a < 1e17);
+}
+
+// True iff `value` can be represented as a native V1 List/KeyValue whose v0.4 json_encode
+// reproduction is byte-identical to PHP's json_encode. Only arrays (never objects) recurse.
+static bool dd_attr_native_safe(zval *value) {
+    ZVAL_DEREF(value);
+    switch (Z_TYPE_P(value)) {
+        case IS_TRUE:
+        case IS_FALSE:
+        case IS_LONG:
+        case IS_STRING:
+            return true;
+        case IS_DOUBLE:
+            return dd_double_json_native_safe(Z_DVAL_P(value));
+        case IS_ARRAY: {
+            zend_array *arr = Z_ARR_P(value);
+            if (GC_IS_RECURSIVE(arr)) {
+                return false;
+            }
+            bool safe = true;
+            GC_PROTECT_RECURSION(arr);
+            zval *v;
+            ZEND_HASH_FOREACH_VAL(arr, v) {
+                if (!dd_attr_native_safe(v)) {
+                    safe = false;
+                    break;
+                }
+            } ZEND_HASH_FOREACH_END();
+            GC_UNPROTECT_RECURSION(arr);
+            return safe;
+        }
+        default:
+            return false; // IS_NULL, IS_OBJECT, resources, references to cycles, ...
+    }
+}
+
+static void dd_native_typed_emit(struct ddog_AttrBuilder *dest, bool dest_is_map, ddog_CharSlice key, zval *value);
+
+// Iterates `arr` into the open container `dest`: list elements append positionally, map members
+// insert under their string key (numeric keys as decimal, matching PHP's json object keys).
+static void dd_native_typed_fill(struct ddog_AttrBuilder *dest, bool dest_is_list, zend_array *arr) {
+    zval *val;
+    zend_string *str_key;
+    zend_ulong num_key;
+    ZEND_HASH_FOREACH_KEY_VAL_IND(arr, num_key, str_key, val) {
+        if (dest_is_list) {
+            dd_native_typed_emit(dest, false, (ddog_CharSlice){0}, val);
+        } else {
+            char numbuf[24];
+            ddog_CharSlice mkey = str_key
+                ? dd_zend_string_to_CharSlice(str_key)
+                : (ddog_CharSlice){ .ptr = numbuf, .len = snprintf(numbuf, sizeof(numbuf), ZEND_ULONG_FMT, num_key) };
+            dd_native_typed_emit(dest, true, mkey, val);
+        }
+    } ZEND_HASH_FOREACH_END();
+}
+
+// Emits one leaf/child into `dest`, preserving the PHP scalar type. Only reached for values
+// `dd_attr_native_safe` accepted, so the default arm is unreachable.
+static void dd_native_typed_emit(struct ddog_AttrBuilder *dest, bool dest_is_map, ddog_CharSlice key, zval *value) {
+    ZVAL_DEREF(value);
+    switch (Z_TYPE_P(value)) {
+        case IS_TRUE:
+            if (dest_is_map) ddog_attr_map_put_bool(dest, key, true); else ddog_attr_list_push_bool(dest, true);
+            break;
+        case IS_FALSE:
+            if (dest_is_map) ddog_attr_map_put_bool(dest, key, false); else ddog_attr_list_push_bool(dest, false);
+            break;
+        case IS_LONG:
+            if (dest_is_map) ddog_attr_map_put_int(dest, key, Z_LVAL_P(value)); else ddog_attr_list_push_int(dest, Z_LVAL_P(value));
+            break;
+        case IS_DOUBLE:
+            if (dest_is_map) ddog_attr_map_put_double(dest, key, Z_DVAL_P(value)); else ddog_attr_list_push_double(dest, Z_DVAL_P(value));
+            break;
+        case IS_STRING: {
+            ddog_CharSlice v = dd_zend_string_to_CharSlice(Z_STR_P(value));
+            if (dest_is_map) ddog_attr_map_put_str(dest, key, v); else ddog_attr_list_push_str(dest, v);
+            break;
+        }
+        case IS_ARRAY: {
+            zend_array *arr = Z_ARR_P(value);
+            bool child_is_list = zend_array_is_list(arr);
+            struct ddog_AttrBuilder *child = child_is_list
+                ? (dest_is_map ? ddog_attr_map_open_list(dest, key) : ddog_attr_list_open_list(dest))
+                : (dest_is_map ? ddog_attr_map_open_map(dest, key) : ddog_attr_list_open_map(dest));
+            GC_PROTECT_RECURSION(arr);
+            dd_native_typed_fill(child, child_is_list, arr);
+            GC_UNPROTECT_RECURSION(arr);
+            ddog_attr_close(child);
+            break;
+        }
+        default:
+            break; // Unreachable: dd_attr_native_safe rejected every other type.
+    }
+}
+
 // Emit each SpanLink into the V1 builder span, reading from the PHP link objects (attributes are a
 // string map; dropped_attributes_count has no PHP-side source).
 static void dd_span_links_to_rust(zend_array *links, ddog_SpanNode *span) {
@@ -1046,9 +1164,22 @@ static void dd_span_links_to_rust(zend_array *links, ddog_SpanNode *span) {
                 ddog_CharSlice key_cs = key
                     ? dd_zend_string_to_CharSlice(key)
                     : (ddog_CharSlice){ .ptr = numbuf, .len = snprintf(numbuf, sizeof(numbuf), ZEND_ULONG_FMT, idx) };
+                ZVAL_DEREF(aval);
+                if (Z_TYPE_P(aval) == IS_ARRAY && dd_attr_native_safe(aval)) {
+                    zend_array *arr = Z_ARR_P(aval);
+                    bool is_list = zend_array_is_list(arr);
+                    struct ddog_AttrBuilder *top = is_list
+                        ? ddog_link_attr_open_list(rust_link, key_cs)
+                        : ddog_link_attr_open_map(rust_link, key_cs);
+                    GC_PROTECT_RECURSION(arr);
+                    dd_native_typed_fill(top, is_list, arr);
+                    GC_UNPROTECT_RECURSION(arr);
+                    ddog_attr_close(top);
+                } else {
 #define DD_ADD_LINK_ATTR(val_cs) ddog_link_add_attr_str(rust_link, key_cs, (val_cs))
-                DD_ADD_ZVAL_STR(DD_ADD_LINK_ATTR, aval);
+                    DD_ADD_ZVAL_STR(DD_ADD_LINK_ATTR, aval);
 #undef DD_ADD_LINK_ATTR
+                }
             } ZEND_HASH_FOREACH_END();
         }
     } ZEND_HASH_FOREACH_END();
@@ -1062,9 +1193,21 @@ static void dd_event_attribute_to_rust(ddog_SpanEventBytes *event, ddog_CharSlic
         case IS_LONG:   ddog_event_add_attr_int(event, key, Z_LVAL_P(val)); break;
         case IS_DOUBLE: ddog_event_add_attr_double(event, key, Z_DVAL_P(val)); break;
         default: {
+            if (Z_TYPE_P(val) == IS_ARRAY && dd_attr_native_safe(val)) {
+                zend_array *arr = Z_ARR_P(val);
+                bool is_list = zend_array_is_list(arr);
+                struct ddog_AttrBuilder *top = is_list
+                    ? ddog_event_attr_open_list(event, key)
+                    : ddog_event_attr_open_map(event, key);
+                GC_PROTECT_RECURSION(arr);
+                dd_native_typed_fill(top, is_list, arr);
+                GC_UNPROTECT_RECURSION(arr);
+                ddog_attr_close(top);
+            } else {
 #define DD_ADD_EVENT_ATTR(val_cs) ddog_event_add_attr_str(event, key, (val_cs))
-            DD_ADD_ZVAL_STR(DD_ADD_EVENT_ATTR, val);
+                DD_ADD_ZVAL_STR(DD_ADD_EVENT_ATTR, val);
 #undef DD_ADD_EVENT_ATTR
+            }
             break;
         }
     }
@@ -2183,29 +2326,31 @@ static void dd_attr_path_push(dd_attr_path *p, uintptr_t idx) {
     p->data[p->len++] = idx;
 }
 
-// Reads the native V1 span attribute at `path` into a zval, recursing into List/KeyValue so nested
-// attributes surface as nested PHP arrays (a list becomes a packed array, a KeyValue an assoc map).
-static void dd_attr_value_to_zval(ddog_TracerPayloadV1Builder *b, uintptr_t c, uintptr_t sp, dd_attr_path *path, zval *out) {
-    switch (ddog_v1_get_span_attr_child_type(b, c, sp, path->data, path->len)) {
+// Reads the native V1 attribute at `path` (under the span, or one of its links/events selected by
+// `kind`/`idx`) into a zval, recursing into List/KeyValue so nested attributes surface as nested
+// PHP arrays (a list becomes a packed array, a KeyValue an assoc map).
+static void dd_node_attr_value_to_zval(ddog_TracerPayloadV1Builder *b, uintptr_t c, uintptr_t sp,
+                                       uint32_t kind, uintptr_t idx, dd_attr_path *path, zval *out) {
+    switch (ddog_v1_get_node_attr_child_type(b, c, sp, kind, idx, path->data, path->len)) {
         case ddog_DDOG_V1_ATTR_INT:
-            ZVAL_LONG(out, ddog_v1_get_span_attr_child_int(b, c, sp, path->data, path->len));
+            ZVAL_LONG(out, ddog_v1_get_node_attr_child_int(b, c, sp, kind, idx, path->data, path->len));
             break;
         case ddog_DDOG_V1_ATTR_DOUBLE:
-            ZVAL_DOUBLE(out, ddog_v1_get_span_attr_child_double(b, c, sp, path->data, path->len));
+            ZVAL_DOUBLE(out, ddog_v1_get_node_attr_child_double(b, c, sp, kind, idx, path->data, path->len));
             break;
         case ddog_DDOG_V1_ATTR_BOOL:
-            ZVAL_BOOL(out, ddog_v1_get_span_attr_child_bool(b, c, sp, path->data, path->len));
+            ZVAL_BOOL(out, ddog_v1_get_node_attr_child_bool(b, c, sp, kind, idx, path->data, path->len));
             break;
         case ddog_DDOG_V1_ATTR_BYTES:
-            ZVAL_STR(out, dd_CharSlice_to_zend_string(ddog_v1_get_span_attr_child_bytes(b, c, sp, path->data, path->len)));
+            ZVAL_STR(out, dd_CharSlice_to_zend_string(ddog_v1_get_node_attr_child_bytes(b, c, sp, kind, idx, path->data, path->len)));
             break;
         case ddog_DDOG_V1_ATTR_LIST: {
             array_init(out);
-            size_t n = ddog_v1_get_span_attr_child_count(b, c, sp, path->data, path->len);
+            size_t n = ddog_v1_get_node_attr_child_count(b, c, sp, kind, idx, path->data, path->len);
             for (size_t i = 0; i < n; i++) {
                 dd_attr_path_push(path, i);
                 zval v;
-                dd_attr_value_to_zval(b, c, sp, path, &v);
+                dd_node_attr_value_to_zval(b, c, sp, kind, idx, path, &v);
                 add_next_index_zval(out, &v);
                 path->len--;
             }
@@ -2213,19 +2358,19 @@ static void dd_attr_value_to_zval(ddog_TracerPayloadV1Builder *b, uintptr_t c, u
         }
         case ddog_DDOG_V1_ATTR_KEYVALUE: {
             array_init(out);
-            size_t n = ddog_v1_get_span_attr_child_count(b, c, sp, path->data, path->len);
+            size_t n = ddog_v1_get_node_attr_child_count(b, c, sp, kind, idx, path->data, path->len);
             for (size_t i = 0; i < n; i++) {
                 dd_attr_path_push(path, i);
-                ddog_CharSlice mkey = ddog_v1_get_span_attr_child_key(b, c, sp, path->data, path->len);
+                ddog_CharSlice mkey = ddog_v1_get_node_attr_child_key(b, c, sp, kind, idx, path->data, path->len);
                 zval v;
-                dd_attr_value_to_zval(b, c, sp, path, &v);
+                dd_node_attr_value_to_zval(b, c, sp, kind, idx, path, &v);
                 add_assoc_zval_ex(out, mkey.ptr, mkey.len, &v);
                 path->len--;
             }
             break;
         }
         default: // STRING
-            ZVAL_STR(out, dd_CharSlice_to_zend_string(ddog_v1_get_span_attr_child_str(b, c, sp, path->data, path->len)));
+            ZVAL_STR(out, dd_CharSlice_to_zend_string(ddog_v1_get_node_attr_child_str(b, c, sp, kind, idx, path->data, path->len)));
             break;
     }
 }
@@ -2310,7 +2455,7 @@ zval dd_serialize_rust_to_zval(ddog_TracerPayloadV1Builder *b) {
                     zval value_zv;
                     path.len = 0;
                     dd_attr_path_push(&path, k);
-                    dd_attr_value_to_zval(b, c, j, &path, &value_zv);
+                    dd_node_attr_value_to_zval(b, c, j, ddog_DDOG_V1_ATTR_NODE_SPAN, 0, &path, &value_zv);
                     // Bytes-typed attributes are v0.4 meta_struct entries; surface them under
                     // "meta_struct" (as the v0.4 reader did), not mixed into the attribute map.
                     if (ddog_v1_get_span_attr_type(b, c, j, k) == ddog_DDOG_V1_ATTR_BYTES) {
@@ -2352,11 +2497,17 @@ zval dd_serialize_rust_to_zval(ddog_TracerPayloadV1Builder *b) {
                     if (lattr_count > 0) {
                         zval lattrs_zv;
                         array_init(&lattrs_zv);
+                        dd_attr_path lpath = {0};
                         for (size_t k = 0; k < lattr_count; k++) {
-                            ddog_CharSlice key = ddog_v1_get_link_attr_key(b, c, j, l, k);
+                            lpath.len = 0;
+                            dd_attr_path_push(&lpath, k);
+                            ddog_CharSlice key = ddog_v1_get_node_attr_child_key(b, c, j, ddog_DDOG_V1_ATTR_NODE_LINK, l, lpath.data, lpath.len);
                             zval v;
-                            ZVAL_STR(&v, dd_CharSlice_to_zend_string(ddog_v1_get_link_attr_str(b, c, j, l, k)));
+                            dd_node_attr_value_to_zval(b, c, j, ddog_DDOG_V1_ATTR_NODE_LINK, l, &lpath, &v);
                             zend_hash_str_update(Z_ARR(lattrs_zv), key.ptr, key.len, &v);
+                        }
+                        if (lpath.data) {
+                            efree(lpath.data);
                         }
                         add_assoc_zval(&link_zv, "attributes", &lattrs_zv);
                     }
@@ -2378,16 +2529,17 @@ zval dd_serialize_rust_to_zval(ddog_TracerPayloadV1Builder *b) {
                     if (eattr_count > 0) {
                         zval eattrs_zv;
                         array_init(&eattrs_zv);
+                        dd_attr_path epath = {0};
                         for (size_t k = 0; k < eattr_count; k++) {
-                            ddog_CharSlice key = ddog_v1_get_event_attr_key(b, c, j, e, k);
+                            epath.len = 0;
+                            dd_attr_path_push(&epath, k);
+                            ddog_CharSlice key = ddog_v1_get_node_attr_child_key(b, c, j, ddog_DDOG_V1_ATTR_NODE_EVENT, e, epath.data, epath.len);
                             zval v;
-                            switch (ddog_v1_get_event_attr_type(b, c, j, e, k)) {
-                                case ddog_DDOG_V1_ATTR_INT:    ZVAL_LONG(&v, ddog_v1_get_event_attr_int(b, c, j, e, k)); break;
-                                case ddog_DDOG_V1_ATTR_DOUBLE: ZVAL_DOUBLE(&v, ddog_v1_get_event_attr_double(b, c, j, e, k)); break;
-                                case ddog_DDOG_V1_ATTR_BOOL:   ZVAL_BOOL(&v, ddog_v1_get_event_attr_bool(b, c, j, e, k)); break;
-                                default: ZVAL_STR(&v, dd_CharSlice_to_zend_string(ddog_v1_get_event_attr_str(b, c, j, e, k))); break;
-                            }
+                            dd_node_attr_value_to_zval(b, c, j, ddog_DDOG_V1_ATTR_NODE_EVENT, e, &epath, &v);
                             zend_hash_str_update(Z_ARR(eattrs_zv), key.ptr, key.len, &v);
+                        }
+                        if (epath.data) {
+                            efree(epath.data);
                         }
                         add_assoc_zval(&event_zv, "attributes", &eattrs_zv);
                     }

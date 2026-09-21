@@ -264,6 +264,21 @@ typedef struct ddog_Vec_Tag_ParseResult {
 typedef struct _zend_string _zend_string;
 
 
+/**
+ * The span's own attribute map.
+ */
+#define ddog_DDOG_V1_ATTR_NODE_SPAN 0
+
+/**
+ * The attribute map of the link at `node_idx`.
+ */
+#define ddog_DDOG_V1_ATTR_NODE_LINK 1
+
+/**
+ * The attribute map of the event at `node_idx`.
+ */
+#define ddog_DDOG_V1_ATTR_NODE_EVENT 2
+
 #define ddog_LOG_ONCE (1 << 3)
 
 /**
