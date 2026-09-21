@@ -706,8 +706,8 @@ foreach ($all_minor_major_targets as $major_minor):
 <?php if (version_compare($major_minor, "7.2", ">=")): /* too expensive */ ?>
     DD_INSTRUMENTATION_TELEMETRY_ENABLED: 0
 <?php endif; ?>
-<?php if ($major_minor === "7.1"): ?>
-  # PHP 7.1 has telemetry enabled, hits too many job timeouts at 40 mins
+<?php if (version_compare($major_minor, "7.2", "<")): ?>
+  # PHP lt 7.2 have telemetry enabled, hit too many job timeouts at 40 mins.
   timeout: 48m
 <?php else: ?>
   timeout: 40m
