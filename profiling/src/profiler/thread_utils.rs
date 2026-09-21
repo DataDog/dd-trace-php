@@ -11,52 +11,64 @@ use crate::profiling::sapi::Sapi;
 #[cfg(php_zts)]
 use libc::c_char;
 
-/// Spawns a thread and masks off the signals that the Zend Engine uses.
+/// Spawns a thread with asynchronous signals masked.
 pub fn spawn<F, T>(name: &str, f: F) -> JoinHandle<T>
 where
     F: FnOnce() -> T + Send + 'static,
     T: Send + 'static,
 {
-    let result = std::thread::Builder::new()
-        .name(name.to_string())
-        .spawn(move || {
-            /* This helper thread has no valid PHP/TSRM context, so it must not
-             * run any PHP signal handler. The Zend Engine registers a fixed set
-             * of signals (see Zend/zend_signal.c), but a PHP script can install
-             * a handler for *any* signal via pcntl_signal() (e.g. SIGCHLD with
-             * pcntl_async_signals(true)). If such a signal is delivered to this
-             * thread, pcntl_signal_handler() dereferences PCNTL_G(spares) with
-             * no thread context and segfaults
-             * (see ext/pcntl/tests/waiting_on_sigchild_pcntl_wait.phpt).
-             *
-             * So block every signal here; async signals are then delivered to a
-             * PHP thread instead. The synchronous fault signals are left
-             * unblocked so a genuine fault on this thread is still reported
-             * (e.g. by the crashtracker) rather than masked.
-             */
-            unsafe {
-                let mut sigset_mem = MaybeUninit::uninit();
-                let sigset = sigset_mem.as_mut_ptr();
-                libc::sigfillset(sigset);
+    /* This helper thread has no valid PHP/TSRM context, so it must not run
+     * any PHP signal handler. Block asynchronous signals in the parent before
+     * spawning: the new thread inherits the mask atomically with its creation.
+     * Masking only inside the new thread leaves a window in which PHP can
+     * install and trigger an asynchronous handler before the helper runs.
+     *
+     * Synchronous fault signals remain unblocked so a genuine fault on the
+     * helper thread is still reported, for example by the crashtracker.
+     */
+    let mut sigset_mem = MaybeUninit::uninit();
+    let mut previous_mask_mem = MaybeUninit::uninit();
+    let sigset = sigset_mem.as_mut_ptr();
 
-                // Hardware/synchronous fault signals: keep them deliverable to
-                // this thread.
-                const KEEP_UNBLOCKED: [libc::c_int; 6] = [
-                    libc::SIGSEGV,
-                    libc::SIGBUS,
-                    libc::SIGFPE,
-                    libc::SIGILL,
-                    libc::SIGABRT,
-                    libc::SIGTRAP,
-                ];
+    // SAFETY: both signal sets point to valid, suitably aligned storage.
+    let mask_result = unsafe {
+        libc::sigfillset(sigset);
 
-                for signal in KEEP_UNBLOCKED {
-                    libc::sigdelset(sigset, signal);
-                }
-                libc::pthread_sigmask(libc::SIG_BLOCK, sigset, std::ptr::null_mut());
-            }
-            f()
-        });
+        const KEEP_UNBLOCKED: [libc::c_int; 6] = [
+            libc::SIGSEGV,
+            libc::SIGBUS,
+            libc::SIGFPE,
+            libc::SIGILL,
+            libc::SIGABRT,
+            libc::SIGTRAP,
+        ];
+
+        for signal in KEEP_UNBLOCKED {
+            libc::sigdelset(sigset, signal);
+        }
+
+        libc::pthread_sigmask(libc::SIG_BLOCK, sigset, previous_mask_mem.as_mut_ptr())
+    };
+    assert_eq!(
+        mask_result, 0,
+        "failed to block signals before spawning {name}"
+    );
+
+    let result = std::thread::Builder::new().name(name.to_string()).spawn(f);
+
+    // SAFETY: pthread_sigmask initialized previous_mask_mem above, and this
+    // restores the spawning PHP thread regardless of whether spawn succeeded.
+    let restore_result = unsafe {
+        libc::pthread_sigmask(
+            libc::SIG_SETMASK,
+            previous_mask_mem.as_ptr(),
+            std::ptr::null_mut(),
+        )
+    };
+    assert_eq!(
+        restore_result, 0,
+        "failed to restore signal mask after spawning {name}"
+    );
 
     match result {
         Ok(handle) => handle,
