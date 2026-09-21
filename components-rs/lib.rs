@@ -45,6 +45,8 @@ pub mod log;
 pub mod remote_config;
 #[cfg(not(standalone_profiler))]
 pub mod sidecar;
+#[cfg(all(not(standalone_profiler), target_os = "linux"))]
+pub mod signal_flush;
 #[cfg(not(standalone_profiler))]
 pub mod stats;
 #[cfg(not(standalone_profiler))]
