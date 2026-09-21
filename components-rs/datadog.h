@@ -9,6 +9,14 @@ struct _zend_string;
 #include "telemetry.h"
 #include "sidecar.h"
 
+#if defined(__linux__)
+/**
+ * Prepared, independent, sessionless connection. Opaque to C; immutable after publication.
+ * Only normal initialized threads may construct or destroy this object.
+ */
+typedef struct ddog_SignalFlush ddog_SignalFlush;
+#endif
+
 extern void (*ddog_log_callback)(ddog_CharSlice);
 
 extern ddog_VecRemoteConfigProduct DATADOG_REMOTE_CONFIG_PRODUCTS;
@@ -272,6 +280,34 @@ void datadog_sidecar_set_reconnect_fn(struct ddog_SidecarTransport **transport,
                                       struct ddog_SidecarTransport *(*factory)(void));
 
 void datadog_sidecar_clear_reconnect_fn(struct ddog_SidecarTransport **transport);
+
+#if defined(__linux__)
+/**
+ * Connect independently to the template's exact listener and prepare one Flush request.
+ * The template is borrowed only during this call: neither it nor its fd is retained.
+ * The returned object must outlive the raw worker and may only be dropped normally.
+ */
+ddog_MaybeError datadog_sidecar_prepare_signal_flush(struct ddog_SidecarTransport *template_,
+                                                     struct ddog_SignalFlush **output);
+#endif
+
+#if defined(__linux__)
+/**
+ * Destroy an unpublished object, or one whose raw worker has exited. Normal context only.
+ */
+void datadog_sidecar_signal_flush_drop(struct ddog_SignalFlush *flush);
+#endif
+
+#if defined(__linux__)
+/**
+ * Execute one bounded exchange without calling libc, using TLS, allocating, or unwinding.
+ * If `terminate_process` is true, terminate the process after the flush completes, fails, or
+ * times out. Otherwise, return zero for the one-byte zero ACK or a negative Linux error number.
+ * The caller must keep the object alive and guarantee exclusive, one-shot use of its socket.
+ */
+int32_t datadog_sidecar_signal_flush_run(const struct ddog_SignalFlush *flush,
+                                         bool terminate_process);
+#endif
 
 bool ddog_shm_limiter_inc(const struct ddog_MaybeShmLimiter *limiter, uint32_t limit);
 

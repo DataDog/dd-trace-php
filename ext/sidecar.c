@@ -13,6 +13,7 @@
 #include "telemetry.h"
 #include "process_tags.h"
 #include "remote_config.h"
+#include "signals.h"
 #include "string_utils.h"
 #include "target_metadata.h"
 #include "ffi_utils.h"
@@ -204,6 +205,7 @@ void datadog_sidecar_refresh_user_service_defined(void) {
 }
 
 static void datadog_sidecar_setup_thread_mode(void);
+static void dd_sidecar_setup_signal_transport(void);
 
 static void dd_sidecar_on_reconnect(ddog_SidecarTransport *transport) {
     if (!datadog_endpoint || !dogstatsd_endpoint) {
@@ -306,6 +308,22 @@ static ddog_SidecarTransport *dd_sidecar_connect(bool as_worker, bool is_fork) {
     dd_sidecar_post_connect(&sidecar_transport, is_fork, logpath);
 
     return sidecar_transport;
+}
+
+static void dd_sidecar_setup_signal_transport(void) {
+#ifdef __linux__
+    if (datadog_signals_has_sidecar_flush() || !DATADOG_G(sidecar) ||
+        (!get_global_DD_TRACE_FORCE_FLUSH_ON_SIGTERM() && !get_global_DD_TRACE_FORCE_FLUSH_ON_SIGINT())) {
+        return;
+    }
+
+    ddog_SignalFlush *flush = NULL;
+    if (datadog_ffi_try("Failed preparing signal-only sidecar connection",
+                        datadog_sidecar_prepare_signal_flush(DATADOG_G(sidecar), &flush))) {
+        // Takes ownership, including when another normal thread published first.
+        datadog_signals_set_sidecar_flush(flush);
+    }
+#endif
 }
 
 static void datadog_sidecar_setup_thread_mode() {
@@ -470,6 +488,7 @@ void datadog_sidecar_setup(ddog_RemoteConfigFlags flags) {
     if (DATADOG_G(sidecar) && !datadog_sidecar_for_signal) {
         datadog_sidecar_for_signal = DATADOG_G(sidecar);
     }
+    dd_sidecar_setup_signal_transport();
 }
 
 void datadog_sidecar_minit(void) {
@@ -489,6 +508,9 @@ void datadog_sidecar_minit(void) {
 
 void datadog_sidecar_handle_fork(void) {
 #ifndef _WIN32
+#ifdef __linux__
+    datadog_signals_reset_sidecar_flush_after_fork();
+#endif
     ddog_RemoteConfigFlags flags = {0};
     bool enable_sidecar = datadog_sidecar_should_enable(&flags);
 
@@ -546,6 +568,7 @@ void datadog_sidecar_handle_fork(void) {
     if (DATADOG_G(sidecar)) {
         datadog_sidecar_for_signal = DATADOG_G(sidecar);
     }
+    dd_sidecar_setup_signal_transport();
 #endif
 }
 
@@ -580,6 +603,7 @@ void datadog_sidecar_ensure_active(void) {
             datadog_sidecar_for_signal = DATADOG_G(sidecar);
         }
     }
+    dd_sidecar_setup_signal_transport();
 }
 
 void datadog_sidecar_finalize(bool clear_id) {

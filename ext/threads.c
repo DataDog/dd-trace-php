@@ -156,23 +156,27 @@ __asm__(
     ".hidden datadog_clone_thread\n"
     ".type datadog_clone_thread,@function\n"
     "datadog_clone_thread:\n"
-    /* in: rdi = fn, rsi = stack_top, edx = flags, rcx = arg */
+    /* in: rdi = fn, rsi = stack_top, edx = flags, rcx = arg,
+     *     r8b = terminate_process, r9 = tid */
     "   andq  $-16, %rsi\n"           /* align the child stack */
-    "   subq  $16, %rsi\n"            /* hand fn and arg over on it */
+    "   subq  $32, %rsi\n"            /* hand fn, arg and flag over on it */
     "   movq  %rdi, 0(%rsi)\n"
     "   movq  %rcx, 8(%rsi)\n"
+    "   movb  %r8b, 16(%rsi)\n"
     /* syscall: rdi = flags, rsi = newsp, rdx = parent_tid, r10 = child_tid, r8 = tls */
     "   movl  %edx, %edi\n"
-    "   xorl  %edx, %edx\n"
-    "   xorl  %r10d, %r10d\n"
+    "   movq  %r9, %rdx\n"           /* independent parent_tid / clear_child_tid word */
+    "   movq  %r9, %r10\n"
     "   xorl  %r8d, %r8d\n"
     "   movl  $56, %eax\n"            /* SYS_clone */
     "   syscall\n"
     "   testq %rax, %rax\n"           /* parent: tid or -errno; child: 0 */
     "   jnz   1f\n"
     "   xorl  %ebp, %ebp\n"           /* end the frame pointer chain */
-    "   popq  %rax\n"                 /* fn */
-    "   popq  %rdi\n"                 /* arg */
+    "   movq  0(%rsp), %rax\n"        /* fn */
+    "   movq  8(%rsp), %rdi\n"        /* arg */
+    "   movzbl 16(%rsp), %esi\n"      /* terminate_process */
+    "   addq  $32, %rsp\n"            /* restore alignment before call */
     "   callq *%rax\n"
     "   movl  %eax, %edi\n"           /* fn's return value is the thread's exit status */
     "   movl  $60, %eax\n"            /* SYS_exit -- this thread only, not exit_group */
@@ -180,6 +184,24 @@ __asm__(
     "   hlt\n"                        /* unreachable */
     "1: ret\n"
     ".size datadog_clone_thread,.-datadog_clone_thread\n");
+
+__asm__(
+    ".text\n"
+    ".globl datadog_raw_syscall6\n"
+    ".hidden datadog_raw_syscall6\n"
+    ".type datadog_raw_syscall6,@function\n"
+    "datadog_raw_syscall6:\n"
+    /* C ABI: rdi = number, rsi/rdi... = six syscall arguments. */
+    "   movq  %rdi, %rax\n"
+    "   movq  %rsi, %rdi\n"
+    "   movq  %rdx, %rsi\n"
+    "   movq  %rcx, %rdx\n"
+    "   movq  %r8, %r10\n"
+    "   movq  %r9, %r8\n"
+    "   movq  8(%rsp), %r9\n"
+    "   syscall\n"
+    "   ret\n"
+    ".size datadog_raw_syscall6,.-datadog_raw_syscall6\n");
 #elif defined(__aarch64__)
 __asm__(
     ".text\n"
@@ -187,29 +209,77 @@ __asm__(
     ".hidden datadog_clone_thread\n"
     ".type datadog_clone_thread,%function\n"
     "datadog_clone_thread:\n"
-    /* in: x0 = fn, x1 = stack_top, w2 = flags, x3 = arg */
+    /* in: x0 = fn, x1 = stack_top, w2 = flags, x3 = arg,
+     *     w4 = terminate_process, x5 = tid */
     "   and   x1, x1, #-16\n"         /* align the child stack */
-    "   stp   x0, x3, [x1, #-16]!\n"  /* hand fn and arg over on it; x1 becomes newsp */
+    "   sub   x1, x1, #32\n"
+    "   stp   x0, x3, [x1]\n"         /* hand fn and arg over on it; x1 is newsp */
+    "   strb  w4, [x1, #16]\n"        /* terminate_process */
     /* syscall: x0 = flags, x1 = newsp, x2 = parent_tid, x3 = tls, x4 = child_tid */
     "   mov   w0, w2\n"
-    "   mov   x2, #0\n"
+    "   mov   x2, x5\n"              /* same independent parent_tid / clear_child_tid word */
     "   mov   x3, #0\n"
-    "   mov   x4, #0\n"
+    "   mov   x4, x5\n"
     "   mov   x8, #220\n"             /* SYS_clone */
     "   svc   #0\n"
     "   cbz   x0, 1f\n"               /* parent: tid or -errno; child: 0 */
     "   ret\n"
-    "1: ldp   x1, x0, [sp], #16\n"    /* x1 = fn, x0 = arg */
+    "1: ldp   x16, x0, [sp]\n"        /* x16 = fn, x0 = arg */
+    "   ldrb  w1, [sp, #16]\n"        /* terminate_process */
+    "   add   sp, sp, #32\n"
     "   mov   x29, #0\n"              /* end the frame pointer chain */
-    "   blr   x1\n"                   /* fn's return value is left in w0 */
+    "   blr   x16\n"                  /* fn's return value is left in w0 */
     "   mov   w8, #93\n"              /* SYS_exit -- this thread only, not exit_group */
     "   svc   #0\n"
     "   brk   #0\n"                   /* unreachable */
     ".size datadog_clone_thread,.-datadog_clone_thread\n");
+
+__asm__(
+    ".text\n"
+    ".globl datadog_raw_syscall6\n"
+    ".hidden datadog_raw_syscall6\n"
+    ".type datadog_raw_syscall6,%function\n"
+    "datadog_raw_syscall6:\n"
+    /* C ABI: x0 = number, x1..x6 = six syscall arguments. */
+    "   mov   x8, x0\n"
+    "   mov   x0, x1\n"
+    "   mov   x1, x2\n"
+    "   mov   x2, x3\n"
+    "   mov   x3, x4\n"
+    "   mov   x4, x5\n"
+    "   mov   x5, x6\n"
+    "   svc   #0\n"
+    "   ret\n"
+    ".size datadog_raw_syscall6,.-datadog_raw_syscall6\n");
 #else
-#include <sched.h>
-int datadog_clone_thread(int (*fn)(void *), void *stack_top, int flags, void *arg) {
-    return clone(fn, stack_top, flags, arg);
+int datadog_clone_thread(datadog_raw_clone_fn fn, void *stack_top, int flags,
+                         const struct ddog_SignalFlush *arg, bool terminate_process, _Atomic(int) *tid) {
+    (void)fn;
+    (void)stack_top;
+    (void)flags;
+    (void)arg;
+    (void)terminate_process;
+    (void)tid;
+    return -1;
+}
+
+long datadog_raw_syscall6(
+    long number,
+    long arg1,
+    long arg2,
+    long arg3,
+    long arg4,
+    long arg5,
+    long arg6
+) {
+    (void)number;
+    (void)arg1;
+    (void)arg2;
+    (void)arg3;
+    (void)arg4;
+    (void)arg5;
+    (void)arg6;
+    return -1;
 }
 #endif
 
