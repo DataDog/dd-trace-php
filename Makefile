@@ -1270,9 +1270,11 @@ define run_tests
 	$(if $(PHPUNIT_COVERAGE),$(call run_tests_with_coverage,$(1)),$(call run_tests_without_coverage,$(1)))
 endef
 
+# 3>&- closes phpunit's copy of the job-stdout dup: proc_open leaks it into every server the
+# harness spawns, and one outliving the run would hold the job's log pipe open (never EOF).
 define run_tests_debug
 	$(eval TEST_EXTRA_ENV=$(TEST_EXTRA_ENV) DD_TRACE_DEBUG=1)
-	(set -o pipefail; { $(call run_tests,$(1)) 2>&1 >&3 | \
+	(set -o pipefail; { $(call run_tests,$(1)) 2>&1 >&3 3>&- | \
 		tee >(grep --line-buffered -vE '\[ddtrace\] \[debug\]|\[ddtrace\] \[info\]' >&2) | \
 		{ ! (grep --line-buffered -E '\[error\]|\[warning\]|\[deprecated\]' >/dev/null && \
 		echo $$'\033[41m'"ERROR: Found debug log errors in the output."$$'\033[0m'); }; } 3>&1 \

@@ -1,9 +1,17 @@
 {
 	# Enable FrankenPHP
 	frankenphp {
-        worker {
-            file {{frankenphp_php}}
-        }
+		# The worker pool serves every request (php_server's try_files routes all URLs to the worker
+		# file), so this only has to stay above the worker `num` -- below it, FrankenPHP won't start.
+		num_threads 4
+		# Defaults to 0, i.e. a request with no free thread waits on a nil channel forever, turning
+		# a stuck server into a job timeout instead of a failed test.
+		max_wait_time 15s
+		worker {
+			file {{frankenphp_php}}
+			# Defaults to 2*GOMAXPROCS, and the CI pod sets no CPU limit: 150+ ZTS threads on 2 CPUs.
+			num 2
+		}
 	}
 	# Configure when the directive must be executed
 	order php_server before file_server

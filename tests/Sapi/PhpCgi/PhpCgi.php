@@ -79,14 +79,32 @@ final class PhpCgi implements Sapi
         $this->process->start();
     }
 
+    public function waitUntilServerRunning()
+    {
+        // php-cgi binds the FastCGI port only once module startup (MINIT) is done, which can
+        // take seconds; nginx would otherwise proxy to a closed port and serve 502s.
+        for ($try = 0; $try < 100; $try++) {
+            $socket = @fsockopen($this->host, $this->port);
+            if ($socket !== false) {
+                fclose($socket);
+                return true;
+            }
+            if (!$this->process->isRunning()) {
+                // Died in startup: surface why, instead of polling a port nothing will bind.
+                error_log("[php-cgi] Exited before binding: " . $this->process->getErrorOutput());
+                return false;
+            }
+            usleep(50000);
+        }
+
+        return false;
+    }
+
     public function stop()
     {
         error_log("[php-cgi] Stopping...");
-        if ($this->ddprofServiceName !== null) {
-            $this->process->stop(1); # give time for ddprof to submit
-        } else {
-            $this->process->stop(0);
-        }
+        // Grace so ddprof, when enabled, has time to submit before the SIGKILL.
+        $this->process->stop(1);
     }
 
     public function isFastCgi()
