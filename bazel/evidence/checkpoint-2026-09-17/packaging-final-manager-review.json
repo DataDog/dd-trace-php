@@ -1,0 +1,29 @@
+[
+  {
+    "name": "packaging-success",
+    "command": "BB_DISABLE_SIDECAR=1 PATH=\"$PWD/build/bin:$PATH\" build/bin/bb --batch --output_user_root=/tmp/dd-checkpoint-provider-review build //bazel/packaging:artifact_contract_binary //bazel/packaging:fixture_manifest_product_binary //bazel/packaging:fixture_projected_payload //bazel/packaging:fixture_bundle --build_tag_filters= --config=local-hermetic --spawn_strategy=processwrapper-sandbox --strategy=Genrule=processwrapper-sandbox --noexperimental_use_hermetic_linux_sandbox --remote_cache= --remote_executor= --bes_backend= --bes_results_url= --remote_upload_local_results=false --repository_cache=/home/bits/.cache/dd-php-bazel-combined-downloads --repository_contents_cache=/home/bits/.cache/dd-php-bazel-repo-contents --repository_disable_download --lockfile_mode=error --host_platform=//bazel/platforms:linux_amd64_exec --extra_execution_platforms=//bazel/platforms:linux_amd64_exec --norun_validations",
+    "exit_code": 0,
+    "expected_exit_code": 0,
+    "expected_diagnostic": null,
+    "log": "packaging-success.log",
+    "log_sha256": "a8c9f4349a8f4a1aad0a64a83cd5639f2658af4365c406963113efddb51389fd"
+  },
+  {
+    "name": "packaging-wrong-scope",
+    "command": "BB_DISABLE_SIDECAR=1 PATH=\"$PWD/build/bin:$PATH\" build/bin/bb --batch --output_user_root=/tmp/dd-checkpoint-provider-review build //bazel/packaging:artifact_contract_wrong_scope --build_tag_filters= --config=local-hermetic --spawn_strategy=processwrapper-sandbox --strategy=Genrule=processwrapper-sandbox --noexperimental_use_hermetic_linux_sandbox --remote_cache= --remote_executor= --bes_backend= --bes_results_url= --remote_upload_local_results=false --repository_cache=/home/bits/.cache/dd-php-bazel-combined-downloads --repository_contents_cache=/home/bits/.cache/dd-php-bazel-repo-contents --repository_disable_download --lockfile_mode=error --host_platform=//bazel/platforms:linux_amd64_exec --extra_execution_platforms=//bazel/platforms:linux_amd64_exec --norun_validations",
+    "exit_code": 1,
+    "expected_exit_code": 1,
+    "expected_diagnostic": "product scope mismatch",
+    "log": "packaging-wrong-scope.log",
+    "log_sha256": "a92957812f884a0e6fbf8979a278284c05cf3be455608643cc0a821345714e27"
+  },
+  {
+    "name": "packaging-absent-role",
+    "command": "BB_DISABLE_SIDECAR=1 PATH=\"$PWD/build/bin:$PATH\" build/bin/bb --batch --output_user_root=/tmp/dd-checkpoint-provider-review build //bazel/packaging:artifact_contract_absent_role --build_tag_filters= --config=local-hermetic --spawn_strategy=processwrapper-sandbox --strategy=Genrule=processwrapper-sandbox --noexperimental_use_hermetic_linux_sandbox --remote_cache= --remote_executor= --bes_backend= --bes_results_url= --remote_upload_local_results=false --repository_cache=/home/bits/.cache/dd-php-bazel-combined-downloads --repository_contents_cache=/home/bits/.cache/dd-php-bazel-repo-contents --repository_disable_download --lockfile_mode=error --host_platform=//bazel/platforms:linux_amd64_exec --extra_execution_platforms=//bazel/platforms:linux_amd64_exec --norun_validations",
+    "exit_code": 1,
+    "expected_exit_code": 1,
+    "expected_diagnostic": "does not expose required",
+    "log": "packaging-absent-role.log",
+    "log_sha256": "694644d9d01bb16832c6202379b1418b3d90f348835171ff7548b2cf71691b83"
+  }
+]

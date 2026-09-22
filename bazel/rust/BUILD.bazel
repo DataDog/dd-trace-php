@@ -1,0 +1,74 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary")
+
+package(default_visibility = ["//visibility:public"])
+
+toolchain_type(name = "llvm20_bindgen_toolchain_type")
+
+exports_files([
+    "BUILD_SCRIPTS.md",
+    "INTEGRATION.md",
+    "dependency_guard.bzl",
+    "defs.bzl",
+    "exact_rules.bzl",
+    "exact_dep_validation.bzl",
+    "ffi_headers.bzl",
+    "libdatadog.bzl",
+    "libdatadog_profiler.bzl",
+    "libddwaf.bzl",
+    "llvm20_bindgen.bzl",
+    "llvm20_bindgen.rs",
+    "libddwaf-sys-explicit-bindings.patch",
+    "libddwaf-sys-source-explicit-bindings.patch",
+    "libddwaf-sys-explicit-package-metadata.patch",
+    "libddwaf-explicit-package-metadata.patch",
+    "libddwaf-source-explicit-package-metadata.patch",
+    "libddwaf-sys-source-explicit-package-metadata.patch",
+    "php_abi.bzl",
+    "profiler_bindings.h",
+    "profiler_native.bzl",
+    "profiler_product.bzl",
+    "materialize_profiler_bindings.sh",
+    "product_repository.bzl",
+    "product_graphs.bzl",
+    "product_profile.bzl",
+    "rules_rs_locked_registry_config.patch",
+    "rules_rs_exec_features.patch",
+    "rules_rs_rustc_src_direct.patch",
+    "rules_rust_cargo_execroot.patch",
+    "product_feature_guard.bzl",
+    "profiler-resolution.Cargo.toml",
+    "tracer-resolution.Cargo.toml",
+    "profiler.Cargo.lock",
+    "spawn-worker-explicit-artifacts.patch",
+    "tracer.Cargo.lock",
+    "verify_unit_features.py",
+    "workspace_repository.bzl",
+    "workspace_crates.bzl",
+])
+
+# This target is always consumed in the execution configuration. The explicit
+# cfg keeps the Rust compiler wrapper from statically linking it: clang-sys
+# must dlopen the pinned LLVM 20 libclang supplied by its launcher toolchain.
+rust_binary(
+    name = "llvm20_bindgen_raw",
+    srcs = ["llvm20_bindgen.rs"],
+    crate_name = "ddtrace_llvm20_bindgen",
+    edition = "2021",
+    rustc_flags = ["--cfg=ddtrace_dynamic_exec_tool"],
+    deps = ["@ddtrace_rust_crates//:bindgen-0.72.1"],
+)
+
+rust_binary(
+    name = "ffi_header_check",
+    srcs = ["ffi_header_check.rs"],
+    crate_name = "ddtrace_ffi_header_check",
+    edition = "2021",
+)
+
+rust_binary(
+    name = "ffi_header_dedup",
+    srcs = ["ffi_header_dedup.rs"],
+    crate_name = "ddtrace_ffi_header_dedup",
+    edition = "2021",
+    deps = ["//:rust_libdatadog_libdd_common"],
+)

@@ -1,0 +1,219 @@
+diff -ruN a/cargo/private/cargo_build_script.bzl b/cargo/private/cargo_build_script.bzl
+--- a/cargo/private/cargo_build_script.bzl	2026-09-16 23:48:28.359116547 +0000
++++ b/cargo/private/cargo_build_script.bzl	2026-09-17 00:01:29.636782111 +0000
+@@ -109,6 +109,33 @@
+     apple_support.path_placeholders.sdkroot(),
+ ]
+ 
++_PROC_SELF_CWD_PREFIX = "/proc/self/cwd/"
++
++# Bazel's C++ APIs may return tools rooted at /proc/self/cwd. That spelling is
++# valid in a direct action, but cargo_build_script_runner changes directory to
++# the crate before invoking the build script. Convert it to the runner's
++# execroot placeholder before that chdir happens.
++def _cargo_tool_path(path):
++    if path.startswith(_PROC_SELF_CWD_PREFIX):
++        return "${{pwd}}/{}".format(path[len(_PROC_SELF_CWD_PREFIX):])
++    if _should_prefix_pwd(path):
++        return "${{pwd}}/{}".format(path)
++    return path
++
++def _pwd_flags_proc_self_cwd(args):
++    """Replace /proc/self/cwd execroot aliases embedded in compiler flags."""
++    return [arg.replace(_PROC_SELF_CWD_PREFIX, "${pwd}/") for arg in args]
++
++def _cargo_linker_env(linker_env):
++    """Make declared execution-tool roots stable across the runner chdir."""
++    result = dict(linker_env)
++    for key, value in linker_env.items():
++        if key == "PATH":
++            result[key] = ":".join([_cargo_tool_path(path) for path in value.split(":")])
++        elif key.startswith("HERMETIC_") and key.endswith("_ROOT"):
++            result[key] = _cargo_tool_path(value)
++    return result
++
+ def _should_prefix_pwd(path):
+     if paths.is_absolute(path):
+         return False
+@@ -283,6 +310,7 @@
+     return _prefix_pwd_to_paths(args)
+ 
+ _PWD_FLAG_PASSES = [
++    _pwd_flags_proc_self_cwd,
+     _pwd_flags_sysroot,
+     _pwd_flags_resource_dir,
+     _pwd_flags_B,
+@@ -536,8 +564,8 @@
+     else:
+         cc_toolchain, feature_configuration = None, None
+     linker, _, link_args, linker_env = get_linker_and_args(ctx, "bin", toolchain, cc_toolchain, feature_configuration, None)
+-    env.update(**linker_env)
+-    env["LD"] = linker
++    env.update(**_cargo_linker_env(linker_env))
++    env["LD"] = _cargo_tool_path(linker)
+     env["LDFLAGS"] = " ".join(_pwd_flags(link_args))
+ 
+     # Defaults for cxx flags.
+@@ -557,14 +585,14 @@
+ 
+         toolchain_tools.append(cc_toolchain.all_files)
+ 
+-        env["CC"] = cc_common.get_tool_for_action(
++        env["CC"] = _cargo_tool_path(cc_common.get_tool_for_action(
+             feature_configuration = feature_configuration,
+             action_name = ACTION_NAMES.c_compile,
+-        )
+-        env["CXX"] = cc_common.get_tool_for_action(
++        ))
++        env["CXX"] = _cargo_tool_path(cc_common.get_tool_for_action(
+             feature_configuration = feature_configuration,
+             action_name = ACTION_NAMES.cpp_compile,
+-        )
++        ))
+         env["AR"] = cc_common.get_tool_for_action(
+             feature_configuration = feature_configuration,
+             action_name = ACTION_NAMES.cpp_link_static_library,
+@@ -574,12 +602,13 @@
+         # one was never included in the unix_cc_toolchain_config.
+         if not env["AR"]:
+             env["AR"] = cc_toolchain.ar_executable
++        env["AR"] = _cargo_tool_path(env["AR"])
+ 
+         if paths.basename(env["AR"]).find("libtool") != -1:
+             # cc-rs passes cq and s, and llvm-ar enables deterministic archives by default.
+             # Empty ARFLAGS provides the rcsD behavior used by @llvm's C++ toolchain
+             # without passing a second archive operation to llvm-ar.
+-            env["AR"] = ctx.file._llvm_ar.path
++            env["AR"] = _cargo_tool_path(ctx.file._llvm_ar.path)
+             env["ARFLAGS"] = ""
+             toolchain_tools.append(ctx.attr._llvm_ar[DefaultInfo].files)
+ 
+diff -ruN a/cargo/private/cargo_build_script_runner/bin.rs b/cargo/private/cargo_build_script_runner/bin.rs
+--- a/cargo/private/cargo_build_script_runner/bin.rs	2026-09-16 23:56:16.235501774 +0000
++++ b/cargo/private/cargo_build_script_runner/bin.rs	2026-09-16 23:56:16.267502409 +0000
+@@ -17,8 +17,9 @@
+ 
+ use std::collections::BTreeMap;
+ use std::env;
++use std::ffi::OsStr;
+ use std::fs::{create_dir_all, read_dir, read_to_string, remove_file, write};
+-use std::path::Path;
++use std::path::{Path, PathBuf};
+ use std::process::Command;
+ 
+ use cargo_build_script_runner::cargo_manifest_dir::{remove_symlink, symlink, RunfilesMaker};
+@@ -62,6 +63,20 @@
+     Ok(variables)
+ }
+ 
++fn resolve_tool_path(exec_root: &Path, tool_path: &OsStr) -> PathBuf {
++    let exec_root_str = exec_root.to_str().expect("exec_root not in utf8");
++    let expanded = tool_path.to_string_lossy().replace("${pwd}", exec_root_str);
++    let expanded = Path::new(&expanded);
++
++    // C++ toolchains may use /proc/self/cwd as an execroot alias. The runner
++    // invokes build.rs from CARGO_MANIFEST_DIR, so retain the action's original
++    // execroot instead of allowing the alias to follow the child process cwd.
++    if let Ok(relative) = expanded.strip_prefix("/proc/self/cwd") {
++        return exec_root.join(relative);
++    }
++    exec_root.join(expanded)
++}
++
+ fn run_buildrs() -> Result<(), String> {
+     // We use exec_root.join rather than std::fs::canonicalize, to avoid resolving symlinks, as
+     // some execution strategies and remote execution environments may use symlinks in ways which
+@@ -154,12 +169,12 @@
+ 
+     for tool_env_var in &["CC", "CXX", "LD"] {
+         if let Some(tool_path) = env::var_os(tool_env_var) {
+-            command.env(tool_env_var, exec_root.join(tool_path));
++            command.env(tool_env_var, resolve_tool_path(&exec_root, &tool_path));
+         }
+     }
+ 
+     if let Some(ar_path) = env::var_os("AR") {
+-        command.env("AR", exec_root.join(ar_path));
++        command.env("AR", resolve_tool_path(&exec_root, &ar_path));
+     }
+ 
+     // replace env vars with a ${pwd} prefix with the exec_root
+@@ -570,6 +585,27 @@
+     }
+ 
+     #[test]
++    fn resolve_tool_path_preserves_original_execroot() {
++        let exec_root = Path::new("/worker/execroot/main");
++        assert_eq!(
++            resolve_tool_path(exec_root, OsStr::new("${pwd}/bazel-out/bin/clang")),
++            exec_root.join("bazel-out/bin/clang"),
++        );
++        assert_eq!(
++            resolve_tool_path(exec_root, OsStr::new("/proc/self/cwd/bazel-out/bin/clang")),
++            exec_root.join("bazel-out/bin/clang"),
++        );
++        assert_eq!(
++            resolve_tool_path(exec_root, OsStr::new("bazel-out/bin/clang")),
++            exec_root.join("bazel-out/bin/clang"),
++        );
++        assert_eq!(
++            resolve_tool_path(exec_root, OsStr::new("/declared/tools/clang")),
++            Path::new("/declared/tools/clang"),
++        );
++    }
++
++    #[test]
+     fn remove_nondeterministic_named_files() {
+         let names = &["config.log", "config.status", "Makefile", "commit_hash"];
+         let dir = make_temp_dir("named");
+diff -ruN a/rust/private/rust.bzl b/rust/private/rust.bzl
+--- a/rust/private/rust.bzl	2026-09-17 03:21:00.000000000 +0000
++++ b/rust/private/rust.bzl	2026-09-17 03:21:00.000000000 +0000
+@@ -54,6 +54,39 @@
+ # Setting path for per_crate_rustc_flag, used in transition definitions
+ _PER_CRATE_FLAG_SETTING = "@rules_rust//rust/settings:per_crate_rustc_flag"
+ 
++_PROC_MACRO_COMPILER_SETTING = "@@//bazel/rust/toolchains:nightly_proc_macro"
++_RUST_CHANNEL_SETTING = "@rules_rust//rust/toolchain/channel"
++_RUST_EXTRA_FLAGS_SETTING = "@rules_rust//rust/settings:extra_rustc_flags"
++_RUST_LTO_SETTING = "@rules_rust//rust/settings:lto"
++
++def _proc_macro_compiler_transition_impl(settings, _attr):
++    # Proc macros are compiler plugins and must use the target rustc's metadata
++    # and proc_macro ABI. Preserve stable for ordinary builds and dated nightly
++    # for ASan, while moving the artifact to the host platform and removing all
++    # target product/sanitizer flags.
++    return {
++        "//command_line_option:platforms": [settings["//command_line_option:host_platform"]],
++        _PROC_MACRO_COMPILER_SETTING: True,
++        _RUST_CHANNEL_SETTING: settings[_RUST_CHANNEL_SETTING],
++        _RUST_EXTRA_FLAGS_SETTING: [],
++        _RUST_LTO_SETTING: "unspecified",
++    }
++
++_proc_macro_compiler_transition = transition(
++    implementation = _proc_macro_compiler_transition_impl,
++    inputs = [
++        "//command_line_option:host_platform",
++        _RUST_CHANNEL_SETTING,
++    ],
++    outputs = [
++        "//command_line_option:platforms",
++        _PROC_MACRO_COMPILER_SETTING,
++        _RUST_CHANNEL_SETTING,
++        _RUST_EXTRA_FLAGS_SETTING,
++        _RUST_LTO_SETTING,
++    ],
++)
++
+ def _toolchain_make_variables(ctx):
+     make_variables = {}
+     for toolchain_target in getattr(ctx.attr, "toolchains", []):
+@@ -843,6 +876,6 @@
+             User code should pass all deps to `deps` for the macros loaded from `defs.bzl`.
+         """),
+-        cfg = "exec",
++        cfg = _proc_macro_compiler_transition,
+     ),
+     "skip_deps_verification": attr.bool(
+         doc = "Internal only, do not use.",

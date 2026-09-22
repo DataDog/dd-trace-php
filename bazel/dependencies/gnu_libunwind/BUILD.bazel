@@ -1,0 +1,195 @@
+load("//bazel/platforms:transitions.bzl", "configured_target", "matrix_aggregate")
+load(":libunwind.bzl", "gnu_libunwind", "gnu_libunwind_asan_native_probe", "gnu_libunwind_native_probe")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "libunwind.bzl",
+    "repository.bzl",
+    "build-libunwind.sh",
+    "run-native-smoke.sh",
+    "run-asan-unwind-smoke.sh",
+    "unwind-smoke.c",
+    "unwind-shared-smoke.c",
+])
+
+# This is GNU libunwind 1.8.3 vendored by Cargo-locked libdd-libunwind-sys.
+gnu_libunwind(
+    name = "libunwind",
+    srcs = "@libdd_libunwind_sys_1_0_3_source//:srcs",
+    configure = "@libdd_libunwind_sys_1_0_3_source//:configure",
+    runtime = select({
+        ":aarch64_glibc": "//bazel/dependencies/llvm_runtimes:aarch64_glibc",
+        ":aarch64_musl": "//bazel/dependencies/llvm_runtimes:aarch64_musl",
+        ":x86_64_glibc": "//bazel/dependencies/llvm_runtimes:x86_64_glibc",
+        ":x86_64_musl": "//bazel/dependencies/llvm_runtimes:x86_64_musl",
+    }),
+)
+
+config_setting(
+    name = "x86_64_glibc",
+    constraint_values = [
+        "//bazel/platforms:glibc",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
+config_setting(
+    name = "aarch64_glibc",
+    constraint_values = [
+        "//bazel/platforms:glibc",
+        "@platforms//cpu:aarch64",
+    ],
+)
+
+config_setting(
+    name = "x86_64_musl",
+    constraint_values = [
+        "//bazel/platforms:musl",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
+config_setting(
+    name = "aarch64_musl",
+    constraint_values = [
+        "//bazel/platforms:musl",
+        "@platforms//cpu:aarch64",
+    ],
+)
+
+alias(
+    name = "headers",
+    actual = ":libunwind",
+)
+
+configured_target(
+    name = "_all_x86_64_glibc",
+    actual = ":libunwind",
+    matrix_platform = "linux-amd64-glibc",
+)
+
+configured_target(
+    name = "_all_aarch64_glibc",
+    actual = ":libunwind",
+    matrix_platform = "linux-arm64-glibc",
+)
+
+configured_target(
+    name = "_all_x86_64_musl",
+    actual = ":libunwind",
+    matrix_platform = "linux-amd64-musl",
+)
+
+configured_target(
+    name = "_all_aarch64_musl",
+    actual = ":libunwind",
+    matrix_platform = "linux-arm64-musl",
+)
+
+matrix_aggregate(
+    name = "all",
+    targets = [":libunwind"],
+)
+
+gnu_libunwind_native_probe(
+    name = "_x86_64_native_smoke",
+    busybox = "@exec_tools_alpine322_x86_64//:root/bin/busybox.static",
+    exec_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    library = ":libunwind",
+)
+
+gnu_libunwind_native_probe(
+    name = "_aarch64_native_smoke",
+    busybox = "@exec_tools_alpine322_aarch64//:root/bin/busybox.static",
+    exec_compatible_with = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+    library = ":libunwind",
+)
+
+configured_target(
+    name = "x86_64_glibc_native_smoke",
+    actual = ":_x86_64_native_smoke",
+    matrix_platform = "linux-amd64-glibc",
+)
+
+configured_target(
+    name = "aarch64_glibc_native_smoke",
+    actual = ":_aarch64_native_smoke",
+    matrix_platform = "linux-arm64-glibc",
+)
+
+configured_target(
+    name = "x86_64_musl_native_smoke",
+    actual = ":_x86_64_native_smoke",
+    matrix_platform = "linux-amd64-musl",
+)
+
+configured_target(
+    name = "aarch64_musl_native_smoke",
+    actual = ":_aarch64_native_smoke",
+    matrix_platform = "linux-arm64-musl",
+)
+
+# The GNU archive contract remains the Cargo-required ordered three archives.
+# ASan is a separate target configuration; its runtime DSO stays out of CcInfo.
+gnu_libunwind_asan_native_probe(
+    name = "_x86_64_glibc_asan_native_smoke",
+    elf_architecture = "x86_64",
+    library = ":libunwind",
+    machine = "x86_64",
+    exec_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+)
+
+configured_target(
+    name = "x86_64_glibc_asan",
+    actual = ":libunwind",
+    matrix_platform = "asan-linux-amd64-glibc",
+)
+
+configured_target(
+    name = "x86_64_glibc_asan_native_smoke",
+    actual = ":_x86_64_glibc_asan_native_smoke",
+    matrix_platform = "asan-linux-amd64-glibc",
+)
+
+gnu_libunwind_asan_native_probe(
+    name = "_aarch64_glibc_asan_native_smoke",
+    elf_architecture = "aarch64",
+    library = ":libunwind",
+    machine = "aarch64",
+    exec_compatible_with = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+)
+
+configured_target(
+    name = "aarch64_glibc_asan",
+    actual = ":libunwind",
+    matrix_platform = "asan-linux-arm64-glibc",
+)
+
+configured_target(
+    name = "aarch64_glibc_asan_native_smoke",
+    actual = ":_aarch64_glibc_asan_native_smoke",
+    matrix_platform = "asan-linux-arm64-glibc",
+)
+
+filegroup(
+    name = "native_smoke",
+    srcs = [
+        ":aarch64_glibc_native_smoke",
+        ":aarch64_musl_native_smoke",
+        ":x86_64_glibc_native_smoke",
+        ":x86_64_musl_native_smoke",
+    ],
+)

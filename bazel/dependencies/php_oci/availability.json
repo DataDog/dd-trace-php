@@ -1,0 +1,435 @@
+{
+  "available_imports": 223,
+  "compatible_aliases": [
+    {
+      "abi_profile": "nts",
+      "arch": "arm64",
+      "compatible_sdk_repo": "php_sdk_alpine322_8_0_arm64_nts",
+      "image_family": "alpine_legacy",
+      "index_digest": "sha256:c065bb135d9781eed0b8b71088f9054850e024adcc10a3978a24a420cd45152a",
+      "minor": "8.0",
+      "reason": "the legacy image is amd64-only; reuse the locked arm64 musl PHP 8.0 NTS SDK with the same PHP API",
+      "source_tag": "php-8.0_alpine"
+    }
+  ],
+  "content_validation": {
+    "all_locked_imports_passed": true,
+    "checks": [
+      "embedded PHP patch version and numeric ID",
+      "Zend module API",
+      "Zend extension API",
+      "PHP module API",
+      "debug and ZTS headers",
+      "ELF architecture",
+      "ELF ASan DT_NEEDED linkage"
+    ],
+    "state": "enforced_during_each_repository_import",
+    "validated_imports": 223,
+    "validated_published_bytes": 1204002153
+  },
+  "expected_matrix_records": 226,
+  "families": [
+    {
+      "available_imports": 44,
+      "images": [
+        {
+          "declared_source_version": "7.0.33",
+          "image_base": "alpine:3.23.5",
+          "image_digest": "sha256:0dc6ef0d70d3aca5502228180c422acae4df604a01a261ac6d8068b0777d4328",
+          "locked_embedded_version": "7.0.33",
+          "minor": "7.0",
+          "profile_imports": 4,
+          "tag": "php-compile-extension-alpine-7.0"
+        },
+        {
+          "declared_source_version": "7.1.33",
+          "image_base": "alpine:3.23.5",
+          "image_digest": "sha256:3fda7bba53a3f2298196bf9a83316021edfcf9f0eeca6ad3c4dd0c13161876e3",
+          "locked_embedded_version": "7.1.33",
+          "minor": "7.1",
+          "profile_imports": 4,
+          "tag": "php-compile-extension-alpine-7.1"
+        },
+        {
+          "declared_source_version": "7.2.34",
+          "image_base": "alpine:3.23.5",
+          "image_digest": "sha256:26ff843fed7964d4387b446845d77e73fefc7f3175fc07d4643941d60b0effcb",
+          "locked_embedded_version": "7.2.34",
+          "minor": "7.2",
+          "profile_imports": 4,
+          "tag": "php-compile-extension-alpine-7.2"
+        },
+        {
+          "declared_source_version": "7.3.33",
+          "image_base": "alpine:3.23.5",
+          "image_digest": "sha256:c10a368bc59541f95b58e3e41076dfa65cfb7f4780e1e04ec1fd33ac8bdc633c",
+          "locked_embedded_version": "7.3.33",
+          "minor": "7.3",
+          "profile_imports": 4,
+          "tag": "php-compile-extension-alpine-7.3"
+        },
+        {
+          "declared_source_version": "7.4.33",
+          "image_base": "alpine:3.23.5",
+          "image_digest": "sha256:134b4a3724909e57d1cff5609c09800d4b82b66ab1a7b000eca7c961163efc24",
+          "locked_embedded_version": "7.4.33",
+          "minor": "7.4",
+          "profile_imports": 4,
+          "tag": "php-compile-extension-alpine-7.4"
+        },
+        {
+          "declared_source_version": "8.0.30",
+          "image_base": "alpine:3.23.5",
+          "image_digest": "sha256:75188cad918fc9cd5df65635012aa68ad4a3fe8b2d75cba69c8ed59a8c91836e",
+          "locked_embedded_version": "8.0.30",
+          "minor": "8.0",
+          "profile_imports": 4,
+          "tag": "php-compile-extension-alpine-8.0"
+        },
+        {
+          "declared_source_version": "8.1.31",
+          "image_base": "alpine:3.23.5",
+          "image_digest": "sha256:0d4ac0a359d87d6ed49f144b6c307255c23b688e5812d7cddd51c7397cfc524c",
+          "locked_embedded_version": "8.1.31",
+          "minor": "8.1",
+          "profile_imports": 4,
+          "tag": "php-compile-extension-alpine-8.1"
+        },
+        {
+          "declared_source_version": "8.2.31",
+          "image_base": "alpine:3.23.5",
+          "image_digest": "sha256:f042cd79c2a35fbcd4987af02c82b852d324c1a571077d1b592fcb5ef5366eee",
+          "locked_embedded_version": "8.2.33",
+          "minor": "8.2",
+          "profile_imports": 4,
+          "tag": "php-compile-extension-alpine-8.2"
+        },
+        {
+          "declared_source_version": "8.3.31",
+          "image_base": "alpine:3.23.5",
+          "image_digest": "sha256:9ec409fc39278bdabb28256e089ae1f9e2453ed35dc5d6aab15fc62c7fa915c7",
+          "locked_embedded_version": "8.3.33",
+          "minor": "8.3",
+          "profile_imports": 4,
+          "tag": "php-compile-extension-alpine-8.3"
+        },
+        {
+          "declared_source_version": "8.4.22",
+          "image_base": "alpine:3.23.5",
+          "image_digest": "sha256:1c6616545ee3996ae408d64e24c4d01014011f8841bcef2e86ecc3efd82230b8",
+          "locked_embedded_version": "8.4.25",
+          "minor": "8.4",
+          "profile_imports": 4,
+          "tag": "php-compile-extension-alpine-8.4"
+        },
+        {
+          "declared_source_version": "8.5.7",
+          "image_base": "alpine:3.23.5",
+          "image_digest": "sha256:4ec4d28cf2a5207b35f10aa85caed66d3516b29594949630bae2c597c329ac39",
+          "locked_embedded_version": "8.5.10",
+          "minor": "8.5",
+          "profile_imports": 4,
+          "tag": "php-compile-extension-alpine-8.5"
+        }
+      ],
+      "name": "alpine322"
+    },
+    {
+      "available_imports": 3,
+      "images": [
+        {
+          "declared_source_version": "8.0.15",
+          "image_base": "alpine (exact release not encoded in OCI config)",
+          "image_digest": "sha256:c065bb135d9781eed0b8b71088f9054850e024adcc10a3978a24a420cd45152a",
+          "locked_embedded_version": "8.0.15",
+          "minor": "8.0",
+          "profile_imports": 3,
+          "tag": "php-8.0_alpine"
+        }
+      ],
+      "name": "alpine_legacy"
+    },
+    {
+      "available_imports": 94,
+      "images": [
+        {
+          "declared_source_version": "7.0.33",
+          "image_base": "debian:bookworm",
+          "image_digest": "sha256:f337ba9f2174a4a2c6d91f9908c0e101bcc6a8fdf2f212efd688c224db159376",
+          "locked_embedded_version": "7.0.33",
+          "minor": "7.0",
+          "profile_imports": 8,
+          "tag": "php-7.0_bookworm-10"
+        },
+        {
+          "declared_source_version": "7.1.33",
+          "image_base": "debian:bookworm",
+          "image_digest": "sha256:98e7d4f6a11aa7acabeb449abe8e7775c28422b822f881f3be0cc6a32cdbad6d",
+          "locked_embedded_version": "7.1.33",
+          "minor": "7.1",
+          "profile_imports": 8,
+          "tag": "php-7.1_bookworm-10"
+        },
+        {
+          "declared_source_version": "7.2.34",
+          "image_base": "debian:bookworm",
+          "image_digest": "sha256:c4f8bae86cfc7957cccd64342607209789346350e833d9fee1a761ad749dd557",
+          "locked_embedded_version": "7.2.34",
+          "minor": "7.2",
+          "profile_imports": 8,
+          "tag": "php-7.2_bookworm-10"
+        },
+        {
+          "declared_source_version": "7.3.33",
+          "image_base": "debian:bookworm",
+          "image_digest": "sha256:35bba200be9e8df6a6db1fcb539366cda9c7789c6df74efe2c136978ea3105fb",
+          "locked_embedded_version": "7.3.33",
+          "minor": "7.3",
+          "profile_imports": 8,
+          "tag": "php-7.3_bookworm-10"
+        },
+        {
+          "declared_source_version": "7.4.33",
+          "image_base": "debian:bookworm",
+          "image_digest": "sha256:772899e662c466fe928fdd7b6c267934e8dd094903d6a32462eebe3a9fcf7ce4",
+          "locked_embedded_version": "7.4.33",
+          "minor": "7.4",
+          "profile_imports": 8,
+          "tag": "php-7.4_bookworm-10"
+        },
+        {
+          "declared_source_version": "8.0.30",
+          "image_base": "debian:bookworm",
+          "image_digest": "sha256:18f7c18de1d50567e338bfd399777d8cc39ade2cd1181dbbf62a24d5f31dc0d1",
+          "locked_embedded_version": "8.0.30",
+          "minor": "8.0",
+          "profile_imports": 8,
+          "tag": "php-8.0_bookworm-10"
+        },
+        {
+          "declared_source_version": "8.1.32",
+          "image_base": "debian:bookworm",
+          "image_digest": "sha256:e7252cef8c87f2135fc4839610939671877ae2c4ffe0c458f918094ac67105cc",
+          "locked_embedded_version": "8.1.32",
+          "minor": "8.1",
+          "profile_imports": 8,
+          "tag": "php-8.1_bookworm-10"
+        },
+        {
+          "declared_source_version": "8.2.31",
+          "image_base": "debian:bookworm",
+          "image_digest": "sha256:85d8a4238223839c8d65bb2137287462f409694036939ca3978470fe815c20c6",
+          "locked_embedded_version": "8.2.31",
+          "minor": "8.2",
+          "profile_imports": 8,
+          "tag": "php-8.2_bookworm-10"
+        },
+        {
+          "declared_source_version": "8.3.31",
+          "image_base": "debian:bookworm",
+          "image_digest": "sha256:6f8f00d3dfeddf68f7c486202633250963c5c674ffed4889df38e160bb3d43a4",
+          "locked_embedded_version": "8.3.31",
+          "minor": "8.3",
+          "profile_imports": 10,
+          "tag": "php-8.3_bookworm-10"
+        },
+        {
+          "declared_source_version": "8.4.22",
+          "image_base": "debian:bookworm",
+          "image_digest": "sha256:c0e2ccd3a93872be04b9d1e4cb4a07500b47a51aede54f1228b90b7714775a51",
+          "locked_embedded_version": "8.4.22",
+          "minor": "8.4",
+          "profile_imports": 10,
+          "tag": "php-8.4_bookworm-10"
+        },
+        {
+          "declared_source_version": "8.5.8RC1",
+          "image_base": "debian:bookworm",
+          "image_digest": "sha256:c67f6306a0265ef6c53f63cd0ded6f5532187591757d0220d16ff84fdd022d33",
+          "locked_embedded_version": "8.5.8RC1",
+          "minor": "8.5",
+          "profile_imports": 10,
+          "tag": "php-8.5_bookworm-10"
+        }
+      ],
+      "name": "bookworm"
+    },
+    {
+      "available_imports": 16,
+      "images": [
+        {
+          "declared_source_version": "7.4.33",
+          "image_base": "debian:bookworm",
+          "image_digest": "sha256:1c7a83d0f19b4178695e4d1d58c4790fcc91c1081aece960bd057a775f4c90b9",
+          "locked_embedded_version": "7.4.33",
+          "minor": "7.4",
+          "profile_imports": 8,
+          "tag": "php-7.4-shared-ext-10"
+        },
+        {
+          "declared_source_version": "8.0.30",
+          "image_base": "debian:bookworm",
+          "image_digest": "sha256:779f33a6ef6f9a405979d70cd8a15b24b0b69a8b76b5762e2b2a138225331e7a",
+          "locked_embedded_version": "8.0.30",
+          "minor": "8.0",
+          "profile_imports": 8,
+          "tag": "php-8.0-shared-ext-10"
+        }
+      ],
+      "name": "bookworm_shared"
+    },
+    {
+      "available_imports": 66,
+      "images": [
+        {
+          "declared_source_version": "7.0.33",
+          "image_base": "centos:7",
+          "image_digest": "sha256:94fcf4b2c4c2ab093c2070214ece5f5f3ddc3b446cf9440595f8fa9d98b64a89",
+          "locked_embedded_version": "7.0.33",
+          "minor": "7.0",
+          "profile_imports": 6,
+          "tag": "php-7.0_centos-7"
+        },
+        {
+          "declared_source_version": "7.1.33",
+          "image_base": "centos:7",
+          "image_digest": "sha256:e1848a99ec3dc514d39578c8971980149aeaded64c17c90568c26f02f1958ca0",
+          "locked_embedded_version": "7.1.33",
+          "minor": "7.1",
+          "profile_imports": 6,
+          "tag": "php-7.1_centos-7"
+        },
+        {
+          "declared_source_version": "7.2.34",
+          "image_base": "centos:7",
+          "image_digest": "sha256:5bdc663a40c7c66248c08d6dad52b6b8927d29d877763b729d58b8a4666f119f",
+          "locked_embedded_version": "7.2.34",
+          "minor": "7.2",
+          "profile_imports": 6,
+          "tag": "php-7.2_centos-7"
+        },
+        {
+          "declared_source_version": "7.3.33",
+          "image_base": "centos:7",
+          "image_digest": "sha256:325dcb4f2969cfbee3a6b0635c4c097fe2580016448f90d3e3ec6c61eafdac0b",
+          "locked_embedded_version": "7.3.33",
+          "minor": "7.3",
+          "profile_imports": 6,
+          "tag": "php-7.3_centos-7"
+        },
+        {
+          "declared_source_version": "7.4.33",
+          "image_base": "centos:7",
+          "image_digest": "sha256:8c8deec0768b770684b315bd06349227a96fcab96a82884c681e825fc9ec44bb",
+          "locked_embedded_version": "7.4.33",
+          "minor": "7.4",
+          "profile_imports": 6,
+          "tag": "php-7.4_centos-7"
+        },
+        {
+          "declared_source_version": "8.0.30",
+          "image_base": "centos:7",
+          "image_digest": "sha256:ebd8a523532ef2711607b6f860244d5432909fc90fdb1ebe5bdaf03d8f68a52e",
+          "locked_embedded_version": "8.0.30",
+          "minor": "8.0",
+          "profile_imports": 6,
+          "tag": "php-8.0_centos-7"
+        },
+        {
+          "declared_source_version": "8.1.32",
+          "image_base": "centos:7",
+          "image_digest": "sha256:29b9d25b7516ed8072b0a35caf6c7f34e7bede0a7070ef82c88093dc120211f9",
+          "locked_embedded_version": "8.1.32",
+          "minor": "8.1",
+          "profile_imports": 6,
+          "tag": "php-8.1_centos-7"
+        },
+        {
+          "declared_source_version": "8.2.31",
+          "image_base": "centos:7",
+          "image_digest": "sha256:b8908730b5df2169b69365987fd7d51d10a5b4e966257ed7cca1d5ecfdbc3e44",
+          "locked_embedded_version": "8.2.33",
+          "minor": "8.2",
+          "profile_imports": 6,
+          "tag": "php-8.2_centos-7"
+        },
+        {
+          "declared_source_version": "8.3.31",
+          "image_base": "centos:7",
+          "image_digest": "sha256:eb032b0e291d8af70548af6f5da96e4e7221dd94682756fdd2dd901c0618844f",
+          "locked_embedded_version": "8.3.33",
+          "minor": "8.3",
+          "profile_imports": 6,
+          "tag": "php-8.3_centos-7"
+        },
+        {
+          "declared_source_version": "8.4.22",
+          "image_base": "centos:7",
+          "image_digest": "sha256:532cae0755ecd349dec248a981d092c4fdd4b3c5668eb1bf386dd9d490c2c715",
+          "locked_embedded_version": "8.4.25",
+          "minor": "8.4",
+          "profile_imports": 6,
+          "tag": "php-8.4_centos-7"
+        },
+        {
+          "declared_source_version": "8.5.7",
+          "image_base": "centos:7",
+          "image_digest": "sha256:4b75517f5aa2a95e4496ee77e63ee6c2aaa834e6da343acbd4847fc986f52a38",
+          "locked_embedded_version": "8.5.10",
+          "minor": "8.5",
+          "profile_imports": 6,
+          "tag": "php-8.5_centos-7"
+        }
+      ],
+      "name": "centos7"
+    }
+  ],
+  "generated_header_fallbacks_pending": 2,
+  "matrix_entries_backed_by_imported_sdks": 224,
+  "metadata_documents": 177,
+  "notes": [
+    "Mutable tags are discovery provenance only; every import locks image/index, platform manifest, config and profile-layer digests.",
+    "Alpine 3.23.5 is the discovery-image base for current compile images. Published SDKs contain headers only; target compilation uses the independent Alpine 3.22 musl sysroot.",
+    "The legacy public Alpine PHP 8.0 image is linux/amd64-only. Arm64 NTS reuses the compatible current PHP 8.0 musl SDK; debug and debug-ZTS still require a generated-header fallback."
+  ],
+  "policy": "available image headers may use a different patch release when PHP minor, PHP API, architecture, libc family, debug/ZTS and sanitizer ABI match",
+  "schema_version": 1,
+  "target_sysroot_header_compile": {
+    "all_passed": true,
+    "checks": [
+      "php.h and zend_modules.h compile",
+      "exact PHP version ID",
+      "PHP/Zend module API",
+      "debug and ZTS ABI",
+      "64-bit pointer width"
+    ],
+    "compiler": "LLVM 20.1.4",
+    "target_sysroots": [
+      "CentOS 7 glibc 2.17",
+      "Alpine 3.22 dynamic musl"
+    ],
+    "validated_imports": 223
+  },
+  "unavailable_imports": [
+    {
+      "abi_profile": "debug",
+      "arch": "arm64",
+      "image_family": "alpine_legacy",
+      "index_digest": "sha256:c065bb135d9781eed0b8b71088f9054850e024adcc10a3978a24a420cd45152a",
+      "minor": "8.0",
+      "reason": "the immutable public image descriptor contains only linux/amd64",
+      "source_tag": "php-8.0_alpine"
+    },
+    {
+      "abi_profile": "debug-zts",
+      "arch": "arm64",
+      "image_family": "alpine_legacy",
+      "index_digest": "sha256:c065bb135d9781eed0b8b71088f9054850e024adcc10a3978a24a420cd45152a",
+      "minor": "8.0",
+      "reason": "the immutable public image descriptor contains only linux/amd64",
+      "source_tag": "php-8.0_alpine"
+    }
+  ],
+  "unique_compressed_layer_bytes": 15759556331,
+  "unique_profile_layers": 201
+}

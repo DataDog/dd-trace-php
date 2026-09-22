@@ -1,0 +1,75 @@
+--- a/rs/private/registry_config_repository.bzl
++++ b/rs/private/registry_config_repository.bzl
+@@ -1,6 +1,11 @@
+ load(":cargo_credentials.bzl", "load_cargo_credentials", "registry_auth_headers")
+ load(":registry_utils.bzl", "registry_download_template")
+ 
++_CRATES_IO_SOURCES = [
++    "https://github.com/rust-lang/crates.io-index",
++    "sparse+https://index.crates.io/",
++]
++
+ def _registry_config_repository_impl(rctx):
+     # TODO(zbarsky): Is there a better way than fetching this in every crate repository?
+     if rctx.attr.use_home_cargo_credentials:
+@@ -11,17 +16,23 @@
+     else:
+         headers = {}
+ 
+-    rctx.download(
+-        rctx.attr.source.removeprefix("sparse+") + "config.json",
+-        "config.json",
+-        headers = headers,
+-    )
++    if rctx.attr.source not in _CRATES_IO_SOURCES:
++        fail(
++            "registry %s has no checksum-locked download configuration" %
++            rctx.attr.source,
++        )
++    if headers:
++        fail("the public crates.io registry must not require credentials")
++    rctx.file("config.json", json.encode({
++        "api": "https://crates.io",
++        "dl": "https://static.crates.io/crates/{crate}/{crate}-{version}.crate",
++    }))
+ 
+     rctx.file("dl", registry_download_template(json.decode(rctx.read("config.json"))))
+     rctx.file("BUILD.bazel", "exports_files(['dl'])")
+ 
+-    # Registry config can change upstream, so this repository is intentionally not reproducible.
+-    return rctx.repo_metadata(reproducible = False)
++    # The accepted public registry download template above is immutable here.
++    return rctx.repo_metadata(reproducible = True)
+ 
+ registry_config_repository = repository_rule(
+     implementation = _registry_config_repository_impl,
+diff --git a/rs/toolchains/declare_rustc_toolchains.bzl b/rs/toolchains/declare_rustc_toolchains.bzl
+--- a/rs/toolchains/declare_rustc_toolchains.bzl
++++ b/rs/toolchains/declare_rustc_toolchains.bzl
+@@ -42,7 +42,8 @@ def declare_rustc_toolchains(
+         rust_objcopy = None,
+         rust_lld = None,
+         bpf_linker = None,
+-        rust_std = None):
++        rust_std = None,
++        target_compatible_with = []):
+     """Declares generated or custom Rust compiler toolchains.
+ 
+     Args:
+@@ -64,6 +65,8 @@ def declare_rustc_toolchains(
+       rust_lld: Optional rust-lld label or labels keyed by execution triple.
+       bpf_linker: Optional bpf-linker label or labels keyed by execution triple.
+       rust_std: Optional standard-library label or labels keyed by target triple.
++      target_compatible_with: Constraints restricting target platforms for the
++        declared toolchain registrations.
+     """
+     if type(rustc) == "dict":
+         for exec_triple in rustc:
+@@ -249,6 +252,7 @@ def declare_rustc_toolchains(
+                     "@platforms//os:" + exec_triple.system,
+                     "@platforms//cpu:" + exec_triple.arch,
+                 ],
++                target_compatible_with = target_compatible_with,
+                 target_settings = [
+                     "@rules_rs//rs/toolchains:bpf_targets" if is_bpf else "@rules_rs//rs/toolchains:non_bpf_targets",
+                     bootstrap_setting,

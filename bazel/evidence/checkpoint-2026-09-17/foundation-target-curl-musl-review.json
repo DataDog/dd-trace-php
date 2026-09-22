@@ -1,0 +1,218 @@
+[
+  {
+    "arch": "amd64",
+    "files": [
+      {
+        "file": "libcurl.so.4.8.0",
+        "needed": [
+          "libcares.so.2",
+          "libnghttp2.so.14",
+          "libidn2.so.0",
+          "libpsl.so.5",
+          "libssl.so.3",
+          "libcrypto.so.3",
+          "libzstd.so.1",
+          "libbrotlidec.so.1",
+          "libz.so.1",
+          "libc.musl-x86_64.so.1"
+        ],
+        "sha256": "6f80e2fecb3413d288dd3926fd4d84a5d7a82ee7a8058382e7dca077c5337c42"
+      },
+      {
+        "file": "libcares.so.2",
+        "needed": [
+          "libc.musl-x86_64.so.1"
+        ],
+        "sha256": "0c1d13c52bb2ec6e14fa746416ec4053d1b062c5117c288ae29612401b133f25"
+      },
+      {
+        "file": "libnghttp2.so.14",
+        "needed": [
+          "libc.musl-x86_64.so.1"
+        ],
+        "sha256": "aaabfd98d48aa9e3e5b52ff857f080b03ca821ad5eb1393fdfe19a697ec5362e"
+      },
+      {
+        "file": "libidn2.so.0",
+        "needed": [
+          "libunistring.so.5",
+          "libc.musl-x86_64.so.1"
+        ],
+        "sha256": "d578c744e02afbaee46075867363db0549ecf55ab279e6f0f3768bfb2db9138f"
+      },
+      {
+        "file": "libpsl.so.5",
+        "needed": [
+          "libidn2.so.0",
+          "libunistring.so.5",
+          "libc.musl-x86_64.so.1"
+        ],
+        "sha256": "97fbe75fdb0fbd19a7287c564cb64bc0e03093b49b2d80760af985762bc65b64"
+      },
+      {
+        "file": "libssl.so.3",
+        "needed": [
+          "libcrypto.so.3",
+          "libc.musl-x86_64.so.1"
+        ],
+        "sha256": "bc2590e1063a85395bb7a49a50e38b098df4e91629dff096ac83067e982662a7"
+      },
+      {
+        "file": "libcrypto.so.3",
+        "needed": [
+          "libc.musl-x86_64.so.1"
+        ],
+        "sha256": "f14bced7788be45d8284b5aa166183b109ed1e00fcc8d31438b438eed7aec6f9"
+      },
+      {
+        "file": "libzstd.so.1",
+        "needed": [
+          "libc.musl-x86_64.so.1"
+        ],
+        "sha256": "f3c21b158e885b432ef13382d809c8379f0f02dd3be480384b77992e287560db"
+      },
+      {
+        "file": "libbrotlidec.so.1",
+        "needed": [
+          "libbrotlicommon.so.1",
+          "libc.musl-x86_64.so.1"
+        ],
+        "sha256": "310e5392797246611841392880b0b83b359161935f0d296a431c81abba26eb09"
+      },
+      {
+        "file": "libz.so.1",
+        "needed": [
+          "libc.musl-x86_64.so.1"
+        ],
+        "sha256": "773b12b255243da0012fb837432632fbc94621cb50c7ff521f4e24ae27dbe341"
+      },
+      {
+        "file": "libc.musl-x86_64.so.1",
+        "needed": [],
+        "sha256": "1cc5c3f502179e2a4befae29658fb109102effefc75742893aa4a449fd3fbb03"
+      },
+      {
+        "file": "libunistring.so.5",
+        "needed": [
+          "libc.musl-x86_64.so.1"
+        ],
+        "sha256": "f62f227bf4f6c8649150eabe677f506520e18a722a6222917ffdb6125eedc6a8"
+      },
+      {
+        "file": "libbrotlicommon.so.1",
+        "needed": [
+          "libc.musl-x86_64.so.1"
+        ],
+        "sha256": "5bc645f49687850cce3ad19e55a833e5cb93b468b97b73f1bca04e89b934ae3d"
+      }
+    ]
+  },
+  {
+    "arch": "arm64",
+    "files": [
+      {
+        "file": "libcurl.so.4.8.0",
+        "needed": [
+          "libcares.so.2",
+          "libnghttp2.so.14",
+          "libidn2.so.0",
+          "libpsl.so.5",
+          "libssl.so.3",
+          "libcrypto.so.3",
+          "libzstd.so.1",
+          "libbrotlidec.so.1",
+          "libz.so.1",
+          "libc.musl-aarch64.so.1"
+        ],
+        "sha256": "5b65583a71688ef716c2735f6728cb95c0fce4b3fdd5455bc4285d080472112d"
+      },
+      {
+        "file": "libcares.so.2",
+        "needed": [
+          "libc.musl-aarch64.so.1"
+        ],
+        "sha256": "0ab4280732a7bb17af13b0ff0d7924c5c12cde151cb324ed5d504d8c71c6aaea"
+      },
+      {
+        "file": "libnghttp2.so.14",
+        "needed": [
+          "libc.musl-aarch64.so.1"
+        ],
+        "sha256": "bf3ab13a127218087d28e5ed4f5e80c15358dd64704d9ac22e32b3e946a7b132"
+      },
+      {
+        "file": "libidn2.so.0",
+        "needed": [
+          "libunistring.so.5",
+          "libc.musl-aarch64.so.1"
+        ],
+        "sha256": "061d65c20ac9f8cc73a6819579bd694fedd4f99ba4505a469a41872b3dfedd59"
+      },
+      {
+        "file": "libpsl.so.5",
+        "needed": [
+          "libidn2.so.0",
+          "libunistring.so.5",
+          "libc.musl-aarch64.so.1"
+        ],
+        "sha256": "717f8ee1c55658166e622a9a0e8b75e447948994af59d2fbdc7b2bbb9d240bba"
+      },
+      {
+        "file": "libssl.so.3",
+        "needed": [
+          "libcrypto.so.3",
+          "libc.musl-aarch64.so.1"
+        ],
+        "sha256": "c2c68f2588b1c919d716d6bd998da35541e5f8ff415ad657f52ac4e8f61c929d"
+      },
+      {
+        "file": "libcrypto.so.3",
+        "needed": [
+          "libc.musl-aarch64.so.1"
+        ],
+        "sha256": "911da5b5135cec3a520d294e56aefae5d753c9e1ed45aeabe8093d3ba986c284"
+      },
+      {
+        "file": "libzstd.so.1",
+        "needed": [
+          "libc.musl-aarch64.so.1"
+        ],
+        "sha256": "0261e625d796007a4688f12b5bea20ca8af9d6767d645286501245a0f0187699"
+      },
+      {
+        "file": "libbrotlidec.so.1",
+        "needed": [
+          "libbrotlicommon.so.1",
+          "libc.musl-aarch64.so.1"
+        ],
+        "sha256": "fe1e44cd935e3f17eddbdd85cbd76b86891a15437b3146b2f678e2f0fbf6352e"
+      },
+      {
+        "file": "libz.so.1",
+        "needed": [
+          "libc.musl-aarch64.so.1"
+        ],
+        "sha256": "1dfd2166dd6124fbd4cbba54ea3d5b2de60e308c252de39d1369e71d301ddea4"
+      },
+      {
+        "file": "libc.musl-aarch64.so.1",
+        "needed": [],
+        "sha256": "b5afeb0dcc9e22e92f1088566b0d1c1562ef567a4abebaf4b0fd14000800b8ed"
+      },
+      {
+        "file": "libunistring.so.5",
+        "needed": [
+          "libc.musl-aarch64.so.1"
+        ],
+        "sha256": "8d909c55d18d0952308c364916c8e904d88d9a5cb795b8f25d989dbd53d85d84"
+      },
+      {
+        "file": "libbrotlicommon.so.1",
+        "needed": [
+          "libc.musl-aarch64.so.1"
+        ],
+        "sha256": "abdf1f7c44fabb16ca538c8650290f4cdc0727884f12c3bd713d8a16dc5a805f"
+      }
+    ]
+  }
+]

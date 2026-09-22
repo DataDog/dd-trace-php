@@ -1,4 +1,9 @@
-constraint_setting(name = "libc")
+package(default_visibility = ["//visibility:public"])
+
+constraint_setting(
+    name = "libc",
+    default_constraint_value = ":glibc",
+)
 
 constraint_value(
     name = "glibc",
@@ -10,7 +15,59 @@ constraint_value(
     constraint_setting = ":libc",
 )
 
-constraint_setting(name = "sanitizer")
+constraint_setting(
+    name = "sanitizer",
+    default_constraint_value = ":normal",
+)
+
+constraint_setting(name = "configuration_role")
+
+constraint_value(
+    name = "target_configuration",
+    constraint_setting = ":configuration_role",
+)
+
+constraint_value(
+    name = "exec_configuration",
+    constraint_setting = ":configuration_role",
+)
+
+config_setting(
+    name = "rust_exec_aarch64_linux_gnu",
+    constraint_values = [
+        ":exec_configuration",
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+        "@rules_rs//rs/platforms/constraints:glibc",
+    ],
+)
+
+config_setting(
+    name = "rust_exec_x86_64_linux_gnu",
+    constraint_values = [
+        ":exec_configuration",
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+        "@rules_rs//rs/platforms/constraints:glibc",
+    ],
+)
+
+constraint_setting(name = "runtime_profile")
+
+constraint_value(
+    name = "profile_release",
+    constraint_setting = ":runtime_profile",
+)
+
+constraint_value(
+    name = "profile_debug",
+    constraint_setting = ":runtime_profile",
+)
+
+constraint_value(
+    name = "profile_asan",
+    constraint_setting = ":runtime_profile",
+)
 
 constraint_value(
     name = "normal",
@@ -27,6 +84,8 @@ platform(
     constraint_values = [
         ":glibc",
         ":normal",
+        ":profile_release",
+        ":target_configuration",
         "@platforms//cpu:x86_64",
         "@platforms//os:linux",
         "@rules_rs//rs/platforms/constraints:glibc",
@@ -38,6 +97,8 @@ platform(
     constraint_values = [
         ":glibc",
         ":normal",
+        ":profile_release",
+        ":target_configuration",
         "@platforms//cpu:aarch64",
         "@platforms//os:linux",
         "@rules_rs//rs/platforms/constraints:glibc",
@@ -49,6 +110,8 @@ platform(
     constraint_values = [
         ":musl",
         ":normal",
+        ":profile_release",
+        ":target_configuration",
         "@platforms//cpu:x86_64",
         "@platforms//os:linux",
         "@rules_rs//rs/platforms/constraints:musl",
@@ -60,6 +123,8 @@ platform(
     constraint_values = [
         ":musl",
         ":normal",
+        ":profile_release",
+        ":target_configuration",
         "@platforms//cpu:aarch64",
         "@platforms//os:linux",
         "@rules_rs//rs/platforms/constraints:musl",
@@ -70,7 +135,9 @@ platform(
     name = "asan_linux_amd64_glibc",
     constraint_values = [
         ":asan",
+        ":profile_asan",
         ":glibc",
+        ":target_configuration",
         "@platforms//cpu:x86_64",
         "@platforms//os:linux",
         "@rules_rs//rs/platforms/constraints:glibc",
@@ -81,7 +148,9 @@ platform(
     name = "asan_linux_arm64_glibc",
     constraint_values = [
         ":asan",
+        ":profile_asan",
         ":glibc",
+        ":target_configuration",
         "@platforms//cpu:aarch64",
         "@platforms//os:linux",
         "@rules_rs//rs/platforms/constraints:glibc",
@@ -94,11 +163,31 @@ platform(
 platform(
     name = "linux_amd64_exec",
     constraint_values = [
+        ":glibc",
+        ":normal",
+        ":exec_configuration",
         "@platforms//cpu:x86_64",
         "@platforms//os:linux",
+        "@rules_rs//rs/platforms/constraints:glibc",
     ],
     exec_properties = {
         "ISA": "x86-64",
+        "OSFamily": "Linux",
+    },
+)
+
+platform(
+    name = "linux_arm64_exec",
+    constraint_values = [
+        ":glibc",
+        ":normal",
+        ":exec_configuration",
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+        "@rules_rs//rs/platforms/constraints:glibc",
+    ],
+    exec_properties = {
+        "ISA": "arm-a64",
         "OSFamily": "Linux",
     },
 )

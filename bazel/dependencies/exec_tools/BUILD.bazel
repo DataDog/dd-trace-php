@@ -1,0 +1,149 @@
+load(":launcher.bzl", "cmake_bundle", "exec_launcher", "execution_tool_aliases")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "alpine322.json",
+    "launcher.c",
+    "launcher.bzl",
+    "repository.bzl",
+])
+
+exec_launcher(
+    name = "launcher_x86_64",
+    clang = "@llvm_20_1_4_dist_x86_64//:bin/clang",
+    compiler_libraries = [
+        "@exec_runtime_debian12_x86_64//:lib_anchor",
+        "@exec_runtime_debian12_x86_64//:usr_lib_anchor",
+    ],
+    compiler_loader = "@exec_runtime_debian12_x86_64//:loader",
+    compiler_runtime = [
+        "@exec_runtime_debian12_x86_64//:all",
+        "@llvm_20_1_4_dist_x86_64//:ar",
+        "@llvm_20_1_4_dist_x86_64//:clang",
+        "@llvm_20_1_4_dist_x86_64//:cxx_builtin_include",
+        "@llvm_20_1_4_dist_x86_64//:ld",
+        "@llvm_20_1_4_dist_x86_64//:lib",
+    ],
+    crt1 = "@exec_tools_alpine322_x86_64//:root/usr/lib/crt1.o",
+    crti = "@exec_tools_alpine322_x86_64//:root/usr/lib/crti.o",
+    crtn = "@exec_tools_alpine322_x86_64//:root/usr/lib/crtn.o",
+    exec_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    libc = "@exec_tools_alpine322_x86_64//:root/usr/lib/libc.a",
+    lld = "@llvm_20_1_4_dist_x86_64//:bin/ld.lld",
+    lld_emulation = "elf_x86_64",
+    runtime = ["@exec_tools_alpine322_x86_64//:all"],
+    source = "launcher.c",
+    target_triple = "x86_64-alpine-linux-musl",
+)
+
+exec_launcher(
+    name = "launcher_aarch64",
+    clang = "@llvm_20_1_4_dist_aarch64//:bin/clang",
+    compiler_libraries = [
+        "@exec_runtime_debian12_aarch64//:lib_anchor",
+        "@exec_runtime_debian12_aarch64//:usr_lib_anchor",
+    ],
+    compiler_loader = "@exec_runtime_debian12_aarch64//:loader",
+    compiler_runtime = [
+        "@exec_runtime_debian12_aarch64//:all",
+        "@llvm_20_1_4_dist_aarch64//:ar",
+        "@llvm_20_1_4_dist_aarch64//:clang",
+        "@llvm_20_1_4_dist_aarch64//:cxx_builtin_include",
+        "@llvm_20_1_4_dist_aarch64//:ld",
+        "@llvm_20_1_4_dist_aarch64//:lib",
+    ],
+    crt1 = "@exec_tools_alpine322_aarch64//:root/usr/lib/crt1.o",
+    crti = "@exec_tools_alpine322_aarch64//:root/usr/lib/crti.o",
+    crtn = "@exec_tools_alpine322_aarch64//:root/usr/lib/crtn.o",
+    exec_compatible_with = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+    libc = "@exec_tools_alpine322_aarch64//:root/usr/lib/libc.a",
+    lld = "@llvm_20_1_4_dist_aarch64//:bin/ld.lld",
+    lld_emulation = "aarch64linux",
+    runtime = ["@exec_tools_alpine322_aarch64//:all"],
+    source = "launcher.c",
+    target_triple = "aarch64-alpine-linux-musl",
+)
+
+# Build the bounded ARM runtime probe with x86_64 execution tools. The normal
+# launcher_aarch64 above remains the real ARM execution-tool target.
+exec_launcher(
+    name = "launcher_aarch64_cross",
+    clang = "@llvm_20_1_4_dist_x86_64//:bin/clang",
+    compiler_libraries = [
+        "@exec_runtime_debian12_x86_64//:lib_anchor",
+        "@exec_runtime_debian12_x86_64//:usr_lib_anchor",
+    ],
+    compiler_loader = "@exec_runtime_debian12_x86_64//:loader",
+    compiler_runtime = [
+        "@exec_runtime_debian12_x86_64//:all",
+        "@llvm_20_1_4_dist_x86_64//:ar",
+        "@llvm_20_1_4_dist_x86_64//:clang",
+        "@llvm_20_1_4_dist_x86_64//:cxx_builtin_include",
+        "@llvm_20_1_4_dist_x86_64//:ld",
+        "@llvm_20_1_4_dist_x86_64//:lib",
+    ],
+    crt1 = "@exec_tools_alpine322_aarch64//:root/usr/lib/crt1.o",
+    crti = "@exec_tools_alpine322_aarch64//:root/usr/lib/crti.o",
+    crtn = "@exec_tools_alpine322_aarch64//:root/usr/lib/crtn.o",
+    exec_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    libc = "@exec_tools_alpine322_aarch64//:root/usr/lib/libc.a",
+    lld = "@llvm_20_1_4_dist_x86_64//:bin/ld.lld",
+    lld_emulation = "aarch64linux",
+    runtime = ["@exec_tools_alpine322_aarch64//:all"],
+    source = "launcher.c",
+    target_triple = "aarch64-alpine-linux-musl",
+)
+
+alias(
+    name = "launcher",
+    actual = select({
+        "@platforms//cpu:aarch64": ":launcher_aarch64",
+        "@platforms//cpu:x86_64": ":launcher_x86_64",
+    }),
+)
+
+cmake_bundle(
+    name = "cmake_x86_64",
+    busybox = "@exec_tools_alpine322_x86_64//:root/bin/busybox.static",
+    launcher = ":launcher_x86_64",
+    modules_anchor = "@exec_tools_alpine322_x86_64//:root/usr/share/cmake/Modules/CMake.cmake",
+    runtime = ["@exec_tools_alpine322_x86_64//:all"],
+    shell = "@exec_tools_alpine322_x86_64//:bin/sh",
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+)
+
+cmake_bundle(
+    name = "cmake_aarch64",
+    busybox = "@exec_tools_alpine322_aarch64//:root/bin/busybox.static",
+    launcher = ":launcher_aarch64",
+    modules_anchor = "@exec_tools_alpine322_aarch64//:root/usr/share/cmake/Modules/CMake.cmake",
+    runtime = ["@exec_tools_alpine322_aarch64//:all"],
+    shell = "@exec_tools_alpine322_aarch64//:bin/sh",
+    target_compatible_with = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+)
+
+alias(
+    name = "cmake",
+    actual = select({
+        "@platforms//cpu:aarch64": ":cmake_aarch64",
+        "@platforms//cpu:x86_64": ":cmake_x86_64",
+    }),
+)
+
+execution_tool_aliases(launcher = ":launcher")

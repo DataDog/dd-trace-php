@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "exec_runtimes": [
+    {
+      "target": {
+        "arch": "amd64",
+        "libc": "glibc",
+        "libc_version": "2.36",
+        "exec_triple": "x86_64-linux-gnu",
+        "dynamic_linker": "/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2"
+      },
+      "coverage": [
+        "LLVM 20.1.4 Clang",
+        "LLVM 20.1.4 LLD",
+        "LLVM 20.1.4 libclang",
+        "LLVM 20.1.4 binary utilities",
+        "rules_python CPython 3.12"
+      ],
+      "packages": [
+        {"name": "gcc-12-base_12.2.0-14+deb12u1", "urls": ["https://snapshot.debian.org/file/715f9e66f5f45930246f5881c6dfe75ab8c6f32c", "https://deb.debian.org/debian/pool/main/g/gcc-12/gcc-12-base_12.2.0-14+deb12u1_amd64.deb"], "sha256": "1896a2aacf4ad681ff5eacc24a5b0ca4d5d9c9b9c9e4b6de5197bc1e116ea619"},
+        {"name": "libatomic1_12.2.0-14+deb12u1", "urls": ["https://snapshot.debian.org/file/51df84ebc749ee14542a77b065bede43edbc3cd0", "https://deb.debian.org/debian/pool/main/g/gcc-12/libatomic1_12.2.0-14+deb12u1_amd64.deb"], "sha256": "fbd4e154a6b444229ea002cc209df099209c0adc09102e5fd21239a3d2b55e2d"},
+        {"name": "libc6_2.36-9+deb12u14", "urls": ["https://snapshot.debian.org/file/c534c6c7f912b61ca26b7cf4082235a0343b8751", "https://deb.debian.org/debian/pool/main/g/glibc/libc6_2.36-9+deb12u14_amd64.deb"], "sha256": "ba4f88f73dbc3ae9055f3c20f4523bfdbaf1ad13ff95e258924f77d20b4fbedf"},
+        {"name": "libcrypt1_1:4.4.33-2", "urls": ["https://snapshot.debian.org/file/980e59db5bf969929b64a5213f114782dceb30c2", "https://deb.debian.org/debian/pool/main/libx/libxcrypt/libcrypt1_4.4.33-2_amd64.deb"], "sha256": "f5f60a5cdfd4e4eaa9438ade5078a57741a7a78d659fcb0c701204f523e8bd29"},
+        {"name": "libgcc-s1_12.2.0-14+deb12u1", "urls": ["https://snapshot.debian.org/file/c72798568b9086ecacf3d46e420c6d90b78ce50d", "https://deb.debian.org/debian/pool/main/g/gcc-12/libgcc-s1_12.2.0-14+deb12u1_amd64.deb"], "sha256": "3016e62cb4b7cd8038822870601f5ed131befe942774d0f745622cc77d8a88f7"},
+        {"name": "libicu72_72.1-3+deb12u1", "urls": ["https://snapshot.debian.org/file/33fdfc4e0715648c57182b80bcaf0254a0372776", "https://deb.debian.org/debian/pool/main/i/icu/libicu72_72.1-3+deb12u1_amd64.deb"], "sha256": "f7f6f99c6d7b025914df2447fc93e11d22c44c0c8bdd8b6f36691c9e7ddcef88"},
+        {"name": "liblzma5_5.4.1-1+deb12u1", "urls": ["https://snapshot.debian.org/file/548827be6ff861c63704929d7c6d772f65eec8f2", "https://deb.debian.org/debian/pool/main/x/xz-utils/liblzma5_5.4.1-1+deb12u1_amd64.deb"], "sha256": "f96d8876b53ec89d76a992bc199679b818cf518225a768954d9451fb556a4eb7"},
+        {"name": "libstdc++6_12.2.0-14+deb12u1", "urls": ["https://snapshot.debian.org/file/b1d2dc0cd7bcd57fa4b1ea6dd27a40384d45b937", "https://deb.debian.org/debian/pool/main/g/gcc-12/libstdc++6_12.2.0-14+deb12u1_amd64.deb"], "sha256": "5cd3171216d4ab0fc911cfe9c35509bf2dd8f47761c43b7f6a4296701551a24d"},
+        {"name": "libxml2_2.9.14+dfsg-1.3~deb12u6", "urls": ["https://snapshot.debian.org/file/6a16bb0c777264fdbaef83273f581dc658af18ba", "https://deb.debian.org/debian/pool/main/libx/libxml2/libxml2_2.9.14+dfsg-1.3~deb12u6_amd64.deb"], "sha256": "4460e39dda10a815881374217cde08474747cfa018358cd8612c14b390eff53b"},
+        {"name": "zlib1g_1:1.2.13.dfsg-1", "urls": ["https://snapshot.debian.org/file/ddbc4d809f9dd8332328b4200f2f40aaf36412cb", "https://deb.debian.org/debian/pool/main/z/zlib/zlib1g_1.2.13.dfsg-1_amd64.deb"], "sha256": "d7dd1d1411fedf27f5e27650a6eff20ef294077b568f4c8c5e51466dc7c08ce4"}
+      ]
+    },
+    {
+      "target": {
+        "arch": "arm64",
+        "libc": "glibc",
+        "libc_version": "2.36",
+        "exec_triple": "aarch64-linux-gnu",
+        "dynamic_linker": "/lib/aarch64-linux-gnu/ld-linux-aarch64.so.1"
+      },
+      "coverage": [
+        "LLVM 20.1.4 Clang",
+        "LLVM 20.1.4 LLD",
+        "LLVM 20.1.4 libclang",
+        "LLVM 20.1.4 binary utilities",
+        "rules_python CPython 3.12"
+      ],
+      "packages": [
+        {"name": "gcc-12-base_12.2.0-14+deb12u1", "urls": ["https://snapshot.debian.org/file/b9cd0c11e6c44ac368d9ece58640f1129ad57231", "https://deb.debian.org/debian/pool/main/g/gcc-12/gcc-12-base_12.2.0-14+deb12u1_arm64.deb"], "sha256": "674cf6cba6d432bd200c45fe866c1652c7a53523cc2e7a613e05bc4abf7b5440"},
+        {"name": "libatomic1_12.2.0-14+deb12u1", "urls": ["https://snapshot.debian.org/file/8305bb913b3f823413cb7b2bb350271a6e994d82", "https://deb.debian.org/debian/pool/main/g/gcc-12/libatomic1_12.2.0-14+deb12u1_arm64.deb"], "sha256": "1693aa13ce2b30d061a519fc28b77b9bab8c8e45804ced5969d99821e1bc2159"},
+        {"name": "libc6_2.36-9+deb12u14", "urls": ["https://snapshot.debian.org/file/85af57bf1f9fa075163e51c99d9536154c21ab7e", "https://deb.debian.org/debian/pool/main/g/glibc/libc6_2.36-9+deb12u14_arm64.deb"], "sha256": "01f4330719fd4f65580e16ea5a0527f372fca750e8f588d26deaf09f2d3b1cf4"},
+        {"name": "libcrypt1_1:4.4.33-2", "urls": ["https://snapshot.debian.org/file/568d1b21a6bbda60235dfea0d1ab6589c849042c", "https://deb.debian.org/debian/pool/main/libx/libxcrypt/libcrypt1_4.4.33-2_arm64.deb"], "sha256": "eea0ad76ea5eb507127fea0c291622ea4ecdbb71c4b9a8ed9c76ae33fc1a0127"},
+        {"name": "libgcc-s1_12.2.0-14+deb12u1", "urls": ["https://snapshot.debian.org/file/6534755fbb89e7bd0ef86c53fce6f34b4f7bfbd4", "https://deb.debian.org/debian/pool/main/g/gcc-12/libgcc-s1_12.2.0-14+deb12u1_arm64.deb"], "sha256": "576926b283613db80168ddf76380a3bd877602778cf0d226caa7bfbfa71eacf3"},
+        {"name": "libicu72_72.1-3+deb12u1", "urls": ["https://snapshot.debian.org/file/dae8ca6a0b69055b8f718e59b71269c992d14c1c", "https://deb.debian.org/debian/pool/main/i/icu/libicu72_72.1-3+deb12u1_arm64.deb"], "sha256": "4f5d892fd81110435e45ed0a5f1b12899d7ff989d51db283cbc043f5631646d8"},
+        {"name": "liblzma5_5.4.1-1+deb12u1", "urls": ["https://snapshot.debian.org/file/53ac9004cdaed9d5a0d83c949e14bcb791d4e6f8", "https://deb.debian.org/debian/pool/main/x/xz-utils/liblzma5_5.4.1-1+deb12u1_arm64.deb"], "sha256": "647ce9d81e41c30071ce6ac0d3324579216a33aaa1d28971d6952315f6a95a75"},
+        {"name": "libstdc++6_12.2.0-14+deb12u1", "urls": ["https://snapshot.debian.org/file/d0ab5371c1259b637436b4e61381e47385386650", "https://deb.debian.org/debian/pool/main/g/gcc-12/libstdc++6_12.2.0-14+deb12u1_arm64.deb"], "sha256": "26e138c677a985775331373828a6c286c551ff397cb735d00e2383cb273d1cb2"},
+        {"name": "libxml2_2.9.14+dfsg-1.3~deb12u6", "urls": ["https://snapshot.debian.org/file/b97023f848beddd3edd4150a9df01c5bf8646f33", "https://deb.debian.org/debian/pool/main/libx/libxml2/libxml2_2.9.14+dfsg-1.3~deb12u6_arm64.deb"], "sha256": "0bc00975e459387535a4bbabe98a398f0e77c9ab82474face18d01ae8ed0dae4"},
+        {"name": "zlib1g_1:1.2.13.dfsg-1", "urls": ["https://snapshot.debian.org/file/3c33d36bd1ec4aedbf4a96334335bd671c204c2f", "https://deb.debian.org/debian/pool/main/z/zlib/zlib1g_1.2.13.dfsg-1_arm64.deb"], "sha256": "52b8b8a145bbe1956bba82034f77022cbef0c3d0885c9e32d9817a7932fe1913"}
+      ]
+    }
+  ]
+}

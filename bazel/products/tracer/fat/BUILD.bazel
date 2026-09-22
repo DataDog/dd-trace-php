@@ -1,0 +1,59 @@
+load(":link.bzl", "ddtrace_fat_links")
+load(":symbols.bzl", "tracer_symbol_manifest_check")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "check-symbol-manifest.sh",
+    "ddtrace-fat.sym",
+    "link.bzl",
+    "native-smoke.sh",
+    "sidecar-direct-smoke.py",
+    "sidecar-ping.rs",
+    "validate-fat-elf.py",
+    "validate-fat-elf.sh",
+])
+
+tracer_symbol_manifest_check(
+    name = "ddtrace_fat_symbols_check",
+    expected = ":ddtrace-fat.sym",
+    extension = "//:ddtrace-extension.sym",
+    extension_linux = "//:ddtrace-extension-linux.sym",
+    rust = "//:components-rs/libdatadog-php.sym",
+    rust_linux = "//:components-rs/libdatadog-php-linux.sym",
+    rust_unix = "//:components-rs/libdatadog-php-unix.sym",
+)
+
+config_setting(
+    name = "amd64_glibc",
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+        "//bazel/platforms:glibc",
+    ],
+)
+
+config_setting(
+    name = "arm64_glibc",
+    constraint_values = [
+        "@platforms//cpu:aarch64",
+        "//bazel/platforms:glibc",
+    ],
+)
+
+config_setting(
+    name = "amd64_musl",
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+        "//bazel/platforms:musl",
+    ],
+)
+
+config_setting(
+    name = "arm64_musl",
+    constraint_values = [
+        "@platforms//cpu:aarch64",
+        "//bazel/platforms:musl",
+    ],
+)
+
+ddtrace_fat_links()

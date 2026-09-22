@@ -1,0 +1,499 @@
+[package]
+name = "ddtrace-tracer-registry-resolution"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[target.'cfg(all(target_arch = "aarch64", target_env = "gnu", target_os = "linux"))'.dependencies]
+resolved_0 = { package = 'anyhow', version = '=1.0.103', default-features = false, features = ['backtrace', 'default', 'std'] }
+resolved_1 = { package = 'arc-swap', version = '=1.7.1', default-features = false }
+resolved_2 = { package = 'arrayref', version = '=0.3.9', default-features = false }
+resolved_3 = { package = 'async-trait', version = '=0.1.85', default-features = false }
+resolved_4 = { package = 'base64', version = '=0.22.1', default-features = false, features = ['alloc', 'default', 'std'] }
+resolved_5 = { package = 'bincode', version = '=1.3.3', default-features = false }
+resolved_6 = { package = 'blazesym', version = '=0.2.3', default-features = false, features = ['backtrace', 'default', 'demangle', 'dwarf', 'zlib'] }
+resolved_7 = { package = 'bytes', version = '=1.11.1', default-features = false, features = ['default', 'std'] }
+resolved_8 = { package = 'cadence', version = '=1.5.0', default-features = false }
+resolved_9 = { package = 'cc', version = '=1.2.66', default-features = false, features = ['parallel'] }
+resolved_10 = { package = 'chrono', version = '=0.4.45', default-features = false, features = ['alloc', 'clock', 'default', 'iana-time-zone', 'js-sys', 'now', 'oldtime', 'serde', 'std', 'wasm-bindgen', 'wasmbind', 'winapi', 'windows-link'] }
+resolved_11 = { package = 'const-str', version = '=0.5.7', default-features = false, features = ['default'] }
+resolved_12 = { package = 'const_format', version = '=0.2.34', default-features = false }
+resolved_13 = { package = 'constcat', version = '=0.4.1', default-features = false }
+resolved_14 = { package = 'crossbeam-channel', version = '=0.5.16', default-features = false, features = ['default', 'std'] }
+resolved_15 = { package = 'crossbeam-epoch', version = '=0.9.18', default-features = false, features = ['alloc', 'default', 'std'] }
+resolved_16 = { package = 'crossbeam-queue', version = '=0.3.12', default-features = false, features = ['alloc', 'default', 'std'] }
+resolved_17 = { package = 'crossbeam-utils', version = '=0.8.21', default-features = false, features = ['default', 'std'] }
+resolved_18 = { package = 'derive_more', version = '=2.1.1', default-features = false, features = ['from', 'into'] }
+resolved_19 = { package = 'either', version = '=1.13.0', default-features = false, features = ['default', 'use_std'] }
+resolved_20 = { package = 'env_logger', version = '=0.11.11', default-features = false, features = ['auto-color', 'color', 'default', 'humantime', 'regex'] }
+resolved_21 = { package = 'errno', version = '=0.3.10', default-features = false, features = ['default', 'std'] }
+resolved_22 = { package = 'fastrand', version = '=2.3.0', default-features = false, features = ['alloc', 'default', 'std'] }
+resolved_23 = { package = 'faststr', version = '=0.2.34', default-features = false, features = ['serde'] }
+resolved_24 = { package = 'flate2', version = '=1.1.9', default-features = false, features = ['any_impl', 'default', 'miniz_oxide', 'rust_backend'] }
+resolved_25 = { package = 'fluent-uri', version = '=0.4.1', default-features = false }
+resolved_26 = { package = 'function_name', version = '=0.3.0', default-features = false }
+resolved_27 = { package = 'futures', version = '=0.3.32', default-features = false, features = ['alloc', 'async-await', 'bilock', 'default', 'executor', 'futures-executor', 'std', 'unstable'] }
+resolved_28 = { package = 'futures-channel', version = '=0.3.32', default-features = false, features = ['alloc', 'default', 'futures-sink', 'sink', 'std', 'unstable'] }
+resolved_29 = { package = 'futures-core', version = '=0.3.32', default-features = false, features = ['alloc', 'default', 'std', 'unstable'] }
+resolved_30 = { package = 'futures-util', version = '=0.3.32', default-features = false, features = ['alloc', 'async-await', 'async-await-macro', 'bilock', 'channel', 'default', 'futures-channel', 'futures-io', 'futures-macro', 'futures-sink', 'io', 'memchr', 'sink', 'slab', 'std', 'unstable'] }
+resolved_31 = { package = 'getrandom', version = '=0.2.15', default-features = false, features = ['std'] }
+resolved_32 = { package = 'h2', version = '=0.4.19', default-features = false }
+resolved_33 = { package = 'hashbrown', version = '=0.15.2', default-features = false, features = ['allocator-api2', 'default', 'default-hasher', 'equivalent', 'inline-more', 'raw-entry'] }
+resolved_34 = { package = 'hashbrown', version = '=0.17.1', default-features = false, features = ['allocator-api2', 'default', 'default-hasher', 'equivalent', 'inline-more', 'raw-entry'] }
+resolved_35 = { package = 'heck', version = '=0.5.0', default-features = false }
+resolved_36 = { package = 'hex', version = '=0.4.3', default-features = false, features = ['alloc', 'default', 'std'] }
+resolved_37 = { package = 'http', version = '=1.4.2', default-features = false, features = ['default', 'std'] }
+resolved_38 = { package = 'http-body', version = '=1.0.1', default-features = false }
+resolved_39 = { package = 'http-body-util', version = '=0.1.2', default-features = false }
+resolved_40 = { package = 'hyper', version = '=1.6.0', default-features = false, features = ['client', 'default', 'http1', 'http2'] }
+resolved_41 = { package = 'hyper-rustls', version = '=0.27.7', default-features = false, features = ['http1', 'http2', 'native-tokio', 'ring', 'rustls-native-certs', 'tls12'] }
+resolved_42 = { package = 'hyper-util', version = '=0.1.15', default-features = false, features = ['client', 'client-legacy', 'client-proxy', 'default', 'http1', 'http2', 'tokio'] }
+resolved_43 = { package = 'indexmap', version = '=2.12.1', default-features = false, features = ['default', 'std'] }
+resolved_44 = { package = 'io-lifetimes', version = '=1.0.11', default-features = false, features = ['close', 'hermit-abi', 'libc', 'windows-sys'] }
+resolved_45 = { package = 'itertools', version = '=0.11.0', default-features = false, features = ['default', 'use_alloc', 'use_std'] }
+resolved_46 = { package = 'itoa', version = '=1.0.14', default-features = false }
+resolved_47 = { package = 'lazy_static', version = '=1.5.0', default-features = false }
+resolved_48 = { package = 'libc', version = '=0.2.186', default-features = false, features = ['default', 'extra_traits', 'std'] }
+resolved_49 = { package = 'libdd-libunwind-sys', version = '=1.0.3', default-features = false }
+resolved_50 = { package = 'log', version = '=0.4.33', default-features = false, features = ['kv', 'kv_serde', 'kv_std', 'max_level_trace', 'release_max_level_trace', 'serde', 'serde_core', 'std', 'value-bag'] }
+resolved_51 = { package = 'lru', version = '=0.16.4', default-features = false, features = ['default', 'hashbrown'] }
+resolved_52 = { package = 'manual_future', version = '=0.1.1', default-features = false }
+resolved_53 = { package = 'md5', version = '=0.7.0', default-features = false }
+resolved_54 = { package = 'memfd', version = '=0.6.4', default-features = false }
+resolved_55 = { package = 'memory-stats', version = '=1.2.0', default-features = false, features = ['always_use_statm'] }
+resolved_56 = { package = 'nix', version = '=0.29.0', default-features = false, features = ['dir', 'feature', 'fs', 'memoffset', 'mman', 'poll', 'process', 'signal', 'socket', 'uio', 'user'] }
+resolved_57 = { package = 'num-derive', version = '=0.4.2', default-features = false }
+resolved_58 = { package = 'num-traits', version = '=0.2.19', default-features = false, features = ['default', 'std'] }
+resolved_59 = { package = 'os_info', version = '=3.14.0', default-features = false }
+resolved_60 = { package = 'page_size', version = '=0.6.0', default-features = false }
+resolved_61 = { package = 'paste', version = '=1.0.15', default-features = false }
+resolved_62 = { package = 'percent-encoding', version = '=2.3.1', default-features = false, features = ['alloc', 'default', 'std'] }
+resolved_63 = { package = 'pin-project', version = '=1.1.8', default-features = false }
+resolved_64 = { package = 'portable-atomic', version = '=1.10.0', default-features = false, features = ['default', 'fallback', 'serde'] }
+resolved_65 = { package = 'prctl', version = '=1.0.0', default-features = false }
+resolved_66 = { package = 'priority-queue', version = '=2.1.1', default-features = false, features = ['default', 'std'] }
+resolved_67 = { package = 'proc-macro2', version = '=1.0.106', default-features = false, features = ['default', 'proc-macro'] }
+resolved_68 = { package = 'prost', version = '=0.14.3', default-features = false, features = ['default', 'derive', 'std'] }
+resolved_69 = { package = 'quote', version = '=1.0.46', default-features = false, features = ['default', 'proc-macro'] }
+resolved_70 = { package = 'rand', version = '=0.8.8', default-features = false, features = ['alloc', 'default', 'getrandom', 'libc', 'rand_chacha', 'small_rng', 'std', 'std_rng'] }
+resolved_71 = { package = 'regex', version = '=1.13.0', default-features = false, features = ['default', 'perf', 'perf-backtrack', 'perf-cache', 'perf-dfa', 'perf-inline', 'perf-literal', 'perf-onepass', 'std', 'unicode', 'unicode-age', 'unicode-bool', 'unicode-case', 'unicode-gencat', 'unicode-perl', 'unicode-script', 'unicode-segment'] }
+resolved_72 = { package = 'regex-automata', version = '=0.4.15', default-features = false, features = ['alloc', 'default', 'dfa', 'dfa-build', 'dfa-onepass', 'dfa-search', 'hybrid', 'meta', 'nfa', 'nfa-backtrack', 'nfa-pikevm', 'nfa-thompson', 'perf', 'perf-inline', 'perf-literal', 'perf-literal-multisubstring', 'perf-literal-substring', 'std', 'syntax', 'unicode', 'unicode-age', 'unicode-bool', 'unicode-case', 'unicode-gencat', 'unicode-perl', 'unicode-script', 'unicode-segment', 'unicode-word-boundary'] }
+resolved_73 = { package = 'rmp', version = '=0.8.14', default-features = false, features = ['default', 'std'] }
+resolved_74 = { package = 'rmp-serde', version = '=1.3.0', default-features = false }
+resolved_75 = { package = 'rmpv', version = '=1.3.0', default-features = false }
+resolved_76 = { package = 'rustc-hash', version = '=2.1.3', default-features = false, features = ['default', 'std'] }
+resolved_77 = { package = 'rustls', version = '=0.23.37', default-features = false, features = ['ring', 'std', 'tls12'] }
+resolved_78 = { package = 'rustls-native-certs', version = '=0.8.1', default-features = false }
+resolved_79 = { package = 'rustls-platform-verifier', version = '=0.6.2', default-features = false }
+resolved_80 = { package = 'schemars', version = '=0.8.21', default-features = false, features = ['default', 'derive', 'schemars_derive'] }
+resolved_81 = { package = 'semver', version = '=1.0.25', default-features = false }
+resolved_82 = { package = 'sendfd', version = '=0.4.3', default-features = false, features = ['tokio'] }
+resolved_83 = { package = 'serde', version = '=1.0.228', default-features = false, features = ['alloc', 'default', 'derive', 'rc', 'serde_derive', 'std'] }
+resolved_84 = { package = 'serde-bool', version = '=0.1.4', default-features = false }
+resolved_85 = { package = 'serde-transcode', version = '=1.1.1', default-features = false }
+resolved_86 = { package = 'serde_bytes', version = '=0.11.15', default-features = false, features = ['default', 'std'] }
+resolved_87 = { package = 'serde_json', version = '=1.0.150', default-features = false, features = ['alloc', 'default', 'indexmap', 'preserve_order', 'raw_value', 'std'] }
+resolved_88 = { package = 'serde_tuple', version = '=1.1.3', default-features = false, features = ['default', 'std'] }
+resolved_89 = { package = 'serde_with', version = '=3.12.0', default-features = false, features = ['alloc', 'base64', 'default', 'hex', 'macros', 'std'] }
+resolved_90 = { package = 'serde_yaml', version = '=0.9.34+deprecated', default-features = false }
+resolved_91 = { package = 'sha2', version = '=0.10.8', default-features = false, features = ['std'] }
+resolved_92 = { package = 'simd-json', version = '=0.14.3', default-features = false, features = ['default', 'runtime-detection', 'serde', 'serde_impl', 'serde_json', 'swar-number-parsing'] }
+resolved_93 = { package = 'smallvec', version = '=1.15.1', default-features = false, features = ['const_generics', 'const_new'] }
+resolved_94 = { package = 'static_assertions', version = '=1.1.0', default-features = false }
+resolved_95 = { package = 'strum', version = '=0.26.3', default-features = false }
+resolved_96 = { package = 'strum_macros', version = '=0.26.4', default-features = false }
+resolved_97 = { package = 'symbolic-common', version = '=12.13.3', default-features = false }
+resolved_98 = { package = 'symbolic-demangle', version = '=12.13.3', default-features = false, features = ['cpp', 'cpp_demangle', 'msvc', 'msvc-demangler', 'rust', 'rustc-demangle'] }
+resolved_99 = { package = 'syn', version = '=2.0.118', default-features = false, features = ['clone-impls', 'default', 'derive', 'extra-traits', 'fold', 'full', 'parsing', 'printing', 'proc-macro', 'visit', 'visit-mut'] }
+resolved_100 = { package = 'sys-info', version = '=0.9.1', default-features = false }
+resolved_101 = { package = 'tempfile', version = '=3.24.0', default-features = false, features = ['default', 'getrandom'] }
+resolved_102 = { package = 'thin-vec', version = '=0.2.18', default-features = false, features = ['default', 'std'] }
+resolved_103 = { package = 'thiserror', version = '=1.0.69', default-features = false }
+resolved_104 = { package = 'thiserror', version = '=2.0.18', default-features = false, features = ['default', 'std'] }
+resolved_105 = { package = 'thread_local', version = '=1.1.8', default-features = false }
+resolved_106 = { package = 'time', version = '=0.3.37', default-features = false, features = ['alloc', 'formatting', 'parsing', 'serde', 'std'] }
+resolved_107 = { package = 'tokio', version = '=1.49.0', default-features = false, features = ['bytes', 'default', 'fs', 'io-std', 'io-util', 'libc', 'macros', 'mio', 'net', 'rt', 'rt-multi-thread', 'signal', 'signal-hook-registry', 'socket2', 'sync', 'taskdump', 'test-util', 'time', 'tokio-macros'] }
+resolved_108 = { package = 'tokio-rustls', version = '=0.26.1', default-features = false, features = ['tls12'] }
+resolved_109 = { package = 'tokio-stream', version = '=0.1.17', default-features = false, features = ['default', 'time'] }
+resolved_110 = { package = 'tokio-util', version = '=0.7.13', default-features = false, features = ['codec', 'default', 'futures-util', 'hashbrown', 'io', 'rt'] }
+resolved_111 = { package = 'tonic', version = '=0.14.2', default-features = false }
+resolved_112 = { package = 'tower-service', version = '=0.3.3', default-features = false }
+resolved_113 = { package = 'tracing', version = '=0.1.44', default-features = false, features = ['attributes', 'default', 'std', 'tracing-attributes'] }
+resolved_114 = { package = 'tracing-core', version = '=0.1.36', default-features = false, features = ['default', 'once_cell', 'std'] }
+resolved_115 = { package = 'tracing-log', version = '=0.2.0', default-features = false, features = ['default', 'log-tracer', 'std'] }
+resolved_116 = { package = 'tracing-subscriber', version = '=0.3.23', default-features = false, features = ['alloc', 'env-filter', 'fmt', 'matchers', 'once_cell', 'registry', 'sharded-slab', 'smallvec', 'std', 'thread_local', 'tracing'] }
+resolved_117 = { package = 'url', version = '=2.5.4', default-features = false, features = ['default', 'std'] }
+resolved_118 = { package = 'uuid', version = '=1.12.1', default-features = false, features = ['default', 'rng', 'serde', 'std', 'v4'] }
+resolved_119 = { package = 'web-time', version = '=1.1.0', default-features = false }
+resolved_120 = { package = 'zwohash', version = '=0.1.2', default-features = false, features = ['default', 'std'] }
+
+[target.'cfg(all(target_arch = "aarch64", target_env = "musl", target_os = "linux"))'.dependencies]
+resolved_0 = { package = 'anyhow', version = '=1.0.103', default-features = false, features = ['backtrace', 'default', 'std'] }
+resolved_1 = { package = 'arc-swap', version = '=1.7.1', default-features = false }
+resolved_2 = { package = 'arrayref', version = '=0.3.9', default-features = false }
+resolved_3 = { package = 'async-trait', version = '=0.1.85', default-features = false }
+resolved_4 = { package = 'base64', version = '=0.22.1', default-features = false, features = ['alloc', 'default', 'std'] }
+resolved_5 = { package = 'bincode', version = '=1.3.3', default-features = false }
+resolved_6 = { package = 'blazesym', version = '=0.2.3', default-features = false, features = ['backtrace', 'default', 'demangle', 'dwarf', 'zlib'] }
+resolved_7 = { package = 'bytes', version = '=1.11.1', default-features = false, features = ['default', 'std'] }
+resolved_8 = { package = 'cadence', version = '=1.5.0', default-features = false }
+resolved_9 = { package = 'cc', version = '=1.2.66', default-features = false, features = ['parallel'] }
+resolved_10 = { package = 'chrono', version = '=0.4.45', default-features = false, features = ['alloc', 'clock', 'default', 'iana-time-zone', 'js-sys', 'now', 'oldtime', 'serde', 'std', 'wasm-bindgen', 'wasmbind', 'winapi', 'windows-link'] }
+resolved_11 = { package = 'const-str', version = '=0.5.7', default-features = false, features = ['default'] }
+resolved_12 = { package = 'const_format', version = '=0.2.34', default-features = false }
+resolved_13 = { package = 'constcat', version = '=0.4.1', default-features = false }
+resolved_14 = { package = 'crossbeam-channel', version = '=0.5.16', default-features = false, features = ['default', 'std'] }
+resolved_15 = { package = 'crossbeam-epoch', version = '=0.9.18', default-features = false, features = ['alloc', 'default', 'std'] }
+resolved_16 = { package = 'crossbeam-queue', version = '=0.3.12', default-features = false, features = ['alloc', 'default', 'std'] }
+resolved_17 = { package = 'crossbeam-utils', version = '=0.8.21', default-features = false, features = ['default', 'std'] }
+resolved_18 = { package = 'derive_more', version = '=2.1.1', default-features = false, features = ['from', 'into'] }
+resolved_19 = { package = 'either', version = '=1.13.0', default-features = false, features = ['default', 'use_std'] }
+resolved_20 = { package = 'env_logger', version = '=0.11.11', default-features = false, features = ['auto-color', 'color', 'default', 'humantime', 'regex'] }
+resolved_21 = { package = 'errno', version = '=0.3.10', default-features = false, features = ['default', 'std'] }
+resolved_22 = { package = 'fastrand', version = '=2.3.0', default-features = false, features = ['alloc', 'default', 'std'] }
+resolved_23 = { package = 'faststr', version = '=0.2.34', default-features = false, features = ['serde'] }
+resolved_24 = { package = 'flate2', version = '=1.1.9', default-features = false, features = ['any_impl', 'default', 'miniz_oxide', 'rust_backend'] }
+resolved_25 = { package = 'fluent-uri', version = '=0.4.1', default-features = false }
+resolved_26 = { package = 'function_name', version = '=0.3.0', default-features = false }
+resolved_27 = { package = 'futures', version = '=0.3.32', default-features = false, features = ['alloc', 'async-await', 'bilock', 'default', 'executor', 'futures-executor', 'std', 'unstable'] }
+resolved_28 = { package = 'futures-channel', version = '=0.3.32', default-features = false, features = ['alloc', 'default', 'futures-sink', 'sink', 'std', 'unstable'] }
+resolved_29 = { package = 'futures-core', version = '=0.3.32', default-features = false, features = ['alloc', 'default', 'std', 'unstable'] }
+resolved_30 = { package = 'futures-util', version = '=0.3.32', default-features = false, features = ['alloc', 'async-await', 'async-await-macro', 'bilock', 'channel', 'default', 'futures-channel', 'futures-io', 'futures-macro', 'futures-sink', 'io', 'memchr', 'sink', 'slab', 'std', 'unstable'] }
+resolved_31 = { package = 'getrandom', version = '=0.2.15', default-features = false, features = ['std'] }
+resolved_32 = { package = 'h2', version = '=0.4.19', default-features = false }
+resolved_33 = { package = 'hashbrown', version = '=0.15.2', default-features = false, features = ['allocator-api2', 'default', 'default-hasher', 'equivalent', 'inline-more', 'raw-entry'] }
+resolved_34 = { package = 'hashbrown', version = '=0.17.1', default-features = false, features = ['allocator-api2', 'default', 'default-hasher', 'equivalent', 'inline-more', 'raw-entry'] }
+resolved_35 = { package = 'heck', version = '=0.5.0', default-features = false }
+resolved_36 = { package = 'hex', version = '=0.4.3', default-features = false, features = ['alloc', 'default', 'std'] }
+resolved_37 = { package = 'http', version = '=1.4.2', default-features = false, features = ['default', 'std'] }
+resolved_38 = { package = 'http-body', version = '=1.0.1', default-features = false }
+resolved_39 = { package = 'http-body-util', version = '=0.1.2', default-features = false }
+resolved_40 = { package = 'hyper', version = '=1.6.0', default-features = false, features = ['client', 'default', 'http1', 'http2'] }
+resolved_41 = { package = 'hyper-rustls', version = '=0.27.7', default-features = false, features = ['http1', 'http2', 'native-tokio', 'ring', 'rustls-native-certs', 'tls12'] }
+resolved_42 = { package = 'hyper-util', version = '=0.1.15', default-features = false, features = ['client', 'client-legacy', 'client-proxy', 'default', 'http1', 'http2', 'tokio'] }
+resolved_43 = { package = 'indexmap', version = '=2.12.1', default-features = false, features = ['default', 'std'] }
+resolved_44 = { package = 'io-lifetimes', version = '=1.0.11', default-features = false, features = ['close', 'hermit-abi', 'libc', 'windows-sys'] }
+resolved_45 = { package = 'itertools', version = '=0.11.0', default-features = false, features = ['default', 'use_alloc', 'use_std'] }
+resolved_46 = { package = 'itoa', version = '=1.0.14', default-features = false }
+resolved_47 = { package = 'lazy_static', version = '=1.5.0', default-features = false }
+resolved_48 = { package = 'libc', version = '=0.2.186', default-features = false, features = ['default', 'extra_traits', 'std'] }
+resolved_49 = { package = 'libdd-libunwind-sys', version = '=1.0.3', default-features = false }
+resolved_50 = { package = 'log', version = '=0.4.33', default-features = false, features = ['kv', 'kv_serde', 'kv_std', 'max_level_trace', 'release_max_level_trace', 'serde', 'serde_core', 'std', 'value-bag'] }
+resolved_51 = { package = 'lru', version = '=0.16.4', default-features = false, features = ['default', 'hashbrown'] }
+resolved_52 = { package = 'manual_future', version = '=0.1.1', default-features = false }
+resolved_53 = { package = 'md5', version = '=0.7.0', default-features = false }
+resolved_54 = { package = 'memfd', version = '=0.6.4', default-features = false }
+resolved_55 = { package = 'memory-stats', version = '=1.2.0', default-features = false, features = ['always_use_statm'] }
+resolved_56 = { package = 'nix', version = '=0.29.0', default-features = false, features = ['dir', 'feature', 'fs', 'memoffset', 'mman', 'poll', 'process', 'signal', 'socket', 'uio', 'user'] }
+resolved_57 = { package = 'num-derive', version = '=0.4.2', default-features = false }
+resolved_58 = { package = 'num-traits', version = '=0.2.19', default-features = false, features = ['default', 'std'] }
+resolved_59 = { package = 'os_info', version = '=3.14.0', default-features = false }
+resolved_60 = { package = 'page_size', version = '=0.6.0', default-features = false }
+resolved_61 = { package = 'paste', version = '=1.0.15', default-features = false }
+resolved_62 = { package = 'percent-encoding', version = '=2.3.1', default-features = false, features = ['alloc', 'default', 'std'] }
+resolved_63 = { package = 'pin-project', version = '=1.1.8', default-features = false }
+resolved_64 = { package = 'portable-atomic', version = '=1.10.0', default-features = false, features = ['default', 'fallback', 'serde'] }
+resolved_65 = { package = 'prctl', version = '=1.0.0', default-features = false }
+resolved_66 = { package = 'priority-queue', version = '=2.1.1', default-features = false, features = ['default', 'std'] }
+resolved_67 = { package = 'proc-macro2', version = '=1.0.106', default-features = false, features = ['default', 'proc-macro'] }
+resolved_68 = { package = 'prost', version = '=0.14.3', default-features = false, features = ['default', 'derive', 'std'] }
+resolved_69 = { package = 'quote', version = '=1.0.46', default-features = false, features = ['default', 'proc-macro'] }
+resolved_70 = { package = 'rand', version = '=0.8.8', default-features = false, features = ['alloc', 'default', 'getrandom', 'libc', 'rand_chacha', 'small_rng', 'std', 'std_rng'] }
+resolved_71 = { package = 'regex', version = '=1.13.0', default-features = false, features = ['default', 'perf', 'perf-backtrack', 'perf-cache', 'perf-dfa', 'perf-inline', 'perf-literal', 'perf-onepass', 'std', 'unicode', 'unicode-age', 'unicode-bool', 'unicode-case', 'unicode-gencat', 'unicode-perl', 'unicode-script', 'unicode-segment'] }
+resolved_72 = { package = 'regex-automata', version = '=0.4.15', default-features = false, features = ['alloc', 'default', 'dfa', 'dfa-build', 'dfa-onepass', 'dfa-search', 'hybrid', 'meta', 'nfa', 'nfa-backtrack', 'nfa-pikevm', 'nfa-thompson', 'perf', 'perf-inline', 'perf-literal', 'perf-literal-multisubstring', 'perf-literal-substring', 'std', 'syntax', 'unicode', 'unicode-age', 'unicode-bool', 'unicode-case', 'unicode-gencat', 'unicode-perl', 'unicode-script', 'unicode-segment', 'unicode-word-boundary'] }
+resolved_73 = { package = 'rmp', version = '=0.8.14', default-features = false, features = ['default', 'std'] }
+resolved_74 = { package = 'rmp-serde', version = '=1.3.0', default-features = false }
+resolved_75 = { package = 'rmpv', version = '=1.3.0', default-features = false }
+resolved_76 = { package = 'rustc-hash', version = '=2.1.3', default-features = false, features = ['default', 'std'] }
+resolved_77 = { package = 'rustls', version = '=0.23.37', default-features = false, features = ['ring', 'std', 'tls12'] }
+resolved_78 = { package = 'rustls-native-certs', version = '=0.8.1', default-features = false }
+resolved_79 = { package = 'rustls-platform-verifier', version = '=0.6.2', default-features = false }
+resolved_80 = { package = 'schemars', version = '=0.8.21', default-features = false, features = ['default', 'derive', 'schemars_derive'] }
+resolved_81 = { package = 'semver', version = '=1.0.25', default-features = false }
+resolved_82 = { package = 'sendfd', version = '=0.4.3', default-features = false, features = ['tokio'] }
+resolved_83 = { package = 'serde', version = '=1.0.228', default-features = false, features = ['alloc', 'default', 'derive', 'rc', 'serde_derive', 'std'] }
+resolved_84 = { package = 'serde-bool', version = '=0.1.4', default-features = false }
+resolved_85 = { package = 'serde-transcode', version = '=1.1.1', default-features = false }
+resolved_86 = { package = 'serde_bytes', version = '=0.11.15', default-features = false, features = ['default', 'std'] }
+resolved_87 = { package = 'serde_json', version = '=1.0.150', default-features = false, features = ['alloc', 'default', 'indexmap', 'preserve_order', 'raw_value', 'std'] }
+resolved_88 = { package = 'serde_tuple', version = '=1.1.3', default-features = false, features = ['default', 'std'] }
+resolved_89 = { package = 'serde_with', version = '=3.12.0', default-features = false, features = ['alloc', 'base64', 'default', 'hex', 'macros', 'std'] }
+resolved_90 = { package = 'serde_yaml', version = '=0.9.34+deprecated', default-features = false }
+resolved_91 = { package = 'sha2', version = '=0.10.8', default-features = false, features = ['std'] }
+resolved_92 = { package = 'simd-json', version = '=0.14.3', default-features = false, features = ['default', 'runtime-detection', 'serde', 'serde_impl', 'serde_json', 'swar-number-parsing'] }
+resolved_93 = { package = 'smallvec', version = '=1.15.1', default-features = false, features = ['const_generics', 'const_new'] }
+resolved_94 = { package = 'static_assertions', version = '=1.1.0', default-features = false }
+resolved_95 = { package = 'strum', version = '=0.26.3', default-features = false }
+resolved_96 = { package = 'strum_macros', version = '=0.26.4', default-features = false }
+resolved_97 = { package = 'symbolic-common', version = '=12.13.3', default-features = false }
+resolved_98 = { package = 'symbolic-demangle', version = '=12.13.3', default-features = false, features = ['cpp', 'cpp_demangle', 'msvc', 'msvc-demangler', 'rust', 'rustc-demangle'] }
+resolved_99 = { package = 'syn', version = '=2.0.118', default-features = false, features = ['clone-impls', 'default', 'derive', 'extra-traits', 'fold', 'full', 'parsing', 'printing', 'proc-macro', 'visit', 'visit-mut'] }
+resolved_100 = { package = 'sys-info', version = '=0.9.1', default-features = false }
+resolved_101 = { package = 'tempfile', version = '=3.24.0', default-features = false, features = ['default', 'getrandom'] }
+resolved_102 = { package = 'thin-vec', version = '=0.2.18', default-features = false, features = ['default', 'std'] }
+resolved_103 = { package = 'thiserror', version = '=1.0.69', default-features = false }
+resolved_104 = { package = 'thiserror', version = '=2.0.18', default-features = false, features = ['default', 'std'] }
+resolved_105 = { package = 'thread_local', version = '=1.1.8', default-features = false }
+resolved_106 = { package = 'time', version = '=0.3.37', default-features = false, features = ['alloc', 'formatting', 'parsing', 'serde', 'std'] }
+resolved_107 = { package = 'tokio', version = '=1.49.0', default-features = false, features = ['bytes', 'default', 'fs', 'io-std', 'io-util', 'libc', 'macros', 'mio', 'net', 'rt', 'rt-multi-thread', 'signal', 'signal-hook-registry', 'socket2', 'sync', 'taskdump', 'test-util', 'time', 'tokio-macros'] }
+resolved_108 = { package = 'tokio-rustls', version = '=0.26.1', default-features = false, features = ['tls12'] }
+resolved_109 = { package = 'tokio-stream', version = '=0.1.17', default-features = false, features = ['default', 'time'] }
+resolved_110 = { package = 'tokio-util', version = '=0.7.13', default-features = false, features = ['codec', 'default', 'futures-util', 'hashbrown', 'io', 'rt'] }
+resolved_111 = { package = 'tonic', version = '=0.14.2', default-features = false }
+resolved_112 = { package = 'tower-service', version = '=0.3.3', default-features = false }
+resolved_113 = { package = 'tracing', version = '=0.1.44', default-features = false, features = ['attributes', 'default', 'std', 'tracing-attributes'] }
+resolved_114 = { package = 'tracing-core', version = '=0.1.36', default-features = false, features = ['default', 'once_cell', 'std'] }
+resolved_115 = { package = 'tracing-log', version = '=0.2.0', default-features = false, features = ['default', 'log-tracer', 'std'] }
+resolved_116 = { package = 'tracing-subscriber', version = '=0.3.23', default-features = false, features = ['alloc', 'env-filter', 'fmt', 'matchers', 'once_cell', 'registry', 'sharded-slab', 'smallvec', 'std', 'thread_local', 'tracing'] }
+resolved_117 = { package = 'url', version = '=2.5.4', default-features = false, features = ['default', 'std'] }
+resolved_118 = { package = 'uuid', version = '=1.12.1', default-features = false, features = ['default', 'rng', 'serde', 'std', 'v4'] }
+resolved_119 = { package = 'web-time', version = '=1.1.0', default-features = false }
+resolved_120 = { package = 'zwohash', version = '=0.1.2', default-features = false, features = ['default', 'std'] }
+
+[target.'cfg(all(target_arch = "x86_64", target_env = "gnu", target_os = "linux"))'.dependencies]
+resolved_0 = { package = 'anyhow', version = '=1.0.103', default-features = false, features = ['backtrace', 'default', 'std'] }
+resolved_1 = { package = 'arc-swap', version = '=1.7.1', default-features = false }
+resolved_2 = { package = 'arrayref', version = '=0.3.9', default-features = false }
+resolved_3 = { package = 'async-trait', version = '=0.1.85', default-features = false }
+resolved_4 = { package = 'base64', version = '=0.22.1', default-features = false, features = ['alloc', 'default', 'std'] }
+resolved_5 = { package = 'bincode', version = '=1.3.3', default-features = false }
+resolved_6 = { package = 'blazesym', version = '=0.2.3', default-features = false, features = ['backtrace', 'default', 'demangle', 'dwarf', 'zlib'] }
+resolved_7 = { package = 'bytes', version = '=1.11.1', default-features = false, features = ['default', 'std'] }
+resolved_8 = { package = 'cadence', version = '=1.5.0', default-features = false }
+resolved_9 = { package = 'cc', version = '=1.2.66', default-features = false, features = ['parallel'] }
+resolved_10 = { package = 'chrono', version = '=0.4.45', default-features = false, features = ['alloc', 'clock', 'default', 'iana-time-zone', 'js-sys', 'now', 'oldtime', 'serde', 'std', 'wasm-bindgen', 'wasmbind', 'winapi', 'windows-link'] }
+resolved_11 = { package = 'const-str', version = '=0.5.7', default-features = false, features = ['default'] }
+resolved_12 = { package = 'const_format', version = '=0.2.34', default-features = false }
+resolved_13 = { package = 'constcat', version = '=0.4.1', default-features = false }
+resolved_14 = { package = 'crossbeam-channel', version = '=0.5.16', default-features = false, features = ['default', 'std'] }
+resolved_15 = { package = 'crossbeam-epoch', version = '=0.9.18', default-features = false, features = ['alloc', 'default', 'std'] }
+resolved_16 = { package = 'crossbeam-queue', version = '=0.3.12', default-features = false, features = ['alloc', 'default', 'std'] }
+resolved_17 = { package = 'crossbeam-utils', version = '=0.8.21', default-features = false, features = ['default', 'std'] }
+resolved_18 = { package = 'derive_more', version = '=2.1.1', default-features = false, features = ['from', 'into'] }
+resolved_19 = { package = 'either', version = '=1.13.0', default-features = false, features = ['default', 'use_std'] }
+resolved_20 = { package = 'env_logger', version = '=0.11.11', default-features = false, features = ['auto-color', 'color', 'default', 'humantime', 'regex'] }
+resolved_21 = { package = 'errno', version = '=0.3.10', default-features = false, features = ['default', 'std'] }
+resolved_22 = { package = 'fastrand', version = '=2.3.0', default-features = false, features = ['alloc', 'default', 'std'] }
+resolved_23 = { package = 'faststr', version = '=0.2.34', default-features = false, features = ['serde'] }
+resolved_24 = { package = 'flate2', version = '=1.1.9', default-features = false, features = ['any_impl', 'default', 'miniz_oxide', 'rust_backend'] }
+resolved_25 = { package = 'fluent-uri', version = '=0.4.1', default-features = false }
+resolved_26 = { package = 'function_name', version = '=0.3.0', default-features = false }
+resolved_27 = { package = 'futures', version = '=0.3.32', default-features = false, features = ['alloc', 'async-await', 'bilock', 'default', 'executor', 'futures-executor', 'std', 'unstable'] }
+resolved_28 = { package = 'futures-channel', version = '=0.3.32', default-features = false, features = ['alloc', 'default', 'futures-sink', 'sink', 'std', 'unstable'] }
+resolved_29 = { package = 'futures-core', version = '=0.3.32', default-features = false, features = ['alloc', 'default', 'std', 'unstable'] }
+resolved_30 = { package = 'futures-util', version = '=0.3.32', default-features = false, features = ['alloc', 'async-await', 'async-await-macro', 'bilock', 'channel', 'default', 'futures-channel', 'futures-io', 'futures-macro', 'futures-sink', 'io', 'memchr', 'sink', 'slab', 'std', 'unstable'] }
+resolved_31 = { package = 'getrandom', version = '=0.2.15', default-features = false, features = ['std'] }
+resolved_32 = { package = 'h2', version = '=0.4.19', default-features = false }
+resolved_33 = { package = 'hashbrown', version = '=0.15.2', default-features = false, features = ['allocator-api2', 'default', 'default-hasher', 'equivalent', 'inline-more', 'raw-entry'] }
+resolved_34 = { package = 'hashbrown', version = '=0.17.1', default-features = false, features = ['allocator-api2', 'default', 'default-hasher', 'equivalent', 'inline-more', 'raw-entry'] }
+resolved_35 = { package = 'heck', version = '=0.5.0', default-features = false }
+resolved_36 = { package = 'hex', version = '=0.4.3', default-features = false, features = ['alloc', 'default', 'std'] }
+resolved_37 = { package = 'http', version = '=1.4.2', default-features = false, features = ['default', 'std'] }
+resolved_38 = { package = 'http-body', version = '=1.0.1', default-features = false }
+resolved_39 = { package = 'http-body-util', version = '=0.1.2', default-features = false }
+resolved_40 = { package = 'hyper', version = '=1.6.0', default-features = false, features = ['client', 'default', 'http1', 'http2'] }
+resolved_41 = { package = 'hyper-rustls', version = '=0.27.7', default-features = false, features = ['http1', 'http2', 'native-tokio', 'ring', 'rustls-native-certs', 'tls12'] }
+resolved_42 = { package = 'hyper-util', version = '=0.1.15', default-features = false, features = ['client', 'client-legacy', 'client-proxy', 'default', 'http1', 'http2', 'tokio'] }
+resolved_43 = { package = 'indexmap', version = '=2.12.1', default-features = false, features = ['default', 'std'] }
+resolved_44 = { package = 'io-lifetimes', version = '=1.0.11', default-features = false, features = ['close', 'hermit-abi', 'libc', 'windows-sys'] }
+resolved_45 = { package = 'itertools', version = '=0.11.0', default-features = false, features = ['default', 'use_alloc', 'use_std'] }
+resolved_46 = { package = 'itoa', version = '=1.0.14', default-features = false }
+resolved_47 = { package = 'lazy_static', version = '=1.5.0', default-features = false }
+resolved_48 = { package = 'libc', version = '=0.2.186', default-features = false, features = ['default', 'extra_traits', 'std'] }
+resolved_49 = { package = 'libdd-libunwind-sys', version = '=1.0.3', default-features = false }
+resolved_50 = { package = 'log', version = '=0.4.33', default-features = false, features = ['kv', 'kv_serde', 'kv_std', 'max_level_trace', 'release_max_level_trace', 'serde', 'serde_core', 'std', 'value-bag'] }
+resolved_51 = { package = 'lru', version = '=0.16.4', default-features = false, features = ['default', 'hashbrown'] }
+resolved_52 = { package = 'manual_future', version = '=0.1.1', default-features = false }
+resolved_53 = { package = 'md5', version = '=0.7.0', default-features = false }
+resolved_54 = { package = 'memfd', version = '=0.6.4', default-features = false }
+resolved_55 = { package = 'memory-stats', version = '=1.2.0', default-features = false, features = ['always_use_statm'] }
+resolved_56 = { package = 'nix', version = '=0.29.0', default-features = false, features = ['dir', 'feature', 'fs', 'memoffset', 'mman', 'poll', 'process', 'signal', 'socket', 'uio', 'user'] }
+resolved_57 = { package = 'num-derive', version = '=0.4.2', default-features = false }
+resolved_58 = { package = 'num-traits', version = '=0.2.19', default-features = false, features = ['default', 'std'] }
+resolved_59 = { package = 'os_info', version = '=3.14.0', default-features = false }
+resolved_60 = { package = 'page_size', version = '=0.6.0', default-features = false }
+resolved_61 = { package = 'paste', version = '=1.0.15', default-features = false }
+resolved_62 = { package = 'percent-encoding', version = '=2.3.1', default-features = false, features = ['alloc', 'default', 'std'] }
+resolved_63 = { package = 'pin-project', version = '=1.1.8', default-features = false }
+resolved_64 = { package = 'portable-atomic', version = '=1.10.0', default-features = false, features = ['default', 'fallback', 'serde'] }
+resolved_65 = { package = 'prctl', version = '=1.0.0', default-features = false }
+resolved_66 = { package = 'priority-queue', version = '=2.1.1', default-features = false, features = ['default', 'std'] }
+resolved_67 = { package = 'proc-macro2', version = '=1.0.106', default-features = false, features = ['default', 'proc-macro'] }
+resolved_68 = { package = 'prost', version = '=0.14.3', default-features = false, features = ['default', 'derive', 'std'] }
+resolved_69 = { package = 'quote', version = '=1.0.46', default-features = false, features = ['default', 'proc-macro'] }
+resolved_70 = { package = 'rand', version = '=0.8.8', default-features = false, features = ['alloc', 'default', 'getrandom', 'libc', 'rand_chacha', 'small_rng', 'std', 'std_rng'] }
+resolved_71 = { package = 'regex', version = '=1.13.0', default-features = false, features = ['default', 'perf', 'perf-backtrack', 'perf-cache', 'perf-dfa', 'perf-inline', 'perf-literal', 'perf-onepass', 'std', 'unicode', 'unicode-age', 'unicode-bool', 'unicode-case', 'unicode-gencat', 'unicode-perl', 'unicode-script', 'unicode-segment'] }
+resolved_72 = { package = 'regex-automata', version = '=0.4.15', default-features = false, features = ['alloc', 'default', 'dfa', 'dfa-build', 'dfa-onepass', 'dfa-search', 'hybrid', 'meta', 'nfa', 'nfa-backtrack', 'nfa-pikevm', 'nfa-thompson', 'perf', 'perf-inline', 'perf-literal', 'perf-literal-multisubstring', 'perf-literal-substring', 'std', 'syntax', 'unicode', 'unicode-age', 'unicode-bool', 'unicode-case', 'unicode-gencat', 'unicode-perl', 'unicode-script', 'unicode-segment', 'unicode-word-boundary'] }
+resolved_73 = { package = 'rmp', version = '=0.8.14', default-features = false, features = ['default', 'std'] }
+resolved_74 = { package = 'rmp-serde', version = '=1.3.0', default-features = false }
+resolved_75 = { package = 'rmpv', version = '=1.3.0', default-features = false }
+resolved_76 = { package = 'rustc-hash', version = '=2.1.3', default-features = false, features = ['default', 'std'] }
+resolved_77 = { package = 'rustls', version = '=0.23.37', default-features = false, features = ['ring', 'std', 'tls12'] }
+resolved_78 = { package = 'rustls-native-certs', version = '=0.8.1', default-features = false }
+resolved_79 = { package = 'rustls-platform-verifier', version = '=0.6.2', default-features = false }
+resolved_80 = { package = 'schemars', version = '=0.8.21', default-features = false, features = ['default', 'derive', 'schemars_derive'] }
+resolved_81 = { package = 'semver', version = '=1.0.25', default-features = false }
+resolved_82 = { package = 'sendfd', version = '=0.4.3', default-features = false, features = ['tokio'] }
+resolved_83 = { package = 'serde', version = '=1.0.228', default-features = false, features = ['alloc', 'default', 'derive', 'rc', 'serde_derive', 'std'] }
+resolved_84 = { package = 'serde-bool', version = '=0.1.4', default-features = false }
+resolved_85 = { package = 'serde-transcode', version = '=1.1.1', default-features = false }
+resolved_86 = { package = 'serde_bytes', version = '=0.11.15', default-features = false, features = ['default', 'std'] }
+resolved_87 = { package = 'serde_json', version = '=1.0.150', default-features = false, features = ['alloc', 'default', 'indexmap', 'preserve_order', 'raw_value', 'std'] }
+resolved_88 = { package = 'serde_tuple', version = '=1.1.3', default-features = false, features = ['default', 'std'] }
+resolved_89 = { package = 'serde_with', version = '=3.12.0', default-features = false, features = ['alloc', 'base64', 'default', 'hex', 'macros', 'std'] }
+resolved_90 = { package = 'serde_yaml', version = '=0.9.34+deprecated', default-features = false }
+resolved_91 = { package = 'sha2', version = '=0.10.8', default-features = false, features = ['std'] }
+resolved_92 = { package = 'simd-json', version = '=0.14.3', default-features = false, features = ['default', 'runtime-detection', 'serde', 'serde_impl', 'serde_json', 'swar-number-parsing'] }
+resolved_93 = { package = 'smallvec', version = '=1.15.1', default-features = false, features = ['const_generics', 'const_new'] }
+resolved_94 = { package = 'static_assertions', version = '=1.1.0', default-features = false }
+resolved_95 = { package = 'strum', version = '=0.26.3', default-features = false }
+resolved_96 = { package = 'strum_macros', version = '=0.26.4', default-features = false }
+resolved_97 = { package = 'symbolic-common', version = '=12.13.3', default-features = false }
+resolved_98 = { package = 'symbolic-demangle', version = '=12.13.3', default-features = false, features = ['cpp', 'cpp_demangle', 'msvc', 'msvc-demangler', 'rust', 'rustc-demangle'] }
+resolved_99 = { package = 'syn', version = '=2.0.118', default-features = false, features = ['clone-impls', 'default', 'derive', 'extra-traits', 'fold', 'full', 'parsing', 'printing', 'proc-macro', 'visit', 'visit-mut'] }
+resolved_100 = { package = 'sys-info', version = '=0.9.1', default-features = false }
+resolved_101 = { package = 'tempfile', version = '=3.24.0', default-features = false, features = ['default', 'getrandom'] }
+resolved_102 = { package = 'thin-vec', version = '=0.2.18', default-features = false, features = ['default', 'std'] }
+resolved_103 = { package = 'thiserror', version = '=1.0.69', default-features = false }
+resolved_104 = { package = 'thiserror', version = '=2.0.18', default-features = false, features = ['default', 'std'] }
+resolved_105 = { package = 'thread_local', version = '=1.1.8', default-features = false }
+resolved_106 = { package = 'time', version = '=0.3.37', default-features = false, features = ['alloc', 'formatting', 'parsing', 'serde', 'std'] }
+resolved_107 = { package = 'tokio', version = '=1.49.0', default-features = false, features = ['bytes', 'default', 'fs', 'io-std', 'io-util', 'libc', 'macros', 'mio', 'net', 'rt', 'rt-multi-thread', 'signal', 'signal-hook-registry', 'socket2', 'sync', 'taskdump', 'test-util', 'time', 'tokio-macros'] }
+resolved_108 = { package = 'tokio-rustls', version = '=0.26.1', default-features = false, features = ['tls12'] }
+resolved_109 = { package = 'tokio-stream', version = '=0.1.17', default-features = false, features = ['default', 'time'] }
+resolved_110 = { package = 'tokio-util', version = '=0.7.13', default-features = false, features = ['codec', 'default', 'futures-util', 'hashbrown', 'io', 'rt'] }
+resolved_111 = { package = 'tonic', version = '=0.14.2', default-features = false }
+resolved_112 = { package = 'tower-service', version = '=0.3.3', default-features = false }
+resolved_113 = { package = 'tracing', version = '=0.1.44', default-features = false, features = ['attributes', 'default', 'std', 'tracing-attributes'] }
+resolved_114 = { package = 'tracing-core', version = '=0.1.36', default-features = false, features = ['default', 'once_cell', 'std'] }
+resolved_115 = { package = 'tracing-log', version = '=0.2.0', default-features = false, features = ['default', 'log-tracer', 'std'] }
+resolved_116 = { package = 'tracing-subscriber', version = '=0.3.23', default-features = false, features = ['alloc', 'env-filter', 'fmt', 'matchers', 'once_cell', 'registry', 'sharded-slab', 'smallvec', 'std', 'thread_local', 'tracing'] }
+resolved_117 = { package = 'url', version = '=2.5.4', default-features = false, features = ['default', 'std'] }
+resolved_118 = { package = 'uuid', version = '=1.12.1', default-features = false, features = ['default', 'rng', 'serde', 'std', 'v4'] }
+resolved_119 = { package = 'web-time', version = '=1.1.0', default-features = false }
+resolved_120 = { package = 'zwohash', version = '=0.1.2', default-features = false, features = ['default', 'std'] }
+
+[target.'cfg(all(target_arch = "x86_64", target_env = "musl", target_os = "linux"))'.dependencies]
+resolved_0 = { package = 'anyhow', version = '=1.0.103', default-features = false, features = ['backtrace', 'default', 'std'] }
+resolved_1 = { package = 'arc-swap', version = '=1.7.1', default-features = false }
+resolved_2 = { package = 'arrayref', version = '=0.3.9', default-features = false }
+resolved_3 = { package = 'async-trait', version = '=0.1.85', default-features = false }
+resolved_4 = { package = 'base64', version = '=0.22.1', default-features = false, features = ['alloc', 'default', 'std'] }
+resolved_5 = { package = 'bincode', version = '=1.3.3', default-features = false }
+resolved_6 = { package = 'blazesym', version = '=0.2.3', default-features = false, features = ['backtrace', 'default', 'demangle', 'dwarf', 'zlib'] }
+resolved_7 = { package = 'bytes', version = '=1.11.1', default-features = false, features = ['default', 'std'] }
+resolved_8 = { package = 'cadence', version = '=1.5.0', default-features = false }
+resolved_9 = { package = 'cc', version = '=1.2.66', default-features = false, features = ['parallel'] }
+resolved_10 = { package = 'chrono', version = '=0.4.45', default-features = false, features = ['alloc', 'clock', 'default', 'iana-time-zone', 'js-sys', 'now', 'oldtime', 'serde', 'std', 'wasm-bindgen', 'wasmbind', 'winapi', 'windows-link'] }
+resolved_11 = { package = 'const-str', version = '=0.5.7', default-features = false, features = ['default'] }
+resolved_12 = { package = 'const_format', version = '=0.2.34', default-features = false }
+resolved_13 = { package = 'constcat', version = '=0.4.1', default-features = false }
+resolved_14 = { package = 'crossbeam-channel', version = '=0.5.16', default-features = false, features = ['default', 'std'] }
+resolved_15 = { package = 'crossbeam-epoch', version = '=0.9.18', default-features = false, features = ['alloc', 'default', 'std'] }
+resolved_16 = { package = 'crossbeam-queue', version = '=0.3.12', default-features = false, features = ['alloc', 'default', 'std'] }
+resolved_17 = { package = 'crossbeam-utils', version = '=0.8.21', default-features = false, features = ['default', 'std'] }
+resolved_18 = { package = 'derive_more', version = '=2.1.1', default-features = false, features = ['from', 'into'] }
+resolved_19 = { package = 'either', version = '=1.13.0', default-features = false, features = ['default', 'use_std'] }
+resolved_20 = { package = 'env_logger', version = '=0.11.11', default-features = false, features = ['auto-color', 'color', 'default', 'humantime', 'regex'] }
+resolved_21 = { package = 'errno', version = '=0.3.10', default-features = false, features = ['default', 'std'] }
+resolved_22 = { package = 'fastrand', version = '=2.3.0', default-features = false, features = ['alloc', 'default', 'std'] }
+resolved_23 = { package = 'faststr', version = '=0.2.34', default-features = false, features = ['serde'] }
+resolved_24 = { package = 'flate2', version = '=1.1.9', default-features = false, features = ['any_impl', 'default', 'miniz_oxide', 'rust_backend'] }
+resolved_25 = { package = 'fluent-uri', version = '=0.4.1', default-features = false }
+resolved_26 = { package = 'function_name', version = '=0.3.0', default-features = false }
+resolved_27 = { package = 'futures', version = '=0.3.32', default-features = false, features = ['alloc', 'async-await', 'bilock', 'default', 'executor', 'futures-executor', 'std', 'unstable'] }
+resolved_28 = { package = 'futures-channel', version = '=0.3.32', default-features = false, features = ['alloc', 'default', 'futures-sink', 'sink', 'std', 'unstable'] }
+resolved_29 = { package = 'futures-core', version = '=0.3.32', default-features = false, features = ['alloc', 'default', 'std', 'unstable'] }
+resolved_30 = { package = 'futures-util', version = '=0.3.32', default-features = false, features = ['alloc', 'async-await', 'async-await-macro', 'bilock', 'channel', 'default', 'futures-channel', 'futures-io', 'futures-macro', 'futures-sink', 'io', 'memchr', 'sink', 'slab', 'std', 'unstable'] }
+resolved_31 = { package = 'getrandom', version = '=0.2.15', default-features = false, features = ['std'] }
+resolved_32 = { package = 'h2', version = '=0.4.19', default-features = false }
+resolved_33 = { package = 'hashbrown', version = '=0.15.2', default-features = false, features = ['allocator-api2', 'default', 'default-hasher', 'equivalent', 'inline-more', 'raw-entry'] }
+resolved_34 = { package = 'hashbrown', version = '=0.17.1', default-features = false, features = ['allocator-api2', 'default', 'default-hasher', 'equivalent', 'inline-more', 'raw-entry'] }
+resolved_35 = { package = 'heck', version = '=0.5.0', default-features = false }
+resolved_36 = { package = 'hex', version = '=0.4.3', default-features = false, features = ['alloc', 'default', 'std'] }
+resolved_37 = { package = 'http', version = '=1.4.2', default-features = false, features = ['default', 'std'] }
+resolved_38 = { package = 'http-body', version = '=1.0.1', default-features = false }
+resolved_39 = { package = 'http-body-util', version = '=0.1.2', default-features = false }
+resolved_40 = { package = 'hyper', version = '=1.6.0', default-features = false, features = ['client', 'default', 'http1', 'http2'] }
+resolved_41 = { package = 'hyper-rustls', version = '=0.27.7', default-features = false, features = ['http1', 'http2', 'native-tokio', 'ring', 'rustls-native-certs', 'tls12'] }
+resolved_42 = { package = 'hyper-util', version = '=0.1.15', default-features = false, features = ['client', 'client-legacy', 'client-proxy', 'default', 'http1', 'http2', 'tokio'] }
+resolved_43 = { package = 'indexmap', version = '=2.12.1', default-features = false, features = ['default', 'std'] }
+resolved_44 = { package = 'io-lifetimes', version = '=1.0.11', default-features = false, features = ['close', 'hermit-abi', 'libc', 'windows-sys'] }
+resolved_45 = { package = 'itertools', version = '=0.11.0', default-features = false, features = ['default', 'use_alloc', 'use_std'] }
+resolved_46 = { package = 'itoa', version = '=1.0.14', default-features = false }
+resolved_47 = { package = 'lazy_static', version = '=1.5.0', default-features = false }
+resolved_48 = { package = 'libc', version = '=0.2.186', default-features = false, features = ['default', 'extra_traits', 'std'] }
+resolved_49 = { package = 'libdd-libunwind-sys', version = '=1.0.3', default-features = false }
+resolved_50 = { package = 'log', version = '=0.4.33', default-features = false, features = ['kv', 'kv_serde', 'kv_std', 'max_level_trace', 'release_max_level_trace', 'serde', 'serde_core', 'std', 'value-bag'] }
+resolved_51 = { package = 'lru', version = '=0.16.4', default-features = false, features = ['default', 'hashbrown'] }
+resolved_52 = { package = 'manual_future', version = '=0.1.1', default-features = false }
+resolved_53 = { package = 'md5', version = '=0.7.0', default-features = false }
+resolved_54 = { package = 'memfd', version = '=0.6.4', default-features = false }
+resolved_55 = { package = 'memory-stats', version = '=1.2.0', default-features = false, features = ['always_use_statm'] }
+resolved_56 = { package = 'nix', version = '=0.29.0', default-features = false, features = ['dir', 'feature', 'fs', 'memoffset', 'mman', 'poll', 'process', 'signal', 'socket', 'uio', 'user'] }
+resolved_57 = { package = 'num-derive', version = '=0.4.2', default-features = false }
+resolved_58 = { package = 'num-traits', version = '=0.2.19', default-features = false, features = ['default', 'std'] }
+resolved_59 = { package = 'os_info', version = '=3.14.0', default-features = false }
+resolved_60 = { package = 'page_size', version = '=0.6.0', default-features = false }
+resolved_61 = { package = 'paste', version = '=1.0.15', default-features = false }
+resolved_62 = { package = 'percent-encoding', version = '=2.3.1', default-features = false, features = ['alloc', 'default', 'std'] }
+resolved_63 = { package = 'pin-project', version = '=1.1.8', default-features = false }
+resolved_64 = { package = 'portable-atomic', version = '=1.10.0', default-features = false, features = ['default', 'fallback', 'serde'] }
+resolved_65 = { package = 'prctl', version = '=1.0.0', default-features = false }
+resolved_66 = { package = 'priority-queue', version = '=2.1.1', default-features = false, features = ['default', 'std'] }
+resolved_67 = { package = 'proc-macro2', version = '=1.0.106', default-features = false, features = ['default', 'proc-macro'] }
+resolved_68 = { package = 'prost', version = '=0.14.3', default-features = false, features = ['default', 'derive', 'std'] }
+resolved_69 = { package = 'quote', version = '=1.0.46', default-features = false, features = ['default', 'proc-macro'] }
+resolved_70 = { package = 'rand', version = '=0.8.8', default-features = false, features = ['alloc', 'default', 'getrandom', 'libc', 'rand_chacha', 'small_rng', 'std', 'std_rng'] }
+resolved_71 = { package = 'regex', version = '=1.13.0', default-features = false, features = ['default', 'perf', 'perf-backtrack', 'perf-cache', 'perf-dfa', 'perf-inline', 'perf-literal', 'perf-onepass', 'std', 'unicode', 'unicode-age', 'unicode-bool', 'unicode-case', 'unicode-gencat', 'unicode-perl', 'unicode-script', 'unicode-segment'] }
+resolved_72 = { package = 'regex-automata', version = '=0.4.15', default-features = false, features = ['alloc', 'default', 'dfa', 'dfa-build', 'dfa-onepass', 'dfa-search', 'hybrid', 'meta', 'nfa', 'nfa-backtrack', 'nfa-pikevm', 'nfa-thompson', 'perf', 'perf-inline', 'perf-literal', 'perf-literal-multisubstring', 'perf-literal-substring', 'std', 'syntax', 'unicode', 'unicode-age', 'unicode-bool', 'unicode-case', 'unicode-gencat', 'unicode-perl', 'unicode-script', 'unicode-segment', 'unicode-word-boundary'] }
+resolved_73 = { package = 'rmp', version = '=0.8.14', default-features = false, features = ['default', 'std'] }
+resolved_74 = { package = 'rmp-serde', version = '=1.3.0', default-features = false }
+resolved_75 = { package = 'rmpv', version = '=1.3.0', default-features = false }
+resolved_76 = { package = 'rustc-hash', version = '=2.1.3', default-features = false, features = ['default', 'std'] }
+resolved_77 = { package = 'rustls', version = '=0.23.37', default-features = false, features = ['ring', 'std', 'tls12'] }
+resolved_78 = { package = 'rustls-native-certs', version = '=0.8.1', default-features = false }
+resolved_79 = { package = 'rustls-platform-verifier', version = '=0.6.2', default-features = false }
+resolved_80 = { package = 'schemars', version = '=0.8.21', default-features = false, features = ['default', 'derive', 'schemars_derive'] }
+resolved_81 = { package = 'semver', version = '=1.0.25', default-features = false }
+resolved_82 = { package = 'sendfd', version = '=0.4.3', default-features = false, features = ['tokio'] }
+resolved_83 = { package = 'serde', version = '=1.0.228', default-features = false, features = ['alloc', 'default', 'derive', 'rc', 'serde_derive', 'std'] }
+resolved_84 = { package = 'serde-bool', version = '=0.1.4', default-features = false }
+resolved_85 = { package = 'serde-transcode', version = '=1.1.1', default-features = false }
+resolved_86 = { package = 'serde_bytes', version = '=0.11.15', default-features = false, features = ['default', 'std'] }
+resolved_87 = { package = 'serde_json', version = '=1.0.150', default-features = false, features = ['alloc', 'default', 'indexmap', 'preserve_order', 'raw_value', 'std'] }
+resolved_88 = { package = 'serde_tuple', version = '=1.1.3', default-features = false, features = ['default', 'std'] }
+resolved_89 = { package = 'serde_with', version = '=3.12.0', default-features = false, features = ['alloc', 'base64', 'default', 'hex', 'macros', 'std'] }
+resolved_90 = { package = 'serde_yaml', version = '=0.9.34+deprecated', default-features = false }
+resolved_91 = { package = 'sha2', version = '=0.10.8', default-features = false, features = ['std'] }
+resolved_92 = { package = 'simd-json', version = '=0.14.3', default-features = false, features = ['default', 'runtime-detection', 'serde', 'serde_impl', 'serde_json', 'swar-number-parsing'] }
+resolved_93 = { package = 'smallvec', version = '=1.15.1', default-features = false, features = ['const_generics', 'const_new'] }
+resolved_94 = { package = 'static_assertions', version = '=1.1.0', default-features = false }
+resolved_95 = { package = 'strum', version = '=0.26.3', default-features = false }
+resolved_96 = { package = 'strum_macros', version = '=0.26.4', default-features = false }
+resolved_97 = { package = 'symbolic-common', version = '=12.13.3', default-features = false }
+resolved_98 = { package = 'symbolic-demangle', version = '=12.13.3', default-features = false, features = ['cpp', 'cpp_demangle', 'msvc', 'msvc-demangler', 'rust', 'rustc-demangle'] }
+resolved_99 = { package = 'syn', version = '=2.0.118', default-features = false, features = ['clone-impls', 'default', 'derive', 'extra-traits', 'fold', 'full', 'parsing', 'printing', 'proc-macro', 'visit', 'visit-mut'] }
+resolved_100 = { package = 'sys-info', version = '=0.9.1', default-features = false }
+resolved_101 = { package = 'tempfile', version = '=3.24.0', default-features = false, features = ['default', 'getrandom'] }
+resolved_102 = { package = 'thin-vec', version = '=0.2.18', default-features = false, features = ['default', 'std'] }
+resolved_103 = { package = 'thiserror', version = '=1.0.69', default-features = false }
+resolved_104 = { package = 'thiserror', version = '=2.0.18', default-features = false, features = ['default', 'std'] }
+resolved_105 = { package = 'thread_local', version = '=1.1.8', default-features = false }
+resolved_106 = { package = 'time', version = '=0.3.37', default-features = false, features = ['alloc', 'formatting', 'parsing', 'serde', 'std'] }
+resolved_107 = { package = 'tokio', version = '=1.49.0', default-features = false, features = ['bytes', 'default', 'fs', 'io-std', 'io-util', 'libc', 'macros', 'mio', 'net', 'rt', 'rt-multi-thread', 'signal', 'signal-hook-registry', 'socket2', 'sync', 'taskdump', 'test-util', 'time', 'tokio-macros'] }
+resolved_108 = { package = 'tokio-rustls', version = '=0.26.1', default-features = false, features = ['tls12'] }
+resolved_109 = { package = 'tokio-stream', version = '=0.1.17', default-features = false, features = ['default', 'time'] }
+resolved_110 = { package = 'tokio-util', version = '=0.7.13', default-features = false, features = ['codec', 'default', 'futures-util', 'hashbrown', 'io', 'rt'] }
+resolved_111 = { package = 'tonic', version = '=0.14.2', default-features = false }
+resolved_112 = { package = 'tower-service', version = '=0.3.3', default-features = false }
+resolved_113 = { package = 'tracing', version = '=0.1.44', default-features = false, features = ['attributes', 'default', 'std', 'tracing-attributes'] }
+resolved_114 = { package = 'tracing-core', version = '=0.1.36', default-features = false, features = ['default', 'once_cell', 'std'] }
+resolved_115 = { package = 'tracing-log', version = '=0.2.0', default-features = false, features = ['default', 'log-tracer', 'std'] }
+resolved_116 = { package = 'tracing-subscriber', version = '=0.3.23', default-features = false, features = ['alloc', 'env-filter', 'fmt', 'matchers', 'once_cell', 'registry', 'sharded-slab', 'smallvec', 'std', 'thread_local', 'tracing'] }
+resolved_117 = { package = 'url', version = '=2.5.4', default-features = false, features = ['default', 'std'] }
+resolved_118 = { package = 'uuid', version = '=1.12.1', default-features = false, features = ['default', 'rng', 'serde', 'std', 'v4'] }
+resolved_119 = { package = 'web-time', version = '=1.1.0', default-features = false }
+resolved_120 = { package = 'zwohash', version = '=0.1.2', default-features = false, features = ['default', 'std'] }

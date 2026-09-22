@@ -1,5 +1,8 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load(":matrix.bzl", "matrix_manifest")
-load(":php_toolchain.bzl", "php_sdk", "php_sdk_manifest")
+load(":php_matrix_targets.bzl", "php_matrix_targets")
+load(":php_toolchain.bzl", "php_sdk_inventory", "php_sdk_manifest")
+load(":product_matrix.bzl", "product_matrix_manifest")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -7,33 +10,56 @@ toolchain_type(name = "toolchain_type")
 
 matrix_manifest(name = "matrix")
 
-# Analysis/contract fixture: this keeps PhpToolchainInfo loaded and exercised
-# before the source-built PHP SDK targets land in stage two.
-php_sdk(
-    name = "provider_contract_sdk",
-    api = 20220829,
-    bundled_extensions = [
-        "json",
-        "opcache",
-    ],
-    generated_headers = ["testdata/php_config.h"],
-    include_paths = ["include/php"],
-    runtime_artifacts = ["testdata/php-runtime"],
-    sapis = [
-        "cli",
-        "cgi",
-        "fpm",
-        "embed",
-        "apache2handler",
-        "phpdbg",
-    ],
-    shared_extensions = ["ffi"],
-    target_arch = "amd64",
-    target_libc = "glibc",
-    version = "8.2.31",
+product_matrix_manifest(name = "product_matrix")
+
+PHP_TARGETS = php_matrix_targets()
+
+php_sdk_inventory(
+    name = "sdk_inventory",
+    sdks = PHP_TARGETS,
 )
 
-php_sdk_manifest(
-    name = "provider_contract_manifest",
-    sdk = ":provider_contract_sdk",
+filegroup(
+    name = "php_all",
+    srcs = PHP_TARGETS + [":sdk_inventory"],
 )
+
+cc_library(
+    name = "legacy_arm64_debug_sdk_probe",
+    srcs = ["sdk_probe.c"],
+    copts = [
+        "-DSDK_EXPECT_API=20200930",
+        "-DSDK_EXPECT_DEBUG=1",
+        "-DSDK_EXPECT_ZTS=0",
+    ],
+    tags = ["manual"],
+    target_compatible_with = [
+        "//bazel/platforms:musl",
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+    deps = [":php_8_0_arm64_musl_alpine_legacy_debug"],
+)
+
+cc_library(
+    name = "legacy_arm64_debug_zts_sdk_probe",
+    srcs = ["sdk_probe.c"],
+    copts = [
+        "-DSDK_EXPECT_API=20200930",
+        "-DSDK_EXPECT_DEBUG=1",
+        "-DSDK_EXPECT_ZTS=1",
+    ],
+    tags = ["manual"],
+    target_compatible_with = [
+        "//bazel/platforms:musl",
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+    deps = [":php_8_0_arm64_musl_alpine_legacy_debug_zts"],
+)
+
+exports_files([
+    "php_toolchain.bzl",
+    "validate_product_manifest.py",
+    "validate_product_manifest_test.py",
+])

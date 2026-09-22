@@ -4,37 +4,1885 @@ module(
 )
 
 bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "llvm", version = "0.8.18")
 bazel_dep(name = "rules_cc", version = "0.2.22")
 bazel_dep(name = "rules_rs", version = "0.0.111")
+bazel_dep(name = "rules_python", version = "1.8.0")
+bazel_dep(name = "zstd", version = "1.5.7.bcr.1")
+
+single_version_override(
+    module_name = "rules_rs",
+    patch_strip = 1,
+    patches = [
+        "//bazel/rust:rules_rs_exec_features.patch",
+        "//bazel/rust:rules_rs_rustc_src_direct.patch",
+        "//bazel/rust:rules_rs_locked_registry_config.patch",
+    ],
+    version = "0.0.111",
+)
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    is_default = True,
+    python_version = "3.12",
+)
+use_repo(
+    python,
+    "python_3_12",
+    "python_3_12_aarch64-unknown-linux-gnu",
+    "python_3_12_x86_64-unknown-linux-gnu",
+)
+
+execution_runtimes = use_extension("//bazel/dependencies/exec_runtime:repository.bzl", "execution_runtimes")
+execution_runtimes.tool(
+    python_aarch64 = "@python_3_12_aarch64-unknown-linux-gnu//:bin/python3",
+    python_x86_64 = "@python_3_12_x86_64-unknown-linux-gnu//:bin/python3",
+)
+use_repo(
+    execution_runtimes,
+    "exec_runtime_debian12_aarch64",
+    "exec_runtime_debian12_x86_64",
+)
+
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_archive(
+    name = "llvm_20_1_4_dist_x86_64",
+    build_file = "//bazel/toolchains:BUILD.llvm_dist",
+    sha256 = "113b54c397adb2039fa45e38dc8107b9ec5a0baead3a3bac8ccfbb65b2340caa",
+    strip_prefix = "LLVM-20.1.4-Linux-X64",
+    urls = ["https://github.com/llvm/llvm-project/releases/download/llvmorg-20.1.4/LLVM-20.1.4-Linux-X64.tar.xz"],
+)
+
+http_archive(
+    name = "llvm_20_1_4_dist_aarch64",
+    build_file = "//bazel/toolchains:BUILD.llvm_dist",
+    sha256 = "4de80a332eecb06bf55097fd3280e1c69ed80f222e5bdd556221a6ceee02721a",
+    strip_prefix = "LLVM-20.1.4-Linux-ARM64",
+    urls = ["https://github.com/llvm/llvm-project/releases/download/llvmorg-20.1.4/LLVM-20.1.4-Linux-ARM64.tar.xz"],
+)
+
+http_archive(
+    name = "rapidjson_source",
+    build_file = "//bazel/products/libddwaf:BUILD.rapidjson",
+    sha256 = "2d2601a82d2d3b7e143a3c8d43ef616671391034bc46891a9816b79cf2d3e7a8",
+    strip_prefix = "rapidjson-24b5e7a8b27f42fa16b96fc70aade9106cf7102f",
+    type = "tar.gz",
+    urls = ["https://codeload.github.com/Tencent/rapidjson/tar.gz/24b5e7a8b27f42fa16b96fc70aade9106cf7102f"],
+)
+
+http_archive(
+    name = "libddwaf_source",
+    build_file = "//bazel/products/libddwaf:BUILD.libddwaf",
+    sha256 = "b17f7cc40b43f34c9286dfd0e432116400ff7f4b76c1bda3fead05099cdb32d6",
+    strip_prefix = "libddwaf-2.0.1",
+    urls = ["https://github.com/DataDog/libddwaf/archive/refs/tags/2.0.1.tar.gz"],
+)
+
+# Keep the compile-time client requests in sync with the Valgrind release
+# installed by dockerfiles/ci/bookworm/Dockerfile.  The tracer only consumes
+# the public client header; no target executable or host package is used.
+http_archive(
+    name = "valgrind_3_25_1_source",
+    build_file = "//bazel/dependencies:BUILD.valgrind",
+    sha256 = "61deb8d0727b45c268efdc1b3b6c9e679cd97cbf5ee4b28d1dead7c8b7a271af",
+    strip_prefix = "valgrind-3.25.1",
+    type = "tar.bz2",
+    urls = ["https://mirrors.kernel.org/sourceware/valgrind/valgrind-3.25.1.tar.bz2"],
+)
+
+execution_tools = use_extension("//bazel/dependencies/exec_tools:repository.bzl", "execution_tools")
+use_repo(execution_tools, "exec_tools_alpine322_aarch64", "exec_tools_alpine322_x86_64")
+
+sysroots = use_extension("//bazel/dependencies/sysroots:repository.bzl", "sysroots")
+sysroots.tool(
+    python_aarch64 = "@python_3_12_aarch64-unknown-linux-gnu//:bin/python3",
+    python_x86_64 = "@python_3_12_x86_64-unknown-linux-gnu//:bin/python3",
+)
+use_repo(
+    sysroots,
+    "sysroot_alpine322_aarch64",
+    "sysroot_alpine322_x86_64",
+    "sysroot_centos7_aarch64",
+    "sysroot_centos7_x86_64",
+)
+
+php_oci_imports = use_extension("//bazel/dependencies/php_oci:repository.bzl", "php_oci_imports")
+php_oci_imports.tool(
+    python_aarch64 = "@python_3_12_aarch64-unknown-linux-gnu//:bin/python3",
+    python_x86_64 = "@python_3_12_x86_64-unknown-linux-gnu//:bin/python3",
+)
+use_repo(
+    php_oci_imports,
+    "php_sdk_alpine322_7_0_amd64_nts",
+    "php_sdk_alpine322_7_0_amd64_zts",
+    "php_sdk_alpine322_7_0_arm64_nts",
+    "php_sdk_alpine322_7_0_arm64_zts",
+    "php_sdk_alpine322_7_1_amd64_nts",
+    "php_sdk_alpine322_7_1_amd64_zts",
+    "php_sdk_alpine322_7_1_arm64_nts",
+    "php_sdk_alpine322_7_1_arm64_zts",
+    "php_sdk_alpine322_7_2_amd64_nts",
+    "php_sdk_alpine322_7_2_amd64_zts",
+    "php_sdk_alpine322_7_2_arm64_nts",
+    "php_sdk_alpine322_7_2_arm64_zts",
+    "php_sdk_alpine322_7_3_amd64_nts",
+    "php_sdk_alpine322_7_3_amd64_zts",
+    "php_sdk_alpine322_7_3_arm64_nts",
+    "php_sdk_alpine322_7_3_arm64_zts",
+    "php_sdk_alpine322_7_4_amd64_nts",
+    "php_sdk_alpine322_7_4_amd64_zts",
+    "php_sdk_alpine322_7_4_arm64_nts",
+    "php_sdk_alpine322_7_4_arm64_zts",
+    "php_sdk_alpine322_8_0_amd64_nts",
+    "php_sdk_alpine322_8_0_amd64_zts",
+    "php_sdk_alpine322_8_0_arm64_nts",
+    "php_sdk_alpine322_8_0_arm64_zts",
+    "php_sdk_alpine322_8_1_amd64_nts",
+    "php_sdk_alpine322_8_1_amd64_zts",
+    "php_sdk_alpine322_8_1_arm64_nts",
+    "php_sdk_alpine322_8_1_arm64_zts",
+    "php_sdk_alpine322_8_2_amd64_nts",
+    "php_sdk_alpine322_8_2_amd64_zts",
+    "php_sdk_alpine322_8_2_arm64_nts",
+    "php_sdk_alpine322_8_2_arm64_zts",
+    "php_sdk_alpine322_8_3_amd64_nts",
+    "php_sdk_alpine322_8_3_amd64_zts",
+    "php_sdk_alpine322_8_3_arm64_nts",
+    "php_sdk_alpine322_8_3_arm64_zts",
+    "php_sdk_alpine322_8_4_amd64_nts",
+    "php_sdk_alpine322_8_4_amd64_zts",
+    "php_sdk_alpine322_8_4_arm64_nts",
+    "php_sdk_alpine322_8_4_arm64_zts",
+    "php_sdk_alpine322_8_5_amd64_nts",
+    "php_sdk_alpine322_8_5_amd64_zts",
+    "php_sdk_alpine322_8_5_arm64_nts",
+    "php_sdk_alpine322_8_5_arm64_zts",
+    "php_sdk_alpine_legacy_8_0_amd64_debug",
+    "php_sdk_alpine_legacy_8_0_amd64_debug_zts",
+    "php_sdk_alpine_legacy_8_0_amd64_nts",
+    "php_sdk_bookworm_7_0_amd64_debug",
+    "php_sdk_bookworm_7_0_amd64_debug_zts",
+    "php_sdk_bookworm_7_0_amd64_nts",
+    "php_sdk_bookworm_7_0_amd64_zts",
+    "php_sdk_bookworm_7_0_arm64_debug",
+    "php_sdk_bookworm_7_0_arm64_debug_zts",
+    "php_sdk_bookworm_7_0_arm64_nts",
+    "php_sdk_bookworm_7_0_arm64_zts",
+    "php_sdk_bookworm_7_1_amd64_debug",
+    "php_sdk_bookworm_7_1_amd64_debug_zts",
+    "php_sdk_bookworm_7_1_amd64_nts",
+    "php_sdk_bookworm_7_1_amd64_zts",
+    "php_sdk_bookworm_7_1_arm64_debug",
+    "php_sdk_bookworm_7_1_arm64_debug_zts",
+    "php_sdk_bookworm_7_1_arm64_nts",
+    "php_sdk_bookworm_7_1_arm64_zts",
+    "php_sdk_bookworm_7_2_amd64_debug",
+    "php_sdk_bookworm_7_2_amd64_debug_zts",
+    "php_sdk_bookworm_7_2_amd64_nts",
+    "php_sdk_bookworm_7_2_amd64_zts",
+    "php_sdk_bookworm_7_2_arm64_debug",
+    "php_sdk_bookworm_7_2_arm64_debug_zts",
+    "php_sdk_bookworm_7_2_arm64_nts",
+    "php_sdk_bookworm_7_2_arm64_zts",
+    "php_sdk_bookworm_7_3_amd64_debug",
+    "php_sdk_bookworm_7_3_amd64_debug_zts",
+    "php_sdk_bookworm_7_3_amd64_nts",
+    "php_sdk_bookworm_7_3_amd64_zts",
+    "php_sdk_bookworm_7_3_arm64_debug",
+    "php_sdk_bookworm_7_3_arm64_debug_zts",
+    "php_sdk_bookworm_7_3_arm64_nts",
+    "php_sdk_bookworm_7_3_arm64_zts",
+    "php_sdk_bookworm_7_4_amd64_debug",
+    "php_sdk_bookworm_7_4_amd64_debug_zts_asan",
+    "php_sdk_bookworm_7_4_amd64_nts",
+    "php_sdk_bookworm_7_4_amd64_zts",
+    "php_sdk_bookworm_7_4_arm64_debug",
+    "php_sdk_bookworm_7_4_arm64_debug_zts_asan",
+    "php_sdk_bookworm_7_4_arm64_nts",
+    "php_sdk_bookworm_7_4_arm64_zts",
+    "php_sdk_bookworm_8_0_amd64_debug",
+    "php_sdk_bookworm_8_0_amd64_debug_zts_asan",
+    "php_sdk_bookworm_8_0_amd64_nts",
+    "php_sdk_bookworm_8_0_amd64_zts",
+    "php_sdk_bookworm_8_0_arm64_debug",
+    "php_sdk_bookworm_8_0_arm64_debug_zts_asan",
+    "php_sdk_bookworm_8_0_arm64_nts",
+    "php_sdk_bookworm_8_0_arm64_zts",
+    "php_sdk_bookworm_8_1_amd64_debug",
+    "php_sdk_bookworm_8_1_amd64_debug_zts_asan",
+    "php_sdk_bookworm_8_1_amd64_nts",
+    "php_sdk_bookworm_8_1_amd64_zts",
+    "php_sdk_bookworm_8_1_arm64_debug",
+    "php_sdk_bookworm_8_1_arm64_debug_zts_asan",
+    "php_sdk_bookworm_8_1_arm64_nts",
+    "php_sdk_bookworm_8_1_arm64_zts",
+    "php_sdk_bookworm_8_2_amd64_debug",
+    "php_sdk_bookworm_8_2_amd64_debug_zts_asan",
+    "php_sdk_bookworm_8_2_amd64_nts",
+    "php_sdk_bookworm_8_2_amd64_zts",
+    "php_sdk_bookworm_8_2_arm64_debug",
+    "php_sdk_bookworm_8_2_arm64_debug_zts_asan",
+    "php_sdk_bookworm_8_2_arm64_nts",
+    "php_sdk_bookworm_8_2_arm64_zts",
+    "php_sdk_bookworm_8_3_amd64_debug",
+    "php_sdk_bookworm_8_3_amd64_debug_zts_asan",
+    "php_sdk_bookworm_8_3_amd64_nts",
+    "php_sdk_bookworm_8_3_amd64_nts_asan",
+    "php_sdk_bookworm_8_3_amd64_zts",
+    "php_sdk_bookworm_8_3_arm64_debug",
+    "php_sdk_bookworm_8_3_arm64_debug_zts_asan",
+    "php_sdk_bookworm_8_3_arm64_nts",
+    "php_sdk_bookworm_8_3_arm64_nts_asan",
+    "php_sdk_bookworm_8_3_arm64_zts",
+    "php_sdk_bookworm_8_4_amd64_debug",
+    "php_sdk_bookworm_8_4_amd64_debug_zts_asan",
+    "php_sdk_bookworm_8_4_amd64_nts",
+    "php_sdk_bookworm_8_4_amd64_nts_asan",
+    "php_sdk_bookworm_8_4_amd64_zts",
+    "php_sdk_bookworm_8_4_arm64_debug",
+    "php_sdk_bookworm_8_4_arm64_debug_zts_asan",
+    "php_sdk_bookworm_8_4_arm64_nts",
+    "php_sdk_bookworm_8_4_arm64_nts_asan",
+    "php_sdk_bookworm_8_4_arm64_zts",
+    "php_sdk_bookworm_8_5_amd64_debug",
+    "php_sdk_bookworm_8_5_amd64_debug_zts_asan",
+    "php_sdk_bookworm_8_5_amd64_nts",
+    "php_sdk_bookworm_8_5_amd64_nts_asan",
+    "php_sdk_bookworm_8_5_amd64_zts",
+    "php_sdk_bookworm_8_5_arm64_debug",
+    "php_sdk_bookworm_8_5_arm64_debug_zts_asan",
+    "php_sdk_bookworm_8_5_arm64_nts",
+    "php_sdk_bookworm_8_5_arm64_nts_asan",
+    "php_sdk_bookworm_8_5_arm64_zts",
+    "php_sdk_bookworm_shared_7_4_amd64_debug",
+    "php_sdk_bookworm_shared_7_4_amd64_debug_zts_asan",
+    "php_sdk_bookworm_shared_7_4_amd64_nts",
+    "php_sdk_bookworm_shared_7_4_amd64_zts",
+    "php_sdk_bookworm_shared_7_4_arm64_debug",
+    "php_sdk_bookworm_shared_7_4_arm64_debug_zts_asan",
+    "php_sdk_bookworm_shared_7_4_arm64_nts",
+    "php_sdk_bookworm_shared_7_4_arm64_zts",
+    "php_sdk_bookworm_shared_8_0_amd64_debug",
+    "php_sdk_bookworm_shared_8_0_amd64_debug_zts_asan",
+    "php_sdk_bookworm_shared_8_0_amd64_nts",
+    "php_sdk_bookworm_shared_8_0_amd64_zts",
+    "php_sdk_bookworm_shared_8_0_arm64_debug",
+    "php_sdk_bookworm_shared_8_0_arm64_debug_zts_asan",
+    "php_sdk_bookworm_shared_8_0_arm64_nts",
+    "php_sdk_bookworm_shared_8_0_arm64_zts",
+    "php_sdk_centos7_7_0_amd64_debug",
+    "php_sdk_centos7_7_0_amd64_nts",
+    "php_sdk_centos7_7_0_amd64_zts",
+    "php_sdk_centos7_7_0_arm64_debug",
+    "php_sdk_centos7_7_0_arm64_nts",
+    "php_sdk_centos7_7_0_arm64_zts",
+    "php_sdk_centos7_7_1_amd64_debug",
+    "php_sdk_centos7_7_1_amd64_nts",
+    "php_sdk_centos7_7_1_amd64_zts",
+    "php_sdk_centos7_7_1_arm64_debug",
+    "php_sdk_centos7_7_1_arm64_nts",
+    "php_sdk_centos7_7_1_arm64_zts",
+    "php_sdk_centos7_7_2_amd64_debug",
+    "php_sdk_centos7_7_2_amd64_nts",
+    "php_sdk_centos7_7_2_amd64_zts",
+    "php_sdk_centos7_7_2_arm64_debug",
+    "php_sdk_centos7_7_2_arm64_nts",
+    "php_sdk_centos7_7_2_arm64_zts",
+    "php_sdk_centos7_7_3_amd64_debug",
+    "php_sdk_centos7_7_3_amd64_nts",
+    "php_sdk_centos7_7_3_amd64_zts",
+    "php_sdk_centos7_7_3_arm64_debug",
+    "php_sdk_centos7_7_3_arm64_nts",
+    "php_sdk_centos7_7_3_arm64_zts",
+    "php_sdk_centos7_7_4_amd64_debug",
+    "php_sdk_centos7_7_4_amd64_nts",
+    "php_sdk_centos7_7_4_amd64_zts",
+    "php_sdk_centos7_7_4_arm64_debug",
+    "php_sdk_centos7_7_4_arm64_nts",
+    "php_sdk_centos7_7_4_arm64_zts",
+    "php_sdk_centos7_8_0_amd64_debug",
+    "php_sdk_centos7_8_0_amd64_nts",
+    "php_sdk_centos7_8_0_amd64_zts",
+    "php_sdk_centos7_8_0_arm64_debug",
+    "php_sdk_centos7_8_0_arm64_nts",
+    "php_sdk_centos7_8_0_arm64_zts",
+    "php_sdk_centos7_8_1_amd64_debug",
+    "php_sdk_centos7_8_1_amd64_nts",
+    "php_sdk_centos7_8_1_amd64_zts",
+    "php_sdk_centos7_8_1_arm64_debug",
+    "php_sdk_centos7_8_1_arm64_nts",
+    "php_sdk_centos7_8_1_arm64_zts",
+    "php_sdk_centos7_8_2_amd64_debug",
+    "php_sdk_centos7_8_2_amd64_nts",
+    "php_sdk_centos7_8_2_amd64_zts",
+    "php_sdk_centos7_8_2_arm64_debug",
+    "php_sdk_centos7_8_2_arm64_nts",
+    "php_sdk_centos7_8_2_arm64_zts",
+    "php_sdk_centos7_8_3_amd64_debug",
+    "php_sdk_centos7_8_3_amd64_nts",
+    "php_sdk_centos7_8_3_amd64_zts",
+    "php_sdk_centos7_8_3_arm64_debug",
+    "php_sdk_centos7_8_3_arm64_nts",
+    "php_sdk_centos7_8_3_arm64_zts",
+    "php_sdk_centos7_8_4_amd64_debug",
+    "php_sdk_centos7_8_4_amd64_nts",
+    "php_sdk_centos7_8_4_amd64_zts",
+    "php_sdk_centos7_8_4_arm64_debug",
+    "php_sdk_centos7_8_4_arm64_nts",
+    "php_sdk_centos7_8_4_arm64_zts",
+    "php_sdk_centos7_8_5_amd64_debug",
+    "php_sdk_centos7_8_5_amd64_nts",
+    "php_sdk_centos7_8_5_amd64_zts",
+    "php_sdk_centos7_8_5_arm64_debug",
+    "php_sdk_centos7_8_5_arm64_nts",
+    "php_sdk_centos7_8_5_arm64_zts",
+)
+
+llvm_runtime_sources = use_extension("//bazel/dependencies/llvm_runtimes:repository.bzl", "llvm_runtime_sources")
+use_repo(llvm_runtime_sources, "llvm_runtime_sources_20_1_4")
+
+php_exec_oci_imports = use_extension("//bazel/dependencies/php_exec_oci:repository.bzl", "php_exec_oci_imports")
+php_exec_oci_imports.tool(
+    python_aarch64 = "@python_3_12_aarch64-unknown-linux-gnu//:bin/python3",
+    python_x86_64 = "@python_3_12_x86_64-unknown-linux-gnu//:bin/python3",
+)
+use_repo(
+    php_exec_oci_imports,
+    "php_exec_bookworm_amd64",
+    "php_exec_bookworm_arm64",
+)
+
+generation_composer_sources = use_extension("//bazel/generators:repositories.bzl", "generation_composer_sources")
+use_repo(generation_composer_sources, "php_generation_vendor")
+
+target_curl_oci = use_extension("//bazel/dependencies/target_curl_oci:repository.bzl", "target_curl_oci")
+target_curl_oci.tool(
+    python_aarch64 = "@python_3_12_aarch64-unknown-linux-gnu//:bin/python3",
+    python_x86_64 = "@python_3_12_x86_64-unknown-linux-gnu//:bin/python3",
+)
+use_repo(
+    target_curl_oci,
+    "target_curl_alpine322_amd64",
+    "target_curl_alpine322_arm64",
+    "target_curl_centos7_amd64",
+    "target_curl_centos7_arm64",
+)
+
+gnu_libunwind_sources = use_extension("//bazel/dependencies/gnu_libunwind:repository.bzl", "gnu_libunwind_sources")
+use_repo(gnu_libunwind_sources, "libdd_libunwind_sys_1_0_3_source")
+
+register_toolchains(
+    "//bazel/generators:host_php_amd64_toolchain",
+    "//bazel/generators:host_php_arm64_toolchain",
+    "//bazel/toolchains:exec_tools_aarch64_toolchain",
+    "//bazel/toolchains:exec_tools_x86_64_toolchain",
+    "//bazel/toolchains:alpine322_aarch64_toolchain",
+    "//bazel/toolchains:alpine322_x86_64_toolchain",
+    "//bazel/toolchains:centos7_aarch64_toolchain",
+    "//bazel/toolchains:centos7_x86_64_toolchain",
+    "//bazel/toolchains:native_amd64_exec_aarch64_glibc",
+    "//bazel/toolchains:native_amd64_exec_aarch64_musl",
+    "//bazel/toolchains:native_amd64_exec_x86_64_glibc",
+    "//bazel/toolchains:native_amd64_exec_x86_64_musl",
+    "//bazel/toolchains:native_arm64_exec_aarch64_glibc",
+    "//bazel/toolchains:native_arm64_exec_aarch64_musl",
+    "//bazel/toolchains:native_arm64_exec_x86_64_glibc",
+    "//bazel/toolchains:native_arm64_exec_x86_64_musl",
+)
 
 # Expose the rules_rs-patched rules_rust repository so configurations can set
 # its channel build setting explicitly.
 rules_rust = use_extension("@rules_rs//rs:rules_rust.bzl", "rules_rust")
+rules_rust.patch(
+    patches = ["//bazel/rust:rules_rust_cargo_execroot.patch"],
+    strip = 1,
+)
 use_repo(rules_rust, "rules_rust")
 
 # Keep stable compilation and ASan/nightly compilation as distinct toolchain
-# repositories. Only stable is registered globally; ASan target configurations
-# select nightly explicitly while generator/procedural-macro exec transitions
-# remain on the stable toolchain.
+# repositories. Ordinary compilation and build scripts select stable. ASan
+# target configurations select nightly with source-built std; their proc macros
+# use an uninstrumented normal-platform toolchain from the same nightly so the
+# compiler metadata and proc_macro ABI match.
 rust_toolchains = use_extension("@rules_rs//rs/toolchains:module_extension.bzl", "toolchains")
 rust_toolchains.toolchain(
     # rules_rs imports this canonical repository name for its own tools.
     name = "default_rust_toolchains",
     edition = "2021",
+    use_rust_redist = False,
     version = "1.87.0",
 )
 rust_toolchains.toolchain(
     name = "rust_asan_toolchains",
     edition = "2021",
+    rustc_src_direct = True,
+    use_rust_redist = False,
     version = "nightly/2025-06-13",
 )
 use_repo(
     rust_toolchains,
     "default_rust_toolchains",
     "rust_asan_toolchains",
+    "rustc_src_nightly_2025_06_13",
 )
 
-register_toolchains("@default_rust_toolchains//...")
+register_toolchains("//bazel/rust/toolchains/...")
+
+register_toolchains(
+    "//bazel/rust/toolchains:llvm20_bindgen_x86_64_toolchain",
+    "//bazel/rust/toolchains:llvm20_bindgen_aarch64_toolchain",
+)
+
+gitlink_sources = use_extension("//bazel/dependencies:gitlinks.bzl", "gitlink_sources")
+use_repo(gitlink_sources, "libdatadog_source", "libddwaf_rust_source")
+
+ddtrace_rust_workspace_repository = use_repo_rule(
+    "//bazel/rust:workspace_repository.bzl",
+    "ddtrace_rust_workspace_repository",
+)
+
+ddtrace_rust_workspace_repository(
+    name = "ddtrace_rust_workspace",
+    libdatadog_cargo_toml = "@libdatadog_source//:Cargo.toml",
+    libddwaf_cargo_toml = "@libddwaf_rust_source//:Cargo.toml",
+    root_cargo_lock = "//:Cargo.lock",
+    root_cargo_toml = "//:Cargo.toml",
+    root_member_manifests = [
+        "//:appsec/helper-rust/Cargo.toml",
+        "//:components-rs/php_sidecar_mockgen/Cargo.toml",
+        "//:sidecar/Cargo.toml",
+    ],
+    root_version = "//:VERSION",
+)
+
+ddtrace_rust_product_repository = use_repo_rule(
+    "//bazel/rust:product_repository.bzl",
+    "ddtrace_rust_product_repository",
+)
+
+ddtrace_rust_product_repository(
+    name = "ddtrace_tracer_resolution",
+    cargo_lock = "//bazel/rust:tracer.Cargo.lock",
+    cargo_toml = "//bazel/rust:tracer-resolution.Cargo.toml",
+)
+
+ddtrace_rust_product_repository(
+    name = "ddtrace_profiler_resolution",
+    cargo_lock = "//bazel/rust:profiler.Cargo.lock",
+    cargo_toml = "//bazel/rust:profiler-resolution.Cargo.toml",
+)
+
+crate = use_extension("@rules_rs//rs:extensions.bzl", "crate")
+crate.from_cargo(
+    name = "ddtrace_rust_crates",
+    cargo_lock = "@ddtrace_rust_workspace//:workspace.Cargo.lock",
+    cargo_toml = "@ddtrace_rust_workspace//:Cargo.toml",
+    platform_triples = [
+        "aarch64-unknown-linux-gnu",
+        "aarch64-unknown-linux-musl",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl",
+    ],
+)
+crate.from_cargo(
+    name = "ddtrace_tracer_crates",
+    cargo_lock = "@ddtrace_tracer_resolution//:Cargo.lock",
+    cargo_toml = "@ddtrace_tracer_resolution//:Cargo.toml",
+    platform_triples = [
+        "aarch64-unknown-linux-gnu",
+        "aarch64-unknown-linux-musl",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl",
+    ],
+)
+crate.from_cargo(
+    name = "ddtrace_profiler_crates",
+    cargo_lock = "@ddtrace_profiler_resolution//:Cargo.lock",
+    cargo_toml = "@ddtrace_profiler_resolution//:Cargo.toml",
+    platform_triples = [
+        "aarch64-unknown-linux-gnu",
+        "aarch64-unknown-linux-musl",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl",
+    ],
+)
+crate.annotation(
+    crate = "cbindgen",
+    gen_binaries = ["cbindgen"],
+    repositories = ["ddtrace_rust_crates"],
+)
+crate.annotation(
+    additive_build_file_content = """
+filegroup(
+    name = "cbindgen_srcs",
+    srcs = glob(["src/**/*.rs"]) + ["Cargo.toml"],
+    visibility = ["//visibility:public"],
+)
+""",
+    crate = "uuid",
+    extra_aliased_targets = {"uuid_cbindgen_srcs": "cbindgen_srcs"},
+    repositories = ["ddtrace_rust_crates"],
+    version = "1.12.1",
+)
+crate.annotation(
+    crate = "libddwaf-sys",
+    gen_build_script = "off",
+    repositories = [
+        "ddtrace_rust_crates",
+        "ddtrace_tracer_crates",
+        "ddtrace_profiler_crates",
+    ],
+)
+crate.annotation(
+    crate = "libdd-libunwind-sys",
+    gen_build_script = "off",
+    link_deps = ["@@//bazel/dependencies/gnu_libunwind:libunwind"],
+    repositories = [
+        "ddtrace_rust_crates",
+        "ddtrace_tracer_crates",
+        "ddtrace_profiler_crates",
+    ],
+)
+crate.annotation(
+    crate = "io-lifetimes",
+    # build.rs compiles feature probes by executing RUSTC after the Cargo
+    # runner changes directory. Both locked compilers are newer than Rust
+    # 1.63/1.57, so model its two Linux-relevant results directly instead of
+    # probing a target compiler during an action. wasi_ext is WASI-only.
+    gen_build_script = "off",
+    repositories = [
+        "ddtrace_rust_crates",
+        "ddtrace_tracer_crates",
+        "ddtrace_profiler_crates",
+    ],
+    rustc_flags = [
+        "--cfg=io_safety_is_in_std",
+        "--cfg=panic_in_const_fn",
+    ],
+    version = "1.0.11",
+)
+# Exact resolver-2 target and host features/dependencies derived from Cargo unit graphs.
+crate.annotation(
+    crate = "cc",
+    exec_crate_features = ["parallel"],
+    exec_deps = [
+        "@ddtrace_profiler_crates//:find-msvc-tools-0.1.9",
+        "@ddtrace_profiler_crates//:jobserver-0.1.32",
+        "@ddtrace_profiler_crates//:libc-0.2.186",
+        "@ddtrace_profiler_crates//:shlex-2.0.1",
+    ],
+    repositories = ["ddtrace_profiler_crates"],
+    target_crate_features = [],
+    target_deps = [
+        "@ddtrace_profiler_crates//:find-msvc-tools-0.1.9",
+        "@ddtrace_profiler_crates//:shlex-2.0.1",
+    ],
+    use_exec_crate_features = True,
+    version = "1.2.66",
+)
+crate.annotation(
+    crate = "either",
+    exec_crate_features = ["use_std"],
+    exec_deps = [],
+    repositories = ["ddtrace_profiler_crates"],
+    target_crate_features = [
+        "default",
+        "use_std",
+    ],
+    target_deps = [],
+    use_exec_crate_features = True,
+    version = "1.13.0",
+)
+crate.annotation(
+    crate = "futures",
+    exec_crate_features = [
+        "alloc",
+        "executor",
+        "futures-executor",
+        "std",
+    ],
+    exec_deps = [
+        "@ddtrace_profiler_crates//:futures-channel-0.3.32",
+        "@ddtrace_profiler_crates//:futures-core-0.3.32",
+        "@ddtrace_profiler_crates//:futures-executor-0.3.32",
+        "@ddtrace_profiler_crates//:futures-io-0.3.32",
+        "@ddtrace_profiler_crates//:futures-sink-0.3.32",
+        "@ddtrace_profiler_crates//:futures-task-0.3.32",
+        "@ddtrace_profiler_crates//:futures-util-0.3.32",
+    ],
+    repositories = ["ddtrace_profiler_crates"],
+    target_crate_features = [
+        "alloc",
+        "async-await",
+        "bilock",
+        "default",
+        "executor",
+        "futures-executor",
+        "std",
+        "unstable",
+    ],
+    target_deps = [
+        "@ddtrace_profiler_crates//:futures-channel-0.3.32",
+        "@ddtrace_profiler_crates//:futures-core-0.3.32",
+        "@ddtrace_profiler_crates//:futures-executor-0.3.32",
+        "@ddtrace_profiler_crates//:futures-io-0.3.32",
+        "@ddtrace_profiler_crates//:futures-sink-0.3.32",
+        "@ddtrace_profiler_crates//:futures-task-0.3.32",
+        "@ddtrace_profiler_crates//:futures-util-0.3.32",
+    ],
+    use_exec_crate_features = True,
+    version = "0.3.32",
+)
+crate.annotation(
+    crate = "futures-channel",
+    exec_crate_features = [
+        "alloc",
+        "futures-sink",
+        "sink",
+        "std",
+    ],
+    exec_deps = [
+        "@ddtrace_profiler_crates//:futures-core-0.3.32",
+        "@ddtrace_profiler_crates//:futures-sink-0.3.32",
+    ],
+    repositories = ["ddtrace_profiler_crates"],
+    target_crate_features = [
+        "alloc",
+        "default",
+        "futures-sink",
+        "sink",
+        "std",
+        "unstable",
+    ],
+    target_deps = [
+        "@ddtrace_profiler_crates//:futures-core-0.3.32",
+        "@ddtrace_profiler_crates//:futures-sink-0.3.32",
+    ],
+    use_exec_crate_features = True,
+    version = "0.3.32",
+)
+crate.annotation(
+    crate = "futures-core",
+    exec_crate_features = [
+        "alloc",
+        "std",
+    ],
+    exec_deps = [],
+    repositories = ["ddtrace_profiler_crates"],
+    target_crate_features = [
+        "alloc",
+        "default",
+        "std",
+        "unstable",
+    ],
+    target_deps = [],
+    use_exec_crate_features = True,
+    version = "0.3.32",
+)
+crate.annotation(
+    crate = "futures-io",
+    exec_crate_features = ["std"],
+    exec_deps = [],
+    repositories = ["ddtrace_profiler_crates"],
+    target_crate_features = [
+        "std",
+        "unstable",
+    ],
+    target_deps = [],
+    use_exec_crate_features = True,
+    version = "0.3.32",
+)
+crate.annotation(
+    crate = "futures-sink",
+    exec_crate_features = [
+        "alloc",
+        "std",
+    ],
+    exec_deps = [],
+    repositories = ["ddtrace_profiler_crates"],
+    target_crate_features = [
+        "alloc",
+        "default",
+        "std",
+    ],
+    target_deps = [],
+    use_exec_crate_features = True,
+    version = "0.3.32",
+)
+crate.annotation(
+    crate = "futures-task",
+    exec_crate_features = [
+        "alloc",
+        "std",
+    ],
+    exec_deps = [],
+    repositories = ["ddtrace_profiler_crates"],
+    target_crate_features = [
+        "alloc",
+        "std",
+        "unstable",
+    ],
+    target_deps = [],
+    use_exec_crate_features = True,
+    version = "0.3.32",
+)
+crate.annotation(
+    crate = "futures-util",
+    exec_crate_features = [
+        "alloc",
+        "channel",
+        "futures-channel",
+        "futures-io",
+        "futures-sink",
+        "io",
+        "memchr",
+        "sink",
+        "slab",
+        "std",
+    ],
+    exec_deps = [
+        "@ddtrace_profiler_crates//:futures-channel-0.3.32",
+        "@ddtrace_profiler_crates//:futures-core-0.3.32",
+        "@ddtrace_profiler_crates//:futures-io-0.3.32",
+        "@ddtrace_profiler_crates//:futures-sink-0.3.32",
+        "@ddtrace_profiler_crates//:futures-task-0.3.32",
+        "@ddtrace_profiler_crates//:memchr-2.7.4",
+        "@ddtrace_profiler_crates//:pin-project-lite-0.2.16",
+        "@ddtrace_profiler_crates//:slab-0.4.9",
+    ],
+    repositories = ["ddtrace_profiler_crates"],
+    target_crate_features = [
+        "alloc",
+        "async-await",
+        "async-await-macro",
+        "bilock",
+        "channel",
+        "default",
+        "futures-channel",
+        "futures-io",
+        "futures-macro",
+        "futures-sink",
+        "io",
+        "memchr",
+        "sink",
+        "slab",
+        "std",
+        "unstable",
+    ],
+    target_deps = [
+        "@ddtrace_profiler_crates//:futures-channel-0.3.32",
+        "@ddtrace_profiler_crates//:futures-core-0.3.32",
+        "@ddtrace_profiler_crates//:futures-io-0.3.32",
+        "@ddtrace_profiler_crates//:futures-macro-0.3.32",
+        "@ddtrace_profiler_crates//:futures-sink-0.3.32",
+        "@ddtrace_profiler_crates//:futures-task-0.3.32",
+        "@ddtrace_profiler_crates//:memchr-2.7.4",
+        "@ddtrace_profiler_crates//:pin-project-lite-0.2.16",
+        "@ddtrace_profiler_crates//:slab-0.4.9",
+    ],
+    use_exec_crate_features = True,
+    version = "0.3.32",
+)
+crate.annotation(
+    crate = "getrandom",
+    exec_crate_features = [],
+    exec_deps = [
+        "@ddtrace_profiler_crates//:cfg-if-1.0.4",
+        "@ddtrace_profiler_crates//:libc-0.2.186",
+    ],
+    repositories = ["ddtrace_profiler_crates"],
+    target_crate_features = ["std"],
+    target_deps = [
+        "@ddtrace_profiler_crates//:cfg-if-1.0.4",
+        "@ddtrace_profiler_crates//:libc-0.2.186",
+    ],
+    use_exec_crate_features = True,
+    version = "0.3.2",
+)
+crate.annotation(
+    crate = "hashbrown",
+    exec_crate_features = [],
+    exec_deps = [],
+    repositories = ["ddtrace_profiler_crates"],
+    target_crate_features = [
+        "allocator-api2",
+        "default",
+        "default-hasher",
+        "equivalent",
+        "inline-more",
+        "raw-entry",
+    ],
+    target_deps = [
+        "@ddtrace_profiler_crates//:allocator-api2-0.2.21",
+        "@ddtrace_profiler_crates//:equivalent-1.0.1",
+        "@ddtrace_profiler_crates//:foldhash-0.2.0",
+    ],
+    use_exec_crate_features = True,
+    version = "0.16.1",
+)
+crate.annotation(
+    crate = "http",
+    exec_crate_features = ["std"],
+    exec_deps = [
+        "@ddtrace_profiler_crates//:bytes-1.11.1",
+        "@ddtrace_profiler_crates//:itoa-1.0.14",
+    ],
+    repositories = ["ddtrace_profiler_crates"],
+    target_crate_features = [
+        "default",
+        "std",
+    ],
+    target_deps = [
+        "@ddtrace_profiler_crates//:bytes-1.11.1",
+        "@ddtrace_profiler_crates//:itoa-1.0.14",
+    ],
+    use_exec_crate_features = True,
+    version = "1.4.2",
+)
+crate.annotation(
+    crate = "log",
+    exec_crate_features = [],
+    exec_deps = [],
+    repositories = ["ddtrace_profiler_crates"],
+    target_crate_features = [
+        "kv",
+        "kv_serde",
+        "kv_std",
+        "max_level_trace",
+        "release_max_level_trace",
+        "serde",
+        "serde_core",
+        "std",
+        "value-bag",
+    ],
+    target_deps = [
+        "@ddtrace_profiler_crates//:serde_core-1.0.228",
+        "@ddtrace_profiler_crates//:value-bag-1.12.0",
+    ],
+    use_exec_crate_features = True,
+    version = "0.4.33",
+)
+crate.annotation(
+    crate = "nix",
+    exec_crate_features = ["process"],
+    exec_deps = [
+        "@ddtrace_profiler_crates//:bitflags-2.13.0",
+        "@ddtrace_profiler_crates//:cfg-if-1.0.4",
+        "@ddtrace_profiler_crates//:libc-0.2.186",
+    ],
+    repositories = ["ddtrace_profiler_crates"],
+    target_crate_features = [
+        "dir",
+        "feature",
+        "fs",
+        "memoffset",
+        "mman",
+        "poll",
+        "process",
+        "signal",
+        "socket",
+        "uio",
+        "user",
+    ],
+    target_deps = [
+        "@ddtrace_profiler_crates//:bitflags-2.13.0",
+        "@ddtrace_profiler_crates//:cfg-if-1.0.4",
+        "@ddtrace_profiler_crates//:libc-0.2.186",
+        "@ddtrace_profiler_crates//:memoffset-0.9.1",
+    ],
+    use_exec_crate_features = True,
+    version = "0.29.0",
+)
+crate.annotation(
+    crate = "once_cell",
+    exec_crate_features = [
+        "alloc",
+        "race",
+        "std",
+    ],
+    exec_deps = [],
+    repositories = ["ddtrace_profiler_crates"],
+    target_crate_features = [
+        "alloc",
+        "critical-section",
+        "default",
+        "portable-atomic",
+        "race",
+        "std",
+    ],
+    target_deps = [
+        "@ddtrace_profiler_crates//:critical-section-1.2.0",
+        "@ddtrace_profiler_crates//:portable-atomic-1.10.0",
+    ],
+    use_exec_crate_features = True,
+    version = "1.21.4",
+)
+crate.annotation(
+    crate = "regex-automata",
+    exec_crate_features = [
+        "alloc",
+        "dfa-onepass",
+        "hybrid",
+        "meta",
+        "nfa-backtrack",
+        "nfa-pikevm",
+        "nfa-thompson",
+        "perf-inline",
+        "perf-literal",
+        "perf-literal-multisubstring",
+        "perf-literal-substring",
+        "std",
+        "syntax",
+        "unicode",
+        "unicode-age",
+        "unicode-bool",
+        "unicode-case",
+        "unicode-gencat",
+        "unicode-perl",
+        "unicode-script",
+        "unicode-segment",
+        "unicode-word-boundary",
+    ],
+    exec_deps = [
+        "@ddtrace_profiler_crates//:aho-corasick-1.1.3",
+        "@ddtrace_profiler_crates//:memchr-2.7.4",
+        "@ddtrace_profiler_crates//:regex-syntax-0.8.11",
+    ],
+    repositories = ["ddtrace_profiler_crates"],
+    target_crate_features = [
+        "alloc",
+        "default",
+        "dfa",
+        "dfa-build",
+        "dfa-onepass",
+        "dfa-search",
+        "hybrid",
+        "meta",
+        "nfa",
+        "nfa-backtrack",
+        "nfa-pikevm",
+        "nfa-thompson",
+        "perf",
+        "perf-inline",
+        "perf-literal",
+        "perf-literal-multisubstring",
+        "perf-literal-substring",
+        "std",
+        "syntax",
+        "unicode",
+        "unicode-age",
+        "unicode-bool",
+        "unicode-case",
+        "unicode-gencat",
+        "unicode-perl",
+        "unicode-script",
+        "unicode-segment",
+        "unicode-word-boundary",
+    ],
+    target_deps = [
+        "@ddtrace_profiler_crates//:aho-corasick-1.1.3",
+        "@ddtrace_profiler_crates//:memchr-2.7.4",
+        "@ddtrace_profiler_crates//:regex-syntax-0.8.11",
+    ],
+    use_exec_crate_features = True,
+    version = "0.4.15",
+)
+crate.annotation(
+    crate = "serde",
+    exec_crate_features = [
+        "default",
+        "derive",
+        "serde_derive",
+        "std",
+    ],
+    exec_deps = [
+        "@ddtrace_profiler_crates//:serde_core-1.0.228",
+        "@ddtrace_profiler_crates//:serde_derive-1.0.228",
+    ],
+    repositories = ["ddtrace_profiler_crates"],
+    target_crate_features = [
+        "alloc",
+        "default",
+        "derive",
+        "rc",
+        "serde_derive",
+        "std",
+    ],
+    target_deps = [
+        "@ddtrace_profiler_crates//:serde_core-1.0.228",
+        "@ddtrace_profiler_crates//:serde_derive-1.0.228",
+    ],
+    use_exec_crate_features = True,
+    version = "1.0.228",
+)
+crate.annotation(
+    crate = "serde_core",
+    exec_crate_features = [
+        "result",
+        "std",
+    ],
+    exec_deps = [],
+    repositories = ["ddtrace_profiler_crates"],
+    target_crate_features = [
+        "alloc",
+        "rc",
+        "result",
+        "std",
+    ],
+    target_deps = [],
+    use_exec_crate_features = True,
+    version = "1.0.228",
+)
+crate.annotation(
+    crate = "serde_json",
+    exec_crate_features = [
+        "default",
+        "std",
+    ],
+    exec_deps = [
+        "@ddtrace_profiler_crates//:itoa-1.0.14",
+        "@ddtrace_profiler_crates//:memchr-2.7.4",
+        "@ddtrace_profiler_crates//:serde_core-1.0.228",
+        "@ddtrace_profiler_crates//:zmij-1.0.21",
+    ],
+    repositories = ["ddtrace_profiler_crates"],
+    target_crate_features = [
+        "alloc",
+        "default",
+        "indexmap",
+        "preserve_order",
+        "raw_value",
+        "std",
+    ],
+    target_deps = [
+        "@ddtrace_profiler_crates//:indexmap-2.12.1",
+        "@ddtrace_profiler_crates//:itoa-1.0.14",
+        "@ddtrace_profiler_crates//:memchr-2.7.4",
+        "@ddtrace_profiler_crates//:serde_core-1.0.228",
+        "@ddtrace_profiler_crates//:zmij-1.0.21",
+    ],
+    use_exec_crate_features = True,
+    version = "1.0.150",
+)
+crate.annotation(
+    crate = "slab",
+    exec_crate_features = ["std"],
+    exec_deps = [],
+    repositories = ["ddtrace_profiler_crates"],
+    target_crate_features = [
+        "default",
+        "std",
+    ],
+    target_deps = [],
+    use_exec_crate_features = True,
+    version = "0.4.9",
+)
+crate.annotation(
+    crate = "anyhow",
+    exec_crate_features = [
+        "default",
+        "std",
+    ],
+    exec_deps = [],
+    repositories = ["ddtrace_tracer_crates"],
+    target_crate_features = [
+        "backtrace",
+        "default",
+        "std",
+    ],
+    target_deps = [],
+    use_exec_crate_features = True,
+    version = "1.0.103",
+)
+crate.annotation(
+    crate = "cc",
+    exec_crate_features = ["parallel"],
+    exec_deps = [
+        "@ddtrace_tracer_crates//:find-msvc-tools-0.1.9",
+        "@ddtrace_tracer_crates//:jobserver-0.1.32",
+        "@ddtrace_tracer_crates//:libc-0.2.186",
+        "@ddtrace_tracer_crates//:shlex-2.0.1",
+    ],
+    repositories = ["ddtrace_tracer_crates"],
+    target_crate_features = [],
+    target_deps = [
+        "@ddtrace_tracer_crates//:find-msvc-tools-0.1.9",
+        "@ddtrace_tracer_crates//:shlex-2.0.1",
+    ],
+    use_exec_crate_features = True,
+    version = "1.2.66",
+)
+crate.annotation(
+    crate = "either",
+    exec_crate_features = ["use_std"],
+    exec_deps = [],
+    repositories = ["ddtrace_tracer_crates"],
+    target_crate_features = [
+        "default",
+        "use_std",
+    ],
+    target_deps = [],
+    use_exec_crate_features = True,
+    version = "1.13.0",
+)
+crate.annotation(
+    crate = "form_urlencoded",
+    exec_crate_features = [
+        "alloc",
+        "default",
+        "std",
+    ],
+    exec_deps = ["@ddtrace_tracer_crates//:percent-encoding-2.3.1"],
+    repositories = ["ddtrace_tracer_crates"],
+    target_crate_features = [
+        "alloc",
+        "std",
+    ],
+    target_deps = ["@ddtrace_tracer_crates//:percent-encoding-2.3.1"],
+    use_exec_crate_features = True,
+    version = "1.2.1",
+)
+crate.annotation(
+    crate = "futures",
+    exec_crate_features = [
+        "alloc",
+        "executor",
+        "futures-executor",
+        "std",
+    ],
+    exec_deps = [
+        "@ddtrace_tracer_crates//:futures-channel-0.3.32",
+        "@ddtrace_tracer_crates//:futures-core-0.3.32",
+        "@ddtrace_tracer_crates//:futures-executor-0.3.32",
+        "@ddtrace_tracer_crates//:futures-io-0.3.32",
+        "@ddtrace_tracer_crates//:futures-sink-0.3.32",
+        "@ddtrace_tracer_crates//:futures-task-0.3.32",
+        "@ddtrace_tracer_crates//:futures-util-0.3.32",
+    ],
+    repositories = ["ddtrace_tracer_crates"],
+    target_crate_features = [
+        "alloc",
+        "async-await",
+        "bilock",
+        "default",
+        "executor",
+        "futures-executor",
+        "std",
+        "unstable",
+    ],
+    target_deps = [
+        "@ddtrace_tracer_crates//:futures-channel-0.3.32",
+        "@ddtrace_tracer_crates//:futures-core-0.3.32",
+        "@ddtrace_tracer_crates//:futures-executor-0.3.32",
+        "@ddtrace_tracer_crates//:futures-io-0.3.32",
+        "@ddtrace_tracer_crates//:futures-sink-0.3.32",
+        "@ddtrace_tracer_crates//:futures-task-0.3.32",
+        "@ddtrace_tracer_crates//:futures-util-0.3.32",
+    ],
+    use_exec_crate_features = True,
+    version = "0.3.32",
+)
+crate.annotation(
+    crate = "futures-channel",
+    exec_crate_features = [
+        "alloc",
+        "default",
+        "futures-sink",
+        "sink",
+        "std",
+    ],
+    exec_deps = [
+        "@ddtrace_tracer_crates//:futures-core-0.3.32",
+        "@ddtrace_tracer_crates//:futures-sink-0.3.32",
+    ],
+    repositories = ["ddtrace_tracer_crates"],
+    target_crate_features = [
+        "alloc",
+        "default",
+        "futures-sink",
+        "sink",
+        "std",
+        "unstable",
+    ],
+    target_deps = [
+        "@ddtrace_tracer_crates//:futures-core-0.3.32",
+        "@ddtrace_tracer_crates//:futures-sink-0.3.32",
+    ],
+    use_exec_crate_features = True,
+    version = "0.3.32",
+)
+crate.annotation(
+    crate = "futures-core",
+    exec_crate_features = [
+        "alloc",
+        "default",
+        "std",
+    ],
+    exec_deps = [],
+    repositories = ["ddtrace_tracer_crates"],
+    target_crate_features = [
+        "alloc",
+        "default",
+        "std",
+        "unstable",
+    ],
+    target_deps = [],
+    use_exec_crate_features = True,
+    version = "0.3.32",
+)
+crate.annotation(
+    crate = "futures-io",
+    exec_crate_features = ["std"],
+    exec_deps = [],
+    repositories = ["ddtrace_tracer_crates"],
+    target_crate_features = [
+        "std",
+        "unstable",
+    ],
+    target_deps = [],
+    use_exec_crate_features = True,
+    version = "0.3.32",
+)
+crate.annotation(
+    crate = "futures-task",
+    exec_crate_features = [
+        "alloc",
+        "std",
+    ],
+    exec_deps = [],
+    repositories = ["ddtrace_tracer_crates"],
+    target_crate_features = [
+        "alloc",
+        "std",
+        "unstable",
+    ],
+    target_deps = [],
+    use_exec_crate_features = True,
+    version = "0.3.32",
+)
+crate.annotation(
+    crate = "futures-util",
+    exec_crate_features = [
+        "alloc",
+        "channel",
+        "futures-channel",
+        "futures-io",
+        "futures-sink",
+        "io",
+        "memchr",
+        "sink",
+        "slab",
+        "std",
+    ],
+    exec_deps = [
+        "@ddtrace_tracer_crates//:futures-channel-0.3.32",
+        "@ddtrace_tracer_crates//:futures-core-0.3.32",
+        "@ddtrace_tracer_crates//:futures-io-0.3.32",
+        "@ddtrace_tracer_crates//:futures-sink-0.3.32",
+        "@ddtrace_tracer_crates//:futures-task-0.3.32",
+        "@ddtrace_tracer_crates//:memchr-2.7.4",
+        "@ddtrace_tracer_crates//:pin-project-lite-0.2.16",
+        "@ddtrace_tracer_crates//:slab-0.4.9",
+    ],
+    repositories = ["ddtrace_tracer_crates"],
+    target_crate_features = [
+        "alloc",
+        "async-await",
+        "async-await-macro",
+        "bilock",
+        "channel",
+        "default",
+        "futures-channel",
+        "futures-io",
+        "futures-macro",
+        "futures-sink",
+        "io",
+        "memchr",
+        "sink",
+        "slab",
+        "std",
+        "unstable",
+    ],
+    target_deps = [
+        "@ddtrace_tracer_crates//:futures-channel-0.3.32",
+        "@ddtrace_tracer_crates//:futures-core-0.3.32",
+        "@ddtrace_tracer_crates//:futures-io-0.3.32",
+        "@ddtrace_tracer_crates//:futures-macro-0.3.32",
+        "@ddtrace_tracer_crates//:futures-sink-0.3.32",
+        "@ddtrace_tracer_crates//:futures-task-0.3.32",
+        "@ddtrace_tracer_crates//:memchr-2.7.4",
+        "@ddtrace_tracer_crates//:pin-project-lite-0.2.16",
+        "@ddtrace_tracer_crates//:slab-0.4.9",
+    ],
+    use_exec_crate_features = True,
+    version = "0.3.32",
+)
+crate.annotation(
+    crate = "getrandom",
+    exec_crate_features = [],
+    exec_deps = [
+        "@ddtrace_tracer_crates//:cfg-if-1.0.4",
+        "@ddtrace_tracer_crates//:libc-0.2.186",
+    ],
+    repositories = ["ddtrace_tracer_crates"],
+    target_crate_features = ["std"],
+    target_deps = [
+        "@ddtrace_tracer_crates//:cfg-if-1.0.4",
+        "@ddtrace_tracer_crates//:libc-0.2.186",
+    ],
+    use_exec_crate_features = True,
+    version = "0.2.15",
+)
+crate.annotation(
+    crate = "hashbrown",
+    exec_crate_features = [],
+    exec_deps = [],
+    repositories = ["ddtrace_tracer_crates"],
+    target_crate_features = [
+        "allocator-api2",
+        "default",
+        "default-hasher",
+        "equivalent",
+        "inline-more",
+        "raw-entry",
+    ],
+    target_deps = [
+        "@ddtrace_tracer_crates//:allocator-api2-0.2.21",
+        "@ddtrace_tracer_crates//:equivalent-1.0.1",
+        "@ddtrace_tracer_crates//:foldhash-0.2.0",
+    ],
+    use_exec_crate_features = True,
+    version = "0.16.1",
+)
+crate.annotation(
+    crate = "hyper-rustls",
+    exec_crate_features = [
+        "http1",
+        "http2",
+        "native-tokio",
+        "ring",
+        "rustls-native-certs",
+        "tls12",
+    ],
+    exec_deps = [
+        "@ddtrace_tracer_crates//:http-1.4.2",
+        "@ddtrace_tracer_crates//:hyper-1.6.0",
+        "@ddtrace_tracer_crates//:hyper-util-0.1.15",
+        "@ddtrace_tracer_crates//:rustls-0.23.37",
+        "@ddtrace_tracer_crates//:rustls-native-certs-0.8.1",
+        "@ddtrace_tracer_crates//:rustls-pki-types-1.14.0",
+        "@ddtrace_tracer_crates//:tokio-1.49.0",
+        "@ddtrace_tracer_crates//:tokio-rustls-0.26.1",
+        "@ddtrace_tracer_crates//:tower-service-0.3.3",
+    ],
+    repositories = ["ddtrace_tracer_crates"],
+    target_crate_features = [
+        "http1",
+        "ring",
+        "tls12",
+    ],
+    target_deps = [
+        "@ddtrace_tracer_crates//:http-1.4.2",
+        "@ddtrace_tracer_crates//:hyper-1.6.0",
+        "@ddtrace_tracer_crates//:hyper-util-0.1.15",
+        "@ddtrace_tracer_crates//:rustls-0.23.37",
+        "@ddtrace_tracer_crates//:rustls-pki-types-1.14.0",
+        "@ddtrace_tracer_crates//:tokio-1.49.0",
+        "@ddtrace_tracer_crates//:tokio-rustls-0.26.1",
+        "@ddtrace_tracer_crates//:tower-service-0.3.3",
+    ],
+    use_exec_crate_features = True,
+    version = "0.27.7",
+)
+crate.annotation(
+    crate = "hyper-util",
+    exec_crate_features = [
+        "client",
+        "client-legacy",
+        "client-proxy",
+        "default",
+        "http1",
+        "http2",
+        "tokio",
+    ],
+    exec_deps = [
+        "@ddtrace_tracer_crates//:base64-0.22.1",
+        "@ddtrace_tracer_crates//:bytes-1.11.1",
+        "@ddtrace_tracer_crates//:futures-channel-0.3.32",
+        "@ddtrace_tracer_crates//:futures-core-0.3.32",
+        "@ddtrace_tracer_crates//:futures-util-0.3.32",
+        "@ddtrace_tracer_crates//:http-1.4.2",
+        "@ddtrace_tracer_crates//:http-body-1.0.1",
+        "@ddtrace_tracer_crates//:hyper-1.6.0",
+        "@ddtrace_tracer_crates//:ipnet-2.11.0",
+        "@ddtrace_tracer_crates//:libc-0.2.186",
+        "@ddtrace_tracer_crates//:percent-encoding-2.3.1",
+        "@ddtrace_tracer_crates//:pin-project-lite-0.2.16",
+        "@ddtrace_tracer_crates//:socket2-0.5.10",
+        "@ddtrace_tracer_crates//:tokio-1.49.0",
+        "@ddtrace_tracer_crates//:tower-service-0.3.3",
+        "@ddtrace_tracer_crates//:tracing-0.1.44",
+    ],
+    repositories = ["ddtrace_tracer_crates"],
+    target_crate_features = [
+        "client",
+        "client-legacy",
+        "client-proxy",
+        "http1",
+        "tokio",
+    ],
+    target_deps = [
+        "@ddtrace_tracer_crates//:base64-0.22.1",
+        "@ddtrace_tracer_crates//:bytes-1.11.1",
+        "@ddtrace_tracer_crates//:futures-channel-0.3.32",
+        "@ddtrace_tracer_crates//:futures-core-0.3.32",
+        "@ddtrace_tracer_crates//:futures-util-0.3.32",
+        "@ddtrace_tracer_crates//:http-1.4.2",
+        "@ddtrace_tracer_crates//:http-body-1.0.1",
+        "@ddtrace_tracer_crates//:hyper-1.6.0",
+        "@ddtrace_tracer_crates//:ipnet-2.11.0",
+        "@ddtrace_tracer_crates//:libc-0.2.186",
+        "@ddtrace_tracer_crates//:percent-encoding-2.3.1",
+        "@ddtrace_tracer_crates//:pin-project-lite-0.2.16",
+        "@ddtrace_tracer_crates//:socket2-0.5.10",
+        "@ddtrace_tracer_crates//:tokio-1.49.0",
+        "@ddtrace_tracer_crates//:tower-service-0.3.3",
+        "@ddtrace_tracer_crates//:tracing-0.1.44",
+    ],
+    use_exec_crate_features = True,
+    version = "0.1.15",
+)
+crate.annotation(
+    crate = "log",
+    exec_crate_features = [],
+    exec_deps = [],
+    repositories = ["ddtrace_tracer_crates"],
+    target_crate_features = [
+        "kv",
+        "kv_serde",
+        "kv_std",
+        "max_level_trace",
+        "release_max_level_trace",
+        "serde",
+        "serde_core",
+        "std",
+        "value-bag",
+    ],
+    target_deps = [
+        "@ddtrace_tracer_crates//:serde_core-1.0.228",
+        "@ddtrace_tracer_crates//:value-bag-1.12.0",
+    ],
+    use_exec_crate_features = True,
+    version = "0.4.33",
+)
+crate.annotation(
+    crate = "nix",
+    exec_crate_features = ["process"],
+    exec_deps = [
+        "@ddtrace_tracer_crates//:bitflags-2.13.0",
+        "@ddtrace_tracer_crates//:cfg-if-1.0.4",
+        "@ddtrace_tracer_crates//:libc-0.2.186",
+    ],
+    repositories = ["ddtrace_tracer_crates"],
+    target_crate_features = [
+        "dir",
+        "feature",
+        "fs",
+        "memoffset",
+        "mman",
+        "poll",
+        "process",
+        "signal",
+        "socket",
+        "uio",
+        "user",
+    ],
+    target_deps = [
+        "@ddtrace_tracer_crates//:bitflags-2.13.0",
+        "@ddtrace_tracer_crates//:cfg-if-1.0.4",
+        "@ddtrace_tracer_crates//:libc-0.2.186",
+        "@ddtrace_tracer_crates//:memoffset-0.9.1",
+    ],
+    use_exec_crate_features = True,
+    version = "0.29.0",
+)
+crate.annotation(
+    crate = "regex-automata",
+    exec_crate_features = [
+        "alloc",
+        "dfa-onepass",
+        "hybrid",
+        "meta",
+        "nfa-backtrack",
+        "nfa-pikevm",
+        "nfa-thompson",
+        "perf-inline",
+        "perf-literal",
+        "perf-literal-multisubstring",
+        "perf-literal-substring",
+        "std",
+        "syntax",
+        "unicode",
+        "unicode-age",
+        "unicode-bool",
+        "unicode-case",
+        "unicode-gencat",
+        "unicode-perl",
+        "unicode-script",
+        "unicode-segment",
+        "unicode-word-boundary",
+    ],
+    exec_deps = [
+        "@ddtrace_tracer_crates//:aho-corasick-1.1.3",
+        "@ddtrace_tracer_crates//:memchr-2.7.4",
+        "@ddtrace_tracer_crates//:regex-syntax-0.8.11",
+    ],
+    repositories = ["ddtrace_tracer_crates"],
+    target_crate_features = [
+        "alloc",
+        "default",
+        "dfa",
+        "dfa-build",
+        "dfa-onepass",
+        "dfa-search",
+        "hybrid",
+        "meta",
+        "nfa",
+        "nfa-backtrack",
+        "nfa-pikevm",
+        "nfa-thompson",
+        "perf",
+        "perf-inline",
+        "perf-literal",
+        "perf-literal-multisubstring",
+        "perf-literal-substring",
+        "std",
+        "syntax",
+        "unicode",
+        "unicode-age",
+        "unicode-bool",
+        "unicode-case",
+        "unicode-gencat",
+        "unicode-perl",
+        "unicode-script",
+        "unicode-segment",
+        "unicode-word-boundary",
+    ],
+    target_deps = [
+        "@ddtrace_tracer_crates//:aho-corasick-1.1.3",
+        "@ddtrace_tracer_crates//:memchr-2.7.4",
+        "@ddtrace_tracer_crates//:regex-syntax-0.8.11",
+    ],
+    use_exec_crate_features = True,
+    version = "0.4.15",
+)
+crate.annotation(
+    crate = "serde",
+    exec_crate_features = [
+        "default",
+        "derive",
+        "serde_derive",
+        "std",
+    ],
+    exec_deps = [
+        "@ddtrace_tracer_crates//:serde_core-1.0.228",
+        "@ddtrace_tracer_crates//:serde_derive-1.0.228",
+    ],
+    repositories = ["ddtrace_tracer_crates"],
+    target_crate_features = [
+        "alloc",
+        "default",
+        "derive",
+        "rc",
+        "serde_derive",
+        "std",
+    ],
+    target_deps = [
+        "@ddtrace_tracer_crates//:serde_core-1.0.228",
+        "@ddtrace_tracer_crates//:serde_derive-1.0.228",
+    ],
+    use_exec_crate_features = True,
+    version = "1.0.228",
+)
+crate.annotation(
+    crate = "serde_core",
+    exec_crate_features = [
+        "result",
+        "std",
+    ],
+    exec_deps = [],
+    repositories = ["ddtrace_tracer_crates"],
+    target_crate_features = [
+        "alloc",
+        "rc",
+        "result",
+        "std",
+    ],
+    target_deps = [],
+    use_exec_crate_features = True,
+    version = "1.0.228",
+)
+crate.annotation(
+    crate = "serde_json",
+    exec_crate_features = [
+        "default",
+        "std",
+    ],
+    exec_deps = [
+        "@ddtrace_tracer_crates//:itoa-1.0.14",
+        "@ddtrace_tracer_crates//:memchr-2.7.4",
+        "@ddtrace_tracer_crates//:serde_core-1.0.228",
+        "@ddtrace_tracer_crates//:zmij-1.0.21",
+    ],
+    repositories = ["ddtrace_tracer_crates"],
+    target_crate_features = [
+        "alloc",
+        "default",
+        "indexmap",
+        "preserve_order",
+        "raw_value",
+        "std",
+    ],
+    target_deps = [
+        "@ddtrace_tracer_crates//:indexmap-2.12.1",
+        "@ddtrace_tracer_crates//:itoa-1.0.14",
+        "@ddtrace_tracer_crates//:memchr-2.7.4",
+        "@ddtrace_tracer_crates//:serde_core-1.0.228",
+        "@ddtrace_tracer_crates//:zmij-1.0.21",
+    ],
+    use_exec_crate_features = True,
+    version = "1.0.150",
+)
+crate.annotation(
+    crate = "stable_deref_trait",
+    exec_crate_features = ["alloc"],
+    exec_deps = [],
+    repositories = ["ddtrace_tracer_crates"],
+    target_crate_features = [
+        "alloc",
+        "default",
+        "std",
+    ],
+    target_deps = [],
+    use_exec_crate_features = True,
+    version = "1.2.0",
+)
+crate.annotation(
+    crate = "sync_wrapper",
+    exec_crate_features = [
+        "futures",
+        "futures-core",
+    ],
+    exec_deps = ["@ddtrace_tracer_crates//:futures-core-0.3.32"],
+    repositories = ["ddtrace_tracer_crates"],
+    target_crate_features = [],
+    target_deps = [],
+    use_exec_crate_features = True,
+    version = "1.0.2",
+)
+crate.annotation(
+    crate = "tokio-util",
+    exec_crate_features = [
+        "codec",
+        "default",
+        "io",
+    ],
+    exec_deps = [
+        "@ddtrace_tracer_crates//:bytes-1.11.1",
+        "@ddtrace_tracer_crates//:futures-core-0.3.32",
+        "@ddtrace_tracer_crates//:futures-sink-0.3.32",
+        "@ddtrace_tracer_crates//:pin-project-lite-0.2.16",
+        "@ddtrace_tracer_crates//:tokio-1.49.0",
+    ],
+    repositories = ["ddtrace_tracer_crates"],
+    target_crate_features = [
+        "codec",
+        "default",
+        "futures-util",
+        "hashbrown",
+        "io",
+        "rt",
+    ],
+    target_deps = [
+        "@ddtrace_tracer_crates//:bytes-1.11.1",
+        "@ddtrace_tracer_crates//:futures-core-0.3.32",
+        "@ddtrace_tracer_crates//:futures-sink-0.3.32",
+        "@ddtrace_tracer_crates//:futures-util-0.3.32",
+        "@ddtrace_tracer_crates//:hashbrown-0.14.5",
+        "@ddtrace_tracer_crates//:pin-project-lite-0.2.16",
+        "@ddtrace_tracer_crates//:tokio-1.49.0",
+    ],
+    use_exec_crate_features = True,
+    version = "0.7.13",
+)
+crate.annotation(
+    crate = "tracing",
+    exec_crate_features = ["std"],
+    exec_deps = [
+        "@ddtrace_tracer_crates//:pin-project-lite-0.2.16",
+        "@ddtrace_tracer_crates//:tracing-core-0.1.36",
+    ],
+    repositories = ["ddtrace_tracer_crates"],
+    target_crate_features = [
+        "attributes",
+        "default",
+        "std",
+        "tracing-attributes",
+    ],
+    target_deps = [
+        "@ddtrace_tracer_crates//:pin-project-lite-0.2.16",
+        "@ddtrace_tracer_crates//:tracing-attributes-0.1.31",
+        "@ddtrace_tracer_crates//:tracing-core-0.1.36",
+    ],
+    use_exec_crate_features = True,
+    version = "0.1.44",
+)
+crate.annotation(
+    crate = "tracing-core",
+    exec_crate_features = [
+        "once_cell",
+        "std",
+    ],
+    exec_deps = ["@ddtrace_tracer_crates//:once_cell-1.21.4"],
+    repositories = ["ddtrace_tracer_crates"],
+    target_crate_features = [
+        "default",
+        "once_cell",
+        "std",
+    ],
+    target_deps = ["@ddtrace_tracer_crates//:once_cell-1.21.4"],
+    use_exec_crate_features = True,
+    version = "0.1.36",
+)
+crate.annotation(
+    crate = "url",
+    exec_crate_features = [
+        "default",
+        "std",
+    ],
+    exec_deps = [
+        "@ddtrace_tracer_crates//:form_urlencoded-1.2.1",
+        "@ddtrace_tracer_crates//:idna-1.0.3",
+        "@ddtrace_tracer_crates//:percent-encoding-2.3.1",
+    ],
+    repositories = ["ddtrace_tracer_crates"],
+    target_crate_features = ["std"],
+    target_deps = [
+        "@ddtrace_tracer_crates//:form_urlencoded-1.2.1",
+        "@ddtrace_tracer_crates//:idna-1.0.3",
+        "@ddtrace_tracer_crates//:percent-encoding-2.3.1",
+    ],
+    use_exec_crate_features = True,
+    version = "2.5.4",
+)
+crate.annotation(
+    crate = "tokio",
+    repositories = ["ddtrace_rust_crates"],
+    rustc_flags = [
+        "--cfg=tokio_unstable",
+        "--check-cfg=cfg(tokio_unstable)",
+    ],
+    deps = [
+        "@ddtrace_rust_crates//:backtrace-0.3.74",
+        "@ddtrace_rust_crates//:tracing-0.1.44",
+    ],
+)
+crate.annotation(
+    crate = "tokio",
+    exec_crate_features = [
+        "bytes",
+        "default",
+        "io-util",
+        "libc",
+        "mio",
+        "net",
+        "rt",
+        "socket2",
+        "sync",
+        "time",
+    ],
+    exec_deps = [
+        "@ddtrace_tracer_crates//:bytes-1.11.1",
+        "@ddtrace_tracer_crates//:libc-0.2.186",
+        "@ddtrace_tracer_crates//:mio-1.0.3",
+        "@ddtrace_tracer_crates//:pin-project-lite-0.2.16",
+        "@ddtrace_tracer_crates//:socket2-0.6.2",
+    ],
+    repositories = ["ddtrace_tracer_crates"],
+    target_crate_features = [
+        "bytes",
+        "default",
+        "fs",
+        "io-std",
+        "io-util",
+        "libc",
+        "macros",
+        "mio",
+        "net",
+        "rt",
+        "rt-multi-thread",
+        "signal",
+        "signal-hook-registry",
+        "socket2",
+        "sync",
+        "taskdump",
+        "test-util",
+        "time",
+        "tokio-macros",
+    ],
+    target_deps = [
+        "@ddtrace_tracer_crates//:backtrace-0.3.74",
+        "@ddtrace_tracer_crates//:bytes-1.11.1",
+        "@ddtrace_tracer_crates//:libc-0.2.186",
+        "@ddtrace_tracer_crates//:mio-1.0.3",
+        "@ddtrace_tracer_crates//:pin-project-lite-0.2.16",
+        "@ddtrace_tracer_crates//:signal-hook-registry-1.4.2",
+        "@ddtrace_tracer_crates//:socket2-0.6.2",
+        "@ddtrace_tracer_crates//:tokio-macros-2.6.0",
+    ],
+    target_rustc_flags = [
+        "--cfg=tokio_unstable",
+        "--check-cfg=cfg(tokio_unstable)",
+    ],
+    use_exec_crate_features = True,
+    version = "1.49.0",
+)
+crate.annotation(
+    crate = "tokio",
+    repositories = ["ddtrace_profiler_crates"],
+    rustc_flags = [
+        "--cfg=tokio_unstable",
+        "--check-cfg=cfg(tokio_unstable)",
+    ],
+    deps = [
+        "@ddtrace_profiler_crates//:backtrace-0.3.74",
+        "@ddtrace_profiler_crates//:tracing-0.1.44",
+    ],
+)
+crate.annotation(
+    crate = "backtrace",
+    crate_features = [
+        "default",
+        "std",
+    ],
+    repositories = [
+        "ddtrace_rust_crates",
+        "ddtrace_tracer_crates",
+        "ddtrace_profiler_crates",
+    ],
+)
+crate.annotation(
+    crate = "zstd-sys",
+    gen_build_script = "off",
+    repositories = [
+        "ddtrace_rust_crates",
+        "ddtrace_tracer_crates",
+        "ddtrace_profiler_crates",
+    ],
+    deps = ["@zstd"],
+)
+use_repo(crate, "ddtrace_profiler_crates", "ddtrace_rust_crates", "ddtrace_tracer_crates")
 
 # Source archives are declared up front but fetched lazily when stage-two PHP
 # targets reference them. Downloads therefore happen during repository setup,
@@ -48,9 +1896,12 @@ use_repo(
     "php_7_3",
     "php_7_4",
     "php_8_0",
+    "php_8_0_alpine_legacy",
     "php_8_1",
+    "php_8_1_alpine",
     "php_8_2",
     "php_8_3",
     "php_8_4",
-    "php_8_5",
+    "php_8_5_bookworm",
+    "php_8_5_release",
 )

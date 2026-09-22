@@ -2,6 +2,7 @@
 !/tracer/vendor
 tmp/
 composer.lock*
+!tooling/generation/composer.lock
 !tests/Frameworks/Symfony/Version_6_2/composer.lock
 **/core*
 .DS_Store
@@ -60,6 +61,8 @@ phpt.*
 tmp-php.ini
 tmp/opcache*
 *.orig
+__pycache__/
+*.pyc
 docker-compose.override.yml
 tests/Sapi/Roadrunner/rr-*
 github-actions-helpers/_build.csproj.DotSettings

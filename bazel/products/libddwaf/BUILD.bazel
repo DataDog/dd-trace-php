@@ -1,0 +1,101 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("//bazel/platforms:transitions.bzl", "configured_target")
+load(":smoke.bzl", "libddwaf_native_smoke_aarch64", "libddwaf_native_smoke_x86_64")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "version_header",
+    hdrs = ["version.hpp"],
+    includes = ["."],
+)
+
+alias(
+    name = "libddwaf",
+    actual = "@libddwaf_source//:libddwaf",
+)
+
+alias(
+    name = "ddwaf_h",
+    actual = "@libddwaf_source//:include/ddwaf.h",
+)
+
+cc_binary(
+    name = "_native_smoke_binary",
+    srcs = ["smoke.cc"],
+    deps = [":libddwaf"],
+    features = ["-hermetic_pie_executable", "hermetic_nonpie_executable"],
+)
+
+# Distinguishes static initialization/finalization in the linked WAF from the
+# allocator and context ownership exercised by smoke.cc.
+cc_binary(
+    name = "_waf_teardown_repro_binary",
+    srcs = ["waf-teardown-repro.cc"],
+    deps = [":libddwaf"],
+    # The target runner invokes glibc 2.17's loader explicitly; see the
+    # feature's toolchain documentation for its scoped non-PIE startup mode.
+    features = ["-hermetic_pie_executable", "hermetic_nonpie_executable"],
+)
+
+libddwaf_native_smoke_x86_64(
+    name = "_native_x86_64_smoke",
+    binary = ":_native_smoke_binary",
+    elf_architecture = "x86_64",
+    machine = "x86_64",
+)
+
+libddwaf_native_smoke_aarch64(
+    name = "_native_aarch64_smoke",
+    binary = ":_native_smoke_binary",
+    elf_architecture = "aarch64",
+    machine = "aarch64",
+)
+
+libddwaf_native_smoke_x86_64(
+    name = "_waf_teardown_repro_x86_64",
+    binary = ":_waf_teardown_repro_binary",
+    elf_architecture = "x86_64",
+    machine = "x86_64",
+)
+
+configured_target(
+    name = "waf_teardown_repro_amd64_glibc",
+    actual = ":_waf_teardown_repro_x86_64",
+    matrix_platform = "linux-amd64-glibc",
+)
+
+configured_target(
+    name = "native_smoke_amd64_glibc",
+    actual = ":_native_x86_64_smoke",
+    matrix_platform = "linux-amd64-glibc",
+)
+
+configured_target(
+    name = "native_smoke_amd64_musl",
+    actual = ":_native_x86_64_smoke",
+    matrix_platform = "linux-amd64-musl",
+)
+
+configured_target(
+    name = "native_smoke_arm64_glibc",
+    actual = ":_native_aarch64_smoke",
+    matrix_platform = "linux-arm64-glibc",
+)
+
+configured_target(
+    name = "native_smoke_arm64_musl",
+    actual = ":_native_aarch64_smoke",
+    matrix_platform = "linux-arm64-musl",
+)
+
+filegroup(
+    name = "native_smoke_all",
+    srcs = [
+        ":native_smoke_amd64_glibc",
+        ":native_smoke_amd64_musl",
+        ":native_smoke_arm64_glibc",
+        ":native_smoke_arm64_musl",
+    ],
+)
