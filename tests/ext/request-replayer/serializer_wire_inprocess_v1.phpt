@@ -8,6 +8,7 @@ background sender's array-of-1 framing (comms_php.c mpack_expect_array_match) ca
 in-process path never uses /v1.0/traces regardless of agent capability.
 --SKIPIF--
 <?php
+if (strncasecmp(PHP_OS, "WIN", 3) == 0) die('skip: the in-process sender is not available on Windows');
 include __DIR__ . '/../includes/skipif_no_dev_env.inc';
 if (getenv('USE_ZEND_ALLOC') === '0' && !getenv('SKIP_ASAN')) die('skip timing sensitive test - valgrind is too slow');
 ?>

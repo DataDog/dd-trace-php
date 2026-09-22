@@ -65,7 +65,7 @@ final class TracerTest extends BaseTestCase
             $errorSpan->end();
         });
 
-        $this->assertSame('error_desc', $traces[0][0]['meta']['error.message']);
+        $this->assertSame('error_desc', $traces[0][0]['attributes']['error.message']);
     }
 
     public function testUnorderedOtelSpanActivation()
@@ -111,7 +111,7 @@ final class TracerTest extends BaseTestCase
         $this->assertNotEquals(0, $span['duration']);
         $this->assertSame('internal', $span['name']);
         $this->assertSame('test.span', $span['resource']);
-        $this->assertEquals(PrioritySampling::AUTO_KEEP, $span['metrics']["_sampling_priority_v1"]);
+        $this->assertEquals(PrioritySampling::AUTO_KEEP, $span['sampling_priority']);
     }
 
     public function testManuallyCreatedSpanWithCustomTags()
@@ -133,9 +133,9 @@ final class TracerTest extends BaseTestCase
         $this->assertNotEquals(0, $span['duration']);
         $this->assertSame('internal', $span['name']);
         $this->assertSame('test.span', $span['resource']);
-        $this->assertEquals(PrioritySampling::AUTO_KEEP, $span['metrics']["_sampling_priority_v1"]);
-        $this->assertSame('bar', $span['meta']['foo']);
-        $this->assertSame('baz', $span['meta']['bar']);
+        $this->assertEquals(PrioritySampling::AUTO_KEEP, $span['sampling_priority']);
+        $this->assertSame('bar', $span['attributes']['foo']);
+        $this->assertSame('baz', $span['attributes']['bar']);
     }
 
     public function testManuallyCreatedSpanWithNestedAttributes()
@@ -157,12 +157,12 @@ final class TracerTest extends BaseTestCase
         $this->assertNotEquals(0, $span['duration']);
         $this->assertSame('internal', $span['name']);
         $this->assertSame('test.span', $span['resource']);
-        $this->assertEquals(PrioritySampling::AUTO_KEEP, $span['metrics']["_sampling_priority_v1"]);
-        $this->assertSame('bar', $span['meta']['foo']);
-        $this->assertSame('baz', $span['meta']['bar']);
-        $this->assertSame('bar', $span['meta']['nested.foo']);
-        $this->assertSame('baz', $span['meta']['nested.bar']);
-        $this->assertSame('alone', $span['meta']['nested.0']);
+        $this->assertEquals(PrioritySampling::AUTO_KEEP, $span['sampling_priority']);
+        $this->assertSame('bar', $span['attributes']['foo']);
+        $this->assertSame('baz', $span['attributes']['bar']);
+        $this->assertSame('bar', $span['attributes']['nested']['foo']);
+        $this->assertSame('baz', $span['attributes']['nested']['bar']);
+        $this->assertSame('alone', $span['attributes']['nested'][0]);
     }
 
     public function testManuallyCreatedNestedSpansBasic()
@@ -228,7 +228,7 @@ final class TracerTest extends BaseTestCase
         $this->assertNotEmpty($span['trace_id']);
         $this->assertSame($span['trace_id'], $span['span_id']);
         $this->assertArrayNotHasKey('parent_id', $span);
-        $this->assertEquals(PrioritySampling::AUTO_KEEP, $span['metrics']["_sampling_priority_v1"]);
+        $this->assertEquals(PrioritySampling::AUTO_KEEP, $span['sampling_priority']);
     }
 
     public function testCreateANewTraceInTheSameProcess()
@@ -290,22 +290,21 @@ final class TracerTest extends BaseTestCase
             $span->end();
         });
 
-        $meta = $traces[0][0]['meta'];
-        $metrics = $traces[0][0]['metrics'];
-        $this->assertSame("a", $meta['string']);
-        $this->assertArrayNotHasKey("null-string", $meta);
-        $this->assertSame("", $meta['empty_string']);
-        $this->assertEquals(1, $metrics['number']);
-        $this->assertSame("true", $meta['boolean']);
-        $this->assertSame("a", $meta['string-array.0']);
-        $this->assertSame("b", $meta['string-array.1']);
-        $this->assertSame("c", $meta['string-array.2']);
-        $this->assertSame("true", $meta['boolean-array.0']);
-        $this->assertSame("false", $meta['boolean-array.1']);
-        $this->assertEquals("1.1", $metrics['float-array.0']);
-        $this->assertEquals("2.2", $metrics['float-array.1']);
-        $this->assertEquals("3.3", $metrics['float-array.2']);
-        $this->assertSame("", $meta['empty-array']);
+        $attributes = $traces[0][0]['attributes'];
+        $this->assertSame("a", $attributes['string']);
+        $this->assertArrayNotHasKey("null-string", $attributes);
+        $this->assertSame("", $attributes['empty_string']);
+        $this->assertEquals(1, $attributes['number']);
+        $this->assertSame("true", $attributes['boolean']);
+        $this->assertSame("a", $attributes['string-array'][0]);
+        $this->assertSame("b", $attributes['string-array'][1]);
+        $this->assertSame("c", $attributes['string-array'][2]);
+        $this->assertSame("true", $attributes['boolean-array'][0]);
+        $this->assertSame("false", $attributes['boolean-array'][1]);
+        $this->assertEquals("1.1", $attributes['float-array'][0]);
+        $this->assertEquals("2.2", $attributes['float-array'][1]);
+        $this->assertEquals("3.3", $attributes['float-array'][2]);
+        $this->assertSame("", $attributes['empty-array']);
     }
 
     /**
@@ -322,17 +321,18 @@ final class TracerTest extends BaseTestCase
         });
 
         $span = $traces[0][0];
-        $this->assertSame($tagSpanKind, $span['meta']['span.kind']);
+        $this->assertSame($tagSpanKind, $span['span_kind']);
     }
 
     public function providerSpanKind()
     {
+        // V1 introspection promotes span.kind to the int enum: Internal=1,Server=2,Client=3,Producer=4,Consumer=5
         return [
-            [SpanKind::KIND_CLIENT, Tag::SPAN_KIND_VALUE_CLIENT],
-            [SpanKind::KIND_SERVER, Tag::SPAN_KIND_VALUE_SERVER],
-            [SpanKind::KIND_PRODUCER, Tag::SPAN_KIND_VALUE_PRODUCER],
-            [SpanKind::KIND_CONSUMER, Tag::SPAN_KIND_VALUE_CONSUMER],
-            [SpanKind::KIND_INTERNAL, Tag::SPAN_KIND_VALUE_INTERNAL],
+            [SpanKind::KIND_CLIENT, 3],
+            [SpanKind::KIND_SERVER, 2],
+            [SpanKind::KIND_PRODUCER, 4],
+            [SpanKind::KIND_CONSUMER, 5],
+            [SpanKind::KIND_INTERNAL, 1],
         ];
     }
 
@@ -377,7 +377,7 @@ final class TracerTest extends BaseTestCase
         });
 
         $span = $traces[0][0];
-        $this->assertArrayNotHasKey('_dd1.sr.eausr', $span['metrics']);
+        $this->assertArrayNotHasKey('_dd1.sr.eausr', $span['attributes']);
     }
 
     public function testSpanErrorStatus()
@@ -392,7 +392,7 @@ final class TracerTest extends BaseTestCase
         $span = $traces[0][0];
         $this->assertSame('internal', $span['name']);
         $this->assertSame('test.span', $span['resource']);
-        $this->assertSame('error message', $span['meta']['error.message']);
+        $this->assertSame('error message', $span['attributes']['error.message']);
         $this->assertEquals(1, $span['error']);
     }
 
@@ -414,7 +414,7 @@ final class TracerTest extends BaseTestCase
 
         $span = $traces[0][0];
         $this->assertArrayNotHasKey("error", $span);
-        $this->assertArrayNotHasKey("error.message", $span['meta']);
+        $this->assertArrayNotHasKey("error.message", $span['attributes']);
         $this->assertSame("internal", $span['name']);
         $this->assertSame("test.span", $span['resource']);
     }
@@ -431,7 +431,7 @@ final class TracerTest extends BaseTestCase
         $span = $traces[0][0];
         $this->assertSame('internal', $span['name']);
         $this->assertSame('test.span', $span['resource']);
-        $this->assertNotEmpty($span['meta'][Tag::ERROR_STACK]);
+        $this->assertNotEmpty($span['attributes'][Tag::ERROR_STACK]);
     }
 
     public function testSpanNameUpdate()
@@ -467,9 +467,9 @@ final class TracerTest extends BaseTestCase
         $span = $traces[0][0];
         $this->assertSame('internal', $span['name']);
         $this->assertSame('test.span', $span['resource']);
-        $this->assertSame('error message', $span['meta']['error.message']);
+        $this->assertSame('error message', $span['attributes']['error.message']);
         $this->assertEquals(1, $span['error']);
-        $this->assertSame('bar', $span['meta']['foo']);
+        $this->assertSame('bar', $span['attributes']['foo']);
     }
 
     public function testConcurrentSpans()
@@ -520,10 +520,10 @@ final class TracerTest extends BaseTestCase
             $this->assertSame($rootSpan['span_id'], $httpSpan['parent_id']);
 
             $this->assertSame("http-$i", $httpSpan['resource']);
-            $this->assertSame("GET", $httpSpan['meta']['http.method']);
-            $this->assertSame("example.com/$i", $httpSpan['meta']['http.url']);
-            $this->assertSame('200', $httpSpan['meta']['http.status_code']);
-            $this->assertSame('1024', $httpSpan['meta']['http.response_content_length']);
+            $this->assertSame("GET", $httpSpan['attributes']['http.method']);
+            $this->assertSame("example.com/$i", $httpSpan['attributes']['http.url']);
+            $this->assertSame('200', $httpSpan['attributes']['http.status_code']);
+            $this->assertSame('1024', $httpSpan['attributes']['http.response_content_length']);
         }
     }
 
@@ -542,8 +542,8 @@ final class TracerTest extends BaseTestCase
         });
 
         $span = $traces[0][0];
-        $this->assertSame('t61rcWkgMzE', $span['meta']['_dd.p.congo']);
-        $this->assertSame('tehehe', $span['meta']['_dd.p.some_val']);
+        $this->assertSame('t61rcWkgMzE', $span['attributes']['_dd.p.congo']);
+        $this->assertSame('tehehe', $span['attributes']['_dd.p.some_val']);
     }
 
     /**
@@ -587,7 +587,7 @@ final class TracerTest extends BaseTestCase
 
         $span = $traces[0][0];
         $this->assertSame($low, $span['trace_id']);
-        $this->assertSame($high, $span['meta']['_dd.p.tid']);
+        $this->assertSame($high, $span['trace_id_high']);
         $this->assertSame($decSpanId, $span['parent_id']);
     }
 
@@ -832,7 +832,7 @@ final class TracerTest extends BaseTestCase
         $spans = $traces[0];
         list($childSpan) = $spans;
         $this->assertSame("11803532876627986230", $childSpan['trace_id']);
-        $this->assertSame("4bf92f3577b34da6", $childSpan['meta']['_dd.p.tid']);
+        $this->assertSame("4bf92f3577b34da6", $childSpan['trace_id_high']);
         $this->assertSame("67667974448284343", $childSpan['parent_id']);
     }
 
@@ -872,10 +872,10 @@ final class TracerTest extends BaseTestCase
         $span = $traces[0];
         list($childSpan, $span) = $span;
 
-        $this->assertSame('t61rcWkgMzE', $span['meta']['_dd.p.congo']);
-        $this->assertSame('t61rcWkgMzE', $childSpan['meta']['_dd.p.congo']);
-        $this->assertSame('-0', $span['meta']['_dd.p.dm']);
-        $this->assertSame('-0', $childSpan['meta']['_dd.p.dm']);
+        $this->assertSame('t61rcWkgMzE', $span['attributes']['_dd.p.congo']);
+        $this->assertSame('t61rcWkgMzE', $childSpan['attributes']['_dd.p.congo']);
+        $this->assertSame(0, $span['sampling_mechanism']); // _dd.p.dm '-0' promotes to sampling_mechanism=0
+        $this->assertSame(0, $childSpan['sampling_mechanism']);
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('internal', 'test.span')

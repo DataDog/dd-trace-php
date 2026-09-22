@@ -85,8 +85,12 @@ array(1) {
   [0]=>
   string(9) "recursive"
 }
-arg.0.0: string(9) "recursive"
-arg.0.1: string(0) ""
+arg.0: array(2) {
+  [0]=>
+  string(9) "recursive"
+  [1]=>
+  string(0) ""
+}
 
 string(16) "already a string"
 arg.1: string(16) "already a string"
@@ -124,9 +128,14 @@ object(DateTime)#%d (3) {
   ["timezone"]=>
   string(3) "UTC"
 }
-arg.8.date: string(26) "2019-09-10 00:00:00.000000"
-arg.8.timezone_type: string(1) "3"
-arg.8.timezone: string(3) "UTC"
+arg.8: array(3) {
+  ["date"]=>
+  string(26) "2019-09-10 00:00:00.000000"
+  ["timezone_type"]=>
+  string(1) "3"
+  ["timezone"]=>
+  string(3) "UTC"
+}
 
 object(MyDt)#%d (3) {
   ["date"]=>
@@ -136,15 +145,23 @@ object(MyDt)#%d (3) {
   ["timezone"]=>
   string(3) "UTC"
 }
-arg.9.date: string(26) "2019-09-10 00:00:00.000000"
-arg.9.timezone_type: string(1) "3"
-arg.9.timezone: string(3) "UTC"
+arg.9: array(3) {
+  ["date"]=>
+  string(26) "2019-09-10 00:00:00.000000"
+  ["timezone_type"]=>
+  string(1) "3"
+  ["timezone"]=>
+  string(3) "UTC"
+}
 
 array(1) {
   ["foo"]=>
   int(0)
 }
-arg.10.foo: string(1) "0"
+arg.10: array(1) {
+  ["foo"]=>
+  string(1) "0"
+}
 
 array(1) {
   ["bar"]=>
@@ -155,8 +172,15 @@ array(1) {
     int(2)
   }
 }
-arg.11.bar.0: string(1) "1"
-arg.11.bar.key: string(1) "2"
+arg.11: array(1) {
+  ["bar"]=>
+  array(2) {
+    [0]=>
+    string(1) "1"
+    ["key"]=>
+    string(1) "2"
+  }
+}
 
 resource(%d) of type (stream)
 arg.12: string(%d) "Resource id #%d"

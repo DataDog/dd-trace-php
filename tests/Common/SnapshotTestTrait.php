@@ -401,7 +401,8 @@ trait SnapshotTestTrait
         $sampledTraceIDs = [];
         foreach ($traces as $trace) {
             foreach ($trace as $span) {
-                if (isset($span['metrics']['_sampling_priority_v1']) && $span['metrics']['_sampling_priority_v1'] === 0) {
+                list(, $metrics) = SpanChecker::extractMetaMetrics($span);
+                if (isset($metrics['_sampling_priority_v1']) && (int) $metrics['_sampling_priority_v1'] === 0) {
                     $sampledTraceIDs[$span['trace_id']] = true;
                 }
             }

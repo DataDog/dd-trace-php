@@ -403,7 +403,7 @@ class SQLSRVTest extends IntegrationTestCase
         // Verify that SERVICE mode is used for the prepare span
         $this->assertArrayNotHasKey(
             '_dd.dbm_trace_injected',
-            $prepareSpan['meta'] ?? [],
+            $prepareSpan['attributes'] ?? [],
             'sqlsrv_prepare should use SERVICE mode'
         );
     }

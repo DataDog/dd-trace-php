@@ -2,6 +2,7 @@
 In-process sender + non-v1 agent serializes the v0.4 wire (/v0.4/traces, no chunks)
 --SKIPIF--
 <?php
+if (strncasecmp(PHP_OS, "WIN", 3) == 0) die('skip: the in-process sender is not available on Windows');
 include __DIR__ . '/../includes/skipif_no_dev_env.inc';
 // Pre-seed a NON-v1 /info (no /v1.0/traces) for this session token so the in-process
 // agent-info reader negotiates the v0.4 downgrade. Done in SKIPIF (separate process)

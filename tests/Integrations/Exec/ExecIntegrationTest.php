@@ -537,7 +537,7 @@ class ExecIntegrationTest extends IntegrationTestCase
 
         $this->assertEquals(
             "md5(){ return; }; FOO=? BAR=? echo foo -- --password=? -pass ?; md5 ? ?",
-            $traces[0][0]['meta']['cmd.shell']
+            $traces[0][0]['attributes']['cmd.shell']
         );
     }
 
@@ -554,7 +554,7 @@ class ExecIntegrationTest extends IntegrationTestCase
 
         $this->assertEquals(
             4 * 1024,
-            strlen($traces[0][0]['meta']['cmd.shell'])
+            strlen($traces[0][0]['attributes']['cmd.shell'])
         );
     }
 
@@ -582,7 +582,7 @@ class ExecIntegrationTest extends IntegrationTestCase
 
         $this->assertEquals(
             '["echo","' . str_repeat('a', 4092) . '",""]',
-            $traces[0][0]['meta']['cmd.exec']
+            $traces[0][0]['attributes']['cmd.exec']
         );
     }
 

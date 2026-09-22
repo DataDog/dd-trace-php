@@ -1,6 +1,7 @@
 --TEST--
 An empty container ID is not sent via HTTP headers to the Agent
 --SKIPIF--
+<?php if (strncasecmp(PHP_OS, "WIN", 3) == 0) die('skip: There is no background sender on Windows'); ?>
 <?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
 --ENV--
 DD_TRACE_LOG_LEVEL=info,startup=off

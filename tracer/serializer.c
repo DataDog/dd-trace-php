@@ -2487,6 +2487,10 @@ zval dd_serialize_rust_to_zval(ddog_TracerPayloadV1Builder *b) {
                     zval link_zv;
                     array_init(&link_zv);
                     add_assoc_str(&link_zv, KEY_TRACE_ID, ddtrace_span_id_as_string(ddog_v1_get_link_trace_id_low(b, c, j, l)));
+                    uint64_t link_tid_high = ddog_v1_get_link_trace_id_high(b, c, j, l);
+                    if (link_tid_high) {
+                        add_assoc_str(&link_zv, "trace_id_high", ddtrace_span_id_as_hex_string(link_tid_high));
+                    }
                     add_assoc_str(&link_zv, KEY_SPAN_ID, ddtrace_span_id_as_string(ddog_v1_get_link_span_id(b, c, j, l)));
                     ddog_CharSlice tracestate = ddog_v1_get_link_tracestate(b, c, j, l);
                     if (tracestate.len) {

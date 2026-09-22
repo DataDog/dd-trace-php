@@ -2,6 +2,7 @@
 In-process sender frames every trace of a multi-trace flush (per-trace coms group id)
 --SKIPIF--
 <?php
+if (strncasecmp(PHP_OS, "WIN", 3) == 0) die('skip: the in-process sender is not available on Windows');
 include __DIR__ . '/../includes/skipif_no_dev_env.inc';
 // Pre-seed a NON-v1 /info for this session token and warm the connection in a
 // separate process, mirroring the sibling v0.4 wire test. Also doubles as the

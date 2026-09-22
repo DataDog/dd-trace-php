@@ -63,6 +63,107 @@ final class SpanChecker
         return self::dumpSpansGraph($actualGraph);
     }
 
+    /**
+     * Derives the legacy flat `meta` (string tags) and `metrics` (numeric tags) views from a span.
+     *
+     * The V1 introspection shape (`dd_trace_serialize_closed_spans()`) merges the old string `meta`
+     * and numeric `metrics` maps into a single typed `attributes` map, and promotes some keys to
+     * top-level span fields. The v0.4 agent wire (parsed from the request replayer) keeps the old
+     * flat `meta`/`metrics`. Tests assert against the legacy model, so normalize both shapes to it.
+     *
+     * Reconstruction is the exact inverse of the reshape, so the derived `meta`/`metrics` match what
+     * master's introspection returned for the same span.
+     *
+     * @return array{0: array, 1: array} `[$meta, $metrics]`
+     */
+    public static function extractMetaMetrics(array $span)
+    {
+        // Old flat shape (v0.4 wire): already split into meta/metrics.
+        if (\array_key_exists('meta', $span) || \array_key_exists('metrics', $span)) {
+            return [
+                isset($span['meta']) ? $span['meta'] : [],
+                isset($span['metrics']) ? $span['metrics'] : [],
+            ];
+        }
+
+        // New V1 introspection shape: split attributes back by type and restore promoted keys.
+        $meta = [];
+        $metrics = [];
+        foreach (isset($span['attributes']) ? $span['attributes'] : [] as $key => $value) {
+            if (\is_int($value) || \is_float($value)) {
+                $metrics[$key] = $value;
+            } else {
+                // Strings and nested array/map attributes belong to the meta view.
+                $meta[$key] = $value;
+            }
+        }
+        // Promoted string keys move back into meta under their original tag names.
+        if (isset($span['env'])) {
+            $meta['env'] = $span['env'];
+        }
+        if (isset($span['version'])) {
+            $meta['version'] = $span['version'];
+        }
+        if (isset($span['component'])) {
+            $meta['component'] = $span['component'];
+        }
+        if (isset($span['origin'])) {
+            $meta['_dd.origin'] = $span['origin'];
+        }
+        if (isset($span['trace_id_high'])) {
+            $meta['_dd.p.tid'] = $span['trace_id_high'];
+        }
+        // span_kind is an int enum, ALWAYS present; 1 (Internal) is the default and was not emitted
+        // as a `span.kind` meta tag in the old shape, so only restore the explicit kinds (2-5).
+        if (isset($span['span_kind'])) {
+            $kinds = [2 => 'server', 3 => 'client', 4 => 'producer', 5 => 'consumer'];
+            if (isset($kinds[$span['span_kind']])) {
+                $meta['span.kind'] = $kinds[$span['span_kind']];
+            }
+        }
+        // sampling_mechanism is the unsigned _dd.p.dm value (sign is always '-').
+        if (isset($span['sampling_mechanism'])) {
+            $meta['_dd.p.dm'] = '-' . $span['sampling_mechanism'];
+        }
+        // sampling_priority (int) was the numeric _sampling_priority_v1 metric.
+        if (isset($span['sampling_priority'])) {
+            $metrics['_sampling_priority_v1'] = (float) $span['sampling_priority'];
+        }
+        return [$meta, $metrics];
+    }
+
+    /**
+     * Converts a V1 introspection span into the flat v0.4 shape the test agent expects, so
+     * introspection traces (from `flushAndGetTraces()`) can be sent to the agent for snapshotting.
+     * Old flat spans are returned unchanged.
+     */
+    public static function spanToWireShape(array $span)
+    {
+        if (\array_key_exists('meta', $span) || \array_key_exists('metrics', $span)) {
+            return $span;
+        }
+        list($meta, $metrics) = self::extractMetaMetrics($span);
+        unset(
+            $span['attributes'],
+            $span['span_kind'],
+            $span['env'],
+            $span['version'],
+            $span['component'],
+            $span['origin'],
+            $span['trace_id_high'],
+            $span['sampling_priority'],
+            $span['sampling_mechanism'],
+            $span['dropped_trace']
+        );
+        if ($meta) {
+            $span['meta'] = $meta;
+        }
+        if ($metrics) {
+            $span['metrics'] = $metrics;
+        }
+        return $span;
+    }
+
     public static function dumpSpansGraph(array $spansGraph, int $indent = 0)
     {
         $out = "";
@@ -85,22 +186,19 @@ final class SpanChecker
                 $out .= ' (' . implode(', ', $values) . ')';
             }
             $out .= "\n";
-            if (isset($span['meta'])) {
-                unset($span['meta']['_dd.p.dm']);
-                unset($span['meta']['_dd.p.tid']);
-                unset($span['meta']['http.client_ip']);
-                foreach ($span['meta'] as $k => $v) {
-                    $out .= str_repeat(' ', $indent) . '  ' . $k . ' => ' . $v . "\n";
-                }
+            list($dumpMeta, $dumpMetrics) = self::extractMetaMetrics($span);
+            unset($dumpMeta['_dd.p.dm']);
+            unset($dumpMeta['_dd.p.tid']);
+            unset($dumpMeta['http.client_ip']);
+            foreach ($dumpMeta as $k => $v) {
+                $out .= str_repeat(' ', $indent) . '  ' . $k . ' => ' . (is_scalar($v) ? $v : json_encode($v)) . "\n";
             }
-            if (isset($span['metrics'])) {
-                unset($span['metrics']['php.compilation.total_time_ms']);
-                unset($span['metrics']['php.memory.peak_usage_bytes']);
-                unset($span['metrics']['php.memory.peak_real_usage_bytes']);
-                unset($span['metrics']['process_id']);
-                foreach ($span['metrics'] as $k => $v) {
-                    $out .= str_repeat(' ', $indent) . '  ' . $k . ' => ' . $v . "\n";
-                }
+            unset($dumpMetrics['php.compilation.total_time_ms']);
+            unset($dumpMetrics['php.memory.peak_usage_bytes']);
+            unset($dumpMetrics['php.memory.peak_real_usage_bytes']);
+            unset($dumpMetrics['process_id']);
+            foreach ($dumpMetrics as $k => $v) {
+                $out .= str_repeat(' ', $indent) . '  ' . $k . ' => ' . (is_scalar($v) ? $v : json_encode($v)) . "\n";
             }
             $out .= self::dumpSpansGraph($node['children'], $indent + 2);
         }
@@ -387,20 +485,19 @@ final class SpanChecker
     {
         TestCase::assertNotNull($span, 'Expected span was not found \'' . $exp->getOperationName() . '\'.');
 
-        $spanMeta = isset($span['meta']) ? $span['meta'] : [];
-        $spanMetrics = isset($span['metrics']) ? $span['metrics'] : [];
+        list($spanMeta, $spanMetrics) = self::extractMetaMetrics($span);
 
         $namePrefix = $exp->getOperationName() . ': ';
 
         // Checking status code here because this can be tested also when we want to check only for existence
         if ($exp->getStatusCode() !== SpanAssertion::NOT_TESTED) {
             $actualStatusCode
-                = isset($span['meta']['http.status_code']) ? $span['meta']['http.status_code'] : '';
+                = isset($spanMeta['http.status_code']) ? $spanMeta['http.status_code'] : '';
             $expectedStatusCode = strval($exp->getStatusCode());
             if ($actualStatusCode !== $expectedStatusCode) {
                 TestCase::assertSame(
                     $exp->getStatusCode(),
-                    isset($span['meta']['http.status_code']) ? $span['meta']['http.status_code'] : '',
+                    isset($spanMeta['http.status_code']) ? $spanMeta['http.status_code'] : '',
                     $namePrefix . "Wrong value for 'status code'. "
                         . "Expected: $expectedStatusCode. Actual: $actualStatusCode"
                         . print_r($span, true)
