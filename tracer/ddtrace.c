@@ -628,7 +628,6 @@ void ddtrace_rshutdown(bool fast_shutdown) {
 
     ddtrace_clean_git_object();
     ddtrace_weak_resources_rshutdown();
-    ddtrace_live_debugger_rshutdown();
 }
 
 void ddtrace_post_deactivate(void) {
@@ -637,6 +636,7 @@ void ddtrace_post_deactivate(void) {
     zai_interceptor_deactivate();
 
     // we can only actually free our hooks hashtables in post_deactivate, as within RSHUTDOWN some user code may still run
+    ddtrace_live_debugger_rshutdown();
     zai_hook_rshutdown();
     zai_uhook_rshutdown();
 }

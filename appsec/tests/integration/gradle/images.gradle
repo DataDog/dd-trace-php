@@ -247,11 +247,16 @@ tasks.register('buildApache2Mod-8.5-release-zts-musl', Exec) {
 
 tasks.register('buildPhpBuildonlyRustImage', Exec) {
     String image = "$repo:php-buildonly-rust"
+    String baseRepository = System.getenv('GITLAB_CI') == 'true' ?
+            'registry.ddbuild.io/ci/musl-toolchain-glibc-support/php-buildonly' :
+            'datadog/php-buildonly'
     description = 'Build the portable PHP extension build image'
     inputs.file 'src/docker/php-buildonly-rust/Dockerfile'
     inputs.file 'src/docker/php-buildonly-rust/php-symbols.txt.gz'
+    inputs.property 'baseRepository', baseRepository
     outputs.upToDateWhen imageUpToDate(inputs, image)
-    commandLine(*dockerBuildCommand, *dockerMirrorArgs, '-t', image,
+    commandLine(*dockerBuildCommand,
+            '--build-arg', "PHP_BUILDONLY_REPOSITORY=$baseRepository", '-t', image,
             'src/docker/php-buildonly-rust')
 }
 
