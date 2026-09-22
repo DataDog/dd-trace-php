@@ -35,7 +35,7 @@ final class OrphansTest extends IntegrationTestCase
     static function getSampling($response) {
         $root = json_decode($response[0]["body"], true);
         $spans = $root["chunks"][0]["spans"] ?? $root[0];
-        return $spans[0]["sampling_priority"];
+        return $spans[0]["metrics"]["_sampling_priority_v1"];
     }
 
     function testOrphansRemovalWithAgentSampling()

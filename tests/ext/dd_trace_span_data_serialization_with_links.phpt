@@ -78,18 +78,22 @@ array(12) {
   ["span_links"]=>
   array(2) {
     [0]=>
-    array(3) {
+    array(4) {
       ["trace_id"]=>
       string(20) "13930160852258120406"
+      ["trace_id_high"]=>
+      string(16) "%s"
       ["span_id"]=>
       string(20) "11788048577503494824"
       ["flags"]=>
       int(0)
     }
     [1]=>
-    array(3) {
+    array(4) {
       ["trace_id"]=>
       string(20) "13930160852258120406"
+      ["trace_id_high"]=>
+      string(16) "%s"
       ["span_id"]=>
       string(20) "13874630024467741450"
       ["flags"]=>
@@ -100,9 +104,11 @@ array(12) {
 string(3) "bar"
 array(1) {
   [0]=>
-  array(3) {
+  array(4) {
     ["trace_id"]=>
     string(20) "13930160852258120406"
+    ["trace_id_high"]=>
+    string(16) "%s"
     ["span_id"]=>
     string(20) "13874630024467741450"
     ["flags"]=>
@@ -112,9 +118,11 @@ array(1) {
 string(3) "foo"
 array(1) {
   [0]=>
-  array(3) {
+  array(4) {
     ["trace_id"]=>
     string(20) "13930160852258120406"
+    ["trace_id_high"]=>
+    string(16) "%s"
     ["span_id"]=>
     string(20) "11788048577503494824"
     ["flags"]=>

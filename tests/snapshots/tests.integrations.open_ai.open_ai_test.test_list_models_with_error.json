@@ -9,7 +9,7 @@
     "type": "openai",
     "error": 1,
     "meta": {
-      "_dd.p.dm": "0",
+      "_dd.p.dm": "-0",
       "_dd.p.tid": "681cb4f800000000",
       "env": "test",
       "error.message": "Uncaught OpenAI\\Exceptions\\ErrorException: Incorrect API key provided: foo. You can find your API key at https://platform.openai.com. in {path}/tests/Integrations/OpenAI/Latest/vendor/openai-php/client/src/Transporters/HttpTransporter.php:169",

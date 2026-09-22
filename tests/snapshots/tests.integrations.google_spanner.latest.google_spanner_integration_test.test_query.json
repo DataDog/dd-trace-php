@@ -8,7 +8,7 @@
     "parent_id": 0,
     "type": "sql",
     "meta": {
-      "_dd.p.dm": "0",
+      "_dd.p.dm": "-0",
       "_dd.p.tid": "672dc9f400000000",
       "component": "google_spanner",
       "db.name": "projects/emulator-project/instances/test-instance/databases/test-database",

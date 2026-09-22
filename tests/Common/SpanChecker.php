@@ -107,12 +107,6 @@ final class SpanChecker
         if (isset($span['component'])) {
             $meta['component'] = $span['component'];
         }
-        if (isset($span['origin'])) {
-            $meta['_dd.origin'] = $span['origin'];
-        }
-        if (isset($span['trace_id_high'])) {
-            $meta['_dd.p.tid'] = $span['trace_id_high'];
-        }
         // span_kind is an int enum, ALWAYS present; 1 (Internal) is the default and was not emitted
         // as a `span.kind` meta tag in the old shape, so only restore the explicit kinds (2-5).
         if (isset($span['span_kind'])) {
@@ -121,13 +115,27 @@ final class SpanChecker
                 $meta['span.kind'] = $kinds[$span['span_kind']];
             }
         }
-        // sampling_mechanism is the unsigned _dd.p.dm value (sign is always '-').
-        if (isset($span['sampling_mechanism'])) {
-            $meta['_dd.p.dm'] = '-' . $span['sampling_mechanism'];
-        }
-        // sampling_priority (int) was the numeric _sampling_priority_v1 metric.
-        if (isset($span['sampling_priority'])) {
-            $metrics['_sampling_priority_v1'] = (float) $span['sampling_priority'];
+        // Chunk/trace-level keys: the V1 introspection reflects sampling_mechanism / sampling_priority
+        // / origin / trace_id_high onto EVERY span, but on the real v0.4 wire (and master's shape)
+        // they live on the LOCAL ROOT only. Reconstruct them there alone so the harness matches the
+        // wire and children don't get a spurious _dd.p.dm / _sampling_priority_v1 / _dd.origin / _dd.p.tid.
+        $isLocalRoot = !isset($span['parent_id'])
+            || (isset($span['attributes']['_dd.top_level']) && $span['attributes']['_dd.top_level'] == 1);
+        if ($isLocalRoot) {
+            if (isset($span['origin'])) {
+                $meta['_dd.origin'] = $span['origin'];
+            }
+            if (isset($span['trace_id_high'])) {
+                $meta['_dd.p.tid'] = $span['trace_id_high'];
+            }
+            // sampling_mechanism is the unsigned _dd.p.dm value (sign is always '-').
+            if (isset($span['sampling_mechanism'])) {
+                $meta['_dd.p.dm'] = '-' . $span['sampling_mechanism'];
+            }
+            // sampling_priority (int) was the numeric _sampling_priority_v1 metric.
+            if (isset($span['sampling_priority'])) {
+                $metrics['_sampling_priority_v1'] = (float) $span['sampling_priority'];
+            }
         }
         return [$meta, $metrics];
     }
@@ -542,7 +550,16 @@ final class SpanChecker
         }
 
         foreach ($exp->getExistingTagNames(true) as $key) {
-            TestCase::assertArrayHasKey($key, $spanMeta);
+            if ($key === '_dd.span_links') {
+                // Links live in the top-level native span_links (V1 introspection / dd_trace_serialize_closed_spans)
+                // OR the legacy '_dd.span_links' meta tag (v0.4 wire). Accept either so both paths pass.
+                TestCase::assertTrue(
+                    !empty($span['span_links']) || isset($spanMeta['_dd.span_links']),
+                    $exp->getOperationName() . ": expected span links but neither top-level span_links nor meta['_dd.span_links'] is present"
+                );
+            } else {
+                TestCase::assertArrayHasKey($key, $spanMeta);
+            }
         }
 
         if ($exp->isOnlyCheckExistence()) {
@@ -631,6 +648,12 @@ final class SpanChecker
                 if ($tagName === Tag::PID) {
                     TestCase::assertArrayHasKey($tagName, $spanMetrics);
                     unset($spanMetrics[Tag::PID]);
+                } elseif ($tagName === '_dd.span_links') {
+                    // Links: top-level native span_links (introspection) OR legacy _dd.span_links meta (v0.4 wire).
+                    TestCase::assertTrue(
+                        !empty($span['span_links']) || isset($spanMeta['_dd.span_links']),
+                        $exp->getOperationName() . ": expected span links but neither top-level span_links nor meta['_dd.span_links'] is present"
+                    );
                 } else {
                     TestCase::assertArrayHasKey($tagName, $spanMeta);
                 }

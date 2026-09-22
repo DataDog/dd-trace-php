@@ -1523,20 +1523,27 @@ mod v04_parity_tests {
 
         let new_span = first_span(&to_vec_from_v1(&newb.into_payload()));
         let old_span = first_span(&to_vec_from_v1(&oldb.into_payload()));
-        let attr = |sp: &Value| {
-            field(field(&field(sp, "span_links").unwrap().as_array().unwrap()[0], "attributes").unwrap(), "nums")
+        // v0.4 downgrade carries links as the legacy `_dd.span_links` meta JSON string (no native
+        // `span_links` field); native nested `[3,4]` must match the old json_encode string byte-for-byte.
+        assert!(field(&new_span, "span_links").is_none());
+        let links_meta = |sp: &Value| {
+            field(field(sp, "meta").unwrap(), "_dd.span_links")
                 .unwrap()
                 .as_str()
                 .unwrap()
                 .to_string()
         };
-        assert_eq!(attr(&new_span), "[3,4]");
-        assert_eq!(attr(&new_span), attr(&old_span));
+        let new_meta = links_meta(&new_span);
+        assert!(new_meta.contains(r#""nums":"[3,4]""#), "got {new_meta}");
+        assert_eq!(new_meta, links_meta(&old_span));
     }
 
     #[test]
-    fn event_nested_attr_matches_old_json_string_v04() {
-        // NEW: native nested event attr `nums = [3, 4]` built through the staging FFI.
+    fn event_nested_attr_downgrades_to_legacy_events_meta_native_array() {
+        // Native nested event attr `nums = [3, 4]` built through the staging FFI. On the v0.4
+        // downgrade it lands in the legacy `events` meta as a REAL JSON array (event attributes
+        // keep native JSON types, matching master's json_encode of the PHP attributes array —
+        // unlike links, which are String → String). No native `span_events` field on the v0.4 wire.
         let (newb, s) = one_span_builder();
         unsafe {
             let event = ddog_new_event(s);
@@ -1545,26 +1552,13 @@ mod v04_parity_tests {
             ddog_attr_list_push_int(nums, 4);
             ddog_attr_close(nums);
         }
-        // OLD: json_encode([3,4]) stored as a string event attribute.
-        let (oldb, s) = one_span_builder();
-        unsafe {
-            let event = ddog_new_event(s);
-            ddog_event_add_attr_str(event, cs("nums"), cs("[3,4]"));
-        }
-
         let new_span = first_span(&to_vec_from_v1(&newb.into_payload()));
-        let old_span = first_span(&to_vec_from_v1(&oldb.into_payload()));
-        // Event attrs downgrade to `{"type":0,"string_value":<json>}`.
-        let attr = |sp: &Value| {
-            let a = field(&field(sp, "span_events").unwrap().as_array().unwrap()[0], "attributes").unwrap();
-            let nums = field(a, "nums").unwrap();
-            (
-                field(nums, "type").unwrap().as_u64().unwrap(),
-                field(nums, "string_value").unwrap().as_str().unwrap().to_string(),
-            )
-        };
-        assert_eq!(attr(&new_span), (0, "[3,4]".to_string()));
-        assert_eq!(attr(&new_span), attr(&old_span));
+        assert!(field(&new_span, "span_events").is_none());
+        let events_meta = field(field(&new_span, "meta").unwrap(), "events")
+            .unwrap()
+            .as_str()
+            .unwrap();
+        assert!(events_meta.contains(r#""nums":[3,4]"#), "got {events_meta}");
     }
 }
 

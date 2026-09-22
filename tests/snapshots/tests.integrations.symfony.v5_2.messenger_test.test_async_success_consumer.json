@@ -8,7 +8,7 @@
     "parent_id": 10357363023243650935,
     "type": "queue",
     "meta": {
-      "_dd.p.dm": "0",
+      "_dd.p.dm": "-0",
       "_dd.p.tid": "686e4bf900000000",
       "component": "symfonymessenger",
       "messaging.destination": "Symfony\\Component\\Messenger\\Bridge\\Doctrine\\Transport\\DoctrineTransport",
