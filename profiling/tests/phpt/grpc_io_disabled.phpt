@@ -7,6 +7,8 @@ ZEND_DONT_UNLOAD_MODULES=1 keeps its global references visible to LeakSanitizer.
 grpc
 --SKIPIF--
 <?php
+if (!extension_loaded('grpc'))
+    die('skip: test requires grpc');
 if (!extension_loaded('datadog-profiling'))
     die('skip: test requires datadog-profiling');
 ob_start();
