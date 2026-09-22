@@ -2215,6 +2215,10 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             } else {
                 array_init(return_value);
             }
+        } else if (FUNCTION_NAME_MATCHES("process_remote_config")) {
+            // Test/debug helper for exercising Remote Config at precise lifecycle points.
+            datadog_check_for_new_config_now();
+            RETVAL_TRUE;
         } else if (FUNCTION_NAME_MATCHES("await_remote_config")) {
             uint32_t timeout_sec = 10;
             if (params_count == 1) {
