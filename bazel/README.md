@@ -68,6 +68,71 @@ bash tools/bazel/bootstrap-bb.sh
 export PATH="$PWD/build/bin:$PATH"
 ```
 
+## Incremental C development builds
+
+Use `local-cached-amd64` on an amd64 Linux host or `local-cached-arm64` on
+an arm64 Linux host. These configurations read the shared Buildbarn cache and
+execute misses locally, avoiding the remote worker queue after a source edit:
+
+```sh
+bb build //bazel/products/tracer:ddtrace_fat_amd64_glibc_php85 \
+  --config=local-cached-amd64
+```
+
+The architecture suffix selects the **execution host**, not the product being
+built. For example, an amd64 host can cross-build `ddtrace_fat_arm64_all` with
+`local-cached-amd64`. A native runtime smoke test still requires a matching host.
+Use the same target/platform flags and retain the same Bazel output base between
+edits. The environment, toolchains and execution-platform properties match the
+corresponding `remote-hermetic-*` configuration so cached actions can be reused.
+Top-level outputs are downloaded for local use; cached intermediate outputs are
+downloaded when needed by a local action. Local results remain in the output base;
+these development configurations do not upload them to the shared cache.
+
+The default local strategy requires Linux sandbox namespace support. In a
+container without that support, explicitly append `--config=local-processwrapper`:
+
+```sh
+bb build //bazel/products/tracer:ddtrace_fat_amd64_glibc_php85 \
+  --config=local-cached-amd64 --config=local-processwrapper
+```
+
+Processwrapper isolates action directories but does not isolate host filesystem
+or network access, so it is a development fallback, not a hermetic acceptance
+gate. Cache uploads remain disabled. Repository downloads can still be disabled
+after prefetch with `--repository_disable_download`; remote cache access remains
+enabled. The shared cache requires access to the existing staging endpoint.
+
+### Checkout-local defaults
+
+The shared `.bazelrc` optionally loads the Git-ignored `.bazelrc.local` from
+the repository root. To make incremental builds the default on an amd64 Linux
+host, put this in that file (use `local-cached-arm64` on an arm64 host):
+
+```text
+build --config=local-cached-amd64
+# Only in containers without Linux sandbox namespace support:
+# build --config=local-processwrapper
+```
+
+Then build the full amd64 tracer matrix, edit a C source file, and repeat the
+same command without cleaning:
+
+```sh
+bb build //bazel/products/tracer:ddtrace_fat_amd64_all
+```
+
+Machine-specific `startup --output_base=/absolute/path` and
+`build --repository_cache=/absolute/path` settings also belong in this local
+file. Keep the output base stable across edits. Repository download disabling
+is optional and should only be enabled after prefetching the required inputs;
+override it with `--norepository_disable_download` when fetching new inputs.
+Command-line configurations still take precedence, for example
+`--config=remote-hermetic-amd64` to execute on remote amd64 workers or
+`--config=local-hermetic` for strict local execution without the remote cache.
+Removing the local file restores the shared defaults. It is not checked in,
+so other checkouts and CI are unaffected.
+
 Local strict execution requires a host on which Bazel's `linux-sandbox` can
 create its mount and network namespaces. After repository prefetch, build
 without repository network access with:

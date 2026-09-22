@@ -47,6 +47,33 @@ build:remote-hermetic-arm64 --config=remote-hermetic
 build:remote-hermetic-arm64 --host_platform=//bazel/platforms:linux_arm64_exec
 build:remote-hermetic-arm64 --extra_execution_platforms=//bazel/platforms:linux_arm64_exec
 
+# Incremental builds reuse the remote configuration's action keys, but execute
+# cache misses locally. Keep the selected execution architecture native to the
+# host; target architectures are still selected by the product/platform.
+build:local-cached --config=remote-hermetic
+build:local-cached --remote_executor=
+build:local-cached --spawn_strategy=linux-sandbox
+build:local-cached --strategy=Genrule=linux-sandbox
+build:local-cached --remote_upload_local_results=false
+build:local-cached --remote_download_outputs=toplevel
+build:local-cached --jobs=25
+
+build:local-cached-amd64 --config=local-cached
+build:local-cached-amd64 --host_platform=//bazel/platforms:linux_amd64_exec
+build:local-cached-amd64 --extra_execution_platforms=//bazel/platforms:linux_amd64_exec
+
+build:local-cached-arm64 --config=local-cached
+build:local-cached-arm64 --host_platform=//bazel/platforms:linux_arm64_exec
+build:local-cached-arm64 --extra_execution_platforms=//bazel/platforms:linux_arm64_exec
+
+# Explicit development fallback for containers without Linux sandbox namespaces.
+# Keep cache uploads disabled: processwrapper does not isolate host/network access.
+# Apply after local-cached-{amd64,arm64}; this is not a hermetic acceptance gate.
+build:local-processwrapper --spawn_strategy=processwrapper-sandbox
+build:local-processwrapper --strategy=Genrule=processwrapper-sandbox
+build:local-processwrapper --noexperimental_use_hermetic_linux_sandbox
+build:local-processwrapper --remote_upload_local_results=false
+
 # Lightweight scheduling probes intentionally avoid resolving the much larger
 # LLVM repository. They still run with a strict environment and execute only
 # checksum-locked static BusyBox inputs.
@@ -88,3 +115,7 @@ build:asan-linux-amd64-glibc --@rules_rust//rust/toolchain/channel=nightly
 build:asan-linux-arm64-glibc --platforms=//bazel/platforms:asan_linux_arm64_glibc
 build:asan-linux-arm64-glibc --extra_toolchains=@rust_asan_toolchains//...
 build:asan-linux-arm64-glibc --@rules_rust//rust/toolchain/channel=nightly
+
+# Optional checkout-local defaults (host architecture, output/cache directories,
+# sandbox fallback). Keep machine-specific settings out of the shared config.
+try-import %workspace%/.bazelrc.local

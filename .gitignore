@@ -50,6 +50,7 @@ results.bin
 run-tests.php
 /target*
 /bazel-*
+/.bazelrc.local
 tests/ext/*.php
 tests/ext/*.out
 tests/ext/*.diff
