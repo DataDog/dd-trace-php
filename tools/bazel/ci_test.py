@@ -12,12 +12,14 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import urllib.request
 from unittest.mock import patch
 
 import ci
 import ci_metrics as metrics
 import ci_report as report
 import legacy_aggregate
+import network_probe
 import repository_cache
 import verify_release_outputs
 
@@ -421,6 +423,26 @@ class RepositoryCacheTests(unittest.TestCase):
             source.write_bytes(b"tampered")
             with self.assertRaisesRegex(ValueError, "Corrupt repository download"):
                 repository_cache.copy_verified(root / "staging", destination)
+
+
+class RedirectAuthTests(unittest.TestCase):
+    def test_bearer_header_is_scoped_to_registry_host(self):
+        handler = network_probe.HostScopedAuthorization()
+        original = urllib.request.Request(
+            "https://registry-1.docker.io/v2/example/blobs/sha256:deadbeef",
+            headers={"Authorization": "Bearer secret", "Range": "bytes=0-0"},
+        )
+        same_host = handler.redirect_request(
+            original, None, 307, "Temporary Redirect", {},
+            "https://registry-1.docker.io/another/path",
+        )
+        self.assertTrue(same_host.has_header("Authorization"))
+        signed_s3 = handler.redirect_request(
+            original, None, 307, "Temporary Redirect", {},
+            "https://docker-images-prod.s3.dualstack.us-east-1.amazonaws.com/signed",
+        )
+        self.assertFalse(signed_s3.has_header("Authorization"))
+        self.assertTrue(signed_s3.has_header("Range"))
 
 
 class StandaloneAbiTests(unittest.TestCase):

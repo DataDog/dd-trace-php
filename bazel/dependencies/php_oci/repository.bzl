@@ -157,7 +157,14 @@ def _download_layer(rctx, record, layer, output):
         url = url,
         output = output,
         sha256 = sha256,
-        headers = {"Authorization": "Bearer %s" % token},
+        # Bazel applies `headers` again after a redirect. Docker Hub may
+        # redirect to a presigned S3 URL, which rejects a forwarded bearer
+        # header. `auth` scopes the credential to the registry URL.
+        auth = {url: {
+            "type": "pattern",
+            "pattern": "Bearer <password>",
+            "password": token,
+        }},
     )
 
 def _python(rctx):
