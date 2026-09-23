@@ -79,7 +79,9 @@ def remote_cpu_metrics(path):
                     if not wire.one(response_any, 1, b"").endswith(b"/build.bazel.remote.execution.v2.ExecuteResponse"):
                         continue
                     response = wire.fields(wire.one(response_any, 2, b""))
-                    if wire.one(response, 2):
+                    # REAPI ExecuteResponse.cached_result is field 4. Field 2
+                    # is google.rpc.Status and must never be treated as a hit.
+                    if wire.one(response, 4):
                         completed[name] = (True, 0.0)
                         continue
                     action = wire.fields(wire.one(response, 1, b""))

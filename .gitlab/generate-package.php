@@ -362,7 +362,8 @@ foreach ($build_platforms as $platform) {
     # Fix for $BASH_ENV not having a newline at the end of the file
     - echo "" >> "$BASH_ENV"
     - source .gitlab/setup-legacy-measure.sh
-    - ./.gitlab/build-tracing.sh "<?= $suffix ?>" "<?= $catch_warnings ?>"
+    - source .gitlab/legacy-measure.sh
+    - measure_legacy job "job-${CI_JOB_ID}" ./.gitlab/build-tracing.sh "<?= $suffix ?>" "<?= $catch_warnings ?>"
   artifacts:
     when: always
     paths:
@@ -441,7 +442,8 @@ foreach ($build_platforms as $platform) {
   script:
     - echo "" >> "$BASH_ENV"
     - source .gitlab/setup-legacy-measure.sh
-    - ./.gitlab/build-sidecar.sh "<?= $suffix ?>"
+    - source .gitlab/legacy-measure.sh
+    - measure_legacy job "job-${CI_JOB_ID}" ./.gitlab/build-sidecar.sh "<?= $suffix ?>"
   cache:
     - key:
         prefix: cargo-cache-${TRIPLET}
@@ -494,7 +496,8 @@ foreach ($php_versions_to_abi as $major_minor => $abi_no) {
     # Fix for $BASH_ENV not having a newline at the end of the file
     - echo "" >> "$BASH_ENV"
     - source .gitlab/setup-legacy-measure.sh
-    - ./.gitlab/link-tracing-extension.sh "<?= $suffix ?>"
+    - source .gitlab/legacy-measure.sh
+    - measure_legacy job "job-${CI_JOB_ID}" ./.gitlab/link-tracing-extension.sh "<?= $suffix ?>"
   artifacts:
     when: always
     paths:

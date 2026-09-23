@@ -61,6 +61,7 @@ tests/ext/*.exp
 tests/ext/*.sh
 tests/ext/*.mem
 phpt.*
+!bazel/tests/phpt.bzl
 tmp-php.ini
 tmp/opcache*
 *.orig

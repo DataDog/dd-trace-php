@@ -22,7 +22,7 @@
   before_script:
     - command -v python3 && command -v zstd
     - python3 tools/bazel/ci_test.py
-    - sh tools/bazel/bootstrap-bb.sh
+    - sh tools/bazel/bootstrap-bazel.sh
     - export BAZEL_REPOSITORY_CACHE="/tmp/dd-php-bazel-repository-${CI_PIPELINE_ID}-${BAZEL_EXEC_ARCH}"
     - python3 tools/bazel/repository_cache.py restore
   cache:
@@ -66,7 +66,7 @@
 
 "legacy baseline: [amd64]":
   stage: packaging
-  image: registry.ddbuild.io/images/mirror/python:3.12-slim
+  image: registry.ddbuild.io/images/mirror/python:3.12-slim-bookworm
   tags: ["arch:amd64"]
   interruptible: true
   rules: *bazel_rules
@@ -86,7 +86,7 @@
 
 "legacy baseline: [arm64]":
   stage: packaging
-  image: registry.ddbuild.io/images/mirror/python:3.12-slim
+  image: registry.ddbuild.io/images/mirror/python:3.12-slim-bookworm
   tags: ["arch:amd64"]
   interruptible: true
   rules: *bazel_rules
@@ -106,7 +106,7 @@
 
 bazel-report:
   stage: verify
-  image: registry.ddbuild.io/images/mirror/python:3.12-slim
+  image: registry.ddbuild.io/images/mirror/python:3.12-slim-bookworm
   tags: ["arch:amd64"]
   interruptible: true
   rules:

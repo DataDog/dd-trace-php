@@ -16,15 +16,18 @@ glibc and musl `rust_datadog_php_shared_<arch>_<libc>` products. The separate
 architecture, completing the existing 202-product normal tracer matrix.
 
 The existing legacy compile, sidecar, and link jobs measure their real commands
-with `tools/bazel/legacy-measure.c`. The wrapper uses `wait4` resource usage for
-the waited process tree and preserves the command's exit status. It does not
-change make, Cargo, or linker flags or concurrency. Each architecture aggregate
+with `tools/bazel/legacy-measure.c`. An outer measurement of each build script
+also includes SDK selection, cleaning, copies, and debug compression. The
+wrapper uses `wait4` resource usage for the waited process tree and preserves
+the command's exit status. It does not change make, Cargo, or linker flags or
+concurrency. Each architecture aggregate
 validates 55 compile commands, 55 link commands, two sidecar commands, 55 linked
 extensions, two standalone Rust DSOs, PHP versions and ABIs, source revisions,
 and prepared `VERSION` and bridge hashes. Its elapsed time spans the parallel
 job graph; CPU is the sum of measured build processes.
 
-Bazel uses the staging Buildbarn endpoint from `.bazelrc`, explicit execution
+Bazel CI installs the checksum-pinned official Bazel 9.2.0 binary for its runner
+architecture. It uses the staging Buildbarn endpoint from `.bazelrc`, explicit execution
 platforms, 25 concurrent actions, no local fallback, no local-result upload,
 and full output downloads. Fresh output bases isolate forced and cached runs.
 The GitLab cache holds only SHA-256 verified repository downloads and has one

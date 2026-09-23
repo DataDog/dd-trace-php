@@ -51,7 +51,7 @@ def action_result(cpu=9):
 
 
 def execution(name="operations/1", cached=False, usage=True, done=True, wait=False):
-    response = field(1, action_result() if usage else b"") + field(2, int(cached))
+    response = field(1, action_result() if usage else b"") + field(4, int(cached))
     operation = field(1, name) + field(3, int(done))
     if done:
         operation += field(5, any_message("build.bazel.remote.execution.v2.ExecuteResponse", response))
@@ -86,6 +86,14 @@ class AccountingTests(unittest.TestCase):
         result = self.account(execution(cached=True), get_action)
         self.assertEqual(result["cpu_seconds"], 0)
         self.assertTrue(result["complete"])
+
+    def test_nonzero_execute_status_is_not_a_cache_hit(self):
+        failed_response = field(1, action_result()) + field(2, field(1, 7))
+        operation = field(1, "operations/status") + field(3, 1) + field(
+            5, any_message("build.bazel.remote.execution.v2.ExecuteResponse", failed_response))
+        result = self.account(field(4, field(7, field(2, operation))))
+        self.assertEqual(result["cached_operations"], 0)
+        self.assertEqual(result["executed_operations"], 1)
 
     def test_missing_usage_is_unknown_not_zero(self):
         result = self.account(execution(usage=False))
@@ -306,6 +314,24 @@ class RunnerTests(unittest.TestCase):
 
 
 class LegacyAggregateTests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("cc"), "C compiler unavailable")
+    def test_outer_legacy_wrapper_preserves_failure_and_counts_children(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            binary = root / "legacy-measure"
+            record = root / "job.json"
+            subprocess.check_call(["cc", "-std=gnu11", "-O2", "-o", str(binary),
+                                   str(ci.ROOT / "tools/bazel/legacy-measure.c")])
+            process = subprocess.run([
+                str(binary), str(record), "job", "job-test", "bash", "-c",
+                'python3 -c "sum(i*i for i in range(500000))" & wait $!; exit 7',
+            ], check=False)
+            self.assertEqual(process.returncode, 7)
+            result = json.loads(record.read_text())
+            self.assertEqual(result["exit_code"], 7)
+            self.assertGreater(result["cpu_seconds"], 0)
+            self.assertGreater(result["elapsed_seconds"], 0)
+
     def test_full_release_graph_and_missing_command(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -331,6 +357,12 @@ class LegacyAggregateTests(unittest.TestCase):
                         category=category, identity=identity, command=["true"],
                         started_at_epoch=100 + index, elapsed_seconds=2,
                         cpu_seconds=1, exit_code=0)))
+                # The outer wrapper includes make clean, SDK selection, copies,
+                # debug compression, and every nested measured command.
+                (path / ("job-%s.json" % name)).write_text(json.dumps(dict(
+                    category="job", identity="job-" + name, command=["release-script"],
+                    started_at_epoch=99, elapsed_seconds=len(identities) + 3,
+                    cpu_seconds=len(identities) + 5, exit_code=0)))
 
             for version in abis:
                 for libc, profiles in (("glibc", ("nts", "debug", "zts")),
@@ -360,10 +392,17 @@ class LegacyAggregateTests(unittest.TestCase):
                 result, outputs = legacy_aggregate.aggregate(measure_root, "amd64")
                 self.assertEqual(result["command_count"], 112)
                 self.assertEqual(result["jobs"], 26)
+                self.assertEqual(result["runner_cpu_seconds"], 112 + 26 * 5)
                 self.assertEqual(len(outputs), 57)
                 self.assertLess(result["elapsed_seconds"], sum(item["elapsed_seconds"] for item in result["commands"]))
-                (measure_root / "sidecar-musl/0.json").unlink()
+                command = measure_root / "sidecar-musl/0.json"
+                original = command.read_bytes()
+                command.unlink()
                 with self.assertRaisesRegex(ValueError, "no measured commands"):
+                    legacy_aggregate.aggregate(measure_root, "amd64")
+                command.write_bytes(original)
+                (measure_root / "sidecar-musl/job-sidecar-musl.json").unlink()
+                with self.assertRaisesRegex(ValueError, "no complete process-tree measurement"):
                     legacy_aggregate.aggregate(measure_root, "amd64")
 
 

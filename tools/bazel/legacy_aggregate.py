@@ -34,6 +34,7 @@ def aggregate(directory, arch):
     records = []
     provenance = None
     jobs = {}
+    job_measurements = []
     for meta_path in sorted(directory.glob("*/metadata.txt")):
         meta = metadata(meta_path)
         if meta.get("arch") != arch:
@@ -46,12 +47,18 @@ def aggregate(directory, arch):
         elif provenance != common:
             raise ValueError("Source or prepared VERSION drift across legacy jobs")
         job_records = []
+        whole_job = None
         for path in sorted(meta_path.parent.glob("*.json")):
             item = json.loads(path.read_text())
             if item["exit_code"]:
                 raise ValueError("Failed legacy command: " + item["identity"])
             if item["elapsed_seconds"] <= 0 or item["cpu_seconds"] < 0:
                 raise ValueError("Invalid legacy duration or CPU: " + item["identity"])
+            if item["category"] == "job":
+                if whole_job is not None or item["identity"] != "job-" + meta["job"]:
+                    raise ValueError("Invalid complete legacy job measurement: " + meta["job"])
+                whole_job = item
+                continue
             item["job"] = meta["job"]
             item["image"] = meta["image"]
             item["php_version"] = meta["php_version"]
@@ -68,10 +75,22 @@ def aggregate(directory, arch):
             records.append(item)
         if not job_records:
             raise ValueError("Legacy job has no measured commands: " + meta["job"])
+        if whole_job is None:
+            raise ValueError("Legacy job has no complete process-tree measurement: " + meta["job"])
+        job_start = whole_job["started_at_epoch"]
+        job_finish = job_start + whole_job["elapsed_seconds"]
+        if any(item["started_at_epoch"] < job_start - 0.01 or
+               item["started_at_epoch"] + item["elapsed_seconds"] > job_finish + 0.01
+               for item in job_records):
+            raise ValueError("Legacy command falls outside complete job measurement: " + meta["job"])
+        if whole_job["cpu_seconds"] + 0.01 < sum(item["cpu_seconds"] for item in job_records):
+            raise ValueError("Complete legacy job CPU omits measured commands: " + meta["job"])
+        whole_job["job"] = meta["job"]
+        job_measurements.append(whole_job)
         jobs[meta["job"]] = dict(
-            start=min(item["started_at_epoch"] for item in job_records),
-            finish=max(item["started_at_epoch"] + item["elapsed_seconds"] for item in job_records),
-            cpu=sum(item["cpu_seconds"] for item in job_records),
+            start=job_start,
+            finish=job_finish,
+            cpu=whole_job["cpu_seconds"],
             requested_cores=float(meta["cpu_request"]),
         )
     if provenance is None:
@@ -157,7 +176,8 @@ def aggregate(directory, arch):
                 elapsed_seconds=finish - start, runner_cpu_seconds=cpu,
                 total_cpu_seconds=cpu, runner_requested_core_seconds=requested,
                 extension_outputs=55, sidecar_outputs=2, command_count=len(records),
-                jobs=len(jobs), commands=records, sdk_versions=sdk_versions,
+                jobs=len(jobs), commands=records, job_measurements=job_measurements,
+                sdk_versions=sdk_versions,
                 product_ids=sorted(product_ids))
     return result, outputs
 

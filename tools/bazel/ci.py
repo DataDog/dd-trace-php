@@ -117,7 +117,7 @@ def ci_rc(directory):
 def bazel_command(record, mode, arch, targets, verb="build"):
     directory = state_directory() / (mode + "-" + arch + "-" + uuid.uuid4().hex)
     directory.mkdir(parents=True)
-    command = [os.environ.get("BAZEL_BINARY", str(ROOT / "build/bin/bb")),
+    command = [os.environ.get("BAZEL_BINARY", str(ROOT / "build/bin/bazel")),
                "--batch", "--nosystem_rc", "--nohome_rc", "--noworkspace_rc",
                "--bazelrc=" + str(ci_rc(directory)),
                "--output_user_root=" + str(state_directory() / "user"),
