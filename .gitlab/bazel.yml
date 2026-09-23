@@ -13,9 +13,9 @@
     KUBERNETES_CPU_LIMIT: "2"
     KUBERNETES_MEMORY_REQUEST: 8Gi
     KUBERNETES_MEMORY_LIMIT: 12Gi
-    # The Fabric proxy rejects the Bazel registry and pinned Debian runtime
-    # packages with 403. Keep their locked URLs and bypass the proxy for them.
-    KUBERNETES_POD_ANNOTATIONS_1: "beta.fabric.datadoghq.com/no-proxy-additions=bcr.bazel.build,snapshot.debian.org"
+    # Fabric returns 403 for several checksum-locked Bazel repository inputs.
+    # Keep their pinned URLs and allow direct fetches from these source hosts.
+    KUBERNETES_POD_ANNOTATIONS_1: "beta.fabric.datadoghq.com/no-proxy-additions=bcr.bazel.build,snapshot.debian.org,deb.debian.org,registry-1.docker.io,auth.docker.io,static.rust-lang.org,mirrors.kernel.org,static.crates.io,index.crates.io,dl-cdn.alpinelinux.org,vault.centos.org,curl.se,download.gnome.org,getcomposer.org,libzip.org,www.openssl.org,www.sqlite.org,zlib.net"
     BAZEL_REMOTE_JOBS: "25"
     GIT_SUBMODULE_STRATEGY: recursive
     GIT_SUBMODULE_PATHS: libdatadog appsec/third_party/libddwaf-rust
@@ -34,6 +34,7 @@
       files: [MODULE.bazel.lock, .bazelversion]
     paths: [.cache/bazel/repository/]
     policy: pull-push
+    when: always
   artifacts:
     when: always
     expire_in: 14 days
