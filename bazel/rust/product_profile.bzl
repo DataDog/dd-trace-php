@@ -56,6 +56,10 @@ def _product_profile_transition_impl(settings, attr):
     if attr.product not in _PRODUCT_PROFILES:
         fail("unmodeled Rust product profile: %s" % attr.product)
     rustc_flags = list(settings[_EXTRA_RUSTC_FLAGS]) + _product_rustc_flags(attr.product)
+    # Cargo's normal musl release build disables static CRT for every target
+    # crate (compile_rust.sh). Without it rustc drops cdylib outputs entirely.
+    if any(["_musl" in str(platform) for platform in settings[_PLATFORMS]]):
+        rustc_flags.append("-Ctarget-feature=-crt-static")
     if any(["asan_linux_" in str(platform) for platform in settings[_PLATFORMS]]):
         rustc_flags.extend(_ASAN_RUSTC_FLAGS)
     return {
