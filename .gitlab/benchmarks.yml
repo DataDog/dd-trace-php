@@ -5,10 +5,13 @@ include:
     file: 'images/templates/gitlab/notify-slo-breaches.template.yml'
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-php-laravel-realworld-parallel.yml'
+    ref: "12a3157e4e36ad5530c283c0e751f1fe71560192"
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-php-symfony-realworld-parallel.yml'
+    ref: "12a3157e4e36ad5530c283c0e751f1fe71560192"
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-php-wordpress-parallel.yml'
+    ref: "12a3157e4e36ad5530c283c0e751f1fe71560192"
 
 # Allows benchmark flakiness monitoring pipelines to run a job.
 # See https://github.com/DataDog/benchmarking-platform-tools/tree/main/scripts/stability#stability-monitoring-ci.
@@ -47,7 +50,8 @@ linux-php-laravel-realworld-parallel:
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
-  rules: *macrobenchmarks-rules
+  rules:
+    - when: always
   variables:
     DD_TRACER_ARTIFACT_DIR: "$CI_PROJECT_DIR/packages"
 
@@ -58,7 +62,8 @@ linux-php-symfony-realworld-parallel:
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
-  rules: *macrobenchmarks-rules
+  rules:
+    - when: always
   variables:
     DD_TRACER_ARTIFACT_DIR: "$CI_PROJECT_DIR/packages"
 
@@ -69,7 +74,8 @@ linux-php-wordpress-parallel:
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
-  rules: *macrobenchmarks-rules
+  rules:
+    - when: always
   variables:
     DD_TRACER_ARTIFACT_DIR: "$CI_PROJECT_DIR/packages"
 
@@ -205,13 +211,15 @@ workflow:
 
 benchmarks-profiler:
   extends: .microbenchmarks
-  rules: *benchmarks-profiler-rules
+  rules:
+    - when: always
   variables:
     SCENARIO: "profiler"
 
 benchmarks-tracer:
   extends: .microbenchmarks
-  rules: *benchmarks-tracer-rules
+  rules:
+    - when: always
   artifacts:
     name: "reports"
     when: always
@@ -224,7 +232,8 @@ benchmarks-tracer:
 
 benchmarks-appsec:
   extends: .microbenchmarks
-  rules: *benchmarks-appsec-rules
+  rules:
+    - when: always
   artifacts:
     name: "logs"
     paths:
@@ -235,7 +244,8 @@ benchmarks-appsec:
     SCENARIO: "appsec"
 
 check-big-regressions:
-  rules: *benchmarks-tracer-rules
+  rules:
+    - when: never
   stage: gate
   needs: [ "benchmarks-tracer" ]
   tags: [ "arch:amd64" ]
@@ -301,6 +311,8 @@ check-big-regressions:
   allow_failure: true
 
 macrobenchmarks:
+  rules:
+    - when: always
   extends: .macrobenchmarks
   parallel:
     matrix:
@@ -311,7 +323,8 @@ check-slo-breaches:
   extends: .check-slo-breaches
   stage: gate
   needs: ["macrobenchmarks"]
-  rules: *pre-release-performance-quality-gates-rules
+  rules:
+    - when: never
   artifacts:
     name: "artifacts"
     when: always
@@ -327,6 +340,7 @@ notify-slo-breaches:
   extends: .notify-slo-breaches
   stage: notify
   needs: ["check-slo-breaches"]
-  rules: *notify-slo-breaches-rules
+  rules:
+    - when: never
   variables:
     CHANNEL: "guild-dd-php"
