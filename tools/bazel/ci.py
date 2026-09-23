@@ -162,7 +162,9 @@ def bazel_command(record, mode, arch, targets, verb="build"):
 
 def output_inventory(events, output_base):
     files = {}
-    execroot = output_base / "execroot/dd_trace_php"
+    # Bazel 9 uses the canonical main-repository name in its execution root,
+    # even though MODULE.bazel declares the public module name dd_trace_php.
+    execroot = output_base / "execroot/_main"
     with events.open() as stream:
         for line in stream:
             event = json.loads(line)
@@ -232,12 +234,12 @@ def run_bazel(mode, arch, targets, scope, verb="build"):
                 if result["extension_outputs"] != 55 or result["sidecar_outputs"] != 2:
                     raise ValueError("Expected 55 release extensions and two standalone Rust DSOs per architecture")
                 result["standalone_abi"] = [verify_standalone(
-                    output_base / "execroot/dd_trace_php" / item["path"], arch)
+                    output_base / "execroot/_main" / item["path"], arch)
                     for item in inventory if item["path"].endswith("/libdatadog_php.so")]
                 manifest = [item for item in inventory if item["path"].endswith("/bazel/php/product_matrix.json")]
                 if len(manifest) != 1:
                     raise ValueError("Missing canonical PHP product manifest")
-                source = output_base / "execroot/dd_trace_php" / manifest[0]["path"]
+                source = output_base / "execroot/_main" / manifest[0]["path"]
                 rows = json.loads(source.read_text())["rows"]
                 sdk_versions = {}
                 product_ids = []

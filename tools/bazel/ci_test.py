@@ -253,7 +253,7 @@ class RunnerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             relative = Path("bazel-out/test/bin/product.so")
-            output = root / "execroot/dd_trace_php" / relative
+            output = root / "execroot/_main" / relative
             output.parent.mkdir(parents=True)
             output.write_bytes(b"release product")
             digest = hashlib.sha256(output.read_bytes()).hexdigest()
