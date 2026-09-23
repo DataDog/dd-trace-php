@@ -48,7 +48,7 @@
   script:
     - |
       status=0
-      python3 tools/bazel/ci.py lane --arch amd64 || status=$?
+      python3 tools/bazel/network_probe.py --arch amd64 && python3 tools/bazel/ci.py lane --arch amd64 || status=$?
       cache_status=0
       python3 tools/bazel/repository_cache.py save || cache_status=$?
       if [ "$status" -ne 0 ]; then exit "$status"; fi
@@ -62,7 +62,7 @@
   script:
     - |
       status=0
-      python3 tools/bazel/ci.py lane --arch arm64 || status=$?
+      python3 tools/bazel/network_probe.py --arch arm64 && python3 tools/bazel/ci.py lane --arch arm64 || status=$?
       cache_status=0
       python3 tools/bazel/repository_cache.py save || cache_status=$?
       if [ "$status" -ne 0 ]; then exit "$status"; fi

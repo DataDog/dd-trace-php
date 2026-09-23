@@ -61,5 +61,6 @@ def rust_shared_library(name, deps = [], proc_macro_deps = [], **kwargs):
         name = name,
         deps = deps,
         proc_macro_deps = proc_macro_deps,
+        skip_deps_verification = True,
         **kwargs
     )

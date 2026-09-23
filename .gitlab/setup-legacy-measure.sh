@@ -18,8 +18,10 @@ cc -std=gnu11 -O2 -o "$BAZEL_LEGACY_MEASURE_BIN" tools/bazel/legacy-measure.c
     printf 'host_os=%s\n' "${HOST_OS:-}"
     printf 'version_sha256=%s\n' "$(sha256sum VERSION | cut -d ' ' -f 1)"
     printf 'bridge_sha256=%s\n' "$(sha256sum src/bridge/_generated*.php | sha256sum | cut -d ' ' -f 1)"
-    printf 'libdatadog=%s\n' "$(git -C libdatadog rev-parse HEAD)"
-    printf 'libddwaf=%s\n' "$(git -C appsec/third_party/libddwaf-rust rev-parse HEAD)"
+    # Legacy jobs consume prepared sources and do not initialize submodule
+    # repositories. Read the pinned gitlink revisions from the parent commit.
+    printf 'libdatadog=%s\n' "$(git rev-parse HEAD:libdatadog)"
+    printf 'libddwaf=%s\n' "$(git rev-parse HEAD:appsec/third_party/libddwaf-rust)"
     printf 'cpu_request=%s\n' "${KUBERNETES_CPU_REQUEST:-}"
     printf 'make_jobs=%s\n' "${MAKE_JOBS:-}"
     printf 'cargo_build_jobs=%s\n' "${CARGO_BUILD_JOBS:-}"
