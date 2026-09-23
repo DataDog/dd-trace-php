@@ -40,7 +40,11 @@ def _download_layer(rctx, record, descriptor, output):
         url = url,
         output = output,
         sha256 = _sha256(digest, "layer"),
-        headers = {"Authorization": "Bearer %s" % token},
+        auth = {url: {
+            "type": "pattern",
+            "pattern": "Bearer <password>",
+            "password": token,
+        }},
     )
 
 def _python(rctx):

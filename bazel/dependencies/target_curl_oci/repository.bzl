@@ -55,7 +55,11 @@ def _curl_sdk_repository_impl(rctx):
                 url = url,
                 output = archive,
                 sha256 = descriptor.digest,
-                headers = {"Authorization": "Bearer %s" % token},
+                auth = {url: {
+                    "type": "pattern",
+                    "pattern": "Bearer <password>",
+                    "password": token,
+                }},
             )
         archives[name] = archive
     result = rctx.execute([
