@@ -13,6 +13,9 @@
     KUBERNETES_CPU_LIMIT: "2"
     KUBERNETES_MEMORY_REQUEST: 8Gi
     KUBERNETES_MEMORY_LIMIT: 12Gi
+    # The Fabric proxy rejects Bazel Central Registry module files with 403.
+    # Keep the registry on its pinned URL so MODULE.bazel.lock remains valid.
+    KUBERNETES_POD_ANNOTATIONS_1: "beta.fabric.datadoghq.com/no-proxy-additions=bcr.bazel.build"
     BAZEL_REMOTE_JOBS: "25"
     GIT_SUBMODULE_STRATEGY: recursive
     GIT_SUBMODULE_PATHS: libdatadog appsec/third_party/libddwaf-rust
