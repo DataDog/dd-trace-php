@@ -4,6 +4,7 @@
   stage: tracing
   image: registry.ddbuild.io/images/bazel:dynamic-22.04
   interruptible: true
+  timeout: 2 hours
   rules: &bazel_rules
     - if: '$BAZEL_CI == "0" || $SCHEDULED_LIBDATADOG_LATEST == "true" || $LIBDATADOG_OVERRIDE_SHA || $CI_COMMIT_BRANCH == "bot/libdatadog-latest"'
       when: never

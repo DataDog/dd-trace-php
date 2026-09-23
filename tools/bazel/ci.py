@@ -139,12 +139,12 @@ def bazel_command(record, mode, arch, targets, verb="build"):
                 "--remote_grpc_log=" + str(record / "remote-grpc.pb"),
                 "--build_event_json_file=" + str(record / "events.jsonl"),
                 "--remote_accept_cached=" + ("false" if mode in ("forced", "probe") else "true"),
-                "--remote_download_outputs=all"]
+                "--remote_download_outputs=toplevel"]
     if mode in ("forced", "cached"):
         command.append("--config=rbe-benchmark")
         # The benchmark config requests minimal downloads for interactive use;
-        # this comparison verifies the actual local outputs and their hashes.
-        command.append("--remote_download_outputs=all")
+        # the comparison verifies every top-level product against its BEP digest.
+        command.append("--remote_download_outputs=toplevel")
     for variable, expected in (("BAZEL_REMOTE_EXECUTOR", REMOTE_ENDPOINT),
                                ("BAZEL_REMOTE_CACHE", REMOTE_ENDPOINT),
                                ("BAZEL_REMOTE_INSTANCE", REMOTE_INSTANCE)):

@@ -29,7 +29,7 @@ job graph; CPU is the sum of measured build processes.
 Bazel CI installs the checksum-pinned official Bazel 9.2.0 binary for its runner
 architecture. It uses the staging Buildbarn endpoint from `.bazelrc`, explicit execution
 platforms, 25 concurrent actions, no local fallback, no local-result upload,
-and full output downloads. Fresh output bases isolate forced and cached runs.
+and downloads of all top-level comparison outputs. Fresh output bases isolate forced and cached runs.
 The GitLab cache holds only SHA-256 verified repository downloads and has one
 writer per architecture. Action results remain in Buildbarn. The report checks
 local BEP outputs against remote digest references, requires complete worker
