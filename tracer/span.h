@@ -24,14 +24,6 @@ typedef struct {
     struct ddog_ChunkNode *chunk;
 } ddtrace_serialize_ctx;
 
-// Write target for span finalization (a native v1 builder chunk/span node). A zero-initialized sink
-// (span NULL) is the "no span" sentinel returned for dropped spans. The node pointers stay valid
-// across sibling span pushes into the same chunk (the inferred-span case), so no refetch is needed.
-typedef struct {
-    struct ddog_ChunkNode *chunk;
-    struct ddog_SpanNode *span; // non-NULL on the v1 path
-} dd_span_sink;
-
 #define DDTRACE_DROPPED_SPAN (-1ull)
 #define DDTRACE_SILENTLY_DROPPED_SPAN (-2ull)
 
