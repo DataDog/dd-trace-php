@@ -15,7 +15,7 @@
     KUBERNETES_MEMORY_LIMIT: 12Gi
     # Fabric returns 403 for several checksum-locked Bazel repository inputs.
     # Keep their pinned URLs and allow direct fetches from these source hosts.
-    KUBERNETES_POD_ANNOTATIONS_1: "beta.fabric.datadoghq.com/no-proxy-additions=bcr.bazel.build,snapshot.debian.org,deb.debian.org,registry-1.docker.io,auth.docker.io,production.cloudfront.docker.com,static.rust-lang.org,mirrors.kernel.org,static.crates.io,index.crates.io,dl-cdn.alpinelinux.org,vault.centos.org,curl.se,download.gnome.org,getcomposer.org,libzip.org,www.openssl.org,www.sqlite.org,zlib.net,launchpad.net,snapshot.ubuntu.com"
+    KUBERNETES_POD_ANNOTATIONS_1: "beta.fabric.datadoghq.com/no-proxy-additions=bcr.bazel.build,snapshot.debian.org,deb.debian.org,registry-1.docker.io,auth.docker.io,production.cloudfront.docker.com,docker-images-prod.s3.dualstack.us-east-1.amazonaws.com,static.rust-lang.org,mirrors.kernel.org,static.crates.io,index.crates.io,dl-cdn.alpinelinux.org,vault.centos.org,curl.se,download.gnome.org,getcomposer.org,libzip.org,www.openssl.org,www.sqlite.org,zlib.net,launchpad.net,launchpadlibrarian.net,snapshot.ubuntu.com"
     BAZEL_REMOTE_JOBS: "25"
     GIT_SUBMODULE_STRATEGY: recursive
     GIT_SUBMODULE_PATHS: libdatadog appsec/third_party/libddwaf-rust

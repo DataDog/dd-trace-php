@@ -32,7 +32,7 @@ def main():
     blob = "https://%s/v2/%s/blobs/%s" % (
         record["registry"], record["repository"], record["layers"][0]["digest"]
     )
-    hosts = ("registry-1.docker.io", "auth.docker.io", "production.cloudfront.docker.com", "launchpad.net")
+    hosts = ("registry-1.docker.io", "auth.docker.io", "production.cloudfront.docker.com", "docker-images-prod.s3.dualstack.us-east-1.amazonaws.com", "launchpad.net", "launchpadlibrarian.net")
     proxies = urllib.request.getproxies()
     print(json.dumps({
         "probe": "proxy_configuration",
@@ -64,6 +64,9 @@ def main():
         "host": host,
         "content_range": response.headers.get("Content-Range"),
     }), flush=True)
+    package = "https://launchpad.net/ubuntu/+archive/primary/+files/zlib1g_1.3.dfsg-3.1ubuntu2.2_amd64.deb"
+    package_status, package_host, _ = request(package, {"Range": "bytes=0-0"})
+    print(json.dumps({"probe": "rust_toolchain_package", "status": package_status, "host": package_host}), flush=True)
     return 0 if status in (200, 206) else 1
 
 
