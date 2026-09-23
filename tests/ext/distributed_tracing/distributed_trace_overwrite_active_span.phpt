@@ -113,7 +113,7 @@ array(7) {
 }
 bool(true)
 parent: 321, trace: 123, meta: {"_dd.origin":"foo","a":"b"}
-parent: %d, trace: 123, meta: {"_dd.origin":"foo"}
+parent: %d, trace: 123, meta: []
 bool(true)
 array(5) {
   ["trace_id"]=>
@@ -131,5 +131,5 @@ array(5) {
 bool(true)
 bool(true)
 parent: 0, trace: %d, meta: {"_dd.p.tid":"%s"}
-parent: %d, trace: %d, meta: {"_dd.p.tid":"%s"}
+parent: %d, trace: %d, meta: []
 all spans trace_id updated: bool(true)

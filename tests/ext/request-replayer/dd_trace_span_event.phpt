@@ -42,25 +42,46 @@ $replay = $rr->waitForDataAndReplay();
 $root = json_decode($replay["body"], true);
 $spans = $root["chunks"][0]["spans"] ?? $root[0];
 $span = $spans[0];
-// The tracer always builds the native V1 payload, so span events are emitted as native span events
-// (a `span_events` array) instead of the legacy meta["events"] JSON blob. This test pins the
-// in-process sender (DD_TRACE_SIDECAR_TRACE_SENDER=0), which downgrades to the native V0.4
-// `span_events` field: it is the only wire on which the request-replayer surfaces the native event
-// shape (its v1 decoder folds events back into meta["events"] for v0.4 comparability). Native event
-// attributes are OTEL AnyValue-typed maps; we assert them order-independently. Array/object
-// attribute values ARE carried natively (List/KeyValue) on the V1 wire, but the v0.4 downgrade this
-// test observes reproduces the original json_encode string for old-agent compatibility.
-$event = $span['span_events'][0];
+// This test pins the in-process sender (v0.4-only): events are legacy `events` meta JSON. Handle
+// the v1 AnyValue shape too; ddAnyValueToPhp() unwraps it to the same plain PHP value.
+function ddAnyValueToPhp($v) {
+    if (!is_array($v) || !array_key_exists('type', $v)) {
+        return $v; // already a plain value (legacy `events` meta JSON)
+    }
+    switch ($v['type']) {
+        case 0: return $v['string_value'];
+        case 1: return $v['bool_value'];
+        case 2: return $v['int_value'];
+        case 3: return $v['double_value'];
+        case 4: return array_map('ddAnyValueToPhp', $v['array_value']['values']);
+        default: return $v;
+    }
+}
+if (isset($span['span_events'])) {
+    $event = $span['span_events'][0];
+} else {
+    $event = json_decode($span['meta']['events'], true)[0];
+}
 $attrs = $event['attributes'];
 var_dump($event['name'], $event['time_unix_nano']);
-var_dump($attrs['arg1']['string_value']);
-var_dump($attrs['int_array']['string_value']);
-var_dump($attrs['string_array']['string_value']);
+var_dump(ddAnyValueToPhp($attrs['arg1']));
+var_dump(ddAnyValueToPhp($attrs['int_array']));
+var_dump(ddAnyValueToPhp($attrs['string_array']));
 ?>
 --EXPECT--
 In testMethod
 string(10) "event-name"
 int(1720037568765201300)
 string(6) "value1"
-string(5) "[3,4]"
-string(9) "["5","6"]"
+array(2) {
+  [0]=>
+  int(3)
+  [1]=>
+  int(4)
+}
+array(2) {
+  [0]=>
+  string(1) "5"
+  [1]=>
+  string(1) "6"
+}

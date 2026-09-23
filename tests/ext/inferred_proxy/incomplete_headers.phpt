@@ -67,7 +67,6 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
     },
     {
         "trace_id": "13930160852258120406",
-        "trace_id_high": "%s",
         "span_id": "11788048577503494824",
         "parent_id": "13930160852258120406",
         "start": 130000000,
@@ -78,8 +77,6 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
         "type": "web",
         "env": "local-prod",
         "version": "1.0",
-        "span_kind": 1,
-        "sampling_priority": 1,
-        "sampling_mechanism": 0
+        "span_kind": 1
     }
 ]

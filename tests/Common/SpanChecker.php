@@ -115,27 +115,20 @@ final class SpanChecker
                 $meta['span.kind'] = $kinds[$span['span_kind']];
             }
         }
-        // Chunk/trace-level keys: the V1 introspection reflects sampling_mechanism / sampling_priority
-        // / origin / trace_id_high onto EVERY span, but on the real v0.4 wire (and master's shape)
-        // they live on the LOCAL ROOT only. Reconstruct them there alone so the harness matches the
-        // wire and children don't get a spurious _dd.p.dm / _sampling_priority_v1 / _dd.origin / _dd.p.tid.
-        $isLocalRoot = !isset($span['parent_id'])
-            || (isset($span['attributes']['_dd.top_level']) && $span['attributes']['_dd.top_level'] == 1);
-        if ($isLocalRoot) {
-            if (isset($span['origin'])) {
-                $meta['_dd.origin'] = $span['origin'];
-            }
-            if (isset($span['trace_id_high'])) {
-                $meta['_dd.p.tid'] = $span['trace_id_high'];
-            }
-            // sampling_mechanism is the unsigned _dd.p.dm value (sign is always '-').
-            if (isset($span['sampling_mechanism'])) {
-                $meta['_dd.p.dm'] = '-' . $span['sampling_mechanism'];
-            }
-            // sampling_priority (int) was the numeric _sampling_priority_v1 metric.
-            if (isset($span['sampling_priority'])) {
-                $metrics['_sampling_priority_v1'] = (float) $span['sampling_priority'];
-            }
+        // Chunk-level keys: introspection only emits these on the chunk's local root (as the wire).
+        if (isset($span['origin'])) {
+            $meta['_dd.origin'] = $span['origin'];
+        }
+        if (isset($span['trace_id_high'])) {
+            $meta['_dd.p.tid'] = $span['trace_id_high'];
+        }
+        // sampling_mechanism is the unsigned _dd.p.dm value (sign is always '-').
+        if (isset($span['sampling_mechanism'])) {
+            $meta['_dd.p.dm'] = '-' . $span['sampling_mechanism'];
+        }
+        // sampling_priority (int) was the numeric _sampling_priority_v1 metric.
+        if (isset($span['sampling_priority'])) {
+            $metrics['_sampling_priority_v1'] = (float) $span['sampling_priority'];
         }
         return [$meta, $metrics];
     }

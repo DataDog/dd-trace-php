@@ -61,9 +61,6 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
         "env": "local-prod",
         "version": "1.0",
         "span_kind": 2,
-        "sampling_priority": 2,
-        "sampling_mechanism": 0,
-        "origin": "rum",
         "attributes": {
             "runtime-id": "%s",
             "http.url": "http:\/\/localhost:8888\/foo",
@@ -113,9 +110,6 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
         "type": "web",
         "env": "local-prod",
         "version": "1.0",
-        "span_kind": 1,
-        "sampling_priority": 2,
-        "sampling_mechanism": 0,
-        "origin": "rum"
+        "span_kind": 1
     }
 ]

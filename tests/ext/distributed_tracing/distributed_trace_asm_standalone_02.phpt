@@ -74,7 +74,7 @@ array(2) {
     }
   }
   [1]=>
-  array(14) {
+  array(11) {
     ["trace_id"]=>
     string(2) "42"
     ["span_id"]=>
@@ -95,12 +95,6 @@ array(2) {
     string(3) "cli"
     ["span_kind"]=>
     int(1)
-    ["sampling_priority"]=>
-    int(3)
-    ["sampling_mechanism"]=>
-    int(0)
-    ["origin"]=>
-    string(7) "datadog"
     ["attributes"]=>
     array(1) {
       ["_dd.apm.enabled"]=>

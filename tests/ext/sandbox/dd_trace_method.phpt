@@ -160,11 +160,9 @@ array(3) {
     }
   }
   [1]=>
-  array(14) {
+  array(11) {
     ["trace_id"]=>
     string(%d) "%d"
-    ["trace_id_high"]=>
-    string(16) "%s"
     ["span_id"]=>
     string(%d) "%d"
     ["parent_id"]=>
@@ -183,10 +181,6 @@ array(3) {
     string(3) "cli"
     ["span_kind"]=>
     int(1)
-    ["sampling_priority"]=>
-    int(1)
-    ["sampling_mechanism"]=>
-    int(0)
     ["attributes"]=>
     array(3) {
       ["rand.range"]=>

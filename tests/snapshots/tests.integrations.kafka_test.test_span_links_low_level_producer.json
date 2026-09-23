@@ -8,7 +8,7 @@
     "parent_id": 0,
     "type": "queue",
     "meta": {
-      "_dd.p.dm": "-0",
+      "_dd.p.dm": "0",
       "component": "kafka",
       "messaging.destination": "test-lowlevel",
       "messaging.destination_kind": "queue",

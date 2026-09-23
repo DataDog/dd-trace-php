@@ -53,11 +53,9 @@ array(2) {
     int(1)
   }
   [1]=>
-  array(11) {
+  array(10) {
     ["trace_id"]=>
     string(%d) "%d"
-    ["trace_id_high"]=>
-    string(16) "%s"
     ["span_id"]=>
     string(%d) "%d"
     ["parent_id"]=>

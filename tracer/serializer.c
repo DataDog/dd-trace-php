@@ -2051,12 +2051,15 @@ dd_span_sink ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtrac
 
     zval *span_kind_prop = &span->property_span_kind;
     ZVAL_DEREF(span_kind_prop);
+    // Non-canonical span.kind strings (e.g. "process") collapse to Internal with no way back;
+    // keep them as a plain attribute instead of deleting below.
+    bool span_kind_is_canonical = true;
     if (Z_TYPE_P(span_kind_prop) == IS_LONG && Z_LVAL_P(span_kind_prop) >= 1 && Z_LVAL_P(span_kind_prop) <= 5) {
         ddog_set_span_kind(sink.span, (uint32_t)Z_LVAL_P(span_kind_prop));
     } else if (meta) {
         zval *span_kind_meta = zend_hash_str_find(meta, ZEND_STRL("span.kind"));
         if (span_kind_meta && Z_TYPE_P(span_kind_meta) == IS_STRING) {
-            ddog_set_span_kind_str(sink.span, dd_zend_string_to_CharSlice(Z_STR_P(span_kind_meta)));
+            span_kind_is_canonical = ddog_set_span_kind_str(sink.span, dd_zend_string_to_CharSlice(Z_STR_P(span_kind_meta)));
         }
     }
 
@@ -2082,7 +2085,9 @@ dd_span_sink ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtrac
         zend_hash_str_del(meta, ZEND_STRL("env"));
         zend_hash_str_del(meta, ZEND_STRL("version"));
         zend_hash_str_del(meta, ZEND_STRL("component"));
-        zend_hash_str_del(meta, ZEND_STRL("span.kind"));
+        if (span_kind_is_canonical) {
+            zend_hash_str_del(meta, ZEND_STRL("span.kind"));
+        }
         zend_hash_str_del(meta, ZEND_STRL("_dd.origin"));
         zend_hash_str_del(meta, ZEND_STRL("_dd.p.dm"));
         zend_hash_str_del(meta, ZEND_STRL("_dd.p.tid"));
@@ -2387,7 +2392,8 @@ zval dd_serialize_rust_to_zval(ddog_TracerPayloadV1Builder *b) {
 
         uint64_t tid_high = ddog_v1_get_chunk_trace_id_high(b, c);
         uint64_t tid_low = ddog_v1_get_chunk_trace_id_low(b, c);
-        // Chunk-level fields (shared by every span of the chunk) are reflected onto each span.
+        // Chunk-level fields go on the chunk's local root only, the same span the v0.4 wire picks.
+        size_t root_idx = ddog_v1_get_chunk_root_span_idx(b, c);
         int32_t chunk_priority;
         bool has_priority = ddog_v1_get_chunk_sampling_priority(b, c, &chunk_priority);
         uint32_t chunk_mechanism;
@@ -2400,7 +2406,7 @@ zval dd_serialize_rust_to_zval(ddog_TracerPayloadV1Builder *b) {
             array_init(&span_zv);
 
             add_assoc_str(&span_zv, KEY_TRACE_ID, ddtrace_span_id_as_string(tid_low));
-            if (tid_high) {
+            if (tid_high && j == root_idx) {
                 add_assoc_str(&span_zv, "trace_id_high", ddtrace_span_id_as_hex_string(tid_high));
             }
             add_assoc_str(&span_zv, KEY_SPAN_ID, ddtrace_span_id_as_string(ddog_v1_get_span_id(b, c, j)));
@@ -2431,13 +2437,13 @@ zval dd_serialize_rust_to_zval(ddog_TracerPayloadV1Builder *b) {
             if (span_kind) {
                 add_assoc_long(&span_zv, "span_kind", span_kind);
             }
-            if (has_priority) {
+            if (has_priority && j == root_idx) {
                 add_assoc_long(&span_zv, "sampling_priority", chunk_priority);
             }
-            if (has_mechanism) {
+            if (has_mechanism && j == root_idx) {
                 add_assoc_long(&span_zv, "sampling_mechanism", chunk_mechanism);
             }
-            if (chunk_origin.len) {
+            if (chunk_origin.len && j == root_idx) {
                 add_assoc_str(&span_zv, "origin", dd_CharSlice_to_zend_string(chunk_origin));
             }
             if (chunk_dropped) {

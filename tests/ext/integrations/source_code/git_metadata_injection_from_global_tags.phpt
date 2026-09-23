@@ -73,11 +73,9 @@ array(2) {
     }
   }
   [1]=>
-  array(14) {
+  array(11) {
     ["trace_id"]=>
     string(%d) "%d"
-    ["trace_id_high"]=>
-    string(16) "%s"
     ["span_id"]=>
     string(%d) "%d"
     ["parent_id"]=>
@@ -96,10 +94,6 @@ array(2) {
     string(3) "cli"
     ["span_kind"]=>
     int(1)
-    ["sampling_priority"]=>
-    int(1)
-    ["sampling_mechanism"]=>
-    int(0)
     ["attributes"]=>
     array(2) {
       ["git.commit.sha"]=>

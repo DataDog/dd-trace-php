@@ -63,11 +63,9 @@ array(2) {
     }
   }
   [1]=>
-  array(12) {
+  array(11) {
     ["trace_id"]=>
     string(%d) "%d"
-    ["trace_id_high"]=>
-    string(16) "%s"
     ["span_id"]=>
     string(%d) "%d"
     ["parent_id"]=>

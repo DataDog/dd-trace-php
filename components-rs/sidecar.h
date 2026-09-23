@@ -575,6 +575,13 @@ uintptr_t ddog_v1_get_span_count(const struct ddog_TracerPayloadV1Builder *build
                                  uintptr_t chunk);
 
 /**
+ * Index of `chunk`'s local-root span (see [`TracerPayloadV1Builder::chunk_root_idx`]). Chunk-level
+ * trace tags (trace_id_high, sampling priority/mechanism, origin) belong on this span only.
+ */
+uintptr_t ddog_v1_get_chunk_root_span_idx(const struct ddog_TracerPayloadV1Builder *builder,
+                                          uintptr_t chunk);
+
+/**
  * Number of links on a span.
  */
 uintptr_t ddog_v1_get_link_count(const struct ddog_TracerPayloadV1Builder *builder,

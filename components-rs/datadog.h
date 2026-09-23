@@ -203,10 +203,13 @@ void ddog_set_span_kind(ddog_SpanNode *span, uint32_t kind);
  * Sets the span kind from a v0.4 `span.kind` meta string (mapping owned by libdatadog's
  * `SpanKind::from_meta`; unknown → Internal).
  *
+ * Returns `true` only for server/client/producer/consumer; otherwise (incl. "internal") the
+ * caller must keep `value` as a plain attribute, as `Internal` has no wire slot for it.
+ *
  * # Safety
  * See [`ddog_span_set_id`].
  */
-void ddog_set_span_kind_str(ddog_SpanNode *span, ddog_CharSlice value);
+bool ddog_set_span_kind_str(ddog_SpanNode *span, ddog_CharSlice value);
 
 /**
  * # Safety

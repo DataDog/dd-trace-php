@@ -366,12 +366,16 @@ pub unsafe extern "C" fn ddog_set_span_kind(span: *mut SpanNode, kind: u32) {
 /// Sets the span kind from a v0.4 `span.kind` meta string (mapping owned by libdatadog's
 /// `SpanKind::from_meta`; unknown → Internal).
 ///
+/// Returns `true` only for server/client/producer/consumer; otherwise (incl. "internal") the
+/// caller must keep `value` as a plain attribute, as `Internal` has no wire slot for it.
+///
 /// # Safety
 /// See [`ddog_span_set_id`].
 #[no_mangle]
-pub unsafe extern "C" fn ddog_set_span_kind_str(span: *mut SpanNode, value: CharSlice) {
-    (*span).span_mut().span_kind =
-        SpanKind::from_meta(String::from_utf8_lossy(value.as_bytes().as_ref()).as_ref());
+pub unsafe extern "C" fn ddog_set_span_kind_str(span: *mut SpanNode, value: CharSlice) -> bool {
+    let s = String::from_utf8_lossy(value.as_bytes().as_ref());
+    (*span).span_mut().span_kind = SpanKind::from_meta(s.as_ref());
+    matches!(s.as_ref(), "server" | "client" | "producer" | "consumer")
 }
 
 // ------------------- Span attributes (unified V1 map, subsumes meta/metrics/meta_struct) -------------------
@@ -1559,6 +1563,80 @@ mod v04_parity_tests {
             .as_str()
             .unwrap();
         assert!(events_meta.contains(r#""nums":[3,4]"#), "got {events_meta}");
+    }
+
+    #[test]
+    fn span_kind_str_process_survives_v04_downgrade() {
+        // Mirrors tracer/serializer.c: only delete `span.kind` meta when canonical. Fixes
+        // AMQPIntegration's `Tag::SPAN_KIND = 'process'`, previously destroyed by enum coercion.
+        let (b, s) = one_span_builder();
+        unsafe {
+            let is_canonical = ddog_set_span_kind_str(s, cs("process"));
+            assert!(
+                !is_canonical,
+                "\"process\" is not one of the 4 canonical kind strings"
+            );
+            ddog_add_span_attr_cs_cs(s, cs("span.kind"), cs("process"));
+        }
+        let span = first_span(&to_vec_from_v1(&b.into_payload()));
+        assert_eq!(
+            field(field(&span, "meta").unwrap(), "span.kind")
+                .unwrap()
+                .as_str(),
+            Some("process")
+        );
+        // Exactly once: not duplicated as a generic attribute alongside the promoted field.
+        let meta_entries = match field(&span, "meta").unwrap() {
+            Value::Map(m) => m,
+            other => panic!("expected map, got {other:?}"),
+        };
+        let kind_count = meta_entries
+            .iter()
+            .filter(|(k, _)| k.as_str() == Some("span.kind"))
+            .count();
+        assert_eq!(
+            kind_count, 1,
+            "duplicate \"span.kind\" key written to the wire"
+        );
+    }
+
+    #[test]
+    fn span_kind_str_internal_survives_v04_downgrade() {
+        // An explicit "internal" is not one of the 4 canonical strings either, so it must
+        // round-trip the same way "process" does, not get silently dropped.
+        let (b, s) = one_span_builder();
+        unsafe {
+            let is_canonical = ddog_set_span_kind_str(s, cs("internal"));
+            assert!(
+                !is_canonical,
+                "\"internal\" is not one of the 4 canonical kind strings"
+            );
+            ddog_add_span_attr_cs_cs(s, cs("span.kind"), cs("internal"));
+        }
+        let span = first_span(&to_vec_from_v1(&b.into_payload()));
+        assert_eq!(
+            field(field(&span, "meta").unwrap(), "span.kind")
+                .unwrap()
+                .as_str(),
+            Some("internal")
+        );
+    }
+
+    #[test]
+    fn span_kind_str_known_value_is_canonical_and_not_duplicated() {
+        let (b, s) = one_span_builder();
+        unsafe {
+            let is_canonical = ddog_set_span_kind_str(s, cs("server"));
+            assert!(is_canonical);
+            // serializer.c deletes the meta key in this case; not re-added as an attribute here.
+        }
+        let span = first_span(&to_vec_from_v1(&b.into_payload()));
+        assert_eq!(
+            field(field(&span, "meta").unwrap(), "span.kind")
+                .unwrap()
+                .as_str(),
+            Some("server")
+        );
     }
 }
 
