@@ -1,0 +1,42 @@
+[
+  {
+    "name": "x86_64_glibc_reference",
+    "path": "/home/bits/.cache/dd-php-amd64-all-output/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-opt-exec/bin/bazel/dependencies/llvm_runtimes/x86_64_glibc.cxx20-smoke",
+    "sha256": "72a3ac6687505acaf6783da3c67bd25902dec5c77c012da4f8ea0fb751a76b95"
+  },
+  {
+    "name": "x86_64_glibc_native",
+    "path": "/home/bits/.cache/dd-native-runtime-output/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-opt-ST-9a61b3167d7e/bin/bazel/dependencies/llvm_runtimes/x86_64_glibc_native_validation.cxx20-smoke",
+    "sha256": "97fe7fcbe439af8f74a63e23ba627b4bb0192eadd8aef45e4528cd785ae5c7e6"
+  },
+  {
+    "name": "x86_64_musl_reference",
+    "path": "/home/bits/.cache/dd-php-amd64-all-output/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-fastbuild-ST-01d151896d7e/bin/bazel/dependencies/llvm_runtimes/x86_64_musl.cxx20-smoke",
+    "sha256": "4b0129db62d7f20a026ec80af384cd7e149729d9046c2f1af1ec27ee9e701c07"
+  },
+  {
+    "name": "x86_64_musl_native",
+    "path": "/home/bits/.cache/dd-native-runtime-output/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-opt-ST-01d151896d7e/bin/bazel/dependencies/llvm_runtimes/x86_64_musl_native_validation.cxx20-smoke",
+    "sha256": "9fa85156d6925d265ed73ad5558c85fca2aa8ade7a00c4d00d5e567910d9b089"
+  },
+  {
+    "name": "aarch64_glibc_reference",
+    "path": "/home/bits/.cache/dd-php-amd64-all-output/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/linux_arm64_glibc-opt-exec/bin/bazel/dependencies/llvm_runtimes/aarch64_glibc.cxx20-smoke",
+    "sha256": "ec1dccb45264d8e4d95c23174eca1e4e3bbc470ce7a4c7efbd5f0a0ccd06f980"
+  },
+  {
+    "name": "aarch64_musl_reference",
+    "path": "/home/bits/.cache/dd-php-amd64-all-output/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-fastbuild-ST-5c2d628c1b9c/bin/bazel/dependencies/llvm_runtimes/aarch64_musl.cxx20-smoke",
+    "sha256": "b2e0a0a50b004b6007ef9c013d8c48e5a6b74778cd7414033eceed80692a4bed"
+  },
+  {
+    "name": "aarch64_glibc_native",
+    "path": "/home/bits/.cache/dd-native-runtime-remote/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-opt-ST-d3ccba204aab/bin/bazel/dependencies/llvm_runtimes/aarch64_glibc_native_validation.cxx20-smoke",
+    "sha256": "1c1528134d3275981441039c295f4f3a955403bfff1f83e2db192c0ed6c80fc5"
+  },
+  {
+    "name": "aarch64_musl_native",
+    "path": "/home/bits/.cache/dd-native-runtime-remote/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-opt-ST-9a8755a540d3/bin/bazel/dependencies/llvm_runtimes/aarch64_musl_native_validation.cxx20-smoke",
+    "sha256": "074c64a9a1020cd4b1284aabe08ca4576d7294063c8ea5fdf5a3e7519e995343"
+  }
+]

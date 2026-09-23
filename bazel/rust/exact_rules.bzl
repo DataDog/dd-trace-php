@@ -5,6 +5,7 @@ load(
     _rust_library = "rust_library",
     _rust_proc_macro = "rust_proc_macro",
     _rust_static_library = "rust_static_library",
+    _rust_shared_library = "rust_cdylib_library",
 )
 load(":exact_dep_validation.bzl", "exact_dep_classification")
 
@@ -51,5 +52,14 @@ def rust_static_library(name, deps = [], proc_macro_deps = [], **kwargs):
         deps = deps,
         proc_macro_deps = proc_macro_deps,
         skip_deps_verification = True,
+        **kwargs
+    )
+
+def rust_shared_library(name, deps = [], proc_macro_deps = [], **kwargs):
+    kwargs = _validated_kwargs(name, deps, proc_macro_deps, kwargs)
+    _rust_shared_library(
+        name = name,
+        deps = deps,
+        proc_macro_deps = proc_macro_deps,
         **kwargs
     )

@@ -37,7 +37,27 @@ build:remote-hermetic --remote_instance_name=ci/shared
 build:remote-hermetic --remote_timeout=600
 build:remote-hermetic --remote_upload_local_results=true
 build:remote-hermetic --remote_cache_compression
-build:remote-hermetic --jobs=50
+build:remote-hermetic --remote_accept_cached=true
+build:remote-hermetic --jobs=25
+
+# Benchmark modes are opt-in. A forced run also needs a fresh output base;
+# disabling remote hits alone does not invalidate retained local outputs.
+build:rbe-benchmark --remote_download_outputs=minimal
+build:rbe-benchmark --record_full_profiler_data
+build:rbe-benchmark --noslim_profile
+build:rbe-benchmark --generate_json_trace_profile=yes
+build:rbe-benchmark --experimental_profile_additional_tasks=remote_queue
+build:rbe-benchmark --experimental_profile_additional_tasks=remote_process_time
+build:rbe-benchmark --experimental_profile_additional_tasks=upload_time
+build:rbe-benchmark --experimental_profile_additional_tasks=remote_download
+build:rbe-benchmark --experimental_profile_additional_tasks=remote_network
+build:rbe-benchmark --experimental_profile_include_target_label
+build:rbe-benchmark --experimental_profile_include_primary_output
+build:rbe-forced --config=rbe-benchmark
+build:rbe-forced --remote_accept_cached=false
+build:rbe-forced --remote_upload_local_results=false
+build:rbe-cached --config=rbe-benchmark
+build:rbe-cached --remote_accept_cached=true
 
 build:remote-hermetic-amd64 --config=remote-hermetic
 build:remote-hermetic-amd64 --host_platform=//bazel/platforms:linux_amd64_exec
@@ -96,13 +116,21 @@ build:remote-arch-arm64 --extra_execution_platforms=//bazel/platforms:linux_arm6
 
 build --build_tag_filters=-manual
 build --test_tag_filters=-manual
+build --@rules_go//go/config:pure
 
 # The shared Datadog queue is intentionally conservative until profiles show
 # that the workers and link actions can sustain more parallelism.
 build:ci --jobs=25
 build:ci --keep_going
+build:ci --remote_download_outputs=toplevel
+build:ci --noremote_local_fallback
+build:ci --remote_upload_local_results=false
+build:ci --lockfile_mode=error
+build:ci --color=no
+build:ci --curses=no
+build:ci --show_progress_rate_limit=10
 build:ci --profile=build/bazel-profile.gz
-build:ci --execution_log_json_file=build/execution-log.json
+build:ci --execution_log_compact_file=build/execution-log.zst
 
 build:linux-amd64-glibc --platforms=//bazel/platforms:linux_amd64_glibc
 build:linux-arm64-glibc --platforms=//bazel/platforms:linux_arm64_glibc

@@ -16,10 +16,6 @@ def _rust_exec_wrapper_impl(ctx):
     if len(static_exec_library_dirs) != 1:
         fail("static execution libraries must share one directory, got %s" % static_exec_library_dirs)
     static_exec_library_dir = static_exec_library_dirs[0]
-    target_x86_64_gnu_library_dirs = {file.dirname: None for file in ctx.files.target_x86_64_gnu_libraries}.keys()
-    target_aarch64_gnu_library_dirs = {file.dirname: None for file in ctx.files.target_aarch64_gnu_libraries}.keys()
-    if len(target_x86_64_gnu_library_dirs) != 1 or len(target_aarch64_gnu_library_dirs) != 1:
-        fail("target GNU runtime libraries must have one directory per architecture")
 
     raw_tool_path = ctx.file.raw_tool.path
     loader_path = ctx.file.exec_loader.path
@@ -55,8 +51,6 @@ def _rust_exec_wrapper_impl(ctx):
         "-DDECLARED_LIBRARY_DIRS=" + _c_string(":".join(library_dirs)),
         "-DAUTO_STATIC_EXEC_BIN=%d" % (1 if ctx.attr.auto_static_exec_bin else 0),
         "-DSTATIC_EXEC_LIBRARY_DIR=" + _c_string(static_exec_library_dir),
-        "-DTARGET_X86_64_GNU_LIBRARY_DIR=" + _c_string(target_x86_64_gnu_library_dirs[0]),
-        "-DTARGET_AARCH64_GNU_LIBRARY_DIR=" + _c_string(target_aarch64_gnu_library_dirs[0]),
         "-c",
         ctx.file.source.path,
         "-o",
@@ -92,7 +86,10 @@ def _rust_exec_wrapper_impl(ctx):
         ctx.file.crti.path,
         object_file.path,
         "-L" + ctx.file.libc.dirname,
+        "--start-group",
         "-lc",
+        ctx.file.builtins.path,
+        "--end-group",
         ctx.file.crtn.path,
     ])
     ctx.actions.run(
@@ -105,6 +102,7 @@ def _rust_exec_wrapper_impl(ctx):
                 ctx.file.crt1,
                 ctx.file.crti,
                 ctx.file.crtn,
+                ctx.file.builtins,
                 ctx.file.libc,
                 object_file,
             ],
@@ -118,9 +116,7 @@ def _rust_exec_wrapper_impl(ctx):
 
     runtime = depset(
         direct = [ctx.file.exec_loader, ctx.file.raw_tool] +
-                 ctx.files.static_exec_libraries +
-                 ctx.files.target_x86_64_gnu_libraries +
-                 ctx.files.target_aarch64_gnu_libraries,
+                 ctx.files.static_exec_libraries,
         transitive = [depset(ctx.files.raw_runtime)],
     )
     return [DefaultInfo(
@@ -135,6 +131,7 @@ rust_exec_wrapper = rule(
     attrs = {
         "build_runtime": attr.label_list(allow_empty = False, allow_files = True),
         "auto_static_exec_bin": attr.bool(),
+        "builtins": attr.label(allow_single_file = True, mandatory = True),
         "clang": attr.label(allow_files = True, cfg = "exec", executable = True, mandatory = True),
         "compiler_libraries": attr.label_list(allow_empty = False, allow_files = True),
         "compiler_loader": attr.label(allow_files = True, cfg = "exec", executable = True, mandatory = True),
@@ -154,9 +151,7 @@ rust_exec_wrapper = rule(
             default = ":rust_exec_wrapper.c",
         ),
         "static_exec_libraries": attr.label_list(allow_empty = False, allow_files = True),
-        "target_aarch64_gnu_libraries": attr.label_list(allow_empty = False, allow_files = True),
         "target_triple": attr.string(mandatory = True),
-        "target_x86_64_gnu_libraries": attr.label_list(allow_empty = False, allow_files = True),
     },
 )
 

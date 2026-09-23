@@ -27,6 +27,15 @@ touch -d @135 "$tmp/src" "$tmp/src/lib" "$tmp/src/lib/tool"
 "$tar_runner" --tar "$tar_bin" --root "$tmp/out" --output "$tmp/one.tar.gz" --prefix fixture --executable payload/lib/tool
 "$tar_runner" --tar "$tar_bin" --root "$tmp/out" --output "$tmp/two.tar.gz" --prefix fixture --executable payload/lib/tool
 cmp "$tmp/one.tar.gz" "$tmp/two.tar.gz"
+
+# Processwrapper projects tree-artifact children as symlinks to their physical
+# output files. Exercise that transport shape independently of the direct-tree
+# fixture above.
+mkdir -p "$tmp/transport/payload/lib"
+ln -s "$tmp/out/payload/lib/tool" "$tmp/transport/payload/lib/tool"
+ln -s "$tmp/out/version" "$tmp/transport/version"
+"$tar_runner" --tar "$tar_bin" --root "$tmp/transport" --output "$tmp/transport.tar.gz" --prefix fixture --executable payload/lib/tool
+cmp "$tmp/one.tar.gz" "$tmp/transport.tar.gz"
 tar -xzf "$tmp/one.tar.gz" -C "$tmp"
 [ "$(stat -c %a "$tmp/fixture/payload/lib/tool")" = 755 ]
 [ "$(stat -c %a "$tmp/fixture/version")" = 644 ]

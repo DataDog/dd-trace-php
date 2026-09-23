@@ -31,6 +31,7 @@ _TARGET_TRIPLES = [
 _EXECUTIONS = {
     "aarch64-unknown-linux-gnu": struct(
         arch = "aarch64",
+        builtins = "@llvm_20_1_4_dist_aarch64//:lib/clang/20/lib/aarch64-unknown-linux-gnu/libclang_rt.builtins.a",
         clang = "@llvm_20_1_4_dist_aarch64//:bin/clang",
         compiler_libraries = [
             "@exec_runtime_debian12_aarch64//:lib_anchor",
@@ -43,7 +44,6 @@ _EXECUTIONS = {
             "@llvm_20_1_4_dist_aarch64//:clang",
             "@llvm_20_1_4_dist_aarch64//:cxx_builtin_include",
             "@llvm_20_1_4_dist_aarch64//:ld",
-            "@llvm_20_1_4_dist_aarch64//:lib",
         ],
         constraints = ["@platforms//cpu:aarch64", "@platforms//os:linux"],
         crt1 = "@exec_tools_alpine322_aarch64//:root/usr/lib/crt1.o",
@@ -61,6 +61,7 @@ _EXECUTIONS = {
     ),
     "x86_64-unknown-linux-gnu": struct(
         arch = "x86_64",
+        builtins = "@llvm_20_1_4_dist_x86_64//:lib/clang/20/lib/x86_64-unknown-linux-gnu/libclang_rt.builtins.a",
         clang = "@llvm_20_1_4_dist_x86_64//:bin/clang",
         compiler_libraries = [
             "@exec_runtime_debian12_x86_64//:lib_anchor",
@@ -73,7 +74,6 @@ _EXECUTIONS = {
             "@llvm_20_1_4_dist_x86_64//:clang",
             "@llvm_20_1_4_dist_x86_64//:cxx_builtin_include",
             "@llvm_20_1_4_dist_x86_64//:ld",
-            "@llvm_20_1_4_dist_x86_64//:lib",
         ],
         constraints = ["@platforms//cpu:x86_64", "@platforms//os:linux"],
         crt1 = "@exec_tools_alpine322_x86_64//:root/usr/lib/crt1.o",
@@ -158,6 +158,7 @@ def _declare_version(name, version, version_key, component_resolver, target_aarc
                 name = wrapper_name,
                 auto_static_exec_bin = tool.component in ["clippy_driver", "rustc"],
                 build_runtime = execution.musl_runtime,
+                builtins = execution.builtins,
                 clang = execution.clang,
                 compiler_libraries = execution.compiler_libraries,
                 compiler_loader = execution.compiler_loader,
@@ -180,10 +181,8 @@ def _declare_version(name, version, version_key, component_resolver, target_aarc
                     tool.target,
                 ),
                 static_exec_libraries = [":" + static_exec_libraries_name],
-                target_aarch64_gnu_libraries = [target_aarch64_gnu_libraries],
                 target_compatible_with = execution.constraints,
                 target_triple = execution.target_triple,
-                target_x86_64_gnu_libraries = [target_x86_64_gnu_libraries],
             )
             component_targets[tool.component][exec_triple] = ":" + wrapper_name
         rustc_lib[exec_triple] = ":" + closure_name
@@ -205,6 +204,10 @@ def _declare_version(name, version, version_key, component_resolver, target_aarc
         cargo_clippy = cargo_clippy,
         clippy_driver = clippy_driver,
         edition = "2021",
+        target_native_libraries = {
+            "aarch64-unknown-linux-gnu": target_aarch64_gnu_libraries,
+            "x86_64-unknown-linux-gnu": target_x86_64_gnu_libraries,
+        },
         exec_triples = _EXECUTIONS.keys(),
         extra_target_settings = extra_target_settings,
         rust_doc = rust_doc,

@@ -25,6 +25,8 @@ HermeticToolsInfo = provider(
         "objdump": "declared LLVM object inspector launcher",
         "strip": "declared LLVM strip launcher",
         "compiler_files": "depset containing LLVM and its execution runtime",
+        "inspection_files": "ELF tools, launchers and their execution libraries only",
+        "python_files": "Python launcher, interpreter, stdlib and execution libraries only",
     },
 )
 
@@ -75,6 +77,19 @@ def _hermetic_tools_impl(ctx):
         clang = ctx.executable.clang,
         clangxx = ctx.executable.clangxx,
         compiler_files = compiler_files,
+        inspection_files = depset([
+            ctx.executable.nm,
+            ctx.executable.objcopy,
+            ctx.executable.objdump,
+            ctx.executable.strip,
+            ctx.executable.shell,
+            ctx.executable.busybox,
+        ] + [f for f in ctx.files.compiler_files if "exec_runtime_debian12_" in f.path or f.basename in ["llvm-nm", "llvm-objcopy", "llvm-objdump", "llvm-strip"]]),
+        python_files = depset([ctx.executable.shell, ctx.executable.busybox] + [
+            f
+            for f in ctx.files.tools
+            if f.basename.startswith("python3") or "/usr/lib/python" in f.path or ".so" in f.basename
+        ]),
         env = dict(ctx.attr.env, **{
             "HERMETIC_EXEC_RUNTIME_ROOT": ctx.file.compiler_loader.dirname + "/../..",
             "HERMETIC_LLVM_ROOT": ctx.file.llvm_anchor.dirname[:-4],

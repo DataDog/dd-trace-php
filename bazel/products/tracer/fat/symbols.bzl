@@ -14,8 +14,9 @@ def _tracer_symbol_manifest_check_impl(ctx):
         ctx.file.rust_linux,
     ]
     ctx.actions.run(
-        executable = foreign.shell,
+        executable = foreign.busybox,
         arguments = [
+            "sh",
             ctx.file._runner.path,
             foreign.busybox.path,
             ctx.file.expected.path,
@@ -23,7 +24,7 @@ def _tracer_symbol_manifest_check_impl(ctx):
         ] + [src.path for src in sources],
         inputs = depset(
             [ctx.file._runner, ctx.file.expected] + sources,
-            transitive = [foreign.files],
+            transitive = [depset([foreign.busybox])],
         ),
         outputs = [marker],
         env = dict(foreign.env, **{

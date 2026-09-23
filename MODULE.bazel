@@ -8,6 +8,8 @@ bazel_dep(name = "llvm", version = "0.8.18")
 bazel_dep(name = "rules_cc", version = "0.2.22")
 bazel_dep(name = "rules_rs", version = "0.0.111")
 bazel_dep(name = "rules_python", version = "1.8.0")
+bazel_dep(name = "rules_itest", version = "0.0.61", dev_dependency = True)
+bazel_dep(name = "rules_go", version = "0.62.0", dev_dependency = True)
 bazel_dep(name = "zstd", version = "1.5.7.bcr.1")
 
 single_version_override(
@@ -373,6 +375,8 @@ gnu_libunwind_sources = use_extension("//bazel/dependencies/gnu_libunwind:reposi
 use_repo(gnu_libunwind_sources, "libdd_libunwind_sys_1_0_3_source")
 
 register_toolchains(
+    "//bazel/toolchains:bootstrap_aarch64_toolchain",
+    "//bazel/toolchains:bootstrap_x86_64_toolchain",
     "//bazel/generators:host_php_amd64_toolchain",
     "//bazel/generators:host_php_arm64_toolchain",
     "//bazel/toolchains:exec_tools_aarch64_toolchain",
@@ -395,7 +399,10 @@ register_toolchains(
 # its channel build setting explicitly.
 rules_rust = use_extension("@rules_rs//rs:rules_rust.bzl", "rules_rust")
 rules_rust.patch(
-    patches = ["//bazel/rust:rules_rust_cargo_execroot.patch"],
+    patches = [
+        "//bazel/rust:rules_rust_cargo_execroot.patch",
+        "//bazel/rust:rules_rust_target_native_libraries.patch",
+    ],
     strip = 1,
 )
 use_repo(rules_rust, "rules_rust")
@@ -562,6 +569,7 @@ crate.annotation(
     ],
     version = "1.0.11",
 )
+
 # Exact resolver-2 target and host features/dependencies derived from Cargo unit graphs.
 crate.annotation(
     crate = "cc",

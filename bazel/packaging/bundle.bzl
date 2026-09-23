@@ -2,6 +2,11 @@
 
 load(":artifacts.bzl", "ProductArtifactProjectionInfo")
 
+_SsiPayloadInfo = provider(
+    doc = "An SSI payload tree assembled and symlink-audited by ssi_payload.",
+    fields = {"tree": "The audited payload tree artifact."},
+)
+
 def _deterministic_ssi_bundle_impl(ctx):
     tools = ctx.toolchains["//bazel/toolchains:hermetic_tools_type"].foreign
     args = ctx.actions.args()
@@ -29,7 +34,7 @@ def _deterministic_ssi_bundle_impl(ctx):
 deterministic_ssi_bundle = rule(
     implementation = _deterministic_ssi_bundle_impl,
     attrs = {
-        "payload": attr.label(allow_single_file = True, mandatory = True),
+        "payload": attr.label(allow_single_file = True, mandatory = True, providers = [_SsiPayloadInfo]),
         "prefix": attr.string(default = "dd-library-php-ssi"),
         "executable_paths": attr.string_list(),
         "_runner": attr.label(default = "//tools/bazel:deterministic-tar.sh", allow_single_file = True),
@@ -84,7 +89,10 @@ def _ssi_payload_impl(ctx):
         env = dict(tools.env, PATH = ":".join(tools.path_entries), SOURCE_DATE_EPOCH = "0", TZ = "UTC", LANG = "C"),
         progress_message = "Assembling SSI payload %{label}",
     )
-    return [DefaultInfo(files = depset([out]))]
+    return [
+        DefaultInfo(files = depset([out])),
+        _SsiPayloadInfo(tree = out),
+    ]
 
 ssi_payload = rule(
     implementation = _ssi_payload_impl,

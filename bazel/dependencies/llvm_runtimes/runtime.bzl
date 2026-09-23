@@ -1,39 +1,8 @@
 """Cross-builds the LLVM 20.1.4 C++ and compiler target runtimes."""
 
-LlvmRuntimeInfo = provider(
-    doc = "Relocatable libc++, libc++abi, libunwind, and compiler-rt builtins for one target.",
-    fields = {
-        "root": "Relocatable installed runtime tree artifact.",
-        "files": "depset containing the tree and explicit link artifacts.",
-        "headers": "depset containing the libc++ headers tree.",
-        "libraries": "ordered tuple: libc++, libc++abi, libunwind, builtins.",
-        "libcxx_static": "libc++.a File.",
-        "libcxx_shared": "libc++.so.1 File.",
-        "libcxxabi_static": "libc++abi.a File.",
-        "libcxxabi_shared": "libc++abi.so.1 File.",
-        "libunwind_static": "libunwind.a File.",
-        "libunwind_shared": "libunwind.so.1 File.",
-        "builtins_static": "compiler-rt builtins archive File.",
-        "crtbegin": "compiler-rt crtbegin object File.",
-        "crtend": "compiler-rt crtend object File.",
-        "startup_crt1": "Target crt1.o with package-build DWARF removed.",
-        "startup_pie_crt1": "Target PIE startup object with package-build DWARF removed.",
-        "startup_crti": "Target crti.o with package-build DWARF removed.",
-        "startup_crtn": "Target crtn.o with package-build DWARF removed.",
-        "resource_dir": "Tree whose lib/linux directory contains compiler-rt artifacts.",
-        "builtins_basename": "Target-specific compiler-rt builtins archive basename.",
-        "asan_supported": "Whether this target runtime includes AddressSanitizer.",
-        "asan_shared": "AddressSanitizer shared runtime File, or None.",
-        "asan_static": "AddressSanitizer C static runtime File, or None.",
-        "asan_cxx_static": "AddressSanitizer C++ static runtime File, or None.",
-        "asan_preinit_static": "AddressSanitizer executable preinit archive File, or None.",
-        "asan_shared_basename": "Canonical ASan DT_SONAME basename, or None.",
-        "cxx20_smoke": "Static target C++20 validation executable File.",
-        "target_triple": "LLVM target triple.",
-        "libc": "glibc or musl.",
-        "libc_version": "Target libc compatibility floor.",
-    },
-)
+load(":providers.bzl", _LlvmRuntimeInfo = "LlvmRuntimeInfo")
+
+LlvmRuntimeInfo = _LlvmRuntimeInfo
 
 def _llvm_runtime_native_probe_impl(ctx):
     runtime = ctx.attr.runtime[LlvmRuntimeInfo]
@@ -82,6 +51,28 @@ llvm_runtime_native_probe = rule(
     },
 )
 
+llvm_runtime_native_probe_x86_64 = rule(
+    implementation = _llvm_runtime_native_probe_impl,
+    attrs = {
+        "busybox": attr.label(
+            allow_single_file = True,
+            cfg = "target",
+            default = "@exec_tools_alpine322_x86_64//:root/bin/busybox.static",
+            executable = True,
+        ),
+        "runtime": attr.label(mandatory = True, providers = [LlvmRuntimeInfo]),
+        "_native_probe_runner": attr.label(
+            allow_single_file = True,
+            default = "//bazel/dependencies/llvm_runtimes:run-native-smoke.sh",
+        ),
+    },
+    exec_groups = {
+        "native": exec_group(
+            exec_compatible_with = ["@platforms//cpu:x86_64", "@platforms//os:linux"],
+        ),
+    },
+)
+
 def _llvm_asan_native_probe_impl(ctx):
     runtime = ctx.attr.runtime[LlvmRuntimeInfo]
     if not runtime.asan_supported or not runtime.asan_shared:
@@ -115,7 +106,7 @@ def _llvm_asan_native_probe_impl(ctx):
         ],
         inputs = depset(
             [ctx.file._asan_native_probe_runner, ctx.file.binary],
-            transitive = [foreign.files, foreign.compiler_files, runtime.files, sysroot.files],
+            transitive = [foreign.files, foreign.compiler_files, runtime.sanitizer_inputs, sysroot.files],
         ),
         outputs = [marker],
         env = dict(
@@ -192,7 +183,7 @@ def _llvm_target_runtime_impl(ctx):
             ctx.attr.libc_version,
         ))
     if ctx.attr.jobs not in _RUNTIME_RESOURCES:
-        fail("jobs must be one of 1, 2, 4, or 8 so Bazel can reserve matching CPU and memory")
+        fail("jobs must be one of 1, 2, 4, or 8 for local scheduling estimates (not remote worker reservations)")
 
     root = ctx.actions.declare_directory(ctx.label.name + ".runtime")
     resource_dir = ctx.actions.declare_directory(ctx.label.name + ".resource-dir")
@@ -376,6 +367,12 @@ def _llvm_target_runtime_impl(ctx):
 
     files = depset(cxx_outputs + [resource_dir, builtins_static, crtbegin, crtend] + startup_outputs)
     info = LlvmRuntimeInfo(
+        header_root = root,
+        compile_inputs = depset([root]),
+        link_inputs = files,
+        builtin_inputs = depset([builtins_static, crtbegin, crtend] + startup_outputs),
+        sanitizer_inputs = depset(asan_outputs + [root]),
+        validation_inputs = depset([cxx20_smoke]),
         root = root,
         files = files,
         headers = depset([root]),

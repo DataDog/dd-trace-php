@@ -323,6 +323,16 @@ _full_archive_check = rule(
 )
 
 _PUBLISHED_MINORS = (
+    struct(expected_members = 94, minor = "7.0", source_suffix = "70"),
+    struct(expected_members = 94, minor = "7.1", source_suffix = "71"),
+    struct(expected_members = 94, minor = "7.2", source_suffix = "72"),
+    struct(expected_members = 93, minor = "7.3", source_suffix = "73"),
+    struct(expected_members = 93, minor = "7.4", source_suffix = "74"),
+    struct(expected_members = 98, minor = "8.0", source_suffix = "80"),
+    struct(expected_members = 99, minor = "8.1", source_suffix = "81"),
+    struct(expected_members = 97, minor = "8.2", source_suffix = "82"),
+    struct(expected_members = 97, minor = "8.3", source_suffix = "83"),
+    struct(expected_members = 97, minor = "8.4", source_suffix = "84"),
     struct(expected_members = 97, minor = "8.5", source_suffix = "85"),
 )
 
@@ -435,7 +445,7 @@ def _full_tracer_variant(row):
     ]
 
 def tracer_c_matrix():
-    """Compiles the retained curl-dependent PHP 8.5 tracer C products."""
+    """Compiles curl-dependent tracer C code for every normalized PHP row."""
     _version_header(
         name = "_version_header",
         version = "//:VERSION",
@@ -511,15 +521,16 @@ def tracer_c_matrix():
             ":" + variant.name + "_coms",
             ":" + variant.name + "_coms_check",
         ])
-    published = {}
-    for key in sorted(coms_rows.keys()):
-        row = coms_rows[key]
-        if row.name in published:
+    covered_sdks = {}
+    for row in rows:
+        if row.name in covered_sdks:
             fail("tracer product duplicates normalized PHP row %s" % row.name)
-        published[row.name] = True
+        if row.php_minor not in _RELEASES_BY_MINOR:
+            fail("tracer product has no source inventory for PHP %s (%s)" % (row.php_minor, row.name))
+        covered_sdks[row.name] = True
         outputs.extend(_full_tracer_variant(row))
-    if len(published) != 4:
-        fail("expected four PHP 8.5 NTS tracer C products, got %d" % len(published))
+    if len(covered_sdks) != 226:
+        fail("tracer C product coverage mismatch: expected 226 rows, got %d" % len(covered_sdks))
     native.filegroup(
         name = "tracer_c_all",
         srcs = outputs,

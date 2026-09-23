@@ -16,7 +16,7 @@ def _split_tracer_debug_impl(ctx):
         ],
         inputs = depset(
             [ctx.file._splitter, ctx.file.binary],
-            transitive = [foreign.files, foreign.compiler_files],
+            transitive = [foreign.inspection_files],
         ),
         outputs = [binary, debug],
         env = dict(foreign.env, **{
@@ -76,7 +76,7 @@ def _tracer_fat_elf_check_impl(ctx):
                 ctx.file.debug,
                 ctx.file.expected_symbols,
             ],
-            transitive = [foreign.files, foreign.compiler_files],
+            transitive = [foreign.inspection_files, foreign.python_files],
         ),
         outputs = [marker],
         env = dict(foreign.env, **{

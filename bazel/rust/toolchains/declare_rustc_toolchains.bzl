@@ -32,6 +32,7 @@ def declare_rustc_toolchains(
         rustc = None,
         exec_triples = SUPPORTED_EXEC_TRIPLES,
         target_triples = ALL_TARGET_TRIPLES,
+        target_native_libraries = {},
         extra_rustc_flags = {},
         extra_exec_rustc_flags = {},
         rust_doc = None,
@@ -130,6 +131,7 @@ def declare_rustc_toolchains(
         rust_toolchain_name = name + "_" + triple_suffix + "_" + version_key + "_rust_toolchain"
 
         rust_toolchain_kwargs = dict(
+            target_native_libraries = select({"@rules_rs//rs/platforms/config:" + target: [label] for target, label in target_native_libraries.items()} | {"//conditions:default": []}),
             rust_doc = _component(rust_doc, triple, rustc_repo_label + "rustdoc"),
             rustc = _component(rustc, triple, rustc_repo_label + "rustc"),
             cargo = _component(cargo, triple, cargo_repo_label + "cargo"),

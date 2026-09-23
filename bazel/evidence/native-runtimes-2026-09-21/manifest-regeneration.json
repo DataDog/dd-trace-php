@@ -1,0 +1,32 @@
+[
+  {
+    "variant": "x86_64_glibc",
+    "normal_runtime_identical": true,
+    "sanitizer_flag_groups_changed": [
+      6,
+      7
+    ],
+    "sanitizer_compilation_actions_affected": 190
+  },
+  {
+    "variant": "x86_64_musl",
+    "normal_runtime_identical": true,
+    "sanitizer_flag_groups_changed": [],
+    "sanitizer_compilation_actions_affected": 0
+  },
+  {
+    "variant": "aarch64_glibc",
+    "normal_runtime_identical": true,
+    "sanitizer_flag_groups_changed": [
+      6,
+      7
+    ],
+    "sanitizer_compilation_actions_affected": 190
+  },
+  {
+    "variant": "aarch64_musl",
+    "normal_runtime_identical": true,
+    "sanitizer_flag_groups_changed": [],
+    "sanitizer_compilation_actions_affected": 0
+  }
+]

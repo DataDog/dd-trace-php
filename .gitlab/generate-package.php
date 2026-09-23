@@ -185,6 +185,7 @@ requirements_json_test:
   image: registry.ddbuild.io/images/mirror/composer:2
   tags: [ "arch:amd64" ]
   script:
+    - mkdir -p artifacts/bazel && date +%s > artifacts/bazel/prepare-start.epoch
     - ./.gitlab/append-build-id.sh
     # Upgrading composer
     - composer self-update --no-interaction
@@ -194,12 +195,14 @@ requirements_json_test:
       composer update --no-interaction
     # Compiling dd-tace-php files into single file
     - make generate
+    - date +%s > artifacts/bazel/prepare-finish.epoch
     # Showing folder containing generated files
     - ls -al ${CI_PROJECT_DIR:-.}/src/bridge
   artifacts:
     paths:
       - VERSION
       - ./src/bridge/_generated*.php
+      - artifacts/bazel/prepare-*.epoch
 
 <?php
 foreach ($build_platforms as $platform) {
@@ -358,9 +361,12 @@ foreach ($build_platforms as $platform) {
   script:
     # Fix for $BASH_ENV not having a newline at the end of the file
     - echo "" >> "$BASH_ENV"
+    - source .gitlab/setup-legacy-measure.sh
     - ./.gitlab/build-tracing.sh "<?= $suffix ?>" "<?= $catch_warnings ?>"
   artifacts:
+    when: always
     paths:
+      - artifacts/bazel/legacy/
       - "extensions_*"
       - "standalone_*"
       - "ddtrace_*-fat.ldflags"
@@ -393,7 +399,9 @@ foreach ($build_platforms as $platform) {
     endforeach;
 ?>
   artifacts:
+    when: always
     paths:
+      - artifacts/bazel/legacy/
       - "extensions_*"
       - "standalone_*"
       - "ddtrace_*-fat.ldflags"
@@ -432,6 +440,7 @@ foreach ($build_platforms as $platform) {
     KUBERNETES_MEMORY_LIMIT: 8Gi
   script:
     - echo "" >> "$BASH_ENV"
+    - source .gitlab/setup-legacy-measure.sh
     - ./.gitlab/build-sidecar.sh "<?= $suffix ?>"
   cache:
     - key:
@@ -442,7 +451,9 @@ foreach ($build_platforms as $platform) {
         - "${CARGO_HOME}"
       policy: pull  # `cache cargo deps` is used to update/push the cache
   artifacts:
+    when: always
     paths:
+      - artifacts/bazel/legacy/
       - "libdatadog_php_*.*"
 <?php
 }
@@ -459,6 +470,8 @@ foreach ($build_platforms as $platform) {
   image: $IMAGE
   tags: [ "arch:$ARCH" ]
   needs:
+    - job: "prepare code"
+      artifacts: true
     - job: "compile tracing sidecar: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
 <?php
@@ -480,10 +493,14 @@ foreach ($php_versions_to_abi as $major_minor => $abi_no) {
   script:
     # Fix for $BASH_ENV not having a newline at the end of the file
     - echo "" >> "$BASH_ENV"
+    - source .gitlab/setup-legacy-measure.sh
     - ./.gitlab/link-tracing-extension.sh "<?= $suffix ?>"
   artifacts:
+    when: always
     paths:
+      - artifacts/bazel/legacy/
       - "extensions_*"
+      - "libdatadog_php_*.so"
 <?php
 }
 ?>

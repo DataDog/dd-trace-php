@@ -27,9 +27,10 @@ load(
 load("//bazel/rust:libddwaf.bzl", "libddwaf_rust_targets")
 load("//bazel/rust:product_feature_guard.bzl", "assert_product_feature_resolution")
 load("//bazel/rust:product_profile.bzl", "rust_product_archive")
+load("//bazel/platforms:transitions.bzl", "configured_target")
 load("//bazel/rust:profiler_matrix.bzl", "profiler_matrix_targets")
 load("//bazel/rust:root_features.bzl", "ROOT_FEATURE_CHECK")
-load(":exact_rules.bzl", "rust_library", "rust_static_library")
+load(":exact_rules.bzl", "rust_library", "rust_shared_library", "rust_static_library")
 
 _COMMON_RUSTC_FLAGS = [
     "--cfg=tokio_unstable",
@@ -125,6 +126,43 @@ def ddtrace_rust_targets():
         deps = ":_rust_datadog_php_profile_input",
         product = "tracer",
     )
+
+    # Cargo's SHARED=1 release path emits this DSO once per platform. Keep
+    # its native crate dependency edges and release profile identical to the
+    # archive embedded into each fat extension.
+    rust_shared_library(
+        name = "_rust_datadog_php_shared_profile_input",
+        srcs = native.glob([
+            "components-rs/**/*.rs",
+            "tracer/**/*.rs",
+        ], exclude = ["components-rs/php_sidecar_mockgen/**/*.rs"]),
+        aliases = libdatadog_native_aliases(""),
+        compile_data = ["Cargo.toml", "VERSION"],
+        crate_features = ["tracer"],
+        crate_name = "datadog_php",
+        crate_root = "components-rs/lib.rs",
+        deps = libdatadog_native_deps(""),
+        edition = "2021",
+        proc_macro_deps = libdatadog_native_proc_macro_deps(""),
+        rustc_flags = _COMMON_RUSTC_FLAGS + [
+            ROOT_FEATURE_CHECK,
+            "--cfg=php_shared_build",
+            "--check-cfg=cfg(php_shared_build)",
+            "--check-cfg=cfg(standalone_profiler)",
+        ],
+    )
+    rust_product_archive(
+        name = "rust_datadog_php_shared",
+        deps = ":_rust_datadog_php_shared_profile_input",
+        product = "tracer",
+    )
+    for arch in ("amd64", "arm64"):
+        for libc in ("glibc", "musl"):
+            configured_target(
+                name = "rust_datadog_php_shared_%s_%s" % (arch, libc),
+                actual = ":rust_datadog_php_shared",
+                matrix_platform = "linux-%s-%s" % (arch, libc),
+            )
 
     rust_static_library(
         name = "_rust_datadog_php_profiler_profile_input",

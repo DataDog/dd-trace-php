@@ -30,14 +30,6 @@
 #error STATIC_EXEC_LIBRARY_DIR must be defined
 #endif
 
-#ifndef TARGET_X86_64_GNU_LIBRARY_DIR
-#error TARGET_X86_64_GNU_LIBRARY_DIR must be defined
-#endif
-
-#ifndef TARGET_AARCH64_GNU_LIBRARY_DIR
-#error TARGET_AARCH64_GNU_LIBRARY_DIR must be defined
-#endif
-
 extern char **environ;
 
 static int copy(char *output, size_t size, const char *input) {
@@ -111,8 +103,6 @@ enum invocation_kind {
     INVOCATION_BINARY = 1,
     INVOCATION_PROC_MACRO = 2,
     INVOCATION_EXEC_OUTPUT = 4,
-    INVOCATION_TARGET_X86_64_GNU = 8,
-    INVOCATION_TARGET_AARCH64_GNU = 16,
     INVOCATION_DYNAMIC_EXEC_TOOL = 32,
 };
 
@@ -166,17 +156,6 @@ static int classify_token(const char *token, const char *next) {
         if (exec_config_path(token + sizeof("--out-dir=") - 1)) {
             kind |= INVOCATION_EXEC_OUTPUT;
         }
-    }
-    const char *target = NULL;
-    if (!strcmp(token, "--target") && next) {
-        target = next;
-    } else if (!strncmp(token, "--target=", sizeof("--target=") - 1)) {
-        target = token + sizeof("--target=") - 1;
-    }
-    if (target && !strcmp(target, "x86_64-unknown-linux-gnu")) {
-        kind |= INVOCATION_TARGET_X86_64_GNU;
-    } else if (target && !strcmp(target, "aarch64-unknown-linux-gnu")) {
-        kind |= INVOCATION_TARGET_AARCH64_GNU;
     }
     return kind;
 }
@@ -392,6 +371,17 @@ int main(int argc, char **argv) {
     exec_argv[offset++] = "--argv0";
     exec_argv[offset++] = raw_tool;
     exec_argv[offset++] = raw_tool;
+    // Execution libraries take precedence over target adapters passed by the
+    // Rust toolchain, preserving proc-macro and static host-tool linkage.
+    static char native_library_dir[PATH_MAX + 10];
+    if (needs_exec_runtime_link) {
+        if (!copy(native_library_dir, sizeof(native_library_dir), "-Lnative=") ||
+            !append(native_library_dir, sizeof(native_library_dir), STATIC_EXEC_LIBRARY_DIR)) {
+            report("static execution library path is too long", NULL);
+            return 127;
+        }
+        exec_argv[offset++] = native_library_dir;
+    }
     for (int index = 1; index < argc; ++index) {
         if (make_static && !strcmp(argv[index], "--codegen=link-arg=-Wl,--start-group")) {
             exec_argv[offset++] = "--codegen=link-arg=-Wl,-Bstatic";
@@ -402,32 +392,6 @@ int main(int argc, char **argv) {
         } else {
             exec_argv[offset++] = argv[index];
         }
-    }
-    static char native_library_dir[PATH_MAX + 10];
-    static char target_library_dir[PATH_MAX + 10];
-    if (needs_exec_runtime_link) {
-        if (!copy(native_library_dir, sizeof(native_library_dir), "-Lnative=") ||
-            !append(native_library_dir, sizeof(native_library_dir), STATIC_EXEC_LIBRARY_DIR)) {
-            report("static execution library path is too long", NULL);
-            return 127;
-        }
-        exec_argv[offset++] = native_library_dir;
-    }
-    const char *target_libraries = NULL;
-    if (!make_static && !make_proc_macro &&
-        (invocation & INVOCATION_TARGET_X86_64_GNU)) {
-        target_libraries = TARGET_X86_64_GNU_LIBRARY_DIR;
-    } else if (!make_static && !make_proc_macro &&
-               (invocation & INVOCATION_TARGET_AARCH64_GNU)) {
-        target_libraries = TARGET_AARCH64_GNU_LIBRARY_DIR;
-    }
-    if (target_libraries) {
-        if (!copy(target_library_dir, sizeof(target_library_dir), "-Lnative=") ||
-            !append(target_library_dir, sizeof(target_library_dir), target_libraries)) {
-            report("target runtime library path is too long", NULL);
-            return 127;
-        }
-        exec_argv[offset++] = target_library_dir;
     }
     if (make_static) {
         exec_argv[offset++] = "-Ctarget-feature=+crt-static";

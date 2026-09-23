@@ -6,7 +6,7 @@ load("//bazel/products/tracer/fat:native_smoke.bzl", "ddtrace_native_smoke")
 load("//bazel/products/tracer/fat:verify.bzl", "split_tracer_debug", "tracer_fat_elf_check")
 
 _PRODUCT_LABEL_PREFIX = "//bazel/products/tracer:"
-_RETAINED_PRODUCT = "ddtrace_fat_amd64_glibc_php85"
+_EXPECTED_NORMAL_PRODUCTS = 202
 
 def _product_name(row):
     labels = row.product_labels["tracer"]
@@ -29,7 +29,7 @@ def _link_target(row):
         return "//bazel/products/tracer/fat:ddtrace.so"
     return "//bazel/products/tracer/fat:ddtrace_php%s%s.so" % (minor, suffix)
 
-def _publish_product(row, outputs):
+def _publish_product(row, outputs, outputs_by_arch):
     product = _product_name(row)
     unstripped = "_%s_unstripped" % product
     binary = product + "_binary"
@@ -65,7 +65,9 @@ def _publish_product(row, outputs):
         expected_symbols = "//bazel/products/tracer/fat:ddtrace-fat.sym",
         libc = row.target_libc,
     )
-    outputs.extend([":" + product, ":" + check])
+    product_outputs = [":" + product, ":" + check]
+    outputs.extend(product_outputs)
+    outputs_by_arch[row.target_arch].extend(product_outputs)
 
     # The locked native execution closure currently supplies PHP 8.5 glibc.
     # Keep these checks separate from the host-neutral artifact aggregate.
@@ -92,25 +94,46 @@ def _publish_product(row, outputs):
         )
 
 def ddtrace_fat_matrix():
-    """Publishes the reviewed amd64 glibc PHP 8.5 normal tracer product."""
+    """Publishes every normal tracer product declared by ``PHP_MATRIX``."""
     outputs = []
+    outputs_by_arch = {
+        "amd64": [],
+        "arm64": [],
+    }
+    release_by_arch = {"amd64": [], "arm64": []}
+    remaining_by_arch = {"amd64": [], "arm64": []}
     emitted = 0
     names = {}
     for row in product_matrix_rows():
         if not row.product_labels["tracer"]:
             continue
         product = _product_name(row)
-        if product != _RETAINED_PRODUCT:
-            continue
         if product in names:
             fail("duplicate normalized tracer product label: %s" % product)
         names[product] = True
-        _publish_product(row, outputs)
+        _publish_product(row, outputs, outputs_by_arch)
+        bucket = release_by_arch if row.sdk_family == "release" or (row.sdk_family == "alpine" and not row.shared_build) else remaining_by_arch
+        bucket[row.target_arch].extend([":" + product, ":" + product + "_check"])
         emitted += 1
 
-    if emitted != 1:
-        fail("expected retained tracer product %s exactly once, got %d" % (_RETAINED_PRODUCT, emitted))
+    if emitted != _EXPECTED_NORMAL_PRODUCTS:
+        fail("expected %d normal tracer products from PHP_MATRIX, got %d" % (_EXPECTED_NORMAL_PRODUCTS, emitted))
     native.filegroup(
         name = "ddtrace_fat_all",
         srcs = outputs,
     )
+    for arch in sorted(outputs_by_arch.keys()):
+        native.filegroup(
+            name = "ddtrace_fat_%s_all" % arch,
+            srcs = outputs_by_arch[arch],
+        )
+        if len(release_by_arch[arch]) != 110:
+            fail("expected 55 release tracer products for %s, got %d" % (arch, len(release_by_arch[arch]) / 2))
+        native.filegroup(
+            name = "ddtrace_fat_%s_release" % arch,
+            srcs = release_by_arch[arch],
+        )
+        native.filegroup(
+            name = "ddtrace_fat_%s_remaining" % arch,
+            srcs = remaining_by_arch[arch],
+        )

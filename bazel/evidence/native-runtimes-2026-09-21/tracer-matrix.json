@@ -1,0 +1,4047 @@
+{
+  "products": 202,
+  "amd64": 101,
+  "arm64": 101,
+  "artifacts": [
+    {
+      "product": "ddtrace_fat_amd64_glibc_php70",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php70/ddtrace.so",
+          "sha256": "f59113f43d0b9734acef12af795f796e0666243cf753c13eb90aba2fcabb5ace",
+          "bytes": 18143776
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php70/ddtrace.so.debug",
+          "sha256": "6ab086a042d9b685c8569ee2f24f46e781b42d301cb0325011f9706aeae1bc7e",
+          "bytes": 95275568
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php70_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php70_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php70_profile_debug/ddtrace.so",
+          "sha256": "d1c8311752db39d1b15a024dd2fef88c893ad0ffb86fe8ba8ad7167422259da7",
+          "bytes": 17940160
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php70_profile_debug/ddtrace.so.debug",
+          "sha256": "712447990dcd686ee4d51549648c5a48dd942c6d49b97bca62927a2aa16a55d3",
+          "bytes": 95020712
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php70_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php70_profile_debug_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php70_profile_debug_zts/ddtrace.so",
+          "sha256": "6bbf87ae5a4f8b1aaa593c30e36ac7872bb5f0ea4caf4063fbbc841cd81f4746",
+          "bytes": 18008160
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php70_profile_debug_zts/ddtrace.so.debug",
+          "sha256": "1a69ac53d18fced686699c516831d578300d42f607f4f6fd7827d627eb58e457",
+          "bytes": 95315232
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php70_profile_debug_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php70_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php70_profile_zts/ddtrace.so",
+          "sha256": "d689621b25ac52880551a82ffb26ae70431a3999993832c1048409739d8ba078",
+          "bytes": 18208400
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php70_profile_zts/ddtrace.so.debug",
+          "sha256": "a376f082edb9b695b1f215436252046075e731e13989b2a1f139d5523fd763f7",
+          "bytes": 95573832
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php70_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php71",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php71/ddtrace.so",
+          "sha256": "695899085edb1d943fc11466b61ab7d66580c529cf94bb9658d3ff7f710de3af",
+          "bytes": 18138288
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php71/ddtrace.so.debug",
+          "sha256": "63c33c17bd2be6f75a378e6fb4ef9a47f020cd27635fed3040bff8160ade8d23",
+          "bytes": 95271008
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php71_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php71_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php71_profile_debug/ddtrace.so",
+          "sha256": "81511ff8cd28e610371b2cc02b64b29be47b1f1beb83cb29bf229ac65733d359",
+          "bytes": 17944816
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php71_profile_debug/ddtrace.so.debug",
+          "sha256": "aa23ae944112889244f7952d11b9887878a59482338fcd96fc6cd8576e08070a",
+          "bytes": 95019216
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php71_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php71_profile_debug_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php71_profile_debug_zts/ddtrace.so",
+          "sha256": "3351d65d2ece380b31fea87b5fdb68707567c856a63d2b5d49f2d0e1fcf78328",
+          "bytes": 18012336
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php71_profile_debug_zts/ddtrace.so.debug",
+          "sha256": "030ae490b27fca316c2b1199ba5f41b572f73c74c9d3591aac2f65d13673768e",
+          "bytes": 95326752
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php71_profile_debug_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php71_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php71_profile_zts/ddtrace.so",
+          "sha256": "bcc6dd87f51a3fc68965c1b54ae445043e2e87bd281d257efbc6bc9a862206e8",
+          "bytes": 18205968
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php71_profile_zts/ddtrace.so.debug",
+          "sha256": "92d48d346517f9ed0b03aa604c70423dc9ed23ec2377aeb9d2e737a718b80f6f",
+          "bytes": 95581760
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php71_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php72",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php72/ddtrace.so",
+          "sha256": "dac089a1dc569d1a6eb43da7b7655daf43cbbb557756918d2f31ba926ab4434a",
+          "bytes": 18123472
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php72/ddtrace.so.debug",
+          "sha256": "c350398ccb6c74ef4696c2c0869c4ac0cbfb21e30970cabbe545a92928db40c0",
+          "bytes": 95261480
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php72_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php72_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php72_profile_debug/ddtrace.so",
+          "sha256": "b5b5515551403903a92915890bd4fb04c9f967a8213346efba93aa60d98959ad",
+          "bytes": 17937248
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php72_profile_debug/ddtrace.so.debug",
+          "sha256": "4c00b73ba8c6369149078857e1bd704c706cad970c5f3c0685d6a7814a41a1ee",
+          "bytes": 95018592
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php72_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php72_profile_debug_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php72_profile_debug_zts/ddtrace.so",
+          "sha256": "c594be2e021990973801e7ea62cdfa98afc907722c4fcb6dcb11424e37157a79",
+          "bytes": 17998848
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php72_profile_debug_zts/ddtrace.so.debug",
+          "sha256": "2b4ccbe2dcb80631644ec69830e8292f3318755458178fe316ba2892a5366006",
+          "bytes": 95286232
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php72_profile_debug_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php72_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php72_profile_zts/ddtrace.so",
+          "sha256": "a90da9377fd1a9973237ec2942be37a34ea86ee67a15f7f9e6ea586f1057d62d",
+          "bytes": 18188784
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php72_profile_zts/ddtrace.so.debug",
+          "sha256": "caa41c542dc677498a4befadb0f10735602bd5bf7eb38919551edae6bf803eab",
+          "bytes": 95532888
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php72_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php73",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php73/ddtrace.so",
+          "sha256": "6882cabb18e1e3433fa5bfa8b4dfb28fc8c0d695d63cbfe7e508c26242ddd169",
+          "bytes": 18159552
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php73/ddtrace.so.debug",
+          "sha256": "4a3384a41858d2681c909ee210c735a3cc474c195aea073fc6b268cbbd465f4a",
+          "bytes": 95379968
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php73_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php73_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php73_profile_debug/ddtrace.so",
+          "sha256": "3411da01feb6bf1f3432b7055c8e40a59fcde3d9d2c9a2c12039b6f75e2cc740",
+          "bytes": 17942768
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php73_profile_debug/ddtrace.so.debug",
+          "sha256": "22396c0bd4ec27577b8707691ec50f2d6ab48f80c16a38df83e4408522d2d6b0",
+          "bytes": 95033864
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php73_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php73_profile_debug_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php73_profile_debug_zts/ddtrace.so",
+          "sha256": "e4937ce60b790accb11489a2ff350051ab8cb047eb4ee47b2d88184461052936",
+          "bytes": 18012512
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php73_profile_debug_zts/ddtrace.so.debug",
+          "sha256": "0ff8c794cf8f2b5e6df06e1411225a71bd5ffda486c57477178852e11ccd0463",
+          "bytes": 95304488
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php73_profile_debug_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php73_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php73_profile_zts/ddtrace.so",
+          "sha256": "d4ce6525b1e8ada22b0c9354091d63711acb3109e3bd4bea34854f5b13a10237",
+          "bytes": 18221392
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php73_profile_zts/ddtrace.so.debug",
+          "sha256": "a30ffe7c40c481f6696ba7096a73f8afd23bb7b96737e75ec62557a2b469498f",
+          "bytes": 95656264
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php73_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php74",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php74/ddtrace.so",
+          "sha256": "b2983c6a219c369ed4555872454fcb92bafc93714dd922aafc6379d33c1e3ba3",
+          "bytes": 18167744
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php74/ddtrace.so.debug",
+          "sha256": "a7d684d406032b01f7082eed033f755e460580ce5a0cb2cc7e08c0fe9888a3a5",
+          "bytes": 95411976
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php74_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php74_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php74_profile_debug/ddtrace.so",
+          "sha256": "1b9fc059bc099cc62a362b2df4341fe18837cc5f6eca85c306355656b9d9a071",
+          "bytes": 17944016
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php74_profile_debug/ddtrace.so.debug",
+          "sha256": "3ad2fb55fcafd24b496f0e8218ac313ef1576ff5b06700af87b59f1d8350bfaf",
+          "bytes": 95072608
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php74_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php74_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php74_profile_zts/ddtrace.so",
+          "sha256": "8f0d4c0b7905b5f4a486d04d49c36edbb155a599c3c5be1e317ed1a0a95f4c8f",
+          "bytes": 18225168
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php74_profile_zts/ddtrace.so.debug",
+          "sha256": "1f796342944b9cff3405c8adad93692fe84f218ae5d70e7cb24264000d030c10",
+          "bytes": 95690688
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php74_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php80",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php80/ddtrace.so",
+          "sha256": "7a2e1e1d8a67d77b3176ed84b685e391e493dff50aa114fbf6f81a65f0f963fa",
+          "bytes": 18197680
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php80/ddtrace.so.debug",
+          "sha256": "a9232b54050172601ecca575181e7c453957dfa9fce4e55a3f202d352b983637",
+          "bytes": 95494488
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php80_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php80_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php80_profile_debug/ddtrace.so",
+          "sha256": "f7e57d23f4fd942bb0a68f1200f068caee4416dd77ffa2d856db4ca3101ab194",
+          "bytes": 17979936
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php80_profile_debug/ddtrace.so.debug",
+          "sha256": "3f735361290650ed4f097b98dfb2710d5142fa78edc748736c83e58e085007e8",
+          "bytes": 95153408
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php80_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php80_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php80_profile_zts/ddtrace.so",
+          "sha256": "1cd6a902ba618213abcad22046490a370b01b4ca2c7a4c12b9247ded4da459e6",
+          "bytes": 18260272
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php80_profile_zts/ddtrace.so.debug",
+          "sha256": "2b35489e4218d3b161d9fa687f350154baf1fc5c2af8de386a9e749af9550a1a",
+          "bytes": 95792800
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php80_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php81",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php81/ddtrace.so",
+          "sha256": "3b1d646f17d97b94a915ffa6df0361666095dc0dfc602463a653b4553de1488c",
+          "bytes": 18205392
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php81/ddtrace.so.debug",
+          "sha256": "4cb54b7bdef18097720369951eafadb7f712a7df4ce669b33dad34f27f000738",
+          "bytes": 95553816
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php81_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php81_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php81_profile_debug/ddtrace.so",
+          "sha256": "55a2fc99a4c3a7a5a947802401f19b64bc15cf120016ee41bb443ff2430c1c2f",
+          "bytes": 17984512
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php81_profile_debug/ddtrace.so.debug",
+          "sha256": "e4d3e8e52d520ee8f6ae0339c6d3dc6d11dd342d8f35574ea512fa1b8f7c6e29",
+          "bytes": 95210600
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php81_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php81_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php81_profile_zts/ddtrace.so",
+          "sha256": "6b9de540c713b8a3dec632eddd5561c12b62f544577e0fb2313cac95525b2d3d",
+          "bytes": 18261152
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php81_profile_zts/ddtrace.so.debug",
+          "sha256": "292119ffcb969d08c219a45a3f4a4d77457bc1eb64c81a215b1bb0a0c848f550",
+          "bytes": 95871368
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php81_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php82",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php82/ddtrace.so",
+          "sha256": "97e40a45c599e19862b22bb957f49ba25ce3bca8decfdcc5c7b498b7f8b16b95",
+          "bytes": 18216944
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php82/ddtrace.so.debug",
+          "sha256": "9a409f78e1ed3bd920066e02aa0e84049e1aea0f6b6d1fa631deb8513d19e13f",
+          "bytes": 95560816
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php82_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php82_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php82_profile_debug/ddtrace.so",
+          "sha256": "33ffab7f7b6e4af4f732c1e875a280bada32a5a8d5abef0cd7fdada765b26ff9",
+          "bytes": 17980848
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php82_profile_debug/ddtrace.so.debug",
+          "sha256": "be689a5cd1ea131639dc148438b56b9e64bb811a7df8bc1facdda5794c5c6041",
+          "bytes": 95201760
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php82_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php82_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php82_profile_zts/ddtrace.so",
+          "sha256": "01970cc077dd96e3aaa4be5d28569d25d8567ac923b28b2ee2d609ad78d44754",
+          "bytes": 18270144
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php82_profile_zts/ddtrace.so.debug",
+          "sha256": "4a68a660108630a7fc1c3e7ab8e81bf7e46fac37ad395d3de1d42f58a9a367ff",
+          "bytes": 95906096
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php82_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php83",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php83/ddtrace.so",
+          "sha256": "c18cb88135ef150e9bcdf629a731b36918856b1f34711a601139ecea097d6c50",
+          "bytes": 18192576
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php83/ddtrace.so.debug",
+          "sha256": "94547c23e176c08125250087b5bee367ee8469d0fd7a165c71c2a968fbe6b765",
+          "bytes": 95551728
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php83_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php83_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php83_profile_debug/ddtrace.so",
+          "sha256": "30ef1e124bff9b9081f57141ce56c98163f7dce58d14dd5809f0cb4e629afad7",
+          "bytes": 17985648
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php83_profile_debug/ddtrace.so.debug",
+          "sha256": "efcba3481f68f1ecbdae625bf93ac059dc26efdd3613564ec14ed8a27b80b3ce",
+          "bytes": 95203488
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php83_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php83_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php83_profile_zts/ddtrace.so",
+          "sha256": "2d27ff6acb67a4443f4ea020e1d239d5889ab2fd0894b328db2358d913b85641",
+          "bytes": 18244512
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php83_profile_zts/ddtrace.so.debug",
+          "sha256": "d69e3d9e231b521299dd04fd366bb372fb22a4b3e614dd3ef4beeed72e16ac1c",
+          "bytes": 95899688
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php83_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php84",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php84/ddtrace.so",
+          "sha256": "f24e9b6eb62ce51d9a0ef6026d1c84a04628fce10da74ac2797263c6cf7b9f94",
+          "bytes": 18205968
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php84/ddtrace.so.debug",
+          "sha256": "7329cf62c2c259b52cb874a6f898db929e926385a3807f13c9045cd22a1c3c91",
+          "bytes": 95599352
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php84_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php84_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php84_profile_debug/ddtrace.so",
+          "sha256": "959193ce5b68d2fa753eb36417588a5a0b74d56e692aa46c9291bd1a08230dfe",
+          "bytes": 17998896
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php84_profile_debug/ddtrace.so.debug",
+          "sha256": "ab273c6cef5fef5a298ded8d5869101d5c704640b3944211c5fa74998d0f8602",
+          "bytes": 95240592
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php84_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php84_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php84_profile_zts/ddtrace.so",
+          "sha256": "cbc3f75a49cca421b454413cf79551696cec8a7dfd9e1bf29036960a63a4434d",
+          "bytes": 18257840
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php84_profile_zts/ddtrace.so.debug",
+          "sha256": "b7b99a43d812cd6d11746a592627465e169294718d622ed4b509081dab8c2782",
+          "bytes": 95963568
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php84_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php85",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php85/ddtrace.so",
+          "sha256": "10509ec79d5e832d39bc6562a22fa592142d41fe496e5d97a06e9d3f5b251962",
+          "bytes": 18205872
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php85/ddtrace.so.debug",
+          "sha256": "ce0218e35773e5091192ce81e44faf85d3974591ecc60fe3d1bb42cf8bbde192",
+          "bytes": 95625280
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php85_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php85_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php85_profile_debug/ddtrace.so",
+          "sha256": "0fbeab3ebb9e49089e63a17942932ad9458e29659c8d0435aedcd54e597d115d",
+          "bytes": 17998368
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php85_profile_debug/ddtrace.so.debug",
+          "sha256": "2722f779073e52dab908279aad542153a16d29e872553928ddf4422214734d5e",
+          "bytes": 95264768
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php85_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_php85_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php85_profile_zts/ddtrace.so",
+          "sha256": "576fbcc8abd24f2d245ba9adbef3ebe5f3a2bbf7371d5a67cab2528d4dacb158",
+          "bytes": 18257552
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php85_profile_zts/ddtrace.so.debug",
+          "sha256": "bb0c59e7e4899f4e06b9c5859494d61b29f1b1242bd0b8a74946b43944bd2745",
+          "bytes": 95989072
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php85_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php70",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php70/ddtrace.so",
+          "sha256": "fbe730d00c575362fc8c39c5aab413b01654c5f32da7c87687eae68d2058ad3f",
+          "bytes": 18143840
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php70/ddtrace.so.debug",
+          "sha256": "f8d9cc48f4fdc530673ced58cd340297ae1150c01fc998eea28e8e8b59a11974",
+          "bytes": 95275704
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php70_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php70_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php70_profile_debug/ddtrace.so",
+          "sha256": "0ec3671c08e2770b9da39f7a76e5b6918d0de7225aa2b947c59a48d3c04ebfbf",
+          "bytes": 17940240
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php70_profile_debug/ddtrace.so.debug",
+          "sha256": "0d796f459460ae1c85002c2384164e84acbf36944bd4296b7d5028ffe8697253",
+          "bytes": 95020872
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php70_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php70_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php70_profile_zts/ddtrace.so",
+          "sha256": "2edcfe5fdf535dcc2c9307a7a9a796d9273153ec31e22808027a182efb52daf2",
+          "bytes": 18208464
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php70_profile_zts/ddtrace.so.debug",
+          "sha256": "77179c224d93b85d03849ddd2de00b35e30d055b6824e7b3dcf46d9ff622def6",
+          "bytes": 95573960
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php70_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php71",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php71/ddtrace.so",
+          "sha256": "8dea34a6f4d2ff467cc3438e48b4a2fefe6ba88d3b612e1fededb4c8ba564393",
+          "bytes": 18138352
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php71/ddtrace.so.debug",
+          "sha256": "b809fd923a1a828569e9f62deff27a985b839c3bff60382f2e46a98c25616eb1",
+          "bytes": 95271144
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php71_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php71_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php71_profile_debug/ddtrace.so",
+          "sha256": "d4b5c552b4b0e248cfc9eeedaf9634764d8858d63cce97820ebe980382ab3fed",
+          "bytes": 17944880
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php71_profile_debug/ddtrace.so.debug",
+          "sha256": "03bafe24c9ce8963b42cc11947a49f11a56133fc7d0e380d54bfbc894ba72f08",
+          "bytes": 95019352
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php71_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php71_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php71_profile_zts/ddtrace.so",
+          "sha256": "e5f9ad53e49b2c44593328a06fe8a4400da1a07770411f2f0cea1374a0be086d",
+          "bytes": 18210704
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php71_profile_zts/ddtrace.so.debug",
+          "sha256": "bea7a67115e38584571e3e7c0743d8b751c34ad2bdc3c8c1554a60a89175cc69",
+          "bytes": 95584016
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php71_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php72",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php72/ddtrace.so",
+          "sha256": "88874bfa76e1206425b498a0bfe53d3a2ca38f924a052371f3e7ca6b598886fd",
+          "bytes": 18123408
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php72/ddtrace.so.debug",
+          "sha256": "ecb36c363563ff0f83296aea2d136c50f3f4e7c3b9b88d84ce34b9f4663f88aa",
+          "bytes": 95260008
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php72_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php72_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php72_profile_debug/ddtrace.so",
+          "sha256": "637d9325182245784cec8debc207b6d04c6452ebedd891295b2296d868a6db53",
+          "bytes": 17937200
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php72_profile_debug/ddtrace.so.debug",
+          "sha256": "93cfcc36840f9b184234e5c328ec1fa3390729303dee18d151e676cdb0332017",
+          "bytes": 95017136
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php72_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php72_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php72_profile_zts/ddtrace.so",
+          "sha256": "972f357f3eb05ff3a78a7185fcf9dd49716e4da763a5e37fc11390450d9c0bd0",
+          "bytes": 18189296
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php72_profile_zts/ddtrace.so.debug",
+          "sha256": "e530123033f09722d386bdef0251711014c13c6fba41580d70a4f59212724dbf",
+          "bytes": 95533536
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php72_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php73",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php73/ddtrace.so",
+          "sha256": "2e6f6b41d62c037c5e176241c937303513b04eec3f847ced561b2093b7ca1dc5",
+          "bytes": 18159504
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php73/ddtrace.so.debug",
+          "sha256": "cde0b9da43dcb5af550df4272915723cdc895ca7847e63aa279f83edad5378bc",
+          "bytes": 95378512
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php73_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php73_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php73_profile_debug/ddtrace.so",
+          "sha256": "3674fa2d67aa30dd5849376abb3a66d5d48f7a5eb94c9959cdad7647938aabde",
+          "bytes": 17946816
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php73_profile_debug/ddtrace.so.debug",
+          "sha256": "b5e599a8dacf300af4d3f28670a0aa6ca60405f2798033a903642617c8957aa1",
+          "bytes": 95032416
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php73_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php73_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php73_profile_zts/ddtrace.so",
+          "sha256": "0355f98ba9cce57d66ae4263c3f1a120885f2dfc871ef17f5a466a69105b41f1",
+          "bytes": 18221904
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php73_profile_zts/ddtrace.so.debug",
+          "sha256": "8834271702d37ba6b1eb9828acb2cc3dfea0e48200d71b52c319a141cd8c76ce",
+          "bytes": 95656904
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php73_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php74",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php74/ddtrace.so",
+          "sha256": "6120aeb252fecbf80b43ceae3c807af4a91eabf32090d571594c2b497d0bfc28",
+          "bytes": 18167696
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php74/ddtrace.so.debug",
+          "sha256": "5083531279aba0d26e09409980aea5813f461585333e4df29c98dad498ae94b5",
+          "bytes": 95410528
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php74_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php74_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php74_profile_debug/ddtrace.so",
+          "sha256": "741dba0898be3b4b4586d159fe93a0d564aa585bdc3402cc36f49246971a8464",
+          "bytes": 17943952
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php74_profile_debug/ddtrace.so.debug",
+          "sha256": "3bbe119444e4d78b443fb3468d5930776e638fce333f0b682295b8d0f659b78a",
+          "bytes": 95071144
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php74_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php74_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php74_profile_zts/ddtrace.so",
+          "sha256": "ad659ad688cf7faa5bc77914eb88de26f9dfa2489e54160623f7a7a6ca2a344f",
+          "bytes": 18225632
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php74_profile_zts/ddtrace.so.debug",
+          "sha256": "0f036268f9484ce8666234d878d96cd1a7b30ddf6e272f25fd8c6daea1b3891a",
+          "bytes": 95691288
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php74_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php80",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php80/ddtrace.so",
+          "sha256": "fe087f663443fe7604b558f1e81d6b826542731db5e77810faa8bce6e7097603",
+          "bytes": 18197552
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php80/ddtrace.so.debug",
+          "sha256": "e5074f041ea6665ab155413b03d22db9b45843675004ef413b9193d948af1422",
+          "bytes": 95492880
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php80_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php80_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php80_profile_debug/ddtrace.so",
+          "sha256": "92c0ee9e19aff758bbc15ed2fcfd36d47e61dcac3e90e11d9c562cb17417fb6b",
+          "bytes": 17979808
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php80_profile_debug/ddtrace.so.debug",
+          "sha256": "11120cc4530c0319ad7af2201c779f938044befc48cb678ba48ac6bc6891b11a",
+          "bytes": 95151800
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php80_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php80_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php80_profile_zts/ddtrace.so",
+          "sha256": "4364daae618ae0a20d90c43cb3c1b02dff4582062a2fc7b5eac2c6cfed304d0f",
+          "bytes": 18260640
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php80_profile_zts/ddtrace.so.debug",
+          "sha256": "036f1e51b356e41e255678fc9e72a0c17a6e063cef8caea67b811af70da6c025",
+          "bytes": 95793248
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php80_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php81",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php81/ddtrace.so",
+          "sha256": "35207505816fd665be17044865bcef7ccf904fba436c0360a1b329ccaaf1483b",
+          "bytes": 18205264
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php81/ddtrace.so.debug",
+          "sha256": "eb1002bdb1f630445a84df533e73e313f0c3af8a4253fe2706b69b37427ea6c6",
+          "bytes": 95552208
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php81_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php81_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php81_profile_debug/ddtrace.so",
+          "sha256": "f27252c2b15bce1b05a99b3b8535621ddc18606ea63320f1923a6dcb64e2f4e0",
+          "bytes": 17984384
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php81_profile_debug/ddtrace.so.debug",
+          "sha256": "12dfdee76878461703a7590999f01441cd48e66c7a125bb8773a7546faebe56c",
+          "bytes": 95208992
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php81_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php81_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php81_profile_zts/ddtrace.so",
+          "sha256": "fe582e8bc10c23c4474586729e91c4957ba490905492b11f69a87889281a19dd",
+          "bytes": 18261504
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php81_profile_zts/ddtrace.so.debug",
+          "sha256": "366c005018c5b7831003921db1e862ccc0bde5d97f6123db2feff4ade2dec3ce",
+          "bytes": 95871808
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php81_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php82",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php82/ddtrace.so",
+          "sha256": "8eef731b310c5ca267f34c7bc7cd1e175c16502816409308f087a205eb9b6aaa",
+          "bytes": 18216816
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php82/ddtrace.so.debug",
+          "sha256": "5c747b4e3fb4a96c4ad6dc2af33283df5e058f622cd7461ee56eb030458641e2",
+          "bytes": 95559208
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php82_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php82_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php82_profile_debug/ddtrace.so",
+          "sha256": "67edfe2b79c34570a62d0ca62c899134966235e745603e4203d7682d70045b7a",
+          "bytes": 17980720
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php82_profile_debug/ddtrace.so.debug",
+          "sha256": "7b6b5ffc05b19403eaa11249b2b6a1c1f7eae3e1f928811c9411dc8ec7c21d15",
+          "bytes": 95200152
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php82_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php82_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php82_profile_zts/ddtrace.so",
+          "sha256": "11921af1e7b3b3e80e3170e3c9387303e450b9f020d199b991886d3dd7aa58b7",
+          "bytes": 18270496
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php82_profile_zts/ddtrace.so.debug",
+          "sha256": "6b82430cd7d6b3e9ba49669a525b458a0b636c02a6d04166960323280413fbb7",
+          "bytes": 95876568
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php82_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php83",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php83/ddtrace.so",
+          "sha256": "a4e5726c26c097e539a2f96c874fad0b305d0935b76576757eccfc6793d7ea3a",
+          "bytes": 18192576
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php83/ddtrace.so.debug",
+          "sha256": "7f8eaf2dfdf73e3a7a216e969bb1f118e8c19462520d98ae77fd255b4aba136f",
+          "bytes": 95551720
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php83_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php83_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php83_profile_debug/ddtrace.so",
+          "sha256": "24fb1117ad61b2ca1316944a4a9aa78cddddede461f1969d89d8f7d6cdd362b2",
+          "bytes": 17985648
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php83_profile_debug/ddtrace.so.debug",
+          "sha256": "de0df4fc5b901e79dbd62f842195da9cca55937225b78129ffd94c3812dc14c1",
+          "bytes": 95203472
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php83_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php83_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php83_profile_zts/ddtrace.so",
+          "sha256": "67618a325594d27f45e46737e9a3e097833fd31b4dc282007f78e1d97f40dc94",
+          "bytes": 18244992
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php83_profile_zts/ddtrace.so.debug",
+          "sha256": "0fbdecd82e38d16dd5b5ae4e3993db2427c7eee8fb91600fb60a996f5d85485e",
+          "bytes": 95901728
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php83_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php84",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php84/ddtrace.so",
+          "sha256": "f006241641bccd5c07554fb494457ebb77eadacf4a67c65a7f5e89c87b0925e3",
+          "bytes": 18205968
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php84/ddtrace.so.debug",
+          "sha256": "987919dd867ef622b85f3ac6e228682c7d779ef0b3b372b12750e21b33d63184",
+          "bytes": 95599344
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php84_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php84_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php84_profile_debug/ddtrace.so",
+          "sha256": "7dba1a5b62ef03ff67635db49d3e4dca19df7dad466e129eb206df49689e1a2a",
+          "bytes": 17998896
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php84_profile_debug/ddtrace.so.debug",
+          "sha256": "1a83a0f4388cab079d2f3c980f7fd96fb5b05825c7f6bdd7fefbdfa3f1c93489",
+          "bytes": 95240576
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php84_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php84_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php84_profile_zts/ddtrace.so",
+          "sha256": "7124d99f5ae6b35f1d2d33581240839fdbb6cef58b66a9e10d6590acbc5b6184",
+          "bytes": 18258304
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php84_profile_zts/ddtrace.so.debug",
+          "sha256": "c1b2be45299f6f3c9798b4a9e1c15e66352193f9d04d6fcd957fec86e7a46e57",
+          "bytes": 95965592
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php84_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php85",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php85/ddtrace.so",
+          "sha256": "e8d351c8f453ca737d2377d5aaee3b9226086914ac36c425ef220871290432f3",
+          "bytes": 18205856
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php85/ddtrace.so.debug",
+          "sha256": "b6850467cf9f972283ac050498cf282375ea9d56b3b091cb285b3dc698d6651b",
+          "bytes": 95622136
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php85_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php85_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php85_profile_debug/ddtrace.so",
+          "sha256": "b689bdb5a8d21b5c09b42365eccc5150c4570f8fbcbfeafd98fc7691e8493f28",
+          "bytes": 17998352
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php85_profile_debug/ddtrace.so.debug",
+          "sha256": "8190f9be992d8eaebbb90b011b5435209fe2716cd9d97bf7d2824bd8c98608e1",
+          "bytes": 95261616
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php85_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_release_php85_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php85_profile_zts/ddtrace.so",
+          "sha256": "79dda78a2fd9cac62c09c2b95d2cd838071f80e6d18920f8e2bcdc1696e37888",
+          "bytes": 18257952
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php85_profile_zts/ddtrace.so.debug",
+          "sha256": "4a890843c4e7cf690f2b6915d19c4a8af35c007fb052ca0eac388820a510af7a",
+          "bytes": 95987896
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_release_php85_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_shared_php74",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_shared_php74/ddtrace.so",
+          "sha256": "429b56419162250ad9c446b018bbef7a3179b8e78ed3f86db542db41da207d1f",
+          "bytes": 18167744
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_shared_php74/ddtrace.so.debug",
+          "sha256": "e7af37b71b9cefb9e1b65b83d867cac056602bec8ea77557efd7a6073d8c81b0",
+          "bytes": 95412016
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_shared_php74_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_shared_php74_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_shared_php74_profile_debug/ddtrace.so",
+          "sha256": "359894c31e2cfa34577433aad47c38f006241d68f9f76b93e9498029d2ff8cfe",
+          "bytes": 17944016
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_shared_php74_profile_debug/ddtrace.so.debug",
+          "sha256": "55cb11847b88135d4a6efc1ecec9c2867e872f8f9d4d2399f09f0fd2d298a0a5",
+          "bytes": 95072648
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_shared_php74_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_shared_php74_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_shared_php74_profile_zts/ddtrace.so",
+          "sha256": "27837e805fd1b459a98ca014fa510d19cfe414ac218942e918b37c511da02239",
+          "bytes": 18225168
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_shared_php74_profile_zts/ddtrace.so.debug",
+          "sha256": "67d50bd627b78d72496c8bd7e9a882e53f859db10acd2ab1255d75439b8b9a3d",
+          "bytes": 95690744
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_shared_php74_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_shared_php80",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_shared_php80/ddtrace.so",
+          "sha256": "c790436f6004be126b60cbcda295e0c466e620682ccaf340b73d1b5c6b00f0e6",
+          "bytes": 18197680
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_shared_php80/ddtrace.so.debug",
+          "sha256": "dc87cac526a1452051072ab8118316e3b4821a25e2a9aee91e0a9af0e9812d93",
+          "bytes": 95494536
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_shared_php80_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_shared_php80_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_shared_php80_profile_debug/ddtrace.so",
+          "sha256": "5c32c80c66afe54623987a2e93cb00fdcef11f884d84c6c73668bdbdf4a69d5b",
+          "bytes": 17979936
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_shared_php80_profile_debug/ddtrace.so.debug",
+          "sha256": "6dc174990f70ae3cce409944acbc218d8a5b5e0de518af946e792b4071231fbe",
+          "bytes": 95153448
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_shared_php80_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_glibc_shared_php80_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_shared_php80_profile_zts/ddtrace.so",
+          "sha256": "83c067a36700bf298d0a8d4a69278e5b2f8793ea287c829bd8e2a6d21ce33d8c",
+          "bytes": 18260272
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_shared_php80_profile_zts/ddtrace.so.debug",
+          "sha256": "1c5441e5bca50f5de72a131d5058490dbd2228e64f03ed1a6352d315a8cb269e",
+          "bytes": 95792856
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_shared_php80_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_musl_legacy_php80",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_legacy_php80/ddtrace.so",
+          "sha256": "234805010291be36319580b0de3d016234cdbcaf3ecea8b89e10ec5b7c22cfaf",
+          "bytes": 18191936
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_legacy_php80/ddtrace.so.debug",
+          "sha256": "f4cb1ebf056e0af93dadd812913c24303ac4512430cee864658abdcbc0932f6b",
+          "bytes": 95387728
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_legacy_php80_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_musl_legacy_php80_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_legacy_php80_profile_debug/ddtrace.so",
+          "sha256": "2eec87daf67b21622df9c23af526f4f876ce5744cef8b96d7c132f518bccd718",
+          "bytes": 17969296
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_legacy_php80_profile_debug/ddtrace.so.debug",
+          "sha256": "7ba1030a2c12dc11af032829a8c79ebdcda871a57a7f134da411182c4d92bbb6",
+          "bytes": 95041432
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_legacy_php80_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_musl_legacy_php80_profile_debug_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_legacy_php80_profile_debug_zts/ddtrace.so",
+          "sha256": "9ea754c4f29b5e7f8ce7f5b273407d3d311328c995d9800bbf3a76d6473ca52a",
+          "bytes": 18031888
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_legacy_php80_profile_debug_zts/ddtrace.so.debug",
+          "sha256": "0ee7c0067bdbcb06856cef860df57849cb8d33eb76b128b7666cec3381e9582d",
+          "bytes": 95322728
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_legacy_php80_profile_debug_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_musl_php70",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php70/ddtrace.so",
+          "sha256": "e6a9eb840efaff011bd260b861d534b61c1b828b6b97859c95ede16e6dc79a0a",
+          "bytes": 18142352
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php70/ddtrace.so.debug",
+          "sha256": "867ff527e1fbd9cb07a612a068f0ae2cdc4746dc552ff2769ea2d479293ad187",
+          "bytes": 95174176
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php70_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_musl_php70_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php70_profile_zts/ddtrace.so",
+          "sha256": "aa4b58fab049ee70230f61c6489a8db92f1c870ce4cbe63acaad23d964ebb7a7",
+          "bytes": 18206960
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php70_profile_zts/ddtrace.so.debug",
+          "sha256": "a5cd2afd7fb6df4069aca86ed33e87d71de2cdd7fab5ba423e0762cc745c8c8d",
+          "bytes": 95459088
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php70_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_musl_php71",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php71/ddtrace.so",
+          "sha256": "8dc8170573815d97c0142125ca20a1c5c927d0025a303324252ede6788e6d891",
+          "bytes": 18136784
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php71/ddtrace.so.debug",
+          "sha256": "9b4bf3132de2b335e5ad08dfc85d6427ca360a2fc998e543a61b13b9b8a3c356",
+          "bytes": 95169560
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php71_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_musl_php71_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php71_profile_zts/ddtrace.so",
+          "sha256": "30bfa65910a0bdd25eceecf32ed0be8049dee4b5d28687793f54b93a6c680f1c",
+          "bytes": 18204976
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php71_profile_zts/ddtrace.so.debug",
+          "sha256": "0b289234ef4a0e86600cbf1e00b8e0fd05947274ebdc8f6be2f5b390a17febe0",
+          "bytes": 95464984
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php71_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_musl_php72",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php72/ddtrace.so",
+          "sha256": "398e89d2b044d5c6776f9114fec734a6b0404d4d2c4803e9855fc160a85c302c",
+          "bytes": 18121904
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php72/ddtrace.so.debug",
+          "sha256": "ca3ffd99d7dbad04c3b66eb70e7e7780fce3870c8fc04bbdcfc0414446ed6059",
+          "bytes": 95154184
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php72_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_musl_php72_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php72_profile_zts/ddtrace.so",
+          "sha256": "c1ea05d974eff17e0e03bde19def5a24f705b76d38fd41e2c21b7ded85ea8aca",
+          "bytes": 18183696
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php72_profile_zts/ddtrace.so.debug",
+          "sha256": "6d9cf5bbf462c89cf2ab4c66b45f7b7e5c2ee4dbbae34f01d239c7ea2c42a64c",
+          "bytes": 95414304
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php72_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_musl_php73",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php73/ddtrace.so",
+          "sha256": "7ecb3f0d15d7e3153a853004dae76952b01c24ae51df205061200b432e8abbb4",
+          "bytes": 18153888
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php73/ddtrace.so.debug",
+          "sha256": "f434c875a88e780098729a5324bf45744b8e69ccc16d6f6058c51d570c2620df",
+          "bytes": 95277032
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php73_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_musl_php73_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php73_profile_zts/ddtrace.so",
+          "sha256": "cced0f751667a66db6910c81686b9551070a60bde180ec8ae5be7004744229ee",
+          "bytes": 18216192
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php73_profile_zts/ddtrace.so.debug",
+          "sha256": "029d39ab89296ab78d9c00d2eadb7e0f9c1d27372e3ddbe6cf31082624c92225",
+          "bytes": 95537776
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php73_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_musl_php74",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php74/ddtrace.so",
+          "sha256": "e1ed6f878fc9733a111b1e5d48d8ab4858f968c71d352525262b3e912355d9ad",
+          "bytes": 18161968
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php74/ddtrace.so.debug",
+          "sha256": "364a18858074ef5cf5ffbf529a16b6b1bc00c6a47a0b2be3fdfa7556d09c9d9e",
+          "bytes": 95308408
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php74_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_musl_php74_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php74_profile_zts/ddtrace.so",
+          "sha256": "af219b596d6ac8205f5c2db56581a90ff4c20b44b690158a514c036bcbe5c0a7",
+          "bytes": 18219968
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php74_profile_zts/ddtrace.so.debug",
+          "sha256": "21444c4fb9060f117e75a78174d086de2e7e147d77fcf88623fb963ad71b1501",
+          "bytes": 95572184
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php74_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_musl_php80",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php80/ddtrace.so",
+          "sha256": "cd2430d3a42c759e77152743ca1b5044ef1286de93dd52a899eab827eb843df2",
+          "bytes": 18191936
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php80/ddtrace.so.debug",
+          "sha256": "c96f622be1406f5a735b6f4dfac8650470f97a930681cafa1aebb0a38cb73a9f",
+          "bytes": 95387680
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php80_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_musl_php80_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php80_profile_zts/ddtrace.so",
+          "sha256": "04d49583044977b4eb7eb648c0779e5bb6c82bbae00322d7099bbe78c6ba5a79",
+          "bytes": 18250832
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php80_profile_zts/ddtrace.so.debug",
+          "sha256": "7ab6b6c15149885b78aa1b6ce81c4ea1927d34b35a93649c2755012ed2d9c5de",
+          "bytes": 95674752
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php80_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_musl_php81",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php81/ddtrace.so",
+          "sha256": "339a674ab8f4b93b88e14da4bc5b5995f3903a3ba9e569e2e85495b001e44715",
+          "bytes": 18195456
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php81/ddtrace.so.debug",
+          "sha256": "3d36902e39137c7bbcff497425fb9369f9e7b8fb816a256c9282b3a819b27f04",
+          "bytes": 95442360
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php81_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_musl_php81_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php81_profile_zts/ddtrace.so",
+          "sha256": "9827c57d262b330ef440c9d979e0cbd851abce93238d32eb902a4d6e0cf89717",
+          "bytes": 18254960
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php81_profile_zts/ddtrace.so.debug",
+          "sha256": "c8d1cca01af9625f7aafcce2061d03361b697a0a911af3e41de1320e80b78110",
+          "bytes": 95751944
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php81_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_musl_php82",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php82/ddtrace.so",
+          "sha256": "242615d000d5e115dd401530adfc635e5b6a7ab6e9b8e367bc60a504f598aabf",
+          "bytes": 18207040
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php82/ddtrace.so.debug",
+          "sha256": "6584d520f36910c552d225c2211a06bf7d9094cec4bb911bebda7e101289ae41",
+          "bytes": 95451336
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php82_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_musl_php82_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php82_profile_zts/ddtrace.so",
+          "sha256": "cf62c7954690bf0c5e7300c1f24893966020b38f9af054d99cebcdda7c369f78",
+          "bytes": 18263696
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php82_profile_zts/ddtrace.so.debug",
+          "sha256": "3f42dc24175dcba417f34a99bb6298a92deb447025845f34699fc6089bff9f61",
+          "bytes": 95754384
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php82_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_musl_php83",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php83/ddtrace.so",
+          "sha256": "e41d1667d2501405038e817486dca26fd147eceffaf7e107da62ed615c26a137",
+          "bytes": 18182608
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php83/ddtrace.so.debug",
+          "sha256": "d4f1b02a3f36a80dc47657732dd3d0f7809b13256c56fdc25ad27c869a0d1555",
+          "bytes": 95443360
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php83_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_musl_php83_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php83_profile_zts/ddtrace.so",
+          "sha256": "d56a076d4667ac9c3f43ad81044879114641b32281c40f375cba237efcfc0db9",
+          "bytes": 18238048
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php83_profile_zts/ddtrace.so.debug",
+          "sha256": "662a665213315489ef91cbf799f2290786a16ff7c88003839b9f9dec9c92b3bf",
+          "bytes": 95779264
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php83_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_musl_php84",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php84/ddtrace.so",
+          "sha256": "78861dac943687b0a4c3355d2021fc188c0e33dc55b35df58e257f132ad09a71",
+          "bytes": 18195968
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php84/ddtrace.so.debug",
+          "sha256": "4e71c64a5b200f5642dabeaced98489d00d6df997b5007f9cbae5609036f53e0",
+          "bytes": 95492816
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php84_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_musl_php84_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php84_profile_zts/ddtrace.so",
+          "sha256": "24d01c824e6c013dde89e4e72bdfe2de2125eb55582235cc08fe31fe2dff7b70",
+          "bytes": 18251376
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php84_profile_zts/ddtrace.so.debug",
+          "sha256": "3c5ed8f93fc54bdebe27ba5ef804d38017445a264121827d771328b1351b658c",
+          "bytes": 95840888
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php84_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_musl_php85",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php85/ddtrace.so",
+          "sha256": "621b4c2852fae76ca5ea2f33e6a9fe64f646b87eedd718385f0abb9e38fca2fa",
+          "bytes": 18199968
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php85/ddtrace.so.debug",
+          "sha256": "64a264a34bbc2edfbba00eadac57edab66afbb6a0ec2f2b05ef8ff2d3fd5e28c",
+          "bytes": 95515656
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php85_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_amd64_musl_php85_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php85_profile_zts/ddtrace.so",
+          "sha256": "99a0e3f96eb84938f50f2b59acbec12e43523ab55463b5f7cc3c4403ea5fbe27",
+          "bytes": 18255136
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php85_profile_zts/ddtrace.so.debug",
+          "sha256": "df98e290b0102775a73579fdd19cf50978ada1028bc829ff3ec0eb58545f9133",
+          "bytes": 95867368
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_amd64_musl_php85_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php70",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php70/ddtrace.so",
+          "sha256": "5096328b13351f67a5f72ca630b2f6bee4c2d12b1e9f7022ba23e2bdb0662439",
+          "bytes": 16109840
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php70/ddtrace.so.debug",
+          "sha256": "80c13510ce182ba6f925ca770c67b9201d4e1e1c16e8c69b24c658524fa11984",
+          "bytes": 99325504
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php70_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php70_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php70_profile_debug/ddtrace.so",
+          "sha256": "f323c46033106776cb8853230dbae059cd29ac1e8408696d3fc28e827a5628fc",
+          "bytes": 15968840
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php70_profile_debug/ddtrace.so.debug",
+          "sha256": "7d2b173539f38f82dc7bbad339b01b876fc8ed94f4828d4ca0e8ae67f93689a4",
+          "bytes": 99121944
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php70_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php70_profile_debug_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php70_profile_debug_zts/ddtrace.so",
+          "sha256": "4a2a6f3ae56fe3f3898dc0be81d4953f83a89949ac96b2bc445908a947d4cc2c",
+          "bytes": 16027088
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php70_profile_debug_zts/ddtrace.so.debug",
+          "sha256": "fb9b1a2fcf08b081f890c88f6b05d259fd97305d9d8e5e91baf29d1e6099d6b5",
+          "bytes": 99410248
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php70_profile_debug_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php70_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php70_profile_zts/ddtrace.so",
+          "sha256": "c7ad664f20bc6566d170c8d8ba82755262231fb97b8a49754a0bcfc50eb9258c",
+          "bytes": 16169832
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php70_profile_zts/ddtrace.so.debug",
+          "sha256": "6a43284950688e7d6d0456b3b94b0824cf0c9ef2efae9ba51844dad4d6608b3a",
+          "bytes": 99620032
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php70_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php71",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php71/ddtrace.so",
+          "sha256": "4aa11bbf1e3f29e99424c05eca51770a11be48fedf2ad1328bf1f868567db491",
+          "bytes": 16104568
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php71/ddtrace.so.debug",
+          "sha256": "9f4f4e8883290a6f9df3f8283877a191afb1466d24906e425ceba1a6405bdaa5",
+          "bytes": 99316920
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php71_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php71_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php71_profile_debug/ddtrace.so",
+          "sha256": "57ddc3b04729f2063e8e3eaffedf38c95e4d2e79801b3d43936c1a5d2eedac8e",
+          "bytes": 15969336
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php71_profile_debug/ddtrace.so.debug",
+          "sha256": "468dfd1331d1ff311e11b2539b744b3f628c65237c80ea597a32abdaa392bb6a",
+          "bytes": 99124496
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php71_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php71_profile_debug_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php71_profile_debug_zts/ddtrace.so",
+          "sha256": "17f91c682eeb6f2e3a2396765a394c797dd82fc2c194ed8962be79a5114a2103",
+          "bytes": 16031424
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php71_profile_debug_zts/ddtrace.so.debug",
+          "sha256": "c3bce5556cf7086626cdab5c98cb589f4a4d2eebb457525cdb094fc447e1f2b5",
+          "bytes": 99426232
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php71_profile_debug_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php71_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php71_profile_zts/ddtrace.so",
+          "sha256": "6ed5e14a0913f895cb2a0cde06858126c59939c55c92f166ef97edf2f0145215",
+          "bytes": 16167328
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php71_profile_zts/ddtrace.so.debug",
+          "sha256": "8272155619b8112b8e60eb642ca8ca05f8d255c95a0e927482154fa47ff2ad91",
+          "bytes": 99623880
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php71_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php72",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php72/ddtrace.so",
+          "sha256": "022ef52906ba9d139a65cb64cbbd0372cebbc28c7cb0202b4905e590643cb476",
+          "bytes": 16091320
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php72/ddtrace.so.debug",
+          "sha256": "ffc8338c7983ada0424454bae8a59c564e1b6d2c264158257189313c136d59d9",
+          "bytes": 99357520
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php72_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php72_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php72_profile_debug/ddtrace.so",
+          "sha256": "00a0de44d8d8a9f3f3ce7593216f90419438cfa15cc30d9ba951fa2532faa034",
+          "bytes": 15961520
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php72_profile_debug/ddtrace.so.debug",
+          "sha256": "9969678627f3d810590c7a658c016bed3a09bdc0755d2a84ff449cc0a9546f3e",
+          "bytes": 99115320
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php72_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php72_profile_debug_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php72_profile_debug_zts/ddtrace.so",
+          "sha256": "8397c4b32860603457c052cfe18905e8f7cf83ddc5e3abc07b97d1b087dbdb30",
+          "bytes": 16017336
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php72_profile_debug_zts/ddtrace.so.debug",
+          "sha256": "49ecd07f8c86fe4459c803404dc0dfff476e4061e2ddd7bafc711fc041186714",
+          "bytes": 99372304
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php72_profile_debug_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php72_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php72_profile_zts/ddtrace.so",
+          "sha256": "5b11b2c1541243c80e0eae1896495ec4bb8aacdb9047a7825972d7d1ba0c2a37",
+          "bytes": 16148528
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php72_profile_zts/ddtrace.so.debug",
+          "sha256": "9199e931dbb6e75598d70f7ddcf84fb137752ce9539b2d4f10d75e2d0950a5e6",
+          "bytes": 99621560
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php72_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php73",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php73/ddtrace.so",
+          "sha256": "d0f659fd2ddf616c013cf376ad685365727ecae7296cb3f5f8ef5d61edc533e4",
+          "bytes": 16113088
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php73/ddtrace.so.debug",
+          "sha256": "13bc9b58d798d5c4c110a3579b14a6b91226410ec980e5cebbac2bae2d89f533",
+          "bytes": 99423760
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php73_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php73_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php73_profile_debug/ddtrace.so",
+          "sha256": "9fed0b0b9188c460105da88dc665ad9fd38b9c43cd40771654b70b5aa3667039",
+          "bytes": 15972480
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php73_profile_debug/ddtrace.so.debug",
+          "sha256": "2da74845a29ebbbcb46b9e971398993669900c23a4444e215aac4f5bc7ceaa82",
+          "bytes": 99136728
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php73_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php73_profile_debug_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php73_profile_debug_zts/ddtrace.so",
+          "sha256": "1e00f6ab7d030dde31431e8698010fe5771436dd79b37e111472b59647fa7b58",
+          "bytes": 16032264
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php73_profile_debug_zts/ddtrace.so.debug",
+          "sha256": "4e6af83e989f030b692ac10f0df9a0e249802a79713c198a42950f3951e8cb28",
+          "bytes": 99400792
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php73_profile_debug_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php73_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php73_profile_zts/ddtrace.so",
+          "sha256": "ed05ed0a7b45a6df1027e575f801278d9fb179a517cb01930d904f8a7b691620",
+          "bytes": 16166136
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php73_profile_zts/ddtrace.so.debug",
+          "sha256": "ed2cbfc68c24ad4ebd0aa4e165ecf7be23d70976750667cdfce8dec506e1a36e",
+          "bytes": 99658872
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php73_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php74",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php74/ddtrace.so",
+          "sha256": "761ae305142f92b8810fb8c182583feb73fb4e5cca59448e85f0c9aa756303b6",
+          "bytes": 16124624
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php74/ddtrace.so.debug",
+          "sha256": "cc8a4353e995abed543fb9b5dc9e0231d1c5f20c5777446d0d660def2a3ce20b",
+          "bytes": 99467256
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php74_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php74_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php74_profile_debug/ddtrace.so",
+          "sha256": "ba7f20713d1c41c16b0d226bfe2dce163efff41fc11b008d22066666ccc02bab",
+          "bytes": 15975832
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php74_profile_debug/ddtrace.so.debug",
+          "sha256": "66904087fbba4bfb5b3be4dd6ad8f32f9184bead39a2083f1599e10ffeca0463",
+          "bytes": 99181432
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php74_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php74_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php74_profile_zts/ddtrace.so",
+          "sha256": "aae472fa303e53b6bd353497ee92bf1cf13e181cb94c65b19404fc9a94a3b9c6",
+          "bytes": 16173240
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php74_profile_zts/ddtrace.so.debug",
+          "sha256": "952000a6e01cd6f0b1a9a06a17dc0d920ae67c79b5df263250e9eea92a8fb42e",
+          "bytes": 99701944
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php74_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php80",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php80/ddtrace.so",
+          "sha256": "b89fb2a1c5251164f36a21b670bfb8560f328311905837ea21c4f80ca311e02d",
+          "bytes": 16152192
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php80/ddtrace.so.debug",
+          "sha256": "74e09f57828a68bb0bc35716169354d73b498d65a0a2ef21fd0adaee5cdeca83",
+          "bytes": 99584096
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php80_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php80_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php80_profile_debug/ddtrace.so",
+          "sha256": "00f3de7d77e253e8071215c766d0ec77e252776fdfc34667f36569f28c3765ea",
+          "bytes": 16007152
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php80_profile_debug/ddtrace.so.debug",
+          "sha256": "7b40867cec421215ffeb01a4d7e53128380766d7e5b631d7428ad7158a7cc4e7",
+          "bytes": 99297920
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php80_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php80_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php80_profile_zts/ddtrace.so",
+          "sha256": "77353dbb07978adddc1ce48f7ff3d15774ffd805bc3865e51e0ec4c9437a52ef",
+          "bytes": 16205016
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php80_profile_zts/ddtrace.so.debug",
+          "sha256": "c908a62455fde8e89603e4140770840e20cfad8567b65a8bc1dc1c8d65e3f280",
+          "bytes": 99842032
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php80_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php81",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php81/ddtrace.so",
+          "sha256": "25309b1f01744381d03881b427a9fb42e357910ac3e20b44d1f2c34091bcea4f",
+          "bytes": 16160568
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php81/ddtrace.so.debug",
+          "sha256": "a817fef219236877e0b3033f30a223d2748d0e4b5f8c6cf9093c2860e5f43b4e",
+          "bytes": 99648736
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php81_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php81_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php81_profile_debug/ddtrace.so",
+          "sha256": "c7e4309980b72f0127ebf72ccca023ceb4c3fb74e9d76d7585e7a1f120010626",
+          "bytes": 16017000
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php81_profile_debug/ddtrace.so.debug",
+          "sha256": "1f68902094a3cf5fa5dc0804b8498c5e3d0806a0e98eaf862bf06e6696dbd9e7",
+          "bytes": 99365096
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php81_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php81_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php81_profile_zts/ddtrace.so",
+          "sha256": "28579bb880519b938bbd1e50dd8cc6242d96abde3ff8332b5367f3ff7e68be81",
+          "bytes": 16199688
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php81_profile_zts/ddtrace.so.debug",
+          "sha256": "875dc6f6039b8231bd4cda62bbb0f82db8ce01d2f0f58bd697c392f947790da1",
+          "bytes": 99914616
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php81_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php82",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php82/ddtrace.so",
+          "sha256": "af4a6a60868f12038470fe84734c8a25c0ef155d32e70f3a9b36351661b3eebe",
+          "bytes": 16159856
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php82/ddtrace.so.debug",
+          "sha256": "2c9aa77e04e60ff35d1bacf80835f12a9848bfd5d8f79163259afffb0faa54e3",
+          "bytes": 99653928
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php82_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php82_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php82_profile_debug/ddtrace.so",
+          "sha256": "529cdf7f8a5d9fc33c656487690cd616e31458e7c5ae35b85f28c760b627e7d4",
+          "bytes": 16008504
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php82_profile_debug/ddtrace.so.debug",
+          "sha256": "dec65c2e0e3263d7e8b8b76c72fdd0c78c6e9dc91d8611265026995c6ad66c26",
+          "bytes": 99345992
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php82_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php82_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php82_profile_zts/ddtrace.so",
+          "sha256": "8ea99e3e904946871bba4e4d97a64dd708611c598ad85fd36fed875806065941",
+          "bytes": 16196496
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php82_profile_zts/ddtrace.so.debug",
+          "sha256": "d08e3a2c43c0361fa7257f3fb3d03dbda2a26fed468935daa6450a1c92fb0d4f",
+          "bytes": 99942768
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php82_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php83",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php83/ddtrace.so",
+          "sha256": "3460aa1fee6c10c89addbf39898ada96e88b6dc931da123bf04b3b61a8b871bb",
+          "bytes": 16131048
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php83/ddtrace.so.debug",
+          "sha256": "e63208b318d4b8890ff674d9a75e8430487046bc43e9b63a8d05a612a8d84812",
+          "bytes": 99614368
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php83_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php83_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php83_profile_debug/ddtrace.so",
+          "sha256": "a0d931ed3e5a4449d57090abad2517a55779dac99db5092b4a6bb29302451ed0",
+          "bytes": 16008832
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php83_profile_debug/ddtrace.so.debug",
+          "sha256": "249e6ce1ce58682648fa62b28a1b686e0eba833fa413ff136b3ac8ae5d2b5d22",
+          "bytes": 99347288
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php83_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php83_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php83_profile_zts/ddtrace.so",
+          "sha256": "298e1c4172004145fcc2910f0b9b7a32a505462a00f7e4bc101d7b4b0836a1bd",
+          "bytes": 16169872
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php83_profile_zts/ddtrace.so.debug",
+          "sha256": "e5de6b9cd01f7148f621901edc4ef2e70204cb385974588c83ccd4276b2a1cf8",
+          "bytes": 99909008
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php83_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php84",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php84/ddtrace.so",
+          "sha256": "5b34663440b2e0b1d666acd52d9e126880b4619bfc8498afad37b0c7db775926",
+          "bytes": 16141880
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php84/ddtrace.so.debug",
+          "sha256": "76ac5ea20dcfc976ff757a4be13f14dd8e775472ea214dea0f95cdd64b8d4f8d",
+          "bytes": 99671776
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php84_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php84_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php84_profile_debug/ddtrace.so",
+          "sha256": "0893b2069ba5702920c9e819a0aea179d38c9245e6f8941f60835199c72b8381",
+          "bytes": 16022472
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php84_profile_debug/ddtrace.so.debug",
+          "sha256": "0603d19300a9f032b730f5e4a470290f2fe1c4e16eb590be63afec0c4e184ace",
+          "bytes": 99401256
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php84_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php84_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php84_profile_zts/ddtrace.so",
+          "sha256": "0f7f5744e01688776c9229fe586cb0a575440b415c00578ae0c418c3930f145a",
+          "bytes": 16180720
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php84_profile_zts/ddtrace.so.debug",
+          "sha256": "e62602a327b3ee6bb97a4c1a617d689b6edc2d5647ad966a39819c421a2e1189",
+          "bytes": 99978176
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php84_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php85",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php85/ddtrace.so",
+          "sha256": "381e0a11ab0a0ed1005ac100efdafd3e7b78e54127f3a2004b077ca46c11a0a8",
+          "bytes": 16142168
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php85/ddtrace.so.debug",
+          "sha256": "3a36a73f9c8c8ce97a185c381c6273ee2bac64dd31a0ae75e12c950a4d170a60",
+          "bytes": 99698200
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php85_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php85_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php85_profile_debug/ddtrace.so",
+          "sha256": "f555f37c4eeb763bcd4f46d6a0b998c1aab200f80b2cb06e4ee1c72549612590",
+          "bytes": 16021944
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php85_profile_debug/ddtrace.so.debug",
+          "sha256": "a7c77d08d2cb20b835851a74474c4db0ba7d48d845c9c6d66254cfff7d1a2dd3",
+          "bytes": 99425440
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php85_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_php85_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php85_profile_zts/ddtrace.so",
+          "sha256": "259b64f532681087715dd168fdd6e57965a73528276f9326574c7cdaae472cbb",
+          "bytes": 16180768
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php85_profile_zts/ddtrace.so.debug",
+          "sha256": "9b86870f6d5607c0be4f06324618985a529490af2fbea97770273035afe9e2eb",
+          "bytes": 100004136
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_php85_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php70",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php70/ddtrace.so",
+          "sha256": "3e37bfe2e3bcf7d413c0b442299abe1e90376145df6234e8c77dbf7c1641b2a0",
+          "bytes": 16109840
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php70/ddtrace.so.debug",
+          "sha256": "e1cb5a3713176340eafbf874e627f328d7f8a85afb59cb240e72af24b0794ad6",
+          "bytes": 99325496
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php70_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php70_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php70_profile_debug/ddtrace.so",
+          "sha256": "d19e201370ac1236a92a940b55d41f38874123baef1a6e33ad89a4b469321d23",
+          "bytes": 15968840
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php70_profile_debug/ddtrace.so.debug",
+          "sha256": "52dd9f8af9865c10defad900a369870a87513a443eceda0f87f26fd555d56a6d",
+          "bytes": 99121936
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php70_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php70_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php70_profile_zts/ddtrace.so",
+          "sha256": "753b02d56a3b098dde53eb74cf510cb6b65d1d20af4b0fe23d63ea4dd9abe8d5",
+          "bytes": 16169832
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php70_profile_zts/ddtrace.so.debug",
+          "sha256": "5f26cbf3338174d470f621fd4e896628e50a32438bd8bd1e5569f603d7404fed",
+          "bytes": 99620024
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php70_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php71",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php71/ddtrace.so",
+          "sha256": "f87e22b30656bbd0a4bc075cb0e1303c1f433b3e768d6f7dc3ad35db438e53d4",
+          "bytes": 16104568
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php71/ddtrace.so.debug",
+          "sha256": "a4ce4c50da5a9ce2601e521358581b2bd3cd8dc61172bb17793e8fa1b6b7a3a2",
+          "bytes": 99316912
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php71_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php71_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php71_profile_debug/ddtrace.so",
+          "sha256": "a2a4ae527d5f7c571a11f2691cf970148da26bd1821c26dc47ed641df487c4fa",
+          "bytes": 15969336
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php71_profile_debug/ddtrace.so.debug",
+          "sha256": "b646bb632b8e0bd27553fd60fbe54ed4aa08803328457e8ed0ee74630b187719",
+          "bytes": 99124488
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php71_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php71_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php71_profile_zts/ddtrace.so",
+          "sha256": "897e99512e86fe056e9628a47bff3b74471ab46ca7b306344d31ab153333851a",
+          "bytes": 16167816
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php71_profile_zts/ddtrace.so.debug",
+          "sha256": "4b6fc2859d12630b390beec3f5536b7df88d9ba4e1f8c7a303afd3ab5d6ec7e0",
+          "bytes": 99625872
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php71_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php72",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php72/ddtrace.so",
+          "sha256": "3f693e2ea6eb76c4a9dd1e754c0d2247888c9ee030dd5ebe17968b534d39d656",
+          "bytes": 16091224
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php72/ddtrace.so.debug",
+          "sha256": "4740629a8dadf3aef1005b390439409746498527e543d9a890a7408dee0859f3",
+          "bytes": 99355936
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php72_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php72_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php72_profile_debug/ddtrace.so",
+          "sha256": "da25e230ba282fc47fdc441d2e4ddac46a9da246d9521884b47bbef7ac62a12b",
+          "bytes": 15961424
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php72_profile_debug/ddtrace.so.debug",
+          "sha256": "5fdeb57c544efa009b12c031556fce158ddd248dd963c4f56abcb61d9b1da295",
+          "bytes": 99113728
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php72_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php72_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php72_profile_zts/ddtrace.so",
+          "sha256": "cc3eb23d076d0d1ae97c0afcd4b50ab78a068731adac5743cd281d75c03eb411",
+          "bytes": 16148920
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php72_profile_zts/ddtrace.so.debug",
+          "sha256": "28fd1916130c71ec8d6597fa3d40d6f571b78fcacb08f88ad9f8547d4d18b178",
+          "bytes": 99621960
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php72_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php73",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php73/ddtrace.so",
+          "sha256": "90a1df80378d9e7c2a6b9ffbe0cae2054aba07340185cf1bff8dadf55a8edff0",
+          "bytes": 16112976
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php73/ddtrace.so.debug",
+          "sha256": "a3d6f5f5b85a534f41ed8a784a8fde83d58d6592b8a63262050ec8ca418a2c34",
+          "bytes": 99422160
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php73_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php73_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php73_profile_debug/ddtrace.so",
+          "sha256": "2b42576a559ee97cca456afd9848f74b7f9a448cdd2f2884d85e7e747c1058d2",
+          "bytes": 15972384
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php73_profile_debug/ddtrace.so.debug",
+          "sha256": "f96a28f32e95bb93ca9fba3a6885e4731a8fa58793c2d51cca984dc3de0b41ff",
+          "bytes": 99135136
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php73_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php73_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php73_profile_zts/ddtrace.so",
+          "sha256": "7464ace9b0da6b35d9451c850136ceee3679e82ebeba03c18bb57bf99d2d05ba",
+          "bytes": 16166512
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php73_profile_zts/ddtrace.so.debug",
+          "sha256": "9904f0afc4675a26786025bdab8bafc27c70c05ad9799d3a5b85320e86b9bd6d",
+          "bytes": 99659272
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php73_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php74",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php74/ddtrace.so",
+          "sha256": "c379cd8331035da03af13a88595e0fcd12594628a1055a57284be401f98691a5",
+          "bytes": 16124616
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php74/ddtrace.so.debug",
+          "sha256": "385614470901ce409937e5620b736f4122ba8fbf2a5f663b2b281b5d8d3f6f74",
+          "bytes": 99465856
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php74_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php74_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php74_profile_debug/ddtrace.so",
+          "sha256": "56ca895f5358ce03ac4691581d60e4db6b21bbba5864e3ce22e0e5858abc8f72",
+          "bytes": 15975736
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php74_profile_debug/ddtrace.so.debug",
+          "sha256": "5e7d6667e66abcb6ff64754608105c98a92f4c1287b6defc8a08a9ecb66b78b2",
+          "bytes": 99179856
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php74_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php74_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php74_profile_zts/ddtrace.so",
+          "sha256": "d0c0d8c3e5a01f90bad5339f20165f924f1c2a80a8932a0e22ea7198c8fe3683",
+          "bytes": 16173672
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php74_profile_zts/ddtrace.so.debug",
+          "sha256": "bcd8e220237c97e17ec9433a288814903cb1b0876879534e35e8091c3a5bde51",
+          "bytes": 99702504
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php74_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php80",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php80/ddtrace.so",
+          "sha256": "39bca0f46349565b6b7074dff95acbee1b71afe9ce23fe5fa2ab5dc6241c44be",
+          "bytes": 16152096
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php80/ddtrace.so.debug",
+          "sha256": "8c99e4831b753cd778a5fe405f56d5b1ee2c137bd45dfa57a714b2e0e0d76523",
+          "bytes": 99582520
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php80_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php80_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php80_profile_debug/ddtrace.so",
+          "sha256": "c5d31b48108d15135733fa474230850e53b6f1caf2923259cb944383857dac65",
+          "bytes": 16007056
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php80_profile_debug/ddtrace.so.debug",
+          "sha256": "fa2896e23ecb18a00f041acfd9f87e02af43cafe7cc18a6a58a84d99fddf0767",
+          "bytes": 99296344
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php80_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php80_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php80_profile_zts/ddtrace.so",
+          "sha256": "dcb48476122e819b80efb752ea8c0d036275ee6f7581a7cfdce5e0596c613151",
+          "bytes": 16205328
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php80_profile_zts/ddtrace.so.debug",
+          "sha256": "14b44faffab3b0ddfb83ae491262ac314494f1af594cf8cfa22a37d14805adf5",
+          "bytes": 99842400
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php80_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php81",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php81/ddtrace.so",
+          "sha256": "0b7f35d0ef3e081feeadf05efad0e28982ab7d7e622aedb977f36daee56eae7c",
+          "bytes": 16160472
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php81/ddtrace.so.debug",
+          "sha256": "a7d656d130450346f42938a42c35ccd891b5f0771359184a1b5ee9145988666f",
+          "bytes": 99647160
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php81_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php81_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php81_profile_debug/ddtrace.so",
+          "sha256": "88bba0cccb90ef47e73cf60c6a81b5427c0c200961ea28615be45642e03670ce",
+          "bytes": 16016904
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php81_profile_debug/ddtrace.so.debug",
+          "sha256": "3fe108b00f4c4000ff67b2838db829f21bb2a4c71b003022128353c615ab7eb2",
+          "bytes": 99363512
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php81_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php81_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php81_profile_zts/ddtrace.so",
+          "sha256": "4a59e362d121548972f9b95a053165489f57c41451aac68139657db8d40ebb65",
+          "bytes": 16199984
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php81_profile_zts/ddtrace.so.debug",
+          "sha256": "1cf2bd54afcf5797b682ffdda9054b128272e30c7cbdb2cfa497560c48ccd075",
+          "bytes": 99914960
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php81_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php82",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php82/ddtrace.so",
+          "sha256": "ed4f4706894f4c0afdca897923af734db3af1eef10b8264a058b53415bc647c0",
+          "bytes": 16159760
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php82/ddtrace.so.debug",
+          "sha256": "386f7c1757a62e02ac752f0236f1ee3800f430ae016d5a7a8f43bb7838f3010d",
+          "bytes": 99652352
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php82_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php82_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php82_profile_debug/ddtrace.so",
+          "sha256": "9cf1b3a2ba3168190e410d7635cc8fd38cdcf95fe2179b9fda1d738d2dfbded3",
+          "bytes": 16008408
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php82_profile_debug/ddtrace.so.debug",
+          "sha256": "4b0768147fb97d1ed229035b490a04da7027cce7ae85329927b45640c1c54e71",
+          "bytes": 99344416
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php82_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php82_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php82_profile_zts/ddtrace.so",
+          "sha256": "047495b2066b3126abd2918b9be5d5637f609a09fa8f4b6aae31ff8014f29949",
+          "bytes": 16196792
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php82_profile_zts/ddtrace.so.debug",
+          "sha256": "c8581929597a62192717d3abd8d7de8b4f5d97ddac38e5ad1a89325bc476a152",
+          "bytes": 99913576
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php82_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php83",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php83/ddtrace.so",
+          "sha256": "648a30f3ca71b9a4c8cd420a31242371a46ed4108e3d4d0bfaec2882c6b4dcce",
+          "bytes": 16131048
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php83/ddtrace.so.debug",
+          "sha256": "a74f59d9aaf2396d9a6dfcd7e2d69260c821f6a8982f4f455120dd5c9fc4c019",
+          "bytes": 99614360
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php83_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php83_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php83_profile_debug/ddtrace.so",
+          "sha256": "58c7a6845de73caa7d1328262871a99560a0d189a45985ff5ec936b8e14fcbcc",
+          "bytes": 16008832
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php83_profile_debug/ddtrace.so.debug",
+          "sha256": "7a24a1987ce6b55cf69234afe45742dcbc6d61792d2da3a64d33beabd391cf3f",
+          "bytes": 99347272
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php83_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php83_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php83_profile_zts/ddtrace.so",
+          "sha256": "64b7541853b894d5d772d0f869955d2e35d5b823988fa8f913c4ffdea1ab46fe",
+          "bytes": 16170264
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php83_profile_zts/ddtrace.so.debug",
+          "sha256": "3e41b82329986ff01fe018e540eac8a119637f8849726e7420d7733ab93cfad4",
+          "bytes": 99910936
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php83_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php84",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php84/ddtrace.so",
+          "sha256": "a3c092400e030d40bbf0670833c207e27ed5e7cfaacfcce7230aa35d880943f0",
+          "bytes": 16141880
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php84/ddtrace.so.debug",
+          "sha256": "6b0ed245121c2975086569a65ae0db31e7d5895c3312ee14c7a42993498b6bd8",
+          "bytes": 99671776
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php84_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php84_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php84_profile_debug/ddtrace.so",
+          "sha256": "49234173eead678c2bb42d5bb3f95dac1a7bf6a17b477ba8bcd44d3e2d35e090",
+          "bytes": 16022472
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php84_profile_debug/ddtrace.so.debug",
+          "sha256": "9a806575dcd4bfd52db7e585a58c559e74179c5561fbc9dc7798346834058ae4",
+          "bytes": 99401232
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php84_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php84_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php84_profile_zts/ddtrace.so",
+          "sha256": "2022bcc9ee10180b408a80bc50dcfd4e7483f169192d4bf6b04294705405834c",
+          "bytes": 16181112
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php84_profile_zts/ddtrace.so.debug",
+          "sha256": "32161435d7ec1a1010c76845d8406c08afdf31bd144f4a17fe269f21b6f4d9d1",
+          "bytes": 99980096
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php84_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php85",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php85/ddtrace.so",
+          "sha256": "b948f591d622682695b305a1b587f636af42917adb23722a0e66d58a71fc3fdd",
+          "bytes": 16142024
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php85/ddtrace.so.debug",
+          "sha256": "3b8f6487f20e6c0ca52982a88c7fc70526425d0008e41fcd1b1a72586654a11a",
+          "bytes": 99694928
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php85_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php85_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php85_profile_debug/ddtrace.so",
+          "sha256": "c2f9a13a9967c550b9c9da9d382301e090444a2ea2f5b624e080dd66ef8b4e6e",
+          "bytes": 16021816
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php85_profile_debug/ddtrace.so.debug",
+          "sha256": "97dd66bc867cb08e4e4fdfe4e053563a22ed5e96f9b1fa297f48475589f1dc20",
+          "bytes": 99422176
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php85_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_release_php85_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php85_profile_zts/ddtrace.so",
+          "sha256": "bd2d34622b5ca0c6cd093e2fe87accb9582d7c7038201519fafc3d7ff685144d",
+          "bytes": 16181032
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php85_profile_zts/ddtrace.so.debug",
+          "sha256": "3482c4b9b376ead456cfe150b1e9dfd33a7e056e5b125b57691df2c9d9048a0b",
+          "bytes": 100002784
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_release_php85_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_shared_php74",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_shared_php74/ddtrace.so",
+          "sha256": "c53cae9b3b853d10b509cf06869fcb3541c3d520611e6b4bfde3d239632c89b5",
+          "bytes": 16124624
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_shared_php74/ddtrace.so.debug",
+          "sha256": "6ea7a8d94a016296d497f1a8d8ab8e1b767bb2bb13fba9df255937776c4db690",
+          "bytes": 99467296
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_shared_php74_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_shared_php74_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_shared_php74_profile_debug/ddtrace.so",
+          "sha256": "8a38ad379bfe6bb0bf2346869832c7c1f5693bd538a2612ff93960c7fb87fc47",
+          "bytes": 15975832
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_shared_php74_profile_debug/ddtrace.so.debug",
+          "sha256": "57bc366970ec8527b2c51c6d64456ff21029370938e5beb267df1c6f096902d6",
+          "bytes": 99181472
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_shared_php74_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_shared_php74_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_shared_php74_profile_zts/ddtrace.so",
+          "sha256": "4a52dc6efbd6831431de63422665c849dcd5051c00a085c37e3629557e2b6bfa",
+          "bytes": 16173240
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_shared_php74_profile_zts/ddtrace.so.debug",
+          "sha256": "0a943ad6711499027e272081989e6e066c4e749d9d07610f2fd5abc434e939a5",
+          "bytes": 99702000
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_shared_php74_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_shared_php80",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_shared_php80/ddtrace.so",
+          "sha256": "47f13658ca37ef6c01a34065d7486177da7459ad4df0dc696376ee4de8a7ac7f",
+          "bytes": 16152192
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_shared_php80/ddtrace.so.debug",
+          "sha256": "78b81cdabb6dc77751e451f9426c21ab41c71e1527d7b909b92e6b04ea35567d",
+          "bytes": 99584144
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_shared_php80_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_shared_php80_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_shared_php80_profile_debug/ddtrace.so",
+          "sha256": "f00ed8c0e63860e33209d77b48904b43c51300aa33b66aa3e8119d2082b28bcc",
+          "bytes": 16007152
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_shared_php80_profile_debug/ddtrace.so.debug",
+          "sha256": "7821aa90c5ae846ff0351e3c581339095816652c34d6fc2ff60f2a507e34fc60",
+          "bytes": 99297968
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_shared_php80_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_glibc_shared_php80_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_shared_php80_profile_zts/ddtrace.so",
+          "sha256": "7822a8fd5f7bb28acdc25b8dc828e67311616edc98b61b32f411e0164a2f6db6",
+          "bytes": 16205016
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_shared_php80_profile_zts/ddtrace.so.debug",
+          "sha256": "b608258137b5780d4ca96d3773863a06c5183919ad53253933c8b21e8bd13eea",
+          "bytes": 99842088
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_glibc_shared_php80_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_musl_legacy_php80",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_legacy_php80/ddtrace.so",
+          "sha256": "a1e1c90a1a70f1ef0c32d183a7f2c7fd81fe4d80cb18a93b4b9b71bac43126bd",
+          "bytes": 16191544
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_legacy_php80/ddtrace.so.debug",
+          "sha256": "bf7c0950debf206f1edb94b92d783f94aa4a76aa6ee045f02c91c09c3d0857a2",
+          "bytes": 99295128
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_legacy_php80_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_musl_legacy_php80_profile_debug",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_legacy_php80_profile_debug/ddtrace.so",
+          "sha256": "a3128133229a01c63353d7d576a9235ba15d7fd719a41e9a52220b4df442aa18",
+          "bytes": 16040784
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_legacy_php80_profile_debug/ddtrace.so.debug",
+          "sha256": "c974357609a27b4c69260286c666a4c4bf82d2afda736ca8ffd7334eeb9926b5",
+          "bytes": 99003088
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_legacy_php80_profile_debug_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_musl_legacy_php80_profile_debug_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_legacy_php80_profile_debug_zts/ddtrace.so",
+          "sha256": "97605819e876be7204e7f158abf5812e215cec3b3b8a0bd79b53a32e9efcab71",
+          "bytes": 16098464
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_legacy_php80_profile_debug_zts/ddtrace.so.debug",
+          "sha256": "4fad163fe7ac8376bf90d86cb13743a17dd49f1d840ac56bafac4ba153cd6d94",
+          "bytes": 99276384
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_legacy_php80_profile_debug_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_musl_php70",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php70/ddtrace.so",
+          "sha256": "ff302c7e8fea27bfbc0d9a7b99bbff9c92bc611441a7d0cd735800e49c4bfc65",
+          "bytes": 16149144
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php70/ddtrace.so.debug",
+          "sha256": "931d8593b53c456835afd34b6d6dcacbbd5ba4d5a108dec81774865dac06397a",
+          "bytes": 99172696
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php70_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_musl_php70_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php70_profile_zts/ddtrace.so",
+          "sha256": "a971919a4a35d7ddc6d2855ea4f8dd6d7152caf6bcb1f6236f2fdc9cc61141df",
+          "bytes": 16205072
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php70_profile_zts/ddtrace.so.debug",
+          "sha256": "c4158ddb4fcd4835ba51f6c9fdacac0172e39ebcb2c8e32fc7cf13417c1b9df3",
+          "bytes": 99451256
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php70_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_musl_php71",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php71/ddtrace.so",
+          "sha256": "819fb431608d36129432da84da5e629d506c0a2d387d9fc83cef4473482545b7",
+          "bytes": 16144000
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php71/ddtrace.so.debug",
+          "sha256": "5f94d8ed168215d445bddda2b754300e16ccb7ac1efe8417f938e761b06cf81a",
+          "bytes": 99164248
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php71_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_musl_php71_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php71_profile_zts/ddtrace.so",
+          "sha256": "0f5e88b57750f5b35d37a108692267f8bde765ba8a79352282b7054ffe48e64b",
+          "bytes": 16203072
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php71_profile_zts/ddtrace.so.debug",
+          "sha256": "4dd9db969c84529b04499e555074b965c99dbcd7dd5e3c6bbadc4e1133d839d6",
+          "bytes": 99457176
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php71_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_musl_php72",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php72/ddtrace.so",
+          "sha256": "3acf67f719801474785653b24b61489faa8b92d156c660e009b85cb66a18768b",
+          "bytes": 16130592
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php72/ddtrace.so.debug",
+          "sha256": "64f9806ad1d774b3590a564db039d9231bde2bf9da682391b19191d5469e2489",
+          "bytes": 99137440
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php72_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_musl_php72_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php72_profile_zts/ddtrace.so",
+          "sha256": "0157e1cbe30708ceb6b6ebc489d61a565fd4c4c452f1d92faed902e4f8fd6dca",
+          "bytes": 16184160
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php72_profile_zts/ddtrace.so.debug",
+          "sha256": "abef2b6d9d8a53bcd655880b4c2da5ba946905b8e654db061d1cd8323fb62f9f",
+          "bytes": 99387392
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php72_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_musl_php73",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php73/ddtrace.so",
+          "sha256": "9e299b81bdfb58c2682191dc9c9b05c550c8a810a73a317267e2acc7d4ebc6c9",
+          "bytes": 16148328
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php73/ddtrace.so.debug",
+          "sha256": "767819488aceb5a2574870adefd3db28165c157c064b6be0e9fabe5924e5da6d",
+          "bytes": 99265456
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php73_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_musl_php73_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php73_profile_zts/ddtrace.so",
+          "sha256": "b9178ceb8608f55f48e8a5fe7e6f1884b21dd6deed542af494445cf91feff338",
+          "bytes": 16201832
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php73_profile_zts/ddtrace.so.debug",
+          "sha256": "2815541beb410084bcb24478af41c3cb414cfc6a0f2ba934c63beeef7c348fed",
+          "bytes": 99490528
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php73_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_musl_php74",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php74/ddtrace.so",
+          "sha256": "d8532e149c5504400de3a52533ca8ec7fb3af9ff7eeabf5aedaa4a1300f09819",
+          "bytes": 16159904
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php74/ddtrace.so.debug",
+          "sha256": "5d22f7a6ee507f4661b8ee844ce0d99561ae5cab9c2ef4beb90350608dec85ec",
+          "bytes": 99243024
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php74_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_musl_php74_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php74_profile_zts/ddtrace.so",
+          "sha256": "7939459b76cba0dc36b99abad6215f12f0662a04fa8fa85149dfe957f6b12112",
+          "bytes": 16208976
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php74_profile_zts/ddtrace.so.debug",
+          "sha256": "8b687807f0bb7ad33a7eedf7c48adb0d72f6036227031adc8cb36c86a09fe6dc",
+          "bytes": 99532592
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php74_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_musl_php80",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php80/ddtrace.so",
+          "sha256": "023089ee5449e8f9bf03aaa0a0c646d576902ed9c3e518043e1527bbc772da32",
+          "bytes": 16191544
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php80/ddtrace.so.debug",
+          "sha256": "3ae7f61defe55a792a8f80d9b59142616a0f70210e1d34e3f94ec95252172dc4",
+          "bytes": 99295080
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php80_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_musl_php80_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php80_profile_zts/ddtrace.so",
+          "sha256": "e4a3f4fabdd5ec3d006bfcef55504af0d81620396c49651941721242a4780dd4",
+          "bytes": 16240584
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php80_profile_zts/ddtrace.so.debug",
+          "sha256": "dabba12b53e015d0209550f76bc2242e4066e28a7074ec3fed092a7ace93ae1e",
+          "bytes": 99537848
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php80_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_musl_php81",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php81/ddtrace.so",
+          "sha256": "0bfecd25bbd6d6fd88d2a37cb03e3c3b90a78530b39d713d867e256686adc6cc",
+          "bytes": 16195752
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php81/ddtrace.so.debug",
+          "sha256": "c43227a5c0c4b75854833fc5b99a49f53149052de8a3c38ab6d5266798cabfdf",
+          "bytes": 99355072
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php81_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_musl_php81_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php81_profile_zts/ddtrace.so",
+          "sha256": "32f1a7217eb67e81ce740cf958d4304f47d596489067ab554a7c93d2b9b9f663",
+          "bytes": 16244952
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php81_profile_zts/ddtrace.so.debug",
+          "sha256": "1bc113c5cfaead1f53f214f3d45a036bbbd28a6bdafc0df032028f555a489625",
+          "bytes": 99619624
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php81_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_musl_php82",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php82/ddtrace.so",
+          "sha256": "96423c2dfef5b06e1e1c2325a04a9741345f4205d5917a4f84c56015a55e2bac",
+          "bytes": 16194912
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php82/ddtrace.so.debug",
+          "sha256": "b2c6108fe23616ef1a87d0ca6fd499afb7b5d27b5ba86adacf148963583caa11",
+          "bytes": 99427640
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php82_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_musl_php82_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php82_profile_zts/ddtrace.so",
+          "sha256": "f59e6e43b7c2e0352d1e856e6d3018d4b0e24ec2206d22229ff8b658e399d1c4",
+          "bytes": 16241280
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php82_profile_zts/ddtrace.so.debug",
+          "sha256": "acf62fed1a38c182588b38858a6384fc1f7fc9fdae1a28a59780f62c1bbab73d",
+          "bytes": 99685368
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php82_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_musl_php83",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php83/ddtrace.so",
+          "sha256": "c00ea252da84367db7bdb7b71b5c0eb81dcef389207dbd2f0dae7e133fd77843",
+          "bytes": 16166152
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php83/ddtrace.so.debug",
+          "sha256": "7dcea46add0a479d00ecd66355605b52c798d3e673a586f09222e501eef21a78",
+          "bytes": 99389344
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php83_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_musl_php83_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php83_profile_zts/ddtrace.so",
+          "sha256": "39f56c341de81dc43dd2e0c78231b4e4e19c275d45c61e4efee936cba9109519",
+          "bytes": 16214416
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php83_profile_zts/ddtrace.so.debug",
+          "sha256": "d4817e201b4d7efd5231c951776907482d21d4f0793d00ca751962087d970ceb",
+          "bytes": 99748208
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php83_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_musl_php84",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php84/ddtrace.so",
+          "sha256": "9c2842d977b0fe168a075935a7e07c08e15e517692f7e64b781d869f86337884",
+          "bytes": 16177024
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php84/ddtrace.so.debug",
+          "sha256": "43f94b96199209bb91c6d010dad0c13b721698671581bd38cb236f85fd775401",
+          "bytes": 99448680
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php84_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_musl_php84_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php84_profile_zts/ddtrace.so",
+          "sha256": "dd50f2c1978881e06bc3fd8be8b8f0397555439da590e18084224127a00e6bfe",
+          "bytes": 16225304
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php84_profile_zts/ddtrace.so.debug",
+          "sha256": "876138dcb62fe845a0cd5ae2270864dcbc2080249b5e30ae38f267569676d836",
+          "bytes": 99819264
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php84_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_musl_php85",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php85/ddtrace.so",
+          "sha256": "d3adea952f8ad6dffee635eadbc1f3c4dda7e7fd5df4fd3dd4a25969653890b0",
+          "bytes": 16181184
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php85/ddtrace.so.debug",
+          "sha256": "964d46e5430d7226aa8e83d0a7f7a844a0f4420330f4eaf11778bf5cf24c4321",
+          "bytes": 99410336
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php85_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    },
+    {
+      "product": "ddtrace_fat_arm64_musl_php85_profile_zts",
+      "artifacts": [
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php85_profile_zts/ddtrace.so",
+          "sha256": "344bdc0abbb8aa2a1f9fbe742c0a6bec29c2e4ed7cf02bb09c0f01f299fd16ab",
+          "bytes": 16233336
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php85_profile_zts/ddtrace.so.debug",
+          "sha256": "fb0f0367f766e98c45fbb67d327100f637da03ba2a64e48a941d9f1b8093e827",
+          "bytes": 99784608
+        },
+        {
+          "path": "bazel-out/k8-fastbuild/bin/bazel/products/tracer/ddtrace_fat_arm64_musl_php85_profile_zts_check.passed",
+          "sha256": "a1747925057580ecf913af7e6aa0570a58343b2a3150741e5e49053808656fcd",
+          "bytes": 34
+        }
+      ]
+    }
+  ]
+}

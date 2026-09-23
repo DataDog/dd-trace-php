@@ -1,3 +1,4 @@
+load(":bootstrap.bzl", "bootstrap_toolchains")
 load(":defs.bzl", "hermetic_tools", "target_sysroot")
 load(":hermetic_cc_toolchain.bzl", "hermetic_cc_matrix")
 
@@ -6,6 +7,10 @@ package(default_visibility = ["//visibility:public"])
 toolchain_type(name = "hermetic_tools_type")
 
 toolchain_type(name = "sysroot_type")
+
+toolchain_type(name = "bootstrap_tools_type")
+
+bootstrap_toolchains()
 
 exports_files([
     "BUILD.llvm_dist",

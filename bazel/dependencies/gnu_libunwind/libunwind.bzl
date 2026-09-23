@@ -72,7 +72,7 @@ def _gnu_libunwind_impl(ctx):
         arguments = [args],
         inputs = depset(
             ctx.files.srcs + [ctx.file.configure, ctx.file._runner, ctx.file._smoke_source, ctx.file._shared_smoke_source],
-            transitive = [cc_toolchain.all_files, foreign.files, foreign.compiler_files, runtime.files, sysroot.files],
+            transitive = [foreign.files, foreign.compiler_files, runtime.builtin_inputs, depset([runtime.libunwind_static]), runtime.sanitizer_inputs if asan else depset(), sysroot.files],
         ),
         outputs = [prefix, unwind, ptrace, arch, smoke, shared_smoke],
         env = dict(
@@ -190,7 +190,7 @@ def _gnu_libunwind_asan_native_probe_impl(ctx):
     ctx.actions.run(
         executable = foreign.shell,
         arguments = [ctx.file._runner.path, foreign.objdump.path, sysroot.root.dirname + sysroot.dynamic_linker, library_path, unwind.smoke.path, marker.path, ctx.attr.machine, ctx.attr.elf_architecture, runtime.asan_shared_basename],
-        inputs = depset([ctx.file._runner, unwind.smoke], transitive = [foreign.files, foreign.compiler_files, runtime.files, sysroot.files]),
+        inputs = depset([ctx.file._runner, unwind.smoke], transitive = [foreign.files, foreign.compiler_files, runtime.sanitizer_inputs, sysroot.files]),
         outputs = [marker],
         env = dict(foreign.env, HOME = "/nonexistent", LANG = "C", LC_ALL = "C", PATH = ":".join(foreign.path_entries), TZ = "UTC"),
         execution_requirements = {"no-network": "1"},

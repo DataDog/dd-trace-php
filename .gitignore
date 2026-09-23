@@ -51,6 +51,8 @@ run-tests.php
 /target*
 /bazel-*
 /.bazelrc.local
+/.cache/bazel/
+/artifacts/bazel/
 tests/ext/*.php
 tests/ext/*.out
 tests/ext/*.diff

@@ -4,9 +4,9 @@ def _arch_probe_impl(ctx):
     foreign = ctx.toolchains["//bazel/toolchains:hermetic_tools_type"].foreign
     out = ctx.actions.declare_file(ctx.label.name + ".txt")
     ctx.actions.run(
-        executable = foreign.shell,
-        arguments = [ctx.file._probe.path, out.path, ctx.attr.expected],
-        inputs = depset([ctx.file._probe, foreign.busybox, foreign.shell]),
+        executable = foreign.busybox,
+        arguments = ["sh", ctx.file._probe.path, out.path, ctx.attr.expected],
+        inputs = depset([ctx.file._probe, foreign.busybox]),
         outputs = [out],
         env = {
             "HERMETIC_BUSYBOX": foreign.busybox.path,

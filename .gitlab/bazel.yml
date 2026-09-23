@@ -1,0 +1,137 @@
+# Included in the generated package child pipeline. All four inputs to the
+# report share the same prepared source artifact and CI pipeline ID.
+.bazel-client:
+  stage: tracing
+  image: registry.ddbuild.io/images/bazel:dynamic-22.04
+  interruptible: true
+  rules: &bazel_rules
+    - if: '$BAZEL_CI == "0" || $SCHEDULED_LIBDATADOG_LATEST == "true" || $LIBDATADOG_OVERRIDE_SHA || $CI_COMMIT_BRANCH == "bot/libdatadog-latest"'
+      when: never
+    - when: on_success
+  variables:
+    KUBERNETES_CPU_REQUEST: "2"
+    KUBERNETES_CPU_LIMIT: "2"
+    KUBERNETES_MEMORY_REQUEST: 8Gi
+    KUBERNETES_MEMORY_LIMIT: 12Gi
+    BAZEL_REMOTE_JOBS: "25"
+    GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_PATHS: libdatadog appsec/third_party/libddwaf-rust
+  needs:
+    - job: "prepare code"
+      artifacts: true
+  before_script:
+    - command -v python3 && command -v zstd
+    - python3 tools/bazel/ci_test.py
+    - sh tools/bazel/bootstrap-bb.sh
+    - export BAZEL_REPOSITORY_CACHE="/tmp/dd-php-bazel-repository-${CI_PIPELINE_ID}-${BAZEL_EXEC_ARCH}"
+    - python3 tools/bazel/repository_cache.py restore
+  cache:
+    key:
+      prefix: bazel-downloads-v2-${BAZEL_EXEC_ARCH}
+      files: [MODULE.bazel.lock, .bazelversion]
+    paths: [.cache/bazel/repository/]
+    policy: pull-push
+  artifacts:
+    when: always
+    expire_in: 14 days
+    paths: [artifacts/bazel/]
+
+"bazel release: [amd64]":
+  extends: .bazel-client
+  tags: ["arch:amd64"]
+  variables:
+    BAZEL_EXEC_ARCH: amd64
+  script:
+    - |
+      status=0
+      python3 tools/bazel/ci.py lane --arch amd64 || status=$?
+      cache_status=0
+      python3 tools/bazel/repository_cache.py save || cache_status=$?
+      if [ "$status" -ne 0 ]; then exit "$status"; fi
+      exit "$cache_status"
+
+"bazel release: [arm64]":
+  extends: .bazel-client
+  tags: ["arch:arm64"]
+  variables:
+    BAZEL_EXEC_ARCH: arm64
+  script:
+    - |
+      status=0
+      python3 tools/bazel/ci.py lane --arch arm64 || status=$?
+      cache_status=0
+      python3 tools/bazel/repository_cache.py save || cache_status=$?
+      if [ "$status" -ne 0 ]; then exit "$status"; fi
+      exit "$cache_status"
+
+"legacy baseline: [amd64]":
+  stage: packaging
+  image: registry.ddbuild.io/images/mirror/python:3.12-slim
+  tags: ["arch:amd64"]
+  interruptible: true
+  rules: *bazel_rules
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+  needs:
+    - job: "link tracing extension: [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+    - job: "link tracing extension: [amd64, x86_64-alpine-linux-musl]"
+      artifacts: true
+  script:
+    - python3 tools/bazel/legacy_aggregate.py --arch amd64
+  artifacts:
+    when: always
+    expire_in: 14 days
+    paths: [artifacts/bazel/legacy-amd64/]
+
+"legacy baseline: [arm64]":
+  stage: packaging
+  image: registry.ddbuild.io/images/mirror/python:3.12-slim
+  tags: ["arch:amd64"]
+  interruptible: true
+  rules: *bazel_rules
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+  needs:
+    - job: "link tracing extension: [arm64, aarch64-unknown-linux-gnu]"
+      artifacts: true
+    - job: "link tracing extension: [arm64, aarch64-alpine-linux-musl]"
+      artifacts: true
+  script:
+    - python3 tools/bazel/legacy_aggregate.py --arch arm64
+  artifacts:
+    when: always
+    expire_in: 14 days
+    paths: [artifacts/bazel/legacy-arm64/]
+
+bazel-report:
+  stage: verify
+  image: registry.ddbuild.io/images/mirror/python:3.12-slim
+  tags: ["arch:amd64"]
+  interruptible: true
+  rules:
+    - if: '$BAZEL_CI == "0" || $SCHEDULED_LIBDATADOG_LATEST == "true" || $LIBDATADOG_OVERRIDE_SHA || $CI_COMMIT_BRANCH == "bot/libdatadog-latest"'
+      when: never
+    - when: always
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+  needs:
+    - job: "legacy baseline: [amd64]"
+      artifacts: true
+    - job: "legacy baseline: [arm64]"
+      artifacts: true
+    - job: "bazel release: [amd64]"
+      artifacts: true
+    - job: "bazel release: [arm64]"
+      artifacts: true
+  script:
+    - python3 tools/bazel/ci_report.py artifacts/bazel
+    - cat artifacts/bazel/report.md
+  artifacts:
+    when: always
+    expire_in: 30 days
+    expose_as: Bazel build measurements
+    paths:
+      - artifacts/bazel/report.html
+      - artifacts/bazel/report.md
+      - artifacts/bazel/report.json

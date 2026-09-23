@@ -143,10 +143,74 @@ filegroup(
     ],
 )
 
-# PHP 8.5 uses the post-8.2 source selection. Other PHP-minor source groups
-# remain out of the checkpoint until their concrete products are validated.
+# PHP 7.0-7.2 include the bundled hrtime compatibility implementation.
 filegroup(
-    name = "tracer_php85_sources",
+    name = "tracer_php70_sources",
+    srcs = [
+        "ext/zend_hrtime.c",
+        "tracer/handlers_curl_php7.c",
+        "zend_abstract_interface/interceptor/php7/interceptor.c",
+        "zend_abstract_interface/interceptor/php7/resolver.c",
+        "zend_abstract_interface/sandbox/php7/sandbox.c",
+        ":tracer_common_sources",
+    ],
+)
+
+filegroup(
+    name = "tracer_php71_sources",
+    srcs = [":tracer_php70_sources"],
+)
+
+filegroup(
+    name = "tracer_php72_sources",
+    srcs = [":tracer_php70_sources"],
+)
+
+# PHP 7.3-7.4 use the PHP 7 ZAI sources without zend_hrtime.c.
+filegroup(
+    name = "tracer_php73_sources",
+    srcs = [
+        "tracer/handlers_curl_php7.c",
+        "zend_abstract_interface/interceptor/php7/interceptor.c",
+        "zend_abstract_interface/interceptor/php7/resolver.c",
+        "zend_abstract_interface/sandbox/php7/sandbox.c",
+        ":tracer_common_sources",
+    ],
+)
+
+filegroup(
+    name = "tracer_php74_sources",
+    srcs = [":tracer_php73_sources"],
+)
+
+filegroup(
+    name = "tracer_php80_sources",
+    srcs = [
+        "ext/patch_zend_call_known_function.c",
+        "tracer/handlers_curl.c",
+        "tracer/hook/uhook_attributes.c",
+        "tracer/hook/uhook_otel.c",
+        "tracer/weakrefs.c",
+        "zend_abstract_interface/interceptor/php8/interceptor.c",
+        "zend_abstract_interface/interceptor/php8/resolver_pre-8_2.c",
+        "zend_abstract_interface/jit_utils/jit_blacklist.c",
+        "zend_abstract_interface/sandbox/php8/sandbox.c",
+        ":tracer_common_sources",
+    ],
+)
+
+filegroup(
+    name = "tracer_php81_sources",
+    srcs = [
+        "tracer/handlers_fiber.c",
+        ":tracer_php80_sources",
+    ],
+)
+
+# PHP 8.2 through PHP 8.5 share the same source selection. Keep separate
+# public groups so each configured archive records its intended PHP minor.
+filegroup(
+    name = "tracer_php82plus_sources",
     srcs = [
         "tracer/handlers_curl.c",
         "tracer/handlers_fiber.c",
@@ -158,6 +222,26 @@ filegroup(
         "zend_abstract_interface/sandbox/php8/sandbox.c",
         ":tracer_common_sources",
     ],
+)
+
+filegroup(
+    name = "tracer_php82_sources",
+    srcs = [":tracer_php82plus_sources"],
+)
+
+filegroup(
+    name = "tracer_php83_sources",
+    srcs = [":tracer_php82plus_sources"],
+)
+
+filegroup(
+    name = "tracer_php84_sources",
+    srcs = [":tracer_php82plus_sources"],
+)
+
+filegroup(
+    name = "tracer_php85_sources",
+    srcs = [":tracer_php82plus_sources"],
 )
 
 filegroup(

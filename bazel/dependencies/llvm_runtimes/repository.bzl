@@ -34,6 +34,18 @@ def _llvm_runtime_sources_repository_impl(rctx):
         """\
 package(default_visibility = ["//visibility:public"])
 
+exports_files(glob(["compiler-rt/lib/**", "libcxx/include/**", "libcxx/src/**", "libcxxabi/**", "libunwind/**", "libc/**"]))
+
+filegroup(name = "libcxx_headers", srcs = glob(["libcxx/include/**"]))
+
+filegroup(name = "native_headers", srcs = glob([
+    "compiler-rt/lib/**/*.h", "compiler-rt/lib/**/*.inc", "compiler-rt/lib/**/*.inc.S", "compiler-rt/lib/**/*.def", "compiler-rt/lib/**/*.hpp",
+    "libcxx/src/**/*.h", "libcxx/src/**/*.hpp", "libcxx/src/**/*.inc", "libcxx/src/**/*.ipp",
+    "libcxxabi/include/**", "libcxxabi/src/**/*.h", "libcxxabi/src/**/*.inc", "libcxxabi/src/**/*.def",
+    "libunwind/include/**", "libunwind/src/**/*.h", "libunwind/src/**/*.hpp", "libunwind/src/**/*.inc",
+    "libc/**/*.h", "libc/**/*.inc",
+], allow_empty = True))
+
 exports_files([
     "llvm_runtime_sources.lock.json",
     "llvm_runtime_sources.marker",

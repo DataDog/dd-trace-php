@@ -29,6 +29,7 @@ def llvm20_bindgen_toolchains():
             name = wrapper,
             auto_static_exec_bin = False,
             build_runtime = [execution.exec_tools + "//:all"],
+            builtins = execution.llvm + "//:lib/clang/20/lib/%s-unknown-linux-gnu/libclang_rt.builtins.a" % arch,
             clang = execution.llvm + "//:bin/clang",
             compiler_libraries = [
                 execution.debian + "//:lib_anchor",
@@ -40,7 +41,6 @@ def llvm20_bindgen_toolchains():
                 execution.llvm + "//:clang",
                 execution.llvm + "//:cxx_builtin_include",
                 execution.llvm + "//:ld",
-                execution.llvm + "//:lib",
             ],
             crt1 = execution.exec_tools + "//:root/usr/lib/crt1.o",
             crti = execution.exec_tools + "//:root/usr/lib/crti.o",
@@ -54,10 +54,8 @@ def llvm20_bindgen_toolchains():
             raw_runtime = [execution.debian + "//:all", execution.llvm + "//:libclang"],
             raw_tool = "//bazel/rust:llvm20_bindgen_raw",
             static_exec_libraries = [":stable_%s_static_exec_libraries" % arch],
-            target_aarch64_gnu_libraries = [":target_aarch64_gnu_libraries"],
             target_compatible_with = execution.constraints,
             target_triple = execution.target_triple,
-            target_x86_64_gnu_libraries = [":target_x86_64_gnu_libraries"],
         )
         implementation = wrapper + "_tool"
         llvm20_bindgen_tool(

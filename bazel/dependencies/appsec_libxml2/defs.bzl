@@ -54,7 +54,7 @@ def _appsec_libxml2_impl(ctx):
     ctx.actions.run(
         executable = foreign.shell,
         arguments = [args],
-        inputs = depset(ctx.files.srcs + [ctx.file.source_root, ctx.file._runner, ctx.file._smoke_source, ctx.file.version_script], transitive = [foreign.files, foreign.compiler_files, sysroot.files, runtime.files]),
+        inputs = depset(ctx.files.srcs + [ctx.file.source_root, ctx.file._runner, ctx.file._smoke_source, ctx.file.version_script], transitive = [foreign.files, foreign.compiler_files, sysroot.files, runtime.builtin_inputs, depset([runtime.libunwind_static]), runtime.sanitizer_inputs if asan else depset()]),
         outputs = [prefix, archive, smoke, shared_smoke],
         env = dict(foreign.env, HOME = "/nonexistent", LANG = "C", LC_ALL = "C", PATH = ":".join(foreign.path_entries), SOURCE_DATE_EPOCH = "0", TZ = "UTC", ZERO_AR_DATE = "1"),
         execution_requirements = {"no-network": "1"},
@@ -127,7 +127,7 @@ def _asan_native_probe_impl(ctx):
     ctx.actions.run(
         executable = foreign.shell,
         arguments = [ctx.file._runner.path, foreign.objdump.path, sysroot.root.dirname + sysroot.dynamic_linker, library_path, library.smoke.path, marker.path, ctx.attr.machine, ctx.attr.elf_architecture, runtime.asan_shared_basename],
-        inputs = depset([ctx.file._runner, library.smoke], transitive = [foreign.files, foreign.compiler_files, runtime.files, sysroot.files]),
+        inputs = depset([ctx.file._runner, library.smoke], transitive = [foreign.files, foreign.compiler_files, runtime.sanitizer_inputs, sysroot.files]),
         outputs = [marker],
         env = dict(foreign.env, HOME = "/nonexistent", LANG = "C", LC_ALL = "C", PATH = ":".join(foreign.path_entries), TZ = "UTC"),
         execution_requirements = {"no-network": "1"},

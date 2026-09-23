@@ -28,11 +28,16 @@ case "$prefix" in
         ;;
 esac
 
-# Tree-artifact transport does not retain output mode bits. Copy to an action
-# scratch directory and reconstruct declared modes before archiving.
+# Tree-artifact transport does not retain output mode bits. Processwrapper
+# also presents each file below a tree artifact as a symlink to the physical
+# output tree. The payload rule audits its output before Bazel transports it,
+# so dereference those transport links while copying to action scratch space.
+# Reconstruct the declared modes before archiving.
 stage=$(mktemp -d "${TMPDIR:-/tmp}/deterministic-tar.XXXXXX")
 trap 'rm -rf "$stage"' EXIT HUP INT TERM
-cp -R "$root/." "$stage"
+cp -RL "$root/." "$stage"
+stage_link=$(find "$stage" -type l -print -quit)
+[ -z "$stage_link" ] || { echo "archive staging contains a symlink: $stage_link" >&2; exit 1; }
 find "$stage" -type d -exec chmod 0755 {} \;
 find "$stage" -type d -exec chmod u-s,g-s,o-t {} \;
 find "$stage" -type f -exec chmod 0644 {} \;

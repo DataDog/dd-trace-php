@@ -5,6 +5,10 @@ with glibc 2.17 and dynamic musl targets. Build actions use checksum-locked
 execution tools, explicit target sysroots, and LLVM 20.1.4 target runtimes.
 Repository setup is the only phase that downloads inputs.
 
+LLVM target runtimes now use individual Bazel compile/archive/link actions.
+See [runtime builds and RBE measurements](dependencies/llvm_runtimes/README.md)
+for component labels, CMake reference targets, validation and cache modes.
+
 The current PHP boundary is a header SDK. `//:php_all` materializes every
 matrix SDK as a declared relocatable output from immutable OCI profile layers.
 Each output contains the complete installed header tree, effective ABI
@@ -33,10 +37,103 @@ loader, sidecar, or SSI artifacts are complete.
 The reviewed local checkpoint, its retained evidence, the exact gate commands,
 and continuation order are recorded in [CHECKPOINT.md](CHECKPOINT.md).
 
-## Retained focused product gates
+## Focused PHP tests
 
-The retained PHP 8.5 amd64 glibc fat tracer target and its load/unload plus
-sidecar smoke gate are:
+The complete tracer extension PHPT tree can be run with the PHP 8.5.8RC1
+`run-tests.php` from the existing checksum-locked PHP source repository:
+
+```sh
+bb test //bazel/tests:phpt_all --config=local-hermetic \
+  --test_tag_filters= --test_output=errors
+# Limit the same test to one file when investigating a failure:
+bb test //bazel/tests:phpt_all --config=local-hermetic --test_tag_filters= \
+  --test_arg=tests/ext/active_span.phpt --test_output=errors
+```
+
+This target is tagged `manual` so `bb test //...` does not accidentally run an
+unsafe corpus on a processwrapper host. Override the default `-manual` filter
+only when explicitly invoking this label. It declares and runs every
+`tests/ext/**/*.phpt` (717 at this checkpoint), including `EXPECTF`,
+`EXPECTREGEX`, `SKIPIF`, `CLEAN`, and fixture
+files. It copies the declared tree to test scratch space so the upstream
+runner can write temporary files without modifying source inputs. The pinned
+OCI PHP and its declared library closure run the harness and every child PHP
+process; results and diffs appear in Bazel test logs, and JUnit output is
+written to Bazel's undeclared test outputs.
+Tests for PHP versions or extensions absent from this locked runtime may skip
+or fail; the run reports those outcomes rather than dropping the files.
+
+This full-corpus target requires an isolated Linux mount namespace because
+some tests touch `/var/run/datadog` or invoke `sudo`. It **fails closed** under
+the checkout's `local-processwrapper` default; the explicit
+`--test_env=PHPT_UNSAFE_ALLOW_PROCESSWRAPPER=1` override risks host-side effects
+and must not be used as hermetic evidence. Disable the checkout-local fallback
+before running with `local-hermetic`. Upstream PHP's `run-tests.php` invokes
+`/bin/sh` for `proc_open` commands, and some tests invoke external programs,
+so even an isolated run is not yet a fully hermetic acceptance gate.
+The currently locked image has PHP CLI but not PHP CGI, so the PHP runner skips
+CGI-only tests. The other 426 repository PHPT files (AppSec, profiling,
+loader, and other `tests/` subtrees) are not included: they need their matching
+DSOs, runtimes, or service dependencies before a meaningful execution suite
+can be added.
+
+For investigating a *reviewed, single* PHPT on a checkout where Linux sandbox
+namespaces are unavailable, use the explicit override with `--test_arg`:
+
+```sh
+bb test //bazel/tests:phpt_all --test_tag_filters= \
+  --test_arg=tests/ext/read_c_configuration.phpt \
+  --test_env=PHPT_UNSAFE_ALLOW_PROCESSWRAPPER=1 --test_output=all
+```
+
+Do not use that override for the complete corpus. The full suite has not been
+timed to completion on this checkout.
+
+`//bazel/tests:php_tests` runs four selected, isolated extension PHPT cases
+with the locked PHP 8.5 amd64 glibc CLI and normal fat tracer. The PHPT runner
+supports only `TEST`, `FILE`, `EXPECT`, `ENV`, and `INI`: unsupported sections
+fail rather than silently skip. It does not claim coverage for the rest of the
+PHPT corpus, PHPUnit/Composer suites, other PHP versions, or other ABIs.
+
+`//bazel/tests:http_extension_test` uses `rules_itest` to provision a fresh
+loopback PHP HTTP service with a dynamically assigned port and checks that
+the tracer loads in the HTTP SAPI. It requires a sandbox that supports
+loopback sockets. Both tests launch the OCI-locked PHP via its declared ELF
+loader and library paths, reject resolved dependencies outside the runfiles
+closure, verify mapped ELF libraries during a real PHP invocation, and clear
+inherited runtime environment variables.
+
+The shared Bazel configuration builds `rules_itest`'s Go service manager in
+pure-Go mode so its standard library does not invoke an undeclared host `cc`.
+
+```sh
+bb test //bazel/tests:php_tests --config=local-hermetic --repository_disable_download
+```
+
+The checkout-local `local-processwrapper` override does **not** isolate
+network or host filesystem access and is only a development check. For a
+hermetic acceptance run, disable that override and run `local-hermetic` on
+a host with Linux sandbox namespaces or execute on a suitably isolated
+remote worker. Loopback is needed by `rules_itest`; outbound network access
+must remain disabled. Fetch the pinned modules and OCI layers before using
+`--repository_disable_download`.
+
+## Tracer product matrix and focused native gate
+
+The normal fat tracer matrix publishes 202 products: 101 amd64 and 101 arm64
+products spanning PHP 7.0-7.4 and 8.0-8.5. Every product includes the stripped
+DSO, split debug file, and ELF-validation marker. Build one architecture or the
+whole matrix with:
+
+```sh
+bb build //bazel/products/tracer:ddtrace_fat_amd64_all
+bb build //bazel/products/tracer:ddtrace_fat_arm64_all
+bb build //bazel/products/tracer:ddtrace_fat_all
+```
+
+The arm64 command is a cross build on an amd64 host. The retained PHP 8.5
+amd64 glibc target additionally has a native load/unload and sidecar smoke
+gate:
 
 ```sh
 bb build //bazel/products/tracer:ddtrace_fat_amd64_glibc_php85 \
@@ -57,9 +154,27 @@ cross-build/archive invocation recorded in [CHECKPOINT.md](CHECKPOINT.md);
 the short target command above does not itself select that execution strategy.
 The accepted check does not execute the arm64 archive or accept profiler DSO
 runtime loading.
-These are focused retained gates. They do not make a full tracer or profiler
-matrix available; exact commands, exits, source and artifact hashes are in
-[CHECKPOINT.md](CHECKPOINT.md).
+The tracer aggregate proves compilation, split-debug production, and ELF
+contracts for the declared matrix. It does not run every product under its
+matching PHP runtime. Exact commands, exits, source hashes, and logs are in
+[CHECKPOINT.md](CHECKPOINT.md). The profiler remains a focused archive gate.
+
+The September 18 CMake baseline used fresh, forced-execution staging Buildbarn
+measurements for the tracer aggregates. They took 5,030.412 seconds on native amd64 and 9,051.585 seconds on
+native arm64. The corresponding local measurements were 754.489 seconds for
+amd64 and 710.959 seconds for an arm64 cross build. Staging generally ran only
+two to five product actions at once despite `--jobs=50`, and repeated LLVM
+runtime construction dominated the remote runs. These are CPU build actions;
+they do not use the local GPU. The exact cache policy, commands, invocation
+IDs, launcher regression fix, and checksummed logs are in
+[the matrix review](evidence/full-tracer-matrix-2026-09-18/review.json).
+
+The native Bazel runtime implementation, final 202-product verification, and
+forced/cache/no-op/source-edit measurements are recorded in the
+[native runtime report](evidence/native-runtimes-2026-09-21/README.md).
+The measured remote default is 25 jobs; normal builds accept cache hits.
+The September 18 timings used different workspace inputs and are not a
+like-for-like speedup comparison.
 
 Install the pinned BuildBuddy CLI with:
 
@@ -187,12 +302,12 @@ package closure. Both providers validate architecture, libc, target triple,
 SONAME, symbol-version floor, forbidden dynamic tags, and every transitive
 `DT_NEEDED` edge before exposing `CcInfo`.
 
-`//bazel/products/tracer:tracer_c_all` currently compiles and validates the 97
-PHP 8.5 tracer C translation units for normal NTS amd64/arm64 and glibc/musl
-targets with explicit production optimization and debug information. Each
-public archive label carries `TracerCInfo`, preserving its PHP ABI and curl
-runtime/data closure for the final shared-library link. These are reviewed C
-inputs; they do not yet claim a complete `ddtrace.so` product.
+`//bazel/products/tracer:tracer_c_all` compiles the version-selected tracer C
+sources for all 226 normalized SDK rows. The normal-product layer links 202 of
+those rows into complete split `ddtrace.so` products and validates their ELF
+machine, libc, debug-link, and exported-symbol contracts. Each public archive
+label carries `TracerCInfo`, preserving its PHP ABI and curl runtime/data
+closure for the final shared-library link.
 
 `//bazel/products/loader:loader_stage_all` creates four narrow loader package
 archives, one per architecture/libc pair. Each contains the real loader DSO,
@@ -201,8 +316,8 @@ split debug file, generated INI, SDK metadata, and version under the matching
 loader ELF-check markers. They are package stages, not complete SSI archives.
 `ssi_payload` and `deterministic_ssi_bundle` normalize directories to 0755,
 ordinary files to 0644, declared executables to 0755, and timestamps to the
-epoch. A complete SSI target still needs tracer, profiler, AppSec, common
-files, licenses, and API-specific layout entries.
+epoch. A complete SSI target still needs projection of the tracer products,
+profiler DSOs, AppSec, common files, licenses, and API-specific layout entries.
 
 The typed `ProductArtifactInfo` boundary is available to packages:
 `product_matrix_artifact` derives a product, role, and scope from the canonical

@@ -35,6 +35,7 @@ exports_files([
     "rules_rs_exec_features.patch",
     "rules_rs_rustc_src_direct.patch",
     "rules_rust_cargo_execroot.patch",
+    "rules_rust_target_native_libraries.patch",
     "product_feature_guard.bzl",
     "profiler-resolution.Cargo.toml",
     "tracer-resolution.Cargo.toml",

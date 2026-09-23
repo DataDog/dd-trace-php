@@ -56,7 +56,10 @@ def _exec_launcher_impl(ctx):
         ctx.file.crti.path,
         object_file.path,
         "-L" + ctx.file.libc.dirname,
+        "--start-group",
         "-lc",
+        ctx.file.builtins.path,
+        "--end-group",
         ctx.file.crtn.path,
     ])
     link_inputs = depset(
@@ -64,6 +67,7 @@ def _exec_launcher_impl(ctx):
             ctx.file.crt1,
             ctx.file.crti,
             ctx.file.crtn,
+            ctx.file.builtins,
             ctx.file.libc,
             object_file,
         ],
@@ -89,6 +93,7 @@ exec_launcher = rule(
     implementation = _exec_launcher_impl,
     executable = True,
     attrs = {
+        "builtins": attr.label(allow_single_file = True, mandatory = True),
         "clang": attr.label(allow_files = True, cfg = "exec", executable = True, mandatory = True),
         "compiler_libraries": attr.label_list(allow_empty = False, allow_files = True),
         "compiler_loader": attr.label(allow_files = True, cfg = "exec", executable = True, mandatory = True),

@@ -89,7 +89,7 @@ def _hermetic_cc_config_impl(ctx):
         fail("LLVM target runtime does not match selected sysroot")
     sysroot_path = sysroot.root.dirname
     resource_include = foreign.env["HERMETIC_LLVM_ROOT"] + "/lib/clang/20/include"
-    libcxx_include = runtime.root.path + "/include/c++/v1"
+    libcxx_include = runtime.header_root.path + "/include/c++/v1"
     asan_enabled = ctx.target_platform_has_constraint(ctx.attr._asan_constraint[platform_common.ConstraintValueInfo])
     if asan_enabled and not runtime.asan_supported:
         fail("ASan target platform selected a runtime without AddressSanitizer")
@@ -312,14 +312,13 @@ def _hermetic_cc_config_impl(ctx):
         [
             "-fsanitize=address",
             "-fno-omit-frame-pointer",
-            "-resource-dir=" + runtime.resource_dir.path,
         ],
         enabled = asan_enabled,
     )
     asan_link = _flags(
         "hermetic_address_sanitizer_link",
         _LINK_ACTIONS,
-        ["-shared-libasan"],
+        ["-shared-libasan", "-resource-dir=" + runtime.resource_dir.path],
         enabled = asan_enabled,
     )
 
@@ -440,8 +439,18 @@ def _hermetic_cc_config_impl(ctx):
         tool_paths = tool_paths,
         toolchain_identifier = "hermetic-llvm20-" + ctx.attr.target_cpu + "-" + sysroot.libc,
     )
-    files = depset(transitive = [foreign.compiler_files, sysroot.files, runtime.files])
-    return [config, DefaultInfo(files = files)]
+    bootstrap = ctx.toolchains["//bazel/toolchains:bootstrap_tools_type"].bootstrap
+    compile_files = depset([foreign.clang, foreign.clangxx, foreign.shell], transitive = [bootstrap.compile_files, sysroot.files, runtime.compile_inputs])
+    archive_files = depset([foreign.ar, foreign.shell], transitive = [bootstrap.archive_files])
+    inspection_files = depset([foreign.nm, foreign.objcopy, foreign.objdump, foreign.strip, foreign.shell], transitive = [bootstrap.inspect_files])
+    link_files = depset([foreign.clang, foreign.clangxx, foreign.shell] + list(runtime.libraries), transitive = [bootstrap.link_files, sysroot.files, runtime.builtin_inputs] + ([runtime.sanitizer_inputs] if asan_enabled else []))
+    files = depset(transitive = [compile_files, archive_files, inspection_files, link_files])
+    return [config, DefaultInfo(files = files), OutputGroupInfo(
+        compile = compile_files,
+        archive = archive_files,
+        inspect = inspection_files,
+        link = link_files,
+    )]
 
 hermetic_cc_config = rule(
     implementation = _hermetic_cc_config_impl,
@@ -452,7 +461,7 @@ hermetic_cc_config = rule(
         "_asan_constraint": attr.label(default = "//bazel/platforms:asan"),
     },
     provides = [CcToolchainConfigInfo],
-    toolchains = ["//bazel/toolchains:hermetic_tools_type"],
+    toolchains = ["//bazel/toolchains:hermetic_tools_type", "//bazel/toolchains:bootstrap_tools_type"],
 )
 
 def hermetic_cc_toolchain(name, sysroot, runtime, target_cpu, target_constraints, exec_constraints):
@@ -463,16 +472,18 @@ def hermetic_cc_toolchain(name, sysroot, runtime, target_cpu, target_constraints
         sysroot = sysroot,
         target_cpu = target_cpu,
     )
+    for group in ["compile", "archive", "inspect", "link"]:
+        native.filegroup(name = name + "_" + group, srcs = [name + "_config"], output_group = group)
     cc_toolchain(
         name = name + "_impl",
         all_files = name + "_config",
-        ar_files = name + "_config",
-        as_files = name + "_config",
-        compiler_files = name + "_config",
-        dwp_files = name + "_config",
-        linker_files = name + "_config",
-        objcopy_files = name + "_config",
-        strip_files = name + "_config",
+        ar_files = name + "_archive",
+        as_files = name + "_compile",
+        compiler_files = name + "_compile",
+        dwp_files = name + "_inspect",
+        linker_files = name + "_link",
+        objcopy_files = name + "_inspect",
+        strip_files = name + "_inspect",
         supports_param_files = True,
         toolchain_config = name + "_config",
     )

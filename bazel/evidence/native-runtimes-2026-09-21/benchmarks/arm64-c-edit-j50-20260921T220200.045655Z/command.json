@@ -1,0 +1,21 @@
+[
+  "/home/bits/.cache/bazelisk/downloads/sha256/7668a95db1250f12c40407251e4e203b4ec8bf39bc495d2f485b2d8c99048694/bin/bazel",
+  "--output_base=/home/bits/.cache/dd-native-runtime-bench/outputs/arm64-iteration",
+  "build",
+  "--config=remote-hermetic-arm64",
+  "--jobs=50",
+  "--build_tag_filters=",
+  "--bes_backend=",
+  "--bes_results_url=",
+  "--repository_cache=/home/bits/.cache/dd-php-bazel-combined-downloads",
+  "--repository_contents_cache=/home/bits/.cache/dd-php-bazel-repo-contents",
+  "--distdir=/tmp/native-runtime-distdir",
+  "--lockfile_mode=update",
+  "--repository_disable_download",
+  "--config=rbe-cached",
+  "--profile=/home/bits/.cache/dd-native-runtime-bench/results/arm64-c-edit-j50-20260921T220200.045655Z/profile.json.gz",
+  "--execution_log_compact_file=/home/bits/.cache/dd-native-runtime-bench/results/arm64-c-edit-j50-20260921T220200.045655Z/execution.pb.zstd",
+  "--build_event_json_file=/home/bits/.cache/dd-native-runtime-bench/results/arm64-c-edit-j50-20260921T220200.045655Z/events.jsonl",
+  "--remote_grpc_log=/home/bits/.cache/dd-native-runtime-bench/results/arm64-c-edit-j50-20260921T220200.045655Z/remote-grpc.pb",
+  "//bazel/products/tracer:ddtrace_fat_arm64_all"
+]
