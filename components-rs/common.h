@@ -463,9 +463,14 @@ typedef enum ddog_SpanProbeTarget {
 typedef struct ddog_AgentInfoReader ddog_AgentInfoReader;
 
 /**
- * Out-of-band staging builder for one nested attribute value. Opaque to C (`ddog_AttrBuilder *`).
+ * An owned `List` attribute value under construction. Opaque to C (`ddog_AttrList *`).
  */
-typedef struct ddog_AttrBuilder ddog_AttrBuilder;
+typedef struct ddog_AttrList ddog_AttrList;
+
+/**
+ * An owned `KeyValue` attribute value under construction. Opaque to C (`ddog_AttrMap *`).
+ */
+typedef struct ddog_AttrMap ddog_AttrMap;
 
 typedef struct ddog_Config ddog_Config;
 

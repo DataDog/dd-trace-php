@@ -972,16 +972,43 @@ static inline void dd_native_unprotect_recursion(zval *value, zend_array *arr) {
     }
 }
 
+// An owned nested attribute container under construction: exactly one of `list` / `map` is set.
+typedef struct {
+    ddog_AttrList *list;
+    ddog_AttrMap *map;
+} dd_native_container;
+
+static inline dd_native_container dd_native_container_new(bool is_list, uint32_t capacity) {
+    return is_list ? (dd_native_container){ .list = ddog_attr_list_new(capacity) }
+                   : (dd_native_container){ .map = ddog_attr_map_new(capacity) };
+}
+
+// Moves `child` into `dest`: appended to a list, or inserted under `key` into a map.
+static inline void dd_native_container_nest(dd_native_container dest, ddog_CharSlice key, dd_native_container child) {
+    if (dest.list) {
+        if (child.list) ddog_attr_list_push_list(dest.list, child.list); else ddog_attr_list_push_map(dest.list, child.map);
+    } else {
+        if (child.list) ddog_attr_map_put_list(dest.map, key, child.list); else ddog_attr_map_put_map(dest.map, key, child.map);
+    }
+}
+
+// Map member key for `arr` entry (`str_key`, `num_key`): numeric keys as decimal into `numbuf`.
+static inline ddog_CharSlice dd_native_member_key(zend_string *str_key, zend_ulong num_key, char numbuf[24]) {
+    return str_key
+        ? dd_zend_string_to_CharSlice(str_key)
+        : (ddog_CharSlice){ .ptr = numbuf, .len = snprintf(numbuf, 24, ZEND_ULONG_FMT, num_key) };
+}
+
 // --- Native nested attributes for LINKS and EVENTS ---------------------------------------------
 //
 // Unlike the span path (which buckets leaves into meta strings / metric doubles), link/event leaves
 // keep their PHP scalar type; objects become a map of their public properties.
 
-static void dd_native_typed_emit(struct ddog_AttrBuilder *dest, bool dest_is_map, ddog_CharSlice key, zval *value);
+static void dd_native_typed_emit(dd_native_container dest, ddog_CharSlice key, zval *value);
 
-// Iterates `arr` into the open container `dest`: list elements append positionally, map members
-// insert under their string key (numeric keys as decimal, matching PHP's json object keys).
-static void dd_native_typed_fill(struct ddog_AttrBuilder *dest, bool dest_is_list, zend_array *arr) {
+// Iterates `arr` into `dest`: list elements append positionally, map members insert under their
+// string key (numeric keys as decimal, matching PHP's json object keys).
+static void dd_native_typed_fill(dd_native_container dest, zend_array *arr) {
     zval *val;
     zend_string *str_key;
     zend_ulong num_key;
@@ -989,79 +1016,67 @@ static void dd_native_typed_fill(struct ddog_AttrBuilder *dest, bool dest_is_lis
         if (str_key && ZSTR_VAL(str_key)[0] == '\0' && ZSTR_LEN(str_key) > 0) {
             continue; // Skip protected and private object members
         }
-        if (dest_is_list) {
-            dd_native_typed_emit(dest, false, (ddog_CharSlice){0}, val);
-        } else {
-            char numbuf[24];
-            ddog_CharSlice mkey = str_key
-                ? dd_zend_string_to_CharSlice(str_key)
-                : (ddog_CharSlice){ .ptr = numbuf, .len = snprintf(numbuf, sizeof(numbuf), ZEND_ULONG_FMT, num_key) };
-            dd_native_typed_emit(dest, true, mkey, val);
-        }
+        char numbuf[24];
+        ddog_CharSlice mkey = dest.list ? (ddog_CharSlice){0} : dd_native_member_key(str_key, num_key, numbuf);
+        dd_native_typed_emit(dest, mkey, val);
     } ZEND_HASH_FOREACH_END();
-}
-
-// Fills the freshly opened `child` from array/object `value`, then closes it. Empty arrays skip the
-// recursion guard: the shared immutable empty array must not be written to.
-static void dd_native_typed_fill_close(struct ddog_AttrBuilder *child, bool is_list, zval *value) {
-    bool release;
-    zend_array *arr = dd_native_props(value, &release);
-    if (zend_hash_num_elements(arr)) {
-        dd_native_protect_recursion(value, arr);
-        dd_native_typed_fill(child, is_list, arr);
-        dd_native_unprotect_recursion(value, arr);
-    }
-    dd_native_release_props(arr, release);
-    ddog_attr_close(child);
 }
 
 static inline bool dd_native_typed_is_list(zval *value) {
     return Z_TYPE_P(value) == IS_ARRAY && zend_array_is_list(Z_ARR_P(value));
 }
 
-static inline bool dd_native_typed_is_container(zval *value) {
-    return (Z_TYPE_P(value) == IS_ARRAY || Z_TYPE_P(value) == IS_OBJECT) && !dd_native_is_recursive(value);
+// Builds the container for array/object `value`. Empty arrays skip the recursion guard: the shared
+// immutable empty array must not be written to.
+static dd_native_container dd_native_typed_build(zval *value) {
+    bool release;
+    zend_array *arr = dd_native_props(value, &release);
+    dd_native_container c = dd_native_container_new(dd_native_typed_is_list(value), zend_hash_num_elements(arr));
+    if (zend_hash_num_elements(arr)) {
+        dd_native_protect_recursion(value, arr);
+        dd_native_typed_fill(c, arr);
+        dd_native_unprotect_recursion(value, arr);
+    }
+    dd_native_release_props(arr, release);
+    return c;
 }
 
-// String form of a non-container leaf (top-level null -> "null", as before); recursive references
-// become "".
+// String form of a scalar leaf (top-level null -> "null", as before).
 static zend_string *dd_native_typed_str(zval *value) {
-    if (Z_TYPE_P(value) == IS_ARRAY || Z_TYPE_P(value) == IS_OBJECT) {
-        return ZSTR_EMPTY_ALLOC();
-    }
     return datadog_convert_to_str(value);
 }
 
-// Emits one leaf/child into `dest`, preserving the PHP scalar type.
-static void dd_native_typed_emit(struct ddog_AttrBuilder *dest, bool dest_is_map, ddog_CharSlice key, zval *value) {
+// Emits one leaf/child into `dest`, preserving the PHP scalar type. A recursive array/object
+// (a reference cycle) becomes the "" leaf instead of being nested.
+static void dd_native_typed_emit(dd_native_container dest, ddog_CharSlice key, zval *value) {
     ZVAL_DEREF(value);
-    if (dd_native_typed_is_container(value)) {
-        bool is_list = dd_native_typed_is_list(value);
-        struct ddog_AttrBuilder *child = is_list
-            ? (dest_is_map ? ddog_attr_map_open_list(dest, key) : ddog_attr_list_open_list(dest))
-            : (dest_is_map ? ddog_attr_map_open_map(dest, key) : ddog_attr_list_open_map(dest));
-        dd_native_typed_fill_close(child, is_list, value);
+    if (Z_TYPE_P(value) == IS_ARRAY || Z_TYPE_P(value) == IS_OBJECT) {
+        if (dd_native_is_recursive(value)) {
+            if (dest.list) ddog_attr_list_push_str(dest.list, DDOG_CHARSLICE_C("")); else ddog_attr_map_put_str(dest.map, key, DDOG_CHARSLICE_C(""));
+        } else {
+            dd_native_container_nest(dest, key, dd_native_typed_build(value));
+        }
         return;
     }
     switch (Z_TYPE_P(value)) {
         case IS_NULL:
             break; // V1 has no null value: nested nulls are skipped
         case IS_TRUE:
-            if (dest_is_map) ddog_attr_map_put_bool(dest, key, true); else ddog_attr_list_push_bool(dest, true);
+            if (dest.list) ddog_attr_list_push_bool(dest.list, true); else ddog_attr_map_put_bool(dest.map, key, true);
             break;
         case IS_FALSE:
-            if (dest_is_map) ddog_attr_map_put_bool(dest, key, false); else ddog_attr_list_push_bool(dest, false);
+            if (dest.list) ddog_attr_list_push_bool(dest.list, false); else ddog_attr_map_put_bool(dest.map, key, false);
             break;
         case IS_LONG:
-            if (dest_is_map) ddog_attr_map_put_int(dest, key, Z_LVAL_P(value)); else ddog_attr_list_push_int(dest, Z_LVAL_P(value));
+            if (dest.list) ddog_attr_list_push_int(dest.list, Z_LVAL_P(value)); else ddog_attr_map_put_int(dest.map, key, Z_LVAL_P(value));
             break;
         case IS_DOUBLE:
-            if (dest_is_map) ddog_attr_map_put_double(dest, key, Z_DVAL_P(value)); else ddog_attr_list_push_double(dest, Z_DVAL_P(value));
+            if (dest.list) ddog_attr_list_push_double(dest.list, Z_DVAL_P(value)); else ddog_attr_map_put_double(dest.map, key, Z_DVAL_P(value));
             break;
         default: {
             zend_string *str = dd_native_typed_str(value);
             ddog_CharSlice v = dd_zend_string_to_CharSlice(str);
-            if (dest_is_map) ddog_attr_map_put_str(dest, key, v); else ddog_attr_list_push_str(dest, v);
+            if (dest.list) ddog_attr_list_push_str(dest.list, v); else ddog_attr_map_put_str(dest.map, key, v);
             zend_string_release(str);
             break;
         }
@@ -1104,12 +1119,14 @@ static void dd_span_links_to_rust(zend_array *links, ddog_SpanNode *span) {
                     ? dd_zend_string_to_CharSlice(key)
                     : (ddog_CharSlice){ .ptr = numbuf, .len = snprintf(numbuf, sizeof(numbuf), ZEND_ULONG_FMT, idx) };
                 ZVAL_DEREF(aval);
-                if (dd_native_typed_is_container(aval)) {
-                    bool is_list = dd_native_typed_is_list(aval);
-                    struct ddog_AttrBuilder *top = is_list
-                        ? ddog_link_attr_open_list(rust_link, key_cs)
-                        : ddog_link_attr_open_map(rust_link, key_cs);
-                    dd_native_typed_fill_close(top, is_list, aval);
+                if (Z_TYPE_P(aval) == IS_ARRAY || Z_TYPE_P(aval) == IS_OBJECT) {
+                    // A reference cycle becomes the "" leaf instead of being nested.
+                    if (dd_native_is_recursive(aval)) {
+                        ddog_link_add_attr_str(rust_link, key_cs, DDOG_CHARSLICE_C(""));
+                    } else {
+                        dd_native_container c = dd_native_typed_build(aval);
+                        if (c.list) ddog_link_attr_set_list(rust_link, key_cs, c.list); else ddog_link_attr_set_map(rust_link, key_cs, c.map);
+                    }
                 } else {
                     // Top-level link scalars are strings.
                     zend_string *str = dd_native_typed_str(aval);
@@ -1123,12 +1140,14 @@ static void dd_span_links_to_rust(zend_array *links, ddog_SpanNode *span) {
 
 static void dd_event_attribute_to_rust(ddog_SpanEventBytes *event, ddog_CharSlice key, zval *val) {
     ZVAL_DEREF(val);
-    if (dd_native_typed_is_container(val)) {
-        bool is_list = dd_native_typed_is_list(val);
-        struct ddog_AttrBuilder *top = is_list
-            ? ddog_event_attr_open_list(event, key)
-            : ddog_event_attr_open_map(event, key);
-        dd_native_typed_fill_close(top, is_list, val);
+    if (Z_TYPE_P(val) == IS_ARRAY || Z_TYPE_P(val) == IS_OBJECT) {
+        // A reference cycle becomes the "" leaf instead of being nested.
+        if (dd_native_is_recursive(val)) {
+            ddog_event_add_attr_str(event, key, DDOG_CHARSLICE_C(""));
+        } else {
+            dd_native_container c = dd_native_typed_build(val);
+            if (c.list) ddog_event_attr_set_list(event, key, c.list); else ddog_event_attr_set_map(event, key, c.map);
+        }
         return;
     }
     switch (Z_TYPE_P(val)) {
@@ -1203,20 +1222,19 @@ static void dd_span_events_to_rust(zend_array *events, ddog_SpanNode *span) {
 }
 
 // Native V1 nested-attribute serialization. A PHP array/object value becomes a native V1
-// `List`/`KeyValue` (built via the staging AttrBuilder FFI) instead of C-side dotted-key flattening;
-// libdatadog's v0.4 downgrade re-flattens `List`/`KeyValue` to the identical dotted `key.<i>` /
-// `key.<member>` entries, so the v0.4 wire is byte-for-byte unchanged. To keep that parity exact,
-// leaves follow the bucket (not the PHP scalar type): the meta path (`to_double == false`) emits
-// `String` leaves via `datadog_convert_to_string`, the metrics path emits `double` leaves via
-// `zval_get_double` — matching what the old flatten wrote. Empty and recursion-guarded arrays emit
-// the same `""` / `0.0` scalar placeholder the old code did.
+// `List`/`KeyValue` (built bottom-up via the owned-container FFI) instead of C-side dotted-key
+// flattening; libdatadog's v0.4 downgrade re-flattens `List`/`KeyValue` to the identical dotted
+// `key.<i>` / `key.<member>` entries, so the v0.4 wire is byte-for-byte unchanged. To keep that
+// parity exact, leaves follow the bucket (not the PHP scalar type): the meta path
+// (`to_double == false`) emits `String` leaves via `datadog_convert_to_string`, the metrics path
+// emits `double` leaves via `zval_get_double` — matching what the old flatten wrote. Empty and
+// recursion-guarded arrays emit the same `""` / `0.0` scalar placeholder the old code did.
 
-static void dd_native_attr_emit(struct ddog_AttrBuilder *dest, bool dest_is_map, ddog_CharSlice key, zval *value, bool to_double);
-static void dd_native_fill_container(struct ddog_AttrBuilder *dest, bool dest_is_list, zend_array *arr, bool to_double);
+static void dd_native_attr_emit(dd_native_container dest, ddog_CharSlice key, zval *value, bool to_double);
 
-// Iterates `arr` into the open container `dest`: list elements append positionally, map members
-// insert under the string key (numeric keys as their decimal form, matching the old dotted keys).
-static void dd_native_fill_container(struct ddog_AttrBuilder *dest, bool dest_is_list, zend_array *arr, bool to_double) {
+// Iterates `arr` into `dest`: list elements append positionally, map members insert under the
+// string key (numeric keys as their decimal form, matching the old dotted keys).
+static void dd_native_fill_container(dd_native_container dest, zend_array *arr, bool to_double) {
     zval *val;
     zend_string *str_key;
     zend_ulong num_key;
@@ -1224,80 +1242,78 @@ static void dd_native_fill_container(struct ddog_AttrBuilder *dest, bool dest_is
         if (str_key && ZSTR_VAL(str_key)[0] == '\0' && ZSTR_LEN(str_key) > 0) {
             continue; // Skip protected and private object members
         }
-        if (dest_is_list) {
-            dd_native_attr_emit(dest, false, (ddog_CharSlice){0}, val, to_double);
-        } else {
-            char numbuf[24];
-            ddog_CharSlice mkey = str_key
-                ? dd_zend_string_to_CharSlice(str_key)
-                : (ddog_CharSlice){ .ptr = numbuf, .len = snprintf(numbuf, sizeof(numbuf), ZEND_ULONG_FMT, num_key) };
-            dd_native_attr_emit(dest, true, mkey, val, to_double);
-        }
+        char numbuf[24];
+        ddog_CharSlice mkey = dest.list ? (ddog_CharSlice){0} : dd_native_member_key(str_key, num_key, numbuf);
+        dd_native_attr_emit(dest, mkey, val, to_double);
     } ZEND_HASH_FOREACH_END();
 }
 
-// Emits one `value` into an already-open nested container `dest` (a map member under `key`, or a
-// list element when !dest_is_map). Arrays/objects open a nested child; scalars and empty/recursive
-// arrays emit a typed leaf.
-static void dd_native_attr_emit(struct ddog_AttrBuilder *dest, bool dest_is_map, ddog_CharSlice key, zval *value, bool to_double) {
+// Builds the container for array/object `value` into `out`. Returns false (nothing built) when it
+// is empty or already being serialized, in which case the caller emits the scalar placeholder.
+//
+// Not merged with dd_native_typed_build/dd_native_typed_emit despite the similar props/protect/
+// fill/unprotect/release shape: an empty array here folds into the same false-return as a recursive
+// one (both need the 0.0/"" scalar placeholder), whereas the link/event path always nests an empty
+// array as an empty List/KeyValue and only treats recursion as a placeholder case. Sharing a helper
+// would need a callback/ctx indirection to carry `to_double` through, which reads worse than the
+// small duplication below.
+static bool dd_native_attr_build(zval *value, bool to_double, dd_native_container *out) {
+    bool release;
+    zend_array *arr = dd_native_props(value, &release);
+    bool built = zend_hash_num_elements(arr) && !dd_native_is_recursive(value);
+    if (built) {
+        *out = dd_native_container_new(Z_TYPE_P(value) != IS_OBJECT && zend_array_is_list(arr), zend_hash_num_elements(arr));
+        dd_native_protect_recursion(value, arr);
+        dd_native_fill_container(*out, arr, to_double);
+        dd_native_unprotect_recursion(value, arr);
+    }
+    dd_native_release_props(arr, release);
+    return built;
+}
+
+// Emits one `value` into nested container `dest` (a map member under `key`, or a list element).
+// Arrays/objects nest a child; scalars and empty/recursive arrays emit a typed leaf.
+static void dd_native_attr_emit(dd_native_container dest, ddog_CharSlice key, zval *value, bool to_double) {
     ZVAL_DEREF(value);
 
     if (Z_TYPE_P(value) == IS_ARRAY || Z_TYPE_P(value) == IS_OBJECT) {
-        bool release;
-        zend_array *arr = dd_native_props(value, &release);
-        if (zend_hash_num_elements(arr) && !dd_native_is_recursive(value)) {
-            bool child_is_list = Z_TYPE_P(value) != IS_OBJECT && zend_array_is_list(arr);
-            struct ddog_AttrBuilder *child = child_is_list
-                ? (dest_is_map ? ddog_attr_map_open_list(dest, key) : ddog_attr_list_open_list(dest))
-                : (dest_is_map ? ddog_attr_map_open_map(dest, key) : ddog_attr_list_open_map(dest));
-            dd_native_protect_recursion(value, arr);
-            dd_native_fill_container(child, child_is_list, arr, to_double);
-            dd_native_unprotect_recursion(value, arr);
-            ddog_attr_close(child);
+        dd_native_container child;
+        if (dd_native_attr_build(value, to_double, &child)) {
+            dd_native_container_nest(dest, key, child);
         } else if (to_double) {
-            if (dest_is_map) ddog_attr_map_put_double(dest, key, 0.0); else ddog_attr_list_push_double(dest, 0.0);
+            if (dest.list) ddog_attr_list_push_double(dest.list, 0.0); else ddog_attr_map_put_double(dest.map, key, 0.0);
         } else {
             ddog_CharSlice empty = DDOG_CHARSLICE_C("");
-            if (dest_is_map) ddog_attr_map_put_str(dest, key, empty); else ddog_attr_list_push_str(dest, empty);
+            if (dest.list) ddog_attr_list_push_str(dest.list, empty); else ddog_attr_map_put_str(dest.map, key, empty);
         }
-        dd_native_release_props(arr, release);
     } else if (to_double) {
         double d = zval_get_double(value);
-        if (dest_is_map) ddog_attr_map_put_double(dest, key, d); else ddog_attr_list_push_double(dest, d);
+        if (dest.list) ddog_attr_list_push_double(dest.list, d); else ddog_attr_map_put_double(dest.map, key, d);
     } else {
         zval val_as_string;
         datadog_convert_to_string(&val_as_string, value);
         ddog_CharSlice v = dd_zend_string_to_CharSlice(Z_STR(val_as_string));
-        if (dest_is_map) ddog_attr_map_put_str(dest, key, v); else ddog_attr_list_push_str(dest, v);
+        if (dest.list) ddog_attr_list_push_str(dest.list, v); else ddog_attr_map_put_str(dest.map, key, v);
         zval_ptr_dtor(&val_as_string);
     }
 }
 
 // Top-level entry: serializes `value` as the span attribute named `str`. A non-empty array/object
-// opens a native `List`/`KeyValue`; scalars and empty/recursive arrays fall back to the existing
+// attaches a native `List`/`KeyValue`; scalars and empty/recursive arrays fall back to the existing
 // scalar attribute setters (byte-identical to the old flatten's top-level output).
 static void dd_native_attr_top(ddog_SpanNode *target, zend_string *str, zval *value, bool to_double) {
     ZVAL_DEREF(value);
 
     if (Z_TYPE_P(value) == IS_ARRAY || Z_TYPE_P(value) == IS_OBJECT) {
-        bool release;
-        zend_array *arr = dd_native_props(value, &release);
-        if (zend_hash_num_elements(arr) && !dd_native_is_recursive(value)) {
-            bool is_list = Z_TYPE_P(value) != IS_OBJECT && zend_array_is_list(arr);
+        dd_native_container c;
+        if (dd_native_attr_build(value, to_double, &c)) {
             ddog_CharSlice key_cs = dd_zend_string_to_CharSlice(str);
-            struct ddog_AttrBuilder *top = is_list
-                ? ddog_span_attr_open_list(target, key_cs)
-                : ddog_span_attr_open_map(target, key_cs);
-            dd_native_protect_recursion(value, arr);
-            dd_native_fill_container(top, is_list, arr, to_double);
-            dd_native_unprotect_recursion(value, arr);
-            ddog_attr_close(top);
+            if (c.list) ddog_span_attr_set_list(target, key_cs, c.list); else ddog_span_attr_set_map(target, key_cs, c.map);
         } else if (to_double) {
             ddog_add_span_attr_double_zstr(target, str, 0.0);
         } else {
             ddog_add_span_attr_zstr_cs(target, str, DDOG_CHARSLICE_C(""));
         }
-        dd_native_release_props(arr, release);
     } else if (to_double) {
         ddog_add_span_attr_double_zstr(target, str, zval_get_double(value));
     } else {

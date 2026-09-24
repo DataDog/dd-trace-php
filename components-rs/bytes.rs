@@ -679,357 +679,229 @@ pub unsafe extern "C" fn ddog_event_add_attr_bool(
     insert_attr(&mut (*event).attributes, key, AttributeValueBytes::Bool(value));
 }
 
-// ------------------- Nested span attributes: staging builder (write side) -------------------
+// ------------------- Nested attributes: owned containers (write side) -------------------
 //
-// Builds a nested `AttributeValue::List`/`KeyValue` for a span attribute out-of-band, then attaches
-// it in one shot. Each `AttrBuilder` is its own `Box` allocation (own-allocation provenance); the
-// raw `span`/`parent` pointers it stashes are reborrowed exactly once — at the matching
-// `ddog_attr_close` — and never while another live `&mut` to the same object exists. The C caller
-// contract keeping this Stacked-Borrows clean: while it holds an `*mut AttrBuilder` it makes ONLY
-// AttrBuilder FFI calls (push/put/open/close on the staging tree), until the top-level close
-// attaches the finished value onto the span node it was opened against. Exactly one container
-// pointer is live per recursion level, and a child is fully built and closed (folded into its
-// parent by value) before the next sibling is appended.
+// C builds a nested value bottom-up: allocate a list/map, fill it, push it into its parent (which
+// takes ownership), and finally attach the outermost container to a span, link or event.
 
-/// The partial nested value an `AttrBuilder` accumulates.
-enum PartialAttr {
-    List(Vec<AttributeValueBytes>),
-    Map(VecMap<BytesString, AttributeValueBytes>),
-}
+/// An owned `List` attribute value under construction. Opaque to C (`ddog_AttrList *`).
+pub struct AttrList(Vec<AttributeValueBytes>);
 
-impl PartialAttr {
-    fn finish(self) -> AttributeValueBytes {
-        match self {
-            PartialAttr::List(v) => AttributeValueBytes::List(v),
-            PartialAttr::Map(m) => AttributeValueBytes::KeyValue(m),
-        }
-    }
-}
+/// An owned `KeyValue` attribute value under construction. Opaque to C (`ddog_AttrMap *`).
+pub struct AttrMap(VecMap<BytesString, AttributeValueBytes>);
 
-/// Where a finished `AttrBuilder` folds on close.
-enum Attach {
-    /// Top level: insert the finished value into the span node's attributes under `key`.
-    Span {
-        span: *mut SpanNode,
-        key: BytesString,
-    },
-    /// Top level: insert the finished value into the link node's attributes under `key`.
-    Link {
-        link: *mut SpanLinkBytes,
-        key: BytesString,
-    },
-    /// Top level: insert the finished value into the event node's attributes under `key`.
-    Event {
-        event: *mut SpanEventBytes,
-        key: BytesString,
-    },
-    /// Append the finished value to the parent list.
-    ParentList { parent: *mut AttrBuilder },
-    /// Insert the finished value into the parent map under `key`.
-    ParentMap {
-        parent: *mut AttrBuilder,
-        key: BytesString,
-    },
-}
-
-/// Out-of-band staging builder for one nested attribute value. Opaque to C (`ddog_AttrBuilder *`).
-pub struct AttrBuilder {
-    value: PartialAttr,
-    attach: Attach,
-}
-
+/// Takes ownership of a C-held list and returns it as an attribute value.
 #[inline]
-fn box_attr(value: PartialAttr, attach: Attach) -> *mut AttrBuilder {
-    Box::into_raw(Box::new(AttrBuilder { value, attach }))
+unsafe fn take_list(list: *mut AttrList) -> AttributeValueBytes {
+    AttributeValueBytes::List(Box::from_raw(list).0)
 }
 
-/// Mutable view of an `AttrBuilder`'s list contents (None if it is a map).
+/// Takes ownership of a C-held map and returns it as an attribute value.
 #[inline]
-unsafe fn list_of<'a>(list: *mut AttrBuilder) -> Option<&'a mut Vec<AttributeValueBytes>> {
-    match &mut (*list).value {
-        PartialAttr::List(v) => Some(v),
-        PartialAttr::Map(_) => None,
-    }
+unsafe fn take_map(map: *mut AttrMap) -> AttributeValueBytes {
+    AttributeValueBytes::KeyValue(Box::from_raw(map).0)
 }
 
-/// Mutable view of an `AttrBuilder`'s map contents (None if it is a list).
-#[inline]
-unsafe fn map_of<'a>(
-    map: *mut AttrBuilder,
-) -> Option<&'a mut VecMap<BytesString, AttributeValueBytes>> {
-    match &mut (*map).value {
-        PartialAttr::Map(m) => Some(m),
-        PartialAttr::List(_) => None,
-    }
-}
-
-// ---- Opening a nested container ----
-
-/// Opens a staging `List` attached to `span.attributes[key]` on close.
-///
-/// # Safety
-/// `span` must be a live span node pointer from [`ddog_new_span`].
+/// Allocates an empty list with room for `capacity` elements. Ownership passes to C until it is
+/// pushed into a parent or attached to a node.
 #[no_mangle]
-pub unsafe extern "C" fn ddog_span_attr_open_list(span: *mut SpanNode, key: CharSlice) -> *mut AttrBuilder {
-    box_attr(
-        PartialAttr::List(Vec::new()),
-        Attach::Span {
-            span,
-            key: convert_char_slice_to_bytes_string(key),
-        },
-    )
+pub extern "C" fn ddog_attr_list_new(capacity: usize) -> *mut AttrList {
+    Box::into_raw(Box::new(AttrList(Vec::with_capacity(capacity))))
 }
 
-/// Opens a staging `KeyValue` map attached to `span.attributes[key]` on close.
-///
-/// # Safety
-/// `span` must be a live span node pointer from [`ddog_new_span`].
+/// Allocates an empty map with room for `capacity` members. Ownership passes to C until it is
+/// pushed into a parent or attached to a node.
 #[no_mangle]
-pub unsafe extern "C" fn ddog_span_attr_open_map(span: *mut SpanNode, key: CharSlice) -> *mut AttrBuilder {
-    box_attr(
-        PartialAttr::Map(VecMap::new()),
-        Attach::Span {
-            span,
-            key: convert_char_slice_to_bytes_string(key),
-        },
-    )
-}
-
-/// Opens a staging `List` attached to `link.attributes[key]` on close.
-///
-/// # Safety
-/// `link` must be a live link node pointer from [`ddog_new_link`].
-#[no_mangle]
-pub unsafe extern "C" fn ddog_link_attr_open_list(
-    link: *mut SpanLinkBytes,
-    key: CharSlice,
-) -> *mut AttrBuilder {
-    box_attr(
-        PartialAttr::List(Vec::new()),
-        Attach::Link {
-            link,
-            key: convert_char_slice_to_bytes_string(key),
-        },
-    )
-}
-
-/// Opens a staging `KeyValue` map attached to `link.attributes[key]` on close.
-///
-/// # Safety
-/// `link` must be a live link node pointer from [`ddog_new_link`].
-#[no_mangle]
-pub unsafe extern "C" fn ddog_link_attr_open_map(
-    link: *mut SpanLinkBytes,
-    key: CharSlice,
-) -> *mut AttrBuilder {
-    box_attr(
-        PartialAttr::Map(VecMap::new()),
-        Attach::Link {
-            link,
-            key: convert_char_slice_to_bytes_string(key),
-        },
-    )
-}
-
-/// Opens a staging `List` attached to `event.attributes[key]` on close.
-///
-/// # Safety
-/// `event` must be a live event node pointer from [`ddog_new_event`].
-#[no_mangle]
-pub unsafe extern "C" fn ddog_event_attr_open_list(
-    event: *mut SpanEventBytes,
-    key: CharSlice,
-) -> *mut AttrBuilder {
-    box_attr(
-        PartialAttr::List(Vec::new()),
-        Attach::Event {
-            event,
-            key: convert_char_slice_to_bytes_string(key),
-        },
-    )
-}
-
-/// Opens a staging `KeyValue` map attached to `event.attributes[key]` on close.
-///
-/// # Safety
-/// `event` must be a live event node pointer from [`ddog_new_event`].
-#[no_mangle]
-pub unsafe extern "C" fn ddog_event_attr_open_map(
-    event: *mut SpanEventBytes,
-    key: CharSlice,
-) -> *mut AttrBuilder {
-    box_attr(
-        PartialAttr::Map(VecMap::new()),
-        Attach::Event {
-            event,
-            key: convert_char_slice_to_bytes_string(key),
-        },
-    )
-}
-
-/// Opens a nested `List` appended to the parent list on close.
-#[no_mangle]
-pub unsafe extern "C" fn ddog_attr_list_open_list(list: *mut AttrBuilder) -> *mut AttrBuilder {
-    box_attr(PartialAttr::List(Vec::new()), Attach::ParentList { parent: list })
-}
-
-/// Opens a nested `KeyValue` map appended to the parent list on close.
-#[no_mangle]
-pub unsafe extern "C" fn ddog_attr_list_open_map(list: *mut AttrBuilder) -> *mut AttrBuilder {
-    box_attr(PartialAttr::Map(VecMap::new()), Attach::ParentList { parent: list })
-}
-
-/// Opens a nested `List` inserted into the parent map under `key` on close.
-#[no_mangle]
-pub unsafe extern "C" fn ddog_attr_map_open_list(
-    map: *mut AttrBuilder,
-    key: CharSlice,
-) -> *mut AttrBuilder {
-    box_attr(
-        PartialAttr::List(Vec::new()),
-        Attach::ParentMap {
-            parent: map,
-            key: convert_char_slice_to_bytes_string(key),
-        },
-    )
-}
-
-/// Opens a nested `KeyValue` map inserted into the parent map under `key` on close.
-#[no_mangle]
-pub unsafe extern "C" fn ddog_attr_map_open_map(
-    map: *mut AttrBuilder,
-    key: CharSlice,
-) -> *mut AttrBuilder {
-    box_attr(
-        PartialAttr::Map(VecMap::new()),
-        Attach::ParentMap {
-            parent: map,
-            key: convert_char_slice_to_bytes_string(key),
-        },
-    )
+pub extern "C" fn ddog_attr_map_new(capacity: usize) -> *mut AttrMap {
+    Box::into_raw(Box::new(AttrMap(VecMap::with_capacity(capacity))))
 }
 
 // ---- Scalar leaves: list append ----
 
+/// # Safety
+/// `list` must be a live list from [`ddog_attr_list_new`] (every list mutator below).
 #[no_mangle]
-pub unsafe extern "C" fn ddog_attr_list_push_str(list: *mut AttrBuilder, value: CharSlice) {
-    if let Some(v) = list_of(list) {
-        v.push(AttributeValueBytes::String(convert_char_slice_to_bytes_string(value)));
-    }
+pub unsafe extern "C" fn ddog_attr_list_push_str(list: *mut AttrList, value: CharSlice) {
+    (*list).0.push(AttributeValueBytes::String(convert_char_slice_to_bytes_string(value)));
 }
 
+/// # Safety
+/// See [`ddog_attr_list_push_str`].
 #[no_mangle]
-pub unsafe extern "C" fn ddog_attr_list_push_int(list: *mut AttrBuilder, value: i64) {
-    if let Some(v) = list_of(list) {
-        v.push(AttributeValueBytes::Int(value));
-    }
+pub unsafe extern "C" fn ddog_attr_list_push_int(list: *mut AttrList, value: i64) {
+    (*list).0.push(AttributeValueBytes::Int(value));
 }
 
+/// # Safety
+/// See [`ddog_attr_list_push_str`].
 #[no_mangle]
-pub unsafe extern "C" fn ddog_attr_list_push_double(list: *mut AttrBuilder, value: f64) {
-    if let Some(v) = list_of(list) {
-        v.push(AttributeValueBytes::Float(value));
-    }
+pub unsafe extern "C" fn ddog_attr_list_push_double(list: *mut AttrList, value: f64) {
+    (*list).0.push(AttributeValueBytes::Float(value));
 }
 
+/// # Safety
+/// See [`ddog_attr_list_push_str`].
 #[no_mangle]
-pub unsafe extern "C" fn ddog_attr_list_push_bool(list: *mut AttrBuilder, value: bool) {
-    if let Some(v) = list_of(list) {
-        v.push(AttributeValueBytes::Bool(value));
-    }
+pub unsafe extern "C" fn ddog_attr_list_push_bool(list: *mut AttrList, value: bool) {
+    (*list).0.push(AttributeValueBytes::Bool(value));
 }
 
+/// # Safety
+/// See [`ddog_attr_list_push_str`].
 #[no_mangle]
-pub unsafe extern "C" fn ddog_attr_list_push_bytes(list: *mut AttrBuilder, value: CharSlice) {
-    if let Some(v) = list_of(list) {
-        v.push(AttributeValueBytes::Bytes(Bytes::copy_from_slice(value.as_bytes())));
-    }
+pub unsafe extern "C" fn ddog_attr_list_push_bytes(list: *mut AttrList, value: CharSlice) {
+    (*list).0.push(AttributeValueBytes::Bytes(Bytes::copy_from_slice(value.as_bytes())));
 }
 
 // ---- Scalar leaves: map insert ----
 
+/// # Safety
+/// `map` must be a live map from [`ddog_attr_map_new`] (every map mutator below).
 #[no_mangle]
-pub unsafe extern "C" fn ddog_attr_map_put_str(
-    map: *mut AttrBuilder,
+pub unsafe extern "C" fn ddog_attr_map_put_str(map: *mut AttrMap, key: CharSlice, value: CharSlice) {
+    (*map).0.insert(
+        convert_char_slice_to_bytes_string(key),
+        AttributeValueBytes::String(convert_char_slice_to_bytes_string(value)),
+    );
+}
+
+/// # Safety
+/// See [`ddog_attr_map_put_str`].
+#[no_mangle]
+pub unsafe extern "C" fn ddog_attr_map_put_int(map: *mut AttrMap, key: CharSlice, value: i64) {
+    (*map).0.insert(convert_char_slice_to_bytes_string(key), AttributeValueBytes::Int(value));
+}
+
+/// # Safety
+/// See [`ddog_attr_map_put_str`].
+#[no_mangle]
+pub unsafe extern "C" fn ddog_attr_map_put_double(map: *mut AttrMap, key: CharSlice, value: f64) {
+    (*map).0.insert(convert_char_slice_to_bytes_string(key), AttributeValueBytes::Float(value));
+}
+
+/// # Safety
+/// See [`ddog_attr_map_put_str`].
+#[no_mangle]
+pub unsafe extern "C" fn ddog_attr_map_put_bool(map: *mut AttrMap, key: CharSlice, value: bool) {
+    (*map).0.insert(convert_char_slice_to_bytes_string(key), AttributeValueBytes::Bool(value));
+}
+
+/// # Safety
+/// See [`ddog_attr_map_put_str`].
+#[no_mangle]
+pub unsafe extern "C" fn ddog_attr_map_put_bytes(map: *mut AttrMap, key: CharSlice, value: CharSlice) {
+    (*map).0.insert(
+        convert_char_slice_to_bytes_string(key),
+        AttributeValueBytes::Bytes(Bytes::copy_from_slice(value.as_bytes())),
+    );
+}
+
+// ---- Nesting: the parent takes ownership of `child` ----
+
+/// # Safety
+/// `list` must be a live list; `child` a live list, which is consumed.
+#[no_mangle]
+pub unsafe extern "C" fn ddog_attr_list_push_list(list: *mut AttrList, child: *mut AttrList) {
+    (*list).0.push(take_list(child));
+}
+
+/// # Safety
+/// `list` must be a live list; `child` a live map, which is consumed.
+#[no_mangle]
+pub unsafe extern "C" fn ddog_attr_list_push_map(list: *mut AttrList, child: *mut AttrMap) {
+    (*list).0.push(take_map(child));
+}
+
+/// # Safety
+/// `map` must be a live map; `child` a live list, which is consumed.
+#[no_mangle]
+pub unsafe extern "C" fn ddog_attr_map_put_list(map: *mut AttrMap, key: CharSlice, child: *mut AttrList) {
+    (*map).0.insert(convert_char_slice_to_bytes_string(key), take_list(child));
+}
+
+/// # Safety
+/// `map` must be a live map; `child` a live map, which is consumed.
+#[no_mangle]
+pub unsafe extern "C" fn ddog_attr_map_put_map(map: *mut AttrMap, key: CharSlice, child: *mut AttrMap) {
+    (*map).0.insert(convert_char_slice_to_bytes_string(key), take_map(child));
+}
+
+// ---- Attaching: the node takes ownership of the container ----
+
+/// Sets `span.attributes[key]` to `list`, which is consumed.
+///
+/// # Safety
+/// `span` must be a live span node pointer from [`ddog_new_span`]; `list` a live list.
+#[no_mangle]
+pub unsafe extern "C" fn ddog_span_attr_set_list(span: *mut SpanNode, key: CharSlice, list: *mut AttrList) {
+    let key = convert_char_slice_to_bytes_string(key);
+    insert_attr(&mut (*span).span_mut().attributes, key, take_list(list));
+}
+
+/// Sets `span.attributes[key]` to `map`, which is consumed.
+///
+/// # Safety
+/// `span` must be a live span node pointer from [`ddog_new_span`]; `map` a live map.
+#[no_mangle]
+pub unsafe extern "C" fn ddog_span_attr_set_map(span: *mut SpanNode, key: CharSlice, map: *mut AttrMap) {
+    let key = convert_char_slice_to_bytes_string(key);
+    insert_attr(&mut (*span).span_mut().attributes, key, take_map(map));
+}
+
+/// Sets `link.attributes[key]` to `list`, which is consumed.
+///
+/// # Safety
+/// `link` must be a live link node pointer from [`ddog_new_link`]; `list` a live list.
+#[no_mangle]
+pub unsafe extern "C" fn ddog_link_attr_set_list(
+    link: *mut SpanLinkBytes,
     key: CharSlice,
-    value: CharSlice,
+    list: *mut AttrList,
 ) {
-    if let Some(m) = map_of(map) {
-        m.insert(
-            convert_char_slice_to_bytes_string(key),
-            AttributeValueBytes::String(convert_char_slice_to_bytes_string(value)),
-        );
-    }
+    let key = convert_char_slice_to_bytes_string(key);
+    insert_attr(&mut (*link).attributes, key, take_list(list));
 }
 
+/// Sets `link.attributes[key]` to `map`, which is consumed.
+///
+/// # Safety
+/// `link` must be a live link node pointer from [`ddog_new_link`]; `map` a live map.
 #[no_mangle]
-pub unsafe extern "C" fn ddog_attr_map_put_int(map: *mut AttrBuilder, key: CharSlice, value: i64) {
-    if let Some(m) = map_of(map) {
-        m.insert(convert_char_slice_to_bytes_string(key), AttributeValueBytes::Int(value));
-    }
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn ddog_attr_map_put_double(
-    map: *mut AttrBuilder,
+pub unsafe extern "C" fn ddog_link_attr_set_map(
+    link: *mut SpanLinkBytes,
     key: CharSlice,
-    value: f64,
+    map: *mut AttrMap,
 ) {
-    if let Some(m) = map_of(map) {
-        m.insert(convert_char_slice_to_bytes_string(key), AttributeValueBytes::Float(value));
-    }
+    let key = convert_char_slice_to_bytes_string(key);
+    insert_attr(&mut (*link).attributes, key, take_map(map));
 }
 
+/// Sets `event.attributes[key]` to `list`, which is consumed.
+///
+/// # Safety
+/// `event` must be a live event node pointer from [`ddog_new_event`]; `list` a live list.
 #[no_mangle]
-pub unsafe extern "C" fn ddog_attr_map_put_bool(map: *mut AttrBuilder, key: CharSlice, value: bool) {
-    if let Some(m) = map_of(map) {
-        m.insert(convert_char_slice_to_bytes_string(key), AttributeValueBytes::Bool(value));
-    }
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn ddog_attr_map_put_bytes(
-    map: *mut AttrBuilder,
+pub unsafe extern "C" fn ddog_event_attr_set_list(
+    event: *mut SpanEventBytes,
     key: CharSlice,
-    value: CharSlice,
+    list: *mut AttrList,
 ) {
-    if let Some(m) = map_of(map) {
-        m.insert(
-            convert_char_slice_to_bytes_string(key),
-            AttributeValueBytes::Bytes(Bytes::copy_from_slice(value.as_bytes())),
-        );
-    }
+    let key = convert_char_slice_to_bytes_string(key);
+    insert_attr(&mut (*event).attributes, key, take_list(list));
 }
 
-/// Finishes `child` and folds it into its parent by value: appends to a parent list, inserts into a
-/// parent map under its key, or (top level) inserts into the span's attribute map via the index
-/// accessor. This is the single point that reborrows the stashed `builder`/`parent` pointer.
+/// Sets `event.attributes[key]` to `map`, which is consumed.
+///
+/// # Safety
+/// `event` must be a live event node pointer from [`ddog_new_event`]; `map` a live map.
 #[no_mangle]
-pub unsafe extern "C" fn ddog_attr_close(child: *mut AttrBuilder) {
-    let child = Box::from_raw(child);
-    let AttrBuilder { value, attach } = *child;
-    let finished = value.finish();
-    match attach {
-        Attach::ParentList { parent } => {
-            if let Some(v) = list_of(parent) {
-                v.push(finished);
-            }
-        }
-        Attach::ParentMap { parent, key } => {
-            if let Some(m) = map_of(parent) {
-                m.insert(key, finished);
-            }
-        }
-        Attach::Span { span, key } => {
-            insert_attr(&mut (*span).span_mut().attributes, key, finished);
-        }
-        Attach::Link { link, key } => {
-            insert_attr(&mut (*link).attributes, key, finished);
-        }
-        Attach::Event { event, key } => {
-            insert_attr(&mut (*event).attributes, key, finished);
-        }
-    }
+pub unsafe extern "C" fn ddog_event_attr_set_map(
+    event: *mut SpanEventBytes,
+    key: CharSlice,
+    map: *mut AttrMap,
+) {
+    let key = convert_char_slice_to_bytes_string(key);
+    insert_attr(&mut (*event).attributes, key, take_map(map));
 }
 
 // ------------------- Nested attributes: read-back (introspection) -------------------
@@ -1258,10 +1130,9 @@ pub unsafe extern "C" fn ddog_v1_get_node_attr_child_bytes(
 }
 
 #[cfg(test)]
-mod staging_ffi_tests {
-    // Exercises the nested-attribute staging FFI end to end (build root → nested open → push →
-    // close → attach) plus the path-addressed read-back, so `cargo miri test` can prove the
-    // raw-pointer stashing/reborrow is Stacked-Borrows / Tree-Borrows clean and leak-free.
+mod attr_container_ffi_tests {
+    // Exercises the nested-attribute container FFI end to end (new → fill → nest → attach) plus the
+    // path-addressed read-back, so `cargo miri test` can prove the ownership transfers leak-free.
     use super::*;
     use libdd_common_ffi::slice::{AsBytes, CharSlice};
 
@@ -1279,22 +1150,22 @@ mod staging_ffi_tests {
 
         unsafe {
             // root: KeyValue { a: "x", n: 7, items: [ "first", 42, { flag: true } ] }
-            let root = ddog_span_attr_open_map(span_ptr, cs("root"));
-            ddog_attr_map_put_str(root, cs("a"), cs("x"));
-            ddog_attr_map_put_int(root, cs("n"), 7);
-            let items = ddog_attr_map_open_list(root, cs("items"));
+            let inner = ddog_attr_map_new(1);
+            ddog_attr_map_put_bool(inner, cs("flag"), true);
+            let items = ddog_attr_list_new(3);
             ddog_attr_list_push_str(items, cs("first"));
             ddog_attr_list_push_int(items, 42);
-            let inner = ddog_attr_list_open_map(items);
-            ddog_attr_map_put_bool(inner, cs("flag"), true);
-            ddog_attr_close(inner); // fold inner map into the list
-            ddog_attr_close(items); // fold list into root map
-            ddog_attr_close(root); // attach root map onto the span
+            ddog_attr_list_push_map(items, inner);
+            let root = ddog_attr_map_new(3);
+            ddog_attr_map_put_str(root, cs("a"), cs("x"));
+            ddog_attr_map_put_int(root, cs("n"), 7);
+            ddog_attr_map_put_list(root, cs("items"), items);
+            ddog_span_attr_set_map(span_ptr, cs("root"), root);
 
             // A second top-level attribute: a List of one double.
-            let tl = ddog_span_attr_open_list(span_ptr, cs("list"));
+            let tl = ddog_attr_list_new(1);
             ddog_attr_list_push_double(tl, 1.5);
-            ddog_attr_close(tl);
+            ddog_span_attr_set_list(span_ptr, cs("list"), tl);
         }
 
         // Read back through the span-kind node getters (`node_idx` unused for spans).
@@ -1343,16 +1214,16 @@ mod staging_ffi_tests {
         unsafe {
             // link[0].attributes = { nums: [ 1, 2 ] }
             let link = ddog_new_link(span_ptr);
-            let nums = ddog_link_attr_open_list(link, cs("nums"));
+            let nums = ddog_attr_list_new(2);
             ddog_attr_list_push_int(nums, 1);
             ddog_attr_list_push_int(nums, 2);
-            ddog_attr_close(nums);
+            ddog_link_attr_set_list(link, cs("nums"), nums);
 
             // event[0].attributes = { obj: { k: "v" } }
             let event = ddog_new_event(span_ptr);
-            let obj = ddog_event_attr_open_map(event, cs("obj"));
+            let obj = ddog_attr_map_new(1);
             ddog_attr_map_put_str(obj, cs("k"), cs("v"));
-            ddog_attr_close(obj);
+            ddog_event_attr_set_map(event, cs("obj"), obj);
         }
 
         let ln = DDOG_V1_ATTR_NODE_LINK;
@@ -1434,16 +1305,16 @@ mod v04_parity_tests {
         // (String leaves, as the meta path stringifies — mirrors the old convert_to_double=false).
         let (newb, s) = one_span_builder();
         unsafe {
-            let m = ddog_span_attr_open_map(s, cs("m"));
-            let bar = ddog_attr_map_open_list(m, cs("bar"));
+            let bar = ddog_attr_list_new(3);
             ddog_attr_list_push_str(bar, cs("1"));
-            let e = ddog_attr_list_open_map(bar);
+            let e = ddog_attr_map_new(1);
             ddog_attr_map_put_str(e, cs("key"), cs("2"));
-            ddog_attr_close(e);
+            ddog_attr_list_push_map(bar, e);
             ddog_attr_list_push_str(bar, cs("")); // empty/recursive placeholder equivalent
-            ddog_attr_close(bar);
+            let m = ddog_attr_map_new(2);
+            ddog_attr_map_put_list(m, cs("bar"), bar);
             ddog_attr_map_put_str(m, cs("5"), cs("v")); // numeric-keyed member -> "m.5"
-            ddog_attr_close(m);
+            ddog_span_attr_set_map(s, cs("m"), m);
         }
 
         // OLD: the identical dotted keys the C flatten wrote, in traversal order.
@@ -1471,15 +1342,15 @@ mod v04_parity_tests {
         // (Float leaves, as the metrics path uses zval_get_double -> convert_to_double=true.)
         let (newb, s) = one_span_builder();
         unsafe {
-            let mm = ddog_span_attr_open_map(s, cs("mm"));
-            let nums = ddog_attr_map_open_list(mm, cs("nums"));
+            let mm = ddog_attr_map_new(2);
+            let nums = ddog_attr_list_new(2);
             ddog_attr_list_push_double(nums, 1.0);
             ddog_attr_list_push_double(nums, 2.5);
-            ddog_attr_close(nums);
-            let deep = ddog_attr_map_open_map(mm, cs("deep"));
+            ddog_attr_map_put_list(mm, cs("nums"), nums);
+            let deep = ddog_attr_map_new(1);
             ddog_attr_map_put_double(deep, cs("x"), 0.0); // empty/recursive placeholder equivalent
-            ddog_attr_close(deep);
-            ddog_attr_close(mm);
+            ddog_attr_map_put_map(mm, cs("deep"), deep);
+            ddog_span_attr_set_map(s, cs("mm"), mm);
         }
 
         let (oldb, s) = one_span_builder();
@@ -1508,15 +1379,15 @@ mod v04_parity_tests {
     }
 
     #[test]
-    fn link_nested_attr_matches_old_json_string_v04() {
-        // NEW: native nested link attr `nums = [3, 4]` built through the staging FFI.
+    fn link_nested_attr_matches_legacy_v04_meta() {
+        // NEW: native nested link attr `nums = [3, 4]` built through the container FFI.
         let (newb, s) = one_span_builder();
         unsafe {
             let link = ddog_new_link(s);
-            let nums = ddog_link_attr_open_list(link, cs("nums"));
+            let nums = ddog_attr_list_new(2);
             ddog_attr_list_push_int(nums, 3);
             ddog_attr_list_push_int(nums, 4);
-            ddog_attr_close(nums);
+            ddog_link_attr_set_list(link, cs("nums"), nums);
         }
         // OLD: the JSON string the pre-native serializer produced (json_encode([3,4])).
         let (oldb, s) = one_span_builder();
@@ -1544,17 +1415,17 @@ mod v04_parity_tests {
 
     #[test]
     fn event_nested_attr_downgrades_to_legacy_events_meta_native_array() {
-        // Native nested event attr `nums = [3, 4]` built through the staging FFI. On the v0.4
+        // Native nested event attr `nums = [3, 4]` built through the container FFI. On the v0.4
         // downgrade it lands in the legacy `events` meta as a REAL JSON array (event attributes
         // keep native JSON types, matching master's json_encode of the PHP attributes array —
         // unlike links, which are String → String). No native `span_events` field on the v0.4 wire.
         let (newb, s) = one_span_builder();
         unsafe {
             let event = ddog_new_event(s);
-            let nums = ddog_event_attr_open_list(event, cs("nums"));
+            let nums = ddog_attr_list_new(2);
             ddog_attr_list_push_int(nums, 3);
             ddog_attr_list_push_int(nums, 4);
-            ddog_attr_close(nums);
+            ddog_event_attr_set_list(event, cs("nums"), nums);
         }
         let new_span = first_span(&to_vec_from_v1(&newb.into_payload()));
         assert!(field(&new_span, "span_events").is_none());
@@ -1644,7 +1515,7 @@ mod v04_parity_tests {
 mod pointer_handle_miri_tests {
     // The crux of Phase 2 comment A: prove the Box-per-node pointer model is UB-clean under Stacked
     // AND Tree Borrows for the hazards the old index model was chosen to avoid. Run with
-    // `cargo +nightly miri test` under both `-Zmiri-stacked-borrows` and `-Zmiri-tree-borrows`.
+    // `cargo +nightly miri test` (Stacked Borrows, the default) and with `-Zmiri-tree-borrows`.
     use super::*;
     use datadog_sidecar_ffi::span::{ddog_free_charslice, ddog_v1_span_debug_log};
 
@@ -1686,23 +1557,23 @@ mod pointer_handle_miri_tests {
         assert!(spans[1].attributes.contains_key("moved"), "attr moved onto inferred");
     }
 
-    // (b) A deep nested List/KeyValue built via the staging FFI on a span node pointer, then folded
-    // through into_payload.
+    // (b) A deep nested List/KeyValue built via the container FFI and attached to a span node
+    // pointer, then folded through into_payload.
     #[test]
     fn b_nested_attr_build_on_span_ptr() {
         let mut b = TracerPayloadV1Builder::default();
         let chunk = b.push_chunk(0, 1);
         unsafe {
             let span = ddog_new_span(chunk);
-            let root = ddog_span_attr_open_map(span, cs("root"));
-            ddog_attr_map_put_int(root, cs("n"), 7);
-            let items = ddog_attr_map_open_list(root, cs("items"));
-            ddog_attr_list_push_str(items, cs("a"));
-            let nested = ddog_attr_list_open_map(items);
+            let nested = ddog_attr_map_new(1);
             ddog_attr_map_put_bool(nested, cs("flag"), true);
-            ddog_attr_close(nested);
-            ddog_attr_close(items);
-            ddog_attr_close(root);
+            let items = ddog_attr_list_new(2);
+            ddog_attr_list_push_str(items, cs("a"));
+            ddog_attr_list_push_map(items, nested);
+            let root = ddog_attr_map_new(2);
+            ddog_attr_map_put_int(root, cs("n"), 7);
+            ddog_attr_map_put_list(root, cs("items"), items);
+            ddog_span_attr_set_map(span, cs("root"), root);
         }
         let payload = b.into_payload();
         match payload.chunks[0].spans[0].attributes.get("root") {
@@ -1712,9 +1583,8 @@ mod pointer_handle_miri_tests {
     }
 
     // (c) Links and events built on a span pointer, each fully built — including a deep nested
-    // List/KeyValue attribute staged onto the link/event node pointer — before the next push. The
-    // staging builder stashes the raw link/event node pointer and reborrows it only at the matching
-    // top-level `close`; this proves that reborrow is sound across sibling node pushes.
+    // List/KeyValue attribute attached to the link/event node pointer — before the next push; the
+    // node pointers stay valid across sibling node pushes.
     #[test]
     fn c_links_and_events_on_span_ptr() {
         let mut b = TracerPayloadV1Builder::default();
@@ -1725,12 +1595,12 @@ mod pointer_handle_miri_tests {
             ddog_link_set_span_id(l0, 11);
             ddog_link_add_attr_str(l0, cs("k"), cs("v"));
             // Deep nested attr on l0: { tags: [ "a", { deep: 1 } ] } — fully built before l1.
-            let tags = ddog_link_attr_open_list(l0, cs("tags"));
-            ddog_attr_list_push_str(tags, cs("a"));
-            let deep = ddog_attr_list_open_map(tags);
+            let deep = ddog_attr_map_new(1);
             ddog_attr_map_put_int(deep, cs("deep"), 1);
-            ddog_attr_close(deep);
-            ddog_attr_close(tags);
+            let tags = ddog_attr_list_new(2);
+            ddog_attr_list_push_str(tags, cs("a"));
+            ddog_attr_list_push_map(tags, deep);
+            ddog_link_attr_set_list(l0, cs("tags"), tags);
 
             let l1 = ddog_new_link(span); // sibling push; l0 stays valid (own allocation)
             ddog_link_set_span_id(l1, 22);
@@ -1740,11 +1610,11 @@ mod pointer_handle_miri_tests {
             ddog_event_set_name(e0, cs("evt"));
             ddog_event_add_attr_int(e0, cs("n"), 5);
             // Deep nested attr on e0: { meta: { list: [ true ] } } — fully built before e1.
-            let meta = ddog_event_attr_open_map(e0, cs("meta"));
-            let list = ddog_attr_map_open_list(meta, cs("list"));
+            let list = ddog_attr_list_new(1);
             ddog_attr_list_push_bool(list, true);
-            ddog_attr_close(list);
-            ddog_attr_close(meta);
+            let meta = ddog_attr_map_new(1);
+            ddog_attr_map_put_list(meta, cs("list"), list);
+            ddog_event_attr_set_map(e0, cs("meta"), meta);
 
             let e1 = ddog_new_event(span);
             ddog_event_set_time(e1, 999);
@@ -1788,10 +1658,61 @@ mod pointer_handle_miri_tests {
             let s = ddog_new_span(c);
             ddog_new_link(s);
             ddog_new_event(s);
-            let m = ddog_span_attr_open_map(s, cs("x"));
+            let m = ddog_attr_map_new(1);
             ddog_attr_map_put_int(m, cs("y"), 1);
-            ddog_attr_close(m);
+            ddog_span_attr_set_map(s, cs("x"), m);
         }
         drop(d);
+    }
+
+    // (e) A deep mixed nest (list in map in list), built once with capacity 0 (forcing regrowth) and
+    // once with exact capacities; both attach the same value and free cleanly.
+    #[test]
+    fn e_deep_mixed_nest_any_capacity() {
+        unsafe fn build(span: *mut SpanNode, key: &str, cap: impl Fn(usize) -> usize) {
+            let inner = ddog_attr_list_new(cap(3));
+            ddog_attr_list_push_int(inner, 1);
+            ddog_attr_list_push_bytes(inner, cs("raw"));
+            ddog_attr_list_push_list(inner, ddog_attr_list_new(cap(0)));
+            let mid = ddog_attr_map_new(cap(2));
+            ddog_attr_map_put_list(mid, cs("inner"), inner);
+            ddog_attr_map_put_map(mid, cs("empty"), ddog_attr_map_new(cap(0)));
+            let outer = ddog_attr_list_new(cap(2));
+            ddog_attr_list_push_map(outer, mid);
+            ddog_attr_list_push_str(outer, cs("tail"));
+            ddog_span_attr_set_list(span, cs(key), outer);
+        }
+        let mut b = TracerPayloadV1Builder::default();
+        let chunk = b.push_chunk(0, 1);
+        unsafe {
+            let span = ddog_new_span(chunk);
+            build(span, "zero", |_| 0);
+            build(span, "exact", |n| n);
+        }
+        let payload = b.into_payload();
+        let attrs = &payload.chunks[0].spans[0].attributes;
+        let shape = |key: &str| match attrs.get(key) {
+            Some(AttributeValueBytes::List(outer)) => {
+                assert_eq!(outer.len(), 2);
+                assert!(matches!(&outer[1], AttributeValueBytes::String(s) if s.as_str() == "tail"));
+                match &outer[0] {
+                    AttributeValueBytes::KeyValue(mid) => {
+                        assert!(matches!(mid.get("empty"), Some(AttributeValueBytes::KeyValue(m)) if m.is_empty()));
+                        match mid.get("inner") {
+                            Some(AttributeValueBytes::List(inner)) => {
+                                assert!(matches!(inner[0], AttributeValueBytes::Int(1)));
+                                assert!(matches!(&inner[1], AttributeValueBytes::Bytes(b) if b.as_ref() == b"raw"));
+                                assert!(matches!(&inner[2], AttributeValueBytes::List(l) if l.is_empty()));
+                            }
+                            other => panic!("expected inner List, got {other:?}"),
+                        }
+                    }
+                    other => panic!("expected KeyValue, got {other:?}"),
+                }
+            }
+            other => panic!("expected List, got {other:?}"),
+        };
+        shape("zero");
+        shape("exact");
     }
 }

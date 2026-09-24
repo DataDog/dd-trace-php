@@ -392,101 +392,158 @@ void ddog_event_add_attr_double(ddog_SpanEventBytes *event, ddog_CharSlice key, 
 void ddog_event_add_attr_bool(ddog_SpanEventBytes *event, ddog_CharSlice key, bool value);
 
 /**
- * Opens a staging `List` attached to `span.attributes[key]` on close.
+ * Allocates an empty list with room for `capacity` elements. Ownership passes to C until it is
+ * pushed into a parent or attached to a node.
+ */
+struct ddog_AttrList *ddog_attr_list_new(uintptr_t capacity);
+
+/**
+ * Allocates an empty map with room for `capacity` members. Ownership passes to C until it is
+ * pushed into a parent or attached to a node.
+ */
+struct ddog_AttrMap *ddog_attr_map_new(uintptr_t capacity);
+
+/**
+ * # Safety
+ * `list` must be a live list from [`ddog_attr_list_new`] (every list mutator below).
+ */
+void ddog_attr_list_push_str(struct ddog_AttrList *list, ddog_CharSlice value);
+
+/**
+ * # Safety
+ * See [`ddog_attr_list_push_str`].
+ */
+void ddog_attr_list_push_int(struct ddog_AttrList *list, int64_t value);
+
+/**
+ * # Safety
+ * See [`ddog_attr_list_push_str`].
+ */
+void ddog_attr_list_push_double(struct ddog_AttrList *list, double value);
+
+/**
+ * # Safety
+ * See [`ddog_attr_list_push_str`].
+ */
+void ddog_attr_list_push_bool(struct ddog_AttrList *list, bool value);
+
+/**
+ * # Safety
+ * See [`ddog_attr_list_push_str`].
+ */
+void ddog_attr_list_push_bytes(struct ddog_AttrList *list, ddog_CharSlice value);
+
+/**
+ * # Safety
+ * `map` must be a live map from [`ddog_attr_map_new`] (every map mutator below).
+ */
+void ddog_attr_map_put_str(struct ddog_AttrMap *map, ddog_CharSlice key, ddog_CharSlice value);
+
+/**
+ * # Safety
+ * See [`ddog_attr_map_put_str`].
+ */
+void ddog_attr_map_put_int(struct ddog_AttrMap *map, ddog_CharSlice key, int64_t value);
+
+/**
+ * # Safety
+ * See [`ddog_attr_map_put_str`].
+ */
+void ddog_attr_map_put_double(struct ddog_AttrMap *map, ddog_CharSlice key, double value);
+
+/**
+ * # Safety
+ * See [`ddog_attr_map_put_str`].
+ */
+void ddog_attr_map_put_bool(struct ddog_AttrMap *map, ddog_CharSlice key, bool value);
+
+/**
+ * # Safety
+ * See [`ddog_attr_map_put_str`].
+ */
+void ddog_attr_map_put_bytes(struct ddog_AttrMap *map, ddog_CharSlice key, ddog_CharSlice value);
+
+/**
+ * # Safety
+ * `list` must be a live list; `child` a live list, which is consumed.
+ */
+void ddog_attr_list_push_list(struct ddog_AttrList *list, struct ddog_AttrList *child);
+
+/**
+ * # Safety
+ * `list` must be a live list; `child` a live map, which is consumed.
+ */
+void ddog_attr_list_push_map(struct ddog_AttrList *list, struct ddog_AttrMap *child);
+
+/**
+ * # Safety
+ * `map` must be a live map; `child` a live list, which is consumed.
+ */
+void ddog_attr_map_put_list(struct ddog_AttrMap *map,
+                            ddog_CharSlice key,
+                            struct ddog_AttrList *child);
+
+/**
+ * # Safety
+ * `map` must be a live map; `child` a live map, which is consumed.
+ */
+void ddog_attr_map_put_map(struct ddog_AttrMap *map,
+                           ddog_CharSlice key,
+                           struct ddog_AttrMap *child);
+
+/**
+ * Sets `span.attributes[key]` to `list`, which is consumed.
  *
  * # Safety
- * `span` must be a live span node pointer from [`ddog_new_span`].
+ * `span` must be a live span node pointer from [`ddog_new_span`]; `list` a live list.
  */
-struct ddog_AttrBuilder *ddog_span_attr_open_list(ddog_SpanNode *span, ddog_CharSlice key);
+void ddog_span_attr_set_list(ddog_SpanNode *span, ddog_CharSlice key, struct ddog_AttrList *list);
 
 /**
- * Opens a staging `KeyValue` map attached to `span.attributes[key]` on close.
+ * Sets `span.attributes[key]` to `map`, which is consumed.
  *
  * # Safety
- * `span` must be a live span node pointer from [`ddog_new_span`].
+ * `span` must be a live span node pointer from [`ddog_new_span`]; `map` a live map.
  */
-struct ddog_AttrBuilder *ddog_span_attr_open_map(ddog_SpanNode *span, ddog_CharSlice key);
+void ddog_span_attr_set_map(ddog_SpanNode *span, ddog_CharSlice key, struct ddog_AttrMap *map);
 
 /**
- * Opens a staging `List` attached to `link.attributes[key]` on close.
+ * Sets `link.attributes[key]` to `list`, which is consumed.
  *
  * # Safety
- * `link` must be a live link node pointer from [`ddog_new_link`].
+ * `link` must be a live link node pointer from [`ddog_new_link`]; `list` a live list.
  */
-struct ddog_AttrBuilder *ddog_link_attr_open_list(ddog_SpanLinkBytes *link, ddog_CharSlice key);
-
-/**
- * Opens a staging `KeyValue` map attached to `link.attributes[key]` on close.
- *
- * # Safety
- * `link` must be a live link node pointer from [`ddog_new_link`].
- */
-struct ddog_AttrBuilder *ddog_link_attr_open_map(ddog_SpanLinkBytes *link, ddog_CharSlice key);
-
-/**
- * Opens a staging `List` attached to `event.attributes[key]` on close.
- *
- * # Safety
- * `event` must be a live event node pointer from [`ddog_new_event`].
- */
-struct ddog_AttrBuilder *ddog_event_attr_open_list(ddog_SpanEventBytes *event, ddog_CharSlice key);
-
-/**
- * Opens a staging `KeyValue` map attached to `event.attributes[key]` on close.
- *
- * # Safety
- * `event` must be a live event node pointer from [`ddog_new_event`].
- */
-struct ddog_AttrBuilder *ddog_event_attr_open_map(ddog_SpanEventBytes *event, ddog_CharSlice key);
-
-/**
- * Opens a nested `List` appended to the parent list on close.
- */
-struct ddog_AttrBuilder *ddog_attr_list_open_list(struct ddog_AttrBuilder *list);
-
-/**
- * Opens a nested `KeyValue` map appended to the parent list on close.
- */
-struct ddog_AttrBuilder *ddog_attr_list_open_map(struct ddog_AttrBuilder *list);
-
-/**
- * Opens a nested `List` inserted into the parent map under `key` on close.
- */
-struct ddog_AttrBuilder *ddog_attr_map_open_list(struct ddog_AttrBuilder *map, ddog_CharSlice key);
-
-/**
- * Opens a nested `KeyValue` map inserted into the parent map under `key` on close.
- */
-struct ddog_AttrBuilder *ddog_attr_map_open_map(struct ddog_AttrBuilder *map, ddog_CharSlice key);
-
-void ddog_attr_list_push_str(struct ddog_AttrBuilder *list, ddog_CharSlice value);
-
-void ddog_attr_list_push_int(struct ddog_AttrBuilder *list, int64_t value);
-
-void ddog_attr_list_push_double(struct ddog_AttrBuilder *list, double value);
-
-void ddog_attr_list_push_bool(struct ddog_AttrBuilder *list, bool value);
-
-void ddog_attr_list_push_bytes(struct ddog_AttrBuilder *list, ddog_CharSlice value);
-
-void ddog_attr_map_put_str(struct ddog_AttrBuilder *map, ddog_CharSlice key, ddog_CharSlice value);
-
-void ddog_attr_map_put_int(struct ddog_AttrBuilder *map, ddog_CharSlice key, int64_t value);
-
-void ddog_attr_map_put_double(struct ddog_AttrBuilder *map, ddog_CharSlice key, double value);
-
-void ddog_attr_map_put_bool(struct ddog_AttrBuilder *map, ddog_CharSlice key, bool value);
-
-void ddog_attr_map_put_bytes(struct ddog_AttrBuilder *map,
+void ddog_link_attr_set_list(ddog_SpanLinkBytes *link,
                              ddog_CharSlice key,
-                             ddog_CharSlice value);
+                             struct ddog_AttrList *list);
 
 /**
- * Finishes `child` and folds it into its parent by value: appends to a parent list, inserts into a
- * parent map under its key, or (top level) inserts into the span's attribute map via the index
- * accessor. This is the single point that reborrows the stashed `builder`/`parent` pointer.
+ * Sets `link.attributes[key]` to `map`, which is consumed.
+ *
+ * # Safety
+ * `link` must be a live link node pointer from [`ddog_new_link`]; `map` a live map.
  */
-void ddog_attr_close(struct ddog_AttrBuilder *child);
+void ddog_link_attr_set_map(ddog_SpanLinkBytes *link, ddog_CharSlice key, struct ddog_AttrMap *map);
+
+/**
+ * Sets `event.attributes[key]` to `list`, which is consumed.
+ *
+ * # Safety
+ * `event` must be a live event node pointer from [`ddog_new_event`]; `list` a live list.
+ */
+void ddog_event_attr_set_list(ddog_SpanEventBytes *event,
+                              ddog_CharSlice key,
+                              struct ddog_AttrList *list);
+
+/**
+ * Sets `event.attributes[key]` to `map`, which is consumed.
+ *
+ * # Safety
+ * `event` must be a live event node pointer from [`ddog_new_event`]; `map` a live map.
+ */
+void ddog_event_attr_set_map(ddog_SpanEventBytes *event,
+                             ddog_CharSlice key,
+                             struct ddog_AttrMap *map);
 
 /**
  * Number of children of the `List`/`KeyValue` at `path` (0 for a scalar or out-of-range path).
