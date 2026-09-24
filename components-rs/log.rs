@@ -5,6 +5,8 @@ use std::collections::{BTreeSet, HashMap};
 use std::ffi::c_char;
 use std::fmt::Debug;
 use std::str::FromStr;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::OnceLock;
 use tracing::Level;
 use tracing_core::{Event, Field, LevelFilter, Subscriber};
 use tracing_subscriber::fmt::format::Writer;
@@ -35,6 +37,19 @@ pub enum Log {
 #[no_mangle]
 #[allow(non_upper_case_globals)]
 pub static mut ddog_log_callback: Option<extern "C" fn(CharSlice)> = None;
+
+/// Log callback for sidecar threads. It may write to `DD_TRACE_LOG_FILE`, but must not call PHP's
+/// error logger, which requires request state and can bail out.
+#[no_mangle]
+#[allow(non_upper_case_globals)]
+pub static mut ddog_log_callback_off_thread: Option<extern "C" fn(CharSlice)> = None;
+
+/// The global subscriber is installed once, so its formatter reads this flag on each event.
+static GLOBAL_ONCE: AtomicBool = AtomicBool::new(false);
+
+/// Set once the global subscriber exists; reloads its filter on later level changes.
+#[allow(clippy::type_complexity)]
+static GLOBAL_FILTER_RELOAD: OnceLock<Box<dyn Fn(EnvFilter) + Send + Sync>> = OnceLock::new();
 
 // Avoid RefCell for performance
 std::thread_local! {
@@ -82,6 +97,8 @@ where
 
 struct LogFormatter {
     pub once: bool,
+    /// Use the file-only callback for threads without PHP request state.
+    pub off_thread: bool,
 }
 
 struct LogVisitor {
@@ -142,9 +159,18 @@ where
             )
         }
 
+        let (callback, once) = if self.off_thread {
+            (
+                unsafe { ddog_log_callback_off_thread },
+                GLOBAL_ONCE.load(Ordering::Relaxed),
+            )
+        } else {
+            (unsafe { ddog_log_callback }, self.once)
+        };
+
         if let Some(msg) = visitor.msg {
-            if let Some(cb) = unsafe { ddog_log_callback } {
-                let msg = if self.once && visitor.once {
+            if let Some(cb) = callback {
+                let msg = if once && visitor.once {
                     if let Some(formatted) = LOGGED_MSGS.with(|logged| {
                         let mut logged = logged.borrow_mut();
                         if logged.contains(msg.as_str()) {
@@ -182,16 +208,51 @@ where
 pub unsafe extern "C" fn ddog_set_error_log_level(once: bool) {
     let subscriber = tracing_subscriber::fmt()
         .with_max_level(LevelFilter::ERROR)
-        .event_format(LogFormatter { once });
-    set_log_subscriber(subscriber)
+        .event_format(LogFormatter {
+            once,
+            off_thread: false,
+        });
+    set_log_subscriber(subscriber);
+    set_global_log_filter(EnvFilter::builder().parse_lossy("error"), once);
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ddog_set_log_level(level: CharSlice, once: bool) {
+    let level = level.to_utf8_lossy();
     let subscriber = tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::builder().parse_lossy(level.to_utf8_lossy()))
-        .event_format(LogFormatter { once });
-    set_log_subscriber(subscriber)
+        .with_env_filter(EnvFilter::builder().parse_lossy(level.as_ref()))
+        .event_format(LogFormatter {
+            once,
+            off_thread: false,
+        });
+    set_log_subscriber(subscriber);
+    set_global_log_filter(EnvFilter::builder().parse_lossy(level.as_ref()), once);
+}
+
+/// Install a global subscriber for sidecar threads, then reload its filter on later calls.
+/// PHP threads keep their own subscribers, which take precedence over the global one.
+/// The shared filter uses the most recently configured level.
+fn set_global_log_filter(filter: EnvFilter, once: bool) {
+    GLOBAL_ONCE.store(once, Ordering::Relaxed);
+
+    if let Some(reload) = GLOBAL_FILTER_RELOAD.get() {
+        reload(filter);
+        return;
+    }
+
+    let builder = tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .event_format(LogFormatter {
+            once,
+            off_thread: true,
+        })
+        .with_filter_reloading();
+    let handle = builder.reload_handle();
+    if tracing::subscriber::set_global_default(builder.finish()).is_ok() {
+        let _ = GLOBAL_FILTER_RELOAD.set(Box::new(move |filter| {
+            let _ = handle.reload(filter);
+        }));
+    }
 }
 
 fn set_log_subscriber<S>(subscriber: S)

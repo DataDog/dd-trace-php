@@ -92,13 +92,21 @@ void ddog_sidecar_transport_drop(struct ddog_SidecarTransport*);
  */
 ddog_MaybeError ddog_sidecar_connect(struct ddog_SidecarTransport **connection);
 
-ddog_MaybeError ddog_sidecar_connect_master(int32_t pid);
+ddog_MaybeError ddog_sidecar_connect_master(void);
 
 ddog_MaybeError ddog_sidecar_connect_worker(int32_t pid, struct ddog_SidecarTransport **connection);
 
 ddog_MaybeError ddog_sidecar_shutdown_master_listener(void);
 
-bool ddog_sidecar_is_master_listener_active(int32_t pid);
+/**
+ * Remove the master listener's socket and lock file, for SAPIs that exit without running
+ * PHP's module shutdown - php-fpm's master calls `exit()` straight from `fpm_pctl_exit()`, so
+ * `ddog_sidecar_shutdown_master_listener` never runs there. Safe to call more than once, and a
+ * no-op in a process that did not bind them.
+ */
+void ddog_sidecar_reap_master_listener_files(void);
+
+bool ddog_sidecar_is_master_listener_active(void);
 
 ddog_MaybeError ddog_sidecar_clear_inherited_listener(void);
 

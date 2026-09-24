@@ -11,6 +11,12 @@ struct _zend_string;
 
 extern void (*ddog_log_callback)(ddog_CharSlice);
 
+/**
+ * Log callback for sidecar threads. It may write to `DD_TRACE_LOG_FILE`, but must not call PHP's
+ * error logger, which requires request state and can bail out.
+ */
+extern void (*ddog_log_callback_off_thread)(ddog_CharSlice);
+
 extern ddog_VecRemoteConfigProduct DATADOG_REMOTE_CONFIG_PRODUCTS;
 
 extern ddog_VecRemoteConfigCapabilities DATADOG_REMOTE_CONFIG_CAPABILITIES;
@@ -248,7 +254,7 @@ void ddog_sidecar_enable_appsec(ddog_CharSlice log_file_path, ddog_CharSlice log
  * Starts a thread-mode master listener with the PHP-linked AppSec backend
  * registered in the listener's process.
  */
-ddog_MaybeError ddog_sidecar_connect_master_php(int32_t pid);
+ddog_MaybeError ddog_sidecar_connect_master_php(void);
 
 /**
  * Ensures the connected sidecar's AppSec backend is started using the

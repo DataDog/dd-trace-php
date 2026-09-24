@@ -1224,6 +1224,9 @@ typedef struct ddog_Arc_Target ddog_Arc_Target;
  */
 typedef struct ddog_ConfigInvariants ddog_ConfigInvariants;
 
+/**
+ * A mapping of a shared-memory segment, at an address that never changes.
+ */
 typedef struct ddog_MappedMem_ShmHandle ddog_MappedMem_ShmHandle;
 
 /**
