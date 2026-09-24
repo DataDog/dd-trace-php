@@ -22,7 +22,9 @@ ddloader_reaper_code_start:
 .Lreaper_start:
 #if defined(__x86_64__) && !defined(__ILP32__)
     .type ddloader_reaper_code_start, @function
-    endbr64
+    // Use the encoding until CentOS 7/devtoolset-7 is dropped; binutils 2.28
+    // does not recognize the mnemonic. This can then be replaced with endbr64.
+    .byte 0xf3, 0x0f, 0x1e, 0xfa
     leaq .Lreaper_start(%rip), %r8
     // The pthread argument is the child PID. wait4 preserves it in rdi.
     xorl %esi, %esi
@@ -39,7 +41,9 @@ ddloader_reaper_code_start:
     jmp *%rax
 #elif defined(__aarch64__) && !defined(__ILP32__)
     .type ddloader_reaper_code_start, %function
-    bti c
+    // Use the encoding until CentOS 7/devtoolset-7 is dropped; binutils 2.28
+    // does not recognize the mnemonic. This can then be replaced with bti c.
+    .inst 0xd503245f
     adr x9, .Lreaper_start
     mov w10, w0
     mov x1, xzr
