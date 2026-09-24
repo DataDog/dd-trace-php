@@ -171,6 +171,29 @@ class ReleaseSdkEvidenceTests(unittest.TestCase):
                 ci.release_sdk_versions(rows, arch, lock)
 
 
+class FocusedTestEvidenceTests(unittest.TestCase):
+    def test_all_five_remote_test_summaries_are_required(self):
+        with tempfile.TemporaryDirectory() as directory:
+            events = Path(directory) / "events.jsonl"
+            summaries = [dict(id={"testSummary": {"label": label}},
+                              testSummary={"overallStatus": "PASSED"})
+                         for label in sorted(ci.EXPECTED_PHP_TESTS)]
+
+            def write(items):
+                events.write_text("".join(json.dumps(item) + "\n" for item in items))
+
+            write(summaries)
+            self.assertEqual(ci.focused_test_results(events), sorted(ci.EXPECTED_PHP_TESTS))
+            write(summaries[:-1])
+            with self.assertRaisesRegex(ValueError, "incomplete"):
+                ci.focused_test_results(events)
+            failed = copy.deepcopy(summaries)
+            failed[0]["testSummary"]["overallStatus"] = "FAILED"
+            write(failed)
+            with self.assertRaisesRegex(ValueError, "failed"):
+                ci.focused_test_results(events)
+
+
 def sample(mode, arch="amd64", seconds=10, cpu=20):
     return dict(mode=mode, arch=arch, scope=ci.WORKLOAD, exit_code=0,
                 elapsed_seconds=seconds, runner_cpu_seconds=2,
@@ -257,7 +280,8 @@ class ReportTests(unittest.TestCase):
                 all_results.append(dict(mode="remaining", arch=arch,
                                         scope="remaining-normal-tracer-matrix", exit_code=0,
                                         extension_outputs=46))
-            all_results.append(dict(mode="tests", arch="amd64", scope="focused-php-tests", exit_code=0))
+            all_results.append(dict(mode="tests", arch="amd64", scope="focused-php-tests", exit_code=0,
+                                    passed_tests=sorted(ci.EXPECTED_PHP_TESTS)))
             for result in all_results:
                 path = root / (result["mode"] + "-" + result["arch"])
                 path.mkdir()
@@ -271,6 +295,12 @@ class ReportTests(unittest.TestCase):
                 self.assertEqual(report.main(), False)
                 self.assertTrue((root / "report.html").exists())
                 self.assertEqual(json.loads((root / "report.json").read_text())["preparation_seconds"], 20)
+                tests = root / "tests-amd64/result.json"
+                valid_tests = tests.read_text()
+                tests.write_text(json.dumps(dict(mode="tests", arch="amd64", exit_code=0)))
+                self.assertEqual(report.main(), True)
+                self.assertIn("Incomplete focused PHP test evidence", (root / "report.md").read_text())
+                tests.write_text(valid_tests)
                 (root / "cached-arm64/result.json").unlink()
                 self.assertEqual(report.main(), True)
                 self.assertIn("Missing cached / arm64 result", (root / "report.md").read_text())

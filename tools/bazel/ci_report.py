@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 import sys
 
-from ci import WORKLOAD, write_json
+from ci import EXPECTED_PHP_TESTS, WORKLOAD, write_json
 
 ARCHES = ("amd64", "arm64")
 MODES = ("legacy", "probe", "forced", "cached", "remaining")
@@ -225,6 +225,9 @@ def main():
                   if ("remaining", arch) in present and next(
                       r for r in results if (r.get("mode"), r.get("arch")) == ("remaining", arch)
                   ).get("extension_outputs") != 46)
+    errors.extend("Incomplete focused PHP test evidence" for r in results
+                  if (r.get("mode"), r.get("arch")) == ("tests", "amd64")
+                  and set(r.get("passed_tests", [])) != EXPECTED_PHP_TESTS)
     preparation = None
     try:
         preparation = float((args.directory / "prepare-finish.epoch").read_text()) - float(

@@ -25,6 +25,15 @@ import uuid
 ROOT = Path(__file__).resolve().parents[2]
 ARTIFACTS = ROOT / "artifacts/bazel"
 WORKLOAD = "full-linux-tracer-release-v1"
+EXPECTED_PHP_TESTS = frozenset(
+    "//bazel/tests:" + name for name in (
+        "http_extension_test",
+        "phpt_extension_disabled",
+        "phpt_read_c_configuration",
+        "phpt_dd_trace_multiple_write",
+        "phpt_do_not_check_if_class_or_function_exists_by_default",
+    )
+)
 REMOTE_ENDPOINT = "grpcs://buildbarn-frontend.us1.ddbuild.staging.dog:443"
 REMOTE_INSTANCE = "ci/shared"
 _state_directory = None
@@ -252,6 +261,26 @@ def output_inventory(events, output_base):
     return [files[key] for key in sorted(files)]
 
 
+def focused_test_results(events):
+    """Require all five remote PHP tests to report a passing BEP summary."""
+    summaries = {}
+    with events.open() as stream:
+        for line in stream:
+            event = json.loads(line)
+            if "testSummary" not in event:
+                continue
+            label = event["id"]["testSummary"]["label"]
+            if label in summaries:
+                raise ValueError("Duplicate PHP test summary: " + label)
+            summaries[label] = event["testSummary"]["overallStatus"]
+    if set(summaries) != EXPECTED_PHP_TESTS:
+        raise ValueError("Focused PHP test summaries are incomplete or unexpected: " + str(sorted(summaries)))
+    failures = [label for label, status in summaries.items() if status != "PASSED"]
+    if failures:
+        raise ValueError("Focused PHP tests failed: " + str(sorted(failures)))
+    return sorted(summaries)
+
+
 def run_bazel(mode, arch, targets, scope, verb="build"):
     from ci_metrics import execution_metrics, remote_cpu_metrics, validate_remote
     from verify_release_outputs import verify_standalone
@@ -268,7 +297,9 @@ def run_bazel(mode, arch, targets, scope, verb="build"):
         if not result["remote_cpu"]["complete"]:
             raise ValueError("Missing complete remote-worker CPU accounting")
         result["total_cpu_seconds"] = result["runner_cpu_seconds"] + result["remote_cpu"]["cpu_seconds"]
-        if result["exit_code"] == 0:
+        if result["exit_code"] == 0 and mode == "tests":
+            result["passed_tests"] = focused_test_results(record / "events.jsonl")
+        if result["exit_code"] == 0 and mode != "tests":
             output_base = Path(next(arg.split("=", 1)[1] for arg in command if arg.startswith("--output_base=")))
             inventory = output_inventory(record / "events.jsonl", output_base)
             write_json(record / "outputs.json", inventory)
