@@ -10,6 +10,7 @@
 #include <stdbool.h>
 #include <errno.h>
 #include <pthread.h>
+#include <signal.h>
 #include <sys/wait.h>
 #include <main/SAPI.h>
 #include <ext/standard/basic_functions.h>
@@ -481,6 +482,9 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
         error_code = ddloader_reaper_start(&reaper, pid);
         if (error_code) {
             LOG(config, ERROR, "Telemetry error: cannot start child reaper: %s", strerror(error_code))
+            // Do not let the forwarder block startup when no reaper thread is
+            // available. Reap it synchronously after forcing it to exit.
+            kill(pid, SIGKILL);
             ddloader_wait_for_child(pid);
         }
         return;  // parent
