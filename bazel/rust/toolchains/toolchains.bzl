@@ -104,7 +104,7 @@ def _raw_label(component_resolver, repository, execution, version_key, target):
     name = "%s_linux_%s_%s" % (repository, execution.rust_repo_arch, version_key)
     return component_resolver("@%s//:%s" % (name, target))
 
-def _declare_version(name, version, version_key, component_resolver, target_aarch64_gnu_libraries, target_x86_64_gnu_libraries, target_compatible_with, extra_target_settings = [], source_stdlib = None):
+def _declare_version(name, version, version_key, component_resolver, target_native_libraries, target_compatible_with, extra_target_settings = [], source_stdlib = None):
     rustc = {}
     rust_doc = {}
     cargo = {}
@@ -204,10 +204,7 @@ def _declare_version(name, version, version_key, component_resolver, target_aarc
         cargo_clippy = cargo_clippy,
         clippy_driver = clippy_driver,
         edition = "2021",
-        target_native_libraries = {
-            "aarch64-unknown-linux-gnu": target_aarch64_gnu_libraries,
-            "x86_64-unknown-linux-gnu": target_x86_64_gnu_libraries,
-        },
+        target_native_libraries = target_native_libraries,
         exec_triples = _EXECUTIONS.keys(),
         extra_target_settings = extra_target_settings,
         rust_doc = rust_doc,
@@ -244,24 +241,26 @@ def _declare_stable_asan_exec_toolchains():
 
 def hermetic_rust_toolchains():
     """Declares wrapped stable and dated-nightly Linux Rust toolchains."""
-    rust_target_gnu_library(
-        name = "target_aarch64_gnu_libraries",
-        platform = "//bazel/platforms:linux_arm64_glibc",
-        runtime = "//bazel/dependencies/llvm_runtimes:aarch64_glibc",
-    )
-    rust_target_gnu_library(
-        name = "target_x86_64_gnu_libraries",
-        platform = "//bazel/platforms:linux_amd64_glibc",
-        runtime = "//bazel/dependencies/llvm_runtimes:x86_64_glibc",
-    )
+
+    # Dynamic musl Rust stdlib links -lgcc_s just like GNU stdlib. Supply the
+    # target runtime's unwind ABI under that linker name for both libc variants.
+    target_native_libraries = {}
+    for arch, rust_arch in [("arm64", "aarch64"), ("amd64", "x86_64")]:
+        for libc in ("glibc", "musl"):
+            name = "target_%s_%s_libraries" % (rust_arch, libc)
+            rust_target_gnu_library(
+                name = name,
+                platform = "//bazel/platforms:linux_%s_%s" % (arch, libc),
+                runtime = "//bazel/dependencies/llvm_runtimes:%s_%s" % (rust_arch, libc),
+            )
+            target_native_libraries["%s-unknown-linux-%s" % (rust_arch, "gnu" if libc == "glibc" else "musl")] = ":" + name
     _declare_version(
         name = "stable",
         version = "1.87.0",
         version_key = "1_87_0",
         component_resolver = stable_component,
-        target_aarch64_gnu_libraries = ":target_aarch64_gnu_libraries",
+        target_native_libraries = target_native_libraries,
         target_compatible_with = ["//bazel/platforms:normal"],
-        target_x86_64_gnu_libraries = ":target_x86_64_gnu_libraries",
     )
     _declare_stable_asan_exec_toolchains()
 
@@ -277,17 +276,15 @@ def hermetic_rust_toolchains():
         version_key = "nightly_2025_06_13",
         component_resolver = nightly_component,
         extra_target_settings = [":nightly_proc_macro_enabled"],
-        target_aarch64_gnu_libraries = ":target_aarch64_gnu_libraries",
+        target_native_libraries = target_native_libraries,
         target_compatible_with = ["//bazel/platforms:normal"],
-        target_x86_64_gnu_libraries = ":target_x86_64_gnu_libraries",
     )
     _declare_version(
         name = "asan",
         version = "nightly/2025-06-13",
         version_key = "nightly_2025_06_13",
         component_resolver = nightly_component,
-        target_aarch64_gnu_libraries = ":target_aarch64_gnu_libraries",
+        target_native_libraries = target_native_libraries,
         target_compatible_with = ["//bazel/platforms:asan"],
-        target_x86_64_gnu_libraries = ":target_x86_64_gnu_libraries",
         source_stdlib = "@rustc_src_nightly_2025_06_13//src:rust_std",
     )

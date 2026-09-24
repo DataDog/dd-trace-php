@@ -179,9 +179,9 @@ rust_static_exec_libraries = rule(
 )
 
 def _rust_target_gnu_library_impl(ctx):
-    # Rust's GNU standard libraries request -lgcc_s even when the selected
-    # native toolchain uses compiler-rt and LLVM libunwind. This linker-name
-    # adapter satisfies that standard EH ABI from the target runtime. It is
+    # Rust's GNU and dynamic musl standard libraries request -lgcc_s even when
+    # the selected native toolchain uses compiler-rt and LLVM libunwind. This
+    # linker-name adapter satisfies that standard EH ABI from the target runtime. It is
     # unrelated to libdd-libunwind-sys, which still requires GNU ptrace and
     # architecture archives from its dedicated dependency target.
     output = ctx.actions.declare_file(ctx.label.name + "/libgcc_s.so")
