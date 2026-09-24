@@ -552,6 +552,14 @@ static PHP_MSHUTDOWN_FUNCTION(datadog) {
 }
 
 static void dd_rinit_once(void) {
+    /* datadog_disable == 1 returns early from MINIT, so none of the matching
+     * one-time request subsystems may be started. datadog_disable == 2 is
+     * different: MINIT completed and its resources still need a balanced
+     * lifecycle. */
+    if (datadog_disable == 1) {
+        return;
+    }
+
     // Collect process tags now that script path is available
     if (get_global_DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED()) {
         datadog_process_tags_first_rinit();

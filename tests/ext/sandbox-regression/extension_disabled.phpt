@@ -12,8 +12,10 @@ DDTrace\trace_function("test", function($s, $a, $retval){
     echo $retval . ' HOOK' . PHP_EOL;
 });
 
+var_dump(dd_trace_internal_fn('set_writer_send_on_flush', false));
 echo test();
 
 ?>
 --EXPECT--
+bool(false)
 FUNCTION
