@@ -40,6 +40,36 @@ The two standalone Rust DSOs in each lane must also be ELF shared objects for
 the selected architecture, retain debug information, and export the sidecar
 entry points required by the C ABI.
 
+## Manually updated dependency images
+
+The package child pipeline exposes manual `bazel deps image: [amd64]` and
+`bazel deps image: [arm64]` jobs. Run them after changing dependency locks or
+Bazel repository rules. Each uses the prepared source artifact, resolves the
+release, remaining, probe, and (on amd64) focused-test repositories with
+`--nobuild`, then repeats resolution from fresh output bases with repository
+downloads disabled. It copies only SHA-256 verified downloads and the pinned
+Bazel binary into an architecture-specific OCI image. The image is signed and
+published to `registry.ddbuild.io/ci/dd-trace-php/bazel-deps` under a commit and
+architecture tag. The manual `bazel deps Nydus: [arch]` jobs convert those OCI
+images to signed `-nydus` tags using Datadog's `nydus-convert` wrapper.
+
+To trial the images, start a pipeline with `BAZEL_CI_PRELOADED=1` and set
+`BAZEL_CI_IMAGE_AMD64` and `BAZEL_CI_IMAGE_ARM64` to the corresponding image
+digests (the Nydus digests on runners that support lazy pulling). This selects
+the baked Bazel binary and repository cache, skips the bootstrap and network
+probe, and disables the GitLab cache archive. The lane uses
+`--repository_disable_download` so missing repository inputs fail rather than
+silently fetching new ones. Keep the default image path until both architecture
+images have passed a complete real pipeline. A lock change that introduces a
+new download requires a manual image refresh.
+
+Nydus shortens image startup by fetching data on demand. It does not eliminate
+Bazel's fresh-output-base analysis, remote action-cache lookups, or required
+comparison-output downloads. The report deliberately keeps that fresh replay
+as evidence of remote cache reuse. Measure pod-start-to-report time as well as
+image-pull time; the first Bazel read may fetch cached repository files from
+the Nydus registry layer.
+
 The report separates elapsed time, runner CPU, Buildbarn worker CPU, total
 build-process CPU, remote cache hits and misses, queue time, and requested runner
 core-seconds. Historical CPU attached to cache hits is excluded. Queue time is

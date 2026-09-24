@@ -190,6 +190,8 @@ def bazel_command(record, mode, arch, targets, verb="build"):
                 "--build_event_json_file=" + str(record / "events.jsonl"),
                 "--remote_accept_cached=" + ("false" if mode in ("forced", "probe") else "true"),
                 "--remote_download_outputs=toplevel"]
+    if os.environ.get("BAZEL_CI_OFFLINE_DEPS") == "1":
+        command.append("--repository_disable_download")
     if mode in ("forced", "cached"):
         command.append("--config=rbe-benchmark")
         # The benchmark config requests minimal downloads for interactive use;

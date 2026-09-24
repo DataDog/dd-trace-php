@@ -18,6 +18,7 @@ from unittest.mock import patch
 import ci
 import ci_metrics as metrics
 import ci_report as report
+import deps_image
 import legacy_aggregate
 import network_probe
 import repository_cache
@@ -366,6 +367,13 @@ class RunnerTests(unittest.TestCase):
             tests = ci.bazel_command(Path(directory), "tests", "amd64", ["//bazel/tests:php_tests"], "test")
             self.assertIn("--test_output=errors", tests)
             self.assertIn("--@rules_python//python/config_settings:bootstrap_impl=script", tests)
+
+    def test_preloaded_repository_image_disables_ci_downloads(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"BAZEL_CI_OFFLINE_DEPS": "1"}):
+            cached = ci.bazel_command(Path(directory), "cached", "amd64", ci.comparison_targets())
+            self.assertIn("--repository_disable_download", cached)
+            self.assertIn("//bazel/products/tracer:ddtrace_fat_amd64_remaining", deps_image.targets("amd64"))
+            self.assertIn("//bazel/stages:remote_arch_arm64", deps_image.targets("arm64"))
 
     def test_empty_endpoint_override_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"BAZEL_REMOTE_EXECUTOR": ""}):
