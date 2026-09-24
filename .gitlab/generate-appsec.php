@@ -182,7 +182,8 @@ stages:
 <?php echo $ecrLoginSnippet, "\n"; ?>
 <?php dockerhub_login() ?>
   script:
-    - apt update && apt install -y openjdk-17-jre
+    - .gitlab/run-with-retryable-download.sh apt update
+    - .gitlab/run-with-retryable-download.sh apt install -y openjdk-17-jre
     - find "$CI_PROJECT_DIR"/appsec/tests/integration/build || true
     - |
       cd appsec/tests/integration
