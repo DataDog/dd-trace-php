@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Diagnose CI access to a locked PHP SDK layer without logging credentials."""
+"""Check direct access to locked CI dependencies without logging credentials."""
 
 import argparse
 import json
@@ -40,7 +40,7 @@ def main():
     blob = "https://%s/v2/%s/blobs/%s" % (
         record["registry"], record["repository"], record["layers"][0]["digest"]
     )
-    hosts = ("registry-1.docker.io", "auth.docker.io", "production.cloudfront.docker.com", "docker-images-prod.s3.dualstack.us-east-1.amazonaws.com", "launchpad.net", "launchpadlibrarian.net")
+    hosts = ("registry-1.docker.io", "auth.docker.io", "production.cloudfront.docker.com", "docker-images-prod.s3.dualstack.us-east-1.amazonaws.com", "launchpad.net", "launchpadlibrarian.net", "dl.google.com", "proxy.golang.org", "sum.golang.org")
     proxies = urllib.request.getproxies()
     print(json.dumps({
         "probe": "proxy_configuration",
@@ -85,6 +85,19 @@ def main():
     package = "https://launchpad.net/ubuntu/+archive/primary/+files/zlib1g_1.3.dfsg-3.1ubuntu2.2_amd64.deb"
     package_status, package_host, _ = request(package, {"Range": "bytes=0-0"})
     print(json.dumps({"probe": "rust_toolchain_package", "status": package_status, "host": package_host}), flush=True)
+    if args.arch == "amd64":
+        # The focused PHP tests load rules_go after the release builds. Fail
+        # during startup if the SDK or module hosts cannot be reached directly.
+        go_urls = {
+            "go_sdk": "https://dl.google.com/go/go1.25.0.linux-amd64.tar.gz",
+            "go_module_proxy": "https://proxy.golang.org/golang.org/x/sys/@v/v0.36.0.info",
+            "go_checksum_database": "https://sum.golang.org/lookup/golang.org/x/sys@v0.36.0",
+        }
+        for name, url in go_urls.items():
+            go_status, go_host, _ = request(url, {"Range": "bytes=0-0"})
+            print(json.dumps({"probe": name, "status": go_status, "host": go_host}), flush=True)
+            if go_status not in (200, 206):
+                return 1
     return 0 if scoped_status in (200, 206) else 1
 
 
