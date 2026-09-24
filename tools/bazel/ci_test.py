@@ -375,6 +375,17 @@ class RunnerTests(unittest.TestCase):
             self.assertIn("//bazel/products/tracer:ddtrace_fat_amd64_remaining", deps_image.targets("amd64"))
             self.assertIn("//bazel/stages:remote_arch_arm64", deps_image.targets("arm64"))
 
+    def test_dependency_image_prefetch_analyzes_tests_without_running_them(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(ci, "state_directory", return_value=Path(directory)):
+            commands = list(deps_image.commands("amd64", offline=True))
+        self.assertEqual(len(commands), 2)
+        for command in commands:
+            self.assertIn("build", command)
+            self.assertIn("--nobuild", command)
+            self.assertIn("--repository_disable_download", command)
+            self.assertNotIn("test", command)
+        self.assertTrue(ci.EXPECTED_PHP_TESTS.issubset(commands[1]))
+
     def test_empty_endpoint_override_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"BAZEL_REMOTE_EXECUTOR": ""}):
             with self.assertRaisesRegex(ValueError, "must not disable"):

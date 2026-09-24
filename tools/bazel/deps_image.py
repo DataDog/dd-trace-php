@@ -26,18 +26,23 @@ def targets(arch):
 
 
 def commands(arch, offline):
-    steps = [("build", targets(arch))]
+    steps = [("release", targets(arch))]
     if arch == "amd64":
-        steps.append(("test", ["//bazel/tests:php_tests"]))
-    for verb, labels in steps:
-        record = ci.state_directory() / ("deps-image-" + verb)
+        # `test --nobuild` analyzes the suite but exits nonzero because Bazel
+        # cannot run its tests. Build the expanded suite targets instead.
+        steps.append(("focused-tests", sorted(ci.EXPECTED_PHP_TESTS)))
+    for name, labels in steps:
+        record = ci.state_directory() / ("deps-image-" + name)
         record.mkdir(parents=True, exist_ok=True)
-        command = ci.bazel_command(record, "image", arch, labels, verb)
+        command = ci.bazel_command(record, "image", arch, labels)
         # --nobuild performs repository and toolchain resolution without
         # executing the 55-product release build in this maintenance job.
-        command.insert(command.index(verb) + 1, "--nobuild")
+        command.insert(command.index("build") + 1, "--nobuild")
         if offline:
-            command.insert(command.index(verb) + 1, "--repository_disable_download")
+            command.insert(command.index("build") + 1, "--repository_disable_download")
+        if name == "focused-tests":
+            command.insert(command.index("build") + 1,
+                           "--@rules_python//python/config_settings:bootstrap_impl=script")
         yield command
 
 
