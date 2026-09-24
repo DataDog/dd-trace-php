@@ -50,6 +50,47 @@ def file_hash(path):
     return digest.hexdigest()
 
 
+def release_sdk_versions(rows, arch, lock):
+    """Report the installed, digest-locked PHP SDKs used by release products.
+
+    The product manifest's php_version is a historical source pin. Several
+    release images now contain a newer patch version, so it cannot be used as
+    evidence of the SDK that Bazel actually imported.
+    """
+    imports = {}
+    for record in lock["imports"]:
+        if record["image_family"] not in ("centos7", "alpine322"):
+            continue
+        key = (record["image_family"], record["minor"],
+               record["platform"]["arch"], record["abi_profile"])
+        if key in imports:
+            raise ValueError("Duplicate locked release PHP SDK: %s" % (key,))
+        imports[key] = record
+    versions = {}
+    product_ids = []
+    for row in rows:
+        if row["target_arch"] != arch or row["sdk_family"] not in ("release", "alpine") or row["shared_build"] or row["sanitizer"] != "none":
+            continue
+        if not row["product_labels"]["tracer"]:
+            continue
+        family = "centos7" if row["sdk_family"] == "release" else "alpine322"
+        key = (family, row["php_minor"], arch, row["abi_profile"])
+        record = imports.get(key)
+        if record is None:
+            raise ValueError("Missing locked release PHP SDK: %s" % (key,))
+        if record["target_libc"] != row["target_libc"] or record["declared_source_version"] != row["php_version"]:
+            raise ValueError("Release PHP SDK lock differs from product manifest: %s" % (key,))
+        version_key = row["target_libc"] + ":" + row["php_minor"]
+        version = record["observed_image_version"]
+        previous = versions.setdefault(version_key, version)
+        if previous != version:
+            raise ValueError("Bazel SDK versions differ across profiles: " + version_key)
+        product_ids.append("%s:%s:%s" % (row["target_libc"], row["php_minor"], row["abi_profile"]))
+    if len(versions) != 22 or len(product_ids) != 55 or len(set(product_ids)) != 55:
+        raise ValueError("Canonical release PHP SDK inventory is incomplete")
+    return versions, sorted(product_ids)
+
+
 def provenance():
     changed = subprocess.check_output(["git", "diff", "--name-only", "HEAD", "--"]).decode().splitlines()
     prepared = {"VERSION"}
@@ -241,26 +282,10 @@ def run_bazel(mode, arch, targets, scope, verb="build"):
                     raise ValueError("Missing canonical PHP product manifest")
                 source = output_base / "execroot/_main" / manifest[0]["path"]
                 rows = json.loads(source.read_text())["rows"]
-                sdk_versions = {}
-                product_ids = []
-                for row in rows:
-                    if row["target_arch"] != arch or not (
-                        row["sdk_family"] == "release" or row["sdk_family"] == "alpine"
-                    ) or row["shared_build"] or row["sanitizer"] != "none":
-                        continue
-                    key = row["target_libc"] + ":" + row["php_minor"]
-                    previous = sdk_versions.setdefault(key, row["php_version"])
-                    if previous != row["php_version"]:
-                        raise ValueError("Bazel SDK versions differ across profiles: " + key)
-                    if row["product_labels"]["tracer"]:
-                        product_ids.append("%s:%s:%s" % (
-                            row["target_libc"], row["php_minor"], row["abi_profile"]))
-                if len(sdk_versions) != 22:
-                    raise ValueError("Expected 22 release SDK versions")
-                if len(product_ids) != 55 or len(set(product_ids)) != 55:
-                    raise ValueError("Canonical release product identities are incomplete")
+                sdk_versions, product_ids = release_sdk_versions(
+                    rows, arch, json.loads((ROOT / "bazel/dependencies/php_oci/images.json").read_text()))
                 result["sdk_versions"] = sdk_versions
-                result["product_ids"] = sorted(product_ids)
+                result["product_ids"] = product_ids
     except (OSError, ValueError, KeyError, IndexError, struct.error) as error:
         result["validation_error"] = str(error)
         result["exit_code"] = result["exit_code"] or 1

@@ -145,6 +145,32 @@ class AccountingTests(unittest.TestCase):
             metrics.validate_remote(result, cpu)
 
 
+class ReleaseSdkEvidenceTests(unittest.TestCase):
+    def test_release_versions_come_from_imported_images_not_historical_source_pins(self):
+        lock = json.loads((ci.ROOT / "bazel/dependencies/php_oci/images.json").read_text())
+        for arch in ("amd64", "arm64"):
+            rows = []
+            for record in lock["imports"]:
+                if record["platform"]["arch"] != arch or record["image_family"] not in ("centos7", "alpine322"):
+                    continue
+                rows.append(dict(target_arch=arch,
+                                 sdk_family="release" if record["image_family"] == "centos7" else "alpine",
+                                 shared_build=False, sanitizer="none",
+                                 product_labels={"tracer": "//bazel/products/tracer:release"},
+                                 php_minor=record["minor"], abi_profile=record["abi_profile"],
+                                 target_libc=record["target_libc"],
+                                 php_version=record["declared_source_version"]))
+            versions, identities = ci.release_sdk_versions(rows, arch, lock)
+            self.assertEqual(len(identities), 55)
+            self.assertEqual(len(versions), 22)
+            self.assertEqual(versions["glibc:8.5"], "8.5.10")
+            self.assertEqual(versions["musl:8.2"], "8.2.33")
+            self.assertTrue(any(row["php_version"] == "8.5.7" for row in rows))
+            rows[0]["php_version"] = "wrong-source-pin"
+            with self.assertRaisesRegex(ValueError, "lock differs"):
+                ci.release_sdk_versions(rows, arch, lock)
+
+
 def sample(mode, arch="amd64", seconds=10, cpu=20):
     return dict(mode=mode, arch=arch, scope=ci.WORKLOAD, exit_code=0,
                 elapsed_seconds=seconds, runner_cpu_seconds=2,
