@@ -423,7 +423,6 @@ typedef enum ddog_RemoteConfigCapabilities {
   DDOG_REMOTE_CONFIG_CAPABILITIES_FFE_FLAG_CONFIGURATION_RULES = 46,
   DDOG_REMOTE_CONFIG_CAPABILITIES_DD_DATA_STREAMS_TRANSACTION_EXTRACTORS = 47,
   DDOG_REMOTE_CONFIG_CAPABILITIES_LLM_OBS_ACTIVATION = 48,
-  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RAW_RESPONSE_BODY = 49,
 } ddog_RemoteConfigCapabilities;
 
 typedef enum ddog_RemoteConfigProduct {
@@ -1218,6 +1217,15 @@ typedef struct ddog_MappedMem_ShmHandle ddog_MappedMem_ShmHandle;
  */
 typedef struct ddog_PlatformHandle_File ddog_PlatformHandle_File;
 
+/**
+ * Opaque registration for a Windows remote configuration callback.
+ *
+ * Create it with `ddog_sidecar_remote_config_notification_new`, pass it to
+ * `ddog_sidecar_session_set_config`, and release it with
+ * `ddog_sidecar_remote_config_notification_drop`.
+ */
+typedef struct ddog_RemoteConfigNotification ddog_RemoteConfigNotification;
+
 typedef struct ddog_RemoteConfigReader ddog_RemoteConfigReader;
 
 /**
@@ -1282,7 +1290,6 @@ typedef struct ddog_Slice_FfeExposure {
    */
   uintptr_t len;
 } ddog_Slice_FfeExposure;
-
 typedef struct ddog_FfeFlagEvaluation {
   int64_t timestamp_ms;
   ddog_CharSlice flag_key;
@@ -1316,7 +1323,6 @@ typedef struct ddog_Slice_FfeFlagEvaluation {
    */
   uintptr_t len;
 } ddog_Slice_FfeFlagEvaluation;
-
 typedef struct ddog_FfeEvaluationMetric {
   ddog_CharSlice flag_key;
   ddog_CharSlice variant;
@@ -1338,7 +1344,6 @@ typedef struct ddog_Slice_FfeEvaluationMetric {
    */
   uintptr_t len;
 } ddog_Slice_FfeEvaluationMetric;
-
 /**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,
  * never from C.
@@ -1348,7 +1353,6 @@ typedef struct ddog_Vec_SpanBytes {
   uintptr_t len;
   uintptr_t capacity;
 } ddog_Vec_SpanBytes;
-
 typedef struct ddog_Vec_SpanBytes ddog_TraceBytes;
 
 /**
@@ -1360,7 +1364,6 @@ typedef struct ddog_Vec_TraceBytes {
   uintptr_t len;
   uintptr_t capacity;
 } ddog_Vec_TraceBytes;
-
 typedef struct ddog_Vec_TraceBytes ddog_TracesBytes;
 
 typedef struct ddog_SenderParameters {

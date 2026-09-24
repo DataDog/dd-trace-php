@@ -9,6 +9,10 @@ void datadog_rinit_remote_config(void);
 void datadog_rshutdown_remote_config(void);
 void datadog_check_for_new_config_now(void);
 
+#ifdef _WIN32
+struct ddog_RemoteConfigNotification;
+const struct ddog_RemoteConfigNotification *datadog_remote_config_notification_get(void);
+#endif
 
 DATADOG_PUBLIC void datadog_set_all_thread_vm_interrupt(void);
 

@@ -208,7 +208,7 @@ ddog_MaybeError ddog_sidecar_session_set_config(struct ddog_SidecarTransport **t
                                                 uintptr_t force_drop_size,
                                                 ddog_CharSlice log_level,
                                                 ddog_CharSlice log_path,
-                                                void *_remote_config_notify_function,
+                                                const struct ddog_RemoteConfigNotification *win_remote_config_notification,
                                                 const enum ddog_RemoteConfigProduct *remote_config_products,
                                                 uintptr_t remote_config_products_count,
                                                 const enum ddog_RemoteConfigCapabilities *remote_config_capabilities,
@@ -532,6 +532,57 @@ struct ddog_AppsecCResponse datadog_sidecar_send_appsec_message_without_reconnec
  * Frees an `AppsecCResponse` returned by an AppSec message function.
  */
 void ddog_sidecar_appsec_response_drop(struct ddog_AppsecCResponse response);
+
+#if defined(_WIN32)
+/**
+ * Create a Windows notification that invokes `callback(context)` when remote configuration may
+ * have changed.
+ *
+ * On success, `*out` receives a newly allocated notification. Pass that pointer to
+ * `ddog_sidecar_session_set_config` to associate it with a session, and eventually release it
+ * with `ddog_sidecar_remote_config_notification_drop`. Session configuration does not take
+ * ownership of the notification.
+ *
+ * The callback runs asynchronously on a Windows thread-pool thread. Calls for the same
+ * notification do not overlap, but several remote configuration updates may be represented by
+ * one call. Treat the callback as a prompt to read the latest configuration rather than as a
+ * count of updates.
+ *
+ * If the function returns an error, a valid `out` parameter is set to NULL.
+ *
+ * # Safety
+ *
+ * - `out` must point to writable storage for one notification pointer.
+ * - `callback` must be non-NULL and safe to call with `context` from a Windows thread-pool thread.
+ * - If creation succeeds, the callback code and any data reached through `context` must remain
+ *   valid until `ddog_sidecar_remote_config_notification_drop` returns.
+ * - The callback must not drop its own notification.
+ */
+ddog_MaybeError ddog_sidecar_remote_config_notification_new(void (*callback)(void*),
+                                                            void *context,
+                                                            struct ddog_RemoteConfigNotification **out);
+#endif
+
+#if defined(_WIN32)
+/**
+ * Disable a remote configuration notification and release it.
+ *
+ * Passing NULL has no effect. If its callback is currently running, this function waits for the
+ * callback to return. Once this function returns, no callback for this notification is running or
+ * can start, so the caller may safely release the callback context or unload the callback code.
+ * A sidecar that still has the session configuration may continue sending signals, but those
+ * signals can no longer invoke the callback.
+ *
+ * # Safety
+ *
+ * - `notification` must be NULL or a live pointer returned by
+ *   `ddog_sidecar_remote_config_notification_new`.
+ * - A non-NULL pointer may be passed to this function only once and must not be used concurrently
+ *   by another call, including `ddog_sidecar_session_set_config`.
+ * - This function must not be called from the notification's callback.
+ */
+void ddog_sidecar_remote_config_notification_drop(struct ddog_RemoteConfigNotification *notification);
+#endif
 
 ddog_TracesBytes *ddog_get_traces(void);
 

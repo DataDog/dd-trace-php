@@ -5,6 +5,7 @@
 #include <zai_string/string.h>
 #include <components/log/log.h>
 #include "threads.h"
+#include <components-rs/sidecar.h>
 #include <tracer/tracer_api.h>
 #include <tracer/live_debugger.h>
 
@@ -15,6 +16,12 @@
 #endif
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
+
+#ifdef _WIN32
+static struct ddog_RemoteConfigNotification *remote_config_notification;
+
+static void datadog_remote_config_notify(void *context);
+#endif
 
 static void (*dd_prev_interrupt_function)(zend_execute_data *execute_data);
 static void dd_vm_interrupt(zend_execute_data *execute_data) {
@@ -30,7 +37,7 @@ static void dd_vm_interrupt(zend_execute_data *execute_data) {
     }
 }
 
-// We need this exported to call it via CreateRemoteThread on Windows
+// The Windows remote configuration notification invokes this asynchronously.
 DATADOG_PUBLIC void datadog_set_all_thread_vm_interrupt(void) {
     // broadcast interrupt to all threads on ZTS
 #if ZTS
@@ -131,7 +138,11 @@ void datadog_minit_remote_config(void) {
     dd_prev_interrupt_function = zend_interrupt_function;
     zend_interrupt_function = dd_vm_interrupt;
 
-#ifndef _WIN32
+#ifdef _WIN32
+    datadog_ffi_try("Failed to initialize remote config notification",
+                    ddog_sidecar_remote_config_notification_new(datadog_remote_config_notify, NULL,
+                                                                &remote_config_notification));
+#else
     struct sigaction act = {0};
     act.sa_flags = SA_SIGINFO | SA_RESTART;
     act.sa_sigaction = dd_sigvtalarm_handler;
@@ -140,12 +151,26 @@ void datadog_minit_remote_config(void) {
 }
 
 void datadog_mshutdown_remote_config(void) {
-#ifndef _WIN32
+#ifdef _WIN32
+    ddog_sidecar_remote_config_notification_drop(remote_config_notification);
+    remote_config_notification = NULL;
+#else
     struct sigaction act = {0};
     act.sa_handler = SIG_IGN;
     sigaction(SIGVTALRM, &act, NULL);
 #endif
 }
+
+#ifdef _WIN32
+const struct ddog_RemoteConfigNotification *datadog_remote_config_notification_get(void) {
+    return remote_config_notification;
+}
+
+static void datadog_remote_config_notify(void *context) {
+    UNUSED(context);
+    datadog_set_all_thread_vm_interrupt();
+}
+#endif
 
 void datadog_rinit_remote_config(void) {
     DATADOG_G(reread_remote_configuration) = 0;

@@ -128,6 +128,11 @@ static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_f
     ddog_CharSlice parent_session_id = datadog_is_empty_session_id(datadog_formatted_parent_session_id) ? DDOG_CHARSLICE_C("") : (ddog_CharSlice) {.ptr = (char *) datadog_formatted_parent_session_id, .len = sizeof(datadog_formatted_parent_session_id)};
     const ddog_Vec_Tag *process_tags = datadog_process_tags_get_vec();
     ddog_Endpoint *otlp_metrics_endpoint = datadog_otel_metrics_endpoint();
+#ifdef _WIN32
+    const struct ddog_RemoteConfigNotification *remote_config_notification = datadog_remote_config_notification_get();
+#else
+    const struct ddog_RemoteConfigNotification *remote_config_notification = NULL;
+#endif
     ddog_sidecar_session_set_config(transport, session_id, datadog_endpoint, dogstatsd_endpoint, otlp_metrics_endpoint,
                                     DDOG_CHARSLICE_C("php"),
                                     php_version_rt,
@@ -143,7 +148,7 @@ static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_f
                                     get_global_DD_TRACE_AGENT_STACK_BACKLOG() * get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE(),
                                     get_global_DD_TRACE_DEBUG() ? DDOG_CHARSLICE_C("debug") : dd_zend_string_to_CharSlice(get_global_DD_TRACE_LOG_LEVEL()),
                                     (ddog_CharSlice){ .ptr = logpath, .len = strlen(logpath) },
-                                    datadog_set_all_thread_vm_interrupt,
+                                    remote_config_notification,
                                     DATADOG_REMOTE_CONFIG_PRODUCTS.ptr,
                                     DATADOG_REMOTE_CONFIG_PRODUCTS.len,
                                     DATADOG_REMOTE_CONFIG_CAPABILITIES.ptr,
