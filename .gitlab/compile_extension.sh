@@ -38,7 +38,7 @@ fi
 if [ "$rust_build_status" -ne 0 ]; then
   # Retry the job with a clean target directory: libddwaf may have left a
   # partially extracted archive, which cannot safely be reused locally.
-  if grep -Eq 'Failed to (download archive|write archive entry contents to file):.*reqwest::Error.*(ConnectionReset|ConnectionAborted|TimedOut|IncompleteMessage)' "$rust_build_log"; then
+  if grep -Eq 'Failed to (download archive|write archive entry contents to file):.*reqwest::Error.*(ConnectionReset|ConnectionAborted|TimedOut|IncompleteMessage|UnexpectedEof)' "$rust_build_log"; then
     echo "Transient libddwaf download failure; exiting 75 for GitLab retry." >&2
     exit 75
   fi
