@@ -1164,15 +1164,24 @@ void ddtrace_serialize_closed_spans(ddog_TracesBytes *traces, bool fast_shutdown
                 next_stack = stack->next;
             }
             ddog_TraceBytes *trace = ddog_traces_new_trace(traces);
+            bool sampling_decided = false;
+            bool p0_trace = false;
 
             do {
                 // Note this ->next: We always splice in new spans at next, so start at next to mostly preserve order
                 ddtrace_span_data *span = stack->closed_ring_flush->next, *end = span;
                 stack->closed_ring_flush = NULL;
+                if (!sampling_decided) {
+                    // Detach the ring before sampling, which can trigger destructors or GC.
+                    // Snapshot once for this chunk, including attached stacks and inferred spans.
+                    // Later chunks reevaluate automatic sampling (existing behavior, unlike other tracers).
+                    p0_trace = ddtrace_fetch_priority_sampling_from_span(span->root) <= 0;
+                    sampling_decided = true;
+                }
                 do {
                     ddtrace_span_data *tmp = span;
                     span = tmp->next;
-                    ddtrace_serialize_span_to_rust_span(tmp, trace);
+                    ddtrace_serialize_span_to_rust_span(tmp, trace, p0_trace);
 #if PHP_VERSION_ID < 70400
                     // remove the artificially increased RC while closing again
                     GC_SET_REFCOUNT(&tmp->std, GC_REFCOUNT(&tmp->std) - DD_RC_CLOSED_MARKER);
