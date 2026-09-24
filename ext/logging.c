@@ -222,8 +222,18 @@ static void dd_log_callback(ddog_CharSlice msg) {
 }
 
 
+// Sidecar threads have no PHP request state, so they cannot use php_log_err() or zend_bailout().
+// Drop messages when no log file is configured.
+static void dd_log_callback_off_thread(ddog_CharSlice msg) {
+    int error_log_fd = atomic_load(&datadog_error_log_fd);
+    if (error_log_fd != -1) {
+        datadog_log_with_time(error_log_fd, (char *)msg.ptr, (int)msg.len);
+    }
+}
+
 void datadog_log_init(void) {
     ddog_log_callback = dd_log_callback;
+    ddog_log_callback_off_thread = dd_log_callback_off_thread;
 }
 
 bool datadog_alter_dd_trace_debug(zval *old_value, zval *new_value, zend_string *new_str) {

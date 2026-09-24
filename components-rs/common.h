@@ -423,7 +423,6 @@ typedef enum ddog_RemoteConfigCapabilities {
   DDOG_REMOTE_CONFIG_CAPABILITIES_FFE_FLAG_CONFIGURATION_RULES = 46,
   DDOG_REMOTE_CONFIG_CAPABILITIES_DD_DATA_STREAMS_TRANSACTION_EXTRACTORS = 47,
   DDOG_REMOTE_CONFIG_CAPABILITIES_LLM_OBS_ACTIVATION = 48,
-  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_RAW_RESPONSE_BODY = 49,
 } ddog_RemoteConfigCapabilities;
 
 typedef enum ddog_RemoteConfigProduct {
@@ -1210,6 +1209,9 @@ typedef struct ddog_Arc_Target ddog_Arc_Target;
  */
 typedef struct ddog_ConfigInvariants ddog_ConfigInvariants;
 
+/**
+ * A mapping of a shared-memory segment, at an address that never changes.
+ */
 typedef struct ddog_MappedMem_ShmHandle ddog_MappedMem_ShmHandle;
 
 /**
