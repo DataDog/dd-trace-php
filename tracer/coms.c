@@ -67,6 +67,7 @@ static char *ddtrace_env_https_proxy = NULL;   /* https_proxy / HTTPS_PROXY */
 static char *ddtrace_env_all_proxy = NULL;     /* all_proxy / ALL_PROXY */
 
 ddtrace_coms_state_t ddtrace_coms_globals = {.stacks = NULL};
+static bool dd_coms_initialized = false;
 static struct ddog_AgentRemoteConfigWriter_ShmHandle *dd_agent_config_writer;
 struct ddog_ShmHandle *ddtrace_coms_agent_config_handle;
 
@@ -223,6 +224,11 @@ static void dd_at_exit_hook() {
 }
 
 bool ddtrace_coms_minit(size_t initial_stack_size, size_t max_stack_size, size_t max_backlog_size) {
+    dd_coms_initialized = false;
+    if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK) {
+        return false;
+    }
+
     ddtrace_coms_globals.initial_stack_size = initial_stack_size;
     ddtrace_coms_globals.max_payload_size = max_stack_size;
     ddtrace_coms_globals.max_backlog_size = max_backlog_size;
@@ -242,14 +248,14 @@ bool ddtrace_coms_minit(size_t initial_stack_size, size_t max_stack_size, size_t
     dd_ptr_at_exit_callback = dd_at_exit_callback;
     atexit(dd_at_exit_hook);
 
-    if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK) {
-        return false;
-    }
-
+    dd_coms_initialized = true;
     return true;
 }
 
-void ddtrace_coms_mshutdown(void) { dd_ptr_at_exit_callback = NULL; }
+void ddtrace_coms_mshutdown(void) {
+    dd_ptr_at_exit_callback = NULL;
+    dd_coms_initialized = false;
+}
 
 static void dd_coms_stack_shutdown(void) {
     ddtrace_coms_stack_t *current_stack = atomic_load(&ddtrace_coms_globals.current_stack);
@@ -813,10 +819,13 @@ static void dd_agent_headers_free(struct curl_slist *list) {
 
 void ddtrace_coms_curl_shutdown(void) {
     dd_agent_headers_free(dd_agent_curl_headers);
+    dd_agent_curl_headers = NULL;
 
     if (dd_agent_config_writer) {
         ddog_agent_remote_config_writer_drop(dd_agent_config_writer);
         ddog_drop_anon_shm_handle(ddtrace_coms_agent_config_handle);
+        dd_agent_config_writer = NULL;
+        ddtrace_coms_agent_config_handle = NULL;
     }
 }
 
@@ -1302,12 +1311,19 @@ static bool dd_coms_start_writer(void) {
 }
 
 bool ddtrace_coms_restart_writer(void) {
-    ddtrace_coms_minit(ddtrace_coms_globals.initial_stack_size, ddtrace_coms_globals.max_payload_size, ddtrace_coms_globals.max_backlog_size);
-    return dd_coms_start_writer();
+    if (!dd_coms_initialized) {
+        return false;
+    }
+    return ddtrace_coms_minit(ddtrace_coms_globals.initial_stack_size, ddtrace_coms_globals.max_payload_size,
+                             ddtrace_coms_globals.max_backlog_size) && dd_coms_start_writer();
 }
 
 
 bool ddtrace_coms_init_and_start_writer(void) {
+    if (!dd_coms_initialized) {
+        return false;
+    }
+
     struct _writer_loop_data_t *writer = dd_get_writer();
     atomic_store(&writer->current_pid, getpid());
 
@@ -1337,6 +1353,10 @@ void ddtrace_coms_kill_background_sender(void) {
 }
 
 void ddtrace_coms_clean_background_sender_after_fork(void) {
+    if (!dd_coms_initialized) {
+        return;
+    }
+
     struct _writer_loop_data_t *writer = dd_get_writer();
     ddtrace_coms_kill_background_sender();
     dd_curl_reset_headers(writer);

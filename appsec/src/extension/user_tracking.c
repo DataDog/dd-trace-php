@@ -240,11 +240,15 @@ void dd_find_and_apply_verdict_for_user(zend_string *nullable user_id,
         return;
     }
 
-    zval data_zv;
     size_t data_size = 0;
     data_size += user_login != NULL && ZSTR_LEN(user_login) > 0 ? 1 : 0;
     data_size += user_id != NULL && ZSTR_LEN(user_id) > 0 ? 1 : 0;
     data_size += event != user_event_none ? 1 : 0;
+    if (data_size == 0) {
+        return;
+    }
+
+    zval data_zv;
     array_init_size(&data_zv, data_size);
 
     if (event == user_event_login_success) {

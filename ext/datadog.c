@@ -552,6 +552,13 @@ static PHP_MSHUTDOWN_FUNCTION(datadog) {
 }
 
 static void dd_rinit_once(void) {
+    /* datadog_disable == 1 returns early from MINIT, so skip first-RINIT
+     * setup entirely. State 2 completes MINIT but may skip activation (e.g.
+     * for excluded modules) */
+    if (datadog_disable == 1) {
+        return;
+    }
+
     // Collect process tags now that script path is available
     if (get_global_DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED()) {
         datadog_process_tags_first_rinit();
@@ -574,6 +581,8 @@ static void dd_rinit_once(void) {
     datadog_startup_logging_first_rinit();
 
 #ifdef DDTRACE
+    /* The Zend extension activation callback runs before module RINIT, so
+     * ddtrace_coms_minit() has either completed or been skipped here. */
     ddtrace_first_rinit();
 #endif
 }

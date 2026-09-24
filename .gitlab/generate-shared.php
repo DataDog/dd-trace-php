@@ -240,7 +240,7 @@ foreach ($all_minor_major_targets as $major_minor):
       artifacts: true
   script:
     - switch-php "<?= $switch_php_version ?>"
-    - make install # build ddtrace.so
+    - .gitlab/run-with-retryable-download.sh make install # build ddtrace.so
     - mkdir -p tmp/build_ext-tea && cd tmp/build_ext-tea
     - CMAKE_PREFIX_PATH=/opt/catch2 Tea_ROOT=../../tmp/tea/<?= $switch_php_version ?> cmake <?= $toolchain ?> -DCMAKE_BUILD_TYPE=Debug -S ../../tests/tea
     - cmake --build . --parallel

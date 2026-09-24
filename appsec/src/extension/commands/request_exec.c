@@ -39,6 +39,11 @@ dd_result dd_request_exec(dd_conn *nonnull conn, zend_array *nonnull data,
     const struct req_exec_opts *nonnull opts,
     struct block_params *nonnull block_params)
 {
+    if (zend_hash_num_elements(data) == 0) {
+        mlog(dd_log_info, "Skipping request_exec with empty payload");
+        return dd_error;
+    }
+
     struct ctx ctx = {.data = data,
         .rasp_rule = opts->rasp_rule,
         .rule_variant = opts->rule_variant,
