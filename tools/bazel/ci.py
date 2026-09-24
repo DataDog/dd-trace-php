@@ -356,7 +356,7 @@ def comparison_targets(arch="amd64"):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=["lane", "probe", "compare-rbe"])
+    parser.add_argument("mode", choices=["lane", "probe", "compare-rbe", "remaining"])
     parser.add_argument("--arch", choices=["amd64", "arm64"], default="amd64")
     args = parser.parse_args()
     os.chdir(str(ROOT))
@@ -376,11 +376,11 @@ def main():
             return status
         # Unique output base; neither local action cache nor outputs survive.
         status = run_bazel("cached", args.arch, comparison_targets(args.arch), WORKLOAD)
-        if status or args.mode == "compare-rbe":
-            return status
-        status = run_bazel("remaining", args.arch,
-                           ["//bazel/products/tracer:ddtrace_fat_" + args.arch + "_remaining"], "remaining-normal-tracer-matrix")
         return status
+    if args.mode == "remaining":
+        return run_bazel("remaining", args.arch,
+                         ["//bazel/products/tracer:ddtrace_fat_" + args.arch + "_remaining"],
+                         "remaining-normal-tracer-matrix")
     return run_bazel("probe", args.arch, ["//bazel/stages:remote_arch_" + args.arch], "remote-architecture")
 
 

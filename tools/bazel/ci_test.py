@@ -308,10 +308,10 @@ class ReportTests(unittest.TestCase):
 
 
 class RunnerTests(unittest.TestCase):
-    def test_lane_runs_php_tests_early_without_dropping_release_coverage(self):
+    def test_release_lane_and_remaining_coverage_are_separate(self):
         expected = {
-            "amd64": ["probe", "tests", "forced", "cached", "remaining"],
-            "arm64": ["probe", "forced", "cached", "remaining"],
+            "amd64": ["probe", "tests", "forced", "cached"],
+            "arm64": ["probe", "forced", "cached"],
         }
         for arch, modes in expected.items():
             with self.subTest(arch=arch), tempfile.TemporaryDirectory() as directory, \
@@ -320,6 +320,12 @@ class RunnerTests(unittest.TestCase):
                     patch("ci.run_bazel", return_value=0) as run:
                 self.assertEqual(ci.main(), 0)
                 self.assertEqual([call.args[0] for call in run.call_args_list], modes)
+            with self.subTest(arch=arch, mode="remaining"), tempfile.TemporaryDirectory() as directory, \
+                    patch.object(ci, "ARTIFACTS", Path(directory)), patch("ci.os.chdir"), \
+                    patch.object(sys, "argv", ["ci.py", "remaining", "--arch", arch]), \
+                    patch("ci.run_bazel", return_value=0) as run:
+                self.assertEqual(ci.main(), 0)
+                self.assertEqual([call.args[0] for call in run.call_args_list], ["remaining"])
 
     def test_remote_bep_reference_requires_download_and_matching_digest(self):
         with tempfile.TemporaryDirectory() as directory:

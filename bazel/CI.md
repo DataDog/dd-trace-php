@@ -3,11 +3,14 @@
 The package child pipeline includes `.gitlab/bazel.yml`. Its two architecture
 jobs start after `prepare code`. The amd64 lane runs the focused PHP tests
 after its forced architecture probe so test-only repository failures surface
-early. Both lanes then run a forced release build, a fresh-output-base cache
-replay, and the remaining normal tracer variants. Failures in any step
-fail the job. The report depends on both Bazel lanes and both architecture
-baseline aggregates. Dependency-override maintenance pipelines skip this
-comparison until Bazel consumes the same overridden dependencies.
+early. Both release lanes then run a forced release build and a fresh-output-base
+cache replay. Separate required jobs run the remaining normal tracer variants
+after both release lanes finish. This retains forced/cached measurements if the
+larger coverage build times out, and keeps its remote actions from contending
+with the measured release pair. The report requires the release, coverage, and
+legacy baseline artifacts for both architectures. Dependency-override
+maintenance pipelines skip this comparison until Bazel consumes the same
+overridden dependencies.
 
 `//bazel/products/tracer:ddtrace_fat_<arch>_release` derives 55 products per
 architecture from the canonical PHP product matrix: three glibc and two musl
@@ -57,15 +60,16 @@ to `registry.ddbuild.io/ci/dd-trace-php/bazel-deps` under a commit and
 architecture tag. The manual `bazel deps Nydus: [arch]` jobs convert those OCI
 images to signed `-nydus` tags using Datadog's `nydus-convert` wrapper.
 
-To trial the images, start a pipeline with `BAZEL_CI_PRELOADED=1` and set
-`BAZEL_CI_IMAGE_AMD64` and `BAZEL_CI_IMAGE_ARM64` to the corresponding image
-digests (the Nydus digests on runners that support lazy pulling). This selects
+The package pipeline pins the Nydus image digests in `.gitlab/bazel.yml`.
+After a manual image refresh, update both digests there before merging a
+dependency-lock or repository-rule change. This selects
 the baked Bazel binary and repository cache, skips the bootstrap and network
 probe, and disables the GitLab cache archive. The lane uses
 `--repository_disable_download` so missing repository inputs fail rather than
-silently fetching new ones. Keep the default image path until both architecture
-images have passed a complete real pipeline. A lock change that introduces a
-new download requires a manual image refresh.
+silently fetching new ones. To compare the former path, set
+`BAZEL_CI_PRELOADED=0` and override both `BAZEL_CI_IMAGE_*` variables with
+`registry.ddbuild.io/images/bazel:dynamic-22.04`. A lock change that introduces
+a new download requires a manual image refresh.
 
 Nydus shortens image startup by fetching data on demand. It does not eliminate
 Bazel's fresh-output-base analysis, remote action-cache lookups, or required

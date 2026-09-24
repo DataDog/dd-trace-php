@@ -1,5 +1,11 @@
-# Included in the generated package child pipeline. All four inputs to the
-# report share the same prepared source artifact and CI pipeline ID.
+# Included in the generated package child pipeline. All report inputs share
+# the same prepared source artifact and CI pipeline ID.
+variables:
+  # Refresh these immutable Nydus digests with the manual image jobs whenever
+  # dependency locks or repository rules change.
+  BAZEL_CI_PRELOADED: "1"
+  BAZEL_CI_IMAGE_AMD64: registry.ddbuild.io/ci/dd-trace-php/bazel-deps@sha256:511be303886b68b55f36c5196c40d550fe9596625be9a59d4588e5db4e3c9c10
+  BAZEL_CI_IMAGE_ARM64: registry.ddbuild.io/ci/dd-trace-php/bazel-deps@sha256:4329e72fa73863878333a653e0c34645de4e0c5a8f70e17d2e49c9f6eff98da4
 .bazel-client:
   stage: tracing
   interruptible: true
@@ -61,7 +67,6 @@
   tags: ["arch:amd64"]
   variables:
     BAZEL_EXEC_ARCH: amd64
-    BAZEL_CI_IMAGE_AMD64: registry.ddbuild.io/images/bazel:dynamic-22.04
   script:
     - |
       status=0
@@ -82,7 +87,6 @@
   tags: ["arch:arm64"]
   variables:
     BAZEL_EXEC_ARCH: arm64
-    BAZEL_CI_IMAGE_ARM64: registry.ddbuild.io/images/bazel:dynamic-22.04
   script:
     - |
       status=0
@@ -96,6 +100,46 @@
       fi
       if [ "$status" -ne 0 ]; then exit "$status"; fi
       exit "$cache_status"
+
+# The 46 remaining variants run after both release comparisons. Keeping them
+# in separate jobs retains forced/cached artifacts if coverage runs slowly.
+"bazel remaining: [amd64]":
+  extends: .bazel-client
+  image: $BAZEL_CI_IMAGE_AMD64
+  tags: ["arch:amd64"]
+  timeout: 4 hours
+  variables:
+    BAZEL_EXEC_ARCH: amd64
+  needs:
+    - job: "prepare code"
+      artifacts: true
+    - job: "bazel release: [amd64]"
+      artifacts: false
+    - job: "bazel release: [arm64]"
+      artifacts: false
+  cache:
+    policy: pull
+  script:
+    - python3 tools/bazel/ci.py remaining --arch amd64
+
+"bazel remaining: [arm64]":
+  extends: .bazel-client
+  image: $BAZEL_CI_IMAGE_ARM64
+  tags: ["arch:arm64"]
+  timeout: 4 hours
+  variables:
+    BAZEL_EXEC_ARCH: arm64
+  needs:
+    - job: "prepare code"
+      artifacts: true
+    - job: "bazel release: [amd64]"
+      artifacts: false
+    - job: "bazel release: [arm64]"
+      artifacts: false
+  cache:
+    policy: pull
+  script:
+    - python3 tools/bazel/ci.py remaining --arch arm64
 
 # Run manually after dependency locks change. The prepared source artifact is
 # the same one used by the measured lanes. Buildx uploads a small Dockerfile
@@ -249,6 +293,10 @@ bazel-report:
     - job: "bazel release: [amd64]"
       artifacts: true
     - job: "bazel release: [arm64]"
+      artifacts: true
+    - job: "bazel remaining: [amd64]"
+      artifacts: true
+    - job: "bazel remaining: [arm64]"
       artifacts: true
   script:
     - python3 tools/bazel/ci_report.py artifacts/bazel
