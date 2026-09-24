@@ -4,13 +4,15 @@ Test \DDTrace\set_user with metadata
 <?php
 DDTrace\set_user("admin", ["policy" => "none", "permissions" => "777"]);
 $root = \DDTrace\root_span();
-var_dump($root->meta);
+var_dump($root->attributes);
 
 ?>
 --EXPECTF--
-array(4) {
+array(5) {
   ["runtime-id"]=>
   string(36) "%s"
+  ["process_id"]=>
+  float(%f)
   ["usr.id"]=>
   string(5) "admin"
   ["usr.policy"]=>

@@ -133,8 +133,12 @@ array(3) {
     array(13) {
       ["runtime-id"]=>
       string(36) "%s"
+      ["process_id"]=>
+      float(%f)
       ["_dd.svc_src"]=>
       string(1) "m"
+      ["_dd.agent_psr"]=>
+      float(1)
       ["args.0"]=>
       string(18) "tracing is awesome"
       ["retval.thoughts"]=>
@@ -143,14 +147,10 @@ array(3) {
       string(5) "first"
       ["retval.rand"]=>
       string(%d) "%d"
-      ["process_id"]=>
-      float(%f)
       ["foo"]=>
       float(100)
       ["bar"]=>
       float(0)
-      ["_dd.agent_psr"]=>
-      float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
       ["php.memory.peak_usage_bytes"]=>

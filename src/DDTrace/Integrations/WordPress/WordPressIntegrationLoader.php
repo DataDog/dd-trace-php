@@ -207,12 +207,12 @@ class WordPressIntegrationLoader
                 $rootSpan->name = 'wordpress.request';
                 $rootSpan->service = \ddtrace_config_app_name(WordPressIntegration::NAME);;
                 $rootSpan->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
-                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+                $rootSpan->attributes[Tag::SPAN_KIND] = 'server';
                 if ('cli' !== PHP_SAPI) {
                     $normalizedPath = Normalizer::uriNormalizeincomingPath($_SERVER['REQUEST_URI']);
                     $rootSpan->resource = $_SERVER['REQUEST_METHOD'] . ' ' . $normalizedPath;
-                    if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
-                        $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize(home_url(add_query_arg($_GET)));
+                    if (!Integration::hasTag($rootSpan, Tag::HTTP_URL)) {
+                        $rootSpan->attributes[Tag::HTTP_URL] = Normalizer::urlSanitize(home_url(add_query_arg($_GET)));
                     }
                 }
             }

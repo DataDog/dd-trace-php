@@ -58,12 +58,12 @@ array(1) {
     array(7) {
       ["runtime-id"]=>
       string(36) "%s"
-      ["error.message"]=>
-      string(9) "Foo error"
       ["process_id"]=>
       float(%f)
       ["_dd.agent_psr"]=>
       float(1)
+      ["error.message"]=>
+      string(9) "Foo error"
       ["php.compilation.total_time_ms"]=>
       float(%f)
       ["php.memory.peak_usage_bytes"]=>

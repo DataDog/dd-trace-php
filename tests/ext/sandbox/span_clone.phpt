@@ -27,7 +27,7 @@ var_dump(dd_clean_spans());
 
 ?>
 --EXPECTF--
-object(DDTrace\RootSpanData)#%d (29) {
+object(DDTrace\RootSpanData)#%d (30) {
   ["name"]=>
   string(3) "foo"
   ["resource"]=>
@@ -40,14 +40,10 @@ object(DDTrace\RootSpanData)#%d (29) {
   ["type"]=>
   string(3) "cli"
   ["meta"]=>
-  array(1) {
-    ["runtime-id"]=>
-    string(36) "%s"
+  array(0) {
   }
   ["metrics"]=>
-  array(1) {
-    ["process_id"]=>
-    float(%f)
+  array(0) {
   }
   ["exception"]=>
   NULL
@@ -103,8 +99,14 @@ object(DDTrace\RootSpanData)#%d (29) {
   ["spanKind"]=>
   int(0)
   ["attributes"]=>
-  array(0) {
-  }%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
+  array(2) {
+    ["runtime-id"]=>
+    string(36) "%s"
+    ["process_id"]=>
+    float(%f)
+  }
+  ["ignoreError"]=>
+  bool(false)%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
   ["propagatedTags"]=>
   array(0) {
   }
@@ -124,7 +126,7 @@ object(DDTrace\RootSpanData)#%d (29) {
   ["hostname"]=>
   string(0) ""
 }
-object(DDTrace\RootSpanData)#%d (29) {
+object(DDTrace\RootSpanData)#%d (30) {
   ["name"]=>
   string(5) "dummy"
   ["resource"]=>
@@ -137,14 +139,10 @@ object(DDTrace\RootSpanData)#%d (29) {
   ["type"]=>
   string(3) "cli"
   ["meta"]=>
-  array(1) {
-    ["runtime-id"]=>
-    string(36) "%s"
+  array(0) {
   }
   ["metrics"]=>
-  array(1) {
-    ["process_id"]=>
-    float(%f)
+  array(0) {
   }
   ["exception"]=>
   NULL
@@ -177,7 +175,7 @@ object(DDTrace\RootSpanData)#%d (29) {
       }
     }
     ["active"]=>
-    object(DDTrace\RootSpanData)#%d (29) {
+    object(DDTrace\RootSpanData)#%d (30) {
       ["name"]=>
       string(3) "foo"
       ["resource"]=>
@@ -190,14 +188,10 @@ object(DDTrace\RootSpanData)#%d (29) {
       ["type"]=>
       string(3) "cli"
       ["meta"]=>
-      array(1) {
-        ["runtime-id"]=>
-        string(36) "%s"
+      array(0) {
       }
       ["metrics"]=>
-      array(1) {
-        ["process_id"]=>
-        float(%d)
+      array(0) {
       }
       ["exception"]=>
       NULL
@@ -231,8 +225,14 @@ object(DDTrace\RootSpanData)#%d (29) {
       ["spanKind"]=>
       int(0)
       ["attributes"]=>
-      array(0) {
-      }%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
+      array(2) {
+        ["runtime-id"]=>
+        string(36) "%s"
+        ["process_id"]=>
+        float(%f)
+      }
+      ["ignoreError"]=>
+      bool(false)%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
       ["propagatedTags"]=>
       array(0) {
       }
@@ -274,8 +274,14 @@ object(DDTrace\RootSpanData)#%d (29) {
   ["spanKind"]=>
   int(0)
   ["attributes"]=>
-  array(0) {
-  }%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
+  array(2) {
+    ["runtime-id"]=>
+    string(36) "%s"
+    ["process_id"]=>
+    float(%f)
+  }
+  ["ignoreError"]=>
+  bool(false)%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
   ["propagatedTags"]=>
   array(0) {
   }

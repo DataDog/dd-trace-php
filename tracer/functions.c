@@ -437,7 +437,7 @@ static zval *ddtrace_span_data_readonly(zend_object *object, zend_string *member
             }
         }
         if (Z_TYPE_P(value) == IS_STRING && !zend_is_identical(&span->property_service, value)) {
-            zend_array *meta = ddtrace_property_array(&span->property_meta);
+            zend_array *meta = ddtrace_property_array(&span->property_attributes);
             zval val;
             ZVAL_NEW_STR(&val, zend_string_init("m", 1, 0));
             zend_hash_str_update(meta, ZEND_STRL("_dd.svc_src"), &val);
@@ -816,7 +816,7 @@ PHP_FUNCTION(DDTrace_add_distributed_tag) {
 
     zend_array *target_table, *propagated;
     if (DDTRACE_G(active_stack)->root_span) {
-        target_table = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_meta);
+        target_table = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_attributes);
         propagated = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_propagated_tags);
     } else {
         target_table = &DDTRACE_G(root_span_tags_preset);
@@ -837,7 +837,7 @@ PHP_FUNCTION(DDTrace_add_distributed_tag) {
 static void _ddtrace_set_user(zend_string *user_id, zend_array *metadata, zend_bool propagate) {
     zend_array *target_table, *propagated;
     if (DDTRACE_G(active_stack)->root_span) {
-        target_table = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_meta);
+        target_table = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_attributes);
         propagated = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_propagated_tags);
     } else {
         target_table = &DDTRACE_G(root_span_tags_preset);
@@ -919,7 +919,7 @@ PHP_FUNCTION(datadog_appsec_v2_track_user_login_success) {
 
     zend_array *target_table;
     if (DDTRACE_G(active_stack)->root_span) {
-        target_table = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_meta);
+        target_table = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_attributes);
     } else {
         target_table = &DDTRACE_G(root_span_tags_preset);
     }
@@ -1032,7 +1032,7 @@ PHP_FUNCTION(datadog_appsec_v2_track_user_login_failure) {
 
     zend_array *target_table;
     if (DDTRACE_G(active_stack)->root_span) {
-        target_table = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_meta);
+        target_table = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_attributes);
     } else {
         target_table = &DDTRACE_G(root_span_tags_preset);
     }
@@ -2557,8 +2557,9 @@ PHP_FUNCTION(DDTrace_set_distributed_tracing_context) {
         zend_array *root_meta = &DDTRACE_G(root_span_tags_preset);
         zend_array *propagated_tags = &DDTRACE_G(propagated_root_span_tags);
         if (root_span) {
-            root_meta = ddtrace_property_array(&root_span->property_meta);
+            root_meta = ddtrace_property_array(&root_span->property_attributes);
             propagated_tags = ddtrace_property_array(&root_span->property_propagated_tags);
+            ddtrace_drop_propagated_tags(ddtrace_property_array(&root_span->property_meta), propagated_tags);
         }
 
         if (Z_TYPE_P(tags) == IS_STRING) {

@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 6b003dc4618295571e977353c420aee061409aeb */
+ * Stub hash: 4553a939784a9d82c120737137563cbc6b50e6a7 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -938,6 +938,12 @@ static zend_class_entry *register_class_DDTrace_SpanData(void)
 	zend_string *property_attributes_name = zend_string_init("attributes", sizeof("attributes") - 1, 1);
 	zend_declare_typed_property(class_entry, property_attributes_name, &property_attributes_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
 	zend_string_release(property_attributes_name);
+
+	zval property_ignoreError_default_value;
+	ZVAL_FALSE(&property_ignoreError_default_value);
+	zend_string *property_ignoreError_name = zend_string_init("ignoreError", sizeof("ignoreError") - 1, 1);
+	zend_declare_typed_property(class_entry, property_ignoreError_name, &property_ignoreError_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_BOOL));
+	zend_string_release(property_ignoreError_name);
 
 	return class_entry;
 }

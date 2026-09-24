@@ -22,7 +22,7 @@ $traceParent = "00-$traceId-$parentId-$traceFlags";
 ]);
 
 var_dump(\DDTrace\generate_distributed_tracing_headers(['tracecontext']));
-var_dump(\DDTrace\root_span()->meta["_dd.parent_id"]);
+var_dump(\DDTrace\root_span()->attributes["_dd.parent_id"]);
 
 ?>
 --EXPECTF--

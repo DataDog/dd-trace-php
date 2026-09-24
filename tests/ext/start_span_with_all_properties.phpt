@@ -129,16 +129,16 @@ array(2) {
     array(9) {
       ["runtime-id"]=>
       string(36) "%s"
-      ["_dd.svc_src"]=>
-      string(1) "m"
-      ["aa"]=>
-      string(2) "bb"
       ["process_id"]=>
       float(%f)
-      ["cc"]=>
-      float(0)
+      ["_dd.svc_src"]=>
+      string(1) "m"
       ["_dd.agent_psr"]=>
       float(1)
+      ["aa"]=>
+      string(2) "bb"
+      ["cc"]=>
+      float(0)
       ["php.compilation.total_time_ms"]=>
       float(%f)
       ["php.memory.peak_usage_bytes"]=>

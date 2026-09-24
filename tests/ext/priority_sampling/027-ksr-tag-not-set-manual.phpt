@@ -10,14 +10,14 @@ $root->meta["manual.keep"] = true;
 
 \DDTrace\get_priority_sampling();
 
-if (!isset($root->metrics["_dd.rule_psr"])) {
+if (!isset($root->attributes["_dd.rule_psr"])) {
     echo "No rule_psr OK\n";
 } else {
     echo "rule_psr unexpectedly set\n";
 }
 
-echo "_dd.p.ksr = ", isset($root->meta["_dd.p.ksr"]) ? $root->meta["_dd.p.ksr"] : "-", "\n";
-echo "_dd.p.dm = {$root->meta["_dd.p.dm"]}\n";
+echo "_dd.p.ksr = ", isset($root->attributes["_dd.p.ksr"]) ? $root->attributes["_dd.p.ksr"] : "-", "\n";
+echo "_dd.p.dm = {$root->attributes["_dd.p.dm"]}\n";
 ?>
 --EXPECT--
 No rule_psr OK

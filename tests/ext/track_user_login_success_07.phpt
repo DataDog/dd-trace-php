@@ -4,13 +4,15 @@ Test \datadog\appsec\v2\track_user_login_success no user id or metadata given
 <?php
 \datadog\appsec\v2\track_user_login_success("login");
 $root = \DDTrace\root_span();
-var_dump($root->meta);
+var_dump($root->attributes);
 
 ?>
 --EXPECTF--
-array(4) {
+array(5) {
   ["runtime-id"]=>
-  string(%d) %s
+  string(36) "%s"
+  ["process_id"]=>
+  float(%f)
   ["appsec.events.users.login.success.usr.login"]=>
   string(%d) "login"
   ["appsec.events.users.login.success.track"]=>

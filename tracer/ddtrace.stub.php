@@ -210,11 +210,14 @@ namespace DDTrace {
 
         /**
          * @var string[] $meta An array of key-value span metadata; keys and values must be strings.
+         * @deprecated Use $attributes. Still honoured; $attributes takes precedence for the same key. Setting
+         * meta['error.ignored'] is deprecated too: use $ignoreError.
          */
         public array $meta = [];
 
         /**
          * @var float[] $metrics An array of key-value span metrics; keys must be strings and values must be floats.
+         * @deprecated Use $attributes. Still honoured; $attributes and $meta take precedence for the same key.
          */
         public array $metrics = [];
 
@@ -306,7 +309,17 @@ namespace DDTrace {
 
         public int $spanKind = 0;
 
+        /**
+         * @var array $attributes Span attributes, keeping their type: bool, int, float, string, or nested arrays
+         * and objects. Null values are skipped.
+         */
         public array $attributes = [];
+
+        /**
+         * @var bool $ignoreError Set to true to not report this span as an error, even if it has an exception or
+         * error tags.
+         */
+        public bool $ignoreError = false;
     }
 
     class InferredSpanData extends SpanData {}

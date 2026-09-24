@@ -68,11 +68,11 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
             "runtime-id": "%s",
             "http.url": "http:\/\/localhost:8888\/foo",
             "http.method": "GET",
+            "process_id": %d,
             "http.status_code": "500",
             "error.type": "Exception",
             "error.message": "Uncaught Exception (500): An exception occurred in %serror_propagated.php:%d",
             "error.stack": "#0 %serror_propagated.php(%d): oops()\n#1 {main}",
-            "process_id": %d,
             "php.compilation.total_time_ms": %f,
             "php.memory.peak_usage_bytes": %d,
             "php.memory.peak_real_usage_bytes": %d
@@ -99,9 +99,9 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
             "http.method": "GET",
             "http.url": "example.com\/test",
             "stage": "aws-prod",
+            "_dd.inferred_span": 1,
             "http.status_code": "500",
             "error.type": "Exception",
-            "_dd.inferred_span": 1,
             "_dd.agent_psr": 1,
             "error.message": "Uncaught Exception (500): An exception occurred in %serror_propagated.php:%d",
             "error.stack": "#0 %serror_propagated.php(%d): oops()\n#1 {main}"

@@ -22,8 +22,8 @@ function query_headers() {
 }
 
 DDTrace\add_distributed_tag("usr.id", "1234");
-$meta = DDTrace\root_span()->meta;
-var_dump($meta["_dd.p.usr.id"]);
+$attributes = DDTrace\root_span()->attributes;
+var_dump($attributes["_dd.p.usr.id"]);
 
 dt_dump_headers_from_httpbin(query_headers(), ['x-datadog-tags']);
 

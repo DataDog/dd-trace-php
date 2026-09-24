@@ -103,7 +103,7 @@ preg_match(
     $matches
 );
 $root = DDTrace\start_span();
-echo "Runtime ID matches tracer: "; var_dump($root->meta['runtime-id'] === $matches[0]);
+echo "Runtime ID matches tracer: "; var_dump($root->attributes['runtime-id'] === $matches[0]);
 DDTrace\close_span();
 
 $publishedAt = $snapshot['published_at'];

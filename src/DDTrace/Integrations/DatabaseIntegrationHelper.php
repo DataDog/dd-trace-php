@@ -98,7 +98,7 @@ class DatabaseIntegrationHelper
             $tags["dddbs"] = $databaseService;
         }
 
-        $env = $rootSpan->meta["env"] ?? $rootSpan->env ?? "";
+        $env = $rootSpan->attributes["env"] ?? $rootSpan->meta["env"] ?? $rootSpan->env ?? "";
         if ($env == "") {
             $env = ini_get("datadog.env");
         }
@@ -126,7 +126,7 @@ class DatabaseIntegrationHelper
             $tags["ddps"] = $service;
         }
 
-        $version = $rootSpan->meta["version"] ?? $rootSpan->version ?? "";
+        $version = $rootSpan->attributes["version"] ?? $rootSpan->meta["version"] ?? $rootSpan->version ?? "";
         if ($version == "") {
             $version = ini_get("datadog.version");
         }

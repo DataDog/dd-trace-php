@@ -264,9 +264,11 @@ static inline HashTable *zend_new_array(uint32_t nSize) {
 #define GC_PROTECT_RECURSION(gc) (++(gc)->u.v.nApplyCount)
 #define GC_UNPROTECT_RECURSION(gc) (--(gc)->u.v.nApplyCount)
 
-#define Z_IS_RECURSIVE_P(zv) GC_IS_RECURSIVE(Z_OBJPROP_P(zv))
-#define Z_PROTECT_RECURSION_P(zv) GC_PROTECT_RECURSION(Z_OBJPROP_P(zv))
-#define Z_UNPROTECT_RECURSION_P(zv) GC_UNPROTECT_RECURSION(Z_OBJPROP_P(zv))
+// Like 7.3+ (which marks the zval's own counted): arrays are marked on themselves, objects on their property table.
+#define DD_RECURSION_HT_P(zv) (Z_TYPE_P(zv) == IS_ARRAY ? Z_ARR_P(zv) : Z_OBJPROP_P(zv))
+#define Z_IS_RECURSIVE_P(zv) GC_IS_RECURSIVE(DD_RECURSION_HT_P(zv))
+#define Z_PROTECT_RECURSION_P(zv) GC_PROTECT_RECURSION(DD_RECURSION_HT_P(zv))
+#define Z_UNPROTECT_RECURSION_P(zv) GC_UNPROTECT_RECURSION(DD_RECURSION_HT_P(zv))
 
 #define ZEND_CLOSURE_OBJECT(op_array) \
     ((zend_object*)((char*)(op_array) - sizeof(zend_object)))
@@ -729,6 +731,9 @@ static inline zend_string *zend_ini_str(const char *name, size_t name_length, bo
 #endif
 
 #define ZEND_GUARD_PROPERTY_MASK 0xf
+
+// Pre-8.3 php-src used a bare GC_DELREF here; also free on zero, which it leaked.
+#define GC_DTOR_NO_REF(p) do { if (GC_DELREF(p) == 0) rc_dtor_func((zend_refcounted *)(p)); } while (0)
 
 // strip const
 #if PHP_VERSION_ID < 70300

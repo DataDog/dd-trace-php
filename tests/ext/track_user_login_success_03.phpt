@@ -13,13 +13,15 @@ Test \datadog\appsec\v2\track_user_login_success login parameter takes precedenc
     "metakey2" => "metavalue02",
 ]);
 $root = \DDTrace\root_span();
-var_dump($root->meta);
+var_dump($root->attributes);
 
 ?>
 --EXPECTF--
-array(11) {
+array(12) {
   ["runtime-id"]=>
-  string(%s) %s
+  string(36) "%s"
+  ["process_id"]=>
+  float(%f)
   ["appsec.events.users.login.success.usr.id"]=>
   string(%s) "1234"
   ["appsec.events.users.login.success.usr.login"]=>

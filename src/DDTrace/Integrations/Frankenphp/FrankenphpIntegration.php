@@ -46,8 +46,8 @@ class FrankenphpIntegration extends Integration
                     Integration::tagFrameworkServiceSource($rootSpan, self::NAME);
                     $rootSpan->type = Type::WEB_SERVLET;
                     $rootSpan->meta[Tag::COMPONENT] = self::NAME;
-                    $rootSpan->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_SERVER;
-                    unset($rootSpan->meta["closure.declaration"]);
+                    $rootSpan->attributes[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_SERVER;
+                    unset($rootSpan->attributes["closure.declaration"]);
 
                     consume_distributed_tracing_headers(null);
 

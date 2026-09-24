@@ -30,12 +30,12 @@ root_span_get_meta():
 Array
 (
     [runtime-id] => %s
+    [_dd.p.ts] => 02
+    [_dd.p.dm] => -5
     [_dd.appsec.events.users.login.failure.auto.mode] => anonymization
     [appsec.events.users.login.failure.usr.login] => anon_428821350e9691491f616b754cd8315f
     [_dd.appsec.usr.login] => anon_428821350e9691491f616b754cd8315f
     [appsec.events.users.login.failure.track] => true
     [appsec.events.users.login.failure.usr.exists] => true
     [server.business_logic.users.login.failure] => null
-    [_dd.p.ts] => 02
-    [_dd.p.dm] => -5
 )

@@ -20,13 +20,15 @@ ddtrace_version_at_least('0.85.0');
     "metakey2" => "metavalue02",
 ]);
 $root = \DDTrace\root_span();
-var_dump($root->meta);
+var_dump($root->attributes);
 
 ?>
 --EXPECTF--
-array(6) {
+array(7) {
   ["runtime-id"]=>
   string(%s) %s
+  ["process_id"]=>
+  float(%f)
   ["appsec.events.users.login.success.usr.login"]=>
   string(5) "login"
   ["appsec.events.users.login.success.track"]=>

@@ -43,8 +43,8 @@ class CakePHPIntegrationLoader
                         $_SERVER['REQUEST_METHOD'] . ' ' . $this->name . 'Controller@' . $request->params['action'];
                 }
 
-                if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
-                    $rootSpan->meta[Tag::HTTP_URL] = Router::url($request->here, true)
+                if (!Integration::hasTag($rootSpan, Tag::HTTP_URL)) {
+                    $rootSpan->attributes[Tag::HTTP_URL] = Router::url($request->here, true)
                         . Normalizer::sanitizedQueryString();
                 }
                 $rootSpan->meta['cakephp.route.controller'] = $request->params['controller'];
@@ -81,6 +81,8 @@ class CakePHPIntegrationLoader
             $span->type = Type::WEB_SERVLET;
             $file = $this->viewPath . '/' . $this->view . $this->ext;
             $span->resource = $file;
+            // Replaces the inherited tags too (global tags, _dd.svc_src), which now live in $attributes.
+            $span->attributes = [];
             $span->meta = ['cakephp.view' => $file];
             Integration::setComponentMetadata($span, CakePHPIntegration::NAME, CakePHPIntegration::$appName);
         });

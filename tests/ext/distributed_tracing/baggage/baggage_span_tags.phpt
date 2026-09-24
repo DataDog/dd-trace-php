@@ -11,15 +11,17 @@ DDTrace\consume_distributed_tracing_headers(function ($header) {
             "baggage" => "user.id=123,session.id=abc"
         ][$header] ?? null;
 });
-var_dump(DDTrace\start_span()->meta);
+var_dump(DDTrace\start_span()->attributes);
 
 ?>
 --EXPECTF--
-array(3) {
+array(4) {
   ["baggage.user.id"]=>
   string(3) "123"
   ["baggage.session.id"]=>
   string(3) "abc"
   ["runtime-id"]=>
   string(36) "%s"
+  ["process_id"]=>
+  float(%f)
 }

@@ -8,11 +8,17 @@ $emptyLogin = "";
   false
 );
 $root = \DDTrace\root_span();
+// An invalid login must write nothing: only the tracer's own tags, in either array.
+var_dump($root->attributes);
 var_dump($root->meta);
 
 ?>
 --EXPECTF--
-array(1) {
+array(2) {
   ["runtime-id"]=>
-  string(%d) %s
+  string(36) "%s"
+  ["process_id"]=>
+  float(%f)
+}
+array(0) {
 }

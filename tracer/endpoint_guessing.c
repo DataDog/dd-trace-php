@@ -197,10 +197,10 @@ void ddtrace_maybe_add_guessed_endpoint_tag(ddtrace_root_span_data *span)
         return;
     }
 
-    zend_array* meta = ddtrace_property_array(&span->property_meta);
+    zend_array* attributes = ddtrace_property_array(&span->property_attributes);
 
     if (!get_DD_TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT()) {
-        zval* route = zend_hash_str_find(meta, ZEND_STRL("http.route"));
+        zval* route = ddtrace_span_find_tag(&span->span, ZEND_STRL("http.route"));
         // unless we have always_simplified_endpoiont set,
         // we skip the calculation if http.route is set
         if (route && Z_TYPE_P(route) == IS_STRING) {
@@ -209,8 +209,12 @@ void ddtrace_maybe_add_guessed_endpoint_tag(ddtrace_root_span_data *span)
     }
 
     zval* endpoint;
-    if ((endpoint = zend_hash_str_add(meta, ZEND_STRL("http.endpoint"), &(zval){0}))) {
-        zval* url = zend_hash_str_find_deref(meta, ZEND_STRL("http.url"));
+    if (!zend_hash_str_exists(ddtrace_property_array(&span->property_meta), ZEND_STRL("http.endpoint")) &&
+        (endpoint = zend_hash_str_add(attributes, ZEND_STRL("http.endpoint"), &(zval){0}))) {
+        zval* url = ddtrace_span_find_tag(&span->span, ZEND_STRL("http.url"));
+        if (url) {
+            ZVAL_DEREF(url);
+        }
         if (!url || Z_TYPE_P(url) != IS_STRING) {
             // "In case the url is not available, a default value of / should be used for the endpoint tag."
             ZVAL_STRING(endpoint, "/");

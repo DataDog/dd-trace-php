@@ -474,6 +474,26 @@ pub unsafe extern "C" fn ddog_add_span_attr_double_zstr(
     insert_attr(&mut (*span).span_mut().attributes, key, AttributeValueBytes::Float(value));
 }
 
+/// Adds an integer attribute under a `CharSlice` key.
+///
+/// # Safety
+/// See [`ddog_span_set_id`].
+#[no_mangle]
+pub unsafe extern "C" fn ddog_add_span_attr_int_cs(span: *mut SpanNode, key: CharSlice, value: i64) {
+    let key = convert_char_slice_to_bytes_string(key);
+    insert_attr(&mut (*span).span_mut().attributes, key, AttributeValueBytes::Int(value));
+}
+
+/// Adds a boolean attribute under a `CharSlice` key.
+///
+/// # Safety
+/// See [`ddog_span_set_id`].
+#[no_mangle]
+pub unsafe extern "C" fn ddog_add_span_attr_bool_cs(span: *mut SpanNode, key: CharSlice, value: bool) {
+    let key = convert_char_slice_to_bytes_string(key);
+    insert_attr(&mut (*span).span_mut().attributes, key, AttributeValueBytes::Bool(value));
+}
+
 /// Adds a bytes-valued attribute (v0.4 `meta_struct`) under a `ZendString` key. The value bytes are
 /// copied verbatim and encoded as msgpack `bin`.
 ///
@@ -501,19 +521,6 @@ pub unsafe extern "C" fn ddog_add_span_attr_bytes_zstr(
 pub unsafe extern "C" fn ddog_has_span_attr_zstr(span: *mut SpanNode, key: &mut ZendString) -> bool {
     let key = convert_zend_to_bytes_string(key);
     (*span).span().attributes.contains_key(&key)
-}
-
-/// Removes the attribute under a static C literal `key`, returning whether it was present.
-///
-/// # Safety
-/// See [`ddog_span_set_id`].
-#[no_mangle]
-pub unsafe extern "C" fn ddog_del_span_attr_lit(span: *mut SpanNode, key: *const c_char) -> bool {
-    let key = convert_literal_to_bytes_string(key);
-    let attrs = &mut (*span).span_mut().attributes;
-    let existed = attrs.contains_key(&key);
-    attrs.remove_slow(&key);
-    existed
 }
 
 /// Copies the attribute `key` from `from_span` onto `to_span`, returning whether the source had it;
@@ -1202,6 +1209,27 @@ mod attr_container_ffi_tests {
         }
     }
 
+    // Top-level typed scalars keep their type (SpanData::$attributes input).
+    #[test]
+    fn top_level_int_and_bool_attrs_keep_their_type() {
+        let mut b = TracerPayloadV1Builder::default();
+        let chunk_ptr = b.push_chunk(0, 1);
+        let span_ptr = unsafe { (*chunk_ptr).push_span() };
+        unsafe {
+            ddog_add_span_attr_int_cs(span_ptr, cs("i"), -7);
+            ddog_add_span_attr_bool_cs(span_ptr, cs("b"), true);
+            ddog_add_span_attr_int_cs(span_ptr, cs(""), 1); // empty keys are skipped
+        }
+        let sp = DDOG_V1_ATTR_NODE_SPAN;
+        unsafe {
+            assert_eq!(ddog_v1_get_node_attr_child_type(&b, 0, 0, sp, 0, [0usize].as_ptr(), 1), DDOG_V1_ATTR_INT);
+            assert_eq!(ddog_v1_get_node_attr_child_int(&b, 0, 0, sp, 0, [0usize].as_ptr(), 1), -7);
+            assert_eq!(ddog_v1_get_node_attr_child_type(&b, 0, 0, sp, 0, [1usize].as_ptr(), 1), DDOG_V1_ATTR_BOOL);
+            assert!(ddog_v1_get_node_attr_child_bool(&b, 0, 0, sp, 0, [1usize].as_ptr(), 1));
+            assert_eq!((*span_ptr).span().attributes.len(), 2);
+        }
+    }
+
     // Nested attributes attached to LINK and EVENT node pointers, read back through the same node
     // getters with the link/event node kinds.
     #[test]
@@ -1539,13 +1567,12 @@ mod pointer_handle_miri_tests {
             let inferred = ddog_new_span(chunk);
             ddog_span_set_id(inferred, 200);
 
-            // Use `root` AFTER the sibling push, with no refetch (mirrors the transfers/debug/del).
+            // Use `root` AFTER the sibling push, with no refetch (mirrors the transfers/debug log).
             assert!(ddog_transfer_span_attr(root, inferred, c"moved".as_ptr(), true));
             ddog_span_set_error(inferred, ddog_span_get_error(root));
             let log = ddog_v1_span_debug_log(chunk, root);
             assert!(!log.is_empty());
             ddog_free_charslice(log);
-            assert!(!ddog_del_span_attr_lit(root, c"absent".as_ptr()));
         }
 
         let payload = b.into_payload();

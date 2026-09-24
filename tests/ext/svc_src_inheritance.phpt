@@ -8,7 +8,7 @@ DD_TRACE_AUTO_FLUSH_ENABLED=0
 $root = \DDTrace\start_span();
 $root->name = 'root';
 $root->service = 'redis-srv';
-$root->meta['_dd.svc_src'] = 'redis';
+$root->attributes['_dd.svc_src'] = 'redis';
 
 $child = \DDTrace\start_span();
 $child->name = 'child';

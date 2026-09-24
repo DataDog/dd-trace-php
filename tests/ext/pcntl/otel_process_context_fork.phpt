@@ -86,7 +86,7 @@ echo "Parent has runtime ID: "; var_dump($parentRuntimeId !== '');
 $threadContext = new OtelThreadContext();
 $parentRoot = DDTrace\start_span();
 echo "Parent runtime ID matches tracer: "; var_dump(
-    $parentRoot->meta['runtime-id'] === $parentRuntimeId
+    $parentRoot->attributes['runtime-id'] === $parentRuntimeId
 );
 $parentThreadId = $threadContext->attributes()[4] ?? null;
 echo "Parent thread ID matches process ID: "; var_dump(
@@ -108,7 +108,7 @@ if ($pid === 0) {
     $childRuntimeId = processContextRuntimeId($ffi, $childMappings[0]);
     $childRoot = DDTrace\start_span();
     echo "Child runtime ID matches tracer: "; var_dump(
-        $childRoot->meta['runtime-id'] === $childRuntimeId
+        $childRoot->attributes['runtime-id'] === $childRuntimeId
     );
     echo "Child mapping was republished: "; var_dump(
         $childRuntimeId !== $parentRuntimeId

@@ -104,10 +104,10 @@ array(2) {
     array(%d) {
       ["runtime-id"]=>
       string(36) "%s"
-      ["_dd.svc_src"]=>
-      string(1) "m"
       ["process_id"]=>
       float(%f)
+      ["_dd.svc_src"]=>
+      string(1) "m"
       ["_dd.agent_psr"]=>
       float(1)
     }

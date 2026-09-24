@@ -58,7 +58,7 @@ foreach ($trace_ids as $trace_id_and_expected_sampling) {
     printf("sampling for trace %s is %d expected %d\n", $trace_id, $root->samplingPriority, $expected_sampling);
     // The decision maker tag is not applied when the trace is not sampled,
     // we should check if this is the case in other tracers.
-    printf("_dd.p.dm = %s\n", $root->meta["_dd.p.dm"] ?? "-");
+    printf("_dd.p.dm = %s\n", $root->attributes["_dd.p.dm"] ?? "-");
 
     \DDTrace\close_span();
 }

@@ -124,18 +124,18 @@ array(3) {
     array(10) {
       ["runtime-id"]=>
       string(36) "%s"
-      ["_dd.svc_src"]=>
-      string(1) "m"
-      ["args.0"]=>
-      string(18) "tracing is awesome"
       ["process_id"]=>
       float(%f)
+      ["_dd.svc_src"]=>
+      string(1) "m"
+      ["_dd.agent_psr"]=>
+      float(1)
+      ["args.0"]=>
+      string(18) "tracing is awesome"
       ["foo"]=>
       float(100)
       ["bar"]=>
       float(0)
-      ["_dd.agent_psr"]=>
-      float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
       ["php.memory.peak_usage_bytes"]=>
@@ -167,7 +167,9 @@ array(3) {
     ["span_kind"]=>
     int(1)
     ["attributes"]=>
-    array(1) {
+    array(2) {
+      ["_dd.svc_src"]=>
+      string(1) "m"
       ["rand.range"]=>
       string(8) "42 - 999"
     }

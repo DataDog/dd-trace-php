@@ -87,6 +87,7 @@ typedef union ddtrace_span_properties {
         zval property_component;
         zval property_span_kind;
         zval property_attributes;
+        zval property_ignore_error;
     };
 } ddtrace_span_properties;
 
@@ -305,6 +306,17 @@ static inline bool ddtrace_span_is_dropped(ddtrace_span_data *span) {
 static inline bool ddtrace_span_is_entrypoint_root(ddtrace_span_data *span) {
     // The parent stack of a true top-level stack does never have a parent stack itself
     return span->std.ce == ddtrace_ce_root_span_data && (!span->stack->parent_stack || !span->stack->parent_stack->parent_stack);
+}
+
+// Tag lookups with the SpanData::$attributes > $meta > $metrics precedence ($meta/$metrics are deprecated).
+static inline zval *ddtrace_span_find_tag(ddtrace_span_data *span, const char *key, size_t len) {
+    zval *zv = zend_hash_str_find(ddtrace_property_array(&span->property_attributes), key, len);
+    return zv ? zv : zend_hash_str_find(ddtrace_property_array(&span->property_meta), key, len);
+}
+
+static inline zval *ddtrace_span_find_metric(ddtrace_span_data *span, const char *key, size_t len) {
+    zval *zv = zend_hash_str_find(ddtrace_property_array(&span->property_attributes), key, len);
+    return zv ? zv : zend_hash_str_find(ddtrace_property_array(&span->property_metrics), key, len);
 }
 
 static inline ddtrace_span_data *ddtrace_get_inferred_span(ddtrace_root_span_data *root) {

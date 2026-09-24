@@ -22,11 +22,11 @@ foreach ($tests as list($servicePattern, $namePattern, $resourcePatthern, $match
 
     DDTrace\get_priority_sampling();
 
-    if ($root->metrics["_dd.rule_psr"] == ($matches ? 0.7 : 0.3)) {
+    if ($root->attributes["_dd.rule_psr"] == ($matches ? 0.7 : 0.3)) {
         echo "As expected, rule $servicePattern, $namePattern, $resourcePatthern " . ($matches ? "matches" : "doesn't match") . "\n";
     } else {
         echo "Rule $servicePattern, $namePattern, $resourcePatthern " . ($matches ? "should have matched" : "shouldn't have matched") . "\n";
-        var_dump($root->metrics);
+        var_dump($root->attributes);
     }
 
 }

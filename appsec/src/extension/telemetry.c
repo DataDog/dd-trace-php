@@ -24,7 +24,6 @@ static zend_string *_api_sec_request_schema_zstr;
 static zend_string *_api_sec_request_no_schema_zstr;
 static zend_string *_api_sec_missing_route_zstr;
 
-static zend_string *_component_literal_zstr;
 
 static THREAD_LOCAL_ON_ZTS zend_string *nullable _cached_waf_version;
 static THREAD_LOCAL_ON_ZTS zend_string *nullable _cached_event_rules_version;
@@ -61,8 +60,6 @@ void dd_telemetry_startup(void)
         zend_string_init_interned(LSTRARG("api_security.request.no_schema"), 1);
     _api_sec_missing_route_zstr =
         zend_string_init_interned(LSTRARG("api_security.missing_route"), 1);
-    _component_literal_zstr =
-        zend_string_init_interned(LSTRARG("component"), 1);
 }
 
 void dd_telemetry_tshutdown(void)
@@ -181,15 +178,13 @@ static zend_string *nonnull _framework_tag(zend_object *nullable root_span)
     const char *framework = DD_UNKNOWN_FRAMEWORK;
     size_t framework_len = LSTRLEN(DD_UNKNOWN_FRAMEWORK);
 
-    zval *nullable meta = root_span ? dd_trace_span_get_meta(root_span) : NULL;
-    if (meta != NULL && Z_TYPE_P(meta) == IS_ARRAY) {
-        zval *nullable component =
-            zend_hash_find_ex(Z_ARRVAL_P(meta), _component_literal_zstr, true);
-        if (component != NULL && Z_TYPE_P(component) == IS_STRING &&
-            Z_STRLEN_P(component) > 0) {
-            framework = Z_STRVAL_P(component);
-            framework_len = Z_STRLEN_P(component);
-        }
+    zval *nullable component =
+        root_span ? dd_trace_span_find_tag(root_span, LSTRARG("component"))
+                  : NULL;
+    if (component != NULL && Z_TYPE_P(component) == IS_STRING &&
+        Z_STRLEN_P(component) > 0) {
+        framework = Z_STRVAL_P(component);
+        framework_len = Z_STRLEN_P(component);
     }
 
     zend_string *tags_zstr =

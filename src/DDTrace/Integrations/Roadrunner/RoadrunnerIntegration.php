@@ -151,7 +151,7 @@ class RoadrunnerIntegration extends Integration
                 $activeSpan->name = "web.request";
                 $activeSpan->type = Type::WEB_SERVLET;
                 $activeSpan->meta[Tag::COMPONENT] = RoadrunnerIntegration::NAME;
-                $activeSpan->meta[Tag::SPAN_KIND] = 'server';
+                $activeSpan->attributes[Tag::SPAN_KIND] = 'server';
                 if ($hook->exception) {
                     $activeSpan->exception = $hook->exception;
                     \DDTrace\close_span();

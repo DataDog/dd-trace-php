@@ -58,12 +58,12 @@ rm_rf(__DIR__ . '/.git');
 array(7) {
   ["runtime-id"]=>
   string(%d) "%s"
-  ["_dd.git.repository_url"]=>
-  string(32) "https://github.com/user/repo_new"
   ["process_id"]=>
   float(%f)
   ["_dd.agent_psr"]=>
   float(1)
+  ["_dd.git.repository_url"]=>
+  string(32) "https://github.com/user/repo_new"
   ["php.compilation.total_time_ms"]=>
   float(%f)
   ["php.memory.peak_usage_bytes"]=>
@@ -74,12 +74,12 @@ array(7) {
 array(7) {
   ["runtime-id"]=>
   string(%d) "%s"
-  ["_dd.git.repository_url"]=>
-  string(32) "https://github.com/user/repo_new"
   ["process_id"]=>
   float(%f)
   ["_dd.agent_psr"]=>
   float(1)
+  ["_dd.git.repository_url"]=>
+  string(32) "https://github.com/user/repo_new"
   ["php.compilation.total_time_ms"]=>
   float(%f)
   ["php.memory.peak_usage_bytes"]=>
@@ -90,12 +90,12 @@ array(7) {
 array(7) {
   ["runtime-id"]=>
   string(%d) "%s"
-  ["_dd.git.repository_url"]=>
-  string(32) "https://github.com/user/repo_new"
   ["process_id"]=>
   float(%f)
   ["_dd.agent_psr"]=>
   float(1)
+  ["_dd.git.repository_url"]=>
+  string(32) "https://github.com/user/repo_new"
   ["php.compilation.total_time_ms"]=>
   float(%f)
   ["php.memory.peak_usage_bytes"]=>
@@ -106,12 +106,12 @@ array(7) {
 array(7) {
   ["runtime-id"]=>
   string(%d) "%s"
-  ["_dd.git.repository_url"]=>
-  string(32) "https://github.com/user/repo_new"
   ["process_id"]=>
   float(%f)
   ["_dd.agent_psr"]=>
   float(1)
+  ["_dd.git.repository_url"]=>
+  string(32) "https://github.com/user/repo_new"
   ["php.compilation.total_time_ms"]=>
   float(%f)
   ["php.memory.peak_usage_bytes"]=>

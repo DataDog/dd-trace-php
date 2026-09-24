@@ -75,22 +75,33 @@ abstract class Integration implements \DDTrace\Integration
             $service = $mapping[$service];
         }
         $span->service = $service;
-        unset($span->meta['_dd.svc_src']);
+        unset($span->attributes['_dd.svc_src']);
         if ($flatServiceNames) {
-            if ($rootSpan && isset($rootSpan->meta['_dd.svc_src'])) {
-                $span->meta['_dd.svc_src'] = $rootSpan->meta['_dd.svc_src'];
+            $rootServiceSource = $rootSpan
+                ? ($rootSpan->attributes['_dd.svc_src'] ?? $rootSpan->meta['_dd.svc_src'] ?? null)
+                : null;
+            if ($rootServiceSource !== null) {
+                $span->attributes['_dd.svc_src'] = $rootServiceSource;
             }
         } else {
-            $span->meta['_dd.svc_src'] = $fallbackName;
+            $span->attributes['_dd.svc_src'] = $fallbackName;
         }
+    }
+
+    /**
+     * Whether the span has the tag in $attributes or in the deprecated $meta.
+     */
+    public static function hasTag(SpanData $span, $key)
+    {
+        return array_key_exists($key, $span->attributes) || array_key_exists($key, $span->meta);
     }
 
     public static function tagFrameworkServiceSource(SpanData $span, $integrationName)
     {
         if (\dd_trace_env_config('DD_SERVICE')) {
-            unset($span->meta['_dd.svc_src']);
+            unset($span->attributes['_dd.svc_src']);
         } else {
-            $span->meta['_dd.svc_src'] = $integrationName;
+            $span->attributes['_dd.svc_src'] = $integrationName;
         }
     }
 
@@ -102,7 +113,7 @@ abstract class Integration implements \DDTrace\Integration
     {
         if (!\dd_trace_env_config('DD_SERVICE')) {
             $span->service = $service ?? $component;
-            $span->meta['_dd.svc_src'] = $component;
+            $span->attributes['_dd.svc_src'] = $component;
         }
         $span->meta[Tag::COMPONENT] = $component;
     }

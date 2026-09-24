@@ -29,6 +29,8 @@ root_span_get_meta():
 Array
 (
     [runtime-id] => %s
+    [_dd.p.ts] => 02
+    [_dd.p.dm] => -5
     [usr.id] => otherSdkID
     [_dd.appsec.usr.id] => otherAutomatedID
     [_dd.appsec.events.users.login.success.auto.mode] => identification
@@ -36,8 +38,6 @@ Array
     [_dd.appsec.usr.login] => otherLogin
     [appsec.events.users.login.success.track] => true
     [server.business_logic.users.login.success] => null
-    [_dd.p.ts] => 02
-    [_dd.p.dm] => -5
     [_dd.appsec.events.users.login.success.sdk] => true
     [appsec.events.users.login.success.value] => something-from-sdk-2
 )

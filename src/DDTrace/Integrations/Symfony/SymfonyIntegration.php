@@ -43,7 +43,7 @@ class SymfonyIntegration extends Integration
                     $rootSpan->name = 'symfony.request';
                     $rootSpan->service = $service;
                     Integration::tagFrameworkServiceSource($rootSpan, SymfonyIntegration::NAME);
-                    $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+                    $rootSpan->attributes[Tag::SPAN_KIND] = 'server';
                     $rootSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
 
                     $span->name = 'symfony.httpkernel.kernel.handle';
@@ -51,7 +51,7 @@ class SymfonyIntegration extends Integration
                     $span->type = Type::WEB_SERVLET;
                     $span->service = $service;
                     Integration::tagFrameworkServiceSource($span, SymfonyIntegration::NAME);
-                    $span->meta[Tag::SPAN_KIND] = 'server';
+                    $span->attributes[Tag::SPAN_KIND] = 'server';
                     $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
                 },
             ]
@@ -467,15 +467,15 @@ class SymfonyIntegration extends Integration
                 $span->meta[Tag::COMPONENT] = self::NAME;
 
                 $rootSpan = \DDTrace\root_span();
-                $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
+                $rootSpan->attributes[Tag::HTTP_METHOD] = $request->getMethod();
                 $rootSpan->meta[Tag::COMPONENT] = self::$frameworkPrefix;
-                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+                $rootSpan->attributes[Tag::SPAN_KIND] = 'server';
 
-                if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
-                    $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize($request->getUri());
+                if (!Integration::hasTag($rootSpan, Tag::HTTP_URL)) {
+                    $rootSpan->attributes[Tag::HTTP_URL] = Normalizer::urlSanitize($request->getUri());
                 }
                 if (isset($response)) {
-                    $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
+                    $rootSpan->attributes[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
                 }
 
                 $route_name = $request->attributes->get('_route');
@@ -624,7 +624,7 @@ class SymfonyIntegration extends Integration
             if (isset($retval) && \method_exists($retval, 'getStatusCode') && $retval->getStatusCode() < 500) {
                 // It means that the exception event associated with the exception had a response, which certainly
                 // means that the exception was handled.
-                \DDTrace\root_span()->meta['error.ignored'] = 1;
+                \DDTrace\root_span()->ignoreError = true;
             }
         };
         // Symfony 4.3-

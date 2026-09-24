@@ -25,7 +25,7 @@ class LumenIntegration extends Integration
                 $rootSpan = \DDTrace\root_span();
                 if ($rootSpan !== null) {
                     $rootSpan->meta[Tag::COMPONENT] = self::NAME;
-                    $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+                    $rootSpan->attributes[Tag::SPAN_KIND] = 'server';
                 }
             }
         );
@@ -41,10 +41,10 @@ class LumenIntegration extends Integration
                 $rootSpan->name = 'lumen.request';
                 $rootSpan->service = \ddtrace_config_app_name(self::NAME);
                 Integration::tagFrameworkServiceSource($rootSpan, LumenIntegration::NAME);
-                if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
-                    $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($request->getUri());
+                if (!Integration::hasTag($rootSpan, Tag::HTTP_URL)) {
+                    $rootSpan->attributes[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($request->getUri());
                 }
-                $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
+                $rootSpan->attributes[Tag::HTTP_METHOD] = $request->getMethod();
 
                 return false;
             }
@@ -86,7 +86,8 @@ class LumenIntegration extends Integration
                         && !\dd_trace_env_config("DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED")
                         && \dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")
                     ) {
-                        $rootSpan->resource = $rootSpan->meta[Tag::HTTP_METHOD] . ' ' . $resourceName;
+                        $method = $rootSpan->attributes[Tag::HTTP_METHOD] ?? $rootSpan->meta[Tag::HTTP_METHOD];
+                        $rootSpan->resource = $method . ' ' . $resourceName;
                     }
                 },
             ]

@@ -34,6 +34,7 @@ static int _mod_number;
 static const char *_mod_version;
 static bool _ddtrace_loaded;
 static zend_string *_ddtrace_root_span_fname;
+static zend_string *_attributes_propname;
 static zend_string *_meta_propname;
 static zend_string *_metrics_propname;
 static zend_string *_meta_struct_propname;
@@ -146,6 +147,7 @@ void dd_trace_startup(void)
 {
     _ddtrace_root_span_fname = zend_string_init_interned(
         LSTRARG("ddtrace\\root_span"), 1 /* permanent */);
+    _attributes_propname = zend_string_init_interned(LSTRARG("attributes"), 1);
     _meta_propname = zend_string_init_interned(LSTRARG("meta"), 1);
     _metrics_propname = zend_string_init_interned(LSTRARG("metrics"), 1);
     _meta_struct_propname =
@@ -250,7 +252,11 @@ bool dd_trace_span_add_tag(
         mlog(dd_log_debug, "Adding to root span the tag '%s'", ZSTR_VAL(tag));
     }
 
-    if (zend_hash_add(Z_ARRVAL_P(meta), tag, value) == NULL) {
+    // Present in $attributes (which the tracer serializes first) counts as
+    // present.
+    zval *attributes = dd_trace_span_get_attributes(span);
+    if ((attributes && zend_hash_exists(Z_ARRVAL_P(attributes), tag)) ||
+        zend_hash_add(Z_ARRVAL_P(meta), tag, value) == NULL) {
         zval_ptr_dtor(value);
         return false;
     }
@@ -283,7 +289,10 @@ bool dd_trace_span_add_tag_str(zend_object *nonnull span,
     mlog(dd_log_debug, "Adding to root span the tag '%.*s' with value '%.*s'",
         (int)tag_len, tag, (int)value_len, value);
 
-    bool res = zend_hash_add(Z_ARRVAL_P(meta), ztag, &zvalue) != NULL;
+    zval *attributes = dd_trace_span_get_attributes(span);
+    bool res =
+        !(attributes && zend_hash_exists(Z_ARRVAL_P(attributes), ztag)) &&
+        zend_hash_add(Z_ARRVAL_P(meta), ztag, &zvalue) != NULL;
     zend_string_release(ztag);
 
     if (!res) {
@@ -343,6 +352,25 @@ static zval *_get_span_modifiable_array_property(
 zval *nullable dd_trace_span_get_meta(zend_object *nonnull zobj)
 {
     return _get_span_modifiable_array_property(zobj, _meta_propname);
+}
+
+zval *nullable dd_trace_span_get_attributes(zend_object *nonnull zobj)
+{
+    return _get_span_modifiable_array_property(zobj, _attributes_propname);
+}
+
+zval *nullable dd_trace_span_find_tag(
+    zend_object *nonnull zobj, const char *nonnull key, size_t key_len)
+{
+    zval *attributes = dd_trace_span_get_attributes(zobj);
+    zval *res = attributes
+                    ? zend_hash_str_find(Z_ARRVAL_P(attributes), key, key_len)
+                    : NULL;
+    if (!res) {
+        zval *meta = dd_trace_span_get_meta(zobj);
+        res = meta ? zend_hash_str_find(Z_ARRVAL_P(meta), key, key_len) : NULL;
+    }
+    return res;
 }
 
 zval *nullable dd_trace_span_get_metrics(zend_object *nonnull zobj)
@@ -610,6 +638,34 @@ static PHP_FUNCTION(datadog_appsec_testing_root_span_add_tag)
     RETURN_BOOL(result);
 }
 
+// The v0.4 view of the root span's tags: $attributes entries of the bucket's
+// type (numbers for metrics, the rest for meta), then the deprecated
+// $meta/$metrics.
+static void _root_span_tags_by_bucket(zend_object *nonnull root_span,
+    zval *nullable legacy, bool numeric, zval *nonnull return_value)
+{
+    array_init(return_value);
+    zval *attributes = dd_trace_span_get_attributes(root_span);
+    if (attributes) {
+        zend_string *key;
+        zval *val;
+        ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(attributes), key, val)
+        {
+            bool is_number =
+                Z_TYPE_P(val) == IS_LONG || Z_TYPE_P(val) == IS_DOUBLE;
+            if (key && is_number == numeric) {
+                Z_TRY_ADDREF_P(val);
+                zend_hash_update(Z_ARRVAL_P(return_value), key, val);
+            }
+        }
+        ZEND_HASH_FOREACH_END();
+    }
+    if (legacy) {
+        zend_hash_merge(
+            Z_ARRVAL_P(return_value), Z_ARRVAL_P(legacy), zval_add_ref, false);
+    }
+}
+
 static PHP_FUNCTION(datadog_appsec_testing_root_span_get_meta) // NOLINT
 {
     if (zend_parse_parameters_none() == FAILURE) {
@@ -621,10 +677,8 @@ static PHP_FUNCTION(datadog_appsec_testing_root_span_get_meta) // NOLINT
         RETURN_NULL();
     }
 
-    zval *meta_zv = dd_trace_span_get_meta(root_span);
-    if (meta_zv) {
-        RETURN_ZVAL(meta_zv, 1 /* copy */, 0 /* no destroy original */);
-    }
+    _root_span_tags_by_bucket(
+        root_span, dd_trace_span_get_meta(root_span), false, return_value);
 }
 
 static PHP_FUNCTION(datadog_appsec_testing_root_span_get_meta_struct) // NOLINT
@@ -655,10 +709,8 @@ static PHP_FUNCTION(datadog_appsec_testing_root_span_get_metrics) // NOLINT
         RETURN_NULL();
     }
 
-    zval *metrics_zv = dd_trace_span_get_metrics(root_span);
-    if (metrics_zv) {
-        RETURN_ZVAL(metrics_zv, 1 /* copy */, 0 /* no destroy original */);
-    }
+    _root_span_tags_by_bucket(
+        root_span, dd_trace_span_get_metrics(root_span), true, return_value);
 }
 
 static PHP_FUNCTION(datadog_appsec_testing_get_formatted_runtime_id) // NOLINT

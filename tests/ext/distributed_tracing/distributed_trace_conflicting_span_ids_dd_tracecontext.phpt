@@ -15,7 +15,7 @@ DDTrace\consume_distributed_tracing_headers([
 $span = \DDTrace\start_span();
 echo "span.trace_id = {$span->traceId}\n";
 echo "span.parent_id = {$span->parentId}\n";
-echo "span.meta[_dd.parent_id] = {$span->meta["_dd.parent_id"]}\n";
+echo "span.meta[_dd.parent_id] = {$span->attributes["_dd.parent_id"]}\n";
 $headers = DDTrace\generate_distributed_tracing_headers(["tracecontext"]);
 echo "trace_flags = ", substr($headers["traceparent"], -2), "\n";
 

@@ -24,7 +24,7 @@ class NetteIntegration extends Integration
                 return;
             }
 
-            $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+            $rootSpan->attributes[Tag::SPAN_KIND] = 'server';
 
             $rootSpan->service = $service;
             $rootSpan->meta[Tag::COMPONENT] = self::NAME;
@@ -54,7 +54,7 @@ class NetteIntegration extends Integration
                 $span->meta[Tag::COMPONENT] = self::NAME;
 
                 $rootSpan = \DDTrace\root_span();
-                $rootSpan->meta[Tag::HTTP_STATUS_CODE] = http_response_code();
+                $rootSpan->attributes[Tag::HTTP_STATUS_CODE] = http_response_code();
             }
         );
 
@@ -76,7 +76,7 @@ class NetteIntegration extends Integration
                 $action = $request->getParameter('action');
 
                 $rootSpan = \DDTrace\root_span();
-                $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
+                $rootSpan->attributes[Tag::HTTP_METHOD] = $request->getMethod();
                 $rootSpan->meta['nette.route.presenter'] = $presenter;
                 $rootSpan->meta['nette.route.action'] = $action;
             }

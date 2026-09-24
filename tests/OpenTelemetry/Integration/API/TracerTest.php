@@ -295,12 +295,12 @@ final class TracerTest extends BaseTestCase
         $this->assertArrayNotHasKey("null-string", $attributes);
         $this->assertSame("", $attributes['empty_string']);
         $this->assertEquals(1, $attributes['number']);
-        $this->assertSame("true", $attributes['boolean']);
+        $this->assertTrue($attributes['boolean']);
         $this->assertSame("a", $attributes['string-array'][0]);
         $this->assertSame("b", $attributes['string-array'][1]);
         $this->assertSame("c", $attributes['string-array'][2]);
-        $this->assertSame("true", $attributes['boolean-array'][0]);
-        $this->assertSame("false", $attributes['boolean-array'][1]);
+        $this->assertTrue($attributes['boolean-array'][0]);
+        $this->assertFalse($attributes['boolean-array'][1]);
         $this->assertEquals("1.1", $attributes['float-array'][0]);
         $this->assertEquals("2.2", $attributes['float-array'][1]);
         $this->assertEquals("3.3", $attributes['float-array'][2]);
@@ -402,13 +402,13 @@ final class TracerTest extends BaseTestCase
             $tracer = self::getTracer();
             $span = $tracer->spanBuilder('test.span')->startSpan();
             $span->setStatus(StatusCode::STATUS_UNSET);
-            $this->assertArrayNotHasKey(Tag::ERROR_MSG, active_span()->meta); // Initial state
+            $this->assertArrayNotHasKey(Tag::ERROR_MSG, active_span()->attributes); // Initial state
             $span->setStatus(StatusCode::STATUS_ERROR, "error message");
-            $this->assertSame("error message", active_span()->meta[Tag::ERROR_MSG]); // Error state
+            $this->assertSame("error message", active_span()->attributes[Tag::ERROR_MSG]); // Error state
             $span->setStatus(StatusCode::STATUS_UNSET);
-            $this->assertSame("error message", active_span()->meta[Tag::ERROR_MSG]); // Unchanged state
+            $this->assertSame("error message", active_span()->attributes[Tag::ERROR_MSG]); // Unchanged state
             $span->setStatus(StatusCode::STATUS_OK);
-            $this->assertArrayNotHasKey(Tag::ERROR_MSG, active_span()->meta); // OK state
+            $this->assertArrayNotHasKey(Tag::ERROR_MSG, active_span()->attributes); // OK state
             $span->end();
         });
 

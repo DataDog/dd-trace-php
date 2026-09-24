@@ -63,8 +63,8 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
             "runtime-id": "%s",
             "http.url": "http:\/\/localhost:8888\/foo",
             "http.method": "GET",
-            "http.status_code": "200",
             "process_id": %d,
+            "http.status_code": "200",
             "php.compilation.total_time_ms": %f,
             "php.memory.peak_usage_bytes": %d,
             "php.memory.peak_real_usage_bytes": %d
@@ -93,8 +93,8 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
             "http.method": "GET",
             "http.url": "example.com\/test",
             "stage": "aws-prod",
-            "http.status_code": "200",
-            "_dd.inferred_span": 1
+            "_dd.inferred_span": 1,
+            "http.status_code": "200"
         }
     }
 ]

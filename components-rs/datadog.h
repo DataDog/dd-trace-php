@@ -264,6 +264,22 @@ void ddog_add_span_attr_double_lit(ddog_SpanNode *span, const char *key, double 
 void ddog_add_span_attr_double_zstr(ddog_SpanNode *span, struct _zend_string *key, double value);
 
 /**
+ * Adds an integer attribute under a `CharSlice` key.
+ *
+ * # Safety
+ * See [`ddog_span_set_id`].
+ */
+void ddog_add_span_attr_int_cs(ddog_SpanNode *span, ddog_CharSlice key, int64_t value);
+
+/**
+ * Adds a boolean attribute under a `CharSlice` key.
+ *
+ * # Safety
+ * See [`ddog_span_set_id`].
+ */
+void ddog_add_span_attr_bool_cs(ddog_SpanNode *span, ddog_CharSlice key, bool value);
+
+/**
  * Adds a bytes-valued attribute (v0.4 `meta_struct`) under a `ZendString` key. The value bytes are
  * copied verbatim and encoded as msgpack `bin`.
  *
@@ -282,14 +298,6 @@ void ddog_add_span_attr_bytes_zstr(ddog_SpanNode *span,
  * See [`ddog_span_set_id`].
  */
 bool ddog_has_span_attr_zstr(ddog_SpanNode *span, struct _zend_string *key);
-
-/**
- * Removes the attribute under a static C literal `key`, returning whether it was present.
- *
- * # Safety
- * See [`ddog_span_set_id`].
- */
-bool ddog_del_span_attr_lit(ddog_SpanNode *span, const char *key);
 
 /**
  * Copies the attribute `key` from `from_span` onto `to_span`, returning whether the source had it;

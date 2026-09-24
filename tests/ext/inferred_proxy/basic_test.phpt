@@ -75,9 +75,9 @@ if ($percentageDifference > 0.01) { // 0.01% difference for the sake of the test
             "runtime-id": "%s",
             "http.url": "http:\/\/localhost:8888\/foo",
             "http.method": "GET",
-            "foo": "bar",
-            "http.status_code": "200",
             "process_id": %d,
+            "http.status_code": "200",
+            "foo": "bar",
             "php.compilation.total_time_ms": %f,
             "php.memory.peak_usage_bytes": %d,
             "php.memory.peak_real_usage_bytes": %d
@@ -103,8 +103,8 @@ if ($percentageDifference > 0.01) { // 0.01% difference for the sake of the test
             "http.method": "GET",
             "http.url": "example.com\/test",
             "stage": "aws-prod",
-            "http.status_code": "200",
             "_dd.inferred_span": 1,
+            "http.status_code": "200",
             "_dd.agent_psr": 1
         }
     },

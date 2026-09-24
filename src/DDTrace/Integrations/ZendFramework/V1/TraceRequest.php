@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations\ZendFramework\V1;
 
+use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\ZendFramework\ZendFrameworkIntegration;
 use DDTrace\Tag;
 use Zend_Controller_Front;
@@ -30,12 +31,12 @@ class TraceRequest extends Zend_Controller_Plugin_Abstract
         if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
             $span->resource = $controller . '@' . $action . ' ' . $route;
         }
-        $span->meta[Tag::HTTP_METHOD] = $request->getMethod();
-        $span->meta[Tag::SPAN_KIND] = 'server';
+        $span->attributes[Tag::HTTP_METHOD] = $request->getMethod();
+        $span->attributes[Tag::SPAN_KIND] = 'server';
         $span->meta[Tag::COMPONENT] = ZendFrameworkIntegration::NAME;
 
-        if (!array_key_exists(Tag::HTTP_URL, $span->meta)) {
-            $span->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(
+        if (!Integration::hasTag($span, Tag::HTTP_URL)) {
+            $span->attributes[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(
                 $request->getScheme() . '://' .
                 $request->getHttpHost() .
                 $request->getRequestUri()
@@ -52,6 +53,6 @@ class TraceRequest extends Zend_Controller_Plugin_Abstract
         if (null === $span) {
             return;
         }
-        $span->meta[Tag::HTTP_STATUS_CODE] = $this->getResponse()->getHttpResponseCode();
+        $span->attributes[Tag::HTTP_STATUS_CODE] = $this->getResponse()->getHttpResponseCode();
     }
 }

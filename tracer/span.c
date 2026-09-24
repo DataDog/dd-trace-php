@@ -226,27 +226,26 @@ ddtrace_inferred_span_data *ddtrace_open_inferred_span(ddtrace_inferred_proxy_re
         ZVAL_COPY(&span->property_service, &root->property_service); // Fall back to root service name
     }
 
-    zend_array *meta = ddtrace_property_array(&span->property_meta);
-
-    zend_hash_copy(meta, &DDTRACE_G(root_span_tags_preset), (copy_ctor_func_t)zval_add_ref);
+    zend_array *attributes = ddtrace_property_array(&span->property_attributes);
+    zend_hash_copy(attributes, &DDTRACE_G(root_span_tags_preset), (copy_ctor_func_t)zval_add_ref);
 
     if (result->http_method) {
         ZVAL_STR_COPY(&zv, result->http_method);
-        zend_hash_str_add_new(meta, ZEND_STRL("http.method"), &zv);
+        zend_hash_str_update(attributes, ZEND_STRL("http.method"), &zv);
     }
 
     if (result->domain && result->path) {
         ZVAL_STR(&zv, strpprintf(0, "%s%s", ZSTR_VAL(result->domain), ZSTR_VAL(result->path)));
-        zend_hash_str_add_new(meta, ZEND_STRL("http.url"), &zv);
+        zend_hash_str_update(attributes, ZEND_STRL("http.url"), &zv);
     }
 
     if (result->stage) {
         ZVAL_STR_COPY(&zv, result->stage);
-        zend_hash_str_add_new(meta, ZEND_STRL("stage"), &zv);
+        zend_hash_str_update(attributes, ZEND_STRL("stage"), &zv);
     }
 
-    ZVAL_LONG(&zv, 1);
-    zend_hash_str_add_new(ddtrace_property_array(&span->property_metrics), ZEND_STRL("_dd.inferred_span"), &zv);
+    ZVAL_DOUBLE(&zv, 1);
+    zend_hash_str_update(attributes, ZEND_STRL("_dd.inferred_span"), &zv);
     // Set on the property; the serializer mirrors it into meta["component"] at serialization time.
     zval_ptr_dtor(&span->property_component);
     ZVAL_STRING(&span->property_component, (char *)proxy_info->component);
@@ -550,7 +549,7 @@ ddtrace_span_data *ddtrace_alloc_execute_data_span_ex(zend_ulong index, zend_exe
                 zend_string_release(basename);
             }
 
-            zend_array *meta = ddtrace_property_array(&span->property_meta);
+            zend_array *meta = ddtrace_property_array(&span->property_attributes);
             zval location;
             ZVAL_STR(&location, zend_strpprintf(0, "%s:%d", ZSTR_VAL(EX(func)->op_array.filename), EX(func)->op_array.opcodes->lineno));
             zend_hash_str_add_new(meta, ZEND_STRL("closure.declaration"), &location);
@@ -830,7 +829,7 @@ static void dd_mark_closed_spans_flushable(ddtrace_span_stack *stack) {
                 // This might get updated later with SpanStacks, but at that point it will be orphan spans. That's intentional.
                 if (!get_global_DD_APM_TRACING_ENABLED()) {
                     // Increment limiter, then force sampling priority if not an asm event
-                    if (!ddtrace_standalone_limiter_allow() && !root_span->asm_event_emitted && !ddtrace_trace_source_is_meta_asm_sourced(ddtrace_property_array(&stack->root_span->property_meta))) {
+                    if (!ddtrace_standalone_limiter_allow() && !root_span->asm_event_emitted && !ddtrace_trace_source_is_asm_sourced(ddtrace_property_array(&stack->root_span->property_attributes), ddtrace_property_array(&stack->root_span->property_meta))) {
                         zval priority;
                         ZVAL_LONG(&priority, PRIORITY_SAMPLING_AUTO_REJECT);
                         datadog_assign_variable(&root_span->property_sampling_priority, &priority);
@@ -1253,7 +1252,7 @@ void ddtrace_populate_span_data(ddtrace_span_data *span, zend_string **service, 
         *service = zend_string_init(ZEND_STRL("unnamed-php-service"), 0);
     }
 
-    zval *prop_env = zend_hash_str_find(ddtrace_property_array(&span->property_meta), ZEND_STRL("env"));
+    zval *prop_env = ddtrace_span_find_tag(span, ZEND_STRL("env"));
     if (!prop_env) {
         prop_env = &span->property_env;
     }
@@ -1263,7 +1262,7 @@ void ddtrace_populate_span_data(ddtrace_span_data *span, zend_string **service, 
         *env = NULL;
     }
 
-    zval *prop_version = zend_hash_str_find(ddtrace_property_array(&span->property_meta), ZEND_STRL("version"));
+    zval *prop_version = ddtrace_span_find_tag(span, ZEND_STRL("version"));
     if (!prop_version) {
         prop_version = &span->property_version;
     }

@@ -10,7 +10,7 @@ $root = \DDTrace\root_span();
 
 \DDTrace\get_priority_sampling();
 
-if (isset($root->metrics["_dd.limit_psr"])) {
+if (isset($root->attributes["_dd.limit_psr"])) {
     echo "Fail\n";
 
     var_dump($root);

@@ -36,7 +36,7 @@ class CakePHPIntegration extends Integration
                     : 'cake_console';
             } else {
                 $rootSpan->name = 'cakephp.request';
-                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+                $rootSpan->attributes[Tag::SPAN_KIND] = 'server';
             }
             $rootSpan->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
         };
@@ -51,7 +51,7 @@ class CakePHPIntegration extends Integration
         self::$setStatusCodeFn =  static function ($This, $scope, $args, $retval) {
             $rootSpan = \DDTrace\root_span();
             if ($rootSpan) {
-                $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $retval;
+                $rootSpan->attributes[Tag::HTTP_STATUS_CODE] = $retval;
             }
         };
 

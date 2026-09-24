@@ -191,14 +191,13 @@ void ddtrace_telemetry_notify_integration_version(const char *name, size_t name_
 }
 
 void ddtrace_telemetry_inc_spans_created(ddtrace_span_data *span) {
-    // Prefer the $span->component property; the meta mirror only happens later at serialization,
-    // so fall back to meta["component"] for spans (e.g. userland integrations) that set it directly.
+    // Prefer the $span->component property; the tag mirror only happens later at serialization,
+    // so fall back to the "component" tag for spans (e.g. userland integrations) that set it directly.
     zval *component_prop = &span->property_component;
     ZVAL_DEREF(component_prop);
     zval *component = NULL;
-    if (!(Z_TYPE_P(component_prop) == IS_STRING && Z_STRLEN_P(component_prop) > 0) &&
-        Z_TYPE(span->property_meta) == IS_ARRAY) {
-        component = zend_hash_str_find(Z_ARRVAL(span->property_meta), ZEND_STRL("component"));
+    if (!(Z_TYPE_P(component_prop) == IS_STRING && Z_STRLEN_P(component_prop) > 0)) {
+        component = ddtrace_span_find_tag(span, ZEND_STRL("component"));
     }
 
     zend_string *integration = NULL;

@@ -1076,14 +1076,14 @@ static uint64_t _calc_sampling_key(zend_object *root_span, int status_code,
     zend_string *route_or_endpoint = NULL;
     bool free_route_or_endpoint = false;
 
-    zval *route = zend_hash_str_find(Z_ARRVAL_P(meta), ZEND_STRL("http.route"));
+    zval *route = dd_trace_span_find_tag(root_span, ZEND_STRL("http.route"));
     const bool has_http_route = route && Z_TYPE_P(route) == IS_STRING;
     if (has_http_route) {
         route_or_endpoint = Z_STR_P(route);
     } else {
         // http.route is absent, check for http.endpoint
         zval *endpoint =
-            zend_hash_str_find(Z_ARRVAL_P(meta), ZEND_STRL("http.endpoint"));
+            dd_trace_span_find_tag(root_span, ZEND_STRL("http.endpoint"));
         const bool has_http_endpoint =
             endpoint && Z_TYPE_P(endpoint) == IS_STRING;
         if (has_http_endpoint) {
@@ -1100,7 +1100,7 @@ static uint64_t _calc_sampling_key(zend_object *root_span, int status_code,
             // http.endpoint not computed, compute it now without setting the
             // tag
             zval *url =
-                zend_hash_str_find(Z_ARRVAL_P(meta), ZEND_STRL("http.url"));
+                dd_trace_span_find_tag(root_span, ZEND_STRL("http.url"));
             const bool has_http_url = url && Z_TYPE_P(url) == IS_STRING;
             if (has_http_url) {
                 route_or_endpoint = dd_trace_guess_endpoint_from_url(
@@ -1122,8 +1122,7 @@ static uint64_t _calc_sampling_key(zend_object *root_span, int status_code,
         goto missing_route;
     }
 
-    zval *method =
-        zend_hash_str_find(Z_ARRVAL_P(meta), ZEND_STRL("http.method"));
+    zval *method = dd_trace_span_find_tag(root_span, ZEND_STRL("http.method"));
     if (!method || Z_TYPE_P(method) != IS_STRING) {
         mlog_g(dd_log_debug, "No http.method tag; not sampling");
         // we treat the absence of http.method also as a missing route, because

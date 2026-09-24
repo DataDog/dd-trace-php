@@ -52,18 +52,18 @@ array(2) {
     array(10) {
       ["runtime-id"]=>
       string(%d) "%s"
+      ["process_id"]=>
+      float(%f)
       ["git.commit.sha"]=>
       string(6) "123456"
       ["git.repository_url"]=>
       string(24) "github.com/user/env_repo"
+      ["_dd.agent_psr"]=>
+      float(1)
       ["_dd.git.commit.sha"]=>
       string(6) "123456"
       ["_dd.git.repository_url"]=>
       string(24) "github.com/user/env_repo"
-      ["process_id"]=>
-      float(%f)
-      ["_dd.agent_psr"]=>
-      float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
       ["php.memory.peak_usage_bytes"]=>

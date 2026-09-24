@@ -12,7 +12,7 @@ if (\DDTrace\get_priority_sampling() == \DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP) {
     if ($root->samplingPriority == \DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP) {
         echo "metrics[_sampling_priority_v1] OK\n";
 
-        if ($root->metrics["_dd.agent_psr"] === 1.0) {
+        if ($root->attributes["_dd.agent_psr"] === 1.0) {
             echo "metrics[_dd.agent_psr] OK\n";
 
             if (\DDTrace\get_priority_sampling() == \DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP) {
@@ -26,7 +26,7 @@ if (\DDTrace\get_priority_sampling() == \DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP) {
     } else {
         echo "_sampling_priority_v1 metric is missing from root span metrics\n";
     }
-    echo "_dd.p.dm = {$root->meta["_dd.p.dm"]}\n";
+    echo "_dd.p.dm = {$root->attributes["_dd.p.dm"]}\n";
 } else {
     echo "Default priority sampling is not automatically kept\n";
 }

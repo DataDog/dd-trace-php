@@ -11,12 +11,12 @@ $root = \DDTrace\root_span();
 
 \DDTrace\get_priority_sampling();
 
-if (!isset($root->metrics["_dd.rule_psr"])) {
+if (!isset($root->attributes["_dd.rule_psr"])) {
     echo "OK\n";
 } else {
-    echo "metrics[_dd.rule_psr] = {$root->metrics["_dd.rule_psr"]}\n";
+    echo "metrics[_dd.rule_psr] = {$root->attributes["_dd.rule_psr"]}\n";
 }
-echo "_dd.p.dm = ", isset($root->meta["_dd.p.dm"]) ? $root->meta["_dd.p.dm"] : "-", "\n";
+echo "_dd.p.dm = ", isset($root->attributes["_dd.p.dm"]) ? $root->attributes["_dd.p.dm"] : "-", "\n";
 ?>
 --EXPECT--
 OK
