@@ -20,9 +20,7 @@ if [ "${WITH_ASAN}" -eq "1" ]; then
   export COMPILE_ASAN=1
 fi
 # Compile Rust and PHP in parallel
-rust_build_log=$(mktemp)
-trap 'rm -f "$rust_build_log"' EXIT
-SHARED=1 ./compile_rust.sh 2>&1 | tee "$rust_build_log" &
+SHARED=1 ./compile_rust.sh &
 rust_build_pid=$!
 make -j static &
 c_build_pid=$!
@@ -36,12 +34,6 @@ if [ "$c_build_status" -ne 0 ]; then
   exit "$c_build_status"
 fi
 if [ "$rust_build_status" -ne 0 ]; then
-  # Retry the job with a clean target directory: libddwaf may have left a
-  # partially extracted archive, which cannot safely be reused locally.
-  if grep -Eq 'Failed to (download archive|write archive entry contents to file):.*reqwest::Error.*(ConnectionReset|ConnectionAborted|TimedOut|IncompleteMessage)' "$rust_build_log"; then
-    echo "Transient libddwaf download failure; exiting 75 for GitLab retry." >&2
-    exit 75
-  fi
   exit "$rust_build_status"
 fi
 

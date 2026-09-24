@@ -127,6 +127,7 @@ stages:
 variables:
   FF_ENABLE_BASH_EXIT_CODE_CHECK: "true"
   FF_USE_NEW_BASH_EVAL_STRATEGY: "true"
+  KUBERNETES_POD_ANNOTATIONS_2: "beta.fabric.datadoghq.com/no-proxy-additions=<?= fabric_no_proxy_additions() ?>"
   CARGO_HOME: "${CI_PROJECT_DIR}/.cache/cargo"
 
   # One pipeline injection package size ratchet
@@ -300,6 +301,7 @@ foreach ($build_platforms as $platform) {
     KUBERNETES_CPU_REQUEST: 12
     KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
+    KUBERNETES_POD_ANNOTATIONS_2: "beta.fabric.datadoghq.com/no-proxy-additions=<?= appsec_fabric_no_proxy_additions() ?>"
   script:
     # Fix for $BASH_ENV not having a newline at the end of the file
     - echo "" >> "$BASH_ENV"
@@ -355,6 +357,7 @@ foreach ($build_platforms as $platform) {
     KUBERNETES_CPU_REQUEST: 12
     KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
+    KUBERNETES_POD_ANNOTATIONS_2: "beta.fabric.datadoghq.com/no-proxy-additions=<?= appsec_fabric_no_proxy_additions() ?>"
   script:
     # Fix for $BASH_ENV not having a newline at the end of the file
     - echo "" >> "$BASH_ENV"
@@ -430,6 +433,7 @@ foreach ($build_platforms as $platform) {
     KUBERNETES_CPU_REQUEST: 16
     KUBERNETES_MEMORY_REQUEST: 5Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
+    KUBERNETES_POD_ANNOTATIONS_2: "beta.fabric.datadoghq.com/no-proxy-additions=<?= appsec_fabric_no_proxy_additions() ?>"
   script:
     - echo "" >> "$BASH_ENV"
     - ./.gitlab/build-sidecar.sh "<?= $suffix ?>"
@@ -545,7 +549,7 @@ foreach ($windows_build_platforms as $platform) {
     mkdir extensions_x86_64_debugsymbols
 
     # Start the container
-    docker run -v ${pwd}:C:\Users\ContainerAdministrator\app -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
+    docker run --env GITLAB_CI=$env:GITLAB_CI -v ${pwd}:C:\Users\ContainerAdministrator\app -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
 
     # Build nts (fail fast on any step); capture combined output for failure classification.
     # ErrorActionPreference=Continue so the build's native stderr (e.g. cargo warnings) is not

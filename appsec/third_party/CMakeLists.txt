@@ -47,36 +47,35 @@ if(DD_APPSEC_BUILD_EXTENSION)
     endif()
 endif()
 
-# spdlog
-FetchContent_Declare(
-    spdlog
-    GIT_REPOSITORY https://github.com/gabime/spdlog.git
-    GIT_TAG 79524ddd08a4ec981b7fea76afd08ee05f83755d)
-FetchContent_MakeAvailable(spdlog)
-set_target_properties(spdlog PROPERTIES POSITION_INDEPENDENT_CODE 1)
-
-# zlib
-set(ZLIB_VERSION v1.3.1)
-FetchContent_Declare(
-        zlib
-        GIT_REPOSITORY https://github.com/madler/zlib.git
-        GIT_TAG        ${ZLIB_VERSION}
-)
-FetchContent_MakeAvailable(zlib)
-if(NOT(MSVC))
-    set_property(TARGET zlibstatic PROPERTY POSITION_INDEPENDENT_CODE ON)
+if(DD_APPSEC_TESTING)
+    set(SPDLOG_COMMIT 79524ddd08a4ec981b7fea76afd08ee05f83755d)
+    if(DEFINED ENV{GITLAB_CI})
+        set(SPDLOG_URL
+            "https://depot-read-api-bzl.us1.ddbuild.io/github.com/gabime/spdlog/archive/${SPDLOG_COMMIT}.tar.gz")
+    else()
+        set(SPDLOG_URL
+            "https://github.com/gabime/spdlog/archive/${SPDLOG_COMMIT}.tar.gz")
+    endif()
+    FetchContent_Declare(
+        spdlog
+        URL "${SPDLOG_URL}"
+        URL_HASH SHA256=c6dee844e35a54cc80e3ab76aae2310763e0b49c7397549dfa4d4657d9737138)
+    FetchContent_MakeAvailable(spdlog)
+    set_target_properties(spdlog PROPERTIES POSITION_INDEPENDENT_CODE 1)
 endif()
 
-target_compile_definitions(zlibstatic PUBLIC ZLIB_CONST=1)
-target_include_directories(zlibstatic INTERFACE ${zlib_SOURCE_DIR} ${zlib_BINARY_DIR})
-
-# rapidJson
+set(RAPIDJSON_COMMIT 24b5e7a8b27f42fa16b96fc70aade9106cf7102f)
+if(DEFINED ENV{GITLAB_CI})
+    set(RAPIDJSON_URL
+        "https://depot-read-api-bzl.us1.ddbuild.io/github.com/Tencent/rapidjson/archive/${RAPIDJSON_COMMIT}.tar.gz")
+else()
+    set(RAPIDJSON_URL
+        "https://github.com/Tencent/rapidjson/archive/${RAPIDJSON_COMMIT}.tar.gz")
+endif()
 FetchContent_Declare(
     rapidjson
-    GIT_REPOSITORY https://github.com/Tencent/rapidjson.git
-    GIT_TAG 24b5e7a8b27f42fa16b96fc70aade9106cf7102f
-    GIT_SHALLOW TRUE
-)
+    URL "${RAPIDJSON_URL}"
+    URL_HASH SHA256=2d2601a82d2d3b7e143a3c8d43ef616671391034bc46891a9816b79cf2d3e7a8)
 FetchContent_Populate(rapidjson) # don't read its CMakeLists.txt
 add_library(rapidjson_appsec INTERFACE)
 target_include_directories(rapidjson_appsec INTERFACE ${rapidjson_SOURCE_DIR}/include)
