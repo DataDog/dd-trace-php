@@ -186,6 +186,14 @@ def bazel_command(record, mode, arch, targets, verb="build"):
         # The benchmark config requests minimal downloads for interactive use;
         # the comparison verifies every top-level product against its BEP digest.
         command.append("--remote_download_outputs=toplevel")
+    if verb == "test":
+        # Remote testlogs live in a temporary output base. Include failures in
+        # the retained job trace so a broken required lane is diagnosable.
+        command.append("--test_output=errors")
+        # The default rules_python launcher requires /usr/bin/env python3 on
+        # the worker. Its script bootstrap starts the pinned Python toolchain
+        # directly, which is present in the test runfiles.
+        command.append("--@rules_python//python/config_settings:bootstrap_impl=script")
     for variable, expected in (("BAZEL_REMOTE_EXECUTOR", REMOTE_ENDPOINT),
                                ("BAZEL_REMOTE_CACHE", REMOTE_ENDPOINT),
                                ("BAZEL_REMOTE_INSTANCE", REMOTE_INSTANCE)):

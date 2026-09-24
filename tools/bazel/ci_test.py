@@ -333,6 +333,9 @@ class RunnerTests(unittest.TestCase):
             self.assertIn("--remote_accept_cached=true", cached)
             probe = ci.bazel_command(Path(directory), "probe", "arm64", ["//bazel/stages:remote_arch_arm64"])
             self.assertIn("--config=remote-arch-arm64", probe)
+            tests = ci.bazel_command(Path(directory), "tests", "amd64", ["//bazel/tests:php_tests"], "test")
+            self.assertIn("--test_output=errors", tests)
+            self.assertIn("--@rules_python//python/config_settings:bootstrap_impl=script", tests)
 
     def test_empty_endpoint_override_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"BAZEL_REMOTE_EXECUTOR": ""}):
