@@ -386,6 +386,24 @@ class RunnerTests(unittest.TestCase):
             self.assertNotIn("test", command)
         self.assertTrue(ci.EXPECTED_PHP_TESTS.issubset(commands[1]))
 
+    def test_dependency_image_partitions_verified_repository_payloads(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source, context = Path(directory) / "source", Path(directory) / "context"
+            expected = []
+            for content in (b"first", b"second"):
+                digest = hashlib.sha256(content).hexdigest()
+                payload = source / "content_addressable/sha256" / digest / "file"
+                payload.parent.mkdir(parents=True)
+                payload.write_bytes(content)
+                expected.append((digest, content))
+            counts = deps_image.stage_repository(source, context)
+            self.assertEqual(counts, {"repository_files": 2, "repository_bytes": 11})
+            dockerfile = (context / "Dockerfile").read_text()
+            for digest, content in expected:
+                self.assertIn("COPY repository-%s/ /opt/dd-php-bazel/repository/" % digest[0], dockerfile)
+                staged = context / ("repository-" + digest[0]) / "content_addressable/sha256" / digest / "file"
+                self.assertEqual(staged.read_bytes(), content)
+
     def test_empty_endpoint_override_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"BAZEL_REMOTE_EXECUTOR": ""}):
             with self.assertRaisesRegex(ValueError, "must not disable"):

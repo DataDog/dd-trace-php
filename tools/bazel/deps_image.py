@@ -46,6 +46,32 @@ def commands(arch, offline):
         yield command
 
 
+def stage_repository(source, context):
+    # Keep the large cache in small, independent Docker layers. Exporting a
+    # single 11-GB amd64 layer lost its BuildKit connection.
+    payloads = repository_cache.verified_payloads(source)
+    if not payloads:
+        raise ValueError("No checksum-verified repository downloads were prefetched")
+    partitions = set()
+    for path in payloads:
+        prefix = path.parent.name[0]
+        partitions.add(prefix)
+        destination = context / ("repository-" + prefix)
+        target = destination / path.relative_to(source)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(path, target)
+        canonical = path.parent / "canonical_id"
+        if canonical.is_file() and not canonical.is_symlink():
+            shutil.copyfile(canonical, target.parent / "canonical_id")
+    for prefix in partitions:
+        repository_cache.verified_payloads(context / ("repository-" + prefix))
+    dockerfile = (ci.ROOT / "tools/bazel/deps-image.Dockerfile").read_text()
+    layers = "\n".join("COPY repository-%s/ /opt/dd-php-bazel/repository/" % prefix
+                       for prefix in sorted(partitions))
+    (context / "Dockerfile").write_text(dockerfile.replace("# REPOSITORY_COPY_INSTRUCTIONS", layers))
+    return dict(repository_files=len(payloads), repository_bytes=sum(path.stat().st_size for path in payloads))
+
+
 def prefetch(arch, context):
     os.chdir(ci.ROOT)
     source = Path(os.environ["BAZEL_REPOSITORY_CACHE"])
@@ -56,19 +82,11 @@ def prefetch(arch, context):
     for offline in (False, True):
         for command in commands(arch, offline):
             subprocess.run(command, check=True)
-    destination = context / "repository"
-    repository_cache.copy_verified(source, destination)
-    # copy_verified already checked both sides; avoid hashing a large image
-    # layer for a third time just to count its files.
-    payloads = list(destination.glob("content_addressable/sha256/*/file"))
-    if not payloads:
-        raise ValueError("No checksum-verified repository downloads were prefetched")
+    counts = stage_repository(source, context)
     bazel = Path(os.environ["BAZEL_BINARY"])
     shutil.copyfile(bazel, context / "bazel")
     (context / "bazel").chmod(0o755)
-    shutil.copyfile(ci.ROOT / "tools/bazel/deps-image.Dockerfile", context / "Dockerfile")
-    manifest = dict(arch=arch, bazel_version=bazel_version(),
-                    repository_files=len(payloads), repository_bytes=sum(path.stat().st_size for path in payloads))
+    manifest = dict(arch=arch, bazel_version=bazel_version(), **counts)
     (context / "manifest.json").write_text(json.dumps(manifest, sort_keys=True) + "\n")
     print(json.dumps(manifest, sort_keys=True), flush=True)
 

@@ -48,8 +48,9 @@ Bazel repository rules. Each uses the prepared source artifact, resolves the
 release, remaining, probe, and (on amd64) focused-test repositories with
 `--nobuild`, then repeats resolution from fresh output bases with repository
 downloads disabled. It copies only SHA-256 verified downloads and the pinned
-Bazel binary into an architecture-specific OCI image. The image is signed and
-published to `registry.ddbuild.io/ci/dd-trace-php/bazel-deps` under a commit and
+Bazel binary into an architecture-specific OCI image. Repository files are
+split into smaller layers by SHA-256 prefix. The image is signed and published
+to `registry.ddbuild.io/ci/dd-trace-php/bazel-deps` under a commit and
 architecture tag. The manual `bazel deps Nydus: [arch]` jobs convert those OCI
 images to signed `-nydus` tags using Datadog's `nydus-convert` wrapper.
 
