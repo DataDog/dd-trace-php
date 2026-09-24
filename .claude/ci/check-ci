@@ -29,6 +29,9 @@ GH_FAILURE_CONCLUSIONS = {"failure", "timed_out", "action_required"}
 
 DONE_STATUSES = {"success", "failed", "canceled", "skipped"}
 ACTIVE_STATUSES = {"running", "pending", "created"}
+# This final job summarizes the GitLab jobs that the monitor has already observed;
+# its active status should not delay completion.
+NON_BLOCKING_JOB_NAMES = {"merge-gate"}
 
 
 class GitLabError(Exception):
@@ -62,6 +65,33 @@ def job_name_matches(name: str, patterns: list[str]) -> bool:
         return True
     lname = name.lower()
     return any(p in lname for p in patterns)
+
+
+def job_blocks_completion(job: dict) -> bool:
+    """Return whether an active job should keep the monitor running."""
+    return (
+        job.get("status") in ACTIVE_STATUSES
+        and job.get("name") not in NON_BLOCKING_JOB_NAMES
+    )
+
+
+def gitlab_pipelines_done(
+    jobs_by_pipeline: dict[int, list[dict]], pipeline_statuses: dict[int, dict]
+) -> bool:
+    """Return whether every pipeline has finished all completion-blocking work."""
+    for pipeline_id, info in pipeline_statuses.items():
+        if info["status"] in DONE_STATUSES:
+            continue
+
+        active_jobs = [
+            job
+            for job in jobs_by_pipeline.get(pipeline_id, [])
+            if job.get("status") in ACTIVE_STATUSES
+        ]
+        if not active_jobs or any(job_blocks_completion(job) for job in active_jobs):
+            return False
+
+    return True
 
 
 def resolve_sha(ref: str) -> str:
@@ -646,7 +676,7 @@ async def _monitor(args, sha: str | None, gl_session: aiohttp.ClientSession, gh_
                         failed += 1
                         if jid not in seen_failure:
                             new_failure_jobs.append(job)
-                elif status in ACTIVE_STATUSES:
+                elif job_blocks_completion(job):
                     running += 1
 
         # Phase 3: wait for GH run-jobs, then download any new failure logs in parallel.
@@ -736,7 +766,7 @@ async def _monitor(args, sha: str | None, gl_session: aiohttp.ClientSession, gh_
             print(f"Stopping script after maximum number of failures ({failure_count}) was encountered")
             sys.exit(1)
 
-        all_gl_done = all(info["status"] in DONE_STATUSES for info in pipeline_statuses.values())
+        all_gl_done = gitlab_pipelines_done(jobs_by_pipeline, pipeline_statuses)
         gl_running_count = running
 
         # Status line
