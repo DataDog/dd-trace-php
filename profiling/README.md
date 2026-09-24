@@ -6,6 +6,16 @@ The profiler is implemented in Rust. To see the currently required Rust
 version, refer to the [rust-toolchain.toml](rust-toolchain.toml) file. The profiler
 requires PHP 7.1+, and does not support debug builds.
 
+## Allocation size accounting
+
+Allocation profiling rounds requested sizes to Zend MM size classes before
+sampling. Recorded allocation bytes (including live-heap samples) and the
+numeric `size class` label use the same rounded size. These roundings do not
+include debug metadata or the heap-protection minimum, and may differ if a
+custom allocator is used. The label separates size classes for Poisson
+upscaling to prevent large errors if the same stack + labels have the large
+variances in allocation size e.g. 32 bytes and 4,096 bytes.
+
 ## Time Profiling
 
 The profiler sets the Zend VM interrupt flag approximately every 10ms. The

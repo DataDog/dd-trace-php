@@ -1,0 +1,17 @@
+{
+  "scale_by_duration": false,
+  "test_name": "php_allocation_sampling_distance",
+  "note": "With allocation sampling distance set to 1, all 100 str_repeat allocations are selected for sampling. Allow 4% error because samples may be dropped when the profiler channel is full on CI. Assert only the count on the probe stack; allocation byte sizes may vary across PHP versions.",
+  "stacks": [
+    {
+      "profile-type": "alloc-samples",
+      "value-matching-sum": 100,
+      "error-margin": 4,
+      "stack-content": [
+        {
+          "regular_expression": "<?php;main;allocation_sampling_distance_probe;standard\\|str_repeat$"
+        }
+      ]
+    }
+  ]
+}
