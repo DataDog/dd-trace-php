@@ -82,7 +82,7 @@ function windows_git_setup() {
 
     # Initialize submodules
     Write-Host "Initializing submodules..."
-    git submodule update --init --recursive
+    git submodule update --init --recursive -- libdatadog tests/FeatureFlags/ffe-system-test-data appsec/third_party/libddwaf-rust
     if ($LASTEXITCODE -ne 0) { exit 75 }  # transient network (submodule fetch); 75 triggers default retry
     Write-Host "Git setup complete."
 <?php

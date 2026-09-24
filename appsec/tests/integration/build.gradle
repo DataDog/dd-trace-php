@@ -295,6 +295,9 @@ def buildRunInDockerTask = { Map options ->
             if (!options.get('runAsRoot', false)) {
                 commandLine.addAll(['--user', uuid, '-e', 'HOME=/tmp'])
             }
+            if (System.getenv('GITLAB_CI') != null) {
+                commandLine.addAll(['-e', 'GITLAB_CI'])
+            }
             binds.each { source, dest ->
                 commandLine.addAll(['--mount', "type=bind,src=${source},dst=${dest}"])
             }
