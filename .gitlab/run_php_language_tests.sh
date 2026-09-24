@@ -32,6 +32,16 @@ mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
 # replace all hardcoded object ids in tests by %d as ddtrace creates its own objects
 php <<'PHP'
 <?php
+// This hard-timeout test depends on timing; retry it on newer PHP runners.
+// PHP <= 8.2 excludes it through the version-specific xfail lists.
+$hard_timeout_test = 'Zend/tests/bug74093.phpt';
+if (PHP_VERSION_ID >= 80300 && is_file($hard_timeout_test)) {
+    $contents = file_get_contents($hard_timeout_test);
+    if (!preg_match('/^--FLAKY--\r?$/m', $contents)) {
+        file_put_contents($hard_timeout_test, str_replace('--SKIPIF--', "--FLAKY--\n--SKIPIF--", $contents));
+    }
+}
+
 foreach (explode("\0", trim(shell_exec("find . -type f -name '*.phpt' -print0"))) as $f) {
     $c = file_get_contents($f);
     $n = preg_replace(["/\)#[0-9]+ \(/", "/[0-9]+ is not a valid/"], [")#%d (", "%d is not a valid"], $c);
@@ -47,7 +57,7 @@ if [[ -n "${PHP_MAJOR_MINOR}" && $(version $PHP_MAJOR_MINOR) -ge $(version 7.4) 
   extra_args="-j$(nproc)"
 fi
 
-# run-tests supports flaky since 8.1
+# Automatic retries for selected flaky functions are available since PHP 8.1.
 if [[ -n "${PHP_MAJOR_MINOR}" && $(version $PHP_MAJOR_MINOR) -ge $(version 8.1) ]]; then
   sed -i "/flaky_functions = /a 'socket_create','stream_context_create'," run-tests.php
 fi

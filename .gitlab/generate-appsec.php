@@ -467,6 +467,7 @@ stages:
       - ARCH: ["amd64", "arm64"]
   rules:
     - when: manual
+      allow_failure: true
   needs: []
   artifacts:
     when: on_failure

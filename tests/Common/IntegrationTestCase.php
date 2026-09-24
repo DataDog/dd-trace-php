@@ -139,7 +139,8 @@ abstract class IntegrationTestCase extends BaseTestCase
                 $version = phpversion($testedLibrary);
             } else {
                 $output = [];
-                $command = "php -dextension=$testedLibrary.so -r \"echo phpversion('$testedLibrary');\";";
+                $command = "php -d datadog.remote_config_enabled=0 -dextension=$testedLibrary.so"
+                    . " -r \"echo phpversion('$testedLibrary');\";";
                 exec($command, $output, $returnVar);
 
                 if ($returnVar === 0) {

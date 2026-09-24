@@ -1249,7 +1249,17 @@ RUN_WEB_BENCHES_WITH_DDPROF ?=
 define run_composer_with_retry
 	for i in $$(seq 1 $(MAX_RETRIES)); do \
 		echo "Attempting composer update (attempt $$i of $(MAX_RETRIES))..."; \
-		$(COMPOSER) --working-dir=$(if $1,$1,.) update $2 && break || (echo "Retry $$i failed, waiting 5 seconds before next attempt..." && sleep 5); \
+		if $(COMPOSER) --working-dir=$(if $1,$1,.) update $2; then \
+			break; \
+		else \
+			status=$$?; \
+		fi; \
+		if [ $$i -eq $(MAX_RETRIES) ]; then \
+			echo "Composer update failed after $(MAX_RETRIES) attempts." >&2; \
+			exit $$status; \
+		fi; \
+		echo "Retry $$i failed, waiting 5 seconds before next attempt..."; \
+		sleep 5; \
 	done \
 
 	mkdir -p /tmp/artifacts
@@ -1270,9 +1280,11 @@ define run_tests
 	$(if $(PHPUNIT_COVERAGE),$(call run_tests_with_coverage,$(1)),$(call run_tests_without_coverage,$(1)))
 endef
 
+# Close phpunit's copy of the job-stdout descriptor so spawned servers cannot
+# keep the job's log pipe open after phpunit exits.
 define run_tests_debug
 	$(eval TEST_EXTRA_ENV=$(TEST_EXTRA_ENV) DD_TRACE_DEBUG=1)
-	(set -o pipefail; { $(call run_tests,$(1)) 2>&1 >&3 | \
+	(set -o pipefail; { $(call run_tests,$(1)) 2>&1 >&3 3>&- | \
 		tee >(grep --line-buffered -vE '\[ddtrace\] \[debug\]|\[ddtrace\] \[info\]' >&2) | \
 		{ ! (grep --line-buffered -E '\[error\]|\[warning\]|\[deprecated\]' >/dev/null && \
 		echo $$'\033[41m'"ERROR: Found debug log errors in the output."$$'\033[0m'); }; } 3>&1 \
@@ -1494,6 +1506,7 @@ test_integrations_predis_2: global_test_run_dependencies tests/Integrations/Pred
 test_integrations_predis_latest: global_test_run_dependencies tests/Integrations/Predis/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Predis/Latest)
 test_integrations_frankenphp: global_test_run_dependencies
+	$(eval TEST_EXTRA_ENV=DD_TRACE_AGENT_PORT=9126 DD_AGENT_HOST=test-agent)
 	$(call run_tests_debug,--testsuite=frankenphp-test)
 test_integrations_roadrunner: global_test_run_dependencies tests/Frameworks/Roadrunner/Version_2/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Roadrunner/V2)
@@ -1509,6 +1522,7 @@ test_integrations_sqlsrv: global_test_run_dependencies
 	$(eval TEST_EXTRA_INI=-d extension=sqlsrv.so)
 	$(call run_tests_debug,tests/Integrations/SQLSRV)
 	$(eval TEST_EXTRA_INI=)
+test_integrations_swoole_5: TEST_EXTRA_INI += -d datadog.remote_config_enabled=0
 test_integrations_swoole_5: global_test_run_dependencies
 	$(call run_tests_debug,--testsuite=swoole-test)
 test_web_apigw: global_test_run_dependencies tests/Frameworks/Laravel/Latest/composer.lock-php$(PHP_MAJOR_MINOR) tests/Frameworks/Laravel/Octane/Latest/composer.lock-php$(PHP_MAJOR_MINOR) tests/Frameworks/Roadrunner/Version_2/composer.lock-php$(PHP_MAJOR_MINOR)

@@ -1484,8 +1484,9 @@ bool ddtrace_coms_synchronous_flush(uint32_t timeout) {
     uint32_t previous_processed_stacks_total = atomic_load(&writer->flush_processed_stacks_total);
     int64_t old_flush_interval = atomic_load(&writer->flush_interval);
 
-    // ensure we immediately flush all data
-    atomic_store(&writer->flush_interval, 0);
+    // Flush promptly while letting the waiting thread reacquire the mutex.
+    // A zero interval can starve it while the writer continuously loops.
+    atomic_store(&writer->flush_interval, 1);
 
     pthread_mutex_lock(&writer->thread->finished_flush_mutex);
     ddtrace_coms_trigger_writer_flush();

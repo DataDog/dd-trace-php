@@ -16,7 +16,8 @@ appsec=$(is_appsec_installable && echo 1 || true)
 version="0.79.0"
 destdir="/tmp"
 fetch_setup_for_version "$version" "$destdir"
-php "$destdir/datadog-setup.php" --php-bin php --enable-profiling $([ -n "$appsec" ] && echo --enable-appsec)
+run_released_installer "$destdir/datadog-setup.php" --php-bin php \
+  --enable-profiling $([ -n "$appsec" ] && echo --enable-appsec)
 rm -v "$destdir/datadog-setup.php"
 assert_ddtrace_version "${version}"
 if [ -n "$appsec" ]; then

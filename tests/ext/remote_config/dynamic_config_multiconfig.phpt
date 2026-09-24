@@ -30,10 +30,10 @@ $specific_path = put_dynamic_config_file([
     "tracing_sampling_rate" => 0.7,
 ]);
 
-dd_trace_internal_fn("await_remote_config");
-if (ini_get("datadog.trace.sample_rate") == "0.3") { // possible race condition, just re-poll
-    dd_trace_internal_fn("await_remote_config");
-}
+await_remote_config(function () {
+    return ini_get("datadog.trace.sample_rate") === "0.7"
+        && ini_get("datadog.logs_injection") === "1";
+});
 
 // Specific config wins for sample_rate; org-level provides log_injection.
 print "After both configs:\n";
@@ -42,7 +42,10 @@ var_dump(ini_get("datadog.logs_injection"));
 
 del_rc_file($specific_path);
 
-dd_trace_internal_fn("await_remote_config");
+await_remote_config(function () {
+    return ini_get("datadog.trace.sample_rate") === "0.3"
+        && ini_get("datadog.logs_injection") === "1";
+});
 
 // Only org-level remains: sample_rate falls back to 0.3.
 print "After removing specific config:\n";

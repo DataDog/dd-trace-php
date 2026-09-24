@@ -6,6 +6,14 @@ This file explains why we decided to disable specific PHP language tests. Invest
 
 # Categories of tests
 
+## Hard-timeout timing
+
+`Zend/tests/bug74093.phpt` expects the hard timeout to fire while PHP is in a
+long-running internal operation. It can instead hit the ordinary execution
+timeout during setup. We exclude it on PHP 8.2 and below; on PHP 8.3 and above,
+`.gitlab/run_php_language_tests.sh` adds `--FLAKY--` if needed so the runner can
+retry the individual test once.
+
 ## Object/resource ID skips
 
 The following tests are marked as skipped due to the test relying on a hard-coded resource ID. All of these IDs change when the PHP tracer is enabled due to the resources created in the `datadog.trace.sources_path`.
