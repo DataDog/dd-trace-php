@@ -293,6 +293,12 @@ def main():
         status = run_bazel("probe", args.arch, ["//bazel/stages:remote_arch_" + args.arch], "remote-architecture")
         if status:
             return status
+        # Run the focused PHP tests before the long forced build so missing
+        # test-only repository inputs fail early in the amd64 lane.
+        if args.mode == "lane" and args.arch == "amd64":
+            status = run_bazel("tests", args.arch, ["//bazel/tests:php_tests"], "focused-php-tests", "test")
+            if status:
+                return status
         status = run_bazel("forced", args.arch, comparison_targets(args.arch), WORKLOAD)
         if status:
             return status
@@ -302,9 +308,7 @@ def main():
             return status
         status = run_bazel("remaining", args.arch,
                            ["//bazel/products/tracer:ddtrace_fat_" + args.arch + "_remaining"], "remaining-normal-tracer-matrix")
-        if status or args.arch != "amd64":
-            return status
-        return run_bazel("tests", args.arch, ["//bazel/tests:php_tests"], "focused-php-tests", "test")
+        return status
     return run_bazel("probe", args.arch, ["//bazel/stages:remote_arch_" + args.arch], "remote-architecture")
 
 

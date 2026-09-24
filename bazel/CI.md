@@ -1,9 +1,10 @@
 # Required full Linux tracer build comparison
 
 The package child pipeline includes `.gitlab/bazel.yml`. Its two architecture
-jobs start after `prepare code`, and each runs a forced architecture probe,
-a forced release build, a fresh-output-base cache replay, the remaining normal
-tracer variants, and (on amd64) the focused PHP tests. Failures in any step
+jobs start after `prepare code`. The amd64 lane runs the focused PHP tests
+after its forced architecture probe so test-only repository failures surface
+early. Both lanes then run a forced release build, a fresh-output-base cache
+replay, and the remaining normal tracer variants. Failures in any step
 fail the job. The report depends on both Bazel lanes and both architecture
 baseline aggregates. Dependency-override maintenance pipelines skip this
 comparison until Bazel consumes the same overridden dependencies.
