@@ -431,6 +431,8 @@ void ddtrace_first_rinit(void) {
     // Uses config, cannot run earlier
 #ifndef _WIN32
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+        /* The Zend extension activation callback runs before module RINIT, so
+         * ddtrace_coms_minit() has either completed or been skipped here. */
         ddtrace_coms_init_and_start_writer();
     }
 #endif
