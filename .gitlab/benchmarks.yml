@@ -202,6 +202,8 @@ workflow:
     UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
     UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA
     DD_SIDECAR_DISABLE_DIRECT_EXEC: 1
+    # See https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/7223313012/Flaky+Benchmarks+Monitoring for more details.
+    FLAKY_BENCHMARKS_REGEX: ""
 
 benchmarks-profiler:
   extends: .microbenchmarks
@@ -298,6 +300,8 @@ check-big-regressions:
     K6_OPTIONS_HIGH_LOAD_GRACEFUL_STOP: 10s
     K6_OPTIONS_HIGH_LOAD_PRE_ALLOCATED_VUS: 4
     K6_OPTIONS_HIGH_LOAD_MAX_VUS: 4
+    # See https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/7223313012/Flaky+Benchmarks+Monitoring for more details.
+    FLAKY_BENCHMARKS_REGEX: ""
   allow_failure: true
 
 macrobenchmarks:
