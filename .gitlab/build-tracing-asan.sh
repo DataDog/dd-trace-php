@@ -7,7 +7,7 @@ mkdir -p extensions_$(uname -m)
 
 # Build extension basic .so
 switch-php "debug-zts-asan"
-make RUST_DEBUG_BUILD=1
+.gitlab/run-with-retryable-download.sh make RUST_DEBUG_BUILD=1
 cp -v "tmp/build_extension/modules/ddtrace.so" "extensions_$(uname -m)/ddtrace-${ABI_NO}-debug-zts.so"
 
 # Compress debug info

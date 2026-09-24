@@ -19,7 +19,7 @@ github_server_error='Failed to download archive from https://github\.com/'
 github_server_error+='.*: 5[0-9]{2} '
 transport_error='Failed to (download archive|write archive entry contents'
 transport_error+=' to file):.*reqwest::Error.*'
-transport_error+='(ConnectionReset|ConnectionAborted|TimedOut|IncompleteMessage)'
+transport_error+='(ConnectionReset|ConnectionAborted|TimedOut|IncompleteMessage|UnexpectedEof)'
 if grep -Eq "$github_server_error|$transport_error" "$build_log"; then
     echo "Transient GitHub download failure; exiting 75 for GitLab retry." >&2
     exit 75
