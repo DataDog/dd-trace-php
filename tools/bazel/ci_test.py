@@ -396,6 +396,7 @@ class RunnerTests(unittest.TestCase):
                 payload = source / "content_addressable/sha256" / digest / "file"
                 payload.parent.mkdir(parents=True)
                 payload.write_bytes(content)
+                (payload.parent / ("id-" + hashlib.sha256(b"canonical URL").hexdigest())).touch()
                 expected.append((digest, content))
             counts = deps_image.stage_repository(source, context)
             self.assertEqual(counts, {"repository_files": 2, "repository_bytes": 11})
@@ -404,6 +405,7 @@ class RunnerTests(unittest.TestCase):
                 self.assertIn("COPY repository-%s/ /opt/dd-php-bazel/repository/" % digest[0], dockerfile)
                 staged = context / ("repository-" + digest[0]) / "content_addressable/sha256" / digest / "file"
                 self.assertEqual(staged.read_bytes(), content)
+                self.assertTrue((staged.parent / ("id-" + hashlib.sha256(b"canonical URL").hexdigest())).is_file())
 
     def test_empty_endpoint_override_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"BAZEL_REMOTE_EXECUTOR": ""}):
@@ -527,12 +529,27 @@ class RepositoryCacheTests(unittest.TestCase):
             source = root / "staging/content_addressable/sha256" / digest / "file"
             source.parent.mkdir(parents=True)
             source.write_bytes(payload)
+            marker = source.parent / ("id-" + hashlib.sha256(b"canonical URL").hexdigest())
+            marker.touch()
             destination = root / "outside"
             repository_cache.copy_verified(root / "staging", destination)
             self.assertEqual((destination / source.relative_to(root / "staging")).read_bytes(), payload)
+            self.assertTrue((destination / marker.relative_to(root / "staging")).is_file())
             source.write_bytes(b"tampered")
             with self.assertRaisesRegex(ValueError, "Corrupt repository download"):
                 repository_cache.copy_verified(root / "staging", destination)
+
+    def test_invalid_canonical_id_marker_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            payload = b"locked download"
+            digest = hashlib.sha256(payload).hexdigest()
+            source = root / "staging/content_addressable/sha256" / digest / "file"
+            source.parent.mkdir(parents=True)
+            source.write_bytes(payload)
+            (source.parent / "id-not-a-digest").touch()
+            with self.assertRaisesRegex(ValueError, "Invalid repository cache canonical ID marker"):
+                repository_cache.copy_verified(root / "staging", root / "outside")
 
 
 class RedirectAuthTests(unittest.TestCase):

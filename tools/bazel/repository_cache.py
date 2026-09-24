@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import os
 from pathlib import Path
+import re
 import shutil
 import sys
 
@@ -30,15 +31,33 @@ def verified_payloads(root):
     return payloads
 
 
+def cache_metadata(payload):
+    """Return the canonical-ID markers Bazel needs to reuse a cached archive."""
+    entry = payload.parent
+    metadata = []
+    for marker in entry.glob("id-*"):
+        if (not re.fullmatch(r"id-[0-9a-f]{64}", marker.name)
+                or not marker.is_file() or marker.is_symlink() or marker.stat().st_size):
+            raise ValueError("Invalid repository cache canonical ID marker: " + str(marker))
+        metadata.append(marker)
+    legacy = entry / "canonical_id"
+    if legacy.is_file() and not legacy.is_symlink():
+        metadata.append(legacy)
+    return metadata
+
+
+def copy_entry(payload, target):
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(payload, target)
+    for metadata in cache_metadata(payload):
+        shutil.copyfile(metadata, target.parent / metadata.name)
+
+
 def copy_verified(source, destination):
     destination.mkdir(parents=True, exist_ok=True)
     for path in verified_payloads(source):
         target = destination / path.relative_to(source)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(path, target)
-        canonical = path.parent / "canonical_id"
-        if canonical.is_file() and not canonical.is_symlink():
-            shutil.copyfile(canonical, target.parent / "canonical_id")
+        copy_entry(path, target)
     verified_payloads(destination)
 
 

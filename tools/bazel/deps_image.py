@@ -63,11 +63,7 @@ def stage_repository(source, context):
         partitions.add(prefix)
         destination = context / ("repository-" + prefix)
         target = destination / path.relative_to(source)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(path, target)
-        canonical = path.parent / "canonical_id"
-        if canonical.is_file() and not canonical.is_symlink():
-            shutil.copyfile(canonical, target.parent / "canonical_id")
+        repository_cache.copy_entry(path, target)
     for prefix in partitions:
         repository_cache.verified_payloads(context / ("repository-" + prefix))
     dockerfile = (ci.ROOT / "tools/bazel/deps-image.Dockerfile").read_text()
