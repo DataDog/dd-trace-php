@@ -383,6 +383,7 @@ class RunnerTests(unittest.TestCase):
             self.assertIn("build", command)
             self.assertIn("--nobuild", command)
             self.assertIn("--repository_disable_download", command)
+            self.assertIn("--repository_contents_cache=", command)
             self.assertNotIn("test", command)
         self.assertTrue(ci.EXPECTED_PHP_TESTS.issubset(commands[1]))
 

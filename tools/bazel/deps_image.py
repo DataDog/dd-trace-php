@@ -35,6 +35,11 @@ def commands(arch, offline):
         record = ci.state_directory() / ("deps-image-" + name)
         record.mkdir(parents=True, exist_ok=True)
         command = ci.bazel_command(record, "image", arch, labels)
+        # A shared contents cache can hide archives absent from the download
+        # cache that is actually baked into the image.
+        contents = next(index for index, item in enumerate(command)
+                        if item.startswith("--repository_contents_cache="))
+        command[contents] = "--repository_contents_cache="
         # --nobuild performs repository and toolchain resolution without
         # executing the 55-product release build in this maintenance job.
         command.insert(command.index("build") + 1, "--nobuild")
@@ -80,6 +85,10 @@ def prefetch(arch, context):
     if context.exists():
         raise ValueError("Image context already exists: " + str(context))
     for offline in (False, True):
+        # Bazel also keeps module and extracted-repository state under its user
+        # root. Validate with a new root so only the baked download cache is
+        # shared with the online pass.
+        ci.new_state_directory()
         for command in commands(arch, offline):
             subprocess.run(command, check=True)
     counts = stage_repository(source, context)

@@ -42,8 +42,14 @@ _state_directory = None
 def state_directory():
     global _state_directory
     if _state_directory is None:
-        # Bazel rejects repository-contents caches inside the source workspace.
-        _state_directory = Path(tempfile.mkdtemp(prefix="dd-php-bazel-ci-"))
+        return new_state_directory()
+    return _state_directory
+
+
+def new_state_directory():
+    global _state_directory
+    # Bazel rejects repository-contents caches inside the source workspace.
+    _state_directory = Path(tempfile.mkdtemp(prefix="dd-php-bazel-ci-"))
     return _state_directory
 
 
