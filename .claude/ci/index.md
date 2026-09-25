@@ -130,26 +130,23 @@ which does not exist anymore in its original location)
 
 **Other image naming patterns:**
 
-- **centos-7 compile images:** `php-{ver}_centos-7` (e.g.
-  `php-8.3_centos-7`). Used by package pipeline compile jobs for
-  `x86_64-unknown-linux-gnu` / `aarch64-unknown-linux-gnu` to target
-  GLIBC 2.17 for maximum compatibility.
+- **Portable release builder:** `dd-appsec-php-ci:php-buildonly-rust`, pinned
+  by digest in `.gitlab/portable-builds.yml`. It provides musl, Rust, and all
+  PHP SDKs and builds the Linux release artifacts once per architecture.
 - **Alpine compile images:** `php-compile-extension-alpine-{ver}` (e.g.
-  `php-compile-extension-alpine-8.3`). No bookworm/centos suffix.
+  `php-compile-extension-alpine-8.3`). They remain for Alpine runtime tests and
+  custom test builds, not release artifact production.
 - **Appsec helper rust image:** `dd-appsec-php-ci:nginx-fpm-php-8.5-release-musl`
   (on Docker Hub).
 
-**`switch-php` variant naming differs between images.** On centos-7 images,
-PHP variants under `/opt/php/` are version-prefixed: `8.3`, `8.3-debug`,
-`8.3-zts`. On bookworm images, variants are bare names: `nts`, `debug`,
-`zts`, `nts-asan`, `debug-zts-asan`. Build scripts that call
-`switch-php "${PHP_VERSION}"` (e.g. `build-tracing.sh`) work on centos but
-fail on bookworm. Scripts that use bare names (e.g. `compile_extension.sh`
-with `switch-php debug`) work on bookworm but not centos.
+Bookworm images use bare `switch-php` variant names: `nts`, `debug`, `zts`,
+`nts-asan`, and `debug-zts-asan`. Portable release scripts select PHP SDKs with
+`PHP_SDK_VERSION` and do not use `switch-php`.
 
 ## Pipeline overview
 
-The main `.gitlab-ci.yml` generates four child pipelines via PHP scripts:
+The main `.gitlab-ci.yml` includes the portable release builds directly and
+generates five child pipelines via PHP scripts:
 
 | Pipeline | Generator | Child pipeline |
 |---|---|---|
@@ -207,7 +204,7 @@ Use `tooling/bin/download-artifacts` to download CI artifacts from GitLab jobs.
 
 **Modes:**
 - `--preset KEY` — download a well-known artifact by key (e.g., `ssi-amd64`,
-  `extension-amd64-gnu-installers`, `extension-amd64-gnu-bundles`,
+  `extension-amd64-gnu-installers`, `extension-amd64-bundles`,
   `datadog-setup`). Use `--list-presets` to see all.
 - `--job-name NAME` — download artifacts from a job matched by name (substring).
 - `--job-id ID` — download artifacts directly by job ID (no pipeline needed).
@@ -310,15 +307,13 @@ Covers: `test_integrations_amqp*`, `test_integrations_curl`, `test_integrations_
 ### Group D — Native Linux compile / artifact build
 
 Runner: `arch:amd64` + `arch:arm64`
-Image: `datadog/dd-trace-ci:php-{version}_bookworm-6`
+Image: portable release builder plus Bookworm test builders
 Produces `.so` artifacts consumed by Groups B, C, H.
 
 → **[compile-artifacts.md](compile-artifacts.md)**
-Covers: `compile extension: debug/release/zts/...` (tracer pipeline),
-`compile tracing extension / sidecar / loader / asan` (package pipeline),
-`compile appsec extension`,
-`compile profiler extension`, `compile extension windows`, `link tracing extension`,
-`aggregate tracing extension`, `pecl build`, `prepare code`, `cache cargo deps`
+Covers: parent `compile portable ...` and link jobs; tracer debug/ASAN
+builds; package debug, ASAN, and Windows builds; `pecl build`; and portable
+code/Cargo preparation.
 
 ---
 

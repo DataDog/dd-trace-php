@@ -136,9 +136,9 @@ All jobs need artifacts from packaging jobs (Group I / Group D):
 
 | Job | Needs |
 |-----|-------|
-| `verify alpine` | `package extension: [amd64, x86_64-alpine-linux-musl]` + `datadog-setup.php` |
-| `verify centos` | `package extension (installers): [amd64, x86_64-unknown-linux-gnu]` + `package extension (bundles): [amd64, x86_64-unknown-linux-gnu]` + `datadog-setup.php` |
-| `verify debian` | `package extension (installers): [amd64, x86_64-unknown-linux-gnu]` + `package extension (bundles): [amd64, x86_64-unknown-linux-gnu]` + `datadog-setup.php` |
+| `verify alpine` | `package extension: [amd64, x86_64-alpine-linux-musl]` + `package extension (bundles): [amd64]` + `datadog-setup.php` |
+| `verify centos` | `package extension (installers): [amd64, x86_64-unknown-linux-gnu]` + `package extension (bundles): [amd64]` + `datadog-setup.php` |
+| `verify debian` | `package extension (installers): [amd64, x86_64-unknown-linux-gnu]` + `package extension (bundles): [amd64]` + `datadog-setup.php` |
 | `verify .tar.gz: [amd64]` | `package extension (installers): [amd64, x86_64-unknown-linux-gnu]` + `datadog-setup.php` |
 | `verify .tar.gz: [arm64]` | `package extension (installers): [arm64, aarch64-unknown-linux-gnu]` + `datadog-setup.php` |
 | `verify no json ext` | `package extension: [amd64, x86_64-alpine-linux-musl]` |
@@ -147,8 +147,8 @@ All jobs need artifacts from packaging jobs (Group I / Group D):
 | `Loader test on {arch} alpine` | `package loader: [{arch}]` |
 | `min install tests` | `package extension (installers): [amd64, x86_64-unknown-linux-gnu]` |
 | `pecl tests` | `pecl build` |
-| `test early PHP 8.1` | `package extension (bundles): [amd64, x86_64-unknown-linux-gnu]` + `datadog-setup.php` |
-| `x-profiling phpt tests on Alpine` | `package extension: [amd64, x86_64-alpine-linux-musl]` + `datadog-setup.php` |
+| `test early PHP 8.1` | `package extension (bundles): [amd64]` + `datadog-setup.php` |
+| `x-profiling phpt tests on Alpine` | `package extension (bundles): [amd64]` + `datadog-setup.php` |
 
 ## Reproducing Locally
 
@@ -156,7 +156,7 @@ Most of these jobs are difficult to reproduce locally because they require packa
 artifacts from upstream compile/package jobs. Two ways to obtain them:
 
 - **From CI:** use `tooling/bin/download-artifacts` to download preset packages
-  (e.g., `--preset extension-amd64-gnu-installers`, `--preset extension-amd64-gnu-bundles`,
+  (e.g., `--preset extension-amd64-gnu-installers`, `--preset extension-amd64-bundles`,
   `--preset ssi-amd64`, `--preset datadog-setup`).
   See the "Downloading artifacts" section in [index.md](index.md) for full usage.
 - **Build locally:** follow [compile-artifacts.md](compile-artifacts.md) to compile
@@ -196,7 +196,7 @@ docker run -d --name replayer --network verify-net \
   -e PHP_VERSION=8.3 -e INSTALL_MODE=sury -e INSTALL_TYPE=php_installer \
   -- bash -c '
     mkdir -p build/packages
-    cp /artifacts/dd-library-php-*-x86_64-linux-gnu.tar.gz build/packages/
+    cp /artifacts/dd-library-php-*-x86_64-linux.tar.gz build/packages/
     apt update && apt-get install -y curl
     ./dockerfiles/verify_packages/verify.sh
   '
@@ -217,7 +217,7 @@ For Alpine, replace the image and adjust the before_script to match CI:
   -e VERIFY_APACHE=no -e INSTALL_TYPE=php_installer \
   -- sh -c '
     mkdir -p build/packages
-    cp /artifacts/dd-library-php-*-x86_64-linux-musl.tar.gz build/packages/
+    cp /artifacts/dd-library-php-*-x86_64-linux.tar.gz build/packages/
     cp /artifacts/*.apk build/packages/
     apk add --no-cache ca-certificates curl php php-fpm php-json
     ./dockerfiles/verify_packages/verify.sh

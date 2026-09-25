@@ -4,7 +4,7 @@ FROM php:8.5-apache
 #
 # Standard install (USE_SSI=false, the default):
 #   ../../helper-rust/scripts/check-ci-jobs.py --download datadog-setup --output-dir packages/
-#   ../../helper-rust/scripts/check-ci-jobs.py --download extension-aarch64-gnu --output-dir packages/
+#   ../../helper-rust/scripts/check-ci-jobs.py --download extension-aarch64-bundles --output-dir packages/
 #
 # SSI install (USE_SSI=true):
 #   ../../helper-rust/scripts/check-ci-jobs.py --download ssi-aarch64 --output-dir packages/
@@ -24,7 +24,7 @@ RUN if [ "${USE_SSI}" = "true" ]; then \
         cp /opt/datadog/dd-library-php-ssi/linux-gnu/loader/dd_library_loader.so "$ext_dir/" && \
         echo "zend_extension=dd_library_loader.so" > /usr/local/etc/php/conf.d/99-dd-ssi.ini; \
     else \
-        pkg=$(ls /tmp/dd-packages/dd-library-php-*-linux-gnu.tar.gz 2>/dev/null | \
+        pkg=$(ls /tmp/dd-packages/dd-library-php-*-linux.tar.gz 2>/dev/null | \
               grep -Ev '\-(debug|zts|[0-9]{8})(\.tar\.gz$|\.)' | head -1) && \
         if [ -n "$pkg" ]; then \
             php /tmp/dd-packages/datadog-setup.php --php-bin=all --file="$pkg"; \

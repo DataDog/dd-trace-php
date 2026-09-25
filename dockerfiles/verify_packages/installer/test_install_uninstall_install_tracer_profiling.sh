@@ -12,7 +12,7 @@ if [ "${arch}" = "aarch64" ]; then
 fi
 
 version=$(cat VERSION)
-if ! [ -f "./build/packages/dd-library-php-${version}-${arch}-linux-gnu.tar.gz" ]; then
+if ! [ -f "./build/packages/dd-library-php-${version}-${arch}-linux.tar.gz" ]; then
   echo "SKIPPED: this test runs only in CI as it requires the .tar.gz at a specific path"
   exit 0
 fi
@@ -42,7 +42,7 @@ assert_no_appsec
 assert_no_profiler
 
 # Lastly, re-install with profiling.
-php ./build/packages/datadog-setup.php --enable-profiling --php-bin php --file "./build/packages/dd-library-php-${version}-${arch}-linux-gnu.tar.gz"
+php ./build/packages/datadog-setup.php --enable-profiling --php-bin php --file "./build/packages/dd-library-php-${version}-${arch}-linux.tar.gz"
 
 extension_dir="$(php -i | grep '^extension_dir' | awk '{ print $NF }')"
 for extension in ddtrace datadog-profiling ; do

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -eu
 
-PKG=$(find /binaries -maxdepth 1 -name 'dd-library-php-*-gnu.tar.gz')
+PKG=$(find /binaries -maxdepth 1 -name 'dd-library-php-*-linux.tar.gz')
 SETUP=/binaries/datadog-setup.php
 
 if [ "$PKG" != "" ] && [ ! -f "$SETUP" ]; then

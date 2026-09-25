@@ -60,6 +60,42 @@ static struct sigaction dd_sigsegv_sigaction;
 static char *dd_signal_async_stack;
 static size_t dd_signal_async_stack_size;
 
+#if DATADOG_HAVE_BACKTRACE
+typedef backtrace_size_t dd_backtrace_size_t;
+
+static dd_backtrace_size_t dd_backtrace(void **array, dd_backtrace_size_t size) {
+    return backtrace(array, size);
+}
+
+static char **dd_backtrace_symbols(void *const *array, dd_backtrace_size_t size) {
+    return backtrace_symbols(array, size);
+}
+
+static bool dd_backtrace_is_available(void) {
+    return true;
+}
+#else
+typedef int dd_backtrace_size_t;
+
+// Portable extensions are built against musl, which does not provide
+// execinfo.h. Weak imports keep backtraces available on glibc without adding a
+// musl libexecinfo dependency.
+extern dd_backtrace_size_t backtrace(void **, dd_backtrace_size_t) __attribute__((weak));
+extern char **backtrace_symbols(void *const *, dd_backtrace_size_t) __attribute__((weak));
+
+static dd_backtrace_size_t dd_backtrace(void **array, dd_backtrace_size_t size) {
+    return backtrace(array, size);
+}
+
+static char **dd_backtrace_symbols(void *const *array, dd_backtrace_size_t size) {
+    return backtrace_symbols(array, size);
+}
+
+static bool dd_backtrace_is_available(void) {
+    return backtrace && backtrace_symbols;
+}
+#endif
+
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
 static void dd_sigsegv_handler(int sig) {
@@ -82,26 +118,26 @@ static void dd_sigsegv_handler(int sig) {
         }
 #endif
 
-#if DATADOG_HAVE_BACKTRACE
-        datadog_signal_safe_logf("Datadog PHP Trace extension (DEBUG MODE)");
-        datadog_signal_safe_logf("Received Signal %d", sig);
-        void *array[MAX_STACK_SIZE];
-        backtrace_size_t size = backtrace(array, MAX_STACK_SIZE);
-        if (size == MAX_STACK_SIZE) {
-            datadog_signal_safe_logf("Note: max stacktrace size reached");
-        }
-
-        datadog_signal_safe_logf("Note: Backtrace below might be incomplete and have wrong entries due to optimized runtime");
-        datadog_signal_safe_logf("Backtrace:");
-
-        char **backtraces = backtrace_symbols(array, size);
-        if (backtraces) {
-            for (backtrace_size_t i = 0; i < size; i++) {
-                ddog_log_callback((ddog_CharSlice){ .ptr = backtraces[i], .len = strlen(backtraces[i]) });
+        if (dd_backtrace_is_available()) {
+            datadog_signal_safe_logf("Datadog PHP Trace extension (DEBUG MODE)");
+            datadog_signal_safe_logf("Received Signal %d", sig);
+            void *array[MAX_STACK_SIZE];
+            dd_backtrace_size_t size = dd_backtrace(array, MAX_STACK_SIZE);
+            if (size == MAX_STACK_SIZE) {
+                datadog_signal_safe_logf("Note: max stacktrace size reached");
             }
-            free(backtraces);
+
+            datadog_signal_safe_logf("Note: Backtrace below might be incomplete and have wrong entries due to optimized runtime");
+            datadog_signal_safe_logf("Backtrace:");
+
+            char **backtraces = dd_backtrace_symbols(array, size);
+            if (backtraces) {
+                for (dd_backtrace_size_t i = 0; i < size; i++) {
+                    ddog_log_callback((ddog_CharSlice){ .ptr = backtraces[i], .len = strlen(backtraces[i]) });
+                }
+                free(backtraces);
+            }
         }
-#endif
     }
 
     int error_log_fd = atomic_load(&datadog_error_log_fd);
@@ -263,12 +299,16 @@ void datadog_signals_first_rinit(void) {
     bool install_crashtracker = get_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_CRASHTRACKING_ENABLED();
 
     bool install_backtrace_handler = get_DD_TRACE_HEALTH_METRICS_ENABLED();
-#if DATADOG_HAVE_BACKTRACE
-    install_backtrace_handler |= get_DD_LOG_BACKTRACE();
-#endif
+    bool log_backtrace = get_DD_LOG_BACKTRACE();
+    install_backtrace_handler |= log_backtrace && dd_backtrace_is_available();
 
     if (install_crashtracker) {
         dd_init_crashtracker();
+    }
+
+    if (install_crashtracker && log_backtrace) {
+        LOG(WARN, "Settings 'datadog.log_backtrace' and 'datadog.crashtracking_enabled' are mutually exclusive. Cannot enable the backtrace.");
+        return;
     }
 
     /* Install a signal handler for SIGSEGV and run it on an alternate stack.

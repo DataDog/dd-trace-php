@@ -349,7 +349,68 @@ def portableBuildVariant = { String variant ->
     variant.replace('-musl', '')
 }
 
+def usePrebuiltArtifacts = project.hasProperty('usePrebuiltArtifacts')
+def prebuiltPhpAbi = project.findProperty('prebuiltPhpAbi')
+def prebuiltArchitecture =
+        project.findProperty('prebuiltArchitecture') ?: 'x86_64'
+
+def importPrebuiltTask = { Map options ->
+    String version = options.version
+    String variant = options.variant
+    String volume = options.volume
+    Map<String, String> files = options.files
+    String commands = files.collect { source, destination ->
+        String parent = new File(destination).parent ?: '.'
+        "mkdir -p '${options.mountPoint}/$parent' && " +
+                "cp -v '/project/$source' " +
+                "'${options.mountPoint}/$destination'"
+    }.join('\n')
+
+    buildRunInDockerTask(
+            baseName: options.baseName,
+            externalImage: 'library/busybox',
+            entrypoint: '/bin/sh',
+            version: version,
+            variant: variant,
+            needsTracer: false,
+            needsAppsec: false,
+            needsBoostCache: false,
+            needsCargoCache: false,
+            description: options.description,
+            inputs: [
+                    files: files.keySet().collect { "../../../$it" },
+            ],
+            outputs: [
+                    volume: volume,
+                    files: files.values() as List,
+            ],
+            volumes: [
+                    ("$volume-$version-$variant"): [
+                            mountPoint: options.mountPoint,
+                    ],
+            ],
+            command: ['-e', '-c', commands]
+    )
+}
+
 def buildTracerTask = { String version, String variant ->
+    if (usePrebuiltArtifacts && !variant.contains('debug')) {
+        String zts = variant.contains('zts') ? '-zts' : ''
+        return importPrebuiltTask(
+                baseName: 'buildTracer',
+                version: version,
+                variant: variant,
+                volume: 'php-tracer',
+                mountPoint: '/tracer',
+                description: 'Import portable tracer extension for PHP',
+                files: [
+                        ("extensions_${prebuiltArchitecture}/" +
+                                "ddtrace-${prebuiltPhpAbi}${zts}.so"):
+                                'build_extension/modules/ddtrace.so',
+                ]
+        )
+    }
+
     buildRunInDockerTask(
             baseName: 'buildTracer',
             imageTag: 'php-buildonly-rust',
@@ -503,6 +564,26 @@ def buildTracerCmakeTask = { String version, String variant ->
 }
 
 def buildTracerSsiTask = { String version, String variant ->
+    if (usePrebuiltArtifacts && !useHelperRustCoverage &&
+            !variant.contains('debug')) {
+        String zts = variant.contains('zts') ? '-zts' : ''
+        return importPrebuiltTask(
+                baseName: 'buildTracerSsi',
+                version: version,
+                variant: variant,
+                volume: 'php-tracer-ssi',
+                mountPoint: '/tracer-ssi',
+                description: 'Import portable SSI tracer extension for PHP',
+                files: [
+                        ("standalone_${prebuiltArchitecture}/" +
+                                "ddtrace-${prebuiltPhpAbi}${zts}.so"):
+                                'ddtrace.so',
+                        ("libdatadog_php_${prebuiltArchitecture}.so"):
+                                'libdatadog_php.so',
+                ]
+        )
+    }
+
     def volumes = [
             ("php-tracer-ssi-${version}-${variant}"): [mountPoint: '/tracer-ssi'],
             ("php-tracer-ssi-buildonly-${version}-${variant}"): [
@@ -765,6 +846,21 @@ def buildCoverageReportTask = {
 
 // TODO: loader is actually php independent?
 def buildLoaderTask = { String version, String variant ->
+    if (usePrebuiltArtifacts && !variant.contains('debug')) {
+        return importPrebuiltTask(
+                baseName: 'buildLoader',
+                version: version,
+                variant: variant,
+                volume: 'php-loader',
+                mountPoint: '/loader-build',
+                description: 'Import portable loader extension for PHP',
+                files: [
+                        ("dd_library_loader-${prebuiltArchitecture}.so"):
+                                'dd_library_loader.so',
+                ]
+        )
+    }
+
     buildRunInDockerTask(
             baseName: 'buildLoader',
             imageTag: 'php-buildonly-rust',
@@ -805,6 +901,23 @@ def buildLoaderTask = { String version, String variant ->
 }
 
 def buildAppSecTask = { String version, String variant ->
+    if (usePrebuiltArtifacts && !variant.contains('debug')) {
+        String zts = variant.contains('zts') ? '-zts' : ''
+        return importPrebuiltTask(
+                baseName: 'buildAppsec',
+                version: version,
+                variant: variant,
+                volume: 'php-appsec',
+                mountPoint: '/appsec',
+                description: 'Import portable appsec extension for PHP',
+                files: [
+                        ("appsec_${prebuiltArchitecture}/" +
+                                "ddappsec-${prebuiltPhpAbi}${zts}.so"):
+                                'ddappsec.so',
+                ]
+        )
+    }
+
     def buildType = variant.contains('debug') ? 'Debug' : 'RelWithDebInfo'
     buildRunInDockerTask(
             baseName: 'buildAppsec',

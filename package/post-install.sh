@@ -10,6 +10,10 @@
 # (no binaries and sources) will result in the very same error.
 # Issue reported to the fpm project (https://github.com/jordansissel/fpm/issues/1866), see there for more details and
 # a reproduction case.
+#
+# Keep this explanatory block large enough to hold the complete script above that unsafe boundary. Portable release
+# artifacts no longer need an Alpine-specific filename, so the runtime selection code below is intentionally shorter
+# than it used to be. This padding is therefore functional: reducing it can make both architecture APK jobs fail.
 
 EXTENSION_BASE_DIR=/opt/datadog-php
 EXTENSION_DIR=${EXTENSION_BASE_DIR}/extensions
@@ -201,12 +205,7 @@ elif [[ -n $PHP_DEBUG_BUILD ]]; then
     VERSION_SUFFIX="-debug"
 fi
 
-OS_SPECIFIER=""
-if [ -f "/etc/os-release" ] && $(grep -q 'Alpine Linux' "/etc/os-release") && [ "${VERSION_SUFFIX}" != "-zts" ]; then
-    OS_SPECIFIER="-alpine"
-fi
-
-EXTENSION_NAME="ddtrace-${PHP_VERSION}${VERSION_SUFFIX}${OS_SPECIFIER}.so"
+EXTENSION_NAME="ddtrace-${PHP_VERSION}${VERSION_SUFFIX}.so"
 EXTENSION_FILE_PATH="${EXTENSION_DIR}/${EXTENSION_NAME}"
 INI_FILE_CONTENTS=$(cat <<EOF
 [datadog]

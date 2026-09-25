@@ -2,25 +2,44 @@
 
 set -eo pipefail
 
-# Function to get DataDog PHP extension download URL (monolithic per-PHP-API build)
-# Usage: dd_php_release_url <extension_version> <php_version> <arch> <libc_type>
-# Example: dd_php_release_url "1.13.0" "8.4" "x86_64" "gnu"
+# Function to get the unified DataDog PHP extension bundle URL.
+# Usage: dd_php_release_url <extension_version> <arch>
+# Example: dd_php_release_url "1.13.0" "x86_64"
 dd_php_release_url() {
+    local ext_version="$1"
+    local arch="$2"
+
+    # Validate inputs
+    if [[ -z "$ext_version" || -z "$arch" ]]; then
+        echo "Error: Missing required parameters" >&2
+        echo "Usage: dd_php_release_url <extension_version> <arch>" >&2
+        echo "Example: dd_php_release_url '1.13.0' 'x86_64'" >&2
+        return 1
+    fi
+
+    # Validate arch
+    if [[ "$arch" != "x86_64" && "$arch" != "arm64" && "$arch" != "aarch64" ]]; then
+        echo "Error: Invalid architecture: $arch (must be x86_64, arm64, or aarch64)" >&2
+        return 1
+    fi
+
+    # Release artifact names use aarch64.
+    [[ "$arch" == "arm64" ]] && arch="aarch64"
+
+    # Construct the URL
+    local url="https://github.com/DataDog/dd-trace-php/releases/download/${ext_version}/dd-library-php-${ext_version}-${arch}-linux.tar.gz"
+
+    echo "$url"
+}
+
+# Releases created before portable bundles used libc- and PHP-specific assets.
+dd_php_legacy_release_url() {
     local ext_version="$1"
     local php_version="$2"
     local arch="$3"
     local libc_type="$4"
-
-    # Validate inputs
-    if [[ -z "$ext_version" || -z "$php_version" || -z "$arch" || -z "$libc_type" ]]; then
-        echo "Error: Missing required parameters" >&2
-        echo "Usage: dd_php_release_url <extension_version> <php_version> <arch> <libc_type>" >&2
-        echo "Example: dd_php_release_url '1.13.0' '8.4' 'x86_64' 'gnu'" >&2
-        return 1
-    fi
-
-    # Map PHP versions to API numbers
     local api_version
+
     case "$php_version" in
         8.5) api_version="20250925" ;;
         8.4) api_version="20240924" ;;
@@ -35,30 +54,12 @@ dd_php_release_url() {
         7.0) api_version="20151012" ;;
         *)
             echo "Error: Unsupported PHP version: $php_version" >&2
-            echo "Supported versions: 7.0, 7.1, 7.2, 7.3, 7.4, 8.0, 8.1, 8.2, 8.3, 8.4, 8.5" >&2
             return 1
             ;;
     esac
 
-    # Validate arch
-    if [[ "$arch" != "x86_64" && "$arch" != "arm64" && "$arch" != "aarch64" ]]; then
-        echo "Error: Invalid architecture: $arch (must be x86_64, arm64, or aarch64)" >&2
-        return 1
-    fi
-
-    # Normalize aarch64 to arm64
-    [[ "$arch" == "aarch64" ]] && arch="arm64"
-
-    # Validate libc type
-    if [[ "$libc_type" != "gnu" && "$libc_type" != "musl" ]]; then
-        echo "Error: Invalid libc type: $libc_type (must be gnu or musl)" >&2
-        return 1
-    fi
-
-    # Construct the URL
-    local url="https://github.com/DataDog/dd-trace-php/releases/download/${ext_version}/dd-library-php-${ext_version}-${arch}-linux-${libc_type}-${api_version}.tar.gz"
-
-    echo "$url"
+    [[ "$arch" == "arm64" ]] && arch="aarch64"
+    echo "https://github.com/DataDog/dd-trace-php/releases/download/${ext_version}/dd-library-php-${ext_version}-${arch}-linux-${libc_type}-${api_version}.tar.gz"
 }
 
 # Download the SSI PHP package from ECR public (public.ecr.aws/datadog/apm-library-php-package).
@@ -157,9 +158,28 @@ main() {
     shift
     dd_php_ssi_download "$1" "$2" "$tmpdir"
   else
-    local url
-    url=$(dd_php_release_url "$@")
-    curl -sLf -o - "$url" | tar -C "$tmpdir" -xzf -
+    local arch archive url
+    if [[ $# -eq 2 ]]; then
+      arch=$2
+    elif [[ $# -eq 4 ]]; then
+      arch=$3
+    else
+      echo "Usage: $0 <extension_version> <arch>" >&2
+      echo "Legacy fallback: $0 <extension_version> <php_version> <arch> <libc_type>" >&2
+      return 1
+    fi
+
+    archive="$tmpdir/dd-library-php.tar.gz"
+    url=$(dd_php_release_url "$1" "$arch")
+    if ! curl -sLf -o "$archive" "$url"; then
+      if [[ $# -ne 4 ]]; then
+        return 1
+      fi
+      url=$(dd_php_legacy_release_url "$@")
+      curl -sLf -o "$archive" "$url"
+    fi
+    tar -C "$tmpdir" -xzf "$archive"
+    rm "$archive"
   fi
 
   echo "$tmpdir"

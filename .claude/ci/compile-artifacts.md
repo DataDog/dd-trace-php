@@ -1,397 +1,196 @@
 # Compile / Build Artifact Jobs
 
-These jobs produce the compiled `.so`, `.a`, `.dll`, and sidecar
-binaries consumed by test jobs (Groups B, C, E, F) and packaging
-jobs (Group I). They run in the `compile` stage (tracer pipeline)
-and the `prepare` / `profiler` / `appsec` / `tracing` stages
-(package pipeline).
+CI builds release Linux artifacts once per architecture in the parent
+pipeline. Both glibc and musl packaging and test jobs consume those portable
+artifacts. Jobs only build their own extension when they require a materially
+different binary, such as debug, ASAN, coverage, or profiler test features.
 
-## Build Conventions
+## Source Files
 
-Most build scripts post-process output `.so` files with
-`objcopy --compress-debug-sections` (exceptions: `compile_extension.sh` and
-`build-loader.sh`). Debug symbols are retained but compressed.
-If you need to run this step outside a build script and your host lacks `binutils`:
+- `.gitlab/portable-builds.yml` defines the parent-pipeline portable build DAG.
+- `.gitlab/ci-targets.php` owns the architecture, PHP version, and ABI matrix.
+- `.gitlab/check-portable-builds.php` verifies that the static YAML matches the
+  matrix used by the child-pipeline generators.
+- `.gitlab/build-sidecar.sh` builds the portable Rust sidecar and mock generator.
+- `.gitlab/build-tracing.sh` builds NTS and ZTS tracer archives and standalone
+  extensions.
+- `.gitlab/link-tracing-extension.sh` links each job's tracer archives to the
+  portable sidecar.
+- `.gitlab/build-appsec.sh`, `.gitlab/build-profiler.sh`, and
+  `.gitlab/build-loader.sh` build their portable extensions.
+- `.gitlab/generate-package.php` defines the package child pipeline and its
+  debug, ASAN, Windows, and PECL builds.
 
-```bash
-.claude/ci/dockerh --cache tracer-8.3-debug \
-    datadog/dd-trace-ci:php-8.3_bookworm-6 -- \
-    objcopy --compress-debug-sections /project/dd-trace-php/tmp/build_extension/modules/ddtrace.so
-```
+## Portable Parent Builds
 
-## CI Jobs
+The `php-buildonly-rust` image provides musl, `musl-clang`, and PHP SDKs for all
+supported PHP versions. Portable jobs use the musl toolchain but deliberately
+produce unsuffixed release artifacts. A release artifact is shared by glibc and
+musl consumers; there is no separate Alpine build.
 
-**Source:**
-- `.gitlab/generate-tracer.php` -- generates the tracer-trigger child pipeline;
-  defines `compile extension: debug` and `compile extension: debug-zts-asan`
-- `.gitlab/generate-package.php` -- generates the package-trigger child pipeline;
-  defines all other compile/link/aggregate jobs listed below
-- `.gitlab/generate-common.php` -- shared PHP-version and arch matrices
-- `.gitlab/compile_extension.sh` -- build script for tracer-pipeline `compile extension` jobs
-- `compile_rust.sh` -- shared Rust build wrapper invoked by `compile_extension.sh`
-  and `build-sidecar.sh`; sets `RUSTFLAGS` and `SIDECAR_VERSION`
-- `.gitlab/build-tracing.sh` -- builds NTS + ZTS `.a` (static archives) for the package pipeline
-- `.gitlab/build-sidecar.sh` -- builds `libdatadog_php.{a,so}` (Rust sidecar)
-- `.gitlab/link-tracing-extension.sh` -- links `.a` archives with the sidecar into final `.so` files
-- `.gitlab/build-appsec.sh` -- builds `ddappsec-{ABI}.so` (NTS + ZTS)
-- `.gitlab/build-loader.sh` -- builds `dd_library_loader.so` (SSI loader)
-- `.gitlab/build-profiler.sh` -- builds profiler extension (NTS + ZTS)
+| Job | Cardinality | Output |
+|---|---:|---|
+| `prepare portable code` | once | stamped `VERSION` and generated bridge PHP |
+| `cache portable cargo deps` | per arch | Cargo dependency cache |
+| `compile portable tracing sidecar` | per arch | `libdatadog_php_{arch}.{a,so}` and `php_sidecar_mockgen_{arch}` |
+| `compile portable tracing extension` | per PHP ABI and arch | final and standalone NTS/ZTS tracer `.so` files |
+| `compile portable appsec extension` | per PHP ABI and arch | NTS/ZTS `ddappsec.so` |
+| `compile portable profiler extension` | per PHP ABI and arch | NTS/ZTS profiler `.so` |
+| `compile portable loader` | per arch | SSI loader `.so` |
+| `collect portable tracing artifacts` | PHP 7/8 group and arch | relayed tracer artifacts for child pipelines |
+| `collect portable component artifacts` | per arch | relayed AppSec and profiler artifacts |
+| `collect portable runtime artifacts` | per arch | relayed sidecar and loader shared objects |
+| `portable builds complete` | per arch | fan-in gate used by the package trigger |
 
-### Tracer pipeline (generate-tracer.php)
+The sidecar is built with the `tracer-release` profile for the native musl
+target. It dynamically uses musl but statically links the unwind implementation
+so the result can run in either a glibc or musl process. The C and C++
+extensions use `PHP_SDK_VERSION` rather than a distribution-specific PHP
+installation.
 
-| CI Job | Image | What it does |
-|--------|-------|--------------|
-| `compile extension: debug` | `dd-trace-ci:php-{ver}_bookworm-6` | Runs `append-build-id.sh` to stamp VERSION; compiles Rust (`compile_rust.sh`, debug profile) and C (`make -j static`) in parallel; `make static` also builds `php_sidecar_mockgen` (a secondary Rust build generating `mock_php.c` stubs); links `ddtrace.a` + `libdatadog_php.a` → `ddtrace.so` with the generated target export list and `-soname ddtrace.so`. Sets `SHARED=1` (adds `--cfg php_shared_build` to `RUSTFLAGS`). |
-| `compile extension: debug-zts-asan` | `dd-trace-ci:php-{ver}_bookworm-6` | Same as `compile extension: debug` (inherits `SHARED=1` via `extends:`) but with `WITH_ASAN=1` (sets `ASAN=1`+`COMPILE_ASAN=1`) and `SWITCH_PHP_VERSION=debug-zts-asan`; produces `ddtrace.so` instrumented with AddressSanitizer for ASAN test jobs |
-| `Prepare code` | `php:8.2-cli` | Runs `composer update` + `make generate` to produce `src/bridge/_generated_*.php` |
-
-Runner: `arch:{amd64,arm64}`
-Matrix (`compile extension: debug`): PHP 7.0+ x {amd64, arm64}
-Matrix (`compile extension: debug-zts-asan`): PHP 7.4+ x {amd64, arm64}
-
-**Note on `Prepare code` vs `prepare code`:** These are two distinct jobs. The tracer
-pipeline `Prepare code` uses `php:8.2-cli` (which has no Composer), installs Composer
-from scratch, runs `composer update` + `make generate`, and lives in the `compile`
-stage. The package pipeline `prepare code` uses `composer:2`, runs
-`append-build-id.sh` first (bumping VERSION to `{major}.{minor+1}.0+{CI_COMMIT_SHA}` on
-non-release branches; for pre-release versions like `1.2.3-beta1` it strips the
-suffix to produce `1.2.3+{CI_COMMIT_SHA}` instead; no-op on tags and `ddtrace-`
-release branches), then `composer self-update` + `composer update`
-+ `make generate`, and lives in the `prepare` stage. `make generate` produces three
-files via `classpreloader`: `_generated_api.php`, `_generated_tracer.php`, and
-`_generated_opentelemetry.php`.
-
-### Package pipeline (generate-package.php)
-
-| CI Job | Image | What it does |
-|--------|-------|--------------|
-| `prepare code` | `composer:2` | `.gitlab/append-build-id.sh` (bumps VERSION first) + `composer self-update` + `composer update` + `make generate`; produces VERSION + generated bridge files |
-| `cache cargo deps: [{arch}, {triplet}]` | `dd-trace-ci:php-8.1_{platform}` (alpine uses `php-compile-extension-alpine-8.1`) | `cargo fetch` to warm the Cargo cache for the given target triplet |
-| `compile tracing extension: [{ver}, {arch}, {triplet}]` | `dd-trace-ci:php-{ver}_{platform}` | Builds NTS + debug + ZTS static archives (`.a`) and standalone `.so` via `build-tracing.sh` (debug skipped on alpine); outputs `ddtrace-{PHP_API}{suffix}[-debug\|-zts].{a,so}` under `extensions_{arch}/` and `standalone_{arch}/` |
-| `compile tracing sidecar: [{arch}, {triplet}]` | `dd-trace-ci:php-8.1_{platform}` | Builds `libdatadog_php.{a,so}` (FFI bridge plus the embedded AppSec helper) via `build-sidecar.sh` → `compile_rust.sh` → `cargo build`; profile `tracer-release` (LTO, 1 codegen unit, panic=abort); `RUSTFLAGS=--cfg tokio_unstable --cfg php_shared_build`; `SIDECAR_VERSION` embedded from `VERSION` file |
-| `link tracing extension: [{arch}, {triplet}]` | `dd-trace-ci:php-8.1_{platform}` | Links each per-version `.a` in `extensions_$(uname -m)/` against `libdatadog_php_$(uname -m)${suffix}.a` with `-whole-archive`, the generated target export list, and `-soname ddtrace.so`; all links run in parallel background processes; post-processes each `.so` with `objcopy --compress-debug-sections` |
-| `aggregate tracing extension: [{arch}]` | `dd-trace-ci:php-7.4_bookworm-6` | No-op `ls` that aggregates artifacts from all `compile tracing extension` jobs for one arch into a single artifact set |
-| `compile tracing extension asan: [{ver}, {arch}, {triplet}]` | `dd-trace-ci:php-{ver}_bookworm-6` | Switches to `debug-zts-asan` PHP; builds `ddtrace.so` directly with `RUST_DEBUG_BUILD=1` (Rust debug profile, no `.a` intermediate); copies to `extensions_$(uname -m)/ddtrace-${ABI_NO}-debug-zts.so`; post-processes with `objcopy --compress-debug-sections` |
-| `compile appsec extension: [{ver}, {arch}, {triplet}]` | `dd-trace-ci:php-{ver}_{platform}` | Builds NTS and ZTS appsec extensions sequentially via cmake+make in `appsec/build/` and `appsec/build-zts/`; cmake flags: `-DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_TESTING=OFF -DDD_APPSEC_EXTENSION_STATIC_LIBSTDCXX=ON`; outputs `appsec_$(uname -m)/ddappsec-$PHP_API${suffix}[-zts].so`; post-processes with `objcopy --compress-debug-sections` |
-| `compile profiler extension: [{ver}, {arch}, {triplet}]` | `dd-trace-ci:php-{ver}_{platform}` | Builds NTS and ZTS profiler extensions via `cargo build --profile profiler-release` in `profiling/`; for ZTS, `touch build.rs` forces the build script to re-run after `switch-php` to pick up ZTS headers; outputs `datadog-profiling[-zts].so` under a prefix dir; on alpine+aarch64 symlinks llvm21's clang over the default clang to work around a bindgen incompatibility |
-| `compile loader: [{host_os}, {arch}]` | `dd-trace-ci:php-8.3_{platform}` (alpine: `php-compile-extension-alpine-8.3`) | Builds `dd_library_loader-$(uname -m)-${HOST_OS}.so` (SSI loader) via `phpize`+`configure`+`make` in `loader/`; on musl installs build deps via `apk add`; embeds `PHP_DD_LIBRARY_LOADER_VERSION` from `VERSION` file in CFLAGS |
-| `compile extension windows: [{ver}]` | `dd-trace-ci:php-{ver}_windows` | Runs a long-lived container via `docker run -d` + `docker exec`; builds NTS then ZTS via `phpize.bat` + `configure.bat --enable-debug-pack` + `nmake`; reuses NTS Rust `target/` for ZTS by moving it; outputs `extensions_x86_64/php_ddtrace-${ABI_NO}[-zts].dll` and `.pdb` debug symbols |
-| `pecl build` | `dd-trace-ci:php-7.4_bookworm-6` | Runs `tooling/bin/pecl-build` via `make build_pecl_package`; regenerates PHP bridge files via `composer -dtooling/generation`; mutates `package.xml` (version, date, file list) and `Cargo.toml` (strips profiling workspace member) in-place; produces `datadog_trace-*.tgz` via `pear package`; requires a clean tree to re-run |
-
-Runner: `arch:{amd64,arm64}` (Linux jobs) or `windows-v2:2019` (Windows)
-Matrix (tracing/appsec extension): PHP 7.0+ x 4 build platforms (x86_64-alpine-linux-musl, aarch64-alpine-linux-musl, x86_64-unknown-linux-gnu, aarch64-unknown-linux-gnu)
-Matrix (profiler extension): PHP 7.1+ x same 4 platforms
-Matrix (ASAN tracing): PHP 7.4+ x {x86_64-unknown-linux-gnu, aarch64-unknown-linux-gnu}
-Matrix (Windows): PHP 7.2+
-
-## What It Builds
-
-The package pipeline compile stage has a two-phase structure for the tracing extension:
-
-1. **Phase 1 -- per-version compilation:** `compile tracing extension` produces a `.a`
-   static archive in `extensions_$(uname -m)/` and a standalone `.so` in
-   `standalone_$(uname -m)/` for each PHP version (per ABI). The `.a` is consumed by
-   the link phase; the standalone `.so` is consumed by `aggregate tracing extension`
-   (for `package loader`). This is PHP-version-specific because each PHP ABI requires
-   different headers. At the same time, `compile tracing sidecar` builds the Rust
-   sidecar library (one per platform, not per PHP version).
-
-2. **Phase 2 -- linking:** `link tracing extension` takes all the per-version `.a` archives
-   and links each one against the single sidecar `.a` to produce the final `.so` shared
-   objects. This is done in parallel (one process per archive).
-
-**Aggregation (sibling of linking):** `aggregate tracing extension` is a pass-through
-job that collects the per-version `.a` archives, standalone `.so` files, and `.ldflags`
-from all `compile tracing extension` jobs for one architecture into a single artifact
-set. Its sole downstream consumer is `package loader`. Note that `link tracing
-extension` and `aggregate tracing extension` are siblings -- both depend on
-`compile tracing extension` -- not sequential phases.
-
-The `compile extension: debug` jobs in the **tracer pipeline** are simpler: they compile
-Rust + C in parallel and produce a single `ddtrace.so` per PHP version. These are used
-by the test jobs, not by the packaging pipeline.
-
-## Build Platforms
-
-| Triplet | Arch | Host OS | Package targets |
-|---------|------|---------|-----------------|
-| `x86_64-alpine-linux-musl` | amd64 | linux-musl | `.apk.x86_64` |
-| `aarch64-alpine-linux-musl` | arm64 | linux-musl | `.apk.aarch64` |
-| `x86_64-unknown-linux-gnu` | amd64 | linux-gnu | `.rpm.x86_64`, `.deb.x86_64`, `.tar.gz.x86_64` |
-| `aarch64-unknown-linux-gnu` | arm64 | linux-gnu | `.rpm.arm64`, `.deb.arm64`, `.tar.gz.aarch64` |
-| `x86_64-pc-windows-msvc` | amd64 | windows-msvc | `dbgsym.tar.gz` |
+Each build script rejects a result containing versioned `GLIBC_*` symbols. The
+tracer link job repeats that check on every final extension.
 
 ## Dependency Graph
 
-```
-prepare code          cache cargo deps: [{arch}, {triplet}]
-  |                     |
-  |                     +-- compile tracing sidecar: [{arch}, {triplet}]*
-  |                     |     |
-  |                     |     +----.
-  |                     |          |
-  |                     +-- compile profiler extension: [{ver}, {arch}, {triplet}]*
+```text
+generate-templates
   |
-  +-- compile tracing extension: [{ver}, {arch}, {triplet}]   (prepare code only)
-  |     |
-  |     +-- aggregate tracing extension: [{arch}]
-  |     +-- link tracing extension: [{arch}, {triplet}]  <-- also needs compile tracing sidecar
-  |
-  +-- compile tracing extension asan: [{ver}, {arch}, {triplet}]
-  +-- compile appsec extension: [{ver}, {arch}, {triplet}]
-  +-- compile loader: [{host_os}, {arch}]
-  +-- compile extension windows: [{ver}]
-  +-- pecl build
+  +-- prepare portable code
+  |     +-- tracer compile/link --+
+  |     +-- AppSec extensions     +-- artifact collectors
+  |     +-- loader              --+          |
+  +-- Cargo cache                           +-- portable build gate
+        +-- sidecar ------------+-- tracer  |          |
+        +-- profiler -----------------------+          +--> package child
 
-* also needs prepare code (not shown to keep the graph readable)
+parent portable artifacts
+  +-- package child: glibc and musl packages, SSI package
+  +-- profiler child: ordinary PHP language tests
+  +-- AppSec child: release, ZTS, musl, and SSI integration tests
 ```
 
-## Gotchas
+Child jobs use `needs:pipeline:job` to download artifacts from the parent
+pipeline. Cross-pipeline needs download artifacts but do not schedule the
+producer, so each trigger waits for the relevant parent jobs before creating
+its child pipeline.
 
-- The tracer pipeline's `compile extension: debug` and the package pipeline's `compile
-  tracing extension` are **different jobs** that produce differently-structured artifacts.
-  The tracer pipeline version produces a ready-to-load `ddtrace.so`; the package pipeline
-  version produces static `.a` archives that need a separate link step.
+## Builds That Intentionally Remain Separate
 
-- `link tracing extension` uses the fat-link flags and export list generated during
-  `compile tracing extension` for the PHP 7.0 build specifically. Their artifact
-  names include the architecture and platform suffix.
+- Tracer unit, PHPT, and integration jobs use debug or ASAN extensions.
+- Package ASAN jobs build the instrumented debug-ZTS tracer.
+- Profiler feature tests compile with test-only feature flags such as
+  `debug_stats`, `stack_walking_tests`, and tracing subscribers.
+- Microbenchmarks rebuild candidate and baseline binaries with
+  `-falign-functions=64` to stabilize comparisons.
+- AppSec native and coverage jobs enable test targets, ASAN, or coverage
+  instrumentation.
+- Shared C-component jobs build Debug, ASAN, or UBSAN binaries.
+- Windows jobs build PE DLLs with the Windows SDK.
+- The PECL job validates source-package construction rather than consuming an
+  installed release extension.
 
-- `aggregate tracing extension` does not actually compile or link anything -- its `script:`
-  is literally `ls ./`. Its sole purpose is to fan-in pre-link artifacts (`.a` archives,
-  standalone `.so` files, `.ldflags`, and `.sym` files) from all per-version
-  `compile tracing extension` jobs into a single artifact set for `package loader`.
+An ordinary release consumer should not be added to this list. If it can load
+the portable artifact, make it depend on that artifact even if it historically
+built its own copy.
 
-- `compile tracing sidecar` on alpine: the `-alpine` suffix variant force-installs
-  `bindgen-cli` via `cargo install --force --locked` before building, as a workaround
-  for `aws-lc-sys` build failures on musl targets.
+## Package Child Builds
 
-- The Cargo cache uses the default `pull-push` policy in `cache cargo deps` and
-  `policy: pull` (read-only) in `compile profiler extension` and `compile tracing
-  sidecar`. `compile tracing extension` has no `cache:` block at all (this is expected
-  since it runs `make static`, a pure C/PHP build; the Rust compilation is
-  handled by `compile tracing sidecar`).
+The package child pipeline still builds the following distinct variants:
 
-- Windows compile jobs use Docker on the Windows runner (not DinD): the script starts a
-  long-lived container with `docker run -d`, then drives it via `docker exec`. The
-  `GIT_STRATEGY: none` variable means the runner does not clone the repo -- instead the
-  job script manually clones via `git clone` + `git checkout`.
+- `compile tracing extension debug` with the portable toolchain for debug-ABI
+  package contents;
+- `compile tracing extension asan` for the ASAN package;
+- `compile extension windows` for Windows DLLs and symbols; and
+- `pecl build` for the source package.
 
-- The `ddtrace.so` export lists are composed from disjoint symbol sets.
-  `ddtrace-extension*.sym` contains extension exports and
-  `components-rs/libdatadog-php*.sym` contains Rust exports. The generated
-  `ddtrace-slim.sym` contains only extension exports; `ddtrace-fat.sym` also
-  contains the embedded Rust exports. All other symbols are hidden via
-  `--retain-symbols-file` and `-fvisibility=hidden`.
+All release Linux package jobs fetch the parent tracer, AppSec, profiler, and
+loader artifacts. `generate-final-artifact.sh` puts the same NTS/ZTS release
+extensions into glibc and musl packages. Debug extensions are included only in
+glibc packages. `generate-ssi-package.sh` likewise uses the same release
+artifacts for both runtime families.
 
-- `CARGO_TARGET_DIR` must not be set explicitly for `compile_rust.sh`. The default
-  (`target`) is resolved relative to the workspace root by Cargo. An explicit value
-  becomes CWD-relative; since `compile_rust.sh` `cd`s into `components-rs/`, this
-  silently breaks the build.
+The platform names remain packaging identifiers:
 
-- ASAN artifacts in the package pipeline have no "asan" in their filename:
-  `compile tracing extension asan` outputs `ddtrace-{ABI}-debug-zts.so`, which is
-  indistinguishable from a non-ASAN debug-zts build by filename alone.
-
-- Windows Cargo profile is `debug`: `config.w32` hardcodes
-  `ddtrace_cargo_profile = "debug"`. Unlike all Linux builds, the Windows `.dll` ships
-  with unoptimized Rust code.
-
-- Submodule requirements: `compile tracing sidecar` and
-  `compile extension: debug` need `libdatadog` and
-  `appsec/third_party/libddwaf-rust`. Local runs need
-  `git submodule update --init --recursive` before building.
-
-- **centos-7 vs bookworm images — do not mix them.** The package-pipeline
-  `compile tracing extension` jobs for `x86_64-unknown-linux-gnu` and
-  `aarch64-unknown-linux-gnu` use **centos-7** images (targeting GLIBC 2.17
-  for maximum compatibility), not bookworm. Only the ASAN variant
-  (`compile tracing extension asan`) and the tracer-pipeline
-  `compile extension: debug` jobs use bookworm. Using the wrong image causes
-  the `switch-php` and `BASH_ENV` failures described below.
-
-- **`switch-php` variant naming differs between centos and bookworm.** On
-  centos-7 images, PHP variants under `/opt/php/` are version-prefixed:
-  `8.3`, `8.3-debug`, `8.3-zts`. On bookworm images, variants are bare names:
-  `nts`, `debug`, `zts`, `nts-asan`, `debug-zts-asan`. `build-tracing.sh`
-  calls `switch-php "${PHP_VERSION}"` (e.g. `switch-php 8.3`), which works on
-  centos but fails on bookworm. Conversely, `compile_extension.sh` uses
-  `switch-php debug` / `switch-php debug-zts-asan` (bookworm names).
-
-- **`CARGO_HOME=/rust/cargo/` is root-owned in CI images.** See
-  [building-locally.md](building-locally.md#cargo_home-is-root-owned-in-ci-images)
-  for the workaround. This affects `build-sidecar.sh` and any other
-  Rust build that does not use `--root`.
-
-- **Alpine images use a different naming convention.** Alpine/musl compile
-  images follow the pattern `php-compile-extension-alpine-{ver}` (e.g.
-  `php-compile-extension-alpine-8.3`), not the `php-{ver}_{os}-{N}` pattern
-  used by bookworm/centos images.
-
-- **`compile loader` on musl requires `--root`.** `build-loader.sh` runs
-  `apk add` to install build dependencies on Alpine, which needs root. This
-  only applies to the musl variant; the linux-gnu variant runs fine without
-  `--root`.
-
-- **`compile appsec extension` is pure C/C++ — no Rust/Cargo.** The Rust
-  AppSec helper is compiled as part of `compile tracing sidecar`; the AppSec
-  extension job only builds `ddappsec.so`.
-
-- **`compile extension: debug` Rust profile.** The "debug" in the job name
-  refers to the PHP debug build variant, not the Rust profile — but
-  coincidentally the Rust code also builds with the `debug` (dev) profile
-  (unoptimized). CI also sets `SHARED=1`, which adds `--cfg php_shared_build`
-  to `RUSTFLAGS`. The `debug-zts-asan` job inherits `SHARED=1` via
-  `extends:` — it is not visible in the job definition itself; do not omit
-  it when reproducing locally.
-
-- **`CI_COMMIT_BRANCH` on detached HEAD.** When running on a detached
-  HEAD (e.g., after `git checkout <sha>`), `git rev-parse --abbrev-ref HEAD`
-  returns the literal string `HEAD`. `append-build-id.sh` still works, but
-  the embedded version string will contain `HEAD` as the branch name.
-
-- **Silent final link step in `compile_extension.sh`.** The final `sed -i`
-  + `cc -shared` commands produce no output (no `set -x`). On a successful
-  build, the last visible log line is `compile_rust.sh`'s `Finished ...`
-  message. Verify success by checking the output exists:
-  ```bash
-  docker run --rm -v dd-ci-<CACHE>:/v alpine \
-    ls -lh /v/upper/tmp/build_extension/modules/ddtrace.so
-  ```
-
-- **`devtoolset-7` on centos-7.** The ancient CentOS 7 base ships GCC 4.8;
-  `build-tracing.sh` activates `devtoolset-7` (GCC 7) via `scl_source`.
-  This is specific to centos-7/glibc builds — bookworm has a modern GCC.
-
-- **`compile loader` is the simplest compile job.** Pure C (phpize +
-  configure + make), no Rust, no submodules, no `switch-php`. Takes seconds.
-  `HOST_OS` affects the output filename and controls whether
-  `apk add` installs build dependencies (musl only); `config.m4`
-  independently detects musl at compile time by checking whether
-  `ldd --version` output starts with `musl`. The build produces
-  `loader/modules/dd_library_loader.so`, then copies it to the project
-  root as `dd_library_loader-$(uname -m)-${HOST_OS}.so` (e.g.,
-  `dd_library_loader-x86_64-linux-gnu.so`).
+| Triplet | Arch | Package targets |
+|---|---|---|
+| `x86_64-alpine-linux-musl` | amd64 | `.apk.x86_64` |
+| `aarch64-alpine-linux-musl` | arm64 | `.apk.aarch64` |
+| `x86_64-unknown-linux-gnu` | amd64 | `.rpm.x86_64`, `.deb.x86_64`, `.tar.gz.x86_64` |
+| `aarch64-unknown-linux-gnu` | arm64 | `.rpm.arm64`, `.deb.arm64`, `.tar.gz.aarch64` |
+| `x86_64-pc-windows-msvc` | amd64 | `dbgsym.tar.gz` |
 
 ## Local Reproduction
 
-For a quick-reference guide to building each artifact locally, see
-[building-locally.md](building-locally.md). The commands below are
-exact CI job equivalents with full environment variables.
-
-Use `.claude/ci/dockerh` (see `index.md`). Pass `CI_COMMIT_SHA` and
-`CI_COMMIT_BRANCH` from the host so `append-build-id.sh` embeds the
-correct version string.
-
-**Expected build times (first run, empty cache):**
-
-| Job | arm64 (Apple Silicon) | amd64 (Linux) |
-|-----|-----------------------|---------------|
-| compile extension: debug | ~2 min | ~2 min |
-| compile extension: debug-zts-asan | ~2 min | ~2 min |
-| compile tracing extension (per version) | — | ~1.5 min |
-| compile tracing sidecar | — | ~3 min |
-| compile appsec extension (per version) | ~2 min | ~2 min |
-| compile profiler extension (per version) | — | ~2 min |
-| compile loader | ~4 sec | ~4 sec |
-
-Subsequent runs with cached Rust artifacts: C-only changes rebuild
-in ~10 s; Rust changes in ~30–60 s.
-
-Scripts that call `switch-php` internally (`compile_extension.sh`,
-`build-tracing.sh`, `build-appsec.sh`, `build-profiler.sh`) need root to
-modify `/usr/local/bin/` symlinks. Use `--root` for these — do **not** use
-`--php` since the script already handles variant switching. Scripts that do
-not call `switch-php` (`build-sidecar.sh`, `build-loader.sh`) run fine
-without `--root` **on GNU/Linux images**. On Alpine (musl) images,
-`build-loader.sh` requires `--root` because it runs `apk add` to install
-build dependencies.
+Initialize the Rust submodules first:
 
 ```bash
-# compile extension: debug (tracer pipeline, PHP 8.3)
-.claude/ci/dockerh --cache tracer-8.3-debug --overlayfs --root \
-    datadog/dd-trace-ci:php-8.3_bookworm-6 \
-    -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
-    -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
-    -e SHARED=1 \
-    -- bash .gitlab/compile_extension.sh
-
-# compile extension: debug-zts-asan (tracer pipeline, PHP 8.3)
-.claude/ci/dockerh --cache tracer-8.3-debug-zts-asan --overlayfs --root \
-    datadog/dd-trace-ci:php-8.3_bookworm-6 \
-    -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
-    -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
-    -e WITH_ASAN=1 \
-    -e SWITCH_PHP_VERSION=debug-zts-asan \
-    -e SHARED=1 \
-    -- bash .gitlab/compile_extension.sh
-
-# compile tracing extension (package pipeline, PHP 8.3, linux-gnu)
-.claude/ci/dockerh --cache compile-tracing-8.3-gnu --overlayfs --root \
-    datadog/dd-trace-ci:php-8.3_centos-7 \
-    -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
-    -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
-    -- bash -c 'PHP_VERSION=8.3 bash .gitlab/build-tracing.sh'
-
-# compile tracing sidecar (linux-gnu)
-# CARGO_HOME override needed — see building-locally.md
-# HOST_OS is passed through to compile_rust.sh to select the Rust target triplet
-# (linux-gnu vs linux-musl). Use linux-gnu for glibc, linux-musl for Alpine.
-.claude/ci/dockerh --cache compile-sidecar-gnu --overlayfs \
-    datadog/dd-trace-ci:php-8.1_centos-7 \
-    -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
-    -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
-    -e CARGO_HOME=/project/dd-trace-php/.cache/cargo \
-    -- bash -c 'HOST_OS=linux-gnu bash .gitlab/build-sidecar.sh'
-
-# compile appsec extension (PHP 8.3, linux-gnu)
-.claude/ci/dockerh --cache compile-appsec-8.3-gnu --overlayfs --root \
-    datadog/dd-trace-ci:php-8.3_centos-7 \
-    -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
-    -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
-    -- bash -c 'PHP_VERSION=8.3 bash .gitlab/build-appsec.sh'
-
-# compile profiler extension (PHP 8.3, linux-gnu)
-.claude/ci/dockerh --cache compile-profiler-8.3-gnu --overlayfs --root \
-    datadog/dd-trace-ci:php-8.3_centos-7 \
-    -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
-    -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
-    -- bash -c 'PHP_VERSION=8.3 bash .gitlab/build-profiler.sh datadog-profiling/x86_64-unknown-linux-gnu/lib/php/20230831 nts'
-
-# compile profiler extension ZTS variant (PHP 8.3, linux-gnu)
-# Reuse the same cache — build-profiler.sh calls switch-php internally
-.claude/ci/dockerh --cache compile-profiler-8.3-gnu --overlayfs --root \
-    datadog/dd-trace-ci:php-8.3_centos-7 \
-    -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
-    -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
-    -- bash -c 'PHP_VERSION=8.3 bash .gitlab/build-profiler.sh datadog-profiling/x86_64-unknown-linux-gnu/lib/php/20230831 zts'
-
-# compile loader (linux-gnu)
-.claude/ci/dockerh --cache compile-loader-gnu --overlayfs \
-    datadog/dd-trace-ci:php-8.3_centos-7 \
-    -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
-    -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
-    -- bash -c 'HOST_OS=linux-gnu bash .gitlab/build-loader.sh'
-
-# compile loader (linux-musl) -- requires --root for apk add
-.claude/ci/dockerh --cache compile-loader-musl --overlayfs --root \
-    datadog/dd-trace-ci:php-compile-extension-alpine-8.3 \
-    -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
-    -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
-    -- bash -c 'HOST_OS=linux-musl bash .gitlab/build-loader.sh'
-
-# pecl build
-.claude/ci/dockerh --cache compile-pecl --overlayfs \
-    datadog/dd-trace-ci:php-7.4_bookworm-6 \
-    -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
-    -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
-    -- make build_pecl_package
+git submodule update --init libdatadog
+git submodule update --init --recursive \
+  appsec/third_party/libddwaf-rust
 ```
 
-`--overlayfs` is used for package pipeline jobs because their output directories
-(`extensions_*/`, `standalone_*/`, `appsec_*/`, `datadog-profiling/`, etc.) are
-written to the project root and to files like `VERSION` and `*.ldflags`. The
-overlayfs mode mounts the checkout read-only as the lower dir and uses a Docker
-named volume (`dd-ci-{NAME}`) as the upper dir, so all writes go to the volume
-transparently via copy-up. This also handles `append-build-id.sh` modifying
-`VERSION`, which would fail with a read-only mount.
+The portable image is pinned in `.gitlab/portable-builds.yml`. This example
+builds and links one architecture and one tracer ABI. Use a dedicated cache
+because the output is written into the overlay:
+
+```bash
+IMAGE=$(ruby -e '
+  require "yaml"
+  puts YAML.load_file(".gitlab/portable-builds.yml")[".portable_build"]["image"]
+')
+
+.claude/ci/dockerh --cache portable-8.3 --overlayfs --root "$IMAGE" \
+  -e CI_PROJECT_DIR=/project/dd-trace-php \
+  -e CARGO_HOME=/project/dd-trace-php/.cache/cargo \
+  -e PHP_VERSION=8.3 \
+  -e ABI_NO=20230831 \
+  -- bash -c '
+set -e
+.gitlab/build-sidecar.sh
+.gitlab/build-tracing.sh
+'
+```
+
+Use `bash -c`, not `bash -lc`, with this image. A login shell can reset `PATH`
+and hide the Rust toolchain under `/root/.cargo/bin` when `dockerh` supplies its
+temporary `HOME`.
+
+To build the other portable components in the same overlay:
+
+```bash
+.gitlab/build-appsec.sh
+.gitlab/build-profiler.sh \
+  datadog-profiling/$(uname -m)/lib/php/20230831 nts
+.gitlab/build-profiler.sh \
+  datadog-profiling/$(uname -m)/lib/php/20230831 zts
+.gitlab/build-loader.sh
+```
+
+Most scripts compress debug sections with `objcopy`. Debug information is
+retained. Check portability directly with:
+
+```bash
+readelf --version-info path/to/extension.so | grep GLIBC_
+```
+
+No output is expected.
+
+## Gotchas
+
+- The static parent YAML must remain aligned with `ci-targets.php`. Run
+  `php .gitlab/check-portable-builds.php` after changing either file.
+- Each tracer build produces and consumes its own fat-link flags and
+  retained-symbol list.
+- NTS and ZTS artifacts share an ABI number but have different suffixes. Never
+  load an NTS extension in a ZTS runtime or vice versa.
+- `libdatadog` and `appsec/third_party/libddwaf-rust` must be initialized for
+  sidecar builds.
+- Cargo cache jobs push the cache; sidecar and profiler jobs pull it without
+  writing it back.
+- Artifact directories from several `needs` entries deliberately merge. Keep
+  output filenames unique by PHP ABI and architecture.
+- The Alpine compile images remain in use for jobs that need an Alpine runtime
+  or custom test build. They are not release artifact producers.
+- Windows compile jobs run Docker directly on Windows runners and manually
+  clone the repository because they use `GIT_STRATEGY: none`.

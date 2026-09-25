@@ -1,7 +1,7 @@
 # datadog/dd-trace-ci
 
 These are the CI images the dd-trace-php pipelines run on: one image per PHP
-version per base OS (Debian "bookworm", CentOS 7, Alpine), plus Windows. They
+version per base OS (Debian "bookworm" and Alpine), plus Windows. They
 are pushed to `registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci` (internal) and
 mirrored to `datadog/dd-trace-ci` on Docker Hub (public). Older images live in
 the [DataDog/dd-trace-ci](https://github.com/DataDog/dd-trace-ci/tree/master/php)

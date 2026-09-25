@@ -18,12 +18,12 @@ Usage:
   serve-installer-packages /tmp/fake-repo --port 9999
 
 The directory must contain tarballs at the path:
-  releases/download/{VERSION}/dd-library-php-{VERSION}-{arch}-linux-{libc}.tar.gz
+  releases/download/{VERSION}/dd-library-php-{VERSION}-{arch}-linux.tar.gz
 
 Example setup:
   VERSION=1.18.0+abc123
   mkdir -p /tmp/fake-repo/releases/download/$VERSION
-  cp dd-library-php-$VERSION-x86_64-linux-gnu.tar.gz \\
+  cp dd-library-php-$VERSION-x86_64-linux.tar.gz \\
      /tmp/fake-repo/releases/download/$VERSION/
   serve-installer-packages /tmp/fake-repo
 

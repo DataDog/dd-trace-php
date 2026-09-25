@@ -33,6 +33,14 @@ include:
     - scheduler_failure
     - api_failure
 
+.php-portable-bundle-benchmark:
+  before_script:
+    - |
+      bundle=$(find "$DD_TRACER_ARTIFACT_DIR" -maxdepth 1 -name 'dd-library-php-*-x86_64-linux.tar.gz')
+      compat_bundle="${bundle%-linux.tar.gz}-linux-gnu.tar.gz"
+      cp "$bundle" "$compat_bundle"
+    - !reference [.parallel-benchmark-template, before_script]
+
 .macrobenchmarks-rules: &macrobenchmarks-rules
   - <<: *on-master-and-parent-pipeline-source-pipeline-on-success-and-not-interruptible
   - <<: *on-master-or-nightly-benchmarks-or-release-on-success-and-not-interruptible
@@ -42,8 +50,9 @@ include:
 
 linux-php-laravel-realworld-parallel:
   retry: *benchmarks-retry
+  before_script: !reference [.php-portable-bundle-benchmark, before_script]
   needs:
-    - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
+    - job: "package extension (bundles): [amd64]"
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
@@ -53,8 +62,9 @@ linux-php-laravel-realworld-parallel:
 
 linux-php-symfony-realworld-parallel:
   retry: *benchmarks-retry
+  before_script: !reference [.php-portable-bundle-benchmark, before_script]
   needs:
-    - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
+    - job: "package extension (bundles): [amd64]"
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
@@ -64,8 +74,9 @@ linux-php-symfony-realworld-parallel:
 
 linux-php-wordpress-parallel:
   retry: *benchmarks-retry
+  before_script: !reference [.php-portable-bundle-benchmark, before_script]
   needs:
-    - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
+    - job: "package extension (bundles): [amd64]"
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
@@ -165,6 +176,9 @@ workflow:
   stage: benchmarks
   retry: *benchmarks-retry
   tags: ["runner:apm-k8s-tweaked-metal"]
+  # The external runner builds both candidate and baseline with
+  # -O2 -falign-functions=64 to reduce measurement noise. These are therefore
+  # benchmark-specific binaries, not ordinary release artifact consumers.
   needs: []
   image:
     name: $BASE_CI_IMAGE
@@ -197,6 +211,7 @@ workflow:
       - reports/
     expire_in: 3 months
   variables:
+    KUBERNETES_POD_ANNOTATIONS_RUST_NO_PROXY: "beta.fabric.datadoghq.com/no-proxy-additions=static.rust-lang.org"
     UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
     UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
     UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
@@ -265,7 +280,7 @@ check-big-regressions:
   stage: benchmarks
   retry: *benchmarks-retry
   needs:
-    - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
+    - job: "package extension (bundles): [amd64]"
       artifacts: true
     - job: datadog-setup.php
       artifacts: true

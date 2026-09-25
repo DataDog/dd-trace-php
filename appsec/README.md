@@ -22,11 +22,11 @@ $ php datadog-setup.php --php-bin all --enable-appsec
 
 ### Offline Installation
 
-The offline installation provides a way to install an existing archive, these can be found in the [Tracer release section](https://github.com/DataDog/dd-trace-php/releases) and are named `dd-library-php-<version>-<arch>-<os>-<libc>.tar.gz`.
+The offline installation provides a way to install an existing archive, these can be found in the [Tracer release section](https://github.com/DataDog/dd-trace-php/releases) and are named `dd-library-php-<version>-<arch>-linux.tar.gz`.
 
 To install both the Tracer and AppSec extension, use the following command, please note that the archive names might differ:
 ```
-$ php datadog-setup.php --php-bin all --enable-appsec --file dd-library-php-0.72.0-x86_64-linux-gnu.tar.gz
+$ php datadog-setup.php --php-bin all --enable-appsec --file dd-library-php-VERSION-x86_64-linux.tar.gz
 ```
 
 ### Verifying the installation

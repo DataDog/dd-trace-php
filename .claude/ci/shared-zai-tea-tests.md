@@ -9,9 +9,9 @@ child pipeline; all job definitions and matrices are inline.
 |--------|-------|-------------|
 | `Build & Test Tea` | `dd-trace-ci:php-{ver}_bookworm-6` | Builds the TEA (Test Execution Abstraction) library from `tea/`, runs its ctest suite, installs artifacts for downstream jobs |
 | `Zend Abstract Interface Tests: [{ver}, {variant}]` | `dd-trace-ci:php-{ver}_bookworm-6` | Builds and tests the ZAI library (`zend_abstract_interface/`) against a specific PHP variant |
-| `Extension Tea Tests: [{ver}, {variant}]` | `dd-trace-ci:php-{ver}_bookworm-6` | Builds ddtrace.so via `make install`, then builds and runs the extension-level TEA tests in `tests/tea/` |
+| `Extension Tea Tests: [{ver}, {variant}]` | `dd-trace-ci:php-{ver}_bookworm-6` | Imports the matching portable release extension for NTS/ZTS, custom-builds debug and ASAN variants, then runs the extension-level TEA tests in `tests/tea/` |
 | `ZAI Shared Tests: [{ver}]` | `dd-trace-ci:php-{ver}-shared-ext` | Runs ZAI tests with shared extensions (curl, json) on a special image; only PHP 7.4 and 8.0 |
-| `C components ASAN` | `dd-trace-ci:centos-7`, `dd-trace-ci:php-compile-extension-alpine`, `dd-trace-ci:bookworm-6` | Builds C components (`components/`) with ASAN (on Debian) or plain Debug (on CentOS/Alpine), runs ctest |
+| `C components ASAN` | `dd-trace-ci:php-compile-extension-alpine`, `dd-trace-ci:bookworm-6` | Builds C components (`components/`) with ASAN (on Debian) or plain Debug (on Alpine), runs ctest |
 | `C components UBSAN` | `dd-trace-ci:bookworm-6` | Builds C components with UBSAN, runs ctest with `--repeat until-fail:10` |
 | `Configuration Consistency` | `dd-trace-ci:php-{latest}_bookworm-6` | Runs `tooling/generate-supported-configurations.sh` and verifies `metadata/supported-configurations.json` is up-to-date |
 | `PHP lint` | `dd-trace-ci:php-{latest}_bookworm-11` | Nearly-empty PHPCS + custom scripts over `src/`; see `tooling/php-lint/` |
@@ -27,7 +27,7 @@ Matrix:
 - **Extension Tea Tests**: PHP 7.0+ x {debug, debug-zts-asan
   (7.4+), nts, zts}. Pre-7.4 skips `debug-zts-asan`.
 - **ZAI Shared Tests**: PHP 7.4, 8.0 only, `nts` variant only.
-- **C components ASAN**: three images (centos-7, alpine, bookworm-6);
+- **C components ASAN**: two images (Alpine and bookworm-6);
   ASAN toolchain only on Debian (bookworm).
 - **C components UBSAN**: bookworm-6 only.
 - **Configuration Consistency**: latest PHP version, single run.
@@ -48,8 +48,11 @@ variant uses `cmake/asan.cmake` and the UBSAN variant uses
 `cmake/ubsan.cmake`.
 
 **Extension Tea Tests** (`tests/tea/`) test ddtrace extension internals
-using the TEA framework. They first build ddtrace.so (`make install`)
-then build the cmake project in `tests/tea/`.
+using the TEA framework. Release NTS/ZTS jobs import the matching
+portable extension from the parent pipeline. Debug and ASAN jobs build
+ddtrace.so with `make install` because they require a different ABI or
+instrumentation. All variants then build the cmake project in
+`tests/tea/`.
 
 **ZAI Shared Tests** run on a special image (`php-{ver}-shared-ext`)
 where PHP extensions like curl are shared (.so) rather than built-in.
@@ -154,7 +157,9 @@ ctest --output-on-failure -R config
 
 ### Full suite
 
-Requires TEA artifacts at `tmp/tea/{variant}/`.
+Requires TEA artifacts at `tmp/tea/{variant}/`. This example reproduces
+a debug job, which must build the extension instead of importing a
+portable release artifact.
 
 ```bash
 .claude/ci/dockerh --cache ext-tea-8.3-debug --overlayfs --php debug \
@@ -206,14 +211,14 @@ For UBSAN, replace `asan` with `ubsan` in the toolchain file and
 directory name. UBSAN in CI runs with `--repeat until-fail:10` to
 catch non-deterministic issues (mainly in the channel component).
 
-### Full suite (CentOS / Alpine)
+### Full suite (Alpine)
 
-On CentOS-7 and Alpine images there is no ASAN toolchain file, so
-cmake runs without `-DCMAKE_TOOLCHAIN_FILE`:
+The Alpine image has no ASAN toolchain file, so cmake runs without
+`-DCMAKE_TOOLCHAIN_FILE`:
 
 ```bash
-.claude/ci/dockerh --cache components-centos \
-  datadog/dd-trace-ci:centos-7 -- bash -c '
+.claude/ci/dockerh --cache components-alpine \
+  datadog/dd-trace-ci:php-compile-extension-alpine -- bash -c '
 set -e
 if [ -f "/opt/libuv/lib/pkgconfig/libuv.pc" ]; then
   export PKG_CONFIG_PATH="/opt/libuv/lib/pkgconfig:$PKG_CONFIG_PATH"
@@ -227,9 +232,6 @@ make -j$(nproc) all
 make test ARGS="--output-on-failure"
 '
 ```
-
-Replace `centos-7` with `php-compile-extension-alpine` for the Alpine
-variant.
 
 ### Single test
 
@@ -297,9 +299,9 @@ PHPCS rules live in `tooling/php-lint/phpcs.xml`. Custom checks go in
   shared-ext images are custom CI builds.
 
 - **C components tests do not require PHP.** The `bookworm-6` base
-  image (no PHP version suffix) is sufficient. The centos-7 and alpine
-  images need the `PKG_CONFIG_PATH` / `CMAKE_PREFIX_PATH` env vars
-  for libuv and Catch2 respectively.
+  image (no PHP version suffix) is sufficient. The Alpine image needs
+  the `PKG_CONFIG_PATH` / `CMAKE_PREFIX_PATH` environment variables for
+  libuv and Catch2.
 
 - **UBSAN test repeats are intentional.** The `--repeat until-fail:10`
   flag in CI catches non-deterministic UB in the channel component.

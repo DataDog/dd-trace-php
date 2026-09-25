@@ -34,6 +34,9 @@ static int le_proc_span;
 
 static int dd_php_stdiop_close_wrapper(php_stream *stream, int close_handle);
 static void dd_waitpid(ddtrace_span_data *, dd_proc_span *);
+static void dd_set_session_id_zval(zval *, const uint8_t *);
+
+enum { DD_SESSION_ID_SIZE = sizeof datadog_formatted_session_id };
 
 ZEND_TLS HashTable *tracked_streams;  // php_stream => span
 static zend_string *cmd_exit_code_zstr;
@@ -261,6 +264,7 @@ PHP_FUNCTION(DDTrace_Integrations_Exec_proc_get_pid) {
     php_process_handle *proc_h = Z_RES_P(zres)->ptr;
     RETURN_LONG((long)proc_h->child);
 }
+
 PHP_FUNCTION(DDTrace_Integrations_Exec_proc_inject_session_ids) {
     zval *env_zv;
 
@@ -271,15 +275,27 @@ PHP_FUNCTION(DDTrace_Integrations_Exec_proc_inject_session_ids) {
     zend_array *env = Z_ARR_P(env_zv);
 
     zval zv;
-    ZVAL_STRINGL(&zv, (char *)datadog_formatted_session_id, sizeof(datadog_formatted_session_id));
+    dd_set_session_id_zval(&zv, datadog_formatted_session_id);
     zend_hash_str_update(env, "_DD_PARENT_PHP_SESSION_ID", sizeof("_DD_PARENT_PHP_SESSION_ID") - 1, &zv);
 
     if (datadog_is_empty_session_id(datadog_formatted_root_session_id)) {
-        ZVAL_STRINGL(&zv, (char *)datadog_formatted_session_id, sizeof(datadog_formatted_session_id));
+        dd_set_session_id_zval(&zv, datadog_formatted_session_id);
     } else {
-        ZVAL_STRINGL(&zv, (char *)datadog_formatted_root_session_id, sizeof(datadog_formatted_root_session_id));
+        dd_set_session_id_zval(&zv, datadog_formatted_root_session_id);
     }
     zend_hash_str_update(env, "_DD_ROOT_PHP_SESSION_ID", sizeof("_DD_ROOT_PHP_SESSION_ID") - 1, &zv);
+}
+
+static void dd_set_session_id_zval(zval *zv, const uint8_t *session_id) {
+    zend_string *str = zend_string_alloc(DD_SESSION_ID_SIZE, false);
+    // Without volatile, the portable LTO link emits aligned SIMD loads for
+    // this byte-aligned Rust static.
+    volatile const uint8_t *source = session_id;
+    for (size_t i = 0; i < DD_SESSION_ID_SIZE; ++i) {
+        ZSTR_VAL(str)[i] = source[i];
+    }
+    ZSTR_VAL(str)[DD_SESSION_ID_SIZE] = '\0';
+    ZVAL_STR(zv, str);
 }
 
 PHP_FUNCTION(DDTrace_Integrations_Exec_test_rshutdown) {

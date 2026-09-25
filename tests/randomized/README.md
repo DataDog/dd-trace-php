@@ -166,7 +166,7 @@ Install the specific version of the tracer from `CircleCI` > `build_packages` > 
 
 ```
 curl -L -o /tmp/datadog-setup.php https://557109-119990860-gh.circle-artifacts.com/0/datadog-setup.php
-curl -L -o /tmp/ddtrace-test.tar.gz https://557109-119990860-gh.circle-artifacts.com/0/dd-library-php-1.0.0-nightly-aarch64-linux-gnu.tar.gz
+curl -L -o /tmp/ddtrace-test.tar.gz https://557109-119990860-gh.circle-artifacts.com/0/dd-library-php-1.0.0-nightly-aarch64-linux.tar.gz
 php /tmp/datadog-setup.php --php-bin all --file /tmp/ddtrace-test.tar.gz --enable-profiling
 ```
 

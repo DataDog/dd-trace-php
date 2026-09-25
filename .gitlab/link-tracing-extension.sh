@@ -1,20 +1,28 @@
 #!/usr/bin/env bash
 set -e -o pipefail
 
-suffix="${1:-}"
-
+architecture="$(uname -m)"
+compiler="${CC:-cc}"
+read -r -a ldflags < "ddtrace_${architecture}-fat.ldflags"
 pids=()
-for archive in extensions_$(uname -m)/*.a; do
+for archive in "extensions_${architecture}"/*.a; do
   (
-    cc -shared -Wl,-whole-archive $archive -Wl,-no-whole-archive \
-      $(cat "ddtrace_$(uname -m)${suffix}-fat.ldflags") \
-      -Wl,--retain-symbols-file="ddtrace_$(uname -m)${suffix}-fat.sym" \
-      "libdatadog_php_$(uname -m)${suffix}.a" \
-      -Wl,-soname -Wl,ddtrace.so -o ${archive%.a}.so
-    objcopy --compress-debug-sections ${archive%.a}.so
+    output="${archive%.a}.so"
+    "$compiler" -shared -Wl,-whole-archive "$archive" \
+      -Wl,-no-whole-archive \
+      "${ldflags[@]}" \
+      -Wl,--retain-symbols-file="ddtrace_${architecture}-fat.sym" \
+      "libdatadog_php_${architecture}.a" \
+      -Wl,-soname -Wl,ddtrace.so -o "$output"
+    objcopy --compress-debug-sections "$output"
+    if readelf --version-info "$output" | grep GLIBC_ >/dev/null; then
+      echo "$output is not portable: found a GLIBC symbol version" >&2
+      exit 1
+    fi
+    rm -f "$archive"
   ) &
   pids+=($!)
 done
 for pid in "${pids[@]}"; do
-  wait $pid
+  wait "$pid"
 done
