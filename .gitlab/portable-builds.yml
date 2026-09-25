@@ -1,0 +1,942 @@
+.portable_build:
+  stage: build
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-appsec-php-ci:php-buildonly-rust@sha256:a124ac9419796b60f637648eac9522f06e4257bd756b7844a41867371629d1c0"
+  tags: [ "arch:${ARCH}" ]
+  variables:
+    CARGO_HOME: "${CI_PROJECT_DIR}/.cache/cargo"
+  before_script:
+    - |
+      if [ -n "${LIBDATADOG_OVERRIDE_SHA:-}" ]; then
+        git config --global --add safe.directory "${CI_PROJECT_DIR}/libdatadog"
+        (
+          cd libdatadog
+          git fetch --depth=1 origin "$LIBDATADOG_OVERRIDE_SHA" 2>/dev/null ||
+            git fetch origin "$LIBDATADOG_OVERRIDE_SHA"
+          git checkout FETCH_HEAD
+        )
+      fi
+  retry:
+    max: 2
+    when:
+      - unknown_failure
+      - data_integrity_failure
+      - runner_system_failure
+      - scheduler_failure
+      - api_failure
+      - stuck_or_timeout_failure
+      - job_execution_timeout
+    exit_codes:
+      - 75
+      - 128
+
+.portable_profiler:
+  extends: .portable_build
+  script:
+    - .gitlab/build-profiler.sh "datadog-profiling/${ARCHITECTURE}/lib/php/${ABI_NO}" "nts"
+    - .gitlab/build-profiler.sh "datadog-profiling/${ARCHITECTURE}/lib/php/${ABI_NO}" "zts"
+  variables:
+    CARGO_BUILD_JOBS: 12
+    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
+  cache:
+    - key:
+        prefix: cargo-cache-${TRIPLET}
+        files:
+          - Cargo.lock
+      paths:
+        - "${CARGO_HOME}"
+      policy: pull
+  artifacts:
+    paths:
+      - datadog-profiling
+
+.portable_appsec:
+  extends: .portable_build
+  needs:
+    - job: generate-templates
+      artifacts: true
+    - job: "prepare portable code"
+      artifacts: true
+  variables:
+    MAKE_JOBS: 12
+    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
+  script: ./.gitlab/build-appsec.sh
+  artifacts:
+    paths:
+      - "appsec_*"
+
+.portable_tracing:
+  extends: .portable_build
+  variables:
+    MAKE_JOBS: 12
+    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
+  script: ./.gitlab/build-tracing.sh
+  artifacts:
+    paths:
+      - "extensions_*"
+      - "standalone_*"
+
+.portable_loader:
+  extends: .portable_build
+  needs:
+    - job: generate-templates
+      artifacts: true
+    - job: "prepare portable code"
+      artifacts: true
+  variables:
+    MAKE_JOBS: 2
+  script: ./.gitlab/build-loader.sh
+  artifacts:
+    paths:
+      - "dd_library_loader-*.so"
+
+.portable_artifact_collection:
+  stage: build
+  image: registry.ddbuild.io/images/mirror/alpine:3.21
+  tags: [ "arch:${ARCH}" ]
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - find . -maxdepth 3 -type f -print | sort
+
+"prepare portable code":
+  stage: build
+  image: registry.ddbuild.io/images/mirror/composer:2
+  tags: [ "arch:amd64" ]
+  needs:
+    - job: generate-templates
+      artifacts: true
+  script:
+    - ./.gitlab/append-build-id.sh
+    - composer self-update --no-interaction
+    - COMPOSER_MEMORY_LIMIT=-1 composer update --no-interaction
+    - make generate
+  artifacts:
+    paths:
+      - VERSION
+      - src/bridge/_generated*.php
+
+"cache portable cargo deps: [amd64]":
+  extends: .portable_build
+  needs:
+    - job: generate-templates
+      artifacts: true
+  variables:
+    ARCH: "amd64"
+    TRIPLET: "x86_64-unknown-linux-musl"
+  script:
+    - |
+      if [ -e "${CARGO_HOME}/.package-cache" ]; then
+        echo "WARNING: .package-cache was part of the cache and should not be"
+        rm -vf "${CARGO_HOME}/.package-cache"
+      fi
+      mkdir -p "${CARGO_HOME}"
+      cargo fetch -v --target "${TRIPLET}"
+      chmod -R 777 "${CARGO_HOME}"
+      rm -vf "${CARGO_HOME}/.package-cache"
+  cache:
+    - key:
+        prefix: cargo-cache-${TRIPLET}
+        files:
+          - Cargo.lock
+      paths:
+        - "${CARGO_HOME}"
+
+"compile portable tracing sidecar: [amd64]":
+  extends: .portable_build
+  needs:
+    - job: generate-templates
+      artifacts: true
+    - job: "prepare portable code"
+      artifacts: true
+    - job: "cache portable cargo deps: [amd64]"
+  variables:
+    ARCH: "amd64"
+    TRIPLET: "x86_64-unknown-linux-musl"
+    CARGO_BUILD_JOBS: 16
+    KUBERNETES_CPU_REQUEST: 16
+    KUBERNETES_MEMORY_REQUEST: 5Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
+  script: ./.gitlab/build-sidecar.sh
+  cache:
+    - key:
+        prefix: cargo-cache-${TRIPLET}
+        files:
+          - Cargo.lock
+      paths:
+        - "${CARGO_HOME}"
+      policy: pull
+  artifacts:
+    paths:
+      - "libdatadog_php_*.*"
+      - "php_sidecar_mockgen_*"
+
+.portable_profiler_amd64:
+  extends: .portable_profiler
+  needs:
+    - job: generate-templates
+      artifacts: true
+    - job: "prepare portable code"
+      artifacts: true
+    - job: "cache portable cargo deps: [amd64]"
+  variables:
+    ARCH: "amd64"
+    ARCHITECTURE: "x86_64"
+    TRIPLET: "x86_64-unknown-linux-musl"
+
+.portable_appsec_amd64:
+  extends: .portable_appsec
+  variables:
+    ARCH: "amd64"
+
+.portable_tracing_amd64:
+  extends: .portable_tracing
+  needs:
+    - job: generate-templates
+      artifacts: true
+    - job: "prepare portable code"
+      artifacts: true
+    - job: "compile portable tracing sidecar: [amd64]"
+      artifacts: true
+  variables:
+    ARCH: "amd64"
+
+.portable_loader_amd64:
+  extends: .portable_loader
+  variables:
+    ARCH: "amd64"
+
+"compile portable profiler extension: [7.1, amd64]":
+  extends: .portable_profiler_amd64
+  variables:
+    PHP_VERSION: "7.1"
+    ABI_NO: "20160303"
+
+"compile portable profiler extension: [7.2, amd64]":
+  extends: .portable_profiler_amd64
+  variables:
+    PHP_VERSION: "7.2"
+    ABI_NO: "20170718"
+
+"compile portable profiler extension: [7.3, amd64]":
+  extends: .portable_profiler_amd64
+  variables:
+    PHP_VERSION: "7.3"
+    ABI_NO: "20180731"
+
+"compile portable profiler extension: [7.4, amd64]":
+  extends: .portable_profiler_amd64
+  variables:
+    PHP_VERSION: "7.4"
+    ABI_NO: "20190902"
+
+"compile portable profiler extension: [8.0, amd64]":
+  extends: .portable_profiler_amd64
+  variables:
+    PHP_VERSION: "8.0"
+    ABI_NO: "20200930"
+
+"compile portable profiler extension: [8.1, amd64]":
+  extends: .portable_profiler_amd64
+  variables:
+    PHP_VERSION: "8.1"
+    ABI_NO: "20210902"
+
+"compile portable profiler extension: [8.2, amd64]":
+  extends: .portable_profiler_amd64
+  variables:
+    PHP_VERSION: "8.2"
+    ABI_NO: "20220829"
+
+"compile portable profiler extension: [8.3, amd64]":
+  extends: .portable_profiler_amd64
+  variables:
+    PHP_VERSION: "8.3"
+    ABI_NO: "20230831"
+
+"compile portable profiler extension: [8.4, amd64]":
+  extends: .portable_profiler_amd64
+  variables:
+    PHP_VERSION: "8.4"
+    ABI_NO: "20240924"
+
+"compile portable profiler extension: [8.5, amd64]":
+  extends: .portable_profiler_amd64
+  variables:
+    PHP_VERSION: "8.5"
+    ABI_NO: "20250925"
+
+"compile portable appsec extension: [7.0, amd64]":
+  extends: .portable_appsec_amd64
+  variables:
+    PHP_VERSION: "7.0"
+    ABI_NO: "20151012"
+
+"compile portable tracing extension: [7.0, amd64]":
+  extends: .portable_tracing_amd64
+  variables:
+    PHP_VERSION: "7.0"
+    ABI_NO: "20151012"
+
+"compile portable appsec extension: [7.1, amd64]":
+  extends: .portable_appsec_amd64
+  variables:
+    PHP_VERSION: "7.1"
+    ABI_NO: "20160303"
+
+"compile portable tracing extension: [7.1, amd64]":
+  extends: .portable_tracing_amd64
+  variables:
+    PHP_VERSION: "7.1"
+    ABI_NO: "20160303"
+
+"compile portable appsec extension: [7.2, amd64]":
+  extends: .portable_appsec_amd64
+  variables:
+    PHP_VERSION: "7.2"
+    ABI_NO: "20170718"
+
+"compile portable tracing extension: [7.2, amd64]":
+  extends: .portable_tracing_amd64
+  variables:
+    PHP_VERSION: "7.2"
+    ABI_NO: "20170718"
+
+"compile portable appsec extension: [7.3, amd64]":
+  extends: .portable_appsec_amd64
+  variables:
+    PHP_VERSION: "7.3"
+    ABI_NO: "20180731"
+
+"compile portable tracing extension: [7.3, amd64]":
+  extends: .portable_tracing_amd64
+  variables:
+    PHP_VERSION: "7.3"
+    ABI_NO: "20180731"
+
+"compile portable appsec extension: [7.4, amd64]":
+  extends: .portable_appsec_amd64
+  variables:
+    PHP_VERSION: "7.4"
+    ABI_NO: "20190902"
+
+"compile portable tracing extension: [7.4, amd64]":
+  extends: .portable_tracing_amd64
+  variables:
+    PHP_VERSION: "7.4"
+    ABI_NO: "20190902"
+
+"compile portable appsec extension: [8.0, amd64]":
+  extends: .portable_appsec_amd64
+  variables:
+    PHP_VERSION: "8.0"
+    ABI_NO: "20200930"
+
+"compile portable tracing extension: [8.0, amd64]":
+  extends: .portable_tracing_amd64
+  variables:
+    PHP_VERSION: "8.0"
+    ABI_NO: "20200930"
+
+"compile portable appsec extension: [8.1, amd64]":
+  extends: .portable_appsec_amd64
+  variables:
+    PHP_VERSION: "8.1"
+    ABI_NO: "20210902"
+
+"compile portable tracing extension: [8.1, amd64]":
+  extends: .portable_tracing_amd64
+  variables:
+    PHP_VERSION: "8.1"
+    ABI_NO: "20210902"
+
+"compile portable appsec extension: [8.2, amd64]":
+  extends: .portable_appsec_amd64
+  variables:
+    PHP_VERSION: "8.2"
+    ABI_NO: "20220829"
+
+"compile portable tracing extension: [8.2, amd64]":
+  extends: .portable_tracing_amd64
+  variables:
+    PHP_VERSION: "8.2"
+    ABI_NO: "20220829"
+
+"compile portable appsec extension: [8.3, amd64]":
+  extends: .portable_appsec_amd64
+  variables:
+    PHP_VERSION: "8.3"
+    ABI_NO: "20230831"
+
+"compile portable tracing extension: [8.3, amd64]":
+  extends: .portable_tracing_amd64
+  variables:
+    PHP_VERSION: "8.3"
+    ABI_NO: "20230831"
+
+"compile portable appsec extension: [8.4, amd64]":
+  extends: .portable_appsec_amd64
+  variables:
+    PHP_VERSION: "8.4"
+    ABI_NO: "20240924"
+
+"compile portable tracing extension: [8.4, amd64]":
+  extends: .portable_tracing_amd64
+  variables:
+    PHP_VERSION: "8.4"
+    ABI_NO: "20240924"
+
+"compile portable appsec extension: [8.5, amd64]":
+  extends: .portable_appsec_amd64
+  variables:
+    PHP_VERSION: "8.5"
+    ABI_NO: "20250925"
+
+"compile portable tracing extension: [8.5, amd64]":
+  extends: .portable_tracing_amd64
+  variables:
+    PHP_VERSION: "8.5"
+    ABI_NO: "20250925"
+
+"compile portable loader: [amd64]":
+  extends: .portable_loader_amd64
+
+"collect portable tracing artifacts: [7.x, amd64]":
+  extends: .portable_artifact_collection
+  variables:
+    ARCH: "amd64"
+  needs:
+    - job: "compile portable tracing extension: [7.0, amd64]"
+      artifacts: true
+    - job: "compile portable tracing extension: [7.1, amd64]"
+      artifacts: true
+    - job: "compile portable tracing extension: [7.2, amd64]"
+      artifacts: true
+    - job: "compile portable tracing extension: [7.3, amd64]"
+      artifacts: true
+    - job: "compile portable tracing extension: [7.4, amd64]"
+      artifacts: true
+  artifacts:
+    paths:
+      - "extensions_*"
+      - "standalone_*"
+
+"collect portable tracing artifacts: [8.x, amd64]":
+  extends: .portable_artifact_collection
+  variables:
+    ARCH: "amd64"
+  needs:
+    - job: "compile portable tracing extension: [8.0, amd64]"
+      artifacts: true
+    - job: "compile portable tracing extension: [8.1, amd64]"
+      artifacts: true
+    - job: "compile portable tracing extension: [8.2, amd64]"
+      artifacts: true
+    - job: "compile portable tracing extension: [8.3, amd64]"
+      artifacts: true
+    - job: "compile portable tracing extension: [8.4, amd64]"
+      artifacts: true
+    - job: "compile portable tracing extension: [8.5, amd64]"
+      artifacts: true
+  artifacts:
+    paths:
+      - "extensions_*"
+      - "standalone_*"
+
+"collect portable component artifacts: [amd64]":
+  extends: .portable_artifact_collection
+  variables:
+    ARCH: "amd64"
+  needs:
+    - job: "compile portable appsec extension: [7.0, amd64]"
+      artifacts: true
+    - job: "compile portable appsec extension: [7.1, amd64]"
+      artifacts: true
+    - job: "compile portable appsec extension: [7.2, amd64]"
+      artifacts: true
+    - job: "compile portable appsec extension: [7.3, amd64]"
+      artifacts: true
+    - job: "compile portable appsec extension: [7.4, amd64]"
+      artifacts: true
+    - job: "compile portable appsec extension: [8.0, amd64]"
+      artifacts: true
+    - job: "compile portable appsec extension: [8.1, amd64]"
+      artifacts: true
+    - job: "compile portable appsec extension: [8.2, amd64]"
+      artifacts: true
+    - job: "compile portable appsec extension: [8.3, amd64]"
+      artifacts: true
+    - job: "compile portable appsec extension: [8.4, amd64]"
+      artifacts: true
+    - job: "compile portable appsec extension: [8.5, amd64]"
+      artifacts: true
+    - job: "compile portable profiler extension: [7.1, amd64]"
+      artifacts: true
+    - job: "compile portable profiler extension: [7.2, amd64]"
+      artifacts: true
+    - job: "compile portable profiler extension: [7.3, amd64]"
+      artifacts: true
+    - job: "compile portable profiler extension: [7.4, amd64]"
+      artifacts: true
+    - job: "compile portable profiler extension: [8.0, amd64]"
+      artifacts: true
+    - job: "compile portable profiler extension: [8.1, amd64]"
+      artifacts: true
+    - job: "compile portable profiler extension: [8.2, amd64]"
+      artifacts: true
+    - job: "compile portable profiler extension: [8.3, amd64]"
+      artifacts: true
+    - job: "compile portable profiler extension: [8.4, amd64]"
+      artifacts: true
+    - job: "compile portable profiler extension: [8.5, amd64]"
+      artifacts: true
+  artifacts:
+    paths:
+      - "appsec_*"
+      - datadog-profiling
+
+"collect portable runtime artifacts: [amd64]":
+  extends: .portable_artifact_collection
+  variables:
+    ARCH: "amd64"
+  needs:
+    - job: "compile portable tracing sidecar: [amd64]"
+      artifacts: true
+    - job: "compile portable loader: [amd64]"
+      artifacts: true
+  artifacts:
+    paths:
+      - "libdatadog_php_*.so"
+      - "dd_library_loader-*.so"
+
+"portable builds complete: [amd64]":
+  stage: build
+  image: registry.ddbuild.io/images/mirror/alpine:3.21
+  tags: [ "arch:amd64" ]
+  variables:
+    GIT_STRATEGY: none
+  needs:
+    - job: "collect portable tracing artifacts: [7.x, amd64]"
+      artifacts: false
+    - job: "collect portable tracing artifacts: [8.x, amd64]"
+      artifacts: false
+    - job: "collect portable component artifacts: [amd64]"
+      artifacts: false
+    - job: "collect portable runtime artifacts: [amd64]"
+      artifacts: false
+  script: "true"
+
+"cache portable cargo deps: [arm64]":
+  extends: .portable_build
+  needs:
+    - job: generate-templates
+      artifacts: true
+  variables:
+    ARCH: "arm64"
+    TRIPLET: "aarch64-unknown-linux-musl"
+  script:
+    - |
+      if [ -e "${CARGO_HOME}/.package-cache" ]; then
+        echo "WARNING: .package-cache was part of the cache and should not be"
+        rm -vf "${CARGO_HOME}/.package-cache"
+      fi
+      mkdir -p "${CARGO_HOME}"
+      cargo fetch -v --target "${TRIPLET}"
+      chmod -R 777 "${CARGO_HOME}"
+      rm -vf "${CARGO_HOME}/.package-cache"
+  cache:
+    - key:
+        prefix: cargo-cache-${TRIPLET}
+        files:
+          - Cargo.lock
+      paths:
+        - "${CARGO_HOME}"
+
+"compile portable tracing sidecar: [arm64]":
+  extends: .portable_build
+  needs:
+    - job: generate-templates
+      artifacts: true
+    - job: "prepare portable code"
+      artifacts: true
+    - job: "cache portable cargo deps: [arm64]"
+  variables:
+    ARCH: "arm64"
+    TRIPLET: "aarch64-unknown-linux-musl"
+    CARGO_BUILD_JOBS: 16
+    KUBERNETES_CPU_REQUEST: 16
+    KUBERNETES_MEMORY_REQUEST: 5Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
+  script: ./.gitlab/build-sidecar.sh
+  cache:
+    - key:
+        prefix: cargo-cache-${TRIPLET}
+        files:
+          - Cargo.lock
+      paths:
+        - "${CARGO_HOME}"
+      policy: pull
+  artifacts:
+    paths:
+      - "libdatadog_php_*.*"
+      - "php_sidecar_mockgen_*"
+
+.portable_profiler_arm64:
+  extends: .portable_profiler
+  needs:
+    - job: generate-templates
+      artifacts: true
+    - job: "prepare portable code"
+      artifacts: true
+    - job: "cache portable cargo deps: [arm64]"
+  variables:
+    ARCH: "arm64"
+    ARCHITECTURE: "aarch64"
+    TRIPLET: "aarch64-unknown-linux-musl"
+
+.portable_appsec_arm64:
+  extends: .portable_appsec
+  variables:
+    ARCH: "arm64"
+
+.portable_tracing_arm64:
+  extends: .portable_tracing
+  needs:
+    - job: generate-templates
+      artifacts: true
+    - job: "prepare portable code"
+      artifacts: true
+    - job: "compile portable tracing sidecar: [arm64]"
+      artifacts: true
+  variables:
+    ARCH: "arm64"
+
+.portable_loader_arm64:
+  extends: .portable_loader
+  variables:
+    ARCH: "arm64"
+
+"compile portable profiler extension: [7.1, arm64]":
+  extends: .portable_profiler_arm64
+  variables:
+    PHP_VERSION: "7.1"
+    ABI_NO: "20160303"
+
+"compile portable profiler extension: [7.2, arm64]":
+  extends: .portable_profiler_arm64
+  variables:
+    PHP_VERSION: "7.2"
+    ABI_NO: "20170718"
+
+"compile portable profiler extension: [7.3, arm64]":
+  extends: .portable_profiler_arm64
+  variables:
+    PHP_VERSION: "7.3"
+    ABI_NO: "20180731"
+
+"compile portable profiler extension: [7.4, arm64]":
+  extends: .portable_profiler_arm64
+  variables:
+    PHP_VERSION: "7.4"
+    ABI_NO: "20190902"
+
+"compile portable profiler extension: [8.0, arm64]":
+  extends: .portable_profiler_arm64
+  variables:
+    PHP_VERSION: "8.0"
+    ABI_NO: "20200930"
+
+"compile portable profiler extension: [8.1, arm64]":
+  extends: .portable_profiler_arm64
+  variables:
+    PHP_VERSION: "8.1"
+    ABI_NO: "20210902"
+
+"compile portable profiler extension: [8.2, arm64]":
+  extends: .portable_profiler_arm64
+  variables:
+    PHP_VERSION: "8.2"
+    ABI_NO: "20220829"
+
+"compile portable profiler extension: [8.3, arm64]":
+  extends: .portable_profiler_arm64
+  variables:
+    PHP_VERSION: "8.3"
+    ABI_NO: "20230831"
+
+"compile portable profiler extension: [8.4, arm64]":
+  extends: .portable_profiler_arm64
+  variables:
+    PHP_VERSION: "8.4"
+    ABI_NO: "20240924"
+
+"compile portable profiler extension: [8.5, arm64]":
+  extends: .portable_profiler_arm64
+  variables:
+    PHP_VERSION: "8.5"
+    ABI_NO: "20250925"
+
+"compile portable appsec extension: [7.0, arm64]":
+  extends: .portable_appsec_arm64
+  variables:
+    PHP_VERSION: "7.0"
+    ABI_NO: "20151012"
+
+"compile portable tracing extension: [7.0, arm64]":
+  extends: .portable_tracing_arm64
+  variables:
+    PHP_VERSION: "7.0"
+    ABI_NO: "20151012"
+
+"compile portable appsec extension: [7.1, arm64]":
+  extends: .portable_appsec_arm64
+  variables:
+    PHP_VERSION: "7.1"
+    ABI_NO: "20160303"
+
+"compile portable tracing extension: [7.1, arm64]":
+  extends: .portable_tracing_arm64
+  variables:
+    PHP_VERSION: "7.1"
+    ABI_NO: "20160303"
+
+"compile portable appsec extension: [7.2, arm64]":
+  extends: .portable_appsec_arm64
+  variables:
+    PHP_VERSION: "7.2"
+    ABI_NO: "20170718"
+
+"compile portable tracing extension: [7.2, arm64]":
+  extends: .portable_tracing_arm64
+  variables:
+    PHP_VERSION: "7.2"
+    ABI_NO: "20170718"
+
+"compile portable appsec extension: [7.3, arm64]":
+  extends: .portable_appsec_arm64
+  variables:
+    PHP_VERSION: "7.3"
+    ABI_NO: "20180731"
+
+"compile portable tracing extension: [7.3, arm64]":
+  extends: .portable_tracing_arm64
+  variables:
+    PHP_VERSION: "7.3"
+    ABI_NO: "20180731"
+
+"compile portable appsec extension: [7.4, arm64]":
+  extends: .portable_appsec_arm64
+  variables:
+    PHP_VERSION: "7.4"
+    ABI_NO: "20190902"
+
+"compile portable tracing extension: [7.4, arm64]":
+  extends: .portable_tracing_arm64
+  variables:
+    PHP_VERSION: "7.4"
+    ABI_NO: "20190902"
+
+"compile portable appsec extension: [8.0, arm64]":
+  extends: .portable_appsec_arm64
+  variables:
+    PHP_VERSION: "8.0"
+    ABI_NO: "20200930"
+
+"compile portable tracing extension: [8.0, arm64]":
+  extends: .portable_tracing_arm64
+  variables:
+    PHP_VERSION: "8.0"
+    ABI_NO: "20200930"
+
+"compile portable appsec extension: [8.1, arm64]":
+  extends: .portable_appsec_arm64
+  variables:
+    PHP_VERSION: "8.1"
+    ABI_NO: "20210902"
+
+"compile portable tracing extension: [8.1, arm64]":
+  extends: .portable_tracing_arm64
+  variables:
+    PHP_VERSION: "8.1"
+    ABI_NO: "20210902"
+
+"compile portable appsec extension: [8.2, arm64]":
+  extends: .portable_appsec_arm64
+  variables:
+    PHP_VERSION: "8.2"
+    ABI_NO: "20220829"
+
+"compile portable tracing extension: [8.2, arm64]":
+  extends: .portable_tracing_arm64
+  variables:
+    PHP_VERSION: "8.2"
+    ABI_NO: "20220829"
+
+"compile portable appsec extension: [8.3, arm64]":
+  extends: .portable_appsec_arm64
+  variables:
+    PHP_VERSION: "8.3"
+    ABI_NO: "20230831"
+
+"compile portable tracing extension: [8.3, arm64]":
+  extends: .portable_tracing_arm64
+  variables:
+    PHP_VERSION: "8.3"
+    ABI_NO: "20230831"
+
+"compile portable appsec extension: [8.4, arm64]":
+  extends: .portable_appsec_arm64
+  variables:
+    PHP_VERSION: "8.4"
+    ABI_NO: "20240924"
+
+"compile portable tracing extension: [8.4, arm64]":
+  extends: .portable_tracing_arm64
+  variables:
+    PHP_VERSION: "8.4"
+    ABI_NO: "20240924"
+
+"compile portable appsec extension: [8.5, arm64]":
+  extends: .portable_appsec_arm64
+  variables:
+    PHP_VERSION: "8.5"
+    ABI_NO: "20250925"
+
+"compile portable tracing extension: [8.5, arm64]":
+  extends: .portable_tracing_arm64
+  variables:
+    PHP_VERSION: "8.5"
+    ABI_NO: "20250925"
+
+"compile portable loader: [arm64]":
+  extends: .portable_loader_arm64
+
+"collect portable tracing artifacts: [7.x, arm64]":
+  extends: .portable_artifact_collection
+  variables:
+    ARCH: "arm64"
+  needs:
+    - job: "compile portable tracing extension: [7.0, arm64]"
+      artifacts: true
+    - job: "compile portable tracing extension: [7.1, arm64]"
+      artifacts: true
+    - job: "compile portable tracing extension: [7.2, arm64]"
+      artifacts: true
+    - job: "compile portable tracing extension: [7.3, arm64]"
+      artifacts: true
+    - job: "compile portable tracing extension: [7.4, arm64]"
+      artifacts: true
+  artifacts:
+    paths:
+      - "extensions_*"
+      - "standalone_*"
+
+"collect portable tracing artifacts: [8.x, arm64]":
+  extends: .portable_artifact_collection
+  variables:
+    ARCH: "arm64"
+  needs:
+    - job: "compile portable tracing extension: [8.0, arm64]"
+      artifacts: true
+    - job: "compile portable tracing extension: [8.1, arm64]"
+      artifacts: true
+    - job: "compile portable tracing extension: [8.2, arm64]"
+      artifacts: true
+    - job: "compile portable tracing extension: [8.3, arm64]"
+      artifacts: true
+    - job: "compile portable tracing extension: [8.4, arm64]"
+      artifacts: true
+    - job: "compile portable tracing extension: [8.5, arm64]"
+      artifacts: true
+  artifacts:
+    paths:
+      - "extensions_*"
+      - "standalone_*"
+
+"collect portable component artifacts: [arm64]":
+  extends: .portable_artifact_collection
+  variables:
+    ARCH: "arm64"
+  needs:
+    - job: "compile portable appsec extension: [7.0, arm64]"
+      artifacts: true
+    - job: "compile portable appsec extension: [7.1, arm64]"
+      artifacts: true
+    - job: "compile portable appsec extension: [7.2, arm64]"
+      artifacts: true
+    - job: "compile portable appsec extension: [7.3, arm64]"
+      artifacts: true
+    - job: "compile portable appsec extension: [7.4, arm64]"
+      artifacts: true
+    - job: "compile portable appsec extension: [8.0, arm64]"
+      artifacts: true
+    - job: "compile portable appsec extension: [8.1, arm64]"
+      artifacts: true
+    - job: "compile portable appsec extension: [8.2, arm64]"
+      artifacts: true
+    - job: "compile portable appsec extension: [8.3, arm64]"
+      artifacts: true
+    - job: "compile portable appsec extension: [8.4, arm64]"
+      artifacts: true
+    - job: "compile portable appsec extension: [8.5, arm64]"
+      artifacts: true
+    - job: "compile portable profiler extension: [7.1, arm64]"
+      artifacts: true
+    - job: "compile portable profiler extension: [7.2, arm64]"
+      artifacts: true
+    - job: "compile portable profiler extension: [7.3, arm64]"
+      artifacts: true
+    - job: "compile portable profiler extension: [7.4, arm64]"
+      artifacts: true
+    - job: "compile portable profiler extension: [8.0, arm64]"
+      artifacts: true
+    - job: "compile portable profiler extension: [8.1, arm64]"
+      artifacts: true
+    - job: "compile portable profiler extension: [8.2, arm64]"
+      artifacts: true
+    - job: "compile portable profiler extension: [8.3, arm64]"
+      artifacts: true
+    - job: "compile portable profiler extension: [8.4, arm64]"
+      artifacts: true
+    - job: "compile portable profiler extension: [8.5, arm64]"
+      artifacts: true
+  artifacts:
+    paths:
+      - "appsec_*"
+      - datadog-profiling
+
+"collect portable runtime artifacts: [arm64]":
+  extends: .portable_artifact_collection
+  variables:
+    ARCH: "arm64"
+  needs:
+    - job: "compile portable tracing sidecar: [arm64]"
+      artifacts: true
+    - job: "compile portable loader: [arm64]"
+      artifacts: true
+  artifacts:
+    paths:
+      - "libdatadog_php_*.so"
+      - "dd_library_loader-*.so"
+
+"portable builds complete: [arm64]":
+  stage: build
+  image: registry.ddbuild.io/images/mirror/alpine:3.21
+  tags: [ "arch:arm64" ]
+  variables:
+    GIT_STRATEGY: none
+  needs:
+    - job: "collect portable tracing artifacts: [7.x, arm64]"
+      artifacts: false
+    - job: "collect portable tracing artifacts: [8.x, arm64]"
+      artifacts: false
+    - job: "collect portable component artifacts: [arm64]"
+      artifacts: false
+    - job: "collect portable runtime artifacts: [arm64]"
+      artifacts: false
+  script: "true"

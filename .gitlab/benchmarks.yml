@@ -165,6 +165,9 @@ workflow:
   stage: benchmarks
   retry: *benchmarks-retry
   tags: ["runner:apm-k8s-tweaked-metal"]
+  # The external runner builds both candidate and baseline with
+  # -O2 -falign-functions=64 to reduce measurement noise. These are therefore
+  # benchmark-specific binaries, not ordinary release artifact consumers.
   needs: []
   image:
     name: $BASE_CI_IMAGE

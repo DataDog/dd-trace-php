@@ -201,12 +201,7 @@ elif [[ -n $PHP_DEBUG_BUILD ]]; then
     VERSION_SUFFIX="-debug"
 fi
 
-OS_SPECIFIER=""
-if [ -f "/etc/os-release" ] && $(grep -q 'Alpine Linux' "/etc/os-release") && [ "${VERSION_SUFFIX}" != "-zts" ]; then
-    OS_SPECIFIER="-alpine"
-fi
-
-EXTENSION_NAME="ddtrace-${PHP_VERSION}${VERSION_SUFFIX}${OS_SPECIFIER}.so"
+EXTENSION_NAME="ddtrace-${PHP_VERSION}${VERSION_SUFFIX}.so"
 EXTENSION_FILE_PATH="${EXTENSION_DIR}/${EXTENSION_NAME}"
 INI_FILE_CONTENTS=$(cat <<EOF
 [datadog]

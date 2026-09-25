@@ -39,10 +39,14 @@ const PRESET_JOBS = [
     'extension-aarch64-musl' => 'package extension: [arm64, aarch64-alpine-linux-musl]',
     'extension-windows'      => 'package extension windows',
     'extension-asan'         => 'package extension asan',
-    'link-tracing-amd64-gnu'    => 'link tracing extension: [amd64, x86_64-unknown-linux-gnu]',
-    'link-tracing-aarch64-gnu'  => 'link tracing extension: [arm64, aarch64-unknown-linux-gnu]',
-    'link-tracing-amd64-musl'   => 'link tracing extension: [amd64, x86_64-alpine-linux-musl]',
-    'link-tracing-aarch64-musl' => 'link tracing extension: [arm64, aarch64-alpine-linux-musl]',
+    'portable-tracing-7-amd64'  => 'collect portable tracing artifacts: [7.x, amd64]',
+    'portable-tracing-8-amd64'  => 'collect portable tracing artifacts: [8.x, amd64]',
+    'portable-tracing-7-arm64'  => 'collect portable tracing artifacts: [7.x, arm64]',
+    'portable-tracing-8-arm64'  => 'collect portable tracing artifacts: [8.x, arm64]',
+    'portable-components-amd64' => 'collect portable component artifacts: [amd64]',
+    'portable-components-arm64' => 'collect portable component artifacts: [arm64]',
+    'portable-runtime-amd64'    => 'collect portable runtime artifacts: [amd64]',
+    'portable-runtime-arm64'    => 'collect portable runtime artifacts: [arm64]',
 ];
 
 const PIPELINE_DISCOVERY_TIMEOUT = 300;

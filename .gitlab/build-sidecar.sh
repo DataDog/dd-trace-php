@@ -1,25 +1,34 @@
 #!/usr/bin/env bash
 set -e -o pipefail
 
-shopt -s expand_aliases
-source "${BASH_ENV}"
-
-if [ -d '/opt/rh/devtoolset-7' ] ; then
-    set +eo pipefail
-    source scl_source enable devtoolset-7
-    set -eo pipefail
-fi
 set -u
 
-suffix="${1:-}"
+architecture="$(uname -m)"
+rust_target="${architecture}-unknown-linux-musl"
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-target-portable}"
 
-# Workaround "error: failed to run custom build command for `aws-lc-sys v0.20.0`"
-if [ "${suffix}" = "-alpine" ]; then
-  cargo install --force --locked bindgen-cli
-  export PATH="/root/.cargo/bin:$PATH"
+# Build the Rust library once per architecture. Linking the musl target
+# dynamically, with a static unwind library, produces one library that can be
+# loaded by both glibc and musl processes.
+RUSTFLAGS='-C link-arg=/usr/lib/libunwind.a -C force-unwind-tables=yes' \
+  SHARED=1 PROFILE=tracer-release host_os=linux-musl \
+  ./compile_rust.sh \
+    --package datadog-php \
+    --package php_sidecar_mockgen \
+    -Z build-std=std,panic_abort \
+    -Z build-std-features=llvm-libunwind,backtrace
+
+library_dir="${CARGO_TARGET_DIR}/tracer-release"
+shared_library="libdatadog_php_${architecture}.so"
+cp -v "${library_dir}/libdatadog_php.a" \
+  "libdatadog_php_${architecture}.a"
+objcopy --compress-debug-sections \
+  "${library_dir}/libdatadog_php.so" \
+  "${shared_library}"
+if readelf --version-info "${shared_library}" | grep GLIBC_ >/dev/null; then
+  echo "${shared_library} is not portable: found a GLIBC symbol version" >&2
+  exit 1
 fi
-
-SHARED=1 PROFILE=tracer-release host_os="${HOST_OS}" ./compile_rust.sh
-cp -v "${CARGO_TARGET_DIR:-target}/tracer-release/libdatadog_php.a" "libdatadog_php_$(uname -m)${suffix}.a"
-output="libdatadog_php_$(uname -m)${suffix}.so"
-objcopy --compress-debug-sections "${CARGO_TARGET_DIR:-target}/tracer-release/libdatadog_php.so" "${output}"
+cp -v \
+  "${CARGO_TARGET_DIR}/${rust_target}/tracer-release/php_sidecar_mockgen" \
+  "php_sidecar_mockgen_${architecture}"

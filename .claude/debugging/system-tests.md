@@ -10,8 +10,8 @@ container. For build/run instructions see
 On Apple Silicon, use `--platform linux/arm64` (native). amd64
 emulation is too slow.
 
-- Build images are multi-arch:
-  `datadog/dd-trace-ci:php-<VER>_centos-7` works on arm64.
+- The portable release builder is multi-arch and is pinned in
+  `.gitlab/portable-builds.yml`.
 - `make` output goes to `extensions_aarch64/`,
   `standalone_aarch64/`.
 - The `php_fpm_packaging` image has **no arm64 variant**. For
@@ -20,9 +20,9 @@ emulation is too slow.
 
 ## Building ddtrace.so with Rust linked
 
-See [ci/building-locally.md](../ci/building-locally.md#for-system-tests-centos-7-release-like-build)
-for the build command, CARGO_HOME workaround, and `make` vs
-`make static` explanation.
+See
+[ci/building-locally.md](../ci/building-locally.md#for-system-tests-portable-release-build)
+for the build command and Cargo setup.
 
 First build: ~20 min (Rust sidecar). Incremental (C-only): ~1 min.
 The result is at

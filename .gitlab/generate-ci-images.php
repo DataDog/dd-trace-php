@@ -84,7 +84,6 @@ function parse_compose(string $path, array $env): array
 
 $dirs = [
     "Bookworm" => "dockerfiles/ci/bookworm",
-    "CentOS"   => "dockerfiles/ci/centos/7",
     "Alpine"   => "dockerfiles/ci/alpine_compile_extension",
     "Services" => "dockerfiles/services",
 ];

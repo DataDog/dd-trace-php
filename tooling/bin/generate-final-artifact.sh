@@ -57,10 +57,12 @@ for architecture in "${architectures[@]}"; do
     for php_api in "${php_apis[@]}"; do
         for full_target in "${targets[@]}"; do
             target=${full_target#*-}
-            alpine=$(if [[ $target == "linux-musl" ]]; then echo -alpine; fi)
             ext=$([[ $target == "windows" ]] && echo dll || echo so)
             for config in "${configs[@]}"; do
-                ddtrace_ext_path=./extensions_${architecture}/$(if [[ $target == "windows" ]]; then echo php_; fi)ddtrace-${php_api}${alpine}${config}.${ext}
+                if [[ $target == "linux-musl" && $config == *debug* ]]; then
+                    continue
+                fi
+                ddtrace_ext_path=./extensions_${architecture}/$(if [[ $target == "windows" ]]; then echo php_; fi)ddtrace-${php_api}${config}.${ext}
                 if [[ -f ${ddtrace_ext_path} ]]; then
                     rm -rf $tmp_folder
                     mkdir -p $tmp_folder_final
@@ -70,7 +72,7 @@ for architecture in "${architectures[@]}"; do
                     cp_with_dir ${ddtrace_ext_path} ${trace_base_dir}/ext/${php_api}/$(if [[ $target == "windows" ]]; then echo php_; fi)ddtrace${config}.${ext}
                     cp -r ./src ${trace_base_dir}
 
-                    profiling_ext_path=./datadog-profiling/${architecture}-${full_target}/lib/php/${php_api}/datadog-profiling${config}.${ext}
+                    profiling_ext_path=./datadog-profiling/${architecture}/lib/php/${php_api}/datadog-profiling${config}.${ext}
                     if [[ -f ${profiling_ext_path} ]]; then
                         profiling_base_dir=${tmp_folder_final}/dd-library-php/profiling
                         cp_with_dir ${profiling_ext_path} ${profiling_base_dir}/ext/${php_api}/datadog-profiling${config}.${ext}
@@ -82,7 +84,7 @@ for architecture in "${architectures[@]}"; do
                             ${profiling_base_dir}/
                     fi
 
-                    appsec_ext_path=./appsec_${architecture}/ddappsec-${php_api}${alpine}${config}.${ext}
+                    appsec_ext_path=./appsec_${architecture}/ddappsec-${php_api}${config}.${ext}
                     if [[ -f ${appsec_ext_path} ]]; then
                         appsec_base_dir=${tmp_folder_final}/dd-library-php/appsec
                         cp_with_dir ${appsec_ext_path} ${appsec_base_dir}/ext/$php_api/ddappsec${config}.${ext}
@@ -141,8 +143,8 @@ for architecture in "${architectures[@]}"; do
                 fi
                 if [[ $target == "linux-musl" ]]; then
                     mkdir -p ${tmp_folder_final_musl_trace}/ext/$php_api;
-                    cp ./extensions_${architecture}/ddtrace-$php_api-alpine.so ${tmp_folder_final_musl_trace}/ext/$php_api/ddtrace.so;
-                    cp ./extensions_${architecture}/ddtrace-$php_api-alpine-zts.so ${tmp_folder_final_musl_trace}/ext/$php_api/ddtrace-zts.so;
+                    cp ./extensions_${architecture}/ddtrace-$php_api.so ${tmp_folder_final_musl_trace}/ext/$php_api/ddtrace.so;
+                    cp ./extensions_${architecture}/ddtrace-$php_api-zts.so ${tmp_folder_final_musl_trace}/ext/$php_api/ddtrace-zts.so;
                 fi
                 if [[ $target == "windows" && ${php_api} -ge 20170718 && $architecture == "x86_64" ]]; then # Windows support starts on 7.2
                     mkdir -p ${tmp_folder_final_windows_trace}/ext/$php_api;
@@ -192,10 +194,10 @@ for architecture in "${architectures[@]}"; do
                           $tmp_folder_final_gnu/dd-library-php/profiling/ext/$version
 
                     cp -v \
-                        ./datadog-profiling/$architecture-unknown-linux-gnu/lib/php/$version/datadog-profiling.so \
+                        ./datadog-profiling/$architecture/lib/php/$version/datadog-profiling.so \
                         $tmp_folder_final_gnu/dd-library-php/profiling/ext/$version/datadog-profiling.so
                     cp -v \
-                        ./datadog-profiling/$architecture-unknown-linux-gnu/lib/php/$version/datadog-profiling-zts.so \
+                        ./datadog-profiling/$architecture/lib/php/$version/datadog-profiling-zts.so \
                         $tmp_folder_final_gnu/dd-library-php/profiling/ext/$version/datadog-profiling-zts.so
                 fi
 
@@ -204,10 +206,10 @@ for architecture in "${architectures[@]}"; do
                           $tmp_folder_final_musl/dd-library-php/profiling/ext/$version
 
                     cp -v \
-                        ./datadog-profiling/$architecture-alpine-linux-musl/lib/php/$version/datadog-profiling.so \
+                        ./datadog-profiling/$architecture/lib/php/$version/datadog-profiling.so \
                         $tmp_folder_final_musl/dd-library-php/profiling/ext/$version/datadog-profiling.so
                     cp -v \
-                        ./datadog-profiling/$architecture-alpine-linux-musl/lib/php/$version/datadog-profiling-zts.so \
+                        ./datadog-profiling/$architecture/lib/php/$version/datadog-profiling-zts.so \
                         $tmp_folder_final_musl/dd-library-php/profiling/ext/$version/datadog-profiling-zts.so
                 fi
             done
@@ -262,11 +264,11 @@ for architecture in "${architectures[@]}"; do
                     mkdir -p ${tmp_folder_final_musl_appsec}/ext/$php_api
 
                     cp \
-                        "./appsec_${architecture}/ddappsec-$php_api-alpine.so" \
+                        "./appsec_${architecture}/ddappsec-$php_api.so" \
                         "${tmp_folder_final_musl_appsec}/ext/$php_api/ddappsec.so"
 
                     cp \
-                        "./appsec_${architecture}/ddappsec-$php_api-alpine-zts.so" \
+                        "./appsec_${architecture}/ddappsec-$php_api-zts.so" \
                         "${tmp_folder_final_musl_appsec}/ext/$php_api/ddappsec-zts.so"
                 fi
             done

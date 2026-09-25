@@ -3,11 +3,18 @@
 include "generate-common.php";
 
 const FRANKENPHP_ALPINE_PHP_VERSION = "8.3.12";
+$portable_build_platforms = [
+    [
+        "arch" => "amd64",
+    ],
+    [
+        "arch" => "arm64",
+    ],
+];
 
 $build_platforms = [
     [
         "triplet" => "x86_64-alpine-linux-musl",
-        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-compile-extension-alpine-%s",
         "arch" => "amd64",
         "host_os" => "linux-musl",
         "targets" => [
@@ -16,7 +23,6 @@ $build_platforms = [
     ],
     [
       "triplet" => "aarch64-alpine-linux-musl",
-        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-compile-extension-alpine-%s",
         "arch" => "arm64",
         "host_os" => "linux-musl",
         "targets" => [
@@ -25,7 +31,6 @@ $build_platforms = [
     ],
     [
         "triplet" => "x86_64-unknown-linux-gnu",
-        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_centos-7",
         "arch" => "amd64",
         "host_os" => "linux-gnu",
         "targets" => [
@@ -36,7 +41,6 @@ $build_platforms = [
     ],
     [
         "triplet" => "aarch64-unknown-linux-gnu",
-        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_centos-7",
         "arch" => "arm64",
         "host_os" => "linux-gnu",
         "targets" => [
@@ -127,7 +131,6 @@ stages:
 variables:
   FF_ENABLE_BASH_EXIT_CODE_CHECK: "true"
   FF_USE_NEW_BASH_EVAL_STRATEGY: "true"
-  CARGO_HOME: "${CI_PROJECT_DIR}/.cache/cargo"
 
   # One pipeline injection package size ratchet
   OCI_PACKAGE_MAX_SIZE_BYTES: 150_000_000
@@ -182,144 +185,19 @@ requirements_json_test:
 # dd-trace-php release packaging
 "prepare code":
   stage: prepare
-  image: registry.ddbuild.io/images/mirror/composer:2
+  image: registry.ddbuild.io/images/mirror/alpine:3.21
   tags: [ "arch:amd64" ]
-  script:
-    - ./.gitlab/append-build-id.sh
-    # Upgrading composer
-    - composer self-update --no-interaction
-    # Installing dependencies with composer
-    - |
-      export COMPOSER_MEMORY_LIMIT=-1 # disable composer memory limit completely
-      composer update --no-interaction
-    # Compiling dd-tace-php files into single file
-    - make generate
-    # Showing folder containing generated files
-    - ls -al ${CI_PROJECT_DIR:-.}/src/bridge
+  variables:
+    GIT_STRATEGY: none
+  needs:
+    - pipeline: "$PARENT_PIPELINE_ID"
+      job: "prepare portable code"
+      artifacts: true
+  script: ls -al VERSION src/bridge/_generated*.php
   artifacts:
     paths:
       - VERSION
-      - ./src/bridge/_generated*.php
-
-<?php
-foreach ($build_platforms as $platform) {
-    $image = sprintf($platform['image_template'], "8.1");
-?>
-"cache cargo deps: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
-  stage: prepare
-  image: $IMAGE
-  tags: [ "arch:$ARCH" ]
-  variables:
-    TRIPLET: "<?= $platform['triplet'] ?>"
-    IMAGE: "<?= $image ?>"
-    ARCH: "<?= $platform['arch'] ?>"
-  script: |
-    if [ -e "${CARGO_HOME}/.package-cache" ] ; then
-        echo "WARNING: .package-cache was part of the cache and shouldn't be!"
-        rm -vf "${CARGO_HOME}/.package-cache"
-    fi
-
-    mkdir -p "${CARGO_HOME}"
-    cargo fetch -v --target "${TRIPLET}"
-    chmod -R 777 "${CARGO_HOME}"
-
-    # ensure the .package-cache isn't there
-    rm -vf "${CARGO_HOME}/.package-cache"
-  cache:
-    - key:
-        prefix: cargo-cache-${TRIPLET}
-        files:
-          - Cargo.lock
-      paths:
-        - "${CARGO_HOME}"
-
-<?php
-}
-
-foreach ($build_platforms as $platform) {
-    foreach ($profiler_minor_major_targets as $major_minor) {
-        $abi_no = $php_versions_to_abi[$major_minor]
-?>
-"compile profiler extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
-  stage: profiler
-  image: "<?= sprintf($platform['image_template'], $major_minor) ?>"
-  tags: [ "arch:$ARCH" ]
-  needs:
-    - job: "prepare code"
-      artifacts: true
-    - job: "cache cargo deps: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
-      artifacts: true
-  variables:
-    TRIPLET: "<?= $platform['triplet'] ?>"
-    ARCH: "<?= $platform['arch'] ?>"
-    ABI_NO: "<?= $abi_no ?>"
-    PHP_VERSION: "<?= $major_minor ?>"
-    CARGO_BUILD_JOBS: 12
-    KUBERNETES_CPU_REQUEST: 12
-    KUBERNETES_MEMORY_REQUEST: 4Gi
-    KUBERNETES_MEMORY_LIMIT: 8Gi
-  script:
-    - .gitlab/build-profiler.sh "datadog-profiling/${TRIPLET}/lib/php/${ABI_NO}" "nts"
-    - .gitlab/build-profiler.sh "datadog-profiling/${TRIPLET}/lib/php/${ABI_NO}" "zts"
-  cache:
-    - key:
-        prefix: cargo-cache-${TRIPLET}
-        files:
-          - Cargo.lock
-      paths:
-        - "${CARGO_HOME}"
-      policy: pull  # `Cache Cargo Deps` is used to update/push the cache
-  artifacts:
-    paths:
-      - "datadog-profiling"
-
-<?php
-    }
-}
-?>
-
-
-<?php
-foreach ($build_platforms as $platform) {
-    foreach ($php_versions_to_abi as $major_minor => $abi_no) {
-        $image = sprintf($platform['image_template'], $major_minor);
-        $suffix = ($platform['triplet'] === "x86_64-alpine-linux-musl" || $platform['triplet'] === "aarch64-alpine-linux-musl") ? "-alpine" : "";
-?>
-"compile appsec extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
-  stage: appsec
-  image: $IMAGE
-  tags: [ "arch:$ARCH" ]
-  needs: [ "prepare code" ]
-  variables:
-    IMAGE: "<?= $image ?>"
-    TRIPLET: "<?= $platform['triplet'] ?>"
-    ARCH: "<?= $platform['arch'] ?>"
-    ABI_NO: "<?= $abi_no ?>"
-    PHP_VERSION: "<?= $major_minor ?>"
-    MAKE_JOBS: 12
-    KUBERNETES_CPU_REQUEST: 12
-    KUBERNETES_MEMORY_REQUEST: 4Gi
-    KUBERNETES_MEMORY_LIMIT: 8Gi
-  script:
-    # Fix for $BASH_ENV not having a newline at the end of the file
-    - echo "" >> "$BASH_ENV"
-<?php
-if ($suffix == "-alpine") {
-?>
-    - apk add cmake gcc g++ git python3 autoconf coreutils
-<?php
- }
-?>
-    - .gitlab/build-appsec.sh <?= $suffix ?>
-
-  artifacts:
-    paths:
-      - "appsec_*"
-
-<?php
-    }
-}
-?>
+      - src/bridge/_generated*.php
 
 "pecl build":
   stage: tracing
@@ -334,20 +212,20 @@ if ($suffix == "-alpine") {
       - pecl
 
 <?php
-foreach ($build_platforms as $platform) {
+foreach ($portable_build_platforms as $platform) {
     foreach ($php_versions_to_abi as $major_minor => $abi_no) {
-        $image = sprintf($platform['image_template'], $major_minor);
-        $suffix = ($platform['triplet'] === "x86_64-alpine-linux-musl" || $platform['triplet'] === "aarch64-alpine-linux-musl") ? "-alpine" : "";
-        $catch_warnings = ($major_minor == "7.3" && $suffix != "-alpine") ? "0" : "1";
 ?>
-"compile tracing extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
+"compile tracing extension debug: [<?= $major_minor ?>, <?= $platform['arch'] ?>]":
   stage: tracing
-  image: $IMAGE
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-appsec-php-ci:php-buildonly-rust@sha256:a124ac9419796b60f637648eac9522f06e4257bd756b7844a41867371629d1c0"
   tags: [ "arch:$ARCH" ]
-  needs: [ "prepare code" ]
+  needs:
+    - job: "prepare code"
+      artifacts: true
+    - pipeline: "$PARENT_PIPELINE_ID"
+      job: "compile portable tracing sidecar: [<?= $platform['arch'] ?>]"
+      artifacts: true
   variables:
-    IMAGE: "<?= $image ?>"
-    TRIPLET: "<?= $platform['triplet'] ?>"
     ARCH: "<?= $platform['arch'] ?>"
     ABI_NO: "<?= $abi_no ?>"
     PHP_VERSION: "<?= $major_minor ?>"
@@ -355,136 +233,13 @@ foreach ($build_platforms as $platform) {
     KUBERNETES_CPU_REQUEST: 12
     KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
-  script:
-    # Fix for $BASH_ENV not having a newline at the end of the file
-    - echo "" >> "$BASH_ENV"
-    - ./.gitlab/build-tracing.sh "<?= $suffix ?>" "<?= $catch_warnings ?>"
+  script: ./.gitlab/build-tracing.sh debug
   artifacts:
     paths:
       - "extensions_*"
-      - "standalone_*"
-      - "ddtrace_*-fat.ldflags"
-      - "ddtrace_*-fat.sym"
 
 <?php
     }
-}
-?>
-
-<?php foreach ($arch_targets as $arch): ?>
-"aggregate tracing extension: [<?= $arch ?>]":
-  stage: tracing
-  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-7.4_bookworm-11"
-  tags: [ "arch:amd64" ]
-  script: ls ./
-  variables:
-    GIT_STRATEGY: none
-  needs:
-<?php
-    foreach ($build_platforms as $platform):
-        if ($platform["arch"] == $arch):
-            foreach ($all_minor_major_targets as $major_minor):
-?>
-    - job: "compile tracing extension: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>]"
-      artifacts: true
-<?php
-            endforeach;
-        endif;
-    endforeach;
-?>
-  artifacts:
-    paths:
-      - "extensions_*"
-      - "standalone_*"
-      - "ddtrace_*-fat.ldflags"
-      - "ddtrace_*-fat.sym"
-<?php
-endforeach;
-?>
-
-<?php
-foreach ($build_platforms as $platform) {
-    $image = sprintf($platform['image_template'], "8.1");
-    $suffix = ($platform['triplet'] === "x86_64-alpine-linux-musl" || $platform['triplet'] === "aarch64-alpine-linux-musl") ? "-alpine" : "";
-?>
-"compile tracing sidecar: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
-  stage: tracing
-  image: $IMAGE
-  tags: [ "arch:$ARCH" ]
-  needs:
-    - job: "prepare code"
-      artifacts: true
-    - job: "cache cargo deps: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
-      artifacts: true
-  variables:
-    IMAGE: "<?= $image ?>"
-    TRIPLET: "<?= $platform['triplet'] ?>"
-    ARCH: "<?= $platform['arch'] ?>"
-    HOST_OS: "<?= $platform['host_os'] ?>"
-<?php if ($platform['host_os'] === "linux-gnu"): ?>
-    CC: clang
-    CXX: clang++
-    CARGO_TARGET_<?= strtoupper(str_replace('-', '_', $platform['triplet'])) ?>_LINKER: clang
-<?php endif; ?>
-    CARGO_BUILD_JOBS: 16
-    KUBERNETES_CPU_REQUEST: 16
-    KUBERNETES_MEMORY_REQUEST: 5Gi
-    KUBERNETES_MEMORY_LIMIT: 8Gi
-  script:
-    - echo "" >> "$BASH_ENV"
-    - ./.gitlab/build-sidecar.sh "<?= $suffix ?>"
-  cache:
-    - key:
-        prefix: cargo-cache-${TRIPLET}
-        files:
-          - Cargo.lock
-      paths:
-        - "${CARGO_HOME}"
-      policy: pull  # `cache cargo deps` is used to update/push the cache
-  artifacts:
-    paths:
-      - "libdatadog_php_*.*"
-<?php
-}
-?>
-
-
-<?php
-foreach ($build_platforms as $platform) {
-    $image = sprintf($platform['image_template'], "8.1");
-    $suffix = ($platform['triplet'] === "x86_64-alpine-linux-musl" || $platform['triplet'] === "aarch64-alpine-linux-musl") ? "-alpine" : "";
-?>
-"link tracing extension: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
-  stage: tracing
-  image: $IMAGE
-  tags: [ "arch:$ARCH" ]
-  needs:
-    - job: "compile tracing sidecar: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
-      artifacts: true
-<?php
-foreach ($php_versions_to_abi as $major_minor => $abi_no) {
-?>
-    - job: "compile tracing extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
-      artifacts: true
-<?php
-}
-?>
-  variables:
-    IMAGE: "<?= $image ?>"
-    TRIPLET: "<?= $platform['triplet'] ?>"
-    ARCH: "<?= $platform['arch'] ?>"
-    ABI_NO: "<?= $abi_no ?>"
-    KUBERNETES_CPU_REQUEST: 12
-    KUBERNETES_MEMORY_REQUEST: 8Gi
-    KUBERNETES_MEMORY_LIMIT: 16Gi
-  script:
-    # Fix for $BASH_ENV not having a newline at the end of the file
-    - echo "" >> "$BASH_ENV"
-    - ./.gitlab/link-tracing-extension.sh "<?= $suffix ?>"
-  artifacts:
-    paths:
-      - "extensions_*"
-<?php
 }
 ?>
 
@@ -582,33 +337,6 @@ foreach ($windows_build_platforms as $platform) {
 }
 ?>
 
-<?php
-foreach ($build_platforms as $platform) {
-    $image = sprintf($platform['image_template'], "8.3");
-?>
-"compile loader: [<?= $platform['host_os'] ?>, <?= $platform['arch'] ?>]":
-  stage: tracing
-  image: $IMAGE
-  tags: [ "arch:$ARCH" ]
-  needs:
-    - job: "prepare code"
-      artifacts: true
-  variables:
-    IMAGE: "<?= $image ?>"
-    ARCH: "<?= $platform['arch'] ?>"
-    HOST_OS: "<?= $platform['host_os'] ?>"
-    MAKE_JOBS: 2
-  script:
-    # Fix for $BASH_ENV not having a newline at the end of the file
-    - echo "" >> "$BASH_ENV"
-    - ./.gitlab/build-loader.sh
-  artifacts:
-    paths:
-      - "dd_library_loader-*.so"
-<?php
-}
-?>
-
 .package_extension_base:
   stage: packaging
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php_fpm_packaging
@@ -620,36 +348,31 @@ foreach ($build_platforms as $platform) {
 <?php
 // The needs: graph is identical for every "package extension" job of a given
 // platform, whether it builds the native installers or the final bundles.
-$package_extension_needs = function (array $platform) use ($php_versions_to_abi, $profiler_minor_major_targets) {
+$package_extension_needs = function (array $platform) use ($php_versions_to_abi) {
 ?>
   needs:
     - job: "prepare code"
       artifacts: true
 
-    # Link tracing extension
-    - job: "link tracing extension: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+    # Parent-pipeline artifact needs are limited to five. The collector jobs
+    # relay the portable outputs without rebuilding them.
+    - pipeline: "$PARENT_PIPELINE_ID"
+      job: "collect portable tracing artifacts: [7.x, <?= $platform['arch'] ?>]"
       artifacts: true
-
-    # Compile tracing sidecar
-    - job: "compile tracing sidecar: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+    - pipeline: "$PARENT_PIPELINE_ID"
+      job: "collect portable tracing artifacts: [8.x, <?= $platform['arch'] ?>]"
+      artifacts: true
+    - pipeline: "$PARENT_PIPELINE_ID"
+      job: "collect portable component artifacts: [<?= $platform['arch'] ?>]"
       artifacts: true
 
 <?php
     foreach ($php_versions_to_abi as $major_minor => $abi_no) {
 ?>
-    # Compile appsec extension
-    - job: "compile appsec extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+<?php if ($platform['host_os'] === 'linux-gnu'): ?>
+    - job: "compile tracing extension debug: [<?= $major_minor ?>, <?= $platform['arch'] ?>]"
       artifacts: true
-<?php
-    }
-?>
-
-<?php
-    foreach ($profiler_minor_major_targets as $major_minor) {
-?>
-    # Profiler extension
-    - job: "compile profiler extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
-      artifacts: true
+<?php endif; ?>
 <?php
     }
 };
@@ -758,38 +481,19 @@ foreach ($asan_build_platforms as $platform) {
   needs:
     - job: "prepare code"
       artifacts: true
-    - job: "compile loader: [linux-gnu, <?= $arch ?>]"
+    - pipeline: "$PARENT_PIPELINE_ID"
+      job: "collect portable tracing artifacts: [7.x, <?= $arch ?>]"
       artifacts: true
-    - job: "compile loader: [linux-musl, <?= $arch ?>]"
+    - pipeline: "$PARENT_PIPELINE_ID"
+      job: "collect portable tracing artifacts: [8.x, <?= $arch ?>]"
       artifacts: true
-    - job: "aggregate tracing extension: [<?= $arch ?>]"
+    - pipeline: "$PARENT_PIPELINE_ID"
+      job: "collect portable component artifacts: [<?= $arch ?>]"
       artifacts: true
-<?php
-    foreach ($build_platforms as $platform):
-        if ($platform["arch"] == $arch):
-?>
-    - job: "compile tracing sidecar: [<?= $arch ?>, <?= $platform['triplet'] ?>]"
+    - pipeline: "$PARENT_PIPELINE_ID"
+      job: "collect portable runtime artifacts: [<?= $arch ?>]"
       artifacts: true
-<?php
-            foreach ($all_minor_major_targets as $major_minor):
-?>
-    - job: "compile appsec extension: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>]"
-      artifacts: true
-<?php
-            endforeach;
-?>
-
-<?php
-            foreach ($profiler_minor_major_targets as $major_minor):
-?>
-    - job: "compile profiler extension: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>]"
-      artifacts: true
-<?php
-            endforeach;
-        endif;
-    endforeach;
-endforeach;
-?>
+<?php endforeach; ?>
 
 "datadog-setup.php":
   stage: packaging
