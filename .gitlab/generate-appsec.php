@@ -233,6 +233,9 @@ foreach ($appsec_integration_targets as [$version, $variant]) {
     ABI_NO: "<?= $abi_no ?>"
   needs:
     - pipeline: "$PARENT_PIPELINE_ID"
+      job: "prepare portable code"
+      artifacts: true
+    - pipeline: "$PARENT_PIPELINE_ID"
       job: "compile portable tracing extension: [<?= $version ?>, amd64]"
       artifacts: true
     - pipeline: "$PARENT_PIPELINE_ID"
@@ -249,6 +252,9 @@ foreach ($appsec_integration_targets as [$version, $variant]) {
     targets: test8.3-release-ssi
     ABI_NO: "<?= $php_versions_to_abi['8.3'] ?>"
   needs:
+    - pipeline: "$PARENT_PIPELINE_ID"
+      job: "prepare portable code"
+      artifacts: true
     - pipeline: "$PARENT_PIPELINE_ID"
       job: "compile portable tracing extension: [8.3, amd64]"
       artifacts: true
@@ -349,6 +355,9 @@ foreach ($appsec_integration_targets as [$version, $variant]) {
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   tags: [ "docker-in-docker:amd64" ]
   needs:
+    - pipeline: "$PARENT_PIPELINE_ID"
+      job: "prepare portable code"
+      artifacts: true
     - pipeline: "$PARENT_PIPELINE_ID"
       job: "compile portable loader: [amd64]"
       artifacts: true
