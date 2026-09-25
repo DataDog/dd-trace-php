@@ -50,7 +50,21 @@ sleep 1
 FPM_PORT=19000
 NGINX_PORT=18080
 WWW_CONF_DIR=$(dirname -- "$(find /etc/php* -name www.conf | head -1)")
-FPM_BIN=${PHP_FPM_BIN:-php-fpm}
+# The Sury install path installs `php-fpm${PHP_VERSION}`, and only its own child process ever
+# refers to it by that name; an unversioned `php-fpm` does not exist on those images. Resolve it
+# here, and say so now rather than failing with "command not found" further down.
+FPM_BIN=${PHP_FPM_BIN:-}
+if [ -z "${FPM_BIN}" ]; then
+    for candidate in "php-fpm${PHP_VERSION}" php-fpm; do
+        if command -v "${candidate}" > /dev/null 2>&1; then
+            FPM_BIN=${candidate}
+            break
+        fi
+    done
+fi
+[ -n "${FPM_BIN}" ] || fail \
+    "no php-fpm binary found" \
+    "tried php-fpm${PHP_VERSION} and php-fpm; set PHP_FPM_BIN to override"
 
 cat > /tmp/fpm-thread-verify.conf <<CONF
 [global]
@@ -67,6 +81,7 @@ clear_env = no
 CONF
 mkdir -p /run/php
 nohup "${FPM_BIN}" -F -y /tmp/fpm-thread-verify.conf > /tmp/fpm-thread-verify.log 2>&1 &
+FPM_MASTER_PID=$!
 sleep 3
 
 cat > /tmp/nginx-thread-verify.conf <<NGX
@@ -96,18 +111,18 @@ echo "Thread-mode sidecar under privilege-dropping PHP-FPM"
 echo "Worker user: ${WORKER_USER} (uid ${WORKER_UID})"
 
 # ---------------------------------------------------------------- premise ----
-# Locate the FPM master by scanning /proc, so this needs no procps in the image.
-FPM_MASTER_PID=
-for proc in /proc/[0-9]*; do
-    [ -r "${proc}/cmdline" ] || continue
-    # Anchored: the master's argv[0] *starts* with this, whereas a pool worker reads
-    # "php-fpm: pool www" and an unrelated shell might merely mention the string.
-    if tr -d '\0' < "${proc}/cmdline" 2>/dev/null | grep -q '^php-fpm: master'; then
-        FPM_MASTER_PID=$(basename "${proc}")
-        break
-    fi
-done
-[ -n "${FPM_MASTER_PID}" ] || fail "could not find the php-fpm master process"
+# The pid of the master started above, not a /proc scan: install.sh leaves its own daemonized
+# master running, and a scan can pick that one instead. That daemon lost its listener thread to
+# daemonization, so every assertion below would be inspecting the wrong process.
+[ -n "${FPM_MASTER_PID}" ] || fail "the foreground php-fpm master was not started"
+[ -r "/proc/${FPM_MASTER_PID}/cmdline" ] || fail \
+    "the foreground php-fpm master (pid ${FPM_MASTER_PID}) is gone" \
+    "$(tail -20 /tmp/fpm-thread-verify.log 2>/dev/null)"
+# Anchored: the master's argv[0] *starts* with this, whereas a pool worker reads
+# "php-fpm: pool www".
+tr -d '\0' < "/proc/${FPM_MASTER_PID}/cmdline" | grep -q '^php-fpm: master' || fail \
+    "pid ${FPM_MASTER_PID} is not an fpm master" \
+    "argv0: $(tr -d '\0' < "/proc/${FPM_MASTER_PID}/cmdline")"
 
 # Effective uid is the second field of the Uid: line.
 master_uid=$(awk '/^Uid:/ {print $3}' "/proc/${FPM_MASTER_PID}/status")
