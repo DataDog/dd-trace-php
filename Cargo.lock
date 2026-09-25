@@ -2885,7 +2885,7 @@ dependencies = [
  "page_size",
  "portable-atomic",
  "rand 0.8.8",
- "schemars",
+ "schemars 0.8.21",
  "serde",
  "serde_json",
  "symbolic-common",
