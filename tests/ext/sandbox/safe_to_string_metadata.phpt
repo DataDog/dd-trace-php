@@ -57,7 +57,7 @@ $allTheTypes[0][1] = &$allTheTypes[0];
 call_user_func_array('meta_to_string', $allTheTypes);
 
 list($span) = dd_trace_serialize_closed_spans();
-unset($span['meta']['process_id'], $span['meta']['_dd.tags.process']);
+unset($span['meta']['process_id'], $span['meta']['_dd.tags.process'], $span['meta']['_dd.sdk.otlp_export']);
 $last = -1;
 foreach ($span['meta'] as $key => $value) {
     $index = (int)substr($key, 4);

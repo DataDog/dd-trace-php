@@ -87,6 +87,7 @@ Array
     [_dd.p.dm] => -0
     [_dd.p.tid] => %s
     [_dd.runtime_family] => php
+    [_dd.sdk.otlp_export] => false
     [appsec.event] => true
     [http.endpoint] => /foo
     [http.method] => GET
