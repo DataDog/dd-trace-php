@@ -243,6 +243,73 @@ static int zai_interceptor_declare_class_delayed_handler(zend_execute_data *exec
 typedef int (ZEND_FASTCALL *zend_vm_opcode_handler_t)(zend_execute_data *execute_data);
 static zend_vm_opcode_handler_t zai_interceptor_handlers[256];
 
+// PHP's hybrid VM keeps its frame and instruction pointers in callee-saved
+// registers. Set them explicitly around the nested VM call because an ordinary
+// C wrapper may use those registers for its own locals.
+#if defined(__GNUC__) && defined(__linux__) && defined(__x86_64__)
+__attribute__((visibility("hidden"))) int zai_interceptor_call_vm_handler(
+    zend_execute_data *execute_data, zend_vm_opcode_handler_t handler);
+__asm__(".text\n"
+        ".globl zai_interceptor_call_vm_handler\n"
+        ".hidden zai_interceptor_call_vm_handler\n"
+        ".type zai_interceptor_call_vm_handler, @function\n"
+        "zai_interceptor_call_vm_handler:\n"
+        ".cfi_startproc\n"
+        "pushq %r14\n"
+        ".cfi_adjust_cfa_offset 8\n"
+        ".cfi_offset %r14, -16\n"
+        "pushq %r15\n"
+        ".cfi_adjust_cfa_offset 8\n"
+        ".cfi_offset %r15, -24\n"
+        "subq $8, %rsp\n"
+        ".cfi_adjust_cfa_offset 8\n"
+        "movq %rdi, %r14\n"
+        "movq (%rdi), %r15\n"
+        "callq *%rsi\n"
+        "addq $8, %rsp\n"
+        ".cfi_adjust_cfa_offset -8\n"
+        "popq %r15\n"
+        ".cfi_adjust_cfa_offset -8\n"
+        ".cfi_restore %r15\n"
+        "popq %r14\n"
+        ".cfi_adjust_cfa_offset -8\n"
+        ".cfi_restore %r14\n"
+        "retq\n"
+        ".cfi_endproc\n"
+        ".size zai_interceptor_call_vm_handler, .-zai_interceptor_call_vm_handler\n");
+#elif defined(__GNUC__) && defined(__linux__) && defined(__aarch64__)
+__attribute__((visibility("hidden"))) int zai_interceptor_call_vm_handler(
+    zend_execute_data *execute_data, zend_vm_opcode_handler_t handler);
+__asm__(".text\n"
+        ".globl zai_interceptor_call_vm_handler\n"
+        ".hidden zai_interceptor_call_vm_handler\n"
+        ".type zai_interceptor_call_vm_handler, %function\n"
+        "zai_interceptor_call_vm_handler:\n"
+        ".cfi_startproc\n"
+        "stp x27, x28, [sp, #-32]!\n"
+        ".cfi_adjust_cfa_offset 32\n"
+        ".cfi_offset x27, -32\n"
+        ".cfi_offset x28, -24\n"
+        "str x30, [sp, #16]\n"
+        ".cfi_offset x30, -16\n"
+        "mov x27, x0\n"
+        "ldr x28, [x0]\n"
+        "blr x1\n"
+        "ldr x30, [sp, #16]\n"
+        ".cfi_restore x30\n"
+        "ldp x27, x28, [sp], #32\n"
+        ".cfi_adjust_cfa_offset -32\n"
+        ".cfi_restore x27\n"
+        ".cfi_restore x28\n"
+        "ret\n"
+        ".cfi_endproc\n"
+        ".size zai_interceptor_call_vm_handler, .-zai_interceptor_call_vm_handler\n");
+#else
+static int zai_interceptor_call_vm_handler(zend_execute_data *execute_data, zend_vm_opcode_handler_t handler) {
+    return handler(execute_data);
+}
+#endif
+
 // Alternative implementation when a JIT is active. We have no choice but be a noisy neighbor in this case (on PHP 8.0 at least)
 // Given that the JIT tracing VM very strongly wants to read some data at some (per op_array) offset (see zend_jit_op_array_trace_extension), an
 // offset we are unable to access from here (lacking visibility).
@@ -250,7 +317,7 @@ static zend_vm_opcode_handler_t zai_interceptor_handlers[256];
 static int zai_interceptor_declare_jit_handler(zend_execute_data *execute_data) {
     zend_op *orig_opline = EX(opline);
     zend_string *lcname = Z_STR_P(RT_CONSTANT(orig_opline, orig_opline->op1));
-    zai_interceptor_handlers[orig_opline->opcode](execute_data);
+    zai_interceptor_call_vm_handler(execute_data, zai_interceptor_handlers[orig_opline->opcode]);
     if (orig_opline->opcode == ZEND_DECLARE_FUNCTION) {
         zend_function *function = zend_hash_find_ptr(CG(function_table), lcname);
         if (function) {
