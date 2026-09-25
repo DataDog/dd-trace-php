@@ -254,9 +254,9 @@ generate-final-artifact.sh VERSION OUTPUT_DIR PROJECT_ROOT
 - `OUTPUT_DIR` — where to write the tarball (e.g. `build/packages`)
 - `PROJECT_ROOT` — repo root (for PHP stub files in `src/`, `ext/`)
 
-Set `TRIPLET` to limit assembly to one platform (e.g.
-`x86_64-unknown-linux-gnu`). Without it, the script tries all
-platforms and fails if artifacts are missing.
+Set `BUNDLE_ARCH` to limit assembly to one Linux architecture (for example,
+`x86_64`). Without it, the script tries all platforms and fails if artifacts
+are missing.
 
 **Prerequisites:** the script expects these directories to contain
 compiled `.so` files:
@@ -275,8 +275,9 @@ system tests.
 
 **Release naming is shared by platform.** Both GNU/glibc and Alpine/musl use
 `ddtrace-{API}.so` and `ddtrace-{API}-zts.so`. Debug and debug-ZTS extensions
-exist only for glibc packages. AppSec release extensions likewise have no
-platform suffix.
+are built separately from the release variants; debug NTS is included in the
+portable Linux bundle, while ASAN debug-ZTS remains separate. AppSec release
+extensions likewise have no platform suffix.
 
 The script only needs basic shell tools (`cp`, `tar`, `mkdir`).
 The `php_fpm_packaging` image is used in CI because the same job
@@ -299,7 +300,7 @@ The `php_fpm_packaging` image has entrypoint `["bash"]`, so pass
 .claude/ci/dockerh --cache pkg-amd64-gnu --overlayfs \
   datadog/dd-trace-ci:php_fpm_packaging -- -c '
 set -e
-TRIPLET=x86_64-unknown-linux-gnu \
+BUNDLE_ARCH=x86_64 \
   ./tooling/bin/generate-final-artifact.sh \
   $(<VERSION) "build/packages" "${PWD}"
 '
@@ -308,7 +309,7 @@ TRIPLET=x86_64-unknown-linux-gnu \
 ```
 
 Output in `build/packages/`:
-- `dd-library-php-<version>-x86_64-linux-gnu.tar.gz`
+- `dd-library-php-<version>-x86_64-linux.tar.gz`
 - `datadog-setup.php`
 
 To also build `.deb`/`.rpm` packages (full CI equivalent), add the
@@ -319,7 +320,7 @@ fpm targets before the tarball assembly in the same dockerh session:
   datadog/dd-trace-ci:php_fpm_packaging -- -c '
 set -e
 make -j 4 .rpm.x86_64 .deb.x86_64 .tar.gz.x86_64
-TRIPLET=x86_64-unknown-linux-gnu \
+BUNDLE_ARCH=x86_64 \
   ./tooling/bin/generate-final-artifact.sh \
   $(<VERSION) "build/packages" "${PWD}"
 '
@@ -339,7 +340,7 @@ cross-built on amd64 (architecture is just a metadata field in fpm).
 ```bash
 .claude/ci/dockerh --cache pkg-arm64-gnu --overlayfs \
   ubuntu:24.04 \
-  -e TRIPLET=aarch64-unknown-linux-gnu \
+  -e BUNDLE_ARCH=aarch64 \
   -- bash -c '
 set -e
 ./tooling/bin/generate-final-artifact.sh \

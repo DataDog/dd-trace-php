@@ -43,8 +43,8 @@ matrix expansions `System Tests: [php-fpm-8.5]: [TESTSUITE]`.
 
 All system-tests jobs `needs:` three upstream jobs:
 
-1. `package extension: [amd64, x86_64-unknown-linux-gnu]` -- produces
-   `packages/dd-library-php-*-x86_64-linux-gnu.tar.gz`
+1. `package extension (bundles): [amd64]` -- produces
+   `packages/dd-library-php-*-x86_64-linux.tar.gz`
 2. `datadog-setup.php` -- produces `packages/datadog-setup.php`
 3. `prepare code` -- runs `composer update` + `make generate`
 
@@ -99,7 +99,7 @@ The system tests need two artifacts in the `binaries/` directory of the
 `system-tests` checkout:
 
 - `datadog-setup.php`
-- `dd-library-php-<version>-x86_64-linux-gnu.tar.gz`
+- `dd-library-php-<version>-x86_64-linux.tar.gz`
 
 Build them from the working tree. Before starting, ensure submodules are
 initialised (see
@@ -175,7 +175,7 @@ git clone https://github.com/DataDog/system-tests.git
 mkdir -p system-tests/binaries
 
 # From a .tar.gz package (full or slim):
-cp dd-library-php-*-linux-gnu.tar.gz system-tests/binaries/
+cp dd-library-php-*-linux.tar.gz system-tests/binaries/
 cp datadog-setup.php system-tests/binaries/
 ```
 
