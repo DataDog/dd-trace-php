@@ -22,6 +22,37 @@ $asan_minor_major_targets = array_values(array_filter($all_minor_major_targets, 
 $windows_minor_major_targets = array_values(array_filter($all_minor_major_targets, function($v) { return version_compare($v, "7.2", ">="); }));
 $profiler_minor_major_targets = array_values(array_filter($all_minor_major_targets, function($v) { return version_compare($v, "7.1", ">="); }));
 
+function fabric_no_proxy_additions(): string
+{
+    $entries = [
+        "github.com",
+        "static.rust-lang.org",
+        ".us1.ddbuild.io",
+        ".prod.dog",
+        ".us1.release.mgmt.dog",
+    ];
+
+    // A job annotation replaces the runner-generated annotation, including its
+    // service aliases. Preserve every alias declared in this generator.
+    preg_match_all(
+        '/^\s+alias:\s*["\']?([A-Za-z0-9][A-Za-z0-9.-]*)["\']?\s*$/m',
+        file_get_contents(__FILE__),
+        $matches
+    );
+
+    return implode(",", array_merge($entries, array_unique($matches[1])));
+}
+
+function appsec_fabric_no_proxy_additions(): string
+{
+    return implode(",", [
+        "static.rust-lang.org",
+        ".us1.ddbuild.io",
+        ".prod.dog",
+        ".us1.release.mgmt.dog",
+    ]);
+}
+
 // In GitLab CI we use k8s and have to bind to `127.0.0.1`
 $service_bind_address = "0.0.0.0";
 
@@ -82,7 +113,7 @@ function windows_git_setup() {
 
     # Initialize submodules
     Write-Host "Initializing submodules..."
-    git submodule update --init --recursive
+    git submodule update --init --recursive -- libdatadog tests/FeatureFlags/ffe-system-test-data appsec/third_party/libddwaf-rust
     if ($LASTEXITCODE -ne 0) { exit 75 }  # transient network (submodule fetch); 75 triggers default retry
     Write-Host "Git setup complete."
 <?php

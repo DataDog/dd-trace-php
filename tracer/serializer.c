@@ -1329,7 +1329,7 @@ void transfer_metrics_data(ddog_SpanBytes *source, ddog_SpanBytes *destination, 
     }
 }
 
-ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_TraceBytes *trace) {
+ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_TraceBytes *trace, bool p0_trace) {
     zend_array *meta = ddtrace_property_array(&span->property_meta);
     zend_array *metrics = ddtrace_property_array(&span->property_metrics);
 
@@ -1399,8 +1399,7 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
         profiling_notify_trace_finished(span->span_id, type, resource);
     }
 
-    // Determine sampling before allocating the rust span to avoid unnecessary work.
-    bool p0_trace = ddtrace_fetch_priority_sampling_from_span(span->root) <= 0;
+    // Apply per-span sampling to the trace sampling decision snapshotted for this chunk.
     bool span_sampling_applied = false;
     double span_sampling_rate = 1.0;
     double span_sampling_max_per_second = 0.0;
@@ -1867,7 +1866,7 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
     }
 
     if (inferred_span) {
-        ddog_SpanBytes *serialized_inferred_span = ddtrace_serialize_span_to_rust_span(inferred_span, trace);
+        ddog_SpanBytes *serialized_inferred_span = ddtrace_serialize_span_to_rust_span(inferred_span, trace, p0_trace);
         rust_span = ddog_get_span(trace, rust_span_index);
 
         transfer_metrics_data(rust_span, serialized_inferred_span, "_dd.agent_psr", true);

@@ -6,6 +6,9 @@ include "generate-common.php";
 stages:
   - test
 
+variables:
+  KUBERNETES_POD_ANNOTATIONS_2: "beta.fabric.datadoghq.com/no-proxy-additions=<?= fabric_no_proxy_additions() ?>"
+
 .all_profiler_targets: &all_profiler_targets
 <?php
 foreach ($profiler_minor_major_targets as $version) {
