@@ -353,6 +353,13 @@ impl Service {
     ) -> anyhow::Result<()> {
         debug!("Applying config for runtime id {}", cfg_dir.runtime_id()?);
 
+        if cfg_dir.replaced() {
+            // Reload reused paths. Keep the keys so removed configs are still detected.
+            for shm_path in state.last_configs.values_mut() {
+                shm_path.clear();
+            }
+        }
+
         // map rc path -> shm path
         // the shm path only changes if the contents of the config changes
         let new_configs = cfg_dir

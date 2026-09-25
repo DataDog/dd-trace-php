@@ -2,7 +2,7 @@ use datadog_sidecar::config::{self, AppSecConfig, LogMethod};
 use datadog_sidecar::service::blocking::{acquire_exception_hash_rate_limiter, SidecarTransport};
 use datadog_sidecar::service::exception_hash_rate_limiter::ExceptionHashRateLimiter;
 use datadog_sidecar::tracer::shm_limiter_path;
-use lazy_static::{lazy_static, LazyStatic};
+use lazy_static::lazy_static;
 use libdd_common::rate_limiter::{Limiter, LocalLimiter};
 use libdd_common::Endpoint;
 use libdd_common_ffi::slice::AsBytes;
@@ -17,9 +17,8 @@ use std::ops::DerefMut;
 use std::os::unix::ffi::OsStrExt;
 #[cfg(target_os = "macos")]
 use std::sync::atomic::{AtomicI32, Ordering};
-use std::sync::Mutex;
+use std::sync::{LazyLock, Mutex};
 use std::time::Duration;
-use tracing::warn;
 
 #[cfg(php_shared_build)]
 fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
@@ -268,13 +267,7 @@ pub extern "C" fn datadog_sidecar_reconnect(
     transport: &mut Box<SidecarTransport>,
     factory: unsafe extern "C" fn() -> Option<Box<SidecarTransport>>,
 ) -> bool {
-    transport.reconnect(|| unsafe {
-        let sidecar = factory();
-        if sidecar.is_some() {
-            LazyStatic::initialize(&SHM_LIMITER);
-        }
-        sidecar
-    })
+    transport.reconnect(|| unsafe { factory() })
 }
 
 #[no_mangle]
@@ -290,24 +283,11 @@ pub extern "C" fn datadog_sidecar_clear_reconnect_fn(transport: &mut Box<Sidecar
     transport.reconnect_fn = None;
 }
 
-lazy_static! {
-    pub static ref SHM_LIMITER: Option<ShmLimiterMemory<()>> =
-        ShmLimiterMemory::open(&shm_limiter_path()).map_or_else(
-            |e| {
-                warn!("Attempt to use the SHM_LIMITER failed: {e:?}");
-                None
-            },
-            Some
-        );
-    pub static ref EXCEPTION_HASH_LIMITER: Option<ExceptionHashRateLimiter> =
-        ExceptionHashRateLimiter::open().map_or_else(
-            |e| {
-                warn!("Attempt to use the EXCEPTION_HASH_LIMITER failed: {e:?}");
-                None
-            },
-            Some
-        );
-}
+static SHM_LIMITER: LazyLock<ShmLimiterMemory<()>> =
+    LazyLock::new(|| ShmLimiterMemory::new_reader(shm_limiter_path()));
+
+static EXCEPTION_HASH_LIMITER: LazyLock<ExceptionHashRateLimiter> =
+    LazyLock::new(ExceptionHashRateLimiter::new_reader);
 
 pub struct MaybeShmLimiter(Option<AnyLimiter>);
 
@@ -316,10 +296,12 @@ impl MaybeShmLimiter {
         MaybeShmLimiter(if index == 0 {
             None
         } else {
-            match &*SHM_LIMITER {
-                Some(limiter) => limiter.get(index).map(AnyLimiter::Shm),
-                None => Some(AnyLimiter::Local(LocalLimiter::default())),
-            }
+            Some(
+                SHM_LIMITER
+                    .get(index)
+                    .map(AnyLimiter::Shm)
+                    .unwrap_or_else(|| AnyLimiter::Local(LocalLimiter::default())),
+            )
         })
     }
 
@@ -343,15 +325,10 @@ pub extern "C" fn ddog_exception_hash_limiter_inc(
     hash: u64,
     granularity_seconds: u32,
 ) -> bool {
-    if let Some(limiter) = &*EXCEPTION_HASH_LIMITER {
-        if let Some(limiter) = limiter.find(hash) {
-            return limiter.inc();
-        }
+    if let Some(limiter) = EXCEPTION_HASH_LIMITER.find(hash) {
+        return limiter.inc();
     }
-    let _ = acquire_exception_hash_rate_limiter(
-        connection,
-        hash,
-        Duration::from_secs(granularity_seconds as u64),
-    );
+    let granularity = Duration::from_secs(granularity_seconds as u64);
+    let _ = acquire_exception_hash_rate_limiter(connection, hash, granularity);
     true
 }

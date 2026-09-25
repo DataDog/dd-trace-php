@@ -490,6 +490,14 @@ typedef struct ddog_InstanceId ddog_InstanceId;
 
 typedef struct ddog_MaybeShmLimiter ddog_MaybeShmLimiter;
 
+/**
+ * Owned (serializable) version of [`ShmSpanInput`].
+ *
+ * The IPC fallback sends this to the sidecar, which creates the concentrator if needed
+ * and adds the span.
+ */
+typedef struct ddog_OwnedShmSpanInput ddog_OwnedShmSpanInput;
+
 typedef struct ddog_ProbeCondition ddog_ProbeCondition;
 
 typedef struct ddog_ProbeValue ddog_ProbeValue;
@@ -513,16 +521,7 @@ typedef struct ddog_SidecarTransport ddog_SidecarTransport;
  */
 typedef struct ddog_SignalFlush ddog_SignalFlush;
 /**
- * Opaque shared-memory span stats concentrator exposed to C.
- *
- * Always heap-allocated (as a `Box`) — C holds a raw pointer and must pass it back to
- * `ddog_span_concentrator_drop` to free.
- *
- * When `inner` is `None` this is a *virtual* concentrator: the SHM has not been created by the
- * sidecar yet, but peer-tag keys and span-kinds from `DESIRED_CONFIG` are still available so the
- * C callback can run eligibility checks and extract peer tags.  A virtual concentrator is always
- * considered stale (`needs_refresh` returns `true`) so it will be upgraded to a real one on the
- * next call once the SHM becomes available.
+ * Cached stats reader and metadata borrowed by C during `ddog_span_concentrator_with`.
  */
 typedef struct ddog_SpanConcentrator ddog_SpanConcentrator;
 

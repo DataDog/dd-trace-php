@@ -10,6 +10,21 @@
 #include <stdio.h>
 #include "common.h"
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #if defined(_WIN32)
 bool ddog_setup_crashtracking(const struct ddog_Endpoint *endpoint, ddog_crasht_Metadata metadata);
 #endif

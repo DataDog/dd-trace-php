@@ -1216,6 +1216,7 @@ name = "datadog-php"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "arc-swap",
  "bincode",
  "bindgen",
  "cbindgen 0.27.0",
@@ -2108,6 +2109,7 @@ dependencies = [
  "futures",
  "libc 0.2.186",
  "libdd-common",
+ "libdd-ipc",
  "libdd-remote-config",
  "libdd-telemetry",
  "libddwaf",
@@ -3024,6 +3026,7 @@ name = "libdd-ipc"
 version = "2.0.0"
 dependencies = [
  "anyhow",
+ "arc-swap",
  "bincode",
  "criterion",
  "glibc_version",

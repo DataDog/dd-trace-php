@@ -123,6 +123,8 @@ static ddog_SidecarTransport *datadog_sidecar_connect_callback(void) {
 }
 
 static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_fork, const char *logpath) {
+    ddog_span_concentrators_clear();
+
     if (!datadog_ffi_try("Failed starting AppSec in sidecar",
             ddog_sidecar_ensure_appsec_started(transport))) {
         LOG(WARN, "AppSec sidecar backend is unavailable");
