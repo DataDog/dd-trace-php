@@ -397,6 +397,29 @@ pub struct Shmem {
     size: usize, // mapped size
 }
 
+/// Require a POSIX shared-memory name: one leading slash and one component, other than `.` or `..`.
+fn validate_shm_name(path: &Path) -> anyhow::Result<()> {
+    let bytes = path.as_os_str().as_bytes();
+    anyhow::ensure!(
+        bytes.first() == Some(&b'/'),
+        "shared-memory name must start with '/': {path:?}"
+    );
+    let name = &bytes[1..];
+    anyhow::ensure!(
+        !name.is_empty(),
+        "shared-memory name must have a basename: {path:?}"
+    );
+    anyhow::ensure!(
+        !name.contains(&b'/'),
+        "shared-memory name must not contain an interior '/': {path:?}"
+    );
+    anyhow::ensure!(
+        name != b"." && name != b"..",
+        "invalid shared-memory basename: {path:?}"
+    );
+    Ok(())
+}
+
 impl Shmem {
     fn new(path: &Path) -> Self {
         Shmem {
@@ -411,6 +434,10 @@ impl Shmem {
         if self.fd.is_some() {
             return Ok(());
         }
+
+        // CentOS 7's glibc accepts interior slashes, allowing traversal out of /dev/shm. Validate
+        // worker-supplied names before passing them to libc.
+        validate_shm_name(&self.path)?;
 
         debug!("Opening shared memory file {:?}", self.path);
         let path_cstr = CString::new(self.path.as_os_str().as_bytes())
@@ -539,6 +566,19 @@ mod tests {
     use std::ffi::CString;
     use std::os::fd::{AsFd, AsRawFd, BorrowedFd};
     use std::os::unix::ffi::OsStrExt;
+
+    #[test]
+    fn validate_shm_name_accepts_legit_and_rejects_traversal() {
+        // Names the sidecar actually generates: a leading slash and one component.
+        assert!(validate_shm_name(Path::new("/ddrc0-AbC_-9")).is_ok());
+        assert!(validate_shm_name(Path::new("/ddpathreview-1234")).is_ok());
+        assert!(validate_shm_name(Path::new("/../../proc/self/fd/7/private.txt")).is_err());
+        assert!(validate_shm_name(Path::new("/a/b")).is_err());
+        assert!(validate_shm_name(Path::new("relative")).is_err());
+        assert!(validate_shm_name(Path::new("/")).is_err());
+        assert!(validate_shm_name(Path::new("/..")).is_err());
+        assert!(validate_shm_name(Path::new("/.")).is_err());
+    }
 
     fn shm_create_and_write(name: &str, content: &[u8]) -> anyhow::Result<()> {
         let c_name = CString::new(name.as_bytes()).unwrap();

@@ -146,10 +146,11 @@ int datadog_log_with_time(int fd, const char *msg, int msg_len) {
     if (last_check < (uintmax_t)now - 60) { // 1x/min
         char pathbuf[MAXPATHLEN];
         if (datadog_get_fd_path(fd, pathbuf) >= 0) {
-            int new_fd = VCWD_OPEN_MODE(pathbuf, O_RDWR | O_APPEND, 0666);
+            // datadog_get_fd_path() is always absolute, so we can bypass VCWD_OPEN_MODE.
+            int new_fd = open(pathbuf, O_RDWR | O_APPEND, 0666);
             if (new_fd < 0) {
                 // Retry with CREAT to only apply fchmod() on CREAT
-                new_fd = VCWD_OPEN_MODE(pathbuf, O_CREAT | O_RDWR | O_APPEND, 0666);
+                new_fd = open(pathbuf, O_CREAT | O_RDWR | O_APPEND, 0666);
 #ifndef _WIN32
                 fchmod(new_fd, 0666); // ignore umask
 #endif
@@ -222,8 +223,18 @@ static void dd_log_callback(ddog_CharSlice msg) {
 }
 
 
+// Sidecar threads have no PHP request state, so they cannot use php_log_err() or zend_bailout().
+// Drop messages when no log file is configured.
+static void dd_log_callback_off_thread(ddog_CharSlice msg) {
+    int error_log_fd = atomic_load(&datadog_error_log_fd);
+    if (error_log_fd != -1) {
+        datadog_log_with_time(error_log_fd, (char *)msg.ptr, (int)msg.len);
+    }
+}
+
 void datadog_log_init(void) {
     ddog_log_callback = dd_log_callback;
+    ddog_log_callback_off_thread = dd_log_callback_off_thread;
 }
 
 bool datadog_alter_dd_trace_debug(zval *old_value, zval *new_value, zend_string *new_str) {
