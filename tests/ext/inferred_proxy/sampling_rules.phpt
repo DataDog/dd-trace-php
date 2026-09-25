@@ -48,23 +48,22 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
         "resource": "GET \/foo",
         "service": "foo",
         "type": "web",
-        "meta": {
-            "_dd.p.ksr": "0.3",
-            "http.method": "GET",
-            "http.status_code": "200",
-            "http.url": "http:\/\/localhost:8888\/foo",
+        "span_kind": 2,
+        "attributes": {
             "runtime-id": "%s",
-            "span.kind": "server"
-        },
-        "metrics": {
+            "http.url": "http:\/\/localhost:8888\/foo",
+            "http.method": "GET",
+            "process_id": %d,
+            "_dd.p.ksr": "0.3",
+            "http.status_code": "200",
             "php.compilation.total_time_ms": %f,
-            "php.memory.peak_real_usage_bytes": %d,
             "php.memory.peak_usage_bytes": %d,
-            "process_id": %d
+            "php.memory.peak_real_usage_bytes": %d
         }
     },
     {
         "trace_id": "13930160852258120406",
+        "trace_id_high": "%s",
         "span_id": "11788048577503494824",
         "start": 100000000,
         "duration": %d,
@@ -72,20 +71,18 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
         "resource": "GET \/test",
         "service": "example.com",
         "type": "web",
-        "meta": {
-            "_dd.p.dm": "-3",
-            "_dd.p.ksr": "0.3",
-            "_dd.p.tid": "%s",
-            "component": "aws-apigateway",
+        "component": "aws-apigateway",
+        "span_kind": 1,
+        "sampling_priority": 2,
+        "sampling_mechanism": 3,
+        "attributes": {
             "http.method": "GET",
-            "http.status_code": "200",
             "http.url": "example.com\/test",
-            "stage": "aws-prod"
-        },
-        "metrics": {
+            "stage": "aws-prod",
             "_dd.inferred_span": 1,
+            "http.status_code": "200",
             "_dd.rule_psr": 0.3,
-            "_sampling_priority_v1": 2
+            "_dd.p.ksr": "0.3"
         }
     }
 ]

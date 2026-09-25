@@ -27,31 +27,23 @@ var_dump(dd_clean_spans());
 
 ?>
 --EXPECTF--
-object(DDTrace\RootSpanData)#%d (24) {
+object(DDTrace\RootSpanData)#%d (30) {
   ["name"]=>
   string(3) "foo"
   ["resource"]=>
   string(3) "abc"
   ["service"]=>
   string(14) "span_clone.php"
-  ["env"]=>
-  string(0) ""
-  ["version"]=>
-  string(0) ""
   ["meta_struct"]=>
   array(0) {
   }
   ["type"]=>
   string(3) "cli"
   ["meta"]=>
-  array(1) {
-    ["runtime-id"]=>
-    string(36) "%s"
+  array(0) {
   }
   ["metrics"]=>
-  array(1) {
-    ["process_id"]=>
-    float(%f)
+  array(0) {
   }
   ["exception"]=>
   NULL
@@ -69,14 +61,17 @@ object(DDTrace\RootSpanData)#%d (24) {
   ["parent"]=>
   NULL
   ["stack"]=>
-  object(DDTrace\SpanStack)#%d (3) {
+  object(DDTrace\SpanStack)#%d (4) {
     ["parent"]=>
-    object(DDTrace\SpanStack)#%d (3) {
+    object(DDTrace\SpanStack)#%d (4) {
       ["parent"]=>
       NULL
       ["active"]=>
       NULL
       ["spanCreationObservers"]=>
+      array(0) {
+      }
+      ["attributes"]=>
       array(0) {
       }
     }
@@ -85,18 +80,40 @@ object(DDTrace\RootSpanData)#%d (24) {
     ["spanCreationObservers"]=>
     array(0) {
     }
+    ["attributes"]=>
+    array(0) {
+    }
   }
   ["onClose"]=>
   array(0) {
   }
   ["baggage"]=>
   array(0) {
-  }%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
+  }
+  ["env"]=>
+  string(0) ""
+  ["version"]=>
+  string(0) ""
+  ["component"]=>
+  string(0) ""
+  ["spanKind"]=>
+  int(0)
+  ["attributes"]=>
+  array(2) {
+    ["runtime-id"]=>
+    string(36) "%s"
+    ["process_id"]=>
+    float(%f)
+  }
+  ["ignoreError"]=>
+  bool(false)%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
   ["propagatedTags"]=>
   array(0) {
   }
   ["samplingPriority"]=>
-  int(1073741824)%r(\s*\["propagatedSamplingPriority"\]=>\s+uninitialized\(int\)\s*\["tracestate"\]=>\s+uninitialized\(string\))?%r
+  int(1073741824)
+  ["samplingMechanism"]=>
+  int(0)%r(\s*\["propagatedSamplingPriority"\]=>\s+uninitialized\(int\)\s*\["tracestate"\]=>\s+uninitialized\(string\))?%r
   ["tracestateTags"]=>
   array(0) {
   }%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
@@ -106,32 +123,26 @@ object(DDTrace\RootSpanData)#%d (24) {
   NULL
   ["inferredSpan"]=>
   NULL
+  ["hostname"]=>
+  string(0) ""
 }
-object(DDTrace\RootSpanData)#%d (24) {
+object(DDTrace\RootSpanData)#%d (30) {
   ["name"]=>
   string(5) "dummy"
   ["resource"]=>
   string(3) "abc"
   ["service"]=>
   string(14) "span_clone.php"
-  ["env"]=>
-  string(0) ""
-  ["version"]=>
-  string(0) ""
   ["meta_struct"]=>
   array(0) {
   }
   ["type"]=>
   string(3) "cli"
   ["meta"]=>
-  array(1) {
-    ["runtime-id"]=>
-    string(36) "%s"
+  array(0) {
   }
   ["metrics"]=>
-  array(1) {
-    ["process_id"]=>
-    float(%f)
+  array(0) {
   }
   ["exception"]=>
   NULL
@@ -149,9 +160,9 @@ object(DDTrace\RootSpanData)#%d (24) {
   ["parent"]=>
   NULL
   ["stack"]=>
-  object(DDTrace\SpanStack)#%d (3) {
+  object(DDTrace\SpanStack)#%d (4) {
     ["parent"]=>
-    object(DDTrace\SpanStack)#%d (3) {
+    object(DDTrace\SpanStack)#%d (4) {
       ["parent"]=>
       NULL
       ["active"]=>
@@ -159,33 +170,28 @@ object(DDTrace\RootSpanData)#%d (24) {
       ["spanCreationObservers"]=>
       array(0) {
       }
+      ["attributes"]=>
+      array(0) {
+      }
     }
     ["active"]=>
-    object(DDTrace\RootSpanData)#%d (24) {
+    object(DDTrace\RootSpanData)#%d (30) {
       ["name"]=>
       string(3) "foo"
       ["resource"]=>
       string(3) "abc"
       ["service"]=>
       string(14) "span_clone.php"
-      ["env"]=>
-      string(0) ""
-      ["version"]=>
-      string(0) ""
       ["meta_struct"]=>
       array(0) {
       }
       ["type"]=>
       string(3) "cli"
       ["meta"]=>
-      array(1) {
-        ["runtime-id"]=>
-        string(36) "%s"
+      array(0) {
       }
       ["metrics"]=>
-      array(1) {
-        ["process_id"]=>
-        float(%d)
+      array(0) {
       }
       ["exception"]=>
       NULL
@@ -209,12 +215,31 @@ object(DDTrace\RootSpanData)#%d (24) {
       }
       ["baggage"]=>
       array(0) {
-      }%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
+      }
+      ["env"]=>
+      string(0) ""
+      ["version"]=>
+      string(0) ""
+      ["component"]=>
+      string(0) ""
+      ["spanKind"]=>
+      int(0)
+      ["attributes"]=>
+      array(2) {
+        ["runtime-id"]=>
+        string(36) "%s"
+        ["process_id"]=>
+        float(%f)
+      }
+      ["ignoreError"]=>
+      bool(false)%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
       ["propagatedTags"]=>
       array(0) {
       }
       ["samplingPriority"]=>
-      int(1073741824)%r(\s*\["propagatedSamplingPriority"\]=>\s+uninitialized\(int\)\s*\["tracestate"\]=>\s+uninitialized\(string\))?%r
+      int(1073741824)
+      ["samplingMechanism"]=>
+      int(0)%r(\s*\["propagatedSamplingPriority"\]=>\s+uninitialized\(int\)\s*\["tracestate"\]=>\s+uninitialized\(string\))?%r
       ["tracestateTags"]=>
       array(0) {
       }%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
@@ -224,8 +249,13 @@ object(DDTrace\RootSpanData)#%d (24) {
       NULL
       ["inferredSpan"]=>
       NULL
+      ["hostname"]=>
+      string(0) ""
     }
     ["spanCreationObservers"]=>
+    array(0) {
+    }
+    ["attributes"]=>
     array(0) {
     }
   }
@@ -234,12 +264,31 @@ object(DDTrace\RootSpanData)#%d (24) {
   }
   ["baggage"]=>
   array(0) {
-  }%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
+  }
+  ["env"]=>
+  string(0) ""
+  ["version"]=>
+  string(0) ""
+  ["component"]=>
+  string(0) ""
+  ["spanKind"]=>
+  int(0)
+  ["attributes"]=>
+  array(2) {
+    ["runtime-id"]=>
+    string(36) "%s"
+    ["process_id"]=>
+    float(%f)
+  }
+  ["ignoreError"]=>
+  bool(false)%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
   ["propagatedTags"]=>
   array(0) {
   }
   ["samplingPriority"]=>
-  int(1073741824)%r(\s*\["propagatedSamplingPriority"\]=>\s+uninitialized\(int\)\s*\["tracestate"\]=>\s+uninitialized\(string\))?%r
+  int(1073741824)
+  ["samplingMechanism"]=>
+  int(0)%r(\s*\["propagatedSamplingPriority"\]=>\s+uninitialized\(int\)\s*\["tracestate"\]=>\s+uninitialized\(string\))?%r
   ["tracestateTags"]=>
   array(0) {
   }%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
@@ -249,12 +298,16 @@ object(DDTrace\RootSpanData)#%d (24) {
   NULL
   ["inferredSpan"]=>
   NULL
+  ["hostname"]=>
+  string(0) ""
 }
 array(1) {
   [0]=>
-  array(10) {
+  array(13) {
     ["trace_id"]=>
     string(%d) "%d"
+    ["trace_id_high"]=>
+    string(16) "%s"
     ["span_id"]=>
     string(%d) "%d"
     ["start"]=>
@@ -269,28 +322,25 @@ array(1) {
     string(14) "span_clone.php"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
-    array(3) {
-      ["_dd.p.dm"]=>
-      string(2) "-0"
-      ["_dd.p.tid"]=>
-      string(16) "%s"
+    ["span_kind"]=>
+    int(1)
+    ["sampling_priority"]=>
+    int(1)
+    ["sampling_mechanism"]=>
+    int(0)
+    ["attributes"]=>
+    array(6) {
       ["runtime-id"]=>
       string(36) "%s"
-    }
-    ["metrics"]=>
-    array(6) {
+      ["process_id"]=>
+      float(%f)
       ["_dd.agent_psr"]=>
-      float(1)
-      ["_sampling_priority_v1"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
-      ["php.memory.peak_real_usage_bytes"]=>
-      float(%f)
       ["php.memory.peak_usage_bytes"]=>
       float(%f)
-      ["process_id"]=>
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
     }
   }

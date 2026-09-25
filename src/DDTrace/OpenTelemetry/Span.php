@@ -233,7 +233,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
                 $this->getName(),
                 $this->links,
                 $this->events,
-                Attributes::create(array_merge($this->span->meta, $this->span->metrics)),
+                Attributes::create(array_merge($this->span->metrics, $this->span->meta, $this->span->attributes)),
                 $this->totalRecordedEvents,
                 $this->totalRecordedLinks,
                 StatusData::create($this->status->getCode(), $this->status->getDescription()),
@@ -246,7 +246,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
                 $this->getName(),
                 $this->links,
                 $this->events,
-                Attributes::create(array_merge($this->span->meta, $this->span->metrics)),
+                Attributes::create(array_merge($this->span->metrics, $this->span->meta, $this->span->attributes)),
                 $this->totalRecordedEvents,
                 StatusData::create($this->status->getCode(), $this->status->getDescription()),
                 $hasEnded ? $this->span->getStartTime() + $this->span->getDuration() : 0,
@@ -276,7 +276,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function getAttribute(string $key): mixed
     {
-        return $this->span->meta[$key] ?? ($this->span->metrics[$key] ?? null);
+        return $this->span->attributes[$key] ?? $this->span->meta[$key] ?? $this->span->metrics[$key] ?? null;
     }
 
     public function getStartEpochNanos(): int
@@ -305,19 +305,14 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     private static function _setAttribute(SpanData $span, string $key, $value): void
     {
         if ($value === null) {
-            unset($span->meta[$key]);
-            unset($span->metrics[$key]);
+            unset($span->attributes[$key], $span->meta[$key], $span->metrics[$key]);
         } elseif ($key[0] === '_' && \strncmp($key, '_dd.p.', 6) === 0) {
             $distributedKey = \substr($key, 6); // strlen('_dd.p.') === 6
             \DDTrace\add_distributed_tag($distributedKey, $value);
-        } elseif (\is_float($value)
-            || \is_int($value)
-            || (\is_array($value) && \count($value) > 0 && \is_numeric($value[0]))) { // Note: Assumes attribute with primitive, homogeneous array values
-            $span->metrics[$key] = $value;
         } elseif ($key === 'service.name') {
             $span->service = $value;
         } else {
-            $span->meta[$key] = $value;
+            $span->attributes[$key] = $value;
         }
     }
 
@@ -445,11 +440,11 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         }
 
         if ($this->status->getCode() === API\StatusCode::STATUS_UNSET && $code === API\StatusCode::STATUS_ERROR) {
-            $this->span->meta[Tag::ERROR_MSG] = $description;
+            $this->span->attributes[Tag::ERROR_MSG] = $description;
         } elseif ($this->status->getCode() === API\StatusCode::STATUS_ERROR && $code === API\StatusCode::STATUS_OK) {
-            unset($this->span->meta[Tag::ERROR_MSG]);
-            unset($this->span->meta[Tag::ERROR_TYPE]);
-            unset($this->span->meta[Tag::ERROR_STACK]);
+            foreach ([Tag::ERROR_MSG, Tag::ERROR_TYPE, Tag::ERROR_STACK] as $errorTag) {
+                unset($this->span->attributes[$errorTag], $this->span->meta[$errorTag]);
+            }
         }
 
         $this->status = StatusData::create($code, $description);

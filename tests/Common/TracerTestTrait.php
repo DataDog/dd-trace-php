@@ -79,6 +79,17 @@ trait TracerTestTrait
 
     public function sendTracesToTestAgent($traces)
     {
+        // flushAndGetTraces() returns the V1 introspection shape (attributes + promoted keys).
+        // The test agent negotiates the v0.4 wire, so convert each span to the flat shape it
+        // expects (and that the stored snapshots were captured in) before sending.
+        foreach ($traces as &$trace) {
+            foreach ($trace as &$span) {
+                $span = SpanChecker::spanToWireShape($span);
+            }
+            unset($span);
+        }
+        unset($trace);
+
         // The data to be sent in the POST request
         $data_json = json_encode($traces);
 

@@ -11,7 +11,7 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 $root = \DDTrace\start_span();
 
 echo "Sampling: ", \DDTrace\get_priority_sampling(), "\n";
-echo "_dd.p.dm = {$root->meta["_dd.p.dm"]}\n";
+echo "_dd.p.dm = {$root->attributes["_dd.p.dm"]}\n";
 ?>
 --EXPECT--
 Sampling: 1

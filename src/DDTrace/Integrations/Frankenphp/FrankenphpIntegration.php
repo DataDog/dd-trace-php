@@ -19,14 +19,6 @@ class FrankenphpIntegration extends Integration
 
     public static $is_hooked;
 
-    /**
-     * {@inheritdoc}
-     */
-    public static function requiresExplicitTraceAnalyticsEnabling(): bool
-    {
-        return false;
-    }
-
     public static function init(): int
     {
         ini_set("datadog.trace.auto_flush_enabled", 1);
@@ -54,9 +46,8 @@ class FrankenphpIntegration extends Integration
                     Integration::tagFrameworkServiceSource($rootSpan, self::NAME);
                     $rootSpan->type = Type::WEB_SERVLET;
                     $rootSpan->meta[Tag::COMPONENT] = self::NAME;
-                    $rootSpan->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_SERVER;
-                    unset($rootSpan->meta["closure.declaration"]);
-                    self::addTraceAnalyticsIfEnabled($rootSpan);
+                    $rootSpan->attributes[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_SERVER;
+                    unset($rootSpan->attributes["closure.declaration"]);
 
                     consume_distributed_tracing_headers(null);
 

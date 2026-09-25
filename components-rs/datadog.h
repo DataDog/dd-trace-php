@@ -72,59 +72,569 @@ void ddog_init_span_func(void (*free_func)(ddog_OwnedZendString),
                          void (*addref_func)(struct _zend_string*),
                          ddog_OwnedZendString (*init_func)(ddog_CharSlice));
 
-void ddog_set_span_service_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
+/**
+ * Appends a chunk carrying the 128-bit trace id (high/low halves), returning its node pointer.
+ */
+ddog_ChunkNode *ddog_new_chunk(ddog_TracerPayloadV1Builder *builder,
+                               uint64_t trace_id_high,
+                               uint64_t trace_id_low);
 
-void ddog_set_span_name_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
+/**
+ * Number of spans already in `chunk` (so C can detect the first span of a chunk).
+ *
+ * # Safety
+ * `chunk` must be a live chunk node pointer from [`ddog_new_chunk`].
+ */
+uintptr_t ddog_chunk_span_count(ddog_ChunkNode *chunk);
 
-void ddog_set_span_resource_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
+/**
+ * Appends an empty span to `chunk`, returning its node pointer.
+ *
+ * # Safety
+ * `chunk` must be a live chunk node pointer from [`ddog_new_chunk`].
+ */
+ddog_SpanNode *ddog_new_span(ddog_ChunkNode *chunk);
 
-void ddog_set_span_type_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
+/**
+ * Appends an empty link to `span`, returning its node pointer.
+ *
+ * # Safety
+ * `span` must be a live span node pointer from [`ddog_new_span`].
+ */
+ddog_SpanLinkBytes *ddog_new_link(ddog_SpanNode *span);
 
-void ddog_add_span_meta_zstr(ddog_SpanBytes *ptr,
-                             struct _zend_string *key,
-                             struct _zend_string *val);
+/**
+ * Appends an empty event to `span`, returning its node pointer.
+ *
+ * # Safety
+ * `span` must be a live span node pointer from [`ddog_new_span`].
+ */
+ddog_SpanEventBytes *ddog_new_event(ddog_SpanNode *span);
 
-void ddog_add_CharSlice_span_meta_zstr(ddog_SpanBytes *ptr,
-                                       ddog_CharSlice key,
-                                       struct _zend_string *val);
+/**
+ * # Safety
+ * `span` must be a live span node pointer from [`ddog_new_span`] (applies to every span mutator).
+ */
+void ddog_span_set_id(ddog_SpanNode *span, uint64_t value);
 
-void ddog_add_zstr_span_meta_str(ddog_SpanBytes *ptr, struct _zend_string *key, const char *val);
+/**
+ * # Safety
+ * See [`ddog_span_set_id`].
+ */
+void ddog_span_set_parent_id(ddog_SpanNode *span, uint64_t value);
 
-void ddog_add_str_span_meta_str(ddog_SpanBytes *ptr, const char *key, const char *val);
+/**
+ * # Safety
+ * See [`ddog_span_set_id`].
+ */
+void ddog_span_set_start(ddog_SpanNode *span, int64_t value);
 
-void ddog_add_str_span_meta_zstr(ddog_SpanBytes *ptr, const char *key, struct _zend_string *val);
+/**
+ * # Safety
+ * See [`ddog_span_set_id`].
+ */
+void ddog_span_set_duration(ddog_SpanNode *span, int64_t value);
 
-void ddog_add_str_span_meta_CharSlice(ddog_SpanBytes *ptr, const char *key, ddog_CharSlice val);
+/**
+ * # Safety
+ * See [`ddog_span_set_id`].
+ */
+void ddog_span_set_error(ddog_SpanNode *span, bool error);
 
-void ddog_del_span_meta_zstr(ddog_SpanBytes *ptr, struct _zend_string *key);
+/**
+ * Reads the span error flag (used to mirror error state onto an inferred span).
+ *
+ * # Safety
+ * See [`ddog_span_set_id`].
+ */
+bool ddog_span_get_error(ddog_SpanNode *span);
 
-void ddog_del_span_meta_str(ddog_SpanBytes *ptr, const char *key);
+/**
+ * # Safety
+ * See [`ddog_span_set_id`].
+ */
+void ddog_set_span_service_zstr(ddog_SpanNode *span, struct _zend_string *str);
 
-bool ddog_has_span_meta_zstr(ddog_SpanBytes *ptr, struct _zend_string *key);
+/**
+ * # Safety
+ * See [`ddog_span_set_id`].
+ */
+void ddog_set_span_name_zstr(ddog_SpanNode *span, struct _zend_string *str);
 
-bool ddog_has_span_meta_str(ddog_SpanBytes *ptr, const char *key);
+/**
+ * # Safety
+ * See [`ddog_span_set_id`].
+ */
+void ddog_set_span_resource_zstr(ddog_SpanNode *span, struct _zend_string *str);
 
-ddog_CharSlice ddog_get_span_meta_str(ddog_SpanBytes *span, const char *key);
+/**
+ * # Safety
+ * See [`ddog_span_set_id`].
+ */
+void ddog_set_span_type_zstr(ddog_SpanNode *span, struct _zend_string *str);
 
-void ddog_add_span_metrics_zstr(ddog_SpanBytes *ptr, struct _zend_string *key, double val);
+/**
+ * # Safety
+ * See [`ddog_span_set_id`].
+ */
+void ddog_set_span_env(ddog_SpanNode *span, ddog_CharSlice value);
 
-bool ddog_has_span_metrics_zstr(ddog_SpanBytes *ptr, struct _zend_string *key);
+/**
+ * # Safety
+ * See [`ddog_span_set_id`].
+ */
+void ddog_set_span_version(ddog_SpanNode *span, ddog_CharSlice value);
 
-void ddog_del_span_metrics_zstr(ddog_SpanBytes *ptr, struct _zend_string *key);
+/**
+ * # Safety
+ * See [`ddog_span_set_id`].
+ */
+void ddog_set_span_component(ddog_SpanNode *span, ddog_CharSlice value);
 
-void ddog_add_span_metrics_str(ddog_SpanBytes *ptr, const char *key, double val);
+/**
+ * Sets the span kind from an OTEL wire value (unset/unknown → Internal).
+ *
+ * # Safety
+ * See [`ddog_span_set_id`].
+ */
+void ddog_set_span_kind(ddog_SpanNode *span, uint32_t kind);
 
-bool ddog_get_span_metrics_str(ddog_SpanBytes *ptr, const char *key, double *result);
+/**
+ * Sets the span kind from a v0.4 `span.kind` meta string (mapping owned by libdatadog's
+ * `SpanKind::from_meta`; unknown → Internal).
+ *
+ * Returns `true` only for server/client/producer/consumer; otherwise (incl. "internal") the
+ * caller must keep `value` as a plain attribute, as `Internal` has no wire slot for it.
+ *
+ * # Safety
+ * See [`ddog_span_set_id`].
+ */
+bool ddog_set_span_kind_str(ddog_SpanNode *span, ddog_CharSlice value);
 
-void ddog_del_span_metrics_str(ddog_SpanBytes *ptr, const char *key);
+/**
+ * # Safety
+ * See [`ddog_span_set_id`] (applies to every span-attribute mutator/reader below).
+ */
+void ddog_add_span_attr_cs_cs(ddog_SpanNode *span, ddog_CharSlice key, ddog_CharSlice value);
 
-void ddog_add_span_meta_struct_zstr(ddog_SpanBytes *ptr,
-                                    struct _zend_string *key,
-                                    struct _zend_string *val);
+/**
+ * # Safety
+ * See [`ddog_span_set_id`].
+ */
+void ddog_add_span_attr_lit_cs(ddog_SpanNode *span, const char *key, ddog_CharSlice value);
 
-void ddog_add_zstr_span_meta_struct_CharSlice(ddog_SpanBytes *ptr,
-                                              struct _zend_string *key,
-                                              ddog_CharSlice val);
+/**
+ * # Safety
+ * See [`ddog_span_set_id`].
+ */
+void ddog_add_span_attr_zstr_cs(ddog_SpanNode *span,
+                                struct _zend_string *key,
+                                ddog_CharSlice value);
+
+/**
+ * # Safety
+ * See [`ddog_span_set_id`].
+ */
+void ddog_add_span_attr_zstr_zstr(ddog_SpanNode *span,
+                                  struct _zend_string *key,
+                                  struct _zend_string *value);
+
+/**
+ * Adds a numeric (double) attribute under a `CharSlice` key.
+ *
+ * # Safety
+ * See [`ddog_span_set_id`].
+ */
+void ddog_add_span_attr_double_cs(ddog_SpanNode *span, ddog_CharSlice key, double value);
+
+/**
+ * Adds a numeric (double) attribute under a static C literal key.
+ *
+ * # Safety
+ * See [`ddog_span_set_id`].
+ */
+void ddog_add_span_attr_double_lit(ddog_SpanNode *span, const char *key, double value);
+
+/**
+ * Adds a numeric (double) attribute under a `ZendString` key.
+ *
+ * # Safety
+ * See [`ddog_span_set_id`].
+ */
+void ddog_add_span_attr_double_zstr(ddog_SpanNode *span, struct _zend_string *key, double value);
+
+/**
+ * Adds an integer attribute under a `CharSlice` key.
+ *
+ * # Safety
+ * See [`ddog_span_set_id`].
+ */
+void ddog_add_span_attr_int_cs(ddog_SpanNode *span, ddog_CharSlice key, int64_t value);
+
+/**
+ * Adds a boolean attribute under a `CharSlice` key.
+ *
+ * # Safety
+ * See [`ddog_span_set_id`].
+ */
+void ddog_add_span_attr_bool_cs(ddog_SpanNode *span, ddog_CharSlice key, bool value);
+
+/**
+ * Adds a bytes-valued attribute (v0.4 `meta_struct`) under a `ZendString` key. The value bytes are
+ * copied verbatim and encoded as msgpack `bin`.
+ *
+ * # Safety
+ * See [`ddog_span_set_id`].
+ */
+void ddog_add_span_attr_bytes_zstr(ddog_SpanNode *span,
+                                   struct _zend_string *key,
+                                   ddog_CharSlice value);
+
+/**
+ * Whether the span carries an attribute under `key` (`ZendString`). Mirrors the v0.4
+ * `has_span_meta`/`has_span_metrics` guard so the generic loops never overwrite a promoted value.
+ *
+ * # Safety
+ * See [`ddog_span_set_id`].
+ */
+bool ddog_has_span_attr_zstr(ddog_SpanNode *span, struct _zend_string *key);
+
+/**
+ * Copies the attribute `key` from `from_span` onto `to_span`, returning whether the source had it;
+ * removes it from the source when `delete_source` is set. Type-preserving. The two spans are
+ * distinct allocations, so the read-clone and the write reborrow are sequenced against separate
+ * borrow stacks.
+ *
+ * # Safety
+ * `from_span`/`to_span` must be live, distinct span node pointers from [`ddog_new_span`].
+ */
+bool ddog_transfer_span_attr(ddog_SpanNode *from_span,
+                             ddog_SpanNode *to_span,
+                             const char *key,
+                             bool delete_source);
+
+/**
+ * # Safety
+ * `chunk` must be a live chunk node pointer from [`ddog_new_chunk`] (every chunk mutator below).
+ */
+void ddog_set_chunk_origin(ddog_ChunkNode *chunk, ddog_CharSlice origin);
+
+/**
+ * # Safety
+ * See [`ddog_set_chunk_origin`].
+ */
+void ddog_set_chunk_sampling_priority(ddog_ChunkNode *chunk, int32_t priority);
+
+/**
+ * # Safety
+ * See [`ddog_set_chunk_origin`].
+ */
+void ddog_set_chunk_sampling_mechanism(ddog_ChunkNode *chunk, uint32_t mechanism);
+
+/**
+ * # Safety
+ * `link` must be a live link node pointer from [`ddog_new_link`] (every link mutator below).
+ */
+void ddog_link_set_trace_id(ddog_SpanLinkBytes *link,
+                            uint64_t trace_id_high,
+                            uint64_t trace_id_low);
+
+/**
+ * # Safety
+ * See [`ddog_link_set_trace_id`].
+ */
+void ddog_link_set_span_id(ddog_SpanLinkBytes *link, uint64_t value);
+
+/**
+ * # Safety
+ * See [`ddog_link_set_trace_id`].
+ */
+void ddog_link_set_tracestate(ddog_SpanLinkBytes *link, ddog_CharSlice value);
+
+/**
+ * # Safety
+ * See [`ddog_link_set_trace_id`].
+ */
+void ddog_link_add_attr_str(ddog_SpanLinkBytes *link, ddog_CharSlice key, ddog_CharSlice value);
+
+/**
+ * # Safety
+ * `event` must be a live event node pointer from [`ddog_new_event`] (every event mutator below).
+ */
+void ddog_event_set_name(ddog_SpanEventBytes *event, ddog_CharSlice value);
+
+/**
+ * # Safety
+ * See [`ddog_event_set_name`].
+ */
+void ddog_event_set_time(ddog_SpanEventBytes *event, uint64_t time_unix_nano);
+
+/**
+ * # Safety
+ * See [`ddog_event_set_name`].
+ */
+void ddog_event_add_attr_str(ddog_SpanEventBytes *event, ddog_CharSlice key, ddog_CharSlice value);
+
+/**
+ * # Safety
+ * See [`ddog_event_set_name`].
+ */
+void ddog_event_add_attr_int(ddog_SpanEventBytes *event, ddog_CharSlice key, int64_t value);
+
+/**
+ * # Safety
+ * See [`ddog_event_set_name`].
+ */
+void ddog_event_add_attr_double(ddog_SpanEventBytes *event, ddog_CharSlice key, double value);
+
+/**
+ * # Safety
+ * See [`ddog_event_set_name`].
+ */
+void ddog_event_add_attr_bool(ddog_SpanEventBytes *event, ddog_CharSlice key, bool value);
+
+/**
+ * Allocates an empty list with room for `capacity` elements. Ownership passes to C until it is
+ * pushed into a parent or attached to a node.
+ */
+struct ddog_AttrList *ddog_attr_list_new(uintptr_t capacity);
+
+/**
+ * Allocates an empty map with room for `capacity` members. Ownership passes to C until it is
+ * pushed into a parent or attached to a node.
+ */
+struct ddog_AttrMap *ddog_attr_map_new(uintptr_t capacity);
+
+/**
+ * # Safety
+ * `list` must be a live list from [`ddog_attr_list_new`] (every list mutator below).
+ */
+void ddog_attr_list_push_str(struct ddog_AttrList *list, ddog_CharSlice value);
+
+/**
+ * # Safety
+ * See [`ddog_attr_list_push_str`].
+ */
+void ddog_attr_list_push_int(struct ddog_AttrList *list, int64_t value);
+
+/**
+ * # Safety
+ * See [`ddog_attr_list_push_str`].
+ */
+void ddog_attr_list_push_double(struct ddog_AttrList *list, double value);
+
+/**
+ * # Safety
+ * See [`ddog_attr_list_push_str`].
+ */
+void ddog_attr_list_push_bool(struct ddog_AttrList *list, bool value);
+
+/**
+ * # Safety
+ * See [`ddog_attr_list_push_str`].
+ */
+void ddog_attr_list_push_bytes(struct ddog_AttrList *list, ddog_CharSlice value);
+
+/**
+ * # Safety
+ * `map` must be a live map from [`ddog_attr_map_new`] (every map mutator below).
+ */
+void ddog_attr_map_put_str(struct ddog_AttrMap *map, ddog_CharSlice key, ddog_CharSlice value);
+
+/**
+ * # Safety
+ * See [`ddog_attr_map_put_str`].
+ */
+void ddog_attr_map_put_int(struct ddog_AttrMap *map, ddog_CharSlice key, int64_t value);
+
+/**
+ * # Safety
+ * See [`ddog_attr_map_put_str`].
+ */
+void ddog_attr_map_put_double(struct ddog_AttrMap *map, ddog_CharSlice key, double value);
+
+/**
+ * # Safety
+ * See [`ddog_attr_map_put_str`].
+ */
+void ddog_attr_map_put_bool(struct ddog_AttrMap *map, ddog_CharSlice key, bool value);
+
+/**
+ * # Safety
+ * See [`ddog_attr_map_put_str`].
+ */
+void ddog_attr_map_put_bytes(struct ddog_AttrMap *map, ddog_CharSlice key, ddog_CharSlice value);
+
+/**
+ * # Safety
+ * `list` must be a live list; `child` a live list, which is consumed.
+ */
+void ddog_attr_list_push_list(struct ddog_AttrList *list, struct ddog_AttrList *child);
+
+/**
+ * # Safety
+ * `list` must be a live list; `child` a live map, which is consumed.
+ */
+void ddog_attr_list_push_map(struct ddog_AttrList *list, struct ddog_AttrMap *child);
+
+/**
+ * # Safety
+ * `map` must be a live map; `child` a live list, which is consumed.
+ */
+void ddog_attr_map_put_list(struct ddog_AttrMap *map,
+                            ddog_CharSlice key,
+                            struct ddog_AttrList *child);
+
+/**
+ * # Safety
+ * `map` must be a live map; `child` a live map, which is consumed.
+ */
+void ddog_attr_map_put_map(struct ddog_AttrMap *map,
+                           ddog_CharSlice key,
+                           struct ddog_AttrMap *child);
+
+/**
+ * Sets `span.attributes[key]` to `list`, which is consumed.
+ *
+ * # Safety
+ * `span` must be a live span node pointer from [`ddog_new_span`]; `list` a live list.
+ */
+void ddog_span_attr_set_list(ddog_SpanNode *span, ddog_CharSlice key, struct ddog_AttrList *list);
+
+/**
+ * Sets `span.attributes[key]` to `map`, which is consumed.
+ *
+ * # Safety
+ * `span` must be a live span node pointer from [`ddog_new_span`]; `map` a live map.
+ */
+void ddog_span_attr_set_map(ddog_SpanNode *span, ddog_CharSlice key, struct ddog_AttrMap *map);
+
+/**
+ * Sets `link.attributes[key]` to `list`, which is consumed.
+ *
+ * # Safety
+ * `link` must be a live link node pointer from [`ddog_new_link`]; `list` a live list.
+ */
+void ddog_link_attr_set_list(ddog_SpanLinkBytes *link,
+                             ddog_CharSlice key,
+                             struct ddog_AttrList *list);
+
+/**
+ * Sets `link.attributes[key]` to `map`, which is consumed.
+ *
+ * # Safety
+ * `link` must be a live link node pointer from [`ddog_new_link`]; `map` a live map.
+ */
+void ddog_link_attr_set_map(ddog_SpanLinkBytes *link, ddog_CharSlice key, struct ddog_AttrMap *map);
+
+/**
+ * Sets `event.attributes[key]` to `list`, which is consumed.
+ *
+ * # Safety
+ * `event` must be a live event node pointer from [`ddog_new_event`]; `list` a live list.
+ */
+void ddog_event_attr_set_list(ddog_SpanEventBytes *event,
+                              ddog_CharSlice key,
+                              struct ddog_AttrList *list);
+
+/**
+ * Sets `event.attributes[key]` to `map`, which is consumed.
+ *
+ * # Safety
+ * `event` must be a live event node pointer from [`ddog_new_event`]; `map` a live map.
+ */
+void ddog_event_attr_set_map(ddog_SpanEventBytes *event,
+                             ddog_CharSlice key,
+                             struct ddog_AttrMap *map);
+
+/**
+ * Number of children of the `List`/`KeyValue` at `path` (0 for a scalar or out-of-range path).
+ */
+uintptr_t ddog_v1_get_node_attr_child_count(const ddog_TracerPayloadV1Builder *builder,
+                                            uintptr_t chunk,
+                                            uintptr_t span,
+                                            uint32_t node_kind,
+                                            uintptr_t node_idx,
+                                            const uintptr_t *path,
+                                            uintptr_t path_len);
+
+/**
+ * `DDOG_V1_ATTR_*` tag of the value at `path` (STRING for an out-of-range path).
+ */
+uint32_t ddog_v1_get_node_attr_child_type(const ddog_TracerPayloadV1Builder *builder,
+                                          uintptr_t chunk,
+                                          uintptr_t span,
+                                          uint32_t node_kind,
+                                          uintptr_t node_idx,
+                                          const uintptr_t *path,
+                                          uintptr_t path_len);
+
+/**
+ * Member name of the value at `path` within its parent `KeyValue` (empty if the parent is a list
+ * or the path is out of range). `path` must have length >= 1.
+ */
+ddog_CharSlice ddog_v1_get_node_attr_child_key(const ddog_TracerPayloadV1Builder *builder,
+                                               uintptr_t chunk,
+                                               uintptr_t span,
+                                               uint32_t node_kind,
+                                               uintptr_t node_idx,
+                                               const uintptr_t *path,
+                                               uintptr_t path_len);
+
+/**
+ * String value at `path` (empty if not a `String`).
+ */
+ddog_CharSlice ddog_v1_get_node_attr_child_str(const ddog_TracerPayloadV1Builder *builder,
+                                               uintptr_t chunk,
+                                               uintptr_t span,
+                                               uint32_t node_kind,
+                                               uintptr_t node_idx,
+                                               const uintptr_t *path,
+                                               uintptr_t path_len);
+
+/**
+ * Int value at `path` (0 if not an `Int`).
+ */
+int64_t ddog_v1_get_node_attr_child_int(const ddog_TracerPayloadV1Builder *builder,
+                                        uintptr_t chunk,
+                                        uintptr_t span,
+                                        uint32_t node_kind,
+                                        uintptr_t node_idx,
+                                        const uintptr_t *path,
+                                        uintptr_t path_len);
+
+/**
+ * Double value at `path` (0.0 if not a `Float`).
+ */
+double ddog_v1_get_node_attr_child_double(const ddog_TracerPayloadV1Builder *builder,
+                                          uintptr_t chunk,
+                                          uintptr_t span,
+                                          uint32_t node_kind,
+                                          uintptr_t node_idx,
+                                          const uintptr_t *path,
+                                          uintptr_t path_len);
+
+/**
+ * Bool value at `path` (false if not a `Bool`).
+ */
+bool ddog_v1_get_node_attr_child_bool(const ddog_TracerPayloadV1Builder *builder,
+                                      uintptr_t chunk,
+                                      uintptr_t span,
+                                      uint32_t node_kind,
+                                      uintptr_t node_idx,
+                                      const uintptr_t *path,
+                                      uintptr_t path_len);
+
+/**
+ * Bytes value at `path` (empty if not `Bytes`).
+ */
+ddog_CharSlice ddog_v1_get_node_attr_child_bytes(const ddog_TracerPayloadV1Builder *builder,
+                                                 uintptr_t chunk,
+                                                 uintptr_t span,
+                                                 uint32_t node_kind,
+                                                 uintptr_t node_idx,
+                                                 const uintptr_t *path,
+                                                 uintptr_t path_len);
 
 bool ddog_ffe_load_config(ddog_CharSlice json);
 

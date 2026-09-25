@@ -2275,9 +2275,9 @@
     ],
     "DD_TRACE_SIDECAR_TRACE_SENDER": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "boolean",
-        "default": "false"
+        "default": "true"
       }
     ],
     "DD_TRACE_SLIM_ANALYTICS_ENABLED": [
@@ -2499,13 +2499,6 @@
       }
     ],
     "DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED": [
-      {
-        "implementation": "A",
-        "type": "boolean",
-        "default": "true"
-      }
-    ],
-    "DD_TRACE_WARN_LEGACY_DD_TRACE": [
       {
         "implementation": "A",
         "type": "boolean",

@@ -37,6 +37,7 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
 [
     {
         "trace_id": "13930160852258120406",
+        "trace_id_high": "%s",
         "span_id": "13930160852258120406",
         "start": 120000000,
         "duration": %d,
@@ -44,27 +45,24 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
         "resource": "GET \/foo",
         "service": "aws-server",
         "type": "web",
-        "meta": {
+        "env": "local-prod",
+        "version": "1.0",
+        "span_kind": 2,
+        "sampling_priority": 1,
+        "sampling_mechanism": 0,
+        "attributes": {
+            "runtime-id": "%s",
+            "http.url": "http:\/\/localhost:8888\/foo",
+            "http.method": "GET",
+            "process_id": %d,
+            "_dd.code_origin.type": "entry",
             "_dd.code_origin.frames.0.file": "%sincomplete_headers.php",
             "_dd.code_origin.frames.0.line": "1",
-            "_dd.code_origin.type": "entry",
-            "_dd.p.dm": "-0",
-            "_dd.p.tid": "%s",
-            "env": "local-prod",
-            "http.method": "GET",
-            "http.status_code": "200",
-            "http.url": "http:\/\/localhost:8888\/foo",
-            "runtime-id": "%s",
-            "span.kind": "server",
-            "version": "1.0"
-        },
-        "metrics": {
             "_dd.agent_psr": 1,
-            "_sampling_priority_v1": 1,
+            "http.status_code": "200",
             "php.compilation.total_time_ms": %f,
-            "php.memory.peak_real_usage_bytes": %d,
             "php.memory.peak_usage_bytes": %d,
-            "process_id": %d
+            "php.memory.peak_real_usage_bytes": %d
         }
     },
     {
@@ -77,9 +75,8 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
         "resource": "child",
         "service": "aws-server",
         "type": "web",
-        "meta": {
-            "env": "local-prod",
-            "version": "1.0"
-        }
+        "env": "local-prod",
+        "version": "1.0",
+        "span_kind": 1
     }
 ]

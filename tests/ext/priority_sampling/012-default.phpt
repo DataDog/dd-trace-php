@@ -11,14 +11,14 @@ DD_TRACE_GENERATE_ROOT_SPAN=1
 
 $root = \DDTrace\root_span();
 
-if (!isset($root->metrics["_dd.rule_psr"])) {
+if (!isset($root->attributes["_dd.rule_psr"])) {
     echo "OK\n";
 } else {
-    echo "metrics[_dd.rule_psr] = {$root->metrics["_dd.rule_psr"]}\n";
+    echo "metrics[_dd.rule_psr] = {$root->attributes["_dd.rule_psr"]}\n";
 }
 
-if (isset($root->meta["_dd.p.dm"])) {
-    echo "_dd.p.dm = {$root->meta["_dd.p.dm"]}\n";
+if (isset($root->attributes["_dd.p.dm"])) {
+    echo "_dd.p.dm = {$root->attributes["_dd.p.dm"]}\n";
 }
 ?>
 --EXPECT--

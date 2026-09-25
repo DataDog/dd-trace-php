@@ -1,6 +1,7 @@
 --TEST--
 An empty container ID is not sent via HTTP headers to the Agent
 --SKIPIF--
+<?php if (strncasecmp(PHP_OS, "WIN", 3) == 0) die('skip: There is no background sender on Windows'); ?>
 <?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
 --ENV--
 DD_TRACE_LOG_LEVEL=info,startup=off
@@ -38,7 +39,7 @@ echo 'Done.' . PHP_EOL;
 
 ?>
 --EXPECTF--
-[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for http://request-replayer:80
+[ddtrace] [info] [%d] Flushing %d v0.4 trace(s) to send-queue for http://request-replayer:80
 
 datadog-meta-lang: php
 

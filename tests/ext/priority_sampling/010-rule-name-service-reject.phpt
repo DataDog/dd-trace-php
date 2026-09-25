@@ -17,12 +17,12 @@ $root->service = "barservice";
 
 \DDTrace\get_priority_sampling();
 
-if ($root->metrics["_dd.rule_psr"] == 0.7) {
+if ($root->attributes["_dd.rule_psr"] == 0.7) {
     echo "Rule OK\n";
 } else {
-    var_dump($root->metrics);
+    var_dump($root->attributes);
 }
-echo "_dd.p.dm = ", isset($root->meta["_dd.p.dm"]) ? $root->meta["_dd.p.dm"] : "-", "\n";
+echo "_dd.p.dm = ", isset($root->attributes["_dd.p.dm"]) ? $root->attributes["_dd.p.dm"] : "-", "\n";
 ?>
 --EXPECTREGEX--
 Rule OK

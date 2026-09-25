@@ -12,13 +12,15 @@ include __DIR__ . '/inc/ddtrace_version.php';
 ddtrace_version_at_least('0.85.0');
 \datadog\appsec\v2\track_user_login_success("login");
 $root = \DDTrace\root_span();
-var_dump($root->meta);
+var_dump($root->attributes);
 
 ?>
 --EXPECTF--
-array(4) {
+array(5) {
   ["runtime-id"]=>
   string(%d) %s
+  ["process_id"]=>
+  float(%f)
   ["appsec.events.users.login.success.usr.login"]=>
   string(%d) "login"
   ["appsec.events.users.login.success.track"]=>

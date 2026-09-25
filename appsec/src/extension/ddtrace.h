@@ -58,6 +58,12 @@ void dd_trace_emit_asm_event(void);
 // Provides the array zval representing $root_span->meta, if any.
 // It is ready for modification, with refcount == 1
 zval *nullable dd_trace_span_get_meta(zend_object *nonnull);
+// $root_span->attributes, which the tracer serializes with precedence over
+// $meta.
+zval *nullable dd_trace_span_get_attributes(zend_object *nonnull);
+// Tag lookup with the tracer's $attributes > $meta precedence.
+zval *nullable dd_trace_span_find_tag(
+    zend_object *nonnull zobj, const char *nonnull key, size_t key_len);
 zval *nullable dd_trace_span_get_metrics(zend_object *nonnull);
 zval *nullable dd_trace_span_get_meta_struct(zend_object *nonnull);
 void dd_trace_span_add_propagated_tags(

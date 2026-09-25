@@ -264,6 +264,21 @@ typedef struct ddog_Vec_Tag_ParseResult {
 typedef struct _zend_string _zend_string;
 
 
+/**
+ * The span's own attribute map.
+ */
+#define ddog_DDOG_V1_ATTR_NODE_SPAN 0
+
+/**
+ * The attribute map of the link at `node_idx`.
+ */
+#define ddog_DDOG_V1_ATTR_NODE_LINK 1
+
+/**
+ * The attribute map of the event at `node_idx`.
+ */
+#define ddog_DDOG_V1_ATTR_NODE_EVENT 2
+
 #define ddog_LOG_ONCE (1 << 3)
 
 /**
@@ -446,6 +461,16 @@ typedef enum ddog_SpanProbeTarget {
 } ddog_SpanProbeTarget;
 
 typedef struct ddog_AgentInfoReader ddog_AgentInfoReader;
+
+/**
+ * An owned `List` attribute value under construction. Opaque to C (`ddog_AttrList *`).
+ */
+typedef struct ddog_AttrList ddog_AttrList;
+
+/**
+ * An owned `KeyValue` attribute value under construction. Opaque to C (`ddog_AttrMap *`).
+ */
+typedef struct ddog_AttrMap ddog_AttrMap;
 
 typedef struct ddog_Config ddog_Config;
 
@@ -1193,6 +1218,24 @@ typedef struct ddog_AttributeAnyValueBytes ddog_AttributeAnyValueBytes;
 typedef struct ddog_AttributeArrayValueBytes ddog_AttributeArrayValueBytes;
 
 
+/**
+ * Attribute value type tags from `ddog_v1_get_*_attr_type`, so a C caller picks the matching typed
+ * value getter (`_attr_str`/`_attr_int`/`_attr_double`/`_attr_bool`/`_attr_bytes`).
+ */
+#define ddog_DDOG_V1_ATTR_STRING 0
+
+#define ddog_DDOG_V1_ATTR_INT 1
+
+#define ddog_DDOG_V1_ATTR_DOUBLE 2
+
+#define ddog_DDOG_V1_ATTR_BOOL 3
+
+#define ddog_DDOG_V1_ATTR_BYTES 4
+
+#define ddog_DDOG_V1_ATTR_KEYVALUE 5
+
+#define ddog_DDOG_V1_ATTR_LIST 6
+
 typedef enum ddog_DynamicInstrumentationConfigState {
   DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED,
   DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_DISABLED,
@@ -1204,6 +1247,14 @@ typedef struct ddog_AgentRemoteConfigReader ddog_AgentRemoteConfigReader;
 typedef struct ddog_AgentRemoteConfigWriter_ShmHandle ddog_AgentRemoteConfigWriter_ShmHandle;
 
 typedef struct ddog_Arc_Target ddog_Arc_Target;
+
+/**
+ * A chunk node in the builder: its own heap allocation, so a `*mut ChunkNode` handed to C stays
+ * valid across sibling chunk pushes. Holds the chunk's scalar fields/attributes inline; its spans
+ * live as separate `Box` allocations (raw pointers here), folded into `chunk.spans` by
+ * [`TracerPayloadV1Builder::into_payload`].
+ */
+typedef struct ddog_ChunkNode ddog_ChunkNode;
 
 /**
  * Fundamental configuration of the RC client, which always must be set.
@@ -1226,6 +1277,19 @@ typedef struct ddog_RemoteConfigReader ddog_RemoteConfigReader;
 typedef struct ddog_RuntimeMetadata ddog_RuntimeMetadata;
 
 typedef struct ddog_ShmHandle ddog_ShmHandle;
+
+/**
+ * A span node in the builder: its own heap allocation, so a held `*mut SpanNode` stays valid across
+ * sibling span pushes into the same chunk (the inferred-span case). Links/events are likewise
+ * separate `Box` allocations.
+ */
+typedef struct ddog_SpanNode ddog_SpanNode;
+
+/**
+ * Builds a native V1 [`TracerPayloadBytes`] holding readable strings. Each node is its own heap
+ * allocation (see the module docs); the builder owns the top-level chunk pointers.
+ */
+typedef struct ddog_TracerPayloadV1Builder ddog_TracerPayloadV1Builder;
 
 typedef struct ddog_NativeFile {
   struct ddog_PlatformHandle_File *handle;
@@ -1372,6 +1436,18 @@ typedef struct ddog_SenderParameters {
   int64_t buffer_size;
   ddog_CharSlice url;
 } ddog_SenderParameters;
+
+/**
+ * Payload-level tracer metadata for the V1 send path not already carried by the sender's
+ * `tracer_headers_tags` (lang, tracer_version, container_id live there and are routed from there).
+ */
+typedef struct ddog_TracerMetadataV1 {
+  ddog_CharSlice hostname;
+  ddog_CharSlice env;
+  ddog_CharSlice app_version;
+  ddog_CharSlice runtime_id;
+  ddog_CharSlice git_commit_sha;
+} ddog_TracerMetadataV1;
 
 /**
  * Raw AppSec response returned by the AppSec message functions.

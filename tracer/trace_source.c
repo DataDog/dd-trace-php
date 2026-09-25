@@ -56,7 +56,7 @@ void ddtrace_trace_source_set_asm_source() {
         return;
     }
 
-    zend_array *meta = ddtrace_property_array(&root_span->property_meta);;
+    zend_array *meta = ddtrace_property_array(&root_span->property_attributes);
     if (!meta) {
         return;
     }
@@ -66,12 +66,11 @@ void ddtrace_trace_source_set_asm_source() {
     ddtrace_trace_source_add_propagated_tag(encoded);
 }
 
-bool ddtrace_trace_source_is_meta_asm_sourced(zend_array *meta) {    
-    if (!meta) {
-        return false;
+bool ddtrace_trace_source_is_asm_sourced(zend_array *attributes, zend_array *meta) {
+    zval *trace_source_zv = attributes ? zend_hash_str_find(attributes, ZEND_STRL(DD_P_TS_KEY)) : NULL;
+    if (!trace_source_zv && meta) {
+        trace_source_zv = zend_hash_str_find(meta, ZEND_STRL(DD_P_TS_KEY));
     }
-
-    zval *trace_source_zv = zend_hash_str_find(meta, ZEND_STRL(DD_P_TS_KEY));
     if (!trace_source_zv || Z_TYPE_P(trace_source_zv) != IS_STRING) {
         return false;
     }

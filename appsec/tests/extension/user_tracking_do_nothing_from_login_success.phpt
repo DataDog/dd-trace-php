@@ -47,6 +47,8 @@ root_span_get_meta():
 Array
 (
     [runtime-id] => %s
+    [_dd.p.ts] => 02
+    [_dd.p.dm] => -5
     [usr.id] => Admin
     [appsec.events.users.login.success.usr.login] => Admin
     [_dd.appsec.events.users.login.success.sdk] => true
@@ -55,6 +57,4 @@ Array
     [appsec.events.users.login.success.email] => noneofyour@business.com
     [appsec.events.users.login.success.track] => true
     [server.business_logic.users.login.success] => null
-    [_dd.p.ts] => 02
-    [_dd.p.dm] => -5
 )

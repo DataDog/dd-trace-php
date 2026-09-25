@@ -12,6 +12,7 @@
 #ifdef __linux__
 #include "otel_context.h"
 #include <components-rs/datadog.h>
+#include <components-rs/sidecar.h>
 #endif
 #include "random.h"
 #include "serializer.h"
@@ -105,53 +106,6 @@ static void dd_span_event_construct(ddtrace_span_event *event, zend_string *name
 /* DDTrace\SpanEvent */
 zend_class_entry *ddtrace_ce_span_event;
 
-PHP_METHOD(DDTrace_SpanEvent, jsonSerialize) {
-    ddtrace_span_event *event = (ddtrace_span_event*)Z_OBJ_P(ZEND_THIS);
-
-    zval array;
-    array_init(&array);
-
-    Z_TRY_ADDREF(event->property_name);
-    add_assoc_zval_ex(&array, ZEND_STRL("name"), &event->property_name);
-    Z_TRY_ADDREF(event->property_timestamp);
-    add_assoc_zval_ex(&array, ZEND_STRL("time_unix_nano"), &event->property_timestamp);
-
-    // Handle attributes dynamically
-    zval *attributes = &event->property_attributes;
-    zval combined_attributes;
-    array_init(&combined_attributes);
-
-    if (instanceof_function(event->std.ce, ddtrace_ce_exception_span_event)) {
-        // Handle exception attributes dynamically if an exception property exists
-        ddtrace_exception_span_event *exception_event = (ddtrace_exception_span_event *) event;
-        zval *exception = &exception_event->property_exception;
-        if (Z_TYPE_P(exception) == IS_OBJECT && instanceof_function(Z_OBJCE_P(exception), zend_ce_throwable)) {
-            // Get exception message, type, and stack trace directly
-            zend_string *message = zai_exception_message(Z_OBJ_P(exception));
-            if (ZSTR_LEN(message)) {
-                add_assoc_str_ex(&combined_attributes, ZEND_STRL("exception.message"), zend_string_copy(message));
-            }
-            add_assoc_str_ex(&combined_attributes, ZEND_STRL("exception.type"), zend_string_copy(Z_OBJCE_P(exception)->name));
-
-            // Get the exception stack trace using zai_get_trace_without_args_from_exception
-            zend_string *stacktrace = zai_get_trace_without_args_from_exception(Z_OBJ_P(exception));
-            add_assoc_str_ex(&combined_attributes, ZEND_STRL("exception.stacktrace"), stacktrace);
-        }
-    }
-
-    if (Z_TYPE_P(attributes) == IS_ARRAY) {
-        zend_hash_copy(Z_ARRVAL(combined_attributes), Z_ARRVAL_P(attributes), (copy_ctor_func_t)zval_add_ref);
-    }
-
-    if (zend_hash_num_elements(Z_ARRVAL(combined_attributes)) > 0) {
-        add_assoc_zval_ex(&array, ZEND_STRL("attributes"), &combined_attributes);
-    } else {
-        zval_ptr_dtor(&combined_attributes); // Clean up if no elements
-    }
-
-    RETURN_ARR(Z_ARR(array)); // Return the array
-}
-
 PHP_METHOD(DDTrace_SpanEvent, __construct)
 {
     UNUSED(return_value);
@@ -204,37 +158,6 @@ PHP_METHOD(DDTrace_ExceptionSpanEvent, __construct)
 
 /* DDTrace\SpanLink */
 zend_class_entry *ddtrace_ce_span_link;
-
-PHP_METHOD(DDTrace_SpanLink, jsonSerialize) {
-    ddtrace_span_link *link = (ddtrace_span_link *)Z_OBJ_P(ZEND_THIS);
-
-    zend_array *array = zend_new_array(5);
-
-    zend_string *trace_id = zend_string_init("trace_id", sizeof("trace_id") - 1, 0);
-    zend_string *span_id = zend_string_init("span_id", sizeof("span_id") - 1, 0);
-    zend_string *trace_state = zend_string_init("trace_state", sizeof("trace_state") - 1, 0);
-    zend_string *attributes = zend_string_init("attributes", sizeof("attributes") - 1, 0);
-    zend_string *dropped_attributes_count = zend_string_init("dropped_attributes_count", sizeof("dropped_attributes_count") - 1, 0);
-
-    Z_TRY_ADDREF(link->property_trace_id);
-    zend_hash_add(array, trace_id, &link->property_trace_id);
-    Z_TRY_ADDREF(link->property_span_id);
-    zend_hash_add(array, span_id, &link->property_span_id);
-    Z_TRY_ADDREF(link->property_trace_state);
-    zend_hash_add(array, trace_state, &link->property_trace_state);
-    Z_TRY_ADDREF(link->property_attributes);
-    zend_hash_add(array, attributes, &link->property_attributes);
-    Z_TRY_ADDREF(link->property_dropped_attributes_count);
-    zend_hash_add(array, dropped_attributes_count, &link->property_dropped_attributes_count);
-
-    zend_string_release(trace_id);
-    zend_string_release(span_id);
-    zend_string_release(trace_state);
-    zend_string_release(attributes);
-    zend_string_release(dropped_attributes_count);
-
-    RETURN_ARR(array);
-}
 
 void ddtrace_build_span_link_from_result(ddtrace_distributed_tracing_result *result, ddtrace_span_link *link) {
     ZVAL_STR(&link->property_trace_id, datadog_trace_id_as_hex_string(result->trace_id));
@@ -312,6 +235,7 @@ static zend_object *dd_init_span_data_object(zend_class_entry *class_type, ddtra
     array_init(&span->property_events);
     array_init(&span->property_peer_service_sources);
     array_init(&span->property_on_close);
+    array_init(&span->property_attributes);
 #endif
     // Explicitly assign property-mapped NULLs
     span->stack = NULL;
@@ -360,6 +284,7 @@ static zend_object *ddtrace_span_stack_create(zend_class_entry *class_type) {
 #if PHP_VERSION_ID < 80000
     // Not handled in arginfo on these old versions
     array_init(&stack->property_span_creation_observers);
+    array_init(&stack->property_attributes);
 #endif
     return &stack->std;
 }
@@ -512,7 +437,7 @@ static zval *ddtrace_span_data_readonly(zend_object *object, zend_string *member
             }
         }
         if (Z_TYPE_P(value) == IS_STRING && !zend_is_identical(&span->property_service, value)) {
-            zend_array *meta = ddtrace_property_array(&span->property_meta);
+            zend_array *meta = ddtrace_property_array(&span->property_attributes);
             zval val;
             ZVAL_NEW_STR(&val, zend_string_init("m", 1, 0));
             zend_hash_str_update(meta, ZEND_STRL("_dd.svc_src"), &val);
@@ -804,6 +729,7 @@ static void dd_register_fatal_error_ce(void) {
 
 zend_class_entry *ddtrace_ce_integration;
 zend_class_entry *ddtrace_ce_git_metadata;
+zend_class_entry *ddtrace_ce_span_kind;
 zend_object_handlers datadog_git_metadata_handlers;
 
 static zend_object *datadog_git_metadata_create(zend_class_entry *class_type) {
@@ -824,9 +750,10 @@ void ddtrace_register_functions_and_classes(int module_number) {
     dd_register_fatal_error_ce();
     ddtrace_ce_integration = register_class_DDTrace_Integration();
     ddtrace_ce_ffe_result = register_class_DDTrace_FfeResult();
-    ddtrace_ce_span_link = register_class_DDTrace_SpanLink(php_json_serializable_ce);
-    ddtrace_ce_span_event = register_class_DDTrace_SpanEvent(php_json_serializable_ce);
+    ddtrace_ce_span_link = register_class_DDTrace_SpanLink();
+    ddtrace_ce_span_event = register_class_DDTrace_SpanEvent();
     ddtrace_ce_exception_span_event = register_class_DDTrace_ExceptionSpanEvent(ddtrace_ce_span_event);
+    ddtrace_ce_span_kind = register_class_DDTrace_SpanKind();
 
     ddtrace_ce_git_metadata = register_class_DDTrace_GitMetadata();
     ddtrace_ce_git_metadata->create_object = datadog_git_metadata_create;
@@ -889,7 +816,7 @@ PHP_FUNCTION(DDTrace_add_distributed_tag) {
 
     zend_array *target_table, *propagated;
     if (DDTRACE_G(active_stack)->root_span) {
-        target_table = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_meta);
+        target_table = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_attributes);
         propagated = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_propagated_tags);
     } else {
         target_table = &DDTRACE_G(root_span_tags_preset);
@@ -910,7 +837,7 @@ PHP_FUNCTION(DDTrace_add_distributed_tag) {
 static void _ddtrace_set_user(zend_string *user_id, zend_array *metadata, zend_bool propagate) {
     zend_array *target_table, *propagated;
     if (DDTRACE_G(active_stack)->root_span) {
-        target_table = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_meta);
+        target_table = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_attributes);
         propagated = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_propagated_tags);
     } else {
         target_table = &DDTRACE_G(root_span_tags_preset);
@@ -992,7 +919,7 @@ PHP_FUNCTION(datadog_appsec_v2_track_user_login_success) {
 
     zend_array *target_table;
     if (DDTRACE_G(active_stack)->root_span) {
-        target_table = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_meta);
+        target_table = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_attributes);
     } else {
         target_table = &DDTRACE_G(root_span_tags_preset);
     }
@@ -1105,7 +1032,7 @@ PHP_FUNCTION(datadog_appsec_v2_track_user_login_failure) {
 
     zend_array *target_table;
     if (DDTRACE_G(active_stack)->root_span) {
-        target_table = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_meta);
+        target_table = ddtrace_property_array(&DDTRACE_G(active_stack)->root_span->property_attributes);
     } else {
         target_table = &DDTRACE_G(root_span_tags_preset);
     }
@@ -1177,10 +1104,15 @@ PHP_FUNCTION(dd_trace_serialize_closed_spans) {
 
     ddtrace_mark_all_span_stacks_flushable();
 
-    ddog_TracesBytes *traces = ddog_get_traces();
-    ddtrace_serialize_closed_spans_with_cycle(traces, false);
+    // Introspection is a debug view: always finalize into the in-memory V1 builder (no sidecar
+    // needed) and read it back via the V1 getters, so the shape is uniform across versions/senders.
+    ddtrace_serialize_ctx serialize_ctx = {.builder = ddog_v1_new_builder(), .chunk = DD_CHUNK_NONE};
+    ddtrace_serialize_ctx *ctx = &serialize_ctx;
 
-    zval traces_zv = dd_serialize_rust_traces_to_zval(traces);
+    ddtrace_serialize_closed_spans_with_cycle(ctx, false);
+
+    zval traces_zv = dd_serialize_rust_to_zval(ctx->builder);
+    ddog_v1_free_builder(ctx->builder);
 
     if (zend_hash_num_elements(Z_ARR(traces_zv)) == 1) {
         ZVAL_COPY(return_value, zend_hash_get_current_data(Z_ARR(traces_zv)));
@@ -1196,7 +1128,6 @@ PHP_FUNCTION(dd_trace_serialize_closed_spans) {
         } ZEND_HASH_FOREACH_END();
     }
 
-    ddog_free_traces(traces);
     zval_ptr_dtor(&traces_zv);
 
     ddtrace_free_span_stacks(false);
@@ -1225,47 +1156,6 @@ PHP_FUNCTION(dd_trace_disable_in_request) {
     }
 
     datadog_disable_tracing_in_current_request();
-
-    RETURN_BOOL(1);
-}
-
-PHP_FUNCTION(dd_trace_reset) {
-    if (zend_parse_parameters_none() == FAILURE) {
-        RETURN_THROWS();
-    }
-
-    if (datadog_disable) {
-        RETURN_BOOL(0);
-    }
-
-    // TODO ??
-    RETURN_BOOL(1);
-}
-
-/* {{{ proto string dd_trace_serialize_msgpack(array trace_array) */
-PHP_FUNCTION(dd_trace_serialize_msgpack) {
-    zval *trace_array;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "a", &trace_array) == FAILURE) {
-        RETURN_THROWS();
-    }
-
-    if (!get_DD_TRACE_ENABLED()) {
-        RETURN_BOOL(0);
-    }
-
-    if (ddtrace_serialize_simple_array(trace_array, return_value) != 1) {
-        RETURN_BOOL(0);
-    }
-} /* }}} */
-
-// method used to be able to easily breakpoint the execution at specific PHP line in GDB
-PHP_FUNCTION(dd_trace_noop) {
-    UNUSED(execute_data);
-
-    if (!get_DD_TRACE_ENABLED()) {
-        RETURN_BOOL(0);
-    }
 
     RETURN_BOOL(1);
 }
@@ -1332,30 +1222,6 @@ PHP_FUNCTION(ddtrace_config_integration_enabled) {
         RETURN_TRUE;
     }
     RETVAL_BOOL(ddtrace_integrations[integration->name].is_enabled());
-}
-
-PHP_FUNCTION(DDTrace_Config_integration_analytics_enabled) {
-    zend_string *name;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S", &name) != SUCCESS) {
-        RETURN_NULL();
-    }
-    ddtrace_integration *integration = ddtrace_get_integration_from_string(name);
-    if (integration == NULL) {
-        RETURN_FALSE;
-    }
-    RETVAL_BOOL(integration->is_analytics_enabled());
-}
-
-PHP_FUNCTION(DDTrace_Config_integration_analytics_sample_rate) {
-    zend_string *name;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S", &name) != SUCCESS) {
-        RETURN_NULL();
-    }
-    ddtrace_integration *integration = ddtrace_get_integration_from_string(name);
-    if (integration == NULL) {
-        RETURN_DOUBLE(DD_INTEGRATION_ANALYTICS_SAMPLE_RATE_DEFAULT);
-    }
-    RETVAL_DOUBLE(integration->get_sample_rate());
 }
 
 /* This is only exposed to serialize the container ID into an HTTP Agent header for the userland transport
@@ -1922,69 +1788,6 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
         ddtrace_ffe_update_long_property(return_value, ZEND_STRL("serialId"), (zend_long)result.serial_id);
     }
     ddtrace_ffe_update_empty_array_property(return_value, ZEND_STRL("providerState"));
-}
-
-PHP_FUNCTION(dd_trace_send_traces_via_thread) {
-    char *payload = NULL;
-    zend_long num_traces = 0;
-    size_t payload_len = 0;
-    zval *curl_headers = NULL;
-
-    // Agent HTTP headers are now set at the extension level so 'curl_headers' from userland is ignored
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "las", &num_traces, &curl_headers, &payload,
-                                 &payload_len) == FAILURE) {
-        RETURN_THROWS();
-    }
-#ifndef _WIN32
-    bool result = ddtrace_send_traces_via_thread(num_traces, payload, payload_len);
-    dd_prepare_for_new_trace();
-    RETURN_BOOL(result);
-#else
-    RETURN_FALSE;
-#endif
-}
-
-PHP_FUNCTION(dd_trace_buffer_span) {
-    zval *trace_array = NULL;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "a", &trace_array) == FAILURE) {
-        RETURN_THROWS();
-    }
-
-#ifndef _WIN32
-    if (!get_DD_TRACE_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
-        RETURN_BOOL(0);
-    }
-
-    char *data;
-    size_t size;
-    if (ddtrace_serialize_simple_array_into_c_string(trace_array, &data, &size)) {
-        RETVAL_BOOL(ddtrace_coms_buffer_data(DDTRACE_G(traces_group_id), data, size));
-
-        free(data);
-        return;
-    } else {
-        RETURN_FALSE;
-    }
-#else
-    RETURN_BOOL(0);
-#endif
-}
-
-PHP_FUNCTION(dd_trace_coms_trigger_writer_flush) {
-    if (zend_parse_parameters_none() == FAILURE) {
-        RETURN_THROWS();
-    }
-
-#ifndef _WIN32
-    if (!get_DD_TRACE_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
-        RETURN_LONG(0);
-    }
-
-    RETURN_LONG(ddtrace_coms_trigger_writer_flush());
-#else
-    RETURN_BOOL(0);
-#endif
 }
 
 #define FUNCTION_NAME_MATCHES(function) zend_string_equals_literal(function_val, function)
@@ -2754,8 +2557,9 @@ PHP_FUNCTION(DDTrace_set_distributed_tracing_context) {
         zend_array *root_meta = &DDTRACE_G(root_span_tags_preset);
         zend_array *propagated_tags = &DDTRACE_G(propagated_root_span_tags);
         if (root_span) {
-            root_meta = ddtrace_property_array(&root_span->property_meta);
+            root_meta = ddtrace_property_array(&root_span->property_attributes);
             propagated_tags = ddtrace_property_array(&root_span->property_propagated_tags);
+            ddtrace_drop_propagated_tags(ddtrace_property_array(&root_span->property_meta), propagated_tags);
         }
 
         if (Z_TYPE_P(tags) == IS_STRING) {

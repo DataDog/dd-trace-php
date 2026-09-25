@@ -29,11 +29,11 @@ root_span_get_meta():
 Array
 (
     [runtime-id] => %s
+    [_dd.p.ts] => 02
+    [_dd.p.dm] => -5
     [_dd.appsec.events.users.login.success.auto.mode] => identification
     [appsec.events.users.login.success.usr.login] => login
     [_dd.appsec.usr.login] => login
     [appsec.events.users.login.success.track] => true
     [server.business_logic.users.login.success] => null
-    [_dd.p.ts] => 02
-    [_dd.p.dm] => -5
 )

@@ -41,7 +41,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
     {
         return [
             'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
-            'DD_CURL_ANALYTICS_ENABLED',
             'DD_DISTRIBUTED_TRACING',
             'DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN',
             'DD_TRACE_MEMORY_LIMIT',
@@ -610,109 +609,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
         return [
             [false],
             [true],
-        ];
-    }
-
-    /**
-     * @dataProvider dataProviderTestTraceAnalytics
-     */
-    public function testTraceAnalytics($envsOverride, $expectedSampleRate)
-    {
-        $env = array_merge(['DD_SERVICE' => 'top_level_app', 'DD_TRACE_GENERATE_ROOT_SPAN' => 'true'], $envsOverride);
-
-        $traces = $this->inWebServer(
-            function ($execute) {
-                $execute(GetSpec::create('GET', '/curl_in_web_request.php'));
-            },
-            __DIR__ . '/curl_in_web_request.php',
-            $env
-        );
-
-        $metrics = [];
-        if (null !== $expectedSampleRate) {
-            $metrics = array_merge($metrics, [ '_dd1.sr.eausr' => $expectedSampleRate ]);
-        }
-
-        $this->assertFlameGraph($traces, [
-            SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /curl_in_web_request.php')
-                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code', 'span.kind'])
-                ->withExactMetrics(['_sampling_priority_v1' => 1, '_dd.agent_psr' => 1, 'process_id' => getmypid()])
-                ->withChildren([
-                    SpanAssertion::build('curl_exec', 'curl', 'http', 'http://' . HTTPBIN_INTEGRATION . '/status/?')
-                        ->withExactTags([
-                            'http.url' => self::URL . '/status/200',
-                            'http.status_code' => '200',
-                            'span.kind' => 'client',
-                            'network.destination.name' => HTTPBIN_SERVICE_HOST,
-                            Tag::COMPONENT => 'curl',
-                            '_dd.svc_src' => 'curl',
-                            '_dd.base_service' => 'top_level_app',
-                        ])
-                        ->withExistingTagsNames(self::commonCurlInfoTags())
-                        ->skipTagsLike('/^curl\..*/'),
-                ]),
-        ]);
-    }
-
-    public function dataProviderTestTraceAnalytics()
-    {
-        return [
-            'not set' => [
-                [],
-                null,
-            ],
-            'off no rate' => [
-                [
-                    'DD_TRACE_CURL_ANALYTICS_ENABLED' => false,
-                ],
-                null,
-            ],
-            'off legacy name no rate' => [
-                [
-                    'DD_CURL_ANALYTICS_ENABLED' => false,
-                ],
-                null,
-            ],
-            'off with rate' => [
-                [
-                    'DD_TRACE_CURL_ANALYTICS_ENABLED' => false,
-                    'DD_TRACE_CURL_ANALYTICS_SAMPLE_RATE' => 0.7,
-                ],
-                null,
-            ],
-            'off legacy name with rate' => [
-                [
-                    'DD_CURL_ANALYTICS_ENABLED' => false,
-                    'DD_CURL_ANALYTICS_SAMPLE_RATE' => 0.7,
-                ],
-                null,
-            ],
-            'enabled default rate' => [
-                [
-                    'DD_TRACE_CURL_ANALYTICS_ENABLED' => true,
-                ],
-                1.0,
-            ],
-            'enabled legacy name default rate' => [
-                [
-                    'DD_CURL_ANALYTICS_ENABLED' => true,
-                ],
-                1.0,
-            ],
-            'enabled specific rate' => [
-                [
-                    'DD_TRACE_CURL_ANALYTICS_ENABLED' => true,
-                    'DD_TRACE_CURL_ANALYTICS_SAMPLE_RATE' => 0.7,
-                ],
-                0.7,
-            ],
-            'enabled legacy name specific rate' => [
-                [
-                    'DD_CURL_ANALYTICS_ENABLED' => true,
-                    'DD_CURL_ANALYTICS_SAMPLE_RATE' => 0.7,
-                ],
-                0.7,
-            ],
         ];
     }
 

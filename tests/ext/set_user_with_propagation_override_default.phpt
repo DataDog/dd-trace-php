@@ -4,13 +4,15 @@ Test \DDTrace\set_user with metadata and with usr.id as a distributed tag
 <?php
 DDTrace\set_user("admin", ["policy" => "none", "permissions" => "777"], true);
 $root = \DDTrace\root_span();
-var_dump($root->meta);
+var_dump($root->attributes);
 
 ?>
 --EXPECTF--
-array(5) {
+array(6) {
   ["runtime-id"]=>
   string(36) "%s"
+  ["process_id"]=>
+  float(%f)
   ["usr.id"]=>
   string(5) "admin"
   ["_dd.p.usr.id"]=>

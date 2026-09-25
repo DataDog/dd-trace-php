@@ -18,13 +18,13 @@ DDTrace\consume_distributed_tracing_headers(function ($header) {
 
 $root->meta["manual.keep"] = true;
 
-if (!isset($root->metrics["_dd.rule_psr"]) && \DDTrace\get_priority_sampling() == \DD_TRACE_PRIORITY_SAMPLING_USER_KEEP) {
+if (!isset($root->attributes["_dd.rule_psr"]) && \DDTrace\get_priority_sampling() == \DD_TRACE_PRIORITY_SAMPLING_USER_KEEP) {
     echo "OK\n";
 } else {
-    echo "metrics[_dd.rule_psr] = {$root->metrics["_dd.rule_psr"]}\n";
+    echo "metrics[_dd.rule_psr] = {$root->attributes["_dd.rule_psr"]}\n";
 }
 
-echo "_dd.p.dm = {$root->meta["_dd.p.dm"]}\n";
+echo "_dd.p.dm = {$root->attributes["_dd.p.dm"]}\n";
 
 ?>
 --EXPECT--

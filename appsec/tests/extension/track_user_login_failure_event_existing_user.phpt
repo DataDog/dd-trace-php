@@ -28,6 +28,8 @@ root_span_get_meta():
 Array
 (
     [runtime-id] => %s
+    [_dd.p.ts] => 02
+    [_dd.p.dm] => -5
     [appsec.events.users.login.failure.usr.id] => sdkID
     [appsec.events.users.login.failure.usr.login] => sdkID
     [appsec.events.users.login.failure.track] => true
@@ -37,6 +39,4 @@ Array
     [appsec.events.users.login.failure.email] => noneofyour@business.com
     [appsec.events.users.login.failure.usr.exists] => true
     [server.business_logic.users.login.failure] => null
-    [_dd.p.ts] => 02
-    [_dd.p.dm] => -5
 )

@@ -10,8 +10,8 @@ $root = \DDTrace\root_span();
 
 \DDTrace\get_priority_sampling();
 
-var_dump(isset($root->metrics["_dd.rule_psr"]) ? "This should not be present": "Missing");
-echo "_dd.p.dm = ", isset($root->meta["_dd.p.dm"]) ? $root->meta["_dd.p.dm"] : "-", "\n";
+var_dump(isset($root->attributes["_dd.rule_psr"]) ? "This should not be present": "Missing");
+echo "_dd.p.dm = ", isset($root->attributes["_dd.p.dm"]) ? $root->attributes["_dd.p.dm"] : "-", "\n";
 ?>
 --EXPECT--
 string(7) "Missing"

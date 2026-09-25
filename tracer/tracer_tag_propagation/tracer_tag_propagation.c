@@ -11,11 +11,15 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
-void ddtrace_clean_tracer_tags(zend_array *root_meta, zend_array *propagated_tags) {
+void ddtrace_drop_propagated_tags(zend_array *tags, zend_array *propagated_tags) {
     zend_string *tagname;
     ZEND_HASH_FOREACH_STR_KEY(propagated_tags, tagname) {
-        zend_hash_del(root_meta, tagname);
+        zend_hash_del(tags, tagname);
     } ZEND_HASH_FOREACH_END();
+}
+
+void ddtrace_clean_tracer_tags(zend_array *root_meta, zend_array *propagated_tags) {
+    ddtrace_drop_propagated_tags(root_meta, propagated_tags);
     zend_hash_clean(propagated_tags);
 }
 
@@ -90,14 +94,26 @@ static zend_array *ddtrace_get_propagated() {
     return propagated;
 }
 
+// Propagated tag values are written to the root span's $attributes (the preset before a root exists);
+// the deprecated root $meta is still read as a fallback (preset copies, userland writes).
 static zend_array *ddtrace_get_root_meta() {
     zend_array *root_meta = &DDTRACE_G(root_span_tags_preset);
     ddtrace_root_span_data *root_span = DDTRACE_G(active_stack)->root_span;
     if (root_span) {
-        root_meta = ddtrace_property_array(&root_span->property_meta);
+        root_meta = ddtrace_property_array(&root_span->property_attributes);
     }
 
     return root_meta;
+}
+
+static zend_array *ddtrace_get_root_meta_fallback() {
+    ddtrace_root_span_data *root_span = DDTRACE_G(active_stack)->root_span;
+    return root_span ? ddtrace_property_array(&root_span->property_meta) : NULL;
+}
+
+static zval *dd_find_propagated_value(zend_array *tags, zend_array *fallback, zend_string *tagname) {
+    zval *tag = zend_hash_find(tags, tagname);
+    return tag || !fallback ? tag : zend_hash_find(fallback, tagname);
 }
 
 zval *ddtrace_propagated_tags_get_tag(const char *tag) {
@@ -106,23 +122,26 @@ zval *ddtrace_propagated_tags_get_tag(const char *tag) {
     }
     zend_array *propagated = ddtrace_get_propagated();
     zend_array *root_meta = ddtrace_get_root_meta();
+    zend_array *fallback = ddtrace_get_root_meta_fallback();
     size_t tag_len = strlen(tag);
 
     if (!zend_hash_str_find(propagated, tag, tag_len)) {
         return NULL;
     }
 
-    return zend_hash_str_find(root_meta, tag, tag_len);
+    zval *value = zend_hash_str_find(root_meta, tag, tag_len);
+    return value || !fallback ? value : zend_hash_str_find(fallback, tag, tag_len);
 }
 
 void ddtrace_get_propagated_tags(zend_array *tags) {
     zend_array *propagated = ddtrace_get_propagated();
     zend_array *root_meta = ddtrace_get_root_meta();
+    zend_array *fallback = ddtrace_get_root_meta_fallback();
 
     zend_string *tagname;
     ZEND_HASH_FOREACH_STR_KEY(propagated, tagname) {
         zval *tag;
-        if ((tag = zend_hash_find(root_meta, tagname))) {
+        if ((tag = dd_find_propagated_value(root_meta, fallback, tagname))) {
             Z_TRY_ADDREF_P(tag);
             zend_hash_update(tags, tagname, tag);
         }
@@ -134,10 +153,14 @@ zend_string *ddtrace_format_root_propagated_tags(void) {
     zend_array *propagated = ddtrace_get_propagated();
     zend_array *root_meta = ddtrace_get_root_meta();
 
-    return ddtrace_format_propagated_tags(propagated, root_meta);
+    return ddtrace_format_propagated_tags_ex(propagated, root_meta, ddtrace_get_root_meta_fallback());
 }
 
 zend_string *ddtrace_format_propagated_tags(zend_array *propagated, zend_array *tags) {
+    return ddtrace_format_propagated_tags_ex(propagated, tags, NULL);
+}
+
+zend_string *ddtrace_format_propagated_tags_ex(zend_array *propagated, zend_array *tags, zend_array *fallback) {
     // we propagate all tags on the current root span which were originally propagated, including the explicitly
     // defined tags here
     zend_hash_str_del(propagated, ZEND_STRL("_dd.p.upstream_services"));
@@ -151,7 +174,7 @@ zend_string *ddtrace_format_propagated_tags(zend_array *propagated, zend_array *
 
     zend_string *tagname;
     ZEND_HASH_FOREACH_STR_KEY(propagated, tagname) {
-        zval *tag = zend_hash_find(tags, tagname), error_zv = {0};
+        zval *tag = dd_find_propagated_value(tags, fallback, tagname), error_zv = {0};
         if (tag) {
             zend_string *str = datadog_convert_to_str(tag);
 

@@ -70,8 +70,8 @@ class PredisTest extends IntegrationTestCase
             }
         });
         $span = $traces[0][0];
-        $this->assertSame($host, $span['meta']['out.host']);
-        $this->assertSame("$port", $span['meta']['out.port']);
+        $this->assertSame($host, $span['attributes']['out.host']);
+        $this->assertSame("$port", $span['attributes']['out.port']);
         $this->assertSame('redis', $span['service']);
 
         // With split by domain
@@ -84,8 +84,8 @@ class PredisTest extends IntegrationTestCase
             }
         });
         $span = $traces[0][0];
-        $this->assertSame($host, $span['meta']['out.host']);
-        $this->assertSame("$port", $span['meta']['out.port']);
+        $this->assertSame($host, $span['attributes']['out.host']);
+        $this->assertSame("$port", $span['attributes']['out.port']);
         $this->assertSame($service, $span['service']);
     }
 
@@ -349,7 +349,7 @@ class PredisTest extends IntegrationTestCase
         });
 
         $span = $traces[0][0];
-        $this->assertEquals(0, $span['metrics']['_sampling_priority_v1']);
+        $this->assertEquals(0, $span['sampling_priority']);
     }
 
     public function testOrphansRemoval64bit()
@@ -364,7 +364,7 @@ class PredisTest extends IntegrationTestCase
         });
 
         $span = $traces[0][0];
-        $this->assertEquals(0, $span['metrics']['_sampling_priority_v1']);
+        $this->assertEquals(0, $span['sampling_priority']);
     }
 
     public function testNoFakeServices()

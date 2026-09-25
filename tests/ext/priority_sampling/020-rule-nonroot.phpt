@@ -16,25 +16,25 @@ $root->traceId = str_repeat("1", 32);
 
 var_dump(\DDTrace\get_priority_sampling() == \DD_TRACE_PRIORITY_SAMPLING_AUTO_KEEP);
 
-if ($root->metrics["_dd.agent_psr"] == 1) {
+if ($root->attributes["_dd.agent_psr"] == 1) {
     echo "Rule OK\n";
 } else {
-    var_dump($root->metrics);
+    var_dump($root->attributes);
 }
 
-echo "_dd.p.dm = ", isset($root->meta["_dd.p.dm"]) ? $root->meta["_dd.p.dm"] : "-", "\n";
+echo "_dd.p.dm = ", isset($root->attributes["_dd.p.dm"]) ? $root->attributes["_dd.p.dm"] : "-", "\n";
 
 $root->service = "foo";
 
 var_dump(\DDTrace\get_priority_sampling() == \DD_TRACE_PRIORITY_SAMPLING_USER_KEEP);
 
-if (!isset($root->metrics["_dd.agent_psr"]) && $root->metrics["_dd.rule_psr"] == 0.3) {
+if (!isset($root->attributes["_dd.agent_psr"]) && $root->attributes["_dd.rule_psr"] == 0.3) {
     echo "Rule OK\n";
 } else {
-    var_dump($root->metrics);
+    var_dump($root->attributes);
 }
 
-echo "_dd.p.dm = ", isset($root->meta["_dd.p.dm"]) ? $root->meta["_dd.p.dm"] : "-", "\n";
+echo "_dd.p.dm = ", isset($root->attributes["_dd.p.dm"]) ? $root->attributes["_dd.p.dm"] : "-", "\n";
 
 $child = \DDTrace\start_span();
 
@@ -42,34 +42,34 @@ $child->service = "bar";
 
 var_dump(\DDTrace\get_priority_sampling() == \DD_TRACE_PRIORITY_SAMPLING_USER_KEEP);
 
-if (!isset($root->metrics["_dd.agent_psr"]) && $root->metrics["_dd.rule_psr"] == 0.7) {
+if (!isset($root->attributes["_dd.agent_psr"]) && $root->attributes["_dd.rule_psr"] == 0.7) {
     echo "Rule OK\n";
 } else {
-    var_dump($root->metrics);
+    var_dump($root->attributes);
 }
 
-echo "_dd.p.dm = ", isset($root->meta["_dd.p.dm"]) ? $root->meta["_dd.p.dm"] : "-", "\n";
+echo "_dd.p.dm = ", isset($root->attributes["_dd.p.dm"]) ? $root->attributes["_dd.p.dm"] : "-", "\n";
 
 \DDTrace\close_span();
 
 var_dump(\DDTrace\get_priority_sampling() == \DD_TRACE_PRIORITY_SAMPLING_USER_KEEP);
 
-if (!isset($root->metrics["_dd.agent_psr"]) && $root->metrics["_dd.rule_psr"] == 0.7) {
+if (!isset($root->attributes["_dd.agent_psr"]) && $root->attributes["_dd.rule_psr"] == 0.7) {
     echo "Rule OK\n";
 } else {
-    var_dump($root->metrics);
+    var_dump($root->attributes);
 }
 
-echo "_dd.p.dm = ", isset($root->meta["_dd.p.dm"]) ? $root->meta["_dd.p.dm"] : "-", "\n";
+echo "_dd.p.dm = ", isset($root->attributes["_dd.p.dm"]) ? $root->attributes["_dd.p.dm"] : "-", "\n";
 
 $root->meta["end"] = "true";
 
 var_dump(\DDTrace\get_priority_sampling() == \DD_TRACE_PRIORITY_SAMPLING_USER_KEEP);
 
-if (!isset($root->metrics["_dd.agent_psr"]) && $root->metrics["_dd.rule_psr"] == 0.9) {
+if (!isset($root->attributes["_dd.agent_psr"]) && $root->attributes["_dd.rule_psr"] == 0.9) {
     echo "Rule OK\n";
 } else {
-    var_dump($root->metrics);
+    var_dump($root->attributes);
 }
 
 ?>

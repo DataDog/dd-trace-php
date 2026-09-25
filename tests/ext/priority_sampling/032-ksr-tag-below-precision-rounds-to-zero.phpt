@@ -9,7 +9,7 @@ $root = \DDTrace\root_span();
 
 \DDTrace\get_priority_sampling();
 
-$ksr = isset($root->meta["_dd.p.ksr"]) ? $root->meta["_dd.p.ksr"] : "-";
+$ksr = isset($root->attributes["_dd.p.ksr"]) ? $root->attributes["_dd.p.ksr"] : "-";
 echo "_dd.p.ksr = ", $ksr, "\n";
 // 0.0000001 rounds to 0 at 6 decimal places
 echo "no_sci_notation = ", (strpos($ksr, 'e') === false) ? "true" : "false", "\n";

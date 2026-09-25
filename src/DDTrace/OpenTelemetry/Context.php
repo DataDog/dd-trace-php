@@ -211,7 +211,11 @@ final class Context implements ContextInterface
             $currentSpan,
             API\SpanContext::create($currentTraceId, $currentSpanId, $traceFlags, $traceState), // $context
             self::getDDInstrumentationScope(), // $instrumentationScope
-            isset($currentSpan->meta[Tag::SPAN_KIND]) ? self::convertDDSpanKindToOtel($currentSpan->meta[Tag::SPAN_KIND]) : API\SpanKind::KIND_INTERNAL, // $kind
+            isset($currentSpan->attributes[Tag::SPAN_KIND]) || isset($currentSpan->meta[Tag::SPAN_KIND])
+                ? self::convertDDSpanKindToOtel(
+                    $currentSpan->attributes[Tag::SPAN_KIND] ?? $currentSpan->meta[Tag::SPAN_KIND]
+                )
+                : API\SpanKind::KIND_INTERNAL, // $kind
             API\Span::fromContext($parentContext), // $parentSpan (TODO: Handle null parent span) ?
             $parentContext, // $parentContext
             NoopSpanProcessor::getInstance(), // $spanProcessor

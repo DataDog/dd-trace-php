@@ -6,13 +6,15 @@ Test \datadog\appsec\v2\track_user_login_success no user id given
   'metakey1' => 'meta value'
 ]);
 $root = \DDTrace\root_span();
-var_dump($root->meta);
+var_dump($root->attributes);
 
 ?>
 --EXPECTF--
-array(5) {
+array(6) {
   ["runtime-id"]=>
-  string(%d) %s
+  string(36) "%s"
+  ["process_id"]=>
+  float(%f)
   ["appsec.events.users.login.success.usr.login"]=>
   string(%d) "login"
   ["appsec.events.users.login.success.track"]=>

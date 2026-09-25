@@ -26,7 +26,7 @@ $helper->get_commands(); // ignore
 
 $rootSpan = root_span();
 $rootSpan->meta["http.route"] = "/foo/bar";
-unset($rootSpan->meta["http.method"]);
+unset($rootSpan->attributes["http.method"]);
 
 
 var_dump(rshutdown());

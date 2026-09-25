@@ -12,7 +12,7 @@ static inline bool dd_is_dir_sep(const char c) {
 }
 
 void ddtrace_add_code_origin_information(ddtrace_span_data *span, int skip_frames) {
-    zend_array *meta = ddtrace_property_array(&span->property_meta);
+    zend_array *meta = ddtrace_property_array(&span->property_attributes);
 
     zend_long max_frames = get_DD_CODE_ORIGIN_MAX_USER_FRAMES();
     int current_frame = 0, collected_frames = 0;
@@ -42,9 +42,13 @@ void ddtrace_add_code_origin_information(ddtrace_span_data *span, int skip_frame
         }
 
         if (collected_frames == 0) {
-            zval type, *kind = zend_hash_str_find_deref(meta, ZEND_STRL("span.kind"));
+            zval type, *kind = ddtrace_span_find_tag(span, ZEND_STRL("span.kind"));
+            if (kind) {
+                ZVAL_DEREF(kind);
+            }
             ZVAL_STRING(&type, (kind && Z_TYPE_P(kind) == IS_STRING ? zend_string_equals_literal(Z_STR_P(kind), "server") || zend_string_equals_literal(Z_STR_P(kind), "producer") : &span->root->span == span) ? "entry" : "exit");
-            if (!zend_hash_str_add(meta, ZEND_STRL("_dd.code_origin.type"), &type)) {
+            if (zend_hash_str_exists(ddtrace_property_array(&span->property_meta), ZEND_STRL("_dd.code_origin.type")) ||
+                !zend_hash_str_add(meta, ZEND_STRL("_dd.code_origin.type"), &type)) {
                 zend_string_release(Z_STR(type));
                 return; // skip if already present
             }
@@ -59,7 +63,8 @@ void ddtrace_add_code_origin_information(ddtrace_span_data *span, int skip_frame
         zend_string_release(key);
 
         key = zend_strpprintf(0, "_dd.code_origin.frames.%d.line", current_frame);
-        ZVAL_LONG(&zv, current_frame == 0 ? EX(func)->op_array.line_start : EX(opline)->lineno);
+        // A string, as the tag was when it lived in meta.
+        ZVAL_STR(&zv, zend_long_to_str(current_frame == 0 ? EX(func)->op_array.line_start : EX(opline)->lineno));
         zend_hash_update(meta, key, &zv);
         zend_string_release(key);
 
@@ -89,11 +94,9 @@ void ddtrace_maybe_add_code_origin_information(ddtrace_span_data *span, int skip
         if (Z_TYPE_P(type) == IS_STRING && Z_STRLEN_P(type) != 0) {
             // If it's identical, we don't add it to the child so that only the parent span will be added the code origin information
             if (span->parent && zend_is_identical(type, &span->parent->property_type)) {
-                zend_array *meta = ddtrace_property_array(&span->property_meta);
-                zval *kind = zend_hash_str_find(meta, ZEND_STRL("span.kind"));
+                zval *kind = ddtrace_span_find_tag(span, ZEND_STRL("span.kind"));
                 if (kind) {
-                    zend_array *parent_meta = ddtrace_property_array(&span->parent->property_meta);
-                    zval *parent_kind = zend_hash_str_find(parent_meta, ZEND_STRL("span.kind"));
+                    zval *parent_kind = ddtrace_span_find_tag(SPANDATA(span->parent), ZEND_STRL("span.kind"));
                     // span.kind must match, otherwise websocket has false positives for example, where both entry and exit span have type websocket
                     if (!parent_kind || zend_is_identical(kind, parent_kind)) {
                         return;

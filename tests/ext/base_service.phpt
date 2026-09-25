@@ -18,9 +18,11 @@ var_dump(dd_clean_spans());
 --EXPECTF--
 array(1) {
   [0]=>
-  array(10) {
+  array(12) {
     ["trace_id"]=>
     string(%d) "%d"
+    ["trace_id_high"]=>
+    string(16) "%s"
     ["span_id"]=>
     string(%d) "%d"
     ["parent_id"]=>
@@ -37,12 +39,14 @@ array(1) {
     string(7) "changed"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
+    ["span_kind"]=>
+    int(1)
+    ["attributes"]=>
     array(2) {
-      ["_dd.base_service"]=>
-      string(16) "base_service.php"
       ["_dd.svc_src"]=>
       string(1) "m"
+      ["_dd.base_service"]=>
+      string(16) "base_service.php"
     }
   }
 }

@@ -38,6 +38,7 @@ class Tag
     const TARGET_HOST = 'out.host';
     const TARGET_PORT = 'out.port';
     const BYTES_OUT = 'net.out.bytes';
+    /** @deprecated App Analytics is deprecated; setting this metric no longer has any effect. */
     const ANALYTICS_KEY = '_dd1.sr.eausr';
     const HOSTNAME = '_dd.hostname';
     const ORIGIN = '_dd.origin';

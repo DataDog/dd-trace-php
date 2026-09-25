@@ -10,12 +10,12 @@ $root->name = "fooname";
 
 \DDTrace\get_priority_sampling();
 
-if ($root->metrics["_dd.rule_psr"] ?? -1 != 0.3 && $root->metrics["_dd.agent_psr"] == 1) {
+if ($root->attributes["_dd.rule_psr"] ?? -1 != 0.3 && $root->attributes["_dd.agent_psr"] == 1) {
     echo "Rule OK\n";
 } else {
-    var_dump($root->metrics);
+    var_dump($root->attributes);
 }
-echo "_dd.p.dm = {$root->meta["_dd.p.dm"]}\n";
+echo "_dd.p.dm = {$root->attributes["_dd.p.dm"]}\n";
 ?>
 --EXPECT--
 Rule OK

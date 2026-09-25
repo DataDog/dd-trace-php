@@ -9,9 +9,9 @@ $root = \DDTrace\root_span();
 
 \DDTrace\get_priority_sampling();
 
-echo "_dd.p.ksr = ", isset($root->meta["_dd.p.ksr"]) ? $root->meta["_dd.p.ksr"] : "-", "\n";
+echo "_dd.p.ksr = ", isset($root->attributes["_dd.p.ksr"]) ? $root->attributes["_dd.p.ksr"] : "-", "\n";
 // Verify it's a string in meta, not metrics
-echo "is_string = ", is_string($root->meta["_dd.p.ksr"] ?? null) ? "true" : "false", "\n";
+echo "is_string = ", is_string($root->attributes["_dd.p.ksr"] ?? null) ? "true" : "false", "\n";
 ?>
 --EXPECT--
 _dd.p.ksr = 0.765432

@@ -15,13 +15,15 @@ ddtrace_version_at_least('0.85.0');
   false
 );
 $root = \DDTrace\root_span();
-var_dump($root->meta);
+var_dump($root->attributes);
 
 ?>
 --EXPECTF--
-array(5) {
+array(6) {
   ["runtime-id"]=>
   string(%d) %s
+  ["process_id"]=>
+  float(%f)
   ["appsec.events.users.login.failure.usr.login"]=>
   string(%d) "login"
   ["appsec.events.users.login.failure.usr.exists"]=>

@@ -8,14 +8,14 @@ $root = \DDTrace\root_span();
 
 \DDTrace\get_priority_sampling();
 
-if ($root->metrics["_dd.agent_psr"] === 1.0) {
+if ($root->attributes["_dd.agent_psr"] === 1.0) {
     echo "Agent PSR OK\n";
 } else {
     echo "Agent PSR missing\n";
 }
 
-echo "_dd.p.ksr = ", isset($root->meta["_dd.p.ksr"]) ? $root->meta["_dd.p.ksr"] : "not set", "\n";
-echo "_dd.p.dm = {$root->meta["_dd.p.dm"]}\n";
+echo "_dd.p.ksr = ", isset($root->attributes["_dd.p.ksr"]) ? $root->attributes["_dd.p.ksr"] : "not set", "\n";
+echo "_dd.p.dm = {$root->attributes["_dd.p.dm"]}\n";
 ?>
 --EXPECT--
 Agent PSR OK

@@ -53,11 +53,11 @@ foreach ($tests as list($pattern, $name, $matches)) {
 
         DDTrace\get_priority_sampling();
 
-        if ($root->metrics["_dd.rule_psr"] == ($matches ? 0.7 : 0.3)) {
+        if ($root->attributes["_dd.rule_psr"] == ($matches ? 0.7 : 0.3)) {
             echo "As expected, $pattern " . ($matches ? "matches" : "doesn't match") . " $name (name)\n";
         } else {
             echo "$pattern " . ($matches ? "should have matched" : "shouldn't have matched") . " $name (service). Metrics found were: \n";
-            var_dump($root->metrics);
+            var_dump($root->attributes);
         }
 
         ini_set("datadog.trace.sampling_rules", '[{"service":"' . $pattern . '","sample_rate":0.7},{"sample_rate": 0.3}]');
@@ -67,11 +67,11 @@ foreach ($tests as list($pattern, $name, $matches)) {
 
         \DDTrace\get_priority_sampling();
 
-        if ($root->metrics["_dd.rule_psr"] == ($matches ? 0.7 : 0.3)) {
+        if ($root->attributes["_dd.rule_psr"] == ($matches ? 0.7 : 0.3)) {
             echo "As expected, $pattern " . ($matches ? "matches" : "doesn't match") . " $name (service)\n";
         } else {
             echo "$pattern " . ($matches ? "should have matched" : "shouldn't have matched") . " $name (service). Metrics found were: \n";
-            var_dump($root->metrics);
+            var_dump($root->attributes);
         }
 
         ini_set("datadog.trace.sampling_rules", '[{"resource":"' . $pattern . '","sample_rate":0.7},{"sample_rate": 0.3}]');
@@ -81,11 +81,11 @@ foreach ($tests as list($pattern, $name, $matches)) {
 
         \DDTrace\get_priority_sampling();
 
-        if ($root->metrics["_dd.rule_psr"] == ($matches ? 0.7 : 0.3)) {
+        if ($root->attributes["_dd.rule_psr"] == ($matches ? 0.7 : 0.3)) {
             echo "As expected, $pattern " . ($matches ? "matches" : "doesn't match") . " $name (resource)\n";
         } else {
             echo "$pattern " . ($matches ? "should have matched" : "shouldn't have matched") . " $name (resource). Metrics found were: \n";
-            var_dump($root->metrics);
+            var_dump($root->attributes);
         }
     } else {
         ini_set("datadog.trace.sampling_rules", '[{"tags":{"foo":"' . $pattern . '"},"sample_rate":0.7},{"sample_rate": 0.3}]');
@@ -96,11 +96,11 @@ foreach ($tests as list($pattern, $name, $matches)) {
         \DDTrace\get_priority_sampling();
 
         $name = var_export($name, true);
-        if ($root->metrics["_dd.rule_psr"] == ($matches ? 0.7 : 0.3)) {
+        if ($root->attributes["_dd.rule_psr"] == ($matches ? 0.7 : 0.3)) {
             echo "As expected, $pattern " . ($matches ? "matches" : "doesn't match") . " $name (tag)\n";
         } else {
             echo "$pattern " . ($matches ? "should have matched" : "shouldn't have matched") . " $name (tag). Metrics found were: \n";
-            var_dump($root->metrics);
+            var_dump($root->attributes);
         }
     }
 }

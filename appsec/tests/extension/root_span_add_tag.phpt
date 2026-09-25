@@ -29,9 +29,11 @@ bool(true)
 bool(false)
 array(1) {
   [0]=>
-  array(10) {
+  array(13) {
     ["trace_id"]=>
     string(%d) "%d"
+    ["trace_id_high"]=>
+    string(16) "%s"
     ["span_id"]=>
     string(%d) "%d"
     ["start"]=>
@@ -46,31 +48,16 @@ array(1) {
     string(12) "appsec_tests"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
-    array(4) {
-      ["_dd.p.dm"]=>
-      string(2) "-0"
-      ["_dd.p.tid"]=>
-      string(16) "%s"
+    ["span_kind"]=>
+    int(1)
+    ["sampling_priority"]=>
+    int(1)
+    ["sampling_mechanism"]=>
+    int(0)
+    ["attributes"]=>
+    array(%d) {%A
       ["after"]=>
-      string(9) "root_span"
-      ["runtime-id"]=>
-      string(%d) %s
-    }
-    ["metrics"]=>
-    array(6) {
-      [%s"]=>
-      float(%d)
-      ["_sampling_priority_v1"]=>
-      float(1)
-      ["php.compilation.total_time_ms"]=>
-      float(%s)
-      ["php.memory.peak_real_usage_bytes"]=>
-      float(%f)
-      ["php.memory.peak_usage_bytes"]=>
-      float(%f)
-      ["process_id"]=>
-      float(%f)
+      string(9) "root_span"%A
     }
   }
 }

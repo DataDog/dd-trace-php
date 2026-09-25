@@ -6,8 +6,13 @@
 int ddtrace_serialize_simple_array(zval *trace, zval *retval);
 int ddtrace_serialize_simple_array_into_c_string(zval *trace, char **data_p, size_t *size_p);
 
-ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_TraceBytes *trace);
-zval dd_serialize_rust_traces_to_zval(ddog_TracesBytes *traces);
+// Returns the span's V1 builder node, or NULL when the span was dropped.
+ddog_SpanNode *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtrace_serialize_ctx *ctx);
+zval dd_serialize_rust_to_zval(struct ddog_TracerPayloadV1Builder *builder);
+
+// String span attribute setters shared with exception_serialize.c.
+void dd_span_attr_str(ddog_SpanNode *span, const char *key, const char *val);
+void dd_span_attr_zstr(ddog_SpanNode *span, const char *key, zend_string *val);
 
 void ddtrace_save_active_error_to_metadata(void);
 void ddtrace_set_global_span_properties(ddtrace_span_data *span);

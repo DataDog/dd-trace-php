@@ -41,8 +41,23 @@ function largeBaseConvert($numString, $fromBase, $toBase)
 
 function dump_spans() {
     foreach (dd_trace_serialize_closed_spans() as $span) {
-        unset($span["meta"]["process_id"], $span["meta"]["runtime-id"], $span["meta"]["_dd.p.dm"], $span["meta"]["_dd.tags.process"]);
-        echo "parent: ", $span["parent_id"] ?? 0, ", trace: {$span["trace_id"]}, meta: " . json_encode($span["meta"] ?? []) . "\n";
+        $meta = $span["attributes"] ?? [];
+        unset(
+            $meta["process_id"], $meta["runtime-id"], $meta["_dd.p.dm"], $meta["_dd.tags.process"],
+            $meta["_dd.agent_psr"], $meta["php.compilation.total_time_ms"],
+            $meta["php.memory.peak_usage_bytes"], $meta["php.memory.peak_real_usage_bytes"]
+        );
+        // origin and the 128-bit trace id high bits are promoted to dedicated top-level
+        // fields in the v1 shape rather than living in attributes.
+        $promoted = [];
+        if (isset($span["origin"])) {
+            $promoted["_dd.origin"] = $span["origin"];
+        }
+        if (isset($span["trace_id_high"])) {
+            $promoted["_dd.p.tid"] = $span["trace_id_high"];
+        }
+        $meta = array_merge($promoted, $meta);
+        echo "parent: ", $span["parent_id"] ?? 0, ", trace: {$span["trace_id"]}, meta: " . json_encode($meta) . "\n";
     }
     return $span;
 }
@@ -98,7 +113,7 @@ array(7) {
 }
 bool(true)
 parent: 321, trace: 123, meta: {"_dd.origin":"foo","a":"b"}
-parent: %d, trace: 123, meta: {"_dd.origin":"foo"}
+parent: %d, trace: 123, meta: []
 bool(true)
 array(5) {
   ["trace_id"]=>

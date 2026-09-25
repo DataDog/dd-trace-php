@@ -28,11 +28,11 @@ root_span_get_meta():
 Array
 (
     [runtime-id] => %s
+    [_dd.p.ts] => 02
+    [_dd.p.dm] => -5
     [_dd.appsec.events.users.signup.auto.mode] => anonymization
     [appsec.events.users.signup.usr.login] => anon_428821350e9691491f616b754cd8315f
     [_dd.appsec.usr.login] => anon_428821350e9691491f616b754cd8315f
     [appsec.events.users.signup.track] => true
     [server.business_logic.users.signup] => null
-    [_dd.p.ts] => 02
-    [_dd.p.dm] => -5
 )

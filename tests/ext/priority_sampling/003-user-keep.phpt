@@ -13,7 +13,7 @@ if (\DDTrace\get_priority_sampling() == \DD_TRACE_PRIORITY_SAMPLING_USER_KEEP) {
     if ($root->samplingPriority == \DD_TRACE_PRIORITY_SAMPLING_USER_KEEP) {
         echo "metrics[_sampling_priority_v1] OK\n";
 
-        if ($root->metrics["_dd.rule_psr"] == 1) {
+        if ($root->attributes["_dd.rule_psr"] == 1) {
             echo "metrics[_dd.rule_psr] OK\n";
 
             if (\DDTrace\get_priority_sampling() == \DD_TRACE_PRIORITY_SAMPLING_USER_KEEP) {
@@ -22,7 +22,7 @@ if (\DDTrace\get_priority_sampling() == \DD_TRACE_PRIORITY_SAMPLING_USER_KEEP) {
                 echo "Default priority sampling changed\n";
             }
         } else {
-            echo "_dd.rule_psr is {$root->metrics["_dd.rule_psr"]}\n";
+            echo "_dd.rule_psr is {$root->attributes["_dd.rule_psr"]}\n";
         }
     } else {
         echo "_sampling_priority_v1 metric is missing from root span metrics\n";
@@ -30,7 +30,7 @@ if (\DDTrace\get_priority_sampling() == \DD_TRACE_PRIORITY_SAMPLING_USER_KEEP) {
 } else {
     echo "Default priority sampling is not automatically kept\n";
 }
-echo "_dd.p.dm = {$root->meta["_dd.p.dm"]}\n";
+echo "_dd.p.dm = {$root->attributes["_dd.p.dm"]}\n";
 ?>
 --EXPECT--
 \DDTrace\get_priority_sampling() OK

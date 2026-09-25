@@ -95,9 +95,11 @@ array(3) {
 ---
 array(3) {
   [0]=>
-  array(10) {
+  array(13) {
     ["trace_id"]=>
     string(%d) "%d"
+    ["trace_id_high"]=>
+    string(16) "%s"
     ["span_id"]=>
     string(%d) "%d"
     ["start"]=>
@@ -112,41 +114,38 @@ array(3) {
     string(10) "FooService"
     ["type"]=>
     string(7) "FooType"
-    ["meta"]=>
-    array(5) {
-      ["_dd.p.dm"]=>
-      string(2) "-0"
-      ["_dd.p.tid"]=>
-      string(16) "%s"
-      ["_dd.svc_src"]=>
-      string(1) "m"
-      ["args.0"]=>
-      string(18) "tracing is awesome"
+    ["span_kind"]=>
+    int(1)
+    ["sampling_priority"]=>
+    int(1)
+    ["sampling_mechanism"]=>
+    int(0)
+    ["attributes"]=>
+    array(10) {
       ["runtime-id"]=>
       string(36) "%s"
-    }
-    ["metrics"]=>
-    array(8) {
+      ["process_id"]=>
+      float(%f)
+      ["_dd.svc_src"]=>
+      string(1) "m"
       ["_dd.agent_psr"]=>
       float(1)
-      ["_sampling_priority_v1"]=>
-      float(1)
-      ["bar"]=>
-      float(0)
+      ["args.0"]=>
+      string(18) "tracing is awesome"
       ["foo"]=>
       float(100)
+      ["bar"]=>
+      float(0)
       ["php.compilation.total_time_ms"]=>
-      float(%f)
-      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
       ["php.memory.peak_usage_bytes"]=>
       float(%f)
-      ["process_id"]=>
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
     }
   }
   [1]=>
-  array(10) {
+  array(11) {
     ["trace_id"]=>
     string(%d) "%d"
     ["span_id"]=>
@@ -165,16 +164,22 @@ array(3) {
     string(10) "FooService"
     ["type"]=>
     string(7) "FooType"
-    ["meta"]=>
-    array(1) {
+    ["span_kind"]=>
+    int(1)
+    ["attributes"]=>
+    array(2) {
+      ["_dd.svc_src"]=>
+      string(1) "m"
       ["rand.range"]=>
       string(8) "42 - 999"
     }
   }
   [2]=>
-  array(10) {
+  array(13) {
     ["trace_id"]=>
     string(%d) "%d"
+    ["trace_id_high"]=>
+    string(16) "%s"
     ["span_id"]=>
     string(%d) "%d"
     ["start"]=>
@@ -189,28 +194,25 @@ array(3) {
     string(19) "dd_trace_method.php"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
-    array(3) {
-      ["_dd.p.dm"]=>
-      string(2) "-0"
-      ["_dd.p.tid"]=>
-      string(16) "%s"
+    ["span_kind"]=>
+    int(1)
+    ["sampling_priority"]=>
+    int(1)
+    ["sampling_mechanism"]=>
+    int(0)
+    ["attributes"]=>
+    array(6) {
       ["runtime-id"]=>
       string(36) "%s"
-    }
-    ["metrics"]=>
-    array(6) {
+      ["process_id"]=>
+      float(%f)
       ["_dd.agent_psr"]=>
-      float(1)
-      ["_sampling_priority_v1"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
-      ["php.memory.peak_real_usage_bytes"]=>
-      float(%f)
       ["php.memory.peak_usage_bytes"]=>
       float(%f)
-      ["process_id"]=>
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
     }
   }

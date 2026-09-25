@@ -44,6 +44,30 @@ static const char *ddtrace_root_tag_value(const void *ctx, const char *key, uint
     CHECK_PROP("resource", property_resource)
 #undef CHECK_PROP
 
+    // Attributes: string tags as-is, numbers like metrics below, bools as on the v0.4 wire.
+    zval *attr = zend_hash_str_find(ddtrace_property_array(&root->property_attributes), key, key_len);
+    if (attr) {
+        ZVAL_DEREF(attr);
+        switch (Z_TYPE_P(attr)) {
+            case IS_STRING:
+                *out_len = Z_STRLEN_P(attr);
+                return Z_STRVAL_P(attr);
+            case IS_TRUE:
+                *out_len = 4;
+                return "true";
+            case IS_FALSE:
+                *out_len = 5;
+                return "false";
+            case IS_LONG:
+            case IS_DOUBLE: {
+                ZEND_TLS char attr_buf[32];
+                int len = snprintf(attr_buf, sizeof(attr_buf), "%g", zval_get_double(attr));
+                *out_len = (uintptr_t)(len > 0 ? len : 0);
+                return attr_buf;
+            }
+        }
+    }
+
     // Meta hash: string tags.
     zend_array *meta = ddtrace_property_array(&root->property_meta);
     if (meta) {

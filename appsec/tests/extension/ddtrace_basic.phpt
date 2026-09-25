@@ -51,7 +51,7 @@ var_dump($root_span->name);
 var_dump($root_span->service);
 var_dump($root_span->type);
 var_dump($root_span->id);
-var_dump($root_span->meta);
+var_dump($root_span->attributes);
 var_dump($root_span->metrics);
 
 $trace_id = \DDTrace\root_span()->id;
@@ -86,15 +86,15 @@ string(17) "ddtrace_basic.php"
 string(12) "appsec_tests"
 string(3) "cli"
 string(%d) "%d"
-array(2) {
+array(3) {
   ["runtime-id"]=>
   string(%d) %s
+  [%s]=>
+  float(%d)
   ["ddappsec"]=>
   string(4) "true"
 }
-array(1) {
-  [%s]=>
-  float(%d)
+array(0) {
 }
 trace id: %s
 ddtrace_rshutdown
