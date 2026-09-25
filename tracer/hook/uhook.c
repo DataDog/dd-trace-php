@@ -50,14 +50,8 @@ typedef struct {
     zend_object *closure;
 } dd_uhook_def;
 
+/* Keep private state before zend_object: subclasses append property slots to its tail. */
 typedef struct {
-    zend_object std;
-    // first property is $data
-    zval property_id;
-    zval property_args;
-    zval property_returned;
-    zval property_exception;
-    zval property_object;
     zend_ulong invocation;
     zend_execute_data *execute_data;
     zval *vm_stack_top;
@@ -69,7 +63,23 @@ typedef struct {
     bool returns_reference;
     bool suppress_call;
     bool dis_jit_inlining_called;
+    zend_object std; /* Must be last so its property table can grow. */
 } dd_hook_data;
+
+/* Declared property slots, in stub order. */
+#define DD_HOOK_DATA_DATA 0
+#define DD_HOOK_DATA_ID 1
+#define DD_HOOK_DATA_ARGS 2
+#define DD_HOOK_DATA_RETURNED 3
+#define DD_HOOK_DATA_EXCEPTION 4
+#define DD_HOOK_DATA_OBJECT 5
+#define DD_HOOK_DATA_PROP(hook_data, slot) OBJ_PROP_NUM(&(hook_data)->std, (slot))
+
+static zend_object_handlers dd_hook_data_handlers;
+
+static inline dd_hook_data *dd_hook_data_from_obj(zend_object *obj) {
+    return (dd_hook_data *)((char *)obj - XtOffsetOf(dd_hook_data, std));
+}
 
 #define EXCEPTION_OVERRIDE_CLEAR ((zend_object *)0x1)
 
@@ -120,10 +130,10 @@ void dd_uhook_callback_apply_scope(dd_uhook_callback *cb, zend_class_entry *scop
 
 
 static zend_object *dd_hook_data_create(zend_class_entry *class_type) {
-    dd_hook_data *hook_data = ecalloc(1, sizeof(*hook_data));
+    dd_hook_data *hook_data = ecalloc(1, sizeof(*hook_data) + zend_object_properties_size(class_type));
     zend_object_std_init(&hook_data->std, class_type);
     object_properties_init(&hook_data->std, class_type);
-    hook_data->std.handlers = zend_get_std_object_handlers();
+    hook_data->std.handlers = &dd_hook_data_handlers;
     return &hook_data->std;
 }
 
@@ -324,24 +334,24 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
     }
 
     dyn->called_scope = zend_get_called_scope(execute_data);
-    dyn->hook_data = (dd_hook_data *)dd_hook_data_create(ddtrace_hook_data_ce);
+    dyn->hook_data = dd_hook_data_from_obj(dd_hook_data_create(ddtrace_hook_data_ce));
     dyn->hook_data->returns_reference = execute_data->func->common.fn_flags & ZEND_ACC_RETURN_REFERENCE;
     dyn->hook_data->vm_stack_top = EG(vm_stack_top);
     dyn->hook_data->running_ptr = &def->running;
 
     dyn->hook_data->invocation = invocation;
-    ZVAL_LONG(&dyn->hook_data->property_id, def->id);
+    ZVAL_LONG(DD_HOOK_DATA_PROP(dyn->hook_data, DD_HOOK_DATA_ID), def->id);
     if (def->file) {
         zend_array *filearg = zend_new_array(1);
         zval filezv;
         ZVAL_STR_COPY(&filezv, execute_data->func->op_array.filename);
         zend_hash_index_add_new(filearg, 0, &filezv);
-        ZVAL_ARR(&dyn->hook_data->property_args, filearg);
+        ZVAL_ARR(DD_HOOK_DATA_PROP(dyn->hook_data, DD_HOOK_DATA_ARGS), filearg);
     } else {
-        ZVAL_ARR(&dyn->hook_data->property_args, dd_uhook_collect_args(execute_data));
+        ZVAL_ARR(DD_HOOK_DATA_PROP(dyn->hook_data, DD_HOOK_DATA_ARGS), dd_uhook_collect_args(execute_data));
     }
     if (hasThis()) {
-        ZVAL_OBJ_COPY(&dyn->hook_data->property_object, Z_OBJ(EX(This)));
+        ZVAL_OBJ_COPY(DD_HOOK_DATA_PROP(dyn->hook_data, DD_HOOK_DATA_OBJECT), Z_OBJ(EX(This)));
     }
 
     if (def->begin.closure && !def->running) {
@@ -352,7 +362,7 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
 #if PHP_VERSION_ID >= 80000
         if (EX(func)->common.fn_flags & ZEND_ACC_GENERATOR) {
             dyn->hook_data->retval_ptr = EX(return_value);
-            ZVAL_COPY(&dyn->hook_data->property_returned, EX(return_value));
+            ZVAL_COPY(DD_HOOK_DATA_PROP(dyn->hook_data, DD_HOOK_DATA_RETURNED), EX(return_value));
         }
 #endif
 
@@ -455,7 +465,7 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
             profiling_interrupt_function(execute_data);
         }
 
-        zval *returned = &dyn->hook_data->property_returned;
+        zval *returned = DD_HOOK_DATA_PROP(dyn->hook_data, DD_HOOK_DATA_RETURNED);
         ZVAL_COPY_VALUE(&tmp, returned);
         ZVAL_COPY(returned, retval);
 #if PHP_VERSION_ID >= 80000
@@ -469,7 +479,7 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
 #endif
         zval_ptr_dtor(&tmp);
 
-        zval *exception = &dyn->hook_data->property_exception;
+        zval *exception = DD_HOOK_DATA_PROP(dyn->hook_data, DD_HOOK_DATA_EXCEPTION);
         ZVAL_COPY_VALUE(&tmp, exception);
         if (EG(exception)) {
             ZVAL_OBJ_COPY(exception, EG(exception));
@@ -865,7 +875,7 @@ void dd_uhook_span(INTERNAL_FUNCTION_PARAMETERS, bool unlimited) {
         }
     ZEND_PARSE_PARAMETERS_END();
 
-    dd_hook_data *hookData = (dd_hook_data *)Z_OBJ_P(ZEND_THIS);
+    dd_hook_data *hookData = dd_hook_data_from_obj(Z_OBJ_P(ZEND_THIS));
 
     if (hookData->span) {
         RETURN_OBJ_COPY(&hookData->span->std);
@@ -915,7 +925,7 @@ ZEND_METHOD(DDTrace_HookData, unlimitedSpan) {
 ZEND_METHOD(DDTrace_HookData, overrideArguments) {
     (void)return_value;
 
-    dd_hook_data *hookData = (dd_hook_data *)Z_OBJ_P(ZEND_THIS);
+    dd_hook_data *hookData = dd_hook_data_from_obj(Z_OBJ_P(ZEND_THIS));
 
     zend_array *args;
     ZEND_PARSE_PARAMETERS_START(1, 1)
@@ -1022,7 +1032,7 @@ ZEND_METHOD(DDTrace_HookData, overrideArguments) {
 }
 
 ZEND_METHOD(DDTrace_HookData, overrideReturnValue) {
-    dd_hook_data *hookData = (dd_hook_data *)Z_OBJ_P(ZEND_THIS);
+    dd_hook_data *hookData = dd_hook_data_from_obj(Z_OBJ_P(ZEND_THIS));
 
     zval *retval;
     ZEND_PARSE_PARAMETERS_START(1, 1)
@@ -1047,7 +1057,7 @@ ZEND_METHOD(DDTrace_HookData, overrideReturnValue) {
 }
 
 ZEND_METHOD(DDTrace_HookData, disableJitInlining) {
-    dd_hook_data *hookData = (dd_hook_data *)Z_OBJ_P(ZEND_THIS);
+    dd_hook_data *hookData = dd_hook_data_from_obj(Z_OBJ_P(ZEND_THIS));
 
     if (zend_parse_parameters_none() == FAILURE) {
         return;
@@ -1067,7 +1077,7 @@ ZEND_METHOD(DDTrace_HookData, disableJitInlining) {
 }
 
 ZEND_METHOD(DDTrace_HookData, suppressCall) {
-    dd_hook_data *hookData = (dd_hook_data *)Z_OBJ_P(ZEND_THIS);
+    dd_hook_data *hookData = dd_hook_data_from_obj(Z_OBJ_P(ZEND_THIS));
 
     if (zend_parse_parameters_none() == FAILURE) {
         return;
@@ -1088,7 +1098,7 @@ ZEND_METHOD(DDTrace_HookData, suppressCall) {
 }
 
 ZEND_METHOD(DDTrace_HookData, allowNestedHook) {
-    dd_hook_data *hookData = (dd_hook_data *)Z_OBJ_P(ZEND_THIS);
+    dd_hook_data *hookData = dd_hook_data_from_obj(Z_OBJ_P(ZEND_THIS));
 
     if (zend_parse_parameters_none() == FAILURE) {
         return;
@@ -1104,7 +1114,7 @@ ZEND_METHOD(DDTrace_HookData, allowNestedHook) {
 }
 
 ZEND_METHOD(DDTrace_HookData, overrideException) {
-    dd_hook_data *hookData = (dd_hook_data *)Z_OBJ_P(ZEND_THIS);
+    dd_hook_data *hookData = dd_hook_data_from_obj(Z_OBJ_P(ZEND_THIS));
     zend_object *throwable = NULL;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -1129,7 +1139,7 @@ ZEND_METHOD(DDTrace_HookData, overrideException) {
 ZEND_METHOD(DDTrace_HookData, getSourceFile) {
     (void)return_value;
 
-    dd_hook_data *hookData = (dd_hook_data *)Z_OBJ_P(ZEND_THIS);
+    dd_hook_data *hookData = dd_hook_data_from_obj(Z_OBJ_P(ZEND_THIS));
     zend_execute_data *hook_execute_data = hookData->execute_data;
     zend_execute_data *prev = NULL;
     if (hook_execute_data) {
@@ -1174,6 +1184,9 @@ void dd_register_opentelemetry_wrapper(void);
 void zai_uhook_minit(int module_number) {
     ddtrace_hook_data_ce = register_class_DDTrace_HookData();
     ddtrace_hook_data_ce->create_object = dd_hook_data_create;
+    /* The offset lets Zend free the containing dd_hook_data allocation. */
+    dd_hook_data_handlers = *zend_get_std_object_handlers();
+    dd_hook_data_handlers.offset = XtOffsetOf(dd_hook_data, std);
 #if PHP_VERSION_ID >= 80000
     ddtrace_hook_data_returned_prop_info = zend_hash_str_find_ptr(&ddtrace_hook_data_ce->properties_info, ZEND_STRL("returned"));
 #endif
