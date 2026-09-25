@@ -53,16 +53,13 @@ for architecture in "${architectures[@]}"; do
     # Loader
     ########################
 
-    mkdir -p ${gnu}/loader ${musl}/loader
+    mkdir -p ${gnu}/loader
 
     stripto libdatadog_php_${architecture}.so ${gnu}/loader/libdatadog_php.so
-    stripto libdatadog_php_${architecture}.so ${musl}/loader/libdatadog_php.so
 
     stripto dd_library_loader-${architecture}.so ${gnu}/loader/dd_library_loader.so
-    stripto dd_library_loader-${architecture}.so ${musl}/loader/dd_library_loader.so
 
     echo 'zend_extension=${DD_LOADER_PACKAGE_PATH}/linux-gnu/loader/dd_library_loader.so' > ${gnu}/loader/dd_library_loader.ini
-    echo 'zend_extension=${DD_LOADER_PACKAGE_PATH}/linux-musl/loader/dd_library_loader.so' > ${musl}/loader/dd_library_loader.ini
 
     ########################
     # Products
@@ -74,44 +71,37 @@ for architecture in "${architectures[@]}"; do
         # Trace
         ########################
 
-        mkdir -p ${gnu}/trace/ext/${php_api} ${musl}/trace/ext/${php_api}
-        # gnu
+        mkdir -p ${gnu}/trace/ext/${php_api}
         stripto ./standalone_${architecture}/ddtrace-${php_api}.so ${gnu}/trace/ext/${php_api}/ddtrace.so
         stripto ./standalone_${architecture}/ddtrace-${php_api}-zts.so ${gnu}/trace/ext/${php_api}/ddtrace-zts.so
-        # musl
-        stripto ./standalone_${architecture}/ddtrace-${php_api}.so ${musl}/trace/ext/${php_api}/ddtrace.so
-        stripto ./standalone_${architecture}/ddtrace-${php_api}-zts.so ${musl}/trace/ext/${php_api}/ddtrace-zts.so
 
         ########################
         # Profiling
         ########################
 
         if [[ ${php_api} -ge 20160303 ]]; then
-            mkdir -p ${gnu}/profiling/ext/${php_api} ${musl}/profiling/ext/${php_api}
-            # gnu
+            mkdir -p ${gnu}/profiling/ext/${php_api}
             stripto ./datadog-profiling/${architecture}/lib/php/${php_api}/datadog-profiling.so \
                 ${gnu}/profiling/ext/${php_api}/datadog-profiling.so
             stripto ./datadog-profiling/${architecture}/lib/php/${php_api}/datadog-profiling-zts.so \
                 ${gnu}/profiling/ext/${php_api}/datadog-profiling-zts.so
-            # musl
-            stripto ./datadog-profiling/${architecture}/lib/php/${php_api}/datadog-profiling.so \
-                ${musl}/profiling/ext/${php_api}/datadog-profiling.so
-            stripto ./datadog-profiling/${architecture}/lib/php/${php_api}/datadog-profiling-zts.so \
-                ${musl}/profiling/ext/${php_api}/datadog-profiling-zts.so
         fi
 
         ########################
         # AppSec
         ########################
 
-        mkdir -p ${gnu}/appsec/ext/${php_api} ${musl}/appsec/ext/${php_api}
-        # gnu
+        mkdir -p ${gnu}/appsec/ext/${php_api}
         stripto ./appsec_${architecture}/ddappsec-${php_api}.so ${gnu}/appsec/ext/${php_api}/ddappsec.so
         stripto ./appsec_${architecture}/ddappsec-${php_api}-zts.so ${gnu}/appsec/ext/${php_api}/ddappsec-zts.so
-        # musl
-        stripto ./appsec_${architecture}/ddappsec-${php_api}.so ${musl}/appsec/ext/${php_api}/ddappsec.so
-        stripto ./appsec_${architecture}/ddappsec-${php_api}-zts.so ${musl}/appsec/ext/${php_api}/ddappsec-zts.so
     done
+
+    # The SSI injection contract still selects the loader and extensions from
+    # libc-specific paths. The portable binaries are identical, so retain both
+    # paths as hard links instead of storing the payload twice in the archive.
+    cp -al "${gnu}" "${musl}"
+    rm "${musl}/loader/dd_library_loader.ini"
+    echo 'zend_extension=${DD_LOADER_PACKAGE_PATH}/linux-musl/loader/dd_library_loader.so' > "${musl}/loader/dd_library_loader.ini"
 
     # Trace
     mkdir -p "${root}/trace"
