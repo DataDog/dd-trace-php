@@ -6,6 +6,8 @@
 #include <Zend/zend_extensions.h>
 #include <Zend/zend_generators.h>
 #include "interceptor.h"
+#include "../line_hook.h"
+#include <sandbox/sandbox.h>
 #include "zend_vm.h"
 #include "zend_closures.h"
 
@@ -30,9 +32,13 @@ ZEND_TLS HashTable zai_interceptor_implicit_generators;
 ZEND_TLS HashTable zai_hook_memory;
 // execute_data is 16 byte aligned (except when it isn't, but it doesn't matter as zend_execute_data is big enough
 // our goal is to reduce conflicts
-static inline bool zai_hook_memory_table_insert(zend_execute_data *index, zai_frame_memory *inserting) {
+/* The copied record has its own allocation and survives rehashes caused by nested inserts. */
+static inline zai_frame_memory *zai_hook_memory_table_insert(zend_execute_data *index, zai_frame_memory *inserting) {
     void *inserted;
-    return zai_hook_table_insert_at(&zai_hook_memory, ((zend_ulong)index) >> 4, inserting, sizeof(*inserting), &inserted);
+    if (!zai_hook_table_insert_at(&zai_hook_memory, ((zend_ulong)index) >> 4, inserting, sizeof(*inserting), &inserted)) {
+        return NULL;
+    }
+    return inserted;
 }
 
 static inline bool zai_hook_memory_table_find(zend_execute_data *index, zai_frame_memory **found) {
@@ -41,6 +47,26 @@ static inline bool zai_hook_memory_table_find(zend_execute_data *index, zai_fram
 
 static inline bool zai_hook_memory_table_del(zend_execute_data *index) {
     return zend_hash_index_del(&zai_hook_memory, ((zend_ulong)index) >> 4);
+}
+
+/* Generator records use the object as their key; other records use the execution frame. */
+static inline zend_execute_data *zai_interceptor_frame_key(zend_execute_data *ex) {
+    if (ZEND_CALL_INFO(ex) & ZEND_CALL_GENERATOR) {
+        return (zend_execute_data *)(zend_generator *)ex->return_value;
+    }
+    return ex;
+}
+
+static zai_hook_memory_t *zai_interceptor_frame_memory(zend_execute_data *frame) {
+    zai_frame_memory *frame_memory;
+    if (!zai_hook_memory_table_find(zai_interceptor_frame_key(frame), &frame_memory)) {
+        return NULL;
+    }
+    /* Implicit records forward yield-from events and have no hook payload. */
+    if (frame_memory->implicit) {
+        return NULL;
+    }
+    return &frame_memory->hook_data;
 }
 
 #if defined(__x86_64__) || defined(__aarch64__)
@@ -160,10 +186,17 @@ static inline void zai_hook_safe_finish(zend_execute_data *execute_data, zval *r
 #endif
 
 static void zai_interceptor_observer_begin_handler(zend_execute_data *execute_data) {
-    zai_frame_memory frame_memory;
-    if (zai_hook_continue(execute_data, &frame_memory.hook_data) == ZAI_HOOK_CONTINUED) {
-        frame_memory.ex = execute_data;
-        zai_hook_memory_table_insert(execute_data, &frame_memory);
+    /* Publish before callbacks so joins reuse this record; zero it so `walking` starts false. */
+    zai_frame_memory initial;
+    memset(&initial, 0, sizeof(initial));
+    initial.ex = execute_data;
+
+    zai_frame_memory *frame_memory = zai_hook_memory_table_insert(execute_data, &initial);
+    if (!frame_memory) {
+        return;
+    }
+    if (zai_hook_continue(execute_data, &frame_memory->hook_data) != ZAI_HOOK_CONTINUED) {
+        zai_hook_memory_table_del(execute_data);
     }
 }
 
@@ -176,6 +209,139 @@ static void zai_interceptor_observer_end_handler(zend_execute_data *execute_data
         zai_hook_safe_finish(execute_data, retval, frame_memory);
         zai_hook_memory_table_del(execute_data);
     }
+}
+
+#if PHP_VERSION_ID >= 80200
+/* Matches zend_observer.c's prev_observed_frame(): since PHP 8.2, pass_two reserves the last temporary for this link via op_array->T += ZEND_OBSERVER_ENABLED. */
+static inline zend_execute_data **zai_interceptor_prev_observed_frame(zend_execute_data *ex) {
+    const zend_function *func = ex->func;
+    uint32_t slot = (ZEND_USER_CODE(func->type) ? func->op_array.last_var : ZEND_CALL_NUM_ARGS(ex))
+                  + func->common.T - 1;
+    return (zend_execute_data **)&Z_PTR_P(ZEND_CALL_VAR_NUM(ex, slot));
+}
+#endif
+
+#if PHP_VERSION_ID >= 80400
+/* EG(current_observed_frame) since 8.4. */
+# define ZAI_OBSERVED_HEAD_TAKE() (EG(current_observed_frame))
+# define ZAI_OBSERVED_HEAD_PUT(v) (EG(current_observed_frame) = (v))
+#elif PHP_VERSION_ID >= 80200
+/* PHP 8.2/8.3 keep the head private.
+   TAKE retrieves and clears it through a fake observer frame; no PHP may run before the matching PUT. */
+# define ZAI_OBSERVED_HEAD_TAKE() zai_set_observed_frame(NULL)
+# define ZAI_OBSERVED_HEAD_PUT(v) ((void)zai_set_observed_frame(v))
+#endif
+
+/* Observe the current frame if it missed observer begin.
+   PHP 8.2+ delivers end only for the chain's head; the caller must be inside this frame so it can safely become the head. */
+static void zai_interceptor_observe_running_frame(zend_execute_data *ex) {
+#if PHP_VERSION_ID >= 80200
+    zend_execute_data *prev = ZAI_OBSERVED_HEAD_TAKE();
+    if (prev == ex) {
+        ZAI_OBSERVED_HEAD_PUT(prev);
+        return;
+    }
+    *zai_interceptor_prev_observed_frame(ex) = prev;
+    ZAI_OBSERVED_HEAD_PUT(ex);
+#else
+    /* PHP 8.0/8.1 gate end delivery on the function's flags and handler slot, without a frame chain. */
+    (void)ex;
+#endif
+}
+
+/* `fresh` marks a new record whose frame exit still needs observing. */
+static bool zai_interceptor_join_one(zend_execute_data *ex, zend_long hook_id, zai_hook_joined on_joined, bool *fresh) {
+    bool generator = (ZEND_CALL_INFO(ex) & ZEND_CALL_GENERATOR) != 0;
+    /* Only the generator-owned frame has ZEND_CALL_GENERATOR.
+       Skip its temporary creation frame: the creation walk owns the record and picks up newly installed hooks. */
+    if (!generator && (ex->func->common.fn_flags & ZEND_ACC_GENERATOR) != 0) {
+        return false;
+    }
+    if (generator && zend_hash_index_find(&zai_interceptor_implicit_generators, zai_hook_install_address_user(&ex->func->op_array))) {
+        return false; /* ddtrace suppresses hooks on these; joining would resurrect them */
+    }
+
+    zend_execute_data *key = zai_interceptor_frame_key(ex);
+    *fresh = false;
+
+    zai_frame_memory *existing;
+    if (zai_hook_memory_table_find(key, &existing)) {
+        /* Implicit records skip zai_hook_finish(), so they cannot own joined hook payloads. */
+        if (existing->implicit) {
+            return false;
+        }
+        return zai_hook_join_frame(ex, hook_id, &existing->hook_data, on_joined);
+    }
+
+    zai_frame_memory frame_memory;
+    memset(&frame_memory, 0, sizeof(frame_memory));
+    if (!zai_hook_join_frame(ex, hook_id, &frame_memory.hook_data, on_joined)) {
+        return false;
+    }
+    frame_memory.ex = ex;
+    /* Joining a running generator missed this resumption's callback; the next yield clears the latch. */
+    frame_memory.resumed = generator;
+    zai_hook_memory_table_insert(key, &frame_memory);
+    *fresh = true;
+    return true;
+}
+
+/* Join all active calls while preserving PHP 8.2+'s observed-chain order, including recursive calls.
+   Walking outward, splice each new frame between `anchor` (the last observed frame) and `chain` (the next observed frame), then advance the anchor. */
+static void zai_interceptor_join_running_frames(zend_function *func, zend_long hook_id, zai_hook_joined on_joined) {
+    zend_ulong address = zai_hook_install_address(func);
+#if PHP_VERSION_ID >= 80200
+    zend_execute_data *head = ZAI_OBSERVED_HEAD_TAKE();
+    zend_execute_data *chain = head, *anchor = NULL;
+#endif
+
+    for (zend_execute_data *ex = EG(current_execute_data); ex; ex = ex->prev_execute_data) {
+#if PHP_VERSION_ID >= 80200
+        bool observed = false;
+        if (ex == chain) {
+            observed = true;
+            anchor = ex;
+            chain = *zai_interceptor_prev_observed_frame(ex);
+        }
+#endif
+
+        if (!ex->func || !ZEND_USER_CODE(ex->func->type) || zai_hook_frame_address(ex) != address) {
+            continue;
+        }
+
+        bool fresh;
+        if (!zai_interceptor_join_one(ex, hook_id, on_joined, &fresh) || !fresh) {
+            continue;
+        }
+
+#if PHP_VERSION_ID >= 80200
+        if (!observed) {
+            *zai_interceptor_prev_observed_frame(ex) = chain;
+            if (anchor) {
+                *zai_interceptor_prev_observed_frame(anchor) = ex;
+            } else {
+                head = ex;
+            }
+            anchor = ex;
+        }
+#endif
+    }
+
+#if PHP_VERSION_ID >= 80200
+    ZAI_OBSERVED_HEAD_PUT(head);
+#endif
+}
+
+static bool zai_interceptor_join_running_frame(zend_execute_data *ex, zend_long hook_id, bool observe) {
+    bool fresh;
+    if (!zai_interceptor_join_one(ex, hook_id, NULL, &fresh)) {
+        return false;
+    }
+    if (observe) {
+        /* A record created inside a sandbox must wait until that sandbox restores the observer chain. */
+        zai_interceptor_observe_running_frame(ex);
+    }
+    return true;
 }
 
 // Note: This is not optimized. I.e. a scenario where an observed generator yields from other generators which do a recursive yield from,
@@ -725,7 +891,6 @@ ZEND_TLS zval *zai_interceptor_prev_stack_top;
 # endif
 static zend_never_inline const void *zai_interceptor_handle_created_generator_func(void) {
     HYBRID_JIT_GUARD();
-    zai_frame_memory frame_memory;
     zend_execute_data *execute_data = EG(current_execute_data);
     EX(prev_execute_data) = zai_interceptor_prev_execute_data; // fixup stacktrace
 
@@ -734,12 +899,40 @@ static zend_never_inline const void *zai_interceptor_handle_created_generator_fu
     EG(vm_stack_top) = zai_interceptor_prev_stack_top;
 
     zend_object *generator = Z_OBJ_P(EX(return_value)); // save it here; EX(return_value) might be updated in zai_hook_continue
-    if (zai_hook_continue(execute_data, &frame_memory.hook_data) == ZAI_HOOK_CONTINUED) {
-        frame_memory.resumed = false;
-        frame_memory.implicit = false;
-        frame_memory.ex = execute_data;
-        zai_hook_memory_table_insert((zend_execute_data *) generator, &frame_memory);
+
+    /* Begin callbacks may replace HookData::$returned.
+       Pin the original generator so its address remains unique, and use the engine's running flag to refuse execution until its hook record is ready. */
+    zend_generator *zai_generator = (zend_generator *)generator;
+    GC_ADDREF(generator);
+    zai_generator->flags |= ZEND_GENERATOR_CURRENTLY_RUNNING;
+
+    /* Start with `walking` false and keep the record local until callbacks decide which generator is returned.
+       Joins skip the creation frame, and the original generator cannot run during this walk. */
+    zai_frame_memory frame_memory;
+    memset(&frame_memory, 0, sizeof(frame_memory));
+    frame_memory.resumed = false;
+    frame_memory.implicit = false;
+    frame_memory.ex = execute_data;
+    zai_hook_continued continued = zai_hook_continue(execute_data, &frame_memory.hook_data);
+
+    /* ensure_initialized() sets AT_FIRST_YIELD even after a refused resume; clear it for the unstarted generator. */
+    zai_generator->flags &= ~(ZEND_GENERATOR_CURRENTLY_RUNNING | ZEND_GENERATOR_AT_FIRST_YIELD);
+
+    if (continued == ZAI_HOOK_CONTINUED) {
+        /* Publish only for the original generator. If it was replaced, finish its hooks here. */
+        zval *rv = EX(return_value);
+        if (rv && Z_TYPE_P(rv) == IS_OBJECT && Z_OBJ_P(rv) == generator) {
+            zai_hook_memory_table_insert((zend_execute_data *) generator, &frame_memory);
+        } else {
+            /* End overrides need owned writable storage. Release its final value with normal destructor behavior. */
+            zval discarded;
+            ZVAL_NULL(&discarded);
+            zai_hook_finish(execute_data, &discarded, &frame_memory.hook_data);
+            zval_ptr_dtor(&discarded);
+        }
     }
+    /* Release the pin after the record is published or finished. */
+    OBJ_RELEASE(generator);
     EG(current_execute_data) = execute_data;
 
     // We'll copy from EX(This) in ZEND_RETURN then (we don't need EX(This) anymore from this moment on)
@@ -856,12 +1049,18 @@ static void (*prev_execute_internal)(zend_execute_data *execute_data, zval *retu
 static inline void zai_interceptor_execute_internal_impl(zend_execute_data *execute_data, zval *return_value, bool prev, zif_handler handler) {
     zend_function *func = execute_data->func;
     if (UNEXPECTED(zai_hook_installed_internal(&func->internal_function))) {
-        zai_frame_memory frame_memory;
-        if (zai_hook_continue(execute_data, &frame_memory.hook_data) != ZAI_HOOK_CONTINUED) {
+        /* Publish before callbacks and finish through the stored record, which joins may grow during the call. */
+        zai_frame_memory initial;
+        memset(&initial, 0, sizeof(initial));
+        initial.ex = execute_data;
+        zai_frame_memory *frame_memory = zai_hook_memory_table_insert(execute_data, &initial);
+        if (!frame_memory) {
             goto skip;
         }
-        frame_memory.ex = execute_data;
-        zai_hook_memory_table_insert(execute_data, &frame_memory);
+        if (zai_hook_continue(execute_data, &frame_memory->hook_data) != ZAI_HOOK_CONTINUED) {
+            zai_hook_memory_table_del(execute_data);
+            goto skip;
+        }
 
         zend_try {
             if (prev) {
@@ -894,7 +1093,7 @@ static inline void zai_interceptor_execute_internal_impl(zend_execute_data *exec
             zend_bailout();
         } zend_end_try()
 
-        zai_hook_finish(execute_data, return_value, &frame_memory.hook_data);
+        zai_hook_finish(execute_data, return_value, &frame_memory->hook_data);
         zai_hook_memory_table_del(execute_data);
     } else {
         skip:
@@ -1037,6 +1236,10 @@ void zai_interceptor_startup(void) {
     zend_post_startup_cb = zai_interceptor_post_startup;
 
     zai_hook_on_update = zai_interceptor_replace_observer;
+    zai_hook_frame_memory = zai_interceptor_frame_memory;
+    zai_hook_join_running_frame = zai_interceptor_join_running_frame;
+    zai_hook_join_running_frames = zai_interceptor_join_running_frames;
+    zai_line_hook_startup(NULL);
 }
 
 static void zai_hook_memory_dtor(zval *zv) {

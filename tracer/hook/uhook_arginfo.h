@@ -1,11 +1,19 @@
-/* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 27176438d997b2f7e883e8e6a265b82eae65139f */
+/* This is a generated file, edit uhook.stub.php instead.
+ * Stub hash: bc6d078276b42eca91390a04a2811245c4a24382 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_install_hook, 0, 1, IS_LONG, 0)
 	ZEND_ARG_OBJ_TYPE_MASK(0, target, Closure|Generator, MAY_BE_STRING|MAY_BE_CALLABLE, NULL)
 	ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(0, begin, Closure, 1, "null")
 	ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(0, end, Closure, 1, "null")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, flags, IS_LONG, 0, "0")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_install_line_hook, 0, 2, IS_LONG, 0)
+	ZEND_ARG_TYPE_INFO(0, file, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, line, IS_LONG, 0)
+	ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(0, begin, Closure, 1, "null")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, endLine, IS_LONG, 1, "null")
+	ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(0, end, Closure, 1, "null")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_DDTrace_remove_hook, 0, 0, 1)
@@ -41,7 +49,19 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_DDTrace_HookData_getSourceFile, 0, 0, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
+#define arginfo_class_DDTrace_LineHookData_span arginfo_class_DDTrace_HookData_span
+
+#define arginfo_class_DDTrace_LineHookData_unlimitedSpan arginfo_class_DDTrace_HookData_span
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_DDTrace_LineHookData_var, 0, 1, IS_MIXED, 0)
+	ZEND_ARG_TYPE_INFO(0, name, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_DDTrace_LineHookData_vars, 0, 0, IS_ARRAY, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_FUNCTION(DDTrace_install_hook);
+ZEND_FUNCTION(DDTrace_install_line_hook);
 ZEND_FUNCTION(DDTrace_remove_hook);
 ZEND_METHOD(DDTrace_HookData, span);
 ZEND_METHOD(DDTrace_HookData, unlimitedSpan);
@@ -52,9 +72,14 @@ ZEND_METHOD(DDTrace_HookData, disableJitInlining);
 ZEND_METHOD(DDTrace_HookData, suppressCall);
 ZEND_METHOD(DDTrace_HookData, allowNestedHook);
 ZEND_METHOD(DDTrace_HookData, getSourceFile);
+ZEND_METHOD(DDTrace_LineHookData, span);
+ZEND_METHOD(DDTrace_LineHookData, unlimitedSpan);
+ZEND_METHOD(DDTrace_LineHookData, var);
+ZEND_METHOD(DDTrace_LineHookData, vars);
 
 static const zend_function_entry ext_functions[] = {
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "install_hook"), zif_DDTrace_install_hook, arginfo_DDTrace_install_hook, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "install_line_hook"), zif_DDTrace_install_line_hook, arginfo_DDTrace_install_line_hook, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "remove_hook"), zif_DDTrace_remove_hook, arginfo_DDTrace_remove_hook, 0, NULL, NULL)
 	ZEND_FE_END
 };
@@ -69,6 +94,14 @@ static const zend_function_entry class_DDTrace_HookData_methods[] = {
 	ZEND_ME(DDTrace_HookData, suppressCall, arginfo_class_DDTrace_HookData_suppressCall, ZEND_ACC_PUBLIC)
 	ZEND_ME(DDTrace_HookData, allowNestedHook, arginfo_class_DDTrace_HookData_allowNestedHook, ZEND_ACC_PUBLIC)
 	ZEND_ME(DDTrace_HookData, getSourceFile, arginfo_class_DDTrace_HookData_getSourceFile, ZEND_ACC_PUBLIC)
+	ZEND_FE_END
+};
+
+static const zend_function_entry class_DDTrace_LineHookData_methods[] = {
+	ZEND_ME(DDTrace_LineHookData, span, arginfo_class_DDTrace_LineHookData_span, ZEND_ACC_PUBLIC)
+	ZEND_ME(DDTrace_LineHookData, unlimitedSpan, arginfo_class_DDTrace_LineHookData_unlimitedSpan, ZEND_ACC_PUBLIC)
+	ZEND_ME(DDTrace_LineHookData, var, arginfo_class_DDTrace_LineHookData_var, ZEND_ACC_PUBLIC)
+	ZEND_ME(DDTrace_LineHookData, vars, arginfo_class_DDTrace_LineHookData_vars, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
 
@@ -119,6 +152,36 @@ static zend_class_entry *register_class_DDTrace_HookData(void)
 	zend_string *property_instance_name = zend_string_init("instance", sizeof("instance") - 1, true);
 	zend_declare_typed_property(class_entry, property_instance_name, &property_instance_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_OBJECT));
 	zend_string_release_ex(property_instance_name, true);
+
+	return class_entry;
+}
+
+static zend_class_entry *register_class_DDTrace_LineHookData(void)
+{
+	zend_class_entry ce, *class_entry;
+
+	INIT_NS_CLASS_ENTRY(ce, "DDTrace", "LineHookData", class_DDTrace_LineHookData_methods);
+	class_entry = zend_register_internal_class_with_flags(&ce, NULL, 0);
+
+	zval property_data_default_value;
+	ZVAL_UNDEF(&property_data_default_value);
+	zend_string *property_data_name = zend_string_init("data", sizeof("data") - 1, true);
+	zend_declare_typed_property(class_entry, property_data_name, &property_data_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ANY));
+	zend_string_release_ex(property_data_name, true);
+
+	zval property_id_default_value;
+	ZVAL_UNDEF(&property_id_default_value);
+	zend_string *property_id_name = zend_string_init("id", sizeof("id") - 1, true);
+	zend_declare_typed_property(class_entry, property_id_name, &property_id_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
+	zend_string_release_ex(property_id_name, true);
+
+	zval property_file_default_value;
+	ZVAL_UNDEF(&property_file_default_value);
+	zend_declare_typed_property(class_entry, ZSTR_KNOWN(ZEND_STR_FILE), &property_file_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING));
+
+	zval property_line_default_value;
+	ZVAL_UNDEF(&property_line_default_value);
+	zend_declare_typed_property(class_entry, ZSTR_KNOWN(ZEND_STR_LINE), &property_line_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
 
 	return class_entry;
 }

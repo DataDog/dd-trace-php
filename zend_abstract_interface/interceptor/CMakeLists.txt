@@ -1,8 +1,10 @@
 if(PhpConfig_VERNUM LESS "80200" AND PhpConfig_VERNUM GREATER "79999")
-  add_library(zai_interceptor "${PHP_VERSION_DIRECTORY}/interceptor.c"
+  add_library(zai_interceptor line_hook.c
+                              "${PHP_VERSION_DIRECTORY}/interceptor.c"
                               "${PHP_VERSION_DIRECTORY}/resolver_pre-8_2.c")
 else()
-  add_library(zai_interceptor "${PHP_VERSION_DIRECTORY}/interceptor.c"
+  add_library(zai_interceptor line_hook.c
+                              "${PHP_VERSION_DIRECTORY}/interceptor.c"
                               "${PHP_VERSION_DIRECTORY}/resolver.c")
 endif()
 
@@ -12,7 +14,7 @@ target_include_directories(zai_interceptor PUBLIC
 
 target_compile_features(zai_interceptor PUBLIC c_std_99)
 
-target_link_libraries(zai_interceptor PUBLIC Tea::Php Zai::Hook "${CMAKE_DL_LIBS}")
+target_link_libraries(zai_interceptor PUBLIC Tea::Php Zai::Hook Zai::JitUtils "${CMAKE_DL_LIBS}")
 
 set_target_properties(zai_interceptor PROPERTIES
                                   EXPORT_NAME Interceptor
@@ -25,6 +27,7 @@ if (${BUILD_ZAI_TESTING})
 endif()
 
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/interceptor.h
+              ${CMAKE_CURRENT_SOURCE_DIR}/line_hook.h
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/interceptor/)
 
 target_link_libraries(zai_zend_abstract_interface INTERFACE zai_interceptor)

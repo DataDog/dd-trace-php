@@ -21,6 +21,8 @@
 #include "uhook.h"
 #include <ext/string_utils.h>
 #include <jit_utils/jit_blacklist.h>
+#include <interceptor/line_hook.h>
+#include "uhook_line.h"
 #include <exceptions/exceptions.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
@@ -132,6 +134,39 @@ static zend_object *dd_hook_data_create(zend_class_entry *class_type) {
     object_properties_init(&hook_data->std, class_type);
     hook_data->std.handlers = &dd_hook_data_handlers;
     return &hook_data->std;
+}
+
+bool dd_uhook_frame_is_live(zend_execute_data *frame) {
+    if (!frame || !frame->func) {
+        return false;
+    }
+#ifdef ZEND_CALL_GENERATOR
+    /* An abandoned PHP 8 generator delivers its end hook with a copied header after freeing its locals and $this. */
+    if (ZEND_CALL_INFO(frame) & ZEND_CALL_GENERATOR) {
+        zend_generator *generator = (zend_generator *)frame->return_value;
+        return generator && generator->execute_data == frame;
+    }
+#endif
+    return true;
+}
+
+HashTable *dd_uhook_symbol_table(zend_execute_data *frame) {
+    if (!dd_uhook_frame_is_live(frame)) {
+        return NULL;
+    }
+    if (!ZEND_USER_CODE(frame->func->type)
+#if PHP_VERSION_ID >= 80600
+        && !frame->func->internal_function.arg_info
+#endif
+    ) {
+        return NULL;
+    }
+
+    zend_execute_data *previous = EG(current_execute_data);
+    EG(current_execute_data) = frame;
+    HashTable *symbol_table = zend_rebuild_symbol_table();
+    EG(current_execute_data) = previous;
+    return symbol_table;
 }
 
 HashTable *dd_uhook_collect_args(zend_execute_data *execute_data) {
@@ -261,31 +296,6 @@ static bool dd_uhook_call_hook(zend_execute_data *execute_data, dd_uhook_callbac
     return Z_TYPE(rv) != IS_FALSE;
 }
 
-bool ddtrace_uhook_match_filepath(zend_string *file, zend_string *source) {
-    if (ZSTR_LEN(source) == 0) {
-        return true; // empty path is wildcard
-    }
-
-    if (ZSTR_LEN(source) > ZSTR_LEN(file)) {
-        return false;
-    }
-
-    if (memcmp(ZSTR_VAL(source), ZSTR_VAL(file) + ZSTR_LEN(file) - ZSTR_LEN(source), ZSTR_LEN(source)) != 0) {
-        return false; // suffix doesn't match
-    }
-
-    if (ZSTR_LEN(source) == ZSTR_LEN(file)) {
-        return true; // it's exact match
-    }
-
-    char before_match = ZSTR_VAL(file)[ZSTR_LEN(file) - ZSTR_LEN(source) - 1];
-    if (before_match == '\\' || before_match == '/') {
-        return true;
-    }
-
-    return false;
-}
-
 #if PHP_VERSION_ID >= 80000
 static void (*orig_zend_interrupt_function)(zend_execute_data *);
 ZEND_TLS zend_execute_data *expected_ex;
@@ -316,18 +326,17 @@ void dd_uhook_log_invocation(void (*log)(const char *, ...), zend_execute_data *
         EX(func)->common.function_name ? ZSTR_VAL(EX(func)->op_array.function_name) : (EX(func)->op_array.filename ? "<unnamed>" : ZSTR_VAL(EX(func)->op_array.filename)));
 }
 
-static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_data, void *auxiliary, void *dynamic) {
-    dd_uhook_def *def = auxiliary;
-    dd_uhook_dynamic *dyn = dynamic;
-
-    if (def->file && (!execute_data->func->op_array.filename || !ddtrace_uhook_match_filepath(execute_data->func->op_array.filename, def->file))) {
+/* Initialize state for begin hooks and end-only hooks joining running frames.
+   Returns false with hook_data NULL when the frame is not hooked. */
+static bool dd_uhook_init_hook_data(dd_uhook_def *def, zend_execute_data *execute_data, dd_uhook_dynamic *dyn, zend_ulong invocation) {
+    if (def->file && (!execute_data->func->op_array.filename || !zai_hook_match_filepath(execute_data->func->op_array.filename, def->file))) {
         dyn->hook_data = NULL;
-        return true;
+        return false;
     }
 
     if ((def->closure && def->closure != ZEND_CLOSURE_OBJECT(EX(func))) || !get_DD_TRACE_ENABLED()) {
         dyn->hook_data = NULL;
-        return true;
+        return false;
     }
 
     dyn->called_scope = zend_get_called_scope(execute_data);
@@ -349,6 +358,22 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
     }
     if (hasThis()) {
         ZVAL_OBJ_COPY(&dyn->hook_data->property_object, Z_OBJ(EX(This)));
+    }
+    return true;
+}
+
+/* Join an active call to an end-only hook without running begin or starting a span.
+   Arguments reflect current parameter values, including any reassignments. */
+static void dd_uhook_joined(zend_execute_data *execute_data, void *auxiliary, void *dynamic, zend_ulong invocation) {
+    dd_uhook_init_hook_data(auxiliary, execute_data, dynamic, invocation);
+}
+
+static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_data, void *auxiliary, void *dynamic) {
+    dd_uhook_def *def = auxiliary;
+    dd_uhook_dynamic *dyn = dynamic;
+
+    if (!dd_uhook_init_hook_data(def, execute_data, dyn, invocation)) {
+        return true;
     }
 
     if (def->begin.closure && !def->running) {
@@ -429,6 +454,7 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
 }
 
 static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data, zval *retval, void *auxiliary, void *dynamic) {
+    ddtrace_uhook_line_close_frame(execute_data);
     dd_uhook_def *def = auxiliary;
     dd_uhook_dynamic *dyn = dynamic;
 
@@ -762,6 +788,13 @@ type_error:
                 ZAI_HOOK_AUX(def, dd_uhook_dtor),
                 sizeof(dd_uhook_dynamic));
 
+        if (id >= 0 && !def->begin.closure && def->end.closure) {
+            /* Only end-only hooks can join calls whose begin was not observed.
+               Publish the final id first: dd_uhook_joined() immediately copies it into HookData::$id. */
+            def->id = id;
+            zai_hook_join_running_frames_named(scope, function, id, dd_uhook_joined);
+        }
+
         if (id >= 0) {
             LOG(HOOK_TRACE, "Installing a hook function %d at %s:%d on %s %s%s%s",
                 id,
@@ -786,6 +819,60 @@ error:
     RETURN_LONG(id);
 } /* }}} */
 
+/* {{{ proto int DDTrace\install_line_hook(string file, int line, ?Closure begin = null, ?int endLine = null, ?Closure end = null) */
+PHP_FUNCTION(DDTrace_install_line_hook) {
+    zend_string *file;
+    zend_long line, end_line = 0;
+    /* Z_PARAM_LONG_EX requires a zend_bool null flag on PHP 7 and bool on PHP 8. */
+#if PHP_VERSION_ID < 80000
+    zend_bool end_line_is_null = 1;
+#else
+    bool end_line_is_null = true;
+#endif
+    zval *begin = NULL, *end = NULL;
+
+    ZEND_PARSE_PARAMETERS_START(2, 5)
+        Z_PARAM_STR(file)
+        Z_PARAM_LONG(line)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_OBJECT_OF_CLASS_EX(begin, zend_ce_closure, 1, 0)
+        Z_PARAM_LONG_EX(end_line, end_line_is_null, 1, 0)
+        Z_PARAM_OBJECT_OF_CLASS_EX(end, zend_ce_closure, 1, 0)
+    ZEND_PARSE_PARAMETERS_END();
+
+    if (end_line_is_null) {
+        end_line = line;
+    }
+
+    if (line < 1 || end_line < line) {
+        zend_throw_error(NULL, "Line hook end line " ZEND_LONG_FMT " is before start line " ZEND_LONG_FMT, end_line, line);
+        RETURN_THROWS();
+    }
+    /* Reject overflow before converting line numbers to uint32_t. */
+    if (end_line > UINT32_MAX) {
+        zend_throw_error(NULL, "Line hook line " ZEND_LONG_FMT " is out of range", end_line);
+        RETURN_THROWS();
+    }
+
+    if (!zai_line_hook_available()) {
+        zend_throw_error(NULL, "Line hooks are not supported on this PHP build (VM dispatch kind %d)", zend_vm_kind());
+        RETURN_THROWS();
+    }
+
+    const char *conflict = ddtrace_uhook_line_conflict(file, line, end_line);
+    if (conflict) {
+        zend_throw_error(NULL, "%s", conflict);
+        RETURN_THROWS();
+    }
+
+    zend_long id = ddtrace_uhook_line_install(file, line, end_line, begin ? Z_OBJ_P(begin) : NULL, end ? Z_OBJ_P(end) : NULL);
+    if (id == 0) {
+        zend_throw_error(NULL, "Line hooks are unavailable outside a request");
+        RETURN_THROWS();
+    }
+    RETURN_LONG(id);
+} /* }}} */
+
 /* {{{ proto void DDTrace\remove_hook(int $id, string $location = "") */
 PHP_FUNCTION(DDTrace_remove_hook) {
     (void)return_value;
@@ -797,6 +884,10 @@ PHP_FUNCTION(DDTrace_remove_hook) {
         Z_PARAM_OPTIONAL
         Z_PARAM_STR(location)
     ZEND_PARSE_PARAMETERS_END();
+
+    if (ddtrace_uhook_line_remove(id)) {
+        return;
+    }
 
     dd_uhook_def *def;
     if ((def = zend_hash_index_find_ptr(&DDTRACE_G(uhook_active_hooks), (zend_ulong)id))) {
@@ -1153,6 +1244,7 @@ ZEND_METHOD(DDTrace_HookData, getSourceFile) {
 void zai_uhook_rinit() {
     zend_hash_init(&DDTRACE_G(uhook_active_hooks), 8, NULL, NULL, 0);
     zend_hash_init(&DDTRACE_G(uhook_closure_hooks), 8, NULL, NULL, 0);
+    ddtrace_uhook_line_rinit();
 }
 
 void zai_uhook_rshutdown() {
@@ -1180,6 +1272,9 @@ void dd_register_opentelemetry_wrapper(void);
 #endif
 void zai_uhook_minit(int module_number) {
     ddtrace_hook_data_ce = register_class_DDTrace_HookData();
+    ddtrace_line_hook_data_ce = register_class_DDTrace_LineHookData();
+    ddtrace_line_hook_data_ce->create_object = ddtrace_line_hook_data_create;
+    ddtrace_line_hook_data_minit();
     ddtrace_hook_data_ce->create_object = dd_hook_data_create;
     dd_hook_data_handlers = *zend_get_std_object_handlers();
     dd_hook_data_handlers.offset = XtOffsetOf(dd_hook_data, std);

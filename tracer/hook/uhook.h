@@ -12,9 +12,10 @@ typedef struct {
 } dd_uhook_callback;
 
 HashTable *dd_uhook_collect_args(zend_execute_data *execute_data);
+bool dd_uhook_frame_is_live(zend_execute_data *frame);
+HashTable *dd_uhook_symbol_table(zend_execute_data *frame);
 void dd_uhook_report_sandbox_error(zend_execute_data *execute_data, zend_object *closure);
 void dd_uhook_log_invocation(void (*log)(const char *, ...), zend_execute_data *execute_data, const char *type, zend_object *closure);
-bool ddtrace_uhook_match_filepath(zend_string *file, zend_string *source);
 
 void zai_uhook_rinit();
 void zai_uhook_rshutdown();
