@@ -1,0 +1,17 @@
+load("@rules_python//python:defs.bzl", "py_test")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "extract_runtime.py",
+    "repository.bzl",
+])
+
+py_test(
+    name = "extract_runtime_test",
+    srcs = [
+        "extract_runtime.py",
+        "extract_runtime_test.py",
+    ],
+    main = "extract_runtime_test.py",
+)

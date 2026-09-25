@@ -1,0 +1,1342 @@
+[
+  {
+    "record": "amd64-c-edit-j50-20260921T212118.066088Z",
+    "valid": true,
+    "mode": "c-edit",
+    "arch": "amd64",
+    "jobs": 50,
+    "targets": [
+      "//bazel/products/tracer:ddtrace_fat_amd64_all"
+    ],
+    "seconds": 2124.4241448498797,
+    "source_digest": "f12083b2cc634b853421eaba8c6cfc0b82d97e11f63fe27a3ce62e6b6164cf70",
+    "source_snapshot_stable": true,
+    "execution": {
+      "aggregate_seconds": {
+        "execution": 933.1620000000005,
+        "fetch": 0.015000000000000006,
+        "network": 120.07699999999993,
+        "parse": 9.590000000000066,
+        "process_outputs": 460.09199999999987,
+        "queue": 90340.16099999993,
+        "retry": 0.0,
+        "setup": 703.2850000000002,
+        "total": 92749.19399999996,
+        "upload": 122.84400000000001
+      },
+      "cache_hits": {},
+      "executed": {
+        "CppCompile": 101,
+        "CppLink": 101,
+        "SplitDdtraceDebug": 101,
+        "ValidateDdtraceFatElf": 101,
+        "WeakenTracerPhpSymbols": 101
+      },
+      "logical_input_bytes": 498913835687,
+      "mnemonics": {
+        "CppCompile": 101,
+        "CppLink": 101,
+        "SplitDdtraceDebug": 101,
+        "ValidateDdtraceFatElf": 101,
+        "WeakenTracerPhpSymbols": 101
+      },
+      "runners": {
+        "remote": 505
+      }
+    },
+    "transfers": {
+      "bytestream_downloaded_bytes": 197353,
+      "bytestream_uploaded_bytes": 1128821,
+      "rpc_calls": {
+        "build.bazel.remote.execution.v2.ActionCache/GetActionResult": 505,
+        "build.bazel.remote.execution.v2.Capabilities/GetCapabilities": 1,
+        "build.bazel.remote.execution.v2.ContentAddressableStorage/FindMissingBlobs": 612,
+        "build.bazel.remote.execution.v2.Execution/Execute": 505,
+        "google.bytestream.ByteStream/Read": 115,
+        "google.bytestream.ByteStream/Write": 3840
+      },
+      "scope": "ByteStream payloads, including retries; excluding RPC framing and inline results"
+    },
+    "exit_code": 0,
+    "edited_files": [
+      "tracer/memory_limit.c"
+    ],
+    "unchanged_runtime_actions_executed": 0
+  },
+  {
+    "record": "amd64-cached-j50-20260921T200739.502318Z",
+    "valid": true,
+    "mode": "cached",
+    "arch": "amd64",
+    "jobs": 50,
+    "targets": [
+      "//bazel/products/tracer:ddtrace_fat_amd64_all"
+    ],
+    "seconds": 171.79871822684072,
+    "source_digest": "af795763840d502ecf2d45feb38944744bf4e60add91bd2f1a9bc34256de57eb",
+    "source_snapshot_stable": true,
+    "execution": {
+      "aggregate_seconds": {
+        "execution": 0.0,
+        "fetch": 1.290999999999986,
+        "network": 2071.7409999999695,
+        "parse": 132.88300000000106,
+        "process_outputs": 0.0,
+        "queue": 0.0,
+        "retry": 0.0,
+        "setup": 0.0,
+        "total": 2220.272999999966,
+        "upload": 0.0
+      },
+      "cache_hits": {
+        "BuildGnuLibunwind": 2,
+        "BundleHermeticCMake": 2,
+        "CargoBuildScriptRun": 90,
+        "CompileHermeticExecLauncher": 6,
+        "CompileHermeticRustExecWrapper": 37,
+        "CppArchive": 6,
+        "CppCompile": 9919,
+        "CppLink": 108,
+        "GenerateTracerVersionHeader": 2,
+        "LinkHermeticExecLauncher": 6,
+        "LinkHermeticRustExecWrapper": 37,
+        "Llvm20RustBindgen": 2,
+        "LlvmRuntimeArchive": 8,
+        "LlvmRuntimeAssemble": 10,
+        "LlvmRuntimeCompile": 498,
+        "LlvmRuntimeHeaders": 2,
+        "LlvmRuntimeStartup": 8,
+        "PhpSdkMaterialize": 101,
+        "Rustc": 727,
+        "SplitDdtraceDebug": 101,
+        "ValidateDdtraceFatElf": 101,
+        "ValidateDdtraceFatSymbols": 2,
+        "ValidateTargetCurlSdk": 2,
+        "WeakenTracerPhpSymbols": 101
+      },
+      "executed": {},
+      "logical_input_bytes": 11201768890225,
+      "mnemonics": {
+        "BuildGnuLibunwind": 2,
+        "BundleHermeticCMake": 2,
+        "CargoBuildScriptRun": 90,
+        "CompileHermeticExecLauncher": 6,
+        "CompileHermeticRustExecWrapper": 37,
+        "CppArchive": 6,
+        "CppCompile": 9919,
+        "CppLink": 108,
+        "GenerateTracerVersionHeader": 2,
+        "LinkHermeticExecLauncher": 6,
+        "LinkHermeticRustExecWrapper": 37,
+        "Llvm20RustBindgen": 2,
+        "LlvmRuntimeArchive": 8,
+        "LlvmRuntimeAssemble": 10,
+        "LlvmRuntimeCompile": 498,
+        "LlvmRuntimeHeaders": 2,
+        "LlvmRuntimeStartup": 8,
+        "PhpSdkMaterialize": 101,
+        "Rustc": 727,
+        "SplitDdtraceDebug": 101,
+        "ValidateDdtraceFatElf": 101,
+        "ValidateDdtraceFatSymbols": 2,
+        "ValidateTargetCurlSdk": 2,
+        "WeakenTracerPhpSymbols": 101
+      },
+      "runners": {
+        "remote cache hit": 11878
+      }
+    },
+    "transfers": {
+      "bytestream_downloaded_bytes": 21067610,
+      "bytestream_uploaded_bytes": 0,
+      "rpc_calls": {
+        "build.bazel.remote.execution.v2.ActionCache/GetActionResult": 11878,
+        "build.bazel.remote.execution.v2.Capabilities/GetCapabilities": 1,
+        "google.bytestream.ByteStream/Read": 11452
+      },
+      "scope": "ByteStream payloads, including retries; excluding RPC framing and inline results"
+    },
+    "exit_code": 0
+  },
+  {
+    "record": "amd64-forced-j10-20260921T201453.304521Z",
+    "valid": true,
+    "mode": "forced",
+    "arch": "amd64",
+    "jobs": 10,
+    "targets": [
+      "//bazel/dependencies/llvm_runtimes:x86_64_glibc_native_core"
+    ],
+    "seconds": 75.63942496897653,
+    "source_digest": "af795763840d502ecf2d45feb38944744bf4e60add91bd2f1a9bc34256de57eb",
+    "source_snapshot_stable": true,
+    "execution": {
+      "aggregate_seconds": {
+        "execution": 36.33400000000004,
+        "fetch": 0.048,
+        "network": 27.97699999999993,
+        "parse": 3.263999999999977,
+        "process_outputs": 36.15200000000001,
+        "queue": 432.562,
+        "retry": 0.0,
+        "setup": 17.44,
+        "total": 594.4740000000004,
+        "upload": 12.708999999999987
+      },
+      "cache_hits": {},
+      "executed": {
+        "CompileHermeticExecLauncher": 1,
+        "LinkHermeticExecLauncher": 1,
+        "LlvmRuntimeArchive": 4,
+        "LlvmRuntimeAssemble": 5,
+        "LlvmRuntimeCompile": 249,
+        "LlvmRuntimeHeaders": 1,
+        "LlvmRuntimeLink": 3,
+        "LlvmRuntimeStartup": 4
+      },
+      "logical_input_bytes": 219413616551,
+      "mnemonics": {
+        "CompileHermeticExecLauncher": 1,
+        "LinkHermeticExecLauncher": 1,
+        "LlvmRuntimeArchive": 4,
+        "LlvmRuntimeAssemble": 5,
+        "LlvmRuntimeCompile": 249,
+        "LlvmRuntimeHeaders": 1,
+        "LlvmRuntimeLink": 3,
+        "LlvmRuntimeStartup": 4
+      },
+      "runners": {
+        "remote": 268
+      }
+    },
+    "transfers": {
+      "bytestream_downloaded_bytes": 99870,
+      "bytestream_uploaded_bytes": 9930,
+      "rpc_calls": {
+        "build.bazel.remote.execution.v2.Capabilities/GetCapabilities": 1,
+        "build.bazel.remote.execution.v2.ContentAddressableStorage/FindMissingBlobs": 271,
+        "build.bazel.remote.execution.v2.Execution/Execute": 268,
+        "google.bytestream.ByteStream/Read": 4,
+        "google.bytestream.ByteStream/Write": 44
+      },
+      "scope": "ByteStream payloads, including retries; excluding RPC framing and inline results"
+    },
+    "exit_code": 0
+  },
+  {
+    "record": "amd64-forced-j10-20260921T202207.245954Z",
+    "valid": true,
+    "mode": "forced",
+    "arch": "amd64",
+    "jobs": 10,
+    "targets": [
+      "//bazel/dependencies/llvm_runtimes:x86_64_glibc_native_core"
+    ],
+    "seconds": 45.489697641925886,
+    "source_digest": "af795763840d502ecf2d45feb38944744bf4e60add91bd2f1a9bc34256de57eb",
+    "source_snapshot_stable": true,
+    "execution": {
+      "aggregate_seconds": {
+        "execution": 39.7,
+        "fetch": 0.042,
+        "network": 25.916999999999973,
+        "parse": 3.75299999999998,
+        "process_outputs": 38.99000000000001,
+        "queue": 149.8510000000001,
+        "retry": 0.0,
+        "setup": 11.984,
+        "total": 308.2969999999999,
+        "upload": 10.261999999999983
+      },
+      "cache_hits": {},
+      "executed": {
+        "CompileHermeticExecLauncher": 1,
+        "LinkHermeticExecLauncher": 1,
+        "LlvmRuntimeArchive": 4,
+        "LlvmRuntimeAssemble": 5,
+        "LlvmRuntimeCompile": 249,
+        "LlvmRuntimeHeaders": 1,
+        "LlvmRuntimeLink": 3,
+        "LlvmRuntimeStartup": 4
+      },
+      "logical_input_bytes": 219413616551,
+      "mnemonics": {
+        "CompileHermeticExecLauncher": 1,
+        "LinkHermeticExecLauncher": 1,
+        "LlvmRuntimeArchive": 4,
+        "LlvmRuntimeAssemble": 5,
+        "LlvmRuntimeCompile": 249,
+        "LlvmRuntimeHeaders": 1,
+        "LlvmRuntimeLink": 3,
+        "LlvmRuntimeStartup": 4
+      },
+      "runners": {
+        "remote": 268
+      }
+    },
+    "transfers": {
+      "bytestream_downloaded_bytes": 99870,
+      "bytestream_uploaded_bytes": 0,
+      "rpc_calls": {
+        "build.bazel.remote.execution.v2.Capabilities/GetCapabilities": 1,
+        "build.bazel.remote.execution.v2.ContentAddressableStorage/FindMissingBlobs": 271,
+        "build.bazel.remote.execution.v2.Execution/Execute": 268,
+        "google.bytestream.ByteStream/Read": 4
+      },
+      "scope": "ByteStream payloads, including retries; excluding RPC framing and inline results"
+    },
+    "exit_code": 0
+  },
+  {
+    "record": "amd64-forced-j10-20260921T202443.995851Z",
+    "valid": true,
+    "mode": "forced",
+    "arch": "amd64",
+    "jobs": 10,
+    "targets": [
+      "//bazel/dependencies/llvm_runtimes:x86_64_glibc_native_core"
+    ],
+    "seconds": 47.35466852388345,
+    "source_digest": "af795763840d502ecf2d45feb38944744bf4e60add91bd2f1a9bc34256de57eb",
+    "source_snapshot_stable": true,
+    "execution": {
+      "aggregate_seconds": {
+        "execution": 40.488000000000014,
+        "fetch": 0.03900000000000001,
+        "network": 25.896999999999892,
+        "parse": 3.8779999999999832,
+        "process_outputs": 40.36400000000002,
+        "queue": 157.56900000000005,
+        "retry": 0.0,
+        "setup": 11.962,
+        "total": 317.24100000000004,
+        "upload": 10.08899999999998
+      },
+      "cache_hits": {},
+      "executed": {
+        "CompileHermeticExecLauncher": 1,
+        "LinkHermeticExecLauncher": 1,
+        "LlvmRuntimeArchive": 4,
+        "LlvmRuntimeAssemble": 5,
+        "LlvmRuntimeCompile": 249,
+        "LlvmRuntimeHeaders": 1,
+        "LlvmRuntimeLink": 3,
+        "LlvmRuntimeStartup": 4
+      },
+      "logical_input_bytes": 219413616551,
+      "mnemonics": {
+        "CompileHermeticExecLauncher": 1,
+        "LinkHermeticExecLauncher": 1,
+        "LlvmRuntimeArchive": 4,
+        "LlvmRuntimeAssemble": 5,
+        "LlvmRuntimeCompile": 249,
+        "LlvmRuntimeHeaders": 1,
+        "LlvmRuntimeLink": 3,
+        "LlvmRuntimeStartup": 4
+      },
+      "runners": {
+        "remote": 268
+      }
+    },
+    "transfers": {
+      "bytestream_downloaded_bytes": 99870,
+      "bytestream_uploaded_bytes": 0,
+      "rpc_calls": {
+        "build.bazel.remote.execution.v2.Capabilities/GetCapabilities": 1,
+        "build.bazel.remote.execution.v2.ContentAddressableStorage/FindMissingBlobs": 271,
+        "build.bazel.remote.execution.v2.Execution/Execute": 268,
+        "google.bytestream.ByteStream/Read": 4
+      },
+      "scope": "ByteStream payloads, including retries; excluding RPC framing and inline results"
+    },
+    "exit_code": 0
+  },
+  {
+    "record": "amd64-forced-j25-20260921T201641.402550Z",
+    "valid": true,
+    "mode": "forced",
+    "arch": "amd64",
+    "jobs": 25,
+    "targets": [
+      "//bazel/dependencies/llvm_runtimes:x86_64_glibc_native_core"
+    ],
+    "seconds": 65.66782245808281,
+    "source_digest": "af795763840d502ecf2d45feb38944744bf4e60add91bd2f1a9bc34256de57eb",
+    "source_snapshot_stable": true,
+    "execution": {
+      "aggregate_seconds": {
+        "execution": 38.16799999999999,
+        "fetch": 0.04800000000000001,
+        "network": 28.308999999999955,
+        "parse": 7.245000000000004,
+        "process_outputs": 39.78800000000002,
+        "queue": 1037.3199999999995,
+        "retry": 0.0,
+        "setup": 19.519000000000002,
+        "total": 1218.2520000000002,
+        "upload": 20.190000000000012
+      },
+      "cache_hits": {},
+      "executed": {
+        "CompileHermeticExecLauncher": 1,
+        "LinkHermeticExecLauncher": 1,
+        "LlvmRuntimeArchive": 4,
+        "LlvmRuntimeAssemble": 5,
+        "LlvmRuntimeCompile": 249,
+        "LlvmRuntimeHeaders": 1,
+        "LlvmRuntimeLink": 3,
+        "LlvmRuntimeStartup": 4
+      },
+      "logical_input_bytes": 219413616551,
+      "mnemonics": {
+        "CompileHermeticExecLauncher": 1,
+        "LinkHermeticExecLauncher": 1,
+        "LlvmRuntimeArchive": 4,
+        "LlvmRuntimeAssemble": 5,
+        "LlvmRuntimeCompile": 249,
+        "LlvmRuntimeHeaders": 1,
+        "LlvmRuntimeLink": 3,
+        "LlvmRuntimeStartup": 4
+      },
+      "runners": {
+        "remote": 268
+      }
+    },
+    "transfers": {
+      "bytestream_downloaded_bytes": 99870,
+      "bytestream_uploaded_bytes": 0,
+      "rpc_calls": {
+        "build.bazel.remote.execution.v2.Capabilities/GetCapabilities": 1,
+        "build.bazel.remote.execution.v2.ContentAddressableStorage/FindMissingBlobs": 271,
+        "build.bazel.remote.execution.v2.Execution/Execute": 268,
+        "google.bytestream.ByteStream/Read": 4
+      },
+      "scope": "ByteStream payloads, including retries; excluding RPC framing and inline results"
+    },
+    "exit_code": 0
+  },
+  {
+    "record": "amd64-forced-j25-20260921T201936.728663Z",
+    "valid": true,
+    "mode": "forced",
+    "arch": "amd64",
+    "jobs": 25,
+    "targets": [
+      "//bazel/dependencies/llvm_runtimes:x86_64_glibc_native_core"
+    ],
+    "seconds": 41.34782154695131,
+    "source_digest": "af795763840d502ecf2d45feb38944744bf4e60add91bd2f1a9bc34256de57eb",
+    "source_snapshot_stable": true,
+    "execution": {
+      "aggregate_seconds": {
+        "execution": 38.25500000000002,
+        "fetch": 0.041,
+        "network": 26.19999999999998,
+        "parse": 8.268999999999998,
+        "process_outputs": 37.546000000000014,
+        "queue": 453.1369999999999,
+        "retry": 0.0,
+        "setup": 11.463000000000006,
+        "total": 622.941,
+        "upload": 20.93800000000001
+      },
+      "cache_hits": {},
+      "executed": {
+        "CompileHermeticExecLauncher": 1,
+        "LinkHermeticExecLauncher": 1,
+        "LlvmRuntimeArchive": 4,
+        "LlvmRuntimeAssemble": 5,
+        "LlvmRuntimeCompile": 249,
+        "LlvmRuntimeHeaders": 1,
+        "LlvmRuntimeLink": 3,
+        "LlvmRuntimeStartup": 4
+      },
+      "logical_input_bytes": 219413616551,
+      "mnemonics": {
+        "CompileHermeticExecLauncher": 1,
+        "LinkHermeticExecLauncher": 1,
+        "LlvmRuntimeArchive": 4,
+        "LlvmRuntimeAssemble": 5,
+        "LlvmRuntimeCompile": 249,
+        "LlvmRuntimeHeaders": 1,
+        "LlvmRuntimeLink": 3,
+        "LlvmRuntimeStartup": 4
+      },
+      "runners": {
+        "remote": 268
+      }
+    },
+    "transfers": {
+      "bytestream_downloaded_bytes": 99870,
+      "bytestream_uploaded_bytes": 0,
+      "rpc_calls": {
+        "build.bazel.remote.execution.v2.Capabilities/GetCapabilities": 1,
+        "build.bazel.remote.execution.v2.ContentAddressableStorage/FindMissingBlobs": 271,
+        "build.bazel.remote.execution.v2.Execution/Execute": 268,
+        "google.bytestream.ByteStream/Read": 4
+      },
+      "scope": "ByteStream payloads, including retries; excluding RPC framing and inline results"
+    },
+    "exit_code": 0
+  },
+  {
+    "record": "amd64-forced-j25-20260921T202604.415042Z",
+    "valid": true,
+    "mode": "forced",
+    "arch": "amd64",
+    "jobs": 25,
+    "targets": [
+      "//bazel/dependencies/llvm_runtimes:x86_64_glibc_native_core"
+    ],
+    "seconds": 46.371355936164036,
+    "source_digest": "af795763840d502ecf2d45feb38944744bf4e60add91bd2f1a9bc34256de57eb",
+    "source_snapshot_stable": true,
+    "execution": {
+      "aggregate_seconds": {
+        "execution": 39.31600000000001,
+        "fetch": 0.064,
+        "network": 27.853999999999974,
+        "parse": 5.152999999999987,
+        "process_outputs": 39.83100000000002,
+        "queue": 561.8970000000003,
+        "retry": 0.0,
+        "setup": 11.600000000000009,
+        "total": 737.5060000000003,
+        "upload": 23.907000000000107
+      },
+      "cache_hits": {},
+      "executed": {
+        "CompileHermeticExecLauncher": 1,
+        "LinkHermeticExecLauncher": 1,
+        "LlvmRuntimeArchive": 4,
+        "LlvmRuntimeAssemble": 5,
+        "LlvmRuntimeCompile": 249,
+        "LlvmRuntimeHeaders": 1,
+        "LlvmRuntimeLink": 3,
+        "LlvmRuntimeStartup": 4
+      },
+      "logical_input_bytes": 219413616551,
+      "mnemonics": {
+        "CompileHermeticExecLauncher": 1,
+        "LinkHermeticExecLauncher": 1,
+        "LlvmRuntimeArchive": 4,
+        "LlvmRuntimeAssemble": 5,
+        "LlvmRuntimeCompile": 249,
+        "LlvmRuntimeHeaders": 1,
+        "LlvmRuntimeLink": 3,
+        "LlvmRuntimeStartup": 4
+      },
+      "runners": {
+        "remote": 268
+      }
+    },
+    "transfers": {
+      "bytestream_downloaded_bytes": 99870,
+      "bytestream_uploaded_bytes": 0,
+      "rpc_calls": {
+        "build.bazel.remote.execution.v2.Capabilities/GetCapabilities": 1,
+        "build.bazel.remote.execution.v2.ContentAddressableStorage/FindMissingBlobs": 271,
+        "build.bazel.remote.execution.v2.Execution/Execute": 268,
+        "google.bytestream.ByteStream/Read": 4
+      },
+      "scope": "ByteStream payloads, including retries; excluding RPC framing and inline results"
+    },
+    "exit_code": 0
+  },
+  {
+    "record": "amd64-forced-j50-20260921T183732.680191Z",
+    "valid": false,
+    "mode": "forced",
+    "arch": "amd64",
+    "jobs": 50,
+    "targets": [
+      "//bazel/products/tracer:ddtrace_fat_amd64_all"
+    ],
+    "seconds": 467.5821203168016,
+    "source_digest": "5dcc36c2ffa67e07d8fe47d5aafcf160b77f69fbf4029228b7b3521e4db9f3ba",
+    "source_snapshot_stable": null,
+    "execution": {
+      "aggregate_seconds": {
+        "execution": 111.53099999999985,
+        "fetch": 1.5769999999999949,
+        "network": 179.24799999999883,
+        "parse": 345.9729999999993,
+        "process_outputs": 117.47300000000004,
+        "queue": 9230.409,
+        "retry": 0.0,
+        "setup": 175.88999999999996,
+        "total": 20655.896999999986,
+        "upload": 10427.16499999996
+      },
+      "cache_hits": {},
+      "executed": {
+        "BundleHermeticCMake": 2,
+        "CompileHermeticExecLauncher": 6,
+        "CompileHermeticRustExecWrapper": 37,
+        "CppArchive": 2,
+        "CppCompile": 75,
+        "GenerateTracerVersionHeader": 2,
+        "LinkHermeticExecLauncher": 6,
+        "LinkHermeticRustExecWrapper": 37,
+        "LlvmRuntimeArchive": 3,
+        "LlvmRuntimeAssemble": 10,
+        "LlvmRuntimeCompile": 380,
+        "LlvmRuntimeHeaders": 2,
+        "LlvmRuntimeStartup": 8,
+        "PhpSdkMaterialize": 21,
+        "ValidateDdtraceFatSymbols": 2,
+        "ValidateTargetCurlSdk": 2
+      },
+      "logical_input_bytes": 530283960641,
+      "mnemonics": {
+        "BundleHermeticCMake": 2,
+        "CompileHermeticExecLauncher": 6,
+        "CompileHermeticRustExecWrapper": 37,
+        "CppArchive": 2,
+        "CppCompile": 75,
+        "GenerateTracerVersionHeader": 2,
+        "LinkHermeticExecLauncher": 6,
+        "LinkHermeticRustExecWrapper": 37,
+        "LlvmRuntimeArchive": 3,
+        "LlvmRuntimeAssemble": 10,
+        "LlvmRuntimeCompile": 380,
+        "LlvmRuntimeHeaders": 2,
+        "LlvmRuntimeStartup": 8,
+        "PhpSdkMaterialize": 21,
+        "ValidateDdtraceFatSymbols": 2,
+        "ValidateTargetCurlSdk": 2
+      },
+      "runners": {
+        "remote": 595
+      }
+    },
+    "transfers": {
+      "bytestream_downloaded_bytes": 1084132,
+      "bytestream_uploaded_bytes": 358613475,
+      "rpc_calls": {
+        "build.bazel.remote.execution.v2.Capabilities/GetCapabilities": 1,
+        "build.bazel.remote.execution.v2.ContentAddressableStorage/FindMissingBlobs": 671,
+        "build.bazel.remote.execution.v2.Execution/Execute": 645,
+        "google.bytestream.ByteStream/Read": 123,
+        "google.bytestream.ByteStream/Write": 6624
+      },
+      "scope": "ByteStream payloads, including retries; excluding RPC framing and inline results"
+    },
+    "exit_code": 8
+  },
+  {
+    "record": "amd64-forced-j50-20260921T184730.856279Z",
+    "valid": true,
+    "mode": "forced",
+    "arch": "amd64",
+    "jobs": 50,
+    "targets": [
+      "//bazel/products/tracer:ddtrace_fat_amd64_all"
+    ],
+    "seconds": 4533.564053014154,
+    "source_digest": "af795763840d502ecf2d45feb38944744bf4e60add91bd2f1a9bc34256de57eb",
+    "source_snapshot_stable": true,
+    "execution": {
+      "aggregate_seconds": {
+        "execution": 4038.2420000000016,
+        "fetch": 23.138000000002584,
+        "network": 4063.4540000000225,
+        "parse": 167.11599999996787,
+        "process_outputs": 2807.9930000000013,
+        "queue": 191352.46599999984,
+        "retry": 0.0,
+        "setup": 1981.5230000000086,
+        "total": 210824.12200000035,
+        "upload": 5056.577000000112
+      },
+      "cache_hits": {},
+      "executed": {
+        "BuildGnuLibunwind": 2,
+        "BundleHermeticCMake": 2,
+        "CargoBuildScriptRun": 90,
+        "CompileHermeticExecLauncher": 6,
+        "CompileHermeticRustExecWrapper": 37,
+        "CppArchive": 6,
+        "CppCompile": 9919,
+        "CppLink": 108,
+        "GenerateTracerVersionHeader": 2,
+        "LinkHermeticExecLauncher": 6,
+        "LinkHermeticRustExecWrapper": 37,
+        "Llvm20RustBindgen": 2,
+        "LlvmRuntimeArchive": 8,
+        "LlvmRuntimeAssemble": 10,
+        "LlvmRuntimeCompile": 498,
+        "LlvmRuntimeHeaders": 2,
+        "LlvmRuntimeStartup": 8,
+        "PhpSdkMaterialize": 101,
+        "Rustc": 727,
+        "SplitDdtraceDebug": 101,
+        "ValidateDdtraceFatElf": 101,
+        "ValidateDdtraceFatSymbols": 2,
+        "ValidateTargetCurlSdk": 2,
+        "WeakenTracerPhpSymbols": 101
+      },
+      "logical_input_bytes": 11201768890225,
+      "mnemonics": {
+        "BuildGnuLibunwind": 2,
+        "BundleHermeticCMake": 2,
+        "CargoBuildScriptRun": 90,
+        "CompileHermeticExecLauncher": 6,
+        "CompileHermeticRustExecWrapper": 37,
+        "CppArchive": 6,
+        "CppCompile": 9919,
+        "CppLink": 108,
+        "GenerateTracerVersionHeader": 2,
+        "LinkHermeticExecLauncher": 6,
+        "LinkHermeticRustExecWrapper": 37,
+        "Llvm20RustBindgen": 2,
+        "LlvmRuntimeArchive": 8,
+        "LlvmRuntimeAssemble": 10,
+        "LlvmRuntimeCompile": 498,
+        "LlvmRuntimeHeaders": 2,
+        "LlvmRuntimeStartup": 8,
+        "PhpSdkMaterialize": 101,
+        "Rustc": 727,
+        "SplitDdtraceDebug": 101,
+        "ValidateDdtraceFatElf": 101,
+        "ValidateDdtraceFatSymbols": 2,
+        "ValidateTargetCurlSdk": 2,
+        "WeakenTracerPhpSymbols": 101
+      },
+      "runners": {
+        "remote": 11878
+      }
+    },
+    "transfers": {
+      "bytestream_downloaded_bytes": 21067610,
+      "bytestream_uploaded_bytes": 1532237352,
+      "rpc_calls": {
+        "build.bazel.remote.execution.v2.Capabilities/GetCapabilities": 1,
+        "build.bazel.remote.execution.v2.ContentAddressableStorage/FindMissingBlobs": 12062,
+        "build.bazel.remote.execution.v2.Execution/Execute": 11878,
+        "google.bytestream.ByteStream/Read": 11452,
+        "google.bytestream.ByteStream/Write": 46130
+      },
+      "scope": "ByteStream payloads, including retries; excluding RPC framing and inline results"
+    },
+    "exit_code": 0
+  },
+  {
+    "record": "amd64-forced-j50-20260921T201818.830571Z",
+    "valid": true,
+    "mode": "forced",
+    "arch": "amd64",
+    "jobs": 50,
+    "targets": [
+      "//bazel/dependencies/llvm_runtimes:x86_64_glibc_native_core"
+    ],
+    "seconds": 44.75074046291411,
+    "source_digest": "af795763840d502ecf2d45feb38944744bf4e60add91bd2f1a9bc34256de57eb",
+    "source_snapshot_stable": true,
+    "execution": {
+      "aggregate_seconds": {
+        "execution": 40.67200000000003,
+        "fetch": 0.043000000000000003,
+        "network": 26.739999999999913,
+        "parse": 14.933999999999992,
+        "process_outputs": 41.77700000000001,
+        "queue": 1174.817,
+        "retry": 0.0,
+        "setup": 15.040999999999999,
+        "total": 1384.5979999999997,
+        "upload": 43.503999999999984
+      },
+      "cache_hits": {},
+      "executed": {
+        "CompileHermeticExecLauncher": 1,
+        "LinkHermeticExecLauncher": 1,
+        "LlvmRuntimeArchive": 4,
+        "LlvmRuntimeAssemble": 5,
+        "LlvmRuntimeCompile": 249,
+        "LlvmRuntimeHeaders": 1,
+        "LlvmRuntimeLink": 3,
+        "LlvmRuntimeStartup": 4
+      },
+      "logical_input_bytes": 219413616551,
+      "mnemonics": {
+        "CompileHermeticExecLauncher": 1,
+        "LinkHermeticExecLauncher": 1,
+        "LlvmRuntimeArchive": 4,
+        "LlvmRuntimeAssemble": 5,
+        "LlvmRuntimeCompile": 249,
+        "LlvmRuntimeHeaders": 1,
+        "LlvmRuntimeLink": 3,
+        "LlvmRuntimeStartup": 4
+      },
+      "runners": {
+        "remote": 268
+      }
+    },
+    "transfers": {
+      "bytestream_downloaded_bytes": 99870,
+      "bytestream_uploaded_bytes": 0,
+      "rpc_calls": {
+        "build.bazel.remote.execution.v2.Capabilities/GetCapabilities": 1,
+        "build.bazel.remote.execution.v2.ContentAddressableStorage/FindMissingBlobs": 271,
+        "build.bazel.remote.execution.v2.Execution/Execute": 268,
+        "google.bytestream.ByteStream/Read": 4
+      },
+      "scope": "ByteStream payloads, including retries; excluding RPC framing and inline results"
+    },
+    "exit_code": 0
+  },
+  {
+    "record": "amd64-forced-j50-20260921T202050.008758Z",
+    "valid": true,
+    "mode": "forced",
+    "arch": "amd64",
+    "jobs": 50,
+    "targets": [
+      "//bazel/dependencies/llvm_runtimes:x86_64_glibc_native_core"
+    ],
+    "seconds": 44.18920304393396,
+    "source_digest": "af795763840d502ecf2d45feb38944744bf4e60add91bd2f1a9bc34256de57eb",
+    "source_snapshot_stable": true,
+    "execution": {
+      "aggregate_seconds": {
+        "execution": 40.19600000000002,
+        "fetch": 0.043000000000000003,
+        "network": 27.921999999999965,
+        "parse": 16.373999999999977,
+        "process_outputs": 39.80600000000003,
+        "queue": 1102.4779999999998,
+        "retry": 0.0,
+        "setup": 12.606000000000003,
+        "total": 1305.3870000000004,
+        "upload": 37.60900000000001
+      },
+      "cache_hits": {},
+      "executed": {
+        "CompileHermeticExecLauncher": 1,
+        "LinkHermeticExecLauncher": 1,
+        "LlvmRuntimeArchive": 4,
+        "LlvmRuntimeAssemble": 5,
+        "LlvmRuntimeCompile": 249,
+        "LlvmRuntimeHeaders": 1,
+        "LlvmRuntimeLink": 3,
+        "LlvmRuntimeStartup": 4
+      },
+      "logical_input_bytes": 219413616551,
+      "mnemonics": {
+        "CompileHermeticExecLauncher": 1,
+        "LinkHermeticExecLauncher": 1,
+        "LlvmRuntimeArchive": 4,
+        "LlvmRuntimeAssemble": 5,
+        "LlvmRuntimeCompile": 249,
+        "LlvmRuntimeHeaders": 1,
+        "LlvmRuntimeLink": 3,
+        "LlvmRuntimeStartup": 4
+      },
+      "runners": {
+        "remote": 268
+      }
+    },
+    "transfers": {
+      "bytestream_downloaded_bytes": 99870,
+      "bytestream_uploaded_bytes": 0,
+      "rpc_calls": {
+        "build.bazel.remote.execution.v2.Capabilities/GetCapabilities": 1,
+        "build.bazel.remote.execution.v2.ContentAddressableStorage/FindMissingBlobs": 271,
+        "build.bazel.remote.execution.v2.Execution/Execute": 268,
+        "google.bytestream.ByteStream/Read": 4
+      },
+      "scope": "ByteStream payloads, including retries; excluding RPC framing and inline results"
+    },
+    "exit_code": 0
+  },
+  {
+    "record": "amd64-forced-j50-20260921T202325.399915Z",
+    "valid": true,
+    "mode": "forced",
+    "arch": "amd64",
+    "jobs": 50,
+    "targets": [
+      "//bazel/dependencies/llvm_runtimes:x86_64_glibc_native_core"
+    ],
+    "seconds": 46.95766025898047,
+    "source_digest": "af795763840d502ecf2d45feb38944744bf4e60add91bd2f1a9bc34256de57eb",
+    "source_snapshot_stable": true,
+    "execution": {
+      "aggregate_seconds": {
+        "execution": 42.17400000000002,
+        "fetch": 0.065,
+        "network": 28.24799999999991,
+        "parse": 18.880999999999975,
+        "process_outputs": 43.243000000000016,
+        "queue": 1289.0120000000002,
+        "retry": 0.0,
+        "setup": 13.876000000000008,
+        "total": 1504.82,
+        "upload": 41.84500000000005
+      },
+      "cache_hits": {},
+      "executed": {
+        "CompileHermeticExecLauncher": 1,
+        "LinkHermeticExecLauncher": 1,
+        "LlvmRuntimeArchive": 4,
+        "LlvmRuntimeAssemble": 5,
+        "LlvmRuntimeCompile": 249,
+        "LlvmRuntimeHeaders": 1,
+        "LlvmRuntimeLink": 3,
+        "LlvmRuntimeStartup": 4
+      },
+      "logical_input_bytes": 219413616551,
+      "mnemonics": {
+        "CompileHermeticExecLauncher": 1,
+        "LinkHermeticExecLauncher": 1,
+        "LlvmRuntimeArchive": 4,
+        "LlvmRuntimeAssemble": 5,
+        "LlvmRuntimeCompile": 249,
+        "LlvmRuntimeHeaders": 1,
+        "LlvmRuntimeLink": 3,
+        "LlvmRuntimeStartup": 4
+      },
+      "runners": {
+        "remote": 268
+      }
+    },
+    "transfers": {
+      "bytestream_downloaded_bytes": 99870,
+      "bytestream_uploaded_bytes": 0,
+      "rpc_calls": {
+        "build.bazel.remote.execution.v2.Capabilities/GetCapabilities": 1,
+        "build.bazel.remote.execution.v2.ContentAddressableStorage/FindMissingBlobs": 271,
+        "build.bazel.remote.execution.v2.Execution/Execute": 268,
+        "google.bytestream.ByteStream/Read": 4
+      },
+      "scope": "ByteStream payloads, including retries; excluding RPC framing and inline results"
+    },
+    "exit_code": 0
+  },
+  {
+    "record": "amd64-noop-j50-20260921T201213.716043Z",
+    "valid": true,
+    "mode": "noop",
+    "arch": "amd64",
+    "jobs": 50,
+    "targets": [
+      "//bazel/products/tracer:ddtrace_fat_amd64_all"
+    ],
+    "seconds": 23.142725626006722,
+    "source_digest": "af795763840d502ecf2d45feb38944744bf4e60add91bd2f1a9bc34256de57eb",
+    "source_snapshot_stable": true,
+    "execution": {
+      "aggregate_seconds": {},
+      "cache_hits": {},
+      "executed": {},
+      "logical_input_bytes": 0,
+      "mnemonics": {},
+      "runners": {}
+    },
+    "transfers": {
+      "bytestream_downloaded_bytes": 0,
+      "bytestream_uploaded_bytes": 0,
+      "rpc_calls": {
+        "build.bazel.remote.execution.v2.Capabilities/GetCapabilities": 1
+      },
+      "scope": "ByteStream payloads, including retries; excluding RPC framing and inline results"
+    },
+    "exit_code": 0
+  },
+  {
+    "record": "amd64-rust-edit-j50-20260921T215729.475596Z",
+    "valid": true,
+    "mode": "rust-edit",
+    "arch": "amd64",
+    "jobs": 50,
+    "targets": [
+      "//bazel/products/tracer:ddtrace_fat_amd64_all"
+    ],
+    "seconds": 223.47108006710187,
+    "source_digest": "7736ac675fe282826bcc5cc13de37a9a275618593626532030205af6e57c6d51",
+    "source_snapshot_stable": true,
+    "execution": {
+      "aggregate_seconds": {
+        "execution": 199.346,
+        "fetch": 0.0,
+        "network": 2.436,
+        "parse": 0.268,
+        "process_outputs": 0.7,
+        "queue": 100.311,
+        "retry": 0.0,
+        "setup": 0.45799999999999996,
+        "total": 304.385,
+        "upload": 0.657
+      },
+      "cache_hits": {},
+      "executed": {
+        "Rustc": 2
+      },
+      "logical_input_bytes": 7644207793,
+      "mnemonics": {
+        "Rustc": 2
+      },
+      "runners": {
+        "remote": 2
+      }
+    },
+    "transfers": {
+      "bytestream_downloaded_bytes": 0,
+      "bytestream_uploaded_bytes": 10223,
+      "rpc_calls": {
+        "build.bazel.remote.execution.v2.ActionCache/GetActionResult": 2,
+        "build.bazel.remote.execution.v2.Capabilities/GetCapabilities": 1,
+        "build.bazel.remote.execution.v2.ContentAddressableStorage/FindMissingBlobs": 20,
+        "build.bazel.remote.execution.v2.Execution/Execute": 2,
+        "google.bytestream.ByteStream/Write": 6
+      },
+      "scope": "ByteStream payloads, including retries; excluding RPC framing and inline results"
+    },
+    "exit_code": 0,
+    "edited_files": [
+      "components-rs/lib.rs"
+    ],
+    "unchanged_runtime_actions_executed": 0
+  },
+  {
+    "record": "arm64-c-edit-j50-20260921T220200.045655Z",
+    "valid": true,
+    "mode": "c-edit",
+    "arch": "arm64",
+    "jobs": 50,
+    "targets": [
+      "//bazel/products/tracer:ddtrace_fat_arm64_all"
+    ],
+    "seconds": 2864.608551361831,
+    "source_digest": "26dbdc01e5bec22eeb71daa6f1435df823b311776c5363c08939883dad9634df",
+    "source_snapshot_stable": true,
+    "execution": {
+      "aggregate_seconds": {
+        "execution": 1594.895,
+        "fetch": 0.022000000000000013,
+        "network": 118.16599999999997,
+        "parse": 21.10899999999986,
+        "process_outputs": 524.1640000000008,
+        "queue": 118968.43800000002,
+        "retry": 0.0,
+        "setup": 717.9019999999995,
+        "total": 122118.38100000018,
+        "upload": 112.98100000000008
+      },
+      "cache_hits": {},
+      "executed": {
+        "CppCompile": 101,
+        "CppLink": 101,
+        "SplitDdtraceDebug": 101,
+        "ValidateDdtraceFatElf": 101,
+        "WeakenTracerPhpSymbols": 101
+      },
+      "logical_input_bytes": 543719395425,
+      "mnemonics": {
+        "CppCompile": 101,
+        "CppLink": 101,
+        "SplitDdtraceDebug": 101,
+        "ValidateDdtraceFatElf": 101,
+        "WeakenTracerPhpSymbols": 101
+      },
+      "runners": {
+        "remote": 505
+      }
+    },
+    "transfers": {
+      "bytestream_downloaded_bytes": 205993,
+      "bytestream_uploaded_bytes": 1130595,
+      "rpc_calls": {
+        "build.bazel.remote.execution.v2.ActionCache/GetActionResult": 505,
+        "build.bazel.remote.execution.v2.Capabilities/GetCapabilities": 1,
+        "build.bazel.remote.execution.v2.ContentAddressableStorage/FindMissingBlobs": 612,
+        "build.bazel.remote.execution.v2.Execution/Execute": 505,
+        "google.bytestream.ByteStream/Read": 119,
+        "google.bytestream.ByteStream/Write": 3840
+      },
+      "scope": "ByteStream payloads, including retries; excluding RPC framing and inline results"
+    },
+    "exit_code": 0,
+    "edited_files": [
+      "tracer/memory_limit.c"
+    ],
+    "unchanged_runtime_actions_executed": 0
+  },
+  {
+    "record": "arm64-cached-j50-20260921T211350.111953Z",
+    "valid": true,
+    "mode": "cached",
+    "arch": "arm64",
+    "jobs": 50,
+    "targets": [
+      "//bazel/products/tracer:ddtrace_fat_arm64_all"
+    ],
+    "seconds": 167.74559407890774,
+    "source_digest": "af795763840d502ecf2d45feb38944744bf4e60add91bd2f1a9bc34256de57eb",
+    "source_snapshot_stable": true,
+    "execution": {
+      "aggregate_seconds": {
+        "execution": 0.0,
+        "fetch": 1.28699999999998,
+        "network": 2013.5579999999052,
+        "parse": 151.14499999999842,
+        "process_outputs": 0.0,
+        "queue": 0.0,
+        "retry": 0.0,
+        "setup": 0.0,
+        "total": 2180.0529999999235,
+        "upload": 0.0
+      },
+      "cache_hits": {
+        "BuildGnuLibunwind": 2,
+        "BundleHermeticCMake": 2,
+        "CargoBuildScriptRun": 90,
+        "CompileHermeticExecLauncher": 6,
+        "CompileHermeticRustExecWrapper": 37,
+        "CppArchive": 6,
+        "CppCompile": 9919,
+        "CppLink": 108,
+        "GenerateTracerVersionHeader": 2,
+        "LinkHermeticExecLauncher": 6,
+        "LinkHermeticRustExecWrapper": 37,
+        "Llvm20RustBindgen": 2,
+        "LlvmRuntimeArchive": 8,
+        "LlvmRuntimeAssemble": 258,
+        "LlvmRuntimeCompile": 476,
+        "LlvmRuntimeHeaders": 2,
+        "LlvmRuntimeStartup": 8,
+        "PhpSdkMaterialize": 101,
+        "Rustc": 727,
+        "SplitDdtraceDebug": 101,
+        "ValidateDdtraceFatElf": 101,
+        "ValidateDdtraceFatSymbols": 2,
+        "ValidateTargetCurlSdk": 2,
+        "WeakenTracerPhpSymbols": 101
+      },
+      "executed": {},
+      "logical_input_bytes": 12702218228810,
+      "mnemonics": {
+        "BuildGnuLibunwind": 2,
+        "BundleHermeticCMake": 2,
+        "CargoBuildScriptRun": 90,
+        "CompileHermeticExecLauncher": 6,
+        "CompileHermeticRustExecWrapper": 37,
+        "CppArchive": 6,
+        "CppCompile": 9919,
+        "CppLink": 108,
+        "GenerateTracerVersionHeader": 2,
+        "LinkHermeticExecLauncher": 6,
+        "LinkHermeticRustExecWrapper": 37,
+        "Llvm20RustBindgen": 2,
+        "LlvmRuntimeArchive": 8,
+        "LlvmRuntimeAssemble": 258,
+        "LlvmRuntimeCompile": 476,
+        "LlvmRuntimeHeaders": 2,
+        "LlvmRuntimeStartup": 8,
+        "PhpSdkMaterialize": 101,
+        "Rustc": 727,
+        "SplitDdtraceDebug": 101,
+        "ValidateDdtraceFatElf": 101,
+        "ValidateDdtraceFatSymbols": 2,
+        "ValidateTargetCurlSdk": 2,
+        "WeakenTracerPhpSymbols": 101
+      },
+      "runners": {
+        "remote cache hit": 12104
+      }
+    },
+    "transfers": {
+      "bytestream_downloaded_bytes": 21803080,
+      "bytestream_uploaded_bytes": 0,
+      "rpc_calls": {
+        "build.bazel.remote.execution.v2.ActionCache/GetActionResult": 12104,
+        "build.bazel.remote.execution.v2.Capabilities/GetCapabilities": 1,
+        "google.bytestream.ByteStream/Read": 11801
+      },
+      "scope": "ByteStream payloads, including retries; excluding RPC framing and inline results"
+    },
+    "exit_code": 0
+  },
+  {
+    "record": "arm64-forced-j50-20260921T192126.057325Z",
+    "valid": true,
+    "mode": "forced",
+    "arch": "arm64",
+    "jobs": 50,
+    "targets": [
+      "//bazel/products/tracer:ddtrace_fat_arm64_all"
+    ],
+    "seconds": 6527.6018832959235,
+    "source_digest": "af795763840d502ecf2d45feb38944744bf4e60add91bd2f1a9bc34256de57eb",
+    "source_snapshot_stable": true,
+    "execution": {
+      "aggregate_seconds": {
+        "execution": 6563.445000000012,
+        "fetch": 4.9050000000001095,
+        "network": 2354.0649999998427,
+        "parse": 131.34300000001033,
+        "process_outputs": 4777.009000000005,
+        "queue": 284014.9979999999,
+        "retry": 0.0,
+        "setup": 2072.9289999999933,
+        "total": 304698.8320000006,
+        "upload": 3340.0300000000443
+      },
+      "cache_hits": {},
+      "executed": {
+        "BuildGnuLibunwind": 2,
+        "BundleHermeticCMake": 2,
+        "CargoBuildScriptRun": 90,
+        "CompileHermeticExecLauncher": 6,
+        "CompileHermeticRustExecWrapper": 37,
+        "CppArchive": 6,
+        "CppCompile": 9919,
+        "CppLink": 108,
+        "GenerateTracerVersionHeader": 2,
+        "LinkHermeticExecLauncher": 6,
+        "LinkHermeticRustExecWrapper": 37,
+        "Llvm20RustBindgen": 2,
+        "LlvmRuntimeArchive": 8,
+        "LlvmRuntimeAssemble": 258,
+        "LlvmRuntimeCompile": 476,
+        "LlvmRuntimeHeaders": 2,
+        "LlvmRuntimeStartup": 8,
+        "PhpSdkMaterialize": 101,
+        "Rustc": 727,
+        "SplitDdtraceDebug": 101,
+        "ValidateDdtraceFatElf": 101,
+        "ValidateDdtraceFatSymbols": 2,
+        "ValidateTargetCurlSdk": 2,
+        "WeakenTracerPhpSymbols": 101
+      },
+      "logical_input_bytes": 12702218228810,
+      "mnemonics": {
+        "BuildGnuLibunwind": 2,
+        "BundleHermeticCMake": 2,
+        "CargoBuildScriptRun": 90,
+        "CompileHermeticExecLauncher": 6,
+        "CompileHermeticRustExecWrapper": 37,
+        "CppArchive": 6,
+        "CppCompile": 9919,
+        "CppLink": 108,
+        "GenerateTracerVersionHeader": 2,
+        "LinkHermeticExecLauncher": 6,
+        "LinkHermeticRustExecWrapper": 37,
+        "Llvm20RustBindgen": 2,
+        "LlvmRuntimeArchive": 8,
+        "LlvmRuntimeAssemble": 258,
+        "LlvmRuntimeCompile": 476,
+        "LlvmRuntimeHeaders": 2,
+        "LlvmRuntimeStartup": 8,
+        "PhpSdkMaterialize": 101,
+        "Rustc": 727,
+        "SplitDdtraceDebug": 101,
+        "ValidateDdtraceFatElf": 101,
+        "ValidateDdtraceFatSymbols": 2,
+        "ValidateTargetCurlSdk": 2,
+        "WeakenTracerPhpSymbols": 101
+      },
+      "runners": {
+        "remote": 12104
+      }
+    },
+    "transfers": {
+      "bytestream_downloaded_bytes": 21803080,
+      "bytestream_uploaded_bytes": 968773260,
+      "rpc_calls": {
+        "build.bazel.remote.execution.v2.Capabilities/GetCapabilities": 1,
+        "build.bazel.remote.execution.v2.ContentAddressableStorage/FindMissingBlobs": 12288,
+        "build.bazel.remote.execution.v2.Execution/Execute": 12104,
+        "google.bytestream.ByteStream/Read": 11801,
+        "google.bytestream.ByteStream/Write": 43168
+      },
+      "scope": "ByteStream payloads, including retries; excluding RPC framing and inline results"
+    },
+    "exit_code": 0
+  },
+  {
+    "record": "arm64-noop-j50-20260921T211819.212336Z",
+    "valid": true,
+    "mode": "noop",
+    "arch": "arm64",
+    "jobs": 50,
+    "targets": [
+      "//bazel/products/tracer:ddtrace_fat_arm64_all"
+    ],
+    "seconds": 22.442133240867406,
+    "source_digest": "af795763840d502ecf2d45feb38944744bf4e60add91bd2f1a9bc34256de57eb",
+    "source_snapshot_stable": true,
+    "execution": {
+      "aggregate_seconds": {},
+      "cache_hits": {},
+      "executed": {},
+      "logical_input_bytes": 0,
+      "mnemonics": {},
+      "runners": {}
+    },
+    "transfers": {
+      "bytestream_downloaded_bytes": 0,
+      "bytestream_uploaded_bytes": 0,
+      "rpc_calls": {
+        "build.bazel.remote.execution.v2.Capabilities/GetCapabilities": 1
+      },
+      "scope": "ByteStream payloads, including retries; excluding RPC framing and inline results"
+    },
+    "exit_code": 0
+  },
+  {
+    "record": "arm64-rust-edit-j50-20260921T225031.919876Z",
+    "valid": true,
+    "mode": "rust-edit",
+    "arch": "arm64",
+    "jobs": 50,
+    "targets": [
+      "//bazel/products/tracer:ddtrace_fat_arm64_all"
+    ],
+    "seconds": 345.18211337411776,
+    "source_digest": "9016256a9fbe3e5257bb5005af32a5e515b0aa6ddc1d79d8ebd013fe999c2b03",
+    "source_snapshot_stable": true,
+    "execution": {
+      "aggregate_seconds": {
+        "execution": 320.353,
+        "fetch": 0.0,
+        "network": 2.433,
+        "parse": 0.125,
+        "process_outputs": 1.249,
+        "queue": 161.56,
+        "retry": 0.0,
+        "setup": 0.845,
+        "total": 487.354,
+        "upload": 0.573
+      },
+      "cache_hits": {},
+      "executed": {
+        "Rustc": 2
+      },
+      "logical_input_bytes": 7077964168,
+      "mnemonics": {
+        "Rustc": 2
+      },
+      "runners": {
+        "remote": 2
+      }
+    },
+    "transfers": {
+      "bytestream_downloaded_bytes": 0,
+      "bytestream_uploaded_bytes": 10225,
+      "rpc_calls": {
+        "build.bazel.remote.execution.v2.ActionCache/GetActionResult": 2,
+        "build.bazel.remote.execution.v2.Capabilities/GetCapabilities": 1,
+        "build.bazel.remote.execution.v2.ContentAddressableStorage/FindMissingBlobs": 20,
+        "build.bazel.remote.execution.v2.Execution/Execute": 2,
+        "google.bytestream.ByteStream/Write": 6
+      },
+      "scope": "ByteStream payloads, including retries; excluding RPC framing and inline results"
+    },
+    "exit_code": 0,
+    "edited_files": [
+      "components-rs/lib.rs"
+    ],
+    "unchanged_runtime_actions_executed": 0
+  }
+]

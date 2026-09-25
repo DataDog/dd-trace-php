@@ -1,0 +1,99 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_proc_macro")
+load(":elf_dynamic_check.bzl", "elf_dynamic_check", "static_elf_checker")
+load(":llvm20_bindgen_toolchains.bzl", "llvm20_bindgen_toolchains")
+load(":rust_exec_wrapper.bzl", "rust_host_smoke")
+load(":toolchains.bzl", "hermetic_rust_toolchains", "nightly_proc_macro_flag")
+
+package(default_visibility = ["//visibility:public"])
+
+nightly_proc_macro_flag(
+    name = "nightly_proc_macro",
+    build_setting_default = False,
+)
+
+config_setting(
+    name = "nightly_proc_macro_disabled",
+    flag_values = {":nightly_proc_macro": "false"},
+)
+
+config_setting(
+    name = "nightly_proc_macro_enabled",
+    flag_values = {":nightly_proc_macro": "true"},
+)
+
+exports_files([
+    "elf_dynamic_check.bzl",
+    "elf_dynamic_check.c",
+    "llvm20_bindgen_toolchains.bzl",
+    "rust_exec_wrapper.c",
+    "rust_exec_wrapper.bzl",
+    "toolchains.bzl",
+])
+
+hermetic_rust_toolchains()
+
+llvm20_bindgen_toolchains()
+
+rust_proc_macro(
+    name = "host_smoke_macro",
+    srcs = ["host_smoke_macro.rs"],
+    crate_name = "ddtrace_host_smoke_macro",
+    edition = "2021",
+)
+
+rust_binary(
+    name = "host_smoke_bin",
+    srcs = ["host_smoke.rs"],
+    crate_name = "ddtrace_host_smoke",
+    edition = "2021",
+    rustc_flags = ["-Cpanic=abort"],
+    deps = [":host_smoke_macro"],
+)
+
+rust_host_smoke(
+    name = "host_smoke",
+    payload = ":host_smoke_bin",
+)
+
+static_elf_checker(
+    name = "host_target_elf_checker",
+    build_runtime = ["@exec_tools_alpine322_x86_64//:all"],
+    clang = "@llvm_20_1_4_dist_x86_64//:bin/clang",
+    compiler_libraries = [
+        "@exec_runtime_debian12_x86_64//:lib_anchor",
+        "@exec_runtime_debian12_x86_64//:usr_lib_anchor",
+    ],
+    compiler_loader = "@exec_runtime_debian12_x86_64//:loader",
+    compiler_runtime = [
+        "@exec_runtime_debian12_x86_64//:all",
+        "@llvm_20_1_4_dist_x86_64//:clang",
+        "@llvm_20_1_4_dist_x86_64//:cxx_builtin_include",
+        "@llvm_20_1_4_dist_x86_64//:ld",
+        "@llvm_20_1_4_dist_x86_64//:lib",
+    ],
+    crt1 = "@exec_tools_alpine322_x86_64//:root/usr/lib/crt1.o",
+    crti = "@exec_tools_alpine322_x86_64//:root/usr/lib/crti.o",
+    crtn = "@exec_tools_alpine322_x86_64//:root/usr/lib/crtn.o",
+    libc = "@exec_tools_alpine322_x86_64//:root/usr/lib/libc.a",
+    lld = "@llvm_20_1_4_dist_x86_64//:bin/ld.lld",
+    source = "elf_dynamic_check.c",
+    target_compatible_with = ["@platforms//cpu:x86_64"],
+)
+
+# host_smoke_bin has a proc-macro execution dependency but is itself a normal
+# target binary. Only its exec-configured variant above becomes a static tool.
+elf_dynamic_check(
+    name = "host_target_dynamic_smoke",
+    binary = ":host_smoke_bin",
+    checker = ":host_target_elf_checker",
+    interpreter = "/lib64/ld-linux-x86-64.so.2",
+    target_compatible_with = ["@platforms//cpu:x86_64"],
+)
+
+filegroup(
+    name = "host_smoke_all",
+    srcs = [
+        ":host_smoke",
+        ":host_target_dynamic_smoke",
+    ],
+)

@@ -1,0 +1,92 @@
+{
+  "arm64": [
+    {
+      "file": "sdk/lib/libcurl.so.4.5.0",
+      "soname": "libcurl.so.4",
+      "needed": [
+        "libc.so.6",
+        "libcrypto.so.1.1",
+        "libpthread.so.0",
+        "libssl.so.1.1",
+        "libz.so.1"
+      ],
+      "highest_glibc": "2.17"
+    },
+    {
+      "file": "sdk/dependencies/openssl/lib/libcrypto.so.1.1",
+      "soname": "libcrypto.so.1.1",
+      "needed": [
+        "libc.so.6",
+        "libdl.so.2",
+        "libpthread.so.0",
+        "libz.so.1"
+      ],
+      "highest_glibc": "2.17"
+    },
+    {
+      "file": "sdk/dependencies/openssl/lib/libssl.so.1.1",
+      "soname": "libssl.so.1.1",
+      "needed": [
+        "libc.so.6",
+        "libcrypto.so.1.1",
+        "libdl.so.2",
+        "libpthread.so.0",
+        "libz.so.1"
+      ],
+      "highest_glibc": "2.17"
+    },
+    {
+      "file": "sdk/dependencies/zlib/lib/libz.so.1.2.11",
+      "soname": "libz.so.1",
+      "needed": [
+        "libc.so.6"
+      ],
+      "highest_glibc": "2.17"
+    }
+  ],
+  "amd64": [
+    {
+      "file": "sdk/lib/libcurl.so.4.5.0",
+      "soname": "libcurl.so.4",
+      "needed": [
+        "libc.so.6",
+        "libcrypto.so.1.1",
+        "libpthread.so.0",
+        "libssl.so.1.1",
+        "libz.so.1"
+      ],
+      "highest_glibc": "2.17"
+    },
+    {
+      "file": "sdk/dependencies/openssl/lib/libcrypto.so.1.1",
+      "soname": "libcrypto.so.1.1",
+      "needed": [
+        "libc.so.6",
+        "libdl.so.2",
+        "libpthread.so.0",
+        "libz.so.1"
+      ],
+      "highest_glibc": "2.17"
+    },
+    {
+      "file": "sdk/dependencies/openssl/lib/libssl.so.1.1",
+      "soname": "libssl.so.1.1",
+      "needed": [
+        "libc.so.6",
+        "libcrypto.so.1.1",
+        "libdl.so.2",
+        "libpthread.so.0",
+        "libz.so.1"
+      ],
+      "highest_glibc": "2.14"
+    },
+    {
+      "file": "sdk/dependencies/zlib/lib/libz.so.1.2.11",
+      "soname": "libz.so.1",
+      "needed": [
+        "libc.so.6"
+      ],
+      "highest_glibc": "2.14"
+    }
+  ]
+}

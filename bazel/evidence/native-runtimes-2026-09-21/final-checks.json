@@ -1,0 +1,81 @@
+[
+  {
+    "command": [
+      "python3",
+      "bazel/dependencies/llvm_runtimes/manifest_test.py"
+    ],
+    "exit_code": 0,
+    "output": ".\n----------------------------------------------------------------------\nRan 1 test in 0.012s\n\nOK\n"
+  },
+  {
+    "command": [
+      "python3",
+      "tools/bazel/runtime-log-metrics_test.py"
+    ],
+    "exit_code": 0,
+    "output": "...\n----------------------------------------------------------------------\nRan 3 tests in 0.001s\n\nOK\n"
+  },
+  {
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "command": [
+      "/usr/local/bin/buildifier",
+      "-mode=check",
+      "bazel/dependencies/llvm_runtimes/native.bzl",
+      "bazel/dependencies/llvm_runtimes/providers.bzl",
+      "bazel/dependencies/llvm_runtimes/transition.bzl",
+      "bazel/toolchains/bootstrap.bzl",
+      "BUILD.bazel",
+      "MODULE.bazel",
+      "bazel/dependencies/appsec_libxml2/defs.bzl",
+      "bazel/dependencies/exec_tools/BUILD.bazel",
+      "bazel/dependencies/exec_tools/launcher.bzl",
+      "bazel/dependencies/gnu_libunwind/libunwind.bzl",
+      "bazel/dependencies/llvm_runtimes/BUILD.bazel",
+      "bazel/dependencies/llvm_runtimes/repository.bzl",
+      "bazel/dependencies/llvm_runtimes/runtime.bzl",
+      "bazel/packaging/bundle.bzl",
+      "bazel/products/tracer/defs.bzl",
+      "bazel/products/tracer/fat/link.bzl",
+      "bazel/products/tracer/fat/product.bzl",
+      "bazel/products/tracer/fat/symbols.bzl",
+      "bazel/products/tracer/fat/verify.bzl",
+      "bazel/rust/BUILD.bazel",
+      "bazel/rust/toolchains/declare_rustc_toolchains.bzl",
+      "bazel/rust/toolchains/llvm20_bindgen_toolchains.bzl",
+      "bazel/rust/toolchains/rust_exec_wrapper.bzl",
+      "bazel/rust/toolchains/toolchains.bzl",
+      "bazel/stages/arch_probe.bzl",
+      "bazel/toolchains/BUILD.bazel",
+      "bazel/toolchains/defs.bzl",
+      "bazel/toolchains/hermetic_cc_toolchain.bzl"
+    ],
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "command": [
+      "python3",
+      "-m",
+      "py_compile",
+      "bazel/dependencies/llvm_runtimes/generate_manifest.py",
+      "tools/bazel/benchmark-runtimes.py",
+      "tools/bazel/check-runtime-graph.py",
+      "tools/bazel/compare-llvm-runtimes.py",
+      "tools/bazel/runtime-log-metrics.py"
+    ],
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "check": "temporary C/Rust source edits restored",
+    "exit_code": 0
+  }
+]

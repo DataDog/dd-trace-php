@@ -2,6 +2,7 @@
 !/tracer/vendor
 tmp/
 composer.lock*
+!tooling/generation/composer.lock
 !tests/Frameworks/Symfony/Version_6_2/composer.lock
 **/core*
 .DS_Store
@@ -48,6 +49,10 @@ php_test_results*
 results.bin
 run-tests.php
 /target*
+/bazel-*
+/.bazelrc.local
+/.cache/bazel/
+/artifacts/bazel/
 tests/ext/*.php
 tests/ext/*.out
 tests/ext/*.diff
@@ -56,9 +61,12 @@ tests/ext/*.exp
 tests/ext/*.sh
 tests/ext/*.mem
 phpt.*
+!bazel/tests/phpt.bzl
 tmp-php.ini
 tmp/opcache*
 *.orig
+__pycache__/
+*.pyc
 docker-compose.override.yml
 tests/Sapi/Roadrunner/rr-*
 github-actions-helpers/_build.csproj.DotSettings

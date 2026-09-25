@@ -1,0 +1,216 @@
+{
+  "date": "2026-09-18",
+  "scope": "normal fat tracer product build, split-debug output, and ELF validation",
+  "matrix": {
+    "php_minors": ["7.0", "7.1", "7.2", "7.3", "7.4", "8.0", "8.1", "8.2", "8.3", "8.4", "8.5"],
+    "amd64_products": 101,
+    "arm64_products": 101,
+    "total_products": 202
+  },
+  "source_sha256": {
+    "BUILD.bazel": "874a7a923e24faa5fb2bd372050e05063be4f19864641973e1cb0dd95b4dca11",
+    "bazel/products/tracer/defs.bzl": "b0e4f2af661f2ccfcf062132ee6cdce2285872df1888702bde4e9616534a67fb",
+    "bazel/products/tracer/fat/link.bzl": "d61a5c8df061b6ccd2909d036713fe967c9fc5d5832c0a3c3eb13f05c1eb5b0a",
+    "bazel/products/tracer/fat/product.bzl": "52bdb45a2fe09a3e3ae4f172475627d48279569ce6294b61952086d9aa1c5972"
+  },
+  "initial_amd64_build": {
+    "command": "BB_DISABLE_SIDECAR=1 PATH=\"$PWD/build/bin:$PATH\" build/bin/bb --batch --output_user_root=/home/bits/.cache/dd-php-amd64-all-output query 'filter(\"^//bazel/products/tracer:ddtrace_fat_amd64_.*_check$\", //bazel/products/tracer:*)' --output=label --repository_cache=/home/bits/.cache/dd-php-bazel-combined-downloads --repository_contents_cache=/home/bits/.cache/dd-php-bazel-repo-contents --repository_disable_download --lockfile_mode=error | xargs build/bin/bb --batch --output_user_root=/home/bits/.cache/dd-php-amd64-all-output build --build_tag_filters= --config=local-hermetic --spawn_strategy=processwrapper-sandbox --strategy=Genrule=processwrapper-sandbox --noexperimental_use_hermetic_linux_sandbox --repository_cache=/home/bits/.cache/dd-php-bazel-combined-downloads --repository_contents_cache=/home/bits/.cache/dd-php-bazel-repo-contents --repository_disable_download --lockfile_mode=error --remote_cache= --remote_executor= --bes_backend= --bes_results_url= --jobs=12 --output_groups=default,binary",
+    "exit_code": 0,
+    "targets": 101,
+    "elapsed_seconds": 754.489,
+    "critical_path_seconds": 394.96,
+    "reported_total_actions": 11363,
+    "processwrapper_actions": 10531,
+    "action_cache_hits": 7178
+  },
+  "arm64_cross_build": {
+    "command": "BB_DISABLE_SIDECAR=1 PATH=\"$PWD/build/bin:$PATH\" build/bin/bb --batch --output_user_root=/home/bits/.cache/dd-php-amd64-all-output query 'filter(\"^//bazel/products/tracer:ddtrace_fat_arm64_.*_check$\", //bazel/products/tracer:*)' --output=label --repository_cache=/home/bits/.cache/dd-php-bazel-combined-downloads --repository_contents_cache=/home/bits/.cache/dd-php-bazel-repo-contents --repository_disable_download --lockfile_mode=error | xargs build/bin/bb --batch --output_user_root=/home/bits/.cache/dd-php-amd64-all-output build --build_tag_filters= --config=local-hermetic --spawn_strategy=processwrapper-sandbox --strategy=Genrule=processwrapper-sandbox --noexperimental_use_hermetic_linux_sandbox --repository_cache=/home/bits/.cache/dd-php-bazel-combined-downloads --repository_contents_cache=/home/bits/.cache/dd-php-bazel-repo-contents --repository_disable_download --lockfile_mode=error --remote_cache= --remote_executor= --bes_backend= --bes_results_url= --jobs=12 --output_groups=default,binary",
+    "exit_code": 0,
+    "targets": 101,
+    "elapsed_seconds": 710.959,
+    "critical_path_seconds": 411.91,
+    "reported_total_actions": 12869,
+    "processwrapper_actions": 11097,
+    "action_cache_hits": 5667,
+    "raw_log_sha256": "6fe1524ccd4271a77f035b00ac3be0b83fc7ba3d67efb17e0872bd975945b171",
+    "gzip_log": "arm64-cross-build.log.gz",
+    "gzip_log_sha256": "ad9f19fb126da60b27b8ea71a283cf8ef07fda9b40cc26912a05af8a8e3c779a"
+  },
+  "aggregate_rechecks": {
+    "command_template": "BB_DISABLE_SIDECAR=1 PATH=\"$PWD/build/bin:$PATH\" build/bin/bb --batch --output_user_root=/home/bits/.cache/dd-php-amd64-all-output build TARGET --build_tag_filters= --config=local-hermetic --spawn_strategy=processwrapper-sandbox --strategy=Genrule=processwrapper-sandbox --noexperimental_use_hermetic_linux_sandbox --repository_cache=/home/bits/.cache/dd-php-bazel-combined-downloads --repository_contents_cache=/home/bits/.cache/dd-php-bazel-repo-contents --repository_disable_download --lockfile_mode=error --remote_cache= --remote_executor= --bes_backend= --bes_results_url= --jobs=12 --output_groups=default,binary",
+    "amd64": {
+      "target": "//bazel/products/tracer:ddtrace_fat_amd64_all",
+      "exit_code": 0,
+      "elapsed_seconds": 22.978,
+      "action_cache_hits": 18540,
+      "gzip_log": "amd64-aggregate-recheck.log.gz",
+      "gzip_log_sha256": "c20125edbfbb13e70bff02e89190cbb56a36e866663dec929c0aa7f8891bd452"
+    },
+    "arm64": {
+      "target": "//bazel/products/tracer:ddtrace_fat_arm64_all",
+      "exit_code": 0,
+      "elapsed_seconds": 21.105,
+      "action_cache_hits": 18535,
+      "gzip_log": "arm64-aggregate-recheck.log.gz",
+      "gzip_log_sha256": "427c6920d990e96fe1f3ad1f9fa382323f35869809059b2689f088c67b349477"
+    },
+    "full": {
+      "target": "//bazel/products/tracer:ddtrace_fat_all",
+      "exit_code": 0,
+      "elapsed_seconds": 27.211,
+      "action_cache_hits": 31408,
+      "gzip_log": "full-aggregate-recheck.log.gz",
+      "gzip_log_sha256": "cfa8507eee3c528194aa8c73365f83d1c644868af308fa0614f5d4082cffa885"
+    }
+  },
+  "buildbarn_rbe": {
+    "policy": {
+      "instance": "ci/shared",
+      "jobs": 50,
+      "remote_accept_cached": false,
+      "remote_upload_local_results": false,
+      "remote_download_outputs": "minimal",
+      "repository_downloads": false,
+      "bes_enabled": false,
+      "fresh_output_roots": true
+    },
+    "command_template": "BB_DISABLE_SIDECAR=1 PATH=\"$PWD/build/bin:$PATH\" build/bin/bb --batch --output_user_root=OUTPUT_ROOT build TARGET --build_tag_filters= --config=REMOTE_CONFIG --remote_accept_cached=false --remote_upload_local_results=false --remote_download_outputs=minimal --repository_cache=/home/bits/.cache/dd-php-bazel-combined-downloads --repository_contents_cache=/home/bits/.cache/dd-php-bazel-repo-contents --repository_disable_download --lockfile_mode=error --bes_backend= --bes_results_url= --jobs=50",
+    "amd64": {
+      "target": "//bazel/products/tracer:ddtrace_fat_amd64_all",
+      "remote_config": "remote-hermetic-amd64",
+      "output_root": "/home/bits/.cache/dd-tracer-rbe-amd64",
+      "invocation_id": "f285392a-18b2-4d19-8b36-a48bbe16e857",
+      "exit_code": 0,
+      "elapsed_seconds": 5030.412,
+      "critical_path_seconds": 4330.61,
+      "reported_total_actions": 18545,
+      "internal_processes": 7132,
+      "remote_processes": 11413,
+      "local_elapsed_seconds": 754.489,
+      "rbe_to_local_elapsed_ratio": 6.667,
+      "source_note": "the aggregate run preceded the shared launcher builtins fix; the changed amd64 launcher and Rust wrapper passed the later focused native amd64 regression",
+      "raw_log_sha256": "39a5b8550cf3f8b39bf4eec190fb786fc55d5f5a9a68ed1ff375670f4e879f45",
+      "gzip_log": "rbe-amd64-build.log.gz",
+      "gzip_log_sha256": "8a5ce15043943d50e4c62fb6a8bd893781b758014b123a5ed567e3622f81767c"
+    },
+    "arm64": {
+      "target": "//bazel/products/tracer:ddtrace_fat_arm64_all",
+      "remote_config": "remote-hermetic-arm64",
+      "output_root": "/home/bits/.cache/dd-tracer-rbe-arm64-final",
+      "invocation_id": "2f46d051-3792-4769-9846-4aab1aa055d8",
+      "exit_code": 0,
+      "elapsed_seconds": 9051.585,
+      "critical_path_seconds": 4082.48,
+      "reported_total_actions": 18524,
+      "internal_processes": 7111,
+      "remote_processes": 11413,
+      "local_cross_build_elapsed_seconds": 710.959,
+      "rbe_to_local_cross_build_elapsed_ratio": 12.732,
+      "raw_log_sha256": "17f1ec9a54a1c1a6d55359c511228324935da0f98e109b5e0e449c581d8edf93",
+      "gzip_log": "rbe-arm64-build.log.gz",
+      "gzip_log_sha256": "a6a54d7a59f93eaa93e30f74f1f860b43ac6a08eb496da5451752f889e7ee1da"
+    },
+    "excluded_attempts": [
+      {
+        "architecture": "amd64",
+        "invocation_id": "bde99876-623b-42f9-8ca2-f6c8bb7ce605",
+        "result": "stopped after the /tmp output root filled; excluded from timing"
+      },
+      {
+        "architecture": "arm64",
+        "invocation_id": "d4b75aca-8faf-4cf8-961b-277bf05ad3e7",
+        "elapsed_seconds": 7.325,
+        "result": "analysis stopped before build actions because the offline repository cache lacked pinned aarch64 Rust 1.87"
+      },
+      {
+        "architecture": "arm64",
+        "invocation_id": "04f19476-9c92-43f2-a25e-d5b0a1861cc2",
+        "elapsed_seconds": 93.956,
+        "result": "failed after 6430 actions because static aarch64 musl Rust execution wrappers omitted compiler builtins"
+      }
+    ],
+    "arm64_dependency_prefetch": {
+      "invocation_id": "6d6ef689-5c5c-4e83-b42c-e3c61b28a5f1",
+      "exit_code": 0,
+      "elapsed_seconds": 27.972,
+      "reported_total_actions": 0,
+      "included_in_build_timing": false
+    },
+    "launcher_fix": {
+      "diagnosis": "static musl execution-wrapper links needed architecture-matched LLVM compiler builtins grouped with libc",
+      "source_sha256": {
+        "bazel/dependencies/exec_tools/BUILD.bazel": "439b257cf36ffb9d92d1d492865337162100baeff8d570c716d405a52771feec",
+        "bazel/dependencies/exec_tools/launcher.bzl": "063ef34098e4eb8cd02b7d96e0cbd5e203e4350ac3dc298c8c0ed0f41573057e",
+        "bazel/rust/toolchains/llvm20_bindgen_toolchains.bzl": "3928026eebbf098138589a69e7b0e34d0c92a125343710c8685226d232ee3ebc",
+        "bazel/rust/toolchains/rust_exec_wrapper.bzl": "3a983615d1a68923ba7d9ebcc7d165b53ff1582c014759a65b8ef00f7554b4ac",
+        "bazel/rust/toolchains/toolchains.bzl": "f43b689b3d92ca1133b1b334060fa71838c9bfe50cd89fb5272e8b52b7b225be"
+      },
+      "arm64_focused_check": {
+        "targets": [
+          "//bazel/dependencies/exec_tools:launcher_aarch64",
+          "//bazel/rust/toolchains:stable_aarch64_clippy_driver"
+        ],
+        "invocation_id": "8210b4af-711a-40fa-a973-67e3b87aa125",
+        "exit_code": 0,
+        "elapsed_seconds": 473.895,
+        "critical_path_seconds": 466.66,
+        "reported_total_actions": 372,
+        "internal_processes": 359,
+        "remote_processes": 13,
+        "raw_log_sha256": "41c552bc0d4ad3f2c63a03b30233572141adfffbe5a27617724439dc15008eb0",
+        "gzip_log": "rbe-arm64-launcher-fixcheck.log.gz",
+        "gzip_log_sha256": "6eb85f2d08eee23fb070107506573d4d5a343f624805453baea5325fd4d74bf9"
+      },
+      "amd64_focused_check": {
+        "targets": [
+          "//bazel/dependencies/exec_tools:launcher_x86_64",
+          "//bazel/rust/toolchains:stable_x86_64_clippy_driver"
+        ],
+        "invocation_id": "1fcd2c46-221e-49ad-a2a1-26b8696e9cb1",
+        "exit_code": 0,
+        "elapsed_seconds": 315.751,
+        "critical_path_seconds": 308.32,
+        "reported_total_actions": 372,
+        "internal_processes": 359,
+        "remote_processes": 13,
+        "raw_log_sha256": "ffefa6fde6133918004775747035319ca300137e119a59d00ce0ae56c7b3b3da",
+        "gzip_log": "rbe-amd64-launcher-fixcheck.log.gz",
+        "gzip_log_sha256": "4b3e07d261083ffbb70eb33b604de315fc168ce6f2fc6b67e456d8ad32d0adb1"
+      }
+    },
+    "observed_capacity": "Buildbarn staging usually supplied two to five workers during product compilation, briefly reaching 24 during runtime fanout; repeated LLVM runtime construction dominated elapsed time"
+  },
+  "packaging_regression": {
+    "reason": "Bazel processwrapper exposes tree-artifact children as input symlinks; the audited payload provider now gates tar input and deterministic staging dereferences only those transport links",
+    "source_sha256": {
+      "bazel/packaging/bundle.bzl": "5398a0e3af6cbf8ed0924c5062d56d480b1acbb58941380448437ae2630931c6",
+      "tools/bazel/deterministic-tar.sh": "27483d8d500f29527600945edc9cee4977694fd321d2b7de8ba4f766da38875a",
+      "tools/bazel/test-ssi-payload.sh": "0e2bcf4bba53d0ae88ae4cf80ed5029ee90d67e80015b28065eedf9ee86e9b17"
+    },
+    "direct_fixture": {
+      "command": "tools/bazel/test-ssi-payload.sh tools/bazel/assemble-ssi-payload.sh tools/bazel/deterministic-tar.sh tar",
+      "exit_code": 0
+    },
+    "bazel_recheck": {
+      "targets": [
+        "//bazel/packaging:fixture_bundle",
+        "//bazel/products/loader:loader_stage_amd64_glibc",
+        "//bazel/products/loader:loader_stage_amd64_musl",
+        "//bazel/products/tracer:ddtrace_fat_amd64_glibc_php85"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 11.962,
+      "action_cache_hits": 7204,
+      "raw_log_sha256": "b9d201584c7be2b332fdb4c0aa7dc5581504d805370e063afe5dc8ee129dd672",
+      "gzip_log": "packaging-recheck.log.gz",
+      "gzip_log_sha256": "3a935bcdec57743809154237cc482296dce743063a444bc3829f1616b870fe2f"
+    }
+  },
+  "limitations": [
+    "processwrapper-sandbox was used because this workspace cannot create the strict Linux sandbox",
+    "the local arm64 result is a cross build; the Buildbarn result used native arm64 execution, but does not prove a local arm64 build",
+    "only the retained PHP 8.5 amd64 glibc product has the native load/unload and sidecar smoke gate",
+    "the Buildbarn product gates compile, link, split debug information, and execute ELF validation; they do not load every DSO into its matching PHP runtime",
+    "these products are split tracer DSO/debug artifacts, not complete SSI archives"
+  ]
+}

@@ -1,0 +1,149 @@
+common --enable_bzlmod
+common --enable_platform_specific_config
+common --announce_rc
+common --incompatible_strict_action_env
+common --experimental_collect_system_network_usage=false
+
+# Use one canonical label for the auto-detected local host.  This prevents
+# equivalent @bazel_tools and @platforms host labels from producing distinct
+# Rust exec configurations that write the same output paths.
+common --host_platform=@platforms//host:host
+
+# Local actions receive only declared tools and this fixed environment. Linux
+# sandboxes have no network namespace access; repository downloads still occur
+# before action execution and can be prefetched for an offline build.
+common:local-hermetic --incompatible_strict_action_env
+build:local-hermetic --spawn_strategy=linux-sandbox
+build:local-hermetic --strategy=Genrule=linux-sandbox
+build:local-hermetic --remote_cache=
+build:local-hermetic --remote_executor=
+build:local-hermetic --sandbox_default_allow_network=false
+build:local-hermetic --experimental_use_hermetic_linux_sandbox
+build:local-hermetic --action_env=LANG=C.UTF-8
+build:local-hermetic --action_env=LC_ALL=C.UTF-8
+build:local-hermetic --action_env=TZ=UTC
+build:local-hermetic --action_env=SOURCE_DATE_EPOCH=0
+build:local-hermetic --action_env=ZERO_AR_DATE=1
+build:local-hermetic --repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
+build:local-hermetic --nostamp
+
+# Remote execution uses the explicitly selected staging Buildbarn endpoint.
+build:remote-hermetic --config=local-hermetic
+build:remote-hermetic --spawn_strategy=remote
+build:remote-hermetic --strategy=Genrule=remote
+build:remote-hermetic --remote_cache=grpcs://buildbarn-frontend.us1.ddbuild.staging.dog:443
+build:remote-hermetic --remote_executor=grpcs://buildbarn-frontend.us1.ddbuild.staging.dog:443
+build:remote-hermetic --remote_instance_name=ci/shared
+build:remote-hermetic --remote_timeout=600
+build:remote-hermetic --remote_upload_local_results=true
+build:remote-hermetic --remote_cache_compression
+build:remote-hermetic --remote_accept_cached=true
+build:remote-hermetic --jobs=25
+
+# Benchmark modes are opt-in. A forced run also needs a fresh output base;
+# disabling remote hits alone does not invalidate retained local outputs.
+build:rbe-benchmark --remote_download_outputs=minimal
+build:rbe-benchmark --record_full_profiler_data
+build:rbe-benchmark --noslim_profile
+build:rbe-benchmark --generate_json_trace_profile=yes
+build:rbe-benchmark --experimental_profile_additional_tasks=remote_queue
+build:rbe-benchmark --experimental_profile_additional_tasks=remote_process_time
+build:rbe-benchmark --experimental_profile_additional_tasks=upload_time
+build:rbe-benchmark --experimental_profile_additional_tasks=remote_download
+build:rbe-benchmark --experimental_profile_additional_tasks=remote_network
+build:rbe-benchmark --experimental_profile_include_target_label
+build:rbe-benchmark --experimental_profile_include_primary_output
+build:rbe-forced --config=rbe-benchmark
+build:rbe-forced --remote_accept_cached=false
+build:rbe-forced --remote_upload_local_results=false
+build:rbe-cached --config=rbe-benchmark
+build:rbe-cached --remote_accept_cached=true
+
+build:remote-hermetic-amd64 --config=remote-hermetic
+build:remote-hermetic-amd64 --host_platform=//bazel/platforms:linux_amd64_exec
+build:remote-hermetic-amd64 --extra_execution_platforms=//bazel/platforms:linux_amd64_exec
+
+build:remote-hermetic-arm64 --config=remote-hermetic
+build:remote-hermetic-arm64 --host_platform=//bazel/platforms:linux_arm64_exec
+build:remote-hermetic-arm64 --extra_execution_platforms=//bazel/platforms:linux_arm64_exec
+
+# Incremental builds reuse the remote configuration's action keys, but execute
+# cache misses locally. Keep the selected execution architecture native to the
+# host; target architectures are still selected by the product/platform.
+build:local-cached --config=remote-hermetic
+build:local-cached --remote_executor=
+build:local-cached --spawn_strategy=linux-sandbox
+build:local-cached --strategy=Genrule=linux-sandbox
+build:local-cached --remote_upload_local_results=false
+build:local-cached --remote_download_outputs=toplevel
+build:local-cached --jobs=25
+
+build:local-cached-amd64 --config=local-cached
+build:local-cached-amd64 --host_platform=//bazel/platforms:linux_amd64_exec
+build:local-cached-amd64 --extra_execution_platforms=//bazel/platforms:linux_amd64_exec
+
+build:local-cached-arm64 --config=local-cached
+build:local-cached-arm64 --host_platform=//bazel/platforms:linux_arm64_exec
+build:local-cached-arm64 --extra_execution_platforms=//bazel/platforms:linux_arm64_exec
+
+# Explicit development fallback for containers without Linux sandbox namespaces.
+# Keep cache uploads disabled: processwrapper does not isolate host/network access.
+# Apply after local-cached-{amd64,arm64}; this is not a hermetic acceptance gate.
+build:local-processwrapper --spawn_strategy=processwrapper-sandbox
+build:local-processwrapper --strategy=Genrule=processwrapper-sandbox
+build:local-processwrapper --noexperimental_use_hermetic_linux_sandbox
+build:local-processwrapper --remote_upload_local_results=false
+
+# Lightweight scheduling probes intentionally avoid resolving the much larger
+# LLVM repository. They still run with a strict environment and execute only
+# checksum-locked static BusyBox inputs.
+build:remote-arch --spawn_strategy=remote
+build:remote-arch --remote_cache=grpcs://buildbarn-frontend.us1.ddbuild.staging.dog:443
+build:remote-arch --remote_executor=grpcs://buildbarn-frontend.us1.ddbuild.staging.dog:443
+build:remote-arch --remote_instance_name=ci/shared
+build:remote-arch --remote_timeout=600
+build:remote-arch --remote_cache_compression
+build:remote-arch --incompatible_strict_action_env
+build:remote-arch --nostamp
+
+build:remote-arch-amd64 --config=remote-arch
+build:remote-arch-amd64 --host_platform=//bazel/platforms:linux_amd64_exec
+build:remote-arch-amd64 --extra_execution_platforms=//bazel/platforms:linux_amd64_exec
+
+build:remote-arch-arm64 --config=remote-arch
+build:remote-arch-arm64 --host_platform=//bazel/platforms:linux_arm64_exec
+build:remote-arch-arm64 --extra_execution_platforms=//bazel/platforms:linux_arm64_exec
+
+build --build_tag_filters=-manual
+build --test_tag_filters=-manual
+build --@rules_go//go/config:pure
+
+# The shared Datadog queue is intentionally conservative until profiles show
+# that the workers and link actions can sustain more parallelism.
+build:ci --jobs=25
+build:ci --keep_going
+build:ci --remote_download_outputs=toplevel
+build:ci --noremote_local_fallback
+build:ci --remote_upload_local_results=false
+build:ci --lockfile_mode=error
+build:ci --color=no
+build:ci --curses=no
+build:ci --show_progress_rate_limit=10
+build:ci --profile=build/bazel-profile.gz
+build:ci --execution_log_compact_file=build/execution-log.zst
+
+build:linux-amd64-glibc --platforms=//bazel/platforms:linux_amd64_glibc
+build:linux-arm64-glibc --platforms=//bazel/platforms:linux_arm64_glibc
+build:linux-amd64-musl --platforms=//bazel/platforms:linux_amd64_musl
+build:linux-arm64-musl --platforms=//bazel/platforms:linux_arm64_musl
+
+build:asan-linux-amd64-glibc --platforms=//bazel/platforms:asan_linux_amd64_glibc
+build:asan-linux-amd64-glibc --extra_toolchains=@rust_asan_toolchains//...
+build:asan-linux-amd64-glibc --@rules_rust//rust/toolchain/channel=nightly
+build:asan-linux-arm64-glibc --platforms=//bazel/platforms:asan_linux_arm64_glibc
+build:asan-linux-arm64-glibc --extra_toolchains=@rust_asan_toolchains//...
+build:asan-linux-arm64-glibc --@rules_rust//rust/toolchain/channel=nightly
+
+# Optional checkout-local defaults (host architecture, output/cache directories,
+# sandbox fallback). Keep machine-specific settings out of the shared config.
+try-import %workspace%/.bazelrc.local

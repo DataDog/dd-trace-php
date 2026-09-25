@@ -1,0 +1,155 @@
+load("@rules_python//python:defs.bzl", "py_test")
+load(":defs.bzl", "target_curl_sdk")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "alpine322.json",
+    "extract_curl.py",
+    "repository.bzl",
+    "validate-curl-sdk.sh",
+])
+
+target_curl_sdk(
+    name = "curl_amd64_glibc",
+    all = "@target_curl_centos7_amd64//:all",
+    arch = "amd64",
+    cc = "@target_curl_centos7_amd64//:curl",
+    data = "@target_curl_centos7_amd64//:data",
+    expected_needed = [
+        "libc.so.6",
+        "libcrypto.so.1.1",
+        "libpthread.so.0",
+        "libssl.so.1.1",
+        "libz.so.1",
+    ],
+    header = "@target_curl_centos7_amd64//:header",
+    libc = "glibc",
+    library = "@target_curl_centos7_amd64//:library",
+    lock = "@target_curl_centos7_amd64//:lock",
+    observed = "@target_curl_centos7_amd64//:observed",
+    runtime = "@target_curl_centos7_amd64//:runtime",
+    target_compatible_with = [
+        "//bazel/platforms:glibc",
+        "@platforms//cpu:x86_64",
+    ],
+    target_triple = "x86_64-unknown-linux-gnu",
+    version = "7.61.1",
+)
+
+target_curl_sdk(
+    name = "curl_arm64_glibc",
+    all = "@target_curl_centos7_arm64//:all",
+    arch = "arm64",
+    cc = "@target_curl_centos7_arm64//:curl",
+    data = "@target_curl_centos7_arm64//:data",
+    expected_needed = [
+        "libc.so.6",
+        "libcrypto.so.1.1",
+        "libpthread.so.0",
+        "libssl.so.1.1",
+        "libz.so.1",
+    ],
+    header = "@target_curl_centos7_arm64//:header",
+    libc = "glibc",
+    library = "@target_curl_centos7_arm64//:library",
+    lock = "@target_curl_centos7_arm64//:lock",
+    observed = "@target_curl_centos7_arm64//:observed",
+    runtime = "@target_curl_centos7_arm64//:runtime",
+    target_compatible_with = [
+        "//bazel/platforms:glibc",
+        "@platforms//cpu:aarch64",
+    ],
+    target_triple = "aarch64-unknown-linux-gnu",
+    version = "7.61.1",
+)
+
+target_curl_sdk(
+    name = "curl_amd64_musl",
+    all = "@target_curl_alpine322_amd64//:all",
+    arch = "amd64",
+    cc = "@target_curl_alpine322_amd64//:curl",
+    data = "@target_curl_alpine322_amd64//:data",
+    expected_needed = [
+        "libbrotlidec.so.1",
+        "libc.musl-x86_64.so.1",
+        "libcares.so.2",
+        "libcrypto.so.3",
+        "libidn2.so.0",
+        "libnghttp2.so.14",
+        "libpsl.so.5",
+        "libssl.so.3",
+        "libz.so.1",
+        "libzstd.so.1",
+    ],
+    header = "@target_curl_alpine322_amd64//:header",
+    libc = "musl",
+    library = "@target_curl_alpine322_amd64//:library",
+    lock = "@target_curl_alpine322_amd64//:lock",
+    observed = "@target_curl_alpine322_amd64//:observed",
+    runtime = "@target_curl_alpine322_amd64//:runtime",
+    target_compatible_with = [
+        "//bazel/platforms:musl",
+        "@platforms//cpu:x86_64",
+    ],
+    target_triple = "x86_64-unknown-linux-musl",
+    version = "8.14.1",
+)
+
+target_curl_sdk(
+    name = "curl_arm64_musl",
+    all = "@target_curl_alpine322_arm64//:all",
+    arch = "arm64",
+    cc = "@target_curl_alpine322_arm64//:curl",
+    data = "@target_curl_alpine322_arm64//:data",
+    expected_needed = [
+        "libbrotlidec.so.1",
+        "libc.musl-aarch64.so.1",
+        "libcares.so.2",
+        "libcrypto.so.3",
+        "libidn2.so.0",
+        "libnghttp2.so.14",
+        "libpsl.so.5",
+        "libssl.so.3",
+        "libz.so.1",
+        "libzstd.so.1",
+    ],
+    header = "@target_curl_alpine322_arm64//:header",
+    libc = "musl",
+    library = "@target_curl_alpine322_arm64//:library",
+    lock = "@target_curl_alpine322_arm64//:lock",
+    observed = "@target_curl_alpine322_arm64//:observed",
+    runtime = "@target_curl_alpine322_arm64//:runtime",
+    target_compatible_with = [
+        "//bazel/platforms:musl",
+        "@platforms//cpu:aarch64",
+    ],
+    target_triple = "aarch64-unknown-linux-musl",
+    version = "8.14.1",
+)
+
+alias(
+    name = "curl_glibc",
+    actual = select({
+        "@platforms//cpu:aarch64": ":curl_arm64_glibc",
+        "@platforms//cpu:x86_64": ":curl_amd64_glibc",
+    }),
+)
+
+alias(
+    name = "curl_musl",
+    actual = select({
+        "@platforms//cpu:aarch64": ":curl_arm64_musl",
+        "@platforms//cpu:x86_64": ":curl_amd64_musl",
+    }),
+)
+
+py_test(
+    name = "extract_curl_test",
+    srcs = [
+        "extract_curl.py",
+        "extract_curl_test.py",
+    ],
+    main = "extract_curl_test.py",
+    python_version = "PY3",
+)

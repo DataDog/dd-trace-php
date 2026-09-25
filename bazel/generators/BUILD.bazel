@@ -1,0 +1,60 @@
+load(":defs.bzl", "php_bridge_files")
+load(":host_php.bzl", "host_php_runtime", "host_php_smoke")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "host-php-smoke.sh",
+    "preflight-host-php.sh",
+    "run-bridge-generator.sh",
+])
+
+toolchain_type(name = "php_generator_type")
+
+host_php_runtime(
+    name = "host_php_amd64",
+    arch = "amd64",
+    files = "@php_exec_bookworm_amd64//:all",
+    lib_root = "@php_exec_bookworm_amd64//:lib_root",
+    loader = "@php_exec_bookworm_amd64//:loader",
+    metadata = "@php_exec_bookworm_amd64//:observed",
+    php = "@php_exec_bookworm_amd64//:php",
+    tokenizer = "@php_exec_bookworm_amd64//:tokenizer",
+    version = "8.5.8RC1",
+)
+
+host_php_runtime(
+    name = "host_php_arm64",
+    arch = "arm64",
+    files = "@php_exec_bookworm_arm64//:all",
+    lib_root = "@php_exec_bookworm_arm64//:lib_root",
+    loader = "@php_exec_bookworm_arm64//:loader",
+    metadata = "@php_exec_bookworm_arm64//:observed",
+    php = "@php_exec_bookworm_arm64//:php",
+    tokenizer = "@php_exec_bookworm_arm64//:tokenizer",
+    version = "8.5.8RC1",
+)
+
+toolchain(
+    name = "host_php_amd64_toolchain",
+    exec_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    toolchain = ":host_php_amd64",
+    toolchain_type = ":php_generator_type",
+)
+
+toolchain(
+    name = "host_php_arm64_toolchain",
+    exec_compatible_with = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+    toolchain = ":host_php_arm64",
+    toolchain_type = ":php_generator_type",
+)
+
+host_php_smoke(name = "host_php_smoke")
+
+php_bridge_files(name = "bridge_files")

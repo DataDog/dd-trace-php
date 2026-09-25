@@ -1,0 +1,27 @@
+--- a/rs/toolchains/module_extension.bzl
++++ b/rs/toolchains/module_extension.bzl
+@@ -77,6 +77,10 @@
+             doc = "Use redistributed Rust toolchain archives when available.",
+             default = True,
+         ),
++        "rustc_src_direct": attr.bool(
++            doc = "Expose this version-specific rustc source repository as a direct dependency.",
++            default = False,
++        ),
+         "rustfmt_version": attr.string(
+             doc = "Rustfmt version (e.g. 1.86.0 or nightly/2025-04-03)",
+             default = "",
+@@ -557,6 +561,13 @@
+                 direct_dev_deps.append(repo_name)
+         elif repo_name not in direct_deps:
+             direct_deps.append(repo_name)
++        if tag.rustc_src_direct:
++            rustc_src_name = "rustc_src_{}".format(sanitize_version(tag.version))
++            if is_dev_dependency:
++                if rustc_src_name not in direct_dev_deps:
++                    direct_dev_deps.append(rustc_src_name)
++            elif rustc_src_name not in direct_deps:
++                direct_deps.append(rustc_src_name)
+ 
+     for tag in miri_repo_tags:
+         if tag.name in repo_configs:

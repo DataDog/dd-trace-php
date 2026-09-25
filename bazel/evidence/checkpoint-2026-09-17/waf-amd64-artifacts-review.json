@@ -1,0 +1,43 @@
+{
+  "arch": "amd64",
+  "exit_code": 0,
+  "log_sha256": "a2f6ca74b3ed6b06ffabf399c7b48fab8da73b1d43e227d6512d36a8bae7d9eb",
+  "artifacts": [
+    {
+      "target_label": "//bazel/products/libddwaf:_waf_teardown_repro_x86_64",
+      "action_key": "006a72751981ff7b83a0da301bcce0afae26dfdf7aff528dfd18c47d3746754a",
+      "execution_platform": "//bazel/platforms:linux_amd64_exec",
+      "libc": "glibc",
+      "binary": "/tmp/dd-checkpoint-waf-amd64/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-fastbuild-ST-f926a7de0408/bin/bazel/products/libddwaf/_waf_teardown_repro_binary",
+      "binary_sha256": "d30b52a3b649b92c3fbf8d30bdaa1209237de25779daf541d2ec88c7bb5aaa59",
+      "elf_type": "ET_EXEC",
+      "elf_machine": 62,
+      "marker": "/tmp/dd-checkpoint-waf-amd64/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-fastbuild-ST-f926a7de0408/bin/bazel/products/libddwaf/_waf_teardown_repro_x86_64.passed",
+      "marker_sha256": "4b9e762e74a91d0b514e53451460c19165e658ead1c2ba69c500f74de4fe0f37"
+    },
+    {
+      "target_label": "//bazel/products/libddwaf:_native_x86_64_smoke",
+      "action_key": "73e1464530f9352802b9fa32d56c196c039cd4e640abba3708064bca2554282b",
+      "execution_platform": "//bazel/platforms:linux_amd64_exec",
+      "libc": "glibc",
+      "binary": "/tmp/dd-checkpoint-waf-amd64/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-fastbuild-ST-f926a7de0408/bin/bazel/products/libddwaf/_native_smoke_binary",
+      "binary_sha256": "0d3c446861e7fce1a9190bc7d062f7a39dbc5bdc3eedc3489e41b182007b3689",
+      "elf_type": "ET_EXEC",
+      "elf_machine": 62,
+      "marker": "/tmp/dd-checkpoint-waf-amd64/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-fastbuild-ST-f926a7de0408/bin/bazel/products/libddwaf/_native_x86_64_smoke.passed",
+      "marker_sha256": "4b9e762e74a91d0b514e53451460c19165e658ead1c2ba69c500f74de4fe0f37"
+    },
+    {
+      "target_label": "//bazel/products/libddwaf:_native_x86_64_smoke",
+      "action_key": "ad4cb8b274e65c343d0515200554a10df6606674fb29556c58b7caf122d51322",
+      "execution_platform": "//bazel/platforms:linux_amd64_exec",
+      "libc": "musl",
+      "binary": "/tmp/dd-checkpoint-waf-amd64/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-fastbuild-ST-a7e91f7812b4/bin/bazel/products/libddwaf/_native_smoke_binary",
+      "binary_sha256": "f7a789198728970d69212ba86de21e9cd5102cb5770c9dd9fb367d30f43379e3",
+      "elf_type": "ET_EXEC",
+      "elf_machine": 62,
+      "marker": "/tmp/dd-checkpoint-waf-amd64/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-fastbuild-ST-a7e91f7812b4/bin/bazel/products/libddwaf/_native_x86_64_smoke.passed",
+      "marker_sha256": "4b9e762e74a91d0b514e53451460c19165e658ead1c2ba69c500f74de4fe0f37"
+    }
+  ]
+}
