@@ -1217,6 +1217,7 @@ name = "datadog-php"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "arc-swap",
  "bincode",
  "bindgen",
  "cbindgen 0.27.0",
