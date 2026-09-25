@@ -11,12 +11,12 @@ uname=$(uname -a)
 arch=$(if [ -z "${uname##*arm*}" ] || [ -z "${uname##*aarch*}" ]; then echo aarch64; else echo x86_64; fi)
 version=$(cat VERSION)
 
-if ! [ -f "build/packages/dd-library-php-${version}-${arch}-linux-gnu.tar.gz" ]; then
+if ! [ -f "build/packages/dd-library-php-${version}-${arch}-linux.tar.gz" ]; then
     echo "SKIPPED: this test runs only in CI as it requires the .tar.gz at a specific path"
     exit 0
 fi
 
-bundle="build/packages/dd-library-php-${version}-${arch}-linux-gnu.tar.gz"
+bundle="build/packages/dd-library-php-${version}-${arch}-linux.tar.gz"
 
 # The symptom the permissions are about: another user must be able to load ddtrace.
 # cd / so that su does not fail on a working directory it cannot reach.

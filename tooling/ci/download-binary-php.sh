@@ -10,10 +10,11 @@ cd tooling/ci/binaries
 source /download-binary-tracer.sh
 
 if [ $VERSION = 'dev' ]; then
-    get_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "dd-library-php-.*-$PLATFORM-linux-gnu.tar.gz" "dd-library-php-$PLATFORM-linux-gnu.tar.gz"
+    get_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "dd-library-php-.*-$PLATFORM-linux.tar.gz" "dd-library-php-$PLATFORM-linux.tar.gz"
     get_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "datadog-setup.php" "datadog-setup.php"
 elif [ $VERSION = 'prod' ]; then
-    get_github_release_asset "DataDog/dd-trace-php" "dd-library-php-.*-$PLATFORM-linux-gnu.tar.gz" "dd-library-php-$$PLATFORM-linux-gnu.tar.gz"
+    get_github_release_asset "DataDog/dd-trace-php" "dd-library-php-.*-$PLATFORM-linux.tar.gz" "dd-library-php-$PLATFORM-linux.tar.gz" || \
+        get_github_release_asset "DataDog/dd-trace-php" "dd-library-php-.*-$PLATFORM-linux-gnu.tar.gz" "dd-library-php-$PLATFORM-linux.tar.gz"
     get_github_release_asset "DataDog/dd-trace-php" "datadog-setup.php" "datadog-setup.php"
 else
     echo "Don't know how to load version $VERSION for $TARGET"

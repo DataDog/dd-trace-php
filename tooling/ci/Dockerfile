@@ -6,7 +6,7 @@ RUN php -d error_reporting='' -r 'echo phpversion("ddtrace");' > /binaries/LIBRA
 RUN touch -c -a -m -d @0 /binaries/*
 
 FROM scratch as collect
-COPY --from=php_agent_debug /binaries/dd-library-php-*-gnu.tar.gz /
+COPY --from=php_agent_debug /binaries/dd-library-php-*-linux.tar.gz /
 COPY --from=php_agent_debug /binaries/datadog-setup.php /datadog-setup.php
 COPY --from=php_agent_debug /binaries/LIBRARY_VERSION /LIBRARY_VERSION
 

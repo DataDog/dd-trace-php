@@ -50,8 +50,8 @@ Verifies that `datadog-setup.php` can correctly install the extension from the
 built packages. Tests both amd64 and arm64 packages.
 
 **Upstream artifacts needed:**
-- `package extension (bundles): [amd64, x86_64-unknown-linux-gnu]`
-- `package extension (bundles): [arm64, aarch64-unknown-linux-gnu]`
+- `package extension (bundles): [amd64]`
+- `package extension (bundles): [arm64]`
 - `datadog-setup.php`
 
 ### randomized tests
@@ -61,11 +61,11 @@ combinations of PHP versions, SAPIs (cli, fpm, apache), and extensions. Each
 scenario runs for 1m30s with 2 concurrent jobs. The `analyze` step
 post-processes results.
 
-The no-asan variant uses the regular glibc package; the asan variant uses the
+The no-asan variant uses the portable Linux package; the asan variant uses the
 ASAN-instrumented package to catch memory errors.
 
 **Upstream artifacts needed:**
-- `package extension (bundles): [amd64, x86_64-unknown-linux-gnu]` (no-asan) or
+- `package extension (bundles): [amd64]` (no-asan) or
   `package extension asan` (asan variant)
 
 ## Reproducing Locally
@@ -74,7 +74,7 @@ All DinD verification jobs need packaged artifacts from upstream
 compile/package jobs. Two ways to obtain them:
 
 - **From CI:** use `tooling/bin/download-artifacts` (e.g., `--preset
-  extension-amd64-gnu-installers`, `--preset extension-amd64-gnu-bundles`,
+  extension-amd64-gnu-installers`, `--preset extension-amd64-bundles`,
   `--preset extension-asan`, `--preset datadog-setup`).
   See "Downloading artifacts" in [index.md](index.md).
 - **Build locally:** see the ".deb from source" section below.
@@ -187,7 +187,7 @@ scenarios.
 
 ```bash
 # Place the package .tar.gz at the repo root
-cp packages/dd-library-php-*-x86_64-linux-gnu.tar.gz .
+cp packages/dd-library-php-*-x86_64-linux.tar.gz .
 
 # Start base services first
 docker-compose \
@@ -220,7 +220,7 @@ The installer tests (`make -C dockerfiles/verify_packages test_installer`) run
 installed extension version matches `cat VERSION`.
 
 `datadog-setup.php` downloads tarballs from:
-`{DD_TEST_INSTALLER_REPO}/releases/download/{RELEASE_VERSION}/dd-library-php-{RELEASE_VERSION}-{arch}-linux-{libc}.tar.gz`
+`{DD_TEST_INSTALLER_REPO}/releases/download/{RELEASE_VERSION}/dd-library-php-{RELEASE_VERSION}-{arch}-linux.tar.gz`
 
 where `DD_TEST_INSTALLER_REPO` comes from `dockerfiles/verify_packages/.env`
 and `RELEASE_VERSION` is baked into `datadog-setup.php` at build time (replaces
@@ -246,14 +246,12 @@ The key pieces that must all agree:
 **Option A -- From CI artifacts:**
 
 ```bash
-tooling/bin/download-artifacts --preset extension-amd64-gnu-bundles \
-  -o /tmp/ci-artifacts-gnu
-tooling/bin/download-artifacts --preset extension-amd64-musl \
-  -o /tmp/ci-artifacts-musl
+tooling/bin/download-artifacts --preset extension-amd64-bundles \
+  -o /tmp/ci-artifacts
 ```
 
-The combined tarballs are the large files (~900MB gnu, ~700MB musl) whose
-names do NOT contain a PHP API number.
+The combined tarball is the large file whose name does not contain a PHP API
+number. The same archive is installed on glibc and musl.
 
 **Option B -- From local builds:**
 
@@ -261,9 +259,7 @@ After running the full compile pipeline (see
 [compile-artifacts.md](compile-artifacts.md)), generate tarballs:
 
 ```bash
-TRIPLET=x86_64-unknown-linux-gnu \
-  bash tooling/bin/generate-final-artifact.sh "$(cat VERSION)" build/packages .
-TRIPLET=x86_64-alpine-linux-musl \
+BUNDLE_ARCH=x86_64 \
   bash tooling/bin/generate-final-artifact.sh "$(cat VERSION)" build/packages .
 ```
 
@@ -276,8 +272,8 @@ The script needs compiled extensions in `extensions_x86_64/`,
 
 ```bash
 # From CI tarball filenames:
-VERSION_STR=$(ls /tmp/ci-artifacts-gnu/dd-library-php-*-x86_64-linux-gnu.tar.gz \
-  | sed 's|.*/dd-library-php-\(.*\)-x86_64-linux-gnu.tar.gz|\1|')
+VERSION_STR=$(ls /tmp/ci-artifacts/dd-library-php-*-x86_64-linux.tar.gz \
+  | sed 's|.*/dd-library-php-\(.*\)-x86_64-linux.tar.gz|\1|')
 
 # Or from locally-built packages:
 VERSION_STR=$(cat VERSION)
@@ -326,14 +322,12 @@ and hardcodes S3 URLs, breaking the local server setup.
 ```bash
 mkdir -p "/tmp/fake-repo/releases/download/${VERSION_STR}/"
 
-# Copy combined tarballs (adjust source paths):
-cp /tmp/ci-artifacts-gnu/dd-library-php-*-x86_64-linux-gnu.tar.gz \
-  "/tmp/fake-repo/releases/download/${VERSION_STR}/"
-cp /tmp/ci-artifacts-musl/dd-library-php-*-x86_64-linux-musl.tar.gz \
+# Copy the combined tarball (adjust source path):
+cp /tmp/ci-artifacts/dd-library-php-*-x86_64-linux.tar.gz \
   "/tmp/fake-repo/releases/download/${VERSION_STR}/"
 
 # Also copy to build/packages/ for tests that use --file:
-cp "/tmp/fake-repo/releases/download/${VERSION_STR}/dd-library-php-${VERSION_STR}-x86_64-linux-gnu.tar.gz" \
+cp "/tmp/fake-repo/releases/download/${VERSION_STR}/dd-library-php-${VERSION_STR}-x86_64-linux.tar.gz" \
   build/packages/
 
 # Start the server (proxies misses to GitHub for old
@@ -360,9 +354,7 @@ kill %1  # stop HTTP server
 
 #### How it works
 
-- `datadog-setup.php` first tries a per-PHP-API tarball (e.g.,
-  `dd-library-php-{ver}-x86_64-linux-gnu-20190902.tar.gz`) which returns 404
-  (only the combined tarball is served). It falls back to the combined tarball.
+- `datadog-setup.php` downloads the combined architecture bundle directly.
 - Tests that install old versions download their `datadog-setup.php` from
   GitHub, but those old scripts also read `DD_TEST_INSTALLER_REPO`. The proxy
   forwards their requests to GitHub (`urllib` follows redirects).

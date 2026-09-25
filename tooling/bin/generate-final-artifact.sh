@@ -5,341 +5,231 @@ IFS=$'\n\t'
 
 release_version=$1
 packages_build_dir=$2
+source_dir=$3
 
-mkdir -p $packages_build_dir
+mkdir -p "$packages_build_dir"
 
 tmp_folder=${CI_PROJECT_DIR:-.}/tmp/bundle
 tmp_folder_final=$tmp_folder/final
 
 architectures=(x86_64 aarch64)
+targets=(linux windows)
 
-php_apis=(20190902 20200930 20210902 20220829 20230831 20240924 20250925)
-if [[ -z ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
-    php_apis+=(20151012 20160303 20170718 20180731)
+tracing_php_apis=(
+    20151012
+    20160303
+    20170718
+    20180731
+    20190902
+    20200930
+    20210902
+    20220829
+    20230831
+    20240924
+    20250925
+)
+profiler_php_apis=(
+    20160303
+    20170718
+    20180731
+    20190902
+    20200930
+    20210902
+    20220829
+    20230831
+    20240924
+    20250925
+)
+appsec_php_apis=("${tracing_php_apis[@]}")
+
+if [[ -n ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
+    tracing_php_apis=(
+        20190902
+        20200930
+        20210902
+        20220829
+        20230831
+        20240924
+        20250925
+    )
+    targets=(linux-gnu)
 fi
 
-targets=(unknown-linux-gnu alpine-linux-musl)
-if [[ -z ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
-    targets+=(windows)
-fi
-
-# if TRIPLET env var is set, then parse it to get the architectures and targets
-# Example: x86_64-unknown-linux-gnu, aarch64-alpine-linux-musl, etc
-if [[ -n ${TRIPLET:-} ]]; then
+# A release bundle is portable across glibc and musl. BUNDLE_ARCH therefore
+# selects only the architecture; there is deliberately no libc dimension.
+if [[ -n ${BUNDLE_ARCH:-} ]]; then
+    architectures=("$BUNDLE_ARCH")
+    targets=(linux)
+elif [[ -n ${TRIPLET:-} ]]; then
     architectures=()
     targets=()
 
     if [[ $TRIPLET = "x86_64-pc-windows-msvc" ]]; then
-        architectures+=("x86_64")
-        targets+=("windows")
+        architectures+=(x86_64)
+        targets+=(windows)
     else
-        IFS='-' read -r arch target <<< "$TRIPLET"
-        architectures+=("$arch")
-        targets+=("$target")
+        IFS='-' read -r architecture triplet_target <<< "$TRIPLET"
+        architectures+=("$architecture")
+        if [[ -n ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
+            targets+=("${triplet_target#*-}")
+        else
+            targets+=(linux)
+        fi
     fi
 fi
 
-
-configs=("" -zts -debug -debug-zts)
-
-
-cp_with_dir() {
-    mkdir -p $(dirname $2)
-    cp $1 $2
+copy_with_dir() {
+    mkdir -p "$(dirname "$2")"
+    cp "$1" "$2"
 }
 
-echo "Architectures: ${architectures[@]}"
-echo "Targets: ${targets[@]}"
-echo "PHP APIs: ${php_apis[@]}"
-echo "Configs: ${configs[@]}"
+copy_tracing_extension() {
+    local architecture=$1
+    local php_api=$2
+    local config=$3
+    local extension=$4
+    local output=$5
 
-for architecture in "${architectures[@]}"; do
-    for php_api in "${php_apis[@]}"; do
-        for full_target in "${targets[@]}"; do
-            target=${full_target#*-}
-            ext=$([[ $target == "windows" ]] && echo dll || echo so)
-            for config in "${configs[@]}"; do
-                if [[ $target == "linux-musl" && $config == *debug* ]]; then
-                    continue
-                fi
-                ddtrace_ext_path=./extensions_${architecture}/$(if [[ $target == "windows" ]]; then echo php_; fi)ddtrace-${php_api}${config}.${ext}
-                if [[ -f ${ddtrace_ext_path} ]]; then
-                    rm -rf $tmp_folder
-                    mkdir -p $tmp_folder_final
+    copy_with_dir \
+        "./extensions_${architecture}/${extension}-${php_api}${config}.${output##*.}" \
+        "$output"
+}
 
-                    trace_base_dir=${tmp_folder_final}/dd-library-php/trace
-                    mkdir -p ${trace_base_dir}
-                    cp_with_dir ${ddtrace_ext_path} ${trace_base_dir}/ext/${php_api}/$(if [[ $target == "windows" ]]; then echo php_; fi)ddtrace${config}.${ext}
-                    cp -r ./src ${trace_base_dir}
-
-                    profiling_ext_path=./datadog-profiling/${architecture}/lib/php/${php_api}/datadog-profiling${config}.${ext}
-                    if [[ -f ${profiling_ext_path} ]]; then
-                        profiling_base_dir=${tmp_folder_final}/dd-library-php/profiling
-                        cp_with_dir ${profiling_ext_path} ${profiling_base_dir}/ext/${php_api}/datadog-profiling${config}.${ext}
-
-                        # Licenses
-                        cp \
-                            ./profiling/LICENSE* \
-                            ./profiling/NOTICE \
-                            ${profiling_base_dir}/
-                    fi
-
-                    appsec_ext_path=./appsec_${architecture}/ddappsec-${php_api}${config}.${ext}
-                    if [[ -f ${appsec_ext_path} ]]; then
-                        appsec_base_dir=${tmp_folder_final}/dd-library-php/appsec
-                        cp_with_dir ${appsec_ext_path} ${appsec_base_dir}/ext/$php_api/ddappsec${config}.${ext}
-                        cp_with_dir ./appsec/recommended.json ${appsec_base_dir}/etc/recommended.json
-                    fi
-
-                    echo "$release_version" > ${tmp_folder_final}/dd-library-php/VERSION
-                    tar -czv \
-                        -f ${packages_build_dir}/dd-library-php-${release_version}-$architecture-$target-${php_api}${config}.tar.gz \
-                        -C ${tmp_folder_final} . --owner=0 --group=0
-                fi
-            done
-        done
-    done
-done
-
-for architecture in "${architectures[@]}"; do
-    tmp_folder_final_gnu=$tmp_folder_final/$architecture-linux-gnu
-    tmp_folder_final_musl=$tmp_folder_final/$architecture-linux-musl
-    tmp_folder_final_windows=$tmp_folder_final/$architecture-windows
-
-    # Starting from a clean folder
-    rm -rf $tmp_folder
-    for full_target in "${targets[@]}"; do
-        target=${full_target#*-}
-        if [[ $target == "linux-gnu" ]]; then
-            mkdir -p $tmp_folder_final_gnu
-        fi
-        if [[ $target == "linux-musl" ]]; then
-            mkdir -p $tmp_folder_final_musl
-        fi
-        if [[ $target == "windows" && $architecture == "x86_64" ]]; then
-            mkdir -p $tmp_folder_final_windows
-        fi
-    done
-
-    ########################
-    # Trace
-    ########################
-    tmp_folder_trace=$tmp_folder/trace
-    mkdir -p $tmp_folder_trace
-    tmp_folder_final_gnu_trace=$tmp_folder_final_gnu/dd-library-php/trace
-    tmp_folder_final_musl_trace=$tmp_folder_final_musl/dd-library-php/trace
-    tmp_folder_final_windows_trace=$tmp_folder_final_windows/dd-library-php/trace
-
-    for php_api in "${php_apis[@]}"; do
-        for full_target in "${targets[@]}"; do
-            target=${full_target#*-}
-
-            if [[ -z ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
-                if [[ $target == "linux-gnu" ]]; then
-                    mkdir -p ${tmp_folder_final_gnu_trace}/ext/$php_api
-                    cp ./extensions_${architecture}/ddtrace-$php_api.so ${tmp_folder_final_gnu_trace}/ext/$php_api/ddtrace.so;
-                    cp ./extensions_${architecture}/ddtrace-$php_api-zts.so ${tmp_folder_final_gnu_trace}/ext/$php_api/ddtrace-zts.so;
-                    cp ./extensions_${architecture}/ddtrace-$php_api-debug.so ${tmp_folder_final_gnu_trace}/ext/$php_api/ddtrace-debug.so;
-                fi
-                if [[ $target == "linux-musl" ]]; then
-                    mkdir -p ${tmp_folder_final_musl_trace}/ext/$php_api;
-                    cp ./extensions_${architecture}/ddtrace-$php_api.so ${tmp_folder_final_musl_trace}/ext/$php_api/ddtrace.so;
-                    cp ./extensions_${architecture}/ddtrace-$php_api-zts.so ${tmp_folder_final_musl_trace}/ext/$php_api/ddtrace-zts.so;
-                fi
-                if [[ $target == "windows" && ${php_api} -ge 20170718 && $architecture == "x86_64" ]]; then # Windows support starts on 7.2
-                    mkdir -p ${tmp_folder_final_windows_trace}/ext/$php_api;
-                    cp ./extensions_${architecture}/php_ddtrace-$php_api.dll ${tmp_folder_final_windows_trace}/ext/$php_api/php_ddtrace.dll;
-                    cp ./extensions_${architecture}/php_ddtrace-$php_api-zts.dll ${tmp_folder_final_windows_trace}/ext/$php_api/php_ddtrace-zts.dll;
-                fi
-            else
-                if [[ $target == "linux-gnu" ]]; then
-                    mkdir -p ${tmp_folder_final_gnu_trace}/ext/$php_api
-                    cp ./extensions_${architecture}/ddtrace-$php_api-debug-zts.so ${tmp_folder_final_gnu_trace}/ext/$php_api/ddtrace-debug-zts.so;
-                fi
-            fi
-        done;
-    done;
-
-    for full_target in "${targets[@]}"; do
-        target=${full_target#*-}
-
-        if [[ $target == "linux-gnu" ]]; then
-            mkdir -p ${tmp_folder_final_gnu_trace}
-            cp -r ./src ${tmp_folder_final_gnu_trace};
-        fi
-
-        if [[ $target == "linux-musl" ]]; then
-            mkdir -p ${tmp_folder_final_musl_trace}
-            cp -r ./src ${tmp_folder_final_musl_trace};
-        fi
-
-        if [[ $target == "windows" && $architecture == "x86_64" ]]; then
-            mkdir -p ${tmp_folder_final_windows_trace}
-            cp -r ./src ${tmp_folder_final_windows_trace};
-        fi
-    done
-
-    ########################
-    # Profiling
-    ########################
-    if [[ -z ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
-        # Extension
-        php_apis=(20160303 20170718 20180731 20190902 20200930 20210902 20220829 20230831 20240924 20250925)
-        for version in "${php_apis[@]}"
-        do
-            for full_target in "${targets[@]}"; do
-                target=${full_target#*-}
-                if [[ $target == "linux-gnu" ]]; then
-                    mkdir -v -p \
-                          $tmp_folder_final_gnu/dd-library-php/profiling/ext/$version
-
-                    cp -v \
-                        ./datadog-profiling/$architecture/lib/php/$version/datadog-profiling.so \
-                        $tmp_folder_final_gnu/dd-library-php/profiling/ext/$version/datadog-profiling.so
-                    cp -v \
-                        ./datadog-profiling/$architecture/lib/php/$version/datadog-profiling-zts.so \
-                        $tmp_folder_final_gnu/dd-library-php/profiling/ext/$version/datadog-profiling-zts.so
-                fi
-
-                if [[ $target == "linux-musl" ]]; then
-                    mkdir -v -p \
-                          $tmp_folder_final_musl/dd-library-php/profiling/ext/$version
-
-                    cp -v \
-                        ./datadog-profiling/$architecture/lib/php/$version/datadog-profiling.so \
-                        $tmp_folder_final_musl/dd-library-php/profiling/ext/$version/datadog-profiling.so
-                    cp -v \
-                        ./datadog-profiling/$architecture/lib/php/$version/datadog-profiling-zts.so \
-                        $tmp_folder_final_musl/dd-library-php/profiling/ext/$version/datadog-profiling-zts.so
-                fi
-            done
-        done
-
-        # Licenses
-        for full_target in "${targets[@]}"; do
-            target=${full_target#*-}
-            if [[ $target == "linux-gnu" ]]; then
-                mkdir -p $tmp_folder_final_gnu/dd-library-php/profiling
-                cp -v \
-                    ./profiling/LICENSE* \
-                    ./profiling/NOTICE \
-                    $tmp_folder_final_gnu/dd-library-php/profiling/
-            fi
-            if [[ $target == "linux-musl" ]]; then
-                mkdir -p $tmp_folder_final_musl/dd-library-php/profiling
-                cp -v \
-                    ./profiling/LICENSE* \
-                    ./profiling/NOTICE \
-                    $tmp_folder_final_musl/dd-library-php/profiling/
-           fi
-        done
-    fi
-
-    ########################
-    # AppSec
-    ########################
-    if [[ -z ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
-        tmp_folder_final_gnu_appsec=$tmp_folder_final_gnu/dd-library-php/appsec
-        tmp_folder_final_musl_appsec=$tmp_folder_final_musl/dd-library-php/appsec
-
-        # Extensions
-        php_apis=(20151012 20160303 20170718 20180731 20190902 20200930 20210902 20220829 20230831 20240924 20250925);
-        for php_api in "${php_apis[@]}"; do
-            for full_target in "${targets[@]}"; do
-                target=${full_target#*-}
-
-                if [[ $target == "linux-gnu" ]]; then
-                    mkdir -p ${tmp_folder_final_gnu_appsec}/ext/$php_api
-
-                    cp \
-                        "./appsec_${architecture}/ddappsec-$php_api.so" \
-                        "${tmp_folder_final_gnu_appsec}/ext/$php_api/ddappsec.so"
-
-                    cp \
-                        "./appsec_${architecture}/ddappsec-$php_api-zts.so" \
-                        "${tmp_folder_final_gnu_appsec}/ext/$php_api/ddappsec-zts.so"
-                fi
-
-                if [[ $target == "linux-musl" ]]; then
-                    mkdir -p ${tmp_folder_final_musl_appsec}/ext/$php_api
-
-                    cp \
-                        "./appsec_${architecture}/ddappsec-$php_api.so" \
-                        "${tmp_folder_final_musl_appsec}/ext/$php_api/ddappsec.so"
-
-                    cp \
-                        "./appsec_${architecture}/ddappsec-$php_api-zts.so" \
-                        "${tmp_folder_final_musl_appsec}/ext/$php_api/ddappsec-zts.so"
-                fi
-            done
-        done
-
-        # Recommended rules
-        for full_target in "${targets[@]}"; do
-            target=${full_target#*-}
-
-            if [[ $target == "linux-gnu" ]]; then
-                mkdir -p "${tmp_folder_final_gnu_appsec}/etc"
-                cp \
-                    "./appsec/recommended.json" \
-                    "${tmp_folder_final_gnu_appsec}/etc/recommended.json"
-            fi
-
-            if [[ $target == "linux-musl" ]]; then
-                mkdir -p "${tmp_folder_final_musl_appsec}/etc"
-                cp \
-                    "./appsec/recommended.json" \
-                    "${tmp_folder_final_musl_appsec}/etc/recommended.json"
-            fi
-        done
-    fi
-
-    ########################
-    # PHP Stubs
-    ########################
-    stubs=(
-        "$3/src/ddtrace_php_api.stubs.php"
-        "$3/tracer/ddtrace.stub.php"
-        "$3/tracer/hook/uhook.stub.php"
-        "$3/tracer/hook/uhook_attributes.stub.php"
+write_stubs() {
+    local stubs=(
+        "$source_dir/src/ddtrace_php_api.stubs.php"
+        "$source_dir/tracer/ddtrace.stub.php"
+        "$source_dir/tracer/hook/uhook.stub.php"
+        "$source_dir/tracer/hook/uhook_attributes.stub.php"
     )
+    local merged_stubs=""
+    local stub content
 
-    mergedStubs=""
     for stub in "${stubs[@]}"; do
         content=$(<"$stub")
         content="${content#<?php}"
-        mergedStubs+="$content"
+        merged_stubs+="$content"
     done
 
-    stub=$'<?php\n'"$mergedStubs"
-    echo "$stub" > "$packages_build_dir/datadog-tracer.stubs.php"
+    printf '<?php\n%s' "$merged_stubs" \
+        > "$packages_build_dir/datadog-tracer.stubs.php"
+}
 
-    ########################
-    # Final archives
-    ########################
-    for full_target in "${targets[@]}"; do
-        target=${full_target#*-}
-        if [[ $target == "linux-gnu" ]]; then
-            echo "$release_version" > ${tmp_folder_final_gnu}/dd-library-php/VERSION
-            tar -czv \
-                -f ${packages_build_dir}/dd-library-php-${release_version}-$architecture-linux-gnu.tar.gz \
-                -C ${tmp_folder_final_gnu} . --owner=0 --group=0
-        fi
-        if [[ $target == "linux-musl" ]]; then
-            echo "$release_version" > ${tmp_folder_final_musl}/dd-library-php/VERSION
-            tar -czv \
-                -f ${packages_build_dir}/dd-library-php-${release_version}-$architecture-linux-musl.tar.gz \
-                -C ${tmp_folder_final_musl} . --owner=0 --group=0
-            cp -v ${packages_build_dir}/datadog-tracer.stubs.php ${tmp_folder_final_musl}/dd-library-php/
-        fi
-        if [[ $target == "windows" ]]; then
-            if [[ $architecture == "x86_64" ]]; then
-                echo "$release_version" > ${tmp_folder_final_windows}/dd-library-php/VERSION
-                tar -czv \
-                    -f ${packages_build_dir}/dd-library-php-${release_version}-$architecture-windows.tar.gz \
-                    -C ${tmp_folder_final_windows} . --owner=0 --group=0
-            fi
-        fi
+archive_bundle() {
+    local root=$1
+    local output=$2
+
+    printf '%s\n' "$release_version" > "$root/dd-library-php/VERSION"
+    tar --owner=0 --group=0 -czv -f "$packages_build_dir/$output" \
+        -C "$root" .
+}
+
+build_linux_bundle() {
+    local architecture=$1
+    local root="$tmp_folder_final/${architecture}-linux"
+    local trace_root="$root/dd-library-php/trace"
+    local profiling_root="$root/dd-library-php/profiling"
+    local appsec_root="$root/dd-library-php/appsec"
+    local php_api config
+
+    mkdir -p "$trace_root"
+    for php_api in "${tracing_php_apis[@]}"; do
+        for config in "" -zts -debug; do
+            copy_tracing_extension "$architecture" "$php_api" "$config" \
+                ddtrace "$trace_root/ext/${php_api}/ddtrace${config}.so"
+        done
     done
+    cp -r ./src "$trace_root"
 
+    for php_api in "${profiler_php_apis[@]}"; do
+        for config in "" -zts; do
+            copy_with_dir \
+                "./datadog-profiling/${architecture}/lib/php/${php_api}/datadog-profiling${config}.so" \
+                "$profiling_root/ext/${php_api}/datadog-profiling${config}.so"
+        done
+    done
+    cp ./profiling/LICENSE* ./profiling/NOTICE "$profiling_root/"
+
+    for php_api in "${appsec_php_apis[@]}"; do
+        for config in "" -zts; do
+            copy_with_dir \
+                "./appsec_${architecture}/ddappsec-${php_api}${config}.so" \
+                "$appsec_root/ext/${php_api}/ddappsec${config}.so"
+        done
+    done
+    copy_with_dir ./appsec/recommended.json "$appsec_root/etc/recommended.json"
+
+    archive_bundle "$root" \
+        "dd-library-php-${release_version}-${architecture}-linux.tar.gz"
+}
+
+build_asan_bundle() {
+    local architecture=$1
+    local root="$tmp_folder_final/${architecture}-linux-gnu"
+    local trace_root="$root/dd-library-php/trace"
+    local php_api
+
+    mkdir -p "$trace_root"
+    for php_api in "${tracing_php_apis[@]}"; do
+        copy_tracing_extension "$architecture" "$php_api" -debug-zts \
+            ddtrace "$trace_root/ext/${php_api}/ddtrace-debug-zts.so"
+    done
+    cp -r ./src "$trace_root"
+
+    archive_bundle "$root" \
+        "dd-library-php-${release_version}-${architecture}-linux-gnu.tar.gz"
+}
+
+build_windows_bundle() {
+    local architecture=$1
+    local root="$tmp_folder_final/${architecture}-windows"
+    local trace_root="$root/dd-library-php/trace"
+    local php_api config
+
+    if [[ $architecture != x86_64 ]]; then
+        return 0
+    fi
+
+    mkdir -p "$trace_root"
+    for php_api in "${tracing_php_apis[@]}"; do
+        # Windows support starts with PHP 7.2.
+        if ((php_api < 20170718)); then
+            continue
+        fi
+        for config in "" -zts; do
+            copy_tracing_extension "$architecture" "$php_api" "$config" \
+                php_ddtrace "$trace_root/ext/${php_api}/php_ddtrace${config}.dll"
+        done
+    done
+    cp -r ./src "$trace_root"
+
+    archive_bundle "$root" \
+        "dd-library-php-${release_version}-${architecture}-windows.tar.gz"
+}
+
+echo "Architectures: ${architectures[*]}"
+echo "Targets: ${targets[*]}"
+echo "PHP APIs: ${tracing_php_apis[*]}"
+
+write_stubs
+
+for architecture in "${architectures[@]}"; do
+    for target in "${targets[@]}"; do
+        rm -rf "$tmp_folder"
+        case $target in
+            linux)
+                build_linux_bundle "$architecture"
+                ;;
+            linux-gnu)
+                build_asan_bundle "$architecture"
+                ;;
+            windows)
+                build_windows_bundle "$architecture"
+                ;;
+            *)
+                echo "Unsupported bundle target: $target" >&2
+                exit 1
+                ;;
+        esac
+    done
 done
