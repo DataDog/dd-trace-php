@@ -184,6 +184,10 @@ stages:
   script:
     - .gitlab/run-with-retryable-download.sh apt update
     - .gitlab/run-with-retryable-download.sh apt install -y openjdk-17-jre
+    # AppSecContainer bind-mounts the checkout read-only at /project, then
+    # mounts the tracer artifact below it at /project/tmp. Docker cannot
+    # create that nested mount point after the read-only bind is in place.
+    - mkdir -p "${CI_PROJECT_DIR}/tmp"
     - find "$CI_PROJECT_DIR"/appsec/tests/integration/build || true
     - |
       cd appsec/tests/integration
