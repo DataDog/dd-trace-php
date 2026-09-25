@@ -1,17 +1,26 @@
 --TEST--
 overrideArguments() works with JIT (Issue #2174)
 --SKIPIF--
-<?php if (!file_exists(ini_get("extension_dir") . "/opcache.so")) die('skip: opcache.so does not exist in extension_dir'); ?>
-<?php if (PHP_VERSION_ID < 80000) die('skip: JIT is only on PHP 8'); ?>
-<?php if (PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100 && getenv('USE_ZEND_ALLOC') === '0' && !getenv("SKIP_ASAN")) die('skip: On php 8.0 we use heuristics to match the pointer. Valgrind does not have a pointer layout matching our assumptions and will gracefully fail the test.'); ?>
+<?php
+if (PHP_VERSION_ID < 80000) die('skip: JIT is only on PHP 8');
+if (PHP_VERSION_ID < 80100 && getenv('USE_ZEND_ALLOC') === '0' && !getenv('SKIP_ASAN')) die('skip: On php 8.0 we use heuristics to match the pointer. Valgrind does not have a pointer layout matching our assumptions and will gracefully fail the test.');
+if (!function_exists('opcache_get_status')) die('skip: OPcache is required');
+if (ini_get('opcache.jit') === false) die('skip: JIT support is required');
+?>
+--ENV--
+DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
+DD_REMOTE_CONFIG_ENABLED=0
 --INI--
 opcache.enable=1
 opcache.enable_cli = 1
+opcache.file_update_protection=0
 opcache.jit_buffer_size=128M
 opcache.jit=1255
-zend_extension=opcache.so
 --FILE--
 <?php
+$status = opcache_get_status(false);
+var_dump($status['jit']['on']);
 
 global $val;
 $val = 123;
@@ -56,6 +65,7 @@ for ($i = 0; $i < 2; $i++) {
 }
 
 --EXPECTF--
+bool(true)
 hooked in BaseClass.
 BaseClass::speak: goodbye, 123
 hooked in ChildClass.
