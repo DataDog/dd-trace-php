@@ -48,11 +48,11 @@ int(2)
 [ddtrace] [span] [%d] Switching to different SpanStack: %d
 int(1)
 int(0)
-[ddtrace] [span] [%d] Encoding span: trace_id=%s service="close_spans_until.php" name="close_spans_until.php" resource="close_spans_until.php" type="cli" span_id=%d parent_id=0 start=%d duration=%d error=false kind=%s env="" version="" component="" attributes={%S} links=0 events=0
-[ddtrace] [span] [%d] Encoding span: trace_id=%s service="close_spans_until.php" name="traced" resource="traced" type="cli" span_id=%d parent_id=%d start=%d duration=%d error=%s kind=%s env="" version="" component="" attributes={%S} links=%d events=%d
-[ddtrace] [span] [%d] Encoding span: trace_id=%s service="close_spans_until.php" name="" resource="" type="cli" span_id=%d parent_id=%d start=%d duration=%d error=%s kind=%s env="" version="" component="" attributes={%S} links=%d events=%d
-[ddtrace] [span] [%d] Encoding span: trace_id=%s service="close_spans_until.php" name="" resource="" type="cli" span_id=%d parent_id=%d start=%d duration=%d error=%s kind=%s env="" version="" component="" attributes={%S} links=%d events=%d
-[ddtrace] [span] [%d] Encoding span: trace_id=%s service="close_spans_until.php" name="" resource="" type="cli" span_id=%d parent_id=%d start=%d duration=%d error=%s kind=%s env="" version="" component="" attributes={%S} links=%d events=%d
-[ddtrace] [span] [%d] Encoding span: trace_id=%s service="close_spans_until.php" name="" resource="" type="cli" span_id=%d parent_id=%d start=%d duration=%d error=%s kind=%s env="" version="" component="" attributes={%S} links=%d events=%d
-[ddtrace] [span] [%d] Encoding span: trace_id=%s service="close_spans_until.php" name="" resource="" type="cli" span_id=%d parent_id=%d start=%d duration=%d error=%s kind=%s env="" version="" component="" attributes={%S} links=%d events=%d
+[ddtrace] [span] [%d] Encoding span: trace_id=%s service="close_spans_until.php" name="close_spans_until.php" resource="close_spans_until.php" type="cli" span_id=%d parent_id=0 start=%d duration=%d error=false kind=%s env="" version="" component="" attributes=%s links=0 events=0
+[ddtrace] [span] [%d] Encoding span: trace_id=%s service="close_spans_until.php" name="traced" resource="traced" type="cli" span_id=%d parent_id=%d start=%d duration=%d error=%s kind=%s env="" version="" component="" attributes=%s links=%d events=%d
+[ddtrace] [span] [%d] Encoding span: trace_id=%s service="close_spans_until.php" name="" resource="" type="cli" span_id=%d parent_id=%d start=%d duration=%d error=%s kind=%s env="" version="" component="" attributes=%s links=%d events=%d
+[ddtrace] [span] [%d] Encoding span: trace_id=%s service="close_spans_until.php" name="" resource="" type="cli" span_id=%d parent_id=%d start=%d duration=%d error=%s kind=%s env="" version="" component="" attributes=%s links=%d events=%d
+[ddtrace] [span] [%d] Encoding span: trace_id=%s service="close_spans_until.php" name="" resource="" type="cli" span_id=%d parent_id=%d start=%d duration=%d error=%s kind=%s env="" version="" component="" attributes=%s links=%d events=%d
+[ddtrace] [span] [%d] Encoding span: trace_id=%s service="close_spans_until.php" name="" resource="" type="cli" span_id=%d parent_id=%d start=%d duration=%d error=%s kind=%s env="" version="" component="" attributes=%s links=%d events=%d
+[ddtrace] [span] [%d] Encoding span: trace_id=%s service="close_spans_until.php" name="" resource="" type="cli" span_id=%d parent_id=%d start=%d duration=%d error=%s kind=%s env="" version="" component="" attributes=%s links=%d events=%d
 [ddtrace] [info] [%d] Flushing v1 trace of size 7 to send-queue for %s

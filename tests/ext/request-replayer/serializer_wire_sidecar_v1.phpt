@@ -21,37 +21,29 @@ include __DIR__ . '/../includes/request_replayer.inc';
 $rr = new RequestReplayer();
 $rr->clearDumpedData();
 
-// The sidecar decides the wire from its own /info negotiation, which can race the first
-// flush; drive a few warm-up flushes until it has negotiated the v1 endpoint.
-$uri = null;
-for ($i = 0; $i < 30 && $uri === null; $i++) {
-    \DDTrace\start_span();
+// The sidecar sends v0.4 until its own /info fetch has advertised /v1.0/traces, and may batch
+// several traces per payload: resend "root" until it shows up in any chunk of a v1 request.
+$req = null;
+for ($i = 0; $i < 100 && $req === null; $i++) {
+    $s = \DDTrace\start_span();
+    $s->name = "root";
+    $s->service = "svc";
     \DDTrace\close_span();
     dd_trace_internal_fn("synchronous_flush");
     usleep(100000);
     foreach (($rr->replayAllRequests() ?: []) as $r) {
-        if (strpos($r["uri"], "/v1.0/traces") !== false) { $uri = "/v1.0/traces"; break; }
+        if (strpos($r["uri"], "/v1.0/traces") === false) continue;
+        foreach ((json_decode($r["body"], true)["chunks"] ?? []) as $chunk) {
+            foreach (($chunk["spans"] ?? []) as $span) {
+                if (($span["name"] ?? null) === "root" && ($span["service"] ?? null) === "svc") $req = $r;
+            }
+        }
     }
-    $rr->clearDumpedData();
 }
-
-$s = \DDTrace\start_span();
-$s->name = "root";
-$s->service = "svc";
-\DDTrace\close_span();
-dd_trace_internal_fn("synchronous_flush");
-
-// Match the request carrying our "root" span, not a leftover warm-up trace (the warm-up spans
-// are auto-named after the script and may still be queued behind the sidecar's flush).
-$req = $rr->waitForRequest(function ($r) {
-    if (strpos($r["uri"], "traces") === false) return false;
-    $b = json_decode($r["body"], true);
-    return (($b["chunks"][0]["spans"][0]["name"] ?? null) === "root");
-});
-$root = json_decode($req["body"], true);
-echo "uri=" . $req["uri"] . "\n";
+$root = json_decode($req["body"] ?? "null", true);
+echo "uri=" . ($req["uri"] ?? "none") . "\n";
 echo "has_chunks=" . (isset($root['chunks']) ? "yes" : "no") . "\n";
-echo "span_name=" . ($root["chunks"][0]["spans"][0]["name"] ?? "?") . "\n";
+echo "span_name=" . ($req ? "root" : "?") . "\n";
 ?>
 --EXPECT--
 uri=/v1.0/traces

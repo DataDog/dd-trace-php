@@ -279,9 +279,8 @@ class ExecIntegration extends Integration
         $span = start_span();
         $span->name = 'command_execution';
         // Replaces the tags set at creation like before (runtime-id, global tags, _dd.svc_src); the numeric
-        // ones (process_id) used to be metrics, which were kept.
-        $span->attributes = array_filter($span->attributes, 'is_float');
-        $span->meta = $tags;
+        // ones (process_id) used to be metrics, which were kept. strval keeps the former meta string values.
+        $span->attributes = array_map('strval', $tags) + array_filter($span->attributes, 'is_float');
         $span->type = Type::SYSTEM;
         $span->resource = $resource;
         \DDTrace\collect_code_origins(2); // manually collect origin, otherwise the top frame will be this integration

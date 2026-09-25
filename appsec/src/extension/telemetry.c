@@ -24,7 +24,6 @@ static zend_string *_api_sec_request_schema_zstr;
 static zend_string *_api_sec_request_no_schema_zstr;
 static zend_string *_api_sec_missing_route_zstr;
 
-
 static THREAD_LOCAL_ON_ZTS zend_string *nullable _cached_waf_version;
 static THREAD_LOCAL_ON_ZTS zend_string *nullable _cached_event_rules_version;
 static THREAD_LOCAL_ON_ZTS bool _schema_extracted;

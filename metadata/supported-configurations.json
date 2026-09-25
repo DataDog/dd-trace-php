@@ -2275,7 +2275,7 @@
     ],
     "DD_TRACE_SIDECAR_TRACE_SENDER": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "boolean",
         "default": "true"
       }
