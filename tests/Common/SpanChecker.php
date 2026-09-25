@@ -88,6 +88,7 @@ final class SpanChecker
             if (isset($span['meta'])) {
                 unset($span['meta']['_dd.p.dm']);
                 unset($span['meta']['_dd.p.tid']);
+                unset($span['meta']['_dd.sdk.otlp_export']);
                 unset($span['meta']['http.client_ip']);
                 foreach ($span['meta'] as $k => $v) {
                     $out .= str_repeat(' ', $indent) . '  ' . $k . ' => ' . $v . "\n";
@@ -489,6 +490,10 @@ final class SpanChecker
             // Ignore runtime-id unless explicitly tested
             if (!isset($expectedTags['runtime-id'])) {
                 unset($filtered['runtime-id']);
+            }
+            // Ignore _dd.sdk.otlp_export unless explicitly tested
+            if (!isset($expectedTags['_dd.sdk.otlp_export'])) {
+                unset($filtered['_dd.sdk.otlp_export']);
             }
             // http.client_ip is present depending on target SAPI and not helpful here to test
             if (!isset($expectedTags['http.client_ip'])) {

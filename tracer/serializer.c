@@ -1573,6 +1573,8 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
     ddog_set_span_duration(rust_span, span->duration);
 
     if (is_first_span) {
+        ddog_add_str_span_meta_str(rust_span, "_dd.sdk.otlp_export", "false");
+
         zend_string *process_tags = datadog_process_tags_get_serialized();
         if (ZSTR_LEN(process_tags)) {
             const char *svc_tag_appendix = NULL;
