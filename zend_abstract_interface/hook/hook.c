@@ -1046,6 +1046,7 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
 
         ++hook->refcount;
         if (!hook->begin) {
+            dynamic_offset += hook->dynamic;
             continue;
         }
 

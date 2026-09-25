@@ -26,6 +26,9 @@ static inline bool zai_is_mapped(const void *addr, size_t size) {
                 goto again;
             }
             return true;
+        } else if (errno == ENOSYS) {
+            // The syscall is unavailable; proceed without validation, as on unsupported platforms.
+            return true;
         } else {
             // we don't know... assume true
 #ifdef ZEND_DEBUG

@@ -156,7 +156,8 @@ void zai_interceptor_op_array_pass_two(zend_op_array *op_array) {
             opcodes[i].result_type = IS_TMP_VAR;
             opcodes[i].result.var = op_array->T++;
         } else if (CG(compiler_options) & ZEND_COMPILE_EXTENDED_INFO) {
-            // We don't need it, Optimizer, feel free to optimize it away
+            // We don't need it, Optimizer, feel free to optimize it away. Extended info with optimizer active is not supposed to happen in general.
+            // It's fine if hooking just stops working in this case.
             opcodes[i].opcode = ZEND_NOP;
         }
     }
@@ -1034,6 +1035,7 @@ static int zai_interceptor_yield_from_handler(zend_execute_data *execute_data) {
                         generator = from;
                         while (generator && !zai_hook_memory_table_find(generator->execute_data, (zai_interceptor_frame_memory **) &gen_memory)) {
                             zai_interceptor_generator_frame_memory new_gen_memory;
+                            memset(&new_gen_memory, 0, sizeof(new_gen_memory));
                             new_gen_memory.frame.implicit = true;
                             new_gen_memory.resumed = false;
                             zai_hook_memory_table_insert_generator(generator->execute_data, &new_gen_memory);

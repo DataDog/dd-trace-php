@@ -333,7 +333,7 @@ void zai_interceptor_setup_resolving_post_startup(void) {
     zend_set_user_opcode_handler(ZEND_DECLARE_FUNCTION, zai_interceptor_declare_function_handler);
     prev_declare_class_handler = zend_get_user_opcode_handler(ZEND_DECLARE_CLASS);
     zend_set_user_opcode_handler(ZEND_DECLARE_CLASS, zai_interceptor_declare_class_handler);
-#if PHP_VERSION_ID > 70400
+#if PHP_VERSION_ID >= 70400
     prev_declare_class_delayed_handler = zend_get_user_opcode_handler(ZEND_DECLARE_CLASS_DELAYED);
     zend_set_user_opcode_handler(ZEND_DECLARE_CLASS_DELAYED, zai_interceptor_declare_class_delayed_handler);
 #else
@@ -366,7 +366,7 @@ void zai_interceptor_setup_resolving_post_startup(void) {
 void zai_interceptor_shutdown_resolving(void) {
     zend_set_user_opcode_handler(ZEND_DECLARE_FUNCTION, NULL);
     zend_set_user_opcode_handler(ZEND_DECLARE_CLASS, NULL);
-#if PHP_VERSION_ID > 70400
+#if PHP_VERSION_ID >= 70400
     zend_set_user_opcode_handler(ZEND_DECLARE_CLASS_DELAYED, NULL);
 #else
     zend_set_user_opcode_handler(ZEND_DECLARE_INHERITED_CLASS, NULL);
