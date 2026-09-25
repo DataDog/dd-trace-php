@@ -10,6 +10,10 @@
 # (no binaries and sources) will result in the very same error.
 # Issue reported to the fpm project (https://github.com/jordansissel/fpm/issues/1866), see there for more details and
 # a reproduction case.
+#
+# Keep this explanatory block large enough to hold the complete script above that unsafe boundary. Portable release
+# artifacts no longer need an Alpine-specific filename, so the runtime selection code below is intentionally shorter
+# than it used to be. This padding is therefore functional: reducing it can make both architecture APK jobs fail.
 
 EXTENSION_BASE_DIR=/opt/datadog-php
 EXTENSION_DIR=${EXTENSION_BASE_DIR}/extensions
