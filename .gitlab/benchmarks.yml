@@ -211,6 +211,7 @@ workflow:
       - reports/
     expire_in: 3 months
   variables:
+    KUBERNETES_POD_ANNOTATIONS_RUST_NO_PROXY: "beta.fabric.datadoghq.com/no-proxy-additions=static.rust-lang.org"
     UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
     UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
     UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
