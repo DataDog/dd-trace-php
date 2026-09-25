@@ -96,7 +96,7 @@ stages:
   image: registry.ddbuild.io/agent-delivery/dd-pkg:v0.9.3
   tags: [ "arch:arm64" ]
   variables:
-    IMG_REGISTRIES: "dockerhub"
+    IMG_REGISTRIES: "dev"
     IMG_SIGNING: "false"
     PUBLIC_IMAGES_PUBLISH_TIMEOUT: "1800"
   script:
