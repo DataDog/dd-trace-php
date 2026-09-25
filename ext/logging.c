@@ -146,10 +146,11 @@ int datadog_log_with_time(int fd, const char *msg, int msg_len) {
     if (last_check < (uintmax_t)now - 60) { // 1x/min
         char pathbuf[MAXPATHLEN];
         if (datadog_get_fd_path(fd, pathbuf) >= 0) {
-            int new_fd = VCWD_OPEN_MODE(pathbuf, O_RDWR | O_APPEND, 0666);
+            // datadog_get_fd_path() is always absolute, so we can bypass VCWD_OPEN_MODE.
+            int new_fd = open(pathbuf, O_RDWR | O_APPEND, 0666);
             if (new_fd < 0) {
                 // Retry with CREAT to only apply fchmod() on CREAT
-                new_fd = VCWD_OPEN_MODE(pathbuf, O_CREAT | O_RDWR | O_APPEND, 0666);
+                new_fd = open(pathbuf, O_CREAT | O_RDWR | O_APPEND, 0666);
 #ifndef _WIN32
                 fchmod(new_fd, 0666); // ignore umask
 #endif
