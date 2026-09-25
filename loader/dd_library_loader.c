@@ -9,7 +9,6 @@
 #include <php_ini.h>
 #include <stdbool.h>
 #include <errno.h>
-#include <pthread.h>
 #include <signal.h>
 #include <sys/wait.h>
 #include <main/SAPI.h>
@@ -462,24 +461,16 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
         return;
     }
 
-    ddloader_reaper reaper;
-    int error_code = ddloader_reaper_prepare(&reaper);
-    if (error_code) {
-        LOG(config, ERROR, "Telemetry error: cannot prepare child reaper: %s", strerror(error_code))
-        return;
-    }
-
     pid_t loader_pid = getpid();
     pid_t pid = fork();
     if (pid < 0) {
-        ddloader_reaper_discard(&reaper);
         LOG(config, ERROR, "Telemetry error: cannot fork")
         return;
     }
     if (pid > 0) {
         // The reaper owns an independent code page, allowing Zend to unload
         // this DSO during shutdown without waiting for telemetry delivery.
-        error_code = ddloader_reaper_start(&reaper, pid);
+        int error_code = ddloader_reaper_start(pid);
         if (error_code) {
             LOG(config, ERROR, "Telemetry error: cannot start child reaper: %s", strerror(error_code))
             // Do not let the forwarder block startup when no reaper thread is
@@ -489,8 +480,6 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
         }
         return;  // parent
     }
-
-    ddloader_reaper_discard(&reaper);
 
     char points_buf[256] = {0};
     char *points = points_buf;
