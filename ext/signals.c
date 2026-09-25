@@ -43,8 +43,6 @@
 
 #if DATADOG_HAVE_BACKTRACE
 #include <execinfo.h>
-#else
-#include <dlfcn.h>
 #endif
 
 #if __linux
@@ -78,17 +76,23 @@ static bool dd_backtrace_is_available(void) {
 }
 #else
 typedef int dd_backtrace_size_t;
-typedef dd_backtrace_size_t (*dd_backtrace_fn)(void **, dd_backtrace_size_t);
-typedef char **(*dd_backtrace_symbols_fn)(void *const *, dd_backtrace_size_t);
 
 // Portable extensions are built against musl, which does not provide
-// execinfo.h. Resolve the glibc functions at load time so the same extension
-// keeps backtraces on glibc without acquiring a musl libexecinfo dependency.
-static dd_backtrace_fn dd_backtrace;
-static dd_backtrace_symbols_fn dd_backtrace_symbols;
+// execinfo.h. Weak imports keep backtraces available on glibc without adding a
+// musl libexecinfo dependency.
+extern dd_backtrace_size_t backtrace(void **, dd_backtrace_size_t) __attribute__((weak));
+extern char **backtrace_symbols(void *const *, dd_backtrace_size_t) __attribute__((weak));
+
+static dd_backtrace_size_t dd_backtrace(void **array, dd_backtrace_size_t size) {
+    return backtrace(array, size);
+}
+
+static char **dd_backtrace_symbols(void *const *array, dd_backtrace_size_t size) {
+    return backtrace_symbols(array, size);
+}
 
 static bool dd_backtrace_is_available(void) {
-    return dd_backtrace && dd_backtrace_symbols;
+    return backtrace && backtrace_symbols;
 }
 #endif
 
@@ -405,11 +409,6 @@ static void dd_sigint_sigterm_handler(int sig, siginfo_t *si, void *uc) {
 #endif
 
 void datadog_signals_minit(void) {
-#if !DATADOG_HAVE_BACKTRACE
-    dd_backtrace = dlsym(RTLD_DEFAULT, "backtrace");
-    dd_backtrace_symbols = dlsym(RTLD_DEFAULT, "backtrace_symbols");
-#endif
-
 #if __linux
     dd_sigint_sigterm_sigaction.sa_sigaction = dd_sigint_sigterm_handler;
     dd_sigint_sigterm_sigaction.sa_flags = SA_SIGINFO;
