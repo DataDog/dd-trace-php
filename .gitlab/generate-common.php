@@ -227,7 +227,7 @@ foreach ($arch_targets as $arch_target) {
       KUBERNETES_SERVICE_MEMORY_LIMIT: 512Mi
 
   request-replayer:
-    name: registry.ddbuild.io/ci/dd-trace-php/request-replayer:4.0
+    name: registry.ddbuild.io/ci/dd-trace-php/request-replayer:5.0
     alias: request-replayer
     command: ["php", "-S", "<?= $service_bind_address ?>:80", "index.php"]
     variables:

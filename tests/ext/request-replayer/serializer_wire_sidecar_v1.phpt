@@ -24,6 +24,7 @@ $rr->clearDumpedData();
 // The sidecar sends v0.4 until its own /info fetch has advertised /v1.0/traces, and may batch
 // several traces per payload: resend "root" until it shows up in any chunk of a v1 request.
 $req = null;
+$foundSpan = null;
 for ($i = 0; $i < 100 && $req === null; $i++) {
     $s = \DDTrace\start_span();
     $s->name = "root";
@@ -35,17 +36,21 @@ for ($i = 0; $i < 100 && $req === null; $i++) {
         if (strpos($r["uri"], "/v1.0/traces") === false) continue;
         foreach ((json_decode($r["body"], true)["chunks"] ?? []) as $chunk) {
             foreach (($chunk["spans"] ?? []) as $span) {
-                if (($span["name"] ?? null) === "root" && ($span["service"] ?? null) === "svc") $req = $r;
+                if (($span["name"] ?? null) === "root" && ($span["service"] ?? null) === "svc") {
+                    $req = $r;
+                    $foundSpan = $span;
+                }
             }
         }
     }
 }
-$root = json_decode($req["body"] ?? "null", true);
 echo "uri=" . ($req["uri"] ?? "none") . "\n";
-echo "has_chunks=" . (isset($root['chunks']) ? "yes" : "no") . "\n";
-echo "span_name=" . ($req ? "root" : "?") . "\n";
+// Derived from the matched span itself, not from $req's truthiness: proves the
+// v1 payload actually carries the span's own name/service, not just any chunk.
+echo "span_name=" . ($foundSpan["name"] ?? "none") . "\n";
+echo "span_service=" . ($foundSpan["service"] ?? "none") . "\n";
 ?>
 --EXPECT--
 uri=/v1.0/traces
-has_chunks=yes
 span_name=root
+span_service=svc

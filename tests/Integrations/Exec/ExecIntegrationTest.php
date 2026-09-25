@@ -556,6 +556,7 @@ class ExecIntegrationTest extends IntegrationTestCase
             4 * 1024,
             strlen($traces[0][0]['attributes']['cmd.shell'])
         );
+        $this->assertSame('true', $traces[0][0]['attributes']['cmd.truncated']);
     }
 
     /**
@@ -584,6 +585,7 @@ class ExecIntegrationTest extends IntegrationTestCase
             '["echo","' . str_repeat('a', 4092) . '",""]',
             $traces[0][0]['attributes']['cmd.exec']
         );
+        $this->assertSame('true', $traces[0][0]['attributes']['cmd.truncated']);
     }
 
     public function testProcOpenInjectsSessionIds()

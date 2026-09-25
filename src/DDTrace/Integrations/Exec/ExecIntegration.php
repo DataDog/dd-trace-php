@@ -195,7 +195,7 @@ class ExecIntegration extends Integration
                     return;
                 }
 
-                $exitCode = $span->attributes[Tag::EXEC_EXIT_CODE] ?? $span->meta[Tag::EXEC_EXIT_CODE] ?? null;
+                $exitCode = $span->attributes[Tag::EXEC_EXIT_CODE] ?? null;
                 if ($hook->returned === -1 && $exitCode !== null) {
                     $hook->overrideReturnValue((int)$exitCode);
                 }
@@ -279,8 +279,14 @@ class ExecIntegration extends Integration
         $span = start_span();
         $span->name = 'command_execution';
         // Replaces the tags set at creation like before (runtime-id, global tags, _dd.svc_src); the numeric
-        // ones (process_id) used to be metrics, which were kept. strval keeps the former meta string values.
-        $span->attributes = array_map('strval', $tags) + array_filter($span->attributes, 'is_float');
+        // ones (process_id) used to be metrics, which were kept. strval keeps the former meta string values,
+        // except for bools: strval(true) is "1", but the old meta path rendered "true"/"false".
+        $span->attributes = array_map(static function ($value) {
+            if (is_bool($value)) {
+                return $value ? 'true' : 'false';
+            }
+            return strval($value);
+        }, $tags) + array_filter($span->attributes, 'is_float');
         $span->type = Type::SYSTEM;
         $span->resource = $resource;
         \DDTrace\collect_code_origins(2); // manually collect origin, otherwise the top frame will be this integration
