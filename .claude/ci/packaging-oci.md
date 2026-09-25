@@ -12,11 +12,10 @@
 - `.gitlab/one-pipeline.locked.yml` — includes the shared one-pipeline template
   that defines all OCI, promotion, and publishing jobs
 
-All compile, link, and aggregate jobs (`compile tracing extension`,
-`compile tracing sidecar`, `link tracing extension`, `aggregate tracing extension`,
-`compile appsec extension`,
-`compile profiler extension`, `compile loader`, `compile extension windows`) are
-documented in [compile-artifacts.md](compile-artifacts.md).
+The portable Linux compile and link jobs run in the parent pipeline. The
+package child downloads them with `needs:pipeline:job`; only debug, ASAN,
+Windows, and PECL builds remain in the child. They are documented in
+[compile-artifacts.md](compile-artifacts.md).
 
 | CI Job | Image | What it does |
 |--------|-------|--------------|
@@ -40,7 +39,7 @@ Runner: `arch:amd64` for all packaging and publishing jobs.
 Platform matrix for `package extension`:
 - `[amd64, x86_64-alpine-linux-musl]` — Alpine/musl
 - `[arm64, aarch64-alpine-linux-musl]` — Alpine/musl arm64
-- `[amd64, x86_64-unknown-linux-gnu]` — glibc (centos-7 image)
+- `[amd64, x86_64-unknown-linux-gnu]` — glibc
 - `[arm64, aarch64-unknown-linux-gnu]` — glibc arm64
 
 ## What It Produces
@@ -55,13 +54,12 @@ Platform matrix for `package extension`:
 ## Data Flow
 
 ```
-compile tracing extension ─┐
-  + link tracing extension  │
-compile appsec extension  ─┤ → generate-final-artifact.sh → .tar.gz
-compile profiler extension─┤         v
-compile loader            ─┘  nfpm → .deb/.rpm/.apk
-                                     │
-                     prepare-oci-package.sh → OCI image
+parent portable tracer ────┐
+parent portable appsec ────┤ → generate-final-artifact.sh → .tar.gz
+parent portable profiler ──┤         v
+parent portable loader ────┘  nfpm → .deb/.rpm/.apk
+                                      │
+                      prepare-oci-package.sh → OCI image
 ```
 
 Intermediate artifacts (`extensions_*/`, `appsec_*/`,
@@ -124,13 +122,14 @@ shown above.
 - **`bundle for reliability env` only runs on nightly builds or release branches.**
   Manual with `allow_failure: true` on all other branches.
 
-- **Compile images for glibc packages use `centos-7`**, not
-  `bookworm`. See the "centos-7 vs bookworm" gotcha in
-  [compile-artifacts.md](compile-artifacts.md) for details.
+- **glibc and musl packages use the same portable release artifacts.** Package
+  triplets select packaging formats and layouts; they no longer select a
+  release compiler image.
 
-- **`package loader` depends on many upstream compile jobs** — loader (glibc
-  and musl), tracing extension aggregates, sidecar, all
-  appsec and profiler extension versions. A single upstream failure blocks packaging.
+- **`package loader` downloads four parent collector artifacts** — the
+  runtime, PHP 7 tracer, PHP 8 tracer, and component collectors relay the
+  portable loader, linked tracers, sidecar, and every AppSec and profiler ABI.
+  A failure in any required portable build blocks its collector and packaging.
   See [building-locally.md § SSI Loader Package Assembly](building-locally.md#ssi-loader-package-assembly)
   for local reproduction and important caveats (empty stubs do not work;
   `standalone_*/` not `extensions_*/`; must run on amd64).

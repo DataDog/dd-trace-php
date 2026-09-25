@@ -3,53 +3,51 @@ set -e -o pipefail
 
 MAKE_JOBS=${MAKE_JOBS:-$(nproc)}
 
-shopt -s expand_aliases
-echo 'export PHP_API=$(php -i | grep "PHP Extension => " | sed "s/PHP Extension => //g")' >> "$BASH_ENV"
-source "${BASH_ENV}"
-
-if [ -d '/opt/rh/devtoolset-7' ] ; then
-    set +eo pipefail
-    source scl_source enable devtoolset-7
-    set -eo pipefail
-fi
 set -u
 
-suffix="${1:-}"
-catch_warnings="${2:-1}"
-mkdir -p extensions_$(uname -m) standalone_$(uname -m)
+build_kind="${1:-portable}"
+architecture="$(uname -m)"
+mkdir -p "extensions_${architecture}" "standalone_${architecture}"
 
-ECHO_ARG="-e"
-CFLAGS="-std=gnu11 -O2 -g -Wall -Wextra"
-if [ "${suffix}" = "-alpine" ]; then
-  CFLAGS="${CFLAGS} -Wno-error=return-local-addr"
-fi
-if [ "${catch_warnings}" = "1" ]; then
-  CFLAGS="${CFLAGS} -Werror"
-fi
+mockgen="${CI_PROJECT_DIR}/php_sidecar_mockgen_${architecture}"
+configure_options="--enable-ddtrace-rust-library-split --with-ddtrace-sidecar-mockgen=${mockgen}"
 
-# Build nts extension
-switch-php "${PHP_VERSION}"
-make clean && make -j "${MAKE_JOBS}" static
-objcopy --compress-debug-sections tmp/build_extension/modules/ddtrace.so "standalone_$(uname -m)/ddtrace-${PHP_API}${suffix}.so"
-cp -v tmp/build_extension/modules/ddtrace.a "extensions_$(uname -m)/ddtrace-${PHP_API}${suffix}.a"
-if [ "${PHP_VERSION}" = "7.0" ]; then
+build_portable_variant() {
+  sdk="$1"
+  output_suffix="$2"
+
+  rm -rf tmp/build_extension
+  PHPRC='' \
+    PATH="/opt/php/${sdk}/bin:${PATH}" \
+    PHP_SDK_VERSION="${sdk}" \
+    EXTRA_CFLAGS=-DCXA_THREAD_ATEXIT_WRAPPER=1 \
+    EXTRA_CONFIGURE_OPTIONS="${configure_options}" \
+    make -j "${MAKE_JOBS}" \
+      "${CI_PROJECT_DIR}/tmp/build_extension/modules/ddtrace.a"
+
+  objcopy --compress-debug-sections \
+    tmp/build_extension/modules/ddtrace.so \
+    "standalone_${architecture}/ddtrace-${ABI_NO}${output_suffix}.so"
+  cp -v tmp/build_extension/modules/ddtrace.a \
+    "extensions_${architecture}/ddtrace-${ABI_NO}${output_suffix}.a"
+}
+
+if [ "${build_kind}" = "debug" ]; then
+  # A debug Zend ABI cannot consume the release extension, but it can still
+  # use the portable SDK and sidecar toolchain.
+  build_portable_variant "${PHP_VERSION}-debug" "-debug"
   cp -v tmp/build_extension/ddtrace-fat.ldflags \
-    "ddtrace_$(uname -m)${suffix}-fat.ldflags"
+    "ddtrace_${architecture}-fat.ldflags"
   cp -v tmp/build_extension/ddtrace-fat.sym \
-    "ddtrace_$(uname -m)${suffix}-fat.sym"
+    "ddtrace_${architecture}-fat.sym"
+  .gitlab/link-tracing-extension.sh
+  exit 0
 fi
 
-if [ "${suffix}" != "-alpine" ]; then
-  # Build debug extension
-  switch-php "${PHP_VERSION}-debug"
-  make clean && make -j "${MAKE_JOBS}" static
-  objcopy --compress-debug-sections tmp/build_extension/modules/ddtrace.so "standalone_$(uname -m)/ddtrace-${PHP_API}${suffix}-debug.so"
-  cp -v tmp/build_extension/modules/ddtrace.a "extensions_$(uname -m)/ddtrace-${PHP_API}${suffix}-debug.a"
-fi
-
-# Build zts extension
-switch-php "${PHP_VERSION}-zts"
-rm -r tmp/build_extension
-make clean && make -j "${MAKE_JOBS}" static
-objcopy --compress-debug-sections tmp/build_extension/modules/ddtrace.so "standalone_$(uname -m)/ddtrace-${PHP_API}${suffix}-zts.so"
-cp -v tmp/build_extension/modules/ddtrace.a "extensions_$(uname -m)/ddtrace-${PHP_API}${suffix}-zts.a"
+build_portable_variant "${PHP_VERSION}" ""
+cp -v tmp/build_extension/ddtrace-fat.ldflags \
+  "ddtrace_${architecture}-fat.ldflags"
+cp -v tmp/build_extension/ddtrace-fat.sym \
+  "ddtrace_${architecture}-fat.sym"
+build_portable_variant "${PHP_VERSION}-release-zts" "-zts"
+.gitlab/link-tracing-extension.sh

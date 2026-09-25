@@ -19,7 +19,6 @@ stages:
   parallel:
     matrix:
       - IMAGE:
-        - "centos-7"
         - "php-compile-extension-alpine"
         - "bookworm-11"
   script:
@@ -224,6 +223,8 @@ endforeach;
 foreach ($all_minor_major_targets as $major_minor):
     foreach ($switch_php_versions as $switch_php_version):
         $toolchain = "";
+        $abi_no = $php_versions_to_abi[$major_minor];
+        $portable_release = in_array($switch_php_version, ["nts", "zts"]);
         if (version_compare($major_minor, "7.4", "<") && $switch_php_version == "debug-zts-asan") $switch_php_version = "debug-zts";
         if ($switch_php_version == "debug-zts-asan") $toolchain="-DCMAKE_TOOLCHAIN_FILE=../../cmake/asan.cmake";
 ?>
@@ -238,9 +239,18 @@ foreach ($all_minor_major_targets as $major_minor):
           - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
             SWITCH_PHP_VERSION: "<?= $switch_php_version ?>"
       artifacts: true
+<?php if ($portable_release): ?>
+    - pipeline: "$PARENT_PIPELINE_ID"
+      job: "compile portable tracing extension: [<?= $major_minor ?>, amd64]"
+      artifacts: true
+<?php endif; ?>
   script:
     - switch-php "<?= $switch_php_version ?>"
+<?php if ($portable_release): ?>
+    - sudo cp "extensions_x86_64/ddtrace-<?= $abi_no ?><?= $switch_php_version === 'zts' ? '-zts' : '' ?>.so" "$(php-config --extension-dir)/ddtrace.so"
+<?php else: ?>
     - .gitlab/run-with-retryable-download.sh make install # build ddtrace.so
+<?php endif; ?>
     - mkdir -p tmp/build_ext-tea && cd tmp/build_ext-tea
     - CMAKE_PREFIX_PATH=/opt/catch2 Tea_ROOT=../../tmp/tea/<?= $switch_php_version ?> cmake <?= $toolchain ?> -DCMAKE_BUILD_TYPE=Debug -S ../../tests/tea
     - cmake --build . --parallel

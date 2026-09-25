@@ -29,7 +29,7 @@ foreach ($profiler_minor_major_targets as $version) {
     KUBERNETES_HELPER_CPU_LIMIT: 1
     KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
     KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
-    CARGO_TARGET_DIR: /mnt/ramdisk/cargo # ramdisk??
+    CARGO_TARGET_DIR: /tmp/cargo
     libdir: /tmp/datadog-profiling
   parallel:
     matrix:
@@ -40,10 +40,8 @@ foreach ($profiler_minor_major_targets as $version) {
       - PHP_MAJOR_MINOR: *all_profiler_targets
         ARCH: *arch_targets
         IMAGE_PREFIX: php-
-        IMAGE_SUFFIX: _centos-7
+        IMAGE_SUFFIX: _bookworm-11
   script:
-    - if [ -d '/opt/rh/devtoolset-7' ]; then set +eo pipefail; source scl_source enable devtoolset-7; set -eo pipefail; fi
-    - if [ -d '/opt/rh/devtoolset-7' ] && [ "$(uname -m)" = "aarch64" ]; then export BINDGEN_EXTRA_CLANG_ARGS="-I$(clang --print-resource-dir)/include"; fi
     - if [ -f /sbin/apk ] && [ $(uname -m) = "aarch64" ]; then ln -sf ../lib/llvm17/bin/clang /usr/bin/clang; fi
     - export DD_PROFILING_OUTPUT_PPROF=/tmp/
 
@@ -58,23 +56,18 @@ foreach ($profiler_minor_major_targets as $version) {
 
     - '# NTS'
     - '# Use if/then instead of `command -v switch-php && switch-php` — the && form exits 1 when switch-php is absent, which FF_ENABLE_BASH_EXIT_CODE_CHECK treats as a job failure'
-    - if command -v switch-php > /dev/null 2>&1; then switch-php "${PHP_MAJOR_MINOR}"; fi
+    - if command -v switch-php > /dev/null 2>&1; then switch-php nts; fi
     - (cd ..; phpize && DDTRACE_PROFILING_FEATURES="debug_stats,stack_walking_tests,test,tracing,tracing-subscriber,trigger_time_sample" ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling && make -j$(nproc))
     - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/nts-results.xml" php profiling/tests/run-tests.php -d "extension=${CI_PROJECT_DIR}/modules/datadog-profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
 
 
     - '# ZTS'
-    - if command -v switch-php > /dev/null 2>&1; then switch-php "${PHP_MAJOR_MINOR}-zts"; fi
+    - if command -v switch-php > /dev/null 2>&1; then switch-php zts; fi
     - touch ../profiling/build.rs # force regeneration after switch-php changes the php-config symlink target
     - (cd ..; make distclean || true; phpize && DDTRACE_PROFILING_FEATURES="debug_stats,stack_walking_tests,test,tracing,tracing-subscriber,trigger_time_sample" ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling && make -j$(nproc))
     - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/zts-results.xml" php profiling/tests/run-tests.php -d "extension=${CI_PROJECT_DIR}/modules/datadog-profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
   after_script:
-    - |
-      if [ "${IMAGE_SUFFIX}" != "_centos-7" ]; then
-        .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:profiling/"
-      else
-        echo "Skipping JUnit upload on CentOS 7 (old glibc/OpenSSL incompatible with datadog-ci)"
-      fi
+    - .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:profiling/"
   artifacts:
     reports:
       junit: "artifacts/profiler-tests/*.xml"
@@ -126,7 +119,7 @@ foreach ($profiler_minor_major_targets as $version) {
     - switch-php zts
     - cargo test --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample
 
-"PHP language tests":
+.php_language_tests:
   stage: test
   tags: [ "arch:${ARCH}" ]
   image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11
@@ -146,17 +139,11 @@ foreach ($profiler_minor_major_targets as $version) {
     TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
     DD_PROFILING_OUTPUT_PPROF: /tmp/
     XFAIL_LIST: dockerfiles/ci/xfail_tests/${PHP_MAJOR_MINOR}.list
-  parallel:
-    matrix:
-      - PHP_MAJOR_MINOR: *all_profiler_targets
-        ARCH: amd64
-        FLAVOUR: [nts, zts]
   script:
     - unset DD_SERVICE; unset DD_ENV
     - command -v switch-php && switch-php "${FLAVOUR}"
-    - phpize
-    - ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling
-    - make -j$(nproc)
+    - mkdir -p modules
+    - cp -v "${PROFILER_EXTENSION}" modules/datadog-profiling.so
     - echo "extension=${CI_PROJECT_DIR}/modules/datadog-profiling.so" > /opt/php/${FLAVOUR}/conf.d/profiling.ini
     - php -v
     # Fail loudly if the profiler did not load: otherwise the language tests
@@ -217,3 +204,26 @@ foreach ($profiler_minor_major_targets as $version) {
     when: on_failure
     paths:
       - artifacts/php-language-tests/
+
+<?php
+foreach ($profiler_minor_major_targets as $major_minor) {
+    $abi_no = $php_versions_to_abi[$major_minor];
+    foreach (["nts", "zts"] as $flavour) {
+        $suffix = $flavour === "zts" ? "-zts" : "";
+?>
+"PHP language tests: [<?= $major_minor ?>, amd64, <?= $flavour ?>]":
+  extends: .php_language_tests
+  needs:
+    - pipeline: "$PARENT_PIPELINE_ID"
+      job: "compile portable profiler extension: [<?= $major_minor ?>, amd64]"
+      artifacts: true
+  variables:
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: amd64
+    FLAVOUR: "<?= $flavour ?>"
+    PROFILER_EXTENSION: "datadog-profiling/x86_64/lib/php/<?= $abi_no ?>/datadog-profiling<?= $suffix ?>.so"
+
+<?php
+    }
+}
+?>

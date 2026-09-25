@@ -193,7 +193,9 @@ stages:
         TERM=dumb ./gradlew loadCaches --info
       fi
 
-      TERM=dumb ./gradlew $targets --info -Pbuildscan --scan -PcheckCoreDumps
+      TERM=dumb ./gradlew $targets --info -Pbuildscan --scan \
+        -PcheckCoreDumps -PusePrebuiltArtifacts \
+        -PprebuiltPhpAbi="${ABI_NO}"
       TERM=dumb ./gradlew saveCaches --info
   after_script:
     - mkdir -p "${CI_PROJECT_DIR}/artifacts"
@@ -211,42 +213,54 @@ stages:
         - appsec/tests/integration/build/*.tar.gz
         - .gradle-home/wrapper/dists/
 
-"appsec integration tests":
+<?php
+$appsec_integration_targets = [];
+foreach ($all_minor_major_targets as $version) {
+    $appsec_integration_targets[] = [$version, "release"];
+    $appsec_integration_targets[] = [$version, "release-zts"];
+}
+$appsec_integration_targets[] = ["8.5", "release-musl"];
+$appsec_integration_targets[] = ["8.5", "release-zts-musl"];
+
+foreach ($appsec_integration_targets as [$version, $variant]) {
+    $target = "test{$version}-{$variant}";
+    $abi_no = $php_versions_to_abi[$version];
+?>
+"appsec integration tests: [<?= $target ?>]":
   extends: .appsec_integration_tests
-  parallel:
-    matrix:
-      - targets:
-          - test7.0-release
-          - test7.0-release-zts
-          - test7.1-release
-          - test7.1-release-zts
-          - test7.2-release
-          - test7.2-release-zts
-          - test7.3-release
-          - test7.3-release-zts
-          - test7.4-release
-          - test7.4-release-zts
-          - test8.0-release
-          - test8.0-release-zts
-          - test8.1-release
-          - test8.1-release-zts
-          - test8.2-release
-          - test8.2-release-zts
-          - test8.3-release
-          - test8.3-release-zts
-          - test8.4-release
-          - test8.4-release-zts
-          - test8.5-release
-          - test8.5-release-zts
-          - test8.5-release-musl
-          - test8.5-release-zts-musl
+  variables:
+    targets: "<?= $target ?>"
+    ABI_NO: "<?= $abi_no ?>"
+  needs:
+    - pipeline: "$PARENT_PIPELINE_ID"
+      job: "compile portable tracing extension: [<?= $version ?>, amd64]"
+      artifacts: true
+    - pipeline: "$PARENT_PIPELINE_ID"
+      job: "compile portable appsec extension: [<?= $version ?>, amd64]"
+      artifacts: true
+
+<?php
+}
+?>
 
 "appsec integration tests (ssi)":
   extends: .appsec_integration_tests
-  parallel:
-    matrix:
-      - targets:
-          - test8.3-release-ssi
+  variables:
+    targets: test8.3-release-ssi
+    ABI_NO: "<?= $php_versions_to_abi['8.3'] ?>"
+  needs:
+    - pipeline: "$PARENT_PIPELINE_ID"
+      job: "compile portable tracing extension: [8.3, amd64]"
+      artifacts: true
+    - pipeline: "$PARENT_PIPELINE_ID"
+      job: "compile portable tracing sidecar: [amd64]"
+      artifacts: true
+    - pipeline: "$PARENT_PIPELINE_ID"
+      job: "compile portable loader: [amd64]"
+      artifacts: true
+    - pipeline: "$PARENT_PIPELINE_ID"
+      job: "compile portable appsec extension: [8.3, amd64]"
+      artifacts: true
 
 "helper-rust build and test":
   stage: test
@@ -334,6 +348,16 @@ stages:
   stage: test
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   tags: [ "docker-in-docker:amd64" ]
+  needs:
+    - pipeline: "$PARENT_PIPELINE_ID"
+      job: "compile portable loader: [amd64]"
+      artifacts: true
+    - pipeline: "$PARENT_PIPELINE_ID"
+      job: "compile portable appsec extension: [8.3, amd64]"
+      artifacts: true
+    - pipeline: "$PARENT_PIPELINE_ID"
+      job: "compile portable appsec extension: [8.4, amd64]"
+      artifacts: true
   interruptible: true
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
@@ -388,8 +412,14 @@ stages:
       # rebuilds keep working.
       docker run --rm -v php-portable-libdatadog-php:/vol alpine \
         rm -rf /vol/cargo-target
-      TERM=dumb ./gradlew test8.3-release-ssi test8.4-release-zts-ssi \
-        --info -Pbuildscan --scan -PcheckCoreDumps -PuseHelperRustCoverage
+      TERM=dumb ./gradlew test8.3-release-ssi \
+        --info -Pbuildscan --scan -PcheckCoreDumps \
+        -PuseHelperRustCoverage -PusePrebuiltArtifacts \
+        -PprebuiltPhpAbi="<?= $php_versions_to_abi['8.3'] ?>"
+      TERM=dumb ./gradlew test8.4-release-zts-ssi \
+        --info -Pbuildscan --scan -PcheckCoreDumps \
+        -PuseHelperRustCoverage -PusePrebuiltArtifacts \
+        -PprebuiltPhpAbi="<?= $php_versions_to_abi['8.4'] ?>"
       TERM=dumb ./gradlew saveCaches --info
     - |
       cd "$CI_PROJECT_DIR"

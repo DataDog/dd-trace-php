@@ -32,7 +32,7 @@ usage() {
 Usage: build-debug-artifact <target> [output-dir] [--profiler] [--appsec]
 
 Target format: {libc}-{arch}-{php_version}-{thread_safety}
-  libc:          musl (alpine) | gnu or glibc (bookworm)
+  libc:          musl (alpine) | gnu or glibc
   arch:          arm | arm64 | aarch | aarch64 | x86 | x64 | x86_64
   php_version:   7.0 | 7.1 | 7.2 | 7.3 | 7.4 | 8.0 | 8.1 | 8.2 | 8.3 | 8.4 | 8.5
   thread_safety: nts | zts
@@ -86,13 +86,15 @@ arch="${BASH_REMATCH[2]}"
 php_version="${BASH_REMATCH[3]}"
 thread_safety="${BASH_REMATCH[4]}"
 
-case "${libc,,}" in
+libc=$(printf '%s' "$libc" | tr '[:upper:]' '[:lower:]')
+case "$libc" in
     musl|alpine)  libc="musl" ;;
     gnu|glibc)    libc="gnu" ;;
     *)            echo "Error: unknown libc '$libc'. Use musl or gnu/glibc." >&2; exit 1 ;;
 esac
 
-case "${arch,,}" in
+arch=$(printf '%s' "$arch" | tr '[:upper:]' '[:lower:]')
+case "$arch" in
     arm|arm64|aarch|aarch64) arch="aarch64" ;;
     x86|x64|x86_64|amd64)   arch="x86_64" ;;
     *)                        echo "Error: unknown arch '$arch'. Use arm64/aarch64 or x86_64." >&2; exit 1 ;;
@@ -115,15 +117,9 @@ case "$php_version" in
 esac
 
 # ─── Docker image selection ───────────────────────────────────────────────────
-BOOKWORM_VERSION=10
-if [[ "$libc" == "musl" ]]; then
-    DOCKER_IMAGE="datadog/dd-trace-ci:php-compile-extension-alpine-${php_version}"
-else
-    # centos-7 targets GLIBC 2.17 — compatible with all weblog base images.
-    # bookworm (GLIBC 2.36) produces .so files that fail to load on Bullseye
-    # weblogs with "GLIBC_2.32 not found".
-    DOCKER_IMAGE="datadog/dd-trace-ci:php-${php_version}_centos-7"
-fi
+BOOKWORM_VERSION=11
+DOCKER_IMAGE="datadog/dd-appsec-php-ci:php-buildonly-rust"
+DOCKER_IMAGE+="@sha256:976636c9ae20ea3e14f4b2ab5fcc1b6c4684acded3b963be446a463ed6733049"
 
 if [[ "$arch" == "aarch64" ]]; then
     DOCKER_PLATFORM="linux/arm64"
@@ -136,7 +132,7 @@ CACHE_VOLUME="ddtrace-build-cache"
 # The persistent build cache contains copied source files under tmp/build_extension.
 # Keep sibling worktrees from reusing stale copied headers for the same PHP target.
 CACHE_SOURCE_KEY="$(printf '%s' "$REPO_ROOT" | cksum | awk '{print $1}')"
-CACHE_TAG="${libc}-${arch}-${php_version}-${thread_safety}-${CACHE_SOURCE_KEY}"
+CACHE_TAG="portable-v2-${arch}-${php_version}-${thread_safety}-${CACHE_SOURCE_KEY}"
 CACHE_TAG_LABEL="ddtrace.build.target"
 
 if docker volume inspect "$CACHE_VOLUME" &>/dev/null; then
@@ -155,20 +151,14 @@ fi
 # ─── Run build inside Docker ──────────────────────────────────────────────────
 EXT_SUFFIX=$([[ "$thread_safety" == "zts" ]] && echo "-zts" || echo "")
 
-# Build commands differ slightly between musl and gnu:
-#   - Alpine images: user=root, shell=sh, switch_php defined in /root/.bashrc
-#   - centos-7 images: user=root, shell=bash, switch-php takes version-prefixed names (e.g. "8.2")
-#
+# Both output labels use the portable musl toolchain. The libc selection only
+# controls the package name because the resulting extension loads on either.
 # DD_TRACE_DOCKER_DEBUG=1 → CFLAGS=-O0 -g (debug-friendly)
 # The volume at HOME_DIR/tmp persists build artifacts (C objects, Rust target/) across runs.
-
-if [[ "$libc" == "musl" ]]; then
-    DOCKER_SHELL="sh"
-    HOME_DIR="/app"
-else
-    DOCKER_SHELL="bash"
-    HOME_DIR="/home/circleci/app"
-fi
+DOCKER_SHELL="sh"
+HOME_DIR="/project"
+HOST_UID=$(id -u)
+HOST_GID=$(id -g)
 
 # ─── Generate PHP bridge files ───────────────────────────────────────────────
 # src/bridge/_generated*.php are not committed; generated from _files_*.php via
@@ -191,11 +181,6 @@ if ls "${REPO_ROOT}"/src/bridge/_generated*.php >/dev/null 2>&1; then
 fi
 if [[ "$_should_generate" == "1" ]]; then
     echo "Generating src/bridge/_generated*.php..."
-    docker run --rm \
-        -v "${REPO_ROOT}:/home/circleci/app" \
-        -w "/home/circleci/app" \
-        "datadog/dd-trace-ci:php-8.3_bookworm-${BOOKWORM_VERSION}" \
-        bash -c "make generate"
 else
     echo "src/bridge/_generated*.php is up to date, skipping generation."
 fi
@@ -214,42 +199,57 @@ trap 'rm -rf "$TMP_OUT" "$TMP_PKG"' EXIT
 # pattern as dockerh: register host user in /etc/passwd, switch-php, chown, exec
 # the build commands as the unprivileged user.
 
-HOST_UID=$(id -u)
-HOST_GID=$(id -g)
-
-_switch_php_variant="${php_version}$([[ "$thread_safety" == "nts" ]] && echo "" || echo "-${thread_safety}")"
+if [[ "$thread_safety" == "zts" ]]; then
+    PHP_SDK_VERSION="${php_version}-release-zts"
+else
+    PHP_SDK_VERSION="${php_version}"
+fi
 
 _preamble() {  # $1 = shell commands to run as the host user
-    if [[ "$libc" == "musl" ]]; then
-        printf 'set -e\n. /root/.bashrc\nswitch_php %s\n%s' "${thread_safety}" "$1"
-    else
-        # centos-7: start as root for switch-php, then drop to host uid.
-        # Write the build commands to a script file so we avoid nested quoting.
-        printf '%s\n' \
-            "set -e" \
-            "echo 'builduser:x:${HOST_UID}:${HOST_GID}::/tmp:/bin/bash' >> /etc/passwd" \
-            "echo 'buildgroup:x:${HOST_GID}:builduser' >> /etc/group" \
-            "switch-php ${_switch_php_variant}" \
-            "chown -R ${HOST_UID}:${HOST_GID} ${HOME_DIR}/tmp /output 2>/dev/null || true" \
-            'chown '"${HOST_UID}:${HOST_GID}"' "$(php-config --extension-dir)" "$(php -r '"'"'echo PHP_CONFIG_FILE_SCAN_DIR;'"'"')" 2>/dev/null || true' \
-            "cat > /tmp/build.sh <<'BUILDEOF'" \
-            "set -e" \
-            "export CARGO_HOME=${HOME_DIR}/tmp/cargo_home" \
-            "cd ${HOME_DIR}" \
-            "$1" \
-            "BUILDEOF" \
-            "exec su builduser -s /bin/bash /tmp/build.sh"
-    fi
+    printf '%s\n' \
+        "set -e" \
+        "echo 'builduser:x:${HOST_UID}:${HOST_GID}::/tmp:/bin/sh' >> /etc/passwd" \
+        "echo 'buildgroup:x:${HOST_GID}:builduser' >> /etc/group" \
+        "chown -R ${HOST_UID}:${HOST_GID} ${HOME_DIR}/tmp /output" \
+        "cat > /tmp/build.sh <<'BUILDEOF'" \
+        "set -e" \
+        "export HOME=/tmp" \
+        "export CARGO_HOME=${HOME_DIR}/tmp/cargo_home" \
+        "export PHP_SDK_VERSION=${PHP_SDK_VERSION}" \
+        "export PATH=/opt/php/${PHP_SDK_VERSION}/bin:/root/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+        "cd ${HOME_DIR}" \
+        "$1" \
+        "BUILDEOF" \
+        "exec su builduser -s /bin/sh /tmp/build.sh"
 }
 
-TRACE_SCRIPT="$(_preamble "DD_TRACE_DOCKER_DEBUG=1 CFLAGS='-std=gnu11 -O0 -g' make
+TRACE_SCRIPT="$(_preamble "DD_TRACE_DOCKER_DEBUG=1 \\
+  CFLAGS='-std=gnu11 -O0 -g' \\
+  EXTRA_CFLAGS=-DCXA_THREAD_ATEXIT_WRAPPER=1 make
+if readelf --version-info tmp/build_extension/modules/ddtrace.so | grep GLIBC_ >/dev/null; then
+    echo 'ddtrace.so has versioned glibc symbols' >&2
+    exit 1
+fi
 cp tmp/build_extension/modules/ddtrace.so /output/ddtrace.so")"
 
 if [[ "$BUILD_PROFILER" == "1" ]]; then
-    PROFILER_SCRIPT="$(_preamble "if [ -f /sbin/apk ] && [ \$(uname -m) = 'aarch64' ]; then
-    ln -sf ../lib/llvm21/bin/clang /usr/bin/clang
+    PROFILER_SCRIPT="$(_preamble "rust_target=\$(uname -m)-unknown-linux-musl
+cargo_build_flags=\"--config target-applies-to-host=false\"
+cargo_build_flags=\"\${cargo_build_flags} --config 'host.rustflags=[\\\"-C\\\", \\\"target-feature=-crt-static\\\"]'\"
+cargo_build_flags=\"\${cargo_build_flags} -Zhost-config -Ztarget-applies-to-host -Zunstable-options\"
+cargo_build_flags=\"\${cargo_build_flags} -Z build-std=std,panic_abort\"
+cargo_build_flags=\"\${cargo_build_flags} -Z build-std-features=llvm-libunwind,backtrace\"
+PHPRC='' \\
+  DDTRACE_PROFILING_TARGET=\"\${rust_target}\" \\
+  DDTRACE_PROFILING_CARGO_BUILD_FLAGS=\"\${cargo_build_flags}\" \\
+  RUSTC_BOOTSTRAP=1 \\
+  RUSTFLAGS='-C target-feature=-crt-static -C linker=musl-clang -C link-arg=/usr/lib/libunwind.a -C force-unwind-tables=yes' \\
+  make BUILD_SUFFIX=profiler PROFILING=1 RUST_DEBUG_BUILD=1 \\
+    EXTRA_CONFIGURE_OPTIONS='--disable-ddtrace-tracer --enable-ddtrace-profiling'
+if readelf --version-info tmp/build_profiler/modules/datadog-profiling.so | grep GLIBC_ >/dev/null; then
+    echo 'datadog-profiling.so has versioned glibc symbols' >&2
+    exit 1
 fi
-make BUILD_SUFFIX=profiler PROFILING=1 RUST_DEBUG_BUILD=1 EXTRA_CONFIGURE_OPTIONS='--disable-ddtrace-tracer --enable-ddtrace-profiling'
 cp ${HOME_DIR}/tmp/build_profiler/modules/datadog-profiling.so /output/datadog-profiling${EXT_SUFFIX}.so")"
 fi
 
@@ -257,7 +257,16 @@ if [[ "$BUILD_APPSEC" == "1" ]]; then
     # Use a per-variant cmake build dir in the cache volume (nts and zts need separate builds).
     APPSEC_SCRIPT="$(_preamble "git config --global --add safe.directory '*' 2>/dev/null || true
 mkdir -p tmp/build_appsec${EXT_SUFFIX}
-(cd tmp/build_appsec${EXT_SUFFIX} && cmake ${HOME_DIR}/appsec -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_TESTING=OFF -DDD_APPSEC_EXTENSION_STATIC_LIBSTDCXX=ON && make -j \$(nproc) && cp ddappsec.so /output/ddappsec${EXT_SUFFIX}.so)")"
+(cd tmp/build_appsec${EXT_SUFFIX} && \\
+  cmake ${HOME_DIR}/appsec -DCMAKE_BUILD_TYPE=Debug \\
+    -DCMAKE_C_FLAGS=-Wno-static-in-inline \\
+    -DDD_APPSEC_TESTING=OFF \\
+    -DDD_APPSEC_EXTENSION_STATIC_LIBSTDCXX=ON && \\
+  make -j \$(nproc) && \\
+  if readelf --version-info ddappsec.so | grep GLIBC_ >/dev/null; then \\
+      echo 'ddappsec.so has versioned glibc symbols' >&2; exit 1; \\
+  fi && \\
+  cp ddappsec.so /output/ddappsec${EXT_SUFFIX}.so)")"
 fi
 
 # ─── Launch all builds in parallel ────────────────────────────────────────────
@@ -283,6 +292,8 @@ _common_volumes=(
 # for packaging, not for C/Rust/cmake compilation inside the containers).
 if [[ "$_should_generate" == "1" ]]; then
     _launch "generate" docker run --rm \
+        --user "${HOST_UID}:${HOST_GID}" \
+        -e HOME=/tmp \
         -v "${REPO_ROOT}:/home/circleci/app" \
         -w "/home/circleci/app" \
         "datadog/dd-trace-ci:php-8.3_bookworm-${BOOKWORM_VERSION}" \

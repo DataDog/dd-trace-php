@@ -85,9 +85,9 @@ The framework tests need a `.deb` containing `.so` variants for the PHP
 version(s) used by the test containers. The wordpress test uses PHP 7.0 (API
 20151012).
 
-`build-tracing.sh` produces both `.a` archives and standalone `.so` files. For
-local builds, the standalone `.so` files can be used directly — no separate
-sidecar build or link step needed. See also
+`build-tracing.sh` consumes the separately built portable sidecar, then emits
+final self-contained extensions in `extensions_$(uname -m)/` and slim SSI
+extensions in `standalone_$(uname -m)/`. Package the final extensions. See also
 [compile-artifacts.md](compile-artifacts.md) and
 [packaging-oci.md](packaging-oci.md).
 
@@ -97,28 +97,38 @@ sidecar build or link step needed. See also
 cd ~/repos/dd-trace-php
 git submodule update --init libdatadog
 
-.claude/ci/dockerh --cache compile-tracing-7.0-gnu \
+PORTABLE_IMAGE=$(ruby -e '
+  require "yaml"
+  config = YAML.load_file(".gitlab/portable-builds.yml")
+  puts config[".portable_build"]["image"]
+')
+
+.claude/ci/dockerh --cache compile-portable-tracing-7.0 \
     --overlayfs --root \
-    datadog/dd-trace-ci:php-7.0_centos-7 \
+    "$PORTABLE_IMAGE" \
+    -e CI_PROJECT_DIR=/project/dd-trace-php \
+    -e CARGO_HOME=/project/dd-trace-php/.cache/cargo \
     -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
     -e CI_COMMIT_BRANCH=local-build \
-    -- bash -c \
-    'PHP_VERSION=7.0 bash .gitlab/build-tracing.sh'
+    -e PHP_VERSION=7.0 \
+    -e ABI_NO=20151012 \
+    -- sh -c '.gitlab/build-sidecar.sh && .gitlab/build-tracing.sh'
 ```
 
-Produces `.a` archives in `extensions_x86_64/` and standalone `.so` files in
-`standalone_x86_64/`, both in overlayfs volume `dd-ci-compile-tracing-7.0-gnu`.
-Repeat with different `PHP_VERSION` and `--cache` for other versions.
+Produces final `.so` files in `extensions_x86_64/` and slim SSI `.so` files in
+`standalone_x86_64/`, both in overlayfs volume
+`dd-ci-compile-portable-tracing-7.0`. Repeat with different `PHP_VERSION`,
+`ABI_NO`, and `--cache` for other versions.
 
 **Step 2 — Package into .deb (~5s):**
 
 ```bash
 .claude/ci/dockerh --cache package-deb \
     --clean-cache --overlayfs --root \
-    datadog/dd-trace-ci:php-8.1_centos-7 \
-    -v dd-ci-compile-tracing-7.0-gnu:/cache-tracing:ro \
+    registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php_fpm_packaging \
+    -v dd-ci-compile-portable-tracing-7.0:/cache-tracing:ro \
     -- bash -c '
-      cp /cache-tracing/upper/standalone_x86_64/*.so \
+      cp /cache-tracing/upper/extensions_x86_64/*.so \
          extensions_x86_64/
       make .deb.x86_64
     '

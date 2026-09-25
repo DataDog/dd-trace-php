@@ -2,32 +2,38 @@
 set -e -o pipefail
 
 MAKE_JOBS=${MAKE_JOBS:-$(nproc)}
+architecture="$(uname -m)"
 
-shopt -s expand_aliases
-echo 'export PHP_API=$(php -i | grep "PHP Extension => " | sed "s/PHP Extension => //g")' >> "$BASH_ENV"
-source "${BASH_ENV}"
-
-mkdir -p appsec_$(uname -m)
-suffix="${1:-}"
+mkdir -p "appsec_${architecture}"
 
 echo "Build nts extension"
-switch-php "${PHP_VERSION}"
+export PHP_SDK_VERSION="${PHP_VERSION}"
 mkdir -p appsec/build ; cd appsec/build
-cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_TESTING=OFF -DDD_APPSEC_EXTENSION_STATIC_LIBSTDCXX=ON
-make -j $MAKE_JOBS
-cp -v ddappsec.so "../../appsec_$(uname -m)/ddappsec-$PHP_API${suffix}.so"
+cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+  -DCMAKE_C_FLAGS=-Wno-static-in-inline \
+  -DDD_APPSEC_TESTING=OFF \
+  -DDD_APPSEC_EXTENSION_STATIC_LIBSTDCXX=ON
+make -j "${MAKE_JOBS}"
+cp -v ddappsec.so "../../appsec_${architecture}/ddappsec-${ABI_NO}.so"
 cd "../../"
 
 echo "Build zts extension"
-switch-php "${PHP_VERSION}-zts"
+export PHP_SDK_VERSION="${PHP_VERSION}-release-zts"
 mkdir -p appsec/build-zts ; cd appsec/build-zts
-cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_TESTING=OFF -DDD_APPSEC_EXTENSION_STATIC_LIBSTDCXX=ON
-make -j $MAKE_JOBS
-cp -v ddappsec.so "../../appsec_$(uname -m)/ddappsec-$PHP_API${suffix}-zts.so"
+cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+  -DCMAKE_C_FLAGS=-Wno-static-in-inline \
+  -DDD_APPSEC_TESTING=OFF \
+  -DDD_APPSEC_EXTENSION_STATIC_LIBSTDCXX=ON
+make -j "${MAKE_JOBS}"
+cp -v ddappsec.so "../../appsec_${architecture}/ddappsec-${ABI_NO}-zts.so"
 cd "../../"
 
 echo "Compress debug info"
-cd appsec_$(uname -m)
-for FILE in $(find . -name "*.so"); do
-    objcopy --compress-debug-sections $FILE
+cd "appsec_${architecture}"
+for file in ./*.so; do
+    if readelf --version-info "$file" | grep GLIBC_ >/dev/null; then
+        echo "$file is not portable: found a GLIBC symbol version" >&2
+        exit 1
+    fi
+    objcopy --compress-debug-sections "$file"
 done

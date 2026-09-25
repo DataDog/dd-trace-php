@@ -33,28 +33,12 @@ git submodule update --init --recursive \
   appsec/third_party/libddwaf-rust
 ```
 
-### switch-php naming differs between images
+### PHP selection differs by build type
 
-On **centos-7** images, PHP variants are version-prefixed: `8.3`,
-`8.3-debug`, `8.3-zts`. On **bookworm** images, variants are bare
-names: `nts`, `debug`, `zts`, `nts-asan`, `debug-zts-asan`.
-
-Build scripts that call `switch-php` internally (e.g.
-`compile_extension.sh`, `build-tracing.sh`, `build-appsec.sh`,
-`build-profiler.sh`) handle this themselves and need `--root` (not
-`--php`) so they can modify `/usr/local/bin/` symlinks.
-
-### devtoolset-7 on centos-7
-
-The centos-7 base ships GCC 4.8, which is too old for C++17 code
-(appsec extension). On centos-7 images, activate GCC 7 first:
-
-```bash
-source /opt/rh/devtoolset-7/enable
-```
-
-This is needed for `build-appsec.sh` on centos-7 but not on bookworm
-(which has a modern GCC).
+Bookworm test images use bare `switch-php` variants: `nts`, `debug`, `zts`,
+`nts-asan`, and `debug-zts-asan`. The portable release builder instead uses
+`PHP_SDK_VERSION` to select a version and thread-safety mode. Portable scripts
+do not call `switch-php`.
 
 ### make vs make static
 
@@ -107,18 +91,12 @@ make generate
 See [tracer-unit-tests.md](tracer-unit-tests.md#phpunit-unit-tests)
 for full PHPUnit run commands.
 
-### For system tests (centos-7, release-like build)
+### For system tests (portable release build)
 
-Used when building packages for system-tests. Targets GLIBC 2.17 for
-maximum compatibility:
-
-```bash
-.claude/ci/dockerh --cache systest-82 --php 8.2 \
-  datadog/dd-trace-ci:php-8.2_centos-7 -- \
-  bash -c 'export CARGO_HOME=$PWD/tmp/cargo_home; make -j$(nproc)'
-```
-
-First build: ~20 min (Rust sidecar). Incremental (C-only): ~1 min.
+System tests normally consume a package assembled from the CI portable
+artifacts. To reproduce the portable tracer build locally, use the sidecar,
+tracer, and link sequence in
+[compile-artifacts.md](compile-artifacts.md#local-reproduction).
 
 For `-O0` debugging (fewer `<optimized out>` in gdb):
 
@@ -159,19 +137,20 @@ make -j$(nproc) all
 
 ## Appsec Extension
 
-### For release / system tests (centos-7)
+### For release / system tests (portable)
 
-Needs `devtoolset-7` for C++17 support:
+Use the portable image pinned in `.gitlab/portable-builds.yml`:
 
 ```bash
-.claude/ci/dockerh --cache compile-appsec-8.3-gnu --overlayfs --root \
-    datadog/dd-trace-ci:php-8.3_centos-7 \
-    -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
-    -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
-    -- bash -c 'PHP_VERSION=8.3 bash .gitlab/build-appsec.sh'
+.claude/ci/dockerh --cache portable-appsec-8.3 --overlayfs --root \
+    "$PORTABLE_IMAGE" \
+    -e PHP_VERSION=8.3 \
+    -e ABI_NO=20230831 \
+    -- bash -c '.gitlab/build-appsec.sh'
 ```
 
-(`build-appsec.sh` sources `devtoolset-7` internally on centos-7.)
+Set `PORTABLE_IMAGE` from `.portable_build.image` as shown in
+[compile-artifacts.md](compile-artifacts.md#local-reproduction).
 
 ### For native tests (bookworm, with test targets)
 
@@ -224,56 +203,42 @@ cd profiling && cargo rustc --features=trigger_time_sample \
 '
 ```
 
-### For release / packaging / system tests (centos-7)
-
-Bookworm is too recent for binary compatibility purposes.
+### For release / packaging / system tests (portable)
 
 `build-profiler.sh` takes two arguments: the output directory prefix
-and the thread safety mode (`nts` or `zts`). It calls `switch-php`
-internally, so use `--root` (not `--php`). The output prefix must
+and the thread safety mode (`nts` or `zts`). It selects a PHP SDK with
+`PHP_SDK_VERSION`. The output prefix must
 match the directory layout expected by `generate-final-artifact.sh`:
-`datadog-profiling/{triplet}/lib/php/{PHP_API}/`.
+`datadog-profiling/{architecture}/lib/php/{PHP_API}/`.
 
-Build one PHP version at a time (each centos-7 image ships one
-version). For a single version (e.g. 8.2, ABI `20220829`):
+For a single version (e.g. 8.2, ABI `20220829`):
 
 ```bash
-.claude/ci/dockerh --cache compile-profiler-8.2-gnu --overlayfs \
+.claude/ci/dockerh --cache portable-profiler-8.2 --overlayfs \
     --root \
-    datadog/dd-trace-ci:php-8.2_centos-7 \
-    -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
-    -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
+    "$PORTABLE_IMAGE" \
+    -e CI_PROJECT_DIR=/project/dd-trace-php \
+    -e PHP_VERSION=8.2 \
     -- bash -c 'PHP_VERSION=8.2 bash .gitlab/build-profiler.sh \
-      datadog-profiling/x86_64-unknown-linux-gnu/lib/php/20220829 nts'
+      datadog-profiling/$(uname -m)/lib/php/20220829 nts'
 ```
 
 ## Sidecar (Rust)
 
 ```bash
-.claude/ci/dockerh --cache compile-sidecar-gnu --overlayfs \
-    datadog/dd-trace-ci:php-8.1_centos-7 \
-    -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
-    -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
+.claude/ci/dockerh --cache portable-sidecar --overlayfs --root \
+    "$PORTABLE_IMAGE" \
+    -e CI_PROJECT_DIR=/project/dd-trace-php \
     -e CARGO_HOME=/project/dd-trace-php/.cache/cargo \
-    -- bash -c 'HOST_OS=linux-gnu bash .gitlab/build-sidecar.sh'
+    -- bash -c '.gitlab/build-sidecar.sh'
 ```
 
 ## SSI Loader
 
 ```bash
-# linux-gnu
-.claude/ci/dockerh --cache compile-loader-gnu --overlayfs \
-    datadog/dd-trace-ci:php-8.3_centos-7 \
-    -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
-    -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
-    -- bash -c 'HOST_OS=linux-gnu bash .gitlab/build-loader.sh'
-
-# linux-musl (requires --root for apk add)
-.claude/ci/dockerh --cache compile-loader-musl --overlayfs --root \
-    datadog/dd-trace-ci:php-compile-extension-alpine-8.3 \
-    -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
-    -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
-    -- bash -c 'HOST_OS=linux-musl bash .gitlab/build-loader.sh'
+.claude/ci/dockerh --cache portable-loader --overlayfs --root \
+    "$PORTABLE_IMAGE" \
+    -- bash -c '.gitlab/build-loader.sh'
 ```
 
 ## Release Package Assembly
@@ -299,7 +264,7 @@ compiled `.so` files:
   (`ddtrace-{API}[-zts|-debug|-debug-zts].so`)
 - `appsec_$(uname -m)/` — appsec extensions (`ddappsec-{API}[-zts].so`)
 - `appsec/recommended.json` — bundled AppSec rules
-- `datadog-profiling/{triplet}/lib/php/{API}/` — profiler
+- `datadog-profiling/{architecture}/lib/php/{API}/` — profiler
   extensions
 
 Missing files cause hard `cp` failures. This means that we need to build (or
@@ -308,13 +273,10 @@ testing locally. See the section "Slim package with debug binaries" for a more
 practical alternative when locally producing artifacts from some jobs, like
 system tests.
 
-**Naming conventions differ by platform.** GNU/glibc extensions use
-bare names (`ddtrace-{API}.so`, `ddtrace-{API}-zts.so`) plus
-`-debug` and `-debug-zts` variants (4 total). Alpine/musl extensions
-use the `-alpine` suffix (`ddtrace-{API}-alpine.so`,
-`ddtrace-{API}-alpine-zts.so`) and have **no `-debug` variants**
-(2 total). Appsec follows the same pattern (no `-debug` for either
-platform).
+**Release naming is shared by platform.** Both GNU/glibc and Alpine/musl use
+`ddtrace-{API}.so` and `ddtrace-{API}-zts.so`. Debug and debug-ZTS extensions
+exist only for glibc packages. AppSec release extensions likewise have no
+platform suffix.
 
 The script only needs basic shell tools (`cp`, `tar`, `mkdir`).
 The `php_fpm_packaging` image is used in CI because the same job
@@ -394,9 +356,9 @@ set -e
 `strip` on every `.so` — **empty stub files will fail**. You need real
 compiled artifacts.
 
-The script reads from `standalone_$(uname -m)/` (standalone `.so`
-files from `compile tracing extension`), not `extensions_$(uname -m)/`
-(which has `.a` archives for the link phase).
+The script reads from `standalone_$(uname -m)/` (portable standalone `.so`
+files from the parent tracer builds), not `extensions_$(uname -m)/` (the
+linked extension artifact set).
 
 For aarch64, the script uses cross-tools (`aarch64-linux-gnu-objcopy`,
 `aarch64-linux-gnu-strip`). These are available in the
@@ -423,8 +385,8 @@ Set `ARCHITECTURE=aarch64` for arm64 (still runs in the amd64
 
 `tooling/bin/build-debug-artifact` builds a tarball containing only the PHP
 version you need — no stubs, no `generate-final-artifact.sh`. It
-uses the same centos-7 images as the package pipeline and assembles
-the tarball directly in the `dd-library-php/` layout that
+uses the portable PHP SDK image and assembles the tarball directly in
+the `dd-library-php/` layout that
 `datadog-setup.php` expects.
 
 **Note:** this produces debug (unoptimized) binaries, which differ from the
