@@ -153,8 +153,7 @@ final class SpanChecker
             $span['origin'],
             $span['trace_id_high'],
             $span['sampling_priority'],
-            $span['sampling_mechanism'],
-            $span['dropped_trace']
+            $span['sampling_mechanism']
         );
         if ($meta) {
             $span['meta'] = $meta;

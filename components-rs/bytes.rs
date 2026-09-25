@@ -561,13 +561,6 @@ pub unsafe extern "C" fn ddog_set_chunk_origin(chunk: *mut ChunkNode, origin: Ch
 /// # Safety
 /// See [`ddog_set_chunk_origin`].
 #[no_mangle]
-pub unsafe extern "C" fn ddog_set_chunk_dropped_trace(chunk: *mut ChunkNode, dropped: bool) {
-    (*chunk).chunk_mut().dropped_trace = dropped;
-}
-
-/// # Safety
-/// See [`ddog_set_chunk_origin`].
-#[no_mangle]
 pub unsafe extern "C" fn ddog_set_chunk_sampling_priority(chunk: *mut ChunkNode, priority: i32) {
     (*chunk).chunk_mut().priority = Some(priority);
 }

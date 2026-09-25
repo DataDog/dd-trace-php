@@ -1973,8 +1973,8 @@ ddog_SpanNode *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtr
     // The span is built directly into the native V1 builder chunk; the chunk carries the 128-bit
     // trace id (set at creation).
     if (ctx->chunk == DD_CHUNK_NONE) {
+        // dropped_trace is reserved for the agent; the chunk priority carries the sampling decision.
         ctx->chunk = ddog_new_chunk(ctx->builder, span->root->trace_id.high, span->root->trace_id.low);
-        ddog_set_chunk_dropped_trace(ctx->chunk, p0_trace);
     }
     bool is_first_span = ddog_chunk_span_count(ctx->chunk) == 0;
     ddog_SpanNode *rspan = ddog_new_span(ctx->chunk);
@@ -2462,7 +2462,6 @@ zval dd_serialize_rust_to_zval(ddog_TracerPayloadV1Builder *b) {
         uint32_t chunk_mechanism;
         bool has_mechanism = ddog_v1_get_chunk_sampling_mechanism(b, c, &chunk_mechanism);
         ddog_CharSlice chunk_origin = ddog_v1_get_chunk_origin(b, c);
-        bool chunk_dropped = ddog_v1_get_chunk_dropped_trace(b, c);
 
         for (size_t j = 0; j < ddog_v1_get_span_count(b, c); j++) {
             zval span_zv;
@@ -2508,9 +2507,6 @@ zval dd_serialize_rust_to_zval(ddog_TracerPayloadV1Builder *b) {
             }
             if (chunk_origin.len && j == root_idx) {
                 add_assoc_str(&span_zv, "origin", dd_CharSlice_to_zend_string(chunk_origin));
-            }
-            if (chunk_dropped) {
-                add_assoc_bool(&span_zv, "dropped_trace", 1);
             }
 
             size_t attr_count = ddog_v1_get_span_attr_count(b, c, j);

@@ -628,12 +628,6 @@ ddog_CharSlice ddog_v1_get_chunk_origin(const struct ddog_TracerPayloadV1Builder
                                         uintptr_t chunk);
 
 /**
- * Whether the chunk is a dropped (p0) trace.
- */
-bool ddog_v1_get_chunk_dropped_trace(const struct ddog_TracerPayloadV1Builder *builder,
-                                     uintptr_t chunk);
-
-/**
  * Number of chunk-level attributes.
  */
 uintptr_t ddog_v1_get_chunk_attr_count(const struct ddog_TracerPayloadV1Builder *builder,

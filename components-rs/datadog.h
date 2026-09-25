@@ -323,12 +323,6 @@ void ddog_set_chunk_origin(ddog_ChunkNode *chunk, ddog_CharSlice origin);
  * # Safety
  * See [`ddog_set_chunk_origin`].
  */
-void ddog_set_chunk_dropped_trace(ddog_ChunkNode *chunk, bool dropped);
-
-/**
- * # Safety
- * See [`ddog_set_chunk_origin`].
- */
 void ddog_set_chunk_sampling_priority(ddog_ChunkNode *chunk, int32_t priority);
 
 /**
