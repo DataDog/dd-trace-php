@@ -1,0 +1,27 @@
+{
+  "scale_by_duration": false,
+  "test_name": "php_allocation_upscaling_mixed_sizes",
+  "note": "523264 * 65536 + 1024 * 33554432 = 68652367872 payload bytes in 524288 allocations at one call site. An allocation of size s has sampling probability p = 1 - exp(-s / L), where L is the sampling interval. Estimated totals are sums of 1/p for count and s/p for bytes over sampled allocations: in expectation, p * (1/p) = 1 and p * (s/p) = s. At L = 4 MiB, relative standard deviations are 1.10% for count and 0.55% for bytes; the 6% margins exceed five standard deviations. String headers add less than 0.1%.",
+  "stacks": [
+    {
+      "profile-type": "alloc-size",
+      "value-matching-sum": 68652367872,
+      "error-margin": 6,
+      "stack-content": [
+        {
+          "regular_expression": "<?php;main;allocate_varying_size;standard\\|str_repeat$"
+        }
+      ]
+    },
+    {
+      "profile-type": "alloc-samples",
+      "value-matching-sum": 524288,
+      "error-margin": 6,
+      "stack-content": [
+        {
+          "regular_expression": "<?php;main;allocate_varying_size;standard\\|str_repeat$"
+        }
+      ]
+    }
+  ]
+}
