@@ -172,10 +172,13 @@ unsafe fn extract_file_and_line(
 #[cfg(php_run_time_cache)]
 mod detail {
     use super::*;
+    use crate::profiling::module_globals;
     use crate::profiling::string_set::StringSet;
-    use crate::profiling::{RefCellExt, RefCellExtError};
+    #[cfg(feature = "debug_stats")]
+    use crate::profiling::RefCellExt;
     use libdd_profiling::profiles::collections::ThinStr;
     use log::{debug, trace};
+    #[cfg(feature = "debug_stats")]
     use std::cell::RefCell;
     use std::ffi::c_void;
 
@@ -250,9 +253,8 @@ mod detail {
         }
     }
 
+    #[cfg(feature = "debug_stats")]
     thread_local! {
-        static CACHED_STRINGS: RefCell<StringSet> = RefCell::new(StringSet::new());
-        #[cfg(feature = "debug_stats")]
         static FUNCTION_CACHE_STATS: RefCell<FunctionRunTimeCacheStats> =
             const { RefCell::new(FunctionRunTimeCacheStats::new()) }
     }
@@ -274,7 +276,13 @@ mod detail {
             });
         }
 
-        let result = CACHED_STRINGS.try_with_borrow_mut(|string_set| {
+        // SAFETY: RSHUTDOWN runs after GINIT and before GSHUTDOWN on the
+        // current PHP thread.
+        let cached_strings = unsafe {
+            let globals = module_globals::get_profiler_globals();
+            (&*(*globals).cached_strings.get()).assume_init_ref()
+        };
+        let result = cached_strings.try_borrow_mut().map(|mut string_set| {
             // A slow ramp up to 2 MiB is probably _not_ going to look like a
             // memory leak. A higher threshold may make a user suspect a leak.
             const THRESHOLD: usize = 2 * 1024 * 1024;
@@ -293,7 +301,7 @@ mod detail {
 
         if let Err(err) = result {
             // Debug level because rshutdown could be quite spammy.
-            debug!("failed to borrow request locals in rshutdown: {err}");
+            debug!("failed to borrow string cache in rshutdown: {err}");
         }
     }
 
@@ -303,7 +311,7 @@ mod detail {
     /// Returns [`CollectStackSampleError::TryReserveError`] if the vec holding the frames is
     /// unable to allocate memory.
     #[inline]
-    fn collect_stack_sample_cached(
+    pub(super) fn collect_stack_sample_cached(
         top_execute_data: *mut zend_execute_data,
         string_set: &mut StringSet,
     ) -> Result<Backtrace, CollectStackSampleError> {
@@ -389,13 +397,14 @@ mod detail {
     ) -> Result<Backtrace, CollectStackSampleError> {
         #[cfg(feature = "tracing")]
         let _span = tracing::trace_span!("collect_stack_sample").entered();
-        CACHED_STRINGS
-            .try_with_borrow_mut(|set| collect_stack_sample_cached(execute_data, set))
-            .unwrap_or_else(|err| match err {
-                RefCellExtError::AccessError(e) => Err(e.into()),
-                RefCellExtError::BorrowError(e) => Err(e.into()),
-                RefCellExtError::BorrowMutError(e) => Err(e.into()),
-            })
+        // SAFETY: stack samples are collected after GINIT and before
+        // GSHUTDOWN on the current PHP thread.
+        let cached_strings = unsafe {
+            let globals = module_globals::get_profiler_globals();
+            (&*(*globals).cached_strings.get()).assume_init_ref()
+        };
+        let mut set = cached_strings.try_borrow_mut()?;
+        collect_stack_sample_cached(execute_data, &mut set)
     }
 
     unsafe fn collect_call_frame(
@@ -597,6 +606,12 @@ mod tests {
         unsafe {
             let fake_execute_data = zend::ddog_php_test_create_fake_zend_execute_data(3);
 
+            #[cfg(php_run_time_cache)]
+            let stack = {
+                let mut string_set = crate::profiling::string_set::StringSet::new();
+                detail::collect_stack_sample_cached(fake_execute_data, &mut string_set).unwrap()
+            };
+            #[cfg(not(php_run_time_cache))]
             let stack = collect_stack_sample(fake_execute_data).unwrap();
 
             assert_eq!(stack.len(), 3);

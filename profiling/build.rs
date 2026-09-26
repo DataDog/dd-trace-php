@@ -575,11 +575,14 @@ fn apple_linker_flags() {
         "_zend_accel_schedule_restart_hook",
         "_zend_alter_ini_entry_ex",
         "_zend_ce_throwable",
+        "_zend_call_function",
+        "_zend_call_stack_init",
         "_zend_compile_file",
         "_zend_compile_string",
         "_zend_empty_string",
         "_zend_extensions",
         "_zend_flf_functions",
+        "_zend_fcall_info_init",
         "_zend_flf_handlers",
         "_zend_gc_get_status",
         "_zend_generator_check_placeholder_frame",
@@ -613,6 +616,7 @@ fn apple_linker_flags() {
         "_zend_mm_shutdown",
         "_zend_new_interned_string",
         "_zend_observer_error_register",
+        "_zend_parse_parameters",
         "_zend_post_startup_cb",
         "_zend_register_extension",
         "_zend_register_ini_entries",
@@ -652,6 +656,8 @@ fn apple_linker_flags() {
         "_executor_globals_offset",
         "_sapi_globals_offset",
         // Zend parameter error (may appear with certain PHP versions/features)
+        "_zend_wrong_parameter_error",
+        "_zend_wrong_parameters_count_error",
         "_zend_wrong_parameters_none_error",
     ];
 
