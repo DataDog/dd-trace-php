@@ -11,6 +11,9 @@ cp /test-resources/public/wp-config.php wp-config.php
 cp /test-resources/public/index.php index.php
 cp /test-resources/public/login_trigger.php login_trigger.php
 cp /test-resources/public/hello.php hello.php
+mkdir -p wp-content/mu-plugins
+cp /test-resources/public/wp-content/mu-plugins/normalized-route-test.php \
+    wp-content/mu-plugins/normalized-route-test.php
 
 # Download WP-CLI
 curl -sf https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar -o /usr/local/bin/wp
