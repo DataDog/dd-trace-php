@@ -168,6 +168,7 @@ pub enum LabelValue {
 pub struct Label {
     pub key: &'static str,
     pub value: LabelValue,
+    pub hidden: bool,
 }
 
 struct SampleLabels {
@@ -198,12 +199,14 @@ impl<'a> From<&'a Label> for ApiLabel<'a> {
                 str,
                 num: 0,
                 num_unit: "",
+                hidden: label.hidden,
             },
             LabelValue::Num(num, num_unit) => Self {
                 key,
                 str: "",
                 num,
                 num_unit,
+                hidden: label.hidden,
             },
         }
     }
@@ -735,6 +738,7 @@ impl TimeCollector {
 
         let timestamp = NonZeroI64::new(message.value.timestamp);
 
+        // Poisson samples carry hidden event-size labels to prevent mixed-size aggregation.
         match profile.try_add_sample(sample, timestamp) {
             Ok(_id) => {}
             Err(err) => {
@@ -1250,7 +1254,12 @@ impl Profiler {
                         (0, 0, 0, NO_TIMESTAMP)
                     };
 
-                let labels = Profiler::common_labels(0);
+                let mut labels = Profiler::common_labels(1);
+                labels.push(Label {
+                    key: "allocation_size",
+                    value: LabelValue::Num(alloc_size, "bytes"),
+                    hidden: true,
+                });
                 let n_labels = labels.len();
 
                 // Note: heap_live_samples/heap_live_size are NOT included here.
@@ -1325,12 +1334,14 @@ impl Profiler {
                 labels.push(Label {
                     key: "exception type",
                     value: LabelValue::Str(exception.clone().into()),
+                    hidden: false,
                 });
 
                 if let Some(message) = message {
                     labels.push(Label {
                         key: "exception message",
                         value: LabelValue::Str(message.into()),
+                        hidden: false,
                     });
                 }
 
@@ -1364,6 +1375,7 @@ impl Profiler {
     const TIMELINE_COMPILE_FILE_LABELS: &'static [Label] = &[Label {
         key: "event",
         value: LabelValue::Str(Cow::Borrowed("compilation")),
+        hidden: false,
     }];
 
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
@@ -1409,6 +1421,7 @@ impl Profiler {
         labels.push(Label {
             key: "filename",
             value: LabelValue::Str(Cow::from(filename)),
+            hidden: false,
         });
 
         let n_labels = labels.len();
@@ -1446,6 +1459,7 @@ impl Profiler {
         labels.push(Label {
             key: "event",
             value: LabelValue::Str(std::borrow::Cow::Borrowed(event)),
+            hidden: false,
         });
 
         let n_labels = labels.len();
@@ -1480,10 +1494,12 @@ impl Profiler {
         labels.push(Label {
             key: "event",
             value: LabelValue::Str("fatal".into()),
+            hidden: false,
         });
         labels.push(Label {
             key: "message",
             value: LabelValue::Str(message.into()),
+            hidden: false,
         });
 
         let n_labels = labels.len();
@@ -1527,10 +1543,12 @@ impl Profiler {
         labels.push(Label {
             key: "event",
             value: LabelValue::Str("opcache_restart".into()),
+            hidden: false,
         });
         labels.push(Label {
             key: "reason",
             value: LabelValue::Str(reason.into()),
+            hidden: false,
         });
 
         let n_labels = labels.len();
@@ -1567,6 +1585,7 @@ impl Profiler {
         labels.push(Label {
             key: "event",
             value: LabelValue::Str(reason.into()),
+            hidden: false,
         });
 
         let n_labels = labels.len();
@@ -1609,21 +1628,25 @@ impl Profiler {
         labels.push(Label {
             key: "event",
             value: LabelValue::Str(Cow::Borrowed("gc")),
+            hidden: false,
         });
 
         labels.push(Label {
             key: "gc reason",
             value: LabelValue::Str(Cow::from(reason)),
+            hidden: false,
         });
 
         #[cfg(php_gc_status)]
         labels.push(Label {
             key: "gc runs",
             value: LabelValue::Num(runs, "count"),
+            hidden: false,
         });
         labels.push(Label {
             key: "gc collected",
             value: LabelValue::Num(collected, "count"),
+            hidden: false,
         });
         let n_labels = labels.len();
 
@@ -1656,7 +1679,7 @@ impl Profiler {
         any(target_os = "linux", target_os = "macos")
     ))]
     pub fn collect_socket_read_time(&self, ed: *mut zend_execute_data, socket_io_read_time: i64) {
-        self.collect_io(ed, |vals| {
+        self.collect_io(ed, socket_io_read_time, "nanoseconds", |vals| {
             vals.socket_read_time = socket_io_read_time;
             vals.socket_read_time_samples = 1;
         })
@@ -1667,7 +1690,7 @@ impl Profiler {
         any(target_os = "linux", target_os = "macos")
     ))]
     pub fn collect_socket_write_time(&self, ed: *mut zend_execute_data, socket_io_write_time: i64) {
-        self.collect_io(ed, |vals| {
+        self.collect_io(ed, socket_io_write_time, "nanoseconds", |vals| {
             vals.socket_write_time = socket_io_write_time;
             vals.socket_write_time_samples = 1;
         })
@@ -1678,7 +1701,7 @@ impl Profiler {
         any(target_os = "linux", target_os = "macos")
     ))]
     pub fn collect_file_read_time(&self, ed: *mut zend_execute_data, file_io_read_time: i64) {
-        self.collect_io(ed, |vals| {
+        self.collect_io(ed, file_io_read_time, "nanoseconds", |vals| {
             vals.file_io_read_time = file_io_read_time;
             vals.file_io_read_time_samples = 1;
         })
@@ -1689,7 +1712,7 @@ impl Profiler {
         any(target_os = "linux", target_os = "macos")
     ))]
     pub fn collect_file_write_time(&self, ed: *mut zend_execute_data, file_io_write_time: i64) {
-        self.collect_io(ed, |vals| {
+        self.collect_io(ed, file_io_write_time, "nanoseconds", |vals| {
             vals.file_io_write_time = file_io_write_time;
             vals.file_io_write_time_samples = 1;
         })
@@ -1700,7 +1723,7 @@ impl Profiler {
         any(target_os = "linux", target_os = "macos")
     ))]
     pub fn collect_socket_read_size(&self, ed: *mut zend_execute_data, socket_io_read_size: i64) {
-        self.collect_io(ed, |vals| {
+        self.collect_io(ed, socket_io_read_size, "bytes", |vals| {
             vals.socket_read_size = socket_io_read_size;
             vals.socket_read_size_samples = 1;
         })
@@ -1711,7 +1734,7 @@ impl Profiler {
         any(target_os = "linux", target_os = "macos")
     ))]
     pub fn collect_socket_write_size(&self, ed: *mut zend_execute_data, socket_io_write_size: i64) {
-        self.collect_io(ed, |vals| {
+        self.collect_io(ed, socket_io_write_size, "bytes", |vals| {
             vals.socket_write_size = socket_io_write_size;
             vals.socket_write_size_samples = 1;
         })
@@ -1722,7 +1745,7 @@ impl Profiler {
         any(target_os = "linux", target_os = "macos")
     ))]
     pub fn collect_file_read_size(&self, ed: *mut zend_execute_data, file_io_read_size: i64) {
-        self.collect_io(ed, |vals| {
+        self.collect_io(ed, file_io_read_size, "bytes", |vals| {
             vals.file_io_read_size = file_io_read_size;
             vals.file_io_read_size_samples = 1;
         })
@@ -1733,7 +1756,7 @@ impl Profiler {
         any(target_os = "linux", target_os = "macos")
     ))]
     pub fn collect_file_write_size(&self, ed: *mut zend_execute_data, file_io_write_size: i64) {
-        self.collect_io(ed, |vals| {
+        self.collect_io(ed, file_io_write_size, "bytes", |vals| {
             vals.file_io_write_size = file_io_write_size;
             vals.file_io_write_size_samples = 1;
         })
@@ -1743,15 +1766,25 @@ impl Profiler {
         feature = "io_profiling",
         any(target_os = "linux", target_os = "macos")
     ))]
-    pub fn collect_io<F>(&self, execute_data: *mut zend_execute_data, set_value: F)
-    where
+    pub fn collect_io<F>(
+        &self,
+        execute_data: *mut zend_execute_data,
+        sample_size: i64,
+        sample_unit: &'static str,
+        set_value: F,
+    ) where
         F: FnOnce(&mut SampleValues),
     {
         let result = self.collect_stack_sample_timed(execute_data);
         match result {
             Ok(frames) => {
                 let depth = frames.len();
-                let labels = Profiler::common_labels(0);
+                let mut labels = Profiler::common_labels(1);
+                labels.push(Label {
+                    key: "io_sample_size",
+                    value: LabelValue::Num(sample_size, sample_unit),
+                    hidden: true,
+                });
 
                 let n_labels = labels.len();
 
@@ -1851,11 +1884,13 @@ impl Profiler {
         labels.push(Label {
             key: "thread id",
             value: LabelValue::Num(thread_id, "id"),
+            hidden: false,
         });
 
         labels.push(Label {
             key: "thread name",
             value: LabelValue::Str(get_current_thread_name().into()),
+            hidden: false,
         });
 
         if local_root_span_id != 0 {
@@ -1867,11 +1902,13 @@ impl Profiler {
             labels.push(Label {
                 key: "local root span id",
                 value: LabelValue::Num(local_root_span_id, ""),
+                hidden: false,
             });
 
             labels.push(Label {
                 key: "span id",
                 value: LabelValue::Num(span_id, ""),
+                hidden: false,
             });
         }
 
@@ -1886,6 +1923,7 @@ impl Profiler {
                 labels.push(Label {
                     key: "fiber",
                     value: LabelValue::Str(functionname),
+                    hidden: false,
                 });
             }
         }
@@ -2014,6 +2052,23 @@ mod tests {
             file_io_read_size_samples: 141,
             file_io_write_size: 150,
             file_io_write_size_samples: 151,
+        }
+    }
+
+    #[test]
+    fn label_visibility_survives_conversion() {
+        for value in [
+            LabelValue::Str("main".into()),
+            LabelValue::Num(125, "bytes"),
+        ] {
+            for hidden in [false, true] {
+                let label = Label {
+                    key: "test",
+                    value: value.clone(),
+                    hidden,
+                };
+                assert_eq!(ApiLabel::from(&label).hidden, hidden);
+            }
         }
     }
 
