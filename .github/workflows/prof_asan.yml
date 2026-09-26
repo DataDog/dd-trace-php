@@ -19,7 +19,6 @@ jobs:
       CARGO_HOME: /rust/cargo
       RUSTUP_HOME: /rust/rustup
       CARGO_TARGET_DIR: /tmp/build-cargo
-      RUST_TOOLCHAIN: nightly-2025-10-31
     container:
       image: datadog/dd-trace-ci:php-${{matrix.php-version}}_bookworm-11
       # https://docs.github.com/en/actions/creating-actions/dockerfile-support-for-github-actions#user
@@ -47,7 +46,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: /tmp/build-cargo/
-          key: ${{ runner.os }}-${{ runner.arch }}-cargo-target-asan-${{ matrix.php-version }}-${{ matrix.php-build }}-${{ env.RUST_TOOLCHAIN }}-${{ github.sha }}-${{ hashFiles('.github/workflows/prof_asan.yml') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-target-asan-${{ matrix.php-version }}-${{ matrix.php-build }}-${{ hashFiles('rust-toolchain.toml') }}-${{ github.sha }}-${{ hashFiles('.github/workflows/prof_asan.yml') }}
 
       - name: Build and install profiler
         run: |
@@ -56,15 +55,10 @@ jobs:
           export CC=clang-21
           export CFLAGS='-fsanitize=address -fsanitize-address-use-after-scope -fno-omit-frame-pointer'
           export LDFLAGS='-fsanitize=address -shared-libasan'
-          export RUSTC_LINKER=lld-21
-          rustup override set "${RUST_TOOLCHAIN}"
-          export RUSTFLAGS='-Zsanitizer=address -C force-frame-pointers=yes -C link-arg=-fsanitize=address -C link-arg=-shared-libasan'
-          export DDTRACE_PROFILING_TARGET="$(uname -m)-unknown-linux-gnu"
-          export DDTRACE_PROFILING_CARGO_BUILD_FLAGS='-Zbuild-std=std,panic_abort'
-          phpize
-          ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling --disable-ddtrace-rust-debug
-          make -j"$(nproc)"
-          cp -v modules/datadog-profiling.so "$(php-config --extension-dir)/datadog-profiling.so"
+          # Uses the stable toolchain from rust-toolchain.toml; see the
+          # compile_profiler_asan target for the Rust sanitizer setup.
+          make compile_profiler_asan
+          cp -v tmp/build_profiler_asan/modules/datadog-profiling.so "$(php-config --extension-dir)/datadog-profiling.so"
 
       - name: Run phpt tests
         run: |
@@ -125,12 +119,9 @@ jobs:
           export CXX=clang++-21
           export CFLAGS='-fsanitize=undefined,local-bounds -fno-sanitize-recover=all -fno-omit-frame-pointer'
           export LDFLAGS='-fsanitize=undefined,local-bounds -fno-sanitize-recover=all'
-          export RUSTC_LINKER=clang-21
           export RUSTFLAGS='-C link-arg=-fsanitize=undefined,local-bounds -C link-arg=-fno-sanitize-recover=all'
-          phpize
-          ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling
-          make -j"$(nproc)"
-          cp -v modules/datadog-profiling.so "$(php-config --extension-dir)/datadog-profiling.so"
+          make compile_profiler
+          cp -v tmp/build_profiler/modules/datadog-profiling.so "$(php-config --extension-dir)/datadog-profiling.so"
 
       - name: Run phpt tests
         run: |

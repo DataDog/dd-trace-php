@@ -6,7 +6,7 @@ if [ "$SCENARIO" = "profiler" ]; then
   # Run Profiling Benchmarks
   cd ../profiling/
 
-  make -C .. compile_profiler
+  make -C .. compile_profiler PROFILER_FEATURES=trigger_time_sample
 
   sirun benches/timeline.json > "$ARTIFACTS_DIR/sirun_timeline.ndjson"
 
