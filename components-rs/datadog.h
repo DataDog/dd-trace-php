@@ -8,6 +8,10 @@ struct _zend_string;
 #include "common.h"
 #include "telemetry.h"
 #include "sidecar.h"
+extern uint8_t datadog_formatted_session_id[36];
+extern uint8_t datadog_formatted_root_session_id[36];
+extern uint8_t datadog_formatted_parent_session_id[36];
+
 
 extern void (*ddog_log_callback)(ddog_CharSlice);
 
@@ -20,12 +24,6 @@ extern const uint8_t *DDOG_PHP_FUNCTION;
 extern ddog_Uuid datadog_runtime_id;
 
 extern ddog_Uuid datadog_session_id;
-
-extern uint8_t datadog_formatted_session_id[36];
-
-extern uint8_t datadog_formatted_root_session_id[36];
-
-extern uint8_t datadog_formatted_parent_session_id[36];
 
 /**
  * Read all agent /info data in one SHM read and apply env, container-hash and concentrator

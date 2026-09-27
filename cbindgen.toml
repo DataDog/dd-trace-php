@@ -6,6 +6,14 @@ header = """
 struct _zend_string;
 typedef struct _zend_string _zend_string;
 """
+# The Rust definitions use aligned wrappers that cbindgen must not expose.
+# Preserve the existing C array declarations; see
+# https://github.com/mozilla/cbindgen/issues/1185.
+after_includes = """
+extern uint8_t datadog_formatted_session_id[36];
+extern uint8_t datadog_formatted_root_session_id[36];
+extern uint8_t datadog_formatted_parent_session_id[36];
+"""
 
 no_includes = true
 sys_includes = ["stdbool.h", "stddef.h", "stdint.h"]

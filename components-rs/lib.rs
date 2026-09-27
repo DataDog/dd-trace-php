@@ -89,17 +89,33 @@ pub static mut datadog_runtime_id: Uuid = Uuid::nil();
 #[allow(non_upper_case_globals)]
 pub static mut datadog_session_id: Uuid = Uuid::nil();
 
-#[no_mangle]
-#[allow(non_upper_case_globals)]
-pub static mut datadog_formatted_session_id: [u8; 36] = [0u8; 36];
+/// cbindgen declares `[u8; 36]` globals as C arrays, which the x86-64 SysV ABI
+/// aligns to 16 bytes. Match that alignment on the Rust definition.
+///
+/// See https://github.com/mozilla/cbindgen/issues/1185.
+/// cbindgen:no-export
+#[repr(C, align(16))]
+pub struct FormattedSessionId {
+    pub bytes: [u8; 36],
+}
 
+/// cbindgen:no-export
 #[no_mangle]
 #[allow(non_upper_case_globals)]
-pub static mut datadog_formatted_root_session_id: [u8; 36] = [0u8; 36];
+pub static mut datadog_formatted_session_id: FormattedSessionId =
+    FormattedSessionId { bytes: [0u8; 36] };
 
+/// cbindgen:no-export
 #[no_mangle]
 #[allow(non_upper_case_globals)]
-pub static mut datadog_formatted_parent_session_id: [u8; 36] = [0u8; 36];
+pub static mut datadog_formatted_root_session_id: FormattedSessionId =
+    FormattedSessionId { bytes: [0u8; 36] };
+
+/// cbindgen:no-export
+#[no_mangle]
+#[allow(non_upper_case_globals)]
+pub static mut datadog_formatted_parent_session_id: FormattedSessionId =
+    FormattedSessionId { bytes: [0u8; 36] };
 
 /// # Safety
 /// Must be called from a single-threaded context, such as MINIT or first rinit.
@@ -116,7 +132,7 @@ pub unsafe extern "C" fn datadog_generate_session_id() {
     datadog_runtime_id = datadog_session_id;
     datadog_session_id
         .as_hyphenated()
-        .encode_lower(&mut datadog_formatted_session_id);
+        .encode_lower(&mut datadog_formatted_session_id.bytes);
 
     unsafe fn set(name: &str, value: &mut [u8; 36], force: bool) {
         if let Ok(str) = std::env::var(name) {
@@ -130,18 +146,18 @@ pub unsafe extern "C" fn datadog_generate_session_id() {
         }
         std::env::set_var(
             name,
-            OsStr::from_encoded_bytes_unchecked(&datadog_formatted_session_id),
+            OsStr::from_encoded_bytes_unchecked(&datadog_formatted_session_id.bytes),
         );
     }
 
     set(
         "_DD_PARENT_PHP_SESSION_ID",
-        &mut datadog_formatted_parent_session_id,
+        &mut datadog_formatted_parent_session_id.bytes,
         true,
     );
     set(
         "_DD_ROOT_PHP_SESSION_ID",
-        &mut datadog_formatted_root_session_id,
+        &mut datadog_formatted_root_session_id.bytes,
         false,
     );
 }
