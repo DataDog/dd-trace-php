@@ -1,8 +1,18 @@
 {
   "scale_by_duration": false,
   "test_name": "php_allocation_sampling_distance",
-  "note": "With allocation sampling distance set to 1, all 100 str_repeat allocations are selected for sampling. Allow 4% error because samples may be dropped when the profiler channel is full on CI. Assert only the count on the probe stack; allocation byte sizes may vary across PHP versions.",
+  "note": "With allocation sampling distance set to 1, all 100 str_repeat allocations are selected for sampling. Allow 4% error because samples may be dropped when the profiler channel is full on CI. Each call requests 136 bytes, which Zend MM rounds up to its 160 byte bin, so the probe stack must report 100 * 160 = 16000 bytes. Without rounding it would report 13600 bytes (-15%), outside the 4% margin.",
   "stacks": [
+    {
+      "profile-type": "alloc-size",
+      "value-matching-sum": 16000,
+      "error-margin": 4,
+      "stack-content": [
+        {
+          "regular_expression": "<?php;main;allocation_sampling_distance_probe;standard\\|str_repeat$"
+        }
+      ]
+    },
     {
       "profile-type": "alloc-samples",
       "value-matching-sum": 100,
