@@ -233,8 +233,7 @@ top-level `Makefile` (out-of-tree, in `tmp/build_profiler*/`), not by running
   **stable** toolchain from `rust-toolchain.toml`; the target sets
   `RUSTC_BOOTSTRAP=1` so stable accepts `-Zsanitizer=address` and
   `-Zbuild-std=std,panic_abort` (std is rebuilt instrumented, which needs the
-  `rust-src` component and an explicit `--target`). No nightly toolchain is
-  used. Output:
+  `rust-src` component and an explicit `--target`). Output:
   `tmp/build_profiler_asan/modules/datadog-profiling.so`.
 - **UBSAN** (`prof-ubsan`): `make compile_profiler` with UBSAN `CFLAGS`/`LDFLAGS`
   and `-C link-arg=-fsanitize=...` in `RUSTFLAGS`. Output:
