@@ -302,15 +302,23 @@ void datadog_signals_first_rinit(void) {
 
     bool install_crashtracker = get_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_CRASHTRACKING_ENABLED();
 
-    bool install_backtrace_handler = get_DD_TRACE_HEALTH_METRICS_ENABLED();
+    bool health_metrics = get_DD_TRACE_HEALTH_METRICS_ENABLED();
     bool log_backtrace = get_DD_LOG_BACKTRACE();
-    install_backtrace_handler |= log_backtrace && dd_backtrace_is_available();
+
+    if (log_backtrace && !dd_backtrace_is_available()) {
+        LOG(WARN, "Setting 'datadog.log_backtrace' is not supported on this platform, as backtrace() is unavailable (e.g. on musl). Ignoring it.");
+        log_backtrace = false;
+    }
 
     if (install_crashtracker) {
         dd_init_crashtracker();
     }
 
-    if (install_crashtracker && log_backtrace) {
+    if (!log_backtrace && !health_metrics) {
+        return;
+    }
+
+    if (install_crashtracker) {
         LOG(WARN, "Settings 'datadog.log_backtrace' and 'datadog.crashtracking_enabled' are mutually exclusive. Cannot enable the backtrace.");
         return;
     }
@@ -319,23 +327,16 @@ void datadog_signals_first_rinit(void) {
      * Using an alternate stack allows the handler to run even when the main
      * stack overflows.
      */
-    if (install_backtrace_handler) {
-        if (install_crashtracker) {
-            LOG(WARN, "Settings 'datadog.log_backtrace' and 'datadog.crashtracking_enabled' are mutually exclusive. Cannot enable the backtrace.");
-            return;
-        }
+    dd_signals_init_async_stack();
 
-        dd_signals_init_async_stack();
-
-        dd_altstack.ss_sp = dd_signal_async_stack;
-        dd_altstack.ss_size = dd_signal_async_stack_size;
-        dd_altstack.ss_flags = 0;
-        if (sigaltstack(&dd_altstack, NULL) == 0) {
-            dd_sigsegv_sigaction.sa_flags = SA_ONSTACK;
-            dd_sigsegv_sigaction.sa_handler = dd_sigsegv_handler;
-            sigemptyset(&dd_sigsegv_sigaction.sa_mask);
-            sigaction(SIGSEGV, &dd_sigsegv_sigaction, NULL);
-        }
+    dd_altstack.ss_sp = dd_signal_async_stack;
+    dd_altstack.ss_size = dd_signal_async_stack_size;
+    dd_altstack.ss_flags = 0;
+    if (sigaltstack(&dd_altstack, NULL) == 0) {
+        dd_sigsegv_sigaction.sa_flags = SA_ONSTACK;
+        dd_sigsegv_sigaction.sa_handler = dd_sigsegv_handler;
+        sigemptyset(&dd_sigsegv_sigaction.sa_mask);
+        sigaction(SIGSEGV, &dd_sigsegv_sigaction, NULL);
     }
 }
 
