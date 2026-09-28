@@ -475,6 +475,7 @@ function install($options)
     $interactive = empty($options[OPT_PHP_BIN]);
 
     $commandExtensionSuffixes = [];
+    $downloadVersions = [];
     foreach ($selectedBinaries as $command => $fullPath) {
         $binaryForLog = ($command === $fullPath) ? $fullPath : "$command ($fullPath)";
         echo "Checking for binary: $binaryForLog\n";
@@ -513,6 +514,14 @@ function install($options)
         }
 
         $commandExtensionSuffixes[$command] = $extensionSuffix;
+
+        $extensionVersion = $phpProperties[PHP_API];
+        $downloadVersions["$extensionVersion$extensionSuffix"] = true;
+    }
+
+    $tar_gz_suffix = "";
+    if (count($downloadVersions) === 1) {
+        $tar_gz_suffix = "-" . key($downloadVersions);
     }
 
     // Preparing clean tmp folder to extract files
@@ -537,9 +546,14 @@ function install($options)
         print_warning('--' . OPT_FILE . ' option is intended for internal usage and can be removed without notice');
         $tmpDirTarGz = $options[OPT_FILE];
     } else {
-        $url = RELEASE_URL_PREFIX . "dd-library-php-" . RELEASE_VERSION . "-{$platform}.tar.gz";
-        $tmpDirTarGz = $tmpDir . "/dd-library-php-{$platform}.tar.gz";
-        download($url, $tmpDirTarGz);
+        for (;;) {
+            $url = RELEASE_URL_PREFIX . "dd-library-php-" . RELEASE_VERSION . "-{$platform}{$tar_gz_suffix}.tar.gz";
+            $tmpDirTarGz = $tmpDir . "/dd-library-php-{$platform}{$tar_gz_suffix}.tar.gz";
+            if (download($url, $tmpDirTarGz, $tar_gz_suffix != "")) {
+                break;
+            }
+            $tar_gz_suffix = ""; // retry with the full archive if the original download failed
+        }
     }
     if (!IS_WINDOWS || shell_exec("where tar 2> nul") !== null) {
         execute_or_exit(

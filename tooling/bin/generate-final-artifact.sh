@@ -124,6 +124,50 @@ archive_bundle() {
         -C "$root" .
 }
 
+# datadog-setup.php downloads a tarball with only the extensions for the PHP
+# API and configuration it installs, falling back to the full bundle when a
+# single tarball cannot cover all the selected binaries. Derive these per-version
+# tarballs from the already assembled full bundle in root.
+archive_per_version_bundles() {
+    local root=$1
+    local platform=$2
+    local tracer_prefix=$3
+    local extension=$4
+    local library=./dd-library-php
+    local tracer tracer_file php_api config profiler appsec file
+    local paths
+
+    for tracer in "$root/$library/trace/ext"/*/"${tracer_prefix}ddtrace"*".$extension"; do
+        tracer_file=$(basename "$tracer")
+        php_api=$(basename "$(dirname "$tracer")")
+        config=${tracer_file#"${tracer_prefix}ddtrace"}
+        config=${config%".$extension"}
+
+        paths=(
+            "$library/VERSION"
+            "$library/trace/src"
+            "$library/trace/ext/$php_api/$tracer_file"
+        )
+
+        profiler="$library/profiling/ext/$php_api/datadog-profiling${config}.$extension"
+        if [[ -f $root/$profiler ]]; then
+            paths+=("$profiler")
+            for file in "$root/$library/profiling"/{LICENSE*,NOTICE}; do
+                paths+=("$library/profiling/$(basename "$file")")
+            done
+        fi
+
+        appsec="$library/appsec/ext/$php_api/ddappsec${config}.$extension"
+        if [[ -f $root/$appsec ]]; then
+            paths+=("$appsec" "$library/appsec/etc/recommended.json")
+        fi
+
+        tar --owner=0 --group=0 -czv \
+            -f "$packages_build_dir/dd-library-php-${release_version}-${platform}-${php_api}${config}.tar.gz" \
+            -C "$root" "${paths[@]}"
+    done
+}
+
 build_linux_bundle() {
     local architecture=$1
     local root="$tmp_folder_final/${architecture}-linux"
@@ -161,6 +205,7 @@ build_linux_bundle() {
 
     archive_bundle "$root" \
         "dd-library-php-${release_version}-${architecture}-linux.tar.gz"
+    archive_per_version_bundles "$root" "${architecture}-linux" "" so
 }
 
 build_asan_bundle() {
@@ -205,6 +250,7 @@ build_windows_bundle() {
 
     archive_bundle "$root" \
         "dd-library-php-${release_version}-${architecture}-windows.tar.gz"
+    archive_per_version_bundles "$root" "${architecture}-windows" php_ dll
 }
 
 echo "Architectures: ${architectures[*]}"

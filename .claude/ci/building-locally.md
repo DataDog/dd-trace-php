@@ -309,6 +309,9 @@ BUNDLE_ARCH=x86_64 \
 
 Output in `build/packages/`:
 - `dd-library-php-<version>-x86_64-linux.tar.gz`
+- `dd-library-php-<version>-x86_64-linux-<PHP_API>[-zts|-debug].tar.gz`
+  — per-version subsets, which `datadog-setup.php` downloads when all
+  selected binaries share one PHP API and configuration
 - `datadog-setup.php`
 
 To also build `.deb`/`.rpm` packages (full CI equivalent), add the
