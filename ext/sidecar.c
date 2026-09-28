@@ -114,8 +114,12 @@ DATADOG_PUBLIC ddog_SidecarTransport **ddtrace_get_sidecar_transport(void) {
 }
 #endif
 
+static void dd_sidecar_setup_signal_transport(ddog_SidecarTransport *transport, bool replace);
+
 static ddog_SidecarTransport *datadog_sidecar_connect_callback(void) {
-    return datadog_sidecar_connect(false);
+    ddog_SidecarTransport *transport = datadog_sidecar_connect(false);
+    dd_sidecar_setup_signal_transport(transport, true);
+    return transport;
 }
 
 static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_fork, const char *logpath) {
@@ -205,10 +209,10 @@ void datadog_sidecar_refresh_user_service_defined(void) {
 }
 
 static void datadog_sidecar_setup_thread_mode(void);
-static void dd_sidecar_setup_signal_transport(void);
 
 static void dd_sidecar_on_reconnect(ddog_SidecarTransport *transport) {
     if (!datadog_endpoint || !dogstatsd_endpoint) {
+        dd_sidecar_setup_signal_transport(transport, true);
         return;
     }
 
@@ -235,6 +239,10 @@ static void dd_sidecar_on_reconnect(ddog_SidecarTransport *transport) {
     }
 
     tsrm_mutex_unlock(DATADOG_G(sidecar_universal_service_tags_mutex));
+
+    // Reconnect callbacks run before the new sender replaces DATADOG_G(sidecar).
+    // Prepare against the replacement passed to this callback, not the old sender.
+    dd_sidecar_setup_signal_transport(transport, true);
 }
 
 static ddog_SidecarTransport *dd_sidecar_connect(bool as_worker, bool is_fork) {
@@ -310,19 +318,24 @@ static ddog_SidecarTransport *dd_sidecar_connect(bool as_worker, bool is_fork) {
     return sidecar_transport;
 }
 
-static void dd_sidecar_setup_signal_transport(void) {
+static void dd_sidecar_setup_signal_transport(ddog_SidecarTransport *transport, bool replace) {
 #ifdef __linux__
-    if (datadog_signals_has_sidecar_flush() || !DATADOG_G(sidecar) ||
+    if ((!replace && datadog_signals_has_sidecar_flush()) || !transport ||
         (!get_global_DD_TRACE_FORCE_FLUSH_ON_SIGTERM() && !get_global_DD_TRACE_FORCE_FLUSH_ON_SIGINT())) {
         return;
     }
 
     ddog_SignalFlush *flush = NULL;
-    if (datadog_ffi_try("Failed preparing signal-only sidecar connection",
-                        datadog_sidecar_prepare_signal_flush(DATADOG_G(sidecar), &flush))) {
+    bool prepared = datadog_ffi_try("Failed preparing signal-only sidecar connection",
+                                    datadog_sidecar_prepare_signal_flush(transport, &flush));
+    if (prepared || replace) {
         // Takes ownership, including when another normal thread published first.
-        datadog_signals_set_sidecar_flush(flush);
+        // A failed refresh clears the stale object so a later RINIT can retry.
+        datadog_signals_set_sidecar_flush(flush, replace);
     }
+#else
+    (void)transport;
+    (void)replace;
 #endif
 }
 
@@ -488,7 +501,7 @@ void datadog_sidecar_setup(ddog_RemoteConfigFlags flags) {
     if (DATADOG_G(sidecar) && !datadog_sidecar_for_signal) {
         datadog_sidecar_for_signal = DATADOG_G(sidecar);
     }
-    dd_sidecar_setup_signal_transport();
+    dd_sidecar_setup_signal_transport(DATADOG_G(sidecar), false);
 }
 
 void datadog_sidecar_minit(void) {
@@ -568,7 +581,7 @@ void datadog_sidecar_handle_fork(void) {
     if (DATADOG_G(sidecar)) {
         datadog_sidecar_for_signal = DATADOG_G(sidecar);
     }
-    dd_sidecar_setup_signal_transport();
+    dd_sidecar_setup_signal_transport(DATADOG_G(sidecar), false);
 #endif
 }
 
@@ -603,7 +616,7 @@ void datadog_sidecar_ensure_active(void) {
             datadog_sidecar_for_signal = DATADOG_G(sidecar);
         }
     }
-    dd_sidecar_setup_signal_transport();
+    dd_sidecar_setup_signal_transport(DATADOG_G(sidecar), false);
 }
 
 void datadog_sidecar_finalize(bool clear_id) {

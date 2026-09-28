@@ -221,6 +221,14 @@ test_c2php: $(SO_FILE) $(INIT_HOOK_TEST_FILES) $(BUILD_DIR)/run-tests.php
 test_with_init_hook: $(SO_FILE) $(INIT_HOOK_TEST_FILES) $(BUILD_DIR)/run-tests.php
 	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(TRACER_SOURCES_INI) $(INIT_HOOK_TEST_FILES);
 
+# Exercise the Linux-only raw-clone lifetime gate in the normal CI pass.
+ifeq ($(shell uname -s),Linux)
+test_extension_ci_normal: test_signal_flush
+endif
+
+test_signal_flush:
+	bash tests/signal_flush/run.sh
+
 # The .phpt suite runs twice: normally, and under valgrind for leak checking.
 # Separate targets so CI can parallelize them -- valgrind is far slower.
 # The PATH shim in tests/ext/valgrind adds the suppressions file.
@@ -1706,6 +1714,6 @@ test_internal_api_randomized: $(SO_FILE)
 composer.lock: composer.json
 	$(call run_composer_with_retry,,)
 
-.PHONY: dev dist_clean clean cores all clang_format_check clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test_extension_ci_normal test_extension_ci_valgrind test_zai test_zai_asan test install_ini install_all \
+.PHONY: dev dist_clean clean cores all clang_format_check clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test_extension_ci_normal test_extension_ci_valgrind test_signal_flush test_zai test_zai_asan test install_ini install_all \
 	.apk .rpm .deb .tar.gz sudo debug prod strict run-tests.php verify_pecl_file_definitions verify_package_xml cbindgen cbindgen_binary \
 	compile_profiler install_profiler compile_profiler_asan

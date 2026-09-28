@@ -304,8 +304,8 @@ static struct sigaction dd_sigterm_prev_sigaction;
 static struct sigaction dd_sigint_prev_sigaction;
 
 // The cleanup stack and prepared flush object are allocated in ordinary
-// context. Once READY is published, the signal handler only reads them and
-// exactly one raw worker may use them.
+// context. A READY object may be replaced after reconnect, until exactly one
+// raw worker claims it. The object is immutable for the worker's lifetime.
 static char *dd_signal_cleanup_stack;
 static size_t dd_signal_cleanup_stack_size;
 static ddog_SignalFlush *dd_signal_flush;
@@ -317,12 +317,17 @@ static _Atomic(int) dd_signal_owner_pid;
 // primitive that does not depend on pthread state.
 static _Atomic(int) dd_signal_worker_tid;
 
-// The object is one-shot:
+// A READY object may be replaced until a signal handler claims it. Claiming an
+// object is one-shot:
 //
-//   DISABLED -> INSTALLING -> READY -> STARTING_* -> RUNNING_* -> STOPPED
-//                                  `-> FAILED -----------^
+//   Initial publication: DISABLED -> INSTALLING -> READY
+//   Successful refresh:  READY    -> INSTALLING -> READY
+//   Failed refresh:      READY    -> INSTALLING -> DISABLED
+//   Signal claim:        READY    -> STARTING_*  -> RUNNING_* -> STOPPED
+//                                             `-> FAILED -----------^
 //
 // INSTALLING protects publication from teardown. STARTING protects clone setup.
+// Reconnection may move READY back to INSTALLING; consumed objects never rearm.
 // The DEFAULT and CUSTOM variants preserve who is responsible for termination.
 enum {
     DD_SIGNAL_DISABLED,          // No flush object is installed.
@@ -353,11 +358,10 @@ bool datadog_signals_has_sidecar_flush(void) {
     return atomic_load_explicit(&dd_signal_state, memory_order_acquire) != DD_SIGNAL_DISABLED;
 }
 
-void datadog_signals_set_sidecar_flush(ddog_SignalFlush *flush) {
+void datadog_signals_set_sidecar_flush(ddog_SignalFlush *flush, bool replace) {
     // Consume `flush`. On success it becomes the process-wide signal flush
     // object; if it cannot be installed, destroy it before returning.
-    int expected = DD_SIGNAL_DISABLED;
-    if (!flush) {
+    if (!flush && !replace) {
         return;
     }
     // prevent a previous handler from suspending this publication
@@ -369,17 +373,32 @@ void datadog_signals_set_sidecar_flush(ddog_SignalFlush *flush) {
         datadog_sidecar_signal_flush_drop(flush);
         return;
     }
-    if (!atomic_compare_exchange_strong_explicit(&dd_signal_state, &expected, DD_SIGNAL_INSTALLING,
+    int owner_pid = getpid();
+    int expected = atomic_load_explicit(&dd_signal_state, memory_order_acquire);
+    bool can_install = expected == DD_SIGNAL_DISABLED || (replace && expected == DD_SIGNAL_READY);
+    if (!can_install ||
+        !atomic_compare_exchange_strong_explicit(&dd_signal_state, &expected, DD_SIGNAL_INSTALLING,
                                                  memory_order_acq_rel, memory_order_acquire)) {
         datadog_sidecar_signal_flush_drop(flush);
         sigprocmask(SIG_SETMASK, &old_signals, NULL);
         return;
     }
+    // Winning READY -> INSTALLING excludes the handler's READY -> STARTING CAS.
+    // If the handler won instead, the new object was dropped above and the
+    // worker retains the old object through its existing clear_child_tid join.
+    ddog_SignalFlush *previous = dd_signal_flush;
     dd_signal_flush = flush;
-    atomic_store_explicit(&dd_signal_owner_pid, getpid(), memory_order_relaxed);
-    // READY is the publication barrier for the pointer and owner PID. A handler
-    // can acquire READY only after both values have been initialized.
-    atomic_store_explicit(&dd_signal_state, DD_SIGNAL_READY, memory_order_release);
+    atomic_store_explicit(&dd_signal_owner_pid, owner_pid, memory_order_relaxed);
+    // READY publishes the pointer and owner PID. A failed refresh leaves no
+    // object and returns to DISABLED so normal request setup can retry later.
+    atomic_store_explicit(&dd_signal_state, flush ? DD_SIGNAL_READY : DD_SIGNAL_DISABLED, memory_order_release);
+    // A handler on another thread waits while the state is INSTALLING. Publish
+    // the final state before freeing `previous`: the signal may have interrupted
+    // that thread while it held the allocator lock. Freeing the object first
+    // could then block the publisher on that lock while the handler waits for the
+    // publisher, causing a deadlock. No worker can claim `previous` after our
+    // successful READY -> INSTALLING transition.
+    datadog_sidecar_signal_flush_drop(previous);
     // A pending SIGTERM/SIGINT may run as soon as the old mask is restored; at
     // that point it observes either the complete publication or a terminal state.
     sigprocmask(SIG_SETMASK, &old_signals, NULL);
@@ -460,8 +479,19 @@ static void dd_sigint_sigterm_handler(int sig, siginfo_t *si, void *uc) {
     int starting = terminate ? DD_SIGNAL_STARTING_DEFAULT : DD_SIGNAL_STARTING_CUSTOM;
     // READY is consumed exactly once. Besides preventing duplicate workers, the
     // acquire half makes the prepared flush object and owner PID visible.
-    if (!atomic_compare_exchange_strong_explicit(&dd_signal_state, &expected, starting, memory_order_acq_rel,
-                                                 memory_order_acquire)) {
+    while (!atomic_compare_exchange_strong_explicit(&dd_signal_state, &expected, starting, memory_order_acq_rel,
+                                                    memory_order_acquire)) {
+        if (expected == DD_SIGNAL_INSTALLING &&
+            datadog_raw_syscall6(SYS_getpid, 0, 0, 0, 0, 0, 0) ==
+                atomic_load_explicit(&dd_signal_owner_pid, memory_order_relaxed)) {
+            // The publisher blocks SIGTERM/SIGINT on its own thread and only
+            // performs lock-free stores while INSTALLING. Let it finish before
+            // claiming the replacement. Never wait for a publisher inherited
+            // across fork: that thread does not exist in the child.
+            datadog_raw_syscall6(SYS_sched_yield, 0, 0, 0, 0, 0, 0);
+            expected = DD_SIGNAL_READY;
+            continue;
+        }
         // A worker handling a default-disposition signal will terminate the
         // process after flushing. Do not let another default signal iterrupt
         // the flush early by invoking the previous disposition.
