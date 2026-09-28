@@ -509,6 +509,11 @@ static PHP_MINIT_FUNCTION(datadog) {
     datadog_signals_minit();
 #endif
     ddtrace_set_container_cgroup_path((ddog_CharSlice){ .ptr = DATADOG_G(cgroup_file), .len = strlen(DATADOG_G(cgroup_file)) });
+#ifdef __linux__
+    // Publishing from the master lets worker children reuse inferred TLS offsets.
+    // Process tags are added on the first request in each process.
+    datadog_publish_otel_process_context(DDOG_CHARSLICE_C(""));
+#endif
 
     return SUCCESS;
 }
@@ -547,6 +552,13 @@ static PHP_MSHUTDOWN_FUNCTION(datadog) {
 }
 
 static void dd_rinit_once(void) {
+    /* datadog_disable == 1 returns early from MINIT, so skip first-RINIT
+     * setup entirely. State 2 completes MINIT but may skip activation (e.g.
+     * for excluded modules) */
+    if (datadog_disable == 1) {
+        return;
+    }
+
     // Collect process tags now that script path is available
     if (get_global_DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED()) {
         datadog_process_tags_first_rinit();
@@ -569,6 +581,8 @@ static void dd_rinit_once(void) {
     datadog_startup_logging_first_rinit();
 
 #ifdef DDTRACE
+    /* The Zend extension activation callback runs before module RINIT, so
+     * ddtrace_coms_minit() has either completed or been skipped here. */
     ddtrace_first_rinit();
 #endif
 }
@@ -652,10 +666,6 @@ static PHP_RSHUTDOWN_FUNCTION(datadog) {
     bool fast_shutdown = is_zend_mm() && !EG(full_tables_cleanup);
 #endif
 
-    if (DATADOG_G(remote_config_state)) {
-        datadog_rshutdown_remote_config();
-    }
-
     if (!datadog_disable) {
         dd_shutdown_observer();
     }
@@ -666,6 +676,11 @@ static PHP_RSHUTDOWN_FUNCTION(datadog) {
 
     datadog_sidecar_finalize(true);
     DATADOG_G(request_initialized) = false;
+    /* A signal may have queued a Remote Config reread during RSHUTDOWN. */
+    DATADOG_G(reread_remote_configuration) = 0;
+    if (DATADOG_G(remote_config_state)) {
+        datadog_rshutdown_remote_config();
+    }
 
     datadog_telemetry_rshutdown();
     datadog_sidecar_rshutdown();
