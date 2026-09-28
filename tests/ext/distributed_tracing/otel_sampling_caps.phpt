@@ -39,6 +39,15 @@ $tracestate = headersWithTracestate(implode(',', $largeVendors))['tracestate'];
 echo 'bytes=', strlen($tracestate) <= 512 ? 'within-cap' : 'over-cap',
     ' complete=', substr($tracestate, -1) === 'x' ? 'yes' : 'no', PHP_EOL;
 
+// Keep both vendor values below 256 bytes while filling the entire header budget.
+// PHP < 8.1's printf string precision limit must not truncate a valid 512-byte header.
+$ownedBytes = strlen(headersWithTracestate('')['tracestate']);
+$vendorBytes = 512 - $ownedBytes - strlen(',vendor0=,vendor1=');
+$tracestate = headersWithTracestate('vendor0=' . str_repeat('x', intdiv($vendorBytes, 2))
+    . ',vendor1=' . str_repeat('x', $vendorBytes - intdiv($vendorBytes, 2)))['tracestate'];
+echo 'boundary-bytes=', strlen($tracestate),
+    ' complete=', substr($tracestate, -1) === 'x' ? 'yes' : 'no', PHP_EOL;
+
 $largeDatadog = 'dd=p:0000000000000001;t.large:' . str_repeat('x', 470);
 $tracestate = headersWithTracestate($largeDatadog)['tracestate'];
 $members = explode(',', $tracestate);
@@ -62,5 +71,6 @@ echo 'ot-bytes=', strlen($matches[1]),
 --EXPECTF--
 members=32 leading=dd,ot
 bytes=within-cap complete=yes
+boundary-bytes=512 complete=yes
 owned-bytes=within-cap leading=dd,ot large=dropped
 ot-bytes=33 future=dropped next=kept

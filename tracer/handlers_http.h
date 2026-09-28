@@ -105,12 +105,17 @@ static inline zend_string *ddtrace_format_tracestate(zend_string *tracestate, ui
         ZSTR_LEN(str.s)--;
     }
 
-    if (str.s) {
-        zend_string *full_tracestate = zend_strpprintf(0, "%s%.*s", hasdd ? "dd=" : "", (int)ZSTR_LEN(str.s), ZSTR_VAL(str.s));
+    if (hasdd) {
+        // PHP < 8.1 caps printf string precision at 500, truncating members before the tracestate limiter sees them.
+        zend_string *full_tracestate = zend_string_alloc(3 + ZSTR_LEN(str.s), 0);
+        memcpy(ZSTR_VAL(full_tracestate), "dd=", 3);
+        memcpy(ZSTR_VAL(full_tracestate) + 3, ZSTR_VAL(str.s), ZSTR_LEN(str.s));
+        ZSTR_VAL(full_tracestate)[ZSTR_LEN(full_tracestate)] = '\0';
         smart_str_free(&str);
         return full_tracestate;
     }
-    return NULL;
+    smart_str_0(&str);
+    return str.s;
 }
 
 static inline zend_string *ddtrace_percent_encode(zend_string *string, bool is_key) {
@@ -411,7 +416,7 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
                 zend_string *full_tracestate = ddtrace_format_tracestate(tracestate, propagated_span_id, origin, sampling_priority, propagated_tags, tracestate_unknown_dd_keys, otel_sampling);
                 full_tracestate = ddtrace_otel_sampling_limit_tracestate(full_tracestate);
                 if (full_tracestate) {
-                    ADD_HEADER("tracestate", "%.*s", (int)ZSTR_LEN(full_tracestate), ZSTR_VAL(full_tracestate));
+                    ADD_HEADER("tracestate", "%s", ZSTR_VAL(full_tracestate));
                     zend_string_release(full_tracestate);
                 }
             }
