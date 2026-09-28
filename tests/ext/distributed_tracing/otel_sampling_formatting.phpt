@@ -24,6 +24,7 @@ foreach ([
     'th:08',
     'th:00000000000000',
     'rv:00000000000000',
+    'rv:00000000000001',
     'rv:ffffffffffffffff;th:ffffffffffffffff',
     'rv:invalid;rv:00000000000000;th:invalid;th:0',
     'foo:bar;next:value',
@@ -51,6 +52,7 @@ th:8
 th:08
 th:0
 rv:00000000000000
+rv:00000000000001
 <absent>
 rv:00000000000000;th:0
 foo:bar;next:value

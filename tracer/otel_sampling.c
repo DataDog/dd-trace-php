@@ -193,7 +193,7 @@ void ddtrace_otel_sampling_append_to_tracestate(smart_str* tracestate, const ddt
   size_t value_offset = ZSTR_LEN(tracestate->s);
 
   if (has_random_value) {
-    smart_str_append_printf(tracestate, "rv:%0*" PRIx64, 14, state->random_value);
+    smart_str_append_printf(tracestate, "rv:%014" PRIx64, state->random_value);
   }
   if (has_threshold) {
     if (has_random_value) {
