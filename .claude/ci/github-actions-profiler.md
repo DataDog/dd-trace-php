@@ -13,10 +13,11 @@
 |--------|--------|-------------|
 | `Profiling correctness / prof-correctness ({ver}, nts)` | `ubuntu-24.04` | Builds profiler + runs NTS correctness test cases |
 | `Profiling correctness / prof-correctness ({ver}, zts)` | `ubuntu-24.04` | Same + `exceptions_zts` (requires `parallel` PECL extension) |
-| `Profiling ASAN Tests / prof-asan ({ver}, {arch})` | `arm-8core-linux` / `ubuntu-8-core-latest` | Builds profiler with ASAN + runs `.phpt` profiling tests |
+| `Profiling ASAN/UBSAN Tests / PHP 8.5 {nts,zts} UBSAN ({arch})` | `arm-8core-linux` / `ubuntu-8-core-latest` | Builds profiler with UBSAN + runs `.phpt` profiling tests |
 
 Correctness matrix: PHP 8.0+ × {nts, zts}.
-ASAN matrix: PHP 8.3+ × {arm64, amd64}.
+ASAN matrix: PHP 8.3+ × {nts-asan, debug-zts-asan} × {arm64, amd64}.
+UBSAN matrix: PHP 8.5 × {nts, zts} × {arm64, amd64}.
 
 ## What It Tests
 
@@ -36,7 +37,8 @@ ZTS adds: `exceptions_zts`.
 
 Use `.claude/ci/dockerh` with the `datadog/dd-trace-ci:php-<VERSION>_bookworm-{N}` image
 matching the PHP version under test (see `index.md` for image version and contents). The CI
-uses clang-19 on ubuntu-24.04; clang-17 in the image works fine.
+uses clang-20 (`LLVM_VERSION` in `prof_correctness.yml`) on ubuntu-24.04; clang-21 in the
+image works fine.
 
 Actions jobs use `shivammathur/setup-php` instead, but the same `dd-trace-ci`
 image is a suitable local substitute.
@@ -63,13 +65,13 @@ overlaid `/project/dd-trace-php/target` fixes it.
 
 ```bash
 # NTS example (PHP 8.3)
-dockerh --cache profiler-8.3-nts --php nts datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+dockerh --cache profiler-8.3-nts --php nts datadog/dd-trace-ci:php-8.3_bookworm-11 -- bash -c '
 export CARGO_TARGET_DIR=/project/dd-trace-php/target
 cd profiling && cargo rustc --features=trigger_time_sample --profile profiler-release --crate-type=cdylib
 '
 
 # ZTS example (PHP 8.1) — note --php zts, matching image version, and separate cache name
-dockerh --cache profiler-8.1-zts --php zts datadog/dd-trace-ci:php-8.1_bookworm-6 -- bash -c '
+dockerh --cache profiler-8.1-zts --php zts datadog/dd-trace-ci:php-8.1_bookworm-11 -- bash -c '
 export CARGO_TARGET_DIR=/project/dd-trace-php/target
 cd profiling && cargo rustc --features=trigger_time_sample --profile profiler-release --crate-type=cdylib
 '
@@ -88,7 +90,7 @@ write pprof output there — no extra mounts needed:
 
 ```bash
 dockerh --cache profiler-8.3-nts --php nts \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-11 -- bash -c '
 export CARGO_TARGET_DIR=/project/dd-trace-php/target
 export DD_PROFILING_LOG_LEVEL=warn   # use "trace" only when debugging — trace is verbose and slows execution
 export DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=1
@@ -134,7 +136,7 @@ The pprof files are zstd-compressed protobuf. Use `go tool pprof` (available in 
 dd-trace-ci image) to inspect them. Pass `--user root` so `apt-get install` works:
 
 ```bash
-dockerh --cache profiler-8.3-nts --php nts datadog/dd-trace-ci:php-7.3_bookworm-6 --user root -- bash -c '
+dockerh --cache profiler-8.3-nts --php nts datadog/dd-trace-ci:php-7.3_bookworm-11 --user root -- bash -c '
 apt-get update -qq > /dev/null 2>&1 && apt-get install -y -qq zstd > /dev/null 2>&1
 
 PPROF_DIR=/project/dd-trace-php/tmp/correctness/allocations
@@ -231,7 +233,7 @@ and clang-17, then runs the `.phpt` test suite with `--asan`.
 
 ```bash
 dockerh --cache profiler-asan-8.3-nts --php nts-asan \
-  datadog/dd-trace-ci:php-8.3_bookworm-6 --user root --privileged -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-11 --user root --privileged -- bash -c '
 export CARGO_TARGET_DIR=/project/dd-trace-php/target
 export CC=clang-17
 export CFLAGS="-fsanitize=address -fno-omit-frame-pointer"
@@ -266,10 +268,12 @@ the workflow file for the current pinned version.
 
 ## Gotchas
 
-- **Expected ASAN test counts:** 39 total, ~27 pass, ~12 skip (30%), 0 fail. The skips are normal
+- **Expected test counts (PHP 8.5):** ASAN 47 total, 32 pass, 15 skip, 0 fail; UBSAN nts
+  47 total, 35 pass, 12 skip, 0 fail. The skips are normal
   (platform/env conditions). A non-zero fail count indicates a real problem.
-- The `profiler-release` profile is defined in the workspace root `Cargo.toml`, not in
-  `profiling/Cargo.toml`. It inherits from `release` with `panic = "abort"`.
+- The profiler is built from the root `datadog-php` crate (`Cargo.toml`, `--features profiling`);
+  there is no `profiling/Cargo.toml`. The `profiler-release` profile is defined there too and
+  inherits from `release` with `panic = "abort"`.
 - `dockerh` runs the container as your host UID so cache dirs are writable without any
   permission tricks. Pass `--user root` after the image name if you need to install
   packages with `apt-get`.
