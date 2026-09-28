@@ -319,7 +319,11 @@ void datadog_signals_first_rinit(void) {
     }
 
     if (install_crashtracker) {
-        LOG(WARN, "Settings 'datadog.log_backtrace' and 'datadog.crashtracking_enabled' are mutually exclusive. Cannot enable the backtrace.");
+        if (log_backtrace) {
+            LOG(WARN, "Settings 'datadog.log_backtrace' and 'datadog.crashtracking_enabled' are mutually exclusive. Cannot enable the backtrace.");
+        } else {
+            LOG(WARN, "Segmentation faults will not be reported as the 'datadog.tracer.uncaught_exceptions' health metric while 'datadog.crashtracking_enabled' is on.");
+        }
         return;
     }
 
