@@ -249,7 +249,7 @@ static zend_vm_opcode_handler_t zai_interceptor_handlers[256];
 #if defined(__GNUC__) && defined(__linux__) && defined(__x86_64__)
 __attribute__((visibility("hidden"))) int zai_interceptor_call_vm_handler(
     zend_execute_data *execute_data, zend_vm_opcode_handler_t handler);
-__asm__(".text\n"
+__asm__(".pushsection .text\n"
         ".globl zai_interceptor_call_vm_handler\n"
         ".hidden zai_interceptor_call_vm_handler\n"
         ".type zai_interceptor_call_vm_handler, @function\n"
@@ -276,34 +276,39 @@ __asm__(".text\n"
         ".cfi_restore %r14\n"
         "retq\n"
         ".cfi_endproc\n"
-        ".size zai_interceptor_call_vm_handler, .-zai_interceptor_call_vm_handler\n");
+        ".size zai_interceptor_call_vm_handler, .-zai_interceptor_call_vm_handler\n"
+        ".popsection\n");
 #elif defined(__GNUC__) && defined(__linux__) && defined(__aarch64__)
 __attribute__((visibility("hidden"))) int zai_interceptor_call_vm_handler(
     zend_execute_data *execute_data, zend_vm_opcode_handler_t handler);
-__asm__(".text\n"
+__asm__(".pushsection .text\n"
         ".globl zai_interceptor_call_vm_handler\n"
         ".hidden zai_interceptor_call_vm_handler\n"
         ".type zai_interceptor_call_vm_handler, %function\n"
         "zai_interceptor_call_vm_handler:\n"
         ".cfi_startproc\n"
-        "stp x27, x28, [sp, #-32]!\n"
+        "stp x29, x30, [sp, #-32]!\n"
         ".cfi_adjust_cfa_offset 32\n"
-        ".cfi_offset x27, -32\n"
-        ".cfi_offset x28, -24\n"
-        "str x30, [sp, #16]\n"
-        ".cfi_offset x30, -16\n"
+        ".cfi_offset x29, -32\n"
+        ".cfi_offset x30, -24\n"
+        "mov x29, sp\n"
+        "stp x27, x28, [sp, #16]\n"
+        ".cfi_offset x27, -16\n"
+        ".cfi_offset x28, -8\n"
         "mov x27, x0\n"
         "ldr x28, [x0]\n"
         "blr x1\n"
-        "ldr x30, [sp, #16]\n"
-        ".cfi_restore x30\n"
-        "ldp x27, x28, [sp], #32\n"
-        ".cfi_adjust_cfa_offset -32\n"
+        "ldp x27, x28, [sp, #16]\n"
         ".cfi_restore x27\n"
         ".cfi_restore x28\n"
+        "ldp x29, x30, [sp], #32\n"
+        ".cfi_adjust_cfa_offset -32\n"
+        ".cfi_restore x29\n"
+        ".cfi_restore x30\n"
         "ret\n"
         ".cfi_endproc\n"
-        ".size zai_interceptor_call_vm_handler, .-zai_interceptor_call_vm_handler\n");
+        ".size zai_interceptor_call_vm_handler, .-zai_interceptor_call_vm_handler\n"
+        ".popsection\n");
 #else
 static int zai_interceptor_call_vm_handler(zend_execute_data *execute_data, zend_vm_opcode_handler_t handler) {
     return handler(execute_data);
