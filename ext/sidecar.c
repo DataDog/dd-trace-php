@@ -326,8 +326,9 @@ static void dd_sidecar_setup_signal_transport(ddog_SidecarTransport *transport, 
     }
 
     ddog_SignalFlush *flush = NULL;
-    bool prepared = datadog_ffi_try("Failed preparing signal-only sidecar connection",
-                                    datadog_sidecar_prepare_signal_flush(transport, &flush));
+    bool prepared = datadog_ffi_try("Failed preparing sidecar signal flush",
+                                    ddog_sidecar_prepare_signal_flush(
+                                        transport, (ddog_SidecarFlushOptions){.traces_and_stats = true}, &flush));
     if (prepared || replace) {
         // Takes ownership, including when another normal thread published first.
         // A failed refresh clears the stale object so a later RINIT can retry.

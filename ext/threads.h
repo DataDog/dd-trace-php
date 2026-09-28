@@ -36,15 +36,6 @@ typedef int32_t (*datadog_raw_clone_fn)(const struct ddog_SignalFlush *, bool);
 
 int datadog_clone_thread(datadog_raw_clone_fn fn, void *stack_top, int flags,
                          const struct ddog_SignalFlush *arg, bool terminate_process, _Atomic(int) *tid);
-long datadog_raw_syscall6(
-    long number,
-    long arg1,
-    long arg2,
-    long arg3,
-    long arg4,
-    long arg5,
-    long arg6
-);
 #endif
 
 #endif // DATADOG_THREADS_H

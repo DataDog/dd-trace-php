@@ -185,23 +185,6 @@ __asm__(
     "1: ret\n"
     ".size datadog_clone_thread,.-datadog_clone_thread\n");
 
-__asm__(
-    ".text\n"
-    ".globl datadog_raw_syscall6\n"
-    ".hidden datadog_raw_syscall6\n"
-    ".type datadog_raw_syscall6,@function\n"
-    "datadog_raw_syscall6:\n"
-    /* C ABI: rdi = number, rsi/rdi... = six syscall arguments. */
-    "   movq  %rdi, %rax\n"
-    "   movq  %rsi, %rdi\n"
-    "   movq  %rdx, %rsi\n"
-    "   movq  %rcx, %rdx\n"
-    "   movq  %r8, %r10\n"
-    "   movq  %r9, %r8\n"
-    "   movq  8(%rsp), %r9\n"
-    "   syscall\n"
-    "   ret\n"
-    ".size datadog_raw_syscall6,.-datadog_raw_syscall6\n");
 #elif defined(__aarch64__)
 __asm__(
     ".text\n"
@@ -234,23 +217,6 @@ __asm__(
     "   brk   #0\n"                   /* unreachable */
     ".size datadog_clone_thread,.-datadog_clone_thread\n");
 
-__asm__(
-    ".text\n"
-    ".globl datadog_raw_syscall6\n"
-    ".hidden datadog_raw_syscall6\n"
-    ".type datadog_raw_syscall6,%function\n"
-    "datadog_raw_syscall6:\n"
-    /* C ABI: x0 = number, x1..x6 = six syscall arguments. */
-    "   mov   x8, x0\n"
-    "   mov   x0, x1\n"
-    "   mov   x1, x2\n"
-    "   mov   x2, x3\n"
-    "   mov   x3, x4\n"
-    "   mov   x4, x5\n"
-    "   mov   x5, x6\n"
-    "   svc   #0\n"
-    "   ret\n"
-    ".size datadog_raw_syscall6,.-datadog_raw_syscall6\n");
 #else
 int datadog_clone_thread(datadog_raw_clone_fn fn, void *stack_top, int flags,
                          const struct ddog_SignalFlush *arg, bool terminate_process, _Atomic(int) *tid) {
@@ -263,24 +229,6 @@ int datadog_clone_thread(datadog_raw_clone_fn fn, void *stack_top, int flags,
     return -1;
 }
 
-long datadog_raw_syscall6(
-    long number,
-    long arg1,
-    long arg2,
-    long arg3,
-    long arg4,
-    long arg5,
-    long arg6
-) {
-    (void)number;
-    (void)arg1;
-    (void)arg2;
-    (void)arg3;
-    (void)arg4;
-    (void)arg5;
-    (void)arg6;
-    return -1;
-}
 #endif
 
 #endif
