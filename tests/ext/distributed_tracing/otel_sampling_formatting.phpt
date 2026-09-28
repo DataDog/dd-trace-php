@@ -23,6 +23,8 @@ foreach ([
     'th:80000000000000',
     'th:08',
     'th:00000000000000',
+    'th:00000000000010;foo:bar',
+    'th:10000000000000;foo:bar',
     'rv:00000000000000',
     'rv:00000000000001',
     'rv:ffffffffffffffff;th:ffffffffffffffff',
@@ -51,6 +53,8 @@ th:8
 th:8
 th:08
 th:0
+th:0000000000001;foo:bar
+th:1;foo:bar
 rv:00000000000000
 rv:00000000000001
 <absent>

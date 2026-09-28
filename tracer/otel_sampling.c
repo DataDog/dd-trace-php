@@ -199,13 +199,14 @@ void ddtrace_otel_sampling_append_to_tracestate(smart_str* tracestate, const ddt
     if (has_random_value) {
       smart_str_appendc(tracestate, ';');
     }
-    uint64_t threshold = state->threshold;
-    int threshold_len = threshold ? 14 : 1;
-    while (threshold_len > 1 && (threshold & 0xf) == 0) {
-      threshold >>= 4;
-      --threshold_len;
+    if (state->threshold) {
+      smart_str_append_printf(tracestate, "th:%014" PRIx64, state->threshold);
+      while (ZSTR_VAL(tracestate->s)[ZSTR_LEN(tracestate->s) - 1] == '0') {
+        --ZSTR_LEN(tracestate->s);
+      }
+    } else {
+      smart_str_appends(tracestate, "th:0");
     }
-    smart_str_append_printf(tracestate, "th:%0*" PRIx64, threshold_len, threshold);
   }
 
   const char* unknown = state->unknown_fields ? ZSTR_VAL(state->unknown_fields) : "";
