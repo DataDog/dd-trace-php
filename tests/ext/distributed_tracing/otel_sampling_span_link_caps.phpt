@@ -6,7 +6,7 @@ DD_TRACE_PROPAGATION_STYLE_EXTRACT=datadog,tracecontext
 --FILE--
 <?php
 
-function report(array $members): void
+function report(array $members)
 {
     $link = DDTrace\SpanLink::fromHeaders([
         'x-datadog-trace-id' => '42',
