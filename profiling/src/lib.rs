@@ -254,11 +254,6 @@ pub unsafe extern "C" fn get_module() -> *mut zend::ModuleEntry {
 // mechanisms like std::sync::Once::call_once may not be suitable.
 // Be careful out there!
 extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
-    if !allocation::initialize_page_size() {
-        error!("Failed to query a valid OS page size for allocation profiling");
-        return ZendResult::Failure;
-    }
-
     // todo: merge these lifecycle things to tracing feature?
     // When developing the extension, it's useful to see log messages that
     // occur before the user can configure the log level. However, if we
@@ -336,6 +331,11 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
     }
 
     config::minit(module_number);
+
+    if !allocation::initialize_page_size() {
+        error!("Failed to query a valid OS page size for allocation profiling");
+        return ZendResult::Failure;
+    }
 
     // Force early initialization of the HTTPS connector while we're still
     // single-threaded. This ensures rustls-native-certs reads SSL_CERT_FILE
