@@ -342,6 +342,7 @@ static zend_object *ddtrace_inferred_span_data_create(zend_class_entry *class_ty
 
 static zend_object *ddtrace_root_span_data_create(zend_class_entry *class_type) {
     ddtrace_root_span_data *span = ecalloc(1, sizeof(*span));
+    span->otel_sampling = (ddtrace_otel_sampling_state)DDTRACE_OTEL_SAMPLING_STATE_INIT;
     dd_init_span_data_object(class_type, &span->span, &ddtrace_root_span_data_handlers);
 #if PHP_VERSION_ID < 80000
     // Not handled in arginfo on these old versions
@@ -2854,7 +2855,7 @@ static ddtrace_distributed_tracing_result dd_parse_distributed_tracing_headers_f
 
     *success = parse_tracing_headers_common(INTERNAL_FUNCTION_PARAM_PASSTHRU, &func, &use_server_headers, &array);
     if (!*success || !get_DD_TRACE_ENABLED()) {
-        return (ddtrace_distributed_tracing_result){0};
+        return (ddtrace_distributed_tracing_result){.otel_sampling = DDTRACE_OTEL_SAMPLING_STATE_INIT};
     }
 
     func.fci.param_count = 1;

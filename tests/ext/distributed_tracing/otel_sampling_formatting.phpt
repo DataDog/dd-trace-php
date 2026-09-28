@@ -19,6 +19,13 @@ foreach ([
     'rv:ffffffffffffff;th:ffffffffffffff',
     'rv:ffffffffffffff',
     'th:00000000000001',
+    'th:8',
+    'th:80000000000000',
+    'th:08',
+    'th:00000000000000',
+    'rv:00000000000000',
+    'rv:ffffffffffffffff;th:ffffffffffffffff',
+    'rv:invalid;rv:00000000000000;th:invalid;th:0',
     'foo:bar;next:value',
     'rv:fffffffffffffff;th:fffffffffffffff;foo:bar',
     'rv:1234567890abcd;rv:invalid;th:8;th:invalid',
@@ -39,6 +46,13 @@ rv:00000000000000;th:0
 rv:ffffffffffffff;th:ffffffffffffff
 rv:ffffffffffffff
 th:00000000000001
+th:8
+th:8
+th:08
+th:0
+rv:00000000000000
+<absent>
+rv:00000000000000;th:0
 foo:bar;next:value
 foo:bar
 <absent>

@@ -56,6 +56,7 @@ echo ot(propagate('ot=rv:1234567890abcd;th:not-hex')), PHP_EOL;
 echo ot(propagate('dd=s:1')), PHP_EOL;
 echo ot(propagate('ot=foo:bar')), PHP_EOL;
 echo ot(propagate('ot=rv:65cd67504a538e;th:e6666666666668', false, true)), PHP_EOL;
+echo ot(propagate('ot=rv:00000000000000;th:0', false, true)), PHP_EOL;
 echo ot(propagate('', false, true)), PHP_EOL;
 
 $ordered = propagate('dd=s:1,foo=bar,ot=rv:6e6d1a75832a2f,something=else');
@@ -75,6 +76,7 @@ rv:1234567890abcd
 <absent>
 foo:bar
 rv:65cd67504a538e
+rv:00000000000000
 <absent>
 ot=rv:6e6d1a75832a2f,foo=bar,something=else
 rv:ef284ace7a91e1;th:e6666666666668;foo:bar

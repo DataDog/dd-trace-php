@@ -4,12 +4,13 @@
 #include <ext/compatibility.h>
 
 #define DDTRACE_OTEL_MAX_VALUE_LEN 256
+#define DDTRACE_OTEL_SAMPLING_UNSET UINT64_MAX
+#define DDTRACE_OTEL_SAMPLING_STATE_INIT { .random_value = DDTRACE_OTEL_SAMPLING_UNSET, .threshold = DDTRACE_OTEL_SAMPLING_UNSET }
 
 typedef struct {
-    uint64_t random_value : 56;
-    uint64_t random_value_len : 8;
-    uint64_t threshold : 56;
-    uint64_t threshold_len : 8;
+    // Full 56-bit values; UINT64_MAX denotes absence, so zero remains a valid value.
+    uint64_t random_value;
+    uint64_t threshold;
     zend_string *unknown_fields; // Immutable, shared on copy; NULL when no unknown fields were received.
 } ddtrace_otel_sampling_state;
 
@@ -17,7 +18,7 @@ static inline void ddtrace_otel_sampling_clear(ddtrace_otel_sampling_state *stat
     if (state->unknown_fields) {
         zend_string_release(state->unknown_fields);
     }
-    *state = (ddtrace_otel_sampling_state){0};
+    *state = (ddtrace_otel_sampling_state)DDTRACE_OTEL_SAMPLING_STATE_INIT;
 }
 
 static inline void ddtrace_otel_sampling_copy(ddtrace_otel_sampling_state *dest, const ddtrace_otel_sampling_state *source) {

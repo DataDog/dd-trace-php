@@ -63,17 +63,16 @@ void ddtrace_otel_sampling_parse(ddtrace_otel_sampling_state* state, const char*
     uint64_t parsed;
 
     if (ddtrace_otel_field_is(field, field_len, "rv")) {
-      state->random_value_len = 0;
+      state->random_value = DDTRACE_OTEL_SAMPLING_UNSET;
       if (field_len == 17 && ddtrace_otel_parse_lower_hex(field + 3, 14, &parsed)) {
         state->random_value = parsed;
-        state->random_value_len = 14;
       }
     } else if (ddtrace_otel_field_is(field, field_len, "th")) {
-      state->threshold_len = 0;
+      state->threshold = DDTRACE_OTEL_SAMPLING_UNSET;
       size_t threshold_len = field_len > 2 && field[2] == ':' ? field_len - 3 : 0;
       if (threshold_len >= 1 && threshold_len <= 14 && ddtrace_otel_parse_lower_hex(field + 3, threshold_len, &parsed)) {
-        state->threshold = parsed;
-        state->threshold_len = threshold_len;
+        // Omitted trailing hex digits are zeros in the full 56-bit threshold.
+        state->threshold = parsed << (4 * (14 - threshold_len));
       }
     } else if (field_len) {
       ddtrace_otel_append_field(&unknown_fields, field, field_len, 0);
@@ -118,18 +117,11 @@ void ddtrace_otel_sampling_decide_probability(ddtrace_otel_sampling_state* state
                                               double sample_rate) {
   uint64_t threshold = ddtrace_otel_threshold_for(sample_rate);
   state->random_value = ddtrace_otel_reconcile_random_value(ddtrace_otel_derive_random_value(trace_id), threshold, sampling_priority > 0);
-  state->random_value_len = 14;
-  uint8_t threshold_len = threshold ? 14 : 1;
-  while (threshold_len > 1 && (threshold & 0xf) == 0) {
-    threshold >>= 4;
-    --threshold_len;
-  }
   state->threshold = threshold;
-  state->threshold_len = threshold_len;
 }
 
 void ddtrace_otel_sampling_decide_non_probability(ddtrace_otel_sampling_state* state) {
-  state->threshold_len = 0;
+  state->threshold = DDTRACE_OTEL_SAMPLING_UNSET;
 }
 
 static bool ddtrace_otel_is_member(const char* member, size_t member_len, const char** value, size_t* value_len) {
@@ -189,7 +181,9 @@ zend_string* ddtrace_otel_sampling_extract_tracestate(zend_string* tracestate, d
 }
 
 void ddtrace_otel_sampling_append_to_tracestate(smart_str* tracestate, const ddtrace_otel_sampling_state* state) {
-  if (!state->random_value_len && !state->threshold_len && !state->unknown_fields) {
+  bool has_random_value = state->random_value != DDTRACE_OTEL_SAMPLING_UNSET;
+  bool has_threshold = state->threshold != DDTRACE_OTEL_SAMPLING_UNSET;
+  if (!has_random_value && !has_threshold && !state->unknown_fields) {
     return;
   }
   if (tracestate->s) {
@@ -198,14 +192,20 @@ void ddtrace_otel_sampling_append_to_tracestate(smart_str* tracestate, const ddt
   smart_str_appends(tracestate, "ot=");
   size_t value_offset = ZSTR_LEN(tracestate->s);
 
-  if (state->random_value_len) {
-    smart_str_append_printf(tracestate, "rv:%0*" PRIx64, (int)state->random_value_len, (uint64_t)state->random_value);
+  if (has_random_value) {
+    smart_str_append_printf(tracestate, "rv:%0*" PRIx64, 14, state->random_value);
   }
-  if (state->threshold_len) {
-    if (state->random_value_len) {
+  if (has_threshold) {
+    if (has_random_value) {
       smart_str_appendc(tracestate, ';');
     }
-    smart_str_append_printf(tracestate, "th:%0*" PRIx64, (int)state->threshold_len, (uint64_t)state->threshold);
+    uint64_t threshold = state->threshold;
+    int threshold_len = threshold ? 14 : 1;
+    while (threshold_len > 1 && (threshold & 0xf) == 0) {
+      threshold >>= 4;
+      --threshold_len;
+    }
+    smart_str_append_printf(tracestate, "th:%0*" PRIx64, threshold_len, threshold);
   }
 
   const char* unknown = state->unknown_fields ? ZSTR_VAL(state->unknown_fields) : "";

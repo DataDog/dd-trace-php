@@ -22,7 +22,7 @@ static inline bool dd_is_hex_char(char chr) {
 }
 
 static ddtrace_distributed_tracing_result dd_init_empty_result(void) {
-    ddtrace_distributed_tracing_result result = {0};
+    ddtrace_distributed_tracing_result result = {.otel_sampling = DDTRACE_OTEL_SAMPLING_STATE_INIT};
     result.priority_sampling = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
     zend_hash_init(&result.tracestate_unknown_dd_keys, 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&result.propagated_tags, 8, unused, ZVAL_PTR_DTOR, 0);
@@ -522,7 +522,7 @@ static ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids_t
 }
 
 ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_read_header *read_header, void *data) {
-    ddtrace_distributed_tracing_result result = {0};
+    ddtrace_distributed_tracing_result result = {.otel_sampling = DDTRACE_OTEL_SAMPLING_STATE_INIT};
 
     zend_array *extract = zai_config_is_modified(DATADOG_CONFIG_DD_TRACE_PROPAGATION_STYLE)
                           && !zai_config_is_modified(DATADOG_CONFIG_DD_TRACE_PROPAGATION_STYLE_EXTRACT)
