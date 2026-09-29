@@ -243,8 +243,8 @@ mechanism (no `allow_failure`).
 → **[building-locally.md](building-locally.md)**
 Consolidated reference for building each artifact locally (tracer
 extension, appsec, profiler, sidecar, loader, release packages).
-Covers common gotchas (CARGO_HOME, submodules, devtoolset-7,
-`make` vs `make static`). Individual job group docs cross-reference
+Covers common gotchas (CARGO_HOME, submodules, `make` vs
+`make static`). Individual job group docs cross-reference
 this file instead of duplicating build commands.
 
 ## Job groups

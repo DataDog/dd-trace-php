@@ -15,14 +15,6 @@
 #if defined(__aarch64__) && defined(__ARM_FEATURE_BTI_DEFAULT)
 #include <asm/hwcap.h>
 #include <sys/auxv.h>
-
-// Compatibility with the CentOS 7 headers used for release builds.
-#ifndef HWCAP2_BTI
-#define HWCAP2_BTI (1UL << 17)
-#endif
-#ifndef PROT_BTI
-#define PROT_BTI 0x10
-#endif
 #endif
 
 // The context precedes the copied code; keep its entry point aligned.

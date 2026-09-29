@@ -280,24 +280,6 @@ def main() -> None:
     image = remaining[0]
     docker_opts = remaining[1:]
 
-    # Translate bookworm-style --php values for centos-7 images.
-    # centos-7 uses version-prefixed variants (8.3, 8.3-debug, 8.3-zts);
-    # bookworm uses bare names (nts, debug, zts, nts-asan, debug-zts-asan).
-    if known.php_variant:
-        centos_match = re.search(r"php-(\d+\.\d+)_centos", image)
-        if centos_match:
-            php_ver = centos_match.group(1)
-            variant = known.php_variant
-            asan_variants = {"nts-asan", "debug-zts-asan"}
-            if variant in asan_variants:
-                sys.exit(f"error: --php {variant} is not available on centos-7 images "
-                         f"(no ASAN builds). Use a bookworm image instead.")
-            centos_map = {"nts": php_ver, "debug": f"{php_ver}-debug", "zts": f"{php_ver}-zts"}
-            if variant in centos_map:
-                mapped = centos_map[variant]
-                print(f"Mapped --php {variant} to {mapped} for centos-7 image", file=sys.stderr)
-                known.php_variant = mapped
-
     root = repo_root()
     cache_dir = os.path.expanduser(f"~/.cache/dd-ci/{known.cache_name}") if known.cache_name else None
 
@@ -351,11 +333,10 @@ def main() -> None:
     else:
         drop_and_exec = f'exec /dockerh-setpriv --reuid={uid} --regid={gid} --clear-groups "$@"'
 
-    # Redirect BASH_ENV to a writable location.  Some CI images (e.g.
-    # centos-7) bake BASH_ENV=/etc/profile.d/zzz-ddtrace.sh which is
-    # owned by root.  Build scripts append to $BASH_ENV, so it must be
-    # writable after setpriv drops to the host uid.  We copy the
-    # original content (e.g. devtoolset-7 activation) to preserve it.
+    # Redirect BASH_ENV to a writable location.  Some CI images (e.g. the
+    # Alpine compile-extension image) bake a root-owned BASH_ENV.  Scripts
+    # may append to $BASH_ENV, so it must be writable after setpriv drops
+    # to the host uid.  We copy the original content to preserve it.
     bash_env_lines = (
         f'cp "${{BASH_ENV:-/dev/null}}" /tmp/.bash_env 2>/dev/null || true\n'
         f"export BASH_ENV=/tmp/.bash_env\n"
