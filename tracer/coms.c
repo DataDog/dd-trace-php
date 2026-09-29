@@ -804,7 +804,8 @@ static struct curl_slist *dd_agent_headers_alloc(void) {
 
     /* Curl will add Expect: 100-continue if it is a POST over a certain size. The trouble is that CURL will
      * wait for *1 second* for 100 Continue response before sending the rest of the data. This wait is
-     * configurable, but requires a newer curl than we have on CentOS 6. So instead we send an empty Expect.
+     * configurable (CURLOPT_EXPECT_100_TIMEOUT_MS), but only since curl 7.36, and CentOS 7 ships 7.29. So instead we
+     * send an empty Expect.
      */
     dd_append_header(&list, "Expect", ZEND_STRL(""));
 

@@ -1,20 +1,6 @@
 version: '3.2'
 
 services:
-  '7.0-centos6': &base_image
-    ulimits: { core: 99999999999 }
-    stdin_open: true
-    tty: true
-    working_dir: /datadog
-    volumes: [ '../../:/datadog' ]
-    cap_add: [ SYS_PTRACE ]
-    image: 'datadog/dd-trace-ci:php-7.0_centos-6'
-  '7.1-centos6': { <<: *base_image, image: 'datadog/dd-trace-ci:php-7.1_centos-6' }
-  '7.2-centos6': { <<: *base_image, image: 'datadog/dd-trace-ci:php-7.2_centos-6' }
-  '7.3-centos6': { <<: *base_image, image: 'datadog/dd-trace-ci:php-7.3_centos-6' }
-  '7.4-centos6': { <<: *base_image, image: 'datadog/dd-trace-ci:php-7.4_centos-6' }
-  '8.0-centos6': { <<: *base_image, image: 'datadog/dd-trace-ci:php-8.0_centos-6' }
-
   alpine:
     image: ${ALPINE_IMAGE}
     working_dir: /datadog
