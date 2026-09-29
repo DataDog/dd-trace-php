@@ -419,12 +419,34 @@ prod:
 strict:
 	$(eval CFLAGS=-Wall -Werror -Wextra)
 
+PROFILER_BUILD_SUFFIX ?= profiler
+# Extra Cargo features for the profiler, comma-separated (`profiling` is always
+# enabled), e.g. PROFILER_FEATURES=trigger_time_sample for correctness tests and
+# benchmarks. Features are baked in at configure time: remove
+# tmp/build_$(PROFILER_BUILD_SUFFIX) when changing them.
+PROFILER_FEATURES ?=
+
 compile_profiler:
-	DDTRACE_PROFILING_FEATURES=trigger_time_sample $(MAKE) BUILD_SUFFIX=profiler PROFILING=1 EXTRA_CONFIGURE_OPTIONS="--disable-ddtrace-tracer --enable-ddtrace-profiling" all
+	DDTRACE_PROFILING_FEATURES="$(PROFILER_FEATURES)" $(MAKE) BUILD_SUFFIX=$(PROFILER_BUILD_SUFFIX) PROFILING=1 EXTRA_CONFIGURE_OPTIONS="--disable-ddtrace-tracer --enable-ddtrace-profiling" all
 
 install_profiler: compile_profiler
-	cp $(PROJECT_ROOT)/tmp/build_profiler/modules/datadog-profiling.so $(PHP_EXTENSION_DIR)/datadog-profiling.so
+	cp $(PROJECT_ROOT)/tmp/build_$(PROFILER_BUILD_SUFFIX)/modules/datadog-profiling.so $(PHP_EXTENSION_DIR)/datadog-profiling.so
 	$(Q) echo "extension=datadog-profiling.so" | $(SUDO) tee $(INI_DIR)/datadog-profiling.ini
+
+# Profiler with AddressSanitizer on the Rust side. Uses the pinned stable
+# toolchain; RUSTC_BOOTSTRAP=1 unlocks -Zsanitizer and -Zbuild-std. std is
+# rebuilt so it is instrumented too, which requires an explicit --target so the
+# sanitizer flags don't apply to build scripts and proc-macros.
+# C code pulled in by build scripts (cc crate) still honors CC/CFLAGS/LDFLAGS
+# from the environment.
+PROFILER_ASAN_RUSTFLAGS = -Zsanitizer=address -C force-frame-pointers=yes -C link-arg=-fsanitize=address -C link-arg=-shared-libasan
+PROFILER_ASAN_ENV = RUSTC_BOOTSTRAP=1 \
+	RUSTFLAGS="$(PROFILER_ASAN_RUSTFLAGS) $${RUSTFLAGS:-}" \
+	DDTRACE_PROFILING_TARGET=$(ARCHITECTURE)-unknown-linux-gnu \
+	DDTRACE_PROFILING_CARGO_BUILD_FLAGS=-Zbuild-std=std,panic_abort
+
+compile_profiler_asan:
+	$(PROFILER_ASAN_ENV) $(MAKE) PROFILER_BUILD_SUFFIX=profiler_asan compile_profiler
 
 clang_find_files_to_lint:
 	@find . \( \
@@ -460,26 +482,26 @@ remove_cbindgen:
 
 generate_cbindgen: cbindgen_binary # Regenerate components-rs/datadog.h components-rs/live-debugger.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h components-rs/crashtracker.h components-rs/library-config.h
 	( \
-		$(command rustup && echo run nightly --) cbindgen --crate datadog-php  \
+		cbindgen --crate datadog-php  \
 			--config cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/datadog.h; \
 		cd libdatadog; \
-		$(command rustup && echo run nightly --) cbindgen --crate libdd-common-ffi \
+		cbindgen --crate libdd-common-ffi \
 			--config libdd-common-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/common.h; \
-		$(command rustup && echo run nightly --) cbindgen --crate libdd-live-debugger-ffi  \
+		cbindgen --crate libdd-live-debugger-ffi  \
 			--config libdd-live-debugger-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/live-debugger.h; \
-		$(command rustup && echo run nightly --) cbindgen --crate libdd-telemetry-ffi  \
+		cbindgen --crate libdd-telemetry-ffi  \
 			--config libdd-telemetry-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/telemetry.h; \
-		$(command rustup && echo run nightly --) cbindgen --crate datadog-sidecar-ffi  \
+		cbindgen --crate datadog-sidecar-ffi  \
 			--config datadog-sidecar-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/sidecar.h; \
-		$(command rustup && echo run nightly --) cbindgen --crate libdd-crashtracker-ffi  \
+		cbindgen --crate libdd-crashtracker-ffi  \
 			--config libdd-crashtracker-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/crashtracker.h; \
-		$(command rustup && echo run nightly --) cbindgen --crate libdd-library-config-ffi  \
+		cbindgen --crate libdd-library-config-ffi  \
 			--config libdd-library-config-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/library-config.h; \
 		if test -d $(PROJECT_ROOT)/tmp; then \
@@ -1249,7 +1271,17 @@ RUN_WEB_BENCHES_WITH_DDPROF ?=
 define run_composer_with_retry
 	for i in $$(seq 1 $(MAX_RETRIES)); do \
 		echo "Attempting composer update (attempt $$i of $(MAX_RETRIES))..."; \
-		$(COMPOSER) --working-dir=$(if $1,$1,.) update $2 && break || (echo "Retry $$i failed, waiting 5 seconds before next attempt..." && sleep 5); \
+		if $(COMPOSER) --working-dir=$(if $1,$1,.) update $2; then \
+			break; \
+		else \
+			status=$$?; \
+		fi; \
+		if [ $$i -eq $(MAX_RETRIES) ]; then \
+			echo "Composer update failed after $(MAX_RETRIES) attempts." >&2; \
+			exit $$status; \
+		fi; \
+		echo "Retry $$i failed, waiting 5 seconds before next attempt..."; \
+		sleep 5; \
 	done \
 
 	mkdir -p /tmp/artifacts
@@ -1270,9 +1302,11 @@ define run_tests
 	$(if $(PHPUNIT_COVERAGE),$(call run_tests_with_coverage,$(1)),$(call run_tests_without_coverage,$(1)))
 endef
 
+# Close phpunit's copy of the job-stdout descriptor so spawned servers cannot
+# keep the job's log pipe open after phpunit exits.
 define run_tests_debug
 	$(eval TEST_EXTRA_ENV=$(TEST_EXTRA_ENV) DD_TRACE_DEBUG=1)
-	(set -o pipefail; { $(call run_tests,$(1)) 2>&1 >&3 | \
+	(set -o pipefail; { $(call run_tests,$(1)) 2>&1 >&3 3>&- | \
 		tee >(grep --line-buffered -vE '\[ddtrace\] \[debug\]|\[ddtrace\] \[info\]' >&2) | \
 		{ ! (grep --line-buffered -E '\[error\]|\[warning\]|\[deprecated\]' >/dev/null && \
 		echo $$'\033[41m'"ERROR: Found debug log errors in the output."$$'\033[0m'); }; } 3>&1 \
@@ -1494,6 +1528,7 @@ test_integrations_predis_2: global_test_run_dependencies tests/Integrations/Pred
 test_integrations_predis_latest: global_test_run_dependencies tests/Integrations/Predis/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Predis/Latest)
 test_integrations_frankenphp: global_test_run_dependencies
+	$(eval TEST_EXTRA_ENV=DD_TRACE_AGENT_PORT=9126 DD_AGENT_HOST=test-agent)
 	$(call run_tests_debug,--testsuite=frankenphp-test)
 test_integrations_roadrunner: global_test_run_dependencies tests/Frameworks/Roadrunner/Version_2/composer.lock-php$(PHP_MAJOR_MINOR)
 	$(call run_tests_debug,tests/Integrations/Roadrunner/V2)
@@ -1509,6 +1544,7 @@ test_integrations_sqlsrv: global_test_run_dependencies
 	$(eval TEST_EXTRA_INI=-d extension=sqlsrv.so)
 	$(call run_tests_debug,tests/Integrations/SQLSRV)
 	$(eval TEST_EXTRA_INI=)
+test_integrations_swoole_5: TEST_EXTRA_INI += -d datadog.remote_config_enabled=0
 test_integrations_swoole_5: global_test_run_dependencies
 	$(call run_tests_debug,--testsuite=swoole-test)
 test_web_apigw: global_test_run_dependencies tests/Frameworks/Laravel/Latest/composer.lock-php$(PHP_MAJOR_MINOR) tests/Frameworks/Laravel/Octane/Latest/composer.lock-php$(PHP_MAJOR_MINOR) tests/Frameworks/Roadrunner/Version_2/composer.lock-php$(PHP_MAJOR_MINOR)
@@ -1671,4 +1707,5 @@ composer.lock: composer.json
 	$(call run_composer_with_retry,,)
 
 .PHONY: dev dist_clean clean cores all clang_format_check clang_format_fix install sudo_install test_c test_c_mem test_extension_ci test_extension_ci_normal test_extension_ci_valgrind test_zai test_zai_asan test install_ini install_all \
-	.apk .rpm .deb .tar.gz sudo debug prod strict run-tests.php verify_pecl_file_definitions verify_package_xml cbindgen cbindgen_binary
+	.apk .rpm .deb .tar.gz sudo debug prod strict run-tests.php verify_pecl_file_definitions verify_package_xml cbindgen cbindgen_binary \
+	compile_profiler install_profiler compile_profiler_asan

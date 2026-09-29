@@ -29,7 +29,7 @@ ini_dir="$(php -i | grep '^Scan' | awk '{ print $NF }')"
 # profiling module.
 released_version="0.75.0"
 fetch_setup_for_version "$released_version" "/tmp"
-php /tmp/datadog-setup.php --php-bin php
+run_released_installer /tmp/datadog-setup.php --php-bin php
 rm -v /tmp/datadog-setup.php
 
 assert_ddtrace_version "${released_version}"
