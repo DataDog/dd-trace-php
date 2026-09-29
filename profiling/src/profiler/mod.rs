@@ -170,6 +170,13 @@ pub struct Label {
     pub value: LabelValue,
 }
 
+fn size_class_label(size: i64) -> Label {
+    Label {
+        key: "size class",
+        value: LabelValue::Num(size, "bytes"),
+    }
+}
+
 struct SampleLabels {
     labels: Vec<Label>,
     profile_tags: ProfileTags,
@@ -1250,7 +1257,9 @@ impl Profiler {
                         (0, 0, 0, NO_TIMESTAMP)
                     };
 
-                let labels = Profiler::common_labels(0);
+                let mut labels = Profiler::common_labels(1);
+                // The hooks round before sampling; values and labels use that same size.
+                labels.push(size_class_label(alloc_size));
                 let n_labels = labels.len();
 
                 // Note: heap_live_samples/heap_live_size are NOT included here.
@@ -2014,6 +2023,38 @@ mod tests {
             file_io_read_size_samples: 141,
             file_io_write_size: 150,
             file_io_write_size_samples: 151,
+        }
+    }
+
+    #[test]
+    fn allocation_size_classes_partition_allocation_and_live_heap_samples() {
+        use crate::profiling::allocation::size_class::{allocation_size, PAGE_SIZE};
+
+        for sample_types in [
+            [ApiSampleType::AllocSamples, ApiSampleType::AllocSize],
+            [ApiSampleType::HeapLiveSamples, ApiSampleType::HeapLiveSize],
+        ] {
+            let mut profile = InternalProfile::try_new(&sample_types, None).unwrap();
+            // Two requests in the 80-byte bin combine; the 96-byte bin stays separate.
+            for raw_size in [65, 79, 81] {
+                let size = i64::try_from(allocation_size(raw_size, PAGE_SIZE).unwrap()).unwrap();
+                let label = size_class_label(size);
+                let api_label = ApiLabel::from(&label);
+                assert_eq!(api_label.key, "size class");
+                assert_eq!(api_label.num, size);
+                assert_eq!(api_label.num_unit, "bytes");
+                profile
+                    .try_add_sample(
+                        Sample {
+                            locations: vec![],
+                            values: &[1, size],
+                            labels: vec![api_label],
+                        },
+                        None,
+                    )
+                    .unwrap();
+            }
+            assert_eq!(profile.only_for_testing_num_aggregated_samples(), 2);
         }
     }
 
