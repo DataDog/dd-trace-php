@@ -11,9 +11,9 @@
 # Issue reported to the fpm project (https://github.com/jordansissel/fpm/issues/1866), see there for more details and
 # a reproduction case.
 #
-# Keep this explanatory block large enough to hold the complete script above that unsafe boundary. Portable release
-# artifacts no longer need an Alpine-specific filename, so the runtime selection code below is intentionally shorter
-# than it used to be. This padding is therefore functional: reducing it can make both architecture APK jobs fail.
+# This file must therefore stay larger than 7680 bytes; the .apk.% Makefile target checks it before running fpm. If
+# the script below shrinks past that, pad this comment instead of removing the check. That is not hypothetical: this
+# paragraph is part of the padding, keeping the file above the threshold since the Alpine-specific filenames went away.
 
 EXTENSION_BASE_DIR=/opt/datadog-php
 EXTENSION_DIR=${EXTENSION_BASE_DIR}/extensions

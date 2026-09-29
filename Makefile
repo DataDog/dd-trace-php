@@ -541,6 +541,10 @@ $(PACKAGES_BUILD_DIR):
 .rpm.%: $(PACKAGES_BUILD_DIR)
 	fpm -p $(PACKAGES_BUILD_DIR) -t rpm $(call FPM_OPTS, $(*)) $(call FPM_FILES, $(*))
 .apk.%: $(PACKAGES_BUILD_DIR)
+	@size=$$(wc -c < package/post-install.sh); if [ "$$size" -le 7680 ]; then \
+		echo "package/post-install.sh is $$size bytes; it must be larger than 7680 bytes or fpm builds a broken apk (https://github.com/jordansissel/fpm/issues/1866)" >&2; \
+		exit 1; \
+	fi
 	fpm -p $(PACKAGES_BUILD_DIR) -t apk $(call FPM_OPTS, $(*)) --depends=bash --depends=curl --depends=libgcc $(call FPM_FILES, $(*))
 
 # Example .tar.gz.aarch64, .tar.gz.x86_64
