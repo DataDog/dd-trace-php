@@ -290,6 +290,12 @@ pub extern "C" fn ddog_php_prof_minit(_type: c_int, module_number: c_int) -> Zen
         };
     }
 
+    // The logger was initialized above, so page-size failures are reported.
+    if !allocation::initialize_page_size() {
+        error!("Failed to query a valid OS page size for allocation profiling");
+        return ZendResult::Failure;
+    }
+
     // Force early initialization of the HTTPS connector while we're still
     // single-threaded. This ensures rustls-native-certs reads SSL_CERT_FILE
     // and SSL_CERT_DIR environment variables safely before any threads are

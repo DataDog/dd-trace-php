@@ -1,4 +1,4 @@
-use crate::profiling::allocation::{collect_allocation, untrack_allocation};
+use crate::profiling::allocation::{allocation_size_class, collect_allocation, untrack_allocation};
 use crate::profiling::bindings as zend;
 use crate::profiling::module_globals::{self, ProfilerGlobals};
 use crate::profiling::PROFILER_NAME;
@@ -359,6 +359,9 @@ unsafe fn alloc_prof_malloc_impl<const CUSTOM: bool>(len: size_t) -> *mut c_void
         return ptr;
     }
 
+    let Some(len) = allocation_size_class(len) else {
+        return ptr;
+    };
     if ProfilerGlobals::should_collect(globals, len) {
         collect_allocation(
             unsafe { &(*globals).interrupt_count },
@@ -556,6 +559,9 @@ unsafe fn alloc_prof_realloc_impl<const UNTRACK: bool, const CUSTOM: bool>(
         return ptr;
     }
 
+    let Some(len) = allocation_size_class(len) else {
+        return ptr;
+    };
     if ProfilerGlobals::should_collect(globals, len) {
         collect_allocation(
             unsafe { &(*globals).interrupt_count },
