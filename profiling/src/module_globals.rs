@@ -2,11 +2,7 @@ use crate::profiling::allocation;
 use core::cell::{Cell, UnsafeCell};
 use core::ffi::c_void;
 use core::mem::MaybeUninit;
-#[cfg(any(
-    not(all(feature = "profiling", feature = "tracer")),
-    target_os = "linux",
-    test
-))]
+#[cfg(any(target_os = "linux", test))]
 use core::ptr;
 use core::sync::atomic::AtomicU32;
 

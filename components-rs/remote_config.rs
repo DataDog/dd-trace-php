@@ -1,13 +1,6 @@
 use crate::bytes::{dangling_zend_string, OwnedZendString, ZendString};
 use crate::sidecar::MaybeShmLimiter;
 use datadog_ffe::rules_based::{Configuration, UniversalFlagConfig};
-use libdd_live_debugger::debugger_defs::{DebuggerData, DebuggerPayload};
-use libdd_live_debugger::{FilterList, LiveDebuggingData, ServiceConfiguration};
-use libdd_live_debugger_ffi::data::Probe;
-use libdd_live_debugger_ffi::evaluator::{ddog_register_expr_evaluator, Evaluator};
-use libdd_live_debugger_ffi::send_data::{
-    ddog_debugger_diagnostics_create_unboxed, ddog_snapshot_redacted_type,
-};
 use datadog_sidecar::service::blocking::SidecarTransport;
 use datadog_sidecar::service::{InstanceId, QueueId};
 use datadog_sidecar::shm_remote_config::{RemoteConfigManager, RemoteConfigUpdate};
@@ -17,6 +10,13 @@ use libdd_common::tag::Tag;
 use libdd_common::Endpoint;
 use libdd_common_ffi::slice::AsBytes;
 use libdd_common_ffi::{CharSlice, MaybeError};
+use libdd_live_debugger::debugger_defs::{DebuggerData, DebuggerPayload};
+use libdd_live_debugger::{FilterList, LiveDebuggingData, ServiceConfiguration};
+use libdd_live_debugger_ffi::data::Probe;
+use libdd_live_debugger_ffi::evaluator::{ddog_register_expr_evaluator, Evaluator};
+use libdd_live_debugger_ffi::send_data::{
+    ddog_debugger_diagnostics_create_unboxed, ddog_snapshot_redacted_type,
+};
 use libdd_remote_config::config::dynamic::{
     Configs, DynamicConfigFile, TracingSamplingRuleProvenance,
 };
@@ -35,7 +35,7 @@ use std::ptr::NonNull;
 use std::sync::Arc;
 use tracing::debug;
 
-pub const DYANMIC_CONFIG_UPDATE_UNMODIFIED: *mut ZendString = 1isize as *mut ZendString;
+pub const DYANMIC_CONFIG_UPDATE_UNMODIFIED: *mut ZendString = std::ptr::without_provenance_mut(1);
 
 #[repr(C)]
 pub enum DynamicConfigUpdateMode {
@@ -267,7 +267,7 @@ fn map_config_name(config: &Configs) -> &'static str {
 
 fn map_config_value(config: &Configs) -> Cow<'_, str> {
     match config {
-        Configs::TracingHeaderTags(tags) => tags.iter().map(|(k, _)| k).join(",").into(),
+        Configs::TracingHeaderTags(tags) => tags.keys().join(",").into(),
         Configs::TracingSamplingRate(rate) => rate.to_string().into(),
         Configs::LogInjectionEnabled(enabled) => bool_config(enabled),
         Configs::TracingTags(tags) => tags.join(",").into(),
