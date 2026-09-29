@@ -8,8 +8,6 @@ struct _zend_string;
 #include "common.h"
 #include "telemetry.h"
 #include "sidecar.h"
-#if defined(__linux__)
-#endif
 
 extern void (*ddog_log_callback)(ddog_CharSlice);
 

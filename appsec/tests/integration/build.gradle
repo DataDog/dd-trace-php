@@ -1284,7 +1284,7 @@ buildRunInDockerTask(
                 cargo fmt -p helper-rust --check
 
                 echo '=== Running Clippy ==='
-                cargo clippy --release -p helper-rust
+                cargo clippy --release -p helper-rust --no-deps
 
                 echo '=== Building helper-rust ==='
                 cargo build --release -p helper-rust
