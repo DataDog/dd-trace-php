@@ -9,6 +9,7 @@ use DDTrace\FeatureFlags\EvaluationType;
 
 final class ResultMapper
 {
+    const SERIAL_ID_METADATA_KEY = '__dd_split_serial_id';
     const BRIDGE_REASON_STATIC = 0;
     const BRIDGE_REASON_DEFAULT = 1;
     const BRIDGE_REASON_TARGETING_MATCH = 2;
@@ -27,9 +28,10 @@ final class ResultMapper
      * @param array<string, mixed>|object|null $rawResult
      * @param string $expectedType One of EvaluationType::*.
      * @param mixed $defaultValue
+     * @param bool $spanEnrichmentEnabled
      * @return EvaluationDetails
      */
-    public function map($rawResult, $expectedType, $defaultValue)
+    public function map($rawResult, $expectedType, $defaultValue, $spanEnrichmentEnabled = false)
     {
         if (!EvaluationType::isValid($expectedType)) {
             throw new \InvalidArgumentException('Unknown feature flag value type: ' . (string) $expectedType);
@@ -69,7 +71,7 @@ final class ResultMapper
 
         $reason = $this->mapReason($this->read($rawResult, array('reason'), self::BRIDGE_REASON_DEFAULT));
         if ($this->isDefaultReturn($rawResult, $reason)) {
-            return $this->defaultDetails($defaultValue, $expectedType, $reason, $rawResult);
+            return $this->defaultDetails($defaultValue, $expectedType, $reason, $rawResult, $spanEnrichmentEnabled);
         }
 
         $decoded = null;
@@ -93,13 +95,13 @@ final class ResultMapper
             $this->read($rawResult, array('variant'), null),
             null,
             null,
-            $this->readArray($rawResult, array('flag_metadata', 'flagMetadata', 'metadata')),
+            $this->flagMetadata($rawResult, $spanEnrichmentEnabled),
             $this->exposureData($rawResult),
             $this->providerState($rawResult)
         );
     }
 
-    private function defaultDetails($defaultValue, $expectedType, $reason, $rawResult)
+    private function defaultDetails($defaultValue, $expectedType, $reason, $rawResult, $spanEnrichmentEnabled)
     {
         return new EvaluationDetails(
             $defaultValue,
@@ -108,7 +110,7 @@ final class ResultMapper
             null,
             null,
             null,
-            $this->readArray($rawResult, array('flag_metadata', 'flagMetadata', 'metadata')),
+            $this->flagMetadata($rawResult, $spanEnrichmentEnabled),
             array(),
             $this->providerState($rawResult)
         );
@@ -288,6 +290,17 @@ final class ResultMapper
         }
 
         return $exposureData;
+    }
+
+    private function flagMetadata($rawResult, $spanEnrichmentEnabled)
+    {
+        $metadata = $this->readArray($rawResult, array('flag_metadata', 'flagMetadata', 'metadata'));
+        $serialId = $this->read($rawResult, array('serial_id', 'serialId'), null);
+        if ($spanEnrichmentEnabled && $serialId !== null) {
+            $metadata[self::SERIAL_ID_METADATA_KEY] = (int) $serialId;
+        }
+
+        return $metadata;
     }
 
     private function providerState($rawResult)
