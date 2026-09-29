@@ -36,13 +36,12 @@ alongside any `ddtrace.so` artifact is unsupported and rejected.
 ## Building
 
 Loadable PHP artifacts must be built from the repository root through
-phpize/configure/Make; direct Cargo output is not a supported extension:
+phpize/configure/Make in an isolated build directory; direct Cargo output
+is not a supported extension. Use the root Makefile targets:
 
 ```sh
-phpize
-./configure --disable-ddtrace-tracer --enable-ddtrace-profiling # standalone
-# or: ./configure --enable-ddtrace-tracer --enable-ddtrace-profiling # combined
-make -j"$(nproc)"
+make compile_profiler -j"$(nproc)" # standalone
+make compile_combined -j"$(nproc)" # combined
 ```
 
 Make/configure select the Cargo features, target directory, PHP headers,
@@ -52,8 +51,8 @@ unit tests, clippy, and benchmarks, but not extension validation.
 ## Gotchas
 
 - The toolchain is pinned by the repository's Rust toolchain files.
-- PHPT and integration validation must load `modules/datadog-profiling.so` or
-  `modules/ddtrace.so`, never a Cargo target-directory cdylib.
+- PHPT and integration validation must load `tmp/build_profiler/modules/datadog-profiling.so` or
+  `tmp/build_combined/modules/ddtrace.so`, never a Cargo target-directory cdylib.
 - Allocation hooks differ between PHP 8.4+ and earlier PHP versions.
 - `io_profiling` is Linux/macOS only.
 - `trigger_time_sample` is a test/benchmark build feature.

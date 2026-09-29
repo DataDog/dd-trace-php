@@ -19,6 +19,7 @@ jobs:
       DD_INSTRUMENTATION_TELEMETRY_ENABLED: "false"
       DD_REMOTE_CONFIG_ENABLED: "false"
       PROFILE_EXTENSION: ${{ matrix.php-version == '8.5' && 'ddtrace.so' || 'datadog-profiling.so' }}
+      PROFILE_SO: ${{ github.workspace }}/tmp/build_${{ matrix.php-version == '8.5' && 'combined' || 'profiler' }}/modules/${{ matrix.php-version == '8.5' && 'ddtrace.so' || 'datadog-profiling.so' }}
       PROFILE_RI: ${{ matrix.php-version == '8.5' && 'ddtrace' || 'datadog-profiling' }}
     strategy:
       fail-fast: false
@@ -54,8 +55,8 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            target-profiling/
-            target-common/
+            tmp/build_profiler/target-profiling/
+            tmp/build_combined/target-common/
           key: ${{ runner.os }}-cargo-llvm-${{ env.LLVM_VERSION }}-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}-${{ matrix.php-version }}-${{ matrix.phpts }}
 
       - name: Build profiler
@@ -85,13 +86,11 @@ jobs:
           "$LLVM_CONFIG_PATH" --version
           version_number=$(awk -F' = ' '$1 == "channel" { gsub(/"/, "", $2); print $2 }' rust-toolchain.toml)
           curl https://sh.rustup.rs -sSf | sh -s -- --profile minimal -y --default-toolchain "$version_number"
-          phpize
           if [ "${{ matrix.php-version }}" = "8.5" ]; then
-            DDTRACE_PROFILING_FEATURES=trigger_time_sample ./configure --enable-ddtrace-tracer --enable-ddtrace-profiling
+            make compile_combined -j"$(nproc)"
           else
-            DDTRACE_PROFILING_FEATURES=trigger_time_sample ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling
+            make compile_profiler PROFILER_FEATURES=trigger_time_sample -j"$(nproc)"
           fi
-          make -j"$(nproc)"
 
       - name: Cache build dependencies
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -101,8 +100,8 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            target-profiling/
-            target-common/
+            tmp/build_profiler/target-profiling/
+            tmp/build_combined/target-common/
           key: ${{ runner.os }}-cargo-llvm-${{ env.LLVM_VERSION }}-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}-${{ matrix.php-version }}-${{ matrix.phpts }}
 
       - name: Run no profile test
@@ -111,11 +110,11 @@ jobs:
           export DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=1
           export DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1
           php -v
-          php -d extension="modules/${PROFILE_EXTENSION}" --ri "${PROFILE_RI}"
+          php -d extension="${PROFILE_SO}" --ri "${PROFILE_RI}"
           for test_case in "allocations" "time" "strange_frames" "timeline" "exceptions" "io" "socket_io" "io_upscaling" "allocation_time_combined" "generators"; do
               mkdir -p profiling/tests/correctness/"$test_case"/
               export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/"$test_case"/test.pprof
-              php -d extension="${PWD}/modules/${PROFILE_EXTENSION}" "profiling/tests/correctness/${test_case}.php"
+              php -d extension="${PROFILE_SO}" "profiling/tests/correctness/${test_case}.php"
               if compgen -G "$DD_PROFILING_OUTPUT_PPROF.*" > /dev/null; then
                 echo "Profile output should not exist:"
                 ls -l "$DD_PROFILING_OUTPUT_PPROF".*
@@ -130,20 +129,20 @@ jobs:
           export DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE=1
           export DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1
           php -v
-          php -d extension="modules/${PROFILE_EXTENSION}" --ri "${PROFILE_RI}"
+          php -d extension="${PROFILE_SO}" --ri "${PROFILE_RI}"
           for test_case in "allocations" "time" "strange_frames" "timeline" "exceptions" "io" "socket_io" "io_upscaling" "allocation_time_combined" "generators"; do
               mkdir -p profiling/tests/correctness/"$test_case"/
               export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/"$test_case"/test.pprof
-              php -d extension="$PWD/modules/${PROFILE_EXTENSION}" profiling/tests/correctness/"$test_case".php
+              php -d extension="${PROFILE_SO}" profiling/tests/correctness/"$test_case".php
           done
           mkdir -p profiling/tests/correctness/allocations_1byte/
           export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/allocations_1byte/test.pprof
           export DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE=1
-          php -d extension="$PWD/modules/${PROFILE_EXTENSION}" profiling/tests/correctness/allocations.php
+          php -d extension="${PROFILE_SO}" profiling/tests/correctness/allocations.php
           mkdir -p profiling/tests/correctness/allocations_1byte_no_zend_alloc/
           export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/allocations_1byte_no_zend_alloc/test.pprof
           export DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE=1
-          USE_ZEND_ALLOC=0 php -d extension="$PWD/modules/${PROFILE_EXTENSION}" profiling/tests/correctness/allocations.php
+          USE_ZEND_ALLOC=0 php -d extension="${PROFILE_SO}" profiling/tests/correctness/allocations.php
           unset DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE
 
       - name: Run standalone profiler with the OpenTelemetry SDK tracer
@@ -172,7 +171,7 @@ jobs:
           $provider->shutdown();
           echo "standalone profiler and OpenTelemetry SDK tracer coexist\n";
           PHP
-          php -d "extension=${PWD}/modules/datadog-profiling.so" /tmp/otel-sdk/coexistence.php
+          php -d "extension=${PWD}/tmp/build_profiler/modules/datadog-profiling.so" /tmp/otel-sdk/coexistence.php
 
       - name: Run combined tracer and profiler integration tests
         if: matrix.php-version == '8.5' && matrix.phpts == 'nts'
@@ -181,7 +180,7 @@ jobs:
         run: |
           export TEST_PHP_EXECUTABLE="$(command -v php)"
           php run-tests.php -q \
-            -d "extension=${PWD}/modules/ddtrace.so" \
+            -d "extension=${PROFILE_SO}" \
             tests/ext/extension_disabled.phpt \
             tests/ext/profiling/runtime_id_01.phpt \
             tests/ext/profiling/runtime_id_02.phpt
@@ -191,7 +190,7 @@ jobs:
             DD_PROFILING_ENABLED=true \
             DD_PROFILING_LOG_LEVEL=trace \
             DD_PROFILING_OUTPUT_PPROF=/tmp/combined-endpoint.pprof \
-            php -d "extension=${PWD}/modules/ddtrace.so" \
+            php -d "extension=${PROFILE_SO}" \
               -r '$span = DDTrace\active_span(); $span->type = "web"; $span->resource = "combined-endpoint-test";' \
               2>&1
           )
@@ -206,11 +205,11 @@ jobs:
           export DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE=1
           export DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1
           php -v
-          php -d extension="modules/${PROFILE_EXTENSION}" --ri "${PROFILE_RI}"
+          php -d extension="${PROFILE_SO}" --ri "${PROFILE_RI}"
           for test_case in "exceptions_zts"; do
               mkdir -p profiling/tests/correctness/"$test_case"/
               export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/"$test_case"/test.pprof
-              php -d extension="$PWD/modules/${PROFILE_EXTENSION}" profiling/tests/correctness/"$test_case".php
+              php -d extension="${PROFILE_SO}" profiling/tests/correctness/"$test_case".php
           done
 
       - name: Check profiler correctness for allocations
@@ -295,19 +294,16 @@ jobs:
       - name: Run standalone and ddtrace conflict tests
         if: matrix.php-version == '8.5' && matrix.phpts == 'nts'
         run: |
-          cp modules/ddtrace.so /tmp/ddtrace-combined.so
-          make distclean
-          phpize
+          cp "${PROFILE_SO}" /tmp/ddtrace-combined.so
           export CC=clang-${LLVM_VERSION}
           export CXX=clang++-${LLVM_VERSION}
           export LLVM_CONFIG_PATH=/usr/bin/llvm-config-${LLVM_VERSION}
           export LIBCLANG_PATH=/usr/lib/llvm-${LLVM_VERSION}/lib
           export LD_LIBRARY_PATH="${LIBCLANG_PATH}:${LD_LIBRARY_PATH:-}"
-          ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling
-          make -j"$(nproc)"
+          make compile_profiler -j"$(nproc)"
           export TEST_PHP_EXECUTABLE="$(command -v php)"
           export DDTRACE_TEST_TRACER_EXTENSION=/tmp/ddtrace-combined.so
-          export DDTRACE_TEST_PROFILER_EXTENSION="${PWD}/modules/datadog-profiling.so"
+          export DDTRACE_TEST_PROFILER_EXTENSION="${PWD}/tmp/build_profiler/modules/datadog-profiling.so"
           php run-tests.php -q \
             profiling/tests/phpt/standalone_conflict_ddtrace_first.phpt \
             profiling/tests/phpt/standalone_conflict_profiler_first.phpt

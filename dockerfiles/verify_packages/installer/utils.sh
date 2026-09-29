@@ -243,6 +243,11 @@ fetch_setup_for_version() (
     cd -
 )
 
+run_released_installer() (
+    unset DD_TEST_INSTALLER_REPO
+    php "$@"
+)
+
 parse_appsec_version() {
     grep -oP 'VERSION \K\d+\.\d+\.\d+' appsec/CMakeLists.txt
 }
@@ -258,4 +263,3 @@ is_appsec_installable() {
   uname=$(uname -a)
   [ -n "${uname##*arm*}" ] && [ -n "${uname##*aarch*}" ]
 }
-

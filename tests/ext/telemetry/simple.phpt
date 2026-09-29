@@ -30,11 +30,17 @@ dd_trace_serialize_closed_spans();
 
 dd_trace_internal_fn("finalize_telemetry");
 
-for ($i = 0; $i < 300; ++$i) {
+// ASAN with sidecar trace logging can take over 30 seconds to drain queued actions.
+$maxAttempts = getenv('SKIP_ASAN') ? 600 : 300;
+for ($i = 0; $i < $maxAttempts; ++$i) {
     ("us" . "leep")(100000);
     if (file_exists(__DIR__ . '/simple-telemetry.out')) {
         $batches = [];
         foreach (file(__DIR__ . '/simple-telemetry.out') as $l) {
+            // The sidecar may still be appending the last record; retry it next poll.
+            if (substr($l, -1) !== "\n") {
+                continue;
+            }
             if ($l && $l[0] == '{') {
                 $json = json_decode($l, true);
                 if ($json["application"]["service_name"] == "background_sender-php-service" || $json["application"]["service_name"] == "datadog-ipc-helper") {
@@ -61,7 +67,7 @@ for ($i = 0; $i < 300; ++$i) {
         }
     }
 }
-if ($i == 300) {
+if ($i == $maxAttempts) {
     var_dump(file(__DIR__ . '/simple-telemetry.out'));
 }
 
