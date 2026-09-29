@@ -1,4 +1,5 @@
 mod profiling_stats;
+pub mod size_class;
 
 pub use profiling_stats::*;
 
@@ -13,14 +14,36 @@ use libc::size_t;
 use log::{debug, trace};
 use std::ffi::c_void;
 use std::num::{NonZero, NonZeroU32, NonZeroU64};
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU64, AtomicUsize, Ordering};
 
 #[cfg(not(php_zts))]
-use rand::rngs::StdRng;
+use rand::{SeedableRng, rngs::StdRng};
 #[cfg(php_zts)]
 use rand::rngs::ThreadRng;
-#[cfg(not(php_zts))]
-use rand::SeedableRng;
+
+// Initialized during MINIT, before allocation samples can be collected.
+static OS_PAGE_SIZE: AtomicUsize = AtomicUsize::new(0);
+
+/// Query the same OS page size used by Zend MM. Called unconditionally in MINIT.
+pub(crate) fn initialize_page_size() -> bool {
+    // Clear any value from an earlier MINIT cycle before querying again.
+    OS_PAGE_SIZE.store(0, Ordering::Relaxed);
+    // SAFETY: sysconf has no pointer arguments and is safe during MINIT.
+    let page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) };
+    let Ok(page_size) = usize::try_from(page_size) else {
+        return false;
+    };
+    if !page_size.is_power_of_two() {
+        return false;
+    }
+    OS_PAGE_SIZE.store(page_size, Ordering::Relaxed);
+    true
+}
+
+pub(crate) fn allocation_size_class(raw_size: usize) -> Option<usize> {
+    // MINIT validates the OS page size before allocation hooks can run.
+    size_class::allocation_size(raw_size, OS_PAGE_SIZE.load(Ordering::Relaxed))
+}
 
 #[cfg(php_zend_mm_set_custom_handlers_ex)]
 use crate::profiling::allocation::allocation_ge84::ZendMMState;
@@ -342,6 +365,22 @@ pub fn alloc_prof_rshutdown() {
 #[cfg(all(test, not(php_zts)))]
 mod tests {
     use super::*;
+
+    #[test]
+    fn allocation_sizes_use_initialized_os_page_size() {
+        assert!(initialize_page_size());
+        let page_size = OS_PAGE_SIZE.load(Ordering::Relaxed);
+        // SAFETY: sysconf only queries process-wide OS configuration.
+        assert_eq!(page_size, unsafe { libc::sysconf(libc::_SC_PAGESIZE) }
+            as usize);
+        assert_eq!(allocation_size_class(17), Some(24));
+        assert_eq!(allocation_size_class(4097), Some(8192));
+        let huge = size_class::CHUNK_SIZE + 1;
+        assert_eq!(
+            allocation_size_class(huge),
+            Some(huge.div_ceil(page_size) * page_size)
+        );
+    }
 
     #[test]
     fn allocation_sampling_matches_upscaling_probability() {
