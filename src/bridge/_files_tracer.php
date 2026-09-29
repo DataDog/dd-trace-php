@@ -41,5 +41,4 @@ return [
     __DIR__ . '/../DDTrace/Propagators/TextMap.php',
     __DIR__ . '/../DDTrace/ScopeManager.php',
     __DIR__ . '/../DDTrace/Tracer.php',
-    __DIR__ . '/../DDTrace/Util/RouteNormalizer.php',
 ];
