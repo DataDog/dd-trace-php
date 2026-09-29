@@ -452,7 +452,13 @@ EOT
       ;;
     esac
 
-    if test "$PHP_DDTRACE_RUST_LIBRARY_SPLIT" = "no"; then
+    if test "$PHP_DDTRACE_TRACER" = "no"; then
+      dnl Tracer-only symbols in ddtrace-fat.sym do not exist in the standalone
+      dnl profiler. On macOS, -export-symbols forces them to resolve at link time.
+      ddtrace_standalone_export_symbols="$ext_builddir/ddtrace-standalone.sym"
+      echo get_module > "$ddtrace_standalone_export_symbols"
+      EXTRA_LDFLAGS="$ddtrace_fat_ldflags -export-symbols $ddtrace_standalone_export_symbols"
+    elif test "$PHP_DDTRACE_RUST_LIBRARY_SPLIT" = "no"; then
       EXTRA_LDFLAGS="$ddtrace_fat_ldflags -export-symbols $ddtrace_fat_export_symbols"
     else
       EXTRA_LDFLAGS="$ddtrace_slim_ldflags -export-symbols $ddtrace_slim_export_symbols"
