@@ -19,7 +19,7 @@ services:
 
   elasticsearch:
     container_name: elasticsearch
-    image: "elasticsearch:7.17.4"
+    image: "elasticsearch:7.17.28"
     environment:
       - discovery.type=single-node
 

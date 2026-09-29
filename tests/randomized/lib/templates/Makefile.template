@@ -6,9 +6,15 @@ test.scenario.%:
 shell.scenario.%:
 	@make -C $(*) shell
 
-test: start_base_docker \
-	{{test_targets}} \
-	shutdown_base_docker
+# Listing the base services as a prerequisite of test would let make --jobs
+# start the scenarios alongside them, before their shared network exists.
+test:
+	@bash ../lib/run-base-docker-compose.sh
+	@$(MAKE) --no-print-directory run_scenarios; ret=$$?; \
+		bash ../lib/run-base-docker-compose.sh shutdown; \
+		exit $$ret
+
+run_scenarios: {{test_targets}}
 
 start_base_docker:
 	@bash ../lib/run-base-docker-compose.sh
