@@ -85,7 +85,7 @@ request crashes and is shared across language tracers. See
 `compile_rust.sh` (invoked from the Makefile) drives it. Minimize FFI surface;
 headers are generated with cbindgen (see [components.md](components.md)).
 Toolchain is pinned — see `Cargo.toml` (`rust-version`) and
-`profiling/rust-toolchain.toml`, not a hardcoded version.
+`rust-toolchain.toml`, not a hardcoded version.
 
 ## Configuration & INI
 
