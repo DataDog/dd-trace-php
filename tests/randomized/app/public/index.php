@@ -18,7 +18,7 @@ if (isset($_SERVER['QUERY_STRING'])) {
 }
 
 $snippetsConfiguration = (new SnippetsConfiguration())
-    ->withHttpBinHost('httpbin')
+    ->withHttpBinHost('http://httpbin')
     ->withElasticSearchHost('elasticsearch')
     ->withMysqlHost('mysql')
     ->withMysqlUser('test')
