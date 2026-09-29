@@ -21,7 +21,7 @@ All benchmark jobs are defined in `benchmarks.yml`.
     - `check-slo-breaches` gates releases based on SLOs defined on `bp-runner.fail-on-breach.yml`.
 - `linux-php-laravel-realworld-parallel`, `linux-php-symfony-realworld-parallel`,
   `linux-php-wordpress-parallel`: included from
-  [apm-sdks-benchmarks](https://gitlab.ddbuild.io/DataDog/apm-reliability/apm-sdks-benchmarks).
+  [apm-sdks-benchmarks](https://github.com/DataDog/apm-sdks-benchmarks/tree/main/.gitlab).
     - Change them there.
 
 ## Marking a benchmark as flaky
