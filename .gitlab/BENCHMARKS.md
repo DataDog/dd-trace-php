@@ -32,7 +32,8 @@ Add it to `FLAKY_BENCHMARKS_REGEX` in the suite's job or template:
   `variables` in `.microbenchmarks` in `benchmarks.yml`.
 - Macrobenchmarks (`macrobenchmarks`): `variables` in `.macrobenchmarks` in `benchmarks.yml`.
 
-The benchmark still runs and reports, but doesn't fail the gate.
+The benchmark still runs and reports, but doesn't fail performance quality gates:
+`check-big-regressions` (percentage-based) and `check-slo-breaches` (SLO-based).
 
 - The regex matches anywhere in the scenario name.
     - `SpanBench` quarantines every `SpanBench` scenario.
