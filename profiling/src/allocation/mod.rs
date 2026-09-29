@@ -16,10 +16,10 @@ use std::ffi::c_void;
 use std::num::{NonZero, NonZeroU32, NonZeroU64};
 use std::sync::atomic::{AtomicU32, AtomicU64, AtomicUsize, Ordering};
 
-#[cfg(not(php_zts))]
-use rand::{SeedableRng, rngs::StdRng};
 #[cfg(php_zts)]
 use rand::rngs::ThreadRng;
+#[cfg(not(php_zts))]
+use rand::{rngs::StdRng, SeedableRng};
 
 // Initialized during MINIT, before allocation samples can be collected.
 static OS_PAGE_SIZE: AtomicUsize = AtomicUsize::new(0);
