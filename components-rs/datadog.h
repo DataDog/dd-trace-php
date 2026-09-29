@@ -8,6 +8,8 @@ struct _zend_string;
 #include "common.h"
 #include "telemetry.h"
 #include "sidecar.h"
+#if defined(__linux__)
+#endif
 
 extern void (*ddog_log_callback)(ddog_CharSlice);
 
@@ -273,6 +275,12 @@ void datadog_sidecar_set_reconnect_fn(struct ddog_SidecarTransport **transport,
 
 void datadog_sidecar_clear_reconnect_fn(struct ddog_SidecarTransport **transport);
 
+bool ddog_shm_limiter_inc(const struct ddog_MaybeShmLimiter *limiter, uint32_t limit);
+
+bool ddog_exception_hash_limiter_inc(struct ddog_SidecarTransport *connection,
+                                     uint64_t hash,
+                                     uint32_t granularity_seconds);
+
 #if defined(__linux__)
 /**
  * Execute the prepared flush. For a default signal disposition, terminate the process afterward.
@@ -283,12 +291,6 @@ void datadog_sidecar_clear_reconnect_fn(struct ddog_SidecarTransport **transport
 int32_t datadog_sidecar_signal_flush_run(const struct ddog_SignalFlush *flush,
                                          bool terminate_process);
 #endif
-
-bool ddog_shm_limiter_inc(const struct ddog_MaybeShmLimiter *limiter, uint32_t limit);
-
-bool ddog_exception_hash_limiter_inc(struct ddog_SidecarTransport *connection,
-                                     uint64_t hash,
-                                     uint32_t granularity_seconds);
 
 /**
  * Returns true once the agent /info has been received and applied.

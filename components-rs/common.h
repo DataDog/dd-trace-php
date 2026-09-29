@@ -53,6 +53,15 @@
 typedef struct ddog_Endpoint ddog_Endpoint;
 
 /**
+ * A shared handle to a [`MutableMetadata`].
+ *
+ * This is a cheap-to-clone `Arc<ArcSwap<MutableMetadata>>`: all clones observe the same
+ * underlying value. See the
+ * [module documentation](self) for the write/read protocol.
+ */
+typedef struct ddog_MutableMetadataHandle ddog_MutableMetadataHandle;
+
+/**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,
  * never from C.
  */
@@ -208,6 +217,24 @@ typedef struct ddog_ArrayQueue_UsizeResult {
   };
 } ddog_ArrayQueue_UsizeResult;
 
+/**
+ * A generic result type for when an operation may fail,
+ * but there's nothing to return in the case of success.
+ */
+typedef enum ddog_VoidResult_Tag {
+  DDOG_VOID_RESULT_OK,
+  DDOG_VOID_RESULT_ERR,
+} ddog_VoidResult_Tag;
+
+typedef struct ddog_VoidResult {
+  ddog_VoidResult_Tag tag;
+  union {
+    struct {
+      struct ddog_Error err;
+    };
+  };
+} ddog_VoidResult;
+
 typedef enum ddog_Option_U32_Tag {
   DDOG_OPTION_U32_SOME_U32,
   DDOG_OPTION_U32_NONE_U32,
@@ -263,6 +290,8 @@ typedef struct ddog_Vec_Tag_ParseResult {
 
 typedef struct _zend_string _zend_string;
 
+
+#define ddog_DYANMIC_CONFIG_UPDATE_UNMODIFIED (_zend_string*)1
 
 #define ddog_LOG_ONCE (1 << 3)
 
@@ -477,6 +506,12 @@ typedef struct ddog_SidecarActionsBuffer ddog_SidecarActionsBuffer;
  */
 typedef struct ddog_SidecarTransport ddog_SidecarTransport;
 
+/**
+ * One pre-encoded flush. The duplicate fd preserves the template connection until drop; it
+ * shares packet ordering with normal sends and never reads the normal client's replies.
+ * Construction and destruction require ordinary thread context.
+ */
+typedef struct ddog_SignalFlush ddog_SignalFlush;
 /**
  * Opaque shared-memory span stats concentrator exposed to C.
  *
@@ -726,24 +761,6 @@ typedef struct ddog_Vec_DebuggerPayload {
 typedef uint64_t ddog_QueueId;
 
 /**
- * A generic result type for when an operation may fail,
- * but there's nothing to return in the case of success.
- */
-typedef enum ddog_VoidResult_Tag {
-  DDOG_VOID_RESULT_OK,
-  DDOG_VOID_RESULT_ERR,
-} ddog_VoidResult_Tag;
-
-typedef struct ddog_VoidResult {
-  ddog_VoidResult_Tag tag;
-  union {
-    struct {
-      struct ddog_Error err;
-    };
-  };
-} ddog_VoidResult;
-
-/**
  * A (key, value) pair for peer-service tags, borrowed from PHP/concentrator memory.
  */
 typedef struct ddog_PhpPeerTag {
@@ -948,8 +965,6 @@ typedef uint8_t ddog_Bytes[16];
  * The `Uuid` type is always guaranteed to be have the same ABI as [`Bytes`].
  */
 typedef ddog_Bytes ddog_Uuid;
-
-#define ddog_DYANMIC_CONFIG_UPDATE_UNMODIFIED (_zend_string*)1
 
 typedef struct ddog_DebuggerCapture ddog_DebuggerCapture;
 typedef struct ddog_DebuggerValue ddog_DebuggerValue;
@@ -2172,6 +2187,52 @@ void ddog_endpoint_set_use_system_resolver(struct ddog_Endpoint *endpoint,
                                            bool use_system_resolver);
 
 void ddog_endpoint_drop(struct ddog_Endpoint*);
+
+/**
+ * Creates a shared, updatable metadata handle initialized with default values.
+ *
+ * Use the metadata setters to configure or update its values.
+ *
+ * # Safety
+ *
+ * `out_handle` must point to valid, writable (uninitialized) memory for a
+ * `ddog_MutableMetadataHandle *`.
+ */
+void ddog_mutable_metadata_new(struct ddog_MutableMetadataHandle **out_handle);
+
+/**
+ * Frees a `ddog_MutableMetadataHandle` handle.
+ *
+ * Call once this handle is no longer needed. It must not be used concurrently
+ * with this call or accessed afterward. Other cloned handles remain valid.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid mutable metadata handle obtained through [`ddog_mutable_metadata_new`]
+ */
+void ddog_mutable_metadata_free(struct ddog_MutableMetadataHandle *handle);
+
+/**
+ * Replaces the `runtime_id` held by the shared mutable metadata handle.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid mutable metadata handle obtained through [`ddog_mutable_metadata_new`]
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_mutable_metadata_set_runtime_id(const struct ddog_MutableMetadataHandle *handle,
+                                                            ddog_CharSlice runtime_id);
+
+/**
+ * Replaces the `process_tags` held by the shared mutable metadata handle.
+ *
+ * # Safety
+ *
+ * `handle` must be a valid mutable metadata handle obtained through [`ddog_mutable_metadata_new`]
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_mutable_metadata_set_process_tags(const struct ddog_MutableMetadataHandle *handle,
+                                                              ddog_CharSlice process_tags);
 
 struct ddog_Option_U32 ddog_Option_U32_some(uint32_t v);
 

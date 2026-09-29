@@ -10,6 +10,9 @@
 #include <stdio.h>
 #include "common.h"
 
+#if defined(__linux__)
+#endif
+
 #if defined(_WIN32)
 bool ddog_setup_crashtracking(const struct ddog_Endpoint *endpoint, ddog_crasht_Metadata metadata);
 #endif
@@ -533,6 +536,43 @@ struct ddog_AppsecCResponse datadog_sidecar_send_appsec_message_without_reconnec
  */
 void ddog_sidecar_appsec_response_drop(struct ddog_AppsecCResponse response);
 
+#if defined(__linux__)
+/**
+ * Prepare a flush on this transport with a private completion pipe.
+ * Normal thread context only. The returned object owns a duplicate of the transport fd;
+ * refresh it after reconnect and drop it before normal connection shutdown.
+ *
+ * # Safety
+ * `transport` must be exclusively borrowed and `output` must be writable for this call.
+ */
+ddog_MaybeError ddog_sidecar_prepare_signal_flush(struct ddog_SidecarTransport *transport,
+                                                  struct ddog_SidecarFlushOptions options,
+                                                  struct ddog_SignalFlush **output);
+#endif
+
+#if defined(__linux__)
+/**
+ * Destroy a prepared flush in ordinary thread context.
+ *
+ * # Safety
+ * `flush` must be null or an owned pointer returned by prepare. Any raw worker must have exited.
+ */
+void ddog_sidecar_signal_flush_drop(struct ddog_SignalFlush *flush);
+#endif
+
+#if defined(__linux__)
+/**
+ * Run one bounded flush without TLS access, allocation, unwinding, or process termination.
+ * Returns zero when the sidecar closes the pipe (completion or exit), or a negative Linux errno.
+ *
+ * # Safety
+ * The object must remain alive through the call, with exclusive one-shot use of this object.
+ * The normal transport may continue sending and receiving concurrently.
+ * All worker signals must be blocked. Do not use an inherited object after fork.
+ */
+int32_t ddog_sidecar_signal_flush_run(const struct ddog_SignalFlush *flush);
+#endif
+
 ddog_TracesBytes *ddog_get_traces(void);
 
 void ddog_free_traces(ddog_TracesBytes *_traces);
@@ -691,51 +731,5 @@ void ddog_add_event_attributes_float(ddog_SpanEventBytes *event, ddog_CharSlice 
  * [`ddog_free_charslice`].
  */
 ddog_CharSlice ddog_serialize_trace_into_charslice(ddog_TraceBytes *trace);
-
-#if defined(__linux__)
-/**
- * One pre-encoded flush. The duplicate fd preserves the template connection until drop; it
- * shares packet ordering with normal sends and never reads the normal client's replies.
- * Construction and destruction require ordinary thread context.
- */
-typedef struct ddog_SignalFlush ddog_SignalFlush;
-#endif
-
-#if defined(__linux__)
-/**
- * Prepare a flush on this transport with a private completion pipe.
- * Normal thread context only. The returned object owns a duplicate of the transport fd;
- * refresh it after reconnect and drop it before normal connection shutdown.
- *
- * # Safety
- * `transport` must be exclusively borrowed and `output` must be writable for this call.
- */
-ddog_MaybeError ddog_sidecar_prepare_signal_flush(struct ddog_SidecarTransport *transport,
-                                                  struct ddog_SidecarFlushOptions options,
-                                                  struct ddog_SignalFlush **output);
-#endif
-
-#if defined(__linux__)
-/**
- * Destroy a prepared flush in ordinary thread context.
- *
- * # Safety
- * `flush` must be null or an owned pointer returned by prepare. Any raw worker must have exited.
- */
-void ddog_sidecar_signal_flush_drop(struct ddog_SignalFlush *flush);
-#endif
-
-#if defined(__linux__)
-/**
- * Run one bounded flush without TLS access, allocation, unwinding, or process termination.
- * Returns zero when the sidecar closes the pipe (completion or exit), or a negative Linux errno.
- *
- * # Safety
- * The object must remain alive through the call, with exclusive one-shot use of this object.
- * The normal transport may continue sending and receiving concurrently.
- * All worker signals must be blocked. Do not use an inherited object after fork.
- */
-int32_t ddog_sidecar_signal_flush_run(const struct ddog_SignalFlush *flush);
-#endif
 
 #endif  /* DDOG_SIDECAR_H */
