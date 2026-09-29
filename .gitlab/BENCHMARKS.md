@@ -15,7 +15,7 @@ All benchmark jobs are defined in `benchmarks.yml`.
     - `check-big-regressions` gates `benchmarks-tracer` on regressions above the threshold
       defined on `bp-runner.fail-on-regression.yml`.
 - `macrobenchmarks`: k6 load test against a sample Laravel app, extends `.macrobenchmarks`.
-    - Runs on `master`, manual elsewhere.
+    - Runs on `master` and on `ddtrace-*` release branches, manual elsewhere.
     - Steps live in the `php/laravel-realworld` branch of
       [benchmarking-platform](https://github.com/DataDog/benchmarking-platform).
     - `check-slo-breaches` gates releases based on SLOs defined on `bp-runner.fail-on-breach.yml`.
