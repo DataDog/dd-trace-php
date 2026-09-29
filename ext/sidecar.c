@@ -13,6 +13,7 @@
 #include "telemetry.h"
 #include "process_tags.h"
 #include "remote_config.h"
+#include "signals.h"
 #include "string_utils.h"
 #include "target_metadata.h"
 #include "ffi_utils.h"
@@ -113,8 +114,12 @@ DATADOG_PUBLIC ddog_SidecarTransport **ddtrace_get_sidecar_transport(void) {
 }
 #endif
 
+static void dd_sidecar_setup_signal_transport(ddog_SidecarTransport *transport, bool replace);
+
 static ddog_SidecarTransport *datadog_sidecar_connect_callback(void) {
-    return datadog_sidecar_connect(false);
+    ddog_SidecarTransport *transport = datadog_sidecar_connect(false);
+    dd_sidecar_setup_signal_transport(transport, true);
+    return transport;
 }
 
 static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_fork, const char *logpath) {
@@ -207,6 +212,7 @@ static void datadog_sidecar_setup_thread_mode(void);
 
 static void dd_sidecar_on_reconnect(ddog_SidecarTransport *transport) {
     if (!datadog_endpoint || !dogstatsd_endpoint) {
+        dd_sidecar_setup_signal_transport(transport, true);
         return;
     }
 
@@ -233,6 +239,10 @@ static void dd_sidecar_on_reconnect(ddog_SidecarTransport *transport) {
     }
 
     tsrm_mutex_unlock(DATADOG_G(sidecar_universal_service_tags_mutex));
+
+    // Reconnect callbacks run before the new sender replaces DATADOG_G(sidecar).
+    // Prepare against the replacement passed to this callback, not the old sender.
+    dd_sidecar_setup_signal_transport(transport, true);
 }
 
 static ddog_SidecarTransport *dd_sidecar_connect(bool as_worker, bool is_fork) {
@@ -306,6 +316,28 @@ static ddog_SidecarTransport *dd_sidecar_connect(bool as_worker, bool is_fork) {
     dd_sidecar_post_connect(&sidecar_transport, is_fork, logpath);
 
     return sidecar_transport;
+}
+
+static void dd_sidecar_setup_signal_transport(ddog_SidecarTransport *transport, bool replace) {
+#ifdef __linux__
+    if ((!replace && datadog_signals_has_sidecar_flush()) || !transport ||
+        (!get_global_DD_TRACE_FORCE_FLUSH_ON_SIGTERM() && !get_global_DD_TRACE_FORCE_FLUSH_ON_SIGINT())) {
+        return;
+    }
+
+    ddog_SignalFlush *flush = NULL;
+    bool prepared = datadog_ffi_try("Failed preparing sidecar signal flush",
+                                    ddog_sidecar_prepare_signal_flush(
+                                        transport, (ddog_SidecarFlushOptions){.traces_and_stats = true}, &flush));
+    if (prepared || replace) {
+        // Takes ownership, including when another normal thread published first.
+        // A failed refresh clears the stale object so a later RINIT can retry.
+        datadog_signals_set_sidecar_flush(flush, replace);
+    }
+#else
+    (void)transport;
+    (void)replace;
+#endif
 }
 
 static void datadog_sidecar_setup_thread_mode() {
@@ -470,6 +502,7 @@ void datadog_sidecar_setup(ddog_RemoteConfigFlags flags) {
     if (DATADOG_G(sidecar) && !datadog_sidecar_for_signal) {
         datadog_sidecar_for_signal = DATADOG_G(sidecar);
     }
+    dd_sidecar_setup_signal_transport(DATADOG_G(sidecar), false);
 }
 
 void datadog_sidecar_minit(void) {
@@ -489,6 +522,9 @@ void datadog_sidecar_minit(void) {
 
 void datadog_sidecar_handle_fork(void) {
 #ifndef _WIN32
+#ifdef __linux__
+    datadog_signals_reset_sidecar_flush_after_fork();
+#endif
     ddog_RemoteConfigFlags flags = {0};
     bool enable_sidecar = datadog_sidecar_should_enable(&flags);
 
@@ -546,6 +582,7 @@ void datadog_sidecar_handle_fork(void) {
     if (DATADOG_G(sidecar)) {
         datadog_sidecar_for_signal = DATADOG_G(sidecar);
     }
+    dd_sidecar_setup_signal_transport(DATADOG_G(sidecar), false);
 #endif
 }
 
@@ -580,6 +617,7 @@ void datadog_sidecar_ensure_active(void) {
             datadog_sidecar_for_signal = DATADOG_G(sidecar);
         }
     }
+    dd_sidecar_setup_signal_transport(DATADOG_G(sidecar), false);
 }
 
 void datadog_sidecar_finalize(bool clear_id) {

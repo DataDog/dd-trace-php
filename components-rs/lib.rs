@@ -49,6 +49,8 @@ pub mod ffe;
 pub mod log;
 pub mod remote_config;
 pub mod sidecar;
+#[cfg(all(not(standalone_profiler), target_os = "linux"))]
+pub mod signal_flush;
 pub mod stats;
 pub mod telemetry;
 pub mod trace_filter;
