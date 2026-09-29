@@ -73,10 +73,10 @@ cargo +nightly fmt --all --quiet && \
   cargo clippy --workspace --all-targets --all-features -- -D warnings
 ```
 
-A rustc ≥1.87 toolchain override is active in the repo, so plain `cargo clippy`
-picks up the correct toolchain — do NOT force `+stable` (the default stable is
-older) or a pinned `+1.87.0`, and do not lint per-crate with `-p`. Only `fmt`
-needs `+nightly`.
+A rustc ≥1.91 toolchain override is active in the repo, so plain `cargo clippy`
+picks up the correct toolchain. The `+nightly` toolchain is likely not in the
+development images. You can install it temporarily in a running image, or run
+it on the host.
 
 ## Tracer Extension (ddtrace.so)
 
@@ -86,7 +86,7 @@ Used before running tracer unit tests, .phpt tests, etc.:
 
 ```bash
 .claude/ci/dockerh --cache tracer-8.3-debug --overlayfs --php debug \
-  datadog/dd-trace-ci:php-8.3_bookworm-10 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-11 -- bash -c '
 set -e
 git submodule update --init libdatadog
 make -j$(nproc) all
@@ -132,7 +132,7 @@ Reproduces the `compile extension: debug` CI job exactly:
 
 ```bash
 .claude/ci/dockerh --cache tracer-8.3-debug --overlayfs --root \
-    datadog/dd-trace-ci:php-8.3_bookworm-10 \
+    datadog/dd-trace-ci:php-8.3_bookworm-11 \
     -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
     -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
     -e SHARED=1 \
@@ -150,7 +150,7 @@ enables `-fsanitize=address` in the Rust sidecar.
 ```bash
 .claude/ci/dockerh --cache tracer-8.3-asan --overlayfs \
   --php debug-zts-asan \
-  datadog/dd-trace-ci:php-8.3_bookworm-10 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-11 -- bash -c '
 set -e
 export COMPILE_ASAN=1
 make -j$(nproc) all
@@ -228,7 +228,7 @@ register it via `ddtrace.ini`):
 
 ```bash
 dockerh --cache profiler-8.3-nts --php nts \
-  datadog/dd-trace-ci:php-8.3_bookworm-10 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-11 -- bash -c '
 cd /project/dd-trace-php
 make compile_combined -j"$(nproc)"
 php -n -d extension=tmp/build_combined/modules/ddtrace.so --ri ddtrace
@@ -250,12 +250,16 @@ substitute for the combined build above:
 
 ```bash
 dockerh --cache profiler-8.3-nts-standalone --php nts \
-  datadog/dd-trace-ci:php-8.3_bookworm-10 -- bash -c '
+  datadog/dd-trace-ci:php-8.3_bookworm-11 -- bash -c '
 cd /project/dd-trace-php
 make compile_profiler -j"$(nproc)"
 php -n -d extension=tmp/build_profiler/modules/datadog-profiling.so --ri datadog-profiling
 '
 ```
+
+Output: `tmp/build_profiler/modules/datadog-profiling.so`. See
+[github-actions-profiler.md](github-actions-profiler.md) for
+`PROFILER_FEATURES` and the ASAN variant (`make compile_profiler_asan`).
 
 ### For release / packaging / system tests (centos-7)
 

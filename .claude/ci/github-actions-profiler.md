@@ -13,14 +13,15 @@
 |--------|--------|-------------|
 | `Profiling correctness / prof-correctness ({ver}, nts)` | `ubuntu-24.04` | Builds profiler + runs NTS correctness test cases |
 | `Profiling correctness / prof-correctness ({ver}, zts)` | `ubuntu-24.04` | Same + `exceptions_zts` (requires `parallel` PECL extension) |
-| `Profiling ASAN Tests / prof-asan ({ver}, {arch})` | `arm-8core-linux` / `ubuntu-8-core-latest` | Builds profiler with ASAN + runs `.phpt` profiling tests |
+| `Profiling ASAN/UBSAN Tests / PHP 8.5 {nts,zts} UBSAN ({arch})` | `arm-8core-linux` / `ubuntu-8-core-latest` | Builds profiler with UBSAN + runs `.phpt` profiling tests |
 
 Correctness matrix: PHP 8.0+ × {nts, zts}.
-ASAN matrix: PHP 8.3+ × {arm64, amd64}.
+ASAN matrix: PHP 8.3+ × {nts-asan, debug-zts-asan} × {arm64, amd64}.
+UBSAN matrix: PHP 8.5 × {nts, zts} × {arm64, amd64}.
 
 ## What It Tests
 
-Each job builds through phpize/configure/Make with
+Each job builds through the root Makefile's out-of-tree phpize/configure/Make targets with
 `DDTRACE_PROFILING_FEATURES=trigger_time_sample`, then runs PHP scripts that exercise
 profiling (allocations, wall/cpu time, exceptions, IO, timeline, strange frames). PHP
 8.5 correctness cells use combined `ddtrace.so`; older cells retain the standalone
@@ -220,12 +221,32 @@ CI, on the other hand, runs on a bare `ubuntu-24.04` runner and installs PHP via
 installs version `v1.2.7` from GitHub via the `extensions` matrix parameter
 (`parallel-krakjoe/parallel@v1.2.7`).
 
-## ASAN Build
+## ASAN / UBSAN Builds
 
-Builds the profiler with AddressSanitizer using a pinned nightly Rust toolchain
-and clang-20, then runs the `.phpt` test suite with `--asan`.
+The ASAN job uses the pinned stable Rust toolchain with `RUSTC_BOOTSTRAP=1`;
+PHP 8.5 NTS on amd64 builds the combined extension. Other cells build the
+standalone profiler. Both use the out-of-tree Make targets below.
 
-### Local reproduction
+- **ASAN** (`prof-asan`): `make compile_profiler_asan`. Uses the pinned
+  **stable** toolchain from `rust-toolchain.toml`; the target sets
+  `RUSTC_BOOTSTRAP=1` so stable accepts `-Zsanitizer=address` and
+  `-Zbuild-std=std,panic_abort` (std is rebuilt instrumented, which needs the
+  `rust-src` component and an explicit `--target`). Output:
+  `tmp/build_profiler_asan/modules/datadog-profiling.so`.
+- **UBSAN** (`prof-ubsan`): `make compile_profiler` with UBSAN `CFLAGS`/`LDFLAGS`
+  and `-C link-arg=-fsanitize=...` in `RUSTFLAGS`. Output:
+  `tmp/build_profiler/modules/datadog-profiling.so`.
+
+`CC`/`CFLAGS`/`LDFLAGS` from the environment still apply to C code built by
+cargo build scripts. The standalone profiler has no C of its own; the `.so` is
+the Rust cdylib.
+
+The workflow copies the `.so` into the extension dir rather than using
+`make install_profiler`, because the install target also writes a
+`datadog-profiling.ini` and the test step loads the extension with `-d
+extension=...` (it would be loaded twice).
+
+### Local reproduction (ASAN)
 
 ```bash
 dockerh --cache profiler-asan-8.3-nts --php nts-asan \
@@ -234,16 +255,8 @@ cd /project/dd-trace-php
 export CC=clang-21
 export CFLAGS="-fsanitize=address -fsanitize-address-use-after-scope -fno-omit-frame-pointer"
 export LDFLAGS="-fsanitize=address -shared-libasan"
-export RUSTC_LINKER=lld-21
-rustup override set nightly-2025-10-31
-export RUSTFLAGS="-Zsanitizer=address -Zexternal-clangrt -C force-frame-pointers=yes"
-export DDTRACE_PROFILING_TARGET="$(uname -m)-unknown-linux-gnu"
-export DDTRACE_PROFILING_CARGO_BUILD_FLAGS="-Zbuild-std=std,panic_abort"
-# CI runs phpize/configure/make directly since its checkout is ephemeral; do not
-# do that here -- use the root Makefile target instead so a persistent local
-# checkout is not left with a clobbered top-level Makefile.
-make compile_profiler -j"$(nproc)"
-cp -v tmp/build_profiler/modules/datadog-profiling.so \
+make compile_profiler_asan
+cp -v tmp/build_profiler_asan/modules/datadog-profiling.so \
   "$(php-config --extension-dir)/datadog-profiling.so"
 
 # run-tests.php writes temp files next to .phpt files, so both must be in a writable dir.
@@ -258,15 +271,15 @@ DD_PROFILING_OUTPUT_PPROF=/tmp/pprof \
 '
 ```
 
-Requires `--user root --privileged` — ASAN needs both.
-
-The nightly toolchain version (`nightly-2025-10-31`) is pinned in
-`.github/workflows/prof_asan.yml`, not in `profiling/rust-toolchain.toml`. Check
-the workflow file for the current pinned version.
+Requires `--user root --privileged` — ASAN needs both. For UBSAN, use
+`--php nts` (or `zts`), the UBSAN flags from the workflow, `make
+compile_profiler`, and `LD_PRELOAD` the clang UBSAN runtime when running tests
+(see the workflow).
 
 ## Gotchas
 
-- **Expected ASAN test counts:** 39 total, ~27 pass, ~12 skip (30%), 0 fail. The skips are normal
+- **Expected test counts (PHP 8.5):** ASAN 47 total, 32 pass, 15 skip, 0 fail; UBSAN nts
+  47 total, 35 pass, 12 skip, 0 fail. The skips are normal
   (platform/env conditions). A non-zero fail count indicates a real problem.
 - `dockerh` runs the container as your host UID so cache dirs are writable without any
   permission tricks. Pass `--user root` after the image name if you need to install

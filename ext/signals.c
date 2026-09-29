@@ -51,7 +51,8 @@
 #endif
 
 #define MAX_STACK_SIZE 1024
-#define MIN_STACKSZ 16384  // enough to hold void *array[MAX_STACK_SIZE] plus a couple kilobytes
+// Leave room for the backtrace array, logging, libc calls, and the signal frame.
+#define MIN_STACKSZ (64 * 1024)
 
 // true globals; only modify in MINIT/MSHUTDOWN
 static stack_t dd_altstack;
