@@ -388,8 +388,13 @@ EOT
   PHP_CHECK_LIBRARY(rt, shm_open,
     [EXTRA_LDFLAGS="$EXTRA_LDFLAGS -lrt"; DDTRACE_SHARED_LIBADD="${DDTRACE_SHARED_LIBADD:-} -lrt"])
 
-  dnl rust imports these, so we need them to link
+  dnl Platform linker requirements for the Rust library
   case $host_os in
+   linux*)
+    dnl The signal worker calls _exit with shared TLS. Resolve libc symbols
+    dnl when loading the extension, including when Rust is linked as a static archive.
+    EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Wl,-z,now"
+    ;;
    darwin*)
     EXTRA_LDFLAGS="$EXTRA_LDFLAGS -framework CoreFoundation -framework Security"
     PHP_ADD_FRAMEWORK([CoreFoundation])
