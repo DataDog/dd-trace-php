@@ -15,6 +15,7 @@ RUSTFLAGS='-C link-arg=/usr/lib/libunwind.a -C force-unwind-tables=yes' \
   ./compile_rust.sh \
     --package datadog-php \
     --package php_sidecar_mockgen \
+    --features datadog-php/trampoline-host-loader \
     -Z build-std=std,panic_abort \
     -Z build-std-features=llvm-libunwind,backtrace
 
