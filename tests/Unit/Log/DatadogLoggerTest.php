@@ -52,6 +52,26 @@ class DatadogLoggerTest extends BaseTestCase
         $this->assertRegularExpression("/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{6}\+\d{2}:\d{2}/", $record["timestamp"]);
     }
 
+    public function testTimestampWithLowFloatPrecision()
+    {
+        $precision = ini_set('precision', '10');
+        $timezone = date_default_timezone_get();
+        date_default_timezone_set('Pacific/Auckland');
+        try {
+            (new DatadogLogger())->info('timestamp');
+        } finally {
+            ini_set('precision', $precision);
+            date_default_timezone_set($timezone);
+        }
+
+        $record = json_decode(file_get_contents('/tmp/php-error.log'), true);
+        $this->assertSame('timestamp', $record['message']);
+        $this->assertRegularExpression(
+            '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}\+00:00$/',
+            $record['timestamp']
+        );
+    }
+
     public function testLogInjection()
     {
         $this->putEnvAndReloadConfig([
