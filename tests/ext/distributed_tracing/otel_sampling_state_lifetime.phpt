@@ -21,8 +21,19 @@ function headers(string $fields): array
 function report()
 {
     $headers = DDTrace\generate_distributed_tracing_headers(['tracecontext']);
-    preg_match('/(?:^|,)ot=[^,]*?(foo:[^;,]+)/', $headers['tracestate'], $matches);
-    echo $matches[1] ?? '<absent>', PHP_EOL;
+    // Keep this ownership test independent of PCRE JIT's vectorized reads under Valgrind.
+    foreach (explode(',', $headers['tracestate']) as $member) {
+        if (strncmp($member, 'ot=', 3) !== 0) {
+            continue;
+        }
+        foreach (explode(';', substr($member, 3)) as $field) {
+            if (strncmp($field, 'foo:', 4) === 0) {
+                echo $field, PHP_EOL;
+                return;
+            }
+        }
+    }
+    echo '<absent>', PHP_EOL;
 }
 
 // Store state globally before any root exists, including the Datadog/W3C merge.
