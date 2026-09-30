@@ -161,6 +161,18 @@ foreach ($arch_targets as $arch) {
       if [[ "${ARCH}" == arm64 && "${PHP_MAJOR_MINOR}" == 7.4 ]]; then
         cat profiling/tests/php-language-xfail-arm64-74.list >> /tmp/profiler-php-language-xfail.list
       fi
+    # PHP 7.1-7.3's intl expectations depend on undefined float-to-int
+    # conversion behavior and fail in the stock ARM64 runtimes.
+    - |
+      if [[ "${ARCH}" == arm64 && "${PHP_MAJOR_MINOR}" =~ ^7\.[123]$ ]]; then
+        cat profiling/tests/php-language-xfail-arm64-pre74.list >> /tmp/profiler-php-language-xfail.list
+      fi
+    # PHP 7.2's bundled Oniguruma crashes on these tests in the stock ARM64
+    # NTS and ZTS runtimes, including when no profiler is loaded.
+    - |
+      if [[ "${ARCH}" == arm64 && "${PHP_MAJOR_MINOR}" == 7.2 ]]; then
+        cat profiling/tests/php-language-xfail-arm64-72.list >> /tmp/profiler-php-language-xfail.list
+      fi
     - export XFAIL_LIST=/tmp/profiler-php-language-xfail.list
     - ulimit -c unlimited
     - .gitlab/run_php_language_tests.sh
