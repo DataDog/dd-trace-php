@@ -1,0 +1,5 @@
+#!/bin/sh
+# Libtool drops linker-only flags passed in LDFLAGS; keep Clang, LLD, and the
+# static compiler-rt builtins selected for both native and Rust link steps.
+# libgcc_s is still required for the bundled C++ exception/unwind machinery.
+exec clang -fuse-ld=lld -rtlib=compiler-rt -unwindlib=libgcc -Wno-unused-command-line-argument "$@"
