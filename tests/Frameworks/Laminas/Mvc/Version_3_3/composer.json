@@ -22,13 +22,13 @@
     "autoload": {
         "psr-4": {
             "Application\\": "module/Application/src/"
-        },
-        "files": ["../../../../Appsec/Mock.php"]
+        }
     },
     "autoload-dev": {
         "psr-4": {
             "ApplicationTest\\": "module/Application/test/"
-        }
+        },
+        "files": ["../../../../Appsec/Mock.php"]
     },
     "scripts": {
         "clear-config-cache": "php bin/clear-config-cache.php",
