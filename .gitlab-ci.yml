@@ -129,6 +129,12 @@ profiler-trigger:
       artifacts: true
     - job: "collect portable component artifacts: [amd64]"
       artifacts: false
+    - job: "collect portable component artifacts: [arm64]"
+      artifacts: false
+    - job: "compile portable profiler rust tests: [8.5, amd64]"
+      artifacts: false
+    - job: "compile portable profiler rust tests: [8.5, arm64]"
+      artifacts: false
   trigger:
     include:
       - artifact: .gitlab/profiler-gen.yml

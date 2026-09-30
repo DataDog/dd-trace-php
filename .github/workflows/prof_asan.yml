@@ -6,23 +6,25 @@ on:
 permissions:
   contents: read
 
+env:
+  PORTABLE_BUILD_IMAGE: datadog/dd-appsec-php-ci@sha256:976636c9ae20ea3e14f4b2ab5fcc1b6c4684acded3b963be446a463ed6733049
+  PROFILER_TEST_FEATURES: debug_stats,stack_walking_tests,test,tracing,tracing-subscriber,trigger_time_sample
+
 jobs:
   prof-asan:
     name: PHP ${{ matrix.php-version }} ${{ matrix.php-build }} (${{ matrix.runner }})
     runs-on: ${{ matrix.runner }}
     strategy:
+      fail-fast: false
       matrix:
         php-version: [8.3, 8.4, 8.5]
         php-build: [nts-asan, debug-zts-asan]
         runner: [arm-8core-linux, ubuntu-8-core-latest]
     env:
-      CARGO_HOME: /rust/cargo
-      RUSTUP_HOME: /rust/rustup
-      CARGO_TARGET_DIR: /tmp/build-cargo
-    container:
-      image: datadog/dd-trace-ci:php-${{matrix.php-version}}_bookworm-11
-      # https://docs.github.com/en/actions/creating-actions/dockerfile-support-for-github-actions#user
-      options: --user root
+      PHP_VERSION: ${{ matrix.php-version }}
+      PHP_BUILD: ${{ matrix.php-build }}
+      RUNTIME_IMAGE: datadog/dd-trace-ci:php-${{ matrix.php-version }}_bookworm-11
+      PROFILER_OUTPUT: tmp/portable-profiler-asan-${{ matrix.php-version }}-${{ matrix.php-build }}
 
     steps:
       - name: Checkout
@@ -31,61 +33,104 @@ jobs:
           fetch-depth: 1
           submodules: true
 
-      - name: Cache Cargo dependencies
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            /rust/cargo/registry/index/
-            /rust/cargo/registry/cache/
-            /rust/cargo/registry/src/
-            /rust/cargo/git/db/
-            /rust/cargo/git/checkouts/
-          key: ${{ runner.os }}-${{ runner.arch }}-cargo-deps-asan-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache Cargo target
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: /tmp/build-cargo/
-          key: ${{ runner.os }}-${{ runner.arch }}-cargo-target-asan-${{ matrix.php-version }}-${{ matrix.php-build }}-${{ hashFiles('rust-toolchain.toml') }}-${{ github.sha }}-${{ hashFiles('.github/workflows/prof_asan.yml') }}
-
-      - name: Build and install profiler
+      - name: Export the matching PHP SDK
         run: |
-          set -eux
-          switch-php ${{ matrix.php-build }}
-          export CC=clang-21
-          export CFLAGS='-fsanitize=address -fsanitize-address-use-after-scope -fno-omit-frame-pointer'
-          export LDFLAGS='-fsanitize=address -shared-libasan'
-          # Uses the stable toolchain from rust-toolchain.toml; see the
-          # compile_profiler_asan target for the Rust sanitizer setup.
-          make compile_profiler_asan
-          cp -v tmp/build_profiler_asan/modules/datadog-profiling.so "$(php-config --extension-dir)/datadog-profiling.so"
+          sdk_container=$(docker create "$RUNTIME_IMAGE")
+          trap 'docker rm -f "$sdk_container" >/dev/null 2>&1 || true' EXIT
+          mkdir -p "tmp/php-sdk-${PHP_VERSION}"
+          docker cp \
+            "$sdk_container:/opt/php/${PHP_BUILD}" \
+            "tmp/php-sdk-${PHP_VERSION}/${PHP_BUILD}"
 
-      - name: Run phpt tests
+      - name: Build portable ASAN profiler
         run: |
-          set -eux
-          switch-php ${{ matrix.php-build }}
-          cd profiling/tests
-          cp -v $(php-config --prefix)/lib/php/build/run-tests.php .
-          export DD_PROFILING_OUTPUT_PPROF=/tmp/pprof
-          export ASAN_OPTIONS="${ASAN_OPTIONS:+$ASAN_OPTIONS:}abort_on_error=1:halt_on_error=1:detect_leaks=1:strict_string_checks=1:detect_stack_use_after_return=1:check_initialization_order=1:detect_container_overflow=1:detect_odr_violation=2:symbolize=1:disable_coredump=0:unmap_shadow_on_exit=1"
-          export LSAN_OPTIONS="${LSAN_OPTIONS:+$LSAN_OPTIONS:}exitcode=23:print_suppressions=0:report_objects=1"
-          php run-tests.php -j$(nproc) --show-diff --asan -d extension=datadog-profiling.so phpt
+          if [[ "$PHP_BUILD" == *zts* ]]; then
+            thread_safety=zts
+            portable_sdk=${PHP_VERSION}-release-zts
+            extension_name=datadog-profiling-zts.so
+          else
+            thread_safety=nts
+            portable_sdk=${PHP_VERSION}
+            extension_name=datadog-profiling.so
+          fi
+
+          docker run --rm \
+            --volume "${GITHUB_WORKSPACE}:/work" \
+            --volume "${GITHUB_WORKSPACE}/tmp/php-sdk-${PHP_VERSION}/${PHP_BUILD}:/opt/php/${PHP_BUILD}" \
+            --workdir /work \
+            --env CI_PROJECT_DIR=/work \
+            --env CARGO_HOME=/work/.cache/portable-cargo \
+            --env PHP_VERSION="$PHP_VERSION" \
+            --env PROFILER_PHP_SDK_VERSION="$PHP_BUILD" \
+            --env PROFILER_FEATURES="$PROFILER_TEST_FEATURES" \
+            --env PROFILER_SANITIZER=address \
+            "$PORTABLE_BUILD_IMAGE" \
+            sh -c "ln -sf /bin/sed /usr/bin/sed && \
+              cp /opt/php/${portable_sdk}/bin/php /opt/php/${PHP_BUILD}/bin/php && \
+              .gitlab/build-profiler.sh '${PROFILER_OUTPUT}' '${thread_safety}' 'asan-${PHP_BUILD}'"
+
+          profiler_so="${PROFILER_OUTPUT}/${extension_name}"
+          if readelf --version-info "$profiler_so" | grep GLIBC_; then
+            echo "Profiler is not portable: found a GLIBC symbol version" >&2
+            exit 1
+          fi
+          if readelf -d "$profiler_so" | grep 'libc\.musl'; then
+            echo "Profiler directly depends on the musl runtime" >&2
+            exit 1
+          fi
+          readelf -Ws "$profiler_so" | grep '__asan_' >/dev/null
+
+      - name: Run PHPT tests on glibc
+        run: |
+          if [[ "$PHP_BUILD" == *zts* ]]; then
+            extension_name=datadog-profiling-zts.so
+          else
+            extension_name=datadog-profiling.so
+          fi
+          profiler_so="/work/${PROFILER_OUTPUT}/${extension_name}"
+          asan_options="abort_on_error=1:halt_on_error=1:detect_leaks=1"
+          asan_options+=":strict_string_checks=1:detect_stack_use_after_return=1"
+          asan_options+=":check_initialization_order=1:detect_container_overflow=1"
+          asan_options+=":detect_odr_violation=2:symbolize=1:disable_coredump=0"
+          asan_options+=":unmap_shadow_on_exit=1"
+          lsan_options="exitcode=23:print_suppressions=0:report_objects=1"
+          pthread_attr_check="/work/${PROFILER_OUTPUT}/pthread-attr-size-check.so"
+
+          docker run --rm --user root \
+            --volume "${GITHUB_WORKSPACE}:/work" \
+            --workdir /work/profiling/tests \
+            --env DD_PROFILING_OUTPUT_PPROF=/tmp/pprof \
+            --env ASAN_OPTIONS="$asan_options" \
+            --env LSAN_OPTIONS="$lsan_options" \
+            "$RUNTIME_IMAGE" \
+            bash -c "switch-php '${PHP_BUILD}' && \
+              clang-21 -shared -fPIC -fsanitize=address -shared-libasan \
+                /work/.gitlab/pthread-attr-size-check.c -ldl -o '${pthread_attr_check}' && \
+              asan_runtime=\$(clang-21 -print-file-name=libclang_rt.asan-\$(uname -m).so) && \
+              pthread_attr_marker=\$(mktemp) && \
+              export DD_PTHREAD_ATTR_SIZE_CHECK_MARKER=\"\$pthread_attr_marker\" && \
+              export LD_PRELOAD=\"\$asan_runtime:${pthread_attr_check}\" && \
+              DD_PROFILING_ENABLED=1 php -d extension='${profiler_so}' \
+                -r 'exit((int) !extension_loaded(\"datadog-profiling\"));' && \
+              { test -s \"\$pthread_attr_marker\" || { \
+                  echo 'Profiler did not initialize pthread_attr_t'; exit 1; \
+                }; } && \
+              unset DD_PTHREAD_ATTR_SIZE_CHECK_MARKER LD_PRELOAD && \
+              php \"\$(php-config --prefix)/lib/php/build/run-tests.php\" \
+                -j\$(nproc) --show-diff --asan -d extension='${profiler_so}' phpt"
 
   prof-ubsan:
     name: PHP 8.5 ${{ matrix.php-build }} UBSAN (${{ matrix.runner }})
     runs-on: ${{ matrix.runner }}
     strategy:
+      fail-fast: false
       matrix:
         php-build: [nts, zts]
         runner: [arm-8core-linux, ubuntu-8-core-latest]
     env:
-      CARGO_HOME: /rust/cargo
-      RUSTUP_HOME: /rust/rustup
-      CARGO_TARGET_DIR: /tmp/build-cargo
-      UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
-    container:
-      image: datadog/dd-trace-ci:php-8.5_bookworm-11
-      options: --user root
+      PHP_BUILD: ${{ matrix.php-build }}
+      RUNTIME_IMAGE: datadog/dd-trace-ci:php-8.5_bookworm-11
+      PROFILER_OUTPUT: tmp/portable-profiler-ubsan-8.5-${{ matrix.php-build }}
 
     steps:
       - name: Checkout
@@ -94,42 +139,55 @@ jobs:
           fetch-depth: 1
           submodules: true
 
-      - name: Cache Cargo dependencies
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            /rust/cargo/registry/index/
-            /rust/cargo/registry/cache/
-            /rust/cargo/registry/src/
-            /rust/cargo/git/db/
-            /rust/cargo/git/checkouts/
-          key: ${{ runner.os }}-${{ runner.arch }}-cargo-deps-c-ubsan-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache Cargo target
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: /tmp/build-cargo/
-          key: ${{ runner.os }}-${{ runner.arch }}-cargo-target-c-ubsan-8.5-${{ matrix.php-build }}-${{ github.sha }}-${{ hashFiles('.github/workflows/prof_asan.yml') }}
-
-      - name: Build and install profiler
+      - name: Build portable UBSAN profiler
         run: |
-          set -eux
-          switch-php ${{ matrix.php-build }}
-          export CC=clang-21
-          export CXX=clang++-21
-          export CFLAGS='-fsanitize=undefined,local-bounds -fno-sanitize-recover=all -fno-omit-frame-pointer'
-          export LDFLAGS='-fsanitize=undefined,local-bounds -fno-sanitize-recover=all'
-          export RUSTFLAGS='-C link-arg=-fsanitize=undefined,local-bounds -C link-arg=-fno-sanitize-recover=all'
-          make compile_profiler
-          cp -v tmp/build_profiler/modules/datadog-profiling.so "$(php-config --extension-dir)/datadog-profiling.so"
+          if [[ "$PHP_BUILD" == zts ]]; then
+            extension_name=datadog-profiling-zts.so
+          else
+            extension_name=datadog-profiling.so
+          fi
 
-      - name: Run phpt tests
+          docker run --rm \
+            --volume "${GITHUB_WORKSPACE}:/work" \
+            --workdir /work \
+            --env CI_PROJECT_DIR=/work \
+            --env CARGO_HOME=/work/.cache/portable-cargo \
+            --env PHP_VERSION=8.5 \
+            --env PROFILER_FEATURES="$PROFILER_TEST_FEATURES" \
+            --env PROFILER_SANITIZER=undefined \
+            "$PORTABLE_BUILD_IMAGE" \
+            .gitlab/build-profiler.sh "$PROFILER_OUTPUT" \
+              "$PHP_BUILD" ubsan
+
+          profiler_so="${PROFILER_OUTPUT}/${extension_name}"
+          if readelf --version-info "$profiler_so" | grep GLIBC_; then
+            echo "Profiler is not portable: found a GLIBC symbol version" >&2
+            exit 1
+          fi
+          if readelf -d "$profiler_so" | grep 'libc\.musl'; then
+            echo "Profiler directly depends on the musl runtime" >&2
+            exit 1
+          fi
+          readelf -Ws "$profiler_so" | grep '__ubsan_' >/dev/null
+
+      - name: Run PHPT tests on glibc
         run: |
-          set -eux
-          switch-php ${{ matrix.php-build }}
-          cd profiling/tests
-          cp -v $(php-config --prefix)/lib/php/build/run-tests.php .
-          export DD_PROFILING_OUTPUT_PPROF=/tmp/pprof
-          ubsan_runtime=$(clang-21 -print-file-name=libclang_rt.ubsan_standalone-$(uname -m).so)
-          export LD_PRELOAD="$ubsan_runtime${LD_PRELOAD:+:$LD_PRELOAD}"
-          php run-tests.php -j$(nproc) --show-diff -d extension=datadog-profiling.so phpt
+          if [[ "$PHP_BUILD" == zts ]]; then
+            extension_name=datadog-profiling-zts.so
+          else
+            extension_name=datadog-profiling.so
+          fi
+          profiler_so="/work/${PROFILER_OUTPUT}/${extension_name}"
+
+          docker run --rm --user root \
+            --volume "${GITHUB_WORKSPACE}:/work" \
+            --workdir /work/profiling/tests \
+            --env UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1 \
+            --env DD_PROFILING_OUTPUT_PPROF=/tmp/pprof \
+            "$RUNTIME_IMAGE" \
+            bash -c "switch-php '${PHP_BUILD}' && \
+              ubsan_runtime=\$(clang-21 -print-file-name=libclang_rt.ubsan_standalone-\$(uname -m).so) && \
+              export LD_PRELOAD=\"\$ubsan_runtime\" && \
+              php -d extension='${profiler_so}' -r 'exit((int) !extension_loaded(\"datadog-profiling\"));' && \
+              php \"\$(php-config --prefix)/lib/php/build/run-tests.php\" \
+                -j\$(nproc) --show-diff -d extension='${profiler_so}' phpt"

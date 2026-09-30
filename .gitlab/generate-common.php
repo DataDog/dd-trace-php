@@ -106,6 +106,10 @@ STEP;
         'build-tracing.sh',
         'build-tracing-asan.sh',
         'build-profiler.sh',
+        'build-profiler-rust-tests.sh',
+        'build-profiler-benchmarks.sh',
+        'check-profiler-portable.sh',
+        'prepare-rust-libc-compat.sh',
     ];
 
     // Split into top-level YAML blocks (each starts at column 0).

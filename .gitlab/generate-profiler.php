@@ -6,17 +6,10 @@ include "generate-common.php";
 stages:
   - test
 
-.all_profiler_targets: &all_profiler_targets
-<?php
-foreach ($profiler_minor_major_targets as $version) {
-    echo "  - \"{$version}\"\n";
-}
-?>
-
-"profiling tests":
+.profiling_tests:
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:${IMAGE_PREFIX}${PHP_MAJOR_MINOR}${IMAGE_SUFFIX}
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:${PROFILER_TEST_IMAGE}
   # Setting the *_REQUEST and *_LIMIT variables to be the same, and setting
   # them for both the build and helper allows using Guaranteed QoS instead of
   # Burstable. This means nproc and similar tools will work as expected.
@@ -29,43 +22,25 @@ foreach ($profiler_minor_major_targets as $version) {
     KUBERNETES_HELPER_CPU_LIMIT: 1
     KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
     KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
-    CARGO_TARGET_DIR: /tmp/cargo
     libdir: /tmp/datadog-profiling
-  parallel:
-    matrix:
-      - PHP_MAJOR_MINOR: *all_profiler_targets
-        ARCH: *arch_targets
-        IMAGE_PREFIX: php-compile-extension-alpine-
-        IMAGE_SUFFIX: [""]
-      - PHP_MAJOR_MINOR: *all_profiler_targets
-        ARCH: *arch_targets
-        IMAGE_PREFIX: php-
-        IMAGE_SUFFIX: _bookworm-11
   script:
-    - if [ -f /sbin/apk ] && [ $(uname -m) = "aarch64" ]; then ln -sf ../lib/llvm17/bin/clang /usr/bin/clang; fi
     - export DD_PROFILING_OUTPUT_PPROF=/tmp/
-
     - cd profiling
     - 'echo "nproc: $(nproc)"'
     - 'echo "KUBERNETES_CPU_REQUEST: ${KUBERNETES_CPU_REQUEST:-<unset>}"'
-    - export TEST_PHP_EXECUTABLE=$(which php)
-    - run_tests_php=$(find $(php-config --prefix) -name run-tests.php) # don't anticipate there being more than one
-    - cp -v "${run_tests_php}" tests
     - unset DD_SERVICE; unset DD_ENV
     - mkdir -p "${CI_PROJECT_DIR}/artifacts/profiler-tests"
-
     - '# NTS'
-    - '# Use if/then instead of `command -v switch-php && switch-php` — the && form exits 1 when switch-php is absent, which FF_ENABLE_BASH_EXIT_CODE_CHECK treats as a job failure'
-    - if command -v switch-php > /dev/null 2>&1; then switch-php nts; fi
-    - (cd ..; phpize && DDTRACE_PROFILING_FEATURES="debug_stats,stack_walking_tests,test,tracing,tracing-subscriber,trigger_time_sample" ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling && make -j$(nproc))
-    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/nts-results.xml" php profiling/tests/run-tests.php -d "extension=${CI_PROJECT_DIR}/modules/datadog-profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
-
-
+    - if command -v switch-php > /dev/null 2>&1; then switch-php nts; else switch_php nts; fi
+    - export TEST_PHP_EXECUTABLE=$(which php)
+    - cp -v "$(find "$(php-config --prefix)" -name run-tests.php | head -n 1)" tests
+    - php -d "extension=${PROFILER_NTS_EXTENSION}" -r 'exit((int) (!extension_loaded("datadog-profiling") || !function_exists("Datadog\\Profiling\\trigger_time_sample")));'
+    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/nts-results.xml" php profiling/tests/run-tests.php -d "extension=${PROFILER_NTS_EXTENSION}" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
     - '# ZTS'
-    - if command -v switch-php > /dev/null 2>&1; then switch-php zts; fi
-    - touch ../profiling/build.rs # force regeneration after switch-php changes the php-config symlink target
-    - (cd ..; make distclean || true; phpize && DDTRACE_PROFILING_FEATURES="debug_stats,stack_walking_tests,test,tracing,tracing-subscriber,trigger_time_sample" ./configure --disable-ddtrace-tracer --enable-ddtrace-profiling && make -j$(nproc))
-    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/zts-results.xml" php profiling/tests/run-tests.php -d "extension=${CI_PROJECT_DIR}/modules/datadog-profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
+    - if command -v switch-php > /dev/null 2>&1; then switch-php zts; else switch_php zts; fi
+    - export TEST_PHP_EXECUTABLE=$(which php)
+    - php -d "extension=${PROFILER_ZTS_EXTENSION}" -r 'exit((int) (!extension_loaded("datadog-profiling") || !function_exists("Datadog\\Profiling\\trigger_time_sample")));'
+    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/zts-results.xml" php profiling/tests/run-tests.php -d "extension=${PROFILER_ZTS_EXTENSION}" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
   after_script:
     - .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:profiling/"
   artifacts:
@@ -75,31 +50,38 @@ foreach ($profiler_minor_major_targets as $version) {
       - "artifacts/"
     when: "always"
 
-"clippy NTS":
-  stage: test
-  tags: [ "arch:amd64" ]
-  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11
+<?php
+foreach ($profiler_minor_major_targets as $major_minor) {
+    $abi_no = $php_versions_to_abi[$major_minor];
+    foreach ($arch_targets as $arch) {
+        $architecture = $arch === "arm64" ? "aarch64" : "x86_64";
+        foreach ([
+            "alpine" => "php-compile-extension-alpine-{$major_minor}",
+            "bookworm" => "php-{$major_minor}_bookworm-11",
+        ] as $distribution => $image) {
+?>
+"profiling tests: [<?= $major_minor ?>, <?= $arch ?>, <?= $distribution ?>]":
+  extends: .profiling_tests
+  needs:
+    - pipeline: "$PARENT_PIPELINE_ID"
+      job: "compile portable profiler extension: [<?= $major_minor ?>, <?= $arch ?>]"
+      artifacts: true
   variables:
-    KUBERNETES_CPU_REQUEST: 5
-    KUBERNETES_CPU_LIMIT: 5
-    KUBERNETES_MEMORY_REQUEST: 3Gi
-    KUBERNETES_MEMORY_LIMIT: 3Gi
-    KUBERNETES_HELPER_CPU_REQUEST: 1
-    KUBERNETES_HELPER_CPU_LIMIT: 1
-    KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
-    KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
-    # CARGO_TARGET_DIR: /mnt/ramdisk/cargo # ramdisk??
-    libdir: /tmp/datadog-profiling
-  parallel:
-    matrix:
-      - PHP_MAJOR_MINOR: *all_profiler_targets
-  script:
-    - switch-php nts # not compatible with debug
-    - cargo clippy --all-targets --no-deps --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample -- -D warnings -Aunknown-lints
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "<?= $arch ?>"
+    PROFILER_TEST_IMAGE: "<?= $image ?>"
+    PROFILER_NTS_EXTENSION: "${CI_PROJECT_DIR}/datadog-profiling-tests/<?= $architecture ?>/lib/php/<?= $abi_no ?>/test/datadog-profiling.so"
+    PROFILER_ZTS_EXTENSION: "${CI_PROJECT_DIR}/datadog-profiling-tests/<?= $architecture ?>/lib/php/<?= $abi_no ?>/test/datadog-profiling-zts.so"
 
-"Cargo test":
+<?php
+        }
+    }
+}
+?>
+
+.cargo_test:
   stage: test
-  tags: [ "arch:amd64" ]
+  tags: [ "arch:${ARCH}" ]
   image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.5_bookworm-11
   variables:
     KUBERNETES_CPU_REQUEST: 5
@@ -110,14 +92,35 @@ foreach ($profiler_minor_major_targets as $version) {
     KUBERNETES_HELPER_CPU_LIMIT: 1
     KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
     KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
-    # CARGO_TARGET_DIR: /mnt/ramdisk/cargo # ramdisk??
     libdir: /tmp/datadog-profiling
   script:
-    - switch-php nts
-    - cargo test --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample
-    - touch profiling/build.rs # make sure the build helper runs after switch-php
-    - switch-php zts
-    - cargo test --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample
+    - |
+      for flavour in nts zts; do
+        switch-php "${flavour}"
+        find "profiler-rust-tests/${ARCHITECTURE}/${flavour}" \
+          -maxdepth 1 -type f -perm -0100 -print0 | \
+          while IFS= read -r -d '' executable; do
+            CC=cc "${executable}"
+          done
+      done
+
+<?php
+foreach ($arch_targets as $arch) {
+    $architecture = $arch === "arm64" ? "aarch64" : "x86_64";
+?>
+"Cargo test: [<?= $arch ?>]":
+  extends: .cargo_test
+  needs:
+    - pipeline: "$PARENT_PIPELINE_ID"
+      job: "compile portable profiler rust tests: [8.5, <?= $arch ?>]"
+      artifacts: true
+  variables:
+    ARCH: "<?= $arch ?>"
+    ARCHITECTURE: "<?= $architecture ?>"
+
+<?php
+}
+?>
 
 .php_language_tests:
   stage: test
@@ -208,22 +211,25 @@ foreach ($profiler_minor_major_targets as $version) {
 <?php
 foreach ($profiler_minor_major_targets as $major_minor) {
     $abi_no = $php_versions_to_abi[$major_minor];
-    foreach (["nts", "zts"] as $flavour) {
-        $suffix = $flavour === "zts" ? "-zts" : "";
+    foreach ($arch_targets as $arch) {
+        $architecture = $arch === "arm64" ? "aarch64" : "x86_64";
+        foreach (["nts", "zts"] as $flavour) {
+            $suffix = $flavour === "zts" ? "-zts" : "";
 ?>
-"PHP language tests: [<?= $major_minor ?>, amd64, <?= $flavour ?>]":
+"PHP language tests: [<?= $major_minor ?>, <?= $arch ?>, <?= $flavour ?>]":
   extends: .php_language_tests
   needs:
     - pipeline: "$PARENT_PIPELINE_ID"
-      job: "compile portable profiler extension: [<?= $major_minor ?>, amd64]"
+      job: "compile portable profiler extension: [<?= $major_minor ?>, <?= $arch ?>]"
       artifacts: true
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
-    ARCH: amd64
+    ARCH: "<?= $arch ?>"
     FLAVOUR: "<?= $flavour ?>"
-    PROFILER_EXTENSION: "datadog-profiling/x86_64/lib/php/<?= $abi_no ?>/datadog-profiling<?= $suffix ?>.so"
+    PROFILER_EXTENSION: "datadog-profiling/<?= $architecture ?>/lib/php/<?= $abi_no ?>/datadog-profiling<?= $suffix ?>.so"
 
 <?php
+        }
     }
 }
 ?>

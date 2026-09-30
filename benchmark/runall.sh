@@ -4,16 +4,26 @@ set -exu
 
 if [ "$SCENARIO" = "profiler" ]; then
   # Run Profiling Benchmarks
+  revision=$(git -C .. rev-parse HEAD)
+  profiler_artifacts="${PROFILER_BENCHMARK_ARTIFACTS:?}/${revision}"
+  release_profiler="${profiler_artifacts}/release/datadog-profiling.so"
+  sampling_profiler="${profiler_artifacts}/sampling/datadog-profiling.so"
+  rust_benchmark="${profiler_artifacts}/cargo/stack-walking"
+  for artifact in "$release_profiler" "$sampling_profiler" "$rust_benchmark"; do
+    if [ ! -f "$artifact" ]; then
+      echo "Missing portable profiler benchmark artifact: $artifact" >&2
+      exit 1
+    fi
+  done
+
   cd ../profiling/
-
-  make -C .. compile_profiler PROFILER_FEATURES=trigger_time_sample
-
+  profiler_link="$PWD/../tmp/build_profiler/modules/datadog-profiling.so"
+  mkdir -p "$(dirname "$profiler_link")"
+  ln -sfn "$sampling_profiler" "$profiler_link"
   sirun benches/timeline.json > "$ARTIFACTS_DIR/sirun_timeline.ndjson"
-
+  ln -sfn "$release_profiler" "$profiler_link"
   sirun benches/exceptions.json > "$ARTIFACTS_DIR/sirun_exceptions.ndjson"
-
-  PHP_CONFIG="$(command -v php-config)" cargo bench --no-default-features \
-    --features profiling,test,stack_walking_tests -- --noplot
+  CARGO_TARGET_DIR="$PWD/../target" "$rust_benchmark" --bench --noplot
 elif [ "$SCENARIO" = "tracer" ]; then
   # Run Trace Benchmarks
   cd ..

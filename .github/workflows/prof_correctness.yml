@@ -12,10 +12,8 @@ jobs:
   prof-correctness:
     runs-on: ubuntu-24.04
     env:
-      # LLVM's own release build from GitHub, pinned by the SHA256 GitHub publishes for the asset.
-      LLVM_RELEASE: "20.1.8"
-      LLVM_SHA256: "1ead36b3dfcb774b57be530df42bec70ab2d239fbce9889447c7a29a4ddc1ae6"
-      PROFILER_SO: ${{ github.workspace }}/tmp/build_profiler/modules/datadog-profiling.so
+      PORTABLE_BUILD_IMAGE: datadog/dd-appsec-php-ci@sha256:976636c9ae20ea3e14f4b2ab5fcc1b6c4684acded3b963be446a463ed6733049
+      PROFILER_SO: ${{ github.workspace }}/tmp/portable-profiler-correctness-${{ matrix.php-version }}-${{ matrix.phpts }}/datadog-profiling${{ matrix.phpts == 'zts' && '-zts' || '' }}.so
     strategy:
       fail-fast: false
       matrix:
@@ -42,78 +40,23 @@ jobs:
           phpts: ${{ matrix.phpts }}
           fail-fast: true
 
-      - name: Restore build cache
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            tmp/build_profiler/target-profiling/
-          key: ${{ runner.os }}-cargo-llvm-${{ env.LLVM_RELEASE }}-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}-${{ matrix.php-version }}-${{ matrix.phpts }}
-
-      # All matrix jobs share one LLVM, so it is cached separately from the
-      # per-job build cache.
-      - name: Restore LLVM
-        id: llvm-cache
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/llvm
-          key: ${{ runner.os }}-llvm-${{ env.LLVM_RELEASE }}-${{ env.LLVM_SHA256 }}
-
-      - name: Download LLVM
-        if: steps.llvm-cache.outputs.cache-hit != 'true'
+      - name: Build portable profiler
         run: |
-          # Only the parts the build uses: the full toolchain unpacks to over 9 GB.
-          llvm_archive="LLVM-${LLVM_RELEASE}-Linux-X64.tar.xz"
-          llvm_top="${llvm_archive%.tar.xz}"
-          curl -fsSL --retry 3 -o "/tmp/${llvm_archive}" \
-            "https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_RELEASE}/${llvm_archive}"
-          echo "${LLVM_SHA256}  /tmp/${llvm_archive}" | sha256sum -c -
-          mkdir -p ~/llvm
-          tar -xJf "/tmp/${llvm_archive}" -C ~/llvm --strip-components=1 --wildcards \
-            "${llvm_top}/bin/clang" "${llvm_top}/bin/clang++" "${llvm_top}/bin/clang-[0-9]*" \
-            "${llvm_top}/bin/ld.lld" "${llvm_top}/bin/lld" "${llvm_top}/bin/llvm-config" \
-            "${llvm_top}/lib/libclang.so*" "${llvm_top}/lib/clang/*"
-          rm -f "/tmp/${llvm_archive}"
-
-      - name: Cache LLVM
-        if: steps.llvm-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/llvm
-          key: ${{ runner.os }}-llvm-${{ env.LLVM_RELEASE }}-${{ env.LLVM_SHA256 }}
-
-      - name: Build profiler
-        run: |
-          llvm_root="${HOME}/llvm"
-          # lld links against the system libxml2.
-          dpkg -s libxml2 >/dev/null 2>&1 || { sudo apt-get update && sudo apt-get install -y libxml2; }
-          export PATH="${llvm_root}/bin:${PATH}"
-          export CC=clang
-          export CXX=clang++
-          export LLVM_CONFIG_PATH="${llvm_root}/bin/llvm-config"
-          export LIBCLANG_PATH="${llvm_root}/lib"
-          export LD_LIBRARY_PATH="${LIBCLANG_PATH}:${LD_LIBRARY_PATH:-}"
-          clang --version
-          ld.lld --version
-          "$LLVM_CONFIG_PATH" --version
-          version_number=$(awk -F' = ' '$1 == "channel" { gsub(/"/, "", $2); print $2 }' rust-toolchain.toml)
-          curl https://sh.rustup.rs -sSf | sh -s -- --profile minimal -y --default-toolchain "$version_number"
-          # trigger_time_sample is used by strange_frames.php.
-          make compile_profiler PROFILER_FEATURES=trigger_time_sample
-
-      - name: Cache build dependencies
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            tmp/build_profiler/target-profiling/
-          key: ${{ runner.os }}-cargo-llvm-${{ env.LLVM_RELEASE }}-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}-${{ matrix.php-version }}-${{ matrix.phpts }}
+          docker run --rm \
+            --volume "${GITHUB_WORKSPACE}:/work" \
+            --workdir /work \
+            --env CI_PROJECT_DIR=/work \
+            --env CARGO_HOME=/work/.cache/portable-cargo \
+            --env PHP_VERSION=${{ matrix.php-version }} \
+            --env PROFILER_FEATURES=trigger_time_sample \
+            "$PORTABLE_BUILD_IMAGE" \
+            .gitlab/build-profiler.sh \
+              "tmp/portable-profiler-correctness-${{ matrix.php-version }}-${{ matrix.phpts }}" \
+              "${{ matrix.phpts }}" sampling
+          if readelf --version-info "$PROFILER_SO" | grep GLIBC_; then
+            echo "Profiler is not portable: found a GLIBC symbol version" >&2
+            exit 1
+          fi
 
       - name: Run no profile test
         run: |

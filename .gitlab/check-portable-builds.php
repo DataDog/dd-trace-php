@@ -25,6 +25,7 @@ foreach ($arch_targets as $arch) {
         "collect portable component artifacts: [$arch]",
         "collect portable runtime artifacts: [$arch]",
         "portable builds complete: [$arch]",
+        "compile portable profiler rust tests: [8.5, $arch]",
     ] as $job) {
         if (portable_job_block($yaml, $job) === null) {
             $errors[] = "missing job: $job";
@@ -59,6 +60,17 @@ foreach ($arch_targets as $arch) {
             $errors[] = "wrong PHP version or ABI: $job";
         }
     }
+}
+
+if (portable_job_block(
+    $yaml,
+    "compile portable profiler benchmarks: [8.2, amd64]"
+) === null) {
+    $errors[] = "missing job: compile portable profiler benchmarks: [8.2, amd64]";
+}
+
+if (!str_contains($yaml, "datadog-profiling-tests/")) {
+    $errors[] = "portable profiler jobs do not produce test artifacts";
 }
 
 if ($errors) {

@@ -102,6 +102,9 @@ workflow:
     changes:
       paths:
         - profiling/**/*
+        - benchmark/**/*
+        - .gitlab/benchmarks.yml
+        - .gitlab/build-profiler*.sh
       compare_to: "master"
     when: on_success
     interruptible: false
@@ -109,6 +112,9 @@ workflow:
     changes:
       paths:
         - profiling/**/*
+        - benchmark/**/*
+        - .gitlab/benchmarks.yml
+        - .gitlab/build-profiler*.sh
       compare_to: "master"
     when: on_success
     interruptible: true
@@ -200,6 +206,16 @@ workflow:
         echo "Tracer-related file changes detected - proceeding with benchmarks"
       fi
     - git clone --branch dd-trace-php https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform /platform && cd /platform
+    - |
+      if [ "$SCENARIO" = profiler ]; then
+        runner=/platform/steps/run-benchmarks.sh
+        grep -Fq 'GITLAB_ARTIFACTS_PATH=' "$runner"
+        grep -Fq 'BASELINE_COMMIT_SHA=$(git merge-base' "$runner"
+        grep -Fq 'cd "$BASELINE_SRC/benchmark/"' "$runner"
+        sed -i '/GITLAB_ARTIFACTS_PATH=/a\export PROFILER_BENCHMARK_ARTIFACTS="${GITLAB_ARTIFACTS_PATH}profiler-benchmarks"' "$runner"
+        sed -i '/BASELINE_COMMIT_SHA=$(git merge-base/a\  BASELINE_COMMIT_SHA=$(cat "$PROFILER_BENCHMARK_ARTIFACTS/baseline-revision")' "$runner"
+        sed -i '/cd "$BASELINE_SRC\/benchmark\/"/i\  cp "$CANDIDATE_SRC/benchmark/runall.sh" "$BASELINE_SRC/benchmark/runall.sh"' "$runner"
+      fi
     - ./steps/capture-hardware-software-info.sh
     - BP_SCENARIO=$SCENARIO bp-runner bp-runner.yml --debug -t
     - ./steps/analyze-results.sh
@@ -222,6 +238,10 @@ workflow:
 
 benchmarks-profiler:
   extends: .microbenchmarks
+  needs:
+    - pipeline: "$PARENT_PIPELINE_ID"
+      job: "compile portable profiler benchmarks: [8.2, amd64]"
+      artifacts: true
   rules: *benchmarks-profiler-rules
   variables:
     SCENARIO: "profiler"

@@ -34,6 +34,54 @@
   script:
     - .gitlab/build-profiler.sh "datadog-profiling/${ARCHITECTURE}/lib/php/${ABI_NO}" "nts"
     - .gitlab/build-profiler.sh "datadog-profiling/${ARCHITECTURE}/lib/php/${ABI_NO}" "zts"
+    - PROFILER_FEATURES="${PROFILER_TEST_FEATURES}" .gitlab/build-profiler.sh "datadog-profiling-tests/${ARCHITECTURE}/lib/php/${ABI_NO}/test" "nts" "test"
+    - PROFILER_FEATURES="${PROFILER_TEST_FEATURES}" .gitlab/build-profiler.sh "datadog-profiling-tests/${ARCHITECTURE}/lib/php/${ABI_NO}/test" "zts" "test"
+    - if [ "${ARCH}" = amd64 ]; then .gitlab/check-profiler-portable.sh; fi
+  variables:
+    CARGO_BUILD_JOBS: 12
+    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
+    PROFILER_TEST_FEATURES: "debug_stats,stack_walking_tests,test,tracing,tracing-subscriber,trigger_time_sample"
+  cache:
+    - key:
+        prefix: cargo-cache-${TRIPLET}
+        files:
+          - Cargo.lock
+      paths:
+        - "${CARGO_HOME}"
+      policy: pull
+  artifacts:
+    paths:
+      - datadog-profiling
+      - datadog-profiling-tests
+
+.portable_profiler_rust_tests:
+  extends: .portable_build
+  script:
+    - .gitlab/build-profiler-rust-tests.sh "profiler-rust-tests/${ARCHITECTURE}"
+  variables:
+    PHP_VERSION: "8.5"
+    CARGO_BUILD_JOBS: 12
+    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
+  cache:
+    - key:
+        prefix: cargo-cache-${TRIPLET}
+        files:
+          - Cargo.lock
+      paths:
+        - "${CARGO_HOME}"
+      policy: pull
+  artifacts:
+    paths:
+      - profiler-rust-tests
+
+.portable_profiler_benchmarks:
+  extends: .portable_build
+  script:
+    - .gitlab/build-profiler-benchmarks.sh profiler-benchmarks
   variables:
     CARGO_BUILD_JOBS: 12
     KUBERNETES_CPU_REQUEST: 12
@@ -49,7 +97,7 @@
       policy: pull
   artifacts:
     paths:
-      - datadog-profiling
+      - profiler-benchmarks
 
 .portable_appsec:
   extends: .portable_build
@@ -178,6 +226,32 @@
 
 .portable_profiler_amd64:
   extends: .portable_profiler
+  needs:
+    - job: generate-templates
+      artifacts: true
+    - job: "prepare portable code"
+      artifacts: true
+    - job: "cache portable cargo deps: [amd64]"
+  variables:
+    ARCH: "amd64"
+    ARCHITECTURE: "x86_64"
+    TRIPLET: "x86_64-unknown-linux-musl"
+
+"compile portable profiler rust tests: [8.5, amd64]":
+  extends: .portable_profiler_rust_tests
+  needs:
+    - job: generate-templates
+      artifacts: true
+    - job: "prepare portable code"
+      artifacts: true
+    - job: "cache portable cargo deps: [amd64]"
+  variables:
+    ARCH: "amd64"
+    ARCHITECTURE: "x86_64"
+    TRIPLET: "x86_64-unknown-linux-musl"
+
+"compile portable profiler benchmarks: [8.2, amd64]":
+  extends: .portable_profiler_benchmarks
   needs:
     - job: generate-templates
       artifacts: true
@@ -529,6 +603,8 @@
       artifacts: false
     - job: "collect portable runtime artifacts: [amd64]"
       artifacts: false
+    - job: "compile portable profiler benchmarks: [8.2, amd64]"
+      artifacts: false
   script: "true"
 
 "cache portable cargo deps: [arm64]":
@@ -588,6 +664,19 @@
 
 .portable_profiler_arm64:
   extends: .portable_profiler
+  needs:
+    - job: generate-templates
+      artifacts: true
+    - job: "prepare portable code"
+      artifacts: true
+    - job: "cache portable cargo deps: [arm64]"
+  variables:
+    ARCH: "arm64"
+    ARCHITECTURE: "aarch64"
+    TRIPLET: "aarch64-unknown-linux-musl"
+
+"compile portable profiler rust tests: [8.5, arm64]":
+  extends: .portable_profiler_rust_tests
   needs:
     - job: generate-templates
       artifacts: true
