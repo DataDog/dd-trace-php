@@ -1,5 +1,5 @@
 --TEST--
-Health metrics do not report segmentation faults while the crashtracker is enabled
+Health metrics do not report SIGSEGV crashes while the crashtracker is enabled
 --SKIPIF--
 <?php
 if (PHP_OS != "Linux") die('skip: Crashtracker/backtrace are only available on Linux');
@@ -19,5 +19,5 @@ print_r(1);
 
 ?>
 --EXPECTF--
-[ddtrace] [warning] [%d] Segmentation faults will not be reported as the 'datadog.tracer.uncaught_exceptions' health metric while 'datadog.crashtracking_enabled' is on.
+[ddtrace] [warning] [%d] SIGSEGV crashes will not be reported as the 'datadog.tracer.uncaught_exceptions' health metric while 'datadog.crashtracking_enabled' is on.
 1
