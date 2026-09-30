@@ -1,3 +1,9 @@
+# GNU Make exports silent mode to submakes in MAKEFLAGS. Pass it to Cargo too,
+# for every target that invokes Cargo (including xlang-lto).
+ifneq ($(findstring s,$(filter-out -%,$(firstword $(MAKEFLAGS)))),)
+export CARGO_TERM_QUIET := true
+endif
+
 Q := @
 , := ,
 PROJECT_ROOT := ${PWD}
@@ -430,6 +436,13 @@ PROFILER_FEATURES ?=
 # testing the legacy standalone artifact itself, not a general substitute.
 compile_combined:
 	DDTRACE_PROFILING_FEATURES=trigger_time_sample $(MAKE) BUILD_SUFFIX=combined EXTRA_CONFIGURE_OPTIONS="--enable-ddtrace-tracer --enable-ddtrace-profiling" all
+
+# Run make xlang-lto inside a CentOS 7 PHP release image (aarch64 or x86_64).
+# PHP_VERSION is supplied by the image; ThinLTO builds a combined NTS artifact
+# (tracer-only for PHP 7.0). The helper weakens PHP imports and tests loading.
+.PHONY: xlang-lto
+xlang-lto:
+	./tooling/bin/build-xlang-lto
 
 install_combined: compile_combined
 	$(SUDO) cp $(PROJECT_ROOT)/tmp/build_combined/modules/ddtrace.so $(PHP_EXTENSION_DIR)/ddtrace.so

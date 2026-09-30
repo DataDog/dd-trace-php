@@ -159,20 +159,76 @@ fn weaken_target(target: &Path, binary: &Path) -> Result<(), String> {
     }
 }
 
+/// LLVM's fat-LTO link reads bitcode instead of the ELF symbol table that
+/// `weaken-dynsym` patched. Restore weak PHP imports in the finished ELF's
+/// dynamic symbol table so the extension can run as a sidecar without PHP.
+fn weaken_final_dynsym(target: &Path, binary: &Path) -> Result<(), String> {
+    let mut data = fs::read(target).map_err(|e| format!("read {}: {e}", target.display()))?;
+    let binary_symbols = php_symbols(binary)?;
+    let offsets = {
+        let file =
+            File::parse(data.as_slice()).map_err(|e| format!("parse {}: {e}", target.display()))?;
+        if file.format() != object::BinaryFormat::Elf || !file.is_64() || !file.is_little_endian() {
+            return Err("post-link weakening supports only ELF64 little-endian".into());
+        }
+        let (start, size) = file
+            .section_by_name(".dynsym")
+            .and_then(|section| section.file_range())
+            .ok_or_else(|| "ELF has no .dynsym".to_string())?;
+        let indices: Vec<usize> = file
+            .dynamic_symbols()
+            .filter(|symbol| symbol.is_undefined() && !symbol.is_weak())
+            .filter(|symbol| {
+                symbol
+                    .name()
+                    .is_ok_and(|name| binary_symbols.contains(name))
+            })
+            .map(|symbol| symbol.index().0)
+            .collect();
+        indices
+            .into_iter()
+            .map(|index| {
+                let offset = start as usize + index * 24 + 4;
+                if offset >= start as usize + size as usize {
+                    Err("dynamic symbol outside .dynsym".to_string())
+                } else {
+                    Ok(offset)
+                }
+            })
+            .collect::<Result<Vec<_>, _>>()?
+    };
+    eprintln!(
+        "weaken-final-dynsym: weakening {} PHP imports",
+        offsets.len()
+    );
+    if offsets.is_empty() {
+        return Err("no PHP imports found; check the PHP binary and ELF".into());
+    }
+    for offset in offsets {
+        data[offset] = (2 << 4) | (data[offset] & 0xf);
+    }
+    fs::write(target, data).map_err(|e| format!("write {}: {e}", target.display()))
+}
+
 fn main() {
     let args: Vec<_> = std::env::args_os().collect();
-
-    if args.get(1).and_then(|a| a.to_str()) != Some("weaken-dynsym") || args.len() < 4 {
-        eprintln!("Usage: php_sidecar_mockgen weaken-dynsym <target.o|target.a ...> <php_binary>");
+    let mode = args.get(1).and_then(|a| a.to_str());
+    if !matches!(mode, Some("weaken-dynsym" | "weaken-final-dynsym")) || args.len() < 4 {
+        eprintln!("Usage: php_sidecar_mockgen <weaken-dynsym|weaken-final-dynsym> <target ...> <php_binary>");
         process::exit(1);
     }
 
     let php_binary = Path::new(args.last().unwrap());
     for target in &args[2..args.len() - 1] {
         let target = Path::new(target);
-        if let Err(e) = weaken_target(target, php_binary) {
+        if mode == Some("weaken-final-dynsym") {
+            if let Err(e) = weaken_final_dynsym(target, php_binary) {
+                eprintln!("weaken-final-dynsym {}: {e}", target.display());
+                process::exit(1);
+            }
+        } else if let Err(e) = weaken_target(target, php_binary) {
+            // Preserve the existing pre-link behavior for release builds.
             eprintln!("Warning: weaken-dynsym {}: {e}", target.display());
-            process::exit(1);
         }
     }
 }
