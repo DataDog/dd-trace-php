@@ -14,11 +14,8 @@
 #   c) the sidecar threads run as the worker user - while FPM's own main thread is still root,
 #      which is the part that must not regress.
 #
-# (b) is not only about ownership. Both agent-response channels embed `geteuid()` in their
-# *name* (`/ddinf<uid>-<hash>` for agent info, `/ddcfg-<uid>-<hash>` for the trace-submission
-# response), and the sidecar writes them while the worker reads them. If the sidecar thread were
-# still root the two sides would compute different names and the worker would never see a
-# response at all, so the uid in the filename is as load-bearing as the file's owner.
+# Thread-mode shared memory is named for the master PID so separate FPM masters serving the
+# same user do not replace each other's segments. The files must still be owned by the worker.
 
 set -e
 
@@ -173,17 +170,14 @@ for shm in ${SHM_FILES}; do
 done
 echo "b) all shared memory is owned by ${WORKER_USER}"
 
-# The agent's response to the span-sending request: agent info and/or the remote-config
-# payload returned with the trace submission. At least one must be present, and its name must
-# embed the worker's uid - otherwise the worker is looking for a name nobody writes.
+# Agent info and trace responses use the same master PID namespace on both sides.
 RESPONSE_SHM=$(find /dev/shm -maxdepth 1 \
-    \( -name "ddinf${WORKER_UID}-*" -o -name "ddcfg-${WORKER_UID}-*" \) 2>/dev/null || true)
+    \( -name "ddinft${FPM_MASTER_PID}-*" -o -name "ddcfg-t${FPM_MASTER_PID}-*" \) 2>/dev/null || true)
 [ -n "${RESPONSE_SHM}" ] || fail \
-    "no agent-response shared memory named for uid ${WORKER_UID}" \
-    "expected /dev/shm/ddinf${WORKER_UID}-* or /dev/shm/ddcfg-${WORKER_UID}-*" \
-    "present instead: ${SHM_FILES}" \
-    "a name carrying a different uid means writer and reader disagree on the path"
-echo "b) agent-response shared memory is named for uid ${WORKER_UID}:"
+    "no agent-response shared memory named for FPM master ${FPM_MASTER_PID}" \
+    "expected /dev/shm/ddinft${FPM_MASTER_PID}-* or /dev/shm/ddcfg-t${FPM_MASTER_PID}-*" \
+    "present instead: ${SHM_FILES}"
+echo "b) agent-response shared memory is named for FPM master ${FPM_MASTER_PID}:"
 for shm in ${RESPONSE_SHM}; do echo "     ${shm}"; done
 
 # ------------------------------------------------------------- c) threads ----
