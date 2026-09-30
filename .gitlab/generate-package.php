@@ -621,14 +621,18 @@ foreach ($asan_build_platforms as $platform) {
 <?php endforeach; ?>
 
 <?php foreach (range(1, 5) as $i): ?>
-"randomized tests: [amd64, asan, <?= $i ?>]":
-  extends: .randomized_tests
-  tags: [ "docker-in-docker:amd64" ]
-  variables:
-    LIBRARY_PLATFORM: linux-gnu
-  needs:
-    - job: "package extension asan"
-      artifacts: true
+
+# Disabled until php-randomizedtests-bookworm images are published. The ASAN
+# extension is built on Bookworm and needs newer glibc symbols than the
+# pre-built Buster and CentOS randomized-test images provide.
+# "randomized tests: [amd64, asan, <?= $i ?>]":
+#   extends: .randomized_tests
+#   tags: [ "docker-in-docker:amd64" ]
+#   variables:
+#     LIBRARY_PLATFORM: linux-gnu
+#   needs:
+#     - job: "package extension asan"
+#       artifacts: true
 
 <?php endforeach; ?>
 
