@@ -358,7 +358,26 @@ final class WebServer
      */
     public function checkErrors()
     {
-        $diff = @file_get_contents($this->defaultInis['error_log'], false, null, $this->errorLogSize);
+        $errorLog = $this->defaultInis['error_log'];
+
+        // Only inspect log entries written since the previous check. Without
+        // advancing the offset, one transient error is reported again by every
+        // retry and every subsequent test that shares this web server.
+        clearstatcache(true, $errorLog);
+        $currentSize = (int) @filesize($errorLog);
+        if ($currentSize < $this->errorLogSize) {
+            // The log may have been truncated or rotated while the server was
+            // running. Start reading from the beginning of the replacement.
+            $this->errorLogSize = 0;
+        }
+
+        $diff = @file_get_contents($errorLog, false, null, $this->errorLogSize);
+        if ($diff === false) {
+            $diff = "";
+        } else {
+            $this->errorLogSize += strlen($diff);
+        }
+
         $out = "";
         foreach (explode("\n", $diff) as $line) {
             // Ignore sidecar retry errors for known-invalid test hostnames — these are
