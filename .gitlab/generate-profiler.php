@@ -154,6 +154,13 @@ foreach ($arch_targets as $arch) {
     - php -r 'exit((int) !extension_loaded("datadog-profiling"));' || { echo 'ERROR datadog-profiling extension is not loaded'; exit 1; }
     - cat "${XFAIL_LIST}" profiling/tests/php-language-xfail.list > /tmp/profiler-php-language-xfail.list
     - "if php -r 'exit(PHP_VERSION_ID < 80400 ? 0 : 1);'; then cat profiling/tests/php-language-xfail-pre84.list >> /tmp/profiler-php-language-xfail.list; fi"
+    # The PHP 7.4 ARM64 release images mis-detect out-of-range double-to-long
+    # casts at configure time, so their bundled expectations fail without any
+    # extension loaded.
+    - |
+      if [[ "${ARCH}" == arm64 && "${PHP_MAJOR_MINOR}" == 7.4 ]]; then
+        cat profiling/tests/php-language-xfail-arm64-74.list >> /tmp/profiler-php-language-xfail.list
+      fi
     - export XFAIL_LIST=/tmp/profiler-php-language-xfail.list
     - ulimit -c unlimited
     - .gitlab/run_php_language_tests.sh

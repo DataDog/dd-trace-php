@@ -9,6 +9,9 @@ if (PHP_VERSION_ID >= 80208 || PHP_VERSION_ID >= 80121 && PHP_VERSION_ID < 80200
     echo "skip: PHP Version >= 8.1.21 and >= 8.2.8 have a fix for this";
 if (PHP_VERSION_ID < 80000)
     echo "skip: JIT requires PHP >= 8.0", PHP_EOL;
+if (PHP_VERSION_ID < 80200 && PHP_ZTS && php_uname('m') === 'x86_64'
+    && glob('/lib/ld-musl-*.so.1'))
+    echo "skip: PHP ZTS JIT lacks the musl TLS fix from php-src#13329", PHP_EOL;
 if (!extension_loaded('datadog-profiling'))
     echo "skip: test requires datadog-profiling", PHP_EOL;
 $arch = php_uname('m');
