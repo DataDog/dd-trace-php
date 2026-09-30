@@ -139,7 +139,7 @@ function windows_test_c_job($job_name, $thread_safety, $targets) {
     docker network create -d "nat" -o com.docker.network.windowsshim.dnsservers="1.1.1.1" net
     docker run --network net -d --name httpbin-integration registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:httpbin-windows
     docker run --network net -d --name request-replayer registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-request-replayer-3.0_windows
-    docker run -v ${pwd}:C:\Users\ContainerAdministrator\app  --network net -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
+    docker run --env GITLAB_CI=$env:GITLAB_CI -v ${pwd}:C:\Users\ContainerAdministrator\app  --network net -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
 
     # Enable NTFS long path support so cargo's libgit2-based git checkouts of
     # deeply nested dependencies (e.g. rust-tuf's interop-tests fixtures,

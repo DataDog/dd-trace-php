@@ -41,6 +41,7 @@ function dd_dump_spans($skipMeta = false)
             echo PHP_EOL;
             unset($span["meta"]["runtime-id"]);
             unset($span["meta"]["_dd.tags.process"]);
+            unset($span["meta"]["_dd.sdk.otlp_export"]);
             foreach ($span['meta'] as $k => $v) {
                 echo str_repeat(' ', $indent) . '  ' . $k . ' => ' . $v . PHP_EOL;
             }
@@ -82,6 +83,7 @@ function dd_clean_spans() {
     foreach ($spans as &$span) {
         if (isset($span['meta'])) {
             unset($span['meta']['_dd.tags.process']);
+            unset($span['meta']['_dd.sdk.otlp_export']);
             if (empty($span['meta'])) {
                 unset($span['meta']);
             }

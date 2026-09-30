@@ -279,6 +279,17 @@ bool ddog_exception_hash_limiter_inc(struct ddog_SidecarTransport *connection,
                                      uint64_t hash,
                                      uint32_t granularity_seconds);
 
+#if defined(__linux__)
+/**
+ * Execute the prepared flush. For a default signal disposition, terminate the process afterward.
+ * The object must remain alive until the raw worker exits; custom handlers use normal shutdown
+ * to join that worker. `_exit` terminates the whole process without runtime cleanup.
+ * The signal handler must reject inherited state before starting a worker after fork.
+ */
+int32_t datadog_sidecar_signal_flush_run(const struct ddog_SignalFlush *flush,
+                                         bool terminate_process);
+#endif
+
 /**
  * Returns true once the agent /info has been received and applied.
  * Used by the PHP extension to skip stats computation until the concentrator

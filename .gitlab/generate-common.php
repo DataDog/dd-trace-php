@@ -82,7 +82,7 @@ function windows_git_setup() {
 
     # Initialize submodules
     Write-Host "Initializing submodules..."
-    git submodule update --init --recursive
+    git submodule update --init --recursive -- libdatadog tests/FeatureFlags/ffe-system-test-data appsec/third_party/libddwaf-rust
     if ($LASTEXITCODE -ne 0) { exit 75 }  # transient network (submodule fetch); 75 triggers default retry
     Write-Host "Git setup complete."
 <?php
@@ -221,10 +221,13 @@ foreach ($arch_targets as $arch_target) {
       DD_POOL_TRACE_CHECK_FAILURES: true
       DD_DISABLE_ERROR_RESPONSES: true
       SNAPSHOT_REGEX_PLACEHOLDERS: 'path:/\S+/dd-trace-php(?=/),httpbin:(?<=//)httpbin-integration:8080'
-      KUBERNETES_SERVICE_CPU_REQUEST: 1
-      KUBERNETES_SERVICE_CPU_LIMIT: 1
-      KUBERNETES_SERVICE_MEMORY_REQUEST: 512Mi
-      KUBERNETES_SERVICE_MEMORY_LIMIT: 512Mi
+      # The runner applies KUBERNETES_SERVICE_* to every service in the pod and the last definition wins, in an
+      # order that varies between pods. Keep these identical to request-replayer's, or Elasticsearch (1g heap) may end
+      # up with 1 CPU / 512Mi and never start listening.
+      KUBERNETES_SERVICE_CPU_REQUEST: 2
+      KUBERNETES_SERVICE_CPU_LIMIT: 2
+      KUBERNETES_SERVICE_MEMORY_REQUEST: 1Gi
+      KUBERNETES_SERVICE_MEMORY_LIMIT: 1Gi
 
   request-replayer:
     name: registry.ddbuild.io/ci/dd-trace-php/request-replayer:4.0

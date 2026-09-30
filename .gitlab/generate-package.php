@@ -545,7 +545,7 @@ foreach ($windows_build_platforms as $platform) {
     mkdir extensions_x86_64_debugsymbols
 
     # Start the container
-    docker run -v ${pwd}:C:\Users\ContainerAdministrator\app -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
+    docker run --env GITLAB_CI=$env:GITLAB_CI -v ${pwd}:C:\Users\ContainerAdministrator\app -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
 
     # Build nts (fail fast on any step); capture combined output for failure classification.
     # ErrorActionPreference=Continue so the build's native stderr (e.g. cargo warnings) is not
@@ -895,8 +895,8 @@ endforeach;
     DOCKER_COMPOSE_DOWNLOAD_NAME: docker-compose-linux-x86_64
   before_script:
 <?php dockerhub_login() ?>
-    - apt-get update
-    - apt install -y php git make curl
+    - .gitlab/run-with-retryable-download.sh apt-get update
+    - .gitlab/run-with-retryable-download.sh apt install -y php git make curl
     - curl -L --fail https://github.com/docker/compose/releases/download/v2.36.0/${DOCKER_COMPOSE_DOWNLOAD_NAME} -o /usr/local/bin/docker-compose
     - chmod +x /usr/local/bin/docker-compose
     - mv packages/* .

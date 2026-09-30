@@ -6,6 +6,7 @@
 #include <Zend/zend_ini.h>
 
 #ifndef _WIN32
+#include <dlfcn.h>
 #include <sys/mman.h>
 #include <unistd.h>
 #endif
@@ -153,6 +154,18 @@ void zai_jit_minit(void) {
 static inline bool zai_is_func_recv_opcode(zend_uchar opcode) {
     return opcode == ZEND_RECV || opcode == ZEND_RECV_INIT || opcode == ZEND_RECV_VARIADIC;
 }
+
+// PHP_INI_SYSTEM, hence process-wide constant once startup is done.
+static bool zai_jit_shm_protected(void) {
+    static int protected = -1;
+    if (protected < 0) {
+        zend_string *name = zend_string_init(ZEND_STRL("opcache.protect_memory"), 0);
+        zend_string *value = zend_ini_get_value(name);
+        zend_string_release(name);
+        protected = value && zend_ini_parse_bool(value);
+    }
+    return protected;
+}
 #endif
 
 #if PHP_VERSION_ID < 80100
@@ -227,13 +240,7 @@ void zai_jit_blacklist_function_inlining(zend_op_array *op_array) {
     }
 
     if (!(ZEND_OP_TRACE_INFO(opline, offset)->trace_flags & ZEND_JIT_TRACE_BLACKLISTED)) {
-        bool is_protected_memory = false;
-        zend_string *protect_memory = zend_string_init(ZEND_STRL("opcache.protect_memory"), 0);
-        zend_string *protect_memory_ini = zend_ini_get_value(protect_memory);
-        zend_string_release(protect_memory);
-        if (protect_memory_ini) {
-            is_protected_memory = zend_ini_parse_bool(protect_memory_ini);
-        }
+        bool is_protected_memory = zai_jit_shm_protected();
 
         uint8_t *trace_flags = &ZEND_OP_TRACE_INFO(opline, offset)->trace_flags;
         const void **handler = &((zend_op*)opline)->handler;
@@ -243,16 +250,28 @@ void zai_jit_blacklist_function_inlining(zend_op_array *op_array) {
 #else
         size_t page_size = 4096;
 #endif
-        void *trace_flags_page = (void *) ((uintptr_t) trace_flags & ~page_size);
-        void *handler_page = (void *) ((uintptr_t) handler & ~page_size);
+        // Both targets are naturally aligned and smaller than a page, so one page each covers them.
+        void *trace_flags_page = (void *) ((uintptr_t) trace_flags & ~(page_size - 1));
+        void *handler_page = (void *) ((uintptr_t) handler & ~(page_size - 1));
         if (is_protected_memory) {
+            // Bailing out is mandatory: the writes below would fault on a still-PROT_READ page.
 #ifndef _WIN32
-            mprotect(trace_flags_page, page_size, PROT_READ | PROT_WRITE);
-            mprotect(handler_page, page_size, PROT_READ | PROT_WRITE);
+            if (mprotect(trace_flags_page, page_size, PROT_READ | PROT_WRITE) != 0) {
+                return;
+            }
+            if (mprotect(handler_page, page_size, PROT_READ | PROT_WRITE) != 0) {
+                mprotect(trace_flags_page, page_size, PROT_READ);
+                return;
+            }
 #else
             DWORD oldProtect;
-            VirtualProtect(handler_page, page_size, PAGE_READWRITE, &oldProtect);
-            VirtualProtect(trace_flags_page, page_size, PAGE_READWRITE, &oldProtect);
+            if (!VirtualProtect(trace_flags_page, page_size, PAGE_READWRITE, &oldProtect)) {
+                return;
+            }
+            if (!VirtualProtect(handler_page, page_size, PAGE_READWRITE, &oldProtect)) {
+                VirtualProtect(trace_flags_page, page_size, PAGE_READONLY, &oldProtect);
+                return;
+            }
 #endif
         }
 
