@@ -158,11 +158,14 @@ variables:
   # No deps: a publish just mirrors whatever already exists in
   # registry.ddbuild.io, so it can run without (re)building.
   needs: []
-  image: registry.ddbuild.io/agent-delivery/dd-pkg:v0.9.3
+  image: registry.ddbuild.io/agent-delivery/dd-pkg:v0.9.6
   tags: ["arch:arm64"]
   # $TAG is supplied per matrix entry by the generated publish jobs.
   variables:
-    IMG_REGISTRIES: "public"
+    # "dev" (Docker Hub + registry.datadoghq.com), not "public": this is a
+    # CI/dev image, not a shipped product, and it has no ECR repository, which
+    # "public" would also try to publish to.
+    IMG_REGISTRIES: "dev"
     IMG_SIGNING: "false"
     IMG_SOURCES: "${CI_REGISTRY_IMAGE}:${TAG}"
     IMG_DESTINATIONS: "dd-trace-ci:${TAG}"
