@@ -597,10 +597,11 @@ foreach ($asan_build_platforms as $platform) {
     - make -C tests/randomized generate PLATFORMS=$RANDOMIZED_RESTRICT_PLATFORMS NUMBER_OF_SCENARIOS=4
   script:
     - make -C tests/randomized test CONCURRENT_JOBS=2 DURATION=1m30s # Execute
-  after_script:
-  # - sudo chown -R circleci:circleci tests/randomized/.tmp.scenarios/.results
+    # In script rather than after_script: GitLab ignores after_script failures,
+    # which let every scenario fail unnoticed.
     - make -C tests/randomized analyze
   artifacts:
+    when: always
     paths:
       - tests/randomized/.tmp.scenarios/.results
 
@@ -609,6 +610,10 @@ foreach ($asan_build_platforms as $platform) {
 "randomized tests: [amd64, no-asan, <?= $i ?>]":
   extends: .randomized_tests
   tags: [ "docker-in-docker:amd64" ]
+  variables:
+    # The buster images run a debug-zts-asan PHP, which this bundle does not
+    # ship.
+    RANDOMIZED_RESTRICT_PLATFORMS: centos7
   needs:
     - job: "package extension (bundles): [amd64]"
       artifacts: true
