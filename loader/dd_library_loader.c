@@ -786,7 +786,7 @@ static bool ddloader_combined_profiling_available(unsigned int api_no, bool is_z
 
     char *marker = NULL;
     const char *zts_suffix = is_zts ? "-zts" : "";
-    if (asprintf(&marker, "%s/%strace/ext/%u/.ddtrace%s.profiling", package_path, OS_PATH, api_no,
+    if (asprintf(&marker, "%s/%strace/ext/%u/.ddtrace%s.profiling", package_path, ddloader_os_path(), api_no,
                  zts_suffix) == -1) {
         return false;
     }
