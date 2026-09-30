@@ -273,6 +273,12 @@ impl Equivalent<ShmCacheKey> for (&str, &str) {
     }
 }
 
+impl From<&(&str, &str)> for ShmCacheKey {
+    fn from(key: &(&str, &str)) -> Self {
+        Self(key.0.to_owned(), key.1.to_owned())
+    }
+}
+
 pub type ShmCacheMap = HashMap<ShmCacheKey, ShmCache>;
 
 #[no_mangle]
@@ -300,50 +306,25 @@ unsafe fn ddog_sidecar_telemetry_cache_get_or_update<'a>(
     env: CharSlice,
 ) -> &'a ShmCache {
     fn refresh_cache(cache: &mut ShmCache) {
-        let (changed, mut buf) = cache.reader.read();
+        let (changed, buf) = cache.reader.read();
         if changed {
-            // Cache was reset
-            if buf.is_empty() {
-                cache.reader.clear_reader();
-                let (changed, newbuf) = cache.reader.read();
-                if changed {
-                    buf = newbuf;
-                } else {
-                    cache.shared = TelemetryCachedClientShmData::default();
-                    return;
-                }
-            }
-
-            if let Ok(shared) = bincode::deserialize::<TelemetryCachedClientShmData>(buf) {
-                cache.shared = shared;
-            }
+            cache.shared = bincode::deserialize(buf).unwrap_or_default();
         }
     }
 
     let service_str = service.to_utf8_lossy();
     let env_str = env.to_utf8_lossy();
 
-    // I hate you, borrow checker, you get an unsafe from me!
-    if let Some(cached_entry) =
-        (&mut *(cache as *mut ShmCacheMap)).get_mut(&(service_str.as_ref(), env_str.as_ref()))
-    {
-        refresh_cache(cached_entry);
-        return cached_entry;
-    }
-
-    let shm_path = path_for_telemetry(&service_str, &env_str);
-    let reader = OneWayShmReader::<NamedShmHandle, _>::new_with_opener(
-        open_named_shm(&shm_path).ok(),
-        shm_path,
-        |path| open_named_shm(path).ok(),
-    );
     let cached_entry = cache
-        .entry(ShmCacheKey(service_str.into(), env_str.into()))
-        .insert(ShmCache {
-            reader,
+        .entry_ref(&(service_str.as_ref(), env_str.as_ref()))
+        .or_insert_with(|| ShmCache {
+            reader: OneWayShmReader::new_with_opener(
+                None,
+                path_for_telemetry(&service_str, &env_str),
+                |path| open_named_shm(path).ok(),
+            ),
             shared: TelemetryCachedClientShmData::default(),
-        })
-        .into_mut();
+        });
 
     refresh_cache(cached_entry);
     cached_entry

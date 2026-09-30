@@ -7,6 +7,7 @@
 #endif
 
 #include <ext/datadog.h>
+#include "otel_sampling.h"
 
 typedef struct ddtrace_span_ids_t ddtrace_span_ids_t;
 typedef struct ddtrace_span_data ddtrace_span_data;
@@ -44,6 +45,7 @@ typedef struct {
     zend_array root_span_tags_preset;
     zend_array propagated_root_span_tags;
     zend_string *tracestate;
+    ddtrace_otel_sampling_state otel_sampling;
     zend_array tracestate_unknown_dd_keys;
     ddtrace_error_data active_error;
     HashTable baggage;

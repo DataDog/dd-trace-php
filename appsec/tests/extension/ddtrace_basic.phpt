@@ -105,6 +105,7 @@ Array
 (
     [_dd.p.dm] => -0
     [_dd.p.tid] => %s
+    [_dd.sdk.otlp_export] => false
     [ddappsec] => true
     [runtime-id] => %s
 )
