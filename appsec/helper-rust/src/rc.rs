@@ -1,5 +1,7 @@
 use std::{
+    cell::Cell,
     ffi::{CString, OsStr},
+    io,
     os::{
         fd::{AsRawFd, OwnedFd},
         unix::ffi::OsStrExt,
@@ -17,7 +19,13 @@ use crate::client::log::debug;
 /// Polls the remote config directory the sidecar publishes for one target.
 pub struct ConfigPoller {
     path: PathBuf,
-    reader: Option<OneWayShmReader<NamedShmHandle, CString>>,
+    reader: Option<OneWayShmReader<NamedShmHandle, DirectoryOpener>>,
+}
+
+struct DirectoryOpener {
+    name: CString,
+    // The opener returns Option, so preserve other errors for poll() to report.
+    error: Cell<Option<io::Error>>,
 }
 impl ConfigPoller {
     pub fn new(shmem_path: &Path) -> Self {
@@ -35,19 +43,38 @@ impl ConfigPoller {
                 validate_shm_name(&self.path)?;
                 let name = CString::new(self.path.as_os_str().as_bytes())
                     .with_context(|| format!("Invalid shared memory name {:?}", self.path))?;
-                self.reader
-                    .insert(OneWayShmReader::new_with_opener(None, name, |name| {
-                        open_named_shm(name).ok()
-                    }))
+                self.reader.insert(OneWayShmReader::new_with_opener(
+                    None,
+                    DirectoryOpener {
+                        name,
+                        error: Cell::new(None),
+                    },
+                    |opener| match open_named_shm(&opener.name) {
+                        Ok(mapping) => Some(mapping),
+                        Err(error) => {
+                            if !matches!(
+                                error.kind(),
+                                io::ErrorKind::NotFound | io::ErrorKind::WouldBlock
+                            ) {
+                                opener.error.set(Some(error));
+                            }
+                            None
+                        }
+                    },
+                ))
             }
         };
         let (changed, data) = reader.read();
-        if !changed {
-            debug!("No new remote config in {:?}", self.path);
-            return Ok(None);
+        let directory = changed.then(|| ConfigDirectory {
+            data: data.to_vec(),
+        });
+        if let Some(error) = reader.extra.error.take() {
+            return Err(error.into());
         }
-        let data = data.to_vec();
-        Ok(Some(ConfigDirectory::new(data, reader.take_replaced())))
+        if directory.is_none() {
+            debug!("No new remote config in {:?}", self.path);
+        }
+        Ok(directory)
     }
 }
 impl std::fmt::Debug for ConfigPoller {
@@ -60,18 +87,8 @@ impl std::fmt::Debug for ConfigPoller {
 
 pub struct ConfigDirectory {
     data: Vec<u8>,
-    replaced: bool,
 }
 impl ConfigDirectory {
-    fn new(data: Vec<u8>, replaced: bool) -> Self {
-        ConfigDirectory { data, replaced }
-    }
-
-    /// A new writer published this directory; cached config paths must be reloaded.
-    pub fn replaced(&self) -> bool {
-        self.replaced
-    }
-
     pub fn runtime_id(&self) -> anyhow::Result<&str> {
         if self.data.is_empty() {
             // Cleared shmem state (expired()): no config available, same as unwritten shmem.
@@ -673,20 +690,17 @@ mod tests {
         let mut poller = poller_for(&name);
         let snapshot = poller.poll()?.context("the first directory")?;
         assert_eq!(snapshot.runtime_id()?, "old-runtime");
-        assert!(!snapshot.replaced());
         assert!(poller.poll()?.is_none());
 
         let new = OneWayShmWriter::<NamedShmHandle>::new(name.clone())?;
         assert!(new.write(b"new-runtime\n"));
         let snapshot = poller.poll()?.context("the replacement directory")?;
         assert_eq!(snapshot.runtime_id()?, "new-runtime");
-        assert!(snapshot.replaced(), "a new writer starts over");
         assert!(poller.poll()?.is_none());
 
         assert!(new.write(b"newer-runtime\n"));
         let snapshot = poller.poll()?.context("an ordinary update")?;
         assert_eq!(snapshot.runtime_id()?, "newer-runtime");
-        assert!(!snapshot.replaced());
         Ok(())
     }
 
@@ -719,7 +733,6 @@ mod tests {
         assert!(next.write(b"next-runtime\n"));
         let snapshot = poller.poll()?.context("the next writer")?;
         assert_eq!(snapshot.runtime_id()?, "next-runtime");
-        assert!(snapshot.replaced());
         Ok(())
     }
 
