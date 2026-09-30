@@ -8,6 +8,8 @@ if [ "$(uname -m)" != aarch64 ]; then
     exit 0
 fi
 
+mkdir -p "${project_dir}/tmp"
+
 libc_version_from_lock() {
     awk '
     $0 == "name = \"libc\"" { in_libc = 1; next }
