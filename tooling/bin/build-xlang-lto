@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Build an NTS tracer release artifact inside the CentOS 7 PHP image.
+# Build NTS/ZTS release artifacts inside the CentOS 7 PHP image.
 # Include profiling where supported (PHP 7.1+). ThinLTO is the default.
-# This is not yet part of release packaging.
 set -euo pipefail
 
 fail() { echo "xlang-lto: $*" >&2; exit 1; }
@@ -31,6 +30,17 @@ rt_archive="$(clang --print-resource-dir)/lib/$(clang -dumpmachine)/libclang_rt.
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 artifact_mode=combined
 [[ "$php_version" == 7.0 ]] && artifact_mode=tracer-only
+build_variant="${DDTRACE_XLANG_BUILD_VARIANT:-nts}"
+case "$build_variant" in
+    nts|zts) ;;
+    *) fail 'DDTRACE_XLANG_BUILD_VARIANT must be nts or zts (debug stays non-LTO)' ;;
+esac
+variant_dir=''
+cache_variant=''
+if [[ "$build_variant" == zts ]]; then
+    variant_dir=/zts
+    cache_variant=-zts
+fi
 # Match the C and Rust baseline ISA; never enable ARM LSE or x86-64-v2.
 case "$arch" in
     aarch64)
@@ -50,12 +60,12 @@ esac
 arch_dir=''
 [[ "$arch" == x86_64 ]] && arch_dir=x86_64/
 lto_mode="${DDTRACE_XLANG_LTO:-thin}"
-artifacts="$root/tmp/xlang-lto/${arch_dir}php-$php_version"
+artifacts="$root/tmp/xlang-lto/${arch_dir}php-$php_version$variant_dir"
 c_lto_flags= rust_lto_flags= link_lto_flags=
 case "$lto_mode" in
     off)
         # Control using the same toolchain, target features and rebuilt std.
-        artifacts="$root/tmp/xlang-no-lto/${arch_dir}php-$php_version"
+        artifacts="$root/tmp/xlang-no-lto/${arch_dir}php-$php_version$variant_dir"
         ;;
     thin|fat)
         clang_lto=thin
@@ -71,10 +81,10 @@ mkdir -p "$artifacts"
 artifacts="$(cd "$artifacts" && pwd)"
 # The release script copies sources into /tmp; keep the target outside that
 # copy. A caller may mount a persistent cache and set an absolute path here.
-export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$root/tmp/xlang-cargo-target/${arch_dir}php-$php_version-$lto_mode}"
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$root/tmp/xlang-cargo-target/${arch_dir}php-$php_version$cache_variant-$lto_mode}"
 [[ "$CARGO_TARGET_DIR" == /* ]] || fail 'CARGO_TARGET_DIR must be absolute'
 mkdir -p "$CARGO_TARGET_DIR"
-echo "PHP $php_version $lto_mode: Cargo target cache $CARGO_TARGET_DIR" >&2
+echo "PHP $php_version $build_variant $lto_mode: Cargo target cache $CARGO_TARGET_DIR" >&2
 
 # ARM generic +neon matches Clang armv8-a with outlined atomics. x86-64
 # matches Rust's x86-64 baseline without assuming newer ISA extensions.
@@ -98,9 +108,12 @@ case "${DDTRACE_XLANG_BUILD_STD:-1}" in
 esac
 
 cd "$root"
-.gitlab/build-profiler.sh "$artifacts" nts "$artifact_mode" ddtrace.so
+.gitlab/build-profiler.sh "$artifacts" "$build_variant" "$artifact_mode" ddtrace.so
+# switch-php in the build script updates php-config to the selected PHP ABI.
+php_binary="$(php-config --php-binary)"
+[[ -x "$php_binary" ]] || fail "selected php-config --php-binary is not executable: $php_binary"
 if [[ "$lto_mode" != off ]]; then
-    /tmp/ddtrace-build-profiler-nts/src/target_mockgen/debug/php_sidecar_mockgen \
+    "/tmp/ddtrace-build-profiler-$build_variant/src/target_mockgen/debug/php_sidecar_mockgen" \
         weaken-final-dynsym "$artifacts/ddtrace.so" "$php_binary"
 fi
 php -n -d "extension=$artifacts/ddtrace.so" -r '
@@ -109,4 +122,4 @@ php -n -d "extension=$artifacts/ddtrace.so" -r '
 '
 strip -o "$artifacts/ddtrace.stripped.so" "$artifacts/ddtrace.so"
 stat -c '%n %s bytes' "$artifacts/ddtrace.so" "$artifacts/ddtrace.stripped.so"
-echo "Experimental PHP $php_version $lto_mode artifacts: $artifacts"
+echo "PHP $php_version $build_variant $lto_mode artifacts: $artifacts"
