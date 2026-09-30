@@ -16,7 +16,7 @@ DDTrace\SpanLink Object
 (
     [traceId] => 0000000000000000000000000000002a
     [spanId] => %s
-    [traceState] => dd=o:datadog;t.custom_tag:inherited;t.second_tag:bar;t.dm:-0
+    [traceState] => dd=o:datadog;t.custom_tag:inherited;t.second_tag:bar;t.dm:-0,ot=rv:%x;th:0
     [attributes] => Array
         (
             [_dd.p.custom_tag] => inherited

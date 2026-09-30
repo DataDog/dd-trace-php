@@ -941,7 +941,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e9e393a7668fe1fad3075085b86c781883000b4ede868f43627b34a87c8b7ded"
 dependencies = [
  "libc 0.2.186",
- "winapi 0.3.9",
+ "winapi",
 ]
 
 [[package]]
@@ -1216,6 +1216,7 @@ name = "datadog-php"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "arc-swap",
  "bincode",
  "bindgen",
  "cbindgen 0.27.0",
@@ -1323,6 +1324,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with",
+ "serial_test",
  "sha2",
  "simd-json",
  "spawn_worker",
@@ -1333,7 +1335,7 @@ dependencies = [
  "tracing",
  "tracing-log",
  "tracing-subscriber",
- "winapi 0.3.9",
+ "windows-sys 0.52.0",
  "zwohash",
 ]
 
@@ -2107,6 +2109,7 @@ dependencies = [
  "futures",
  "libc 0.2.186",
  "libdd-common",
+ "libdd-ipc",
  "libdd-remote-config",
  "libdd-telemetry",
  "libddwaf",
@@ -2715,16 +2718,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "kernel32-sys"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"
-dependencies = [
- "winapi 0.2.8",
- "winapi-build",
-]
-
-[[package]]
 name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3033,6 +3026,7 @@ name = "libdd-ipc"
 version = "2.0.0"
 dependencies = [
  "anyhow",
+ "arc-swap",
  "bincode",
  "criterion",
  "glibc_version",
@@ -3052,8 +3046,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
- "winapi 0.3.9",
- "windows-sys 0.48.0",
+ "windows-sys 0.52.0",
  "zwohash",
 ]
 
@@ -4103,7 +4096,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "30d5b2194ed13191c1999ae0704b7839fb18384fa22e49b57eeaa97d79ce40da"
 dependencies = [
  "libc 0.2.186",
- "winapi 0.3.9",
+ "winapi",
 ]
 
 [[package]]
@@ -4664,7 +4657,7 @@ dependencies = [
  "libc 0.2.186",
  "rand_core 0.3.1",
  "rdrand",
- "winapi 0.3.9",
+ "winapi",
 ]
 
 [[package]]
@@ -4877,7 +4870,7 @@ version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3acd125665422973a33ac9d3dd2df85edad0f4ae9b00dafb1a05e43a9f5ef8e7"
 dependencies = [
- "winapi 0.3.9",
+ "winapi",
 ]
 
 [[package]]
@@ -5675,14 +5668,13 @@ dependencies = [
  "cc_utils",
  "fastrand",
  "io-lifetimes",
- "kernel32-sys",
  "libc 0.2.186",
  "memfd",
  "nix 0.29.0",
  "rlimit",
  "tempfile",
- "winapi 0.2.8",
  "windows 0.51.1",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -6744,12 +6736,6 @@ checksum = "72069c3113ab32ab29e5584db3c6ec55d416895e60715417b5b883a357c3e471"
 
 [[package]]
 name = "winapi"
-version = "0.2.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "167dc9d6949a9b857f3451275e911c3f44255842c1f7a76f33c55103a909087a"
-
-[[package]]
-name = "winapi"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5c839a674fcd7a98952e593242ea400abe93992746761e38641405d28b00f419"
@@ -6757,12 +6743,6 @@ dependencies = [
  "winapi-i686-pc-windows-gnu",
  "winapi-x86_64-pc-windows-gnu",
 ]
-
-[[package]]
-name = "winapi-build"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d315eee3b34aca4797b2da6b13ed88266e6d612562a0c46390af8299fc699bc"
 
 [[package]]
 name = "winapi-i686-pc-windows-gnu"

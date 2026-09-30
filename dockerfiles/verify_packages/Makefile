@@ -52,6 +52,22 @@ verify_debian:
 		debian \
 		dockerfiles/verify_packages/verify.sh
 
+# Thread-mode sidecar under a privilege-dropping PHP-FPM (root master, www-data workers).
+# Asserts the request is served and traced, that the agent-response shared memory is owned by
+# and named for the worker user, and that the sidecar threads dropped while FPM's own main
+# thread did not. Linux only: per-thread credentials are a Linux facility.
+#   Example: make verify_fpm_thread_sidecar_uid DOCKER_IMAGE=datadog/dd-trace-ci:php-8.3_bookworm INSTALL_MODE=sury PHP_VERSION=8.3
+verify_fpm_thread_sidecar_uid:
+	docker-compose run --rm \
+		-e INSTALL_MODE="$(INSTALL_MODE)" \
+		-e PHP_PACKAGE="$(PHP_PACKAGE)" \
+		-e PHP_VERSION="$(PHP_VERSION)" \
+		-e DOCKER_IMAGE="$(DOCKER_IMAGE)" \
+		-e PHP_FPM_BIN="$(PHP_FPM_BIN)" \
+		-e INSTALL_TYPE="$(INSTALL_TYPE)" \
+		debian \
+		dockerfiles/verify_packages/verify_fpm_thread_sidecar_uid.sh
+
 verify_centos:
 	docker-compose run --rm \
 		-e PHP_MAJOR="$(PHP_MAJOR)" \

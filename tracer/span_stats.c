@@ -212,13 +212,6 @@ void ddtrace_free_span_precomputed(ddtrace_span_precomputed *pre) {
 typedef struct {
     ddtrace_span_data *span;
     const ddtrace_span_precomputed *pre;
-    // Set by the callback when the concentrator has no backing SHM (virtual concentrator).
-    // The caller should then forward ipc_stats to the sidecar via IPC.
-    bool needs_ipc;
-    ddog_PhpSpanStats ipc_stats;
-    // Owned storage for peer_tags when going through the IPC path.
-    // ipc_stats.peer_tags points into this array.
-    ddog_PhpPeerTag ipc_peer_tags[DDTRACE_MAX_PEER_TAGS];
 } ddtrace_concentrator_cb_data;
 
 // Build the stats fields for a span (all except peer_tags).
@@ -325,7 +318,7 @@ static ddog_PhpSpanStats ddtrace_build_span_stats_core(
     return stats;
 }
 
-static void ddtrace_span_concentrator_feed_cb(const ddog_SpanConcentrator *c, void *data_ptr) {
+static ddog_OwnedShmSpanInput *ddtrace_span_concentrator_feed_cb(const ddog_SpanConcentrator *c, void *data_ptr) {
     ddtrace_concentrator_cb_data *data = data_ptr;
     ddtrace_span_data *span = data->span;
     const ddtrace_span_precomputed *pre = data->pre;
@@ -333,7 +326,7 @@ static void ddtrace_span_concentrator_feed_cb(const ddog_SpanConcentrator *c, vo
     ddog_CharSlice span_kind_slice = dd_zend_string_to_CharSlice(pre->span_kind);
 
     if (!ddog_span_concentrator_is_eligible(c, pre->has_top_level, pre->is_measured, span_kind_slice, pre->is_partial_snapshot)) {
-        return;
+        return NULL;
     }
 
     ddog_PhpSpanStats stats = ddtrace_build_span_stats_core(span, pre, span_kind_slice);
@@ -373,18 +366,7 @@ static void ddtrace_span_concentrator_feed_cb(const ddog_SpanConcentrator *c, vo
     stats.peer_tags_count = actual_peer_tags;
     stats.peer_tags = actual_peer_tags > 0 ? peer_tags : NULL;
 
-    if (ddog_span_concentrator_has_shm(c)) {
-        ddog_span_concentrator_add_php_span(c, &stats);
-    } else {
-        // No backing SHM yet; submit via sidecar IPC instead.
-        for (size_t i = 0; i < actual_peer_tags; i++) {
-            data->ipc_peer_tags[i] = peer_tags[i];
-        }
-        data->ipc_stats = stats;
-        data->ipc_stats.peer_tags_count = actual_peer_tags;
-        data->ipc_stats.peer_tags       = actual_peer_tags > 0 ? data->ipc_peer_tags : NULL;
-        data->needs_ipc = true;
-    }
+    return ddog_span_concentrator_add_php_span(c, &stats);
 }
 
 void ddtrace_feed_span_to_concentrator(ddtrace_span_data *span, const ddtrace_span_precomputed *pre) {
@@ -403,10 +385,7 @@ void ddtrace_feed_span_to_concentrator(ddtrace_span_data *span, const ddtrace_sp
     // process share one SHM concentrator regardless of per-request service overrides.
     ddog_CharSlice service_slice = dd_zend_string_to_CharSlice(get_global_DD_SERVICE());
 
-    ddtrace_concentrator_cb_data data = { .span = span, .pre = pre, .needs_ipc = false };
-    ddog_span_concentrator_with(env_slice, version_slice, service_slice, ddtrace_span_concentrator_feed_cb, &data);
-
-    if (data.needs_ipc && DATADOG_G(sidecar)) {
-        ddog_sidecar_add_php_span_to_concentrator(&DATADOG_G(sidecar), env_slice, version_slice, &data.ipc_stats);
-    }
+    ddtrace_concentrator_cb_data data = { .span = span, .pre = pre };
+    ddog_span_concentrator_with(DATADOG_G(sidecar), env_slice, version_slice, service_slice,
+                               ddtrace_span_concentrator_feed_cb, &data);
 }

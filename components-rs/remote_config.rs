@@ -35,7 +35,8 @@ use std::ptr::NonNull;
 use std::sync::Arc;
 use tracing::debug;
 
-pub const DYANMIC_CONFIG_UPDATE_UNMODIFIED: *mut ZendString = std::ptr::without_provenance_mut(1);
+#[allow(clippy::manual_dangling_ptr)] // cbindgen needs the literal sentinel address.
+pub const DYANMIC_CONFIG_UPDATE_UNMODIFIED: *mut ZendString = 1isize as *mut ZendString;
 
 #[repr(C)]
 pub enum DynamicConfigUpdateMode {
