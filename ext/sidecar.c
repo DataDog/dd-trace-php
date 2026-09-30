@@ -288,7 +288,7 @@ static ddog_SidecarTransport *dd_sidecar_connect(bool as_worker, bool is_fork) {
                     current_pid, datadog_sidecar_master_pid);
                 datadog_sidecar_master_pid = current_pid;
                 if (!datadog_ffi_try("Failed starting sidecar master listener as orphaned child",
-                        ddog_sidecar_connect_master_php((int32_t)datadog_sidecar_master_pid)) ||
+                        ddog_sidecar_connect_master_php()) ||
                     !datadog_ffi_try("Failed connecting to new sidecar master as orphaned child",
                         ddog_sidecar_connect_worker((int32_t)datadog_sidecar_master_pid, &sidecar_transport))) {
                     dd_free_endpoints();
@@ -353,7 +353,7 @@ static void datadog_sidecar_setup_thread_mode() {
 #endif
     bool is_child_process = (datadog_sidecar_master_pid != 0 && current_pid != datadog_sidecar_master_pid);
 
-    bool listener_available = ddog_sidecar_is_master_listener_active(datadog_sidecar_master_pid);
+    bool listener_available = ddog_sidecar_is_master_listener_active();
 
     if (is_child_process || listener_available) {
         DATADOG_G(sidecar) = dd_sidecar_connect(true, false);
@@ -376,7 +376,7 @@ static void datadog_sidecar_setup_thread_mode() {
     }
 
     if (!datadog_ffi_try("Failed starting sidecar master listener",
-            ddog_sidecar_connect_master_php((int32_t)datadog_sidecar_master_pid))) {
+            ddog_sidecar_connect_master_php())) {
         LOG(WARN, "Failed to start sidecar master listener");
         if (datadog_endpoint) {
             dd_free_endpoints();
@@ -521,7 +521,7 @@ void datadog_sidecar_minit(void) {
 
     if (mode == DD_TRACE_SIDECAR_CONNECTION_MODE_THREAD) {
         datadog_ffi_try("Starting sidecar master listener in MINIT",
-                       ddog_sidecar_connect_master_php(datadog_sidecar_master_pid));
+                       ddog_sidecar_connect_master_php());
     }
 }
 
@@ -562,7 +562,7 @@ void datadog_sidecar_handle_fork(void) {
 
             datadog_sidecar_master_pid = (int32_t)getpid();
             if (!datadog_ffi_try("Failed starting sidecar master listener in child process",
-                    ddog_sidecar_connect_master_php((int32_t)datadog_sidecar_master_pid))) {
+                    ddog_sidecar_connect_master_php())) {
                 if (datadog_endpoint) {
                     dd_free_endpoints();
                 }

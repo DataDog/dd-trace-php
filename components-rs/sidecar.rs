@@ -153,11 +153,11 @@ pub extern "C" fn ddog_sidecar_enable_appsec(log_file_path: CharSlice, log_level
 /// Starts a thread-mode master listener with the PHP-linked AppSec backend
 /// registered in the listener's process.
 #[no_mangle]
-pub extern "C" fn ddog_sidecar_connect_master_php(pid: i32) -> MaybeError {
+pub extern "C" fn ddog_sidecar_connect_master_php() -> MaybeError {
     #[cfg(unix)]
     ddtrace_sidecar::register_appsec_backend();
 
-    datadog_sidecar_ffi::ddog_sidecar_connect_master(pid)
+    datadog_sidecar_ffi::ddog_sidecar_connect_master()
 }
 
 /// Ensures the connected sidecar's AppSec backend is started using the

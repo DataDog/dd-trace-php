@@ -92,13 +92,13 @@ void ddog_sidecar_transport_drop(struct ddog_SidecarTransport*);
  */
 ddog_MaybeError ddog_sidecar_connect(struct ddog_SidecarTransport **connection);
 
-ddog_MaybeError ddog_sidecar_connect_master(int32_t pid);
+ddog_MaybeError ddog_sidecar_connect_master(void);
 
 ddog_MaybeError ddog_sidecar_connect_worker(int32_t pid, struct ddog_SidecarTransport **connection);
 
 ddog_MaybeError ddog_sidecar_shutdown_master_listener(void);
 
-bool ddog_sidecar_is_master_listener_active(int32_t pid);
+bool ddog_sidecar_is_master_listener_active(void);
 
 ddog_MaybeError ddog_sidecar_clear_inherited_listener(void);
 
