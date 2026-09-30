@@ -139,6 +139,9 @@ trait SnapshotTestTrait
         if (!in_array('meta._dd.svc_src', $fieldsToIgnore, true)) {
             $fieldsToIgnore[] = 'meta._dd.svc_src';
         }
+        if (!in_array('meta._dd.sdk.otlp_export', $fieldsToIgnore, true)) {
+            $fieldsToIgnore[] = 'meta._dd.sdk.otlp_export';
+        }
         $url = self::$testAgentUrl . '/test/session/snapshot?ignores=' . implode(',', $fieldsToIgnore) .
             '&test_session_token=' . $token;
 
