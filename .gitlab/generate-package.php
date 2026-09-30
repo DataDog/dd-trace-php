@@ -290,11 +290,19 @@ foreach ($build_platforms as $platform) {
     KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
   script:
-    - .gitlab/build-profiler.sh "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>" "nts" "combined" "ddtrace-${ABI_NO}<?= $platform['host_os'] === 'linux-musl' ? '-alpine' : '' ?>.so"
-<?php if ($platform['host_os'] !== 'linux-musl'): ?>
+<?php if ($platform['host_os'] === 'linux-gnu'): ?>
+    # CentOS 7 release artifacts use Clang/Rust ThinLTO for NTS and ZTS.
+    - make -s xlang-lto
+    - mkdir -p "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>"
+    - cp "tmp/xlang-lto/<?= $platform['arch'] === 'amd64' ? 'x86_64/' : '' ?>php-${PHP_VERSION}/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}.so"
+    # The PHP debug ABI still uses the regular non-LTO build.
     - .gitlab/build-profiler.sh "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>" "debug" "combined" "ddtrace-${ABI_NO}-debug.so"
+    - DDTRACE_XLANG_BUILD_VARIANT=zts make -s xlang-lto
+    - cp "tmp/xlang-lto/<?= $platform['arch'] === 'amd64' ? 'x86_64/' : '' ?>php-${PHP_VERSION}/zts/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}-zts.so"
+<?php else: ?>
+    - .gitlab/build-profiler.sh "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>" "nts" "combined" "ddtrace-${ABI_NO}-alpine.so"
+    - .gitlab/build-profiler.sh "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>" "zts" "combined" "ddtrace-${ABI_NO}-alpine-zts.so"
 <?php endif; ?>
-    - .gitlab/build-profiler.sh "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>" "zts" "combined" "ddtrace-${ABI_NO}<?= $platform['host_os'] === 'linux-musl' ? '-alpine' : '' ?>-zts.so"
   cache:
     - key:
         prefix: cargo-cache-${TRIPLET}
@@ -380,7 +388,13 @@ foreach ($build_platforms as $platform) {
   stage: tracing
   image: $IMAGE
   tags: [ "arch:$ARCH" ]
-  needs: [ "prepare code" ]
+  needs:
+    - job: "prepare code"
+      artifacts: true
+<?php if ($platform['host_os'] === 'linux-gnu'): ?>
+    - job: "cache cargo deps: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
+<?php endif; ?>
   variables:
     IMAGE: "<?= $image ?>"
     TRIPLET: "<?= $platform['triplet'] ?>"
@@ -395,6 +409,13 @@ foreach ($build_platforms as $platform) {
     # Fix for $BASH_ENV not having a newline at the end of the file
     - echo "" >> "$BASH_ENV"
     - ./.gitlab/build-tracing.sh "<?= $suffix ?>"
+<?php if ($platform['host_os'] === 'linux-gnu'): ?>
+    # Replace the PHP 7.0 NTS/ZTS release extensions; debug stays non-LTO.
+    - make -s xlang-lto
+    - cp "tmp/xlang-lto/<?= $platform['arch'] === 'amd64' ? 'x86_64/' : '' ?>php-${PHP_VERSION}/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}.so"
+    - DDTRACE_XLANG_BUILD_VARIANT=zts make -s xlang-lto
+    - cp "tmp/xlang-lto/<?= $platform['arch'] === 'amd64' ? 'x86_64/' : '' ?>php-${PHP_VERSION}/zts/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}-zts.so"
+<?php endif; ?>
   artifacts:
     paths:
       - "extensions_*"

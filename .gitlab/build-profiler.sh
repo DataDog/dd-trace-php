@@ -75,13 +75,13 @@ tar -cf - --exclude=.git --exclude=tmp --exclude=target --exclude=target-common 
 cd "${build_dir}/src"
 phpize
 ./configure ${configure_products}
-# Make -s propagates to this make via MAKEFLAGS, but libtool emits its own
-# progress messages. Pass --silent to libtool without overriding make's flags.
-libtool_args=()
+# Make -s propagates via MAKEFLAGS. Keep libtool's own --silent setting local
+# to this generated PHP Makefile: a command-line LIBTOOL= override would also
+# propagate to Cargo's native sub-builds (including libunwind).
 make_flags="${MAKEFLAGS:-}"
 if [[ "${make_flags%% *}" =~ ^[^-]*s || " $make_flags " == *" --silent "* ]]; then
-    libtool_args=("LIBTOOL=${SHELL:-/bin/sh} $PWD/libtool --silent")
+    printf '\nLIBTOOL = $(SHELL) $(top_builddir)/libtool --silent\n' >> Makefile
 fi
-make -j"$(nproc)" "${libtool_args[@]}"
+make -j"$(nproc)"
 cp -v "modules/${extension_name}.so" "${output_file}"
 objcopy --compress-debug-sections "${output_file}"
