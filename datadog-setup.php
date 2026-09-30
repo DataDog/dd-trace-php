@@ -457,7 +457,7 @@ function update_ini_setting($setting, $iniFile, $promoteComment)
 function install($options)
 {
     $architecture = get_architecture();
-    $platform = "$architecture-" . (IS_WINDOWS ? "windows" : "linux-" . (is_alpine() ? 'musl' : 'gnu'));
+    $platform = "$architecture-" . (IS_WINDOWS ? "windows" : "linux");
 
     // Checking required libraries
     check_library_prerequisite_or_exit('libcurl');

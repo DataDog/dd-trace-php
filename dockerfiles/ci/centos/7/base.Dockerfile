@@ -124,14 +124,6 @@ RUN source scl_source enable devtoolset-7; set -eux; \
     && rm -f /usr/local/bin/cpack \
     && rm -rf /usr/local/share/cmake-*/Help /usr/local/share/doc/cmake* /usr/local/share/man/man1/cmake*
 
-# Install Catch2
-RUN set -eux; \
-    /root/download-src.sh catch2 https://github.com/catchorg/Catch2/archive/v2.13.10.tar.gz; \
-    cd "${SRC_DIR}/catch2"; \
-    cmake -Bbuild -H. -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX=/opt/catch2 -DCATCH_BUILD_STATIC_LIBRARY=ON; \
-    cmake --build build/ --target install; \
-    rm -fr "${SRC_DIR}/catch2"
-
 # PHP 8.4+ requires OpenSSL >= 1.1.1
 RUN source scl_source enable devtoolset-7; set -ex; \
     /root/download-src.sh openssl https://github.com/openssl/openssl/releases/download/OpenSSL_1_1_1w/openssl-1.1.1w.tar.gz; \
@@ -193,79 +185,6 @@ RUN source scl_source enable devtoolset-7; set -ex; \
 
 ENV PKG_CONFIG_PATH="${PKG_CONFIG_PATH}:/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig:/usr/local/openssl/lib/pkgconfig:/usr/local/zlib/lib/pkgconfig:/usr/local/curl/lib/pkgconfig:/usr/local/sqlite3/lib/pkgconfig"
 
-# Caution, takes a very long time! Since we have to build one from source,
-# I picked LLVM 21, which matches Rust 1.91.
-# Ordinarily we leave sources, but LLVM is 2GiB just for the sources...
-# Minimum: libclang. Nice-to-have: full toolchain including linker to play
-# with cross-language link-time optimization. Needs to match rustc -Vv's llvm
-# version.
-RUN yum install -y --nogpgcheck devtoolset-9 \
-  && source scl_source enable devtoolset-9 \
-  && yum install -y python3 \
-  && /root/download-src.sh ninja https://github.com/ninja-build/ninja/archive/refs/tags/v1.11.0.tar.gz \
-  && mkdir -vp "${SRC_DIR}/ninja/build" \
-  && cd "${SRC_DIR}/ninja/build" \
-  && ../configure.py --bootstrap --verbose \
-  && strip ninja \
-  && mv -v ninja /usr/local/bin/ \
-  && cd - \
-  && rm -fr "${SRC_DIR}/ninja" \
-  && cd /usr/local/src \
-  && git clone --depth 1 -b release/21.x https://github.com/llvm/llvm-project.git \
-  && mkdir -vp llvm-project/build \
-  && cd llvm-project/build \
-  && cmake -G Ninja -DLLVM_ENABLE_PROJECTS="clang;lld" -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local -DLLVM_INCLUDE_TESTS=OFF -DLLVM_ENABLE_BINDINGS=OFF -DLLVM_INSTALL_TOOLCHAIN_ONLY=ON ../llvm \
-  && cmake --build . --parallel $(nproc) --target "install/strip" \
-  && rm -f /usr/local/lib/libclang*.a /usr/local/lib/libLLVM*.a \
-  && rm -rf /usr/local/include/llvm /usr/local/include/clang \
-  && rm -rf /usr/local/lib/cmake/llvm /usr/local/lib/cmake/clang /usr/local/lib/cmake/lld \
-  && cd - \
-  && rm -fr llvm-project \
-  && yum remove -y python3 'devtoolset-9*' \
-  && yum clean all
-
-
-# rust sha256sum generated locally after verifying it with sha256
-ARG RUST_VERSION="1.91.1"
-ARG RUST_SHA256_ARM="50213385f288b8760b2efd54ac066ef9a76475e778cbe3b0fcbd3f898fc00674"
-ARG RUST_SHA256_X86="1c955c040dd087e4751d15588ddec288b4208bea16f8ec5046c164877e55fff7"
-# Mount a cache into /rust/cargo if you want to pre-fetch packages or something
-ENV CARGO_HOME=/rust/cargo
-ENV RUSTUP_HOME=/rust/rustup
-RUN source scl_source enable devtoolset-7 \
-    && mkdir -p -v "${CARGO_HOME}" "${RUSTUP_HOME}" \
-    && chown -R 777 "${CARGO_HOME}" "${RUSTUP_HOME}" \
-    && MARCH=$(uname -m) \
-    && if [[ $MARCH == "x86_64" ]]; then RUST_SHA256=${RUST_SHA256_X86};\
-     elif [[ $MARCH == "aarch64" ]];then RUST_SHA256=${RUST_SHA256_ARM}; fi && \
-    FILENAME=rust-${RUST_VERSION}-${MARCH}-unknown-linux-gnu.tar.gz && \
-    curl -L --write-out '%{http_code}' -O https://static.rust-lang.org/dist/${FILENAME} && \
-    printf '%s  %s' "$RUST_SHA256" "$FILENAME" | sha256sum --check --status && \
-    tar -xf "$FILENAME" \
-    && cd ${FILENAME%.tar.gz} \
-    && ./install.sh --components="rustc,cargo,clippy-preview,rustfmt-preview,rust-std-${MARCH}-unknown-linux-gnu" \
-    && cd - \
-    && rm -fr "$FILENAME" "${FILENAME%.tar.gz}"
-
-# Install rust-src manually, since it's not included in the offline installer.
-# Levi figured this out through reading the rustup script and trial and error.
-RUN rustver="$RUST_VERSION" \
-    && prefix="$(rustc --print sysroot)" \
-    && curl -OL "https://static.rust-lang.org/dist/channel-rust-$rustver.toml" \
-    && url=$(grep -A5 -e "pkg\.rust-src\.target\." "channel-rust-$rustver.toml" | awk '$1 == "url" {print $3}' | cut -f2 -d'"') \
-    && hash=$(grep -A5 -e "pkg\.rust-src\.target\." "channel-rust-$rustver.toml" | awk '$1 == "hash" {print $3}' | cut -f2 -d'"') \
-    && echo "URL: $url" \
-    && echo "Hash: $hash" \
-    && curl -OL "$url" \
-    && fname="${url##*/}" \
-    && dir="${fname%.tar.*}" \
-    && printf '%s  %s' "$hash" "$fname" | sha256sum --check --status \
-    && tar -xf "$fname" \
-    && cd "$dir" \
-    && ./install.sh --components="rust-src" --prefix="$prefix" \
-    && cd - \
-    && rm -fr "$fname" "$dir" "channel-rust-$rustver.toml"
-
 # now install PHP specific dependencies
 RUN set -eux; \
     yum install -y epel-release; \
@@ -275,7 +194,6 @@ RUN set -eux; \
     bzip2-devel \
     httpd-devel \
     libmemcached-devel \
-    librdkafka-devel \
     libsodium-devel \
     libsqlite3x-devel \
     libxml2-devel \
@@ -288,7 +206,4 @@ RUN set -eux; \
 RUN printf "source scl_source enable devtoolset-7\n" | tee -a /etc/profile.d/zzz-ddtrace.sh /etc/bashrc
 ENV BASH_ENV="/etc/profile.d/zzz-ddtrace.sh"
 
-ENV PATH="/rust/cargo/bin:${PATH}"
 ENV LD_LIBRARY_PATH="/usr/local/openssl/lib:${LD_LIBRARY_PATH}"
-
-RUN echo '#define SECBIT_NO_SETUID_FIXUP (1 << 2)' > '/usr/include/linux/securebits.h'

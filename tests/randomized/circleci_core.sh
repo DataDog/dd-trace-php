@@ -52,7 +52,7 @@ PACKAGE_ARCH=$(if [[ $TEST_NAME == *arm* ]]; then echo aarch64; else echo x86_64
 
 parent_job_id=$(curl -s -X GET "https://circleci.com/api/v2/workflow/$CIRCLE_WORKFLOW_ID/job" -H "Accept: application/json" | grep -Eo '\{[^}]*"'"$ARTIFACTS_JOB"'"[^}]*' | grep -Eo '"job_number":[^,]+' | tail -c +14)
 ARTIFACTS_RESULT=$(curl -s -X GET "https://circleci.com/api/v2/project/github/DataDog/dd-trace-php/$parent_job_id/artifacts" -H "Accept: application/json")
-artifact_url=$(echo "$ARTIFACTS_RESULT" | grep -Eo '\{[^}]*"dd-library-php-[^"]+'"${PACKAGE_ARCH}"'-linux-gnu.tar.gz"[^}]*' | grep -Eo '"url":"[^"]+' | tail -c +8)
+artifact_url=$(echo "$ARTIFACTS_RESULT" | grep -Eo '\{[^}]*"dd-library-php-[^"]+'"${PACKAGE_ARCH}"'-linux.tar.gz"[^}]*' | grep -Eo '"url":"[^"]+' | tail -c +8)
 setup_url=$(echo "$ARTIFACTS_RESULT" | grep -Eo '\{[^}]*"datadog-setup.php"[^}]*' | grep -Eo '"url":"[^"]+' | tail -c +8)
 
 set -x

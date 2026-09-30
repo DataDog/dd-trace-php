@@ -1,7 +1,6 @@
 # Build order
 
 ```sh
-# Takes a long time, needs a lot of RAM
 docker buildx bake base --push
 
 # Build everything else. Must be done after building base or else they may end

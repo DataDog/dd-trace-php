@@ -12,7 +12,7 @@ cat package_sha256sums
 
 # Spot-check shape of library name
 version=$(cat VERSION)
-filename="dd-library-php-${version}-x86_64-linux-gnu.tar.gz"
+filename="dd-library-php-${version}-x86_64-linux.tar.gz"
 if ! [[ -f "build/packages/$filename" ]] ; then
   echo "Expected file 'build/packages/$filename' to exist!"
   exit 1

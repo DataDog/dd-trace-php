@@ -37,6 +37,9 @@ default = ["tracer"]
 tracer = ["dep:ddtrace-sidecar"]
 helper-rust-coverage = ["ddtrace-sidecar/helper-rust-coverage"]
 libddwaf-source-static = ["ddtrace-sidecar/libddwaf-source-static"]
+# Portable builds (.gitlab/build-sidecar.sh) link the spawn trampoline against
+# musl; this lets it run under a glibc host's loader too.
+trampoline-host-loader = ["spawn_worker/trampoline-host-loader"]
 profiling = [
   "dep:cpu-time", "dep:crossbeam-channel", "dep:dashmap", "dep:dynasmrt",
   "dep:libdd-alloc", "dep:libdd-profiling", "dep:mach2", "dep:rand", "dep:rand_distr",

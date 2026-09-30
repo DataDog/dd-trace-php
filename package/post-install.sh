@@ -10,6 +10,10 @@
 # (no binaries and sources) will result in the very same error.
 # Issue reported to the fpm project (https://github.com/jordansissel/fpm/issues/1866), see there for more details and
 # a reproduction case.
+#
+# This file must therefore stay larger than 7680 bytes; the .apk.% Makefile target checks it before running fpm. If
+# the script below shrinks past that, pad this comment instead of removing the check. That is not hypothetical: this
+# paragraph is part of the padding, keeping the file above the threshold since the Alpine-specific filenames went away.
 
 EXTENSION_BASE_DIR=/opt/datadog-php
 EXTENSION_DIR=${EXTENSION_BASE_DIR}/extensions
@@ -201,12 +205,7 @@ elif [[ -n $PHP_DEBUG_BUILD ]]; then
     VERSION_SUFFIX="-debug"
 fi
 
-OS_SPECIFIER=""
-if [ -f "/etc/os-release" ] && $(grep -q 'Alpine Linux' "/etc/os-release") && [ "${VERSION_SUFFIX}" != "-zts" ]; then
-    OS_SPECIFIER="-alpine"
-fi
-
-EXTENSION_NAME="ddtrace-${PHP_VERSION}${VERSION_SUFFIX}${OS_SPECIFIER}.so"
+EXTENSION_NAME="ddtrace-${PHP_VERSION}${VERSION_SUFFIX}.so"
 EXTENSION_FILE_PATH="${EXTENSION_DIR}/${EXTENSION_NAME}"
 INI_FILE_CONTENTS=$(cat <<EOF
 [datadog]

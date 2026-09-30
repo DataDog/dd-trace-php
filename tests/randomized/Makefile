@@ -10,6 +10,7 @@ NUMBER_OF_SCENARIOS := 10
 VERSIONS := *
 PLATFORMS := *
 ARCHITECTURE := $(shell uname -m)
+LIBRARY_PLATFORM ?= linux
 
 publish: publish.centos publish.buster
 
@@ -65,8 +66,7 @@ pull.buster.%:
 
 library.local:
 	@mkdir -p $(LIBRARY_DOWNLOAD_PATH)
-#	For now we only handle centos in randomized tests
-	@cp ../../dd-library-php-*-$(ARCHITECTURE)-linux-gnu.tar.gz $(LIBRARY_DOWNLOAD_PATH)/dd-library-php.tar.gz
+	@cp ../../dd-library-php-*-$(ARCHITECTURE)-$(LIBRARY_PLATFORM).tar.gz $(LIBRARY_DOWNLOAD_PATH)/dd-library-php.tar.gz
 
 library.download:
 	@echo "Downloading library at url: $(LIBRARY_TEST_URL)"
@@ -78,8 +78,8 @@ library.download:
 library.version:
 	@echo "Downloading library version: $(LIBRARY_VERSION)"
 	@mkdir -p $(LIBRARY_DOWNLOAD_PATH)
-#	For now we only handle glibc in randomized tests
-	@curl -L -o $(LIBRARY_DOWNLOAD_PATH)/dd-library-php.tar.gz "https://github.com/DataDog/dd-trace-php/releases/download/$(LIBRARY_VERSION)/dd-library-php-$(LIBRARY_VERSION)-$(ARCHITECTURE)-linux-gnu.tar.gz"
+	@curl -fL -o $(LIBRARY_DOWNLOAD_PATH)/dd-library-php.tar.gz "https://github.com/DataDog/dd-trace-php/releases/download/$(LIBRARY_VERSION)/dd-library-php-$(LIBRARY_VERSION)-$(ARCHITECTURE)-linux.tar.gz" || \
+		curl -fL -o $(LIBRARY_DOWNLOAD_PATH)/dd-library-php.tar.gz "https://github.com/DataDog/dd-trace-php/releases/download/$(LIBRARY_VERSION)/dd-library-php-$(LIBRARY_VERSION)-$(ARCHITECTURE)-linux-gnu.tar.gz"
 	@echo "Done"
 
 generate: clean results_folder

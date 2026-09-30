@@ -261,6 +261,7 @@ PHP_FUNCTION(DDTrace_Integrations_Exec_proc_get_pid) {
     php_process_handle *proc_h = Z_RES_P(zres)->ptr;
     RETURN_LONG((long)proc_h->child);
 }
+
 PHP_FUNCTION(DDTrace_Integrations_Exec_proc_inject_session_ids) {
     zval *env_zv;
 

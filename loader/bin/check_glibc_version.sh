@@ -33,8 +33,25 @@ version_less_than_or_equal() {
     printf '%s\n%s' "${2}" "${1}" | sort -C -V
 }
 
-PACKAGE_MAX=$(find ${DD_LOADER_PACKAGE_PATH} -name '*.so' | xargs objdump -T 2> /dev/null | grep GLIBC_ | sed -E 's/.*GLIBC_([^ )]+).*/\1/' | sort -V | tail -n 1)
-if version_less_than_or_equal "${PACKAGE_MAX}" "${MAX_LIBC_VERSION_ALLOWED}"; then
+SHARED_OBJECT_LIST=$(find "${DD_LOADER_PACKAGE_PATH}" -name '*.so' -print)
+if [[ -z "${SHARED_OBJECT_LIST}" ]]; then
+    echo "Package contains no shared objects: ${DD_LOADER_PACKAGE_PATH}"
+    exit 1
+fi
+mapfile -t SHARED_OBJECTS <<< "${SHARED_OBJECT_LIST}"
+
+if ! VERSION_INFO=$(objdump -T "${SHARED_OBJECTS[@]}" 2>/dev/null); then
+    echo "Failed to inspect the package's shared objects"
+    exit 1
+fi
+PACKAGE_MAX=$(
+    sed -nE 's/.*GLIBC_([^ )]+).*/\1/p' <<< "${VERSION_INFO}" |
+        sort -V |
+        tail -n 1
+)
+if [[ -z "${PACKAGE_MAX}" ]]; then
+    echo "All good! The package has no versioned glibc symbols."
+elif version_less_than_or_equal "${PACKAGE_MAX}" "${MAX_LIBC_VERSION_ALLOWED}"; then
     echo "Error. The max glibc version allowed is '${MAX_LIBC_VERSION_ALLOWED}', but the package requires '${PACKAGE_MAX}'."
     echo "If you cannot lower the glibc version, you must update the glibc condition in the auto-injector (https://github.com/DataDog/auto_inject)"
     exit 1

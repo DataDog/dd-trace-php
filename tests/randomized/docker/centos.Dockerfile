@@ -2,6 +2,11 @@ ARG PHP_MAJOR_MINOR
 
 FROM datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_centos-7
 
+# The base image enables devtoolset-7 through BASH_ENV, which bash ignores when
+# run as /bin/sh. Without it, pecl builds with CentOS 7's GCC 4.8, which current
+# releases of the extensions below no longer compile with.
+SHELL ["/bin/bash", "-c"]
+
 # Getting the latest nginx
 RUN echo $'[nginx]\nname=nginx repo\nbaseurl=https://nginx.org/packages/mainline/centos/7/$basearch/\ngpgcheck=0\nenabled=1' >> /etc/yum.repos.d/nginx.repo
 

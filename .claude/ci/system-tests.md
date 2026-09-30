@@ -43,8 +43,8 @@ matrix expansions `System Tests: [php-fpm-8.5]: [TESTSUITE]`.
 
 All system-tests jobs `needs:` three upstream jobs:
 
-1. `package extension: [amd64, x86_64-unknown-linux-gnu]` -- produces
-   `packages/dd-library-php-*-x86_64-linux-gnu.tar.gz`
+1. `package extension (bundles): [amd64]` -- produces
+   `packages/dd-library-php-*-x86_64-linux.tar.gz`
 2. `datadog-setup.php` -- produces `packages/datadog-setup.php`
 3. `prepare code` -- runs `composer update` + `make generate`
 
@@ -99,7 +99,7 @@ The system tests need two artifacts in the `binaries/` directory of the
 `system-tests` checkout:
 
 - `datadog-setup.php`
-- `dd-library-php-<version>-x86_64-linux-gnu.tar.gz`
+- `dd-library-php-<version>-x86_64-linux.tar.gz`
 
 Build them from the working tree. Before starting, ensure submodules are
 initialised (see
@@ -144,11 +144,9 @@ in `binaries/`.
 
 **Hard constraints — this approach only works if all three hold:**
 
-1. **GLIBC compatibility.** The `.so` built by the normal `compile extension` CI job
-   (bookworm image) requires GLIBC_2.34. The default weblog (`apache-mod-8.0`) runs on
-   Debian Bullseye (GLIBC_2.31) — the extension loads but immediately crashes with
-   `GLIBC_2.32 not found`. You must either build with a lower-glibc toolchain (the
-   package pipeline's centos-7 image targets GLIBC_2.17) or use a weblog with a newer
+1. **libc compatibility.** Debug extensions built in the normal Bookworm test
+   image can require a newer glibc than the weblog provides. Use the portable
+   release extension from the parent build, or use a weblog with a compatible
    base OS.
 
 2. **PHP ABI match.** The `.so` must be compiled for the same PHP version as the weblog.
@@ -159,10 +157,9 @@ in `binaries/`.
    `/root/php/...`; `php-fpm-*` weblogs (Ubuntu + `ondrej/php` PPA) install under
    `/usr/lib/php/<ABI>/`. Both are covered.
 
-**Summary:** in practice this approach is harder than it looks. The full-package path
-(section 1) is more reliable. The `.so` override is most useful when you already have a
-package-pipeline–built artifact (centos-7 compiled, GLIBC_2.17) and want to swap one
-component without reassembling the full tarball.
+**Summary:** the full-package path (section 1) is more reliable. The `.so`
+override is most useful when you already have a portable parent-pipeline
+artifact and want to swap one component without reassembling the full tarball.
 
 **Caveats:**
 - The base package comes from the GitHub **latest release**. Files it provides
@@ -178,7 +175,7 @@ git clone https://github.com/DataDog/system-tests.git
 mkdir -p system-tests/binaries
 
 # From a .tar.gz package (full or slim):
-cp dd-library-php-*-linux-gnu.tar.gz system-tests/binaries/
+cp dd-library-php-*-linux.tar.gz system-tests/binaries/
 cp datadog-setup.php system-tests/binaries/
 ```
 

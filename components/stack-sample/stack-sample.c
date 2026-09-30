@@ -2,8 +2,8 @@
 
 #include <string.h>
 
-/* Done in the impl instead of the header because on CentOS 6 in gnu++11 mode
- * it fails in the header. The header gets included in C++ mode for testing. */
+/* Done in the impl instead of the header because the header is also included
+ * from C++ for testing, where _Static_assert is not standard. */
 _Static_assert(sizeof(struct datadog_php_stack_sample_s) < 8192u,
                "size of datadog_php_stack_sample should be less than 8KiB");
 

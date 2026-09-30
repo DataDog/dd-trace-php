@@ -4,6 +4,7 @@ Settings 'datadog.log_backtrace' and 'datadog.crashtracking_enabled' are mutuall
 <?php
 if (PHP_OS != "Linux") die('skip: Crashtracker/backtrace are only available on Linux');
 if (getenv('DD_TRACE_CLI_ENABLED') === '0') die("skip: tracer is disabled");
+if (file_exists("/etc/os-release") && preg_match("/alpine/i", file_get_contents("/etc/os-release"))) die("skip: backtraces are unavailable on musl");
 ?>
 --ENV--
 DD_TRACE_LOG_LEVEL=warn,span=off,startup=off

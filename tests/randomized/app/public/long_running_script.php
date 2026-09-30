@@ -114,7 +114,7 @@ echo "Using seed $seed to run $repetitions repetitions.\n";
 
 // Initializing the randomizer
 $snippetsConfiguration = (new SnippetsConfiguration())
-    ->withHttpBinHost('httpbin')
+    ->withHttpBinHost('http://httpbin')
     ->withElasticSearchHost('elasticsearch')
     ->withMysqlHost('mysql')
     ->withMysqlUser('test')
