@@ -16,6 +16,11 @@ or if you want to run the benchmarks with OPcache enabled:
 make benchmarks_opcache
 ```
 
+`TraceSerializationBench` measures steady-state serialization. With the sidecar
+trace sender enabled, each worker sends a warmup trace and waits for agent info
+and sampling rates before timing the subject. It requires a reachable agent and
+fails setup if readiness times out.
+
 ## How to add a new benchmark
 
 The benchmarks are located in the [tests/Benchmarks](.) folder and are written using [PHPBench](https://github.com/phpbench/phpbench).

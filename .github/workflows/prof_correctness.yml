@@ -12,7 +12,9 @@ jobs:
   prof-correctness:
     runs-on: ubuntu-24.04
     env:
-      LLVM_VERSION: "20"
+      # LLVM's own release build from GitHub, pinned by the SHA256 GitHub publishes for the asset.
+      LLVM_RELEASE: "20.1.8"
+      LLVM_SHA256: "1ead36b3dfcb774b57be530df42bec70ab2d239fbce9889447c7a29a4ddc1ae6"
       PROFILER_SO: ${{ github.workspace }}/tmp/build_profiler/modules/datadog-profiling.so
     strategy:
       fail-fast: false
@@ -49,30 +51,50 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             tmp/build_profiler/target-profiling/
-          key: ${{ runner.os }}-cargo-llvm-${{ env.LLVM_VERSION }}-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}-${{ matrix.php-version }}-${{ matrix.phpts }}
+          key: ${{ runner.os }}-cargo-llvm-${{ env.LLVM_RELEASE }}-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}-${{ matrix.php-version }}-${{ matrix.phpts }}
+
+      # All matrix jobs share one LLVM, so it is cached separately from the
+      # per-job build cache.
+      - name: Restore LLVM
+        id: llvm-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/llvm
+          key: ${{ runner.os }}-llvm-${{ env.LLVM_RELEASE }}-${{ env.LLVM_SHA256 }}
+
+      - name: Download LLVM
+        if: steps.llvm-cache.outputs.cache-hit != 'true'
+        run: |
+          # Only the parts the build uses: the full toolchain unpacks to over 9 GB.
+          llvm_archive="LLVM-${LLVM_RELEASE}-Linux-X64.tar.xz"
+          llvm_top="${llvm_archive%.tar.xz}"
+          curl -fsSL --retry 3 -o "/tmp/${llvm_archive}" \
+            "https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_RELEASE}/${llvm_archive}"
+          echo "${LLVM_SHA256}  /tmp/${llvm_archive}" | sha256sum -c -
+          mkdir -p ~/llvm
+          tar -xJf "/tmp/${llvm_archive}" -C ~/llvm --strip-components=1 --wildcards \
+            "${llvm_top}/bin/clang" "${llvm_top}/bin/clang++" "${llvm_top}/bin/clang-[0-9]*" \
+            "${llvm_top}/bin/ld.lld" "${llvm_top}/bin/lld" "${llvm_top}/bin/llvm-config" \
+            "${llvm_top}/lib/libclang.so*" "${llvm_top}/lib/clang/*"
+          rm -f "/tmp/${llvm_archive}"
+
+      - name: Cache LLVM
+        if: steps.llvm-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/llvm
+          key: ${{ runner.os }}-llvm-${{ env.LLVM_RELEASE }}-${{ env.LLVM_SHA256 }}
 
       - name: Build profiler
         run: |
-          codename="$(lsb_release -cs)"
-          curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/llvm-archive-keyring.gpg
-          echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/${codename}/ llvm-toolchain-${codename}-${LLVM_VERSION} main" | sudo tee /etc/apt/sources.list.d/llvm.list
-          sudo apt-get update
-          llvm18_packages="$(dpkg-query -W -f='${binary:Package}\n' \
-            '*clang*18*' '*llvm*18*' '*lld*18*' '*libomp*18*' \
-            '*libc++*18*' '*libc++abi*18*' '*mlir*18*' '*flang*18*' \
-            '*bolt*18*' '*polly*18*' 2>/dev/null || true)"
-          if [ -n "$llvm18_packages" ]; then
-            sudo apt-get purge -y $llvm18_packages
-            sudo apt-get autoremove -y
-          fi
-          sudo apt-get install -y clang-${LLVM_VERSION} lld-${LLVM_VERSION} llvm-${LLVM_VERSION}-dev libclang-${LLVM_VERSION}-dev libclang-rt-${LLVM_VERSION}-dev
-          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${LLVM_VERSION} 100
-          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-${LLVM_VERSION} 100
-          sudo update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/ld.lld-${LLVM_VERSION} 100
-          export CC=clang-${LLVM_VERSION}
-          export CXX=clang++-${LLVM_VERSION}
-          export LLVM_CONFIG_PATH=/usr/bin/llvm-config-${LLVM_VERSION}
-          export LIBCLANG_PATH=/usr/lib/llvm-${LLVM_VERSION}/lib
+          llvm_root="${HOME}/llvm"
+          # lld links against the system libxml2.
+          dpkg -s libxml2 >/dev/null 2>&1 || { sudo apt-get update && sudo apt-get install -y libxml2; }
+          export PATH="${llvm_root}/bin:${PATH}"
+          export CC=clang
+          export CXX=clang++
+          export LLVM_CONFIG_PATH="${llvm_root}/bin/llvm-config"
+          export LIBCLANG_PATH="${llvm_root}/lib"
           export LD_LIBRARY_PATH="${LIBCLANG_PATH}:${LD_LIBRARY_PATH:-}"
           clang --version
           ld.lld --version
@@ -91,7 +113,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             tmp/build_profiler/target-profiling/
-          key: ${{ runner.os }}-cargo-llvm-${{ env.LLVM_VERSION }}-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}-${{ matrix.php-version }}-${{ matrix.phpts }}
+          key: ${{ runner.os }}-cargo-llvm-${{ env.LLVM_RELEASE }}-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}-${{ matrix.php-version }}-${{ matrix.phpts }}
 
       - name: Run no profile test
         run: |
