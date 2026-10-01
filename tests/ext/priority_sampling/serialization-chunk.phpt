@@ -17,8 +17,8 @@ class ChangeSamplingDuringSerialization {
 
 $root = DDTrace\start_span();
 $root->name = 'root';
-// Serialization converts this metric to a string tag and releases the old value.
-$root->metrics['http.status_code'] = new ChangeSamplingDuringSerialization();
+// Serialization converts this attribute to a string tag and releases the old value.
+$root->attributes['http.status_code'] = new ChangeSamplingDuringSerialization();
 
 DDTrace\start_span()->name = 'keep.child';
 DDTrace\close_span();
@@ -31,15 +31,15 @@ DDTrace\close_span();
 DDTrace\close_span();
 
 foreach (dd_trace_serialize_closed_spans() as $span) {
-    echo $span['name'], ': ', isset($span['metrics']['_dd.span_sampling.mechanism']) ? 'single span' : 'trace', "\n";
+    echo $span['name'], ': ', isset($span['attributes']['_dd.span_sampling.mechanism']) ? 'single span' : 'trace', "\n";
 }
 
 // Subsequent chunks must observe the new configuration.
 DDTrace\start_span()->name = 'keep.next';
 DDTrace\close_span();
 $span = dd_trace_serialize_closed_spans()[0];
-echo $span['name'], ': ', isset($span['metrics']['_dd.span_sampling.mechanism']) ? 'single span' : 'trace', "\n";
-var_dump($span['metrics']['_sampling_priority_v1']);
+echo $span['name'], ': ', isset($span['attributes']['_dd.span_sampling.mechanism']) ? 'single span' : 'trace', "\n";
+var_dump($span['sampling_priority']);
 var_dump(dd_trace_serialize_closed_spans());
 
 ?>
@@ -49,6 +49,6 @@ unmatched: trace
 keep.child: single span
 keep.attached: single span
 keep.next: trace
-float(2)
+int(2)
 array(0) {
 }

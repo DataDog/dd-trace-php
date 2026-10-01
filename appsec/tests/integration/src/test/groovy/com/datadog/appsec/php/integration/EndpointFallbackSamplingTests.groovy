@@ -177,7 +177,9 @@ trait EndpointFallbackSamplingTests extends SamplingTestsInFpm {
                     assert metric.namespace == 'appsec'
                     assert metric.type == 'count'
                     assert metric.points[0][1] >= 1.0
-                    assert 'framework:unknown' in metric.tags
+                    // root span component now defaults to the SAPI name (fpm-fcgi here);
+                    // this trait is only mixed into Apache2FpmTests
+                    assert 'framework:fpm-fcgi' in metric.tags
             }
         } finally {
             resetFpm()

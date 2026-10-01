@@ -37,6 +37,8 @@ array(1) {
   array(11) {
     ["trace_id"]=>
     string(%d) "%d"
+    ["trace_id_high"]=>
+    string(16) "%s"
     ["span_id"]=>
     string(%d) "%d"
     ["parent_id"]=>
@@ -53,17 +55,14 @@ array(1) {
     string(14) "mapped.service"
     ["type"]=>
     string(8) "new.type"
-    ["meta"]=>
-    array(2) {
-      ["_dd.base_service"]=>
-      string(31) "test_special_attributes_bis.php"
-      ["_dd.svc_src"]=>
-      string(1) "m"
-    }
-    ["metrics"]=>
-    array(1) {
+    ["attributes"]=>
+    array(3) {
       ["_dd1.sr.eausr"]=>
       float(1)
+      ["_dd.svc_src"]=>
+      string(1) "m"
+      ["_dd.base_service"]=>
+      string(31) "test_special_attributes_bis.php"
     }
   }
 }

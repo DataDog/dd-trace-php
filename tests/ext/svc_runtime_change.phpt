@@ -8,7 +8,7 @@ DD_TRACE_AUTO_FLUSH_ENABLED=0
 <?php
 function assert_tags($label) {
     $spans = dd_trace_serialize_closed_spans();
-    $tags = $spans[0]['meta']['_dd.tags.process'];
+    $tags = $spans[0]['attributes']['_dd.tags.process'];
     $hasUser = strpos($tags, 'svc.user:true') !== false;
     $hasAuto = strpos($tags, 'svc.auto:') !== false;
     echo "$label svc.user=" . ($hasUser ? 'YES' : 'NO') . " svc.auto=" . ($hasAuto ? 'YES' : 'NO') . "\n";

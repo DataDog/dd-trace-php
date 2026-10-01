@@ -14,9 +14,9 @@ register_shutdown_function(function () {
     foreach (dd_trace_serialize_closed_spans() as $span) {
         echo $span['name'] . PHP_EOL;
         if (isset($span['error']) && $span['error'] === 1) {
-            echo $span['meta']['error.type'] . PHP_EOL;
-            echo $span['meta']['error.message'] . PHP_EOL;
-            echo $span['meta']['error.stack'] . PHP_EOL;
+            echo $span['attributes']['error.type'] . PHP_EOL;
+            echo $span['attributes']['error.message'] . PHP_EOL;
+            echo $span['attributes']['error.stack'] . PHP_EOL;
         }
     }
 });

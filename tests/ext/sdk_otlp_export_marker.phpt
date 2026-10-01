@@ -18,7 +18,7 @@ $seen = [];
 foreach (dd_trace_serialize_closed_spans() as $span) {
     $first = !isset($seen[$span['trace_id']]);
     $seen[$span['trace_id']] = true;
-    echo ($first ? "first" : "other"), ": ", var_export($span['meta']['_dd.sdk.otlp_export'] ?? null, true), "\n";
+    echo ($first ? "first" : "other"), ": ", var_export($span['attributes']['_dd.sdk.otlp_export'] ?? null, true), "\n";
 }
 echo count($seen), " chunks\n";
 ?>

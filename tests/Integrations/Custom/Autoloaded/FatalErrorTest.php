@@ -47,6 +47,7 @@ final class FatalErrorTest extends WebFrameworkTestCase
                     'http.url' => 'http://localhost/fatal',
                     'http.status_code' => '200',
                     'span.kind' => 'server',
+                    'component' => \DDTrace\Tests\WebServer::defaultSapiName(),
                 ])
                 ->setError("E_ERROR", "Intentional E_ERROR")
                 ->withExistingTagsNames(['error.stack']),

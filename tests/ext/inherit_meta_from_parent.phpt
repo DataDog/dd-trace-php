@@ -18,10 +18,11 @@ $span->meta["env"] = "goodenv";
 
 \DDTrace\close_span();
 
-var_dump(array_intersect_key(dd_trace_serialize_closed_spans()[1]["meta"], [
-    "env" => 1,
-    "version" => 1,
-]));
+$span = dd_trace_serialize_closed_spans()[1];
+var_dump([
+    "env" => $span["env"],
+    "version" => $span["version"],
+]);
 
 ?>
 --EXPECT--

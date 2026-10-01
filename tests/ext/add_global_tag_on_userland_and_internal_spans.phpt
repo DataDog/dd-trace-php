@@ -30,9 +30,11 @@ var_dump(dd_clean_spans());
 HOOK METHOD arg
 array(2) {
   [0]=>
-  array(10) {
+  array(11) {
     ["trace_id"]=>
     string(%d) "%d"
+    ["trace_id_high"]=>
+    string(16) "%s"
     ["span_id"]=>
     string(%d) "%d"
     ["parent_id"]=>
@@ -49,7 +51,7 @@ array(2) {
     string(49) "add_global_tag_on_userland_and_internal_spans.php"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
+    ["attributes"]=>
     array(2) {
       ["alone"]=>
       string(2) "no"
@@ -77,7 +79,7 @@ array(2) {
     string(49) "add_global_tag_on_userland_and_internal_spans.php"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
+    ["attributes"]=>
     array(2) {
       ["alone"]=>
       string(2) "no"

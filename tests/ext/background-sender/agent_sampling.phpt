@@ -2,6 +2,7 @@
 The background sender informs about changes to the agent sample rate
 --SKIPIF--
 <?php
+if (strncasecmp(PHP_OS, "WIN", 3) == 0) die('skip: There is no background sender on Windows');
 include __DIR__ . '/../includes/skipif_no_dev_env.inc';
 if (getenv('USE_ZEND_ALLOC') === '0' && !getenv('SKIP_ASAN')) die('skip timing sensitive test - valgrind is too slow');
 ?>
@@ -59,10 +60,10 @@ echo "Specific sampling: {$get_sampling()}\n";
 
 ?>
 --EXPECTF--
-[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for http://request-replayer:80
+[ddtrace] [info] [%d] Flushing 1 v0.4 trace(s) to send-queue for http://request-replayer:80
 Initial sampling: 1
-[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for http://request-replayer:80
+[ddtrace] [info] [%d] Flushing 1 v0.4 trace(s) to send-queue for http://request-replayer:80
 Generic sampling: 0
-[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for http://request-replayer:80
+[ddtrace] [info] [%d] Flushing 1 v0.4 trace(s) to send-queue for http://request-replayer:80
 Specific sampling: 1
 [ddtrace] [info] [%d] No finished traces to be sent to the agent

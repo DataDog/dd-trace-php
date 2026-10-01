@@ -28,6 +28,6 @@ class SpanProvenanceTest extends BaseTestCase
         });
         $this->assertEquals($traces[0][0]["resource"], "file_get_contents");
         $this->assertEquals($traces[0][0]["name"], "internal");
-        $this->assertEquals($traces[0][0]["meta"]["component"], "otel.io");
+        $this->assertEquals($traces[0][0]["component"], "otel.io");
     }
 }

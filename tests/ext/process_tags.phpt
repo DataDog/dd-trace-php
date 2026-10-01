@@ -20,8 +20,8 @@ $child_span->service = 'test_service';
 $spans = dd_trace_serialize_closed_spans();
 
 // Check if process tags are present
-if (isset($spans[0]['meta']['_dd.tags.process'])) {
-    $processTags = $spans[0]['meta']['_dd.tags.process'];
+if (isset($spans[0]['attributes']['_dd.tags.process'])) {
+    $processTags = $spans[0]['attributes']['_dd.tags.process'];
     echo "Process tags present in root span: YES\n";
     echo "Process tags: $processTags\n";
 
@@ -39,7 +39,7 @@ if (isset($spans[0]['meta']['_dd.tags.process'])) {
     echo "Process tags present in root span: NO\n";
 }
 
-if (isset($spans[1]['meta']['_dd.process_tags'])) {
+if (isset($spans[1]['attributes']['_dd.process_tags'])) {
     echo "Process tags present in child span: YES\n";
 } else {
     echo "Process tags present in child span: NO\n";

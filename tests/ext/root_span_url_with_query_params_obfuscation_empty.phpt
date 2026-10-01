@@ -17,7 +17,7 @@ application_key=123
 DDTrace\start_span();
 DDTrace\close_span();
 $spans = dd_trace_serialize_closed_spans();
-var_dump($spans[0]['meta']["http.url"]);
+var_dump($spans[0]['attributes']["http.url"]);
 ?>
 --EXPECT--
 string(48) "https://localhost:9999/users?application_key=123"
