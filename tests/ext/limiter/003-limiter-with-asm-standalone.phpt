@@ -22,7 +22,7 @@ while (true) {
     $sampled = 0;
 
     foreach ($spans as $span) {
-        if (isset($span["metrics"]["_sampling_priority_v1"])) {
+        if (isset($span["sampling_priority"])) {
             $sampled++;
         }
     }

@@ -16,7 +16,7 @@ key1=val1&token=a0b21ce2-006f-4cc6-95d5-d7b550698482&key2=val2&password=somethin
 DDTrace\start_span();
 DDTrace\close_span();
 $spans = dd_trace_serialize_closed_spans();
-var_dump($spans[0]['meta']["http.url"]);
+var_dump($spans[0]['attributes']["http.url"]);
 ?>
 --EXPECT--
 string(104) "https://localhost:9999/foo?key1=val1&<redacted>&key2=val2&<redacted>&key=%7B%20<redacted>%7D&other=value"

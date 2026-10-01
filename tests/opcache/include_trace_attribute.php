@@ -6,7 +6,7 @@ final class PreloadedTraced
 {
     const TAGS = ['component' => 'preloaded'];
 
-    #[\DDTrace\Trace(name: "preloaded.method", resource: "rsrc", tags: self::TAGS)]
+    #[\DDTrace\Trace(name: "preloaded.method", resource: "rsrc", attributes: self::TAGS)]
     public static function method()
     {
         $span = \DDTrace\active_span();

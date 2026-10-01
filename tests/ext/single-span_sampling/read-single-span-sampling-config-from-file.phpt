@@ -12,14 +12,14 @@ ini_set("datadog.span_sampling_rules_file", __DIR__ . "/read-single-span-samplin
 
 DDTrace\start_span();
 DDTrace\close_span();
-$last = dd_trace_serialize_closed_spans()[0]["metrics"];
+$last = dd_trace_serialize_closed_spans()[0]["attributes"];
 echo "sampling present after simple span: ";
 var_dump(isset($last["_dd.span_sampling.mechanism"]));
 
 $a = DDTrace\start_span();
 $a->service = "a";
 DDTrace\close_span();
-$last = dd_trace_serialize_closed_spans()[0]["metrics"];
+$last = dd_trace_serialize_closed_spans()[0]["attributes"];
 echo "sampling present after span of service a: ";
 var_dump(isset($last["_dd.span_sampling.mechanism"]));
 

@@ -28,9 +28,11 @@ var_dump(dd_clean_spans());
 [ddtrace] [warning] [%d] Found unfinished span while automatically closing spans with name 'my precious span'
 array(2) {
   [0]=>
-  array(9) {
+  array(10) {
     ["trace_id"]=>
     string(%d) "%d"
+    ["trace_id_high"]=>
+    string(16) "%s"
     ["span_id"]=>
     string(%d) "%d"
     ["parent_id"]=>

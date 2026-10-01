@@ -396,9 +396,9 @@ class MongoDBTest extends IntegrationTestCase
         });
 
         if (null === $expected) {
-            $this->assertArrayNotHasKey('mongodb.query', $traces[0][0]['meta']);
+            $this->assertArrayNotHasKey('mongodb.query', $traces[0][0]['attributes']);
         } else {
-            $this->assertSame($expected, $traces[0][0]['meta']['mongodb.query']);
+            $this->assertSame($expected, $traces[0][0]['attributes']['mongodb.query']);
         }
     }
 

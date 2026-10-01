@@ -9,7 +9,11 @@ DD_SPAN_SAMPLING_RULES=[{"sample_rate":1}]
 DDTrace\start_span();
 DDTrace\close_span();
 
-var_dump(dd_trace_serialize_closed_spans()[0]["metrics"]);
+$attributes = dd_trace_serialize_closed_spans()[0]["attributes"];
+var_dump([
+    "_dd.span_sampling.mechanism" => $attributes["_dd.span_sampling.mechanism"],
+    "_dd.span_sampling.rule_rate" => $attributes["_dd.span_sampling.rule_rate"],
+]);
 
 ?>
 --EXPECT--

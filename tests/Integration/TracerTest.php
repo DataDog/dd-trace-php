@@ -44,9 +44,9 @@ final class TracerTest extends BaseTestCase
         });
 
         $this->assertSame('custom.name', $traces[0][0]['name']);
-        $this->assertSame('local', $traces[0][0]['meta']['local_tag']);
-        $this->assertSame('global', $traces[0][0]['meta']['global_tag']);
-        $this->assertSame('span_wins', $traces[0][0]['meta']['also_in_span']);
+        $this->assertSame('local', $traces[0][0]['attributes']['local_tag']);
+        $this->assertSame('global', $traces[0][0]['attributes']['global_tag']);
+        $this->assertSame('span_wins', $traces[0][0]['attributes']['also_in_span']);
     }
 
     public function testGlobalTagsArePresentOnInternalSpansByFlushTime()
@@ -70,9 +70,9 @@ final class TracerTest extends BaseTestCase
         });
 
         $this->assertSame('custom.name', $traces[0][0]['name']);
-        $this->assertSame('local', $traces[0][0]['meta']['local_tag']);
-        $this->assertSame('global', $traces[0][0]['meta']['global_tag']);
-        $this->assertSame('span_wins', $traces[0][0]['meta']['also_in_span']);
+        $this->assertSame('local', $traces[0][0]['attributes']['local_tag']);
+        $this->assertSame('global', $traces[0][0]['attributes']['global_tag']);
+        $this->assertSame('span_wins', $traces[0][0]['attributes']['also_in_span']);
     }
 
     /**
@@ -246,7 +246,7 @@ final class TracerTest extends BaseTestCase
             $scope->close();
         });
 
-        $this->assertSame('my-env', $traces[0][0]['meta']['env']);
+        $this->assertSame('my-env', $traces[0][0]['env']);
     }
 
     public function testEnvironmentIsOptional()
@@ -257,7 +257,7 @@ final class TracerTest extends BaseTestCase
             $scope->close();
         });
 
-        $this->assertTrue(empty($traces[0][0]['meta']['env']));
+        $this->assertTrue(empty($traces[0][0]['env']));
     }
 
     public function testServiceVersionIsAddedToASpan()
@@ -268,7 +268,7 @@ final class TracerTest extends BaseTestCase
             $scope->close();
         });
 
-        $this->assertSame('1.2.3', $traces[0][0]['meta']['version']);
+        $this->assertSame('1.2.3', $traces[0][0]['version']);
     }
 
     public function testServiceVersionIsOptional()
@@ -279,7 +279,7 @@ final class TracerTest extends BaseTestCase
             $scope->close();
         });
 
-        $this->assertTrue(empty($traces[0][0]['meta']['version']));
+        $this->assertTrue(empty($traces[0][0]['version']));
     }
 
     public function testTracerReset()
@@ -431,7 +431,7 @@ final class TracerTest extends BaseTestCase
         });
 
         $this->assertSame('changed_child', $traces[0][1]['service']);
-        $this->assertSame('original_service', $traces[0][1]['meta']['_dd.base_service']);
+        $this->assertSame('original_service', $traces[0][1]['attributes']['_dd.base_service']);
     }
 
     public function testBaseServiceWithMapping()
@@ -448,7 +448,7 @@ final class TracerTest extends BaseTestCase
         });
 
         $this->assertSame('changed_child', $traces[0][1]['service']);
-        $this->assertSame('changed_service', $traces[0][1]['meta']['_dd.base_service']);
+        $this->assertSame('changed_service', $traces[0][1]['attributes']['_dd.base_service']);
     }
 
     public function dummyMethodGlobalTags()
