@@ -146,7 +146,7 @@ class Span extends DataSpan
             }
 
             if ($key === Tag::ERROR_MSG) {
-                $this->internalSpan->meta[$key] = (string)$value;
+                $this->internalSpan->attributes[$key] = (string)$value;
                 $this->setError(true);
                 return;
             }
@@ -182,8 +182,8 @@ class Span extends DataSpan
 
             if ($key === Tag::HTTP_STATUS_CODE && $value >= 500) {
                 $this->hasError = true;
-                if (!isset($this->internalSpan->meta[Tag::ERROR_TYPE])) {
-                    $this->internalSpan->meta[Tag::ERROR_TYPE] = 'Internal Server Error';
+                if (!isset($this->internalSpan->attributes[Tag::ERROR_TYPE])) {
+                    $this->internalSpan->attributes[Tag::ERROR_TYPE] = 'Internal Server Error';
                 }
             }
 
@@ -198,7 +198,7 @@ class Span extends DataSpan
             }
         }
 
-        $this->internalSpan->meta[$key] = (string)$value;
+        $this->internalSpan->attributes[$key] = (string)$value;
     }
 
     /**
@@ -244,7 +244,8 @@ class Span extends DataSpan
             return;
         }
 
-        $this->internalSpan->metrics[$key] = $value;
+        // As a double, which is what the metrics bucket held on the wire.
+        $this->internalSpan->attributes[$key] = is_array($value) ? $value : (float)$value;
     }
 
     /**
@@ -275,9 +276,9 @@ class Span extends DataSpan
     {
         if (($error instanceof Exception) || ($error instanceof Throwable)) {
             $this->hasError = true;
-            $this->internalSpan->meta[Tag::ERROR_MSG] = $error->getMessage();
-            $this->internalSpan->meta[Tag::ERROR_TYPE] = get_class($error);
-            $this->internalSpan->meta[Tag::ERROR_STACK] = $error->getTraceAsString();
+            $this->internalSpan->attributes[Tag::ERROR_MSG] = $error->getMessage();
+            $this->internalSpan->attributes[Tag::ERROR_TYPE] = get_class($error);
+            $this->internalSpan->attributes[Tag::ERROR_STACK] = $error->getTraceAsString();
             return;
         }
 
@@ -300,8 +301,8 @@ class Span extends DataSpan
     public function setRawError($message, $type)
     {
         $this->hasError = true;
-        $this->internalSpan->meta[Tag::ERROR_MSG] = $message;
-        $this->internalSpan->meta[Tag::ERROR_TYPE] = $type;
+        $this->internalSpan->attributes[Tag::ERROR_MSG] = $message;
+        $this->internalSpan->attributes[Tag::ERROR_TYPE] = $type;
     }
 
     public function hasError()
@@ -377,7 +378,7 @@ class Span extends DataSpan
                 // messages, and logging multiple messages is not prohibited by the OpenTracing spec:
                 // https://opentracing.io/docs/overview/tags-logs-baggage/#logs
                 // We want to deprecate this behavior and change it. In the meantime we apply this workaround.
-                $this->internalSpan->meta[Tag::ERROR_MSG] = (string)$value;
+                $this->internalSpan->attributes[Tag::ERROR_MSG] = (string)$value;
             } elseif ($key === Tag::LOG_STACK) {
                 $this->setTag(Tag::ERROR_STACK, $value);
             }

@@ -56,16 +56,16 @@ class ElasticSearchIntegration extends Integration
         self::traceClientMethod('existsScource');
         self::traceClientMethod('explain');
         self::traceClientMethod('fieldCaps');
-        self::traceClientMethod('get', true);
+        self::traceClientMethod('get');
         self::traceClientMethod('getScript');
         self::traceClientMethod('getScriptContext');
         self::traceClientMethod('getScriptLanguages');
         self::traceClientMethod('getSource');
         self::traceClientMethod('index');
-        self::traceClientMethod('knnSearch', true);
-        self::traceClientMethod('mget', true);
-        self::traceClientMethod('msearch', true);
-        self::traceClientMethod('msearchTemplate', true);
+        self::traceClientMethod('knnSearch');
+        self::traceClientMethod('mget');
+        self::traceClientMethod('msearch');
+        self::traceClientMethod('msearchTemplate');
         self::traceClientMethod('mtermvectors');
         self::traceClientMethod('openPointInTime');
         self::traceClientMethod('ping');
@@ -76,11 +76,11 @@ class ElasticSearchIntegration extends Integration
         self::traceClientMethod('renderSearchTemplate');
         self::traceClientMethod('scriptsPainlessExecute');
         self::traceClientMethod('scroll');
-        self::traceClientMethod('search', true);
-        self::traceClientMethod('searchMvt', true);
-        self::traceClientMethod('searchShards', true);
-        self::traceClientMethod('searchTemplate', true);
-        self::traceClientMethod('termsEnum', true);
+        self::traceClientMethod('search');
+        self::traceClientMethod('searchMvt');
+        self::traceClientMethod('searchShards');
+        self::traceClientMethod('searchTemplate');
+        self::traceClientMethod('termsEnum');
         self::traceClientMethod('termvectors');
         self::traceClientMethod('update');
         self::traceClientMethod('updateByQuery');
@@ -136,9 +136,8 @@ class ElasticSearchIntegration extends Integration
     }
     /**
      * @param string $name
-     * @param bool $isTraceAnalyticsCandidate
      */
-    public static function traceClientMethod($name, $isTraceAnalyticsCandidate = false)
+    public static function traceClientMethod($name)
     {
         $class = 'Elasticsearch\Client';
 
@@ -152,12 +151,8 @@ class ElasticSearchIntegration extends Integration
             $class,
             $name,
             [
-                'prehook' => static function (SpanData $span, $args) use ($name, $isTraceAnalyticsCandidate) {
+                'prehook' => static function (SpanData $span, $args) use ($name) {
                     $span->name = "Elasticsearch.Client.$name";
-
-                    if ($isTraceAnalyticsCandidate) {
-                        self::addTraceAnalyticsIfEnabled($span);
-                    }
 
                     $span->meta[Tag::SPAN_KIND] = 'client';
                     Integration::handleInternalSpanServiceName($span, self::NAME);

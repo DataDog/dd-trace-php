@@ -60,7 +60,6 @@ class PredisIntegration extends Integration
             $span->name = 'Predis.Client.executeCommand';
             $span->type = Type::REDIS;
             PredisIntegration::setMetaAndServiceFromConnection($this, $span);
-            PredisIntegration::addTraceAnalyticsIfEnabled($span);
 
             // We default resource name to 'Predis.Client.executeCommand', but if we are able below to extract the query
             // then we replace it with the query
@@ -85,7 +84,6 @@ class PredisIntegration extends Integration
             $span->name = 'Predis.Client.executeRaw';
             $span->type = Type::REDIS;
             PredisIntegration::setMetaAndServiceFromConnection($this, $span);
-            PredisIntegration::addTraceAnalyticsIfEnabled($span);
 
             // We default resource name to 'Predis.Client.executeRaw', but if we are able below to extract the query
             // then we replace it with the query
