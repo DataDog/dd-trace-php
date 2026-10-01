@@ -369,7 +369,8 @@ void *datadog_php_profiling_globals(void) {
 #define CXA_THREAD_ATEXIT_UNAVAILABLE ((void *)2)
 
 static int (*glibc__cxa_thread_atexit_impl)(void (*func)(void *), void *obj, void *dso_symbol) = CXA_THREAD_ATEXIT_UNINITIALIZED;
-static pthread_key_t dd_cxa_thread_atexit_key; // fallback for sidecar
+static pthread_key_t dd_cxa_thread_atexit_key; // fallback for sidecar threads
+static pthread_once_t dd_cxa_thread_atexit_key_once = PTHREAD_ONCE_INIT;
 
 struct dd_rust_thread_destructor {
     void (*dtor)(void *);
@@ -378,10 +379,17 @@ struct dd_rust_thread_destructor {
 };
 // Use __thread explicitly: ZEND_TLS is empty on NTS builds.
 static __thread struct dd_rust_thread_destructor *dd_rust_thread_destructors = NULL;
-ZEND_TLS bool dd_is_main_thread = false;
+static __thread bool dd_is_main_thread = false;
+static __thread bool dd_cxa_thread_atexit_key_registered = false;
 
 void dd_run_rust_thread_destructors(void *unused) {
     UNUSED(unused);
+    // GSHUTDOWN may run without ending the PHP thread (e.g. Apache reload).
+    // Do not leave a pthread destructor pointing into an unloaded ddtrace.so.
+    if (dd_cxa_thread_atexit_key_registered) {
+        pthread_setspecific(dd_cxa_thread_atexit_key, NULL);
+        dd_cxa_thread_atexit_key_registered = false;
+    }
     struct dd_rust_thread_destructor *entry = dd_rust_thread_destructors;
     dd_rust_thread_destructors = NULL; // destructors _may_ be invoked multiple times. We need to reset thus.
     while (entry) {
@@ -392,6 +400,10 @@ void dd_run_rust_thread_destructors(void *unused) {
     }
 }
 
+static void dd_init_cxa_thread_atexit_key(void) {
+    pthread_key_create(&dd_cxa_thread_atexit_key, dd_run_rust_thread_destructors);
+}
+
 // Note: this symbol is not public
 int __cxa_thread_atexit_impl(void (*func)(void *), void *obj, void *dso_symbol) {
     if (glibc__cxa_thread_atexit_impl == CXA_THREAD_ATEXIT_UNINITIALIZED) {
@@ -399,7 +411,6 @@ int __cxa_thread_atexit_impl(void (*func)(void *), void *obj, void *dso_symbol) 
         if (glibc__cxa_thread_atexit_impl == NULL) {
             // no race condition here: logging is initialized in MINIT, at which point only a single thread lives
             glibc__cxa_thread_atexit_impl = CXA_THREAD_ATEXIT_UNAVAILABLE;
-            pthread_key_create(&dd_cxa_thread_atexit_key, dd_run_rust_thread_destructors);
         }
     }
 
@@ -407,8 +418,13 @@ int __cxa_thread_atexit_impl(void (*func)(void *), void *obj, void *dso_symbol) 
         return glibc__cxa_thread_atexit_impl(func, obj, dso_symbol);
     }
 
-    if (glibc__cxa_thread_atexit_impl == CXA_THREAD_ATEXIT_UNAVAILABLE) {
-        pthread_setspecific(dd_cxa_thread_atexit_key, (void *)0x1); // needs to be non-NULL
+    // PHP runs destructors for its own thread at shutdown. Tokio and sidecar
+    // worker threads have no PHP GSHUTDOWN, even when PHP mode is active: they
+    // must register a pthread destructor to free their Rust TLS on thread exit.
+    if (glibc__cxa_thread_atexit_impl == CXA_THREAD_ATEXIT_UNAVAILABLE || !dd_is_main_thread) {
+        pthread_once(&dd_cxa_thread_atexit_key_once, dd_init_cxa_thread_atexit_key);
+        // The key is also cleared by dd_run_rust_thread_destructors at GSHUTDOWN.
+        dd_cxa_thread_atexit_key_registered = pthread_setspecific(dd_cxa_thread_atexit_key, (void *)0x1) == 0;
     }
 
     struct dd_rust_thread_destructor *entry = malloc(sizeof(struct dd_rust_thread_destructor));
