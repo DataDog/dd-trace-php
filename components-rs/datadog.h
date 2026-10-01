@@ -9,7 +9,6 @@ struct _zend_string;
 #include "telemetry.h"
 #include "sidecar.h"
 
-
 extern void (*ddog_log_callback)(ddog_CharSlice);
 
 /**
@@ -79,59 +78,66 @@ void ddog_init_span_func(void (*free_func)(ddog_OwnedZendString),
                          void (*addref_func)(struct _zend_string*),
                          ddog_OwnedZendString (*init_func)(ddog_CharSlice));
 
-void ddog_set_span_service_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
+/**
+ * # Safety
+ * `span` must be a live span node pointer from `ddog_new_span` (every `*_zstr` span setter).
+ */
+void ddog_set_span_service_zstr(ddog_SpanNode *span, struct _zend_string *str);
 
-void ddog_set_span_name_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
+/**
+ * # Safety
+ * See [`ddog_set_span_service_zstr`].
+ */
+void ddog_set_span_name_zstr(ddog_SpanNode *span, struct _zend_string *str);
 
-void ddog_set_span_resource_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
+/**
+ * # Safety
+ * See [`ddog_set_span_service_zstr`].
+ */
+void ddog_set_span_resource_zstr(ddog_SpanNode *span, struct _zend_string *str);
 
-void ddog_set_span_type_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
+/**
+ * # Safety
+ * See [`ddog_set_span_service_zstr`].
+ */
+void ddog_set_span_type_zstr(ddog_SpanNode *span, struct _zend_string *str);
 
-void ddog_add_span_meta_zstr(ddog_SpanBytes *ptr,
-                             struct _zend_string *key,
-                             struct _zend_string *val);
+/**
+ * String attribute under a static C literal key.
+ *
+ * # Safety
+ * `attrs` must be a live `Attributes` handle and `key` a static NUL-terminated string (applies
+ * to every attribute adder below).
+ */
+void ddog_attributes_add_lit(ddog_Attributes *attrs, const char *key, ddog_CharSlice value);
 
-void ddog_add_CharSlice_span_meta_zstr(ddog_SpanBytes *ptr,
-                                       ddog_CharSlice key,
-                                       struct _zend_string *val);
+/**
+ * String attribute sharing both zend strings (zero-copy).
+ *
+ * # Safety
+ * See [`ddog_attributes_add_lit`].
+ */
+void ddog_attributes_add_zstr(ddog_Attributes *attrs,
+                              struct _zend_string *key,
+                              struct _zend_string *value);
 
-void ddog_add_zstr_span_meta_str(ddog_SpanBytes *ptr, struct _zend_string *key, const char *val);
+/**
+ * Double attribute under a static C literal key.
+ *
+ * # Safety
+ * See [`ddog_attributes_add_lit`].
+ */
+void ddog_attributes_add_double_lit(ddog_Attributes *attrs, const char *key, double value);
 
-void ddog_add_str_span_meta_str(ddog_SpanBytes *ptr, const char *key, const char *val);
-
-void ddog_add_str_span_meta_zstr(ddog_SpanBytes *ptr, const char *key, struct _zend_string *val);
-
-void ddog_add_str_span_meta_CharSlice(ddog_SpanBytes *ptr, const char *key, ddog_CharSlice val);
-
-void ddog_del_span_meta_zstr(ddog_SpanBytes *ptr, struct _zend_string *key);
-
-void ddog_del_span_meta_str(ddog_SpanBytes *ptr, const char *key);
-
-bool ddog_has_span_meta_zstr(ddog_SpanBytes *ptr, struct _zend_string *key);
-
-bool ddog_has_span_meta_str(ddog_SpanBytes *ptr, const char *key);
-
-ddog_CharSlice ddog_get_span_meta_str(ddog_SpanBytes *span, const char *key);
-
-void ddog_add_span_metrics_zstr(ddog_SpanBytes *ptr, struct _zend_string *key, double val);
-
-bool ddog_has_span_metrics_zstr(ddog_SpanBytes *ptr, struct _zend_string *key);
-
-void ddog_del_span_metrics_zstr(ddog_SpanBytes *ptr, struct _zend_string *key);
-
-void ddog_add_span_metrics_str(ddog_SpanBytes *ptr, const char *key, double val);
-
-bool ddog_get_span_metrics_str(ddog_SpanBytes *ptr, const char *key, double *result);
-
-void ddog_del_span_metrics_str(ddog_SpanBytes *ptr, const char *key);
-
-void ddog_add_span_meta_struct_zstr(ddog_SpanBytes *ptr,
-                                    struct _zend_string *key,
-                                    struct _zend_string *val);
-
-void ddog_add_zstr_span_meta_struct_CharSlice(ddog_SpanBytes *ptr,
-                                              struct _zend_string *key,
-                                              ddog_CharSlice val);
+/**
+ * Double attribute under a shared zend string key (zero-copy).
+ *
+ * # Safety
+ * See [`ddog_attributes_add_lit`].
+ */
+void ddog_attributes_add_double_zstr(ddog_Attributes *attrs,
+                                     struct _zend_string *key,
+                                     double value);
 
 bool ddog_ffe_load_config(ddog_CharSlice json);
 

@@ -56,7 +56,7 @@ void ddtrace_trace_source_set_asm_source() {
         return;
     }
 
-    zend_array *meta = ddtrace_property_array(&root_span->property_meta);;
+    zend_array *meta = ddtrace_property_array(&root_span->property_attributes);
     if (!meta) {
         return;
     }
@@ -66,7 +66,7 @@ void ddtrace_trace_source_set_asm_source() {
     ddtrace_trace_source_add_propagated_tag(encoded);
 }
 
-bool ddtrace_trace_source_is_meta_asm_sourced(zend_array *meta) {    
+bool ddtrace_trace_source_is_meta_asm_sourced(zend_array *meta) {
     if (!meta) {
         return false;
     }
