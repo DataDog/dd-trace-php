@@ -118,7 +118,17 @@ foreach ($profiler_minor_major_targets as $version) {
       - PHP_MAJOR_MINOR: *all_profiler_targets
   script:
     - switch-php nts # not compatible with debug
-    - DDTRACE_PHP_INCLUDES="$(php-config --includes)" cargo clippy --all-targets --no-deps --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample -- -D warnings -Aunknown-lints
+    # SSI has two distinct Rust links: the PHP-independent common library and
+    # the private PHP-ABI archive. Keep all four feature checks in this job so
+    # each PHP version shares its Cargo cache instead of scheduling more jobs.
+    # --lib avoids linting workspace binaries/tests under incompatible product features.
+    # Start with combined: its larger feature set warms more of the shared dependencies.
+    - export DDTRACE_PHP_INCLUDES="$(php-config --includes)"
+    - export RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }--cfg php_shared_build" # matches SHARED=1 for loadable artifacts
+    - cargo clippy --package datadog-php --lib --no-deps --no-default-features --features tracer,tracer-runtime,profiling-embedded -- -D warnings -Aunknown-lints # non-SSI combined
+    - cargo clippy --package datadog-php --lib --no-deps --no-default-features --features tracer-runtime -- -D warnings -Aunknown-lints # SSI common library
+    - cargo clippy --package datadog-php --lib --no-deps --no-default-features --features profiling-embedded -- -D warnings -Aunknown-lints # SSI PHP-ABI archive
+    - cargo clippy --package datadog-php --lib --no-deps --no-default-features --features profiling-standalone -- -D warnings -Aunknown-lints # standalone profiler
 
 "Cargo test":
   stage: test
