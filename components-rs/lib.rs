@@ -227,7 +227,7 @@ pub unsafe extern "C" fn ddtrace_strip_invalid_utf8(
         Cow::Borrowed(_) => null_mut(),
         Cow::Owned(s) => {
             *len = s.len();
-            let ret = s.as_ptr() as *mut c_char;
+            let ret = s.as_ptr().cast_mut().cast::<c_char>();
             std::mem::forget(s);
             ret
         }
@@ -236,7 +236,7 @@ pub unsafe extern "C" fn ddtrace_strip_invalid_utf8(
 
 #[no_mangle]
 pub unsafe extern "C" fn ddtrace_drop_rust_string(input: *mut c_char, len: usize) {
-    _ = String::from_raw_parts(input as *mut u8, len, len);
+    _ = String::from_raw_parts(input.cast::<u8>(), len, len);
 }
 
 #[no_mangle]

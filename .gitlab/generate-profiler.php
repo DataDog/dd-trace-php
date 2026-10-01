@@ -12,11 +12,27 @@ foreach ($profiler_minor_major_targets as $version) {
     echo "  - \"{$version}\"\n";
 }
 ?>
+<?php
+// ARM64 runs a reduced PHP version matrix: amd64 and arm64 behave the same
+// across PHP versions (both LP64), so we only run the newest version.
+$arm64_latest = [end($profiler_minor_major_targets)];
+?>
+.arm64_latest_targets: &arm64_latest_targets
+<?php
+foreach ($arm64_latest as $version) {
+    echo "  - \"{$version}\"\n";
+}
+?>
 
 "profiling tests":
   stage: test
   tags: [ "arch:${ARCH}" ]
   image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:${IMAGE_PREFIX}${PHP_MAJOR_MINOR}${IMAGE_SUFFIX}
+  interruptible: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      interruptible: false
+    - when: on_success
   # Setting the *_REQUEST and *_LIMIT variables to be the same, and setting
   # them for both the build and helper allows using Guaranteed QoS instead of
   # Burstable. This means nproc and similar tools will work as expected.
@@ -33,11 +49,19 @@ foreach ($profiler_minor_major_targets as $version) {
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *all_profiler_targets
-        ARCH: *arch_targets
+        ARCH: amd64
+        IMAGE_PREFIX: php-compile-extension-alpine-
+        IMAGE_SUFFIX: [""]
+      - PHP_MAJOR_MINOR: *arm64_latest_targets
+        ARCH: arm64
         IMAGE_PREFIX: php-compile-extension-alpine-
         IMAGE_SUFFIX: [""]
       - PHP_MAJOR_MINOR: *all_profiler_targets
-        ARCH: *arch_targets
+        ARCH: amd64
+        IMAGE_PREFIX: php-
+        IMAGE_SUFFIX: _centos-7
+      - PHP_MAJOR_MINOR: *arm64_latest_targets
+        ARCH: arm64
         IMAGE_PREFIX: php-
         IMAGE_SUFFIX: _centos-7
   script:
@@ -99,10 +123,15 @@ foreach ($profiler_minor_major_targets as $version) {
       - "artifacts/"
     when: "always"
 
-"clippy NTS":
+"Clippy":
   stage: test
-  tags: [ "arch:amd64" ]
+  tags: [ "arch:${ARCH}" ]
   image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11
+  interruptible: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      interruptible: false
+    - when: on_success
   variables:
     KUBERNETES_CPU_REQUEST: 5
     KUBERNETES_CPU_LIMIT: 5
@@ -116,15 +145,25 @@ foreach ($profiler_minor_major_targets as $version) {
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *all_profiler_targets
+        ARCH: amd64
+      - PHP_MAJOR_MINOR: *arm64_latest_targets
+        ARCH: arm64
   script:
     - switch-php nts # not compatible with debug
     # SSI has two distinct Rust links: the PHP-independent common library and
-    # the private PHP-ABI archive. Keep all four feature checks in this job so
-    # each PHP version shares its Cargo cache instead of scheduling more jobs.
+    # the private PHP-ABI archive. Check all four feature sets with both PHP
+    # ABIs in this job to reuse its Cargo cache across products and NTS/ZTS.
     # --lib avoids linting workspace binaries/tests under incompatible product features.
     # Start with combined: its larger feature set warms more of the shared dependencies.
-    - export DDTRACE_PHP_INCLUDES="$(php-config --includes)"
     - export RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }--cfg php_shared_build" # matches SHARED=1 for loadable artifacts
+    - export DDTRACE_PHP_INCLUDES="$(php-config --includes)"
+    - cargo clippy --package datadog-php --lib --no-deps --no-default-features --features tracer,tracer-runtime,profiling-embedded -- -D warnings -Aunknown-lints # non-SSI combined
+    - cargo clippy --package datadog-php --lib --no-deps --no-default-features --features tracer-runtime -- -D warnings -Aunknown-lints # SSI common library
+    - cargo clippy --package datadog-php --lib --no-deps --no-default-features --features profiling-embedded -- -D warnings -Aunknown-lints # SSI PHP-ABI archive
+    - cargo clippy --package datadog-php --lib --no-deps --no-default-features --features profiling-standalone -- -D warnings -Aunknown-lints # standalone profiler
+    - switch-php zts # not compatible with debug
+    - touch profiling/build.rs # make sure the build helper runs after switch-php
+    - export DDTRACE_PHP_INCLUDES="$(php-config --includes)"
     - cargo clippy --package datadog-php --lib --no-deps --no-default-features --features tracer,tracer-runtime,profiling-embedded -- -D warnings -Aunknown-lints # non-SSI combined
     - cargo clippy --package datadog-php --lib --no-deps --no-default-features --features tracer-runtime -- -D warnings -Aunknown-lints # SSI common library
     - cargo clippy --package datadog-php --lib --no-deps --no-default-features --features profiling-embedded -- -D warnings -Aunknown-lints # SSI PHP-ABI archive
@@ -132,8 +171,13 @@ foreach ($profiler_minor_major_targets as $version) {
 
 "Cargo test":
   stage: test
-  tags: [ "arch:amd64" ]
+  tags: [ "arch:${ARCH}" ]
   image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.5_bookworm-11
+  interruptible: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      interruptible: false
+    - when: on_success
   variables:
     KUBERNETES_CPU_REQUEST: 5
     KUBERNETES_CPU_LIMIT: 5
@@ -144,6 +188,10 @@ foreach ($profiler_minor_major_targets as $version) {
     KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
     KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
     # CARGO_TARGET_DIR: /mnt/ramdisk/cargo # ramdisk??
+    libdir: /tmp/datadog-profiling
+  parallel:
+    matrix:
+       - ARCH: *arch_targets
   script:
     - switch-php nts
     - DDTRACE_PHP_INCLUDES="$(php-config --includes)" cargo test --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample
@@ -154,6 +202,11 @@ foreach ($profiler_minor_major_targets as $version) {
   stage: test
   tags: [ "arch:${ARCH}" ]
   image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11
+  interruptible: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      interruptible: false
+    - when: on_success
   variables:
     KUBERNETES_CPU_REQUEST: 5
     KUBERNETES_CPU_LIMIT: 5
@@ -174,6 +227,9 @@ foreach ($profiler_minor_major_targets as $version) {
       - PHP_MAJOR_MINOR: *all_profiler_targets
         ARCH: amd64
         FLAVOUR: [nts, zts]
+      - PHP_MAJOR_MINOR: *arm64_latest_targets
+        ARCH: arm64
+        FLAVOUR: [nts, zts]
   script:
     - unset DD_SERVICE; unset DD_ENV
     - command -v switch-php && switch-php "${FLAVOUR}"
@@ -188,6 +244,21 @@ foreach ($profiler_minor_major_targets as $version) {
     - cat "${XFAIL_LIST}" profiling/tests/php-language-xfail.list > /tmp/profiler-php-language-xfail.list
     - "if php -r 'exit(PHP_VERSION_ID < 80400 ? 0 : 1);'; then cat profiling/tests/php-language-xfail-pre84.list >> /tmp/profiler-php-language-xfail.list; fi"
     - export XFAIL_LIST=/tmp/profiler-php-language-xfail.list
+    # Keep version-specific ARM64 failures running as XFAILs.
+    - |
+      php -r '
+      $xfail_list = getenv("CI_PROJECT_DIR") . "/dockerfiles/ci/xfail_tests/"
+          . PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION . "-arm64.list";
+      if (php_uname("m") === "aarch64" && is_file($xfail_list)) {
+          foreach (file($xfail_list, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $test) {
+              $test = "/usr/local/src/php/" . $test;
+              $contents = file_get_contents($test);
+              if (!preg_match("/^--XFAIL--\r?$/m", $contents)) {
+                  file_put_contents($test, str_replace("--FILE--", "--XFAIL--\nKnown failure listed in " . basename($xfail_list) . "\n--FILE--", $contents));
+              }
+          }
+      }
+      '
     - ulimit -c unlimited
     - .gitlab/run_php_language_tests.sh
   after_script:
