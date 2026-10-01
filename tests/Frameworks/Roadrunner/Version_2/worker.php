@@ -4,8 +4,6 @@ require __DIR__ . '/vendor/autoload.php';
 
 use Spiral\RoadRunner;
 use Spiral\RoadRunner\Http\HttpWorker;
-use function DDTrace\active_span;
-use function DDTrace\set_distributed_tracing_context;
 
 $worker = RoadRunner\Worker::create();
 $httpWorker = new HttpWorker($worker);
@@ -20,14 +18,6 @@ $router->addRoute('/post-respond-track-user', new \App\PostRespondTrackUserHandl
 $router->addRoute('/post-respond-rasp', new \App\PostRespondRaspHandler());
 
 while ($req = $httpWorker->waitRequest()) {
-    /** @var \Spiral\RoadRunner\Http\Request $req */
-
-    // propagation for distributing tracing is not supported for Roadrunner,
-    // so propagate manually x-datadog-trace-id ourselves
-    if (isset($req->headers['X-Datadog-Trace-Id'])) {
-        $span = active_span();
-        set_distributed_tracing_context($req->headers['X-Datadog-Trace-Id'][0], "0");
-    }
     try {
         $path = parse_url($req->uri, PHP_URL_PATH);
 
