@@ -177,7 +177,7 @@ class LaminasIntegration extends Integration
                 $rootSpan->name = 'laminas.request';
                 $rootSpan->service = \ddtrace_config_app_name('laminas');
                 Integration::tagFrameworkServiceSource($rootSpan, 'laminas');
-                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+                $rootSpan->attributes[Tag::SPAN_KIND] = 'server';
                 $rootSpan->meta[Tag::COMPONENT] = self::NAME;
             }
         );
@@ -238,9 +238,9 @@ class LaminasIntegration extends Integration
                 $request = $args[0];
 
                 $rootSpan = root_span();
-                $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
+                $rootSpan->attributes[Tag::HTTP_METHOD] = $request->getMethod();
                 $rootSpan->meta[Tag::HTTP_VERSION] = $request->getVersion();
-                $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize($request->getUriString());
+                $rootSpan->attributes[Tag::HTTP_URL] = Normalizer::urlSanitize($request->getUriString());
 
                 $routeMatch = $retval;
                 if (is_null($routeMatch)) {
@@ -342,7 +342,7 @@ class LaminasIntegration extends Integration
                 $rootSpan = root_span();
                 if ($rootSpan !== null) {
                     $statusCode = $args[0];
-                    $rootSpan->meta[Tag::HTTP_STATUS_CODE] = "$statusCode";
+                    $rootSpan->attributes[Tag::HTTP_STATUS_CODE] = "$statusCode";
                 }
             }
         );
@@ -396,8 +396,8 @@ class LaminasIntegration extends Integration
                 $method = $request->getMethod();
 
                 $rootSpan = root_span();
-                $rootSpan->meta[Tag::HTTP_METHOD] = $method;
-                $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize($request->getUriString());
+                $rootSpan->attributes[Tag::HTTP_METHOD] = $method;
+                $rootSpan->attributes[Tag::HTTP_URL] = Normalizer::urlSanitize($request->getUriString());
             }
         );
 
@@ -589,7 +589,7 @@ class LaminasIntegration extends Integration
                 $detail = $args[1] ?? null;
                 $activeSpan = active_span();
                 if ($detail instanceof \Throwable || $detail instanceof \Exception) {
-                    if ($activeSpan !== null && !isset($activeSpan->meta[Tag::ERROR_TYPE])) {
+                    if ($activeSpan !== null && !Integration::hasTag($activeSpan, Tag::ERROR_TYPE)) {
                         $activeSpan->exception = $detail;
                     }
                 } elseif (is_string($detail)) {
@@ -601,7 +601,7 @@ class LaminasIntegration extends Integration
 
                     ObjectKVStore::put($hook->instance, 'backtrace', $backtrace);
 
-                    if ($activeSpan !== null && !isset($activeSpan->meta[Tag::ERROR_TYPE])) {
+                    if ($activeSpan !== null && !Integration::hasTag($activeSpan, Tag::ERROR_TYPE)) {
                         $activeSpan->meta[Tag::ERROR_TYPE] = 'ApiProblem';
                         $activeSpan->meta[Tag::ERROR_MSG] = $detail;
                         $activeSpan->meta[Tag::ERROR_STACK] = $backtrace;
