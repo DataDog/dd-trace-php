@@ -30,11 +30,10 @@ class SlimIntegration extends Integration
 
                 // Overwrite root span info
                 $rootSpan = \DDTrace\root_span();
-                SlimIntegration::addTraceAnalyticsIfEnabled($rootSpan);
                 $rootSpan->name = 'slim.request';
                 $rootSpan->service = \ddtrace_config_app_name(SlimIntegration::NAME);
                 Integration::tagFrameworkServiceSource($rootSpan, SlimIntegration::NAME);
-                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+                $rootSpan->attributes[Tag::SPAN_KIND] = 'server';
                 $rootSpan->meta[Tag::COMPONENT] = SlimIntegration::NAME;
 
                 if ('4' === $majorVersion) {
@@ -115,8 +114,8 @@ class SlimIntegration extends Integration
                     /** @var ServerRequestInterface $request */
                     $request = $args[1];
 
-                    if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
-                        $rootSpan->meta[Tag::HTTP_URL] =
+                    if (!Integration::hasTag($rootSpan, Tag::HTTP_URL)) {
+                        $rootSpan->attributes[Tag::HTTP_URL] =
                                 \DDTrace\Util\Normalizer::urlSanitize((string) $request->getUri());
                     }
 

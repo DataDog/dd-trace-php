@@ -16,14 +16,6 @@ class ZendFrameworkIntegration extends Integration
     const NAME = 'zendframework';
 
     /**
-     * {@inheritdoc}
-     */
-    public static function requiresExplicitTraceAnalyticsEnabling(): bool
-    {
-        return false;
-    }
-
-    /**
      * Loads the zend framework integration.
      *
      * @return int
@@ -48,7 +40,6 @@ class ZendFrameworkIntegration extends Integration
                 try {
                     /** @var Zend_Controller_Request_Abstract $request */
                     list($request) = $args;
-                    self::addTraceAnalyticsIfEnabled($rootSpan);
                     $rootSpan->name = self::getOperationName();
                     // For backward compatibility with the legacy API we are not using the integration
                     // name 'zendframework', we are instead using the 'zf1' prefix.
@@ -63,12 +54,12 @@ class ZendFrameworkIntegration extends Integration
                     if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
                         $rootSpan->resource = $controller . '@' . $action . ' ' . $route;
                     }
-                    $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
-                    $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+                    $rootSpan->attributes[Tag::HTTP_METHOD] = $request->getMethod();
+                    $rootSpan->attributes[Tag::SPAN_KIND] = 'server';
                     $rootSpan->meta[Tag::COMPONENT] = self::NAME;
 
-                    if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
-                        $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(
+                    if (!Integration::hasTag($rootSpan, Tag::HTTP_URL)) {
+                        $rootSpan->attributes[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(
                             $request->getScheme() . '://' .
                             $request->getHttpHost() .
                             $request->getRequestUri()

@@ -40,8 +40,8 @@ class CakePHPIntegrationLoader
                         $_SERVER['REQUEST_METHOD'] . ' ' . $this->name . 'Controller@' . $request->getParam('action');
                 }
 
-                if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
-                    $rootSpan->meta[Tag::HTTP_URL] = Router::url($request->getAttribute('here'), true)
+                if (!Integration::hasTag($rootSpan, Tag::HTTP_URL)) {
+                    $rootSpan->attributes[Tag::HTTP_URL] = Router::url($request->getAttribute('here'), true)
                         . Normalizer::sanitizedQueryString();
                 }
                 $rootSpan->meta['cakephp.route.controller'] = $request->getParam('controller');

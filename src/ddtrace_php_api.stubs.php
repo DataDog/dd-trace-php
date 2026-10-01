@@ -301,14 +301,14 @@ namespace DDTrace\OpenTelemetry\API\Trace {
 }
 namespace DDTrace\Processing {
     /**
-     * A span processor in charge of adding the trace analytics client config metric when appropriate.
-     *
-     * NOTE: this may be transformer into a filter for consistency with other tracers, but for now we did not implement
-     * any filtering functionality so giving it such name as of now might be misleading.
+     * @deprecated App Analytics is deprecated and no longer has any effect.
      */
     final class TraceAnalyticsProcessor
     {
         /**
+         * @deprecated App Analytics is deprecated. This is now a no-op and does not
+         *             modify $metrics or emit the _dd1.sr.eausr metric.
+         *
          * @param array $metrics
          * @param bool|float $value
          */
@@ -2241,6 +2241,7 @@ namespace DDTrace {
         const TARGET_HOST = 'out.host';
         const TARGET_PORT = 'out.port';
         const BYTES_OUT = 'net.out.bytes';
+        /** @deprecated App Analytics is deprecated; setting this metric no longer has any effect. */
         const ANALYTICS_KEY = '_dd1.sr.eausr';
         const HOSTNAME = '_dd.hostname';
         const ORIGIN = '_dd.origin';
