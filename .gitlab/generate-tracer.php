@@ -833,9 +833,9 @@ foreach ($services as $part => $service) {
     WAIT_FOR: zookeeper:2181 kafka-integration:9092
     CI_DEBUG_SERVICES: "true"
 <?php endif; ?>
-<?php if (str_contains($target, "elasticsearch") || str_contains($target, "magento")): ?>
-    # Fail before running the test suite if Elasticsearch was OOM-killed or never became healthy. Exit 75 is retried
-    # by the global CI policy, avoiding thousands of misleading "No alive nodes" test failures.
+<?php if (str_contains($target, "elasticsearch1")): ?>
+    WAIT_FOR: elasticsearch2-integration:9200
+<?php elseif (str_contains($target, "elasticsearch") || str_contains($target, "magento")): ?>
     WAIT_FOR: elasticsearch7-integration:9200
 <?php endif; ?>
 <?php if (str_contains($target, "sqlsrv")): ?>
