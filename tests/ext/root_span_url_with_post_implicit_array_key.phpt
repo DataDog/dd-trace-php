@@ -14,8 +14,8 @@ foo[]=a&foo[]=b
 DDTrace\start_span();
 DDTrace\close_span();
 $spans = dd_trace_serialize_closed_spans();
-var_dump($spans[0]['meta']['http.request.post.foo.0']);
-var_dump($spans[0]['meta']['http.request.post.foo.1']);
+var_dump($spans[0]['attributes']['http.request.post.foo.0']);
+var_dump($spans[0]['attributes']['http.request.post.foo.1']);
 ?>
 --EXPECT--
 string(1) "a"

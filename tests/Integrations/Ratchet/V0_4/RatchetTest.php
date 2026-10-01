@@ -74,7 +74,7 @@ class RatchetTest extends IntegrationTestCase
         foreach ($traces[0] as &$span) {
             $span["resource"] = preg_replace('(:(\d+)$)', ':%d', $span["resource"]);
             // Our checker has problems with two root spans being identical in primary attributes
-            if ($span["resource"] === "websocket /" && ($span["metrics"]['websocket.message.length'] ?? "") == '12') {
+            if ($span["resource"] === "websocket /" && ($span["attributes"]['websocket.message.length'] ?? "") == '12') {
                 $span["resource"] .= 2;
             }
         }

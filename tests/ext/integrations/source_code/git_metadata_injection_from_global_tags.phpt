@@ -23,9 +23,11 @@ var_dump(dd_clean_spans());
 --EXPECTF--
 array(2) {
   [0]=>
-  array(10) {
+  array(12) {
     ["trace_id"]=>
     string(%d) "%d"
+    ["trace_id_high"]=>
+    string(16) "%s"
     ["span_id"]=>
     string(%d) "%d"
     ["start"]=>
@@ -40,37 +42,32 @@ array(2) {
     string(43) "git_metadata_injection_from_global_tags.php"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
-    array(7) {
-      ["_dd.git.commit.sha"]=>
-      string(6) "123456"
-      ["_dd.git.repository_url"]=>
-      string(24) "github.com/user/env_repo"
-      ["_dd.p.dm"]=>
-      string(2) "-0"
-      ["_dd.p.tid"]=>
-      string(16) "%s"
+    ["sampling_priority"]=>
+    int(1)
+    ["sampling_mechanism"]=>
+    int(0)
+    ["attributes"]=>
+    array(10) {
+      ["runtime-id"]=>
+      string(%d) "%s"
+      ["process_id"]=>
+      float(%f)
       ["git.commit.sha"]=>
       string(6) "123456"
       ["git.repository_url"]=>
       string(24) "github.com/user/env_repo"
-      ["runtime-id"]=>
-      string(36) "%s"
-    }
-    ["metrics"]=>
-    array(6) {
       ["_dd.agent_psr"]=>
       float(1)
-      ["_sampling_priority_v1"]=>
-      float(1)
+      ["_dd.git.commit.sha"]=>
+      string(6) "123456"
+      ["_dd.git.repository_url"]=>
+      string(24) "github.com/user/env_repo"
       ["php.compilation.total_time_ms"]=>
-      float(%f)
-      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
       ["php.memory.peak_usage_bytes"]=>
       float(%f)
-      ["process_id"]=>
-      float(%d)
+      ["php.memory.peak_real_usage_bytes"]=>
+      float(%f)
     }
   }
   [1]=>
@@ -93,7 +90,7 @@ array(2) {
     string(43) "git_metadata_injection_from_global_tags.php"
     ["type"]=>
     string(3) "cli"
-    ["meta"]=>
+    ["attributes"]=>
     array(2) {
       ["git.commit.sha"]=>
       string(6) "123456"

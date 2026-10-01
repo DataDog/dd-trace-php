@@ -22,9 +22,9 @@ DDTrace\close_span();
 $traces = dd_trace_serialize_closed_spans();
 
 var_dump($traces[0]['name']);
-var_dump($traces[0]['meta']['_dd.p.ts']);
+var_dump($traces[0]['attributes']['_dd.p.ts']);
 var_dump($traces[1]['name']);
-var_dump($traces[1]['meta']['_dd.p.ts']);
+var_dump($traces[1]['attributes']['_dd.p.ts']);
 
 ?>
 --EXPECTF--

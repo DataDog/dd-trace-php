@@ -11,8 +11,8 @@ HTTP_X_DATADOG_SECURITY_TEST=security-test-uuid
 DDTrace\start_span();
 DDTrace\close_span(0);
 $spans = dd_trace_serialize_closed_spans();
-var_dump($spans[0]['meta']['http.request.headers.x-datadog-endpoint-scan']);
-var_dump($spans[0]['meta']['http.request.headers.x-datadog-security-test']);
+var_dump($spans[0]['attributes']['http.request.headers.x-datadog-endpoint-scan']);
+var_dump($spans[0]['attributes']['http.request.headers.x-datadog-security-test']);
 ?>
 --EXPECT--
 string(18) "endpoint-scan-uuid"

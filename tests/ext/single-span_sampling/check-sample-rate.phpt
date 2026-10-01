@@ -14,7 +14,7 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 DDTrace\start_span();
 DDTrace\close_span();
 
-$last = dd_trace_serialize_closed_spans()[0]["metrics"];
+$last = dd_trace_serialize_closed_spans()[0]["attributes"];
 print "First span: rule_rate={$last["_dd.span_sampling.rule_rate"]}\n";
 
 $droppedCount = 0;
@@ -22,7 +22,7 @@ for ($i = 0; $i < 7; ++$i) {
     DDTrace\start_span();
     DDTrace\close_span();
 
-    $last = dd_trace_serialize_closed_spans()[0]["metrics"];
+    $last = dd_trace_serialize_closed_spans()[0]["attributes"];
     $droppedCount += !isset($last["_dd.span_sampling.mechanism"]);
 }
 echo "$droppedCount dropped out of 7\n";
@@ -32,7 +32,7 @@ for ($i = 0; $i < 3; ++$i) {
     DDTrace\start_span();
     DDTrace\close_span();
 
-    $last = dd_trace_serialize_closed_spans()[0]["metrics"];
+    $last = dd_trace_serialize_closed_spans()[0]["attributes"];
     $droppedCount += !isset($last["_dd.span_sampling.mechanism"]);
 }
 echo "$droppedCount dropped out of 3\n";
@@ -42,7 +42,7 @@ usleep(350000);
 DDTrace\start_span();
 DDTrace\close_span();
 
-$last = dd_trace_serialize_closed_spans()[0]["metrics"];
+$last = dd_trace_serialize_closed_spans()[0]["attributes"];
 echo "11th span: rule_rate={$last["_dd.span_sampling.rule_rate"]}\n";
 
 ?>

@@ -39,9 +39,11 @@ array (
 ---
 array(1) {
   [0]=>
-  array(9) {
+  array(10) {
     ["trace_id"]=>
     string(%d) "%d"
+    ["trace_id_high"]=>
+    string(16) "%s"
     ["span_id"]=>
     string(%d) "%d"
     ["parent_id"]=>
