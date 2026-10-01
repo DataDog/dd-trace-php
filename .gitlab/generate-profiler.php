@@ -82,9 +82,9 @@ foreach ($profiler_minor_major_targets as $version) {
       - "artifacts/"
     when: "always"
 
-"clippy NTS":
+"Clippy":
   stage: test
-  tags: [ "arch:amd64" ]
+  tags: [ "arch:${ARCH}" ]
   image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11
   variables:
     KUBERNETES_CPU_REQUEST: 5
@@ -100,13 +100,17 @@ foreach ($profiler_minor_major_targets as $version) {
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *all_profiler_targets
+        ARCH: *arch_targets
   script:
     - switch-php nts # not compatible with debug
+    - cargo clippy --all-targets --no-deps --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample -- -D warnings -Aunknown-lints
+    - switch-php zts # not compatible with debug
+    - touch profiling/build.rs # make sure the build helper runs after switch-php
     - cargo clippy --all-targets --no-deps --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample -- -D warnings -Aunknown-lints
 
 "Cargo test":
   stage: test
-  tags: [ "arch:amd64" ]
+  tags: [ "arch:${ARCH}" ]
   image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.5_bookworm-11
   variables:
     KUBERNETES_CPU_REQUEST: 5
@@ -119,6 +123,9 @@ foreach ($profiler_minor_major_targets as $version) {
     KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
     # CARGO_TARGET_DIR: /mnt/ramdisk/cargo # ramdisk??
     libdir: /tmp/datadog-profiling
+  parallel:
+    matrix:
+       - ARCH: *arch_targets
   script:
     - switch-php nts
     - cargo test --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample
@@ -149,7 +156,7 @@ foreach ($profiler_minor_major_targets as $version) {
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *all_profiler_targets
-        ARCH: amd64
+        ARCH: *arch_targets
         FLAVOUR: [nts, zts]
   script:
     - unset DD_SERVICE; unset DD_ENV
