@@ -616,6 +616,5 @@ class MongoDBIntegration extends Integration
             $span->meta[Tag::MONGODB_QUERY] = $serializedQuery;
         }
         $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-        self::addTraceAnalyticsIfEnabled($span);
     }
 }

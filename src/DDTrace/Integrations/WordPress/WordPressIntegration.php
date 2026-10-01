@@ -11,14 +11,6 @@ class WordPressIntegration extends Integration
     /**
      * {@inheritdoc}
      */
-    public static function requiresExplicitTraceAnalyticsEnabling(): bool
-    {
-        return false;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
     public static function init(): int
     {
         // This call happens right in central config initialization
