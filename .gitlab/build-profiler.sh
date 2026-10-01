@@ -23,6 +23,11 @@ prefix="$(cd "${prefix}" && pwd)"
 if [ "$artifact_mode" = "combined" ]; then
     configure_products="--enable-ddtrace-tracer --enable-ddtrace-profiling"
     extension_name="ddtrace"
+elif [ "$artifact_mode" = "ssi-combined" ]; then
+    : "${SSI_COMMON_LIBRARY:?SSI common DSO must be built first}"
+    : "${SSI_EXTENSION_ARCHIVE:?The combined extension Rust archive must be built first}"
+    configure_products="--enable-ddtrace-tracer --enable-ddtrace-profiling --enable-ddtrace-rust-library-split --with-ddtrace-rust-library=${SSI_COMMON_LIBRARY} --with-ddtrace-php-abi-rust-library=${SSI_EXTENSION_ARCHIVE}"
+    extension_name="ddtrace"
 elif [ "$artifact_mode" = "tracer-only" ]; then
     # PHP 7.0 does not support profiling, but still ships the tracer.
     configure_products="--enable-ddtrace-tracer --disable-ddtrace-profiling"
@@ -32,17 +37,30 @@ else
     extension_name="datadog-profiling"
 fi
 
+# The ThinLTO release caller selects PHP/phpize first. Keep the explicit
+# variant argument for Alpine and debug jobs that still switch in this script.
+if [[ "$build_variant" == active ]]; then
+    case "$(php -n -r 'echo (int) PHP_ZTS, ":", (int) PHP_DEBUG;')" in
+        0:0) build_variant=nts ;;
+        1:0) build_variant=zts ;;
+        0:1) build_variant=debug ;;
+        *) echo 'Unsupported active PHP ABI' >&2; exit 1 ;;
+    esac
+    selected_php_is_active=1
+else
+    selected_php_is_active=0
+fi
 case "$build_variant" in
     zts)
-        switch-php "${PHP_VERSION}-zts"
+        if [[ "$selected_php_is_active" == 0 ]]; then switch-php "${PHP_VERSION}-zts"; fi
         default_output_name="${extension_name}-zts.so"
         ;;
     debug)
-        switch-php "${PHP_VERSION}-debug"
+        if [[ "$selected_php_is_active" == 0 ]]; then switch-php "${PHP_VERSION}-debug"; fi
         default_output_name="${extension_name}-debug.so"
         ;;
     nts)
-        switch-php "${PHP_VERSION}"
+        if [[ "$selected_php_is_active" == 0 ]]; then switch-php "${PHP_VERSION}"; fi
         default_output_name="${extension_name}.so"
         ;;
     *)
@@ -58,6 +76,8 @@ if [ "$build_variant" = "debug" ]; then
 fi
 
 # Loadable profiling artifacts must go through the supported PHP build path.
+# Keep the source path stable across products: Cargo keys path dependencies by
+# their absolute source path, so separate per-product dirs would defeat reuse.
 build_dir="/tmp/ddtrace-build-profiler-${build_variant}"
 rm -rf "${build_dir}"
 mkdir -p "${build_dir}/src"
@@ -65,6 +85,8 @@ mkdir -p "${build_dir}/src"
 # regenerated there; copying multi-GB Cargo caches also slows local builds.
 tar -cf - --exclude=.git --exclude=tmp --exclude=target --exclude=target-common \
     --exclude=target_mockgen --exclude=modules --exclude=.libs \
+    --exclude='./standalone_*' --exclude='./extensions_*' \
+    --exclude='./ssi_*' --exclude='./libdatadog_php_*' \
     --exclude='*.lo' --exclude='*.o' --exclude='*.la' --exclude='*.dep' \
     --exclude=Makefile.objects \
     --exclude=Makefile.fragments --exclude=config.status --exclude=config.log \

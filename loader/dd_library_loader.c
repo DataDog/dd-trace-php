@@ -95,28 +95,9 @@ static void ddloader_set_ddtrace_disabled_by_incompatible_runtime(const char *fo
 }
 
 static char *ddtrace_pre_load_hook(injected_ext *config) {
-    // Combined ddtrace artifacts contain their PHP-version-specific Rust code.
-    if (ddtrace_has_profiling) {
-        return NULL;
-    }
-
-    // Load libdatadog_php.so, on which split ddtrace.so implicitly depends. Implicit
-    // because there's no DT_NEEDED(libdatadog_php.so) entry in ddtrace.so.
-    // This has unfortunate side effects. Resolution of libdatadog_php.so
-    // symbols against the handle of ddtrace.so (usually stored in
-    // module_ext->handle) will fail. Some code e.g. in zai or the profiler
-    // tries to resolve libdatadog_php.so symbols using module_ext->handle
-    // (these symbols are in ddtrace.so in the monolithic build). As a
-    // consequence, this can only work if actually module_ext->handle is NULL (=
-    // RTLD_DEFAULT) and the global namespace is searched. And, because of this,
-    // ddloader_load_extension() can't set module_entry->handle, which prevents
-    // PHP from calling dlclose() on module shutdown, which we have to work
-    // around in ddloader_zend_extension_shutdown().
-    //
-    // Adding DT_NEEDED(libdatadog_php.so) would be possible on glibc because it
-    // checks already loaded libraries first (with even a fallback to DT_SONAME
-    // as key). Musl only checks already loaded libraries if these were loaded
-    // without a path (only that sets dso->shortname).
+    // Both tracer-only and combined SSI builds import symbols from the common
+    // library without DT_NEEDED. Preload it from the package into the global
+    // namespace before opening ddtrace.so.
     char *libdatadog_php;
     int res = asprintf(&libdatadog_php, "%s/%sloader/libdatadog_php.so", package_path, ddloader_os_path());
     if (res == -1) {
@@ -134,7 +115,7 @@ static char *ddtrace_pre_load_hook(injected_ext *config) {
         if (access(libdatadog_php, F_OK)) {
             free(libdatadog_php);
             LOG(config, INFO, "libdatadog_php.so not found during 'ddtrace' pre-load hook.")
-            return NULL;
+            return "required libdatadog_php.so not found";
         }
     }
 

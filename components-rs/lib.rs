@@ -23,18 +23,11 @@
     clippy::useless_asref
 )]
 
-/// Tracer-specific Rust facade, colocated with the C tracer sources.
-#[cfg(feature = "tracer")]
-#[path = "../tracer/mod.rs"]
-pub mod tracer;
-
 /// Standalone profiler implementation, retained in its existing source tree.
 #[cfg(feature = "profiling")]
 #[path = "../profiling/src/lib.rs"]
 pub mod profiling;
 
-pub mod agent_info;
-pub mod bytes;
 // Only the profiler consumes ConfigId/CONFIG_COUNT/the generated accessors (see
 // profiling/src/config.rs, profiling/src/lib.rs, profiling/src/bindings/mod.rs).
 // The module itself, and the build.rs codegen step that generates its content,
@@ -45,16 +38,28 @@ pub mod bytes;
 #[cfg(feature = "profiling")]
 #[path = "../profiling/config_id.rs"]
 pub mod config;
-pub mod ffe;
-pub mod log;
-pub mod remote_config;
-pub mod sidecar;
-#[cfg(all(not(standalone_profiler), target_os = "linux"))]
-pub mod signal_flush;
-pub mod stats;
-pub mod telemetry;
-pub mod trace_filter;
 
+#[cfg(feature = "runtime")]
+pub mod runtime;
+#[cfg(feature = "runtime")]
+pub use runtime::log;
+
+#[cfg(feature = "sidecar")]
+pub mod tracer_runtime;
+// Retain the previous public paths without placing individual implementation
+// modules in the crate root or using per-file #[path] attributes.
+#[cfg(feature = "tracer-runtime")]
+pub use tracer_runtime as tracer;
+#[cfg(feature = "sidecar")]
+pub use tracer_runtime::sidecar;
+#[cfg(all(feature = "sidecar", target_os = "linux"))]
+pub use tracer_runtime::signal_flush;
+#[cfg(feature = "tracer-runtime")]
+pub use tracer_runtime::telemetry;
+#[cfg(feature = "tracer-runtime")]
+pub use tracer_runtime::{agent_info, bytes, ffe, remote_config, stats, trace_filter};
+
+#[cfg(feature = "sidecar")]
 #[rustfmt::skip]
 mod common_exports {
 #[cfg(unix)]
@@ -150,20 +155,12 @@ pub extern "C" fn datadog_format_runtime_id(buf: &mut [u8; 36]) {
     unsafe { datadog_runtime_id.as_hyphenated().encode_lower(buf) };
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn datadog_bytes_are_valid_utf8(bytes: *const u8, len: usize) -> bool {
-    if len == 0 {
-        return true;
-    }
-    std::str::from_utf8(std::slice::from_raw_parts(bytes, len)).is_ok()
-}
-
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", feature = "otel-context"))]
 fn char_slice_string(value: CharSlice<'_>) -> String {
     value.to_utf8_lossy().into_owned()
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", feature = "otel-context"))]
 fn hostname() -> String {
     let max_len = unsafe { libc::sysconf(libc::_SC_HOST_NAME_MAX) };
     let max_len = usize::try_from(max_len).unwrap_or(255);
@@ -181,7 +178,7 @@ fn hostname() -> String {
 }
 
 /// Publish or update dd-trace-php's standard Linux OTel Process Context.
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", feature = "otel-context"))]
 #[no_mangle]
 pub extern "C" fn datadog_publish_otel_process_context(process_tags: CharSlice<'_>) -> bool {
     use libdd_library_config::otel_process_ctx;
@@ -598,4 +595,5 @@ pub extern "C" fn ddog_free_normalized_tag_value(ptr: *const c_char) {
 }
 }
 
+#[cfg(feature = "sidecar")]
 pub use common_exports::*;

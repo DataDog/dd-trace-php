@@ -17,7 +17,6 @@
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
 // These globals are set by the SSI loader
-DATADOG_PUBLIC bool datadog_loaded_by_ssi = false;
 DATADOG_PUBLIC bool datadog_ssi_forced_injection_enabled = false;
 
 static void dd_commit_metrics(void);

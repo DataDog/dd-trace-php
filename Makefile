@@ -437,12 +437,28 @@ PROFILER_FEATURES ?=
 compile_combined:
 	DDTRACE_PROFILING_FEATURES=trigger_time_sample $(MAKE) BUILD_SUFFIX=combined EXTRA_CONFIGURE_OPTIONS="--enable-ddtrace-tracer --enable-ddtrace-profiling" all
 
-# Run make xlang-lto inside a CentOS 7 PHP release image (aarch64 or x86_64).
-# PHP_VERSION is supplied by the image; ThinLTO builds a combined NTS artifact
-# (tracer-only for PHP 7.0). The helper weakens PHP imports and tests loading.
+# CentOS 7 release CI alias for the self-contained, non-SSI ddtrace.so.
+# Both names use the same build and output directory. Switch to the desired
+# NTS/ZTS PHP toolchain first; PHP 7.0 is tracer-only and debug stays non-LTO.
 .PHONY: xlang-lto
-xlang-lto:
-	./tooling/bin/build-xlang-lto
+xlang-lto: build-tracer-profiler
+
+# Distinct products for the selected NTS or ZTS PHP ABI.
+# Keeping the Rust target cache shared lets Cargo reuse unaffected dependencies,
+# while each feature combination gets its own top-level crate and final link.
+VARIANTS_DIR ?= $(PROJECT_ROOT)/tmp/release-variants/$(ARCHITECTURE)/php-$(PHP_VERSION)/$(shell php -n -r 'echo PHP_DEBUG ? "debug" : (PHP_ZTS ? "zts" : "nts");')
+.PHONY: build-profiler-standalone build-tracer-profiler build-ssi-common build-ssi-ddtrace
+build-profiler-standalone:
+	./tooling/bin/build-xlang-lto standalone "$(VARIANTS_DIR)/standalone"
+
+build-tracer-profiler:
+	./tooling/bin/build-xlang-lto combined "$(VARIANTS_DIR)/combined"
+
+build-ssi-common:
+	./tooling/bin/build-xlang-lto ssi-common "$(VARIANTS_DIR)/ssi"
+
+build-ssi-ddtrace: build-ssi-common
+	./tooling/bin/build-xlang-lto ssi-combined "$(VARIANTS_DIR)/ssi"
 
 install_combined: compile_combined
 	$(SUDO) cp $(PROJECT_ROOT)/tmp/build_combined/modules/ddtrace.so $(PHP_EXTENSION_DIR)/ddtrace.so

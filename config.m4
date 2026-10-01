@@ -21,6 +21,9 @@ PHP_ARG_ENABLE(ddtrace-sanitize, whether to enable AddressSanitizer for ddtrace,
 PHP_ARG_WITH(ddtrace-rust-library, the rust library is located; i.e. to compile without cargo,
   [  --with-ddtrace-rust-library Location to rust library for linking against], -, will be compiled)
 
+PHP_ARG_WITH(ddtrace-php-abi-rust-library, PHP-ABI-specific Rust linker input for combined ddtrace.so,
+  [  --with-ddtrace-php-abi-rust-library Location of the combined extension's PHP-ABI Rust archive], -, will be compiled)
+
 PHP_ARG_WITH(ddtrace-sidecar-mockgen, binary to weaken PHP symbols in object files,
   [  --with-ddtrace-sidecar-library Location to cargo binary produced by components-rs/php_sidecar_mockgen], -, will be compiled)
 
@@ -224,32 +227,40 @@ if test "$PHP_DDTRACE" != "no"; then
       ;;
   esac
 
-  dnl datadog.c/ddtrace.c comes first, then everything else alphabetically
+  dnl The PHP module, profiling configuration, logging, process tags and
+  dnl lifecycle are needed even in the standalone profiler. Do not include
+  dnl sidecar C objects there: each one imports native sidecar-service APIs.
   DATADOG_PHP_SOURCES="$EXTRA_DATADOG_SOURCES \
-    ext/datadog.c
-    ext/agent_info.c \
+    ext/datadog.c \
     ext/compat_getrandom.c \
     ext/configuration.c \
-    ext/crashtracking_frames.c \
     ext/endpoints.c \
     ext/excluded_modules.c \
     ext/git.c \
     ext/handlers_api.c \
     ext/handlers_pcntl.c \
-    ext/handlers_signal.c \
     ext/logging.c \
     ext/otel_config.c \
     ext/phpinfo.c \
-    ext/process_tags.c \
+    ext/startup_logging.c \
+    ext/string_utils.c \
+    ext/threads.c \
+  "
+
+  DATADOG_SIDECAR_SOURCES="\
+    ext/agent_info.c \
+    ext/crashtracking_frames.c \
+    ext/handlers_signal.c \
     ext/remote_config.c \
     ext/sidecar.c \
     ext/signals.c \
-    ext/startup_logging.c \
-    ext/string_utils.c \
     ext/target_metadata.c \
     ext/telemetry.c \
-    ext/threads.c \
   "
+
+  dnl Process tags are tracer/OTel metadata, also forwarded to the sidecar;
+  dnl the collector itself is not a sidecar service.
+  DATADOG_TRACER_PHP_SOURCES="ext/process_tags.c"
 
   DATADOG_TRACER_SOURCES="$EXTRA_TRACER_SOURCES \
     tracer/ddtrace.c \
@@ -327,12 +338,14 @@ if test "$PHP_DDTRACE" != "no"; then
 
   if test "$PHP_DDTRACE_TRACER" != "no"; then
     ALL_DATADOG_SOURCES="$ALL_DATADOG_SOURCES \
+      $DATADOG_SIDECAR_SOURCES \
+      $DATADOG_TRACER_PHP_SOURCES \
       $DD_TRACE_VENDOR_SOURCES \
       $DATADOG_TRACER_SOURCES \
       $DD_TRACE_PHP_SOURCES
     "
 
-    DATADOG_EXTENSION_FLAGS="$DATADOG_EXTENSION_FLAGS -DTRACER"
+    DATADOG_EXTENSION_FLAGS="$DATADOG_EXTENSION_FLAGS -DTRACER -DSIDECAR"
   fi
 
   if test "$PHP_DDTRACE_PROFILING" != "no"; then
@@ -449,12 +462,12 @@ EOT
 
     case $host_os in
       linux*)
-        dnl A fat Linux ddtrace.so is also the sidecar executable. When ld.so
-        dnl executes it directly, it jumps to this ELF entry point. Also discard
-        dnl unreachable function and data sections from the Rust static archive
-        dnl linked into the fat variant (the slim variant keeps the Rust library
-        dnl separate, so it has no archive to strip here).
-        ddtrace_fat_ldflags="$ddtrace_fat_ldflags -Wl,--gc-sections -Wl,-e,ddog_spawn_direct_entry"
+        dnl Discard unreachable Rust sections from statically linked extensions.
+        ddtrace_fat_ldflags="$ddtrace_fat_ldflags -Wl,--gc-sections"
+        if test "$PHP_DDTRACE_TRACER" != "no"; then
+          dnl Only the tracer/sidecar artifact is executable by ld.so.
+          ddtrace_fat_ldflags="$ddtrace_fat_ldflags -Wl,-e,ddog_spawn_direct_entry"
+        fi
       ;;
     esac
 
@@ -539,7 +552,9 @@ EOT
 	$(LIBTOOL) --mode=link $(CC) -static $(COMMON_FLAGS) $(CFLAGS_CLEAN) $(EXTRA_CFLAGS) $(LDFLAGS)  -o $@ -avoid-version -prefer-pic -module $(shared_objects_ddtrace)
 EOT
 
-  if test "$ext_shared" = "yes"; then
+  if test "$ext_shared" = "yes" && test "$PHP_DDTRACE_TRACER" != "no"; then
+    dnl The mockgen tool only weakens PHP imports for extensions which can
+    dnl execute as the sidecar. It generates no C mocks or source files.
     all_object_files=$(for src in $ALL_DATADOG_SOURCES; do printf ' %s' "${src%?}lo"; done)
     all_object_files_absolute=$(for src in $ALL_DATADOG_SOURCES; do printf ' $(builddir)/%s' "$(dirname "$src")/$objdir/$(basename "${src%?}o")"; done)
     php_binary=$("$PHP_CONFIG" --php-binary)
@@ -554,19 +569,20 @@ EOT
 
   if test "$PHP_DDTRACE_RUST_LIBRARY" != "-" && \
       test "$PHP_DDTRACE_RUST_LIBRARY_SPLIT" != "no"; then
-    dnl libtool drops an unreferenced absolute DSO from shared_objects_ddtrace.
-    dnl Pass it through as ordered linker arguments so it remains a DT_NEEDED
-    dnl dependency without pulling its contents into ddtrace.so.
-    case $host_os in
-      linux*)
-        DDTRACE_SHARED_LIBADD="$DDTRACE_SHARED_LIBADD \
+    if test "$PHP_DDTRACE_PHP_ABI_RUST_LIBRARY" = "-"; then
+      dnl Preserve explicit DSO linking for other split configurations.
+      dnl SSI combined builds instead use the loader's implicit preload.
+      case $host_os in
+        linux*)
+          DDTRACE_SHARED_LIBADD="$DDTRACE_SHARED_LIBADD \
 -Wl,--push-state,-Bdynamic,--no-as-needed,$PHP_DDTRACE_RUST_LIBRARY,--pop-state"
-        ;;
-      darwin*)
-        DDTRACE_SHARED_LIBADD="$DDTRACE_SHARED_LIBADD \
+          ;;
+        darwin*)
+          DDTRACE_SHARED_LIBADD="$DDTRACE_SHARED_LIBADD \
 -Wl,-needed_library,$PHP_DDTRACE_RUST_LIBRARY"
-        ;;
-    esac
+          ;;
+      esac
+    fi
     ddtrace_rust_lib=""
   elif test "$PHP_DDTRACE_RUST_LIBRARY" != "-"; then
     ddtrace_rust_lib="$PHP_DDTRACE_RUST_LIBRARY"
@@ -586,10 +602,17 @@ EOT
 
     ddtrace_cargo_feature_list=
     if test "$PHP_DDTRACE_TRACER" != "no"; then
-      ddtrace_cargo_feature_list="tracer"
+      ddtrace_cargo_feature_list="tracer,tracer-runtime"
     fi
     if test "$PHP_DDTRACE_PROFILING" != "no"; then
-      ddtrace_cargo_feature_list="${ddtrace_cargo_feature_list:+$ddtrace_cargo_feature_list,}profiling${DDTRACE_PROFILING_FEATURES:+,$DDTRACE_PROFILING_FEATURES}"
+      if test "$PHP_DDTRACE_TRACER" != "no"; then
+        ddtrace_profiler_feature=profiling-embedded
+      else
+        dnl Standalone needs logging and UTF-8 validation, but no sidecar or
+        dnl tracer services. The profiler reads OTel context; it does not publish it.
+        ddtrace_profiler_feature=profiling-standalone
+      fi
+      ddtrace_cargo_feature_list="${ddtrace_cargo_feature_list:+$ddtrace_cargo_feature_list,}$ddtrace_profiler_feature${DDTRACE_PROFILING_FEATURES:+,$DDTRACE_PROFILING_FEATURES}"
       ddtrace_cargo_build_flags="$DDTRACE_PROFILING_CARGO_BUILD_FLAGS $ddtrace_target_args"
     fi
     if test "$PHP_DDTRACE_TRACER" != "no" && test "$PHP_DDTRACE_LIBDDWAF_SOURCE" != "no"; then
@@ -620,17 +643,28 @@ EOT
     cat <<EOT >> Makefile.fragments
 dnl File globs cover: our own Rust sources plus everything the combined
 dnl (tracer+profiling) crate depends on -- the sidecar crate and the appsec
-dnl Rust helper are real workspace dependencies of the `tracer` feature (see
+dnl Rust helper are real workspace dependencies of `tracer-runtime` (see
 dnl Cargo.toml), so changes there must also trigger a relink here.
 $ddtrace_rust_lib: $( (find "$ext_srcdir/components-rs" -name "*.rs"; find "$ext_srcdir/profiling" \( -name "*.rs" -o -name "*.c" -o -name "*.h" \); find "$ext_srcdir/zend_abstract_interface" \( -name "*.c" -o -name "*.h" \); find "$ext_srcdir/sidecar" -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/appsec/helper-rust" -name "*.rs" -o -name "*.c" -o -name "Cargo.toml" -o -name "build.rs"; find "$ext_srcdir" -maxdepth 1 -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -not -path "*/target/*"; find "$ext_srcdir/libdatadog" -name "*.rs" -not -path "*/target/*") 2>/dev/null | tr '\n' ' ' ) $ext_srcdir/ext/configuration.h $ext_srcdir/ext/configuration_helpers.h $ext_srcdir/tracer/configuration.h $ext_builddir/Makefile
 	(cd "$ext_srcdir"; PHP_CONFIG="\$(DDTRACE_PHP_CONFIG)" DDTRACE_PHP_INCLUDES="\$(INCLUDES)" CARGO_FEATURES="$ddtrace_cargo_features" CARGO_TARGET_DIR="$ddtrace_target_dir/" SHARED=$(test "$ext_shared" = "yes" && echo 1) PROFILE="$ddtrace_cargo_profile" host_os="$host_os" DDTRACE_CARGO="\$(DDTRACE_CARGO)" $ddtrace_cxx_env $(if test "$PHP_DDTRACE_SANITIZE" != "no"; then echo COMPILE_ASAN=1; fi) sh ./compile_rust.sh $ddtrace_cargo_build_flags \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+") \$(shell echo "\$(MAKEFLAGS)" | $EGREP -q -e '--silent' -e '^[[^ -]]*s' && echo --quiet))
 EOT
   fi
 
-  dnl Weaken PHP-origin symbols before the link step so the resulting shared
-  dnl object can also be executed as the sidecar's main object. Combined builds
-  dnl have additional PHP references inside the Rust static archive.
-  if test "$ext_shared" = "yes"; then
+  if test "$PHP_DDTRACE_PHP_ABI_RUST_LIBRARY" != "-"; then
+    if test "$PHP_DDTRACE_PROFILING" = "no" || test "$PHP_DDTRACE_TRACER" = "no"; then
+      AC_MSG_ERROR([the PHP-ABI Rust archive requires a combined ddtrace extension])
+    fi
+    if test "$PHP_DDTRACE_RUST_LIBRARY" = "-" || test "$PHP_DDTRACE_RUST_LIBRARY_SPLIT" = "no"; then
+      AC_MSG_ERROR([the PHP-ABI Rust archive requires a separate common library])
+    fi
+    dnl Include the PHP-ABI Rust archive in ddtrace.so; the common DSO is
+    dnl preloaded by the SSI loader, not linked into the extension.
+    ddtrace_rust_lib="$PHP_DDTRACE_PHP_ABI_RUST_LIBRARY $ddtrace_rust_lib"
+  fi
+
+  dnl Weaken PHP-origin symbols only when this extension can be executed as
+  dnl the sidecar. Standalone profiling is an ordinary PHP shared library.
+  if test "$ext_shared" = "yes" && test "$PHP_DDTRACE_TRACER" != "no"; then
     ddtrace_weaken_targets="$all_object_files_absolute"
     if test "$PHP_DDTRACE_TRACER" != "no" && test "$PHP_DDTRACE_PROFILING" != "no"; then
       ddtrace_weaken_targets="$ddtrace_weaken_targets $ddtrace_rust_lib"

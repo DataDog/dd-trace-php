@@ -1,6 +1,7 @@
 #include "datadog.h"
 #include <SAPI.h>
 #include <php.h>
+#include <stdio.h>
 #include <json/json.h>
 #include <components-rs/datadog.h>
 #include <components-rs/sidecar.h>
@@ -34,9 +35,13 @@
 #include <interceptor/php7/interceptor.h>
 #endif
 
+// Used by both products for startup diagnostics; not a telemetry service.
+DATADOG_PUBLIC bool datadog_loaded_by_ssi = false;
 bool datadog_has_excluded_module;
 zend_module_entry *datadog_module;
+#ifdef SIDECAR
 static int dd_main_pid;
+#endif
 #if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80200
 static bool dd_has_other_observers;
 static int dd_observer_extension_backup = -1;
@@ -110,6 +115,25 @@ static void datadog_sort_modules(void *base, size_t count, size_t siz, compare_f
 
 #ifndef _WIN32
 void datadog_signal_block_handlers_startup(void);
+
+// The module needs this on Linux even when no sidecar signal handlers are built.
+void datadog_set_coredumpfilter(void) {
+    FILE *fp = fopen("/proc/self/coredump_filter", "r+");
+    if (!fp) {
+        return;
+    }
+    char buf[10];
+    if (fread(buf + 2, 1, 8, fp) != 8) {
+        fclose(fp);
+        return;
+    }
+    buf[0] = '0';
+    buf[1] = 'x';
+    buf[9] = 'f';
+    fseek(fp, 0, SEEK_SET);
+    fwrite(buf, 10, 1, fp);
+    fclose(fp);
+}
 #endif
 void datadog_pcntl_handlers_startup(void);
 
@@ -144,11 +168,11 @@ static int datadog_startup(zend_extension *extension) {
     if (!datadog_disable) {
         datadog_excluded_modules_startup();
 
-        // pcntl handlers have to run even if tracing of pcntl extension is not enabled.
+        // pcntl handlers keep profiler runtime IDs correct across forks too.
         datadog_pcntl_handlers_startup();
 
-#ifndef _WIN32
-        // Block remote-config signals of some functions
+#if defined(SIDECAR) && !defined(_WIN32)
+        // Block remote-config signals of some functions.
         datadog_signal_block_handlers_startup();
 #endif
     }
@@ -181,19 +205,21 @@ static void datadog_shutdown(zend_extension *extension) {
 
 static void dd_activate_once(void) {
     datadog_config_first_rinit();
-    if (dd_main_pid != getpid()) { // equal to session id if not a fork
+#ifdef SIDECAR
+    if (dd_main_pid != getpid()) {
         datadog_generate_runtime_id();
     }
+#endif
 
-    // must run before the first zai_hook_activate as tracer telemetry setup installs a global hook
+#ifdef SIDECAR
+    // Must run before the first zai_hook_activate: tracer telemetry installs a global hook.
     if (!datadog_disable) {
-        // Only set up the sidecar when it's actually needed (appsec, telemetry, trace sender, or OTLP metrics).
         ddog_RemoteConfigFlags flags = {0};
-        bool enable_sidecar = datadog_sidecar_should_enable(&flags);
-        if (enable_sidecar) {
+        if (datadog_sidecar_should_enable(&flags)) {
             datadog_sidecar_setup(flags);
         }
     }
+#endif
 }
 
 static pthread_once_t dd_activate_once_control = PTHREAD_ONCE_INIT;
@@ -216,7 +242,9 @@ static void datadog_activate(void) {
         datadog_disable = 2;
     }
 
+#ifdef SIDECAR
     datadog_telemetry_rinit();
+#endif
 
     // ZAI config is always set up
     pthread_once(&dd_activate_once_control, dd_activate_once);
@@ -227,11 +255,12 @@ static void datadog_activate(void) {
 #endif
     zai_config_rinit();
 
+#ifdef SIDECAR
     if (!datadog_disable) {
         datadog_sidecar_ensure_active();
     }
-
     datadog_sidecar_activate();
+#endif
 
     if (!datadog_disable && strcmp(sapi_module.name, "cli") == 0) {
         if (zai_config_memoized_entries[DATADOG_CONFIG_DD_TRACE_CLI_ENABLED].name_index == ZAI_CONFIG_ORIGIN_DEFAULT && SG(request_info).argv && dd_is_cli_autodisabled(SG(request_info).argv[0])) {
@@ -305,7 +334,9 @@ static PHP_GINIT_FUNCTION(datadog) {
 #if ZTS
     datadog_thread_ginit();
 #endif
+#ifdef SIDECAR
     datadog_globals->sidecar_universal_service_tags_mutex = tsrm_mutex_alloc();
+#endif
     zend_hash_init(&datadog_globals->git_metadata, 8, unused, (dtor_func_t)datadog_git_metadata_dtor, 1);
 
 #ifdef TRACER
@@ -410,6 +441,7 @@ static PHP_GSHUTDOWN_FUNCTION(datadog) {
 #if ZTS
     datadog_thread_gshutdown();
 #endif
+#ifdef SIDECAR
     if (datadog_globals->remote_config_state) {
         ddog_shutdown_remote_config(datadog_globals->remote_config_state);
     }
@@ -430,6 +462,7 @@ static PHP_GSHUTDOWN_FUNCTION(datadog) {
     datadog_sidecar_gshutdown(datadog_globals);
 
     tsrm_mutex_free(datadog_globals->sidecar_universal_service_tags_mutex);
+#endif
 
 #ifdef CXA_THREAD_ATEXIT_WRAPPER
     // FrankenPHP calls `ts_free_thread()` in rshutdown
@@ -540,8 +573,10 @@ static PHP_MINIT_FUNCTION(datadog) {
         datadog_module = Z_PTR_P(datadog_module_zv);
     }
 
+#ifdef SIDECAR
     dd_main_pid = getpid();
     datadog_generate_session_id();
+#endif
 
     // config initialization needs to be at the top
     // This also initialiyzed logging, so no logs may be emitted before this.
@@ -570,15 +605,15 @@ static PHP_MINIT_FUNCTION(datadog) {
 
     datadog_log_minit();
 
+#ifdef SIDECAR
     datadog_sidecar_minit();
-
     datadog_minit_remote_config();
-
 #ifndef _WIN32
     datadog_signals_minit();
 #endif
     ddtrace_set_container_cgroup_path((ddog_CharSlice){ .ptr = DATADOG_G(cgroup_file), .len = strlen(DATADOG_G(cgroup_file)) });
-#ifdef __linux__
+#endif
+#if defined(__linux__) && defined(TRACER)
     // Publishing from the master lets worker children reuse inferred TLS offsets.
     // Process tags are added on the first request in each process.
     datadog_publish_otel_process_context(DDOG_CHARSLICE_C(""));
@@ -624,20 +659,23 @@ static PHP_MSHUTDOWN_FUNCTION(datadog) {
 #endif
     }
 
+#ifdef SIDECAR
     datadog_mshutdown_remote_config();
-
 #ifndef _WIN32
     datadog_signals_mshutdown();
+#endif
 #endif
 
     zai_config_mshutdown();
     zai_json_shutdown_bindings();
 
+#ifdef SIDECAR
     datadog_sidecar_shutdown();
-
+#endif
     datadog_log_mshutdown();
-
+#ifdef TRACER
     datadog_process_tags_mshutdown();
+#endif
 
 #ifdef PROFILING
     return profiler_result;
@@ -654,17 +692,23 @@ static void dd_rinit_once(void) {
         return;
     }
 
-    // Collect process tags now that script path is available
+#ifdef TRACER
+    // Tracer and OTel process metadata are collected independently of the
+    // sidecar. The sidecar consumes the result only when it is present.
     if (get_global_DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED()) {
         datadog_process_tags_first_rinit();
+#ifdef SIDECAR
         datadog_sidecar_update_process_tags();
+#endif
     }
-#ifdef __linux__
+#endif
+#if defined(__linux__) && defined(TRACER)
     zend_string *process_tags = datadog_process_tags_get_serialized();
     datadog_publish_otel_process_context(dd_zend_string_to_CharSlice(process_tags));
 #endif
 
-    // Uses config, cannot run earlier
+#ifdef SIDECAR
+    // Uses config, cannot run earlier.
 #ifndef _WIN32
     datadog_signals_first_rinit();
 #else
@@ -672,8 +716,8 @@ static void dd_rinit_once(void) {
         datadog_init_crash_tracking();
     }
 #endif
-
     datadog_startup_logging_first_rinit();
+#endif
 }
 
 static pthread_once_t dd_rinit_once_control = PTHREAD_ONCE_INIT;
@@ -681,6 +725,7 @@ static pthread_once_t dd_rinit_once_control = PTHREAD_ONCE_INIT;
 static PHP_RINIT_FUNCTION(datadog) {
     UNUSED(module_number, type);
 
+#ifdef SIDECAR
     if (!DATADOG_G(remote_config_state) && datadog_endpoint) {
         DATADOG_G(remote_config_state) = ddog_init_remote_config_state(datadog_endpoint, ddtrace_dynamic_instrumentation_state() == DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED);
     }
@@ -690,11 +735,13 @@ static PHP_RINIT_FUNCTION(datadog) {
         datadog_rinit_remote_config();
     }
 
-    // Things that should only run on the first RINIT after each minit.
+#endif
+    // OTel process context and profiler tags also need first-RINIT setup
+    // when no sidecar is present.
     pthread_once(&dd_rinit_once_control, dd_rinit_once);
-
     datadog_log_rinit(PG(error_log));
 
+#ifdef SIDECAR
     datadog_agent_info_rinit();
 
     // Single combined read: applies env, container-hash, and concentrator config.
@@ -704,6 +751,7 @@ static PHP_RINIT_FUNCTION(datadog) {
     DATADOG_G(request_initialized) = true;
 
     datadog_sidecar_rinit();
+#endif
 
 #ifdef TRACER
     pthread_once(&dd_tracer_first_rinit_control, ddtrace_first_rinit);
@@ -781,6 +829,7 @@ static PHP_RSHUTDOWN_FUNCTION(datadog) {
         dd_shutdown_observer();
     }
 
+#ifdef SIDECAR
     datadog_sidecar_finalize(true);
     DATADOG_G(request_initialized) = false;
     /* A signal may have queued a Remote Config reread during RSHUTDOWN. */
@@ -791,6 +840,7 @@ static PHP_RSHUTDOWN_FUNCTION(datadog) {
 
     datadog_telemetry_rshutdown();
     datadog_sidecar_rshutdown();
+#endif
 
     datadog_git_rshutdown();
 
@@ -851,17 +901,17 @@ static PHP_MINFO_FUNCTION(datadog) {
 
 void datadog_internal_handle_fork(void) {
     // CHILD PROCESS
+#ifdef SIDECAR
     datadog_force_new_instance_id();
     datadog_sidecar_handle_fork();
-#ifdef __linux__
+#endif
+#if defined(__linux__) && defined(TRACER)
     zend_string *process_tags = datadog_process_tags_get_serialized();
     datadog_publish_otel_process_context(dd_zend_string_to_CharSlice(process_tags));
 #endif
 
 #ifdef TRACER
     ddtrace_internal_handle_fork();
-#else
-    ddtrace_sidecar_submit_span_data_direct_defaults(&DATADOG_G(sidecar), NULL);
 #endif
 }
 

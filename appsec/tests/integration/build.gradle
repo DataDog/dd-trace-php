@@ -1259,7 +1259,6 @@ def buildPortableLibdatadogPhp = buildRunInDockerTask(
                         '../../../rust-toolchain.toml',
                         '../../../VERSION',
                         '../../../profiling/build.rs',
-                        '../../../tracer/mod.rs',
                         '../../recommended.json',
                 ],
         ],
