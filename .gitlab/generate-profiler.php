@@ -172,6 +172,21 @@ foreach ($profiler_minor_major_targets as $version) {
     - cat "${XFAIL_LIST}" profiling/tests/php-language-xfail.list > /tmp/profiler-php-language-xfail.list
     - "if php -r 'exit(PHP_VERSION_ID < 80400 ? 0 : 1);'; then cat profiling/tests/php-language-xfail-pre84.list >> /tmp/profiler-php-language-xfail.list; fi"
     - export XFAIL_LIST=/tmp/profiler-php-language-xfail.list
+    # Keep version-specific ARM64 failures running as XFAILs.
+    - |
+      php -r '
+      $xfail_list = getenv("CI_PROJECT_DIR") . "/dockerfiles/ci/xfail_tests/"
+          . PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION . "-arm64.list";
+      if (php_uname("m") === "aarch64" && is_file($xfail_list)) {
+          foreach (file($xfail_list, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $test) {
+              $test = "/usr/local/src/php/" . $test;
+              $contents = file_get_contents($test);
+              if (!preg_match("/^--XFAIL--\r?$/m", $contents)) {
+                  file_put_contents($test, str_replace("--FILE--", "--XFAIL--\nKnown failure listed in " . basename($xfail_list) . "\n--FILE--", $contents));
+              }
+          }
+      }
+      '
     - ulimit -c unlimited
     - .gitlab/run_php_language_tests.sh
   after_script:
