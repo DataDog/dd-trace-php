@@ -69,7 +69,7 @@ class_exists(Test::class);
 ');
 
 $php = getenv('TEST_PHP_EXECUTABLE');
-$args = getenv('TEST_PHP_ARGS') . " " . getenv("TEST_PHP_EXTRA_ARGS");
+$args = getenv('TEST_PHP_EXTRA_ARGS');
 system("$php $args $script_path");
 
 $rr->waitForRequest(function ($request) {
