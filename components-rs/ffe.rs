@@ -8,6 +8,10 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+// This module is wired into activation by the next change in the FFE stack.
+#[allow(dead_code)]
+pub(crate) mod settings;
+
 struct FfeState {
     config: Option<Configuration>,
     version: u64,

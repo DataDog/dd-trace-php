@@ -163,7 +163,13 @@
     CONFIG(BOOL, DD_TRACE_RESOURCE_RENAMING_ENABLED, "false")                                                  \
     CONFIG(BOOL, DD_TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT, "false")                               \
     CONFIG(BOOL, DD_TRACE_STATS_COMPUTATION_ENABLED, "false")                                                  \
+    CONFIG(BOOL, DD_FEATURE_FLAGS_ENABLED, "true")                                                             \
+    CONFIG(STRING, DD_FEATURE_FLAGS_CONFIGURATION_SOURCE, "agentless")                                         \
+    CONFIG(STRING, DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL, "", .sensitive = true)            \
+    CONFIG(INT, DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS, "30")                   \
+    CONFIG(INT, DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS, "5")                  \
     CONFIG(BOOL, DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED, "false")                                           \
+    CONFIG(INT, DD_EXPERIMENTAL_FLAGGING_PROVIDER_INITIALIZATION_TIMEOUT_MS, "10000")                          \
     DD_INTEGRATIONS
 
 #ifndef DDTRACE_CONFIGURATION
