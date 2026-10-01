@@ -236,8 +236,9 @@ impl ValueType {
 /// Apache per-dir settings use different service name, etc.
 #[derive(Debug, Eq, PartialEq)]
 pub struct ProfileIndex {
-    pub sample_types: Vec<ValueType>,
-    pub tags: ProfileTags,
+    // Keep identity fields private so callers cannot invalidate the cached hash.
+    sample_types: Vec<ValueType>,
+    tags: ProfileTags,
     hash: u64,
 }
 
@@ -2104,23 +2105,46 @@ mod tests {
 
     #[test]
     fn cached_profile_hash_preserves_semantic_identity() {
-        let create_index = || {
-            Arc::new(ProfileIndex::new(
-                vec![ValueType::new("sample", "count")],
+        let create_index = |sample_type, service| {
+            ProfileIndex::new(
+                vec![ValueType::new(sample_type, "count")],
                 ProfileTags {
                     common: Arc::default(),
-                    unified_service: Arc::default(),
+                    unified_service: Arc::new(
+                        UnifiedServiceTagSegment::try_new(service, "production", "1.0").unwrap(),
+                    ),
                     git: None,
                     custom: None,
                 },
-            ))
+            )
         };
-        let first = create_index();
-        let second = create_index();
+        let first = Arc::new(create_index("sample", "first"));
+        let second = Arc::new(create_index("sample", "first"));
         assert!(!Arc::ptr_eq(&first, &second));
+        assert_eq!(first, second);
+
+        let mut hasher = FxHasher::default();
+        first.sample_types.hash(&mut hasher);
+        first.tags.hash(&mut hasher);
+        assert_eq!(first.hash, hasher.finish());
 
         let mut profiles = FxHashMap::default();
-        profiles.insert(first, 42);
+        profiles.insert(Arc::clone(&first), 42);
+        assert_eq!(profiles.get(&second), Some(&42));
+
+        for mut different in [
+            create_index("alloc-samples", "first"),
+            create_index("sample", "second"),
+        ] {
+            assert_ne!(first.hash, different.hash);
+            // A hash collision must not merge different profile identities.
+            different.hash = first.hash;
+            let different = Arc::new(different);
+            assert_ne!(first, different);
+            assert_eq!(profiles.get(&different), None);
+            profiles.insert(different, 99);
+        }
+        assert_eq!(profiles.len(), 3);
         assert_eq!(profiles.get(&second), Some(&42));
     }
 
