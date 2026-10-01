@@ -2,32 +2,60 @@
 
 require __DIR__ . '/vendor/autoload.php';
 
-use Nyholm\Psr7\Response;
-use Nyholm\Psr7\Factory\Psr17Factory;
+use Spiral\RoadRunner;
+use Spiral\RoadRunner\Http\HttpWorker;
+use function DDTrace\active_span;
+use function DDTrace\set_distributed_tracing_context;
 
-use Spiral\RoadRunner\Worker;
-use Spiral\RoadRunner\Http\PSR7Worker;
+$worker = RoadRunner\Worker::create();
+$httpWorker = new HttpWorker($worker);
 
+$router = new \App\Router();
+$router->addRoute('/', new \App\HomePageHandler());
+// default path TelemetryHelpers uses to flush non-request-bound telemetry
+$router->addRoute('/hello.php', new \App\HomePageHandler());
+$router->addRoute('/json', new \App\JsonHandler());
+$router->addRoute('/xml', new \App\XmlHandler());
+$router->addRoute('/post-respond-track-user', new \App\PostRespondTrackUserHandler());
+$router->addRoute('/post-respond-rasp', new \App\PostRespondRaspHandler());
 
-$worker = Worker::create();
-$factory = new Psr17Factory();
-$psr7 = new PSR7Worker($worker, $factory, $factory, $factory);
+while ($req = $httpWorker->waitRequest()) {
+    /** @var \Spiral\RoadRunner\Http\Request $req */
 
-while (true) {
-    try {
-        $request = $psr7->waitRequest();
-    } catch (\Throwable $e) {
-        $psr7->respond(new Response(400));
-        continue;
+    // propagation for distributing tracing is not supported for Roadrunner,
+    // so propagate manually x-datadog-trace-id ourselves
+    if (isset($req->headers['X-Datadog-Trace-Id'])) {
+        $span = active_span();
+        set_distributed_tracing_context($req->headers['X-Datadog-Trace-Id'][0], "0");
     }
-
     try {
-        if ($request->getUri()->getPath() == "/error") {
-            throw new \Exception("Error page");
+        $path = parse_url($req->uri, PHP_URL_PATH);
+
+        // Tracer integration tests use /error to assert the error-span path.
+        if ($path === '/error') {
+            throw new \Exception('Error page');
         }
 
-        $psr7->respond(new Response(200, [], 'Hello RoadRunner!'));
+        $handler = $router->getHandler($path);
+        if ($handler) {
+            /** @var \Nyholm\Psr7\Response $resp */
+            $psrReq = new \Adapters\Psr17RequestAdapter($req);
+            $resp = $handler->handle($psrReq);
+            $httpWorker->respond($resp->getStatusCode(), $resp->getBody()->getContents(), $resp->getHeaders());
+        } else {
+            // Fallback for tracer tests that hit arbitrary paths (/simple, /simple_view, ...).
+            $httpWorker->respond(200, 'Hello RoadRunner!', ['Content-type' => ['text/plain; charset=UTF-8']]);
+        }
     } catch (\Throwable $e) {
-        $psr7->respond(new Response(500, [], 'Something Went Wrong!'));
+        $httpWorker->respond(
+            500,
+            "handling threw: " .  $e->getMessage(),
+            ['Content-type' => ['text/plain; charset=UTF-8']]
+        );
+    }
+    // Post-respond hook: fires after request_shutdown has been sent inside respond().
+    if (isset($GLOBALS['_rr_post_respond'])) {
+        ($GLOBALS['_rr_post_respond'])();
+        unset($GLOBALS['_rr_post_respond']);
     }
 }

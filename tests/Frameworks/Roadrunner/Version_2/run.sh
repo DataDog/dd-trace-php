@@ -29,4 +29,3 @@ echo datadog.trace.cli_enabled=true >> /etc/php/php.ini
 ./rr serve >> /tmp/logs/rr.log 2>&1 &
 
 tail -n +1 -F "${LOGS_PHP[@]}"
-
