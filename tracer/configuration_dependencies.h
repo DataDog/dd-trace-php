@@ -66,6 +66,19 @@ static bool dd_parse_sidecar_connection_mode(zai_str value, zval *decoded_value,
     return true;
 }
 
+static bool dd_parse_trace_agent_protocol_version(zai_str value, zval *decoded_value, bool persistent) {
+    UNUSED(persistent);
+    if (zai_str_eq_ci_cstr(value, "1.0") || zai_str_eq_ci_cstr(value, "1")) {
+        ZVAL_LONG(decoded_value, DD_TRACE_AGENT_PROTOCOL_VERSION_V1);
+    } else if (zai_str_eq_ci_cstr(value, "0.4")) {
+        ZVAL_LONG(decoded_value, DD_TRACE_AGENT_PROTOCOL_VERSION_V04);
+    } else {
+        return false;
+    }
+
+    return true;
+}
+
 static bool dd_parse_tags(zai_str value, zval *decoded_value, bool persistent) {
     ZVAL_ARR(decoded_value, pemalloc(sizeof(HashTable), persistent));
     zend_hash_init(Z_ARR_P(decoded_value), 8, NULL, persistent ? ZVAL_INTERNAL_PTR_DTOR : ZVAL_PTR_DTOR, persistent);

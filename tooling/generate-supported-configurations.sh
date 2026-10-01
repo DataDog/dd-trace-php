@@ -476,11 +476,7 @@ extract_c_supported_configurations() {
 #undef PHP_VERSION_ID
 #define PHP_VERSION_ID $PHP_VERSION_ID
 #undef DD_SIDECAR_TRACE_SENDER_DEFAULT
-#if PHP_VERSION_ID >= 80300
 #define DD_SIDECAR_TRACE_SENDER_DEFAULT true
-#else
-#define DD_SIDECAR_TRACE_SENDER_DEFAULT false
-#endif
 // Do not expand CALIASES() directly, otherwise parameter counting in macros is broken.
 #define ALTCALIASES(...) ,##__VA_ARGS__
 #define ALT
