@@ -19,8 +19,8 @@ $byName = [];
 foreach (dd_trace_serialize_closed_spans() as $s) { $byName[$s['name']] = $s; }
 echo "root service: " . $byName['root']['service'] . "\n";
 echo "child service: " . $byName['child']['service'] . "\n";
-echo "root svc_src: " . ($byName['root']['meta']['_dd.svc_src'] ?? '(unset)') . "\n";
-echo "child svc_src: " . ($byName['child']['meta']['_dd.svc_src'] ?? '(unset)') . "\n";
+echo "root svc_src: " . ($byName['root']['attributes']['_dd.svc_src'] ?? '(unset)') . "\n";
+echo "child svc_src: " . ($byName['child']['attributes']['_dd.svc_src'] ?? '(unset)') . "\n";
 ?>
 --EXPECT--
 root service: my-app

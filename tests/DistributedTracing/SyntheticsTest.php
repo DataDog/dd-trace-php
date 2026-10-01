@@ -54,6 +54,7 @@ class SyntheticsTest extends WebFrameworkTestCase
                 'http.url' => 'http://localhost/index.php',
                 'http.status_code' => '200',
                 'span.kind' => 'server',
+                'component' => \DDTrace\Tests\WebServer::defaultSapiName(),
                 '_dd.origin' => 'synthetics-browser',
             ])->withExactMetrics([
                 '_sampling_priority_v1' => 1,

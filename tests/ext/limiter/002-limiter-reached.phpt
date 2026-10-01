@@ -21,7 +21,7 @@ while (true) {
     $sampled = 0;
 
     foreach ($spans as $span) {
-        if (isset($span["metrics"]["_sampling_priority_v1"])) {
+        if (isset($span["sampling_priority"])) {
             $sampled++;
         }
     }
@@ -38,7 +38,7 @@ while (true) {
 
 $end = $spans[\count($spans)-1];
 
-if (\round($end["metrics"]["_dd.limit_psr"], 1) != 0.5) {
+if (\round($end["attributes"]["_dd.limit_psr"], 1) != 0.5) {
     echo "Fail\n";
     var_dump($spans);
     exit;

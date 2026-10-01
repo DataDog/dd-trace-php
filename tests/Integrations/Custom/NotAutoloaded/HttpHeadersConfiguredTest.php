@@ -44,6 +44,7 @@ final class HttpHeadersConfiguredTest extends WebFrameworkTestCase
             'http.request.headers.forth-header' => '123',
             'http.response.headers.third-header' => 'separated: with  : colon',
             'span.kind' => 'server',
+            'component' => \DDTrace\Tests\WebServer::defaultSapiName(),
         ];
         if (\getenv('DD_TRACE_TEST_SAPI') != 'apache2handler') {
             $tags['http.request.headers.w__rd-header'] = 'foo';

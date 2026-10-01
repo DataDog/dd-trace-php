@@ -47,6 +47,7 @@ final class HttpHeadersNotConfiguredTest extends WebFrameworkTestCase
                     'http.url' => 'http://localhost/',
                     'http.status_code' => 200,
                     'span.kind' => 'server',
+                    'component' => \DDTrace\Tests\WebServer::defaultSapiName(),
                 ]),
             ]
         );

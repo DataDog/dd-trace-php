@@ -25,16 +25,16 @@ class ChangeSamplingDuringSerialization {
 
 $root = DDTrace\start_span();
 $root->name = 'keep.root';
-$root->metrics['http.status_code'] = new ChangeSamplingDuringSerialization();
+$root->attributes['http.status_code'] = new ChangeSamplingDuringSerialization();
 DDTrace\close_span();
 
 foreach (dd_trace_serialize_closed_spans() as $span) {
     echo $span['name'], "\n";
-    if (isset($span['metrics']['_dd.span_sampling.mechanism'])) {
-        echo 'single span: ', $span['metrics']['_dd.span_sampling.mechanism'], "\n";
+    if (isset($span['attributes']['_dd.span_sampling.mechanism'])) {
+        echo 'single span: ', $span['attributes']['_dd.span_sampling.mechanism'], "\n";
     }
-    if (isset($span['metrics']['_sampling_priority_v1'])) {
-        echo 'trace priority: ', $span['metrics']['_sampling_priority_v1'], "\n";
+    if (isset($span['sampling_priority'])) {
+        echo 'trace priority: ', $span['sampling_priority'], "\n";
     }
 }
 

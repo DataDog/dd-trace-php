@@ -53,13 +53,13 @@ function long_running_entry_point()
 --EXPECTF--
 [ddtrace] [warning] [%d] Error loading deferred integration DDTrace\Integrations\Pcntl\PcntlIntegration: Class not loaded and not autoloadable
 child is enabled
-[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for %s
+[ddtrace] [info] [%d] Flushing v1 trace of size 1 to send-queue for %s
 [ddtrace] [info] [%d] No finished traces to be sent to the agent
 parent is enabled
-[ddtrace] [info] [%d] Flushing trace of size 3 to send-queue for %s
+[ddtrace] [info] [%d] Flushing v1 trace of size 3 to send-queue for %s
 child is enabled
-[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for %s
+[ddtrace] [info] [%d] Flushing v1 trace of size 1 to send-queue for %s
 [ddtrace] [info] [%d] No finished traces to be sent to the agent
 parent is enabled
-[ddtrace] [info] [%d] Flushing trace of size 3 to send-queue for %s
+[ddtrace] [info] [%d] Flushing v1 trace of size 3 to send-queue for %s
 [ddtrace] [info] [%d] No finished traces to be sent to the agent
