@@ -31,18 +31,26 @@ stages:
     - unset DD_SERVICE; unset DD_ENV
     - mkdir -p "${CI_PROJECT_DIR}/artifacts/profiler-tests"
     - '# NTS'
-    - if command -v switch-php > /dev/null 2>&1; then switch-php nts; else switch_php nts; fi
+    - if command -v switch-php > /dev/null 2>&1; then switch-php "${PHP_MAJOR_MINOR}"; else switch_php nts; fi
     - export TEST_PHP_EXECUTABLE=$(which php)
     - cp -v "$(find "$(php-config --prefix)" -name run-tests.php | head -n 1)" tests
     - php -d "extension=${PROFILER_NTS_EXTENSION}" -r 'exit((int) (!extension_loaded("datadog-profiling") || !function_exists("Datadog\\Profiling\\trigger_time_sample")));'
     - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/nts-results.xml" php profiling/tests/run-tests.php -d "extension=${PROFILER_NTS_EXTENSION}" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
     - '# ZTS'
-    - if command -v switch-php > /dev/null 2>&1; then switch-php zts; else switch_php zts; fi
+    - if command -v switch-php > /dev/null 2>&1; then switch-php "${PHP_MAJOR_MINOR}-zts"; else switch_php zts; fi
     - export TEST_PHP_EXECUTABLE=$(which php)
     - php -d "extension=${PROFILER_ZTS_EXTENSION}" -r 'exit((int) (!extension_loaded("datadog-profiling") || !function_exists("Datadog\\Profiling\\trigger_time_sample")));'
     - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/zts-results.xml" php profiling/tests/run-tests.php -d "extension=${PROFILER_ZTS_EXTENSION}" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
   after_script:
-    - .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:profiling/"
+    - |
+      case "${PROFILER_TEST_IMAGE}" in
+        *_centos-7)
+          echo "Skipping JUnit upload on CentOS 7 (old glibc/OpenSSL incompatible with datadog-ci)"
+          ;;
+        *)
+          .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:profiling/"
+          ;;
+      esac
   artifacts:
     reports:
       junit: "artifacts/profiler-tests/*.xml"
@@ -57,7 +65,7 @@ foreach ($profiler_minor_major_targets as $major_minor) {
         $architecture = $arch === "arm64" ? "aarch64" : "x86_64";
         foreach ([
             "alpine" => "php-compile-extension-alpine-{$major_minor}",
-            "bookworm" => "php-{$major_minor}_bookworm-11",
+            "centos-7" => "php-{$major_minor}_centos-7",
         ] as $distribution => $image) {
 ?>
 "profiling tests: [<?= $major_minor ?>, <?= $arch ?>, <?= $distribution ?>]":
