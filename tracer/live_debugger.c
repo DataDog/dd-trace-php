@@ -491,7 +491,7 @@ static bool dd_span_probe_begin(zend_ulong invocation, zend_execute_data *execut
 
     zval probe_id;
     ZVAL_STR_COPY(&probe_id, def->probe_id);
-    zend_hash_str_update(ddtrace_property_array(&dyn->span->property_meta), ZEND_STRL("debugger.probeid"), &probe_id);
+    zend_hash_str_update(ddtrace_property_array(&dyn->span->property_attributes), ZEND_STRL("debugger.probeid"), &probe_id);
 
     if (new_span) {
         ddtrace_observe_opened_span(dyn->span);
@@ -544,7 +544,7 @@ static void dd_span_decoration_apply(dd_probe_def *def, zend_execute_data *execu
     if (def->probe.probe.span_decoration.target == DDOG_SPAN_PROBE_TARGET_ROOT) {
         span = &span->stack->root_span->span;
     }
-    zend_array *meta = ddtrace_property_array(&span->property_meta);
+    zend_array *meta = ddtrace_property_array(&span->property_attributes);
 
     bool condition_result = true;
     const ddog_ProbeCondition *const *condition = def->probe.probe.span_decoration.conditions;
@@ -1272,7 +1272,7 @@ static bool dd_line_span_probe_begin(zai_line_invocation *invocation, zend_execu
 
     zval probe_id;
     ZVAL_STR_COPY(&probe_id, def->probe_id);
-    zend_hash_str_update(ddtrace_property_array(&span->property_meta), ZEND_STRL("debugger.probeid"), &probe_id);
+    zend_hash_str_update(ddtrace_property_array(&span->property_attributes), ZEND_STRL("debugger.probeid"), &probe_id);
 
     ddtrace_observe_opened_span(span);
     return true;

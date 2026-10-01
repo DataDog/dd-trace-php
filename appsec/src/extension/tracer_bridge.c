@@ -30,12 +30,17 @@
 #    include "test_mock_transport.h"
 #endif
 
+static zend_string *_meta_propname;
+static zend_string *_metrics_propname;
 static THREAD_LOCAL_ON_ZTS bool _asm_event_emitted;
 
 static void _register_testing_objects(void);
 
 void dd_trace_startup(void)
 {
+    _meta_propname = zend_string_init_interned(LSTRARG("meta"), 1);
+    _metrics_propname = zend_string_init_interned(LSTRARG("metrics"), 1);
+
     if (get_global_DD_APPSEC_TESTING()) {
         _register_testing_objects();
 #ifdef TESTING
@@ -128,14 +133,30 @@ static zval *nonnull _span_array_property(zval *nonnull prop)
     return prop;
 }
 
+// $meta and $metrics are views onto $attributes, the span's single tag store.
 zval *nullable dd_trace_span_get_meta(zend_object *nonnull zobj)
 {
-    return _span_array_property(&OBJ_SPANDATA(zobj)->property_meta);
+    return _span_array_property(&OBJ_SPANDATA(zobj)->property_attributes);
 }
 
 zval *nullable dd_trace_span_get_metrics(zend_object *nonnull zobj)
 {
-    return _span_array_property(&OBJ_SPANDATA(zobj)->property_metrics);
+    return _span_array_property(&OBJ_SPANDATA(zobj)->property_attributes);
+}
+
+// Reads $meta/$metrics through the span's handlers: an array of that bucket.
+static zval *_read_span_property(
+    zend_object *nonnull zobj, zend_string *nonnull propname, zval *nonnull rv)
+{
+#if PHP_VERSION_ID >= 80000
+    return zobj->handlers->read_property(zobj, propname, BP_VAR_R, NULL, rv);
+#else
+    zval obj;
+    ZVAL_OBJ(&obj, zobj);
+    zval prop;
+    ZVAL_STR(&prop, propname);
+    return zobj->handlers->read_property(&obj, &prop, BP_VAR_R, NULL, rv);
+#endif
 }
 
 zval *nullable dd_trace_span_get_meta_struct(zend_object *nonnull zobj)
@@ -326,9 +347,11 @@ static PHP_FUNCTION(datadog_appsec_testing_root_span_get_meta) // NOLINT
         RETURN_NULL();
     }
 
-    zval *meta_zv = dd_trace_span_get_meta(root_span);
-    if (meta_zv) {
-        RETURN_ZVAL(meta_zv, 1 /* copy */, 0 /* no destroy original */);
+    zval rv;
+    zval *meta_zv = _read_span_property(root_span, _meta_propname, &rv);
+    RETVAL_ZVAL(meta_zv, 1 /* copy */, 0 /* no destroy original */);
+    if (meta_zv == &rv) {
+        zval_ptr_dtor(&rv);
     }
 }
 
@@ -360,9 +383,11 @@ static PHP_FUNCTION(datadog_appsec_testing_root_span_get_metrics) // NOLINT
         RETURN_NULL();
     }
 
-    zval *metrics_zv = dd_trace_span_get_metrics(root_span);
-    if (metrics_zv) {
-        RETURN_ZVAL(metrics_zv, 1 /* copy */, 0 /* no destroy original */);
+    zval rv;
+    zval *metrics_zv = _read_span_property(root_span, _metrics_propname, &rv);
+    RETVAL_ZVAL(metrics_zv, 1 /* copy */, 0 /* no destroy original */);
+    if (metrics_zv == &rv) {
+        zval_ptr_dtor(&rv);
     }
 }
 

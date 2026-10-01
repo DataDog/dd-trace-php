@@ -1320,6 +1320,24 @@ typedef struct ddog_AttributeAnyValueBytes ddog_AttributeAnyValueBytes;
 typedef struct ddog_AttributeArrayValueBytes ddog_AttributeArrayValueBytes;
 
 
+/**
+ * Attribute value type tags from [`ddog_v1_value_type`], so a C caller picks the matching typed
+ * value getter.
+ */
+#define ddog_DDOG_V1_ATTR_STRING 0
+
+#define ddog_DDOG_V1_ATTR_INT 1
+
+#define ddog_DDOG_V1_ATTR_DOUBLE 2
+
+#define ddog_DDOG_V1_ATTR_BOOL 3
+
+#define ddog_DDOG_V1_ATTR_BYTES 4
+
+#define ddog_DDOG_V1_ATTR_KEYVALUE 5
+
+#define ddog_DDOG_V1_ATTR_LIST 6
+
 typedef enum ddog_DynamicInstrumentationConfigState {
   DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED,
   DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_DISABLED,
@@ -1369,6 +1387,38 @@ typedef struct ddog_AgentRemoteConfigWriter_ShmHandle ddog_AgentRemoteConfigWrit
 typedef struct ddog_Arc_Target ddog_Arc_Target;
 
 /**
+ * An owned `List` attribute value under construction. Opaque to C.
+ */
+typedef struct ddog_AttrList ddog_AttrList;
+
+/**
+ * An owned `KeyValue` attribute value under construction. Opaque to C.
+ */
+typedef struct ddog_AttrMap ddog_AttrMap;
+
+/**
+ * Opaque handle to one attribute value inside an [`Attributes`] map or a list.
+ */
+typedef struct ddog_AttrValue ddog_AttrValue;
+
+/**
+ * Opaque handle to an attribute map: the payload's, a chunk's, span's, link's or event's
+ * (`ddog_*_get_attributes`), or an owned nested map's ([`ddog_attr_map_get_attributes`]).
+ */
+typedef struct ddog_Attributes ddog_Attributes;
+
+/**
+ * A chunk node in the builder: its own heap allocation, so a `*mut ChunkNode` handed to C stays
+ * valid across sibling chunk pushes. Its spans live as separate `Box` allocations.
+ */
+typedef struct ddog_ChunkNode ddog_ChunkNode;
+
+/**
+ * Fundamental configuration of the RC client, which always must be set.
+ */
+typedef struct ddog_ConfigInvariants ddog_ConfigInvariants;
+
+/**
  * A mapping of a shared-memory segment, at an address that never changes.
  */
 typedef struct ddog_MappedMem_ShmHandle ddog_MappedMem_ShmHandle;
@@ -1378,11 +1428,6 @@ typedef struct ddog_MappedMem_ShmHandle ddog_MappedMem_ShmHandle;
  * allowing safe transfer and sharing of file handles across processes, and threads
  */
 typedef struct ddog_PlatformHandle_File ddog_PlatformHandle_File;
-
-/**
- * Identifies a sidecar RC publication independently of its server configuration.
- */
-typedef struct ddog_RemoteConfigInvariants ddog_RemoteConfigInvariants;
 
 /**
  * Opaque registration for a Windows remote configuration callback.
@@ -1401,6 +1446,19 @@ typedef struct ddog_RemoteConfigReader ddog_RemoteConfigReader;
 typedef struct ddog_RuntimeMetadata ddog_RuntimeMetadata;
 
 typedef struct ddog_ShmHandle ddog_ShmHandle;
+
+/**
+ * A span node in the builder: its own heap allocation, so a held `*mut SpanNode` stays valid
+ * across sibling span pushes into the same chunk (the inferred-span case). Links/events are
+ * likewise separate `Box` allocations.
+ */
+typedef struct ddog_SpanNode ddog_SpanNode;
+
+/**
+ * Builds a native V1 [`TracerPayloadBytes`] holding readable strings. Each node is its own heap
+ * allocation (see the module docs); the builder owns the top-level chunk pointers.
+ */
+typedef struct ddog_TracerPayloadV1Builder ddog_TracerPayloadV1Builder;
 
 typedef struct ddog_NativeFile {
   struct ddog_PlatformHandle_File *handle;
@@ -1459,13 +1517,6 @@ typedef struct ddog_FfeExposure {
   ddog_CharSlice variant;
   int32_t serial_id;
   bool has_serial_id;
-  /**
-   * UTF-8 JSON object of the split features routed to exposures, mapping a
-   * key to a string, number or boolean. Empty, invalid or non-object input
-   * means no features and never rejects the exposure. Input larger than one
-   * IPC packet is ignored. Not part of deduplication.
-   */
-  ddog_CharSlice features_json;
 } ddog_FfeExposure;
 
 typedef struct ddog_Slice_FfeExposure {
@@ -1507,14 +1558,6 @@ typedef struct ddog_FfeFlagEvaluation {
    * Consent captured from the configuration used for this evaluation.
    */
   bool observe_full_evaluation_data;
-  /**
-   * UTF-8 JSON object of the split features routed to evaluation counts,
-   * mapping a key to a string, number or boolean. Rows with different
-   * features are counted separately. Kept regardless of consent. Empty,
-   * invalid or non-object input means no features and never rejects the
-   * evaluation. Input larger than one IPC packet is ignored.
-   */
-  ddog_CharSlice features_json;
 } ddog_FfeFlagEvaluation;
 
 typedef struct ddog_Slice_FfeFlagEvaluation {
@@ -1584,6 +1627,14 @@ typedef struct ddog_SenderParameters {
   int64_t buffer_size;
   ddog_CharSlice url;
 } ddog_SenderParameters;
+
+/**
+ * Payload-level tracer metadata for the V1 send path not already carried by the sender's
+ * `tracer_headers_tags` (lang, tracer_version, container_id live there and are routed from there).
+ */
+typedef struct ddog_TracerMetadataV1 {
+  ddog_CharSlice runtime_id;
+} ddog_TracerMetadataV1;
 
 /**
  * Raw AppSec response returned by the AppSec message functions.

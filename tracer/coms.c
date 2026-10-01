@@ -916,6 +916,7 @@ static void ddtrace_curl_set_hostname_generic(CURL *curl, const char *path) {
 }
 
 void ddtrace_curl_set_hostname(CURL *curl) {
+    // The in-process (<=8.2) background sender is v0.4-only.
     ddtrace_curl_set_hostname_generic(curl, TRACE_PATH_STR);
 }
 

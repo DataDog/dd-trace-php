@@ -1,6 +1,7 @@
 #ifndef DATADOG_AGENT_INFO_H
 #define DATADOG_AGENT_INFO_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include "Zend/zend_types.h"
 
