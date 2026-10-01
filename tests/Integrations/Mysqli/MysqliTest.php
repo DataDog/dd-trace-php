@@ -637,7 +637,7 @@ class MysqliTest extends IntegrationTestCase
         // Verify that SERVICE mode is used for the prepare span
         $this->assertArrayNotHasKey(
             '_dd.dbm_trace_injected',
-            $prepareSpan['meta'] ?? [],
+            $prepareSpan['attributes'] ?? [],
             'mysqli.prepare should use SERVICE mode'
         );
     }
@@ -688,7 +688,7 @@ class MysqliTest extends IntegrationTestCase
         // Verify that FULL mode is used for the prepare span: its own context is what the comment carries
         $this->assertSame(
             'true',
-            $prepareSpan['meta']['_dd.dbm_trace_injected'] ?? null,
+            $prepareSpan['attributes']['_dd.dbm_trace_injected'] ?? null,
             'mysqli.prepare should use FULL mode'
         );
     }

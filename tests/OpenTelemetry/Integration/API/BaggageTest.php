@@ -93,10 +93,10 @@ final class BaggageTest extends BaseTestCase
         });
 
         list($parent, $child) = $traces[0];
-        $this->assertSame(Tag::SPAN_KIND_VALUE_SERVER, $parent['meta'][Tag::SPAN_KIND]);
-        $this->assertSame('GET', $parent['meta']['http.method']);
-        $this->assertSame('/parent', $parent['meta']['http.uri']);
-        $this->assertSame('1', $child['meta']['user.id']);
+        $this->assertSame(2, $parent['span_kind']); // span_kind enum: Server=2
+        $this->assertSame('GET', $parent['attributes']['http.method']);
+        $this->assertSame('/parent', $parent['attributes']['http.uri']);
+        $this->assertSame('1', $child['attributes']['user.id']);
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('server.request', 'parent', false, (PHP_VERSION_ID < 80100) ? 'datadog/dd-trace-tests' : 'unknown_service:php')

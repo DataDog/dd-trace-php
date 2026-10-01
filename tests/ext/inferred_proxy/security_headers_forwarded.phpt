@@ -37,11 +37,11 @@ foreach ($spans as $span) {
 }
 
 // Tags must be present on the PHP service-entry span
-var_dump($rootSpan['meta']['http.request.headers.x-datadog-endpoint-scan'] ?? 'NOT SET');
-var_dump($rootSpan['meta']['http.request.headers.x-datadog-security-test'] ?? 'NOT SET');
+var_dump($rootSpan['attributes']['http.request.headers.x-datadog-endpoint-scan'] ?? 'NOT SET');
+var_dump($rootSpan['attributes']['http.request.headers.x-datadog-security-test'] ?? 'NOT SET');
 // And forwarded to the inferred proxy span
-var_dump($inferredSpan['meta']['http.request.headers.x-datadog-endpoint-scan'] ?? 'NOT SET');
-var_dump($inferredSpan['meta']['http.request.headers.x-datadog-security-test'] ?? 'NOT SET');
+var_dump($inferredSpan['attributes']['http.request.headers.x-datadog-endpoint-scan'] ?? 'NOT SET');
+var_dump($inferredSpan['attributes']['http.request.headers.x-datadog-security-test'] ?? 'NOT SET');
 ?>
 --EXPECT--
 string(18) "endpoint-scan-uuid"

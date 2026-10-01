@@ -41,7 +41,7 @@ var_dump(rshutdown());
 $c = $helper->get_commands();
 echo "Sampler hash sent: ", $c[0][1][1], "\n";
 
-match_log('/Telemetry metric api_security\.missing_route added with tags framework:unknown and value 1/');
+match_log('/Telemetry metric api_security\.missing_route added with tags framework:cgi-fcgi and value 1/');
 no_match_log('/api_security\.request\./');
 
 ?>
@@ -49,5 +49,5 @@ no_match_log('/api_security\.request\./');
 bool(true)
 bool(true)
 Sampler hash sent: 0
-found message in log matching /Telemetry metric api_security\.missing_route added with tags framework:unknown and value 1/
+found message in log matching /Telemetry metric api_security\.missing_route added with tags framework:cgi-fcgi and value 1/
 no message in log matching /api_security\.request\./

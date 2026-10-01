@@ -40,6 +40,7 @@ class ResponseStatusCodeTest extends WebFrameworkTestCase
                     'http.url' => 'http://localhost/success',
                     'http.status_code' => '200',
                     'span.kind' => 'server',
+                    'component' => \DDTrace\Tests\WebServer::defaultSapiName(),
                 ]),
             ]
         );
@@ -66,6 +67,7 @@ class ResponseStatusCodeTest extends WebFrameworkTestCase
                         'http.url'         => 'http://localhost/error',
                         'http.status_code' => '500',
                         'span.kind' => 'server',
+                        'component' => \DDTrace\Tests\WebServer::defaultSapiName(),
                     ]
                 )->setError(),
             ]

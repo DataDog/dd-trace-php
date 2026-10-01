@@ -121,7 +121,7 @@ final class InteroperabilityTest extends BaseTestCase
 
         $span = $traces[0][0];
         $this->assertSame('dd.span', $span['name']);
-        $this->assertArrayNotHasKey('parent_id', $span['meta']);
+        $this->assertArrayNotHasKey('parent_id', $span['attributes']);
     }
 
     /** @noinspection PhpParamsInspection */
@@ -176,8 +176,8 @@ final class InteroperabilityTest extends BaseTestCase
         $this->assertSame('other.span', $child['resource']);
         $this->assertSame($parent['span_id'], $child['parent_id']);
         $this->assertSame($parent['trace_id'], $child['trace_id']);
-        $this->assertSame('bar', $child['meta']['foo']);
-        $this->assertArrayNotHasKey('foo', $parent['meta']);
+        $this->assertSame('bar', $child['attributes']['foo']);
+        $this->assertArrayNotHasKey('foo', $parent['attributes']);
     }
 
     public function testActivateSpanWithAnotherActiveNonActivatedDatadogSpan()
@@ -735,7 +735,7 @@ final class InteroperabilityTest extends BaseTestCase
         $this->assertSame('18374692078461386817', $traces[0][0]['parent_id']);
 
         $otelRootSpan = $traces[0][0];
-        $this->assertSame('ff00000000000517', $otelRootSpan['meta']['_dd.p.tid']);
+        $this->assertSame('ff00000000000517', $otelRootSpan['trace_id_high']);
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('internal', 'otel.root.span', false, 'phpunit')
@@ -787,7 +787,7 @@ final class InteroperabilityTest extends BaseTestCase
         $this->assertSame('18374692078461386817', $traces[0][0]['parent_id']);
 
         $otelRootSpan = $traces[0][0];
-        $this->assertSame('ff00000000000517', $otelRootSpan['meta']['_dd.p.tid']);
+        $this->assertSame('ff00000000000517', $otelRootSpan['trace_id_high']);
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('internal', 'otel.root.span', false, 'phpunit')
@@ -843,7 +843,7 @@ final class InteroperabilityTest extends BaseTestCase
         $this->assertSame('18374692078461386817', $traces[0][0]['parent_id']);
 
         $otelRootSpan = $traces[0][0];
-        $this->assertSame('ff00000000000517', $otelRootSpan['meta']['_dd.p.tid']);
+        $this->assertSame('ff00000000000517', $otelRootSpan['trace_id_high']);
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('internal', 'otel.root.span', false, 'phpunit')
@@ -884,10 +884,10 @@ final class InteroperabilityTest extends BaseTestCase
         });
 
         list($parent, $child) = $traces[0];
-        $this->assertSame(Tag::SPAN_KIND_VALUE_SERVER, $parent['meta'][Tag::SPAN_KIND]);
-        $this->assertSame('GET', $parent['meta']['http.method']);
-        $this->assertSame('/parent', $parent['meta']['http.uri']);
-        $this->assertSame('1', $child['meta']['user.id']);
+        $this->assertSame(2, $parent['span_kind']); // span_kind enum: Server=2
+        $this->assertSame('GET', $parent['attributes']['http.method']);
+        $this->assertSame('/parent', $parent['attributes']['http.uri']);
+        $this->assertSame('1', $child['attributes']['user.id']);
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('server.request', 'parent', false, (PHP_VERSION_ID < 80100) ? 'datadog/dd-trace-tests' : 'unknown_service:php')
@@ -922,7 +922,7 @@ final class InteroperabilityTest extends BaseTestCase
         $this->assertSame('new.name', $span['resource']);
         $this->assertSame('new.service.name', $span['service']);
         $this->assertSame('new.span.type', $span['type']);
-        $this->assertEquals(1.0, $span['metrics']['_dd1.sr.eausr']);
+        $this->assertEquals(1.0, $span['attributes']['_dd1.sr.eausr']);
     }
 
     public function testHasEnded()
@@ -978,7 +978,7 @@ final class InteroperabilityTest extends BaseTestCase
 
         $this->assertCount(1, $traces[0]);
 
-        $meta = $traces[0][0]['meta'];
+        $meta = $traces[0][0]['attributes'];
         $this->assertArrayNotHasKey('arg1', $meta);
         $this->assertSame('value2', $meta['arg2']);
         $this->assertSame('value3', $meta['arg3']);
@@ -988,8 +988,8 @@ final class InteroperabilityTest extends BaseTestCase
         $this->assertSame('value', $meta['key']);
         $this->assertArrayNotHasKey('post', $meta);
 
-        $this->assertEquals(1, $traces[0][0]['metrics']['m1']);
-        $this->assertEquals(2, $traces[0][0]['metrics']['m2']);
+        $this->assertEquals(1, $traces[0][0]['attributes']['m1']);
+        $this->assertEquals(2, $traces[0][0]['attributes']['m2']);
     }
 
     public function testSpanLinksInteroperabilityFromDatadogSpan()
@@ -1026,7 +1026,14 @@ final class InteroperabilityTest extends BaseTestCase
         });
 
         $this->assertCount(1, $traces[0]);
-        $this->assertSame("[{\"trace_id\":\"ff0000000000051791e0000000000041\",\"span_id\":\"ff00000000000517\",\"trace_state\":\"dd=t.dm:-0\",\"attributes\":{\"arg1\":\"value1\",\"arg2\":\"value2\"}}]", $traces[0][0]['meta']['_dd.span_links']);
+        $this->assertSame([[
+            'trace_id' => '10511401530282737729',
+            'trace_id_high' => 'ff00000000000517',
+            'span_id' => '18374686479671624983',
+            'trace_state' => 'dd=t.dm:-0',
+            'flags' => 0,
+            'attributes' => ['arg1' => 'value1', 'arg2' => 'value2'],
+        ]], $traces[0][0]['span_links']);
     }
 
     public function testBasicSpanLinksFromDatadog()
@@ -1052,7 +1059,12 @@ final class InteroperabilityTest extends BaseTestCase
         });
 
         $this->assertCount(1, $traces[0]);
-        $this->assertSame("[{\"trace_id\":\"ff0000000000051791e0000000000041\",\"span_id\":\"ff00000000000517\"}]", $traces[0][0]['meta']['_dd.span_links']);
+        $this->assertSame([[
+            'trace_id' => '10511401530282737729',
+            'trace_id_high' => 'ff00000000000517',
+            'span_id' => '18374686479671624983',
+            'flags' => 0,
+        ]], $traces[0][0]['span_links']);
     }
 
     public function testSpanLinksInteroperabilityFromOpenTelemetrySpan()
@@ -1081,7 +1093,15 @@ final class InteroperabilityTest extends BaseTestCase
         });
 
         $this->assertCount(1, $traces[0]);
-        $this->assertSame("[{\"trace_id\":\"12345678876543211234567887654321\",\"span_id\":\"8765432112345678\",\"trace_state\":\"dd=t.dm:-0\",\"attributes\":{\"arg1\":\"value1\"},\"dropped_attributes_count\":0}]", $traces[0][0]['meta']['_dd.span_links']);
+        // dropped_attributes_count is not surfaced in the V1 structured span_links (no PHP-side source).
+        $this->assertSame([[
+            'trace_id' => '1311768467139281697',
+            'trace_id_high' => '1234567887654321',
+            'span_id' => '9756277977086449272',
+            'trace_state' => 'dd=t.dm:-0',
+            'flags' => 0,
+            'attributes' => ['arg1' => 'value1'],
+        ]], $traces[0][0]['span_links']);
     }
 
     public function testSpanLinksInteroperabilityBothTypes()
@@ -1136,7 +1156,22 @@ final class InteroperabilityTest extends BaseTestCase
         });
 
         $this->assertCount(1, $traces[0]);
-        $this->assertSame("[{\"trace_id\":\"12345678876543211234567887654321\",\"span_id\":\"8765432112345678\",\"trace_state\":\"dd=t.dm:-0\",\"attributes\":{\"arg1\":\"value1\"},\"dropped_attributes_count\":0},{\"trace_id\":\"ff0000000000051791e0000000000041\",\"span_id\":\"ff00000000000517\"}]", $traces[0][0]['meta']['_dd.span_links']);
+        $this->assertSame([
+            [
+                'trace_id' => '1311768467139281697',
+                'trace_id_high' => '1234567887654321',
+                'span_id' => '9756277977086449272',
+                'trace_state' => 'dd=t.dm:-0',
+                'flags' => 0,
+                'attributes' => ['arg1' => 'value1'],
+            ],
+            [
+                'trace_id' => '10511401530282737729',
+                'trace_id_high' => 'ff00000000000517',
+                'span_id' => '18374686479671624983',
+                'flags' => 0,
+            ],
+        ], $traces[0][0]['span_links']);
     }
 
     public function testSpanLinksInteroperabilityRemoval()
@@ -1296,7 +1331,15 @@ final class InteroperabilityTest extends BaseTestCase
         });
 
         $this->assertCount(1, $traces[0]);
-        $this->assertSame("[{\"name\":\"event-name\",\"time_unix_nano\":1720037568765201300,\"attributes\":{\"arg1\":\"value1\",\"int_array\":[3,4],\"string_array\":[\"5\",\"6\"]}}]", $traces[0][0]['meta']['events']);
+        $this->assertSame([[
+            'name' => 'event-name',
+            'time_unix_nano' => 1720037568765201300,
+            'attributes' => [
+                'arg1' => 'value1',
+                'int_array' => [3, 4],
+                'string_array' => ['5', '6'],
+            ],
+        ]], $traces[0][0]['span_events']);
     }
 
     public function testSpanEventsInteroperabilityFromOpenTelemetrySpan()
@@ -1328,7 +1371,15 @@ final class InteroperabilityTest extends BaseTestCase
         });
 
         $this->assertCount(1, $traces[0]);
-        $this->assertSame("[{\"name\":\"event-name\",\"time_unix_nano\":1720037568765201300,\"attributes\":{\"arg1\":\"value1\",\"int_array\":[3,4],\"string_array\":[\"5\",\"6\"]}}]", $traces[0][0]['meta']['events']);
+        $this->assertSame([[
+            'name' => 'event-name',
+            'time_unix_nano' => 1720037568765201300,
+            'attributes' => [
+                'arg1' => 'value1',
+                'int_array' => [3, 4],
+                'string_array' => ['5', '6'],
+            ],
+        ]], $traces[0][0]['span_events']);
     }
 
     public function testOtelRecordExceptionAttributesSerialization()
@@ -1349,7 +1400,7 @@ final class InteroperabilityTest extends BaseTestCase
             $otelSpan->end();
         });
 
-        $events = json_decode($traces[0][0]['meta']['events'], true);
+        $events = $traces[0][0]['span_events'];
         $this->assertCount(3, $events);
 
         $event1 = $events[0];
@@ -1363,10 +1414,10 @@ final class InteroperabilityTest extends BaseTestCase
         $event3 = $events[2];
         $this->assertSame('message override', $event3['attributes']['exception.message']);
 
-        $this->assertSame(\DDTrace\get_sanitized_exception_trace($lastException), $traces[0][0]['meta']['error.stack']);
+        $this->assertSame(\DDTrace\get_sanitized_exception_trace($lastException), $traces[0][0]['attributes']['error.stack']);
 
-        $this->assertArrayNotHasKey('error.message', $traces[0][0]['meta']);
-        $this->assertArrayNotHasKey('error.type', $traces[0][0]['meta']);
+        $this->assertArrayNotHasKey('error.message', $traces[0][0]['attributes']);
+        $this->assertArrayNotHasKey('error.type', $traces[0][0]['attributes']);
         $this->assertArrayNotHasKey('error', $traces[0][0]);
     }
 
@@ -1400,7 +1451,7 @@ final class InteroperabilityTest extends BaseTestCase
 
             close_span();
         });
-        $event = json_decode($traces[0][0]['meta']['events'], true)[0];
+        $event = $traces[0][0]['span_events'][0];
 
         $this->assertSame('Test exception message', $event['attributes']['exception.message']);
         $this->assertSame('Exception', $event['attributes']['exception.type']);
@@ -1658,7 +1709,7 @@ final class InteroperabilityTest extends BaseTestCase
 
         // The restart behavior targets remote parents: a local parent must not hand the decision to the custom sampler
         $spans = array_column(array_merge(...$traces), null, 'resource');
-        $this->assertEquals(PrioritySampling::AUTO_KEEP, $spans['otel.child']['metrics']['_sampling_priority_v1']);
+        $this->assertEquals(PrioritySampling::AUTO_KEEP, $spans['otel.child']['sampling_priority']);
     }
 
     public function testDatadogSpansDoNotLeakContextScopes()

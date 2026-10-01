@@ -26,14 +26,12 @@ final class PDOTest extends IntegrationTestCase
 
     public static function ddSetUpBeforeClass()
     {
-        self::putenv('DD_PDO_ANALYTICS_ENABLED=true');
         parent::ddSetUpBeforeClass();
     }
 
     public static function ddTearDownAfterClass()
     {
         parent::ddTearDownAfterClass();
-        self::putenv('DD_PDO_ANALYTICS_ENABLED');
     }
 
     protected function ddSetUp()
@@ -94,7 +92,6 @@ final class PDOTest extends IntegrationTestCase
                 ->withExactTags($this->baseTags())
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
-                    Tag::ANALYTICS_KEY => 1.0,
                     '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
@@ -270,7 +267,6 @@ final class PDOTest extends IntegrationTestCase
                 ->withExactTags($this->baseTags())
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
-                    Tag::ANALYTICS_KEY => 1.0,
                     '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
@@ -337,7 +333,6 @@ final class PDOTest extends IntegrationTestCase
                 ->withExactTags($this->baseTags())
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
-                    Tag::ANALYTICS_KEY => 1.0,
                     '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
@@ -360,7 +355,6 @@ final class PDOTest extends IntegrationTestCase
                 ->withExactTags($this->baseTags(true))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
-                    Tag::ANALYTICS_KEY => 1.0,
                     '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
@@ -497,7 +491,6 @@ final class PDOTest extends IntegrationTestCase
                 ->withExactTags($this->baseTags())
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
-                    Tag::ANALYTICS_KEY => 1.0,
                     '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
@@ -536,7 +529,6 @@ final class PDOTest extends IntegrationTestCase
                 ->withExactTags($this->baseTags(true))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
-                    Tag::ANALYTICS_KEY => 1.0,
                     '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
@@ -574,7 +566,6 @@ final class PDOTest extends IntegrationTestCase
                 ->withExactTags($this->baseTags(false, 'opt.db_client_split_by_instance'))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
-                    Tag::ANALYTICS_KEY => 1.0,
                     '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
@@ -613,7 +604,6 @@ final class PDOTest extends IntegrationTestCase
                 ->withExactTags($this->baseTags(false, 'opt.db_client_split_by_instance'))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
-                    Tag::ANALYTICS_KEY => 1.0,
                     '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
@@ -792,7 +782,7 @@ final class PDOTest extends IntegrationTestCase
         // Verify that SERVICE mode is used for the prepare span
         $this->assertArrayNotHasKey(
             '_dd.dbm_trace_injected',
-            $prepareSpan['meta'] ?? [],
+            $prepareSpan['attributes'] ?? [],
             'PDO.prepare should use SERVICE mode'
         );
     }
@@ -843,7 +833,7 @@ final class PDOTest extends IntegrationTestCase
         // Verify that FULL mode is used for the prepare span: its own context is what the comment carries
         $this->assertSame(
             'true',
-            $prepareSpan['meta']['_dd.dbm_trace_injected'] ?? null,
+            $prepareSpan['attributes']['_dd.dbm_trace_injected'] ?? null,
             'PDO.prepare should use FULL mode'
         );
     }
@@ -881,7 +871,6 @@ final class PDOTest extends IntegrationTestCase
                 ->withExactTags($this->baseTags())
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
-                    Tag::ANALYTICS_KEY => 1.0,
                     '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
@@ -925,7 +914,7 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.exec', 'configured_service', 'sql', $query)
                 ->withExactTags($this->baseTags(false, null))
-                ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
+                ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0]),
             SpanAssertion::exists('PDO.commit'),
         ], false);
     }

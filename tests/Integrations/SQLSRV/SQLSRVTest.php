@@ -33,7 +33,6 @@ class SQLSRVTest extends IntegrationTestCase
     public static function ddSetUpBeforeClass()
     {
         parent::ddSetUpBeforeClass();
-        self::putenv('DD_SQLSRV_ANALYTICS_ENABLED=true');
         self::waitForSqlServerReady();
     }
 
@@ -76,7 +75,6 @@ class SQLSRVTest extends IntegrationTestCase
     public static function ddTearDownAfterClass()
     {
         parent::ddTearDownAfterClass();
-        self::putenv('DD_SQLSRV_ANALYTICS_ENABLED');
     }
 
     protected function ddSetUp()
@@ -148,7 +146,6 @@ class SQLSRVTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags($query))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
-                    Tag::ANALYTICS_KEY => 1.0,
                     '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ])
@@ -172,7 +169,6 @@ class SQLSRVTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags($query, true))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
-                    Tag::ANALYTICS_KEY => 1.0,
                     '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ])
@@ -197,7 +193,6 @@ class SQLSRVTest extends IntegrationTestCase
                     'SQLSRV error',
                     self::getArchitecture() === 'x86_64' ? SQLSRVTest::ERROR_QUERY_17 : SQLSRVTest::ERROR_QUERY_18
                 )->withExactMetrics([
-                    Tag::ANALYTICS_KEY => 1.0,
                     '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ])
@@ -224,7 +219,6 @@ class SQLSRVTest extends IntegrationTestCase
                     'SQLSRV error',
                     self::getArchitecture() === 'x86_64' ? SQLSRVTest::ERROR_QUERY_17 : SQLSRVTest::ERROR_QUERY_18
                 )->withExactMetrics([
-                    Tag::ANALYTICS_KEY => 1.0,
                     '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ])
@@ -249,7 +243,6 @@ class SQLSRVTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags($query))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
-                    Tag::ANALYTICS_KEY => 1.0,
                     '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ]),
@@ -276,7 +269,6 @@ class SQLSRVTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags($query))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
-                    Tag::ANALYTICS_KEY => 1.0,
                     '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ])
@@ -303,7 +295,6 @@ class SQLSRVTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags($query, true))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
-                    Tag::ANALYTICS_KEY => 1.0,
                     '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ])
@@ -329,7 +320,6 @@ class SQLSRVTest extends IntegrationTestCase
                     self::getArchitecture() === 'x86_64' ? SQLSRVTest::ERROR_QUERY_17 : SQLSRVTest::ERROR_QUERY_18
                 )->withExactTags(self::baseTags($query))
                 ->withExactMetrics([
-                    Tag::ANALYTICS_KEY => 1.0,
                     '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ])
@@ -357,7 +347,6 @@ class SQLSRVTest extends IntegrationTestCase
                     self::getArchitecture() === 'x86_64' ? SQLSRVTest::ERROR_QUERY_17 : SQLSRVTest::ERROR_QUERY_18
                 )->withExactTags(self::baseTags($query, true))
                 ->withExactMetrics([
-                    Tag::ANALYTICS_KEY => 1.0,
                     '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ])
@@ -415,7 +404,7 @@ class SQLSRVTest extends IntegrationTestCase
         // Verify that SERVICE mode is used for the prepare span
         $this->assertArrayNotHasKey(
             '_dd.dbm_trace_injected',
-            $prepareSpan['meta'] ?? [],
+            $prepareSpan['attributes'] ?? [],
             'sqlsrv_prepare should use SERVICE mode'
         );
     }
@@ -449,7 +438,7 @@ class SQLSRVTest extends IntegrationTestCase
         $this->assertEquals($query, $prepareSpan['resource']);
         $this->assertArrayNotHasKey(
             '_dd.dbm_trace_injected',
-            $prepareSpan['meta'] ?? [],
+            $prepareSpan['attributes'] ?? [],
             'sqlsrv_prepare should still use SERVICE mode'
         );
     }
@@ -537,7 +526,6 @@ class SQLSRVTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags($query))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
-                    Tag::ANALYTICS_KEY => 1.0,
                     '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ])
@@ -564,7 +552,6 @@ class SQLSRVTest extends IntegrationTestCase
                 ->withExactTags(self::baseTags($query, false, null))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
-                    Tag::ANALYTICS_KEY => 1.0,
                     '_dd.agent_psr' => 1.0,
                     '_sampling_priority_v1' => 1.0,
                 ])

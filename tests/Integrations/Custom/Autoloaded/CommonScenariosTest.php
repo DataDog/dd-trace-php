@@ -50,6 +50,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost/simple?key=value&<redacted>',
                         'http.status_code' => '200',
                         'span.kind' => 'server',
+                        'component' => \DDTrace\Tests\WebServer::defaultSapiName(),
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -63,6 +64,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
                         'span.kind' => 'server',
+                        'component' => \DDTrace\Tests\WebServer::defaultSapiName(),
                     ]),
                 ],
                 'A GET request with an exception' => [
@@ -76,6 +78,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost/error?key=value&<redacted>',
                         'http.status_code' => '500',
                         'span.kind' => 'server',
+                        'component' => \DDTrace\Tests\WebServer::defaultSapiName(),
                     ])->setError(),
                 ],
             ]

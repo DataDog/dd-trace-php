@@ -48,7 +48,7 @@ foreach (['before', 'after'] as $removal) {
 }
 verify(count($spans) === 6, 'all expected callbacks ran');
 DDTrace\close_span();
-verify(count(dd_trace_serialize_closed_spans()) === 7, 'no dangling span after begin-only hooks');
+verify(count(array_merge([], ...array_column(dd_trace_serialize_closed_spans()['chunks'], 'spans'))) === 7, 'no dangling span after begin-only hooks');
 
 echo "OK\n";
 ?>

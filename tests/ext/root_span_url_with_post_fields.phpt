@@ -15,12 +15,12 @@ DDTrace\start_span();
 DDTrace\close_span();
 $spans = dd_trace_serialize_closed_spans();
 var_dump($spans[0]['resource']);
-var_dump($spans[0]['meta']['http.method']);
-var_dump($spans[0]['meta']['http.request.post.foo']);
-var_dump($spans[0]['meta']['http.request.post.password']);
-var_dump($spans[0]['meta']['http.request.post.username']);
-var_dump($spans[0]['meta']['http.request.post.token']);
-var_dump($spans[0]['meta']['http.request.post.key']);
+var_dump($spans[0]['attributes']['http.method']);
+var_dump($spans[0]['attributes']['http.request.post.foo']);
+var_dump($spans[0]['attributes']['http.request.post.password']);
+var_dump($spans[0]['attributes']['http.request.post.username']);
+var_dump($spans[0]['attributes']['http.request.post.token']);
+var_dump($spans[0]['attributes']['http.request.post.key']);
 ?>
 --EXPECT--
 string(4) "POST"

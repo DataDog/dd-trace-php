@@ -27,7 +27,7 @@ DDTrace\switch_stack($callerStack);
 $line = (new ReflectionFunction('span_cleanup_target'))->getStartLine() + 1;
 
 $id = DDTrace\install_line_hook(__FILE__, $line, function ($h) use ($parent) {
-    $h->span($parent)->meta['cleanup'] = new SpanCleanupThrows();
+    $h->span($parent)->attributes['cleanup'] = new SpanCleanupThrows();
 }, $line, function () { return false; });
 try {
     span_cleanup_target();
@@ -38,7 +38,7 @@ var_dump(DDTrace\active_span() === $root, DDTrace\active_stack() === $callerStac
 DDTrace\remove_hook($id);
 
 $id = DDTrace\install_line_hook(__FILE__, $line, null, $line, function ($h) {
-    $h->span()->meta['cleanup'] = new SpanCleanupThrows();
+    $h->span()->attributes['cleanup'] = new SpanCleanupThrows();
 });
 try {
     span_cleanup_target();

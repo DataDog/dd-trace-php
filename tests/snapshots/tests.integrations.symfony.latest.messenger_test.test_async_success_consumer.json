@@ -25,6 +25,7 @@
       "span.kind": "consumer"
     },
     "metrics": {
+      "_dd.top_level": 1,
       "_sampling_priority_v1": 1
     }
   },
@@ -294,6 +295,9 @@
          "out.host": "mysql-integration",
          "out.port": "3306",
          "span.kind": "client"
+       },
+       "metrics": {
+         "_dd.top_level": 1
        }
      },
      {
@@ -321,6 +325,7 @@
          "span.kind": "client"
        },
        "metrics": {
+         "_dd.top_level": 1,
          "db.row_count": 1
        }
      }]]

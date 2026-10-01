@@ -46,7 +46,6 @@ class GuzzleIntegrationTest extends IntegrationTestCase
     {
         return [
             'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
-            'DD_CURL_ANALYTICS_ENABLED',
             'DD_DISTRIBUTED_TRACING',
             'DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN',
             'DD_TRACE_MEMORY_LIMIT',
@@ -373,7 +372,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /guzzle_in_web_request.php')
-                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code', 'span.kind'])
+                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code', 'span.kind', 'component'])
                 ->withChildren([
                     SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
                         ->withExactTags([

@@ -43,7 +43,7 @@ foreach ([false, true] as $paired) {
     }
 }
 DDTrace\close_span();
-verify(count(dd_trace_serialize_closed_spans()) === 5, 'all spans serialized once');
+verify(count(array_merge([], ...array_column(dd_trace_serialize_closed_spans()['chunks'], 'spans'))) === 5, 'all spans serialized once');
 echo "OK\n";
 ?>
 --EXPECT--

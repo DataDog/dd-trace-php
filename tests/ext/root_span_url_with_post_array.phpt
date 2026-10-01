@@ -14,10 +14,10 @@ password=should_redact&foo[bar][baz]=qux&foo[baz][bar]=quz&foo[bar][password]=sh
 DDTrace\start_span();
 DDTrace\close_span();
 $spans = dd_trace_serialize_closed_spans();
-var_dump($spans[0]['meta']['http.request.post.password']);
-var_dump($spans[0]['meta']['http.request.post.foo.bar.baz']);
-var_dump($spans[0]['meta']['http.request.post.foo.baz.bar']);
-var_dump($spans[0]['meta']['http.request.post.foo.bar.password']);
+var_dump($spans[0]['attributes']['http.request.post.password']);
+var_dump($spans[0]['attributes']['http.request.post.foo.bar.baz']);
+var_dump($spans[0]['attributes']['http.request.post.foo.baz.bar']);
+var_dump($spans[0]['attributes']['http.request.post.foo.bar.password']);
 ?>
 --EXPECT--
 string(10) "<redacted>"

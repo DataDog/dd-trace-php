@@ -70,6 +70,7 @@ Array
     [http.url] => https://localhost:8888/foo
     [http.method] => GET
     [span.kind] => server
+    [component] => cgi-fcgi
     [http.useragent] => my user agent
 )
 rinit
@@ -88,6 +89,7 @@ Array
     [_dd.runtime_family] => php
     [_dd.sdk.otlp_export] => false
     [appsec.event] => true
+    [component] => cgi-fcgi
     [http.endpoint] => /foo
     [http.method] => GET
     [http.request.headers.user-agent] => my user agent

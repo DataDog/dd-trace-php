@@ -65,24 +65,27 @@ trait SpanAssertionTrait
     {
         $this->assertSame(1, $span['error']);
 
+        // Normalize the V1 introspection shape (attributes) and the flat v0.4 wire to a meta view.
+        list($meta,) = SpanChecker::extractMetaMetrics($span);
+
         // message assertion supports '*' wildcard but DOES NOT enforce order.
         $messagePartsByWildcard = \explode('*', $message);
         foreach ($messagePartsByWildcard as $messagePart) {
             $this->assertNotSame(
                 false,
-                \strpos($span['meta'][Tag::ERROR_MSG], $messagePart),
-                \sprintf('Message "%s" does not contain "%s"', $span['meta'][Tag::ERROR_MSG], $message)
+                \strpos($meta[Tag::ERROR_MSG], $messagePart),
+                \sprintf('Message "%s" does not contain "%s"', $meta[Tag::ERROR_MSG], $message)
             );
         }
 
-        $stackGroups = \explode('stack groups separator', $span['meta']['error.stack']);
+        $stackGroups = \explode('stack groups separator', $meta['error.stack']);
         if (count($stackGroups) !== count($expectedStackLinesGroups)) {
             $this->fail(
                 \sprintf(
                     'Found %d stack groups, expected %d: %s',
                     count($stackGroups),
                     count($expectedStackLinesGroups),
-                    $span['meta']['error.stack']
+                    $meta['error.stack']
                 )
             );
         }
