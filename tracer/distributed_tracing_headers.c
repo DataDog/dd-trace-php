@@ -731,12 +731,9 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         break;
     }
 
-    zend_array *root_meta = span ? ddtrace_property_array(&span->property_meta) : &DDTRACE_G(root_span_tags_preset);
+    zend_array *root_meta = span ? ddtrace_property_array(&span->property_attributes) : &DDTRACE_G(root_span_tags_preset);
     if (span) {
-        zend_string *tagname;
-        ZEND_HASH_FOREACH_STR_KEY(ddtrace_property_array(&span->property_propagated_tags), tagname) {
-            zend_hash_del(root_meta, tagname);
-        } ZEND_HASH_FOREACH_END();
+        ddtrace_drop_propagated_tags(root_meta, ddtrace_property_array(&span->property_propagated_tags));
 
         ZVAL_ARR(&zv, emalloc(sizeof(HashTable)));
         *Z_ARR(zv) = result->propagated_tags;
@@ -745,7 +742,7 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         zend_hash_copy(root_meta, &result->meta_tags, NULL);
         ddtrace_span_data *inferred_span = ddtrace_get_inferred_span(span);
         if (inferred_span) {
-            zend_array *inferred_meta = ddtrace_property_array(&inferred_span->property_meta);
+            zend_array *inferred_meta = ddtrace_property_array(&inferred_span->property_attributes);
             zend_hash_copy(inferred_meta, &result->meta_tags, (copy_ctor_func_t)zval_add_ref);
         }
 

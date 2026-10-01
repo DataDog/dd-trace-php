@@ -375,6 +375,9 @@ typedef enum ddog_MetricNamespace {
   DDOG_METRIC_NAMESPACE_RUM,
   DDOG_METRIC_NAMESPACE_APPSEC,
   DDOG_METRIC_NAMESPACE_IDE_PLUGINS,
+  /**
+   * Superseded by [`MetricNamespace::Debugger`]. Kept so existing FFI discriminants stay stable.
+   */
   DDOG_METRIC_NAMESPACE_LIVE_DEBUGGER,
   DDOG_METRIC_NAMESPACE_IAST,
   DDOG_METRIC_NAMESPACE_GENERAL,
@@ -385,6 +388,7 @@ typedef enum ddog_MetricNamespace {
   DDOG_METRIC_NAMESPACE_MLOBS,
   DDOG_METRIC_NAMESPACE_DDTRACEAPI,
   DDOG_METRIC_NAMESPACE_AI_GUARD,
+  DDOG_METRIC_NAMESPACE_DEBUGGER,
 } ddog_MetricNamespace;
 
 typedef enum ddog_MetricType {
@@ -466,6 +470,7 @@ typedef enum ddog_RemoteConfigProduct {
   DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGING,
   DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGING_SYMBOL_DB,
   DDOG_REMOTE_CONFIG_PRODUCT_DEBUG,
+  DDOG_REMOTE_CONFIG_PRODUCT_APM_PROFILING,
 } ddog_RemoteConfigProduct;
 
 typedef enum ddog_SpanProbeTarget {
@@ -510,9 +515,10 @@ typedef struct ddog_SidecarActionsBuffer ddog_SidecarActionsBuffer;
  * `SidecarTransport` wraps a [`SidecarSender`] with transparent reconnection support.
  *
  * This transport is used for communication between different parts of the sidecar service.
- * It is a blocking transport (all operations block the current thread). It is owned by a
- * single client thread: the sidecar binds the connection state to the connection, so it must
- * not be shared between threads which process requests concurrently.
+ * It is owned by a single client thread: the sidecar binds state to the connection,
+ * so it must not be shared between threads which process requests concurrently.
+ * Ordinary operations may block and reconnect. FFE submission bypasses reconnection
+ * and never waits for transport capacity or delivery; platform synchronization may wait.
  */
 typedef struct ddog_SidecarTransport ddog_SidecarTransport;
 
@@ -1200,17 +1206,98 @@ typedef struct ddog_AttributeAnyValueBytes ddog_AttributeAnyValueBytes;
 typedef struct ddog_AttributeArrayValueBytes ddog_AttributeArrayValueBytes;
 
 
+/**
+ * Attribute value type tags from [`ddog_v1_value_type`], so a C caller picks the matching typed
+ * value getter.
+ */
+#define ddog_DDOG_V1_ATTR_STRING 0
+
+#define ddog_DDOG_V1_ATTR_INT 1
+
+#define ddog_DDOG_V1_ATTR_DOUBLE 2
+
+#define ddog_DDOG_V1_ATTR_BOOL 3
+
+#define ddog_DDOG_V1_ATTR_BYTES 4
+
+#define ddog_DDOG_V1_ATTR_KEYVALUE 5
+
+#define ddog_DDOG_V1_ATTR_LIST 6
+
 typedef enum ddog_DynamicInstrumentationConfigState {
   DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED,
   DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_DISABLED,
   DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_NOT_SET,
 } ddog_DynamicInstrumentationConfigState;
 
+/**
+ * Controls whether an EVP client stays fixed to the Agent or opts into local
+ * discovery and direct-intake fallback.
+ */
+typedef enum ddog_EvpTransportMode {
+  DDOG_EVP_TRANSPORT_MODE_AGENT_ONLY,
+  DDOG_EVP_TRANSPORT_MODE_PREFER_LOCAL_THEN_DIRECT,
+} ddog_EvpTransportMode;
+
+/**
+ * Local submission outcomes, not metric names or delivery guarantees.
+ * Do not report a rejected observation recursively through the EVP path.
+ */
+typedef enum ddog_FfeSubmissionStatus {
+  /**
+   * Accepted by the local transport, not necessarily delivered to the sidecar or intake.
+   */
+  DDOG_FFE_SUBMISSION_STATUS_ACCEPTED,
+  /**
+   * Absent, closed, or failed transport. Recovery belongs to lifecycle code.
+   */
+  DDOG_FFE_SUBMISSION_STATUS_UNAVAILABLE,
+  /**
+   * Rejected by shared load shedding, pending configuration, or socket backpressure.
+   */
+  DDOG_FFE_SUBMISSION_STATUS_WOULD_BLOCK,
+  /**
+   * Invalid required input for the single-observation interface.
+   */
+  DDOG_FFE_SUBMISSION_STATUS_INVALID_INPUT,
+  /**
+   * The observation still exceeds a packet limit after any reduced-event retry.
+   */
+  DDOG_FFE_SUBMISSION_STATUS_PAYLOAD_TOO_LARGE,
+} ddog_FfeSubmissionStatus;
+
 typedef struct ddog_AgentRemoteConfigReader ddog_AgentRemoteConfigReader;
 
 typedef struct ddog_AgentRemoteConfigWriter_ShmHandle ddog_AgentRemoteConfigWriter_ShmHandle;
 
 typedef struct ddog_Arc_Target ddog_Arc_Target;
+
+/**
+ * An owned `List` attribute value under construction. Opaque to C.
+ */
+typedef struct ddog_AttrList ddog_AttrList;
+
+/**
+ * An owned `KeyValue` attribute value under construction. Opaque to C.
+ */
+typedef struct ddog_AttrMap ddog_AttrMap;
+
+/**
+ * Opaque handle to one attribute value inside an [`Attributes`] map or a list.
+ */
+typedef struct ddog_AttrValue ddog_AttrValue;
+
+/**
+ * Opaque handle to an attribute map: the payload's, a chunk's, span's, link's or event's
+ * (`ddog_*_get_attributes`), or an owned nested map's ([`ddog_attr_map_get_attributes`]).
+ */
+typedef struct ddog_Attributes ddog_Attributes;
+
+/**
+ * A chunk node in the builder: its own heap allocation, so a `*mut ChunkNode` handed to C stays
+ * valid across sibling chunk pushes. Its spans live as separate `Box` allocations.
+ */
+typedef struct ddog_ChunkNode ddog_ChunkNode;
 
 /**
  * Fundamental configuration of the RC client, which always must be set.
@@ -1246,6 +1333,19 @@ typedef struct ddog_RuntimeMetadata ddog_RuntimeMetadata;
 
 typedef struct ddog_ShmHandle ddog_ShmHandle;
 
+/**
+ * A span node in the builder: its own heap allocation, so a held `*mut SpanNode` stays valid
+ * across sibling span pushes into the same chunk (the inferred-span case). Links/events are
+ * likewise separate `Box` allocations.
+ */
+typedef struct ddog_SpanNode ddog_SpanNode;
+
+/**
+ * Builds a native V1 [`TracerPayloadBytes`] holding readable strings. Each node is its own heap
+ * allocation (see the module docs); the builder owns the top-level chunk pointers.
+ */
+typedef struct ddog_TracerPayloadV1Builder ddog_TracerPayloadV1Builder;
+
 typedef struct ddog_NativeFile {
   struct ddog_PlatformHandle_File *handle;
 } ddog_NativeFile;
@@ -1267,12 +1367,29 @@ typedef struct ddog_TracerHeaderTags {
   bool client_computed_stats;
 } ddog_TracerHeaderTags;
 
+/**
+ * Logical tracer identity attached to EVP requests.
+ *
+ * Both fields must be non-empty, valid HTTP header values no longer than 256
+ * bytes. This identifies the producing SDK, not the sidecar transport.
+ */
+typedef struct ddog_EvpProducerIdentity {
+  ddog_CharSlice origin;
+  ddog_CharSlice version;
+} ddog_EvpProducerIdentity;
+
+/**
+ * C representation of the context attached to Feature Flags telemetry.
+ */
 typedef struct ddog_FfeTelemetryContext {
   ddog_CharSlice service;
   ddog_CharSlice env;
   ddog_CharSlice version;
 } ddog_FfeTelemetryContext;
 
+/**
+ * C representation of a Feature Flags exposure event.
+ */
 typedef struct ddog_FfeExposure {
   uint64_t timestamp_ms;
   ddog_CharSlice flag_key;
@@ -1301,6 +1418,9 @@ typedef struct ddog_Slice_FfeExposure {
    */
   uintptr_t len;
 } ddog_Slice_FfeExposure;
+/**
+ * C representation of a Feature Flags evaluation event.
+ */
 typedef struct ddog_FfeFlagEvaluation {
   int64_t timestamp_ms;
   ddog_CharSlice flag_key;
@@ -1339,6 +1459,9 @@ typedef struct ddog_Slice_FfeFlagEvaluation {
    */
   uintptr_t len;
 } ddog_Slice_FfeFlagEvaluation;
+/**
+ * C representation of a Feature Flags evaluation metric.
+ */
 typedef struct ddog_FfeEvaluationMetric {
   ddog_CharSlice flag_key;
   ddog_CharSlice variant;
@@ -1392,6 +1515,14 @@ typedef struct ddog_SenderParameters {
 } ddog_SenderParameters;
 
 /**
+ * Payload-level tracer metadata for the V1 send path not already carried by the sender's
+ * `tracer_headers_tags` (lang, tracer_version, container_id live there and are routed from there).
+ */
+typedef struct ddog_TracerMetadataV1 {
+  ddog_CharSlice runtime_id;
+} ddog_TracerMetadataV1;
+
+/**
  * Raw AppSec response returned by the AppSec message functions.
  *
  * When `ptr` is non-null, the response must be freed by calling
@@ -1406,6 +1537,47 @@ typedef struct ddog_AppsecCResponse {
    */
   bool disconnect;
 } ddog_AppsecCResponse;
+
+/**
+ * One borrowed scalar from the context used for evaluation. Only the first 256
+ * entries are inspected, in input order, including entries subsequently omitted.
+ * Only the value field selected by `kind` is read. Nothing is retained by reference.
+ */
+typedef struct ddog_FfeScalarAttribute {
+  ddog_CharSlice key;
+  /**
+   * 0 = string, 1 = boolean, 2 = signed integer, 3 = double.
+   * Other values are omitted and recorded as snapshot errors.
+   */
+  uint32_t kind;
+  ddog_CharSlice string_value;
+  bool bool_value;
+  int64_t integer_value;
+  double double_value;
+} ddog_FfeScalarAttribute;
+
+typedef struct ddog_Slice_FfeScalarAttribute {
+  /**
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
+   */
+  const struct ddog_FfeScalarAttribute *ptr;
+  /**
+   * The number of elements (not bytes) that `.ptr` points to. Must be less
+   * than or equal to [isize::MAX].
+   */
+  uintptr_t len;
+} ddog_Slice_FfeScalarAttribute;
+/**
+ * Information lost before this native boundary. Context flags are ignored in
+ * protected mode; invalid original identity is never legitimized by coercion.
+ */
+typedef struct ddog_FfeSnapshotState {
+  bool context_truncated;
+  bool snapshot_error;
+  bool targeting_key_invalid;
+} ddog_FfeSnapshotState;
 
 typedef enum ddog_crasht_BuildIdType {
   DDOG_CRASHT_BUILD_ID_TYPE_GNU,

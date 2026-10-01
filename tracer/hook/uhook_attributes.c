@@ -4,6 +4,7 @@
 #include "../ddtrace.h"
 #include "../configuration.h"
 #include "../span.h"
+#include <ext/string_utils.h>
 #include "uhook_attributes_arginfo.h"
 #include "uhook.h"
 
@@ -102,6 +103,46 @@ static zval dd_uhook_save_value(zval *value) {
     return ret;
 }
 
+// A tag value as it serialized from meta: string leaves (null -> "null"), "" for an empty or
+// recursive (reference cycle) array/object, so the v0.4 wire is unchanged now that it lives in the
+// attributes.
+static void dd_uhook_tag_as_meta(zval *dst, zval *src) {
+    ZVAL_DEREF(src);
+    if (Z_TYPE_P(src) != IS_ARRAY && Z_TYPE_P(src) != IS_OBJECT) {
+        datadog_convert_to_string(dst, src);
+        return;
+    }
+    HashTable *ht = Z_TYPE_P(src) == IS_ARRAY ? Z_ARR_P(src) : Z_OBJPROP_P(src);
+    if (!zend_hash_num_elements(ht) || Z_IS_RECURSIVE_P(src)) {
+        ZVAL_EMPTY_STRING(dst);
+        return;
+    }
+    // Immutable arrays cannot form a cycle and must never be written to.
+    bool guard = Z_TYPE_P(src) != IS_ARRAY || !(GC_FLAGS(ht) & IS_ARRAY_IMMUTABLE);
+    if (guard) {
+        Z_PROTECT_RECURSION_P(src);
+    }
+    array_init_size(dst, zend_hash_num_elements(ht));
+    zend_string *key;
+    zend_ulong idx;
+    zval *val;
+    ZEND_HASH_FOREACH_KEY_VAL_IND(ht, idx, key, val) {
+        if (key && ZSTR_LEN(key) && ZSTR_VAL(key)[0] == '\0') {
+            continue; // protected and private members
+        }
+        zval leaf;
+        dd_uhook_tag_as_meta(&leaf, val);
+        if (key) {
+            zend_hash_update(Z_ARR_P(dst), key, &leaf);
+        } else {
+            zend_hash_index_update(Z_ARR_P(dst), idx, &leaf);
+        }
+    } ZEND_HASH_FOREACH_END();
+    if (guard) {
+        Z_UNPROTECT_RECURSION_P(src);
+    }
+}
+
 static void dd_fill_span_data(dd_uhook_def *def, ddtrace_span_data *span) {
     if (def->name) {
         zval *name = &span->property_name;
@@ -119,7 +160,7 @@ static void dd_fill_span_data(dd_uhook_def *def, ddtrace_span_data *span) {
         zval_ptr_dtor(service);
         ZVAL_STR_COPY(service, def->service);
         if (service_changed) {
-            zend_array *meta = ddtrace_property_array(&span->property_meta);
+            zend_array *meta = ddtrace_property_array(&span->property_attributes);
             zval val;
             ZVAL_NEW_STR(&val, zend_string_init("m", 1, 0));
             zend_hash_str_update(meta, ZEND_STRL("_dd.svc_src"), &val);
@@ -131,13 +172,14 @@ static void dd_fill_span_data(dd_uhook_def *def, ddtrace_span_data *span) {
         ZVAL_STR_COPY(type, def->type);
     }
     if (def->tags) {
-        zend_array *meta = ddtrace_property_array(&span->property_meta);
+        zend_array *meta = ddtrace_property_array(&span->property_attributes);
         zend_string *key;
         zval *value;
         ZEND_HASH_FOREACH_STR_KEY_VAL(def->tags, key, value) {
             if (key) {
-                Z_TRY_ADDREF_P(value);
-                zend_hash_update(meta, key, value);
+                zval tag;
+                dd_uhook_tag_as_meta(&tag, value);
+                zend_hash_update(meta, key, &tag);
             }
         } ZEND_HASH_FOREACH_END();
     }
@@ -211,7 +253,7 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
     bool new_span;
     dyn->span = ddtrace_alloc_execute_data_span_ex(invocation, execute_data, &new_span);
     dd_fill_span_data(def, dyn->span);
-    dd_uhook_fill_args_in_meta(def, ddtrace_property_array(&dyn->span->property_meta), execute_data);
+    dd_uhook_fill_args_in_meta(def, ddtrace_property_array(&dyn->span->property_attributes), execute_data);
     if (new_span) {
         ddtrace_observe_opened_span(dyn->span);
     }
@@ -240,7 +282,7 @@ static void dd_uhook_generator_resumption(zend_ulong invocation, zend_execute_da
     dyn->span = ddtrace_alloc_execute_data_span_ex(invocation, execute_data, &new_span);
     dd_fill_span_data(def, dyn->span);
     if (def->retval) {
-        zend_array *meta = ddtrace_property_array(&dyn->span->property_meta);
+        zend_array *meta = ddtrace_property_array(&dyn->span->property_attributes);
         zval val = dd_uhook_save_value(value);
         zend_hash_str_update(meta, ZEND_STRL("send_value"), &val);
     }
@@ -271,7 +313,7 @@ static void dd_uhook_generator_yield(zend_ulong invocation, zend_execute_data *e
         dd_trace_stop_span_time(dyn->span);
 
         if (def->retval) {
-            zend_array *meta = ddtrace_property_array(&dyn->span->property_meta);
+            zend_array *meta = ddtrace_property_array(&dyn->span->property_attributes);
             zval keyzv = dd_uhook_save_value(key);
             zend_hash_str_update(meta, ZEND_STRL("yield_key"), &keyzv);
             zval val = dd_uhook_save_value(value);
@@ -303,7 +345,7 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
         dd_trace_stop_span_time(dyn->span);
 
         if (def->retval) {
-            zend_array *meta = ddtrace_property_array(&dyn->span->property_meta);
+            zend_array *meta = ddtrace_property_array(&dyn->span->property_attributes);
             zval val = dd_uhook_save_value(retval);
             zend_hash_str_update(meta, ZEND_STRL("return_value"), &val);
         }
@@ -416,7 +458,10 @@ void dd_uhook_on_function_resolve(zend_function *func) {
             } else if (zend_string_equals_literal(name, "tags") && Z_TYPE(value) == IS_ARRAY) {
                 if (!def->tags) {
                     def->tags = Z_ARR(value);
-                    GC_ADDREF(def->tags);
+                    // Immutable arrays (the empty array, opcache) must never be written to.
+                    if (!(GC_FLAGS(def->tags) & IS_ARRAY_IMMUTABLE)) {
+                        GC_ADDREF(def->tags);
+                    }
                 }
             }
 

@@ -12,8 +12,13 @@ static inline ddog_CharSlice dd_zai_string_to_CharSlice(zai_string str) {
     return (ddog_CharSlice){ .len = str.len, .ptr = str.ptr };
 }
 
+// An empty Rust slice carries a dangling (e.g. 0x1) ptr; never hand it to a Zend API.
+static inline const char *dd_CharSlice_ptr(ddog_CharSlice slice) {
+    return slice.len ? slice.ptr : "";
+}
+
 static inline zend_string *dd_CharSlice_to_zend_string(ddog_CharSlice slice) {
-    return zend_string_init(slice.ptr, slice.len, 0);
+    return zend_string_init(dd_CharSlice_ptr(slice), slice.len, 0);
 }
 
 static inline bool datadog_ffi_try(const char *msg, ddog_MaybeError maybe_error) {
