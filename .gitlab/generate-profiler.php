@@ -12,11 +12,27 @@ foreach ($profiler_minor_major_targets as $version) {
     echo "  - \"{$version}\"\n";
 }
 ?>
+<?php
+// ARM64 runs a reduced PHP version matrix: amd64 and arm64 behave the same
+// across PHP versions (both LP64), so we only run the newest version.
+$arm64_latest = [end($profiler_minor_major_targets)];
+?>
+.arm64_latest_targets: &arm64_latest_targets
+<?php
+foreach ($arm64_latest as $version) {
+    echo "  - \"{$version}\"\n";
+}
+?>
 
 "profiling tests":
   stage: test
   tags: [ "arch:${ARCH}" ]
   image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:${IMAGE_PREFIX}${PHP_MAJOR_MINOR}${IMAGE_SUFFIX}
+  interruptible: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      interruptible: false
+    - when: on_success
   # Setting the *_REQUEST and *_LIMIT variables to be the same, and setting
   # them for both the build and helper allows using Guaranteed QoS instead of
   # Burstable. This means nproc and similar tools will work as expected.
@@ -34,11 +50,19 @@ foreach ($profiler_minor_major_targets as $version) {
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *all_profiler_targets
-        ARCH: *arch_targets
+        ARCH: amd64
+        IMAGE_PREFIX: php-compile-extension-alpine-
+        IMAGE_SUFFIX: [""]
+      - PHP_MAJOR_MINOR: *arm64_latest_targets
+        ARCH: arm64
         IMAGE_PREFIX: php-compile-extension-alpine-
         IMAGE_SUFFIX: [""]
       - PHP_MAJOR_MINOR: *all_profiler_targets
-        ARCH: *arch_targets
+        ARCH: amd64
+        IMAGE_PREFIX: php-
+        IMAGE_SUFFIX: _centos-7
+      - PHP_MAJOR_MINOR: *arm64_latest_targets
+        ARCH: arm64
         IMAGE_PREFIX: php-
         IMAGE_SUFFIX: _centos-7
   script:
@@ -86,6 +110,11 @@ foreach ($profiler_minor_major_targets as $version) {
   stage: test
   tags: [ "arch:${ARCH}" ]
   image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11
+  interruptible: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      interruptible: false
+    - when: on_success
   variables:
     KUBERNETES_CPU_REQUEST: 5
     KUBERNETES_CPU_LIMIT: 5
@@ -100,7 +129,9 @@ foreach ($profiler_minor_major_targets as $version) {
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *all_profiler_targets
-        ARCH: *arch_targets
+        ARCH: amd64
+      - PHP_MAJOR_MINOR: *arm64_latest_targets
+        ARCH: arm64
   script:
     - switch-php nts # not compatible with debug
     - cargo clippy --all-targets --no-deps --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample -- -D warnings -Aunknown-lints
@@ -112,6 +143,11 @@ foreach ($profiler_minor_major_targets as $version) {
   stage: test
   tags: [ "arch:${ARCH}" ]
   image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.5_bookworm-11
+  interruptible: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      interruptible: false
+    - when: on_success
   variables:
     KUBERNETES_CPU_REQUEST: 5
     KUBERNETES_CPU_LIMIT: 5
@@ -137,6 +173,11 @@ foreach ($profiler_minor_major_targets as $version) {
   stage: test
   tags: [ "arch:${ARCH}" ]
   image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11
+  interruptible: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      interruptible: false
+    - when: on_success
   variables:
     KUBERNETES_CPU_REQUEST: 5
     KUBERNETES_CPU_LIMIT: 5
@@ -156,7 +197,10 @@ foreach ($profiler_minor_major_targets as $version) {
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *all_profiler_targets
-        ARCH: *arch_targets
+        ARCH: amd64
+        FLAVOUR: [nts, zts]
+      - PHP_MAJOR_MINOR: *arm64_latest_targets
+        ARCH: arm64
         FLAVOUR: [nts, zts]
   script:
     - unset DD_SERVICE; unset DD_ENV
