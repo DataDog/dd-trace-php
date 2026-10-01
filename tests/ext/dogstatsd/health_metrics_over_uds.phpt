@@ -30,7 +30,7 @@ if (!$socket || !socket_bind($socket, $path)) {
 chmod($path, 0777);
 
 $php = getenv('TEST_PHP_EXECUTABLE');
-$args = getenv('TEST_PHP_ARGS') . " " . getenv("TEST_PHP_EXTRA_ARGS");
+$args = getenv('TEST_PHP_EXTRA_ARGS');
 
 putenv('DD_TRACE_HEALTH_METRICS_ENABLED=1');
 putenv('DD_TRACE_HEALTH_METRICS_HEARTBEAT_SAMPLE_RATE=1');
