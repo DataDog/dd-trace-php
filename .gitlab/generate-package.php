@@ -1761,6 +1761,8 @@ endforeach;
     PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
     APT_CACHE: $CI_PROJECT_DIR/.cache/apt
     DOCKER_DEFAULT_PLATFORM: linux/amd64
+    # TODO: point back at "main" once DataDog/system-tests#7843 (leiyks/php-v1-payload) is merged.
+    SYSTEM_TESTS_REF: "leiyks/php-v1-payload"
     # TODO DD_API_KEY; SYSTEM_TESTS_AWS_ACCESS_KEY_ID; SYSTEM_TESTS_AWS_SECRET_ACCESS_KEY
   needs:
     - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
