@@ -35,10 +35,19 @@ if test -n "$COMPILE_ASAN"; then
   RUSTFLAGS="$RUSTFLAGS -Clink-arg=-fsanitize=address"
 fi
 
+cargo_command=build
+case "${host_os}:${RUSTFLAGS}" in
+  darwin*:*linker-plugin-lto*)
+    # Apple's ld rejects Rust's -plugin-opt arguments when Cargo also links the
+    # crate's cdylib. The PHP extension needs only the Rust staticlib here.
+    cargo_command=rustc
+    set -- --lib --crate-type staticlib "$@"
+    ;;
+esac
 if test "${PROFILE:-debug}" = "debug"; then
-  set -- build ${CARGO_FEATURES:---features tracer,tracer-runtime} "$@"
+  set -- "$cargo_command" ${CARGO_FEATURES:---features tracer,tracer-runtime} "$@"
 else
-  set -- build ${CARGO_FEATURES:---features tracer,tracer-runtime} --profile "$PROFILE" "$@"
+  set -- "$cargo_command" ${CARGO_FEATURES:---features tracer,tracer-runtime} --profile "$PROFILE" "$@"
 fi
 
 case "${host_os}" in

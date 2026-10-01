@@ -448,7 +448,7 @@ xlang-lto: build-tracer-profiler
 # Distinct products for the selected NTS or ZTS PHP ABI.
 # Keeping the Rust target cache shared lets Cargo reuse unaffected dependencies,
 # while each feature combination gets its own top-level crate and final link.
-VARIANTS_DIR ?= $(PROJECT_ROOT)/tmp/release-variants/$(ARCHITECTURE)/php-$(PHP_VERSION)/$(shell php -n -r 'echo PHP_DEBUG ? "debug" : (PHP_ZTS ? "zts" : "nts");')
+VARIANTS_DIR ?= $(PROJECT_ROOT)/tmp/release-variants/$(ARCHITECTURE)/php-$(or $(PHP_VERSION),$(shell php -n -r 'echo PHP_MAJOR_VERSION, ".", PHP_MINOR_VERSION;'))/$(shell php -n -r 'echo PHP_DEBUG ? "debug" : (PHP_ZTS ? "zts" : "nts");')
 .PHONY: build-profiler-standalone build-tracer-profiler build-ssi-common build-ssi-ddtrace
 build-profiler-standalone:
 	./tooling/bin/build-xlang-lto standalone "$(VARIANTS_DIR)/standalone"
