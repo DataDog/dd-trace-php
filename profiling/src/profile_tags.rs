@@ -238,7 +238,7 @@ impl UnifiedServiceTagSegment {
         self.len as usize
     }
 
-    #[cfg(any(target_os = "linux", test))]
+    #[cfg(any(feature = "otel-context", test))]
     pub(crate) fn matches(&self, service: &str, env: &str, version: &str) -> bool {
         let mut expected = [("", ""); 3];
         let mut len = 0usize;

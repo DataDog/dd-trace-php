@@ -12,7 +12,7 @@ use std::sync::Arc;
 pub(crate) struct ProcessContextCache;
 
 impl ProcessContextCache {
-    pub(crate) fn new() -> Self {
+    pub(crate) const fn new() -> Self {
         Self
     }
 
