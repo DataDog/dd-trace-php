@@ -21,7 +21,9 @@ use std::sync::{LazyLock, Mutex};
 use std::time::Duration;
 
 #[cfg(php_shared_build)]
-fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
+fn run_sidecar(cfg: config::Config) -> anyhow::Result<SidecarTransport> {
+    #[cfg(target_os = "linux")]
+    let mut cfg = cfg;
     #[cfg(target_os = "linux")]
     if std::env::var_os("DD_SIDECAR_DISABLE_DIRECT_EXEC")
         .map(|s| s.is_empty())
