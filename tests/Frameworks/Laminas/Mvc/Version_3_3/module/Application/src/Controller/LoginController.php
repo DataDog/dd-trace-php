@@ -7,25 +7,32 @@ namespace Application\Controller;
 use Laminas\Authentication\Adapter\DbTable\CredentialTreatmentAdapter;
 use Laminas\Authentication\AuthenticationService;
 use Laminas\Db\Adapter\Adapter;
+use Laminas\Db\TableGateway\TableGateway;
 use Laminas\Mvc\Controller\AbstractActionController;
-use Laminas\View\Model\JsonModel;
 
 class LoginController extends AbstractActionController
 {
+    /** @var Adapter */
     private $dbAdapter;
+
+    /** @var AuthenticationService */
     private $authService;
 
-    public function __construct(Adapter $dbAdapter, AuthenticationService $authService)
+    /** @var TableGateway */
+    private $usersTable;
+
+    public function __construct(Adapter $dbAdapter, AuthenticationService $authService, TableGateway $usersTable)
     {
         $this->dbAdapter = $dbAdapter;
         $this->authService = $authService;
+        $this->usersTable = $usersTable;
     }
 
     public function authAction()
     {
         $email = $this->params()->fromQuery('email');
         $password = $this->params()->fromQuery('password', 'password');
-
+        $mode = $this->params()->fromQuery('mode', 'a');
         if (!$email) {
             $response = $this->getResponse();
             $response->setStatusCode(400);
@@ -33,38 +40,39 @@ class LoginController extends AbstractActionController
             return $response;
         }
 
-        // Set up authentication adapter
+        // Portable: passwords stored as MD5 hex; MD5 computed in PHP, compared as bound value.
         $authAdapter = new CredentialTreatmentAdapter(
             $this->dbAdapter,
             'users',
             'email',
             'password',
-            'MD5(?)'
+            '?'
         );
 
         $authAdapter->setIdentity($email);
-        $authAdapter->setCredential($password);
+        $authAdapter->setCredential(md5($password));
 
-        // Perform authentication
-        $result = $this->authService->authenticate($authAdapter);
+        if ($mode == 'a') {
+            $result = $this->authService->authenticate($authAdapter);
+        } else {
+            $this->authService->setAdapter($authAdapter);
+            $result = $this->authService->authenticate();
+        }
 
         if ($result->isValid()) {
-            // Get the user data from the database
             $userData = $authAdapter->getResultRowObject(null, 'password');
-
-            // Store user identity
             $this->authService->getStorage()->write($userData);
 
             $response = $this->getResponse();
             $response->setStatusCode(200);
             $response->setContent('Login successful');
             return $response;
-        } else {
-            $response = $this->getResponse();
-            $response->setStatusCode(403);
-            $response->setContent('Invalid credentials');
-            return $response;
         }
+
+        $response = $this->getResponse();
+        $response->setStatusCode(403);
+        $response->setContent('Invalid credentials');
+        return $response;
     }
 
     public function behindAuthAction()
@@ -79,7 +87,7 @@ class LoginController extends AbstractActionController
 
         $response = $this->getResponse();
         $response->setStatusCode(200);
-        $response->setContent('page behind auth');
+        $response->setContent('Authenticated page');
         return $response;
     }
 }

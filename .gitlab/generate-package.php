@@ -545,7 +545,7 @@ foreach ($windows_build_platforms as $platform) {
     mkdir extensions_x86_64_debugsymbols
 
     # Start the container
-    docker run -v ${pwd}:C:\Users\ContainerAdministrator\app -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
+    docker run --env GITLAB_CI=$env:GITLAB_CI -v ${pwd}:C:\Users\ContainerAdministrator\app -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
 
     # Build nts (fail fast on any step); capture combined output for failure classification.
     # ErrorActionPreference=Continue so the build's native stderr (e.g. cargo warnings) is not
@@ -895,8 +895,8 @@ endforeach;
     DOCKER_COMPOSE_DOWNLOAD_NAME: docker-compose-linux-x86_64
   before_script:
 <?php dockerhub_login() ?>
-    - apt-get update
-    - apt install -y php git make curl
+    - .gitlab/run-with-retryable-download.sh apt-get update
+    - .gitlab/run-with-retryable-download.sh apt install -y php git make curl
     - curl -L --fail https://github.com/docker/compose/releases/download/v2.36.0/${DOCKER_COMPOSE_DOWNLOAD_NAME} -o /usr/local/bin/docker-compose
     - chmod +x /usr/local/bin/docker-compose
     - mv packages/* .
@@ -1217,14 +1217,14 @@ endforeach;
           - "debian:bullseye-slim"
           - "debian:bookworm-slim"
           - "debian:trixie-slim"
-  needs:
+  needs: &verify_debian_needs
     - job: "package extension (installers): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
     - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
-  before_script:
+  before_script: &verify_debian_before_script
 <?php dockerhub_login() ?>
     - mkdir build
     - mv packages build
@@ -1250,6 +1250,21 @@ endforeach;
         if [ -n "$bad" ]; then echo "FAIL: bullseye apt sources not pinned; apt would still fetch from: $bad"; exit 1; fi
       fi
     - apt-get install -y curl || exit 75
+
+# Thread-mode sidecar under a privilege-dropping PHP-FPM: root master, www-data pool workers.
+# One combination only - this verifies runtime behaviour of the sidecar's privilege drop, not
+# packaging, so it does not need the install-type/image matrix the other verify jobs carry.
+"verify fpm thread sidecar uid":
+  extends: .verify_job
+  variables:
+    INSTALL_MODE: sury
+    PHP_VERSION: "<?= end($all_minor_major_targets) ?>"
+    INSTALL_TYPE: native_package
+    IMAGE: "debian:bookworm-slim"
+  script:
+    - ./dockerfiles/verify_packages/verify_fpm_thread_sidecar_uid.sh
+  needs: *verify_debian_needs
+  before_script: *verify_debian_before_script
 
 <?php foreach ([["8.1", "arm64", "aarch64"], ["7.0", "amd64", "x86_64"]] as [$major_minor, $arch, $pkgprefix]): ?>
 "verify .tar.gz: [<?= $arch ?>]":

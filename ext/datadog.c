@@ -539,12 +539,12 @@ static PHP_MSHUTDOWN_FUNCTION(datadog) {
     datadog_signals_mshutdown();
 #endif
 
-    datadog_log_mshutdown();
-
     zai_config_mshutdown();
     zai_json_shutdown_bindings();
 
     datadog_sidecar_shutdown();
+
+    datadog_log_mshutdown();
 
     datadog_process_tags_mshutdown();
 

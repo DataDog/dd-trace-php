@@ -1,6 +1,8 @@
 #ifndef DATADOG_THREADS_H
 #define DATADOG_THREADS_H
 
+#include <stdbool.h>
+#include <stdint.h>
 #include <TSRM/TSRM.h>
 #include <Zend/zend_types.h>
 
@@ -27,7 +29,13 @@ TSRM_API int tsrm_mutex_unlock(MUTEX_T mutexp);
 #endif
 
 #ifdef __linux__
-int datadog_clone_thread(int (*fn)(void *), void *stack_top, int flags, void *arg);
+#include <stdatomic.h>
+
+struct ddog_SignalFlush;
+typedef int32_t (*datadog_raw_clone_fn)(const struct ddog_SignalFlush *, bool);
+
+int datadog_clone_thread(datadog_raw_clone_fn fn, void *stack_top, int flags,
+                         const struct ddog_SignalFlush *arg, bool terminate_process, _Atomic(int) *tid);
 #endif
 
 #endif // DATADOG_THREADS_H

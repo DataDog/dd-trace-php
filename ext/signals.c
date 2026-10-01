@@ -46,7 +46,11 @@
 #endif
 
 #if __linux
+#include <errno.h>
+#include <linux/futex.h>
 #include <sched.h>
+#include <stdatomic.h>
+#include <sys/syscall.h>
 #include <unistd.h>
 #endif
 
@@ -300,85 +304,164 @@ static struct sigaction dd_sigint_sigterm_sigaction;
 static struct sigaction dd_sigterm_prev_sigaction;
 static struct sigaction dd_sigint_prev_sigaction;
 
-struct {
-    int sig;
-    siginfo_t si;
-    void *uc;
-} dd_signal_data;
+// The request is prepared in ordinary context. Publication, signal delivery,
+// and shutdown compete for this gate; a claimed request is never replaced or rearmed.
+enum {
+    DD_SIGNAL_DISABLED,
+    DD_SIGNAL_INSTALLING,
+    DD_SIGNAL_READY,
+    DD_SIGNAL_FLUSHING_DEFAULT,
+    DD_SIGNAL_FLUSHING_CUSTOM,
+    DD_SIGNAL_STOPPED,
+};
+static _Atomic(int) dd_signal_state;
+static _Atomic(int) dd_signal_owner_pid;
+static ddog_SignalFlush *dd_signal_flush;
+// Only one worker can use this stack. Its storage lives as long as the extension.
+static _Alignas(16) char dd_signal_cleanup_stack[MIN_STACKSZ];
 
-static int dd_call_prev_handler(bool flush) {
-    struct sigaction prev_sigaction = dd_signal_data.sig == SIGINT ? dd_sigint_prev_sigaction : dd_sigterm_prev_sigaction;
-    void *prev_handler = (prev_sigaction.sa_flags & SA_SIGINFO) ? (void *)prev_sigaction.sa_sigaction : (void *)prev_sigaction.sa_handler;
-    if (prev_handler == SIG_IGN) {
-        return 0;
-    }
+// Before READY is published: -1 (not started). clone's PARENT_SETTID writes a positive
+// TID; CHILD_CLEARTID clears it and wakes futex waiters when the worker has fully exited.
+// A failed start clears it explicitly. This also covers a child exiting before clone returns.
+static _Atomic(int) dd_signal_worker_tid;
+_Static_assert(ATOMIC_INT_LOCK_FREE == 2, "signal atomics must be lock-free");
+_Static_assert(sizeof(dd_signal_worker_tid) == sizeof(int), "signal TID must have the kernel int layout");
 
-    if (flush) {
-        ddog_sidecar_flush(&datadog_sidecar_for_signal, (ddog_SidecarFlushOptions){.traces_and_stats = true});
-    }
-
-    if (prev_handler == SIG_DFL) {
-        _exit(0);
-    }
-
-    if (prev_sigaction.sa_flags & SA_SIGINFO) {
-        (*prev_sigaction.sa_sigaction)(dd_signal_data.sig, &dd_signal_data.si, dd_signal_data.uc);
-    } else {
-        (*prev_sigaction.sa_handler)(dd_signal_data.sig);
-    }
-
-    return 0;
-
+bool datadog_signals_has_sidecar_flush(void) {
+    return atomic_load(&dd_signal_state) != DD_SIGNAL_DISABLED;
 }
 
-static int dd_sigterm_cleanup_thread(void *arg) {
-    // Block all signals to prevent delivery to this thread
-    sigset_t set;
-    sigfillset(&set);
-    sigprocmask(SIG_BLOCK, &set, NULL);
+void datadog_signals_set_sidecar_flush(ddog_SignalFlush *flush, bool replace) {
+    if (!flush && !replace) {
+        return;
+    }
+    // A handler must not suspend its own publisher while INSTALLING. Other threads
+    // may spin on that state, so the protected section must contain no blocking calls.
+    sigset_t publication_signals, old_signals;
+    sigfillset(&publication_signals);
+    if (sigprocmask(SIG_BLOCK, &publication_signals, &old_signals) < 0) {
+        ddog_sidecar_signal_flush_drop(flush);
+        return;
+    }
+    int state = atomic_load(&dd_signal_state);
+    if ((state == DD_SIGNAL_DISABLED || (replace && state == DD_SIGNAL_READY)) &&
+        atomic_compare_exchange_strong(&dd_signal_state, &state, DD_SIGNAL_INSTALLING)) {
+        ddog_SignalFlush *previous = dd_signal_flush;
+        dd_signal_flush = flush;
+        atomic_store(&dd_signal_worker_tid, -1);
+        atomic_store(&dd_signal_state, flush ? DD_SIGNAL_READY : DD_SIGNAL_DISABLED);
+        // Drop AFTER publication: another thread's handler may have interrupted malloc.
+        flush = previous;
+    }
+    ddog_sidecar_signal_flush_drop(flush);
+    sigprocmask(SIG_SETMASK, &old_signals, NULL);
+}
 
-    // Make the Go runtime believe, we are actually running on a signal stack
-    stack_t altstack;
-    altstack.ss_sp = dd_signal_async_stack;
-    if (altstack.ss_sp) {
-        altstack.ss_size = dd_signal_async_stack_size;
-        altstack.ss_flags = 0;
-        sigaltstack(&altstack, NULL);
+void datadog_signals_reset_sidecar_flush_after_fork(void) {
+    // The old PID makes handlers ignore inherited state until this reset is complete.
+    ddog_sidecar_signal_flush_drop(dd_signal_flush);
+    dd_signal_flush = NULL;
+    atomic_store(&dd_signal_worker_tid, 0);
+    atomic_store(&dd_signal_state, DD_SIGNAL_DISABLED);
+    atomic_store(&dd_signal_owner_pid, getpid());
+}
+
+static void dd_signals_drop_sidecar_flush(void) {
+    // A signal may cause clean shutdown in a fork child before its PHP fork hook runs.
+    if (atomic_load(&dd_signal_owner_pid) != getpid()) {
+        datadog_signals_reset_sidecar_flush_after_fork();
+    }
+    for (;;) {
+        int state = atomic_load(&dd_signal_state);
+        if (state == DD_SIGNAL_INSTALLING) {
+            sched_yield();
+            continue;
+        }
+        if (state == DD_SIGNAL_FLUSHING_DEFAULT || state == DD_SIGNAL_FLUSHING_CUSTOM) {
+            int tid;
+            while ((tid = atomic_load(&dd_signal_worker_tid)) != 0) {
+                if (tid == -1) {
+                    sched_yield(); // The handler has claimed the request but not finished clone.
+                } else {
+                    // Kernel clear_child_tid uses a shared futex. Reload after EINTR/EAGAIN
+                    // or a spurious wake; only zero proves the request and extension can be released.
+                    syscall(SYS_futex, &dd_signal_worker_tid, FUTEX_WAIT, tid, NULL, NULL, 0);
+                }
+            }
+        }
+        if (atomic_compare_exchange_strong(&dd_signal_state, &state, DD_SIGNAL_STOPPED)) {
+            break;
+        }
+    }
+    ddog_sidecar_signal_flush_drop(dd_signal_flush);
+    dd_signal_flush = NULL;
+}
+
+// True means a default-disposition worker owns process termination. False means chain
+// the previous handler, including when startup fails or a custom handler owns shutdown.
+static bool dd_signals_start_flush(bool terminate) {
+    if (getpid() != atomic_load(&dd_signal_owner_pid)) {
+        return false;
+    }
+    int state = DD_SIGNAL_READY;
+    int claimed = terminate ? DD_SIGNAL_FLUSHING_DEFAULT : DD_SIGNAL_FLUSHING_CUSTOM;
+    while (!atomic_compare_exchange_strong(&dd_signal_state, &state, claimed)) {
+        if (state != DD_SIGNAL_INSTALLING) {
+            return terminate && state == DD_SIGNAL_FLUSHING_DEFAULT;
+        }
+        sched_yield();
+        state = DD_SIGNAL_READY;
     }
 
-    return dd_call_prev_handler(true);
+    int flags = CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD | CLONE_SYSVSEM |
+                CLONE_PARENT_SETTID | CLONE_CHILD_CLEARTID;
+    int result = datadog_clone_thread(datadog_sidecar_signal_flush_run, dd_signal_cleanup_stack + MIN_STACKSZ,
+                                      flags, dd_signal_flush, terminate, &dd_signal_worker_tid);
+    if (result < 0) {
+        atomic_store(&dd_signal_worker_tid, 0);
+    }
+    return result >= 0 && terminate;
 }
 
 static void dd_sigint_sigterm_handler(int sig, siginfo_t *si, void *uc) {
-    dd_signal_data.sig = sig;
-    memcpy(&dd_signal_data.si, si, sizeof(*si));
-    dd_signal_data.uc = uc;
-
-    if (datadog_sidecar_for_signal) {
-        // Spawn a thread using clone() to perform sidecar cleanup asynchronously to avoid async unsafeness in the signal handler
-        void *stack_top = dd_signal_async_stack + dd_signal_async_stack_size;
-        int flags = CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD | CLONE_SYSVSEM;
-        if (datadog_clone_thread(dd_sigterm_cleanup_thread, stack_top, flags, NULL) < 0) {
-            // If the cleanup thread could not be started, we just do it ourselves. Will block, but that's okay then.
-            dd_call_prev_handler(true);
-        }
+    struct sigaction *previous = sig == SIGINT ? &dd_sigint_prev_sigaction : &dd_sigterm_prev_sigaction;
+    if (previous->sa_handler == SIG_IGN) {
+        return;
+    }
+    int saved_errno = errno;
+    // Block signals before claiming the request: a nested handler must not enter PHP
+    // shutdown while clone is starting. libc's mask APIs exclude reserved signals, so
+    // use the kernel mask for the worker's inherited TLS. The PHP thread can use syscall().
+    uint64_t all_signals = UINT64_MAX, old_signals;
+    bool defer_termination = false;
+    if (syscall(SYS_rt_sigprocmask, SIG_SETMASK, &all_signals, &old_signals, sizeof(all_signals)) == 0) {
+        defer_termination = dd_signals_start_flush(previous->sa_handler == SIG_DFL);
+        syscall(SYS_rt_sigprocmask, SIG_SETMASK, &old_signals, NULL, sizeof(old_signals));
+    }
+    errno = saved_errno;
+    if (defer_termination) {
+        return;
+    }
+    if (previous->sa_handler == SIG_DFL) {
+        _exit(0);
+    } else if (previous->sa_flags & SA_SIGINFO) {
+        previous->sa_sigaction(sig, si, uc);
     } else {
-        dd_call_prev_handler(false);
+        previous->sa_handler(sig);
     }
 }
 #endif
 
 void datadog_signals_minit(void) {
 #if __linux
+    atomic_store(&dd_signal_owner_pid, getpid());
     dd_sigint_sigterm_sigaction.sa_sigaction = dd_sigint_sigterm_handler;
     dd_sigint_sigterm_sigaction.sa_flags = SA_SIGINFO;
     sigemptyset(&dd_sigint_sigterm_sigaction.sa_mask);
     if (get_global_DD_TRACE_FORCE_FLUSH_ON_SIGTERM()) {
-        dd_signals_init_async_stack();
         sigaction(SIGTERM, &dd_sigint_sigterm_sigaction, &dd_sigterm_prev_sigaction);
     }
     if (get_global_DD_TRACE_FORCE_FLUSH_ON_SIGINT()) {
-        dd_signals_init_async_stack();
         sigaction(SIGINT, &dd_sigint_sigterm_sigaction, &dd_sigint_prev_sigaction);
     }
 #endif
@@ -386,6 +469,8 @@ void datadog_signals_minit(void) {
 
 void datadog_signals_mshutdown(void) {
 #if __linux
+    // wait for the signal cleanup thread to exit
+    dd_signals_drop_sidecar_flush();
     if (dd_sigint_sigterm_sigaction.sa_sigaction) {
         if (get_global_DD_TRACE_FORCE_FLUSH_ON_SIGTERM()) {
             sigaction(SIGTERM, &dd_sigterm_prev_sigaction, NULL);

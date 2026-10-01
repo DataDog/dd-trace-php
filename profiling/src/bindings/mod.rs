@@ -658,7 +658,7 @@ impl<'a> ZaiStr<'a> {
         let len = self.len;
         // Safety: the ZaiStr is supposed to uphold all the invariants, and
         // the pointer has been debug_asserted to not be null, so 🤞🏻.
-        unsafe { std::slice::from_raw_parts(self.ptr as *const u8, len) }
+        unsafe { std::slice::from_raw_parts(self.ptr.cast::<u8>(), len) }
     }
 
     #[inline]

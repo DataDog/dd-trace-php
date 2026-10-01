@@ -10,6 +10,21 @@
 #include <stdio.h>
 #include "common.h"
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #if defined(_WIN32)
 bool ddog_setup_crashtracking(const struct ddog_Endpoint *endpoint, ddog_crasht_Metadata metadata);
 #endif
@@ -92,13 +107,21 @@ void ddog_sidecar_transport_drop(struct ddog_SidecarTransport*);
  */
 ddog_MaybeError ddog_sidecar_connect(struct ddog_SidecarTransport **connection);
 
-ddog_MaybeError ddog_sidecar_connect_master(int32_t pid);
+ddog_MaybeError ddog_sidecar_connect_master(void);
 
 ddog_MaybeError ddog_sidecar_connect_worker(int32_t pid, struct ddog_SidecarTransport **connection);
 
 ddog_MaybeError ddog_sidecar_shutdown_master_listener(void);
 
-bool ddog_sidecar_is_master_listener_active(int32_t pid);
+/**
+ * Remove the master listener's socket and lock file, for SAPIs that exit without running
+ * PHP's module shutdown - php-fpm's master calls `exit()` straight from `fpm_pctl_exit()`, so
+ * `ddog_sidecar_shutdown_master_listener` never runs there. Safe to call more than once, and a
+ * no-op in a process that did not bind them.
+ */
+void ddog_sidecar_reap_master_listener_files(void);
+
+bool ddog_sidecar_is_master_listener_active(void);
 
 ddog_MaybeError ddog_sidecar_clear_inherited_listener(void);
 
@@ -208,7 +231,7 @@ ddog_MaybeError ddog_sidecar_session_set_config(struct ddog_SidecarTransport **t
                                                 uintptr_t force_drop_size,
                                                 ddog_CharSlice log_level,
                                                 ddog_CharSlice log_path,
-                                                void *_remote_config_notify_function,
+                                                const struct ddog_RemoteConfigNotification *win_remote_config_notification,
                                                 const enum ddog_RemoteConfigProduct *remote_config_products,
                                                 uintptr_t remote_config_products_count,
                                                 const enum ddog_RemoteConfigCapabilities *remote_config_capabilities,
@@ -532,6 +555,94 @@ struct ddog_AppsecCResponse datadog_sidecar_send_appsec_message_without_reconnec
  * Frees an `AppsecCResponse` returned by an AppSec message function.
  */
 void ddog_sidecar_appsec_response_drop(struct ddog_AppsecCResponse response);
+
+#if defined(_WIN32)
+/**
+ * Create a Windows notification that invokes `callback(context)` when remote configuration may
+ * have changed.
+ *
+ * On success, `*out` receives a newly allocated notification. Pass that pointer to
+ * `ddog_sidecar_session_set_config` to associate it with a session, and eventually release it
+ * with `ddog_sidecar_remote_config_notification_drop`. Session configuration does not take
+ * ownership of the notification.
+ *
+ * The callback runs asynchronously on a Windows thread-pool thread. Invocations of the
+ * caller-provided callback for the same notification do not overlap, but several remote
+ * configuration updates may be coalesced into one callback invocation. Treat the callback as a
+ * prompt to read the latest configuration rather than as a count of updates.
+ *
+ * If the function returns an error, a valid `out` parameter is set to NULL.
+ *
+ * # Safety
+ *
+ * - `out` must point to writable storage for one notification pointer.
+ * - `callback` must be non-NULL and safe to call with `context` from a Windows thread-pool thread.
+ * - If creation succeeds, the callback code and any data reached through `context` must remain
+ *   valid until `ddog_sidecar_remote_config_notification_drop` returns.
+ * - The callback must not drop its own notification.
+ */
+ddog_MaybeError ddog_sidecar_remote_config_notification_new(void (*callback)(void*),
+                                                            void *context,
+                                                            struct ddog_RemoteConfigNotification **out);
+#endif
+
+#if defined(_WIN32)
+/**
+ * Disable a remote configuration notification and release it.
+ *
+ * Passing NULL has no effect. If its callback is currently running, this function waits for the
+ * callback to return. Once this function returns, no callback for this notification is running or
+ * can start, so the caller may safely release the callback context or unload the callback code.
+ * A sidecar that still has the session configuration may continue sending signals, but those
+ * signals can no longer invoke the callback.
+ *
+ * # Safety
+ *
+ * - `notification` must be NULL or a live pointer returned by
+ *   `ddog_sidecar_remote_config_notification_new`.
+ * - A non-NULL pointer may be passed to this function only once and must not be used concurrently
+ *   by another call, including `ddog_sidecar_session_set_config`.
+ * - This function must not be called from the notification's callback.
+ */
+void ddog_sidecar_remote_config_notification_drop(struct ddog_RemoteConfigNotification *notification);
+#endif
+
+#if defined(__linux__)
+/**
+ * Prepare a flush on this transport with a private completion pipe.
+ * Normal thread context only. The returned object owns a duplicate of the transport fd;
+ * refresh it after reconnect and drop it before normal connection shutdown.
+ *
+ * # Safety
+ * `transport` must be exclusively borrowed and `output` must be writable for this call.
+ */
+ddog_MaybeError ddog_sidecar_prepare_signal_flush(struct ddog_SidecarTransport *transport,
+                                                  struct ddog_SidecarFlushOptions options,
+                                                  struct ddog_SignalFlush **output);
+#endif
+
+#if defined(__linux__)
+/**
+ * Destroy a prepared flush in ordinary thread context.
+ *
+ * # Safety
+ * `flush` must be null or an owned pointer returned by prepare. Any raw worker must have exited.
+ */
+void ddog_sidecar_signal_flush_drop(struct ddog_SignalFlush *flush);
+#endif
+
+#if defined(__linux__)
+/**
+ * Run one bounded flush without TLS access, allocation, unwinding, or process termination.
+ * Returns zero when the sidecar closes the pipe (completion or exit), or a negative Linux errno.
+ *
+ * # Safety
+ * The object must remain alive through the call, with exclusive one-shot use of this object.
+ * The normal transport may continue sending and receiving concurrently.
+ * All worker signals must be blocked. Do not use an inherited object after fork.
+ */
+int32_t ddog_sidecar_signal_flush_run(const struct ddog_SignalFlush *flush);
+#endif
 
 ddog_TracesBytes *ddog_get_traces(void);
 

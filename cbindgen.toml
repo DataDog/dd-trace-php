@@ -11,6 +11,8 @@ no_includes = true
 sys_includes = ["stdbool.h", "stddef.h", "stdint.h"]
 includes = ["common.h", "telemetry.h", "sidecar.h"]
 
+after_includes = "#define ddog_DYANMIC_CONFIG_UPDATE_UNMODIFIED (_zend_string*)1"
+
 [defines]
 "feature = profiling" = "DDTRACE_PROFILING"
 "target_os = linux" = "__linux__"
