@@ -44,15 +44,14 @@ fn main() {
     assert_no_aws_lc_sys();
 
     println!("cargo:rustc-check-cfg=cfg(standalone_profiler)");
-    if std::env::var_os("CARGO_FEATURE_PROFILING").is_some()
-        && std::env::var_os("CARGO_FEATURE_TRACER").is_none()
-    {
+    if std::env::var_os("CARGO_FEATURE_PROFILING_STANDALONE").is_some() {
         println!("cargo:rustc-cfg=standalone_profiler");
     }
 
     // This entry point belongs only to the common/tracer cdylib used by SSI.
     // The standalone profiler must remain an ordinary PHP shared library.
-    if std::env::var_os("CARGO_FEATURE_TRACER").is_some()
+    if std::env::var_os("CARGO_FEATURE_SIDECAR").is_some()
+        && std::env::var_os("CARGO_FEATURE_PROFILING_STANDALONE").is_none()
         && std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("linux")
     {
         println!("cargo:rustc-cdylib-link-arg=-Wl,-e,ddog_spawn_direct_entry");

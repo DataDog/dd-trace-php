@@ -123,7 +123,7 @@ fn build_zend_php_ffis(
     #[cfg(not(feature = "stack_walking_tests"))]
     let stack_walking_tests = "0";
 
-    let combined = env::var_os("CARGO_FEATURE_TRACER").is_some();
+    let combined = env::var_os("CARGO_FEATURE_PROFILING_EMBEDDED").is_some();
     let mut build = cc::Build::new();
     build.file("profiling/src/php_ffi.c");
     #[cfg(feature = "test")]

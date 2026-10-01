@@ -10,6 +10,11 @@ if (!extension_loaded('ddtrace')) {
     fail('ddtrace was not injected by the SSI loader');
 }
 
+$maps = @file_get_contents('/proc/self/maps');
+if ($maps === false || strpos($maps, '/loader/libdatadog_php.so') === false) {
+    fail('SSI loader did not preload libdatadog_php.so');
+}
+
 if (!filter_var(ini_get('datadog.profiling.enabled'), FILTER_VALIDATE_BOOLEAN)) {
     fail('profiling is not enabled after SSI injection');
 }

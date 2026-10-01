@@ -47,7 +47,7 @@ use std::borrow::Cow;
 use std::cell::{BorrowError, BorrowMutError, RefCell};
 use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-#[cfg(not(all(feature = "profiling", feature = "tracer")))]
+#[cfg(not(feature = "profiling-embedded"))]
 use std::sync::OnceLock;
 use std::sync::{Arc, LazyLock, Once};
 use std::thread::{AccessError, LocalKey};
@@ -179,7 +179,7 @@ static SAPI: LazyLock<Sapi> = LazyLock::new(|| {
 /// Additionally, the tracer is going to ask for this in its ACTIVATE handler,
 /// so whatever it is replaced with needs to also follow the
 /// initialize-on-first-use pattern.
-#[cfg(not(all(feature = "profiling", feature = "tracer")))]
+#[cfg(not(feature = "profiling-embedded"))]
 static RUNTIME_ID: OnceLock<Uuid> = OnceLock::new();
 
 // Important note on the PHP lifecycle:
@@ -337,7 +337,7 @@ pub extern "C" fn ddog_php_prof_post_deactivate() -> ZendResult {
 
     // ZAI config may be accessed indirectly via other modules RSHUTDOWN, so
     // delay this until the last possible time.
-    #[cfg(all(feature = "profiling", not(feature = "tracer")))]
+    #[cfg(not(feature = "profiling-embedded"))]
     unsafe {
         bindings::zai_config_rshutdown()
     };
@@ -459,7 +459,7 @@ thread_local! {
 }
 
 /// Gets the runtime-id for the process. Do not call before RINIT!
-#[cfg(all(feature = "profiling", feature = "tracer"))]
+#[cfg(all(feature = "profiling-embedded", feature = "tracer-runtime"))]
 fn runtime_id() -> Uuid {
     // Copy from the common extension's authoritative storage. Returning a
     // shared reference to mutable C-owned storage would violate Rust aliasing
@@ -467,7 +467,17 @@ fn runtime_id() -> Uuid {
     unsafe { crate::datadog_runtime_id }
 }
 
-#[cfg(not(all(feature = "profiling", feature = "tracer")))]
+// In the split combined build the runtime ID belongs to the common library,
+// whether that library is linked statically or loaded as a DSO.
+#[cfg(all(feature = "profiling-embedded", not(feature = "tracer-runtime")))]
+fn runtime_id() -> Uuid {
+    unsafe extern "C" {
+        static datadog_runtime_id: Uuid;
+    }
+    unsafe { datadog_runtime_id }
+}
+
+#[cfg(not(feature = "profiling-embedded"))]
 fn runtime_id() -> Uuid {
     *RUNTIME_ID.get_or_init(|| {
         // Retain compatibility with embedders that export Datadog's runtime-ID
@@ -946,7 +956,7 @@ pub unsafe extern "C" fn ddog_php_prof_minfo(module_ptr: *mut zend::ModuleEntry)
 
         zend::php_info_print_table_end();
 
-        #[cfg(all(feature = "profiling", not(feature = "tracer")))]
+        #[cfg(not(feature = "profiling-embedded"))]
         zend::display_ini_entries(module_ptr);
     });
 

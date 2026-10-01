@@ -40,7 +40,7 @@ pub fn build(php_includes: &str) {
         .include("zend_abstract_interface")
         .include("src/dogstatsd")
         .include("components-rs");
-    if env::var_os("CARGO_FEATURE_TRACER").is_some() {
+    if env::var_os("CARGO_FEATURE_PROFILING_EMBEDDED").is_some() {
         cc_build.define("TRACER", None);
     }
     if env::var_os("CARGO_FEATURE_PROFILING").is_some() {

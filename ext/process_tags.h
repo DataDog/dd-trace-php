@@ -22,9 +22,11 @@ bool datadog_process_tags_enabled(void);
 // Returns NULL if disabled or not yet collected
 DATADOG_PUBLIC zend_string *datadog_process_tags_get_serialized(void);
 
-// Get a pointer to the process tags Vec<Tag>
-// Returns a pointer to an empty Vec if disabled or not yet collected
+#ifdef SIDECAR
+// Get the sidecar's Vec<Tag>; OTel process context uses the serialized tags.
+// Returns a pointer to an empty Vec if disabled or not yet collected.
 const ddog_Vec_Tag *datadog_process_tags_get_vec(void);
+#endif
 
 // Set the container tags hash
 void datadog_process_tags_set_container_tags_hash(zend_string *hash);

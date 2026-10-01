@@ -36,9 +36,9 @@ if test -n "$COMPILE_ASAN"; then
 fi
 
 if test "${PROFILE:-debug}" = "debug"; then
-  set -- build ${CARGO_FEATURES:---features tracer} "$@"
+  set -- build ${CARGO_FEATURES:---features tracer,tracer-runtime} "$@"
 else
-  set -- build ${CARGO_FEATURES:---features tracer} --profile "$PROFILE" "$@"
+  set -- build ${CARGO_FEATURES:---features tracer,tracer-runtime} --profile "$PROFILE" "$@"
 fi
 
 case "${host_os}" in

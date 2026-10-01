@@ -15,28 +15,47 @@ ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
 #include <tracer/configuration_dependencies.h>
 
+#ifndef SIDECAR
+bool datadog_alter_test_session_token(zval *old_value, zval *new_value, zend_string *new_str) {
+    UNUSED(old_value, new_value, new_str);
+    return true;
+}
+#endif
+
 #ifndef TRACER
 bool datadog_alter_dd_service(zval *old_value, zval *new_value, zend_string *new_str) {
     UNUSED(old_value, new_value);
+#ifdef SIDECAR
     if (DATADOG_G(request_initialized)) {
         ddtrace_sidecar_submit_span_data_direct(&DATADOG_G(sidecar), NULL, new_str, get_DD_ENV(), get_DD_VERSION());
     }
+#else
+    UNUSED(new_str);
+#endif
     return true;
 }
 
 bool datadog_alter_dd_env(zval *old_value, zval *new_value, zend_string *new_str) {
     UNUSED(old_value, new_value);
+#ifdef SIDECAR
     if (DATADOG_G(request_initialized)) {
         ddtrace_sidecar_submit_span_data_direct(&DATADOG_G(sidecar), NULL, get_DD_SERVICE(), new_str, get_DD_VERSION());
     }
+#else
+    UNUSED(new_str);
+#endif
     return true;
 }
 
 bool datadog_alter_dd_version(zval *old_value, zval *new_value, zend_string *new_str) {
     UNUSED(old_value, new_value);
+#ifdef SIDECAR
     if (DATADOG_G(request_initialized)) {
         ddtrace_sidecar_submit_span_data_direct(&DATADOG_G(sidecar), NULL, get_DD_SERVICE(), get_DD_ENV(), new_str);
     }
+#else
+    UNUSED(new_str);
+#endif
     return true;
 }
 

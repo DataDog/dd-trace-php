@@ -32,25 +32,24 @@ fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
     {
         cfg.spawn_without_trampoline = true;
     }
-    // ddtrace-sidecar's custom entrypoint only exists to register the AppSec
-    // backend linked into the PHP extension; the standalone profiler has no
-    // AppSec backend to register, so it connects the plain daemon entrypoint.
-    #[cfg(feature = "tracer")]
+    // The tracer runtime registers PHP's AppSec backend in its sidecar
+    // entrypoint. Generic sidecar builds use libdatadog's plain entrypoint.
+    #[cfg(feature = "tracer-runtime")]
     {
         ddtrace_sidecar::start_or_connect_to_sidecar(cfg)
     }
-    #[cfg(not(feature = "tracer"))]
+    #[cfg(not(feature = "tracer-runtime"))]
     {
         datadog_sidecar::start_or_connect_to_sidecar(cfg)
     }
 }
 
-#[cfg(all(not(any(windows, php_shared_build)), feature = "tracer"))]
+#[cfg(all(not(any(windows, php_shared_build)), feature = "tracer-runtime"))]
 fn run_sidecar(cfg: config::Config) -> anyhow::Result<SidecarTransport> {
     ddtrace_sidecar::start_or_connect_to_sidecar(cfg)
 }
 
-#[cfg(all(not(any(windows, php_shared_build)), not(feature = "tracer")))]
+#[cfg(all(not(any(windows, php_shared_build)), not(feature = "tracer-runtime")))]
 fn run_sidecar(cfg: config::Config) -> anyhow::Result<SidecarTransport> {
     datadog_sidecar::start_or_connect_to_sidecar(cfg)
 }
@@ -168,7 +167,7 @@ pub extern "C" fn ddog_sidecar_enable_appsec(log_file_path: CharSlice, log_level
 /// registered in the listener's process.
 #[no_mangle]
 pub extern "C" fn ddog_sidecar_connect_master_php() -> MaybeError {
-    #[cfg(all(unix, feature = "tracer"))]
+    #[cfg(all(unix, feature = "tracer-runtime"))]
     ddtrace_sidecar::register_appsec_backend();
 
     datadog_sidecar_ffi::ddog_sidecar_connect_master()

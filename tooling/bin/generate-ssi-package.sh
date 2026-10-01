@@ -32,6 +32,12 @@ function stripto() {
         arch_cmd_prefix="aarch64-linux-gnu-"
     fi
 
+    if [[ $source == ./ssi_* ]] && "${arch_cmd_prefix}objdump" -p "$source" | \
+        awk '$1 == "NEEDED" && $2 == "libdatadog_php.so" { found = 1 } END { exit !found }'; then
+        echo "SSI ddtrace.so must use the loader preload, not DT_NEEDED: $source" >&2
+        exit 1
+    fi
+
     "${arch_cmd_prefix}objcopy" --only-keep-debug --compress-debug-sections=zlib "$source" "${target}.debug"
     "${arch_cmd_prefix}strip" -o "$target" "$source"
     (
@@ -76,17 +82,18 @@ for architecture in "${architectures[@]}"; do
 
         mkdir -p ${gnu}/trace/ext/${php_api} ${musl}/trace/ext/${php_api}
         if [[ ${php_api} -ge 20160303 ]]; then
-            # Profiling-capable PHP versions are built as combined artifacts.
-            stripto ./extensions_${architecture}/ddtrace-${php_api}.so \
+            # SSI combined extensions import symbols from the common DSO via
+            # the loader preload; non-SSI extensions_* are self-contained.
+            stripto ./ssi_${architecture}/ddtrace-${php_api}.so \
                 ${gnu}/trace/ext/${php_api}/ddtrace.so
-            stripto ./extensions_${architecture}/ddtrace-${php_api}-zts.so \
+            stripto ./ssi_${architecture}/ddtrace-${php_api}-zts.so \
                 ${gnu}/trace/ext/${php_api}/ddtrace-zts.so
             touch ${gnu}/trace/ext/${php_api}/.ddtrace.profiling
             touch ${gnu}/trace/ext/${php_api}/.ddtrace-zts.profiling
 
-            stripto ./extensions_${architecture}/ddtrace-${php_api}-alpine.so \
+            stripto ./ssi_${architecture}/ddtrace-${php_api}-alpine.so \
                 ${musl}/trace/ext/${php_api}/ddtrace.so
-            stripto ./extensions_${architecture}/ddtrace-${php_api}-alpine-zts.so \
+            stripto ./ssi_${architecture}/ddtrace-${php_api}-alpine-zts.so \
                 ${musl}/trace/ext/${php_api}/ddtrace-zts.so
             touch ${musl}/trace/ext/${php_api}/.ddtrace.profiling
             touch ${musl}/trace/ext/${php_api}/.ddtrace-zts.profiling

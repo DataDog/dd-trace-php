@@ -2,8 +2,6 @@ mod ffi;
 
 pub use ffi::*;
 
-pub use libdd_library_config_ffi::*;
-
 use libc::{c_char, c_int, c_uchar, c_uint, c_ushort, c_void, size_t};
 use std::borrow::Cow;
 use std::ffi::CStr;

@@ -33,8 +33,11 @@ pub(crate) enum ThreadContextRead {
     Active(ThreadContext),
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", feature = "otel-context"))]
 #[path = "process_context/linux.rs"]
+mod platform;
+#[cfg(all(target_os = "linux", not(feature = "otel-context")))]
+#[path = "process_context/basic.rs"]
 mod platform;
 
 #[cfg(target_os = "linux")]
