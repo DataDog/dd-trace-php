@@ -1485,6 +1485,7 @@ endforeach;
   parallel:
     matrix:
       - TESTSUITE:
+        - APM_TRACING_EFFICIENT_PAYLOAD
         - APPSEC_API_SECURITY
         - APPSEC_API_SECURITY_RC
         - APPSEC_API_SECURITY_NO_RESPONSE_BODY
