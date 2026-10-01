@@ -11,11 +11,9 @@
 #define DD_INTEGRATION_ANALYTICS_ENABLED_DEFAULT false
 #define DD_INTEGRATION_ANALYTICS_SAMPLE_RATE_DEFAULT 1.0
 
-#if PHP_VERSION_ID >= 80300 || defined(_WIN32)
+// Sidecar is the default trace sender on all PHP versions (in-process coms.c sender is the
+// DD_TRACE_SIDECAR_TRACE_SENDER=0 opt-in). Thread mode isn't pcntl_fork()-safe; auto falls back.
 #define DD_SIDECAR_TRACE_SENDER_DEFAULT true
-#else
-#define DD_SIDECAR_TRACE_SENDER_DEFAULT false
-#endif
 
 #if _BUILD_FROM_PECL_
 #define DD_DEFAULT_SOURCES_PATH "@php_dir@/datadog_trace/src/"
@@ -117,7 +115,6 @@
     CONFIG(BOOL, DD_TRACE_AGENT_DEBUG_VERBOSE_CURL, "false", .ini_change = zai_config_system_ini_change)       \
     CONFIG(BOOL, DD_TRACE_DEBUG_CURL_OUTPUT, "false", .ini_change = zai_config_system_ini_change)              \
     CONFIG(INT, DD_TRACE_BETA_HIGH_MEMORY_PRESSURE_PERCENT, "80", .ini_change = zai_config_system_ini_change)  \
-    CONFIG(BOOL, DD_TRACE_WARN_LEGACY_DD_TRACE, "true")                                                        \
     CONFIG(BOOL, DD_TRACE_RETAIN_THREAD_CAPABILITIES, "false", .ini_change = zai_config_system_ini_change)     \
     CONFIG(STRING, DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP, DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP_DEFAULT) \
     CONFIG(BOOL, DD_TRACE_MEMCACHED_OBFUSCATION, "true")                                                       \

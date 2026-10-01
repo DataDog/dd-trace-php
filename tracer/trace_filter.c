@@ -44,28 +44,30 @@ static const char *ddtrace_root_tag_value(const void *ctx, const char *key, uint
     CHECK_PROP("resource", property_resource)
 #undef CHECK_PROP
 
-    // Meta hash: string tags.
-    zend_array *meta = ddtrace_property_array(&root->property_meta);
-    if (meta) {
-        zval *val = zend_hash_str_find(meta, key, key_len);
-        if (val && Z_TYPE_P(val) == IS_STRING) {
-            *out_len = Z_STRLEN_P(val);
-            return Z_STRVAL_P(val);
+    // Attributes: string tags as-is, numbers as stringified floats, bools as on the v0.4 wire.
+    zval *attr = zend_hash_str_find(ddtrace_property_array(&root->property_attributes), key, key_len);
+    if (attr) {
+        ZVAL_DEREF(attr);
+        switch (Z_TYPE_P(attr)) {
+            case IS_STRING:
+                *out_len = Z_STRLEN_P(attr);
+                return Z_STRVAL_P(attr);
+            case IS_TRUE:
+                *out_len = 4;
+                return "true";
+            case IS_FALSE:
+                *out_len = 5;
+                return "false";
+            case IS_LONG:
+            case IS_DOUBLE: {
+                ZEND_TLS char attr_buf[32];
+                int len = snprintf(attr_buf, sizeof(attr_buf), "%g", zval_get_double(attr));
+                *out_len = (uintptr_t)(len > 0 ? len : 0);
+                return attr_buf;
+            }
         }
     }
 
-    // Metrics hash: numeric tags returned as stringified float.
-    zend_array *metrics = ddtrace_property_array(&root->property_metrics);
-    if (metrics) {
-        zval *val = zend_hash_str_find(metrics, key, key_len);
-        if (val) {
-            ZEND_TLS char metric_buf[32];
-            double d = zval_get_double(val);
-            int len = snprintf(metric_buf, sizeof(metric_buf), "%g", d);
-            *out_len = (uintptr_t)(len > 0 ? len : 0);
-            return metric_buf;
-        }
-    }
 
     // Meta struct: key-presence only (value is unrepresentable as a string).
     zend_array *meta_struct = ddtrace_property_array(&root->property_meta_struct);

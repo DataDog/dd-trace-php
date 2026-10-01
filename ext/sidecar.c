@@ -256,7 +256,8 @@ static void dd_sidecar_configure(ddog_SidecarTransport **transport) {
                                     dd_zend_string_to_CharSlice(get_global_DD_HOSTNAME()),
                                     dd_zend_string_to_CharSlice(get_global_DD_SERVICE()),
                                     root_session_id,
-                                    parent_session_id
+                                    parent_session_id,
+                                    get_global_DD_TRACE_AGENT_PROTOCOL_VERSION() == DD_TRACE_AGENT_PROTOCOL_VERSION_V04
                                 );
     if (normalized_service_name) {
         ddog_free_normalized_tag_value(normalized_service_name);

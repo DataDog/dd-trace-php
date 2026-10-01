@@ -137,6 +137,19 @@ static bool dd_parse_sidecar_connection_mode(zai_str value, zval *decoded_value,
     return true;
 }
 
+static bool dd_parse_trace_agent_protocol_version(zai_str value, zval *decoded_value, bool persistent) {
+    UNUSED(persistent);
+    if (zai_str_eq_ci_cstr(value, "1.0") || zai_str_eq_ci_cstr(value, "1")) {
+        ZVAL_LONG(decoded_value, DD_TRACE_AGENT_PROTOCOL_VERSION_V1);
+    } else if (zai_str_eq_ci_cstr(value, "0.4")) {
+        ZVAL_LONG(decoded_value, DD_TRACE_AGENT_PROTOCOL_VERSION_V04);
+    } else {
+        return false;
+    }
+
+    return true;
+}
+
 // Custom parser to ensure security-testing headers are always captured.
 static bool dd_parse_header_tags(zai_str value, zval *decoded_value, bool persistent) {
     if (!zai_config_decode_value(value, ZAI_CONFIG_TYPE_SET_OR_MAP_LOWERCASE, NULL, decoded_value, persistent)) {

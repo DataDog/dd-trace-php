@@ -5,6 +5,8 @@
 
 #include <ext/datadog_export.h>
 
+// Deletes the values of `propagated_tags` from `tags`, keeping the propagated list.
+void ddtrace_drop_propagated_tags(zend_array *tags, zend_array *propagated_tags);
 void ddtrace_clean_tracer_tags(zend_array *root_meta, zend_array *propagated_tags);
 void ddtrace_add_tracer_tags_from_header(zend_string *headerstr, zend_array *root_meta, zend_array *propagated_tags);
 void ddtrace_add_tracer_tags_from_array(zend_array *array, zend_array *root_meta, zend_array *propagated_tags);

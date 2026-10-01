@@ -46,6 +46,10 @@ void ddog_php_prof_zend_activate(void);
 #endif
 
 #if defined(DDTRACE_PROFILING)
+void ddog_php_prof_zend_deactivate(void);
+#endif
+
+#if defined(DDTRACE_PROFILING)
 ddog_ZendResult ddog_php_prof_rinit(int _type, int _module_number);
 #endif
 
@@ -77,6 +81,28 @@ void ddog_php_prof_zend_shutdown(ddog_ZendExtension *extension);
 #if defined(DDTRACE_PROFILING)
 bool ddog_php_prof_is_enabled(void);
 #endif
+
+/**
+ * Check that a configuration value can be represented as a UTF-8 PHP string.
+ *
+ * # Safety
+ * `bytes` must point to `len` readable bytes unless `len` is zero.
+ */
+bool datadog_bytes_are_valid_utf8(const uint8_t *bytes, uintptr_t len);
+
+ddog_Configurator *ddog_library_configurator_new_dummy(bool debug_logs, ddog_CharSlice language);
+
+bool ddog_shall_log(enum ddog_Log category);
+
+void ddog_set_error_log_level(bool once);
+
+void ddog_set_log_level(ddog_CharSlice level, bool once);
+
+void ddog_log(enum ddog_Log category, bool once, ddog_CharSlice msg);
+
+void ddog_reset_logger(void);
+
+uint32_t ddog_get_logs_count(ddog_CharSlice level);
 
 /**
  * Read all agent /info data in one SHM read and apply env, container-hash and concentrator
@@ -123,59 +149,66 @@ void ddog_init_span_func(void (*free_func)(ddog_OwnedZendString),
                          void (*addref_func)(struct _zend_string*),
                          ddog_OwnedZendString (*init_func)(ddog_CharSlice));
 
-void ddog_set_span_service_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
+/**
+ * # Safety
+ * `span` must be a live span node pointer from `ddog_new_span` (every `*_zstr` span setter).
+ */
+void ddog_set_span_service_zstr(ddog_SpanNode *span, struct _zend_string *str);
 
-void ddog_set_span_name_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
+/**
+ * # Safety
+ * See [`ddog_set_span_service_zstr`].
+ */
+void ddog_set_span_name_zstr(ddog_SpanNode *span, struct _zend_string *str);
 
-void ddog_set_span_resource_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
+/**
+ * # Safety
+ * See [`ddog_set_span_service_zstr`].
+ */
+void ddog_set_span_resource_zstr(ddog_SpanNode *span, struct _zend_string *str);
 
-void ddog_set_span_type_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
+/**
+ * # Safety
+ * See [`ddog_set_span_service_zstr`].
+ */
+void ddog_set_span_type_zstr(ddog_SpanNode *span, struct _zend_string *str);
 
-void ddog_add_span_meta_zstr(ddog_SpanBytes *ptr,
-                             struct _zend_string *key,
-                             struct _zend_string *val);
+/**
+ * String attribute under a static C literal key.
+ *
+ * # Safety
+ * `attrs` must be a live `Attributes` handle and `key` a static NUL-terminated string (applies
+ * to every attribute adder below).
+ */
+void ddog_attributes_add_lit(ddog_Attributes *attrs, const char *key, ddog_CharSlice value);
 
-void ddog_add_CharSlice_span_meta_zstr(ddog_SpanBytes *ptr,
-                                       ddog_CharSlice key,
-                                       struct _zend_string *val);
+/**
+ * String attribute sharing both zend strings (zero-copy).
+ *
+ * # Safety
+ * See [`ddog_attributes_add_lit`].
+ */
+void ddog_attributes_add_zstr(ddog_Attributes *attrs,
+                              struct _zend_string *key,
+                              struct _zend_string *value);
 
-void ddog_add_zstr_span_meta_str(ddog_SpanBytes *ptr, struct _zend_string *key, const char *val);
+/**
+ * Double attribute under a static C literal key.
+ *
+ * # Safety
+ * See [`ddog_attributes_add_lit`].
+ */
+void ddog_attributes_add_double_lit(ddog_Attributes *attrs, const char *key, double value);
 
-void ddog_add_str_span_meta_str(ddog_SpanBytes *ptr, const char *key, const char *val);
-
-void ddog_add_str_span_meta_zstr(ddog_SpanBytes *ptr, const char *key, struct _zend_string *val);
-
-void ddog_add_str_span_meta_CharSlice(ddog_SpanBytes *ptr, const char *key, ddog_CharSlice val);
-
-void ddog_del_span_meta_zstr(ddog_SpanBytes *ptr, struct _zend_string *key);
-
-void ddog_del_span_meta_str(ddog_SpanBytes *ptr, const char *key);
-
-bool ddog_has_span_meta_zstr(ddog_SpanBytes *ptr, struct _zend_string *key);
-
-bool ddog_has_span_meta_str(ddog_SpanBytes *ptr, const char *key);
-
-ddog_CharSlice ddog_get_span_meta_str(ddog_SpanBytes *span, const char *key);
-
-void ddog_add_span_metrics_zstr(ddog_SpanBytes *ptr, struct _zend_string *key, double val);
-
-bool ddog_has_span_metrics_zstr(ddog_SpanBytes *ptr, struct _zend_string *key);
-
-void ddog_del_span_metrics_zstr(ddog_SpanBytes *ptr, struct _zend_string *key);
-
-void ddog_add_span_metrics_str(ddog_SpanBytes *ptr, const char *key, double val);
-
-bool ddog_get_span_metrics_str(ddog_SpanBytes *ptr, const char *key, double *result);
-
-void ddog_del_span_metrics_str(ddog_SpanBytes *ptr, const char *key);
-
-void ddog_add_span_meta_struct_zstr(ddog_SpanBytes *ptr,
-                                    struct _zend_string *key,
-                                    struct _zend_string *val);
-
-void ddog_add_zstr_span_meta_struct_CharSlice(ddog_SpanBytes *ptr,
-                                              struct _zend_string *key,
-                                              ddog_CharSlice val);
+/**
+ * Double attribute under a shared zend string key (zero-copy).
+ *
+ * # Safety
+ * See [`ddog_attributes_add_lit`].
+ */
+void ddog_attributes_add_double_zstr(ddog_Attributes *attrs,
+                                     struct _zend_string *key,
+                                     double value);
 
 bool ddog_ffe_load_config(ddog_CharSlice json);
 
@@ -188,18 +221,6 @@ struct ddog_FfeResult ddog_ffe_evaluate(ddog_CharSlice flag_key,
                                         ddog_CharSlice targeting_key,
                                         const struct ddog_FfeAttribute *attributes,
                                         uintptr_t attributes_count);
-
-bool ddog_shall_log(enum ddog_Log category);
-
-void ddog_set_error_log_level(bool once);
-
-void ddog_set_log_level(ddog_CharSlice level, bool once);
-
-void ddog_log(enum ddog_Log category, bool once, ddog_CharSlice msg);
-
-void ddog_reset_logger(void);
-
-uint32_t ddog_get_logs_count(ddog_CharSlice level);
 
 void ddog_init_remote_config(struct ddog_RemoteConfigFlags flags);
 
@@ -554,8 +575,6 @@ void datadog_generate_session_id(void);
 
 void datadog_format_runtime_id(uint8_t (*buf)[36]);
 
-bool datadog_bytes_are_valid_utf8(const uint8_t *bytes, uintptr_t len);
-
 #if defined(__linux__)
 /**
  * Publish or update dd-trace-php's standard Linux OTel Process Context.
@@ -597,8 +616,6 @@ struct ddog_Endpoint *datadog_otel_metrics_endpoint_from_agent_url(ddog_CharSlic
 ddog_MaybeError datadog_crashtracker_init(const struct ddog_Endpoint *endpoint,
                                           ddog_crasht_Metadata metadata,
                                           int32_t master_pid);
-
-ddog_Configurator *ddog_library_configurator_new_dummy(bool debug_logs, ddog_CharSlice language);
 
 uint64_t dd_fnv1a_64(const uint8_t *data, uintptr_t len);
 
