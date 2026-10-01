@@ -78,6 +78,7 @@ if (PHP_DDTRACE != 'no') {
 	DDTRACE_TRACER_SOURCES += " serializer.c";
 	DDTRACE_TRACER_SOURCES += " span.c";
 	DDTRACE_TRACER_SOURCES += " span_stats.c";
+	DDTRACE_TRACER_SOURCES += " span_tags_view.c";
 	DDTRACE_TRACER_SOURCES += " standalone_limiter.c";
 	DDTRACE_TRACER_SOURCES += " trace_filter.c";
 	DDTRACE_TRACER_SOURCES += " trace_source.c";

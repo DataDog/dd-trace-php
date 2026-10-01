@@ -94,14 +94,15 @@ static int dd_php_stdiop_close_wrapper(php_stream *stream, int close_handle) {
 
     ddtrace_span_data *span_data = OBJ_SPANDATA(Z_OBJ_P(span_data_zv));
 
-    zend_array *meta = ddtrace_property_array(&span_data->property_meta);
+    zend_array *meta = ddtrace_property_array(&span_data->property_attributes);
     if (ret == -1) {
         zval zv;
         ZVAL_INTERNED_STR(&zv, pclose_minus_one_zstr);
         zend_hash_update(meta, error_message_zstr, &zv);
     } else {
+        // A string, as the tag was when it lived in meta.
         zval zexit;
-        ZVAL_LONG(&zexit, ret);
+        ZVAL_STR(&zexit, zend_long_to_str(ret));
         zend_hash_update(meta, cmd_exit_code_zstr, &zexit);
     }
 
@@ -137,7 +138,7 @@ static void dd_waitpid(ddtrace_span_data *span_data, dd_proc_span *proc) {
         // already closed
         return;
     }
-    zend_array *meta = ddtrace_property_array(&span_data->property_meta);
+    zend_array *meta = ddtrace_property_array(&span_data->property_attributes);
 
     int wstatus;
     bool exited = false;
@@ -183,7 +184,7 @@ static void dd_waitpid(ddtrace_span_data *span_data, dd_proc_span *proc) {
 
     if (exited) {
         zval zexit;
-        ZVAL_LONG(&zexit, wstatus);
+        ZVAL_STR(&zexit, zend_long_to_str(wstatus));
 
         // set tag 'cmd.exit_code'
         zend_hash_update(meta, cmd_exit_code_zstr, &zexit);

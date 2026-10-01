@@ -11,11 +11,15 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
-void ddtrace_clean_tracer_tags(zend_array *root_meta, zend_array *propagated_tags) {
+void ddtrace_drop_propagated_tags(zend_array *tags, zend_array *propagated_tags) {
     zend_string *tagname;
     ZEND_HASH_FOREACH_STR_KEY(propagated_tags, tagname) {
-        zend_hash_del(root_meta, tagname);
+        zend_hash_del(tags, tagname);
     } ZEND_HASH_FOREACH_END();
+}
+
+void ddtrace_clean_tracer_tags(zend_array *root_meta, zend_array *propagated_tags) {
+    ddtrace_drop_propagated_tags(root_meta, propagated_tags);
     zend_hash_clean(propagated_tags);
 }
 
@@ -90,15 +94,17 @@ static zend_array *ddtrace_get_propagated() {
     return propagated;
 }
 
+// Propagated tag values live in the root span's $attributes (the preset before a root exists).
 static zend_array *ddtrace_get_root_meta() {
     zend_array *root_meta = &DDTRACE_G(root_span_tags_preset);
     ddtrace_root_span_data *root_span = DDTRACE_G(active_stack)->root_span;
     if (root_span) {
-        root_meta = ddtrace_property_array(&root_span->property_meta);
+        root_meta = ddtrace_property_array(&root_span->property_attributes);
     }
 
     return root_meta;
 }
+
 
 zval *ddtrace_propagated_tags_get_tag(const char *tag) {
     if (!tag) {
