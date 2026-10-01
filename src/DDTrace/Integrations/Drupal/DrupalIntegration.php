@@ -20,14 +20,6 @@ class DrupalIntegration extends Integration
 {
     const NAME = 'drupal';
 
-    /**
-     * {@inheritdoc}
-     */
-    public static function requiresExplicitTraceAnalyticsEnabling(): bool
-    {
-        return false;
-    }
-
     public static function init(): int
     {
         ini_set('datadog.trace.spans_limit', max(1500, ini_get('datadog.trace.spans_limit')));
@@ -45,14 +37,14 @@ class DrupalIntegration extends Integration
                     $rootSpan->name = 'drupal.request';
                     $rootSpan->service = $service;
                     Integration::tagFrameworkServiceSource($rootSpan, 'drupal');
-                    $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+                    $rootSpan->attributes[Tag::SPAN_KIND] = 'server';
                     $rootSpan->meta[Tag::COMPONENT] = self::NAME;
 
                     $span->name = 'drupal.kernel.handle';
                     $span->type = Type::WEB_SERVLET;
                     $span->service = $service;
                     Integration::tagFrameworkServiceSource($span, 'drupal');
-                    $span->meta[Tag::SPAN_KIND] = 'server';
+                    $span->attributes[Tag::SPAN_KIND] = 'server';
                     $span->meta[Tag::COMPONENT] = self::NAME;
                 }
             ]

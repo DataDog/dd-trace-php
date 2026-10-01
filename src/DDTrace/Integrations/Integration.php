@@ -16,25 +16,6 @@ abstract class Integration implements \DDTrace\Integration
         return static::NAME;
     }
 
-    public static function addTraceAnalyticsIfEnabled(SpanData $span)
-    {
-        $name = static::NAME;
-        if (\DDTrace\Config\integration_analytics_enabled($name)
-            || (!static::requiresExplicitTraceAnalyticsEnabling() && \dd_trace_env_config("DD_TRACE_ANALYTICS_ENABLED"))) {
-            $span->metrics[Tag::ANALYTICS_KEY] = \DDTrace\Config\integration_analytics_sample_rate($name);
-        }
-    }
-
-    /**
-     * Whether this integration trace analytics configuration is not enabled when DD_TRACE_ANALYTICS_ENABLED=1 is specified.
-     *
-     * Trace Analytics are generally enabled by default for top-level integrations, i.e. frameworks and webservers.
-     */
-    public static function requiresExplicitTraceAnalyticsEnabling(): bool
-    {
-        return true;
-    }
-
     /**
      * Tells whether the provided integration should be loaded.
      */
@@ -94,22 +75,27 @@ abstract class Integration implements \DDTrace\Integration
             $service = $mapping[$service];
         }
         $span->service = $service;
-        unset($span->meta['_dd.svc_src']);
+        unset($span->attributes['_dd.svc_src']);
         if ($flatServiceNames) {
-            if ($rootSpan && isset($rootSpan->meta['_dd.svc_src'])) {
-                $span->meta['_dd.svc_src'] = $rootSpan->meta['_dd.svc_src'];
+            if ($rootSpan && isset($rootSpan->attributes['_dd.svc_src'])) {
+                $span->attributes['_dd.svc_src'] = $rootSpan->attributes['_dd.svc_src'];
             }
         } else {
-            $span->meta['_dd.svc_src'] = $fallbackName;
+            $span->attributes['_dd.svc_src'] = $fallbackName;
         }
+    }
+
+    public static function hasTag(SpanData $span, $key)
+    {
+        return array_key_exists($key, $span->attributes);
     }
 
     public static function tagFrameworkServiceSource(SpanData $span, $integrationName)
     {
         if (\dd_trace_env_config('DD_SERVICE')) {
-            unset($span->meta['_dd.svc_src']);
+            unset($span->attributes['_dd.svc_src']);
         } else {
-            $span->meta['_dd.svc_src'] = $integrationName;
+            $span->attributes['_dd.svc_src'] = $integrationName;
         }
     }
 
@@ -121,7 +107,7 @@ abstract class Integration implements \DDTrace\Integration
     {
         if (!\dd_trace_env_config('DD_SERVICE')) {
             $span->service = $service ?? $component;
-            $span->meta['_dd.svc_src'] = $component;
+            $span->attributes['_dd.svc_src'] = $component;
         }
         $span->meta[Tag::COMPONENT] = $component;
     }

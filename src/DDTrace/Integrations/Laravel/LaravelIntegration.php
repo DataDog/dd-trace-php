@@ -23,14 +23,6 @@ class LaravelIntegration extends Integration
      */
     public static $serviceName;
 
-    /**
-     * {@inheritdoc}
-     */
-    public static function requiresExplicitTraceAnalyticsEnabling(): bool
-    {
-        return false;
-    }
-
     public static function isArtisanQueueCommand(): bool
     {
         $artisanCommand = isset($_SERVER['argv'][1]) ? $_SERVER['argv'][1] : '';
@@ -69,13 +61,12 @@ class LaravelIntegration extends Integration
 
                 // Overwriting the default web integration
                 $rootSpan->name = 'laravel.request';
-                self::addTraceAnalyticsIfEnabled($rootSpan);
                 if (\method_exists($response, 'getStatusCode')) {
-                    $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
+                    $rootSpan->attributes[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
                 }
                 $rootSpan->service = self::getServiceName();
                 Integration::tagFrameworkServiceSource($rootSpan, LaravelIntegration::NAME);
-                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+                $rootSpan->attributes[Tag::SPAN_KIND] = 'server';
                 $rootSpan->meta[Tag::COMPONENT] = self::NAME;
             }
         );
@@ -119,7 +110,6 @@ class LaravelIntegration extends Integration
                 list($request) = $args;
 
                 // Overwriting the default web integration
-                self::addTraceAnalyticsIfEnabled($rootSpan);
                 $routeName = self::normalizeRouteName($route->getName());
 
                 if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
@@ -135,8 +125,8 @@ class LaravelIntegration extends Integration
                 $rootSpan->meta['laravel.route.name'] = $routeName;
                 $rootSpan->meta['laravel.route.action'] = $route->getActionName();
 
-                if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
-                    $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($request->fullUrl());
+                if (!Integration::hasTag($rootSpan, Tag::HTTP_URL)) {
+                    $rootSpan->attributes[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($request->fullUrl());
                 }
                 if (\method_exists($route, 'uri')) {
                     $rootSpan->meta[Tag::HTTP_ROUTE] = $route->uri();
@@ -147,8 +137,8 @@ class LaravelIntegration extends Integration
                         \datadog\appsec\push_addresses(["server.request.path_params" => $parameters]);
                     }
                 }
-                $rootSpan->meta[Tag::HTTP_METHOD] = $request->method();
-                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+                $rootSpan->attributes[Tag::HTTP_METHOD] = $request->method();
+                $rootSpan->attributes[Tag::SPAN_KIND] = 'server';
 
                 if (!\DDTrace\are_endpoints_collected()) {
                     $routeCollection = $This->getRoutes();
@@ -186,8 +176,7 @@ class LaravelIntegration extends Integration
                     return;
                 }
 
-                $ignoreError = isset($rootSpan->meta['error.ignored']) && $rootSpan->meta['error.ignored'];
-                if (isset($This->exception) && $This->getStatusCode() >= 500 && !$ignoreError) {
+                if (isset($This->exception) && $This->getStatusCode() >= 500 && !$rootSpan->ignoreError) {
                     $rootSpan->exception = $This->exception;
                 }
             }
@@ -314,7 +303,7 @@ class LaravelIntegration extends Integration
 
                 $rootSpan->name = 'laravel.artisan';
                 $rootSpan->resource = !empty($_SERVER['argv'][1]) ? 'artisan ' . $_SERVER['argv'][1] : 'artisan';
-                unset($rootSpan->meta[Tag::SPAN_KIND]);
+                unset($rootSpan->attributes[Tag::SPAN_KIND]);
                 $rootSpan->meta[Tag::COMPONENT] = self::NAME;
             }
         );
@@ -360,10 +349,10 @@ class LaravelIntegration extends Integration
 
                     if ($args[0] && $exceptionHandler->shouldReport($args[0])) {
                         $rootSpan->exception = $args[0];
-                        $rootSpan->meta['error.ignored'] = 0;
+                        $rootSpan->ignoreError = false;
                     } elseif ($args[0] && !$exceptionHandler->shouldReport($args[0])) {
                         $rootSpan->exception = $args[0];
-                        $rootSpan->meta['error.ignored'] = 1;
+                        $rootSpan->ignoreError = true;
                     }
                 },
                 'recurse' => true,
