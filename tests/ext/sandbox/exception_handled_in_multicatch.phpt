@@ -38,7 +38,7 @@ echo multiCatch() . PHP_EOL;
 array_map(function($span) {
     echo $span['name'];
     echo isset($span['resource']) ? ', ' . $span['resource'] : '';
-    echo isset($span['meta']['error.message']) ? ', ' . $span['meta']['error.message'] : '';
+    echo isset($span['attributes']['error.message']) ? ', ' . $span['attributes']['error.message'] : '';
     echo PHP_EOL;
 }, dd_trace_serialize_closed_spans());
 ?>

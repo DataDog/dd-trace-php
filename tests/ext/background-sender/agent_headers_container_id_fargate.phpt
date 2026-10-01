@@ -12,6 +12,7 @@ DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS=1
 DD_TRACE_AGENT_FLUSH_INTERVAL=333
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
+DD_TRACE_SIDECAR_TRACE_SENDER=0
 --INI--
 ddtrace.cgroup_file={PWD}/stubs/cgroup.fargate.1.4
 datadog.trace.agent_test_session_token=background-sender/agent_headers_container_id_fargate
@@ -37,7 +38,7 @@ echo 'Done.' . PHP_EOL;
 
 ?>
 --EXPECTF--
-[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for http://request-replayer:80
+[ddtrace] [info] [%d] Flushing %d v0.4 trace(s) to send-queue for http://request-replayer:80
 
 datadog-container-id:%s34dc0b5e626f2c5c4c5170e34b10e765-1234567890
 datadog-meta-lang: php

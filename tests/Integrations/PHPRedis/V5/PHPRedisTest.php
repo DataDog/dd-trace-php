@@ -2486,7 +2486,7 @@ class PHPRedisTest extends IntegrationTestCase
         });
 
         $span = $traces[0][0];
-        $this->assertEquals(0, $span['metrics']['_sampling_priority_v1']);
+        $this->assertEquals(0, $span['sampling_priority']);
     }
 
     public function testOrphansRemoval64bit()
@@ -2502,6 +2502,6 @@ class PHPRedisTest extends IntegrationTestCase
         });
 
         $span = $traces[0][0];
-        $this->assertEquals(0, $span['metrics']['_sampling_priority_v1']);
+        $this->assertEquals(0, $span['sampling_priority']);
     }
 }

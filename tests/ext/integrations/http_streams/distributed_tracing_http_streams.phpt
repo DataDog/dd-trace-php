@@ -50,8 +50,12 @@ echo "resource: " . $span['resource'] . "\n";
 echo "type: " . $span['type'] . "\n";
 echo "service: " . $span['service'] . "\n";
 echo "meta:\n";
-ksort($span['meta']);
-foreach ($span['meta'] as $k => $v) {
+// The v1 introspection shape merges meta+metrics into a single attributes map and
+// promotes component/span.kind to top-level fields; keep the string tags to preserve
+// this test's historical meta view.
+$attrs = array_filter($span['attributes'], 'is_string');
+ksort($attrs);
+foreach ($attrs as $k => $v) {
     echo "  $k: $v\n";
 }
 
@@ -72,10 +76,8 @@ resource: %s
 type: cli
 service: %s
 meta:
-  component: php.stream
   http.method: GET
   http.url: http://%s:%d/headers
   network.destination.name: %s
-  span.kind: client
 Done.
 [ddtrace] [info] [%d] No finished traces to be sent to the agent

@@ -91,7 +91,8 @@ foreach ($tests as list($pattern, $name, $matches)) {
         ini_set("datadog.trace.sampling_rules", '[{"tags":{"foo":"' . $pattern . '"},"sample_rate":0.7},{"sample_rate": 0.3}]');
 
         $root = \DDTrace\root_span();
-        $root->meta["foo"] = $name;
+        // Typed, so the numeric/null rules apply ($meta stores strings).
+        $root->attributes["foo"] = $name;
 
         \DDTrace\get_priority_sampling();
 

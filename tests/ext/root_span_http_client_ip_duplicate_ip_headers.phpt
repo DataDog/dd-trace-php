@@ -17,13 +17,13 @@ DD_TRACE_CLIENT_IP_ENABLED=true
 DDTrace\start_span();
 DDTrace\close_span(0);
 $span = dd_trace_serialize_closed_spans();
-var_dump(isset($span[0]["meta"]['http.request.headers.x-forwarded-for']));
-var_dump(isset($span[0]["meta"]['http.request.headers.x-real-ip']));
-var_dump(isset($span[0]["meta"]['http.request.headers.x-forwarded']));
-var_dump(isset($span[0]["meta"]['http.request.headers.x-cluster-client-ip']));
-var_dump(isset($span[0]["meta"]['http.request.headers.forwarded-for']));
-var_dump(isset($span[0]["meta"]['http.request.headers.true-client-ip']));
-var_dump($span[0]["meta"]["http.client_ip"]);
+var_dump(isset($span[0]["attributes"]['http.request.headers.x-forwarded-for']));
+var_dump(isset($span[0]["attributes"]['http.request.headers.x-real-ip']));
+var_dump(isset($span[0]["attributes"]['http.request.headers.x-forwarded']));
+var_dump(isset($span[0]["attributes"]['http.request.headers.x-cluster-client-ip']));
+var_dump(isset($span[0]["attributes"]['http.request.headers.forwarded-for']));
+var_dump(isset($span[0]["attributes"]['http.request.headers.true-client-ip']));
+var_dump($span[0]["attributes"]["http.client_ip"]);
 ?>
 --EXPECTF--
 bool(false)

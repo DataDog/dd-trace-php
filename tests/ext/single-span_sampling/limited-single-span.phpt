@@ -14,7 +14,7 @@ for ($i = 0; $i < 3; ++$i) {
     DDTrace\start_span();
     DDTrace\close_span();
 
-    $last = dd_trace_serialize_closed_spans()[0]["metrics"];
+    $last = dd_trace_serialize_closed_spans()[0]["attributes"];
 }
 
 echo "mechanism after 3: ", $last["_dd.span_sampling.mechanism"], "\n";
@@ -23,7 +23,7 @@ for ($i = 0; $i < 12; ++$i) {
     DDTrace\start_span();
     DDTrace\close_span();
 
-    $last = dd_trace_serialize_closed_spans()[0]["metrics"];
+    $last = dd_trace_serialize_closed_spans()[0]["attributes"];
 }
 
 echo "sampling present after 12: ";

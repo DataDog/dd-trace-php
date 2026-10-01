@@ -20,6 +20,7 @@
       "symfony.route.name": "homepage"
     },
     "metrics": {
+      "_dd.top_level": 1.0,
       "_sampling_priority_v1": 1.0
     }
   },

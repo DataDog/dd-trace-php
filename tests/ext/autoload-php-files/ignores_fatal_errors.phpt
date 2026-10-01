@@ -21,4 +21,4 @@ echo "Request start" . PHP_EOL;
 Calling a function that does not exist...
 [ddtrace] [warning] [%d] Error raised in autoloaded file %s: Allowed memory size of 20971520 bytes exhausted %s on line %d
 Request start
-[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for %s
+[ddtrace] [info] [%d] Flushing v1 trace of size 1 to send-queue for %s

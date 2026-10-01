@@ -23,6 +23,7 @@
     },
     "metrics": {
       "_dd.agent_psr": 1,
+      "_dd.top_level": 1,
       "_sampling_priority_v1": 1,
       "messaging.kafka.message_offset": 10,
       "messaging.kafka.partition": 0,
@@ -54,6 +55,7 @@
     },
     "metrics": {
       "_dd.agent_psr": 1,
+      "_dd.top_level": 1,
       "_sampling_priority_v1": 1,
       "messaging.kafka.message_offset": 11,
       "messaging.kafka.partition": 0,
@@ -83,6 +85,7 @@
     },
     "metrics": {
       "_dd.agent_psr": 1,
+      "_dd.top_level": 1,
       "_sampling_priority_v1": 1
     }
   }]]

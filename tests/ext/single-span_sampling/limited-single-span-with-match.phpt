@@ -16,7 +16,7 @@ for ($i = 0; $i < 5; ++$i) {
     DDTrace\active_span()->service = "a";
     DDTrace\close_span();
 
-    $last = dd_trace_serialize_closed_spans()[0]["metrics"];
+    $last = dd_trace_serialize_closed_spans()[0]["attributes"];
     $droppedCount += !isset($last["_dd.span_sampling.mechanism"]);
 }
 
@@ -28,7 +28,7 @@ for ($i = 0; $i < 5; ++$i) {
     DDTrace\active_span()->name = "b";
     DDTrace\close_span();
 
-    $last = dd_trace_serialize_closed_spans()[0]["metrics"];
+    $last = dd_trace_serialize_closed_spans()[0]["attributes"];
     $droppedCount += !isset($last["_dd.span_sampling.mechanism"]);
 }
 
@@ -41,7 +41,7 @@ for ($i = 0; $i < 5; ++$i) {
     DDTrace\active_span()->name = "b";
     DDTrace\close_span();
 
-    $last = dd_trace_serialize_closed_spans()[0]["metrics"];
+    $last = dd_trace_serialize_closed_spans()[0]["attributes"];
     $droppedCount += !isset($last["_dd.span_sampling.mechanism"]);
 }
 
