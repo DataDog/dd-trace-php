@@ -70,7 +70,7 @@ class WordPressTests {
         log.info("MySQL IP: {}", mysqlIp)
 
         def res = CONTAINER.execInContainer('bash', '-c',
-                "sed -i \"s/'mysql-integration'/'${mysqlIp}'/\" /var/www/public/wp-config.php")
+                "sed -i \"s/'mysql-integration'/'${mysqlIp}'/\" /var/www/wp-config.php")
         assert res.exitCode == 0 : "Failed to update wp-config.php: ${res.stderr}"
 
         // Run wp-cli with tracing and AppSec disabled so these CLI processes
@@ -80,7 +80,7 @@ class WordPressTests {
         res = CONTAINER.execInContainer('bash', '-c',
                 """export DD_TRACE_CLI_ENABLED=false DD_APPSEC_ENABLED=0
                    wp core install \\
-                       --path=/var/www/public \\
+                       --path=/var/www \\
                        --url=http://localhost \\
                        --title='Test Site' \\
                        --admin_user=admin \\
@@ -95,8 +95,8 @@ class WordPressTests {
         def port = CONTAINER.firstMappedPort
         res = CONTAINER.execInContainer('bash', '-c',
                 """export DD_TRACE_CLI_ENABLED=false DD_APPSEC_ENABLED=0
-                   wp option update siteurl 'http://localhost:${port}' --path=/var/www/public --allow-root
-                   wp option update home 'http://localhost:${port}' --path=/var/www/public --allow-root""")
+                   wp option update siteurl 'http://localhost:${port}' --path=/var/www --allow-root
+                   wp option update home 'http://localhost:${port}' --path=/var/www --allow-root""")
         assert res.exitCode == 0 : "Failed to update WordPress URLs: ${res.stderr}"
 
         CONTAINER.clearTraces()
