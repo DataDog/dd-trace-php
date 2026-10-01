@@ -39,11 +39,10 @@ class CodeIgniterIntegration extends Integration
 
     public static function registerIntegration(\CI_Router $router, SpanData $rootSpan, $service)
     {
-        self::addTraceAnalyticsIfEnabled($rootSpan);
         $rootSpan->name = 'codeigniter.request';
         $rootSpan->service = $service;
         $rootSpan->type = Type::WEB_SERVLET;
-        $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+        $rootSpan->attributes[Tag::SPAN_KIND] = 'server';
         $rootSpan->meta[Tag::COMPONENT] = self::NAME;
 
         $controller = $router->fetch_class();
@@ -64,8 +63,8 @@ class CodeIgniterIntegration extends Integration
                 if (property_exists($this, 'load') && $this->load && \method_exists($this->load, 'helper')) {
                     $this->load->helper('url');
 
-                    if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
-                        $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(base_url(uri_string()))
+                    if (!Integration::hasTag($rootSpan, Tag::HTTP_URL)) {
+                        $rootSpan->attributes[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(base_url(uri_string()))
                             . Normalizer::sanitizedQueryString();
                     }
                     $rootSpan->meta['app.endpoint'] = "{$class}::{$method}";
@@ -97,7 +96,7 @@ class CodeIgniterIntegration extends Integration
                 if ($this->load && \method_exists($this->load, 'helper')) {
                     $this->load->helper('url');
 
-                    $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(base_url(uri_string()))
+                    $rootSpan->attributes[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(base_url(uri_string()))
                         . Normalizer::sanitizedQueryString();
                     $rootSpan->meta['app.endpoint'] = "{$class}::_remap";
                 }

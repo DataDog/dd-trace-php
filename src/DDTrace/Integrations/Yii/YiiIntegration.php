@@ -16,14 +16,6 @@ class YiiIntegration extends Integration
     /**
      * {@inheritdoc}
      */
-    public static function requiresExplicitTraceAnalyticsEnabling(): bool
-    {
-        return false;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
     public static function init(): int
     {
         if (!Versions::versionMatches('2.0', \Yii::getVersion())) {
@@ -37,8 +29,7 @@ class YiiIntegration extends Integration
                 $rootSpan = \DDTrace\root_span();
                 if ($rootSpan !== null) {
                     $rootSpan->meta[Tag::COMPONENT] = self::NAME;
-                    $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-                    self::addTraceAnalyticsIfEnabled($rootSpan);
+                    $rootSpan->attributes[Tag::SPAN_KIND] = 'server';
                 }
             }
         );
@@ -104,7 +95,7 @@ class YiiIntegration extends Integration
                     $endpoint = "{$controller}::{$this->action->actionMethod}";
                     $rootSpan->meta["app.endpoint"] = $endpoint;
 
-                    $rootSpan->meta[Tag::HTTP_URL] =
+                    $rootSpan->attributes[Tag::HTTP_URL] =
                     \DDTrace\Util\Normalizer::urlSanitize(Url::base(true) . Url::current());
                 }
 

@@ -10,7 +10,7 @@ class Convention
 {
     public static function defaultOperationName(SpanData $span): string
     {
-        $meta = $span->meta;
+        $meta = $span->attributes + $span->meta;
         $spanKind = $meta[Tag::SPAN_KIND] ?? null;
 
         switch (true) {
