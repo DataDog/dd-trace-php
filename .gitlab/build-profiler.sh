@@ -2,7 +2,9 @@
 set -e -o pipefail
 
 shopt -s expand_aliases
-source "${BASH_ENV}"
+if [[ -n ${BASH_ENV:-} ]]; then
+    source "$BASH_ENV"
+fi
 
 if [ -d '/opt/rh/devtoolset-7' ] ; then
     set +eo pipefail
@@ -83,17 +85,24 @@ rm -rf "${build_dir}"
 mkdir -p "${build_dir}/src"
 # Avoid copying host build outputs into the isolated phpize build. These are
 # regenerated there; copying multi-GB Cargo caches also slows local builds.
+root_excludes=()
+if [[ $(uname -s) == Linux ]]; then
+    # BSD tar matches root-level exclude patterns against nested paths too:
+    # excluding ./config.h removes zend_abstract_interface/config/config.h,
+    # and ./standalone_* removes tracer/standalone_limiter.h on macOS.
+    # phpize regenerates the root config headers in the copied tree.
+    root_excludes=(--exclude=./config.h --exclude=./config.h.in \
+        --exclude='./standalone_*' --exclude='./extensions_*' \
+        --exclude='./ssi_*' --exclude='./libdatadog_php_*')
+fi
 tar -cf - --exclude=.git --exclude=tmp --exclude=target --exclude=target-common \
     --exclude=target_mockgen --exclude=modules --exclude=.libs \
-    --exclude='./standalone_*' --exclude='./extensions_*' \
-    --exclude='./ssi_*' --exclude='./libdatadog_php_*' \
     --exclude='*.lo' --exclude='*.o' --exclude='*.la' --exclude='*.dep' \
     --exclude=Makefile.objects \
     --exclude=Makefile.fragments --exclude=config.status --exclude=config.log \
     --exclude=config.nice --exclude=autom4te.cache --exclude=libtool \
-    --exclude=./configure --exclude=./configure.ac --exclude=./config.h \
-    --exclude=./config.h.in --exclude=./run-tests.php \
-    . | tar -xf - -C "${build_dir}/src"
+    --exclude=./configure --exclude=./configure.ac --exclude=./run-tests.php \
+    "${root_excludes[@]}" . | tar -xf - -C "${build_dir}/src"
 cd "${build_dir}/src"
 phpize
 ./configure ${configure_products}
@@ -104,6 +113,13 @@ make_flags="${MAKEFLAGS:-}"
 if [[ "${make_flags%% *}" =~ ^[^-]*s || " $make_flags " == *" --silent "* ]]; then
     printf '\nLIBTOOL = $(SHELL) $(top_builddir)/libtool --silent\n' >> Makefile
 fi
-make -j"$(nproc)"
+if command -v nproc >/dev/null; then
+    workers=$(nproc)
+else
+    workers=$(sysctl -n hw.ncpu)
+fi
+make -j"${MAKE_JOBS:-$workers}"
 cp -v "modules/${extension_name}.so" "${output_file}"
-objcopy --compress-debug-sections "${output_file}"
+if [[ $(uname -s) == Linux ]]; then
+    objcopy --compress-debug-sections "${output_file}"
+fi
