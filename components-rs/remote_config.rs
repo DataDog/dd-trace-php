@@ -93,7 +93,7 @@ fn compute_merged_configs(active_configs: &HashMap<String, ActiveDynamicConfig>)
 }
 
 pub struct RemoteConfigState {
-    manager: RemoteConfigManager,
+    pub(crate) manager: RemoteConfigManager,
     live_debugger: LiveDebuggerState,
     dynamic_config: DynamicConfig,
 }
@@ -415,9 +415,8 @@ pub extern "C" fn ddog_remote_config_current_generation(remote_config: &RemoteCo
 pub extern "C" fn ddog_remote_config_get_path(remote_config: &RemoteConfigState) -> *const c_char {
     remote_config
         .manager
-        .active_reader
-        .as_ref()
-        .map(|r| r.get_path().as_ptr())
+        .get_path()
+        .map(|path| path.as_ptr())
         .unwrap_or(std::ptr::null())
 }
 

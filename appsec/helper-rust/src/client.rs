@@ -42,7 +42,8 @@ use crate::{
 };
 
 pub use sidecar_msg::{
-    on_disconnect, on_message, start_accepting_messages, stop_accepting_messages, MessageResponse,
+    clear_inherited_state, on_disconnect, on_message, start_accepting_messages,
+    stop_accepting_messages, MessageResponse,
 };
 pub(crate) use sidecar_msg::{remove_client_bookkeeping, ClientKey};
 
