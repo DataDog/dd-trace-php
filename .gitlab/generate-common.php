@@ -222,8 +222,8 @@ foreach ($arch_targets as $arch_target) {
       DD_DISABLE_ERROR_RESPONSES: true
       SNAPSHOT_REGEX_PLACEHOLDERS: 'path:/\S+/dd-trace-php(?=/),httpbin:(?<=//)httpbin-integration:8080'
       # The runner applies KUBERNETES_SERVICE_* to every service in the pod and the last definition wins, in an
-      # order that varies between pods. Keep these identical to request-replayer's, or Elasticsearch (1g heap) may end
-      # up with 1 CPU / 512Mi and never start listening.
+      # order that varies between pods. Keep these identical to request-replayer's, or Elasticsearch may end up with
+      # 1 CPU / 512Mi and never start listening.
       KUBERNETES_SERVICE_CPU_REQUEST: 2
       KUBERNETES_SERVICE_CPU_LIMIT: 2
       KUBERNETES_SERVICE_MEMORY_REQUEST: 1Gi
@@ -263,7 +263,9 @@ foreach ($arch_targets as $arch_target) {
     name: registry.ddbuild.io/images/mirror/library/elasticsearch:7.17.23
     alias: elasticsearch7-integration
     variables:
-      ES_JAVA_OPTS: -Xms1g -Xmx1g
+      # Service containers currently share a 1Gi memory limit. Leave half of it outside the Java heap for native JVM
+      # memory; a 1Gi heap under a 1Gi cgroup limit is OOM-killed during startup before port 9200 starts listening.
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
       discovery.type: single-node
 
   zookeeper:
