@@ -193,6 +193,7 @@ foreach ($profiler_minor_major_targets as $version) {
     when: always
     paths:
       - artifacts/prof-correctness/
+      - profiling/tests/correctness/*/test.pprof*
 
 "prof-correctness-analyzer":
   stage: test
