@@ -217,6 +217,7 @@ foreach ($profiler_minor_major_targets as $version) {
   retry: 1
   variables:
     PROF_ANALYZE_VERSION: "v1.0.1-0.20260928190009-7b185e995f39"
+    GIT_STRATEGY: empty
     GOMODCACHE: "${CI_PROJECT_DIR}/tmp/go/pkg/mod"
     GOCACHE: "${CI_PROJECT_DIR}/tmp/go/build-cache"
   cache:
