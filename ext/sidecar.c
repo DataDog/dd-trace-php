@@ -986,7 +986,7 @@ bool datadog_alter_test_session_token(zval *old_value, zval *new_value, zend_str
 #if !defined(_WIN32) && defined(TRACER)
     ddtrace_coms_set_test_session_token(Z_STRVAL_P(new_value), Z_STRLEN_P(new_value));
 #endif
-#ifdef DDTRACE
+#ifdef TRACER
     /* The test token is part of the named sampling-config shared-memory path. The reader keeps
      * its own endpoint copy, so changing the sender endpoint does not retarget an existing reader. */
     if (token_changed) {
