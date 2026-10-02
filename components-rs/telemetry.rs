@@ -2,7 +2,6 @@ use crate::log::Log;
 use datadog_sidecar::service::telemetry::{path_for_telemetry, TelemetryCachedClientShmData};
 
 use hashbrown::{Equivalent, HashMap};
-use std::ffi::CString;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -261,7 +260,7 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_add_integration_log_buffer(
 
 pub struct ShmCache {
     pub shared: TelemetryCachedClientShmData,
-    pub reader: OneWayShmReader<NamedShmHandle, CString>,
+    pub reader: OneWayShmReader<NamedShmHandle, ShmCacheKey>,
 }
 
 #[derive(Hash, Eq, PartialEq)]
@@ -279,7 +278,18 @@ impl From<&(&str, &str)> for ShmCacheKey {
     }
 }
 
-pub type ShmCacheMap = HashMap<ShmCacheKey, ShmCache>;
+#[derive(Default)]
+pub struct ShmCacheMap {
+    entries: HashMap<ShmCacheKey, ShmCache>,
+}
+
+impl ShmCacheMap {
+    pub(crate) fn reconnect(&self) {
+        for (key, cache) in &self.entries {
+            cache.reader.reconnect(&path_for_telemetry(&key.0, &key.1));
+        }
+    }
+}
 
 #[no_mangle]
 pub extern "C" fn ddog_sidecar_telemetry_cache_new() -> Box<ShmCacheMap> {
@@ -316,12 +326,13 @@ unsafe fn ddog_sidecar_telemetry_cache_get_or_update<'a>(
     let env_str = env.to_utf8_lossy();
 
     let cached_entry = cache
+        .entries
         .entry_ref(&(service_str.as_ref(), env_str.as_ref()))
         .or_insert_with(|| ShmCache {
             reader: OneWayShmReader::new_with_opener(
                 None,
-                path_for_telemetry(&service_str, &env_str),
-                |path| open_named_shm(path).ok(),
+                ShmCacheKey(service_str.to_string(), env_str.to_string()),
+                |key| open_named_shm(&path_for_telemetry(&key.0, &key.1)).ok(),
             ),
             shared: TelemetryCachedClientShmData::default(),
         });

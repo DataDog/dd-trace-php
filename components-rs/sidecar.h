@@ -123,6 +123,11 @@ void ddog_sidecar_reap_master_listener_files(void);
 
 bool ddog_sidecar_is_master_listener_active(void);
 
+/**
+ * # Safety
+ * On Unix, call in the child after fork, before starting threads. Inherited sidecar
+ * tasks and references to their state must not be used afterward.
+ */
 ddog_MaybeError ddog_sidecar_clear_inherited_listener(void);
 
 ddog_MaybeError ddog_sidecar_ping(struct ddog_SidecarTransport **transport);
