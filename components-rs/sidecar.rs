@@ -3,11 +3,11 @@ use datadog_sidecar::service::blocking::{acquire_exception_hash_rate_limiter, Si
 use datadog_sidecar::service::exception_hash_rate_limiter::ExceptionHashRateLimiter;
 use datadog_sidecar::tracer::shm_limiter_path;
 use lazy_static::lazy_static;
-use libdd_common::rate_limiter::{Limiter, LocalLimiter};
+use libdd_common::rate_limiter::LocalLimiter;
 use libdd_common::Endpoint;
 use libdd_common_ffi::slice::AsBytes;
 use libdd_common_ffi::{self as ffi, CharSlice, MaybeError};
-use libdd_ipc::rate_limiter::{AnyLimiter, ShmLimiterMemory};
+use libdd_ipc::rate_limiter::{ShmLimiter, ShmLimiterMemory};
 use libdd_telemetry_ffi::try_c;
 #[cfg(windows)]
 use spawn_worker::{get_trampoline_target_data, LibDependency};
@@ -289,7 +289,14 @@ static SHM_LIMITER: LazyLock<ShmLimiterMemory<()>> =
 static EXCEPTION_HASH_LIMITER: LazyLock<ExceptionHashRateLimiter> =
     LazyLock::new(ExceptionHashRateLimiter::new_reader);
 
-pub struct MaybeShmLimiter(Option<AnyLimiter>);
+const SHM_LIMITER_GRANULARITY: Duration = Duration::from_secs(1);
+
+pub struct MaybeShmLimiter(Option<Limiter>);
+
+enum Limiter {
+    Local(LocalLimiter),
+    Shm(ShmLimiter<()>),
+}
 
 impl MaybeShmLimiter {
     pub fn open(index: u32) -> Self {
@@ -299,17 +306,17 @@ impl MaybeShmLimiter {
             Some(
                 SHM_LIMITER
                     .get(index)
-                    .map(AnyLimiter::Shm)
-                    .unwrap_or_else(|| AnyLimiter::Local(LocalLimiter::default())),
+                    .map(Limiter::Shm)
+                    .unwrap_or_else(|| Limiter::Local(LocalLimiter::default())),
             )
         })
     }
 
     pub fn inc(&self, limit: u32) -> bool {
-        if let Some(ref limiter) = self.0 {
-            limiter.inc(limit)
-        } else {
-            true
+        match &self.0 {
+            Some(Limiter::Local(limiter)) => limiter.inc(limit, SHM_LIMITER_GRANULARITY),
+            Some(Limiter::Shm(limiter)) => limiter.inc(limit, SHM_LIMITER_GRANULARITY),
+            None => true,
         }
     }
 }
@@ -325,10 +332,10 @@ pub extern "C" fn ddog_exception_hash_limiter_inc(
     hash: u64,
     granularity_seconds: u32,
 ) -> bool {
-    if let Some(limiter) = EXCEPTION_HASH_LIMITER.find(hash) {
+    let granularity = Duration::from_secs(granularity_seconds as u64);
+    if let Some(limiter) = EXCEPTION_HASH_LIMITER.find(hash, granularity) {
         return limiter.inc();
     }
-    let granularity = Duration::from_secs(granularity_seconds as u64);
     let _ = acquire_exception_hash_rate_limiter(connection, hash, granularity);
     true
 }
