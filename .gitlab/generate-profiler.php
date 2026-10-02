@@ -201,7 +201,6 @@ foreach ($profiler_minor_major_targets as $version) {
   image: registry.ddbuild.io/images/mirror/golang:1.25.13
   retry: 1
   variables:
-    PROF_ANALYZE_VERSION: "v1.0.1-0.20260928190009-7b185e995f39"
     GIT_STRATEGY: empty
     GOMODCACHE: "${CI_PROJECT_DIR}/tmp/go/pkg/mod"
     GOCACHE: "${CI_PROJECT_DIR}/tmp/go/build-cache"
@@ -218,10 +217,11 @@ foreach ($profiler_minor_major_targets as $version) {
       export GONOSUMDB="github.com/DataDog,go.ddbuild.io"
       export GOTOOLCHAIN=local
       go env GOPROXY GONOPROXY GONOSUMDB GOSUMDB GOTOOLCHAIN
-      go mod download \
-        "github.com/DataDog/prof-correctness@${PROF_ANALYZE_VERSION}"
-      module_dir="${GOMODCACHE}/github.com/!data!dog/prof-correctness@${PROF_ANALYZE_VERSION}"
-      cd "${module_dir}" || exit 1
+      git clone --depth 1 --branch main https://github.com/DataDog/prof-correctness.git \
+        "${CI_PROJECT_DIR}/tmp/prof-correctness"
+      cd "${CI_PROJECT_DIR}/tmp/prof-correctness" || exit 1
+      git rev-parse HEAD
+      # Build in the checkout to verify dependencies using its go.sum.
       go build -o "${CI_PROJECT_DIR}/tmp/prof-analyze" ./cmd/prof-analyze
   artifacts:
     paths:
