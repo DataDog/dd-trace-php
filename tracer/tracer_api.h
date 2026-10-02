@@ -19,6 +19,7 @@ void ddtrace_rinit_early(void);
 void ddtrace_rinit(void);
 void ddtrace_rshutdown(bool fast_shutdown);
 void ddtrace_post_deactivate(void);
+void ddtrace_recreate_agent_config_reader(void);
 
 // fork handling
 void ddtrace_internal_handle_fork(void);

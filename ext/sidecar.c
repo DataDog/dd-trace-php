@@ -973,7 +973,9 @@ void datadog_sidecar_gshutdown(zend_datadog_globals *datadog_globals) {
 }
 
 bool datadog_alter_test_session_token(zval *old_value, zval *new_value, zend_string *new_str) {
-    UNUSED(old_value, new_str);
+    UNUSED(new_str);
+    bool token_changed =
+        Z_TYPE_P(old_value) != IS_STRING || !zend_string_equals(Z_STR_P(old_value), Z_STR_P(new_value));
     if (datadog_endpoint) {
         ddog_endpoint_set_test_token_if_changed(datadog_endpoint, dd_zend_string_to_CharSlice(Z_STR_P(new_value)));
     }
@@ -983,6 +985,13 @@ bool datadog_alter_test_session_token(zval *old_value, zval *new_value, zend_str
     }
 #if !defined(_WIN32) && defined(DDTRACE)
     ddtrace_coms_set_test_session_token(Z_STRVAL_P(new_value), Z_STRLEN_P(new_value));
+#endif
+#ifdef DDTRACE
+    /* The test token is part of the named sampling-config shared-memory path. The reader keeps
+     * its own endpoint copy, so changing the sender endpoint does not retarget an existing reader. */
+    if (token_changed) {
+        ddtrace_recreate_agent_config_reader();
+    }
 #endif
     return true;
 }
