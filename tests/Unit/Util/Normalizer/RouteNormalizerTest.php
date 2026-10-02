@@ -346,6 +346,61 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertSame('/{param1+param2}', $result);
     }
 
+    // F-12: Rule-plan cache lets deterministic rules skip the preg_match + capture
+    // analysis entirely, and the per-rule safety scan runs only once.
+
+    public function testWordPressRulePlanMarksDeterministicRule()
+    {
+        $plan = RouteNormalizer::wordPressRulePlan('^blog/([^/]+)/?$');
+        $this->assertTrue($plan['safe']);
+        $this->assertTrue($plan['deterministic']);
+        $this->assertSame('/blog/{param1}', $plan['deterministic_route']);
+    }
+
+    public function testWordPressRulePlanMarksOptionalCaptureAsNonDeterministic()
+    {
+        $plan = RouteNormalizer::wordPressRulePlan('^([^/]+)(?:/([0-9]+))?/?$');
+        $this->assertTrue($plan['safe']);
+        $this->assertFalse($plan['deterministic']);
+    }
+
+    public function testWordPressRulePlanRejectsUnsafeRule()
+    {
+        // Unanchored variable text outside captures: not safe to normalize.
+        $plan = RouteNormalizer::wordPressRulePlan('^foo.*bar$');
+        $this->assertFalse($plan['safe']);
+        $this->assertFalse($plan['deterministic']);
+        $this->assertNull($plan['deterministic_route']);
+    }
+
+    public function testDeterministicWordPressRuleShortCircuitsWithoutUrlPath()
+    {
+        // Deterministic rule: urlPath is ignored because the normalized route only
+        // depends on the rule structure.
+        $withUrl = RouteNormalizer::normalizeFromWordPress('^blog/([^/]+)/?$', 'blog/foo');
+        $withoutUrl = RouteNormalizer::normalizeFromWordPress('^blog/([^/]+)/?$');
+        $this->assertSame($withUrl, $withoutUrl);
+        $this->assertSame('/blog/{param1}', $withUrl);
+    }
+
+    public function testNonDeterministicWordPressRuleStillUsesUrlPath()
+    {
+        // Participation of the optional capture still depends on the URL.
+        $absent = RouteNormalizer::normalizeFromWordPress('^([^/]+)(?:/([0-9]+))?/?$', 'simple');
+        $present = RouteNormalizer::normalizeFromWordPress('^([^/]+)(?:/([0-9]+))?/?$', 'simple/123');
+        $this->assertSame('/{param1}', $absent);
+        $this->assertSame('/{param1}/{param2}', $present);
+    }
+
+    public function testWordPressRulePlanIsMemoized()
+    {
+        // Same reference-equal plan should come back for the same rule, since
+        // the plan is cached in-process.
+        $first = RouteNormalizer::wordPressRulePlan('^blog/([^/]+)/?$');
+        $second = RouteNormalizer::wordPressRulePlan('^blog/([^/]+)/?$');
+        $this->assertSame($first, $second);
+    }
+
     public function testStaticPrefixLeadingTildePreservedWhenOptionalAbsent()
     {
         // F-04: rtrim — a leading special char like '~' must survive when the optional

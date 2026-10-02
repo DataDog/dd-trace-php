@@ -1440,7 +1440,22 @@ class LaminasIntegration extends Integration
         return $states;
     }
 
+    /** @var array<string, mixed> cached leaf-route lookups keyed by stack-hash + name */
+    private static $leafRouteCache = [];
+
+    /** @var array<string, string|null> cached template lookups keyed by stack-hash + name */
+    private static $namedStackTemplateCache = [];
+
     public static function getLeafRouteFromNamedRouteStack($stack, string $matchedName)
+    {
+        $cacheKey = \spl_object_hash($stack) . "\0" . $matchedName;
+        if (\array_key_exists($cacheKey, self::$leafRouteCache)) {
+            return self::$leafRouteCache[$cacheKey];
+        }
+        return self::$leafRouteCache[$cacheKey] = self::computeLeafRouteFromNamedRouteStack($stack, $matchedName);
+    }
+
+    private static function computeLeafRouteFromNamedRouteStack($stack, string $matchedName)
     {
         $segments = \explode('/', $matchedName, 2);
         $route = self::laminasGetNamedRouteFromStack($stack, $segments[0]);
@@ -1464,6 +1479,16 @@ class LaminasIntegration extends Integration
     }
 
     public static function httpRouteTemplateFromNamedRouteStack($stack, string $matchedName): ?string
+    {
+        $cacheKey = \spl_object_hash($stack) . "\0" . $matchedName;
+        if (\array_key_exists($cacheKey, self::$namedStackTemplateCache)) {
+            return self::$namedStackTemplateCache[$cacheKey];
+        }
+        return self::$namedStackTemplateCache[$cacheKey]
+            = self::computeHttpRouteTemplateFromNamedRouteStack($stack, $matchedName);
+    }
+
+    private static function computeHttpRouteTemplateFromNamedRouteStack($stack, string $matchedName): ?string
     {
         $segments = \explode('/', $matchedName, 2);
         $route = self::laminasGetNamedRouteFromStack($stack, $segments[0]);

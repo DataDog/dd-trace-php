@@ -6,6 +6,16 @@ namespace DDTrace\Util;
 class RouteNormalizer
 {
     /**
+     * In-process cache of WordPress rule plans: safety-scan result and (when the
+     * rule is deterministic) the precomputed normalized route. The scan over a
+     * rule's characters is pure, so the first result stays valid for the lifetime
+     * of the process.
+     *
+     * @var array<string, array{safe: bool, deterministic: bool, deterministic_route: string|null}>
+     */
+    private static $wordPressRulePlans = [];
+
+    /**
      * Normalize a Laravel route URI.
      *
      * @param string $routeUri     URI from $route->uri(), e.g. "/users/{id}/{format?}"
@@ -166,12 +176,23 @@ class RouteNormalizer
      */
     public static function analyzeWordPressRoute(string $matchedRule, $urlPath = null)
     {
-        if (!self::hasOnlyCapturedWordPressDynamics($matchedRule)) {
+        $plan = self::wordPressRulePlan($matchedRule);
+        if (!$plan['safe']) {
             return null;
         }
 
+        // Deterministic rules have no optional captures: their normalized form
+        // depends only on the rule, not on the URL. Skip preg_match + capture
+        // analysis entirely and return the precomputed route.
+        if ($plan['deterministic'] && $plan['deterministic_route'] !== null) {
+            return [
+                'normalized_route' => $plan['deterministic_route'],
+                'cache_signature'  => $plan['deterministic_route'],
+            ];
+        }
+
         if ($urlPath === null) {
-            $normalized = self::normalizeWordPressRuleOnly($matchedRule);
+            $normalized = $plan['deterministic_route'];
             if ($normalized === null) {
                 return null;
             }
@@ -374,6 +395,98 @@ class RouteNormalizer
         }
 
         return '/' . implode('/', $normalized);
+    }
+
+    /**
+     * Parse a WordPress rule once and remember whether it is safe to normalize,
+     * whether it is "deterministic" (its normalized form does not depend on the
+     * URL), and — when deterministic — its precomputed normalized route.
+     *
+     * The returned shape:
+     *   [
+     *     'safe'                => bool,
+     *     'deterministic'       => bool,
+     *     'deterministic_route' => string|null,
+     *   ]
+     *
+     * @return array{safe: bool, deterministic: bool, deterministic_route: string|null}
+     */
+    public static function wordPressRulePlan(string $rule): array
+    {
+        if (isset(self::$wordPressRulePlans[$rule])) {
+            return self::$wordPressRulePlans[$rule];
+        }
+
+        $safe = self::hasOnlyCapturedWordPressDynamics($rule);
+        $deterministic = $safe && !self::wordPressRuleHasOptionalCaptures($rule);
+        $deterministicRoute = $safe ? self::normalizeWordPressRuleOnly($rule) : null;
+
+        return self::$wordPressRulePlans[$rule] = [
+            'safe' => $safe,
+            'deterministic' => $deterministic,
+            'deterministic_route' => $deterministicRoute,
+        ];
+    }
+
+    /**
+     * Scan for any group whose closing `)` is followed by a quantifier that can
+     * drop the group (`?`, `*`, `{0,...}`), ignoring character classes and \Q...\E
+     * quoted spans. Rules without such quantifiers always have every capture
+     * participate in a successful match, so their normalized form is URL-independent.
+     */
+    private static function wordPressRuleHasOptionalCaptures(string $rule): bool
+    {
+        $inClass = false;
+        $inQuote = false;
+        $length = strlen($rule);
+
+        for ($i = 0; $i < $length; $i++) {
+            $char = $rule[$i];
+
+            if ($inQuote) {
+                if ($char === '\\' && isset($rule[$i + 1]) && $rule[$i + 1] === 'E') {
+                    $inQuote = false;
+                    $i++;
+                }
+                continue;
+            }
+            if ($inClass) {
+                if ($char === '\\' && isset($rule[$i + 1])) {
+                    $i++;
+                } elseif ($char === ']') {
+                    $inClass = false;
+                }
+                continue;
+            }
+            if ($char === '\\') {
+                if (!isset($rule[$i + 1])) {
+                    return true;
+                }
+                if ($rule[++$i] === 'Q') {
+                    $inQuote = true;
+                }
+                continue;
+            }
+            if ($char === '[') {
+                $inClass = true;
+                continue;
+            }
+            if ($char === ')' && isset($rule[$i + 1])) {
+                $next = $rule[$i + 1];
+                if ($next === '?' || $next === '*') {
+                    return true;
+                }
+                if ($next === '{') {
+                    // {0,...} and {0} drop the group; {n>=1,...} keep it.
+                    $end = strpos($rule, '}', $i + 2);
+                    if ($end !== false && isset($rule[$i + 2]) && $rule[$i + 2] === '0') {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     /**
