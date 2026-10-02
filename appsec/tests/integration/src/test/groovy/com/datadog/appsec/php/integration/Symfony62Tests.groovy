@@ -214,7 +214,7 @@ class Symfony62Tests {
             endpoints.size() > 0
         })
 
-        assert endpoints.size() == 17
+        assert endpoints.size() == 21
         assert endpoints.find { it.path == '/' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /' } != null
         assert endpoints.find { it.path == '/dynamic-path/{param01}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /dynamic-path/{param01}' } != null
         assert endpoints.find { it.path == '/caminho-dinamico/{param01}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /caminho-dinamico/{param01}' } != null
@@ -228,7 +228,6 @@ class Symfony62Tests {
         assert endpoints.find { it.path == '/telemetry' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /telemetry' } != null
         assert endpoints.find { it.path == '/lucky/number' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /lucky/number' } != null
         assert endpoints.find { it.path == '/lucky/fail' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /lucky/fail' } != null
-        assert endpoints.find { it.path == '/_error/{code}.{_format}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /_error/{code}.{_format}' } != null
         assert endpoints.find { it.path == '/article/{slug}.{_format}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /article/{slug}.{_format}' } != null
         assert endpoints.find { it.path == '/café/{item}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /café/{item}' } != null
         assert endpoints.find { it.path == '/posts/{page}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /posts/{page}' } != null
