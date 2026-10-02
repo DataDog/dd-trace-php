@@ -45,14 +45,6 @@ class RatchetIntegration extends Integration
     const NAME = 'ratchet';
 
     /**
-     * {@inheritdoc}
-     */
-    public static function requiresExplicitTraceAnalyticsEnabling(): bool
-    {
-        return false;
-    }
-
-    /**
      * @return int
      */
     public static function init(): int
@@ -78,7 +70,7 @@ class RatchetIntegration extends Integration
             \DDTrace\collect_code_origins(1);
             if (\dd_trace_env_config("DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN")) {
                 $span->service = Urls::hostnameForTag($url);
-                $span->meta['_dd.svc_src'] = 'opt.http_client_split_by_domain';
+                $span->attributes['_dd.svc_src'] = 'opt.http_client_split_by_domain';
             }
         }, static function (HookData $hook) {
             $span = $hook->data;
@@ -182,8 +174,7 @@ class RatchetIntegration extends Integration
             $activeSpan->name = "web.request";
             $activeSpan->type = Type::WEB_SERVLET;
             $activeSpan->meta[Tag::COMPONENT] = self::NAME;
-            $activeSpan->meta[Tag::SPAN_KIND] = 'server';
-            RatchetIntegration::addTraceAnalyticsIfEnabled($activeSpan);
+            $activeSpan->attributes[Tag::SPAN_KIND] = 'server';
 
             ObjectKVStore::put($parentConn, "handshake", $activeSpan);
 
@@ -201,7 +192,7 @@ class RatchetIntegration extends Integration
 
         \DDTrace\install_hook(CloseResponseTrait::class . "::close", static function (HookData $hook) {
             if ($rootSpan = \DDTrace\root_span()) {
-                $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $hook->args[1] ?? 400;
+                $rootSpan->attributes[Tag::HTTP_STATUS_CODE] = $hook->args[1] ?? 400;
                 notify_commit($rootSpan, 400, []);
             }
         });
@@ -262,8 +253,10 @@ class RatchetIntegration extends Integration
                     $span = $hook->span($rootTrace ? new SpanStack : null);
                     $span->type = Type::WEBSOCKET;
                     $span->service = $handshake->service;
-                    if (isset($handshake->meta['_dd.svc_src'])) {
-                        $span->meta['_dd.svc_src'] = $handshake->meta['_dd.svc_src'];
+                    $handshakeServiceSource = $handshake->attributes['_dd.svc_src']
+                        ?? $handshake->meta['_dd.svc_src'] ?? null;
+                    if ($handshakeServiceSource !== null) {
+                        $span->attributes['_dd.svc_src'] = $handshakeServiceSource;
                     }
                     $resourceParts = explode(" ", $handshake->resource, 2);
                     $span->resource = "websocket " . end($resourceParts);
@@ -280,8 +273,9 @@ class RatchetIntegration extends Integration
                             $span->meta["_dd.dm.resource"] = $rootSpan->resource;
                         }
                         foreach ($rootSpan->propagatedTags as $key => $_) {
-                            if (isset($rootSpan->meta[$key])) {
-                                $span->meta[$key] = $rootSpan->meta[$key];
+                            $value = $rootSpan->attributes[$key] ?? $rootSpan->meta[$key] ?? null;
+                            if ($value !== null) {
+                                $span->attributes[$key] = $value;
                             }
                         }
                         $span->baggage = $rootSpan->baggage;
@@ -302,7 +296,7 @@ class RatchetIntegration extends Integration
                     }
 
                     if ($isServer) {
-                        unset($span->meta["closure.declaration"]);
+                        unset($span->attributes["closure.declaration"]);
                     }
 
                     RatchetIntegration::addLink($span, $handshake, true, $isServer, $frameNum++);

@@ -166,7 +166,8 @@ static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_f
                                     dd_zend_string_to_CharSlice(get_global_DD_HOSTNAME()),
                                     dd_zend_string_to_CharSlice(get_global_DD_SERVICE()),
                                     root_session_id,
-                                    parent_session_id
+                                    parent_session_id,
+                                    get_global_DD_TRACE_AGENT_PROTOCOL_VERSION() == DD_TRACE_AGENT_PROTOCOL_VERSION_V04
                                 );
     if (otlp_metrics_endpoint) {
         ddog_endpoint_drop(otlp_metrics_endpoint);

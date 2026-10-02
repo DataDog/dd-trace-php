@@ -17,14 +17,6 @@ class RoadrunnerIntegration extends Integration
 {
     const NAME = 'roadrunner';
 
-    /**
-     * {@inheritdoc}
-     */
-    public static function requiresExplicitTraceAnalyticsEnabling(): bool
-    {
-        return false;
-    }
-
     public static function build_req_spec(\Spiral\RoadRunner\Http\Request $req) {
         $ret = array();
 
@@ -159,8 +151,7 @@ class RoadrunnerIntegration extends Integration
                 $activeSpan->name = "web.request";
                 $activeSpan->type = Type::WEB_SERVLET;
                 $activeSpan->meta[Tag::COMPONENT] = RoadrunnerIntegration::NAME;
-                $activeSpan->meta[Tag::SPAN_KIND] = 'server';
-                RoadrunnerIntegration::addTraceAnalyticsIfEnabled($activeSpan);
+                $activeSpan->attributes[Tag::SPAN_KIND] = 'server';
                 if ($hook->exception) {
                     $activeSpan->exception = $hook->exception;
                     \DDTrace\close_span();

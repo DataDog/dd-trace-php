@@ -171,7 +171,7 @@ class MagentoIntegration extends Integration
 
                 $rootSpan = root_span();
                 MagentoIntegration::setCommonSpanInfo($rootSpan, 'magento.request', $resource);
-                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+                $rootSpan->attributes[Tag::SPAN_KIND] = 'server';
 
                 if (!$fullPageCached && isset($rootSpan->meta['magento.pathinfo'])) {
                     $rootSpan->resource = $rootSpan->meta['magento.pathinfo'];

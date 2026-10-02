@@ -23,12 +23,13 @@ final class LongRunningScriptTest extends CLITestCase
             'DD_TRACE_BGS_TIMEOUT' => 3000,
         ]);
 
-        $headerName = 'X-Datadog-Trace-Count';
-        if (\dd_trace_env_config("DD_TRACE_SIDECAR_TRACE_SENDER")) {
-            $headerName = strtolower($headerName);
-        }
+        // Header names are case-insensitive; the sender's casing (coms.c vs sidecar) is
+        // independent of this runner's own config, so accept either.
+        $traceCount = $agentRequest['headers']['X-Datadog-Trace-Count']
+            ?? $agentRequest['headers']['x-datadog-trace-count']
+            ?? null;
 
-        $this->assertSame('3', $agentRequest['headers'][$headerName]);
+        $this->assertSame('3', $traceCount);
         $this->assertCount(3, $this->loadTraces($agentRequest));
     }
 

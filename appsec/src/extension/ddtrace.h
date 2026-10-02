@@ -55,8 +55,8 @@ void dd_trace_close_all_spans_and_flush(void);
 
 void dd_trace_emit_asm_event(void);
 
-// Provides the array zval representing $root_span->meta, if any.
-// It is ready for modification, with refcount == 1
+// Provides the array zval representing $root_span->attributes (which $meta
+// and $metrics are views onto), if any. Ready for modification, refcount == 1
 zval *nullable dd_trace_span_get_meta(zend_object *nonnull);
 zval *nullable dd_trace_span_get_metrics(zend_object *nonnull);
 zval *nullable dd_trace_span_get_meta_struct(zend_object *nonnull);

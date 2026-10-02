@@ -325,7 +325,7 @@ class DatabaseMonitoringTest extends IntegrationTestCase
         $this->assertNotEmpty($matches, 'ddsh not found in SQL comment');
         $ddshValue = $matches[1];
 
-        $propagatedHash = $traces[0][1]['meta']['_dd.propagated_hash'] ?? null;
+        $propagatedHash = $traces[0][1]['attributes']['_dd.propagated_hash'] ?? null;
         $this->assertNotNull($propagatedHash, '_dd.propagated_hash not found in span');
         $this->assertSame($ddshValue, $propagatedHash, 'ddsh in SQL comment does not match _dd.propagated_hash in span');
     }
@@ -361,7 +361,7 @@ class DatabaseMonitoringTest extends IntegrationTestCase
         $this->assertNotEmpty($matches, 'ddsh not found in SQL comment');
         $ddshValue = $matches[1];
 
-        $propagatedHash = $traces[0][1]['meta']['_dd.propagated_hash'] ?? null;
+        $propagatedHash = $traces[0][1]['attributes']['_dd.propagated_hash'] ?? null;
         $this->assertNotNull($propagatedHash, '_dd.propagated_hash not found in span');
         $this->assertSame($ddshValue, $propagatedHash, 'ddsh in SQL comment does not match _dd.propagated_hash in span');
     }
@@ -445,11 +445,11 @@ class DatabaseMonitoringTest extends IntegrationTestCase
         );
 
         $ddshValue = preg_replace('/^.*ddsh=\'([^\']+)\'.*$/', '$1', $commentedQuery);
-        $propagatedHash = $traces[0][1]['meta']['_dd.propagated_hash'] ?? null;
+        $propagatedHash = $traces[0][1]['attributes']['_dd.propagated_hash'] ?? null;
         $this->assertNotNull($propagatedHash, '_dd.propagated_hash not found in span');
         $this->assertSame($ddshValue, $propagatedHash, 'ddsh in SQL comment does not match _dd.propagated_hash in span');
 
         // dynamic_service is not full mode, so the trace-injected marker must be absent
-        $this->assertArrayNotHasKey('_dd.dbm_trace_injected', $traces[0][1]['meta']);
+        $this->assertArrayNotHasKey('_dd.dbm_trace_injected', $traces[0][1]['attributes']);
     }
 }

@@ -10,7 +10,7 @@ datadog.trace.client_ip_header_disabled=true
 DDTrace\start_span();
 DDTrace\close_span(0);
 $span = dd_trace_serialize_closed_spans();
-var_dump(isset($span[0]["meta"]["http.client_ip"]));
+var_dump(isset($span[0]["attributes"]["http.client_ip"]));
 ?>
 --EXPECTF--
 bool(false)

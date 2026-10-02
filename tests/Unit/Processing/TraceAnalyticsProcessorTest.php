@@ -8,42 +8,35 @@ use DDTrace\Tests\Common\BaseTestCase;
 
 final class TraceAnalyticsProcessorTest extends BaseTestCase
 {
-    public function testTrueIs1()
+    public function testTrueIsNoOp()
     {
-        $metrics = [
-        ];
+        $metrics = [];
         TraceAnalyticsProcessor::normalizeAnalyticsValue($metrics, true);
-        $this->assertSame(1.0, $metrics[Tag::ANALYTICS_KEY]);
+        $this->assertArrayNotHasKey(Tag::ANALYTICS_KEY, $metrics);
     }
 
-    public function testFalseIsUnset()
+    public function testFalseIsNoOp()
     {
         $metrics = [
             Tag::ANALYTICS_KEY => 0.2,
         ];
         TraceAnalyticsProcessor::normalizeAnalyticsValue($metrics, false);
-        $this->assertArrayNotHasKey(Tag::ANALYTICS_KEY, $metrics);
+        $this->assertSame(0.2, $metrics[Tag::ANALYTICS_KEY]);
     }
 
-    public function testNumericValueBetweenZeroAndOne()
+    public function testNumericValueIsNoOp()
     {
-        $metrics = [
-        ];
+        $metrics = [];
         TraceAnalyticsProcessor::normalizeAnalyticsValue($metrics, 0.4);
-        $this->assertSame(0.4, $metrics[Tag::ANALYTICS_KEY]);
+        $this->assertArrayNotHasKey(Tag::ANALYTICS_KEY, $metrics);
     }
 
-    public function testValueLessThan0()
+    public function testDoesNotMutateExistingMetrics()
     {
-        $metrics = [];
+        $metrics = ['foo' => 1.0];
+        TraceAnalyticsProcessor::normalizeAnalyticsValue($metrics, true);
         TraceAnalyticsProcessor::normalizeAnalyticsValue($metrics, -0.1);
-        $this->assertArrayNotHasKey(Tag::ANALYTICS_KEY, $metrics);
-    }
-
-    public function testValueGreaterThan1()
-    {
-        $metrics = [];
         TraceAnalyticsProcessor::normalizeAnalyticsValue($metrics, 1.1);
-        $this->assertArrayNotHasKey(Tag::ANALYTICS_KEY, $metrics);
+        $this->assertSame(['foo' => 1.0], $metrics);
     }
 }
