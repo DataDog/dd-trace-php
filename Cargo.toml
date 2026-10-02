@@ -37,14 +37,17 @@ bench = false
 # SSI builds the implementation separately in libdatadog_php.so.
 default = ["tracer", "tracer-runtime"]
 tracer = []
-# PHP-facing logging and UTF-8 validation: one owner per assembled product.
-runtime = ["dep:arc-swap", "dep:tracing-core", "dep:libdd-common-ffi"]
+# PHP-facing configuration, logging and UTF-8 validation: one owner per product.
+runtime = [
+  "dep:arc-swap", "dep:tracing-core", "dep:libdd-common-ffi",
+  "dep:libdd-library-config-ffi",
+]
 # Sidecar services are PHP-version-independent. Standalone profiling does not
 # enable this feature.
 sidecar = [
   "runtime", "dep:datadog-sidecar", "dep:datadog-sidecar-ffi",
   "dep:spawn_worker", "dep:libdd-ipc", "dep:libdd-crashtracker",
-  "dep:libdd-crashtracker-ffi", "dep:libdd-library-config-ffi",
+  "dep:libdd-crashtracker-ffi",
   # sidecar.rs uses libdd-telemetry-ffi::try_c even without tracer-runtime.
   "dep:libdd-telemetry-ffi",
 ]

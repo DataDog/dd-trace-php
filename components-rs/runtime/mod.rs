@@ -2,6 +2,7 @@
 // These do not depend on or start the sidecar. In SSI they are defined only in
 // libdatadog_php.so; the PHP-version-specific extension imports their C ABI.
 
+pub mod library_config;
 pub mod log;
 
 /// Check that a configuration value can be represented as a UTF-8 PHP string.
