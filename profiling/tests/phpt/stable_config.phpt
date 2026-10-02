@@ -3,6 +3,14 @@ Check the library config files
 --SKIPIF--
 <?php
 copy(__DIR__.'/stable_config.yaml', '/tmp/test_profiling_stable_config.yaml');
+$environment = [];
+foreach (['DD_SERVICE', 'DD_ENV', 'DD_PROFILING_ENABLED', 'DD_TRACE_ENABLED'] as $name) {
+    $value = getenv($name);
+    $environment[] = $name . '=' . ($value === false ? 'unset' : ($value === '' ? 'empty' : ($name === 'DD_PROFILING_ENABLED' ? $value : 'set')));
+}
+echo 'info stable config skipif: fixture=' . (is_readable('/tmp/test_profiling_stable_config.yaml') ? 'readable' : 'unreadable')
+    . ', local path=' . (getenv('_DD_TEST_LIBRARY_CONFIG_LOCAL_FILE') ?: 'unset')
+    . ', ' . implode(', ', $environment);
 ?>
 --ENV--
 _DD_TEST_LIBRARY_CONFIG_FLEET_FILE=/foo
