@@ -250,11 +250,13 @@ pub extern "C" fn ddog_php_prof_minit(_type: c_int, module_number: c_int) -> Zen
         // SAFETY: the file descriptor is both owned and open since the dup
         // call succeeded.
         let writer = Mutex::new(unsafe { File::from_raw_fd(fd) });
-        tracing_subscriber::fmt()
+        // Combined ddtrace.so installs the tracer's global subscriber first.
+        // Standalone profiling still installs this one when none exists.
+        let _ = tracing_subscriber::fmt()
             .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
             .with_writer(writer)
             .with_span_events(tracing_subscriber::fmt::format::FmtSpan::CLOSE)
-            .init();
+            .try_init();
     }
 
     #[cfg(target_vendor = "apple")]
