@@ -3,6 +3,8 @@
 set -x
 set -o pipefail
 
+github_releases_base_url="${GITHUB_RELEASES_MIRROR:-https://github.com}"
+
 cd /var/www
 
 composer install --no-dev
@@ -15,7 +17,7 @@ if [[ ! -f rr ]]; then
     ARCH="amd64"
   fi
 
-  curl -Lf https://github.com/roadrunner-server/roadrunner/releases/download/v2.12.3/roadrunner-2.12.3-linux-$ARCH.tar.gz | \
+  curl -Lf "${github_releases_base_url}/roadrunner-server/roadrunner/releases/download/v2.12.3/roadrunner-2.12.3-linux-${ARCH}.tar.gz" | \
     tar -xzf - --strip-components=1 roadrunner-2.12.3-linux-$ARCH/rr
 fi
 

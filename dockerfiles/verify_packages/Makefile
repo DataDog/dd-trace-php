@@ -9,6 +9,7 @@ INSTALLER_DOCKER_RUN = docker run --rm -i \
 	--env-file $(shell pwd)/.env \
 	$(INSTALLER_DOCKER_ARGS) \
 	-e CIRCLECI \
+	-e GITHUB_RELEASES_MIRROR \
 	--workdir=/app
 
 .PHONY: $(CENTOS6_PHP_VERSIONS)

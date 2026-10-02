@@ -8,6 +8,7 @@ if [[ $# -eq 0 ]]; then
 fi
 
 : "${CI_PROJECT_DIR:?CI_PROJECT_DIR must be set}"
+: "${GITHUB_RELEASES_MIRROR:?GITHUB_RELEASES_MIRROR must be set}"
 
 export DD_SITE="${DD_SITE:-datadoghq.com}"
 
@@ -81,7 +82,7 @@ fi
 
 if [[ ! -x "${datadog_ci_path}" ]]; then
   if ! curl -L --fail \
-    "https://github.com/DataDog/datadog-ci/releases/download/${datadog_ci_version}/datadog-ci_linux-${datadog_ci_arch}" \
+    "${GITHUB_RELEASES_MIRROR}/DataDog/datadog-ci/releases/download/${datadog_ci_version}/datadog-ci_linux-${datadog_ci_arch}" \
     --output "${datadog_ci_path}"; then
     echo "ERROR: failed to download datadog-ci; exiting 75 so GitLab auto-retries" >&2
     exit 75
