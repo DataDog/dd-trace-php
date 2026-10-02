@@ -19,6 +19,7 @@ error_log=/tmp/test_profiling_stable_config.log
 --ENV--
 _DD_TEST_LIBRARY_CONFIG_FLEET_FILE=/foo
 _DD_TEST_LIBRARY_CONFIG_LOCAL_FILE=/tmp/test_profiling_stable_config.yaml
+_DD_TEST_LIBRARY_CONFIG_DEBUG=1
 DD_TRACE_LOG_LEVEL=debug
 DD_TRACE_LOG_FILE=/tmp/test_profiling_stable_config.log
 --FILE--

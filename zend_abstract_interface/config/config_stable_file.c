@@ -1,6 +1,7 @@
 #include "../tsrmls_cache.h"
 
 #include <components-rs/library-config.h>
+#include <stdio.h>
 
 #include "config.h"
 #include "config_stable_file.h"
@@ -8,6 +9,7 @@
 #define RESOLVE_SYMBOL(name) \
     _##name = (void *)DL_FETCH_SYMBOL(ext->handle, #name); \
     if (!_##name) { \
+        if (diagnose_stable_config) php_log_err("Datadog stable configuration: missing symbol " #name); \
         _ddog_library_configurator_new = NULL; \
         return; \
     }
@@ -41,6 +43,10 @@ static void stable_config_entry_dtor(zval *el) {
 }
 
 void zai_config_stable_file_minit(void) {
+    // Test-only startup diagnostics; FILE runs after MINIT in a separate process.
+    bool diagnose_stable_config = getenv("_DD_TEST_LIBRARY_CONFIG_DEBUG") != NULL;
+    if (diagnose_stable_config) php_log_err("Datadog stable configuration: MINIT entered");
+
     // Resolve symbols at runtime for separate artifacts. A combined artifact
     // binds directly because the functions are linked into the same library.
     if (!_ddog_library_configurator_new) {
@@ -61,6 +67,7 @@ void zai_config_stable_file_minit(void) {
         if (!ext) {
             ext = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("datadog-profiling"));
             if (!ext) {
+                if (diagnose_stable_config) php_log_err("Datadog stable configuration: module not found");
                 return;
             }
         }
@@ -81,20 +88,30 @@ void zai_config_stable_file_minit(void) {
 
     ddog_Configurator *configurator = _ddog_library_configurator_new(false, DDOG_CHARSLICE_C("php"));
 
-    char *file = getenv("_DD_TEST_LIBRARY_CONFIG_LOCAL_FILE");
-    if (file) {
-        ddog_CStr path = {.ptr = file, .length = strlen(file)};
+    char *local_file = getenv("_DD_TEST_LIBRARY_CONFIG_LOCAL_FILE");
+    if (local_file) {
+        ddog_CStr path = {.ptr = local_file, .length = strlen(local_file)};
         _ddog_library_configurator_with_local_path(configurator, path);
     }
-    file = getenv("_DD_TEST_LIBRARY_CONFIG_FLEET_FILE");
-    if (file) {
-        ddog_CStr path = {.ptr = file, .length = strlen(file)};
+    char *fleet_file = getenv("_DD_TEST_LIBRARY_CONFIG_FLEET_FILE");
+    if (fleet_file) {
+        ddog_CStr path = {.ptr = fleet_file, .length = strlen(fleet_file)};
         _ddog_library_configurator_with_fleet_path(configurator, path);
     }
 
     _ddog_library_configurator_with_detect_process_info(configurator);
 
     ddog_LibraryConfigLoggedResult config_result = _ddog_library_configurator_get(configurator);
+    if (diagnose_stable_config) {
+        char message[512];
+        snprintf(message, sizeof message,
+                 "Datadog stable configuration: C local=%s, fleet=%s, result=%s, entries=%zu",
+                 local_file ? local_file : "unset",
+                 fleet_file ? fleet_file : "unset",
+                 config_result.tag == DDOG_LIBRARY_CONFIG_LOGGED_RESULT_OK ? "ok" : "error",
+                 config_result.tag == DDOG_LIBRARY_CONFIG_LOGGED_RESULT_OK ? (size_t)config_result.ok.value.len : 0);
+        php_log_err(message);
+    }
     if (config_result.tag == DDOG_LIBRARY_CONFIG_LOGGED_RESULT_OK) {
         stable_config = pemalloc(sizeof(HashTable), 1);
         zend_hash_init(stable_config, 8, NULL, stable_config_entry_dtor, 1);
