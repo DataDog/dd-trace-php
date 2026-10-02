@@ -1,0 +1,53 @@
+{
+  "corrected_define": "HAVE_RPC_XDR_H=1",
+  "libraries": [
+    {
+      "path": "/home/bits/.cache/dd-native-runtime-repro/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-opt-ST-d3ccba204aab/bin/bazel/dependencies/llvm_runtimes/x86_64_glibc_native_asan.build/runtimes/compiler-rt/lib/linux/libclang_rt.asan-x86_64.so",
+      "before_sha256": "f169aa76934e15b660ec10adefdb861353dcd1e5de18020b0c8df313d8a26c81",
+      "after_sha256": "f169aa76934e15b660ec10adefdb861353dcd1e5de18020b0c8df313d8a26c81",
+      "byte_identical": true
+    },
+    {
+      "path": "/home/bits/.cache/dd-native-runtime-repro/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-opt-ST-d3ccba204aab/bin/bazel/dependencies/llvm_runtimes/x86_64_glibc_native_asan.build/runtimes/compiler-rt/lib/linux/libclang_rt.asan-x86_64.a",
+      "before_sha256": "5a95f2b7d50e5f0b96fc9e15d4deb7a35e7b36960bdb8b9c80905ada88590340",
+      "after_sha256": "5a95f2b7d50e5f0b96fc9e15d4deb7a35e7b36960bdb8b9c80905ada88590340",
+      "byte_identical": true
+    },
+    {
+      "path": "/home/bits/.cache/dd-native-runtime-repro/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-opt-ST-d3ccba204aab/bin/bazel/dependencies/llvm_runtimes/x86_64_glibc_native_asan.build/runtimes/compiler-rt/lib/linux/libclang_rt.asan_cxx-x86_64.a",
+      "before_sha256": "195b01bce2bb94987df3fe4b7785454e376416e66a09063e72675765974a2d47",
+      "after_sha256": "195b01bce2bb94987df3fe4b7785454e376416e66a09063e72675765974a2d47",
+      "byte_identical": true
+    },
+    {
+      "path": "/home/bits/.cache/dd-native-runtime-repro/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-opt-ST-d3ccba204aab/bin/bazel/dependencies/llvm_runtimes/x86_64_glibc_native_asan.build/runtimes/compiler-rt/lib/linux/libclang_rt.asan-preinit-x86_64.a",
+      "before_sha256": "1690473a5b7e51099ec276f9b5a6ac737df4458aaef5fb20411ac78ba0b9abb7",
+      "after_sha256": "1690473a5b7e51099ec276f9b5a6ac737df4458aaef5fb20411ac78ba0b9abb7",
+      "byte_identical": true
+    },
+    {
+      "path": "/home/bits/.cache/dd-native-runtime-repro/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-opt-ST-fea9908efebb/bin/bazel/dependencies/llvm_runtimes/aarch64_glibc_native_asan.build/runtimes/compiler-rt/lib/linux/libclang_rt.asan-aarch64.so",
+      "before_sha256": "6bbe91cb1248623dd1e64d6cb7d4115e376cff1c7e8f76d70460a8040acdb57c",
+      "after_sha256": "6bbe91cb1248623dd1e64d6cb7d4115e376cff1c7e8f76d70460a8040acdb57c",
+      "byte_identical": true
+    },
+    {
+      "path": "/home/bits/.cache/dd-native-runtime-repro/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-opt-ST-fea9908efebb/bin/bazel/dependencies/llvm_runtimes/aarch64_glibc_native_asan.build/runtimes/compiler-rt/lib/linux/libclang_rt.asan-aarch64.a",
+      "before_sha256": "05e73d61b11c6408907da083471906db32563eae1f8f5dd2099aa3bbc73d2d3d",
+      "after_sha256": "05e73d61b11c6408907da083471906db32563eae1f8f5dd2099aa3bbc73d2d3d",
+      "byte_identical": true
+    },
+    {
+      "path": "/home/bits/.cache/dd-native-runtime-repro/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-opt-ST-fea9908efebb/bin/bazel/dependencies/llvm_runtimes/aarch64_glibc_native_asan.build/runtimes/compiler-rt/lib/linux/libclang_rt.asan_cxx-aarch64.a",
+      "before_sha256": "0e5f44ebbec72929e449907b6223a6c4e9b920e1dbb6938e883e2569c74da5d2",
+      "after_sha256": "0e5f44ebbec72929e449907b6223a6c4e9b920e1dbb6938e883e2569c74da5d2",
+      "byte_identical": true
+    },
+    {
+      "path": "/home/bits/.cache/dd-native-runtime-repro/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-opt-ST-fea9908efebb/bin/bazel/dependencies/llvm_runtimes/aarch64_glibc_native_asan.build/runtimes/compiler-rt/lib/linux/libclang_rt.asan-preinit-aarch64.a",
+      "before_sha256": "953c507884c1113cb26f143e1669bab77137b54842cfe913299aa3e63a0b6ad7",
+      "after_sha256": "953c507884c1113cb26f143e1669bab77137b54842cfe913299aa3e63a0b6ad7",
+      "byte_identical": true
+    }
+  ]
+}

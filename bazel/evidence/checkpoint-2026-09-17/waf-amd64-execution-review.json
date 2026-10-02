@@ -1,0 +1,381 @@
+{
+  "execution_log_sha256": "7927df408a3905e0258e8781684251a1468a072833385bf26da9d3fc08bdd4d8",
+  "runners": {
+    "remote": 260
+  },
+  "cache_hits": {
+    "False": 260
+  },
+  "exit_codes": {
+    "0": 260
+  },
+  "native_actions": [
+    {
+      "commandArgs": [
+        "bazel-out/linux_amd64_exec-opt-exec/bin/bazel/dependencies/exec_tools/sh",
+        "bazel/products/libddwaf/run-smoke.sh",
+        "bazel-out/linux_amd64_exec-opt-exec/bin/bazel/dependencies/exec_tools/llvm-objdump",
+        "external/+sysroots+sysroot_alpine322_x86_64/lib/ld-musl-x86_64.so.1",
+        "external/+sysroots+sysroot_alpine322_x86_64/lib:external/+sysroots+sysroot_alpine322_x86_64/lib64:external/+sysroots+sysroot_alpine322_x86_64/usr/lib:external/+sysroots+sysroot_alpine322_x86_64/usr/lib64",
+        "bazel-out/k8-fastbuild-ST-a7e91f7812b4/bin/bazel/products/libddwaf/_native_smoke_binary",
+        "bazel-out/k8-fastbuild-ST-a7e91f7812b4/bin/bazel/products/libddwaf/_native_x86_64_smoke.passed",
+        "x86_64",
+        "x86_64",
+        "x86_64-unknown-linux-musl",
+        "musl"
+      ],
+      "environmentVariables": [
+        {
+          "name": "HERMETIC_EXEC_RUNTIME_ROOT",
+          "value": "external/+execution_runtimes+exec_runtime_debian12_x86_64/root/lib/x86_64-linux-gnu/../.."
+        },
+        {
+          "name": "HERMETIC_LLVM_ROOT",
+          "value": "external/+http_archive+llvm_20_1_4_dist_x86_64"
+        },
+        {
+          "name": "HERMETIC_TOOLS_ROOT",
+          "value": "external/+execution_tools+exec_tools_alpine322_x86_64/root/bin/.."
+        },
+        {
+          "name": "HOME",
+          "value": "/nonexistent"
+        },
+        {
+          "name": "LANG",
+          "value": "C"
+        },
+        {
+          "name": "LC_ALL",
+          "value": "C"
+        },
+        {
+          "name": "PATH",
+          "value": "bazel-out/linux_amd64_exec-opt-exec/bin/bazel/dependencies/exec_tools/cmake_x86_64/bin:bazel-out/k8-fastbuild-ST-a7e91f7812b4/bin/bazel/dependencies/exec_tools:bazel-out/k8-fastbuild-ST-a7e91f7812b4/bin/bazel/dependencies/exec_tools:bazel-out/linux_amd64_exec-opt-exec/bin/bazel/dependencies/exec_tools"
+        },
+        {
+          "name": "PYTHONDONTWRITEBYTECODE",
+          "value": "1"
+        },
+        {
+          "name": "PYTHONHASHSEED",
+          "value": "0"
+        },
+        {
+          "name": "PYTHONNOUSERSITE",
+          "value": "1"
+        },
+        {
+          "name": "TZ",
+          "value": "UTC"
+        }
+      ],
+      "platform": {
+        "properties": [
+          {
+            "name": "ISA",
+            "value": "x86-64"
+          },
+          {
+            "name": "OSFamily",
+            "value": "Linux"
+          }
+        ]
+      },
+      "listedOutputs": [
+        "bazel-out/k8-fastbuild-ST-a7e91f7812b4/bin/bazel/products/libddwaf/_native_x86_64_smoke.passed"
+      ],
+      "remotable": true,
+      "cacheable": true,
+      "timeoutMillis": "0",
+      "mnemonic": "RunLibddwafNativeSmoke",
+      "actualOutputs": [
+        {
+          "path": "bazel-out/k8-fastbuild-ST-a7e91f7812b4/bin/bazel/products/libddwaf/_native_x86_64_smoke.passed",
+          "digest": {
+            "hash": "4b9e762e74a91d0b514e53451460c19165e658ead1c2ba69c500f74de4fe0f37",
+            "sizeBytes": "56",
+            "hashFunctionName": "SHA-256"
+          },
+          "isTool": false,
+          "symlinkTargetPath": ""
+        }
+      ],
+      "runner": "remote",
+      "cacheHit": false,
+      "status": "",
+      "exitCode": 0,
+      "remoteCacheable": true,
+      "targetLabel": "//bazel/products/libddwaf:_native_x86_64_smoke",
+      "digest": {
+        "hash": "9e16ec92b3ec288a0514781a78c541aec1741fe41bbb963c04614b24be154439",
+        "sizeBytes": "182",
+        "hashFunctionName": "SHA256"
+      },
+      "metrics": {
+        "totalTime": "1.088s",
+        "parseTime": "0.036s",
+        "networkTime": "0.178s",
+        "fetchTime": "0.001s",
+        "setupTime": "0.199s",
+        "uploadTime": "0.170s",
+        "executionWallTime": "0.027s",
+        "processOutputsTime": "0.375s",
+        "inputBytes": "2161176843",
+        "inputFiles": "15576",
+        "memoryEstimateBytes": "0",
+        "inputBytesLimit": "0",
+        "inputFilesLimit": "0",
+        "outputBytesLimit": "0",
+        "outputFilesLimit": "0",
+        "memoryBytesLimit": "0",
+        "startTime": "2026-09-17T15:37:18.864Z",
+        "measuredMemoryPeakBytes": "0"
+      }
+    },
+    {
+      "commandArgs": [
+        "bazel-out/linux_amd64_exec-opt-exec/bin/bazel/dependencies/exec_tools/sh",
+        "bazel/products/libddwaf/run-smoke.sh",
+        "bazel-out/linux_amd64_exec-opt-exec/bin/bazel/dependencies/exec_tools/llvm-objdump",
+        "external/+sysroots+sysroot_centos7_x86_64/lib64/ld-linux-x86-64.so.2",
+        "external/+sysroots+sysroot_centos7_x86_64/lib:external/+sysroots+sysroot_centos7_x86_64/lib64:external/+sysroots+sysroot_centos7_x86_64/usr/lib:external/+sysroots+sysroot_centos7_x86_64/usr/lib64",
+        "bazel-out/k8-fastbuild-ST-f926a7de0408/bin/bazel/products/libddwaf/_native_smoke_binary",
+        "bazel-out/k8-fastbuild-ST-f926a7de0408/bin/bazel/products/libddwaf/_native_x86_64_smoke.passed",
+        "x86_64",
+        "x86_64",
+        "x86_64-unknown-linux-gnu",
+        "glibc"
+      ],
+      "environmentVariables": [
+        {
+          "name": "HERMETIC_EXEC_RUNTIME_ROOT",
+          "value": "external/+execution_runtimes+exec_runtime_debian12_x86_64/root/lib/x86_64-linux-gnu/../.."
+        },
+        {
+          "name": "HERMETIC_LLVM_ROOT",
+          "value": "external/+http_archive+llvm_20_1_4_dist_x86_64"
+        },
+        {
+          "name": "HERMETIC_TOOLS_ROOT",
+          "value": "external/+execution_tools+exec_tools_alpine322_x86_64/root/bin/.."
+        },
+        {
+          "name": "HOME",
+          "value": "/nonexistent"
+        },
+        {
+          "name": "LANG",
+          "value": "C"
+        },
+        {
+          "name": "LC_ALL",
+          "value": "C"
+        },
+        {
+          "name": "PATH",
+          "value": "bazel-out/linux_amd64_exec-opt-exec/bin/bazel/dependencies/exec_tools/cmake_x86_64/bin:bazel-out/k8-fastbuild-ST-f926a7de0408/bin/bazel/dependencies/exec_tools:bazel-out/k8-fastbuild-ST-f926a7de0408/bin/bazel/dependencies/exec_tools:bazel-out/linux_amd64_exec-opt-exec/bin/bazel/dependencies/exec_tools"
+        },
+        {
+          "name": "PYTHONDONTWRITEBYTECODE",
+          "value": "1"
+        },
+        {
+          "name": "PYTHONHASHSEED",
+          "value": "0"
+        },
+        {
+          "name": "PYTHONNOUSERSITE",
+          "value": "1"
+        },
+        {
+          "name": "TZ",
+          "value": "UTC"
+        }
+      ],
+      "platform": {
+        "properties": [
+          {
+            "name": "ISA",
+            "value": "x86-64"
+          },
+          {
+            "name": "OSFamily",
+            "value": "Linux"
+          }
+        ]
+      },
+      "listedOutputs": [
+        "bazel-out/k8-fastbuild-ST-f926a7de0408/bin/bazel/products/libddwaf/_native_x86_64_smoke.passed"
+      ],
+      "remotable": true,
+      "cacheable": true,
+      "timeoutMillis": "0",
+      "mnemonic": "RunLibddwafNativeSmoke",
+      "actualOutputs": [
+        {
+          "path": "bazel-out/k8-fastbuild-ST-f926a7de0408/bin/bazel/products/libddwaf/_native_x86_64_smoke.passed",
+          "digest": {
+            "hash": "4b9e762e74a91d0b514e53451460c19165e658ead1c2ba69c500f74de4fe0f37",
+            "sizeBytes": "56",
+            "hashFunctionName": "SHA-256"
+          },
+          "isTool": false,
+          "symlinkTargetPath": ""
+        }
+      ],
+      "runner": "remote",
+      "cacheHit": false,
+      "status": "",
+      "exitCode": 0,
+      "remoteCacheable": true,
+      "targetLabel": "//bazel/products/libddwaf:_native_x86_64_smoke",
+      "digest": {
+        "hash": "480b2e847a140023e8c2d68960fe4f8159fe9829b58d83d4ad4f853c0255331e",
+        "sizeBytes": "182",
+        "hashFunctionName": "SHA256"
+      },
+      "metrics": {
+        "totalTime": "1.334s",
+        "parseTime": "0.024s",
+        "networkTime": "0.203s",
+        "setupTime": "0.223s",
+        "uploadTime": "0.151s",
+        "executionWallTime": "0.109s",
+        "processOutputsTime": "0.523s",
+        "inputBytes": "2289319743",
+        "inputFiles": "17151",
+        "memoryEstimateBytes": "0",
+        "inputBytesLimit": "0",
+        "inputFilesLimit": "0",
+        "outputBytesLimit": "0",
+        "outputFilesLimit": "0",
+        "memoryBytesLimit": "0",
+        "startTime": "2026-09-17T15:40:05.183Z",
+        "measuredMemoryPeakBytes": "0"
+      }
+    },
+    {
+      "commandArgs": [
+        "bazel-out/linux_amd64_exec-opt-exec/bin/bazel/dependencies/exec_tools/sh",
+        "bazel/products/libddwaf/run-smoke.sh",
+        "bazel-out/linux_amd64_exec-opt-exec/bin/bazel/dependencies/exec_tools/llvm-objdump",
+        "external/+sysroots+sysroot_centos7_x86_64/lib64/ld-linux-x86-64.so.2",
+        "external/+sysroots+sysroot_centos7_x86_64/lib:external/+sysroots+sysroot_centos7_x86_64/lib64:external/+sysroots+sysroot_centos7_x86_64/usr/lib:external/+sysroots+sysroot_centos7_x86_64/usr/lib64",
+        "bazel-out/k8-fastbuild-ST-f926a7de0408/bin/bazel/products/libddwaf/_waf_teardown_repro_binary",
+        "bazel-out/k8-fastbuild-ST-f926a7de0408/bin/bazel/products/libddwaf/_waf_teardown_repro_x86_64.passed",
+        "x86_64",
+        "x86_64",
+        "x86_64-unknown-linux-gnu",
+        "glibc"
+      ],
+      "environmentVariables": [
+        {
+          "name": "HERMETIC_EXEC_RUNTIME_ROOT",
+          "value": "external/+execution_runtimes+exec_runtime_debian12_x86_64/root/lib/x86_64-linux-gnu/../.."
+        },
+        {
+          "name": "HERMETIC_LLVM_ROOT",
+          "value": "external/+http_archive+llvm_20_1_4_dist_x86_64"
+        },
+        {
+          "name": "HERMETIC_TOOLS_ROOT",
+          "value": "external/+execution_tools+exec_tools_alpine322_x86_64/root/bin/.."
+        },
+        {
+          "name": "HOME",
+          "value": "/nonexistent"
+        },
+        {
+          "name": "LANG",
+          "value": "C"
+        },
+        {
+          "name": "LC_ALL",
+          "value": "C"
+        },
+        {
+          "name": "PATH",
+          "value": "bazel-out/linux_amd64_exec-opt-exec/bin/bazel/dependencies/exec_tools/cmake_x86_64/bin:bazel-out/k8-fastbuild-ST-f926a7de0408/bin/bazel/dependencies/exec_tools:bazel-out/k8-fastbuild-ST-f926a7de0408/bin/bazel/dependencies/exec_tools:bazel-out/linux_amd64_exec-opt-exec/bin/bazel/dependencies/exec_tools"
+        },
+        {
+          "name": "PYTHONDONTWRITEBYTECODE",
+          "value": "1"
+        },
+        {
+          "name": "PYTHONHASHSEED",
+          "value": "0"
+        },
+        {
+          "name": "PYTHONNOUSERSITE",
+          "value": "1"
+        },
+        {
+          "name": "TZ",
+          "value": "UTC"
+        }
+      ],
+      "platform": {
+        "properties": [
+          {
+            "name": "ISA",
+            "value": "x86-64"
+          },
+          {
+            "name": "OSFamily",
+            "value": "Linux"
+          }
+        ]
+      },
+      "listedOutputs": [
+        "bazel-out/k8-fastbuild-ST-f926a7de0408/bin/bazel/products/libddwaf/_waf_teardown_repro_x86_64.passed"
+      ],
+      "remotable": true,
+      "cacheable": true,
+      "timeoutMillis": "0",
+      "mnemonic": "RunLibddwafNativeSmoke",
+      "actualOutputs": [
+        {
+          "path": "bazel-out/k8-fastbuild-ST-f926a7de0408/bin/bazel/products/libddwaf/_waf_teardown_repro_x86_64.passed",
+          "digest": {
+            "hash": "4b9e762e74a91d0b514e53451460c19165e658ead1c2ba69c500f74de4fe0f37",
+            "sizeBytes": "56",
+            "hashFunctionName": "SHA-256"
+          },
+          "isTool": false,
+          "symlinkTargetPath": ""
+        }
+      ],
+      "runner": "remote",
+      "cacheHit": false,
+      "status": "",
+      "exitCode": 0,
+      "remoteCacheable": true,
+      "targetLabel": "//bazel/products/libddwaf:_waf_teardown_repro_x86_64",
+      "digest": {
+        "hash": "2af5f51adae85118859b5ec1dc166725b72169b6a0257dfb646ab728204679be",
+        "sizeBytes": "182",
+        "hashFunctionName": "SHA256"
+      },
+      "metrics": {
+        "totalTime": "1.115s",
+        "parseTime": "0.024s",
+        "networkTime": "0.176s",
+        "setupTime": "0.196s",
+        "uploadTime": "0.153s",
+        "executionWallTime": "0.076s",
+        "processOutputsTime": "0.388s",
+        "inputBytes": "2289317957",
+        "inputFiles": "17151",
+        "memoryEstimateBytes": "0",
+        "inputBytesLimit": "0",
+        "inputFilesLimit": "0",
+        "outputBytesLimit": "0",
+        "outputFilesLimit": "0",
+        "memoryBytesLimit": "0",
+        "startTime": "2026-09-17T15:40:04.800Z",
+        "measuredMemoryPeakBytes": "0"
+      }
+    }
+  ]
+}

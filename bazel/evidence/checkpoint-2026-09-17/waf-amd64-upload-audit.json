@@ -1,0 +1,48 @@
+{
+  "aquery_sha256": "ff1817cbea8c445689edf0c919e349eb6eaf7058f18cfacdadeb9e093d64b432",
+  "action_count": 1469,
+  "workspace_inputs": {
+    "bazel/dependencies/exec_tools/launcher.c": "789aeb8317906c2e66fdb346e3e3316318b2d171f56d193e04f348b407035e33",
+    "bazel/dependencies/llvm_runtimes/build-builtins.sh": "12dfd39a445ca41a2cd6c11e5af48cf2f2a4436119ce8c2e449d8beaff3af620",
+    "bazel/dependencies/llvm_runtimes/build-runtime.sh": "0f06f2526c90be37d5c88f0c04c7c785c56d7a09c31798974eb3d7f2965683e2",
+    "bazel/dependencies/llvm_runtimes/sanitize-startup-objects.sh": "83b817a4be55dee49938ed8f324ec6cda5a523e9a02486868c6cc5888796b5ac",
+    "bazel/products/libddwaf/run-smoke.sh": "46e5012538fac4421bd03a19ddd3a4eda2187580ff04865d4bac763920480ca8",
+    "bazel/products/libddwaf/smoke.cc": "ce49178b8c94d9a5d8abe471633c39d6097d09498ad9c9d0b49470e06cd24c01",
+    "bazel/products/libddwaf/version.hpp": "c10998443b70e749e18abf791e2d1e33a405f0992415c8d3e72fd58aeb2974fb",
+    "bazel/products/libddwaf/waf-teardown-repro.cc": "a585cdca8cdf60e19bfd01431a2d9d53f1c40f39ec9b290535f7de033eb0d334",
+    "tools/bazel/bundle-cmake.sh": "bd5b30d2a5274577ebc43bc570cf5bd7cbd65f1b366cf30562a5e663616a3326"
+  },
+  "external_repositories": {
+    "+execution_tools+exec_tools_alpine322_x86_64": 6793,
+    "+execution_runtimes+exec_runtime_debian12_x86_64": 356,
+    "+http_archive+llvm_20_1_4_dist_x86_64": 19,
+    "+sysroots+sysroot_centos7_x86_64": 3633,
+    "+sysroots+sysroot_alpine322_x86_64": 2058,
+    "+http_archive+rapidjson_source": 38,
+    "+http_archive+libddwaf_source": 284,
+    "rules_cc+": 2,
+    "bazel_tools": 3,
+    "+llvm_runtime_sources+llvm_runtime_sources_20_1_4": 21938
+  },
+  "mnemonics": {
+    "RunLibddwafNativeSmoke": 3,
+    "CppCompile": 245,
+    "CppLink": 3,
+    "CcStrip": 3,
+    "FileWrite": 3,
+    "RepoMappingManifest": 240,
+    "SourceSymlinkManifest": 240,
+    "SymlinkTree": 240,
+    "RunfilesTree": 240,
+    "ExecutableSymlink": 235,
+    "CppArchive": 2,
+    "TranslateBuildInfo": 4,
+    "Symlink": 2,
+    "BundleHermeticCMake": 1,
+    "BuildCompilerRtTargetRuntime": 2,
+    "PrepareTargetStartupObjects": 2,
+    "BuildLlvmTargetRuntime": 2,
+    "CompileHermeticExecLauncher": 1,
+    "LinkHermeticExecLauncher": 1
+  }
+}

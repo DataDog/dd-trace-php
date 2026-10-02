@@ -1,0 +1,31 @@
+{
+  "arch": "arm64",
+  "exit_code": 0,
+  "log_sha256": "e76995dbb866201868c4a0e04c2c5f68cd78c4cdc1731d03a098b9e8a0f08c61",
+  "artifacts": [
+    {
+      "target_label": "//bazel/products/libddwaf:_native_aarch64_smoke",
+      "action_key": "5ac6979bb7d0d41240b43fefbba242f3692885f8ec19743df75df024e95cc9c7",
+      "execution_platform": "//bazel/platforms:linux_arm64_exec",
+      "libc": "musl",
+      "binary": "/tmp/dd-checkpoint-waf-arm64/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-fastbuild-ST-9b028bbc6e76/bin/bazel/products/libddwaf/_native_smoke_binary",
+      "binary_sha256": "71c37ef0b3ee136f13c72eac894e83405dcc5bd4937941aa14158efe24a92526",
+      "elf_type": "ET_EXEC",
+      "elf_machine": 183,
+      "marker": "/tmp/dd-checkpoint-waf-arm64/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-fastbuild-ST-9b028bbc6e76/bin/bazel/products/libddwaf/_native_aarch64_smoke.passed",
+      "marker_sha256": "4b9e762e74a91d0b514e53451460c19165e658ead1c2ba69c500f74de4fe0f37"
+    },
+    {
+      "target_label": "//bazel/products/libddwaf:_native_aarch64_smoke",
+      "action_key": "aa3a70021f48562f77887e9503d403b2afea9b917fbe4df8b66f0a8cb8d53480",
+      "execution_platform": "//bazel/platforms:linux_arm64_exec",
+      "libc": "glibc",
+      "binary": "/tmp/dd-checkpoint-waf-arm64/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-fastbuild-ST-60ea83b7ca1d/bin/bazel/products/libddwaf/_native_smoke_binary",
+      "binary_sha256": "579752c943e68c41725cbb78eab6d09ae481b597ebec66c6cf564a5650d91a1c",
+      "elf_type": "ET_EXEC",
+      "elf_machine": 183,
+      "marker": "/tmp/dd-checkpoint-waf-arm64/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-fastbuild-ST-60ea83b7ca1d/bin/bazel/products/libddwaf/_native_aarch64_smoke.passed",
+      "marker_sha256": "4b9e762e74a91d0b514e53451460c19165e658ead1c2ba69c500f74de4fe0f37"
+    }
+  ]
+}

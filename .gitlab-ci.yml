@@ -145,6 +145,7 @@ package-trigger:
       - artifact: .gitlab/package-gen.yml
         job: "generate-templates"
       - local: .gitlab/benchmarks.yml
+      - local: .gitlab/bazel.yml
     strategy: depend
     forward:
       pipeline_variables: true

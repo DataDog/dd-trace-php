@@ -1,0 +1,2 @@
+#define PHP_VERSION "8.2.31"
+#define PHP_API_VERSION 20220829

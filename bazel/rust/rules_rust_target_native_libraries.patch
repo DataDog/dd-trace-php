@@ -1,0 +1,33 @@
+--- a/rust/private/toolchain.bzl
++++ b/rust/private/toolchain.bzl
+@@ -243,7 +243,7 @@
+ 
+     # Define runfiles
+     direct_files = []
+-    transitive_file_sets = []
++    transitive_file_sets = [depset(ctx.files.target_native_libraries)]
+ 
+     # Rustc
+     sysroot_rustc = _symlink_sysroot_bin(ctx, name, "bin", rustc)
+@@ -503,6 +503,10 @@
+ 
+     expanded_stdlib_linkflags = _expand_flags(ctx, "stdlib_linkflags", rust_std[rust_common.stdlib_info].srcs, make_variables)
+     expanded_extra_rustc_flags = _expand_flags(ctx, "extra_rustc_flags", rust_std[rust_common.stdlib_info].srcs, make_variables)
++    # Target stdlib adapters belong to this toolchain, not execution wrappers.
++    native_library_flags = ["-Lnative=" + directory for directory in sorted({file.dirname: True for file in ctx.files.target_native_libraries})]
++    expanded_extra_rustc_flags += native_library_flags
+     expanded_extra_exec_rustc_flags = _expand_flags(ctx, "extra_exec_rustc_flags", rust_std[rust_common.stdlib_info].srcs, make_variables)
++    expanded_extra_exec_rustc_flags += native_library_flags
+ 
+     linking_context = cc_common.create_linking_context(
+@@ -880,6 +884,10 @@
+             allow_single_file = True,
+             cfg = "exec",
+         ),
++        "target_native_libraries": attr.label_list(
++            doc = "Target-configured native adapters required by the selected standard library.",
++            allow_files = True,
++        ),
+         "rust_std": attr.label(
+             doc = "The Rust standard library.",
+             mandatory = True,

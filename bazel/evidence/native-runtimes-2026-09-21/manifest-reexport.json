@@ -1,0 +1,20 @@
+{
+  "command": [
+    "python3",
+    "bazel/dependencies/llvm_runtimes/generate_manifest.py",
+    "--execroot",
+    "/home/bits/.cache/dd-php-amd64-all-output/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main",
+    "--work",
+    "/tmp/native-regeneration-all",
+    "--export-only"
+  ],
+  "exit_code": 0,
+  "identical": true,
+  "sha256": {
+    "bazel/dependencies/llvm_runtimes/manifests/aarch64_glibc.bzl": "6fdfc5736ec3ee2c7c768bcc23dfcfbc4dd3fb98eecda498c160ee40442cd9b7",
+    "bazel/dependencies/llvm_runtimes/manifests/aarch64_musl.bzl": "67974610eba833fffc5cd78c1700d67a0f765ed4c61948532e03aa3da403f8f6",
+    "bazel/dependencies/llvm_runtimes/manifests/x86_64_glibc.bzl": "2cf399baa9326399b3379e01dfe67e40e559ccef5444faf7270a2bf2b4cbccb1",
+    "bazel/dependencies/llvm_runtimes/manifests/x86_64_musl.bzl": "02d47ebf6c992e087c7ca4146333f151edc551d18c71a9a9f823d85f55780a20"
+  },
+  "output": "/tmp/native-regeneration-all/x86_64_glibc/builtins.build\n/tmp/native-regeneration-all/x86_64_glibc/runtimes.build\n/tmp/native-regeneration-all/x86_64_musl/builtins.build\n/tmp/native-regeneration-all/x86_64_musl/runtimes.build\n/tmp/native-regeneration-all/aarch64_glibc/builtins.build\n/tmp/native-regeneration-all/aarch64_glibc/runtimes.build\n/tmp/native-regeneration-all/aarch64_musl/builtins.build\n/tmp/native-regeneration-all/aarch64_musl/runtimes.build\n"
+}

@@ -1,0 +1,55 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load(":arch_probe.bzl", "arch_probe")
+load(":bootstrap_manifest.bzl", "bootstrap_manifest")
+load(":toolchain_probe.bzl", "arm_exec_closure_probe", "compiler_self_probe")
+
+package(default_visibility = ["//visibility:public"])
+
+bootstrap_manifest(name = "bootstrap_manifest")
+
+compiler_self_probe(name = "compiler_self_probe")
+
+arm_exec_closure_probe(
+    name = "remote_exec_tools_arm64",
+    busybox = "@exec_tools_alpine322_aarch64//:root/bin/busybox.static",
+    exec_compatible_with = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+    launcher = "//bazel/dependencies/exec_tools:launcher_aarch64_cross",
+    runtime = ["@exec_tools_alpine322_aarch64//:all"],
+)
+
+arch_probe(
+    name = "remote_arch_amd64",
+    exec_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    expected = "x86_64",
+)
+
+cc_binary(
+    name = "cc_link_probe",
+    srcs = ["cc_link_probe.cc"],
+)
+
+cc_library(
+    name = "native_cc_compile_probe",
+    srcs = ["native_cc_compile_probe.c"],
+)
+
+cc_binary(
+    name = "native_c_link_probe",
+    srcs = ["native_c_link_probe.c"],
+)
+
+arch_probe(
+    name = "remote_arch_arm64",
+    exec_compatible_with = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+    expected = "aarch64",
+)

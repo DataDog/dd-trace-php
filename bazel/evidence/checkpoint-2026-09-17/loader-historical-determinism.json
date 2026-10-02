@@ -1,0 +1,19 @@
+{
+  "target": "//bazel/products/loader:loader_stage_all",
+  "scope": "four narrow loader packages, not full SSI",
+  "detector_exit_code": 0,
+  "detector_result": "No nondeterminism detected.",
+  "build_invocations": [
+    "475bb8e5-10e1-449b-909c-c5f6e4dd3648",
+    "16a43108-3e40-4ab7-a492-6f53331cedfb"
+  ],
+  "log": "/home/bits/.cache/dd-php-loader-stage-all-nondeterminism-final-retry.log",
+  "log_sha256": "9603665218a5f4ba864e3f68237050cc334a18b3d71f6bb648c698e992df4863",
+  "integrated_build_invocation": "ace69ce1-0e05-440e-8944-dc2bb3be28cd",
+  "integrated_comparison": "/tmp/dd-original-loader-packages-matched-review.json",
+  "notes": [
+    "Both uncached builds completed successfully (629 actions each)",
+    "Bazel output-base cleanup emitted nonfatal signal-killed warnings",
+    "Compared with matching declared target configuration"
+  ]
+}

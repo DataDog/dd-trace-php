@@ -1,0 +1,16 @@
+{
+  ".bazelrc": "da158dc0fa13b167f56810a7577ccc1a6c286458904f942c9acf5bcbf5d86c37",
+  "MODULE.bazel": "471b636abe70b2f0e865dfb12e253b07f8ffd8d778514fb0805e7025d70c9378",
+  "MODULE.bazel.lock": "ed092eb3fd08d20e42a7aefe4cd614504ce10bcd2b3010ca4e62ca8a2669d758",
+  "bazel/products/libddwaf/BUILD.bazel": "7f88df4f9ba0eacee3cdaa82d3e1a9edc00873dcc917fe221da99ba73988e5e1",
+  "bazel/products/libddwaf/BUILD.libddwaf": "d6a6938718f2fbefce1188db14b1a37be70dd7a6acbfea762570b9ac8c53ce69",
+  "bazel/products/libddwaf/BUILD.rapidjson": "d485355f10faa6c460ea173754099306dc2832d168ed6a42a209a95b678a196e",
+  "bazel/products/libddwaf/smoke.bzl": "d8b20a6f300601319cd2316535c2bf85ceac699b87e84c43ab41b069dcf9bb76",
+  "bazel/products/libddwaf/run-smoke.sh": "46e5012538fac4421bd03a19ddd3a4eda2187580ff04865d4bac763920480ca8",
+  "bazel/products/libddwaf/smoke.cc": "ce49178b8c94d9a5d8abe471633c39d6097d09498ad9c9d0b49470e06cd24c01",
+  "bazel/products/libddwaf/waf-teardown-repro.cc": "a585cdca8cdf60e19bfd01431a2d9d53f1c40f39ec9b290535f7de033eb0d334",
+  "bazel/toolchains/hermetic_cc_toolchain.bzl": "541e9c1b3f4bc5479feaa9081bce289d65b838eafdc4de6bd496f112942fe15a",
+  "bazel/platforms/transitions.bzl": "b7c7b5a33eadeb779e70a5408b9ef570992da085292d6b23704224397027726a",
+  "bazel/dependencies/llvm_runtimes/runtime.bzl": "9680d2005500c74925b9d3717d975ee202b923e624b82eac32175b88df9e51ba",
+  "bazel/dependencies/llvm_runtimes/build-runtime.sh": "0f06f2526c90be37d5c88f0c04c7c785c56d7a09c31798974eb3d7f2965683e2"
+}

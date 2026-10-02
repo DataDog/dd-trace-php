@@ -1,0 +1,16 @@
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "README.md",
+    "availability.json",
+    "extract_profile.py",
+    "extract_profile_test.py",
+    "generate_locks.py",
+    "images.json",
+    "repository.bzl",
+    "records.bzl",
+    "validate_locks.py",
+    "validate_offline.sh",
+])
+
+exports_files(glob(["metadata/*.json"]))

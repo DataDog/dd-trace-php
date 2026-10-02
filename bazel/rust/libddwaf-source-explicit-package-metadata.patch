@@ -1,0 +1,30 @@
+diff --git a/crates/libddwaf/Cargo.toml b/crates/libddwaf/Cargo.toml
+--- a/crates/libddwaf/Cargo.toml
++++ b/crates/libddwaf/Cargo.toml
+@@ -1,11 +1,11 @@
+ [package]
+ name = "libddwaf"
+ description = "Rust bindings to DataDog/libddwaf"
+-authors.workspace = true
+-version.workspace = true
+-edition.workspace = true
+-rust-version.workspace = true
+-license.workspace = true
+-repository.workspace = true
+-categories.workspace = true
+-keywords.workspace = true
++authors = ["DataDog, Inc. <support@datadoghq.com>"]
++version = "2.0.1"
++edition = "2021"
++rust-version = "1.85"
++license = "Apache-2.0"
++repository = "https://github.com/DataDog/libddwaf-rust"
++categories = ["api-bindings", "security"]
++keywords = ["datadog", "security", "waf", "rasp"]
+@@ -29,4 +29,4 @@ dynamic-link = ["libddwaf-sys/dynamic-link"]
+ link-stdcxx = ["libddwaf-sys/link-stdcxx"]
+ 
+-[lints]
+-workspace = true
++[lints.rust]
++unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage, coverage_nightly)'] }

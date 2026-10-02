@@ -1,0 +1,12 @@
+exports_files([
+    "dd_trace_multiple_write.phpt",
+    "do_not_check_if_class_or_function_exists_by_default.phpt",
+    "extension_disabled.phpt",
+    "read_c_configuration.phpt",
+])
+
+filegroup(
+    name = "phpt_data",
+    srcs = glob(["**"], exclude = ["BUILD.bazel"]),
+    visibility = ["//visibility:public"],
+)

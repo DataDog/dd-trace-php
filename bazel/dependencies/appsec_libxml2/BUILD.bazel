@@ -1,0 +1,324 @@
+load("//bazel/platforms:transitions.bzl", "configured_target")
+load(":defs.bzl", "appsec_libxml2", "appsec_libxml2_asan_native_probe", "appsec_libxml2_native_probe")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "defs.bzl",
+    "build-libxml2.sh",
+    "allocator-smoke.c",
+    "run-asan-allocator-smoke.sh",
+])
+
+# Instances are intentionally declared by the PHP-specific AppSec product:
+# the `php` attribute is the sole source of the NTS/ZTS thread setting.
+
+appsec_libxml2(
+    name = "_x86_64_glibc_nts",
+    php = "//bazel/php:php_8_5_amd64_glibc_bookworm_nts",
+    runtime = "//bazel/dependencies/llvm_runtimes:x86_64_glibc",
+)
+
+appsec_libxml2(
+    name = "_x86_64_glibc_zts",
+    php = "//bazel/php:php_8_5_amd64_glibc_bookworm_zts",
+    runtime = "//bazel/dependencies/llvm_runtimes:x86_64_glibc",
+)
+
+configured_target(
+    name = "x86_64_glibc_nts",
+    actual = ":_x86_64_glibc_nts",
+    matrix_platform = "linux-amd64-glibc",
+)
+
+appsec_libxml2_native_probe(
+    name = "_x86_64_glibc_nts_native",
+    busybox = "@exec_tools_alpine322_x86_64//:root/bin/busybox.static",
+    exec_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    library = ":_x86_64_glibc_nts",
+)
+
+appsec_libxml2_native_probe(
+    name = "_x86_64_glibc_zts_native",
+    busybox = "@exec_tools_alpine322_x86_64//:root/bin/busybox.static",
+    exec_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    library = ":_x86_64_glibc_zts",
+)
+
+configured_target(
+    name = "x86_64_glibc_nts_native_smoke",
+    actual = ":_x86_64_glibc_nts_native",
+    matrix_platform = "linux-amd64-glibc",
+)
+
+configured_target(
+    name = "x86_64_glibc_zts_native_smoke",
+    actual = ":_x86_64_glibc_zts_native",
+    matrix_platform = "linux-amd64-glibc",
+)
+
+appsec_libxml2(
+    name = "_x86_64_musl_nts",
+    php = "//bazel/php:php_8_5_amd64_musl_alpine_nts",
+    runtime = "//bazel/dependencies/llvm_runtimes:x86_64_musl",
+)
+
+appsec_libxml2(
+    name = "_x86_64_musl_zts",
+    php = "//bazel/php:php_8_5_amd64_musl_alpine_zts",
+    runtime = "//bazel/dependencies/llvm_runtimes:x86_64_musl",
+)
+
+appsec_libxml2(
+    name = "_aarch64_glibc_nts",
+    php = "//bazel/php:php_8_5_arm64_glibc_bookworm_nts",
+    runtime = "//bazel/dependencies/llvm_runtimes:aarch64_glibc",
+)
+
+appsec_libxml2(
+    name = "_aarch64_glibc_zts",
+    php = "//bazel/php:php_8_5_arm64_glibc_bookworm_zts",
+    runtime = "//bazel/dependencies/llvm_runtimes:aarch64_glibc",
+)
+
+appsec_libxml2(
+    name = "_aarch64_musl_nts",
+    php = "//bazel/php:php_8_5_arm64_musl_alpine_nts",
+    runtime = "//bazel/dependencies/llvm_runtimes:aarch64_musl",
+)
+
+appsec_libxml2(
+    name = "_aarch64_musl_zts",
+    php = "//bazel/php:php_8_5_arm64_musl_alpine_zts",
+    runtime = "//bazel/dependencies/llvm_runtimes:aarch64_musl",
+)
+
+appsec_libxml2_native_probe(
+    name = "_x86_64_musl_nts_native",
+    busybox = "@exec_tools_alpine322_x86_64//:root/bin/busybox.static",
+    exec_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    library = ":_x86_64_musl_nts",
+)
+
+appsec_libxml2_native_probe(
+    name = "_x86_64_musl_zts_native",
+    busybox = "@exec_tools_alpine322_x86_64//:root/bin/busybox.static",
+    exec_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    library = ":_x86_64_musl_zts",
+)
+
+appsec_libxml2_native_probe(
+    name = "_aarch64_glibc_nts_native",
+    busybox = "@exec_tools_alpine322_aarch64//:root/bin/busybox.static",
+    exec_compatible_with = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+    library = ":_aarch64_glibc_nts",
+)
+
+appsec_libxml2_native_probe(
+    name = "_aarch64_glibc_zts_native",
+    busybox = "@exec_tools_alpine322_aarch64//:root/bin/busybox.static",
+    exec_compatible_with = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+    library = ":_aarch64_glibc_zts",
+)
+
+appsec_libxml2_native_probe(
+    name = "_aarch64_musl_nts_native",
+    busybox = "@exec_tools_alpine322_aarch64//:root/bin/busybox.static",
+    exec_compatible_with = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+    library = ":_aarch64_musl_nts",
+)
+
+appsec_libxml2_native_probe(
+    name = "_aarch64_musl_zts_native",
+    busybox = "@exec_tools_alpine322_aarch64//:root/bin/busybox.static",
+    exec_compatible_with = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+    library = ":_aarch64_musl_zts",
+)
+
+configured_target(
+    name = "x86_64_musl_nts_native_smoke",
+    actual = ":_x86_64_musl_nts_native",
+    matrix_platform = "linux-amd64-musl",
+)
+
+configured_target(
+    name = "x86_64_musl_zts_native_smoke",
+    actual = ":_x86_64_musl_zts_native",
+    matrix_platform = "linux-amd64-musl",
+)
+
+configured_target(
+    name = "aarch64_glibc_nts_native_smoke",
+    actual = ":_aarch64_glibc_nts_native",
+    matrix_platform = "linux-arm64-glibc",
+)
+
+configured_target(
+    name = "aarch64_glibc_zts_native_smoke",
+    actual = ":_aarch64_glibc_zts_native",
+    matrix_platform = "linux-arm64-glibc",
+)
+
+configured_target(
+    name = "aarch64_musl_nts_native_smoke",
+    actual = ":_aarch64_musl_nts_native",
+    matrix_platform = "linux-arm64-musl",
+)
+
+configured_target(
+    name = "aarch64_musl_zts_native_smoke",
+    actual = ":_aarch64_musl_zts_native",
+    matrix_platform = "linux-arm64-musl",
+)
+
+configured_target(
+    name = "x86_64_glibc_zts",
+    actual = ":_x86_64_glibc_zts",
+    matrix_platform = "linux-amd64-glibc",
+)
+
+# ASan variants are bound to real matching PHP SDK profiles.  They are
+# separate from the reviewed normal NTS/ZTS archives and require the declared
+# LLVM ASan DSO at native-run time.
+appsec_libxml2(
+    name = "_x86_64_glibc_nts_asan",
+    php = "//bazel/php:php_8_5_amd64_glibc_bookworm_nts_asan",
+    runtime = "//bazel/dependencies/llvm_runtimes:x86_64_glibc",
+)
+
+appsec_libxml2(
+    name = "_x86_64_glibc_zts_asan",
+    php = "//bazel/php:php_8_5_amd64_glibc_bookworm_debug_zts_asan",
+    runtime = "//bazel/dependencies/llvm_runtimes:x86_64_glibc",
+)
+
+appsec_libxml2_asan_native_probe(
+    name = "_x86_64_glibc_nts_asan_native",
+    elf_architecture = "x86_64",
+    library = ":_x86_64_glibc_nts_asan",
+    machine = "x86_64",
+    exec_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+)
+
+appsec_libxml2_asan_native_probe(
+    name = "_x86_64_glibc_zts_asan_native",
+    elf_architecture = "x86_64",
+    library = ":_x86_64_glibc_zts_asan",
+    machine = "x86_64",
+    exec_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+)
+
+configured_target(
+    name = "x86_64_glibc_nts_asan",
+    actual = ":_x86_64_glibc_nts_asan",
+    matrix_platform = "asan-linux-amd64-glibc",
+)
+
+configured_target(
+    name = "x86_64_glibc_zts_asan",
+    actual = ":_x86_64_glibc_zts_asan",
+    matrix_platform = "asan-linux-amd64-glibc",
+)
+
+configured_target(
+    name = "x86_64_glibc_nts_asan_native_smoke",
+    actual = ":_x86_64_glibc_nts_asan_native",
+    matrix_platform = "asan-linux-amd64-glibc",
+)
+
+configured_target(
+    name = "x86_64_glibc_zts_asan_native_smoke",
+    actual = ":_x86_64_glibc_zts_asan_native",
+    matrix_platform = "asan-linux-amd64-glibc",
+)
+
+# ARM archives cross-build locally. Their native runners are constrained to
+# an ARM Linux executor and are intentionally not run until ARM execution is
+# approved.
+appsec_libxml2(
+    name = "_aarch64_glibc_nts_asan",
+    php = "//bazel/php:php_8_5_arm64_glibc_bookworm_nts_asan",
+    runtime = "//bazel/dependencies/llvm_runtimes:aarch64_glibc",
+)
+
+appsec_libxml2(
+    name = "_aarch64_glibc_zts_asan",
+    php = "//bazel/php:php_8_5_arm64_glibc_bookworm_debug_zts_asan",
+    runtime = "//bazel/dependencies/llvm_runtimes:aarch64_glibc",
+)
+
+appsec_libxml2_asan_native_probe(
+    name = "_aarch64_glibc_nts_asan_native",
+    elf_architecture = "aarch64",
+    library = ":_aarch64_glibc_nts_asan",
+    machine = "aarch64",
+    exec_compatible_with = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+)
+
+appsec_libxml2_asan_native_probe(
+    name = "_aarch64_glibc_zts_asan_native",
+    elf_architecture = "aarch64",
+    library = ":_aarch64_glibc_zts_asan",
+    machine = "aarch64",
+    exec_compatible_with = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+)
+
+configured_target(
+    name = "aarch64_glibc_nts_asan",
+    actual = ":_aarch64_glibc_nts_asan",
+    matrix_platform = "asan-linux-arm64-glibc",
+)
+
+configured_target(
+    name = "aarch64_glibc_zts_asan",
+    actual = ":_aarch64_glibc_zts_asan",
+    matrix_platform = "asan-linux-arm64-glibc",
+)
+
+configured_target(
+    name = "aarch64_glibc_nts_asan_native_smoke",
+    actual = ":_aarch64_glibc_nts_asan_native",
+    matrix_platform = "asan-linux-arm64-glibc",
+)
+
+configured_target(
+    name = "aarch64_glibc_zts_asan_native_smoke",
+    actual = ":_aarch64_glibc_zts_asan_native",
+    matrix_platform = "asan-linux-arm64-glibc",
+)

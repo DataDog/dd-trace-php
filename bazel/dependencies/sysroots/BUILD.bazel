@@ -1,0 +1,10 @@
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "alpine322.json",
+    "centos7.json",
+    "extract_packages.py",
+    "repository.bzl",
+    "testdata/smoke.c",
+])
+

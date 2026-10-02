@@ -10,6 +10,7 @@ if [ -d '/opt/rh/devtoolset-7' ] ; then
     set -eo pipefail
 fi
 set -u
+source .gitlab/legacy-measure.sh
 
 suffix="${1:-}"
 
@@ -19,7 +20,8 @@ if [ "${suffix}" = "-alpine" ]; then
   export PATH="/root/.cargo/bin:$PATH"
 fi
 
-SHARED=1 PROFILE=tracer-release host_os="${HOST_OS}" ./compile_rust.sh
+SHARED=1 PROFILE=tracer-release host_os="${HOST_OS}" \
+  measure_legacy sidecar "${TRIPLET:-local}-sidecar" ./compile_rust.sh
 cp -v "${CARGO_TARGET_DIR:-target}/tracer-release/libdatadog_php.a" "libdatadog_php_$(uname -m)${suffix}.a"
 output="libdatadog_php_$(uname -m)${suffix}.so"
 objcopy --compress-debug-sections "${CARGO_TARGET_DIR:-target}/tracer-release/libdatadog_php.so" "${output}"

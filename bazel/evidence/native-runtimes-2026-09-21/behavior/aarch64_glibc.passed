@@ -1,0 +1,3 @@
+architecture=aarch64
+cmake=pass
+native=pass

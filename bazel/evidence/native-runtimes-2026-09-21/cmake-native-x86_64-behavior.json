@@ -1,0 +1,38 @@
+[
+  {
+    "libc": "glibc",
+    "implementation": "cmake",
+    "binary": "/home/bits/.cache/dd-php-amd64-all-output/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-opt-exec/bin/bazel/dependencies/llvm_runtimes/x86_64_glibc.cxx20-smoke",
+    "sha256": "72a3ac6687505acaf6783da3c67bd25902dec5c77c012da4f8ea0fb751a76b95",
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "libc": "glibc",
+    "implementation": "native",
+    "binary": "/home/bits/.cache/dd-native-runtime-output/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-opt-ST-9a61b3167d7e/bin/bazel/dependencies/llvm_runtimes/x86_64_glibc_native_validation.cxx20-smoke",
+    "sha256": "97fe7fcbe439af8f74a63e23ba627b4bb0192eadd8aef45e4528cd785ae5c7e6",
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "libc": "musl",
+    "implementation": "cmake",
+    "binary": "/home/bits/.cache/dd-php-amd64-all-output/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-fastbuild-ST-01d151896d7e/bin/bazel/dependencies/llvm_runtimes/x86_64_musl.cxx20-smoke",
+    "sha256": "4b0129db62d7f20a026ec80af384cd7e149729d9046c2f1af1ec27ee9e701c07",
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "libc": "musl",
+    "implementation": "native",
+    "binary": "/home/bits/.cache/dd-native-runtime-output/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-opt-ST-01d151896d7e/bin/bazel/dependencies/llvm_runtimes/x86_64_musl_native_validation.cxx20-smoke",
+    "sha256": "9fa85156d6925d265ed73ad5558c85fca2aa8ade7a00c4d00d5e567910d9b089",
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  }
+]

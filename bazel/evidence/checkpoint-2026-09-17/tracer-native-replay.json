@@ -1,0 +1,60 @@
+{
+  "classification": "fresh native execution of the current smoke runner over a hash-matched reviewed producer closure",
+  "scope": "amd64 glibc PHP 8.5 fat tracer load/unload, direct DSO entry, production sidecar ping, idle teardown, and dependency-closure preflight",
+  "working_directory": "/home/bits/.cache/dd-php-tracer-focused-output/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main",
+  "replay_command": "bazel/evidence/checkpoint-2026-09-17/tracer-native-replay.sh /tmp/dd-checkpoint-tracer-native-replay.passed /tmp/dd-checkpoint-tracer-native-replay.log",
+  "action_query": {
+    "command": "/usr/local/bin/bazelisk --output_user_root=/home/bits/.cache/dd-php-tracer-focused-output aquery 'mnemonic(\"DdtraceNativePhpSmoke\", deps(//bazel/products/tracer:ddtrace_fat_amd64_glibc_php85_native_smoke))' --config=linux-amd64-glibc --include_commandline --output=text --repository_cache=/home/bits/.cache/dd-php-bazel-combined-downloads --repository_contents_cache=/home/bits/.cache/dd-php-bazel-repo-contents --repository_disable_download --lockfile_mode=error --remote_cache= --remote_executor= --bes_backend= --bes_results_url=",
+    "exit_code": 0,
+    "action_key": "a4e5573a79594c892b4ddac62f7e8b887ed963045faecb299decc4fbd1a8c441",
+    "uncompressed_sha256": "62783e835791ca9ffa00f2008675ac928d0d8f7eeb56facf8e70bc94ee1b7f61",
+    "compressed_sha256": "14d015d50194ab4ec4656d27872a56dfdb7ddbdb4dc1624e18915d80573a0072",
+    "evidence": "dd-checkpoint-tracer-native-aquery.txt.gz"
+  },
+  "result": {
+    "exit_code": 0,
+    "log": "dd-checkpoint-tracer-native-replay.log",
+    "log_sha256": "f54582ecd3e0969c310bcac564f9e9ef6f07a50651d3a7d2a8aa2f8a652a549e",
+    "marker": "dd-checkpoint-tracer-native-replay.passed",
+    "marker_sha256": "b7bf3375ea83e6908814600172aa49f84919a5c1ad03d5b7aeadb47a05a32bf6",
+    "marker_text": "ddtrace 1.25.1 native PHP 8.5.8RC1 load/unload, direct entry, and sidecar native startup passed\n"
+  },
+  "reviewed_producer_artifacts": {
+    "ddtrace.so": {
+      "path": "bazel-out/k8-fastbuild-ST-f926a7de0408/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php85/ddtrace.so",
+      "sha256": "a11513235e5ffe39d3605e64d41a566363073bb14c8f872c28990a46b2181269",
+      "size": 18205872
+    },
+    "ddtrace.so.debug": {
+      "path": "bazel-out/k8-fastbuild-ST-f926a7de0408/bin/bazel/products/tracer/ddtrace_fat_amd64_glibc_php85/ddtrace.so.debug",
+      "sha256": "da645a1e424ff793f97472acfb096225bc110f1c49939996d3d7629badea3675",
+      "size": 95624432
+    },
+    "rust_sidecar_ping_client": {
+      "path": "bazel-out/k8-fastbuild-ST-f926a7de0408/bin/rust_sidecar_ping_client",
+      "sha256": "ccd1d287e41b27fe5391c8cfdc90b0cad7988cea15e46d3f74a56d6940d9f4fe",
+      "size": 8668296
+    }
+  },
+  "runtime_closure": {
+    "php_runtime_lock": {"path": "external/+php_exec_oci_imports+php_exec_bookworm_amd64/runtime.lock.json", "sha256": "82bb00c25d8a55d56ebec884005f6cf91643e908ec5859bc14e25a7e343d6666", "size": 5952},
+    "php_runtime_observed": {"path": "external/+php_exec_oci_imports+php_exec_bookworm_amd64/runtime/observed.json", "sha256": "4583b5320fe71c0f9549c204a7bf4f213b8d1d66435caecfd4cd4bb55c666292", "size": 6104},
+    "curl_lock": {"path": "external/+target_curl_oci+target_curl_centos7_amd64/curl.lock.json", "sha256": "9732a770ac6086068929e5c73acd5cd92eef9c564f4c6056a17bde0bbeb71fd1", "size": 469},
+    "curl_observed": {"path": "external/+target_curl_oci+target_curl_centos7_amd64/sdk/observed.json", "sha256": "06067f2913c146114e9218ac290c8eeb8344afda9c9abcfb2e5cad71a84d2acf", "size": 205},
+    "libcurl.so.4.5.0": {"path": "external/+target_curl_oci+target_curl_centos7_amd64/sdk/lib/libcurl.so.4.5.0", "sha256": "a76f3691fab187bb45135e3843f948be44224b159acdcf3e9dd34f666ef1b0e0", "size": 529672},
+    "libcrypto.so.1.1": {"path": "external/+target_curl_oci+target_curl_centos7_amd64/sdk/dependencies/openssl/lib/libcrypto.so.1.1", "sha256": "44936d39e57329d14b6bc6101f1d9eddb3c556c70267221562fe6a15ee33b077", "size": 3421536},
+    "libssl.so.1.1": {"path": "external/+target_curl_oci+target_curl_centos7_amd64/sdk/dependencies/openssl/lib/libssl.so.1.1", "sha256": "03bae5a771c1126e00d9a6b7624b8e1d51e34bb6c4bf41a074a88102d048dc7c", "size": 693176},
+    "libz.so.1.2.11": {"path": "external/+target_curl_oci+target_curl_centos7_amd64/sdk/dependencies/zlib/lib/libz.so.1.2.11", "sha256": "1d2b3b7762bf95f507892dee14f2ea4711e89ea208e98f438a29bea94b43f042", "size": 125512}
+  },
+  "reviewed_smoke_sources": {
+    "bazel/products/tracer/fat/native-smoke.sh": "e01575289ce010080fca987bc9e26c8894b025c5099d0418e2f429adf19d5283",
+    "bazel/products/tracer/fat/sidecar-direct-smoke.py": "08eef86174735ec2397d8891fdb3cab2ed393ce67e6a86ca4b97bd5086f5062f",
+    "bazel/products/tracer/fat/sidecar-ping.rs": "8067555df85a8bdfa966fdd2fc5b586d4c6bd5fa810c0fbf244f4399a4b6a1c2",
+    "bazel/products/tracer/fat/native_smoke.bzl": "9a00f996facd3c7efe6798b311c610253adcace77d143ac12c78428b2413fab3"
+  },
+  "limitations": [
+    "The producer closure was not rebuilt because consolidation only narrowed declarations and its artifact hashes match the reviewed gate.",
+    "The replay ran outside the Codex filesystem sandbox because the production sidecar test requires an AF_UNIX socket; the first sandboxed attempt failed with EPERM and is not acceptance evidence.",
+    "This is an amd64 glibc PHP 8.5 product gate, not full-matrix acceptance."
+  ]
+}
