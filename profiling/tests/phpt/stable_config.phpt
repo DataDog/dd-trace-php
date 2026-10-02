@@ -3,6 +3,7 @@ Check the library config files
 --SKIPIF--
 <?php
 copy(__DIR__.'/stable_config.yaml', '/tmp/test_profiling_stable_config.yaml');
+@unlink('/tmp/test_profiling_stable_config.log');
 $environment = [];
 foreach (['DD_SERVICE', 'DD_ENV', 'DD_PROFILING_ENABLED', 'DD_TRACE_ENABLED'] as $name) {
     $value = getenv($name);
@@ -12,9 +13,14 @@ echo 'info stable config skipif: fixture=' . (is_readable('/tmp/test_profiling_s
     . ', local path=' . (getenv('_DD_TEST_LIBRARY_CONFIG_LOCAL_FILE') ?: 'unset')
     . ', ' . implode(', ', $environment);
 ?>
+--INI--
+log_errors=1
+error_log=/tmp/test_profiling_stable_config.log
 --ENV--
 _DD_TEST_LIBRARY_CONFIG_FLEET_FILE=/foo
 _DD_TEST_LIBRARY_CONFIG_LOCAL_FILE=/tmp/test_profiling_stable_config.yaml
+DD_TRACE_LOG_LEVEL=debug
+DD_TRACE_LOG_FILE=/tmp/test_profiling_stable_config.log
 --FILE--
 <?php
 
@@ -37,6 +43,15 @@ if (ini_get('datadog.service') !== 'service_from_local_config'
         echo 'FILE diagnostic: ' . $name . '='
             . ($value === false ? 'unset' : ($value === '' ? 'empty' : (in_array($name, ['DD_PROFILING_ENABLED', 'DD_TRACE_ENABLED'], true) ? $value : 'set')))
             . "\n";
+    }
+    $log = '/tmp/test_profiling_stable_config.log';
+    echo 'FILE diagnostic: log=' . (is_readable($log) ? 'readable' : 'unreadable') . "\n";
+    if (is_readable($log)) {
+        foreach (file($log) as $line) {
+            if (stripos($line, 'stable configuration') !== false) {
+                echo 'FILE diagnostic: ' . trim($line) . "\n";
+            }
+        }
     }
 }
 
