@@ -42,7 +42,7 @@ foreach ($profiler_minor_major_targets as $version) {
     PROFILER_SO: "${CI_PROJECT_DIR}/tmp/build_profiler/modules/datadog-profiling.so"
     PROFILER_LOG: "${CI_PROJECT_DIR}/artifacts/prof-correctness/profiler.log"
     PROF_ANALYZE: "${CI_PROJECT_DIR}/tmp/prof-analyze"
-    PARALLEL_VERSION: "1.2.7"
+    PARALLEL_VERSION: "1.2.15"
     CARGO_HOME: "${CI_PROJECT_DIR}/.cache/prof-correctness-cargo"
   cache:
     key:
