@@ -51,6 +51,28 @@ final class WebServerTest extends BaseTestCase
         $this->assertNull($server->checkErrors());
     }
 
+    public function testCheckErrorsHandlesReplacedLogGrownPastPreviousOffset()
+    {
+        $server = $this->createWebServer();
+        $errorLog = $this->temporaryDirectory . '/' . WebServer::ERROR_LOG_NAME;
+
+        // Long enough that a naive size-only comparison would not detect the
+        // replacement once the new file grows to at least this offset.
+        $padding = str_repeat('x', 4096);
+        file_put_contents($errorLog, "[ddtrace] [error] first error $padding\n");
+        $server->checkErrors();
+
+        // Simulate rotation: create a new file elsewhere and rename it over the
+        // old path, guaranteeing a new inode, already containing more bytes than
+        // the previous offset.
+        $replacement = $errorLog . '.1';
+        file_put_contents($replacement, "[ddtrace] [error] early marker in replacement\n$padding\n");
+        rename($replacement, $errorLog);
+
+        $this->assertSame('[ddtrace] [error] early marker in replacement', $server->checkErrors());
+        $this->assertNull($server->checkErrors());
+    }
+
     private function createWebServer()
     {
         $temporaryFile = tempnam(sys_get_temp_dir(), 'ddtrace-webserver-test-');
