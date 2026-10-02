@@ -368,7 +368,6 @@ extract_c_supported_configurations() {
     # across developer machines and CI runners.
     "${CPP_COMPILER_CMD[@]}" $(php-config --includes) -I.. -I../ext -I../zend_abstract_interface -I../src/dogstatsd -I../components-rs -x c -E - <<CODE | grep -A9999 -m1 -F "JSON_CONFIGURATION_MARKER" | tail -n+2
 #undef __linux__
-#define DDTRACE
 #define TRACER
 #define PROFILING
 #include "$header"
