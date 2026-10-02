@@ -850,6 +850,7 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
     if (parent_root) {
         ddtrace_inherit_span_properties(&span->span, &parent_root->span);
         ZVAL_COPY_DEREF(&span->property_origin, &parent_root->property_origin);
+        ddtrace_otel_sampling_copy(&span->otel_sampling, &parent_root->otel_sampling);
     } else {
         zval *prop_type = &span->property_type;
         zval *prop_name = &span->property_name;
@@ -888,6 +889,7 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
         if (DDTRACE_G(tracestate)) {
             ZVAL_STR_COPY(&span->property_tracestate, DDTRACE_G(tracestate));
         }
+        ddtrace_otel_sampling_copy(&span->otel_sampling, &DDTRACE_G(otel_sampling));
 
         SEPARATE_ARRAY(&span->property_propagated_tags);
         zend_hash_copy(Z_ARR(span->property_propagated_tags), &DDTRACE_G(propagated_root_span_tags), zval_add_ref);
@@ -901,6 +903,9 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
         }
         if (DDTRACE_G(default_priority_sampling) != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
             ddtrace_set_priority_sampling_on_span(span, DDTRACE_G(default_priority_sampling), DD_MECHANISM_MANUAL);
+            if (DDTRACE_G(propagated_priority_sampling) != DDTRACE_PRIORITY_SAMPLING_UNSET) {
+                ddtrace_otel_sampling_copy(&span->otel_sampling, &DDTRACE_G(otel_sampling));
+            }
         }
 
         if (DATADOG_G(asm_event_emitted)) {
@@ -1329,7 +1334,7 @@ void transfer_metrics_data(ddog_SpanBytes *source, ddog_SpanBytes *destination, 
     }
 }
 
-ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_TraceBytes *trace) {
+ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_TraceBytes *trace, bool p0_trace) {
     zend_array *meta = ddtrace_property_array(&span->property_meta);
     zend_array *metrics = ddtrace_property_array(&span->property_metrics);
 
@@ -1399,8 +1404,7 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
         profiling_notify_trace_finished(span->span_id, type, resource);
     }
 
-    // Determine sampling before allocating the rust span to avoid unnecessary work.
-    bool p0_trace = ddtrace_fetch_priority_sampling_from_span(span->root) <= 0;
+    // Apply per-span sampling to the trace sampling decision snapshotted for this chunk.
     bool span_sampling_applied = false;
     double span_sampling_rate = 1.0;
     double span_sampling_max_per_second = 0.0;
@@ -1573,6 +1577,8 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
     ddog_set_span_duration(rust_span, span->duration);
 
     if (is_first_span) {
+        ddog_add_str_span_meta_str(rust_span, "_dd.sdk.otlp_export", "false");
+
         zend_string *process_tags = datadog_process_tags_get_serialized();
         if (ZSTR_LEN(process_tags)) {
             const char *svc_tag_appendix = NULL;
@@ -1867,7 +1873,7 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
     }
 
     if (inferred_span) {
-        ddog_SpanBytes *serialized_inferred_span = ddtrace_serialize_span_to_rust_span(inferred_span, trace);
+        ddog_SpanBytes *serialized_inferred_span = ddtrace_serialize_span_to_rust_span(inferred_span, trace, p0_trace);
         rust_span = ddog_get_span(trace, rust_span_index);
 
         transfer_metrics_data(rust_span, serialized_inferred_span, "_dd.agent_psr", true);
@@ -2212,4 +2218,3 @@ void ddtrace_serializer_startup()
 {
     ddtrace_user_req_add_listeners(&ser_user_req_listeners);
 }
-

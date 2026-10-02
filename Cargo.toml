@@ -10,7 +10,9 @@ resolver = "2"
 
 [workspace.package]
 rust-version = "1.91.1"
-edition = "2021"
+# libdatadog crates built as members of this workspace inherit `edition` from
+# here, so it must match `[workspace.package].edition` in libdatadog/Cargo.toml.
+edition = "2024"
 version = "0.0.1"
 license = "Apache-2.0"
 authors = ["Datadog Inc. <info@datadoghq.com>"]
@@ -18,7 +20,8 @@ authors = ["Datadog Inc. <info@datadoghq.com>"]
 [package]
 name = "datadog-php"
 version.workspace = true
-edition.workspace = true
+# Not yet migrated to edition 2024; pinned independently of the workspace.
+edition = "2021"
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
@@ -69,6 +72,7 @@ libdd-crashtracker-ffi = { path = "libdatadog/libdd-crashtracker-ffi", default-f
 libdd-library-config-ffi = { path = "libdatadog/libdd-library-config-ffi", default-features = false }
 spawn_worker = { path = "libdatadog/spawn_worker" }
 anyhow = "1.0"
+arc-swap.workspace = true
 const-str = "0.5.6"
 itertools = "0.11.0"
 serde = "1.0.196"

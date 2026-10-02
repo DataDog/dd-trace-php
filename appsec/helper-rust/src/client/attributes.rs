@@ -168,13 +168,13 @@ mod tests {
     #[test]
     fn test_add_numeric_float_attribute() {
         let mut attrs = CollectedWafAttributes::new(260, 25000);
-        let map = waf_map! {("test.metric", 3.14)};
+        let map = waf_map! {("test.metric", 3.25)};
         let attr = map.into_iter().next().unwrap();
 
         attrs.add_attribute(&attr);
 
         assert_eq!(attrs.metrics.len(), 1);
-        assert_eq!(attrs.metrics.get("test.metric"), Some(&3.14));
+        assert_eq!(attrs.metrics.get("test.metric"), Some(&3.25));
         assert_eq!(attrs.meta.len(), 0);
     }
 

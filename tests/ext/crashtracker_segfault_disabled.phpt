@@ -31,7 +31,7 @@ $rr->clearDumpedData(); // ensure clean state
 usleep(100000); // Let time to the sidecar to open the crashtracker socket
 
 $php = getenv('TEST_PHP_EXECUTABLE');
-$args = getenv('TEST_PHP_ARGS')." ".getenv("TEST_PHP_EXTRA_ARGS");
+$args = getenv('TEST_PHP_EXTRA_ARGS');
 $cmd = $php." ".$args." -r 'posix_kill(posix_getpid(), 11);' 2>/dev/null";
 system($cmd);
 

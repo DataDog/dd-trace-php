@@ -1,168 +1,87 @@
 use std::{
+    cell::Cell,
     ffi::{CString, OsStr},
+    io,
     os::{
-        fd::{AsRawFd, FromRawFd, OwnedFd},
+        fd::{AsRawFd, OwnedFd},
         unix::ffi::OsStrExt,
     },
     path::{Path, PathBuf},
-    sync::atomic::{fence, AtomicU64, AtomicUsize, Ordering},
-    thread,
 };
 
 use anyhow::Context;
 use base64::{self, Engine};
+use libdd_ipc::one_way_shared_memory::{open_named_shm, OneWayShmReader};
+use libdd_ipc::platform::NamedShmHandle;
 
 use crate::client::log::debug;
 
+/// Polls the remote config directory the sidecar publishes for one target.
 pub struct ConfigPoller {
-    reader: ConfigReader,
+    path: PathBuf,
+    reader: Option<OneWayShmReader<NamedShmHandle, DirectoryOpener>>,
+}
+
+struct DirectoryOpener {
+    name: CString,
+    // The opener returns Option, so preserve other errors for poll() to report.
+    error: Cell<Option<io::Error>>,
 }
 impl ConfigPoller {
     pub fn new(shmem_path: &Path) -> Self {
-        let shmem = Shmem::new(shmem_path);
         ConfigPoller {
-            reader: ConfigReader { shmem, last_seq: 0 },
+            path: shmem_path.to_owned(),
+            reader: None,
         }
     }
 
     pub fn poll(&mut self) -> anyhow::Result<Option<ConfigDirectory>> {
-        let res_maybe_cfg_dir = self.reader.read();
-        match res_maybe_cfg_dir {
-            Ok(config) => Ok(config),
-            Err(err) => {
-                if let Some(io_err) = err.downcast_ref::<std::io::Error>() {
-                    if io_err.kind() == std::io::ErrorKind::NotFound {
-                        debug!(
-                            "File not found while reading remote config {:?}: {}",
-                            self, err
-                        );
-                        return Ok(None);
-                    }
-                }
-                Err(err).with_context(|| format!("Failed to read remote config: {:?}", self))
+        let reader = match &mut self.reader {
+            Some(reader) => reader,
+            None => {
+                // The name is worker-supplied; see validate_shm_name().
+                validate_shm_name(&self.path)?;
+                let name = CString::new(self.path.as_os_str().as_bytes())
+                    .with_context(|| format!("Invalid shared memory name {:?}", self.path))?;
+                self.reader.insert(OneWayShmReader::new_with_opener(
+                    None,
+                    DirectoryOpener {
+                        name,
+                        error: Cell::new(None),
+                    },
+                    |opener| match open_named_shm(&opener.name) {
+                        Ok(mapping) => Some(mapping),
+                        Err(error) => {
+                            if !matches!(
+                                error.kind(),
+                                io::ErrorKind::NotFound | io::ErrorKind::WouldBlock
+                            ) {
+                                opener.error.set(Some(error));
+                            }
+                            None
+                        }
+                    },
+                ))
             }
+        };
+        let (changed, data) = reader.read();
+        let directory = changed.then(|| ConfigDirectory {
+            data: data.to_vec(),
+        });
+        if let Some(error) = reader.extra.error.take() {
+            return Err(error.into());
         }
+        if directory.is_none() {
+            debug!("No new remote config in {:?}", self.path);
+        }
+        Ok(directory)
     }
 }
 impl std::fmt::Debug for ConfigPoller {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ConfigPoller")
-            .field("shmem_path", &self.reader.shmem.path)
+            .field("shmem_path", &self.path)
             .finish()
-    }
-}
-
-struct ConfigReader {
-    shmem: Shmem,
-    last_seq: u64,
-}
-unsafe impl Send for ConfigReader {}
-unsafe impl Sync for ConfigReader {}
-
-impl ConfigReader {
-    fn read(&mut self) -> anyhow::Result<Option<ConfigDirectory>> {
-        debug!("Reading config from shared memory {:?}", self.shmem.path);
-
-        self.shmem
-            .open()
-            .with_context(|| format!("Failed to open shared memory file {:?}", self.shmem.path))?;
-        // ensure we have at least the header mapped
-        let fd_size = self.shmem.fd_size().with_context(|| {
-            format!("Failed to get shared memory size for {:?}", self.shmem.path)
-        })?;
-        if fd_size < std::mem::size_of::<ConfigDirHeaderInMem>() {
-            anyhow::bail!("Shared memory file is too small to contain the header");
-        }
-        self.shmem
-            .mmap(fd_size)
-            .with_context(|| format!("Failed to mmap {:?}, size {}", self.shmem.path, fd_size))?;
-
-        loop {
-            // busy loop...
-            // this implements a seqlock
-            //
-            // The writer goes like this:
-            // w1. seq += 1 (acq-release)
-            // w2. write data
-            // w3. seq += 1 (release)
-            //
-            // The reader does this:
-            // r1. read seq (acquire)
-            // r2. read data
-            // r3. fence (acquire)
-            // r4. read seq (relaxed)
-            // r5. if seq is odd or changed retry
-            // see https://github.com/DataDog/libdatadog/pull/831
-
-            let mut mem_as_header = unsafe { self.shmem.as_type::<ConfigDirHeaderInMem>()? };
-            // acquire: synchronize with release on seq increments
-            // If the value is even we're guaranteed to see the data written just
-            // before the release (or later data)
-            let new_seq = mem_as_header.seq.load(Ordering::Acquire);
-
-            if new_seq & 1 == 1 {
-                debug!("Sequence number is odd: {}", new_seq);
-                thread::yield_now();
-                continue;
-            }
-
-            if new_seq == self.last_seq {
-                debug!("Sequence number did not advance: {}", new_seq);
-                return Ok(None);
-            }
-
-            let new_size = mem_as_header.size.load(Ordering::Relaxed);
-            let min_mapped_size = new_size + std::mem::size_of::<ConfigDirHeaderInMem>();
-            let cur_mapped_size = self.shmem.mapped_size();
-            if cur_mapped_size < min_mapped_size {
-                let fd_size = self.shmem.fd_size()?;
-                if min_mapped_size > fd_size {
-                    anyhow::bail!(
-                        "Shared memory file is too small relatively to \
-                                   the declared size of the payload. File size: {}, \
-                                   declared payload size: {} -> min file size: {}",
-                        fd_size,
-                        new_size,
-                        min_mapped_size
-                    );
-                }
-
-                // remap
-                self.shmem
-                    .mmap(fd_size)
-                    .with_context(|| "Failed to map shared memory with new size")?;
-                mem_as_header = unsafe { self.shmem.as_type::<ConfigDirHeaderInMem>()? };
-            }
-
-            // TODO: this should be done with core::intrinsics::atomic_load_relaxed
-            let mem = unsafe { self.shmem.as_slice() };
-            // new_size is payload size only (not including header).
-            // The writer adds a trailing zero byte for C compatibility; exclude it.
-            let payload_start = std::mem::size_of::<ConfigDirHeaderInMem>();
-            let payload_end = payload_start + new_size - 1;
-            let copied_data: Vec<u8> = mem[payload_start..payload_end].to_vec();
-
-            // adds a LoadLoad barrier, so the following relaxed load
-            // cannot be moved before the read for copied_data
-            fence(Ordering::Acquire);
-            let final_seq = mem_as_header.seq.load(Ordering::Relaxed);
-            if final_seq > new_seq {
-                debug!(
-                    "Sequence advanced while reading: {} -> {}; trying again",
-                    new_seq, final_seq
-                );
-                thread::yield_now();
-                continue;
-            }
-
-            debug!(
-                "Read config from shared memory {:?}: seq {}, size {}",
-                self.shmem.path, new_seq, new_size
-            );
-
-            self.last_seq = new_seq;
-            return Ok(Some(ConfigDirectory::new(copied_data)));
-        }
     }
 }
 
@@ -170,10 +89,6 @@ pub struct ConfigDirectory {
     data: Vec<u8>,
 }
 impl ConfigDirectory {
-    fn new(data: Vec<u8>) -> Self {
-        ConfigDirectory { data }
-    }
-
     pub fn runtime_id(&self) -> anyhow::Result<&str> {
         if self.data.is_empty() {
             // Cleared shmem state (expired()): no config available, same as unwritten shmem.
@@ -383,18 +298,34 @@ impl ParsedConfigKey {
     }
 }
 
-#[repr(C)]
-#[derive(Debug)]
-struct ConfigDirHeaderInMem {
-    pub seq: AtomicU64,
-    pub size: AtomicUsize,
-}
-
 pub struct Shmem {
     path: PathBuf,
     fd: Option<OwnedFd>,
     ptr: *const u8,
     size: usize, // mapped size
+}
+
+/// Require a POSIX shared-memory name: one leading slash and one component, other than `.` or `..`.
+fn validate_shm_name(path: &Path) -> anyhow::Result<()> {
+    let bytes = path.as_os_str().as_bytes();
+    anyhow::ensure!(
+        bytes.first() == Some(&b'/'),
+        "shared-memory name must start with '/': {path:?}"
+    );
+    let name = &bytes[1..];
+    anyhow::ensure!(
+        !name.is_empty(),
+        "shared-memory name must have a basename: {path:?}"
+    );
+    anyhow::ensure!(
+        !name.contains(&b'/'),
+        "shared-memory name must not contain an interior '/': {path:?}"
+    );
+    anyhow::ensure!(
+        name != b"." && name != b"..",
+        "invalid shared-memory basename: {path:?}"
+    );
+    Ok(())
 }
 
 impl Shmem {
@@ -412,17 +343,19 @@ impl Shmem {
             return Ok(());
         }
 
+        // CentOS 7's glibc accepts interior slashes, allowing traversal out of /dev/shm. Validate
+        // worker-supplied names before passing them to libc.
+        validate_shm_name(&self.path)?;
+
         debug!("Opening shared memory file {:?}", self.path);
         let path_cstr = CString::new(self.path.as_os_str().as_bytes())
             .with_context(|| format!("Failed to convert path {:?} to CString", self.path))?;
 
-        let fd = unsafe { libc::shm_open(path_cstr.as_ptr(), libc::O_RDONLY, 0) };
-        if fd < 0 {
-            let err: anyhow::Error = std::io::Error::last_os_error().into();
-            return Err(err.context("shm_open() failed"));
-        }
-        // SAFETY: fd is a valid file descriptor returned by shm_open on success
-        self.fd = Some(unsafe { OwnedFd::from_raw_fd(fd) });
+        // Exactly as the sidecar named it: the same platform spelling of the name and the same
+        // filesystem fallback, and the same refusal of segments another user could have made.
+        let fd = libdd_ipc::platform::open_named_shm_fd(&path_cstr)
+            .map_err(|err| anyhow::Error::from(err).context("shm_open() failed"))?;
+        self.fd = Some(fd);
         Ok(())
     }
 
@@ -484,24 +417,6 @@ impl Shmem {
         unsafe { std::slice::from_raw_parts(self.ptr, self.size) }
     }
 
-    pub unsafe fn as_type<T>(&self) -> anyhow::Result<&'_ T> {
-        if self.ptr.is_null() {
-            anyhow::bail!("Shared memory not mapped");
-        }
-        if self.size < std::mem::size_of::<T>() {
-            anyhow::bail!(
-                "Shared memory too small for type. Expected at least {} bytes, got {} bytes",
-                std::mem::size_of::<T>(),
-                self.size
-            );
-        }
-        unsafe { Ok(&*(self.ptr as *const T)) }
-    }
-
-    fn mapped_size(&self) -> usize {
-        self.size
-    }
-
     fn fd_size(&self) -> anyhow::Result<usize> {
         if self.fd.is_none() {
             anyhow::bail!("Shared memory file not open");
@@ -529,19 +444,45 @@ impl Drop for Shmem {
                 libc::munmap(self.ptr as *mut libc::c_void, self.size);
             }
         }
-        // OwnedFd (when present) will be closed automatically on drop
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use libdd_ipc::one_way_shared_memory::OneWayShmWriter;
     use std::ffi::CString;
-    use std::os::fd::{AsFd, AsRawFd, BorrowedFd};
+    use std::os::fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd};
     use std::os::unix::ffi::OsStrExt;
 
+    #[test]
+    fn validate_shm_name_accepts_legit_and_rejects_traversal() {
+        // Names the sidecar actually generates: a leading slash and one component.
+        assert!(validate_shm_name(Path::new("/ddrc0-AbC_-9")).is_ok());
+        assert!(validate_shm_name(Path::new("/ddpathreview-1234")).is_ok());
+        assert!(validate_shm_name(Path::new("/../../proc/self/fd/7/private.txt")).is_err());
+        assert!(validate_shm_name(Path::new("/a/b")).is_err());
+        assert!(validate_shm_name(Path::new("relative")).is_err());
+        assert!(validate_shm_name(Path::new("/")).is_err());
+        assert!(validate_shm_name(Path::new("/..")).is_err());
+        assert!(validate_shm_name(Path::new("/.")).is_err());
+    }
+
+    /// Match the sidecar's macOS naming convention.
+    fn native_name(name: &str) -> CString {
+        #[cfg(target_os = "macos")]
+        let name = name.strip_prefix('/').unwrap_or(name);
+        CString::new(name.as_bytes()).unwrap()
+    }
+
+    fn shm_unlink(name: &str) {
+        unsafe {
+            let _ = libc::shm_unlink(native_name(name).as_ptr());
+        }
+    }
+
     fn shm_create_and_write(name: &str, content: &[u8]) -> anyhow::Result<()> {
-        let c_name = CString::new(name.as_bytes()).unwrap();
+        let c_name = native_name(name);
         unsafe {
             // Best-effort cleanup in case it already exists
             libc::shm_unlink(c_name.as_ptr());
@@ -560,8 +501,7 @@ mod tests {
             );
         }
         let fd = unsafe { OwnedFd::from_raw_fd(fd) };
-        let result = unsafe { shm_write_via_mmap(fd.as_fd(), content) };
-        result
+        unsafe { shm_write_via_mmap(fd.as_fd(), content) }
     }
 
     // mac os doesn't support write() directly
@@ -588,56 +528,21 @@ mod tests {
         Ok(())
     }
 
-    /// Payload is written as the sidecar does: body bytes + trailing NUL; `size` counts that whole
-    /// slice. The reader exposes `body[..len-1]` to `ConfigDirectory` (NUL excluded).
+    /// Keep the returned writer alive while the test uses the directory.
     fn shm_create_config_dir_with_raw_payload(
         name: &str,
-        body_without_trailing_nul: &[u8],
-    ) -> anyhow::Result<()> {
-        let header_size = std::mem::size_of::<ConfigDirHeaderInMem>();
-        let mut payload = body_without_trailing_nul.to_vec();
-        payload.push(0);
-        let payload_size = payload.len();
-
-        let c_name = CString::new(name.as_bytes()).unwrap();
-        unsafe {
-            libc::shm_unlink(c_name.as_ptr());
-        }
-        let fd = unsafe {
-            libc::shm_open(
-                c_name.as_ptr(),
-                libc::O_CREAT | libc::O_RDWR,
-                0o600 as libc::c_uint,
-            )
-        };
-        if fd < 0 {
-            anyhow::bail!(
-                "shm_open create failed: {}",
-                std::io::Error::last_os_error()
-            );
-        }
-        let fd = unsafe { OwnedFd::from_raw_fd(fd) };
-        let header = ConfigDirHeaderInMem {
-            seq: AtomicU64::new(2),
-            size: AtomicUsize::new(payload_size),
-        };
-        let header_bytes = unsafe {
-            std::slice::from_raw_parts(
-                (&header as *const ConfigDirHeaderInMem) as *const u8,
-                header_size,
-            )
-        };
-        let mut buf = Vec::with_capacity(header_size + payload_size);
-        buf.extend_from_slice(header_bytes);
-        buf.extend_from_slice(&payload);
-        unsafe { shm_write_via_mmap(fd.as_fd(), &buf) }
+        body: &[u8],
+    ) -> anyhow::Result<OneWayShmWriter<NamedShmHandle>> {
+        let writer = OneWayShmWriter::<NamedShmHandle>::new(CString::new(name)?)?;
+        anyhow::ensure!(writer.write(body), "could not publish the directory");
+        Ok(writer)
     }
 
     fn shm_create_and_write_config_dir(
         name: &str,
         runtime_id: &str,
         lines: &[String],
-    ) -> anyhow::Result<usize> {
+    ) -> anyhow::Result<OneWayShmWriter<NamedShmHandle>> {
         let mut body = Vec::new();
         body.extend_from_slice(runtime_id.as_bytes());
         body.push(b'\n');
@@ -645,9 +550,7 @@ mod tests {
             body.extend_from_slice(l.as_bytes());
             body.push(b'\n');
         }
-        let payload_size = body.len() + 1;
-        shm_create_config_dir_with_raw_payload(name, &body)?;
-        Ok(payload_size)
+        shm_create_config_dir_with_raw_payload(name, &body)
     }
 
     #[test]
@@ -655,7 +558,7 @@ mod tests {
         // expired() calls writer.write(&[]), which stores size=1 with just the trailing NUL byte.
         // This cleared state means "no config available" and must not be treated as an error.
         let name = "/helper_rust_cfg_cleared_state";
-        shm_create_config_dir_with_raw_payload(name, b"")?;
+        let _writer = shm_create_config_dir_with_raw_payload(name, b"")?;
 
         let mut poller = ConfigPoller::new(Path::new(OsStr::from_bytes(name.as_bytes())));
         let cfg_dir = poller
@@ -666,16 +569,15 @@ mod tests {
         let configs: Vec<_> = cfg_dir.iter()?.collect::<anyhow::Result<Vec<_>>>()?;
         assert!(configs.is_empty());
 
-        unsafe {
-            let _ = libc::shm_unlink(CString::new(name.as_bytes()).unwrap().as_ptr());
-        }
+        shm_unlink(name);
         Ok(())
     }
 
     #[test]
     fn config_directory_iter_errors_when_payload_has_no_lf() -> anyhow::Result<()> {
         let outer = "/helper_rust_cfg_no_lf_iter";
-        shm_create_config_dir_with_raw_payload(outer, b"corrupt_or_partial_rc_index")?;
+        let _writer =
+            shm_create_config_dir_with_raw_payload(outer, b"corrupt_or_partial_rc_index")?;
 
         let mut poller = ConfigPoller::new(Path::new(OsStr::from_bytes(outer.as_bytes())));
         let cfg_dir = poller
@@ -691,9 +593,7 @@ mod tests {
             "unexpected error: {err:#}"
         );
 
-        unsafe {
-            let _ = libc::shm_unlink(CString::new(outer.as_bytes()).unwrap().as_ptr());
-        }
+        shm_unlink(outer);
         Ok(())
     }
 
@@ -720,7 +620,7 @@ mod tests {
             format!("{}:{}:{}", inner2, 1, rc2_b64),
         ];
 
-        shm_create_and_write_config_dir(outer, runtime_id, &entries)?;
+        let _writer = shm_create_and_write_config_dir(outer, runtime_id, &entries)?;
 
         // Run poll()
         let mut poller = ConfigPoller::new(Path::new(OsStr::from_bytes(outer.as_bytes())));
@@ -760,12 +660,105 @@ mod tests {
             assert_eq!(got[1].1, inner2_content);
         }
 
-        unsafe {
-            let _ = libc::shm_unlink(CString::new(outer.as_bytes()).unwrap().as_ptr());
-            let _ = libc::shm_unlink(CString::new(inner1.as_bytes()).unwrap().as_ptr());
-            let _ = libc::shm_unlink(CString::new(inner2.as_bytes()).unwrap().as_ptr());
-        }
+        shm_unlink(outer);
+        shm_unlink(inner1);
+        shm_unlink(inner2);
 
+        Ok(())
+    }
+
+    fn writer_name(tag: &str) -> CString {
+        CString::new(format!("/helper_rust_{tag}_{}", std::process::id())).unwrap()
+    }
+
+    fn poller_for(name: &CString) -> ConfigPoller {
+        ConfigPoller::new(Path::new(OsStr::from_bytes(name.as_bytes())))
+    }
+
+    /// A poller holding a directory must move on when its writer is replaced - by a restarted
+    /// sidecar, say - even though the new directory's sequence starts over below the old one.
+    #[test]
+    fn a_poller_follows_a_replaced_directory() -> anyhow::Result<()> {
+        use libdd_ipc::one_way_shared_memory::OneWayShmWriter;
+        use libdd_ipc::platform::NamedShmHandle;
+
+        let name = writer_name("replaced");
+        let old = OneWayShmWriter::<NamedShmHandle>::new(name.clone())?;
+        for _ in 0..3 {
+            assert!(old.write(b"old-runtime\n"));
+        }
+        let mut poller = poller_for(&name);
+        let snapshot = poller.poll()?.context("the first directory")?;
+        assert_eq!(snapshot.runtime_id()?, "old-runtime");
+        assert!(poller.poll()?.is_none());
+
+        let new = OneWayShmWriter::<NamedShmHandle>::new(name.clone())?;
+        assert!(new.write(b"new-runtime\n"));
+        let snapshot = poller.poll()?.context("the replacement directory")?;
+        assert_eq!(snapshot.runtime_id()?, "new-runtime");
+        assert!(poller.poll()?.is_none());
+
+        assert!(new.write(b"newer-runtime\n"));
+        let snapshot = poller.poll()?.context("an ordinary update")?;
+        assert_eq!(snapshot.runtime_id()?, "newer-runtime");
+        Ok(())
+    }
+
+    /// A retired directory is odd-numbered forever. It must not be spun on like a write in
+    /// progress, nor read - and with no successor yet, the poller just has nothing new.
+    #[test]
+    fn a_retired_directory_without_successor_is_not_spun_on() -> anyhow::Result<()> {
+        use libdd_ipc::one_way_shared_memory::OneWayShmWriter;
+        use libdd_ipc::platform::NamedShmHandle;
+
+        let name = writer_name("orphaned");
+        let old = OneWayShmWriter::<NamedShmHandle>::new(name.clone())?;
+        assert!(old.write(b"old-runtime\n"));
+        let mut poller = poller_for(&name);
+        assert_eq!(
+            poller.poll()?.context("first")?.runtime_id()?,
+            "old-runtime"
+        );
+
+        // Replaced, and the replacement gone again before the poller looked.
+        let new = OneWayShmWriter::<NamedShmHandle>::new(name.clone())?;
+        assert!(new.write(b"new-runtime\n"));
+        std::mem::forget(old);
+        drop(new);
+
+        assert!(poller.poll()?.is_none(), "nothing to move to yet");
+        assert!(poller.poll()?.is_none());
+
+        let next = OneWayShmWriter::<NamedShmHandle>::new(name.clone())?;
+        assert!(next.write(b"next-runtime\n"));
+        let snapshot = poller.poll()?.context("the next writer")?;
+        assert_eq!(snapshot.runtime_id()?, "next-runtime");
+        Ok(())
+    }
+
+    /// A writer that clears the directory on its way out (the target is no longer fetched)
+    /// must have that seen - and whoever writes under the name afterwards too.
+    #[test]
+    fn the_final_directory_of_an_ended_writer_is_read() -> anyhow::Result<()> {
+        use libdd_ipc::one_way_shared_memory::OneWayShmWriter;
+        use libdd_ipc::platform::NamedShmHandle;
+
+        let name = writer_name("ended");
+        let writer = OneWayShmWriter::<NamedShmHandle>::new(name.clone())?;
+        assert!(writer.write(b"runtime\n"));
+        let mut poller = poller_for(&name);
+        assert_eq!(poller.poll()?.context("first")?.runtime_id()?, "runtime");
+
+        assert!(writer.write(b""));
+        drop(writer);
+        let snapshot = poller.poll()?.context("the cleared directory")?;
+        assert_eq!(snapshot.runtime_id()?, "");
+        assert!(poller.poll()?.is_none());
+
+        let writer = OneWayShmWriter::<NamedShmHandle>::new(name.clone())?;
+        assert!(writer.write(b"again\n"));
+        let snapshot = poller.poll()?.context("the next writer")?;
+        assert_eq!(snapshot.runtime_id()?, "again");
         Ok(())
     }
 }
