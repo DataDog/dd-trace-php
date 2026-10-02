@@ -209,9 +209,7 @@ static void dd_activate_once(void) {
     if (dd_main_pid != getpid()) {
         datadog_generate_runtime_id();
     }
-#endif
 
-#ifdef SIDECAR
     // Must run before the first zai_hook_activate: tracer telemetry installs a global hook.
     if (!datadog_disable) {
         ddog_RemoteConfigFlags flags = {0};
@@ -219,12 +217,18 @@ static void dd_activate_once(void) {
             datadog_sidecar_setup(flags);
         }
     }
+
+#ifdef TRACER
+    // This must run on the thread whose runtime config was initialized above.
+    // A separate once callback can be won by another thread before its RINIT.
+    // Complete default changes before other threads snapshot configuration.
+    ddtrace_activate_once();
+#endif
 #endif
 }
 
 static pthread_once_t dd_activate_once_control = PTHREAD_ONCE_INIT;
 #ifdef TRACER
-static pthread_once_t dd_tracer_activate_once_control = PTHREAD_ONCE_INIT;
 static pthread_once_t dd_tracer_first_rinit_control = PTHREAD_ONCE_INIT;
 #endif
 
@@ -248,11 +252,6 @@ static void datadog_activate(void) {
 
     // ZAI config is always set up
     pthread_once(&dd_activate_once_control, dd_activate_once);
-#ifdef TRACER
-    // This setup may change tracer config defaults and must run before the
-    // request snapshots them. Common one-time activation still runs first.
-    pthread_once(&dd_tracer_activate_once_control, ddtrace_activate_once);
-#endif
     zai_config_rinit();
 
 #ifdef SIDECAR
@@ -574,7 +573,6 @@ static PHP_MINIT_FUNCTION(datadog) {
     // Reset on every minit for `apachectl graceful`.
     dd_activate_once_control = (pthread_once_t)PTHREAD_ONCE_INIT;
 #ifdef TRACER
-    dd_tracer_activate_once_control = (pthread_once_t)PTHREAD_ONCE_INIT;
     dd_tracer_first_rinit_control = (pthread_once_t)PTHREAD_ONCE_INIT;
 #endif
 
