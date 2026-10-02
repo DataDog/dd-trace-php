@@ -6,12 +6,13 @@ namespace DDTrace\Util;
 class RouteNormalizer
 {
     /**
-     * In-process cache of WordPress rule plans: safety-scan result and (when the
-     * rule is deterministic) the precomputed normalized route. The scan over a
-     * rule's characters is pure, so the first result stays valid for the lifetime
-     * of the process.
+     * In-process cache of WordPress rule plans. Each entry stores whether the
+     * rule is safe to normalize (result of the hasOnlyCapturedWordPressDynamics
+     * scan) plus the rule-only normalized route used as the fallback when no
+     * URL path is available. Both are pure functions of the rule, so the first
+     * result stays valid for the lifetime of the process.
      *
-     * @var array<string, array{safe: bool, deterministic: bool, deterministic_route: string|null}>
+     * @var array<string, array{safe: bool, rule_only_route: string|null}>
      */
     private static $wordPressRulePlans = [];
 
@@ -181,18 +182,12 @@ class RouteNormalizer
             return null;
         }
 
-        // Deterministic rules have no optional captures: their normalized form
-        // depends only on the rule, not on the URL. Skip preg_match + capture
-        // analysis entirely and return the precomputed route.
-        if ($plan['deterministic'] && $plan['deterministic_route'] !== null) {
-            return [
-                'normalized_route' => $plan['deterministic_route'],
-                'cache_signature'  => $plan['deterministic_route'],
-            ];
-        }
-
         if ($urlPath === null) {
-            $normalized = $plan['deterministic_route'];
+            // Backward-compatible fallback for callers without URL info: emit
+            // all capture groups without filtering by participation. Does not
+            // handle named captures or escaped literals the same way as the
+            // URL-matched path, so it is used only when no URL is available.
+            $normalized = $plan['rule_only_route'];
             if ($normalized === null) {
                 return null;
             }
@@ -398,18 +393,15 @@ class RouteNormalizer
     }
 
     /**
-     * Parse a WordPress rule once and remember whether it is safe to normalize,
-     * whether it is "deterministic" (its normalized form does not depend on the
-     * URL), and — when deterministic — its precomputed normalized route.
-     *
-     * The returned shape:
+     * Parse a WordPress rule once and remember whether it is safe to normalize
+     * plus a rule-only normalized route for callers that have no URL to match
+     * against. The returned shape:
      *   [
-     *     'safe'                => bool,
-     *     'deterministic'       => bool,
-     *     'deterministic_route' => string|null,
+     *     'safe'            => bool,
+     *     'rule_only_route' => string|null,  // from normalizeWordPressRuleOnly
      *   ]
      *
-     * @return array{safe: bool, deterministic: bool, deterministic_route: string|null}
+     * @return array{safe: bool, rule_only_route: string|null}
      */
     public static function wordPressRulePlan(string $rule): array
     {
@@ -418,75 +410,12 @@ class RouteNormalizer
         }
 
         $safe = self::hasOnlyCapturedWordPressDynamics($rule);
-        $deterministic = $safe && !self::wordPressRuleHasOptionalCaptures($rule);
-        $deterministicRoute = $safe ? self::normalizeWordPressRuleOnly($rule) : null;
+        $ruleOnlyRoute = $safe ? self::normalizeWordPressRuleOnly($rule) : null;
 
         return self::$wordPressRulePlans[$rule] = [
             'safe' => $safe,
-            'deterministic' => $deterministic,
-            'deterministic_route' => $deterministicRoute,
+            'rule_only_route' => $ruleOnlyRoute,
         ];
-    }
-
-    /**
-     * Scan for any group whose closing `)` is followed by a quantifier that can
-     * drop the group (`?`, `*`, `{0,...}`), ignoring character classes and \Q...\E
-     * quoted spans. Rules without such quantifiers always have every capture
-     * participate in a successful match, so their normalized form is URL-independent.
-     */
-    private static function wordPressRuleHasOptionalCaptures(string $rule): bool
-    {
-        $inClass = false;
-        $inQuote = false;
-        $length = strlen($rule);
-
-        for ($i = 0; $i < $length; $i++) {
-            $char = $rule[$i];
-
-            if ($inQuote) {
-                if ($char === '\\' && isset($rule[$i + 1]) && $rule[$i + 1] === 'E') {
-                    $inQuote = false;
-                    $i++;
-                }
-                continue;
-            }
-            if ($inClass) {
-                if ($char === '\\' && isset($rule[$i + 1])) {
-                    $i++;
-                } elseif ($char === ']') {
-                    $inClass = false;
-                }
-                continue;
-            }
-            if ($char === '\\') {
-                if (!isset($rule[$i + 1])) {
-                    return true;
-                }
-                if ($rule[++$i] === 'Q') {
-                    $inQuote = true;
-                }
-                continue;
-            }
-            if ($char === '[') {
-                $inClass = true;
-                continue;
-            }
-            if ($char === ')' && isset($rule[$i + 1])) {
-                $next = $rule[$i + 1];
-                if ($next === '?' || $next === '*') {
-                    return true;
-                }
-                if ($next === '{') {
-                    // {0,...} and {0} drop the group; {n>=1,...} keep it.
-                    $end = strpos($rule, '}', $i + 2);
-                    if ($end !== false && isset($rule[$i + 2]) && $rule[$i + 2] === '0') {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        return false;
     }
 
     /**

@@ -346,22 +346,14 @@ class RouteNormalizerTest extends BaseTestCase
         $this->assertSame('/{param1+param2}', $result);
     }
 
-    // F-12: Rule-plan cache lets deterministic rules skip the preg_match + capture
-    // analysis entirely, and the per-rule safety scan runs only once.
+    // F-12: Rule-plan cache memoizes the per-rule safety scan and the
+    // backward-compatible rule-only fallback used when no URL is available.
 
-    public function testWordPressRulePlanMarksDeterministicRule()
+    public function testWordPressRulePlanAcceptsSafeRule()
     {
         $plan = RouteNormalizer::wordPressRulePlan('^blog/([^/]+)/?$');
         $this->assertTrue($plan['safe']);
-        $this->assertTrue($plan['deterministic']);
-        $this->assertSame('/blog/{param1}', $plan['deterministic_route']);
-    }
-
-    public function testWordPressRulePlanMarksOptionalCaptureAsNonDeterministic()
-    {
-        $plan = RouteNormalizer::wordPressRulePlan('^([^/]+)(?:/([0-9]+))?/?$');
-        $this->assertTrue($plan['safe']);
-        $this->assertFalse($plan['deterministic']);
+        $this->assertSame('/blog/{param1}', $plan['rule_only_route']);
     }
 
     public function testWordPressRulePlanRejectsUnsafeRule()
@@ -369,23 +361,13 @@ class RouteNormalizerTest extends BaseTestCase
         // Unanchored variable text outside captures: not safe to normalize.
         $plan = RouteNormalizer::wordPressRulePlan('^foo.*bar$');
         $this->assertFalse($plan['safe']);
-        $this->assertFalse($plan['deterministic']);
-        $this->assertNull($plan['deterministic_route']);
-    }
-
-    public function testDeterministicWordPressRuleShortCircuitsWithoutUrlPath()
-    {
-        // Deterministic rule: urlPath is ignored because the normalized route only
-        // depends on the rule structure.
-        $withUrl = RouteNormalizer::normalizeFromWordPress('^blog/([^/]+)/?$', 'blog/foo');
-        $withoutUrl = RouteNormalizer::normalizeFromWordPress('^blog/([^/]+)/?$');
-        $this->assertSame($withUrl, $withoutUrl);
-        $this->assertSame('/blog/{param1}', $withUrl);
+        $this->assertNull($plan['rule_only_route']);
     }
 
     public function testNonDeterministicWordPressRuleStillUsesUrlPath()
     {
-        // Participation of the optional capture still depends on the URL.
+        // Participation of the optional capture depends on the URL — the plan
+        // cache must not short-circuit this case to a precomputed shape.
         $absent = RouteNormalizer::normalizeFromWordPress('^([^/]+)(?:/([0-9]+))?/?$', 'simple');
         $present = RouteNormalizer::normalizeFromWordPress('^([^/]+)(?:/([0-9]+))?/?$', 'simple/123');
         $this->assertSame('/{param1}', $absent);
@@ -394,11 +376,51 @@ class RouteNormalizerTest extends BaseTestCase
 
     public function testWordPressRulePlanIsMemoized()
     {
-        // Same reference-equal plan should come back for the same rule, since
-        // the plan is cached in-process.
         $first = RouteNormalizer::wordPressRulePlan('^blog/([^/]+)/?$');
         $second = RouteNormalizer::wordPressRulePlan('^blog/([^/]+)/?$');
         $this->assertSame($first, $second);
+    }
+
+    public function testWordPressCaptureAcceptingEmptyStringDependsOnUrl()
+    {
+        // ([^/]*) accepts an empty match: the normalized route differs per URL.
+        // A capture-presence shortcut purely from the rule would wrongly return
+        // the same route for both inputs.
+        $rule = '^normalized-cache-shape/?([^/]*)/?$';
+        $this->assertSame(
+            '/normalized-cache-shape',
+            RouteNormalizer::normalizeFromWordPress($rule, 'normalized-cache-shape/')
+        );
+        $this->assertSame(
+            '/normalized-cache-shape/{param1}',
+            RouteNormalizer::normalizeFromWordPress($rule, 'normalized-cache-shape/present/')
+        );
+    }
+
+    public function testWordPressEscapedLiteralInRuleKeepsCharacterInUrlMatchPath()
+    {
+        // The URL-matched path must preserve the literal '.' from the match,
+        // not drop it the way the rule-only fallback does.
+        $this->assertSame(
+            '/normalized-literal/file.json',
+            RouteNormalizer::normalizeFromWordPress(
+                '^normalized-literal/file\.json$',
+                'normalized-literal/file.json/'
+            )
+        );
+    }
+
+    public function testWordPressNamedCapturesPreserveNamesInUrlMatchPath()
+    {
+        // Named captures must be emitted with their declared names, not paramN,
+        // when the URL is provided.
+        $this->assertSame(
+            '/normalized-named-captures/{first+second}',
+            RouteNormalizer::normalizeFromWordPress(
+                '^normalized-named-captures/(?P<first>[^/]+)-(?P<second>[^/]+)/?$',
+                'normalized-named-captures/first-second/'
+            )
+        );
     }
 
     public function testStaticPrefixLeadingTildePreservedWhenOptionalAbsent()

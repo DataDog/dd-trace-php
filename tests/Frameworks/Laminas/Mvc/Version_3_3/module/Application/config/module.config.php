@@ -266,6 +266,19 @@ return [
                     ],
                 ],
             ],
+            'regex_ambiguous_default' => [
+                'type' => Regex::class,
+                'options' => [
+                    'regex' => '/normalized-regex-ambiguous/' .
+                        '(?P<name>.+)(?:\.(?P<ext>pdf|json))?',
+                    'spec' => '/normalized-regex-ambiguous/%name%.%ext%',
+                    'defaults' => [
+                        'controller' => DynamicPathController::class,
+                        'action' => 'ambiguous',
+                        'ext' => 'html',
+                    ],
+                ],
+            ],
             'normalized_encoded_optional' => [
                 'type' => Segment::class,
                 'options' => [
@@ -283,6 +296,47 @@ return [
                 'type' => Segment::class,
                 'options' => [
                     'route' => '/normalized-static[/draft]',
+                    'defaults' => [
+                        'controller' => DynamicPathController::class,
+                        'action' => 'index',
+                    ],
+                ],
+            ],
+            'normalized_static_prefix_optional' => [
+                'type' => Segment::class,
+                'options' => [
+                    'route' => '/normalized-static-prefix[/normalized]',
+                    'defaults' => [
+                        'controller' => DynamicPathController::class,
+                        'action' => 'index',
+                    ],
+                ],
+            ],
+            'normalized_dynamic_prefix_optional' => [
+                'type' => Segment::class,
+                'options' => [
+                    'route' => '/normalized-dynamic-prefix[/:value]',
+                    'defaults' => [
+                        'controller' => DynamicPathController::class,
+                        'action' => 'index',
+                        'value' => 'normalized-dynamic-prefix',
+                    ],
+                ],
+            ],
+            'normalized_encoded_cache_optional' => [
+                'type' => Segment::class,
+                'options' => [
+                    'route' => '/normalized-encoded-cache[/:slug]',
+                    'defaults' => [
+                        'controller' => DynamicPathController::class,
+                        'action' => 'index',
+                    ],
+                ],
+            ],
+            'normalized_encoded_lowercase_optional' => [
+                'type' => Segment::class,
+                'options' => [
+                    'route' => '/normalized-encoded-lowercase[/:slug]',
                     'defaults' => [
                         'controller' => DynamicPathController::class,
                         'action' => 'index',
@@ -318,16 +372,6 @@ return [
                         'options' => [
                             'defaults' => [],
                         ],
-                    ],
-                ],
-            ],
-            'normalized_translated_literal' => [
-                'type' => Segment::class,
-                'options' => [
-                    'route' => '/normalized/{translated_page}',
-                    'defaults' => [
-                        'controller' => DynamicPathController::class,
-                        'action' => 'index',
                     ],
                 ],
             ],
