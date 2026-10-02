@@ -74,6 +74,8 @@ jobs:
           export DD_TRACE_ENABLED=false
           export DD_INSTRUMENTATION_TELEMETRY_ENABLED=false
           export DD_REMOTE_CONFIG_ENABLED=false
+          # Keep DSO globals visible to LSan until its process-exit leak scan.
+          export ZEND_DONT_UNLOAD_MODULES=1
           export ASAN_OPTIONS="${ASAN_OPTIONS:+$ASAN_OPTIONS:}abort_on_error=1:halt_on_error=1:detect_leaks=1:strict_string_checks=1:detect_stack_use_after_return=1:check_initialization_order=1:detect_container_overflow=1:detect_odr_violation=2:symbolize=1:disable_coredump=0:unmap_shadow_on_exit=1"
           export LSAN_OPTIONS="${LSAN_OPTIONS:+$LSAN_OPTIONS:}exitcode=23:print_suppressions=0:report_objects=1"
           php run-tests.php -j$(nproc) --show-diff --asan -d "extension=${PROFILE_EXTENSION}" phpt
