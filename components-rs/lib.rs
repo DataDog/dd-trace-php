@@ -42,7 +42,7 @@ pub mod config;
 #[cfg(feature = "runtime")]
 pub mod runtime;
 #[cfg(feature = "runtime")]
-pub use runtime::log;
+pub use runtime::{library_config::*, log};
 
 #[cfg(feature = "sidecar")]
 pub mod tracer_runtime;
@@ -74,7 +74,6 @@ use libdd_common::{parse_uri, Endpoint};
 use libdd_common_ffi::slice::AsBytes;
 pub use libdd_common_ffi::*;
 pub use libdd_crashtracker_ffi::*;
-pub use libdd_library_config_ffi::*;
 pub use libdd_telemetry_ffi::*;
 use std::borrow::Cow;
 use std::ffi::{c_char, OsStr};
@@ -465,16 +464,6 @@ fn reuse_sidecar_fd_connector(_unix_socket_path: &str) -> std::os::fd::RawFd {
     } else {
         -1
     }
-}
-
-// Hack: Without this, the PECL build of the tracer does not contain the ddog_library_* functions
-// It works well without in the "normal" build
-#[no_mangle]
-pub extern "C" fn ddog_library_configurator_new_dummy(
-    debug_logs: bool,
-    language: CharSlice,
-) -> Box<Configurator> {
-    ddog_library_configurator_new(debug_logs, language)
 }
 
 // Starting with https://github.com/rust-lang/rust/commit/7f74c894b0e31f370b5321d94f2ca2830e1d30fd

@@ -1,7 +1,6 @@
 #include "../tsrmls_cache.h"
 
 #include <components-rs/library-config.h>
-#include <stdio.h>
 
 #include "config.h"
 #include "config_stable_file.h"
@@ -9,7 +8,6 @@
 #define RESOLVE_SYMBOL(name) \
     _##name = (void *)DL_FETCH_SYMBOL(ext->handle, #name); \
     if (!_##name) { \
-        if (diagnose_stable_config) php_log_err("Datadog stable configuration: missing symbol " #name); \
         _ddog_library_configurator_new = NULL; \
         return; \
     }
@@ -22,7 +20,6 @@ static struct ddog_LibraryConfigLoggedResult (*_ddog_library_configurator_get)(c
 static struct ddog_CStr (*_ddog_library_config_source_to_string)(enum ddog_LibraryConfigSource name);
 static void (*_ddog_library_config_drop)(struct ddog_LibraryConfigLoggedResult);
 static void (*_ddog_Error_drop)(struct ddog_Error *error);
-static ddog_CharSlice (*_ddog_Error_message)(const struct ddog_Error *error);
 static void (*_ddog_library_configurator_drop)(struct ddog_Configurator*);
 
 HashTable *stable_config = NULL;
@@ -43,14 +40,11 @@ static void stable_config_entry_dtor(zval *el) {
 }
 
 void zai_config_stable_file_minit(void) {
-    // Test-only startup diagnostics; FILE runs after MINIT in a separate process.
-    bool diagnose_stable_config = getenv("_DD_TEST_LIBRARY_CONFIG_DEBUG") != NULL;
-    if (diagnose_stable_config) php_log_err("Datadog stable configuration: MINIT entered");
-
-    // Resolve symbols at runtime for separate artifacts. A combined artifact
-    // binds directly because the functions are linked into the same library.
+    // Profiler artifacts bind directly to their configuration runtime: local
+    // in standalone/non-SSI builds, supplied by the preloaded DSO in SSI.
+    // Standalone intentionally does not export these functions for dlsym.
     if (!_ddog_library_configurator_new) {
-#if defined(TRACER) && defined(PROFILING)
+#if defined(PROFILING)
         _ddog_library_configurator_new = ddog_library_configurator_new;
         _ddog_library_configurator_with_local_path = ddog_library_configurator_with_local_path;
         _ddog_library_configurator_with_fleet_path = ddog_library_configurator_with_fleet_path;
@@ -59,7 +53,6 @@ void zai_config_stable_file_minit(void) {
         _ddog_library_config_source_to_string = ddog_library_config_source_to_string;
         _ddog_library_config_drop = ddog_library_config_drop;
         _ddog_Error_drop = ddog_Error_drop;
-        _ddog_Error_message = ddog_Error_message;
         _ddog_library_configurator_drop = ddog_library_configurator_drop;
 #else
         zend_module_entry *ext = NULL;
@@ -67,7 +60,6 @@ void zai_config_stable_file_minit(void) {
         if (!ext) {
             ext = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("datadog-profiling"));
             if (!ext) {
-                if (diagnose_stable_config) php_log_err("Datadog stable configuration: module not found");
                 return;
             }
         }
@@ -80,8 +72,6 @@ void zai_config_stable_file_minit(void) {
         RESOLVE_SYMBOL(ddog_library_config_source_to_string);
         RESOLVE_SYMBOL(ddog_library_config_drop);
         RESOLVE_SYMBOL(ddog_Error_drop);
-        // The message accessor may not be exported by older separate artifacts.
-        _ddog_Error_message = (void *)DL_FETCH_SYMBOL(ext->handle, "ddog_Error_message");
         RESOLVE_SYMBOL(ddog_library_configurator_drop);
 #endif
     }
@@ -102,16 +92,6 @@ void zai_config_stable_file_minit(void) {
     _ddog_library_configurator_with_detect_process_info(configurator);
 
     ddog_LibraryConfigLoggedResult config_result = _ddog_library_configurator_get(configurator);
-    if (diagnose_stable_config) {
-        char message[512];
-        snprintf(message, sizeof message,
-                 "Datadog stable configuration: C local=%s, fleet=%s, result=%s, entries=%zu",
-                 local_file ? local_file : "unset",
-                 fleet_file ? fleet_file : "unset",
-                 config_result.tag == DDOG_LIBRARY_CONFIG_LOGGED_RESULT_OK ? "ok" : "error",
-                 config_result.tag == DDOG_LIBRARY_CONFIG_LOGGED_RESULT_OK ? (size_t)config_result.ok.value.len : 0);
-        php_log_err(message);
-    }
     if (config_result.tag == DDOG_LIBRARY_CONFIG_LOGGED_RESULT_OK) {
         stable_config = pemalloc(sizeof(HashTable), 1);
         zend_hash_init(stable_config, 8, NULL, stable_config_entry_dtor, 1);
@@ -126,15 +106,6 @@ void zai_config_stable_file_minit(void) {
             entry->config_id = zend_string_init(cfg->config_id.ptr, cfg->config_id.length, 1);
 
             zend_hash_str_add_ptr(stable_config, cfg->name.ptr, cfg->name.length, entry);
-        }
-    } else {
-        // The extension's logger is initialized after configuration MINIT. Use
-        // PHP's startup error handling so a failed read or parse is not lost.
-        if (_ddog_Error_message) {
-            ddog_CharSlice message = _ddog_Error_message(&config_result.err);
-            zend_error(E_CORE_WARNING, "Failed to load Datadog stable configuration: %.*s", (int) message.len, message.ptr);
-        } else {
-            zend_error(E_CORE_WARNING, "Failed to load Datadog stable configuration (error message unavailable)");
         }
     }
 
