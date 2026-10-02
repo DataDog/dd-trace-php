@@ -23,41 +23,43 @@
     clippy::useless_asref
 )]
 
-/// Tracer-specific Rust facade, colocated with the C tracer sources.
-#[cfg(feature = "tracer")]
-#[path = "../tracer/mod.rs"]
-pub mod tracer;
-
 /// Standalone profiler implementation, retained in its existing source tree.
 #[cfg(feature = "profiling")]
 #[path = "../profiling/src/lib.rs"]
 pub mod profiling;
 
-#[cfg(not(standalone_profiler))]
-pub mod agent_info;
-#[cfg(not(standalone_profiler))]
-pub mod bytes;
-#[cfg(not(standalone_profiler))]
-pub mod ffe;
-#[cfg(not(standalone_profiler))]
-pub mod log;
-#[cfg(not(standalone_profiler))]
-pub mod remote_config;
-#[cfg(not(standalone_profiler))]
-pub mod sidecar;
-#[cfg(all(not(standalone_profiler), target_os = "linux"))]
-pub mod signal_flush;
-#[cfg(not(standalone_profiler))]
-pub mod stats;
-#[cfg(not(standalone_profiler))]
-pub mod telemetry;
-#[cfg(not(standalone_profiler))]
-pub mod trace_filter;
+// Only the profiler consumes ConfigId/CONFIG_COUNT/the generated accessors (see
+// profiling/src/config.rs, profiling/src/lib.rs, profiling/src/bindings/mod.rs).
+// The module itself, and the build.rs codegen step that generates its content,
+// both live under profiling/ (see profiling/config_id.rs, profiling/build.rs,
+// profiling/config_codegen.rs) rather than here, so a tracer-only build never
+// even sees code that would preprocess ext/configuration.h through a C compiler
+// -- not just gated off, but physically absent from this crate's shared build.rs.
+#[cfg(feature = "profiling")]
+#[path = "../profiling/config_id.rs"]
+pub mod config;
 
-// A standalone profiler must retain the existing profiler-only ABI and size.
-// Cargo's `cdylib` keeps every `no_mangle` common export alive, even though the
-// profiler does not use them, so omit those exports only in profiler-only builds.
-#[cfg(not(standalone_profiler))]
+#[cfg(feature = "runtime")]
+pub mod runtime;
+#[cfg(feature = "runtime")]
+pub use runtime::{library_config::*, log};
+
+#[cfg(feature = "sidecar")]
+pub mod tracer_runtime;
+// Retain the previous public paths without placing individual implementation
+// modules in the crate root or using per-file #[path] attributes.
+#[cfg(feature = "tracer-runtime")]
+pub use tracer_runtime as tracer;
+#[cfg(feature = "sidecar")]
+pub use tracer_runtime::sidecar;
+#[cfg(all(feature = "sidecar", target_os = "linux"))]
+pub use tracer_runtime::signal_flush;
+#[cfg(feature = "tracer-runtime")]
+pub use tracer_runtime::telemetry;
+#[cfg(feature = "tracer-runtime")]
+pub use tracer_runtime::{agent_info, bytes, ffe, remote_config, stats, trace_filter};
+
+#[cfg(feature = "sidecar")]
 #[rustfmt::skip]
 mod common_exports {
 #[cfg(unix)]
@@ -72,7 +74,6 @@ use libdd_common::{parse_uri, Endpoint};
 use libdd_common_ffi::slice::AsBytes;
 pub use libdd_common_ffi::*;
 pub use libdd_crashtracker_ffi::*;
-pub use libdd_library_config_ffi::*;
 pub use libdd_telemetry_ffi::*;
 use std::borrow::Cow;
 use std::ffi::{c_char, OsStr};
@@ -153,12 +154,12 @@ pub extern "C" fn datadog_format_runtime_id(buf: &mut [u8; 36]) {
     unsafe { datadog_runtime_id.as_hyphenated().encode_lower(buf) };
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", feature = "otel-context"))]
 fn char_slice_string(value: CharSlice<'_>) -> String {
     value.to_utf8_lossy().into_owned()
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", feature = "otel-context"))]
 fn hostname() -> String {
     let max_len = unsafe { libc::sysconf(libc::_SC_HOST_NAME_MAX) };
     let max_len = usize::try_from(max_len).unwrap_or(255);
@@ -176,7 +177,7 @@ fn hostname() -> String {
 }
 
 /// Publish or update dd-trace-php's standard Linux OTel Process Context.
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", feature = "otel-context"))]
 #[no_mangle]
 pub extern "C" fn datadog_publish_otel_process_context(process_tags: CharSlice<'_>) -> bool {
     use libdd_library_config::otel_process_ctx;
@@ -225,7 +226,7 @@ pub unsafe extern "C" fn ddtrace_strip_invalid_utf8(
         Cow::Borrowed(_) => null_mut(),
         Cow::Owned(s) => {
             *len = s.len();
-            let ret = s.as_ptr() as *mut c_char;
+            let ret = s.as_ptr().cast_mut().cast::<c_char>();
             std::mem::forget(s);
             ret
         }
@@ -234,7 +235,7 @@ pub unsafe extern "C" fn ddtrace_strip_invalid_utf8(
 
 #[no_mangle]
 pub unsafe extern "C" fn ddtrace_drop_rust_string(input: *mut c_char, len: usize) {
-    _ = String::from_raw_parts(input as *mut u8, len, len);
+    _ = String::from_raw_parts(input.cast::<u8>(), len, len);
 }
 
 #[no_mangle]
@@ -465,16 +466,6 @@ fn reuse_sidecar_fd_connector(_unix_socket_path: &str) -> std::os::fd::RawFd {
     }
 }
 
-// Hack: Without this, the PECL build of the tracer does not contain the ddog_library_* functions
-// It works well without in the "normal" build
-#[no_mangle]
-pub extern "C" fn ddog_library_configurator_new_dummy(
-    debug_logs: bool,
-    language: CharSlice,
-) -> Box<Configurator> {
-    ddog_library_configurator_new(debug_logs, language)
-}
-
 // Starting with https://github.com/rust-lang/rust/commit/7f74c894b0e31f370b5321d94f2ca2830e1d30fd
 // rust assumes posix_spawn_file_actions_addchdir_np exists. Thus we need to polyfill it here.
 #[no_mangle]
@@ -593,5 +584,5 @@ pub extern "C" fn ddog_free_normalized_tag_value(ptr: *const c_char) {
 }
 }
 
-#[cfg(not(standalone_profiler))]
+#[cfg(feature = "sidecar")]
 pub use common_exports::*;

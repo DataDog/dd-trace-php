@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Libtool drops linker-only flags passed in LDFLAGS; keep Clang, LLD, and the
+# static compiler-rt builtins selected for both native and Rust link steps.
+# libgcc_s is still required for the bundled C++ exception/unwind machinery.
+if [[ $(uname -s) == Darwin ]]; then
+    # rustc passes ELF-style -plugin-opt options when linking workspace cdylib
+    # dependencies with linker-plugin-lto. Apple's ld does not recognize them;
+    # have the matched Clang link Mach-O LLVM bitcode with ThinLTO instead.
+    args=()
+    for arg in "$@"; do
+        case "$arg" in
+            -Wl,-plugin-opt=*) ;;
+            *) args+=("$arg") ;;
+        esac
+    done
+    exec "${DDTRACE_XLANG_DARWIN_CLANG:?}" -flto="${DDTRACE_XLANG_DARWIN_LTO:-thin}" "${args[@]}"
+fi
+exec clang -fuse-ld=lld -rtlib=compiler-rt -unwindlib=libgcc -Wno-unused-command-line-argument "$@"

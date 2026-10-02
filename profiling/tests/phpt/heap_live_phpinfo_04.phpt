@@ -5,7 +5,7 @@ Verify that heap live profiling is disabled if allocation profiling is disabled 
 and works normally otherwise.
 --SKIPIF--
 <?php
-if (!extension_loaded('datadog-profiling'))
+if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
     echo "skip: test requires Datadog Continuous Profiler\n";
 if (PHP_VERSION_ID < 80000)
     echo "skip: JIT requires PHP >= 8.0\n";
@@ -33,7 +33,7 @@ opcache.jit_buffer_size=4M
 <?php
 
 ob_start();
-$extension = new ReflectionExtension('datadog-profiling');
+$extension = new ReflectionExtension(extension_loaded('datadog-profiling') ? 'datadog-profiling' : 'ddtrace');
 $extension->info();
 $output = ob_get_clean();
 

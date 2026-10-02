@@ -66,16 +66,17 @@ const char *datadog_module_build_id(void);
 sapi_request_info datadog_sapi_globals_request_info();
 
 /**
- * Lookup module by name in the module registry. Returns NULL if not found.
- * This is meant to be called from Rust, so it uses uintptr_t, not size_t, for
- * the length for convenience.
- */
-zend_module_entry *datadog_get_module_entry(const char *str, uintptr_t len);
-
-/**
  * Fetches the VM interrupt address of the calling PHP thread.
  */
 void *datadog_php_profiling_vm_interrupt_addr(void);
+
+/** Visits each string key/value in a decoded map configuration. */
+typedef bool (*ddog_php_prof_config_map_visitor)(void *context,
+                                                 const char *key, size_t key_len,
+                                                 const char *value, size_t value_len);
+bool ddog_php_prof_config_visit_map(uint16_t config_id, bool memoized,
+                                    void *context,
+                                    ddog_php_prof_config_map_visitor visitor);
 
 /**
  * For Code Hotspots, we need the tracer's local root span id and the current
@@ -88,15 +89,11 @@ typedef struct ddtrace_profiling_context_s {
 } ddtrace_profiling_context;
 
 /**
- * A pointer to the tracer's ddtrace_get_profiling_context function if it was
- * found, otherwise points to a function which just returns {0, 0}.
+ * Context providers used by profiler code. Combined builds install direct
+ * tracer/common providers during Zend startup; standalone builds retain the
+ * no-op providers.
  */
 extern ddtrace_profiling_context (*datadog_php_profiling_get_profiling_context)(void);
-
-/**
- * A pointer to the tracer's ddtrace_get_process_tags_serialized function if it
- * was found, otherwise points to a function which just returns NULL;
- */
 extern zend_string *(*datadog_php_profiling_get_process_tags_serialized)(void);
 
 /**
@@ -107,11 +104,7 @@ extern zend_string *(*datadog_php_profiling_get_process_tags_serialized)(void);
 const void *datadog_php_profiling_get_otel_thread_context(void);
 #endif
 
-/**
- * Called by this zend_extension's .startup handler. Does things that are
- * burdensome in Rust, like locating the ddtrace extension in the module
- * registry and finding the ddtrace_get_profiling_context function.
- */
+/** Installs the direct combined-build context providers, when available. */
 void datadog_php_profiling_startup(zend_extension *extension);
 
 /**
@@ -127,18 +120,6 @@ typedef struct {
 
 void datadog_php_profiling_install_internal_function_handler(
     datadog_php_profiling_internal_function_handler handler);
-
-/**
- * Copies the bytes represented by `view` into a zend_string, which is stored
- * in `dest`, passing `persistent` along so the right allocator is used.
- *
- * Does an empty string optimization.
- *
- * `dest` is expected to be uninitialized. Any existing content will not be
- * dtor'.
- */
-void datadog_php_profiling_copy_string_view_into_zval(zval *dest, zai_str view,
-                                                      bool persistent);
 
 /**
  * Copies the number in `num` into a zval, which is stored in `dest`

@@ -66,7 +66,7 @@ static size_t dd_curl_write_noop(void *ptr, size_t size, size_t nmemb, void *use
 
 static size_t dd_check_for_agent_error(char *error, bool quick) {
     CURL *curl = curl_easy_init();
-#ifdef DDTRACE
+#ifdef TRACER
     ddtrace_curl_set_hostname(curl);
 #else
     char *url = datadog_agent_url();
@@ -87,7 +87,7 @@ static size_t dd_check_for_agent_error(char *error, bool quick) {
         curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, DATADOG_AGENT_QUICK_TIMEOUT);
         curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, DATADOG_AGENT_QUICK_CONNECT_TIMEOUT);
     } else {
-#ifdef DDTRACE
+#ifdef TRACER
         ddtrace_curl_set_timeout(curl);
         ddtrace_curl_set_connect_timeout(curl);
 #else
@@ -137,7 +137,7 @@ static void dd_check_for_excluded_module(HashTable *ht, zend_module_entry *modul
  * To support other types, update phpinfo.c:_dd_info_diagnostics_table();
  */
 void datadog_startup_diagnostics(HashTable *ht, bool quick) {
-#ifdef DDTRACE
+#ifdef TRACER
     ddtrace_startup_diagnostics(ht, quick);
 #endif
 #ifndef _WIN32
@@ -164,7 +164,7 @@ void datadog_startup_diagnostics(HashTable *ht, bool quick) {
         zai_config_memoized_entry *cfg = &zai_config_memoized_entries[i];
         // DD_TRACE_LOGS_ENABLED would be the proper name, but for compatibility with other tracers, we also support DD_LOGS_INJECTION officially
         bool deprecated_alias = cfg->name_index > 0;
-#ifdef DDTRACE
+#ifdef TRACER
         deprecated_alias = deprecated_alias && i != DATADOG_CONFIG_DD_TRACE_LOGS_ENABLED;
 #endif
         if (deprecated_alias) {
@@ -195,7 +195,7 @@ void datadog_startup_logging_json(smart_str *buf, int options) {
     zend_hash_init(ht, DATADOG_STARTUP_STAT_COUNT, NULL, ZVAL_PTR_DTOR, 0);
 
     dd_get_startup_config(ht);
-#ifdef DDTRACE
+#ifdef TRACER
     ddtrace_populate_startup_config(ht);
 #endif
     dd_add_assoc_bool(ht, ZEND_STRL("loaded_by_ssi"), datadog_loaded_by_ssi);
@@ -239,7 +239,7 @@ static void dd_print_startup_logs(void (*log)(const char *format, ...)) {
 
     datadog_startup_diagnostics(ht, true);
     dd_get_startup_config(ht);
-#ifdef DDTRACE
+#ifdef TRACER
     ddtrace_populate_startup_config(ht);
 #endif
     dd_add_assoc_bool(ht, ZEND_STRL("loaded_by_ssi"), datadog_loaded_by_ssi);
@@ -252,7 +252,7 @@ static void dd_print_startup_logs(void (*log)(const char *format, ...)) {
         "page. Alternatively set DD_TRACE_DEBUG=Error,Startup to add diagnostic checks to the error logs on the first request "
         "of a new PHP process. Set DD_TRACE_STARTUP_LOGS=0 to disable this tracer configuration message.");
 
-#ifdef DDTRACE
+#ifdef TRACER
     ddtrace_startup_logging_extra(log);
 #endif
 

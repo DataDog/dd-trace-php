@@ -1,16 +1,16 @@
 --TEST--
-[profiling] async PHP signal handlers must not run on profiler helper threads
+[profiling] async PHP signal handlers must not run on extension helper threads
 --DESCRIPTION--
 Regression test for a crash when a PHP script installs an async signal handler
 (pcntl_async_signals(true) + pcntl_signal()) for a signal the Zend Engine does
 not itself register, e.g. SIGCHLD.
 
-The profiler's helper threads (`ddprof_time`, `ddprof_upload`) only masked the
-fixed set of signals the Zend Engine uses, so the kernel could deliver SIGCHLD
-to one of them. pcntl's handler then ran on a thread with no valid PHP/TSRM
-context and dereferenced the thread-local PCNTL_G, segfaulting. The fix is to
-block every (non-fault) signal on the helper threads so async signals are
-delivered to a PHP thread.
+Extension helper threads have no valid PHP/TSRM context. If they only mask the
+fixed set of signals used by Zend, the kernel can deliver SIGCHLD to one of
+them. pcntl's handler then dereferences the thread-local PCNTL_G and segfaults.
+This originally affected profiler threads (`ddprof_time`, `ddprof_upload`) and,
+in combined builds, also affects the tracer writer thread. Every helper thread
+must block all non-fault signals so async signals are delivered to a PHP thread.
 
 Only crashes on ZTS, where PCNTL_G is thread-local. Observed on PHP 8.4 ZTS,
 reproduced by ext/pcntl/tests/waiting_on_sigchild_pcntl_wait.phpt:
@@ -28,9 +28,10 @@ reproduced by ext/pcntl/tests/waiting_on_sigchild_pcntl_wait.phpt:
     #17 ... at profiling/src/profiler/thread_utils.rs:45
 --SKIPIF--
 <?php
-foreach (['datadog-profiling', 'pcntl'] as $extension)
-    if (!extension_loaded($extension))
-        echo "skip: test requires {$extension}\n";
+if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
+    echo "skip: test requires Datadog profiling support\n";
+if (!extension_loaded('pcntl'))
+    echo "skip: test requires pcntl\n";
 if (!ZEND_THREAD_SAFE)
     echo "skip: ZTS only (the crash is a thread-local PCNTL_G access from a helper thread)\n";
 if (PHP_OS_FAMILY !== 'Linux')
@@ -41,6 +42,12 @@ if (getenv('SKIP_ASAN'))
 --ENV--
 DD_PROFILING_ENABLED=yes
 DD_PROFILING_LOG_LEVEL=off
+; Keep unrelated sidecar/telemetry threads out of this test. The combined
+; extension's tracer writer remains active so its signal mask is covered too.
+DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
+DD_TRACE_SIDECAR_TRACE_SENDER=0
+DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED=0
+DD_METRICS_OTEL_ENABLED=0
 --FILE--
 <?php
 

@@ -5,7 +5,7 @@ At this point we do not have active support for fibers, but we at least want to
 make sure to not crash when fibers are in use
 --SKIPIF--
 <?php
-if (!extension_loaded('datadog-profiling'))
+if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
     echo "skip: test requires Datadog Continuous Profiler\n";
 if (PHP_VERSION_ID < 80100)
     echo "skip: php 8.1 or above is required for fibers.\n";

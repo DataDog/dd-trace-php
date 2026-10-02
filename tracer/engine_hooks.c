@@ -35,6 +35,13 @@ profiling_notify_trace_finished_t profiling_notify_trace_finished = NULL;
 
 void (*profiling_interrupt_function)(zend_execute_data *) = NULL;
 
+#ifdef PROFILING
+extern void ddog_php_prof_interrupt_function(zend_execute_data *execute_data);
+extern void datadog_profiling_notify_trace_finished(uint64_t local_root_span_id,
+                                                     zai_str span_type,
+                                                     zai_str resource);
+#endif
+
 // Check if the profiler is loaded, and if, so it will locate certain symbols so cross-product features can be enabled.
 void dd_search_for_profiling_symbols(void *arg) {
     zend_extension *extension = (zend_extension *)arg;
@@ -55,8 +62,20 @@ void dd_search_for_profiling_symbols(void *arg) {
 }
 
 void ddtrace_fetch_profiling_symbols(void) {
+#ifdef PROFILING
+    profiling_interrupt_function = ddog_php_prof_interrupt_function;
+    // Notification follows the profiler's request-level enabled state.
+    profiling_notify_trace_finished = NULL;
+#else
     zend_llist_apply(&zend_extensions, dd_search_for_profiling_symbols);
+#endif
 }
+
+#ifdef PROFILING
+void ddtrace_set_profiling_notify_enabled(bool enabled) {
+    profiling_notify_trace_finished = enabled ? datadog_profiling_notify_trace_finished : NULL;
+}
+#endif
 
 void ddtrace_engine_hooks_minit(void) {
     _compile_minit();

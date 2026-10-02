@@ -21,7 +21,9 @@ use std::sync::{LazyLock, Mutex};
 use std::time::Duration;
 
 #[cfg(php_shared_build)]
-fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
+fn run_sidecar(cfg: config::Config) -> anyhow::Result<SidecarTransport> {
+    #[cfg(target_os = "linux")]
+    let mut cfg = cfg;
     #[cfg(target_os = "linux")]
     if std::env::var_os("DD_SIDECAR_DISABLE_DIRECT_EXEC")
         .map(|s| s.is_empty())
@@ -32,12 +34,26 @@ fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
     {
         cfg.spawn_without_trampoline = true;
     }
+    // The tracer runtime registers PHP's AppSec backend in its sidecar
+    // entrypoint. Generic sidecar builds use libdatadog's plain entrypoint.
+    #[cfg(feature = "tracer-runtime")]
+    {
+        ddtrace_sidecar::start_or_connect_to_sidecar(cfg)
+    }
+    #[cfg(not(feature = "tracer-runtime"))]
+    {
+        datadog_sidecar::start_or_connect_to_sidecar(cfg)
+    }
+}
+
+#[cfg(all(not(any(windows, php_shared_build)), feature = "tracer-runtime"))]
+fn run_sidecar(cfg: config::Config) -> anyhow::Result<SidecarTransport> {
     ddtrace_sidecar::start_or_connect_to_sidecar(cfg)
 }
 
-#[cfg(not(any(windows, php_shared_build)))]
+#[cfg(all(not(any(windows, php_shared_build)), not(feature = "tracer-runtime")))]
 fn run_sidecar(cfg: config::Config) -> anyhow::Result<SidecarTransport> {
-    ddtrace_sidecar::start_or_connect_to_sidecar(cfg)
+    datadog_sidecar::start_or_connect_to_sidecar(cfg)
 }
 
 #[no_mangle]
@@ -153,7 +169,7 @@ pub extern "C" fn ddog_sidecar_enable_appsec(log_file_path: CharSlice, log_level
 /// registered in the listener's process.
 #[no_mangle]
 pub extern "C" fn ddog_sidecar_connect_master_php() -> MaybeError {
-    #[cfg(unix)]
+    #[cfg(all(unix, feature = "tracer-runtime"))]
     ddtrace_sidecar::register_appsec_backend();
 
     datadog_sidecar_ffi::ddog_sidecar_connect_master()

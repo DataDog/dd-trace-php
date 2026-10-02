@@ -1,0 +1,244 @@
+#!/usr/bin/env bash
+# Build NTS/ZTS PHP extensions with cross-language ThinLTO (the default).
+# CentOS 7 release builds retain their ELF toolchain; macOS uses the active PHP
+# toolchain and the Homebrew LLVM matching rustc's LLVM major version.
+set -euo pipefail
+
+fail() { echo "xlang-lto: $*" >&2; exit 1; }
+
+[[ $# -le 2 ]] || fail 'usage: build-xlang-lto [product] [output-directory]'
+for tool in php php-config phpize rustc cargo; do
+    command -v "$tool" >/dev/null || fail "missing $tool for the active PHP/Rust toolchain"
+done
+host_triple="$(rustc -vV | awk '/^host: / { print $2 }')"
+[[ -n "$host_triple" ]] || fail 'cannot determine the rustc host target'
+os="$(uname -s)"
+arch="$(uname -m)"
+case "$os:$arch:$host_triple" in
+    Linux:aarch64:aarch64-unknown-linux-gnu|Linux:x86_64:x86_64-unknown-linux-gnu)
+        [[ -f /etc/centos-release ]] && grep -q '^CentOS Linux release 7\.' /etc/centos-release ||
+            fail 'the Linux release path requires a CentOS 7 image'
+        for tool in clang clang++ ld.lld objcopy; do
+            command -v "$tool" >/dev/null || fail "missing $tool in the CentOS release image"
+        done
+        selected_cc="$(command -v clang)"
+        selected_cxx="$(command -v clang++)"
+        rt_archive="$(clang --print-resource-dir)/lib/$(clang -dumpmachine)/libclang_rt.builtins.a"
+        [[ -s "$rt_archive" ]] || fail "missing matching static compiler-rt builtins: $rt_archive"
+        ;;
+    Darwin:arm64:aarch64-apple-darwin|Darwin:x86_64:x86_64-apple-darwin)
+        llvm_major="$(rustc -vV | awk '/^LLVM version: / { split($3, version, "."); print version[1] }')"
+        command -v brew >/dev/null || fail 'Homebrew LLVM matching rustc is required on macOS'
+        llvm_prefix="$(brew --prefix "llvm@$llvm_major")"
+        selected_cc="$llvm_prefix/bin/clang"
+        selected_cxx="$llvm_prefix/bin/clang++"
+        [[ -x "$selected_cc" && -x "$selected_cxx" ]] ||
+            fail "install Homebrew llvm@$llvm_major to match rustc's LLVM"
+        [[ "$("$selected_cc" -dumpversion)" == "$llvm_major".* ]] ||
+            fail "Homebrew Clang does not match rustc LLVM $llvm_major"
+        ;;
+    *) fail "unsupported host/architecture/Rust target: $os/$arch/$host_triple" ;;
+esac
+php_version="${PHP_VERSION:-$(php -n -r 'echo PHP_MAJOR_VERSION, ".", PHP_MINOR_VERSION;')}"
+[[ "$php_version" =~ ^[0-9]+\.[0-9]+$ ]] ||
+    fail "PHP_VERSION must be a PHP major.minor version (got '$php_version')"
+[[ "$(php -n -r 'echo PHP_MAJOR_VERSION, ".", PHP_MINOR_VERSION;')" == "$php_version" ]] ||
+    fail "the active PHP binary is not PHP $php_version"
+php_binary="$(php-config --php-binary)"
+[[ -x "$php_binary" ]] || fail "php-config --php-binary is not executable: $php_binary"
+[[ "$(php-config --vernum)" == "$(php -n -r 'echo PHP_VERSION_ID;')" ]] ||
+    fail 'the active php-config does not match the active PHP version'
+php_abi="$(php -n -r 'echo (int) PHP_ZTS, ":", (int) PHP_DEBUG;')"
+[[ "$($php_binary -n -r 'echo (int) PHP_ZTS, ":", (int) PHP_DEBUG;')" == "$php_abi" ]] ||
+    fail 'php-config --php-binary does not match the active PHP ABI'
+
+root="$(cd "$(dirname "$0")/../.." && pwd)"
+artifact_mode="${1:-combined}"
+case "$artifact_mode" in
+    combined|standalone|ssi-common|ssi-combined) ;;
+    *) fail "unsupported product: $artifact_mode" ;;
+esac
+if [[ "$os" == Darwin && "$artifact_mode" == ssi-* ]]; then
+    fail 'SSI packaging and loader currently target Linux; test combined or standalone on macOS'
+fi
+if [[ "$php_version" == 7.0 ]]; then
+    case "$artifact_mode" in
+        combined) artifact_mode=tracer-only ;;
+        ssi-common) ;; # Shared implementation is not PHP-ABI-specific.
+        *) fail 'PHP 7.0 has no profiler' ;;
+    esac
+fi
+# The caller selects NTS/ZTS with switch-php before invoking make. A separate
+# debug job uses the ordinary (non-LTO) build, rather than this release path.
+case "$php_abi" in
+    0:0) build_variant=nts ;;
+    1:0) build_variant=zts ;;
+    *) fail "unsupported active PHP ABI ($php_abi); debug stays non-LTO" ;;
+esac
+variant_dir=''
+cache_variant=''
+if [[ "$build_variant" == zts ]]; then
+    variant_dir=/zts
+    cache_variant=-zts
+fi
+# Match the C and Rust baseline ISA; never enable ARM LSE or x86-64-v2.
+case "$arch" in
+    aarch64)
+        c_arch_flags=' -march=armv8-a -moutline-atomics'
+        rust_arch_flags=' -C target-cpu=generic -C target-feature=+neon'
+        rust_target=aarch64-unknown-linux-gnu
+        export CFLAGS_aarch64_unknown_linux_gnu='-moutline-atomics -gline-tables-only'
+        ;;
+    x86_64)
+        if [[ "$os" == Darwin ]]; then
+            c_arch_flags=' -arch x86_64'
+            rust_arch_flags=' -C target-cpu=x86-64'
+        else
+            c_arch_flags=' -march=x86-64'
+            rust_arch_flags=' -C target-cpu=x86-64'
+            export CFLAGS_x86_64_unknown_linux_gnu='-march=x86-64 -gline-tables-only'
+        fi
+        rust_target="$host_triple"
+        ;;
+    arm64)
+        c_arch_flags=' -arch arm64'
+        # Apple's Rust target includes mandatory AES/SHA2/PMULL features;
+        # overriding it with generic breaks ring's Darwin feature checks.
+        rust_arch_flags=''
+        rust_target="$host_triple"
+        ;;
+esac
+# Preserve aarch64 artifact paths; keep x86_64 outputs separate.
+arch_dir=''
+if [[ "$os" == Darwin ]]; then
+    arch_dir="darwin-$arch/"
+elif [[ "$arch" == x86_64 ]]; then
+    arch_dir=x86_64/
+fi
+lto_mode="${DDTRACE_XLANG_LTO:-thin}"
+artifacts="$root/tmp/xlang-lto/${arch_dir}php-$php_version$variant_dir"
+c_lto_flags= rust_lto_flags= link_lto_flags=
+case "$lto_mode" in
+    off)
+        # Control using the same toolchain, target features and rebuilt std.
+        artifacts="$root/tmp/xlang-no-lto/${arch_dir}php-$php_version$variant_dir"
+        ;;
+    thin|fat)
+        clang_lto=thin
+        [[ "$lto_mode" == fat ]] && clang_lto=full
+        c_lto_flags=" -flto=$clang_lto"
+        rust_lto_flags=' -C linker-plugin-lto'
+        if [[ "$os" == Linux ]]; then
+            c_lto_flags+=' -ffat-lto-objects'
+            link_lto_flags=-Wl,--fat-lto-objects
+        else
+            link_lto_flags="-flto=$clang_lto"
+        fi
+        ;;
+    *) fail 'DDTRACE_XLANG_LTO must be off, thin or fat' ;;
+esac
+if [[ "$artifact_mode" != combined && "$artifact_mode" != tracer-only ]]; then
+    case "$artifact_mode" in
+        ssi-*) artifacts="$artifacts/ssi" ;;
+        *) artifacts="$artifacts/$artifact_mode" ;;
+    esac
+fi
+artifacts="${2:-$artifacts}"
+mkdir -p "$artifacts"
+artifacts="$(cd "$artifacts" && pwd)"
+# The release script copies sources into /tmp; keep the target outside that
+# copy. A caller may mount a persistent cache and set an absolute path here.
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$root/tmp/xlang-cargo-target/${arch_dir}php-$php_version$cache_variant-$lto_mode}"
+[[ "$CARGO_TARGET_DIR" == /* ]] || fail 'CARGO_TARGET_DIR must be absolute'
+mkdir -p "$CARGO_TARGET_DIR"
+echo "PHP $php_version $build_variant $lto_mode: Cargo target cache $CARGO_TARGET_DIR" >&2
+
+# On Linux, ARM generic +neon matches Clang armv8-a with outlined atomics;
+# x86-64 uses the baseline ISA. Preserve Apple's arm64 target defaults.
+if [[ "$os" == Linux ]]; then
+    export CC="$root/tooling/bin/xlang-cc" CXX="$selected_cxx"
+else
+    export CC="$selected_cc" CXX="$selected_cxx"
+fi
+export CFLAGS="-O2 -gline-tables-only$c_lto_flags$c_arch_flags"
+export CXXFLAGS="$CFLAGS"
+export LDFLAGS="$link_lto_flags"
+if [[ "$os" == Darwin && "$lto_mode" != off ]]; then
+    export DDTRACE_XLANG_DARWIN_CLANG="$selected_cc" DDTRACE_XLANG_DARWIN_LTO="$clang_lto"
+    rust_linker="$root/tooling/bin/xlang-cc"
+else
+    rust_linker="$CC"
+fi
+export RUSTFLAGS="-C debuginfo=line-tables-only$rust_lto_flags$rust_arch_flags -C linker=$rust_linker"
+export CARGO_PROFILE_TRACER_RELEASE_LTO="$lto_mode" DDTRACE_RUST_PROFILE=tracer-release
+
+# Build std/panic_abort for all modes, including the no-LTO comparison.
+case "${DDTRACE_XLANG_BUILD_STD:-1}" in
+    1)
+        [[ -f "$(rustc --print sysroot)/lib/rustlib/src/rust/library/Cargo.toml" ]] ||
+            fail 'rust-src is required for -Z build-std'
+        export RUSTC_BOOTSTRAP=1 DDTRACE_PROFILING_TARGET="$rust_target"
+        export DDTRACE_PROFILING_CARGO_BUILD_FLAGS='-Z build-std=std,panic_abort'
+        ;;
+    0)
+        unset DDTRACE_PROFILING_CARGO_BUILD_FLAGS
+        if [[ "$os" == Darwin ]]; then
+            # Explicit --target keeps plugin-LTO flags off host build scripts,
+            # which Apple's ld cannot link with Rust's -plugin-opt arguments.
+            export DDTRACE_PROFILING_TARGET="$rust_target"
+        else
+            unset DDTRACE_PROFILING_TARGET
+        fi
+        ;;
+    *) fail 'DDTRACE_XLANG_BUILD_STD must be 0 or 1' ;;
+esac
+
+cd "$root"
+case "$artifact_mode" in
+    ssi-common)
+        ./tooling/bin/build-ssi-common "$artifacts/libdatadog_php.so"
+        ;;
+    ssi-combined)
+        [[ -s "$artifacts/libdatadog_php.so" ]] ||
+            fail 'build ssi-common into the same directory first'
+        # Rust code that depends on the selected PHP ABI is a private input to
+        # the combined extension, not a separately selectable SSI product.
+        abi_archive="$CARGO_TARGET_DIR/ssi-php-abi/php-$php_version/$build_variant/ddtrace-php-abi.a"
+        ./tooling/bin/build-ddtrace-php-abi-archive "$abi_archive"
+        SSI_COMMON_LIBRARY="$artifacts/libdatadog_php.so" \
+            SSI_EXTENSION_ARCHIVE="$abi_archive" \
+            .gitlab/build-profiler.sh "$artifacts" active ssi-combined ddtrace.so
+        ;;
+    standalone)
+        .gitlab/build-profiler.sh "$artifacts" active standalone datadog-profiling.so
+        ;;
+    *)
+        .gitlab/build-profiler.sh "$artifacts" active "$artifact_mode" ddtrace.so
+        ;;
+esac
+if [[ "$artifact_mode" == ssi-common ]]; then
+    echo "PHP $php_version $build_variant $lto_mode $artifact_mode: $artifacts"
+    exit 0
+fi
+# The active php-config and PHP ABI were checked above; do not switch here.
+php_binary="$(php-config --php-binary)"
+[[ -x "$php_binary" ]] || fail "selected php-config --php-binary is not executable: $php_binary"
+if [[ "$os" == Linux && "$artifact_mode" != standalone && "$lto_mode" != off ]]; then
+    "/tmp/ddtrace-build-profiler-$build_variant/src/target_mockgen/debug/php_sidecar_mockgen" \
+        weaken-final-dynsym "$artifacts/ddtrace.so" "$php_binary"
+fi
+extension_name=ddtrace
+[[ "$artifact_mode" == standalone ]] && extension_name=datadog-profiling
+php_command=(php)
+if [[ "$artifact_mode" == ssi-combined ]]; then
+    # Smoke-test with the common DSO preloaded, as the SSI loader will do.
+    php_command=(env "LD_PRELOAD=$artifacts/libdatadog_php.so${LD_PRELOAD:+:$LD_PRELOAD}" php)
+fi
+"${php_command[@]}" -n -d "extension=$artifacts/$extension_name.so" -r '
+    if (!extension_loaded($argv[1])) exit(1);
+    echo $argv[1], " loaded under PHP ", PHP_VERSION, "\n";
+' -- "$extension_name"
+# Release packaging strips the artifact; keep only the load-tested .so here.
+bytes=$(wc -c < "$artifacts/$extension_name.so" | awk '{ print $1 }')
+echo "$artifacts/$extension_name.so $bytes bytes"
+echo "PHP $php_version $build_variant $lto_mode $artifact_mode artifacts: $artifacts"

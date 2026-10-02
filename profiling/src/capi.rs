@@ -32,7 +32,7 @@ impl From<&uuid::Uuid> for Uuid {
 /// Only call this from a PHP thread.
 #[no_mangle]
 pub extern "C" fn datadog_profiling_runtime_id() -> Uuid {
-    Uuid::from(runtime_id())
+    Uuid(runtime_id())
 }
 
 #[cfg(feature = "trigger_time_sample")]

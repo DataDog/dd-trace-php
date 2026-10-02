@@ -93,7 +93,7 @@ impl<'a> TraceFilterSpan<'a> for Span<'a> {
                 None
             } else {
                 Some(std::str::from_utf8_unchecked(std::slice::from_raw_parts(
-                    vptr as *const u8,
+                    vptr.cast::<u8>(),
                     vlen,
                 )))
             }
