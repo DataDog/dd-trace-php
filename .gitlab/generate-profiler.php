@@ -82,7 +82,6 @@ foreach ($profiler_minor_major_targets as $version) {
       export DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=1
       export DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1
       test_cases=(
-        allocation_sampling_distance
         allocations
         allocation_upscaling_mixed_sizes
         time
@@ -95,7 +94,7 @@ foreach ($profiler_minor_major_targets as $version) {
         allocation_time_combined
         generators
       )
-      for test_case in "${test_cases[@]}"; do
+      for test_case in allocation_sampling_distance "${test_cases[@]}"; do
         output="${CI_PROJECT_DIR}/profiling/tests/correctness/${test_case}/test.pprof"
         mkdir -p "$(dirname "${output}")"
         DD_PROFILING_OUTPUT_PPROF="${output}" \
@@ -114,19 +113,6 @@ foreach ($profiler_minor_major_targets as $version) {
       export DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=1
       export DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE=1
       export DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1
-      test_cases=(
-        allocations
-        allocation_upscaling_mixed_sizes
-        time
-        strange_frames
-        timeline
-        exceptions
-        io
-        socket_io
-        io_upscaling
-        allocation_time_combined
-        generators
-      )
       for test_case in "${test_cases[@]}"; do
         output="${CI_PROJECT_DIR}/profiling/tests/correctness/${test_case}/test.pprof"
         mkdir -p "$(dirname "${output}")"
