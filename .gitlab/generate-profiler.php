@@ -24,6 +24,288 @@ foreach ($arm64_latest as $version) {
 }
 ?>
 
+.profiler_correctness_targets: &profiler_correctness_targets
+<?php
+foreach ($profiler_minor_major_targets as $version) {
+    if (version_compare($version, "8.0", ">=")) {
+        echo "  - \"{$version}\"\n";
+    }
+}
+?>
+
+"prof-correctness":
+  stage: test
+  tags: [ "arch:amd64" ]
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11
+  retry: 1
+  needs:
+    - job: "prof-correctness-analyzer"
+      artifacts: true
+  variables:
+    KUBERNETES_CPU_REQUEST: 5
+    KUBERNETES_CPU_LIMIT: 5
+    KUBERNETES_MEMORY_REQUEST: 6Gi
+    KUBERNETES_MEMORY_LIMIT: 6Gi
+    KUBERNETES_HELPER_CPU_REQUEST: 1
+    KUBERNETES_HELPER_CPU_LIMIT: 1
+    KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
+    KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
+    PROFILER_SO: "${CI_PROJECT_DIR}/tmp/build_profiler/modules/datadog-profiling.so"
+    DD_PROFILING_ENABLED: "true"
+    DD_TRACE_ENABLED: "false"
+    DD_INSTRUMENTATION_TELEMETRY_ENABLED: "false"
+    DD_REMOTE_CONFIG_ENABLED: "false"
+    PROFILER_LOG: "${CI_PROJECT_DIR}/artifacts/prof-correctness/profiler.log"
+    PROF_ANALYZE: "${CI_PROJECT_DIR}/tmp/prof-analyze"
+    PARALLEL_VERSION: "1.2.15"
+    CARGO_HOME: "${CI_PROJECT_DIR}/.cache/prof-correctness-cargo"
+  cache:
+    key:
+      prefix: "prof-correctness-${PHP_MAJOR_MINOR}-${FLAVOUR}"
+      files:
+        - Cargo.lock
+        - rust-toolchain.toml
+    paths:
+      - .cache/prof-correctness-cargo/registry/index/
+      - .cache/prof-correctness-cargo/registry/cache/
+      - tmp/build_profiler/target-profiling/
+      - tmp/build_combined/target-common/
+  parallel:
+    matrix:
+      - PHP_MAJOR_MINOR: *profiler_correctness_targets
+        FLAVOUR: [nts, zts]
+  before_script:
+<?php unset_dd_runner_env_vars(); ?>
+  script:
+    - switch-php "${FLAVOUR}"
+    - |
+      if [ "${FLAVOUR}" = "zts" ]; then
+        sudo env PHP_INI_SCAN_DIR= MAKEFLAGS="-j$(nproc)" \
+          pecl install -f "parallel-${PARALLEL_VERSION}"
+        installed_version="$(php -r 'echo phpversion("parallel");')"
+        if [ "${installed_version}" != "${PARALLEL_VERSION}" ]; then
+          echo "Expected parallel ${PARALLEL_VERSION}, got ${installed_version}"
+          exit 1
+        fi
+      fi
+    - mkdir -p "$(dirname "${PROFILER_LOG}")"
+    - ': > "${PROFILER_LOG}"'
+    - |
+      if [ "${PHP_MAJOR_MINOR}" = "8.5" ]; then
+        # Exercise the shipped self-contained tracer+profiler product.
+        export PROFILER_SO="${CI_PROJECT_DIR}/tmp/build_combined/modules/ddtrace.so"
+        profiler_ri=ddtrace
+        make compile_combined
+      else
+        profiler_ri=datadog-profiling
+        make compile_profiler PROFILER_FEATURES=trigger_time_sample
+      fi
+    - php -v
+    - php -d extension="${PROFILER_SO}" --ri "${profiler_ri}"
+    - |
+      export DD_PROFILING_ENABLED=Off
+      export DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=1
+      export DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1
+      test_cases=(
+        allocations
+        allocation_upscaling_mixed_sizes
+        time
+        strange_frames
+        timeline
+        exceptions
+        io
+        socket_io
+        io_upscaling
+        allocation_time_combined
+        generators
+      )
+      for test_case in allocation_sampling_distance "${test_cases[@]}"; do
+        output="${CI_PROJECT_DIR}/profiling/tests/correctness/${test_case}/test.pprof"
+        mkdir -p "$(dirname "${output}")"
+        DD_PROFILING_OUTPUT_PPROF="${output}" \
+          php -d extension="${PROFILER_SO}" \
+          "profiling/tests/correctness/${test_case}.php" \
+          2>> "${PROFILER_LOG}"
+        if compgen -G "${output}.*" > /dev/null; then
+          echo "Profile output should not exist:"
+          ls -l "${output}".*
+          exit 1
+        fi
+      done
+      export DD_PROFILING_ENABLED=true
+    - |
+      export DD_PROFILING_LOG_LEVEL=trace
+      export DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=1
+      export DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE=1
+      export DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1
+      for test_case in "${test_cases[@]}"; do
+        output="${CI_PROJECT_DIR}/profiling/tests/correctness/${test_case}/test.pprof"
+        mkdir -p "$(dirname "${output}")"
+        DD_PROFILING_OUTPUT_PPROF="${output}" \
+          php -d extension="${PROFILER_SO}" \
+          "profiling/tests/correctness/${test_case}.php" \
+          2>> "${PROFILER_LOG}"
+      done
+
+      output="${CI_PROJECT_DIR}/profiling/tests/correctness/allocation_sampling_distance/test.pprof"
+      mkdir -p "$(dirname "${output}")"
+      DD_PROFILING_OUTPUT_PPROF="${output}" \
+        php -d extension="${PROFILER_SO}" \
+        -d datadog.profiling.allocation_sampling_distance=1 \
+        profiling/tests/correctness/allocation_sampling_distance.php \
+        2>> "${PROFILER_LOG}"
+
+      export DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE=1
+      output="${CI_PROJECT_DIR}/profiling/tests/correctness/allocations_1byte/test.pprof"
+      mkdir -p "$(dirname "${output}")"
+      DD_PROFILING_OUTPUT_PPROF="${output}" \
+        php -d extension="${PROFILER_SO}" \
+        profiling/tests/correctness/allocations.php \
+        2>> "${PROFILER_LOG}"
+
+      output="${CI_PROJECT_DIR}/profiling/tests/correctness/allocations_1byte_no_zend_alloc/test.pprof"
+      mkdir -p "$(dirname "${output}")"
+      DD_PROFILING_OUTPUT_PPROF="${output}" USE_ZEND_ALLOC=0 \
+        php -d extension="${PROFILER_SO}" \
+        profiling/tests/correctness/allocations.php \
+        2>> "${PROFILER_LOG}"
+      unset DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE
+    - |
+      if [ "${FLAVOUR}" = "zts" ]; then
+        output="${CI_PROJECT_DIR}/profiling/tests/correctness/exceptions_zts/test.pprof"
+        mkdir -p "$(dirname "${output}")"
+        DD_PROFILING_OUTPUT_PPROF="${output}" \
+          php -d extension="${PROFILER_SO}" \
+          profiling/tests/correctness/exceptions_zts.php \
+          2>> "${PROFILER_LOG}"
+      fi
+    - |
+      if [ "${PHP_MAJOR_MINOR}" = "8.4" ] && [ "${FLAVOUR}" = "nts" ]; then
+        mkdir -p /tmp/otel-sdk
+        composer require --working-dir=/tmp/otel-sdk --no-interaction --no-progress open-telemetry/sdk:^1.0
+        php -d "extension=${PROFILER_SO}" -r '
+          require "/tmp/otel-sdk/vendor/autoload.php";
+          $provider = new OpenTelemetry\SDK\Trace\TracerProvider();
+          $tracer = $provider->getTracer("datadog-profiler-coexistence");
+          $span = $tracer->spanBuilder("coexistence")->startSpan();
+          $scope = $span->activate();
+          if (!extension_loaded("datadog-profiling") || extension_loaded("ddtrace")) {
+              throw new RuntimeException("expected only the standalone profiler extension");
+          }
+          if (!filter_var(ini_get("datadog.profiling.enabled"), FILTER_VALIDATE_BOOL)) {
+              throw new RuntimeException("profiling is not enabled");
+          }
+          $scope->detach();
+          $span->end();
+          $provider->shutdown();
+          echo "standalone profiler and OpenTelemetry SDK tracer coexist\n";
+        '
+      fi
+    - |
+      if [ "${PHP_MAJOR_MINOR}" = "8.5" ] && [ "${FLAVOUR}" = "nts" ]; then
+        export DD_TRACE_ENABLED=true
+        export TEST_PHP_EXECUTABLE="$(command -v php)"
+        php run-tests.php -q \
+          -d "extension=${PROFILER_SO}" \
+          tests/ext/extension_disabled.phpt \
+          tests/ext/profiling/runtime_id_01.phpt \
+          tests/ext/profiling/runtime_id_02.phpt
+
+        endpoint_output=$(
+          DD_TRACE_CLI_ENABLED=true \
+          DD_PROFILING_OUTPUT_PPROF=/tmp/combined-endpoint.pprof \
+          php -d "extension=${PROFILER_SO}" \
+            -r '$span = DDTrace\active_span(); $span->type = "web"; $span->resource = "combined-endpoint-test";' \
+            2>&1
+        )
+        echo "${endpoint_output}"
+        grep -q 'Enqueued endpoint profiling information for span id:' <<<"${endpoint_output}"
+        export DD_TRACE_ENABLED=false
+      fi
+    - |
+      check_correctness() {
+        expected="$1"
+        profile="${2:-$1}"
+        "${PROF_ANALYZE}" \
+          -expectedJson "profiling/tests/correctness/${expected}.json" \
+          -pprofPath "profiling/tests/correctness/${profile}/"
+      }
+
+      check_correctness allocation_sampling_distance
+      check_correctness allocations
+      check_correctness allocations allocations_1byte
+      check_correctness allocations allocations_1byte_no_zend_alloc
+      check_correctness time
+      check_correctness strange_frames
+      check_correctness timeline
+      check_correctness allocation_time_combined
+      check_correctness generators
+      check_correctness io
+      check_correctness socket_io
+      check_correctness io_upscaling
+      if [ "${FLAVOUR}" = "zts" ]; then
+        check_correctness exceptions_zts
+      fi
+      check_correctness exceptions
+      check_correctness allocation_upscaling_mixed_sizes
+    - |
+      if [ "${PHP_MAJOR_MINOR}" = "8.5" ] && [ "${FLAVOUR}" = "nts" ]; then
+        cp "${PROFILER_SO}" /tmp/ddtrace-combined.so
+        make compile_profiler PROFILER_FEATURES=trigger_time_sample
+        export TEST_PHP_EXECUTABLE="$(command -v php)"
+        export DDTRACE_TEST_TRACER_EXTENSION=/tmp/ddtrace-combined.so
+        export DDTRACE_TEST_PROFILER_EXTENSION="${CI_PROJECT_DIR}/tmp/build_profiler/modules/datadog-profiling.so"
+        php run-tests.php -q \
+          profiling/tests/phpt/standalone_conflict_ddtrace_first.phpt \
+          profiling/tests/phpt/standalone_conflict_profiler_first.phpt
+      fi
+  after_script:
+    - |
+      mkdir -p "${CI_PROJECT_DIR}/artifacts/prof-correctness"
+      if [ -f "${PROFILER_LOG}" ]; then
+        if [ "${CI_JOB_STATUS}" = "failed" ]; then
+          tail -n 100 "${PROFILER_LOG}"
+        fi
+        gzip -9 -f "${PROFILER_LOG}"
+      fi
+  artifacts:
+    when: always
+    paths:
+      - artifacts/prof-correctness/
+      - profiling/tests/correctness/*/test.pprof*
+
+"prof-correctness-analyzer":
+  stage: test
+  tags: [ "arch:amd64" ]
+  image: registry.ddbuild.io/images/mirror/golang:1.25.13
+  retry: 1
+  variables:
+    GIT_STRATEGY: empty
+    GOMODCACHE: "${CI_PROJECT_DIR}/tmp/go/pkg/mod"
+    GOCACHE: "${CI_PROJECT_DIR}/tmp/go/build-cache"
+  cache:
+    key: prof-correctness-go
+    paths:
+      - tmp/go/
+  script:
+    - |
+      unset GOPRIVATE
+      depot_host="depot-read-api-go.us1.ddbuild.io"
+      export GOPROXY="https://${depot_host}/magicmirror/magicmirror/@current/"
+      export GONOPROXY=none
+      export GONOSUMDB="github.com/DataDog,go.ddbuild.io"
+      export GOTOOLCHAIN=local
+      go env GOPROXY GONOPROXY GONOSUMDB GOSUMDB GOTOOLCHAIN
+      git clone --depth 1 --branch main https://github.com/DataDog/prof-correctness.git \
+        "${CI_PROJECT_DIR}/tmp/prof-correctness"
+      cd "${CI_PROJECT_DIR}/tmp/prof-correctness" || exit 1
+      git rev-parse HEAD
+      # Build in the checkout to verify dependencies using its go.sum.
+      go build -o "${CI_PROJECT_DIR}/tmp/prof-analyze" ./cmd/prof-analyze
+  artifacts:
+    paths:
+      - tmp/prof-analyze
+
 "profiling tests":
   stage: test
   tags: [ "arch:${ARCH}" ]

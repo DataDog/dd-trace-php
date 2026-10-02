@@ -440,6 +440,24 @@ void ddtrace_first_rinit(void) {
     dd_rinit_once_done = true;
 }
 
+void ddtrace_recreate_agent_config_reader(void) {
+    if (!DDTRACE_G(agent_config_reader) || !get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+        return;
+    }
+
+    ddog_agent_remote_config_reader_drop(DDTRACE_G(agent_config_reader));
+    DDTRACE_G(agent_config_reader) = NULL;
+
+    if (DDTRACE_G(agent_rate_by_service)) {
+        zai_json_release_persistent_array(DDTRACE_G(agent_rate_by_service));
+        DDTRACE_G(agent_rate_by_service) = NULL;
+    }
+
+    if (datadog_endpoint) {
+        DDTRACE_G(agent_config_reader) = ddog_agent_remote_config_reader_for_endpoint(datadog_endpoint);
+    }
+}
+
 static void dd_initialize_request(void) {
     DDTRACE_G(distributed_trace_id) = (datadog_trace_id){0};
     DDTRACE_G(distributed_parent_trace_id) = 0;

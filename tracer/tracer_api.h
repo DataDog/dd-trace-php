@@ -22,6 +22,7 @@ void ddtrace_post_deactivate(void);
 #ifdef PROFILING
 void ddtrace_set_profiling_notify_enabled(bool enabled);
 #endif
+void ddtrace_recreate_agent_config_reader(void);
 
 // fork handling
 void ddtrace_internal_handle_fork(void);

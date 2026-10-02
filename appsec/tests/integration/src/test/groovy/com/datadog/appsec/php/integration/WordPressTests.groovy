@@ -37,11 +37,11 @@ class WordPressTests {
     private static MySQLContainer MYSQL = new MySQLContainer(
             DockerImageName.parse("${System.getProperty('DOCKER_MIRROR') ?: 'docker.io'}/library/mysql:8.0")
                     .asCompatibleSubstituteFor('mysql'))
-            .withDatabaseName('wordpress')
-            .withUsername('root')
+            .withDatabaseName('wp61')
+            .withUsername('test')
             .withPassword('test')
             .withNetwork(network)
-            .withNetworkAliases('mysql')
+            .withNetworkAliases('mysql-integration')
             .waitingFor(Wait.forLogMessage(".*ready for connections.*", 1)) as MySQLContainer
 
     @Container
@@ -52,7 +52,7 @@ class WordPressTests {
                     baseTag: 'apache2-fpm-php',
                     phpVersion: phpVersion,
                     phpVariant: variant,
-                    www: 'wordpress',
+                    www: '../../../tests/Frameworks/WordPress/Version_6_1',
             ).withNetwork(network) as AppSecContainer
 
     static void main(String[] args) {
@@ -63,14 +63,14 @@ class WordPressTests {
     static void installWordPress() {
         def mysqlInfo = MYSQL.containerInfo
         def mysqlIp = mysqlInfo.networkSettings.networks.values().find {
-            it.aliases?.contains('mysql')
+            it.aliases?.contains('mysql-integration')
         }?.ipAddress
 
         assert mysqlIp != null : "Could not determine MySQL container IP"
         log.info("MySQL IP: {}", mysqlIp)
 
         def res = CONTAINER.execInContainer('bash', '-c',
-                "sed -i \"s/'mysql'/'${mysqlIp}'/\" /var/www/public/wp-config.php")
+                "sed -i \"s/'mysql-integration'/'${mysqlIp}'/\" /var/www/public/wp-config.php")
         assert res.exitCode == 0 : "Failed to update wp-config.php: ${res.stderr}"
 
         // Run wp-cli with tracing and AppSec disabled so these CLI processes
