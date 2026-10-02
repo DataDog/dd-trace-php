@@ -40,11 +40,12 @@ static void stable_config_entry_dtor(zval *el) {
 }
 
 void zai_config_stable_file_minit(void) {
-    // Profiler artifacts bind directly to their configuration runtime: local
-    // in standalone/non-SSI builds, supplied by the preloaded DSO in SSI.
-    // Standalone intentionally does not export these functions for dlsym.
+    // Tracer/profiler artifacts bind to their own runtime (local or SSI-preloaded).
+    // Direct references also retain configuration functions in static Rust archives;
+    // dlsym alone does not make the linker extract them. Other extensions look up
+    // the functions in the registered tracer/profiler module instead.
     if (!_ddog_library_configurator_new) {
-#if defined(PROFILING)
+#if defined(TRACER) || defined(PROFILING)
         _ddog_library_configurator_new = ddog_library_configurator_new;
         _ddog_library_configurator_with_local_path = ddog_library_configurator_with_local_path;
         _ddog_library_configurator_with_fleet_path = ddog_library_configurator_with_fleet_path;
