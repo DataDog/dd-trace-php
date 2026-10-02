@@ -51,10 +51,8 @@ foreach ($profiler_minor_major_targets as $version) {
         - Cargo.lock
         - rust-toolchain.toml
     paths:
-      - .cache/prof-correctness-cargo/bin/
       - .cache/prof-correctness-cargo/registry/index/
       - .cache/prof-correctness-cargo/registry/cache/
-      - .cache/prof-correctness-cargo/git/db/
       - tmp/build_profiler/target-profiling/
   parallel:
     matrix:
