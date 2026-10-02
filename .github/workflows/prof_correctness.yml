@@ -96,8 +96,12 @@ jobs:
       - name: Build profiler
         run: |
           llvm_root="${HOME}/llvm"
-          # lld links against the system libxml2.
-          dpkg -s libxml2 >/dev/null 2>&1 || { sudo apt-get update && sudo apt-get install -y libxml2; }
+          # lld needs libxml2; config.m4 also requires the libcurl development
+          # library (curl_easy_setopt), which is absent on some runner images.
+          if ! dpkg -s libxml2 libcurl4-openssl-dev >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends libxml2 libcurl4-openssl-dev
+          fi
           export PATH="${llvm_root}/bin:${PATH}"
           export CC=clang
           export CXX=clang++
