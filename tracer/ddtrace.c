@@ -1,3 +1,4 @@
+#include "routing_cache.h"
 #include "components-rs/common.h"
 #include "components-rs/sidecar.h"
 #include "zend_API.h"
@@ -244,6 +245,7 @@ void ddtrace_ginit(zend_datadog_globals *ddtrace_globals) {
     UNUSED(ddtrace_globals);
 #endif
     zai_hook_ginit();
+    ddtrace_routing_cache_ginit(&ddtrace_globals->ddtrace.rcache);
 }
 
 void ddtrace_gshutdown(zend_datadog_globals *datadog_globals) {
@@ -252,6 +254,7 @@ void ddtrace_gshutdown(zend_datadog_globals *datadog_globals) {
     if (datadog_globals->ddtrace.agent_config_reader) {
         ddog_agent_remote_config_reader_drop(datadog_globals->ddtrace.agent_config_reader);
     }
+    ddtrace_routing_cache_gshutdown(&datadog_globals->ddtrace.rcache);
 }
 
 
