@@ -212,6 +212,7 @@ foreach ($profiler_minor_major_targets as $version) {
 
         endpoint_output=$(
           DD_TRACE_CLI_ENABLED=true \
+          DD_PROFILING_LOG_LEVEL=trace \
           DD_PROFILING_OUTPUT_PPROF=/tmp/combined-endpoint.pprof \
           php -d "extension=${PROFILER_SO}" \
             -r '$span = DDTrace\active_span(); $span->type = "web"; $span->resource = "combined-endpoint-test";' \
