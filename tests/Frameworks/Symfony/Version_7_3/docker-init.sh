@@ -1,4 +1,10 @@
-#!/bin/bash -e
+#!/bin/bash -ex
+
+# AppSecContainer tails /tmp/logs/* back to the host on failure, so dumping
+# everything we do here into docker-init.log is the easiest way to diagnose
+# a non-zero exit from inside the container.
+mkdir -p /tmp/logs
+exec > >(tee -a /tmp/logs/docker-init.log) 2>&1
 
 cd /var/www
 

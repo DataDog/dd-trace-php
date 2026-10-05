@@ -26,7 +26,11 @@ class HomeController extends AbstractController
     }
 
     /**
-     * @Route("/café/{item}", name="utf8_route")
+     * Symfony 4.x's RouteCompiler requires `options.utf8=true` to be set
+     * explicitly whenever a route path contains non-ASCII characters.
+     * (Symfony 5+ auto-detects the flag from the path.)
+     *
+     * @Route("/café/{item}", name="utf8_route", options={"utf8"=true})
      */
     public function utf8Action(Request $request, string $item)
     {
