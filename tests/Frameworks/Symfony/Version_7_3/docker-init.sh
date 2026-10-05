@@ -45,9 +45,12 @@ mark "schema:create done"
 
 php << 'PHPEOF'
 <?php
+// Symfony 7+ ships a `MakerBundle`-generated User with an extra NOT-NULL
+// `is_verified` column. We seed it explicitly so SQLite doesn't reject the
+// INSERT (which `OR IGNORE` would silently swallow).
 $db = new PDO('sqlite:/var/www/var/app.db');
-$stmt = $db->prepare('INSERT OR IGNORE INTO "user" (email, password, roles) VALUES (?, ?, ?)');
-$stmt->execute(['test-user@email.com', '$2y$13$WNnAxSuifzgXGx9kYfFr.eMaXzE50MmrMnXxmrlZqxSa21oiMyy0i', '[]']);
+$stmt = $db->prepare('INSERT OR IGNORE INTO "user" (email, password, roles, is_verified) VALUES (?, ?, ?, ?)');
+$stmt->execute(['test-user@email.com', '$2y$13$WNnAxSuifzgXGx9kYfFr.eMaXzE50MmrMnXxmrlZqxSa21oiMyy0i', '[]', 1]);
 PHPEOF
 mark "seeded user"
 
