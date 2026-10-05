@@ -136,12 +136,18 @@ else
     git clone https://github.com/krakjoe/apcu.git
     cd apcu
     git checkout ebbcd3d153df21eaee3395413de515a30b48ef05
-    phpize && ./configure && make -j"$MAKE_JOBS" && make install
+    phpize
+    ./configure
+    make -j"$MAKE_JOBS"
+    make install
     cd ..
     git clone https://github.com/nikic/php-ast.git
     cd php-ast
     git checkout 64ea7276bcd9cf8e503b719aafbec4d802c9eacc
-    phpize && ./configure && make -j"$MAKE_JOBS" && make install
+    phpize
+    ./configure
+    make -j"$MAKE_JOBS"
+    make install
     popd
     echo "extension=apcu.so" >> ${iniDir}/apcu.ini;
     echo "extension=ast.so" >> ${iniDir}/ast.ini;
@@ -197,15 +203,19 @@ else
     cd ..
   fi
   if [[ $PHP_VERSION_ID -ge 86 ]]; then
-    # rdkafka 6.0.5 and sqlsrv 5.13.3 don't build on PHP 8.6 yet (XtOffsetOf,
-    # INI_INT/INI_BOOL and php_stream_wrapper_log_error() were removed or changed).
+    # rdkafka 6.0.5 and sqlsrv 5.13.3 don't build on PHP 8.6 yet (XtOffsetOf, zval_dtor,
+    # EMPTY_SWITCH_DEFAULT_CASE, INI_INT/INI_BOOL removed; php_stream_wrapper_log_error() changed).
     # Patch the pinned releases until upstream ships PHP 8.6 support.
     pushd /tmp
     pecl download rdkafka-6.0.5
     tar xzf rdkafka-6.0.5.tgz
     cd rdkafka-6.0.5
-    sed -i 's/XtOffsetOf/offsetof/g' *.c *.h
-    phpize && ./configure && make -j"$MAKE_JOBS" && make install
+    sed -i -e 's/XtOffsetOf/offsetof/g' -e 's/zval_dtor(/zval_ptr_dtor_nogc(/g' \
+           -e 's/EMPTY_SWITCH_DEFAULT_CASE();/default: ZEND_UNREACHABLE(); break;/' *.c *.h
+    phpize
+    ./configure
+    make -j"$MAKE_JOBS"
+    make install
     cd ..
     pecl download sqlsrv-5.13.3
     tar xzf sqlsrv-5.13.3.tgz
@@ -213,7 +223,10 @@ else
     sed -i -e 's/INI_BOOL( *\([a-z_]*\) *)/((bool) zend_ini_long(\1, strlen(\1), 0))/' \
            -e 's/INI_INT( *\([a-z_]*\) *)/zend_ini_long(\1, strlen(\1), 0)/' init.cpp
     sed -i 's/php_stream_wrapper_log_error(wrapper, options, /php_stream_wrapper_log_error(wrapper, NULL, options, E_WARNING, false, ZEND_ENUM_StreamErrorCode_Generic, /' shared/core_stream.cpp
-    phpize && ./configure && make -j"$MAKE_JOBS" && make install
+    phpize
+    ./configure
+    make -j"$MAKE_JOBS"
+    make install
     popd
     echo "extension=rdkafka.so" >> ${iniDir}/rdkafka.ini;
   else
