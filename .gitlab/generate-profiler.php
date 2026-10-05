@@ -134,7 +134,6 @@ foreach ($profiler_minor_major_targets as $version) {
       done
       export DD_PROFILING_ENABLED=true
     - |
-      export DD_PROFILING_LOG_LEVEL=trace
       export DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=1
       export DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE=1
       export DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1
