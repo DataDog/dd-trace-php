@@ -35,6 +35,7 @@ RUN if [ "$BUILDPLATFORM" != "$TARGETPLATFORM" ]; then \
         sudo apt-get install -y --no-install-recommends valgrind:${TARGETPLATFORM#linux/} $(echo $DEVLIBS | sed "s/\(\s\|$\)/:${TARGETPLATFORM#linux/}\1/g"); \
     fi
 COPY build-php.sh /home/circleci
+COPY php-8.6/memcache-php86.patch /home/circleci/memcache-php86.patch
 COPY --chown=circleci:circleci --from=src $PHP_SRC_DIR $PHP_SRC_DIR
 
 FROM build AS php-debug
