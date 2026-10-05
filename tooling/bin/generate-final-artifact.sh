@@ -13,7 +13,7 @@ tmp_folder_final=$tmp_folder/final
 
 architectures=(x86_64 aarch64)
 
-php_apis=(20190902 20200930 20210902 20220829 20230831 20240924 20250925)
+php_apis=(20190902 20200930 20210902 20220829 20230831 20240924 20250925 20260924)
 if [[ -z ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
     php_apis+=(20151012 20160303 20170718 20180731)
 fi
@@ -144,7 +144,8 @@ for architecture in "${architectures[@]}"; do
                     cp ./extensions_${architecture}/ddtrace-$php_api-alpine.so ${tmp_folder_final_musl_trace}/ext/$php_api/ddtrace.so;
                     cp ./extensions_${architecture}/ddtrace-$php_api-alpine-zts.so ${tmp_folder_final_musl_trace}/ext/$php_api/ddtrace-zts.so;
                 fi
-                if [[ $target == "windows" && ${php_api} -ge 20170718 && $architecture == "x86_64" ]]; then # Windows support starts on 7.2
+                # Windows support starts on 7.2; WINDOWS_MAX_PHP_API is set by CI when newer PHPs have no Windows build.
+                if [[ $target == "windows" && ${php_api} -ge 20170718 && ${php_api} -le ${WINDOWS_MAX_PHP_API:-99999999} && $architecture == "x86_64" ]]; then
                     mkdir -p ${tmp_folder_final_windows_trace}/ext/$php_api;
                     cp ./extensions_${architecture}/php_ddtrace-$php_api.dll ${tmp_folder_final_windows_trace}/ext/$php_api/php_ddtrace.dll;
                     cp ./extensions_${architecture}/php_ddtrace-$php_api-zts.dll ${tmp_folder_final_windows_trace}/ext/$php_api/php_ddtrace-zts.dll;
@@ -182,7 +183,7 @@ for architecture in "${architectures[@]}"; do
     ########################
     if [[ -z ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
         # Extension
-        php_apis=(20160303 20170718 20180731 20190902 20200930 20210902 20220829 20230831 20240924 20250925)
+        php_apis=(20160303 20170718 20180731 20190902 20200930 20210902 20220829 20230831 20240924 20250925 20260924)
         for version in "${php_apis[@]}"
         do
             for full_target in "${targets[@]}"; do
@@ -241,7 +242,7 @@ for architecture in "${architectures[@]}"; do
         tmp_folder_final_musl_appsec=$tmp_folder_final_musl/dd-library-php/appsec
 
         # Extensions
-        php_apis=(20151012 20160303 20170718 20180731 20190902 20200930 20210902 20220829 20230831 20240924 20250925);
+        php_apis=(20151012 20160303 20170718 20180731 20190902 20200930 20210902 20220829 20230831 20240924 20250925 20260924);
         for php_api in "${php_apis[@]}"; do
             for full_target in "${targets[@]}"; do
                 target=${full_target#*-}
