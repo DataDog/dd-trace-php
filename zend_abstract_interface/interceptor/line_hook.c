@@ -91,7 +91,7 @@ extern void zai_line_hook_trampoline_global_registers(void);
 __asm__(".text\n"
         ".globl " ZAI_SYM("zai_line_hook_trampoline_global_registers") "\n" ZAI_LOCAL("zai_line_hook_trampoline_global_registers")
         ZAI_SYM("zai_line_hook_trampoline_global_registers") ":\n"
-        "  endbr64\n" /* Required for CET indirect-branch tracking; a NOP on other CPUs. */
+        "  .byte 0xf3, 0x0f, 0x1e, 0xfa\n" /* endbr64: CET landing pad, encoded for older assemblers. */
         "  pushq %rbp\n"
         "  movq  %rsp, %rbp\n"
         "  andq  $-16, %rsp\n" /* Jump entry provides no stack-alignment guarantee. */
