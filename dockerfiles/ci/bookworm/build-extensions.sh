@@ -178,7 +178,11 @@ else
     git clone https://github.com/php-memcached-dev/php-memcached.git
     cd php-memcached
     git checkout 0b52d3657140750fa0eddd20cdbfc6edc8fbdadd
-    phpize && ./configure && make -j"$MAKE_JOBS" && make install && echo "extension=memcached.so" >> ${iniDir}/memcached.ini;
+    phpize
+    ./configure
+    make -j"$MAKE_JOBS"
+    make install
+    echo "extension=memcached.so" >> ${iniDir}/memcached.ini;
     cd ..
 
     # memcache master version
@@ -187,10 +191,13 @@ else
     git checkout ac8e8c521a18aae14c8f2859694536ead304ce97
     if [[ $PHP_VERSION_ID -ge 86 ]]; then
       # PHP 8.6 build fix (PR #120) and session handlers (PR #122), both unmerged upstream.
-      git fetch origin 5007fe083a22907a7e6a1d811a0e3f72a8dbf0f4 7edf43e28b06268ae21988105b568d6df1ea8564
-      git -c user.name=ci -c user.email=ci@localhost merge --no-edit 5007fe083a22907a7e6a1d811a0e3f72a8dbf0f4 7edf43e28b06268ae21988105b568d6df1ea8564
+      git apply /home/circleci/memcache-php86.patch
     fi
-    phpize && ./configure && make -j"$MAKE_JOBS" && make install && echo "extension=memcache.so" >> ${iniDir}/memcache.ini;
+    phpize
+    ./configure
+    make -j"$MAKE_JOBS"
+    make install
+    echo "extension=memcache.so" >> ${iniDir}/memcache.ini;
     cd ..
 
     pecl install mongodb$MONGODB_VERSION; echo "extension=mongodb.so" >> ${iniDir}/mongodb.ini;
@@ -199,7 +206,10 @@ else
     git clone https://github.com/xdebug/xdebug.git
     cd xdebug
     git checkout 64007df3a0925808022fb87b6c6f06febf058ee2
-    phpize && ./configure && make -j"$MAKE_JOBS" && make install;
+    phpize
+    ./configure
+    make -j"$MAKE_JOBS"
+    make install
     cd ..
   fi
   if [[ $PHP_VERSION_ID -ge 86 ]]; then
@@ -208,21 +218,27 @@ else
     # Patch the pinned releases until upstream ships PHP 8.6 support.
     pushd /tmp
     pecl download rdkafka-6.0.5
+    echo "0af6b665c963c8c7d1109cec738034378d9c8863cbf612c0bd3235e519a708f1  rdkafka-6.0.5.tgz" | sha256sum -c -
     tar xzf rdkafka-6.0.5.tgz
     cd rdkafka-6.0.5
     sed -i -e 's/XtOffsetOf/offsetof/g' -e 's/zval_dtor(/zval_ptr_dtor_nogc(/g' \
            -e 's/EMPTY_SWITCH_DEFAULT_CASE();/default: ZEND_UNREACHABLE(); break;/' *.c *.h
+    # Fail if the sed missed a site (`! grep` would not trip set -e).
+    if grep -n 'XtOffsetOf\|zval_dtor(\|EMPTY_SWITCH_DEFAULT_CASE' *.c *.h; then exit 1; fi
     phpize
     ./configure
     make -j"$MAKE_JOBS"
     make install
     cd ..
     pecl download sqlsrv-5.13.3
+    echo "1c3092ca793bb67002ca022c412aacabb79a3297ee7005e3b7cc91b1e7166d22  sqlsrv-5.13.3.tgz" | sha256sum -c -
     tar xzf sqlsrv-5.13.3.tgz
     cd sqlsrv-5.13.3
     sed -i -e 's/INI_BOOL( *\([a-z_]*\) *)/((bool) zend_ini_long(\1, strlen(\1), 0))/' \
            -e 's/INI_INT( *\([a-z_]*\) *)/zend_ini_long(\1, strlen(\1), 0)/' init.cpp
     sed -i 's/php_stream_wrapper_log_error(wrapper, options, /php_stream_wrapper_log_error(wrapper, NULL, options, E_WARNING, false, ZEND_ENUM_StreamErrorCode_Generic, /' shared/core_stream.cpp
+    if grep -n 'INI_INT(\|INI_BOOL(' init.cpp; then exit 1; fi
+    grep -q 'php_stream_wrapper_log_error(wrapper, NULL, options, E_WARNING' shared/core_stream.cpp
     phpize
     ./configure
     make -j"$MAKE_JOBS"
@@ -291,7 +307,10 @@ else
       git clone https://github.com/phpredis/phpredis.git
       cd phpredis
       git checkout 146ec813ea7ca85c9e3a7cff2caf977096e16acf
-      phpize && ./configure && make -j"$MAKE_JOBS" && make install
+      phpize
+      ./configure
+      make -j"$MAKE_JOBS"
+      make install
     else
       pecl install redis-6.1.0
     fi
