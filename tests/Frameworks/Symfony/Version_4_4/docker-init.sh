@@ -12,6 +12,17 @@ export DD_TRACE_CLI_ENABLED=false
 export DATABASE_URL="sqlite:////var/www/var/app.db"
 export APP_ENV=prod
 
+# The committed config/packages/doctrine.yaml hard-codes a mysql URL (shared with
+# trace integration tests that run against a mysql service). Drop a prod-env
+# override so DATABASE_URL is honoured and the fixture can run on sqlite.
+mkdir -p config/packages/prod
+cat > config/packages/prod/doctrine_appsec.yaml << 'YAMLEOF'
+doctrine:
+    dbal:
+        url: '%env(resolve:DATABASE_URL)%'
+        server_version: ~
+YAMLEOF
+
 composer config optimize-autoloader false
 if [[ -f composer.lock ]]; then
     composer install --no-dev --no-scripts

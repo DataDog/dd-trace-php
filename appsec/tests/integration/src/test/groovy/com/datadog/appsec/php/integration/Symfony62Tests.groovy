@@ -33,11 +33,11 @@ class Symfony62Tests extends AbstractSymfonyAppsecTests {
         InspectContainerHelper.run(CONTAINER)
     }
 
-    // 13 routes come from the fixture controllers; `_errors` is dev-only (gated
-    // by `when@dev` in config/routes/framework.yaml) and docker-init.sh runs
-    // under APP_ENV=prod, so `/_error/{code}.{_format}` is not registered.
+    // 14 routes come from the fixture controllers. `_errors` is dev-only
+    // (gated by `when@dev` in config/routes/framework.yaml) and docker-init.sh
+    // runs under APP_ENV=prod, so `/_error/{code}.{_format}` is not registered.
     @Override
-    int expectedEndpointCount() { 13 }
+    int expectedEndpointCount() { 14 }
 
     @Override
     List<List<String>> expectedEndpoints() {
@@ -45,6 +45,7 @@ class Symfony62Tests extends AbstractSymfonyAppsecTests {
                 ['/', 'GET', 'GET /'],
                 ['/dynamic-path/{param01}', 'GET', 'GET /dynamic-path/{param01}'],
                 ['/caminho-dinamico/{param01}', 'GET', 'GET /caminho-dinamico/{param01}'],
+                ['/café/{item}', 'GET', 'GET /café/{item}'],
                 ['/login', 'GET', 'GET /login'],
                 ['/register', 'GET', 'GET /register'],
                 ['/simple', 'GET', 'GET /simple'],
