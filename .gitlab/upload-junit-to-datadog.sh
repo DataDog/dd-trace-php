@@ -7,6 +7,7 @@ export DD_ENV="ci"
 export DD_SERVICE="${DD_SERVICE:-dd-trace-php-tests}"
 export VAULT_SECRET_PATH="kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key"
 export VAULT_VERSION="1.20.0"
+: "${GITHUB_RELEASES_MIRROR:?GITHUB_RELEASES_MIRROR must be set}"
 
 # Parse arguments for tags (e.g., component:tracer test.type:unit)
 TAGS="${*}"
@@ -162,7 +163,7 @@ else
   echo "Downloading datadog-ci standalone binary..."
 
   datadog_ci_path="/tmp/datadog-ci"
-  datadog_ci_url="https://github.com/DataDog/datadog-ci/releases/latest/download/datadog-ci_linux-${datadog_ci_arch}"
+  datadog_ci_url="${GITHUB_RELEASES_MIRROR}/DataDog/datadog-ci/releases/download/latest/datadog-ci_linux-${datadog_ci_arch}"
 
   if ! curl -L --fail "${datadog_ci_url}" --output "${datadog_ci_path}"; then
     echo "Warning: Failed to download datadog-ci binary. Skipping JUnit upload." >&2

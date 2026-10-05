@@ -139,7 +139,7 @@ function windows_test_c_job($job_name, $thread_safety, $targets) {
     docker network create -d "nat" -o com.docker.network.windowsshim.dnsservers="1.1.1.1" net
     docker run --network net -d --name httpbin-integration registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:httpbin-windows
     docker run --network net -d --name request-replayer registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-request-replayer-3.0_windows
-    docker run -v ${pwd}:C:\Users\ContainerAdministrator\app  --network net -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
+    docker run --env GITLAB_CI=$env:GITLAB_CI -v ${pwd}:C:\Users\ContainerAdministrator\app  --network net -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
 
     # Enable NTFS long path support so cargo's libgit2-based git checkouts of
     # deeply nested dependencies (e.g. rust-tuf's interop-tests fixtures,
@@ -162,7 +162,11 @@ function windows_test_c_job($job_name, $thread_safety, $targets) {
 <?php endforeach ?>
 
     # Run extension tests
-    docker exec ${CONTAINER_NAME} powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_LEVEL=trace; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\<?= $build_dir ?>\php_ddtrace.dll" "${pwd}\tests\ext"'
+    # Write full WER dumps directly into the mounted artifact directory and
+    # keep WER enabled for every PHPT child process.
+    docker exec ${CONTAINER_NAME} powershell.exe -File C:\Users\ContainerAdministrator\app\.gitlab\enable-windows-test-dumps.ps1
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    docker exec -e _DD_DEBUG_SIDECAR_LOG_LEVEL=trace ${CONTAINER_NAME} powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\<?= $build_dir ?>\php_ddtrace.dll" "${pwd}\tests\ext"'
   after_script:
     - |
         docker exec ${CONTAINER_NAME} cmd.exe /s /c xcopy /y /c /s /e C:\ProgramData\Microsoft\Windows\WER\ReportQueue .\app\dumps\
@@ -178,6 +182,7 @@ function windows_test_c_job($job_name, $thread_safety, $targets) {
     - 'powershell -NoProfile -Command "try { docker rm -f httpbin-integration } catch {}"'
     - 'powershell -NoProfile -Command "try { docker network rm net } catch {}"'
   artifacts:
+    when: always
     paths:
       - sidecar.log
       - x64/<?= $build_dir ?>/php_ddtrace.dll
@@ -535,6 +540,9 @@ foreach ($all_minor_major_targets as $major_minor):
     KUBERNETES_MEMORY_LIMIT: 8Gi
     # Below the CPU request: each worker spawns its own valgrind process.
     MAX_TEST_PARALLELISM: 4
+    # Memcheck roughly doubles the sidecar's physical memory accounting. Keep
+    # it instrumented, but give its watchdog the same allowance as ASAN jobs.
+    _DD_SIDECAR_WATCHDOG_MAX_MEMORY: 2147483648
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
     KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
@@ -698,7 +706,12 @@ foreach ($all_minor_major_targets as $major_minor):
 <?php if (version_compare($major_minor, "7.2", ">=")): /* too expensive */ ?>
     DD_INSTRUMENTATION_TELEMETRY_ENABLED: 0
 <?php endif; ?>
+<?php if (version_compare($major_minor, "7.2", "<")): ?>
+  # PHP lt 7.2 have telemetry enabled, hit too many job timeouts at 40 mins.
+  timeout: 48m
+<?php else: ?>
   timeout: 40m
+<?php endif; ?>
   retry:
     max: 2
     when:
@@ -819,6 +832,11 @@ foreach ($services as $part => $service) {
 <?php if (str_contains($target, "kafka")): ?>
     WAIT_FOR: zookeeper:2181 kafka-integration:9092
     CI_DEBUG_SERVICES: "true"
+<?php endif; ?>
+<?php if (str_contains($target, "elasticsearch1")): ?>
+    WAIT_FOR: elasticsearch2-integration:9200
+<?php elseif (str_contains($target, "elasticsearch") || str_contains($target, "magento")): ?>
+    WAIT_FOR: elasticsearch7-integration:9200
 <?php endif; ?>
 <?php if (str_contains($target, "sqlsrv")): ?>
     WAIT_FOR: sqlsrv-integration:1433

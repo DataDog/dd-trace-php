@@ -20,7 +20,7 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 <?php
 
 $php = getenv('TEST_PHP_EXECUTABLE');
-$args = trim(getenv('TEST_PHP_ARGS') . ' ' . getenv('TEST_PHP_EXTRA_ARGS'));
+$args = trim((string) getenv('TEST_PHP_EXTRA_ARGS'));
 
 // PHP versions before 8.0 do not let the CLI server bind to port zero.
 $listener = stream_socket_server('tcp://127.0.0.1:0', $errorCode, $errorMessage);
@@ -52,6 +52,7 @@ if (!is_resource($process)) {
 fclose($pipes[0]);
 stream_set_blocking($pipes[1], false);
 stream_set_blocking($pipes[2], false);
+$connection = false;
 
 try {
     $status = proc_get_status($process);
@@ -61,12 +62,12 @@ try {
     $startupTimeout = getenv('USE_ZEND_ALLOC') === '0' ? 30 : 5;
     $deadline = microtime(true) + $startupTimeout;
 
-    // The CLI server announces startup after MINIT, then waits for its first RINIT.
+    // The server listens after MINIT. Connect without sending an HTTP request,
+    // so RINIT cannot run. PHP < 7.4 buffers its startup banner on stdout.
     do {
         $stderr .= stream_get_contents($pipes[2]);
-        if (strpos($stderr, 'Development Server') !== false
-            && strpos($stderr, 'started') !== false
-        ) {
+        $connection = @stream_socket_client('tcp://127.0.0.1:' . $port, $errorCode, $errorMessage, 0.1);
+        if (is_resource($connection)) {
             $started = true;
             break;
         }
@@ -87,6 +88,9 @@ try {
     }
 } finally {
     proc_terminate($process);
+    if (is_resource($connection)) {
+        fclose($connection);
+    }
     fclose($pipes[1]);
     fclose($pipes[2]);
     proc_close($process);

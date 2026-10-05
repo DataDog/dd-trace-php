@@ -12,11 +12,241 @@ foreach ($profiler_minor_major_targets as $version) {
     echo "  - \"{$version}\"\n";
 }
 ?>
+<?php
+// ARM64 runs a reduced PHP version matrix: amd64 and arm64 behave the same
+// across PHP versions (both LP64), so we only run the newest version.
+$arm64_latest = [end($profiler_minor_major_targets)];
+?>
+.arm64_latest_targets: &arm64_latest_targets
+<?php
+foreach ($arm64_latest as $version) {
+    echo "  - \"{$version}\"\n";
+}
+?>
+
+.profiler_correctness_targets: &profiler_correctness_targets
+<?php
+foreach ($profiler_minor_major_targets as $version) {
+    if (version_compare($version, "8.0", ">=")) {
+        echo "  - \"{$version}\"\n";
+    }
+}
+?>
+
+"prof-correctness":
+  stage: test
+  tags: [ "arch:amd64" ]
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11
+  retry: 1
+  needs:
+    - job: "prof-correctness-analyzer"
+      artifacts: true
+  variables:
+    KUBERNETES_CPU_REQUEST: 5
+    KUBERNETES_CPU_LIMIT: 5
+    KUBERNETES_MEMORY_REQUEST: 6Gi
+    KUBERNETES_MEMORY_LIMIT: 6Gi
+    KUBERNETES_HELPER_CPU_REQUEST: 1
+    KUBERNETES_HELPER_CPU_LIMIT: 1
+    KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
+    KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
+    PROFILER_SO: "${CI_PROJECT_DIR}/tmp/build_profiler/modules/datadog-profiling.so"
+    PROFILER_LOG: "${CI_PROJECT_DIR}/artifacts/prof-correctness/profiler.log"
+    PROF_ANALYZE: "${CI_PROJECT_DIR}/tmp/prof-analyze"
+    PARALLEL_VERSION: "1.2.15"
+    CARGO_HOME: "${CI_PROJECT_DIR}/.cache/prof-correctness-cargo"
+  cache:
+    key:
+      prefix: "prof-correctness-${PHP_MAJOR_MINOR}-${FLAVOUR}"
+      files:
+        - Cargo.lock
+        - rust-toolchain.toml
+    paths:
+      - .cache/prof-correctness-cargo/registry/index/
+      - .cache/prof-correctness-cargo/registry/cache/
+      - tmp/build_profiler/target-profiling/
+  parallel:
+    matrix:
+      - PHP_MAJOR_MINOR: *profiler_correctness_targets
+        FLAVOUR: [nts, zts]
+  before_script:
+<?php unset_dd_runner_env_vars(); ?>
+  script:
+    - switch-php "${FLAVOUR}"
+    - |
+      if [ "${FLAVOUR}" = "zts" ]; then
+        sudo env PHP_INI_SCAN_DIR= MAKEFLAGS="-j$(nproc)" \
+          pecl install -f "parallel-${PARALLEL_VERSION}"
+        installed_version="$(php -r 'echo phpversion("parallel");')"
+        if [ "${installed_version}" != "${PARALLEL_VERSION}" ]; then
+          echo "Expected parallel ${PARALLEL_VERSION}, got ${installed_version}"
+          exit 1
+        fi
+      fi
+    - mkdir -p "$(dirname "${PROFILER_LOG}")"
+    - ': > "${PROFILER_LOG}"'
+    - make compile_profiler PROFILER_FEATURES=trigger_time_sample
+    - php -v
+    - php -d extension="${PROFILER_SO}" --ri datadog-profiling
+    - |
+      export DD_PROFILING_ENABLED=Off
+      export DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=1
+      export DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1
+      test_cases=(
+        allocations
+        allocation_upscaling_mixed_sizes
+        time
+        strange_frames
+        timeline
+        exceptions
+        io
+        socket_io
+        io_upscaling
+        allocation_time_combined
+        generators
+      )
+      for test_case in allocation_sampling_distance "${test_cases[@]}"; do
+        output="${CI_PROJECT_DIR}/profiling/tests/correctness/${test_case}/test.pprof"
+        mkdir -p "$(dirname "${output}")"
+        DD_PROFILING_OUTPUT_PPROF="${output}" \
+          php -d extension="${PROFILER_SO}" \
+          "profiling/tests/correctness/${test_case}.php" \
+          2>> "${PROFILER_LOG}"
+        if compgen -G "${output}.*" > /dev/null; then
+          echo "Profile output should not exist:"
+          ls -l "${output}".*
+          exit 1
+        fi
+      done
+      unset DD_PROFILING_ENABLED
+    - |
+      export DD_PROFILING_LOG_LEVEL=trace
+      export DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=1
+      export DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE=1
+      export DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1
+      for test_case in "${test_cases[@]}"; do
+        output="${CI_PROJECT_DIR}/profiling/tests/correctness/${test_case}/test.pprof"
+        mkdir -p "$(dirname "${output}")"
+        DD_PROFILING_OUTPUT_PPROF="${output}" \
+          php -d extension="${PROFILER_SO}" \
+          "profiling/tests/correctness/${test_case}.php" \
+          2>> "${PROFILER_LOG}"
+      done
+
+      output="${CI_PROJECT_DIR}/profiling/tests/correctness/allocation_sampling_distance/test.pprof"
+      mkdir -p "$(dirname "${output}")"
+      DD_PROFILING_OUTPUT_PPROF="${output}" \
+        php -d extension="${PROFILER_SO}" \
+        -d datadog.profiling.allocation_sampling_distance=1 \
+        profiling/tests/correctness/allocation_sampling_distance.php \
+        2>> "${PROFILER_LOG}"
+
+      export DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE=1
+      output="${CI_PROJECT_DIR}/profiling/tests/correctness/allocations_1byte/test.pprof"
+      mkdir -p "$(dirname "${output}")"
+      DD_PROFILING_OUTPUT_PPROF="${output}" \
+        php -d extension="${PROFILER_SO}" \
+        profiling/tests/correctness/allocations.php \
+        2>> "${PROFILER_LOG}"
+
+      output="${CI_PROJECT_DIR}/profiling/tests/correctness/allocations_1byte_no_zend_alloc/test.pprof"
+      mkdir -p "$(dirname "${output}")"
+      DD_PROFILING_OUTPUT_PPROF="${output}" USE_ZEND_ALLOC=0 \
+        php -d extension="${PROFILER_SO}" \
+        profiling/tests/correctness/allocations.php \
+        2>> "${PROFILER_LOG}"
+      unset DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE
+    - |
+      if [ "${FLAVOUR}" = "zts" ]; then
+        output="${CI_PROJECT_DIR}/profiling/tests/correctness/exceptions_zts/test.pprof"
+        mkdir -p "$(dirname "${output}")"
+        DD_PROFILING_OUTPUT_PPROF="${output}" \
+          php -d extension="${PROFILER_SO}" \
+          profiling/tests/correctness/exceptions_zts.php \
+          2>> "${PROFILER_LOG}"
+      fi
+    - |
+      check_correctness() {
+        expected="$1"
+        profile="${2:-$1}"
+        "${PROF_ANALYZE}" \
+          -expectedJson "profiling/tests/correctness/${expected}.json" \
+          -pprofPath "profiling/tests/correctness/${profile}/"
+      }
+
+      check_correctness allocation_sampling_distance
+      check_correctness allocations
+      check_correctness allocations allocations_1byte
+      check_correctness allocations allocations_1byte_no_zend_alloc
+      check_correctness time
+      check_correctness strange_frames
+      check_correctness timeline
+      check_correctness allocation_time_combined
+      check_correctness generators
+      check_correctness io
+      check_correctness socket_io
+      check_correctness io_upscaling
+      if [ "${FLAVOUR}" = "zts" ]; then
+        check_correctness exceptions_zts
+      fi
+      check_correctness exceptions
+      check_correctness allocation_upscaling_mixed_sizes
+  after_script:
+    - |
+      mkdir -p "${CI_PROJECT_DIR}/artifacts/prof-correctness"
+      if [ -f "${PROFILER_LOG}" ]; then
+        if [ "${CI_JOB_STATUS}" = "failed" ]; then
+          tail -n 100 "${PROFILER_LOG}"
+        fi
+        gzip -9 -f "${PROFILER_LOG}"
+      fi
+  artifacts:
+    when: always
+    paths:
+      - artifacts/prof-correctness/
+      - profiling/tests/correctness/*/test.pprof*
+
+"prof-correctness-analyzer":
+  stage: test
+  tags: [ "arch:amd64" ]
+  image: registry.ddbuild.io/images/mirror/golang:1.25.13
+  retry: 1
+  variables:
+    GIT_STRATEGY: empty
+    GOMODCACHE: "${CI_PROJECT_DIR}/tmp/go/pkg/mod"
+    GOCACHE: "${CI_PROJECT_DIR}/tmp/go/build-cache"
+  cache:
+    key: prof-correctness-go
+    paths:
+      - tmp/go/
+  script:
+    - |
+      unset GOPRIVATE
+      depot_host="depot-read-api-go.us1.ddbuild.io"
+      export GOPROXY="https://${depot_host}/magicmirror/magicmirror/@current/"
+      export GONOPROXY=none
+      export GONOSUMDB="github.com/DataDog,go.ddbuild.io"
+      export GOTOOLCHAIN=local
+      go env GOPROXY GONOPROXY GONOSUMDB GOSUMDB GOTOOLCHAIN
+      git clone --depth 1 --branch main https://github.com/DataDog/prof-correctness.git \
+        "${CI_PROJECT_DIR}/tmp/prof-correctness"
+      cd "${CI_PROJECT_DIR}/tmp/prof-correctness" || exit 1
+      git rev-parse HEAD
+      # Build in the checkout to verify dependencies using its go.sum.
+      go build -o "${CI_PROJECT_DIR}/tmp/prof-analyze" ./cmd/prof-analyze
+  artifacts:
+    paths:
+      - tmp/prof-analyze
 
 "profiling tests":
   stage: test
   tags: [ "arch:${ARCH}" ]
   image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:${IMAGE_PREFIX}${PHP_MAJOR_MINOR}${IMAGE_SUFFIX}
+  interruptible: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      interruptible: false
+    - when: on_success
   # Setting the *_REQUEST and *_LIMIT variables to be the same, and setting
   # them for both the build and helper allows using Guaranteed QoS instead of
   # Burstable. This means nproc and similar tools will work as expected.
@@ -34,11 +264,19 @@ foreach ($profiler_minor_major_targets as $version) {
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *all_profiler_targets
-        ARCH: *arch_targets
+        ARCH: amd64
+        IMAGE_PREFIX: php-compile-extension-alpine-
+        IMAGE_SUFFIX: [""]
+      - PHP_MAJOR_MINOR: *arm64_latest_targets
+        ARCH: arm64
         IMAGE_PREFIX: php-compile-extension-alpine-
         IMAGE_SUFFIX: [""]
       - PHP_MAJOR_MINOR: *all_profiler_targets
-        ARCH: *arch_targets
+        ARCH: amd64
+        IMAGE_PREFIX: php-
+        IMAGE_SUFFIX: _centos-7
+      - PHP_MAJOR_MINOR: *arm64_latest_targets
+        ARCH: arm64
         IMAGE_PREFIX: php-
         IMAGE_SUFFIX: _centos-7
   script:
@@ -82,10 +320,15 @@ foreach ($profiler_minor_major_targets as $version) {
       - "artifacts/"
     when: "always"
 
-"clippy NTS":
+"Clippy":
   stage: test
-  tags: [ "arch:amd64" ]
+  tags: [ "arch:${ARCH}" ]
   image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11
+  interruptible: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      interruptible: false
+    - when: on_success
   variables:
     KUBERNETES_CPU_REQUEST: 5
     KUBERNETES_CPU_LIMIT: 5
@@ -100,14 +343,25 @@ foreach ($profiler_minor_major_targets as $version) {
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *all_profiler_targets
+        ARCH: amd64
+      - PHP_MAJOR_MINOR: *arm64_latest_targets
+        ARCH: arm64
   script:
     - switch-php nts # not compatible with debug
-    - cargo clippy --all-targets --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample -- -D warnings -Aunknown-lints
+    - cargo clippy --all-targets --no-deps --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample -- -D warnings -Aunknown-lints
+    - switch-php zts # not compatible with debug
+    - touch profiling/build.rs # make sure the build helper runs after switch-php
+    - cargo clippy --all-targets --no-deps --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample -- -D warnings -Aunknown-lints
 
 "Cargo test":
   stage: test
-  tags: [ "arch:amd64" ]
+  tags: [ "arch:${ARCH}" ]
   image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.5_bookworm-11
+  interruptible: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      interruptible: false
+    - when: on_success
   variables:
     KUBERNETES_CPU_REQUEST: 5
     KUBERNETES_CPU_LIMIT: 5
@@ -119,6 +373,9 @@ foreach ($profiler_minor_major_targets as $version) {
     KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
     # CARGO_TARGET_DIR: /mnt/ramdisk/cargo # ramdisk??
     libdir: /tmp/datadog-profiling
+  parallel:
+    matrix:
+       - ARCH: *arch_targets
   script:
     - switch-php nts
     - cargo test --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample
@@ -130,6 +387,11 @@ foreach ($profiler_minor_major_targets as $version) {
   stage: test
   tags: [ "arch:${ARCH}" ]
   image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11
+  interruptible: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      interruptible: false
+    - when: on_success
   variables:
     KUBERNETES_CPU_REQUEST: 5
     KUBERNETES_CPU_LIMIT: 5
@@ -151,6 +413,9 @@ foreach ($profiler_minor_major_targets as $version) {
       - PHP_MAJOR_MINOR: *all_profiler_targets
         ARCH: amd64
         FLAVOUR: [nts, zts]
+      - PHP_MAJOR_MINOR: *arm64_latest_targets
+        ARCH: arm64
+        FLAVOUR: [nts, zts]
   script:
     - unset DD_SERVICE; unset DD_ENV
     - command -v switch-php && switch-php "${FLAVOUR}"
@@ -161,10 +426,25 @@ foreach ($profiler_minor_major_targets as $version) {
     - php -v
     # Fail loudly if the profiler did not load: otherwise the language tests
     # would run profiler-less and pass, giving a false green.
-    - php -m | grep -qx 'datadog-profiling' || { echo 'ERROR datadog-profiling extension is not loaded'; exit 1; }
+    - php -r 'exit((int) !extension_loaded("datadog-profiling"));' || { echo 'ERROR datadog-profiling extension is not loaded'; exit 1; }
     - cat "${XFAIL_LIST}" profiling/tests/php-language-xfail.list > /tmp/profiler-php-language-xfail.list
     - "if php -r 'exit(PHP_VERSION_ID < 80400 ? 0 : 1);'; then cat profiling/tests/php-language-xfail-pre84.list >> /tmp/profiler-php-language-xfail.list; fi"
     - export XFAIL_LIST=/tmp/profiler-php-language-xfail.list
+    # Keep version-specific ARM64 failures running as XFAILs.
+    - |
+      php -r '
+      $xfail_list = getenv("CI_PROJECT_DIR") . "/dockerfiles/ci/xfail_tests/"
+          . PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION . "-arm64.list";
+      if (php_uname("m") === "aarch64" && is_file($xfail_list)) {
+          foreach (file($xfail_list, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $test) {
+              $test = "/usr/local/src/php/" . $test;
+              $contents = file_get_contents($test);
+              if (!preg_match("/^--XFAIL--\r?$/m", $contents)) {
+                  file_put_contents($test, str_replace("--FILE--", "--XFAIL--\nKnown failure listed in " . basename($xfail_list) . "\n--FILE--", $contents));
+              }
+          }
+      }
+      '
     - ulimit -c unlimited
     - .gitlab/run_php_language_tests.sh
   after_script:

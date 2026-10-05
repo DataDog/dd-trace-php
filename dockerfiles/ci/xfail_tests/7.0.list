@@ -43,6 +43,7 @@ Zend/tests/bug70805_2.phpt
 Zend/tests/bug71163.phpt
 Zend/tests/bug72038.phpt
 Zend/tests/bug73900.phpt
+Zend/tests/bug74093.phpt
 Zend/tests/bug75290.phpt
 Zend/tests/bug75420.16.phpt
 Zend/tests/bug75420.5.phpt

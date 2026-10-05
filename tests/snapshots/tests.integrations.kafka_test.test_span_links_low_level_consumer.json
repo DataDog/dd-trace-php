@@ -9,7 +9,7 @@
     "type": "queue",
     "meta": {
       "_dd.p.dm": "0",
-      "_dd.span_links": "[{\"trace_id\":\"0000000000000000c151df7d6ee5e2d6\",\"span_id\":\"c151df7d6ee5e2d6\",\"trace_state\":\"dd=t.dm:-0\",\"attributes\":{\"_dd.p.dm\":\"-0\"}}]",
+      "_dd.span_links": "[{\"trace_id\":\"0000000000000000c151df7d6ee5e2d6\",\"span_id\":\"c151df7d6ee5e2d6\",\"trace_state\":\"dd=t.dm:-0,ot=rv:ea5f0f7db45435;th:0\",\"attributes\":{\"_dd.p.dm\":\"-0\"}}]",
       "component": "kafka",
       "messaging.destination": "test-lowlevel",
       "messaging.destination_kind": "queue",

@@ -6,6 +6,7 @@
 #include <Zend/zend_ini.h>
 
 #ifndef _WIN32
+#include <dlfcn.h>
 #include <sys/mman.h>
 #include <unistd.h>
 #endif
@@ -98,51 +99,72 @@ typedef union _zend_op_trace_info {
 #define ZEND_FUNC_JIT_ON_HOT_TRACE (1u << 16)
 #endif
 
-static void *opcache_handle;
-static void zai_jit_find_opcache_handle(void *ext) {
-    zend_extension *extension = (zend_extension *)ext;
-    if (strcmp(extension->name, "Zend OPcache") == 0) {
-        opcache_handle = extension->handle;
-    }
-}
+#if PHP_VERSION_ID >= 80400
+static void (*zai_jit_blacklist_function)(zend_op_array *);
+#else
+static void (*zai_jit_protect)(void), (*zai_jit_unprotect)(void);
+#endif
 
-// opcache startup NULLs its handle. MINIT is executed before extension startup.
 void zai_jit_minit(void) {
-    zend_llist_apply(&zend_extensions, zai_jit_find_opcache_handle);
-}
+#if PHP_VERSION_ID >= 80400
+    zai_jit_blacklist_function = NULL;
+#else
+    zai_jit_protect = zai_jit_unprotect = NULL;
+#endif
+
+#if PHP_VERSION_ID >= 80500
+    // OPcache is built into PHP and has no extension handle.
+#ifdef _WIN32
+    // Resolve against the PHP DLL containing Zend, not the SAPI executable.
+    HMODULE symbol_handle = NULL;
+    if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                           (LPCSTR)zend_get_extension, &symbol_handle)) {
+        return;
+    }
+#else
+    void *symbol_handle = RTLD_DEFAULT;
+#endif
+#else
+    // OPcache startup NULLs its handle. MINIT runs before extension startup.
+    zend_extension *opcache = zend_get_extension("Zend OPcache");
+    if (!opcache || !opcache->handle) {
+        return;
+    }
+    void *symbol_handle = opcache->handle;
+#endif
 
 #if PHP_VERSION_ID >= 80400
-void (*zai_jit_blacklist_function)(zend_op_array *), (*zai_jit_unprotect)(void);
-static void zai_jit_fetch_symbols(void) {
-    if (!zai_jit_blacklist_function) {
-        ZEND_ASSERT(opcache_handle); // assert the handle is there is zend_func_info_rid != -1
-
-        zai_jit_blacklist_function = (void (*)(zend_op_array *)) DL_FETCH_SYMBOL(opcache_handle, "zend_jit_blacklist_function");
-        if (zai_jit_blacklist_function == NULL) {
-            zai_jit_blacklist_function = (void (*)(zend_op_array *)) DL_FETCH_SYMBOL(opcache_handle, "_zend_jit_blacklist_function");
-        }
+    zai_jit_blacklist_function = (void (*)(zend_op_array *)) DL_FETCH_SYMBOL(symbol_handle, "zend_jit_blacklist_function");
+    if (zai_jit_blacklist_function == NULL) {
+        zai_jit_blacklist_function = (void (*)(zend_op_array *)) DL_FETCH_SYMBOL(symbol_handle, "_zend_jit_blacklist_function");
     }
-}
 #else
-void (*zai_jit_protect)(void), (*zai_jit_unprotect)(void);
-static void zai_jit_fetch_symbols(void) {
-    if (!zai_jit_protect) {
-        ZEND_ASSERT(opcache_handle); // assert the handle is there is zend_func_info_rid != -1
-
-        zai_jit_protect = (void (*)(void))DL_FETCH_SYMBOL(opcache_handle, "zend_jit_protect");
-        if (zai_jit_protect == NULL) {
-            zai_jit_protect = (void (*)(void))DL_FETCH_SYMBOL(opcache_handle, "_zend_jit_protect");
-        }
-
-        zai_jit_unprotect = (void (*)(void))DL_FETCH_SYMBOL(opcache_handle, "zend_jit_unprotect");
-        if (zai_jit_unprotect == NULL) {
-            zai_jit_unprotect = (void (*)(void))DL_FETCH_SYMBOL(opcache_handle, "_zend_jit_unprotect");
-        }
+    zai_jit_protect = (void (*)(void)) DL_FETCH_SYMBOL(symbol_handle, "zend_jit_protect");
+    if (zai_jit_protect == NULL) {
+        zai_jit_protect = (void (*)(void)) DL_FETCH_SYMBOL(symbol_handle, "_zend_jit_protect");
     }
+    zai_jit_unprotect = (void (*)(void)) DL_FETCH_SYMBOL(symbol_handle, "zend_jit_unprotect");
+    if (zai_jit_unprotect == NULL) {
+        zai_jit_unprotect = (void (*)(void)) DL_FETCH_SYMBOL(symbol_handle, "_zend_jit_unprotect");
+    }
+#endif
 }
 
+#if PHP_VERSION_ID < 80400
 static inline bool zai_is_func_recv_opcode(zend_uchar opcode) {
     return opcode == ZEND_RECV || opcode == ZEND_RECV_INIT || opcode == ZEND_RECV_VARIADIC;
+}
+
+// PHP_INI_SYSTEM, hence process-wide constant once startup is done.
+static bool zai_jit_shm_protected(void) {
+    static int protected = -1;
+    if (protected < 0) {
+        zend_string *name = zend_string_init(ZEND_STRL("opcache.protect_memory"), 0);
+        zend_string *value = zend_ini_get_value(name);
+        zend_string_release(name);
+        protected = value && zend_ini_parse_bool(value);
+    }
+    return protected;
 }
 #endif
 
@@ -156,7 +178,7 @@ static inline bool check_pointer_near(void *a, void *b) {
 int zai_get_zend_func_rid(zend_op_array *op_array) {
 #if PHP_VERSION_ID < 80100
     if (zend_func_info_rid == -2) {
-        if (!opcache_handle) {
+        if (!zai_jit_protect || !zai_jit_unprotect) {
             zai_jit_func_info_rid = -1;
         } else {
             // On PHP 8.0 we impossibly can get hold of zend_func_info_rid.
@@ -185,12 +207,11 @@ int zai_get_zend_func_rid(zend_op_array *op_array) {
 
 void zai_jit_blacklist_function_inlining(zend_op_array *op_array) {
 #if PHP_VERSION_ID >= 80400
-    if (opcache_handle) {
-        zai_jit_fetch_symbols();
+    if (zai_jit_blacklist_function) {
         zai_jit_blacklist_function(op_array);
     }
 #else
-    if (zai_get_zend_func_rid(op_array) < 0) {
+    if (!zai_jit_protect || !zai_jit_unprotect || zai_get_zend_func_rid(op_array) < 0) {
         return;
     }
     // now in PHP < 8.1, zend_func_info_rid is set (on newer versions it's in zend_func_info.h)
@@ -219,15 +240,7 @@ void zai_jit_blacklist_function_inlining(zend_op_array *op_array) {
     }
 
     if (!(ZEND_OP_TRACE_INFO(opline, offset)->trace_flags & ZEND_JIT_TRACE_BLACKLISTED)) {
-        bool is_protected_memory = false;
-        zend_string *protect_memory = zend_string_init(ZEND_STRL("opcache.protect_memory"), 0);
-        zend_string *protect_memory_ini = zend_ini_get_value(protect_memory);
-        zend_string_release(protect_memory);
-        if (protect_memory_ini) {
-            is_protected_memory = zend_ini_parse_bool(protect_memory_ini);
-        }
-
-        zai_jit_fetch_symbols();
+        bool is_protected_memory = zai_jit_shm_protected();
 
         uint8_t *trace_flags = &ZEND_OP_TRACE_INFO(opline, offset)->trace_flags;
         const void **handler = &((zend_op*)opline)->handler;
@@ -237,16 +250,28 @@ void zai_jit_blacklist_function_inlining(zend_op_array *op_array) {
 #else
         size_t page_size = 4096;
 #endif
-        void *trace_flags_page = (void *) ((uintptr_t) trace_flags & ~page_size);
-        void *handler_page = (void *) ((uintptr_t) handler & ~page_size);
+        // Both targets are naturally aligned and smaller than a page, so one page each covers them.
+        void *trace_flags_page = (void *) ((uintptr_t) trace_flags & ~(page_size - 1));
+        void *handler_page = (void *) ((uintptr_t) handler & ~(page_size - 1));
         if (is_protected_memory) {
+            // Bailing out is mandatory: the writes below would fault on a still-PROT_READ page.
 #ifndef _WIN32
-            mprotect(trace_flags_page, page_size, PROT_READ | PROT_WRITE);
-            mprotect(handler_page, page_size, PROT_READ | PROT_WRITE);
+            if (mprotect(trace_flags_page, page_size, PROT_READ | PROT_WRITE) != 0) {
+                return;
+            }
+            if (mprotect(handler_page, page_size, PROT_READ | PROT_WRITE) != 0) {
+                mprotect(trace_flags_page, page_size, PROT_READ);
+                return;
+            }
 #else
             DWORD oldProtect;
-            VirtualProtect(handler_page, page_size, PAGE_READWRITE, &oldProtect);
-            VirtualProtect(trace_flags_page, page_size, PAGE_READWRITE, &oldProtect);
+            if (!VirtualProtect(trace_flags_page, page_size, PAGE_READWRITE, &oldProtect)) {
+                return;
+            }
+            if (!VirtualProtect(handler_page, page_size, PAGE_READWRITE, &oldProtect)) {
+                VirtualProtect(trace_flags_page, page_size, PAGE_READONLY, &oldProtect);
+                return;
+            }
 #endif
         }
 

@@ -39,12 +39,14 @@ function put_span_probe_id1($tag) {
     ]);
 }
 
-$p1 = put_span_probe_id1("a");
-$p2 = put_span_probe_id1("b");
-
 // Wait for BOTH probes to install, without calling foo() (keeps them pre-EMITTING
 // so the diagnostics read of the probe id happens on the first call, after removal).
-await_probe_installation(function () {}, 2);
+list($p1, $p2) = await_probe_installation(function () {
+    return [
+        put_span_probe_id1("a"),
+        put_span_probe_id1("b"),
+    ];
+}, 2);
 
 // Remove both configs and let the remote-config poll process the removals.
 del_rc_file($p1);

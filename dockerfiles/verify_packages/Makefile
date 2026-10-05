@@ -1,6 +1,17 @@
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 CENTOS6_PHP_VERSIONS:=7.0.centos6 7.1.centos6 7.2.centos6 7.3.centos6 7.4.centos6 8.0.centos6
 
+INSTALLER_DOCKER_ARGS = \
+	$(if $(INSTALLER_DOCKER_NETWORK),--network $(INSTALLER_DOCKER_NETWORK)) \
+	$(if $(INSTALLER_REPOSITORY_URL),--env DD_TEST_INSTALLER_REPO=$(INSTALLER_REPOSITORY_URL))
+INSTALLER_DOCKER_RUN = docker run --rm -i \
+	-v $(shell pwd)/../../:/app \
+	--env-file $(shell pwd)/.env \
+	$(INSTALLER_DOCKER_ARGS) \
+	-e CIRCLECI \
+	-e GITHUB_RELEASES_MIRROR \
+	--workdir=/app
+
 .PHONY: $(CENTOS6_PHP_VERSIONS)
 
 $(CENTOS6_PHP_VERSIONS): %.centos6:
@@ -41,6 +52,22 @@ verify_debian:
 		-e INSTALL_TYPE="$(INSTALL_TYPE)" \
 		debian \
 		dockerfiles/verify_packages/verify.sh
+
+# Thread-mode sidecar under a privilege-dropping PHP-FPM (root master, www-data workers).
+# Asserts the request is served and traced, that the agent-response shared memory is owned by
+# and named for the worker user, and that the sidecar threads dropped while FPM's own main
+# thread did not. Linux only: per-thread credentials are a Linux facility.
+#   Example: make verify_fpm_thread_sidecar_uid DOCKER_IMAGE=datadog/dd-trace-ci:php-8.3_bookworm INSTALL_MODE=sury PHP_VERSION=8.3
+verify_fpm_thread_sidecar_uid:
+	docker-compose run --rm \
+		-e INSTALL_MODE="$(INSTALL_MODE)" \
+		-e PHP_PACKAGE="$(PHP_PACKAGE)" \
+		-e PHP_VERSION="$(PHP_VERSION)" \
+		-e DOCKER_IMAGE="$(DOCKER_IMAGE)" \
+		-e PHP_FPM_BIN="$(PHP_FPM_BIN)" \
+		-e INSTALL_TYPE="$(INSTALL_TYPE)" \
+		debian \
+		dockerfiles/verify_packages/verify_fpm_thread_sidecar_uid.sh
 
 verify_centos:
 	docker-compose run --rm \
@@ -94,30 +121,30 @@ test_upgrade_from_legacy.sh \
 test_upgrade_from_php_installer.sh \
 	: global_test_dependencies
 	@echo "################### $(@) ###################"
-	docker run --rm -i -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
+	$(INSTALLER_DOCKER_RUN) php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
 
 test_first_install_php_debug.sh \
 test_first_install_php_debugzts.sh \
 test_profiler_install_unsupported_debug.sh \
 	: global_test_dependencies
 	@echo "################### $(@) ###################"
-	docker run --rm -i -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app datadog/dd-trace-ci:php-7.4_buster sh dockerfiles/verify_packages/installer/$(@)
+	$(INSTALLER_DOCKER_RUN) datadog/dd-trace-ci:php-7.4_buster sh dockerfiles/verify_packages/installer/$(@)
 
 test_first_install_php_zts.sh \
 	: global_test_dependencies
 	@echo "################### $(@) ###################"
-	docker run --rm -i -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app php:7.4-zts-buster sh dockerfiles/verify_packages/installer/$(@)
+	$(INSTALLER_DOCKER_RUN) php:7.4-zts-buster sh dockerfiles/verify_packages/installer/$(@)
 
 test_install_non_binary.sh \
 test_fpm.sh \
 	: global_test_dependencies
 	@echo "################### $(@) ###################"
-	docker run --rm -i -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app php:7.4-fpm sh dockerfiles/verify_packages/installer/$(@)
+	$(INSTALLER_DOCKER_RUN) php:7.4-fpm sh dockerfiles/verify_packages/installer/$(@)
 
 test_profiler_install_unsupported.sh \
 	: global_test_dependencies
 	@echo "################### $(@) ###################"
-	docker run --rm -i -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app php:7.0-cli sh dockerfiles/verify_packages/installer/$(@)
+	$(INSTALLER_DOCKER_RUN) php:7.0-cli sh dockerfiles/verify_packages/installer/$(@)
 
 test_alpine_no_ext_json.sh \
 test_alpine_no_libcurl.sh \
@@ -127,17 +154,17 @@ test_alpine_install_no_ext_curl_no_curl_cli.sh \
 test_alpine_install_no_ext_curl_yes_curl_cli.sh \
 	: global_test_dependencies
 	@echo "################### $(@) ###################"
-	docker run --rm -i -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app alpine:3.13 sh dockerfiles/verify_packages/installer/$(@)
+	$(INSTALLER_DOCKER_RUN) alpine:3.13 sh dockerfiles/verify_packages/installer/$(@)
 
 test_alpine_zts_no_zend_signals.sh \
 	: global_test_dependencies
 	@echo "################### $(@) ###################"
-	docker run --rm -i -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app dunglas/frankenphp:php8.3.12-alpine sh dockerfiles/verify_packages/installer/$(@)
+	$(INSTALLER_DOCKER_RUN) dunglas/frankenphp:php8.3.12-alpine sh dockerfiles/verify_packages/installer/$(@)
 
 test_alpine_no_libexecinfo.sh: global_test_dependencies
 	@echo "################### $(@) ###################"
-	docker run --rm -i -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app php:7.4-cli-alpine sh dockerfiles/verify_packages/installer/$(@)
+	$(INSTALLER_DOCKER_RUN) php:7.4-cli-alpine sh dockerfiles/verify_packages/installer/$(@)
 
 test_install_on_plesk.sh: global_test_dependencies
 	@echo "################### $(@) ###################"
-	docker run --rm -i -v $(shell pwd)/../../:/app --env-file $(shell pwd)/.env -e CIRCLECI --workdir=/app plesk/plesk:18.0 sh dockerfiles/verify_packages/installer/$(@)
+	$(INSTALLER_DOCKER_RUN) plesk/plesk:18.0 sh dockerfiles/verify_packages/installer/$(@)

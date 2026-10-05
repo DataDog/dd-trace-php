@@ -1479,7 +1479,7 @@ mod tests {
                 assert_eq!(0, cmp);
 
                 // Check that it is null terminated.
-                assert_eq!(ini.ptr[ini.len] as u8, b'\0');
+                assert_eq!(ini.ptr[ini.len], 0);
             }
         }
     }

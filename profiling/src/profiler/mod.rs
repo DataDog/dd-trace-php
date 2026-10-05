@@ -27,7 +27,7 @@ use crate::profiling::config::SystemSettings;
 use crate::profiling::exception::EXCEPTION_PROFILING_INTERVAL;
 #[cfg(target_os = "linux")]
 use crate::profiling::process_context::{ProcessIdentityRef, ThreadContextRead};
-use crate::profiling::profile_tags::ProfileTags;
+use crate::profiling::profile_tags::{ProfileTagSegment, ProfileTags};
 use crate::profiling::{Clocks, RefCellExt, CLOCKS, GLOBAL_TAGS, REQUEST_LOCALS};
 use chrono::Utc;
 use core::mem::forget;
@@ -41,10 +41,9 @@ use libdd_profiling::api::{
 };
 use libdd_profiling::internal::Profile as InternalProfile;
 use log::{debug, info, trace, warn};
-use rustc_hash::FxBuildHasher;
+use rustc_hash::{FxBuildHasher, FxHashMap, FxHasher};
 use std::borrow::Cow;
-use std::collections::HashMap;
-use std::hash::Hash;
+use std::hash::{Hash, Hasher};
 use std::num::NonZeroI64;
 use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU64, AtomicUsize, Ordering};
@@ -170,6 +169,13 @@ pub struct Label {
     pub value: LabelValue,
 }
 
+fn size_class_label(size: i64) -> Label {
+    Label {
+        key: "size class",
+        value: LabelValue::Num(size, "bytes"),
+    }
+}
+
 struct SampleLabels {
     labels: Vec<Label>,
     profile_tags: ProfileTags,
@@ -228,20 +234,67 @@ impl ValueType {
 /// This information is expected to be mostly stable for a process, but it may
 /// not be if an Apache reload occurs and it adjusts the service name, or if
 /// Apache per-dir settings use different service name, etc.
-#[derive(Debug, Eq, PartialEq, Hash)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct ProfileIndex {
-    pub sample_types: Vec<ValueType>,
-    pub tags: ProfileTags,
+    // Keep identity fields private so callers cannot invalidate the cached hash.
+    sample_types: Vec<ValueType>,
+    tags: ProfileTags,
+    hash: u64,
+}
+
+impl ProfileIndex {
+    fn new(sample_types: Vec<ValueType>, tags: ProfileTags) -> Self {
+        let mut hasher = FxHasher::default();
+        sample_types.hash(&mut hasher);
+        tags.hash(&mut hasher);
+        Self {
+            sample_types,
+            tags,
+            hash: hasher.finish(),
+        }
+    }
+}
+
+impl Hash for ProfileIndex {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.hash.hash(state);
+    }
+}
+
+#[derive(Debug)]
+pub enum MaybeShared<T> {
+    Owned(T),
+    Shared(Arc<T>),
+}
+
+impl<T> Deref for MaybeShared<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Owned(value) => value,
+            Self::Shared(value) => value,
+        }
+    }
+}
+
+impl<T: Default> MaybeShared<T> {
+    fn share(&mut self) -> Arc<T> {
+        match self {
+            Self::Owned(value) => {
+                let shared = Arc::new(std::mem::take(value));
+                *self = Self::Shared(Arc::clone(&shared));
+                shared
+            }
+            Self::Shared(value) => Arc::clone(value),
+        }
+    }
 }
 
 #[derive(Debug)]
 pub struct SampleData {
-    /// Wrapped in Arc so a single allocation can be shared between the
-    /// in-flight sample message and the heap-live tracker (and re-shared
-    /// across batched heap-live emissions on each export).
-    pub frames: Arc<Backtrace>,
-    /// See `frames`.
-    pub labels: Arc<Vec<Label>>,
+    pub frames: MaybeShared<Backtrace>,
+    pub labels: MaybeShared<Vec<Label>>,
     pub sample_values: Vec<i64>,
     pub timestamp: i64,
 }
@@ -345,7 +398,7 @@ impl TimeCollector {
     /// This should be called before exporting profiles to ensure heap-live data is included.
     fn collect_batched_heap_live_samples(
         &self,
-        profiles: &mut HashMap<Arc<ProfileIndex>, InternalProfile>,
+        profiles: &mut FxHashMap<Arc<ProfileIndex>, InternalProfile>,
         started_at: &WallTime,
     ) {
         let tracker_len = self.live_heap_tracker_count.load(Ordering::Relaxed);
@@ -375,8 +428,8 @@ impl TimeCollector {
             let message = SampleMessage {
                 key: Arc::clone(&tracked.key),
                 value: SampleData {
-                    frames: Arc::clone(&tracked.frames),
-                    labels: Arc::clone(&tracked.labels),
+                    frames: MaybeShared::Shared(Arc::clone(&tracked.frames)),
+                    labels: MaybeShared::Shared(Arc::clone(&tracked.labels)),
                     sample_values,
                     timestamp: NO_TIMESTAMP,
                 },
@@ -390,7 +443,7 @@ impl TimeCollector {
 
     fn handle_timeout(
         &self,
-        profiles: &mut HashMap<Arc<ProfileIndex>, InternalProfile>,
+        profiles: &mut FxHashMap<Arc<ProfileIndex>, InternalProfile>,
         last_export: &WallTime,
     ) -> WallTime {
         // Collect batched heap-live samples before export
@@ -660,7 +713,7 @@ impl TimeCollector {
 
     fn handle_resource_message(
         message: LocalRootSpanResourceMessage,
-        profiles: &mut HashMap<Arc<ProfileIndex>, InternalProfile>,
+        profiles: &mut FxHashMap<Arc<ProfileIndex>, InternalProfile>,
     ) {
         trace!(
             "Received Endpoint Profiling message for span id {}.",
@@ -685,7 +738,7 @@ impl TimeCollector {
 
     fn handle_sample_message(
         message: SampleMessage,
-        profiles: &mut HashMap<Arc<ProfileIndex>, InternalProfile>,
+        profiles: &mut FxHashMap<Arc<ProfileIndex>, InternalProfile>,
         started_at: &WallTime,
     ) {
         if message.key.sample_types.is_empty() {
@@ -745,7 +798,8 @@ impl TimeCollector {
 
     pub fn run(self) {
         let mut last_wall_export = WallTime::now();
-        let mut profiles: HashMap<Arc<ProfileIndex>, InternalProfile> = HashMap::with_capacity(1);
+        let mut profiles: FxHashMap<Arc<ProfileIndex>, InternalProfile> =
+            FxHashMap::with_capacity_and_hasher(1, FxBuildHasher);
 
         debug!(
             "Started with an upload period of {} seconds and approximate wall-time period of {} milliseconds.",
@@ -1250,7 +1304,9 @@ impl Profiler {
                         (0, 0, 0, NO_TIMESTAMP)
                     };
 
-                let labels = Profiler::common_labels(0);
+                let mut labels = Profiler::common_labels(1);
+                // The hooks round before sampling; values and labels use that same size.
+                labels.push(size_class_label(alloc_size));
                 let n_labels = labels.len();
 
                 // Note: heap_live_samples/heap_live_size are NOT included here.
@@ -1264,7 +1320,8 @@ impl Profiler {
                     ..Default::default()
                 };
 
-                let message = self.prepare_sample_message(frames, sample_values, labels, timestamp);
+                let mut message =
+                    self.prepare_sample_message(frames, sample_values, labels, timestamp);
 
                 // Pre-clone Arcs before try_send consumes `message`, but only
                 // insert into the tracker after a successful send to avoid
@@ -1272,8 +1329,8 @@ impl Profiler {
                 let tracked = if self.is_heap_live_enabled() && !ptr.is_null() {
                     Some(LiveHeapSample {
                         key: Arc::clone(&message.key),
-                        frames: Arc::clone(&message.value.frames),
-                        labels: Arc::clone(&message.value.labels),
+                        frames: message.value.frames.share(),
+                        labels: message.value.labels.share(),
                         allocation_size: alloc_size,
                     })
                 } else {
@@ -1925,17 +1982,45 @@ impl Profiler {
         //  1. Nobody should be calling this when it's disabled anyway.
         //  2. It would require tracking more state and/or spending CPU on
         //     something that shouldn't be done anyway (see #1).
-        let sample_types = self.sample_types_filter.sample_types();
         let sample_values = self.sample_types_filter.filter(samples);
+        let SampleLabels {
+            labels,
+            profile_tags,
+        } = labels;
+        let key = REQUEST_LOCALS.with_borrow_mut(|locals| {
+            if let Some(cached) = locals.profile_index.as_ref() {
+                let cached_tags = &cached.tags;
+                let same_optional_segment =
+                    |cached: &Option<Arc<ProfileTagSegment>>,
+                     current: &Option<Arc<ProfileTagSegment>>| match (
+                        cached, current,
+                    ) {
+                        (Some(cached), Some(current)) => Arc::ptr_eq(cached, current),
+                        (None, None) => true,
+                        _ => false,
+                    };
+                if Arc::ptr_eq(&cached_tags.common, &profile_tags.common)
+                    && Arc::ptr_eq(&cached_tags.unified_service, &profile_tags.unified_service)
+                    && same_optional_segment(&cached_tags.git, &profile_tags.git)
+                    && same_optional_segment(&cached_tags.custom, &profile_tags.custom)
+                {
+                    return Arc::clone(cached);
+                }
+            }
+
+            let key = Arc::new(ProfileIndex::new(
+                self.sample_types_filter.sample_types(),
+                profile_tags,
+            ));
+            locals.profile_index = Some(Arc::clone(&key));
+            key
+        });
 
         SampleMessage {
-            key: Arc::new(ProfileIndex {
-                sample_types,
-                tags: labels.profile_tags,
-            }),
+            key,
             value: SampleData {
-                frames: Arc::new(frames),
-                labels: Arc::new(labels.labels),
+                frames: MaybeShared::Owned(frames),
+                labels: MaybeShared::Owned(labels),
                 sample_values,
                 timestamp,
             },
@@ -1951,6 +2036,7 @@ pub struct JoinError {
 mod tests {
     use super::*;
     use crate::profiling::config::SystemSettingsState;
+    use crate::profiling::profile_tags::UnifiedServiceTagSegment;
     use crate::profiling::{
         allocation::DEFAULT_ALLOCATION_SAMPLING_INTERVAL, config::AgentEndpoint,
     };
@@ -2018,6 +2104,150 @@ mod tests {
     }
 
     #[test]
+    fn cached_profile_hash_preserves_semantic_identity() {
+        let create_index = |sample_type, service| {
+            ProfileIndex::new(
+                vec![ValueType::new(sample_type, "count")],
+                ProfileTags {
+                    common: Arc::default(),
+                    unified_service: Arc::new(
+                        UnifiedServiceTagSegment::try_new(service, "production", "1.0").unwrap(),
+                    ),
+                    git: None,
+                    custom: None,
+                },
+            )
+        };
+        let first = Arc::new(create_index("sample", "first"));
+        let second = Arc::new(create_index("sample", "first"));
+        assert!(!Arc::ptr_eq(&first, &second));
+        assert_eq!(first, second);
+
+        let mut hasher = FxHasher::default();
+        first.sample_types.hash(&mut hasher);
+        first.tags.hash(&mut hasher);
+        assert_eq!(first.hash, hasher.finish());
+
+        let mut profiles = FxHashMap::default();
+        profiles.insert(Arc::clone(&first), 42);
+        assert_eq!(profiles.get(&second), Some(&42));
+
+        for mut different in [
+            create_index("alloc-samples", "first"),
+            create_index("sample", "second"),
+        ] {
+            assert_ne!(first.hash, different.hash);
+            // A hash collision must not merge different profile identities.
+            different.hash = first.hash;
+            let different = Arc::new(different);
+            assert_ne!(first, different);
+            assert_eq!(profiles.get(&different), None);
+            profiles.insert(different, 99);
+        }
+        assert_eq!(profiles.len(), 3);
+        assert_eq!(profiles.get(&second), Some(&42));
+    }
+
+    #[test]
+    #[cfg(not(miri))]
+    fn profile_index_cache_tracks_sample_identity_changes() {
+        let settings = get_system_settings();
+        let profiler = Profiler::new(&settings);
+        REQUEST_LOCALS.with_borrow_mut(|locals| locals.profile_index = None);
+
+        let profile_tags = ProfileTags {
+            common: Arc::default(),
+            unified_service: Arc::new(UnifiedServiceTagSegment::try_new("first", "", "").unwrap()),
+            git: None,
+            custom: None,
+        };
+        let first = profiler.prepare_sample_message(
+            Backtrace::default(),
+            SampleValues::default(),
+            SampleLabels {
+                labels: Vec::new(),
+                profile_tags: ProfileTags {
+                    common: Arc::clone(&profile_tags.common),
+                    unified_service: Arc::clone(&profile_tags.unified_service),
+                    git: None,
+                    custom: None,
+                },
+            },
+            NO_TIMESTAMP,
+        );
+        let reused = profiler.prepare_sample_message(
+            Backtrace::default(),
+            SampleValues::default(),
+            SampleLabels {
+                labels: Vec::new(),
+                profile_tags,
+            },
+            NO_TIMESTAMP,
+        );
+        assert!(Arc::ptr_eq(&first.key, &reused.key));
+
+        let changed = profiler.prepare_sample_message(
+            Backtrace::default(),
+            SampleValues::default(),
+            SampleLabels {
+                labels: Vec::new(),
+                profile_tags: ProfileTags {
+                    common: Arc::default(),
+                    unified_service: Arc::new(
+                        UnifiedServiceTagSegment::try_new("second", "", "").unwrap(),
+                    ),
+                    git: None,
+                    custom: None,
+                },
+            },
+            NO_TIMESTAMP,
+        );
+        assert!(!Arc::ptr_eq(&reused.key, &changed.key));
+        assert!(changed.key.tags.unified_service.matches("second", "", ""));
+    }
+
+    #[test]
+    fn owned_payload_can_be_shared() {
+        let mut payload = MaybeShared::Owned(vec![42]);
+        let shared = payload.share();
+        assert_eq!(payload.as_slice(), [42]);
+        assert_eq!(shared.as_slice(), [42]);
+        assert!(matches!(payload, MaybeShared::Shared(_)));
+    }
+
+    #[test]
+    fn allocation_size_classes_partition_allocation_and_live_heap_samples() {
+        use crate::profiling::allocation::size_class::{allocation_size, PAGE_SIZE};
+
+        for sample_types in [
+            [ApiSampleType::AllocSamples, ApiSampleType::AllocSize],
+            [ApiSampleType::HeapLiveSamples, ApiSampleType::HeapLiveSize],
+        ] {
+            let mut profile = InternalProfile::try_new(&sample_types, None).unwrap();
+            // Two requests in the 80-byte bin combine; the 96-byte bin stays separate.
+            for raw_size in [65, 79, 81] {
+                let size = i64::try_from(allocation_size(raw_size, PAGE_SIZE).unwrap()).unwrap();
+                let label = size_class_label(size);
+                let api_label = ApiLabel::from(&label);
+                assert_eq!(api_label.key, "size class");
+                assert_eq!(api_label.num, size);
+                assert_eq!(api_label.num_unit, "bytes");
+                profile
+                    .try_add_sample(
+                        Sample {
+                            locations: vec![],
+                            values: &[1, size],
+                            labels: vec![api_label],
+                        },
+                        None,
+                    )
+                    .unwrap();
+            }
+            assert_eq!(profile.only_for_testing_num_aggregated_samples(), 2);
+        }
+    }
+
+    #[test]
     #[cfg(not(miri))]
     fn profiler_prepare_sample_message_works_cpu_time_and_timeline() {
         let frames = get_frames();
@@ -2028,9 +2258,14 @@ mod tests {
         settings.profiling_timeline_enabled = true;
 
         let profiler = Profiler::new(&settings);
+        REQUEST_LOCALS.with_borrow_mut(|locals| locals.profile_index = None);
         let labels = Profiler::common_labels(0);
 
         let message: SampleMessage = profiler.prepare_sample_message(frames, samples, labels, 900);
+        let cached_key = REQUEST_LOCALS.with_borrow(|locals| {
+            Arc::clone(locals.profile_index.as_ref().expect("cached profile index"))
+        });
+        assert!(Arc::ptr_eq(&message.key, &cached_key));
 
         assert_eq!(
             message.key.sample_types,

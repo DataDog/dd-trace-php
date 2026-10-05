@@ -431,6 +431,8 @@ void ddtrace_first_rinit(void) {
     // Uses config, cannot run earlier
 #ifndef _WIN32
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+        /* The Zend extension activation callback runs before module RINIT, so
+         * ddtrace_coms_minit() has either completed or been skipped here. */
         ddtrace_coms_init_and_start_writer();
     }
 #endif
@@ -438,10 +440,29 @@ void ddtrace_first_rinit(void) {
     dd_rinit_once_done = true;
 }
 
+void ddtrace_recreate_agent_config_reader(void) {
+    if (!DDTRACE_G(agent_config_reader) || !get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+        return;
+    }
+
+    ddog_agent_remote_config_reader_drop(DDTRACE_G(agent_config_reader));
+    DDTRACE_G(agent_config_reader) = NULL;
+
+    if (DDTRACE_G(agent_rate_by_service)) {
+        zai_json_release_persistent_array(DDTRACE_G(agent_rate_by_service));
+        DDTRACE_G(agent_rate_by_service) = NULL;
+    }
+
+    if (datadog_endpoint) {
+        DDTRACE_G(agent_config_reader) = ddog_agent_remote_config_reader_for_endpoint(datadog_endpoint);
+    }
+}
+
 static void dd_initialize_request(void) {
     DDTRACE_G(distributed_trace_id) = (datadog_trace_id){0};
     DDTRACE_G(distributed_parent_trace_id) = 0;
     DDTRACE_G(distributed_trace_flags) = 0;
+    DDTRACE_G(otel_sampling) = (ddtrace_otel_sampling_state)DDTRACE_OTEL_SAMPLING_STATE_INIT;
     DDTRACE_G(additional_global_tags) = zend_new_array(0);
     DDTRACE_G(default_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
     DDTRACE_G(propagated_priority_sampling) = DDTRACE_PRIORITY_SAMPLING_UNSET;
@@ -538,6 +559,7 @@ static void dd_clean_globals(void) {
     zend_hash_destroy(&DDTRACE_G(tracestate_unknown_dd_keys));
     zend_hash_destroy(&DDTRACE_G(propagated_root_span_tags));
     zend_hash_destroy(&DDTRACE_G(baggage));
+    ddtrace_otel_sampling_clear(&DDTRACE_G(otel_sampling));
     zval_ptr_dtor(&DDTRACE_G(pending_upstream_span_link));
     ZVAL_NULL(&DDTRACE_G(pending_upstream_span_link));
 
@@ -735,10 +757,16 @@ void ddtrace_internal_handle_fork() {
             DDTRACE_G(distributed_trace_id) = ddtrace_peek_trace_id();
             ddtrace_root_span_data *root = DDTRACE_G(active_stack) ? DDTRACE_G(active_stack)->root_span : NULL;
             DDTRACE_G(distributed_trace_flags) = root ? root->trace_flags : 0;
+            if (root) {
+                ddtrace_otel_sampling_copy(&DDTRACE_G(otel_sampling), &root->otel_sampling);
+            } else {
+                ddtrace_otel_sampling_clear(&DDTRACE_G(otel_sampling));
+            }
         } else {
             DDTRACE_G(distributed_parent_trace_id) = 0;
             DDTRACE_G(distributed_trace_id) = (datadog_trace_id){0};
             DDTRACE_G(distributed_trace_flags) = 0;
+            ddtrace_otel_sampling_clear(&DDTRACE_G(otel_sampling));
         }
         ddtrace_free_span_stacks(true);
         ddtrace_init_span_stacks();

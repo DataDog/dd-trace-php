@@ -8,6 +8,7 @@
 
 #include <ext/compatibility.h>
 #include "ddtrace.h"
+#include "otel_sampling.h"
 #include <ext/datadog_export.h>
 #include "priority_sampling/priority_sampling.h"
 #include "inferred_proxy_headers.h"
@@ -124,8 +125,8 @@ static inline ddtrace_inferred_span_data *INFERRED_SPANDATA(zend_object *obj) {
 struct ddtrace_root_span_data {
     datadog_trace_id trace_id;
     uint64_t parent_id;
-    uint8_t trace_flags;
     ddtrace_rule_result sampling_rule;
+    ddtrace_otel_sampling_state otel_sampling;
 #ifdef __linux__
     datadog_otel_thr_ctx_rec otel_context;
     // Incremented when this root is the entrypoint whose inherited identity changed.
@@ -136,6 +137,7 @@ struct ddtrace_root_span_data {
     // on every stack switch.
     void **otel_context_slot;
 #endif
+    uint8_t trace_flags;
     bool explicit_sampling_priority;
     bool asm_event_emitted;
     enum ddtrace_trace_limited trace_is_limited;

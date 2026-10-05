@@ -21,8 +21,21 @@ if [ "${WITH_ASAN}" -eq "1" ]; then
 fi
 # Compile Rust and PHP in parallel
 SHARED=1 ./compile_rust.sh &
+rust_build_pid=$!
 make -j static &
-wait
+c_build_pid=$!
+
+# A bare wait discards the exit statuses of both background builds.
+rust_build_status=0
+c_build_status=0
+wait "$rust_build_pid" || rust_build_status=$?
+wait "$c_build_pid" || c_build_status=$?
+if [ "$c_build_status" -ne 0 ]; then
+  exit "$c_build_status"
+fi
+if [ "$rust_build_status" -ne 0 ]; then
+  exit "$rust_build_status"
+fi
 
 # Link extension
 cc -shared -Wl,-whole-archive "${MODULES_DIR}/ddtrace.a" \

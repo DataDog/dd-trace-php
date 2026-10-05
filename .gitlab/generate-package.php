@@ -545,7 +545,7 @@ foreach ($windows_build_platforms as $platform) {
     mkdir extensions_x86_64_debugsymbols
 
     # Start the container
-    docker run -v ${pwd}:C:\Users\ContainerAdministrator\app -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
+    docker run --env GITLAB_CI=$env:GITLAB_CI -v ${pwd}:C:\Users\ContainerAdministrator\app -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
 
     # Build nts (fail fast on any step); capture combined output for failure classification.
     # ErrorActionPreference=Continue so the build's native stderr (e.g. cargo warnings) is not
@@ -895,9 +895,9 @@ endforeach;
     DOCKER_COMPOSE_DOWNLOAD_NAME: docker-compose-linux-x86_64
   before_script:
 <?php dockerhub_login() ?>
-    - apt-get update
-    - apt install -y php git make curl
-    - curl -L --fail https://github.com/docker/compose/releases/download/v2.36.0/${DOCKER_COMPOSE_DOWNLOAD_NAME} -o /usr/local/bin/docker-compose
+    - .gitlab/run-with-retryable-download.sh apt-get update
+    - .gitlab/run-with-retryable-download.sh apt install -y php git make curl
+    - curl -L --fail ${GITHUB_RELEASES_MIRROR}/docker/compose/releases/download/v2.36.0/${DOCKER_COMPOSE_DOWNLOAD_NAME} -o /usr/local/bin/docker-compose
     - chmod +x /usr/local/bin/docker-compose
     - mv packages/* .
     - docker network create randomized_tests_baseservices
@@ -968,9 +968,16 @@ endforeach;
       artifacts: true
     - job: "package extension (bundles): [arm64, aarch64-unknown-linux-gnu]"
       artifacts: true
+    - job: "package extension: [amd64, x86_64-alpine-linux-musl]"
+      artifacts: true
+    - job: "package extension: [arm64, aarch64-alpine-linux-musl]"
+      artifacts: true
     - job: datadog-setup.php
       artifacts: true
   variables:
+    INSTALLER_ARTIFACT_SERVER: installer-artifacts
+    INSTALLER_DOCKER_NETWORK: installer-tests
+    INSTALLER_REPOSITORY_URL: http://installer-artifacts
     KUBERNETES_CPU_REQUEST: 2
     KUBERNETES_MEMORY_REQUEST: 2Gi
     KUBERNETES_MEMORY_LIMIT: 4Gi
@@ -981,8 +988,50 @@ endforeach;
     - apt install -y make
     - mkdir build
     - mv packages build
+    - |
+      set -- build/packages/dd-library-php-*-x86_64-linux-gnu.tar.gz
+      if [ "$#" -ne 1 ] || [ ! -f "$1" ]; then
+        echo "Expected exactly one full x86_64 GNU bundle, found: $*"
+        exit 1
+      fi
+      version=${1#build/packages/dd-library-php-}
+      version=${version%-x86_64-linux-gnu.tar.gz}
+      printf '%s\n' "$version" > VERSION
+      for platform in \
+        x86_64-linux-gnu \
+        aarch64-linux-gnu \
+        x86_64-linux-musl \
+        aarch64-linux-musl; do
+        bundle="build/packages/dd-library-php-${version}-${platform}.tar.gz"
+        if [ ! -f "$bundle" ]; then
+          echo "Missing installer bundle: $bundle"
+          exit 1
+        fi
+      done
+    - docker network create "$INSTALLER_DOCKER_NETWORK"
+    - |
+      docker run --detach --rm \
+        --name "$INSTALLER_ARTIFACT_SERVER" \
+        --network "$INSTALLER_DOCKER_NETWORK" \
+        --volume "$CI_PROJECT_DIR/build/packages:/usr/share/nginx/html/releases/download/$(<VERSION):ro" \
+        nginx:1.27-alpine
+    - |
+      for attempt in $(seq 1 10); do
+        if docker exec "$INSTALLER_ARTIFACT_SERVER" wget --quiet --spider \
+          "http://127.0.0.1/releases/download/$(<VERSION)/datadog-setup.php"; then
+          break
+        fi
+        if [ "$attempt" -eq 10 ]; then
+          docker logs "$INSTALLER_ARTIFACT_SERVER"
+          exit 1
+        fi
+        sleep 1
+      done
   script:
     - make -C dockerfiles/verify_packages test_installer
+  after_script:
+    - docker rm --force "$INSTALLER_ARTIFACT_SERVER" || true
+    - docker network rm "$INSTALLER_DOCKER_NETWORK" || true
 
 "test early PHP 8.1":
   stage: verify
@@ -1045,7 +1094,7 @@ endforeach;
 <?php dockerhub_login() ?>
     - apt-get update
     - apt install -y make curl
-    - curl -L --fail https://github.com/docker/compose/releases/download/v2.36.0/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
+    - curl -L --fail ${GITHUB_RELEASES_MIRROR}/docker/compose/releases/download/v2.36.0/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
     - chmod +x /usr/local/bin/docker-compose
     - mkdir build
     - mv packages build
@@ -1168,14 +1217,14 @@ endforeach;
           - "debian:bullseye-slim"
           - "debian:bookworm-slim"
           - "debian:trixie-slim"
-  needs:
+  needs: &verify_debian_needs
     - job: "package extension (installers): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
     - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
-  before_script:
+  before_script: &verify_debian_before_script
 <?php dockerhub_login() ?>
     - mkdir build
     - mv packages build
@@ -1201,6 +1250,21 @@ endforeach;
         if [ -n "$bad" ]; then echo "FAIL: bullseye apt sources not pinned; apt would still fetch from: $bad"; exit 1; fi
       fi
     - apt-get install -y curl || exit 75
+
+# Thread-mode sidecar under a privilege-dropping PHP-FPM: root master, www-data pool workers.
+# One combination only - this verifies runtime behaviour of the sidecar's privilege drop, not
+# packaging, so it does not need the install-type/image matrix the other verify jobs carry.
+"verify fpm thread sidecar uid":
+  extends: .verify_job
+  variables:
+    INSTALL_MODE: sury
+    PHP_VERSION: "<?= end($all_minor_major_targets) ?>"
+    INSTALL_TYPE: native_package
+    IMAGE: "debian:bookworm-slim"
+  script:
+    - ./dockerfiles/verify_packages/verify_fpm_thread_sidecar_uid.sh
+  needs: *verify_debian_needs
+  before_script: *verify_debian_before_script
 
 <?php foreach ([["8.1", "arm64", "aarch64"], ["7.0", "amd64", "x86_64"]] as [$major_minor, $arch, $pkgprefix]): ?>
 "verify .tar.gz: [<?= $arch ?>]":
@@ -1319,6 +1383,8 @@ endforeach;
     DDAGENT_HOSTNAME: 127.0.0.1
     DD_AGENT_HOST: 127.0.0.1
     DATADOG_HAVE_DEV_ENV: 1
+    _DD_DEBUG_SIDECAR_LOG_LEVEL: trace
+    _DD_DEBUG_SIDECAR_LOG_METHOD: "file://${CI_PROJECT_DIR}/artifacts/sidecar.log"
   needs:
     - job: "package extension (installers): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
@@ -1327,6 +1393,7 @@ endforeach;
     - !reference [.services, httpbin-integration]
   before_script:
 <?php dockerhub_login() ?>
+    - mkdir -p artifacts
     - switch-php debug
   script:
     - sudo dpkg -i packages/*amd64*.deb
