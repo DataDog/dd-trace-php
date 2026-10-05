@@ -290,7 +290,7 @@ The bundled test certificates expired on 2026-04-02. The TLS handshake fails bec
 
 ## `ext/sockets/tests/gh21161.phpt`
 
-Disabled on versions: `8.4`, `8.5`.
+Disabled on versions: `8.4`, `8.5`, `8.6`.
 
 The test calls `socket_create(AF_INET6, ...)` without a SKIPIF guard for IPv6 availability (only skips on Windows). In CI (Kubernetes pods), IPv6 is not available, so `socket_create` returns `false`. The subsequent `socket_set_option(false, ...)` call throws a `TypeError` instead of producing the expected warnings. This is an upstream bug in the test's SKIPIF section.
 

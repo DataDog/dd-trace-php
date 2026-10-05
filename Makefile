@@ -1264,6 +1264,51 @@ TEST_WEB_85 := \
 	test_web_custom \
 	test_web_zend_1_21
 
+TEST_INTEGRATIONS_86 := \
+	test_integrations_amqp2 \
+	test_integrations_amqp_latest \
+	test_integrations_curl \
+	test_integrations_deferred_loading \
+	test_integrations_kafka \
+	test_integrations_laminaslog2 \
+	test_integrations_memcache \
+	test_integrations_memcached \
+	test_integrations_mongodb_latest \
+	test_integrations_monolog1 \
+	test_integrations_monolog2 \
+	test_integrations_monolog_latest \
+	test_integrations_mysqli \
+	test_integrations_openai_latest \
+	test_integrations_stripe_latest \
+	test_opentelemetry_1 \
+	test_integrations_guzzle_latest \
+	test_integrations_pcntl \
+	test_integrations_exec \
+	test_integrations_pdo \
+	test_integrations_elasticsearch7 \
+	test_integrations_elasticsearch8 \
+	test_integrations_elasticsearch_latest \
+	test_integrations_predis_2 \
+	test_integrations_predis_latest \
+	test_integrations_frankenphp \
+	test_integrations_ratchet \
+	test_integrations_sqlsrv \
+	test_opentracing_10
+
+TEST_WEB_86 := \
+	test_metrics \
+	test_web_cakephp_latest \
+	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
+	test_web_lumen_100 \
+	test_web_slim_312 \
+	test_web_symfony_73 \
+	test_web_symfony_latest \
+	test_web_wordpress_59 \
+	test_web_wordpress_61 \
+	test_web_custom \
+	test_web_zend_1_21
+
 # to check: test_web_drupal_95, test_web_laravel_latest, test_web_slim_latest, test_integrations_phpredis6
 
 FILTER ?= .

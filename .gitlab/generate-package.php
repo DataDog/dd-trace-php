@@ -708,6 +708,7 @@ foreach ($build_platforms as $platform) {
   extends: .package_extension_base
   variables:
     TRIPLET: "x86_64-pc-windows-msvc"
+    WINDOWS_MAX_PHP_API: "<?= $php_versions_to_abi[end($windows_minor_major_targets)] ?>"
   script:
     - make -j 4 <?= implode(' ', $windows_build_platforms[0]['targets']), "\n" ?>
     - ./tooling/bin/generate-final-artifact.sh $(<VERSION) "build/packages" "${CI_PROJECT_DIR}"
@@ -823,7 +824,8 @@ endforeach;
     - php datadog-setup.php --file "${installable_bundle}" --php-bin php --enable-profiling
     - phpize # run phpize just to get run-tests.php
   script:
-    - php run-tests.php -p $(which php) -d datadog.remote_config_enabled=false --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext/profiling
+    # run-tests.php is parallel by default since PHP 8.6; keep these tests serial (-j exists since 7.4)
+    - php run-tests.php $(php -r 'echo PHP_VERSION_ID >= 70400 ? "-j1":"";') -p $(which php) -d datadog.remote_config_enabled=false --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext/profiling
 
 # The tracer pipeline only runs the FrankenPHP suite on amd64/glibc. musl differs in ways that bite specifically here - see issue #4163, where the SIGTERM handler's clone() is rejected outright by musl and FrankenPHP consequently never shuts down.
 # Thus we so run the same suite once against the official FrankenPHP image on arm64/Alpine.
@@ -1144,7 +1146,8 @@ endforeach;
           - alpine:3.21
           - alpine:3.24
         INSTALL_TYPE: *verify_install_types
-      - IMAGE: <?= json_encode(array_map(function ($v) { return "php:$v-fpm-alpine"; }, $all_minor_major_targets)), "\n" ?>
+      # Pre-GA versions only exist as -rc tags on Docker Hub.
+      - IMAGE: <?= json_encode(array_map(function ($v) use ($latest_ga_minor_major) { return version_compare($v, $latest_ga_minor_major, ">") ? "php:$v-rc-fpm-alpine" : "php:$v-fpm-alpine"; }, $all_minor_major_targets)), "\n" ?>
         INSTALL_TYPE: *verify_install_types
   needs:
     - job: "package extension: [amd64, x86_64-alpine-linux-musl]"
@@ -1211,7 +1214,7 @@ endforeach;
     INSTALL_MODE: sury
   parallel:
     matrix:
-      - PHP_VERSION: <?= json_encode($all_minor_major_targets), "\n" ?>
+      - PHP_VERSION: <?= json_encode($sury_minor_major_targets), "\n" ?>
         INSTALL_TYPE: *verify_install_types
         IMAGE:
           - "debian:bullseye-slim"
@@ -1258,7 +1261,7 @@ endforeach;
   extends: .verify_job
   variables:
     INSTALL_MODE: sury
-    PHP_VERSION: "<?= end($all_minor_major_targets) ?>"
+    PHP_VERSION: "<?= $latest_ga_minor_major ?>"
     INSTALL_TYPE: native_package
     IMAGE: "debian:bookworm-slim"
   script:

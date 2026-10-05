@@ -121,7 +121,7 @@ stages:
   stage: test
   needs: []
   variables:
-    PHP_MAJOR_MINOR: "<?= $all_minor_major_targets[count($all_minor_major_targets) - 1] ?>"
+    PHP_MAJOR_MINOR: "<?= $latest_ga_minor_major ?>"
   image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11"
   script:
     - |
@@ -149,7 +149,7 @@ stages:
   stage: test
   needs: []
   variables:
-    PHP_MAJOR_MINOR: "<?= $all_minor_major_targets[count($all_minor_major_targets) - 1] ?>"
+    PHP_MAJOR_MINOR: "<?= $latest_ga_minor_major ?>"
     GIT_SUBMODULE_STRATEGY: none
   image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11"
   script:
