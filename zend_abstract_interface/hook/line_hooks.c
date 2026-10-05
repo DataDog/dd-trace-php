@@ -1,3 +1,4 @@
+#include "../tsrmls_cache.h"
 #include "line_hooks.h"
 
 #include "hook.h"
@@ -6,8 +7,14 @@
 #include <php.h>
 #include <zend_generators.h>
 
-#include <components/log/log.h>
 #include <interceptor/line_hook.h>
+
+#ifdef DDTRACE
+#include <components/log/log.h>
+#else
+#define LOG(...) ((void)0)
+#define LOG_LINE_ONCE(...) ((void)0)
+#endif
 
 /* Line-hook IDs are negative so a consumer can share one id space with zai_hook_install(), whose IDs are positive; zero stays the install failure sentinel. */
 

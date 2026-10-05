@@ -3,6 +3,7 @@ An open range still closes when a zend_bailout abandons the frame
 --INI--
 ; E_USER_ERROR is deprecated from 8.4, and the notice is not what this test is about. 24575 = E_ALL & ~E_DEPRECATED.
 error_reporting=24575
+fatal_error_backtraces=0
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_LOG_LEVEL=off

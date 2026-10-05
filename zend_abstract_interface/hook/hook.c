@@ -806,9 +806,21 @@ bool zai_hook_match_filepath(zend_string *file, zend_string *source) {
         return false;
     }
 
-    if (memcmp(ZSTR_VAL(source), ZSTR_VAL(file) + ZSTR_LEN(file) - ZSTR_LEN(source), ZSTR_LEN(source)) != 0) {
+    const char *suffix = ZSTR_VAL(file) + ZSTR_LEN(file) - ZSTR_LEN(source);
+#ifdef ZEND_WIN32
+    /* PHP accepts both separators, but compiled filenames use backslashes. */
+    for (size_t i = 0; i < ZSTR_LEN(source); ++i) {
+        char source_char = ZSTR_VAL(source)[i] == '\\' ? '/' : ZSTR_VAL(source)[i];
+        char file_char = suffix[i] == '\\' ? '/' : suffix[i];
+        if (source_char != file_char) {
+            return false;
+        }
+    }
+#else
+    if (memcmp(ZSTR_VAL(source), suffix, ZSTR_LEN(source)) != 0) {
         return false; // suffix doesn't match
     }
+#endif
 
     if (ZSTR_LEN(source) == ZSTR_LEN(file)) {
         return true; // it's exact match
