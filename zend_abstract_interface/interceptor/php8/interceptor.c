@@ -695,7 +695,7 @@ static zend_observer_fcall_handlers zai_interceptor_observer_fcall_init(zend_exe
 
 static const zend_op zai_interceptor_generator_post_op_template = {
     .opcode = ZEND_RETURN,
-    .op1 = { .var = XtOffsetOf(zend_execute_data, This) },
+    .op1 = { .var = offsetof(zend_execute_data, This) },
     .op1_type = IS_TMP_VAR,
     .op2 = { .num = 0 },
     .op2_type = IS_UNUSED,
