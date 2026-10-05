@@ -1,10 +1,9 @@
 #!/bin/bash -ex
 
-# AppSecContainer tails /tmp/logs/* back to the host on failure, so dumping
-# everything we do here into docker-init.log is the easiest way to diagnose
-# a non-zero exit from inside the container.
 mkdir -p /tmp/logs
 exec > >(tee -a /tmp/logs/docker-init.log) 2>&1
+
+mark() { echo "::MARK:: $*" >> /tmp/logs/docker-init.log; echo "::MARK:: $*"; sync; }
 
 cd /var/www
 
@@ -22,28 +21,42 @@ doctrine:
         url: '%env(resolve:DATABASE_URL)%'
         server_version: ~
 YAMLEOF
+mark "wrote doctrine_appsec.yaml"
 
 composer config optimize-autoloader false
+mark "composer config done"
 if [[ -f composer.lock ]]; then
     composer install --no-dev --no-scripts
 else
     composer update --no-dev --no-scripts
 fi
+mark "composer install/update done"
+
 mkdir -p var
-rm -rf var/cache/*
-php bin/console doctrine:database:drop --force 2>/dev/null || true
-php bin/console doctrine:database:create
+# Nuke any residual state from a cached volume: Symfony prod cache AND the
+# sqlite database. Starting from a clean DB file lets `doctrine:schema:create`
+# succeed without needing a separate `doctrine:database:drop` step (which has
+# been observed to hang silently under some SSI setups).
+rm -rf var/cache/* var/app.db
+mark "cleaned var/"
+
 php bin/console doctrine:schema:create
+mark "schema:create done"
+
 php << 'PHPEOF'
 <?php
 $db = new PDO('sqlite:/var/www/var/app.db');
 $stmt = $db->prepare('INSERT OR IGNORE INTO "user" (email, password, roles) VALUES (?, ?, ?)');
 $stmt->execute(['test-user@email.com', '$2y$13$WNnAxSuifzgXGx9kYfFr.eMaXzE50MmrMnXxmrlZqxSa21oiMyy0i', '[]']);
 PHPEOF
+mark "seeded user"
+
 chown -R www-data:www-data var
+mark "chown done"
 
 # .env.local wins over .env, so HTTP requests served by Apache also hit SQLite.
 cat > /var/www/.env.local << 'ENVEOF'
 APP_ENV=prod
 DATABASE_URL="sqlite:////var/www/var/app.db"
 ENVEOF
+mark "DONE"
