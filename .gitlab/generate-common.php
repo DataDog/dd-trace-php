@@ -14,13 +14,27 @@ $php_versions_to_abi = [
     "8.3" => "20230831",
     "8.4" => "20240924",
     "8.5" => "20250925",
+    "8.6" => "20260924",
 ];
 
 $all_minor_major_targets = array_keys($php_versions_to_abi);
 
 $asan_minor_major_targets = array_values(array_filter($all_minor_major_targets, function($v) { return version_compare($v, "7.4", ">="); }));
-$windows_minor_major_targets = array_values(array_filter($all_minor_major_targets, function($v) { return version_compare($v, "7.2", ">="); }));
+// Newest PHP with Windows support. PHP 8.6 needs the vs18 (VS 2026) toolchain;
+// set this to "8.5" if that cannot run on our Windows runners (no 8.6 Windows artifact ships then).
+$windows_max_version = "8.6";
+$windows_minor_major_targets = array_values(array_filter($all_minor_major_targets, function($v) use ($windows_max_version) { return version_compare($v, "7.2", ">=") && version_compare($v, $windows_max_version, "<="); }));
 $profiler_minor_major_targets = array_values(array_filter($all_minor_major_targets, function($v) { return version_compare($v, "7.1", ">="); }));
+
+// Newest GA PHP release. Jobs that need a released PHP (lint, Configuration Consistency,
+// sidecar uid verify) run on it. Bump to "8.6" at PHP 8.6 GA.
+$latest_ga_minor_major = "8.5";
+
+// Newest PHP that packages.sury.org ships with our API number. On 2026-10-05 Sury only had
+// php8.6 8.6.0~beta3 (API older than 20260924), so "verify debian" cannot load our 8.6 build.
+// Lift once Sury ships >= 8.6.0RC2: curl -fsSL https://packages.sury.org/php/dists/bookworm/main/binary-amd64/Packages.gz | gunzip | grep -A3 '^Package: php8.6-fpm$'
+$sury_max_version = "8.5";
+$sury_minor_major_targets = array_values(array_filter($all_minor_major_targets, function($v) use ($sury_max_version) { return version_compare($v, $sury_max_version, "<="); }));
 
 // In GitLab CI we use k8s and have to bind to `127.0.0.1`
 $service_bind_address = "0.0.0.0";
