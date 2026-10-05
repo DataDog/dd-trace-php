@@ -16,7 +16,7 @@ import static com.datadog.appsec.php.integration.TestParams.getVariant
 @EnabledIf('isExpectedVersion')
 @TestMethodOrder(MethodOrderer.OrderAnnotation)
 class Symfony62Tests extends AbstractSymfonyAppsecTests {
-    static boolean expectedVersion = phpVersion.contains('8.1') && !variant.contains('zts')
+    static boolean expectedVersion = phpVersion.contains('8.1') && variant == 'release'
 
     @Container
     @FailOnUnmatchedTraces

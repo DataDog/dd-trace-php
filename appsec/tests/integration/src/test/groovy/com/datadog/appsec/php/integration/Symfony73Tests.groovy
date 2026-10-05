@@ -23,7 +23,9 @@ import static com.datadog.appsec.php.integration.TestParams.getVariant
 @EnabledIf('isExpectedVersion')
 @TestMethodOrder(MethodOrderer.OrderAnnotation)
 class Symfony73Tests extends AbstractSymfonyAppsecTests {
-    static boolean expectedVersion = phpVersion.contains('8.3') && !variant.contains('zts')
+    // Covers both `test8.3-release` and `test8.3-release-ssi` so Sym7's
+    // FormLoginAuthenticator hooks are exercised in both standard and SSI mode.
+    static boolean expectedVersion = phpVersion.contains('8.3') && variant in ['release', 'release-ssi']
 
     @Container
     @FailOnUnmatchedTraces
