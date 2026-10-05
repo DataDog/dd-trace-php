@@ -546,7 +546,8 @@ foreach ($all_minor_major_targets as $major_minor):
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
     KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
-  timeout: 120m
+  # PHP < 7.4 runs the Valgrind suite serially.
+  timeout: <?= version_compare($major_minor, "7.4", "<") ? 150 : 120 ?>m
   script:
     - make test_extension_ci_valgrind
 <?php after_script("tmp/build_extension", has_test_agent: true); ?>
