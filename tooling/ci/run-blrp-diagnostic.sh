@@ -6,8 +6,7 @@ readonly TRACER_BASE_SHA="736b0374d81c1f9a54c68da3658701efaa8468f5"
 readonly TRACER_VERSION="1.26.0+dev.${TRACER_BASE_SHA}"
 readonly SYSTEM_TESTS_CANDIDATE_SHA="fb49108f2e8c0f47b0576e9b24564dd86d28ec41"
 readonly TEST_NODE_ID="tests/parametric/otel_env_vars/test_otel_blrp_max_queue_size.py::Test_OTEL_BLRP_MAX_QUEUE_SIZE::test_stable_value[64]"
-readonly EXPECTED_TEST_CLASS="Test_OTEL_BLRP_MAX_QUEUE_SIZE"
-readonly EXPECTED_TEST_NAME="test_stable_value[64]"
+readonly EXPECTED_JUNIT_TEST_NAME="tests.parametric.otel_env_vars.test_otel_blrp_max_queue_size.Test_OTEL_BLRP_MAX_QUEUE_SIZE.test_stable_value[64, parametric-php]"
 readonly RUN_COUNT=100
 readonly ARTIFACT_BASE_URL="https://s3.us-east-1.amazonaws.com/dd-trace-php-builds/${TRACER_VERSION/+/%2B}"
 
@@ -70,7 +69,7 @@ curl -fL --retry 3 --retry-all-errors \
     "${ARTIFACT_BASE_URL}/datadog-setup.php" \
     -o "${WORK_ROOT}/binaries/datadog-setup.php"
 curl -fL --retry 3 --retry-all-errors \
-    "${ARTIFACT_BASE_URL}/dd-library-php-${TRACER_VERSION}-x86_64-linux-gnu.tar.gz" \
+    "${ARTIFACT_BASE_URL}/dd-library-php-${TRACER_VERSION/+/%2B}-x86_64-linux-gnu.tar.gz" \
     -o "${WORK_ROOT}/binaries/dd-library-php-${TRACER_VERSION}-x86_64-linux-gnu.tar.gz"
 sha256sum "${WORK_ROOT}/binaries/"* | tee "${OUTPUT_ROOT}/tracer-artifact-sha256.txt"
 
@@ -97,6 +96,7 @@ cp "${REPOSITORY_ROOT}/tooling/ci/blrp_diagnostic_plugin.py" "${SYSTEM_TESTS_ROO
 cp "${WORK_ROOT}/binaries/"* "${SYSTEM_TESTS_ROOT}/binaries/"
 
 cd "${SYSTEM_TESTS_ROOT}"
+export PYTHONPATH="${SYSTEM_TESTS_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
 ./build.sh -w php-fpm-7.3 php
 
 pass_count=0
@@ -128,8 +128,7 @@ for run_number in $(seq 1 "${RUN_COUNT}"); do
         "${test_status}" \
         "${run_output}/reportJunit.xml" \
         "${run_output}/telemetry.jsonl" \
-        "${EXPECTED_TEST_CLASS}" \
-        "${EXPECTED_TEST_NAME}" \
+        "${EXPECTED_JUNIT_TEST_NAME}" \
         "${BLRP_EXPECTED_CONFIGURATION_NAME}" \
         > "${run_output}/classification.txt" <<'PY'
 import json
@@ -138,13 +137,13 @@ import xml.etree.ElementTree as ET
 
 
 def classify() -> tuple[str, str]:
-    pytest_status, report_path, telemetry_path, expected_class, expected_name, expected_configuration = sys.argv[1:]
+    pytest_status, report_path, telemetry_path, expected_name, expected_configuration = sys.argv[1:]
     cases = list(ET.parse(report_path).getroot().iter("testcase"))
     if len(cases) != 1:
         return "infrastructure-failure", f"expected-one-testcase-found-{len(cases)}"
 
     case = cases[0]
-    if not case.attrib.get("classname", "").endswith(expected_class) or case.attrib.get("name") != expected_name:
+    if case.attrib.get("name") != expected_name:
         return "infrastructure-failure", "unexpected-testcase"
 
     records = []

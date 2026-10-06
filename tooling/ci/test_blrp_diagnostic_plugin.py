@@ -124,8 +124,8 @@ class BlrpDiagnosticPluginTest(unittest.TestCase):
         )
         self.assertEqual(clock.now, 5.0)
         self.assertEqual(records[-1]["elapsed_ms"], 5000)
-        self.assertFalse(records[-1]["original_would_pass"])
-        self.assertTrue(records[-1]["late_target_present"])
+        self.assertFalse(records[-1]["expected_name_present_at_original_return"])
+        self.assertTrue(records[-1]["target_present_during_post_boundary_window"])
         serialized = "\n".join(emitted)
         self.assertNotIn("do-not-print-this", serialized)
         self.assertNotIn('"value"', serialized)
@@ -166,8 +166,27 @@ class BlrpDiagnosticPluginTest(unittest.TestCase):
         self.assertEqual(records[0]["phase"], "original-wait-snapshot")
         self.assertEqual(records[0]["events"][0]["runtime_id"], "original-runtime")
         self.assertEqual(len(_event_summaries(agent.events)), 1)
-        self.assertFalse(records[-1]["late_target_present"])
+        self.assertFalse(records[-1]["target_present_during_post_boundary_window"])
         self.assertNotIn("hidden", "\n".join(emitted))
+
+        batch_events = [
+            {"request_type": "message-batch", "runtime_id": "outer-runtime",
+             "payload": [
+                 {"request_type": "app-started", "runtime_id": "nested-sidecar",
+                  "application": {"language_version": "SIDECAR"},
+                  "payload": {"configuration": [{"name": "OTEL_BLRP_MAX_QUEUE_SIZE"}]}},
+                 {"request_type": "app-started", "runtime_id": "nested-client",
+                  "payload": {"configuration": [{"name": "UNRELATED"}]}},
+             ]},
+            {"request_type": "message-batch", "runtime_id": "outer-sidecar",
+             "application": {"language_version": "SIDECAR"},
+             "payload": [{"request_type": "app-started", "runtime_id": "nested-no-application",
+                          "payload": {"configuration": [{"name": "UNRELATED"}]}}]},
+        ]
+        self.assertEqual(
+            [event["runtime_id"] for event in _event_summaries(batch_events)],
+            ["nested-client", "nested-no-application"],
+        )
 
     def test_default_emitter_persists_worker_output(self) -> None:
         clock = FakeClock()

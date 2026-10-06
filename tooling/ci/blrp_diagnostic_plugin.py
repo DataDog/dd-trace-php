@@ -14,13 +14,14 @@ def _messages(events: Iterable[dict]) -> Iterable[tuple[dict, dict]]:
     for event in events:
         if not isinstance(event, dict):
             continue
-        if event.get("application", {}).get("language_version") == "SIDECAR":
-            continue
         if event.get("request_type") == "message-batch":
             for message in event.get("payload", []):
-                if isinstance(message, dict):
+                if (
+                    isinstance(message, dict)
+                    and message.get("application", {}).get("language_version") != "SIDECAR"
+                ):
                     yield message, event
-        else:
+        elif event.get("application", {}).get("language_version") != "SIDECAR":
             yield event, event
 
 
@@ -109,7 +110,7 @@ def diagnostic_wait(
             "phase": "original-return",
             "elapsed_ms": 0,
             "returned_configuration_names": returned_names,
-            "original_would_pass": expected_name in original_result_snapshot,
+            "expected_name_present_at_original_return": expected_name in original_result_snapshot,
             "expected_configuration_name": expected_name,
         },
     )
@@ -117,7 +118,7 @@ def diagnostic_wait(
     deadline = original_return_time + observation_seconds
     previous_fingerprint = None
     latest_summaries = []
-    late_target_present = False
+    target_present_during_post_boundary_window = False
     while True:
         now = monotonic()
         try:
@@ -130,7 +131,9 @@ def diagnostic_wait(
         target_present = any(
             expected_name in event["configuration_names"] for event in latest_summaries
         )
-        late_target_present = late_target_present or target_present
+        target_present_during_post_boundary_window = (
+            target_present_during_post_boundary_window or target_present
+        )
         fingerprint = json.dumps(
             {"events": latest_summaries, "error_type": error_type},
             sort_keys=True,
@@ -158,8 +161,8 @@ def diagnostic_wait(
         {
             "phase": "observation-complete",
             "elapsed_ms": round((monotonic() - original_return_time) * 1000),
-            "late_target_present": late_target_present,
-            "original_would_pass": expected_name in original_result_snapshot,
+            "target_present_during_post_boundary_window": target_present_during_post_boundary_window,
+            "expected_name_present_at_original_return": expected_name in original_result_snapshot,
         },
     )
     return original_result_snapshot
