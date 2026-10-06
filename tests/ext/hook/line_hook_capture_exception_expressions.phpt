@@ -37,7 +37,21 @@ function array_element() {
         2
     ];
 }
-foreach (['concat' => 1, 'rope' => 1, 'rope_first' => 1, 'first_array_expression' => 1, 'call_argument' => 3, 'array_element' => 3] as $function => $offset) {
+function later_array_element() {
+    return [
+        new TemporaryValue,
+        2,
+        3
+    ];
+}
+function identity($value) { return $value; }
+function call_result() {
+    return identity(
+        new TemporaryValue
+    ) +
+        2;
+}
+foreach (['concat' => 1, 'rope' => 1, 'rope_first' => 1, 'first_array_expression' => 1, 'call_argument' => 3, 'array_element' => 3, 'later_array_element' => 4, 'call_result' => 4] as $function => $offset) {
     echo "$function\n";
     $victim = new CaptureThrows;
     $line = (new ReflectionFunction($function))->getStartLine() + $offset;
@@ -67,6 +81,12 @@ call_argument
 temporary destroyed
 caught: capture
 array_element
+temporary destroyed
+caught: capture
+later_array_element
+temporary destroyed
+caught: capture
+call_result
 temporary destroyed
 caught: capture
 Done.
