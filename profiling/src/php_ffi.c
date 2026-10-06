@@ -649,8 +649,8 @@ bool ddog_php_jit_enabled() {
             zval_ptr_dtor(&jit_stats_arr);
             return jit;
         }
-        // zend_jit_status() symbol not found despite having an OPcache handle, this is weird, but
-        // let's fallback to INI based detection
+        // zend_jit_status() symbol not found, this is weird, but let's fallback to INI based
+        // detection
     }
 
     // For versions with the bug, use INI-based detection

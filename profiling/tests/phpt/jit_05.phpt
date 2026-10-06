@@ -1,8 +1,8 @@
 --TEST--
-[profiling] JIT does not disable allocation profiling on PHP 8.5+
+[profiling] phpinfo does not blame JIT for disabled allocation profiling on PHP 8.5+
 --DESCRIPTION--
-PHP 8.5 builds OPcache into the binary. With JIT active, allocation profiling
-stays enabled and phpinfo must not blame JIT.
+With allocation profiling turned off by the user and JIT active, phpinfo must
+report `false`, not the JIT workaround of older PHP versions.
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID < 80500)
@@ -15,7 +15,7 @@ if (ini_get('opcache.jit') === false)
 --ENV--
 DD_PROFILING_ENABLED=yes
 DD_PROFILING_LOG_LEVEL=off
-DD_PROFILING_ALLOCATION_ENABLED=yes
+DD_PROFILING_ALLOCATION_ENABLED=no
 --INI--
 opcache.enable_cli=1
 opcache.jit=tracing
@@ -30,4 +30,4 @@ preg_match('/^Allocation Profiling Enabled => (.*)$/m', $output, $matches);
 echo $matches[1], PHP_EOL;
 ?>
 --EXPECT--
-true
+false

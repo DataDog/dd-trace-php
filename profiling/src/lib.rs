@@ -865,6 +865,12 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
         }
     };
 
+    // Only blame JIT on PHP versions where it actually disables allocation profiling.
+    #[cfg(php_zend_mm_set_custom_handlers_ex)]
+    use allocation::allocation_ge84::first_rinit_should_disable_due_to_jit;
+    #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
+    use allocation::allocation_le83::first_rinit_should_disable_due_to_jit;
+
     // PHP calls may re-enter the profiler through sampling hooks.
     {
         let yes = c"true".as_ptr();
@@ -912,7 +918,7 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
                     c"Allocation Profiling Enabled".as_ptr(),
                     if system_settings.profiling_allocation_enabled {
                         yes
-                    } else if zend::ddog_php_jit_enabled() {
+                    } else if first_rinit_should_disable_due_to_jit() {
                         // Work around version-specific issues.
                         if cfg!(not(php_zend_mm_set_custom_handlers_ex)) {
                             c"Not available due to JIT being active, see https://github.com/DataDog/dd-trace-php/pull/2088 for more information.".as_ptr()
