@@ -34,7 +34,9 @@ function download_php {
   fi
 
   local download_url
-  if [[ $version_id -lt 50400 ]]; then
+  if [[ -n ${PHP_TARBALL_URL:-} ]]; then
+    download_url=$PHP_TARBALL_URL
+  elif [[ $version_id -lt 50400 ]]; then
     download_url="http://museum.php.net/php5/php-${version}.tar.gz"
   else
     download_url="https://www.php.net/distributions/php-${version}.tar.gz"
@@ -106,8 +108,11 @@ function get_xdebug_version {
     echo '3.1.6'
   elif [[ $version_id -lt 80400 ]]; then
     echo '3.3.2'
-  elif [[ $version_id -ge 80400 ]]; then
+  elif [[ $version_id -lt 80600 ]]; then
     echo '3.5.0'
+  else
+    # Xdebug master (3.6.0alpha2-dev): no 8.6 release yet; same pin as the bookworm CI image
+    echo '64007df3a0925808022fb87b6c6f06febf058ee2'
   fi
 }
 
@@ -223,7 +228,7 @@ function build_php {
     options+=(--enable-json) # not shared to make it consistent with php 8
   fi
 
-  if [[ $version_id -lt 85000 ]]; then
+  if [[ $version_id -lt 80500 ]]; then
     options+=(--enable-opcache=shared)
   fi
 
