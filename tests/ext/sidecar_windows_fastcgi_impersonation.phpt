@@ -86,15 +86,18 @@ echo "trace received: ", $found ? "yes" : "no", "\n";
 $ddtraceLog = (string)@file_get_contents("$dir\\ddtrace.log");
 $pipeList = (string)shell_exec('powershell.exe -NoProfile -Command "Get-ChildItem \\\\.\\pipe\\ | ForEach-Object Name"');
 $tmp = sys_get_temp_dir();
+$sidPipe = (bool)preg_grep('/^libdatadog_S-1-[\d-]+-libd/', explode("\n", $pipeList));
 $sidless = preg_grep('/^libdatadog_(\d+_)?-libd/', explode("\n", $pipeList))
     || is_file("$tmp\\datadog-ipc-helper-") || is_file("$tmp\\datadog-crashtracking-.dll");
 $tokenError = strpos($ddtraceLog, "Failed fetching process token") !== false;
 $fallback = strpos($ddtraceLog, "falling back to thread mode") !== false;
+echo "ddtrace.log written: ", $ddtraceLog !== "" ? "yes" : "no", "\n";
+echo "sidecar pipe with SID: ", $sidPipe ? "yes" : "no", "\n";
 echo "process token error: ", $tokenError ? "yes" : "no", "\n";
 echo "thread mode fallback: ", $fallback ? "yes" : "no", "\n";
 echo "SID-less names: ", $sidless ? "yes" : "no", "\n";
 
-if (!$found || $tokenError || $fallback || $sidless) {
+if (!$found || $ddtraceLog === "" || !$sidPipe || $tokenError || $fallback || $sidless) {
     // Diagnostics, shown in the failure diff.
     foreach ($clientOutput as $i => $o) {
         echo "=== client output, request $i ===\n$o\n";
@@ -123,6 +126,8 @@ request 1 impersonated: yes
 request 2: ok
 request 2 impersonated: yes
 trace received: yes
+ddtrace.log written: yes
+sidecar pipe with SID: yes
 process token error: no
 thread mode fallback: no
 SID-less names: no
