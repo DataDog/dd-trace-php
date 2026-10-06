@@ -402,6 +402,58 @@ foreach ($build_platforms as $platform) {
 endforeach;
 ?>
 
+<?php foreach ($arch_targets as $arch): ?>
+"aggregate appsec extension: [<?= $arch ?>]":
+  stage: appsec
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-7.4_bookworm-11"
+  tags: [ "arch:amd64" ]
+  script: ls ./
+  variables:
+    GIT_STRATEGY: none
+  needs:
+<?php
+    foreach ($build_platforms as $platform):
+        if ($platform["arch"] == $arch):
+            foreach ($all_minor_major_targets as $major_minor):
+?>
+    - job: "compile appsec extension: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
+<?php
+            endforeach;
+        endif;
+    endforeach;
+?>
+  artifacts:
+    paths:
+      - "appsec_*"
+
+"aggregate profiler extension: [<?= $arch ?>]":
+  stage: profiler
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-7.4_bookworm-11"
+  tags: [ "arch:amd64" ]
+  script: ls ./
+  variables:
+    GIT_STRATEGY: none
+  needs:
+<?php
+    foreach ($build_platforms as $platform):
+        if ($platform["arch"] == $arch):
+            foreach ($profiler_minor_major_targets as $major_minor):
+?>
+    - job: "compile profiler extension: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>]"
+      artifacts: true
+<?php
+            endforeach;
+        endif;
+    endforeach;
+?>
+  artifacts:
+    paths:
+      - "datadog-profiling"
+<?php
+endforeach;
+?>
+
 <?php
 foreach ($build_platforms as $platform) {
     $image = sprintf($platform['image_template'], "8.1");
@@ -764,6 +816,10 @@ foreach ($asan_build_platforms as $platform) {
       artifacts: true
     - job: "aggregate tracing extension: [<?= $arch ?>]"
       artifacts: true
+    - job: "aggregate appsec extension: [<?= $arch ?>]"
+      artifacts: true
+    - job: "aggregate profiler extension: [<?= $arch ?>]"
+      artifacts: true
 <?php
     foreach ($build_platforms as $platform):
         if ($platform["arch"] == $arch):
@@ -771,21 +827,6 @@ foreach ($asan_build_platforms as $platform) {
     - job: "compile tracing sidecar: [<?= $arch ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
 <?php
-            foreach ($all_minor_major_targets as $major_minor):
-?>
-    - job: "compile appsec extension: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>]"
-      artifacts: true
-<?php
-            endforeach;
-?>
-
-<?php
-            foreach ($profiler_minor_major_targets as $major_minor):
-?>
-    - job: "compile profiler extension: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>]"
-      artifacts: true
-<?php
-            endforeach;
         endif;
     endforeach;
 endforeach;
