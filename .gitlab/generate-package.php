@@ -1558,7 +1558,8 @@ $system_tests_weblogs = [
 ?>
 <?php foreach ($system_tests_weblogs as $weblog): ?>
 "System Tests: [<?= $weblog ?>, tracer-release]":
-  extends: .system_tests
+  # The tracer_release group includes THREAD_CONTEXT_SHARING.
+  extends: [ .system_tests, .cws_guest_kernel_mounts ]
   # Start with two shards as an initial estimate of useful parallelism.
   # Keep the job count modest across all weblogs to limit shared CI compute usage.
   parallel: 2

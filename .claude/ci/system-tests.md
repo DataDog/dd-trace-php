@@ -54,8 +54,11 @@ the DIND service only sees its own. Jobs that extend the hidden
   the Agent and wait for the CWS self test before starting the weblog. Only
   `THREAD_CONTEXT_SHARING` reads it.
 
-The canary job runs only that test, with `-F` because system-tests marks it
-xfail for the Agent (APPSEC-70532).
+The tracer-release jobs extend the template, because their `tracer_release`
+group includes `THREAD_CONTEXT_SHARING`. The variable has no effect on the
+other scenarios. The canary job runs only that test, with `-F` because
+system-tests marks it xfail for the Agent (APPSEC-70532). Lifting that xfail
+is done in system-tests, not here.
 
 ### Upstream dependencies (CI only)
 
