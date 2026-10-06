@@ -83,7 +83,7 @@ zend_execute_data *zai_set_observed_frame(zend_execute_data *execute_data) {
 
 #if PHP_VERSION_ID >= 80000
 void zai_reset_observed_frame_post_bailout(void) {
-    // On old versions zai_set_observed_frame(NULL) already isolates the sandbox; preserve the caller for backtraces.
+    // PHP 8.2+ already isolates the sandbox with zai_set_observed_frame(NULL); preserve the caller for backtraces.
 #if PHP_VERSION_ID < 80200
     if (EG(current_execute_data)) {
         zend_execute_data *cur_ex = EG(current_execute_data);
@@ -117,9 +117,22 @@ bool zai_sandbox_call(zai_sandbox *sandbox, zend_fcall_info *fci, zend_fcall_inf
 
 #if PHP_VERSION_ID >= 80200
     zend_execute_data *prev_observed = zai_set_observed_frame(NULL);
+#elif PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100
+    // PHP 8.0's own dummy frame dies on bailout; keep one alive through observer cleanup.
+    zend_execute_data dummy_execute_data = {.prev_execute_data = EG(current_execute_data)};
+    bool use_dummy = EG(current_execute_data) && EG(current_execute_data)->func && ZEND_USER_CODE(EG(current_execute_data)->func->type);
+    if (use_dummy) {
+        EG(current_execute_data) = &dummy_execute_data;
+    }
 #endif
 
     int zai_sandbox_call_result = zai_sandbox_try_call(fci, fcc);
+#if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100
+    EG(current_execute_data) = dummy_execute_data.prev_execute_data;
+    if (use_dummy && EG(exception)) {
+        zend_rethrow_exception(EG(current_execute_data));
+    }
+#endif
     zai_sandbox_call_bailed = zai_sandbox_call_result == 2;
 
     if (zai_sandbox_call_bailed) {
