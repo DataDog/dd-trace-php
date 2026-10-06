@@ -406,8 +406,13 @@ zend_string *nullable dd_user_info_anonymize(zend_string *nonnull user_info)
     memcpy(ZSTR_VAL(anon_user_id), LSTRARG(ANON_PREFIX));
 
     char *digest_begin = ZSTR_VAL(anon_user_id) + LSTRLEN(ANON_PREFIX);
+#if PHP_VERSION_ID >= 80600
+    zend_bin2hex(digest_begin, (const unsigned char *)ZSTR_VAL(digest),
+        ops->digest_size / 2);
+#else
     php_hash_bin2hex(
         digest_begin, (unsigned char *)ZSTR_VAL(digest), ops->digest_size / 2);
+#endif
     digest_begin[ops->digest_size] = 0;
 
     zend_string_release(digest);

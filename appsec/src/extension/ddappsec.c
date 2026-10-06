@@ -421,7 +421,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddappsec)
 
     DDAPPSEC_G(during_request_shutdown) = true;
 
-    ZEND_RESULT_CODE result = SUCCESS;
+    int result = SUCCESS;
 
     // Here now we have to disconnect from the helper in all the cases but when
     // disabled by config
