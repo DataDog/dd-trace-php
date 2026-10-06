@@ -18,11 +18,11 @@
 
 // V1 payload build context threaded through serialization. `chunk` is DD_CHUNK_NONE until the
 // first span of the current stack creates its chunk (ddtrace_serialize_closed_spans resets it per
-// stack). Under the Box-per-node model `chunk` is the chunk node pointer, stable across sibling pushes.
+// stack). It points into the builder and is only used until the next chunk is created.
 #define DD_CHUNK_NONE (NULL)
 typedef struct {
-    struct ddog_TracerPayloadV1Builder *builder;
-    struct ddog_ChunkNode *chunk;
+    struct ddog_TracerPayloadBytes *builder;
+    struct ddog_TraceChunkBytes *chunk;
     bool process_tags_set;  // the payload's _dd.tags.process / _dd.sdk.otlp_export attributes were decided
     bool payload_fields_set;  // the payload env/app_version/hostname/git were taken from a root span
     bool mark_top_level;  // mark `_dd.top_level` on every top-level span (the sidecar sender's V1 needs it)

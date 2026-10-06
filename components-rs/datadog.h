@@ -80,27 +80,27 @@ void ddog_init_span_func(void (*free_func)(ddog_OwnedZendString),
 
 /**
  * # Safety
- * `span` must be a live span node pointer from `ddog_new_span` (every `*_zstr` span setter).
+ * `span` must be a live span pointer from `ddog_new_span` (every `*_zstr` span setter).
  */
-void ddog_set_span_service_zstr(ddog_SpanNode *span, struct _zend_string *str);
+void ddog_set_span_service_zstr(ddog_SpanBytes *span, struct _zend_string *str);
 
 /**
  * # Safety
  * See [`ddog_set_span_service_zstr`].
  */
-void ddog_set_span_name_zstr(ddog_SpanNode *span, struct _zend_string *str);
+void ddog_set_span_name_zstr(ddog_SpanBytes *span, struct _zend_string *str);
 
 /**
  * # Safety
  * See [`ddog_set_span_service_zstr`].
  */
-void ddog_set_span_resource_zstr(ddog_SpanNode *span, struct _zend_string *str);
+void ddog_set_span_resource_zstr(ddog_SpanBytes *span, struct _zend_string *str);
 
 /**
  * # Safety
  * See [`ddog_set_span_service_zstr`].
  */
-void ddog_set_span_type_zstr(ddog_SpanNode *span, struct _zend_string *str);
+void ddog_set_span_type_zstr(ddog_SpanBytes *span, struct _zend_string *str);
 
 /**
  * String attribute under a static C literal key.

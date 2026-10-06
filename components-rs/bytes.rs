@@ -1,7 +1,7 @@
-use datadog_sidecar_ffi::span::{attrs_mut, bytes_string_from_literal, Attributes, SpanNode};
+use datadog_sidecar_ffi::span::{attrs_mut, bytes_string_from_literal, Attributes};
 use libdd_common_ffi::slice::CharSlice;
 use libdd_tinybytes::{Bytes, BytesString, RefCountedCell, RefCountedCellVTable};
-use libdd_trace_utils::span::v1::AttributeValueBytes;
+use libdd_trace_utils::span::v1::{AttributeValueBytes, SpanBytes};
 use std::borrow::Cow;
 use std::os::raw::c_char;
 use std::ptr::NonNull;
@@ -136,31 +136,31 @@ fn convert_zend_to_bytes_string(zend_str: &mut ZendString) -> BytesString {
 // zend_string fields and static C-literal keys.
 
 /// # Safety
-/// `span` must be a live span node pointer from `ddog_new_span` (every `*_zstr` span setter).
+/// `span` must be a live span pointer from `ddog_new_span` (every `*_zstr` span setter).
 #[no_mangle]
-pub unsafe extern "C" fn ddog_set_span_service_zstr(span: *mut SpanNode, str: &mut ZendString) {
-    (*span).span_mut().service = convert_zend_to_bytes_string(str);
+pub unsafe extern "C" fn ddog_set_span_service_zstr(span: *mut SpanBytes, str: &mut ZendString) {
+    (*span).service = convert_zend_to_bytes_string(str);
 }
 
 /// # Safety
 /// See [`ddog_set_span_service_zstr`].
 #[no_mangle]
-pub unsafe extern "C" fn ddog_set_span_name_zstr(span: *mut SpanNode, str: &mut ZendString) {
-    (*span).span_mut().name = convert_zend_to_bytes_string(str);
+pub unsafe extern "C" fn ddog_set_span_name_zstr(span: *mut SpanBytes, str: &mut ZendString) {
+    (*span).name = convert_zend_to_bytes_string(str);
 }
 
 /// # Safety
 /// See [`ddog_set_span_service_zstr`].
 #[no_mangle]
-pub unsafe extern "C" fn ddog_set_span_resource_zstr(span: *mut SpanNode, str: &mut ZendString) {
-    (*span).span_mut().resource = convert_zend_to_bytes_string(str);
+pub unsafe extern "C" fn ddog_set_span_resource_zstr(span: *mut SpanBytes, str: &mut ZendString) {
+    (*span).resource = convert_zend_to_bytes_string(str);
 }
 
 /// # Safety
 /// See [`ddog_set_span_service_zstr`].
 #[no_mangle]
-pub unsafe extern "C" fn ddog_set_span_type_zstr(span: *mut SpanNode, str: &mut ZendString) {
-    (*span).span_mut().r#type = convert_zend_to_bytes_string(str);
+pub unsafe extern "C" fn ddog_set_span_type_zstr(span: *mut SpanBytes, str: &mut ZendString) {
+    (*span).r#type = convert_zend_to_bytes_string(str);
 }
 
 /// String attribute under a static C literal key.
@@ -232,19 +232,25 @@ mod v04_parity_tests {
     use datadog_sidecar_ffi::span::*;
     use libdd_common_ffi::slice::CharSlice;
     use libdd_trace_utils::msgpack_encoder::v04::to_vec_from_v1;
-    use libdd_trace_utils::span::v1::SpanKind;
+    use libdd_trace_utils::span::v1::{SpanBytes, SpanKind, TracerPayloadBytes};
     use rmpv::Value;
 
     fn cs(s: &str) -> CharSlice<'_> {
         CharSlice::from_bytes(s.as_bytes())
     }
 
-    fn one_span_builder() -> (TracerPayloadV1Builder, *mut SpanNode) {
-        let mut b = TracerPayloadV1Builder::default();
-        let c = b.push_chunk(0, 1);
-        // Safety: `c` is the live chunk node just pushed.
-        let s = unsafe { (*c).push_span() };
+    fn one_span_builder() -> (Box<TracerPayloadBytes>, *mut SpanBytes) {
+        let mut b = ddog_v1_new_builder();
+        let c = ddog_new_chunk(&mut b, 0, 1);
+        // Safety: `c` was just returned and nothing was pushed since.
+        let s = unsafe { ddog_new_span(c) };
         (b, s)
+    }
+
+    /// v0.4 bytes of the builder, deduped first as the send path does.
+    fn v04(mut b: Box<TracerPayloadBytes>) -> Vec<u8> {
+        b.dedup();
+        to_vec_from_v1(&b)
     }
 
     /// Decodes v0.4 bytes (`[[span,...],...]`) and returns the first span's map.
@@ -304,8 +310,8 @@ mod v04_parity_tests {
             ddog_attributes_add_str(ddog_span_get_attributes(s), cs("m.5"), cs("v"));
         }
 
-        let new_span = first_span(&to_vec_from_v1(&newb.into_payload()));
-        let old_span = first_span(&to_vec_from_v1(&oldb.into_payload()));
+        let new_span = first_span(&v04(newb));
+        let old_span = first_span(&v04(oldb));
         assert_eq!(
             sorted_bucket(&new_span, "meta"),
             sorted_bucket(&old_span, "meta"),
@@ -338,8 +344,8 @@ mod v04_parity_tests {
             ddog_attributes_add_double(ddog_span_get_attributes(s), cs("mm.deep.x"), 0.0);
         }
 
-        let new_span = first_span(&to_vec_from_v1(&newb.into_payload()));
-        let old_span = first_span(&to_vec_from_v1(&oldb.into_payload()));
+        let new_span = first_span(&v04(newb));
+        let old_span = first_span(&v04(oldb));
         assert_eq!(
             sorted_bucket(&new_span, "metrics"),
             sorted_bucket(&old_span, "metrics"),
@@ -374,8 +380,8 @@ mod v04_parity_tests {
             ddog_attributes_add_str(ddog_link_get_attributes(link), cs("nums"), cs("[3,4]"));
         }
 
-        let new_span = first_span(&to_vec_from_v1(&newb.into_payload()));
-        let old_span = first_span(&to_vec_from_v1(&oldb.into_payload()));
+        let new_span = first_span(&v04(newb));
+        let old_span = first_span(&v04(oldb));
         // v0.4 links are native `span_links` with String attributes: the nested value carries the
         // old json_encode string.
         let nums = |sp: &Value| {
@@ -400,7 +406,7 @@ mod v04_parity_tests {
             ddog_attr_list_push_int(nums, 4);
             ddog_attributes_add_list(ddog_event_get_attributes(event), cs("nums"), nums);
         }
-        let new_span = first_span(&to_vec_from_v1(&newb.into_payload()));
+        let new_span = first_span(&v04(newb));
         assert!(field(&new_span, "span_events").is_none());
         let events_meta = field(field(&new_span, "meta").unwrap(), "events")
             .unwrap()
@@ -422,7 +428,7 @@ mod v04_parity_tests {
             );
             ddog_attributes_add_str(ddog_span_get_attributes(s), cs("span.kind"), cs("process"));
         }
-        let span = first_span(&to_vec_from_v1(&b.into_payload()));
+        let span = first_span(&v04(b));
         assert_eq!(
             field(field(&span, "meta").unwrap(), "span.kind")
                 .unwrap()
@@ -452,7 +458,7 @@ mod v04_parity_tests {
         unsafe {
             assert!(ddog_set_span_kind_str(s, cs("internal")));
         }
-        let span = first_span(&to_vec_from_v1(&b.into_payload()));
+        let span = first_span(&v04(b));
         assert_eq!(
             field(field(&span, "meta").unwrap(), "span.kind")
                 .unwrap()
@@ -464,9 +470,8 @@ mod v04_parity_tests {
     #[test]
     fn span_kind_unset_stays_unspecified() {
         let (b, _s) = one_span_builder();
-        let payload = b.into_payload();
-        assert_eq!(payload.chunks[0].spans[0].span_kind, SpanKind::Unspecified);
-        let span = first_span(&to_vec_from_v1(&payload));
+        assert_eq!(b.chunks[0].spans[0].span_kind, SpanKind::Unspecified);
+        let span = first_span(&v04(b));
         assert!(field(&span, "meta")
             .and_then(|m| field(m, "span.kind"))
             .is_none());
@@ -480,7 +485,7 @@ mod v04_parity_tests {
             assert!(is_canonical);
             // serializer.c deletes the meta key in this case; not re-added as an attribute here.
         }
-        let span = first_span(&to_vec_from_v1(&b.into_payload()));
+        let span = first_span(&v04(b));
         assert_eq!(
             field(field(&span, "meta").unwrap(), "span.kind")
                 .unwrap()
@@ -492,9 +497,9 @@ mod v04_parity_tests {
 
 #[cfg(test)]
 mod pointer_handle_miri_tests {
-    // The crux of Phase 2 comment A: prove the Box-per-node pointer model is UB-clean under Stacked
-    // AND Tree Borrows for the hazards the old index model was chosen to avoid. Run with
-    // `cargo +nightly miri test` (Stacked Borrows, the default) and with `-Zmiri-tree-borrows`.
+    // The builder hands out plain pointers into the V1 model; these mirror how serializer.c uses
+    // them. Run with `cargo +nightly miri test` (Stacked Borrows, the default) and with
+    // `-Zmiri-tree-borrows`.
     use super::*;
     use datadog_sidecar_ffi::span::*;
     use libdd_trace_utils::span::v1::AttributeValueBytes;
@@ -503,45 +508,44 @@ mod pointer_handle_miri_tests {
         CharSlice::from_bytes(s.as_bytes())
     }
 
-    // (a) The inferred-span hazard (serializer.c ~2059→2098): after a SECOND span is pushed into the
-    // same chunk, the outer frame keeps mutating and reading its ROOT span pointer with NO refetch.
+    // (a) The inferred-span case: a second span is pushed into the same chunk while the outer frame
+    // still needs its root span, which it re-fetches by index (as serializer.c does).
     #[test]
-    fn a_root_span_ptr_survives_sibling_push() {
-        let mut b = TracerPayloadV1Builder::default();
-        let chunk = b.push_chunk(0, 1);
+    fn a_root_span_refetched_after_sibling_push() {
+        let mut b = ddog_v1_new_builder();
+        let chunk = ddog_new_chunk(&mut b, 0, 1);
         unsafe {
+            let root_index = ddog_chunk_span_count(chunk);
             let root = ddog_new_span(chunk);
             ddog_span_set_id(root, 100);
             ddog_span_set_error(root, true);
             ddog_attributes_add_lit(ddog_span_get_attributes(root), c"moved".as_ptr(), cs("v"));
 
-            // The sibling push that reallocs `chunk.spans`; `root` must stay valid (own allocation).
             let inferred = ddog_new_span(chunk);
             ddog_span_set_id(inferred, 200);
+            let root = ddog_v1_get_span(chunk, root_index);
 
-            // Use `root` AFTER the sibling push, with no refetch (mirrors the transfers/debug log).
             assert!(ddog_transfer_span_attr(root, inferred, c"moved".as_ptr(), true));
             ddog_span_set_error(inferred, ddog_span_get_error(root));
-            let log = ddog_v1_span_debug_log(chunk, root);
+            let log = ddog_v1_span_debug_log(&*chunk, &*root);
             assert!(!log.is_empty());
             ddog_free_charslice(log);
         }
 
-        let payload = b.into_payload();
-        let spans = &payload.chunks[0].spans;
+        let spans = &b.chunks[0].spans;
         assert_eq!(spans.len(), 2);
         assert_eq!(spans[0].span_id, 100);
         assert_eq!(spans[1].span_id, 200);
+        assert!(spans[1].error);
         assert!(!spans[0].attributes.contains_key("moved"), "attr moved off root");
         assert!(spans[1].attributes.contains_key("moved"), "attr moved onto inferred");
     }
 
-    // (b) A deep nested List/KeyValue built via the container FFI and attached to a span node
-    // pointer, then folded through into_payload.
+    // (b) A deep nested List/KeyValue built via the container FFI and attached to a span pointer.
     #[test]
     fn b_nested_attr_build_on_span_ptr() {
-        let mut b = TracerPayloadV1Builder::default();
-        let chunk = b.push_chunk(0, 1);
+        let mut b = ddog_v1_new_builder();
+        let chunk = ddog_new_chunk(&mut b, 0, 1);
         unsafe {
             let span = ddog_new_span(chunk);
             let nested = ddog_attr_map_new(1);
@@ -554,26 +558,24 @@ mod pointer_handle_miri_tests {
             ddog_attributes_add_list(ddog_attr_map_get_attributes(root), cs("items"), items);
             ddog_attributes_add_map(ddog_span_get_attributes(span), cs("root"), root);
         }
-        let payload = b.into_payload();
-        match payload.chunks[0].spans[0].attributes.get("root") {
+        match b.chunks[0].spans[0].attributes.get("root") {
             Some(AttributeValueBytes::KeyValue(m)) => assert_eq!(m.len(), 2),
             other => panic!("expected KeyValue, got {other:?}"),
         }
     }
 
     // (c) Links and events built on a span pointer, each fully built — including a deep nested
-    // List/KeyValue attribute attached to the link/event node pointer — before the next push; the
-    // node pointers stay valid across sibling node pushes.
+    // List/KeyValue attribute — before the next push, as serializer.c does.
     #[test]
     fn c_links_and_events_on_span_ptr() {
-        let mut b = TracerPayloadV1Builder::default();
-        let chunk = b.push_chunk(0, 1);
+        let mut b = ddog_v1_new_builder();
+        let chunk = ddog_new_chunk(&mut b, 0, 1);
         unsafe {
             let span = ddog_new_span(chunk);
             let l0 = ddog_new_link(span);
             ddog_link_set_span_id(l0, 11);
             ddog_attributes_add_str(ddog_link_get_attributes(l0), cs("k"), cs("v"));
-            // Deep nested attr on l0: { tags: [ "a", { deep: 1 } ] } — fully built before l1.
+            // Deep nested attr on l0: { tags: [ "a", { deep: 1 } ] }.
             let deep = ddog_attr_map_new(1);
             ddog_attributes_add_int(ddog_attr_map_get_attributes(deep), cs("deep"), 1);
             let tags = ddog_attr_list_new(2);
@@ -581,14 +583,13 @@ mod pointer_handle_miri_tests {
             ddog_attr_list_push_map(tags, deep);
             ddog_attributes_add_list(ddog_link_get_attributes(l0), cs("tags"), tags);
 
-            let l1 = ddog_new_link(span); // sibling push; l0 stays valid (own allocation)
+            let l1 = ddog_new_link(span);
             ddog_link_set_span_id(l1, 22);
-            ddog_link_set_span_id(l0, 111); // still valid after the sibling push
 
             let e0 = ddog_new_event(span);
-            ddog_event_set_name(e0, cs("evt"));
+            ddog_event_set_name(e0, cs("evt0"));
             ddog_attributes_add_int(ddog_event_get_attributes(e0), cs("n"), 5);
-            // Deep nested attr on e0: { meta: { list: [ true ] } } — fully built before e1.
+            // Deep nested attr on e0: { meta: { list: [ true ] } }.
             let list = ddog_attr_list_new(1);
             ddog_attr_list_push_bool(list, true);
             let meta = ddog_attr_map_new(1);
@@ -597,42 +598,30 @@ mod pointer_handle_miri_tests {
 
             let e1 = ddog_new_event(span);
             ddog_event_set_time(e1, 999);
-            ddog_event_set_name(e0, cs("evt0")); // e0 valid after e1's push
         }
-        let payload = b.into_payload();
-        let span = &payload.chunks[0].spans[0];
+        let span = &b.chunks[0].spans[0];
         assert_eq!(span.span_links.len(), 2);
-        assert_eq!(span.span_links[0].span_id, 111);
+        assert_eq!(span.span_links[0].span_id, 11);
+        assert_eq!(span.span_links[1].span_id, 22);
         match span.span_links[0].attributes.get("tags") {
             Some(AttributeValueBytes::List(v)) => assert_eq!(v.len(), 2),
             other => panic!("expected link List attr, got {other:?}"),
         }
         assert_eq!(span.span_events.len(), 2);
         assert_eq!(span.span_events[0].name.as_str(), "evt0");
+        assert_eq!(span.span_events[1].time_unix_nano, 999);
         match span.span_events[0].attributes.get("meta") {
             Some(AttributeValueBytes::KeyValue(m)) => assert_eq!(m.len(), 1),
             other => panic!("expected event KeyValue attr, got {other:?}"),
         }
     }
 
-    // (d) into_payload dedups duplicate keys, and a builder dropped WITHOUT into_payload frees every
-    // node box (Miri's leak/double-free checker is the assertion for the drop path).
+    // (d) A populated builder freed unsent releases everything (Miri's leak checker is the
+    // assertion).
     #[test]
-    fn d_into_payload_dedup_and_drop() {
-        let mut b = TracerPayloadV1Builder::default();
-        let chunk = b.push_chunk(0, 1);
-        unsafe {
-            let span = ddog_new_span(chunk);
-            ddog_attributes_add_str(ddog_span_get_attributes(span), cs("dup"), cs("first"));
-            ddog_attributes_add_str(ddog_span_get_attributes(span), cs("dup"), cs("second"));
-        }
-        let payload = b.into_payload();
-        let attrs = &payload.chunks[0].spans[0].attributes;
-        assert_eq!(attrs.len(), 1, "duplicate keys deduped in into_payload");
-
-        // Drop path: build a populated builder and let it fall out of scope unconsumed.
-        let mut d = TracerPayloadV1Builder::default();
-        let c = d.push_chunk(0, 2);
+    fn d_free_populated_builder() {
+        let mut b = ddog_v1_new_builder();
+        let c = ddog_new_chunk(&mut b, 0, 2);
         unsafe {
             let s = ddog_new_span(c);
             ddog_new_link(s);
@@ -641,14 +630,14 @@ mod pointer_handle_miri_tests {
             ddog_attributes_add_int(ddog_attr_map_get_attributes(m), cs("y"), 1);
             ddog_attributes_add_map(ddog_span_get_attributes(s), cs("x"), m);
         }
-        drop(d);
+        ddog_v1_free_builder(b);
     }
 
     // (e) A deep mixed nest (list in map in list), built once with capacity 0 (forcing regrowth) and
     // once with exact capacities; both attach the same value and free cleanly.
     #[test]
     fn e_deep_mixed_nest_any_capacity() {
-        unsafe fn build(span: *mut SpanNode, key: &str, cap: impl Fn(usize) -> usize) {
+        unsafe fn build(span: *mut SpanBytes, key: &str, cap: impl Fn(usize) -> usize) {
             let inner = ddog_attr_list_new(cap(3));
             ddog_attr_list_push_int(inner, 1);
             ddog_attr_list_push_bytes(inner, cs("raw"));
@@ -661,15 +650,14 @@ mod pointer_handle_miri_tests {
             ddog_attr_list_push_str(outer, cs("tail"));
             ddog_attributes_add_list(ddog_span_get_attributes(span), cs(key), outer);
         }
-        let mut b = TracerPayloadV1Builder::default();
-        let chunk = b.push_chunk(0, 1);
+        let mut b = ddog_v1_new_builder();
+        let chunk = ddog_new_chunk(&mut b, 0, 1);
         unsafe {
             let span = ddog_new_span(chunk);
             build(span, "zero", |_| 0);
             build(span, "exact", |n| n);
         }
-        let payload = b.into_payload();
-        let attrs = &payload.chunks[0].spans[0].attributes;
+        let attrs = &b.chunks[0].spans[0].attributes;
         let shape = |key: &str| match attrs.get(key) {
             Some(AttributeValueBytes::List(outer)) => {
                 assert_eq!(outer.len(), 2);
@@ -695,12 +683,12 @@ mod pointer_handle_miri_tests {
         shape("exact");
     }
 
-    // (f) Attribute handles stay valid across other calls on their node and sibling pushes, with no
-    // refetch: the handle shares the node pointer's tag (no intermediate `&mut` in the getter).
+    // (f) Attribute handles stay valid across other calls on their own span, link or event: the
+    // handle shares the element pointer's tag (no intermediate `&mut` in the getter).
     #[test]
-    fn f_attribute_handles_survive_interleaved_node_calls() {
-        let mut b = TracerPayloadV1Builder::default();
-        let chunk = b.push_chunk(0, 1);
+    fn f_attribute_handles_survive_interleaved_calls() {
+        let mut b = ddog_v1_new_builder();
+        let chunk = ddog_new_chunk(&mut b, 0, 1);
         unsafe {
             let span = ddog_new_span(chunk);
             let attrs = ddog_span_get_attributes(span);
@@ -709,19 +697,15 @@ mod pointer_handle_miri_tests {
             ddog_span_set_id(span, 7);
             let link = ddog_new_link(span);
             let link_attrs = ddog_link_get_attributes(link);
-            let event = ddog_new_event(span);
-            let event_attrs = ddog_event_get_attributes(event);
             ddog_attributes_add_int(attrs, cs("b"), 2);
             ddog_link_set_span_id(link, 3);
             ddog_attributes_add_str(link_attrs, cs("l"), cs("v"));
-            let link2 = ddog_new_link(span); // sibling push
+            let event = ddog_new_event(span);
+            let event_attrs = ddog_event_get_attributes(event);
             ddog_event_set_name(event, cs("e"));
             ddog_attributes_add_bool(event_attrs, cs("e"), true);
-            ddog_attributes_add_str(ddog_link_get_attributes(link2), cs("l2"), cs("v2"));
             ddog_attributes_add_double(attrs, cs("c"), 1.5);
             assert!(ddog_span_get_error(span));
-            let second = ddog_new_span(chunk); // sibling span push
-            ddog_attributes_add_str(ddog_span_get_attributes(second), cs("s"), cs("2"));
             let m = ddog_attr_map_new(0);
             let m_attrs = ddog_attr_map_get_attributes(m);
             ddog_attributes_add_int(m_attrs, cs("x"), 1);
@@ -729,8 +713,7 @@ mod pointer_handle_miri_tests {
             ddog_attributes_add_int(m_attrs, cs("y"), 2);
             ddog_attributes_add_map(attrs, cs("m"), m);
         }
-        let payload = b.into_payload();
-        let span = &payload.chunks[0].spans[0];
+        let span = &b.chunks[0].spans[0];
         assert!(span.error);
         assert_eq!(span.span_id, 7);
         assert_eq!(span.attributes.len(), 5);
@@ -738,10 +721,8 @@ mod pointer_handle_miri_tests {
             Some(AttributeValueBytes::KeyValue(m)) => assert_eq!(m.len(), 2),
             other => panic!("expected KeyValue, got {other:?}"),
         }
-        assert_eq!(span.span_links.len(), 2);
+        assert_eq!(span.span_links.len(), 1);
         assert!(span.span_links[0].attributes.contains_key("l"));
-        assert!(span.span_links[1].attributes.contains_key("l2"));
         assert!(span.span_events[0].attributes.contains_key("e"));
-        assert!(payload.chunks[0].spans[1].attributes.contains_key("s"));
     }
 }

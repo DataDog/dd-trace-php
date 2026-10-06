@@ -327,14 +327,14 @@ static void dd_add_header_to_meta(zend_array *meta, const char *type, zend_strin
     }
 }
 
-void dd_span_attr_str(ddog_SpanNode *span, const char *key, const char *val) {
+void dd_span_attr_str(ddog_SpanBytes *span, const char *key, const char *val) {
     ddog_attributes_add_lit(ddog_span_get_attributes(span), key, (ddog_CharSlice){ .ptr = val, .len = strlen(val) });
 }
-void dd_span_attr_zstr(ddog_SpanNode *span, const char *key, zend_string *val) {
+void dd_span_attr_zstr(ddog_SpanBytes *span, const char *key, zend_string *val) {
     ddog_attributes_add_lit(ddog_span_get_attributes(span), key, dd_zend_string_to_CharSlice(val));
 }
 
-static void dd_add_header_to_rust_span(ddog_SpanNode *span, const char *type, zend_string *lowerheader,
+static void dd_add_header_to_rust_span(ddog_SpanBytes *span, const char *type, zend_string *lowerheader,
                                        zend_string *headerval) {
     zval *header_config = zend_hash_find(get_DD_TRACE_HEADER_TAGS(), lowerheader);
     if (header_config != NULL && Z_TYPE_P(header_config) == IS_STRING) {
@@ -582,7 +582,7 @@ static zend_string *dd_get_referrer_host(zend_array *_server) {
     return ZSTR_EMPTY_ALLOC();
 }
 
-static bool dd_set_mapped_peer_service(ddog_SpanNode *span, zend_string *peer_service) {
+static bool dd_set_mapped_peer_service(ddog_SpanBytes *span, zend_string *peer_service) {
     zend_array *peer_service_mapping = get_DD_TRACE_PEER_SERVICE_MAPPING();
     if (zend_hash_num_elements(peer_service_mapping) == 0 || !peer_service) {
         return false;
@@ -1183,7 +1183,7 @@ static void dd_attr_emit(ddog_Attributes *dest, ddog_CharSlice key, zend_string 
 
 // Emit each SpanLink into the V1 builder span, reading from the PHP link objects (scalar attributes
 // are strings; dropped_attributes_count has no PHP-side source).
-static void dd_span_links_to_rust(zend_array *links, ddog_SpanNode *span) {
+static void dd_span_links_to_rust(zend_array *links, ddog_SpanBytes *span) {
     zval *val;
     ZEND_HASH_FOREACH_VAL(links, val) {
         ZVAL_DEREF(val);
@@ -1222,7 +1222,7 @@ static void dd_span_links_to_rust(zend_array *links, ddog_SpanNode *span) {
 
 // Emit each SpanEvent into the V1 builder span, dispatching attributes by type. ExceptionSpanEvent
 // flattens exception.message/type/stacktrace as string attributes.
-static void dd_span_events_to_rust(zend_array *events, ddog_SpanNode *span) {
+static void dd_span_events_to_rust(zend_array *events, ddog_SpanBytes *span) {
     zval *val;
     ZEND_HASH_FOREACH_VAL(events, val) {
         ZVAL_DEREF(val);
@@ -1320,7 +1320,7 @@ void ddtrace_normalize_tag_value(zval *dst, zval *value, bool metric) {
     }
 }
 
-static void dd_serialize_array_meta_struct_recursively(ddog_SpanNode *target, zend_string *str, zval *value) {
+static void dd_serialize_array_meta_struct_recursively(ddog_SpanBytes *target, zend_string *str, zval *value) {
     char *data;
     size_t size;
 
@@ -1530,7 +1530,7 @@ static void dd_set_entrypoint_root_span_props_end(ddtrace_span_data *span, int s
     }
 }
 
-static void dd_set_entrypoint_root_rust_span_props_end(ddog_SpanNode *span, struct iter *headers) {
+static void dd_set_entrypoint_root_rust_span_props_end(ddog_SpanBytes *span, struct iter *headers) {
     for (zend_string *lowerheader, *headerval; headers->next(headers, &lowerheader, &headerval);) {
         dd_add_header_to_rust_span(span, "response", lowerheader, headerval);
         zend_string_release(lowerheader);
@@ -1605,7 +1605,7 @@ void ddtrace_shutdown_span_sampling_limiter(void) {
 }
 
 // DD_ENV/DD_VERSION win, else the root's env/version (DD_TAGS fallback); the hostname is _dd.hostname's.
-static void dd_set_payload_fields(ddog_TracerPayloadV1Builder *builder, ddtrace_span_precomputed *pre, zend_array *attributes, zval *git_metadata) {
+static void dd_set_payload_fields(ddog_TracerPayloadBytes *builder, ddtrace_span_precomputed *pre, zend_array *attributes, zval *git_metadata) {
     zend_string *env = ZSTR_LEN(get_DD_ENV()) ? get_DD_ENV() : pre->env;
     zend_string *version = ZSTR_LEN(get_DD_VERSION()) ? get_DD_VERSION() : pre->version;
     ddog_CharSlice hostname = DDOG_CHARSLICE_C("");
@@ -1631,7 +1631,7 @@ static void dd_set_payload_fields(ddog_TracerPayloadV1Builder *builder, ddtrace_
     }
 }
 
-ddog_SpanNode *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtrace_serialize_ctx *ctx, bool p0_trace) {
+ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtrace_serialize_ctx *ctx, bool p0_trace) {
     zend_array *attributes = ddtrace_property_array(&span->property_attributes);
 
     // http.status_code is a string tag on the wire; a numeric one (e.g. OTel's metric) is converted.
@@ -1846,8 +1846,9 @@ ddog_SpanNode *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtr
         // dropped_trace is reserved for the agent; the chunk priority carries the sampling decision.
         ctx->chunk = ddog_new_chunk(ctx->builder, span->root->trace_id.high, span->root->trace_id.low);
     }
-    bool is_first_span = ddog_chunk_span_count(ctx->chunk) == 0;
-    ddog_SpanNode *rspan = ddog_new_span(ctx->chunk);
+    uintptr_t rspan_index = ddog_chunk_span_count(ctx->chunk);
+    bool is_first_span = rspan_index == 0;
+    ddog_SpanBytes *rspan = ddog_new_span(ctx->chunk);
     ddog_Attributes *rattrs = ddog_span_get_attributes(rspan);
 
     ddog_span_set_id(rspan, span->span_id);
@@ -2214,9 +2215,10 @@ ddog_SpanNode *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtr
         }
     }
 
-    ddog_SpanNode *inferred = inferred_span ? ddtrace_serialize_span_to_rust_span(inferred_span, ctx, p0_trace) : NULL;
-    // A dropped inferred span returns NULL; skip the transfers then. Node pointers stay valid across
-    // sibling pushes, so rspan is still usable after the inferred span was added to the chunk.
+    ddog_SpanBytes *inferred = inferred_span ? ddtrace_serialize_span_to_rust_span(inferred_span, ctx, p0_trace) : NULL;
+    // The inferred span was pushed into the same chunk, which may have moved rspan (rattrs is stale too).
+    rspan = ddog_v1_get_span(ctx->chunk, rspan_index);
+    // A dropped inferred span returns NULL; skip the transfers then.
     if (inferred) {
         ddog_transfer_span_attr(rspan, inferred, "_dd.agent_psr", true);
         ddog_transfer_span_attr(rspan, inferred, "_dd.rule_psr", true);
@@ -2325,7 +2327,7 @@ static void dd_add_assoc_nonempty(zval *parent, const char *key, zval *arr) {
 
 // Introspection reader for the native V1 builder: promoted and chunk-level fields are surfaced
 // directly, the unified typed attribute map under "attributes", and links/events natively.
-zval dd_serialize_rust_to_zval(ddog_TracerPayloadV1Builder *b) {
+zval dd_serialize_rust_to_zval(ddog_TracerPayloadBytes *b) {
     // The payload's process tags and OTLP export marker show on each chunk's first span, as on the v0.4 wire.
     const ddog_AttrValue *process_tags_value = ddog_v1_attributes_get(ddog_payload_get_attributes(b), DDOG_CHARSLICE_C("_dd.tags.process"));
     ddog_CharSlice process_tags = process_tags_value ? ddog_v1_value_str(process_tags_value) : (ddog_CharSlice){0};
@@ -2334,27 +2336,25 @@ zval dd_serialize_rust_to_zval(ddog_TracerPayloadV1Builder *b) {
     zval traces_zv;
     array_init(&traces_zv);
 
-    size_t chunk_count;
-    ddog_ChunkNode *const *chunks = ddog_v1_get_chunks(b, &chunk_count);
+    size_t chunk_count = ddog_v1_get_chunk_count(b);
     for (size_t c = 0; c < chunk_count; c++) {
-        const ddog_ChunkNode *chunk = chunks[c];
+        ddog_TraceChunkBytes *chunk = ddog_v1_get_chunk(b, c);
         zval trace_zv;
         array_init(&trace_zv);
 
         uint64_t tid_high = ddog_v1_get_chunk_trace_id_high(chunk);
         uint64_t tid_low = ddog_v1_get_chunk_trace_id_low(chunk);
         // Chunk-level fields go on the chunk's local root only, the same span the v0.4 wire picks.
-        const ddog_SpanNode *root = ddog_v1_get_chunk_root_span(chunk);
+        const ddog_SpanBytes *root = ddog_v1_get_chunk_root_span(chunk);
         int32_t chunk_priority;
         bool has_priority = ddog_v1_get_chunk_sampling_priority(chunk, &chunk_priority);
         uint32_t chunk_mechanism;
         bool has_mechanism = ddog_v1_get_chunk_sampling_mechanism(chunk, &chunk_mechanism);
         ddog_CharSlice chunk_origin = ddog_v1_get_chunk_origin(chunk);
 
-        size_t span_count;
-        ddog_SpanNode *const *spans = ddog_v1_get_spans(chunk, &span_count);
+        size_t span_count = ddog_chunk_span_count(chunk);
         for (size_t j = 0; j < span_count; j++) {
-            ddog_SpanNode *span = spans[j];
+            ddog_SpanBytes *span = ddog_v1_get_span(chunk, j);
             bool is_root = span == root;
             zval span_zv;
             array_init(&span_zv);
@@ -2416,13 +2416,12 @@ zval dd_serialize_rust_to_zval(ddog_TracerPayloadV1Builder *b) {
             dd_add_assoc_nonempty(&span_zv, "attributes", &attrs_zv);
             dd_add_assoc_nonempty(&span_zv, "meta_struct", &meta_struct_zv);
 
-            size_t link_count;
-            ddog_SpanLinkBytes *const *links = ddog_v1_get_links(span, &link_count);
+            size_t link_count = ddog_v1_get_link_count(span);
             if (link_count > 0) {
                 zval links_zv;
                 array_init(&links_zv);
                 for (size_t l = 0; l < link_count; l++) {
-                    ddog_SpanLinkBytes *link = links[l];
+                    ddog_SpanLinkBytes *link = ddog_v1_get_link(span, l);
                     zval link_zv;
                     array_init(&link_zv);
                     add_assoc_str(&link_zv, KEY_TRACE_ID, ddtrace_span_id_as_string(ddog_v1_get_link_trace_id_low(link)));
@@ -2445,13 +2444,12 @@ zval dd_serialize_rust_to_zval(ddog_TracerPayloadV1Builder *b) {
                 add_assoc_zval(&span_zv, "span_links", &links_zv);
             }
 
-            size_t event_count;
-            ddog_SpanEventBytes *const *events = ddog_v1_get_events(span, &event_count);
+            size_t event_count = ddog_v1_get_event_count(span);
             if (event_count > 0) {
                 zval events_zv;
                 array_init(&events_zv);
                 for (size_t e = 0; e < event_count; e++) {
-                    ddog_SpanEventBytes *event = events[e];
+                    ddog_SpanEventBytes *event = ddog_v1_get_event(span, e);
                     zval event_zv;
                     array_init(&event_zv);
                     add_assoc_str(&event_zv, "name", dd_CharSlice_to_zend_string(ddog_v1_get_event_name(event)));

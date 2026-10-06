@@ -16,7 +16,7 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
-static void dd_exception_to_error_msg(zend_object *exception, ddog_SpanNode *span, enum dd_exception exception_state) {
+static void dd_exception_to_error_msg(zend_object *exception, ddog_SpanBytes *span, enum dd_exception exception_state) {
     zend_string *msg = zai_exception_message(exception);
     zend_long line = zval_get_long(zai_exception_read_property(exception, ZSTR_KNOWN(ZEND_STR_LINE)));
     zend_string *file = datadog_convert_to_str(zai_exception_read_property(exception, ZSTR_KNOWN(ZEND_STR_FILE)));
@@ -49,7 +49,7 @@ static void dd_exception_to_error_msg(zend_object *exception, ddog_SpanNode *spa
     free(status_line);
 }
 
-static void dd_exception_to_error_type(zend_object *exception, ddog_SpanNode *span) {
+static void dd_exception_to_error_type(zend_object *exception, ddog_SpanBytes *span) {
     if (instanceof_function(exception->ce, ddtrace_ce_fatal_error)) {
         zval *code = zai_exception_read_property(exception, ZSTR_KNOWN(ZEND_STR_CODE));
         const char *error_type_string = "{unknown error}";
@@ -82,7 +82,7 @@ static void dd_exception_to_error_type(zend_object *exception, ddog_SpanNode *sp
     }
 }
 
-static void dd_exception_trace_to_error_stack(zend_string *trace, ddog_SpanNode *span) {
+static void dd_exception_trace_to_error_stack(zend_string *trace, ddog_SpanBytes *span) {
     dd_span_attr_zstr(span, "error.stack", trace);
     zend_string_release(trace);
 }
@@ -309,7 +309,7 @@ void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, con
 #define uuid_len 36
 #define hash_len 16
 
-static ddog_DebuggerCapture *dd_create_frame_and_collect_locals(char *exception_id, char *exception_hash, int frame_num, ddog_CharSlice class_slice, ddog_CharSlice func_slice, zval *locals, zend_string *service_name, const ddog_CaptureConfiguration *capture_config, uint64_t time, ddog_SpanNode *span) {
+static ddog_DebuggerCapture *dd_create_frame_and_collect_locals(char *exception_id, char *exception_hash, int frame_num, ddog_CharSlice class_slice, ddog_CharSlice func_slice, zval *locals, zend_string *service_name, const ddog_CaptureConfiguration *capture_config, uint64_t time, ddog_SpanBytes *span) {
     char *snapshot_id = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena).arena, uuid_len);
     ddog_snapshot_format_new_uuid((uint8_t(*)[uuid_len])snapshot_id);
 
@@ -388,7 +388,7 @@ static bool ddtrace_exception_debugging_is_active(void) {
     return DATADOG_G(sidecar) && datadog_sidecar_instance_id && get_DD_EXCEPTION_REPLAY_ENABLED();
 }
 
-static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_object *throwable, zend_string *service_name, uint64_t time, ddog_SpanNode *span) {
+static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_object *throwable, zend_string *service_name, uint64_t time, ddog_SpanBytes *span) {
     if (!ddtrace_exception_debugging_is_active()) {
         return;
     }
@@ -536,7 +536,7 @@ cleanup:
 }
 
 // Guarantees that tag will only be added once, will stop trying to add tags if it fails.
-void ddtrace_exception_to_meta(zend_object *exception, zend_string *service_name, uint64_t time, ddog_SpanNode *span, enum dd_exception exception_state) {
+void ddtrace_exception_to_meta(zend_object *exception, zend_string *service_name, uint64_t time, ddog_SpanBytes *span, enum dd_exception exception_state) {
     zend_object *exception_root = exception;
     zend_string *full_trace = zai_get_trace_without_args_from_exception(exception);
 

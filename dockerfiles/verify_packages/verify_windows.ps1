@@ -18,5 +18,5 @@ php build/packages/datadog-setup.php --php-bin=all --file=$(ls build/packages/dd
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 # Check the installed integration, keeping its span until the assertion.
-echo "<?php shell_exec('echo 1'); if (dd_trace_serialize_closed_spans()[0]['meta']['cmd.shell'] !== 'echo 1') { echo 'No ExecIntegration present?'; exit(1); } echo 'SUCCESS';" | php "-ddatadog.trace.cli_enabled=1" "-ddatadog.trace.generate_root_span=0" "-ddatadog.trace.auto_flush_enabled=0"
+echo "<?php shell_exec('echo 1'); if (dd_trace_serialize_closed_spans()[0]['attributes']['cmd.shell'] !== 'echo 1') { echo 'No ExecIntegration present?'; exit(1); } echo 'SUCCESS';" | php "-ddatadog.trace.cli_enabled=1" "-ddatadog.trace.generate_root_span=0" "-ddatadog.trace.auto_flush_enabled=0"
 exit $LASTEXITCODE
