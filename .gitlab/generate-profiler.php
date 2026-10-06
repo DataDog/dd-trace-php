@@ -292,7 +292,7 @@ foreach ($profiler_minor_major_targets as $version) {
     - run_tests_php=$(find $(php-config --prefix) -name run-tests.php) # don't anticipate there being more than one
     - cp -v "${run_tests_php}" tests
     - '# run-tests.php is parallel by default since PHP 8.6; keep these tests serial (-j exists since 7.4)'
-    - run_tests_jobs=$(php -r 'echo PHP_VERSION_ID >= 70400 ? "-j1":"";')
+    - run_tests_jobs=$(php -n -r 'echo PHP_VERSION_ID >= 70400 ? "-j1":"";')
     - unset DD_SERVICE; unset DD_ENV
     - mkdir -p "${CI_PROJECT_DIR}/artifacts/profiler-tests"
 

@@ -473,7 +473,6 @@ foreach ($php_versions_to_abi as $major_minor => $abi_no) {
     IMAGE: "<?= $image ?>"
     TRIPLET: "<?= $platform['triplet'] ?>"
     ARCH: "<?= $platform['arch'] ?>"
-    ABI_NO: "<?= $abi_no ?>"
     KUBERNETES_CPU_REQUEST: 12
     KUBERNETES_MEMORY_REQUEST: 8Gi
     KUBERNETES_MEMORY_LIMIT: 16Gi
@@ -825,7 +824,7 @@ endforeach;
     - phpize # run phpize just to get run-tests.php
   script:
     # run-tests.php is parallel by default since PHP 8.6; keep these tests serial (-j exists since 7.4)
-    - php run-tests.php $(php -r 'echo PHP_VERSION_ID >= 70400 ? "-j1":"";') -p $(which php) -d datadog.remote_config_enabled=false --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext/profiling
+    - php run-tests.php $(php -n -r 'echo PHP_VERSION_ID >= 70400 ? "-j1":"";') -p $(which php) -d datadog.remote_config_enabled=false --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" tests/ext/profiling
 
 # The tracer pipeline only runs the FrankenPHP suite on amd64/glibc. musl differs in ways that bite specifically here - see issue #4163, where the SIGTERM handler's clone() is rejected outright by musl and FrankenPHP consequently never shuts down.
 # Thus we so run the same suite once against the official FrankenPHP image on arm64/Alpine.
