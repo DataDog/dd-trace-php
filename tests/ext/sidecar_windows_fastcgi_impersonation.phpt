@@ -89,6 +89,17 @@ $tmp = sys_get_temp_dir();
 $sidPipe = (bool)preg_grep('/^libdatadog_S-1-[\d-]+-libd/', explode("\n", $pipeList));
 $sidless = preg_grep('/^libdatadog_(\d+_)?-libd/', explode("\n", $pipeList))
     || is_file("$tmp\\datadog-ipc-helper-") || is_file("$tmp\\datadog-crashtracking-.dll");
+// As libdatadog#1776 intends: names use php-cgi's process SID, which its sidecar inherits, not the client's.
+$cgiPid = proc_get_status($proc)['pid'];
+$sids = explode("\n", trim((string)shell_exec('powershell.exe -NoProfile -Command "'
+    . "(Invoke-CimMethod -InputObject (Get-CimInstance Win32_Process -Filter 'ProcessId=$cgiPid') -MethodName GetOwnerSid).Sid; "
+    . "([Security.Principal.NTAccount]'$user').Translate([Security.Principal.SecurityIdentifier]).Value" . '"')));
+$cgiSid = trim($sids[0]);
+$clientSid = trim($sids[1] ?? '');
+$sidsResolved = preg_match('/^S-1-[\d-]+$/', $cgiSid) && preg_match('/^S-1-[\d-]+$/', $clientSid) && $cgiSid !== $clientSid;
+$cgiSidPipe = $sidsResolved && preg_grep('/^libdatadog_' . preg_quote($cgiSid) . '-[0-9a-f]+-libd/', explode("\n", $pipeList));
+$clientSidNames = !$sidsResolved || stripos($pipeList, "$clientSid-") !== false
+    || stripos((string)shell_exec('dir /b ' . escapeshellarg($tmp) . ' 2>&1'), "$clientSid-") !== false;
 $tokenError = strpos($ddtraceLog, "Failed fetching process token") !== false;
 $fallback = strpos($ddtraceLog, "falling back to thread mode") !== false;
 echo "ddtrace.log written: ", $ddtraceLog !== "" ? "yes" : "no", "\n";
@@ -96,9 +107,13 @@ echo "sidecar pipe with SID: ", $sidPipe ? "yes" : "no", "\n";
 echo "process token error: ", $tokenError ? "yes" : "no", "\n";
 echo "thread mode fallback: ", $fallback ? "yes" : "no", "\n";
 echo "SID-less names: ", $sidless ? "yes" : "no", "\n";
+echo "php-cgi and client SIDs resolved: ", $sidsResolved ? "yes" : "no", "\n";
+echo "sidecar pipe with the php-cgi process SID: ", $cgiSidPipe ? "yes" : "no", "\n";
+echo "names with the client SID: ", $clientSidNames ? "yes" : "no", "\n";
 
-if (!$found || $ddtraceLog === "" || !$sidPipe || $tokenError || $fallback || $sidless) {
+if (!$found || $ddtraceLog === "" || !$sidPipe || $tokenError || $fallback || $sidless || !$cgiSidPipe || $clientSidNames) {
     // Diagnostics, shown in the failure diff.
+    echo "=== php-cgi process SID / client SID ===\n", implode("\n", $sids), "\n";
     foreach ($clientOutput as $i => $o) {
         echo "=== client output, request $i ===\n$o\n";
     }
@@ -114,7 +129,7 @@ if (!$found || $ddtraceLog === "" || !$sidPipe || $tokenError || $fallback || $s
     echo "=== named pipes ===\n", implode("\n", preg_grep('/datadog|libdatadog|dd-/i', explode("\n", $pipeList))), "\n";
 }
 
-exec('taskkill /T /F /PID ' . proc_get_status($proc)['pid'] . ' 2>&1');
+exec("taskkill /T /F /PID $cgiPid 2>&1");
 proc_close($proc);
 exec("net user $user /delete 2>&1");
 exec('rd /s /q ' . escapeshellarg($dir) . ' 2>&1');
@@ -131,3 +146,6 @@ sidecar pipe with SID: yes
 process token error: no
 thread mode fallback: no
 SID-less names: no
+php-cgi and client SIDs resolved: yes
+sidecar pipe with the php-cgi process SID: yes
+names with the client SID: no
