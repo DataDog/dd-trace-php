@@ -78,6 +78,7 @@ tracer-trigger:
     GIT_SUBMODULE_PATHS: libdatadog tests/FeatureFlags/ffe-system-test-data appsec/third_party/libddwaf-rust
 
 appsec-trigger:
+  rules: [ { when: never } ]  # TEMP APMS-20702: Windows-only pipeline
   stage: tests
   needs: [ "generate-templates" ]
   trigger:
@@ -106,6 +107,7 @@ ci-images:
         job: generate-templates
 
 profiler-trigger:
+  rules: [ { when: never } ]  # TEMP APMS-20702: Windows-only pipeline
   stage: tests
   needs: [ "generate-templates" ]
   trigger:
@@ -117,6 +119,7 @@ profiler-trigger:
     PARENT_PIPELINE_ID: $CI_PIPELINE_ID
 
 shared-trigger:
+  rules: [ { when: never } ]  # TEMP APMS-20702: Windows-only pipeline
   stage: tests
   needs: [ "generate-templates" ]
   trigger:
@@ -139,6 +142,7 @@ merge-gate:
     - .gitlab/merge-gate.sh
 
 package-trigger:
+  rules: [ { when: never } ]  # TEMP APMS-20702: Windows-only pipeline
   stage: build
   needs: [ "generate-templates" ]
   trigger:

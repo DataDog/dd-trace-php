@@ -66,6 +66,7 @@ stages:
     - !reference [.services, httpbin-integration]
 <?php } ?>
 
+<?php if (false): /* TEMP APMS-20702: Windows-only pipeline */ ?>
 "compile extension: debug":
   stage: compile
   tags: [ "arch:${ARCH}" ]
@@ -109,6 +110,8 @@ stages:
     matrix:
       - PHP_MAJOR_MINOR: *asan_minor_major_targets
         ARCH: *arch_targets
+
+<?php endif; ?>
 
 <?php
 function windows_test_c_job($job_name, $thread_safety, $targets) {
@@ -166,8 +169,9 @@ function windows_test_c_job($job_name, $thread_safety, $targets) {
     # keep WER enabled for every PHPT child process.
     docker exec ${CONTAINER_NAME} powershell.exe -File C:\Users\ContainerAdministrator\app\.gitlab\enable-windows-test-dumps.ps1
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    docker exec -e _DD_DEBUG_SIDECAR_LOG_LEVEL=trace ${CONTAINER_NAME} powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\<?= $build_dir ?>\php_ddtrace.dll" "${pwd}\tests\ext"'
+    docker exec -e _DD_DEBUG_SIDECAR_LOG_LEVEL=trace ${CONTAINER_NAME} powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\<?= $build_dir ?>\php_ddtrace.dll" "${pwd}\tests\ext\sidecar_windows_fastcgi_impersonation.phpt"'
   after_script:
+    - 'powershell -NoProfile -Command "Get-ChildItem tests\ext\sidecar_windows_fastcgi_impersonation.* | ForEach-Object { Write-Host ===== $_.Name; Get-Content $_.FullName }"'
     - |
         docker exec ${CONTAINER_NAME} cmd.exe /s /c xcopy /y /c /s /e C:\ProgramData\Microsoft\Windows\WER\ReportQueue .\app\dumps\
         exit 0
@@ -188,20 +192,14 @@ function windows_test_c_job($job_name, $thread_safety, $targets) {
       - x64/<?= $build_dir ?>/php_ddtrace.dll
       - x64/<?= $build_dir ?>/php_ddtrace.pdb
       - dumps
+      - tests/ext/sidecar_windows_fastcgi_impersonation.*
 <?php
 }
 
-windows_test_c_job("windows test_c", "nts", $windows_minor_major_targets);
-
-echo "\n";
-
-// Oldest and newest supported Windows targets, kept in sync automatically.
-windows_test_c_job("windows test_c: zts", "zts", [
-    reset($windows_minor_major_targets),
-    end($windows_minor_major_targets),
-]);
+windows_test_c_job("windows test_c", "nts", ["7.4", "8.3"]); // TEMP APMS-20702
 ?>
 
+<?php if (false): /* TEMP APMS-20702: Windows-only pipeline */ ?>
 "macos test_c":
   stage: test
   tags: ["macos:tart"]
@@ -986,3 +984,4 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
       when: always
     - when: manual
       allow_failure: true
+<?php endif; ?>
