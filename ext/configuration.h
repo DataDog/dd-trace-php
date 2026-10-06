@@ -18,6 +18,11 @@ enum datadog_sidecar_connection_mode {
     DD_TRACE_SIDECAR_CONNECTION_MODE_THREAD = 2,     // Force thread only
 };
 
+enum datadog_trace_agent_protocol_version {
+    DD_TRACE_AGENT_PROTOCOL_VERSION_V1 = 0,  // Default: V1 when the agent advertises /v1.0/traces, else v0.4
+    DD_TRACE_AGENT_PROTOCOL_VERSION_V04 = 1, // Always v0.4
+};
+
 /* From the curl docs on CONNECT_TIMEOUT_MS:
  *     If libcurl is built to use the standard system name resolver, that
  *     portion of the transfer will still use full-second resolution for
@@ -98,6 +103,8 @@ enum datadog_sidecar_connection_mode {
     CONFIG(INT, DD_TRACE_SIDECAR_BACKPRESSURE_QUEUE, "100", .ini_change = zai_config_system_ini_change)        \
     CONFIG(STRING, DD_TRACE_AGENT_TEST_SESSION_TOKEN, "", .ini_change = datadog_alter_test_session_token)      \
     CONFIG(CUSTOM(INT), DD_TRACE_SIDECAR_CONNECTION_MODE, "auto", .parser = dd_parse_sidecar_connection_mode)  \
+    CONFIG(CUSTOM(INT), DD_TRACE_AGENT_PROTOCOL_VERSION, "1.0",                                                \
+           .parser = dd_parse_trace_agent_protocol_version, .ini_change = zai_config_system_ini_change)        \
     CONFIG(STRING, DD_TRACE_LOG_FILE, "", .ini_change = zai_config_system_ini_change)                          \
     CONFIG(STRING, DD_TRACE_LOG_LEVEL, "error", .ini_change = datadog_alter_dd_trace_log_level,                \
            .env_config_fallback = ddtrace_conf_otel_log_level)                                                 \

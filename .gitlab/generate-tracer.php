@@ -137,7 +137,10 @@ function windows_test_c_job($job_name, $thread_safety, $targets) {
 
     # Start the container network and services
     docker network create -d "nat" -o com.docker.network.windowsshim.dnsservers="1.1.1.1" net
+    # Force a pull so a runner with a stale cached digest doesn't skip the rebuilt image.
+    docker pull registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:httpbin-windows
     docker run --network net -d --name httpbin-integration registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:httpbin-windows
+    docker pull registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-request-replayer-3.0_windows
     docker run --network net -d --name request-replayer registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-request-replayer-3.0_windows
     docker run --env GITLAB_CI=$env:GITLAB_CI -v ${pwd}:C:\Users\ContainerAdministrator\app  --network net -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
 
@@ -681,7 +684,6 @@ foreach ($all_minor_major_targets as $major_minor):
     ARCH: "amd64"
     DD_TRACE_STARTUP_LOGS: "0"
     DD_TRACE_WARN_CALL_STACK_DEPTH: "0"
-    DD_TRACE_WARN_LEGACY_DD_TRACE: "0"
     DD_TRACE_GIT_METADATA_ENABLED: "0"
     REPORT_EXIT_STATUS: "1"
     TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"

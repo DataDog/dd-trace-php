@@ -16,6 +16,18 @@
 #include "otel_context.h"
 #endif
 
+// V1 payload build context threaded through serialization. `chunk` is DD_CHUNK_NONE until the
+// first span of the current stack creates its chunk (ddtrace_serialize_closed_spans resets it per
+// stack). It points into the builder and is only used until the next chunk is created.
+#define DD_CHUNK_NONE (NULL)
+typedef struct {
+    struct ddog_TracerPayloadBytes *builder;
+    struct ddog_TraceChunkBytes *chunk;
+    bool process_tags_set;  // the payload's _dd.tags.process / _dd.sdk.otlp_export attributes were decided
+    bool payload_fields_set;  // the payload env/app_version/hostname/git were taken from a root span
+    bool mark_top_level;  // mark `_dd.top_level` on every top-level span (the sidecar sender's V1 needs it)
+} ddtrace_serialize_ctx;
+
 #define DDTRACE_DROPPED_SPAN (-1ull)
 #define DDTRACE_SILENTLY_DROPPED_SPAN (-2ull)
 
@@ -52,8 +64,6 @@ typedef union ddtrace_span_properties {
         zval property_name;
         zval property_resource;
         zval property_service;
-        zval property_env;
-        zval property_version;
         zval property_meta_struct;
         zval property_type;
         zval property_meta;
@@ -76,6 +86,12 @@ typedef union ddtrace_span_properties {
         };
         zval property_on_close;
         zval property_baggage;
+        zval property_env;
+        zval property_version;
+        zval property_component;
+        zval property_span_kind;
+        zval property_attributes;
+        zval property_ignore_error;
     };
 } ddtrace_span_properties;
 
@@ -96,6 +112,7 @@ struct ddtrace_span_data {
     uint32_t active_child_spans;
     struct ddtrace_span_data *next;
     struct ddtrace_root_span_data *root;
+    zend_object *tags_views[2];  // cached $meta / $metrics views (span_tags_view.c)
 
     union {
         ddtrace_span_properties;
@@ -150,6 +167,7 @@ struct ddtrace_root_span_data {
     zval property_origin;
     zval property_propagated_tags;
     zval property_sampling_priority;
+    zval property_sampling_mechanism;
     zval property_propagated_sampling_priority;
     zval property_tracestate;
     zval property_tracestate_tags;
@@ -157,6 +175,7 @@ struct ddtrace_root_span_data {
     zval property_trace_id;
     zval property_git_metadata;
     zval property_inferred_span;
+    zval property_hostname;
 };
 
 static inline ddtrace_root_span_data *ROOTSPANDATA(zend_object *obj) {
@@ -177,6 +196,7 @@ struct ddtrace_span_stack {
                 ddtrace_span_properties *active;
             };
             zval property_span_creation_observers;
+            zval property_attributes;
         };
     };
     struct ddtrace_root_span_data *root_span;
@@ -275,8 +295,8 @@ void ddtrace_close_top_span_without_stack_swap(ddtrace_span_data *span);
 void ddtrace_close_all_open_spans(bool force_close_root_span);
 void ddtrace_drop_span(ddtrace_span_data *span);
 void ddtrace_mark_all_span_stacks_flushable(void);
-void ddtrace_serialize_closed_spans(ddog_TracesBytes *traces, bool fast_shutdown);
-void ddtrace_serialize_closed_spans_with_cycle(ddog_TracesBytes *traces, bool fast_shutdown);
+void ddtrace_serialize_closed_spans(ddtrace_serialize_ctx *ctx, bool fast_shutdown);
+void ddtrace_serialize_closed_spans_with_cycle(ddtrace_serialize_ctx *ctx, bool fast_shutdown);
 zend_string *ddtrace_span_id_as_string(uint64_t id);
 zend_string *datadog_trace_id_as_string(datadog_trace_id id);
 zend_string *ddtrace_span_id_as_hex_string(uint64_t id);
@@ -292,6 +312,11 @@ static inline bool ddtrace_span_is_dropped(ddtrace_span_data *span) {
 static inline bool ddtrace_span_is_entrypoint_root(ddtrace_span_data *span) {
     // The parent stack of a true top-level stack does never have a parent stack itself
     return span->std.ce == ddtrace_ce_root_span_data && (!span->stack->parent_stack || !span->stack->parent_stack->parent_stack);
+}
+
+// Tag lookup in SpanData::$attributes, the single tag store ($meta/$metrics are views onto it).
+static inline zval *ddtrace_span_find_tag(ddtrace_span_data *span, const char *key, size_t len) {
+    return zend_hash_str_find(ddtrace_property_array(&span->property_attributes), key, len);
 }
 
 static inline ddtrace_span_data *ddtrace_get_inferred_span(ddtrace_root_span_data *root) {

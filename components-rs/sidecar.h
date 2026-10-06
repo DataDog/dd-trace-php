@@ -123,6 +123,11 @@ void ddog_sidecar_reap_master_listener_files(void);
 
 bool ddog_sidecar_is_master_listener_active(void);
 
+/**
+ * # Safety
+ * On Unix, call in the child after fork, before starting threads. Inherited sidecar
+ * tasks and references to their state must not be used afterward.
+ */
 ddog_MaybeError ddog_sidecar_clear_inherited_listener(void);
 
 ddog_MaybeError ddog_sidecar_ping(struct ddog_SidecarTransport **transport);
@@ -242,7 +247,8 @@ ddog_MaybeError ddog_sidecar_session_set_config(struct ddog_SidecarTransport **t
                                                 ddog_CharSlice hostname,
                                                 ddog_CharSlice root_service,
                                                 ddog_CharSlice root_session_id,
-                                                ddog_CharSlice parent_session_id);
+                                                ddog_CharSlice parent_session_id,
+                                                bool force_v04_traces);
 
 /**
  * Updates the process_tags for an existing session.
@@ -521,6 +527,25 @@ void ddog_send_traces_to_sidecar(ddog_TracesBytes *traces,
                                  struct ddog_SenderParameters *parameters);
 
 /**
+ * V1 counterpart of `ddog_send_traces_to_sidecar`: sends the [`crate::span`] builder's native V1
+ * payload to the agent's `/v1.0/traces`. Consumes `builder`. Payload metadata comes at send time
+ * from `parameters.tracer_headers_tags` and `metadata`; lang_interpreter/lang_vendor go as
+ * headers.
+ */
+void ddog_send_traces_to_sidecar_v1(ddog_TracerPayloadBytes *builder,
+                                    struct ddog_SenderParameters *parameters,
+                                    const struct ddog_TracerMetadataV1 *metadata);
+
+/**
+ * Downgrades a native V1 builder to the in-memory v0.4 collection for the in-process `coms.c`
+ * sender (PHP <= 8.2). Consumes `builder`. Returns the collection (not one whole-payload
+ * CharSlice) so `auto_flush` can frame each trace individually; a single CharSlice would drop
+ * extra traces of a multi-trace payload. Empty collection on error; free with
+ * [`crate::span_v04::ddog_free_traces`].
+ */
+ddog_TracesBytes *ddog_downgrade_v1_builder_to_v04_traces(ddog_TracerPayloadBytes *builder);
+
+/**
  * Drops the agent info reader.
  */
 void ddog_drop_agent_info_reader(struct ddog_AgentInfoReader*);
@@ -644,36 +669,604 @@ void ddog_sidecar_signal_flush_drop(struct ddog_SignalFlush *flush);
 int32_t ddog_sidecar_signal_flush_run(const struct ddog_SignalFlush *flush);
 #endif
 
-ddog_TracesBytes *ddog_get_traces(void);
-
-void ddog_free_traces(ddog_TracesBytes *_traces);
-
-uintptr_t ddog_get_traces_size(const ddog_TracesBytes *traces);
-
-ddog_TraceBytes *ddog_get_trace(ddog_TracesBytes *traces, uintptr_t index);
-
-ddog_TraceBytes *ddog_traces_new_trace(ddog_TracesBytes *traces);
-
-uintptr_t ddog_get_trace_size(const ddog_TraceBytes *trace);
-
-ddog_SpanBytes *ddog_get_span(ddog_TraceBytes *trace, uintptr_t index);
-
-ddog_SpanBytes *ddog_trace_new_span(ddog_TraceBytes *trace);
-
-ddog_SpanBytes *ddog_trace_new_span_with_capacities(ddog_TraceBytes *trace,
-                                                    uintptr_t meta_size,
-                                                    uintptr_t metrics_size);
-
 /**
- * The returned slice is an owned allocation that must be properly freed using
- * [`ddog_free_charslice`].
+ * Creates a new, empty V1 payload builder. Free it with [`ddog_v1_free_builder`], or hand it to
+ * `ddog_send_traces_to_sidecar_v1`, which consumes it.
  */
-ddog_CharSlice ddog_span_debug_log(const ddog_SpanBytes *span);
+ddog_TracerPayloadBytes *ddog_v1_new_builder(void);
 
 /**
- * Frees an owned [`CharSlice`]. Note that some functions of this API return borrowed slices that
- * must NOT be freed. Only a few selected functions return slices that must be freed, and this is
- * mentioned explicitly in their documentation.
+ * Frees a V1 payload builder.
+ */
+void ddog_v1_free_builder(ddog_TracerPayloadBytes *_builder);
+
+/**
+ * Sets the payload `env` / `app_version` / `hostname` fields (empty = unset).
+ */
+void ddog_set_payload_metadata(ddog_TracerPayloadBytes *builder,
+                               ddog_CharSlice env,
+                               ddog_CharSlice app_version,
+                               ddog_CharSlice hostname);
+
+/**
+ * Appends a chunk carrying the 128-bit trace id (high/low halves).
+ */
+ddog_TraceChunkBytes *ddog_new_chunk(ddog_TracerPayloadBytes *builder,
+                                     uint64_t trace_id_high,
+                                     uint64_t trace_id_low);
+
+/**
+ * Number of spans already in `chunk`.
+ *
+ * # Safety
+ * `chunk` must be a live pointer from [`ddog_new_chunk`] (applies to every chunk fn).
+ */
+uintptr_t ddog_chunk_span_count(ddog_TraceChunkBytes *chunk);
+
+/**
+ * Appends an empty span to `chunk`.
+ *
+ * # Safety
+ * See [`ddog_chunk_span_count`].
+ */
+ddog_SpanBytes *ddog_new_span(ddog_TraceChunkBytes *chunk);
+
+/**
+ * Appends an empty link to `span`.
+ *
+ * # Safety
+ * `span` must be a live pointer from [`ddog_new_span`] or [`ddog_v1_get_span`] (applies to every
+ * span fn).
+ */
+ddog_SpanLinkBytes *ddog_new_link(ddog_SpanBytes *span);
+
+/**
+ * Appends an empty event to `span`.
+ *
+ * # Safety
+ * See [`ddog_new_link`].
+ */
+ddog_SpanEventBytes *ddog_new_event(ddog_SpanBytes *span);
+
+/**
+ * # Safety
+ * See [`ddog_new_link`] (applies to every `ddog_span_set_*` / `ddog_set_span_*`).
+ */
+void ddog_span_set_id(ddog_SpanBytes *span, uint64_t value);
+
+/**
+ * # Safety
+ * See [`ddog_span_set_id`].
+ */
+void ddog_span_set_parent_id(ddog_SpanBytes *span, uint64_t value);
+
+/**
+ * # Safety
+ * See [`ddog_span_set_id`].
+ */
+void ddog_span_set_start(ddog_SpanBytes *span, int64_t value);
+
+/**
+ * # Safety
+ * See [`ddog_span_set_id`].
+ */
+void ddog_span_set_duration(ddog_SpanBytes *span, int64_t value);
+
+/**
+ * # Safety
+ * See [`ddog_span_set_id`].
+ */
+void ddog_span_set_error(ddog_SpanBytes *span, bool error);
+
+/**
+ * Reads the span error flag (e.g. to mirror it onto an inferred span).
+ *
+ * # Safety
+ * See [`ddog_new_link`].
+ */
+bool ddog_span_get_error(ddog_SpanBytes *span);
+
+/**
+ * # Safety
+ * See [`ddog_span_get_error`].
+ */
+void ddog_set_span_service(ddog_SpanBytes *span, ddog_CharSlice value);
+
+/**
+ * # Safety
+ * See [`ddog_span_get_error`].
+ */
+void ddog_set_span_name(ddog_SpanBytes *span, ddog_CharSlice value);
+
+/**
+ * # Safety
+ * See [`ddog_span_get_error`].
+ */
+void ddog_set_span_resource(ddog_SpanBytes *span, ddog_CharSlice value);
+
+/**
+ * # Safety
+ * See [`ddog_span_get_error`].
+ */
+void ddog_set_span_type(ddog_SpanBytes *span, ddog_CharSlice value);
+
+/**
+ * # Safety
+ * See [`ddog_span_get_error`].
+ */
+void ddog_set_span_env(ddog_SpanBytes *span, ddog_CharSlice value);
+
+/**
+ * # Safety
+ * See [`ddog_span_get_error`].
+ */
+void ddog_set_span_version(ddog_SpanBytes *span, ddog_CharSlice value);
+
+/**
+ * # Safety
+ * See [`ddog_span_get_error`].
+ */
+void ddog_set_span_component(ddog_SpanBytes *span, ddog_CharSlice value);
+
+/**
+ * Sets the span kind from an OTEL wire value (unset/unknown → Unspecified).
+ *
+ * # Safety
+ * See [`ddog_new_link`].
+ */
+void ddog_set_span_kind(ddog_SpanBytes *span, uint32_t kind);
+
+/**
+ * Sets the span kind from a v0.4 `span.kind` string. Returns `false` for a non-canonical kind,
+ * which has no wire slot, so the caller keeps it as a plain attribute.
+ *
+ * # Safety
+ * See [`ddog_new_link`].
+ */
+bool ddog_set_span_kind_str(ddog_SpanBytes *span, ddog_CharSlice value);
+
+/**
+ * # Safety
+ * See [`ddog_chunk_span_count`] (applies to every `ddog_set_chunk_*`).
+ */
+void ddog_set_chunk_origin(ddog_TraceChunkBytes *chunk, ddog_CharSlice origin);
+
+/**
+ * # Safety
+ * See [`ddog_set_chunk_origin`].
+ */
+void ddog_set_chunk_sampling_priority(ddog_TraceChunkBytes *chunk, int32_t priority);
+
+/**
+ * # Safety
+ * See [`ddog_set_chunk_origin`].
+ */
+void ddog_set_chunk_sampling_mechanism(ddog_TraceChunkBytes *chunk, uint32_t mechanism);
+
+/**
+ * # Safety
+ * `link` must be a live pointer from [`ddog_new_link`] (applies to every `ddog_link_*`).
+ */
+void ddog_link_set_trace_id(ddog_SpanLinkBytes *link,
+                            uint64_t trace_id_high,
+                            uint64_t trace_id_low);
+
+/**
+ * # Safety
+ * See [`ddog_link_set_trace_id`].
+ */
+void ddog_link_set_span_id(ddog_SpanLinkBytes *link, uint64_t value);
+
+/**
+ * # Safety
+ * See [`ddog_link_set_trace_id`].
+ */
+void ddog_link_set_flags(ddog_SpanLinkBytes *link, uint32_t value);
+
+/**
+ * # Safety
+ * See [`ddog_link_set_trace_id`].
+ */
+void ddog_link_set_tracestate(ddog_SpanLinkBytes *link, ddog_CharSlice value);
+
+/**
+ * # Safety
+ * `event` must be a live pointer from [`ddog_new_event`] (applies to every `ddog_event_*`).
+ */
+void ddog_event_set_name(ddog_SpanEventBytes *event, ddog_CharSlice value);
+
+/**
+ * # Safety
+ * See [`ddog_event_set_name`].
+ */
+void ddog_event_set_time(ddog_SpanEventBytes *event, uint64_t time_unix_nano);
+
+/**
+ * The payload's attribute map.
+ *
+ * # Safety
+ * `builder` must be a live builder from [`ddog_v1_new_builder`].
+ */
+struct ddog_Attributes *ddog_payload_get_attributes(ddog_TracerPayloadBytes *builder);
+
+/**
+ * # Safety
+ * See [`ddog_chunk_span_count`].
+ */
+struct ddog_Attributes *ddog_chunk_get_attributes(ddog_TraceChunkBytes *chunk);
+
+/**
+ * # Safety
+ * See [`ddog_new_link`].
+ */
+struct ddog_Attributes *ddog_span_get_attributes(ddog_SpanBytes *span);
+
+/**
+ * # Safety
+ * See [`ddog_link_set_trace_id`].
+ */
+struct ddog_Attributes *ddog_link_get_attributes(ddog_SpanLinkBytes *link);
+
+/**
+ * # Safety
+ * See [`ddog_event_set_name`].
+ */
+struct ddog_Attributes *ddog_event_get_attributes(ddog_SpanEventBytes *event);
+
+/**
+ * # Safety
+ * `attrs` must be a live [`Attributes`] handle (applies to every `ddog_attributes_add_*`).
+ */
+void ddog_attributes_add_str(struct ddog_Attributes *attrs,
+                             ddog_CharSlice key,
+                             ddog_CharSlice value);
+
+/**
+ * # Safety
+ * See [`ddog_attributes_add_str`].
+ */
+void ddog_attributes_add_int(struct ddog_Attributes *attrs, ddog_CharSlice key, int64_t value);
+
+/**
+ * # Safety
+ * See [`ddog_attributes_add_str`].
+ */
+void ddog_attributes_add_double(struct ddog_Attributes *attrs, ddog_CharSlice key, double value);
+
+/**
+ * # Safety
+ * See [`ddog_attributes_add_str`].
+ */
+void ddog_attributes_add_bool(struct ddog_Attributes *attrs, ddog_CharSlice key, bool value);
+
+/**
+ * Bytes attribute (v0.4 `meta_struct`), copied verbatim.
+ *
+ * # Safety
+ * See [`ddog_attributes_add_str`].
+ */
+void ddog_attributes_add_bytes(struct ddog_Attributes *attrs,
+                               ddog_CharSlice key,
+                               ddog_CharSlice value);
+
+/**
+ * Sets `attrs[key]` to `list`, which is consumed.
+ *
+ * # Safety
+ * See [`ddog_attributes_add_str`]; `list` must be a live list from [`ddog_attr_list_new`].
+ */
+void ddog_attributes_add_list(struct ddog_Attributes *attrs,
+                              ddog_CharSlice key,
+                              struct ddog_AttrList *list);
+
+/**
+ * Sets `attrs[key]` to `map`, which is consumed.
+ *
+ * # Safety
+ * See [`ddog_attributes_add_str`]; `map` must be a live map from [`ddog_attr_map_new`], other than
+ * the one `attrs` belongs to.
+ */
+void ddog_attributes_add_map(struct ddog_Attributes *attrs,
+                             ddog_CharSlice key,
+                             struct ddog_AttrMap *map);
+
+/**
+ * Copies the attribute `key` from `from_span` onto `to_span`, returning whether the source had it;
+ * removes it from the source when `delete_source` is set. Type-preserving.
+ *
+ * # Safety
+ * `from_span`/`to_span` must be live, distinct span pointers; `key` a static NUL-terminated
+ * string.
+ */
+bool ddog_transfer_span_attr(ddog_SpanBytes *from_span,
+                             ddog_SpanBytes *to_span,
+                             const char *key,
+                             bool delete_source);
+
+/**
+ * Allocates an empty list with room for `capacity` elements, owned by C until it is consumed.
+ */
+struct ddog_AttrList *ddog_attr_list_new(uintptr_t capacity);
+
+/**
+ * Allocates an empty map with room for `capacity` members, owned by C until it is consumed.
+ */
+struct ddog_AttrMap *ddog_attr_map_new(uintptr_t capacity);
+
+/**
+ * The attribute map of an owned nested `map`, filled with the `ddog_attributes_add_*` family.
+ *
+ * # Safety
+ * `map` must be a live map from [`ddog_attr_map_new`].
+ */
+struct ddog_Attributes *ddog_attr_map_get_attributes(struct ddog_AttrMap *map);
+
+/**
+ * # Safety
+ * `list` must be a live list from [`ddog_attr_list_new`] (applies to every `ddog_attr_list_*`);
+ * a `child` is consumed.
+ */
+void ddog_attr_list_push_str(struct ddog_AttrList *list, ddog_CharSlice value);
+
+/**
+ * # Safety
+ * See [`ddog_attr_list_push_str`].
+ */
+void ddog_attr_list_push_int(struct ddog_AttrList *list, int64_t value);
+
+/**
+ * # Safety
+ * See [`ddog_attr_list_push_str`].
+ */
+void ddog_attr_list_push_double(struct ddog_AttrList *list, double value);
+
+/**
+ * # Safety
+ * See [`ddog_attr_list_push_str`].
+ */
+void ddog_attr_list_push_bool(struct ddog_AttrList *list, bool value);
+
+/**
+ * # Safety
+ * See [`ddog_attr_list_push_str`].
+ */
+void ddog_attr_list_push_bytes(struct ddog_AttrList *list, ddog_CharSlice value);
+
+/**
+ * # Safety
+ * See [`ddog_attr_list_push_str`].
+ */
+void ddog_attr_list_push_list(struct ddog_AttrList *list, struct ddog_AttrList *child);
+
+/**
+ * # Safety
+ * See [`ddog_attr_list_push_str`].
+ */
+void ddog_attr_list_push_map(struct ddog_AttrList *list, struct ddog_AttrMap *child);
+
+/**
+ * Number of chunks in the builder.
+ */
+uintptr_t ddog_v1_get_chunk_count(const ddog_TracerPayloadBytes *builder);
+
+/**
+ * Chunk `idx` (null if out of range).
+ */
+ddog_TraceChunkBytes *ddog_v1_get_chunk(ddog_TracerPayloadBytes *builder, uintptr_t idx);
+
+/**
+ * Span `idx` of `chunk` (null if out of range), e.g. to re-fetch a span after a sibling push.
+ *
+ * # Safety
+ * See [`ddog_chunk_span_count`].
+ */
+ddog_SpanBytes *ddog_v1_get_span(ddog_TraceChunkBytes *chunk, uintptr_t idx);
+
+/**
+ * The chunk's local-root span, as the v0.4 wire picks it (`local_root_idx`), or null if empty.
+ * Chunk-level trace tags (trace_id_high, sampling priority/mechanism, origin) belong on it only.
+ */
+const ddog_SpanBytes *ddog_v1_get_chunk_root_span(const ddog_TraceChunkBytes *chunk);
+
+uintptr_t ddog_v1_get_link_count(const ddog_SpanBytes *span);
+
+/**
+ * Link `idx` of `span` (null if out of range).
+ *
+ * # Safety
+ * See [`ddog_new_link`].
+ */
+ddog_SpanLinkBytes *ddog_v1_get_link(ddog_SpanBytes *span, uintptr_t idx);
+
+uintptr_t ddog_v1_get_event_count(const ddog_SpanBytes *span);
+
+/**
+ * Event `idx` of `span` (null if out of range).
+ *
+ * # Safety
+ * See [`ddog_new_link`].
+ */
+ddog_SpanEventBytes *ddog_v1_get_event(ddog_SpanBytes *span, uintptr_t idx);
+
+uint64_t ddog_v1_get_chunk_trace_id_high(const ddog_TraceChunkBytes *chunk);
+
+uint64_t ddog_v1_get_chunk_trace_id_low(const ddog_TraceChunkBytes *chunk);
+
+/**
+ * Reads the chunk sampling priority; returns `false` (and leaves `out` untouched) when unset.
+ */
+bool ddog_v1_get_chunk_sampling_priority(const ddog_TraceChunkBytes *chunk, int32_t *out);
+
+/**
+ * Reads the chunk sampling mechanism; returns `false` (and leaves `out` untouched) when unset.
+ */
+bool ddog_v1_get_chunk_sampling_mechanism(const ddog_TraceChunkBytes *chunk, uint32_t *out);
+
+ddog_CharSlice ddog_v1_get_chunk_origin(const ddog_TraceChunkBytes *chunk);
+
+ddog_CharSlice ddog_v1_get_span_service(const ddog_SpanBytes *span);
+
+ddog_CharSlice ddog_v1_get_span_name(const ddog_SpanBytes *span);
+
+ddog_CharSlice ddog_v1_get_span_resource(const ddog_SpanBytes *span);
+
+ddog_CharSlice ddog_v1_get_span_type(const ddog_SpanBytes *span);
+
+ddog_CharSlice ddog_v1_get_span_env(const ddog_SpanBytes *span);
+
+ddog_CharSlice ddog_v1_get_span_version(const ddog_SpanBytes *span);
+
+ddog_CharSlice ddog_v1_get_span_component(const ddog_SpanBytes *span);
+
+uint64_t ddog_v1_get_span_id(const ddog_SpanBytes *span);
+
+uint64_t ddog_v1_get_span_parent_id(const ddog_SpanBytes *span);
+
+int64_t ddog_v1_get_span_start(const ddog_SpanBytes *span);
+
+int64_t ddog_v1_get_span_duration(const ddog_SpanBytes *span);
+
+bool ddog_v1_get_span_error(const ddog_SpanBytes *span);
+
+/**
+ * The span kind as its OTEL wire value.
+ */
+uint32_t ddog_v1_get_span_kind(const ddog_SpanBytes *span);
+
+uint64_t ddog_v1_get_link_trace_id_high(const ddog_SpanLinkBytes *link);
+
+uint64_t ddog_v1_get_link_trace_id_low(const ddog_SpanLinkBytes *link);
+
+uint64_t ddog_v1_get_link_span_id(const ddog_SpanLinkBytes *link);
+
+uint32_t ddog_v1_get_link_flags(const ddog_SpanLinkBytes *link);
+
+ddog_CharSlice ddog_v1_get_link_tracestate(const ddog_SpanLinkBytes *link);
+
+uint64_t ddog_v1_get_event_time(const ddog_SpanEventBytes *event);
+
+ddog_CharSlice ddog_v1_get_event_name(const ddog_SpanEventBytes *event);
+
+/**
+ * Number of entries in `attrs`, including not-yet-deduped repeated keys (the last one wins).
+ *
+ * # Safety
+ * `attrs` must be a live [`Attributes`] handle (applies to every `ddog_v1_attributes_*`).
+ */
+uintptr_t ddog_v1_attributes_len(const struct ddog_Attributes *attrs);
+
+/**
+ * Key of the entry at `idx` (empty if out of range).
+ *
+ * # Safety
+ * See [`ddog_v1_attributes_len`].
+ */
+ddog_CharSlice ddog_v1_attributes_key(const struct ddog_Attributes *attrs, uintptr_t idx);
+
+/**
+ * Value of the entry at `idx` (null if out of range).
+ *
+ * # Safety
+ * See [`ddog_v1_attributes_len`].
+ */
+const struct ddog_AttrValue *ddog_v1_attributes_value(const struct ddog_Attributes *attrs,
+                                                      uintptr_t idx);
+
+/**
+ * Value of `key` (null if absent).
+ *
+ * # Safety
+ * See [`ddog_v1_attributes_len`].
+ */
+const struct ddog_AttrValue *ddog_v1_attributes_get(const struct ddog_Attributes *attrs,
+                                                    ddog_CharSlice key);
+
+/**
+ * [`DDOG_V1_ATTR_*`] type tag of `value`.
+ *
+ * # Safety
+ * `value` must be a live [`AttrValue`] handle (applies to every `ddog_v1_value_*`).
+ */
+uint32_t ddog_v1_value_type(const struct ddog_AttrValue *value);
+
+/**
+ * The string (empty unless a `String`).
+ *
+ * # Safety
+ * See [`ddog_v1_value_type`].
+ */
+ddog_CharSlice ddog_v1_value_str(const struct ddog_AttrValue *value);
+
+/**
+ * The bytes (empty unless `Bytes`).
+ *
+ * # Safety
+ * See [`ddog_v1_value_type`].
+ */
+ddog_CharSlice ddog_v1_value_bytes(const struct ddog_AttrValue *value);
+
+/**
+ * The integer (0 unless an `Int`).
+ *
+ * # Safety
+ * See [`ddog_v1_value_type`].
+ */
+int64_t ddog_v1_value_int(const struct ddog_AttrValue *value);
+
+/**
+ * The double (0.0 unless a `Float`).
+ *
+ * # Safety
+ * See [`ddog_v1_value_type`].
+ */
+double ddog_v1_value_double(const struct ddog_AttrValue *value);
+
+/**
+ * The boolean (false unless a true `Bool`).
+ *
+ * # Safety
+ * See [`ddog_v1_value_type`].
+ */
+bool ddog_v1_value_bool(const struct ddog_AttrValue *value);
+
+/**
+ * Number of elements (0 unless a `List`).
+ *
+ * # Safety
+ * See [`ddog_v1_value_type`].
+ */
+uintptr_t ddog_v1_value_list_len(const struct ddog_AttrValue *value);
+
+/**
+ * Element `idx` (null unless a `List` with that element).
+ *
+ * # Safety
+ * See [`ddog_v1_value_type`].
+ */
+const struct ddog_AttrValue *ddog_v1_value_list_get(const struct ddog_AttrValue *value,
+                                                    uintptr_t idx);
+
+/**
+ * The members of a `KeyValue`, read with the `ddog_v1_attributes_*` family (null otherwise).
+ *
+ * # Safety
+ * See [`ddog_v1_value_type`].
+ */
+const struct ddog_Attributes *ddog_v1_value_map(const struct ddog_AttrValue *value);
+
+/**
+ * Renders a span for dd-trace-php's `DD_TRACE_DEBUG` "Encoding span" line. The returned owned
+ * slice must be freed with [`ddog_free_charslice`].
+ */
+ddog_CharSlice ddog_v1_span_debug_log(const ddog_TraceChunkBytes *chunk,
+                                      const ddog_SpanBytes *span);
+
+/**
+ * Frees an owned [`CharSlice`]. Only the few functions that document it return owned slices (the
+ * V1 [`ddog_v1_span_debug_log`] and the v0.4
+ * [`crate::span_v04::ddog_serialize_trace_into_charslice`]); borrowed slices must NOT be passed
+ * here. An owned slice allocates `len + 1` bytes (payload + NUL), reclaimed here with that exact
+ * shape; a zero-length slice is always borrowed and owns nothing.
  *
  * # Safety
  *
@@ -681,125 +1274,16 @@ ddog_CharSlice ddog_span_debug_log(const ddog_SpanBytes *span);
  */
 void ddog_free_charslice(ddog_CharSlice slice);
 
-void ddog_set_span_service(ddog_SpanBytes *span, ddog_CharSlice slice);
+void ddog_free_traces(ddog_TracesBytes *_traces);
 
-ddog_CharSlice ddog_get_span_service(ddog_SpanBytes *span);
+uintptr_t ddog_get_traces_size(const ddog_TracesBytes *traces);
 
-void ddog_set_span_name(ddog_SpanBytes *span, ddog_CharSlice slice);
-
-ddog_CharSlice ddog_get_span_name(ddog_SpanBytes *span);
-
-void ddog_set_span_resource(ddog_SpanBytes *span, ddog_CharSlice slice);
-
-ddog_CharSlice ddog_get_span_resource(ddog_SpanBytes *span);
-
-void ddog_set_span_type(ddog_SpanBytes *span, ddog_CharSlice slice);
-
-ddog_CharSlice ddog_get_span_type(ddog_SpanBytes *span);
-
-void ddog_set_span_trace_id(ddog_SpanBytes *span, uint64_t value);
-
-uint64_t ddog_get_span_trace_id(ddog_SpanBytes *span);
-
-void ddog_set_span_id(ddog_SpanBytes *span, uint64_t value);
-
-uint64_t ddog_get_span_id(ddog_SpanBytes *span);
-
-void ddog_set_span_parent_id(ddog_SpanBytes *span, uint64_t value);
-
-uint64_t ddog_get_span_parent_id(ddog_SpanBytes *span);
-
-void ddog_set_span_start(ddog_SpanBytes *span, int64_t value);
-
-int64_t ddog_get_span_start(ddog_SpanBytes *span);
-
-void ddog_set_span_duration(ddog_SpanBytes *span, int64_t value);
-
-int64_t ddog_get_span_duration(ddog_SpanBytes *span);
-
-void ddog_set_span_error(ddog_SpanBytes *span, int32_t value);
-
-int32_t ddog_get_span_error(ddog_SpanBytes *span);
-
-void ddog_add_span_meta(ddog_SpanBytes *span, ddog_CharSlice key, ddog_CharSlice value);
-
-void ddog_del_span_meta(ddog_SpanBytes *span, ddog_CharSlice key);
-
-ddog_CharSlice ddog_get_span_meta(ddog_SpanBytes *span, ddog_CharSlice key);
-
-bool ddog_has_span_meta(ddog_SpanBytes *span, ddog_CharSlice key);
+ddog_TraceBytes *ddog_get_trace(ddog_TracesBytes *traces, uintptr_t index);
 
 /**
- * The return value is an owned array of slices (`Box<[CharSlice]>`) that must be freed explicitly
- * through [`ddog_span_free_keys_ptr`].
- */
-ddog_CharSlice *ddog_span_meta_get_keys(ddog_SpanBytes *span, uintptr_t *out_count);
-
-void ddog_add_span_metrics(ddog_SpanBytes *span, ddog_CharSlice key, double val);
-
-void ddog_del_span_metrics(ddog_SpanBytes *span, ddog_CharSlice key);
-
-bool ddog_get_span_metrics(ddog_SpanBytes *span, ddog_CharSlice key, double *result);
-
-bool ddog_has_span_metrics(ddog_SpanBytes *span, ddog_CharSlice key);
-
-ddog_CharSlice *ddog_span_metrics_get_keys(ddog_SpanBytes *span, uintptr_t *out_count);
-
-void ddog_add_span_meta_struct(ddog_SpanBytes *span, ddog_CharSlice key, ddog_CharSlice val);
-
-void ddog_del_span_meta_struct(ddog_SpanBytes *span, ddog_CharSlice key);
-
-ddog_CharSlice ddog_get_span_meta_struct(ddog_SpanBytes *span, ddog_CharSlice key);
-
-bool ddog_has_span_meta_struct(ddog_SpanBytes *span, ddog_CharSlice key);
-
-/**
- * The return value is an array of slices (`Box<[CharSlice]>`) that must be freed explicitly
- * through [`ddog_span_free_keys_ptr`].
- */
-ddog_CharSlice *ddog_span_meta_struct_get_keys(ddog_SpanBytes *span, uintptr_t *out_count);
-
-/**
- * # Safety
- *
- * `keys_ptr` must have been returned by one of the `ddog_xxx_get_keys()` functions, and must not
- * have been already freed.
- */
-void ddog_span_free_keys_ptr(ddog_CharSlice *keys_ptr, uintptr_t count);
-
-ddog_SpanLinkBytes *ddog_span_new_link(ddog_SpanBytes *span);
-
-void ddog_set_link_tracestate(ddog_SpanLinkBytes *link, ddog_CharSlice slice);
-
-void ddog_set_link_trace_id(ddog_SpanLinkBytes *link, uint64_t value);
-
-void ddog_set_link_trace_id_high(ddog_SpanLinkBytes *link, uint64_t value);
-
-void ddog_set_link_span_id(ddog_SpanLinkBytes *link, uint64_t value);
-
-void ddog_set_link_flags(ddog_SpanLinkBytes *link, uint32_t value);
-
-void ddog_add_link_attributes(ddog_SpanLinkBytes *link, ddog_CharSlice key, ddog_CharSlice val);
-
-ddog_SpanEventBytes *ddog_span_new_event(ddog_SpanBytes *span);
-
-void ddog_set_event_name(ddog_SpanEventBytes *event, ddog_CharSlice slice);
-
-void ddog_set_event_time(ddog_SpanEventBytes *event, uint64_t val);
-
-void ddog_add_event_attributes_str(ddog_SpanEventBytes *event,
-                                   ddog_CharSlice key,
-                                   ddog_CharSlice val);
-
-void ddog_add_event_attributes_bool(ddog_SpanEventBytes *event, ddog_CharSlice key, bool val);
-
-void ddog_add_event_attributes_int(ddog_SpanEventBytes *event, ddog_CharSlice key, int64_t val);
-
-void ddog_add_event_attributes_float(ddog_SpanEventBytes *event, ddog_CharSlice key, double val);
-
-/**
- * The returned slice is an owned allocation that must be properly freed using
- * [`ddog_free_charslice`].
+ * Serializes one v0.4 trace as a msgpack array-of-1, the framing the background sender
+ * (`ddtrace_send_traces_via_thread`) expects. Returns an owned slice; free with
+ * [`crate::span::ddog_free_charslice`].
  */
 ddog_CharSlice ddog_serialize_trace_into_charslice(ddog_TraceBytes *trace);
 

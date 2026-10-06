@@ -29,4 +29,4 @@ class A extends B {}
 --EXPECTF--
 [ddtrace] [warning] [%d] Error raised in ddtrace's closure defined at %s:%d for x(): No D in %s
 Leaving Autoloader
-[ddtrace] [info] [%d] Flushing trace of size 2 to send-queue for %s
+[ddtrace] [info] [%d] Flushing v1 trace of size 2 to send-queue for %s

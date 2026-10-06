@@ -27,14 +27,14 @@ foreach ($tests as list($pattern, $service)) {
     DDTrace\start_span()->service = $service;
     DDTrace\close_span();
     echo "$pattern matches $service (service): ";
-    var_dump((dd_trace_serialize_closed_spans()[0]["metrics"]["_dd.span_sampling.mechanism"] ?? 0) == 8);
+    var_dump((dd_trace_serialize_closed_spans()[0]["attributes"]["_dd.span_sampling.mechanism"] ?? 0) == 8);
 
     ini_set("datadog.span_sampling_rules", '[{"name":"' . $pattern . '","sample_rate":1}]');
 
     DDTrace\start_span()->name = $service;
     DDTrace\close_span();
     echo "$pattern matches $service (name): ";
-    var_dump((dd_trace_serialize_closed_spans()[0]["metrics"]["_dd.span_sampling.mechanism"] ?? 0) == 8);
+    var_dump((dd_trace_serialize_closed_spans()[0]["attributes"]["_dd.span_sampling.mechanism"] ?? 0) == 8);
 }
 
 ?>

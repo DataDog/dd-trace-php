@@ -28,4 +28,4 @@ greet('Datadog');
 Hello, Datadog.
 greet hooked.
 [ddtrace] [warning] [%d] %s in ddtrace's closure defined at %s:%d for greet(): Undefined variable%sthis_normally_raises_an_%s
-[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for %s
+[ddtrace] [info] [%d] Flushing v1 trace of size 1 to send-queue for %s

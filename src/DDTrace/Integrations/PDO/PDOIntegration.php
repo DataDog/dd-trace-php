@@ -74,7 +74,6 @@ class PDOIntegration extends Integration
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             $instance = $hook->instance;
             PDOIntegration::setCommonSpanInfo($instance, $span);
-            PDOIntegration::addTraceAnalyticsIfEnabled($span);
 
             PDOIntegration::injectDBIntegration($instance, $hook);
             PDOIntegration::handleRasp($instance, $span);
@@ -100,7 +99,6 @@ class PDOIntegration extends Integration
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             $instance = $hook->instance;
             PDOIntegration::setCommonSpanInfo($instance, $span);
-            PDOIntegration::addTraceAnalyticsIfEnabled($span);
 
             PDOIntegration::injectDBIntegration($instance, $hook);
             PDOIntegration::handleRasp($instance, $span);
@@ -170,7 +168,6 @@ class PDOIntegration extends Integration
                     }
                 }
                 PDOIntegration::setCommonSpanInfo($instance, $span);
-                PDOIntegration::addTraceAnalyticsIfEnabled($span);
                 PDOIntegration::detectError($instance, $span);
 
                 $span->resource = PDOIntegration::useQuestionMarkPlaceholders($span->resource);
@@ -324,7 +321,7 @@ REGEX;
             Integration::handleInternalSpanServiceName($span, self::NAME, true);
             $span->service = $span->service
                 . '-' . \DDTrace\Util\Normalizer::normalizeHostUdsAsService($storedConnectionInfo[Tag::TARGET_HOST]);
-            $span->meta['_dd.svc_src'] = 'opt.db_client_split_by_instance';
+            $span->attributes['_dd.svc_src'] = 'opt.db_client_split_by_instance';
         } else {
             Integration::handleInternalSpanServiceName($span, self::NAME);
         }

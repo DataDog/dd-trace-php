@@ -27,6 +27,6 @@ greet('Datadog');
 --EXPECTF--
 Hello, Datadog.
 greet tracer.
-string(%d) "{"trace_id":"%s","span_id":"%s"}"
+string(%d) "{"traceId":"%s","spanId":"%s"}"
 bool(true)
 bool(true)
