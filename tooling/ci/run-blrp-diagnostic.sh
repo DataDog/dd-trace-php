@@ -11,16 +11,11 @@ readonly EXPECTED_TEST_NAME="test_stable_value[64]"
 readonly RUN_COUNT=100
 readonly ARTIFACT_BASE_URL="https://s3.us-east-1.amazonaws.com/dd-trace-php-builds/${TRACER_VERSION/+/%2B}"
 
-REPOSITORY_ROOT="$(git rev-parse --show-toplevel)"
+REPOSITORY_ROOT="$(pwd -P)"
 readonly REPOSITORY_ROOT
 readonly WORK_ROOT="${REPOSITORY_ROOT}/.blrp-diagnostic-work"
 readonly OUTPUT_ROOT="${REPOSITORY_ROOT}/blrp-diagnostic-output"
 readonly SYSTEM_TESTS_ROOT="${WORK_ROOT}/system-tests"
-
-if ! git merge-base --is-ancestor "${TRACER_BASE_SHA}" HEAD; then
-    echo "Diagnostic branch must descend from tracer ${TRACER_BASE_SHA}" >&2
-    exit 2
-fi
 
 if [[ -e "${WORK_ROOT}" || -e "${OUTPUT_ROOT}" ]]; then
     echo "Diagnostic work or output directory already exists" >&2
@@ -55,6 +50,16 @@ apt-get install -y --no-install-recommends \
     -o "dir::state::lists=${APT_CACHE}/lists" \
     -o "dir::cache::archives=${APT_CACHE}/archives" \
     docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+if [[ "$(git rev-parse --show-toplevel)" != "${REPOSITORY_ROOT}" ]]; then
+    echo "Diagnostic must run from the repository root" >&2
+    exit 2
+fi
+
+if ! git merge-base --is-ancestor "${TRACER_BASE_SHA}" HEAD; then
+    echo "Diagnostic branch must descend from tracer ${TRACER_BASE_SHA}" >&2
+    exit 2
+fi
+
 pip install -U pip virtualenv
 
 if command -v docker >/dev/null 2>&1; then
