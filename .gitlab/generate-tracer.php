@@ -826,6 +826,12 @@ foreach ($services as $part => $service) {
     _DD_SIDECAR_WATCHDOG_MAX_MEMORY: 2147483648
     ASAN_OPTIONS: abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1:detect_leaks=0
 <?php endif; ?>
+<?php if ($target === "test_integrations_frankenphp"): ?>
+    # install-frankenphp.sh runs `go build`; fetch modules through Depot rather than proxy.golang.org directly, with no fallback to direct fetches.
+    GOPROXY: "https://depot-read-api-go.us1.ddbuild.io/magicmirror/magicmirror/@current/"
+    GOPRIVATE: ""
+    GONOPROXY: "none"
+<?php endif; ?>
 <?php if ($sapi): ?>
     DD_TRACE_TEST_SAPI: "<?= $sapi ?>"
 <?php endif; ?>
