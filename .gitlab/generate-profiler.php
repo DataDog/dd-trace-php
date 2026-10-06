@@ -255,7 +255,7 @@ foreach ($profiler_minor_major_targets as $version) {
         export TEST_PHP_EXECUTABLE="$(command -v php)"
         export DDTRACE_TEST_TRACER_EXTENSION=/tmp/ddtrace-combined.so
         export DDTRACE_TEST_PROFILER_EXTENSION="${CI_PROJECT_DIR}/tmp/build_profiler/modules/datadog-profiling.so"
-        php "$(php-config --prefix)/lib/php/build/run-tests.php" -q \
+        php "$(php-config --prefix)/lib/php/build/run-tests.php" -q --show-diff \
           profiling/tests/phpt/standalone_conflict_ddtrace_first.phpt \
           profiling/tests/phpt/standalone_conflict_profiler_first.phpt
       fi
