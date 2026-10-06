@@ -37,6 +37,11 @@ def phpVersions = [
         '8.3': '8.3.0',
         '8.4': '8.4.0',
         '8.5': '8.5.0',
+        '8.6': '8.6.0RC2',
+]
+// Pre-release tarballs are not on php.net/distributions; drop the entry at GA.
+def phpTarballUrls = [
+        '8.6': 'https://downloads.php.net/~mbeccati/php-8.6.0RC2.tar.gz',
 ]
 
 def normalizeArch = { a ->
@@ -110,6 +115,7 @@ def buildPhp = { String version, String variant ->
                     imageIsNewerThan(image, "$repo:php-deps")
         }
         commandLine(*dockerBuildCommand, '--build-arg', "PHP_VERSION=${phpVersions[version]}",
+                '--build-arg', "PHP_TARBALL_URL=${phpTarballUrls[version] ?: ''}",
                 '--build-arg', "VARIANT=$variant", '-t', "$repo:$tag", 'src/docker/php')
 
         dependsOn 'buildPhpDeps'

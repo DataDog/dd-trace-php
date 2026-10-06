@@ -4,6 +4,7 @@ ADD build_dev_php.sh /build/php/
 ADD php_patches/ /build/php/php_patches/
 RUN mkdir -p /etc/php && ln -s /root/php/php.ini /etc/php/
 ARG PHP_VERSION
+ARG PHP_TARBALL_URL
 ARG VARIANT
 
 ENV NO_APX_WRAPPER=1

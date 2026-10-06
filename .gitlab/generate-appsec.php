@@ -238,6 +238,8 @@ stages:
           - test8.4-release-zts
           - test8.5-release
           - test8.5-release-zts
+          - test8.6-release
+          - test8.6-release-zts
           - test8.5-release-musl
           - test8.5-release-zts-musl
 
