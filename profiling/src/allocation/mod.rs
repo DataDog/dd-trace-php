@@ -69,9 +69,10 @@ pub(crate) unsafe fn current_execute_data_from_cache(
     // PHP 7.4 introduced fast globals offsets. Older versions use the TSRM resource ID.
     #[cfg(php_zts_fast_globals)]
     let globals = {
-        let offset = ptr::addr_of!(zend::executor_globals_offset).read();
+        // PHP 8.6+ places EG before the TSRM cache: the size_t holds a negative offset.
+        let offset = ptr::addr_of!(zend::executor_globals_offset).read() as isize;
         ls_cache
-            .byte_add(offset)
+            .byte_offset(offset)
             .cast::<zend::zend_executor_globals>()
     };
     #[cfg(not(php_zts_fast_globals))]
