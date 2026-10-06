@@ -123,6 +123,12 @@ static ddog_SidecarTransport *datadog_sidecar_connect_callback(void) {
 }
 
 static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_fork, const char *logpath) {
+    ddog_AgentRemoteConfigReader *agent_config_reader = NULL;
+#if DDTRACE
+    agent_config_reader = DATADOG_G(ddtrace.agent_config_reader);
+#endif
+    ddog_sidecar_reconnect_readers(DATADOG_G(telemetry_cache), DATADOG_G(remote_config_state),
+                                  DATADOG_G(agent_info_reader), agent_config_reader);
     ddog_span_concentrators_clear();
 
     if (!datadog_ffi_try("Failed starting AppSec in sidecar",
@@ -550,6 +556,9 @@ void datadog_sidecar_handle_fork(void) {
 #ifdef __linux__
     datadog_signals_reset_sidecar_flush_after_fork();
 #endif
+    datadog_ffi_try("Failed clearing inherited sidecar state",
+                    ddog_sidecar_handle_fork_php());
+
     ddog_RemoteConfigFlags flags = {0};
     bool enable_sidecar = datadog_sidecar_should_enable(&flags);
 
@@ -569,9 +578,6 @@ void datadog_sidecar_handle_fork(void) {
     datadog_sidecar_for_signal = NULL;
 
     if (datadog_sidecar_active_mode == DD_SIDECAR_CONNECTION_THREAD) {
-        datadog_ffi_try("Failed clearing inherited listener state",
-                        ddog_sidecar_clear_inherited_listener());
-
         DATADOG_G(sidecar) = dd_sidecar_connect(true, true);
         if (DATADOG_G(sidecar)) {
             LOG(INFO, "Child process reconnected to parent's sidecar listener after fork (child PID=%d, parent=%d)",
