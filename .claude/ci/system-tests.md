@@ -26,6 +26,7 @@ extends this template and runs `./run.sh` with the appropriate scenario.
 | `System Tests: [php-fpm-8.5]: [CROSSED_TRACING_LIBRARIES]` | `php-fpm-8.5` | `CROSSED_TRACING_LIBRARIES` | Cross-library tracing on PHP 8.5 FPM |
 | `System Tests: [parametric]` | runner image | `PARAMETRIC` | Parametric tests (language-agnostic API conformance) |
 | `System Tests: [tracer-release]` | `apache-mod-8.0` (default) | *(dynamic)* | Tracer release scenarios; master/scheduled only, 4h timeout |
+| `System Tests: [THREAD_CONTEXT_SHARING, cws-guest-kernel-mounts]` | `apache-mod-8.0` (default) | `THREAD_CONTEXT_SHARING` | Manual canary: forces the CWS trace context test with the Kata guest kernel mounts |
 
 Runner: `docker-in-docker:amd64`
 Image: `python:3.12-slim-bullseye` (the job itself installs Docker
@@ -38,6 +39,23 @@ expand into six parallel jobs, one per `TESTSUITE` value. The
 and matrix jobs but use `BUILD_SH_ARGS: php-fpm-8.5` (i.e., `./build.sh
 php-fpm-8.5`) to target the PHP 8.5 FPM weblog variant. GitLab names the
 matrix expansions `System Tests: [php-fpm-8.5]: [TESTSUITE]`.
+
+### CWS guest kernel mounts (THREAD_CONTEXT_SHARING)
+
+CWS needs the kernel filesystems and the PID namespace of the Kata guest, and
+the DIND service only sees its own. Jobs that extend the hidden
+`.cws_guest_kernel_mounts` template:
+
+- run on `docker-in-docker:amd64-cws`, a pool of the kata-qemu DIND runners
+  that mounts the guest's `/proc`, `/sys/fs/cgroup` and
+  `/sys/kernel/{debug,tracing,security}` under `/vm-host` in the job's
+  containers. On Kata these host paths are the guest VM's, not the node's.
+- set `SYSTEM_TESTS_CWS_GUEST_KERNEL_MOUNTS=v1`, which makes system-tests mount these into
+  the Agent and wait for the CWS self test before starting the weblog. Only
+  `THREAD_CONTEXT_SHARING` reads it.
+
+The canary job runs only that test, with `-F` because system-tests marks it
+xfail for the Agent (APPSEC-70532).
 
 ### Upstream dependencies (CI only)
 
@@ -246,6 +264,12 @@ Logs are written to `logs_<scenario>/` (or `logs/` for default) and
 - **Log directories become root-owned.** After runs, `logs*/` directories
   are owned by root. Remove them via Docker before re-running:
   `docker run --rm -v $(pwd):/s alpine rm -rf /s/logs /s/logs_*`
+
+- **CWS guest kernel mounts cannot be reproduced locally.** They need the
+  `docker-in-docker:amd64-cws` runners. On any other runner `/vm-host` does not
+  exist, and with `SYSTEM_TESTS_CWS_GUEST_KERNEL_MOUNTS=v1`
+  `THREAD_CONTEXT_SHARING` fails before the Agent starts. Locally, leave the
+  variable unset.
 
 - **Run the orchestrator on the host, not in a container.** Volume mount
   paths in `run.sh` resolve on the Docker host. If you run the orchestrator

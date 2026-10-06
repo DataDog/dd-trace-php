@@ -1519,6 +1519,29 @@ endforeach;
   script:
     - ./run.sh $TESTSUITE
 
+# THREAD_CONTEXT_SHARING needs CWS, which needs the kernel filesystems and the
+# PID namespace of the Kata guest. The DIND service only sees its own. The
+# docker-in-docker:amd64-cws runners (micro-vms-cws in dd-source) are the
+# kata-qemu DIND runners plus hostPath volumes of the guest's /proc,
+# /sys/fs/cgroup and /sys/kernel/{debug,tracing,security} under /vm-host. The
+# system-tests variable makes the Agent use them.
+# Kill switch: remove this template from the jobs that extend it.
+.cws_guest_kernel_mounts:
+  tags: [ "docker-in-docker:amd64-cws" ]
+  variables:
+    SYSTEM_TESTS_CWS_GUEST_KERNEL_MOUNTS: "v1"
+
+# Manual canary for the guest kernel mounts. -F forces the test to run although
+# the system-tests manifests mark it xfail (APPSEC-70532, an Agent crash on
+# shutdown).
+"System Tests: [THREAD_CONTEXT_SHARING, cws-guest-kernel-mounts]":
+  extends: [ .system_tests, .cws_guest_kernel_mounts ]
+  rules:
+    - when: manual
+  allow_failure: true
+  script:
+    - ./run.sh THREAD_CONTEXT_SHARING -F tests/cws/test_thread_context_sharing.py::Test_ThreadContextSharing::test_open_file_carries_trace_context tests/cws/test_thread_context_sharing.py::Test_ThreadContextSharing::test_open_file_carries_trace_context
+
 <?php
 $system_tests_weblogs = [
     "apache-mod-7.0", "apache-mod-7.0-zts",
