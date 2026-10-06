@@ -580,6 +580,31 @@ const void *zai_line_hook_dispatch(zend_execute_data *frame, const zend_op *opli
                     ZVAL_UNDEF(ZEND_CALL_VAR(frame, throw_op->result.var));
                 }
             }
+#if PHP_VERSION_ID < 70200
+            /* PHP 7.2 added result cleanup to HANDLE_EXCEPTION; earlier versions leave it to the opcode handler. */
+            if (throw_op->result_type & (IS_TMP_VAR | IS_VAR)) {
+                switch (throw_op->opcode) {
+                    case ZEND_NEW: /* Unfinished constructor calls own this result. */
+                    case ZEND_FETCH_CLASS:
+                    case ZEND_DECLARE_CLASS:
+                    case ZEND_DECLARE_INHERITED_CLASS:
+                    case ZEND_DECLARE_INHERITED_CLASS_DELAYED:
+                    case ZEND_DECLARE_ANON_CLASS:
+                    case ZEND_DECLARE_ANON_INHERITED_CLASS:
+                    case ZEND_ROPE_INIT:
+                    case ZEND_ROPE_ADD:
+#if PHP_VERSION_ID >= 70100
+                    case ZEND_ADD_ARRAY_ELEMENT: /* The existing live range releases the array. */
+#endif
+                        break;
+                    default: {
+                        zval *result = ZEND_CALL_VAR(frame, throw_op->result.var);
+                        zval_ptr_dtor_nogc(result);
+                        ZVAL_UNDEF(result);
+                    }
+                }
+            }
+#endif
             EG(opline_before_exception) = throw_op;
             frame->opline = EG(exception_op);
             return frame->opline->handler;
