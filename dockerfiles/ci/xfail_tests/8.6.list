@@ -188,6 +188,7 @@ ext/uri/tests/whatwg/parsing/username_success_null_byte.phpt
 ext/uri/tests/whatwg/parsing/password_success_null_byte.phpt
 ext/uri/tests/whatwg/reference_resolution/resolve_success_path_null_byte.phpt
 ext/uri/tests/whatwg/parsing/path_success_null_byte.phpt
+ext/uri/tests/whatwg/builder/username_success_tab_newline.phpt
 ext/zend_test/tests/
 sapi/cli/tests/bug80092.phpt
 sapi/cli/tests/gh8827-001.phpt

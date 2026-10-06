@@ -276,6 +276,8 @@ PHP 8.5 completely removed the `disable_classes` INI directive (see [RFC](https:
 
 These tests use object ids, and %00; changing the EXPECT to EXPECTF will cause the %00 to be matched as literal NULL-Bytes, breaking the test.
 
+`ext/uri/tests/whatwg/builder/username_success_tab_newline.phpt` (8.6+) fails the same way: its object ids trigger the EXPECTF rewrite, and its `%0A`/`%0D`/`%09` then match as NUL bytes.
+
 ## `ext/soap/tests/soap_qname_crash.phpt`
 
 Disabled on versions: `8.1+`.

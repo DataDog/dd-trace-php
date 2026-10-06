@@ -782,10 +782,16 @@ static int ZEND_OPCODE_HANDLER_CCONV zai_interceptor_handle_created_generator_ca
     zai_interceptor_handle_created_generator_func();
     return 0 /* ZEND_VM_CONTINUE */;
 }
-#else
+#elif PHP_VERSION_ID < 80600
 static const zend_op *ZEND_OPCODE_HANDLER_CCONV zai_interceptor_handle_created_generator_call(void) {
     zai_interceptor_handle_created_generator_func();
     return &zai_interceptor_generator_post_op[2] /* ZEND_VM_CONTINUE */;
+}
+#else
+static const zend_op *ZEND_OPCODE_HANDLER_CCONV zai_interceptor_handle_created_generator_call(void) {
+    zai_interceptor_handle_created_generator_func();
+    // Since 8.6 the TAILCALL VM's ZEND_VM_LEAVE no longer returns to execute_ex, whose execute_data may be stale: set ZEND_VM_ENTER_BIT to reload it.
+    return (const zend_op *)((uintptr_t)&zai_interceptor_generator_post_op[2] | 1 /* ZEND_VM_ENTER_BIT */);
 }
 #endif
 
