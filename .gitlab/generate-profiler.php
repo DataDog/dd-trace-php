@@ -248,17 +248,6 @@ foreach ($profiler_minor_major_targets as $version) {
       fi
       check_correctness exceptions
       check_correctness allocation_upscaling_mixed_sizes
-    - |
-      if [ "${PHP_MAJOR_MINOR}" = "8.5" ] && [ "${FLAVOUR}" = "nts" ]; then
-        cp "${PROFILER_SO}" /tmp/ddtrace-combined.so
-        make compile_profiler PROFILER_FEATURES=trigger_time_sample
-        export TEST_PHP_EXECUTABLE="$(command -v php)"
-        export DDTRACE_TEST_TRACER_EXTENSION=/tmp/ddtrace-combined.so
-        export DDTRACE_TEST_PROFILER_EXTENSION="${CI_PROJECT_DIR}/tmp/build_profiler/modules/datadog-profiling.so"
-        php "$(php-config --prefix)/lib/php/build/run-tests.php" -q --show-diff \
-          profiling/tests/phpt/standalone_conflict_ddtrace_first.phpt \
-          profiling/tests/phpt/standalone_conflict_profiler_first.phpt
-      fi
   after_script:
     - |
       mkdir -p "${CI_PROJECT_DIR}/artifacts/prof-correctness"
@@ -361,13 +350,10 @@ foreach ($profiler_minor_major_targets as $version) {
     - unset DD_SERVICE; unset DD_ENV
     - mkdir -p "${CI_PROJECT_DIR}/artifacts/profiler-tests"
 
-    # CI only builds and tests the combined ddtrace.so (tracer + profiling),
-    # since that's the only artifact we package and ship. The standalone
-    # datadog-profiling.so build path is intentionally not exercised here;
-    # the phpt suite itself remains compatible with a standalone build (see
-    # the `extension_loaded('datadog-profiling') || ini_get(...)` skip
-    # patterns throughout profiling/tests/phpt) so it still works if someone
-    # builds standalone locally, but CI has no need to spend time on it.
+    # This PHPT suite builds and tests the shipped combined ddtrace.so. The
+    # package pipeline's product-loading job checks a release combined artifact
+    # against ordinary standalone profiling, without this suite's test features.
+    # The suite remains compatible with a standalone build for local testing.
     - '# NTS combined (tracer + profiling in one ddtrace.so, as shipped)'
     - '# Use if/then instead of `command -v switch-php && switch-php` — the && form exits 1 when switch-php is absent, which FF_ENABLE_BASH_EXIT_CODE_CHECK treats as a job failure'
     - if command -v switch-php > /dev/null 2>&1; then switch-php "${PHP_MAJOR_MINOR}"; fi

@@ -966,6 +966,90 @@ endforeach;
     paths:
       - "packages/datadog-setup.php"
 
+# Loading compatibility consumes ordinary release artifacts, not correctness
+# builds with test-only functions that can collide before MINIT.
+"profiler product-loading":
+  stage: verify
+  tags: [ "arch:amd64" ]
+  image: registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-11
+  needs:
+    - job: "compile combined extension: [8.5, amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+  interruptible: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      interruptible: false
+    - when: on_success
+  variables:
+    PHP_MAJOR_MINOR: "8.5"
+    KUBERNETES_CPU_REQUEST: 5
+    KUBERNETES_CPU_LIMIT: 5
+    KUBERNETES_MEMORY_REQUEST: 6Gi
+    KUBERNETES_MEMORY_LIMIT: 6Gi
+    KUBERNETES_HELPER_CPU_REQUEST: 1
+    KUBERNETES_HELPER_CPU_LIMIT: 1
+    KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
+    KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
+    CARGO_HOME: "${CI_PROJECT_DIR}/.cache/product-loading-cargo"
+    CARGO_TARGET_DIR: "${CI_PROJECT_DIR}/tmp/product-loading-cargo"
+    REPORT_EXIT_STATUS: "1"
+    DD_PROFILING_ENABLED: "false"
+    DD_PROFILING_LOG_LEVEL: "off"
+    DD_TRACE_ENABLED: "false"
+    DD_INSTRUMENTATION_TELEMETRY_ENABLED: "false"
+    DD_REMOTE_CONFIG_ENABLED: "false"
+  cache:
+    key:
+      prefix: "profiler-product-loading-${PHP_MAJOR_MINOR}-${FLAVOUR}"
+      files:
+        - Cargo.lock
+        - rust-toolchain.toml
+    paths:
+      - .cache/product-loading-cargo/registry/index/
+      - .cache/product-loading-cargo/registry/cache/
+      - tmp/product-loading-cargo/
+  parallel:
+    matrix:
+      - FLAVOUR: [nts, zts]
+  before_script:
+<?php unset_dd_runner_env_vars(); ?>
+  script:
+    - switch-php "${FLAVOUR}"
+    # Reuse combined NTS/ZTS artifacts from the release build. Only build the
+    # standalone comparison product here, without extra profiler features.
+    - make compile_profiler PROFILER_BUILD_SUFFIX=product_standalone PROFILER_FEATURES=
+    - |
+      export TEST_PHP_EXECUTABLE="$(command -v php)"
+      php_api="$(php -n -i | awk '/^PHP API => / {print $4}')"
+      suffix=
+      if [ "${FLAVOUR}" = "zts" ]; then suffix=-zts; fi
+      export DDTRACE_TEST_TRACER_EXTENSION="${CI_PROJECT_DIR}/extensions_x86_64/ddtrace-${php_api}${suffix}.so"
+      export DDTRACE_TEST_PROFILER_EXTENSION="${CI_PROJECT_DIR}/tmp/build_product_standalone/modules/datadog-profiling.so"
+      # Ensure both artifacts load alone, without test-only profiler functions.
+      for extension in "${DDTRACE_TEST_TRACER_EXTENSION}" "${DDTRACE_TEST_PROFILER_EXTENSION}"; do
+        php -n -d "extension=${extension}" -r '
+          if (ini_get("datadog.profiling.enabled") === false
+              || function_exists("Datadog\\Profiling\\trigger_time_sample")
+              || function_exists("Datadog\\Profiling\\run_alloc_on_native_thread")) {
+              exit(1);
+          }
+        '
+      done
+      mkdir -p "${CI_PROJECT_DIR}/artifacts/product-loading"
+      TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/product-loading/conflicts-${FLAVOUR}.xml" \
+        php "$(php-config --prefix)/lib/php/build/run-tests.php" -q --show-diff \
+          profiling/tests/phpt/standalone_conflict_ddtrace_first.phpt \
+          profiling/tests/phpt/standalone_conflict_profiler_first.phpt
+  artifacts:
+    when: always
+    reports:
+      junit: artifacts/product-loading/*.xml
+    paths:
+      - artifacts/product-loading/
+      - profiling/tests/phpt/standalone_conflict_*.out
+      - profiling/tests/phpt/standalone_conflict_*.diff
+      - profiling/tests/phpt/standalone_conflict_*.log
+
 "x-profiling phpt tests on Alpine":
   stage: verify
   image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-compile-extension-alpine-$PHP_VERSION"
