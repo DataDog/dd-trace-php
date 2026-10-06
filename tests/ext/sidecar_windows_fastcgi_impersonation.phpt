@@ -7,7 +7,7 @@ impersonated. Reproduce that with php-cgi -b on a named pipe and a client connec
 different, unprivileged local user.
 --SKIPIF--
 <?php
-if (PHP_OS_FAMILY !== 'Windows') die('skip: Windows only');
+if (strncasecmp(PHP_OS, 'WIN', 3) != 0) die('skip: Windows only');
 if (!is_file(dirname(PHP_BINARY) . '\\php-cgi.exe')) die('skip: php-cgi.exe required');
 // High (or System) mandatory level: needed to create a local user.
 if (!preg_match('/S-1-16-(12288|16384)/', (string)shell_exec('whoami /groups'))) die('skip: must run elevated to create a local user');
