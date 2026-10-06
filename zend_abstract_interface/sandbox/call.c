@@ -83,6 +83,8 @@ zend_execute_data *zai_set_observed_frame(zend_execute_data *execute_data) {
 
 #if PHP_VERSION_ID >= 80000
 void zai_reset_observed_frame_post_bailout(void) {
+    // On old versions zai_set_observed_frame(NULL) already isolates the sandbox; preserve the caller for backtraces.
+#if PHP_VERSION_ID < 80200
     if (EG(current_execute_data)) {
         zend_execute_data *cur_ex = EG(current_execute_data);
         zend_execute_data backup_ex = *cur_ex;
@@ -92,7 +94,9 @@ void zai_reset_observed_frame_post_bailout(void) {
         zend_observer_fcall_end_all();
         *cur_ex = *EG(current_execute_data);
         EG(current_execute_data) = cur_ex;
-    } else {
+    } else
+#endif
+    {
         zend_observer_fcall_end_all();
     }
 }
