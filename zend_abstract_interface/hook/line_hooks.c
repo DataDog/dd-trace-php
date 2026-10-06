@@ -770,24 +770,9 @@ static bool zai_line_arm_def(zai_line_def *def, zend_op_array *op_array, zend_op
 
 /* end_op is exclusive, so end callbacks observe the end line's effects.
    Earlier source lines within the range, such as relocated loop increments, remain inside. */
-static zend_op *zai_line_find_end_opline(zend_op_array *op_array, zend_op *begin_op, uint32_t end_line, uint32_t *resolved_end_out) {
-    uint32_t resolved_end = 0;
-    bool have_end = false;
-
+static zend_op *zai_line_find_end_opline(zend_op_array *op_array, zend_op *begin_op, uint32_t end_line) {
     for (zend_op *op = begin_op; op < op_array->opcodes + op_array->last; ++op) {
-        if (op->lineno >= end_line && (!have_end || op->lineno < resolved_end)) {
-            have_end = true;
-            resolved_end = op->lineno;
-        }
-    }
-    if (!have_end) {
-        *resolved_end_out = end_line;
-        return NULL;
-    }
-    *resolved_end_out = resolved_end;
-
-    for (zend_op *op = begin_op; op < op_array->opcodes + op_array->last; ++op) {
-        if (op->lineno > resolved_end) {
+        if (op->lineno > end_line) {
             return op;
         }
     }
@@ -1044,10 +1029,10 @@ static bool zai_line_arm_range(zai_line_def *def, zend_op_array *op_array, zend_
         return true;
     }
     entry->has_range = true;
-    /* Even with no static end site the range still closes, just at frame exit rather than at end_op. */
-    uint32_t resolved_end = def->end_line;
-    zend_op *end_op = zai_line_find_end_opline(op_array, opline, def->end_line, &resolved_end);
-    if (end_op && end_op != opline) {
+    /* Include the resolved begin line even if it slid beyond the requested range. */
+    uint32_t end_line = MAX(def->end_line, opline->lineno);
+    zend_op *end_op = zai_line_find_end_opline(op_array, opline, end_line);
+    if (end_op) {
         zai_line_arm_def(def, op_array, end_op, false);
     }
 
@@ -1057,7 +1042,7 @@ static bool zai_line_arm_range(zai_line_def *def, zend_op_array *op_array, zend_
         .begin_op = opline,
         .end_op = end_op,
         .first_line = resolved,
-        .last_line = resolved_end
+        .last_line = end_line
     };
     zend_op *range_end = end_op ? end_op : op_array->opcodes + op_array->last;
     zend_op *last = op_array->opcodes + op_array->last;
