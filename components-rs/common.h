@@ -481,8 +481,6 @@ typedef struct ddog_DebuggerPayload ddog_DebuggerPayload;
 
 typedef struct ddog_DslString ddog_DslString;
 
-typedef struct ddog_HashMap_ShmCacheKey__ShmCache ddog_HashMap_ShmCacheKey__ShmCache;
-
 /**
  * `InstanceId` is a structure that holds session and runtime identifiers.
  */
@@ -503,6 +501,8 @@ typedef struct ddog_ProbeCondition ddog_ProbeCondition;
 typedef struct ddog_ProbeValue ddog_ProbeValue;
 
 typedef struct ddog_RemoteConfigState ddog_RemoteConfigState;
+
+typedef struct ddog_ShmCacheMap ddog_ShmCacheMap;
 
 typedef struct ddog_SidecarActionsBuffer ddog_SidecarActionsBuffer;
 
@@ -823,8 +823,6 @@ typedef struct ddog_PhpSpanStats {
    */
   const struct ddog_PhpPeerTag *peer_tags;
 } ddog_PhpSpanStats;
-
-typedef struct ddog_HashMap_ShmCacheKey__ShmCache ddog_ShmCacheMap;
 
 /**
  * Fast path: exact-key lookup into a root span.  Returns null when the key is absent.

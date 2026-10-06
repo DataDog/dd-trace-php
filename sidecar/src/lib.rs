@@ -29,6 +29,16 @@ pub fn register_appsec_backend() {
     datadog_sidecar::appsec::register_backend_factory(create_backend);
 }
 
+/// Discard the parent's sidecar state before reconnecting.
+///
+/// # Safety
+/// Call in the child after fork, before starting threads. Inherited sidecar tasks
+/// and references to their state must not be used afterward.
+pub unsafe fn after_fork() -> std::io::Result<()> {
+    unsafe { ddappsec_helper::after_fork() };
+    unsafe { datadog_sidecar::setup::MasterListener::clear_inherited_state() }
+}
+
 #[no_mangle]
 pub extern "C" fn ddtrace_sidecar_entry_point(trampoline_data: &TrampolineData) {
     #[cfg(feature = "helper-rust-coverage")]
