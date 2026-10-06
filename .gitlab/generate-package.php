@@ -897,7 +897,7 @@ endforeach;
 <?php dockerhub_login() ?>
     - .gitlab/run-with-retryable-download.sh apt-get update
     - .gitlab/run-with-retryable-download.sh apt install -y php git make curl
-    - curl -L --fail https://github.com/docker/compose/releases/download/v2.36.0/${DOCKER_COMPOSE_DOWNLOAD_NAME} -o /usr/local/bin/docker-compose
+    - curl -L --fail ${GITHUB_RELEASES_MIRROR}/docker/compose/releases/download/v2.36.0/${DOCKER_COMPOSE_DOWNLOAD_NAME} -o /usr/local/bin/docker-compose
     - chmod +x /usr/local/bin/docker-compose
     - mv packages/* .
     - docker network create randomized_tests_baseservices
@@ -1094,7 +1094,7 @@ endforeach;
 <?php dockerhub_login() ?>
     - apt-get update
     - apt install -y make curl
-    - curl -L --fail https://github.com/docker/compose/releases/download/v2.36.0/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
+    - curl -L --fail ${GITHUB_RELEASES_MIRROR}/docker/compose/releases/download/v2.36.0/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
     - chmod +x /usr/local/bin/docker-compose
     - mkdir build
     - mv packages build
@@ -1418,6 +1418,7 @@ endforeach;
     KUBERNETES_MEMORY_LIMIT: 4Gi
     RUST_BACKTRACE: 1
     BUILD_SH_ARGS: php
+    USE_IMAGE_MIRROR: "1"
     PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
     APT_CACHE: $CI_PROJECT_DIR/.cache/apt
     DOCKER_DEFAULT_PLATFORM: linux/amd64
