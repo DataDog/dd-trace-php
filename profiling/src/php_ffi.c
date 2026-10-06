@@ -581,6 +581,7 @@ void *opcache_handle = NULL;
 // MINIT phase. You as the caller has to make sure to only call this function
 // during MINIT and not later.
 void ddog_php_opcache_init_handle() {
+#if PHP_VERSION_ID < 80500 // 8.5+ has OPcache built in, without a handle: see ddog_php_jit_enabled()
     const zend_llist *list = &zend_extensions;
     zend_extension *maybe_opcache = NULL;
     for (const zend_llist_element *item = list->head; item; item = item->next) {
@@ -590,6 +591,7 @@ void ddog_php_opcache_init_handle() {
             break;
         }
     }
+#endif
 }
 
 // Detects if JIT is enabled by checking OPcache settings.
@@ -611,10 +613,15 @@ bool ddog_php_jit_enabled() {
     // JIT was introduced in PHP 8.0
     return false;
 #else
+#if PHP_VERSION_ID >= 80500
+    void *symbol_handle = RTLD_DEFAULT;
+#else
     // No OPcache -> no JIT
     if (!opcache_handle) {
         return false;
     }
+    void *symbol_handle = opcache_handle;
+#endif
 
     // Check if we can safely use zend_jit_status() based on PHP version
     bool can_use_zend_jit_status = false; // Upstream PR has not yet been merged
@@ -626,9 +633,9 @@ bool ddog_php_jit_enabled() {
 
     if (can_use_zend_jit_status) {
         // Safe to use zend_jit_status() on these versions
-        void (*zend_jit_status)(zval *ret) = DL_FETCH_SYMBOL(opcache_handle, "zend_jit_status");
+        void (*zend_jit_status)(zval *ret) = DL_FETCH_SYMBOL(symbol_handle, "zend_jit_status");
         if (zend_jit_status == NULL) {
-            zend_jit_status = DL_FETCH_SYMBOL(opcache_handle, "_zend_jit_status");
+            zend_jit_status = DL_FETCH_SYMBOL(symbol_handle, "_zend_jit_status");
         }
         if (zend_jit_status) {
             zval jit_stats_arr;
