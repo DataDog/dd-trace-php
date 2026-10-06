@@ -4,15 +4,6 @@ typedef unsigned char php_json_ctype;
 
 typedef int php_json_error_code;
 
-#if PHP_VERSION_ID >= 80600
-typedef struct _php_json_error_location {
-    size_t first_column;
-    size_t first_line;
-    size_t last_column;
-    size_t last_line;
-} php_json_error_location;
-#endif
-
 typedef struct _php_json_scanner {
     php_json_ctype *cursor;         /* cursor position */
     php_json_ctype *token;          /* token position */
@@ -21,14 +12,15 @@ typedef struct _php_json_scanner {
     php_json_ctype *ctxmarker;      /* marker position for context backtracking */
     php_json_ctype *str_start;      /* start position of the string */
     php_json_ctype *pstr;           /* string pointer for escapes conversion */
+#if PHP_VERSION_ID >= 80600
+    php_json_ctype *line_start;     /* start position of the current line */
+    uint64_t line;                  /* current line number (1-based) */
+#endif
     zval value;                     /* value */
     int str_esc;                    /* number of extra characters for escaping */
     int state;                      /* condition state */
     int options;                    /* options */
     php_json_error_code errcode;    /* error type if there is an error */
-#if PHP_VERSION_ID >= 80600
-    php_json_error_location errloc; /* error location */
-#endif
 #if PHP_VERSION_ID >= 70200
     int utf8_invalid;               /* whether utf8 is invalid */
     int utf8_invalid_count;         /* number of extra character for invalid utf8 */
@@ -71,9 +63,6 @@ struct _php_json_parser {
     int depth;
     int max_depth;
     php_json_parser_methods methods;
-#if PHP_VERSION_ID >= 80600
-    struct _php_json_parser_location *location;
-#endif
 };
 
 #if PHP_VERSION_ID < 70100
