@@ -397,10 +397,10 @@ void ddtrace_mshutdown() {
         ddtrace_coms_mshutdown();
         if (ddtrace_coms_flush_shutdown_writer_synchronous()) {
             ddtrace_coms_curl_shutdown();
+            /* All writer threads and curl handles are gone at this point, so
+             * it is safe to free the cached proxy env strings for ASan. */
+            ddtrace_coms_mshutdown_proxy_env();
         }
-        /* All writer threads and curl handles are gone at this point, so
-         * it is safe to free the cached proxy env strings for ASan. */
-        ddtrace_coms_mshutdown_proxy_env();
     } else /* ! part of the if outside the ifdef */
 #endif
     if (get_global_DD_TRACE_FORCE_FLUSH_ON_SHUTDOWN() && DATADOG_G(sidecar)) {
