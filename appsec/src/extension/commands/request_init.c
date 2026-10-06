@@ -261,8 +261,8 @@ static void _pack_files_field_names(
         if (key_s) {
             dd_mpack_write_zstr(w, key_s);
         } else {
-            char buf[ZEND_LTOA_BUF_LEN];
-            ZEND_LTOA((zend_long)key_i, buf, ZEND_LTOA_BUF_LEN);
+            char buf[MAX_LENGTH_OF_LONG + 1];
+            snprintf(buf, sizeof(buf), ZEND_LONG_FMT, (zend_long)key_i);
             mpack_write(w, buf);
         }
     }
