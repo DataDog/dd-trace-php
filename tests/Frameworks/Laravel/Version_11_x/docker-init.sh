@@ -17,6 +17,9 @@ fi
 cp .env.example .env
 # Patch the environment to use SQLite instead of MySQL.
 sed -i 's/^DB_CONNECTION=.*/DB_CONNECTION=sqlite/' .env
+sed -i 's/^SESSION_DRIVER=.*/SESSION_DRIVER=file/' .env
+# Laravel 11+ ships SESSION_DRIVER=database by default which breaks on the sqlite setup.
+if ! grep -q '^SESSION_DRIVER=' .env; then echo 'SESSION_DRIVER=file' >> .env; fi
 sed -i 's/^DB_DATABASE=.*/DB_DATABASE=\/tmp\/database.sqlite/' .env
 sed -i '/^DB_HOST=/d' .env
 sed -i '/^DB_PORT=/d' .env
