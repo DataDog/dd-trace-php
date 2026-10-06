@@ -12,11 +12,18 @@ import org.testcontainers.junit.jupiter.Testcontainers
 import static com.datadog.appsec.php.integration.TestParams.getPhpVersion
 import static com.datadog.appsec.php.integration.TestParams.getVariant
 
+/**
+ * Covers Laravel 9.x — same event-based auth hooks as 8.x (same
+ * {@code Illuminate\Auth\Events\*} + {@code SessionGuard} wrappers), exercised
+ * against the Laravel 9 bundle.
+ *
+ * Pinned to PHP 8.0-release to spread CI load off the busier PHP 8.1+ jobs.
+ */
 @Testcontainers
 @EnabledIf('isExpectedVersion')
 @TestMethodOrder(MethodOrderer.OrderAnnotation)
-class Laravel8xTests extends AbstractLaravelAppsecTests {
-    static boolean expectedVersion = phpVersion.contains('8.1') && variant == 'release'
+class Laravel9xTests extends AbstractLaravelAppsecTests {
+    static boolean expectedVersion = phpVersion.contains('8.0') && variant == 'release'
 
     @Container
     @FailOnUnmatchedTraces
@@ -26,24 +33,15 @@ class Laravel8xTests extends AbstractLaravelAppsecTests {
                     baseTag: 'apache2-mod-php',
                     phpVersion: phpVersion,
                     phpVariant: variant,
-                    www: '../../../tests/Frameworks/Laravel/Version_8_x',
+                    www: '../../../tests/Frameworks/Laravel/Version_9_x',
             )
 
     static void main(String[] args) {
         InspectContainerHelper.run(CONTAINER)
     }
 
+    // The 9.x scaffolded LoginTestController ends with `redirect('/simple')`
+    // (vs. 8.x which returns `response('User created', 200)`).
     @Override
-    int expectedEndpointCount() { 27 }
-
-    @Override
-    List<List<String>> expectedEndpoints() {
-        [
-                ['/', 'GET', 'GET /'],
-                ['login/auth', 'GET', 'GET login/auth'],
-                ['login/signup', 'GET', 'GET login/signup'],
-                ['dynamic-path/{param01}', 'GET', 'GET dynamic-path/{param01}'],
-                ['api/user', 'GET', 'GET api/user'],
-        ]
-    }
+    int expectedSignupStatus() { 302 }
 }

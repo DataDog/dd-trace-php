@@ -12,11 +12,16 @@ import org.testcontainers.junit.jupiter.Testcontainers
 import static com.datadog.appsec.php.integration.TestParams.getPhpVersion
 import static com.datadog.appsec.php.integration.TestParams.getVariant
 
+/**
+ * Covers the newest Laravel release (currently Laravel 12). Same event-based
+ * auth hooks as 8.x+. Pinned to PHP 8.4-release, matching the fixture's
+ * committed composer.lock-php84.
+ */
 @Testcontainers
 @EnabledIf('isExpectedVersion')
 @TestMethodOrder(MethodOrderer.OrderAnnotation)
-class Laravel8xTests extends AbstractLaravelAppsecTests {
-    static boolean expectedVersion = phpVersion.contains('8.1') && variant == 'release'
+class LaravelLatestTests extends AbstractLaravelAppsecTests {
+    static boolean expectedVersion = phpVersion.contains('8.4') && variant == 'release'
 
     @Container
     @FailOnUnmatchedTraces
@@ -26,7 +31,7 @@ class Laravel8xTests extends AbstractLaravelAppsecTests {
                     baseTag: 'apache2-mod-php',
                     phpVersion: phpVersion,
                     phpVariant: variant,
-                    www: '../../../tests/Frameworks/Laravel/Version_8_x',
+                    www: '../../../tests/Frameworks/Laravel/Latest',
             )
 
     static void main(String[] args) {
@@ -34,16 +39,5 @@ class Laravel8xTests extends AbstractLaravelAppsecTests {
     }
 
     @Override
-    int expectedEndpointCount() { 27 }
-
-    @Override
-    List<List<String>> expectedEndpoints() {
-        [
-                ['/', 'GET', 'GET /'],
-                ['login/auth', 'GET', 'GET login/auth'],
-                ['login/signup', 'GET', 'GET login/signup'],
-                ['dynamic-path/{param01}', 'GET', 'GET dynamic-path/{param01}'],
-                ['api/user', 'GET', 'GET api/user'],
-        ]
-    }
+    int expectedSignupStatus() { 302 }
 }
