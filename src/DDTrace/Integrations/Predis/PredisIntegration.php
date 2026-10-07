@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations\Predis;
 
+use DDTrace\Integrations\DatabaseIntegrationHelper;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
@@ -181,6 +182,7 @@ class PredisIntegration extends Integration
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = self::NAME;
         $span->meta[Tag::DB_SYSTEM] = self::SYSTEM;
+        $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
 
         foreach (ObjectKVStore::get($predis->getConnection(), 'connection_meta', []) as $tag => $value) {
             $span->meta[$tag] = $value;
