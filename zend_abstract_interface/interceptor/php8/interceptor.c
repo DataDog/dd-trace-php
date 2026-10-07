@@ -12,6 +12,11 @@
 #ifdef __SANITIZE_ADDRESS__
 # include <sanitizer/common_interface_defs.h>
 #endif
+#if defined(__has_include) && !defined(__SANITIZE_ADDRESS__)
+# if __has_include(<valgrind/valgrind.h>)
+#  include <valgrind/valgrind.h>
+# endif
+#endif
 
 #if PHP_VERSION_ID < 80400
 int zai_registered_observers = 0;
@@ -75,6 +80,13 @@ static void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, 
     void *
 #endif
     stacktarget = stacktop - stack_top_offset;
+#ifdef VALGRIND_STACK_REGISTER
+    // Register both stacks (this frame is where LONGJMP returns to), or valgrind takes the switch for a regular stack
+    // adjustment when they are closer than --max-stackframe and marks the memory in between noaccess/undefined
+    char *cur_stack = (char *)&target;
+    volatile unsigned int valgrind_tmp_stack_id = VALGRIND_STACK_REGISTER(stack, stacktop);
+    volatile unsigned int valgrind_cur_stack_id = VALGRIND_STACK_REGISTER(cur_stack - 0x1000, cur_stack + 0x1000);
+#endif
 
 #ifdef __SANITIZE_ADDRESS__
     void *volatile fake_stack;
@@ -151,6 +163,10 @@ static void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, 
     __sanitizer_finish_switch_fiber(fake_stack, &bottom, &capacity);
 #endif
 
+#ifdef VALGRIND_STACK_DEREGISTER
+    VALGRIND_STACK_DEREGISTER(valgrind_cur_stack_id);
+    VALGRIND_STACK_DEREGISTER(valgrind_tmp_stack_id);
+#endif
     free(stack);
 }
 #else
