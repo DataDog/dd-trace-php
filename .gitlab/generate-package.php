@@ -1030,7 +1030,7 @@ endforeach;
         php -n -d "extension=${extension}" -r '
           if (ini_get("datadog.profiling.enabled") === false
               || function_exists("Datadog\\Profiling\\trigger_time_sample")
-              || function_exists("Datadog\\Profiling\\run_alloc_on_native_thread")) {
+              || function_exists("Datadog\\Profiling\\run_on_native_thread")) {
               exit(1);
           }
         '

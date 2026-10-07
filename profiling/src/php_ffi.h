@@ -66,6 +66,11 @@ const char *datadog_module_build_id(void);
 sapi_request_info datadog_sapi_globals_request_info();
 
 /**
+ * Lookup a module in the registry. Returns NULL if it is not loaded.
+ */
+zend_module_entry *datadog_get_module_entry(const char *str, uintptr_t len);
+
+/**
  * Fetches the VM interrupt address of the calling PHP thread.
  */
 void *datadog_php_profiling_vm_interrupt_addr(void);
