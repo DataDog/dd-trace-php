@@ -465,13 +465,24 @@ fn reuse_sidecar_fd_connector(_unix_socket_path: &str) -> std::os::fd::RawFd {
     }
 }
 
-// Hack: Without this, the PECL build of the tracer does not contain the ddog_library_* functions
-// It works well without in the "normal" build
+// Hack: zai_config_stable_file_minit() only resolves the ddog_library_* functions via dlsym, so
+// nothing references them at link time and the linker drops their object files from the static
+// archive. They are spread across several codegen units, so reference each of them here.
 #[no_mangle]
 pub extern "C" fn ddog_library_configurator_new_dummy(
     debug_logs: bool,
     language: CharSlice,
 ) -> Box<Configurator> {
+    std::hint::black_box([
+        ddog_library_configurator_with_local_path as *const (),
+        ddog_library_configurator_with_fleet_path as *const (),
+        ddog_library_configurator_with_detect_process_info as *const (),
+        ddog_library_configurator_get as *const (),
+        ddog_library_config_source_to_string as *const (),
+        ddog_library_config_drop as *const (),
+        ddog_library_configurator_drop as *const (),
+        libdd_common_ffi::ddog_Error_drop as *const (),
+    ]);
     ddog_library_configurator_new(debug_logs, language)
 }
 

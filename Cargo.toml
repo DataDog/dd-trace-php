@@ -52,7 +52,7 @@ trigger_time_sample = ["profiling"]
 
 [dependencies]
 libdd-common = { path = "libdatadog/libdd-common", features = ["cgroup_testing"] }
-libdd-common-ffi = { path = "libdatadog/libdd-common-ffi", default-features = false }
+libdd-common-ffi = { path = "libdatadog/libdd-common-ffi", default-features = false, features = ["std"] }
 libdd-telemetry = { path = "libdatadog/libdd-telemetry" }
 libdd-telemetry-ffi = { path = "libdatadog/libdd-telemetry-ffi", default-features = false }
 libdd-live-debugger = { path = "libdatadog/libdd-live-debugger" }
@@ -69,7 +69,7 @@ libdd-trace-stats = { path = "libdatadog/libdd-trace-stats" }
 libdd-trace-protobuf = { path = "libdatadog/libdd-trace-protobuf" }
 libdd-crashtracker = { path = "libdatadog/libdd-crashtracker", default-features = false, features = ["collector"] }
 libdd-crashtracker-ffi = { path = "libdatadog/libdd-crashtracker-ffi", default-features = false, features = ["collector"] }
-libdd-library-config-ffi = { path = "libdatadog/libdd-library-config-ffi", default-features = false }
+libdd-library-config-ffi = { path = "libdatadog/libdd-library-config-ffi", default-features = false, features = ["std"] }
 spawn_worker = { path = "libdatadog/spawn_worker" }
 anyhow = "1.0"
 arc-swap.workspace = true
@@ -241,13 +241,13 @@ hyper-util = { version = "0.1.10", default-features = false }
 indexmap = { version = "2.11", default-features = false }
 io-lifetimes = { version = "1.0", default-features = false }
 itoa = { version = "1.0", default-features = false }
-kernel32-sys = { version = "0.2.2", default-features = false }
 # allow(workspace-deps-features): libc's only default feature is `std`, which
 # is needed by virtually every consumer (libc itself says that not using this
 # feature to link libc in a `no-std` environment is not the recommended way,
 # and that this possibility will be gone in future versions). We enable it by
 # default for everyone.
 libc = { version = "0.2", default-features = true }
+libc_alloc = { version = "1.0", default-features = false }
 libdd-libunwind-sys = { version = "1.0.3", default-features = false }
 log = { version = "0.4.21", default-features = false }
 lru = { version = "0.16.3", default-features = false }
@@ -309,6 +309,7 @@ serde_ignored = { version = "0.1.14", default-features = false }
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 serde_with = { version = "3.11.0", default-features = false }
 serde_yaml = { version = "0.9.34", default-features = false }
+yaml_serde = { version = "0.10.7", default-features = false }
 serial_test = { version = "3.2", default-features = false }
 sha2 = { version = "0.10", default-features = false }
 simd-json = { version = "=0.14", default-features = false }
@@ -352,7 +353,6 @@ walkdir = { version = "2.4", default-features = false }
 wasm-bindgen-futures = { version = "0.4", default-features = false }
 wasm-bindgen-test = { version = "=0.3.50", default-features = false }
 web-time = { version = "1", default-features = false }
-winapi = { version = "0.3.9", default-features = false }
 windows = { version = "0.59.0", default-features = false }
 windows-sys = { version = "0.52", default-features = false }
 winver = { version = "1.0.0", default-features = false }
