@@ -144,6 +144,12 @@ Disabled on versions: `8.6`.
 
 The dumped request headers include the injected `x-datadog-*`/`traceparent`/`tracestate` headers.
 
+## `ext/standard/tests/filters/stream_filter_register_*.phpt` (the 5 listed in `8.6.list`)
+
+Disabled on versions: `8.6` (the tests are new in 8.6).
+
+They expect a shutdown-time `Invalid callback` fatal. ddtrace's uncaught-exception rethrow ends in `zend_bailout()`, which sets `CG(unclean_shutdown)`, so `userfilter_filter` returns early and the fatal is never emitted. Pre-existing ddtrace behaviour, not 8.6-specific.
+
 ## `ext/intl/tests/bug60192-sort.phpt`
 
 Has a refcounting bug on PHP 7.4 (which gets triggered by the tracer, but isn't caused by it).

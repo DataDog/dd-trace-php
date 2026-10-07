@@ -159,6 +159,11 @@ ext/standard/tests/file/file_get_contents_file_put_contents_5gb.phpt
 ext/standard/tests/file/lstat_stat_variation10.phpt
 ext/standard/tests/file/lstat_stat_variation15.phpt
 ext/standard/tests/filters/bug54350.phpt
+ext/standard/tests/filters/stream_filter_register_class_completely_invalid.phpt
+ext/standard/tests/filters/stream_filter_register_class_completely_invalid_filtername_prop_type.phpt
+ext/standard/tests/filters/stream_filter_register_class_completely_invalid_no_dynamic_props.phpt
+ext/standard/tests/filters/stream_filter_register_class_private_filtername_prop.phpt
+ext/standard/tests/filters/stream_filter_register_mock_class_filter_is_private.phpt
 ext/standard/tests/general_functions/bug73973.phpt
 ext/standard/tests/general_functions/floatval.phpt
 ext/standard/tests/general_functions/floatval_variation1.phpt
