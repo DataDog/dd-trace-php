@@ -118,11 +118,11 @@ class PredisTest extends IntegrationTestCase
             // UDS
             'uds array' => [
                 ['scheme' => 'unix', 'path' => '/path/to/redis.sock'],
-                '127.0.0.1',
+                '/path/to/redis.sock',
                 6379,
                 'redis-path-to-redis.sock',
             ],
-            'uds string' => [ 'unix:/path/to/redis.sock', '127.0.0.1', 6379, 'redis-path-to-redis.sock' ],
+            'uds string' => [ 'unix:/path/to/redis.sock', '/path/to/redis.sock', 6379, 'redis-path-to-redis.sock' ],
         ];
     }
 
@@ -186,6 +186,7 @@ class PredisTest extends IntegrationTestCase
                     Tag::COMPONENT => 'predis',
                     '_dd.svc_src' => 'redis',
                     Tag::DB_SYSTEM => 'redis',
+                    '_dd.first.configured.host' => $this->host,
                 ]),
         ]);
     }
