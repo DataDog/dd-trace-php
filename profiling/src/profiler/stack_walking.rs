@@ -186,7 +186,7 @@ mod detail {
         /// Refers to a function's run time cache reserved by this extension.
         cache_slots: &'a mut [usize; 2],
 
-        /// Refers to the string set in the thread-local storage.
+        /// Borrows the strings referenced by PHP's runtime cache slots.
         string_set: &'a mut StringSet,
     }
 

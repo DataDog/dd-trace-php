@@ -17,6 +17,12 @@ use crate::profiling::allocation::allocation_ge84::ZendMMState;
 #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
 use crate::profiling::allocation::allocation_le83::ZendMMState;
 
+/// Profiler state stored in PHP module globals: process-wide in NTS,
+/// per PHP thread in ZTS.
+///
+/// Intentionally not native thread-local in NTS. Although NTS normally
+/// executes PHP on one thread, ext/grpc also executes PHP callbacks on
+/// native threads, which we consider a bug in ext/grpc.
 #[repr(C)]
 pub struct ProfilerGlobals {
     /// Wrapped in `Cell` to prevent torn reads/writes when allocation hooks
@@ -33,7 +39,7 @@ pub struct ProfilerGlobals {
     /// Per-thread allocation sampling state. Kept in PHP globals so allocator
     /// hooks can reuse an already-resolved TSRM cache instead of accessing Rust TLS.
     pub allocation_profiling_stats: UnsafeCell<MaybeUninit<allocation::AllocationProfilingStats>>,
-    /// String cache backing pointers stored in PHP runtime cache slots.
+    /// Owns the strings referenced by PHP's runtime cache slots.
     #[cfg(php_run_time_cache)]
     pub cached_strings: UnsafeCell<MaybeUninit<RefCell<StringSet>>>,
 }
