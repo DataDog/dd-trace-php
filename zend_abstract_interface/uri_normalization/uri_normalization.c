@@ -158,7 +158,13 @@ zend_string *zai_filter_query_string(zai_str queryString, zend_array *whitelist,
         if (zend_string_equals_literal(str, "*")) {
             zend_string *qs = zend_string_init(queryString.ptr, queryString.len, 0);
             if (pattern && ZSTR_LEN(pattern)) {
-                zend_string *replacement = zend_string_init(ZEND_STRL("<redacted>"), 0);
+                // $2 is the first capturing group inside the user pattern (shifted
+                // by one because of the outer wrapper). Patterns may use it to
+                // preserve a delimiter — e.g. the obfuscation default captures the
+                // char before a JWT so `jwt=eyJ...` becomes `jwt=<redacted>`
+                // instead of `jwt<redacted>`. For patterns with no inner group,
+                // $2 is empty and the behavior matches the previous `<redacted>`.
+                zend_string *replacement = zend_string_init(ZEND_STRL("$2<redacted>"), 0);
 
                 smart_str regex = {0};
                 smart_str_alloc(&regex, ZSTR_LEN(pattern) + 2, 0);

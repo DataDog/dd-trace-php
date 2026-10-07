@@ -153,7 +153,22 @@ TEST_QUERY_STRING("obfuscate: simple", "a=1&b=2&c=3", "a=1&b=2&<redacted>", {
 
 TEST_QUERY_STRING("obfuscate: lowercase", "A=1&B=2&C=3", "A=1&B=2&<redacted>", {
     add_assoc_null(&whitelist, "*");
-    regex = zend_string_init(ZEND_STRL("(?i)(C=[0-9])"), 0);
+    regex = zend_string_init(ZEND_STRL("(?i)(?:C=[0-9])"), 0);
+});
+
+TEST_QUERY_STRING("obfuscate: preserves inner group as delimiter", "foo=1&jwt=eyJhdS.eyJz.sig&bar=2", "foo=1&jwt=<redacted>&bar=2", {
+    add_assoc_null(&whitelist, "*");
+    regex = zend_string_init(ZEND_STRL("(^|[^\\w%-]|%[0-9a-f]{2})ey[I-L][\\w-]+\\.ey[I-L][\\w-]+(?:\\.[\\w.+/=-]+)?"), 0);
+});
+
+TEST_QUERY_STRING("obfuscate: preserves url-encoded delimiter", "jwt%3DeyJhdS.eyJz.sig", "jwt%3D<redacted>", {
+    add_assoc_null(&whitelist, "*");
+    regex = zend_string_init(ZEND_STRL("(^|[^\\w%-]|%[0-9a-f]{2})ey[I-L][\\w-]+\\.ey[I-L][\\w-]+(?:\\.[\\w.+/=-]+)?"), 0);
+});
+
+TEST_QUERY_STRING("obfuscate: empty delimiter at string start", "eyJhdS.eyJz.sig", "<redacted>", {
+    add_assoc_null(&whitelist, "*");
+    regex = zend_string_init(ZEND_STRL("(^|[^\\w%-]|%[0-9a-f]{2})ey[I-L][\\w-]+\\.ey[I-L][\\w-]+(?:\\.[\\w.+/=-]+)?"), 0);
 });
 
 TEST_QUERY_STRING("obfuscate: everything", "a=1&b=2&c=3", "<redacted>&<redacted>&<redacted>", {
