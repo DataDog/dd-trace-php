@@ -44,6 +44,10 @@ $script = "$dir\\index.php";
 file_put_contents($script, '<?php echo "hello from php-cgi\n";');
 $log = "$dir\\ddtrace.log";
 
+// Read by --CLEAN--, which runs in another process and also covers a test that died midway.
+$state = __DIR__ . '/sidecar_windows_fastcgi_impersonation.state';
+file_put_contents($state, json_encode(['user' => $user, 'dir' => $dir]));
+
 exec("net user $user $password /add 2>&1", $out, $rc);
 echo "user created: ", $rc === 0 ? "yes" : "no: " . implode("\n", $out), "\n";
 
@@ -60,6 +64,7 @@ $env['_DD_DEBUG_SIDECAR_LOG_METHOD'] = "file://$dir\\sidecar.log";
 $cgi = '"' . dirname(PHP_BINARY) . '\\php-cgi.exe" ' . getenv('TEST_PHP_EXTRA_ARGS')
     . ' -d ddtrace.disable=0 -d fastcgi.impersonate=1 -d cgi.force_redirect=0 -b ' . $pipe;
 $proc = proc_open($cgi, [['file', 'NUL', 'r'], ['file', "$dir\\cgi.out", 'w'], ['file', "$dir\\cgi.err", 'w']], $pipes, $dir, $env, ['bypass_shell' => true]);
+file_put_contents($state, json_encode(['user' => $user, 'dir' => $dir, 'pid' => proc_get_status($proc)['pid']]));
 
 $client = 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File ' . escapeshellarg(__DIR__ . '\\includes\\fastcgi_impersonating_client.ps1')
     . " -User $user -Password " . escapeshellarg($password) . " -Pipe " . escapeshellarg($pipe) . " -Script " . escapeshellarg($script);
@@ -131,8 +136,18 @@ if (!$found || $ddtraceLog === "" || !$sidPipe || $tokenError || $fallback || $s
 
 exec("taskkill /T /F /PID $cgiPid 2>&1");
 proc_close($proc);
-exec("net user $user /delete 2>&1");
-exec('rd /s /q ' . escapeshellarg($dir) . ' 2>&1');
+?>
+--CLEAN--
+<?php
+$state = __DIR__ . '/sidecar_windows_fastcgi_impersonation.state';
+if ($info = json_decode((string)@file_get_contents($state), true)) {
+    if (isset($info['pid'])) {
+        exec("taskkill /T /F /PID {$info['pid']} 2>&1");
+    }
+    exec("net user {$info['user']} /delete 2>&1");
+    exec('rd /s /q ' . escapeshellarg($info['dir']) . ' 2>&1');
+}
+@unlink($state);
 ?>
 --EXPECT--
 user created: yes
