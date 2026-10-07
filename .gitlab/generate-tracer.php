@@ -505,7 +505,7 @@ foreach ($all_minor_major_targets as $major_minor):
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
     KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
-  timeout: 45m
+  timeout: 20m
   script:
     # Run twice: shared state between .phpt tests only surfaces on a second pass.
     - make test_extension_ci_normal
@@ -526,19 +526,19 @@ foreach ($all_minor_major_targets as $major_minor):
   variables:
     WAIT_FOR: test-agent:9126
     # request == limit: enforce-static-cpus only pins cores for Guaranteed QoS.
-    KUBERNETES_CPU_REQUEST: 12
-    KUBERNETES_CPU_LIMIT: 12
-    KUBERNETES_MEMORY_REQUEST: 8Gi
-    KUBERNETES_MEMORY_LIMIT: 8Gi
+    KUBERNETES_CPU_REQUEST: 24
+    KUBERNETES_CPU_LIMIT: 24
+    KUBERNETES_MEMORY_REQUEST: 16Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
     # Below the CPU request: each worker spawns its own valgrind process.
-    MAX_TEST_PARALLELISM: 4
+    MAX_TEST_PARALLELISM: 20
     # Memcheck roughly doubles the sidecar's physical memory accounting. Keep
     # it instrumented, but give its watchdog the same allowance as ASAN jobs.
-    _DD_SIDECAR_WATCHDOG_MAX_MEMORY: 2147483648
+    _DD_SIDECAR_WATCHDOG_MAX_MEMORY: 4294967296
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
     KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
-  timeout: 120m
+  timeout: 30m
   script:
     - make test_extension_ci_valgrind
 <?php after_script("tmp/build_extension", has_test_agent: true); ?>
