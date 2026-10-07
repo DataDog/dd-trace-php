@@ -20,10 +20,7 @@ $php_versions_to_abi = [
 $all_minor_major_targets = array_keys($php_versions_to_abi);
 
 $asan_minor_major_targets = array_values(array_filter($all_minor_major_targets, function($v) { return version_compare($v, "7.4", ">="); }));
-// Newest PHP with Windows support. PHP 8.6 needs the vs18 (VS 2026) toolchain;
-// set this to "8.5" if that cannot run on our Windows runners (no 8.6 Windows artifact ships then).
-$windows_max_version = "8.6";
-$windows_minor_major_targets = array_values(array_filter($all_minor_major_targets, function($v) use ($windows_max_version) { return version_compare($v, "7.2", ">=") && version_compare($v, $windows_max_version, "<="); }));
+$windows_minor_major_targets = array_values(array_filter($all_minor_major_targets, function($v) { return version_compare($v, "7.2", ">="); }));
 $profiler_minor_major_targets = array_values(array_filter($all_minor_major_targets, function($v) { return version_compare($v, "7.1", ">="); }));
 
 // Newest GA PHP release. Jobs that need a released PHP (lint, Configuration Consistency,

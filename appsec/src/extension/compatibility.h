@@ -36,4 +36,8 @@
                 (zend_uchar)(type), return_reference, allow_null, 0},
 #endif
 
+#if PHP_VERSION_ID >= 80600
+#    define php_hash_bin2hex zend_bin2hex
+#endif
+
 #endif // DD_COMPATIBILITY_H

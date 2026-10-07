@@ -14,8 +14,8 @@ foreach ($profiler_minor_major_targets as $version) {
 ?>
 <?php
 // ARM64 runs a reduced PHP version matrix: amd64 and arm64 behave the same
-// across PHP versions (both LP64), so we only run the two newest versions.
-$arm64_latest = array_slice($profiler_minor_major_targets, -2);
+// across PHP versions (both LP64), so we only run the newest version.
+$arm64_latest = [end($profiler_minor_major_targets)];
 ?>
 .arm64_latest_targets: &arm64_latest_targets
 <?php
