@@ -158,7 +158,7 @@ variables:
   # No deps: a publish just mirrors whatever already exists in
   # registry.ddbuild.io, so it can run without (re)building.
   needs: []
-  image: registry.ddbuild.io/agent-delivery/dd-pkg:v0.9.6
+  image: registry.ddbuild.io/agent-delivery/dd-pkg@sha256:d17807b4184af571f80b2fe48b0b84b550d39a88fe27dd518a4015ff774867c9
   tags: ["arch:arm64"]
   # $TAG is supplied per matrix entry by the generated publish jobs.
   variables:
