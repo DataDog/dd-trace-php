@@ -27,8 +27,8 @@ class HttpClientIntegrationHelper
             return false;
         }
 
-        // Custom configuration exists, use it
-        $codesList = is_array($errorStatusCodes) ? $errorStatusCodes : explode(',', $errorStatusCodes);
+        // Set-typed configs are returned as an array with the configured entries as keys
+        $codesList = is_array($errorStatusCodes) ? array_keys($errorStatusCodes) : explode(',', $errorStatusCodes);
 
         foreach ($codesList as $item) {
             if ($item === null) {
