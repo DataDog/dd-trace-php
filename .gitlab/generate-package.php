@@ -1669,9 +1669,7 @@ endforeach;
     # Override these to point at a fork/branch of system-tests (e.g. while a fix there
     # is pending review/merge) without needing to touch this file.
     SYSTEM_TESTS_REPO: "https://github.com/DataDog/system-tests.git"
-    # TODO: point back at "main" once DataDog/system-tests@levi/common-extension-2's
-    # install_ddtrace.sh profiling-marker fix has been merged upstream.
-    SYSTEM_TESTS_REF: "levi/common-extension-2"
+    SYSTEM_TESTS_REF: "main"
     # TODO DD_API_KEY; SYSTEM_TESTS_AWS_ACCESS_KEY_ID; SYSTEM_TESTS_AWS_SECRET_ACCESS_KEY
   needs:
     - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
