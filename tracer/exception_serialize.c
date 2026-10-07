@@ -11,9 +11,7 @@
 #include <ext/ffi_utils.h>
 #include <ext/string_utils.h>
 #include "live_debugger.h"
-#if PHP_VERSION_ID < 80600
 #include <ext/hash/php_hash.h>
-#endif
 #include <exceptions/exceptions.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
@@ -412,11 +410,7 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_ob
 
     char *exception_hash = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena).arena, hash_len);
     zend_ulong exception_long_hash = ddtrace_compute_exception_hash(exception);
-#if PHP_VERSION_ID >= 80600
-    zend_bin2hex(exception_hash, (const unsigned char *)&exception_long_hash, sizeof(exception_long_hash));
-#else
     php_hash_bin2hex(exception_hash, (unsigned char *)&exception_long_hash, sizeof(exception_long_hash));
-#endif
 
     ddog_add_str_span_meta_str(span, "error.debug_info_captured", "true");
     ddog_add_str_span_meta_CharSlice(span, "_dd.debug.error.exception_hash", (ddog_CharSlice){.ptr = exception_hash, .len = hash_len});

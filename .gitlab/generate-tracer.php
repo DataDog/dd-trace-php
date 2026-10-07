@@ -197,11 +197,11 @@ windows_test_c_job("windows test_c", "nts", $windows_minor_major_targets);
 
 echo "\n";
 
-// Oldest and two newest supported Windows targets, kept in sync automatically.
-windows_test_c_job("windows test_c: zts", "zts", array_values(array_unique(array_merge(
-    [reset($windows_minor_major_targets)],
-    array_slice($windows_minor_major_targets, -2)
-))));
+// Oldest and newest supported Windows targets, kept in sync automatically.
+windows_test_c_job("windows test_c: zts", "zts", [
+    reset($windows_minor_major_targets),
+    end($windows_minor_major_targets),
+]);
 ?>
 
 "macos test_c":

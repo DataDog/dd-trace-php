@@ -144,8 +144,7 @@ for architecture in "${architectures[@]}"; do
                     cp ./extensions_${architecture}/ddtrace-$php_api-alpine.so ${tmp_folder_final_musl_trace}/ext/$php_api/ddtrace.so;
                     cp ./extensions_${architecture}/ddtrace-$php_api-alpine-zts.so ${tmp_folder_final_musl_trace}/ext/$php_api/ddtrace-zts.so;
                 fi
-                # Windows support starts on 7.2; WINDOWS_MAX_PHP_API is set by CI when newer PHPs have no Windows build.
-                if [[ $target == "windows" && ${php_api} -ge 20170718 && ${php_api} -le ${WINDOWS_MAX_PHP_API:-99999999} && $architecture == "x86_64" ]]; then
+                if [[ $target == "windows" && ${php_api} -ge 20170718 && $architecture == "x86_64" ]]; then # Windows support starts on 7.2
                     mkdir -p ${tmp_folder_final_windows_trace}/ext/$php_api;
                     cp ./extensions_${architecture}/php_ddtrace-$php_api.dll ${tmp_folder_final_windows_trace}/ext/$php_api/php_ddtrace.dll;
                     cp ./extensions_${architecture}/php_ddtrace-$php_api-zts.dll ${tmp_folder_final_windows_trace}/ext/$php_api/php_ddtrace-zts.dll;

@@ -759,7 +759,6 @@ foreach ($build_platforms as $platform) {
   extends: .package_extension_base
   variables:
     TRIPLET: "x86_64-pc-windows-msvc"
-    WINDOWS_MAX_PHP_API: "<?= $php_versions_to_abi[end($windows_minor_major_targets)] ?>"
   script:
     - make -j 4 <?= implode(' ', $windows_build_platforms[0]['targets']), "\n" ?>
     - ./tooling/bin/generate-final-artifact.sh $(<VERSION) "build/packages" "${CI_PROJECT_DIR}"
