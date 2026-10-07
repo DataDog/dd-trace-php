@@ -1420,6 +1420,10 @@ bool ddtrace_coms_flush_shutdown_writer_synchronous(void) {
     if (!writer->thread) {
         return true;
     }
+    // A previous call could not join this thread and may have detached it.
+    if (atomic_load(&writer->shutdown_when_idle)) {
+        return false;
+    }
 
     dd_writer_set_shutdown_state(writer);
 
@@ -1480,6 +1484,8 @@ bool ddtrace_coms_flush_shutdown_writer_synchronous(void) {
             // Detach the thread so that its resources are cleaned up automatically
             // when it eventually terminates, instead of hanging here forever.
             pthread_detach(writer->thread->self);
+            // The detached thread still uses writer->thread and the coms globals, so none of them may be freed.
+            return false;
         }
         free(writer->thread);
         writer->thread = NULL;
