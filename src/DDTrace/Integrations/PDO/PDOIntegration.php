@@ -71,7 +71,6 @@ class PDOIntegration extends Integration
             Integration::handleOrphan($span);
             $span->name = 'PDO.exec';
             $span->resource = Integration::toString($query);
-            $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             $instance = $hook->instance;
             PDOIntegration::setCommonSpanInfo($instance, $span);
             PDOIntegration::addTraceAnalyticsIfEnabled($span);
@@ -97,7 +96,6 @@ class PDOIntegration extends Integration
             $span = $hook->span();
             $span->name = 'PDO.query';
             $span->resource = Integration::toString($query);
-            $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             $instance = $hook->instance;
             PDOIntegration::setCommonSpanInfo($instance, $span);
             PDOIntegration::addTraceAnalyticsIfEnabled($span);
@@ -160,7 +158,6 @@ class PDOIntegration extends Integration
                 Integration::handleInternalSpanServiceName($span, PDOIntegration::NAME);
                 $span->type = Type::SQL;
                 $span->resource = $instance->queryString;
-                $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
                 if ($hook->returned === true) {
                     try {
                         $span->metrics[Tag::DB_ROW_COUNT] = $instance->rowCount();
@@ -316,6 +313,7 @@ REGEX;
         }
 
         $span->type = Type::SQL;
+        $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = self::NAME;
         if (\dd_trace_env_config("DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE") &&
