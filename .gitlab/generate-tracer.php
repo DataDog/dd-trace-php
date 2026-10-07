@@ -500,20 +500,12 @@ foreach ($all_minor_major_targets as $major_minor):
     KUBERNETES_CPU_LIMIT: 12
     KUBERNETES_MEMORY_REQUEST: 8Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
-<?php if (version_compare($major_minor, "7.4", ">=")): ?>
     # Match the CPU request.
     MAX_TEST_PARALLELISM: 12
-<?php endif; ?>
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
     KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
-<?php if (version_compare($major_minor, "7.4", ">=")): ?>
   timeout: 45m
-<?php else: ?>
-  # run-tests.php only gets -j on PHP >= 7.4 (RUN_TESTS_IS_PARALLEL in the
-  # Makefile), so these versions run serially and need the larger budget.
-  timeout: 120m
-<?php endif; ?>
   script:
     # Run twice: shared state between .phpt tests only surfaces on a second pass.
     - make test_extension_ci_normal
