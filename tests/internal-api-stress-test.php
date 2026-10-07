@@ -147,7 +147,11 @@ function call_function(ReflectionFunction $function)
     $invNum = 0;
     $existingGarbage = [generate_garbage()];
     for (; $i < $function->getNumberOfParameters(); ++$i) {
-        foreach ($invocations as $invocation) {
+        // Bound the argument product while retaining cases for every parameter.
+        $prefixes = count($invocations) > 100
+            ? array_intersect_key($invocations, array_flip(array_rand($invocations, 100)))
+            : $invocations;
+        foreach ($prefixes as $invocation) {
             if (rand(1, max(1, ceil(2 ** $i))) == 1) {
                 $useGarbage = $existingGarbage[] = generate_garbage();
             } else {
@@ -188,6 +192,10 @@ function call_function(ReflectionFunction $function)
                 foreach ($found as $k) {
                     unset($invocations[$k]);
                 }
+            }
+        } catch (Error $e) {
+            if ($function->name != 'DDTrace\install_line_hook' || strpos($e->getMessage(), 'Line hook ') !== 0) {
+                throw $e;
             }
         }
     }

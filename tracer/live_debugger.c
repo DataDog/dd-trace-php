@@ -227,10 +227,10 @@ static void clean_ctx(struct eval_ctx *ctx) {
     }
 }
 
-static ddog_ConditionEvaluationResult dd_eval_condition(const ddog_ProbeCondition *condition, zval *retval) {
+static ddog_ConditionEvaluationResult dd_eval_condition(const ddog_ProbeCondition *condition, zend_execute_data *frame, zval *retval) {
     ddog_CaptureConfiguration config = ddog_capture_defaults();
     struct eval_ctx ctx = {
-        .frame = EG(current_execute_data),
+        .frame = frame,
         .arena = NULL,
         .retval = retval,
         .config = &config,
@@ -240,10 +240,10 @@ static ddog_ConditionEvaluationResult dd_eval_condition(const ddog_ProbeConditio
     return result;
 }
 
-static ddog_ValueEvaluationResult dd_eval_value(const ddog_ProbeValue *value, zval *retval) {
+static ddog_ValueEvaluationResult dd_eval_value(const ddog_ProbeValue *value, zend_execute_data *frame, zval *retval) {
     ddog_CaptureConfiguration config = ddog_capture_defaults();
     struct eval_ctx ctx = {
-        .frame = EG(current_execute_data),
+        .frame = frame,
         .arena = NULL,
         .retval = retval,
         .config = &config,
@@ -253,9 +253,9 @@ static ddog_ValueEvaluationResult dd_eval_value(const ddog_ProbeValue *value, zv
     return result;
 }
 
-static zend_string *dd_eval_string(const ddog_DslString *string, const ddog_CaptureConfiguration *config, zval *retval, ddog_Vec_SnapshotEvaluationError **error) {
+static zend_string *dd_eval_string(const ddog_DslString *string, const ddog_CaptureConfiguration *config, zend_execute_data *frame, zval *retval, ddog_Vec_SnapshotEvaluationError **error) {
     struct eval_ctx ctx = {
-        .frame = EG(current_execute_data),
+        .frame = frame,
         .arena = NULL,
         .retval = retval,
         .config = config,
@@ -317,7 +317,7 @@ typedef struct {
 } dd_probe_def;
 
 static bool dd_probe_file_mismatch(dd_probe_def *def, zend_execute_data *execute_data) {
-    return def->file && (!execute_data->func->op_array.filename || !ddtrace_uhook_match_filepath(execute_data->func->op_array.filename, def->file));
+    return def->file && (!execute_data->func->op_array.filename || !zai_hook_match_filepath(execute_data->func->op_array.filename, def->file));
 }
 
 static void dd_probe_dtor(void *data) {
@@ -510,7 +510,7 @@ static void dd_span_decoration_end(zend_ulong invocation, zend_execute_data *exe
         }
         const ddog_SpanProbeTag *spanTag = def->probe.probe.span_decoration.span_tags + i;
         if (spanTag->next_condition) {
-            ddog_ConditionEvaluationResult result = dd_eval_condition(*(condition++), retval);
+            ddog_ConditionEvaluationResult result = dd_eval_condition(*(condition++), execute_data, retval);
             if (result.tag == DDOG_CONDITION_EVALUATION_RESULT_ERROR) {
                 dd_submit_probe_eval_error_snapshot(&def->probe, result.error);
                 condition_result = false;
@@ -522,7 +522,7 @@ static void dd_span_decoration_end(zend_ulong invocation, zend_execute_data *exe
             zval zv;
             ddog_Vec_SnapshotEvaluationError *error;
             ddog_CaptureConfiguration config_defaults = ddog_capture_defaults();
-            ZVAL_STR(&zv, dd_eval_string(spanTag->tag.value, &config_defaults, retval, &error));
+            ZVAL_STR(&zv, dd_eval_string(spanTag->tag.value, &config_defaults, execute_data, retval, &error));
             zend_hash_str_update(meta, spanTag->tag.name.ptr, spanTag->tag.name.len, &zv);
 
             zend_string *tag = zend_strpprintf(0, "_dd.di.%.*s.probe_id", (int)spanTag->tag.name.len, spanTag->tag.name.ptr);
@@ -582,7 +582,7 @@ static bool dd_log_probe_eval_condition(dd_log_probe_def *def, zend_execute_data
         return false;
     }
 
-    ddog_ConditionEvaluationResult condition = dd_eval_condition(def->parent.probe.probe.log.when, retval);
+    ddog_ConditionEvaluationResult condition = dd_eval_condition(def->parent.probe.probe.log.when, execute_data, retval);
     switch (condition.tag) {
         case DDOG_CONDITION_EVALUATION_RESULT_SUCCESS:
             return ddog_shm_limiter_inc(def->limiter, def->parent.probe.probe.log.sampling_snapshots_per_second) && ddog_global_log_probe_limiter_inc(DATADOG_G(remote_config_state));
@@ -611,14 +611,12 @@ static void dd_log_probe_ensure_payload(dd_log_probe_dyn *dyn, dd_log_probe_def 
 }
 
 static void dd_log_probe_capture_snapshot(ddog_DebuggerCapture *capture, dd_log_probe_def *def, zend_execute_data *execute_data) {
+    if (!dd_uhook_frame_is_live(execute_data)) {
+        return;
+    }
     const ddog_CaptureConfiguration *capture_config = def->parent.probe.probe.log.capture;
-#if PHP_VERSION_ID < 80600
-    if (ZEND_USER_CODE(EX(func)->type))
-#else
-    if (ZEND_USER_CODE(EX(func)->type) || EX(func)->internal_function.arg_info)
-#endif
-    {
-        zend_array *symbol_table = zend_rebuild_symbol_table();
+    HashTable *symbol_table = dd_uhook_symbol_table(execute_data);
+    if (symbol_table) {
         zend_string *symbol;
         zval *variable;
         ZEND_HASH_FOREACH_STR_KEY_VAL_IND(symbol_table, symbol, variable) {
@@ -679,7 +677,7 @@ static void dd_probe_capture_stack(ddog_DebuggerPayload *payload, zend_execute_d
         uint32_t lineno = 0;
 
 #if PHP_VERSION_ID >= 80400
-        if (ZEND_USER_CODE(call->func->type)) {
+        if (dd_uhook_frame_is_live(call) && ZEND_USER_CODE(call->func->type)) {
             /* For frameless calls we add an additional frame for the call itself. */
             const zend_op *opline = call->opline;
             if (!ZEND_OP_IS_FRAMELESS_ICALL(opline->opcode)) {
@@ -856,7 +854,7 @@ static void dd_log_probe_end(zend_ulong invocation, zend_execute_data *execute_d
     }
 
     ddog_Vec_SnapshotEvaluationError *errors;
-    zend_string *result = dd_eval_string(def->parent.probe.probe.log.segments, def->parent.probe.probe.log.capture, retval, &errors);
+    zend_string *result = dd_eval_string(def->parent.probe.probe.log.segments, def->parent.probe.probe.log.capture, execute_data, retval, &errors);
     if (errors) {
         dd_submit_probe_eval_error_snapshot(&def->parent.probe, errors);
     }
@@ -989,7 +987,7 @@ static void dd_metric_probe_end(zend_ulong invocation, zend_execute_data *execut
     ddog_CharSlice *name = &def->probe.probe.metric.name;
     zend_string *metric_name = zend_strpprintf(0, "dynamic.instrumentation.metric.probe.%.*s", (int)name->len, name->ptr);
 
-    ddog_ValueEvaluationResult result = dd_eval_value(def->probe.probe.metric.value, retval);
+    ddog_ValueEvaluationResult result = dd_eval_value(def->probe.probe.metric.value, execute_data, retval);
     if (result.tag == DDOG_VALUE_EVALUATION_RESULT_ERROR) {
         dd_submit_probe_eval_error_snapshot(&def->probe, result.error);
         return;
@@ -1223,10 +1221,10 @@ static const void *dd_eval_fetch_identifier(void *ctx, const ddog_CharSlice *nam
     struct eval_ctx *eval_ctx = ctx;
     zend_execute_data *execute_data = eval_ctx->frame;
 
-    if (EX(func)) {
+    if (dd_uhook_frame_is_live(execute_data)) {
 #if PHP_VERSION_ID < 80600
         if (!ZEND_USER_CODE(EX(func)->type)) {
-            int call_args = MIN(EX_NUM_ARGS(), EX(func)->common.num_args);
+            int call_args = EX(func)->internal_function.arg_info ? MIN(EX_NUM_ARGS(), EX(func)->common.num_args) : 0;
             for (int i = 0; i < call_args; ++i) {
                 const char *argname = EX(func)->internal_function.arg_info[i].name;
                 if (zend_binary_strcmp(argname, strlen(argname), name->ptr, name->len) == 0) {
@@ -1236,25 +1234,15 @@ static const void *dd_eval_fetch_identifier(void *ctx, const ddog_CharSlice *nam
         } else
 #endif
         {
-            zend_execute_data *current_execute_data = EG(current_execute_data);
-            EG(current_execute_data) = execute_data;
-            zend_array *symtable = zend_rebuild_symbol_table();
-            if (!symtable) {
-                return NULL;
-            }
-            zval *zvp = zend_hash_str_find_ind(symtable, name->ptr, name->len);
-            EG(current_execute_data) = current_execute_data;
+            HashTable *symtable = dd_uhook_symbol_table(execute_data);
+            zval *zvp = symtable ? zend_hash_str_find_ind(symtable, name->ptr, name->len) : NULL;
             if (zvp) {
                 return zvp;
             }
         }
-    }
-
-    if (name->len == 4 && memcmp(name->ptr, ZEND_STRL("this")) == 0) {
-        if (hasThis()) {
+        if (name->len == 4 && memcmp(name->ptr, ZEND_STRL("this")) == 0 && hasThis()) {
             return &EX(This);
         }
-        return NULL;
     }
 
     if (name->len == sizeof("duration") && memcmp(name->ptr, ZEND_STRL("@duration")) == 0) {
