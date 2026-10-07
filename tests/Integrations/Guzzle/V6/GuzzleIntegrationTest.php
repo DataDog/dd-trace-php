@@ -241,7 +241,10 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     ]
                 )), 1);
             },
-            __DIR__ . '/guzzle_in_distributed_web_request.php'
+            __DIR__ . '/guzzle_in_distributed_web_request.php',
+            [],
+            // keep the response JSON: guzzlehttp/promises' Is class is a deprecated class name on 8.6+
+            ['display_errors' => '0']
         );
 
         $this->assertOneSpan(
