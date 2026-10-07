@@ -63,6 +63,11 @@ function main()
         return;
     }
 
+    if (stripos(PHP_OS, 'Darwin') !== false) {
+        echo "Running the datadog-setup under macOS is not supported.\nPlease either install the tracer via `pecl install datadog_trace` or download the sources and install these directly via `phpize`, `./configure` and ultimately `make install`.\n";
+        exit(1);
+    }
+
     $arguments = parse_validate_user_options();
     $options = $arguments['opts'];
     switch ($arguments['cmd']) {
