@@ -36,6 +36,7 @@ launcher=()
 runner_opts=()
 tests=()
 output_file=
+show_groups=
 junit=$TEST_PHP_JUNIT
 i=0
 
@@ -53,6 +54,8 @@ while ((i < argc)); do
   [[ ${launcher[${#launcher[@]}-1]} == *run-tests.php ]] && break
 done
 [[ ${launcher[${#launcher[@]}-1]} == *run-tests.php ]] || passthrough "no run-tests.php in command" "$@"
+runner=${launcher[${#launcher[@]}-1]}
+unset 'launcher[${#launcher[@]}-1]'
 
 while ((i < argc)); do
   arg=${argv[i]}
@@ -62,10 +65,17 @@ while ((i < argc)); do
       ((i += 2))
       continue
       ;;
+    -g)
+      # Applied when merging: the runners must report every result, so that
+      # complete batches can be told apart from crashed ones.
+      show_groups=${argv[i+1]}
+      ((i += 2))
+      continue
+      ;;
     -r|-l|-w|-a|-W|--html|-j*)
       passthrough "$arg is not supported" "$@"
       ;;
-    -c|-d|-g|-p|--set-timeout|--show-slow|--temp-source|--temp-target|--temp-urlbase)
+    -c|-d|-p|--set-timeout|--show-slow|--temp-source|--temp-target|--temp-urlbase)
       runner_opts+=("$arg" "${argv[i+1]}")
       ((i += 2))
       continue
@@ -200,10 +210,12 @@ while (($line = fgets(STDIN)) !== false) {
 EOF
 
 # Prints each test output block (anything since the previous result of that
-# worker, followed by the result line) at once, numbered, and a final summary.
+# worker, followed by the result line, unless -g excludes all of its result
+# types) at once, numbered, and a final summary.
 # Worker records "r" mark the end of a batch: exit code, test count, list file.
 read -r -d '' merge <<'EOF'
 $total = (int)$argv[1];
+$show_groups = $argv[2] === "" ? null : explode(",", $argv[2]);
 $start = time();
 $sep = str_repeat("=", 69);
 $width = strlen($total);
@@ -227,13 +239,18 @@ while (($line = fgets(STDIN)) !== false) {
             $buf[$w] .= "$s\n";
             break;
         case "e":
-            printf("%s[%{$width}d/%d] %s\n", $buf[$w], ++$done, $total, $s);
-            $buf[$w] = "";
+            ++$done;
             $seen[$w]++;
             list($result, $name) = explode(" ", $s, 2) + ["", ""];
-            foreach (explode("&", $result) as $r) {
+            $results = explode("&", $result);
+            foreach ($results as $r) {
                 $count[$r] = (isset($count[$r]) ? $count[$r] : 0) + 1;
                 $tests[$r][] = $name;
+            }
+            echo $buf[$w];
+            $buf[$w] = "";
+            if ($show_groups === null || array_intersect($results, $show_groups)) {
+                printf("[%{$width}d/%d] %s\n", $done, $total, $s);
             }
             break;
         case "r":
@@ -309,14 +326,19 @@ run_batch() {
   local worker=$1 batch=$2 header=$3 extra_env=() extra_opts=() rc
   [[ -n $junit ]] && extra_env+=("TEST_PHP_JUNIT=$batch.xml")
   [[ -n $output_file ]] && extra_opts+=(-s "$batch.out")
-  env "${assigns[@]}" "${extra_env[@]}" "${launcher[@]}" "${runner_opts[@]}" "${extra_opts[@]}" -r "$batch" 2>&1 \
+  env "${assigns[@]}" "${extra_env[@]}" "${launcher[@]}" "$tmp/runner-$worker/run-tests.php" "${runner_opts[@]}" "${extra_opts[@]}" -r "$batch" 2>&1 \
     | php -n -r "$filter" -- "$worker" "$header" "$batch.log"
   rc=${PIPESTATUS[0]}
   printf '%s\tr\t%s\t%s\t%s\n' "$worker" "$rc" "$(wc -l < "$batch")" "$batch"
 }
 
+# Each worker runs its own copy of run-tests.php: before 7.4 it probes the
+# tested php through a fixed run-test-info.php next to itself, which concurrent
+# runners would overwrite and delete under each other.
 worker() {
   local worker=$1 dir=$2 batch
+  mkdir -p "$tmp/runner-$worker"
+  cp "$runner" "$tmp/runner-$worker/run-tests.php" || exit 1
   for batch in "$dir"/*.lst; do
     [[ -e $batch ]] || continue
     mkdir "$batch.claim" 2> /dev/null || continue
@@ -334,7 +356,7 @@ run_all() {
 }
 
 echo "Running $total tests in $(ls "$tmp"/*/*.lst | wc -l) batches on $jobs workers."
-run_all | php -n -r "$merge" -- "$total"
+run_all | php -n -r "$merge" -- "$total" "$show_groups"
 status=$?
 
 if [[ -n $output_file ]]; then
