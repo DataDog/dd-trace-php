@@ -297,6 +297,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             ])
         );
 
+        $this->assertCount(2, $found);
         foreach ($found as $data) {
             $rootSpan = $traces[0][0];
             self::assertContains($data['headers']['X-Datadog-Parent-Id'], array_map(function($span) {

@@ -80,9 +80,10 @@ static void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, 
     void *
 #endif
     stacktarget = stacktop - stack_top_offset;
-#ifdef VALGRIND_STACK_REGISTER
+#if defined(VALGRIND_STACK_REGISTER) && !defined(NVALGRIND)
     // Register both stacks (this frame is where LONGJMP returns to), or valgrind takes the switch for a regular stack
-    // adjustment when they are closer than --max-stackframe and marks the memory in between noaccess/undefined
+    // adjustment when they are closer than --max-stackframe and marks the memory in between noaccess/undefined.
+    // The +-4 KiB window around a local must cover this frame's SP after LONGJMP (the frame is well below 4 KiB).
     char *cur_stack = (char *)&target;
     volatile unsigned int valgrind_tmp_stack_id = VALGRIND_STACK_REGISTER(stack, stacktop);
     volatile unsigned int valgrind_cur_stack_id = VALGRIND_STACK_REGISTER(cur_stack - 0x1000, cur_stack + 0x1000);
@@ -163,7 +164,7 @@ static void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, 
     __sanitizer_finish_switch_fiber(fake_stack, &bottom, &capacity);
 #endif
 
-#ifdef VALGRIND_STACK_DEREGISTER
+#if defined(VALGRIND_STACK_REGISTER) && !defined(NVALGRIND)
     VALGRIND_STACK_DEREGISTER(valgrind_cur_stack_id);
     VALGRIND_STACK_DEREGISTER(valgrind_tmp_stack_id);
 #endif
@@ -1085,14 +1086,16 @@ void zai_interceptor_startup(void) {
 
     zai_interceptor_generator_post_op[0] = zai_interceptor_generator_post_op_template;
     zai_interceptor_generator_post_op[1] = zai_interceptor_generator_post_op_template;
+#if defined(__GNUC__) || PHP_VERSION_ID >= 80600
+    int kind = zend_vm_kind();
+#endif
 #if PHP_VERSION_ID >= 80600
     // Runtime check: a binary built against HYBRID headers may run on a TAILCALL PHP.
-    void *call_handler = zend_vm_kind() == ZEND_VM_KIND_TAILCALL ? (void *)zai_interceptor_handle_created_generator_tailcall : (void *)zai_interceptor_handle_created_generator_call;
+    void *call_handler = kind == ZEND_VM_KIND_TAILCALL ? (void *)zai_interceptor_handle_created_generator_tailcall : (void *)zai_interceptor_handle_created_generator_call;
 #else
     void *call_handler = (void *)zai_interceptor_handle_created_generator_call;
 #endif
 #ifdef __GNUC__
-    int kind = zend_vm_kind();
     zai_interceptor_generator_post_op[1].handler = kind == ZEND_VM_KIND_HYBRID || kind == ZEND_VM_KIND_GOTO ? zai_interceptor_handle_created_generator_goto() : call_handler;
 #else
     zai_interceptor_generator_post_op[1].handler = call_handler;

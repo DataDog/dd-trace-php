@@ -48,16 +48,16 @@ foreach ($log as $entry) {
 require __DIR__ . "/live_debugger.inc";
 reset_request_replayer();
 ?>
---EXPECT--
+--EXPECTF--
 array(2) {
-  ["num1"]=>
+  ["%r(num1|dividend)%r"]=>
   array(2) {
     ["type"]=>
     string(3) "int"
     ["value"]=>
     string(1) "7"
   }
-  ["num2"]=>
+  ["%r(num2|divisor)%r"]=>
   array(2) {
     ["type"]=>
     string(3) "int"
