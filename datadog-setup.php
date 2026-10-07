@@ -720,6 +720,8 @@ function install($options)
                 ];
             }
 
+            $migrateLegacyProfiling = $hasCombinedProfiling
+                && legacy_profiler_needs_enabling(file_get_contents($iniFilePath));
             $profilingExtensionPattern = '(^\s*;?\s*(zend_)?extension\s*=\s*.*datadog-profiling.*)m';
             if ($hasCombinedProfiling) {
                 // The standalone profiler cannot coexist with combined ddtrace.
@@ -745,8 +747,9 @@ function install($options)
                 ];
             }
 
-            // Profiling is opt-in for installer-managed combined artifacts.
-            if (is_truthy($options[OPT_ENABLE_PROFILING])) {
+            // New installations are opt-in; preserve profiling enabled by a
+            // legacy extension line before commenting that line for combined builds.
+            if (is_truthy($options[OPT_ENABLE_PROFILING]) || $migrateLegacyProfiling) {
                 if (!$shouldInstallProfiling) {
                     $enableProfiling = OPT_ENABLE_PROFILING;
                     print_error_and_exit(
@@ -932,6 +935,27 @@ function find_main_ini_files(array $phpProperties)
     }
 
     return filter_ssi_ini_paths($iniFilePaths);
+}
+
+/**
+ * Legacy standalone profiling defaults to enabled when its extension is loaded.
+ * Preserve that implicit state, but leave any active enabled/disabled setting alone.
+ *
+ * @param string $contents
+ * @return bool
+ */
+function legacy_profiler_needs_enabling($contents)
+{
+    if (preg_match('(^[ \t]*datadog\.profiling\.enabled[ \t]*=)m', $contents)) {
+        return false;
+    }
+
+    // Horizontal whitespace prevents a commented line being matched via a newline;
+    // exclude trailing comments so mentioning the profiler there cannot enable it.
+    return 1 === preg_match(
+        '(^[ \t]*(zend_)?extension[ \t]*=[ \t]*[^;#\r\n]*datadog-profiling)m',
+        $contents
+    );
 }
 
 /**
