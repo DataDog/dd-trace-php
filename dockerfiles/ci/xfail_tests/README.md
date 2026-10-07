@@ -51,6 +51,7 @@ The following tests are marked as skipped due to the test relying on a hard-code
 - `Zend/tests/type_declarations/scalar_return_basic_64bit.phpt`
 - `Zend/tests/weakrefs/weakmap_basic_map_behaviour.phpt`
 - `ext/standard/tests/filters/bug54350.phpt`
+- `ext/spl/tests/spl_object_hash_deprecated.phpt` (8.6+; the object handle is shifted by objects ddtrace creates)
 
 ## Random port selection
 
@@ -136,6 +137,12 @@ Test does http request to shut down server.
 ## `ext/curl/tests/curl_postfields_array.phpt`, `ext/curl/tests/curl_setopt_CURLOPT_ACCEPT_ENCODING.phpt`, `ext/curl/tests/curl_setopt_CURLOPT_DEBUGFUNCTION.phpt`
 
 Distributed tracing headers are injected
+
+## `ext/curl/tests/curl_getinfo_CURLINFO_HEADER_OUT.phpt`, `ext/standard/tests/http/ghsa-fpwc-w8rq-cr92-002.phpt`
+
+Disabled on versions: `8.6`.
+
+The dumped request headers include the injected `x-datadog-*`/`traceparent`/`tracestate` headers.
 
 ## `ext/intl/tests/bug60192-sort.phpt`
 
