@@ -229,7 +229,7 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     endif()
 endif()
 target_compile_definitions(ddtrace_objects PRIVATE
-    ZEND_ENABLE_STATIC_TSRMLS_CACHE=1 COMPILE_DL_DDTRACE=1 DDTRACE=1)
+    ZEND_ENABLE_STATIC_TSRMLS_CACHE=1 COMPILE_DL_DDTRACE=1 TRACER=1 SIDECAR=1)
 target_include_directories(ddtrace_objects PRIVATE
     ${CURL_INCLUDE_DIRS}
     ${CMAKE_SOURCE_DIR}/..
