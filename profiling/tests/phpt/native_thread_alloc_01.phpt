@@ -1,29 +1,43 @@
 --TEST--
-[profiling] allocation profiling should not crash when allocation happens on non-PHP thread (ext-grpc compatibility)
+[profiling] reuse a closure after executing it on a native thread (ext-grpc compatibility)
 --DESCRIPTION--
-This test simulates what ext-grpc does: it creates a native thread (not a PHP thread) and triggers memory allocation on it. Before the fix, this would crash because:
-1. ThreadRng uses thread-local storage internally
-2. ALLOCATION_PROFILING_STATS was thread-local
-Both of these are uninitialized for non-PHP threads since they never went through GINIT. After the fix, NTS builds use a global static instead of TLS.
-See https://github.com/DataDog/dd-trace-php/pull/3542 for the fix
+Execute a PHP closure that allocates on a native thread, join it, then call the
+same closure on the main thread. PHP runtime cache slots populated by the
+background thread must remain valid after its Rust TLS has been destroyed.
+Disable the stack limit because the callback does not use the main thread's stack.
 --SKIPIF--
 <?php
 if (!extension_loaded('datadog-profiling'))
   die("skip: test requires datadog-profiling");
 if (PHP_ZTS)
   die("skip: test only applies to NTS builds");
-if (!function_exists('Datadog\Profiling\run_alloc_on_native_thread'))
+if (!function_exists('Datadog\Profiling\run_on_native_thread'))
   die("skip: test function not available (requires build with CFG_TEST)");
 ?>
 --ENV--
 DD_PROFILING_ENABLED=yes
 DD_PROFILING_ALLOCATION_ENABLED=yes
 DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE=1
+--INI--
+zend.max_allowed_stack_size=-1
 --FILE--
 <?php
-Datadog\Profiling\run_alloc_on_native_thread();
-// failure case is a segfault, no need to check any return value ;-)
-echo "Done.\n";
+$calls = 0;
+$callback = function () use (&$calls) {
+    $allocation = str_repeat('a', 8 * 1024 * 1024);
+    ++$calls;
+    return strlen($allocation);
+};
+
+var_dump(Datadog\Profiling\run_on_native_thread($callback));
+echo "Joined.\n";
+var_dump($calls);
+var_dump($callback());
+var_dump($calls);
 ?>
---EXPECTF--
-Done.
+--EXPECT--
+int(8388608)
+Joined.
+int(1)
+int(8388608)
+int(2)

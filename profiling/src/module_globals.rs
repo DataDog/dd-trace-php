@@ -7,7 +7,9 @@ use core::sync::atomic::AtomicU32;
 
 #[cfg(target_os = "linux")]
 use crate::profiling::process_context::ProcessContextCache;
-#[cfg(target_os = "linux")]
+#[cfg(php_run_time_cache)]
+use crate::profiling::string_set::StringSet;
+#[cfg(any(target_os = "linux", php_run_time_cache))]
 use core::cell::RefCell;
 
 #[cfg(php_zend_mm_set_custom_handlers_ex)]
@@ -15,6 +17,12 @@ use crate::profiling::allocation::allocation_ge84::ZendMMState;
 #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
 use crate::profiling::allocation::allocation_le83::ZendMMState;
 
+/// Profiler state stored in PHP module globals: process-wide in NTS,
+/// per PHP thread in ZTS.
+///
+/// Intentionally not native thread-local in NTS. Although NTS normally
+/// executes PHP on one thread, ext/grpc also executes PHP callbacks on
+/// native threads, which we consider a bug in ext/grpc.
 #[repr(C)]
 pub struct ProfilerGlobals {
     /// Wrapped in `Cell` to prevent torn reads/writes when allocation hooks
@@ -31,6 +39,9 @@ pub struct ProfilerGlobals {
     /// Per-thread allocation sampling state. Kept in PHP globals so allocator
     /// hooks can reuse an already-resolved TSRM cache instead of accessing Rust TLS.
     pub allocation_profiling_stats: UnsafeCell<MaybeUninit<allocation::AllocationProfilingStats>>,
+    /// Owns the strings referenced by PHP's runtime cache slots.
+    #[cfg(php_run_time_cache)]
+    pub cached_strings: UnsafeCell<MaybeUninit<RefCell<StringSet>>>,
 }
 
 /// We need TSRM to call into GINIT and GSHUTDOWN to observe spawning and
@@ -51,6 +62,8 @@ pub static mut GLOBALS: ProfilerGlobals = ProfilerGlobals {
     #[cfg(target_os = "linux")]
     process_context: RefCell::new(ProcessContextCache::new()),
     allocation_profiling_stats: UnsafeCell::new(MaybeUninit::uninit()),
+    #[cfg(php_run_time_cache)]
+    cached_strings: UnsafeCell::new(MaybeUninit::uninit()),
 };
 
 #[cfg(php_zts)]
@@ -129,11 +142,13 @@ pub unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
     #[cfg(php_zts)]
     crate::profiling::timeline::timeline_ginit();
 
-    // Initialize PHP globals for ZTS builds. For NTS builds, this was already
-    // done in its const initializer.
+    #[cfg(any(php_zts, php_run_time_cache))]
+    let globals = _globals_ptr.cast::<ProfilerGlobals>();
+
+    // Initialize PHP globals for ZTS builds. For NTS builds, the const fields
+    // were already initialized above.
     #[cfg(php_zts)]
     {
-        let globals = _globals_ptr.cast::<ProfilerGlobals>();
         (*globals).zend_mm_state = Cell::new(ZendMMState::new());
         (*globals).interrupt_count = AtomicU32::new(0);
         #[cfg(target_os = "linux")]
@@ -141,6 +156,9 @@ pub unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
             .write(RefCell::new(ProcessContextCache::new()));
         (*globals).allocation_profiling_stats = UnsafeCell::new(MaybeUninit::uninit());
     }
+
+    #[cfg(php_run_time_cache)]
+    (*(*globals).cached_strings.get()).write(RefCell::new(StringSet::new()));
 
     // SAFETY: this is called in thread ginit as expected, and no other places.
     allocation::ginit();
@@ -155,9 +173,11 @@ pub unsafe extern "C" fn gshutdown(_globals_ptr: *mut c_void) {
     #[cfg(php_zts)]
     crate::profiling::timeline::timeline_gshutdown();
 
+    #[cfg(any(target_os = "linux", php_run_time_cache))]
+    let globals = _globals_ptr.cast::<ProfilerGlobals>();
+
     #[cfg(target_os = "linux")]
     {
-        let globals = _globals_ptr.cast::<ProfilerGlobals>();
         if let Ok(mut cache) = (*globals).process_context.try_borrow_mut() {
             cache.reset();
         }
@@ -167,6 +187,9 @@ pub unsafe extern "C" fn gshutdown(_globals_ptr: *mut c_void) {
 
     // SAFETY: this is called in thread gshutdown as expected, no other places.
     allocation::gshutdown();
+
+    #[cfg(php_run_time_cache)]
+    (*(*globals).cached_strings.get()).assume_init_drop();
 }
 
 // Unit tests are not loaded by PHP, so provide the PHP globals and TSRM symbol
