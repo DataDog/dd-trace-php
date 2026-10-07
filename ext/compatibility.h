@@ -814,4 +814,8 @@ extern zend_string *datadog_known_strings[ZEND_STR__LAST];
 
 #endif
 
+#if PHP_VERSION_ID >= 80600
+#define php_hash_bin2hex zend_bin2hex
+#endif
+
 #endif  // DATADOG_COMPATIBILITY_H

@@ -19,16 +19,17 @@
 #include "telemetry_reaper.h"
 
 #define MIN_API_VERSION 320151012
-#define MAX_API_VERSION 420250925
+#define MAX_API_VERSION 420260924
 #define MAX_INI_API_VERSION MAX_API_VERSION + 1
 
 #define PHP_70_VERSION 20151012
 #define PHP_71_VERSION 20160303
 #define PHP_72_VERSION 20170718
 #define PHP_80_VERSION 20200930
+#define PHP_86_VERSION 20260924
 
 #define MIN_PHP_VERSION "7.0"
-#define MAX_PHP_VERSION "8.5"
+#define MAX_PHP_VERSION "8.6"
 
 extern zend_module_entry dd_library_loader_mod;
 
@@ -39,6 +40,8 @@ static char *package_path = NULL;
 static void *libdatadog_php_handle = NULL;
 
 static unsigned int php_api_no = 0;
+// Module API number of the running PHP, set before the first log line (php_api_no is only set once the runtime is supported)
+static unsigned int runtime_api_no = 0;
 static const char *runtime_version = "unknown";
 static bool injection_forced = false;
 static bool ddtrace_disabled_by_incompatible_runtime = false;
@@ -359,7 +362,16 @@ void ddloader_logv(injected_ext *config, log_level level, const char *format, va
 
     char full[512];
     snprintf(full, sizeof(full), "[dd_library_loader][%s] %s", level_str, msg);
-    _php_error_log(0, full, NULL, NULL);
+
+    // The loader is built against one PHP version; _php_error_log() takes zend_string* since PHP 8.6.
+    void (*php_error_log_fn)(void) = (void (*)(void))_php_error_log;
+    if (runtime_api_no >= PHP_86_VERSION) {
+        zend_string *message = ddloader_zend_string_init(runtime_api_no, full, strlen(full), 1);
+        ((int (*)(int, const zend_string *, const zend_string *, const zend_string *))php_error_log_fn)(0, message, NULL, NULL);
+        ddloader_zend_string_release(runtime_api_no, message);
+    } else {
+        ((int (*)(int, const char *, const char *, const char *))php_error_log_fn)(0, full, NULL, NULL);
+    }
 }
 
 void ddloader_logf(injected_ext *config, log_level level, const char *format, ...) {
@@ -897,6 +909,7 @@ static int ddloader_api_no_check(int api_no) {
     // api_no is the Zend extension API number, similar to "420220829"
     // It is an int, but represented as a string, we must remove the first char to get the PHP module API number
     unsigned int module_api_no = api_no % 100000000;
+    runtime_api_no = module_api_no;
     ddloader_configure();
 
     TELEMETRY(REASON_START, NULL, NULL, "Starting injection");

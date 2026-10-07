@@ -26,6 +26,14 @@ services:
       context: .
       dockerfile: vs17.Dockerfile
 
+  vs18-base:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:windows-base-vs18
+    build:
+      platforms:
+        - windows/amd64
+      context: .
+      dockerfile: vs18.Dockerfile
+
   vc15:
     image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:windows-vc15
     build:
@@ -63,6 +71,30 @@ services:
         # 2.7.1: needed so phpsdk_deps pulls the current 8.5 deps set incl.
         # libzstd (curl links zstd now); 2.3.0 predates the current deps index.
         sdkVersion: "2.7.1"
+
+  vs18:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:windows-vs18
+    build:
+      platforms:
+        - windows/amd64
+      context: .
+      dockerfile: basetools.Dockerfile
+      args:
+        vsVersion: "vs18"
+        sdkVersion: "2.7.1"
+
+  php-8.6:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.6_windows
+    build:
+      platforms:
+        - windows/amd64
+      context: .
+      args:
+        # Must match the tarball's top-level directory (see Dockerfile).
+        phpVersion: "8.6.0RC2"
+        vsVersion: "vs18"
+        phpTarGzUrl: https://downloads.php.net/~mbeccati/php-8.6.0RC2.tar.gz
+        phpSha256Hash: "05377bdce249ca54e5c25af53f11662170440fdd8840b23b6d4886a8bccf0f30"
 
   php-8.5:
     image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.5_windows

@@ -46,7 +46,7 @@ static inline void dd_add_assoc_double(HashTable *ht, const char *name, size_t n
     zend_hash_str_update(ht, name, name_len, &value);
 }
 
-static inline char *dd_get_ini(const char *name, size_t name_len) { return zend_ini_string((char *)name, name_len, 0); }
+static inline const char *dd_get_ini(const char *name, size_t name_len) { return zend_ini_string((char *)name, name_len, 0); }
 
 static inline bool dd_ini_is_set(const char *name, size_t name_len) {
     const char *ini = dd_get_ini(name, name_len);

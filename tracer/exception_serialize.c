@@ -484,6 +484,7 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_ob
                 if (key) {
                     arg_name = (ddog_CharSlice) {.ptr = ZSTR_VAL(key), .len = ZSTR_LEN(key)};
                 } else if (func && idx < func->common.num_args) {
+#if PHP_VERSION_ID < 80600
                     if (ZEND_USER_CODE(func->type)) {
                         zend_string *name = func->op_array.arg_info[idx].name;
                         arg_name = (ddog_CharSlice) {.ptr = ZSTR_VAL(name), .len = ZSTR_LEN(name)};
@@ -491,6 +492,11 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_ob
                         const char *name = (const char*) func->internal_function.arg_info[idx].name;
                         arg_name = (ddog_CharSlice) {.ptr = name, .len = strlen(name)};
                     }
+#else
+                    // 8.6: internal arg_info is zend_arg_info with a zend_string name too
+                    zend_string *name = func->common.arg_info[idx].name;
+                    arg_name = (ddog_CharSlice) {.ptr = ZSTR_VAL(name), .len = ZSTR_LEN(name)};
+#endif
                 } else {
                     char *integer = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena).arena, 23);
                     int len = sprintf(integer, "arg" ZEND_LONG_FMT, idx);

@@ -12,6 +12,11 @@
 #ifdef __SANITIZE_ADDRESS__
 # include <sanitizer/common_interface_defs.h>
 #endif
+#if defined(__has_include) && !defined(__SANITIZE_ADDRESS__)
+# if __has_include(<valgrind/valgrind.h>)
+#  include <valgrind/valgrind.h>
+# endif
+#endif
 
 #if PHP_VERSION_ID < 80400
 int zai_registered_observers = 0;
@@ -75,6 +80,13 @@ static void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, 
     void *
 #endif
     stacktarget = stacktop - stack_top_offset;
+#ifdef VALGRIND_STACK_REGISTER
+    // Register both stacks (this frame is where LONGJMP returns to), or valgrind takes the switch for a regular stack
+    // adjustment when they are closer than --max-stackframe and marks the memory in between noaccess/undefined
+    char *cur_stack = (char *)&target;
+    volatile unsigned int valgrind_tmp_stack_id = VALGRIND_STACK_REGISTER(stack, stacktop);
+    volatile unsigned int valgrind_cur_stack_id = VALGRIND_STACK_REGISTER(cur_stack - 0x1000, cur_stack + 0x1000);
+#endif
 
 #ifdef __SANITIZE_ADDRESS__
     void *volatile fake_stack;
@@ -151,6 +163,10 @@ static void zai_hook_safe_finish(zend_execute_data *execute_data, zval *retval, 
     __sanitizer_finish_switch_fiber(fake_stack, &bottom, &capacity);
 #endif
 
+#ifdef VALGRIND_STACK_DEREGISTER
+    VALGRIND_STACK_DEREGISTER(valgrind_cur_stack_id);
+    VALGRIND_STACK_DEREGISTER(valgrind_tmp_stack_id);
+#endif
     free(stack);
 }
 #else
@@ -695,7 +711,7 @@ static zend_observer_fcall_handlers zai_interceptor_observer_fcall_init(zend_exe
 
 static const zend_op zai_interceptor_generator_post_op_template = {
     .opcode = ZEND_RETURN,
-    .op1 = { .var = XtOffsetOf(zend_execute_data, This) },
+    .op1 = { .var = offsetof(zend_execute_data, This) },
     .op1_type = IS_TMP_VAR,
     .op2 = { .num = 0 },
     .op2_type = IS_UNUSED,
@@ -782,10 +798,25 @@ static int ZEND_OPCODE_HANDLER_CCONV zai_interceptor_handle_created_generator_ca
     zai_interceptor_handle_created_generator_func();
     return 0 /* ZEND_VM_CONTINUE */;
 }
+#elif PHP_VERSION_ID < 80600
+static const zend_op *ZEND_OPCODE_HANDLER_CCONV zai_interceptor_handle_created_generator_call(void) {
+    zai_interceptor_handle_created_generator_func();
+    return &zai_interceptor_generator_post_op[2] /* ZEND_VM_CONTINUE */;
+}
 #else
 static const zend_op *ZEND_OPCODE_HANDLER_CCONV zai_interceptor_handle_created_generator_call(void) {
     zai_interceptor_handle_created_generator_func();
     return &zai_interceptor_generator_post_op[2] /* ZEND_VM_CONTINUE */;
+}
+
+#ifndef ZEND_VM_ENTER_BIT
+#define ZEND_VM_ENTER_BIT 1
+#endif
+
+// Since 8.6 the TAILCALL VM's ZEND_VM_LEAVE no longer returns to execute_ex, whose execute_data may be stale: set ZEND_VM_ENTER_BIT to reload it.
+static const zend_op *ZEND_OPCODE_HANDLER_CCONV zai_interceptor_handle_created_generator_tailcall(void) {
+    zai_interceptor_handle_created_generator_func();
+    return (const zend_op *)((uintptr_t)&zai_interceptor_generator_post_op[2] | ZEND_VM_ENTER_BIT);
 }
 #endif
 
@@ -1023,11 +1054,17 @@ void zai_interceptor_startup(void) {
 
     zai_interceptor_generator_post_op[0] = zai_interceptor_generator_post_op_template;
     zai_interceptor_generator_post_op[1] = zai_interceptor_generator_post_op_template;
+#if PHP_VERSION_ID >= 80600
+    // Runtime check: a binary built against HYBRID headers may run on a TAILCALL PHP.
+    void *call_handler = zend_vm_kind() == ZEND_VM_KIND_TAILCALL ? (void *)zai_interceptor_handle_created_generator_tailcall : (void *)zai_interceptor_handle_created_generator_call;
+#else
+    void *call_handler = (void *)zai_interceptor_handle_created_generator_call;
+#endif
 #ifdef __GNUC__
     int kind = zend_vm_kind();
-    zai_interceptor_generator_post_op[1].handler = kind == ZEND_VM_KIND_HYBRID || kind == ZEND_VM_KIND_GOTO ? zai_interceptor_handle_created_generator_goto() : (void*)zai_interceptor_handle_created_generator_call;
+    zai_interceptor_generator_post_op[1].handler = kind == ZEND_VM_KIND_HYBRID || kind == ZEND_VM_KIND_GOTO ? zai_interceptor_handle_created_generator_goto() : call_handler;
 #else
-    zai_interceptor_generator_post_op[1].handler = (void *)zai_interceptor_handle_created_generator_call;
+    zai_interceptor_generator_post_op[1].handler = call_handler;
 #endif
     // Note: return handler without SPEC(OBSERVER) (will be the case as before post_startup zend_observer_fcall_op_array_extension won't be set yet)
     zai_interceptor_generator_post_op[2] = zai_interceptor_generator_post_op_template;

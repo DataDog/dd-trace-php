@@ -14,6 +14,21 @@ services:
         BUILD_BASE: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:bookworm-$BOOKWORM_NEXT_VERSION
         MAKE_JOBS: ${MAKE_JOBS:-}
 
+  # Built on the current generation (bookworm-11) that CI consumes, rather than
+  # NEXT, so 8.6 can be added without rebuilding the other images.
+  php-8.6:
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.6_bookworm-$BOOKWORM_CURRENT_VERSION
+    build:
+      context: .
+      dockerfile: php-8.6/Dockerfile
+      x-bake: *bake
+      args:
+        <<: *build-base
+        BUILD_BASE: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:bookworm-$BOOKWORM_CURRENT_VERSION
+        phpVersion: "8.6"
+        phpTarGzUrl: https://downloads.php.net/~mbeccati/php-8.6.0RC2.tar.gz
+        phpSha256Hash: "05377bdce249ca54e5c25af53f11662170440fdd8840b23b6d4886a8bccf0f30"
+
   php-8.5:
     image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.5_bookworm-$BOOKWORM_NEXT_VERSION
     build:

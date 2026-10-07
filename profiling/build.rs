@@ -393,7 +393,7 @@ fn cfg_frameless(vernum: u64) -> bool {
 }
 
 fn cfg_php_feature_flags(vernum: u64) {
-    println!("cargo::rustc-check-cfg=cfg(php_gc_status, php_zend_compile_string_has_position, php_gc_status_extended, php_frameless, php_opcache_restart_hook, php_zend_mm_set_custom_handlers_ex, php_zts_fast_globals)");
+    println!("cargo::rustc-check-cfg=cfg(php_gc_status, php_zend_compile_string_has_position, php_gc_status_extended, php_frameless, php_opcache_restart_hook, php_zend_mm_set_custom_handlers_ex, php_zts_fast_globals, php_function_type_enum)");
 
     if vernum >= 70400 {
         println!("cargo:rustc-cfg=php_zts_fast_globals");
@@ -410,6 +410,10 @@ fn cfg_php_feature_flags(vernum: u64) {
     if vernum >= 80400 {
         println!("cargo:rustc-cfg=php_opcache_restart_hook");
         println!("cargo:rustc-cfg=php_zend_mm_set_custom_handlers_ex");
+    }
+    if vernum >= 80600 {
+        // ZEND_INTERNAL_FUNCTION etc. became zend_function_type enumerators.
+        println!("cargo:rustc-cfg=php_function_type_enum");
     }
 }
 

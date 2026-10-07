@@ -2,6 +2,9 @@
 Return value from finally block is passed to tracing closure
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 70100) die('skip: This causes an unpatched memory leak from php-src on 7.0'); ?>
+--INI--
+; return-in-finally is the subject here; PHP 8.6 deprecates it at compile time
+error_reporting=E_ALL & ~E_DEPRECATED
 --FILE--
 <?php
 use DDTrace\SpanData;

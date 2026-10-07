@@ -342,7 +342,11 @@ static void _mlog_php(dd_log_level_t level, const char *format, va_list args)
     EG(error_handling) = EH_NORMAL;
 
     const int php_log_level = _log_level_to_php_err_reporting_pri(level);
+#if PHP_VERSION_ID >= 80600
+    php_verror(NULL, php_log_level, new_fmt, args);
+#else
     php_verror(NULL, "", php_log_level, new_fmt, args);
+#endif
 
     EG(error_handling) = orig_err_handling;
     EG(user_error_handler_error_reporting) = orig_ueher;

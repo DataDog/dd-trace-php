@@ -12,7 +12,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
-        php-version: [8.3, 8.4, 8.5]
+        php-version: [8.3, 8.4, 8.5, 8.6]
         php-build: [nts-asan, debug-zts-asan]
         runner: [arm-8core-linux, ubuntu-8-core-latest]
     env:
