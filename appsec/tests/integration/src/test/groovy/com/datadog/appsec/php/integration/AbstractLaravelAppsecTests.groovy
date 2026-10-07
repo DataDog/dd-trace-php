@@ -11,38 +11,20 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 
 import static java.net.http.HttpResponse.BodyHandlers.ofString
-import static org.junit.jupiter.api.Assumptions.assumeTrue
 
 /**
- * Shared AppSec tests for Laravel fixtures. Concrete subclasses supply the
- * {@code @Container} static field, declare {@code isExpectedVersion}, and
- * override the {@code supports*} / {@code expected*} hooks when the behaviour
- * diverges per Laravel major version (e.g. Laravel 4.x uses {@code
- * Illuminate\Auth\Guard} rather than {@code Auth\Events\*}, and does not emit
- * the endpoints telemetry).
+ * Shared AppSec tests for Laravel 8.x and newer. Concrete subclasses supply
+ * the {@code @Container} static field, declare {@code isExpectedVersion}, and
+ * override the {@code expected*} hooks when response codes or endpoint
+ * telemetry diverge per Laravel major version. Laravel 4.x/5.x are covered by
+ * the tracer suite only; adding AppSec coverage for them would require a
+ * Guard-based event hook that this suite does not model.
  */
 abstract class AbstractLaravelAppsecTests {
 
     AppSecContainer getContainer() {
         getClass().CONTAINER
     }
-
-    /** Whether this Laravel version exposes endpoints telemetry. */
-    boolean supportsEndpointsCollection() { true }
-
-    /**
-     * Whether the fixture is able to resolve an existing user object on login
-     * failure (so {@code usr.exists / usr.id} are populated). Laravel 4.x does
-     * not expose this through the Guard-based hook.
-     */
-    boolean supportsLoginFailureUsrId() { true }
-
-    /**
-     * Whether the integration emits a `missing_user_login` telemetry metric
-     * when the attempted login is empty. Available on Laravel 5+ (where the
-     * Failed event is dispatched); Laravel 4.x uses a different code path.
-     */
-    boolean supportsMissingLoginTelemetry() { true }
 
     /** Expected total endpoints count; return negative to skip exact check. */
     int expectedEndpointCount() { -1 }
@@ -65,7 +47,6 @@ abstract class AbstractLaravelAppsecTests {
     @Test
     @Order(1)
     void 'Endpoints are not collected before the first request to framework'() {
-        assumeTrue(supportsEndpointsCollection())
         HttpRequest req = container.buildReq('/outside_of_framework.php').GET().build()
         container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
             assert re.statusCode() == 200
@@ -76,7 +57,6 @@ abstract class AbstractLaravelAppsecTests {
     @Test
     @Order(2)
     void 'Endpoints are sent'() {
-        assumeTrue(supportsEndpointsCollection())
         def trace = container.traceFromRequest('/') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
         }
@@ -135,7 +115,6 @@ abstract class AbstractLaravelAppsecTests {
     @Test
     @Order(5)
     void 'Login failure automated event - wrong password for existing user'() {
-        assumeTrue(supportsLoginFailureUsrId())
         // Existing user (id=1) with a wrong password: the Failed event carries
         // the resolved user object, so usr.id and usr.exists must be populated.
         Trace trace = container.traceFromRequest('/login/auth?email=ciuser@example.com&password=wrong') {
@@ -155,7 +134,6 @@ abstract class AbstractLaravelAppsecTests {
     @Test
     @Order(6)
     void 'Login failure automated event - missing login triggers telemetry'() {
-        assumeTrue(supportsMissingLoginTelemetry())
         // Empty email: Auth::attempt(['email' => '']) fails with no user, the
         // Laravel integration calls track_user_login_failure_event_automated('',
         // null, false, [], 'laravel'). Per spec both missing_user_login and

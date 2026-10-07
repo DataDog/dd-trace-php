@@ -16,7 +16,7 @@ import static com.datadog.appsec.php.integration.TestParams.getVariant
 @EnabledIf('isExpectedVersion')
 @TestMethodOrder(MethodOrderer.OrderAnnotation)
 class Laravel8xTests extends AbstractLaravelAppsecTests {
-    static boolean expectedVersion = phpVersion.contains('8.1') && variant == 'release'
+    static boolean expectedVersion = phpVersion.contains('8.1') && !variant.contains('zts')
 
     @Container
     @FailOnUnmatchedTraces

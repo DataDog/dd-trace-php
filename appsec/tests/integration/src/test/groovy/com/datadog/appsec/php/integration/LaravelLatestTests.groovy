@@ -14,8 +14,10 @@ import static com.datadog.appsec.php.integration.TestParams.getVariant
 
 /**
  * Covers the newest Laravel release (currently Laravel 12). Same event-based
- * auth hooks as 8.x+. Pinned to PHP 8.4-release, matching the fixture's
- * committed composer.lock-php84.
+ * auth hooks as 8.x+. Pinned to PHP 8.4-release; the fixture's docker-init.sh
+ * runs {@code composer update} on container startup, so the resolved
+ * dependency set is pinned by the container's PHP version rather than by a
+ * committed lock file.
  */
 @Testcontainers
 @EnabledIf('isExpectedVersion')
