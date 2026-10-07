@@ -137,6 +137,7 @@ $(BUILD_DIR)/run-tests.php: $(if $(ASSUME_COMPILED),, $(BUILD_DIR)/configure)
 	$(if $(ASSUME_COMPILED), cp $(shell dirname $(shell realpath $(shell which phpize)))/../lib/php/build/run-tests.php $(BUILD_DIR)/run-tests.php)
 	sed -i 's/\bdl(/(bool)(/' $(BUILD_DIR)/run-tests.php # this dl() stuff in run-tests.php is for --EXTENSIONS-- sections, which we don't use; just strip it away (see https://github.com/php/php-src/issues/15367)
 	sed -i "s/\$$stat\['stopsig'\]/\$$stat['termsig']/" $(BUILD_DIR)/run-tests.php # run-tests prints stopsig (always 0) for signaled tests; hit on 8.6+ where tests are spawned without a shell
+	sed -i 's/^\( *\)\$$stat = proc_get_status(\$$proc);/\1do { $$stat = proc_get_status($$proc); } while ($$stat["running"] \&\& usleep(1000) === null);/' $(BUILD_DIR)/run-tests.php # stdout EOF can precede the exit; wait for it so the exit status/signal is not lost (proc_close waits anyway)
 
 # ensure list of rust files is up to date
 $(BUILD_DIR)/.rust_files_list: $(RUST_FILES)
