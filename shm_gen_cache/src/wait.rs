@@ -142,15 +142,9 @@ impl BoundedWait {
 /// `watched`. Call after the write that may end their wait.
 #[inline]
 pub(crate) fn wake_waiters(watched: WatchedWord<'_>) {
-    #[cfg(all(
-        not(sgc_genmc_short_waits),
-        any(target_os = "linux", target_os = "android")
-    ))]
+    #[cfg(all(not(sgc_genmc_short_waits), target_os = "linux"))]
     timed::futex::wake_all(watched);
-    #[cfg(not(all(
-        not(sgc_genmc_short_waits),
-        any(target_os = "linux", target_os = "android")
-    )))]
+    #[cfg(not(all(not(sgc_genmc_short_waits), target_os = "linux")))]
     let _ = watched;
 }
 
@@ -172,18 +166,18 @@ mod timed {
     /// The longest single monitored sleep (see stage 2).
     const MAX_SLEEP: Nanos = 8 * US;
     /// The end of stage 2, after stage 1.
-    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[cfg(target_os = "linux")]
     const MONITORED_PERIOD: Nanos = 20 * US;
     /// The first futex timeout (see stage 3).
-    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[cfg(target_os = "linux")]
     const FIRST_BLOCK: Nanos = 50 * US;
     /// The longest futex timeout (see stage 3).
-    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[cfg(target_os = "linux")]
     const MAX_BLOCK: Nanos = MS;
     /// Lets a descheduled owner or pinner sharing this CPU run. Not before
     /// the 16th call: most waits end sooner, and when another thread is
     /// runnable, a yield costs a context switch both ways.
-    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    #[cfg(not(target_os = "linux"))]
     const CALLS_PER_YIELD: u32 = 16;
 
     /// The state of stages 2 to 4.
@@ -191,9 +185,9 @@ mod timed {
         /// Calls after stage 1; the first one starts the budget.
         sleeps: u32,
         deadline: Nanos,
-        #[cfg(any(target_os = "linux", target_os = "android"))]
+        #[cfg(target_os = "linux")]
         monitored_until: Nanos,
-        #[cfg(any(target_os = "linux", target_os = "android"))]
+        #[cfg(target_os = "linux")]
         next_block: Nanos,
     }
 
@@ -203,9 +197,9 @@ mod timed {
             Stages {
                 sleeps: 0,
                 deadline: 0,
-                #[cfg(any(target_os = "linux", target_os = "android"))]
+                #[cfg(target_os = "linux")]
                 monitored_until: 0,
-                #[cfg(any(target_os = "linux", target_os = "android"))]
+                #[cfg(target_os = "linux")]
                 next_block: FIRST_BLOCK,
             }
         }
@@ -219,7 +213,7 @@ mod timed {
             let now = clock::now();
             if self.sleeps == 0 {
                 self.deadline = now + BUDGET;
-                #[cfg(any(target_os = "linux", target_os = "android"))]
+                #[cfg(target_os = "linux")]
                 {
                     self.monitored_until = now + MONITORED_PERIOD;
                 }
@@ -227,7 +221,7 @@ mod timed {
                 return false;
             }
             self.sleeps += 1;
-            #[cfg(any(target_os = "linux", target_os = "android"))]
+            #[cfg(target_os = "linux")]
             let stage_end = {
                 if now >= self.monitored_until {
                     futex::wait_for_change(watched, done, self.next_block.min(self.deadline - now));
@@ -236,7 +230,7 @@ mod timed {
                 }
                 self.monitored_until
             };
-            #[cfg(not(any(target_os = "linux", target_os = "android")))]
+            #[cfg(not(target_os = "linux"))]
             let stage_end = {
                 if self.sleeps.is_multiple_of(CALLS_PER_YIELD) {
                     crate::util::sched_yield();
@@ -267,7 +261,7 @@ mod timed {
         /// that Rust code never accesses the word with mixed sizes; the
         /// value is that of the half at the same point in its coherence
         /// order.
-        #[cfg(any(target_os = "linux", target_os = "android"))]
+        #[cfg(target_os = "linux")]
         #[inline(always)]
         fn load(self) -> u32 {
             (self.word.load(core::sync::atomic::Ordering::Relaxed) >> (32 * self.high as u32))
@@ -278,7 +272,7 @@ mod timed {
     /// The C `struct timespec` of the supported 64-bit targets.
     #[repr(C)]
     #[cfg_attr(
-        not(any(target_os = "linux", target_os = "android", target_vendor = "apple")),
+        not(any(target_os = "linux", target_vendor = "apple")),
         allow(dead_code)
     )]
     struct Timespec {
@@ -292,13 +286,13 @@ mod timed {
 
         /// Linux's steady clock; on Apple systems, the one `std::time::Instant`
         /// uses, which does not advance while the system sleeps.
-        #[cfg(any(target_os = "linux", target_os = "android"))]
+        #[cfg(target_os = "linux")]
         const STEADY_CLOCK: i32 = 1; // CLOCK_MONOTONIC
         #[cfg(target_vendor = "apple")]
         const STEADY_CLOCK: i32 = 8; // CLOCK_UPTIME_RAW
 
         /// The steady clock's current time.
-        #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+        #[cfg(any(target_os = "linux", target_vendor = "apple"))]
         #[inline]
         pub(super) fn now() -> Nanos {
             unsafe extern "C" {
@@ -317,7 +311,7 @@ mod timed {
         /// The steady clock's current time, from an arbitrary origin.
         #[cfg(all(
             feature = "std",
-            not(any(target_os = "linux", target_os = "android", target_vendor = "apple"))
+            not(any(target_os = "linux", target_vendor = "apple"))
         ))]
         pub(super) fn now() -> Nanos {
             static ORIGIN: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
@@ -329,14 +323,14 @@ mod timed {
 
         #[cfg(all(
             not(feature = "std"),
-            not(any(target_os = "linux", target_os = "android", target_vendor = "apple"))
+            not(any(target_os = "linux", target_vendor = "apple"))
         ))]
         compile_error!("rotation waits need feature `std` for a clock on this OS");
     }
 
     /// Futex waits and wakes. Shared, not private, futexes: participants
     /// are in different processes.
-    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[cfg(target_os = "linux")]
     pub(super) mod futex {
         use super::{Nanos, Timespec, WatchedWord};
 
@@ -548,10 +542,7 @@ mod timed {
 
         /// Detects FEAT_WFxT from the OS: user code cannot read the ID
         /// registers portably.
-        #[cfg(all(
-            target_arch = "aarch64",
-            any(target_os = "linux", target_os = "android")
-        ))]
+        #[cfg(all(target_arch = "aarch64", target_os = "linux"))]
         fn detect() -> Mechanism {
             const AT_HWCAP2: u64 = 26;
             // HWCAP2_WFXT, spelled out as libc may lack it.
@@ -602,7 +593,7 @@ mod timed {
             target_arch = "x86_64",
             all(
                 target_arch = "aarch64",
-                any(target_os = "linux", target_os = "android", target_vendor = "apple")
+                any(target_os = "linux", target_vendor = "apple")
             )
         )))]
         fn detect() -> Mechanism {

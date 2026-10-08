@@ -13,7 +13,7 @@ pub const CACHE_LINE: usize = 128;
 #[cfg(not(target_arch = "aarch64"))]
 pub const CACHE_LINE: usize = 64;
 
-/// Spin-wait hint: `pause` on x86, `isb` on aarch64, each also a compiler
+/// Spin-wait hint: `pause` on x86_64, `isb` on aarch64, each also a compiler
 /// memory barrier; a compiler fence elsewhere.
 ///
 /// It pauses a spinning thread briefly, so that a spin-wait loop neither
@@ -31,7 +31,7 @@ pub const CACHE_LINE: usize = 64;
 /// there.
 #[inline(always)]
 pub(crate) fn cpu_relax() {
-    #[cfg(all(not(sgc_genmc), any(target_arch = "x86_64", target_arch = "x86")))]
+    #[cfg(all(not(sgc_genmc), target_arch = "x86_64"))]
     // SAFETY: `pause` has no operands or side effects; without `nomem` the
     // block is a compiler memory barrier.
     unsafe {
@@ -44,7 +44,7 @@ pub(crate) fn cpu_relax() {
     }
     #[cfg(all(
         not(sgc_genmc),
-        not(any(target_arch = "x86_64", target_arch = "x86", target_arch = "aarch64"))
+        not(any(target_arch = "x86_64", target_arch = "aarch64"))
     ))]
     core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
 }
@@ -52,10 +52,7 @@ pub(crate) fn cpu_relax() {
 /// Yields the processor (`sched_yield`). Used by the rotation waits outside
 /// Linux only; not available in GenMC builds, whose short rotation waits
 /// never yield.
-#[cfg(all(
-    not(sgc_genmc_short_waits),
-    not(any(target_os = "linux", target_os = "android"))
-))]
+#[cfg(all(not(sgc_genmc_short_waits), not(target_os = "linux")))]
 #[inline]
 pub(crate) fn sched_yield() {
     #[cfg(feature = "std")]

@@ -11,11 +11,11 @@ pub fn now_ns() -> u64 {
     Instant::now().duration_since(epoch).as_nanos() as u64
 }
 
-/// The bench's own pause hint (`pause` on x86, `yield` on aarch64),
+/// The bench's own pause hint (`pause` on x86_64, `yield` on aarch64),
 /// independent of the hint the library uses in its own waits.
 #[inline(always)]
 pub fn spin_pause() {
-    #[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
+    #[cfg(target_arch = "x86_64")]
     // SAFETY: a hint without operands or side effects.
     unsafe {
         std::arch::asm!("pause", options(nostack, preserves_flags));
@@ -25,7 +25,7 @@ pub fn spin_pause() {
     unsafe {
         std::arch::asm!("yield", options(nostack, preserves_flags));
     }
-    #[cfg(not(any(target_arch = "x86_64", target_arch = "x86", target_arch = "aarch64")))]
+    #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
     std::sync::atomic::compiler_fence(std::sync::atomic::Ordering::SeqCst);
 }
 
