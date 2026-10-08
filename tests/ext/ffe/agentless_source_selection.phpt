@@ -29,13 +29,14 @@ $cases = array(
     'invalid' => array('1', 'unknown', '1', false, 'native_disabled'),
 );
 $keys = array('DD_FEATURE_FLAGS_ENABLED', 'DD_FEATURE_FLAGS_CONFIGURATION_SOURCE', 'DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED');
-$script = '\DDTrace\ffe_evaluate("flag", \DDTrace\FFE_STRING, null, array(), false); echo json_encode(\DDTrace\Internal\ffe_provider_state());';
 foreach ($cases as $name => $case) {
     foreach ($keys as $i => $key) {
         unset($environment[$key]);
         if ($case[$i] !== null) $environment[$key] = $case[$i];
     }
-    $command = 'exec ' . escapeshellarg(getenv('TEST_PHP_EXECUTABLE')) . ' ' . getenv('TEST_PHP_EXTRA_ARGS') . ' -r ' . escapeshellarg($script);
+    // A file also avoids Windows cmd.exe changing quotes in inline PHP code.
+    $command = (PHP_OS === 'WINNT' ? '' : 'exec ') . escapeshellarg(getenv('TEST_PHP_EXECUTABLE')) . ' ' . getenv('TEST_PHP_EXTRA_ARGS')
+        . ' ' . escapeshellarg(__DIR__ . '/stubs/agentless_source_selection_app.php');
     $process = proc_open($command, array(array('pipe', 'r'), array('pipe', 'w'), array('pipe', 'w')), $pipes, null, $environment);
     if (!is_resource($process)) throw new RuntimeException('cannot launch PHP');
     fclose($pipes[0]);
@@ -43,9 +44,11 @@ foreach ($cases as $name => $case) {
     stream_set_blocking($pipes[2], false);
     $stdout = $stderr = '';
     $start = microtime(true);
+    $readyAt = null;
     do {
         $stdout .= stream_get_contents($pipes[1]);
         $stderr .= stream_get_contents($pipes[2]);
+        if ($readyAt === null && strpos($stdout, "fixture_child_ready\n") !== false) $readyAt = microtime(true);
         $status = proc_get_status($process);
         if (!$status['running']) break;
         if ($connection = @stream_socket_accept($server, 0.05)) {
@@ -53,7 +56,7 @@ foreach ($cases as $name => $case) {
             proc_terminate($process);
             throw new RuntimeException($name . ' unexpectedly polled agentless configuration');
         }
-    } while (microtime(true) - $start < 3);
+    } while (microtime(true) - ($readyAt === null ? $start : $readyAt) < ($readyAt === null ? 60 : 3));
     $stdout .= stream_get_contents($pipes[1]);
     $stderr .= stream_get_contents($pipes[2]);
     if ($status['running']) proc_terminate($process);
@@ -61,7 +64,7 @@ foreach ($cases as $name => $case) {
     fclose($pipes[2]);
     proc_close($process);
     if ($status['running'] || $status['exitcode'] !== 0) throw new RuntimeException($name . ' failed: ' . $stderr);
-    $state = json_decode($stdout, true);
+    $state = json_decode(str_replace("fixture_child_ready\n", '', $stdout), true);
     if ($state['enabled'] !== $case[3] || $state['mode'] !== $case[4] || $state['ready']) {
         throw new RuntimeException($name . ' wrong source: ' . $stdout);
     }

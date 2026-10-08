@@ -1,16 +1,9 @@
 <?php
 
-$root = getenv('TEST_PHP_SRCDIR');
-spl_autoload_register(function ($class) use ($root) {
-    if (strpos($class, 'DDTrace\\') === 0) {
-        $suffix = str_replace('\\', '/', substr($class, 8)) . '.php';
-        $path = $root . '/src/api/' . $suffix;
-        if (!is_file($path)) $path = $root . '/src/DDTrace/' . $suffix;
-        if (is_file($path)) require_once $path;
-    }
-});
+require __DIR__ . '/ffe_api_bootstrap.inc';
 $client = new \DDTrace\FeatureFlags\Client();
 $scenario = getenv('PHP_FFE_PROCESS_SCENARIO');
+echo "fixture_child_ready\n";
 $start = microtime(true);
 $first = $client->getStringValue('flag', 'fallback');
 $elapsed = microtime(true) - $start;

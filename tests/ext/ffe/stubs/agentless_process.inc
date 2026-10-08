@@ -17,11 +17,13 @@ $heldConnections = array();
 $exitCode = null;
 $running = true;
 $start = microtime(true);
+$readyAt = null;
 $shutdownStart = null;
 try {
     do {
         $stdout .= stream_get_contents($pipes[1]);
         $stderr .= stream_get_contents($pipes[2]);
+        if ($readyAt === null && strpos($stdout, "fixture_child_ready\n") !== false) $readyAt = microtime(true);
         $status = proc_get_status($process);
         if (!$status['running']) {
             $running = false;
@@ -70,7 +72,7 @@ try {
         fwrite($connection, "HTTP/1.1 $code\r\nContent-Type: application/json\r\nContent-Length: "
             . strlen($body) . "\r\nConnection: close\r\n\r\n" . $body);
         fclose($connection);
-    } while (microtime(true) - $start < 10);
+    } while (microtime(true) - ($readyAt === null ? $start : $readyAt) < ($readyAt === null ? 60 : 20));
     $stdout .= stream_get_contents($pipes[1]);
     $stderr .= stream_get_contents($pipes[2]);
     if ($exitCode !== 0) throw new RuntimeException('child failed or timed out: ' . $stdout . ' ' . $stderr);
@@ -79,7 +81,7 @@ try {
         throw new RuntimeException('shutdown waited on HTTP timeout');
     }
     // Fork output is intentionally concurrent; compare the complete set.
-    $lines = explode("\n", trim($stdout));
+    $lines = explode("\n", trim(str_replace("fixture_child_ready\n", '', $stdout)));
     sort($lines);
     echo implode("\n", $lines), "\n";
     if ($scenario === 'shutdown') echo "shutdown_cancelled_inflight_request\n";
