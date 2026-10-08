@@ -41,7 +41,7 @@ try {
         $code = $notModified ? '304 Not Modified' : '200 OK';
         $etag = $index === 3 ? '"bad"' : ($index <= 4 ? '"blue"' : '"green"');
         $value = $index <= 4 ? 'blue' : 'green';
-        $body = json_encode(array(
+        $configuration = array(
             'createdAt' => '2026-05-22T00:00:00Z',
             'environment' => array('name' => 'test'),
             'flags' => array('flag' => array(
@@ -50,7 +50,11 @@ try {
                 'allocations' => array(array('key' => 'allocation', 'rules' => array(), 'doLog' => false,
                     'splits' => array(array('variationKey' => 'on', 'shards' => array())))),
             )),
-        ));
+        );
+        $configuration['format'] = 'SERVER';
+        $body = json_encode(array('data' => array(
+            'type' => 'universal-flag-configuration', 'attributes' => $configuration,
+        )));
         if ($notModified) $body = '';
         if ($index === 3) $body = '{malformed';
         fwrite($connection, "HTTP/1.1 $code\r\nContent-Type: application/json\r\nETag: $etag\r\nContent-Length: "

@@ -17,6 +17,26 @@ use tokio_util::sync::CancellationToken;
 
 const MAX_POLL_ATTEMPTS: usize = 3;
 
+#[derive(serde::Deserialize)]
+struct ConfigurationResponse<'a> {
+    #[serde(borrow)]
+    data: ConfigurationResource<'a>,
+}
+
+#[derive(serde::Deserialize)]
+struct ConfigurationResource<'a> {
+    #[serde(rename = "type")]
+    _resource_type: ConfigurationResourceType,
+    #[serde(borrow)]
+    attributes: &'a serde_json::value::RawValue,
+}
+
+#[derive(serde::Deserialize)]
+enum ConfigurationResourceType {
+    #[serde(rename = "universal-flag-configuration")]
+    UniversalFlagConfiguration,
+}
+
 pub(super) trait ConfigurationSink: Send + Sync {
     fn apply(&self, configuration: Configuration) -> Result<ConfigurationTransition, ()>;
     fn failed(&self) {}
@@ -276,7 +296,13 @@ impl<T: Transport, S: ConfigurationSink> Poller<T, S> {
             }
         };
 
-        let configuration = match UniversalFlagConfig::from_json(body) {
+        // The managed endpoint returns a JSON:API resource, not a bare UFC.
+        // Validate its type before handing the original attributes bytes to
+        // the shared evaluator; malformed resources must not advance the ETag.
+        let configuration = match serde_json::from_slice::<ConfigurationResponse<'_>>(&body)
+            .and_then(|response| {
+                UniversalFlagConfig::from_json(response.data.attributes.get().as_bytes().to_vec())
+            }) {
             Ok(configuration) => Configuration::from_server_response(configuration),
             Err(_) => {
                 self.warn(
@@ -329,12 +355,14 @@ mod tests {
     use std::collections::VecDeque;
     use std::sync::atomic::{AtomicBool, AtomicUsize};
 
-    const EMPTY_CONFIG: &[u8] = br#"{
+    const EMPTY_CONFIG: &[u8] = br#"{"data": {
+        "type": "universal-flag-configuration",
+        "attributes": {
         "createdAt": "2026-05-22T00:00:00.000Z",
         "format": "SERVER",
         "environment": {"name": "test"},
         "flags": {}
-    }"#;
+    }}}"#;
 
     struct UnusedTransport;
 
@@ -352,6 +380,7 @@ mod tests {
 
     struct TestSink {
         fail: AtomicBool,
+        applications: AtomicUsize,
     }
 
     struct QueueTransport {
@@ -398,6 +427,7 @@ mod tests {
 
     impl ConfigurationSink for TestSink {
         fn apply(&self, _configuration: Configuration) -> Result<ConfigurationTransition, ()> {
+            self.applications.fetch_add(1, Ordering::Relaxed);
             if self.fail.load(Ordering::Relaxed) {
                 Err(())
             } else {
@@ -415,6 +445,7 @@ mod tests {
             transport: UnusedTransport,
             sink: TestSink {
                 fail: AtomicBool::new(fail_apply),
+                applications: AtomicUsize::new(0),
             },
             state: Arc::new(PollState::default()),
             retry_delay,
@@ -494,6 +525,36 @@ mod tests {
     }
 
     #[test]
+    fn malformed_jsonapi_resources_keep_the_previous_configuration_and_etag() {
+        let mut poller = test_poller(false);
+        assert_eq!(
+            poller.process_response(response(200, Some("accepted"), EMPTY_CONFIG)),
+            PollOutcome::Success
+        );
+        let valid: serde_json::Value = serde_json::from_slice(EMPTY_CONFIG).unwrap();
+        let attributes = valid["data"]["attributes"].clone();
+        for malformed in [
+            attributes.clone(),
+            serde_json::json!({"data": {"type": "other-resource", "attributes": attributes}}),
+            serde_json::json!({"data": {"attributes": attributes}}),
+            serde_json::json!({"data": {"type": "universal-flag-configuration"}}),
+            serde_json::json!({"data": {"type": "universal-flag-configuration", "attributes": null}}),
+            serde_json::json!({"data": {"type": "universal-flag-configuration", "attributes": {}}}),
+        ] {
+            assert_eq!(
+                poller.process_response(response(
+                    200,
+                    Some("rejected"),
+                    &serde_json::to_vec(&malformed).unwrap()
+                )),
+                PollOutcome::Stop
+            );
+            assert_eq!(poller.state.etag().as_deref(), Some("accepted"));
+            assert_eq!(poller.sink.applications.load(Ordering::Relaxed), 1);
+        }
+    }
+
+    #[test]
     fn non_200_responses_are_never_decoded() {
         let mut poller = test_poller(false);
         poller.state.set_etag(Some("current".to_owned()));
@@ -536,6 +597,7 @@ mod tests {
             transport,
             sink: TestSink {
                 fail: AtomicBool::new(false),
+                applications: AtomicUsize::new(0),
             },
             state: Arc::clone(&state),
             retry_delay: no_retry_delay,
@@ -562,6 +624,7 @@ mod tests {
             transport,
             sink: TestSink {
                 fail: AtomicBool::new(false),
+                applications: AtomicUsize::new(0),
             },
             state: Arc::new(PollState::default()),
             retry_delay: no_retry_delay,
