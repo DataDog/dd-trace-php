@@ -69,7 +69,7 @@ pub fn check_llvm_versions(rustc_version: &str, opt_version: &str) -> Result<(),
         (ours, theirs) => Err(format!(
             "rustc and GenMC use different LLVM major versions (rustc: {ours:?}, \
              GenMC image: {theirs:?}); run from the repository (rust-toolchain.toml) \
-             with a matching SGC_GENMC_IMAGE"
+             with a matching SGC_GENMC_IMAGE or SGC_GENMC_REPOSITORY"
         )),
     }
 }
