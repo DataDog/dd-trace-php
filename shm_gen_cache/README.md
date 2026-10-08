@@ -326,8 +326,6 @@ cargo test -p shm_gen_cache            # smoke tests (Rust and C API), fork test
 cargo test -p shm_gen_cache --release
 ```
 
-`tests/c_smoke.c` exercises the static library from C (build command in the
-file). These are smoke tests only; the protocol is checked by the GenMC
-suite under `verification/` (`cargo nextest run -p
-shm_gen_cache_verification`; see
+These are smoke tests only; the protocol is checked by the GenMC suite under
+`verification/` (`cargo nextest run -p shm_gen_cache_verification`; see
 [verification/README.md](verification/README.md)).
