@@ -1,11 +1,18 @@
-# cargo-nextest configuration. Only the GenMC suite of shm_gen_cache
-# (shm_gen_cache/verification/README.md) has overrides; other tests use the
-# defaults.
+# cargo-nextest configuration. Only shm_gen_cache's wall-clock wait tests and
+# its GenMC suite (shm_gen_cache/verification/README.md) have overrides; other
+# tests use the defaults.
 
 [test-groups]
 # Each GenMC trial runs GenMC with SGC_GENMC_NTHREADS workers (by default a
 # quarter of the cores), so run at most four at a time.
 genmc = { max-threads = 4 }
+
+# The wait tests measure wall-clock time against millisecond bounds; tests
+# running beside them on the other processors delay them past those bounds
+# (on a 4-CPU Windows VM, nearly every run failed one of them). Run them alone.
+[[profile.default.overrides]]
+filter = 'package(shm_gen_cache) and test(/^wait::timed::tests::/)'
+threads-required = 'num-test-threads'
 
 [[profile.default.overrides]]
 filter = 'package(shm_gen_cache_verification) and binary(genmc) and test(/::(safety|witness::)/)'

@@ -828,17 +828,20 @@ mod timed {
 
         /// Writes the word after `delay`, from another thread, while this one
         /// waits, then wakes blocked waiters if `wake`. Returns how long the
-        /// wait took, as an error if it timed out.
-        fn wait_for_write(delay: Duration, wake: bool) -> Result<Duration, Duration> {
+        /// wait took and how long it lasted after the write, as an error if
+        /// it timed out.
+        fn wait_for_write(delay: Duration, wake: bool) -> Result<(Duration, Duration), Duration> {
             let line = Line(AtomicU64::new(0));
             let word = &line.0;
             thread::scope(|s| {
-                s.spawn(|| {
+                let writer = s.spawn(|| {
                     thread::sleep(delay);
+                    let written = Instant::now();
                     word.store(1, Release);
                     if wake {
                         wake_waiters(WatchedWord::low(word));
                     }
+                    written
                 });
                 let start = Instant::now();
                 let mut wait = BoundedWait::new();
@@ -850,8 +853,14 @@ mod timed {
                         break;
                     }
                 }
-                let waited = start.elapsed();
-                if timed_out { Err(waited) } else { Ok(waited) }
+                let end = Instant::now();
+                let waited = end - start;
+                let after_write = end.saturating_duration_since(writer.join().unwrap());
+                if timed_out {
+                    Err(waited)
+                } else {
+                    Ok((waited, after_write))
+                }
             })
         }
 
@@ -859,13 +868,14 @@ mod timed {
         fn write_ends_wait() {
             let _serial = timing_test();
             // A woken write ends the wait soon after it, even once the waiter
-            // blocks (on Linux, from 20 us). Retry to tolerate an unlucky
-            // scheduling delay.
+            // blocks (on Linux, from 20 us). Measured from the write: the
+            // sleep before it can itself last 1 ms (Windows timers). Retry to
+            // tolerate an unlucky scheduling delay.
             for _ in 0..5 {
                 let waited = wait_for_write(Duration::from_micros(200), true);
-                let waited = waited.expect("the wait timed out");
+                let (waited, after_write) = waited.expect("the wait timed out");
                 assert!(waited > Duration::ZERO);
-                if waited < Duration::from_millis(1) {
+                if after_write < Duration::from_millis(1) {
                     return;
                 }
             }
@@ -878,7 +888,7 @@ mod timed {
             // Without a wake, a blocked waiter still sees the write by its
             // next timeout, at most 1 ms later, before the 5 ms budget.
             let waited = wait_for_write(Duration::from_millis(2), false);
-            let waited = waited.expect("the wait timed out");
+            let (waited, _) = waited.expect("the wait timed out");
             assert!(waited > Duration::ZERO);
             assert!(waited < Duration::from_millis(4), "waited {waited:?}");
         }
