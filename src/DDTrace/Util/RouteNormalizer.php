@@ -8,11 +8,10 @@ class RouteNormalizer
     /**
      * In-process cache of WordPress rule plans. Each entry stores whether the
      * rule is safe to normalize (result of the hasOnlyCapturedWordPressDynamics
-     * scan) plus the rule-only normalized route used as the fallback when no
-     * URL path is available. Both are pure functions of the rule, so the first
-     * result stays valid for the lifetime of the process.
+     * scan), a pure function of the rule — the first result stays valid for
+     * the lifetime of the process.
      *
-     * @var array<string, array{safe: bool, rule_only_route: string|null}>
+     * @var array<string, array{safe: bool}>
      */
     private static $wordPressRulePlans = [];
 
@@ -32,17 +31,18 @@ class RouteNormalizer
     /**
      * Normalize a Symfony route path.
      *
-     * @param string     $path          Path template, e.g. "/users/{id}"
-     * @param array|null $matchedParams Params actually present in the URL path (not including
-     *                                  route defaults); required for dynamic routes
+     * The caller is expected to supply the exact set of parameters that
+     * participated in the URL match. Inferring participation here without the
+     * match data would require redoing it or guessing from defaults, both of
+     * which can produce routes that violate the normalization spec.
+     *
+     * @param string $path          Path template, e.g. "/users/{id}"
+     * @param array  $matchedParams Params actually present in the URL path
+     *                              (not including route defaults).
      * @return string|null
      */
-    public static function normalizeFromSymfony(string $path, $matchedParams = null)
+    public static function normalizeFromSymfony(string $path, array $matchedParams)
     {
-        if ($matchedParams === null) {
-            return self::normalizeBraceRoute($path, []);
-        }
-
         // Mark params absent from the URL as optional so normalizeBraceSegment drops them.
         // Use [^}?:]+ to match any param name including UTF-8 characters.
         $path = preg_replace_callback(
@@ -61,13 +61,20 @@ class RouteNormalizer
      * Laminas uses :param for dynamic parameters and [...] for optional sections.
      * The Wildcard route type produces "/*" which is treated as a catch-all.
      *
-     * @param string      $template      Template from httpRouteTemplateFromMatchedRoute()
-     * @param array       $matchedParams Matched params from $routeMatch->getParams()
-     * @param string|null $urlPath       The raw request URL path; filters out optional sections
-     *                                   whose params were injected by middleware rather than
-     *                                   matched from the URL (e.g. Laminas API Tools
-     *                                   VersionListener sets :version even without a /v1/ prefix)
-     * @param array|null  $urlMatchedParams Parameters captured by the Regex route matcher
+     * For Regex routes (templates containing %param% placeholders), the caller
+     * must supply $urlMatchedParams built from the actual matcher captures;
+     * attempting to re-derive participation here from values alone would be
+     * spec-violating guesswork.
+     *
+     * @param string      $template         Template from httpRouteTemplateFromMatchedRoute()
+     * @param array       $matchedParams    Matched params from $routeMatch->getParams()
+     * @param string|null $urlPath          The raw request URL path; filters out optional sections
+     *                                      whose params were injected by middleware rather than
+     *                                      matched from the URL (e.g. Laminas API Tools
+     *                                      VersionListener sets :version even without a /v1/ prefix)
+     * @param array|null  $urlMatchedParams Parameters captured by the Regex route matcher.
+     *                                      Required when $template contains %param% placeholders;
+     *                                      otherwise the function returns null.
      * @return string|null
      */
     public static function normalizeFromLaminas(string $template, array $matchedParams = [], $urlPath = null, $urlMatchedParams = null)
@@ -83,54 +90,22 @@ class RouteNormalizer
         // Segment routes use :param; Regex routes use %param% (spec format) — handle both.
         // Detect Regex routes before conversion so matcher capture metadata can be applied.
         $hasPercentParams = (bool) preg_match('/%([a-zA-Z_][a-zA-Z0-9_]*)%/', $expanded);
-        // For Regex routes, defaults inject values into matchedParams even for captures absent
-        // from the URL (e.g. format='html' when no .html in path). Use $urlMatchedParams when
-        // provided by the integration; otherwise fall back to URL-value heuristic or treat all
-        // percent params as required when no URL info is available.
         if ($hasPercentParams) {
             if ($urlMatchedParams === null) {
-                if ($urlPath === null) {
-                    // No URL info: treat all percent params as required (present).
-                    $expanded = preg_replace('/%([a-zA-Z_][a-zA-Z0-9_]*)%/', '{$1}', $expanded);
-                    $urlMatchedParams = $matchedParams;
-                } else {
-                    // Heuristic: params whose values appear in the URL are treated as URL-matched.
-                    $inferred = [];
-                    foreach ($matchedParams as $name => $value) {
-                        if (strpos($expanded, '%' . $name . '%') === false) {
-                            continue;
-                        }
-                        $strValue = (string) $value;
-                        if ($strValue !== '' && (
-                            strpos($urlPath, $strValue) !== false ||
-                            strpos($urlPath, rawurlencode($strValue)) !== false ||
-                            strpos(strtolower($urlPath), strtolower(rawurlencode($strValue))) !== false
-                        )) {
-                            $inferred[$name] = $value;
-                        }
-                    }
-                    $expanded = preg_replace_callback(
-                        '/%([a-zA-Z_][a-zA-Z0-9_]*)%/',
-                        static function ($m) use ($inferred) {
-                            return array_key_exists($m[1], $inferred)
-                                ? '{' . $m[1] . '}'
-                                : '{' . $m[1] . '?}';
-                        },
-                        $expanded
-                    );
-                    $urlMatchedParams = $inferred;
-                }
-            } else {
-                $expanded = preg_replace_callback(
-                    '/%([a-zA-Z_][a-zA-Z0-9_]*)%/',
-                    static function ($m) use ($urlMatchedParams) {
-                        return array_key_exists($m[1], $urlMatchedParams)
-                            ? '{' . $m[1] . '}'
-                            : '{' . $m[1] . '?}';
-                    },
-                    $expanded
-                );
+                // Regex route without caller-supplied matcher captures: we can't
+                // tell which percent-params actually participated. Returning null
+                // lets the caller omit the tag rather than emit a guess.
+                return null;
             }
+            $expanded = preg_replace_callback(
+                '/%([a-zA-Z_][a-zA-Z0-9_]*)%/',
+                static function ($m) use ($urlMatchedParams) {
+                    return array_key_exists($m[1], $urlMatchedParams)
+                        ? '{' . $m[1] . '}'
+                        : '{' . $m[1] . '?}';
+                },
+                $expanded
+            );
         }
 
         $braceFormat = self::colonParamsToBraces($expanded);
@@ -148,13 +123,15 @@ class RouteNormalizer
      * WordPress route matching uses regex rules like "^blog/([^/]+)/?$".
      * PCRE supplies declared names; unnamed captures use param1, param2, ….
      *
-     * @param string      $matchedRule Value of $wp->matched_rule
-     * @param string|null $urlPath     Value of $wp->request; used to detect which
-     *                                 optional capture groups actually participated
-     *                                 in the match, so phantom segments are not emitted.
+     * @param string     $matchedRule Value of $wp->matched_rule
+     * @param string     $urlPath     Value of $wp->request; used to detect which
+     *                                optional capture groups actually participated
+     *                                in the match, so phantom segments are not emitted.
+     * @param array|null $analysis    Precomputed analyzeWordPressRoute() result;
+     *                                when null, this function computes it.
      * @return string|null
      */
-    public static function normalizeFromWordPress(string $matchedRule, $urlPath = null, $analysis = null)
+    public static function normalizeFromWordPress(string $matchedRule, string $urlPath, $analysis = null)
     {
         if ($analysis === null) {
             $analysis = self::analyzeWordPressRoute($matchedRule, $urlPath);
@@ -170,31 +147,16 @@ class RouteNormalizer
      * routes. Rules that can consume variable text outside a capture are rejected,
      * because their uncaptured request text would otherwise become a route constant.
      *
-     * When $urlPath is null, a backward-compatible fallback is used that emits all
-     * capture groups without filtering by participation.
+     * $urlPath is required: without it we cannot determine which optional
+     * captures participated in the match, and inferring participation purely
+     * from the rule would violate the normalization spec.
      *
      * @return array|null
      */
-    public static function analyzeWordPressRoute(string $matchedRule, $urlPath = null)
+    public static function analyzeWordPressRoute(string $matchedRule, string $urlPath)
     {
-        $plan = self::wordPressRulePlan($matchedRule);
-        if (!$plan['safe']) {
+        if (!self::wordPressRulePlan($matchedRule)['safe']) {
             return null;
-        }
-
-        if ($urlPath === null) {
-            // Backward-compatible fallback for callers without URL info: emit
-            // all capture groups without filtering by participation. Does not
-            // handle named captures or escaped literals the same way as the
-            // URL-matched path, so it is used only when no URL is available.
-            $normalized = $plan['rule_only_route'];
-            if ($normalized === null) {
-                return null;
-            }
-            return [
-                'normalized_route' => $normalized,
-                'cache_signature'  => $normalized,
-            ];
         }
 
         // WordPress uses # delimiters when selecting matched_rule, so an
@@ -232,176 +194,13 @@ class RouteNormalizer
     }
 
     /**
-     * Backward-compatible fallback for normalizeFromWordPress when no URL path is available.
-     *
-     * Parses the PCRE rule structure to identify capture groups and segment boundaries
-     * ('/') at capturing-depth 0. All capture groups are treated as present.
-     */
-    /** @return string|null */
-    private static function normalizeWordPressRuleOnly(string $rule)
-    {
-        // Strip anchors and common trailing patterns
-        $s = $rule;
-        if (isset($s[0]) && $s[0] === '^') {
-            $s = substr($s, 1);
-        }
-        if (substr($s, -3) === '/?$') {
-            $s = substr($s, 0, -3);
-        } elseif (substr($s, -2) === '/$') {
-            $s = substr($s, 0, -2);
-        } elseif (substr($s, -2) === '?$') {
-            $s = substr($s, 0, -2);
-        } elseif (substr($s, -1) === '$') {
-            $s = substr($s, 0, -1);
-        }
-        if (substr($s, -2) === '/?') {
-            $s = substr($s, 0, -2);
-        }
-
-        if ($s === '') {
-            return '/';
-        }
-
-        $captureNum = 0;
-        $groups = [];        // stack: true = capturing, false = non-capturing
-        $capturingDepth = 0;
-        $inClass = false;
-        $inQuote = false;
-        $len = strlen($s);
-
-        $segments = [];
-        $currentSegment = ['static' => '', 'captures' => []];
-
-        for ($i = 0; $i < $len; $i++) {
-            $char = $s[$i];
-
-            if ($inQuote) {
-                if ($char === '\\' && isset($s[$i + 1]) && $s[$i + 1] === 'E') {
-                    $inQuote = false;
-                    $i++;
-                }
-                continue;
-            }
-
-            if ($inClass) {
-                if ($char === '\\' && isset($s[$i + 1])) {
-                    $i++;
-                } elseif ($char === ']') {
-                    $inClass = false;
-                }
-                continue;
-            }
-
-            if ($char === '\\') {
-                if (!isset($s[$i + 1])) {
-                    break;
-                }
-                $next = $s[++$i];
-                if ($next === 'Q') {
-                    $inQuote = true;
-                }
-                continue;
-            }
-
-            if ($char === '[' && $capturingDepth > 0) {
-                $inClass = true;
-                continue;
-            }
-
-            if ($char === '(') {
-                $capturing = true;
-                if (substr($s, $i + 1, 2) === '?:') {
-                    $capturing = false;
-                    $i += 2;
-                } elseif (substr($s, $i + 1, 3) === '?P<') {
-                    $end = strpos($s, '>', $i + 4);
-                    if ($end !== false) {
-                        $i = $end;
-                    }
-                } elseif (substr($s, $i + 1, 2) === '?<'
-                    && isset($s[$i + 3]) && strpos('=!', $s[$i + 3]) === false) {
-                    $end = strpos($s, '>', $i + 3);
-                    if ($end !== false) {
-                        $i = $end;
-                    }
-                } elseif (isset($s[$i + 1]) && $s[$i + 1] === '?') {
-                    $capturing = false;
-                    $i++;
-                }
-                $groups[] = $capturing;
-                if ($capturing) {
-                    $captureNum++;
-                    if ($capturingDepth === 0) {
-                        $currentSegment['captures'][] = $captureNum;
-                    }
-                    $capturingDepth++;
-                }
-                continue;
-            }
-
-            if ($char === ')') {
-                $wasCapturing = array_pop($groups);
-                if ($wasCapturing) {
-                    $capturingDepth--;
-                }
-                if (isset($s[$i + 1]) && ($s[$i + 1] === '?' || $s[$i + 1] === '*' || $s[$i + 1] === '+')) {
-                    $i++;
-                } elseif (isset($s[$i + 1]) && $s[$i + 1] === '{') {
-                    $end = strpos($s, '}', $i + 1);
-                    if ($end !== false) {
-                        $i = $end;
-                    }
-                }
-                continue;
-            }
-
-            if ($capturingDepth > 0) {
-                continue;
-            }
-
-            // At capturingDepth === 0
-            if ($char === '/') {
-                $segments[] = $currentSegment;
-                $currentSegment = ['static' => '', 'captures' => []];
-            } elseif ($char === '?' || $char === '*' || $char === '+') {
-                // quantifier — skip
-            } elseif ($char === '{') {
-                $end = strpos($s, '}', $i);
-                if ($end !== false) {
-                    $i = $end;
-                }
-            } elseif ($char === '|') {
-                break; // take first alternative only
-            } elseif ($char !== '.') {
-                $currentSegment['static'] .= $char;
-            }
-        }
-
-        $segments[] = $currentSegment;
-
-        $normalized = [];
-        foreach ($segments as $seg) {
-            if (!empty($seg['captures'])) {
-                $params = array_map(static function ($n) { return 'param' . $n; }, $seg['captures']);
-                $normalized[] = '{' . implode('+', $params) . '}';
-            } elseif ($seg['static'] !== '') {
-                $normalized[] = self::encodeStaticSegment($seg['static']);
-            }
-        }
-
-        return '/' . implode('/', $normalized);
-    }
-
-    /**
-     * Parse a WordPress rule once and remember whether it is safe to normalize
-     * plus a rule-only normalized route for callers that have no URL to match
-     * against. The returned shape:
+     * Parse a WordPress rule once and remember whether it is safe to normalize.
+     * The returned shape:
      *   [
-     *     'safe'            => bool,
-     *     'rule_only_route' => string|null,  // from normalizeWordPressRuleOnly
+     *     'safe' => bool,  // result of hasOnlyCapturedWordPressDynamics
      *   ]
      *
-     * @return array{safe: bool, rule_only_route: string|null}
+     * @return array{safe: bool}
      */
     public static function wordPressRulePlan(string $rule): array
     {
@@ -409,12 +208,8 @@ class RouteNormalizer
             return self::$wordPressRulePlans[$rule];
         }
 
-        $safe = self::hasOnlyCapturedWordPressDynamics($rule);
-        $ruleOnlyRoute = $safe ? self::normalizeWordPressRuleOnly($rule) : null;
-
         return self::$wordPressRulePlans[$rule] = [
-            'safe' => $safe,
-            'rule_only_route' => $ruleOnlyRoute,
+            'safe' => self::hasOnlyCapturedWordPressDynamics($rule),
         ];
     }
 

@@ -734,8 +734,9 @@ class WordPressIntegrationLoader
                     $matchedRule = $This->matched_rule;
                     $rootSpan->meta[Tag::HTTP_ROUTE] = $matchedRule;
                     if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()
-                        && dd_trace_env_config("DD_API_SECURITY_ENABLED")) {
-                        $urlPath = \property_exists($This, 'request') ? $This->request : null;
+                        && dd_trace_env_config("DD_API_SECURITY_ENABLED")
+                        && \property_exists($This, 'request') && is_string($This->request)) {
+                        $urlPath = $This->request;
                         $routeAnalysis = \DDTrace\Util\RouteNormalizer::analyzeWordPressRoute(
                             $matchedRule,
                             $urlPath
