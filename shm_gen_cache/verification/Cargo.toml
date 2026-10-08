@@ -35,10 +35,6 @@ rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
 publish = false
-# Generates the table of test programs (src/bin) for tests/genmc.rs.
-build = "build.rs"
-# Every src/bin/*.rs is a test program (listed in `bin` above).
-autobins = true
 
 [lib]
 # The harness every test program uses (src/lib.rs).
