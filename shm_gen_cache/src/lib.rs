@@ -82,12 +82,6 @@ pub mod test_access;
 /// discarded and recreated rather than migrated.
 pub const LAYOUT_VERSION: u32 = 10;
 
-/// Returns [`LAYOUT_VERSION`].
-#[inline]
-pub const fn version() -> u32 {
-    LAYOUT_VERSION
-}
-
 pub use cache::{Cache, CacheHeader, CacheStorage};
 pub use config::{Config, Derived, HotParams, Params, RuntimeParams, StaticParams};
 pub use error::Error;

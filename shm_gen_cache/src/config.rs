@@ -324,12 +324,6 @@ pub struct Derived {
 }
 
 impl Derived {
-    /// The hot-path parameters.
-    #[inline(always)]
-    pub const fn hot(&self) -> HotParams {
-        self.hot
-    }
-
     /// Bytes of the shared mapping.
     #[inline(always)]
     pub const fn mapping_size(&self) -> usize {
