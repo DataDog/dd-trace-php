@@ -34,10 +34,8 @@ class Laravel8xTests extends AbstractLaravelAppsecTests {
     }
 
     // The 8.x fixture ships ~27 routes (feature-controller suite); the listed
-    // entries below are the subset exercised by AppSec. Accept extras.
-    @Override
-    boolean isAllowUnenumeratedRoutes() { true }
-
+    // entries below are the subset exercised by AppSec. Extras are accepted
+    // via the base-class default (`isAllowUnenumeratedRoutes = true`).
     @Override
     List<List<String>> getExpectedEndpoints() {
         [

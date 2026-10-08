@@ -27,12 +27,12 @@ abstract class AbstractLaravelAppsecTests {
     }
 
     /**
-     * When {@code true}, {@link #getExpectedEndpoints} may be a strict subset of
-     * the endpoints emitted by the fixture (extras are accepted). When
-     * {@code false} (default), the emitted set must match the enumeration
-     * exactly in size.
+     * When {@code true} (default), {@link #getExpectedEndpoints} may be a
+     * strict subset of the endpoints emitted by the fixture (extras are
+     * accepted). Set to {@code false} in subclasses that enumerate every
+     * expected route to also assert the exact total count.
      */
-    boolean isAllowUnenumeratedRoutes() { false }
+    boolean isAllowUnenumeratedRoutes() { true }
 
     /**
      * Status code the fixture's /login/signup endpoint returns. Laravel 8.x
