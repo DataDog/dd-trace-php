@@ -1,0 +1,83 @@
+# The test programs: one entry per src/bin/<name>.rs (build.rs checks that
+# every program has one). `test = false`: a program defines the C `main`
+# (`#![no_main]`), so a libtest build of it would run the program instead of
+# listing tests (cargo/nextest list every bin target's test binary).
+bin = [
+  { name = "chunk_claim_clipped_at_capacity", test = false, bench = false },
+  { name = "chunked_insert_blocks_reuse", test = false, bench = false },
+  { name = "competing_dead_rotation_takeovers", test = false, bench = false },
+  { name = "competing_registrars_preserve_winner", test = false, bench = false },
+  { name = "competing_rotations", test = false, bench = false },
+  { name = "concurrent_read_write", test = false, bench = false },
+  { name = "dead_owner_epoch_publication_preserves_reservation", test = false, bench = false },
+  { name = "dead_rotation_owner_reaping_races_takeover", test = false, bench = false },
+  { name = "full_table_insert_retries", test = false, bench = false },
+  { name = "internal_probe_copy_during_reuse", test = false, bench = false },
+  { name = "live_rotation_owner_identity_handoff", test = false, bench = false },
+  { name = "lookup_during_reuse", test = false, bench = false },
+  { name = "promotion_races_insertion", test = false, bench = false },
+  { name = "public_lookup_capacity_during_reuse", test = false, bench = false },
+  { name = "published_insert_skips_busy_rotation", test = false, bench = false },
+  { name = "reaping_preserves_live_reservation", test = false, bench = false },
+  { name = "recycled_arena_visibility", test = false, bench = false },
+  { name = "reserved_insert_blocks_reuse", test = false, bench = false },
+  { name = "reserved_insert_survives_occupancy", test = false, bench = false },
+  { name = "rotation_reaping_races_registration", test = false, bench = false },
+  { name = "same_key_collision", test = false, bench = false },
+]
+
+[package]
+name = "shm_gen_cache_verification"
+description = "GenMC model-checking suite of shm_gen_cache (see README.md)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+publish = false
+# Generates the table of test programs (src/bin) for tests/genmc.rs.
+build = "build.rs"
+# Every src/bin/*.rs is a test program (listed in `bin` above).
+autobins = true
+
+[lib]
+# The harness every test program uses (src/lib.rs).
+name = "genmc_harness"
+path = "src/lib.rs"
+test = false
+doctest = false
+bench = false
+
+[dependencies]
+# Native builds of the test programs (the `<test>::native` trials) need std
+# and the verification hooks; the C API (`ffi`) is not used.
+shm_gen_cache = { path = "..", default-features = false, features = [
+  "std",
+  "verify",
+] }
+
+[dev-dependencies]
+libtest-mimic = "0.8"
+regex = { workspace = true, features = ["std", "unicode-perl"] }
+sha2 = { workspace = true, features = ["std"] }
+
+[[test]]
+# The runner: one libtest-mimic trial per native run, safety check and
+# witness (README.md).
+name = "genmc"
+harness = false
+
+[lints.rust]
+# Passed only by the GenMC bitcode builds of tests/genmc.rs: GenMC threads
+# and assertions (`sgc_genmc`), and the active witness (`genmc_witness`,
+# `genmc_witness="NAME"`).
+unexpected_cfgs = { level = "warn", check-cfg = [
+  'cfg(sgc_genmc)',
+  'cfg(genmc_witness, values(any()))',
+] }
+
+[lints.clippy]
+# `check!` conditions are written as the properties the test comments state
+# (e.g. `sealed == !(reused && last)`), not in clippy's preferred form.
+nonminimal_bool = "allow"
+manual_range_contains = "allow"

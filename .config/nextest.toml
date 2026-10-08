@@ -1,0 +1,23 @@
+# cargo-nextest configuration. Only the GenMC suite of shm_gen_cache
+# (shm_gen_cache/verification/README.md) has overrides; other tests use the
+# defaults.
+
+[test-groups]
+# Each GenMC trial runs GenMC with SGC_GENMC_NTHREADS workers (by default a
+# quarter of the cores), so run at most four at a time.
+genmc = { max-threads = 4 }
+
+[[profile.default.overrides]]
+filter = 'package(shm_gen_cache_verification) and binary(genmc) and test(/::(safety|witness::)/)'
+test-group = 'genmc'
+# Trials of the big tests explore for minutes; the runner itself kills GenMC
+# after SGC_GENMC_TIMEOUT (default 3600 s), so terminate only well after it.
+slow-timeout = { period = "120s", terminate-after = 35 }
+
+# CI (.gitlab/generate-shared.php, "shm_gen_cache tests"): run every test
+# and write a JUnit report to target/nextest/ci/junit.xml.
+[profile.ci]
+fail-fast = false
+
+[profile.ci.junit]
+path = "junit.xml"

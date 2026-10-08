@@ -3,6 +3,9 @@ members = [
   "components-rs/php_sidecar_mockgen",
   "sidecar",
   "appsec/helper-rust",
+  "shm_gen_cache",
+  # The GenMC suite of shm_gen_cache (shm_gen_cache/verification/README.md).
+  "shm_gen_cache/verification",
 ]
 # Don't add vendored libddwaf crates to the this workspace; it would break them
 exclude = ["appsec/third_party/libddwaf-rust"]

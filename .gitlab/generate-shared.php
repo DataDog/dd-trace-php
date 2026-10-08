@@ -66,6 +66,51 @@ stages:
       - artifacts
     when: "always"
 
+"shm_gen_cache tests":
+  # docker-in-docker: the GenMC trials run GenMC in a container.
+  tags: [ "docker-in-docker:amd64" ]
+  stage: test
+  # The base image carries the pinned Rust toolchain (rust-toolchain.toml).
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:bookworm-11"
+  needs: []
+  interruptible: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      interruptible: false
+    - when: on_success
+  variables:
+    KUBERNETES_CPU_REQUEST: 8
+    KUBERNETES_MEMORY_REQUEST: 8Gi
+    KUBERNETES_MEMORY_LIMIT: 10Gi
+    # nextest runs at most 4 GenMC trials at once (.config/nextest.toml).
+    SGC_GENMC_NTHREADS: 2
+    NEXTEST_VERSION: "0.9.140"
+  before_script:
+    - |
+      apt-get update
+      apt-get install -y --no-install-recommends ca-certificates curl
+      install -m 0755 -d /etc/apt/keyrings
+      curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+      echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list
+      apt-get update
+      apt-get install -y --no-install-recommends docker-ce-cli
+    - curl -LsSf "https://get.nexte.st/${NEXTEST_VERSION}/linux" | tar zxf - -C "${CARGO_HOME}/bin"
+    - docker version
+  script:
+    - cargo nextest run -p shm_gen_cache -p shm_gen_cache_verification --profile ci
+  after_script:
+    - mkdir -p artifacts
+    - cp target/nextest/ci/junit.xml artifacts/shm-gen-cache-results.xml || true
+    - .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:shm_gen_cache"
+  artifacts:
+    reports:
+      junit: "artifacts/*-results.xml"
+    paths:
+      - artifacts
+      - target/tmp/genmc-verification/trials
+    when: "always"
+    expire_in: 1 week
+
 "Build & Test Tea":
   tags: [ "arch:amd64" ]
   stage: build

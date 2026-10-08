@@ -480,13 +480,16 @@ clang_format_fix:
 cbindgen: remove_cbindgen generate_cbindgen
 
 remove_cbindgen:
-	rm -f components-rs/datadog.h components-rs/live-debugger.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h components-rs/crashtracker.h components-rs/library-config.h
+	rm -f components-rs/datadog.h components-rs/live-debugger.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h components-rs/crashtracker.h components-rs/library-config.h shm_gen_cache/shm_gen_cache.h
 
 generate_cbindgen: cbindgen_binary # Regenerate components-rs/datadog.h components-rs/live-debugger.h components-rs/telemetry.h components-rs/sidecar.h components-rs/common.h components-rs/crashtracker.h components-rs/library-config.h
 	( \
 		cbindgen --crate datadog-php  \
 			--config cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/datadog.h; \
+		cbindgen --crate shm_gen_cache \
+			--config shm_gen_cache/cbindgen.toml \
+			--output $(PROJECT_ROOT)/shm_gen_cache/shm_gen_cache.h; \
 		cd libdatadog; \
 		cbindgen --crate libdd-common-ffi \
 			--config libdd-common-ffi/cbindgen.toml \

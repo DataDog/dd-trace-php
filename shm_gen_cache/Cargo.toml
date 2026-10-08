@@ -1,0 +1,58 @@
+[package]
+name = "shm_gen_cache"
+description = "Mutex-free, process-shared two-generation byte cache"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+publish = false
+
+[lib]
+# The staticlib is the C artifact (needs feature `ffi`, the default); the rlib
+# is for Rust users, the integration tests and the GenMC bitcode builds.
+crate-type = ["staticlib", "rlib"]
+bench = false
+
+[features]
+default = ["ffi"]
+# Links std: process abort, the float math of the occupancy estimator
+# (f64::sqrt/log2 are not in core on the pinned toolchain) and, outside Linux,
+# the scheduler yield of rotation waits; on OSes other than Linux and Apple
+# also their clock (required there).
+std = []
+# The C API (src/ffi.rs), anonymous shared mappings, and the Linux liveness
+# backend.
+ffi = ["std", "dep:libc"]
+# Exposes `shm_gen_cache::test_access` (internals) outside feature `verify`.
+test-access = []
+# Verification build (verification/README.md): model assertions (`sgc_assert!`)
+# always checked, production assertions off, the `GetPid` test hooks called,
+# `test_access` public. Changes behaviour and speed: never enable it for
+# production artifacts. The GenMC bitcode builds pass `--cfg 'feature="verify"'`
+# to rustc directly, so code tests `feature = "verify"` (not `test-access`).
+verify = ["test-access"]
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true, optional = true }
+
+[lints.rust]
+# Passed only by the GenMC bitcode builds (verification/README.md).
+unexpected_cfgs = { level = "warn", check-cfg = [
+  'cfg(sgc_genmc)',
+  'cfg(sgc_genmc_short_waits)',
+] }
+
+[dev-dependencies]
+libc = { workspace = true }
+
+[[test]]
+# Forks: runs without the test harness, so the process has a single thread.
+name = "fork"
+harness = false
+
+[[bench]]
+# The throughput suite (benches/README.md); its own harness, so run it with
+# `cargo bench -p shm_gen_cache --bench sgc_bench -- <args>`.
+name = "sgc_bench"
+harness = false
