@@ -7,19 +7,15 @@ use crate::profiling::bindings::{self as zend};
 use crate::profiling::config::SystemSettings;
 use crate::profiling::module_globals;
 use crate::profiling::profiler::Profiler;
-use crate::profiling::{sample_exponential_interval, RefCellExt, REQUEST_LOCALS};
+use crate::profiling::{sample_exponential_interval, RequestLocals};
 use core::cell::Cell;
 use core::ptr;
 use libc::size_t;
 use log::{debug, trace};
+use rand::{rngs::StdRng, SeedableRng};
 use std::ffi::c_void;
 use std::num::{NonZero, NonZeroU32, NonZeroU64};
 use std::sync::atomic::{AtomicU32, AtomicU64, AtomicUsize, Ordering};
-
-#[cfg(php_zts)]
-use rand::rngs::ThreadRng;
-#[cfg(not(php_zts))]
-use rand::{rngs::StdRng, SeedableRng};
 
 // Initialized during MINIT, before allocation samples can be collected.
 static OS_PAGE_SIZE: AtomicUsize = AtomicUsize::new(0);
@@ -192,9 +188,8 @@ pub struct AllocationProfilingStats {
     /// Number of bytes remaining until the next sample collection.
     next_sample: i64,
     mean: f64,
-    #[cfg(php_zts)]
-    rng: ThreadRng,
-    #[cfg(not(php_zts))]
+    // GSHUTDOWN may destroy these globals on another thread. Own the RNG
+    // instead of holding a ThreadRng handle into the creator's native TLS.
     rng: StdRng,
 }
 
@@ -203,9 +198,6 @@ impl AllocationProfilingStats {
         let mut stats = AllocationProfilingStats {
             next_sample: 0,
             mean: sampling_distance.get() as f64,
-            #[cfg(php_zts)]
-            rng: rand::rng(),
-            #[cfg(not(php_zts))]
             rng: StdRng::from_os_rng(),
         };
         stats.next_sampling_interval();
@@ -313,8 +305,10 @@ pub unsafe fn minit(settings: &SystemSettings) {
 }
 
 pub fn rinit() {
-    let (allocation_enabled, heap_live_enabled) = REQUEST_LOCALS
-        .try_with_borrow(|locals| {
+    // SAFETY: RINIT runs on the owning PHP thread after GINIT, with globals live
+    // throughout this call.
+    let request_locals = unsafe { RequestLocals::from_module_globals() };
+    let (allocation_enabled, heap_live_enabled) = request_locals.try_with_borrow(|locals| {
             (
                 locals.system_settings().profiling_allocation_enabled,
                 locals.profiling_experimental_heap_live_enabled,
@@ -337,29 +331,25 @@ pub fn rinit() {
     allocation_ge84::alloc_prof_rinit(heap_live_enabled);
 }
 
-pub fn alloc_prof_rshutdown() {
-    let (allocation_enabled, heap_live_enabled) = REQUEST_LOCALS
-        .try_with_borrow(|locals| {
-            (
-                locals.system_settings().profiling_allocation_enabled,
-                locals.profiling_experimental_heap_live_enabled,
-            )
-        })
-        .unwrap_or_else(|err| {
-            // Debug rather than error because this is every request, could
-            // be very spammy.
-            debug!("Allocation profiling rshutdown failed because it failed to borrow the request locals. Please report this to Datadog: {err}");
-            (false, false)
-        });
-
-    if !allocation_enabled {
-        return;
-    }
-
+/// Restore allocation handlers if this thread still has ours installed.
+/// Repeated calls after successful restoration do nothing.
+///
+/// # Safety
+/// Must run on the owning PHP thread with initialized profiler globals and a
+/// live current Zend heap, before either is destroyed.
+pub unsafe fn deactivate() {
+    // Use the recorded installation state, even if request startup failed or
+    // profiling settings changed after installing the handlers.
     #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
-    allocation_le83::alloc_prof_rshutdown(heap_live_enabled);
+    // SAFETY: The caller guarantees live globals and a live heap on this thread.
+    unsafe {
+        allocation_le83::deactivate()
+    };
     #[cfg(php_zend_mm_set_custom_handlers_ex)]
-    allocation_ge84::alloc_prof_rshutdown(heap_live_enabled);
+    // SAFETY: The caller guarantees live globals and a live heap on this thread.
+    unsafe {
+        allocation_ge84::deactivate()
+    };
 }
 
 #[cfg(all(test, not(php_zts)))]

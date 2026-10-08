@@ -4,17 +4,21 @@ use crate::profiling::zend::{
     self, zai_str_from_zstr, zend_execute_data, zend_get_executed_filename_ex, zval,
     InternalFunctionHandler,
 };
-use crate::profiling::{RefCellExt, REQUEST_LOCALS, SAPI};
+use crate::profiling::{RefCellExt, RequestLocals, SAPI};
 use libc::c_char;
 use libdd_common::cstr;
 use log::{error, trace};
-#[cfg(php_zts)]
-use std::cell::Cell;
 use std::cell::RefCell;
 use std::ptr;
 use std::time::Instant;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
+
+#[cfg(php_zts)]
+use {
+    crate::profiling::module_globals::{self, ProfilerGlobals},
+    core::cell::Cell,
+};
 
 /// The engine's original (or neighbouring extensions) `gc_collect_cycles()` function
 static mut PREV_GC_COLLECT_CYCLES: Option<zend::VmGcCollectCyclesFn> = None;
@@ -36,18 +40,12 @@ static mut PREV_ZEND_ACCEL_SCHEDULE_RESTART_HOOK: Option<zend::VmZendAccelSchedu
 
 thread_local! {
     static IDLE_SINCE: RefCell<Instant> = RefCell::new(Instant::now());
-    #[cfg(php_zts)]
-    static IS_NEW_THREAD: Cell<bool> = const { Cell::new(false) };
 }
 
 enum State {
     Idle,
     Sleeping,
     Select,
-    #[cfg(php_zts)]
-    ThreadStart,
-    #[cfg(php_zts)]
-    ThreadStop,
 }
 
 impl State {
@@ -56,10 +54,6 @@ impl State {
             State::Idle => "idle",
             State::Sleeping => "sleeping",
             State::Select => "select",
-            #[cfg(php_zts)]
-            State::ThreadStart => "thread start",
-            #[cfg(php_zts)]
-            State::ThreadStop => "thread stop",
         }
     }
 }
@@ -78,7 +72,9 @@ fn is_in_frankenphp_handle_request(execute_data: *mut zend_execute_data) -> bool
 }
 
 extern "C" fn frankenphp_sapi_module_activate() -> i32 {
-    let timeline_enabled = REQUEST_LOCALS
+    // SAFETY: FrankenPHP activates requests on its PHP thread after GINIT and before
+    // GSHUTDOWN.
+    let timeline_enabled = unsafe { RequestLocals::from_module_globals() }
         .borrow_or_false(|locals| locals.system_settings().profiling_timeline_enabled);
 
     if timeline_enabled
@@ -99,7 +95,9 @@ extern "C" fn frankenphp_sapi_module_activate() -> i32 {
 }
 
 extern "C" fn frankenphp_sapi_module_deactivate() -> i32 {
-    let timeline_enabled = REQUEST_LOCALS
+    // SAFETY: FrankenPHP deactivates requests on their PHP thread before globals
+    // teardown.
+    let timeline_enabled = unsafe { RequestLocals::from_module_globals() }
         .borrow_or_false(|locals| locals.system_settings().profiling_timeline_enabled);
 
     if timeline_enabled
@@ -125,7 +123,10 @@ fn sleeping_fn(
     return_value: *mut zval,
     state: State,
 ) {
-    if !REQUEST_LOCALS.borrow_or_false(|locals| locals.system_settings().profiling_timeline_enabled)
+    // SAFETY: The intercepted PHP function runs on the request thread with
+    // initialized globals.
+    if !unsafe { RequestLocals::from_module_globals() }
+        .borrow_or_false(|locals| locals.system_settings().profiling_timeline_enabled)
     {
         unsafe { func(execute_data, return_value) };
         return;
@@ -234,13 +235,25 @@ unsafe extern "C" fn ddog_php_prof_zend_error_observer(
     line: u32,
     message: *mut zend::ZendString,
 ) {
+    // Error observers remain registered during module teardown. Check native
+    // TLS before accessing PHP globals or request state.
+    if !crate::profiling::PHP_REQUEST_ACTIVE
+        .try_with(|active| active.get())
+        .unwrap_or(false)
+    {
+        return;
+    }
+
     // we are only interested in FATAL errors
 
     if _type & zend::E_FATAL_ERRORS as i32 == 0 {
         return;
     }
 
-    if !REQUEST_LOCALS.borrow_or_false(|locals| locals.system_settings().profiling_timeline_enabled)
+    // SAFETY: The TLS guard restricts access to the owning PHP thread between
+    // successful RINIT and the start of RSHUTDOWN, while its globals are live.
+    if !unsafe { RequestLocals::from_module_globals() }
+        .borrow_or_false(|locals| locals.system_settings().profiling_timeline_enabled)
     {
         return;
     }
@@ -283,7 +296,10 @@ unsafe extern "C" fn ddog_php_prof_zend_error_observer(
 #[no_mangle]
 #[cfg(php_opcache_restart_hook)]
 unsafe extern "C" fn ddog_php_prof_zend_accel_schedule_restart_hook(reason: i32) {
-    if REQUEST_LOCALS.borrow_or_false(|locals| locals.system_settings().profiling_timeline_enabled)
+    // SAFETY: OPcache invokes this hook on the PHP thread before module globals are
+    // destroyed.
+    if unsafe { RequestLocals::from_module_globals() }
+        .borrow_or_false(|locals| locals.system_settings().profiling_timeline_enabled)
     {
         let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
         if let Some(profiler) = Profiler::get() {
@@ -448,7 +464,10 @@ fn timeline_idle_stop() {
             return;
         };
 
-        if !REQUEST_LOCALS
+        // SAFETY: RINIT, FrankenPHP request activation, and MSHUTDOWN call this on
+        // the thread whose globals we access. GINIT has initialized request_locals,
+        // and it remains live until GSHUTDOWN, which runs after MSHUTDOWN.
+        if !unsafe { RequestLocals::from_module_globals() }
             .borrow_or_false(|locals| locals.system_settings().profiling_timeline_enabled)
         {
             return;
@@ -480,7 +499,10 @@ fn timeline_idle_start() {
 /// # SAFETY
 /// Must be called only in rinit and after [crate::profiling::config::first_rinit].
 pub unsafe fn timeline_rinit() {
-    if !REQUEST_LOCALS.borrow_or_false(|locals| locals.system_settings().profiling_timeline_enabled)
+    // SAFETY: RINIT runs on the owning PHP thread after GINIT, with globals live
+    // throughout this call.
+    if !unsafe { RequestLocals::from_module_globals() }
+        .borrow_or_false(|locals| locals.system_settings().profiling_timeline_enabled)
     {
         return;
     }
@@ -488,34 +510,27 @@ pub unsafe fn timeline_rinit() {
     timeline_idle_stop();
 
     #[cfg(php_zts)]
-    IS_NEW_THREAD.with(|cell| {
-        if !cell.get() {
-            return;
-        }
-        cell.set(false);
-        if !REQUEST_LOCALS
-            .borrow_or_false(|locals| locals.system_settings().profiling_timeline_enabled)
-        {
+    {
+        // SAFETY: RINIT runs after GINIT on the owning PHP thread.
+        let globals = &*module_globals::get_profiler_globals();
+        if globals.thread_started.get() {
             return;
         }
 
         if let Some(profiler) = Profiler::get() {
-            profiler.collect_thread_start_end(
-                // Safety: checked for `is_err()` above
-                SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_nanos() as i64,
-                State::ThreadStart.as_str(),
-            );
+            profiler.collect_thread_start_end(globals, "thread start");
+            globals.thread_started.set(true);
         }
-    });
+    }
 }
 
 /// This function is run during the P-RSHUTDOWN phase and resets the `IDLE_SINCE` thread local to
 /// "now", indicating the start of a new idle phase
 pub fn timeline_prshutdown() {
-    if !REQUEST_LOCALS.borrow_or_false(|locals| locals.system_settings().profiling_timeline_enabled)
+    // SAFETY: PRSHUTDOWN runs on the request thread before its module globals are
+    // destroyed.
+    if !unsafe { RequestLocals::from_module_globals() }
+        .borrow_or_false(|locals| locals.system_settings().profiling_timeline_enabled)
     {
         return;
     }
@@ -548,37 +563,20 @@ pub(crate) fn timeline_mshutdown() {
             zend::zend_accel_schedule_restart_hook = PREV_ZEND_ACCEL_SCHEDULE_RESTART_HOOK;
         }
     }
-
-    #[cfg(php_zts)]
-    timeline_gshutdown();
 }
 
 #[cfg(php_zts)]
-pub(crate) fn timeline_ginit() {
-    // During GINIT in "this" thread, the request locals are not initialized, which happens in
-    // RINIT, so we currently do not know if profile is enabled at all and if, if timeline is
-    // enabled. That's why we raise this flag here and read it in RINIT.
-    IS_NEW_THREAD.set(true);
+pub(crate) unsafe fn timeline_ginit(globals: *mut ProfilerGlobals) {
+    // SAFETY: GINIT supplies storage before the first thread-start event.
+    ptr::addr_of_mut!((*globals).thread_started).write(Cell::new(false));
 }
 
 #[cfg(php_zts)]
-pub(crate) fn timeline_gshutdown() {
-    if !REQUEST_LOCALS.borrow_or_false(|locals| locals.system_settings().profiling_timeline_enabled)
-    {
-        return;
-    }
-
-    if let Some(profiler) = Profiler::get() {
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos()
-            .min(i64::MAX as u128) as i64;
-        profiler.collect_thread_start_end(
-            // Safety: checked for `is_err()` above
-            now,
-            State::ThreadStop.as_str(),
-        );
+pub(crate) fn timeline_gshutdown(globals: &ProfilerGlobals) {
+    if globals.thread_started.replace(false) {
+        if let Some(profiler) = Profiler::get() {
+            profiler.collect_thread_start_end(globals, "thread stop");
+        }
     }
 }
 
@@ -594,7 +592,9 @@ unsafe extern "C" fn ddog_php_prof_compile_string(
     #[cfg(php_zend_compile_string_has_position)] position: zend::zend_compile_position,
 ) -> *mut zend::_zend_op_array {
     if let Some(prev) = PREV_ZEND_COMPILE_STRING {
-        if !REQUEST_LOCALS
+        // SAFETY: The engine compiles PHP code on a PHP thread with initialized module
+        // globals.
+        if !unsafe { RequestLocals::from_module_globals() }
             .borrow_or_false(|locals| locals.system_settings().profiling_timeline_enabled)
         {
             #[cfg(php_zend_compile_string_has_position)]
@@ -651,7 +651,9 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
     r#type: i32,
 ) -> *mut zend::_zend_op_array {
     if let Some(prev) = PREV_ZEND_COMPILE_FILE {
-        if !REQUEST_LOCALS
+        // SAFETY: The engine compiles PHP files on a PHP thread with initialized module
+        // globals.
+        if !unsafe { RequestLocals::from_module_globals() }
             .borrow_or_false(|locals| locals.system_settings().profiling_timeline_enabled)
         {
             return prev(handle, r#type);
@@ -725,7 +727,8 @@ unsafe fn gc_reason() -> &'static str {
 #[no_mangle]
 unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
     if let Some(prev) = PREV_GC_COLLECT_CYCLES {
-        if !REQUEST_LOCALS
+        // SAFETY: The engine runs GC on the PHP thread before globals teardown.
+        if !unsafe { RequestLocals::from_module_globals() }
             .borrow_or_false(|locals| locals.system_settings().profiling_timeline_enabled)
         {
             return prev();

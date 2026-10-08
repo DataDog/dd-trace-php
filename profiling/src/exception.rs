@@ -2,15 +2,14 @@ use crate::profiling::profiler::Profiler;
 use crate::profiling::zend::{
     self, zend_execute_data, zend_generator, zval, InternalFunctionHandler,
 };
-use crate::profiling::{RefCellExt, REQUEST_LOCALS};
+use crate::profiling::{RefCellExt, RequestLocals};
 use log::{error, info};
 use rand::rngs::ThreadRng;
+use rand_distr::{Distribution, Poisson};
 use std::cell::RefCell;
 use std::ptr;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
-
-use rand_distr::{Distribution, Poisson};
 
 /// The engine's previous throw exception hook.
 /// We need to occupy the `zend_throw_exception_hook` in MINIT which is before threads get started
@@ -78,7 +77,9 @@ fn collect_exception(
 
     let exception_name = unsafe { (*exception).class_name() };
 
-    let collect_message = REQUEST_LOCALS
+    // SAFETY: The exception hook calls this on the PHP request thread with live
+    // module globals.
+    let collect_message = unsafe { RequestLocals::from_module_globals() }
         .borrow_or_false(|locals| locals.system_settings().profiling_exception_message_enabled);
 
     let message = if collect_message {
@@ -136,6 +137,8 @@ unsafe extern "C" fn ddog_php_prof_generator_throw(
 }
 
 pub fn exception_profiling_minit() {
+    // SAFETY: MINIT installs hooks before request execution, and the handler
+    // descriptors below provide valid parameters to the registration call.
     unsafe {
         PREV_ZEND_THROW_EXCEPTION_HOOK = zend::zend_throw_exception_hook;
         zend::zend_throw_exception_hook = Some(exception_profiling_throw_exception_hook);
@@ -148,7 +151,6 @@ pub fn exception_profiling_minit() {
         )];
 
         for handler in method_handlers.into_iter() {
-            // Safety: we've set all the parameters correctly for this C call.
             zend::datadog_php_install_method_handler(handler);
         }
     }
@@ -157,8 +159,10 @@ pub fn exception_profiling_minit() {
 /// This initializes the `EXCEPTION_PROFILING_INTERVAL` atomic on first RINIT with the value from
 /// the INI / ENV variable.
 pub fn exception_profiling_first_rinit() {
-    let (exception_profiling, sampling_distance) = REQUEST_LOCALS
-        .try_with_borrow(|locals| {
+    // SAFETY: First RINIT runs on the owning PHP thread after module globals
+    // initialization.
+    let request_locals = unsafe { RequestLocals::from_module_globals() };
+    let (exception_profiling, sampling_distance) = request_locals.try_with_borrow(|locals| {
             let settings = locals.system_settings();
             (settings.profiling_exception_enabled, settings.profiling_exception_sampling_distance)
         })
@@ -190,7 +194,9 @@ unsafe extern "C" fn exception_profiling_throw_exception_hook(
     #[cfg(feature = "debug_stats")]
     EXCEPTION_PROFILING_EXCEPTION_COUNT.fetch_add(1, Ordering::Relaxed);
 
-    let exception_enabled = REQUEST_LOCALS
+    // SAFETY: The engine invokes this exception hook on its PHP thread while our
+    // module is active.
+    let exception_enabled = unsafe { RequestLocals::from_module_globals() }
         .borrow_or_false(|locals| locals.system_settings().profiling_exception_enabled);
 
     // Up to PHP 7.1, when PHP propagated exceptions up the call stack, it would re-throw them.
