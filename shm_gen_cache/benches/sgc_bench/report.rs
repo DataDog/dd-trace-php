@@ -7,9 +7,9 @@ use shm_gen_cache::Derived;
 
 use crate::sgc_bench::cli::Options;
 use crate::sgc_bench::config::{
-    BACKEND_LABEL, BENCH_CONFIG, BEST_EFFORT_PROMOTION_LABEL, BUCKET_COUNT, LOOKUP_HIT_KEYS,
-    LOOKUP_MISS_KEYS, MAX_KEY_SIZE, MAX_OCCUPANCY, MAX_VALUE_SIZE, MIN_KEY_SIZE, MIN_VALUE_SIZE,
-    MISS_SKEW, MIXED_KEY_COUNTS, SKEWS, UNIVERSE_SIZE,
+    BENCH_CONFIG, BUCKET_COUNT, LOOKUP_HIT_KEYS, LOOKUP_MISS_KEYS, MAX_KEY_SIZE, MAX_OCCUPANCY,
+    MAX_VALUE_SIZE, MIN_KEY_SIZE, MIN_VALUE_SIZE, MISS_SKEW, MIXED_KEY_COUNTS, SKEWS,
+    UNIVERSE_SIZE,
 };
 use crate::sgc_bench::data::Dataset;
 use crate::sgc_bench::phase::ScenarioResult;
@@ -84,11 +84,11 @@ pub fn print_header(opt: &Options, data: &Dataset, derived: &Derived) {
         .map(|r| f64::from(r.value_len))
         .sum::<f64>()
         / n;
+    // The library has no promotion option; reported as such.
     println!(
         "sgc_bench: buckets={BUCKET_COUNT} max_occupancy={MAX_OCCUPANCY} participants={} \
          max_key={MAX_KEY_SIZE} max_value={MAX_VALUE_SIZE} record_area={} B/arena \
-         mapping={:.1} MiB best_effort_promotion={BEST_EFFORT_PROMOTION_LABEL} \
-         backend={BACKEND_LABEL}",
+         mapping={:.1} MiB best_effort_promotion=n/a backend=rust-api",
         BENCH_CONFIG.participant_capacity,
         BENCH_CONFIG.record_area_size,
         derived.mapping_size() as f64 / f64::from(1u32 << 20),

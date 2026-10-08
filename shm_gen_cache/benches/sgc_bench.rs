@@ -25,7 +25,7 @@ use std::process::ExitCode;
 use shm_gen_cache::{Derived, Estimated, Exact, OccupancyMode, RuntimeParams};
 
 use sgc_bench::cli::{self, Options};
-use sgc_bench::config::{BENCH_CONFIG, BenchParams};
+use sgc_bench::config::BENCH_CONFIG;
 use sgc_bench::data::Dataset;
 use sgc_bench::phase::ScenarioResult;
 use sgc_bench::platform;
@@ -59,10 +59,7 @@ fn main() -> ExitCode {
     // cache of the run reads its parameters through this one allocation.
     let derived = match BENCH_CONFIG.resolve() {
         Ok(d) => Box::new(d),
-        Err(e) => {
-            eprintln!("invalid configuration: {}", e.code());
-            std::process::abort();
-        }
+        Err(e) => invalid_config(e.code()),
     };
     let data = Dataset::build();
     report::print_header(&opt, &data, &derived);
@@ -108,12 +105,9 @@ fn run_suite<O: OccupancyMode + Send + Sync>(
     data: &Dataset,
     derived: &Derived,
 ) -> (Vec<ScenarioResult>, f64) {
-    let params: BenchParams<'_, O> = match RuntimeParams::new(derived) {
+    let params: RuntimeParams<'_, O> = match RuntimeParams::new(derived) {
         Ok(p) => p,
-        Err(e) => {
-            eprintln!("invalid configuration: {}", e.code());
-            std::process::abort();
-        }
+        Err(e) => invalid_config(e.code()),
     };
     let ctx = Context::new(opt, data, params);
     let mut results = Vec::new();
@@ -121,4 +115,10 @@ fn run_suite<O: OccupancyMode + Send + Sync>(
     scenarios::run_lookup(&ctx, &mut results);
     scenarios::run_insert(&ctx, &mut results);
     (results, ctx.thp_min_coverage())
+}
+
+/// Reports a configuration the library rejected and aborts.
+fn invalid_config(code: impl std::fmt::Display) -> ! {
+    eprintln!("invalid configuration: {code}");
+    std::process::abort();
 }

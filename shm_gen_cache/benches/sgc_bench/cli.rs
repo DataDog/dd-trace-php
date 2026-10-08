@@ -53,10 +53,6 @@ usage: sgc_bench [--quick] [--reps N] [--ops N] [--warmup N]
   --no-huge-pages  use a shared mapping without requesting THP
 ";
 
-fn usage() {
-    eprint!("{USAGE}");
-}
-
 /// Parses the arguments (without the program name). `None` after printing
 /// the problem: the caller exits with status 2.
 pub fn parse_options(args: impl IntoIterator<Item = String>) -> Option<Options> {
@@ -80,7 +76,9 @@ pub fn parse_options(args: impl IntoIterator<Item = String>) -> Option<Options> 
             "--threads" => {
                 let v = args.next().or_else(fail)?;
                 opt.threads.clear();
-                for t in split_commas(&v) {
+                // Comma-separated: an empty string has no fields, and a
+                // trailing comma adds no empty field.
+                for t in v.split_terminator(',') {
                     match parse_u64(t) {
                         Some(n @ 1..=64) => opt.threads.push(n as u32),
                         _ => return fail(),
@@ -89,7 +87,7 @@ pub fn parse_options(args: impl IntoIterator<Item = String>) -> Option<Options> 
             }
             "--filter" => {
                 let v = args.next().or_else(fail)?;
-                opt.filters = split_commas(&v).into_iter().map(String::from).collect();
+                opt.filters = v.split_terminator(',').map(String::from).collect();
             }
             "--json" => {
                 // An empty path means no JSON report.
@@ -125,7 +123,7 @@ pub fn parse_options(args: impl IntoIterator<Item = String>) -> Option<Options> 
 
 /// Prints the usage; for `?` on a malformed option.
 fn fail<T>() -> Option<T> {
-    usage();
+    eprint!("{USAGE}");
     None
 }
 
@@ -137,23 +135,4 @@ fn parse_u64(s: &str) -> Option<u64> {
     Some(s.bytes().fold(0u64, |v, c| {
         v.wrapping_mul(10).wrapping_add(u64::from(c - b'0'))
     }))
-}
-
-/// The comma-separated fields of `s`; an empty string has none, and a
-/// trailing comma adds no empty field.
-fn split_commas(mut s: &str) -> Vec<&str> {
-    let mut out = Vec::new();
-    while !s.is_empty() {
-        match s.split_once(',') {
-            Some((field, rest)) => {
-                out.push(field);
-                s = rest;
-            }
-            None => {
-                out.push(s);
-                break;
-            }
-        }
-    }
-    out
 }

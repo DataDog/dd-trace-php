@@ -1,6 +1,6 @@
 //! The cache configuration and the scenario matrix.
 
-use shm_gen_cache::{Config, RuntimeParams};
+use shm_gen_cache::Config;
 
 /// 64Ki buckets: each arena's index is 512 KiB and its used record area is
 /// several MiB, so the working set lives in L2/SLC rather than L1, as a
@@ -34,13 +34,6 @@ pub const BENCH_CONFIG: Config = Config {
 };
 
 const _: () = assert!(MAX_OCCUPANCY == (BUCKET_COUNT as f64 * 0.7) as u32);
-
-/// The library has no promotion option; reported as such in the header.
-pub const BEST_EFFORT_PROMOTION_LABEL: &str = "n/a";
-pub const BACKEND_LABEL: &str = "rust-api";
-
-/// The run-time parameters, with the platform's liveness backend.
-pub type BenchParams<'d, O> = RuntimeParams<'d, O>;
 
 /// The lookup output capacity: the largest value.
 pub const VALUE_BUFFER_CAPACITY: usize = MAX_VALUE_SIZE as usize;
