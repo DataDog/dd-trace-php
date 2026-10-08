@@ -41,5 +41,5 @@ class LaravelLatestTests extends AbstractLaravelAppsecTests {
     }
 
     @Override
-    int expectedSignupStatus() { 302 }
+    int getExpectedSignupStatus() { 302 }
 }

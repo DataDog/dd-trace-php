@@ -40,5 +40,5 @@ class Laravel11xTests extends AbstractLaravelAppsecTests {
 
     // register() ends with `redirect('/simple')` → 302.
     @Override
-    int expectedSignupStatus() { 302 }
+    int getExpectedSignupStatus() { 302 }
 }

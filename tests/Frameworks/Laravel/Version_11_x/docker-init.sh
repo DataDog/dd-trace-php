@@ -8,11 +8,7 @@ export DD_TRACE_CLI_ENABLED=false
 # strip dev packages and rebuild the autoloader for the container's PHP version.
 # Clear bootstrap cache first or artisan fails on dev-only providers (e.g. facade/ignition).
 rm -f /var/www/bootstrap/cache/*.php
-if [[ -f composer.lock ]]; then
-    composer install --no-dev --no-scripts
-else
-    composer update --no-dev --no-scripts
-fi
+composer install --no-dev --no-scripts
 
 cp .env.example .env
 # Pin the fixture to sqlite + file sessions. Lines may be present (older skeletons)

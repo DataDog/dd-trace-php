@@ -43,5 +43,5 @@ class Laravel9xTests extends AbstractLaravelAppsecTests {
     // The 9.x scaffolded LoginTestController ends with `redirect('/simple')`
     // (vs. 8.x which returns `response('User created', 200)`).
     @Override
-    int expectedSignupStatus() { 302 }
+    int getExpectedSignupStatus() { 302 }
 }

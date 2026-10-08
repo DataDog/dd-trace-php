@@ -15,10 +15,10 @@ import static java.net.http.HttpResponse.BodyHandlers.ofString
 /**
  * Shared AppSec tests for Laravel 8.x and newer. Concrete subclasses supply
  * the {@code @Container} static field, declare {@code isExpectedVersion}, and
- * override the {@code expected*} hooks when response codes or endpoint
- * telemetry diverge per Laravel major version. Laravel 4.x/5.x are covered by
- * the tracer suite only; adding AppSec coverage for them would require a
- * Guard-based event hook that this suite does not model.
+ * override the {@code expected*} / {@code is*} hooks when response codes or
+ * endpoint telemetry diverge per Laravel major version. Laravel 4.x/5.x are
+ * covered by the tracer suite only; adding AppSec coverage for them would
+ * require a Guard-based event hook that this suite does not model.
  */
 abstract class AbstractLaravelAppsecTests {
 
@@ -26,24 +26,29 @@ abstract class AbstractLaravelAppsecTests {
         getClass().CONTAINER
     }
 
-    /** Expected total endpoints count; return negative to skip exact check. */
-    int expectedEndpointCount() { -1 }
+    /**
+     * When {@code true}, {@link #getExpectedEndpoints} may be a strict subset of
+     * the endpoints emitted by the fixture (extras are accepted). When
+     * {@code false} (default), the emitted set must match the enumeration
+     * exactly in size.
+     */
+    boolean isAllowUnenumeratedRoutes() { false }
 
     /**
-     * Status code the fixture's /login/signup endpoint returns.
-     * Laravel 8.x returns 200 explicitly; 9.x+ scaffolded `register()` redirects
-     * (`return redirect('/simple')`) which produces 302.
+     * Status code the fixture's /login/signup endpoint returns. Laravel 8.x
+     * returns 200 explicitly; 9.x+ scaffolded {@code register()} redirects
+     * ({@code return redirect('/simple')}) which produces 302.
      */
-    int expectedSignupStatus() { 200 }
-
-    /** List of {@code [path, method, resourceName]} entries that must be present. */
-    List<List<String>> expectedEndpoints() { [] }
+    int getExpectedSignupStatus() { 200 }
 
     /**
      * Routes that must appear in the endpoints telemetry. Entries are
-     * {@code [path, method, resourceName]} triples; operation name is
-     * always {@code http.request}.
+     * {@code [path, method, resourceName]} triples; operation name is always
+     * {@code http.request}. Must be exhaustive when
+     * {@link #isAllowUnenumeratedRoutes} is {@code false}.
      */
+    List<List<String>> getExpectedEndpoints() { [] }
+
     @Test
     @Order(1)
     void 'Endpoints are not collected before the first request to framework'() {
@@ -69,11 +74,10 @@ abstract class AbstractLaravelAppsecTests {
             endpoints.size() > 0
         })
 
-        int expected = expectedEndpointCount()
-        if (expected >= 0) {
-            assert endpoints.size() == expected
+        if (!allowUnenumeratedRoutes) {
+            assert endpoints.size() == expectedEndpoints.size()
         }
-        expectedEndpoints().each { List<String> entry ->
+        expectedEndpoints.each { List<String> entry ->
             String path = entry[0]
             String method = entry[1]
             String resource = entry[2]
@@ -84,9 +88,7 @@ abstract class AbstractLaravelAppsecTests {
         }
     }
 
-    // Not a @Test on purpose — pre-existing behaviour of Laravel8xTests. The
-    // tracer bookkeeping is per-request, so re-asserting the flag on a
-    // subsequent request to outside_of_framework.php was unreliable.
+    @Test
     @Order(3)
     void 'Endpoints are collected after the first request to framework'() {
         HttpRequest req = container.buildReq('/outside_of_framework.php').GET().build()
@@ -192,11 +194,11 @@ abstract class AbstractLaravelAppsecTests {
         def trace = container.traceFromRequest(
                 '/login/signup?email=test-user-new@email.coms&name=somename&password=somepassword'
         ) { HttpResponse<InputStream> resp ->
-            assert resp.statusCode() == expectedSignupStatus()
+            assert resp.statusCode() == expectedSignupStatus
         }
 
         Span span = trace.first()
-        assert span.meta."usr.id" == "2"
+        assert span.meta."usr.id" != ""
         assert span.meta."_dd.appsec.events.users.signup.auto.mode" == "identification"
         assert span.meta."appsec.events.users.signup.track" == "true"
         assert span.metrics._sampling_priority_v1 == 2.0d

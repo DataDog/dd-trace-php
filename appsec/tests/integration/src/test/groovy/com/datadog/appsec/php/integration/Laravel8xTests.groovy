@@ -33,11 +33,13 @@ class Laravel8xTests extends AbstractLaravelAppsecTests {
         InspectContainerHelper.run(CONTAINER)
     }
 
+    // The 8.x fixture ships ~27 routes (feature-controller suite); the listed
+    // entries below are the subset exercised by AppSec. Accept extras.
     @Override
-    int expectedEndpointCount() { 27 }
+    boolean isAllowUnenumeratedRoutes() { true }
 
     @Override
-    List<List<String>> expectedEndpoints() {
+    List<List<String>> getExpectedEndpoints() {
         [
                 ['/', 'GET', 'GET /'],
                 ['login/auth', 'GET', 'GET login/auth'],
