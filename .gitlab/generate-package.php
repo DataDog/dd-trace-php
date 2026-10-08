@@ -157,6 +157,7 @@ update_central_configurations_version_range_v2:
 
 configure_system_tests:
   variables:
+    SYSTEM_TESTS_REF: robertomonteromiguel/ssi-secrets-vault-templates
     SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,simple_onboarding_appsec,lib-injection,lib-injection-profiling,docker-ssi"
     ALLOW_MULTIPLE_CHILD_LEVELS: "false"
 
