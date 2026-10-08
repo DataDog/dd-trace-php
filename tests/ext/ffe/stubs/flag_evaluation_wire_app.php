@@ -1,6 +1,7 @@
 <?php
 
 require __DIR__ . '/ffe_api_bootstrap.inc';
+echo "fixture_wire_ready\n";
 \DDTrace\install_hook('DDTrace\\Internal\\record_ffe_flag_evaluation', null, function ($hook) {
     echo 'submission=', json_encode($hook->returned), "\n";
 });
@@ -44,6 +45,9 @@ if ($client->getStringValue('protected', 'fallback', $context) !== 'blue') {
 }
 echo 'exposure_flush=', json_encode(\DDTrace\Testing\flush_ffe_exposures()), "\n";
 echo "evaluated\n";
-// Give the ordinary sidecar coalescer time to send while the parent captures.
-// Shutdown delivery has its own lifecycle tests; this tests the live writer.
-usleep(1000000);
+// Keep the live producer present until both writers reach the local capture.
+// Fixed sleeps race instrumented sender startup; teardown has separate tests.
+stream_set_timeout(STDIN, getenv('USE_ZEND_ALLOC') === '0' ? 30 : 10);
+if (fgets(STDIN) !== "captures_received\n") {
+    throw new RuntimeException("fixture did not acknowledge both EVP writers");
+}

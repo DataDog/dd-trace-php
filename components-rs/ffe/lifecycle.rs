@@ -140,6 +140,16 @@ pub extern "C" fn ddog_ffe_runtime_config() -> FfeRuntimeConfig {
     lifecycle().config
 }
 
+/// Caller owns the returned endpoint and must release it with endpoint_drop.
+#[no_mangle]
+pub extern "C" fn ddog_ffe_direct_evp_endpoint() -> Option<Box<libdd_common::Endpoint>> {
+    lifecycle()
+        .settings
+        .as_ref()
+        .and_then(FeatureFlagsSettings::direct_evp_endpoint)
+        .map(Box::new)
+}
+
 /// First-use compatibility path for PHP providers without an initialize API.
 /// Concurrent first callers share one deadline; later calls never renew it.
 #[no_mangle]
