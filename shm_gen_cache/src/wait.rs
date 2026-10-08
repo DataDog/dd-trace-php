@@ -746,16 +746,30 @@ mod timed {
         mod arm64 {
             use super::super::Nanos;
 
-            /// Arms the exclusive monitor: a write by another core to the
-            /// granule of `p` (at most a cache line) clears it, which wakes
-            /// WFE/WFET. A 32-bit exclusive load, since watched words need
-            /// only be 4-byte aligned.
+            /// Consumes any pending event, then arms the exclusive monitor: a
+            /// write by another core to the granule of `p` (at most a cache
+            /// line) clears it, which wakes WFE/WFET. A 32-bit exclusive load,
+            /// since watched words need only be 4-byte aligned.
+            ///
+            /// Clearing an armed monitor generates an event, and every sleep
+            /// ends with [`clrex`]. Left pending, that event would make the
+            /// next WFET return at once, so no WFET would ever sleep. The
+            /// event register cannot be cleared directly: SEVL sets it, so the
+            /// WFE after it consumes it without sleeping. The drain runs here,
+            /// just before arming: run right after the disarm instead, it does
+            /// not always consume that event (seen on Apple M4). A write
+            /// before the arm is not missed: the caller checks its condition
+            /// after arming.
             #[inline]
             pub(super) fn arm_wfet(p: *const u32) {
                 // SAFETY: `p` is a valid, aligned word of shared memory
-                // (WatchedWord); the load's value is discarded.
+                // (WatchedWord); the load's value is discarded. SEVL and WFE
+                // only set and consume this core's event register, and the
+                // WFE does not sleep, as SEVL set it.
                 unsafe {
                     core::arch::asm!(
+                        "sevl",
+                        "wfe",
                         "ldxr {ignored:w}, [{p}]",
                         p = in(reg) p,
                         ignored = out(reg) _,
@@ -764,21 +778,12 @@ mod timed {
                 }
             }
 
-            /// Clears the exclusive monitor, then consumes the event that
-            /// clearing an armed monitor generates.
-            ///
-            /// Left pending, that event would make the next WFE/WFET return
-            /// at once, and as every sleep ends here, no WFET would ever
-            /// sleep. The event register cannot be cleared directly: SEVL
-            /// sets it, so the WFE after it consumes it without sleeping.
+            /// Clears the exclusive monitor. The event this generates is
+            /// consumed by the next [`arm_wfet`].
             #[inline]
             pub(super) fn clrex() {
-                // SAFETY: CLREX only clears this core's exclusive monitor;
-                // SEVL and WFE only set and consume this core's event
-                // register, and the WFE does not sleep, as SEVL set it.
-                unsafe {
-                    core::arch::asm!("clrex", "sevl", "wfe", options(nostack, preserves_flags))
-                };
+                // SAFETY: CLREX only clears this core's exclusive monitor.
+                unsafe { core::arch::asm!("clrex", options(nostack, preserves_flags)) };
             }
 
             /// Sleeps until the armed monitor is cleared, an event, or
@@ -937,24 +942,65 @@ mod timed {
             // Disarm on both paths (condition already holding, and after a
             // sleep), then check that an unwritten 8 us sleep lasts well over
             // the ~60 ns of a WFET that returns at once.
+            //
+            // Events from outside the test (SEV on any core sets every
+            // core's event register) also end sleeps early. A plain WFE after
+            // draining the event register, which the disarm cannot affect,
+            // is the control: a batch counts only if the control slept too.
+            //
+            // A drain placed right after the disarm instead of before the arm
+            // fails only in some processes. On Apple M4 this seems to be a
+            // particularity of its efficiency cores.
             if monitor::current() != Mechanism::Wfet {
                 return;
             }
             let _serial = timing_test();
             let line = Line(AtomicU64::new(0));
             let watched = WatchedWord::low(&line.0);
-            const SLEEPS: u32 = 200;
-            let start = Instant::now();
-            for _ in 0..SLEEPS {
-                monitor::sleep_until_line_written(Mechanism::Wfet, watched, &mut || true, 8_000);
-                monitor::sleep_until_line_written(Mechanism::Wfet, watched, &mut || false, 8_000);
+            const BATCHES: u32 = 10;
+            const SLEEPS: u32 = 50;
+            const SLEPT: Duration = Duration::from_nanos(500);
+            let mut fast = std::vec::Vec::new();
+            for _ in 0..BATCHES {
+                let start = Instant::now();
+                for _ in 0..SLEEPS {
+                    // SAFETY: SEVL and WFE only set and consume this core's
+                    // event register; the second WFE sleeps until an event.
+                    unsafe {
+                        core::arch::asm!("sevl", "wfe", "wfe", options(nostack, preserves_flags))
+                    };
+                }
+                let control = start.elapsed() / SLEEPS;
+                let start = Instant::now();
+                for _ in 0..SLEEPS {
+                    monitor::sleep_until_line_written(
+                        Mechanism::Wfet,
+                        watched,
+                        &mut || true,
+                        8_000,
+                    );
+                    monitor::sleep_until_line_written(
+                        Mechanism::Wfet,
+                        watched,
+                        &mut || false,
+                        8_000,
+                    );
+                }
+                let per_sleep = start.elapsed() / SLEEPS;
+                std::eprintln!("{per_sleep:?} per WFET sleep, {control:?} per plain WFE");
+                if control <= SLEPT {
+                    continue;
+                }
+                if per_sleep > SLEPT {
+                    return;
+                }
+                fast.push(per_sleep);
             }
-            let per_sleep = start.elapsed() / SLEEPS;
-            std::eprintln!("{per_sleep:?} per WFET sleep");
             assert!(
-                per_sleep > Duration::from_nanos(500),
-                "{per_sleep:?} per sleep"
+                fast.is_empty(),
+                "WFET returned at once while a plain WFE slept: {fast:?} per sleep"
             );
+            std::eprintln!("not measured: outside events ended every plain WFE early");
         }
 
         #[test]
