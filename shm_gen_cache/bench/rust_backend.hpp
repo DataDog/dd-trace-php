@@ -12,9 +12,8 @@
 //   ~lock()                       -> unregister
 //   output_buffer<N>              (8-aligned, whole words)
 //
-// Everything is inline, so without cross-language LTO a lookup costs one
-// direct call into the staticlib (plus one for an insert) on top of what the
-// library does; with SGC_BENCH_XLTO the calls are inlined at link time.
+// Everything is inline, so a lookup costs one direct call into the staticlib
+// (plus one for an insert) on top of what the library does.
 //
 // The configuration is passed at run time (ddog_sgc_Config), which is the
 // production shape: the Rust side resolves it once at cache creation and

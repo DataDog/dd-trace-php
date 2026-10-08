@@ -4,11 +4,6 @@
 #
 #   cmake -S bench -B build/cpp  -DSGC_BENCH_BACKEND=cpp  [-DSGC_SOURCE_DIR=...]
 #   cmake -S bench -B build/rust -DSGC_BENCH_BACKEND=rust
-#
-# SGC_BENCH_XLTO=ON builds both sides with full LTO (clang -flto=full + an LLVM
-# linker; Rust with -Clinker-plugin-lto), so the C API calls are inlined into
-# the harness. It must be used for both backends of a comparison, because it
-# also changes the harness's own code generation.
 
 cmake_minimum_required(VERSION 3.28)
 project(sgc_bench_ab LANGUAGES CXX)
@@ -21,9 +16,6 @@ endif()
 
 set(SGC_BENCH_BACKEND "rust" CACHE STRING "cpp or rust")
 set_property(CACHE SGC_BENCH_BACKEND PROPERTY STRINGS cpp rust)
-option(SGC_BENCH_XLTO "Full (cross-language) LTO" OFF)
-set(SGC_BENCH_LINKER "" CACHE STRING
-    "Value for -fuse-ld= with SGC_BENCH_XLTO (default: lld on Linux; must be an LLVM 21 linker)")
 
 find_package(Threads REQUIRED)
 
@@ -36,25 +28,12 @@ set(_sgc_dialect
     -fno-exceptions -fno-rtti -fno-threadsafe-statics
     -fno-unwind-tables -fno-asynchronous-unwind-tables)
 
-if(SGC_BENCH_XLTO)
-    target_compile_options(sgc_bench PRIVATE -flto=full)
-    target_link_options(sgc_bench PRIVATE -flto=full)
-    if(SGC_BENCH_LINKER)
-        target_link_options(sgc_bench PRIVATE -fuse-ld=${SGC_BENCH_LINKER})
-    elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-        target_link_options(sgc_bench PRIVATE -fuse-ld=lld)
-    endif()
-endif()
-
 if(SGC_BENCH_BACKEND STREQUAL "cpp")
     set(SGC_SOURCE_DIR "$ENV{HOME}/repos/shm_gen_cache"
         CACHE PATH "C++ shm_gen_cache source tree")
     set(SGC_BUILD_BENCH OFF CACHE BOOL "" FORCE)
     set(SGC_WERROR OFF CACHE BOOL "" FORCE)
     add_subdirectory("${SGC_SOURCE_DIR}" sgc EXCLUDE_FROM_ALL)
-    if(SGC_BENCH_XLTO)
-        target_compile_options(sgc PRIVATE -flto=full)
-    endif()
     target_include_directories(sgc_bench PRIVATE "${SGC_SOURCE_DIR}/src")
     target_link_libraries(sgc_bench PRIVATE sgc::sgc)
     target_compile_definitions(sgc_bench PRIVATE SGC_BENCH_BACKEND_RUST=0)
@@ -63,9 +42,6 @@ elseif(SGC_BENCH_BACKEND STREQUAL "rust")
     set(SGC_CARGO_PROFILE "tracer-release" CACHE STRING "cargo profile")
     set(_target_dir "${CMAKE_CURRENT_BINARY_DIR}/cargo")
     set(_rustflags "$ENV{RUSTFLAGS}")
-    if(SGC_BENCH_XLTO)
-        set(_rustflags "${_rustflags} -Clinker-plugin-lto")
-    endif()
     set(_lib "${_target_dir}/${SGC_CARGO_PROFILE}/libshm_gen_cache.a")
     # Always re-run cargo: it knows its own dependencies.
     add_custom_target(shm_gen_cache_rs

@@ -30,7 +30,7 @@ Files:
 |---|---|
 | `sgc_bench.cpp` | the harness (copy + backend switch) |
 | `rust_backend.hpp` | C++ surface of the harness on top of the C API |
-| `CMakeLists.txt` | `SGC_BENCH_BACKEND=cpp\|rust`, `SGC_BENCH_XLTO` |
+| `CMakeLists.txt` | `SGC_BENCH_BACKEND=cpp\|rust` |
 | `ab_bins.py` | A/B of two prebuilt binaries: interleaved rounds, noise model, verdicts |
 
 ## Building
@@ -64,22 +64,11 @@ library's dialect for both backends (`-fno-exceptions -fno-rtti
 -fno-threadsafe-statics -fno-unwind-tables -fno-asynchronous-unwind-tables`;
 the original `#error`s without them).
 
-Options:
-
-- `-DSGC_BENCH_XLTO=ON`: full cross-language LTO. The harness and (C++) the
-  library are compiled `-flto=full`, Rust with `-Clinker-plugin-lto`, and the
-  link goes through an LLVM-21-capable linker, so `ddog_sgc_lookup` is
-  inlined into the harness. Use it for **both** backends of a comparison
-  (it changes the harness's codegen too). Linux:
-  `-DSGC_BENCH_LINKER=bfd` (LLVMgold) or the default `lld`; the C++ side
-  also needs `-DCMAKE_AR=llvm-ar-21 -DCMAKE_RANLIB=llvm-ranlib-21`. macOS:
-  `-DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++
-  -DSGC_BENCH_LINKER=/opt/homebrew/opt/lld@21/bin/ld64.lld` (Apple clang
-  cannot read rustc's LLVM 21 bitcode; not measured). Cross-language LTO is
-  **not** needed: the default (no LTO) costs one direct call per lookup and
-  per insert, and the C++ library's `cache::lookup`/`store` are out-of-line
-  calls too. Measured on Linux, LTO made the Rust side relatively *slower*
-  (geomean 0.910 vs 0.946), so the headline numbers are without it.
+Cross-language LTO is not needed: without it a lookup or an insert costs
+one direct call into the staticlib, and the C++ library's
+`cache::lookup`/`store` are out-of-line calls too. Measured on Linux with
+full LTO on both sides, it made the Rust side relatively *slower* (geomean
+0.910 vs 0.946), so the build has no LTO option.
 
 ## Running
 
@@ -120,7 +109,6 @@ unrelated load, so noisier).
 | Linux, THP (default) | **0.952** | 0.962 | 0.926 | 0.917 | 0.983 |
 | Linux, `--no-huge-pages` | **0.965** | 0.978 | 0.930 | 0.911 | 1.010 |
 | macOS (`isb` spin hint) | **0.978** | 0.974 | 1.020 | 0.936 | 0.968 |
-| Linux, THP, both sides XLTO | 0.910 | 0.894 | 0.905 | 0.894 | 1.039 |
 
 So the production build (run-time configuration, plain staticlib) is ~5%
 slower than the C++ library on Linux and ~2% on macOS, well inside the 20%
