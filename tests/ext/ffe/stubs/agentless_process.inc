@@ -8,7 +8,7 @@ $command = (PHP_OS === 'WINNT' ? '' : 'exec ') . escapeshellarg(getenv('TEST_PHP
     . getenv('TEST_PHP_EXTRA_ARGS') . ' ' . escapeshellarg(__DIR__ . '/agentless_process_app.php');
 $process = proc_open($command, array(array('pipe', 'r'), array('pipe', 'w'), array('pipe', 'w')), $pipes);
 if (!is_resource($process)) throw new RuntimeException('cannot launch agentless PHP');
-fclose($pipes[0]);
+if ($scenario !== 'shutdown') fclose($pipes[0]);
 stream_set_blocking($pipes[1], false);
 stream_set_blocking($pipes[2], false);
 $stdout = $stderr = '';
@@ -17,6 +17,7 @@ $heldConnections = array();
 $exitCode = null;
 $running = true;
 $start = microtime(true);
+$shutdownStart = null;
 try {
     do {
         $stdout .= stream_get_contents($pipes[1]);
@@ -34,6 +35,13 @@ try {
         $requests++;
         if ($scenario === 'shutdown') {
             $heldConnections[] = $connection;
+            if ($shutdownStart === null) {
+                // Release the child only once an HTTP request is in flight.
+                // Worker scheduling may outlast its initialization budget.
+                $shutdownStart = microtime(true);
+                fwrite($pipes[0], "request_received\n");
+                fclose($pipes[0]);
+            }
             continue;
         }
         if ($scenario === 'recovery' && $requests === 1) {
@@ -59,12 +67,13 @@ try {
             . strlen($body) . "\r\nConnection: close\r\n\r\n" . $body);
         fclose($connection);
     } while (microtime(true) - $start < 10);
-    $elapsed = microtime(true) - $start;
     $stdout .= stream_get_contents($pipes[1]);
     $stderr .= stream_get_contents($pipes[2]);
     if ($exitCode !== 0) throw new RuntimeException('child failed or timed out: ' . $stdout . ' ' . $stderr);
     if ($requests === 0) throw new RuntimeException('no configuration request');
-    if ($scenario === 'shutdown' && $elapsed > 3) throw new RuntimeException('shutdown waited on HTTP timeout');
+    if ($scenario === 'shutdown' && microtime(true) - $shutdownStart > 3) {
+        throw new RuntimeException('shutdown waited on HTTP timeout');
+    }
     // Fork output is intentionally concurrent; compare the complete set.
     $lines = explode("\n", trim($stdout));
     sort($lines);
@@ -72,6 +81,7 @@ try {
     if ($scenario === 'shutdown') echo "shutdown_cancelled_inflight_request\n";
 } finally {
     if ($running) proc_terminate($process);
+    if (is_resource($pipes[0])) fclose($pipes[0]);
     fclose($pipes[1]);
     fclose($pipes[2]);
     proc_close($process);

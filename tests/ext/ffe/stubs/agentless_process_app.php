@@ -58,8 +58,13 @@ for ($i = 0; $i < 10; $i++) $client->getStringValue('flag', 'fallback');
 if (microtime(true) - $start > 0.5) throw new RuntimeException('initialization budget was renewed');
 echo "later_evaluations_do_not_wait\n";
 if ($scenario === 'shutdown') {
-    // Leave a HTTP request in flight: process shutdown must cancel it without
-    // waiting for the configured 30-second request timeout.
+    // The initialization deadline can expire before the worker is scheduled.
+    // Confirm the fixture has a request before measuring its cancellation.
+    stream_set_timeout(STDIN, 5);
+    if (fgets(STDIN) !== "request_received\n") {
+        throw new RuntimeException('fixture did not observe an in-flight request');
+    }
+    // Shutdown must not wait for the configured 30-second request timeout.
     exit;
 }
 $deadline = microtime(true) + 7;
