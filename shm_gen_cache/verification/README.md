@@ -315,9 +315,9 @@ IR constructs to avoid in test code (observed under GenMC):
 * `==` on arrays or slices of words (`[u64; 2] == [u64; 2]`): rustc emits
   one wide integer load, a mixed-size access GenMC rejects. Use
   `words_eq`, or compare single words.
-* Comparing byte slices of the output buffer (not tried; expected to fail
-  the same way: byte loads of memory written as `u64` words). Compare
-  words.
+* Byte loads of words written by a lookup (comparing byte slices of the
+  output buffer): a mixed-size access. Compare words with
+  `words_eq`/`padded_words`.
 * Variable-length `copy_from_slice` or slice comparisons in checked code:
   a runtime-length `memcpy`/`memcmp` that GenMC cannot always promote.
 * `unwrap()`/`expect()`, `assert!`, formatting: reach `core::fmt`. Use
@@ -329,8 +329,6 @@ IR constructs to avoid in test code (observed under GenMC):
   and GenMC stops with the internal failure `!(haveNAs_ &&
   access.addr.isDynamic() && !pruned_)` (`ExecutionGraph.cpp`). Keep
   coordination flags in const-initialised `static`s.
-* Byte comparisons of words written by a lookup (8-bit loads of a `u64`
-  store): mixed-size access. Compare with `words_eq`/`padded_words`.
 
 Liveness/identity fixtures are `GetPid` implementations defined by the
 test (static methods, so they need statics for state); see `src/pid.rs`.
