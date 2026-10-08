@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/ffe_process.inc';
 putenv('PHP_FFE_WIRE_OPENFEATURE=' . ($openFeature ? '1' : '0'));
 $direct = isset($direct) && $direct;
 $tlsDir = null;
@@ -33,16 +34,11 @@ if ($direct) {
     putenv('NO_PROXY=127.0.0.1,localhost');
     putenv('no_proxy=127.0.0.1,localhost');
 }
-$command = (PHP_OS === 'WINNT' ? '' : 'exec ') . escapeshellarg(getenv('TEST_PHP_EXECUTABLE'))
-    . ' ' . getenv('TEST_PHP_EXTRA_ARGS')
-    . ' ' . escapeshellarg(__DIR__ . '/flag_evaluation_wire_app.php');
-$process = proc_open($command, array(array('pipe', 'r'), array('pipe', 'w'), array('pipe', 'w')), $pipes);
+$process = ffeTestProcess(__DIR__ . '/flag_evaluation_wire_app.php', $pipes);
 if (!is_resource($process)) {
     throw new RuntimeException('failed to launch evaluation process');
 }
 fclose($pipes[0]);
-stream_set_blocking($pipes[1], false);
-stream_set_blocking($pipes[2], false);
 $captures = array();
 $requests = array();
 $stdout = $stderr = '';
@@ -52,8 +48,8 @@ $lastCaptureAt = 0;
 try {
     $deadline = microtime(true) + (getenv('USE_ZEND_ALLOC') === '0' ? 30 : 10);
     do {
-        $stdout .= stream_get_contents($pipes[1]);
-        $stderr .= stream_get_contents($pipes[2]);
+        $stdout .= ffeTestProcessRead($pipes[1]);
+        $stderr .= ffeTestProcessRead($pipes[2]);
         if ($exitedAt === null) {
             $status = proc_get_status($process);
             if (!$status['running']) {
@@ -126,8 +122,8 @@ try {
             . strlen($response) . "\r\nConnection: close\r\n\r\n" . $response);
         fclose($connection);
     } while (microtime(true) < $deadline);
-    $stdout .= stream_get_contents($pipes[1]);
-    $stderr .= stream_get_contents($pipes[2]);
+    $stdout .= ffeTestProcessRead($pipes[1]);
+    $stderr .= ffeTestProcessRead($pipes[2]);
     if (!$captures) {
         throw new RuntimeException('no EVP capture: ' . json_encode($requests) . ' ' . $stdout . ' ' . $stderr);
     }

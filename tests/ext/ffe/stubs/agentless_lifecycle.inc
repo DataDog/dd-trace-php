@@ -1,16 +1,13 @@
 <?php
+require_once __DIR__ . '/ffe_process.inc';
 putenv('PHP_FFE_AGENTLESS_OPENFEATURE=' . ($openFeature ? '1' : '0'));
 $server = stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
 if (!$server) throw new RuntimeException($error);
 $address = stream_socket_get_name($server, false);
 putenv('DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL=http://' . $address . '/configuration?fixture=1');
-$command = (PHP_OS === 'WINNT' ? '' : 'exec ') . escapeshellarg(getenv('TEST_PHP_EXECUTABLE')) . ' '
-    . getenv('TEST_PHP_EXTRA_ARGS') . ' ' . escapeshellarg(__DIR__ . '/agentless_lifecycle_app.php');
-$process = proc_open($command, array(array('pipe', 'r'), array('pipe', 'w'), array('pipe', 'w')), $pipes);
+$process = ffeTestProcess(__DIR__ . '/agentless_lifecycle_app.php', $pipes);
 if (!is_resource($process)) throw new RuntimeException('cannot launch agentless PHP');
 fclose($pipes[0]);
-stream_set_blocking($pipes[1], false);
-stream_set_blocking($pipes[2], false);
 $stdout = $stderr = '';
 $requests = array();
 $exitCode = null;
@@ -21,8 +18,8 @@ try {
     $startedAt = microtime(true);
     $readyAt = null;
     do {
-        $stdout .= stream_get_contents($pipes[1]);
-        $stderr .= stream_get_contents($pipes[2]);
+        $stdout .= ffeTestProcessRead($pipes[1]);
+        $stderr .= ffeTestProcessRead($pipes[2]);
         if ($readyAt === null && strpos($stdout, "fixture_child_ready\n") !== false) $readyAt = microtime(true);
         $status = proc_get_status($process);
         if (!$status['running']) {
@@ -71,8 +68,8 @@ try {
         elseif ($phase === 1) $phase = 3;
         elseif ($phase === 5) { $expectedEtag = '"green"'; $phase = 6; }
     } while (microtime(true) - ($readyAt === null ? $startedAt : $readyAt) < ($readyAt === null ? 60 : 35));
-    $stdout .= stream_get_contents($pipes[1]);
-    $stderr .= stream_get_contents($pipes[2]);
+    $stdout .= ffeTestProcessRead($pipes[1]);
+    $stderr .= ffeTestProcessRead($pipes[2]);
     if ($exitCode !== 0) throw new RuntimeException('child failed or timed out: ' . $stdout . ' ' . $stderr);
     echo str_replace(array("fixture_child_ready\n", "fixture_stale_observed\n", "fixture_304_observed\n"), '', $stdout);
     if (count($requests) < 5) throw new RuntimeException('polling did not recover');
