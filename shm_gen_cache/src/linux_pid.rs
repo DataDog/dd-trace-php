@@ -91,32 +91,23 @@ fn errno() -> libc::c_int {
 fn read_stat(tid: u32) -> Option<TaskStat> {
     // "/proc/%u/stat" without core::fmt.
     let mut filename = [0u8; 64];
-    let mut len = 0;
-    for &b in b"/proc/" {
-        filename[len] = b;
-        len += 1;
-    }
     let mut digits = [0u8; 10];
-    let mut ndigits = 0;
+    let mut start = digits.len();
     let mut v = tid;
     loop {
-        digits[ndigits] = b'0' + (v % 10) as u8;
-        ndigits += 1;
+        start -= 1;
+        digits[start] = b'0' + (v % 10) as u8;
         v /= 10;
         if v == 0 {
             break;
         }
     }
-    while ndigits > 0 {
-        ndigits -= 1;
-        filename[len] = digits[ndigits];
-        len += 1;
-    }
-    for &b in b"/stat" {
-        filename[len] = b;
-        len += 1;
-    }
-    // filename[len] is the terminating NUL.
+    let digits = &digits[start..];
+    let stat = 6 + digits.len();
+    filename[..6].copy_from_slice(b"/proc/");
+    filename[6..stat].copy_from_slice(digits);
+    filename[stat..stat + 5].copy_from_slice(b"/stat");
+    // filename[stat + 5] is the terminating NUL.
 
     let fd = loop {
         // SAFETY: filename is NUL-terminated.
