@@ -103,21 +103,8 @@ uv run bench/ab_bins.py ... --bench-args=--no-huge-pages
 
 `--bench-args` must use the `=` form when its value starts with `--`.
 
-The Rust port of the harness (`../benches/`, crate driven through its
-Rust API) prints the same table and JSON, so it takes either side.
-Build it with the staticlib's profile and pass the path `--no-run` prints:
-
-```sh
-cargo bench --profile tracer-release -p shm_gen_cache --bench sgc_bench \
-  --no-run
-uv run bench/ab_bins.py --ref-bin <build>/cpp/sgc_bench \
-  --cur-bin ../target/tracer-release/deps/sgc_bench-<hash> --json ab.json
-```
-
-For one thread its outcome columns (`hit%`, `ins%`, `rot/rep`, `~hit%`,
-`~prm%`, `errs`) and the non-timing JSON fields are identical to this
-harness's with either backend; `--threads 1` on both binaries is the quick
-check.
+The Rust port of the harness takes either side too; its build and A/B
+commands are in [`../benches/README.md`](../benches/README.md).
 
 ## Results (2026-10-07)
 
@@ -137,23 +124,9 @@ unrelated load, so noisier).
 
 So the production build (run-time configuration, plain staticlib) is ~5%
 slower than the C++ library on Linux and ~2% on macOS, well inside the 20%
-budget. On Linux, most of the remaining gap in the read path is the
-run-time configuration (the parameters are loaded from the handle and some
-are spilled, where C++ folds them into immediates): a since-removed
-diagnostic build with the bench configuration compiled into the library as
-constants measured lookup_miss at 0.976 and the overall geomean at 0.996.
-The 4- and 8-thread insert-heavy scenarios (`insert_new`, `mixed/1Mi`,
-`mixed/64Ki/s0.8`) are bimodal run to run on this VM for both backends;
-their per-scenario verdicts are mostly "within noise".
-
-One fix came out of this measurement: participant handles were plain heap
-allocations, and two threads' handles could share a cache line, which
-every insert writes (the occupancy estimator lives in the handle). On
-Apple M (128-byte lines) this cost ~30% on 8-thread insert-heavy scenarios
-(`insert_new/t8` 0.66, `mixed/1Mi/s0.8/t8` 0.68). `FfiParticipant` and
-`Derived` (read by every operation through the handle) are now cache-line
-aligned; afterwards those scenarios are at parity (0.975, 0.965). The
-algorithm, memory orders and shared layout are unchanged.
+budget. The 4- and 8-thread insert-heavy scenarios (`insert_new`,
+`mixed/1Mi`, `mixed/64Ki/s0.8`) are bimodal run to run on this VM for both
+backends; their per-scenario verdicts are mostly "within noise".
 
 ### Rust bench (Rust API) vs this harness
 
@@ -180,12 +153,5 @@ bench and can be inlined, with no call per operation. macOS run 1 of (b)
 had a load spike that hit `insert_new` and `mixed/1Mi`.
 
 The unaligned Linux (a) rows are a code-layout artifact of that C API
-build, not a harness difference: `mixed/16Ki` (100% hits, the same work
-per operation as `lookup_hit`) ran at 22.8 Mops through the C API against
-38.7 in the Rust bench, with the same instruction count (+4%) but 45% more
-cycles, and 263 M ops delivered by the legacy x86 decoder instead of the
-op cache (2.5 M for the Rust bench, 3.2 M for the C++ library). Rebuilding
-the staticlib with `RUSTFLAGS=-Cllvm-args=-align-loops=64` brings it to
-38.1 Mops and 2.5 M decoder ops; the build behind the first table did not
-have it either. On macOS, `mixed/16Ki/s1.1` is 3-6% slower in the Rust
-bench than in this harness with either library, unexplained.
+build, not a harness difference; rebuilding the staticlib with
+`RUSTFLAGS=-Cllvm-args=-align-loops=64` removes it.
