@@ -119,6 +119,56 @@ stages:
     when: "always"
     expire_in: 1 week
 
+"shm_gen_cache tests: windows":
+  # Native tests only; the GenMC suite runs in "shm_gen_cache tests".
+  tags: [ "windows-v2:2019" ]
+  stage: test
+  needs: []
+  interruptible: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      interruptible: false
+    - when: on_success
+  variables:
+    GIT_STRATEGY: none
+    CONTAINER_NAME: ${CI_JOB_NAME_SLUG}-${CI_JOB_ID}
+    # The PHP images persist the VC build environment, and the vs17 one
+    # carries the pinned Rust toolchain.
+    IMAGE: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-8.5_windows"
+    NEXTEST_VERSION: "0.9.140"
+  script: |
+<?php windows_git_setup() ?>
+
+    docker run --env GITLAB_CI=$env:GITLAB_CI --env GITHUB_RELEASES_MIRROR=$env:GITHUB_RELEASES_MIRROR --env NEXTEST_VERSION=$env:NEXTEST_VERSION -v ${pwd}:C:\Users\ContainerAdministrator\app -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    # ErrorActionPreference=Continue so cargo's stderr is not turned into a
+    # terminating NativeCommandError by the 2>&1 capture.
+    $ErrorActionPreference = 'Continue'
+    docker exec ${CONTAINER_NAME} powershell.exe -File C:\Users\ContainerAdministrator\app\.gitlab\shm-gen-cache-windows-tests.ps1 2>&1 | Tee-Object -FilePath test.log
+    $testCode = $LASTEXITCODE
+    $ErrorActionPreference = 'Stop'
+    # Only transient network failures get exit 75 for GitLab auto-retry: the
+    # script's own (toolchain, cargo-nextest) and cargo's fatal download
+    # errors. Not its retry warnings, which a succeeding build also prints.
+    if ($testCode -ne 0) { if (Select-String -Path test.log -Pattern 'error: failed to (download|get|load source|fetch)' -Quiet) { Write-Host "Transient network failure; exiting 75 so GitLab auto-retries"; exit 75 } else { exit $testCode } }
+  after_script:
+    - |
+        # .gitlab/silent-upload-junit-to-datadog.sh needs bash and Linux
+        # binaries, so the report only goes to GitLab.
+        New-Item -ItemType Directory -Force artifacts | Out-Null
+        Copy-Item target\nextest\ci\junit.xml artifacts\shm-gen-cache-windows-results.xml -ErrorAction SilentlyContinue
+        try { docker stop -t 5 ${CONTAINER_NAME} } catch { }
+        try { docker rm -f ${CONTAINER_NAME} } catch { }
+        exit 0
+  artifacts:
+    reports:
+      junit: "artifacts/*-results.xml"
+    paths:
+      - artifacts
+    when: "always"
+    expire_in: 1 week
+
 "Build & Test Tea":
   tags: [ "arch:amd64" ]
   stage: build

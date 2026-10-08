@@ -21,8 +21,9 @@ test-group = 'genmc'
 # after SGC_GENMC_TIMEOUT (default 3600 s), so terminate only well after it.
 slow-timeout = { period = "120s", terminate-after = 35 }
 
-# CI (.gitlab/generate-shared.php, "shm_gen_cache tests"): run every test
-# and write a JUnit report to target/nextest/ci/junit.xml.
+# CI (.gitlab/generate-shared.php, "shm_gen_cache tests" and "shm_gen_cache
+# tests: windows"): run every test and write a JUnit report to
+# target/nextest/ci/junit.xml.
 [profile.ci]
 fail-fast = false
 
