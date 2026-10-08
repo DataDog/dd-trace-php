@@ -1481,7 +1481,7 @@ endforeach;
   variables:
     BUILD_SH_ARGS: -w php-fpm-8.2 php
     # Remove this temporary pin after DataDog/system-tests#7988 merges.
-    SYSTEM_TESTS_REF: da9642da998a964f6d08fedd6fe116d5034bc15d
+    SYSTEM_TESTS_REF: b1394b5961ef408f0a9e067c88ae144cb7debb4d
   script:
     - ./run.sh FEATURE_FLAGGING_AND_EXPERIMENTATION_AGENTLESS tests/ffe/test_agentless_configuration.py::Test_FFE_Agentless_Configuration
     - ./run.sh FEATURE_FLAGGING_AND_EXPERIMENTATION_AGENTLESS_DIRECT tests/ffe/test_exposure_egress.py::Test_FFE_Exposure_Egress_Agentless_Direct tests/ffe/test_exposure_egress.py::Test_FFE_Exposure_Egress_Agentless_Direct_Shutdown tests/ffe/test_flag_eval_evp.py::Test_FFE_EVP_Flagevaluation_Egress_Agentless_Direct
