@@ -139,7 +139,7 @@ pub struct SettingsInput<'a> {
 /// `Debug`, because it owns the API key and potentially credential-bearing URL.
 pub struct FeatureFlagsSettings {
     pub resolution: SourceResolution,
-    agentless_base_url: String,
+    agentless_base_url: Option<String>,
     pub poll_interval: Duration,
     pub request_timeout: Duration,
     pub initialization_timeout: Duration,
@@ -176,7 +176,9 @@ impl FeatureFlagsSettings {
 
         Self {
             resolution: resolve_source(input.source),
-            agentless_base_url: input.agentless_base_url.to_owned(),
+            // PHP INI uses an empty string for the optional URL's unset value.
+            agentless_base_url: (!input.agentless_base_url.trim().is_empty())
+                .then(|| input.agentless_base_url.to_owned()),
             poll_interval: Duration::from_secs(poll_interval_seconds as u64),
             request_timeout: Duration::from_secs(request_timeout_seconds as u64),
             initialization_timeout: Duration::from_millis(initialization_timeout_ms as u64),
@@ -189,7 +191,7 @@ impl FeatureFlagsSettings {
 
     pub fn agentless_endpoint(&self) -> Result<AgentlessEndpoint, EndpointError> {
         AgentlessEndpoint::build(
-            &self.agentless_base_url,
+            self.agentless_base_url.as_deref().unwrap_or_default(),
             &self.site,
             &self.environment,
             &self.api_key,
@@ -502,6 +504,8 @@ mod tests {
             environment: "",
         });
 
+        assert!(settings.agentless_base_url.is_none());
+        assert!(settings.agentless_endpoint().unwrap().is_managed());
         assert_eq!(settings.poll_interval, Duration::from_secs(30));
         assert_eq!(settings.request_timeout, Duration::from_secs(5));
         assert_eq!(settings.initialization_timeout, Duration::from_secs(10));

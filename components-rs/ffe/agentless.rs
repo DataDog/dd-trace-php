@@ -8,6 +8,7 @@ use self::poller::{GlobalConfigurationSink, PollState, Poller};
 use self::transport::HyperTransport;
 use super::settings::AgentlessEndpoint;
 use crate::log::{self, Log};
+use std::ffi::c_void;
 use std::sync::Arc;
 use std::thread::JoinHandle;
 use std::time::Duration;
@@ -18,6 +19,7 @@ pub(crate) struct AgentlessWorkerConfig {
     endpoint: AgentlessEndpoint,
     poll_interval: Duration,
     request_timeout: Duration,
+    pub(crate) thread_cleanup: Option<extern "C" fn(*mut c_void)>,
 }
 
 impl AgentlessWorkerConfig {
@@ -30,6 +32,20 @@ impl AgentlessWorkerConfig {
             endpoint,
             poll_interval,
             request_timeout,
+            thread_cleanup: None,
+        }
+    }
+}
+
+// PHP intercepts Rust TLS destructors to permit extension unloading. Threads
+// without PHP GSHUTDOWN must explicitly drain that registry after their runtime
+// and logging guards are dropped, including on an early return or unwind.
+struct ThreadCleanup(Option<extern "C" fn(*mut c_void)>);
+
+impl Drop for ThreadCleanup {
+    fn drop(&mut self) {
+        if let Some(cleanup) = self.0 {
+            cleanup(std::ptr::null_mut());
         }
     }
 }
@@ -86,6 +102,7 @@ impl AgentlessWorker {
         let thread = std::thread::Builder::new()
             .name("ddtrace-ffe-agentless".to_owned())
             .spawn(move || {
+                let _thread_cleanup = ThreadCleanup(config.thread_cleanup);
                 let _log_guard = tracing::dispatcher::set_default(&log_dispatch);
                 let runtime = match tokio::runtime::Builder::new_current_thread()
                     .enable_all()
@@ -172,6 +189,31 @@ impl Drop for AgentlessWorker {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    #[test]
+    fn worker_cleanup_runs_on_its_thread_after_runtime_shutdown() {
+        static CLEANUPS: AtomicUsize = AtomicUsize::new(0);
+        extern "C" fn cleanup(_: *mut c_void) {
+            // Runtime and tracing guards must have exited before TLS is drained.
+            assert!(tokio::runtime::Handle::try_current().is_err());
+            assert_eq!(std::thread::current().name(), Some("ddtrace-ffe-agentless"));
+            CLEANUPS.fetch_add(1, Ordering::SeqCst);
+        }
+        let endpoint = AgentlessEndpoint::build("http://127.0.0.1:1/config", "", "", "").unwrap();
+        let mut config =
+            AgentlessWorkerConfig::new(endpoint, Duration::from_secs(30), Duration::from_secs(30));
+        config.thread_cleanup = Some(cleanup);
+        let mut worker = AgentlessWorker::new(config);
+        worker.start().unwrap();
+        worker.prepare_for_fork();
+        assert_eq!(CLEANUPS.load(Ordering::SeqCst), 1);
+        worker.resume_after_fork_parent().unwrap();
+        worker.shutdown();
+        assert_eq!(CLEANUPS.load(Ordering::SeqCst), 2);
+        worker.shutdown();
+        assert_eq!(CLEANUPS.load(Ordering::SeqCst), 2);
+    }
 
     #[test]
     fn a_finished_worker_can_restart_but_shutdown_is_permanent() {

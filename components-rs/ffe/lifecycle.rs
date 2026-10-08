@@ -8,6 +8,7 @@ use crate::log::{self, Log};
 use arc_swap::ArcSwap;
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
 use std::cell::RefCell;
+use std::ffi::c_void;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, LazyLock, Mutex, MutexGuard};
 use std::time::Instant;
@@ -29,7 +30,8 @@ pub struct FfeRuntimeConfig {
     pub endpoint_valid: bool,
 }
 
-/// Borrowed process settings. No pointer is retained and no credential is logged.
+/// Borrowed process settings. Strings are copied; credentials are never logged.
+/// The optional cleanup callback must remain valid until shutdown joins workers.
 #[repr(C)]
 pub struct FfeSettingsInput<'a> {
     pub enabled: bool,
@@ -45,6 +47,7 @@ pub struct FfeSettingsInput<'a> {
     pub site: CharSlice<'a>,
     pub api_key: CharSlice<'a>,
     pub environment: CharSlice<'a>,
+    pub thread_cleanup: Option<extern "C" fn(*mut c_void)>,
 }
 
 #[derive(Default)]
@@ -83,7 +86,7 @@ pub(super) fn notify_configuration() {
 #[no_mangle]
 pub extern "C" fn ddog_ffe_configure(input: &FfeSettingsInput<'_>) -> FfeRuntimeConfig {
     let mut state = lifecycle();
-    if state.settings.is_some() {
+    if state.settings.is_some() || state.stopped {
         return state.config;
     }
     let settings = FeatureFlagsSettings::resolve(SettingsInput {
@@ -114,11 +117,13 @@ pub extern "C" fn ddog_ffe_configure(input: &FfeSettingsInput<'_>) -> FfeRuntime
     if settings.resolution.enabled && source == FfeConfigurationSource::Agentless {
         if let Ok(endpoint) = settings.agentless_endpoint() {
             endpoint_valid = true;
-            state.worker = Some(AgentlessWorker::new(AgentlessWorkerConfig::new(
+            let mut worker_config = AgentlessWorkerConfig::new(
                 endpoint,
                 settings.poll_interval,
                 settings.request_timeout,
-            )));
+            );
+            worker_config.thread_cleanup = input.thread_cleanup;
+            state.worker = Some(AgentlessWorker::new(worker_config));
         }
     }
     state.config = FfeRuntimeConfig {
@@ -187,9 +192,13 @@ pub extern "C" fn ddog_ffe_shutdown() {
     let mut state = lifecycle();
     state.stopped = true;
     INITIALIZATION_STOPPED.store(true, Ordering::Release);
-    if let Some(worker) = &mut state.worker {
+    if let Some(mut worker) = state.worker.take() {
         worker.shutdown();
     }
+    state.settings = None;
+    // Static configuration has no automatic destructor at module shutdown.
+    // Release its owned evaluator data only after the publisher has joined.
+    super::clear_config();
     set_delivery_state(DeliveryState::Stopped);
     notify_configuration();
 }
@@ -261,6 +270,7 @@ mod tests {
             site: CharSlice::from(""),
             api_key: CharSlice::from(""),
             environment: CharSlice::from(""),
+            thread_cleanup: None,
         };
         assert!(ddog_ffe_configure(&input).endpoint_valid);
         let barrier = Arc::new(Barrier::new(5));
@@ -290,6 +300,9 @@ mod tests {
         }
         ddog_ffe_shutdown();
         assert_eq!(crate::ffe::delivery_state(), DeliveryState::Stopped);
+        assert!(!ddog_ffe_has_config());
+        assert!(lifecycle().worker.is_none());
+        assert!(lifecycle().settings.is_none());
         *lifecycle() = Lifecycle::default();
         INITIALIZATION_STOPPED.store(false, Ordering::Release);
         crate::ffe::clear_config();
