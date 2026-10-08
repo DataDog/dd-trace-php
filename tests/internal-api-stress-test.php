@@ -141,6 +141,25 @@ function call_function(ReflectionFunction $function)
     global $minFunctionArgs;
     print date('Y-m-d H:i:s') . " Executing: {$function->name}\n";
 
+    if ($function->name === 'DDTrace\\Internal\\record_ffe_flag_evaluation') {
+        // Eight parameters make the exhaustive garbage product too large on
+        // older PHP. Exercise a valid call and each argument's garbage values
+        // independently, keeping the other arguments valid so parsing reaches it.
+        $arguments = ['flag', 'variant', 'allocation', 'subject', [], null, false, false];
+        $function->invokeArgs($arguments);
+        foreach ($arguments as $position => $unused) {
+            foreach (generate_garbage() as $garbage) {
+                $invocation = $arguments;
+                $invocation[$position] = $garbage;
+                try {
+                    $function->invokeArgs($invocation);
+                } catch (TypeError $e) {
+                }
+            }
+        }
+        return;
+    }
+
     $i = PHP_VERSION_ID >= 80100 ? $function->getNumberOfRequiredParameters() : ($minFunctionArgs[$function->name] ?? 0);
     $invocations = $i == 0 ? [[]] : [];
     $invocationTypeMap = [];

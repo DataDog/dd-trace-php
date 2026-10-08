@@ -5,7 +5,7 @@ if (!$listener) {
     throw new RuntimeException($error);
 }
 putenv('DD_TRACE_AGENT_URL=http://' . stream_socket_get_name($listener, false));
-$command = 'exec ' . escapeshellarg(getenv('TEST_PHP_EXECUTABLE'))
+$command = (PHP_OS === 'WINNT' ? '' : 'exec ') . escapeshellarg(getenv('TEST_PHP_EXECUTABLE'))
     . ' ' . getenv('TEST_PHP_EXTRA_ARGS')
     . ' ' . escapeshellarg(__DIR__ . '/flag_evaluation_wire_app.php');
 $process = proc_open($command, array(array('pipe', 'r'), array('pipe', 'w'), array('pipe', 'w')), $pipes);
