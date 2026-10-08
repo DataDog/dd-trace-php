@@ -1,5 +1,10 @@
 <?php
 require_once __DIR__ . '/ffe_process.inc';
+// Instrumented startup is not the short initialization-deadline regression.
+if (getenv('USE_ZEND_ALLOC') === '0') {
+    putenv('DD_EXPERIMENTAL_FLAGGING_PROVIDER_INITIALIZATION_TIMEOUT_MS=10000');
+    putenv('DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS=10');
+}
 putenv('PHP_FFE_AGENTLESS_OPENFEATURE=' . ($openFeature ? '1' : '0'));
 $server = stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
 if (!$server) throw new RuntimeException($error);
@@ -67,7 +72,7 @@ try {
         if ($phase === 0) { $expectedEtag = '"blue"'; $phase = 1; }
         elseif ($phase === 1) $phase = 3;
         elseif ($phase === 5) { $expectedEtag = '"green"'; $phase = 6; }
-    } while (microtime(true) - ($readyAt === null ? $startedAt : $readyAt) < ($readyAt === null ? 60 : 35));
+    } while (microtime(true) - ($readyAt === null ? $startedAt : $readyAt) < ($readyAt === null || getenv('USE_ZEND_ALLOC') === '0' ? 60 : 35));
     $stdout .= ffeTestProcessRead($pipes[1]);
     $stderr .= ffeTestProcessRead($pipes[2]);
     if ($exitCode !== 0) throw new RuntimeException('child failed or timed out: ' . $stdout . ' ' . $stderr);

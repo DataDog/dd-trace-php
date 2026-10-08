@@ -3,6 +3,7 @@
 require __DIR__ . '/ffe_api_bootstrap.inc';
 $client = new \DDTrace\FeatureFlags\Client();
 $scenario = getenv('PHP_FFE_PROCESS_SCENARIO');
+$instrumented = getenv('USE_ZEND_ALLOC') === '0';
 echo "fixture_child_ready\n";
 $start = microtime(true);
 $first = $client->getStringValue('flag', 'fallback');
@@ -44,23 +45,23 @@ if ($scenario === 'fork') {
 }
 
 if ($first !== 'fallback') throw new RuntimeException('unexpected initial value');
-if ($elapsed < 0.15 || $elapsed > 1) throw new RuntimeException('initialization deadline not honored');
+if ($elapsed < ($instrumented ? 1.5 : 0.15) || $elapsed > ($instrumented ? 10 : 1)) throw new RuntimeException('initialization deadline not honored: elapsed=' . $elapsed);
 echo "initial_deadline_bounded\n";
 $start = microtime(true);
 for ($i = 0; $i < 10; $i++) $client->getStringValue('flag', 'fallback');
-if (microtime(true) - $start > 0.5) throw new RuntimeException('initialization budget was renewed');
+if (microtime(true) - $start > ($instrumented ? 3 : 0.5)) throw new RuntimeException('initialization budget was renewed: elapsed=' . (microtime(true) - $start));
 echo "later_evaluations_do_not_wait\n";
 if ($scenario === 'shutdown') {
     // The initialization deadline can expire before the worker is scheduled.
     // Confirm the fixture has a request before measuring its cancellation.
-    stream_set_timeout(STDIN, 5);
+    stream_set_timeout(STDIN, $instrumented ? 20 : 5);
     if (fgets(STDIN) !== "request_received\n") {
         throw new RuntimeException('fixture did not observe an in-flight request');
     }
     // Shutdown must not wait for the configured 30-second request timeout.
     exit;
 }
-$deadline = microtime(true) + 7;
+$deadline = microtime(true) + ($instrumented ? 20 : 7);
 do {
     $value = $client->getStringValue('flag', 'fallback');
     if ($value === 'blue') break;
