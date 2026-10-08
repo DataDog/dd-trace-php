@@ -1,0 +1,56 @@
+{
+ "method": "aggregate Mops/s of the timed region (median of 7 repetitions per round), 3 rounds; split: two benchmark processes at the same time, each with its own cache and 8 workers pinned to one CCD, summed; alone: one process with 8 workers on one CCD",
+ "scenarios": {
+  "mixed/64Ki/s0.8": {
+   "shared": [
+    149.266,
+    172.2277,
+    172.0509
+   ],
+   "split": [
+    286.25,
+    284.48,
+    284.04
+   ],
+   "alone": [
+    147.2985,
+    148.0521,
+    147.8462
+   ]
+  },
+  "mixed/1Mi/s0.8": {
+   "shared": [
+    76.378,
+    87.0067,
+    86.5879
+   ],
+   "split": [
+    148.08,
+    146.22,
+    146.86
+   ],
+   "alone": [
+    76.1504,
+    75.7905,
+    75.8132
+   ]
+  },
+  "insert_new/1Mi": {
+   "shared": [
+    64.3788,
+    72.6784,
+    72.6848
+   ],
+   "split": [
+    143.38,
+    141.33,
+    141.75
+   ],
+   "alone": [
+    72.9388,
+    73.7347,
+    73.4122
+   ]
+  }
+ }
+}

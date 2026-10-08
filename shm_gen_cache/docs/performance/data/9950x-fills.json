@@ -1,0 +1,194 @@
+{
+ "insert_new_1Mi-t16": {
+  "cycles_per_op": 1066.8829092916667,
+  "loads_per_op": 248.08566766666667,
+  "sources": {
+   "L1": {
+    "per_op": 241.62837433333334,
+    "latency": 0.0,
+    "cycles_per_op": null,
+    "share": null,
+    "samples": 34487.0
+   },
+   "L2": {
+    "per_op": 0.24733075,
+    "latency": 11.519718309859156,
+    "cycles_per_op": 2.8491805693661973,
+    "share": 0.002670565386840668,
+    "samples": 71.0
+   },
+   "local_ccx": {
+    "per_op": 2.9151810416666666,
+    "latency": 223.31992238033635,
+    "cycles_per_op": 651.018003949628,
+    "share": 0.6102056732559874,
+    "samples": 773.0
+   },
+   "near_cache": {
+    "per_op": 2.4287346666666667,
+    "latency": 271.4443686006826,
+    "cycles_per_op": 659.2663480919226,
+    "share": 0.6179369285516326,
+    "samples": 1758.0
+   },
+   "dram_upgrade": {
+    "per_op": 0.8002273125,
+    "latency": 181.85,
+    "cycles_per_op": 145.521336778125,
+    "share": 0.13639860148733723,
+    "samples": 462.0
+   },
+   "dram_read": {
+    "per_op": 0.06581956249999998,
+    "latency": 709.6,
+    "cycles_per_op": 46.70556154999999,
+    "share": 0.04377758903365423,
+    "samples": 38.0
+   }
+  }
+ },
+ "insert_new_1Mi-t8": {
+  "cycles_per_op": 558.5978986666667,
+  "loads_per_op": 219.78634441666668,
+  "sources": {
+   "L1": {
+    "per_op": 215.17490108333334,
+    "latency": 0.0,
+    "cycles_per_op": null,
+    "share": null,
+    "samples": 5499.0
+   },
+   "L2": {
+    "per_op": 0.37004725,
+    "latency": 11.642857142857142,
+    "cycles_per_op": 4.308407267857143,
+    "share": 0.007712895587579194,
+    "samples": 21.0
+   },
+   "local_ccx": {
+    "per_op": 3.6163595,
+    "latency": 48.51239669421488,
+    "cycles_per_op": 175.43826665289257,
+    "share": 0.31406896995432887,
+    "samples": 242.0
+   },
+   "near_cache": {
+    "per_op": 0.0,
+    "latency": null,
+    "cycles_per_op": null,
+    "share": null,
+    "samples": 0.0
+   },
+   "dram_upgrade": {
+    "per_op": 0.0,
+    "latency": null,
+    "cycles_per_op": null,
+    "share": null,
+    "samples": 0.0
+   },
+   "dram_read": {
+    "per_op": 0.6250365833333333,
+    "latency": 569.354716981132,
+    "cycles_per_op": 355.8675270066037,
+    "share": 0.6370727993356834,
+    "samples": 53.0
+   }
+  }
+ },
+ "lookup_hit_32Ki_s0.8-t16": {
+  "cycles_per_op": 241.10116408333334,
+  "loads_per_op": 245.90897720833334,
+  "sources": {
+   "L1": {
+    "per_op": 238.32372154166669,
+    "latency": 0.0,
+    "cycles_per_op": null,
+    "share": null,
+    "samples": 15377.0
+   },
+   "L2": {
+    "per_op": 4.514326,
+    "latency": 10.701532567049808,
+    "cycles_per_op": 48.31020670727969,
+    "share": 0.20037317899710316,
+    "samples": 522.0
+   },
+   "local_ccx": {
+    "per_op": 3.016181625,
+    "latency": 36.84484346224678,
+    "cycles_per_op": 111.13073982683012,
+    "share": 0.46092991815012263,
+    "samples": 1086.0
+   },
+   "near_cache": {
+    "per_op": 0.0030634583333333334,
+    "latency": 564.9799999999999,
+    "cycles_per_op": 1.7307926891666665,
+    "share": 0.007178699015191986,
+    "samples": 10.0
+   },
+   "dram_upgrade": {
+    "per_op": 0.004698598484848485,
+    "latency": 536.0,
+    "cycles_per_op": 2.5184487878787882,
+    "share": 0.010445610237735395,
+    "samples": 1.0
+   },
+   "dram_read": {
+    "per_op": 0.046985984848484846,
+    "latency": 509.62,
+    "cycles_per_op": 23.944997598484846,
+    "share": 0.09931514718945357,
+    "samples": 10.0
+   }
+  }
+ },
+ "mixed_64Ki_s0.8-t16": {
+  "cycles_per_op": 534.2028710833333,
+  "loads_per_op": 293.95775704166664,
+  "sources": {
+   "L1": {
+    "per_op": 284.42184149999997,
+    "latency": 0.0,
+    "cycles_per_op": null,
+    "share": null,
+    "samples": 27012.0
+   },
+   "L2": {
+    "per_op": 4.182887916666667,
+    "latency": 10.844298245614034,
+    "cycles_per_op": 45.36048409630848,
+    "share": 0.08491246781268692,
+    "samples": 684.0
+   },
+   "local_ccx": {
+    "per_op": 4.072742291666667,
+    "latency": 47.21437125748503,
+    "cycles_per_op": 192.29196659481036,
+    "share": 0.3599605636803357,
+    "samples": 1503.0
+   },
+   "near_cache": {
+    "per_op": 0.78678425,
+    "latency": 318.27383177570096,
+    "cycles_per_op": 250.41283802827104,
+    "share": 0.46875981314074167,
+    "samples": 428.0
+   },
+   "dram_upgrade": {
+    "per_op": 0.36870770593869734,
+    "latency": 106.94923076923078,
+    "cycles_per_op": 39.43300552883142,
+    "share": 0.07381653612018878,
+    "samples": 65.0
+   },
+   "dram_read": {
+    "per_op": 0.12479337739463597,
+    "latency": 557.8045454545455,
+    "cycles_per_op": 69.61031315335248,
+    "share": 0.13030688699255152,
+    "samples": 22.0
+   }
+  }
+ }
+}

@@ -195,12 +195,13 @@ span the lowest to the highest run.
 
 Read-mostly scenarios scale almost linearly: at 16 threads the 9950X keeps
 91-92% of the single-thread rate per thread, and the m5.metal 98% at 43
-threads. Write-heavy scenarios scale until the workers cross the boundary
-between caches (from 8 to 9 threads on the 9950X, from 19 to 20 on the
-m5.metal), where the aggregate throughput drops: on the 9950X insert_new
-falls from 73 to 52 Mops/s and mixed/64Ki/s0.8 from 148 to 84; on the
-m5.metal from 49.5 to 34 and from 105 to 59. Adding cores beyond the boundary
-recovers some of that, but insert_new never gets back to its peak.
+threads. Write-heavy scenarios scale only while all workers share one L3
+cache: the aggregate throughput drops when the 9th worker lands on the
+9950X's second CCD, and when the 20th lands on the m5.metal's second
+socket. On the 9950X insert_new/1Mi falls from 73 to 52 Mops/s and
+mixed/64Ki/s0.8 from 148 to 84; on the m5.metal from 49.5 to 34 and from 105
+to 59. Adding cores on the second CCD or socket recovers some of that, but
+insert_new/1Mi never gets back to its peak.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/performance/9950x-throughput-dark.svg">
@@ -223,63 +224,99 @@ perfect scaling):
   <img alt="Scaling efficiency on the m5.metal" src="docs/performance/m5metal-scaling-light.svg">
 </picture>
 
-### Why write scaling collapses at the boundary
+### Why write scaling collapses once workers span two L3 caches
 
-Every insert publishes its index entry with a compare-and-swap on the index
-slot. Buckets are random and a 64-byte line holds 8 slots, so the line an
-insert needs was usually last written by another inserter. While all workers
-share one L3 (one CCD of the 9950X, one socket of the m5.metal), that line is
-fetched from the shared cache. Once workers sit on both sides of a boundary,
-a growing share of those lines is modified in the other CCD's or socket's
-cache and must cross the interconnect. Lookups only read index lines that
-nobody is writing, so the lines stay shared in every cache and nothing
-crosses the boundary.
+An insert writes two kinds of lines that other workers write too. It
+publishes its index entry with a compare-and-swap on the index slot;
+buckets are random and a 64-byte line holds 8 slots, so the line was
+usually last written by another worker. And it reads the arena's control
+word, which every worker bumps with a `fetch_add` whenever it claims a new
+chunk of the arena. While all workers share one L3, such a line comes from
+there. Once they run on both CCDs or sockets, the line, or exclusive
+ownership of it, increasingly has to come from the other L3. Lookups only
+read lines that nobody writes, so those stay shared in both L3 caches.
 
-Hardware counters of the timed region (a run with 7 repetitions minus one
-with 1, so setup and warm-up are excluded) show this directly. Instructions
-per operation stay flat across thread counts; cycles per operation jump
-exactly where cross-boundary transfers appear:
-
-- **9950X**, insert_new: fills from the other CCD's cache
-  (`ls_any_fills_from_sys.near_cache`) go from 0.02 per operation at 8
-  threads to 0.95 at 9 and 2.9 at 16, while cycles per operation go from 615
-  to 987 and 1222 at 598-629 instructions. lookup_hit stays at 0 such fills
-  and 235-261 cycles. Each extra cross-CCD fill comes with about 400 extra
-  cycles per operation at 9 threads. `perf c2c` at 16 threads attributes all
-  92 cross-CCD modified-line loads it sampled to one instruction: the
-  `lock cmpxchg` of `table_put` (`src/arena/put.rs`).
-- **m5.metal**, insert_new: loads served by a modified line in the other
-  socket (`mem_load_l3_miss_retired.remote_hitm`) go from 0 at 19 threads to
-  0.075 per operation at 20 and 0.23 at 32, while cycles per operation go
-  from 576 to 847 and 1910 at 43 threads, at 418-433 instructions. Each
-  extra cross-socket transfer comes with 2,600-4,500 extra cycles, far more
-  than one remote access takes, so the lines are presumably also contended:
-  the locked compare-and-swap has to wait for exclusive ownership of a line
-  that workers on both sockets are trying to own. Within socket 0, loads of
-  lines modified by another core of the same socket (`xsnp_hitm`) already
-  reach 0.48 per operation at 8 threads but add only about 24 cycles. Up to
-  19 threads they stay at 0.48-0.58 per operation while cycles rise from
-  363 to 576, so the milder decline before the boundary presumably comes
-  from more cores contending for the same lines rather than from more
-  transfers.
+The hardware counters (timed region only) bear this out. An insert in
+insert_new/1Mi executes the same instructions at every thread count (598-629
+on the 9950X, 419-433 on the m5.metal), but its cycles jump when the
+workers cross to the second CCD or socket, while lookup_hit/32Ki/s0.8 stays
+flat. On the 9950X, AMD IBS samples show that all L3-level fills of an
+insert get slower: from its own L3 they take about 50 cycles while one CCD
+is in use, but over 200 at 14-16 threads, and from the other CCD 270-290.
+On the m5.metal each extra cross-socket load comes with 2,600-4,500 extra
+cycles, far more than one remote access takes, so there the lines are
+presumably contended too.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/performance/9950x-counters-dark.svg">
-  <img alt="Cycles and cross-CCD fills per operation on the Ryzen 9 9950X" src="docs/performance/9950x-counters-light.svg">
+  <img alt="Cycles per operation and latency of fills from an L3 on the Ryzen 9 9950X" src="docs/performance/9950x-counters-light.svg">
 </picture>
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/performance/m5metal-counters-dark.svg">
   <img alt="Cycles and cross-socket modified-line loads per operation on the m5.metal" src="docs/performance/m5metal-counters-light.svg">
 </picture>
 
-No operation failed on the 9950X. On the m5.metal, 17 of 21.4 billion timed
-operations failed (inserts at 28-36 threads); the benchmark counts
-failures without recording their status.
+The IBS samples of insert_new/1Mi at 16 threads also tell which lines
+these are. Most fills from the other CCD are the compare-and-swaps of
+`table_put` (`src/arena/put.rs`), at about 225 cycles each. The slow fills
+from the own L3 are mostly the arena's control word in `reserve`
+(`src/cache/store.rs`): its plain load takes about 700 cycles on average and
+its `fetch_add` 600-850, while the index lines, when they do come from the
+own L3, take about 80. A line that both CCDs keep writing is slow to get
+even where the own L3 is the one serving it.
+
+A second CCD also adds memory traffic and L3 capacity, so an experiment on
+the 9950X isolates the sharing. With 8 workers, insert_new/1Mi runs on one
+CCD, split 4+4 across both, or on one CCD.
+
+Weighting each source's fills per insert by their mean IBS latency shows
+where the time goes (an upper bound per source, since misses overlap). The
+second CCD's L3 removes almost all DRAM reads, but slower hits in the own
+L3, fills from the other CCD, and ownership requests more than take their
+place. The ownership requests are compare-and-swaps whose line the plain
+load just before had already fetched; IBS labels them as served by DRAM,
+but they take under 200 cycles, against about 590 for a real DRAM read on
+this machine.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/performance/9950x-fills-dark.svg">
+  <img alt="Miss latency per insert by source for insert_new/1Mi at 8 and 16 threads on the Ryzen 9 9950X" src="docs/performance/9950x-fills-light.svg">
+</picture>
+
+### Conclusion: one instance per CCD for write-heavy use
+
+Write-heavy use scales as long as an instance's lines stay within one L3.
+So where inserts are frequent, one shm_gen_cache instance per CCD (per
+socket on a multi-socket machine), each used only by workers running on
+that CCD, should scale where a single shared instance does not. On the
+9950X, two such instances, each with 8 workers pinned to its CCD and run as
+two benchmark processes at the same time, delivered together 1.95 times the
+throughput of one instance with 16 workers in insert_new/1Mi, almost exactly
+twice what 8 workers on one CCD reach alone, and 1.65-1.70 times in the
+mixed scenarios (median of 3 rounds):
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/performance/9950x-per-ccd-dark.svg">
+  <img alt="Aggregate throughput of one shared instance against one instance per CCD on the Ryzen 9 9950X" src="docs/performance/9950x-per-ccd-light.svg">
+</picture>
+
+The split has costs this benchmark does not show, since each of its
+instances had the full configured size and saw its own key stream at the
+same hit rate as the shared one. In real use, a hot key is cached once per
+CCD, so it misses, and has to be computed and inserted, once in each; and
+for the same total memory each instance is half as large. Read-mostly use
+already scales with one instance and would only lose hits by splitting it.
 
 The figures and their data are in `docs/performance/`: `data/*.json` holds
 every run's value and the counters per operation, and `plot.py` aggregates
-raw results into it and draws the figures (`uv run plot.py --help`). The
-m5.metal job is `gustavo.lopes/shm-gen-cache-rust-scaling` in
+raw results into it and draws the figures (`uv run plot.py --help`);
+`plot.py fills-table data/9950x-fills.json` prints the fill sources as a
+table, with every source and also mixed/64Ki/s0.8 and lookup_hit/32Ki/s0.8.
+`data/9950x-l3lat.json` has the IBS fill counts and latencies per thread
+count, `data/9950x-l3lat-instructions-t16.txt` the instructions behind the
+fills at 16 threads, and `data/9950x-sharing.json` and
+`data/9950x-per-ccd.json` the two experiments. The m5.metal job is
+`gustavo.lopes/shm-gen-cache-rust-scaling` in
 DataDog/benchmarking-platform.
 
 ## Build variants
