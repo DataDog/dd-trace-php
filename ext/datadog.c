@@ -235,7 +235,12 @@ static pthread_once_t dd_tracer_first_rinit_control = PTHREAD_ONCE_INIT;
 static bool dd_is_cli_autodisabled(const char *arg) {
     const char *slashend = strrchr(arg, '/');
     const char *backslashend = strrchr(arg, '\\');
-    arg = MAX(MAX(slashend, backslashend) + 1, arg);
+    if (slashend) {
+        arg = slashend + 1;
+    }
+    if (backslashend && (!slashend || backslashend > slashend)) {
+        arg = backslashend + 1;
+    }
     return strcmp(arg, "composer") == 0 || strcmp(arg, "composer.phar") == 0;
 }
 
