@@ -112,8 +112,8 @@ $(BUILD_DIR)/Cargo.toml: Cargo.toml
 	$(Q) mkdir -p $(dir $@)
 	$(Q) cp -a Cargo.toml $@
 	$(SED_I) -E \
-		-e '/^[[:space:]]*"(profiling|sidecar|appsec\/helper-rust)",?[[:space:]]*$$/d' \
-		-e 's/, "(profiling|sidecar|appsec\/helper-rust)"//g' \
+		-e '/^[[:space:]]*"(profiling|sidecar|appsec\/helper-rust|shm_gen_cache|shm_gen_cache\/verification)",?[[:space:]]*$$/d' \
+		-e 's/, "(profiling|sidecar|appsec\/helper-rust|shm_gen_cache|shm_gen_cache\/verification)"//g' \
 		-e 's|path = "libdatadog/|path = "../../libdatadog/|g' \
 		-e 's|path = "sidecar"|path = "../../sidecar"|g' $@
 
