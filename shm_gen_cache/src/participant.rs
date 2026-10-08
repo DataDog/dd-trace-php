@@ -53,8 +53,7 @@ impl State {
 
     #[inline(always)]
     pub(crate) fn initializing(pid: u32, registration_id: u32) -> State {
-        production_assert!(pid != 0 && registration_id != 0);
-        State(1 | (pid as u64 & Self::PID_MASK) << 1 | (registration_id as u64) << 32)
+        State(Self::registered(pid, registration_id).0 | 1)
     }
 
     #[inline(always)]
@@ -247,30 +246,27 @@ impl ParticipantSlot {
     ///
     /// The caller must first acquire the rotation-owner publication. This
     /// prevents observing a state from before that owner's registration.
-    /// Decodes the state word directly rather than through [`StateKind`];
-    /// both decide exactly alike.
     pub(crate) fn registration_is_live<Pid: GetPid>(
         &self,
         registration: u32,
     ) -> Result<bool, Error> {
-        let current = self.state.load(Acquire);
-        if current == State::FREE.0 {
-            return Ok(false);
-        }
-        if current == State::REAPING.0 {
+        match State(self.state.load(Acquire)).kind() {
+            StateKind::Free => Ok(false),
             // REAPING does not publish the death check or cleanup. Wait for
             // the reaper's release of FREE before taking over.
-            return Ok(true);
-        }
-        let current = State(current);
-        if current.registration_id() != registration {
-            return Ok(false);
-        }
-        if current.0 & 1 != 0 {
+            StateKind::Reaping => Ok(true),
             // A matching INITIALIZING state cannot follow a published owner;
             // conservatively wait if the precondition is violated.
-            return Ok(true);
+            StateKind::Initializing {
+                registration_id, ..
+            } if registration_id == registration => Ok(true),
+            StateKind::Registered {
+                pid,
+                registration_id,
+            } if registration_id == registration => {
+                Pid::is_live_since(pid, self.thread_disambiguation.load(Acquire))
+            }
+            _ => Ok(false),
         }
-        Pid::is_live_since(current.pid(), self.thread_disambiguation.load(Acquire))
     }
 }
