@@ -84,6 +84,9 @@ stages:
     KUBERNETES_MEMORY_LIMIT: 10Gi
     # nextest runs at most 4 GenMC trials at once (.config/nextest.toml).
     SGC_GENMC_NTHREADS: 2
+    # The internal mirror of the GenMC image (ddoghq/images mirror.yaml);
+    # the digest stays the one pinned in verification/tests/genmc.rs.
+    SGC_GENMC_REPOSITORY: "registry.ddbuild.io/images/mirror/cataphract/genmc"
     NEXTEST_VERSION: "0.9.140"
   before_script:
     # The image runs as an unprivileged user with passwordless sudo.

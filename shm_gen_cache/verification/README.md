@@ -134,7 +134,8 @@ Environment overrides:
 
 | variable | default | meaning |
 |---|---|---|
-| `SGC_GENMC_IMAGE` | the pinned digest in `tests/genmc.rs` | GenMC container image |
+| `SGC_GENMC_IMAGE` | `SGC_GENMC_REPOSITORY@`, then the digest pinned in `tests/genmc.rs` | GenMC container image |
+| `SGC_GENMC_REPOSITORY` | `ghcr.io/cataphract/genmc` | repository of the pinned image (CI uses the internal mirror) |
 | `SGC_GENMC_DOCKER` | `docker` | docker-compatible CLI |
 | `SGC_GENMC_NTHREADS` | a quarter of the cores | GenMC `-nthreads` |
 | `SGC_GENMC_ARGS` | (none) | extra GenMC arguments, whitespace-separated (e.g. `-disable-spin-assume`) |

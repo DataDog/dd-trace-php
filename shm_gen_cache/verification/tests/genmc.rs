@@ -45,8 +45,13 @@ const PROGRAMS: &[Program] = include!(concat!(env!("OUT_DIR"), "/programs.rs"));
 /// threads. Their native trials still run.
 const GENMC_IGNORED: &[&str] = &["lookup_during_reuse"];
 
-/// The default container image (GenMC v0.19.0, LLVM 21); see README.md.
-const DEFAULT_IMAGE: &str = "ghcr.io/cataphract/genmc@sha256:cf4d0dff5379324727de68d264d6135e53ea2f9018e7d68f0a5d4a20d4e25479";
+/// The default image repository; `SGC_GENMC_REPOSITORY` replaces it (CI uses
+/// an internal mirror of it).
+const DEFAULT_REPOSITORY: &str = "ghcr.io/cataphract/genmc";
+/// The pinned image (GenMC v0.19.0, LLVM 21), under any repository that holds
+/// it; see README.md.
+const IMAGE_DIGEST: &str =
+    "sha256:d8d18fe1ebe65757b01d93409bb6d1387c85a1291dd7bf4971c6ab9d40907597";
 /// Where the image keeps the LLVM tools GenMC was built with.
 const IMAGE_LLVM_BIN: &str = "/usr/lib/llvm-21/bin";
 
@@ -344,7 +349,11 @@ impl Setup {
         Ok(Setup {
             repo,
             work,
-            image: var("SGC_GENMC_IMAGE").unwrap_or_else(|| DEFAULT_IMAGE.to_owned()),
+            image: var("SGC_GENMC_IMAGE").unwrap_or_else(|| {
+                let repository =
+                    var("SGC_GENMC_REPOSITORY").unwrap_or_else(|| DEFAULT_REPOSITORY.to_owned());
+                format!("{repository}@{IMAGE_DIGEST}")
+            }),
             docker: var("SGC_GENMC_DOCKER").unwrap_or_else(|| "docker".to_owned()),
             nthreads,
             genmc_args: var("SGC_GENMC_ARGS")
@@ -364,7 +373,10 @@ impl Setup {
             self.docker.as_bytes(),
         ];
         let dir = self.cached("toolchain", key, |dir| {
-            let what = format!("the GenMC image {} (SGC_GENMC_IMAGE)", self.image);
+            let what = format!(
+                "the GenMC image {} (SGC_GENMC_IMAGE, SGC_GENMC_REPOSITORY)",
+                self.image
+            );
             let mut opt = self.docker(&format!("{IMAGE_LLVM_BIN}/opt"));
             opt.arg("--version");
             let opt_version = self
