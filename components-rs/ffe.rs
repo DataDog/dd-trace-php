@@ -11,13 +11,14 @@ use std::sync::{Arc, LazyLock};
 
 #[allow(dead_code)]
 pub(crate) mod agentless;
+pub(crate) mod lifecycle;
 #[allow(dead_code)]
 pub(crate) mod settings;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
 #[allow(dead_code)]
-pub(crate) enum DeliveryState {
+pub enum DeliveryState {
     Inactive,
     Starting,
     Ready,
@@ -52,6 +53,11 @@ pub(crate) fn delivery_state() -> DeliveryState {
     }
 }
 
+#[no_mangle]
+pub extern "C" fn ddog_ffe_delivery_state() -> DeliveryState {
+    delivery_state()
+}
+
 #[allow(dead_code)]
 pub(crate) fn set_delivery_state(state: DeliveryState) {
     DELIVERY_STATE.store(state as u8, Ordering::Release);
@@ -60,6 +66,7 @@ pub(crate) fn set_delivery_state(state: DeliveryState) {
 pub(crate) fn store_config(config: Configuration) -> ConfigurationTransition {
     FFE_CONFIG.store(Some(Arc::new(config)));
     FFE_VERSION.fetch_add(1, Ordering::AcqRel);
+    lifecycle::notify_configuration();
 
     let previous = DELIVERY_STATE.swap(DeliveryState::Ready as u8, Ordering::AcqRel);
     if previous == DeliveryState::Ready as u8 {
@@ -354,7 +361,7 @@ mod tests {
     use std::sync::{Mutex, Once};
 
     static INIT_ZEND_STRING_FUNCTIONS: Once = Once::new();
-    static FFE_TEST_LOCK: Mutex<()> = Mutex::new(());
+    pub(super) static FFE_TEST_LOCK: Mutex<()> = Mutex::new(());
 
     fn setup_zend_string_functions() {
         INIT_ZEND_STRING_FUNCTIONS.call_once(|| unsafe {

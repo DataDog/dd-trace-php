@@ -1874,6 +1874,7 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
         attrs_count = idx;
     }
 
+    ddog_ffe_ensure_initialized();
     result = ddog_ffe_evaluate(
         dd_zend_string_to_CharSlice(flag_key),
         type_id,
@@ -2952,6 +2953,25 @@ PHP_FUNCTION(DDTrace_Internal_record_ffe_flag_evaluation) {
     ZEND_PARSE_PARAMETERS_END();
     RETURN_BOOL(ddtrace_ffe_record_flag_evaluation(flag_key, variant, allocation_key,
         targeting_key, attributes, error_type, runtime_default_used, observe_full_evaluation_data));
+}
+
+PHP_FUNCTION(DDTrace_Internal_ffe_provider_state) {
+    ZEND_PARSE_PARAMETERS_NONE();
+    ddog_FfeRuntimeConfig config = ddog_ffe_runtime_config();
+    bool has_config = ddog_ffe_has_config();
+    array_init(return_value);
+    add_assoc_bool(return_value, "ready", config.enabled && has_config);
+    add_assoc_bool(return_value, "hasConfig", has_config);
+    add_assoc_long(return_value, "configVersion", ddog_ffe_config_version());
+    add_assoc_bool(return_value, "productionRuntime", true);
+    add_assoc_bool(return_value, "enabled", config.enabled);
+    const char *mode = config.source == DDOG_FFE_CONFIGURATION_SOURCE_AGENTLESS
+        ? "native_agentless" : config.source == DDOG_FFE_CONFIGURATION_SOURCE_REMOTE_CONFIG
+        ? "native_remote_config" : "native_disabled";
+    add_assoc_string(return_value, "mode", (char *) mode);
+    add_assoc_string(return_value, "reason", !config.enabled ? "disabled"
+        : has_config ? (ddog_ffe_delivery_state() == DDOG_DELIVERY_STATE_STALE ? "stale" : "ready")
+        : "configuration_missing");
 }
 
 /* {{{ proto array generate_distributed_tracing_headers() */

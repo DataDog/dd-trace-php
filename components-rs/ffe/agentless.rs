@@ -65,6 +65,15 @@ impl AgentlessWorker {
     }
 
     pub(crate) fn start(&mut self) -> Result<bool, WorkerStartError> {
+        // A runtime creation failure must not leave a finished thread looking
+        // like an active poller forever. The next ordinary evaluation may retry.
+        if self
+            .running
+            .as_ref()
+            .is_some_and(|worker| worker.thread.is_finished())
+        {
+            self.stop_running();
+        }
         if self.running.is_some() || self.permanently_stopped {
             return Ok(false);
         }
@@ -157,5 +166,35 @@ impl AgentlessWorker {
 impl Drop for AgentlessWorker {
     fn drop(&mut self) {
         self.stop_running();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_finished_worker_can_restart_but_shutdown_is_permanent() {
+        let endpoint = AgentlessEndpoint::build("http://127.0.0.1:1/config", "", "", "").unwrap();
+        let mut worker = AgentlessWorker::new(AgentlessWorkerConfig::new(
+            endpoint,
+            Duration::from_secs(30),
+            Duration::from_secs(30),
+        ));
+        // Model the worker returning before polling (for example when Tokio
+        // cannot allocate its runtime). Its handle must not suppress retries.
+        let thread = std::thread::spawn(|| {});
+        while !thread.is_finished() {
+            std::thread::yield_now();
+        }
+        worker.running = Some(RunningWorker {
+            cancellation: CancellationToken::new(),
+            thread,
+        });
+        assert_eq!(worker.start(), Ok(true));
+        assert_eq!(worker.start(), Ok(false));
+        worker.shutdown();
+        assert!(worker.running.is_none());
+        assert_eq!(worker.start(), Ok(false));
     }
 }

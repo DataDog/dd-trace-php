@@ -3,6 +3,7 @@
 #include "configuration.h"
 #include "span.h"
 #include <components-rs/common.h>
+#include <components-rs/datadog.h>
 #include <components-rs/sidecar.h>
 #include <ext/configuration.h>
 #include <ext/datadog.h>
@@ -16,6 +17,25 @@ ZEND_EXTERN_MODULE_GLOBALS(datadog);
 #define DD_FFE_METRIC_BUFFER_LIMIT 1000
 #define DD_FFE_EXPOSURE_BUFFER_LIMIT 1000
 #define DD_FFE_CONTEXT_FIELD_LIMIT 256
+
+ddog_FfeRuntimeConfig ddtrace_ffe_configure(void) {
+    const ddog_FfeSettingsInput settings = {
+        .enabled = get_global_DD_FEATURE_FLAGS_ENABLED(),
+        .enabled_set = zai_config_memoized_entries[DATADOG_CONFIG_DD_FEATURE_FLAGS_ENABLED].name_index != ZAI_CONFIG_ORIGIN_DEFAULT,
+        .source = dd_zend_string_to_CharSlice(get_global_DD_FEATURE_FLAGS_CONFIGURATION_SOURCE()),
+        .source_set = zai_config_memoized_entries[DATADOG_CONFIG_DD_FEATURE_FLAGS_CONFIGURATION_SOURCE].name_index != ZAI_CONFIG_ORIGIN_DEFAULT,
+        .legacy_enabled = get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED(),
+        .legacy_enabled_set = zai_config_memoized_entries[DATADOG_CONFIG_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED].name_index != ZAI_CONFIG_ORIGIN_DEFAULT,
+        .agentless_base_url = dd_zend_string_to_CharSlice(get_global_DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL()),
+        .poll_interval_seconds = get_global_DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS(),
+        .request_timeout_seconds = get_global_DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS(),
+        .initialization_timeout_ms = get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_INITIALIZATION_TIMEOUT_MS(),
+        .site = dd_zend_string_to_CharSlice(get_global_DD_SITE()),
+        .api_key = dd_zend_string_to_CharSlice(get_global_DD_API_KEY()),
+        .environment = dd_zend_string_to_CharSlice(get_global_DD_ENV()),
+    };
+    return ddog_ffe_configure(&settings);
+}
 
 bool ddtrace_ffe_record_flag_evaluation(zend_string *flag_key, zend_string *variant,
     zend_string *allocation_key, zend_string *targeting_key, HashTable *attributes,

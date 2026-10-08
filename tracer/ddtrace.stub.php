@@ -1097,6 +1097,8 @@ namespace DDTrace\Internal {
     /** @internal Submit one final evaluation without waiting or reconnecting. */
     function record_ffe_flag_evaluation(string $flagKey, ?string $variant, ?string $allocationKey, ?string $targetingKey, array $attributes, ?string $errorType, bool $runtimeDefaultUsed, bool $observeFullEvaluationData): bool {}
 
+    function ffe_provider_state(): array {}
+
 }
 
 namespace datadog\appsec\v2 {

@@ -728,6 +728,9 @@ static PHP_MINFO_FUNCTION(datadog) {
 
 void datadog_internal_handle_fork(void) {
     // CHILD PROCESS
+#ifdef DDTRACE
+    ddog_ffe_resume_after_fork(true);
+#endif
     datadog_force_new_instance_id();
     datadog_sidecar_handle_fork();
 #ifdef __linux__

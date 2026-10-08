@@ -19,6 +19,8 @@ const MAX_POLL_ATTEMPTS: usize = 3;
 
 pub(super) trait ConfigurationSink: Send + Sync {
     fn apply(&self, configuration: Configuration) -> Result<ConfigurationTransition, ()>;
+    fn failed(&self) {}
+    fn confirmed(&self) {}
 }
 
 pub(super) struct GlobalConfigurationSink;
@@ -26,6 +28,22 @@ pub(super) struct GlobalConfigurationSink;
 impl ConfigurationSink for GlobalConfigurationSink {
     fn apply(&self, configuration: Configuration) -> Result<ConfigurationTransition, ()> {
         Ok(store_config(configuration))
+    }
+
+    fn failed(&self) {
+        use crate::ffe::{ddog_ffe_has_config, set_delivery_state, DeliveryState};
+        set_delivery_state(if ddog_ffe_has_config() {
+            DeliveryState::Stale
+        } else {
+            DeliveryState::Starting
+        });
+    }
+
+    fn confirmed(&self) {
+        use crate::ffe::{ddog_ffe_has_config, set_delivery_state, DeliveryState};
+        if ddog_ffe_has_config() {
+            set_delivery_state(DeliveryState::Ready);
+        }
     }
 }
 
@@ -132,11 +150,15 @@ impl<T: Transport, S: ConfigurationSink> Poller<T, S> {
             let poll = AssertUnwindSafe(self.poll(&cancellation)).catch_unwind();
             match poll.await {
                 Ok(PollOutcome::Cancelled) => return,
-                Ok(_) => {}
-                Err(_) => self.warn(
-                    WarningCategory::UnexpectedException,
-                    "Feature Flags agentless polling failed unexpectedly; polling continues",
-                ),
+                Ok(PollOutcome::Success) => self.sink.confirmed(),
+                Ok(_) => self.sink.failed(),
+                Err(_) => {
+                    self.sink.failed();
+                    self.warn(
+                        WarningCategory::UnexpectedException,
+                        "Feature Flags agentless polling failed unexpectedly; polling continues",
+                    );
+                }
             }
 
             tokio::select! {
