@@ -156,8 +156,8 @@
     CONFIG(INT, DD_TRACE_BAGGAGE_MAX_ITEMS, "64")                                                              \
     CONFIG(INT, DD_TRACE_BAGGAGE_MAX_BYTES, "8192")                                                            \
     CONFIG(BOOL, DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED, "false")                                            \
-    CONFIG(SET, DD_TRACE_HTTP_CLIENT_ERROR_STATUSES, "400-499", .ini_change = zai_config_system_ini_change)    \
-    CONFIG(SET, DD_TRACE_HTTP_SERVER_ERROR_STATUSES, "500-599", .ini_change = zai_config_system_ini_change)    \
+    CONFIG(SET, DD_TRACE_HTTP_CLIENT_ERROR_STATUSES, "400-499")                                                \
+    CONFIG(SET, DD_TRACE_HTTP_SERVER_ERROR_STATUSES, "500-599")                                                \
     CONFIG(BOOL, DD_CODE_ORIGIN_FOR_SPANS_ENABLED, "true", .ini_change = ddtrace_alter_DD_CODE_ORIGIN_FOR_SPANS_ENABLED) \
     CONFIG(INT, DD_CODE_ORIGIN_MAX_USER_FRAMES, "8")                                                           \
     CONFIG(BOOL, DD_TRACE_RESOURCE_RENAMING_ENABLED, "false")                                                  \
