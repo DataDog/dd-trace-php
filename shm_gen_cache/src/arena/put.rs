@@ -50,59 +50,58 @@ pub(crate) fn table_put(
     let start = mixed_hash as u32 & mask;
     let tag = codec.hash_tag(mixed_hash);
     production_assert!(record_offset < hp.record_area_size);
-    let new_entry = IndexEntry::new(stamp, codec.encode(record_offset, tag)).0;
+    let entry_word = IndexEntry::new(stamp, codec.encode(record_offset, tag)).0;
 
     let mut home_occupied = false;
     let mut probe: u32 = 0;
-    while probe <= mask {
-        let slot = arena.slot((start + probe) & mask);
-        let current = slot.load(Acquire);
-        let occupied = IndexEntry(current).epoch() == stamp;
-        if probe == 0 {
-            home_occupied = occupied;
-        }
-        if occupied {
-            if codec.tag(IndexEntry(current).r#ref()) == tag
-                && entry_has_key(
-                    arena,
-                    codec,
-                    hp.record_area_size,
-                    stamp,
-                    IndexEntry(current),
-                    key,
-                )
-            {
-                if !promotion {
-                    // Unconditionally update the slot.
-                    slot.store(new_entry, Release); // I2
-                }
-                return if target_reached(false, home_occupied) {
-                    PutStatus::Full
-                } else {
-                    PutStatus::Ok
-                };
+    let new_entry = 'put: {
+        while probe <= mask {
+            let slot = arena.slot((start + probe) & mask);
+            let current = slot.load(Acquire);
+            let occupied = IndexEntry(current).epoch() == stamp;
+            if probe == 0 {
+                home_occupied = occupied;
             }
-            probe += 1;
-            continue;
-        }
+            if occupied {
+                if codec.tag(IndexEntry(current).r#ref()) == tag
+                    && entry_has_key(
+                        arena,
+                        codec,
+                        hp.record_area_size,
+                        stamp,
+                        IndexEntry(current),
+                        key,
+                    )
+                {
+                    if !promotion {
+                        // Unconditionally update the slot.
+                        slot.store(entry_word, Release); // I2
+                    }
+                    break 'put false;
+                }
+                probe += 1;
+                continue;
+            }
 
-        if slot
-            .compare_exchange(current, new_entry, Release, Relaxed)
-            .is_ok()
-        {
-            // I2
-            return if target_reached(true, home_occupied) {
-                PutStatus::Full
-            } else {
-                PutStatus::Ok
-            };
+            if slot
+                .compare_exchange(current, entry_word, Release, Relaxed)
+                .is_ok()
+            {
+                // I2
+                break 'put true;
+            }
+            // The relaxed value of the failed CAS is discarded on purpose:
+            // acquire-load and examine the winner at the same slot before
+            // advancing, since it may have inserted this very key (and the
+            // acquire licenses entry_has_key's relaxed record loads).
         }
-        // The relaxed value of the failed CAS is discarded on purpose:
-        // acquire-load and examine the winner at the same slot before
-        // advancing, since it may have inserted this very key (and the
-        // acquire licenses entry_has_key's relaxed record loads).
+        return PutStatus::FullRejected;
+    };
+    if target_reached(new_entry, home_occupied) {
+        PutStatus::Full
+    } else {
+        PutStatus::Ok
     }
-    PutStatus::FullRejected
 }
 
 /// Whether `entry` (of incarnation `epoch`) points at a consistent record
