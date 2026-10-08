@@ -38,7 +38,7 @@ $process = ffeTestProcess(__DIR__ . '/flag_evaluation_wire_app.php', $pipes);
 if (!is_resource($process)) {
     throw new RuntimeException('failed to launch evaluation process');
 }
-fclose($pipes[0]);
+$acknowledged = false;
 $captures = array();
 $requests = array();
 $stdout = $stderr = '';
@@ -46,10 +46,12 @@ $exitedAt = null;
 $exitCode = null;
 $lastCaptureAt = 0;
 try {
-    $deadline = microtime(true) + (getenv('USE_ZEND_ALLOC') === '0' ? 30 : 10);
+    $startedAt = microtime(true);
+    $readyAt = null;
     do {
         $stdout .= ffeTestProcessRead($pipes[1]);
         $stderr .= ffeTestProcessRead($pipes[2]);
+        if ($readyAt === null && strpos($stdout, "fixture_wire_ready\n") !== false) $readyAt = microtime(true);
         if ($exitedAt === null) {
             $status = proc_get_status($process);
             if (!$status['running']) {
@@ -121,7 +123,22 @@ try {
         fwrite($connection, "HTTP/1.1 $responseStatus\r\nContent-Type: application/json\r\nContent-Length: "
             . strlen($response) . "\r\nConnection: close\r\n\r\n" . $response);
         fclose($connection);
-    } while (microtime(true) < $deadline);
+        if (!$acknowledged) {
+            $counted = $exposed = 0;
+            foreach ($captures as $captured) {
+                if (isset($captured[2]['flagEvaluations'])) {
+                    foreach ($captured[2]['flagEvaluations'] as $row) $counted += $row['evaluation_count'];
+                }
+                if (isset($captured[2]['exposures'])) $exposed += count($captured[2]['exposures']);
+            }
+            if ($counted >= 3 && $exposed >= 2) {
+                fwrite($pipes[0], "captures_received\n");
+                fclose($pipes[0]);
+                $acknowledged = true;
+            }
+        }
+    } while (microtime(true) - ($readyAt === null ? $startedAt : $readyAt)
+        < ($readyAt === null ? 60 : (getenv('USE_ZEND_ALLOC') === '0' ? 30 : 10)));
     $stdout .= ffeTestProcessRead($pipes[1]);
     $stderr .= ffeTestProcessRead($pipes[2]);
     if (!$captures) {
@@ -177,6 +194,7 @@ try {
     echo 'protected_context_absent='; var_dump(!isset($rows['protected']['context']['evaluation']));
 } finally {
     if ($exitedAt === null) proc_terminate($process);
+    if (is_resource($pipes[0])) fclose($pipes[0]);
     fclose($pipes[1]);
     fclose($pipes[2]);
     proc_close($process);
