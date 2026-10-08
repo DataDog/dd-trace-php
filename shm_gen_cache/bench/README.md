@@ -30,7 +30,7 @@ Files:
 |---|---|
 | `sgc_bench.cpp` | the harness (copy + backend switch) |
 | `rust_backend.hpp` | C++ surface of the harness on top of the C API |
-| `CMakeLists.txt` | `SGC_BENCH_BACKEND=cpp\|rust`, `SGC_BENCH_XLTO`, `SGC_CARGO_FEATURES` |
+| `CMakeLists.txt` | `SGC_BENCH_BACKEND=cpp\|rust`, `SGC_BENCH_XLTO` |
 | `ab_bins.py` | A/B of two prebuilt binaries: interleaved rounds, noise model, verdicts |
 
 ## Building

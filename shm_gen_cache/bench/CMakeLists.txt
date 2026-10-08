@@ -60,13 +60,7 @@ if(SGC_BENCH_BACKEND STREQUAL "cpp")
     target_compile_definitions(sgc_bench PRIVATE SGC_BENCH_BACKEND_RUST=0)
 elseif(SGC_BENCH_BACKEND STREQUAL "rust")
     get_filename_component(_crate_dir "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
-    set(SGC_CARGO "cargo" CACHE STRING "cargo executable")
     set(SGC_CARGO_PROFILE "tracer-release" CACHE STRING "cargo profile")
-    set(SGC_CARGO_FEATURES "" CACHE STRING "extra cargo features of the library")
-    set(_features)
-    if(SGC_CARGO_FEATURES)
-        set(_features --features ${SGC_CARGO_FEATURES})
-    endif()
     set(_target_dir "${CMAKE_CURRENT_BINARY_DIR}/cargo")
     set(_rustflags "$ENV{RUSTFLAGS}")
     if(SGC_BENCH_XLTO)
@@ -77,8 +71,8 @@ elseif(SGC_BENCH_BACKEND STREQUAL "rust")
     add_custom_target(shm_gen_cache_rs
         COMMAND ${CMAKE_COMMAND} -E env "RUSTFLAGS=${_rustflags}"
                 "CARGO_TARGET_DIR=${_target_dir}"
-                ${SGC_CARGO} build --manifest-path "${_crate_dir}/Cargo.toml"
-                -p shm_gen_cache ${_features} --profile ${SGC_CARGO_PROFILE}
+                cargo build --manifest-path "${_crate_dir}/Cargo.toml"
+                -p shm_gen_cache --profile ${SGC_CARGO_PROFILE}
         WORKING_DIRECTORY "${_crate_dir}"
         BYPRODUCTS "${_lib}"
         USES_TERMINAL

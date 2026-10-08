@@ -53,9 +53,6 @@ public:
     [[nodiscard]] u64* words() noexcept {
         return storage;
     }
-    [[nodiscard]] static constexpr usize size() noexcept {
-        return Capacity;
-    }
 
 private:
     u64 storage[word_count]{};
