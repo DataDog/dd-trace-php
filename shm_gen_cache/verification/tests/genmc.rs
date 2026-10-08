@@ -138,7 +138,7 @@ fn native(program: &Program) -> Result<(), Failed> {
     );
     print!("{text}");
     if !output.status.success() {
-        return Err(format!("{} exited with {}:\n{text}", program.exe, output.status).into());
+        return Err(format!("{} exited with {}", program.exe, output.status).into());
     }
     println!("PASS: native smoke run");
     Ok(())
@@ -156,7 +156,7 @@ fn genmc(program: &Program, witness: Option<&str>) -> Result<(), Failed> {
     fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     println!("Artifacts: {}", dir.display());
 
-    let toolchain = setup.toolchain()?;
+    let genmc_version = setup.toolchain()?;
     let lib = setup.library()?;
     let mut cfgs: Vec<String> = HARNESS_GENMC_CFGS.iter().map(|&c| c.to_owned()).collect();
     if let Some(w) = witness {
@@ -184,7 +184,7 @@ fn genmc(program: &Program, witness: Option<&str>) -> Result<(), Failed> {
     setup.require(&dir, "build", &mut rustc, None)?;
 
     let linked = dir.join("linked.bc");
-    let mut link = setup.docker(&format!("{IMAGE_LLVM_BIN}/llvm-link"));
+    let mut link = setup.docker(Some(&format!("{IMAGE_LLVM_BIN}/llvm-link")));
     link.arg("-o")
         .arg(&linked)
         .arg(&test_bc)
@@ -196,7 +196,7 @@ fn genmc(program: &Program, witness: Option<&str>) -> Result<(), Failed> {
     // the runtime configuration validator), so the checker never sees
     // intrinsics that cannot execute anyway.
     let pruned = dir.join("pruned.ll");
-    let mut prune = setup.docker(&format!("{IMAGE_LLVM_BIN}/opt"));
+    let mut prune = setup.docker(Some(&format!("{IMAGE_LLVM_BIN}/opt")));
     prune
         .args(["-S", "-passes=internalize,globaldce"])
         .arg("-internalize-public-api-list=main")
@@ -210,7 +210,7 @@ fn genmc(program: &Program, witness: Option<&str>) -> Result<(), Failed> {
     fs::write(&program_ll, classify::stub_panics(&ir))
         .map_err(|e| format!("{}: {e}", program_ll.display()))?;
 
-    let mut check = setup.docker_genmc();
+    let mut check = setup.docker(None);
     check
         .args(GENMC_ARGS)
         .args(&setup.genmc_args)
@@ -222,7 +222,7 @@ fn genmc(program: &Program, witness: Option<&str>) -> Result<(), Failed> {
         "GenMC: exit {status}, complete executions: {}, blocked executions: {} ({})",
         complete.unwrap_or("?"),
         blocked.unwrap_or("?"),
-        toolchain.genmc_version
+        genmc_version
     );
     match classify::classify(status, &log, witness) {
         Some(result) => {
@@ -264,16 +264,11 @@ struct Setup {
     work: PathBuf,
     image: String,
     docker: String,
-    nthreads: usize,
+    nthreads: u64,
     genmc_args: Vec<String>,
     timeout: Duration,
     /// `rustc -vV` (part of every cache key).
     rustc_version: String,
-}
-
-/// The results of the toolchain check.
-struct Toolchain {
-    genmc_version: String,
 }
 
 /// A `docker run` command and the name of its container.
@@ -312,24 +307,18 @@ impl Setup {
             .canonicalize()
             .map_err(|e| format!("{}: {e}", work.display()))?;
         let var = |name: &str| env::var(name).ok().filter(|v| !v.is_empty());
-        let parallelism = thread::available_parallelism().map_or(1, |n| n.get());
-        let nthreads = match var("SGC_GENMC_NTHREADS") {
-            Some(n) => n
+        let positive = |name: &str, default: u64| match var(name) {
+            Some(v) => v
                 .parse()
                 .ok()
-                .filter(|&n: &usize| n > 0)
-                .ok_or_else(|| format!("SGC_GENMC_NTHREADS={n} is not a positive integer"))?,
-            // The nextest test group runs 4 GenMC trials at a time.
-            None => (parallelism / 4).max(1),
+                .filter(|&n: &u64| n > 0)
+                .ok_or_else(|| format!("{name}={v} is not a positive integer")),
+            None => Ok(default),
         };
-        let timeout = match var("SGC_GENMC_TIMEOUT") {
-            Some(t) => t
-                .parse()
-                .ok()
-                .filter(|&t: &u64| t > 0)
-                .ok_or_else(|| format!("SGC_GENMC_TIMEOUT={t} is not a positive integer"))?,
-            None => 3600,
-        };
+        let parallelism = thread::available_parallelism().map_or(1, |n| n.get() as u64);
+        // The nextest test group runs 4 GenMC trials at a time.
+        let nthreads = positive("SGC_GENMC_NTHREADS", (parallelism / 4).max(1))?;
+        let timeout = positive("SGC_GENMC_TIMEOUT", 3600)?;
         let output = Command::new("rustc")
             .arg("-vV")
             .current_dir(&repo)
@@ -356,22 +345,18 @@ impl Setup {
     }
 
     /// Checks (once per rustc and image) that the container runs and that
-    /// its LLVM matches rustc's.
-    fn toolchain(&self) -> Result<Toolchain, String> {
-        let key: &[&[u8]] = &[
-            self.rustc_version.as_bytes(),
-            self.image.as_bytes(),
-            self.docker.as_bytes(),
-        ];
+    /// its LLVM matches rustc's; returns the GenMC version.
+    fn toolchain(&self) -> Result<String, String> {
+        let key: &[&[u8]] = &[b"toolchain", self.image.as_bytes(), self.docker.as_bytes()];
         let dir = self.cached("toolchain", key, |dir| {
             let what = format!("the GenMC image {} (SGC_GENMC_IMAGE)", self.image);
-            let mut opt = self.docker(&format!("{IMAGE_LLVM_BIN}/opt"));
+            let mut opt = self.docker(Some(&format!("{IMAGE_LLVM_BIN}/opt")));
             opt.arg("--version");
             let opt_version = self
                 .require(dir, "llvm-version", &mut opt.command, Some(&opt.container))
                 .map_err(|e| format!("cannot run {what}: {e}"))?;
             classify::check_llvm_versions(&self.rustc_version, &opt_version)?;
-            let mut genmc = self.docker_genmc();
+            let mut genmc = self.docker(None);
             genmc.arg("--version");
             let version = self
                 .require(
@@ -388,8 +373,7 @@ impl Setup {
                 .trim();
             fs::write(dir.join("version"), version).map_err(|e| e.to_string())
         })?;
-        let genmc_version = fs::read_to_string(dir.join("version")).map_err(|e| e.to_string())?;
-        Ok(Toolchain { genmc_version })
+        fs::read_to_string(dir.join("version")).map_err(|e| e.to_string())
     }
 
     /// The library rlib and bitcode (`shm_gen_cache.bc`).
@@ -483,9 +467,10 @@ impl Setup {
         rustc
     }
 
-    /// `docker run` of `entrypoint` in the image, with the work directory
-    /// mounted at the same path, as the owner of the work directory.
-    fn docker(&self, entrypoint: &str) -> Docker {
+    /// `docker run` of `entrypoint` (default: GenMC, the image's entry
+    /// point) in the image, with the work directory mounted at the same
+    /// path, as the owner of the work directory.
+    fn docker(&self, entrypoint: Option<&str>) -> Docker {
         static COUNTER: AtomicUsize = AtomicUsize::new(0);
         let container = format!(
             "sgc-genmc-{}-{}",
@@ -499,16 +484,11 @@ impl Setup {
             .arg(format!("--user={uid}:{gid}"))
             .arg(format!("--volume={0}:{0}", self.work.display()))
             .arg(format!("--workdir={}", self.work.display()));
-        if !entrypoint.is_empty() {
+        if let Some(entrypoint) = entrypoint {
             command.arg(format!("--entrypoint={entrypoint}"));
         }
         command.arg(&self.image);
         Docker { command, container }
-    }
-
-    /// `docker run` of GenMC (the image's entry point).
-    fn docker_genmc(&self) -> Docker {
-        self.docker("")
     }
 
     /// Like [`Setup::run`], failing unless the command exits 0; returns its
