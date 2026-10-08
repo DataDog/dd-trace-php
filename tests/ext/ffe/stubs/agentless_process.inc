@@ -1,5 +1,10 @@
 <?php
 require_once __DIR__ . '/ffe_process.inc';
+$instrumented = getenv('USE_ZEND_ALLOC') === '0';
+// Keep the no-renewal assertion decisive: ten renewed 2s waits exceed 3s.
+if ($instrumented && $scenario !== 'fork') {
+    putenv('DD_EXPERIMENTAL_FLAGGING_PROVIDER_INITIALIZATION_TIMEOUT_MS=2000');
+}
 putenv('PHP_FFE_PROCESS_SCENARIO=' . $scenario);
 $server = stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
 if (!$server) throw new RuntimeException($error);
@@ -44,7 +49,17 @@ try {
             continue;
         }
         if ($scenario === 'recovery' && $requests === 1) {
-            usleep(1200000);
+            // Do not race first-use initialization or the ten nonwaiting calls.
+            // Release the failed response only after the child observed both.
+            $failureDeadline = microtime(true) + ($instrumented ? 15 : 3);
+            do {
+                $stdout .= ffeTestProcessRead($pipes[1]);
+                if (strpos($stdout, "later_evaluations_do_not_wait\n") !== false) break;
+                usleep(10000);
+            } while (microtime(true) < $failureDeadline);
+            if (strpos($stdout, "later_evaluations_do_not_wait\n") === false) {
+                throw new RuntimeException('child did not finish deadline assertions');
+            }
             $code = '503 Service Unavailable';
             $body = '';
         } else {
@@ -69,12 +84,12 @@ try {
         fwrite($connection, "HTTP/1.1 $code\r\nContent-Type: application/json\r\nContent-Length: "
             . strlen($body) . "\r\nConnection: close\r\n\r\n" . $body);
         fclose($connection);
-    } while (microtime(true) - ($readyAt === null ? $start : $readyAt) < ($readyAt === null ? 60 : 20));
+    } while (microtime(true) - ($readyAt === null ? $start : $readyAt) < ($readyAt === null ? 60 : ($instrumented ? 45 : 20)));
     $stdout .= ffeTestProcessRead($pipes[1]);
     $stderr .= ffeTestProcessRead($pipes[2]);
     if ($exitCode !== 0) throw new RuntimeException('child failed or timed out: ' . $stdout . ' ' . $stderr);
     if ($requests === 0) throw new RuntimeException('no configuration request');
-    if ($scenario === 'shutdown' && microtime(true) - $shutdownStart > 3) {
+    if ($scenario === 'shutdown' && microtime(true) - $shutdownStart > ($instrumented ? 10 : 3)) {
         throw new RuntimeException('shutdown waited on HTTP timeout');
     }
     // Fork output is intentionally concurrent; compare the complete set.
