@@ -376,6 +376,7 @@ void ddtrace_minit_late() {
 }
 
 void ddtrace_mshutdown() {
+    ddog_ffe_shutdown();
     zai_uhook_mshutdown();
     zai_hook_mshutdown();
 
@@ -697,10 +698,11 @@ bool datadog_alter_dd_trace_disabled_config(zval *old_value, zval *new_value, ze
 }
 
 bool ddtrace_update_remote_config_flags(ddog_RemoteConfigFlags *flags) {
-    flags->ffe_enabled = get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED();
+    ddog_FfeRuntimeConfig ffe = ddtrace_ffe_configure();
+    flags->ffe_enabled = ffe.enabled && ffe.source == DDOG_FFE_CONFIGURATION_SOURCE_REMOTE_CONFIG;
     flags->live_debugging_enabled = get_global_DD_DYNAMIC_INSTRUMENTATION_ENABLED();
     return get_global_DD_TRACE_SIDECAR_TRACE_SENDER()
-        || get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()
+        || (ffe.enabled && (flags->ffe_enabled || ffe.endpoint_valid))
         || get_global_DD_METRICS_OTEL_ENABLED();
 }
 
@@ -714,9 +716,11 @@ void ddtrace_internal_handle_prefork(void) {
         ddtrace_coms_flush_shutdown_writer_synchronous();
     }
 #endif
+    ddog_ffe_prepare_for_fork();
 }
 
 void ddtrace_internal_handle_postfork(void) {
+    ddog_ffe_resume_after_fork(false);
 #if JOIN_BGS_BEFORE_FORK
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
         ddtrace_coms_restart_writer();

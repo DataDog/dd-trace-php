@@ -18,6 +18,7 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_AUTOFINISH_SPANS=1
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
 DD_AGENT_HOST=127.0.0.2
+DD_SITE=datadoghq.eu
 DD_TRACE_AGENT_PORT=3
 DD_AUTOLOAD_NO_COMPILE=
 DD_TRACE_AGENT_TIMEOUT=200
@@ -96,6 +97,15 @@ Array
 
     [2] => Array
         (
+            [name] => DD_SITE
+            [value] => datadoghq.eu
+            [origin] => env_var
+            [config_id] =>%w
+            [seq_id] =>%w
+        )
+
+    [3] => Array
+        (
             [name] => DD_TRACE_AGENT_PORT
             [value] => 3
             [origin] => env_var
@@ -103,7 +113,7 @@ Array
             [seq_id] => 
         )
 
-    [3] => Array
+    [4] => Array
         (
             [name] => DD_INSTRUMENTATION_TELEMETRY_ENABLED
             [value] => 1
@@ -112,7 +122,7 @@ Array
             [seq_id] => 
         )
 
-    [4] => Array
+    [5] => Array
         (
             [name] => DD_TRACE_GIT_METADATA_ENABLED
             [value] => 0
@@ -121,7 +131,7 @@ Array
             [seq_id] => 
         )
 
-    [5] => Array
+    [6] => Array
         (
             [name] => DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
             [value] => 0
@@ -130,7 +140,7 @@ Array
             [seq_id] => 
         )
 
-    [6] => Array
+    [7] => Array
         (
             [name] => DD_TRACE_RATE_LIMIT
             [value] => 1000000
@@ -139,7 +149,7 @@ Array
             [seq_id] => 
         )
 
-    [7] => Array
+    [8] => Array
         (
             [name] => DD_TRACE_IGNORE_AGENT_SAMPLING_RATES
             [value] => 1
@@ -148,7 +158,7 @@ Array
             [seq_id] => 
         )
 
-    [8] => Array
+    [9] => Array
         (
             [name] => DD_TRACE_GENERATE_ROOT_SPAN
             [value] => 0
@@ -157,7 +167,7 @@ Array
             [seq_id] => 
         )
 
-    [9] => Array
+    [10] => Array
         (
             [name] => ssi_forced_injection_enabled
             [value] => False

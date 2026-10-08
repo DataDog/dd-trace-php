@@ -8,6 +8,14 @@ struct _zend_string;
 #include "common.h"
 #include "telemetry.h"
 #include "sidecar.h"
+enum ddog_DeliveryState {
+  DDOG_DELIVERY_STATE_INACTIVE,
+  DDOG_DELIVERY_STATE_STARTING,
+  DDOG_DELIVERY_STATE_READY,
+  DDOG_DELIVERY_STATE_STALE,
+  DDOG_DELIVERY_STATE_STOPPED,
+  DDOG_DELIVERY_STATE_PERMANENT_ERROR,
+};
 
 extern void (*ddog_log_callback)(ddog_CharSlice);
 
@@ -132,6 +140,8 @@ void ddog_add_zstr_span_meta_struct_CharSlice(ddog_SpanBytes *ptr,
                                               struct _zend_string *key,
                                               ddog_CharSlice val);
 
+ddog_DeliveryState ddog_ffe_delivery_state(void);
+
 bool ddog_ffe_load_config(ddog_CharSlice json);
 
 bool ddog_ffe_has_config(void);
@@ -143,6 +153,26 @@ struct ddog_FfeResult ddog_ffe_evaluate(ddog_CharSlice flag_key,
                                         ddog_CharSlice targeting_key,
                                         const struct ddog_FfeAttribute *attributes,
                                         uintptr_t attributes_count);
+
+/**
+ * Configure once during PHP's ordinary process setup, before sidecar startup.
+ * This does not start network polling; the first evaluation activates it.
+ */
+struct ddog_FfeRuntimeConfig ddog_ffe_configure(const struct ddog_FfeSettingsInput *input);
+
+struct ddog_FfeRuntimeConfig ddog_ffe_runtime_config(void);
+
+/**
+ * First-use compatibility path for PHP providers without an initialize API.
+ * Concurrent first callers share one deadline; later calls never renew it.
+ */
+void ddog_ffe_ensure_initialized(void);
+
+void ddog_ffe_shutdown(void);
+
+void ddog_ffe_prepare_for_fork(void);
+
+void ddog_ffe_resume_after_fork(bool child);
 
 bool ddog_shall_log(enum ddog_Log category);
 
