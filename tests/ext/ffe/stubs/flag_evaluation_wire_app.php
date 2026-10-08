@@ -1,19 +1,8 @@
 <?php
 
-$root = getenv('TEST_PHP_SRCDIR');
+require __DIR__ . '/ffe_api_bootstrap.inc';
 \DDTrace\install_hook('DDTrace\\Internal\\record_ffe_flag_evaluation', null, function ($hook) {
     echo 'submission=', json_encode($hook->returned), "\n";
-});
-spl_autoload_register(function ($class) use ($root) {
-    if (strpos($class, 'DDTrace\\') === 0) {
-        $path = $root . '/src/api/' . str_replace('\\', '/', substr($class, 8)) . '.php';
-        if (!is_file($path)) {
-            $path = $root . '/src/' . str_replace('\\', '/', $class) . '.php';
-        }
-        if (is_file($path)) {
-            require_once $path;
-        }
-    }
 });
 
 $config = array(
