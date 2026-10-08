@@ -23,7 +23,7 @@ prefix = "ddog_sgc_"
 # Only the C API (src/ffi.rs) and its types; constants and the remaining pub
 # Rust items are not part of it.
 item_types = ["enums", "structs", "opaque", "functions"]
-exclude = ["RotationOwner", "__VERIFIER_assert_fail"]
+exclude = ["RotationOwner"]
 
 [export.rename]
 "FfiCache" = "Cache"
