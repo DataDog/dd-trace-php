@@ -91,39 +91,26 @@ pub(crate) unsafe fn probe(
         let mut first: u32 = 1;
         while first <= mask {
             let base = (start + first) & mask;
-            let mut differences: u64 = 0;
-            let mut candidate_ref: u32 = 0;
-            let i = if base <= mask + 1 - GROUP_SIZE {
-                find_candidate::<false>(
-                    arena,
-                    mask,
-                    base,
-                    wanted,
-                    candidate_bits,
-                    &mut candidate_ref,
-                    &mut differences,
-                )
+            let scan = if base <= mask + 1 - GROUP_SIZE {
+                find_candidate::<false>(arena, mask, base, wanted, candidate_bits)
             } else {
-                find_candidate::<true>(
-                    arena,
-                    mask,
-                    base,
-                    wanted,
-                    candidate_bits,
-                    &mut candidate_ref,
-                    &mut differences,
-                )
+                find_candidate::<true>(arena, mask, base, wanted, candidate_bits)
             };
-            if i < GROUP_SIZE {
-                // The group may contain an earlier chain terminator, but a
-                // racing insert can publish this candidate while we scan.
-                // Full record validation below decides whether it is a hit.
-                distance = first + i;
-                r#ref = candidate_ref;
-                break 'found;
-            }
-            if differences & EPOCH_BITS != 0 {
-                return Err(ProbeError::Miss); // empty/stale slot
+            match scan {
+                Ok((i, candidate_ref)) => {
+                    // The group may contain an earlier chain terminator, but
+                    // a racing insert can publish this candidate while we
+                    // scan. Full record validation below decides whether it
+                    // is a hit.
+                    distance = first + i;
+                    r#ref = candidate_ref;
+                    break 'found;
+                }
+                Err(differences) => {
+                    if differences & EPOCH_BITS != 0 {
+                        return Err(ProbeError::Miss); // empty/stale slot
+                    }
+                }
             }
             first += GROUP_SIZE;
         }
@@ -229,12 +216,11 @@ pub(crate) unsafe fn probe(
 
 /// Scans one group of eight slots starting at `first_slot` for an entry
 /// with the wanted epoch and hash tag. If one is found, returns its
-/// position and copies its ref for full validation. Otherwise returns
-/// [`GROUP_SIZE`] and leaves in `differences` the combined XOR of every
-/// entry against `wanted`. If every slot belongs to this arena incarnation,
-/// the key may still appear in a later group and probing must continue. An
-/// empty or stale slot instead ends the linear-probe chain, so the caller
-/// detects its epoch difference and returns a miss.
+/// position and its ref for full validation. Otherwise returns the combined
+/// XOR of every entry against `wanted`. If every slot belongs to this arena
+/// incarnation, the key may still appear in a later group and probing must
+/// continue. An empty or stale slot instead ends the linear-probe chain, so
+/// the caller detects its epoch difference and returns a miss.
 ///
 /// * `WRAPS`: use modulo indexing for the final group, which crosses the end
 ///   of the table;
@@ -254,9 +240,8 @@ fn find_candidate<const WRAPS: bool>(
     first_slot: u32,
     wanted: u64,
     candidate_bits: u64,
-    candidate_ref: &mut u32,
-    differences: &mut u64,
-) -> u32 {
+) -> Result<(u32, u32), u64> {
+    let mut differences: u64 = 0;
     let mut i: u32 = 0;
     while i < GROUP_SIZE {
         let slot = if WRAPS {
@@ -267,11 +252,10 @@ fn find_candidate<const WRAPS: bool>(
         let entry = arena.slot(slot).load(Relaxed); // I1
         let difference = entry ^ wanted;
         if difference & candidate_bits == 0 {
-            *candidate_ref = IndexEntry(entry).r#ref();
-            return i;
+            return Ok((i, IndexEntry(entry).r#ref()));
         }
-        *differences |= difference;
+        differences |= difference;
         i += 1;
     }
-    GROUP_SIZE
+    Err(differences)
 }
