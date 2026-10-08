@@ -886,11 +886,32 @@ mod timed {
         fn unwoken_write_ends_wait() {
             let _serial = timing_test();
             // Without a wake, a blocked waiter still sees the write by its
-            // next timeout, at most 1 ms later, before the 5 ms budget.
-            let waited = wait_for_write(Duration::from_millis(2), false);
-            let (waited, _) = waited.expect("the wait timed out");
-            assert!(waited > Duration::ZERO);
-            assert!(waited < Duration::from_millis(4), "waited {waited:?}");
+            // next timeout. On Linux the write, 2 ms in, lands in the futex
+            // stage, whose timeouts are capped at MAX_BLOCK; the bound adds
+            // a quarter for wake-up latency (medians observed: ~0.8 ms, and
+            // ~1.4 ms with a 4 ms cap). Elsewhere the monitored sleeps see
+            // the write at once (observed: ~300 ns on Windows).
+            #[cfg(target_os = "linux")]
+            const BOUND: Duration = Duration::from_nanos(super::MAX_BLOCK * 5 / 4);
+            #[cfg(not(target_os = "linux"))]
+            const BOUND: Duration = Duration::from_micros(100);
+            // Measured from the write, whose sleep can overrun, and judged by
+            // the median of many trials, so that a waiter or writer the
+            // scheduler delays once does not fail the test. A trial that
+            // times out (e.g. the writer overslept the 5 ms budget) counts
+            // as slower than any other.
+            const TRIALS: usize = 21;
+            let mut after_writes: [Option<Duration>; TRIALS] = core::array::from_fn(|_| {
+                wait_for_write(Duration::from_millis(2), false)
+                    .ok()
+                    .map(|(_, after_write)| after_write)
+            });
+            after_writes.sort_by_key(|a| a.unwrap_or(Duration::MAX));
+            let median = after_writes[TRIALS / 2];
+            assert!(
+                median.is_some_and(|m| m < BOUND),
+                "median wait after the write {median:?} (bound {BOUND:?}); all: {after_writes:?}"
+            );
         }
 
         #[test]
