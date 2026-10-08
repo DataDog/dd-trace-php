@@ -1,16 +1,13 @@
 <?php
+require_once __DIR__ . '/ffe_process.inc';
 putenv('PHP_FFE_PROCESS_SCENARIO=' . $scenario);
 $server = stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
 if (!$server) throw new RuntimeException($error);
 $address = stream_socket_get_name($server, false);
 putenv('DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL=http://' . $address . '/configuration');
-$command = (PHP_OS === 'WINNT' ? '' : 'exec ') . escapeshellarg(getenv('TEST_PHP_EXECUTABLE')) . ' '
-    . getenv('TEST_PHP_EXTRA_ARGS') . ' ' . escapeshellarg(__DIR__ . '/agentless_process_app.php');
-$process = proc_open($command, array(array('pipe', 'r'), array('pipe', 'w'), array('pipe', 'w')), $pipes);
+$process = ffeTestProcess(__DIR__ . '/agentless_process_app.php', $pipes);
 if (!is_resource($process)) throw new RuntimeException('cannot launch agentless PHP');
 if ($scenario !== 'shutdown') fclose($pipes[0]);
-stream_set_blocking($pipes[1], false);
-stream_set_blocking($pipes[2], false);
 $stdout = $stderr = '';
 $requests = 0;
 $heldConnections = array();
@@ -21,8 +18,8 @@ $readyAt = null;
 $shutdownStart = null;
 try {
     do {
-        $stdout .= stream_get_contents($pipes[1]);
-        $stderr .= stream_get_contents($pipes[2]);
+        $stdout .= ffeTestProcessRead($pipes[1]);
+        $stderr .= ffeTestProcessRead($pipes[2]);
         if ($readyAt === null && strpos($stdout, "fixture_child_ready\n") !== false) $readyAt = microtime(true);
         $status = proc_get_status($process);
         if (!$status['running']) {
@@ -51,7 +48,7 @@ try {
             $code = '503 Service Unavailable';
             $body = '';
         } else {
-            $stdout .= stream_get_contents($pipes[1]);
+            $stdout .= ffeTestProcessRead($pipes[1]);
             $forked = strpos($stdout, 'parent_forked') !== false && strpos($stdout, 'child_forked') !== false;
             $value = $scenario === 'fork' && $forked ? 'green' : 'blue';
             $code = '200 OK';
@@ -73,8 +70,8 @@ try {
             . strlen($body) . "\r\nConnection: close\r\n\r\n" . $body);
         fclose($connection);
     } while (microtime(true) - ($readyAt === null ? $start : $readyAt) < ($readyAt === null ? 60 : 20));
-    $stdout .= stream_get_contents($pipes[1]);
-    $stderr .= stream_get_contents($pipes[2]);
+    $stdout .= ffeTestProcessRead($pipes[1]);
+    $stderr .= ffeTestProcessRead($pipes[2]);
     if ($exitCode !== 0) throw new RuntimeException('child failed or timed out: ' . $stdout . ' ' . $stderr);
     if ($requests === 0) throw new RuntimeException('no configuration request');
     if ($scenario === 'shutdown' && microtime(true) - $shutdownStart > 3) {

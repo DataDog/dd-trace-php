@@ -15,6 +15,7 @@ DD_METRICS_OTEL_ENABLED=0
 DD_TRACE_AGENT_URL=http://127.0.0.1:1
 --FILE--
 <?php
+require_once __DIR__ . '/stubs/ffe_process.inc';
 $server = stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
 if (!$server) throw new RuntimeException($error);
 $environment = getenv();
@@ -34,20 +35,15 @@ foreach ($cases as $name => $case) {
         unset($environment[$key]);
         if ($case[$i] !== null) $environment[$key] = $case[$i];
     }
-    // A file also avoids Windows cmd.exe changing quotes in inline PHP code.
-    $command = (PHP_OS === 'WINNT' ? '' : 'exec ') . escapeshellarg(getenv('TEST_PHP_EXECUTABLE')) . ' ' . getenv('TEST_PHP_EXTRA_ARGS')
-        . ' ' . escapeshellarg(__DIR__ . '/stubs/agentless_source_selection_app.php');
-    $process = proc_open($command, array(array('pipe', 'r'), array('pipe', 'w'), array('pipe', 'w')), $pipes, null, $environment);
+    $process = ffeTestProcess(__DIR__ . '/stubs/agentless_source_selection_app.php', $pipes, $environment);
     if (!is_resource($process)) throw new RuntimeException('cannot launch PHP');
     fclose($pipes[0]);
-    stream_set_blocking($pipes[1], false);
-    stream_set_blocking($pipes[2], false);
     $stdout = $stderr = '';
     $start = microtime(true);
     $readyAt = null;
     do {
-        $stdout .= stream_get_contents($pipes[1]);
-        $stderr .= stream_get_contents($pipes[2]);
+        $stdout .= ffeTestProcessRead($pipes[1]);
+        $stderr .= ffeTestProcessRead($pipes[2]);
         if ($readyAt === null && strpos($stdout, "fixture_child_ready\n") !== false) $readyAt = microtime(true);
         $status = proc_get_status($process);
         if (!$status['running']) break;
@@ -57,8 +53,8 @@ foreach ($cases as $name => $case) {
             throw new RuntimeException($name . ' unexpectedly polled agentless configuration');
         }
     } while (microtime(true) - ($readyAt === null ? $start : $readyAt) < ($readyAt === null ? 60 : 3));
-    $stdout .= stream_get_contents($pipes[1]);
-    $stderr .= stream_get_contents($pipes[2]);
+    $stdout .= ffeTestProcessRead($pipes[1]);
+    $stderr .= ffeTestProcessRead($pipes[2]);
     if ($status['running']) proc_terminate($process);
     fclose($pipes[1]);
     fclose($pipes[2]);
