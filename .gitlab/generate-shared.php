@@ -86,15 +86,16 @@ stages:
     SGC_GENMC_NTHREADS: 2
     NEXTEST_VERSION: "0.9.140"
   before_script:
+    # The image runs as an unprivileged user with passwordless sudo.
     - |
-      apt-get update
-      apt-get install -y --no-install-recommends ca-certificates curl
-      install -m 0755 -d /etc/apt/keyrings
-      curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
-      echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list
-      apt-get update
-      apt-get install -y --no-install-recommends docker-ce-cli
-    - curl -LsSf "https://get.nexte.st/${NEXTEST_VERSION}/linux" | tar zxf - -C "${CARGO_HOME}/bin"
+      sudo apt-get update
+      sudo apt-get install -y --no-install-recommends ca-certificates curl
+      sudo install -m 0755 -d /etc/apt/keyrings
+      sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+      echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list
+      sudo apt-get update
+      sudo apt-get install -y --no-install-recommends docker-ce-cli
+    - curl -LsSf "https://get.nexte.st/${NEXTEST_VERSION}/linux" | sudo tar zxf - -C /usr/local/bin
     - docker version
   script:
     - cargo nextest run -p shm_gen_cache -p shm_gen_cache_verification --profile ci
