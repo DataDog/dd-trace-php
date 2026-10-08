@@ -33,7 +33,7 @@ if ($direct) {
     putenv('NO_PROXY=127.0.0.1,localhost');
     putenv('no_proxy=127.0.0.1,localhost');
 }
-$command = 'exec ' . escapeshellarg(getenv('TEST_PHP_EXECUTABLE'))
+$command = (PHP_OS === 'WINNT' ? '' : 'exec ') . escapeshellarg(getenv('TEST_PHP_EXECUTABLE'))
     . ' ' . getenv('TEST_PHP_EXTRA_ARGS')
     . ' ' . escapeshellarg(__DIR__ . '/flag_evaluation_wire_app.php');
 $process = proc_open($command, array(array('pipe', 'r'), array('pipe', 'w'), array('pipe', 'w')), $pipes);

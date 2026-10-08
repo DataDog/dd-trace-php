@@ -4,7 +4,7 @@ $server = stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
 if (!$server) throw new RuntimeException($error);
 $address = stream_socket_get_name($server, false);
 putenv('DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL=http://' . $address . '/configuration?fixture=1');
-$command = 'exec ' . escapeshellarg(getenv('TEST_PHP_EXECUTABLE')) . ' '
+$command = (PHP_OS === 'WINNT' ? '' : 'exec ') . escapeshellarg(getenv('TEST_PHP_EXECUTABLE')) . ' '
     . getenv('TEST_PHP_EXTRA_ARGS') . ' ' . escapeshellarg(__DIR__ . '/agentless_lifecycle_app.php');
 $process = proc_open($command, array(array('pipe', 'r'), array('pipe', 'w'), array('pipe', 'w')), $pipes);
 if (!is_resource($process)) throw new RuntimeException('cannot launch agentless PHP');
