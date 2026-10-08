@@ -24,31 +24,7 @@ void ddog_library_configurator_with_fleet_path(struct ddog_Configurator *c,
 void ddog_library_configurator_with_process_info(struct ddog_Configurator *c,
                                                  struct ddog_ProcessInfo p);
 
-void ddog_library_configurator_with_detect_process_info(struct ddog_Configurator *c);
-
 void ddog_library_configurator_drop(struct ddog_Configurator*);
-
-struct ddog_LibraryConfigLoggedResult ddog_library_configurator_get(const struct ddog_Configurator *configurator);
-
-/**
- * Returns a static null-terminated string, containing the name of the environment variable
- * associated with the library configuration
- */
-struct ddog_CStr ddog_library_config_source_to_string(enum ddog_LibraryConfigSource name);
-
-/**
- * Returns a static null-terminated string with the path to the managed stable config yaml config
- * file
- */
-struct ddog_CStr ddog_library_config_fleet_stable_config_path(void);
-
-/**
- * Returns a static null-terminated string with the path to the local stable config yaml config
- * file
- */
-struct ddog_CStr ddog_library_config_local_stable_config_path(void);
-
-void ddog_library_config_drop(struct ddog_LibraryConfigLoggedResult config_result);
 
 /**
  * Allocates and returns a pointer to a new `TracerMetadata` object on the heap.
@@ -90,6 +66,29 @@ void ddog_tracer_metadata_set(struct ddog_TracerMetadata *ptr,
                               const char *value);
 
 /**
+ * Includes thread-context discovery metadata in the `TracerMetadata` object pointed to by `ptr`.
+ *
+ * If the builder has no thread-context metadata, configures it to publish
+ * the `tlsdesc_v1_dev` schema and a key map containing `datadog.local_root_span_id`.
+ * If the thread-context metadata is already set, leaves it unchanged.
+ *
+ * This function only updates the builder. Call `ddog_tracer_metadata_store` to publish it.
+ *
+ * # Arguments
+ * - `ptr`: Pointer to a `TracerMetadata` instance.
+ *
+ * # Safety
+ * - If non-null, `ptr` must point to a valid, properly aligned, live `TracerMetadata`.
+ * - The caller must ensure exclusive access to the instance for the duration of the call.
+ * - Ownership remains with the caller
+ *
+ * # Returns
+ * - On success: `VoidResult::Ok`, also when thread-context metadata is already present
+ * - An error if `ptr` is null.
+ */
+struct ddog_VoidResult ddog_tracer_metadata_include_otel_thread_context(struct ddog_TracerMetadata *ptr);
+
+/**
  * Serializes the `TracerMetadata` into a platform-specific memory handle (e.g., memfd on Linux).
  * This function also attempts to publish the tracer metadata as an OTel process context
  * separately, but will ignore resulting errors.
@@ -107,6 +106,30 @@ void ddog_tracer_metadata_set(struct ddog_TracerMetadata *ptr,
  * it will return an error.
  */
 struct ddog_Result_TracerMemfdHandle ddog_tracer_metadata_store(struct ddog_TracerMetadata *ptr);
+
+void ddog_library_configurator_with_detect_process_info(struct ddog_Configurator *c);
+
+struct ddog_LibraryConfigLoggedResult ddog_library_configurator_get(const struct ddog_Configurator *configurator);
+
+/**
+ * Returns a static null-terminated string, containing the name of the environment variable
+ * associated with the library configuration
+ */
+struct ddog_CStr ddog_library_config_source_to_string(enum ddog_LibraryConfigSource name);
+
+/**
+ * Returns a static null-terminated string with the path to the managed stable config yaml
+ * config file
+ */
+struct ddog_CStr ddog_library_config_fleet_stable_config_path(void);
+
+/**
+ * Returns a static null-terminated string with the path to the local stable config yaml config
+ * file
+ */
+struct ddog_CStr ddog_library_config_local_stable_config_path(void);
+
+void ddog_library_config_drop(struct ddog_LibraryConfigLoggedResult config_result);
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -39,11 +39,12 @@ final class NativeEvaluator implements Evaluator
         $targetingKey = null,
         array $attributes = array()
     ) {
+        $normalizedAttributes = $this->normalizeAttributes($attributes);
         $rawResult = \DDTrace\ffe_evaluate(
             $flagKey,
             $this->typeId($expectedType),
             $targetingKey,
-            $this->normalizeAttributes($attributes),
+            $normalizedAttributes,
             $this->recordMetrics
         );
 
@@ -52,6 +53,10 @@ final class NativeEvaluator implements Evaluator
         }
 
         $details = $this->mapper->map($rawResult, $expectedType, $defaultValue);
+
+        // Both public APIs use this final mapped outcome. EVP counts are
+        // independent of OpenFeature's metric hook and the OTLP kill switch.
+        $this->recordFlagEvaluation($flagKey, $targetingKey, $normalizedAttributes, $rawResult, $details);
 
         // APM feature-flag span enrichment. This is the single choke point both
         // the native Client and the OpenFeature DataDogProvider evaluate through,
@@ -62,6 +67,31 @@ final class NativeEvaluator implements Evaluator
         SpanEnrichmentRegistry::record($flagKey, $details, $targetingKey);
 
         return $details;
+    }
+
+    private function recordFlagEvaluation($flagKey, $targetingKey, array $attributes, $rawResult, $details)
+    {
+        if (!function_exists('DDTrace\\Internal\\record_ffe_flag_evaluation')) {
+            return;
+        }
+        try {
+            $exposure = $details->getExposureData();
+            $consent = is_object($rawResult)
+                && isset($rawResult->observeFullEvaluationData)
+                && $rawResult->observeFullEvaluationData === true;
+            \DDTrace\Internal\record_ffe_flag_evaluation(
+                $flagKey,
+                $details->getVariant(),
+                isset($exposure['allocationKey']) ? $exposure['allocationKey'] : null,
+                $targetingKey,
+                $attributes,
+                $details->getErrorCode(),
+                $details->getVariant() === null && !isset($exposure['serialId']),
+                $consent
+            );
+        } catch (\Throwable $ignored) {
+            // Best-effort telemetry must not change a flag's evaluation result.
+        }
     }
 
     private function typeId($expectedType)

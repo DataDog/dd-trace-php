@@ -178,6 +178,19 @@ static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_f
         ddog_endpoint_drop(otlp_metrics_endpoint);
     }
 
+#ifdef DDTRACE
+    // Both FFE writers belong to the PHP tracer. Configure their shared target
+    // during ordinary connection setup, including reconnect and fork recovery.
+    // Remote Config keeps the fixed Agent EVP v2 route.
+    const ddog_EvpProducerIdentity ffe_producer = {
+        .origin = DDOG_CHARSLICE_C("dd-trace-php"),
+        .version = DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION),
+    };
+    datadog_ffi_try("Failed configuring PHP FFE EVP transport",
+        ddog_sidecar_session_set_evp_transport(transport, DDOG_EVP_TRANSPORT_MODE_AGENT_ONLY,
+            datadog_endpoint, NULL, DDOG_CHARSLICE_C("event-platform-intake"), &ffe_producer));
+#endif
+
     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         datadog_telemetry_register_services(transport);
     }

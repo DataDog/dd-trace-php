@@ -66,6 +66,7 @@ namespace DDTrace {
         public int $reason = 0;
         public int $errorCode = 0;
         public bool $doLog = false;
+        public bool $observeFullEvaluationData = false;
         public ?int $serialId = null;
         public array $providerState = [];
         public ?string $errorMessage = null;
@@ -1092,6 +1093,9 @@ namespace DDTrace\Internal {
      * @internal
      */
     function flush_ffe_evaluation_metrics(): bool {}
+
+    /** @internal Submit one final evaluation without waiting or reconnecting. */
+    function record_ffe_flag_evaluation(string $flagKey, ?string $variant, ?string $allocationKey, ?string $targetingKey, array $attributes, ?string $errorType, bool $runtimeDefaultUsed, bool $observeFullEvaluationData): bool {}
 
 }
 

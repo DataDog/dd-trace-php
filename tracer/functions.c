@@ -1934,6 +1934,7 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     ddtrace_ffe_update_long_property(return_value, ZEND_STRL("reason"), ddtrace_ffe_effective_reason(result.reason, result.error_code));
     ddtrace_ffe_update_long_property(return_value, ZEND_STRL("errorCode"), result.error_code);
     ddtrace_ffe_update_bool_property(return_value, ZEND_STRL("doLog"), result.do_log);
+    ddtrace_ffe_update_bool_property(return_value, ZEND_STRL("observeFullEvaluationData"), result.observe_full_evaluation_data);
     // serialId is only populated when the native result actually carried one
     // (has_serial_id). It stays null otherwise so the PHP accumulator can use
     // the Pattern B "missing variant => runtime default" branch, rather than
@@ -2933,6 +2934,24 @@ PHP_FUNCTION(DDTrace_Internal_flush_ffe_evaluation_metrics) {
     ZEND_PARSE_PARAMETERS_NONE();
 
     RETURN_BOOL(ddtrace_ffe_flush_evaluation_metrics());
+}
+
+PHP_FUNCTION(DDTrace_Internal_record_ffe_flag_evaluation) {
+    zend_string *flag_key, *variant = NULL, *allocation_key = NULL, *targeting_key = NULL, *error_type = NULL;
+    HashTable *attributes;
+    zend_bool runtime_default_used, observe_full_evaluation_data;
+    ZEND_PARSE_PARAMETERS_START(8, 8)
+        Z_PARAM_STR(flag_key)
+        Z_PARAM_STR_OR_NULL(variant)
+        Z_PARAM_STR_OR_NULL(allocation_key)
+        Z_PARAM_STR_OR_NULL(targeting_key)
+        Z_PARAM_ARRAY_HT(attributes)
+        Z_PARAM_STR_OR_NULL(error_type)
+        Z_PARAM_BOOL(runtime_default_used)
+        Z_PARAM_BOOL(observe_full_evaluation_data)
+    ZEND_PARSE_PARAMETERS_END();
+    RETURN_BOOL(ddtrace_ffe_record_flag_evaluation(flag_key, variant, allocation_key,
+        targeting_key, attributes, error_type, runtime_default_used, observe_full_evaluation_data));
 }
 
 /* {{{ proto array generate_distributed_tracing_headers() */

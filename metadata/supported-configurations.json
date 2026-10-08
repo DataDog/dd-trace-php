@@ -411,6 +411,13 @@
         "default": "true"
       }
     ],
+    "DD_FLAGGING_EVALUATION_COUNTS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
     "DD_GIT_COMMIT_SHA": [
       {
         "implementation": "B",
