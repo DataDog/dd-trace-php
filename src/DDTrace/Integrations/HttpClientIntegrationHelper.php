@@ -69,8 +69,11 @@ class HttpClientIntegrationHelper
      * @return bool Whether the span was marked as an error
      */
     public static function setClientError($span, $statusCode, $reasonPhrase = null) {
-        // Only set error if it's not already set
-        if (isset($span->meta[Tag::ERROR])) {
+        // Preserve more specific errors, such as a cURL timeout after receiving HTTP headers.
+        if (isset($span->meta[Tag::ERROR])
+            || isset($span->meta[Tag::ERROR_TYPE])
+            || isset($span->meta[Tag::ERROR_MSG])
+        ) {
             return false;
         }
 

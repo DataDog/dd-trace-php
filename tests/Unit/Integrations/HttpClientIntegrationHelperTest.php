@@ -86,6 +86,25 @@ final class HttpClientIntegrationHelperTest extends BaseTestCase
         $this->assertArrayNotHasKey(Tag::ERROR_TYPE, $span->meta);
     }
 
+    public function testSetClientErrorKeepsTransportError()
+    {
+        self::putEnvAndReloadConfig(['DD_TRACE_HTTP_CLIENT_ERROR_STATUSES=400-499']);
+
+        $error = [
+            Tag::ERROR_TYPE => 'curl error',
+            Tag::ERROR_MSG => 'Operation timed out after 100 milliseconds with 1 out of 100 bytes received',
+        ];
+        // Either field can flag an existing error; preserve both when present.
+        foreach ([$error, [Tag::ERROR_TYPE => $error[Tag::ERROR_TYPE]], [Tag::ERROR_MSG => $error[Tag::ERROR_MSG]]] as $meta) {
+            $span = self::newSpan();
+            $span->meta = $meta + [Tag::HTTP_STATUS_CODE => '404'];
+            $expected = $span->meta;
+
+            $this->assertFalse(HttpClientIntegrationHelper::setClientError($span, 404));
+            $this->assertSame($expected, $span->meta);
+        }
+    }
+
     public function testSetClientErrorWithEmptyConfiguration()
     {
         self::putEnvAndReloadConfig(['DD_TRACE_HTTP_CLIENT_ERROR_STATUSES=']);
