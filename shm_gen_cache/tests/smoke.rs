@@ -645,11 +645,66 @@ fn c_api_registry_and_config_errors() {
     }
 }
 
+/// Whether this kernel records `MADV_HUGEPAGE` on a shared anonymous
+/// mapping (VmFlags `hg`). Kernels without THP, and some sandboxes,
+/// reject or ignore the advice; the C API then proceeds without it.
+#[cfg(target_os = "linux")]
+fn kernel_records_huge_page_advice() -> Result<(), String> {
+    let len = 2 << 20;
+    // SAFETY: a fresh anonymous mapping, advised and unmapped here only.
+    let p = unsafe {
+        libc::mmap(
+            std::ptr::null_mut(),
+            len,
+            libc::PROT_READ | libc::PROT_WRITE,
+            libc::MAP_SHARED | libc::MAP_ANONYMOUS,
+            -1,
+            0,
+        )
+    };
+    assert_ne!(p, libc::MAP_FAILED);
+    // SAFETY: advice on the mapping created above.
+    let advised = unsafe { libc::madvise(p, len, libc::MADV_HUGEPAGE) };
+    let errno = std::io::Error::last_os_error();
+    let start = format!("{:x}-", p as usize);
+    let smaps = std::fs::read_to_string("/proc/self/smaps").unwrap();
+    let flags = smaps
+        .split_inclusive('\n')
+        .skip_while(|line| !line.starts_with(&start))
+        .find_map(|line| line.strip_prefix("VmFlags:").map(str::to_owned));
+    // SAFETY: unmapping the mapping created above.
+    unsafe { libc::munmap(p, len) };
+    if advised == 0
+        && flags
+            .as_deref()
+            .is_some_and(|f| f.split_whitespace().any(|f| f == "hg"))
+    {
+        return Ok(());
+    }
+    let setting = |name: &str| {
+        std::fs::read_to_string(format!("/sys/kernel/mm/transparent_hugepage/{name}"))
+            .map_or_else(|e| format!("({e})"), |s| s.trim().to_owned())
+    };
+    let kernel = std::fs::read_to_string("/proc/sys/kernel/osrelease").unwrap_or_default();
+    Err(format!(
+        "madvise returned {advised} ({errno}), VmFlags {flags:?}, kernel {}, \
+         THP enabled {}, shmem_enabled {}",
+        kernel.trim(),
+        setting("enabled"),
+        setting("shmem_enabled"),
+    ))
+}
+
 /// The C API's mapping is advised `MADV_HUGEPAGE` (VmFlags `hg`), whether
 /// or not the kernel's shmem THP setting then backs it with huge pages.
+/// Skipped where the kernel does not record the advice at all.
 #[cfg(target_os = "linux")]
 #[test]
 fn c_api_mapping_is_advised_huge_pages() {
+    if let Err(why) = kernel_records_huge_page_advice() {
+        eprintln!("skipped: this kernel does not record MADV_HUGEPAGE: {why}");
+        return;
+    }
     // A configuration no other test uses, so its size identifies the mapping.
     let config = Config {
         participant_capacity: 5,
