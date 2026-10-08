@@ -147,6 +147,14 @@ pub struct FfiParticipant {
     fork_generation: u32,
 }
 
+impl FfiParticipant {
+    /// Whether this handle was inherited from the parent across fork().
+    #[inline(always)]
+    fn is_inherited(&self) -> bool {
+        self.fork_generation != FORK_GENERATION.load(Relaxed)
+    }
+}
+
 /// Incremented in every fork()ed child (pthread_atfork), so handles
 /// inherited from the parent can be recognised: their slot belongs to the
 /// parent's thread.
@@ -160,18 +168,16 @@ extern "C" fn after_fork_in_child() {
 /// is remembered and reported on every call: without the handler, inherited
 /// participants would go undetected in fork()ed children.
 fn install_fork_handler() -> Result<(), Error> {
-    static ONCE: std::sync::Once = std::sync::Once::new();
-    static INSTALLED: core::sync::atomic::AtomicBool = core::sync::atomic::AtomicBool::new(false);
-    ONCE.call_once(|| {
+    static INSTALLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    let installed = *INSTALLED.get_or_init(|| {
         #[cfg(unix)]
         // SAFETY: registering a handler that only touches an atomic.
         let ok = unsafe { libc::pthread_atfork(None, None, Some(after_fork_in_child)) } == 0;
         #[cfg(not(unix))]
         let ok = true;
-        INSTALLED.store(ok, Relaxed);
+        ok
     });
-    // call_once synchronises with the completed initialisation.
-    if INSTALLED.load(Relaxed) {
+    if installed {
         Ok(())
     } else {
         Err(Error::IoError)
@@ -222,6 +228,18 @@ unsafe fn init_in(
     }
 }
 
+/// `*config` resolved; `None` if `config` is null or invalid.
+///
+/// # Safety
+/// `config` must be null or point to a valid config.
+unsafe fn resolve_config(config: *const Config) -> Option<Derived> {
+    if config.is_null() {
+        return None;
+    }
+    // SAFETY: non-null, valid per the contract.
+    unsafe { config.read() }.resolve().ok()
+}
+
 /// Allocates and initialises a cache.
 ///
 /// Validates `*config` (`DDOG_SGC_STATUS_INVALID_ARGUMENT` on any violation
@@ -249,13 +267,12 @@ pub unsafe extern "C" fn ddog_sgc_cache_new(
     config: *const Config,
     out: *mut *mut FfiCache,
 ) -> Status {
-    if config.is_null() || out.is_null() {
+    if out.is_null() {
         return Status::InvalidArgument;
     }
-    // SAFETY: non-null, valid per the contract.
-    let derived = match unsafe { config.read() }.resolve() {
-        Ok(d) => d,
-        Err(_) => return Status::InvalidArgument,
+    // SAFETY: forwarded from the caller.
+    let Some(derived) = (unsafe { resolve_config(config) }) else {
+        return Status::InvalidArgument;
     };
     #[cfg(unix)]
     {
@@ -391,12 +408,9 @@ pub unsafe extern "C" fn ddog_sgc_participant_unregister(participant: *mut FfiPa
         return;
     }
     // SAFETY: a handle from Box::into_raw (contract).
-    let participant = unsafe { Box::from_raw(participant) };
-    if participant.fork_generation != FORK_GENERATION.load(Relaxed) {
-        match participant.kind {
-            ParticipantKind::Estimated(lock) => core::mem::forget(lock),
-            ParticipantKind::Exact(lock) => core::mem::forget(lock),
-        }
+    let participant = *unsafe { Box::from_raw(participant) };
+    if participant.is_inherited() {
+        core::mem::forget(participant.kind);
         return;
     }
     drop(participant); // releases the slot
@@ -437,7 +451,7 @@ pub unsafe extern "C" fn ddog_sgc_lookup(
 ) -> Status {
     // SAFETY: a live handle (contract).
     let participant = unsafe { &mut *participant };
-    if participant.fork_generation != FORK_GENERATION.load(Relaxed) {
+    if participant.is_inherited() {
         return Status::InvalidArgument;
     }
     // SAFETY: forwarded from the caller.
@@ -475,7 +489,7 @@ pub unsafe extern "C" fn ddog_sgc_insert(
 ) -> Status {
     // SAFETY: a live handle (contract).
     let participant = unsafe { &mut *participant };
-    if participant.fork_generation != FORK_GENERATION.load(Relaxed) {
+    if participant.is_inherited() {
         return Status::InvalidArgument;
     }
     // SAFETY: forwarded from the caller.
@@ -582,14 +596,8 @@ unsafe fn insert_in<P: Params>(
 /// `config` must be null or valid.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ddog_sgc_cache_mapping_size(config: *const Config) -> usize {
-    if config.is_null() {
-        return 0;
-    }
-    // SAFETY: valid (contract).
-    match unsafe { config.read() }.resolve() {
-        Ok(d) => d.mapping_size,
-        Err(_) => 0,
-    }
+    // SAFETY: forwarded from the caller.
+    unsafe { resolve_config(config) }.map_or(0, |d| d.mapping_size)
 }
 
 /// Initialises a cache in caller-provided memory and stores a
@@ -621,16 +629,15 @@ pub unsafe extern "C" fn ddog_sgc_cache_init_in(
     config: *const Config,
     out: *mut *mut FfiCache,
 ) -> Status {
-    if config.is_null() || out.is_null() {
+    if out.is_null() {
         return Status::InvalidArgument;
     }
     let Some(base) = NonNull::new(mem.cast::<u8>()) else {
         return Status::InvalidArgument;
     };
-    // SAFETY: valid (contract).
-    let derived = match unsafe { config.read() }.resolve() {
-        Ok(d) => d,
-        Err(_) => return Status::InvalidArgument,
+    // SAFETY: forwarded from the caller.
+    let Some(derived) = (unsafe { resolve_config(config) }) else {
+        return Status::InvalidArgument;
     };
     // Checked here, before anything is allocated or installed, although
     // the cache's initialisation checks both too.
