@@ -336,28 +336,12 @@ mod timed {
 
         #[cfg(target_arch = "x86_64")]
         const SYS_FUTEX: i64 = 202;
-        #[cfg(any(
-            target_arch = "aarch64",
-            target_arch = "riscv64",
-            target_arch = "loongarch64"
-        ))]
+        #[cfg(target_arch = "aarch64")]
         const SYS_FUTEX: i64 = 98;
-        #[cfg(target_arch = "powerpc64")]
-        const SYS_FUTEX: i64 = 221;
-        // The n64 ABI (mips64el).
-        #[cfg(target_arch = "mips64")]
-        const SYS_FUTEX: i64 = 5194;
-        #[cfg(not(any(
-            target_arch = "x86_64",
-            target_arch = "aarch64",
-            target_arch = "riscv64",
-            target_arch = "loongarch64",
-            target_arch = "powerpc64",
-            target_arch = "mips64"
-        )))]
+        #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
         compile_error!(
             "futex system call number unknown on this architecture; supported: \
-             x86_64, aarch64, riscv64, loongarch64, powerpc64, mips64"
+             x86_64, aarch64"
         );
         const FUTEX_WAIT: i64 = 0;
         const FUTEX_WAKE: i64 = 1;
