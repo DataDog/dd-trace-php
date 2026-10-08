@@ -268,7 +268,7 @@ extern "C" fn main() -> i32 {
 Shared test helpers outside the harness live in
 `shm_gen_cache::test_access` (`src/test_access.rs`), because they need crate
 internals: besides the raw words (`global_epoch`, `rotation_owner_word`,
-`arena_ctl_word`, `state_word`, `pinned_epoch`, `chunk`, `index_entry`, ...)
+`arena_ctl_word`, `state_word`, `pinned_epoch`, `chunk`, ...)
 it has decoders that perform exactly the loads they name and no more:
 
 * `arena_state(cache, i, order)`: control word plus occupancy counter (two
@@ -282,8 +282,8 @@ it has decoders that perform exactly the loads they name and no more:
   order)`: one load of a record-area word, decoded.
 * `distinct_bucket_hashes::<N>(bucket_count)`: `N` hashes with pairwise
   distinct home buckets (const fn).
-* `rotate`, `acquire_rotation`, `release_zombie_claim`, `probe`: the real
-  internal operations, for staging states.
+* `rotate`, `acquire_rotation`, `probe`: the real internal operations, for
+  staging states.
 
 Harness API (`src/lib.rs`, documented there):
 

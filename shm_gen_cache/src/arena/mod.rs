@@ -134,16 +134,6 @@ impl<'m> ArenaView<'m> {
         self.records
     }
 
-    /// The first byte of the arena.
-    #[cfg_attr(
-        not(any(feature = "verify", feature = "test-access")),
-        allow(dead_code)
-    )]
-    #[inline(always)]
-    pub(crate) fn base(self) -> NonNull<u8> {
-        self.base
-    }
-
     /// The index entries, for initialisation.
     #[inline(always)]
     pub(crate) fn index(self) -> NonNull<AtomicU64> {

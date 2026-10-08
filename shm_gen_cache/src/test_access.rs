@@ -15,7 +15,7 @@ use crate::error::Error;
 use crate::occupancy::OccupancyMode;
 use crate::participant::{ParticipantSlot, State};
 
-pub use crate::arena::index::{bucket, mix_hash};
+pub use crate::arena::index::bucket;
 pub use crate::arena::probe::ProbeError;
 pub use crate::arena::records::RecordLengths;
 pub use crate::cache::rotation::{RotationOwner, RotationPolicy};
@@ -46,11 +46,6 @@ pub fn global_epoch<P: Params>(cache: Cache<'_, P>) -> &AtomicU64 {
 /// The rotation owner word.
 pub fn rotation_owner_word<'m, P: Params>(cache: Cache<'m, P>) -> &'m AtomicU64 {
     &cache.header().rotation_owner
-}
-
-/// The registration counter.
-pub fn registration_counter<'m, P: Params>(cache: Cache<'m, P>) -> &'m AtomicU32 {
-    &cache.header().registration_counter
 }
 
 /// Loads the rotation owner with `order`.
@@ -96,16 +91,16 @@ pub fn arena_ctl<P: Params>(cache: Cache<'_, P>, index: u64, order: Ordering) ->
 
 /// Arena `index`'s state; each word loaded with `order`.
 pub fn arena_state<P: Params>(cache: Cache<'_, P>, index: u64, order: Ordering) -> ArenaState {
-    let ctl = CtlWord(arena_ctl_word(cache, index).load(order));
+    let ctl = arena_ctl(cache, index, order);
     let occupancy = if <P::Occupancy as OccupancyMode>::ESTIMATES {
         None
     } else {
         Some(arena_exact_occupancy(cache, index).load(order))
     };
     ArenaState {
-        epoch: ctl.epoch(),
-        sealed: ctl.sealed(),
-        bump: ctl.bump(),
+        epoch: ctl.epoch,
+        sealed: ctl.sealed,
+        bump: ctl.bump,
         occupancy,
     }
 }
@@ -131,11 +126,6 @@ pub fn state_word(slot: &ParticipantSlot) -> &AtomicU64 {
     &slot.state
 }
 
-/// A slot's start time word.
-pub fn thread_disambiguation(slot: &ParticipantSlot) -> &AtomicU64 {
-    &slot.thread_disambiguation
-}
-
 /// A slot's reservation chunk: `(epoch, cursor, end)`.
 pub fn chunk(slot: &ParticipantSlot) -> (&AtomicU64, &AtomicU32, &AtomicU32) {
     (&slot.chunk_epoch, &slot.chunk_cursor, &slot.chunk_end)
@@ -158,14 +148,6 @@ pub fn registered_state(pid: u32, registration_id: u32) -> u64 {
     State::registered(pid, registration_id).0
 }
 
-/// The INITIALIZING state word of `(pid, registration_id)`.
-pub fn initializing_state(pid: u32, registration_id: u32) -> u64 {
-    State::initializing(pid, registration_id).0
-}
-
-/// The REAPING state word.
-pub const REAPING_STATE: u64 = State::REAPING.0;
-
 /// Rotates from epoch `e` as the participant in slot `slot_index`.
 pub fn rotate<P: Params>(
     cache: Cache<'_, P>,
@@ -187,14 +169,6 @@ pub fn acquire_rotation<P: Params>(
     let hp = cache.params().hot();
     let slot = participant(cache, slot_index);
     cache.acquire_rotation(&hp, slot, slot_index, e, policy)
-}
-
-/// Slot reaping of slot `slot_index`.
-pub fn release_zombie_claim<P: Params>(
-    cache: Cache<'_, P>,
-    slot_index: u32,
-) -> Result<bool, Error> {
-    participant(cache, slot_index).release_zombie_claim::<P::Pid>()
 }
 
 /// Probes the incarnation `epoch` of arena `epoch % 3` for `key` (no
@@ -231,19 +205,6 @@ pub fn record_area<P: Params>(cache: Cache<'_, P>, index: u64) -> (*const u8, us
         cache.arena(&hp, index).records().as_ptr(),
         hp.record_area_size as usize,
     )
-}
-
-/// Arena `index`'s first byte.
-pub fn arena_base<P: Params>(cache: Cache<'_, P>, index: u64) -> *const u8 {
-    let hp = cache.params().hot();
-    cache.arena(&hp, index).base().as_ptr()
-}
-
-/// Arena `index`'s index entry `slot`.
-pub fn index_entry<'m, P: Params>(cache: Cache<'m, P>, index: u64, slot: u32) -> &'m AtomicU64 {
-    let hp = cache.params().hot();
-    assert!(slot <= hp.bucket_mask);
-    cache.arena(&hp, index).slot(slot)
 }
 
 /// The 64-bit word at byte `offset` of arena `index`'s record area, loaded
