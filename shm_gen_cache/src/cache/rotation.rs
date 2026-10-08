@@ -70,22 +70,27 @@ impl<'m, P: Params> Cache<'m, P> {
         let hp = self.params.hot();
         production_assert!(slot.pinned_epoch.load(Relaxed) == UNPINNED);
         self.acquire_rotation(&hp, slot, slot_index, e, policy)?;
+        let result = self.rotate_owned(&hp, e);
+        self.release_rotation();
+        result
+    }
 
+    /// The part of [`Self::rotate`] run under rotation ownership, which the
+    /// caller releases afterwards.
+    fn rotate_owned(self, hp: &HotParams, e: u64) -> Result<(), Error> {
         // Check under exclusive ownership, not just before acquiring
         // rotation. A prior owner may have published e + 1 and died before
         // releasing it. The ownership/death handoff already orders
         // completed epoch updates.
         if self.global_epoch().load(Relaxed) != e {
-            self.release_rotation();
             return Err(Error::ConcurrentOperation);
         }
-        let cur_arena = self.arena_of(&hp, e);
-        let next_arena = self.arena_of(&hp, e + 1);
+        let cur_arena = self.arena_of(hp, e);
+        let next_arena = self.arena_of(hp, e + 1);
         let mut cur_ctl = cur_arena.ctl().load(Relaxed);
 
         loop {
             if CtlWord(cur_ctl).epoch() != e as u32 {
-                self.release_rotation();
                 return Err(Error::ConcurrentOperation);
             }
             if CtlWord(cur_ctl).sealed() {
@@ -154,7 +159,7 @@ impl<'m, P: Params> Cache<'m, P> {
         // fence is cheap.
         fence(SeqCst);
         for i in 0..hp.participant_capacity {
-            let participant = self.participant(&hp, i);
+            let participant = self.participant(hp, i);
             let mut wait = BoundedWait::new();
             // R3: wait for it to be unpinned. Only pins at e - 2 or older
             // block: they write into the arena being reused.
@@ -168,20 +173,16 @@ impl<'m, P: Params> Cache<'m, P> {
                 if wait.pause_until(WatchedWord::low(&participant.pinned_epoch), repinned) {
                     continue;
                 }
-                match participant.release_zombie_claim::<P::Pid>() {
+                let error = match participant.release_zombie_claim::<P::Pid>() {
                     // Reload with acquire even after successful reaping
                     // (the exhausted wait is not restarted).
-                    Ok(true) => {}
-                    reaped => {
-                        // Keep the arena sealed, but let another rotator
-                        // retry its scan after a timeout or backend failure.
-                        self.release_rotation();
-                        return Err(match reaped {
-                            Err(e) => e,
-                            _ => Error::ArenaReuseTimeout,
-                        });
-                    }
-                }
+                    Ok(true) => continue,
+                    // Keep the arena sealed, but let another rotator retry
+                    // its scan after a timeout or backend failure.
+                    Ok(false) => Error::ArenaReuseTimeout,
+                    Err(error) => error,
+                };
+                return Err(error);
             }
         }
         // R4: arena reuse resets only the control word (and the exact
@@ -195,7 +196,6 @@ impl<'m, P: Params> Cache<'m, P> {
         self.global_epoch().store(e + 1, Release); // R5
         #[cfg(feature = "verify")]
         <P::Pid as GetPid>::after_epoch_publication();
-        self.release_rotation();
         Ok(())
     }
 
