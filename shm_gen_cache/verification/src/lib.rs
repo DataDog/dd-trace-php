@@ -64,7 +64,7 @@
 #![no_std]
 
 use core::cell::Cell;
-use core::ffi::{c_char, c_int, c_void};
+use core::ffi::{c_int, c_void};
 use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
 use core::sync::atomic::AtomicU32;
@@ -80,7 +80,7 @@ extern crate std;
 /// location and the condition.
 #[macro_export]
 macro_rules! check {
-    ($cond:expr $(,)?) => {
+    ($cond:expr $(, $why:literal)? $(,)?) => {
         if !$cond {
             $crate::fail(concat!(
                 file!(),
@@ -88,21 +88,8 @@ macro_rules! check {
                 line!(),
                 ": check failed: ",
                 stringify!($cond),
+                $(" (", $why, ")",)?
                 "\0"
-            ));
-        }
-    };
-    ($cond:expr, $why:literal $(,)?) => {
-        if !$cond {
-            $crate::fail(concat!(
-                file!(),
-                ":",
-                line!(),
-                ": check failed: ",
-                stringify!($cond),
-                " (",
-                $why,
-                ")\0"
             ));
         }
     };
@@ -472,6 +459,7 @@ mod genmc {
     //! family and `__VERIFIER_assume` are inline functions/macros in
     //! `genmc.h`, so the underlying symbols are called directly.
     use super::*;
+    use core::ffi::c_char;
 
     pub type Tid = i64; // __VERIFIER_thread_t = long
     pub const ASSUME_USER: c_char = 0; // GENMC_ASSUME_USER
@@ -565,9 +553,6 @@ mod native {
         // SAFETY: no preconditions.
         unsafe { pthread_self() }
     }
-
-    // Keep the c_char import used on every configuration.
-    const _: Option<c_char> = None;
 }
 
 #[cfg(not(sgc_genmc))]
