@@ -176,6 +176,112 @@ assert_eq!(lock.lookup(hash, b"key", &mut out)?, Some(&b"value"[..]));
 and `<T as StaticParams>::Storage` is matching zeroed static storage. The
 verification suite uses it.
 
+## Performance
+
+Measured with the crate's benchmark (`benches/sgc_bench.rs`, see
+[benches/README.md](benches/README.md)) at commit `6dbaab2dde`, built with
+the `tracer-release` profile. Each worker is pinned to its own physical core
+and has its own participant; the cache is backed by transparent huge pages.
+A run's value for a scenario is the median of 7 repetitions of 250,000
+operations per thread; the lines are the medians over runs and the bands
+span the lowest to the highest run.
+
+| | Ryzen 9 9950X | AWS m5.metal |
+|---|---|---|
+| Cores used | 16, one per core (SMT siblings idle) | 43 dedicated: 19 on socket 0, 24 on socket 1 |
+| Cache topology | 2 CCDs of 8 cores, 32 MiB L3 each, one NUMA node | 2 × Xeon Platinum 8259CL: 2 sockets of 24 cores, 35.75 MiB L3 each, one NUMA node per socket |
+| Clock | boost on, `powersave` governor | pinned at 2.5 GHz, turbo off |
+| Runs | 7 | 5 (Benchmarking Platform, `tweaked-metal` runner) |
+
+Read-mostly scenarios scale almost linearly: at 16 threads the 9950X keeps
+91-92% of the single-thread rate per thread, and the m5.metal 98% at 43
+threads. Write-heavy scenarios scale until the workers cross the boundary
+between caches (from 8 to 9 threads on the 9950X, from 19 to 20 on the
+m5.metal), where the aggregate throughput drops: on the 9950X insert_new
+falls from 73 to 52 Mops/s and mixed/64Ki/s0.8 from 148 to 84; on the
+m5.metal from 49.5 to 34 and from 105 to 59. Adding cores beyond the boundary
+recovers some of that, but insert_new never gets back to its peak.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/performance/9950x-throughput-dark.svg">
+  <img alt="Throughput against threads on the Ryzen 9 9950X" src="docs/performance/9950x-throughput-light.svg">
+</picture>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/performance/m5metal-throughput-dark.svg">
+  <img alt="Throughput against threads on the m5.metal" src="docs/performance/m5metal-throughput-light.svg">
+</picture>
+
+Scaling efficiency is the per-thread rate relative to one thread (1 is
+perfect scaling):
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/performance/9950x-scaling-dark.svg">
+  <img alt="Scaling efficiency on the Ryzen 9 9950X" src="docs/performance/9950x-scaling-light.svg">
+</picture>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/performance/m5metal-scaling-dark.svg">
+  <img alt="Scaling efficiency on the m5.metal" src="docs/performance/m5metal-scaling-light.svg">
+</picture>
+
+### Why write scaling collapses at the boundary
+
+Every insert publishes its index entry with a compare-and-swap on the index
+slot. Buckets are random and a 64-byte line holds 8 slots, so the line an
+insert needs was usually last written by another inserter. While all workers
+share one L3 (one CCD of the 9950X, one socket of the m5.metal), that line is
+fetched from the shared cache. Once workers sit on both sides of a boundary,
+a growing share of those lines is modified in the other CCD's or socket's
+cache and must cross the interconnect. Lookups only read index lines that
+nobody is writing, so the lines stay shared in every cache and nothing
+crosses the boundary.
+
+Hardware counters of the timed region (a run with 7 repetitions minus one
+with 1, so setup and warm-up are excluded) show this directly. Instructions
+per operation stay flat across thread counts; cycles per operation jump
+exactly where cross-boundary transfers appear:
+
+- **9950X**, insert_new: fills from the other CCD's cache
+  (`ls_any_fills_from_sys.near_cache`) go from 0.02 per operation at 8
+  threads to 0.95 at 9 and 2.9 at 16, while cycles per operation go from 615
+  to 987 and 1222 at 598-629 instructions. lookup_hit stays at 0 such fills
+  and 235-261 cycles. Each extra cross-CCD fill comes with about 400 extra
+  cycles per operation at 9 threads. `perf c2c` at 16 threads attributes all
+  92 cross-CCD modified-line loads it sampled to one instruction: the
+  `lock cmpxchg` of `table_put` (`src/arena/put.rs`).
+- **m5.metal**, insert_new: loads served by a modified line in the other
+  socket (`mem_load_l3_miss_retired.remote_hitm`) go from 0 at 19 threads to
+  0.075 per operation at 20 and 0.23 at 32, while cycles per operation go
+  from 576 to 847 and 1910 at 43 threads, at 418-433 instructions. Each
+  extra cross-socket transfer comes with 2,600-4,500 extra cycles, far more
+  than one remote access takes, so the lines are presumably also contended:
+  the locked compare-and-swap has to wait for exclusive ownership of a line
+  that workers on both sockets are trying to own. Within socket 0, loads of
+  lines modified by another core of the same socket (`xsnp_hitm`) already
+  reach 0.48 per operation at 8 threads but add only about 24 cycles. Up to
+  19 threads they stay at 0.48-0.58 per operation while cycles rise from
+  363 to 576, so the milder decline before the boundary presumably comes
+  from more cores contending for the same lines rather than from more
+  transfers.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/performance/9950x-counters-dark.svg">
+  <img alt="Cycles and cross-CCD fills per operation on the Ryzen 9 9950X" src="docs/performance/9950x-counters-light.svg">
+</picture>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/performance/m5metal-counters-dark.svg">
+  <img alt="Cycles and cross-socket modified-line loads per operation on the m5.metal" src="docs/performance/m5metal-counters-light.svg">
+</picture>
+
+No operation failed on the 9950X. On the m5.metal, 17 of 21.4 billion timed
+operations failed (inserts at 28-36 threads); the benchmark counts
+failures without recording their status.
+
+The figures and their data are in `docs/performance/`: `data/*.json` holds
+every run's value and the counters per operation, and `plot.py` aggregates
+raw results into it and draws the figures (`uv run plot.py --help`). The
+m5.metal job is `gustavo.lopes/shm-gen-cache-rust-scaling` in
+DataDog/benchmarking-platform.
+
 ## Build variants
 
 The library is `#![no_std]`. Features: `ffi` (default; the C API, mmap and
