@@ -415,7 +415,7 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_ob
 
     char *exception_hash = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena).arena, hash_len);
     zend_ulong exception_long_hash = ddtrace_compute_exception_hash(exception);
-    php_hash_bin2hex(exception_hash, (unsigned char *)&exception_long_hash, sizeof(exception_long_hash));
+    zend_bin2hex(exception_hash, (unsigned char *)&exception_long_hash, sizeof(exception_long_hash));
 
     ddog_add_str_span_meta_str(span, "error.debug_info_captured", "true");
     ddog_add_str_span_meta_CharSlice(span, "_dd.debug.error.exception_hash", (ddog_CharSlice){.ptr = exception_hash, .len = hash_len});

@@ -406,7 +406,7 @@ zend_string *nullable dd_user_info_anonymize(zend_string *nonnull user_info)
     memcpy(ZSTR_VAL(anon_user_id), LSTRARG(ANON_PREFIX));
 
     char *digest_begin = ZSTR_VAL(anon_user_id) + LSTRLEN(ANON_PREFIX);
-    php_hash_bin2hex(
+    zend_bin2hex(
         digest_begin, (unsigned char *)ZSTR_VAL(digest), ops->digest_size / 2);
     digest_begin[ops->digest_size] = 0;
 
