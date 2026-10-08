@@ -6,6 +6,7 @@
 
   uv run plot.py aggregate --machine 9950x --label "..." --boundary 8.5 \
       --boundary-label "CCD 1" --cross-event ls_any_fills_from_sys.near_cache \
+      --cross-label "Fills from the other CCD" \
       --runs 'raw/r*.json' --perf 'raw/perfstat/*.csv' > data/9950x.json
   uv run plot.py plot data/9950x.json   # writes 9950x-*-{light,dark}.svg
 
@@ -48,9 +49,10 @@ def aggregate(args: argparse.Namespace) -> None:
             errors += r["lookup_errors"] + r["insert_errors"]
     counters: dict[str, dict[str, dict[int, dict[int, list[float]]]]] = defaultdict(
         lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(list))))
+    scenarios = {f.replace("/", "_"): f for f in runs}
     for path in glob.glob(args.perf or ""):
         m = re.match(r"(.+)-t(\d+)-reps(\d+)-\d+\.csv", os.path.basename(path))
-        scen = {f.replace("/", "_"): f for f in runs}.get(m[1], m[1])
+        scen = scenarios.get(m[1], m[1])
         for row in csv.reader(open(path)):
             if len(row) < 3 or not row[0].strip() or row[0].startswith("#"):
                 continue
@@ -174,16 +176,17 @@ def plot(args: argparse.Namespace) -> None:
     def rows(f: str):
         return sorted(data["runs"][f].items(), key=lambda kv: int(kv[0]))
 
+    def series(fams: list[str], scale):
+        """(median, min, max) of every family's runs, each passed through
+        scale(family, threads, value)."""
+        return [(f, [(int(t), *(scale(f, int(t), x) for x in (st.median(v), min(v), max(v))))
+                     for t, v in rows(f)]) for f in fams]
+
     def throughput(fams: list[str]):
-        return [(f, [(int(t), st.median(v), min(v), max(v)) for t, v in rows(f)]) for f in fams]
+        return series(fams, lambda f, t, x: x)
 
     def efficiency(fams: list[str]):
-        out = []
-        for f in fams:
-            base = st.median(data["runs"][f]["1"])
-            out.append((f, [(int(t), st.median(v) / int(t) / base, min(v) / int(t) / base,
-                             max(v) / int(t) / base) for t, v in rows(f)]))
-        return out
+        return series(fams, lambda f, t, x: x / t / st.median(data["runs"][f]["1"]))
 
     label = data["label"]
     figure(outdir / f"{m}-throughput.svg", [
