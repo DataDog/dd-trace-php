@@ -1418,6 +1418,7 @@ endforeach;
     KUBERNETES_MEMORY_LIMIT: 4Gi
     RUST_BACKTRACE: 1
     BUILD_SH_ARGS: php
+    SYSTEM_TESTS_REF: main
     USE_IMAGE_MIRROR: "1"
     PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
     APT_CACHE: $CI_PROJECT_DIR/.cache/apt
@@ -1452,6 +1453,7 @@ endforeach;
 <?php dockerhub_login() ?>
     - /tmp/vault kv get --format=json "kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key" 2>/dev/null | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['data']['key'])" > /tmp/.dd-api-key 2>/dev/null || true
     - git clone https://github.com/DataDog/system-tests.git
+    - git -C system-tests checkout "$SYSTEM_TESTS_REF"
     - mv packages/{datadog-setup.php,dd-library-php-*x86_64-linux-gnu.tar.gz} system-tests/binaries
     - cd system-tests
     - ./build.sh $BUILD_SH_ARGS
@@ -1473,6 +1475,27 @@ endforeach;
   extends: .system_tests
   script:
     - ./run.sh
+
+"System Tests: [php-fpm-8.2, feature-flags-agentless]":
+  extends: .system_tests
+  variables:
+    BUILD_SH_ARGS: -w php-fpm-8.2 php
+    # Remove this temporary pin after DataDog/system-tests#7988 merges.
+    SYSTEM_TESTS_REF: da9642da998a964f6d08fedd6fe116d5034bc15d
+  script:
+    - ./run.sh FEATURE_FLAGGING_AND_EXPERIMENTATION_AGENTLESS tests/ffe/test_agentless_configuration.py::Test_FFE_Agentless_Configuration
+    - ./run.sh FEATURE_FLAGGING_AND_EXPERIMENTATION_AGENTLESS_DIRECT tests/ffe/test_exposure_egress.py::Test_FFE_Exposure_Egress_Agentless_Direct tests/ffe/test_exposure_egress.py::Test_FFE_Exposure_Egress_Agentless_Direct_Shutdown tests/ffe/test_flag_eval_evp.py::Test_FFE_EVP_Flagevaluation_Egress_Agentless_Direct
+    - ./run.sh FEATURE_FLAGGING_AND_EXPERIMENTATION_AGENTLESS_SERVERLESS tests/ffe/test_exposure_egress.py::Test_FFE_Exposure_Egress_Agentless_Sidecar tests/ffe/test_flag_eval_evp.py::Test_FFE_EVP_Flagevaluation_Egress_Agentless_Sidecar
+    - |
+      python3 - <<'PY'
+      from pathlib import Path
+      import xml.etree.ElementTree as ET
+      for suffix, expected in [("", 1), ("_direct", 3), ("_serverless", 2)]:
+          report = Path(f"logs_feature_flagging_and_experimentation_agentless{suffix}/reportJunit.xml")
+          cases = ET.parse(report).findall(".//testcase")
+          assert len(cases) == expected, (str(report), len(cases), expected)
+          assert all(not any(case.find(tag) is not None for tag in ("failure", "error", "skipped")) for case in cases), str(report)
+      PY
 
 "System Tests":
   extends: .system_tests
