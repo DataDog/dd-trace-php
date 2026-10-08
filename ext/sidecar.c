@@ -186,9 +186,29 @@ static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_f
         .origin = DDOG_CHARSLICE_C("dd-trace-php"),
         .version = DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION),
     };
-    datadog_ffi_try("Failed configuring PHP FFE EVP transport",
-        ddog_sidecar_session_set_evp_transport(transport, DDOG_EVP_TRANSPORT_MODE_AGENT_ONLY,
-            datadog_endpoint, NULL, DDOG_CHARSLICE_C("event-platform-intake"), &ffe_producer));
+    ddog_FfeRuntimeConfig ffe_config = ddog_ffe_runtime_config();
+    ddog_EvpTransportMode ffe_mode = ffe_config.enabled
+        && ffe_config.source == DDOG_FFE_CONFIGURATION_SOURCE_AGENTLESS
+        ? DDOG_EVP_TRANSPORT_MODE_PREFER_LOCAL_THEN_DIRECT
+        : DDOG_EVP_TRANSPORT_MODE_AGENT_ONLY;
+    ddog_Endpoint *ffe_direct = ddog_ffe_direct_evp_endpoint();
+    // FFE's local candidate is the Agent URL even when APM trace delivery is
+    // agentless. Never give the local route an API-key-bearing trace endpoint.
+    char *ffe_agent_url = datadog_agent_url();
+    ddog_Endpoint *ffe_agent = datadog_parse_agent_url((ddog_CharSlice) {
+        .ptr = ffe_agent_url, .len = strlen(ffe_agent_url)});
+    free(ffe_agent_url);
+    if (ffe_agent) {
+        dd_set_endpoint_test_token(ffe_agent);
+        ddog_endpoint_set_timeout(ffe_agent, get_global_DD_TRACE_AGENT_TIMEOUT());
+        datadog_ffi_try("Failed configuring PHP FFE EVP transport",
+            ddog_sidecar_session_set_evp_transport(transport, ffe_mode,
+                ffe_agent, ffe_direct, DDOG_CHARSLICE_C("event-platform-intake"), &ffe_producer));
+        ddog_endpoint_drop(ffe_agent);
+    }
+    if (ffe_direct) {
+        ddog_endpoint_drop(ffe_direct);
+    }
 #endif
 
     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {

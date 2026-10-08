@@ -163,6 +163,11 @@ struct ddog_FfeRuntimeConfig ddog_ffe_configure(const struct ddog_FfeSettingsInp
 struct ddog_FfeRuntimeConfig ddog_ffe_runtime_config(void);
 
 /**
+ * Caller owns the returned endpoint and must release it with endpoint_drop.
+ */
+struct ddog_Endpoint *ddog_ffe_direct_evp_endpoint(void);
+
+/**
  * First-use compatibility path for PHP providers without an initialize API.
  * Concurrent first callers share one deadline; later calls never renew it.
  */

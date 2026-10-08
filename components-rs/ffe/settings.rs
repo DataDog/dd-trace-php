@@ -195,6 +195,34 @@ impl FeatureFlagsSettings {
             &self.api_key,
         )
     }
+
+    /// Event delivery has a separate canonical intake. A custom configuration
+    /// URL must never become the destination for the Datadog API key.
+    pub fn direct_evp_endpoint(&self) -> Option<libdd_common::Endpoint> {
+        if !self.resolution.enabled
+            || self.resolution.source != ConfigurationSource::Agentless
+            || self.api_key.is_empty()
+        {
+            return None;
+        }
+        let site = normalize_site(&self.site).ok()?;
+        let endpoint = libdd_common::Endpoint {
+            url: format!("https://event-platform-intake.{site}/")
+                .parse()
+                .ok()?,
+            api_key: Some(self.api_key.clone().into()),
+            ..Default::default()
+        };
+        // Reuse the shared transport's full DNS/header/HTTPS validation. Invalid
+        // direct credentials leave local discovery available without them.
+        let config = datadog_sidecar::service::EvpTransportConfig::prefer_local_then_direct(
+            libdd_common::Endpoint::default(),
+            Some(endpoint),
+            "event-platform-intake",
+        );
+        config.validate().ok()?;
+        config.direct_endpoint
+    }
 }
 
 fn validated_numeric(
@@ -637,5 +665,50 @@ mod tests {
         assert!(!debug.contains("user"));
         assert!(!debug.contains("password"));
         assert!(debug.contains("[REDACTED]"));
+    }
+
+    #[test]
+    fn direct_evp_uses_only_valid_agentless_credentials_and_canonical_site() {
+        let settings = |source, enabled, site, api_key| {
+            FeatureFlagsSettings::resolve(SettingsInput {
+                source: SourceInput {
+                    enabled,
+                    enabled_set: true,
+                    source,
+                    source_set: true,
+                    legacy_enabled: false,
+                    legacy_enabled_set: false,
+                },
+                agentless_base_url: "https://custom.example/config?tenant=one",
+                poll_interval_seconds: 30,
+                request_timeout_seconds: 5,
+                initialization_timeout_ms: 1000,
+                site,
+                api_key,
+                environment: "test",
+            })
+        };
+        let configured = settings("agentless", true, "US3.Datadoghq.com", "test-key");
+        assert!(configured.agentless_endpoint().unwrap().api_key().is_none());
+        let endpoint = configured.direct_evp_endpoint().unwrap();
+        assert_eq!(
+            endpoint.url,
+            "https://event-platform-intake.us3.datadoghq.com/"
+        );
+        assert_eq!(endpoint.api_key.as_deref(), Some("test-key"));
+        for (source, enabled, site, key) in [
+            ("remote_config", true, "datadoghq.com", "test-key"),
+            ("agentless", false, "datadoghq.com", "test-key"),
+            ("agentless", true, "datadoghq.com", ""),
+            ("agentless", true, "datadoghq.com", "bad\r\nkey"),
+            ("agentless", true, "datadoghq.com:443", "test-key"),
+            ("agentless", true, "datadoghq.com/path", "test-key"),
+            ("agentless", true, "datadoghq.com@other.example", "test-key"),
+            ("agentless", true, "bad..example", "test-key"),
+        ] {
+            assert!(settings(source, enabled, site, key)
+                .direct_evp_endpoint()
+                .is_none());
+        }
     }
 }

@@ -1,10 +1,38 @@
 <?php
 putenv('PHP_FFE_WIRE_OPENFEATURE=' . ($openFeature ? '1' : '0'));
+$direct = isset($direct) && $direct;
+$tlsDir = null;
+if ($direct) {
+    require __DIR__ . '/evp_tls_fixture.inc';
+    $tlsDir = ffeWireTlsFixture();
+    putenv('SSL_CERT_FILE=' . $tlsDir . '/ca.pem');
+}
 $listener = stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
 if (!$listener) {
     throw new RuntimeException($error);
 }
-putenv('DD_TRACE_AGENT_URL=http://' . stream_socket_get_name($listener, false));
+$agentless = isset($agentless) && $agentless;
+$evpVersion = isset($evpVersion) ? $evpVersion : 'v2';
+$prefix = $agentless ? '/customer/proxy' : '';
+$serverUrl = 'http://' . stream_socket_get_name($listener, false);
+putenv('DD_TRACE_AGENT_URL=' . $serverUrl . $prefix);
+if ($agentless) {
+    putenv('DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL=' . $serverUrl . '/configuration');
+}
+if ($direct) {
+    // run-tests.php exports REQUEST_METHOD even for CLI tests. Remove that
+    // synthetic CGI marker from this CLI child; the HTTP client's CGI guard
+    // intentionally ignores environment proxies whenever it is present.
+    putenv('REQUEST_METHOD');
+    putenv('HTTPS_PROXY=' . $serverUrl);
+    putenv('https_proxy=' . $serverUrl);
+    putenv('HTTP_PROXY=');
+    putenv('http_proxy=');
+    putenv('ALL_PROXY=');
+    putenv('all_proxy=');
+    putenv('NO_PROXY=127.0.0.1,localhost');
+    putenv('no_proxy=127.0.0.1,localhost');
+}
 $command = 'exec ' . escapeshellarg(getenv('TEST_PHP_EXECUTABLE'))
     . ' ' . getenv('TEST_PHP_EXTRA_ARGS')
     . ' ' . escapeshellarg(__DIR__ . '/flag_evaluation_wire_app.php');
@@ -50,6 +78,26 @@ try {
                 $headers[strtolower($parts[0])] = trim($parts[1]);
             }
         }
+        $isDirect = strpos($requestLine, 'CONNECT ') === 0;
+        if ($isDirect) {
+            if (!$direct || $requestLine !== 'CONNECT event-platform-intake.example.invalid:443 HTTP/1.1'
+                || isset($headers['dd-api-key'])) {
+                throw new RuntimeException('unexpected CONNECT destination or credentials');
+            }
+            fwrite($connection, "HTTP/1.1 200 Connection Established\r\n\r\n");
+            stream_context_set_option($connection, 'ssl', 'local_cert', $tlsDir . '/server.pem');
+            stream_context_set_option($connection, 'ssl', 'verify_peer', false);
+            if (stream_socket_enable_crypto($connection, true, STREAM_CRYPTO_METHOD_TLS_SERVER) !== true) {
+                throw new RuntimeException('TLS handshake failed');
+            }
+            $requestLine = trim(fgets($connection));
+            $requests[] = $requestLine;
+            $headers = array();
+            while (($line = fgets($connection)) !== false && trim($line) !== '') {
+                $parts = explode(':', $line, 2);
+                if (count($parts) === 2) $headers[strtolower($parts[0])] = trim($parts[1]);
+            }
+        }
         $length = isset($headers['content-length']) ? (int) $headers['content-length'] : 0;
         $body = '';
         while (strlen($body) < $length && !feof($connection)) {
@@ -57,12 +105,25 @@ try {
             if ($chunk === false || $chunk === '') break;
             $body .= $chunk;
         }
-        if (strpos($requestLine, '/evp_proxy/v2/api/v2/') !== false) {
+        $isEvp = strpos($requestLine, '/evp_proxy/') !== false || $isDirect;
+        if ($isEvp) {
+            $expectedRoute = $direct ? 'POST /api/v2/' : 'POST ' . $prefix . '/evp_proxy/' . $evpVersion . '/api/v2/';
+            if ($isDirect !== $direct || strpos($requestLine, $expectedRoute) !== 0) {
+                throw new RuntimeException('wrong EVP route: ' . $requestLine);
+            }
             $captures[] = array($requestLine, $headers, json_decode($body, true));
             $lastCaptureAt = microtime(true);
         }
         $response = '{}';
-        fwrite($connection, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n" . $response);
+        if ($agentless && strpos($requestLine, 'GET ' . $prefix . '/info ') === 0) {
+            $response = json_encode(array(
+                'endpoints' => $direct ? array() : ($evpVersion === 'v4' ? array('/evp_proxy/v2', '/evp_proxy/v4') : array('/evp_proxy/v2')),
+                'evp_proxy_allowed_headers' => array('DD-EVP-ORIGIN', 'DD-EVP-ORIGIN-VERSION'),
+            ));
+        }
+        $responseStatus = $isEvp ? '202 Accepted' : '200 OK';
+        fwrite($connection, "HTTP/1.1 $responseStatus\r\nContent-Type: application/json\r\nContent-Length: "
+            . strlen($response) . "\r\nConnection: close\r\n\r\n" . $response);
         fclose($connection);
     } while (microtime(true) < $deadline);
     $stdout .= stream_get_contents($pipes[1]);
@@ -78,7 +139,13 @@ try {
     $identity = true;
     foreach ($captures as $capture) {
         list($request, $headers, $payload) = $capture;
-        $identity = $identity && !isset($headers['dd-api-key'])
+        $routeHeaders = $direct
+            ? isset($headers['dd-api-key']) && $headers['dd-api-key'] === 'local-test-key-must-not-reach-agent'
+                && !isset($headers['x-datadog-evp-subdomain'])
+                && $headers['host'] === 'event-platform-intake.example.invalid'
+            : !isset($headers['dd-api-key']) && isset($headers['x-datadog-evp-subdomain'])
+                && $headers['x-datadog-evp-subdomain'] === 'event-platform-intake';
+        $identity = $identity && $routeHeaders
             && isset($headers['dd-evp-origin']) && $headers['dd-evp-origin'] === 'dd-trace-php'
             && isset($headers['dd-evp-origin-version']) && $headers['dd-evp-origin-version'] === phpversion('ddtrace');
         if (!$identity) {
@@ -118,5 +185,9 @@ try {
     fclose($pipes[2]);
     proc_close($process);
     fclose($listener);
+    if ($tlsDir !== null) {
+        foreach (glob($tlsDir . '/*') as $file) unlink($file);
+        rmdir($tlsDir);
+    }
 }
 ?>
