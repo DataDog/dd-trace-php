@@ -97,7 +97,7 @@ tracing-core = "0.1.32"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["std", "fmt", "env-filter", "smallvec"] }
 tokio = { version = "1.36", features = ["macros", "rt", "sync", "time"] }
 tokio-util = "0.7.11"
-serde_json = "1.0.113"
+serde_json = { version = "1.0.113", features = ["raw_value"] }
 regex = "1.10.5"
 regex-automata = "0.4.5"
 http = "1.4"

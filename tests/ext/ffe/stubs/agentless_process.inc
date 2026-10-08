@@ -53,7 +53,7 @@ try {
             $forked = strpos($stdout, 'parent_forked') !== false && strpos($stdout, 'child_forked') !== false;
             $value = $scenario === 'fork' && $forked ? 'green' : 'blue';
             $code = '200 OK';
-            $body = json_encode(array(
+            $configuration = array(
                 'createdAt' => '2026-05-22T00:00:00Z', 'environment' => array('name' => 'test'),
                 'flags' => array('flag' => array(
                     'key' => 'flag', 'enabled' => true, 'variationType' => 'STRING',
@@ -61,7 +61,11 @@ try {
                     'allocations' => array(array('key' => 'allocation', 'rules' => array(), 'doLog' => false,
                         'splits' => array(array('variationKey' => 'on', 'shards' => array())))),
                 )),
-            ));
+            );
+            $configuration['format'] = 'SERVER';
+            $body = json_encode(array('data' => array(
+                'type' => 'universal-flag-configuration', 'attributes' => $configuration,
+            )));
         }
         fwrite($connection, "HTTP/1.1 $code\r\nContent-Type: application/json\r\nContent-Length: "
             . strlen($body) . "\r\nConnection: close\r\n\r\n" . $body);
