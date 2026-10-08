@@ -29,9 +29,9 @@
 //! reuse" is rotation reinitialising an old arena.
 //!
 //! Build variants, see `verification/README.md`:
-//! * feature `verify`: verification build: model assertions on, production
-//!   assertions off, test hooks and [`test_access`] enabled. Never enable
-//!   it in production artifacts;
+//! * feature `verify`: verification build: production assertions off, test
+//!   hooks and [`test_access`] enabled. Never enable it in production
+//!   artifacts;
 //! * `--cfg sgc_genmc`: bitcode for GenMC (requires feature `verify`);
 //! * `--cfg sgc_genmc_short_waits`: shortens the bounded rotation waits to
 //!   two polls, compiling out their clock reads, monitored sleeps, futex
@@ -66,9 +66,6 @@ mod participant;
 mod pid;
 mod util;
 mod wait;
-
-#[cfg(sgc_genmc)]
-mod genmc;
 
 #[cfg(all(feature = "ffi", target_os = "linux"))]
 mod linux_pid;

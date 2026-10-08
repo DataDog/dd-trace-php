@@ -1,64 +1,33 @@
-//! Assertions and fatal errors.
-//!
-//! `sgc_assert!` states a model property. It is checked in verification
-//! builds (feature `verify`) and in debug builds.
-//! Under GenMC (`--cfg sgc_genmc`) a failure is reported through
-//! `__VERIFIER_assert_fail`, which GenMC turns into a counterexample with a
-//! trace instead of a crash.
+//! Production assertions and fatal errors.
 //!
 //! `production_assert!` states a production invariant. It is checked in
-//! ordinary debug builds only: verification builds omit it so that models
-//! pay only for the properties stated by their harness, and release builds
-//! omit it too. When omitted the condition is **not
+//! ordinary debug builds only: verification builds (feature `verify`) omit it
+//! so that models pay only for the properties stated by their harness, and
+//! release builds omit it too. When omitted the condition is **not
 //! evaluated**: some conditions perform loads or system calls, which a
 //! release or model build must not execute.
-
-/// Checks a model property; see the module documentation.
-#[allow(unused_macros)]
-macro_rules! sgc_assert {
-    ($cond:expr, $msg:literal $(,)?) => {
-        if cfg!(any(feature = "verify", debug_assertions)) && !$cond {
-            $crate::assert::assertion_failed(concat!($msg, "\0"));
-        }
-    };
-}
+//!
+//! [`fatal`] reports a state the protocol never produces, e.g. a participant
+//! slot whose state changed under its owner. With `std` it aborts the process;
+//! otherwise, and in GenMC builds (`--cfg sgc_genmc`), it panics. The GenMC
+//! runner turns `core`'s panic entry points into assertion failures, so the
+//! model checker records a safety violation.
 
 /// Checks a production invariant; see the module documentation.
 macro_rules! production_assert {
     ($cond:expr $(,)?) => {
         if cfg!(all(debug_assertions, not(feature = "verify"))) && !$cond {
-            $crate::assert::assertion_failed(concat!(stringify!($cond), "\0"));
+            $crate::assert::fatal(stringify!($cond));
         }
     };
-}
-
-/// Reports a failed assertion. `msg` is NUL-terminated.
-#[cold]
-#[inline(never)]
-#[track_caller]
-pub(crate) fn assertion_failed(msg: &'static str) -> ! {
-    #[cfg(sgc_genmc)]
-    {
-        crate::genmc::assert_fail(msg)
-    }
-    #[cfg(not(sgc_genmc))]
-    {
-        fatal(msg.trim_end_matches('\0'))
-    }
 }
 
 /// Terminates the process (abort), e.g. on a participant slot
 /// whose state was corrupted.
 #[cold]
 #[inline(never)]
-#[track_caller]
 pub(crate) fn fatal(msg: &'static str) -> ! {
-    #[cfg(sgc_genmc)]
-    {
-        let _ = msg;
-        crate::genmc::assert_fail("shm_gen_cache: fatal\0")
-    }
-    #[cfg(all(not(sgc_genmc), feature = "std"))]
+    #[cfg(all(feature = "std", not(sgc_genmc)))]
     {
         use std::io::Write as _;
         let mut err = std::io::stderr().lock();
@@ -67,7 +36,7 @@ pub(crate) fn fatal(msg: &'static str) -> ! {
         let _ = err.write_all(b"\n");
         std::process::abort()
     }
-    #[cfg(all(not(sgc_genmc), not(feature = "std")))]
+    #[cfg(not(all(feature = "std", not(sgc_genmc))))]
     {
         // Without std there is no portable abort; with `panic = "abort"`
         // (every release artifact) this aborts too.

@@ -98,6 +98,10 @@ stages:
     - curl -LsSf "https://get.nexte.st/${NEXTEST_VERSION}/linux" | sudo tar zxf - -C /usr/local/bin
     - docker version
   script:
+    # The no_std library (the GenMC bitcode builds use it). As an rlib only:
+    # the crate is also a staticlib, which needs std.
+    - cargo rustc -p shm_gen_cache --no-default-features --crate-type rlib
+    - cargo rustc -p shm_gen_cache --no-default-features --features std --crate-type rlib
     - cargo nextest run -p shm_gen_cache -p shm_gen_cache_verification --profile ci
   after_script:
     - mkdir -p artifacts

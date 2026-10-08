@@ -26,8 +26,8 @@ std = []
 ffi = ["std", "dep:libc"]
 # Exposes `shm_gen_cache::test_access` (internals) outside feature `verify`.
 test-access = []
-# Verification build (verification/README.md): model assertions (`sgc_assert!`)
-# always checked, production assertions off, the `GetPid` test hooks called,
+# Verification build (verification/README.md): production assertions off, the
+# `GetPid` test hooks called,
 # `test_access` public. Changes behaviour and speed: never enable it for
 # production artifacts. The GenMC bitcode builds pass `--cfg 'feature="verify"'`
 # to rustc directly, so code tests `feature = "verify"` (not `test-access`).

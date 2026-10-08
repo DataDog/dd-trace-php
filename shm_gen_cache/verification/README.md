@@ -46,8 +46,8 @@ does, so never ship an artifact from such a build.
 
 | cfg / feature | where | semantic effect |
 |---|---|---|
-| feature `verify` | lib | internal assertions on, production assertions off, `test_access` public, `GetPid` test hooks called |
-| `sgc_genmc` | lib | assertion failure/`fatal()` report to GenMC; empty `cpu_relax()`; atomic zero fill in `Cache::initialize` |
+| feature `verify` | lib | production assertions off, `test_access` public, `GetPid` test hooks called |
+| `sgc_genmc` | lib | `fatal()` panics (a GenMC assertion failure after the runner's panic stubs); empty `cpu_relax()`; atomic zero fill in `Cache::initialize` |
 | `sgc_genmc` | harness, tests | GenMC threads, `__VERIFIER_assert_fail`, real `assume` (else pthreads, abort, no-op `assume`) |
 | `sgc_genmc_short_waits` | lib | rotation waits (`BoundedWait`) give up after 2 spin polls instead of the wall-clock budget; no clock, monitored sleep, futex or yield code |
 | `genmc_witness`, `genmc_witness="N"` | harness, tests | only `witness!("N", ..)` is active; `spawn_symmetric` spawns plainly |
@@ -55,13 +55,11 @@ does, so never ship an artifact from such a build.
 
 In detail:
 
-* feature `verify`: verification build. The
-  crate-internal `sgc_assert!` is checked and `production_assert!` is
-  compiled out (its condition is not evaluated); `test_access` is public
-  (`verify` implies `test-access`); the `GetPid` test hooks are called
-  (below).
-* `sgc_genmc` (bitcode only, requires `verify`): a failed internal assertion or
-  `fatal()` calls `__VERIFIER_assert_fail` instead of aborting; `cpu_relax()` is
+* feature `verify`: verification build. `production_assert!` is compiled
+  out (its condition is not evaluated); `test_access` is public (`verify`
+  implies `test-access`); the `GetPid` test hooks are called (below).
+* `sgc_genmc` (bitcode only, requires `verify`): `fatal()` panics instead of
+  aborting, which the runner's panic stubs report as an assertion failure; `cpu_relax()` is
   empty, since inline assembly (`pause`/`isb`) cannot be interpreted (it has no
   shared-memory effect); the zero fills of `Cache::initialize` are relaxed
   atomic word stores instead of `write_bytes`, as GenMC's memset promotion does

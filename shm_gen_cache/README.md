@@ -184,8 +184,17 @@ the Linux backend; implies `std`), `std` (process abort, the estimator's
 Linux, the scheduler yield of rotation waits; on OSes other than Linux and
 Apple also their clock, so required there), `test-access`
 (`shm_gen_cache::test_access`), `verify` (the verification build, below;
-implies `test-access`). The staticlib needs `ffi`; `--no-default-features`
-is only meaningful for rlib builds (the GenMC suite).
+implies `test-access`). The staticlib needs `ffi`.
+
+Without default features the library is `no_std`, which suits only an rlib
+(the GenMC bitcode builds): Cargo builds every crate type of the package,
+and a `no_std` staticlib has no panic handler, so `cargo check
+--no-default-features` fails. Check that build as an rlib instead, as CI
+does:
+
+```sh
+cargo rustc -p shm_gen_cache --no-default-features --crate-type rlib
+```
 
 `verify` must never be enabled for production artifacts. `cargo build -p
 shm_gen_cache` (with any profile) leaves it off, but a build of the whole
@@ -197,8 +206,8 @@ builds only:
 
 | feature / cfg | effect |
 |---|---|
-| feature `verify` | verification build: `sgc_assert!` checked, `production_assert!` off, `test_access` and the `GetPid` test hooks enabled ) |
-| `sgc_genmc` (bitcode target) | requires feature `verify`: assertion failures call `__VERIFIER_assert_fail`, `cpu_relax` is empty, initialisation fills use relaxed atomic word stores instead of `memset` |
+| feature `verify` | verification build: `production_assert!` off, `test_access` and the `GetPid` test hooks enabled |
+| `sgc_genmc` (bitcode target) | requires feature `verify`: `fatal()` panics (the runner turns panics into assertion failures), `cpu_relax` is empty, initialisation fills use relaxed atomic word stores instead of `memset` |
 | `sgc_genmc_short_waits` | rotation waits give up after 2 spin polls; their clock reads, monitored sleeps, futex calls and yields are compiled out |
 
 `production_assert!` is checked only in debug builds without `verify`.  When
