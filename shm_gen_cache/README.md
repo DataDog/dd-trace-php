@@ -71,12 +71,12 @@ their stamp no longer matches.
 ### Participants and crashed processes
 
 Every thread that uses the cache registers a participant slot first. The
-slot holds the participant's pin and, on Linux, its identity (thread ID and
-start time). A process can die in the middle of an insert, leaving its slot
-pinned forever. So a rotation that has waited a bounded time on a pinned
-slot checks whether its owner is still alive and, if not, recovers the slot
-(*slot reaping*) and carries on. No operation waits indefinitely: waits are
-bounded and end in a timeout status.
+slot holds the participant's pin and, on Linux and Windows, its identity
+(thread ID and start time). A process can die in the middle of an insert,
+leaving its slot pinned forever. So a rotation that has waited a bounded
+time on a pinned slot checks whether its owner is still alive and, if not,
+recovers the slot (*slot reaping*) and carries on. No operation waits
+indefinitely: waits are bounded and end in a timeout status.
 
 ### Rotation waits
 
@@ -93,8 +93,8 @@ reuse* is rotation reinitialising an old arena.
 
 ### Limits
 
-- 64-bit hosts only. Dead participants are detected only on Linux; other
-  platforms never reap a slot and are meant for development.
+- 64-bit hosts only. Dead participants are detected only on Linux and
+  Windows; other platforms never reap a slot and are meant for development.
 - Epoch stamps are 32 bits wide: an entry, or a lookup in progress, must not
   survive until its stamp comes round again after 2^32 rotations (epoch ABA
   problem).
@@ -108,7 +108,7 @@ The C API is eight functions, declared in [`shm_gen_cache.h`](shm_gen_cache.h)
 
 | function | does |
 |---|---|
-| `ddog_sgc_cache_new` | validates a `ddog_sgc_Config`, maps the cache `MAP_SHARED \| MAP_ANONYMOUS` (advised `MADV_HUGEPAGE` on Linux), initialises it |
+| `ddog_sgc_cache_new` | validates a `ddog_sgc_Config`, maps the cache `MAP_SHARED \| MAP_ANONYMOUS` (advised `MADV_HUGEPAGE` on Linux; process-private `VirtualAlloc` memory on Windows), initialises it |
 | `ddog_sgc_cache_mapping_size` | bytes a cache with a given `ddog_sgc_Config` needs |
 | `ddog_sgc_cache_init_in` | validates the config, the alignment (128 bytes on aarch64, 64 elsewhere) and the size of caller-provided zero-filled memory, initialises the cache in it |
 | `ddog_sgc_cache_free` | frees the handle; unmaps this process's view if `ddog_sgc_cache_new` mapped it |
@@ -138,6 +138,13 @@ handle inherited across `fork()` is refused (`INVALID_ARGUMENT`) and
 processes must share PID and time namespaces with `/proc` mounted (the
 liveness backend identifies participants by kernel TID and start time, and
 synchronises with dead ones through `membarrier(MEMBARRIER_CMD_GLOBAL)`).
+Windows has no `fork()`, and the C API cannot attach to a cache another
+process initialised: through it, a Windows cache is shared only by the
+threads of one process. (Rust code can attach to a section mapped by each
+process with `Cache::from_raw`; the processes must then run in the same
+server silo and be able to open each other's threads, normally: as the same
+user.) The liveness backend identifies participants by thread ID and
+creation time.
 Other platforms use a no-op backend (nothing is ever reaped): development
 only.
 
@@ -322,12 +329,12 @@ DataDog/benchmarking-platform.
 ## Build variants
 
 The library is `#![no_std]`. Features: `ffi` (default; the C API, mmap and
-the Linux backend; implies `std`), `std` (process abort, the estimator's
-`f64::sqrt`/`log2`, which `core` lacks on the pinned toolchain, and, outside
-Linux, the scheduler yield of rotation waits; on OSes other than Linux and
-Apple also their clock, so required there), `verify` (the verification
-build, below, which also exposes `shm_gen_cache::test_access`). The staticlib
-needs `ffi`.
+the Linux and Windows backends; implies `std`), `std` (process abort, the
+estimator's `f64::sqrt`/`log2`, which `core` lacks on the pinned toolchain,
+and, outside Linux, the scheduler yield of rotation waits; on OSes other
+than Linux and Apple also their clock, so required there), `verify` (the
+verification build, below, which also exposes `shm_gen_cache::test_access`).
+The staticlib needs `ffi`.
 
 Without default features the library is `no_std`, which suits only an rlib
 (the GenMC bitcode builds): Cargo builds every crate type of the package,

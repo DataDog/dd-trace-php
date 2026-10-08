@@ -21,9 +21,9 @@ default = ["ffi"]
 # the scheduler yield of rotation waits; on OSes other than Linux and Apple
 # also their clock (required there).
 std = []
-# The C API (src/ffi.rs), anonymous shared mappings, and the Linux liveness
-# backend.
-ffi = ["std", "dep:libc"]
+# The C API (src/ffi.rs), anonymous mappings, and the Linux and Windows
+# liveness backends.
+ffi = ["std", "dep:libc", "dep:windows-sys"]
 # Verification build (verification/README.md): production assertions off, the
 # `GetPid` test hooks called, `test_access` public. Changes behaviour and speed:
 # never enable it for production artifacts. The GenMC bitcode builds pass
@@ -32,6 +32,13 @@ verify = []
 
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true, optional = true }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true, optional = true, features = [
+  "Win32_Foundation",
+  "Win32_System_Memory",
+  "Win32_System_Threading",
+] }
 
 [lints.rust]
 # Passed only by the GenMC bitcode builds (verification/README.md).

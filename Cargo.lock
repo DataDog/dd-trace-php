@@ -5581,6 +5581,7 @@ name = "shm_gen_cache"
 version = "0.0.1"
 dependencies = [
  "libc 0.2.186",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]

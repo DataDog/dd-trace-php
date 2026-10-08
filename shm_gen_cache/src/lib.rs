@@ -69,6 +69,8 @@ mod wait;
 
 #[cfg(all(feature = "ffi", target_os = "linux"))]
 mod linux_pid;
+#[cfg(all(feature = "ffi", windows))]
+mod windows_pid;
 
 #[cfg(feature = "ffi")]
 pub mod ffi;
@@ -96,6 +98,8 @@ pub use util::CACHE_LINE;
 
 #[cfg(all(feature = "ffi", target_os = "linux"))]
 pub use linux_pid::LinuxGetPid;
+#[cfg(all(feature = "ffi", windows))]
+pub use windows_pid::WindowsGetPid;
 
 #[doc(hidden)]
 pub mod __private {

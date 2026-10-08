@@ -64,13 +64,20 @@ impl GetPid for NoopGetPid {
 }
 
 /// The backend used by [`RuntimeParams`](crate::RuntimeParams) by default:
-/// [`LinuxGetPid`](crate::LinuxGetPid) on Linux with feature `ffi`,
-/// [`NoopGetPid`] elsewhere (development platforms only: it cannot detect
-/// dead participants).
+/// [`LinuxGetPid`](crate::LinuxGetPid) on Linux and `WindowsGetPid` on
+/// Windows, with feature `ffi`; [`NoopGetPid`] elsewhere (development
+/// platforms only: it cannot detect dead participants).
 #[cfg(all(feature = "ffi", target_os = "linux"))]
 pub type PlatformGetPid = crate::linux_pid::LinuxGetPid;
 /// The backend used by [`RuntimeParams`](crate::RuntimeParams) by default:
-/// `LinuxGetPid` on Linux with feature `ffi`, [`NoopGetPid`] elsewhere
-/// (development platforms only: it cannot detect dead participants).
-#[cfg(not(all(feature = "ffi", target_os = "linux")))]
+/// `LinuxGetPid` on Linux and [`WindowsGetPid`](crate::WindowsGetPid) on
+/// Windows, with feature `ffi`; [`NoopGetPid`] elsewhere (development
+/// platforms only: it cannot detect dead participants).
+#[cfg(all(feature = "ffi", windows))]
+pub type PlatformGetPid = crate::windows_pid::WindowsGetPid;
+/// The backend used by [`RuntimeParams`](crate::RuntimeParams) by default:
+/// `LinuxGetPid` on Linux and `WindowsGetPid` on Windows, with feature
+/// `ffi`; [`NoopGetPid`] elsewhere (development platforms only: it cannot
+/// detect dead participants).
+#[cfg(not(all(feature = "ffi", any(target_os = "linux", windows))))]
 pub type PlatformGetPid = NoopGetPid;

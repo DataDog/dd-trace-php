@@ -107,8 +107,8 @@ impl State {
 pub struct ParticipantSlot {
     pub(crate) pinned_epoch: AtomicU64,
     pub(crate) state: AtomicU64,
-    /// On Linux, field 22 (`starttime`) of `/proc/<tid>/stat`; zero if
-    /// unknown.
+    /// On Linux, field 22 (`starttime`) of `/proc/<tid>/stat`; on Windows,
+    /// the thread's creation FILETIME; zero if unknown.
     pub(crate) thread_disambiguation: AtomicU64,
     pub(crate) chunk_epoch: AtomicU64,
     pub(crate) chunk_cursor: AtomicU32,

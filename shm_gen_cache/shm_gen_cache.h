@@ -55,7 +55,8 @@ typedef enum ddog_sgc_Status {
    */
   DDOG_SGC_STATUS_INVALID_ARGUMENT = 8,
   /**
-   * A system call failed (mmap, or the liveness backend's membarrier).
+   * A system call failed (mmap/VirtualAlloc, or the liveness backend's
+   * membarrier or thread wait).
    */
   DDOG_SGC_STATUS_IO_ERROR = 9,
   /**
@@ -98,8 +99,11 @@ typedef enum ddog_sgc_Status {
  * after `ddog_sgc_cache_new`) may operate concurrently. On Linux they must
  * share PID and time namespaces, with `/proc` mounted for them (the
  * liveness backend identifies participants by kernel TID and start time).
- * A mapping must never be reused across boots. Other platforms use a no-op
- * liveness backend (dead participants are never reaped): development only.
+ * On Windows, which has no fork(), only the threads of one process share a
+ * cache (the liveness backend identifies participants by thread ID and
+ * creation time). A mapping must never be reused across boots. Other
+ * platforms use a no-op liveness backend (dead participants are never
+ * reaped): development only.
  *
  * A `ddog_sgc_Cache` may be used from any thread for registration.
  *
@@ -188,7 +192,9 @@ extern "C" {
  * of the configuration rules documented on `ddog_sgc_Config`), maps the
  * cache's size `MAP_SHARED | MAP_ANONYMOUS` (zero-filled, page-aligned,
  * inherited by fork()ed children together with the handle), initialises it
- * in place and stores a process-local handle in `*out`.
+ * in place and stores a process-local handle in `*out`. On Windows, which
+ * has no fork(), the memory is `VirtualAlloc`ed and private to the
+ * process.
  *
  * On Linux the mapping is advised `MADV_HUGEPAGE` before initialisation.
  * It is backed by 2 MiB pages only if
@@ -198,8 +204,8 @@ extern "C" {
  * how much is huge).
  *
  * Errors: `INVALID_ARGUMENT` (null arguments, invalid configuration),
- * `IO_ERROR` (mmap or pthread_atfork failed), `UNSUPPORTED` (non-Unix
- * platform). `*out` is untouched on error.
+ * `IO_ERROR` (mmap, VirtualAlloc or pthread_atfork failed), `UNSUPPORTED`
+ * (neither Unix nor Windows). `*out` is untouched on error.
  *
  * # Safety
  * `config` must be null or point to a valid config; `out` must be null or

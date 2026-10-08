@@ -1,8 +1,11 @@
 //! fork() smoke test (no test harness: the process has one thread when it
 //! forks). The mapping is shared with the child; a participant handle
 //! inherited by the child is refused, and the child can register its own.
+//! Unix only: elsewhere the binary lists no tests.
 
+#[cfg(unix)]
 use shm_gen_cache::Config;
+#[cfg(unix)]
 use shm_gen_cache::ffi::{
     Status, ddog_sgc_cache_free, ddog_sgc_cache_new, ddog_sgc_insert, ddog_sgc_lookup,
     ddog_sgc_participant_register, ddog_sgc_participant_unregister,
@@ -10,18 +13,23 @@ use shm_gen_cache::ffi::{
 
 fn main() {
     // Enough of the libtest protocol for cargo-nextest: `--list` names the
-    // one test (none with `--ignored`), and `--exact fork` runs it.
+    // one test (none with `--ignored`, or without fork()), and `--exact
+    // fork` runs it.
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.iter().any(|a| a == "--list") {
-        if !args.iter().any(|a| a == "--ignored") {
+        if cfg!(unix) && !args.iter().any(|a| a == "--ignored") {
             println!("fork: test");
         }
-        return;
+    } else {
+        #[cfg(unix)]
+        {
+            unsafe { run() }
+            println!("fork: ok");
+        }
     }
-    unsafe { run() }
-    println!("fork: ok");
 }
 
+#[cfg(unix)]
 unsafe fn lookup(
     p: *mut shm_gen_cache::ffi::FfiParticipant,
     key: &[u8],
@@ -42,6 +50,7 @@ unsafe fn lookup(
     (status, len)
 }
 
+#[cfg(unix)]
 unsafe fn run() {
     unsafe {
         let config = Config {

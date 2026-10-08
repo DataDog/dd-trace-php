@@ -740,8 +740,9 @@ fn c_api_mapping_is_advised_huge_pages() {
 }
 
 /// Slot reaping: a thread that exits registered leaves its slot to be
-/// reaped (Linux liveness backend: dead TID, then a global membarrier).
-#[cfg(target_os = "linux")]
+/// reaped (Linux liveness backend: dead TID, then a global membarrier;
+/// Windows: the joined thread's object is signalled or deleted).
+#[cfg(any(target_os = "linux", windows))]
 #[test]
 fn c_api_reaps_a_dead_registration() {
     let cache = CApi::new(Config {

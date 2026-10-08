@@ -42,7 +42,8 @@ pub enum Status {
     /// Null/misaligned arguments, invalid configuration, overlapping
     /// buffers, or a participant inherited across fork().
     InvalidArgument = 8,
-    /// A system call failed (mmap, or the liveness backend's membarrier).
+    /// A system call failed (mmap/VirtualAlloc, or the liveness backend's
+    /// membarrier or thread wait).
     IoError = 9,
     /// Unsupported platform or kernel feature.
     Unsupported = 10,
@@ -103,8 +104,11 @@ enum CacheKind {
 /// after `ddog_sgc_cache_new`) may operate concurrently. On Linux they must
 /// share PID and time namespaces, with `/proc` mounted for them (the
 /// liveness backend identifies participants by kernel TID and start time).
-/// A mapping must never be reused across boots. Other platforms use a no-op
-/// liveness backend (dead participants are never reaped): development only.
+/// On Windows, which has no fork(), only the threads of one process share a
+/// cache (the liveness backend identifies participants by thread ID and
+/// creation time). A mapping must never be reused across boots. Other
+/// platforms use a no-op liveness backend (dead participants are never
+/// reaped): development only.
 ///
 /// A `ddog_sgc_Cache` may be used from any thread for registration.
 ///
@@ -160,13 +164,14 @@ impl FfiParticipant {
 /// parent's thread.
 static FORK_GENERATION: AtomicU32 = AtomicU32::new(0);
 
+#[cfg(unix)]
 extern "C" fn after_fork_in_child() {
     FORK_GENERATION.fetch_add(1, Relaxed);
 }
 
-/// Installs [`after_fork_in_child`] once per process. A failure (ENOMEM)
-/// is remembered and reported on every call: without the handler, inherited
-/// participants would go undetected in fork()ed children.
+/// Installs `after_fork_in_child` (Unix only) once per process. A failure
+/// (ENOMEM) is remembered and reported on every call: without the handler,
+/// inherited participants would go undetected in fork()ed children.
 fn install_fork_handler() -> Result<(), Error> {
     static INSTALLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     let installed = *INSTALLED.get_or_init(|| {
@@ -246,7 +251,9 @@ unsafe fn resolve_config(config: *const Config) -> Option<Derived> {
 /// of the configuration rules documented on `ddog_sgc_Config`), maps the
 /// cache's size `MAP_SHARED | MAP_ANONYMOUS` (zero-filled, page-aligned,
 /// inherited by fork()ed children together with the handle), initialises it
-/// in place and stores a process-local handle in `*out`.
+/// in place and stores a process-local handle in `*out`. On Windows, which
+/// has no fork(), the memory is `VirtualAlloc`ed and private to the
+/// process.
 ///
 /// On Linux the mapping is advised `MADV_HUGEPAGE` before initialisation.
 /// It is backed by 2 MiB pages only if
@@ -256,8 +263,8 @@ unsafe fn resolve_config(config: *const Config) -> Option<Derived> {
 /// how much is huge).
 ///
 /// Errors: `INVALID_ARGUMENT` (null arguments, invalid configuration),
-/// `IO_ERROR` (mmap or pthread_atfork failed), `UNSUPPORTED` (non-Unix
-/// platform). `*out` is untouched on error.
+/// `IO_ERROR` (mmap, VirtualAlloc or pthread_atfork failed), `UNSUPPORTED`
+/// (neither Unix nor Windows). `*out` is untouched on error.
 ///
 /// # Safety
 /// `config` must be null or point to a valid config; `out` must be null or
@@ -319,11 +326,54 @@ pub unsafe extern "C" fn ddog_sgc_cache_new(
             }
         }
     }
-    #[cfg(not(unix))]
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::System::Memory::{
+            MEM_COMMIT, MEM_RESERVE, PAGE_READWRITE, VirtualAlloc,
+        };
+        let len = derived.mapping_size;
+        // SAFETY: a fresh allocation (zero-filled, 64 KiB-aligned).
+        let mem = unsafe {
+            VirtualAlloc(
+                core::ptr::null(),
+                len,
+                MEM_RESERVE | MEM_COMMIT,
+                PAGE_READWRITE,
+            )
+        };
+        let Some(base) = NonNull::new(mem.cast::<u8>()) else {
+            return Status::IoError;
+        };
+        // SAFETY: the memory is zero-filled and lives until cache_free.
+        match unsafe { init_in(base, len, derived, true) } {
+            Ok(handle) => {
+                // SAFETY: out is valid (checked non-null, contract).
+                unsafe { out.write(Box::into_raw(handle)) };
+                Status::Ok
+            }
+            Err(e) => {
+                // SAFETY: releasing the allocation made above.
+                unsafe { release_allocation(mem) };
+                e.into()
+            }
+        }
+    }
+    #[cfg(not(any(unix, windows)))]
     {
         let _ = derived;
         Status::Unsupported
     }
+}
+
+/// Releases memory from `VirtualAlloc` in `ddog_sgc_cache_new`.
+///
+/// # Safety
+/// `mem` must be that allocation's base, and nothing may reference it.
+#[cfg(windows)]
+unsafe fn release_allocation(mem: *mut c_void) {
+    use windows_sys::Win32::System::Memory::{MEM_RELEASE, VirtualFree};
+    // SAFETY: forwarded from the caller; MEM_RELEASE takes size zero.
+    unsafe { VirtualFree(mem, 0, MEM_RELEASE) };
 }
 
 /// Frees the handle and, for a cache from `ddog_sgc_cache_new`, unmaps this
@@ -348,8 +398,16 @@ pub unsafe extern "C" fn ddog_sgc_cache_free(cache: *mut FfiCache) {
         // longer (contract).
         unsafe { libc::munmap(cache.base.as_ptr().cast::<c_void>(), cache.len) };
     }
+    #[cfg(windows)]
+    if cache.owns_mapping {
+        // SAFETY: the allocation made by cache_new; nothing borrows it any
+        // longer (contract).
+        unsafe { release_allocation(cache.base.as_ptr().cast::<c_void>()) };
+    }
     #[cfg(not(unix))]
-    let _ = (cache.base, cache.len, cache.owns_mapping);
+    let _ = cache.len;
+    #[cfg(not(any(unix, windows)))]
+    let _ = (cache.base, cache.owns_mapping);
     // SAFETY: from Box::leak in init_in; the views referencing it are gone.
     drop(unsafe { Box::from_raw(cache.derived.as_ptr()) });
 }
