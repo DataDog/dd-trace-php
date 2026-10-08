@@ -73,7 +73,7 @@ mod linux_pid;
 #[cfg(feature = "ffi")]
 pub mod ffi;
 
-#[cfg(any(feature = "verify", feature = "test-access"))]
+#[cfg(feature = "verify")]
 pub mod test_access;
 
 /// Layout version of the shared mapping format for this architecture.

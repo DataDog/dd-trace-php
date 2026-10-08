@@ -31,10 +31,7 @@ pub const fn mix_hash(mut key: u64) -> u64 {
 }
 
 /// The home bucket of `hash`.
-#[cfg_attr(
-    not(any(feature = "verify", feature = "test-access")),
-    allow(dead_code)
-)]
+#[cfg_attr(not(feature = "verify"), allow(dead_code))]
 #[inline(always)]
 pub const fn bucket(hash: u64, bucket_count: u32) -> u32 {
     (mix_hash(hash) % bucket_count as u64) as u32

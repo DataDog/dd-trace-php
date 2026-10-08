@@ -288,9 +288,9 @@ The library is `#![no_std]`. Features: `ffi` (default; the C API, mmap and
 the Linux backend; implies `std`), `std` (process abort, the estimator's
 `f64::sqrt`/`log2`, which `core` lacks on the pinned toolchain, and, outside
 Linux, the scheduler yield of rotation waits; on OSes other than Linux and
-Apple also their clock, so required there), `test-access`
-(`shm_gen_cache::test_access`), `verify` (the verification build, below;
-implies `test-access`). The staticlib needs `ffi`.
+Apple also their clock, so required there), `verify` (the verification
+build, below, which also exposes `shm_gen_cache::test_access`). The staticlib
+needs `ffi`.
 
 Without default features the library is `no_std`, which suits only an rlib
 (the GenMC bitcode builds): Cargo builds every crate type of the package,

@@ -56,8 +56,8 @@ does, so never ship an artifact from such a build.
 In detail:
 
 * feature `verify`: verification build. `production_assert!` is compiled
-  out (its condition is not evaluated); `test_access` is public (`verify`
-  implies `test-access`); the `GetPid` test hooks are called (below).
+  out (its condition is not evaluated); `test_access` is public; the
+  `GetPid` test hooks are called (below).
 * `sgc_genmc` (bitcode only, requires `verify`): `fatal()` panics instead of
   aborting, which the runner's panic stubs report as an assertion failure; `cpu_relax()` is
   empty, since inline assembly (`pause`/`isb`) cannot be interpreted (it has no

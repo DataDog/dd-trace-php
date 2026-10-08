@@ -1,9 +1,8 @@
 //! Internals for tests.
 //!
-//! Compiled in verification builds (feature `verify`) and with feature
-//! `test-access`. Tests should prefer the public API and use these only to
-//! stage states or check invariants the API cannot observe; they must never
-//! copy production code.
+//! Compiled in verification builds (feature `verify`). Tests should prefer the
+//! public API and use these only to stage states or check invariants the API
+//! cannot observe; they must never copy production code.
 
 use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 
