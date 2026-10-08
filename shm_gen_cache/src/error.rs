@@ -2,8 +2,7 @@
 //!
 //! The numeric values are stable API: they are returned by the C API and
 //! must not change. `miss = 1` is not an error in Rust (lookups return
-//! `Ok(None)`); it exists only as a C status. `InvalidMapping` and
-//! `FullRetry` are not produced by the cache code but keep their numbers.
+//! `Ok(None)`); it exists only as a C status.
 
 /// Errors returned by cache operations.
 #[repr(u8)]
@@ -16,12 +15,8 @@ pub enum Error {
     KeyTooLarge = 3,
     /// The value is longer than `max_value_size`.
     ValueTooLarge = 4,
-    /// Not produced by the cache code.
-    InvalidMapping = 5,
     /// Every participant slot is taken by a live registration.
     ParticipantRegistryFull = 6,
-    /// Not produced by the cache code.
-    FullRetry = 7,
     /// Null mapping, invalid configuration, or a lookup key overlapping the
     /// output storage.
     InvalidArgument = 8,
