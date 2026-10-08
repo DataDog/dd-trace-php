@@ -15,11 +15,15 @@ $stdout = $stderr = '';
 $requests = array();
 $exitCode = null;
 $running = true;
+$phase = 0;
+$expectedEtag = null;
 try {
-    $deadline = microtime(true) + 12;
+    $startedAt = microtime(true);
+    $readyAt = null;
     do {
         $stdout .= stream_get_contents($pipes[1]);
         $stderr .= stream_get_contents($pipes[2]);
+        if ($readyAt === null && strpos($stdout, "fixture_child_ready\n") !== false) $readyAt = microtime(true);
         $status = proc_get_status($process);
         if (!$status['running']) {
             $running = false;
@@ -35,12 +39,15 @@ try {
             $pair = explode(':', $line, 2);
             if (count($pair) === 2) $headers[strtolower($pair[0])] = trim($pair[1]);
         }
-        $requests[] = array($route, $headers);
-        $index = count($requests);
-        $notModified = $index === 2 || $index === 4;
+        $requests[] = array($route, $headers, $expectedEtag);
+        // Keep stale/304 states observable even when sanitizers preempt the
+        // child for an entire poll interval. The child must acknowledge each.
+        if ($phase === 3 && strpos($stdout, "fixture_stale_observed\n") !== false) $phase = 4;
+        if ($phase === 4 && strpos($stdout, "fixture_304_observed\n") !== false) $phase = 5;
+        $notModified = in_array($phase, array(1, 4, 6), true);
         $code = $notModified ? '304 Not Modified' : '200 OK';
-        $etag = $index === 3 ? '"bad"' : ($index <= 4 ? '"blue"' : '"green"');
-        $value = $index <= 4 ? 'blue' : 'green';
+        $etag = $phase === 3 ? '"bad"' : ($phase < 5 ? '"blue"' : '"green"');
+        $value = $phase < 5 ? 'blue' : 'green';
         $configuration = array(
             'createdAt' => '2026-05-22T00:00:00Z',
             'environment' => array('name' => 'test'),
@@ -56,26 +63,29 @@ try {
             'type' => 'universal-flag-configuration', 'attributes' => $configuration,
         )));
         if ($notModified) $body = '';
-        if ($index === 3) $body = '{malformed';
+        if ($phase === 3) $body = '{malformed';
         fwrite($connection, "HTTP/1.1 $code\r\nContent-Type: application/json\r\nETag: $etag\r\nContent-Length: "
             . strlen($body) . "\r\nConnection: close\r\n\r\n" . $body);
         fclose($connection);
-    } while (microtime(true) < $deadline);
+        if ($phase === 0) { $expectedEtag = '"blue"'; $phase = 1; }
+        elseif ($phase === 1) $phase = 3;
+        elseif ($phase === 5) { $expectedEtag = '"green"'; $phase = 6; }
+    } while (microtime(true) - ($readyAt === null ? $startedAt : $readyAt) < ($readyAt === null ? 60 : 35));
     $stdout .= stream_get_contents($pipes[1]);
     $stderr .= stream_get_contents($pipes[2]);
     if ($exitCode !== 0) throw new RuntimeException('child failed or timed out: ' . $stdout . ' ' . $stderr);
-    echo $stdout;
+    echo str_replace(array("fixture_child_ready\n", "fixture_stale_observed\n", "fixture_304_observed\n"), '', $stdout);
     if (count($requests) < 5) throw new RuntimeException('polling did not recover');
     $protocol = true;
     foreach ($requests as $i => $request) {
-        list($route, $headers) = $request;
+        list($route, $headers, $expectedEtag) = $request;
         $protocol = $protocol && $route === 'GET /configuration?fixture=1 HTTP/1.1'
             && !isset($headers['dd-api-key'])
             && $headers['dd-client-library-language'] === 'php'
             && $headers['dd-client-library-version'] === phpversion('ddtrace')
             && $headers['dd-internal-untraced-request'] === '1';
-        if ($i === 0) $protocol = $protocol && !isset($headers['if-none-match']);
-        if ($i > 0 && $i < 5) $protocol = $protocol && $headers['if-none-match'] === '"blue"';
+        if ($expectedEtag === null) $protocol = $protocol && !isset($headers['if-none-match']);
+        else $protocol = $protocol && $headers['if-none-match'] === $expectedEtag;
     }
     echo 'request_protocol=', json_encode($protocol), "\n";
 } finally {
