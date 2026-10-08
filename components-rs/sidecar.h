@@ -25,6 +25,7 @@
 
 
 
+
 #if defined(_WIN32)
 bool ddog_setup_crashtracking(const struct ddog_Endpoint *endpoint, ddog_crasht_Metadata metadata);
 #endif
@@ -367,10 +368,32 @@ ddog_MaybeError ddog_sidecar_send_debugger_datum(struct ddog_SidecarTransport **
                                                  struct ddog_DebuggerPayload *payload);
 
 /**
- * Send structured FFE exposure events to the sidecar. The sidecar owns
- * deduplication, JSON serialization, and Agent EVP delivery. This function is
- * caller-driven; shared libdatadog evaluator calls do not log unless an SDK
- * explicitly sends this action.
+ * Configure one shared EVP intake target in the current sidecar session.
+ * `AgentOnly` preserves the historical fixed EVP v2 route.
+ * `PreferLocalThenDirect` explicitly opts the client into local discovery and
+ * authenticated direct fallback.
+ *
+ * Call after setting the session configuration. Other intake targets are
+ * unaffected. Identical configuration preserves routing and deduplication
+ * state; changed configuration replaces this target's transport. The client
+ * retains the latest configuration per target across sidecar reconnects.
+ *
+ * # Safety
+ * `direct_endpoint` must be null or point to a valid `Endpoint`, and all
+ * string slices must remain valid for the duration of this call.
+ */
+ddog_MaybeError ddog_sidecar_session_set_evp_transport(struct ddog_SidecarTransport **transport,
+                                                       enum ddog_EvpTransportMode mode,
+                                                       const struct ddog_Endpoint *agent_endpoint,
+                                                       const struct ddog_Endpoint *direct_endpoint,
+                                                       ddog_CharSlice intake_subdomain,
+                                                       const struct ddog_EvpProducerIdentity *producer);
+
+/**
+ * Send structured Feature Flags exposure events to the sidecar. The sidecar owns
+ * route selection, deduplication, JSON serialization, and EVP delivery. This
+ * function is caller-driven; shared libdatadog evaluator calls do not log unless
+ * an SDK explicitly sends this action.
  *
  * # Safety
  * `context` and every element in `exposures` must contain valid UTF-8
@@ -383,13 +406,17 @@ ddog_MaybeError ddog_sidecar_send_ffe_exposure_batch(struct ddog_SidecarTranspor
                                                      struct ddog_Slice_FfeExposure exposures);
 
 /**
- * Send structured FFE flag evaluation events to the sidecar. The sidecar owns
- * JSON serialization and Agent EVP delivery. This function is caller-driven;
- * callers must aggregate and bound event cardinality before passing a batch.
+ * Send structured Feature Flags evaluation events to the sidecar. The sidecar owns
+ * route selection, JSON serialization, and EVP delivery. This function is
+ * caller-driven; callers must aggregate and bound event cardinality before passing
+ * a batch.
  *
  * # Safety
- * `context` and every element in `flag_evaluations` must contain valid UTF-8
- * `CharSlice` values. Empty `flag_evaluations` is a no-op.
+ * All slices must reference valid memory under the CharSlice contract. Context
+ * metadata and flag keys must be UTF-8. Malformed optional variant, allocation,
+ * rule, targeting, and context text is omitted; malformed error text becomes GENERAL.
+ * A null/zero targeting slice means missing; a non-null empty slice means empty.
+ * Empty `flag_evaluations` is a no-op. Use headers and library from the same build.
  */
 ddog_MaybeError ddog_sidecar_send_ffe_flag_evaluation_batch(struct ddog_SidecarTransport **transport,
                                                             const struct ddog_InstanceId *instance_id,
@@ -398,7 +425,7 @@ ddog_MaybeError ddog_sidecar_send_ffe_flag_evaluation_batch(struct ddog_SidecarT
                                                             struct ddog_Slice_FfeFlagEvaluation flag_evaluations);
 
 /**
- * Send structured FFE evaluation metric events to the sidecar. The sidecar
+ * Send structured Feature Flags evaluation metric events to the sidecar. The sidecar
  * owns aggregation, OTLP/protobuf serialization, and OTLP HTTP delivery. This
  * function is caller-driven so SDKs with existing host-language hooks can
  * safely coexist until they explicitly migrate.
@@ -560,6 +587,42 @@ struct ddog_AppsecCResponse datadog_sidecar_send_appsec_message_without_reconnec
  * Frees an `AppsecCResponse` returned by an AppSec message function.
  */
 void ddog_sidecar_appsec_response_drop(struct ddog_AppsecCResponse response);
+
+/**
+ * Advisory, non-reconnecting check before preparing borrowed descriptors.
+ * The caller must first honor its track kill switch and check required identity.
+ * `Ready` reserves nothing: submission repeats admission. Count rejection once
+ * per evaluation, not once per API call. A null transport is unavailable.
+ */
+enum ddog_FfeSubmissionStatus ddog_sidecar_check_ffe_submission(const struct ddog_SidecarTransport *transport);
+
+/**
+ * Try to submit one evaluation; never wait for the sender, reconnect, or retain
+ * rejected input. `Accepted` means local transport acceptance, not delivery.
+ * Oversized observations are retried once without targeting key or event context;
+ * a successfully accepted reduced observation also returns `Accepted`. Required
+ * metadata and optional flag dimensions must still fit the IPC packet limit.
+ * The sidecar owns hashing, aggregation, final EVP encoding and HTTP delivery.
+ *
+ * Context comes exclusively from `attributes`; `evaluation_context_json` is
+ * ignored. The row must have count one and equal first/last/evaluation timestamps.
+ * Protected mode does not inspect context. Invalid optional fields are omitted;
+ * a snapshot failure retains the evaluation without context. Use matching headers
+ * and library. No diagnostic is recursively submitted through this EVP path.
+ *
+ * # Safety
+ * All references must be valid for the call. Non-null slices that are read must
+ * point to live, aligned backing storage of their stated lengths. String bytes
+ * need not be UTF-8: malformed optional text is omitted. All C booleans must be
+ * valid boolean values. No pointers survive this call.
+ */
+enum ddog_FfeSubmissionStatus ddog_sidecar_try_submit_ffe_flag_evaluation(const struct ddog_SidecarTransport *transport,
+                                                                          const struct ddog_InstanceId *instance_id,
+                                                                          const ddog_QueueId *queue_id,
+                                                                          const struct ddog_FfeTelemetryContext *context,
+                                                                          const struct ddog_FfeFlagEvaluation *event,
+                                                                          struct ddog_Slice_FfeScalarAttribute attributes,
+                                                                          const struct ddog_FfeSnapshotState *snapshot);
 
 #if defined(_WIN32)
 /**

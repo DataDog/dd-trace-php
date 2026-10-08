@@ -15,6 +15,98 @@ ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
 #define DD_FFE_METRIC_BUFFER_LIMIT 1000
 #define DD_FFE_EXPOSURE_BUFFER_LIMIT 1000
+#define DD_FFE_CONTEXT_FIELD_LIMIT 256
+
+bool ddtrace_ffe_record_flag_evaluation(zend_string *flag_key, zend_string *variant,
+    zend_string *allocation_key, zend_string *targeting_key, HashTable *attributes,
+    zend_string *error_type, bool runtime_default_used, bool observe_full_evaluation_data) {
+    if (!get_DD_FLAGGING_EVALUATION_COUNTS_ENABLED() || !flag_key || !ZSTR_LEN(flag_key)
+        || !DATADOG_G(sidecar) || !datadog_sidecar_instance_id || !DATADOG_G(sidecar_queue_id)) {
+        return false;
+    }
+
+    // Admission must precede telemetry snapshot work. Neither this check nor
+    // submission waits for capacity or reconnects the transport on evaluation.
+    if (ddog_sidecar_check_ffe_submission(DATADOG_G(sidecar)) != DDOG_FFE_SUBMISSION_STATUS_READY) {
+        return false;
+    }
+
+    ddog_FfeScalarAttribute scalars[DD_FFE_CONTEXT_FIELD_LIMIT] = {0};
+    zend_string *owned_keys[DD_FFE_CONTEXT_FIELD_LIMIT] = {0};
+    size_t count = 0;
+    ddog_FfeSnapshotState snapshot = {0};
+    // Protected observations never walk or serialize their context.
+    if (observe_full_evaluation_data) {
+        snapshot.context_truncated = zend_hash_num_elements(attributes) > DD_FFE_CONTEXT_FIELD_LIMIT;
+        zend_ulong index;
+        zend_string *key;
+        zval *value;
+        ZEND_HASH_FOREACH_KEY_VAL(attributes, index, key, value) {
+            if (count == DD_FFE_CONTEXT_FIELD_LIMIT) {
+                break;
+            }
+            if (!key) {
+                key = owned_keys[count] = zend_long_to_str((zend_long) index);
+            }
+            ddog_FfeScalarAttribute *attribute = &scalars[count++];
+            attribute->key = dd_zend_string_to_CharSlice(key);
+            ZVAL_DEREF(value);
+            switch (Z_TYPE_P(value)) {
+                case IS_STRING:
+                    attribute->kind = 0;
+                    attribute->string_value = dd_zend_string_to_CharSlice(Z_STR_P(value));
+                    break;
+                case IS_TRUE:
+                case IS_FALSE:
+                    attribute->kind = 1;
+                    attribute->bool_value = Z_TYPE_P(value) == IS_TRUE;
+                    break;
+                case IS_LONG:
+                    attribute->kind = 2;
+                    attribute->integer_value = Z_LVAL_P(value);
+                    break;
+                case IS_DOUBLE:
+                    attribute->kind = 3;
+                    attribute->double_value = Z_DVAL_P(value);
+                    break;
+                default:
+                    // The evaluator accepts scalars only. Retain an omission
+                    // marker if an internal caller supplies anything else.
+                    attribute->kind = 4;
+                    break;
+            }
+        } ZEND_HASH_FOREACH_END();
+    }
+
+    int64_t timestamp = (int64_t) (ddtrace_nanoseconds_realtime() / 1000000);
+    ddog_FfeFlagEvaluation event = {
+        .timestamp_ms = timestamp,
+        .first_evaluation_ms = timestamp,
+        .last_evaluation_ms = timestamp,
+        .evaluation_count = 1,
+        .flag_key = dd_zend_string_to_CharSlice(flag_key),
+        .variant = dd_zend_string_to_CharSlice(variant),
+        .allocation_key = dd_zend_string_to_CharSlice(allocation_key),
+        .targeting_key = dd_zend_string_to_CharSlice(targeting_key),
+        .error_message = dd_zend_string_to_CharSlice(error_type),
+        .runtime_default_used = runtime_default_used,
+        .observe_full_evaluation_data = observe_full_evaluation_data,
+    };
+    ddog_FfeTelemetryContext context = {
+        .service = dd_zend_string_to_CharSlice(get_DD_SERVICE()),
+        .env = dd_zend_string_to_CharSlice(get_DD_ENV()),
+        .version = dd_zend_string_to_CharSlice(get_DD_VERSION()),
+    };
+    ddog_FfeSubmissionStatus status = ddog_sidecar_try_submit_ffe_flag_evaluation(
+        DATADOG_G(sidecar), datadog_sidecar_instance_id, &DATADOG_G(sidecar_queue_id),
+        &context, &event, (ddog_Slice_FfeScalarAttribute) {.ptr = scalars, .len = count}, &snapshot);
+    for (size_t i = 0; i < count; ++i) {
+        if (owned_keys[i]) {
+            zend_string_release(owned_keys[i]);
+        }
+    }
+    return status == DDOG_FFE_SUBMISSION_STATUS_ACCEPTED;
+}
 
 typedef struct {
     zend_string *flag_key;
