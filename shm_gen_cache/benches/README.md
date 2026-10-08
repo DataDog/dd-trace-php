@@ -5,8 +5,8 @@ Rust API. It is a port of the C++ project's `bench/sgc_bench.cpp`
 (`~/repos/shm_gen_cache`, the copy in [`../bench/`](../bench/README.md)), with
 the same workloads, data, operation streams, timing, reference model, command
 line, stdout table and JSON report, so
-[`../bench/ab_bins.py`](../bench/ab_bins.py) and `ab_compare.py` accept its
-binary as either side of a comparison.
+[`../bench/ab_bins.py`](../bench/ab_bins.py) accepts its binary as either side
+of a comparison.
 
 ```sh
 cargo bench -p shm_gen_cache --bench sgc_bench -- --list

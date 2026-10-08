@@ -31,8 +31,7 @@ Files:
 | `sgc_bench.cpp` | the harness (copy + backend switch) |
 | `rust_backend.hpp` | C++ surface of the harness on top of the C API |
 | `CMakeLists.txt` | `SGC_BENCH_BACKEND=cpp\|rust`, `SGC_BENCH_XLTO`, `SGC_CARGO_FEATURES` |
-| `ab_compare.py` | unmodified copy of the C++ project's (noise model, verdicts) |
-| `ab_bins.py` | runs two prebuilt binaries through `ab_compare.py`'s pairing and summary |
+| `ab_bins.py` | A/B of two prebuilt binaries: interleaved rounds, noise model, verdicts |
 
 ## Building
 
