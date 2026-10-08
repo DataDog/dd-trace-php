@@ -1,13 +1,8 @@
-// [dd-trace-php copy] This is ~/repos/shm_gen_cache/bench/sgc_bench.cpp
-// (shm_gen_cache 7429fa7) with only its library binding switched at compile
-// time: SGC_BENCH_BACKEND_RUST=0 binds the C++ library as the original does,
-// =1 binds the Rust port through its C API (rust_backend.hpp). Data, streams,
-// timing, model and reporting are unchanged, so an A/B of the two binaries
-// measures only the library. Diffs to the original are marked [dd-trace-php].
-//
-// Benchmark suite for the two-generation cache, driven only through the
-// public API: cache<Config>::initialize on a shared mapping,
-// register_participant, participant_lock::insert/lookup and output_buffer.
+// Throughput benchmark for shm_gen_cache, driven only through its C API
+// (../shm_gen_cache.h), as a C or C++ embedder would use it:
+// ddog_sgc_cache_init_in on a mapping the program owns,
+// ddog_sgc_participant_register per thread, ddog_sgc_lookup and
+// ddog_sgc_insert, built against the crate's staticlib.
 //
 // The primary workload is how the cache is used in practice: every operation
 // is lookup(); a miss is followed by insert() of that key's one value. Hit
@@ -22,10 +17,10 @@
 // thread the model is exact, which the measured hit count cross-checks; with
 // several threads it replays a round-robin interleaving.
 
-// The library is written for, and documented to require, a dialect without
-// exceptions or RTTI (cmake/SgcFlags.cmake), and timings taken in another
-// dialect would not be those of the library as shipped. Building the bench
-// against an old tree, or by hand, must not silently change that.
+// Every result recorded so far was taken with the harness compiled without
+// exceptions or RTTI (CMakeLists.txt). The dialect changes the harness's own
+// code generation, so a build that silently dropped it would not be
+// comparable with them.
 #if defined(__cpp_exceptions) || defined(__cpp_rtti) || defined(__GXX_RTTI)
 #error "sgc_bench must be built with -fno-exceptions -fno-rtti"
 #endif
@@ -49,6 +44,8 @@
 #include <chrono>
 #include <cinttypes>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -60,44 +57,18 @@
 #include <string>
 #include <string_view>
 #include <thread>
+#include <utility>
 #include <vector>
 
-// [dd-trace-php] library binding
-#if !defined(SGC_BENCH_BACKEND_RUST)
-#error "define SGC_BENCH_BACKEND_RUST to 0 (C++ library) or 1 (Rust port)"
-#endif
-
-#if SGC_BENCH_BACKEND_RUST
-#include "rust_backend.hpp"
-namespace sgc_backend = rsb;
-#else
-#include "sgc/output_buffer.hpp"
-#include "sgc/types.hpp"
-
-#include "cache.hpp"
-
-#if defined(__linux__)
-#include "linux_get_pid.hpp"
-#endif
-namespace sgc_backend = sgc;
-#endif
+#include "shm_gen_cache.h"
 
 namespace {
 
-using sgc_backend::u16;
-using sgc_backend::u32;
-using sgc_backend::u64;
-using sgc_backend::u8;
-using sgc_backend::usize;
-
-#if SGC_BENCH_BACKEND_RUST
-// The Rust port picks its liveness backend itself (Linux: the same
-// gettid + /proc starttime + membarrier scheme; elsewhere: no-op).
-#elif defined(__linux__)
-using bench_pid = sgc::linux_get_pid;
-#else
-using bench_pid = sgc::noop_get_pid;
-#endif
+using u8 = std::uint8_t;
+using u16 = std::uint16_t;
+using u32 = std::uint32_t;
+using u64 = std::uint64_t;
+using usize = std::size_t;
 
 // 64Ki buckets: each arena's index is 512 KiB and its used record area is
 // several MiB, so the working set lives in L2/SLC rather than L1, as a
@@ -113,40 +84,18 @@ constexpr u32 min_key_size = 16;
 constexpr u32 min_value_size = 8;
 constexpr u32 max_occupancy = bucket_count * 7 / 10;
 
-// Keep this local: the A/B driver builds the current benchmark source against
-// older library revisions that may not expose the production constant.
+// The cache-line size the cache's shared layout is built on (see
+// ddog_sgc_cache_init_in); the bench pads its own shared state to it.
 #if defined(__aarch64__)
 constexpr usize cache_line_size = 128;
 #else
 constexpr usize cache_line_size = 64;
 #endif
 
-// A template so that options newer than the library being measured can be
-// set conditionally: bench/ab_compare.py builds these same sources against
-// older trees, whose config_base may lack them. A requires-expression only
-// tolerates a missing member when it depends on a template parameter.
-template <typename C>
-constexpr C make_bench_config() {
-    C c;
-    c.participant_capacity = 128;
-    c.bucket_count = bucket_count;
-    c.max_key_size = max_key_size;
-    c.max_value_size = max_value_size;
-    c.record_area_size = bucket_count * (8 + 8 + max_key_size + max_value_size);
-    c.max_occupancy = max_occupancy;
-    // Promotion under contention is abandoned rather than waited out; the
-    // hit is returned either way (see config_base::best_effort_promotion).
-    if constexpr (requires(C& cfg) { cfg.best_effort_promotion = true; }) {
-        c.best_effort_promotion = true;
-    }
-    return c;
-}
-
-#if SGC_BENCH_BACKEND_RUST
-// Zero reservation_chunk_size / always_exact_occupancy = false are the C++
-// defaults too (chunk = 5 * max_record_size; estimator selected).
-// (make_bench_config would leave those two fields indeterminate in a C
-// struct, so the same values are spelled out.)
+// The record area is spelled out rather than left zero (which selects the
+// same default) so the header can print it. A zero reservation_chunk_size
+// selects the default chunk (five maximal records), and the occupancy
+// estimator stays selected.
 constexpr ddog_sgc_Config bench_config{
     .participant_capacity = 128,
     .bucket_count = bucket_count,
@@ -157,39 +106,68 @@ constexpr ddog_sgc_Config bench_config{
     .reservation_chunk_size = 0,
     .always_exact_occupancy = false,
 };
-#else
-constexpr auto bench_config = make_bench_config<sgc::config<bench_pid>>();
-#endif
-
-// For the run header; "n/a" when the library predates the option.
-template <typename C>
-constexpr const char* best_effort_promotion_label(const C& c) {
-    if constexpr (requires { c.best_effort_promotion; }) {
-        return c.best_effort_promotion ? "on" : "off";
-    } else {
-        return "n/a";
-    }
-}
 static_assert(bench_config.max_occupancy ==
               static_cast<u32>(bucket_count * 0.7));
 
-#if SGC_BENCH_BACKEND_RUST
-using bench_cache = rsb::cache<bench_config>;
-// The mapping length (C++: sizeof(bench_cache)); resolved by the library.
-inline usize bench_mapping_size() {
-    static const usize size = bench_cache::mapping_size();
+// Bytes of the cache's mapping, as the library computes them for
+// bench_config. Called from the main thread only.
+usize bench_mapping_size() {
+    static const usize size = ddog_sgc_cache_mapping_size(&bench_config);
     return size;
 }
-constexpr const char* bench_backend_label = "rust";
-#else
-using bench_cache = sgc::cache<bench_config>;
-inline usize bench_mapping_size() {
-    return sizeof(bench_cache);
-}
-constexpr const char* bench_backend_label = "cpp";
-#endif
-using lock_type = bench_cache::lock_type;
-using value_buffer = sgc_backend::output_buffer<max_value_size>;
+
+// Lookup output: the library copies whole 8-byte words into it.
+struct value_buffer {
+    static constexpr usize capacity = max_value_size;
+    u64 words[(capacity + 7) / 8]{};
+
+    [[nodiscard]] std::span<const u8> bytes(usize len) const noexcept {
+        return {reinterpret_cast<const u8*>(words), len};
+    }
+};
+
+// One thread's registration, unregistered on destruction. Each operation is
+// exactly one call into the library, so the timed loop measures the C API
+// as an embedder calls it.
+class participant {
+public:
+    // Registers the calling thread; on failure the object is empty and
+    // status() says why.
+    explicit participant(const ddog_sgc_Cache* cache) noexcept
+        : status_{ddog_sgc_participant_register(cache, &handle_)} {}
+    participant(participant&& o) noexcept
+        : handle_{std::exchange(o.handle_, nullptr)}, status_{o.status_} {}
+    participant(const participant&) = delete;
+    participant& operator=(const participant&) = delete;
+    participant& operator=(participant&&) = delete;
+    ~participant() {
+        ddog_sgc_participant_unregister(handle_);  // NULL is a no-op
+    }
+
+    explicit operator bool() const noexcept {
+        return handle_ != nullptr;
+    }
+    [[nodiscard]] ddog_sgc_Status status() const noexcept {
+        return status_;
+    }
+
+    // OK with the value in out.bytes(len), MISS, or an error.
+    ddog_sgc_Status lookup(u64 hash, std::span<const u8> key,
+                           value_buffer& out, usize& len) noexcept {
+        return ddog_sgc_lookup(handle_, hash, key.data(), key.size(),
+                               out.words, value_buffer::capacity, &len);
+    }
+
+    ddog_sgc_Status insert(u64 hash, std::span<const u8> key,
+                           std::span<const u8> value) noexcept {
+        return ddog_sgc_insert(handle_, hash, key.data(), key.size(),
+                               value.data(), value.size());
+    }
+
+private:
+    ddog_sgc_Participant* handle_ = nullptr;
+    ddog_sgc_Status status_;
+};
 
 // The scenario matrix. Primary key sets are relative to capacity: one
 // generation admits max_occupancy (~45.9Ki) keys and the two generations
@@ -522,8 +500,8 @@ private:
 
 // ---------------------------------------------------------------------------
 // A fresh process-shared mapping per family, initialized the way a user
-// would: mmap, then cache::initialize. Initialization writes every page, so
-// no page faults happen inside timed regions.
+// would: mmap, then ddog_sgc_cache_init_in. Initialization writes every
+// page, so no page faults happen inside timed regions.
 //
 // With --huge-pages (Linux) the mapping is instead private anonymous memory,
 // aligned and padded to 2 MiB and advised MADV_HUGEPAGE before
@@ -546,13 +524,13 @@ public:
         } else {
             map_shared();
         }
-        auto c = bench_cache::initialize(mapping, bench_mapping_size());
-        if (!c) {
+        const ddog_sgc_Status rc = ddog_sgc_cache_init_in(
+            mapping, bench_mapping_size(), &bench_config, &instance);
+        if (rc != DDOG_SGC_STATUS_OK) {
             std::fprintf(stderr, "cache initialization failed: %d\n",
-                         static_cast<int>(c.error()));
+                         static_cast<int>(rc));
             std::abort();
         }
-        instance = *c;
         if (opt.huge_pages) {
             thp_min_coverage =
                 std::min(thp_min_coverage, thp_coverage(mapping, huge_len));
@@ -560,15 +538,14 @@ public:
     }
     mapped_cache(const mapped_cache&) = delete;
     mapped_cache& operator=(const mapped_cache&) = delete;
+    // Every participant must have been unregistered by now.
     ~mapped_cache() {
-#if SGC_BENCH_BACKEND_RUST
-        bench_cache::destroy(instance);  // [dd-trace-php] frees the handle
-#endif
+        ddog_sgc_cache_free(instance);  // the handle, not the mapping
         ::munmap(base, base_len);
     }
 
-    bench_cache& get() {
-        return *instance;
+    [[nodiscard]] const ddog_sgc_Cache* get() const {
+        return instance;
     }
 
 private:
@@ -613,7 +590,7 @@ private:
     usize base_len = 0;
     usize huge_len = 0;  // the madvised span, whole huge pages
     u8* mapping = nullptr;
-    bench_cache* instance = nullptr;
+    ddog_sgc_Cache* instance = nullptr;
 };
 
 // The share of [first, first + len) backed by huge pages: AnonHugePages
@@ -647,23 +624,24 @@ double thp_coverage(const u8* first, usize len) {
         1.0, static_cast<double>(huge_kb) * 1024 / static_cast<double>(len));
 }
 
-lock_type register_or_die(bench_cache& c) {
-    auto lock = c.register_participant();
-    if (!lock) {
+participant register_or_die(const ddog_sgc_Cache* c) {
+    participant p{c};
+    if (!p) {
         std::fprintf(stderr, "register_participant failed: %d\n",
-                     static_cast<int>(lock.error()));
+                     static_cast<int>(p.status()));
         std::abort();
     }
-    return std::move(*lock);
+    return p;
 }
 
 // Untimed setup inserts from the calling thread.
-void insert_all(lock_type& lock, const dataset& data,
+void insert_all(participant& p, const dataset& data,
                 std::span<const u32> keys, generation_model* model) {
     source_buffers buf;
     for (const u32 k : keys) {
         const auto& r = data.records[k];
-        if (!lock.insert(r.hash, data.key(k, buf), data.value(k, buf))) {
+        if (p.insert(r.hash, data.key(k, buf), data.value(k, buf)) !=
+            DDOG_SGC_STATUS_OK) {
             std::fprintf(stderr, "setup insert failed\n");
             std::abort();
         }
@@ -673,14 +651,14 @@ void insert_all(lock_type& lock, const dataset& data,
     }
 }
 
-void insert_all(bench_cache& c, const dataset& data, std::span<const u32> keys,
-                generation_model* model) {
-    auto lock = register_or_die(c);
-    insert_all(lock, data, keys, model);
+void insert_all(const ddog_sgc_Cache* c, const dataset& data,
+                std::span<const u32> keys, generation_model* model) {
+    auto p = register_or_die(c);
+    insert_all(p, data, keys, model);
 }
 
 scenario_result run_phase(const options& opt, const dataset& data,
-                          bench_cache& c, const phase_plan& plan,
+                          const ddog_sgc_Cache* c, const phase_plan& plan,
                           generation_model* model);
 
 }  // namespace
@@ -856,9 +834,9 @@ void run_lookup(const options& opt, const dataset& data,
     const u32 miss_first = filler_first + max_occupancy;
     mapped_cache mc{opt};
     {
-        auto lock = register_or_die(mc.get());
-        insert_all(lock, data, iota_from(filler_first, max_occupancy), nullptr);
-        insert_all(lock, data, iota_from(0, lookup_hit_keys), nullptr);
+        auto p = register_or_die(mc.get());
+        insert_all(p, data, iota_from(filler_first, max_occupancy), nullptr);
+        insert_all(p, data, iota_from(0, lookup_hit_keys), nullptr);
         value_buffer out;
         source_buffers buf;
         for (u32 k = 0; k < miss_first + lookup_miss_keys; ++k) {
@@ -866,9 +844,11 @@ void run_lookup(const options& opt, const dataset& data,
                 continue;  // a filler lookup would promote it
             }
             const auto& r = data.records[k];
-            const auto found = lock.lookup(r.hash, data.key(k, buf), out);
+            usize len;
+            const ddog_sgc_Status rc =
+                p.lookup(r.hash, data.key(k, buf), out, len);
             const bool want_hit = k < lookup_hit_keys;
-            if (!found || found->has_value() != want_hit) {
+            if (rc != (want_hit ? DDOG_SGC_STATUS_OK : DDOG_SGC_STATUS_MISS)) {
                 std::fprintf(stderr, "lookup setup: unexpected state\n");
                 std::abort();
             }
@@ -958,7 +938,7 @@ void run_insert(const options& opt, const dataset& data,
 // Timed execution.
 
 template <op_kind Kind, bool Verify>
-void run_ops(lock_type& lock, const dataset& data, std::span<const u32> seq,
+void run_ops(participant& p, const dataset& data, std::span<const u32> seq,
              value_buffer& out, thread_counters& c) {
     u64 hits = 0;
     u64 misses = 0;
@@ -973,18 +953,16 @@ void run_ops(lock_type& lock, const dataset& data, std::span<const u32> seq,
         const auto key = data.key(index, buf);
         if constexpr (Kind == op_kind::insert) {
             ++inserts;
-            if (!lock.insert(r.hash, key, data.value(index, buf))) {
+            if (p.insert(r.hash, key, data.value(index, buf)) !=
+                DDOG_SGC_STATUS_OK) [[unlikely]] {
                 ++insert_errors;
             }
             continue;
         } else {
-            const auto found = lock.lookup(r.hash, key, out);
-            if (!found) {
-                ++lookup_errors;
-                continue;
-            }
-            if (*found) {
-                const std::span<u8> v = **found;
+            usize len;
+            const ddog_sgc_Status rc = p.lookup(r.hash, key, out, len);
+            if (rc == DDOG_SGC_STATUS_OK) [[likely]] {
+                const std::span<const u8> v = out.bytes(len);
                 ++hits;
                 if constexpr (Verify) {
                     const auto expected = data.value(index, buf);
@@ -997,10 +975,15 @@ void run_ops(lock_type& lock, const dataset& data, std::span<const u32> seq,
                 sink += v.size() + v[0];
                 continue;
             }
+            if (rc != DDOG_SGC_STATUS_MISS) {
+                ++lookup_errors;
+                continue;
+            }
             ++misses;
             if constexpr (Kind == op_kind::lookup_or_insert) {
                 ++inserts;
-                if (!lock.insert(r.hash, key, data.value(index, buf))) {
+                if (p.insert(r.hash, key, data.value(index, buf)) !=
+                    DDOG_SGC_STATUS_OK) [[unlikely]] {
                     ++insert_errors;
                 }
             }
@@ -1016,18 +999,18 @@ void run_ops(lock_type& lock, const dataset& data, std::span<const u32> seq,
 }
 
 template <bool Verify>
-void dispatch_ops(op_kind kind, lock_type& lock, const dataset& data,
+void dispatch_ops(op_kind kind, participant& p, const dataset& data,
                   std::span<const u32> seq, value_buffer& out,
                   thread_counters& c) {
     switch (kind) {
         case op_kind::lookup_or_insert:
-            run_ops<op_kind::lookup_or_insert, Verify>(lock, data, seq, out, c);
+            run_ops<op_kind::lookup_or_insert, Verify>(p, data, seq, out, c);
             return;
         case op_kind::lookup:
-            run_ops<op_kind::lookup, Verify>(lock, data, seq, out, c);
+            run_ops<op_kind::lookup, Verify>(p, data, seq, out, c);
             return;
         case op_kind::insert:
-            run_ops<op_kind::insert, Verify>(lock, data, seq, out, c);
+            run_ops<op_kind::insert, Verify>(p, data, seq, out, c);
             return;
     }
 }
@@ -1039,7 +1022,7 @@ u64 now_ns() {
             .count());
 }
 
-// The bench's own pause hint, so it depends on nothing in sgc::impl.
+// The spin-wait hint for workers waiting between stages.
 void spin_pause() {
 #if defined(__x86_64__) || defined(__i386__)
     asm volatile("pause" ::: "memory");
@@ -1142,7 +1125,7 @@ void arrive(phase_sync& sync, u32 participants) {
 }
 
 scenario_result run_phase(const options& opt, const dataset& data,
-                          bench_cache& c, const phase_plan& plan,
+                          const ddog_sgc_Cache* c, const phase_plan& plan,
                           generation_model* model) {
     const u32 nthreads = plan.threads;
     const u64 warm = plan.warmup_per_thread;
@@ -1161,7 +1144,7 @@ scenario_result run_phase(const options& opt, const dataset& data,
         auto& seq = streams[t];
         seq.resize(stream_len);
         plan.generate(plan.ctx, t, nthreads, seq);
-        auto registration = c.register_participant();
+        participant registration{c};
         value_buffer out;
         if (!registration) {
             counters[t].registration_failed = true;
@@ -1194,10 +1177,10 @@ scenario_result run_phase(const options& opt, const dataset& data,
                     static_cast<usize>(begin), static_cast<usize>(len));
                 auto& into = s == 0 ? discard : counters[t];
                 if (opt.verify) {
-                    dispatch_ops<true>(plan.kind, *registration, data, slice,
+                    dispatch_ops<true>(plan.kind, registration, data, slice,
                                        out, into);
                 } else {
-                    dispatch_ops<false>(plan.kind, *registration, data, slice,
+                    dispatch_ops<false>(plan.kind, registration, data, slice,
                                         out, into);
                 }
             }
@@ -1512,11 +1495,10 @@ void print_header(const options& opt, const dataset& data) {
     std::printf(
         "sgc_bench: buckets=%u max_occupancy=%u participants=%u "
         "max_key=%u max_value=%u record_area=%u B/arena mapping=%.1f MiB "
-        "best_effort_promotion=%s backend=%s\n",
+        "backend=c-api\n",
         bucket_count, max_occupancy, bench_config.participant_capacity,
         max_key_size, max_value_size, bench_config.record_area_size,
-        static_cast<double>(bench_mapping_size()) / (1 << 20),
-        best_effort_promotion_label(bench_config), bench_backend_label);
+        static_cast<double>(bench_mapping_size()) / (1 << 20));
     std::printf(
         "data: %u keys, key bytes mean %.1f [%u,%u], value bytes mean %.1f "
         "[%u,%u]\n",

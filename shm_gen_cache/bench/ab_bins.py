@@ -3,21 +3,23 @@
 # requires-python = ">=3.11"
 # dependencies = []
 # ///
-"""A/B-compare two prebuilt sgc_bench binaries (e.g. C++ vs Rust port).
+"""A/B-compare two prebuilt sgc_bench binaries (e.g. two crate revisions).
 
-The two binaries run interleaved, alternating which one goes first in
-each round (A B, B A, A B, ...), so slow drift (thermal, background load)
+Either side may be this directory's C++ program (C API) or the Rust bench
+in ../benches (Rust API); both print the same table and JSON report. The
+two binaries run interleaved, alternating which one goes first in each
+round (A B, B A, A B, ...), so slow drift (thermal, background load)
 affects both equally. Each run reports, per scenario, the median of its
 internal repetitions; the speedup for a scenario is the median over rounds
 of the paired ratio cur/ref. Noise is estimated from the spread of those
 paired ratios (MAD-based, as a relative standard error), and a verdict is
 given only when the change clears both that noise and a minimum effect.
 
-    uv run ab_bins.py --ref-bin cpp/sgc_bench --cur-bin rust/sgc_bench
+    uv run ab_bins.py --ref-bin base/sgc_bench --cur-bin head/sgc_bench
     uv run ab_bins.py --ref-bin A --cur-bin A --quick       # A/A noise floor
     uv run ab_bins.py ... --bench-args=--no-huge-pages       # Linux (note the =)
 
-"speedup" is cur/ref throughput: < 1.0 means cur (Rust) is slower.
+"speedup" is cur/ref throughput: < 1.0 means cur is slower.
 """
 
 from __future__ import annotations

@@ -84,11 +84,10 @@ pub fn print_header(opt: &Options, data: &Dataset, derived: &Derived) {
         .map(|r| f64::from(r.value_len))
         .sum::<f64>()
         / n;
-    // The library has no promotion option; reported as such.
     println!(
         "sgc_bench: buckets={BUCKET_COUNT} max_occupancy={MAX_OCCUPANCY} participants={} \
          max_key={MAX_KEY_SIZE} max_value={MAX_VALUE_SIZE} record_area={} B/arena \
-         mapping={:.1} MiB best_effort_promotion=n/a backend=rust-api",
+         mapping={:.1} MiB backend=rust-api",
         BENCH_CONFIG.participant_capacity,
         BENCH_CONFIG.record_area_size,
         derived.mapping_size() as f64 / f64::from(1u32 << 20),
