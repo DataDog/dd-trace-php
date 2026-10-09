@@ -41,9 +41,9 @@ class Symfony62Tests extends AbstractSymfonyAppsecTests {
         InspectContainerHelper.run(CONTAINER)
     }
 
-    // 21 routes come from the fixture controllers.
+    // 22 routes come from the fixture controllers.
     @Override
-    int expectedEndpointCount() { 21 }
+    int expectedEndpointCount() { 24 }
 
     @Override
     List<List<String>> expectedEndpoints() {
@@ -69,6 +69,9 @@ class Symfony62Tests extends AbstractSymfonyAppsecTests {
                 ['/normalized/search.{_format}', 'GET', 'GET /normalized/search.{_format}'],
                 ['/normalized/utf8/{föo}', 'GET', 'GET /normalized/utf8/{föo}'],
                 ['/normalized/ambiguous/{slug}.{format}', 'GET', 'GET /normalized/ambiguous/{slug}.{format}'],
+                ['/normalized/catchall/{rest}', 'GET', 'GET /normalized/catchall/{rest}'],
+                ['/normalized/sep,{page}', 'GET', 'GET /normalized/sep,{page}'],
+                ['/normalized/dash-.{page}', 'GET', 'GET /normalized/dash-.{page}'],
         ]
     }
 
@@ -234,8 +237,9 @@ class Symfony62Tests extends AbstractSymfonyAppsecTests {
     @Test
     @Order(16)
     void 'optional param absent: cache key does not bleed into present case'() {
-        // Hit /posts (page absent from URL — uses default=1) first so that if the cache key
-        // were just the route name, the result '/posts' would be stored and served for /posts/2.
+        // Symfony merges the default into _route_params, so participation comes
+        // from replaying the route's own regex. Hit /posts first so that a
+        // result cached per route would be served for /posts/2.
         HttpRequest absentReq = container.buildReq('/posts').GET().build()
         Trace absentTrace = container.traceFromRequest(absentReq, ofString()) { HttpResponse<String> re ->
             assert re.statusCode() == 200
@@ -243,8 +247,6 @@ class Symfony62Tests extends AbstractSymfonyAppsecTests {
         assert absentTrace.first().meta.'http.route' == '/posts/{page}'
         assert absentTrace.first().meta.'_dd.appsec.normalized_route' == '/posts'
 
-        // Now hit /posts/2 (page present in URL). With a coarse cache key (route name only)
-        // this would incorrectly return '/posts' from cache instead of '/posts/{page}'.
         HttpRequest presentReq = container.buildReq('/posts/2').GET().build()
         Trace presentTrace = container.traceFromRequest(presentReq, ofString()) { HttpResponse<String> re ->
             assert re.statusCode() == 200
@@ -281,8 +283,56 @@ class Symfony62Tests extends AbstractSymfonyAppsecTests {
                 '/normalized/ambiguous/{slug}.{format}'
         // Symfony matched the entire "foo.bar" value as slug and supplied
         // format from its default. URL-only inference ignores the framework
-        // requirements and incorrectly treats "bar" as a matched format.
+        // requirements and would incorrectly treat "bar" as a matched format.
         assert span.meta.'_dd.appsec.normalized_route' ==
                 '/normalized/ambiguous/{slug}'
+    }
+
+    @Test
+    @Order(19)
+    void 'optional parameter matched as an empty string is present'() {
+        // Symfony binds rest = '' because its optional group participated, so
+        // the default "none" is not used.
+        HttpRequest req = container.buildReq('/normalized/catchall/').GET().build()
+        Trace trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 200
+            assert re.body() == 'Catch-all route: []'
+        }
+
+        Span span = trace.first()
+        assert span.meta.'http.route' == '/normalized/catchall/{rest}'
+        assert span.meta.'_dd.appsec.normalized_route' == '/normalized/catchall/{rest}'
+    }
+
+    @Test
+    @Order(20)
+    void 'optional route redirected for its trailing slash is not normalized'() {
+        // Symfony matches /posts after redirecting, not the requested /posts/.
+        // Participation of page in that redirected match is not replayed.
+        HttpRequest req = container.buildReq('/posts/').GET().build()
+        Trace trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 301
+        }
+
+        Span span = trace.first()
+        assert span.meta.'http.route' == '/posts/{page}'
+        assert span.meta.'_dd.appsec.normalized_route' == null
+    }
+
+    @Test
+    @Order(21)
+    void 'absent optional drops only the separator Symfony puts in it'() {
+        // Symfony's RouteCompiler moves one separator character before a
+        // variable into its optional: ',' here, '.' (not '-') below.
+        Map<String, String> expected = [
+                '/normalized/sep'  : '/normalized/sep',
+                '/normalized/dash-': '/normalized/dash-',
+        ]
+        expected.each { String path, String normalized ->
+            Trace trace = container.traceFromRequest(path) { HttpResponse<InputStream> resp ->
+                assert resp.statusCode() == 200
+            }
+            assert trace.first().meta.'_dd.appsec.normalized_route' == normalized
+        }
     }
 }
