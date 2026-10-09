@@ -1,6 +1,23 @@
 //! Command line.
 
-use crate::sgc_bench::platform::{CAN_CHECK_PINNING, HUGE_PAGES_SUPPORTED};
+use crate::sgc_bench::platform::{CAN_CHECK_PINNING, HUGE_PAGES_SUPPORTED, PIN_SUPPORTED};
+
+/// How the bench drives the cache (see `api.rs`).
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum ApiKind {
+    Rust,
+    C,
+}
+
+impl ApiKind {
+    /// The header's `backend=` value.
+    pub fn backend(self) -> &'static str {
+        match self {
+            ApiKind::Rust => "rust-api",
+            ApiKind::C => "c-api",
+        }
+    }
+}
 
 pub struct Options {
     pub reps: u32,
@@ -15,6 +32,7 @@ pub struct Options {
     pub list: bool,
     pub pin: bool,
     pub huge_pages: bool,
+    pub api: ApiKind,
 }
 
 impl Default for Options {
@@ -30,8 +48,9 @@ impl Default for Options {
             verify: false,
             check_pinning: false,
             list: false,
-            pin: false,
+            pin: PIN_SUPPORTED,
             huge_pages: HUGE_PAGES_SUPPORTED,
+            api: ApiKind::Rust,
         }
     }
 }
@@ -40,17 +59,21 @@ const USAGE: &str = "\
 usage: sgc_bench [--quick] [--reps N] [--ops N] [--warmup N]
                  [--threads 1,4,8] [--filter SUBSTR[,SUBSTR...]]
                  [--json FILE] [--no-model] [--verify] [--list]
-                 [--pin] [--check-pinning]
-                 [--huge-pages|--no-huge-pages]
+                 [--pin|--no-pin] [--check-pinning]
+                 [--huge-pages|--no-huge-pages] [--api rust|c]
   --ops     operations per thread per repetition (default 250000)
   --warmup  untimed operations before a family's first phase
   --quick   --reps 5 --ops 100000 (same warmup)
   --verify  compare every hit's bytes (slower; not for timing)
   --check-pinning  (Apple silicon) require stable, distinct worker CPUs
   --pin     (Linux) bind worker t to the t-th CPU of the affinity mask
+            (the Linux default)
+  --no-pin  let the scheduler place and migrate workers
   --huge-pages  (Linux) map the cache as private anonymous memory
             advised MADV_HUGEPAGE (the Linux default)
   --no-huge-pages  use a shared mapping without requesting THP
+  --api     rust: the Rust API, inlined into the timed loop (default);
+            c: the C API, one out-of-line call per operation
 ";
 
 /// Parses the arguments (without the program name). `None` after printing
@@ -104,7 +127,24 @@ pub fn parse_options(args: impl IntoIterator<Item = String>) -> Option<Options> 
                 opt.check_pinning = true;
             }
             "--list" => opt.list = true,
-            "--pin" => opt.pin = true,
+            "--pin" => {
+                if PIN_SUPPORTED {
+                    opt.pin = true;
+                } else {
+                    eprintln!("--pin: unsupported here; workers are not pinned");
+                }
+            }
+            "--no-pin" => opt.pin = false,
+            "--api" => {
+                opt.api = match args.next().as_deref() {
+                    Some("rust") => ApiKind::Rust,
+                    Some("c") => ApiKind::C,
+                    other => {
+                        eprintln!("--api: expected rust or c, got {other:?}");
+                        return None;
+                    }
+                };
+            }
             "--huge-pages" => {
                 if HUGE_PAGES_SUPPORTED {
                     opt.huge_pages = true;

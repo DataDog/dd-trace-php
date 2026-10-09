@@ -1,6 +1,8 @@
 //! A fresh cache mapping per scenario family, initialized the way a user
-//! would: map anonymous memory, then [`Cache::initialize`]. Initialization
-//! writes every page, so no page faults happen inside timed regions.
+//! would: map anonymous memory, then initialize the cache in it
+//! (`Cache::initialize` or `ddog_sgc_cache_init_in`, see [`Api`]).
+//! Initialization writes every page, so no page faults happen inside timed
+//! regions.
 //!
 //! With `--huge-pages` (Linux) the mapping is instead private anonymous
 //! memory, aligned and padded to 2 MiB and advised `MADV_HUGEPAGE` before
@@ -11,23 +13,23 @@
 
 use std::ptr::NonNull;
 
-use shm_gen_cache::{Cache, Params, ParticipantLock};
-
+use crate::sgc_bench::api::{Api, Backend, Participant};
 use crate::sgc_bench::data::{Dataset, SourceBuffers};
 use crate::sgc_bench::model::{GenerationModel, OpKind};
 
-pub struct MappedCache<P: Params> {
+pub struct MappedCache<A: Api> {
     base: NonNull<u8>,
     base_len: usize,
-    cache: Cache<'static, P>,
+    api: A,
+    cache: A::Cache,
     /// The share of the mapping found THP-backed right after
     /// initialization (`--huge-pages` only).
     thp_coverage: Option<f64>,
 }
 
-impl<P: Params> MappedCache<P> {
-    pub fn new(huge_pages: bool, params: P) -> Self {
-        let size = params.derived().mapping_size();
+impl<A: Api> MappedCache<A> {
+    pub fn new(huge_pages: bool, api: A) -> Self {
+        let size = api.mapping_size();
         let mapping = if huge_pages {
             Mapping::huge(size)
         } else {
@@ -35,28 +37,23 @@ impl<P: Params> MappedCache<P> {
         };
         // SAFETY: the mapping is fresh anonymous memory (zero-filled),
         // page-aligned, at least `size` bytes, and stays mapped until drop,
-        // after every borrow of `cache` (see `get`).
-        let cache = match unsafe { Cache::initialize(mapping.cache.as_ptr(), size, params) } {
-            Ok(c) => c,
-            Err(e) => {
-                eprintln!("cache initialization failed: {}", e.code());
-                std::process::abort();
-            }
-        };
+        // after every participant (see `get`).
+        let cache = unsafe { api.initialize(mapping.cache.as_ptr(), size) };
         let thp_coverage = mapping
             .huge_len
             .map(|len| thp_coverage(mapping.cache.as_ptr(), len));
         MappedCache {
             base: mapping.base,
             base_len: mapping.base_len,
+            api,
             cache,
             thp_coverage,
         }
     }
 
-    /// The cache, borrowed from the mapping: participants registered with
-    /// it cannot outlive the mapping.
-    pub fn get(&self) -> Cache<'_, P> {
+    /// The cache. Its participants must be dropped before `self`: every
+    /// phase drops them before returning.
+    pub fn get(&self) -> A::Cache {
         self.cache
     }
 
@@ -65,11 +62,14 @@ impl<P: Params> MappedCache<P> {
     }
 }
 
-impl<P: Params> Drop for MappedCache<P> {
+impl<A: Api> Drop for MappedCache<A> {
     fn drop(&mut self) {
-        // SAFETY: the mapping made in `new`; every view of it borrowed
-        // `self`, so none is left.
-        unsafe { libc::munmap(self.base.as_ptr().cast(), self.base_len) };
+        // SAFETY: no participant is left (see `get`); then the mapping made
+        // in `new`, which nothing uses any more.
+        unsafe {
+            self.api.release(self.cache);
+            libc::munmap(self.base.as_ptr().cast(), self.base_len)
+        };
     }
 }
 
@@ -185,19 +185,19 @@ fn anon_huge_kb(line: &str) -> Option<u64> {
     rest[..digits].parse().ok()
 }
 
-pub fn register_or_die<'m, P: Params>(c: Cache<'m, P>) -> ParticipantLock<'m, P> {
-    match c.register_participant() {
-        Ok(lock) => lock,
+pub fn register_or_die<B: Backend>(c: B) -> B::Participant {
+    match c.register() {
+        Ok(participant) => participant,
         Err(e) => {
-            eprintln!("register_participant failed: {}", e.code());
+            eprintln!("participant registration failed: {e}");
             std::process::abort();
         }
     }
 }
 
 /// Untimed setup inserts from the calling thread, mirrored into `model`.
-pub fn insert_all<P: Params>(
-    lock: &mut ParticipantLock<'_, P>,
+pub fn insert_all(
+    participant: &mut impl Participant,
     data: &Dataset,
     keys: &[u32],
     mut model: Option<&mut GenerationModel>,
@@ -207,7 +207,7 @@ pub fn insert_all<P: Params>(
         let r = &data.records[k as usize];
         let key = data.key(k, &mut buf.key);
         let value = data.value(k, &mut buf.value);
-        if lock.insert(r.hash, key, value).is_err() {
+        if !participant.insert(r.hash, key, value) {
             eprintln!("setup insert failed");
             std::process::abort();
         }

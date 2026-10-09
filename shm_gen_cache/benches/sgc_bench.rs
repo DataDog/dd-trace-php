@@ -1,7 +1,8 @@
 //! Throughput suite for the two-generation cache, driven through the
-//! crate's public Rust API with the configuration resolved at run time
-//! ([`RuntimeParams`], occupancy mode selected from the resolved
-//! configuration), the shape a production embedding uses.
+//! crate's public Rust API or its C API (`--api`, see `api.rs`), with the
+//! configuration resolved at run time (for the Rust API, [`RuntimeParams`]
+//! with the occupancy mode selected from the resolved configuration), the
+//! shape a production embedding uses.
 //!
 //! The primary workload is how the cache is used in practice: every
 //! operation is a lookup; a miss is followed by an insert of that key's one
@@ -24,7 +25,8 @@ use std::process::ExitCode;
 
 use shm_gen_cache::{Derived, Estimated, Exact, OccupancyMode, RuntimeParams};
 
-use sgc_bench::cli::{self, Options};
+use sgc_bench::api::{Api, CApi, RustApi};
+use sgc_bench::cli::{self, ApiKind, Options};
 use sgc_bench::config::BENCH_CONFIG;
 use sgc_bench::data::Dataset;
 use sgc_bench::phase::ScenarioResult;
@@ -33,6 +35,7 @@ use sgc_bench::report;
 use sgc_bench::scenarios::{self, Context};
 
 mod sgc_bench {
+    pub mod api;
     pub mod cli;
     pub mod config;
     pub mod data;
@@ -64,12 +67,15 @@ fn main() -> ExitCode {
     let data = Dataset::build();
     report::print_header(&opt, &data, &derived);
 
-    // The occupancy mode is a type parameter of the cache code; pick the
-    // monomorphisation the resolved configuration selects, at run time.
-    let (results, thp_min_coverage) = if derived.estimates_occupancy() {
-        run_suite::<Estimated>(&opt, &data, &derived)
-    } else {
-        run_suite::<Exact>(&opt, &data, &derived)
+    // With the Rust API, the occupancy mode is a type parameter of the cache
+    // code; pick the monomorphisation the resolved configuration selects, at
+    // run time (the C API does the same inside).
+    let (results, thp_min_coverage) = match opt.api {
+        ApiKind::C => run_suite(&opt, &data, CApi),
+        ApiKind::Rust if derived.estimates_occupancy() => {
+            run_suite(&opt, &data, RustApi(runtime_params::<Estimated>(&derived)))
+        }
+        ApiKind::Rust => run_suite(&opt, &data, RustApi(runtime_params::<Exact>(&derived))),
     };
 
     if results.iter().any(|r| r.pinning_failed) {
@@ -98,18 +104,18 @@ fn main() -> ExitCode {
     ExitCode::SUCCESS
 }
 
-/// Runs every selected scenario family in order; returns the results and
-/// the lowest THP-backed fraction over the run's huge-page mappings.
-fn run_suite<O: OccupancyMode + Send + Sync>(
-    opt: &Options,
-    data: &Dataset,
-    derived: &Derived,
-) -> (Vec<ScenarioResult>, f64) {
-    let params: RuntimeParams<'_, O> = match RuntimeParams::new(derived) {
+/// The Rust API's parameters, reading the resolved configuration.
+fn runtime_params<O: OccupancyMode>(derived: &Derived) -> RuntimeParams<'_, O> {
+    match RuntimeParams::new(derived) {
         Ok(p) => p,
         Err(e) => invalid_config(e.code()),
-    };
-    let ctx = Context::new(opt, data, params);
+    }
+}
+
+/// Runs every selected scenario family in order; returns the results and
+/// the lowest THP-backed fraction over the run's huge-page mappings.
+fn run_suite<A: Api>(opt: &Options, data: &Dataset, api: A) -> (Vec<ScenarioResult>, f64) {
+    let ctx = Context::new(opt, data, api);
     let mut results = Vec::new();
     scenarios::run_mixed(&ctx, &mut results);
     scenarios::run_lookup(&ctx, &mut results);

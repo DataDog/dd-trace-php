@@ -87,10 +87,11 @@ pub fn print_header(opt: &Options, data: &Dataset, derived: &Derived) {
     println!(
         "sgc_bench: buckets={BUCKET_COUNT} max_occupancy={MAX_OCCUPANCY} participants={} \
          max_key={MAX_KEY_SIZE} max_value={MAX_VALUE_SIZE} record_area={} B/arena \
-         mapping={:.1} MiB backend=rust-api",
+         mapping={:.1} MiB backend={}",
         BENCH_CONFIG.participant_capacity,
         BENCH_CONFIG.record_area_size,
         derived.mapping_size() as f64 / f64::from(1u32 << 20),
+        opt.api.backend(),
     );
     println!(
         "data: {UNIVERSE_SIZE} keys, key bytes mean {kmean:.1} [{MIN_KEY_SIZE},{MAX_KEY_SIZE}], \

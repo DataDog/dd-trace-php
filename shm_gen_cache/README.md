@@ -126,7 +126,7 @@ a 0.7 target, but not 4096), unless `always_exact_occupancy` is set.
 
 Huge pages: lookups touch random buckets and records across the whole
 mapping, and 2 MiB pages made cache-resident workloads up to ~12% faster in
-the C++ benchmarks. `ddog_sgc_cache_new` therefore advises the mapping
+the benchmark. `ddog_sgc_cache_new` therefore advises the mapping
 `MADV_HUGEPAGE`, but shared anonymous memory only gets transparent huge
 pages when `/sys/kernel/mm/transparent_hugepage/shmem_enabled` is `advise`,
 `always` or `within_size`. With `never` (a common default) the advice has no

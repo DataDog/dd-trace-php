@@ -40,9 +40,12 @@ pub fn raise_thread_priority() {
 }
 
 /// Binds worker `t` to the t-th CPU of the process's affinity mask
-/// (wrapping), so that `taskset -c <one CPU per core> ... --pin` gives every
+/// (wrapping), so that `taskset -c <one CPU per core> ...` gives every
 /// worker its own physical core and a deterministic placement across
-/// caches. Linux only; a no-op unless `pin`.
+/// caches. Without it, the scheduler may put the workers on one CCD in one
+/// run and spread them over two in the next, which makes contended
+/// scenarios bimodal run to run. Linux only (where it is the default); a
+/// no-op unless `pin`.
 pub fn pin_worker(pin: bool, t: u32) {
     #[cfg(target_os = "linux")]
     {
@@ -114,3 +117,5 @@ pub fn cpu_cluster(location: u32) -> u32 {
 pub const CAN_CHECK_PINNING: bool = cfg!(all(target_os = "macos", target_arch = "aarch64"));
 /// Whether `--huge-pages` can work here (and is the default).
 pub const HUGE_PAGES_SUPPORTED: bool = cfg!(target_os = "linux");
+/// Whether `--pin` can bind workers to CPUs (the default where it can).
+pub const PIN_SUPPORTED: bool = cfg!(target_os = "linux");

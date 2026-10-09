@@ -5,9 +5,9 @@
 # ///
 """A/B-compare two prebuilt sgc_bench binaries (e.g. two crate revisions).
 
-Either side may be this directory's C++ program (C API) or the Rust bench
-in ../benches (Rust API); both print the same table and JSON report. The
-two binaries run interleaved, alternating which one goes first in each
+Both sides are builds of this directory's bench (`--api rust` or `--api c`,
+passed through --bench-args); they print the same table and JSON report.
+The two binaries run interleaved, alternating which one goes first in each
 round (A B, B A, A B, ...), so slow drift (thermal, background load)
 affects both equally. Each run reports, per scenario, the median of its
 internal repetitions; the speedup for a scenario is the median over rounds

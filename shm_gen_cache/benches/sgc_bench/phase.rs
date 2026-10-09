@@ -6,8 +6,7 @@ use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering::{AcqRel, Acquire, Relaxed, Release};
 use std::thread::{self, Thread};
 
-use shm_gen_cache::{Cache, Params, ParticipantLock};
-
+use crate::sgc_bench::api::{Backend, Lookup, Participant};
 use crate::sgc_bench::cli::Options;
 use crate::sgc_bench::config::{ValueBuffer, value_buffer};
 use crate::sgc_bench::data::{Dataset, SourceBuffers};
@@ -135,8 +134,8 @@ const INSERT: u8 = OpKind::Insert as u8;
 
 /// The timed loop, monomorphised per operation kind and verification mode.
 #[inline]
-fn run_ops<P: Params, const KIND: u8, const VERIFY: bool>(
-    lock: &mut ParticipantLock<'_, P>,
+fn run_ops<L: Participant, const KIND: u8, const VERIFY: bool>(
+    participant: &mut L,
     data: &Dataset,
     seq: &[u32],
     out: &mut ValueBuffer,
@@ -155,28 +154,22 @@ fn run_ops<P: Params, const KIND: u8, const VERIFY: bool>(
         let key = data.key(index, &mut buf.key);
         if KIND == INSERT {
             inserts += 1;
-            if lock
-                .insert(r.hash, key, data.value(index, &mut buf.value))
-                .is_err()
-            {
+            if !participant.insert(r.hash, key, data.value(index, &mut buf.value)) {
                 insert_errors += 1;
             }
             continue;
         }
-        let v = match lock.lookup(r.hash, key, out) {
-            Err(_) => {
+        let v = match participant.lookup(r.hash, key, out) {
+            Lookup::Error => {
                 lookup_errors += 1;
                 continue;
             }
-            Ok(Some(v)) => v,
-            Ok(None) => {
+            Lookup::Hit(v) => v,
+            Lookup::Miss => {
                 misses += 1;
                 if KIND == LOOKUP_OR_INSERT {
                     inserts += 1;
-                    if lock
-                        .insert(r.hash, key, data.value(index, &mut buf.value))
-                        .is_err()
-                    {
+                    if !participant.insert(r.hash, key, data.value(index, &mut buf.value)) {
                         insert_errors += 1;
                     }
                 }
@@ -200,18 +193,20 @@ fn run_ops<P: Params, const KIND: u8, const VERIFY: bool>(
     c.sink = sink;
 }
 
-fn dispatch_ops<P: Params, const VERIFY: bool>(
+fn dispatch_ops<L: Participant, const VERIFY: bool>(
     kind: OpKind,
-    lock: &mut ParticipantLock<'_, P>,
+    participant: &mut L,
     data: &Dataset,
     seq: &[u32],
     out: &mut ValueBuffer,
     c: &mut ThreadCounters,
 ) {
     match kind {
-        OpKind::LookupOrInsert => run_ops::<P, LOOKUP_OR_INSERT, VERIFY>(lock, data, seq, out, c),
-        OpKind::Lookup => run_ops::<P, LOOKUP, VERIFY>(lock, data, seq, out, c),
-        OpKind::Insert => run_ops::<P, INSERT, VERIFY>(lock, data, seq, out, c),
+        OpKind::LookupOrInsert => {
+            run_ops::<L, LOOKUP_OR_INSERT, VERIFY>(participant, data, seq, out, c)
+        }
+        OpKind::Lookup => run_ops::<L, LOOKUP, VERIFY>(participant, data, seq, out, c),
+        OpKind::Insert => run_ops::<L, INSERT, VERIFY>(participant, data, seq, out, c),
     }
 }
 
@@ -258,10 +253,10 @@ impl PhaseSync {
 
 /// Runs a phase on `c` with `plan.threads` workers, each with its own
 /// participant, and, with a model, replays the streams through it.
-pub fn run_phase<P: Params + Send + Sync>(
+pub fn run_phase<B: Backend>(
     opt: &Options,
     data: &Dataset,
-    c: Cache<'_, P>,
+    c: B,
     plan: &PhasePlan<'_>,
     model: Option<&mut GenerationModel>,
 ) -> ScenarioResult {
@@ -296,7 +291,7 @@ pub fn run_phase<P: Params + Send + Sync>(
         let mut seq = vec![0u32; stream_len];
         plan.source.generate(t, nthreads, &mut seq);
         let mut counters = ThreadCounters::default();
-        let mut registration = c.register_participant().ok();
+        let mut registration = c.register().ok();
         if registration.is_none() {
             counters.registration_failed = true;
         }
@@ -327,13 +322,13 @@ pub fn run_phase<P: Params + Send + Sync>(
             } else {
                 (warm + u64::from(s - 1) * per_rep, per_rep)
             };
-            if let Some(lock) = registration.as_mut() {
+            if let Some(participant) = registration.as_mut() {
                 let slice = &seq[begin as usize..(begin + len) as usize];
                 let into = if s == 0 { &mut discard } else { &mut counters };
                 if opt.verify {
-                    dispatch_ops::<P, true>(plan.kind, lock, data, slice, &mut out, into);
+                    dispatch_ops::<_, true>(plan.kind, participant, data, slice, &mut out, into);
                 } else {
-                    dispatch_ops::<P, false>(plan.kind, lock, data, slice, &mut out, into);
+                    dispatch_ops::<_, false>(plan.kind, participant, data, slice, &mut out, into);
                 }
             }
             check_cpu_location(&mut counters, s);

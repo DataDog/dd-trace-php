@@ -4,8 +4,7 @@
 
 use std::cell::Cell;
 
-use shm_gen_cache::Params;
-
+use crate::sgc_bench::api::{Api, Lookup, Participant};
 use crate::sgc_bench::cli::Options;
 use crate::sgc_bench::config::{
     BUCKET_COUNT, LOOKUP_HIT_KEYS, LOOKUP_MISS_KEYS, MAX_OCCUPANCY, MISS_SKEW, MIXED_KEY_COUNTS,
@@ -18,21 +17,21 @@ use crate::sgc_bench::phase::{PhasePlan, ScenarioResult, StreamSource, run_phase
 use crate::sgc_bench::report::{phase_name, selected};
 use crate::sgc_bench::rng::{ZipfSampler, fmix64, iota_from, shuffle};
 
-/// What every family needs: options, data, the cache parameters, and the
-/// lowest THP-backed fraction seen over the run's mappings.
-pub struct Context<'a, P: Params> {
+/// What every family needs: options, data, the API that initializes
+/// caches, and the lowest THP-backed fraction seen over the run's mappings.
+pub struct Context<'a, A: Api> {
     opt: &'a Options,
     data: &'a Dataset,
-    params: P,
+    api: A,
     thp_min_coverage: Cell<f64>,
 }
 
-impl<'a, P: Params + Send + Sync> Context<'a, P> {
-    pub fn new(opt: &'a Options, data: &'a Dataset, params: P) -> Self {
+impl<'a, A: Api> Context<'a, A> {
+    pub fn new(opt: &'a Options, data: &'a Dataset, api: A) -> Self {
         Context {
             opt,
             data,
-            params,
+            api,
             thp_min_coverage: Cell::new(1.0),
         }
     }
@@ -42,8 +41,8 @@ impl<'a, P: Params + Send + Sync> Context<'a, P> {
     }
 
     /// A fresh, initialized cache mapping.
-    fn map_cache(&self) -> MappedCache<P> {
-        let mc = MappedCache::new(self.opt.huge_pages, self.params);
+    fn map_cache(&self) -> MappedCache<A> {
+        let mc = MappedCache::new(self.opt.huge_pages, self.api);
         if let Some(coverage) = mc.thp_coverage() {
             self.thp_min_coverage
                 .set(self.thp_min_coverage.get().min(coverage));
@@ -77,7 +76,7 @@ fn zipf_over(first: u32, count: u32, skew: f64, seed: u64) -> ZipfSampler {
 }
 
 /// Lookup, insert on miss, over Zipf-distributed key sets.
-pub fn run_mixed<P: Params + Send + Sync>(ctx: &Context<'_, P>, results: &mut Vec<ScenarioResult>) {
+pub fn run_mixed<A: Api>(ctx: &Context<'_, A>, results: &mut Vec<ScenarioResult>) {
     let opt = ctx.opt;
     for keys in MIXED_KEY_COUNTS {
         for s in SKEWS {
@@ -137,10 +136,7 @@ pub fn run_mixed<P: Params + Send + Sync>(ctx: &Context<'_, P>, results: &mut Ve
 
 /// Lookups only: a hit set resident in the current generation, and a miss
 /// set never inserted.
-pub fn run_lookup<P: Params + Send + Sync>(
-    ctx: &Context<'_, P>,
-    results: &mut Vec<ScenarioResult>,
-) {
+pub fn run_lookup<A: Api>(ctx: &Context<'_, A>, results: &mut Vec<ScenarioResult>) {
     let (opt, data) = (ctx.opt, ctx.data);
     let any = SKEWS
         .iter()
@@ -163,14 +159,14 @@ pub fn run_lookup<P: Params + Send + Sync>(
     let miss_first = filler_first + MAX_OCCUPANCY;
     let mc = ctx.map_cache();
     {
-        let mut lock = register_or_die(mc.get());
+        let mut participant = register_or_die(mc.get());
         insert_all(
-            &mut lock,
+            &mut participant,
             data,
             &iota_from(filler_first, MAX_OCCUPANCY),
             None,
         );
-        insert_all(&mut lock, data, &iota_from(0, LOOKUP_HIT_KEYS), None);
+        insert_all(&mut participant, data, &iota_from(0, LOOKUP_HIT_KEYS), None);
         let mut out = value_buffer();
         let mut buf = SourceBuffers::new();
         for k in 0..miss_first + LOOKUP_MISS_KEYS {
@@ -179,8 +175,9 @@ pub fn run_lookup<P: Params + Send + Sync>(
             }
             let r = &data.records[k as usize];
             let want_hit = k < LOOKUP_HIT_KEYS;
-            match lock.lookup(r.hash, data.key(k, &mut buf.key), &mut out) {
-                Ok(found) if found.is_some() == want_hit => {}
+            match participant.lookup(r.hash, data.key(k, &mut buf.key), &mut out) {
+                Lookup::Hit(_) if want_hit => {}
+                Lookup::Miss if !want_hit => {}
                 _ => {
                     eprintln!("lookup setup: unexpected state");
                     std::process::abort();
@@ -241,10 +238,7 @@ pub fn run_lookup<P: Params + Send + Sync>(
 }
 
 /// Inserts of keys always new to the cache.
-pub fn run_insert<P: Params + Send + Sync>(
-    ctx: &Context<'_, P>,
-    results: &mut Vec<ScenarioResult>,
-) {
+pub fn run_insert<A: Api>(ctx: &Context<'_, A>, results: &mut Vec<ScenarioResult>) {
     let opt = ctx.opt;
     if !family_selected(opt, "insert_new", UNIVERSE_SIZE, 0.0) {
         return;
