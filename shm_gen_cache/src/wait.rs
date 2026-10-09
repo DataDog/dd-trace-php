@@ -15,9 +15,10 @@ use core::sync::atomic::AtomicU64;
 
 /// The 32-bit half of a shared 64-bit word that the write ending a wait
 /// changes: the word a monitored sleep arms on and a blocked waiter's futex.
+/// Writers wake the waiters blocked on it with [`wake_waiters`].
 #[derive(Clone, Copy)]
 #[cfg(not(sgc_genmc_short_waits))]
-pub(crate) struct WatchedWord<'a> {
+pub(crate) struct WordHalf<'a> {
     word: &'a AtomicU64,
     /// Bits 32-63 rather than bits 0-31.
     high: bool,
@@ -26,9 +27,9 @@ pub(crate) struct WatchedWord<'a> {
 /// With `sgc_genmc_short_waits`, no wait reads the watched word.
 #[derive(Clone, Copy)]
 #[cfg(sgc_genmc_short_waits)]
-pub(crate) struct WatchedWord<'a>(core::marker::PhantomData<&'a AtomicU64>);
+pub(crate) struct WordHalf<'a>(core::marker::PhantomData<&'a AtomicU64>);
 
-impl<'a> WatchedWord<'a> {
+impl<'a> WordHalf<'a> {
     /// Bits 0-31 of `word`.
     #[inline(always)]
     pub(crate) const fn low(word: &'a AtomicU64) -> Self {
@@ -41,16 +42,35 @@ impl<'a> WatchedWord<'a> {
         Self::new(word, true)
     }
 
+    /// This half, watched for a change from its value in `seen_word`, a
+    /// value of the whole word that the caller loaded and found not to end
+    /// its wait.
+    #[inline(always)]
+    pub(crate) const fn changed_from(self, seen_word: u64) -> WatchedWord<'a> {
+        #[cfg(not(sgc_genmc_short_waits))]
+        {
+            WatchedWord {
+                seen: self.value_in(seen_word),
+                half: self,
+            }
+        }
+        #[cfg(sgc_genmc_short_waits)]
+        {
+            let _ = seen_word;
+            WatchedWord(self)
+        }
+    }
+
     #[cfg(not(sgc_genmc_short_waits))]
     #[inline(always)]
     const fn new(word: &'a AtomicU64, high: bool) -> Self {
-        WatchedWord { word, high }
+        WordHalf { word, high }
     }
 
     #[cfg(sgc_genmc_short_waits)]
     #[inline(always)]
     const fn new(_word: &'a AtomicU64, _high: bool) -> Self {
-        WatchedWord(core::marker::PhantomData)
+        WordHalf(core::marker::PhantomData)
     }
 
     /// The whole word's current value: the waits load the word whole, so
@@ -61,44 +81,71 @@ impl<'a> WatchedWord<'a> {
         self.word.load(core::sync::atomic::Ordering::Relaxed)
     }
 
-    /// The watched half of `word`, a value of the whole word.
-    #[cfg(all(
-        not(sgc_genmc_short_waits),
-        any(target_os = "linux", sgc_genmc_futex_model)
-    ))]
+    /// This half of `word`, a value of the whole word.
+    #[cfg(not(sgc_genmc_short_waits))]
     #[inline(always)]
-    fn half(self, word: u64) -> u32 {
+    const fn value_in(self, word: u64) -> u32 {
         (word >> (32 * self.high as u32)) as u32
     }
 }
 
-/// Waits for a condition that another participant ends by writing the cache
-/// line of a known [`WatchedWord`]. Use one instance per wait:
+/// A [`WordHalf`] and the value the caller last saw in it
+/// ([`WordHalf::changed_from`]): a pause ends early once the half holds
+/// another value. Writes to the other half (e.g. the waiter's own announcement)
+/// are no change.
+#[derive(Clone, Copy)]
+#[cfg(not(sgc_genmc_short_waits))]
+pub(crate) struct WatchedWord<'a> {
+    half: WordHalf<'a>,
+    seen: u32,
+}
+
+/// With `sgc_genmc_short_waits`, no wait reads the watched word.
+#[derive(Clone, Copy)]
+#[cfg(sgc_genmc_short_waits)]
+pub(crate) struct WatchedWord<'a>(WordHalf<'a>);
+
+#[cfg(not(any(sgc_genmc_short_waits, sgc_genmc_futex_model)))]
+impl WatchedWord<'_> {
+    /// Whether the half no longer holds the value the caller saw, from a
+    /// load after the call: the monitored sleeps' check.
+    #[inline(always)]
+    fn changed(self) -> bool {
+        self.half.value_in(self.half.read()) != self.seen
+    }
+}
+
+/// Paces a loop that polls for a write by another participant, e.g. a
+/// release of rotation ownership or an unpin. Use one instance per wait:
 ///
 /// ```text
 /// let mut wait = BoundedWait::new();
-/// while !done(watched_word.load()) {
-///     if let Pause::BudgetExhausted = wait.pause_until(watched, &mut done) {
+/// loop {
+///     let word = atomic.load(Acquire);
+///     if done(word) {
+///         break;
+///     }
+///     if let Pause::BudgetExhausted = wait.pause_until(WordHalf::low(&atomic).changed_from(word)) {
 ///         // Recover or time out.
 ///     }
 /// }
 /// ```
 ///
-/// [`pause_until`](Self::pause_until) returns [`Pause::BudgetExhausted`]
-/// once the budget is exhausted. It calls `done` after arming the monitor or
-/// reading the futex word, so that a write between the caller's check and
-/// the sleep cannot be missed. `done(word)` returns true once the awaited
-/// write has happened. `word` is the whole watched word's value: before a
-/// futex block, from the same load as the value the futex is armed with, so
-/// that the waiter never blocks on a value that already ended its wait (a
-/// newer value, seen by a second load, could have gone back to it); after
-/// arming a monitor, from a load after arming. `done` may read other words
-/// too, and must only read, since a wait calls it any number of times,
-/// including right before each sleep.
+/// Each call of [`pause_until`](Self::pause_until) pauses at most once; the
+/// caller checks its condition again after every call. A pause ends early
+/// once the watched half no longer holds the value the caller saw (see
+/// [`WatchedWord`]); a blocked waiter additionally needs the writer's
+/// [`wake_waiters`]. The pause compares the half after arming the monitor,
+/// or atomically with blocking on the futex, so that a write between the
+/// caller's load and the sleep cannot be missed. A half that went back to
+/// the seen value before then is not noticed: the pause lasts until the
+/// next write or wake. The awaited write may never come (e.g. the
+/// participant waited for died), so the caller must handle
+/// [`Pause::BudgetExhausted`], returned once the budget is exhausted.
 ///
 /// A blocked waiter sleeps until the watched half changes and
 /// [`wake_waiters`] is called on it, or until the budget ends. So every write
-/// that may end a wait must be followed by `wake_waiters` on its watched word:
+/// that may end a wait must be followed by `wake_waiters` on its watched half:
 /// unconditionally, or, for an announced wait, whenever the write finds the
 /// announcement. A writer that does not wake delays a blocked waiter until
 /// its budget ends.
@@ -149,7 +196,7 @@ pub(crate) struct BoundedWait {
 #[must_use]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum Pause {
-    /// Paused once (or found `done`): check the condition and call again.
+    /// Paused at most once: check the condition and call again.
     Continue,
     /// The last stage is over; the wait did not pause. Never with
     /// `sgc_genmc_futex_model`, whose waits block until woken.
@@ -188,15 +235,10 @@ impl BoundedWait {
     }
 
     /// Pauses once, as the current stage prescribes (see [`BoundedWait`]),
-    /// unless `done` holds after arming the monitor or reading the futex
-    /// word.
+    /// unless the watched half no longer holds the value the caller saw.
     #[inline]
-    pub(crate) fn pause_until(
-        &mut self,
-        watched: WatchedWord<'_>,
-        mut done: impl FnMut(u64) -> bool,
-    ) -> Pause {
-        self.pause(Target::new(watched, &mut done, None::<&mut fn() -> bool>))
+    pub(crate) fn pause_until(&mut self, watched: WatchedWord<'_>) -> Pause {
+        self.pause(Target::new(watched, None::<&mut fn() -> bool>))
     }
 
     /// [`pause_until`](Self::pause_until), calling `announce` before each futex
@@ -204,22 +246,18 @@ impl BoundedWait {
     /// announces to the writer that it's waiting, and the writer can skip the
     /// awakening (futex syscall) if it sees no such announcement.  If it
     /// returns false (the watched word changed), the call continues without
-    /// blocking.
+    /// blocking. The announcement must leave the watched half unchanged.
     #[inline]
     pub(crate) fn pause_until_announced(
         &mut self,
         watched: WatchedWord<'_>,
-        mut done: impl FnMut(u64) -> bool,
         mut announce: impl FnMut() -> bool,
     ) -> Pause {
-        self.pause(Target::new(watched, &mut done, Some(&mut announce)))
+        self.pause(Target::new(watched, Some(&mut announce)))
     }
 
     #[inline(always)]
-    fn pause(
-        &mut self,
-        mut target: Target<'_, '_, impl FnMut(u64) -> bool, impl FnMut() -> bool>,
-    ) -> Pause {
+    fn pause(&mut self, mut target: Target<'_, '_, impl FnMut() -> bool>) -> Pause {
         match self.stages.pause(&mut target) {
             Step::Paused => Pause::Continue,
             #[cfg(not(sgc_genmc_futex_model))]
@@ -231,7 +269,7 @@ impl BoundedWait {
 /// Wakes the participants blocked in [`BoundedWait::pause_until`] on
 /// `watched`. Call after the write that may end their wait.
 #[inline]
-pub(crate) fn wake_waiters(watched: WatchedWord<'_>) {
+pub(crate) fn wake_waiters(watched: WordHalf<'_>) {
     #[cfg(all(
         not(any(sgc_genmc_short_waits, sgc_genmc_futex_model)),
         target_os = "linux"
@@ -246,12 +284,11 @@ pub(crate) fn wake_waiters(watched: WatchedWord<'_>) {
     let _ = watched;
 }
 
-/// What a pause acts on: the watched word, the caller's condition and, for
-/// an announced wait, its announcement.
+/// What a pause acts on: the watched word and, for an announced wait, its
+/// announcement.
 #[cfg(not(sgc_genmc_short_waits))]
-struct Target<'w, 'f, D, A> {
+struct Target<'w, 'f, A> {
     watched: WatchedWord<'w>,
-    done: &'f mut D,
     /// Only the futex stages (on Linux, or the model's) announce.
     #[cfg(any(target_os = "linux", sgc_genmc_futex_model))]
     announce: Option<&'f mut A>,
@@ -261,20 +298,19 @@ struct Target<'w, 'f, D, A> {
 
 /// With `sgc_genmc_short_waits`, the only stage ([`Spin`]) reads nothing.
 #[cfg(sgc_genmc_short_waits)]
-struct Target<'w, 'f, D, A>(core::marker::PhantomData<(WatchedWord<'w>, &'f mut D, &'f mut A)>);
+struct Target<'w, 'f, A>(core::marker::PhantomData<(WatchedWord<'w>, &'f mut A)>);
 
-impl<'w, 'f, D, A> Target<'w, 'f, D, A> {
+impl<'w, 'f, A> Target<'w, 'f, A> {
     #[inline(always)]
-    fn new(watched: WatchedWord<'w>, done: &'f mut D, announce: Option<&'f mut A>) -> Self {
+    fn new(watched: WatchedWord<'w>, announce: Option<&'f mut A>) -> Self {
         #[cfg(sgc_genmc_short_waits)]
         {
-            let _ = (watched, done, announce);
+            let _ = (watched, announce);
             Target(core::marker::PhantomData)
         }
         #[cfg(not(sgc_genmc_short_waits))]
         Target {
             watched,
-            done,
             #[cfg(any(target_os = "linux", sgc_genmc_futex_model))]
             announce,
             #[cfg(not(any(target_os = "linux", sgc_genmc_futex_model)))]
@@ -302,10 +338,7 @@ trait Stage {
 
     /// Pauses once, or returns [`Step::Over`] without pausing once the
     /// stage has ended (and on every later call).
-    fn pause<D: FnMut(u64) -> bool, A: FnMut() -> bool>(
-        &mut self,
-        target: &mut Target<'_, '_, D, A>,
-    ) -> Step;
+    fn pause<A: FnMut() -> bool>(&mut self, target: &mut Target<'_, '_, A>) -> Step;
 }
 
 /// `A` until it is over, then `B`.
@@ -325,10 +358,7 @@ impl<A: Stage, B: Stage> Stage for Then<A, B> {
     };
 
     #[inline(always)]
-    fn pause<D: FnMut(u64) -> bool, F: FnMut() -> bool>(
-        &mut self,
-        target: &mut Target<'_, '_, D, F>,
-    ) -> Step {
+    fn pause<F: FnMut() -> bool>(&mut self, target: &mut Target<'_, '_, F>) -> Step {
         if !self.first_over {
             match self.first.pause(target) {
                 Step::Paused => return Step::Paused,
@@ -340,7 +370,7 @@ impl<A: Stage, B: Stage> Stage for Then<A, B> {
 }
 
 /// `N` calls that each execute one `cpu_relax()`, without reading the clock
-/// or the condition.
+/// or the watched word.
 #[cfg(not(sgc_genmc_futex_model))]
 struct Spin<const N: u32> {
     calls: u32,
@@ -351,10 +381,7 @@ impl<const N: u32> Stage for Spin<N> {
     const NEW: Self = Spin { calls: 0 };
 
     #[inline(always)]
-    fn pause<D: FnMut(u64) -> bool, A: FnMut() -> bool>(
-        &mut self,
-        _target: &mut Target<'_, '_, D, A>,
-    ) -> Step {
+    fn pause<A: FnMut() -> bool>(&mut self, _target: &mut Target<'_, '_, A>) -> Step {
         if self.calls == N {
             return Step::Over;
         }
@@ -367,7 +394,7 @@ impl<const N: u32> Stage for Spin<N> {
 /// The stages that read the clock.
 #[cfg(not(any(sgc_genmc_short_waits, sgc_genmc_futex_model)))]
 mod timed {
-    use super::{Stage, Step, Target, Then, WatchedWord, cpu_relax};
+    use super::{Stage, Step, Target, Then, WatchedWord, WordHalf, cpu_relax};
 
     /// Nanoseconds, of a duration or of the monotonic clock.
     type Nanos = u64;
@@ -398,11 +425,11 @@ mod timed {
 
         /// Pauses once, or returns [`Step::Over`] without pausing once the
         /// stage has ended (and on every later call).
-        fn pause_at<D: FnMut(u64) -> bool, A: FnMut() -> bool>(
+        fn pause_at<A: FnMut() -> bool>(
             &mut self,
             now: Nanos,
             deadline: Nanos,
-            target: &mut Target<'_, '_, D, A>,
+            target: &mut Target<'_, '_, A>,
         ) -> Step;
     }
 
@@ -414,11 +441,11 @@ mod timed {
         };
 
         #[inline(always)]
-        fn pause_at<D: FnMut(u64) -> bool, F: FnMut() -> bool>(
+        fn pause_at<F: FnMut() -> bool>(
             &mut self,
             now: Nanos,
             deadline: Nanos,
-            target: &mut Target<'_, '_, D, F>,
+            target: &mut Target<'_, '_, F>,
         ) -> Step {
             if !self.first_over {
                 match self.first.pause_at(now, deadline, target) {
@@ -445,10 +472,7 @@ mod timed {
         };
 
         #[inline]
-        fn pause<D: FnMut(u64) -> bool, A: FnMut() -> bool>(
-            &mut self,
-            target: &mut Target<'_, '_, D, A>,
-        ) -> Step {
+        fn pause<A: FnMut() -> bool>(&mut self, target: &mut Target<'_, '_, A>) -> Step {
             let now = clock::now();
             if self.deadline == 0 {
                 self.deadline = now + BUDGET;
@@ -472,11 +496,11 @@ mod timed {
         const NEW: Self = MonitoredFor { until: 0 };
 
         #[inline]
-        fn pause_at<D: FnMut(u64) -> bool, A: FnMut() -> bool>(
+        fn pause_at<A: FnMut() -> bool>(
             &mut self,
             now: Nanos,
             _deadline: Nanos,
-            target: &mut Target<'_, '_, D, A>,
+            target: &mut Target<'_, '_, A>,
         ) -> Step {
             if self.until == 0 {
                 self.until = now + MONITORED_PERIOD;
@@ -486,7 +510,6 @@ mod timed {
             monitor::sleep_until_line_written(
                 monitor::current(),
                 target.watched,
-                target.done,
                 MAX_SLEEP.min(self.until - now),
             );
             Step::Paused
@@ -506,11 +529,11 @@ mod timed {
         const NEW: Self = MonitoredYielding { calls: 0 };
 
         #[inline]
-        fn pause_at<D: FnMut(u64) -> bool, A: FnMut() -> bool>(
+        fn pause_at<A: FnMut() -> bool>(
             &mut self,
             now: Nanos,
             deadline: Nanos,
-            target: &mut Target<'_, '_, D, A>,
+            target: &mut Target<'_, '_, A>,
         ) -> Step {
             self.calls += 1;
             if self.calls.is_multiple_of(CALLS_PER_YIELD) {
@@ -519,7 +542,6 @@ mod timed {
             monitor::sleep_until_line_written(
                 monitor::current(),
                 target.watched,
-                target.done,
                 MAX_SLEEP.min(deadline - now),
             );
             Step::Paused
@@ -536,24 +558,24 @@ mod timed {
         const NEW: Self = FutexBlock;
 
         #[inline]
-        fn pause_at<D: FnMut(u64) -> bool, A: FnMut() -> bool>(
+        fn pause_at<A: FnMut() -> bool>(
             &mut self,
             now: Nanos,
             deadline: Nanos,
-            target: &mut Target<'_, '_, D, A>,
+            target: &mut Target<'_, '_, A>,
         ) -> Step {
             if let Some(announce) = &mut target.announce
                 && !announce()
             {
                 return Step::Paused;
             }
-            futex::wait_for_change(target.watched, target.done, deadline - now);
+            futex::wait_for_change(target.watched, deadline - now);
             Step::Paused
         }
     }
 
-    impl WatchedWord<'_> {
-        /// The address of the watched half.
+    impl WordHalf<'_> {
+        /// The address of the half.
         #[inline(always)]
         fn as_ptr(self) -> *const u32 {
             // Little-endian (checked in lib.rs): bits 32-63 are at byte 4.
@@ -623,7 +645,7 @@ mod timed {
     /// are in different processes.
     #[cfg(target_os = "linux")]
     pub(super) mod futex {
-        use super::{Nanos, Timespec, WatchedWord};
+        use super::{Nanos, Timespec, WatchedWord, WordHalf};
 
         #[cfg(target_arch = "x86_64")]
         const SYS_FUTEX: i64 = 202;
@@ -639,37 +661,28 @@ mod timed {
 
         /// Blocks on the futex at `watched` until it changes and
         /// [`wake_all`] is called on it, or for at most `timeout`, unless
-        /// `done` already holds after the futex word is read.
-        pub(in super::super) fn wait_for_change(
-            watched: WatchedWord<'_>,
-            done: &mut impl FnMut(u64) -> bool,
-            timeout: Nanos,
-        ) {
-            // A write after this load makes FUTEX_WAIT return at once. The
-            // condition sees the same value the futex is armed with.
-            let word = watched.read();
-            let seen = watched.half(word);
-            if done(word) {
-                return;
-            }
+        /// it no longer holds the value the caller saw.
+        pub(in super::super) fn wait_for_change(watched: WatchedWord<'_>, timeout: Nanos) {
             let relative = Timespec {
                 tv_sec: (timeout / 1_000_000_000) as i64,
                 tv_nsec: (timeout % 1_000_000_000) as i64,
             };
-            // Any result (woken, value changed, timed out, interrupted) ends
-            // this pause.
-            futex(watched, FUTEX_WAIT, seen as i64, &relative);
+            // The kernel compares the futex word with the seen value
+            // atomically with queueing the waiter, so a write since the
+            // caller's load makes FUTEX_WAIT return at once. Any result
+            // (woken, value changed, timed out, interrupted) ends this pause.
+            futex(watched.half, FUTEX_WAIT, watched.seen as i64, &relative);
         }
 
         /// Wakes every waiter blocked on the futex at `watched`.
         #[inline]
-        pub(in super::super) fn wake_all(watched: WatchedWord<'_>) {
+        pub(in super::super) fn wake_all(watched: WordHalf<'_>) {
             futex(watched, FUTEX_WAKE, i32::MAX as i64, core::ptr::null());
         }
 
         /// The futex system call on the watched half, for the operations
         /// that take a value and a relative timeout (or none).
-        fn futex(watched: WatchedWord<'_>, op: i64, value: i64, timeout: *const Timespec) {
+        fn futex(watched: WordHalf<'_>, op: i64, value: i64, timeout: *const Timespec) {
             unsafe extern "C" {
                 fn syscall(number: i64, ...) -> i64;
             }
@@ -743,13 +756,13 @@ mod timed {
         }
 
         /// Sleeps until the cache line of `watched` is written, for at most
-        /// `duration`, or until a spurious wakeup, unless `done` already
-        /// holds after arming the monitor. Without a monitor, spins on 64
-        /// `cpu_relax()` instead, stopping once `done` holds.
+        /// `duration`, or until a spurious wakeup, unless the half no longer
+        /// holds the value the caller saw after arming the monitor. Without
+        /// a monitor, spins on 64 `cpu_relax()` instead, stopping once the
+        /// half differs.
         pub(crate) fn sleep_until_line_written(
             m: Mechanism,
             watched: WatchedWord<'_>,
-            done: &mut impl FnMut(u64) -> bool,
             duration: Nanos,
         ) {
             match m {
@@ -758,18 +771,18 @@ mod timed {
                     use core::sync::atomic::Ordering::Relaxed;
                     // At least one tick: a zero MWAITX timer may disable it.
                     let ticks = (duration * x86::TSC_PER_US.load(Relaxed) / 1000).max(1);
-                    let p = watched.as_ptr();
+                    let p = watched.half.as_ptr();
                     if m == Mechanism::Waitpkg {
                         // SAFETY: detect() found WAITPKG.
                         unsafe { x86::arm_waitpkg(p) };
-                        if !done(watched.read()) {
+                        if !watched.changed() {
                             // SAFETY: as above.
                             unsafe { x86::sleep_waitpkg(ticks) };
                         }
                     } else {
                         // SAFETY: detect() found MONITORX/MWAITX.
                         unsafe { x86::arm_mwaitx(p) };
-                        if !done(watched.read()) {
+                        if !watched.changed() {
                             // SAFETY: as above.
                             unsafe { x86::sleep_mwaitx(ticks) };
                         }
@@ -777,8 +790,8 @@ mod timed {
                 }
                 #[cfg(target_arch = "aarch64")]
                 Mechanism::Wfet => {
-                    arm64::arm_wfet(watched.as_ptr());
-                    if !done(watched.read()) {
+                    arm64::arm_wfet(watched.half.as_ptr());
+                    if !watched.changed() {
                         // SAFETY: detect() found FEAT_WFxT.
                         unsafe { arm64::sleep_wfet(duration) };
                     } else {
@@ -787,7 +800,7 @@ mod timed {
                 }
                 _ => {
                     for _ in 0..64 {
-                        if done(watched.read()) {
+                        if watched.changed() {
                             break;
                         }
                         cpu_relax();
@@ -1026,12 +1039,12 @@ mod timed {
             /// WFE after it consumes it without sleeping. The drain runs here,
             /// just before arming: run right after the disarm instead, it does
             /// not always consume that event (seen on Apple M4). A write
-            /// before the arm is not missed: the caller checks its condition
-            /// after arming.
+            /// before the arm is not missed: the caller compares the watched
+            /// half with the seen value after arming.
             #[inline]
             pub(super) fn arm_wfet(p: *const u32) {
                 // SAFETY: `p` is a valid, aligned word of shared memory
-                // (WatchedWord); the load's value is discarded. SEVL and WFE
+                // (WordHalf); the load's value is discarded. SEVL and WFE
                 // only set and consume this core's event register, and the
                 // WFE does not sleep, as SEVL set it.
                 unsafe {
@@ -1092,7 +1105,7 @@ mod timed {
         use std::time::{Duration, Instant};
 
         use super::monitor::{self, Mechanism};
-        use crate::wait::{BoundedWait, Pause, WatchedWord, wake_waiters};
+        use crate::wait::{BoundedWait, Pause, WatchedWord, WordHalf, wake_waiters};
 
         /// A word on a cache line of its own, as for the cache header and
         /// participant slots.
@@ -1132,16 +1145,21 @@ mod timed {
                     let written = Instant::now();
                     word.store(1, Release);
                     if wake {
-                        wake_waiters(WatchedWord::low(word));
+                        wake_waiters(WordHalf::low(word));
                     }
                     written
                 });
                 let start = Instant::now();
                 let mut wait = BoundedWait::new();
-                let written = |w: u64| w != 0;
                 let mut timed_out = false;
-                while word.load(core::sync::atomic::Ordering::Acquire) == 0 {
-                    if wait.pause_until(WatchedWord::low(word), written) == Pause::BudgetExhausted {
+                loop {
+                    let seen = word.load(core::sync::atomic::Ordering::Acquire);
+                    if seen != 0 {
+                        break;
+                    }
+                    if wait.pause_until(WordHalf::low(word).changed_from(seen))
+                        == Pause::BudgetExhausted
+                    {
                         timed_out = true;
                         break;
                     }
@@ -1228,23 +1246,24 @@ mod timed {
             let line = Line(AtomicU64::new(0));
             let mut wait = BoundedWait::new();
             let start = Instant::now();
-            while wait.pause_until(WatchedWord::low(&line.0), |w| w != 0) == Pause::Continue {}
+            while wait.pause_until(WordHalf::low(&line.0).changed_from(0)) == Pause::Continue {}
             let waited = start.elapsed();
             assert!(waited >= Duration::from_millis(5), "waited {waited:?}");
             assert!(waited < Duration::from_millis(100), "waited {waited:?}");
         }
 
         #[test]
-        fn satisfied_condition_skips_sleep() {
+        fn changed_half_skips_sleep() {
             let _serial = timing_test();
-            // With the condition holding at the post-arm check, no sleep
-            // happens, so even many pauses stay far below one budget.
-            let line = Line(AtomicU64::new(0));
+            // With the half already changed from the seen value at the
+            // post-arm check, no sleep happens, so even many pauses stay far
+            // below one budget.
+            let line = Line(AtomicU64::new(1));
             let mut wait = BoundedWait::new();
             let start = Instant::now();
             for _ in 0..1000 {
                 assert_eq!(
-                    wait.pause_until(WatchedWord::low(&line.0), |_| true),
+                    wait.pause_until(WordHalf::low(&line.0).changed_from(0)),
                     Pause::Continue
                 );
             }
@@ -1256,8 +1275,8 @@ mod timed {
         fn wfet_sleeps_after_each_disarm() {
             // Disarming an armed monitor generates an event; unless it is
             // consumed, the next WFET returns at once instead of sleeping.
-            // Disarm on both paths (condition already holding, and after a
-            // sleep), then check that an unwritten 8 us sleep lasts well over
+            // Disarm on both paths (half already changed, and after a sleep),
+            // then check that an unwritten 8 us sleep lasts well over
             // the ~60 ns of a WFET that returns at once.
             //
             // Events from outside the test (SEV on any core sets every
@@ -1273,7 +1292,8 @@ mod timed {
             }
             let _serial = timing_test();
             let line = Line(AtomicU64::new(0));
-            let watched = WatchedWord::low(&line.0);
+            let changed = WordHalf::low(&line.0).changed_from(1);
+            let unchanged = WordHalf::low(&line.0).changed_from(0);
             const BATCHES: u32 = 10;
             const SLEEPS: u32 = 50;
             const SLEPT: Duration = Duration::from_nanos(500);
@@ -1290,18 +1310,8 @@ mod timed {
                 let control = start.elapsed() / SLEEPS;
                 let start = Instant::now();
                 for _ in 0..SLEEPS {
-                    monitor::sleep_until_line_written(
-                        Mechanism::Wfet,
-                        watched,
-                        &mut |_| true,
-                        8_000,
-                    );
-                    monitor::sleep_until_line_written(
-                        Mechanism::Wfet,
-                        watched,
-                        &mut |_| false,
-                        8_000,
-                    );
+                    monitor::sleep_until_line_written(Mechanism::Wfet, changed, 8_000);
+                    monitor::sleep_until_line_written(Mechanism::Wfet, unchanged, 8_000);
                 }
                 let per_sleep = start.elapsed() / SLEEPS;
                 std::eprintln!("{per_sleep:?} per WFET sleep, {control:?} per plain WFE");
@@ -1322,20 +1332,30 @@ mod timed {
 
         #[test]
         fn fallback_spin_sees_write() {
-            // The spin fallback stops as soon as the condition holds.
+            // The spin fallback stops before its first `cpu_relax()` when the
+            // half already differs from the seen value: far faster than the
+            // 64 `cpu_relax()` (~0.6 us or more) of an unchanged half. The
+            // best of several batches discounts preemption.
+            let _serial = timing_test();
             let line = Line(AtomicU64::new(1));
-            let mut calls = 0u32;
-            let mut written = |w: u64| {
-                calls += 1;
-                w != 0
+            let best = |watched: WatchedWord<'_>| {
+                (0..5)
+                    .map(|_| {
+                        let start = Instant::now();
+                        for _ in 0..1000 {
+                            monitor::sleep_until_line_written(Mechanism::Spin, watched, 8_000);
+                        }
+                        start.elapsed()
+                    })
+                    .min()
+                    .unwrap()
             };
-            monitor::sleep_until_line_written(
-                Mechanism::Spin,
-                WatchedWord::low(&line.0),
-                &mut written,
-                8_000,
+            let changed = best(WordHalf::low(&line.0).changed_from(0));
+            let unchanged = best(WordHalf::low(&line.0).changed_from(1));
+            assert!(
+                changed * 4 < unchanged,
+                "changed: {changed:?}, unchanged: {unchanged:?} per 1000 spins"
             );
-            assert_eq!(calls, 1);
         }
     }
 }
@@ -1376,9 +1396,9 @@ fn cpu_relax() {
     core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
 }
 
-/// See [`futex_model::stale_blocks`].
+/// See [`futex_model::unwoken_waiters`].
 #[cfg(all(sgc_genmc_futex_model, feature = "verify"))]
-pub(crate) use futex_model::stale_blocks as futex_model_stale_blocks;
+pub(crate) use futex_model::unwoken_waiters as futex_model_unwoken_waiters;
 /// See [`futex_model::woken_waits`].
 #[cfg(all(sgc_genmc_futex_model, feature = "verify"))]
 pub(crate) use futex_model::woken_waits as futex_model_woken_waits;
@@ -1404,7 +1424,7 @@ mod futex_model {
     use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
     use core::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicUsize};
 
-    use super::{Stage, Step, Target, WatchedWord, cpu_relax};
+    use super::{Stage, Step, Target, WordHalf, cpu_relax};
 
     /// Waiter records: the most threads blocked at once.
     pub(super) const WAITERS: usize = 2;
@@ -1420,57 +1440,29 @@ mod futex_model {
     /// Waits that blocked and were woken, for tests' witnesses
     /// ([`woken_waits`]).
     static WOKEN_WAITS: AtomicU32 = AtomicU32::new(0);
-    /// Waits that blocked although their condition already held, because
-    /// the futex word went back to the value the waiter read (ABA). For
-    /// tests' witnesses ([`stale_blocks`]). With the rotation owner word:
-    ///
-    /// ```text
-    /// waiter W                          owner A (registration id X)
-    /// --------                          ---------------------------
-    /// word = owner word (id X)
-    /// done(word)? no (owner X, epoch e)
-    ///                                   publish epoch e + 1
-    ///                                   release: owner = 0; wake: nobody queued
-    ///                                   acquire again: owner = X
-    /// FUTEX_WAIT(X): half == X, blocks
-    ///   although the epoch moved
-    ///                                   publish epoch e + 2
-    ///                                   release: owner = 0; wake: ends W's block
-    /// ```
-    static STALE_BLOCKS: AtomicU32 = AtomicU32::new(0);
 
     /// The only stage of a wait in the model: announced first if the wait
     /// is, it blocks until woken, as long as the watched half still holds
-    /// the value it read. It is never over. Spin polls before it would only
-    /// multiply the explored executions with equivalent reads.
+    /// the value the caller saw. It is never over. Spin polls before it
+    /// would only multiply the explored executions with equivalent reads.
     pub(super) struct FutexBlock;
 
     impl Stage for FutexBlock {
         const NEW: Self = FutexBlock;
 
-        fn pause<D: FnMut(u64) -> bool, A: FnMut() -> bool>(
-            &mut self,
-            target: &mut Target<'_, '_, D, A>,
-        ) -> Step {
+        fn pause<A: FnMut() -> bool>(&mut self, target: &mut Target<'_, '_, A>) -> Step {
             if let Some(announce) = &mut target.announce
                 && !announce()
             {
                 return Step::Paused;
             }
-            // As natively: a write after this load makes the wait return at
-            // once.
-            let word = target.watched.read();
-            let seen = target.watched.half(word);
-            if (target.done)(word) {
-                return Step::Paused;
-            }
-            wait(target.watched, seen, target.done);
+            wait(target.watched.half, target.watched.seen);
             Step::Paused
         }
     }
 
     /// Wakes every waiter queued on `watched`.
-    pub(super) fn wake(watched: WatchedWord<'_>) {
+    pub(super) fn wake(watched: WordHalf<'_>) {
         let key = key(watched);
         lock();
         for i in 0..WAITERS {
@@ -1483,17 +1475,12 @@ mod futex_model {
 
     /// Returns at once if `watched` no longer holds `seen`; otherwise
     /// blocks until a wake on it.
-    /// `done` is the caller's condition, re-read only to count stale blocks.
-    fn wait(watched: WatchedWord<'_>, seen: u32, done: &mut impl FnMut(u64) -> bool) {
+    fn wait(watched: WordHalf<'_>, seen: u32) {
         let key = key(watched);
         lock();
-        let word = watched.read();
-        if watched.half(word) != seen {
+        if watched.value_in(watched.read()) != seen {
             unlock();
             return;
-        }
-        if done(word) {
-            STALE_BLOCKS.store(STALE_BLOCKS.load(Relaxed) + 1, Relaxed);
         }
         let Some(record) = (0..WAITERS).find(|&i| QUEUED_ON[i].load(Relaxed) == 0) else {
             crate::assert::fatal("more blocked waiters than the futex model has records");
@@ -1522,18 +1509,21 @@ mod futex_model {
         waits
     }
 
-    /// How many waits blocked although their condition already held
-    /// ([`STALE_BLOCKS`]). Read it once every waiter has returned.
+    /// How many waiters are blocked and not woken yet: a waiter queued
+    /// before a wake of its word has been woken, so these queued after
+    /// every wake of it so far.
     #[cfg(feature = "verify")]
-    pub(crate) fn stale_blocks() -> u32 {
+    pub(crate) fn unwoken_waiters() -> u32 {
         lock();
-        let blocks = STALE_BLOCKS.load(Relaxed);
+        let waiters = (0..WAITERS)
+            .filter(|&i| QUEUED_ON[i].load(Relaxed) != 0 && !WOKEN[i].load(Relaxed))
+            .count() as u32;
         unlock();
-        blocks
+        waiters
     }
 
     /// The address of the watched half, as the futex key: never zero.
-    fn key(watched: WatchedWord<'_>) -> usize {
+    fn key(watched: WordHalf<'_>) -> usize {
         core::ptr::from_ref::<AtomicU64>(watched.word) as usize + 4 * watched.high as usize
     }
 

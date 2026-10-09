@@ -11,7 +11,7 @@ use crate::occupancy::OccupancyMode;
 use crate::participant::{ParticipantSlot, ROTATION_WAITING, UNPINNED};
 #[cfg(feature = "verify")]
 use crate::pid::GetPid;
-use crate::wait::{BoundedWait, Pause, WatchedWord, wake_waiters};
+use crate::wait::{BoundedWait, Pause, WordHalf, wake_waiters};
 
 /// How a rotation waits for the rotation owner.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -171,8 +171,6 @@ impl<'m, P: Params> Cache<'m, P> {
                 if pinned_epoch == UNPINNED || e < pinned_epoch.wrapping_add(2) {
                     break;
                 }
-                // The pinner's next write to its slot ends this wait.
-                let repinned = |word: u64| word & !ROTATION_WAITING != pinned_epoch;
                 // Before blocking in a futex, flag the pin, so that the
                 // unpin wakes us; fails if the pinner wrote its slot.
                 let announce = || {
@@ -181,8 +179,11 @@ impl<'m, P: Params> Cache<'m, P> {
                         .compare_exchange(word, pinned_epoch | ROTATION_WAITING, Relaxed, Relaxed)
                         .is_ok()
                 };
-                let watched = WatchedWord::low(&participant.pinned_epoch);
-                if wait.pause_until_announced(watched, repinned, announce) == Pause::Continue {
+                // The pinner's next write to its slot (an unpin or a new
+                // pin) changes the low half and ends this wait. The flag is
+                // in the high half, so announcing does not.
+                let watched = WordHalf::low(&participant.pinned_epoch).changed_from(word);
+                if wait.pause_until_announced(watched, announce) == Pause::Continue {
                     continue;
                 }
                 let error = match participant.release_zombie_claim::<P::Pid>() {
@@ -214,8 +215,8 @@ impl<'m, P: Params> Cache<'m, P> {
     /// The half of the owner word that every release changes (the
     /// registration id), on which ownership waiters block.
     #[inline(always)]
-    fn owner_futex_word(self) -> WatchedWord<'m> {
-        WatchedWord::high(&self.header().rotation_owner)
+    fn owner_futex_word(self) -> WordHalf<'m> {
+        WordHalf::high(&self.header().rotation_owner)
     }
 
     /// Releases rotation ownership and wakes the participants waiting for
@@ -277,12 +278,15 @@ impl<'m, P: Params> Cache<'m, P> {
                 // A failed CAS on an empty owner does not pause.
                 continue;
             }
-            // The owner ends this wait by publishing the next epoch or
-            // releasing ownership, both on the cache header's line.
-            let released = |word: u64| {
-                RotationOwner(word).registration_id() == 0 || self.global_epoch().load(Relaxed) != e
-            };
-            if wait.pause_until(self.owner_futex_word(), released) == Pause::Continue {
+            // The owner ends this wait by releasing ownership, which zeroes
+            // the registration id. Its epoch publication, on the same cache
+            // line, ends a monitored sleep, but not a futex block; nor does
+            // a release that the same participant follows with a new
+            // acquisition before this pause compares the id (owner word
+            // ABA), which only delays the waiter until that rotation's
+            // release, or until its budget ends.
+            let watched = self.owner_futex_word().changed_from(owner.0);
+            if wait.pause_until(watched) == Pause::Continue {
                 continue;
             }
             production_assert!(owner.slot() < hp.participant_capacity);

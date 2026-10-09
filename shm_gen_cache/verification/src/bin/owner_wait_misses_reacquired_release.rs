@@ -2,16 +2,16 @@
 //! same participant reacquires ownership before the waiter blocks; the
 //! owner's next release wakes it. This documents a known, mild delay.
 //!
-//! Waiters block on the owner word's registration-id half. A participant
-//! that rotates twice in a row owns the rotation under the same id both
-//! times, so that half can go from its id to 0 and back before a waiter
-//! that read it reaches FUTEX_WAIT:
+//! Waiters block on the owner word's registration-id half, with the value
+//! they saw when they checked the epoch and the owner. A participant that
+//! rotates twice in a row owns the rotation under the same id both times,
+//! so that half can go from its id to 0 and back before a waiter that read
+//! it reaches FUTEX_WAIT:
 //!
 //! ```text
 //! waiter W                          owner A (registration id X)
 //! --------                          ---------------------------
-//! word = owner word (id X)
-//! done(word)? no (owner X, epoch 2)
+//! epoch 2; owner word (id X)
 //!                                   publish epoch 3
 //!                                   release: owner = 0; wake: nobody queued
 //!                                   acquire again: owner = X
@@ -26,37 +26,10 @@
 //! most until its budget ends. Its result is unaffected: once awake it sees
 //! the moved epoch.
 //!
-//! A waiter that reads no owner cannot be stranded. `done` judges the
-//! same load whose half W would block on, so W returns before any
-//! FUTEX_WAIT:
-//!
-//! ```text
-//! waiter W                          owner A (registration id X)
-//! --------                          ---------------------------
-//!                                   release: owner = 0; wake: nobody queued
-//! word = owner word (0)
-//! done(word)? yes (no owner): returns
-//!                                   acquire again: owner = X
-//!                                   release: owner = 0; wake: nobody queued
-//! ```
-//!
-//! Had `done` loaded the owner word again, it could have seen A's next
-//! ownership and said no, leaving W to block on the 0 it read first:
-//!
-//! ```text
-//! waiter W                          owner A (registration id X)
-//! --------                          ---------------------------
-//!                                   release: owner = 0; wake: nobody queued
-//! word = owner word (0)
-//!                                   acquire again: owner = X
-//! done(second load: X, epoch 2)? no
-//!                                   release: owner = 0; wake: nobody queued
-//! FUTEX_WAIT(0): half == 0, blocks
-//!   with no release left to wake it
-//! ```
-//!
-//! (The epoch reads 2 if the relaxed load is stale, or if A's first
-//! rotation failed and published nothing.)
+//! A waiter that saw no owner (0) cannot be stranded. It tries to take
+//! ownership instead of waiting. So it waits only with an owner id it saw,
+//! never with 0, and a later acquire-and-release cannot leave it blocked on
+//! 0 with no release left to wake it.
 //!
 //! Built with `sgc_genmc_futex_model` (README.md): waits block in a model of
 //! the futex without a timeout, and GenMC runs with `-check-liveness`, so
@@ -91,17 +64,22 @@
 //! rotation per insert), arenas 0, 1 and 2 hold epochs 3, 4 and 5 with one
 //! record each, and no participant is pinned or owns rotation.
 //!
-//! Witnesses (after every check), from the model's counts:
-//! * `BLOCKED_AFTER_WAIT_ENDED`: a wait blocked although its condition
-//!   already held (`test_access::futex_model_stale_blocks`): the diagram.
-//! * `BLOCKED_ON_OWNER`: a wait blocked, was woken, and no wait was stale:
-//!   the ordinary case.
+//! Witnesses (after every check):
+//! * `BLOCKED_AFTER_WAIT_ENDED`: the diagram. When A publishes epoch 4 (the
+//!   `after_epoch_publication` hook of its second rotation, which owns the
+//!   rotation under X again), W is still in its epoch-2 attempt and blocked
+//!   without having been woken (`test_access::futex_model_unwoken_waiters`):
+//!   so it blocked after A's first release woke every waiter queued then,
+//!   on the id X of A's second ownership.
+//! * `BLOCKED_ON_OWNER`: a wait blocked and was woken
+//!   (`test_access::futex_model_woken_waits`), and W was not seen blocked as
+//!   in the diagram: the ordinary case.
 
 #![no_std]
 #![no_main]
 
-use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::{Relaxed, SeqCst};
+use core::sync::atomic::{AtomicBool, AtomicUsize};
 
 use genmc_harness::{Lent, assume, check, check_ok, scope, witness};
 use shm_gen_cache::test_access::{ARENAS, arena_state, global_epoch, pinned_epoch, rotation_owner};
@@ -138,11 +116,19 @@ const RECORD_BYTES: u32 = 32;
 /// The epoch between A's two rotations, at which W never reserves.
 const BETWEEN_A: u64 = 3;
 
-/// W's slot, recorded before the threads start.
+/// A's and W's slots, recorded before the threads start (zero before: the
+/// setup insert is not counted).
+static A_SLOT: AtomicUsize = AtomicUsize::new(0);
 static W_SLOT: AtomicUsize = AtomicUsize::new(0);
+/// Reservation attempts so far; each is only changed by its own thread.
+static A_ATTEMPTS: AtomicUsize = AtomicUsize::new(0);
+static W_ATTEMPTS: AtomicUsize = AtomicUsize::new(0);
+/// Set when A publishes epoch 4 while W, in its epoch-2 attempt, is blocked
+/// and unwoken (see the opening comment).
+static BLOCKED_AFTER_WAIT_ENDED: AtomicBool = AtomicBool::new(false);
 
-/// `NoopGetPid`'s liveness (one live PID), plus, in `reservation_epoch_hook`,
-/// the assumption that W never reserves at `BETWEEN_A`.
+/// `NoopGetPid`'s liveness (one live PID), plus the assumption that W never
+/// reserves at `BETWEEN_A` and the observation for `BLOCKED_AFTER_WAIT_ENDED`.
 struct ConsecutiveRotations;
 
 impl GetPid for ConsecutiveRotations {
@@ -162,9 +148,26 @@ impl GetPid for ConsecutiveRotations {
         Ok(true)
     }
 
+    /// Counts A's and W's reservation attempts (for
+    /// `after_epoch_publication`), and assumes that W never reserves at
+    /// `BETWEEN_A`.
     fn reservation_epoch_hook(slot: &ParticipantSlot, epoch: u64) {
-        if core::ptr::from_ref(slot) as usize == W_SLOT.load(Relaxed) {
+        let slot = core::ptr::from_ref(slot) as usize;
+        if slot == A_SLOT.load(Relaxed) {
+            A_ATTEMPTS.store(A_ATTEMPTS.load(Relaxed) + 1, Relaxed);
+        } else if slot == W_SLOT.load(Relaxed) {
+            W_ATTEMPTS.store(W_ATTEMPTS.load(Relaxed) + 1, Relaxed);
             assume(epoch != BETWEEN_A);
+        }
+    }
+
+    /// In A's second rotation (A has made its first three attempts) while
+    /// W is still in its first: whether W is blocked unwoken. Only W can be
+    /// blocked here: A never waits for W.
+    fn after_epoch_publication() {
+        if A_ATTEMPTS.load(Relaxed) == 3 && W_ATTEMPTS.load(Relaxed) == 1 && unwoken_waiters() >= 1
+        {
+            BLOCKED_AFTER_WAIT_ENDED.store(true, Relaxed);
         }
     }
 }
@@ -206,6 +209,7 @@ extern "C" fn main() -> i32 {
     // P fills epoch 2's arena.
     check_ok!(a_lock.insert(HASH, SETUP_KEY, VALUE));
     check!(global_epoch(cache).load(Relaxed) == 2);
+    A_SLOT.store(core::ptr::from_ref(a_lock.slot()) as usize, Relaxed);
     W_SLOT.store(core::ptr::from_ref(w_lock.slot()) as usize, Relaxed);
 
     let mut a = Inserter {
@@ -228,23 +232,33 @@ extern "C" fn main() -> i32 {
     expect_joined_state(cache);
     expect_unpinned(a_lock.slot(), w_lock.slot());
 
-    let (woken_waits, stale_blocks) = model_counts();
-    witness!("BLOCKED_AFTER_WAIT_ENDED", stale_blocks >= 1);
-    witness!("BLOCKED_ON_OWNER", woken_waits >= 1 && stale_blocks == 0);
+    let blocked_after_wait_ended = BLOCKED_AFTER_WAIT_ENDED.load(Relaxed);
+    witness!("BLOCKED_AFTER_WAIT_ENDED", blocked_after_wait_ended);
+    witness!(
+        "BLOCKED_ON_OWNER",
+        woken_waits() >= 1 && !blocked_after_wait_ended
+    );
     0
 }
 
-/// The model's counts of woken waits and stale blocks; zero natively,
+/// The model's count of waits that blocked and were woken; zero natively,
 /// where there is no model.
-fn model_counts() -> (u32, u32) {
+fn woken_waits() -> u32 {
     #[cfg(sgc_genmc)]
-    let counts = (
-        shm_gen_cache::test_access::futex_model_woken_waits(),
-        shm_gen_cache::test_access::futex_model_stale_blocks(),
-    );
+    let waits = shm_gen_cache::test_access::futex_model_woken_waits();
     #[cfg(not(sgc_genmc))]
-    let counts = (0, 0);
-    counts
+    let waits = 0;
+    waits
+}
+
+/// The model's count of blocked, unwoken waiters; zero natively, where
+/// there is no model.
+fn unwoken_waiters() -> u32 {
+    #[cfg(sgc_genmc)]
+    let waiters = shm_gen_cache::test_access::futex_model_unwoken_waiters();
+    #[cfg(not(sgc_genmc))]
+    let waiters = 0;
+    waiters
 }
 
 /// The state after the joins: arenas 0, 1 and 2 hold epochs 3, 4 (sealed)

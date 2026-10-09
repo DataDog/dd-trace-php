@@ -89,17 +89,18 @@ In detail:
   `ROTATION_WAITING`, so that the unpin or the slot's reaping wakes it), a
   model of the futex made of atomics: a "kernel" lock makes
   checking the futex word and queueing atomic with respect to wakes; a
-  wait whose word no longer holds the value it read returns at once;
-  otherwise it blocks until `wake_waiters()` on that word. The model has
-  no timeout, so the wait never gives up. GenMC runs
+  wait whose word no longer holds the value the caller saw returns at
+  once; otherwise it blocks until `wake_waiters()` on that word. The model
+  has no timeout, so the wait never gives up. GenMC runs
   these programs with `-check-liveness`, which reports an execution in
   which the waiter blocks and is never woken (`Liveness violation!`).
   Natively such a lost wake only delays the waiter until its budget ends.
-  `test_access::futex_model_woken_waits()` counts the waits that blocked
-  and were woken, and `test_access::futex_model_stale_blocks()` those that
-  blocked although their condition already held (the futex word had gone
-  back to the value they read, see `owner_wait_misses_reacquired_release`),
-  for witnesses.
+  For witnesses, `test_access::futex_model_woken_waits()` counts the waits
+  that blocked and were woken, and
+  `test_access::futex_model_unwoken_waiters()` the waiters blocked at the
+  time of the call that no wake has reached yet (used to catch a waiter
+  that blocked after the futex word went back to the value it saw, see
+  `owner_wait_misses_reacquired_release`).
 * The participant state needs no variant: it is always an `AtomicU64`
   decoded with shifts (bit 0 INITIALIZING, bits 1-31 PID, bits 32-63
   registration ID; 0 FREE, 1 REAPING), so no 32-bit field of a 64-bit word

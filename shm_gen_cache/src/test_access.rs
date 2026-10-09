@@ -286,10 +286,10 @@ pub fn futex_model_woken_waits() -> u32 {
     crate::wait::futex_model_woken_waits()
 }
 
-/// With `sgc_genmc_futex_model`: how many waits blocked in the futex model
-/// although their condition already held (the futex word had returned to
-/// the value they read), once every waiter has returned.
+/// With `sgc_genmc_futex_model`: how many waiters are blocked in the futex
+/// model and not woken yet, i.e. queued after every wake of their futex
+/// word so far.
 #[cfg(sgc_genmc_futex_model)]
-pub fn futex_model_stale_blocks() -> u32 {
-    crate::wait::futex_model_stale_blocks()
+pub fn futex_model_unwoken_waiters() -> u32 {
+    crate::wait::futex_model_unwoken_waiters()
 }

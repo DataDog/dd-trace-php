@@ -149,7 +149,7 @@ impl ParticipantSlot {
     #[cold]
     #[inline(never)]
     fn wake_rotation(&self) {
-        crate::wait::wake_waiters(crate::wait::WatchedWord::low(&self.pinned_epoch));
+        crate::wait::wake_waiters(crate::wait::WordHalf::low(&self.pinned_epoch));
     }
 
     /// Only used while initialising an unpublished cache mapping.
