@@ -1892,29 +1892,34 @@ impl Profiler {
     /// * `n_extra_labels` - Reserve room for extra labels, such as when the
     ///   caller adds gc or exception labels.
     fn common_labels(n_extra_labels: usize) -> SampleLabels {
-        let labels = Self::common_labels_without_fiber(n_extra_labels);
         #[cfg(php_has_fibers)]
-        let mut labels = labels;
+        let function_name =
+            // SAFETY: Called on the owning PHP thread with live VM state.
+            (unsafe { ddog_php_prof_get_active_fiber().as_ref() }).and_then(|fiber| {
+                // SAFETY: Fiber construction initializes function_handler, which
+                // remains valid for the fiber's lifetime.
+                extract_function_name(unsafe { &*fiber.fci_cache.function_handler })
+            });
+
         #[cfg(php_has_fibers)]
-        if let Some(fiber) = unsafe { ddog_php_prof_get_active_fiber().as_mut() } {
-            // Safety: the fcc is set by Fiber::__construct as part of zpp,
-            // which will always set the function_handler on success, and
-            // there's nothing changing that value in all of fibers
-            // afterwards, from start to destruction of the fiber itself.
-            let func = unsafe { &*fiber.fci_cache.function_handler };
-            if let Some(functionname) = extract_function_name(func) {
-                labels.push(Label {
-                    key: "fiber",
-                    value: LabelValue::Str(functionname),
-                });
-            }
+        let n_extra_labels = n_extra_labels + (function_name.is_some() as usize);
+
+        #[allow(unused_mut)] // cfg-dependent mut
+        let mut labels = Self::common_labels_without_fiber(n_extra_labels);
+
+        #[cfg(php_has_fibers)]
+        if let Some(name) = function_name {
+            labels.push(Label {
+                key: "fiber",
+                value: LabelValue::Str(name),
+            });
         }
         labels
     }
 
     /// Collect thread and trace labels without reading VM fiber state.
     fn common_labels_without_fiber(n_extra_labels: usize) -> SampleLabels {
-        let mut labels = Vec::with_capacity(5 + n_extra_labels);
+        let mut labels = Vec::with_capacity(4 + n_extra_labels);
         let common_tags = Arc::clone(&GLOBAL_TAGS);
         // SAFETY: Callers run on a PHP thread with live globals during request
         // sampling or MSHUTDOWN. Unit tests supply initialized globals.
