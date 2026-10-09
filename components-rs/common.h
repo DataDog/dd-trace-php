@@ -1463,7 +1463,7 @@ typedef enum ddog_crasht_OpTypes {
 } ddog_crasht_OpTypes;
 
 /**
- * See https://man7.org/linux/man-pages/man2/sigaction.2.html
+ * See <https://man7.org/linux/man-pages/man2/sigaction.2.html>
  * MUST REMAIN IN SYNC WITH THE ENUM IN emit_sigcodes.c
  */
 typedef enum ddog_crasht_SiCodes {
@@ -1497,7 +1497,7 @@ typedef enum ddog_crasht_SiCodes {
 } ddog_crasht_SiCodes;
 
 /**
- * See https://man7.org/linux/man-pages/man7/signal.7.html
+ * See <https://man7.org/linux/man-pages/man7/signal.7.html>
  */
 typedef enum ddog_crasht_SignalNames {
   DDOG_CRASHT_SIGNAL_NAMES_SIGHUP,
@@ -1706,7 +1706,7 @@ typedef struct ddog_crasht_Handle_StackTrace {
 
 /**
  * A generic result type for when an operation may fail,
- * or may return <T> in case of success.
+ * or may return `<T>` in case of success.
  */
 typedef enum ddog_crasht_Result_Usize_Tag {
   DDOG_CRASHT_RESULT_USIZE_OK_USIZE,
@@ -1760,7 +1760,7 @@ typedef struct  ddog_crasht_CrashInfoBuilder_NewResult {
 
 /**
  * A generic result type for when an operation may fail,
- * or may return <T> in case of success.
+ * or may return `<T>` in case of success.
  */
 typedef enum ddog_crasht_Result_HandleCrashInfo_Tag {
   DDOG_CRASHT_RESULT_HANDLE_CRASH_INFO_OK_HANDLE_CRASH_INFO,
@@ -1997,7 +1997,7 @@ typedef struct ddog_TracerMemfdHandle {
 
 /**
  * A generic result type for when an operation may fail,
- * or may return <T> in case of success.
+ * or may return `<T>` in case of success.
  */
 typedef enum ddog_Result_TracerMemfdHandle_Tag {
   DDOG_RESULT_TRACER_MEMFD_HANDLE_OK_TRACER_MEMFD_HANDLE,
@@ -2237,6 +2237,25 @@ struct ddog_VoidResult ddog_mutable_metadata_set_runtime_id(const struct ddog_Mu
 DDOG_CHECK_RETURN
 struct ddog_VoidResult ddog_mutable_metadata_set_process_tags(const struct ddog_MutableMetadataHandle *handle,
                                                               ddog_CharSlice process_tags);
+
+/**
+ * Atomically replaces runtime identity and instrumentation session ancestry.
+ * Empty session strings omit the corresponding headers, overriding static configuration.
+ * Strings are copied before returning; process tags are preserved.
+ *
+ * For a fork child, call after all native workers and sends have paused and before
+ * `ddog_shared_runtime_after_fork_child`. This does not reset pending data or sequences.
+ *
+ * # Safety
+ *
+ * `handle` must be valid and all slices must remain valid for the duration of the call.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_mutable_metadata_set_identity(const struct ddog_MutableMetadataHandle *handle,
+                                                          ddog_CharSlice runtime_id,
+                                                          ddog_CharSlice session_id,
+                                                          ddog_CharSlice root_session_id,
+                                                          ddog_CharSlice parent_session_id);
 
 struct ddog_Option_U32 ddog_Option_U32_some(uint32_t v);
 

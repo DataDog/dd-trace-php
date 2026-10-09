@@ -22,7 +22,7 @@ datadog.trace.agent_url="file://{PWD}/pcntl_fork_thread_mode_orphan-telemetry.ou
 
 $parent = getmypid();
 // The parent waits for the connection of the child to be served before exiting.
-[$parent_end, $child_end] = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
+list($parent_end, $child_end) = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
 $pid = pcntl_fork();
 if ($pid < 0) {
     echo "Fork failed\n";

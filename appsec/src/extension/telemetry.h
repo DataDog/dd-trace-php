@@ -55,5 +55,6 @@ void dd_telemetry_add_api_security_request(
 void dd_telemetry_helper_conn_error(void);
 // client_init succeeded / started a new helper client
 void dd_telemetry_helper_conn_success(void);
-// helper client abandoned (with or without goodbye) (except php worker shutdown)
+// helper client abandoned (with or without goodbye) (except php worker
+// shutdown)
 void dd_telemetry_helper_conn_close(void);

@@ -4,7 +4,6 @@ use datadog_sidecar::config::{self, AppSecConfig, LogMethod};
 use datadog_sidecar::service::agent_info::AgentInfoReader;
 use datadog_sidecar::service::blocking::{acquire_exception_hash_rate_limiter, SidecarTransport};
 use datadog_sidecar::service::exception_hash_rate_limiter::ExceptionHashRateLimiter;
-use datadog_sidecar::service::InstanceId;
 use datadog_sidecar::tracer::shm_limiter_path;
 use datadog_sidecar_ffi::AgentRemoteConfigReader;
 use lazy_static::lazy_static;
@@ -341,26 +340,6 @@ pub extern "C" fn ddog_sidecar_reconnect_readers(
 #[no_mangle]
 pub extern "C" fn ddog_sidecar_transport_raw_fd(transport: &Box<SidecarTransport>) -> i32 {
     transport.as_raw_fd()
-}
-
-/// Continues on the connection of `connection` as another instance, as a fork child does with the
-/// transport it inherited: only the instance id differs from the parent's connection.
-#[no_mangle]
-pub extern "C" fn ddog_sidecar_transport_replace_connection_as(
-    transport: &mut Box<SidecarTransport>,
-    connection: Box<SidecarTransport>,
-    instance_id: &InstanceId,
-    remote_config_generation: u64,
-) {
-    transport.replace_connection_as(connection, instance_id.clone(), remote_config_generation);
-}
-
-/// Releases the sockets of a transport inherited by a fork child from a thread which did not
-/// survive the fork. The transport itself is left alone.
-#[cfg(unix)]
-#[no_mangle]
-pub extern "C" fn ddog_sidecar_transport_release_inherited_fds(transport: &Box<SidecarTransport>) {
-    transport.release_inherited_fds()
 }
 
 const SHM_LIMITER_GRANULARITY: Duration = Duration::from_secs(1);

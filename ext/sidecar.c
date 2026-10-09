@@ -127,9 +127,10 @@ static void dd_sidecar_arm_signal_transport(ddog_SidecarTransport *owner, ddog_S
         if (!datadog_ffi_try("Failed preparing sidecar signal flush",
                              ddog_sidecar_prepare_signal_flush(
                                  connection, (ddog_SidecarFlushOptions){.traces_and_stats = true}, &flush))) {
-            // Clears the stale flush below and lets a later RINIT retry.
-            uintptr_t expected = (uintptr_t)owner;
-            atomic_compare_exchange_strong(&dd_sidecar_signal_owner, &expected, 0);
+            // Clears the stale flush while still the owner, then lets a later RINIT retry.
+            datadog_signals_set_sidecar_flush(NULL, true);
+            atomic_store(&dd_sidecar_signal_owner, 0);
+            return;
         }
         datadog_signals_set_sidecar_flush(flush, true);
     }
@@ -145,16 +146,18 @@ static void dd_sidecar_arm_signal_transport(ddog_SidecarTransport *owner, ddog_S
 }
 
 // Releases the signal handlers' copy of the connection, so that dropping `owner` actually closes it, and lets another thread take over.
+// Only the owner gives up its ownership, and only the owner publishes: so it clears before releasing, or a thread taking over could
+// publish its connection in between and have it cleared.
 static void dd_sidecar_disarm_signal_transport(ddog_SidecarTransport *owner) {
 #ifndef _WIN32
-    uintptr_t expected = (uintptr_t)owner;
-    if (owner && atomic_compare_exchange_strong(&dd_sidecar_signal_owner, &expected, 0)) {
+    if (owner && atomic_load(&dd_sidecar_signal_owner) == (uintptr_t)owner) {
 #ifdef __linux__
         datadog_signals_set_sidecar_flush(NULL, true);
 #endif
 #ifdef __APPLE__
         atomic_store(&datadog_sidecar_crash_fd, -1);
 #endif
+        atomic_store(&dd_sidecar_signal_owner, 0);
     }
 #else
     (void)owner;
@@ -196,11 +199,16 @@ static void dd_sidecar_configure(ddog_SidecarTransport **transport) {
     ddog_CharSlice parent_session_id = datadog_is_empty_session_id(datadog_formatted_parent_session_id) ? DDOG_CHARSLICE_C("") : (ddog_CharSlice) {.ptr = (char *) datadog_formatted_parent_session_id, .len = sizeof(datadog_formatted_parent_session_id)};
     const ddog_Vec_Tag *process_tags = datadog_process_tags_get_vec();
     // Process-stable: the tracer's auto-resolved default name.
-    const char *default_service_name = NULL;
+    ddog_CharSlice default_service_name = DDOG_CHARSLICE_C("");
+    const char *normalized_service_name = NULL;
     if (datadog_process_tags_enabled()) {
         zend_string *default_svc = datadog_default_service_name();
-        default_service_name = ddog_normalize_process_tag_value(dd_zend_string_to_CharSlice(default_svc));
+        normalized_service_name = ddog_normalize_process_tag_value(dd_zend_string_to_CharSlice(default_svc));
         zend_string_release(default_svc);
+        // Not as a conditional expression in the call: MSVC computed its strlen() before checking for NULL.
+        if (normalized_service_name) {
+            default_service_name = (ddog_CharSlice){ .ptr = normalized_service_name, .len = strlen(normalized_service_name) };
+        }
     }
     ddog_Endpoint *otlp_metrics_endpoint = datadog_otel_metrics_endpoint();
 #ifdef _WIN32
@@ -230,14 +238,14 @@ static void dd_sidecar_configure(ddog_SidecarTransport **transport) {
                                     DATADOG_REMOTE_CONFIG_CAPABILITIES.len,
                                     get_global_DD_TRACE_AGENTLESS() ? false : get_global_DD_REMOTE_CONFIG_ENABLED(),
                                     process_tags,
-                                    default_service_name ? (ddog_CharSlice){ .ptr = default_service_name, .len = strlen(default_service_name) } : DDOG_CHARSLICE_C(""),
+                                    default_service_name,
                                     dd_zend_string_to_CharSlice(get_global_DD_HOSTNAME()),
                                     dd_zend_string_to_CharSlice(get_global_DD_SERVICE()),
                                     root_session_id,
                                     parent_session_id
                                 );
-    if (default_service_name) {
-        ddog_free_normalized_tag_value(default_service_name);
+    if (normalized_service_name) {
+        ddog_free_normalized_tag_value(normalized_service_name);
     }
     if (otlp_metrics_endpoint) {
         ddog_endpoint_drop(otlp_metrics_endpoint);

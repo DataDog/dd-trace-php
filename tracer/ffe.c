@@ -89,8 +89,15 @@ bool ddtrace_ffe_record_evaluation_metric(
     dd_ffe_metric *metric = &buffer[DDTRACE_G(ffe_metric_buffer_len)++];
     metric->flag_key = zend_string_copy(flag_key);
     metric->variant = variant ? zend_string_copy(variant) : ZSTR_EMPTY_ALLOC();
-    metric->reason = reason ? zend_string_init(reason, strlen(reason), 0) : ZSTR_EMPTY_ALLOC();
-    metric->error_type = error_type ? zend_string_init(error_type, strlen(error_type), 0) : ZSTR_EMPTY_ALLOC();
+    // Not as conditional expressions: MSVC computes their strlen() before checking for NULL.
+    metric->reason = ZSTR_EMPTY_ALLOC();
+    if (reason) {
+        metric->reason = zend_string_init(reason, strlen(reason), 0);
+    }
+    metric->error_type = ZSTR_EMPTY_ALLOC();
+    if (error_type) {
+        metric->error_type = zend_string_init(error_type, strlen(error_type), 0);
+    }
     metric->allocation_key = allocation_key ? zend_string_copy(allocation_key) : ZSTR_EMPTY_ALLOC();
 
     return true;

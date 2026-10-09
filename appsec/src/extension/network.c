@@ -30,10 +30,7 @@ _Static_assert(sizeof(dd_header) == DD_CONN_REQUEST_HEADER_SIZE,
 
 static const uint32_t MAX_RECV_MESSAGE_SIZE = 4 * 1024 * 1024;
 
-void dd_conn_init(dd_conn *nonnull conn)
-{
-    conn->connected = true;
-}
+void dd_conn_init(dd_conn *nonnull conn) { conn->connected = true; }
 
 dd_result dd_conn_roundtrip(dd_conn *nonnull conn, char *nonnull request,
     size_t request_len, bool reconnect_sidecar,
@@ -147,7 +144,4 @@ void dd_helper_response_destroy(dd_helper_response *nonnull response)
     });
 }
 
-void dd_conn_destroy(dd_conn *nonnull conn)
-{
-    conn->connected = false;
-}
+void dd_conn_destroy(dd_conn *nonnull conn) { conn->connected = false; }

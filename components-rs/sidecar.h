@@ -30,7 +30,7 @@ bool ddog_setup_crashtracking(const struct ddog_Endpoint *endpoint, ddog_crasht_
 #endif
 
 /**
- * This creates Rust PlatformHandle<File> from supplied C std FILE object.
+ * This creates Rust `PlatformHandle<File>` from supplied C std FILE object.
  * This method takes the ownership of the underlying file descriptor.
  *
  * # Safety
@@ -423,6 +423,30 @@ ddog_MaybeError ddog_sidecar_set_test_session_token(struct ddog_SidecarTransport
  */
 void ddog_sidecar_reconnect(struct ddog_SidecarTransport **transport,
                             struct ddog_SidecarTransport *(*factory)(void));
+
+/**
+ * Continues on the connection of `connection` as another instance, keeping the state of
+ * `transport`. A fork child must do so with the transport it inherited: that connection still
+ * works, so `ddog_sidecar_reconnect` would keep it, but it belongs to the parent.
+ *
+ * # Arguments
+ *
+ * * `transport` - The inherited transport, whose connection is not used anymore.
+ * * `connection` - A new transport of the child, without configuration.
+ * * `instance_id` - The instance id of the child.
+ * * `remote_config_generation` - The remote config generation last read by the child.
+ */
+void ddog_sidecar_transport_replace_connection_as(struct ddog_SidecarTransport **transport,
+                                                  struct ddog_SidecarTransport *connection,
+                                                  const struct ddog_InstanceId *instance_id,
+                                                  uint64_t remote_config_generation);
+
+/**
+ * Releases the sockets of a transport inherited by a fork child from a thread which did not
+ * survive the fork, so that the sidecar drops the state of that thread. The transport itself is
+ * left alone: the thread may have been in the middle of using it.
+ */
+void ddog_sidecar_transport_release_inherited_fds(struct ddog_SidecarTransport **transport);
 
 /**
  * Gets an agent info reader.

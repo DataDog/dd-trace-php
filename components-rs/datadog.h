@@ -300,21 +300,6 @@ void ddog_sidecar_reconnect_readers(const struct ddog_ShmCacheMap *telemetry,
  */
 int32_t ddog_sidecar_transport_raw_fd(struct ddog_SidecarTransport *const *transport);
 
-/**
- * Continues on the connection of `connection` as another instance, as a fork child does with the
- * transport it inherited: only the instance id differs from the parent's connection.
- */
-void ddog_sidecar_transport_replace_connection_as(struct ddog_SidecarTransport **transport,
-                                                  struct ddog_SidecarTransport *connection,
-                                                  const struct ddog_InstanceId *instance_id,
-                                                  uint64_t remote_config_generation);
-
-/**
- * Releases the sockets of a transport inherited by a fork child from a thread which did not
- * survive the fork. The transport itself is left alone.
- */
-void ddog_sidecar_transport_release_inherited_fds(struct ddog_SidecarTransport *const *transport);
-
 bool ddog_shm_limiter_inc(const struct ddog_MaybeShmLimiter *limiter, uint32_t limit);
 
 bool ddog_exception_hash_limiter_inc(struct ddog_SidecarTransport *connection,
