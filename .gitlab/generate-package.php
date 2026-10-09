@@ -1768,6 +1768,8 @@ foreach ($arch_targets as $arch) {
 # Runs on every non-default branch so system tests can be run against any (non-default) in-progress branch.
 "publish docker image for system tests (token)":
   stage: release
+  # Token generation needs no artifacts from earlier stages.
+  dependencies: []
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
   tags: [ "arch:amd64" ]
   id_tokens:
