@@ -1009,6 +1009,14 @@ impl Profiler {
         // likely to be other threads serving requests.
     }
 
+    /// Remove this globals allocation's registration and clear pending ticks.
+    pub(crate) fn remove_interrupt_for_globals(&self, globals: &ProfilerGlobals) {
+        self.remove_interrupt(VmInterrupt {
+            interrupt_count_ptr: ptr::from_ref(&globals.interrupt_count),
+            engine_ptr: globals.request_locals.borrow().vm_interrupt_addr,
+        });
+    }
+
     /// Call before a fork, on the thread of the parent process that will fork.
     pub fn fork_prepare(&self) -> anyhow::Result<()> {
         // Send the message to the uploader first, as it has a longer worst

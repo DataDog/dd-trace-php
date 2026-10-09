@@ -445,6 +445,12 @@ extern "C" fn prshutdown() -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("PRSHUTDOWN");
 
+    if let Some(profiler) = Profiler::get() {
+        // SAFETY: PRSHUTDOWN runs on the owning PHP thread with live module globals.
+        let globals = unsafe { &*module_globals::get_profiler_globals() };
+        profiler.remove_interrupt_for_globals(globals);
+    }
+
     // ZAI config may be accessed indirectly via other modules RSHUTDOWN, so
     // delay this until the last possible time.
     unsafe { bindings::zai_config_rshutdown() };
@@ -917,28 +923,11 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
 
     profiler::stack_walking::rshutdown();
 
-    // Not logging, rshutdown could be quite spammy.
-    // SAFETY: RSHUTDOWN runs on the owning PHP thread before its globals are
-    // destroyed.
-    _ = unsafe { RequestLocals::from_module_globals() }.try_with_borrow(|locals| {
-        let system_settings = locals.system_settings();
-
-        // The interrupt is only added if CPU- or wall-time are enabled BUT
-        // wall-time is not expected to ever be disabled, except in testing,
-        // and we don't need to optimize for that.
-        if system_settings.profiling_enabled {
-            if let Some(profiler) = Profiler::get() {
-                // SAFETY: PHP module globals remain initialized through RSHUTDOWN.
-                let globals = unsafe { module_globals::get_profiler_globals() };
-                let interrupt = VmInterrupt {
-                    // SAFETY: `globals` remains valid until this thread's GSHUTDOWN.
-                    interrupt_count_ptr: unsafe { ptr::addr_of!((*globals).interrupt_count) },
-                    engine_ptr: locals.vm_interrupt_addr,
-                };
-                profiler.remove_interrupt(interrupt);
-            }
-        }
-    });
+    if let Some(profiler) = Profiler::get() {
+        // SAFETY: RSHUTDOWN runs on the owning PHP thread with live globals.
+        let globals = unsafe { &*module_globals::get_profiler_globals() };
+        profiler.remove_interrupt_for_globals(globals);
+    }
 
     // SAFETY: RSHUTDOWN runs on the owning PHP thread with live globals and heap.
     unsafe { allocation::deactivate() };

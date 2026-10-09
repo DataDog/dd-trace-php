@@ -186,10 +186,7 @@ pub unsafe extern "C" fn gshutdown(globals_ptr: *mut c_void) {
         // SAFETY: PHP supplied live globals with exclusive lifecycle access.
         // Remove any registration left by an aborted request before freeing them.
         let globals = unsafe { &*globals };
-        profiler.remove_interrupt(crate::profiling::profiler::VmInterrupt {
-            interrupt_count_ptr: ptr::from_ref(&globals.interrupt_count),
-            engine_ptr: globals.request_locals.borrow().vm_interrupt_addr,
-        });
+        profiler.remove_interrupt_for_globals(globals);
     }
 
     #[cfg(php_zts)]
