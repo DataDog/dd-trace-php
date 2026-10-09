@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use datadog_sidecar::service::{
     blocking::{self, SidecarTransport},
-    InstanceId, QueueId, SidecarAction,
+    SidecarAction,
 };
 use libdd_common::tag::parse_tags;
 use libdd_common_ffi::slice::AsBytes;
@@ -42,8 +42,6 @@ macro_rules! windowsify_path {
 #[no_mangle]
 pub extern "C" fn ddtrace_detect_composer_installed_json(
     transport: &mut Box<SidecarTransport>,
-    instance_id: &InstanceId,
-    queue_id: &QueueId,
     path: CharSlice,
 ) -> bool {
     let pathstr = path.to_utf8_lossy();
@@ -53,7 +51,7 @@ pub extern "C" fn ddtrace_detect_composer_installed_json(
             &pathstr[..index],
             windowsify_path!("/vendor/composer/installed.json")
         );
-        if parse_composer_installed_json(transport, instance_id, queue_id, path).is_ok() {
+        if parse_composer_installed_json(transport, path).is_ok() {
             return true;
         }
     }
@@ -62,14 +60,12 @@ pub extern "C" fn ddtrace_detect_composer_installed_json(
 
 fn parse_composer_installed_json(
     transport: &mut Box<SidecarTransport>,
-    instance_id: &InstanceId,
-    queue_id: &QueueId,
     path: String,
 ) -> Result<(), Box<dyn Error>> {
     let action = vec![SidecarAction::PhpComposerTelemetryFile(PathBuf::from_str(
         path.as_str(),
     )?)];
-    blocking::enqueue_actions(transport, instance_id, queue_id, action)?;
+    blocking::enqueue_actions(transport, action)?;
 
     Ok(())
 }
@@ -175,14 +171,25 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_enqueueConfig_buffer(
 // C-unwind to make a panic *here* fall through (as pthread_cancel is implemented as exception, which rust otherwise catches!
 pub extern "C-unwind" fn ddog_sidecar_telemetry_buffer_flush(
     transport: &mut Box<SidecarTransport>,
-    instance_id: &InstanceId,
-    queue_id: &QueueId,
     buffer: Box<SidecarActionsBuffer>,
 ) -> MaybeError {
-    try_c!(blocking::enqueue_actions(
+    try_c!(blocking::enqueue_actions(transport, buffer.buffer));
+
+    MaybeError::None
+}
+
+/// Flushes the buffer for the given service and env instead of the current application.
+#[no_mangle]
+pub extern "C-unwind" fn ddog_sidecar_telemetry_buffer_flush_for_service(
+    transport: &mut Box<SidecarTransport>,
+    service: CharSlice,
+    env: CharSlice,
+    buffer: Box<SidecarActionsBuffer>,
+) -> MaybeError {
+    try_c!(blocking::enqueue_actions_for_service(
         transport,
-        instance_id,
-        queue_id,
+        service.to_utf8_lossy().into_owned(),
+        env.to_utf8_lossy().into_owned(),
         buffer.buffer,
     ));
 
@@ -344,8 +351,6 @@ unsafe fn ddog_sidecar_telemetry_cache_get_or_update<'a>(
 #[no_mangle]
 pub unsafe extern "C" fn ddog_sidecar_telemetry_filter_flush(
     transport: &mut Box<SidecarTransport>,
-    instance_id: &InstanceId,
-    queue_id: &QueueId,
     buffer: &mut SidecarActionsBuffer,
     cache: &mut ShmCacheMap,
     service: CharSlice,
@@ -369,12 +374,7 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_filter_flush(
         .collect();
 
     // Proceed with sending whatever remains, whether filtered or not
-    try_c!(blocking::enqueue_actions(
-        transport,
-        instance_id,
-        queue_id,
-        filtered
-    ));
+    try_c!(blocking::enqueue_actions(transport, filtered));
 
     MaybeError::None
 }

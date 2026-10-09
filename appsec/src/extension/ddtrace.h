@@ -63,16 +63,15 @@ zval *nullable dd_trace_span_get_meta_struct(zend_object *nonnull);
 void dd_trace_span_add_propagated_tags(
     zend_string *nonnull key, zval *nonnull value);
 
-const uint8_t *nullable dd_trace_get_formatted_session_id(void);
 zend_string *nullable dd_trace_get_formatted_runtime_id(bool persistent);
-uint64_t dd_trace_get_sidecar_queue_id(void);
 
+// The sidecar connection of the thread identifies the helper client; a
+// client_init starts a new one.
 #ifdef ZTS
-ddog_AppsecCResponse dd_trace_send_appsec_message(uint64_t client_id,
-    void *nullable tsrm_ls, const uint8_t *nonnull request, size_t request_len,
-    bool reconnect_sidecar);
+ddog_AppsecCResponse dd_trace_send_appsec_message(void *nullable tsrm_ls,
+    const uint8_t *nonnull request, size_t request_len, bool reconnect_sidecar);
 #else
-ddog_AppsecCResponse dd_trace_send_appsec_message(uint64_t client_id,
+ddog_AppsecCResponse dd_trace_send_appsec_message(
     const uint8_t *nonnull request, size_t request_len, bool reconnect_sidecar);
 #endif
 void dd_trace_free_appsec_message_response(ddog_AppsecCResponse response);

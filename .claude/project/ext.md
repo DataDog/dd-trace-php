@@ -50,5 +50,7 @@ sidecar/telemetry/remote_config public API consumed by [tracer/](tracer.md),
   not — see [sidecar.md](sidecar.md).
 - `PHP_VERSION_ID` gating throughout; prefer ZAI (see
   [components.md](components.md)) for anything non-trivial.
-- Signal handlers use a best-effort sidecar pointer (may be null/stale).
+- Signal handlers use a pre-encoded flush on a dup of one thread's sidecar
+  connection (the owner); the owner's GSHUTDOWN releases it, and the next
+  RINIT on any thread re-arms it.
 - Telemetry redacts repo paths before upload.

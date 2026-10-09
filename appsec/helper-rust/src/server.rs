@@ -28,18 +28,10 @@ pub fn accept_appsec_messages(
 
     client::start_accepting_messages(
         // new_client callback:
-        Box::new(move |session_id: Vec<u8>| {
-            let client = Client::new(service_manager, telemetry.clone());
-            log::info!(
-                "Created client for session {}: id {}",
-                String::from_utf8_lossy(&session_id),
-                client.id
-            );
+        Box::new(move |session| {
+            let client = Client::new(service_manager, telemetry.clone(), session);
+            log::info!("Created client: id {}", client.id);
             let client_id = client.id;
-            let client_key = client::ClientKey {
-                session_id,
-                client_id,
-            };
 
             let (tx, rx) = mpsc::channel(5);
 
@@ -47,15 +39,12 @@ pub fn accept_appsec_messages(
 
             let client_future = task_tracker.track_future(async move {
                 client.entrypoint(rx, cancel_token).await;
-                log::debug!(
-                    "Client future for {client_key:?} completed; removing client bookkeeping"
-                );
-                client::remove_client_bookkeeping(&client_key);
+                log::debug!("Client future of client {client_id} completed");
             });
 
             runtime_handle.spawn(client_future);
 
-            (tx, client_id)
+            tx
         }),
     );
 

@@ -56,14 +56,12 @@ ZEND_BEGIN_MODULE_GLOBALS(datadog)
     bool reread_remote_configuration;
 
     ddog_SidecarTransport *sidecar;
-    ddog_QueueId sidecar_queue_id;
-    MUTEX_T sidecar_universal_service_tags_mutex;
     bool remote_config_writing; // true while RC WRITE mode INI update is in progress
     ddog_RemoteConfigState *remote_config_state;
     ddog_AgentInfoReader *agent_info_reader;
+    // The service and env of the application last set on this thread's connection
     zend_string *last_service_name;
     zend_string *last_env_name;
-    zend_string *last_version;
     ddog_Vec_Tag active_global_tags;
 
     bool request_initialized;

@@ -61,6 +61,11 @@ typedef struct ddog_Endpoint ddog_Endpoint;
  */
 typedef struct ddog_MutableMetadataHandle ddog_MutableMetadataHandle;
 
+typedef struct ddog_ArrayQueue {
+  struct ddog_ArrayQueue *inner;
+  void (*item_delete_fn)(void*);
+} ddog_ArrayQueue;
+
 /**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,
  * never from C.
@@ -83,46 +88,6 @@ typedef struct ddog_Error {
    */
   struct ddog_Vec_U8 message;
 } ddog_Error;
-
-typedef struct ddog_Slice_CChar {
-  /**
-   * Should be non-null and suitably aligned for the underlying type. It is
-   * allowed but not recommended for the pointer to be null when the len is
-   * zero.
-   */
-  const char *ptr;
-  /**
-   * The number of elements (not bytes) that `.ptr` points to. Must be less
-   * than or equal to [isize::MAX].
-   */
-  uintptr_t len;
-} ddog_Slice_CChar;
-
-/**
- * Use to represent strings -- should be valid UTF-8.
- */
-typedef struct ddog_Slice_CChar ddog_CharSlice;
-
-typedef enum ddog_Option_Error_Tag {
-  DDOG_OPTION_ERROR_SOME_ERROR,
-  DDOG_OPTION_ERROR_NONE_ERROR,
-} ddog_Option_Error_Tag;
-
-typedef struct ddog_Option_Error {
-  ddog_Option_Error_Tag tag;
-  union {
-    struct {
-      struct ddog_Error some;
-    };
-  };
-} ddog_Option_Error;
-
-typedef struct ddog_Option_Error ddog_MaybeError;
-
-typedef struct ddog_ArrayQueue {
-  struct ddog_ArrayQueue *inner;
-  void (*item_delete_fn)(void*);
-} ddog_ArrayQueue;
 
 typedef enum ddog_ArrayQueue_NewResult_Tag {
   DDOG_ARRAY_QUEUE_NEW_RESULT_OK,
@@ -216,6 +181,41 @@ typedef struct ddog_ArrayQueue_UsizeResult {
     };
   };
 } ddog_ArrayQueue_UsizeResult;
+
+typedef struct ddog_Slice_CChar {
+  /**
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
+   */
+  const char *ptr;
+  /**
+   * The number of elements (not bytes) that `.ptr` points to. Must be less
+   * than or equal to [isize::MAX].
+   */
+  uintptr_t len;
+} ddog_Slice_CChar;
+
+/**
+ * Use to represent strings -- should be valid UTF-8.
+ */
+typedef struct ddog_Slice_CChar ddog_CharSlice;
+
+typedef enum ddog_Option_Error_Tag {
+  DDOG_OPTION_ERROR_SOME_ERROR,
+  DDOG_OPTION_ERROR_NONE_ERROR,
+} ddog_Option_Error_Tag;
+
+typedef struct ddog_Option_Error {
+  ddog_Option_Error_Tag tag;
+  union {
+    struct {
+      struct ddog_Error some;
+    };
+  };
+} ddog_Option_Error;
+
+typedef struct ddog_Option_Error ddog_MaybeError;
 
 /**
  * A generic result type for when an operation may fail,
@@ -510,7 +510,9 @@ typedef struct ddog_SidecarActionsBuffer ddog_SidecarActionsBuffer;
  * `SidecarTransport` wraps a [`SidecarSender`] with transparent reconnection support.
  *
  * This transport is used for communication between different parts of the sidecar service.
- * It is a blocking transport (all operations block the current thread).
+ * It is a blocking transport (all operations block the current thread). It is owned by a
+ * single client thread: the sidecar binds the connection state to the connection, so it must
+ * not be shared between threads which process requests concurrently.
  */
 typedef struct ddog_SidecarTransport ddog_SidecarTransport;
 
@@ -752,12 +754,6 @@ typedef struct ddog_Vec_DebuggerPayload {
   uintptr_t len;
   uintptr_t capacity;
 } ddog_Vec_DebuggerPayload;
-
-/**
- * `QueueId` is a struct that represents a unique identifier for a queue.
- * It contains a single field, `inner`, which is a 64-bit unsigned integer.
- */
-typedef uint64_t ddog_QueueId;
 
 /**
  * A (key, value) pair for peer-service tags, borrowed from PHP/concentrator memory.
@@ -1236,7 +1232,7 @@ typedef struct ddog_PlatformHandle_File ddog_PlatformHandle_File;
  * Opaque registration for a Windows remote configuration callback.
  *
  * Create it with `ddog_sidecar_remote_config_notification_new`, pass it to
- * `ddog_sidecar_session_set_config`, and release it with
+ * `ddog_sidecar_set_connection_config`, and release it with
  * `ddog_sidecar_remote_config_notification_drop`.
  */
 typedef struct ddog_RemoteConfigNotification ddog_RemoteConfigNotification;
@@ -1316,13 +1312,18 @@ typedef struct ddog_FfeFlagEvaluation {
   ddog_CharSlice targeting_rule_key;
   ddog_CharSlice targeting_key;
   /**
-   * UTF-8 JSON object. Empty, invalid, or non-object JSON is omitted. Object
-   * values are pruned to 256 leaf fields, 256-byte string values, and four
-   * levels of nested context depth.
+   * UTF-8 JSON object, ignored without consent. Empty, invalid, or non-object
+   * JSON is omitted without rejecting the evaluation. Retained context has
+   * at most 256 leaves, 256-character keys/strings, 256 entries per container,
+   * and depth four. Legacy JSON parsing is not a bounded-cost producer API.
    */
   ddog_CharSlice evaluation_context_json;
   ddog_CharSlice error_message;
   bool runtime_default_used;
+  /**
+   * Consent captured from the configuration used for this evaluation.
+   */
+  bool observe_full_evaluation_data;
 } ddog_FfeFlagEvaluation;
 
 typedef struct ddog_Slice_FfeFlagEvaluation {
@@ -1384,7 +1385,6 @@ typedef struct ddog_Vec_TraceBytes ddog_TracesBytes;
 typedef struct ddog_SenderParameters {
   struct ddog_TracerHeaderTags tracer_headers_tags;
   struct ddog_SidecarTransport *transport;
-  struct ddog_InstanceId *instance_id;
   uintptr_t limit;
   int64_t n_requests;
   int64_t buffer_size;
@@ -1463,7 +1463,7 @@ typedef enum ddog_crasht_OpTypes {
 } ddog_crasht_OpTypes;
 
 /**
- * See https://man7.org/linux/man-pages/man2/sigaction.2.html
+ * See <https://man7.org/linux/man-pages/man2/sigaction.2.html>
  * MUST REMAIN IN SYNC WITH THE ENUM IN emit_sigcodes.c
  */
 typedef enum ddog_crasht_SiCodes {
@@ -1497,7 +1497,7 @@ typedef enum ddog_crasht_SiCodes {
 } ddog_crasht_SiCodes;
 
 /**
- * See https://man7.org/linux/man-pages/man7/signal.7.html
+ * See <https://man7.org/linux/man-pages/man7/signal.7.html>
  */
 typedef enum ddog_crasht_SignalNames {
   DDOG_CRASHT_SIGNAL_NAMES_SIGHUP,
@@ -1706,7 +1706,7 @@ typedef struct ddog_crasht_Handle_StackTrace {
 
 /**
  * A generic result type for when an operation may fail,
- * or may return <T> in case of success.
+ * or may return `<T>` in case of success.
  */
 typedef enum ddog_crasht_Result_Usize_Tag {
   DDOG_CRASHT_RESULT_USIZE_OK_USIZE,
@@ -1760,7 +1760,7 @@ typedef struct  ddog_crasht_CrashInfoBuilder_NewResult {
 
 /**
  * A generic result type for when an operation may fail,
- * or may return <T> in case of success.
+ * or may return `<T>` in case of success.
  */
 typedef enum ddog_crasht_Result_HandleCrashInfo_Tag {
   DDOG_CRASHT_RESULT_HANDLE_CRASH_INFO_OK_HANDLE_CRASH_INFO,
@@ -1986,6 +1986,37 @@ typedef struct ddog_ProcessInfo {
 } ddog_ProcessInfo;
 
 /**
+ * C-compatible representation of an anonymous file handle
+ */
+typedef struct ddog_TracerMemfdHandle {
+  /**
+   * File descriptor (relevant only on Linux)
+   */
+  int fd;
+} ddog_TracerMemfdHandle;
+
+/**
+ * A generic result type for when an operation may fail,
+ * or may return `<T>` in case of success.
+ */
+typedef enum ddog_Result_TracerMemfdHandle_Tag {
+  DDOG_RESULT_TRACER_MEMFD_HANDLE_OK_TRACER_MEMFD_HANDLE,
+  DDOG_RESULT_TRACER_MEMFD_HANDLE_ERR_TRACER_MEMFD_HANDLE,
+} ddog_Result_TracerMemfdHandle_Tag;
+
+typedef struct ddog_Result_TracerMemfdHandle {
+  ddog_Result_TracerMemfdHandle_Tag tag;
+  union {
+    struct {
+      struct ddog_TracerMemfdHandle ok;
+    };
+    struct {
+      struct ddog_Error err;
+    };
+  };
+} ddog_Result_TracerMemfdHandle;
+
+/**
  * Ffi safe type representing an owned null-terminated C array
  * Equivalent to a std::ffi::CString
  */
@@ -2042,61 +2073,9 @@ typedef struct ddog_LibraryConfigLoggedResult {
   };
 } ddog_LibraryConfigLoggedResult;
 
-/**
- * C-compatible representation of an anonymous file handle
- */
-typedef struct ddog_TracerMemfdHandle {
-  /**
-   * File descriptor (relevant only on Linux)
-   */
-  int fd;
-} ddog_TracerMemfdHandle;
-
-/**
- * A generic result type for when an operation may fail,
- * or may return <T> in case of success.
- */
-typedef enum ddog_Result_TracerMemfdHandle_Tag {
-  DDOG_RESULT_TRACER_MEMFD_HANDLE_OK_TRACER_MEMFD_HANDLE,
-  DDOG_RESULT_TRACER_MEMFD_HANDLE_ERR_TRACER_MEMFD_HANDLE,
-} ddog_Result_TracerMemfdHandle_Tag;
-
-typedef struct ddog_Result_TracerMemfdHandle {
-  ddog_Result_TracerMemfdHandle_Tag tag;
-  union {
-    struct {
-      struct ddog_TracerMemfdHandle ok;
-    };
-    struct {
-      struct ddog_Error err;
-    };
-  };
-} ddog_Result_TracerMemfdHandle;
-
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
-
-/**
- * Drops the error. It should not be used after this, though the
- * implementation tries to limit the damage in the case of use-after-free and
- * double-free scenarios.
- *
- * # Safety
- *
- * Only pass null or a pointer to a valid, mutable `ddog_Error`.
- */
-void ddog_Error_drop(struct ddog_Error *error);
-
-/**
- * Returns a CharSlice of the error's message that is valid until the error
- * is dropped.
- * # Safety
- * Only pass null or a valid reference to a `ddog_Error`.
- */
-ddog_CharSlice ddog_Error_message(const struct ddog_Error *error);
-
-void ddog_MaybeError_drop(ddog_MaybeError);
 
 /**
  * Creates a new ArrayQueue with the given capacity and item_delete_fn.
@@ -2193,6 +2172,27 @@ void ddog_endpoint_set_use_system_resolver(struct ddog_Endpoint *endpoint,
 void ddog_endpoint_drop(struct ddog_Endpoint*);
 
 /**
+ * Drops the error. It should not be used after this, though the
+ * implementation tries to limit the damage in the case of use-after-free and
+ * double-free scenarios.
+ *
+ * # Safety
+ *
+ * Only pass null or a pointer to a valid, mutable `ddog_Error`.
+ */
+void ddog_Error_drop(struct ddog_Error *error);
+
+/**
+ * Returns a CharSlice of the error's message that is valid until the error
+ * is dropped.
+ * # Safety
+ * Only pass null or a valid reference to a `ddog_Error`.
+ */
+ddog_CharSlice ddog_Error_message(const struct ddog_Error *error);
+
+void ddog_MaybeError_drop(ddog_MaybeError);
+
+/**
  * Creates a shared, updatable metadata handle initialized with default values.
  *
  * Use the metadata setters to configure or update its values.
@@ -2237,6 +2237,25 @@ struct ddog_VoidResult ddog_mutable_metadata_set_runtime_id(const struct ddog_Mu
 DDOG_CHECK_RETURN
 struct ddog_VoidResult ddog_mutable_metadata_set_process_tags(const struct ddog_MutableMetadataHandle *handle,
                                                               ddog_CharSlice process_tags);
+
+/**
+ * Atomically replaces runtime identity and instrumentation session ancestry.
+ * Empty session strings omit the corresponding headers, overriding static configuration.
+ * Strings are copied before returning; process tags are preserved.
+ *
+ * For a fork child, call after all native workers and sends have paused and before
+ * `ddog_shared_runtime_after_fork_child`. This does not reset pending data or sequences.
+ *
+ * # Safety
+ *
+ * `handle` must be valid and all slices must remain valid for the duration of the call.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_mutable_metadata_set_identity(const struct ddog_MutableMetadataHandle *handle,
+                                                          ddog_CharSlice runtime_id,
+                                                          ddog_CharSlice session_id,
+                                                          ddog_CharSlice root_session_id,
+                                                          ddog_CharSlice parent_session_id);
 
 struct ddog_Option_U32 ddog_Option_U32_some(uint32_t v);
 

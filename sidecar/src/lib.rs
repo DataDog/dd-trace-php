@@ -7,7 +7,9 @@
 // whole crate is compiled away there.
 #![cfg(unix)]
 
-use datadog_sidecar::appsec::{AppSecBackend, AppSecFuture, AppSecMessageResponse};
+use datadog_sidecar::appsec::{
+    AppSecBackend, AppSecConnection, AppSecFuture, AppSecMessageResponse,
+};
 use datadog_sidecar::config::AppSecConfig;
 use datadog_sidecar::config::Config;
 use datadog_sidecar::service::blocking::SidecarTransport;
@@ -65,21 +67,19 @@ fn create_backend(
     ))
 }
 
-fn send_message<'a>(
-    session_id: &'a str,
-    client_id: u64,
+fn send_message(
+    connection: &mut AppSecConnection,
     data: Vec<u8>,
-) -> AppSecFuture<'a, AppSecMessageResponse> {
+) -> AppSecFuture<'_, AppSecMessageResponse> {
     Box::pin(async move {
-        let response = ddappsec_helper::on_message(session_id.as_bytes(), client_id, data).await;
+        let response = ddappsec_helper::on_message(connection, data).await;
         AppSecMessageResponse {
-            client_id: response.client_id,
             data: response.data,
             disconnect: response.disconnect,
         }
     })
 }
 
-fn disconnect(session_id: &str, client_id: u64) {
-    ddappsec_helper::on_disconnect(session_id.as_bytes(), client_id);
+fn disconnect(connection: &mut AppSecConnection) {
+    ddappsec_helper::on_disconnect(connection);
 }

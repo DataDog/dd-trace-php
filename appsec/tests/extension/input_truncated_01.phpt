@@ -25,7 +25,7 @@ var_dump(rshutdown());
 
 $commands = $helper->get_commands();
 // Verify request_shutdown receives input_truncated=true
-var_dump($commands[0][1][3]);
+var_dump($commands[0][1][2]);
 
 ?>
 --EXPECTF--

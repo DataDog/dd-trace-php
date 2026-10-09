@@ -13,7 +13,7 @@ use std::{
 use anyhow::{anyhow, Context};
 use datadog_sidecar::service::{
     telemetry::{InProcessTelemetryClient, InProcessTelemetryClientFactory},
-    InstanceId,
+    ConnectionSessionHandle,
 };
 use futures::stream::Stream;
 use libddwaf::{object::WafObjectType, RunnableContext};
@@ -45,7 +45,6 @@ pub use sidecar_msg::{
     clear_inherited_state, on_disconnect, on_message, start_accepting_messages,
     stop_accepting_messages, MessageResponse,
 };
-pub(crate) use sidecar_msg::{remove_client_bookkeeping, ClientKey};
 
 mod attributes;
 pub mod log;
@@ -98,6 +97,8 @@ pub struct Client {
     service_manager: &'static ServiceManager,
     service: Option<TrackedService>,
     telemetry_client_factory: InProcessTelemetryClientFactory,
+    /// The sidecar connection of the extension, which telemetry is submitted with.
+    session: ConnectionSessionHandle,
     telemetry_client: Option<InProcessTelemetryClient>,
     metrics_last_registered: Cell<Option<Instant>>,
 }
@@ -107,12 +108,14 @@ impl Client {
     pub fn new(
         service_manager: &'static ServiceManager,
         telemetry_client_factory: InProcessTelemetryClientFactory,
+        session: ConnectionSessionHandle,
     ) -> Self {
         Self {
             id: CLIENT_SERIAL.fetch_add(1, atomic::Ordering::Relaxed),
             service_manager,
             service: None,
             telemetry_client_factory,
+            session,
             telemetry_client: None,
             metrics_last_registered: Cell::new(None),
         }
@@ -200,7 +203,6 @@ async fn do_client_entrypoint(
                     let cir = ClientInitResp {
                         version: protocol::VERSION_FOR_PROTO,
                         status: "fail".to_string(),
-                        client_id: client.id,
                         errors: vec![err.to_string()],
                         ..Default::default()
                     };
@@ -284,10 +286,7 @@ fn handle_client_init(
     );
 
     let telemetry_client = client.telemetry_client_factory.create_client(
-        InstanceId::new(
-            args.sidecar_settings.session_id.clone(),
-            args.sidecar_settings.runtime_id.clone(),
-        ),
+        client.session.clone(),
         telemetry_settings.service_name.clone(),
         telemetry_settings.env_name.clone(),
     );
@@ -305,7 +304,6 @@ fn handle_client_init(
 
     let mut cir = ClientInitResp {
         version: protocol::VERSION_FOR_PROTO,
-        client_id: client.id,
         ..Default::default()
     };
 
@@ -1161,7 +1159,6 @@ mod tests {
             ),
             (true, PathBuf::from("/dev/shm/remote")),
             ("my-service", "production"),
-            ("session-123", "runtime-456"),
         );
         serialize_message(&("client_init", client_init_args))
     }

@@ -17,7 +17,6 @@
 
 struct _dd_conn {
     bool connected;
-    uint64_t client_id;
 };
 typedef struct _dd_conn dd_conn;
 

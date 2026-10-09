@@ -18,18 +18,12 @@ static inline bool datadog_is_empty_session_id(uint8_t id[36]) {
     return memcmp(id, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 36) == 0;
 }
 
-// datadog_sidecar_instance_id is a process global — one identity per PHP process.
+// datadog_sidecar_instance_id is a process global — one identity per PHP process. Every thread's connection is configured with it.
 extern struct ddog_InstanceId *datadog_sidecar_instance_id;
-// Best-effort pointer used only by the signal handler (SIGTERM/SIGINT), which cannot call
-// TSRMLS_FETCH() safely.  Set to the first thread's connection; never cleared until MSHUTDOWN.
-// Not atomic: concurrent shutdown is a pre-existing best-effort race for signal handlers.
-extern ddog_SidecarTransport *datadog_sidecar_for_signal;
 extern ddog_Endpoint *datadog_endpoint;
 extern dd_sidecar_active_mode_t datadog_sidecar_active_mode;
 extern int32_t datadog_sidecar_master_pid;
 
-DATADOG_PUBLIC const uint8_t *datadog_get_formatted_session_id(void);
-DATADOG_PUBLIC uint64_t datadog_get_sidecar_queue_id(void);
 #ifdef ZTS
 DATADOG_PUBLIC ddog_SidecarTransport **ddtrace_get_sidecar_transport(void *tsrm_ls);
 #else
@@ -43,9 +37,6 @@ struct telemetry_rc_info {
 };
 DATADOG_PUBLIC struct telemetry_rc_info datadog_get_telemetry_rc_info(void);
 
-// Connection functions
-ddog_SidecarTransport *datadog_sidecar_connect(bool is_fork);
-
 // Lifecycle functions
 void datadog_sidecar_minit(void);
 void datadog_sidecar_setup(ddog_RemoteConfigFlags flags);
@@ -54,7 +45,7 @@ bool datadog_sidecar_should_enable(ddog_RemoteConfigFlags *flags);
 void datadog_sidecar_ensure_active(void);
 void datadog_sidecar_update_process_tags(void);
 void datadog_sidecar_refresh_user_service_defined(void);
-void datadog_sidecar_finalize(bool clear_id);
+void datadog_sidecar_finalize(bool clear_application);
 void datadog_sidecar_shutdown(void);
 void datadog_force_new_instance_id(void);
 void datadog_sidecar_push_tag(ddog_Vec_Tag *vec, ddog_CharSlice key, ddog_CharSlice value);

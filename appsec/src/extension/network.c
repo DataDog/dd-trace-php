@@ -30,11 +30,7 @@ _Static_assert(sizeof(dd_header) == DD_CONN_REQUEST_HEADER_SIZE,
 
 static const uint32_t MAX_RECV_MESSAGE_SIZE = 4 * 1024 * 1024;
 
-void dd_conn_init(dd_conn *nonnull conn)
-{
-    conn->connected = true;
-    conn->client_id = 0;
-}
+void dd_conn_init(dd_conn *nonnull conn) { conn->connected = true; }
 
 dd_result dd_conn_roundtrip(dd_conn *nonnull conn, char *nonnull request,
     size_t request_len, bool reconnect_sidecar,
@@ -65,21 +61,18 @@ dd_result dd_conn_roundtrip(dd_conn *nonnull conn, char *nonnull request,
 
 #ifdef ZTS
     ddog_AppsecCResponse response =
-        dd_trace_send_appsec_message(conn->client_id, DDAPPSEC_G(ts_ls_cache),
+        dd_trace_send_appsec_message(DDAPPSEC_G(ts_ls_cache),
             (const uint8_t *)request, request_len, reconnect_sidecar);
 #else
-    ddog_AppsecCResponse response =
-        dd_trace_send_appsec_message(conn->client_id, (const uint8_t *)request,
-            request_len, reconnect_sidecar);
+    ddog_AppsecCResponse response = dd_trace_send_appsec_message(
+        (const uint8_t *)request, request_len, reconnect_sidecar);
 #endif
 
     dd_result ret;
 
     if (response.disconnect) {
-        mlog(dd_log_warning,
-            "Helper has responded with an error indicating we "
-            "need to redo client_init (abandon client id %" PRIu64 ")",
-            conn->client_id);
+        mlog(dd_log_warning, "Helper has responded with an error indicating we "
+                             "need to redo client_init");
         // in this case, the helper indicated it's abandoned the client already,
         // so we can't send the goodbye
         ret = dd_helper_fatal;
@@ -151,8 +144,4 @@ void dd_helper_response_destroy(dd_helper_response *nonnull response)
     });
 }
 
-void dd_conn_destroy(dd_conn *nonnull conn)
-{
-    conn->connected = false;
-    conn->client_id = 0;
-}
+void dd_conn_destroy(dd_conn *nonnull conn) { conn->connected = false; }

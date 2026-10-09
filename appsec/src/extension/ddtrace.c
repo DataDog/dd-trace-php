@@ -46,8 +46,6 @@ static zend_module_entry *_find_ddtrace_module(void);
 static int _ddtrace_rshutdown_testing(SHUTDOWN_FUNC_ARGS);
 static void _register_testing_objects(void);
 
-static const uint8_t *(*nullable _datadog_get_formatted_session_id)(void);
-static uint64_t (*nullable _datadog_get_sidecar_queue_id)(void);
 #ifdef ZTS
 static ddog_SidecarTransport * nullable *
     nonnull (*nullable _ddtrace_get_sidecar_transport)(void *nullable tsrm_ls);
@@ -75,12 +73,10 @@ static void *(*nullable _ddtrace_emit_asm_event)(void);
 static zend_string *(*nullable _ddtrace_guess_endpoint_from_url)(
     const char *nonnull url, size_t url_len);
 static ddog_AppsecCResponse (*nullable _ddog_sidecar_send_appsec_message)(
-    ddog_SidecarTransport * nonnull * nonnull transport, uint64_t client_id,
-    ddog_CharSlice data);
+    ddog_SidecarTransport * nonnull * nonnull transport, ddog_CharSlice data);
 static ddog_AppsecCResponse (
     *nullable _datadog_sidecar_send_appsec_message_without_reconnect)(
-    ddog_SidecarTransport * nonnull * nonnull transport, uint64_t client_id,
-    ddog_CharSlice data);
+    ddog_SidecarTransport * nonnull * nonnull transport, ddog_CharSlice data);
 static void (*nullable _ddog_sidecar_appsec_response_drop)(
     ddog_AppsecCResponse response);
 
@@ -112,9 +108,6 @@ static void dd_trace_load_symbols(zend_module_entry *module)
         "ddtrace_close_all_spans_and_flush");
     ASSIGN_DLSYM(_ddtrace_get_root_span, "ddtrace_get_root_span");
     ASSIGN_DLSYM(_datadog_runtime_id, "datadog_runtime_id");
-    ASSIGN_DLSYM(
-        _datadog_get_formatted_session_id, "datadog_get_formatted_session_id");
-    ASSIGN_DLSYM(_datadog_get_sidecar_queue_id, "datadog_get_sidecar_queue_id");
     ASSIGN_DLSYM(
         _ddtrace_get_sidecar_transport, "ddtrace_get_sidecar_transport");
     ASSIGN_DLSYM(_ddtrace_set_priority_sampling_on_span_zobj,
@@ -383,28 +376,11 @@ zend_string *nullable dd_trace_get_formatted_runtime_id(bool persistent)
 }
 // NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
 
-const uint8_t *nullable dd_trace_get_formatted_session_id(void)
-{
-    if (_datadog_get_formatted_session_id == NULL) {
-        return NULL;
-    }
-    return _datadog_get_formatted_session_id();
-}
-
-uint64_t dd_trace_get_sidecar_queue_id(void)
-{
-    if (_datadog_get_sidecar_queue_id == NULL) {
-        return 0;
-    }
-    return _datadog_get_sidecar_queue_id();
-}
-
 #ifdef ZTS
-ddog_AppsecCResponse dd_trace_send_appsec_message(uint64_t client_id,
-    void *nullable tsrm_ls, const uint8_t *nonnull request, size_t request_len,
-    bool reconnect_sidecar)
+ddog_AppsecCResponse dd_trace_send_appsec_message(void *nullable tsrm_ls,
+    const uint8_t *nonnull request, size_t request_len, bool reconnect_sidecar)
 #else
-ddog_AppsecCResponse dd_trace_send_appsec_message(uint64_t client_id,
+ddog_AppsecCResponse dd_trace_send_appsec_message(
     const uint8_t *nonnull request, size_t request_len, bool reconnect_sidecar)
 #endif
 {
@@ -414,7 +390,7 @@ ddog_AppsecCResponse dd_trace_send_appsec_message(uint64_t client_id,
             .ptr = (const char *)request,
             .len = request_len,
         };
-        return dd_testing_mock_send_appsec_message(client_id, data);
+        return dd_testing_mock_send_appsec_message(data);
     }
 #endif
 
@@ -445,11 +421,10 @@ ddog_AppsecCResponse dd_trace_send_appsec_message(uint64_t client_id,
     };
 
     if (reconnect_sidecar) {
-        return _ddog_sidecar_send_appsec_message(
-            &sidecar, client_id, request_slice);
+        return _ddog_sidecar_send_appsec_message(&sidecar, request_slice);
     }
     return _datadog_sidecar_send_appsec_message_without_reconnect(
-        &sidecar, client_id, request_slice);
+        &sidecar, request_slice);
 }
 
 void dd_trace_free_appsec_message_response(ddog_AppsecCResponse response)

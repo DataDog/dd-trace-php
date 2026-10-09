@@ -308,7 +308,9 @@ static LIMITERS: LimiterReaders = LimiterReaders {
     exceptions: ExceptionHashRateLimiter::new_reader(),
 };
 
-/// Retire mappings from a previous namespace so subsequent reads reopen them.
+/// Retire mappings from a previous namespace so subsequent reads reopen them. To be called on
+/// every (re)connected transport: the connection may be to a new sidecar. Reconnects are rare,
+/// so the process-wide caches are simply reopened by every thread.
 #[no_mangle]
 pub extern "C" fn ddog_sidecar_reconnect_readers(
     telemetry: Option<&ShmCacheMap>,
@@ -318,6 +320,7 @@ pub extern "C" fn ddog_sidecar_reconnect_readers(
 ) {
     LIMITERS.probes.reconnect();
     LIMITERS.exceptions.reconnect();
+    crate::stats::ddog_span_concentrators_clear();
     if let Some(telemetry) = telemetry {
         telemetry.reconnect();
     }
@@ -330,6 +333,13 @@ pub extern "C" fn ddog_sidecar_reconnect_readers(
     if let Some(AgentRemoteConfigReader::Named(reader)) = agent_config {
         reader.reconnect();
     }
+}
+
+/// The fd of the transport's current connection; it changes on reconnect.
+#[cfg(unix)]
+#[no_mangle]
+pub extern "C" fn ddog_sidecar_transport_raw_fd(transport: &Box<SidecarTransport>) -> i32 {
+    transport.as_raw_fd()
 }
 
 const SHM_LIMITER_GRANULARITY: Duration = Duration::from_secs(1);

@@ -338,7 +338,7 @@ static void dd_probe_dtor(void *data) {
 }
 
 static void dd_probe_send_status(dd_probe_def *def) {
-    ddog_send_debugger_diagnostics(DATADOG_G(remote_config_state), &DATADOG_G(sidecar), datadog_sidecar_instance_id, DATADOG_G(sidecar_queue_id), &def->probe, ddtrace_nanoseconds_realtime() / 1000000);
+    ddog_send_debugger_diagnostics(DATADOG_G(remote_config_state), &DATADOG_G(sidecar), datadog_sidecar_instance_id, &def->probe, ddtrace_nanoseconds_realtime() / 1000000);
 }
 
 // Sets the fields only; callers decide when to publish, as the goto error path in dd_init_live_debugger_probe does.
@@ -1938,7 +1938,7 @@ bool ddtrace_alter_dynamic_instrumentation_config(zval *old_value, zval *new_val
     }
 
     if (DATADOG_G(request_initialized) && DATADOG_G(sidecar)) {
-        ddog_sidecar_set_request_config(&DATADOG_G(sidecar), datadog_sidecar_instance_id, &DATADOG_G(sidecar_queue_id), enabled ? DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED : DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_DISABLED);
+        ddog_sidecar_set_request_config(&DATADOG_G(sidecar), enabled ? DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED : DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_DISABLED);
     }
     return true;
 }
@@ -1952,10 +1952,10 @@ ddog_DynamicInstrumentationConfigState ddtrace_dynamic_instrumentation_state(voi
 
 void ddtrace_sidecar_send_debugger_data(ddog_Vec_DebuggerPayload payloads) {
     LOGEV(DEBUG, UNUSED(log); ddog_log_debugger_data(&payloads););
-    ddog_sidecar_send_debugger_data(&DATADOG_G(sidecar), datadog_sidecar_instance_id, DATADOG_G(sidecar_queue_id), payloads);
+    ddog_sidecar_send_debugger_data(&DATADOG_G(sidecar), payloads);
 }
 
 void ddtrace_sidecar_send_debugger_datum(ddog_DebuggerPayload *payload) {
     LOGEV(DEBUG, UNUSED(log); ddog_log_debugger_datum(payload););
-    ddog_sidecar_send_debugger_datum(&DATADOG_G(sidecar), datadog_sidecar_instance_id, DATADOG_G(sidecar_queue_id), payload);
+    ddog_sidecar_send_debugger_datum(&DATADOG_G(sidecar), payload);
 }

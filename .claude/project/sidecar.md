@@ -29,6 +29,27 @@ service/env tags. Global shutdown flushes and drops the transport.
 `handle_fork` drops the inherited transport and reconnects after
 `pcntl_fork()`.
 
+## Connection model
+
+Every PHP thread has its own connection, and processes one request at a
+time. So the sidecar keeps all session and application state per connection
+(`ConnectionSidecarHandler` in `service/sidecar_server.rs`); messages carry
+no session, runtime or queue IDs:
+
+- `set_connection_config` (identity + config) is the first message on a
+  connection; various `set_*` methods update it.
+- `set_application` sets the application of the current request at RINIT
+  (and on service/env/version changes), and clears it at RSHUTDOWN. Data
+  messages (telemetry, debugger, traces) apply to it.
+- The client transport (`service/sender.rs`) mirrors this state: it skips
+  unchanged values, and replays all of it onto the new connection after a
+  reconnect (`adopt_state`). The C side configures a transport once and
+  never replays anything.
+- Closing a connection releases its state (remote config subscription,
+  AppSec client, ...). Shared aggregators (trace flusher, telemetry workers
+  per service/env, remote config fetchers, agent info, stats concentrators)
+  stay server-global.
+
 Traces, telemetry, remote config (via shared memory), DogStatsD,
 crashtracking, live debugger, and appsec data all flow through the sidecar —
 request threads never block on network I/O.

@@ -465,13 +465,6 @@ if test "$PHP_DDTRACE" != "no" && test "$PHP_DDTRACE_PROFILING" = "no"; then
       "$ext_srcdir/components-rs/libdatadog-php-unix.sym" \
       > "$ddtrace_fat_export_symbols"
 
-    case $host_os in
-      linux*)
-        cat "$ext_srcdir/components-rs/libdatadog-php-linux.sym" \
-          >> "$ddtrace_fat_export_symbols"
-      ;;
-    esac
-
     dnl Only export the symbols selected above, which should all be marked as
     dnl DATADOG_PUBLIC in their source files.
     EXTRA_CFLAGS="$EXTRA_CFLAGS -fvisibility=hidden"

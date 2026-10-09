@@ -61,7 +61,6 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                     .client_computed_stats = !get_global_DD_APM_TRACING_ENABLED() || (get_DD_TRACE_STATS_COMPUTATION_ENABLED() && ddog_agent_has_stats_computation()),
                 },
                 .transport = DATADOG_G(sidecar),
-                .instance_id = datadog_sidecar_instance_id,
                 .limit = limit,
                 .n_requests = get_global_DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS(),
                 .buffer_size = get_global_DD_TRACE_BUFFER_SIZE(),
