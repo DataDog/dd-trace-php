@@ -1530,12 +1530,19 @@ $system_tests_weblogs = [
 <?php foreach ($system_tests_weblogs as $weblog): ?>
 "System Tests: [<?= $weblog ?>, tracer-release]":
   extends: .system_tests
+  parallel: 2
   timeout: 4h
   variables:
     BUILD_SH_ARGS: -w <?= $weblog ?> php
     # Expand the DinD loopback volume to avoid running out of disk space.
     # See https://datadoghq.atlassian.net/wiki/spaces/K8S/pages/2874901299/How+to+use+Micro+VMs#DinD-in-CI
     DOCKER_LOOPBACK_SIZE: 50G
+  # Share one cache across the parallel shards; CI_JOB_NAME_SLUG differs per shard.
+  cache:
+    - key: v0-system-tests-<?= $weblog ?>-tracer-release-cache
+      when: always
+      paths:
+        - .cache/
   rules:
     - if: $CI_COMMIT_REF_NAME == "master"
       when: on_success
@@ -1547,6 +1554,8 @@ $system_tests_weblogs = [
     - DD_API_KEY=$(cat /tmp/.dd-api-key 2>/dev/null) || { echo "Failed to fetch DD_API_KEY"; exit 1; }
     - export DD_API_KEY
     - SCENARIOS=$(PYTHONPATH=. venv/bin/python utils/scripts/compute-workflow-parameters.py php -g tracer_release -f json | python3 -c "import sys,json;d=json.load(sys.stdin);s=set();[s.update(v['scenarios']) for v in d.values() if isinstance(v,dict) and 'scenarios' in v];print(' '.join(sorted(s)))")
+    # Distribute the sorted scenario list across the parallel GitLab jobs.
+    - SCENARIOS=$(printf '%s\n' $SCENARIOS | awk -v node="$CI_NODE_INDEX" -v total="$CI_NODE_TOTAL" '(NR - 1) % total == node - 1')
     - FAILED=""; for S in $SCENARIOS; do echo "=== Running $S ==="; ./run.sh $S || FAILED="$FAILED $S"; done; if [ -n "$FAILED" ]; then echo "Failed scenarios:$FAILED"; exit 1; fi
 
 <?php endforeach; ?>
