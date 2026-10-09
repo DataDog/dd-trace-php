@@ -569,7 +569,7 @@ pub enum RefCellExtError {
 }
 
 trait RefCellExt<T> {
-    #[cfg(feature = "debug_stats")]
+    #[cfg(all(feature = "debug_stats", php_run_time_cache))]
     fn try_with_borrow<F, R>(&'static self, f: F) -> Result<R, RefCellExtError>
     where
         F: FnOnce(&T) -> R;
@@ -588,7 +588,7 @@ trait RefCellExt<T> {
 }
 
 impl<T> RefCellExt<T> for LocalKey<RefCell<T>> {
-    #[cfg(feature = "debug_stats")]
+    #[cfg(all(feature = "debug_stats", php_run_time_cache))]
     #[inline]
     fn try_with_borrow<F, R>(&'static self, f: F) -> Result<R, RefCellExtError>
     where
