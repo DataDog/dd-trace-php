@@ -32,7 +32,9 @@ covers all of it and `cargo nextest` runs it.
 ## Production-code variants
 
 Bitcode builds compile the library with `--cfg 'feature="verify"' --cfg
-sgc_genmc --cfg sgc_genmc_short_waits`. Native smoke builds are ordinary cargo
+sgc_genmc` and one wait variant: `--cfg sgc_genmc_short_waits`, or `--cfg
+sgc_genmc_futex_model` for the programs listed in `FUTEX_MODEL` in
+`tests/genmc.rs`. Native smoke builds are ordinary cargo
 builds of this package, whose dependency on `shm_gen_cache` enables the features
 `std` and `verify` only. The cfgs are declared in each package's `check-cfg`;
 ordinary builds set none of them.
@@ -50,6 +52,7 @@ does, so never ship an artifact from such a build.
 | `sgc_genmc` | lib | `fatal()` panics (a GenMC assertion failure after the runner's panic stubs); empty `cpu_relax()`; atomic zero fill in `Cache::initialize` |
 | `sgc_genmc` | harness, tests | GenMC threads, `__VERIFIER_assert_fail`, real `assume` (else pthreads, abort, no-op `assume`) |
 | `sgc_genmc_short_waits` | lib | rotation waits (`BoundedWait`) give up after 2 spin polls instead of the wall-clock budget; no clock, monitored sleep, futex or yield code |
+| `sgc_genmc_futex_model` | lib (`FUTEX_MODEL` programs) | instead of `sgc_genmc_short_waits`: rotation waits block at once, without spin polls, in a model of the futex without a timeout |
 | `genmc_witness`, `genmc_witness="N"` | harness, tests | only `witness!("N", ..)` is active; `spawn_symmetric` spawns plainly |
 | `GetPid` hooks (not cfgs) | lib, per test | see below |
 
@@ -79,6 +82,24 @@ In detail:
   equivalent polling events. Native builds of the test programs keep the
   wall-clock budget, monitored sleeps, futex waits and actual scheduler
   calls.
+* `sgc_genmc_futex_model` (instead of `sgc_genmc_short_waits`, for the
+  programs in `FUTEX_MODEL`): the clock, monitored-sleep and yield code is
+  compiled out as above, and so are the spin polls: waits block at once in
+  `wait::futex_model` (a rotation's wait for a pin first flags the pin with
+  `ROTATION_WAITING`, so that the unpin or the slot's reaping wakes it), a
+  model of the futex made of atomics: a "kernel" lock makes
+  checking the futex word and queueing atomic with respect to wakes; a
+  wait whose word no longer holds the value it read returns at once;
+  otherwise it blocks until `wake_waiters()` on that word. The model has
+  no timeout, so the wait never gives up. GenMC runs
+  these programs with `-check-liveness`, which reports an execution in
+  which the waiter blocks and is never woken (`Liveness violation!`).
+  Natively such a lost wake only delays the waiter until its budget ends.
+  `test_access::futex_model_woken_waits()` counts the waits that blocked
+  and were woken, and `test_access::futex_model_stale_blocks()` those that
+  blocked although their condition already held (the futex word had gone
+  back to the value they read, see `owner_wait_misses_reacquired_release`),
+  for witnesses.
 * The participant state needs no variant: it is always an `AtomicU64`
   decoded with shifts (bit 0 INITIALIZING, bits 1-31 PID, bits 32-63
   registration ID; 0 FREE, 1 REAPING), so no 32-bit field of a 64-bit word
@@ -181,7 +202,7 @@ not reported all fail the trial.
 For each test and variant (safety, or one witness):
 
 1. The library is compiled as an rlib plus LLVM bitcode, with the variant
-   cfgs above (once, cached).
+   cfgs above and the program's wait variant (once per variant, cached).
 2. The harness (crate `genmc_harness`) is compiled with `--cfg sgc_genmc`,
    plus `--cfg genmc_witness --cfg genmc_witness="NAME"` for a witness
    variant (cached per cfg set: `Scope::spawn_symmetric` depends on it),
@@ -198,9 +219,10 @@ For each test and variant (safety, or one witness):
    an ordinary counterexample instead of "unknown external function". This
    rewrite runs on the host; steps 3, 4 and 6 run in the container.
 6. `genmc -rc11 -disable-mm-detector -disable-estimation
-   -disable-code-condenser -mode=verify -nthreads=N program.ll`. No loop,
-   context or execution bound; GenMC's spin-loop reduction stays on. The
-   trial prints GenMC's complete and blocked execution counts.
+   -disable-code-condenser -mode=verify -nthreads=N program.ll`, plus
+   `-check-liveness` for the programs in `FUTEX_MODEL`. No loop, context
+   or execution bound; GenMC's spin-loop reduction stays on. The trial
+   prints GenMC's complete and blocked execution counts.
 
 Compiler flags (`BITCODE_FLAGS` in `tests/genmc.rs`): `-Copt-level=3 -g
 -Ccodegen-units=1`, `-Cpanic=abort`, debug assertions and overflow checks off

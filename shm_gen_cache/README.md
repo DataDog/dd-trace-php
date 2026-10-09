@@ -346,6 +346,12 @@ does:
 cargo rustc -p shm_gen_cache --no-default-features --crate-type rlib
 ```
 
+A `no_std` build compiles only on Linux and Apple targets, whose steady
+clock the rotation waits read with `clock_gettime`. Elsewhere, Windows
+included, they take it from `std::time::Instant`, and the build stops with a
+`compile_error!` without `std`. Every Windows build uses `ffi` (and so
+`std`) anyway.
+
 `verify` must never be enabled for production artifacts. `cargo build -p
 shm_gen_cache` (with any profile) leaves it off, but a build of the whole
 workspace (`--workspace`, or `cargo build` at the root) unifies features
@@ -359,6 +365,7 @@ builds only:
 | feature `verify` | verification build: `production_assert!` off, `test_access` and the `GetPid` test hooks enabled |
 | `sgc_genmc` (bitcode target) | requires feature `verify`: `fatal()` panics (the runner turns panics into assertion failures), `cpu_relax` is empty, initialisation fills use relaxed atomic word stores instead of `memset` |
 | `sgc_genmc_short_waits` | rotation waits give up after 2 spin polls; their clock reads, monitored sleeps, futex calls and yields are compiled out |
+| `sgc_genmc_futex_model` | instead of `sgc_genmc_short_waits`, for the GenMC programs that check wakes: rotation waits block at once, without spin polls or a budget, in a model of the futex (`wait::futex_model`) whose waiters only a wake ends; clock reads, monitored sleeps, futex calls and yields are compiled out as above |
 
 `production_assert!` is checked only in debug builds without `verify`.  When
 off, its condition is not evaluated.

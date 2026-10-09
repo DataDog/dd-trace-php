@@ -55,8 +55,23 @@ const IMAGE_DIGEST: &str =
 /// Where the image keeps the LLVM tools GenMC was built with.
 const IMAGE_LLVM_BIN: &str = "/usr/lib/llvm-21/bin";
 
-/// Library configuration of every bitcode build (README.md).
-const LIB_GENMC_CFGS: &[&str] = &[r#"feature="verify""#, "sgc_genmc", "sgc_genmc_short_waits"];
+/// Library configuration of every bitcode build (README.md), plus one of
+/// the wait variants below.
+const LIB_GENMC_CFGS: &[&str] = &[r#"feature="verify""#, "sgc_genmc"];
+/// The default wait variant: waits give up after two polls.
+const SHORT_WAITS_CFG: &str = "sgc_genmc_short_waits";
+/// The wait variant of the programs in [`FUTEX_MODEL`].
+const FUTEX_MODEL_CFG: &str = "sgc_genmc_futex_model";
+
+/// Programs whose library is built with the futex model
+/// (`sgc_genmc_futex_model`) instead of short waits, and which GenMC also
+/// checks for liveness: a wait that blocks in the model and is never woken
+/// is a violation (README.md).
+const FUTEX_MODEL: &[&str] = &[
+    "owner_wait_misses_reacquired_release",
+    "reaping_wakes_blocked_rotation",
+    "rotation_waits_for_unpin",
+];
 /// Harness and program configuration of every bitcode build.
 const HARNESS_GENMC_CFGS: &[&str] = &["sgc_genmc"];
 
@@ -162,7 +177,12 @@ fn genmc(program: &Program, witness: Option<&str>) -> Result<(), Failed> {
     println!("Artifacts: {}", dir.display());
 
     let genmc_version = setup.toolchain()?;
-    let lib = setup.library()?;
+    let futex_model = FUTEX_MODEL.contains(&program.name);
+    let lib = setup.library(if futex_model {
+        FUTEX_MODEL_CFG
+    } else {
+        SHORT_WAITS_CFG
+    })?;
     let mut cfgs: Vec<String> = HARNESS_GENMC_CFGS.iter().map(|&c| c.to_owned()).collect();
     if let Some(w) = witness {
         cfgs.push("genmc_witness".to_owned());
@@ -218,6 +238,7 @@ fn genmc(program: &Program, witness: Option<&str>) -> Result<(), Failed> {
     let mut check = setup.docker(None);
     check
         .args(GENMC_ARGS)
+        .args(futex_model.then_some("-check-liveness"))
         .args(&setup.genmc_args)
         .arg(format!("-nthreads={}", setup.nthreads))
         .arg(&program_ll);
@@ -388,17 +409,20 @@ impl Setup {
         fs::read_to_string(dir.join("version")).map_err(|e| e.to_string())
     }
 
-    /// The library rlib and bitcode (`shm_gen_cache.bc`).
-    fn library(&self) -> Result<PathBuf, String> {
+    /// The library rlib and bitcode (`shm_gen_cache.bc`), with the wait
+    /// variant `wait_cfg`.
+    fn library(&self, wait_cfg: &str) -> Result<PathBuf, String> {
         let crate_dir = self.repo.join("shm_gen_cache");
         let mut sources = Vec::new();
         collect_sources(&crate_dir.join("src"), &crate_dir, &mut sources)?;
         let mut key: Vec<&[u8]> = vec![b"library", TARGET.as_bytes()];
         key.extend(BITCODE_FLAGS.iter().map(|f| f.as_bytes()));
         key.extend(LIB_GENMC_CFGS.iter().map(|c| c.as_bytes()));
+        key.push(wait_cfg.as_bytes());
         key.extend(sources.iter().map(Vec::as_slice));
         self.cached("library", &key, |dir| {
             let mut rustc = self.rustc(LIB_GENMC_CFGS);
+            rustc.args(["--cfg", wait_cfg]);
             rustc
                 .args(["--crate-type=rlib", "--crate-name=shm_gen_cache"])
                 .arg("--emit=link,llvm-bc")

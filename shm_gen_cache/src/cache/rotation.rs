@@ -8,10 +8,10 @@ use crate::arena::ctl::CtlWord;
 use crate::config::{HotParams, Params};
 use crate::error::Error;
 use crate::occupancy::OccupancyMode;
-use crate::participant::{ParticipantSlot, UNPINNED};
+use crate::participant::{ParticipantSlot, ROTATION_WAITING, UNPINNED};
 #[cfg(feature = "verify")]
 use crate::pid::GetPid;
-use crate::wait::{BoundedWait, WatchedWord, wake_waiters};
+use crate::wait::{BoundedWait, Pause, WatchedWord, wake_waiters};
 
 /// How a rotation waits for the rotation owner.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -164,13 +164,25 @@ impl<'m, P: Params> Cache<'m, P> {
             // R3: wait for it to be unpinned. Only pins at e - 2 or older
             // block: they write into the arena being reused.
             loop {
-                let pinned_epoch = participant.pinned_epoch.load(Acquire);
+                // Possibly with our own ROTATION_WAITING from a previous
+                // pause.
+                let word = participant.pinned_epoch.load(Acquire);
+                let pinned_epoch = word & !ROTATION_WAITING;
                 if pinned_epoch == UNPINNED || e < pinned_epoch.wrapping_add(2) {
                     break;
                 }
                 // The pinner's next write to its slot ends this wait.
-                let repinned = || participant.pinned_epoch.load(Relaxed) != pinned_epoch;
-                if wait.pause_until(WatchedWord::low(&participant.pinned_epoch), repinned) {
+                let repinned = |word: u64| word & !ROTATION_WAITING != pinned_epoch;
+                // Before blocking in a futex, flag the pin, so that the
+                // unpin wakes us; fails if the pinner wrote its slot.
+                let announce = || {
+                    participant
+                        .pinned_epoch
+                        .compare_exchange(word, pinned_epoch | ROTATION_WAITING, Relaxed, Relaxed)
+                        .is_ok()
+                };
+                let watched = WatchedWord::low(&participant.pinned_epoch);
+                if wait.pause_until_announced(watched, repinned, announce) == Pause::Continue {
                     continue;
                 }
                 let error = match participant.release_zombie_claim::<P::Pid>() {
@@ -267,11 +279,10 @@ impl<'m, P: Params> Cache<'m, P> {
             }
             // The owner ends this wait by publishing the next epoch or
             // releasing ownership, both on the cache header's line.
-            let released = || {
-                self.global_epoch().load(Relaxed) != e
-                    || RotationOwner(owner_word.load(Relaxed)).registration_id() == 0
+            let released = |word: u64| {
+                RotationOwner(word).registration_id() == 0 || self.global_epoch().load(Relaxed) != e
             };
-            if wait.pause_until(self.owner_futex_word(), released) {
+            if wait.pause_until(self.owner_futex_word(), released) == Pause::Continue {
                 continue;
             }
             production_assert!(owner.slot() < hp.participant_capacity);

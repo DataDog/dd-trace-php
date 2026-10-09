@@ -278,3 +278,18 @@ pub const fn distinct_bucket_hashes<const N: usize>(bucket_count: u32) -> [u64; 
     }
     result
 }
+
+/// With `sgc_genmc_futex_model`: how many waits blocked in the futex model
+/// and were then woken, once every waiter has returned.
+#[cfg(sgc_genmc_futex_model)]
+pub fn futex_model_woken_waits() -> u32 {
+    crate::wait::futex_model_woken_waits()
+}
+
+/// With `sgc_genmc_futex_model`: how many waits blocked in the futex model
+/// although their condition already held (the futex word had returned to
+/// the value they read), once every waiter has returned.
+#[cfg(sgc_genmc_futex_model)]
+pub fn futex_model_stale_blocks() -> u32 {
+    crate::wait::futex_model_stale_blocks()
+}

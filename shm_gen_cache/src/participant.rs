@@ -9,6 +9,12 @@ use crate::pid::GetPid;
 /// Pin value of a participant that is not inserting.
 pub(crate) const UNPINNED: u64 = 0;
 
+/// Set on a pin by a rotation about to block on it in a futex: the
+/// participant's unpin, an exchange, then sees it and wakes the rotation.
+/// Outside the futex's (low) half, so setting it leaves the futex value
+/// unchanged; epochs never reach it.
+pub(crate) const ROTATION_WAITING: u64 = 1 << 63;
+
 /// Returns the next registration id; zero is reserved, including after
 /// wraparound.
 #[inline]
@@ -128,6 +134,24 @@ const _: () = {
 };
 
 impl ParticipantSlot {
+    /// Unpins, with release semantics. An exchange rather than a store, to
+    /// see a [`ROTATION_WAITING`] set by a rotation blocked on this pin and
+    /// wake it: its flag is either seen here or its compare-exchange fails.
+    /// Slot reaping ([`Self::release_zombie_claim`]) clears a pin the same
+    /// way.
+    #[inline(always)]
+    pub(crate) fn unpin(&self) {
+        if self.pinned_epoch.swap(UNPINNED, Release) & ROTATION_WAITING != 0 {
+            self.wake_rotation();
+        }
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn wake_rotation(&self) {
+        crate::wait::wake_waiters(crate::wait::WatchedWord::low(&self.pinned_epoch));
+    }
+
     /// Only used while initialising an unpublished cache mapping.
     #[inline]
     pub(crate) fn initialize(&self) {
@@ -221,7 +245,12 @@ impl ParticipantSlot {
         {
             return Ok(false);
         }
-        self.pinned_epoch.swap(UNPINNED, AcqRel);
+        // Like an unpin, wakes a rotation blocked on the dead pin. When the
+        // reaper is that rotation itself (R3 after its budget), it is not
+        // blocked, and the wake is one wasted system call.
+        if self.pinned_epoch.swap(UNPINNED, AcqRel) & ROTATION_WAITING != 0 {
+            self.wake_rotation();
+        }
         self.state.store(State::FREE.0, Release);
         Ok(true)
     }

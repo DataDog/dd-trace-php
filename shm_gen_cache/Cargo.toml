@@ -45,6 +45,7 @@ windows-sys = { workspace = true, optional = true, features = [
 unexpected_cfgs = { level = "warn", check-cfg = [
   'cfg(sgc_genmc)',
   'cfg(sgc_genmc_short_waits)',
+  'cfg(sgc_genmc_futex_model)',
 ] }
 
 [dev-dependencies]

@@ -14,15 +14,18 @@ bin = [
   { name = "full_table_insert_retries", test = false, bench = false },
   { name = "internal_probe_copy_during_reuse", test = false, bench = false },
   { name = "live_rotation_owner_identity_handoff", test = false, bench = false },
+  { name = "owner_wait_misses_reacquired_release", test = false, bench = false },
   { name = "lookup_during_reuse", test = false, bench = false },
   { name = "promotion_races_insertion", test = false, bench = false },
   { name = "public_lookup_capacity_during_reuse", test = false, bench = false },
   { name = "published_insert_skips_busy_rotation", test = false, bench = false },
   { name = "reaping_preserves_live_reservation", test = false, bench = false },
+  { name = "reaping_wakes_blocked_rotation", test = false, bench = false },
   { name = "recycled_arena_visibility", test = false, bench = false },
   { name = "reserved_insert_blocks_reuse", test = false, bench = false },
   { name = "reserved_insert_survives_occupancy", test = false, bench = false },
   { name = "rotation_reaping_races_registration", test = false, bench = false },
+  { name = "rotation_waits_for_unpin", test = false, bench = false },
   { name = "same_key_collision", test = false, bench = false },
 ]
 

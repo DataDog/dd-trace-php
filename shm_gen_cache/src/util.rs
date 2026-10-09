@@ -13,46 +13,13 @@ pub const CACHE_LINE: usize = 128;
 #[cfg(not(target_arch = "aarch64"))]
 pub const CACHE_LINE: usize = 64;
 
-/// Spin-wait hint: `pause` on x86_64, `isb` on aarch64, each also a compiler
-/// memory barrier; a compiler fence elsewhere.
-///
-/// It pauses a spinning thread briefly, so that a spin-wait loop neither
-/// floods the awaited cache line with reads nor burns the core's issue
-/// slots. On aarch64 it is not `yield`: that is only a hint for cores with
-/// simultaneous multithreading, which almost no aarch64 core has, so it
-/// executes as a no-op (~0.3 ns on an M4 Max). `isb` flushes the pipeline,
-/// a delay of tens of cycles (~9 ns there), closer to `pause` (it is also
-/// what `core::hint::spin_loop()` emits). `wfe` would sleep instead, but it
-/// needs an armed monitor, which only the monitored waits of
-/// `wait::BoundedWait` have. Inline assembly is used, rather than
-/// `spin_loop()`, so that the pause is a compiler memory barrier as well.
-///
-/// Under GenMC it compiles to nothing: inline assembly is not supported
-/// there.
-#[inline(always)]
-pub(crate) fn cpu_relax() {
-    #[cfg(all(not(sgc_genmc), target_arch = "x86_64"))]
-    // SAFETY: `pause` has no operands or side effects; without `nomem` the
-    // block is a compiler memory barrier.
-    unsafe {
-        core::arch::asm!("pause", options(nostack, preserves_flags));
-    }
-    #[cfg(all(not(sgc_genmc), target_arch = "aarch64"))]
-    // SAFETY: as above, for `isb`.
-    unsafe {
-        core::arch::asm!("isb", options(nostack, preserves_flags));
-    }
-    #[cfg(all(
-        not(sgc_genmc),
-        not(any(target_arch = "x86_64", target_arch = "aarch64"))
-    ))]
-    core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
-}
-
 /// Yields the processor (`sched_yield`). Used by the rotation waits outside
 /// Linux only; not available in GenMC builds, whose short rotation waits
 /// never yield.
-#[cfg(all(not(sgc_genmc_short_waits), not(target_os = "linux")))]
+#[cfg(all(
+    not(any(sgc_genmc_short_waits, sgc_genmc_futex_model)),
+    not(target_os = "linux")
+))]
 #[inline]
 pub(crate) fn sched_yield() {
     #[cfg(feature = "std")]

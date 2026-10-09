@@ -11,7 +11,7 @@ use crate::arena::{ArenaView, PutStatus, table_put};
 use crate::config::{HotParams, Params};
 use crate::error::Error;
 use crate::occupancy::OccupancyMode;
-use crate::participant::{ParticipantSlot, UNPINNED};
+use crate::participant::ParticipantSlot;
 use crate::util::{emit_bytes_relaxed, emit_words_relaxed};
 
 #[cfg(feature = "verify")]
@@ -155,7 +155,7 @@ impl<P: Params> Cache<'_, P> {
 
             // W6: stay pinned through table publication and occupancy
             // updates.
-            slot.pinned_epoch.store(UNPINNED, Release);
+            slot.unpin();
             match result {
                 PutStatus::Ok => return Ok(()),
                 PutStatus::Full => {
@@ -332,7 +332,7 @@ impl<P: Params> Cache<'_, P> {
             // adds no synchronisation.
             #[cfg(feature = "verify")]
             <P::Pid as GetPid>::reservation_retry_hook(slot);
-            slot.pinned_epoch.store(UNPINNED, Release);
+            slot.unpin();
             match self.rotate(slot, slot_index, e, RotationPolicy::WaitForOwner) {
                 Ok(()) | Err(Error::ConcurrentOperation) => {}
                 Err(err) => return Err(err),
