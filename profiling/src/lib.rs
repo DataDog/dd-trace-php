@@ -344,7 +344,7 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
     config::minit(module_number);
 
     // SAFETY: MINIT precedes Zend extension startup, when OPcache clears its
-    // handle on PHP <= 8.4. Later worker GINIT calls must not overwrite it.
+    // handle on PHP <= 8.4.
     unsafe { zend::ddog_php_opcache_init_handle() };
 
     if !allocation::initialize_page_size() {
