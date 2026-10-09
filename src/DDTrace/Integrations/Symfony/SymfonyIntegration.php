@@ -444,61 +444,30 @@ class SymfonyIntegration extends Integration
 
                 /** @var ContainerInterface $container */
                 $container = self::$kernel->getContainer();
-                $path = EndpointCatalog::pathForRoute($route_name, $container);
+                $locale = $request->attributes->get('_locale');
+                $apiSecurity = function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()
+                    && dd_trace_env_config("DD_API_SECURITY_ENABLED");
 
-                // Try with locale suffix (Symfony i18n routing convention)
-                if ($path === null) {
-                    $locale = $request->attributes->get('_locale');
-                    if ($locale !== null) {
-                        $path = EndpointCatalog::pathForRoute($route_name . '.' . $locale, $container);
+                // The entry holds http.route, and the normalization once API
+                // Security needs it (see EndpointCatalog::routeCacheEntry()).
+                $cacheKey = EndpointCatalog::normalizationCacheKey($route_name, $locale, $container);
+                $entry = $cacheKey === null ? false : \DDTrace\routing_cache_get($cacheKey);
+                if ($entry === false || ($apiSecurity && strpos($entry, "\0") === false)) {
+                    $entry = EndpointCatalog::routeCacheEntry($route_name, $locale, $container, $apiSecurity);
+                    if ($entry === null) {
+                        return;
+                    }
+                    if ($cacheKey !== null) {
+                        \DDTrace\routing_cache_set($cacheKey, $entry);
                     }
                 }
 
-                if ($path !== null) {
-                    $rootSpan->meta[Tag::HTTP_ROUTE] = $path;
-                    if (function_exists('\datadog\appsec\is_enabled') && \datadog\appsec\is_enabled()
-                        && dd_trace_env_config("DD_API_SECURITY_ENABLED")) {
-                        // Use the compiled route regex for accurate param presence detection.
-                        // Without it, omit the tag instead of inferring from the URL and
-                        // potentially treating a route default as a matched parameter.
-                        $matchedParams = null;
-                        if ($container->has('router')) {
-                            $_r = $container->get('router');
-                            if (method_exists($_r, 'getRouteCollection')) {
-                                $_route = $_r->getRouteCollection()->get($route_name);
-                                if ($_route !== null && method_exists($_route, 'compile')) {
-                                    $_compiled = $_route->compile();
-                                    if (method_exists($_compiled, 'getRegex')) {
-                                        $_regex = $_compiled->getRegex();
-                                        // Symfony's UrlMatcher matches the decoded path.
-                                        $_pathInfo = rawurldecode($request->getPathInfo());
-                                        if (@preg_match($_regex, $_pathInfo, $_rxm) === 1) {
-                                            $matchedParams = [];
-                                            foreach ($_rxm as $_k => $_v) {
-                                                if (is_string($_k) && $_v !== '') {
-                                                    $matchedParams[$_k] = $_v;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            unset($_r, $_route, $_compiled, $_regex, $_pathInfo, $_rxm, $_k, $_v);
-                        }
-                        if ($matchedParams === null) {
-                            return;
-                        }
-                        $cacheKey = $route_name . '|' . implode(',', array_keys($matchedParams));
-                        $normalizedRoute = \DDTrace\routing_cache_get($cacheKey);
-                        if ($normalizedRoute === false) {
-                            $normalizedRoute = \DDTrace\Util\RouteNormalizer::normalizeFromSymfony($path, $matchedParams);
-                            if ($normalizedRoute !== null) {
-                                \DDTrace\routing_cache_set($cacheKey, $normalizedRoute);
-                            }
-                        }
-                        if ($normalizedRoute !== null && $normalizedRoute !== false) {
-                            $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
-                        }
+                $separator = strpos($entry, "\0");
+                $rootSpan->meta[Tag::HTTP_ROUTE] = $separator === false ? $entry : substr($entry, 0, $separator);
+                if ($apiSecurity) {
+                    $normalizedRoute = EndpointCatalog::normalizedRouteFromCacheEntry($entry, $request->getPathInfo());
+                    if ($normalizedRoute !== null) {
+                        $rootSpan->meta[Tag::APPSEC_NORMALIZED_ROUTE] = $normalizedRoute;
                     }
                 }
             };

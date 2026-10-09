@@ -85,6 +85,37 @@ class HomeController extends AbstractController
     }
 
     #[Route(
+        "/normalized/catchall/{rest}",
+        name: "normalized_catchall_optional",
+        defaults: ["rest" => "none"],
+        requirements: ["rest" => ".*"]
+    )]
+    public function normalizedCatchallOptionalAction(Request $request, string $rest)
+    {
+        return new Response("Catch-all route: [$rest]");
+    }
+
+    #[Route(
+        "/normalized/sep,{page}",
+        name: "normalized_comma_separator",
+        defaults: ["page" => 1]
+    )]
+    public function normalizedCommaSeparatorAction(Request $request)
+    {
+        return new Response('Comma separator route');
+    }
+
+    #[Route(
+        "/normalized/dash-.{page}",
+        name: "normalized_dash_dot_separator",
+        defaults: ["page" => 1]
+    )]
+    public function normalizedDashDotSeparatorAction(Request $request)
+    {
+        return new Response('Dash and dot separator route');
+    }
+
+    #[Route(
         "/normalized/ambiguous/{slug}.{format}",
         name: "normalized_ambiguous_mixed",
         defaults: ["format" => "html"],
