@@ -305,8 +305,7 @@ pub unsafe fn minit(settings: &SystemSettings) {
 }
 
 pub fn rinit() {
-    // SAFETY: RINIT runs on the owning PHP thread after GINIT, with globals live
-    // throughout this call.
+    // SAFETY: RINIT runs after GINIT on the owning PHP thread with live globals.
     let request_locals = unsafe { RequestLocals::from_module_globals() };
     let (allocation_enabled, heap_live_enabled) = request_locals.try_with_borrow(|locals| {
             (

@@ -274,8 +274,7 @@ unsafe extern "C" fn alloc_prof_gc_mem_caches(
     return_value: *mut zend::zval,
 ) {
     // Not logging here to avoid potentially overwhelming logs.
-    // SAFETY: The intercepted PHP function runs on the request thread with
-    // initialized globals.
+    // SAFETY: Intercepted PHP calls run on the request thread with initialized globals.
     let allocation_profiling: bool = unsafe { RequestLocals::from_module_globals() }
         .borrow_or_false(|locals| locals.system_settings().profiling_allocation_enabled);
 

@@ -832,8 +832,7 @@ mod tests {
     #[test]
     fn sampling_collects_at_interval_boundary() {
         let vm_interrupt = std::sync::atomic::AtomicBool::new(false);
-        // SAFETY: The test accessor supplies initialized globals owned by this test
-        // thread.
+        // SAFETY: The test accessor supplies initialized globals owned by this test thread.
         let previous =
             unsafe { super::RequestLocals::from_module_globals() }.with_borrow_mut(|locals| {
                 std::mem::replace(&mut locals.vm_interrupt_addr, &vm_interrupt)
@@ -844,8 +843,7 @@ mod tests {
         assert!(!stats.should_collect(0));
         assert!(!stats.should_collect(4));
         assert!(stats.should_collect(4));
-        // SAFETY: The test accessor supplies initialized globals owned by this test
-        // thread.
+        // SAFETY: The test accessor supplies initialized globals owned by this test thread.
         unsafe { super::RequestLocals::from_module_globals() }
             .with_borrow_mut(|locals| locals.vm_interrupt_addr = previous);
         super::PHP_REQUEST_ACTIVE.set(was_active);

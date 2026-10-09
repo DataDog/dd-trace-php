@@ -1269,8 +1269,7 @@ extern "C" fn shutdown(extension: *mut ZendExtension) {
 /// Notifies the profiler a trace has finished so it can update information
 /// for Endpoint Profiling.
 fn notify_trace_finished(local_root_span_id: u64, span_type: Cow<str>, resource: Cow<str>) {
-    // SAFETY: The tracer reports completed traces on the PHP request thread before
-    // globals teardown.
+    // SAFETY: The tracer reports completed traces on the PHP thread before globals teardown.
     let request_locals = unsafe { RequestLocals::from_module_globals() };
     let result = request_locals.try_with_borrow(|locals| {
         let system_settings = locals.system_settings();

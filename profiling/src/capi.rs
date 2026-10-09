@@ -41,8 +41,7 @@ extern "C" fn ddog_php_prof_trigger_time_sample() {
     use log::error;
     use std::sync::atomic::Ordering;
 
-    // SAFETY: This callback is invoked on the active PHP request thread, whose
-    // globals remain live.
+    // SAFETY: This callback runs on the active PHP request thread with live globals.
     let result = unsafe { super::RequestLocals::from_module_globals() }.try_with_borrow(|locals| {
         if locals.system_settings().profiling_enabled {
             // Safety: only vm interrupts are stored there, or possibly null (edges only).

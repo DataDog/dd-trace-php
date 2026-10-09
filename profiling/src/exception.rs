@@ -77,8 +77,7 @@ fn collect_exception(
 
     let exception_name = unsafe { (*exception).class_name() };
 
-    // SAFETY: The exception hook calls this on the PHP request thread with live
-    // module globals.
+    // SAFETY: The exception hook runs on the PHP request thread with live module globals.
     let collect_message = unsafe { RequestLocals::from_module_globals() }
         .borrow_or_false(|locals| locals.system_settings().profiling_exception_message_enabled);
 
@@ -159,8 +158,7 @@ pub fn exception_profiling_minit() {
 /// This initializes the `EXCEPTION_PROFILING_INTERVAL` atomic on first RINIT with the value from
 /// the INI / ENV variable.
 pub fn exception_profiling_first_rinit() {
-    // SAFETY: First RINIT runs on the owning PHP thread after module globals
-    // initialization.
+    // SAFETY: First RINIT runs on the owning PHP thread with initialized module globals.
     let request_locals = unsafe { RequestLocals::from_module_globals() };
     let (exception_profiling, sampling_distance) = request_locals.try_with_borrow(|locals| {
             let settings = locals.system_settings();
@@ -194,8 +192,7 @@ unsafe extern "C" fn exception_profiling_throw_exception_hook(
     #[cfg(feature = "debug_stats")]
     EXCEPTION_PROFILING_EXCEPTION_COUNT.fetch_add(1, Ordering::Relaxed);
 
-    // SAFETY: The engine invokes this exception hook on its PHP thread while our
-    // module is active.
+    // SAFETY: PHP invokes this exception hook on its thread while our module is active.
     let exception_enabled = unsafe { RequestLocals::from_module_globals() }
         .borrow_or_false(|locals| locals.system_settings().profiling_exception_enabled);
 

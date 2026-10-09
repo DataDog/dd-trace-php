@@ -1188,8 +1188,7 @@ impl Profiler {
     /// Returns true if heap live profiling is enabled for the current request.
     #[inline]
     fn is_heap_live_enabled(&self) -> bool {
-        // SAFETY: Allocation and free hooks call this on the PHP thread before globals
-        // teardown.
+        // SAFETY: Allocation/free hooks call this on the PHP thread before globals teardown.
         unsafe { RequestLocals::from_module_globals() }
             .borrow_or_false(|locals| locals.profiling_experimental_heap_live_enabled)
     }
@@ -2198,8 +2197,7 @@ mod tests {
     fn profile_index_cache_tracks_sample_identity_changes() {
         let settings = get_system_settings();
         let profiler = Profiler::new(&settings);
-        // SAFETY: The test accessor supplies initialized globals owned by this test
-        // thread.
+        // SAFETY: The test accessor supplies initialized globals owned by this test thread.
         unsafe { RequestLocals::from_module_globals() }
             .with_borrow_mut(|locals| locals.profile_index = None);
 
@@ -2306,15 +2304,13 @@ mod tests {
         settings.profiling_timeline_enabled = true;
 
         let profiler = Profiler::new(&settings);
-        // SAFETY: The test accessor supplies initialized globals owned by this test
-        // thread.
+        // SAFETY: The test accessor supplies initialized globals owned by this test thread.
         unsafe { RequestLocals::from_module_globals() }
             .with_borrow_mut(|locals| locals.profile_index = None);
         let labels = Profiler::common_labels(0);
 
         let message: SampleMessage = profiler.prepare_sample_message(frames, samples, labels, 900);
-        // SAFETY: The test accessor supplies initialized globals owned by this test
-        // thread.
+        // SAFETY: The test accessor supplies initialized globals owned by this test thread.
         let cached_key = unsafe { RequestLocals::from_module_globals() }.with_borrow(|locals| {
             Arc::clone(locals.profile_index.as_ref().expect("cached profile index"))
         });
