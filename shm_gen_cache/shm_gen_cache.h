@@ -270,7 +270,9 @@ void ddog_sgc_participant_unregister(struct ddog_sgc_Participant *participant);
  *   or `key` overlapping the output storage: `INVALID_ARGUMENT`.
  *
  * `out_words` must be 8-byte aligned with room for `ceil(out_capacity / 8)`
- * words: whole words are copied. `key` may be NULL iff `key_len == 0`.
+ * words: whole words are copied. `value_len` must not point into that
+ * storage: the length is written after the value. `key` may be NULL iff
+ * `key_len == 0`.
  * `out_words` contents are unspecified unless `OK`; `*value_len` is written
  * only on `OK`. A hit in the previous generation is promoted (inserted into
  * the current one); a promotion error is returned instead of `OK`
@@ -279,7 +281,8 @@ void ddog_sgc_participant_unregister(struct ddog_sgc_Participant *participant);
  * # Safety
  * `participant` must be a live handle used on its registering thread;
  * `key` valid for `key_len` bytes; `out_words` valid for
- * `ceil(out_capacity / 8)` words; `value_len` valid for a write.
+ * `ceil(out_capacity / 8)` words; `value_len` valid for a write and
+ * outside those words.
  */
 enum ddog_sgc_Status ddog_sgc_lookup(struct ddog_sgc_Participant *participant,
                                      uint64_t hash,
