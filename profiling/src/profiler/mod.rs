@@ -17,6 +17,7 @@ use crate::profiling::bindings::{
 };
 use crate::profiling::config::SystemSettings;
 use crate::profiling::exception::EXCEPTION_PROFILING_INTERVAL;
+use crate::profiling::module_globals::ProfilerGlobals;
 use crate::profiling::profile_tags::{ProfileTagSegment, ProfileTags};
 use crate::profiling::{Clocks, RequestLocals, CLOCKS, GLOBAL_TAGS};
 use chrono::Utc;
@@ -41,9 +42,6 @@ use std::sync::{Arc, Barrier, OnceLock};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use uploader::*;
-
-#[cfg(php_zts)]
-use crate::profiling::module_globals::ProfilerGlobals;
 
 #[cfg(all(php_has_fibers, not(test)))]
 use crate::profiling::bindings::ddog_php_prof_get_active_fiber;
@@ -1472,7 +1470,11 @@ impl Profiler {
         if !self.is_timeline_enabled() {
             return;
         }
-        let mut labels = Self::common_labels_without_fiber(1);
+        // SAFETY: MSHUTDOWN runs on the owning PHP thread with live globals.
+        let globals = unsafe { &*crate::profiling::module_globals::get_profiler_globals() };
+        // SAFETY: The supplied globals belong to this thread, and its trace
+        // context remains available during MSHUTDOWN.
+        let mut labels = unsafe { Self::common_labels_without_fiber::<true>(globals, 1) };
         labels.push(Label {
             key: "event",
             value: LabelValue::Str(Cow::Borrowed("module shutdown")),
@@ -1503,32 +1505,30 @@ impl Profiler {
     /// look up current-thread PHP state.
     #[cfg(php_zts)]
     pub(crate) fn collect_thread_start_end(&self, globals: &ProfilerGlobals, event: &'static str) {
-        let Some(&thread_id) = globals.thread_id.get() else {
+        if globals.thread_id.get().is_none() {
             return;
-        };
-        // SAFETY: The supplied globals keep this initialized field live for
-        // this call, including when GSHUTDOWN runs on another thread.
-        let request_locals =
-            unsafe { RequestLocals::from_ptr(ptr::from_ref(&globals.request_locals)) };
-        let key = request_locals.with_borrow(|locals| {
-            // Reuse the last sample's owned profile identity when available.
-            // A request without samples still has its own initialized tags.
-            locals
-                .profile_index
-                .as_ref()
-                .map(Arc::clone)
-                .unwrap_or_else(|| {
-                    Arc::new(ProfileIndex::new(
-                        self.sample_types_filter.sample_types(),
-                        ProfileTags {
-                            common: Arc::clone(&GLOBAL_TAGS),
-                            unified_service: Arc::clone(&locals.unified_service_tags),
-                            git: locals.git_tags.as_ref().map(Arc::clone),
-                            custom: locals.custom_tags.as_ref().map(Arc::clone),
-                        },
-                    ))
-                })
+        }
+        // SAFETY: The supplied globals are initialized and remain live. This
+        // mode reads only their stored state, even during off-thread GSHUTDOWN.
+        let mut labels = unsafe { Self::common_labels_without_fiber::<false>(globals, 1) };
+        labels.push(Label {
+            key: "event",
+            value: LabelValue::Str(Cow::Borrowed(event)),
         });
+        // Reuse the last sample's owned profile identity when available.
+        // A request without samples still has its own initialized tags.
+        let key = globals
+            .request_locals
+            .borrow()
+            .profile_index
+            .as_ref()
+            .map(Arc::clone)
+            .unwrap_or_else(|| {
+                Arc::new(ProfileIndex::new(
+                    self.sample_types_filter.sample_types(),
+                    labels.profile_tags,
+                ))
+            });
         let message = SampleMessage {
             key,
             value: SampleData {
@@ -1537,27 +1537,7 @@ impl Profiler {
                     file: None,
                     line: 0,
                 }])),
-                labels: MaybeShared::Owned(vec![
-                    Label {
-                        key: "thread id",
-                        value: LabelValue::Num(thread_id, "id"),
-                    },
-                    Label {
-                        key: "thread name",
-                        value: LabelValue::Str(
-                            globals
-                                .thread_name
-                                .get()
-                                .cloned()
-                                .unwrap_or_default()
-                                .into(),
-                        ),
-                    },
-                    Label {
-                        key: "event",
-                        value: LabelValue::Str(Cow::Borrowed(event)),
-                    },
-                ]),
+                labels: MaybeShared::Owned(labels.labels),
                 sample_values: self.sample_types_filter.filter(SampleValues {
                     timeline: 1,
                     ..Default::default()
@@ -1904,8 +1884,14 @@ impl Profiler {
         #[cfg(php_has_fibers)]
         let n_extra_labels = n_extra_labels + (function_name.is_some() as usize);
 
+        // SAFETY: Request sampling runs on the owning PHP thread with live
+        // globals. Unit tests provide initialized globals for their thread.
+        let globals = unsafe { &*crate::profiling::module_globals::get_profiler_globals() };
+        // SAFETY: These globals belong to the calling thread, whose trace
+        // context is available while collecting request samples.
         #[allow(unused_mut)] // cfg-dependent mut
-        let mut labels = Self::common_labels_without_fiber(n_extra_labels);
+        let mut labels =
+            unsafe { Self::common_labels_without_fiber::<true>(globals, n_extra_labels) };
 
         #[cfg(php_has_fibers)]
         if let Some(name) = function_name {
@@ -1917,117 +1903,100 @@ impl Profiler {
         labels
     }
 
-    /// Collect thread and trace labels without reading VM fiber state.
-    fn common_labels_without_fiber(n_extra_labels: usize) -> SampleLabels {
-        let mut labels = Vec::with_capacity(4 + n_extra_labels);
-        let common_tags = Arc::clone(&GLOBAL_TAGS);
-        // SAFETY: Callers run on a PHP thread with live globals during request
-        // sampling or MSHUTDOWN. Unit tests supply initialized globals.
-        let globals = unsafe { &*crate::profiling::module_globals::get_profiler_globals() };
-        // SAFETY: The initialized field stays live on this thread throughout
-        // label collection; the handle uses its RefCell for every borrow.
-        let request_locals =
-            unsafe { RequestLocals::from_ptr(ptr::from_ref(&globals.request_locals)) };
-        #[cfg(target_os = "linux")]
-        let (git_tags, custom_tags, thread_context) = request_locals.with_borrow(|locals| {
-            let git_tags = locals.git_tags.as_ref().map(Arc::clone);
-            let custom_tags = locals.custom_tags.as_ref().map(Arc::clone);
-            let thread_context =
-                crate::profiling::process_context::thread_context(ProcessIdentityRef {
+    /// Collect labels from explicit globals without reading VM fiber state.
+    /// With thread context disabled, only stored identity and tags are used.
+    ///
+    /// # Safety
+    /// The supplied globals must be initialized and accessed without concurrent
+    /// mutation. If `USE_THREAD_CONTEXT` is true, they must belong to the calling
+    /// PHP thread, whose live tracer context must remain available.
+    unsafe fn common_labels_without_fiber<const USE_THREAD_CONTEXT: bool>(
+        globals: &ProfilerGlobals,
+        n_extra_labels: usize,
+    ) -> SampleLabels {
+        let mut labels =
+            Vec::with_capacity((if USE_THREAD_CONTEXT { 4 } else { 2 }) + n_extra_labels);
+        let locals = globals.request_locals.borrow();
+        let mut thread_id = globals.thread_id.get().copied();
+        let (mut local_root_span_id, mut span_id) = (0, 0);
+        let unified_service = if USE_THREAD_CONTEXT {
+            #[cfg(target_os = "linux")]
+            {
+                match crate::profiling::process_context::thread_context(ProcessIdentityRef {
                     service: locals.identity.service.as_deref(),
                     env: locals.identity.env.as_deref().or(Some("none")),
                     version: locals.identity.version.as_deref(),
-                });
-            (git_tags, custom_tags, thread_context)
-        });
-        #[cfg(target_os = "linux")]
-        let (thread_id, local_root_span_id, span_id, unified_service_tags) = match thread_context {
-            ThreadContextRead::Active(context) => (
-                context
-                    .thread_id
-                    .unwrap_or_else(libdd_common::threading::get_current_thread_id),
-                context.local_root_span_id,
-                context.span_id,
-                context.unified_service_tags,
-            ),
-            ThreadContextRead::Inactive(unified_service_tags) => (
-                libdd_common::threading::get_current_thread_id(),
-                0,
-                0,
-                unified_service_tags,
-            ),
+                }) {
+                    ThreadContextRead::Active(context) => {
+                        thread_id = Some(
+                            context
+                                .thread_id
+                                .unwrap_or_else(libdd_common::threading::get_current_thread_id),
+                        );
+                        local_root_span_id = context.local_root_span_id;
+                        span_id = context.span_id;
+                        context.unified_service_tags
+                    }
+                    ThreadContextRead::Inactive(tags) => {
+                        thread_id = Some(libdd_common::threading::get_current_thread_id());
+                        tags
+                    }
+                }
+            }
+            #[cfg(not(target_os = "linux"))]
+            {
+                // SAFETY: This mode requires the owning PHP thread and live
+                // tracer context. Startup installs a noop if the tracer is absent.
+                let context =
+                    unsafe { datadog_php_profiling_get_profiling_context.unwrap_unchecked()() };
+                thread_id = Some(libdd_common::threading::get_current_thread_id());
+                local_root_span_id = context.local_root_span_id;
+                span_id = context.span_id;
+                Arc::clone(&locals.unified_service_tags)
+            }
+        } else {
+            Arc::clone(&locals.unified_service_tags)
         };
-        #[cfg(not(target_os = "linux"))]
-        let (
-            common_tags,
-            git_tags,
-            custom_tags,
-            thread_id,
-            local_root_span_id,
-            span_id,
-            unified_service_tags,
-        ) = request_locals.with_borrow(|locals| {
-            // SAFETY: this is set to a noop version if ddtrace wasn't found,
-            // and we're getting the profiling context on a PHP thread.
-            let context =
-                unsafe { datadog_php_profiling_get_profiling_context.unwrap_unchecked()() };
-            // RINIT constructs this after populating the request identity and
-            // fails the request if tag construction fails.
-            let unified_service_tags = Arc::clone(&locals.unified_service_tags);
-            let git_tags = locals.git_tags.as_ref().map(Arc::clone);
-            let custom_tags = locals.custom_tags.as_ref().map(Arc::clone);
-            (
-                common_tags,
-                git_tags,
-                custom_tags,
-                libdd_common::threading::get_current_thread_id(),
-                context.local_root_span_id,
-                context.span_id,
-                unified_service_tags,
-            )
+        let profile_tags = ProfileTags {
+            common: Arc::clone(&GLOBAL_TAGS),
+            unified_service,
+            git: locals.git_tags.as_ref().map(Arc::clone),
+            custom: locals.custom_tags.as_ref().map(Arc::clone),
+        };
+        drop(locals);
+        if let Some(thread_id) = thread_id {
+            labels.push(Label {
+                key: "thread id",
+                value: LabelValue::Num(thread_id, "id"),
+            });
+        }
+        let thread_name = globals.thread_name.get().cloned().unwrap_or_else(|| {
+            if USE_THREAD_CONTEXT {
+                thread_utils::get_current_thread_name()
+            } else {
+                String::new()
+            }
         });
-        labels.push(Label {
-            key: "thread id",
-            value: LabelValue::Num(thread_id, "id"),
-        });
-
         labels.push(Label {
             key: "thread name",
-            value: LabelValue::Str(
-                globals
-                    .thread_name
-                    .get()
-                    .cloned()
-                    .unwrap_or_else(thread_utils::get_current_thread_name)
-                    .into(),
-            ),
+            value: LabelValue::Str(thread_name.into()),
         });
 
         if local_root_span_id != 0 {
-            // Casting between two integers of the same size is a no-op, and
-            // Rust uses 2's complement for negative numbers.
-            let local_root_span_id = local_root_span_id as i64;
-            let span_id = span_id as i64;
-
-            labels.push(Label {
-                key: "local root span id",
-                value: LabelValue::Num(local_root_span_id, ""),
-            });
-
-            labels.push(Label {
-                key: "span id",
-                value: LabelValue::Num(span_id, ""),
-            });
+            for (key, id) in [
+                ("local root span id", local_root_span_id),
+                ("span id", span_id),
+            ] {
+                labels.push(Label {
+                    key,
+                    // Same-width casts preserve the span ID's bits.
+                    value: LabelValue::Num(id as i64, ""),
+                });
+            }
         }
-
         SampleLabels {
             labels,
-            profile_tags: ProfileTags {
-                common: common_tags,
-                unified_service: unified_service_tags,
-                git: git_tags,
-                custom: custom_tags,
-            },
+            profile_tags,
         }
     }
 
