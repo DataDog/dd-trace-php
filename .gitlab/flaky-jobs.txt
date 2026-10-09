@@ -1,63 +1,19 @@
 # flaky-jobs.txt — glob patterns for CI jobs EXCLUDED from the merge gate.
 
 aggregate tested versions
-appsec integration tests (ssi):*
-appsec integration tests:*
-ASAN test_c with multiple observers:*
-ASAN test_c:*
-create-multiarch-lib-injection-image
 Extension Tea Tests:*
-framework test:*
-generate-lib-init-pinned-tag-values
 installer tests
 Loader test on amd64 libc:*
 macrobenchmarks:*
-min install tests
-package-oci:*
-pecl tests:*
 PHP Language Tests:*
 PHP language tests:*
 php-laravel-realworld-parallel-check-slo-breaches
-php-symfony-realworld-parallel-check-slo-breaches
-php-symfony-realworld-parallel-generate-slos
-profiling tests:*
 randomized tests:*
 test appsec extension:*
-test_distributed_tracing:*
-test_extension_ci:*
-test_integrations_frankenphp:*
-test_integrations_guzzle_latest:*
+test_extension_ci: *, valgrind]
 test_integrations_kafka:*
 test_integrations_sqlsrv:*
-test_integrations_swoole_5:*
-test_metrics:*
-test_web_codeigniter_22:*
-test_web_codeigniter_31:*
 test_web_custom:*
-test_web_drupal_101:*
-test_web_drupal_95:*
-test_web_laminas_mvc_33:*
-test_web_laminas_mvc_latest:*
-test_web_laravel_10x:*
-test_web_laravel_42:*
-test_web_laravel_57:*
-test_web_laravel_58:*
 test_web_laravel_8x:*
-test_web_laravel_9x:*
-test_web_laravel_latest:*
-test_web_lumen_52:*
-test_web_nette_24:*
-test_web_slim_312:*
-test_web_symfony_23:*
-test_web_symfony_28:*
-test_web_symfony_30:*
-test_web_symfony_33:*
-test_web_symfony_34:*
-test_web_symfony_62:*
-test_web_symfony_73:*
-test_web_wordpress_55:*
-test_web_wordpress_59:*
-test_web_yii_2049:*
-test_web_zend_1:*
 windows test_c:*
 Zend Abstract Interface Tests:*
