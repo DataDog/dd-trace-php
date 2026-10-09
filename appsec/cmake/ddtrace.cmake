@@ -39,10 +39,6 @@ if(NOT DD_APPSEC_SSI)
         list(APPEND DDTRACE_EXPORT_SYMBOL_FILES
             "${CMAKE_SOURCE_DIR}/../components-rs/libdatadog-php-unix.sym")
     endif()
-    if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-        list(APPEND DDTRACE_EXPORT_SYMBOL_FILES
-            "${CMAKE_SOURCE_DIR}/../components-rs/libdatadog-php-linux.sym")
-    endif()
 endif()
 string(JOIN "' '" DDTRACE_EXPORT_SYMBOL_ARGUMENTS
     ${DDTRACE_EXPORT_SYMBOL_FILES})

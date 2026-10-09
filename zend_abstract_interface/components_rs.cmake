@@ -25,10 +25,6 @@ if(UNIX)
     list(APPEND DDTRACE_EXPORT_SYMBOL_FILES
         "${CMAKE_SOURCE_DIR}/../components-rs/libdatadog-php-unix.sym")
 endif()
-if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-    list(APPEND DDTRACE_EXPORT_SYMBOL_FILES
-        "${CMAKE_SOURCE_DIR}/../components-rs/libdatadog-php-linux.sym")
-endif()
 string(JOIN "' '" DDTRACE_EXPORT_SYMBOL_ARGUMENTS
     ${DDTRACE_EXPORT_SYMBOL_FILES})
 add_custom_target(libdatadog_stamp

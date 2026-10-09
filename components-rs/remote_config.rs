@@ -2,7 +2,7 @@ use crate::bytes::{dangling_zend_string, OwnedZendString, ZendString};
 use crate::sidecar::MaybeShmLimiter;
 use datadog_ffe::rules_based::{Configuration, UniversalFlagConfig};
 use datadog_sidecar::service::blocking::SidecarTransport;
-use datadog_sidecar::service::{InstanceId, QueueId};
+use datadog_sidecar::service::InstanceId;
 use datadog_sidecar::shm_remote_config::{RemoteConfigManager, RemoteConfigUpdate};
 use datadog_sidecar_ffi::ddog_sidecar_send_debugger_diagnostics;
 use itertools::Itertools;
@@ -887,7 +887,6 @@ pub unsafe extern "C" fn ddog_send_debugger_diagnostics<'a>(
     remote_config_state: &RemoteConfigState,
     transport: &mut Box<SidecarTransport>,
     instance_id: &InstanceId,
-    queue_id: QueueId,
     probe: &'a Probe,
     timestamp: u64,
 ) -> MaybeError {
@@ -914,5 +913,5 @@ pub unsafe extern "C" fn ddog_send_debugger_diagnostics<'a>(
         serde_json::to_string(&payload).unwrap()
     );
 
-    ddog_sidecar_send_debugger_diagnostics(transport, instance_id, queue_id, payload)
+    ddog_sidecar_send_debugger_diagnostics(transport, payload)
 }

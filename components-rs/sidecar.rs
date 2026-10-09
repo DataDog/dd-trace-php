@@ -4,6 +4,7 @@ use datadog_sidecar::config::{self, AppSecConfig, LogMethod};
 use datadog_sidecar::service::agent_info::AgentInfoReader;
 use datadog_sidecar::service::blocking::{acquire_exception_hash_rate_limiter, SidecarTransport};
 use datadog_sidecar::service::exception_hash_rate_limiter::ExceptionHashRateLimiter;
+use datadog_sidecar::service::InstanceId;
 use datadog_sidecar::tracer::shm_limiter_path;
 use datadog_sidecar_ffi::AgentRemoteConfigReader;
 use lazy_static::lazy_static;
@@ -308,7 +309,9 @@ static LIMITERS: LimiterReaders = LimiterReaders {
     exceptions: ExceptionHashRateLimiter::new_reader(),
 };
 
-/// Retire mappings from a previous namespace so subsequent reads reopen them.
+/// Retire mappings from a previous namespace so subsequent reads reopen them. To be called on
+/// every (re)connected transport: the connection may be to a new sidecar. Reconnects are rare,
+/// so the process-wide caches are simply reopened by every thread.
 #[no_mangle]
 pub extern "C" fn ddog_sidecar_reconnect_readers(
     telemetry: Option<&ShmCacheMap>,
@@ -318,6 +321,7 @@ pub extern "C" fn ddog_sidecar_reconnect_readers(
 ) {
     LIMITERS.probes.reconnect();
     LIMITERS.exceptions.reconnect();
+    crate::stats::ddog_span_concentrators_clear();
     if let Some(telemetry) = telemetry {
         telemetry.reconnect();
     }
@@ -330,6 +334,33 @@ pub extern "C" fn ddog_sidecar_reconnect_readers(
     if let Some(AgentRemoteConfigReader::Named(reader)) = agent_config {
         reader.reconnect();
     }
+}
+
+/// The fd of the transport's current connection; it changes on reconnect.
+#[cfg(unix)]
+#[no_mangle]
+pub extern "C" fn ddog_sidecar_transport_raw_fd(transport: &Box<SidecarTransport>) -> i32 {
+    transport.as_raw_fd()
+}
+
+/// Continues on the connection of `connection` as another instance, as a fork child does with the
+/// transport it inherited: only the instance id differs from the parent's connection.
+#[no_mangle]
+pub extern "C" fn ddog_sidecar_transport_replace_connection_as(
+    transport: &mut Box<SidecarTransport>,
+    connection: Box<SidecarTransport>,
+    instance_id: &InstanceId,
+    remote_config_generation: u64,
+) {
+    transport.replace_connection_as(connection, instance_id.clone(), remote_config_generation);
+}
+
+/// Releases the sockets of a transport inherited by a fork child from a thread which did not
+/// survive the fork. The transport itself is left alone.
+#[cfg(unix)]
+#[no_mangle]
+pub extern "C" fn ddog_sidecar_transport_release_inherited_fds(transport: &Box<SidecarTransport>) {
+    transport.release_inherited_fds()
 }
 
 const SHM_LIMITER_GRANULARITY: Duration = Duration::from_secs(1);

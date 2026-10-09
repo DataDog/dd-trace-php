@@ -28,7 +28,7 @@ static void _process_meta_and_metrics(
 static const dd_command_spec _spec = {
     .name = "client_init",
     .name_len = sizeof("client_init") - 1,
-    .num_args = 8,
+    .num_args = 7,
     .reconnect_sidecar = true,
     .outgoing_cb = _pack_command,
     .incoming_cb = _process_response,
@@ -37,11 +37,10 @@ static const dd_command_spec _spec = {
 
 struct client_init_ctx {
     struct req_info *nonnull req_info;
-    dd_conn *nonnull conn;
 };
 dd_result dd_client_init(dd_conn *nonnull conn, struct req_info *nonnull ctx)
 {
-    struct client_init_ctx client_init_ctx = {.req_info = ctx, .conn = conn};
+    struct client_init_ctx client_init_ctx = {.req_info = ctx};
     return dd_command_exec(conn, &_spec, &client_init_ctx);
 }
 
@@ -130,28 +129,6 @@ static dd_result _pack_command(
 
     mpack_finish_map(w); // telemetry settings
 
-    // Sidecar settings
-    mpack_start_map(w, 2);
-    {
-        dd_mpack_write_lstr(w, "session_id");
-        const uint8_t *session_id = dd_trace_get_formatted_session_id();
-#define SESSION_ID_LENGTH 36
-        if (session_id) {
-            mpack_write_str(w, (const char *)session_id, SESSION_ID_LENGTH);
-        } else {
-            mpack_write_str(w, "", 0);
-        }
-    }
-    {
-        dd_mpack_write_lstr(w, "runtime_id");
-        zend_string *runtime_id_zstr = dd_trace_get_formatted_runtime_id(false);
-        dd_mpack_write_nullable_zstr(w, runtime_id_zstr);
-        if (runtime_id_zstr) {
-            zend_string_release(runtime_id_zstr);
-        }
-    }
-    mpack_finish_map(w);
-
     return dd_success;
 }
 
@@ -160,11 +137,10 @@ static dd_result _check_helper_version(mpack_node_t root);
 enum {
     VERDICT_INDEX = 0,
     VERSION_INDEX = 1,
-    CLIENT_ID_INDEX = 2,
-    ERRORS_INDEX = 3,
-    META_INDEX = 4,
-    METRICS_INDEX = 5,
-    HELPER_RUNTIME_INDEX = 6,
+    ERRORS_INDEX = 2,
+    META_INDEX = 3,
+    METRICS_INDEX = 4,
+    HELPER_RUNTIME_INDEX = 5,
 };
 static dd_result _process_response(mpack_node_t root, void *nonnull ctx_)
 {
@@ -173,23 +149,11 @@ static dd_result _process_response(mpack_node_t root, void *nonnull ctx_)
     _process_helper_runtime(root);
     _process_meta_and_metrics(root, ctx->req_info);
 
-    // save client id
-    assert(ctx->conn->client_id == 0);
-    ctx->conn->client_id =
-        mpack_node_u64(mpack_node_array_at(root, CLIENT_ID_INDEX));
-
-    if (ctx->conn->client_id == 0) {
-        mlog(dd_log_warning, "Helper has not responded with a valid client_id");
-        return dd_error;
-    }
-
     // check verdict
     mpack_node_t verdict = mpack_node_array_at(root, VERDICT_INDEX);
     bool is_ok = dd_mpack_node_lstr_eq(verdict, "ok");
     if (is_ok) {
-        mlog(dd_log_debug,
-            "Response to client_init is ok (client id: %" PRIu64 ")",
-            ctx->conn->client_id);
+        mlog(dd_log_debug, "Response to client_init is ok");
 
         return _check_helper_version(root);
     }

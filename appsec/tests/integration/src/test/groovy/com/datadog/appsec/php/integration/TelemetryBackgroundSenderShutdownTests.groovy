@@ -16,8 +16,8 @@ import static com.datadog.appsec.php.integration.TestParams.getVariant
 
 /**
  * What the background sender does while its process goes away: submit the counters it has
- * accumulated since the last flush from MSHUTDOWN (see ddtrace_mshutdown()), while the sidecar
- * can still address the application.
+ * accumulated since the last flush from MSHUTDOWN (see ddtrace_mshutdown()), while the main
+ * thread still has its sidecar connection.
  *
  * A single-request CLI process isolates the process-exit path: its trace is queued before
  * telemetry finalize, and the sender is synchronously drained later in MSHUTDOWN. The FPM

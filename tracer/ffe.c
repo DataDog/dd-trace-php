@@ -104,7 +104,7 @@ bool ddtrace_ffe_flush_evaluation_metrics(void) {
         return false;
     }
 
-    if (!DATADOG_G(sidecar) || !datadog_sidecar_instance_id || !DATADOG_G(sidecar_queue_id)) {
+    if (!DATADOG_G(sidecar) || !DATADOG_G(request_initialized)) {
         dd_ffe_clear_evaluation_metrics();
         return false;
     }
@@ -134,8 +134,6 @@ bool ddtrace_ffe_flush_evaluation_metrics(void) {
         "Failed sending FFE metrics batch to sidecar",
         ddog_sidecar_send_ffe_evaluation_metrics(
             &DATADOG_G(sidecar),
-            datadog_sidecar_instance_id,
-            &DATADOG_G(sidecar_queue_id),
             &context,
             metric_slice));
 
@@ -216,7 +214,7 @@ bool ddtrace_ffe_flush_exposures(void) {
         return false;
     }
 
-    if (!DATADOG_G(sidecar) || !datadog_sidecar_instance_id || !DATADOG_G(sidecar_queue_id)) {
+    if (!DATADOG_G(sidecar) || !DATADOG_G(request_initialized)) {
         dd_ffe_clear_exposures();
         return false;
     }
@@ -249,8 +247,6 @@ bool ddtrace_ffe_flush_exposures(void) {
         "Failed sending FFE exposure batch to sidecar",
         ddog_sidecar_send_ffe_exposure_batch(
             &DATADOG_G(sidecar),
-            datadog_sidecar_instance_id,
-            &DATADOG_G(sidecar_queue_id),
             &context,
             exposure_slice));
 

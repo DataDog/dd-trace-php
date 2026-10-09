@@ -53,7 +53,7 @@ void dd_telemetry_add_api_security_request(
 
 // Exchanged failed up to and including client_init
 void dd_telemetry_helper_conn_error(void);
-// client_init succeeded / obtained new client_id
+// client_init succeeded / started a new helper client
 void dd_telemetry_helper_conn_success(void);
 // helper client abandoned (with or without goodbye) (except php worker shutdown)
 void dd_telemetry_helper_conn_close(void);

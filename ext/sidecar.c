@@ -28,11 +28,13 @@ ddog_Endpoint *datadog_endpoint;
 ddog_Endpoint *dogstatsd_endpoint; // always set when datadog_endpoint is set
 struct ddog_InstanceId *datadog_sidecar_instance_id;
 
-// Best-effort pointer for the signal handler (SIGTERM/SIGINT). Set to the first
-// per-thread connection; never cleared until MSHUTDOWN. Not atomic: concurrent
-// shutdown is already a best-effort race for signal handlers, so atomicity of
-// the pointer load alone would not prevent the underlying use-after-free.
-ddog_SidecarTransport *datadog_sidecar_for_signal = NULL;
+#ifndef _WIN32
+// The per-thread transport whose connection the signal handlers use. Only compared, never
+// dereferenced; a transport keeps its address when it reconnects.
+static _Atomic(uintptr_t) dd_sidecar_signal_owner;
+// The connection the crashtracker connector reuses from the crash signal handler (macOS only).
+DATADOG_PUBLIC _Atomic(int) datadog_sidecar_crash_fd = -1;
+#endif
 
 // Connection mode tracking
 dd_sidecar_active_mode_t datadog_sidecar_active_mode = DD_SIDECAR_CONNECTION_NONE;
@@ -77,13 +79,6 @@ static void dd_free_endpoints(void) {
     dogstatsd_endpoint = NULL;
 }
 
-DATADOG_PUBLIC const uint8_t *datadog_get_formatted_session_id(void) {
-    if (datadog_is_empty_session_id(datadog_formatted_session_id)) {
-        return NULL;
-    }
-    return datadog_formatted_session_id;
-}
-
 DATADOG_PUBLIC struct telemetry_rc_info datadog_get_telemetry_rc_info(void) {
     struct telemetry_rc_info info = {
         .service_name = DATADOG_G(last_service_name),
@@ -94,10 +89,6 @@ DATADOG_PUBLIC struct telemetry_rc_info datadog_get_telemetry_rc_info(void) {
     }
 
     return info;
-}
-
-DATADOG_PUBLIC uint64_t datadog_get_sidecar_queue_id(void) {
-    return DATADOG_G(sidecar_queue_id);
 }
 
 #ifdef ZTS
@@ -114,39 +105,110 @@ DATADOG_PUBLIC ddog_SidecarTransport **ddtrace_get_sidecar_transport(void) {
 }
 #endif
 
-static void dd_sidecar_setup_signal_transport(ddog_SidecarTransport *transport, bool replace);
-
-static ddog_SidecarTransport *datadog_sidecar_connect_callback(void) {
-    ddog_SidecarTransport *transport = datadog_sidecar_connect(false);
-    dd_sidecar_setup_signal_transport(transport, true);
-    return transport;
+// Publishes the connection of `owner` for the signal handlers. Unless refreshing (after `owner` reconnected to `connection`), only claims an unowned slot.
+static void dd_sidecar_arm_signal_transport(ddog_SidecarTransport *owner, ddog_SidecarTransport *connection, bool refresh) {
+#ifndef _WIN32
+    if (!owner || !connection) {
+        return;
+    }
+    if (refresh) {
+        if (atomic_load(&dd_sidecar_signal_owner) != (uintptr_t)owner) {
+            return;
+        }
+    } else {
+        uintptr_t unowned = 0;
+        if (!atomic_compare_exchange_strong(&dd_sidecar_signal_owner, &unowned, (uintptr_t)owner)) {
+            return;
+        }
+    }
+#ifdef __linux__
+    if (get_global_DD_TRACE_FORCE_FLUSH_ON_SIGTERM() || get_global_DD_TRACE_FORCE_FLUSH_ON_SIGINT()) {
+        ddog_SignalFlush *flush = NULL;
+        if (!datadog_ffi_try("Failed preparing sidecar signal flush",
+                             ddog_sidecar_prepare_signal_flush(
+                                 connection, (ddog_SidecarFlushOptions){.traces_and_stats = true}, &flush))) {
+            // Clears the stale flush below and lets a later RINIT retry.
+            uintptr_t expected = (uintptr_t)owner;
+            atomic_compare_exchange_strong(&dd_sidecar_signal_owner, &expected, 0);
+        }
+        datadog_signals_set_sidecar_flush(flush, true);
+    }
+#endif
+#ifdef __APPLE__
+    atomic_store(&datadog_sidecar_crash_fd, ddog_sidecar_transport_raw_fd(&connection));
+#endif
+#else
+    (void)owner;
+    (void)connection;
+    (void)refresh;
+#endif
 }
 
-static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_fork, const char *logpath) {
+// Releases the signal handlers' copy of the connection, so that dropping `owner` actually closes it, and lets another thread take over.
+static void dd_sidecar_disarm_signal_transport(ddog_SidecarTransport *owner) {
+#ifndef _WIN32
+    uintptr_t expected = (uintptr_t)owner;
+    if (owner && atomic_compare_exchange_strong(&dd_sidecar_signal_owner, &expected, 0)) {
+#ifdef __linux__
+        datadog_signals_set_sidecar_flush(NULL, true);
+#endif
+#ifdef __APPLE__
+        atomic_store(&datadog_sidecar_crash_fd, -1);
+#endif
+    }
+#else
+    (void)owner;
+#endif
+}
+
+static void dd_sidecar_logpath(char *logpath) {
+    int error_fd = atomic_load(&datadog_error_log_fd);
+    if (error_fd == -1 || datadog_get_fd_path(error_fd, logpath) < 0) {
+        *logpath = 0;
+    }
+}
+
+// Side effects of a new connection, for the first one of a transport as well as reconnects.
+static void dd_sidecar_on_connect(ddog_SidecarTransport **transport) {
     ddog_AgentRemoteConfigReader *agent_config_reader = NULL;
 #if DDTRACE
     agent_config_reader = DATADOG_G(ddtrace.agent_config_reader);
 #endif
     ddog_sidecar_reconnect_readers(DATADOG_G(telemetry_cache), DATADOG_G(remote_config_state),
-                                  DATADOG_G(agent_info_reader), agent_config_reader);
-    ddog_span_concentrators_clear();
+                                   DATADOG_G(agent_info_reader), agent_config_reader);
 
     if (!datadog_ffi_try("Failed starting AppSec in sidecar",
             ddog_sidecar_ensure_appsec_started(transport))) {
         LOG(WARN, "AppSec sidecar backend is unavailable");
     }
+}
 
-    ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) datadog_formatted_session_id, .len = sizeof(datadog_formatted_session_id)};
+// Sends the identity and configuration. Needed once per transport: the transport replays them after reconnects.
+static void dd_sidecar_configure(ddog_SidecarTransport **transport) {
+#ifdef _WIN32
+    char logpath[MAX_PATH];
+#else
+    char logpath[MAXPATHLEN];
+#endif
+    dd_sidecar_logpath(logpath);
+
     ddog_CharSlice root_session_id = datadog_is_empty_session_id(datadog_formatted_root_session_id) ? DDOG_CHARSLICE_C("") : (ddog_CharSlice) {.ptr = (char *) datadog_formatted_root_session_id, .len = sizeof(datadog_formatted_root_session_id)};
     ddog_CharSlice parent_session_id = datadog_is_empty_session_id(datadog_formatted_parent_session_id) ? DDOG_CHARSLICE_C("") : (ddog_CharSlice) {.ptr = (char *) datadog_formatted_parent_session_id, .len = sizeof(datadog_formatted_parent_session_id)};
     const ddog_Vec_Tag *process_tags = datadog_process_tags_get_vec();
+    // Process-stable: the tracer's auto-resolved default name.
+    const char *default_service_name = NULL;
+    if (datadog_process_tags_enabled()) {
+        zend_string *default_svc = datadog_default_service_name();
+        default_service_name = ddog_normalize_process_tag_value(dd_zend_string_to_CharSlice(default_svc));
+        zend_string_release(default_svc);
+    }
     ddog_Endpoint *otlp_metrics_endpoint = datadog_otel_metrics_endpoint();
 #ifdef _WIN32
     const struct ddog_RemoteConfigNotification *remote_config_notification = datadog_remote_config_notification_get();
 #else
     const struct ddog_RemoteConfigNotification *remote_config_notification = NULL;
 #endif
-    ddog_sidecar_session_set_config(transport, session_id, datadog_endpoint, dogstatsd_endpoint, otlp_metrics_endpoint,
+    ddog_sidecar_set_connection_config(transport, datadog_sidecar_instance_id, datadog_endpoint, dogstatsd_endpoint, otlp_metrics_endpoint,
                                     DDOG_CHARSLICE_C("php"),
                                     php_version_rt,
                                     DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION),
@@ -167,13 +229,16 @@ static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_f
                                     DATADOG_REMOTE_CONFIG_CAPABILITIES.ptr,
                                     DATADOG_REMOTE_CONFIG_CAPABILITIES.len,
                                     get_global_DD_TRACE_AGENTLESS() ? false : get_global_DD_REMOTE_CONFIG_ENABLED(),
-                                    is_fork,
                                     process_tags,
+                                    default_service_name ? (ddog_CharSlice){ .ptr = default_service_name, .len = strlen(default_service_name) } : DDOG_CHARSLICE_C(""),
                                     dd_zend_string_to_CharSlice(get_global_DD_HOSTNAME()),
                                     dd_zend_string_to_CharSlice(get_global_DD_SERVICE()),
                                     root_session_id,
                                     parent_session_id
                                 );
+    if (default_service_name) {
+        ddog_free_normalized_tag_value(default_service_name);
+    }
     if (otlp_metrics_endpoint) {
         ddog_endpoint_drop(otlp_metrics_endpoint);
     }
@@ -183,31 +248,14 @@ static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_f
     }
 }
 
+// The process tags are collected before the first connection, so this is only needed when they are reloaded for testing. Only the connection of the calling thread gets them.
 void datadog_sidecar_update_process_tags(void) {
     if (!DATADOG_G(sidecar)) {
         return;
     }
 
-    const ddog_Vec_Tag *process_tags = datadog_process_tags_get_vec();
-    if (!process_tags || process_tags->len == 0) {
-        return;
-    }
-
-    ddog_sidecar_session_set_process_tags(&DATADOG_G(sidecar), process_tags);
-
-    // Session-bound, process-stable: the tracer's auto-resolved default name.
-    zend_string *default_svc = datadog_default_service_name();
-    if (default_svc) {
-        const char *normalized = ddog_normalize_process_tag_value(dd_zend_string_to_CharSlice(default_svc));
-        if (normalized) {
-            datadog_ffi_try("Failed updating sidecar default service name",
-                ddog_sidecar_session_set_default_service_name(&DATADOG_G(sidecar),
-                    (ddog_CharSlice){ .ptr = normalized, .len = strlen(normalized) }));
-            ddog_free_normalized_tag_value(normalized);
-        }
-        zend_string_release(default_svc);
-    }
-
+    datadog_ffi_try("Failed updating sidecar process tags",
+        ddog_sidecar_set_process_tags(&DATADOG_G(sidecar), datadog_process_tags_get_vec()));
     datadog_sidecar_refresh_user_service_defined();
 }
 
@@ -218,47 +266,22 @@ void datadog_sidecar_refresh_user_service_defined(void) {
     zend_string *dd_service = get_DD_SERVICE();
     bool is_defined = dd_service && ZSTR_LEN(dd_service) > 0;
     datadog_ffi_try("Failed updating sidecar user-service-defined flag",
-        ddog_sidecar_session_set_user_service_defined(&DATADOG_G(sidecar), is_defined));
+        ddog_sidecar_set_user_service_defined(&DATADOG_G(sidecar), is_defined));
 }
 
 static void datadog_sidecar_setup_thread_mode(void);
+static ddog_SidecarTransport *datadog_sidecar_connect_callback(void);
 
-static void dd_sidecar_on_reconnect(ddog_SidecarTransport *transport) {
-    if (!datadog_endpoint || !dogstatsd_endpoint) {
-        dd_sidecar_setup_signal_transport(transport, true);
-        return;
-    }
-
-    char logpath[MAXPATHLEN];
-    int error_fd = atomic_load(&datadog_error_log_fd);
-    if (error_fd == -1 || datadog_get_fd_path(error_fd, logpath) < 0) {
-        *logpath = 0;
-    }
-
-    dd_sidecar_post_connect(&transport, false, logpath);
-
-    tsrm_mutex_lock(DATADOG_G(sidecar_universal_service_tags_mutex));
-
-    if (DATADOG_G(sidecar_queue_id) && DATADOG_G(last_service_name)) {
-        ddog_CharSlice service_name = dd_zend_string_to_CharSlice(DATADOG_G(last_service_name));
-        ddog_CharSlice env_name = dd_zend_string_to_CharSlice(DATADOG_G(last_env_name));
-        ddog_CharSlice version = dd_zend_string_to_CharSlice(DATADOG_G(last_version));
-        uint64_t remote_config_generation = DATADOG_G(remote_config_state)
-            ? ddog_remote_config_current_generation(DATADOG_G(remote_config_state))
-            : 0;
-        datadog_ffi_try("Failed sending config data",
-                        ddog_sidecar_set_universal_service_tags(&transport, datadog_sidecar_instance_id, &DATADOG_G(sidecar_queue_id), service_name,
-                                                                env_name, version, &DATADOG_G(active_global_tags), ddtrace_dynamic_instrumentation_state(), remote_config_generation));
-    }
-
-    tsrm_mutex_unlock(DATADOG_G(sidecar_universal_service_tags_mutex));
-
-    // Reconnect callbacks run before the new sender replaces DATADOG_G(sidecar).
-    // Prepare against the replacement passed to this callback, not the old sender.
-    dd_sidecar_setup_signal_transport(transport, true);
+// Called by the subprocess mode transport with each new connection replacing a broken one.
+static void dd_sidecar_reconnected(ddog_SidecarTransport *transport) {
+    dd_sidecar_on_connect(&transport);
+    // Reconnect callbacks run before the new connection replaces the one of DATADOG_G(sidecar).
+    dd_sidecar_arm_signal_transport(DATADOG_G(sidecar), transport, true);
 }
 
-static ddog_SidecarTransport *dd_sidecar_connect(bool as_worker, bool is_fork) {
+// Connects a new transport. It is not configured yet: that is only needed for a transport which
+// does not replace the connection of an existing one.
+static ddog_SidecarTransport *dd_sidecar_connect_transport(bool as_worker) {
     if (!datadog_endpoint) {
         return NULL;
     }
@@ -274,10 +297,7 @@ static ddog_SidecarTransport *dd_sidecar_connect(bool as_worker, bool is_fork) {
 #else
     char logpath[MAXPATHLEN];
 #endif
-    int error_fd = atomic_load(&datadog_error_log_fd);
-    if (error_fd == -1 || datadog_get_fd_path(error_fd, logpath) < 0) {
-        *logpath = 0;
-    }
+    dd_sidecar_logpath(logpath);
 
     ddog_SidecarTransport *sidecar_transport;
     if (as_worker) {
@@ -319,38 +339,24 @@ static ddog_SidecarTransport *dd_sidecar_connect(bool as_worker, bool is_fork) {
                 ddog_sidecar_connect_php(&sidecar_transport, logpath,
                     dd_zend_string_to_CharSlice(get_global_DD_TRACE_LOG_LEVEL()),
                     get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED(),
-                    dd_sidecar_on_reconnect,
+                    dd_sidecar_reconnected,
                     datadog_endpoint, (uint64_t)get_global_DD_TRACE_SIDECAR_BACKPRESSURE_BYTES(), (uint64_t)get_global_DD_TRACE_SIDECAR_BACKPRESSURE_QUEUE()))) {
             return NULL;
         }
         datadog_sidecar_active_mode = DD_SIDECAR_CONNECTION_SUBPROCESS;
     }
 
-    dd_sidecar_post_connect(&sidecar_transport, is_fork, logpath);
+    dd_sidecar_on_connect(&sidecar_transport);
 
     return sidecar_transport;
 }
 
-static void dd_sidecar_setup_signal_transport(ddog_SidecarTransport *transport, bool replace) {
-#ifdef __linux__
-    if ((!replace && datadog_signals_has_sidecar_flush()) || !transport ||
-        (!get_global_DD_TRACE_FORCE_FLUSH_ON_SIGTERM() && !get_global_DD_TRACE_FORCE_FLUSH_ON_SIGINT())) {
-        return;
+static ddog_SidecarTransport *dd_sidecar_connect(bool as_worker) {
+    ddog_SidecarTransport *transport = dd_sidecar_connect_transport(as_worker);
+    if (transport) {
+        dd_sidecar_configure(&transport);
     }
-
-    ddog_SignalFlush *flush = NULL;
-    bool prepared = datadog_ffi_try("Failed preparing sidecar signal flush",
-                                    ddog_sidecar_prepare_signal_flush(
-                                        transport, (ddog_SidecarFlushOptions){.traces_and_stats = true}, &flush));
-    if (prepared || replace) {
-        // Takes ownership, including when another normal thread published first.
-        // A failed refresh clears the stale object so a later RINIT can retry.
-        datadog_signals_set_sidecar_flush(flush, replace);
-    }
-#else
-    (void)transport;
-    (void)replace;
-#endif
+    return transport;
 }
 
 static void datadog_sidecar_setup_thread_mode() {
@@ -364,7 +370,7 @@ static void datadog_sidecar_setup_thread_mode() {
     bool listener_available = ddog_sidecar_is_master_listener_active();
 
     if (is_child_process || listener_available) {
-        DATADOG_G(sidecar) = dd_sidecar_connect(true, false);
+        DATADOG_G(sidecar) = dd_sidecar_connect(true);
         if (DATADOG_G(sidecar)) {
             if (is_child_process) {
                 LOG(INFO, "Worker connected to sidecar master listener (worker PID=%d, master PID=%d)",
@@ -394,17 +400,19 @@ static void datadog_sidecar_setup_thread_mode() {
 
     LOG(INFO, "Started sidecar master listener thread (PID=%d)", datadog_sidecar_master_pid);
 
-    DATADOG_G(sidecar) = dd_sidecar_connect(true, false);
+    DATADOG_G(sidecar) = dd_sidecar_connect(true);
     if (!DATADOG_G(sidecar)) {
         LOG(WARN, "Failed to connect master process to sidecar");
     }
 }
 
-ddog_SidecarTransport *datadog_sidecar_connect(bool is_fork) {
+// Connects in the established connection mode, or establishes one.
+static ddog_SidecarTransport *dd_sidecar_connect_with_mode(bool configure) {
+    ddog_SidecarTransport *(*connect)(bool) = configure ? dd_sidecar_connect : dd_sidecar_connect_transport;
     if (datadog_sidecar_active_mode == DD_SIDECAR_CONNECTION_SUBPROCESS) {
-        return dd_sidecar_connect(false, is_fork);
+        return connect(false);
     } else if (datadog_sidecar_active_mode == DD_SIDECAR_CONNECTION_THREAD) {
-        return dd_sidecar_connect(true, is_fork);
+        return connect(true);
     }
 
     zend_long mode = get_global_DD_TRACE_SIDECAR_CONNECTION_MODE();
@@ -413,7 +421,7 @@ ddog_SidecarTransport *datadog_sidecar_connect(bool is_fork) {
     switch (mode) {
     case DD_TRACE_SIDECAR_CONNECTION_MODE_SUBPROCESS:
         // Force subprocess only
-        transport = dd_sidecar_connect(false, is_fork);
+        transport = connect(false);
         if (!transport) {
             LOG(ERROR, "Subprocess connection failed (mode=subprocess, no fallback)");
         }
@@ -421,7 +429,7 @@ ddog_SidecarTransport *datadog_sidecar_connect(bool is_fork) {
 
     case DD_TRACE_SIDECAR_CONNECTION_MODE_THREAD:
         // Force thread only
-        transport = dd_sidecar_connect(true, is_fork);
+        transport = connect(true);
         if (!transport) {
             LOG(ERROR, "Thread connection failed (mode=thread, no fallback)");
         }
@@ -430,12 +438,12 @@ ddog_SidecarTransport *datadog_sidecar_connect(bool is_fork) {
     case DD_TRACE_SIDECAR_CONNECTION_MODE_AUTO:
     default:
         // Try subprocess first, fallback to thread if needed
-        transport = dd_sidecar_connect(false, is_fork);
+        transport = connect(false);
 
         if (!transport) {
             if (datadog_endpoint) {
                 LOG(WARN, "Subprocess connection failed, falling back to thread mode");
-                transport = dd_sidecar_connect(true, is_fork);
+                transport = connect(true);
 
                 if (transport) {
                     LOG(INFO, "Connected to sidecar via thread (fallback)");
@@ -447,6 +455,13 @@ ddog_SidecarTransport *datadog_sidecar_connect(bool is_fork) {
         break;
     }
 
+    return transport;
+}
+
+// Reconnect factory: a new connection for DATADOG_G(sidecar), which replays its state onto it.
+static ddog_SidecarTransport *datadog_sidecar_connect_callback(void) {
+    ddog_SidecarTransport *transport = dd_sidecar_connect_with_mode(false);
+    dd_sidecar_arm_signal_transport(DATADOG_G(sidecar), transport, true);
     return transport;
 }
 
@@ -499,7 +514,7 @@ void datadog_sidecar_setup(ddog_RemoteConfigFlags flags) {
     if (mode == DD_TRACE_SIDECAR_CONNECTION_MODE_THREAD) {
         datadog_sidecar_setup_thread_mode();
     } else {
-        DATADOG_G(sidecar) = dd_sidecar_connect(false, false);
+        DATADOG_G(sidecar) = dd_sidecar_connect(false);
 
         if (!DATADOG_G(sidecar)) {
             if (mode == DD_TRACE_SIDECAR_CONNECTION_MODE_AUTO && datadog_endpoint) {
@@ -511,11 +526,7 @@ void datadog_sidecar_setup(ddog_RemoteConfigFlags flags) {
         }
     }
 
-    // Record the first established connection for best-effort signal-handler use.
-    if (DATADOG_G(sidecar) && !datadog_sidecar_for_signal) {
-        datadog_sidecar_for_signal = DATADOG_G(sidecar);
-    }
-    dd_sidecar_setup_signal_transport(DATADOG_G(sidecar), false);
+    dd_sidecar_arm_signal_transport(DATADOG_G(sidecar), DATADOG_G(sidecar), false);
 }
 
 #ifndef _WIN32
@@ -551,107 +562,134 @@ void datadog_sidecar_minit(void) {
     }
 }
 
+#if !defined(_WIN32) && defined(ZTS)
+static void dd_sidecar_release_thread_transport_fds(void *tsrm_ls) {
+    void *TSRMLS_CACHE = tsrm_ls; // shadows global
+    if (DATADOG_G(sidecar)) {
+        ddog_sidecar_transport_release_inherited_fds(&DATADOG_G(sidecar));
+    }
+}
+
+// The other threads did not survive the fork, but their connections did. Close their fds, or the
+// sidecar would keep the state of the parent's threads for as long as this process lives. Their
+// transports themselves are left alone: a thread may have been in the middle of changing them.
+static void dd_sidecar_release_inherited_thread_transports(void) {
+    // A thread which held the lock during the fork will never release it: rather leak than hang.
+    if (!datadog_threads_mutex || pthread_mutex_trylock(datadog_threads_mutex) != 0) {
+        return;
+    }
+    void *tsrm_ls;
+    ZEND_HASH_FOREACH_PTR(&datadog_tls_bases, tsrm_ls) {
+        if (tsrm_ls != TSRMLS_CACHE) {
+            dd_sidecar_release_thread_transport_fds(tsrm_ls);
+        }
+    } ZEND_HASH_FOREACH_END();
+    pthread_mutex_unlock(datadog_threads_mutex);
+}
+#endif
+
+// Connects the fork child in the established mode. The connection is not configured: it continues
+// the state of the inherited one.
+static ddog_SidecarTransport *dd_sidecar_connect_after_fork(void) {
+    if (datadog_sidecar_active_mode == DD_SIDECAR_CONNECTION_SUBPROCESS) {
+        ddog_SidecarTransport *transport = dd_sidecar_connect_with_mode(false);
+        if (!transport && datadog_endpoint) {
+            dd_free_endpoints();
+        }
+        return transport;
+    }
+    if (datadog_sidecar_active_mode != DD_SIDECAR_CONNECTION_THREAD) {
+        return NULL;
+    }
+
+    ddog_SidecarTransport *transport = dd_sidecar_connect_transport(true);
+    if (transport) {
+        LOG(INFO, "Child process reconnected to parent's sidecar listener after fork (child PID=%d, parent=%d)",
+            (int32_t)getpid(), datadog_sidecar_master_pid);
+        return transport;
+    }
+
+    LOG(INFO, "Parent's sidecar listener not available after fork (child PID=%d, parent=%d), starting new master",
+        (int32_t)getpid(), datadog_sidecar_master_pid);
+
+    datadog_sidecar_master_pid = (int32_t)getpid();
+    if (!datadog_ffi_try("Failed starting sidecar master listener in child process",
+            ddog_sidecar_connect_master_php())) {
+        if (datadog_endpoint) {
+            dd_free_endpoints();
+        }
+        return NULL;
+    }
+
+    transport = dd_sidecar_connect_transport(true);
+    if (!transport) {
+        LOG(WARN, "Failed to connect to new sidecar master in child process (PID=%d)",
+            (int32_t)getpid());
+    }
+    return transport;
+}
+
 void datadog_sidecar_handle_fork(void) {
 #ifndef _WIN32
 #ifdef __linux__
     datadog_signals_reset_sidecar_flush_after_fork();
 #endif
+    atomic_store(&dd_sidecar_signal_owner, 0);
+#ifdef __APPLE__
+    atomic_store(&datadog_sidecar_crash_fd, -1);
+#endif
     datadog_ffi_try("Failed clearing inherited sidecar state",
                     ddog_sidecar_handle_fork_php());
 
-    ddog_RemoteConfigFlags flags = {0};
-    bool enable_sidecar = datadog_sidecar_should_enable(&flags);
-
-    if (!enable_sidecar) {
-        return;
-    }
-
-    // The child instance ID is regenerated by datadog_internal_handle_fork()
-    // before deciding whether the sidecar itself is enabled.
-
-    // After fork only one thread (the one that called fork) survives, so we only
-    // need to drop and reconnect the current thread's transport.
-    if (DATADOG_G(sidecar)) {
-        ddog_sidecar_transport_drop(DATADOG_G(sidecar));
-        DATADOG_G(sidecar) = NULL;
-    }
-    datadog_sidecar_for_signal = NULL;
-
-    if (datadog_sidecar_active_mode == DD_SIDECAR_CONNECTION_THREAD) {
-        DATADOG_G(sidecar) = dd_sidecar_connect(true, true);
-        if (DATADOG_G(sidecar)) {
-            LOG(INFO, "Child process reconnected to parent's sidecar listener after fork (child PID=%d, parent=%d)",
-                (int32_t)getpid(), datadog_sidecar_master_pid);
-        } else {
-            LOG(INFO, "Parent's sidecar listener not available after fork (child PID=%d, parent=%d), starting new master",
-                (int32_t)getpid(), datadog_sidecar_master_pid);
-
-            datadog_sidecar_master_pid = (int32_t)getpid();
-            if (!datadog_ffi_try("Failed starting sidecar master listener in child process",
-                    ddog_sidecar_connect_master_php())) {
-                if (datadog_endpoint) {
-                    dd_free_endpoints();
-                }
-                return;
-            }
-
-            DATADOG_G(sidecar) = dd_sidecar_connect(true, false);
-            if (!DATADOG_G(sidecar)) {
-                LOG(WARN, "Failed to connect to new sidecar master in child process (PID=%d)",
-                    (int32_t)getpid());
-            }
-        }
-    } else if (datadog_sidecar_active_mode == DD_SIDECAR_CONNECTION_SUBPROCESS) {
-        DATADOG_G(sidecar) = datadog_sidecar_connect(true);
-        if (!DATADOG_G(sidecar)) {
-            if (datadog_endpoint) {
-                dd_free_endpoints();
-            }
-        }
-    }
-
-    if (DATADOG_G(sidecar)) {
-        datadog_sidecar_for_signal = DATADOG_G(sidecar);
-    }
-    dd_sidecar_setup_signal_transport(DATADOG_G(sidecar), false);
+    // The inherited connections belong to the parent: nothing must be sent on them anymore.
+#ifdef ZTS
+    dd_sidecar_release_inherited_thread_transports();
 #endif
-}
+    ddog_SidecarTransport *inherited = DATADOG_G(sidecar);
+    DATADOG_G(sidecar) = NULL;
 
-// Reconnect factory for subprocess mode: creates a fresh transport and immediately
-// re-registers per-request state (service tags, env, etc.) via dd_sidecar_on_reconnect,
-// which ddog_sidecar_connect_php alone would not do for a caller-initiated reconnect.
-static ddog_SidecarTransport *dd_sidecar_subprocess_reconnect(void) {
-    ddog_SidecarTransport *transport = datadog_sidecar_connect(false);
-    if (transport) {
-        dd_sidecar_on_reconnect(transport);
+    ddog_RemoteConfigFlags flags = {0};
+    ddog_SidecarTransport *transport = datadog_sidecar_should_enable(&flags) ? dd_sidecar_connect_after_fork() : NULL;
+
+    if (transport && inherited) {
+        // Only the instance ID, regenerated by datadog_internal_handle_fork(), differs from the
+        // connection of the parent: its state is replayed on our own connection. The remote config
+        // reader was inherited too, so the application is registered with the generation it read.
+        uint64_t remote_config_generation = DATADOG_G(remote_config_state)
+            ? ddog_remote_config_current_generation(DATADOG_G(remote_config_state))
+            : 0;
+        ddog_sidecar_transport_replace_connection_as(&inherited, transport, datadog_sidecar_instance_id, remote_config_generation);
+        DATADOG_G(sidecar) = inherited;
+    } else {
+        if (inherited) {
+            ddog_sidecar_transport_drop(inherited);
+        }
+        if (transport) {
+            dd_sidecar_configure(&transport);
+        }
+        DATADOG_G(sidecar) = transport;
     }
-    return transport;
+
+    dd_sidecar_arm_signal_transport(DATADOG_G(sidecar), DATADOG_G(sidecar), false);
+#endif
 }
 
 void datadog_sidecar_ensure_active(void) {
     if (DATADOG_G(sidecar)) {
         // Restore reconnect_fn cleared during the previous RSHUTDOWN so that automatic
         // reconnects work again for this request.
-        if (datadog_sidecar_active_mode == DD_SIDECAR_CONNECTION_SUBPROCESS) {
-            // Subprocess mode: the reconnect_fn must call dd_sidecar_on_reconnect to
-            // re-register per-request universal service tags on the new transport.
-            datadog_sidecar_set_reconnect_fn(&DATADOG_G(sidecar), dd_sidecar_subprocess_reconnect);
-        } else {
-            datadog_sidecar_set_reconnect_fn(&DATADOG_G(sidecar), datadog_sidecar_connect_callback);
-        }
+        datadog_sidecar_set_reconnect_fn(&DATADOG_G(sidecar), datadog_sidecar_connect_callback);
         datadog_sidecar_reconnect(&DATADOG_G(sidecar), datadog_sidecar_connect_callback);
     } else if (datadog_endpoint) {
         // First RINIT on this thread: the process-level setup already ran (endpoint is
         // set), so establish this thread's own connection now.
-        DATADOG_G(sidecar) = datadog_sidecar_connect(false);
-        if (DATADOG_G(sidecar) && !datadog_sidecar_for_signal) {
-            datadog_sidecar_for_signal = DATADOG_G(sidecar);
-        }
+        DATADOG_G(sidecar) = dd_sidecar_connect_with_mode(true);
     }
-    dd_sidecar_setup_signal_transport(DATADOG_G(sidecar), false);
+    // Takes over if the previous owner thread is gone.
+    dd_sidecar_arm_signal_transport(DATADOG_G(sidecar), DATADOG_G(sidecar), false);
 }
 
-void datadog_sidecar_finalize(bool clear_id) {
+void datadog_sidecar_finalize(bool clear_application) {
     if (!DATADOG_G(sidecar) || !DATADOG_G(request_initialized)) {
         return;
     }
@@ -664,14 +702,9 @@ void datadog_sidecar_finalize(bool clear_id) {
         datadog_telemetry_finalize();
     }
 
-    tsrm_mutex_lock(DATADOG_G(sidecar_universal_service_tags_mutex));
-    ddog_QueueId queue_id = DATADOG_G(sidecar_queue_id);
-    DATADOG_G(sidecar_queue_id) = 0;
-    tsrm_mutex_unlock(DATADOG_G(sidecar_universal_service_tags_mutex));
-
-    if (clear_id) {
+    if (clear_application) {
         datadog_ffi_try("Failed removing application from sidecar",
-                        ddog_sidecar_application_remove(&DATADOG_G(sidecar), datadog_sidecar_instance_id, &queue_id));
+                        ddog_sidecar_application_remove(&DATADOG_G(sidecar)));
     }
 }
 
@@ -680,7 +713,6 @@ void datadog_sidecar_shutdown(void) {
     if (DATADOG_G(sidecar)) {
         datadog_sidecar_clear_reconnect_fn(&DATADOG_G(sidecar));
     }
-    datadog_sidecar_for_signal = NULL;
 
     // In thread mode, drop the main thread's connection before shutting down the
     // listener to avoid deadlock.  GSHUTDOWN owns transport cleanup for all other
@@ -696,6 +728,7 @@ void datadog_sidecar_shutdown(void) {
         current_pid == datadog_sidecar_master_pid) {
 
         if (DATADOG_G(sidecar)) {
+            dd_sidecar_disarm_signal_transport(DATADOG_G(sidecar));
             ddog_sidecar_transport_drop(DATADOG_G(sidecar));
             DATADOG_G(sidecar) = NULL;
         }
@@ -703,6 +736,13 @@ void datadog_sidecar_shutdown(void) {
         datadog_ffi_try("Failed shutting down master listener",
                         ddog_sidecar_shutdown_master_listener());
     }
+
+#ifndef _WIN32
+    atomic_store(&dd_sidecar_signal_owner, 0);
+#endif
+#ifdef __APPLE__
+    atomic_store(&datadog_sidecar_crash_fd, -1);
+#endif
 
     // Process-level instance ID (dropped once at MSHUTDOWN, not per-thread).
     if (datadog_sidecar_instance_id) {
@@ -814,7 +854,7 @@ void datadog_sidecar_dogstatsd_count(zend_string *metric, zend_long value, zval 
     ddog_Vec_Tag vec = ddog_Vec_Tag_new();
     datadog_sidecar_push_tags(&vec, tags);
     datadog_ffi_try("Failed sending dogstatsd count metric",
-                    ddog_sidecar_dogstatsd_count(&DATADOG_G(sidecar), datadog_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec));
+                    ddog_sidecar_dogstatsd_count(&DATADOG_G(sidecar), dd_zend_string_to_CharSlice(metric), value, &vec));
     ddog_Vec_Tag_drop(vec);
 }
 
@@ -826,7 +866,7 @@ void datadog_sidecar_dogstatsd_distribution(zend_string *metric, double value, z
     ddog_Vec_Tag vec = ddog_Vec_Tag_new();
     datadog_sidecar_push_tags(&vec, tags);
     datadog_ffi_try("Failed sending dogstatsd distribution metric",
-                    ddog_sidecar_dogstatsd_distribution(&DATADOG_G(sidecar), datadog_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec));
+                    ddog_sidecar_dogstatsd_distribution(&DATADOG_G(sidecar), dd_zend_string_to_CharSlice(metric), value, &vec));
     ddog_Vec_Tag_drop(vec);
 }
 
@@ -838,7 +878,7 @@ void datadog_sidecar_dogstatsd_gauge(zend_string *metric, double value, zval *ta
     ddog_Vec_Tag vec = ddog_Vec_Tag_new();
     datadog_sidecar_push_tags(&vec, tags);
     datadog_ffi_try("Failed sending dogstatsd gauge metric",
-                    ddog_sidecar_dogstatsd_gauge(&DATADOG_G(sidecar), datadog_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec));
+                    ddog_sidecar_dogstatsd_gauge(&DATADOG_G(sidecar), dd_zend_string_to_CharSlice(metric), value, &vec));
     ddog_Vec_Tag_drop(vec);
 }
 
@@ -850,7 +890,7 @@ void datadog_sidecar_dogstatsd_histogram(zend_string *metric, double value, zval
     ddog_Vec_Tag vec = ddog_Vec_Tag_new();
     datadog_sidecar_push_tags(&vec, tags);
     datadog_ffi_try("Failed sending dogstatsd histogram metric",
-                    ddog_sidecar_dogstatsd_histogram(&DATADOG_G(sidecar), datadog_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec));
+                    ddog_sidecar_dogstatsd_histogram(&DATADOG_G(sidecar), dd_zend_string_to_CharSlice(metric), value, &vec));
     ddog_Vec_Tag_drop(vec);
 }
 
@@ -862,7 +902,7 @@ void datadog_sidecar_dogstatsd_set(zend_string *metric, zend_long value, zval *t
     ddog_Vec_Tag vec = ddog_Vec_Tag_new();
     datadog_sidecar_push_tags(&vec, tags);
     datadog_ffi_try("Failed sending dogstatsd set metric",
-                    ddog_sidecar_dogstatsd_set(&DATADOG_G(sidecar), datadog_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec));
+                    ddog_sidecar_dogstatsd_set(&DATADOG_G(sidecar), dd_zend_string_to_CharSlice(metric), value, &vec));
     ddog_Vec_Tag_drop(vec);
 }
 
@@ -888,49 +928,40 @@ void ddtrace_sidecar_submit_span_data_direct(ddog_SidecarTransport **transport, 
         changed = ddog_remote_configs_service_env_change(DATADOG_G(remote_config_state), service_slice, env_slice, version_slice, &DATADOG_G(active_global_tags), process_tags);
     }
 
-    // Force resend on reconnect
-    if (changed || !root || *transport != DATADOG_G(sidecar)) {
-        tsrm_mutex_lock(DATADOG_G(sidecar_universal_service_tags_mutex));
+    if (changed || !root) {
         if (DATADOG_G(last_service_name)) {
             zend_string_release(DATADOG_G(last_service_name));
         }
-        DATADOG_G(last_service_name) = service_string;
+        DATADOG_G(last_service_name) = zend_string_copy(service_string);
         if (DATADOG_G(last_env_name)) {
             zend_string_release(DATADOG_G(last_env_name));
         }
-        DATADOG_G(last_env_name) = env_string;
-        if (DATADOG_G(last_version)) {
-            zend_string_release(DATADOG_G(last_version));
-        }
-        DATADOG_G(last_version) = version_string;
-        tsrm_mutex_unlock(DATADOG_G(sidecar_universal_service_tags_mutex));
+        DATADOG_G(last_env_name) = zend_string_copy(env_string);
 
-        // This must not be in mutex, as a reconnect may happen here
         uint64_t remote_config_generation = DATADOG_G(remote_config_state)
             ? ddog_remote_config_current_generation(DATADOG_G(remote_config_state))
             : 0;
+        // Unchanged applications are not resent by the transport.
         datadog_ffi_try("Failed sending config data",
-                        ddog_sidecar_set_universal_service_tags(transport, datadog_sidecar_instance_id, &DATADOG_G(sidecar_queue_id), service_slice, env_slice, version_slice, &DATADOG_G(active_global_tags), ddtrace_dynamic_instrumentation_state(), remote_config_generation));
-    } else {
-        zend_string_release(service_string);
-        zend_string_release(env_string);
-        zend_string_release(version_string);
+                        ddog_sidecar_set_application(transport, service_slice, env_slice, version_slice, &DATADOG_G(active_global_tags), ddtrace_dynamic_instrumentation_state(), remote_config_generation));
+
+        if (DATADOG_G(telemetry_buffer)) {
+            datadog_ffi_try("Failed flushing filtered telemetry buffer",
+                ddog_sidecar_telemetry_filter_flush(transport, datadog_telemetry_buffer(), datadog_telemetry_cache(), service_slice, env_slice));
+        }
     }
 
-    if ((changed || !root) && DATADOG_G(telemetry_buffer)) {
-        datadog_ffi_try("Failed flushing filtered telemetry buffer",
-            ddog_sidecar_telemetry_filter_flush(transport, datadog_sidecar_instance_id, &DATADOG_G(sidecar_queue_id), datadog_telemetry_buffer(), datadog_telemetry_cache(), service_slice, env_slice));
-    }
+    zend_string_release(service_string);
+    zend_string_release(env_string);
+    zend_string_release(version_string);
 
     if (DATADOG_G(request_initialized) && DATADOG_G(remote_config_state)) {
-        // Must happen after ddog_sidecar_set_universal_service_tags (session state fully initialized)
+        // Must happen after ddog_sidecar_set_application (connection state fully initialized)
         ddog_process_remote_configs(DATADOG_G(remote_config_state));
     }
 }
 
 void datadog_sidecar_activate(void) {
-    DATADOG_G(sidecar_queue_id) = ddog_sidecar_queueId_generate();
-
     DATADOG_G(active_global_tags) = ddog_Vec_Tag_new();
     zend_string *tag;
     zval *value;
@@ -968,11 +999,7 @@ void datadog_sidecar_rshutdown(void) {
 void datadog_sidecar_gshutdown(zend_datadog_globals *datadog_globals) {
     if (datadog_globals->sidecar) {
         datadog_sidecar_clear_reconnect_fn(&datadog_globals->sidecar);
-
-        if (datadog_globals->sidecar == datadog_sidecar_for_signal) {
-            datadog_sidecar_for_signal = NULL;
-        }
-
+        dd_sidecar_disarm_signal_transport(datadog_globals->sidecar);
         ddog_sidecar_transport_drop(datadog_globals->sidecar);
         datadog_globals->sidecar = NULL;
     }

@@ -1569,7 +1569,7 @@ PHP_FUNCTION(DDTrace_dogstatsd_set) {
 PHP_FUNCTION(DDTrace_are_endpoints_collected) {
     UNUSED(execute_data);
 
-    if (!DATADOG_G(sidecar) || !datadog_sidecar_instance_id || !DATADOG_G(sidecar_queue_id)) {
+    if (!DATADOG_G(sidecar) || !DATADOG_G(request_initialized)) {
         RETURN_TRUE; // Skip overhead if unnecessary
     }
 
@@ -1625,7 +1625,7 @@ PHP_FUNCTION(DDTrace_add_endpoint) {
         RETURN_FALSE;
     }
 
-    if (!DATADOG_G(sidecar) || !datadog_sidecar_instance_id || !DATADOG_G(sidecar_queue_id)) {
+    if (!DATADOG_G(sidecar) || !DATADOG_G(request_initialized)) {
         RETURN_FALSE;
     }
 
@@ -1650,7 +1650,7 @@ PHP_FUNCTION(DDTrace_flush_endpoints) {
     UNUSED(execute_data);
     UNUSED(return_value);
 
-    if (!DATADOG_G(sidecar) || !datadog_sidecar_instance_id || !DATADOG_G(sidecar_queue_id) || !DATADOG_G(telemetry_buffer)) {
+    if (!DATADOG_G(sidecar) || !DATADOG_G(request_initialized) || !DATADOG_G(telemetry_buffer)) {
         return;
     }
 
@@ -1662,7 +1662,7 @@ PHP_FUNCTION(DDTrace_flush_endpoints) {
     ddog_CharSlice env_name = dd_zend_string_to_CharSlice(DATADOG_G(last_env_name));
 
     datadog_ffi_try("Failed flushing endpoint telemetry buffer",
-        ddog_sidecar_telemetry_filter_flush(&DATADOG_G(sidecar), datadog_sidecar_instance_id, &DATADOG_G(sidecar_queue_id), datadog_telemetry_buffer(), datadog_telemetry_cache(), service_name, env_name));
+        ddog_sidecar_telemetry_filter_flush(&DATADOG_G(sidecar), datadog_telemetry_buffer(), datadog_telemetry_cache(), service_name, env_name));
 }
 
 PHP_FUNCTION(DDTrace_ffe_has_config) {
@@ -2037,9 +2037,8 @@ PHP_FUNCTION(dd_trace_internal_fn) {
     RETVAL_FALSE;
     if (ZSTR_LEN(function_val) > 0) {
         if (FUNCTION_NAME_MATCHES("finalize_telemetry")) {
-            ddog_QueueId queueId = DATADOG_G(sidecar_queue_id);
+            // Keeps the application, for the lifecycle end to stop its telemetry
             datadog_sidecar_finalize(false);
-            DATADOG_G(sidecar_queue_id) = queueId; // usually we want to stop using it, except here
             datadog_telemetry_lifecycle_end();
             RETVAL_TRUE;
         } else if (params_count == 3 && FUNCTION_NAME_MATCHES("force_overwrite_property")) {
@@ -2058,7 +2057,7 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             }
         } else if (params_count == 1 && FUNCTION_NAME_MATCHES("detect_composer_installed_json")) {
             ddog_CharSlice path = dd_zend_string_to_CharSlice(Z_STR_P(ZVAL_VARARG_PARAM(params, 0)));
-            ddtrace_detect_composer_installed_json(&DATADOG_G(sidecar), datadog_sidecar_instance_id, &DATADOG_G(sidecar_queue_id), path);
+            ddtrace_detect_composer_installed_json(&DATADOG_G(sidecar), path);
             RETVAL_TRUE;
         } else if (params_count == 2 && FUNCTION_NAME_MATCHES("mark_integration_loaded")) {
             zval *name = ZVAL_VARARG_PARAM(params, 0);
@@ -2104,7 +2103,6 @@ PHP_FUNCTION(dd_trace_internal_fn) {
                 RETURN_FALSE;
             }
             ddog_sidecar_send_garbage(&DATADOG_G(sidecar));
-            datadog_force_new_instance_id();
             RETURN_TRUE;
         } else if (FUNCTION_NAME_MATCHES("reload_process_tags")) {
             if (datadog_process_tags_enabled()) {
