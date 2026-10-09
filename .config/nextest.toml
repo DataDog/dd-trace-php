@@ -23,7 +23,7 @@ slow-timeout = { period = "120s", terminate-after = 35 }
 
 # CI (.gitlab/generate-shared.php, "shm_gen_cache tests" and "shm_gen_cache
 # tests: windows"): run every test and write a JUnit report to
-# target/nextest/ci/junit.xml.
+# target/nextest/ci/junit.xml, one package per run (see the job).
 [profile.ci]
 fail-fast = false
 

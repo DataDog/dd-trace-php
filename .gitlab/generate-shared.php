@@ -105,10 +105,19 @@ stages:
     # the crate is also a staticlib, which needs std.
     - cargo rustc -p shm_gen_cache --no-default-features --crate-type rlib
     - cargo rustc -p shm_gen_cache --no-default-features --features std --crate-type rlib
-    - cargo nextest run -p shm_gen_cache -p shm_gen_cache_verification --profile ci
-  after_script:
+    # One package per run: selected together, Cargo unifies the verification
+    # package's `verify` feature into the library's own test build, which then
+    # runs with production assertions off and the test hooks called. Both
+    # runs write target/nextest/ci/junit.xml, so each report is copied right
+    # after its run; the second runs even if the first fails.
     - mkdir -p artifacts
+    - status=0
+    - cargo nextest run -p shm_gen_cache --profile ci || status=$?
     - cp target/nextest/ci/junit.xml artifacts/shm-gen-cache-results.xml || true
+    - cargo nextest run -p shm_gen_cache_verification --profile ci || status=$?
+    - cp target/nextest/ci/junit.xml artifacts/shm-gen-cache-verification-results.xml || true
+    - exit $status
+  after_script:
     - .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:shm_gen_cache"
   artifacts:
     reports:
