@@ -10,7 +10,6 @@ use crossbeam_channel::{select, Receiver};
 use libdd_common::Endpoint;
 use log::{debug, info, warn};
 use serde_json::json;
-use std::str;
 use std::sync::{Arc, Barrier};
 
 #[cfg(feature = "debug_stats")]
