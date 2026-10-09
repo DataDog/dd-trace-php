@@ -1,0 +1,21 @@
+{
+  "mnemonics": {
+    "CompileHermeticExecLauncher": 1,
+    "ExecutableSymlink": 4,
+    "FileWrite": 7,
+    "LinkHermeticExecLauncher": 1,
+    "LlvmRuntimeArchive": 4,
+    "LlvmRuntimeAssemble": 5,
+    "LlvmRuntimeCompile": 249,
+    "LlvmRuntimeHeaders": 1,
+    "LlvmRuntimeLink": 3,
+    "LlvmRuntimeStartup": 4,
+    "LlvmRuntimeTree": 2,
+    "RepoMappingManifest": 5,
+    "RunfilesTree": 5,
+    "SourceSymlinkManifest": 5,
+    "SymlinkTree": 5
+  },
+  "runtime_compilations": 254,
+  "errors": []
+}

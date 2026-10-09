@@ -1,0 +1,26 @@
+diff --git a/spawn_worker/src/lib.rs b/spawn_worker/src/lib.rs
+--- a/spawn_worker/src/lib.rs
++++ b/spawn_worker/src/lib.rs
+@@ -1,8 +1,7 @@
+ // Copyright 2021-Present Datadog, Inc. https://www.datadoghq.com/
+ // SPDX-License-Identifier: Apache-2.0
+ 
+-pub(crate) const TRAMPOLINE_BIN: &[u8] =
+-    include_bytes!(concat!(env!("OUT_DIR"), "/trampoline.bin"));
++pub(crate) const TRAMPOLINE_BIN: &[u8] = include_bytes!(env!("DD_SPAWN_TRAMPOLINE"));
+ 
+ #[cfg(target_os = "windows")]
+ pub(crate) const CRASHTRACKING_TRAMPOLINE_BIN: &[u8] =
+@@ -11,10 +10,8 @@
+ pub(crate) static ENV_PASS_FD_KEY: &str = "__DD_INTERNAL_PASSED_FD";
+ 
+ #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+-pub(crate) const LD_PRELOAD_TRAMPOLINE_LIB: &[u8] = include_bytes!(concat!(
+-    env!("OUT_DIR"),
+-    "/ld_preload_trampoline.shared_lib"
+-));
++pub(crate) const LD_PRELOAD_TRAMPOLINE_LIB: &[u8] =
++    include_bytes!(env!("DD_SPAWN_LD_PRELOAD_TRAMPOLINE"));
+ 
+ #[cfg(target_family = "unix")]
+ #[macro_use]

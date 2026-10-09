@@ -1,0 +1,240 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies"
+    ],
+    "content-hash": "1173ca1a1a2703688cdfb4e8423af311",
+    "packages": [],
+    "packages-dev": [
+        {
+            "name": "classpreloader/classpreloader",
+            "version": "4.2.0",
+            "source": {
+                "url": "https://github.com/ClassPreloader/ClassPreloader.git",
+                "type": "git",
+                "reference": "af9284543aedb45ed58359374918141c0ac7ae34"
+            },
+            "dist": {
+                "url": "https://api.github.com/repos/ClassPreloader/ClassPreloader/zipball/af9284543aedb45ed58359374918141c0ac7ae34",
+                "type": "zip",
+                "shasum": "",
+                "reference": "af9284543aedb45ed58359374918141c0ac7ae34"
+            },
+            "require": {
+                "php": "^7.0.8 || ^8.0",
+                "ext-tokenizer": "*",
+                "nikic/php-parser": "^4.10.3"
+            },
+            "time": "2021-08-28T21:56:17+00:00",
+            "autoload": {
+                "psr-4": {
+                    "ClassPreloader\\": "src/"
+                }
+            }
+        },
+        {
+            "name": "classpreloader/console",
+            "version": "3.1.0",
+            "source": {
+                "url": "https://github.com/ClassPreloader/Console.git",
+                "type": "git",
+                "reference": "8475b97e5f69513ff9d68387d4da83a37afb6b71"
+            },
+            "dist": {
+                "url": "https://api.github.com/repos/ClassPreloader/Console/zipball/8475b97e5f69513ff9d68387d4da83a37afb6b71",
+                "type": "zip",
+                "shasum": "",
+                "reference": "8475b97e5f69513ff9d68387d4da83a37afb6b71"
+            },
+            "require": {
+                "php": "^7.0.8 || ^8.0",
+                "classpreloader/classpreloader": "^4.1",
+                "symfony/console": "^3.4 || ^4.0 || ^5.0",
+                "symfony/polyfill-ctype": "^1.9"
+            },
+            "time": "2020-12-31T17:01:29+00:00",
+            "autoload": {
+                "psr-4": {
+                    "ClassPreloader\\Console\\": "src/"
+                }
+            },
+            "bin": [
+                "bin/classpreloader"
+            ]
+        },
+        {
+            "name": "nikic/php-parser",
+            "version": "v4.19.5",
+            "source": {
+                "url": "https://github.com/nikic/PHP-Parser.git",
+                "type": "git",
+                "reference": "51bd93cc741b7fc3d63d20b6bdcd99fdaa359837"
+            },
+            "dist": {
+                "url": "https://api.github.com/repos/nikic/PHP-Parser/zipball/51bd93cc741b7fc3d63d20b6bdcd99fdaa359837",
+                "type": "zip",
+                "shasum": "",
+                "reference": "51bd93cc741b7fc3d63d20b6bdcd99fdaa359837"
+            },
+            "require": {
+                "php": ">=7.1",
+                "ext-tokenizer": "*"
+            },
+            "time": "2025-12-06T11:45:25+00:00",
+            "autoload": {
+                "psr-4": {
+                    "PhpParser\\": "lib/PhpParser"
+                }
+            },
+            "bin": [
+                "bin/php-parse"
+            ]
+        },
+        {
+            "name": "symfony/console",
+            "version": "v3.4.47",
+            "source": {
+                "url": "https://github.com/symfony/console.git",
+                "type": "git",
+                "reference": "a10b1da6fc93080c180bba7219b5ff5b7518fe81"
+            },
+            "dist": {
+                "url": "https://api.github.com/repos/symfony/console/zipball/a10b1da6fc93080c180bba7219b5ff5b7518fe81",
+                "type": "zip",
+                "shasum": "",
+                "reference": "a10b1da6fc93080c180bba7219b5ff5b7518fe81"
+            },
+            "require": {
+                "php": "^5.5.9|>=7.0.8",
+                "symfony/polyfill-mbstring": "~1.0",
+                "symfony/debug": "~2.8|~3.0|~4.0"
+            },
+            "time": "2020-10-24T10:57:07+00:00",
+            "autoload": {
+                "psr-4": {
+                    "Symfony\\Component\\Console\\": ""
+                },
+                "exclude-from-classmap": [
+                    "/Tests/"
+                ]
+            },
+            "provide": {
+                "psr/log-implementation": "1.0"
+            }
+        },
+        {
+            "name": "symfony/debug",
+            "version": "v3.4.47",
+            "source": {
+                "url": "https://github.com/symfony/debug.git",
+                "type": "git",
+                "reference": "ab42889de57fdfcfcc0759ab102e2fd4ea72dcae"
+            },
+            "dist": {
+                "url": "https://api.github.com/repos/symfony/debug/zipball/ab42889de57fdfcfcc0759ab102e2fd4ea72dcae",
+                "type": "zip",
+                "shasum": "",
+                "reference": "ab42889de57fdfcfcc0759ab102e2fd4ea72dcae"
+            },
+            "require": {
+                "php": "^5.5.9|>=7.0.8",
+                "psr/log": "~1.0"
+            },
+            "time": "2020-10-24T10:57:07+00:00",
+            "autoload": {
+                "psr-4": {
+                    "Symfony\\Component\\Debug\\": ""
+                },
+                "exclude-from-classmap": [
+                    "/Tests/"
+                ]
+            }
+        },
+        {
+            "name": "symfony/polyfill-ctype",
+            "version": "v1.27.0",
+            "source": {
+                "url": "https://github.com/symfony/polyfill-ctype.git",
+                "type": "git",
+                "reference": "5bbc823adecdae860bb64756d639ecfec17b050a"
+            },
+            "dist": {
+                "url": "https://api.github.com/repos/symfony/polyfill-ctype/zipball/5bbc823adecdae860bb64756d639ecfec17b050a",
+                "type": "zip",
+                "shasum": "",
+                "reference": "5bbc823adecdae860bb64756d639ecfec17b050a"
+            },
+            "require": {
+                "php": ">=7.1"
+            },
+            "time": "2022-11-03T14:55:06+00:00",
+            "autoload": {
+                "psr-4": {
+                    "Symfony\\Polyfill\\Ctype\\": ""
+                },
+                "files": [
+                    "bootstrap.php"
+                ]
+            }
+        },
+        {
+            "name": "symfony/polyfill-mbstring",
+            "version": "v1.27.0",
+            "source": {
+                "url": "https://github.com/symfony/polyfill-mbstring.git",
+                "type": "git",
+                "reference": "8ad114f6b39e2c98a8b0e3bd907732c207c2b534"
+            },
+            "dist": {
+                "url": "https://api.github.com/repos/symfony/polyfill-mbstring/zipball/8ad114f6b39e2c98a8b0e3bd907732c207c2b534",
+                "type": "zip",
+                "shasum": "",
+                "reference": "8ad114f6b39e2c98a8b0e3bd907732c207c2b534"
+            },
+            "require": {
+                "php": ">=7.1"
+            },
+            "time": "2022-11-03T14:55:06+00:00",
+            "autoload": {
+                "psr-4": {
+                    "Symfony\\Polyfill\\Mbstring\\": ""
+                },
+                "files": [
+                    "bootstrap.php"
+                ]
+            }
+        },
+        {
+            "name": "psr/log",
+            "version": "1.1.4",
+            "source": {
+                "url": "https://github.com/php-fig/log.git",
+                "type": "git",
+                "reference": "d49695b909c3b7628b6289db5479a1c204601f11"
+            },
+            "dist": {
+                "url": "https://api.github.com/repos/php-fig/log/zipball/d49695b909c3b7628b6289db5479a1c204601f11",
+                "type": "zip",
+                "shasum": "",
+                "reference": "d49695b909c3b7628b6289db5479a1c204601f11"
+            },
+            "require": {
+                "php": ">=5.3.0"
+            },
+            "time": "2021-05-03T11:20:27+00:00",
+            "autoload": {
+                "psr-4": {
+                    "Psr\\Log\\": "Psr/Log/"
+                }
+            }
+        }
+    ],
+    "aliases": [],
+    "minimum-stability": "stable",
+    "stability-flags": {},
+    "prefer-stable": false,
+    "prefer-lowest": false,
+    "platform": [],
+    "platform-dev": [],
+    "plugin-api-version": "2.2.0"
+}

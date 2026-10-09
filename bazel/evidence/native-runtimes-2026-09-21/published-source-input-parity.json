@@ -1,0 +1,16 @@
+[
+  {
+    "arch": "amd64",
+    "source_inputs_checked": 292,
+    "changed_inputs": [],
+    "graph": "/home/bits/.cache/native-published-amd64-actions.json",
+    "graph_sha256": "47eba28557ea74496eb907feb1b4b4063190dd2d32f4db57ca8898ad7d266d59"
+  },
+  {
+    "arch": "arm64",
+    "source_inputs_checked": 292,
+    "changed_inputs": [],
+    "graph": "/home/bits/.cache/native-published-arm64-actions.json",
+    "graph_sha256": "4ce64fab8e310c75d491cbbeb8bda149a0f625a24e76cff0d362140625e4ac2e"
+  }
+]

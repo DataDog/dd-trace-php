@@ -1,0 +1,19 @@
+def _check_impl(ctx):
+    output = ctx.actions.declare_file(ctx.label.name + ".passed")
+    ctx.actions.run(
+        executable = "./" + ctx.executable.busybox.path,
+        arguments = ["sh", ctx.file.script.path, ctx.executable.busybox.path, ctx.attr.machine, ctx.file.reference.path, ctx.file.native.path, output.path],
+        inputs = [ctx.executable.busybox, ctx.file.script, ctx.file.reference, ctx.file.native],
+        outputs = [output],
+        env = {"PATH": "/nonexistent", "LC_ALL": "C"},
+        mnemonic = "CompareRuntimeBehavior",
+        execution_requirements = {"no-network": "1"},
+    )
+    return [DefaultInfo(files = depset([output]))]
+check = rule(implementation = _check_impl, attrs = {
+    "busybox": attr.label(executable = True, cfg = "exec", allow_single_file = True),
+    "script": attr.label(allow_single_file = True),
+    "reference": attr.label(allow_single_file = True),
+    "native": attr.label(allow_single_file = True),
+    "machine": attr.string(),
+})

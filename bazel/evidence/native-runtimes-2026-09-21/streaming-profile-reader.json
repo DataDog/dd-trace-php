@@ -1,0 +1,7 @@
+{
+  "status": "pass",
+  "profile": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T184730.856279Z/profile.json.gz",
+  "categories": 35,
+  "elapsed_seconds": 82.81223377003334,
+  "peak_rss_kib": 19584
+}

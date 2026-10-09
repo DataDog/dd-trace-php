@@ -1,0 +1,311 @@
+# Included in the generated package child pipeline. All report inputs share
+# the same prepared source artifact and CI pipeline ID.
+variables:
+  # Refresh these immutable Nydus digests with the manual image jobs whenever
+  # dependency locks or repository rules change.
+  BAZEL_CI_PRELOADED: "1"
+  BAZEL_CI_IMAGE_AMD64: registry.ddbuild.io/ci/dd-trace-php/bazel-deps@sha256:511be303886b68b55f36c5196c40d550fe9596625be9a59d4588e5db4e3c9c10
+  BAZEL_CI_IMAGE_ARM64: registry.ddbuild.io/ci/dd-trace-php/bazel-deps@sha256:4329e72fa73863878333a653e0c34645de4e0c5a8f70e17d2e49c9f6eff98da4
+.bazel-client:
+  stage: tracing
+  interruptible: true
+  timeout: 3 hours
+  rules: &bazel_rules
+    - if: '$BAZEL_CI == "0" || $SCHEDULED_LIBDATADOG_LATEST == "true" || $LIBDATADOG_OVERRIDE_SHA || $CI_COMMIT_BRANCH == "bot/libdatadog-latest"'
+      when: never
+    - if: '$BAZEL_CI_PRELOADED == "1"'
+      variables:
+        BAZEL_DOWNLOAD_CACHE_POLICY: pull
+        BAZEL_DOWNLOAD_CACHE_SUFFIX: "-preloaded"
+    - when: on_success
+  variables:
+    KUBERNETES_CPU_REQUEST: "2"
+    KUBERNETES_CPU_LIMIT: "2"
+    KUBERNETES_MEMORY_REQUEST: 8Gi
+    KUBERNETES_MEMORY_LIMIT: 12Gi
+    # Fabric returns 403 for several checksum-locked Bazel repository inputs.
+    # Keep their pinned URLs and allow direct fetches from these source hosts.
+    KUBERNETES_POD_ANNOTATIONS_1: "beta.fabric.datadoghq.com/no-proxy-additions=bcr.bazel.build,snapshot.debian.org,deb.debian.org,registry-1.docker.io,auth.docker.io,production.cloudfront.docker.com,docker-images-prod.s3.dualstack.us-east-1.amazonaws.com,static.rust-lang.org,mirrors.kernel.org,static.crates.io,index.crates.io,dl-cdn.alpinelinux.org,vault.centos.org,curl.se,download.gnome.org,getcomposer.org,libzip.org,www.openssl.org,www.sqlite.org,zlib.net,launchpad.net,launchpadlibrarian.net,snapshot.ubuntu.com,dl.google.com,proxy.golang.org,sum.golang.org"
+    BAZEL_REMOTE_JOBS: "25"
+    BAZEL_DOWNLOAD_CACHE_POLICY: pull-push
+    BAZEL_DOWNLOAD_CACHE_SUFFIX: ""
+    GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_PATHS: libdatadog appsec/third_party/libddwaf-rust
+  needs:
+    - job: "prepare code"
+      artifacts: true
+  before_script:
+    - command -v python3 && command -v zstd
+    - python3 tools/bazel/ci_test.py
+    - |
+      set -eu
+      if [ "${BAZEL_CI_PRELOADED:-0}" = 1 ]; then
+        python3 tools/bazel/deps_image.py verify --arch "$BAZEL_EXEC_ARCH"
+        export BAZEL_BINARY=/opt/dd-php-bazel/bazel
+        export BAZEL_REPOSITORY_CACHE=/opt/dd-php-bazel/repository
+        export BAZEL_CI_OFFLINE_DEPS=1
+      else
+        sh tools/bazel/bootstrap-bazel.sh
+        export BAZEL_REPOSITORY_CACHE="/tmp/dd-php-bazel-repository-${CI_PIPELINE_ID}-${BAZEL_EXEC_ARCH}"
+        python3 tools/bazel/repository_cache.py restore
+      fi
+  cache:
+    key:
+      prefix: bazel-downloads-v2-${BAZEL_EXEC_ARCH}${BAZEL_DOWNLOAD_CACHE_SUFFIX}
+      files: [MODULE.bazel.lock, .bazelversion]
+    paths: [.cache/bazel/repository/]
+    policy: $BAZEL_DOWNLOAD_CACHE_POLICY
+    when: always
+  artifacts:
+    when: always
+    expire_in: 14 days
+    paths: [artifacts/bazel/]
+
+"bazel release: [amd64]":
+  extends: .bazel-client
+  image: $BAZEL_CI_IMAGE_AMD64
+  tags: ["arch:amd64"]
+  variables:
+    BAZEL_EXEC_ARCH: amd64
+  script:
+    - |
+      status=0
+      if [ "${BAZEL_CI_PRELOADED:-0}" != 1 ]; then
+        python3 tools/bazel/network_probe.py --arch amd64 || status=$?
+      fi
+      if [ "$status" -eq 0 ]; then python3 tools/bazel/ci.py lane --arch amd64 || status=$?; fi
+      cache_status=0
+      if [ "${BAZEL_CI_PRELOADED:-0}" != 1 ]; then
+        python3 tools/bazel/repository_cache.py save || cache_status=$?
+      fi
+      if [ "$status" -ne 0 ]; then exit "$status"; fi
+      exit "$cache_status"
+
+"bazel release: [arm64]":
+  extends: .bazel-client
+  image: $BAZEL_CI_IMAGE_ARM64
+  tags: ["arch:arm64"]
+  variables:
+    BAZEL_EXEC_ARCH: arm64
+  script:
+    - |
+      status=0
+      if [ "${BAZEL_CI_PRELOADED:-0}" != 1 ]; then
+        python3 tools/bazel/network_probe.py --arch arm64 || status=$?
+      fi
+      if [ "$status" -eq 0 ]; then python3 tools/bazel/ci.py lane --arch arm64 || status=$?; fi
+      cache_status=0
+      if [ "${BAZEL_CI_PRELOADED:-0}" != 1 ]; then
+        python3 tools/bazel/repository_cache.py save || cache_status=$?
+      fi
+      if [ "$status" -ne 0 ]; then exit "$status"; fi
+      exit "$cache_status"
+
+# The 46 remaining variants run after both release comparisons. Keeping them
+# in separate jobs retains forced/cached artifacts if coverage runs slowly.
+"bazel remaining: [amd64]":
+  extends: .bazel-client
+  image: $BAZEL_CI_IMAGE_AMD64
+  tags: ["arch:amd64"]
+  timeout: 4 hours
+  variables:
+    BAZEL_EXEC_ARCH: amd64
+  needs:
+    - job: "prepare code"
+      artifacts: true
+    - job: "bazel release: [amd64]"
+      artifacts: false
+    - job: "bazel release: [arm64]"
+      artifacts: false
+  cache:
+    policy: pull
+  script:
+    - python3 tools/bazel/ci.py remaining --arch amd64
+
+"bazel remaining: [arm64]":
+  extends: .bazel-client
+  image: $BAZEL_CI_IMAGE_ARM64
+  tags: ["arch:arm64"]
+  timeout: 4 hours
+  variables:
+    BAZEL_EXEC_ARCH: arm64
+  needs:
+    - job: "prepare code"
+      artifacts: true
+    - job: "bazel release: [amd64]"
+      artifacts: false
+    - job: "bazel release: [arm64]"
+      artifacts: false
+  cache:
+    policy: pull
+  script:
+    - python3 tools/bazel/ci.py remaining --arch arm64
+
+# Run manually after dependency locks change. The prepared source artifact is
+# the same one used by the measured lanes. Buildx uploads a small Dockerfile
+# context containing the verified repository downloads; no compiled outputs.
+.bazel-deps-image-build:
+  stage: tracing
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
+  timeout: 4 hours
+  rules:
+    - when: manual
+      allow_failure: true
+  id_tokens:
+    DDSIGN_ID_TOKEN:
+      aud: image-integrity
+  variables:
+    KUBERNETES_CPU_REQUEST: "2"
+    KUBERNETES_CPU_LIMIT: "2"
+    KUBERNETES_MEMORY_REQUEST: 8Gi
+    KUBERNETES_MEMORY_LIMIT: 12Gi
+    KUBERNETES_POD_ANNOTATIONS_1: "beta.fabric.datadoghq.com/no-proxy-additions=bcr.bazel.build,snapshot.debian.org,deb.debian.org,ports.ubuntu.com,registry-1.docker.io,auth.docker.io,production.cloudfront.docker.com,docker-images-prod.s3.dualstack.us-east-1.amazonaws.com,static.rust-lang.org,mirrors.kernel.org,static.crates.io,index.crates.io,dl-cdn.alpinelinux.org,vault.centos.org,curl.se,download.gnome.org,getcomposer.org,libzip.org,www.openssl.org,www.sqlite.org,zlib.net,launchpad.net,launchpadlibrarian.net,snapshot.ubuntu.com,dl.google.com,proxy.golang.org,sum.golang.org"
+    GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_PATHS: libdatadog appsec/third_party/libddwaf-rust
+    BAZEL_CI_OFFLINE_DEPS: "0"
+  needs:
+    - job: "prepare code"
+      artifacts: true
+  script:
+    - |
+      set -euo pipefail
+      apt-get update && apt-get install -y --no-install-recommends python3 curl git ca-certificates
+      sh tools/bazel/bootstrap-bazel.sh
+      export BAZEL_BINARY="$PWD/build/bin/bazel"
+      export BAZEL_REPOSITORY_CACHE="/tmp/dd-php-bazel-image-${CI_PIPELINE_ID}-${BAZEL_EXEC_ARCH}"
+      python3 tools/bazel/deps_image.py prefetch --arch "$BAZEL_EXEC_ARCH" --context build/bazel-deps-image
+      image="registry.ddbuild.io/ci/dd-trace-php/bazel-deps:${CI_COMMIT_SHORT_SHA}-${BAZEL_EXEC_ARCH}"
+      docker buildx build --pull --platform "linux/${BAZEL_EXEC_ARCH}" --push --tag "$image" \
+        --metadata-file build/bazel-deps-image-metadata.json build/bazel-deps-image
+      ddsign sign "$image" --docker-metadata-file build/bazel-deps-image-metadata.json
+      python3 -c 'import json, sys; print(sys.argv[1].split(":")[0] + "@" + json.load(open(sys.argv[2]))["containerimage.digest"])' \
+        "$image" build/bazel-deps-image-metadata.json | tee build/bazel-deps-image-ref.txt
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths: [build/bazel-deps-image-ref.txt, build/bazel-deps-image-metadata.json, build/bazel-deps-image/manifest.json]
+
+"bazel deps image: [amd64]":
+  extends: .bazel-deps-image-build
+  tags: ["arch:amd64"]
+  variables:
+    BAZEL_EXEC_ARCH: amd64
+
+"bazel deps image: [arm64]":
+  extends: .bazel-deps-image-build
+  tags: ["arch:arm64"]
+  variables:
+    BAZEL_EXEC_ARCH: arm64
+
+.bazel-deps-nydus-convert:
+  stage: packaging
+  image: registry.ddbuild.io/images/nydus:v2.3.8-dd
+  rules:
+    - when: manual
+      allow_failure: true
+  id_tokens:
+    DDSIGN_ID_TOKEN:
+      aud: image-integrity
+  script:
+    - |
+      set -euo pipefail
+      source="registry.ddbuild.io/ci/dd-trace-php/bazel-deps:${CI_COMMIT_SHORT_SHA}-${BAZEL_EXEC_ARCH}"
+      nydus-convert "$source"
+      target="${source}-nydus"
+      nydusify check --target "$target"
+      mkdir -p build
+      printf '%s@%s\n' "${target%:*}" "$(crane digest "$target")" | tee build/bazel-deps-nydus-ref.txt
+  artifacts:
+    when: on_success
+    expire_in: 30 days
+    paths: [build/bazel-deps-nydus-ref.txt]
+
+"bazel deps Nydus: [amd64]":
+  extends: .bazel-deps-nydus-convert
+  tags: ["arch:amd64"]
+  variables:
+    BAZEL_EXEC_ARCH: amd64
+  needs: ["bazel deps image: [amd64]"]
+
+"bazel deps Nydus: [arm64]":
+  extends: .bazel-deps-nydus-convert
+  tags: ["arch:amd64"]
+  variables:
+    BAZEL_EXEC_ARCH: arm64
+  needs: ["bazel deps image: [arm64]"]
+
+"legacy baseline: [amd64]":
+  stage: packaging
+  image: registry.ddbuild.io/images/mirror/python:3.12-slim-bookworm
+  tags: ["arch:amd64"]
+  interruptible: true
+  rules: *bazel_rules
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+  needs:
+    - job: "link tracing extension: [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+    - job: "link tracing extension: [amd64, x86_64-alpine-linux-musl]"
+      artifacts: true
+  script:
+    - python3 tools/bazel/legacy_aggregate.py --arch amd64
+  artifacts:
+    when: always
+    expire_in: 14 days
+    paths: [artifacts/bazel/legacy-amd64/]
+
+"legacy baseline: [arm64]":
+  stage: packaging
+  image: registry.ddbuild.io/images/mirror/python:3.12-slim-bookworm
+  tags: ["arch:amd64"]
+  interruptible: true
+  rules: *bazel_rules
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+  needs:
+    - job: "link tracing extension: [arm64, aarch64-unknown-linux-gnu]"
+      artifacts: true
+    - job: "link tracing extension: [arm64, aarch64-alpine-linux-musl]"
+      artifacts: true
+  script:
+    - python3 tools/bazel/legacy_aggregate.py --arch arm64
+  artifacts:
+    when: always
+    expire_in: 14 days
+    paths: [artifacts/bazel/legacy-arm64/]
+
+bazel-report:
+  stage: verify
+  image: registry.ddbuild.io/images/mirror/python:3.12-slim-bookworm
+  tags: ["arch:amd64"]
+  interruptible: true
+  rules:
+    - if: '$BAZEL_CI == "0" || $SCHEDULED_LIBDATADOG_LATEST == "true" || $LIBDATADOG_OVERRIDE_SHA || $CI_COMMIT_BRANCH == "bot/libdatadog-latest"'
+      when: never
+    - when: always
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+  needs:
+    - job: "legacy baseline: [amd64]"
+      artifacts: true
+    - job: "legacy baseline: [arm64]"
+      artifacts: true
+    - job: "bazel release: [amd64]"
+      artifacts: true
+    - job: "bazel release: [arm64]"
+      artifacts: true
+    - job: "bazel remaining: [amd64]"
+      artifacts: true
+    - job: "bazel remaining: [arm64]"
+      artifacts: true
+  script:
+    - python3 tools/bazel/ci_report.py artifacts/bazel
+    - cat artifacts/bazel/report.md
+  artifacts:
+    when: always
+    expire_in: 30 days
+    expose_as: Bazel build measurements
+    paths:
+      - artifacts/bazel/report.html
+      - artifacts/bazel/report.md
+      - artifacts/bazel/report.json

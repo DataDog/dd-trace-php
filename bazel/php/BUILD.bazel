@@ -1,0 +1,65 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load(":matrix.bzl", "matrix_manifest")
+load(":php_matrix_targets.bzl", "php_matrix_targets")
+load(":php_toolchain.bzl", "php_sdk_inventory", "php_sdk_manifest")
+load(":product_matrix.bzl", "product_matrix_manifest")
+
+package(default_visibility = ["//visibility:public"])
+
+toolchain_type(name = "toolchain_type")
+
+matrix_manifest(name = "matrix")
+
+product_matrix_manifest(name = "product_matrix")
+
+PHP_TARGETS = php_matrix_targets()
+
+php_sdk_inventory(
+    name = "sdk_inventory",
+    sdks = PHP_TARGETS,
+)
+
+filegroup(
+    name = "php_all",
+    srcs = PHP_TARGETS + [":sdk_inventory"],
+)
+
+cc_library(
+    name = "legacy_arm64_debug_sdk_probe",
+    srcs = ["sdk_probe.c"],
+    copts = [
+        "-DSDK_EXPECT_API=20200930",
+        "-DSDK_EXPECT_DEBUG=1",
+        "-DSDK_EXPECT_ZTS=0",
+    ],
+    tags = ["manual"],
+    target_compatible_with = [
+        "//bazel/platforms:musl",
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+    deps = [":php_8_0_arm64_musl_alpine_legacy_debug"],
+)
+
+cc_library(
+    name = "legacy_arm64_debug_zts_sdk_probe",
+    srcs = ["sdk_probe.c"],
+    copts = [
+        "-DSDK_EXPECT_API=20200930",
+        "-DSDK_EXPECT_DEBUG=1",
+        "-DSDK_EXPECT_ZTS=1",
+    ],
+    tags = ["manual"],
+    target_compatible_with = [
+        "//bazel/platforms:musl",
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+    deps = [":php_8_0_arm64_musl_alpine_legacy_debug_zts"],
+)
+
+exports_files([
+    "php_toolchain.bzl",
+    "validate_product_manifest.py",
+    "validate_product_manifest_test.py",
+])

@@ -1,0 +1,35 @@
+[
+  {
+    "command": [
+      "python3",
+      "bazel/dependencies/php_oci/validate_locks.py",
+      "--lock",
+      "bazel/dependencies/php_oci/images.json",
+      "--metadata-root",
+      "bazel/dependencies/php_oci",
+      "--extractor",
+      "bazel/dependencies/php_oci/extract_profile.py"
+    ],
+    "exit_code": 0,
+    "log": "sdk-validation-1.log",
+    "sha256": "ba49d9afc8ecd13d8e19beac5d0e5083696e624cb78c97603adb483c6d32ac81"
+  },
+  {
+    "command": [
+      "python3",
+      "bazel/dependencies/php_oci/extract_profile_test.py"
+    ],
+    "exit_code": 0,
+    "log": "sdk-validation-2.log",
+    "sha256": "0b91efbf18bf599405ac2d4b15a2eefd01b926339e841af31a3da4aa2361e4f9"
+  },
+  {
+    "command": [
+      "python3",
+      "tools/bazel/validate_php_sdk_metadata_test.py"
+    ],
+    "exit_code": 0,
+    "log": "sdk-validation-3.log",
+    "sha256": "199ba496f288116d36c62f29346d4fbf0bd75745a1c893abfcbdaa4c6d5b1033"
+  }
+]

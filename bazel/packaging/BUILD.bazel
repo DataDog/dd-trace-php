@@ -1,0 +1,84 @@
+load(":artifacts.bzl", "product_artifact")
+load(":artifacts_test.bzl", "product_artifact_fixture")
+load(":bundle.bzl", "deterministic_ssi_bundle", "ssi_payload")
+load(":manifest_artifacts.bzl", "product_matrix_artifact")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "artifacts.bzl",
+    "artifacts_test.bzl",
+    "bundle.bzl",
+    "layout.bzl",
+    "manifest_artifacts.bzl",
+])
+
+product_artifact_fixture(
+    name = "artifact_contract_fixture",
+    tags = ["manual"],
+)
+
+product_artifact(
+    name = "artifact_contract_binary",
+    product = "loader",
+    product_target = ":artifact_contract_fixture",
+    role = "binary",
+    scope_key = "loader_amd64_glibc_none",
+    tags = ["manual"],
+)
+
+# This checks that a package projection derives its product scope and role
+# from the canonical product manifest instead of duplicating them at the call
+# site.
+product_matrix_artifact(
+    name = "fixture_manifest_product_binary",
+    product = "loader",
+    product_target = ":artifact_contract_fixture",
+    role = "binary",
+    row_name = "php_8_5_amd64_glibc_bookworm_nts",
+)
+
+# This target is intentionally not part of an aggregate. Its analysis must
+# fail because the projection's requested scope is not the producer's scope.
+product_artifact(
+    name = "artifact_contract_wrong_scope",
+    product = "loader",
+    product_target = ":artifact_contract_fixture",
+    role = "binary",
+    scope_key = "loader_arm64_glibc_none",
+    tags = ["manual"],
+)
+
+product_artifact(
+    name = "artifact_contract_absent_role",
+    product = "loader",
+    product_target = ":artifact_contract_fixture",
+    role = "archive",
+    scope_key = "loader_amd64_glibc_none",
+    tags = ["manual"],
+)
+
+# This deliberately uses a minimal complete payload.  It exercises the
+# Starlark action wiring independently from product targets, which supply the
+# full ABI layout through ssi_payload_for_api().
+ssi_payload(
+    name = "fixture_payload",
+    srcs = {"testdata/fixture-loader.bin": "fixture/loader.bin"},
+    required_paths = ["fixture/loader.bin", "version"],
+    tags = ["manual"],
+    version = "testdata/version",
+)
+
+ssi_payload(
+    name = "fixture_projected_payload",
+    srcs = {":fixture_manifest_product_binary": "fixture/projected.bin"},
+    required_paths = ["fixture/projected.bin", "version"],
+    tags = ["manual"],
+    version = "testdata/version",
+)
+
+deterministic_ssi_bundle(
+    name = "fixture_bundle",
+    payload = ":fixture_payload",
+    tags = ["manual"],
+)

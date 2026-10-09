@@ -1,0 +1,84 @@
+{
+  "classification": "historical acceptance records retained for unchanged foundation scope; these records are not new executions in this checkpoint",
+  "continuity": {
+    "current_source_snapshot": "checkpoint-source-files.sha256",
+    "scope": "The 407-file source and lock snapshot supports reuse only while its declared inputs remain unchanged."
+  },
+  "records": [
+    {
+      "original_path": "/tmp/dd-gnu-libunwind-review.json",
+      "retained_evidence": "foundation-gnu-libunwind-review.json",
+      "sha256": "1ab1a9c95e0fd2d2784eba7d7f26c31b70e2e88a6e5f00d164eb62d1d13fdfff",
+      "scope": "GNU libunwind 1.8.3 Cargo-locked source: four architecture/libc archive sets and matching native smoke artifacts",
+      "current_target": "//bazel/dependencies/gnu_libunwind:all"
+    },
+    {
+      "original_path": "/tmp/dd-appsec-libxml2-final-review.json",
+      "retained_evidence": "foundation-appsec-libxml2-review.json",
+      "sha256": "c0008cc153c5d231814fc76cb54d92f5947675f3880d06ef85f546ddb454359c",
+      "scope": "eight AppSec libxml2 architecture/libc/NTS-ZTS archive outputs",
+      "current_targets": [
+        "//bazel/dependencies/appsec_libxml2:x86_64_glibc_nts",
+        "//bazel/dependencies/appsec_libxml2:x86_64_glibc_zts",
+        "//bazel/dependencies/appsec_libxml2:x86_64_musl_nts",
+        "//bazel/dependencies/appsec_libxml2:x86_64_musl_zts",
+        "//bazel/dependencies/appsec_libxml2:aarch64_glibc_nts",
+        "//bazel/dependencies/appsec_libxml2:aarch64_glibc_zts",
+        "//bazel/dependencies/appsec_libxml2:aarch64_musl_nts",
+        "//bazel/dependencies/appsec_libxml2:aarch64_musl_zts"
+      ]
+    },
+    {
+      "original_path": "/tmp/dd-target-curl-root-elf-review.json",
+      "retained_evidence": "foundation-target-curl-glibc-review.json",
+      "sha256": "e0ae929a3f864d990ecfcbc398d079f878de1b22e9a9e46bda23947128ea0957",
+      "scope": "glibc target curl/OpenSSL/zlib closures for amd64 and arm64",
+      "current_targets": [
+        "//bazel/dependencies/target_curl_oci:curl_amd64_glibc",
+        "//bazel/dependencies/target_curl_oci:curl_arm64_glibc"
+      ]
+    },
+    {
+      "original_path": "/tmp/dd-target-curl-musl-root-elf-review.json",
+      "retained_evidence": "foundation-target-curl-musl-review.json",
+      "sha256": "0edbd51e483373ab46ad64421efb411753362663fa252049465f3f3d10dab33e",
+      "scope": "musl target curl and complete dynamic closure for amd64 and arm64",
+      "current_targets": [
+        "//bazel/dependencies/target_curl_oci:curl_amd64_musl",
+        "//bazel/dependencies/target_curl_oci:curl_arm64_musl"
+      ]
+    },
+    {
+      "original_path": "/tmp/dd-exec-php-cross-final-evidence.log",
+      "retained_evidence": "foundation-php-generator-cross.log",
+      "sha256": "b0b16dcef53189dcaa382410388ea88fc2b7015d8caa5482b643eab3ee2f4848",
+      "scope": "amd64 and arm64 host-PHP generator smoke with the four generated bridge files",
+      "current_targets": [
+        "//bazel/generators:host_php_smoke",
+        "//bazel/generators:bridge_files"
+      ]
+    },
+    {
+      "original_path": "/tmp/dd-integrated-php-sdk-determinism-review.log",
+      "retained_evidence": "foundation-php-sdk-determinism.log.gz",
+      "uncompressed_sha256": "06e1df745e396237a9c22e835589f3fd35d41a8edce0c5fa51b1bb5c61e348fc",
+      "scope": "two remote-hermetic PHP SDK materialization runs and comparison for //:php_all",
+      "recorded_result": "No nondeterminism detected."
+    },
+    {
+      "original_path": "/tmp/dd-oci-independent-fresh-offline-review.log",
+      "retained_evidence": "foundation-oci-offline.log",
+      "sha256": "67d0e921401676d879364e6dd3c4ffe13b32196fd5a6e59c7c8145407659ba2b",
+      "scope": "fresh offline OCI PHP SDK repository query",
+      "recorded_target": "@php_sdk_bookworm_8_5_arm64_nts//:headers"
+    },
+    {
+      "original_path": "/tmp/dd-llvm-runtime-final-remote-review.log",
+      "retained_evidence": "foundation-llvm-runtime-remote.log.gz",
+      "uncompressed_sha256": "3af08a3d181686dc065cc7748dbcc291fa95e96b1a18ea6abbe2879b4e758f61",
+      "scope": "all four LLVM 20.1.4 target runtimes plus matching remote native smoke",
+      "current_target": "//bazel/dependencies/llvm_runtimes:all",
+      "recorded_result": "Build completed successfully, 356 total actions."
+    }
+  ]
+}
