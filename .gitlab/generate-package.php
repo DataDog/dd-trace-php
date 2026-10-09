@@ -1544,6 +1544,9 @@ $system_tests_weblogs = [
       paths:
         - .cache/
   rules:
+    # TEMPORARY: emulate master on this branch to test sharding; remove before merging to master.
+    - if: $CI_COMMIT_REF_NAME == "alexeyk/shard-release-system-tests"
+      when: on_success
     - if: $CI_COMMIT_REF_NAME == "master"
       when: on_success
     - if: $CI_PIPELINE_SOURCE == "schedule"
