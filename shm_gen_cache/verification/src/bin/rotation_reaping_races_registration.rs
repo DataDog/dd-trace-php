@@ -59,12 +59,13 @@
 //!
 //! Both insertions were accepted before maintenance, so a rotation failure
 //! cannot turn either into an error. Registration claims a slot while
-//! rotation advances the epoch, so both can succeed. A rotator that finds
-//! slot reaping in progress abandons its attempt and leaves epoch 4 sealed;
-//! one that observes R's completed, unpinned registration can finish and
-//! advance to epoch 5. A full registry means a rotation owner reaped slot 0;
-//! with no old blocker left it must also finish rotation, so registry-full
-//! with epoch 4 is forbidden.
+//! rotation advances the epoch, so both can succeed. A rotator that still
+//! sees the dead pin when its wait ends, then finds R's live claim in slot 0
+//! (or loses the takeover to R), abandons its attempt and leaves epoch 4
+//! sealed; one that observes the pin cleared by R can finish and advance to
+//! epoch 5. A full registry means a rotation owner took slot 0 over (and
+//! released it); with no old blocker left it must also finish rotation, so
+//! registry-full with epoch 4 is forbidden.
 //!
 //! After the joins, epoch 4 retains all three records at bump 96, every pin
 //! and the rotation owner are clear, and an epoch-5 current arena is still

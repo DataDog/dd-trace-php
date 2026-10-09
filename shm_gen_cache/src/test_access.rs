@@ -12,7 +12,7 @@ use crate::cache::{ARENA_COUNT, Cache, INITIAL_EPOCH};
 use crate::config::Params;
 use crate::error::Error;
 use crate::occupancy::OccupancyMode;
-use crate::participant::{ParticipantSlot, State};
+use crate::participant::{ParticipantSlot, State, UNPINNED, next_registration_id};
 
 pub use crate::arena::index::bucket;
 pub use crate::arena::probe::ProbeError;
@@ -146,6 +146,65 @@ pub fn registration_id(slot: &ParticipantSlot) -> u32 {
 pub fn registered_state(pid: u32, registration_id: u32) -> u64 {
     State::registered(pid, registration_id).0
 }
+
+/// How far a slot reaper got in its steal of a dead claim before it died
+/// (see [`stage_interrupted_reap`]).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ReapCrash {
+    /// It claimed the slot (INITIALIZING to the reaper), and died before
+    /// storing its start time: the slot keeps the dead claim's. Dying after
+    /// that store is no different to the other participants, which never
+    /// read the start time of an INITIALIZING slot.
+    Claimed,
+    /// It also registered the slot to itself (REGISTERED), and died before
+    /// clearing the dead pin.
+    Registered,
+    /// It also cleared the pin, overwriting any `ROTATION_WAITING` flag, and
+    /// died before waking the rotation that set it.
+    Unpinned,
+}
+
+/// Stages the crash state of a slot reaper that died mid-reap: it stole
+/// slot `slot_index` from a dead claim, as PID `reaper_pid` started at
+/// `reaper_start`, with a fresh registration id, and stopped as `crash`
+/// says. The rest of the slot (the pin, unless `crash` is
+/// [`ReapCrash::Unpinned`], and the reservation chunk) is left as it is.
+/// Tests declare the reaper dead.
+///
+/// The slot must hold a claim. The words are written relaxed, so either
+/// call this before spawning the threads that use the slot, or make sure
+/// that they access the slot only after a synchronisation with the caller
+/// that follows this call. One exception: with [`ReapCrash::Unpinned`], a
+/// thread racing the call may read the pin, provided it reads nothing else
+/// of the slot, and the caller has seen its last write of the pin: the
+/// clearing store then follows that write, as a real reaper's would, so
+/// the thread sees either the pin as it left it or the cleared one.
+pub fn stage_interrupted_reap<P: Params>(
+    cache: Cache<'_, P>,
+    slot_index: u32,
+    reaper_pid: u32,
+    reaper_start: u64,
+    crash: ReapCrash,
+) {
+    let slot = participant(cache, slot_index);
+    assert!(!slot.is_free());
+    let registration_id = next_registration_id(&cache.header().registration_counter);
+    if crash == ReapCrash::Claimed {
+        let claimed = State::initializing(reaper_pid, registration_id);
+        slot.state.store(claimed.0, Ordering::Relaxed);
+        return;
+    }
+    slot.thread_disambiguation
+        .store(reaper_start, Ordering::Relaxed);
+    let registered = State::registered(reaper_pid, registration_id);
+    slot.state.store(registered.0, Ordering::Relaxed);
+    if crash == ReapCrash::Unpinned {
+        slot.pinned_epoch.store(UNPINNED, Ordering::Relaxed);
+    }
+}
+
+/// Set on a pin by a rotation about to block on it (see `rotate()`).
+pub const ROTATION_WAITING: u64 = crate::participant::ROTATION_WAITING;
 
 /// Rotates from epoch `e` as the participant in slot `slot_index`.
 pub fn rotate<P: Params>(

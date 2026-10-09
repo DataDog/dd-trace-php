@@ -99,7 +99,7 @@ reuse* is rotation reinitialising an old arena.
   survive until its stamp comes round again after 2^32 rotations (epoch ABA
   problem).
 - All processes sharing a mapping must use the same shared layout
-  (currently version 10); different versions are not compatible.
+  (currently version 11); different versions are not compatible.
 
 ## Use from C
 

@@ -97,7 +97,7 @@ fn static_config_mapping_size_follows_the_layout() {
 }
 
 /// Expected mapping sizes of a few configurations per architecture (aarch64
-/// has 128-byte lines, x86-64 64-byte); they are fixed by layout version 10.
+/// has 128-byte lines, x86-64 64-byte); they are fixed by layout version 11.
 #[test]
 fn mapping_sizes_per_architecture() {
     let bench = Config {

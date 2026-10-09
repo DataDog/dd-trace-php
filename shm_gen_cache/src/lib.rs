@@ -1,6 +1,6 @@
 //! Mutex-free, process-shared, two-generation byte cache.
 //!
-//! The shared-memory layout is layout version 10. The code is organised
+//! The shared-memory layout is layout version 11. The code is organised
 //! around a few compile-time choices:
 //!
 //! * the configuration is a [`Params`] type: a zero-sized compile-time
@@ -80,9 +80,11 @@ pub mod test_access;
 
 /// Layout version of the shared mapping format for this architecture.
 ///
-/// The format is disposable: a mapping written by a different version is
-/// discarded and recreated rather than migrated.
-pub const LAYOUT_VERSION: u32 = 10;
+/// It covers the protocol on the shared words, not only their encoding: a
+/// change to either makes mappings incompatible. The format is disposable:
+/// a mapping written by a different version is discarded and recreated
+/// rather than migrated.
+pub const LAYOUT_VERSION: u32 = 11;
 
 pub use cache::{Cache, CacheHeader, CacheStorage};
 pub use config::{Config, Derived, HotParams, Params, RuntimeParams, StaticParams};

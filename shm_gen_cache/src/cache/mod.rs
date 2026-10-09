@@ -1,7 +1,7 @@
 //! The cache: shared layout, initialisation and
 //! registration. Lookup, store and rotation live in the submodules.
 //!
-//! Shared layout (layout version 10; fully determined by the configuration
+//! Shared layout (layout version 11; fully determined by the configuration
 //! and the architecture's cache-line size):
 //!
 //! ```text
@@ -47,7 +47,7 @@ const MAGIC_INITIALIZED: u64 = u64::from_le_bytes(*b"SCCACHE\0");
 
 /// The mapping header. The plain fields record the layout version and the
 /// configuration; they are written once, before the mapping is published,
-/// and are part of layout version 10, although the cache code never reads
+/// and are part of layout version 11, although the cache code never reads
 /// them back.
 #[cfg_attr(target_arch = "aarch64", repr(C, align(128)))]
 #[cfg_attr(not(target_arch = "aarch64"), repr(C, align(64)))]
@@ -263,38 +263,39 @@ impl<'m, P: Params> Cache<'m, P> {
     /// from slot reaping; [`Error::Corrupt`].
     pub fn register_participant(self) -> Result<ParticipantLock<'m, P>, Error> {
         let hp = self.params.hot();
-        loop {
-            let registration_id = next_registration_id(&self.header().registration_counter);
-            for i in 0..hp.participant_capacity {
-                let slot = self.participant(&hp, i);
-                if !slot.is_free() {
-                    continue;
-                }
-                match slot.claim::<P::Pid>(registration_id) {
-                    // SAFETY: the slot is claimed by this thread.
-                    Ok(()) => return Ok(unsafe { ParticipantLock::new(self, i) }),
-                    Err(Error::ConcurrentOperation) => continue,
-                    Err(e) => return Err(e),
-                }
+        let registration_id = next_registration_id(&self.header().registration_counter);
+        for i in 0..hp.participant_capacity {
+            let slot = self.participant(&hp, i);
+            if !slot.is_free() {
+                continue;
             }
-            if !self.try_reap_dead_participant(&hp)? {
-                return Err(Error::ParticipantRegistryFull);
+            match slot.claim::<P::Pid>(registration_id) {
+                // SAFETY: the slot is claimed by this thread.
+                Ok(()) => return Ok(unsafe { ParticipantLock::new(self, i) }),
+                Err(Error::ConcurrentOperation) => continue,
+                Err(e) => return Err(e),
             }
-            // Reaped a slot: retry with a fresh registration id.
+        }
+        match self.reap_dead_participant(&hp, registration_id)? {
+            // SAFETY: slot reaping registered the slot to this thread.
+            Some(i) => Ok(unsafe { ParticipantLock::new(self, i) }),
+            None => Err(Error::ParticipantRegistryFull),
         }
     }
 
-    fn try_reap_dead_participant(self, hp: &HotParams) -> Result<bool, Error> {
+    /// Slot reaping for a registration: steals the first dead participant's
+    /// slot as `registration_id`, keeping it, and returns its index.
+    fn reap_dead_participant(
+        self,
+        hp: &HotParams,
+        registration_id: u32,
+    ) -> Result<Option<u32>, Error> {
         for i in 0..hp.participant_capacity {
-            let slot = self.participant(hp, i);
-            if slot.is_free() {
-                continue;
-            }
-            if slot.release_zombie_claim::<P::Pid>()? {
-                return Ok(true);
+            if self.participant(hp, i).steal::<P::Pid>(registration_id)? {
+                return Ok(Some(i));
             }
         }
-        Ok(false)
+        Ok(None)
     }
 
     /// The parameters.

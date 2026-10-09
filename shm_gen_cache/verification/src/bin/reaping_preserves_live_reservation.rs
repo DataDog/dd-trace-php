@@ -15,9 +15,10 @@
 //! invariant. All fixture writes happen before the spawns, which provides
 //! the happens-before ordering a death observation requires. The liveness
 //! backend (`StagedDeath`) reports PID 1 dead and PID 2 live; it supplies
-//! no synchronisation between workers. The production claim/reaping state
-//! machine itself performs REGISTERED -> REAPING -> FREE and clears the dead
-//! pin.
+//! no synchronisation between workers. The rotation's production slot
+//! reaping itself takes the dead slot over (REGISTERED to PID 1, then
+//! INITIALIZING and REGISTERED to the rotator), which clears the dead pin,
+//! and releases it (FREE).
 //!
 //! # Workers
 //!
@@ -65,7 +66,8 @@
 //!
 //! No production hooks, direct rotate/probe calls, copied implementation or
 //! extra GenMC variants are used. Out of scope: fidelity of backend death
-//! detection, concurrent slot replacement, multiple reapers, reaper death.
+//! detection, concurrent slot replacement, multiple reapers, reaper death
+//! (see `reaper_dies_mid_reap`).
 
 #![no_std]
 #![no_main]

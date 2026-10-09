@@ -103,16 +103,17 @@ In detail:
   `owner_wait_misses_reacquired_release`).
 * The participant state needs no variant: it is always an `AtomicU64`
   decoded with shifts (bit 0 INITIALIZING, bits 1-31 PID, bits 32-63
-  registration ID; 0 FREE, 1 REAPING), so no 32-bit field of a 64-bit word
-  is ever loaded, which GenMC could not read.
+  registration ID; 0 FREE), so no 32-bit field of a 64-bit word is ever
+  loaded, which GenMC could not read.
 * Test hooks: the `GetPid` methods `reservation_epoch_hook` (after W1 in
   `reserve()`), `reservation_retry_hook` (before abandoning a reservation
-  attempt to rotate and retry) and `after_epoch_publication` (in `rotate()`
-  right after R5, before ownership is released). They are called only under
-  feature `verify`, default to empty inline functions, and only the liveness
-  policy of the test that needs one overrides it; every other test and every
-  ordinary build is unaffected. Their per-test semantics must be explained atop
-  the test that uses them.
+  attempt to rotate and retry), `after_epoch_publication` (in `rotate()`
+  right after R5, before ownership is released) and
+  `after_record_publication` (in `store()` after W6, before the unpin).
+  They are called only under feature `verify`, default to empty inline
+  functions, and only the liveness policy of the test that needs one
+  overrides it; every other test and every ordinary build is unaffected.
+  Their per-test semantics must be explained atop the test that uses them.
 
 The lookup output buffer holds padded `u64` words and lookups copy cache
 words into it directly; promotion keeps that padded representation. This
@@ -308,6 +309,9 @@ it has decoders that perform exactly the loads they name and no more:
   distinct home buckets (const fn).
 * `rotate`, `acquire_rotation`, `probe`: the real internal operations, for
   staging states.
+* `stage_interrupted_reap(cache, slot, pid, start, crash)`: the state a slot
+  reaper leaves when it dies at `crash` (a `ReapCrash`) in its steal of a
+  dead claim, which no thread can be stopped at.
 
 Harness API (`src/lib.rs`, documented there):
 
@@ -383,15 +387,29 @@ scheduling of GenMC workers.
 | reaping_preserves_live_reservation | 13 / 1 | 13 / 1 |
 | chunked_insert_blocks_reuse | 67788 / 46890 | (not run) |
 | chunk_claim_clipped_at_capacity | 7984 / 0 | 7984 / 0 |
-| rotation_reaping_races_registration | 8208 / 5160 | 8208 / 5160 |
+| rotation_reaping_races_registration | 14592 / 7800 | 14592 / 7800 |
 | competing_dead_rotation_takeovers | 22344 / 0 | (not run) |
-| competing_registrars_preserve_winner | 672 / 0 | diverges |
+| competing_registrars_preserve_winner | 80 / 0 | diverges |
 | dead_owner_epoch_publication_preserves_reservation | 20 / 828 | diverges |
 | dead_rotation_owner_reaping_races_takeover | 7 / 0 | diverges |
 | live_rotation_owner_identity_handoff | 70416 / 0 | (not run) |
+| owner_slot_reaping_preserves_epoch_publication | 4232 / 0 | diverges |
+| slot_reaping_imports_dead_writer_records | 110 / 10 | diverges |
+| slot_reaping_resets_reservation_chunk | 1 / 0 | 1 / 0 |
+| reaper_dies_mid_reap | 1 / 0 | 1 / 0 |
+| rotation_owner_reaper_dies_mid_reap | 9 / 0 | 9 / 0 |
+| competing_reapers_of_dead_owner_slot | 312 / 0 | 312 / 0 |
+| owner_wait_misses_reacquired_release | 112864 / 3594 | diverges |
+| reaping_wakes_blocked_rotation | 67 / 25 | diverges |
+| reaping_dead_reaper_wakes_blocked_rotation | 67 / 25 | diverges |
+| reaping_dead_registered_reaper_wakes_blocked_rotation | 67 / 25 | diverges |
+| reaping_dead_reaper_redelivers_lost_wake | 25 / 9 | diverges |
+| rotation_waits_for_unpin | 54 / 7 | diverges |
 
 "Diverges": the test itself waits in unbounded polling loops (flags, owner
-word), which only spin-assume makes finite.
+word), which only spin-assume makes finite. So does the futex model of the
+`FUTEX_MODEL` programs (the last six rows): its lock and its blocked
+waiters poll.
 
 In the first four rows, spin-assume prunes executions: GenMC recognises the
 retry after a failed index CAS in `table_put` (an iteration whose only

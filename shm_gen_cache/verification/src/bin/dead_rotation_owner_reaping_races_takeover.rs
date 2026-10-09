@@ -34,26 +34,28 @@
 //!
 //! # Workers
 //!
-//! * Registrar R registers publicly. All slots are taken, so this reaps the
-//!   dead slot 0 and reuses it: R must land in slot 0 with a fresh, nonzero
-//!   registration id, unpinned. R then signals `registration_complete`,
-//!   waits for `recovery_complete`, re-checks that its identity is
-//!   unchanged and unpinned, signals `replacement_verified` and exits
-//!   (unregistering).
+//! * Registrar R registers publicly. All slots are taken, so this takes the
+//!   dead slot 0 over and keeps it: R must land in slot 0 with a fresh,
+//!   nonzero registration id, unpinned. R then signals
+//!   `registration_complete`, waits for `recovery_complete`, re-checks that
+//!   its identity is unchanged and unpinned, signals `replacement_verified`
+//!   and exits (unregistering).
 //! * Writer W publicly inserts K3, which needs a rotation before it can
 //!   reserve space, racing R's registration for the stale ownership. W
 //!   either takes over and succeeds immediately, or conservatively times
-//!   out (`RotationOwnerTimeout`) during the slot handoff. It then waits
-//!   for `registration_complete`; after a timeout it retries the insert
-//!   once, which must succeed. Finally it checks its own identity, that K3
-//!   looks up as exactly V3, that it is unpinned and the final state, then
-//!   signals `recovery_complete`.
+//!   out (`RotationOwnerTimeout`) during the slot handoff: its owner check
+//!   can read slot 0 still REGISTERED to the old incarnation, then the
+//!   start time that R stored after taking the slot over, a pair the
+//!   backend reports live. It then waits for `registration_complete`; after
+//!   a timeout it retries the insert once, which must succeed. Finally it
+//!   checks its own identity, that K3 looks up as exactly V3, that it is
+//!   unpinned and the final state, then signals `recovery_complete`.
 //!
 //! The waits come after the racing calls, so they do not order R's
 //! registration against W's initial insert; they only keep the replacement
-//! registered through W's retry and final checks. R always completes slot
-//! reaping: recovery from a reaper dying in REAPING remains unsupported and
-//! is not exercised here.
+//! registered through W's retry and final checks. R always completes its
+//! takeover of slot 0; `rotation_owner_reaper_dies_mid_reap` covers a reaper
+//! that dies midway.
 //!
 //! # Properties
 //!
@@ -67,8 +69,9 @@
 //! # Witnesses
 //!
 //! * `DEAD_OWNER_TAKEOVER`: the initial insert takes over and succeeds.
-//! * `OWNER_HANDOFF_TIMEOUT`: the initial insert times out and the retry
-//!   succeeds.
+//! * `OWNER_HANDOFF_TIMEOUT`: the initial insert times out (on the mixed
+//!   observation above, the only one that reports the old owner live) and
+//!   the retry succeeds.
 //!
 //! No assumptions, production hooks or extra GenMC variants are used.
 

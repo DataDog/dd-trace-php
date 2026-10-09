@@ -69,6 +69,9 @@ const FUTEX_MODEL_CFG: &str = "sgc_genmc_futex_model";
 /// is a violation (README.md).
 const FUTEX_MODEL: &[&str] = &[
     "owner_wait_misses_reacquired_release",
+    "reaping_dead_reaper_redelivers_lost_wake",
+    "reaping_dead_reaper_wakes_blocked_rotation",
+    "reaping_dead_registered_reaper_wakes_blocked_rotation",
     "reaping_wakes_blocked_rotation",
     "rotation_waits_for_unpin",
 ];

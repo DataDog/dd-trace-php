@@ -12,7 +12,7 @@ use crate::participant::ParticipantSlot;
 /// start time. Synchronisation failures must be returned as errors, not
 /// hidden as a live/dead answer.
 ///
-/// The three hook methods are test instrumentation. They are called only in
+/// The four hook methods are test instrumentation. They are called only in
 /// verification builds (feature `verify`), add no synchronisation, and
 /// default to no-ops.
 pub trait GetPid {
@@ -37,6 +37,10 @@ pub trait GetPid {
     /// before it releases ownership.
     #[inline(always)]
     fn after_epoch_publication() {}
+    /// Called by an insert after it publishes its record (W6: table and
+    /// occupancy updates included) and before it unpins.
+    #[inline(always)]
+    fn after_record_publication(_slot: &ParticipantSlot) {}
 }
 
 /// Single-process backend: every participant is pid 1 and always live, so

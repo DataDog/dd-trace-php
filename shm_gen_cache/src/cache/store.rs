@@ -155,15 +155,18 @@ impl<P: Params> Cache<'_, P> {
 
             // W6: stay pinned through table publication and occupancy
             // updates.
+            #[cfg(feature = "verify")]
+            <P::Pid as GetPid>::after_record_publication(slot);
             slot.unpin();
             match result {
                 PutStatus::Ok => return Ok(()),
                 PutStatus::Full => {
                     // Publication is complete. Maintenance can defer to
                     // another owner or fail its pin/backend check without
-                    // failing this accepted insert or promotion. rotate
-                    // currently cannot return Corrupt; preserve structural
-                    // errors if that changes.
+                    // failing this accepted insert or promotion. Structural
+                    // errors are preserved: rotate returns Corrupt when its
+                    // slot reaping finds the state of a slot it claimed
+                    // changed under it.
                     return match self.rotate(slot, slot_index, e, RotationPolicy::SkipBusyOwner) {
                         Err(Error::Corrupt) => Err(Error::Corrupt),
                         _ => Ok(()),
@@ -308,6 +311,7 @@ impl<P: Params> Cache<'_, P> {
                 } else {
                     n
                 };
+                // B1: reserve record space.
                 let old = CtlWord(
                     arena
                         .ctl()

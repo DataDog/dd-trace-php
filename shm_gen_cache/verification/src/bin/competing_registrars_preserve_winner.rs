@@ -1,6 +1,7 @@
 //! Two registrars competing for one dead participant slot must grant exactly
-//! one usable registration. Losing a slot-reaping or claim race must neither
-//! invalidate the winner's registration nor disturb its accepted insertion.
+//! one usable registration. Losing the race to take the dead slot over must
+//! neither invalidate the winner's registration nor disturb its accepted
+//! insertion.
 //!
 //! # Staged state (before any worker exists)
 //!

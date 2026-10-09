@@ -8,7 +8,7 @@ use crate::arena::ctl::CtlWord;
 use crate::config::{HotParams, Params};
 use crate::error::Error;
 use crate::occupancy::OccupancyMode;
-use crate::participant::{ParticipantSlot, ROTATION_WAITING, UNPINNED};
+use crate::participant::{ParticipantSlot, ROTATION_WAITING, UNPINNED, next_registration_id};
 #[cfg(feature = "verify")]
 use crate::pid::GetPid;
 use crate::wait::{BoundedWait, Pause, WordHalf, wake_waiters};
@@ -82,6 +82,7 @@ impl<'m, P: Params> Cache<'m, P> {
         // rotation. A prior owner may have published e + 1 and died before
         // releasing it. The ownership/death handoff already orders
         // completed epoch updates.
+        // R0: recheck the epoch under ownership.
         if self.global_epoch().load(Relaxed) != e {
             return Err(Error::ConcurrentOperation);
         }
@@ -99,11 +100,12 @@ impl<'m, P: Params> Cache<'m, P> {
                 // owner; a dead-owner takeover follows registration_is_live()
                 // == false: either is_live(false), whose backend contract
                 // imports the dead incarnation's final shared-memory
-                // operations, or an acquire of the slot's later state, which
-                // a reaper published only after its own is_live(false). Both
-                // paths carry the sealing RMW's acquired reservation history
-                // despite this relaxed control load, and we don't need the
-                // handoff provided by the CAS below.
+                // operations, or an acquire of a later state of its slot,
+                // which continues the release sequence of a reaper's steal
+                // of the slot, published only after the reaper's own
+                // is_live(false). Both paths carry the sealing RMW's acquired
+                // reservation history despite this relaxed control load, and
+                // we don't need the handoff provided by the CAS below.
                 break;
             }
             // R1: retire the current arena. Acquire imports prior
@@ -186,7 +188,7 @@ impl<'m, P: Params> Cache<'m, P> {
                 if wait.pause_until_announced(watched, announce) == Pause::Continue {
                     continue;
                 }
-                let error = match participant.release_zombie_claim::<P::Pid>() {
+                let error = match self.reap_pinner(participant) {
                     // Reload with acquire even after successful reaping
                     // (the exhausted wait is not restarted).
                     Ok(true) => continue,
@@ -212,6 +214,18 @@ impl<'m, P: Params> Cache<'m, P> {
         Ok(())
     }
 
+    /// Slot reaping by a rotation (R3): steals a dead pinner's slot, which
+    /// clears its pin, then releases it. Returns whether it reaped
+    /// the slot. Until the release, the rotator holds a second registration.
+    fn reap_pinner(self, participant: &ParticipantSlot) -> Result<bool, Error> {
+        let registration_id = next_registration_id(&self.header().registration_counter);
+        if !participant.steal::<P::Pid>(registration_id)? {
+            return Ok(false);
+        }
+        participant.release_claim::<P::Pid>();
+        Ok(true)
+    }
+
     /// The half of the owner word that every release changes (the
     /// registration id), on which ownership waiters block.
     #[inline(always)]
@@ -225,7 +239,7 @@ impl<'m, P: Params> Cache<'m, P> {
     fn release_rotation(self) {
         self.header()
             .rotation_owner
-            .store(RotationOwner::NONE.0, Release);
+            .store(RotationOwner::NONE.0, Release); // O4: release ownership
         wake_waiters(self.owner_futex_word());
     }
 
@@ -250,6 +264,7 @@ impl<'m, P: Params> Cache<'m, P> {
             }
             // One strong CAS both checks and claims ownership. A separate
             // precheck followed by the waiting path could race into a wait.
+            // O2: take ownership from NONE.
             return match owner_word.compare_exchange(
                 RotationOwner::NONE.0,
                 desired.0,
@@ -267,8 +282,9 @@ impl<'m, P: Params> Cache<'m, P> {
                 return Err(Error::ConcurrentOperation);
             }
             // See the precondition of registration_is_live().
-            let owner = RotationOwner(owner_word.load(Acquire));
+            let owner = RotationOwner(owner_word.load(Acquire)); // O1
             if owner.registration_id() == 0 {
+                // O2: take ownership from NONE.
                 if owner_word
                     .compare_exchange(owner.0, desired.0, AcqRel, Acquire)
                     .is_ok()
@@ -293,7 +309,7 @@ impl<'m, P: Params> Cache<'m, P> {
             let live = self
                 .participant(hp, owner.slot())
                 .registration_is_live::<P::Pid>(owner.registration_id())?;
-            // Takeover of a dead owner.
+            // O3: takeover of a dead owner.
             if !live
                 && owner_word
                     .compare_exchange(owner.0, desired.0, AcqRel, Acquire)
