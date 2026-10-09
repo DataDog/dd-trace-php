@@ -74,17 +74,18 @@ tests.
 
 ## Benchmarks
 
-Benchmarks are implemented using
-[criterion](https://github.com/bheisler/criterion.rs). In order to execute them
-execute them from the repository root using:
+The PHP timeline and exception workloads use `sirun` to compare profiling
+disabled, profiling enabled, and profiling with timeline enabled. From the
+repository root:
 
 ```sh
-cargo bench --no-default-features --features profiling,test,stack_walking_tests
+make compile_profiler PROFILER_FEATURES=trigger_time_sample
+cd profiling
+sirun benches/timeline.json
+sirun benches/exceptions.json
 ```
 
-Note: the `--features stack_walking_tests` is necessary as some code in the
-`php_ffi.c` is only compiled for tests and benchmarks and compilation is guarded
-behind a feature flag.
+The timeline workload needs `trigger_time_sample` to collect samples explicitly.
 
 ## Troubleshooting
 
