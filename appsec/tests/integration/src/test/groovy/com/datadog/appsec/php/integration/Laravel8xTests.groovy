@@ -55,6 +55,7 @@ class Laravel8xTests extends AbstractLaravelAppsecTests {
                 ['normalized-optional/{value?}', 'GET', 'GET normalized-optional/{value?}'],
                 ['normalized-default/{format?}', 'GET', 'GET normalized-default/{format?}'],
                 ['normalized-ambiguous/{name}.{ext?}', 'GET', 'GET normalized-ambiguous/{name}.{ext?}'],
+                ['normalized-no-replay/{format?}', 'GET', 'GET normalized-no-replay/{format?}'],
         ]
     }
 
@@ -139,14 +140,85 @@ class Laravel8xTests extends AbstractLaravelAppsecTests {
         assert span.meta.'http.route' ==
                 'normalized-ambiguous/{name}.{ext?}'
         // Laravel matched all of "report.txt" as name because ext only accepts
-        // pdf or json, then supplied the default ext. The integration ignores
-        // those requirements and infers ext participation from the dot alone.
+        // pdf or json, then supplied the default ext. The integration takes
+        // participation from Laravel's own capture map, where ext is absent.
         assert span.meta.'_dd.appsec.normalized_route' ==
                 '/normalized-ambiguous/{name}'
     }
 
     @Test
     @Order(14)
+    void 'does not fetch the compiled route again to normalize optionals'() {
+        HttpRequest req = container.buildReq('/normalized-no-replay').GET().build()
+        Trace trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 200
+            // Laravel itself fetches the compiled route twice while matching.
+            // Normalization must reuse the binder result instead of adding a third call.
+            assert re.body() == '2'
+        }
+
+        Span span = trace.first()
+        assert span.meta.'http.route' == 'normalized-no-replay/{format?}'
+        assert span.meta.'_dd.appsec.normalized_route' == '/normalized-no-replay'
+    }
+
+    @Test
+    @Order(15)
+    void 'normalized route is produced from a cached route collection'() {
+        // route:cache makes Laravel match with CompiledRouteCollection, which
+        // looks the route up through Symfony's compiled matcher and only then
+        // binds it. The capture map must still come from that bind.
+        try {
+            def res = CONTAINER.execInContainer(
+                    'bash', '-c',
+                    'cd /var/www && DD_TRACE_CLI_ENABLED=false php artisan route:cache')
+            assert res.exitCode == 0 : res.stderr
+
+            // Cached routes are rebuilt as plain Route objects, so the probe
+            // route no longer counts getCompiled() calls: this shows the
+            // request was matched against the cached collection.
+            Trace trace = container.traceFromRequest(
+                    container.buildReq('/normalized-no-replay').GET().build(),
+                    ofString()) { HttpResponse<String> re ->
+                assert re.statusCode() == 200
+                assert re.body() == '0'
+            }
+            assert trace.first().meta.'http.route' == 'normalized-no-replay/{format?}'
+            assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-no-replay'
+
+            trace = container.traceFromRequest(
+                    container.buildReq('/normalized-optional/hello').GET().build(),
+                    ofString()) { HttpResponse<String> re ->
+                assert re.statusCode() == 200
+                assert re.body() == 'hello'
+            }
+            assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-optional/{value}'
+
+            trace = container.traceFromRequest(
+                    container.buildReq('/normalized-default').GET().build(),
+                    ofString()) { HttpResponse<String> re ->
+                assert re.statusCode() == 200
+                assert re.body() == 'html'
+            }
+            assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-default'
+
+            trace = container.traceFromRequest(
+                    container.buildReq('/normalized-ambiguous/report.txt').GET().build(),
+                    ofString()) { HttpResponse<String> re ->
+                assert re.statusCode() == 200
+                assert re.body() == 'report.txt/html'
+            }
+            assert trace.first().meta.'_dd.appsec.normalized_route' == '/normalized-ambiguous/{name}'
+        } finally {
+            def res = CONTAINER.execInContainer(
+                    'bash', '-c',
+                    'cd /var/www && DD_TRACE_CLI_ENABLED=false php artisan route:clear')
+            assert res.exitCode == 0
+        }
+    }
+
+    @Test
+    @Order(16)
     void 'normalized route is absent when API Security is disabled'() {
         try {
             def res = CONTAINER.execInContainer(
