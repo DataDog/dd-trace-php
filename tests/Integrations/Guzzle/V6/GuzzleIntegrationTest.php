@@ -8,6 +8,7 @@ use DDTrace\Tracer;
 use DDTrace\Tag;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
+use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Promise\Utils;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
@@ -117,6 +118,46 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                             'http.url' => 'http://example.com',
                             'network.destination.name' => 'example.com',
                             'http.status_code' => '200',
+                            TAG::SPAN_KIND => 'client',
+                            Tag::COMPONENT => 'guzzle',
+                            '_dd.svc_src' => 'guzzle',
+                        ]),
+                ])
+        ]);
+    }
+
+    public function testSendHttpErrorException()
+    {
+        $traces = $this->isolateTracer(function () {
+            $request = new Request('put', 'http://example.com');
+            try {
+                // HandlerStack::create() adds the http_errors middleware turning the 404 into a ClientException
+                $client = new Client(['handler' => HandlerStack::create(new MockHandler([new Response(404)]))]);
+                $client->send($request);
+                $this->fail('Expected a ClientException');
+            } catch (\GuzzleHttp\Exception\ClientException $e) {
+            }
+        });
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
+                ->setError('GuzzleHttp\Exception\ClientException', '404 Not Found', true)
+                ->withExactTags([
+                    'http.method' => 'PUT',
+                    'http.url' => 'http://example.com',
+                    'http.status_code' => '404',
+                    'network.destination.name' => 'example.com',
+                    TAG::SPAN_KIND => 'client',
+                    Tag::COMPONENT => 'guzzle',
+                    '_dd.svc_src' => 'guzzle',
+                ])
+                ->withChildren([
+                    SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
+                        ->setError('http_error', 'HTTP 404: Not Found')
+                        ->withExactTags([
+                            'http.method' => 'PUT',
+                            'http.url' => 'http://example.com',
+                            'network.destination.name' => 'example.com',
+                            'http.status_code' => '404',
                             TAG::SPAN_KIND => 'client',
                             Tag::COMPONENT => 'guzzle',
                             '_dd.svc_src' => 'guzzle',

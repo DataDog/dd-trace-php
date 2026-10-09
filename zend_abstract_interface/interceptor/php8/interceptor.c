@@ -439,13 +439,29 @@ static void zai_interceptor_observer_generator_end_handler(zend_execute_data *ex
 
     zai_frame_memory *frame_memory;
     if (zai_hook_memory_table_find((zend_execute_data *)generator, &frame_memory)) {
-        if (!EG(exception) && Z_ISUNDEF(generator->retval)) {
+        if (retval && !EG(exception) && Z_ISUNDEF(generator->retval)) {
             zai_interceptor_observer_generator_yield(execute_data, retval, generator, frame_memory);
         } else {
+            bool bailout = !retval && !EG(exception);
             if (!retval) {
                 retval = &EG(uninitialized_zval);
             }
             zai_interceptor_handle_ended_generator(generator, execute_data, retval, frame_memory);
+
+            /* PHP's observer chain omits suspended yield-from delegating generators. End the active chain on bailout too. */
+            zend_execute_data *placeholder = execute_data->prev_execute_data;
+            if (bailout && placeholder && !placeholder->func && Z_TYPE(placeholder->This) == IS_OBJECT
+                && Z_OBJCE(placeholder->This) == zend_ce_generator) {
+                zend_execute_data *caller = placeholder->prev_execute_data;
+                zend_execute_data *current = EG(current_execute_data);
+                for (zend_execute_data *delegating = zend_generator_check_placeholder_frame(placeholder); delegating != caller;) {
+                    zend_execute_data *next = delegating->prev_execute_data;
+                    EG(current_execute_data) = delegating;
+                    zai_interceptor_observer_generator_end_handler(delegating, NULL);
+                    delegating = next;
+                }
+                EG(current_execute_data) = current;
+            }
         }
     }
 }
@@ -834,17 +850,32 @@ static void zai_interceptor_generator_dtor_wrapper(zend_object *object) {
 
     zai_frame_memory *frame_memory;
     if (zai_hook_memory_table_find((zend_execute_data *)generator, &frame_memory)) {
-        // generator dtor frees it
+        // PHP frees the frame; keep its closure and receiver alive through the fallback end hook.
         zend_execute_data ex = *generator->execute_data;
+        zend_object *closure = ZEND_CALL_INFO(&ex) & ZEND_CALL_CLOSURE ? ZEND_CLOSURE_OBJECT(ex.func) : NULL;
+        zend_object *receiver = Z_TYPE(ex.This) == IS_OBJECT ? Z_OBJ(ex.This) : NULL;
+        if (closure) {
+            GC_ADDREF(closure);
+        }
+        if (receiver) {
+            GC_ADDREF(receiver);
+        }
 
         zai_interceptor_generator_dtor_obj(object);
 
         // may have returned in the dtor, don't execute twice
         if (zai_hook_memory_table_find((zend_execute_data *)generator, &frame_memory)) {
-            // aborted generator
+            // A suspended generator's old caller may already have returned.
+            ex.prev_execute_data = EG(current_execute_data);
             zval retval;
             ZVAL_NULL(&retval);
             zai_interceptor_handle_ended_generator(generator, &ex, &retval, frame_memory);
+        }
+        if (closure) {
+            OBJ_RELEASE(closure);
+        }
+        if (receiver) {
+            OBJ_RELEASE(receiver);
         }
     } else {
         zai_interceptor_generator_dtor_obj(object);

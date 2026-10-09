@@ -38,9 +38,12 @@
        "span_id": 2,
        "parent_id": 1,
        "type": "http",
+       "error": 1,
        "meta": {
          "component": "psr18",
          "env": "test",
+         "error.message": "HTTP 404: Not Found",
+         "error.type": "http_error",
          "http.method": "POST",
          "http.status_code": "404",
          "http.url": "https://api.openai.com/v1/completions?foo=bar",

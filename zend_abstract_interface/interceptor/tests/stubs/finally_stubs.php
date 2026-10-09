@@ -218,3 +218,18 @@ function yieldFromNestedGenerator() {
 function runYieldFromNestedGenerator() {
     foreach (yieldFromNestedGenerator() as $k => $v);
 }
+
+function bailoutInnerGenerator() {
+    yield 0;
+    class BailoutInnerGeneratorFoo implements ArrayAccess {
+    }
+    yield 1;
+}
+
+function bailoutOuterGenerator() {
+    yield from bailoutInnerGenerator();
+}
+
+function runBailoutYieldFromGenerator() {
+    foreach (bailoutOuterGenerator() as $v);
+}

@@ -500,20 +500,12 @@ foreach ($all_minor_major_targets as $major_minor):
     KUBERNETES_CPU_LIMIT: 12
     KUBERNETES_MEMORY_REQUEST: 8Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
-<?php if (version_compare($major_minor, "7.4", ">=")): ?>
     # Match the CPU request.
     MAX_TEST_PARALLELISM: 12
-<?php endif; ?>
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
     KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
-<?php if (version_compare($major_minor, "7.4", ">=")): ?>
-  timeout: 45m
-<?php else: ?>
-  # run-tests.php only gets -j on PHP >= 7.4 (RUN_TESTS_IS_PARALLEL in the
-  # Makefile), so these versions run serially and need the larger budget.
-  timeout: 120m
-<?php endif; ?>
+  timeout: 20m
   script:
     # Run twice: shared state between .phpt tests only surfaces on a second pass.
     - make test_extension_ci_normal
@@ -534,19 +526,19 @@ foreach ($all_minor_major_targets as $major_minor):
   variables:
     WAIT_FOR: test-agent:9126
     # request == limit: enforce-static-cpus only pins cores for Guaranteed QoS.
-    KUBERNETES_CPU_REQUEST: 12
-    KUBERNETES_CPU_LIMIT: 12
-    KUBERNETES_MEMORY_REQUEST: 8Gi
-    KUBERNETES_MEMORY_LIMIT: 8Gi
+    KUBERNETES_CPU_REQUEST: 24
+    KUBERNETES_CPU_LIMIT: 24
+    KUBERNETES_MEMORY_REQUEST: 16Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
     # Below the CPU request: each worker spawns its own valgrind process.
-    MAX_TEST_PARALLELISM: 4
+    MAX_TEST_PARALLELISM: 20
     # Memcheck roughly doubles the sidecar's physical memory accounting. Keep
     # it instrumented, but give its watchdog the same allowance as ASAN jobs.
-    _DD_SIDECAR_WATCHDOG_MAX_MEMORY: 2147483648
+    _DD_SIDECAR_WATCHDOG_MAX_MEMORY: 4294967296
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
     KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
-  timeout: 120m
+  timeout: 30m
   script:
     - make test_extension_ci_valgrind
 <?php after_script("tmp/build_extension", has_test_agent: true); ?>
@@ -825,6 +817,12 @@ foreach ($services as $part => $service) {
     # These are inherited by the SAPI the harness spawns, which is where we need them. detect_leaks is off on purpose: PHP and Go both leak plenty on a killed server.
     _DD_SIDECAR_WATCHDOG_MAX_MEMORY: 2147483648
     ASAN_OPTIONS: abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1:detect_leaks=0
+<?php endif; ?>
+<?php if ($target === "test_integrations_frankenphp"): ?>
+    # install-frankenphp.sh runs `go build`; fetch modules through Depot rather than proxy.golang.org directly, with no fallback to direct fetches.
+    GOPROXY: "https://depot-read-api-go.us1.ddbuild.io/magicmirror/magicmirror/@current/"
+    GOPRIVATE: ""
+    GONOPROXY: "none"
 <?php endif; ?>
 <?php if ($sapi): ?>
     DD_TRACE_TEST_SAPI: "<?= $sapi ?>"

@@ -2,13 +2,17 @@
 
 namespace DDTrace\Integrations\Predis;
 
+use DDTrace\Integrations\DatabaseIntegrationHelper;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\ObjectKVStore;
 use Predis\Configuration\OptionsInterface;
+use Predis\Connection\AggregateConnectionInterface;
 use Predis\Connection\NodeConnectionInterface;
+use Predis\Connection\Parameters;
+use Predis\Connection\ParametersInterface;
 
 const VALUE_PLACEHOLDER = "?";
 const VALUE_MAX_LEN = 100;
@@ -21,6 +25,10 @@ class PredisIntegration extends Integration
     const SYSTEM = 'redis';
 
     const DEFAULT_SERVICE_NAME = 'redis';
+
+    // Internal-only peer service sources, shared with PHPRedisIntegration
+    const INTERNAL_ONLY_TAG_CLUSTER_NAME = '_dd.cluster.name';
+    const INTERNAL_ONLY_TAG_FIRST_HOST = '_dd.first.configured.host';
 
     /**
      * Add instrumentation to PDO requests
@@ -130,18 +138,32 @@ class PredisIntegration extends Integration
         $connection = $predis->getConnection();
 
         if ($connection instanceof NodeConnectionInterface) {
-            $connectionParameters = $connection->getParameters();
+            $hostOrUDS = PredisIntegration::hostOrUDS($connection->getParameters());
 
-            $tags[Tag::TARGET_HOST] = $connectionParameters->host;
-            $tags[Tag::TARGET_PORT] = $connectionParameters->port;
+            $tags[Tag::TARGET_HOST] = $hostOrUDS;
+            $tags[Tag::TARGET_PORT] = $connection->getParameters()->port;
 
             if (\dd_trace_env_config("DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST")) {
-                $service = \DDTrace\Util\Normalizer::normalizeHostUdsAsService(
-                    'redis-' . (isset($connectionParameters->path)
-                        ? $connectionParameters->path
-                        : $connectionParameters->host)
-                );
+                $service = \DDTrace\Util\Normalizer::normalizeHostUdsAsService('redis-' . $hostOrUDS);
                 ObjectKVStore::put($predis->getConnection(), 'service', $service);
+            }
+        } elseif ($connection instanceof AggregateConnectionInterface) {
+            // Cluster and replication connections have no single node to report. Asking them for their nodes may
+            // trigger network I/O (cluster slot map, sentinel discovery), so we rely on the configuration instead.
+            $sentinelService = null;
+            if ($connection instanceof \Predis\Connection\Replication\SentinelReplication
+                || $connection instanceof \Predis\Connection\Aggregate\SentinelReplication
+            ) {
+                $clientOptions = $predis->getOptions();
+                if (isset($clientOptions->service) && \is_string($clientOptions->service)) {
+                    $sentinelService = $clientOptions->service;
+                }
+            }
+
+            if ($sentinelService !== null) {
+                $tags[self::INTERNAL_ONLY_TAG_CLUSTER_NAME] = $sentinelService;
+            } elseif (($firstHost = PredisIntegration::firstConfiguredHostOrUDS($args)) !== null) {
+                $tags[self::INTERNAL_ONLY_TAG_FIRST_HOST] = $firstHost;
             }
         }
 
@@ -163,6 +185,48 @@ class PredisIntegration extends Integration
     }
 
     /**
+     * Predis fills in its default host for unix socket connections, so the socket path is what identifies them.
+     *
+     * @param ParametersInterface $parameters
+     * @return string|null
+     */
+    public static function hostOrUDS($parameters)
+    {
+        return isset($parameters->path) ? $parameters->path : $parameters->host;
+    }
+
+    /**
+     * Extract the first node from the parameters a Predis\Client was constructed with.
+     *
+     * @param array $args
+     * @return string|null
+     */
+    public static function firstConfiguredHostOrUDS($args)
+    {
+        if (!isset($args[0])) {
+            return null;
+        }
+
+        $parameters = $args[0];
+        if (\is_array($parameters) && isset($parameters[0])) {
+            $parameters = $parameters[0];
+        }
+
+        try {
+            if (\is_string($parameters) || \is_array($parameters)) {
+                $parameters = Parameters::create($parameters);
+            }
+            if ($parameters instanceof ParametersInterface) {
+                $hostOrUDS = PredisIntegration::hostOrUDS($parameters);
+                return \is_string($hostOrUDS) && $hostOrUDS !== '' ? $hostOrUDS : null;
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return null;
+    }
+
+    /**
      * This function is almost a clone of PredisIntegration::setConnectionTags.
      * Store connection tags into a successive span not having direct access to those values.
      *
@@ -181,6 +245,7 @@ class PredisIntegration extends Integration
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = self::NAME;
         $span->meta[Tag::DB_SYSTEM] = self::SYSTEM;
+        $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
 
         foreach (ObjectKVStore::get($predis->getConnection(), 'connection_meta', []) as $tag => $value) {
             $span->meta[$tag] = $value;

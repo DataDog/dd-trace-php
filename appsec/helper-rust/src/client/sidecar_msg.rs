@@ -5,8 +5,9 @@ use crate::client::log::{debug, info, warning};
 use crate::client::protocol::{self, CommandResponse};
 use crate::error;
 
+use arc_swap::ArcSwapOption;
 use std::collections::HashMap;
-use std::sync::{LazyLock, RwLock};
+use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
 type ClientId = u64;
@@ -20,23 +21,27 @@ pub(crate) struct ClientKey {
     pub client_id: ClientId,
 }
 
-static CLIENTS: LazyLock<std::sync::Mutex<HashMap<ClientKey, mpsc::Sender<HelperRequest>>>> =
-    LazyLock::new(|| std::sync::Mutex::new(HashMap::new()));
-static NEW_CLIENT: RwLock<Option<NewClientFn>> = RwLock::new(None);
+struct Clients {
+    new_client: NewClientFn,
+    clients: Mutex<HashMap<ClientKey, mpsc::Sender<HelperRequest>>>,
+}
+
+static CLIENTS: ArcSwapOption<Clients> = ArcSwapOption::const_empty();
 
 pub fn start_accepting_messages(new_client: NewClientFn) {
-    NEW_CLIENT
-        .write()
-        .expect("NEW_CLIENT not initialized")
-        .replace(new_client);
+    CLIENTS.store(Some(Arc::new(Clients {
+        new_client,
+        clients: Mutex::new(HashMap::new()),
+    })));
+}
+
+pub fn clear_inherited_state() {
+    // Inherited channels must not wake the parent's Tokio reactor.
+    std::mem::forget(CLIENTS.swap(None));
 }
 
 pub fn stop_accepting_messages() {
-    CLIENTS.lock().expect("CLIENTS not initialized").clear();
-    NEW_CLIENT
-        .write()
-        .expect("NEW_CLIENT not initialized")
-        .take();
+    CLIENTS.store(None);
 }
 
 /// A single framed message arriving from sidecar on behalf of the extension,
@@ -212,7 +217,12 @@ pub fn on_disconnect(session_id: &[u8], client_id: ClientId) {
             "Session-wide sweep: removing all clients for session {}",
             String::from_utf8_lossy(session_id)
         );
-        let keys_to_remove: Vec<ClientKey> = CLIENTS
+        let current = CLIENTS.load();
+        let Some(current) = current.as_ref() else {
+            return;
+        };
+        let keys_to_remove: Vec<ClientKey> = current
+            .clients
             .lock()
             .expect("CLIENTS not initialized")
             .keys()
@@ -236,7 +246,8 @@ fn sender_for_client(key: ClientKey) -> Option<(mpsc::Sender<HelperRequest>, Cli
     }
 
     let client_id = key.client_id;
-    let clients = CLIENTS.lock().expect("CLIENTS not initialized");
+    let current = CLIENTS.load();
+    let clients = current.as_ref()?.clients.lock().expect("CLIENTS poisoned");
     match clients.get(&key) {
         Some(sender) => Some((sender.clone(), client_id)),
         None => {
@@ -250,13 +261,13 @@ fn sender_for_client(key: ClientKey) -> Option<(mpsc::Sender<HelperRequest>, Cli
 fn channel_for_new_client(
     session_id: SessionId,
 ) -> Option<(mpsc::Sender<HelperRequest>, ClientId)> {
-    let new_client = NEW_CLIENT.read().expect("NEW_CLIENT not initialized");
-    if new_client.is_none() {
+    let current = CLIENTS.load();
+    let Some(current) = current.as_ref() else {
         info!("No new clients accepted (we're shutting down)");
         return None;
-    }
-    let (sender, client_id) = new_client.as_ref().unwrap()(session_id.clone());
-    let mut clients = CLIENTS.lock().expect("CLIENTS not initialized");
+    };
+    let (sender, client_id) = (current.new_client)(session_id.clone());
+    let mut clients = current.clients.lock().expect("CLIENTS poisoned");
     clients.insert(
         ClientKey {
             session_id,
@@ -270,7 +281,11 @@ fn channel_for_new_client(
 // This will also force the client to exit by destroying the sending part of
 // the client channel
 pub(crate) fn remove_client_bookkeeping(key: &ClientKey) {
-    let mut sessions = CLIENTS.lock().expect("CLIENTS not initialized");
+    let current = CLIENTS.load();
+    let Some(current) = current.as_ref() else {
+        return;
+    };
+    let mut sessions = current.clients.lock().expect("CLIENTS poisoned");
     if sessions.remove(key).is_none() {
         // normal if the client disconnected -> bookkeeping was removed ->
         // Forceful disconnect -> client exits -> tries to remove bookkeeping again
@@ -332,21 +347,6 @@ mod tests {
         })
     }
 
-    fn reset_test_state() {
-        CLIENTS.lock().expect("CLIENTS not initialized").clear();
-        NEW_CLIENT
-            .write()
-            .expect("NEW_CLIENT not initialized")
-            .take();
-    }
-
-    fn set_new_client(factory: NewClientFn) {
-        NEW_CLIENT
-            .write()
-            .expect("NEW_CLIENT not initialized")
-            .replace(factory);
-    }
-
     fn test_request(command: &[u8]) -> HelperRequest {
         let (response_tx, _response_rx) = oneshot::channel();
         HelperRequest {
@@ -357,12 +357,49 @@ mod tests {
 
     #[test]
     #[serial]
+    fn fork_cleanup_does_not_use_inherited_clients_or_locks() {
+        let factory = || Box::new(|_| (mpsc::channel(1).0, 1u64)) as NewClientFn;
+        start_accepting_messages(factory());
+        let key = ClientKey {
+            session_id: b"old".to_vec(),
+            client_id: 1,
+        };
+        assert!(sender_for_client(ClientKey {
+            client_id: 0,
+            ..key.clone()
+        })
+        .is_some());
+
+        let old = CLIENTS.load_full().unwrap();
+        let old_clients = old.clients.lock().unwrap();
+        let (done, wait) = std::sync::mpsc::channel();
+        let thread = std::thread::spawn(move || {
+            clear_inherited_state();
+            assert!(sender_for_client(key.clone()).is_none());
+            start_accepting_messages(factory());
+            assert!(sender_for_client(key).is_none());
+            assert!(sender_for_client(ClientKey {
+                session_id: b"new".to_vec(),
+                client_id: 0
+            })
+            .is_some());
+            done.send(()).unwrap();
+        });
+        wait.recv_timeout(Duration::from_secs(5))
+            .expect("new listener used an inherited lock");
+        drop(old_clients);
+        thread.join().unwrap();
+        stop_accepting_messages();
+    }
+
+    #[test]
+    #[serial]
     fn channel_for_session_reuses_existing_sender() {
-        reset_test_state();
+        stop_accepting_messages();
 
         let created = Arc::new(AtomicUsize::new(0));
         let created_in_factory = created.clone();
-        set_new_client(Box::new(move |_session| {
+        start_accepting_messages(Box::new(move |_session| {
             let id = (created_in_factory.fetch_add(1, Ordering::SeqCst) + 1) as u64;
             let (tx, _rx) = mpsc::channel(1);
             (tx, id)
@@ -388,13 +425,13 @@ mod tests {
         assert!(!first.same_channel(&third));
         assert_eq!(created.load(Ordering::SeqCst), 2);
 
-        reset_test_state();
+        stop_accepting_messages();
     }
 
     #[test]
     #[serial]
     fn channel_for_session_returns_none_when_new_client_disabled() {
-        reset_test_state();
+        stop_accepting_messages();
         assert!(sender_for_client(ClientKey {
             session_id: b"sess".to_vec(),
             client_id: 0,
@@ -405,9 +442,9 @@ mod tests {
     #[test]
     #[serial]
     fn remove_client_bookkeeping_only_removes_matching_key() {
-        reset_test_state();
+        stop_accepting_messages();
 
-        set_new_client(Box::new(move |_session| {
+        start_accepting_messages(Box::new(move |_session| {
             let (tx, _rx) = mpsc::channel(1);
             (tx, 1u64)
         }));
@@ -426,28 +463,22 @@ mod tests {
             session_id: b"other".to_vec(),
             client_id: 1,
         });
-        assert!(CLIENTS
-            .lock()
-            .expect("CLIENTS not initialized")
-            .contains_key(&key));
+        assert!(sender_for_client(key.clone()).is_some());
 
         remove_client_bookkeeping(&key);
-        assert!(!CLIENTS
-            .lock()
-            .expect("CLIENTS not initialized")
-            .contains_key(&key));
+        assert!(sender_for_client(key).is_none());
 
-        reset_test_state();
+        stop_accepting_messages();
     }
 
     #[test]
     #[serial]
     fn on_message_impl_uses_timed_fallback_when_channel_is_full() {
-        reset_test_state();
+        stop_accepting_messages();
 
         let receiver = Arc::new(std::sync::Mutex::new(None));
         let receiver_in_factory = receiver.clone();
-        set_new_client(Box::new(move |_session| {
+        start_accepting_messages(Box::new(move |_session| {
             let (tx, rx) = mpsc::channel::<HelperRequest>(1);
             receiver_in_factory
                 .lock()
@@ -508,16 +539,16 @@ mod tests {
             HelperResponse::Data(data) if data == b"response"
         ));
 
-        reset_test_state();
+        stop_accepting_messages();
     }
 
     #[test]
     #[serial]
     fn on_message_impl_roundtrip_success() {
-        reset_test_state();
+        stop_accepting_messages();
 
         let rt = test_runtime().handle().clone();
-        set_new_client(Box::new(move |_session| {
+        start_accepting_messages(Box::new(move |_session| {
             let (tx, mut rx) = mpsc::channel::<HelperRequest>(1);
             rt.spawn(async move {
                 if let Some(req) = rx.recv().await {
@@ -536,14 +567,14 @@ mod tests {
             HelperResponse::Reinitialize(_) => panic!("expected normal data response"),
         }
 
-        reset_test_state();
+        stop_accepting_messages();
     }
 
     #[test]
     #[serial]
     fn on_message_impl_returns_typed_shutdown_error() {
-        // without NEW_CLIENT set, the error is ShuttingDown
-        reset_test_state();
+        // Without an active listener, the error is ShuttingDown.
+        stop_accepting_messages();
 
         let err = match test_runtime().block_on(on_message_impl(b"sess", 0, b"cmd".to_vec())) {
             Ok(_) => panic!("should fail in shutdown mode"),
@@ -558,9 +589,9 @@ mod tests {
     #[test]
     #[serial]
     fn on_message_impl_returns_typed_send_closed_error() {
-        reset_test_state();
+        stop_accepting_messages();
 
-        set_new_client(Box::new(move |_session| {
+        start_accepting_messages(Box::new(move |_session| {
             let (tx, rx) = mpsc::channel::<HelperRequest>(1);
             drop(rx);
             (tx, 1u64)
@@ -577,16 +608,16 @@ mod tests {
             matches!(typed, OnMessageError::SendClosed { session_id } if session_id == "sess" )
         );
 
-        reset_test_state();
+        stop_accepting_messages();
     }
 
     #[test]
     #[serial]
     fn on_message_impl_returns_typed_recv_closed_error() {
-        reset_test_state();
+        stop_accepting_messages();
 
         let rt = test_runtime().handle().clone();
-        set_new_client(Box::new(move |_session| {
+        start_accepting_messages(Box::new(move |_session| {
             let (tx, mut rx) = mpsc::channel::<HelperRequest>(1);
             rt.spawn(async move {
                 if let Some(req) = rx.recv().await {
@@ -605,16 +636,16 @@ mod tests {
             .expect("should be typed on-message error");
         assert!(matches!(typed, OnMessageError::RecvClosed { .. }));
 
-        reset_test_state();
+        stop_accepting_messages();
     }
 
     #[test]
     #[serial]
     fn on_message_success_data_sets_disconnect_false() {
-        reset_test_state();
+        stop_accepting_messages();
 
         let rt = test_runtime().handle().clone();
-        set_new_client(Box::new(move |_session| {
+        start_accepting_messages(Box::new(move |_session| {
             let (tx, mut rx) = mpsc::channel::<HelperRequest>(1);
             rt.spawn(async move {
                 if let Some(req) = rx.recv().await {
@@ -631,16 +662,16 @@ mod tests {
         assert!(!resp.disconnect);
         assert_eq!(resp.data, vec![7, 8]);
 
-        reset_test_state();
+        stop_accepting_messages();
     }
 
     #[test]
     #[serial]
     fn on_message_success_reinitialize_sets_disconnect_true() {
-        reset_test_state();
+        stop_accepting_messages();
 
         let rt = test_runtime().handle().clone();
-        set_new_client(Box::new(move |_session| {
+        start_accepting_messages(Box::new(move |_session| {
             let (tx, mut rx) = mpsc::channel::<HelperRequest>(1);
             rt.spawn(async move {
                 if let Some(req) = rx.recv().await {
@@ -657,13 +688,13 @@ mod tests {
         assert!(resp.disconnect);
         assert_eq!(resp.data, vec![9]);
 
-        reset_test_state();
+        stop_accepting_messages();
     }
 
     #[test]
     #[serial]
     fn on_message_error_path_sets_disconnect_true() {
-        reset_test_state();
+        stop_accepting_messages();
 
         let session = b"sess";
         let payload = b"cmd";

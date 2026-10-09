@@ -2736,6 +2736,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68ab91017fe16c622486840e4c83c9a37afeff978bd239b5293d61ece587de66"
 
 [[package]]
+name = "libc_alloc"
+version = "1.0.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7581282928bc99698341d1de7590964c28db747c164eaac9409432a3eaed098a"
+
+[[package]]
 name = "libdd-alloc"
 version = "1.0.0"
 dependencies = [
@@ -2747,7 +2753,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-capabilities"
-version = "4.0.0"
+version = "4.0.1"
 dependencies = [
  "anyhow",
  "bytes",
@@ -2759,7 +2765,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-capabilities-impl"
-version = "6.0.0"
+version = "7.0.0"
 dependencies = [
  "anyhow",
  "bytes",
@@ -2773,7 +2779,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-common"
-version = "7.0.0"
+version = "8.0.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -2891,7 +2897,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-data-pipeline"
-version = "11.0.0"
+version = "12.0.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -2927,6 +2933,7 @@ dependencies = [
  "regex",
  "rmp-serde",
  "serde",
+ "serde_ignored",
  "serde_json",
  "sha2",
  "tempfile",
@@ -2942,7 +2949,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-data-pipeline-core"
-version = "2.0.0"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "bytes",
@@ -2961,7 +2968,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-ddsketch"
-version = "1.1.2"
+version = "1.1.3"
 dependencies = [
  "criterion",
  "prost",
@@ -2973,7 +2980,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-dogstatsd-client"
-version = "7.0.0"
+version = "8.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3009,6 +3016,9 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
+ "sha2",
+ "strum",
+ "strum_macros",
  "thiserror 2.0.18",
  "tokio",
 ]
@@ -3062,7 +3072,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-library-config"
-version = "4.1.0"
+version = "4.2.0"
 dependencies = [
  "anyhow",
  "libc 0.2.186",
@@ -3072,9 +3082,9 @@ dependencies = [
  "rand 0.8.8",
  "rmp-serde",
  "serde",
- "serde_yaml",
  "serial_test",
  "tempfile",
+ "yaml_serde",
 ]
 
 [[package]]
@@ -3084,6 +3094,8 @@ dependencies = [
  "anyhow",
  "build_common",
  "constcat",
+ "function_name",
+ "libc_alloc",
  "libdd-common",
  "libdd-common-ffi",
  "libdd-library-config",
@@ -3205,7 +3217,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-remote-config"
-version = "6.0.0"
+version = "7.0.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -3243,7 +3255,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-shared-runtime"
-version = "5.0.0"
+version = "6.0.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -3259,7 +3271,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-telemetry"
-version = "9.0.0"
+version = "10.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3306,7 +3318,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-tinybytes"
-version = "1.1.4"
+version = "1.1.5"
 dependencies = [
  "libdd-tinybytes",
  "once_cell",
@@ -3320,7 +3332,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-normalization"
-version = "4.1.0"
+version = "4.2.0"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -3332,7 +3344,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-obfuscation"
-version = "9.0.0"
+version = "10.0.0"
 dependencies = [
  "anyhow",
  "criterion",
@@ -3351,7 +3363,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-protobuf"
-version = "5.0.1"
+version = "5.1.0"
 dependencies = [
  "bolero",
  "prost",
@@ -3365,7 +3377,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-stats"
-version = "10.0.0"
+version = "11.0.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -3395,7 +3407,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-utils"
-version = "13.0.0"
+version = "14.0.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -3516,6 +3528,12 @@ name = "libm"
 version = "0.2.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8355be11b20d696c8f18f6cc018c4e372165b1fa8126cef092399c9951984ffa"
+
+[[package]]
+name = "libyaml-rs"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2e126dda6f34391ab7b444f9922055facc83c07a910da3eb16f1e4d9c45dc777"
 
 [[package]]
 name = "link-cplusplus"
@@ -5369,6 +5387,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_ignored"
+version = "0.1.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "115dffd5f3853e06e746965a20dcbae6ee747ae30b543d91b0e089668bb07798"
+dependencies = [
+ "serde",
+ "serde_core",
+]
+
+[[package]]
 name = "serde_json"
 version = "1.0.150"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5463,19 +5491,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.118",
-]
-
-[[package]]
-name = "serde_yaml"
-version = "0.9.34+deprecated"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47"
-dependencies = [
- "indexmap 2.12.1",
- "itoa 1.0.14",
- "ryu",
- "serde",
- "unsafe-libyaml",
 ]
 
 [[package]]
@@ -6424,12 +6439,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
 
 [[package]]
-name = "unsafe-libyaml"
-version = "0.2.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
-
-[[package]]
 name = "untrusted"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7223,6 +7232,19 @@ checksum = "32e45ad4206f6d2479085147f02bc2ef834ac85886624a23575ae137c8aa8156"
 dependencies = [
  "libc 0.2.186",
  "rustix 1.1.3",
+]
+
+[[package]]
+name = "yaml_serde"
+version = "0.10.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33b729a08a9a6be689bbad3e2bf8015926db54b6622cc89c3a5f7dc174b9e918"
+dependencies = [
+ "indexmap 2.12.1",
+ "itoa 1.0.14",
+ "libyaml-rs",
+ "ryu",
+ "serde",
 ]
 
 [[package]]
