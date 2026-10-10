@@ -10,8 +10,6 @@ use crossbeam_channel::{select, Receiver};
 use libdd_common::Endpoint;
 use log::{debug, info, warn};
 use serde_json::json;
-use std::borrow::Cow;
-use std::str;
 use std::sync::{Arc, Barrier};
 
 #[cfg(feature = "debug_stats")]
@@ -23,7 +21,7 @@ use std::sync::atomic::Ordering;
 pub struct Uploader {
     fork_barrier: Arc<Barrier>,
     receiver: Receiver<UploadMessage>,
-    output_pprof: Option<Cow<'static, str>>,
+    output_pprof: Option<String>,
     endpoint: AgentEndpoint,
     start_time: String,
     process_tags: Option<String>,
@@ -33,7 +31,7 @@ impl Uploader {
     pub fn new(
         fork_barrier: Arc<Barrier>,
         receiver: Receiver<UploadMessage>,
-        output_pprof: Option<Cow<'static, str>>,
+        output_pprof: Option<String>,
         endpoint: AgentEndpoint,
         start_time: DateTime<Utc>,
         process_tags: Option<String>,
@@ -135,9 +133,6 @@ impl Uploader {
     }
 
     pub fn run(self) {
-        /* Safety: Called from Profiling::new, which is after config is
-         * initialized, and before it's destroyed in mshutdown.
-         */
         let pprof_filename = &self.output_pprof;
         let mut i = 0;
         let mut last_cpu = ThreadTime::try_now().ok();
@@ -159,7 +154,7 @@ impl Uploader {
                     Ok(UploadMessage::Upload(request)) => {
                         match pprof_filename {
                             Some(filename) => {
-                                let filename_prefix = filename.as_ref();
+                                let filename_prefix = filename.as_str();
                                 let r = request.profile.serialize_into_compressed_pprof(None, None).unwrap();
                                 i += 1;
                                 let name = format!("{filename_prefix}.{i}.zst");

@@ -8,23 +8,18 @@ use libc::size_t;
 use std::num::NonZeroU64;
 use std::sync::atomic::Ordering;
 
-#[cfg(php_zend_mm_set_custom_handlers_ex)]
-use super::allocation_ge84;
-#[cfg(not(php_zend_mm_set_custom_handlers_ex))]
-use super::allocation_le83;
-
 impl ProfilerGlobals {
     /// Updates the allocation sampling state from the PHP globals.
     ///
     /// # Safety
     /// `globals` must point to initialized module globals for the current
-    /// thread, and no mutable access to its allocation profiling state may be
+    /// thread, and no other access to its allocation profiling state may be
     /// active.
     #[inline(always)]
     pub unsafe fn should_collect(globals: *mut ProfilerGlobals, len: size_t) -> bool {
-        // SAFETY: the state is initialized in GINIT and all accesses occur on the
-        // owning PHP thread. Allocator reentrancy cannot overlap this borrow because
-        // sampling state is released before stack collection begins.
+        // SAFETY: GINIT initializes this state before sampling runs on the
+        // owning PHP thread. This borrow ends before stack collection begins,
+        // so reentrant allocation hooks cannot overlap it.
         let stats = unsafe { (*(*globals).allocation_profiling_stats.get()).assume_init_mut() };
         stats.should_collect_allocation(len)
     }
@@ -33,30 +28,26 @@ impl ProfilerGlobals {
 /// Initializes the allocation profiler's globals.
 ///
 /// # Safety
-/// Must be called once per PHP thread GINIT.
-pub unsafe fn ginit() {
+/// `globals` must be the pointer supplied by PHP to GINIT. Call this once
+/// per globals allocation, before allocation hooks access the sampling state.
+pub unsafe fn ginit(globals: *mut ProfilerGlobals) {
     let interval = ALLOCATION_PROFILING_INTERVAL.load(Ordering::Relaxed);
     // SAFETY: ALLOCATION_PROFILING_INTERVAL is always greater than zero.
     let sampling_distance = unsafe { NonZeroU64::new_unchecked(interval) };
-    // SAFETY: GINIT runs with allocated module globals and before allocator hooks.
-    let globals = unsafe { module_globals::get_profiler_globals() };
+    // SAFETY: GINIT supplies the storage to initialize before allocator hooks run.
     unsafe {
         (*(*globals).allocation_profiling_stats.get())
             .write(AllocationProfilingStats::new(sampling_distance));
     }
-
-    #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
-    allocation_le83::alloc_prof_ginit();
-    #[cfg(php_zend_mm_set_custom_handlers_ex)]
-    allocation_ge84::alloc_prof_ginit();
 }
 
 /// Reinitializes allocation sampling with the configured distance.
 ///
 /// # Safety
-/// Must be called once per PHP thread MINIT, unless allocation profiling is disabled.
+/// Must be called during MINIT, before allocation hooks can access the state.
 pub unsafe fn minit(sampling_distance: NonZeroU64) {
-    // SAFETY: GINIT initialized this state, and MINIT has exclusive lifecycle access.
+    // SAFETY: GINIT has initialized the current thread's globals, and
+    // allocation hooks have not started accessing the sampling state.
     let globals = unsafe { module_globals::get_profiler_globals() };
     let stats = unsafe { (*(*globals).allocation_profiling_stats.get()).assume_init_mut() };
     *stats = AllocationProfilingStats::new(sampling_distance);
@@ -65,9 +56,12 @@ pub unsafe fn minit(sampling_distance: NonZeroU64) {
 /// Drops the allocation sampling state.
 ///
 /// # Safety
-/// Must be called once per PHP thread GSHUTDOWN after allocator hooks are removed.
-pub unsafe fn gshutdown() {
-    // SAFETY: GINIT initialized this state, and GSHUTDOWN has exclusive lifecycle access.
-    let globals = unsafe { module_globals::get_profiler_globals() };
+/// `globals` must be the pointer supplied by PHP to GSHUTDOWN, with its
+/// sampling state still initialized. Call this once per globals allocation,
+/// after allocation hooks have stopped accessing the sampling state.
+pub unsafe fn gshutdown(globals: *mut ProfilerGlobals) {
+    // GSHUTDOWN may run on a different thread from the one that owns these
+    // globals. Use the supplied pointer; do not look up current-thread globals
+    // or access native TLS.
     unsafe { (*(*globals).allocation_profiling_stats.get()).assume_init_drop() };
 }

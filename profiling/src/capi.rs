@@ -38,11 +38,11 @@ pub extern "C" fn datadog_profiling_runtime_id() -> Uuid {
 #[cfg(feature = "trigger_time_sample")]
 #[no_mangle]
 extern "C" fn ddog_php_prof_trigger_time_sample() {
-    use crate::profiling::RefCellExt;
     use log::error;
     use std::sync::atomic::Ordering;
 
-    let result = super::REQUEST_LOCALS.try_with_borrow(|locals| {
+    // SAFETY: This callback runs on the active PHP request thread with live globals.
+    let result = unsafe { super::RequestLocals::from_module_globals() }.try_with_borrow(|locals| {
         if locals.system_settings().profiling_enabled {
             // Safety: only vm interrupts are stored there, or possibly null (edges only).
             if let Some(vm_interrupt) = unsafe { locals.vm_interrupt_addr.as_ref() } {

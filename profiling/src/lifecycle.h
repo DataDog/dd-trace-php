@@ -20,6 +20,7 @@ void ddog_php_prof_minfo(zend_module_entry *module);
 
 int ddog_php_prof_zend_startup(zend_extension *extension);
 void ddog_php_prof_zend_activate(void);
+void ddog_php_prof_zend_deactivate(void);
 void ddog_php_prof_zend_shutdown(zend_extension *extension);
 
 #endif

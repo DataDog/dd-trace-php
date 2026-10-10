@@ -290,6 +290,11 @@ static void datadog_activate(void) {
 }
 
 static void datadog_deactivate(void) {
+#ifdef PROFILING
+    if (datadog_profiling_initialized) {
+        ddog_php_prof_zend_deactivate();
+    }
+#endif
 #if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80200
     if (dd_observer_extension_backup != -1) {
         zend_observer_fcall_op_array_extension = dd_observer_extension_backup;

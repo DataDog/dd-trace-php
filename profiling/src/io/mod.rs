@@ -4,11 +4,13 @@ pub mod got_elf64;
 pub mod got_macho;
 
 use crate::profiling::profiler::Profiler;
-use crate::profiling::{sample_exponential_interval, zend, RefCellExt, REQUEST_LOCALS};
+use crate::profiling::{
+    sample_exponential_interval, zend, RefCellExt, RequestLocals, PHP_REQUEST_ACTIVE,
+};
 use libc::{c_int, c_void, fstat, stat, S_IFMT, S_IFSOCK};
 use rand::rngs::ThreadRng;
 use rustc_hash::FxHashMap;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::mem::MaybeUninit;
 use std::os::unix::io::RawFd;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -100,7 +102,12 @@ unsafe fn restore_slot_if_owned(restore: &GotSlotRestore) -> bool {
 
 #[inline]
 fn is_zend_thread() -> bool {
-    REQUEST_LOCALS.borrow_or_false(|locals| !locals.vm_interrupt_addr.is_null())
+    // Reject foreign threads before accessing any PHP module globals.
+    // SAFETY: Short-circuiting the TLS check restricts the globals lookup to
+    // the native thread in an active PHP request.
+    PHP_REQUEST_ACTIVE.try_with(Cell::get).unwrap_or(false)
+        && unsafe { RequestLocals::from_module_globals() }
+            .borrow_or_false(|locals| !locals.vm_interrupt_addr.is_null())
 }
 
 fn eval_poll_events(ret: i32, fds: &[libc::pollfd]) -> (bool, bool) {
@@ -652,13 +659,7 @@ impl IOProfilingStats {
     }
 
     fn should_collect(&mut self, value: u64) -> bool {
-        let zend_thread =
-            REQUEST_LOCALS.borrow_or_false(|locals| !locals.vm_interrupt_addr.is_null());
-        if !zend_thread {
-            // `curl_exec()` for example will spawn a new thread for name resolution. GOT hooking
-            // follows threads and as such we might sample from another (non PHP) thread even in a
-            // NTS build of PHP. We have observed crashes for these cases, so instead of crashing
-            // (or risking a crash) we refrain from collection I/O.
+        if !is_zend_thread() {
             return false;
         }
         if self.next_sample > value {
@@ -714,8 +715,9 @@ thread_local! {
 }
 
 pub fn io_prof_first_rinit() {
-    let io_profiling =
-        REQUEST_LOCALS.borrow_or_false(|locals| locals.system_settings().profiling_io_enabled);
+    // SAFETY: First RINIT runs on the PHP thread with initialized module globals.
+    let io_profiling = unsafe { RequestLocals::from_module_globals() }
+        .borrow_or_false(|locals| locals.system_settings().profiling_io_enabled);
 
     if io_profiling {
         unsafe {
@@ -830,15 +832,21 @@ mod tests {
     #[test]
     fn sampling_collects_at_interval_boundary() {
         let vm_interrupt = std::sync::atomic::AtomicBool::new(false);
-        let previous = super::REQUEST_LOCALS.with_borrow_mut(|locals| {
-            std::mem::replace(&mut locals.vm_interrupt_addr, &vm_interrupt)
-        });
+        // SAFETY: The test accessor supplies initialized globals owned by this test thread.
+        let previous =
+            unsafe { super::RequestLocals::from_module_globals() }.with_borrow_mut(|locals| {
+                std::mem::replace(&mut locals.vm_interrupt_addr, &vm_interrupt)
+            });
+        let was_active = super::PHP_REQUEST_ACTIVE.replace(true);
         let mut stats = super::IOProfilingStats::new(100);
         stats.next_sample = 8;
         assert!(!stats.should_collect(0));
         assert!(!stats.should_collect(4));
         assert!(stats.should_collect(4));
-        super::REQUEST_LOCALS.with_borrow_mut(|locals| locals.vm_interrupt_addr = previous);
+        // SAFETY: The test accessor supplies initialized globals owned by this test thread.
+        unsafe { super::RequestLocals::from_module_globals() }
+            .with_borrow_mut(|locals| locals.vm_interrupt_addr = previous);
+        super::PHP_REQUEST_ACTIVE.set(was_active);
     }
 
     #[test]

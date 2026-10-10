@@ -44,8 +44,7 @@ use profiler::{LocalRootSpanResourceMessage, ProfileIndex, Profiler, VmInterrupt
 use rand::Rng;
 use sapi::Sapi;
 use std::borrow::Cow;
-use std::cell::{BorrowError, BorrowMutError, RefCell};
-use std::ops::{Deref, DerefMut};
+use std::cell::{BorrowError, BorrowMutError, Cell, RefCell};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 #[cfg(not(feature = "profiling-embedded"))]
 use std::sync::OnceLock;
@@ -53,6 +52,17 @@ use std::sync::{Arc, LazyLock, Once};
 use std::thread::{AccessError, LocalKey};
 use std::time::{Duration, Instant};
 use uuid::Uuid;
+
+thread_local! {
+    /// Guards request-state access from callbacks, including I/O hooks on
+    /// native helper threads and error observers during engine teardown.
+    /// This must stay in native TLS, outside ProfilerGlobals: NTS globals are
+    /// shared by all threads, and a foreign ZTS thread may have no TSRM globals.
+    /// RINIT sets it and RSHUTDOWN clears it on the owning thread. Zend
+    /// deactivate and MSHUTDOWN also clear it when startup failure skips
+    /// RSHUTDOWN. GINIT/GSHUTDOWN may run elsewhere and must not manage it.
+    static PHP_REQUEST_ACTIVE: Cell<bool> = const { Cell::new(false) };
+}
 
 /// Name of the profiling module and zend_extension. Must not contain any
 /// interior null bytes and must be null terminated.
@@ -77,7 +87,8 @@ static PROFILER_NAME_STR: &str = match PROFILER_NAME.to_str() {
 /// interior null bytes and must be null terminated.
 static PROFILER_VERSION: &[u8] = concat!(env!("PROFILER_VERSION"), "\0").as_bytes();
 
-// SAFETY: PROFILER_VERSION is a byte slice that satisfies the safety requirements.
+// SAFETY: PROFILER_VERSION is a byte slice that satisfies the safety
+// requirements.
 static PROFILER_VERSION_STR: &str = const {
     match unsafe { CStr::from_ptr(PROFILER_VERSION.as_ptr() as *const c_char).to_str() } {
         Ok(v) => v,
@@ -292,6 +303,10 @@ pub extern "C" fn ddog_php_prof_minit(_type: c_int, module_number: c_int) -> Zen
         };
     }
 
+    // SAFETY: MINIT precedes Zend extension startup, when OPcache clears its
+    // handle on PHP <= 8.4.
+    unsafe { zend::ddog_php_opcache_init_handle() };
+
     // The logger was initialized above, so page-size failures are reported.
     if !allocation::initialize_page_size() {
         error!("Failed to query a valid OS page size for allocation profiling");
@@ -337,6 +352,12 @@ pub extern "C" fn ddog_php_prof_post_deactivate() -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("PRSHUTDOWN");
 
+    if let Some(profiler) = Profiler::get() {
+        // SAFETY: PRSHUTDOWN runs on the owning PHP thread with live module globals.
+        let globals = unsafe { &*module_globals::get_profiler_globals() };
+        profiler.remove_interrupt_for_globals(globals);
+    }
+
     // ZAI config may be accessed indirectly via other modules RSHUTDOWN, so
     // delay this until the last possible time.
     #[cfg(not(feature = "profiling-embedded"))]
@@ -369,12 +390,70 @@ pub struct RequestLocals {
 }
 
 impl RequestLocals {
+    /// Borrows the current PHP thread's request state (process-wide in NTS).
+    ///
+    /// # Safety
+    /// PHP's current-globals accessor must be available, and GINIT must have
+    /// initialized its request state. The storage must remain live and at the
+    /// same address for `'a`, without concurrent access from other threads.
+    /// GSHUTDOWN must use its supplied pointer instead of this constructor.
+    unsafe fn from_module_globals<'a>() -> RequestLocalsRef<'a> {
+        // SAFETY: The caller guarantees valid current-thread module globals.
+        let globals = unsafe { module_globals::get_profiler_globals() };
+        // SAFETY: The caller guarantees this field is initialized and remains
+        // valid without concurrent access for the returned handle's lifetime.
+        unsafe { Self::from_ptr(ptr::addr_of!((*globals).request_locals)) }
+    }
+
+    /// Borrows request state from an already resolved globals allocation.
+    ///
+    /// # Safety
+    /// `locals` must be non-null, aligned, and point to an initialized RefCell.
+    /// Its storage must remain live and at the same address for `'a`, without
+    /// concurrent access from other threads or access bypassing the RefCell.
+    /// Any handoff from another thread must be synchronized.
+    unsafe fn from_ptr<'a>(locals: *const RefCell<Self>) -> RequestLocalsRef<'a> {
+        // SAFETY: The caller guarantees the reference is valid for `'a`.
+        RequestLocalsRef(unsafe { &*locals })
+    }
+
     #[track_caller]
     pub fn system_settings(&self) -> &SystemSettings {
         // SAFETY: it should always be valid, just maybe "stale", such as
         // having only the initial values, or only the ones available in minit,
         // rather than the fully configured values.
         unsafe { self.system_settings.as_ref() }
+    }
+}
+
+/// A borrowed request-state cell; construction establishes its lifetime and access safety.
+struct RequestLocalsRef<'a>(&'a RefCell<RequestLocals>);
+
+impl RequestLocalsRef<'_> {
+    fn with_borrow<R>(&self, f: impl FnOnce(&RequestLocals) -> R) -> R {
+        f(&self.0.borrow())
+    }
+
+    fn with_borrow_mut<R>(&self, f: impl FnOnce(&mut RequestLocals) -> R) -> R {
+        f(&mut self.0.borrow_mut())
+    }
+
+    fn try_with_borrow<R>(
+        &self,
+        f: impl FnOnce(&RequestLocals) -> R,
+    ) -> Result<R, RefCellExtError> {
+        Ok(f(&*self.0.try_borrow()?))
+    }
+
+    fn try_with_borrow_mut<R>(
+        &self,
+        f: impl FnOnce(&mut RequestLocals) -> R,
+    ) -> Result<R, RefCellExtError> {
+        Ok(f(&mut *self.0.try_borrow_mut()?))
+    }
+
+    fn borrow_or_false(&self, f: impl FnOnce(&RequestLocals) -> bool) -> bool {
+        self.try_with_borrow(f).unwrap_or(false)
     }
 }
 
@@ -406,6 +485,7 @@ pub enum RefCellExtError {
 }
 
 trait RefCellExt<T> {
+    #[cfg(all(feature = "debug_stats", php_run_time_cache))]
     fn try_with_borrow<F, R>(&'static self, f: F) -> Result<R, RefCellExtError>
     where
         F: FnOnce(&T) -> R;
@@ -413,14 +493,6 @@ trait RefCellExt<T> {
     fn try_with_borrow_mut<F, R>(&'static self, f: F) -> Result<R, RefCellExtError>
     where
         F: FnOnce(&mut T) -> R;
-
-    #[inline]
-    fn borrow_or_false<F>(&'static self, f: F) -> bool
-    where
-        F: FnOnce(&T) -> bool,
-    {
-        self.try_with_borrow(f).unwrap_or(false)
-    }
 
     #[inline]
     fn borrow_mut_or_false<F>(&'static self, f: F) -> bool
@@ -432,14 +504,13 @@ trait RefCellExt<T> {
 }
 
 impl<T> RefCellExt<T> for LocalKey<RefCell<T>> {
+    #[cfg(all(feature = "debug_stats", php_run_time_cache))]
     #[inline]
     fn try_with_borrow<F, R>(&'static self, f: F) -> Result<R, RefCellExtError>
     where
         F: FnOnce(&T) -> R,
     {
-        Ok(self.try_with(|cell| -> Result<R, BorrowError> {
-            cell.try_borrow().map(|t| f(t.deref()))
-        })??)
+        Ok(self.try_with(|cell| -> Result<R, BorrowError> { cell.try_borrow().map(|t| f(&t)) })??)
     }
 
     #[inline]
@@ -448,7 +519,7 @@ impl<T> RefCellExt<T> for LocalKey<RefCell<T>> {
         F: FnOnce(&mut T) -> R,
     {
         Ok(self.try_with(|cell| -> Result<R, BorrowMutError> {
-            cell.try_borrow_mut().map(|mut t| f(t.deref_mut()))
+            cell.try_borrow_mut().map(|mut t| f(&mut t))
         })??)
     }
 }
@@ -458,8 +529,6 @@ thread_local! {
         cpu_time: None,
         wall_time: Instant::now(),
     });
-
-    static REQUEST_LOCALS: RefCell<RequestLocals> = RefCell::new(RequestLocals::default());
 }
 
 /// Gets the runtime-id for the process. Do not call before RINIT!
@@ -501,6 +570,15 @@ pub extern "C" fn ddog_php_prof_zend_activate() {
     unsafe { profiler::stack_walking::activate() };
 }
 
+#[no_mangle]
+pub extern "C" fn ddog_php_prof_zend_deactivate() {
+    // A bailout in a later module's RINIT skips module RSHUTDOWN.
+    PHP_REQUEST_ACTIVE.set(false);
+    // SAFETY: Zend deactivate runs on the owning PHP thread before its globals
+    // and heap are destroyed, including when module RSHUTDOWN was skipped.
+    unsafe { allocation::deactivate() };
+}
+
 /// The mut here is *only* for resetting this back to uninitialized each minit.
 static mut ZAI_CONFIG_ONCE: Once = Once::new();
 /// The mut here is *only* for resetting this back to uninitialized each minit.
@@ -536,25 +614,31 @@ pub extern "C" fn ddog_php_prof_rinit(_type: c_int, _module_number: c_int) -> Ze
     // values to the ones in the configuration.
     let system_settings = SystemSettings::get();
 
-    // initialize the thread local storage and cache some items
-    let result = REQUEST_LOCALS.try_with_borrow_mut(|locals| {
+    // SAFETY: RINIT runs on the owning PHP thread after GINIT.
+    let globals = unsafe { &*module_globals::get_profiler_globals() };
+
+    // SAFETY: This initialized field belongs to the RINIT thread and remains
+    // live throughout this call; all request-state accesses use its RefCell.
+    let request_locals = unsafe { RequestLocals::from_ptr(ptr::from_ref(&globals.request_locals)) };
+
+    // Initialize request state and cache some items.
+    let result = request_locals.try_with_borrow_mut(|locals| {
         // SAFETY: we are in rinit on a PHP thread.
         locals.vm_interrupt_addr = unsafe { zend::datadog_php_profiling_vm_interrupt_addr() };
         // Profile identity is populated lazily from the first sample's actual
         // context and replaced if that context changes during the request.
         locals.profile_index = None;
 
-        // SAFETY: We are after first rinit and before mshutdown.
+        // SAFETY: We are after first rinit and before mshutdown; SAPI globals
+        // are also valid to access during rinit.
         unsafe {
             locals.identity = process_context::ProcessIdentity {
                 env: config::env(),
                 service: config::service().or_else(|| match *SAPI {
-                    Sapi::Cli => {
-                        // SAFETY: sapi globals are safe to access during rinit
-                        SAPI.request_script_name(datadog_sapi_globals_request_info())
-                            .map(Cow::into_owned)
-                            .or(Some(String::from("cli.command")))
-                    }
+                    Sapi::Cli => SAPI
+                        .request_script_name(datadog_sapi_globals_request_info())
+                        .map(Cow::into_owned)
+                        .or(Some(String::from("cli.command"))),
                     _ => Some(String::from("web.request")),
                 }),
                 version: config::version(),
@@ -691,9 +775,32 @@ pub extern "C" fn ddog_php_prof_rinit(_type: c_int, _module_number: c_int) -> Ze
 
     Profiler::init(system_settings);
 
+    // Cache thread identity on first RINIT, even when timeline profiling is disabled.
+    globals
+        .thread_name
+        .get_or_init(profiler::get_current_thread_name);
+    globals.thread_id.get_or_init(|| {
+        #[cfg(target_os = "linux")]
+        if let Some(id) =
+            request_locals.with_borrow(|locals| {
+                match process_context::thread_context(process_context::ProcessIdentityRef {
+                    service: locals.identity.service.as_deref(),
+                    env: locals.identity.env.as_deref().or(Some("none")),
+                    version: locals.identity.version.as_deref(),
+                }) {
+                    process_context::ThreadContextRead::Active(context) => context.thread_id,
+                    process_context::ThreadContextRead::Inactive(_) => None,
+                }
+            })
+        {
+            return id;
+        }
+        libdd_common::threading::get_current_thread_id()
+    });
+
     if system_settings.profiling_enabled {
         // Not logging, rinit could be quite spammy.
-        _ = REQUEST_LOCALS.try_with_borrow(|locals| {
+        _ = request_locals.try_with_borrow(|locals| {
             let cpu_time_enabled = system_settings.profiling_experimental_cpu_time_enabled;
             let wall_time_enabled = system_settings.profiling_wall_time_enabled;
             CLOCKS.with_borrow_mut(|clocks| clocks.initialize(cpu_time_enabled));
@@ -721,11 +828,16 @@ pub extern "C" fn ddog_php_prof_rinit(_type: c_int, _module_number: c_int) -> Ze
     // SAFETY: called after config is initialized.
     unsafe { timeline::timeline_rinit() };
 
+    PHP_REQUEST_ACTIVE.set(true);
+
     ZendResult::Success
 }
 
 #[no_mangle]
 pub extern "C" fn ddog_php_prof_rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
+    // Stop callbacks from collecting before request teardown begins.
+    PHP_REQUEST_ACTIVE.set(false);
+
     #[cfg(feature = "tracing")]
     let _rshutdown_span = tracing::info_span!("rshutdown").entered();
 
@@ -740,28 +852,14 @@ pub extern "C" fn ddog_php_prof_rshutdown(_type: c_int, _module_number: c_int) -
 
     profiler::stack_walking::rshutdown();
 
-    // Not logging, rshutdown could be quite spammy.
-    _ = REQUEST_LOCALS.try_with_borrow(|locals| {
-        let system_settings = locals.system_settings();
+    if let Some(profiler) = Profiler::get() {
+        // SAFETY: RSHUTDOWN runs on the owning PHP thread with live globals.
+        let globals = unsafe { &*module_globals::get_profiler_globals() };
+        profiler.remove_interrupt_for_globals(globals);
+    }
 
-        // The interrupt is only added if CPU- or wall-time are enabled BUT
-        // wall-time is not expected to ever be disabled, except in testing,
-        // and we don't need to optimize for that.
-        if system_settings.profiling_enabled {
-            if let Some(profiler) = Profiler::get() {
-                // SAFETY: PHP module globals remain initialized through RSHUTDOWN.
-                let globals = unsafe { module_globals::get_profiler_globals() };
-                let interrupt = VmInterrupt {
-                    // SAFETY: `globals` remains valid until this thread's GSHUTDOWN.
-                    interrupt_count_ptr: unsafe { ptr::addr_of!((*globals).interrupt_count) },
-                    engine_ptr: locals.vm_interrupt_addr,
-                };
-                profiler.remove_interrupt(interrupt);
-            }
-        }
-    });
-
-    allocation::alloc_prof_rshutdown();
+    // SAFETY: RSHUTDOWN runs on the owning PHP thread with live globals and heap.
+    unsafe { allocation::deactivate() };
 
     #[cfg(feature = "tracing")]
     REQUEST_SPAN.take();
@@ -780,20 +878,23 @@ pub unsafe extern "C" fn ddog_php_prof_minfo(module_ptr: *mut zend::ModuleEntry)
 
     let module = &*module_ptr;
 
-    let (system_settings, env, service, version) = match REQUEST_LOCALS.try_with_borrow(|locals| {
-        (
-            locals.system_settings().clone(),
-            locals.identity.env.clone(),
-            locals.identity.service.clone(),
-            locals.identity.version.clone(),
-        )
-    }) {
-        Ok(values) => values,
-        Err(err) => {
-            error!("minfo failed to borrow request locals: {err}");
-            return;
-        }
-    };
+    // SAFETY: PHP invokes MINFO on a PHP thread while the module globals are
+    // initialized.
+    let (system_settings, env, service, version) =
+        match unsafe { RequestLocals::from_module_globals() }.try_with_borrow(|locals| {
+            (
+                locals.system_settings().clone(),
+                locals.identity.env.clone(),
+                locals.identity.service.clone(),
+                locals.identity.version.clone(),
+            )
+        }) {
+            Ok(values) => values,
+            Err(err) => {
+                error!("minfo failed to borrow request locals: {err}");
+                return;
+            }
+        };
 
     // PHP calls may re-enter the profiler through sampling hooks.
     {
@@ -806,7 +907,11 @@ pub unsafe extern "C" fn ddog_php_prof_minfo(module_ptr: *mut zend::ModuleEntry)
         zend::php_info_print_table_row(
             2,
             c"Profiling Enabled".as_ptr(),
-            if system_settings.profiling_enabled { yes } else { no },
+            if system_settings.profiling_enabled {
+                yes
+            } else {
+                no
+            },
         );
 
         zend::php_info_print_table_row(
@@ -837,61 +942,60 @@ pub unsafe extern "C" fn ddog_php_prof_minfo(module_ptr: *mut zend::ModuleEntry)
             },
         );
 
-                zend::php_info_print_table_row(
-                    2,
-                    c"Allocation Profiling Enabled".as_ptr(),
-                    if system_settings.profiling_allocation_enabled {
-                        yes
-                    } else if zend::ddog_php_jit_enabled() {
-                        // Work around version-specific issues.
-                        if cfg!(not(php_zend_mm_set_custom_handlers_ex)) {
-                            c"Not available due to JIT being active, see https://github.com/DataDog/dd-trace-php/pull/2088 for more information.".as_ptr()
-                        } else {
-                            c"Not available due to JIT being active, see https://github.com/DataDog/dd-trace-php/pull/3199 for more information.".as_ptr()
-                        }
-                    } else if system_settings.profiling_enabled {
-                        no
-                    } else {
-                        no_all
-                    }
-                );
-                zend::php_info_print_table_row(
-                    2,
-                    c"Experimental Heap Live Profiling Enabled".as_ptr(),
-                    if system_settings.profiling_experimental_heap_live_enabled {
-                        yes
-                    } else if !system_settings.profiling_allocation_enabled {
-                        c"false (requires allocation profiling)".as_ptr()
-                    } else if system_settings.profiling_enabled {
-                        no
-                    } else {
-                        no_all
-                    },
-                );
-                zend::php_info_print_table_row(
-                    2,
-                    c"Timeline Enabled".as_ptr(),
-                    if system_settings.profiling_timeline_enabled {
-                        yes
-                    } else if system_settings.profiling_enabled {
-                        no
-                    } else {
-                        no_all
-                    },
-                );
+        zend::php_info_print_table_row(
+            2,
+            c"Allocation Profiling Enabled".as_ptr(),
+            if system_settings.profiling_allocation_enabled {
+                yes
+            } else if zend::ddog_php_jit_enabled() {
+                // Work around version-specific issues.
+                if cfg!(not(php_zend_mm_set_custom_handlers_ex)) {
+                    c"Not available due to JIT being active, see https://github.com/DataDog/dd-trace-php/pull/2088 for more information.".as_ptr()
+                } else {
+                    c"Not available due to JIT being active, see https://github.com/DataDog/dd-trace-php/pull/3199 for more information.".as_ptr()
+                }
+            } else if system_settings.profiling_enabled {
+                no
+            } else {
+                no_all
+            },
+        );
+        zend::php_info_print_table_row(
+            2,
+            c"Experimental Heap Live Profiling Enabled".as_ptr(),
+            if system_settings.profiling_experimental_heap_live_enabled {
+                yes
+            } else if !system_settings.profiling_allocation_enabled {
+                c"false (requires allocation profiling)".as_ptr()
+            } else if system_settings.profiling_enabled {
+                no
+            } else {
+                no_all
+            },
+        );
+        zend::php_info_print_table_row(
+            2,
+            c"Timeline Enabled".as_ptr(),
+            if system_settings.profiling_timeline_enabled {
+                yes
+            } else if system_settings.profiling_enabled {
+                no
+            } else {
+                no_all
+            },
+        );
 
-                zend::php_info_print_table_row(
-                    2,
-                    c"Exception Profiling Enabled".as_ptr(),
-                    if system_settings.profiling_exception_enabled {
-                        yes
-                    } else if system_settings.profiling_enabled {
-                        no
-                    } else {
-                        no_all
-                    },
-                );
-
+        zend::php_info_print_table_row(
+            2,
+            c"Exception Profiling Enabled".as_ptr(),
+            if system_settings.profiling_exception_enabled {
+                yes
+            } else if system_settings.profiling_enabled {
+                no
+            } else {
+                no_all
+            },
+        );
 
         #[cfg(feature = "io_profiling")]
         zend::php_info_print_table_row(
@@ -947,7 +1051,7 @@ pub unsafe extern "C" fn ddog_php_prof_minfo(module_ptr: *mut zend::ModuleEntry)
         zend::php_info_print_table_row(
             2,
             c"Profiling Log Level".as_ptr(),
-            printable_log_level.as_ptr().cast::<c_char>()
+            printable_log_level.as_ptr().cast::<c_char>(),
         );
 
         let key = c"Profiling Agent Endpoint".as_ptr();
@@ -978,6 +1082,18 @@ pub unsafe extern "C" fn ddog_php_prof_minfo(module_ptr: *mut zend::ModuleEntry)
 
 #[no_mangle]
 pub extern "C" fn ddog_php_prof_mshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
+    // Some SAPIs go straight to module shutdown after request startup fails.
+    PHP_REQUEST_ACTIVE.set(false);
+    // SAFETY: MSHUTDOWN runs before globals and heap teardown on this PHP thread.
+    unsafe { allocation::deactivate() };
+
+    // Keep collecting GSHUTDOWN events, but stop touching PHP interrupt pointers.
+    if let Some(profiler) = Profiler::get() {
+        profiler.stop_interrupts();
+        // SAFETY: MSHUTDOWN runs on this PHP thread before its globals are destroyed.
+        unsafe { profiler.collect_module_shutdown() };
+    }
+
     // todo: merge these lifecycle things to tracing feature?
     #[cfg(debug_assertions)]
     trace!("MSHUTDOWN({_type}, {_module_number})");
@@ -986,9 +1102,6 @@ pub extern "C" fn ddog_php_prof_mshutdown(_type: c_int, _module_number: c_int) -
     timeline::timeline_mshutdown();
 
     exception::exception_profiling_mshutdown();
-
-    // SAFETY: calling in mshutdown as required.
-    unsafe { Profiler::stop(Duration::from_secs(1)) };
 
     #[cfg(all(
         feature = "io_profiling",
@@ -1081,9 +1194,13 @@ pub extern "C" fn ddog_php_prof_is_enabled() -> bool {
 /// Notifies the profiler a trace has finished so it can update information
 /// for Endpoint Profiling.
 fn notify_trace_finished(local_root_span_id: u64, span_type: Cow<str>, resource: Cow<str>) {
-    let result = REQUEST_LOCALS.try_with_borrow(|locals| {
+    // SAFETY: The tracer reports completed traces on the PHP thread before globals teardown.
+    let request_locals = unsafe { RequestLocals::from_module_globals() };
+    let result = request_locals.try_with_borrow(|locals| {
         let system_settings = locals.system_settings();
-        if system_settings.profiling_enabled && system_settings.profiling_endpoint_collection_enabled {
+        if system_settings.profiling_enabled
+            && system_settings.profiling_endpoint_collection_enabled
+        {
             // Only gather Endpoint Profiling data for web spans, partly for PII reasons.
             if span_type != "web" {
                 debug!(
