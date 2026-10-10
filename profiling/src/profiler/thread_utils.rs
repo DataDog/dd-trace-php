@@ -1,15 +1,13 @@
 use crate::profiling::SAPI;
-use std::cell::OnceCell;
-use std::mem::MaybeUninit;
+use core::mem::MaybeUninit;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 #[cfg(php_zts)]
-use crate::profiling::bindings::ddog_php_prof_is_parallel_thread;
-#[cfg(php_zts)]
-use crate::profiling::sapi::Sapi;
-#[cfg(php_zts)]
-use libc::c_char;
+use {
+    crate::profiling::{bindings::ddog_php_prof_is_parallel_thread, sapi::Sapi},
+    libc::c_char,
+};
 
 /// Spawns a thread with asynchronous signals masked.
 pub fn spawn<F, T>(name: &str, f: F) -> JoinHandle<T>
@@ -115,53 +113,40 @@ pub fn join_timeout(handle: JoinHandle<()>, timeout: Duration) -> Result<(), Tim
     Ok(())
 }
 
-thread_local! {
-    /// This is a cache for the thread name. It will not change after the thread has been
-    /// created, as SAPI's do not change thread names and ext-pthreads / ext-parallel do not
-    /// provide an interface for renaming a thread.
-    static THREAD_NAME: OnceCell<String> = const { OnceCell::new() };
-}
-
 pub fn get_current_thread_name() -> String {
-    THREAD_NAME.with(|name| {
-        name.get_or_init(|| -> String {
-            #[cfg(not(php_zts))]
-            return SAPI.to_string();
+    #[cfg(not(php_zts))]
+    return SAPI.to_string();
 
-            #[cfg(php_zts)]
-            {
-                if unsafe { ddog_php_prof_is_parallel_thread() } {
-                    return "parallel worker".to_string();
+    #[cfg(php_zts)]
+    {
+        if unsafe { ddog_php_prof_is_parallel_thread() } {
+            return "parallel worker".to_string();
+        }
+        let mut thread_name = SAPI.to_string();
+        // So far, only FrankenPHP sets meaningful thread names
+        if *SAPI == Sapi::FrankenPHP {
+            let mut name = [0u8; 32];
+
+            let result = unsafe {
+                libc::pthread_getname_np(
+                    libc::pthread_self(),
+                    name.as_mut_ptr() as *mut c_char,
+                    name.len(),
+                )
+            };
+
+            if result == 0 {
+                // If successful, convert the result to a Rust String
+                let cstr = unsafe { std::ffi::CStr::from_ptr(name.as_ptr() as *const c_char) };
+                let str_slice: &str = cstr.to_str().unwrap_or_default();
+                if !str_slice.is_empty() {
+                    thread_name.push_str(": ");
+                    thread_name.push_str(str_slice);
                 }
-                let mut thread_name = SAPI.to_string();
-                // So far, only FrankenPHP sets meaningful thread names
-                if *SAPI == Sapi::FrankenPHP {
-                    let mut name = [0u8; 32];
-
-                    let result = unsafe {
-                        libc::pthread_getname_np(
-                            libc::pthread_self(),
-                            name.as_mut_ptr() as *mut c_char,
-                            name.len(),
-                        )
-                    };
-
-                    if result == 0 {
-                        // If successful, convert the result to a Rust String
-                        let cstr =
-                            unsafe { std::ffi::CStr::from_ptr(name.as_ptr() as *const c_char) };
-                        let str_slice: &str = cstr.to_str().unwrap_or_default();
-                        if !str_slice.is_empty() {
-                            thread_name.push_str(": ");
-                            thread_name.push_str(str_slice);
-                        }
-                    }
-                }
-                thread_name
             }
-        })
-        .clone()
-    })
+        }
+        thread_name
+    }
 }
 
 #[cfg(test)]

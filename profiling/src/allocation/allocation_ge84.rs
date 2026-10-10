@@ -24,6 +24,8 @@ pub struct ZendMMState {
     /// We need this in case there is no custom handlers installed prior to us,
     /// in order to forward our allocation calls to this heap.
     heap: Option<*mut zend::zend_mm_heap>,
+    /// Selects the free/realloc handlers installed for this request.
+    heap_live_enabled: bool,
     /// The engine's previous custom allocation function, if there is one.
     prev_custom_mm_alloc: Option<zend::VmMmCustomAllocFn>,
     /// The engine's previous custom reallocation function, if there is one.
@@ -59,6 +61,7 @@ impl ZendMMState {
     pub const fn new() -> ZendMMState {
         ZendMMState {
             heap: None,
+            heap_live_enabled: false,
             prev_custom_mm_alloc: None,
             prev_custom_mm_realloc: None,
             prev_custom_mm_free: None,
@@ -80,10 +83,6 @@ fn alloc_prof_needs_disabled_for_jit(version: u32) -> bool {
 
 static JIT_ENABLED: LazyLock<bool> = LazyLock::new(|| unsafe { zend::ddog_php_jit_enabled() });
 
-pub fn alloc_prof_ginit() {
-    unsafe { zend::ddog_php_opcache_init_handle() };
-}
-
 pub fn first_rinit_should_disable_due_to_jit() -> bool {
     NEEDS_RUN_TIME_CHECK_FOR_ENABLED_JIT
         && alloc_prof_needs_disabled_for_jit(crate::profiling::RUNTIME_PHP_VERSION_ID.load(Relaxed))
@@ -96,6 +95,7 @@ pub fn alloc_prof_rinit(heap_live_enabled: bool) {
         let heap = unsafe { zend::zend_mm_get_heap() };
 
         zend_mm_state.heap = Some(heap);
+        zend_mm_state.heap_live_enabled = heap_live_enabled;
 
         if unsafe { !zend::is_zend_mm() } {
             // Neighboring custom memory handlers found
@@ -164,16 +164,10 @@ pub fn alloc_prof_rinit(heap_live_enabled: bool) {
     trace!("Memory allocation profiling enabled.")
 }
 
+/// # Safety
+/// The calling thread's profiler globals and current Zend heap must be live.
 #[allow(unknown_lints, unpredictable_function_pointer_comparisons)]
-pub fn alloc_prof_rshutdown(heap_live_enabled: bool) {
-    // If `is_zend_mm()` is true, the custom handlers have already been reset
-    // to `None`. This is unexpected, therefore we will not touch the ZendMM
-    // handlers anymore as resetting to prev handlers might result in segfaults
-    // and other undefined behavior.
-    if unsafe { zend::is_zend_mm() } {
-        return;
-    }
-
+pub(super) unsafe fn deactivate() {
     let zend_mm_state_shutdown = |mut zend_mm_state: ZendMMState| -> ZendMMState {
         let mut custom_mm_malloc: Option<zend::VmMmCustomAllocFn> = None;
         let mut custom_mm_free: Option<zend::VmMmCustomFreeFn> = None;
@@ -181,31 +175,44 @@ pub fn alloc_prof_rshutdown(heap_live_enabled: bool) {
         let mut custom_mm_gc: Option<zend::VmMmCustomGcFn> = None;
         let mut custom_mm_shutdown: Option<zend::VmMmCustomShutdownFn> = None;
 
-        // SAFETY: UnsafeCell::get() ensures non-null, and the object should
-        // be valid for reads during rshutdown.
         let Some(heap) = zend_mm_state.heap else {
-            // The heap can be None if a fork happens outside the request.
+            // No handlers were installed, or a previous cleanup restored them.
             return zend_mm_state;
         };
 
-        unsafe {
-            zend::zend_mm_get_custom_handlers_ex(
-                heap,
-                &mut custom_mm_malloc,
-                &mut custom_mm_free,
-                &mut custom_mm_realloc,
-                &mut custom_mm_gc,
-                &mut custom_mm_shutdown,
-            );
+        // Only query the recorded heap if it is still current. Otherwise the
+        // empty handler variables below take the path that keeps our code loaded.
+        // SAFETY: The caller guarantees a live heap on this PHP thread.
+        let current_heap = unsafe { zend::zend_mm_get_heap() };
+        if heap == current_heap {
+            // A neighbor may already have restored the default allocator.
+            // In that case, do not reinstall its previous custom handlers.
+            // SAFETY: The caller guarantees the current Zend heap is live.
+            if unsafe { zend::is_zend_mm() } {
+                zend_mm_state.heap = None;
+                return zend_mm_state;
+            }
+
+            // SAFETY: The recorded heap is the current, live Zend heap.
+            unsafe {
+                zend::zend_mm_get_custom_handlers_ex(
+                    heap,
+                    &mut custom_mm_malloc,
+                    &mut custom_mm_free,
+                    &mut custom_mm_realloc,
+                    &mut custom_mm_gc,
+                    &mut custom_mm_shutdown,
+                );
+            }
         }
         let malloc_handler =
             alloc_prof_malloc_handler(zend_mm_state.prev_custom_mm_alloc.is_some());
         let free_handler = alloc_prof_free_handler(
-            heap_live_enabled,
+            zend_mm_state.heap_live_enabled,
             zend_mm_state.prev_custom_mm_free.is_some(),
         );
         let realloc_handler = alloc_prof_realloc_handler(
-            heap_live_enabled,
+            zend_mm_state.heap_live_enabled,
             zend_mm_state.prev_custom_mm_realloc.is_some(),
         );
         if custom_mm_free != Some(free_handler)
@@ -224,7 +231,9 @@ pub fn alloc_prof_rshutdown(heap_live_enabled: bool) {
                 // Safety: Checked for null pointer above.
                 unsafe { ptr::addr_of_mut!((*zend_extension).handle).write(ptr::null_mut()) };
             }
-            warn!("Found another extension using the custom heap which is unexpected at this point, so the extension handle was `null`'ed to avoid being `dlclose()`'ed.");
+            warn!("Allocation handlers could not be restored on the current heap; keeping the extension loaded.");
+            // A neighboring handler may still call ours. Preserve forwarding
+            // state and allow a later lifecycle hook to retry restoration.
         } else {
             // This is the happy path. Restore previously installed custom handlers or
             // NULL-pointers to the ZendMM. In case all pointers are NULL, the ZendMM will reset
@@ -241,9 +250,9 @@ pub fn alloc_prof_rshutdown(heap_live_enabled: bool) {
                     zend_mm_state.prev_custom_mm_shutdown,
                 );
             }
+            zend_mm_state.heap = None;
             trace!("Memory allocation profiling shutdown gracefully.");
         }
-        zend_mm_state.heap = None;
         zend_mm_state
     };
 
