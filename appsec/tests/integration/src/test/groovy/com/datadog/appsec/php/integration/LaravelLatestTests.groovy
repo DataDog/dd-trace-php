@@ -12,11 +12,18 @@ import org.testcontainers.junit.jupiter.Testcontainers
 import static com.datadog.appsec.php.integration.TestParams.getPhpVersion
 import static com.datadog.appsec.php.integration.TestParams.getVariant
 
+/**
+ * Covers the newest Laravel release (currently Laravel 12). Same event-based
+ * auth hooks as 8.x+. Pinned to PHP 8.4-release; the fixture's docker-init.sh
+ * runs {@code composer update} on container startup, so the resolved
+ * dependency set is pinned by the container's PHP version rather than by a
+ * committed lock file.
+ */
 @Testcontainers
 @EnabledIf('isExpectedVersion')
 @TestMethodOrder(MethodOrderer.OrderAnnotation)
-class Laravel8xTests extends AbstractLaravelAppsecTests {
-    static boolean expectedVersion = phpVersion.contains('8.1') && !variant.contains('zts')
+class LaravelLatestTests extends AbstractLaravelAppsecTests {
+    static boolean expectedVersion = phpVersion.contains('8.4') && variant == 'release'
 
     @Container
     @FailOnUnmatchedTraces
@@ -26,24 +33,13 @@ class Laravel8xTests extends AbstractLaravelAppsecTests {
                     baseTag: 'apache2-mod-php',
                     phpVersion: phpVersion,
                     phpVariant: variant,
-                    www: '../../../tests/Frameworks/Laravel/Version_8_x',
+                    www: '../../../tests/Frameworks/Laravel/Latest',
             )
 
     static void main(String[] args) {
         InspectContainerHelper.run(CONTAINER)
     }
 
-    // The 8.x fixture ships ~27 routes (feature-controller suite); the listed
-    // entries below are the subset exercised by AppSec. Extras are accepted
-    // via the base-class default (`isAllowUnenumeratedRoutes = true`).
     @Override
-    List<List<String>> getExpectedEndpoints() {
-        [
-                ['/', 'GET', 'GET /'],
-                ['login/auth', 'GET', 'GET login/auth'],
-                ['login/signup', 'GET', 'GET login/signup'],
-                ['dynamic-path/{param01}', 'GET', 'GET dynamic-path/{param01}'],
-                ['api/user', 'GET', 'GET api/user'],
-        ]
-    }
+    int getExpectedSignupStatus() { 302 }
 }

@@ -12,11 +12,16 @@ import org.testcontainers.junit.jupiter.Testcontainers
 import static com.datadog.appsec.php.integration.TestParams.getPhpVersion
 import static com.datadog.appsec.php.integration.TestParams.getVariant
 
+/**
+ * Covers Laravel 11.x — same event-based auth hooks as 8.x/9.x/10.x, but
+ * exercised against the slimmed-down Laravel 11 skeleton (no `app/Http/Kernel.php`,
+ * middleware configured via `bootstrap/app.php`). Pinned to PHP 8.3-release.
+ */
 @Testcontainers
 @EnabledIf('isExpectedVersion')
 @TestMethodOrder(MethodOrderer.OrderAnnotation)
-class Laravel8xTests extends AbstractLaravelAppsecTests {
-    static boolean expectedVersion = phpVersion.contains('8.1') && !variant.contains('zts')
+class Laravel11xTests extends AbstractLaravelAppsecTests {
+    static boolean expectedVersion = phpVersion.contains('8.3') && variant == 'release'
 
     @Container
     @FailOnUnmatchedTraces
@@ -26,24 +31,14 @@ class Laravel8xTests extends AbstractLaravelAppsecTests {
                     baseTag: 'apache2-mod-php',
                     phpVersion: phpVersion,
                     phpVariant: variant,
-                    www: '../../../tests/Frameworks/Laravel/Version_8_x',
+                    www: '../../../tests/Frameworks/Laravel/Version_11_x',
             )
 
     static void main(String[] args) {
         InspectContainerHelper.run(CONTAINER)
     }
 
-    // The 8.x fixture ships ~27 routes (feature-controller suite); the listed
-    // entries below are the subset exercised by AppSec. Extras are accepted
-    // via the base-class default (`isAllowUnenumeratedRoutes = true`).
+    // register() ends with `redirect('/simple')` → 302.
     @Override
-    List<List<String>> getExpectedEndpoints() {
-        [
-                ['/', 'GET', 'GET /'],
-                ['login/auth', 'GET', 'GET login/auth'],
-                ['login/signup', 'GET', 'GET login/signup'],
-                ['dynamic-path/{param01}', 'GET', 'GET dynamic-path/{param01}'],
-                ['api/user', 'GET', 'GET api/user'],
-        ]
-    }
+    int getExpectedSignupStatus() { 302 }
 }

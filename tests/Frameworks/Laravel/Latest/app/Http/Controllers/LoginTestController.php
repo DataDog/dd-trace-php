@@ -2,20 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
+use Illuminate\Auth\Events\Registered;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Http\RedirectResponse;
-use App\Providers\RouteServiceProvider;
-use App\Models\User;
 
 class LoginTestController extends Controller
 {
-    /**
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
     public function auth(Request $request)
     {
         $credentials = [
@@ -55,6 +50,6 @@ class LoginTestController extends Controller
 
     public function behind_auth()
     {
-        return "page behind auth";
+        return 'page behind auth';
     }
 }
