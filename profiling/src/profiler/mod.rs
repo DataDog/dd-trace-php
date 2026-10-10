@@ -9,26 +9,17 @@ pub use backtrace::Backtrace;
 pub use interrupts::*;
 pub use sample_type_filter::*;
 pub use stack_walking::*;
-use thread_utils::get_current_thread_name;
-use uploader::*;
-
-#[cfg(all(php_has_fibers, not(test)))]
-use crate::profiling::bindings::ddog_php_prof_get_active_fiber;
-#[cfg(all(php_has_fibers, test))]
-use crate::profiling::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_active_fiber;
+pub(super) use thread_utils::get_current_thread_name;
 
 use crate::profiling::allocation::ALLOCATION_PROFILING_INTERVAL;
-#[cfg(not(target_os = "linux"))]
-use crate::profiling::bindings::datadog_php_profiling_get_profiling_context;
 use crate::profiling::bindings::{
     datadog_php_profiling_get_process_tags_serialized, zai_str_from_zstr, zend_execute_data,
 };
 use crate::profiling::config::SystemSettings;
 use crate::profiling::exception::EXCEPTION_PROFILING_INTERVAL;
-#[cfg(target_os = "linux")]
-use crate::profiling::process_context::{ProcessIdentityRef, ThreadContextRead};
+use crate::profiling::module_globals::ProfilerGlobals;
 use crate::profiling::profile_tags::{ProfileTagSegment, ProfileTags};
-use crate::profiling::{Clocks, RefCellExt, CLOCKS, GLOBAL_TAGS, REQUEST_LOCALS};
+use crate::profiling::{Clocks, RequestLocals, CLOCKS, GLOBAL_TAGS};
 use chrono::Utc;
 use core::mem::forget;
 use core::{ptr, str};
@@ -46,10 +37,21 @@ use std::borrow::Cow;
 use std::hash::{Hash, Hasher};
 use std::num::NonZeroI64;
 use std::ops::{Deref, DerefMut};
-use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicPtr, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Barrier, OnceLock};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use uploader::*;
+
+#[cfg(all(php_has_fibers, not(test)))]
+use crate::profiling::bindings::ddog_php_prof_get_active_fiber;
+#[cfg(all(php_has_fibers, test))]
+use crate::profiling::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_active_fiber;
+
+#[cfg(not(target_os = "linux"))]
+use crate::profiling::bindings::datadog_php_profiling_get_profiling_context;
+#[cfg(target_os = "linux")]
+use crate::profiling::process_context::{ProcessIdentityRef, ThreadContextRead};
 
 #[cfg(all(
     any(target_os = "linux", target_os = "macos"),
@@ -78,7 +80,7 @@ const UPLOAD_CHANNEL_CAPACITY: usize = 8;
 type HeapTracker = DashMap<usize, LiveHeapSample, FxBuildHasher>;
 
 /// The global profiler. Profiler gets made during the first rinit after an
-/// minit, and is destroyed on mshutdown.
+/// minit, and is destroyed during Zend-extension shutdown.
 static mut PROFILER: OnceLock<Profiler> = OnceLock::new();
 
 pub static STACK_WALK_COUNT: AtomicU64 = AtomicU64::new(0);
@@ -317,7 +319,6 @@ pub struct LocalRootSpanResourceMessage {
 
 #[derive(Debug)]
 pub enum ProfilerMessage {
-    Cancel,
     Sample(SampleMessage),
     LocalRootSpanResource(LocalRootSpanResourceMessage),
 
@@ -360,7 +361,6 @@ pub struct Profiler {
     upload_sender: Sender<UploadMessage>,
     time_collector_handle: JoinHandle<()>,
     uploader_handle: JoinHandle<()>,
-    should_join: AtomicBool,
     sample_types_filter: SampleTypeFilter,
 
     /// An atomic pointer is used to make this Send and Sync, not because we
@@ -441,10 +441,11 @@ impl TimeCollector {
         trace!("Finished collecting batched heap-live samples");
     }
 
-    fn handle_timeout(
+    fn flush_profiles(
         &self,
         profiles: &mut FxHashMap<Arc<ProfileIndex>, InternalProfile>,
         last_export: &WallTime,
+        final_flush: bool,
     ) -> WallTime {
         // Collect batched heap-live samples before export
         self.collect_batched_heap_live_samples(profiles, last_export);
@@ -468,7 +469,13 @@ impl TimeCollector {
                 end_time,
                 duration,
             }));
-            if let Err(err) = self.upload_sender.try_send(message) {
+            if final_flush {
+                // Wait for queue space so shutdown does not discard the final
+                // profiles. The caller bounds its wait with join timeouts.
+                if let Err(err) = self.upload_sender.send(message) {
+                    warn!("Failed to upload final profile: {err}");
+                }
+            } else if let Err(err) = self.upload_sender.try_send(message) {
                 warn!("Failed to upload profile: {err}");
             }
         }
@@ -810,10 +817,9 @@ impl TimeCollector {
         let wall_timer = crossbeam_channel::tick(WALL_TIME_PERIOD);
         let upload_tick = crossbeam_channel::tick(self.upload_period);
         let never = crossbeam_channel::never();
-        let mut running = true;
         let mut last_cpu = ThreadTime::try_now().ok();
 
-        while running {
+        loop {
             // The crossbeam_channel::select! doesn't have the ability to
             // optionally recv something. Instead, if the tick channel
             // shouldn't be selected on, then pass the never channel for that
@@ -835,12 +841,6 @@ impl TimeCollector {
                                 Self::handle_sample_message(sample, &mut profiles, &last_wall_export),
                             ProfilerMessage::LocalRootSpanResource(message) =>
                                 Self::handle_resource_message(message, &mut profiles),
-                            ProfilerMessage::Cancel => {
-                                // flush what we have before exiting
-                                update_cpu_time_counter(&mut last_cpu, &DDPROF_TIME_CPU_TIME_NS);
-                                last_wall_export = self.handle_timeout(&mut profiles, &last_wall_export);
-                                running = false;
-                            },
                             ProfilerMessage::Pause => {
                                 // First, wait for every thread to finish what
                                 // they are currently doing.
@@ -854,11 +854,11 @@ impl TimeCollector {
                         },
 
                         Err(_) => {
-                            /* Docs say:
-                             * > A message could not be received because the
-                             * > channel is empty and disconnected.
-                             * If this happens, let's just break and end.
-                             */
+                            // The sender was dropped and all queued samples
+                            // have been received. Flush before dropping the
+                            // collector's final sender to the uploader.
+                            update_cpu_time_counter(&mut last_cpu, &DDPROF_TIME_CPU_TIME_NS);
+                            self.flush_profiles(&mut profiles, &last_wall_export, true);
                             break;
                         }
                     }
@@ -876,7 +876,7 @@ impl TimeCollector {
                 recv(upload_tick) -> message => {
                     if message.is_ok() {
                         update_cpu_time_counter(&mut last_cpu, &DDPROF_TIME_CPU_TIME_NS);
-                        last_wall_export = self.handle_timeout(&mut profiles, &last_wall_export);
+                        last_wall_export = self.flush_profiles(&mut profiles, &last_wall_export, false);
                     }
                 },
 
@@ -908,18 +908,18 @@ impl Profiler {
         #[cfg(target_os = "linux")]
         crate::profiling::process_context::initialize();
 
-        // SAFETY: the `get_or_init` access is a thread-safe API, and the
-        // PROFILER is only being mutated in single-threaded phases such as
-        //minit/mshutdown.
+        // SAFETY: get_or_init synchronizes initialization. Taking PROFILER
+        // requires exclusive access during Zend-extension shutdown or in the
+        // child after fork.
         unsafe {
             (*ptr::addr_of!(PROFILER)).get_or_init(|| Profiler::new(system_settings));
         }
     }
 
     pub fn get() -> Option<&'static Profiler> {
-        // SAFETY: the `get` access is a thread-safe API, and the PROFILER is
-        // only being mutated in single-threaded phases such as minit and
-        // mshutdown.
+        // SAFETY: get synchronizes with initialization. Taking PROFILER
+        // requires exclusive access during Zend-extension shutdown or in the
+        // child after fork.
         unsafe { (*ptr::addr_of!(PROFILER)).get() }
     }
 
@@ -961,7 +961,8 @@ impl Profiler {
         let uploader = Uploader::new(
             fork_barrier.clone(),
             upload_receiver,
-            system_settings.output_pprof.clone(),
+            // The uploader can outlive PHP configuration if its join times out.
+            system_settings.output_pprof.as_deref().map(str::to_owned),
             system_settings.uri.clone(),
             Utc::now(),
             process_tags,
@@ -980,7 +981,6 @@ impl Profiler {
                 uploader.run();
                 trace!("thread {DDPROF_UPLOAD} complete, shutting down");
             }),
-            should_join: AtomicBool::new(true),
             sample_types_filter,
             system_settings: AtomicPtr::new(system_settings as *const _ as *mut _),
             live_heap_tracker,
@@ -1007,6 +1007,14 @@ impl Profiler {
         // if we wake it now.
         // In ZTS mode, this would just be unnecessary wake-ups, as there are
         // likely to be other threads serving requests.
+    }
+
+    /// Remove this globals allocation's registration and clear pending ticks.
+    pub(crate) fn remove_interrupt_for_globals(&self, globals: &ProfilerGlobals) {
+        self.remove_interrupt(VmInterrupt {
+            interrupt_count_ptr: ptr::from_ref(&globals.interrupt_count),
+            engine_ptr: globals.request_locals.borrow().vm_interrupt_addr,
+        });
     }
 
     /// Call before a fork, on the thread of the parent process that will fork.
@@ -1077,55 +1085,16 @@ impl Profiler {
             .map_err(Box::new)
     }
 
-    /// Begins the shutdown process. To complete it, call [Profiler::shutdown].
-    /// Note that you must call [Profiler::shutdown] afterwards; it's two
-    /// parts of the same operation. It's split so you (or other extensions)
-    /// can do something while the other threads finish up.
-    ///
-    /// # Safety
-    /// Must be called in mshutdown.
-    pub unsafe fn stop(timeout: Duration) {
-        // SAFETY: only called during mshutdown, where we have ownership of
-        // the PROFILER object.
-        if let Some(profiler) = unsafe { (*ptr::addr_of_mut!(PROFILER)).get_mut() } {
-            profiler.join_and_drop_sender(timeout);
-        }
+    /// Stop timer access to PHP globals while leaving the collector running
+    /// for the remaining GSHUTDOWN events.
+    pub(crate) fn stop_interrupts(&self) {
+        self.interrupt_manager.clear();
     }
 
-    pub fn join_and_drop_sender(&mut self, timeout: Duration) {
-        debug!("Stopping profiler.");
-
-        let sent = match self
-            .message_sender
-            .send_timeout(ProfilerMessage::Cancel, timeout)
-        {
-            Err(err) => {
-                warn!(
-                    "Recent samples are most likely lost: Failed to notify other threads of cancellation: {err}."
-                );
-                false
-            }
-            Ok(_) => {
-                debug!("Notified other threads of cancellation.");
-                true
-            }
-        };
-        self.should_join.store(sent, Ordering::SeqCst);
-
-        // Drop the sender to the uploader channel to reduce its refcount. At
-        // this state, only the ddprof_time thread will have a sender to the
-        // uploader. Once the sender over there is closed, then the uploader
-        // can quit.
-        // The sender is replaced with one that has a disconnected receiver, so
-        // the sender can't send any messages.
-        let (mut empty_sender, _) = crossbeam_channel::unbounded();
-        std::mem::swap(&mut self.upload_sender, &mut empty_sender);
-    }
-
-    /// Completes the shutdown process; to start it, call [Profiler::stop]
-    /// before calling [Profiler::shutdown].
+    /// Close the sample channel after module globals have been destroyed,
+    /// then join the collector and uploader as they drain their queues.
     /// Note the timeout is per thread, and there may be multiple threads.
-    /// Returns Ok(true) if any thread hit a timeout.
+    /// Returns an error if either thread fails to join within its timeout.
     ///
     /// # Safety
     /// Only safe to be called in Zend Extension shutdown.
@@ -1140,25 +1109,29 @@ impl Profiler {
     }
 
     fn join_collector_and_uploader(self, timeout: Duration) -> Result<(), JoinError> {
-        if self.should_join.load(Ordering::SeqCst) {
-            let result1 = thread_utils::join_timeout(self.time_collector_handle, timeout);
-            if let Err(err) = &result1 {
-                warn!("{err}, recent samples may be lost");
-            }
+        debug!("Stopping profiler.");
+        // All sample producers have stopped. Dropping the only sample sender
+        // lets the collector drain its queue and flush. Its upload sender stays
+        // alive until then, so the uploader cannot exit before the final flush.
+        drop(self.message_sender);
+        drop(self.upload_sender);
 
-            // Wait for the time_collector to join, since that will drop
-            // the sender half of the channel that the uploader is
-            // holding, allowing it to finish.
-            let result2 = thread_utils::join_timeout(self.uploader_handle, timeout);
-            if let Err(err) = &result2 {
-                warn!("{err}, recent samples are most likely lost");
-            }
-
-            let num_failures = result1.is_err() as usize + result2.is_err() as usize;
-            result2.and(result1).map_err(|_| JoinError { num_failures })
-        } else {
-            Ok(())
+        // Attempt both joins. Reporting success while either thread is alive
+        // would permit unloading its code.
+        let result1 = thread_utils::join_timeout(self.time_collector_handle, timeout);
+        if let Err(err) = &result1 {
+            warn!("{err}, recent samples may be lost");
         }
+
+        // The collector drops its upload sender on exit, allowing the
+        // uploader to finish its queued work.
+        let result2 = thread_utils::join_timeout(self.uploader_handle, timeout);
+        if let Err(err) = &result2 {
+            warn!("{err}, recent samples are most likely lost");
+        }
+
+        let num_failures = result1.is_err() as usize + result2.is_err() as usize;
+        result2.and(result1).map_err(|_| JoinError { num_failures })
     }
 
     /// Throws away the profiler and moves it to uninitialized.
@@ -1223,7 +1196,9 @@ impl Profiler {
     /// Returns true if heap live profiling is enabled for the current request.
     #[inline]
     fn is_heap_live_enabled(&self) -> bool {
-        REQUEST_LOCALS.borrow_or_false(|locals| locals.profiling_experimental_heap_live_enabled)
+        // SAFETY: Allocation/free hooks call this on the PHP thread before globals teardown.
+        unsafe { RequestLocals::from_module_globals() }
+            .borrow_or_false(|locals| locals.profiling_experimental_heap_live_enabled)
     }
 
     /// Collect a stack sample with elapsed wall time. Collects CPU time if
@@ -1494,22 +1469,26 @@ impl Profiler {
         }
     }
 
-    /// This function will collect a thread start or stop timeline event
-    #[cfg(php_zts)]
-    #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
-    pub fn collect_thread_start_end(&self, now: i64, event: &'static str) {
-        let mut labels = Profiler::common_labels(1);
-
+    /// Record module shutdown and wake the collector before globals teardown.
+    ///
+    /// # Safety
+    /// Must run during MSHUTDOWN on the PHP thread whose globals remain live.
+    pub(crate) unsafe fn collect_module_shutdown(&self) {
+        if !self.is_timeline_enabled() {
+            return;
+        }
+        // SAFETY: MSHUTDOWN runs on the owning PHP thread with live globals.
+        let globals = unsafe { &*crate::profiling::module_globals::get_profiler_globals() };
+        // SAFETY: The supplied globals belong to this thread, and its trace
+        // context remains available during MSHUTDOWN.
+        let mut labels = unsafe { Self::common_labels_without_fiber::<true>(globals, 1) };
         labels.push(Label {
             key: "event",
-            value: LabelValue::Str(std::borrow::Cow::Borrowed(event)),
+            value: LabelValue::Str(Cow::Borrowed("module shutdown")),
         });
-
-        let n_labels = labels.len();
-
-        match self.prepare_and_send_message(
+        let message = self.prepare_sample_message(
             Backtrace::new(vec![ZendFrame {
-                function: format!("[{event}]").into(),
+                function: Cow::Borrowed("[module shutdown]"),
                 file: None,
                 line: 0,
             }]),
@@ -1518,15 +1497,70 @@ impl Profiler {
                 ..Default::default()
             },
             labels,
-            now,
-        ) {
-            Ok(_) => {
-                trace!("Sent event '{event}' with {n_labels} labels to profiler.")
-            }
-            Err(err) => {
-                warn!("Failed to send event '{event}' with {n_labels} labels to profiler: {err}")
-            }
+            self.get_timeline_timestamp(),
+        );
+        if let Err(err) = self
+            .message_sender
+            .send_timeout(ProfilerMessage::Sample(message), Duration::from_secs(1))
+        {
+            warn!("Failed to send module shutdown event: {err}");
         }
+    }
+
+    /// Collect a thread lifecycle event using only the supplied globals.
+    /// The caller may be destroying another thread's globals and must not
+    /// look up current-thread PHP state.
+    #[cfg(php_zts)]
+    pub(crate) fn collect_thread_start_end(&self, globals: &ProfilerGlobals, event: &'static str) {
+        if globals.thread_id.get().is_none() {
+            return;
+        }
+        // SAFETY: The supplied globals are initialized and remain live. This
+        // mode reads only their stored state, even during off-thread GSHUTDOWN.
+        let mut labels = unsafe { Self::common_labels_without_fiber::<false>(globals, 1) };
+        labels.push(Label {
+            key: "event",
+            value: LabelValue::Str(Cow::Borrowed(event)),
+        });
+        // Reuse the last sample's owned profile identity when available.
+        // A request without samples still has its own initialized tags.
+        let key = globals
+            .request_locals
+            .borrow()
+            .profile_index
+            .as_ref()
+            .map(Arc::clone)
+            .unwrap_or_else(|| {
+                Arc::new(ProfileIndex::new(
+                    self.sample_types_filter.sample_types(),
+                    labels.profile_tags,
+                ))
+            });
+        let message = SampleMessage {
+            key,
+            value: SampleData {
+                frames: MaybeShared::Owned(Backtrace::new(vec![ZendFrame {
+                    function: format!("[{event}]").into(),
+                    file: None,
+                    line: 0,
+                }])),
+                labels: MaybeShared::Owned(labels.labels),
+                sample_values: self.sample_types_filter.filter(SampleValues {
+                    timeline: 1,
+                    ..Default::default()
+                }),
+                timestamp: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_nanos()
+                    .min(i64::MAX as u128) as i64,
+            },
+        };
+        // Avoid logging or tracing instrumentation during GSHUTDOWN. Bound
+        // waiting if the collector is unavailable.
+        let _ = self
+            .message_sender
+            .send_timeout(ProfilerMessage::Sample(message), Duration::from_secs(1));
     }
 
     /// This function can be called to collect any fatal errors
@@ -1845,115 +1879,131 @@ impl Profiler {
     /// * `n_extra_labels` - Reserve room for extra labels, such as when the
     ///   caller adds gc or exception labels.
     fn common_labels(n_extra_labels: usize) -> SampleLabels {
-        let mut labels = Vec::with_capacity(5 + n_extra_labels);
-        let common_tags = Arc::clone(&GLOBAL_TAGS);
-        #[cfg(target_os = "linux")]
-        let (git_tags, custom_tags, thread_context) = REQUEST_LOCALS.with_borrow(|locals| {
-            let git_tags = locals.git_tags.as_ref().map(Arc::clone);
-            let custom_tags = locals.custom_tags.as_ref().map(Arc::clone);
-            let thread_context =
-                crate::profiling::process_context::thread_context(ProcessIdentityRef {
+        #[cfg(php_has_fibers)]
+        let function_name =
+            // SAFETY: Called on the owning PHP thread with live VM state.
+            (unsafe { ddog_php_prof_get_active_fiber().as_ref() }).and_then(|fiber| {
+                // SAFETY: Fiber construction initializes function_handler, which
+                // remains valid for the fiber's lifetime.
+                extract_function_name(unsafe { &*fiber.fci_cache.function_handler })
+            });
+
+        #[cfg(php_has_fibers)]
+        let n_extra_labels = n_extra_labels + (function_name.is_some() as usize);
+
+        // SAFETY: Request sampling runs on the owning PHP thread with live
+        // globals. Unit tests provide initialized globals for their thread.
+        let globals = unsafe { &*crate::profiling::module_globals::get_profiler_globals() };
+        // SAFETY: These globals belong to the calling thread, whose trace
+        // context is available while collecting request samples.
+        #[allow(unused_mut)] // cfg-dependent mut
+        let mut labels =
+            unsafe { Self::common_labels_without_fiber::<true>(globals, n_extra_labels) };
+
+        #[cfg(php_has_fibers)]
+        if let Some(name) = function_name {
+            labels.push(Label {
+                key: "fiber",
+                value: LabelValue::Str(name),
+            });
+        }
+        labels
+    }
+
+    /// Collect labels from explicit globals without reading VM fiber state.
+    /// With thread context disabled, only stored identity and tags are used.
+    ///
+    /// # Safety
+    /// The supplied globals must be initialized and accessed without concurrent
+    /// mutation. If `USE_THREAD_CONTEXT` is true, they must belong to the calling
+    /// PHP thread, whose live tracer context must remain available.
+    unsafe fn common_labels_without_fiber<const USE_THREAD_CONTEXT: bool>(
+        globals: &ProfilerGlobals,
+        n_extra_labels: usize,
+    ) -> SampleLabels {
+        let mut labels =
+            Vec::with_capacity((if USE_THREAD_CONTEXT { 4 } else { 2 }) + n_extra_labels);
+        let locals = globals.request_locals.borrow();
+        let mut thread_id = globals.thread_id.get().copied();
+        let (mut local_root_span_id, mut span_id) = (0, 0);
+        let unified_service = if USE_THREAD_CONTEXT {
+            #[cfg(target_os = "linux")]
+            {
+                match crate::profiling::process_context::thread_context(ProcessIdentityRef {
                     service: locals.identity.service.as_deref(),
                     env: locals.identity.env.as_deref().or(Some("none")),
                     version: locals.identity.version.as_deref(),
-                });
-            (git_tags, custom_tags, thread_context)
-        });
-        #[cfg(target_os = "linux")]
-        let (thread_id, local_root_span_id, span_id, unified_service_tags) = match thread_context {
-            ThreadContextRead::Active(context) => (
-                context
-                    .thread_id
-                    .unwrap_or_else(libdd_common::threading::get_current_thread_id),
-                context.local_root_span_id,
-                context.span_id,
-                context.unified_service_tags,
-            ),
-            ThreadContextRead::Inactive(unified_service_tags) => (
-                libdd_common::threading::get_current_thread_id(),
-                0,
-                0,
-                unified_service_tags,
-            ),
+                }) {
+                    ThreadContextRead::Active(context) => {
+                        thread_id = Some(
+                            context
+                                .thread_id
+                                .unwrap_or_else(libdd_common::threading::get_current_thread_id),
+                        );
+                        local_root_span_id = context.local_root_span_id;
+                        span_id = context.span_id;
+                        context.unified_service_tags
+                    }
+                    ThreadContextRead::Inactive(tags) => {
+                        thread_id = Some(libdd_common::threading::get_current_thread_id());
+                        tags
+                    }
+                }
+            }
+            #[cfg(not(target_os = "linux"))]
+            {
+                // SAFETY: This mode requires the owning PHP thread and live
+                // tracer context. Startup installs a noop if the tracer is absent.
+                let context =
+                    unsafe { datadog_php_profiling_get_profiling_context.unwrap_unchecked()() };
+                thread_id = Some(libdd_common::threading::get_current_thread_id());
+                local_root_span_id = context.local_root_span_id;
+                span_id = context.span_id;
+                Arc::clone(&locals.unified_service_tags)
+            }
+        } else {
+            Arc::clone(&locals.unified_service_tags)
         };
-        #[cfg(not(target_os = "linux"))]
-        let (
-            common_tags,
-            git_tags,
-            custom_tags,
-            thread_id,
-            local_root_span_id,
-            span_id,
-            unified_service_tags,
-        ) = REQUEST_LOCALS.with_borrow(|locals| {
-            // SAFETY: this is set to a noop version if ddtrace wasn't found,
-            // and we're getting the profiling context on a PHP thread.
-            let context =
-                unsafe { datadog_php_profiling_get_profiling_context.unwrap_unchecked()() };
-            // RINIT constructs this after populating the request identity and
-            // fails the request if tag construction fails.
-            let unified_service_tags = Arc::clone(&locals.unified_service_tags);
-            let git_tags = locals.git_tags.as_ref().map(Arc::clone);
-            let custom_tags = locals.custom_tags.as_ref().map(Arc::clone);
-            (
-                common_tags,
-                git_tags,
-                custom_tags,
-                unsafe { libc::pthread_self() as i64 },
-                context.local_root_span_id,
-                context.span_id,
-                unified_service_tags,
-            )
+        let profile_tags = ProfileTags {
+            common: Arc::clone(&GLOBAL_TAGS),
+            unified_service,
+            git: locals.git_tags.as_ref().map(Arc::clone),
+            custom: locals.custom_tags.as_ref().map(Arc::clone),
+        };
+        drop(locals);
+        if let Some(thread_id) = thread_id {
+            labels.push(Label {
+                key: "thread id",
+                value: LabelValue::Num(thread_id, "id"),
+            });
+        }
+        let thread_name = globals.thread_name.get().cloned().unwrap_or_else(|| {
+            if USE_THREAD_CONTEXT {
+                thread_utils::get_current_thread_name()
+            } else {
+                String::new()
+            }
         });
-        labels.push(Label {
-            key: "thread id",
-            value: LabelValue::Num(thread_id, "id"),
-        });
-
         labels.push(Label {
             key: "thread name",
-            value: LabelValue::Str(get_current_thread_name().into()),
+            value: LabelValue::Str(thread_name.into()),
         });
 
         if local_root_span_id != 0 {
-            // Casting between two integers of the same size is a no-op, and
-            // Rust uses 2's complement for negative numbers.
-            let local_root_span_id = local_root_span_id as i64;
-            let span_id = span_id as i64;
-
-            labels.push(Label {
-                key: "local root span id",
-                value: LabelValue::Num(local_root_span_id, ""),
-            });
-
-            labels.push(Label {
-                key: "span id",
-                value: LabelValue::Num(span_id, ""),
-            });
-        }
-
-        #[cfg(php_has_fibers)]
-        if let Some(fiber) = unsafe { ddog_php_prof_get_active_fiber().as_mut() } {
-            // Safety: the fcc is set by Fiber::__construct as part of zpp,
-            // which will always set the function_handler on success, and
-            // there's nothing changing that value in all of fibers
-            // afterwards, from start to destruction of the fiber itself.
-            let func = unsafe { &*fiber.fci_cache.function_handler };
-            if let Some(functionname) = extract_function_name(func) {
+            for (key, id) in [
+                ("local root span id", local_root_span_id),
+                ("span id", span_id),
+            ] {
                 labels.push(Label {
-                    key: "fiber",
-                    value: LabelValue::Str(functionname),
+                    key,
+                    // Same-width casts preserve the span ID's bits.
+                    value: LabelValue::Num(id as i64, ""),
                 });
             }
         }
         SampleLabels {
             labels,
-            profile_tags: ProfileTags {
-                common: common_tags,
-                unified_service: unified_service_tags,
-                git: git_tags,
-                custom: custom_tags,
-            },
+            profile_tags,
         }
     }
 
@@ -1987,7 +2037,9 @@ impl Profiler {
             labels,
             profile_tags,
         } = labels;
-        let key = REQUEST_LOCALS.with_borrow_mut(|locals| {
+        // SAFETY: Callers run on a PHP thread with live globals during request
+        // sampling or MSHUTDOWN. Unit tests supply initialized globals.
+        let key = unsafe { RequestLocals::from_module_globals() }.with_borrow_mut(|locals| {
             if let Some(cached) = locals.profile_index.as_ref() {
                 let cached_tags = &cached.tags;
                 let same_optional_segment =
@@ -2153,7 +2205,9 @@ mod tests {
     fn profile_index_cache_tracks_sample_identity_changes() {
         let settings = get_system_settings();
         let profiler = Profiler::new(&settings);
-        REQUEST_LOCALS.with_borrow_mut(|locals| locals.profile_index = None);
+        // SAFETY: The test accessor supplies initialized globals owned by this test thread.
+        unsafe { RequestLocals::from_module_globals() }
+            .with_borrow_mut(|locals| locals.profile_index = None);
 
         let profile_tags = ProfileTags {
             common: Arc::default(),
@@ -2258,11 +2312,14 @@ mod tests {
         settings.profiling_timeline_enabled = true;
 
         let profiler = Profiler::new(&settings);
-        REQUEST_LOCALS.with_borrow_mut(|locals| locals.profile_index = None);
+        // SAFETY: The test accessor supplies initialized globals owned by this test thread.
+        unsafe { RequestLocals::from_module_globals() }
+            .with_borrow_mut(|locals| locals.profile_index = None);
         let labels = Profiler::common_labels(0);
 
         let message: SampleMessage = profiler.prepare_sample_message(frames, samples, labels, 900);
-        let cached_key = REQUEST_LOCALS.with_borrow(|locals| {
+        // SAFETY: The test accessor supplies initialized globals owned by this test thread.
+        let cached_key = unsafe { RequestLocals::from_module_globals() }.with_borrow(|locals| {
             Arc::clone(locals.profile_index.as_ref().expect("cached profile index"))
         });
         assert!(Arc::ptr_eq(&message.key, &cached_key));
