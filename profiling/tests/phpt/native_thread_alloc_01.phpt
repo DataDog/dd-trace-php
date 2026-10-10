@@ -7,7 +7,7 @@ background thread must remain valid after its Rust TLS has been destroyed.
 Disable the stack limit because the callback does not use the main thread's stack.
 --SKIPIF--
 <?php
-if (!extension_loaded('datadog-profiling'))
+if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
   die("skip: test requires datadog-profiling");
 if (PHP_ZTS)
   die("skip: test only applies to NTS builds");

@@ -58,18 +58,6 @@ pub struct ProfilerGlobals {
     pub cached_strings: UnsafeCell<MaybeUninit<RefCell<StringSet>>>,
 }
 
-/// Identifies the profiler's module globals in TSRM. GINIT and GSHUTDOWN
-/// manage each allocation's lifetime; GSHUTDOWN can run on another thread
-/// during module teardown. The `globals_id_ptr` in `zend_module_entry`
-/// points here so TSRM can store the resource id; see:
-/// <https://github.com/php/php-src/blob/5ce36453d66143548485cb57fb19bf4157ab60c2/Zend/zend_API.h#L253>
-#[cfg(php_zts)]
-pub static mut GLOBALS_ID: i32 = 0;
-
-/// Storage for NTS module globals, initialized by GINIT and destroyed by GSHUTDOWN.
-#[cfg(not(php_zts))]
-pub static mut GLOBALS: MaybeUninit<ProfilerGlobals> = MaybeUninit::uninit();
-
 #[cfg(php_zts)]
 mod zts {
     use core::ffi::c_void;
@@ -108,11 +96,10 @@ pub unsafe fn get_tsrm_resource_from_cache(ls_cache: *mut c_void, id: i32) -> *m
 
 #[cfg(php_zts)]
 #[inline]
-pub unsafe fn get_profiler_globals_from_cache(ls_cache: *mut c_void) -> *mut ProfilerGlobals {
-    // SAFETY: As long as this is called during the times documented by
-    // get_profiler_globals(), GLOBALS_ID will be set by PHP.
-    let id = ptr::addr_of!(GLOBALS_ID).read();
-    get_tsrm_resource_from_cache(ls_cache, id).cast()
+pub unsafe fn get_profiler_globals_from_cache(_ls_cache: *mut c_void) -> *mut ProfilerGlobals {
+    // Production storage belongs to ext/datadog.c's shared `datadog_globals`.
+    // Its accessor uses PHP's static TSRMLS cache; tests use their own fixture.
+    get_profiler_globals()
 }
 
 /// Returns a pointer to the profiler globals for the current thread.
@@ -125,19 +112,17 @@ pub unsafe fn get_profiler_globals_from_cache(ls_cache: *mut c_void) -> *mut Pro
 ///   to another thread, and the current thread's globals may already be freed.
 #[inline]
 pub unsafe fn get_profiler_globals() -> *mut ProfilerGlobals {
+    #[cfg(not(test))]
+    {
+        unsafe extern "C" {
+            fn datadog_php_profiling_globals() -> *mut c_void;
+        }
+        datadog_php_profiling_globals().cast()
+    }
+
     #[cfg(test)]
     {
         test_symbols::get_profiler_globals()
-    }
-
-    #[cfg(all(php_zts, not(test)))]
-    {
-        get_profiler_globals_from_cache(get_tsrm_ls_cache())
-    }
-
-    #[cfg(all(not(php_zts), not(test)))]
-    {
-        ptr::addr_of_mut!(GLOBALS).cast()
     }
 }
 
@@ -203,6 +188,11 @@ pub unsafe extern "C" fn gshutdown(globals_ptr: *mut c_void) {
 
     ptr::drop_in_place(ptr::addr_of_mut!((*globals).request_locals));
     ptr::drop_in_place(ptr::addr_of_mut!((*globals).thread_name));
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_php_prof_globals_size() -> usize {
+    core::mem::size_of::<ProfilerGlobals>()
 }
 
 // Unit tests are not loaded by PHP, so provide the PHP globals and TSRM symbol

@@ -1,2 +1,3 @@
 [ddtrace]
 extension=/opt/datadog-php/extensions/ddtrace-11111.so
+datadog.profiling.enabled=Off

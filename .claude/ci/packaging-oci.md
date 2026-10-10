@@ -15,7 +15,7 @@
 All compile, link, and aggregate jobs (`compile tracing extension`,
 `compile tracing sidecar`, `link tracing extension`, `aggregate tracing extension`,
 `compile appsec extension`,
-`compile profiler extension`, `compile loader`, `compile extension windows`) are
+`compile combined extension`, `compile loader`, `compile extension windows`) are
 documented in [compile-artifacts.md](compile-artifacts.md).
 
 | CI Job | Image | What it does |
@@ -58,14 +58,14 @@ Platform matrix for `package extension`:
 compile tracing extension ─┐
   + link tracing extension  │
 compile appsec extension  ─┤ → generate-final-artifact.sh → .tar.gz
-compile profiler extension─┤         v
+compile combined extension─┤         v
 compile loader            ─┘  nfpm → .deb/.rpm/.apk
                                      │
                      prepare-oci-package.sh → OCI image
 ```
 
-Intermediate artifacts (`extensions_*/`, `appsec_*/`,
-`datadog-profiling/`) feed into `generate-final-artifact.sh`, which
+Intermediate artifacts (`extensions_*/`, `appsec_*/`, and
+`combined-ddtrace/`) feed into `generate-final-artifact.sh`, which
 produces per-platform `.tar.gz` tarballs. Those are then packaged
 into `.deb`/`.rpm`/`.apk` by nfpm, and into OCI images by
 `prepare-oci-package.sh`. See
@@ -129,8 +129,9 @@ shown above.
   [compile-artifacts.md](compile-artifacts.md) for details.
 
 - **`package loader` depends on many upstream compile jobs** — loader (glibc
-  and musl), tracing extension aggregates, sidecar, all
-  appsec and profiler extension versions. A single upstream failure blocks packaging.
+  and musl), tracing extension aggregates, sidecar (which embeds the AppSec
+  helper), all AppSec and combined extension versions. A single upstream
+  failure blocks packaging.
   See [building-locally.md § SSI Loader Package Assembly](building-locally.md#ssi-loader-package-assembly)
   for local reproduction and important caveats (empty stubs do not work;
   `standalone_*/` not `extensions_*/`; must run on amd64).

@@ -45,14 +45,8 @@ assert_no_profiler
 php ./build/packages/datadog-setup.php --enable-profiling --php-bin php --file "./build/packages/dd-library-php-${version}-${arch}-linux-gnu.tar.gz"
 
 extension_dir="$(php -i | grep '^extension_dir' | awk '{ print $NF }')"
-for extension in ddtrace datadog-profiling ; do
-    if [ -f "${extension_dir}/${extension}.so" ]; then
-        echo "Ok: File ${extension_dir}/${extension}.so exists."
-    else
-        echo "Error. File ${extension_dir}/${extension}.so should exist."
-        exit 1
-    fi
-done
+assert_file_exists "${extension_dir}/ddtrace.so"
+assert_file_not_exists "${extension_dir}/datadog-profiling.so"
 
 assert_ddtrace_version "${version}"
 assert_profiler_version "${version}"

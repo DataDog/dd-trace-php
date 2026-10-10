@@ -12,8 +12,8 @@ if [ "$SCENARIO" = "profiler" ]; then
 
   sirun benches/exceptions.json > "$ARTIFACTS_DIR/sirun_exceptions.ndjson"
 
-  PHP_CONFIG="$(command -v php-config)" cargo bench --no-default-features \
-    --features profiling,test,stack_walking_tests -- --noplot
+  DDTRACE_PHP_INCLUDES="$(php-config --includes)" \
+    cargo bench --no-default-features --features profiling,test,stack_walking_tests -- --noplot
 elif [ "$SCENARIO" = "tracer" ]; then
   # Run Trace Benchmarks
   cd ..

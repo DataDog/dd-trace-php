@@ -83,7 +83,11 @@ ZEND_BEGIN_MODULE_GLOBALS(datadog)
     char *cgroup_file;
     zend_bool backtrace_handler_already_run;
 
-#if DDTRACE
+#ifdef PROFILING
+    void *profiling_globals;
+#endif
+
+#ifdef TRACER
     ddtrace_globals ddtrace;
 #endif
 ZEND_END_MODULE_GLOBALS(datadog)
@@ -97,7 +101,11 @@ ZEND_END_MODULE_GLOBALS(datadog)
 #  define DATADOG_GLOBALS_PTR() (&datadog_globals)
 #endif
 
+#if defined(PROFILING) && !defined(TRACER)
+#define PHP_DDTRACE_EXTNAME "datadog-profiling"
+#else
 #define PHP_DDTRACE_EXTNAME "ddtrace"
+#endif
 #ifndef PHP_DDTRACE_VERSION
 #define PHP_DDTRACE_VERSION "0.0.0-unknown"
 #endif

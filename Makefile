@@ -1,3 +1,9 @@
+# GNU Make exports silent mode to submakes in MAKEFLAGS. Pass it to Cargo too,
+# for every target that invokes Cargo (including xlang-lto).
+ifneq ($(findstring s,$(filter-out -%,$(firstword $(MAKEFLAGS)))),)
+export CARGO_TERM_QUIET := true
+endif
+
 Q := @
 , := ,
 PROJECT_ROOT := ${PWD}
@@ -425,12 +431,49 @@ strict:
 	$(eval CFLAGS=-Wall -Werror -Wextra)
 
 PROFILER_BUILD_SUFFIX ?= profiler
-# Extra Cargo features for the profiler, comma-separated (`profiling` is always
-# enabled), e.g. PROFILER_FEATURES=trigger_time_sample for correctness tests and
-# benchmarks. Features are baked in at configure time: remove
-# tmp/build_$(PROFILER_BUILD_SUFFIX) when changing them.
+# Extra Cargo features for the profiler, comma-separated. Features are fixed
+# at configure time; remove the corresponding tmp/build_* dir when changing them.
 PROFILER_FEATURES ?=
 
+# Combined tracer+profiling in a single ddtrace.so, as shipped to users. This is
+# the target most people should use locally when they need profiling -- the
+# standalone profiler below (compile_profiler/install_profiler) is only for
+# testing the legacy standalone artifact itself, not a general substitute.
+compile_combined:
+	DDTRACE_PROFILING_FEATURES=trigger_time_sample $(MAKE) BUILD_SUFFIX=combined EXTRA_CONFIGURE_OPTIONS="--enable-ddtrace-tracer --enable-ddtrace-profiling" all
+
+# CentOS 7 release CI alias for the self-contained, non-SSI ddtrace.so.
+# Both names use the same build and output directory. Switch to the desired
+# NTS/ZTS PHP toolchain first; PHP 7.0 is tracer-only and debug stays non-LTO.
+.PHONY: xlang-lto
+xlang-lto: build-tracer-profiler
+
+# Distinct products for the selected NTS or ZTS PHP ABI.
+# Keeping the Rust target cache shared lets Cargo reuse unaffected dependencies,
+# while each feature combination gets its own top-level crate and final link.
+VARIANTS_DIR ?= $(PROJECT_ROOT)/tmp/release-variants/$(ARCHITECTURE)/php-$(or $(PHP_VERSION),$(shell php -n -r 'echo PHP_MAJOR_VERSION, ".", PHP_MINOR_VERSION;'))/$(shell php -n -r 'echo PHP_DEBUG ? "debug" : (PHP_ZTS ? "zts" : "nts");')
+.PHONY: build-profiler-standalone build-tracer-profiler build-ssi-common build-ssi-ddtrace
+build-profiler-standalone:
+	./tooling/bin/build-xlang-lto standalone "$(VARIANTS_DIR)/standalone"
+
+build-tracer-profiler:
+	./tooling/bin/build-xlang-lto combined "$(VARIANTS_DIR)/combined"
+
+build-ssi-common:
+	./tooling/bin/build-xlang-lto ssi-common "$(VARIANTS_DIR)/ssi"
+
+build-ssi-ddtrace: build-ssi-common
+	./tooling/bin/build-xlang-lto ssi-combined "$(VARIANTS_DIR)/ssi"
+
+install_combined: compile_combined
+	$(SUDO) cp $(PROJECT_ROOT)/tmp/build_combined/modules/ddtrace.so $(PHP_EXTENSION_DIR)/ddtrace.so
+
+install_all_combined: install_combined install_ini
+
+# Standalone profiler only (no tracer). Not what CI ships or what most local
+# testing needs -- prefer compile_combined/install_combined unless you're
+# specifically testing the standalone artifact (e.g. standalone/combined
+# conflict tests).
 compile_profiler:
 	DDTRACE_PROFILING_FEATURES="$(PROFILER_FEATURES)" $(MAKE) BUILD_SUFFIX=$(PROFILER_BUILD_SUFFIX) PROFILING=1 EXTRA_CONFIGURE_OPTIONS="--disable-ddtrace-tracer --enable-ddtrace-profiling" all
 
@@ -452,6 +495,9 @@ PROFILER_ASAN_ENV = RUSTC_BOOTSTRAP=1 \
 
 compile_profiler_asan:
 	$(PROFILER_ASAN_ENV) $(MAKE) PROFILER_BUILD_SUFFIX=profiler_asan compile_profiler
+
+compile_combined_asan:
+	$(PROFILER_ASAN_ENV) $(MAKE) BUILD_SUFFIX=combined_asan EXTRA_CONFIGURE_OPTIONS="--enable-ddtrace-tracer --enable-ddtrace-profiling" all
 
 clang_find_files_to_lint:
 	@find . \( \
@@ -528,6 +574,9 @@ define FPM_FILES
 	extensions_$(shell test $(1) = arm64 && echo aarch64 || echo $(1))/=$(EXT_DIR)/extensions \
 		$(shell test $(1) = windows || echo package/post-install.sh=$(EXT_DIR)/bin/post-install.sh) package/ddtrace.ini.example=$(EXT_DIR)/etc/ \
 		docs=$(EXT_DIR)/docs README.md=$(EXT_DIR)/docs/README.md \
+		profiling/LICENSE=$(EXT_DIR)/docs/profiling/LICENSE \
+		profiling/LICENSE-3rdparty.csv=$(EXT_DIR)/docs/profiling/LICENSE-3rdparty.csv \
+		profiling/NOTICE=$(EXT_DIR)/docs/profiling/NOTICE \
 		src=$(EXT_DIR)/dd-trace-sources
 endef
 define FPM_OPTS

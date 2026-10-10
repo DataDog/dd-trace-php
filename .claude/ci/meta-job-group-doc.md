@@ -33,8 +33,9 @@ with columns `CI Job`, `Image`, `What it does`:
 
 | CI Job | Image | What it does |
 |--------|-------|--------------|
-| `test appsec extension: [{ver}, {arch}, debug]` | `dd-trace-ci:php-{ver}_bookworm-6` | Builds extension + runs .phpt tests |
-| `appsec code coverage` | `dd-trace-ci:php-8.3_bookworm-6` | (not needed locally) |
+| `test appsec extension: [{ver}, {arch}, debug]` | `dd-trace-ci:php-{ver}_bookworm-11` | Builds extension + runs .phpt tests |
+| `test appsec helper asan` | `dd-trace-ci:bookworm-11` | C++ helper ASAN gtest suite |
+| `appsec code coverage` | `dd-trace-ci:php-8.3_bookworm-11` | (not needed locally) |
 
 Runner: `arch:amd64` + `arch:arm64`
 Matrix: PHP 7.0+ × {debug, debug-zts, debug-zts-asan (7.4+)}

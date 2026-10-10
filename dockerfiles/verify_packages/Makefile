@@ -119,13 +119,14 @@ test_profiler_install_enabled.sh \
 test_uninstall.sh \
 test_upgrade_from_legacy.sh \
 test_upgrade_from_php_installer.sh \
+test_upgrade_preserves_legacy_profiling.sh \
 	: global_test_dependencies
 	@echo "################### $(@) ###################"
 	$(INSTALLER_DOCKER_RUN) php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
 
 test_first_install_php_debug.sh \
 test_first_install_php_debugzts.sh \
-test_profiler_install_unsupported_debug.sh \
+test_profiler_install_enabled_debug.sh \
 	: global_test_dependencies
 	@echo "################### $(@) ###################"
 	$(INSTALLER_DOCKER_RUN) datadog/dd-trace-ci:php-7.4_buster sh dockerfiles/verify_packages/installer/$(@)
