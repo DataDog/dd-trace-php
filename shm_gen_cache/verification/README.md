@@ -49,10 +49,10 @@ does, so never ship an artifact from such a build.
 | cfg / feature | where | semantic effect |
 |---|---|---|
 | feature `verify` | lib | production assertions off, `test_access` public, `GetPid` test hooks called |
-| `sgc_genmc` | lib | `fatal()` panics (a GenMC assertion failure after the runner's panic stubs); empty `cpu_relax()`; atomic zero fill in `Cache::initialize` |
-| `sgc_genmc` | harness, tests | GenMC threads, `__VERIFIER_assert_fail`, real `assume` (else pthreads, abort, no-op `assume`, and no native trial for a program that uses it) |
-| `sgc_genmc_short_waits` | lib | rotation waits (`BoundedWait`) give up after 2 spin polls instead of the wall-clock budget; no clock, monitored sleep, futex or yield code |
-| `sgc_genmc_futex_model` | lib (`FUTEX_MODEL` programs) | instead of `sgc_genmc_short_waits`: rotation waits block at once, without spin polls, in a model of the futex without a timeout |
+| `sgc_genmc` | lib |
+| `sgc_genmc` | harness, tests |
+| `sgc_genmc_short_waits` | lib |
+| `sgc_genmc_futex_model` | lib (`FUTEX_MODEL` programs) |
 | `genmc_witness`, `genmc_witness="N"` | harness, tests | only `witness!("N", ..)` is active; `spawn_symmetric` spawns plainly |
 | `GetPid` hooks (not cfgs) | lib, per test | see below |
 
@@ -157,14 +157,14 @@ native trials always run.
 
 Environment overrides:
 
-| variable | default | meaning |
+| variable | default |
 |---|---|---|
-| `SGC_GENMC_IMAGE` | `SGC_GENMC_REPOSITORY@`, then the digest pinned in `tests/genmc.rs` | GenMC container image |
-| `SGC_GENMC_REPOSITORY` | `ghcr.io/cataphract/genmc` | repository of the pinned image (CI uses the internal mirror) |
-| `SGC_GENMC_DOCKER` | `docker` | docker-compatible CLI |
-| `SGC_GENMC_NTHREADS` | a quarter of the cores | GenMC `-nthreads` |
-| `SGC_GENMC_ARGS` | (none) | extra GenMC arguments, whitespace-separated (e.g. `-disable-spin-assume`) |
-| `SGC_GENMC_TIMEOUT` | 3600 | seconds per tool invocation; the runner then kills the container |
+| `SGC_GENMC_IMAGE` | `SGC_GENMC_REPOSITORY@`, then the digest pinned in `tests/genmc.rs` |
+| `SGC_GENMC_REPOSITORY` | `ghcr.io/cataphract/genmc` |
+| `SGC_GENMC_DOCKER` | `docker` |
+| `SGC_GENMC_NTHREADS` | a quarter of the cores |
+| `SGC_GENMC_ARGS` | (none) |
+| `SGC_GENMC_TIMEOUT` | 3600 |
 
 `.config/nextest.toml` (at the repository root) runs at most four GenMC
 trials at a time (test group `genmc`) and gives them a long slow-timeout;
@@ -373,57 +373,48 @@ aarch64 (128-byte cache lines) and x86_64 (64-byte cache lines). Witness
 runs stop at the first violation, so their counts vary with the number and
 scheduling of GenMC workers.
 
-A change can lower the default count without losing coverage: GenMC may
+A change can lower these counts without losing coverage: GenMC may
 recognise more of a program's loops as spin loops and block their
 redundant iterations instead of exploring them. Before reading a drop as
-lost coverage, compare the `-disable-spin-assume` column, or rerun the
-test with `SGC_GENMC_ARGS=-disable-spin-assume`.
+lost coverage, rerun the test with `SGC_GENMC_ARGS=-disable-spin-assume`.
+That terminates only for programs without unbounded polling loops of their
+own (on flags or the owner word) and outside the futex model, whose lock
+and blocked waiters poll too.
 
-| test | default | `-disable-spin-assume` |
-|---|---|---|
-| same_key_collision | 2160 / 1500 | 12888 / 0 |
-| concurrent_read_write | 60 / 76 | 120 / 80 |
-| promotion_races_insertion | 21 / 12 | 41 / 0 |
-| full_table_insert_retries | 216 / 182 | 824 / 344 |
-| promotion_keeps_newer_insert | 15 / 0 | 15 / 0 |
-| promotion_keeps_newer_stale_epoch_insert | 832 / 422 | 2588 / 0 |
-| competing_rotations | 13768 / 0 | 23240 / 0 |
-| recycled_arena_visibility | 3 / 0 | 3 / 0 |
-| lookup_during_reuse | 114 / 28 | 174 / 0 |
-| internal_probe_copy_during_reuse | 20 / 0 | 20 / 0 |
-| public_lookup_capacity_during_reuse | 11 / 2 | 15 / 0 |
-| published_insert_skips_busy_rotation | 16 / 552 | 24 / 904 |
-| reserved_insert_survives_occupancy | 96 / 210 | 144 / 352 |
-| reserved_insert_blocks_reuse | 13 / 0 | 13 / 0 |
-| reaping_preserves_live_reservation | 13 / 0 | 13 / 0 |
-| chunked_insert_blocks_reuse | 29724 / 20530 | (not run) |
-| chunk_claim_clipped_at_capacity | 5648 / 0 | 7984 / 0 |
-| rotation_reaping_races_registration | 8800 / 3254 | 13200 / 5976 |
-| competing_dead_rotation_takeovers | 72292 / 0 | (not run) |
-| competing_registrars_preserve_winner | 80 / 0 | diverges |
-| dead_owner_epoch_publication_preserves_reservation | 20 / 828 | diverges |
-| dead_rotation_owner_reaping_races_takeover | 43 / 0 | diverges |
-| live_rotation_owner_identity_handoff | 42000 / 0 | (not run) |
-| owner_slot_reaping_preserves_epoch_publication | 4592 / 0 | diverges |
-| slot_reaping_imports_dead_writer_records | 49 / 11 | diverges |
-| slot_reaping_resets_reservation_chunk | 1 / 0 | 1 / 0 |
-| reaper_dies_mid_reap | 1 / 0 | 1 / 0 |
-| rotation_owner_reaper_dies_mid_reap | 9 / 0 | 9 / 0 |
-| competing_reapers_of_dead_owner_slot | 312 / 0 | 312 / 0 |
-| owner_wait_misses_reacquired_release | 112864 / 3594 | diverges |
-| reaping_wakes_blocked_rotation | 79 / 31 | diverges |
-| reaping_dead_reaper_wakes_blocked_rotation | 79 / 31 | diverges |
-| reaping_dead_registered_reaper_wakes_blocked_rotation | 79 / 31 | diverges |
-| reaping_dead_reaper_redelivers_lost_wake | 49 / 19 | diverges |
-| rotation_waits_for_unpin | 54 / 6 | diverges |
-
-"Diverges": the test itself waits in unbounded polling loops (flags, owner
-word), which only spin-assume makes finite. So does the futex model of the
-`FUTEX_MODEL` programs (the last six rows): its lock and its blocked
-waiters poll.
-
-In the first four rows, spin-assume prunes executions: GenMC recognises the
-retry after a failed index CAS in `table_put` (an iteration whose only
-effects are loads) as a spin loop and blocks the redundant iterations. An
-execution in which the CAS fails and the next iteration's acquire load
-reads the winner is equivalent to one in which the first load reads it.
+| test | complete / blocked |
+|---|---|
+| same_key_collision | 2160 / 1500 |
+| concurrent_read_write | 60 / 76 |
+| promotion_races_insertion | 21 / 12 |
+| full_table_insert_retries | 216 / 182 |
+| promotion_keeps_newer_insert | 15 / 0 |
+| promotion_keeps_newer_stale_epoch_insert | 832 / 422 |
+| competing_rotations | 13768 / 0 |
+| recycled_arena_visibility | 3 / 0 |
+| lookup_during_reuse | 114 / 28 |
+| internal_probe_copy_during_reuse | 20 / 0 |
+| public_lookup_capacity_during_reuse | 11 / 2 |
+| published_insert_skips_busy_rotation | 16 / 552 |
+| reserved_insert_survives_occupancy | 96 / 210 |
+| reserved_insert_blocks_reuse | 13 / 0 |
+| reaping_preserves_live_reservation | 13 / 0 |
+| chunked_insert_blocks_reuse | 29724 / 20530 |
+| chunk_claim_clipped_at_capacity | 5648 / 0 |
+| rotation_reaping_races_registration | 8800 / 3254 |
+| competing_dead_rotation_takeovers | 72292 / 0 |
+| competing_registrars_preserve_winner | 80 / 0 |
+| dead_owner_epoch_publication_preserves_reservation | 20 / 828 |
+| dead_rotation_owner_reaping_races_takeover | 43 / 0 |
+| live_rotation_owner_identity_handoff | 42000 / 0 |
+| owner_slot_reaping_preserves_epoch_publication | 4592 / 0 |
+| slot_reaping_imports_dead_writer_records | 49 / 11 |
+| slot_reaping_resets_reservation_chunk | 1 / 0 |
+| reaper_dies_mid_reap | 1 / 0 |
+| rotation_owner_reaper_dies_mid_reap | 9 / 0 |
+| competing_reapers_of_dead_owner_slot | 312 / 0 |
+| owner_wait_misses_reacquired_release | 112864 / 3594 |
+| reaping_wakes_blocked_rotation | 79 / 31 |
+| reaping_dead_reaper_wakes_blocked_rotation | 79 / 31 |
+| reaping_dead_registered_reaper_wakes_blocked_rotation | 79 / 31 |
+| reaping_dead_reaper_redelivers_lost_wake | 49 / 19 |
+| rotation_waits_for_unpin | 54 / 6 |
