@@ -275,8 +275,8 @@ void ddog_sgc_participant_unregister(struct ddog_sgc_Participant *participant);
  * `key_len == 0`.
  * `out_words` contents are unspecified unless `OK`; `*value_len` is written
  * only on `OK`. A hit in the previous generation is promoted (inserted into
- * the current one); a promotion error is returned instead of `OK`
- * (`ROTATION_OWNER_TIMEOUT`, `ARENA_REUSE_TIMEOUT`, `IO_ERROR`, ...).
+ * the current one, unless that would need a rotation first); the only
+ * promotion error, returned instead of `OK`, is `CORRUPT`.
  *
  * # Safety
  * `participant` must be a live handle used on its registering thread;

@@ -13,8 +13,10 @@ use crate::participant::ParticipantSlot;
 impl<P: Params> Cache<'_, P> {
     /// Looks `key` up, copying a hit's value into `output` and returning its
     /// length; `Ok(None)` is a miss. A hit in the previous generation is
-    /// promoted (inserted into the current one); promotion errors are
-    /// returned although `output` already holds the value.
+    /// promoted (inserted into the current one, unless the epoch moved on or
+    /// that arena has no room; see store()). A promotion never rotates
+    /// before it publishes, so its only error is [`Error::Corrupt`], returned
+    /// although `output` already holds the value.
     ///
     /// `output` holds `output_words` words, of which the first
     /// `output_capacity` bytes are the logical capacity; whole words are
@@ -113,7 +115,7 @@ impl<P: Params> Cache<'_, P> {
                     words: output,
                     logical_size: value_len as usize,
                 };
-                self.store(slot, slot_index, hash, key, value, true, estimator)?;
+                self.store(slot, slot_index, hash, key, value, Some(e), estimator)?;
             }
             return Ok(Some(value_len as usize));
         }

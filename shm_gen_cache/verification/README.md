@@ -149,11 +149,11 @@ Trials, for every test program `src/bin/<name>.rs`:
 The binary `classify` holds unit tests of the runner's result
 classification and panic stubs (`tests/genmc/classify.rs`).
 
-The GenMC trials of `lookup_during_reuse` are ignored by default
-(`GENMC_IGNORED` in `tests/genmc.rs`): its safety check explores about 1.5
-million executions, minutes even with many GenMC threads. Run them with
-`--run-ignored only` (just the ignored trials) or `--run-ignored all`. Its
-native trial always runs.
+The GenMC trials of a program listed in `GENMC_IGNORED` (`tests/genmc.rs`)
+are ignored by default, for an exploration that takes minutes even with
+many GenMC threads; none is listed at present. Run them with
+`--run-ignored only` (just the ignored trials) or `--run-ignored all`. Their
+native trials always run.
 
 Environment overrides:
 
@@ -385,9 +385,11 @@ test with `SGC_GENMC_ARGS=-disable-spin-assume`.
 | concurrent_read_write | 60 / 76 | 120 / 80 |
 | promotion_races_insertion | 21 / 12 | 41 / 0 |
 | full_table_insert_retries | 216 / 182 | 824 / 344 |
+| promotion_keeps_newer_insert | 15 / 0 | 15 / 0 |
+| promotion_keeps_newer_stale_epoch_insert | 832 / 422 | 2588 / 0 |
 | competing_rotations | 13768 / 0 | 23240 / 0 |
 | recycled_arena_visibility | 3 / 0 | 3 / 0 |
-| lookup_during_reuse | 361388 / 2188 | (not run: ~200 s) |
+| lookup_during_reuse | 114 / 28 | 174 / 0 |
 | internal_probe_copy_during_reuse | 20 / 0 | 20 / 0 |
 | public_lookup_capacity_during_reuse | 11 / 2 | 15 / 0 |
 | published_insert_skips_busy_rotation | 16 / 552 | 24 / 904 |

@@ -99,7 +99,7 @@ impl<P: Params> Cache<'_, P> {
             hash,
             key,
             ByteValue(value),
-            false,
+            None,
             estimator,
         )
     }
@@ -111,6 +111,14 @@ impl<P: Params> Cache<'_, P> {
     /// errors cannot turn a published insert or promotion into failure.
     /// Every return leaves the participant unpinned; structural corruption
     /// is never suppressed.
+    ///
+    /// `promotion` is the epoch whose arena the promoting lookup probed
+    /// first, and missed. A promotion is published only there, and never
+    /// rotates: it is dropped, successfully, if the epoch has moved on or
+    /// the arena has no room for it. A newer value of the key in that arena
+    /// wins, since a promotion replaces no entry (see table_put()), and one
+    /// in a later arena is probed first. Published in a later arena, the
+    /// promotion would shadow a newer value it cannot see.
     #[inline]
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn store<V: ValueSource>(
@@ -120,7 +128,7 @@ impl<P: Params> Cache<'_, P> {
         hash: u64,
         key: &[u8],
         value: V,
-        promotion: bool,
+        promotion: Option<u64>,
         estimator: &mut <P::Occupancy as OccupancyMode>::Estimator,
     ) -> Result<(), Error> {
         let hp = self.params.hot();
@@ -128,8 +136,12 @@ impl<P: Params> Cache<'_, P> {
         let len = lengths.payload_size();
         loop {
             // reserve() leaves the participant pinned on success, unpinned
-            // on error.
-            let (record_offset, e) = self.reserve(&hp, slot, slot_index, len, estimator)?;
+            // on error or for a dropped promotion.
+            let Some((record_offset, e)) =
+                self.reserve(&hp, slot, slot_index, len, promotion, estimator)?
+            else {
+                return Ok(());
+            };
             let arena = self.arena_of(&hp, e);
             let words = arena.words_at(record_offset);
             // SAFETY (the stores below): reserve() returned
@@ -150,7 +162,7 @@ impl<P: Params> Cache<'_, P> {
                 key,
                 record_offset,
                 e,
-                promotion,
+                promotion.is_some(),
                 estimator,
             );
 
@@ -176,7 +188,11 @@ impl<P: Params> Cache<'_, P> {
                 PutStatus::FullRejected => {
                     // No table bucket accepted this record (it stays
                     // unindexed). Rotation is required before a fresh
-                    // reservation can retry publication.
+                    // reservation can retry publication; a promotion is
+                    // dropped instead.
+                    if promotion.is_some() {
+                        return Ok(());
+                    }
                     match self.rotate(slot, slot_index, e, RotationPolicy::WaitForOwner) {
                         Ok(()) | Err(Error::ConcurrentOperation) => {}
                         Err(err) => return Err(err),
@@ -224,16 +240,20 @@ impl<P: Params> Cache<'_, P> {
 
     /// Reserves `record_size(len)` bytes in the current arena and pins the
     /// participant to its epoch. Returns the record offset and the epoch;
-    /// on error the participant is unpinned.
+    /// on error the participant is unpinned. With `only_epoch` (a
+    /// promotion), reserves only in that epoch and never rotates: `None`,
+    /// unpinned, if the current epoch is another or its arena has no room.
     #[inline(always)]
+    #[allow(clippy::too_many_arguments)]
     fn reserve(
         self,
         hp: &HotParams,
         slot: &ParticipantSlot,
         slot_index: u32,
         len: u32,
+        only_epoch: Option<u64>,
         estimator: &mut <P::Occupancy as OccupancyMode>::Estimator,
-    ) -> Result<(u32, u64), Error> {
+    ) -> Result<Option<(u32, u64)>, Error> {
         let capacity = hp.record_area_size as u64;
         let chunk_size = hp.chunk_size as u64;
         let n = RecordHeader::record_size(len);
@@ -243,6 +263,9 @@ impl<P: Params> Cache<'_, P> {
             // ordering.
             #[cfg(feature = "verify")]
             <P::Pid as GetPid>::reservation_epoch_hook(slot, e);
+            if only_epoch.is_some_and(|only| only != e) {
+                return Ok(None);
+            }
             slot.pinned_epoch.store(e, Release); // W2: pin
 
             // This fence is doing two things:
@@ -292,7 +315,7 @@ impl<P: Params> Cache<'_, P> {
                     if slot.chunk_end.load(Relaxed).wrapping_sub(cursor) as u64 >= n {
                         slot.chunk_cursor
                             .store(cursor.wrapping_add(n as u32), Relaxed);
-                        return Ok((cursor, e));
+                        return Ok(Some((cursor, e)));
                     }
                 }
                 if ctl.bump() as u64 + n > capacity {
@@ -332,7 +355,7 @@ impl<P: Params> Cache<'_, P> {
                         let end = (old.bump() as u64 + claim).min(capacity);
                         slot.chunk_end.store(end as u32, Relaxed);
                     }
-                    return Ok((old.bump(), e));
+                    return Ok(Some((old.bump(), e)));
                 }
                 // A failed add: its bytes are lost (overshoot), never rolled
                 // back.
@@ -343,6 +366,9 @@ impl<P: Params> Cache<'_, P> {
             #[cfg(feature = "verify")]
             <P::Pid as GetPid>::reservation_retry_hook(slot);
             slot.unpin();
+            if only_epoch.is_some() {
+                return Ok(None);
+            }
             match self.rotate(slot, slot_index, e, RotationPolicy::WaitForOwner) {
                 Ok(()) | Err(Error::ConcurrentOperation) => {}
                 Err(err) => return Err(err),

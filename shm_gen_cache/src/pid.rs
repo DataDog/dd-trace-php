@@ -30,7 +30,8 @@ pub trait GetPid {
     /// Called by a reservation right after it loads the epoch (W1).
     #[inline(always)]
     fn reservation_epoch_hook(_slot: &ParticipantSlot, _epoch: u64) {}
-    /// Called before a reservation attempt is abandoned for a rotation.
+    /// Called before a reservation attempt is abandoned, for a rotation or,
+    /// in a promotion, for good.
     #[inline(always)]
     fn reservation_retry_hook(_slot: &ParticipantSlot) {}
     /// Called by a rotation after it publishes the new epoch (R5) and

@@ -18,6 +18,8 @@ bin = [
   { name = "owner_wait_misses_reacquired_release", test = false, bench = false },
   { name = "owner_slot_reaping_preserves_epoch_publication", test = false, bench = false },
   { name = "lookup_during_reuse", test = false, bench = false },
+  { name = "promotion_keeps_newer_insert", test = false, bench = false },
+  { name = "promotion_keeps_newer_stale_epoch_insert", test = false, bench = false },
   { name = "promotion_races_insertion", test = false, bench = false },
   { name = "public_lookup_capacity_during_reuse", test = false, bench = false },
   { name = "published_insert_skips_busy_rotation", test = false, bench = false },

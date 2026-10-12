@@ -13,11 +13,11 @@
 //!
 //! * every insert succeeded or failed with `RotationOwnerTimeout` (no
 //!   harness retries);
-//! * the lookup returned exactly V0, a miss (K aged out), or
-//!   `RotationOwnerTimeout` (while promoting an old hit); never VF, a torn
-//!   value, or another error. A lookup may write its output buffer before
-//!   deciding on a miss or an error; those bytes are not a returned value,
-//!   so the buffer is examined only after a hit;
+//! * the lookup returned exactly V0 or a miss (K aged out); never VF, a
+//!   torn value, or an error (a promotion never rotates, so it cannot time
+//!   out). A lookup may write its output buffer before deciding on a miss;
+//!   those bytes are not a returned value, so the buffer is examined only
+//!   after a hit;
 //! * the final state: epoch in 2..=5, no rotation owner, the current arena
 //!   unsealed, stamped with that epoch, holding one or two records (bump 56
 //!   or 104); both participants unpinned.
@@ -27,12 +27,12 @@
 //! epochs 3, 4 and 5, and the promotion cannot force epoch 6. A promotion
 //! can pin only epoch 3 or later, so no transition through epoch 5 can wait
 //! on that pin (pinning preventing rotation is outside this test's scope).
-//! Hence only `RotationOwnerTimeout` is permitted; `ArenaReuseTimeout`
-//! would contradict the bound. Every timeout occurs before allocation:
-//! occupancy is below its limit and K/F use distinct buckets.
+//! Hence only `RotationOwnerTimeout` is permitted, for the inserts;
+//! `ArenaReuseTimeout` would contradict the bound. Every timeout occurs
+//! before allocation: occupancy is below its limit and K/F use distinct
+//! buckets.
 //!
-//! Witnesses: `V0`, `MISS` and `TIMEOUT` reach the three public lookup
-//! outcomes. `REUSE_OVERWRITE` requires all three inserts to succeed and the
+//! Witnesses: `V0` and `MISS` reach the two public lookup outcomes. `REUSE_OVERWRITE` requires all three inserts to succeed and the
 //! lookup to miss; the miss excludes a successful promotion, so capacity
 //! accounting proves the third insert reused arena 2 at offset 0,
 //! overwriting K's original record (checked: final epoch 5, bump 56,
@@ -40,10 +40,6 @@
 //! concurrently with that overwrite: the public lookup hides internal probe
 //! retries. No hooks, assumptions, barriers, direct probe or rotate calls,
 //! or new production variants are used.
-//!
-//! This is a long exhaustive test: its safety variant explores 1,475,399
-//! complete and 18 blocked executions (about 200 s with -nthreads=16 on a
-//! 32-vCPU amd64 VM).
 
 #![no_std]
 #![no_main]
@@ -168,10 +164,7 @@ extern "C" fn main() -> i32 {
         ));
         all_inserts_succeeded &= outcome == InsertOutcome::Success;
     }
-    check!(matches!(
-        observed,
-        LookupOutcome::V0 | LookupOutcome::Miss | LookupOutcome::OwnerTimeout
-    ));
+    check!(matches!(observed, LookupOutcome::V0 | LookupOutcome::Miss));
     let reused_without_promotion = all_inserts_succeeded && observed == LookupOutcome::Miss;
     check_finished(cache, reused_without_promotion);
     check!(pinned_epoch(slot1).load(Relaxed) == 0);
@@ -180,7 +173,6 @@ extern "C" fn main() -> i32 {
     witness!("V0", observed == LookupOutcome::V0);
     witness!("MISS", observed == LookupOutcome::Miss);
     witness!("REUSE_OVERWRITE", reused_without_promotion);
-    witness!("TIMEOUT", observed == LookupOutcome::OwnerTimeout);
     0
 }
 

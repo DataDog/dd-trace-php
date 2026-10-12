@@ -57,9 +57,12 @@ read-modify-write on the arena.
 
 ### Rotation
 
-An insert (or a promotion) triggers a rotation when the current arena
-reaches its occupancy target (`max_occupancy` entries), its record area is
-exhausted, or its index is full. Occupancy is either an exact shared counter
+An insert triggers a rotation when the current arena reaches its occupancy
+target (`max_occupancy` entries), its record area is exhausted, or its
+index is full. A promotion triggers one only after it was published, on
+reaching the occupancy target: one that finds no room is dropped instead,
+so that it never lands in a newer generation than its lookup probed, where
+it could shadow a newer value of the key. Occupancy is either an exact shared counter
 or, for large tables, a per-participant statistical estimate that avoids a
 contended counter. One participant becomes the rotation owner, seals the
 current arena against new reservations, waits until no participant is still
@@ -80,8 +83,8 @@ indefinitely: waits are bounded and end in a timeout status.
 
 ### Rotation waits
 
-An insert or promotion may have to wait for another participant's rotation,
-and a rotation owner for old pins to clear. These waits are bounded at 5 ms
+An insert may have to wait for another participant's rotation, and a
+rotation owner for old pins to clear. These waits are bounded at 5 ms
 (`src/wait.rs`): they spin briefly, then sleep until the awaited cache line
 is written where the CPU supports it, then, on Linux, block on a futex. When
 the budget runs out, a dead participant is taken over or reaped; a live one

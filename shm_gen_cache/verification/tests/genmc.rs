@@ -42,9 +42,9 @@ struct Program {
 const PROGRAMS: &[Program] = include!(concat!(env!("OUT_DIR"), "/programs.rs"));
 
 /// Programs whose GenMC trials are ignored by default (run them with
-/// `--run-ignored`): their exploration takes minutes even with many GenMC
-/// threads. Their native trials still run.
-const GENMC_IGNORED: &[&str] = &["lookup_during_reuse"];
+/// `--run-ignored`), for exploration that takes minutes even with many
+/// GenMC threads; none at present. Their native trials still run.
+const GENMC_IGNORED: &[&str] = &[];
 
 /// The default image repository; `SGC_GENMC_REPOSITORY` replaces it (CI uses
 /// an internal mirror of it).
