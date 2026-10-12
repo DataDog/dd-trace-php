@@ -29,9 +29,6 @@
 //!   were all accepted there. With one seed entry and `max_occupancy` 2,
 //!   both new entries reached the threshold and requested rotation.
 //!
-//! The native smoke run performs the observations without constraining
-//! them (and so usually stops after the unconditional checks).
-//!
 //! Properties:
 //!
 //! * every insert succeeds or times out waiting for the rotation owner, and
@@ -184,9 +181,6 @@ extern "C" fn main() -> i32 {
     let old_occupancy = arena_state(cache, OLD_ARENA, Relaxed).occupancy;
     let selected = returned_during_rotation && old_occupancy == Some(3);
     assume(selected);
-    if !selected {
-        return 0;
-    }
 
     check!(results[0] == Outcome::Success);
     check!(results[1] == Outcome::Success);

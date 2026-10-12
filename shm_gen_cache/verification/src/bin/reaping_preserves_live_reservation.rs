@@ -60,9 +60,7 @@
 //!
 //! # Assumption
 //!
-//! The rotator's `assume` on the epoch-2 bump. Natively `assume` is a no-op,
-//! so the rotator returns early and main skips the scenario checks when the
-//! observation is false.
+//! The rotator's `assume` on the epoch-2 bump.
 //!
 //! No production hooks, direct rotate/probe calls, copied implementation or
 //! extra GenMC variants are used. Out of scope: fidelity of backend death
@@ -157,7 +155,6 @@ struct Writer<'a> {
 struct Rotator<'a> {
     participant: Lent<'a, Participant>,
     writer_slot: &'static ParticipantSlot,
-    writer_reserved_in_epoch_two: bool,
     results: [Outcome; 3],
 }
 
@@ -167,11 +164,7 @@ fn reserve_and_publish(writer: &mut Writer) {
 
 fn rotate_and_attempt_reuse(rotator: &mut Rotator) {
     let cache = rotator.participant.cache();
-    rotator.writer_reserved_in_epoch_two = epoch_two_bump_is_32(cache);
-    assume(rotator.writer_reserved_in_epoch_two);
-    if !rotator.writer_reserved_in_epoch_two {
-        return;
-    }
+    assume(epoch_two_bump_is_32(cache));
     let p = &mut rotator.participant;
     rotator.results[0] = insert(p, FILLER);
     rotator.results[1] = insert(p, FILLER);
@@ -211,7 +204,6 @@ extern "C" fn main() -> i32 {
     let mut rotator = Rotator {
         participant: Lent::new(&mut rotator_lock),
         writer_slot,
-        writer_reserved_in_epoch_two: false,
         results: [Outcome::Unset; 3],
     };
     scope(|s| {
@@ -221,16 +213,11 @@ extern "C" fn main() -> i32 {
         t2.join();
     });
     let writer_result = writer.result;
-    let (reserved_in_epoch_two, results) = (rotator.writer_reserved_in_epoch_two, rotator.results);
+    let results = rotator.results;
 
     check!(pinned_epoch(writer_slot).load(SeqCst) == 0);
     check!(pinned_epoch(rotator_slot).load(SeqCst) == 0);
     check!(writer_result == Outcome::Success);
-    // GenMC already pruned this execution in the rotator; natively assume()
-    // is a no-op, so skip the scenario explicitly.
-    if !reserved_in_epoch_two {
-        return 0;
-    }
     check!(results[0] == Outcome::Success);
     check!(results[1] == Outcome::Success);
     check!(matches!(

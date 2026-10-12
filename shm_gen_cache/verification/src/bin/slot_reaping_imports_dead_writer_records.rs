@@ -74,8 +74,7 @@
 //!   learning that W is dead, so it reused arena 2 past W's pin without
 //!   reaping it itself, after R took W's slot over.
 //!
-//! W is joined only under GenMC, where an abandoned thread has finished;
-//! natively it stays parked until the process exits.
+//! Main joins W, which GenMC ends when it abandons its thread.
 
 #![no_std]
 #![no_main]
@@ -363,13 +362,7 @@ extern "C" fn main() -> i32 {
 
         rotator_thread.join();
         registrar_thread.join();
-        if cfg!(sgc_genmc) {
-            writer_thread.join();
-        } else {
-            // SAFETY: W is parked forever in abandon_thread, past its last
-            // access to `writer`.
-            unsafe { writer_thread.leak() };
-        }
+        writer_thread.join();
     });
 
     let learned = ROTATOR_LEARNED_DEATH.load(Relaxed);

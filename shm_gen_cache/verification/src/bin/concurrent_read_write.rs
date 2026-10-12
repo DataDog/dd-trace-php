@@ -16,8 +16,7 @@
 //! participant pins and assumes both are non-zero. The loads read the
 //! release stores made at W2 in `reserve()`, so both inserts have entered
 //! the production algorithm before the lookup starts; this excludes the
-//! trivial histories in which T3 finishes before either writer starts. The
-//! native smoke run performs the loads without constraining their values.
+//! trivial histories in which T3 finishes before either writer starts.
 //!
 //! K, V1 and V2 are ten bytes. Two 48-byte records fit in the 128-byte
 //! record area and occupancy stays below the rotation threshold, so

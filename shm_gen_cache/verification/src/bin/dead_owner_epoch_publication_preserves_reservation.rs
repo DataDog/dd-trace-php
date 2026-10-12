@@ -62,19 +62,16 @@
 //! # Assumption and witness
 //!
 //! Main assumes C's dead-owner check happened (`selected`); that check is
-//! possible only after B was published. Natively `assume` is a no-op and
-//! native scheduling need not reach the selection, so main returns early
-//! and native success is only a smoke check; GenMC establishes
-//! reachability. Witness `DEAD_OWNER_EPOCH_MISMATCH_RETRY` follows every
-//! check and selects exactly those executions.
+//! possible only after B was published. Witness
+//! `DEAD_OWNER_EPOCH_MISMATCH_RETRY` follows every check and selects exactly
+//! those executions.
 //!
 //! The only internal observation used to guide the workers is a relaxed
 //! read of the owner word: it starts C while O's rotation may still be
 //! before epoch publication. Rotation, insertion, retry, and lookup all use
 //! production code and public operations.
 //!
-//! O is joined only under GenMC, where an abandoned thread has finished;
-//! natively it stays parked until the process exits.
+//! Main joins O, which GenMC ends when it abandons its thread.
 
 #![no_std]
 #![no_main]
@@ -328,13 +325,7 @@ extern "C" fn main() -> i32 {
         RECORD_PUBLISHED.store(true, Release);
 
         contender_thread.join();
-        if cfg!(sgc_genmc) {
-            owner_thread.join();
-        } else {
-            // SAFETY: O is parked forever in abandon_thread, past its last
-            // access to `owner`.
-            unsafe { owner_thread.leak() };
-        }
+        owner_thread.join();
     });
     let result = contender.result;
 
@@ -345,9 +336,6 @@ extern "C" fn main() -> i32 {
 
     let selected = CONTENDER_REPORTED_OWNER_DEAD.load(Relaxed);
     assume(selected);
-    if !selected {
-        return 0;
-    }
     check!(result == Outcome::Success);
     check_selected_state(cache);
 

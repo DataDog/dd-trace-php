@@ -9,7 +9,8 @@
 //!   [`check!`] or reached [`witness!`] is `__VERIFIER_assert_fail`, and
 //!   [`assume`] prunes executions;
 //! * native smoke executable: pthreads, failures print and abort, `assume`
-//!   is a no-op (assumptions are path constraints for the model checker).
+//!   is a no-op (assumptions are path constraints for the model checker), so
+//!   the runner does not run the native build of a program that uses it.
 //!
 //! # Universal properties and witnesses
 //!
@@ -167,7 +168,8 @@ pub fn fail(msg: &'static str) -> ! {
 }
 
 /// Restricts exploration to executions in which `condition` holds.
-/// Natively a no-op: native runs are smoke checks.
+/// Natively a no-op: the runner gives a program that uses it no native
+/// trial, since that run would check executions the assumption excludes.
 /// Every use must be explained in the test's opening comment.
 #[inline(always)]
 pub fn assume(condition: bool) {

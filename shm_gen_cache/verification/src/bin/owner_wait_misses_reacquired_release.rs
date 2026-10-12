@@ -58,8 +58,6 @@
 //! it would leave the other waiting forever, which `-check-liveness` would
 //! report.
 //!
-//! Natively `assume` is a no-op and the program runs unconstrained.
-//!
 //! After the joins: all three inserts succeeded, the epoch is 5 (one
 //! rotation per insert), arenas 0, 1 and 2 hold epochs 3, 4 and 5 with one
 //! record each, and no participant is pinned or owns rotation.
@@ -241,8 +239,8 @@ extern "C" fn main() -> i32 {
     0
 }
 
-/// The model's count of waits that blocked and were woken; zero natively,
-/// where there is no model.
+/// The model's count of waits that blocked and were woken (zero in the
+/// native build, which has no model and which the runner never runs).
 fn woken_waits() -> u32 {
     #[cfg(sgc_genmc)]
     let waits = shm_gen_cache::test_access::futex_model_woken_waits();
@@ -251,8 +249,8 @@ fn woken_waits() -> u32 {
     waits
 }
 
-/// The model's count of blocked, unwoken waiters; zero natively, where
-/// there is no model.
+/// The model's count of blocked, unwoken waiters (zero in the native
+/// build, which has no model and which the runner never runs).
 fn unwoken_waiters() -> u32 {
     #[cfg(sgc_genmc)]
     let waiters = shm_gen_cache::test_access::futex_model_unwoken_waiters();

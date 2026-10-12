@@ -3,7 +3,9 @@
 #[path = "genmc/classify.rs"]
 mod classify;
 
-use classify::{check_llvm_versions, classify, execution_counts, stub_panics, witness_names};
+use classify::{
+    check_llvm_versions, classify, execution_counts, stub_panics, uses_assume, witness_names,
+};
 
 const TRANSFORMED: &str = "*** Compilation complete.\n*** Transformation complete.\n";
 
@@ -142,6 +144,16 @@ fn witness_discovery_fails_closed() {
     assert!(witness_names(r#"witness!["V1", a];"#).is_err());
     assert!(witness_names(r#"witness! ("V1", a);"#).is_err());
     assert!(witness_names(r#"witness!("lower-case", a);"#).is_err());
+}
+
+#[test]
+fn assume_discovery() {
+    assert!(uses_assume("use genmc_harness::{assume, check};"));
+    assert!(uses_assume("    assume(selected);"));
+    assert!(uses_assume("    genmc_harness::assume(x); // prune"));
+    assert!(!uses_assume("//! Assumption: `assume(epoch == 2)` prunes."));
+    assert!(!uses_assume("    check!(x); // assume(x) would prune"));
+    assert!(!uses_assume("let assumed = spin_assume;"));
 }
 
 #[test]

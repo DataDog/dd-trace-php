@@ -41,9 +41,7 @@
 //! * `PIN_BLOCKS_REUSE_PUBLISHED`: blocked after A published (1).
 //!
 //! Assumption: B's first load (relaxed) of arena 2's control word must show
-//! A's reservation. The native smoke run does the load without constraining
-//! it; if the reservation is not visible yet, B returns at once and main
-//! only checks A's result and the pins.
+//! A's reservation.
 
 #![no_std]
 #![no_main]
@@ -106,8 +104,6 @@ struct Writer<'a> {
 
 struct Rotator<'a> {
     participant: Lent<'a, Participant>,
-    /// Whether B saw A's reservation (the assumption held).
-    selected: bool,
     results: [Outcome; 3],
     /// Arena 2's occupancy in the snapshot after a reuse timeout.
     blocked_old_occupancy: u32,
@@ -121,11 +117,7 @@ fn reserve_and_publish(writer: &mut Writer) {
 /// B: rotate twice past A's epoch, then try to reuse A's arena.
 fn rotate_and_attempt_reuse(rotator: &mut Rotator) {
     let cache = rotator.participant.cache();
-    rotator.selected = reserved_in_epoch_two(cache);
-    assume(rotator.selected);
-    if !rotator.selected {
-        return;
-    }
+    assume(reserved_in_epoch_two(cache));
     let p = &mut rotator.participant;
     rotator.results[0] = insert(p, FILLER_KEY, FILLER_VALUE);
     rotator.results[1] = insert(p, FILLER_KEY, FILLER_VALUE);
@@ -150,7 +142,6 @@ extern "C" fn main() -> i32 {
     };
     let mut b = Rotator {
         participant: Lent::new(&mut rotator),
-        selected: false,
         results: [Outcome::Unset; 3],
         blocked_old_occupancy: 2,
     };
@@ -161,14 +152,10 @@ extern "C" fn main() -> i32 {
         tb.join();
     });
     let writer_result = a.result;
-    let (selected, results, blocked_old_occupancy) =
-        (b.selected, b.results, b.blocked_old_occupancy);
+    let (results, blocked_old_occupancy) = (b.results, b.blocked_old_occupancy);
 
     expect_unpinned(&writer, &rotator);
     check!(writer_result == Outcome::Success);
-    if !selected {
-        return 0;
-    }
     check!(results[0] == Outcome::Success);
     check!(results[1] == Outcome::Success);
     check!(matches!(

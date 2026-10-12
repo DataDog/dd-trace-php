@@ -1,6 +1,6 @@
 //! The runner's pure logic (tests/genmc.rs), unit-tested by tests/classify.rs:
-//! witness discovery, the LLVM version check, the panic-stub IR rewrite and
-//! the fail-closed classification of GenMC's output.
+//! witness and `assume` discovery, the LLVM version check, the panic-stub IR
+//! rewrite and the fail-closed classification of GenMC's output.
 
 use std::sync::LazyLock;
 
@@ -13,6 +13,9 @@ static WITNESS_CALL: LazyLock<Regex> =
 /// Any invocation of `witness!`, however written.
 static ANY_WITNESS_CALL: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\bwitness!\s*[(\[{]").unwrap());
+
+/// A mention of `assume` as a word, in code (comments stripped).
+static ASSUME: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\bassume\b").unwrap());
 
 /// Precompiled core entry points that a reached panic would call. GenMC
 /// cannot execute undefined functions; [`stub_panics`] gives them bodies
@@ -54,6 +57,20 @@ pub fn witness_names(source: &str) -> Result<Vec<String>, String> {
         }
     }
     Ok(names)
+}
+
+/// Whether a test program uses `assume`, outside comments: its import or
+/// any call.
+///
+/// Natively `assume` is a no-op, so a native run of such a program would
+/// check executions its assumptions exclude; the runner gives it no native
+/// trial. Any mention in code counts, so that an unusual spelling makes the
+/// runner skip the native trial rather than run an unconstrained one.
+pub fn uses_assume(source: &str) -> bool {
+    source
+        .lines()
+        .map(|line| line.find("//").map_or(line, |comment| &line[..comment]))
+        .any(|code| ASSUME.is_match(code))
 }
 
 /// rustc's LLVM must not be newer than GenMC's (bitcode is not

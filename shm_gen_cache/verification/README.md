@@ -50,7 +50,7 @@ does, so never ship an artifact from such a build.
 |---|---|---|
 | feature `verify` | lib | production assertions off, `test_access` public, `GetPid` test hooks called |
 | `sgc_genmc` | lib | `fatal()` panics (a GenMC assertion failure after the runner's panic stubs); empty `cpu_relax()`; atomic zero fill in `Cache::initialize` |
-| `sgc_genmc` | harness, tests | GenMC threads, `__VERIFIER_assert_fail`, real `assume` (else pthreads, abort, no-op `assume`) |
+| `sgc_genmc` | harness, tests | GenMC threads, `__VERIFIER_assert_fail`, real `assume` (else pthreads, abort, no-op `assume`, and no native trial for a program that uses it) |
 | `sgc_genmc_short_waits` | lib | rotation waits (`BoundedWait`) give up after 2 spin polls instead of the wall-clock budget; no clock, monitored sleep, futex or yield code |
 | `sgc_genmc_futex_model` | lib (`FUTEX_MODEL` programs) | instead of `sgc_genmc_short_waits`: rotation waits block at once, without spin polls, in a model of the futex without a timeout |
 | `genmc_witness`, `genmc_witness="N"` | harness, tests | only `witness!("N", ..)` is active; `spawn_symmetric` spawns plainly |
@@ -139,7 +139,9 @@ cargo nextest run -p shm_gen_cache_verification --no-capture  # see results
 Trials, for every test program `src/bin/<name>.rs`:
 
 * `<name>::native`: the program built natively by cargo (pthreads, failures
-  abort), run once as a smoke check; it must exit 0.
+  abort), run once as a smoke check; it must exit 0. Programs that use
+  `assume` have none: natively it is a no-op, so the run would check
+  executions the assumption excludes.
 * `<name>::safety`: GenMC must explore every execution without a violation.
 * `<name>::witness::<NAME>`, for every `witness!("NAME", ..)` in the
   program: GenMC must report exactly that witness as reachable.
@@ -329,7 +331,8 @@ Harness API (`src/lib.rs`, documented there):
   (`unsafe Thread::leak()` opts out, for a thread parked forever). Symmetry is
   used only in the safety variant (a witness must distinguish the symmetric
   threads), and the types ensure that the predecessor runs the same function.
-* `assume(cond)`: prunes executions (a no-op natively).
+* `assume(cond)`: prunes executions. A no-op natively, so a program that
+  uses it has no `::native` trial.
 * `abandon_thread()`: stops the calling thread without unwinding (a crashed
   participant); parks natively.
 * `current_thread()` / `Thread::id()`: comparable thread identities.
@@ -389,11 +392,11 @@ test with `SGC_GENMC_ARGS=-disable-spin-assume`.
 | public_lookup_capacity_during_reuse | 11 / 2 | 15 / 0 |
 | published_insert_skips_busy_rotation | 16 / 802 | 24 / 904 |
 | reserved_insert_survives_occupancy | 96 / 350 | 144 / 352 |
-| reserved_insert_blocks_reuse | 13 / 1 | 13 / 1 |
-| reaping_preserves_live_reservation | 13 / 1 | 13 / 1 |
+| reserved_insert_blocks_reuse | 13 / 0 | 13 / 0 |
+| reaping_preserves_live_reservation | 13 / 0 | 13 / 0 |
 | chunked_insert_blocks_reuse | 67788 / 46890 | (not run) |
 | chunk_claim_clipped_at_capacity | 7984 / 0 | 7984 / 0 |
-| rotation_reaping_races_registration | 9728 / 7696 | 14592 / 7800 |
+| rotation_reaping_races_registration | 9728 / 6686 | 14592 / 6688 |
 | competing_dead_rotation_takeovers | 22344 / 0 | (not run) |
 | competing_registrars_preserve_winner | 80 / 0 | diverges |
 | dead_owner_epoch_publication_preserves_reservation | 20 / 828 | diverges |
@@ -410,7 +413,7 @@ test with `SGC_GENMC_ARGS=-disable-spin-assume`.
 | reaping_dead_reaper_wakes_blocked_rotation | 79 / 31 | diverges |
 | reaping_dead_registered_reaper_wakes_blocked_rotation | 79 / 31 | diverges |
 | reaping_dead_reaper_redelivers_lost_wake | 49 / 19 | diverges |
-| rotation_waits_for_unpin | 54 / 7 | diverges |
+| rotation_waits_for_unpin | 54 / 6 | diverges |
 
 "Diverges": the test itself waits in unbounded polling loops (flags, owner
 word), which only spin-assume makes finite. So does the futex model of the

@@ -33,9 +33,7 @@
 //!   the futex word no longer held the pin). The model has no spin polls.
 //!
 //! Assumption: B's first load (relaxed) of arena 2's control word must show
-//! A's reservation. The native smoke run, with the real waits and their
-//! 5 ms budget, does the load without constraining it, and also accepts an
-//! `ArenaReuseTimeout` of the third insert, followed by one retry.
+//! A's reservation.
 
 #![no_std]
 #![no_main]
@@ -96,8 +94,6 @@ struct Writer<'a> {
 
 struct Rotator<'a> {
     participant: Lent<'a, Participant>,
-    /// Whether B saw A's reservation (the assumption held).
-    selected: bool,
     results: [Outcome; 3],
 }
 
@@ -108,11 +104,7 @@ fn reserve_and_publish(writer: &mut Writer) {
 
 /// B: rotate twice past A's epoch, then reuse A's arena.
 fn rotate_and_reuse(rotator: &mut Rotator) {
-    rotator.selected = reserved_in_epoch_two(rotator.participant.cache());
-    assume(rotator.selected);
-    if !rotator.selected {
-        return;
-    }
+    assume(reserved_in_epoch_two(rotator.participant.cache()));
     let p = &mut rotator.participant;
     rotator.results[0] = insert(p, FILLER_KEY, FILLER_VALUE);
     rotator.results[1] = insert(p, FILLER_KEY, FILLER_VALUE);
@@ -133,7 +125,6 @@ extern "C" fn main() -> i32 {
     };
     let mut b = Rotator {
         participant: Lent::new(&mut rotator),
-        selected: false,
         results: [Outcome::Unset; 3],
     };
     scope(|s| {
@@ -143,28 +134,14 @@ extern "C" fn main() -> i32 {
         tb.join();
     });
     let writer_result = a.result;
-    let (selected, results) = (b.selected, b.results);
+    let results = b.results;
 
     expect_unpinned(&writer, &rotator);
     check!(writer_result == Outcome::Success);
-    if !selected {
-        return 0;
-    }
     check!(results[0] == Outcome::Success);
     check!(results[1] == Outcome::Success);
-    // Under the model the reuse wait never gives up; natively, with the
-    // real budget, it may time out (see the opening comment).
-    if cfg!(sgc_genmc) {
-        check!(results[2] == Outcome::Success);
-    } else {
-        check!(matches!(
-            results[2],
-            Outcome::Success | Outcome::ReuseTimeout
-        ));
-        if results[2] == Outcome::ReuseTimeout {
-            check_ok!(rotator.insert(HASH, FINAL_KEY, FINAL_VALUE));
-        }
-    }
+    // Under the model the reuse wait never gives up.
+    check!(results[2] == Outcome::Success);
 
     expect_joined_state(cache);
     expect_final_lookup(&mut rotator);
@@ -176,8 +153,8 @@ extern "C" fn main() -> i32 {
     0
 }
 
-/// The model's count of woken waits; zero natively, where there is no
-/// model.
+/// The model's count of woken waits (zero in the native build, which has
+/// no model and which the runner never runs).
 fn woken_waits() -> u32 {
     #[cfg(sgc_genmc)]
     let waits = shm_gen_cache::test_access::futex_model_woken_waits();

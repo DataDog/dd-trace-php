@@ -1,7 +1,8 @@
 //! The GenMC suite runner (README.md). For every test program in src/bin:
 //!
 //! * `<test>::native`: runs the native build cargo made of the program (a
-//!   smoke run; it must exit 0);
+//!   smoke run; it must exit 0), unless the program uses `assume`, a no-op
+//!   natively;
 //! * `<test>::safety`: GenMC must explore every execution of the program
 //!   without a violation;
 //! * `<test>::witness::<NAME>`, for each `witness!("NAME", ..)` in the
@@ -116,15 +117,19 @@ fn main() {
     let args = Arguments::from_args();
     let mut trials = Vec::new();
     for program in PROGRAMS {
-        trials.push(Trial::test(format!("{}::native", program.name), || {
-            native(program)
-        }));
         let ignored = GENMC_IGNORED.contains(&program.name);
         let source = suite_dir().join(format!("src/bin/{}.rs", program.name));
-        let witnesses = fs::read_to_string(&source)
-            .map_err(|e| e.to_string())
-            .and_then(|text| classify::witness_names(&text))
-            .map_err(|e| format!("{}: {e}", source.display()));
+        let text = fs::read_to_string(&source).map_err(|e| format!("{}: {e}", source.display()));
+        // Natively assume() is a no-op: a program that constrains its
+        // executions with it has no meaningful native run.
+        if !text.as_deref().is_ok_and(classify::uses_assume) {
+            trials.push(Trial::test(format!("{}::native", program.name), || {
+                native(program)
+            }));
+        }
+        let witnesses = text.and_then(|text| {
+            classify::witness_names(&text).map_err(|e| format!("{}: {e}", source.display()))
+        });
         let witnesses = match witnesses {
             Ok(witnesses) => witnesses,
             Err(error) => {

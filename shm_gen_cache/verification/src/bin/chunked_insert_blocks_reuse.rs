@@ -33,27 +33,24 @@
 //! rotation call. WRITER_KEY and FINAL_KEY share a hash, so a late
 //! publication of WRITER_KEY can replace FINAL_KEY's index entry.
 //!
-//! # Hooks and the native run
+//! # Hooks
 //!
 //! [`WriterHooks`], this test's liveness backend (otherwise `NoopGetPid`),
 //! acts only on W's slot:
 //!
 //! * `reservation_epoch_hook` (after W1) assumes W selected epoch 2;
-//! * `reservation_retry_hook` records that W abandoned an attempt and
-//!   prunes the execution (`assume(false)`).
+//! * `reservation_retry_hook` prunes an execution in which W abandons an
+//!   attempt (`assume(false)`).
 //!
 //! A post-join check verifies that W consumed its epoch-2 chunk through
 //! offset 64. Together they restrict W to its first, existing-chunk
 //! attempt. Selecting the epoch early avoids exploring later-epoch writes
 //! only to discard them at the join. The hooks add no synchronisation
-//! between workers (plain, non-atomic statics: W's slot address is written
-//! before any spawn, the retry flag only by W and read by main after the
-//! join). In particular, rotators never observe W's record or cursor
+//! between workers (W's slot address is a plain static written before any
+//! spawn). In particular, rotators never observe W's record or cursor
 //! before their scans: an acquire edge from such an observation could mask
-//! a missing W3. A native run (where `assume` is a no-op) records a retry
-//! and skips the conditional checks if W took a different path. Other
-//! tests cover reservation retries; this one isolates the existing-chunk
-//! path.
+//! a missing W3. Other tests cover reservation retries; this one isolates
+//! the existing-chunk path.
 //!
 //! # Properties
 //!
@@ -207,14 +204,9 @@ extern "C" fn main() -> i32 {
         check!(pinned_epoch(slot).load(SeqCst) == 0);
     }
     let (chunk_epoch, chunk_cursor, _) = chunk(writer_slot);
-    let took_existing_chunk = !WriterHooks::writer_retried()
-        && chunk_epoch.load(SeqCst) == FIRST_EPOCH
-        && chunk_cursor.load(SeqCst) == 64;
-    if cfg!(sgc_genmc) {
-        check!(took_existing_chunk, "guaranteed by the hooks");
-    } else if !took_existing_chunk {
-        return 0;
-    }
+    let took_existing_chunk =
+        chunk_epoch.load(SeqCst) == FIRST_EPOCH && chunk_cursor.load(SeqCst) == 64;
+    check!(took_existing_chunk, "guaranteed by the hooks");
     check!(inserted);
 
     let mut successful = 1; // main's insertion at epoch 3
@@ -284,18 +276,11 @@ struct WriterHooks;
 
 /// W's slot; written by main before any spawn, then only read.
 static mut WRITER_SLOT: *const ParticipantSlot = core::ptr::null();
-/// Written only by W; read by main after joining W.
-static mut WRITER_RETRIED: bool = false;
 
 impl WriterHooks {
     fn watch(slot: &'static ParticipantSlot) {
         // SAFETY: no other thread exists yet.
         unsafe { WRITER_SLOT = slot };
-    }
-
-    fn writer_retried() -> bool {
-        // SAFETY: W, its only writer, has been joined.
-        unsafe { WRITER_RETRIED }
     }
 
     fn is_writer(slot: &ParticipantSlot) -> bool {
@@ -326,8 +311,6 @@ impl GetPid for WriterHooks {
 
     fn reservation_retry_hook(slot: &ParticipantSlot) {
         if Self::is_writer(slot) {
-            // SAFETY: only W reaches this write.
-            unsafe { WRITER_RETRIED = true };
             assume(false);
         }
     }

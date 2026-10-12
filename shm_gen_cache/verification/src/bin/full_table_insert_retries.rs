@@ -25,7 +25,7 @@
 //! arena's bump is 288, i.e. nine distinct records were reserved in epoch 2,
 //! which eight buckets cannot all hold, so one was rejected. The selector
 //! does not look at occupancy, the global epoch, the current arena, table
-//! entries or lookups. Native runs skip the checks when it does not hold.
+//! entries or lookups.
 //!
 //! Checked:
 //!
@@ -156,9 +156,6 @@ extern "C" fn main() -> i32 {
     check!(unpinned(&p2));
     let selected = both_succeeded && arena_state(cache, OLD_ARENA, Relaxed).bump == 288;
     assume(selected);
-    if !selected {
-        return 0;
-    }
 
     check_arenas(cache, false);
     check!(lookup(&mut p1, FIRST_KEY) == Some(word(FIRST_VALUE)));

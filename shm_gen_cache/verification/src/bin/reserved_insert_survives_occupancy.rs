@@ -61,11 +61,9 @@
 //! is satisfiable (both old reservations are reachable). There are no
 //! witnesses merely distinguishing the symmetric winners.
 //!
-//! # Native runs and limits
+//! # Limits
 //!
-//! Native `assume()` is a no-op, so native runs skip the conditional
-//! property when the selector is false; native success alone does not
-//! establish reachability. Concurrent rotation is only epoch 2 -> 3, and
+//! Concurrent rotation is only epoch 2 -> 3, and
 //! readback runs after both participants are unpinned, so
 //! pinning-prevents-rotation and death/slot reaping are out of scope. The
 //! safety build marks T1/T2 symmetric: exchanging their
@@ -169,9 +167,6 @@ extern "C" fn main() -> i32 {
     check!(is_unpinned(&p1) && is_unpinned(&p2));
     let selected = both_reserved_in_epoch_2(cache);
     assume(selected);
-    if !selected {
-        return 0;
-    }
 
     check!(both_succeeded);
     check!(global_epoch(cache).load(Relaxed) == 3);

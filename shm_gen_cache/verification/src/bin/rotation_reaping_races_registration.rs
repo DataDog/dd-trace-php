@@ -42,9 +42,7 @@
 //! publishes its header, and an add that fails on a sealed or full arena
 //! leaves it so; together these select the executions in which both
 //! reservations precede R's bump observation. They do not select the
-//! publication order, which reaper succeeds, or the final epoch. Natively
-//! `assume` is a no-op: if the observations differ, R (and then main) skip
-//! the focused scenario; those attempts may need other work to reserve.
+//! publication order, which reaper succeeds, or the final epoch.
 //!
 //! # Properties
 //!
@@ -184,7 +182,6 @@ struct Registrar<'a, F> {
     /// A and B, joined by R while it holds its registration.
     writers: Option<[Thread<'a, F>; 2]>,
     writers_succeeded: &'a [AtomicBool; 2],
-    selected: bool,
     registry_full: bool,
     saved_epoch: u64,
 }
@@ -198,12 +195,7 @@ fn insert(writer: &mut Writer) {
 }
 
 fn register_and_verify<F>(r: &mut Registrar<'_, F>) {
-    r.selected = both_reserved_in_epoch_four(r.cache);
-    assume(r.selected);
-    if !r.selected {
-        r.join_writers();
-        return;
-    }
+    assume(both_reserved_in_epoch_four(r.cache));
 
     let registered = r.cache.register_participant();
     r.registry_full = registered.is_err();
@@ -216,11 +208,7 @@ fn register_and_verify<F>(r: &mut Registrar<'_, F>) {
     };
     r.join_writers();
 
-    r.selected = both_published_in_epoch_four(r.cache);
-    assume(r.selected);
-    if !r.selected {
-        return;
-    }
+    assume(both_published_in_epoch_four(r.cache));
     check!(r.writers_succeeded[0].load(Relaxed) && r.writers_succeeded[1].load(Relaxed));
     r.saved_epoch = check_after_race(r.cache, r.registry_full);
     match registered {
@@ -298,34 +286,27 @@ extern "C" fn main() -> i32 {
     // R keeps its replacement registration while joining A and B; main
     // joins only R. R's argument holds A's and B's thread handles, so it is
     // built inside the writers' scope and lent to R from a nested one.
-    let (selected, registry_full, saved_epoch) = scope(|writers| {
+    let (registry_full, saved_epoch) = scope(|writers| {
         let mut registrar = Registrar {
             cache,
             dead,
             dead_registration,
             writers: Some([writers.spawn(insert, &mut a), writers.spawn(insert, &mut b)]),
             writers_succeeded: &succeeded,
-            selected: false,
             registry_full: false,
             saved_epoch: 0,
         };
         scope(|s| s.spawn(register_and_verify, &mut registrar).join());
         let Registrar {
-            selected,
             registry_full,
             saved_epoch,
             ..
         } = registrar;
-        (selected, registry_full, saved_epoch)
+        (registry_full, saved_epoch)
     });
 
     check!(pinned_epoch(first_slot).load(SeqCst) == 0);
     check!(pinned_epoch(second_slot).load(SeqCst) == 0);
-    // GenMC already pruned the unselected executions in R; natively
-    // assume() is a no-op, so skip the scenario explicitly.
-    if !selected {
-        return 0;
-    }
     check!(succeeded[0].load(Relaxed) && succeeded[1].load(Relaxed));
     check_replacement_released(cache);
 
