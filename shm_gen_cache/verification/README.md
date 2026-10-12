@@ -370,6 +370,12 @@ aarch64 (128-byte cache lines) and x86_64 (64-byte cache lines). Witness
 runs stop at the first violation, so their counts vary with the number and
 scheduling of GenMC workers.
 
+A change can lower the default count without losing coverage: GenMC may
+recognise more of a program's loops as spin loops and block their
+redundant iterations instead of exploring them. Before reading a drop as
+lost coverage, compare the `-disable-spin-assume` column, or rerun the
+test with `SGC_GENMC_ARGS=-disable-spin-assume`.
+
 | test | default | `-disable-spin-assume` |
 |---|---|---|
 | same_key_collision | 2160 / 1500 | 12888 / 0 |
@@ -400,10 +406,10 @@ scheduling of GenMC workers.
 | rotation_owner_reaper_dies_mid_reap | 9 / 0 | 9 / 0 |
 | competing_reapers_of_dead_owner_slot | 312 / 0 | 312 / 0 |
 | owner_wait_misses_reacquired_release | 112864 / 3594 | diverges |
-| reaping_wakes_blocked_rotation | 67 / 25 | diverges |
-| reaping_dead_reaper_wakes_blocked_rotation | 67 / 25 | diverges |
-| reaping_dead_registered_reaper_wakes_blocked_rotation | 67 / 25 | diverges |
-| reaping_dead_reaper_redelivers_lost_wake | 25 / 9 | diverges |
+| reaping_wakes_blocked_rotation | 79 / 31 | diverges |
+| reaping_dead_reaper_wakes_blocked_rotation | 79 / 31 | diverges |
+| reaping_dead_registered_reaper_wakes_blocked_rotation | 79 / 31 | diverges |
+| reaping_dead_reaper_redelivers_lost_wake | 49 / 19 | diverges |
 | rotation_waits_for_unpin | 54 / 7 | diverges |
 
 "Diverges": the test itself waits in unbounded polling loops (flags, owner
