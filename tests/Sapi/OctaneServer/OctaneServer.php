@@ -90,10 +90,16 @@ final class OctaneServer implements Sapi
         $this->process = new Process($processCmd);
         $this->process->start();
 
+        // octane:start boots artisan, then spawns the swoole server that binds the port: seconds on a loaded CI pod
         if (!$this->waitUntilServerRunning()) {
-            error_log("[octane-server] Server never came up...");
-            echo $this->process->getErrorOutput();
-            return;
+            $message = sprintf(
+                "[octane-server] Server never came up (%s)...\nstdout: %s\nstderr: %s",
+                $this->process->isRunning() ? 'still running' : 'exit code ' . $this->process->getExitCode(),
+                $this->process->getOutput(),
+                $this->process->getErrorOutput()
+            );
+            error_log($message);
+            throw new \RuntimeException($message);
         }
         error_log("[octane-server] Server is up and responding...");
     }
@@ -112,16 +118,20 @@ final class OctaneServer implements Sapi
         return false;
     }
 
-    public function waitUntilServerRunning()
+    public function waitUntilServerRunning($timeout = 30)
     {
-        //Let's wait until server is accepting connections
-        for ($try = 0; $try < 40; $try++) {
+        $deadline = microtime(true) + $timeout;
+        do {
             $socket = @fsockopen($this->host, $this->port);
             if ($socket !== false) {
+                fclose($socket);
                 return true;
             }
+            if (!$this->process->isRunning()) {
+                return false;
+            }
             usleep(50000);
-        }
+        } while (microtime(true) < $deadline);
 
         return false;
     }
