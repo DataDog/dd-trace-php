@@ -39,6 +39,10 @@
 //! Checked after the joins:
 //!
 //! * the canary is intact;
+//! * every arena's bump is at most `capacity + P * C - n_min`, the bound
+//!   derived at `reservation_adds_fit_bump()`: C the largest claim (a
+//!   chunk), P the participant capacity and n_min the smallest record
+//!   written (every record here is 32 bytes);
 //! * both participants are unpinned and their chunk ends lie within the
 //!   record area;
 //! * the epoch is 2 or 3, rotation ownership is released, and arena 2
@@ -74,16 +78,23 @@ use shm_gen_cache::{
 
 const BUCKET_COUNT: u32 = 8;
 const RECORD_AREA_SIZE: u32 = 192;
+const PARTICIPANTS: u32 = 2;
+const CHUNK_BYTES: u32 = 160;
+/// Every record: header, lengths, one padded key word and one value word.
+const RECORD_BYTES: u32 = 32;
+/// The largest bump of an incarnation (see `reservation_adds_fit_bump()`),
+/// with the largest claim a chunk.
+const MAX_BUMP: u32 = RECORD_AREA_SIZE + PARTICIPANTS * CHUNK_BYTES - RECORD_BYTES;
 
 static_config! {
     struct Cfg: NoopGetPid {
-        participant_capacity: 2,
+        participant_capacity: PARTICIPANTS,
         bucket_count: BUCKET_COUNT,
         max_key_size: 1,
         max_value_size: 8,
         record_area_size: RECORD_AREA_SIZE,
         max_occupancy: 8,
-        reservation_chunk_size: 160,
+        reservation_chunk_size: CHUNK_BYTES,
     }
 }
 
@@ -201,6 +212,9 @@ extern "C" fn main() -> i32 {
 
     for word in &MEMORY.canary {
         check!(word.load(Relaxed) == CANARY);
+    }
+    for arena in 0..ARENAS {
+        check!(arena_state(cache, arena, Relaxed).bump <= MAX_BUMP);
     }
     for slot in slots {
         check!(pinned_epoch(slot).load(SeqCst) == 0);

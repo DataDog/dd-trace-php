@@ -228,13 +228,32 @@ const _: () = {
 /// The bump `fetch_add` adds directly to the high 31 bits of the packed
 /// control word. A carry out of bit 63 is discarded, leaving epoch and sealed
 /// intact but wrapping bump to a small value, so a later reservation could
-/// reuse an already allocated range in the same arena incarnation. A
-/// successful claim whose precheck raced another claim may overshoot the
-/// record area by less than one maximal claim; its usable tail is clipped to
-/// capacity. Failed adds may overshoot by at most two maximal claims per
-/// participant. A claim is the larger of a chunk and a maximal record. Prove
-/// that the sum stays below 2^31, using division so the check itself cannot
-/// overflow.
+/// reuse an already allocated range in the same arena incarnation. Prove
+/// that the bump of an incarnation stays below 2^31, using division so the
+/// check itself cannot overflow.
+///
+/// Let C be the largest claim (the larger of a chunk and a maximal record)
+/// and P the participant capacity. Within one incarnation, in the
+/// modification order of the control word:
+///
+/// * a claim is at most C, and a success needs `old + n <= capacity`, so it
+///   leaves the bump at most `capacity - n + C` (a chunk claimed after a
+///   stale precheck overshoots; its usable tail is clipped to capacity);
+/// * no success follows a failure: a failure leaves the arena sealed or its
+///   bump past capacity;
+/// * each slot fails at most one add: an add lands in the incarnation its
+///   precheck saw, and the slot's next precheck sees its failed add and
+///   stops (see `reserve()`).
+///
+/// After the last success, by slot X, at most P failures follow. If X does
+/// not fail, at most P - 1 do: the bump stays at most
+/// `capacity - n + C + (P - 1) * C = capacity + P * C - n`. If X fails, its
+/// later precheck found room for that claim after X's own success, so that
+/// success left the bump at most `capacity - c` for X's failed claim `c`, and
+/// the bump stays at most `capacity + (P - 1) * C`. Hence the bump never
+/// exceeds `capacity + P * C - n_min`, which is reachable, `n_min` (16 bytes,
+/// an empty key and value) being the smallest record. The check below omits
+/// `n_min`.
 const fn reservation_adds_fit_bump(
     participant_capacity: u32,
     record_area_size: u32,
@@ -248,12 +267,27 @@ const fn reservation_adds_fit_bump(
     } else {
         max_record_size
     };
-    let failed_adds_per_participant = 2 * max_claim_size;
     area_size < bump_limit
-        && max_claim_size < bump_limit - area_size
-        && participant_capacity as u64
-            <= (bump_limit - 1 - area_size - max_claim_size) / failed_adds_per_participant
+        && participant_capacity as u64 <= (bump_limit - 1 - area_size) / max_claim_size
 }
+
+const _: () = {
+    // The largest participant count for a 1 GiB area and 1 MiB claims.
+    let (area, claim) = (1 << 30, 1 << 20);
+    let limit = ((1 << 31) - 1 - area) / claim;
+    assert!(reservation_adds_fit_bump(
+        limit as u32,
+        area as u32,
+        claim,
+        claim
+    ));
+    assert!(!reservation_adds_fit_bump(
+        limit as u32 + 1,
+        area as u32,
+        claim,
+        claim
+    ));
+};
 
 /// The parameters the lookup and insert paths read, kept together (and
 /// first in [`Derived`]) so a runtime handle touches one or two cache

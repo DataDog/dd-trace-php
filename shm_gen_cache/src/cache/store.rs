@@ -299,14 +299,19 @@ impl<P: Params> Cache<'_, P> {
                     break 'attempt;
                 }
                 // Claim a chunk for a smaller record when it fits; otherwise
-                // claim exactly the record. A stale precheck can leave an
-                // unindexed hole beyond capacity, in a sealed arena or in a
-                // newer incarnation. The next precheck of this participant
-                // sees its add or a later value (coherence), so it cannot add
-                // again to that incarnation without catching up to its
-                // epoch. At most two failed adds per participant and
-                // incarnation are possible; the configuration checks bound
-                // the overshoot.
+                // claim exactly the record. Between the precheck and the add,
+                // other writers' adds may move the bump and a rotation may
+                // seal the arena, so the add can fail and leave an unindexed
+                // hole beyond capacity or in a sealed arena. It still lands
+                // in this incarnation: R4 resets the control word for the
+                // next one only after the rotation's pin scan saw this pin
+                // (still e) replaced by our unpin or a reaper's clear, both
+                // after this add. A failed add leaves the arena sealed or its
+                // bump past capacity, and the next precheck of this slot sees
+                // that add or a later value (coherence, or the handoff of the
+                // slot), so it stops before adding again. At most one failed
+                // add per participant and incarnation is possible; the
+                // configuration checks bound the overshoot.
                 let claim = if n < chunk_size && ctl.bump() as u64 + chunk_size <= capacity {
                     chunk_size
                 } else {
