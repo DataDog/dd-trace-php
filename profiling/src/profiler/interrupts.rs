@@ -54,6 +54,11 @@ impl InterruptManager {
         }
     }
 
+    /// Stop timer access to PHP globals before module teardown frees them.
+    pub(super) fn clear(&self) {
+        self.vm_interrupts.lock().unwrap().clear();
+    }
+
     #[inline]
     pub(super) fn has_interrupts(&self) -> bool {
         !self.vm_interrupts.lock().unwrap().is_empty()

@@ -27,8 +27,8 @@ class HttpClientIntegrationHelper
             return false;
         }
 
-        // Custom configuration exists, use it
-        $codesList = is_array($errorStatusCodes) ? $errorStatusCodes : explode(',', $errorStatusCodes);
+        // Set-typed configs are returned as an array with the configured entries as keys
+        $codesList = is_array($errorStatusCodes) ? array_keys($errorStatusCodes) : explode(',', $errorStatusCodes);
 
         foreach ($codesList as $item) {
             if ($item === null) {
@@ -69,8 +69,11 @@ class HttpClientIntegrationHelper
      * @return bool Whether the span was marked as an error
      */
     public static function setClientError($span, $statusCode, $reasonPhrase = null) {
-        // Only set error if it's not already set
-        if (isset($span->meta[Tag::ERROR])) {
+        // Preserve more specific errors, such as a cURL timeout after receiving HTTP headers.
+        if (isset($span->meta[Tag::ERROR])
+            || isset($span->meta[Tag::ERROR_TYPE])
+            || isset($span->meta[Tag::ERROR_MSG])
+        ) {
             return false;
         }
 
