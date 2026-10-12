@@ -71,8 +71,10 @@ class ConnectivityTests {
 
         // SIGHUP = ungraceful restart: workers are killed without PHP teardown.
         // The sidecar detects socket closure and sends per-client disconnect notifications.
-        def hupResult = CONTAINER.execInContainer(
-                'sh', '-c', 'kill -HUP $(pgrep -f /usr/sbin/apache2 | head -1)')
+        // Wait (up to 5 s) until no child is still starting up (single-threaded): SIGTERM can abort those.
+        def hupResult = CONTAINER.execInContainer('sh', '-c',
+                'P=$(pgrep -f /usr/sbin/apache2 | head -1); for i in $(seq 100); do' +
+                ' ps -o nlwp= --ppid $P | grep -qx " *1" || break; sleep 0.05; done; kill -HUP $P')
         assert hupResult.exitCode == 0: "apache2 HUP failed: ${hupResult.stderr}"
 
         // Poll helper.log for up to 5 seconds waiting for both clients to exit.
@@ -121,15 +123,16 @@ class ConnectivityTests {
         assert backupResult.exitCode == 0: "config backup failed: ${backupResult.stderr}"
 
         try {
-            int cleanBefore = CONTAINER.execInContainer('cat', '/tmp/logs/helper.log')
-                    .stdout.count('ended normally')
-
             def cfgResult = CONTAINER.execInContainer('sh', '-c',
                     'OLD=$(pgrep -P $(pgrep -f /usr/sbin/apache2 | head -1))' +
-                    ' && echo "MaxConnectionsPerChild 1\nKeepAlive Off" >> /etc/apache2/mods-enabled/mpm_event.conf' +
-                    ' && apache2ctl restart' +
+                    '; echo "MaxConnectionsPerChild 1\nKeepAlive Off" >> /etc/apache2/mods-enabled/mpm_event.conf' +
+                    ' && apache2ctl graceful' +
                     ' && for p in $OLD; do while kill -0 $p 2>/dev/null; do sleep 0.05; done; done')
             assert cfgResult.exitCode == 0: "apache2 config failed: ${cfgResult.stderr}"
+
+            // Old children exiting gracefully also log "ended normally", so count after they are gone.
+            int cleanBefore = CONTAINER.execInContainer('cat', '/tmp/logs/helper.log')
+                    .stdout.count('ended normally')
 
             CONTAINER.traceFromRequest('/hello.php', { HttpResponse<String> resp ->
                 assert resp.statusCode() == 200
@@ -156,7 +159,7 @@ class ConnectivityTests {
             CONTAINER.execInContainer('sh', '-c',
                     'cp /etc/apache2/mods-enabled/mpm_event.conf.backup' +
                     ' /etc/apache2/mods-enabled/mpm_event.conf' +
-                    ' && apache2ctl restart')
+                    ' && apache2ctl graceful')
         }
     }
 
@@ -181,9 +184,12 @@ class ConnectivityTests {
 
         try {
             // Ensure a single worker/process so each request uses the same sidecar client.
+            // Old children can still take requests until they exit gracefully, so wait for any.
             def cfgResult = CONTAINER.execInContainer('sh', '-c',
-                    'printf "MaxRequestWorkers 1\nThreadsPerChild 1\n"' +
-                    ' >> /etc/apache2/mods-enabled/mpm_event.conf && apache2ctl restart')
+                    'OLD=$(pgrep -P $(pgrep -f /usr/sbin/apache2 | head -1))' +
+                    '; printf "MaxRequestWorkers 1\nThreadsPerChild 1\n"' +
+                    ' >> /etc/apache2/mods-enabled/mpm_event.conf && apache2ctl graceful' +
+                    ' && for p in $OLD; do while kill -0 $p 2>/dev/null; do sleep 0.05; done; done')
             assert cfgResult.exitCode == 0: "apache2 config failed: ${cfgResult.stderr}"
 
             def blockingReq = {
@@ -212,7 +218,7 @@ class ConnectivityTests {
         } finally {
             CONTAINER.execInContainer('sh', '-c',
                     'cp /etc/apache2/mods-enabled/mpm_event.conf.bak3' +
-                    ' /etc/apache2/mods-enabled/mpm_event.conf && apache2ctl restart')
+                    ' /etc/apache2/mods-enabled/mpm_event.conf && apache2ctl graceful')
         }
     }
 
@@ -237,10 +243,12 @@ class ConnectivityTests {
 
         try {
             // Standalone config: single worker (no MaxConnectionsPerChild so all
-            // requests share the same worker and connection).
+            // requests share the same worker and connection). Wait for the old children to exit.
             def cfgResult = CONTAINER.execInContainer('sh', '-c',
-                    'printf "MaxRequestWorkers 1\nThreadsPerChild 1\n"' +
-                    ' >> /etc/apache2/mods-enabled/mpm_event.conf && apache2ctl restart')
+                    'OLD=$(pgrep -P $(pgrep -f /usr/sbin/apache2 | head -1))' +
+                    '; printf "MaxRequestWorkers 1\nThreadsPerChild 1\n"' +
+                    ' >> /etc/apache2/mods-enabled/mpm_event.conf && apache2ctl graceful' +
+                    ' && for p in $OLD; do while kill -0 $p 2>/dev/null; do sleep 0.05; done; done')
             assert cfgResult.exitCode == 0: "apache2 config failed: ${cfgResult.stderr}"
 
 
@@ -268,7 +276,7 @@ class ConnectivityTests {
         } finally {
             CONTAINER.execInContainer('sh', '-c',
                     'cp /etc/apache2/mods-enabled/mpm_event.conf.bak4' +
-                    ' /etc/apache2/mods-enabled/mpm_event.conf && apache2ctl ')
+                    ' /etc/apache2/mods-enabled/mpm_event.conf && apache2ctl graceful')
         }
     }
 }
