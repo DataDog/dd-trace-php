@@ -10,8 +10,9 @@
 //!            word zero-padded
 //! ```
 //!
-//! Every access is a 64-bit atomic word access. The header is stored last,
-//! with release (W5).
+//! Every access is a 64-bit atomic word access. The header is stored last
+//! (W5), relaxed: the index publication (I2, a release) follows it and
+//! publishes the whole record.
 
 use core::sync::atomic::Ordering::Relaxed;
 

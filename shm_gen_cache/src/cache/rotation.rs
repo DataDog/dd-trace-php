@@ -103,19 +103,24 @@ impl<'m, P: Params> Cache<'m, P> {
                 // operations, or an acquire of a later state of its slot,
                 // which continues the release sequence of a reaper's steal
                 // of the slot, published only after the reaper's own
-                // is_live(false). Both paths carry the sealing RMW's acquired
-                // reservation history despite this relaxed control load, and
-                // we don't need the handoff provided by the CAS below.
+                // is_live(false). Either path makes the seal happen-before
+                // this rotation's R5, as the R2 argument of the rotation that
+                // reuses this arena requires, despite this relaxed control
+                // load.
                 break;
             }
-            // R1: retire the current arena. Acquire imports prior
-            // reservation RMW history through epoch and ownership handoffs.
-            // Writers into existing chunks have no RMW here: their pins are
-            // protected by W3/R2 instead.
+            // R1: retire the current arena. Relaxed: no write to the control
+            // word is a release, so an acquire would import only what this
+            // incarnation's writers did before their reservation RMW (B1),
+            // through their W3 fence. Nothing below needs that: their pins
+            // (e) never block the scan. What matters is that the seal
+            // happens-before R2 of the rotation that reuses this arena (see
+            // R2), which this rotation's R5 and the ownership handoffs
+            // provide, whatever the ordering of the seal itself.
             match cur_arena.ctl().compare_exchange(
                 cur_ctl,
                 cur_ctl | CtlWord::SEALED,
-                Acquire,
+                Relaxed,
                 Relaxed,
             ) {
                 Ok(_) => break,
@@ -269,7 +274,7 @@ impl<'m, P: Params> Cache<'m, P> {
                 RotationOwner::NONE.0,
                 desired.0,
                 AcqRel,
-                Acquire,
+                Relaxed,
             ) {
                 Ok(_) => Ok(()),
                 Err(_) => Err(Error::ConcurrentOperation),
@@ -286,7 +291,7 @@ impl<'m, P: Params> Cache<'m, P> {
             if owner.registration_id() == 0 {
                 // O2: take ownership from NONE.
                 if owner_word
-                    .compare_exchange(owner.0, desired.0, AcqRel, Acquire)
+                    .compare_exchange(owner.0, desired.0, AcqRel, Relaxed)
                     .is_ok()
                 {
                     return Ok(());
@@ -312,7 +317,7 @@ impl<'m, P: Params> Cache<'m, P> {
             // O3: takeover of a dead owner.
             if !live
                 && owner_word
-                    .compare_exchange(owner.0, desired.0, AcqRel, Acquire)
+                    .compare_exchange(owner.0, desired.0, AcqRel, Relaxed)
                     .is_ok()
             {
                 return Ok(());

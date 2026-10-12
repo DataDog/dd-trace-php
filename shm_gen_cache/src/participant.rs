@@ -392,10 +392,11 @@ impl ParticipantSlot {
             //    `registration` dead and stole the slot (P4). The new owner
             //    builds on two writes the dead owner may have made under
             //    ownership: R5, its publication of the next epoch, which R0
-            //    must see to stop; and R1, its seal of the current arena
-            //    with the writers' reservations (B1) that R1 acquired, since
-            //    rotate_owned() does not repeat R1 on an arena it finds
-            //    sealed.
+            //    must see to stop; and R1, its seal of the current arena,
+            //    which must happen-before R2 of the rotation that later
+            //    reuses the arena (see rotate_owned()). rotate_owned()
+            //    accepts an arena it finds sealed without a synchronising
+            //    access of its own, so the handoff must supply that edge.
             //
             // Here P6 read FREE, or another registration's claim:
             // `registration` is over.

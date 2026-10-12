@@ -139,8 +139,9 @@ impl<P: Params> Cache<'_, P> {
             let w: u32 = 2;
             let w = unsafe { emit_bytes_relaxed(words, w, key.as_ptr(), key.len()) }; // W4
             let _ = unsafe { value.emit(words, w) }; // W4
-            // W5: publish the header after the payload.
-            unsafe { (*words).store(RecordHeader::new(e as u32, len).0, Release) };
+            // W5: the header, after the payload. Relaxed: readers reach a
+            // record only through the index, whose release (I2) follows.
+            unsafe { (*words).store(RecordHeader::new(e as u32, len).0, Relaxed) };
 
             let result = self.publish(
                 &hp,
