@@ -22,8 +22,16 @@
 //!     --------                         --------
 //!     reservation finds no space      reservation finds no space
 //!     report old owner dead            report old owner dead
+//!     steal and release its slot       steal and release its slot
 //!     CAS owner: old -> A      <|>      CAS owner: old -> B
 //! ```
+//!
+//! A worker may read the old owner's state, then the start time the other
+//! worker stored when it stole the slot: a pair of PID 1 with the live
+//! start time, an incarnation that never ran, which the backend reports
+//! dead without counting it or synchronising anything. That worker's steal
+//! then fails against the other's claim and acquires it, so its takeover
+//! still follows the old owner's death.
 //!
 //! At most one takeover CAS can succeed. Its worker rotates to epoch 3 and
 //! publishes there. The loser returns `RotationOwnerTimeout` without
@@ -42,9 +50,9 @@
 //!   (bump 96, occupancy 1) and sealed, rotation ownership is clear, and
 //!   every participant is unpinned.
 //!
-//! The dead participant's registration state is not asserted: taking over
-//! rotation ownership and reaping its participant slot are separate
-//! operations.
+//! The dead participant's registration state is not asserted: the takeover
+//! reaps the slot and releases it, but a worker's registration may take it
+//! afterwards.
 //!
 //! # Witness
 //!
@@ -53,10 +61,10 @@
 //! live owner. The liveness backend (`StagedIdentity`) therefore counts
 //! checks of the abandoned PID/start-time pair with a relaxed atomic.
 //! Registration has two free slots, and no pin is old enough to block epoch
-//! 2 -> 3, so neither operation needs slot reaping or its additional
-//! liveness checks. Each initial insert can therefore check that identity at
-//! most once: a successful takeover removes the old owner, while a failed
-//! takeover immediately returns a timeout. `COMPETING_DEAD_OWNER_CHECKS`
+//! 2 -> 3, so the only slot reaping is the takeovers' own. Each initial
+//! insert can therefore check that identity at most once: a successful
+//! takeover removes the old owner, while a failed takeover immediately
+//! returns a timeout. `COMPETING_DEAD_OWNER_CHECKS`
 //! selects two such checks and exactly one timeout, proving that both
 //! workers competed for the same dead ownership. The counter adds no
 //! happens-before edge, and no production hook is used.
@@ -142,8 +150,12 @@ impl GetPid for StagedIdentity {
 
     fn is_live_since(pid: u32, start_time: u64) -> Result<bool, Error> {
         if pid == DEAD_PID {
-            check!(start_time == DEAD_START);
-            DEAD_CHECKS.fetch_add(1, Relaxed);
+            // The other worker's start time, stored by its steal of the
+            // slot: an incarnation that never ran.
+            if start_time != LIVE_START {
+                check!(start_time == DEAD_START);
+                DEAD_CHECKS.fetch_add(1, Relaxed);
+            }
             return Ok(false);
         }
         check!(pid == LIVE_PID && start_time == LIVE_START);

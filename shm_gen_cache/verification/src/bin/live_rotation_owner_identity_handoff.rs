@@ -31,21 +31,24 @@
 //! clear owner word
 //! publish slot FREE
 //!                         claim O's slot
-//!                         publish R's start time
+//!                         store R's start time
 //!                                                   read R's start time
 //!                                                   report O/R as dead
+//!                                                   steal O's REGISTERED:
+//!                                                     fails, acquires R's
 //!                                                   CAS old owner -> C
 //! ```
 //!
 //! O and R are both live, but the liveness backend (`ActorIdentity`)
 //! reports the mixed pair (O's PID, R's start time) as dead and counts how
-//! often it was asked about it. Reading R's release-published start time
-//! must also import the preceding release of O's slot and, before that,
-//! O's release of the owner word. So C's takeover CAS cannot still observe
-//! O as owner: it fails, which production reports as
-//! `RotationOwnerTimeout`. If C instead succeeded after observing the mixed
-//! pair, the ordering between participant identity publication and
-//! recovery would be broken.
+//! often it was asked about it. C then tries to steal O's slot from O's
+//! REGISTERED state, which R's claim has replaced: the exchange fails, and
+//! must acquire R's claim and, through its release sequence, O's release
+//! of the slot and, before that, O's release of the owner word. So C's
+//! takeover CAS cannot still observe O as owner: it fails, which
+//! production reports as `RotationOwnerTimeout`. If C instead succeeded
+//! after observing the mixed pair, the ordering between participant
+//! identity publication and recovery would be broken.
 //!
 //! # Checked after the joins
 //!

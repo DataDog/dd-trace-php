@@ -31,7 +31,7 @@ use crate::config::{HotParams, Params};
 use crate::error::Error;
 use crate::lock::ParticipantLock;
 use crate::occupancy::OccupancyMode;
-use crate::participant::{ParticipantSlot, next_registration_id};
+use crate::participant::{ParticipantSlot, Steal, next_registration_id};
 use crate::util::CACHE_LINE;
 
 /// Number of arenas: current, previous, and the one being reused.
@@ -293,7 +293,8 @@ impl<'m, P: Params> Cache<'m, P> {
         for i in 0..hp.participant_capacity {
             if self
                 .participant(hp, i)
-                .steal::<P::Pid>(|| registration_id)?
+                .steal::<P::Pid>(None, || registration_id)?
+                == Steal::Stolen
             {
                 return Ok(Some(i));
             }

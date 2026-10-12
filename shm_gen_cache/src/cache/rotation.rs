@@ -8,7 +8,9 @@ use crate::arena::ctl::CtlWord;
 use crate::config::{HotParams, Params};
 use crate::error::Error;
 use crate::occupancy::OccupancyMode;
-use crate::participant::{ParticipantSlot, ROTATION_WAITING, UNPINNED, next_registration_id};
+use crate::participant::{
+    ParticipantSlot, ROTATION_WAITING, RegistrationId, Steal, UNPINNED, next_registration_id,
+};
 #[cfg(feature = "verify")]
 use crate::pid::GetPid;
 use crate::wait::{BoundedWait, Pause, WordHalf, wake_waiters};
@@ -97,16 +99,16 @@ impl<'m, P: Params> Cache<'m, P> {
             if CtlWord(cur_ctl).sealed() {
                 // A prior owner sealed it, then died or returned an error.
                 // An error handoff is release/acquire through the rotation
-                // owner; a dead-owner takeover follows registration_is_live()
-                // == false: either is_live(false), whose backend contract
-                // imports the dead incarnation's final shared-memory
-                // operations, or an acquire of a later state of its slot,
-                // which continues the release sequence of a reaper's steal
-                // of the slot, published only after the reaper's own
-                // is_live(false). Either path makes the seal happen-before
-                // this rotation's R5, as the R2 argument of the rotation that
-                // reuses this arena requires, despite this relaxed control
-                // load.
+                // owner; a dead-owner takeover follows reap_owner(): either
+                // our own steal of its slot after a "dead" verdict, whose
+                // backend contract imports the dead incarnation's final
+                // shared-memory operations, or an acquire of a later state of
+                // its slot, which continues the release sequence of a
+                // reaper's steal of the slot, published only after that
+                // reaper's own verdict. Either path makes the seal
+                // happen-before this rotation's R5, as the R2 argument of the
+                // rotation that reuses this arena requires, despite this
+                // relaxed control load.
                 break;
             }
             // R1: retire the current arena. Relaxed: no write to the control
@@ -224,11 +226,71 @@ impl<'m, P: Params> Cache<'m, P> {
     /// the slot. Until the release, the rotator holds a second registration.
     fn reap_pinner(self, participant: &ParticipantSlot) -> Result<bool, Error> {
         let counter = &self.header().registration_counter;
-        if !participant.steal::<P::Pid>(|| next_registration_id(counter))? {
+        if participant.steal::<P::Pid>(None, || next_registration_id(counter))? != Steal::Stolen {
             return Ok(false);
         }
         participant.release_claim::<P::Pid>();
         Ok(true)
+    }
+
+    /// Slot reaping by a rotation-owner takeover: whether `owner`, which the
+    /// caller read in the rotation-owner word (O1, with acquire), is over,
+    /// so that the caller may take ownership away from it (O3). Steals and
+    /// releases the owner's slot if it still holds the owner's dead claim.
+    ///
+    /// The comments below use the memory model's relations: sb (sequenced
+    /// before, i.e. program order in one thread), sw (synchronises with: an
+    /// acquire reads a release, or a later value in its release sequence)
+    /// and hb (happens before: the transitive closure of sb and sw).
+    ///
+    /// Two things must hold after O3:
+    ///
+    /// 1. One owner. If `owner` left normally, it released ownership (O4, a
+    ///    plain store of NONE) before its slot (P3). Were O3 to precede O4
+    ///    in the owner word's modification order, O3 would succeed and O4
+    ///    would then reset the word under the caller, so that a second
+    ///    rotator could acquire ownership too.
+    /// 2. No takeover blind to the dead owner's work. The new owner builds
+    ///    on R5, its publication of the next epoch, which R0 must see to
+    ///    stop, and on R1, its seal of the current arena, which must
+    ///    happen-before R2 of the rotation that later reuses the arena.
+    ///    rotate_owned() accepts an arena it finds sealed without a
+    ///    synchronising access of its own, so this must supply that edge.
+    ///
+    /// Both hold if what ended `owner` hb O3. O1 read the owner word from
+    /// `owner`'s acquiring exchange, a release sb its claim, so the steal
+    /// finds `owner`'s own claim or a later state. Every outcome but `Live`
+    /// shows that `owner` is over, and synchronises with what ended it (see
+    /// steal()), sb O3:
+    ///
+    /// * `Stolen`: `owner`'s final writes hb the steal's verdict.
+    /// * Any other outcome: `owner` ended in a release exchange of the
+    ///   state, P3 or a reaper's P4, and every later state write is a
+    ///   read-modify-write, so the state the steal acquired lies in that
+    ///   exchange's release sequence. For P3, O4 sb P3, so O4 hb O3; a write
+    ///   that hb a read-modify-write precedes it in modification order, so
+    ///   O3 reads NONE (or a later owner) and fails. For P4, the reaper's
+    ///   "dead" verdict sb P4, and the dead process's final writes hb it.
+    ///
+    /// Only `owner`'s own claim is examined. Another registration's claim
+    /// already shows that `owner` is over: the takeover neither asks the
+    /// backend about it nor steals it, which is left to registrations and
+    /// pin scans. Counting a live one as `owner` being live would block
+    /// rotation for good once a reaper keeps a dead owner's slot: the owner
+    /// word would name the dead owner forever.
+    fn reap_owner(self, hp: &HotParams, owner: RotationOwner) -> Result<bool, Error> {
+        production_assert!(owner.slot() < hp.participant_capacity);
+        let participant = self.participant(hp, owner.slot());
+        let expected = Some(RegistrationId(owner.registration_id()));
+        let counter = &self.header().registration_counter;
+        match participant.steal::<P::Pid>(expected, || next_registration_id(counter))? {
+            Steal::Live => Ok(false),
+            Steal::Stolen => {
+                participant.release_claim::<P::Pid>();
+                Ok(true)
+            }
+            Steal::Lost | Steal::Other | Steal::Free => Ok(true),
+        }
     }
 
     /// The half of the owner word that every release changes (the
@@ -286,7 +348,7 @@ impl<'m, P: Params> Cache<'m, P> {
             if self.global_epoch().load(Relaxed) != e {
                 return Err(Error::ConcurrentOperation);
             }
-            // See the precondition of registration_is_live().
+            // See the precondition of reap_owner().
             let owner = RotationOwner(owner_word.load(Acquire)); // O1
             if owner.registration_id() == 0 {
                 // O2: take ownership from NONE.
@@ -310,15 +372,13 @@ impl<'m, P: Params> Cache<'m, P> {
             if wait.pause_until(watched) == Pause::Continue {
                 continue;
             }
-            production_assert!(owner.slot() < hp.participant_capacity);
-            let live = self
-                .participant(hp, owner.slot())
-                .registration_is_live::<P::Pid>(owner.registration_id())?;
+            if !self.reap_owner(hp, owner)? {
+                return Err(Error::RotationOwnerTimeout);
+            }
             // O3: takeover of a dead owner.
-            if !live
-                && owner_word
-                    .compare_exchange(owner.0, desired.0, AcqRel, Relaxed)
-                    .is_ok()
+            if owner_word
+                .compare_exchange(owner.0, desired.0, AcqRel, Relaxed)
+                .is_ok()
             {
                 return Ok(());
             }

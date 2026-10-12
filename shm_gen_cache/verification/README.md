@@ -384,25 +384,25 @@ test with `SGC_GENMC_ARGS=-disable-spin-assume`.
 | same_key_collision | 2160 / 1500 | 12888 / 0 |
 | concurrent_read_write | 60 / 76 | 120 / 80 |
 | promotion_races_insertion | 21 / 12 | 41 / 0 |
-| full_table_insert_retries | 360 / 290 | 824 / 344 |
-| competing_rotations | 23240 / 0 | 23240 / 0 |
+| full_table_insert_retries | 216 / 182 | 824 / 344 |
+| competing_rotations | 13768 / 0 | 23240 / 0 |
 | recycled_arena_visibility | 3 / 0 | 3 / 0 |
-| lookup_during_reuse | 1475072 / 4869 | (not run: ~200 s) |
+| lookup_during_reuse | 361388 / 2188 | (not run: ~200 s) |
 | internal_probe_copy_during_reuse | 20 / 0 | 20 / 0 |
 | public_lookup_capacity_during_reuse | 11 / 2 | 15 / 0 |
-| published_insert_skips_busy_rotation | 16 / 802 | 24 / 904 |
-| reserved_insert_survives_occupancy | 96 / 350 | 144 / 352 |
+| published_insert_skips_busy_rotation | 16 / 552 | 24 / 904 |
+| reserved_insert_survives_occupancy | 96 / 210 | 144 / 352 |
 | reserved_insert_blocks_reuse | 13 / 0 | 13 / 0 |
 | reaping_preserves_live_reservation | 13 / 0 | 13 / 0 |
-| chunked_insert_blocks_reuse | 67788 / 46890 | (not run) |
-| chunk_claim_clipped_at_capacity | 7984 / 0 | 7984 / 0 |
-| rotation_reaping_races_registration | 8800 / 5974 | 13200 / 5976 |
-| competing_dead_rotation_takeovers | 22344 / 0 | (not run) |
+| chunked_insert_blocks_reuse | 29724 / 20530 | (not run) |
+| chunk_claim_clipped_at_capacity | 5648 / 0 | 7984 / 0 |
+| rotation_reaping_races_registration | 8800 / 3254 | 13200 / 5976 |
+| competing_dead_rotation_takeovers | 72292 / 0 | (not run) |
 | competing_registrars_preserve_winner | 80 / 0 | diverges |
 | dead_owner_epoch_publication_preserves_reservation | 20 / 828 | diverges |
-| dead_rotation_owner_reaping_races_takeover | 7 / 0 | diverges |
-| live_rotation_owner_identity_handoff | 70416 / 0 | (not run) |
-| owner_slot_reaping_preserves_epoch_publication | 4232 / 0 | diverges |
+| dead_rotation_owner_reaping_races_takeover | 43 / 0 | diverges |
+| live_rotation_owner_identity_handoff | 42000 / 0 | (not run) |
+| owner_slot_reaping_preserves_epoch_publication | 4592 / 0 | diverges |
 | slot_reaping_imports_dead_writer_records | 49 / 11 | diverges |
 | slot_reaping_resets_reservation_chunk | 1 / 0 | 1 / 0 |
 | reaper_dies_mid_reap | 1 / 0 | 1 / 0 |

@@ -9,17 +9,19 @@
 //! owner check can then pass only through the slot reaper's claim, so the
 //! verdict, and the owner's final writes, must reach it through the slot:
 //!
-//! * the reaper's claim in the state word: `registration_is_live()` treats
-//!   any other registration as proof that the owner has ended, so the
-//!   reaper's claiming exchange must release its verdict;
+//! * the reaper's claim in the state word: `reap_owner()` treats any other
+//!   registration as proof that the owner has ended, so the reaper's
+//!   claiming exchange must release its verdict;
 //! * the reaper's start time, which a contender reading the owner's state
 //!   may pair with the owner's PID: that incarnation never ran, so the
-//!   backend reports it dead without synchronising anything, and the
-//!   release of the start time must carry the verdict instead.
+//!   backend reports it dead without synchronising anything. The
+//!   contender's steal of the owner's state then fails against the
+//!   reaper's claim, and the failed exchange must acquire it.
 //!
-//! Without either release, the contender could read the stale epoch 2
-//! after its ownership takeover, repeat the 2 -> 3 rotation and reset arena
-//! 0 after main published B there.
+//! Without the release, or without the acquire of the failed steal, the
+//! contender could read the stale epoch 2 after its ownership takeover,
+//! repeat the 2 -> 3 rotation and reset arena 0 after main published B
+//! there.
 //!
 //! # Setup
 //!

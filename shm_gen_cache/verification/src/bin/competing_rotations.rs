@@ -47,10 +47,10 @@
 //! register participant slot
 //! W3 seq_cst fence (also release)
 //! CAS owner = {slot, id}  --------->  acquire-load owner
-//!                                     registration_is_live(slot, id)
+//!                                     reap_owner(slot, id)
 //! ```
 //!
-//! `registration_is_live()` reads the owner's participant slot. Acquiring
+//! `reap_owner()` reads the owner's participant slot. Acquiring
 //! the owner word must make the matching registration visible; otherwise
 //! the contender may read the slot's earlier FREE state and take rotation
 //! from a live owner. This is separate from the participant-pin scan done

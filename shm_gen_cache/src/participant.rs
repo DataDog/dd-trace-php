@@ -53,6 +53,28 @@ pub(crate) enum StateKind {
     Registered { pid: u32, registration_id: u32 },
 }
 
+/// A registration id (non-zero): what tells one claim of a slot from the
+/// next.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) struct RegistrationId(pub(crate) u32);
+
+/// What [`ParticipantSlot::steal`] found in the slot.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum Steal {
+    /// A dead claim, which the caller now holds as a registration of its
+    /// own.
+    Stolen,
+    /// A dead claim, but the state moved on before the steal; the failed
+    /// exchange acquired the later state.
+    Lost,
+    /// A claim that may still run.
+    Live,
+    /// A claim of another registration than the expected one, left alone.
+    Other,
+    /// No claim.
+    Free,
+}
+
 impl State {
     pub(crate) const FREE: State = State(0);
     const PID_MASK: u64 = 0x7fff_ffff;
@@ -179,9 +201,10 @@ impl ParticipantSlot {
         {
             return Err(Error::ConcurrentOperation);
         }
-        // A concurrent death check may observe a replacement's start time.
-        // Publish the FREE/claim handoff through that observation as well.
-        self.thread_disambiguation.store(start_time, Release); // T1
+        // Relaxed: the start time carries no handoff. A reaper pairs it with
+        // the state it acquired and acts only through an exchange of that
+        // state, which fails if this claim came in between (see steal()).
+        self.thread_disambiguation.store(start_time, Relaxed); // T1
         production_assert!(self.pinned_epoch.load(Relaxed) == UNPINNED);
         self.reset_chunk();
 
@@ -220,10 +243,29 @@ impl ParticipantSlot {
     /// Slot reaping: if this slot's registration (or claim in progress) is
     /// dead, steals the slot for the calling thread as the registration that
     /// `registration_id()` returns, clears the dead pin and wakes a rotation
-    /// that may be blocked on it. Returns whether it stole the slot; the slot
-    /// is then REGISTERED to the caller, as after [`Self::claim`]. The id is
-    /// drawn only once the slot is found dead, so that checking a live slot
-    /// spends none.
+    /// that may be blocked on it. With `expected`, only a claim of that
+    /// registration is examined: any other is [`Steal::Other`], without a
+    /// question to the backend. After [`Steal::Stolen`] the slot is
+    /// REGISTERED to the caller, as after [`Self::claim`]. The id is drawn
+    /// only once the slot is found dead, so that checking a live slot spends
+    /// none.
+    ///
+    /// The state is loaded with acquire, and a failed steal acquires the
+    /// state it found instead, so every outcome synchronises with the
+    /// release that wrote the state it reports: the claim that started a
+    /// live registration, or whatever ended the registrations before it (a
+    /// release P3, or a reaper's P4 after its own "dead" verdict).
+    ///
+    /// The start time carries no ordering. It is loaded relaxed, and a
+    /// steal acts on it only through the exchange of the state loaded
+    /// before it, which confirms that the start time belonged to that
+    /// claim. Not an earlier claim's: that store sb the earlier claim's
+    /// registering exchange, which hb the claim the load acquired. Not a
+    /// later claim's: that claim's state exchange reads the steal's write
+    /// or a later one, so the steal hb the claim's start-time store, and a
+    /// load sb the steal cannot read it. A "dead" verdict acted on is
+    /// therefore about the claim the steal replaces, whose final writes hb
+    /// the verdict (`GetPid` contract).
     ///
     /// The steal is a claim of the dead slot, in the same two steps as
     /// [`Self::claim`]. A reaper that dies midway therefore leaves a claim of
@@ -234,38 +276,52 @@ impl ParticipantSlot {
     /// cleared) until that thread exits.
     pub(crate) fn steal<Pid: GetPid>(
         &self,
+        expected: Option<RegistrationId>,
         registration_id: impl FnOnce() -> u32,
-    ) -> Result<bool, Error> {
+    ) -> Result<Steal, Error> {
         let current = State(self.state.load(Acquire));
-        let dead_start_time = self.thread_disambiguation.load(Relaxed);
-        let is_zombie = match current.kind() {
-            StateKind::Registered { pid, .. } => !Pid::is_live_since(pid, dead_start_time)?,
-            // The start time is not available yet.
-            StateKind::Initializing { pid, .. } => !Pid::is_live(pid)?,
-            StateKind::Free => false,
+        let (pid, id, registered) = match current.kind() {
+            StateKind::Free => return Ok(Steal::Free),
+            StateKind::Registered {
+                pid,
+                registration_id,
+            } => (pid, registration_id, true),
+            StateKind::Initializing {
+                pid,
+                registration_id,
+            } => (pid, registration_id, false),
         };
-        if !is_zombie {
-            return Ok(false);
+        if expected.is_some_and(|expected| expected != RegistrationId(id)) {
+            return Ok(Steal::Other);
+        }
+        let dead_start_time = self.thread_disambiguation.load(Relaxed);
+        let live = if registered {
+            Pid::is_live_since(pid, dead_start_time)?
+        } else {
+            // The start time is not available yet.
+            Pid::is_live(pid)?
+        };
+        if live {
+            return Ok(Steal::Live);
         }
         let pid = Pid::get_pid();
         let start_time = Pid::get_start_time();
         let registration_id = registration_id();
         let initializing = State::initializing(pid, registration_id);
         // Release publishes the death verdict to every acquire of this state
-        // or of a later one (see registration_is_live()). No acquire: every
-        // claim's state word is unique (a fresh registration id), so a
-        // successful exchange reads the very write the load above acquired.
+        // or of a later one. No acquire on success: every claim's state word
+        // is unique (a fresh registration id), so a successful exchange reads
+        // the very write the load above acquired. A failure acquires the
+        // later state (see the outcomes above).
         if self
             .state
-            .compare_exchange(current.0, initializing.0, Release, Relaxed) // P4
+            .compare_exchange(current.0, initializing.0, Release, Acquire) // P4
             .is_err()
         {
-            return Ok(false);
+            return Ok(Steal::Lost);
         }
-        // As in claim(), a concurrent death check may pair the dead claim's
-        // state with this start time: publish the verdict through that
-        // observation as well.
-        self.thread_disambiguation.store(start_time, Release); // T2
+        // Relaxed, as in claim().
+        self.thread_disambiguation.store(start_time, Relaxed); // T2
         let registered = State::registered(pid, registration_id);
         if self
             .state
@@ -295,7 +351,7 @@ impl ParticipantSlot {
         // the wake is one wasted system call.
         self.wake_rotation();
         self.reset_chunk();
-        Ok(true)
+        Ok(Steal::Stolen)
     }
 
     /// Whether the slot is FREE.
@@ -312,114 +368,5 @@ impl ParticipantSlot {
         production_assert!(matches!(current.kind(), StateKind::Registered { .. }));
         production_assert!(current.pid() == Pid::get_pid());
         current.registration_id()
-    }
-
-    /// Whether `registration` still owns this slot and may run.
-    ///
-    /// The caller must first acquire the rotation-owner publication. This
-    /// prevents observing a state from before that owner's registration.
-    ///
-    /// The comments below use the memory model's relations: sb
-    /// (sequenced before, i.e. program order in one thread), sw
-    /// (synchronises with: an acquire reads a release, or a later value
-    /// in its release sequence) and hb (happens before: the transitive
-    /// closure of sb and sw).
-    pub(crate) fn registration_is_live<Pid: GetPid>(
-        &self,
-        registration: u32,
-    ) -> Result<bool, Error> {
-        // P6: the slot state, with acquire.
-        match State(self.state.load(Acquire)).kind() {
-            // A matching INITIALIZING state cannot follow a published owner;
-            // conservatively wait if the precondition is violated.
-            StateKind::Initializing {
-                registration_id, ..
-            } if registration_id == registration => Ok(true),
-            StateKind::Registered {
-                pid,
-                registration_id,
-            } if registration_id == registration => {
-                // We need to prevent the two scenarios described in the next
-                // arm (two rotation owners, and a takeover blind to a dead
-                // owner's work) when this returns false and the caller takes
-                // ownership away from `registration` (O3).
-                //
-                // Here P6 cannot do it: it read `registration`'s own
-                // REGISTERED word, so it synchronises only with that
-                // registration's claim (P2/P5), not with whatever may have
-                // ended it since. Liveness is decided from the start time P7
-                // reads instead:
-                //
-                // - `registration`'s own (its claim's T1/T2): the Pid backend
-                //   checks that process, and a "dead" answer guarantees that
-                //   the process's final writes hb the answer. No problem there.
-                // - a later claim's: the slot was claimed again after P6.
-                //   With `registration`'s PID, this start time names a
-                //   process that never ran, which is_live_since() reports
-                //   dead. The later claim is either
-                //   - a steal: the reaper's "dead" verdict sb P4 sb T2, and
-                //     T2 (release) sw P7 (acquire), so the verdict hb P7,
-                //     and so do the dead process's final writes;
-                //   - an ordinary claim of the slot after `registration`
-                //     released it: O4 sb P3 sw P1 sb T1 sw P7, so O4 hb P7.
-                //     In other words, the unlock of the rotation hb P7.
-                //
-                // P7 sb the caller's takeover (O3), so the dead process's
-                // final writes (among them its R5 and R1) and the departed
-                // owner's O4 hb O3; the next arm explains why O3 needs
-                // each of them.
-                // P7: the slot's start time, with acquire.
-                Pid::is_live_since(pid, self.thread_disambiguation.load(Acquire))
-            }
-            // We need to prevent two scenarios when this returns false and
-            // the caller takes rotation ownership away from `registration`
-            // with O3, the CAS `rotation_owner`: O -> me in
-            // acquire_rotation(), where O is the owner value naming
-            // `registration` that the caller loaded at O1:
-            //
-            // 1. Two owners. `registration` left normally: it released
-            //    ownership (O4, `rotation_owner` := NONE, a plain store), then
-            //    the slot (P3). If O3 preceded O4 in `rotation_owner`'s
-            //    modification order, O3 would read O and succeed, and O4 would
-            //    then reset `rotation_owner` to NONE while the caller rotates,
-            //    so a second rotator could acquire ownership (O2) too:
-            //
-            //      rotation_owner, in        written by
-            //      modification order
-            //      O                         registration (its O2)
-            //      me                        caller's O3, which read O
-            //      NONE                      registration's O4, late
-            //      other                     another rotator's O2
-            //
-            //    After its O3 the caller believes it owns rotation. After
-            //    the other rotator's O2, that rotator believes so too, and
-            //    both rotate at once.
-            // 2. A takeover blind to the dead owner's work. A reaper found
-            //    `registration` dead and stole the slot (P4). The new owner
-            //    builds on two writes the dead owner may have made under
-            //    ownership: R5, its publication of the next epoch, which R0
-            //    must see to stop; and R1, its seal of the current arena,
-            //    which must happen-before R2 of the rotation that later
-            //    reuses the arena (see rotate_owned()). rotate_owned()
-            //    accepts an arena it finds sealed without a synchronising
-            //    access of its own, so the handoff must supply that edge.
-            //
-            // Here P6 read FREE, or another registration's claim:
-            // `registration` is over.
-            //
-            // Both are prevented if what ended `registration` hb O3, and P6
-            // provides that edge. `registration` ended with a release CAS of
-            // `state`, P3 or P4. Every later write of `state` (P1-P5) is a
-            // read-modify-write, so the value P6 reads is in the release
-            // sequence of that CAS, which therefore sw P6. P6 sb O3, so:
-            //
-            // 1. O4 sb P3 sw P6 sb O3, so O4 hb O3. A write that hb a
-            //    read-modify-write precedes it in modification order, so O3
-            //    reads NONE (or a later owner), not O, and fails.
-            // 2. The reaper's "dead" verdict sb P4 sw P6 sb O3, and the dead
-            //    process's final writes, R5 and R1 among them, hb the
-            //    verdict, so they hb O3.
-            _ => Ok(false),
-        }
     }
 }

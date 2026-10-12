@@ -35,34 +35,40 @@
 //! # Workers
 //!
 //! * Registrar R registers publicly. All slots are taken, so this takes the
-//!   dead slot 0 over and keeps it: R must land in slot 0 with a fresh,
-//!   nonzero registration id, unpinned. R then signals
-//!   `registration_complete`, waits for `recovery_complete`, re-checks that
-//!   its identity is unchanged and unpinned, signals `replacement_verified`
-//!   and exits (unregistering).
+//!   dead slot 0 over and keeps it: R lands in slot 0 with a fresh, nonzero
+//!   registration id, unpinned. The one exception is W's takeover, which
+//!   steals the dead owner's claim of slot 0 itself and releases it at
+//!   once: an R that examines slot 0 in between finds it held by a live
+//!   claim, and the full registry rejects it (`ParticipantRegistryFull`).
+//!   R then signals `registration_complete`, waits for
+//!   `recovery_complete`, re-checks that its identity, if any, is unchanged
+//!   and unpinned, signals `replacement_verified` and exits (unregistering,
+//!   if registered).
 //! * Writer W publicly inserts K3, which needs a rotation before it can
 //!   reserve space, racing R's registration for the stale ownership. W
 //!   either takes over and succeeds immediately, or conservatively times
 //!   out (`RotationOwnerTimeout`) during the slot handoff: its owner check
 //!   can read slot 0 still REGISTERED to the old incarnation, then the
 //!   start time that R stored after taking the slot over, a pair the
-//!   backend reports live. It then waits for `registration_complete`; after
+//!   backend reports live. Only R's steal stores that start time, so a
+//!   rejected R implies that W did not time out. It then waits for `registration_complete`; after
 //!   a timeout it retries the insert once, which must succeed. Finally it
 //!   checks its own identity, that K3 looks up as exactly V3, that it is
 //!   unpinned and the final state, then signals `recovery_complete`.
 //!
 //! The waits come after the racing calls, so they do not order R's
 //! registration against W's initial insert; they only keep the replacement
-//! registered through W's retry and final checks. R always completes its
-//! takeover of slot 0; `rotation_owner_reaper_dies_mid_reap` covers a reaper
-//! that dies midway.
+//! registered through W's retry and final checks. R never dies midway
+//! through its takeover of slot 0; `rotation_owner_reaper_dies_mid_reap`
+//! covers a reaper that does.
 //!
 //! # Properties
 //!
 //! After the joins: all three signals were raised; the initial insert
 //! succeeded or timed out on the owner, and a retry happened (and
-//! succeeded) exactly after a timeout; the writer's identity is unchanged
-//! and it is unpinned. Final state: epoch 3, no rotation owner, the
+//! succeeded) exactly after a timeout; a rejected registration came with a
+//! successful initial insert; the writer's identity is unchanged and it is
+//! unpinned. Final state: epoch 3, no rotation owner, the
 //! epoch-2 arena sealed with bump 96 and occupancy 3, the epoch-3 arena
 //! unsealed holding K3 alone (bump 32, occupancy 1), both slots unpinned.
 //!
@@ -72,6 +78,8 @@
 //! * `OWNER_HANDOFF_TIMEOUT`: the initial insert times out (on the mixed
 //!   observation above, the only one that reports the old owner live) and
 //!   the retry succeeds.
+//! * `REGISTRATION_DURING_TAKEOVER_REAP`: R was rejected while W's
+//!   takeover held slot 0.
 //!
 //! No assumptions, production hooks or extra GenMC variants are used.
 
@@ -165,6 +173,8 @@ struct Registrar<'a> {
     cache: CacheRef,
     signals: &'a Signals,
     old_registration: u32,
+    /// R's registration was rejected (`ParticipantRegistryFull`).
+    rejected: bool,
 }
 
 struct Writer<'a> {
@@ -179,20 +189,33 @@ struct Writer<'a> {
 /// holds that registration until W has recovered.
 fn register_replacement(registrar: &mut Registrar) {
     let cache = registrar.cache;
-    let replacement = check_ok!(cache.register_participant());
-    let slot = replacement.slot();
-    check!(
-        core::ptr::eq(slot, participant(cache, 0)),
-        "slot 0 is reused"
-    );
-    let registration = registration_id(slot);
-    check!(registration != 0 && registration != registrar.old_registration);
-    check!(pinned_epoch(slot).load(Relaxed) == 0);
+    let replacement = match cache.register_participant() {
+        Ok(replacement) => Some(replacement),
+        Err(error) => {
+            // W's takeover held slot 0 (see the opening comment).
+            check!(error == Error::ParticipantRegistryFull);
+            registrar.rejected = true;
+            None
+        }
+    };
+    let registered = replacement.as_ref().map(|replacement| {
+        let slot = replacement.slot();
+        check!(
+            core::ptr::eq(slot, participant(cache, 0)),
+            "slot 0 is reused"
+        );
+        let registration = registration_id(slot);
+        check!(registration != 0 && registration != registrar.old_registration);
+        check!(pinned_epoch(slot).load(Relaxed) == 0);
+        (slot, registration)
+    });
 
     registrar.signals.registration_complete.store(true, Release);
     wait_until(&registrar.signals.recovery_complete);
-    check!(registration_id(slot) == registration);
-    check!(pinned_epoch(slot).load(Relaxed) == 0);
+    if let Some((slot, registration)) = registered {
+        check!(registration_id(slot) == registration);
+        check!(pinned_epoch(slot).load(Relaxed) == 0);
+    }
     registrar.signals.replacement_verified.store(true, Release);
 }
 
@@ -258,6 +281,7 @@ extern "C" fn main() -> i32 {
         cache,
         signals: &signals,
         old_registration,
+        rejected: false,
     };
     let mut writer = Writer {
         participant: Lent::new(&mut writer_lock),
@@ -273,6 +297,7 @@ extern "C" fn main() -> i32 {
         r.join();
     });
     let (initial_insert, retry_succeeded) = (writer.initial_insert, writer.retry_succeeded);
+    let rejected = registrar.rejected;
 
     check!(signals.registration_complete.load(Relaxed));
     check!(signals.recovery_complete.load(Relaxed));
@@ -282,6 +307,7 @@ extern "C" fn main() -> i32 {
         InsertOutcome::Success | InsertOutcome::OwnerTimeout
     ));
     check!(retry_succeeded == (initial_insert == InsertOutcome::OwnerTimeout));
+    check!(!rejected || initial_insert == InsertOutcome::Success);
     check!(registration_id(writer_slot) == writer_registration);
     check!(pinned_epoch(writer_slot).load(Relaxed) == 0);
     check_final_state(cache);
@@ -294,6 +320,7 @@ extern "C" fn main() -> i32 {
         "OWNER_HANDOFF_TIMEOUT",
         initial_insert == InsertOutcome::OwnerTimeout && retry_succeeded
     );
+    witness!("REGISTRATION_DURING_TAKEOVER_REAP", rejected);
     0
 }
 
