@@ -396,14 +396,14 @@ test with `SGC_GENMC_ARGS=-disable-spin-assume`.
 | reaping_preserves_live_reservation | 13 / 0 | 13 / 0 |
 | chunked_insert_blocks_reuse | 67788 / 46890 | (not run) |
 | chunk_claim_clipped_at_capacity | 7984 / 0 | 7984 / 0 |
-| rotation_reaping_races_registration | 9728 / 6686 | 14592 / 6688 |
+| rotation_reaping_races_registration | 8800 / 5974 | 13200 / 5976 |
 | competing_dead_rotation_takeovers | 22344 / 0 | (not run) |
 | competing_registrars_preserve_winner | 80 / 0 | diverges |
 | dead_owner_epoch_publication_preserves_reservation | 20 / 828 | diverges |
 | dead_rotation_owner_reaping_races_takeover | 7 / 0 | diverges |
 | live_rotation_owner_identity_handoff | 70416 / 0 | (not run) |
 | owner_slot_reaping_preserves_epoch_publication | 4232 / 0 | diverges |
-| slot_reaping_imports_dead_writer_records | 55 / 11 | diverges |
+| slot_reaping_imports_dead_writer_records | 49 / 11 | diverges |
 | slot_reaping_resets_reservation_chunk | 1 / 0 | 1 / 0 |
 | reaper_dies_mid_reap | 1 / 0 | 1 / 0 |
 | rotation_owner_reaper_dies_mid_reap | 9 / 0 | 9 / 0 |

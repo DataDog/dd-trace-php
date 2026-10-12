@@ -223,8 +223,8 @@ impl<'m, P: Params> Cache<'m, P> {
     /// clears its pin, then releases it. Returns whether it reaped
     /// the slot. Until the release, the rotator holds a second registration.
     fn reap_pinner(self, participant: &ParticipantSlot) -> Result<bool, Error> {
-        let registration_id = next_registration_id(&self.header().registration_counter);
-        if !participant.steal::<P::Pid>(registration_id)? {
+        let counter = &self.header().registration_counter;
+        if !participant.steal::<P::Pid>(|| next_registration_id(counter))? {
             return Ok(false);
         }
         participant.release_claim::<P::Pid>();

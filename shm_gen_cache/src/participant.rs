@@ -218,10 +218,12 @@ impl ParticipantSlot {
     }
 
     /// Slot reaping: if this slot's registration (or claim in progress) is
-    /// dead, steals the slot for the calling thread as registration
-    /// `registration_id`, clears the dead pin and wakes a rotation that may
-    /// be blocked on it. Returns whether it stole the slot; the slot is then
-    /// REGISTERED to the caller, as after [`Self::claim`].
+    /// dead, steals the slot for the calling thread as the registration that
+    /// `registration_id()` returns, clears the dead pin and wakes a rotation
+    /// that may be blocked on it. Returns whether it stole the slot; the slot
+    /// is then REGISTERED to the caller, as after [`Self::claim`]. The id is
+    /// drawn only once the slot is found dead, so that checking a live slot
+    /// spends none.
     ///
     /// The steal is a claim of the dead slot, in the same two steps as
     /// [`Self::claim`]. A reaper that dies midway therefore leaves a claim of
@@ -230,7 +232,10 @@ impl ParticipantSlot {
     /// claimant's TID identifies it. If the reaper dies then and a live
     /// thread reuses the TID, the slot cannot be reaped (nor its dead pin
     /// cleared) until that thread exits.
-    pub(crate) fn steal<Pid: GetPid>(&self, registration_id: u32) -> Result<bool, Error> {
+    pub(crate) fn steal<Pid: GetPid>(
+        &self,
+        registration_id: impl FnOnce() -> u32,
+    ) -> Result<bool, Error> {
         let current = State(self.state.load(Acquire));
         let dead_start_time = self.thread_disambiguation.load(Relaxed);
         let is_zombie = match current.kind() {
@@ -244,6 +249,7 @@ impl ParticipantSlot {
         }
         let pid = Pid::get_pid();
         let start_time = Pid::get_start_time();
+        let registration_id = registration_id();
         let initializing = State::initializing(pid, registration_id);
         // Release publishes the death verdict to every acquire of this state
         // or of a later one (see registration_is_live()). No acquire: every

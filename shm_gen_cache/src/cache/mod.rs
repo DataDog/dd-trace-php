@@ -291,7 +291,10 @@ impl<'m, P: Params> Cache<'m, P> {
         registration_id: u32,
     ) -> Result<Option<u32>, Error> {
         for i in 0..hp.participant_capacity {
-            if self.participant(hp, i).steal::<P::Pid>(registration_id)? {
+            if self
+                .participant(hp, i)
+                .steal::<P::Pid>(|| registration_id)?
+            {
                 return Ok(Some(i));
             }
         }
