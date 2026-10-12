@@ -27,7 +27,8 @@ pub enum Error {
     /// Lost a race (internal to rotation), or initialising a mapping whose
     /// header is not zeroed.
     ConcurrentOperation = 11,
-    /// A participant slot changed state while it was being claimed.
+    /// A participant slot changed state while it was being claimed, or a
+    /// lookup found a record that no conforming writer can have produced.
     Corrupt = 12,
     /// The mapping is not aligned to a cache line.
     Misaligned = 13,

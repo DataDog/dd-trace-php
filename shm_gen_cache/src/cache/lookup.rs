@@ -16,7 +16,8 @@ impl<P: Params> Cache<'_, P> {
     /// promoted (inserted into the current one, unless the epoch moved on or
     /// that arena has no room; see store()). A promotion never rotates
     /// before it publishes, so its only error is [`Error::Corrupt`], returned
-    /// although `output` already holds the value.
+    /// although `output` already holds the value. So is a hit longer than
+    /// the configured maximum value, which no conforming writer produces.
     ///
     /// `output` holds `output_words` words, of which the first
     /// `output_capacity` bytes are the logical capacity; whole words are
@@ -103,8 +104,12 @@ impl<P: Params> Cache<'_, P> {
                 Err(ProbeError::Miss) => return Ok(None),
             };
             let value_len = lengths.value_len();
+            // A validated hit is exactly a record that an insert wrote, and
+            // inserts enforce the limit: only a corrupted mapping, or an
+            // attacher with another configuration, can exceed it. Retrying
+            // would read the same record forever.
             if value_len > hp.max_value_size {
-                continue;
+                return Err(Error::Corrupt);
             }
             if not_in_cur_arena {
                 // Promotion may rotate/reuse the source arena. Use only the

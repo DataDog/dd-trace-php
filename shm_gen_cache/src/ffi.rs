@@ -49,7 +49,7 @@ pub enum Status {
     Unsupported = 10,
     /// Internal race; not returned by lookup/insert.
     ConcurrentOperation = 11,
-    /// A participant slot was corrupted.
+    /// A participant slot or a record was corrupted.
     Corrupt = 12,
     /// The mapping is not cache-line aligned.
     Misaligned = 13,
@@ -485,6 +485,9 @@ pub unsafe extern "C" fn ddog_sgc_participant_unregister(participant: *mut FfiPa
 /// * Called in a fork()ed child of the registering process, null
 ///   `value_len`, null or misaligned `out_words` with a non-zero capacity,
 ///   or `key` overlapping the output storage: `INVALID_ARGUMENT`.
+/// * A hit longer than the configured maximum value, which no conforming
+///   writer produces (a corrupted mapping, or an attacher with another
+///   configuration): `CORRUPT`.
 ///
 /// `out_words` must be 8-byte aligned with room for `ceil(out_capacity / 8)`
 /// words: whole words are copied. `value_len` must not point into that
