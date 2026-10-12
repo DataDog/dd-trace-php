@@ -571,17 +571,19 @@ void datadog_sidecar_minit(void) {
 }
 
 #if !defined(_WIN32) && defined(ZTS)
-static void dd_sidecar_release_thread_transport_fds(void *tsrm_ls) {
+static void dd_sidecar_close_thread_transport_fds(void *tsrm_ls) {
     void *TSRMLS_CACHE = tsrm_ls; // shadows global
     if (DATADOG_G(sidecar)) {
-        ddog_sidecar_transport_release_inherited_fds(&DATADOG_G(sidecar));
+        ddog_sidecar_transport_close_inherited_fds(&DATADOG_G(sidecar));
+        DATADOG_G(sidecar) = NULL;
     }
 }
 
 // The other threads did not survive the fork, but their connections did. Close their fds, or the
 // sidecar would keep the state of the parent's threads for as long as this process lives. Their
-// transports themselves are left alone: a thread may have been in the middle of changing them.
-static void dd_sidecar_release_inherited_thread_transports(void) {
+// transports are leaked: a thread may have been in the middle of changing its transport, so
+// their GSHUTDOWN must not drop them.
+static void dd_sidecar_close_inherited_thread_transports(void) {
     // A thread which held the lock during the fork will never release it: rather leak than hang.
     if (!datadog_threads_mutex || pthread_mutex_trylock(datadog_threads_mutex) != 0) {
         return;
@@ -589,7 +591,7 @@ static void dd_sidecar_release_inherited_thread_transports(void) {
     void *tsrm_ls;
     ZEND_HASH_FOREACH_PTR(&datadog_tls_bases, tsrm_ls) {
         if (tsrm_ls != TSRMLS_CACHE) {
-            dd_sidecar_release_thread_transport_fds(tsrm_ls);
+            dd_sidecar_close_thread_transport_fds(tsrm_ls);
         }
     } ZEND_HASH_FOREACH_END();
     pthread_mutex_unlock(datadog_threads_mutex);
@@ -651,7 +653,7 @@ void datadog_sidecar_handle_fork(void) {
 
     // The inherited connections belong to the parent: nothing must be sent on them anymore.
 #ifdef ZTS
-    dd_sidecar_release_inherited_thread_transports();
+    dd_sidecar_close_inherited_thread_transports();
 #endif
     ddog_SidecarTransport *inherited = DATADOG_G(sidecar);
     DATADOG_G(sidecar) = NULL;

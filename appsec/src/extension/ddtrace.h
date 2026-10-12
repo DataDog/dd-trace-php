@@ -69,10 +69,10 @@ zend_string *nullable dd_trace_get_formatted_runtime_id(bool persistent);
 // client_init starts a new one.
 #ifdef ZTS
 ddog_AppsecCResponse dd_trace_send_appsec_message(void *nullable tsrm_ls,
-    const uint8_t *nonnull request, size_t request_len, bool reconnect_sidecar);
+    const uint8_t *nonnull request, size_t request_len, bool client_init);
 #else
 ddog_AppsecCResponse dd_trace_send_appsec_message(
-    const uint8_t *nonnull request, size_t request_len, bool reconnect_sidecar);
+    const uint8_t *nonnull request, size_t request_len, bool client_init);
 #endif
 void dd_trace_free_appsec_message_response(ddog_AppsecCResponse response);
 

@@ -73,10 +73,12 @@ static void *(*nullable _ddtrace_emit_asm_event)(void);
 static zend_string *(*nullable _ddtrace_guess_endpoint_from_url)(
     const char *nonnull url, size_t url_len);
 static ddog_AppsecCResponse (*nullable _ddog_sidecar_send_appsec_message)(
-    ddog_SidecarTransport * nonnull * nonnull transport, ddog_CharSlice data);
+    ddog_SidecarTransport * nonnull * nonnull transport, ddog_CharSlice data,
+    bool client_init);
 static ddog_AppsecCResponse (
     *nullable _datadog_sidecar_send_appsec_message_without_reconnect)(
-    ddog_SidecarTransport * nonnull * nonnull transport, ddog_CharSlice data);
+    ddog_SidecarTransport * nonnull * nonnull transport, ddog_CharSlice data,
+    bool client_init);
 static void (*nullable _ddog_sidecar_appsec_response_drop)(
     ddog_AppsecCResponse response);
 
@@ -378,10 +380,10 @@ zend_string *nullable dd_trace_get_formatted_runtime_id(bool persistent)
 
 #ifdef ZTS
 ddog_AppsecCResponse dd_trace_send_appsec_message(void *nullable tsrm_ls,
-    const uint8_t *nonnull request, size_t request_len, bool reconnect_sidecar)
+    const uint8_t *nonnull request, size_t request_len, bool client_init)
 #else
 ddog_AppsecCResponse dd_trace_send_appsec_message(
-    const uint8_t *nonnull request, size_t request_len, bool reconnect_sidecar)
+    const uint8_t *nonnull request, size_t request_len, bool client_init)
 #endif
 {
 #ifdef TESTING
@@ -420,11 +422,11 @@ ddog_AppsecCResponse dd_trace_send_appsec_message(
         .len = request_len,
     };
 
-    if (reconnect_sidecar) {
-        return _ddog_sidecar_send_appsec_message(&sidecar, request_slice);
+    if (client_init) {
+        return _ddog_sidecar_send_appsec_message(&sidecar, request_slice, true);
     }
     return _datadog_sidecar_send_appsec_message_without_reconnect(
-        &sidecar, request_slice);
+        &sidecar, request_slice, false);
 }
 
 void dd_trace_free_appsec_message_response(ddog_AppsecCResponse response)

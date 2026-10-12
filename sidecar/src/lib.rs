@@ -70,9 +70,10 @@ fn create_backend(
 fn send_message(
     connection: &mut AppSecConnection,
     data: Vec<u8>,
+    client_init: bool,
 ) -> AppSecFuture<'_, AppSecMessageResponse> {
     Box::pin(async move {
-        let response = ddappsec_helper::on_message(connection, data).await;
+        let response = ddappsec_helper::on_message(connection, data, client_init).await;
         AppSecMessageResponse {
             data: response.data,
             disconnect: response.disconnect,

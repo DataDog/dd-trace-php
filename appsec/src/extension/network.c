@@ -33,7 +33,7 @@ static const uint32_t MAX_RECV_MESSAGE_SIZE = 4 * 1024 * 1024;
 void dd_conn_init(dd_conn *nonnull conn) { conn->connected = true; }
 
 dd_result dd_conn_roundtrip(dd_conn *nonnull conn, char *nonnull request,
-    size_t request_len, bool reconnect_sidecar,
+    size_t request_len, bool client_init,
     dd_helper_response *nonnull response_out)
 {
     if (conn == NULL) {
@@ -62,10 +62,10 @@ dd_result dd_conn_roundtrip(dd_conn *nonnull conn, char *nonnull request,
 #ifdef ZTS
     ddog_AppsecCResponse response =
         dd_trace_send_appsec_message(DDAPPSEC_G(ts_ls_cache),
-            (const uint8_t *)request, request_len, reconnect_sidecar);
+            (const uint8_t *)request, request_len, client_init);
 #else
     ddog_AppsecCResponse response = dd_trace_send_appsec_message(
-        (const uint8_t *)request, request_len, reconnect_sidecar);
+        (const uint8_t *)request, request_len, client_init);
 #endif
 
     dd_result ret;

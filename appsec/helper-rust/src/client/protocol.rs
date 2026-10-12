@@ -363,20 +363,6 @@ impl Header {
     }
 }
 
-/// Whether a framed message holds a client_init command, without decoding it.
-///
-/// The command is a msgpack `[name, args]`: a fixarray of two, whose short name is a fixstr.
-pub fn is_client_init(message: &[u8]) -> bool {
-    const NAME: &[u8] = b"client_init";
-    let Some(data) = message.get(std::mem::size_of::<Header>()..) else {
-        return false;
-    };
-    data.len() > 2 + NAME.len()
-        && data[0] == 0x92
-        && data[1] == 0xa0 | NAME.len() as u8
-        && &data[2..2 + NAME.len()] == NAME
-}
-
 pub struct CommandCodec;
 impl CommandCodec {
     /// Returns the full size (including header) of the next message in the

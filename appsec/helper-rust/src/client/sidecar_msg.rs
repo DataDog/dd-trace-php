@@ -53,10 +53,14 @@ pub struct MessageResponse {
     pub disconnect: bool,
 }
 
-/// Handles one message of a connection. A client_init starts a new client for the connection,
-/// replacing its previous one; any other message goes to the client of the connection.
-pub async fn on_message(connection: &mut AppSecConnection, data: Vec<u8>) -> MessageResponse {
-    let res = on_message_impl(connection, data).await;
+/// Handles one message of a connection. A client_init, as told by `client_init`, starts a new
+/// client for the connection; any other message goes to the client of the connection.
+pub async fn on_message(
+    connection: &mut AppSecConnection,
+    data: Vec<u8>,
+    client_init: bool,
+) -> MessageResponse {
+    let res = on_message_impl(connection, data, client_init).await;
     match res {
         Ok(HelperResponse::Data(data)) => MessageResponse {
             data,
@@ -114,8 +118,9 @@ pub async fn on_message(connection: &mut AppSecConnection, data: Vec<u8>) -> Mes
 async fn on_message_impl(
     connection: &mut AppSecConnection,
     command: Vec<u8>,
+    client_init: bool,
 ) -> anyhow::Result<HelperResponse> {
-    let request_tx = client_for_message(connection, protocol::is_client_init(&command))?;
+    let request_tx = client_for_message(connection, client_init)?;
     let session_id_prod = || session_id(connection);
 
     let (response_tx, response_rx) = tokio::sync::oneshot::channel();
@@ -180,6 +185,14 @@ fn client_for_message(
         return Err(OnMessageError::ShuttingDown);
     };
     if client_init {
+        // The extension says goodbye before starting over, and a client the helper gave up on is
+        // forgotten already: replacing a live client means both sides lost track of the session.
+        if connection.client.is_some() {
+            warning!(
+                "client_init for session {} replaces its running client",
+                session_id(connection)
+            );
+        }
         // Dropping the previous client's channel makes it exit.
         let sender = new_client(connection.session.clone());
         connection.client = Some(Box::new(sender.clone()));
@@ -408,7 +421,7 @@ mod tests {
         let response = test_runtime().block_on(async move {
             timeout(Duration::from_secs(1), async move {
                 let message = tokio::spawn(async move {
-                    on_message_impl(&mut connection, command("second")).await
+                    on_message_impl(&mut connection, command("second"), false).await
                 });
                 tokio::task::yield_now().await;
 
@@ -454,7 +467,7 @@ mod tests {
 
         let mut connection = connection();
         let response = test_runtime()
-            .block_on(on_message_impl(&mut connection, client_init()))
+            .block_on(on_message_impl(&mut connection, client_init(), true))
             .expect("message should succeed");
         match response {
             HelperResponse::Data(bytes) => assert_eq!(bytes, vec![1, 2, 3]),
@@ -470,7 +483,11 @@ mod tests {
         // Without an active listener, the error is ShuttingDown.
         stop_accepting_messages();
 
-        let err = match test_runtime().block_on(on_message_impl(&mut connection(), client_init())) {
+        let err = match test_runtime().block_on(on_message_impl(
+            &mut connection(),
+            client_init(),
+            true,
+        )) {
             Ok(_) => panic!("should fail in shutdown mode"),
             Err(err) => err,
         };
@@ -491,7 +508,11 @@ mod tests {
             tx
         }));
 
-        let err = match test_runtime().block_on(on_message_impl(&mut connection(), client_init())) {
+        let err = match test_runtime().block_on(on_message_impl(
+            &mut connection(),
+            client_init(),
+            true,
+        )) {
             Ok(_) => panic!("send should fail on closed channel"),
             Err(err) => err,
         };
@@ -519,7 +540,11 @@ mod tests {
             tx
         }));
 
-        let err = match test_runtime().block_on(on_message_impl(&mut connection(), client_init())) {
+        let err = match test_runtime().block_on(on_message_impl(
+            &mut connection(),
+            client_init(),
+            true,
+        )) {
             Ok(_) => panic!("recv should fail when response channel closes"),
             Err(err) => err,
         };
@@ -538,12 +563,13 @@ mod tests {
         start_accepting_messages(answering_client(vec![7, 8]));
 
         let mut connection = connection();
-        let resp = test_runtime().block_on(on_message(&mut connection, client_init()));
+        let resp = test_runtime().block_on(on_message(&mut connection, client_init(), true));
         assert!(!resp.disconnect);
         assert_eq!(resp.data, vec![7, 8]);
 
         // The client of the connection keeps serving the following commands.
-        let resp = test_runtime().block_on(on_message(&mut connection, command("request_init")));
+        let resp =
+            test_runtime().block_on(on_message(&mut connection, command("request_init"), false));
         assert!(!resp.disconnect);
         assert_eq!(resp.data, vec![7, 8]);
 
@@ -567,7 +593,7 @@ mod tests {
         }));
 
         let mut connection = connection();
-        let resp = test_runtime().block_on(on_message(&mut connection, client_init()));
+        let resp = test_runtime().block_on(on_message(&mut connection, client_init(), true));
         assert!(resp.disconnect);
         assert_eq!(resp.data, vec![9]);
         // The connection has to start over with client_init.
@@ -584,7 +610,7 @@ mod tests {
     fn on_message_error_path_sets_disconnect_true() {
         stop_accepting_messages();
 
-        let resp = test_runtime().block_on(on_message(&mut connection(), client_init()));
+        let resp = test_runtime().block_on(on_message(&mut connection(), client_init(), true));
         assert!(resp.disconnect);
     }
 
@@ -594,7 +620,11 @@ mod tests {
         stop_accepting_messages();
         start_accepting_messages(answering_client(vec![1]));
 
-        let resp = test_runtime().block_on(on_message(&mut connection(), command("request_init")));
+        let resp = test_runtime().block_on(on_message(
+            &mut connection(),
+            command("request_init"),
+            false,
+        ));
         assert!(resp.disconnect);
 
         stop_accepting_messages();

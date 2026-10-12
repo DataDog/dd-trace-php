@@ -9,7 +9,6 @@ Thread mode: a fork child orphaned by its parent's exit replays its application 
 <?php require __DIR__ . '/../includes/clear_skipif_telemetry.inc' ?>
 --ENV--
 DD_TRACE_SIDECAR_CONNECTION_MODE=thread
-DD_TRACE_SIDECAR_TRACE_SENDER=1
 DD_SERVICE=orphan-telemetry-app
 DD_TRACE_LOG_LEVEL=info,startup=off
 DD_TRACE_GENERATE_ROOT_SPAN=0
@@ -46,10 +45,9 @@ for ($i = 0; $i < 100 && posix_getppid() == $parent; ++$i) {
 echo posix_getppid() == $parent ? "Parent still alive\n" : "Orphaned\n";
 
 // The first send of the request finds the connection broken: the child becomes master and
-// replays its state. Sends at shutdown, like finalize_telemetry, never reconnect.
-DDTrace\start_span();
-DDTrace\close_span();
-DDTrace\flush();
+// replays its state. Sends at shutdown, like finalize_telemetry, never reconnect. A metric goes to
+// DogStatsD, not into the file: a trace dump would truncate it, erasing the telemetry.
+DDTrace\dogstatsd_count("orphan.reconnect", 1);
 
 dd_trace_internal_fn("mark_integration_loaded", "orphan_integration", "1.2.3");
 dd_trace_internal_fn("finalize_telemetry");

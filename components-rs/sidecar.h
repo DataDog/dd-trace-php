@@ -442,11 +442,15 @@ void ddog_sidecar_transport_replace_connection_as(struct ddog_SidecarTransport *
                                                   uint64_t remote_config_generation);
 
 /**
- * Releases the sockets of a transport inherited by a fork child from a thread which did not
- * survive the fork, so that the sidecar drops the state of that thread. The transport itself is
- * left alone: the thread may have been in the middle of using it.
+ * Closes the sockets of a transport inherited by a fork child from a thread which did not
+ * survive the fork, so that the sidecar drops the state of that thread.
+ *
+ * # Safety
+ *
+ * The transport must never be used or dropped afterwards, but leaked: the thread may have been
+ * in the middle of changing it, and its fd numbers may get reused.
  */
-void ddog_sidecar_transport_release_inherited_fds(struct ddog_SidecarTransport **transport);
+void ddog_sidecar_transport_close_inherited_fds(struct ddog_SidecarTransport **transport);
 
 /**
  * Gets an agent info reader.
@@ -476,7 +480,7 @@ void ddog_sidecar_send_garbage(struct ddog_SidecarTransport **transport);
 
 /**
  * Sends an AppSec message from the PHP extension through the sidecar to the helper's client of
- * this connection. A client_init message starts a new client.
+ * this connection. A client_init message, as told by `client_init`, starts a new client.
  *
  * The response is allocated by the sidecar and must be freed with
  * `ddog_sidecar_appsec_response_drop` when the caller is done with it.
@@ -484,7 +488,8 @@ void ddog_sidecar_send_garbage(struct ddog_SidecarTransport **transport);
  * Returns a zeroed `ddog_AppsecCResponse` (null ptr) on transport errors.
  */
 struct ddog_AppsecCResponse ddog_sidecar_send_appsec_message(struct ddog_SidecarTransport **transport,
-                                                             ddog_CharSlice data);
+                                                             ddog_CharSlice data,
+                                                             bool client_init);
 
 /**
  * Sends an AppSec message once, without reconnecting the sidecar on failure.
@@ -495,7 +500,8 @@ struct ddog_AppsecCResponse ddog_sidecar_send_appsec_message(struct ddog_Sidecar
  * Returns a zeroed `ddog_AppsecCResponse` (null ptr) on transport errors.
  */
 struct ddog_AppsecCResponse datadog_sidecar_send_appsec_message_without_reconnect(struct ddog_SidecarTransport **transport,
-                                                                                  ddog_CharSlice data);
+                                                                                  ddog_CharSlice data,
+                                                                                  bool client_init);
 
 /**
  * Frees an `AppsecCResponse` returned by an AppSec message function.
