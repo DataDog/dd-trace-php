@@ -16,11 +16,7 @@ if [[ $(uname -s) == Darwin ]]; then
     exec "${DDTRACE_XLANG_DARWIN_CLANG:?}" -flto="${DDTRACE_XLANG_DARWIN_LTO:-thin}" "${args[@]}"
 fi
 rtlib=compiler-rt
-link_flags=()
-if [[ -f /etc/alpine-release ]]; then
-    rtlib=libgcc
-    # Rust cdylib links do not inherit LDFLAGS. Consume the IR in cc-rs fat
-    # objects there as well as in the final PHP-extension link.
-    link_flags=(-Wl,--fat-lto-objects)
-fi
-exec clang -fuse-ld=lld -rtlib="$rtlib" -unwindlib=libgcc -Wno-unused-command-line-argument "${link_flags[@]}" "$@"
+[[ ! -f /etc/alpine-release ]] || rtlib=libgcc
+# Rust cdylib links do not inherit LDFLAGS. Consume the IR in cc-rs fat
+# objects there as well as in the final PHP-extension link, on both libcs.
+exec clang -fuse-ld=lld -rtlib="$rtlib" -unwindlib=libgcc -Wl,--fat-lto-objects -Wno-unused-command-line-argument "$@"

@@ -187,7 +187,7 @@ else
 fi
 export CFLAGS="-O2 -gline-tables-only$c_lto_flags$c_arch_flags"
 export CXXFLAGS="$CFLAGS"
-if [[ "$host_triple" == *-linux-musl ]]; then
+if [[ "$os" == Linux ]]; then
     # compile_rust.sh clears global PHP CFLAGS. Use cc-rs target flags so its
     # native C (including php_ffi.c and the common DSO entry point) has IR too.
     export "CFLAGS_${host_triple//-/_}=-gline-tables-only$c_lto_flags$c_arch_flags"

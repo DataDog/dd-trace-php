@@ -11,7 +11,9 @@ for archive in extensions_$(uname -m)/*.a; do
     continue
   fi
   (
-    cc -shared -Wl,-whole-archive $archive -Wl,-no-whole-archive \
+    # Debug C objects stay native, but the shared release Rust archive now
+    # contains LLVM IR. Link it with matched LLD rather than the system ld.
+    ./tooling/bin/xlang-cc -shared -Wl,-whole-archive $archive -Wl,-no-whole-archive \
       $(cat "ddtrace_$(uname -m)${suffix}-fat.ldflags") \
       -Wl,--retain-symbols-file="ddtrace_$(uname -m)${suffix}-fat.sym" \
       "libdatadog_php_$(uname -m)${suffix}.a" \

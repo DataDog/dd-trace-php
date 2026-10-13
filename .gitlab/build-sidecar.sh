@@ -17,20 +17,21 @@ suffix="${1:-}"
 if [ "${suffix}" = "-alpine" ]; then
   cargo install --force --locked bindgen-cli
   export PATH="/root/.cargo/bin:$PATH"
-
-  # Alpine has matched Clang/LLD and rust-src. Build the PHP-independent DSO
-  # with the same cross-language release toolchain as its SSI extensions.
-  export PHP_VERSION="$(php -n -r 'echo PHP_MAJOR_VERSION, ".", PHP_MINOR_VERSION;')"
-  export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$PWD/target}"
-  ./tooling/bin/build-xlang-lto ssi-common "$PWD/tmp/ssi-common"
-  cp -v "$CARGO_TARGET_DIR/tracer-release/libdatadog_php.a" "libdatadog_php_$(uname -m)${suffix}.a"
-  cp -v "$PWD/tmp/ssi-common/libdatadog_php.so" "libdatadog_php_$(uname -m)${suffix}.so"
-  exit 0
 fi
 
-DDTRACE_PHP_INCLUDES="$(php-config --includes)" \
-  CARGO_FEATURES='--no-default-features --features tracer-runtime' \
-  SHARED=1 PROFILE=tracer-release host_os="${HOST_OS}" ./compile_rust.sh
-cp -v "${CARGO_TARGET_DIR:-target}/tracer-release/libdatadog_php.a" "libdatadog_php_$(uname -m)${suffix}.a"
-output="libdatadog_php_$(uname -m)${suffix}.so"
-objcopy --compress-debug-sections "${CARGO_TARGET_DIR:-target}/tracer-release/libdatadog_php.so" "${output}"
+# Both release images have matched Clang/LLD and rust-src. The common DSO is
+# PHP-independent, but must use the same cross-language toolchain as ddtrace.so.
+export PHP_VERSION="$(php -n -r 'echo PHP_MAJOR_VERSION, ".", PHP_MINOR_VERSION;')"
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$PWD/target}"
+./tooling/bin/build-xlang-lto ssi-common "$PWD/tmp/ssi-common"
+
+# build-std uses an explicit native target. Musl also needs --target when
+# build-std is disabled, so its build scripts can dynamically load libclang.
+archive_dir="$CARGO_TARGET_DIR"
+if [[ "${DDTRACE_XLANG_BUILD_STD:-1}" == 1 || "$suffix" == "-alpine" ]]; then
+  archive_dir+="/$(rustc -vV | awk '/^host: / { print $2 }')"
+fi
+# This archive is an intermediate input to the legacy PHP 7.0 debug link,
+# never an SSI package member. It now contains LLVM IR on both libc targets.
+cp -v "$archive_dir/tracer-release/libdatadog_php.a" "libdatadog_php_$(uname -m)${suffix}.a"
+cp -v "$PWD/tmp/ssi-common/libdatadog_php.so" "libdatadog_php_$(uname -m)${suffix}.so"
