@@ -7,10 +7,6 @@
 #include <string.h>
 #include "SAPI.h"
 
-#if CFG_STACK_WALKING_TESTS
-#include <dlfcn.h> // for dlsym
-#endif
-
 const char *datadog_extension_build_id(void) { return ZEND_EXTENSION_BUILD_ID; }
 const char *datadog_module_build_id(void) { return ZEND_MODULE_BUILD_ID; }
 
@@ -165,11 +161,7 @@ static bool _ignore_run_time_cache = false;
 
 void datadog_php_profiling_startup(zend_extension *extension) {
 #if CFG_RUN_TIME_CACHE  // defined by build.rs
-#ifdef CFG_TEST
-    _ignore_run_time_cache = false;
-#else
     _ignore_run_time_cache = strcmp(sapi_module.name, "cli") == 0;
-#endif
 #endif
 
     datadog_php_profiling_get_profiling_context = noop_get_profiling_context;
@@ -223,12 +215,6 @@ void datadog_php_profiling_copy_string_view_into_zval(zval *dest, zai_str view,
                                                       bool persistent) {
     ZEND_ASSERT(dest);
 
-#ifdef CFG_TEST
-    (void)dest;
-    (void)view;
-    (void)persistent;
-    ZEND_ASSERT(0);
-#else
     if (view.len == 0) {
         if (persistent) {
             ZVAL_EMPTY_PSTRING(dest);
@@ -239,7 +225,6 @@ void datadog_php_profiling_copy_string_view_into_zval(zval *dest, zai_str view,
         ZEND_ASSERT(view.ptr);
         ZVAL_STR(dest, zend_string_init(view.ptr, view.len, persistent));
     }
-#endif
 }
 
 void ddog_php_prof_copy_long_into_zval(zval *dest, long num) {
@@ -268,11 +253,6 @@ zend_execute_data* ddog_php_prof_get_current_execute_data() {
 zend_fiber* ddog_php_prof_get_active_fiber()
 {
     return EG(active_fiber);
-}
-
-zend_fiber* ddog_php_prof_get_active_fiber_test()
-{
-    return NULL;
 }
 #endif
 
@@ -321,7 +301,7 @@ void ddog_php_prof_function_run_time_cache_init(const char *module_name) {
 }
 
 // defined by build.rs
-#if CFG_RUN_TIME_CACHE && !CFG_STACK_WALKING_TESTS
+#if CFG_RUN_TIME_CACHE
 static bool has_invalid_run_time_cache(zend_function const *func) {
     bool ignore_cache = _ignore_run_time_cache;
     bool inv_user_handle = _user_run_time_cache_handle < 0;
@@ -366,7 +346,7 @@ static bool has_invalid_run_time_cache(zend_function const *func) {
 #endif
 
 uintptr_t *ddog_php_prof_function_run_time_cache(zend_function const *func) {
-#if CFG_RUN_TIME_CACHE && !CFG_STACK_WALKING_TESTS
+#if CFG_RUN_TIME_CACHE
     if (UNEXPECTED(has_invalid_run_time_cache(func))) return NULL;
 
 #if PHP_VERSION_ID < 80200
@@ -401,183 +381,6 @@ uintptr_t *ddog_php_prof_function_run_time_cache(zend_function const *func) {
     return NULL;
 #endif
 }
-
-#if CFG_STACK_WALKING_TESTS
-zend_execute_data *ddog_test_zend_generator_check_placeholder_frame(zend_execute_data *ptr) {
-    // Tests do not construct real generator placeholder frames; pass through.
-    return ptr;
-}
-
-uintptr_t *ddog_test_php_prof_function_run_time_cache(zend_function const *func) {
-#if CFG_RUN_TIME_CACHE
-    if (_ignore_run_time_cache) return NULL;
-    zend_function *non_const_func = (zend_function *)func;
-#if PHP_VERSION_ID < 80200
-    if (non_const_func->op_array.run_time_cache__ptr == NULL) {
-        non_const_func->op_array.run_time_cache__ptr = calloc(1, sizeof(uintptr_t));
-        *non_const_func->op_array.run_time_cache__ptr = calloc(2, sizeof(uintptr_t));
-    }
-    return (uintptr_t *)*non_const_func->op_array.run_time_cache__ptr;
-#else
-    if (non_const_func->common.run_time_cache__ptr == NULL) {
-        non_const_func->common.run_time_cache__ptr = calloc(1, sizeof(uintptr_t));
-        *non_const_func->common.run_time_cache__ptr = calloc(2, sizeof(uintptr_t));
-    }
-    return (uintptr_t *)*non_const_func->common.run_time_cache__ptr;
-#endif
-#else
-    (void)func;
-    return NULL;
-#endif
-}
-#endif
-
-#if CFG_STACK_WALKING_TESTS || defined(CFG_TEST)
-static int (*og_snprintf)(char *, size_t, const char *, ...);
-
-static ZEND_COLD ZEND_NORETURN void out_of_memory(void) {
-    fprintf(stderr, "Out of memory\n");
-    exit(1);
-}
-
-static zend_string *test_zend_string_alloc(size_t len) {
-    // We don't need to handle large strings.
-    if (len > INT32_MAX) {
-        out_of_memory();
-    }
-
-    // zend_string logically has a flexible array member val, but it uses the
-    // so-called "struct hack" instead. So we calculate the number of bytes
-    // needed to get to `val`, then add the `len` plus 1 (for a null byte).
-    uint32_t alloc_len = offsetof(zend_string, val) + len + 1;
-
-    // Need to round up to 8 bytes on 64-bit platforms, won't overflow because
-    // of above large string check.
-    uint32_t rounded = (alloc_len + UINT32_C(7)) & ~UINT32_C(7);
-    zend_string *zs = calloc(rounded, 1);
-    if (!zs) {
-        out_of_memory();
-    }
-
-    // Initialize the refcounted header
-#if PHP_VERSION_ID < 70299
-    GC_REFCOUNT(zs) = 1;
-#else
-    GC_SET_REFCOUNT(zs, 1);
-#endif
-
-#if PHP_VERSION_ID < 70200
-#undef GC_FLAGS_SHIFT
-#define GC_FLAGS_SHIFT 8
-#endif
-
-#if PHP_VERSION_ID < 80000
-#undef GC_STRING
-#define GC_STRING IS_STRING
-#endif
-
-    // IS_STR_PERSISTENT means it's allocated with malloc, not emalloc.
-    GC_TYPE_INFO(zs) = GC_STRING | (IS_STR_PERSISTENT << GC_FLAGS_SHIFT);
-
-    zs->h = 0;
-    zs->len = len;
-    ZSTR_VAL(zs)[len] = '\0';
-
-    return zs;
-}
-
-// Manually create a zend_string without using zend_string_init(), since we
-// do not link against PHP at test time
-static zend_string *test_zend_string_create(const char *str, size_t len) {
-    zend_string *zstr = test_zend_string_alloc(len);
-    memcpy(ZSTR_VAL(zstr), str, len);
-    return zstr;
-}
-
-static zend_execute_data *create_fake_frame(int depth) {
-    zend_execute_data *execute_data = calloc(1, sizeof(zend_execute_data));
-    zend_op_array *op_array = calloc(1, sizeof(zend_function));
-    op_array->type = ZEND_USER_FUNCTION;
-    execute_data->func = (zend_function *)op_array;
-
-    char buffer[64] = {0};
-    int len = og_snprintf(buffer, sizeof buffer, "function name %03d", depth) + 1;
-    ZEND_ASSERT(len >= 0 && sizeof buffer > (size_t)len);
-    op_array->function_name = test_zend_string_create(buffer, len - 1);
-
-    len = og_snprintf(buffer, sizeof buffer, "filename-%03d.php", depth) + 1;
-    ZEND_ASSERT(len >= 0 && sizeof buffer > (size_t)len);
-    op_array->filename = test_zend_string_create(buffer, len - 1);
-
-    return execute_data;
-}
-
-static zend_execute_data *create_fake_zend_execute_data(int depth) {
-    if (depth <= 0) return NULL;
-    zend_execute_data *execute_data = create_fake_frame(depth);
-    execute_data->prev_execute_data = create_fake_zend_execute_data(depth - 1);
-    return execute_data;
-}
-
-zend_execute_data *ddog_php_test_create_fake_zend_execute_data(int depth) {
-    if (!og_snprintf) {
-        og_snprintf = dlsym(RTLD_NEXT, "snprintf");
-        if (!og_snprintf) {
-            fprintf(stderr, "Failed to locate symbol: %s", dlerror());
-            exit(1);
-        }
-    }
-
-    return create_fake_zend_execute_data(depth);
-}
-
-void ddog_php_test_free_fake_zend_execute_data(zend_execute_data *execute_data) {
-    if (!execute_data) return;
-
-    ddog_php_test_free_fake_zend_execute_data(execute_data->prev_execute_data);
-
-    if (execute_data->func) {
-        // free function name
-        if (execute_data->func->common.function_name) {
-            free(execute_data->func->common.function_name);
-            execute_data->func->common.function_name = NULL;
-        }
-        // free filename
-        if (execute_data->func->op_array.filename) {
-            free(execute_data->func->op_array.filename);
-            execute_data->func->op_array.filename = NULL;
-        }
-        // free zend_op_array
-        free(execute_data->func);
-        execute_data->func = NULL;
-    }
-
-    free(execute_data);
-}
-
-zend_function *ddog_php_test_create_fake_zend_function_with_name_len(size_t len) {
-    zend_op_array *op_array = calloc(1, sizeof(zend_function));
-    if (!op_array) return NULL;
-
-    op_array->type = ZEND_USER_FUNCTION;
-
-    if (len > 0) {
-        zend_string *zstr = test_zend_string_alloc(len);
-        memset(ZSTR_VAL(zstr), 'x', len);
-        op_array->function_name = zstr;
-    }
-
-    return (zend_function *)op_array;
-}
-
-void ddog_php_test_free_fake_zend_function(zend_function *func) {
-    if (!func) return;
-
-    free(func->common.function_name);
-    free(func);
-}
-
-#endif // CFG_STACK_WALKING_TESTS || CFG_TEST
 
 void *opcache_handle = NULL;
 
@@ -785,11 +588,6 @@ bool ddog_php_prof_config_is_set_by_user(uint16_t config_id) {
     return zai_config_memoized_entries[config_id].name_index != ZAI_CONFIG_ORIGIN_DEFAULT;
 }
 
-#if defined(__aarch64__) && defined(CFG_TEST)
-// dummy symbol for tests, so that they can be run without being linked into PHP
-__attribute__((weak)) zend_write_func_t zend_write;
-#endif
-
 /**
  * Returns true if the thread was spawned by the parallel extension, false otherwise.
  *
@@ -800,10 +598,6 @@ __attribute__((weak)) zend_write_func_t zend_write;
  * cache the result in a thread local.
  */
 bool ddog_php_prof_is_parallel_thread() {
-#if defined(CFG_TEST)
-    // In test mode, we don't have a real module_registry, so just return false
-    return false;
-#else
     // Check if parallel extension is loaded to retrieve it's dl handle
     zend_module_entry *parallel_module = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("parallel"));
 
@@ -872,5 +666,4 @@ bool ddog_php_prof_is_parallel_thread() {
     // This inits the `php_parallel_scheduler_context` TLS to point to a `php_parallel_runtime_t`
     // struct right before triggering `GINIT`.
     return (*tls_ptr != NULL);
-#endif // CFG_TEST
 }
