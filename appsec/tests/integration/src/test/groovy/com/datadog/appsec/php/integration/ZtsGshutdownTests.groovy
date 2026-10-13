@@ -1,5 +1,6 @@
 package com.datadog.appsec.php.integration
 
+import com.datadog.appsec.php.docker.Apache2
 import com.datadog.appsec.php.docker.AppSecContainer
 import com.datadog.appsec.php.docker.InspectContainerHelper
 import com.datadog.appsec.php.docker.LogFile
@@ -59,6 +60,8 @@ class ZtsGshutdownTests {
             .withEnv('DD_INSTRUMENTATION_TELEMETRY_ENABLED', '0')
             .withEnv('DD_TRACE_SIDECAR_TRACE_SENDER', '0')
 
+    static final Apache2 APACHE = new Apache2(CONTAINER)
+
     static void main(String[] args) {
         InspectContainerHelper.run(CONTAINER)
     }
@@ -76,12 +79,9 @@ class ZtsGshutdownTests {
             // Append MaxConnectionsPerChild 1 + KeepAlive Off so each TCP connection
             // causes Apache to call clean_child_exit(), which destroys the APR child
             // pool and triggers PHP MSHUTDOWN + GSHUTDOWN.
-            ExecResult cfgResult = CONTAINER.execInContainer('sh', '-c',
-                    'OLD=$(pgrep -P $(pgrep -f /usr/sbin/apache2 | head -1))' +
-                    ' && echo "MaxConnectionsPerChild 1\nKeepAlive Off" >> /etc/apache2/mods-enabled/mpm_event.conf' +
-                    ' && apache2ctl graceful' +
-                    ' && for p in $OLD; do while kill -0 $p 2>/dev/null; do sleep 0.05; done; done')
-            assert cfgResult.exitCode == 0: "apache2 config failed: ${cfgResult.stderr}"
+            APACHE.ungracefulRestart(
+                    'echo "MaxConnectionsPerChild 1\nKeepAlive Off" >> /etc/apache2/mods-enabled/mpm_event.conf',
+                    'for p in $OLD; do while kill -0 $p 2>/dev/null; do sleep 0.05; done; done')
 
             String apacheParent = CONTAINER.execInContainer('sh', '-c',
                     'pgrep -f /usr/sbin/apache2 | head -1').stdout.trim()
@@ -118,10 +118,8 @@ class ZtsGshutdownTests {
             assert !errorLogText.contains('exit signal Segmentation'):
                     "Apache worker segfaulted during GSHUTDOWN:\n" + errorLogText
         } finally {
-            CONTAINER.execInContainer('sh', '-c',
-                    'cp /etc/apache2/mods-enabled/mpm_event.conf.bak_zts' +
-                    ' /etc/apache2/mods-enabled/mpm_event.conf' +
-                    ' && apache2ctl graceful')
+            APACHE.ungracefulRestart(
+                    'cp /etc/apache2/mods-enabled/mpm_event.conf.bak_zts /etc/apache2/mods-enabled/mpm_event.conf')
         }
     }
 }
