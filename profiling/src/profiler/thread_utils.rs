@@ -1,7 +1,8 @@
 use crate::profiling::SAPI;
-use core::mem::MaybeUninit;
+use core::mem::{self, MaybeUninit};
+use crossbeam_channel::{Receiver, RecvTimeoutError};
 use std::thread::JoinHandle;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 #[cfg(php_zts)]
 use {
@@ -10,7 +11,7 @@ use {
 };
 
 /// Spawns a thread with asynchronous signals masked.
-pub fn spawn<F, T>(name: &str, f: F) -> JoinHandle<T>
+pub fn spawn<F, T>(name: &str, f: F) -> HelperThread<T>
 where
     F: FnOnce() -> T + Send + 'static,
     T: Send + 'static,
@@ -52,7 +53,14 @@ where
         "failed to block signals before spawning {name}"
     );
 
-    let result = std::thread::Builder::new().name(name.to_string()).spawn(f);
+    let (done_sender, done) = crossbeam_channel::bounded(0);
+    let result = std::thread::Builder::new()
+        .name(name.to_string())
+        .spawn(move || {
+            // Dropped when f returns or unwinds, which wakes join_timeout.
+            let _done_sender = done_sender;
+            f()
+        });
 
     // SAFETY: pthread_sigmask initialized previous_mask_mem above, and this
     // restores the spawning PHP thread regardless of whether spawn succeeded.
@@ -69,7 +77,11 @@ where
     );
 
     match result {
-        Ok(handle) => handle,
+        Ok(handle) => HelperThread {
+            handle,
+            done,
+            pid: std::process::id(),
+        },
         Err(err) => panic!("Failed to spawn thread {name}: {err}"),
     }
 }
@@ -81,35 +93,36 @@ pub struct TimeoutError {
     timeout_ms: u128,
 }
 
-const JOIN_POLL_MIN_INTERVAL: Duration = Duration::from_millis(1);
-const JOIN_POLL_MAX_INTERVAL: Duration = Duration::from_millis(100);
+/// A helper thread's join handle plus a signal that its closure has finished.
+pub struct HelperThread<T> {
+    handle: JoinHandle<T>,
+    /// Nothing is sent; it disconnects when the thread's closure returns or
+    /// unwinds.
+    done: Receiver<()>,
+    /// The process that spawned the thread.
+    pid: u32,
+}
 
-/// Waits for the handle to be finished. If finished, it will join the handle.
-/// Otherwise, it will leak the handle and return an error.
+/// Waits up to `timeout` for the thread's closure to finish, then joins it.
+/// On timeout, the thread is detached and an error is returned. A fork()
+/// child gets the error at once.
 /// # Panics
 /// If the thread being joined has panic'd, this will resume the panic.
-pub fn join_timeout(handle: JoinHandle<()>, timeout: Duration) -> Result<(), TimeoutError> {
-    // After notifying the other threads, it's likely they'll need some time
-    // to respond adequately. Joining on the JoinHandle is supposed to be the
-    // correct way to do this, but we've observed this can panic:
-    // https://github.com/DataDog/dd-trace-php/issues/1919
-    // Thus far, we have not been able to reproduce it and address the root
-    // cause. So, for now, mitigate it instead with a loop.
-    // Threads usually exit within a few ms of being signalled at shutdown, so
-    // back off from a short poll instead of always sleeping the max interval.
-    let start = Instant::now();
-    let mut interval = JOIN_POLL_MIN_INTERVAL;
-    while !handle.is_finished() {
-        let elapsed = start.elapsed();
-        if elapsed >= timeout {
-            let thread = handle.thread().name().unwrap_or("{unknown}").to_string();
-            let timeout_ms = timeout.as_millis();
-            return Err(TimeoutError { thread, timeout_ms });
-        }
-
-        let remaining = timeout.saturating_sub(elapsed);
-        std::thread::sleep(std::cmp::min(interval, remaining));
-        interval = std::cmp::min(interval * 2, JOIN_POLL_MAX_INTERVAL);
+pub fn join_timeout(thread: HelperThread<()>, timeout: Duration) -> Result<(), TimeoutError> {
+    let HelperThread { handle, done, pid } = thread;
+    // An inherited fork() handle would panic in join() (#1919), so leak it untouched.
+    // Otherwise wait for the sender to disconnect, since std has no timed join.
+    if std::process::id() != pid {
+        let thread = handle.thread().name().unwrap_or("{unknown}").to_string();
+        let timeout_ms = timeout.as_millis();
+        mem::forget(handle);
+        mem::forget(done);
+        return Err(TimeoutError { thread, timeout_ms });
+    }
+    if let Err(RecvTimeoutError::Timeout) = done.recv_timeout(timeout) {
+        let thread = handle.thread().name().unwrap_or("{unknown}").to_string();
+        let timeout_ms = timeout.as_millis();
+        return Err(TimeoutError { thread, timeout_ms });
     }
 
     if let Err(err) = handle.join() {
@@ -158,6 +171,8 @@ pub fn get_current_thread_name() -> String {
 mod tests {
     use super::*;
     use libc::c_char;
+    use std::panic::AssertUnwindSafe;
+    use std::time::Instant;
 
     #[test]
     fn test_get_current_thread_name() {
@@ -171,5 +186,70 @@ mod tests {
             );
         }
         assert_eq!(get_current_thread_name(), "unknown");
+    }
+
+    #[test]
+    fn join_timeout_joins_finished_thread() {
+        let thread = spawn("join_ok", || {});
+        assert!(join_timeout(thread, Duration::from_secs(5)).is_ok());
+    }
+
+    #[test]
+    fn join_timeout_times_out_on_running_thread() {
+        let (tx, rx) = crossbeam_channel::bounded::<()>(0);
+        let thread = spawn("join_blocked", move || {
+            let _ = rx.recv();
+        });
+        let start = Instant::now();
+        assert!(join_timeout(thread, Duration::from_millis(50)).is_err());
+        assert!(start.elapsed() >= Duration::from_millis(50));
+        drop(tx);
+    }
+
+    #[test]
+    fn join_timeout_resumes_panic() {
+        let thread = spawn("join_panic", || panic!("expected panic"));
+        let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
+            join_timeout(thread, Duration::from_secs(5))
+        }));
+        let payload = result.expect_err("join_timeout should resume the thread's panic");
+        let message = payload
+            .downcast_ref::<&str>()
+            .copied()
+            .or_else(|| payload.downcast_ref::<String>().map(String::as_str));
+        assert_eq!(message, Some("expected panic"));
+    }
+
+    /// The #1919 scenario: a handle inherited across fork() must not be joined
+    /// in the child, so join_timeout errs at once without panicking.
+    #[test]
+    fn join_timeout_in_forked_child_errs_promptly() {
+        let (tx, rx) = crossbeam_channel::bounded::<()>(0);
+        let thread = spawn("join_fork", move || {
+            let _ = rx.recv();
+        });
+        // SAFETY: the child only joins and then calls _exit.
+        let pid = unsafe { libc::fork() };
+        assert!(pid >= 0);
+        if pid == 0 {
+            // SAFETY: SIGALRM kills the child if join_timeout hangs.
+            unsafe { libc::alarm(10) };
+            let start = Instant::now();
+            let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
+                join_timeout(thread, Duration::from_secs(60))
+            }));
+            let ok = matches!(result, Ok(Err(_))) && start.elapsed() < Duration::from_secs(1);
+            // SAFETY: exits the child without running the parent's cleanup.
+            unsafe { libc::_exit(if ok { 0 } else { 1 }) };
+        }
+        let mut status = 0;
+        // SAFETY: pid is our child.
+        assert_eq!(unsafe { libc::waitpid(pid, &mut status, 0) }, pid);
+        drop(tx);
+        assert!(join_timeout(thread, Duration::from_secs(5)).is_ok());
+        assert!(
+            libc::WIFEXITED(status) && libc::WEXITSTATUS(status) == 0,
+            "child status {status:#x}"
+        );
     }
 }
