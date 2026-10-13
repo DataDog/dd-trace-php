@@ -1,0 +1,71 @@
+<?php
+
+require __DIR__ . '/ffe_api_bootstrap.inc';
+$client = new \DDTrace\FeatureFlags\Client();
+$scenario = getenv('PHP_FFE_PROCESS_SCENARIO');
+$instrumented = getenv('USE_ZEND_ALLOC') === '0';
+echo "fixture_child_ready\n";
+$start = microtime(true);
+$first = $client->getStringValue('flag', 'fallback');
+$elapsed = microtime(true) - $start;
+
+if ($scenario === 'fork') {
+    if ($first !== 'blue') throw new RuntimeException('initial fetch failed');
+    $version = \DDTrace\ffe_config_version();
+    $pid = pcntl_fork();
+    if ($pid < 0) throw new RuntimeException('fork failed');
+    // The HTTP fixture only serves green after this marker. Both copies must
+    // fetch a new configuration after the split to observe it.
+    echo $pid === 0 ? "child_forked\n" : "parent_forked\n";
+    $deadline = microtime(true) + 7;
+    $value = $first;
+    do {
+        // Merely evaluating would invoke first-use activation again and hide
+        // a broken fork callback. Require the background poller to publish a
+        // new snapshot before another evaluation is allowed to run.
+        $currentVersion = \DDTrace\ffe_config_version();
+        if ($currentVersion !== $version) {
+            $version = $currentVersion;
+            $value = $client->getStringValue('flag', 'fallback');
+        }
+        if ($value === 'green') break;
+        if ($value !== 'blue') throw new RuntimeException('fork lost configuration');
+        usleep(20000);
+    } while (microtime(true) < $deadline);
+    if ($value !== 'green') throw new RuntimeException('forked worker did not resume');
+    echo $pid === 0 ? "child_recovered\n" : "parent_recovered\n";
+    if ($pid > 0) {
+        pcntl_waitpid($pid, $status);
+        if (!pcntl_wifexited($status) || pcntl_wexitstatus($status) !== 0) {
+            throw new RuntimeException('child failed');
+        }
+        echo "fork_clean_exit\n";
+    }
+    exit;
+}
+
+if ($first !== 'fallback') throw new RuntimeException('unexpected initial value');
+if ($elapsed < ($instrumented ? 1.5 : 0.15) || $elapsed > ($instrumented ? 10 : 1)) throw new RuntimeException('initialization deadline not honored: elapsed=' . $elapsed);
+echo "initial_deadline_bounded\n";
+$start = microtime(true);
+for ($i = 0; $i < 10; $i++) $client->getStringValue('flag', 'fallback');
+if (microtime(true) - $start > ($instrumented ? 3 : 0.5)) throw new RuntimeException('initialization budget was renewed: elapsed=' . (microtime(true) - $start));
+echo "later_evaluations_do_not_wait\n";
+if ($scenario === 'shutdown') {
+    // The initialization deadline can expire before the worker is scheduled.
+    // Confirm the fixture has a request before measuring its cancellation.
+    stream_set_timeout(STDIN, $instrumented ? 20 : 5);
+    if (fgets(STDIN) !== "request_received\n") {
+        throw new RuntimeException('fixture did not observe an in-flight request');
+    }
+    // Shutdown must not wait for the configured 30-second request timeout.
+    exit;
+}
+$deadline = microtime(true) + ($instrumented ? 20 : 7);
+do {
+    $value = $client->getStringValue('flag', 'fallback');
+    if ($value === 'blue') break;
+    usleep(20000);
+} while (microtime(true) < $deadline);
+if ($value !== 'blue') throw new RuntimeException('initial failure did not recover');
+echo "initial_failure_recovered\n";
