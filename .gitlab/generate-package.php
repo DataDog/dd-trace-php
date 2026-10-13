@@ -302,8 +302,14 @@ foreach ($build_platforms as $platform) {
     - make -s xlang-lto
     - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}-zts.so"
 <?php else: ?>
-    - .gitlab/build-profiler.sh "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>" "nts" "combined" "ddtrace-${ABI_NO}-alpine.so"
-    - .gitlab/build-profiler.sh "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>" "zts" "combined" "ddtrace-${ABI_NO}-alpine-zts.so"
+    # Alpine also has matched Clang/LLD and rust-src for cross-language ThinLTO.
+    - switch-php "${PHP_VERSION}"
+    - make -s xlang-lto
+    - mkdir -p "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>"
+    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/nts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}-alpine.so"
+    - switch-php "${PHP_VERSION}-zts"
+    - make -s xlang-lto
+    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}-alpine-zts.so"
 <?php endif; ?>
   cache:
     - key:
@@ -411,15 +417,14 @@ foreach ($build_platforms as $platform) {
     # Fix for $BASH_ENV not having a newline at the end of the file
     - echo "" >> "$BASH_ENV"
     - ./.gitlab/build-tracing.sh "<?= $suffix ?>"
-<?php if ($platform['host_os'] === 'linux-gnu'): ?>
-    # Replace the PHP 7.0 NTS/ZTS release extensions; debug stays non-LTO.
+    # Replace the PHP 7.0 NTS/ZTS release extensions on both libc targets;
+    # Alpine's common archive now contains LLVM bitcode too. Debug stays non-LTO.
     - switch-php "${PHP_VERSION}"
     - make -s xlang-lto
-    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/nts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}.so"
+    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/nts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>.so"
     - switch-php "${PHP_VERSION}-zts"
     - make -s xlang-lto
-    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}-zts.so"
-<?php endif; ?>
+    - cp "tmp/release-variants/<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/php-${PHP_VERSION}/zts/combined/ddtrace.so" "extensions_<?= $platform['arch'] === 'amd64' ? 'x86_64' : 'aarch64' ?>/ddtrace-${ABI_NO}<?= $suffix ?>-zts.so"
   artifacts:
     paths:
       - "extensions_*"

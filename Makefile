@@ -441,7 +441,7 @@ PROFILER_FEATURES ?=
 compile_combined:
 	DDTRACE_PROFILING_FEATURES=trigger_time_sample $(MAKE) BUILD_SUFFIX=combined EXTRA_CONFIGURE_OPTIONS="--enable-ddtrace-tracer --enable-ddtrace-profiling" all
 
-# CentOS 7 release CI alias for the self-contained, non-SSI ddtrace.so.
+# Linux release CI alias for the self-contained, non-SSI ddtrace.so.
 # Both names use the same build and output directory. Switch to the desired
 # NTS/ZTS PHP toolchain first; PHP 7.0 is tracer-only and debug stays non-LTO.
 .PHONY: xlang-lto

@@ -5,7 +5,7 @@ suffix="${1:-}"
 
 pids=()
 for archive in extensions_$(uname -m)/*.a; do
-  # CentOS PHP 7.0 NTS/ZTS already have a complete ThinLTO .so. Only link
+  # PHP 7.0 NTS/ZTS on both libc targets have a complete ThinLTO .so. Only link
   # variants without a prebuilt extension (notably the non-LTO debug ABI).
   if [ -f "${archive%.a}.so" ]; then
     continue

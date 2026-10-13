@@ -40,7 +40,7 @@ else
 fi
 
 # The ThinLTO release caller selects PHP/phpize first. Keep the explicit
-# variant argument for Alpine and debug jobs that still switch in this script.
+# variant argument for non-LTO/debug builds that still switch in this script.
 if [[ "$build_variant" == active ]]; then
     case "$(php -n -r 'echo (int) PHP_ZTS, ":", (int) PHP_DEBUG;')" in
         0:0) build_variant=nts ;;

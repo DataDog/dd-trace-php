@@ -17,6 +17,15 @@ suffix="${1:-}"
 if [ "${suffix}" = "-alpine" ]; then
   cargo install --force --locked bindgen-cli
   export PATH="/root/.cargo/bin:$PATH"
+
+  # Alpine has matched Clang/LLD and rust-src. Build the PHP-independent DSO
+  # with the same cross-language release toolchain as its SSI extensions.
+  export PHP_VERSION="$(php -n -r 'echo PHP_MAJOR_VERSION, ".", PHP_MINOR_VERSION;')"
+  export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$PWD/target}"
+  ./tooling/bin/build-xlang-lto ssi-common "$PWD/tmp/ssi-common"
+  cp -v "$CARGO_TARGET_DIR/tracer-release/libdatadog_php.a" "libdatadog_php_$(uname -m)${suffix}.a"
+  cp -v "$PWD/tmp/ssi-common/libdatadog_php.so" "libdatadog_php_$(uname -m)${suffix}.so"
+  exit 0
 fi
 
 DDTRACE_PHP_INCLUDES="$(php-config --includes)" \

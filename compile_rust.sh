@@ -96,10 +96,20 @@ case "${host_os}" in
     export RUSTC_BOOTSTRAP=1
     target=$("${RUSTC:-rustc}" -vV | sed -n 's/^host: //p')
     artifact_dir="${CARGO_TARGET_DIR:-target}/${PROFILE:-debug}"
+    # The cross-language release path already supplies --target for build-std.
+    # Do not add it twice: Cargo treats that as a multi-target build, which is
+    # incompatible with --artifact-dir.
+    has_target=
+    for arg do
+      case "$arg" in --target|--target=*) has_target=1 ;; esac
+    done
+    if test -z "$has_target"; then
+      set -- "$@" --target "$target"
+    fi
     set -- --config target-applies-to-host=false \
       --config 'host.rustflags=["-C", "target-feature=-crt-static"]' \
       "$@" -Zhost-config -Ztarget-applies-to-host -Zunstable-options \
-      --target "$target" --artifact-dir "$artifact_dir"
+      --artifact-dir "$artifact_dir"
     ;;
 esac
 

@@ -455,8 +455,10 @@ EOT
 
     case $host_os in
       linux*)
-        dnl Discard unreachable Rust sections from statically linked extensions.
-        ddtrace_fat_ldflags="$ddtrace_fat_ldflags -Wl,--gc-sections"
+        dnl Both self-contained and SSI extensions can statically link Rust.
+        dnl Discard unreachable sections from the private SSI archive too.
+        ddtrace_slim_ldflags="$ddtrace_slim_ldflags -Wl,--gc-sections"
+        ddtrace_fat_ldflags="$ddtrace_slim_ldflags"
         if test "$PHP_DDTRACE_TRACER" != "no"; then
           dnl Only the tracer/sidecar artifact is executable by ld.so.
           ddtrace_fat_ldflags="$ddtrace_fat_ldflags -Wl,-e,ddog_spawn_direct_entry"

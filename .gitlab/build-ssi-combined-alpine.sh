@@ -21,12 +21,9 @@ for variant in nts zts; do
         suffix=-alpine-zts
     fi
     export CARGO_TARGET_DIR="$root/tmp/ssi-alpine-php-${PHP_VERSION}-${variant}"
-    archive="$CARGO_TARGET_DIR/ddtrace-php-abi.a"
-    "$root/tooling/bin/build-ddtrace-php-abi-archive" "$archive"
-    SSI_COMMON_LIBRARY="$common_library" SSI_EXTENSION_ARCHIVE="$archive" \
-        "$root/.gitlab/build-profiler.sh" "$output_dir" active ssi-combined "ddtrace-${php_api}${suffix}.so"
-    # SSI imports the common symbols through the loader's preload, not DT_NEEDED.
-    LD_PRELOAD="$common_library${LD_PRELOAD:+:$LD_PRELOAD}" \
-        php -n -d "extension=$output_dir/ddtrace-${php_api}${suffix}.so" \
-        -r 'if (!extension_loaded("ddtrace")) exit(1);'
+    # Build the private PHP-ABI archive and C extension together with ThinLTO.
+    # The helper also restores weak PHP imports and load-tests with the common
+    # DSO preloaded, without adding a DT_NEEDED edge.
+    "$root/tooling/bin/build-xlang-lto" ssi-combined "$output_dir"
+    mv "$output_dir/ddtrace.so" "$output_dir/ddtrace-${php_api}${suffix}.so"
 done
