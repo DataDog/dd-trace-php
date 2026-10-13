@@ -160,27 +160,18 @@ pub(crate) static GLOBAL_TAGS: LazyLock<Arc<ProfileTagSegment>> = LazyLock::new(
 
 /// The Server API the profiler is running under.
 static SAPI: LazyLock<Sapi> = LazyLock::new(|| {
-    #[cfg(not(test))]
-    {
-        // SAFETY: sapi_module is initialized before minit and there should be
-        // no concurrent threads.
-        let sapi_module = unsafe { zend::sapi_module };
-        if sapi_module.name.is_null() {
-            panic!("the sapi_module's name is a null pointer");
-        }
+    // SAFETY: sapi_module is initialized before minit and there should be
+    // no concurrent threads.
+    let sapi_module = unsafe { zend::sapi_module };
+    if sapi_module.name.is_null() {
+        panic!("the sapi_module's name is a null pointer");
+    }
 
-        // SAFETY: value has been checked for NULL; I haven't checked that the
-        // engine ensures its length is less than `isize::MAX`, but it is a
-        // risk I'm willing to take.
-        let sapi_name = unsafe { CStr::from_ptr(sapi_module.name) };
-        Sapi::from_name(sapi_name.to_string_lossy().as_ref())
-    }
-    // When running `cargo test` we do not link against PHP, so `zend::sapi_name` is not
-    // available and we just return `Sapi::Unkown`
-    #[cfg(test)]
-    {
-        Sapi::Unknown
-    }
+    // SAFETY: value has been checked for NULL; I haven't checked that the
+    // engine ensures its length is less than `isize::MAX`, but it is a
+    // risk I'm willing to take.
+    let sapi_name = unsafe { CStr::from_ptr(sapi_module.name) };
+    Sapi::from_name(sapi_name.to_string_lossy().as_ref())
 });
 
 /// The runtime ID, which is basically a universally unique "pid". This makes

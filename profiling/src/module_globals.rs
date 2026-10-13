@@ -125,17 +125,12 @@ pub unsafe fn get_profiler_globals_from_cache(ls_cache: *mut c_void) -> *mut Pro
 ///   to another thread, and the current thread's globals may already be freed.
 #[inline]
 pub unsafe fn get_profiler_globals() -> *mut ProfilerGlobals {
-    #[cfg(test)]
-    {
-        test_symbols::get_profiler_globals()
-    }
-
-    #[cfg(all(php_zts, not(test)))]
+    #[cfg(php_zts)]
     {
         get_profiler_globals_from_cache(get_tsrm_ls_cache())
     }
 
-    #[cfg(all(not(php_zts), not(test)))]
+    #[cfg(not(php_zts))]
     {
         ptr::addr_of_mut!(GLOBALS).cast()
     }
@@ -203,48 +198,4 @@ pub unsafe extern "C" fn gshutdown(globals_ptr: *mut c_void) {
 
     ptr::drop_in_place(ptr::addr_of_mut!((*globals).request_locals));
     ptr::drop_in_place(ptr::addr_of_mut!((*globals).thread_name));
-}
-
-// Unit tests are not loaded by PHP, so provide the PHP globals and TSRM symbol
-// needed to link code retained in the test executable.
-#[cfg(test)]
-mod test_symbols {
-    use super::*;
-
-    struct TestGlobals(UnsafeCell<MaybeUninit<ProfilerGlobals>>);
-
-    impl TestGlobals {
-        fn new() -> Self {
-            let mut globals = MaybeUninit::<ProfilerGlobals>::uninit();
-            // SAFETY: Unit tests supply storage in place of PHP's GINIT callback.
-            unsafe { ginit(globals.as_mut_ptr().cast()) };
-            Self(UnsafeCell::new(globals))
-        }
-    }
-
-    impl Drop for TestGlobals {
-        fn drop(&mut self) {
-            // SAFETY: The test thread has finished using this initialized storage.
-            unsafe { gshutdown(self.0.get().cast()) };
-        }
-    }
-
-    pub(super) fn get_profiler_globals() -> *mut ProfilerGlobals {
-        thread_local! {
-            static GLOBALS: TestGlobals = TestGlobals::new();
-        }
-        GLOBALS.with(|globals| globals.0.get().cast())
-    }
-
-    #[cfg(not(php_zts))]
-    #[export_name = "compiler_globals"]
-    static mut TEST_COMPILER_GLOBALS: core::mem::MaybeUninit<
-        crate::profiling::zend::zend_compiler_globals,
-    > = core::mem::MaybeUninit::zeroed();
-
-    #[cfg(php_zts)]
-    #[no_mangle]
-    unsafe extern "C" fn tsrm_get_ls_cache() -> *mut core::ffi::c_void {
-        core::ptr::null_mut()
-    }
 }

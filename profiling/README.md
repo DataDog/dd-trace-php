@@ -53,9 +53,15 @@ cases where they are ABI compatible.
 
 ## Testing
 
-From the repository root, `cargo test --no-default-features --features profiling,test`
-runs the Rust tests. To also run the stack walking tests, add the
-`stack_walking_tests` feature.
+From the repository root, run the VM-independent Rust tests with:
+
+```sh
+cargo test --no-default-features --features profiling
+```
+
+These tests do not substitute for the PHP engine. Stack walking and other
+engine-dependent behavior are tested inside PHP using the PHPT and
+[correctness tests](tests/correctness).
 
 To see if the profiler is recognised by your PHP version as an extension, run
 `/path/to/php -d extension=modules/datadog-profiling.so --ri datadog-profiling`

@@ -44,7 +44,6 @@ profiling = [
 ]
 debug_stats = ["profiling"]
 io_profiling = ["profiling"]
-stack_walking_tests = ["profiling"]
 test = ["profiling"]
 tracing = ["profiling"]
 tracing-subscriber = ["tracing"]
@@ -354,4 +353,4 @@ zwohash = { version = "0.1.2", default-features = false }
 [workspace.lints]
 
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(php_shared_build)', 'cfg(stack_walking_tests)'] }
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(php_shared_build)'] }
