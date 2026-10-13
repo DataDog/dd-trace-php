@@ -97,8 +97,8 @@ pub unsafe fn get_tsrm_resource_from_cache(ls_cache: *mut c_void, id: i32) -> *m
 #[cfg(php_zts)]
 #[inline]
 pub unsafe fn get_profiler_globals_from_cache(_ls_cache: *mut c_void) -> *mut ProfilerGlobals {
-    // Production storage belongs to ext/datadog.c's shared `datadog_globals`.
-    // Its accessor uses PHP's static TSRMLS cache; tests use their own fixture.
+    // Storage belongs to ext/datadog.c's shared `datadog_globals`.
+    // Its accessor uses PHP's static TSRMLS cache.
     get_profiler_globals()
 }
 
@@ -112,18 +112,10 @@ pub unsafe fn get_profiler_globals_from_cache(_ls_cache: *mut c_void) -> *mut Pr
 ///   to another thread, and the current thread's globals may already be freed.
 #[inline]
 pub unsafe fn get_profiler_globals() -> *mut ProfilerGlobals {
-    #[cfg(not(test))]
-    {
-        unsafe extern "C" {
-            fn datadog_php_profiling_globals() -> *mut c_void;
-        }
-        datadog_php_profiling_globals().cast()
+    unsafe extern "C" {
+        fn datadog_php_profiling_globals() -> *mut c_void;
     }
-
-    #[cfg(test)]
-    {
-        test_symbols::get_profiler_globals()
-    }
+    datadog_php_profiling_globals().cast()
 }
 
 /// Initializes the module globals. Called by PHP during thread initialization (GINIT).
@@ -193,48 +185,4 @@ pub unsafe extern "C" fn gshutdown(globals_ptr: *mut c_void) {
 #[no_mangle]
 pub extern "C" fn ddog_php_prof_globals_size() -> usize {
     core::mem::size_of::<ProfilerGlobals>()
-}
-
-// Unit tests are not loaded by PHP, so provide the PHP globals and TSRM symbol
-// needed to link code retained in the test executable.
-#[cfg(test)]
-mod test_symbols {
-    use super::*;
-
-    struct TestGlobals(UnsafeCell<MaybeUninit<ProfilerGlobals>>);
-
-    impl TestGlobals {
-        fn new() -> Self {
-            let mut globals = MaybeUninit::<ProfilerGlobals>::uninit();
-            // SAFETY: Unit tests supply storage in place of PHP's GINIT callback.
-            unsafe { ginit(globals.as_mut_ptr().cast()) };
-            Self(UnsafeCell::new(globals))
-        }
-    }
-
-    impl Drop for TestGlobals {
-        fn drop(&mut self) {
-            // SAFETY: The test thread has finished using this initialized storage.
-            unsafe { gshutdown(self.0.get().cast()) };
-        }
-    }
-
-    pub(super) fn get_profiler_globals() -> *mut ProfilerGlobals {
-        thread_local! {
-            static GLOBALS: TestGlobals = TestGlobals::new();
-        }
-        GLOBALS.with(|globals| globals.0.get().cast())
-    }
-
-    #[cfg(not(php_zts))]
-    #[export_name = "compiler_globals"]
-    static mut TEST_COMPILER_GLOBALS: core::mem::MaybeUninit<
-        crate::profiling::zend::zend_compiler_globals,
-    > = core::mem::MaybeUninit::zeroed();
-
-    #[cfg(php_zts)]
-    #[no_mangle]
-    unsafe extern "C" fn tsrm_get_ls_cache() -> *mut core::ffi::c_void {
-        core::ptr::null_mut()
-    }
 }

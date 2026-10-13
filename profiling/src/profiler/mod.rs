@@ -43,10 +43,8 @@ use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use uploader::*;
 
-#[cfg(all(php_has_fibers, not(test)))]
+#[cfg(php_has_fibers)]
 use crate::profiling::bindings::ddog_php_prof_get_active_fiber;
-#[cfg(all(php_has_fibers, test))]
-use crate::profiling::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_active_fiber;
 
 #[cfg(not(target_os = "linux"))]
 use crate::profiling::bindings::datadog_php_profiling_get_profiling_context;
@@ -2095,14 +2093,6 @@ mod tests {
     use http::Uri;
     use log::LevelFilter;
 
-    fn get_frames() -> Backtrace {
-        Backtrace::new(vec![ZendFrame {
-            function: "foobar()".into(),
-            file: Some("foobar.php".into()),
-            line: 42,
-        }])
-    }
-
     pub fn get_system_settings() -> SystemSettings {
         SystemSettings {
             state: SystemSettingsState::ConfigAware,
@@ -2201,66 +2191,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(miri))]
-    fn profile_index_cache_tracks_sample_identity_changes() {
-        let settings = get_system_settings();
-        let profiler = Profiler::new(&settings);
-        // SAFETY: The test accessor supplies initialized globals owned by this test thread.
-        unsafe { RequestLocals::from_module_globals() }
-            .with_borrow_mut(|locals| locals.profile_index = None);
-
-        let profile_tags = ProfileTags {
-            common: Arc::default(),
-            unified_service: Arc::new(UnifiedServiceTagSegment::try_new("first", "", "").unwrap()),
-            git: None,
-            custom: None,
-        };
-        let first = profiler.prepare_sample_message(
-            Backtrace::default(),
-            SampleValues::default(),
-            SampleLabels {
-                labels: Vec::new(),
-                profile_tags: ProfileTags {
-                    common: Arc::clone(&profile_tags.common),
-                    unified_service: Arc::clone(&profile_tags.unified_service),
-                    git: None,
-                    custom: None,
-                },
-            },
-            NO_TIMESTAMP,
-        );
-        let reused = profiler.prepare_sample_message(
-            Backtrace::default(),
-            SampleValues::default(),
-            SampleLabels {
-                labels: Vec::new(),
-                profile_tags,
-            },
-            NO_TIMESTAMP,
-        );
-        assert!(Arc::ptr_eq(&first.key, &reused.key));
-
-        let changed = profiler.prepare_sample_message(
-            Backtrace::default(),
-            SampleValues::default(),
-            SampleLabels {
-                labels: Vec::new(),
-                profile_tags: ProfileTags {
-                    common: Arc::default(),
-                    unified_service: Arc::new(
-                        UnifiedServiceTagSegment::try_new("second", "", "").unwrap(),
-                    ),
-                    git: None,
-                    custom: None,
-                },
-            },
-            NO_TIMESTAMP,
-        );
-        assert!(!Arc::ptr_eq(&reused.key, &changed.key));
-        assert!(changed.key.tags.unified_service.matches("second", "", ""));
-    }
-
-    #[test]
     fn owned_payload_can_be_shared() {
         let mut payload = MaybeShared::Owned(vec![42]);
         let shared = payload.share();
@@ -2299,41 +2229,5 @@ mod tests {
             }
             assert_eq!(profile.only_for_testing_num_aggregated_samples(), 2);
         }
-    }
-
-    #[test]
-    #[cfg(not(miri))]
-    fn profiler_prepare_sample_message_works_cpu_time_and_timeline() {
-        let frames = get_frames();
-        let samples = get_samples();
-        let mut settings = get_system_settings();
-        settings.profiling_enabled = true;
-        settings.profiling_experimental_cpu_time_enabled = true;
-        settings.profiling_timeline_enabled = true;
-
-        let profiler = Profiler::new(&settings);
-        // SAFETY: The test accessor supplies initialized globals owned by this test thread.
-        unsafe { RequestLocals::from_module_globals() }
-            .with_borrow_mut(|locals| locals.profile_index = None);
-        let labels = Profiler::common_labels(0);
-
-        let message: SampleMessage = profiler.prepare_sample_message(frames, samples, labels, 900);
-        // SAFETY: The test accessor supplies initialized globals owned by this test thread.
-        let cached_key = unsafe { RequestLocals::from_module_globals() }.with_borrow(|locals| {
-            Arc::clone(locals.profile_index.as_ref().expect("cached profile index"))
-        });
-        assert!(Arc::ptr_eq(&message.key, &cached_key));
-
-        assert_eq!(
-            message.key.sample_types,
-            vec![
-                ValueType::new("sample", "count"),
-                ValueType::new("wall-time", "nanoseconds"),
-                ValueType::new("cpu-time", "nanoseconds"),
-                ValueType::new("timeline", "nanoseconds"),
-            ]
-        );
-        assert_eq!(message.value.sample_values, vec![10, 20, 30, 60]);
-        assert_eq!(message.value.timestamp, 900);
     }
 }

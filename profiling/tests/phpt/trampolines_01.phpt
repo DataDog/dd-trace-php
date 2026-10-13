@@ -5,9 +5,13 @@ The ZEND_OP_ARRAY_EXTENSION shouldn't be used if the function flags have
 `ZEND_ACC_CALL_VIA_TRAMPOLINE` set because trampolines use the run_time_cache
 for internal things. This very sharp edge was not documented.
 
+Use CGI because the profiler disables runtime caching under CLI, which would
+otherwise bypass the trampoline exclusion this test covers.
+
 See also:
 https://github.com/php/php-src/commit/213248a0b91ef1a77aa91e4c91e7927328dcc839
 https://github.com/DataDog/dd-trace-php/issues/1993#issuecomment-1491105610
+--CGI--
 --SKIPIF--
 <?php
 if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))

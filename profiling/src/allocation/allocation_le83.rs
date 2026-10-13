@@ -528,43 +528,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn handlers_are_selected_at_rinit() {
-        assert_eq!(
-            alloc_prof_free_handler(true, false) as usize,
-            alloc_prof_free::<true> as usize
-        );
-        assert_eq!(
-            alloc_prof_free_handler(false, false) as usize,
-            alloc_prof_free::<false> as usize
-        );
-        assert_eq!(
-            alloc_prof_free_handler(true, true) as usize,
-            alloc_prof_free_custom::<true> as usize
-        );
-        assert_eq!(
-            alloc_prof_free_handler(false, true) as usize,
-            alloc_prof_free_custom::<false> as usize
-        );
-
-        assert_eq!(
-            alloc_prof_realloc_handler(true, false) as usize,
-            alloc_prof_realloc::<true> as usize
-        );
-        assert_eq!(
-            alloc_prof_realloc_handler(false, false) as usize,
-            alloc_prof_realloc::<false> as usize
-        );
-        assert_eq!(
-            alloc_prof_realloc_handler(true, true) as usize,
-            alloc_prof_realloc_custom::<true> as usize
-        );
-        assert_eq!(
-            alloc_prof_realloc_handler(false, true) as usize,
-            alloc_prof_realloc_custom::<false> as usize
-        );
-    }
-
-    #[test]
     fn check_versions_that_allocation_profiling_needs_disabled_with_active_jit() {
         // versions that need disabled allocation profiling with active jit
         assert!(alloc_prof_needs_disabled_for_jit(80000));

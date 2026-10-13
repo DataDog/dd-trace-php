@@ -59,15 +59,17 @@ cases where they are ABI compatible.
 
 ## Testing
 
-From the repository root, Rust tests can be run directly when the selected PHP
-toolchain is supplied explicitly:
+From the repository root, run the VM-independent Rust tests with the selected
+PHP toolchain supplied explicitly:
 
 ```sh
 DDTRACE_PHP_INCLUDES="$(php-config --includes)" \
-cargo test --no-default-features --features profiling,test
+cargo test --no-default-features --features profiling
 ```
 
-To also run the stack walking tests, add the `stack_walking_tests` feature.
+These tests do not substitute for the PHP engine. Stack walking and other
+engine-dependent behavior are tested inside PHP using the PHPT and
+[correctness tests](tests/correctness).
 
 To inspect a standalone profiler, run
 `/path/to/php -d extension=modules/datadog-profiling.so --ri datadog-profiling`.
@@ -94,18 +96,18 @@ The `run-tests.php` version has to match the PHP version used to run the tests.
 
 ## Benchmarks
 
-Benchmarks are implemented using
-[criterion](https://github.com/bheisler/criterion.rs). In order to execute them
-execute them from the repository root using:
+The PHP timeline and exception workloads use `sirun` to compare profiling
+disabled, profiling enabled, and profiling with timeline enabled. From the
+repository root:
 
 ```sh
-DDTRACE_PHP_INCLUDES="$(php-config --includes)" \
-cargo bench --no-default-features --features profiling,test,stack_walking_tests
+make compile_profiler PROFILER_FEATURES=trigger_time_sample
+cd profiling
+sirun benches/timeline.json
+sirun benches/exceptions.json
 ```
 
-Note: the `--features stack_walking_tests` is necessary as some code in the
-`php_ffi.c` is only compiled for tests and benchmarks and compilation is guarded
-behind a feature flag.
+The timeline workload needs `trigger_time_sample` to collect samples explicitly.
 
 ## Troubleshooting
 

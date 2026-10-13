@@ -107,7 +107,6 @@ fn build_zend_php_ffis(
 ) {
     println!("cargo:rerun-if-changed=profiling/src/php_ffi.h");
     println!("cargo:rerun-if-changed=profiling/src/php_ffi.c");
-    println!("cargo:rerun-if-changed=zend_abstract_interface/zai_string/string.c");
 
     let post_startup_cb = if post_startup_cb { "1" } else { "0" };
     let preload = if preload { "1" } else { "0" };
@@ -117,24 +116,15 @@ fn build_zend_php_ffis(
     let trigger_time_sample = if trigger_time_sample { "1" } else { "0" };
     let zend_error_observer = if zend_error_observer { "1" } else { "0" };
 
-    #[cfg(feature = "stack_walking_tests")]
-    let stack_walking_tests = "1";
-
-    #[cfg(not(feature = "stack_walking_tests"))]
-    let stack_walking_tests = "0";
-
     let combined = env::var_os("CARGO_FEATURE_PROFILING_EMBEDDED").is_some();
     let mut build = cc::Build::new();
     build.file("profiling/src/php_ffi.c");
-    #[cfg(feature = "test")]
-    build.file("zend_abstract_interface/zai_string/string.c");
     build
         .define("CFG_POST_STARTUP_CB", post_startup_cb)
         .define("CFG_PRELOAD", preload)
         .define("CFG_FIBERS", fibers)
         .define("CFG_FRAMELESS", frameless)
         .define("CFG_RUN_TIME_CACHE", run_time_cache)
-        .define("CFG_STACK_WALKING_TESTS", stack_walking_tests)
         .define("CFG_TRIGGER_TIME_SAMPLE", trigger_time_sample)
         .define("CFG_ZEND_ERROR_OBSERVER", zend_error_observer)
         .define("PROFILING", None)

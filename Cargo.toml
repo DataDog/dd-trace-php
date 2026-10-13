@@ -78,7 +78,6 @@ profiling-embedded = ["profiling", "otel-context", "tracer"]
 profiling-standalone = ["profiling", "otel-context", "runtime"]
 debug_stats = ["profiling"]
 io_profiling = ["profiling"]
-stack_walking_tests = ["profiling"]
 test = ["profiling"]
 tracing = ["profiling"]
 tracing-subscriber = ["tracing"]
@@ -155,18 +154,7 @@ cc = "1.0"
 
 [dev-dependencies]
 tempfile = "3.3"
-criterion = "0.5.1"
 static_assertions = "1"
-
-[target.'cfg(target_arch = "x86_64")'.dev-dependencies]
-criterion-perf-events = "0.4.0"
-perfcnt = "0.8.0"
-
-[[bench]]
-name = "stack_walking"
-path = "profiling/benches/stack_walking.rs"
-harness = false
-required-features = ["profiling", "test"]
 
 [profile.dev]
 debug = 2
@@ -402,4 +390,4 @@ zwohash = { version = "0.1.2", default-features = false }
 [workspace.lints]
 
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(php_shared_build)', 'cfg(stack_walking_tests)'] }
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(php_shared_build)'] }

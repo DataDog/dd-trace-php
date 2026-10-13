@@ -463,9 +463,10 @@ foreach ($profiler_minor_major_targets as $version) {
        - ARCH: *arch_targets
   script:
     - switch-php nts
-    - DDTRACE_PHP_INCLUDES="$(php-config --includes)" cargo test --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample
+    - DDTRACE_PHP_INCLUDES="$(php-config --includes)" cargo test --no-default-features --features profiling,test,debug_stats,tracing,tracing-subscriber,trigger_time_sample
     - switch-php zts
-    - DDTRACE_PHP_INCLUDES="$(php-config --includes)" cargo test --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample
+    - touch profiling/build.rs # make sure the build helper runs after switch-php
+    - DDTRACE_PHP_INCLUDES="$(php-config --includes)" cargo test --no-default-features --features profiling,test,debug_stats,tracing,tracing-subscriber,trigger_time_sample
 
 "PHP language tests":
   stage: test

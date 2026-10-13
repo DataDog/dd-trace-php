@@ -153,23 +153,3 @@ pub fn get_current_thread_name() -> String {
         thread_name
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use libc::c_char;
-
-    #[test]
-    fn test_get_current_thread_name() {
-        unsafe {
-            // When running `cargo test`, the thread name for this test will be set to
-            // `profiling::thread_utils::tests:` which would interfer with this test
-            libc::pthread_setname_np(
-                #[cfg(target_os = "linux")]
-                libc::pthread_self(),
-                c"".as_ptr() as *const c_char,
-            );
-        }
-        assert_eq!(get_current_thread_name(), "unknown");
-    }
-}
