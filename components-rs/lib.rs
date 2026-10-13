@@ -436,26 +436,23 @@ pub unsafe extern "C" fn datadog_crashtracker_init(
 }
 
 /// On macos we cannot easily create a new signal safe connection to the sidecar, so we reuse the
-/// already open fd from datadog_sidecar_for_signal.
+/// already open fd published in datadog_sidecar_crash_fd.
 #[cfg(target_os = "macos")]
 fn reuse_sidecar_fd_connector(_unix_socket_path: &str) -> std::os::fd::RawFd {
-    // Resolve the optional C-side transport dynamically so common-only builds remain loadable
+    // Resolve the optional C-side fd dynamically so common-only builds remain loadable
     // without the tracer C module.
-    let symbol = unsafe { libc::dlsym(libc::RTLD_DEFAULT, c"datadog_sidecar_for_signal".as_ptr()) }
-        as *const *mut std::ffi::c_void;
+    let symbol = unsafe { libc::dlsym(libc::RTLD_DEFAULT, c"datadog_sidecar_crash_fd".as_ptr()) }
+        as *const std::sync::atomic::AtomicI32;
     if symbol.is_null() {
         return -1;
     }
 
-    // Best-effort, signal context: read the transport pointer and get its current fd via
-    // SidecarTransport::as_raw_fd (which uses get_mut, never locking). Going through the raw
-    // pointer knowingly bypasses aliasing checks — the crashing thread is the only realistic
-    // accessor.
-    let transport = unsafe { *symbol } as *mut datadog_sidecar::service::blocking::SidecarTransport;
-    if transport.is_null() {
+    // The fd is republished whenever its connection is replaced, so it never refers to a
+    // transport which is concurrently being reconnected or freed.
+    let fd = unsafe { &*symbol }.load(std::sync::atomic::Ordering::Acquire);
+    if fd < 0 {
         return -1;
     }
-    let fd = unsafe { (*transport).as_raw_fd() };
     let bytes = crashtracker_receiver_request_bytes();
     let sent = unsafe { libc::send(fd, bytes.as_ptr().cast::<libc::c_void>(), bytes.len(), 0) };
     if sent == bytes.len() as isize {

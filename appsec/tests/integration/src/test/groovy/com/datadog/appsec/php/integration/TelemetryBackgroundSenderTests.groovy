@@ -19,12 +19,11 @@ import static com.datadog.appsec.php.integration.TestParams.getVariant
 /**
  * The in-process background sender (tracer/coms.c, enabled for every container through
  * DD_TRACE_SIDECAR_TRACE_SENDER=0) counts the HTTP exchanges it has with the agent and
- * reports them as the trace_api.requests / trace_api.responses telemetry metrics. Those
- * counters live on a connection-wide queue id of their own, so the sidecar needs an
- * application registered for that queue or it drops the payload with "No application
- * found".
+ * reports them as the trace_api.requests / trace_api.responses telemetry metrics. A request
+ * thread flushes those counters over its own sidecar connection, but not for the application
+ * of its request: they are submitted for an explicitly given service and env.
  *
- * That application is deliberately synthetic ({@link TelemetryHelpers#BGS_SERVICE} / env
+ * That service and env are deliberately synthetic ({@link TelemetryHelpers#BGS_SERVICE} / env
  * {@code none}): the counters describe the sender, not the traced application. It also means
  * every process in the container reports them under the same service, and the sidecar merges
  * same-service telemetry into a single worker, so the payloads carry nothing that ties them
