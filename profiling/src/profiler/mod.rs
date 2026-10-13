@@ -39,7 +39,6 @@ use std::num::NonZeroI64;
 use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicPtr, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Barrier, OnceLock};
-use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use uploader::*;
 
@@ -359,8 +358,8 @@ pub struct Profiler {
     interrupt_manager: Arc<InterruptManager>,
     message_sender: Sender<ProfilerMessage>,
     upload_sender: Sender<UploadMessage>,
-    time_collector_handle: JoinHandle<()>,
-    uploader_handle: JoinHandle<()>,
+    time_collector_handle: thread_utils::HelperThread<()>,
+    uploader_handle: thread_utils::HelperThread<()>,
     sample_types_filter: SampleTypeFilter,
 
     /// An atomic pointer is used to make this Send and Sync, not because we
