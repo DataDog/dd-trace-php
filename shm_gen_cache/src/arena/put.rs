@@ -94,7 +94,7 @@ pub(crate) fn table_put(
             // I0 acquire-loads and examines the winner at the same slot
             // before advancing, since it may have inserted this very key
             // (and the acquire licenses entry_has_key's relaxed record loads;
-            // docs/invariants.md, RB3).
+            // docs/invariants.html, RB3).
         }
         return PutStatus::FullRejected;
     };
@@ -121,7 +121,7 @@ fn entry_has_key(
 
     // I0 acquired the release-published slot, and the caller's pin prevents
     // reuse, so the header (D4), lengths and key loads (D5) can all be
-    // relaxed (docs/invariants.md, RB3).
+    // relaxed (docs/invariants.html, RB3).
     let rh = RecordHeader(arena.word(record_offset).load(Relaxed)); // D4
     // The remaining payload capacity is word-aligned, so bounding the raw
     // length also bounds the padded record. (32-bit arithmetic: the record

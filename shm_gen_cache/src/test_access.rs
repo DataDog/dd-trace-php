@@ -210,7 +210,7 @@ pub const ROTATION_WAITING: u64 = crate::participant::ROTATION_WAITING;
 ///
 /// Like `reserve()` before every production rotation, it first loads the
 /// epoch with acquire (W1) and executes a `SeqCst` fence (W3), which the
-/// rotation's pin scan relies on (docs/invariants.md, PN3);
+/// rotation's pin scan relies on (docs/invariants.html, PN3);
 /// [`Error::ConcurrentOperation`] if that load does not return `e`.
 pub fn rotate<P: Params>(
     cache: Cache<'_, P>,

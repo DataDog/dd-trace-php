@@ -65,7 +65,7 @@ impl<'m, P: Params> Cache<'m, P> {
     /// The caller must have read `e` from the epoch with an acquire load
     /// (W1) and then executed a `SeqCst` fence (W3), as `reserve()` does
     /// before every call: the pin scan (R3) has no fence of its own and
-    /// relies on the caller's W3 (see docs/invariants.md, PN3 and EP3).
+    /// relies on the caller's W3 (see docs/invariants.html, PN3 and EP3).
     pub(crate) fn rotate(
         self,
         slot: &ParticipantSlot,
@@ -87,7 +87,7 @@ impl<'m, P: Params> Cache<'m, P> {
         // R0: recheck the epoch under ownership, not just before acquiring
         // it: a prior owner may have published e + 1 and died before
         // releasing ownership. The ownership handoff orders its R5 before
-        // this load (docs/invariants.md, OW2, EP1).
+        // this load (docs/invariants.html, OW2, EP1).
         if self.global_epoch().load(Relaxed) != e {
             return Err(Error::ConcurrentOperation);
         }
@@ -103,7 +103,7 @@ impl<'m, P: Params> Cache<'m, P> {
                 // A prior tenure sealed it (Z(e)), then died or returned an
                 // error. The ownership handoff, including a takeover through
                 // reap_owner(), makes that seal happen-before this tenure's
-                // R5 despite this relaxed load (docs/invariants.md, OW1,
+                // R5 despite this relaxed load (docs/invariants.html, OW1,
                 // OW2, EP3).
                 break;
             }
@@ -111,7 +111,7 @@ impl<'m, P: Params> Cache<'m, P> {
             // Relaxed: what matters is that the seal happens-before the W3
             // of the rotator that later reuses this arena, which this
             // tenure's R5 and the ownership handoffs provide whatever the
-            // seal's own ordering (docs/invariants.md, EP2, EP3).
+            // seal's own ordering (docs/invariants.html, EP2, EP3).
             match cur_arena.ctl().compare_exchange(
                 cur_ctl,
                 cur_ctl | CtlWord::SEALED,
@@ -125,13 +125,13 @@ impl<'m, P: Params> Cache<'m, P> {
 
         // No fence of its own before the scan: the caller's W3 is the
         // store-buffering partner of every writer's W3, so the scan reads
-        // each writer's pin or a later value (docs/invariants.md, PN3).
+        // each writer's pin or a later value (docs/invariants.html, PN3).
         for i in 0..hp.participant_capacity {
             let participant = self.participant(hp, i);
             let mut wait = BoundedWait::new();
             // R3: wait for it to be unpinned. Only pins at e - 2 or older
             // block: they write into the arena being reused
-            // (docs/invariants.md, QU1).
+            // (docs/invariants.html, QU1).
             loop {
                 // Possibly with our own ROTATION_WAITING from a previous
                 // pause.
@@ -143,7 +143,7 @@ impl<'m, P: Params> Cache<'m, P> {
                 // R3A: before blocking in a futex, flag the pin, so that the
                 // unpin wakes us; fails if the pinner wrote its slot. An RMW
                 // keeping the pinned epoch, so it stays in the release
-                // sequence of the pin store it replaces (docs/invariants.md,
+                // sequence of the pin store it replaces (docs/invariants.html,
                 // PN1).
                 let announce = || {
                     participant
@@ -172,7 +172,7 @@ impl<'m, P: Params> Cache<'m, P> {
         }
         // R4: arena reuse resets only the control word (and the exact
         // counter); the index and records are rejected by their stamps
-        // (docs/invariants.md, A6).
+        // (docs/invariants.html, A6).
         if !<P::Occupancy as OccupancyMode>::ESTIMATES {
             next_arena.exact_occupancy().store(0, Relaxed);
         }
@@ -206,7 +206,7 @@ impl<'m, P: Params> Cache<'m, P> {
     /// registration (its P3, a reaper's P4, or, for `Stolen`, its death
     /// through the dead verdict), so everything `owner` did happens before
     /// O3: there is one owner at a time, and the new owner sees the dead
-    /// owner's R1 and R5 (docs/invariants.md, OW1, OW2).
+    /// owner's R1 and R5 (docs/invariants.html, OW1, OW2).
     ///
     /// Only `owner`'s own claim is examined. Another registration's claim
     /// already shows that `owner` is over: the takeover neither asks the
@@ -286,7 +286,7 @@ impl<'m, P: Params> Cache<'m, P> {
             if self.global_epoch().load(Relaxed) != e {
                 return Err(Error::ConcurrentOperation);
             }
-            // Acquire: reap_owner() relies on it (docs/invariants.md, OW1).
+            // Acquire: reap_owner() relies on it (docs/invariants.html, OW1).
             let owner = RotationOwner(owner_word.load(Acquire)); // O1
             if owner.registration_id() == 0 {
                 // O2: take ownership from NONE.
@@ -315,7 +315,7 @@ impl<'m, P: Params> Cache<'m, P> {
             }
             // O3: take over a dead owner. Release only: reap_owner() already
             // ordered everything `owner` did before this point; the release
-            // serves the next taker's O1 (docs/invariants.md, OW1, OW2).
+            // serves the next taker's O1 (docs/invariants.html, OW1, OW2).
             if owner_word
                 .compare_exchange(owner.0, desired.0, Release, Relaxed)
                 .is_ok()

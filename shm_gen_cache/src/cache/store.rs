@@ -271,7 +271,7 @@ impl<P: Params> Cache<'_, P> {
             }
             slot.pinned_epoch.store(e, Release); // W2: pin
 
-            // W3. It does two things (docs/invariants.md, PN3, HT1):
+            // W3. It does two things (docs/invariants.html, PN3, HT1):
             // 1. It is the store-buffering partner of the W3 that precedes
             //    the pin scan (R3) of the rotation that reuses this arena, so
             //    the scan sees this pin even for a write into an existing
@@ -315,7 +315,7 @@ impl<P: Params> Cache<'_, P> {
                 // capacity or in a sealed arena. The add still lands in this
                 // incarnation, and a slot fails at most one add per
                 // incarnation, so the configuration bounds the overshoot
-                // (docs/invariants.md, SP1, SP2).
+                // (docs/invariants.html, SP1, SP2).
                 let claim = if n < chunk_size && ctl.bump() as u64 + chunk_size <= capacity {
                     chunk_size
                 } else {

@@ -235,7 +235,7 @@ const _: () = {
 /// maximal record), P the participant capacity and `n_min` (16 bytes, an
 /// empty key and value) the smallest record: every success needs room
 /// below capacity, no success follows a failure, and each slot fails at
-/// most one add per incarnation (docs/invariants.md, SP2). This checks
+/// most one add per incarnation (docs/invariants.html, SP2). This checks
 /// that `capacity + P * C` stays below 2^31 (omitting `n_min`), using
 /// division so the check itself cannot overflow.
 const fn reservation_adds_fit_bump(

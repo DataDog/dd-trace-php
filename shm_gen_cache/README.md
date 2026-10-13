@@ -58,18 +58,18 @@ read-modify-write on the arena.
 ### Rotation
 
 An insert triggers a rotation when the current arena reaches its occupancy
-target (`max_occupancy` entries), its record area is exhausted, or its
-index is full. A promotion triggers one only after it was published, on
-reaching the occupancy target: one that finds no room is dropped instead,
-so that it never lands in a newer generation than its lookup probed, where
-it could shadow a newer value of the key. Occupancy is either an exact shared counter
-or, for large tables, a per-participant statistical estimate that avoids a
-contended counter. One participant becomes the rotation owner, seals the
-current arena against new reservations, waits until no participant is still
-pinned to the arena about to be reused, resets that arena, and publishes the
-next epoch. Reuse does not clear the old index or records: every index entry
-and record carries a 32-bit epoch stamp, and stale ones are rejected because
-their stamp no longer matches.
+target (`max_occupancy` entries), its record area is exhausted, or its index
+is full. A promotion triggers one only after it was published, on reaching the
+occupancy target: one that finds no room is dropped instead, so that it never
+lands in a newer generation than its lookup probed, where it could shadow a
+newer value of the key. Occupancy is either an exact shared counter or, for
+large tables, a per-participant statistical estimate that avoids a contended
+counter. One participant becomes the rotation owner, seals the current arena
+against new reservations, waits until no participant is still pinned to the
+arena about to be reused, resets that arena, and publishes the next epoch.
+Reuse does not clear the old index or records: every index entry and record
+carries a 32-bit epoch stamp, and stale ones are rejected because their stamp
+no longer matches.
 
 ### Participants and crashed processes
 
@@ -102,7 +102,29 @@ reuse* is rotation reinitialising an old arena.
   survive until its stamp comes round again after 2^32 rotations (epoch ABA
   problem).
 - All processes sharing a mapping must use the same shared layout
-  (currently version 11); different versions are not compatible.
+  (currently version 11); different versions are not compatible. Every
+  handle on a mapping must also use the parameters it was initialised with:
+  `Cache::from_raw` does not check them against the header.
+- A registration is used by one thread at a time, never from a signal
+  handler that interrupted that thread, and never in a `fork()`ed child
+  (the C API refuses inherited participant handles).
+
+### Guarantees
+
+[docs/invariants.html](docs/invariants.html) states and proves what the
+algorithm guarantees, under the assumptions above, a sound liveness
+backend and the C++20 memory model:
+
+- a lookup hit returns exactly a value that one insert (or promotion of
+  one) stored for that key: never a torn, mixed or recycled value;
+- every shared access stays inside the mapping, whatever it read;
+- an arena is reused only after every insert still writing to it has
+  finished or was reaped, and rotations run one at a time.
+
+Recency is not guaranteed: a lookup may miss a key inserted concurrently,
+and a promotion racing an insert into the previous generation can
+republish the older value (see `promotion_keeps_newer_stale_epoch_insert`
+under `verification/`).
 
 ## Use from C
 

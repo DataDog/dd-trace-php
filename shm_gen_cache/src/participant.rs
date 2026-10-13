@@ -184,7 +184,7 @@ impl ParticipantSlot {
 
     /// H0: forgets the reservation chunk. Only the `chunk_epoch` store
     /// matters: it keeps a new registration from cutting an earlier one's
-    /// tail (docs/invariants.md, SP3).
+    /// tail (docs/invariants.html, SP3).
     #[inline(always)]
     fn reset_chunk(&self) {
         self.chunk_epoch.store(0, Relaxed);
@@ -263,7 +263,7 @@ impl ParticipantSlot {
     /// verdict). The start time (T0) carries no ordering: the steal acts on
     /// it only through P4, whose success confirms that it belonged to the
     /// claim P0 read, so a "dead" verdict acted on is about the claim the
-    /// steal replaces (docs/invariants.md, SL1).
+    /// steal replaces (docs/invariants.html, SL1).
     ///
     /// The steal is a claim of the dead slot, in the same two steps as
     /// [`Self::claim`]. A reaper that dies midway therefore leaves a claim of
@@ -331,7 +331,7 @@ impl ParticipantSlot {
         // P6: clear the dead pin, standing in for the W7 the dead
         // participant never made. Release: the scan (R3) that reads it must
         // import the dead writer's record writes, which reach this point
-        // only through the verdict (docs/invariants.md, PN1, QU1). A store,
+        // only through the verdict (docs/invariants.html, PN1, QU1). A store,
         // not an exchange: the wake below does not depend on the flag. A
         // rotation flagging the pin concurrently either flags it before
         // this store, and is woken below, or fails its compare-exchange.

@@ -120,7 +120,7 @@ pub(crate) unsafe fn probe(
     // Empty and stale slots both end the current probe chain through an
     // epoch mismatch. Initialisation uses the same bounded-stamp lifetime
     // assumption as entries retained across arena reuse
-    // (docs/invariants.md, A6). The candidate
+    // (docs/invariants.html, A6). The candidate
     // selected above is validated first; if its full record validation
     // fails, the scan continues slot by slot from the next distance.
     loop {
@@ -128,7 +128,7 @@ pub(crate) unsafe fn probe(
         // a release that I1 read), so the record stores happen-before D4
         // and the loads after it. A non-matching entry's ref is never
         // dereferenced, so only a match needs the fence
-        // (docs/invariants.md, HT2).
+        // (docs/invariants.html, HT2).
         'next: {
             fence(Acquire); // I1F
             let record_offset = codec.offset(r#ref);
@@ -136,7 +136,7 @@ pub(crate) unsafe fn probe(
 
             // I1F already acquired publication of a current record. During
             // reuse, D4 only validates the stamp; D6/V2 reject loads that
-            // cross into the replacement incarnation (docs/invariants.md,
+            // cross into the replacement incarnation (docs/invariants.html,
             // HT1).
             let rh = RecordHeader(arena.word(record_offset).load(Relaxed)); // D4
             if rh.epoch() != stamp {
