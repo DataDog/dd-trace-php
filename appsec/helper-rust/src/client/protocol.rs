@@ -69,19 +69,12 @@ pub struct ClientInitArgs {
     pub waf_config: WafSettings,
     pub remote_config: RemoteConfigSettings,
     pub telemetry_settings: TelemetrySettings,
-    pub sidecar_settings: SidecarSettings,
 }
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug, Deserialize)]
 pub struct TelemetrySettings {
     pub service_name: String,
     pub env_name: String,
-}
-
-#[derive(PartialEq, Eq, Hash, Clone, Debug, Deserialize)]
-pub struct SidecarSettings {
-    pub session_id: String,
-    pub runtime_id: String,
 }
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug, Deserialize)]
@@ -149,7 +142,6 @@ impl RemoteConfigSettings {
 pub struct ClientInitResp {
     pub status: String,
     pub version: &'static str,
-    pub client_id: u64,
     pub errors: Vec<String>,
     pub meta: HashMap<String, String>,
     pub metrics: HashMap<String, f64>,
@@ -255,8 +247,6 @@ pub struct RequestExecResp {
 pub struct RequestShutdownArgs {
     pub data: libddwaf::object::WafMap,
     pub api_sec_samp_key: u64,
-    #[allow(dead_code)]
-    pub queue_id: u64, // TODO: unused, update protocol
     pub input_truncated: bool,
 }
 
@@ -609,7 +599,6 @@ mod tests {
             ),
             (true, PathBuf::from("/dev/shm/remote")),
             ("my-service", "production"),
-            ("session-123", "runtime-456"),
         );
 
         let valid_command = ("client_init", client_init_args);
@@ -629,7 +618,6 @@ mod tests {
         let resp = CommandResponse::ClientInit(ClientInitResp {
             status: "ok".to_string(),
             version: "1.0.0",
-            client_id: 12345,
             errors: vec![],
             meta: HashMap::new(),
             metrics: HashMap::new(),
@@ -653,7 +641,6 @@ mod tests {
         let huge = CommandResponse::ClientInit(ClientInitResp {
             status: "x".repeat(5 * 1024 * 1024),
             version: "1.0.0",
-            client_id: 12345,
             errors: vec![],
             meta: HashMap::new(),
             metrics: HashMap::new(),
@@ -840,7 +827,7 @@ mod tests {
     #[tokio::test]
     async fn test_request_shutdown_command() {
         let waf_map = waf_map!(("foo", "bar"),);
-        let command = ("request_shutdown", (&waf_map, 12345u64, 67890u64, true));
+        let command = ("request_shutdown", (&waf_map, 12345u64, true));
         let data = serialize_message(&command);
 
         let mut decoder = CommandCodec;
@@ -852,7 +839,6 @@ mod tests {
         if let Some(Command::RequestShutdown(args)) = decoded {
             assert_eq!(args.data, waf_map);
             assert_eq!(args.api_sec_samp_key, 12345);
-            assert_eq!(args.queue_id, 67890);
             assert!(args.input_truncated);
         }
     }

@@ -81,7 +81,8 @@ pub struct TimeoutError {
     timeout_ms: u128,
 }
 
-const JOIN_POLL_INTERVAL: Duration = Duration::from_millis(100);
+const JOIN_POLL_MIN_INTERVAL: Duration = Duration::from_millis(1);
+const JOIN_POLL_MAX_INTERVAL: Duration = Duration::from_millis(100);
 
 /// Waits for the handle to be finished. If finished, it will join the handle.
 /// Otherwise, it will leak the handle and return an error.
@@ -94,7 +95,10 @@ pub fn join_timeout(handle: JoinHandle<()>, timeout: Duration) -> Result<(), Tim
     // https://github.com/DataDog/dd-trace-php/issues/1919
     // Thus far, we have not been able to reproduce it and address the root
     // cause. So, for now, mitigate it instead with a loop.
+    // Threads usually exit within a few ms of being signalled at shutdown, so
+    // back off from a short poll instead of always sleeping the max interval.
     let start = Instant::now();
+    let mut interval = JOIN_POLL_MIN_INTERVAL;
     while !handle.is_finished() {
         let elapsed = start.elapsed();
         if elapsed >= timeout {
@@ -104,7 +108,8 @@ pub fn join_timeout(handle: JoinHandle<()>, timeout: Duration) -> Result<(), Tim
         }
 
         let remaining = timeout.saturating_sub(elapsed);
-        std::thread::sleep(std::cmp::min(JOIN_POLL_INTERVAL, remaining));
+        std::thread::sleep(std::cmp::min(interval, remaining));
+        interval = std::cmp::min(interval * 2, JOIN_POLL_MAX_INTERVAL);
     }
 
     if let Err(err) = handle.join() {
