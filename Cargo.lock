@@ -3389,6 +3389,7 @@ dependencies = [
  "flate2",
  "futures",
  "getrandom 0.2.15",
+ "hashbrown 0.17.1",
  "hex",
  "http 1.4.2",
  "http-body",
