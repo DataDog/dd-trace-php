@@ -21,7 +21,7 @@ pub trait OccupancyMode: sealed::Sealed + Copy + Default + core::fmt::Debug + 's
     /// Per-registration state (zero-sized for the exact counter).
     type Estimator: Default + Clone;
 
-    /// The reservation precheck.
+    /// The reservation precheck (part of B0).
     fn target_reached(
         arena: ArenaView<'_>,
         hp: &HotParams,
@@ -29,11 +29,11 @@ pub trait OccupancyMode: sealed::Sealed + Copy + Default + core::fmt::Debug + 's
         estimator: &mut Self::Estimator,
     ) -> bool;
 
-    /// After publishing an index entry: accounts for it and reports whether
-    /// the target is reached as far as this participant knows. `new_entry`
-    /// says whether the entry claimed a bucket rather than found the key
-    /// already present; `home_occupied` whether the first slot probed held
-    /// an entry of this incarnation when read.
+    /// After publishing an index entry (W6): accounts for it and reports
+    /// whether the target is reached as far as this participant knows.
+    /// `new_entry` says whether the entry claimed a bucket rather than found
+    /// the key already present; `home_occupied` whether the first slot
+    /// probed held an entry of this incarnation when read.
     fn entry_published(
         arena: ArenaView<'_>,
         hp: &HotParams,

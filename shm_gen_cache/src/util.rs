@@ -110,7 +110,7 @@ pub(crate) unsafe fn load_tail(src: *const u8, n: usize, prefix_readable: bool) 
 }
 
 /// Appends `src[0..n)` to the record words starting at word index `w`,
-/// one relaxed store per word; the final word is zero-padded. Returns the
+/// one relaxed store (W4) per word; the final word is zero-padded. Returns the
 /// next free word index.
 ///
 /// # Safety
@@ -142,8 +142,8 @@ pub(crate) unsafe fn emit_bytes_relaxed(
     w
 }
 
-/// Appends `count` already-padded words without narrowing the final source
-/// access. Returns the next free word index.
+/// Appends `count` already-padded words (W4) without narrowing the final
+/// source access. Returns the next free word index.
 ///
 /// # Safety
 /// `src..src + count` must be readable words, and `words[w..w + count)`

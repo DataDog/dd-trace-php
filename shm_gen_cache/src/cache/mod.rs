@@ -362,7 +362,9 @@ impl<'m, P: Params> Cache<'m, P> {
     ///
     /// # Safety
     /// `base` must be a mapping initialised by [`Cache::initialize`] with
-    /// the same parameters, valid for `'m`.
+    /// the same parameters, valid for `'m`. The parameters are not checked
+    /// against the header: every slot, index and record address depends on
+    /// them (docs/invariants.md, A7).
     #[inline(always)]
     pub unsafe fn from_raw(base: NonNull<u8>, params: P) -> Self {
         Cache {

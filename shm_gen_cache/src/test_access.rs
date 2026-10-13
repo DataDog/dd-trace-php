@@ -4,7 +4,7 @@
 //! public API and use these only to stage states or check invariants the API
 //! cannot observe; they must never copy production code.
 
-use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use core::sync::atomic::{AtomicU32, AtomicU64, Ordering, fence};
 
 use crate::arena::ctl::CtlWord;
 use crate::arena::records::RecordHeader;
@@ -207,12 +207,21 @@ pub fn stage_interrupted_reap<P: Params>(
 pub const ROTATION_WAITING: u64 = crate::participant::ROTATION_WAITING;
 
 /// Rotates from epoch `e` as the participant in slot `slot_index`.
+///
+/// Like `reserve()` before every production rotation, it first loads the
+/// epoch with acquire (W1) and executes a `SeqCst` fence (W3), which the
+/// rotation's pin scan relies on (docs/invariants.md, PN3);
+/// [`Error::ConcurrentOperation`] if that load does not return `e`.
 pub fn rotate<P: Params>(
     cache: Cache<'_, P>,
     slot_index: u32,
     e: u64,
     policy: RotationPolicy,
 ) -> Result<(), Error> {
+    if cache.global_epoch().load(Ordering::Acquire) != e {
+        return Err(Error::ConcurrentOperation);
+    }
+    fence(Ordering::SeqCst);
     let slot = participant(cache, slot_index);
     cache.rotate(slot, slot_index, e, policy)
 }

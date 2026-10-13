@@ -39,7 +39,7 @@
 //!   rotation to epoch 5 recycles arena 2 and so waits for the dead pin.
 //! * Registrar R (PID 2) registers: the registry is full, so it must steal
 //!   slot 0 from the dead reaper (found dead by PID alone, as the slot
-//!   is INITIALIZING), which clears the dead pin and wakes B, and keep it.
+//!   is INITIALIZING), which clears the dead pin (P6) and wakes B, and keep it.
 //!
 //! # Properties
 //!

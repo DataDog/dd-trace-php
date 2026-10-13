@@ -119,31 +119,25 @@ pub(crate) unsafe fn probe(
 
     // Empty and stale slots both end the current probe chain through an
     // epoch mismatch. Initialisation uses the same bounded-stamp lifetime
-    // assumption as entries retained across arena reuse. The candidate
+    // assumption as entries retained across arena reuse
+    // (docs/invariants.md, A6). The candidate
     // selected above is validated first; if its full record validation
     // fails, the scan continues slot by slot from the next distance.
     loop {
-        // check_record:
-        //
-        // Publication ordering for a candidate selected by I1:
-        //
-        //   writer: record stores --sb--> I2 (release)
-        //   reader: I1 (relaxed) --sb--> I1F (acquire) --sb--> record loads
-        //   across: I2 --rf--> I1, therefore I2 --sw--> I1F
-        //
-        // The sb/sw chain makes the record stores happen-before D4 and the
-        // following record loads. If the epoch or tag does not match, lookup
-        // never dereferences this entry's ref: it either returns a miss or
-        // examines the next slot. Only a matching entry needs I1F to acquire
-        // its record publication.
+        // check_record: I1F acquires the candidate's publication (its I2 is
+        // a release that I1 read), so the record stores happen-before D4
+        // and the loads after it. A non-matching entry's ref is never
+        // dereferenced, so only a match needs the fence
+        // (docs/invariants.md, HT2).
         'next: {
             fence(Acquire); // I1F
             let record_offset = codec.offset(r#ref);
             production_assert!(record_offset <= ras && ras - record_offset >= 8);
 
-            // I1 already acquired publication of a current record. During
-            // reuse, D4 only validates the stamp; D6/V2 reject payload reads
-            // that cross into the replacement incarnation.
+            // I1F already acquired publication of a current record. During
+            // reuse, D4 only validates the stamp; D6/V2 reject loads that
+            // cross into the replacement incarnation (docs/invariants.md,
+            // HT1).
             let rh = RecordHeader(arena.word(record_offset).load(Relaxed)); // D4
             if rh.epoch() != stamp {
                 return Err(ProbeError::Miss);
@@ -156,7 +150,7 @@ pub(crate) unsafe fn probe(
                 return Err(ProbeError::Retry);
             }
             let payload_offset = record_offset + 8;
-            let lengths = RecordLengths(arena.word(payload_offset).load(Relaxed));
+            let lengths = RecordLengths(arena.word(payload_offset).load(Relaxed)); // D5
             let padded_key_size = align8(lengths.key_len() as u64);
             if 8 + padded_key_size + lengths.value_len() as u64 != rh.len() as u64 {
                 return Err(ProbeError::Retry);
@@ -165,7 +159,7 @@ pub(crate) unsafe fn probe(
                 break 'next;
             }
 
-            // The record is consistent so far.
+            // The record is consistent so far. D5: the key loads.
             if !key_matches(arena, payload_offset + 8, key) {
                 break 'next;
             }
@@ -186,7 +180,9 @@ pub(crate) unsafe fn probe(
 
             fence(Acquire); // D6
             if age_of(global_epoch.load(Relaxed), stamp) > 1 {
-                return Err(ProbeError::Retry); // V2
+                // V2: the epoch moved on by two since this stamp's
+                // incarnation; the arena may have been reused.
+                return Err(ProbeError::Retry);
             }
             if !fits {
                 return Err(ProbeError::InsufficientCapacity);

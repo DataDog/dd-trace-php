@@ -32,9 +32,12 @@
 //! * Rotator T (PID 2) registers in slot 1 once W has, then rotates from
 //!   epoch 2 to 3 and from 3 to 4 (through `test_access::rotate()`, which
 //!   an epoch-2 pin does not block) and from 4 to 5, which reuses arena 2
-//!   and so waits for W's pin, or for a later value of it. If that last
-//!   rotation succeeds, T inserts Z -> VZ, which lands in the reused arena
-//!   at the offset of W's record X, and looks it up. T keeps its
+//!   and so waits for W's pin, or for a later value of it. Each
+//!   `test_access::rotate()` first loads the epoch and fences, as
+//!   `reserve()` does before a production rotation: without that fence the
+//!   last scan could miss W's pin (store buffering against W's W3). If that
+//!   last rotation succeeds, T inserts Z -> VZ, which lands in the reused
+//!   arena at the offset of W's record X, and looks it up. T keeps its
 //!   registration.
 //! * Registrar R (PID 3) registers once W has stopped and T has registered.
 //!   The registry is full, so it must take W's slot over, which clears W's

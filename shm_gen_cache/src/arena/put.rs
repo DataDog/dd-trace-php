@@ -57,7 +57,7 @@ pub(crate) fn table_put(
     let new_entry = 'put: {
         while probe <= mask {
             let slot = arena.slot((start + probe) & mask);
-            let current = slot.load(Acquire);
+            let current = slot.load(Acquire); // I0
             let occupied = IndexEntry(current).epoch() == stamp;
             if probe == 0 {
                 home_occupied = occupied;
@@ -91,9 +91,10 @@ pub(crate) fn table_put(
                 break 'put true;
             }
             // The relaxed value of the failed CAS is discarded on purpose:
-            // acquire-load and examine the winner at the same slot before
-            // advancing, since it may have inserted this very key (and the
-            // acquire licenses entry_has_key's relaxed record loads).
+            // I0 acquire-loads and examines the winner at the same slot
+            // before advancing, since it may have inserted this very key
+            // (and the acquire licenses entry_has_key's relaxed record loads;
+            // docs/invariants.md, RB3).
         }
         return PutStatus::FullRejected;
     };
@@ -118,9 +119,10 @@ fn entry_has_key(
     let record_offset = codec.offset(entry.r#ref());
     production_assert!(record_offset <= record_area_size && record_area_size - record_offset >= 8);
 
-    // table_put acquired the release-published slot. Its pin prevents
-    // reuse, so header, lengths and key loads can all be relaxed.
-    let rh = RecordHeader(arena.word(record_offset).load(Relaxed));
+    // I0 acquired the release-published slot, and the caller's pin prevents
+    // reuse, so the header (D4), lengths and key loads (D5) can all be
+    // relaxed (docs/invariants.md, RB3).
+    let rh = RecordHeader(arena.word(record_offset).load(Relaxed)); // D4
     // The remaining payload capacity is word-aligned, so bounding the raw
     // length also bounds the padded record. (32-bit arithmetic: the record
     // area size and offsets are u32.)
@@ -130,7 +132,7 @@ fn entry_has_key(
     {
         return false;
     }
-    let lengths = RecordLengths(arena.word(record_offset + 8).load(Relaxed));
+    let lengths = RecordLengths(arena.word(record_offset + 8).load(Relaxed)); // D5
     if lengths.key_len() as usize != key.len() {
         return false;
     }

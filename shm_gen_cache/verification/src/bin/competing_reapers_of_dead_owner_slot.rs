@@ -36,7 +36,7 @@
 //!
 //! # Workers
 //!
-//! * Registrars R1 and R2 each call `register_participant()` once. All slots
+//! * Registrars X and Y each call `register_participant()` once. All slots
 //!   are taken, so each tries to steal slot 0 from the dead reaper; the
 //!   winner keeps its registration (leaked) for main to check, and the loser
 //!   must find the registry full.
@@ -174,7 +174,7 @@ struct Writer<'a> {
     succeeded: bool,
 }
 
-/// R1/R2: register once; a registration is kept (leaked) for main to check.
+/// X/Y: register once; a registration is kept (leaked) for main to check.
 fn register(registrar: &mut Registrar) {
     match registrar.cache.register_participant() {
         Ok(lock) => {

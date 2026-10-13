@@ -114,11 +114,13 @@ impl<P: Params> Cache<'_, P> {
     ///
     /// `promotion` is the epoch whose arena the promoting lookup probed
     /// first, and missed. A promotion is published only there, and never
-    /// rotates: it is dropped, successfully, if the epoch has moved on or
-    /// the arena has no room for it. A newer value of the key in that arena
-    /// wins, since a promotion replaces no entry (see table_put()), and one
-    /// in a later arena is probed first. Published in a later arena, the
-    /// promotion would shadow a newer value it cannot see.
+    /// rotates before it is published: it is dropped, successfully, if the
+    /// epoch has moved on or the arena has no room for it. Once published,
+    /// it may trigger a rotation at the occupancy target, like an insert. A
+    /// newer value of the key in that arena wins, since a promotion
+    /// replaces no entry (see table_put()), and one in a later arena is
+    /// probed first. Published in a later arena, the promotion would shadow
+    /// a newer value it cannot see.
     #[inline]
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn store<V: ValueSource>(
@@ -147,7 +149,7 @@ impl<P: Params> Cache<'_, P> {
             // SAFETY (the stores below): reserve() returned
             // record_size(len) bytes at record_offset, which hold the
             // header, the lengths and the padded key and value.
-            unsafe { (*words.add(1)).store(lengths.0, Relaxed) };
+            unsafe { (*words.add(1)).store(lengths.0, Relaxed) }; // W4
             let w: u32 = 2;
             let w = unsafe { emit_bytes_relaxed(words, w, key.as_ptr(), key.len()) }; // W4
             let _ = unsafe { value.emit(words, w) }; // W4
@@ -166,11 +168,11 @@ impl<P: Params> Cache<'_, P> {
                 estimator,
             );
 
-            // W6: stay pinned through table publication and occupancy
-            // updates.
+            // Stay pinned through I2 and W6 (the occupancy update in
+            // publish()); W7 unpins.
             #[cfg(feature = "verify")]
             <P::Pid as GetPid>::after_record_publication(slot);
-            slot.unpin();
+            slot.unpin(); // W7
             match result {
                 PutStatus::Ok => return Ok(()),
                 PutStatus::Full => {
@@ -226,6 +228,7 @@ impl<P: Params> Cache<'_, P> {
             epoch,
             promotion,
             |new_entry, home_occupied| {
+                // W6: occupancy accounting, after I2.
                 <P::Occupancy as OccupancyMode>::entry_published(
                     arena,
                     hp,
@@ -268,48 +271,33 @@ impl<P: Params> Cache<'_, P> {
             }
             slot.pinned_epoch.store(e, Release); // W2: pin
 
-            // This fence is doing two things:
-            // 1. With R2 before every rotation's pin scan, it makes the pin
-            //    visible even for a write into an existing chunk, which has
-            //    no reservation RMW. A control load that sees this
-            //    incarnation unsealed is coherence-ordered before its seal.
-            //    That seal happens-before R2 of the rotation that reuses this
-            //    arena, via epoch/ownership handoffs. Hence W3 precedes that
-            //    R2 in the seq_cst order (the store-buffering argument), and
-            //    its subsequent scan reads this pin or a later value. A later
-            //    unpin or next pin is a release store after our record
-            //    writes; a reaper's clear imports the dead owner's writes.
-            //    Reuse therefore either waits for this writer or happens
-            //    after it.
-            // 2. It synchronises with the acquire fence D6 in probe() to
-            //    establish the edge W3 -> D5 -> D6 -> V2, which lets a lookup
-            //    reject payload words it copied from a recycled arena. The
-            //    lookup catches this by rereading the epoch at the end (V2,
-            //    seqlock style), so V2 must observe the epoch increment that
-            //    allowed the reuse. W3 is also a release fence: the
-            //    recycling writer read the new epoch (W1) before its release
-            //    fence, and its payload stores follow the fence. If the
-            //    lookup's relaxed copy (D5) reads any of these relaxed
-            //    stores, its acquire fence (D6) synchronises-with W3, so the
-            //    epoch load at W1 happens-before the epoch load V2, and
-            //    read-read coherence forces V2 to read that epoch or a later
-            //    one.
+            // W3. It does two things (docs/invariants.md, PN3, HT1):
+            // 1. It is the store-buffering partner of the W3 that precedes
+            //    the pin scan (R3) of the rotation that reuses this arena, so
+            //    the scan sees this pin even for a write into an existing
+            //    chunk, which makes no RMW on the control word.
+            // 2. As a release fence, it synchronises with the acquire fence
+            //    D6 of a lookup whose loads read this attempt's stores, so
+            //    V2 sees this epoch and rejects a copy from a recycled arena.
             fence(SeqCst); // W3
 
             let arena = self.arena_of(hp, e);
             let stamp = e as u32;
-            let ctl = CtlWord(arena.ctl().load(Relaxed));
+            let ctl = CtlWord(arena.ctl().load(Relaxed)); // B0
             'attempt: {
-                // A chunk belongs to one full epoch and may only be used
-                // while this check still sees that arena incarnation
-                // unsealed. The global bump may already be full: this
-                // participant's tail was claimed earlier.
+                // B0 (with the control load above): the occupancy target
+                // and the incarnation check. A chunk belongs to one full
+                // epoch and may only be used while this check still sees
+                // that arena incarnation unsealed. The global bump may
+                // already be full: this participant's tail was claimed
+                // earlier.
                 if ctl.epoch() != stamp
                     || ctl.sealed()
                     || <P::Occupancy as OccupancyMode>::target_reached(arena, hp, e, estimator)
                 {
                     break 'attempt;
                 }
+                // H1: cut the record from this slot's chunk.
                 if slot.chunk_epoch.load(Relaxed) == e {
                     let cursor = slot.chunk_cursor.load(Relaxed);
                     if slot.chunk_end.load(Relaxed).wrapping_sub(cursor) as u64 >= n {
@@ -322,19 +310,12 @@ impl<P: Params> Cache<'_, P> {
                     break 'attempt;
                 }
                 // Claim a chunk for a smaller record when it fits; otherwise
-                // claim exactly the record. Between the precheck and the add,
-                // other writers' adds may move the bump and a rotation may
-                // seal the arena, so the add can fail and leave an unindexed
-                // hole beyond capacity or in a sealed arena. It still lands
-                // in this incarnation: R4 resets the control word for the
-                // next one only after the rotation's pin scan saw this pin
-                // (still e) replaced by our unpin or a reaper's clear, both
-                // after this add. A failed add leaves the arena sealed or its
-                // bump past capacity, and the next precheck of this slot sees
-                // that add or a later value (coherence, or the handoff of the
-                // slot), so it stops before adding again. At most one failed
-                // add per participant and incarnation is possible; the
-                // configuration checks bound the overshoot.
+                // claim exactly the record. Racing adds or a seal after B0
+                // can make the add fail, leaving an unindexed hole beyond
+                // capacity or in a sealed arena. The add still lands in this
+                // incarnation, and a slot fails at most one add per
+                // incarnation, so the configuration bounds the overshoot
+                // (docs/invariants.md, SP1, SP2).
                 let claim = if n < chunk_size && ctl.bump() as u64 + chunk_size <= capacity {
                     chunk_size
                 } else {
@@ -348,6 +329,7 @@ impl<P: Params> Cache<'_, P> {
                 );
                 if old.epoch() == stamp && !old.sealed() && old.bump() as u64 + n <= capacity {
                     if claim > n {
+                        // H2: keep the rest of the chunk.
                         slot.chunk_epoch.store(e, Relaxed);
                         slot.chunk_cursor
                             .store(old.bump().wrapping_add(n as u32), Relaxed);
@@ -365,7 +347,7 @@ impl<P: Params> Cache<'_, P> {
             // adds no synchronisation.
             #[cfg(feature = "verify")]
             <P::Pid as GetPid>::reservation_retry_hook(slot);
-            slot.unpin();
+            slot.unpin(); // W7
             if only_epoch.is_some() {
                 return Ok(None);
             }

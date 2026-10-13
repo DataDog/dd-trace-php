@@ -154,11 +154,12 @@ const _: () = {
 };
 
 impl ParticipantSlot {
-    /// Unpins, with release semantics. An exchange rather than a store, to
-    /// see a [`ROTATION_WAITING`] set by a rotation blocked on this pin and
-    /// wake it: its flag is either seen here or its compare-exchange fails.
-    /// Slot reaping ([`Self::steal`]) clears a dead participant's pin with a
-    /// store instead, and wakes the rotation whether or not it was flagged.
+    /// Unpins (W7), with release semantics. An exchange rather than a
+    /// store, to see a [`ROTATION_WAITING`] set by a rotation blocked on
+    /// this pin and wake it: its flag (R3A) is either seen here or its
+    /// compare-exchange fails. Slot reaping ([`Self::steal`]) clears a dead participant's pin
+    /// with a store (P6) instead, and wakes the rotation whether or not it
+    /// was flagged.
     #[inline(always)]
     pub(crate) fn unpin(&self) {
         if self.pinned_epoch.swap(UNPINNED, Release) & ROTATION_WAITING != 0 {
@@ -181,6 +182,9 @@ impl ParticipantSlot {
         self.reset_chunk();
     }
 
+    /// H0: forgets the reservation chunk. Only the `chunk_epoch` store
+    /// matters: it keeps a new registration from cutting an earlier one's
+    /// tail (docs/invariants.md, SP3).
     #[inline(always)]
     fn reset_chunk(&self) {
         self.chunk_epoch.store(0, Relaxed);
@@ -206,7 +210,7 @@ impl ParticipantSlot {
         // state, which fails if this claim came in between (see steal()).
         self.thread_disambiguation.store(start_time, Relaxed); // T1
         production_assert!(self.pinned_epoch.load(Relaxed) == UNPINNED);
-        self.reset_chunk();
+        self.reset_chunk(); // H0
 
         let registered = State::registered(pid, registration_id);
         if self
@@ -223,6 +227,7 @@ impl ParticipantSlot {
     /// Aborts the process if the slot is not registered to the caller. The
     /// chunk is not reset here (the next claim resets it).
     pub(crate) fn release_claim<Pid: GetPid>(&self) {
+        // P3 (with the exchange below); only the caller writes this word now.
         let current = State(self.state.load(Relaxed));
         let StateKind::Registered { pid, .. } = current.kind() else {
             crate::assert::fatal("released a participant slot that is not registered");
@@ -250,22 +255,15 @@ impl ParticipantSlot {
     /// only once the slot is found dead, so that checking a live slot spends
     /// none.
     ///
-    /// The state is loaded with acquire, and a failed steal acquires the
-    /// state it found instead, so every outcome synchronises with the
-    /// release that wrote the state it reports: the claim that started a
-    /// live registration, or whatever ended the registrations before it (a
-    /// release P3, or a reaper's P4 after its own "dead" verdict).
-    ///
-    /// The start time carries no ordering. It is loaded relaxed, and a
-    /// steal acts on it only through the exchange of the state loaded
-    /// before it, which confirms that the start time belonged to that
-    /// claim. Not an earlier claim's: that store sb the earlier claim's
-    /// registering exchange, which hb the claim the load acquired. Not a
-    /// later claim's: that claim's state exchange reads the steal's write
-    /// or a later one, so the steal hb the claim's start-time store, and a
-    /// load sb the steal cannot read it. A "dead" verdict acted on is
-    /// therefore about the claim the steal replaces, whose final writes hb
-    /// the verdict (`GetPid` contract).
+    /// The state is loaded with acquire (P0), and a failed steal (P4)
+    /// acquires the state it found instead, so every outcome synchronises
+    /// with the release that wrote the state it reports: the claim that
+    /// started a live registration, or whatever ended the registrations
+    /// before it (a release P3, or a reaper's P4 after its own "dead"
+    /// verdict). The start time (T0) carries no ordering: the steal acts on
+    /// it only through P4, whose success confirms that it belonged to the
+    /// claim P0 read, so a "dead" verdict acted on is about the claim the
+    /// steal replaces (docs/invariants.md, SL1).
     ///
     /// The steal is a claim of the dead slot, in the same two steps as
     /// [`Self::claim`]. A reaper that dies midway therefore leaves a claim of
@@ -279,7 +277,7 @@ impl ParticipantSlot {
         expected: Option<RegistrationId>,
         registration_id: impl FnOnce() -> u32,
     ) -> Result<Steal, Error> {
-        let current = State(self.state.load(Acquire));
+        let current = State(self.state.load(Acquire)); // P0
         let (pid, id, registered) = match current.kind() {
             StateKind::Free => return Ok(Steal::Free),
             StateKind::Registered {
@@ -294,7 +292,8 @@ impl ParticipantSlot {
         if expected.is_some_and(|expected| expected != RegistrationId(id)) {
             return Ok(Steal::Other);
         }
-        let dead_start_time = self.thread_disambiguation.load(Relaxed);
+        let dead_start_time = self.thread_disambiguation.load(Relaxed); // T0
+        // The verdict: Ok(false) imports the dead claimant's actions.
         let live = if registered {
             Pid::is_live_since(pid, dead_start_time)?
         } else {
@@ -311,8 +310,7 @@ impl ParticipantSlot {
         // Release publishes the death verdict to every acquire of this state
         // or of a later one. No acquire on success: every claim's state word
         // is unique (a fresh registration id), so a successful exchange reads
-        // the very write the load above acquired. A failure acquires the
-        // later state (see the outcomes above).
+        // the very write P0 acquired. A failure acquires the later state.
         if self
             .state
             .compare_exchange(current.0, initializing.0, Release, Acquire) // P4
@@ -330,18 +328,13 @@ impl ParticipantSlot {
         {
             return Err(Error::Corrupt);
         }
-        // Clears the dead pin. The release stands in for the unpin() that
-        // the dead participant never made: R3, the only acquiring reader of
-        // the pin, must import the record writes the dead participant made
-        // under it before reusing the arena. The release sequence of the pin
-        // store (W2) does not cover them, since they follow it. The only
-        // route is: the dead participant's writes -> the backend's verdict
-        // -> this release -> R3's acquire of the cleared pin -> arena reuse.
-        //
-        // A store, not an exchange: the wake below does not depend on the
-        // flag, and an acquire would import nothing the verdict did not. A
-        // rotation flagging the pin concurrently either flags it before this
-        // store, and is woken below, or fails its compare-exchange.
+        // P6: clear the dead pin, standing in for the W7 the dead
+        // participant never made. Release: the scan (R3) that reads it must
+        // import the dead writer's record writes, which reach this point
+        // only through the verdict (docs/invariants.md, PN1, QU1). A store,
+        // not an exchange: the wake below does not depend on the flag. A
+        // rotation flagging the pin concurrently either flags it before
+        // this store, and is woken below, or fails its compare-exchange.
         self.pinned_epoch.store(UNPINNED, Release);
         // Wakes a rotation blocked on the dead pin even if the pin carried no
         // ROTATION_WAITING: a reaper that died after clearing the pin may
@@ -350,7 +343,7 @@ impl ParticipantSlot {
         // that rotation itself (R3 after its budget), it is not blocked, and
         // the wake is one wasted system call.
         self.wake_rotation();
-        self.reset_chunk();
+        self.reset_chunk(); // H0
         Ok(Steal::Stolen)
     }
 

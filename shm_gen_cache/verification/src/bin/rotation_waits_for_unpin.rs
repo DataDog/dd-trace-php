@@ -1,9 +1,9 @@
-//! A rotation blocked on a pin is woken by the unpin: arena reuse waits for
-//! the writer, and no wake is lost.
+//! A rotation blocked on a pin is woken by the unpin (W7): arena reuse
+//! waits for the writer, and no wake is lost.
 //!
 //! Built with `sgc_genmc_futex_model` (README.md): a rotation's wait for a
-//! pin (R3) announces itself by flagging the pin (`ROTATION_WAITING`), then
-//! blocks in a model of the futex that has no timeout, so the wait never
+//! pin (R3) announces itself by flagging the pin (R3A, `ROTATION_WAITING`),
+//! then blocks in a model of the futex that has no timeout, so the wait never
 //! gives up. GenMC runs with `-check-liveness`: an execution in which the
 //! rotation blocks and the unpin does not wake it is a violation, where
 //! natively it would only delay the rotation until its budget ends. The

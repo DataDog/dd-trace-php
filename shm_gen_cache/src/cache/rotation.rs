@@ -1,7 +1,6 @@
 //! Rotation and rotation ownership.
 
-use core::sync::atomic::Ordering::{AcqRel, Acquire, Relaxed, Release, SeqCst};
-use core::sync::atomic::fence;
+use core::sync::atomic::Ordering::{AcqRel, Acquire, Relaxed, Release};
 
 use super::{ARENA_COUNT, Cache};
 use crate::arena::ctl::CtlWord;
@@ -62,6 +61,11 @@ impl<'m, P: Params> Cache<'m, P> {
     /// epoch. [`Error::ConcurrentOperation`] means another rotation moved
     /// the epoch first. On any error after acquiring ownership the current
     /// arena stays sealed and a later rotator repeats the scan.
+    ///
+    /// The caller must have read `e` from the epoch with an acquire load
+    /// (W1) and then executed a `SeqCst` fence (W3), as `reserve()` does
+    /// before every call: the pin scan (R3) has no fence of its own and
+    /// relies on the caller's W3 (see docs/invariants.md, PN3 and EP3).
     pub(crate) fn rotate(
         self,
         slot: &ParticipantSlot,
@@ -80,11 +84,10 @@ impl<'m, P: Params> Cache<'m, P> {
     /// The part of [`Self::rotate`] run under rotation ownership, which the
     /// caller releases afterwards.
     fn rotate_owned(self, hp: &HotParams, e: u64) -> Result<(), Error> {
-        // Check under exclusive ownership, not just before acquiring
-        // rotation. A prior owner may have published e + 1 and died before
-        // releasing it. The ownership/death handoff already orders
-        // completed epoch updates.
-        // R0: recheck the epoch under ownership.
+        // R0: recheck the epoch under ownership, not just before acquiring
+        // it: a prior owner may have published e + 1 and died before
+        // releasing ownership. The ownership handoff orders its R5 before
+        // this load (docs/invariants.md, OW2, EP1).
         if self.global_epoch().load(Relaxed) != e {
             return Err(Error::ConcurrentOperation);
         }
@@ -97,28 +100,18 @@ impl<'m, P: Params> Cache<'m, P> {
                 return Err(Error::ConcurrentOperation);
             }
             if CtlWord(cur_ctl).sealed() {
-                // A prior owner sealed it, then died or returned an error.
-                // An error handoff is release/acquire through the rotation
-                // owner; a dead-owner takeover follows reap_owner(): either
-                // our own steal of its slot after a "dead" verdict, whose
-                // backend contract imports the dead incarnation's final
-                // shared-memory operations, or an acquire of a later state of
-                // its slot, which continues the release sequence of a
-                // reaper's steal of the slot, published only after that
-                // reaper's own verdict. Either path makes the seal
-                // happen-before this rotation's R5, as the R2 argument of the
-                // rotation that reuses this arena requires, despite this
-                // relaxed control load.
+                // A prior tenure sealed it (Z(e)), then died or returned an
+                // error. The ownership handoff, including a takeover through
+                // reap_owner(), makes that seal happen-before this tenure's
+                // R5 despite this relaxed load (docs/invariants.md, OW1,
+                // OW2, EP3).
                 break;
             }
-            // R1: retire the current arena. Relaxed: no write to the control
-            // word is a release, so an acquire would import only what this
-            // incarnation's writers did before their reservation RMW (B1),
-            // through their W3 fence. Nothing below needs that: their pins
-            // (e) never block the scan. What matters is that the seal
-            // happens-before R2 of the rotation that reuses this arena (see
-            // R2), which this rotation's R5 and the ownership handoffs
-            // provide, whatever the ordering of the seal itself.
+            // R1: seal the current arena, keeping its stamp and bump.
+            // Relaxed: what matters is that the seal happens-before the W3
+            // of the rotator that later reuses this arena, which this
+            // tenure's R5 and the ownership handoffs provide whatever the
+            // seal's own ordering (docs/invariants.md, EP2, EP3).
             match cur_arena.ctl().compare_exchange(
                 cur_ctl,
                 cur_ctl | CtlWord::SEALED,
@@ -130,48 +123,15 @@ impl<'m, P: Params> Cache<'m, P> {
             }
         }
 
-        // R2. The scan below must read the pin of every writer that may
-        // still write into arena (e + 1) % 3, which this rotation reuses, or
-        // a later value of that pin. Such a writer pinned e - 2, executed W3
-        // and then saw that incarnation unsealed. A later value is an unpin
-        // or next pin, released after the writer's record writes, or a
-        // reaper's clear, which imports a dead writer's writes. Either way
-        // reuse waits for the writer or happens after it.
-        //
-        // By [atomics.order]/4.4 on the pin, the scan reads that pin or a
-        // later value if some seq_cst fence F before the scan follows the
-        // writer's W3 in the seq_cst order S. Otherwise, a scan reading an
-        // older value would put F before the writer's W3 in S.
-        //
-        // The writer's W3 precedes F in S if seal(e - 2) happens-before F.
-        // By the same rule on the control word: the writer's W3
-        // happens-before its control load, which saw the arena unsealed and
-        // so is coherence-ordered before the seal. R1 sealed arena e
-        // instead, whose writers the scan does not wait for; the seal that
-        // matters is older.
-        //
-        // That seal happens-before every fence this rotator executes after
-        // loading e:
-        //
-        //   seal(e - 2) --> R5 publishing e - 1 --> ... --> R5 publishing e
-        //     --rf/sw--> W1 of this rotator (acquire, read e)
-        //     --sb--> W3 (in reserve()) --sb--> R2 --sb--> scan
-        //
-        // Each rotation seals before publishing its epoch, and a takeover
-        // rotator imports a dead owner's seal through the liveness handoff
-        // described above. Every rotation starts from the epoch its
-        // predecessor released.
-        //
-        // Both W3 and R2 qualify as F. R2 is currently redundant because
-        // every caller calls reserve() before rotate(). R2 keeps rotate()
-        // correct for a future caller that does not. Rotation is rare, so the
-        // fence is cheap.
-        fence(SeqCst);
+        // No fence of its own before the scan: the caller's W3 is the
+        // store-buffering partner of every writer's W3, so the scan reads
+        // each writer's pin or a later value (docs/invariants.md, PN3).
         for i in 0..hp.participant_capacity {
             let participant = self.participant(hp, i);
             let mut wait = BoundedWait::new();
             // R3: wait for it to be unpinned. Only pins at e - 2 or older
-            // block: they write into the arena being reused.
+            // block: they write into the arena being reused
+            // (docs/invariants.md, QU1).
             loop {
                 // Possibly with our own ROTATION_WAITING from a previous
                 // pause.
@@ -180,8 +140,11 @@ impl<'m, P: Params> Cache<'m, P> {
                 if pinned_epoch == UNPINNED || e < pinned_epoch.wrapping_add(2) {
                     break;
                 }
-                // Before blocking in a futex, flag the pin, so that the
-                // unpin wakes us; fails if the pinner wrote its slot.
+                // R3A: before blocking in a futex, flag the pin, so that the
+                // unpin wakes us; fails if the pinner wrote its slot. An RMW
+                // keeping the pinned epoch, so it stays in the release
+                // sequence of the pin store it replaces (docs/invariants.md,
+                // PN1).
                 let announce = || {
                     participant
                         .pinned_epoch
@@ -208,7 +171,8 @@ impl<'m, P: Params> Cache<'m, P> {
             }
         }
         // R4: arena reuse resets only the control word (and the exact
-        // counter); the index and records are rejected by their stamps.
+        // counter); the index and records are rejected by their stamps
+        // (docs/invariants.md, A6).
         if !<P::Occupancy as OccupancyMode>::ESTIMATES {
             next_arena.exact_occupancy().store(0, Relaxed);
         }
@@ -238,39 +202,11 @@ impl<'m, P: Params> Cache<'m, P> {
     /// so that the caller may take ownership away from it (O3). Steals and
     /// releases the owner's slot if it still holds the owner's dead claim.
     ///
-    /// The comments below use the memory model's relations: sb (sequenced
-    /// before, i.e. program order in one thread), sw (synchronises with: an
-    /// acquire reads a release, or a later value in its release sequence)
-    /// and hb (happens before: the transitive closure of sb and sw).
-    ///
-    /// Two things must hold after O3:
-    ///
-    /// 1. One owner. If `owner` left normally, it released ownership (O4, a
-    ///    plain store of NONE) before its slot (P3). Were O3 to precede O4
-    ///    in the owner word's modification order, O3 would succeed and O4
-    ///    would then reset the word under the caller, so that a second
-    ///    rotator could acquire ownership too.
-    /// 2. No takeover blind to the dead owner's work. The new owner builds
-    ///    on R5, its publication of the next epoch, which R0 must see to
-    ///    stop, and on R1, its seal of the current arena, which must
-    ///    happen-before R2 of the rotation that later reuses the arena.
-    ///    rotate_owned() accepts an arena it finds sealed without a
-    ///    synchronising access of its own, so this must supply that edge.
-    ///
-    /// Both hold if what ended `owner` hb O3. O1 read the owner word from
-    /// `owner`'s acquiring exchange, a release sb its claim, so the steal
-    /// finds `owner`'s own claim or a later state. Every outcome but `Live`
-    /// shows that `owner` is over, and synchronises with what ended it (see
-    /// steal()), sb O3:
-    ///
-    /// * `Stolen`: `owner`'s final writes hb the steal's verdict.
-    /// * Any other outcome: `owner` ended in a release exchange of the
-    ///   state, P3 or a reaper's P4, and every later state write is a
-    ///   read-modify-write, so the state the steal acquired lies in that
-    ///   exchange's release sequence. For P3, O4 sb P3, so O4 hb O3; a write
-    ///   that hb a read-modify-write precedes it in modification order, so
-    ///   O3 reads NONE (or a later owner) and fails. For P4, the reaper's
-    ///   "dead" verdict sb P4, and the dead process's final writes hb it.
+    /// Every outcome but `Live` synchronises with what ended `owner`'s
+    /// registration (its P3, a reaper's P4, or, for `Stolen`, its death
+    /// through the dead verdict), so everything `owner` did happens before
+    /// O3: there is one owner at a time, and the new owner sees the dead
+    /// owner's R1 and R5 (docs/invariants.md, OW1, OW2).
     ///
     /// Only `owner`'s own claim is examined. Another registration's claim
     /// already shows that `owner` is over: the takeover neither asks the
@@ -326,6 +262,7 @@ impl<'m, P: Params> Cache<'m, P> {
         let owner_word = &self.header().rotation_owner;
         let desired = RotationOwner::new(slot_index, slot.registration_id::<P::Pid>());
         if policy == RotationPolicy::SkipBusyOwner {
+            // O0: epoch precheck.
             if self.global_epoch().load(Relaxed) != e {
                 return Err(Error::ConcurrentOperation);
             }
@@ -345,10 +282,11 @@ impl<'m, P: Params> Cache<'m, P> {
         let mut wait = BoundedWait::new();
 
         loop {
+            // O0: epoch precheck.
             if self.global_epoch().load(Relaxed) != e {
                 return Err(Error::ConcurrentOperation);
             }
-            // See the precondition of reap_owner().
+            // Acquire: reap_owner() relies on it (docs/invariants.md, OW1).
             let owner = RotationOwner(owner_word.load(Acquire)); // O1
             if owner.registration_id() == 0 {
                 // O2: take ownership from NONE.
@@ -375,9 +313,11 @@ impl<'m, P: Params> Cache<'m, P> {
             if !self.reap_owner(hp, owner)? {
                 return Err(Error::RotationOwnerTimeout);
             }
-            // O3: takeover of a dead owner.
+            // O3: take over a dead owner. Release only: reap_owner() already
+            // ordered everything `owner` did before this point; the release
+            // serves the next taker's O1 (docs/invariants.md, OW1, OW2).
             if owner_word
-                .compare_exchange(owner.0, desired.0, AcqRel, Relaxed)
+                .compare_exchange(owner.0, desired.0, Release, Relaxed)
                 .is_ok()
             {
                 return Ok(());

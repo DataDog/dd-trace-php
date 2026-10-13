@@ -1,12 +1,12 @@
 //! A chunk claim that crosses the end of the record area is clipped to it,
 //! so later tail writes stay inside the arena.
 //!
-//! `reserve()` picks a chunk-sized claim from a relaxed precheck of the
-//! arena bump. Another claim can land between that precheck and the
-//! fetch-add, so a claim may still succeed for its record while its chunk
-//! extends past the record area. Tail consumption checks only the chunk's
-//! own `[cursor, end)`, never the capacity: clipping `end` to the record
-//! area is what keeps later tail writes inside it.
+//! `reserve()` picks a chunk-sized claim from a relaxed precheck (B0) of
+//! the arena bump. Another claim can land between that precheck and the
+//! fetch-add (B1), so a claim may still succeed for its record while its
+//! chunk extends past the record area. Tail consumption (H1) checks only
+//! the chunk's own `[cursor, end)`, never the capacity: clipping `end` to
+//! the record area (H2) is what keeps later tail writes inside it.
 //!
 //! Setup: records are 32 bytes, chunks 160 and the record area 192. Two
 //! symmetric writers each insert two distinct keys (in distinct buckets)

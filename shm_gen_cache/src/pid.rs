@@ -38,8 +38,8 @@ pub trait GetPid {
     /// before it releases ownership.
     #[inline(always)]
     fn after_epoch_publication() {}
-    /// Called by an insert after it publishes its record (W6: table and
-    /// occupancy updates included) and before it unpins.
+    /// Called by an insert after it publishes its record (I2) and updates
+    /// the occupancy (W6), and before it unpins (W7).
     #[inline(always)]
     fn after_record_publication(_slot: &ParticipantSlot) {}
 }

@@ -1,13 +1,14 @@
 //! A write into an already-owned reservation chunk must still block reuse
 //! of its arena.
 //!
-//! A writer consuming a chunk it already owns performs no reservation RMW,
-//! so a seal can no longer acquire that writer's new pin from the control
-//! word: W3 must protect the write. The writer's W3 precedes, in the
-//! seq_cst order, R2 before the reusing rotator's pin scan (the rotator's
-//! own W3 in `reserve()` currently serves as the same fence, so R2 is
-//! redundant here). Two symmetric public inserters contend for rotation
-//! while the writer finishes its record in the original arena.
+//! A writer consuming a chunk it already owns (H1) performs no reservation
+//! RMW (B1): only its control-word precheck (B0) and its W3 fence relate
+//! its pin to the seal. The writer's W3 precedes, in the seq_cst order,
+//! the reusing rotator's own W3 in `reserve()`, which comes before its pin
+//! scan (`rotate()` has no fence of its own), so the scan sees the pin
+//! (store buffering; docs/invariants.md, PN3). Two symmetric public
+//! inserters contend for rotation while the writer finishes its record in
+//! the original arena.
 //!
 //! # Setup and threads
 //!
@@ -248,8 +249,9 @@ fn expect_state(cache: Cache<'_, Cfg>, successful: u64) {
 
     let current = arena_state(cache, epoch % ARENAS, Relaxed);
     check!(current.epoch as u64 == epoch);
-    // A competing fetch-add can fail once after the epoch-4 claim. Its next
-    // precheck sees its own add, so it cannot fail twice in that incarnation.
+    // A competing fetch-add (B1) can fail once after the epoch-4 claim. Its
+    // next precheck (B0) sees its own add, so it cannot fail twice in that
+    // incarnation.
     check!(current.bump == 64 || current.bump == 128);
     check!(current.occupancy == Some(1));
 }

@@ -14,10 +14,11 @@
 //! * every insert succeeded or failed with `RotationOwnerTimeout` (no
 //!   harness retries);
 //! * the lookup returned exactly V0 or a miss (K aged out); never VF, a
-//!   torn value, or an error (a promotion never rotates, so it cannot time
-//!   out). A lookup may write its output buffer before deciding on a miss;
-//!   those bytes are not a returned value, so the buffer is examined only
-//!   after a hit;
+//!   torn value, or an error (a promotion never rotates before it is
+//!   published, and a rotation after publication cannot fail the lookup,
+//!   so it cannot time out). A lookup may write its output buffer before
+//!   deciding on a miss; those bytes are not a returned value, so the
+//!   buffer is examined only after a hit;
 //! * the final state: epoch in 2..=5, no rotation owner, the current arena
 //!   unsealed, stamped with that epoch, holding one or two records (bump 56
 //!   or 104); both participants unpinned.

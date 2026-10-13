@@ -19,7 +19,8 @@
 //!   3 and 4, which an epoch-2 pin does not block) and G -> VG, whose
 //!   rotation to epoch 5 recycles arena 2 and so waits for the dead pin.
 //! * Registrar R registers: the registry is full, so it steals slot 0,
-//!   which clears the dead pin and wakes B (if B is blocked), and keeps it.
+//!   which clears the dead pin (P6) and wakes B (if B is blocked), and
+//!   keeps it.
 //!
 //! After the joins: R registered in slot 0, B's four inserts succeeded, both
 //! pins are clear (no leftover `ROTATION_WAITING`), arenas 0, 1 and 2 hold

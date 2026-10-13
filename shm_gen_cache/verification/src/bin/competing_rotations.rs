@@ -44,10 +44,10 @@
 //! ```text
 //! rotation owner                     contender
 //! --------------                     ---------
-//! register participant slot
-//! W3 seq_cst fence (also release)
-//! CAS owner = {slot, id}  --------->  acquire-load owner
-//!                                     reap_owner(slot, id)
+//! P2: register participant slot
+//! W1, W2, W3 in reserve()
+//! O2: CAS owner = {slot, id}  ----->  O1: acquire-load owner
+//!     (release)                       reap_owner(slot, id)
 //! ```
 //!
 //! `reap_owner()` reads the owner's participant slot. Acquiring
@@ -57,7 +57,7 @@
 //! after rotation ownership has been acquired.
 //!
 //! The worker's registration outlives `insert()`. A rotator clears the
-//! owner word before `insert()` returns, and only then can dropping the
+//! owner word (O4) before `insert()` returns, and only then can dropping the
 //! registration publish FREE. A contender that loaded the old owner may
 //! later see that FREE, but its takeover CAS must fail against the cleared
 //! owner word. So a takeover based on FREE can succeed only if the

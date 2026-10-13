@@ -17,7 +17,7 @@
 //! backend (`StagedDeath`) reports PID 1 dead and PID 2 live; it supplies
 //! no synchronisation between workers. The rotation's production slot
 //! reaping itself takes the dead slot over (REGISTERED to PID 1, then
-//! INITIALIZING and REGISTERED to the rotator), which clears the dead pin,
+//! INITIALIZING and REGISTERED to the rotator), which clears the dead pin (P6),
 //! and releases it (FREE).
 //!
 //! # Workers
