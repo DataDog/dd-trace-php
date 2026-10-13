@@ -917,6 +917,8 @@ endforeach;
 "randomized tests: [amd64, no-asan, <?= $i ?>]":
   extends: .randomized_tests
   tags: [ "docker-in-docker:amd64" ]
+  variables:
+    RANDOMIZED_RESTRICT_PLATFORMS: centos7
   needs:
     - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
@@ -927,6 +929,8 @@ endforeach;
 "randomized tests: [amd64, asan, <?= $i ?>]":
   extends: .randomized_tests
   tags: [ "docker-in-docker:amd64" ]
+  variables:
+    RANDOMIZED_RESTRICT_PLATFORMS: buster
   needs:
     - job: "package extension asan"
       artifacts: true
@@ -941,6 +945,7 @@ endforeach;
 #   tags: [ "docker-in-docker:arm64" ]
 #   variables:
 #     DOCKER_COMPOSE_DOWNLOAD_NAME: docker-compose-linux-aarch64
+#     RANDOMIZED_RESTRICT_PLATFORMS: centos7
 #   needs:
 #     - job: "package extension (bundles): [arm64, aarch64-unknown-linux-gnu]"
 #       artifacts: true
@@ -954,6 +959,7 @@ endforeach;
 #   tags: [ "docker-in-docker:arm64" ]
 #   variables:
 #     DOCKER_COMPOSE_DOWNLOAD_NAME: docker-compose-linux-aarch64
+#     RANDOMIZED_RESTRICT_PLATFORMS: buster
 #   needs:
 #     - job: "package extension asan"
 #       artifacts: true

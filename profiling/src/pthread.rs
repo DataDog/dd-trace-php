@@ -1,4 +1,4 @@
-use crate::profiling::allocation::alloc_prof_rshutdown;
+use crate::profiling::allocation;
 use crate::profiling::{config, Profiler};
 use log::trace;
 
@@ -39,7 +39,8 @@ unsafe extern "C" fn child() {
     // And then leak the old profiler. Its drop method is not safe to run in these situations.
     Profiler::kill();
 
-    alloc_prof_rshutdown();
+    // SAFETY: The child retains the forking PHP thread's live globals and heap.
+    unsafe { allocation::deactivate() };
 
     // Reset some global state to prevent further profiling and to not handle
     // any pending interrupts.

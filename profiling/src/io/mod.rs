@@ -4,11 +4,13 @@ pub mod got_elf64;
 pub mod got_macho;
 
 use crate::profiling::profiler::Profiler;
-use crate::profiling::{sample_exponential_interval, zend, RefCellExt, REQUEST_LOCALS};
+use crate::profiling::{
+    sample_exponential_interval, zend, RefCellExt, RequestLocals, PHP_REQUEST_ACTIVE,
+};
 use libc::{c_int, c_void, fstat, stat, S_IFMT, S_IFSOCK};
 use rand::rngs::ThreadRng;
 use rustc_hash::FxHashMap;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::mem::MaybeUninit;
 use std::os::unix::io::RawFd;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -99,8 +101,13 @@ unsafe fn restore_slot_if_owned(restore: &GotSlotRestore) -> bool {
 }
 
 #[inline]
-fn is_zend_thread() -> bool {
-    REQUEST_LOCALS.borrow_or_false(|locals| !locals.vm_interrupt_addr.is_null())
+fn is_active_zend_thread() -> bool {
+    // Reject foreign threads before accessing any PHP module globals.
+    // SAFETY: Short-circuiting the TLS check restricts the globals lookup to
+    // the native thread in an active PHP request.
+    PHP_REQUEST_ACTIVE.try_with(Cell::get).unwrap_or(false)
+        && unsafe { RequestLocals::from_module_globals() }
+            .borrow_or_false(|locals| !locals.vm_interrupt_addr.is_null())
 }
 
 fn eval_poll_events(ret: i32, fds: &[libc::pollfd]) -> (bool, bool) {
@@ -146,7 +153,7 @@ unsafe extern "C" fn observed_poll(
     nfds: libc::nfds_t,
     timeout: c_int,
 ) -> i32 {
-    if !is_zend_thread() {
+    if !is_active_zend_thread() {
         return libc::poll(fds, nfds, timeout);
     }
 
@@ -161,12 +168,14 @@ unsafe extern "C" fn observed_poll(
         let (has_read, has_write) = eval_poll_events(ret, slice);
 
         if has_read
+            && is_active_zend_thread()
             && SOCKET_READ_TIME_PROFILING_STATS
                 .borrow_mut_or_false(|io| io.should_collect(duration_nanos))
         {
             collect_socket_read_time(duration_nanos);
         }
         if has_write
+            && is_active_zend_thread()
             && SOCKET_WRITE_TIME_PROFILING_STATS
                 .borrow_mut_or_false(|io| io.should_collect(duration_nanos))
         {
@@ -183,7 +192,7 @@ unsafe extern "C" fn observed_recv(
     length: usize,
     flags: c_int,
 ) -> isize {
-    if !is_zend_thread() {
+    if !is_active_zend_thread() {
         return libc::recv(socket, buf, length, flags);
     }
 
@@ -193,13 +202,17 @@ unsafe extern "C" fn observed_recv(
     let duration = start.elapsed();
 
     let duration_nanos = duration.as_nanos() as u64;
-    if SOCKET_READ_TIME_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(duration_nanos))
+    if is_active_zend_thread()
+        && SOCKET_READ_TIME_PROFILING_STATS
+            .borrow_mut_or_false(|io| io.should_collect(duration_nanos))
     {
         collect_socket_read_time(duration_nanos);
     }
     if len > 0 {
         let len_u64 = len as u64;
-        if SOCKET_READ_SIZE_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(len_u64)) {
+        if is_active_zend_thread()
+            && SOCKET_READ_SIZE_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(len_u64))
+        {
             collect_socket_read_size(len_u64);
         }
     }
@@ -212,7 +225,7 @@ unsafe extern "C" fn observed_recvmsg(
     msg: *mut libc::msghdr,
     flags: c_int,
 ) -> isize {
-    if !is_zend_thread() {
+    if !is_active_zend_thread() {
         return libc::recvmsg(socket, msg, flags);
     }
 
@@ -222,13 +235,17 @@ unsafe extern "C" fn observed_recvmsg(
     let duration = start.elapsed();
 
     let duration_nanos = duration.as_nanos() as u64;
-    if SOCKET_READ_TIME_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(duration_nanos))
+    if is_active_zend_thread()
+        && SOCKET_READ_TIME_PROFILING_STATS
+            .borrow_mut_or_false(|io| io.should_collect(duration_nanos))
     {
         collect_socket_read_time(duration_nanos);
     }
     if len > 0 {
         let len_u64 = len as u64;
-        if SOCKET_READ_SIZE_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(len_u64)) {
+        if is_active_zend_thread()
+            && SOCKET_READ_SIZE_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(len_u64))
+        {
             collect_socket_read_size(len_u64);
         }
     }
@@ -244,7 +261,7 @@ unsafe extern "C" fn observed_recvfrom(
     address: *mut libc::sockaddr,
     address_len: *mut libc::socklen_t,
 ) -> isize {
-    if !is_zend_thread() {
+    if !is_active_zend_thread() {
         return libc::recvfrom(socket, buf, length, flags, address, address_len);
     }
 
@@ -254,13 +271,17 @@ unsafe extern "C" fn observed_recvfrom(
     let duration = start.elapsed();
 
     let duration_nanos = duration.as_nanos() as u64;
-    if SOCKET_READ_TIME_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(duration_nanos))
+    if is_active_zend_thread()
+        && SOCKET_READ_TIME_PROFILING_STATS
+            .borrow_mut_or_false(|io| io.should_collect(duration_nanos))
     {
         collect_socket_read_time(duration_nanos);
     }
     if len > 0 {
         let len_u64 = len as u64;
-        if SOCKET_READ_SIZE_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(len_u64)) {
+        if is_active_zend_thread()
+            && SOCKET_READ_SIZE_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(len_u64))
+        {
             collect_socket_read_size(len_u64);
         }
     }
@@ -274,7 +295,7 @@ unsafe extern "C" fn observed_send(
     length: usize,
     flags: c_int,
 ) -> isize {
-    if !is_zend_thread() {
+    if !is_active_zend_thread() {
         return libc::send(socket, buf, length, flags);
     }
 
@@ -284,13 +305,18 @@ unsafe extern "C" fn observed_send(
     let duration = start.elapsed();
 
     let duration_nanos = duration.as_nanos() as u64;
-    if SOCKET_WRITE_TIME_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(duration_nanos))
+    if is_active_zend_thread()
+        && SOCKET_WRITE_TIME_PROFILING_STATS
+            .borrow_mut_or_false(|io| io.should_collect(duration_nanos))
     {
         collect_socket_write_time(duration_nanos);
     }
     if len > 0 {
         let len_u64 = len as u64;
-        if SOCKET_WRITE_SIZE_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(len_u64)) {
+        if is_active_zend_thread()
+            && SOCKET_WRITE_SIZE_PROFILING_STATS
+                .borrow_mut_or_false(|io| io.should_collect(len_u64))
+        {
             collect_socket_write_size(len_u64);
         }
     }
@@ -303,7 +329,7 @@ unsafe extern "C" fn observed_sendmsg(
     msg: *const libc::msghdr,
     flags: c_int,
 ) -> isize {
-    if !is_zend_thread() {
+    if !is_active_zend_thread() {
         return libc::sendmsg(socket, msg, flags);
     }
 
@@ -313,13 +339,18 @@ unsafe extern "C" fn observed_sendmsg(
     let duration = start.elapsed();
 
     let duration_nanos = duration.as_nanos() as u64;
-    if SOCKET_WRITE_TIME_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(duration_nanos))
+    if is_active_zend_thread()
+        && SOCKET_WRITE_TIME_PROFILING_STATS
+            .borrow_mut_or_false(|io| io.should_collect(duration_nanos))
     {
         collect_socket_write_time(duration_nanos);
     }
     if len > 0 {
         let len_u64 = len as u64;
-        if SOCKET_WRITE_SIZE_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(len_u64)) {
+        if is_active_zend_thread()
+            && SOCKET_WRITE_SIZE_PROFILING_STATS
+                .borrow_mut_or_false(|io| io.should_collect(len_u64))
+        {
             collect_socket_write_size(len_u64);
         }
     }
@@ -333,7 +364,7 @@ unsafe extern "C" fn observed_fwrite(
     nobj: usize,
     stream: *mut libc::FILE,
 ) -> usize {
-    if !is_zend_thread() {
+    if !is_active_zend_thread() {
         return libc::fwrite(ptr, size, nobj, stream);
     }
 
@@ -343,11 +374,15 @@ unsafe extern "C" fn observed_fwrite(
     let duration = start.elapsed();
 
     let duration_nanos = duration.as_nanos() as u64;
-    if FILE_WRITE_TIME_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(duration_nanos)) {
+    if is_active_zend_thread()
+        && FILE_WRITE_TIME_PROFILING_STATS
+            .borrow_mut_or_false(|io| io.should_collect(duration_nanos))
+    {
         collect_file_write_time(duration_nanos);
     }
     let bytes = (len as u64).saturating_mul(size as u64);
     if bytes > 0
+        && is_active_zend_thread()
         && FILE_WRITE_SIZE_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(bytes))
     {
         collect_file_write_size(bytes);
@@ -357,7 +392,7 @@ unsafe extern "C" fn observed_fwrite(
 }
 
 unsafe extern "C" fn observed_write(fd: c_int, buf: *const c_void, count: usize) -> isize {
-    if !is_zend_thread() {
+    if !is_active_zend_thread() {
         return libc::write(fd, buf, count);
     }
 
@@ -368,28 +403,33 @@ unsafe extern "C" fn observed_write(fd: c_int, buf: *const c_void, count: usize)
 
     let duration_nanos = duration.as_nanos() as u64;
     if fd_is_socket(fd) {
-        if SOCKET_WRITE_TIME_PROFILING_STATS
-            .borrow_mut_or_false(|io| io.should_collect(duration_nanos))
+        if is_active_zend_thread()
+            && SOCKET_WRITE_TIME_PROFILING_STATS
+                .borrow_mut_or_false(|io| io.should_collect(duration_nanos))
         {
             collect_socket_write_time(duration_nanos);
         }
         if len > 0 {
             let len_u64 = len as u64;
-            if SOCKET_WRITE_SIZE_PROFILING_STATS
-                .borrow_mut_or_false(|io| io.should_collect(len_u64))
+            if is_active_zend_thread()
+                && SOCKET_WRITE_SIZE_PROFILING_STATS
+                    .borrow_mut_or_false(|io| io.should_collect(len_u64))
             {
                 collect_socket_write_size(len_u64);
             }
         }
     } else {
-        if FILE_WRITE_TIME_PROFILING_STATS
-            .borrow_mut_or_false(|io| io.should_collect(duration_nanos))
+        if is_active_zend_thread()
+            && FILE_WRITE_TIME_PROFILING_STATS
+                .borrow_mut_or_false(|io| io.should_collect(duration_nanos))
         {
             collect_file_write_time(duration_nanos);
         }
         if len > 0 {
             let len_u64 = len as u64;
-            if FILE_WRITE_SIZE_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(len_u64))
+            if is_active_zend_thread()
+                && FILE_WRITE_SIZE_PROFILING_STATS
+                    .borrow_mut_or_false(|io| io.should_collect(len_u64))
             {
                 collect_file_write_size(len_u64);
             }
@@ -408,7 +448,7 @@ unsafe extern "C" fn observed_fread(
     nobj: usize,
     stream: *mut libc::FILE,
 ) -> usize {
-    if !is_zend_thread() {
+    if !is_active_zend_thread() {
         return libc::fread(ptr, size, nobj, stream);
     }
 
@@ -418,11 +458,15 @@ unsafe extern "C" fn observed_fread(
     let duration = start.elapsed();
 
     let duration_nanos = duration.as_nanos() as u64;
-    if FILE_READ_TIME_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(duration_nanos)) {
+    if is_active_zend_thread()
+        && FILE_READ_TIME_PROFILING_STATS
+            .borrow_mut_or_false(|io| io.should_collect(duration_nanos))
+    {
         collect_file_read_time(duration_nanos);
     }
     let bytes = (len as u64).saturating_mul(size as u64);
     if bytes > 0
+        && is_active_zend_thread()
         && FILE_READ_SIZE_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(bytes))
     {
         collect_file_read_size(bytes);
@@ -432,7 +476,7 @@ unsafe extern "C" fn observed_fread(
 }
 
 unsafe extern "C" fn observed_read(fd: c_int, buf: *mut c_void, count: usize) -> isize {
-    if !is_zend_thread() {
+    if !is_active_zend_thread() {
         return libc::read(fd, buf, count);
     }
 
@@ -443,27 +487,34 @@ unsafe extern "C" fn observed_read(fd: c_int, buf: *mut c_void, count: usize) ->
 
     let duration_nanos = duration.as_nanos() as u64;
     if fd_is_socket(fd) {
-        if SOCKET_READ_TIME_PROFILING_STATS
-            .borrow_mut_or_false(|io| io.should_collect(duration_nanos))
+        if is_active_zend_thread()
+            && SOCKET_READ_TIME_PROFILING_STATS
+                .borrow_mut_or_false(|io| io.should_collect(duration_nanos))
         {
             collect_socket_read_time(duration_nanos);
         }
         if len > 0 {
             let len_u64 = len as u64;
-            if SOCKET_READ_SIZE_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(len_u64))
+            if is_active_zend_thread()
+                && SOCKET_READ_SIZE_PROFILING_STATS
+                    .borrow_mut_or_false(|io| io.should_collect(len_u64))
             {
                 collect_socket_read_size(len_u64);
             }
         }
     } else {
-        if FILE_READ_TIME_PROFILING_STATS
-            .borrow_mut_or_false(|io| io.should_collect(duration_nanos))
+        if is_active_zend_thread()
+            && FILE_READ_TIME_PROFILING_STATS
+                .borrow_mut_or_false(|io| io.should_collect(duration_nanos))
         {
             collect_file_read_time(duration_nanos);
         }
         if len > 0 {
             let len_u64 = len as u64;
-            if FILE_READ_SIZE_PROFILING_STATS.borrow_mut_or_false(|io| io.should_collect(len_u64)) {
+            if is_active_zend_thread()
+                && FILE_READ_SIZE_PROFILING_STATS
+                    .borrow_mut_or_false(|io| io.should_collect(len_u64))
+            {
                 collect_file_read_size(len_u64);
             }
         }
@@ -651,16 +702,8 @@ impl IOProfilingStats {
         self.next_sample = sample_exponential_interval(&mut self.rng, self.mean) as u64;
     }
 
+    /// Advances the sampling countdown, independently of PHP thread eligibility.
     fn should_collect(&mut self, value: u64) -> bool {
-        let zend_thread =
-            REQUEST_LOCALS.borrow_or_false(|locals| !locals.vm_interrupt_addr.is_null());
-        if !zend_thread {
-            // `curl_exec()` for example will spawn a new thread for name resolution. GOT hooking
-            // follows threads and as such we might sample from another (non PHP) thread even in a
-            // NTS build of PHP. We have observed crashes for these cases, so instead of crashing
-            // (or risking a crash) we refrain from collection I/O.
-            return false;
-        }
         if self.next_sample > value {
             self.next_sample -= value;
             return false;
@@ -714,8 +757,9 @@ thread_local! {
 }
 
 pub fn io_prof_first_rinit() {
-    let io_profiling =
-        REQUEST_LOCALS.borrow_or_false(|locals| locals.system_settings().profiling_io_enabled);
+    // SAFETY: First RINIT runs on the PHP thread with initialized module globals.
+    let io_profiling = unsafe { RequestLocals::from_module_globals() }
+        .borrow_or_false(|locals| locals.system_settings().profiling_io_enabled);
 
     if io_profiling {
         unsafe {
@@ -829,16 +873,23 @@ mod tests {
 
     #[test]
     fn sampling_collects_at_interval_boundary() {
-        let vm_interrupt = std::sync::atomic::AtomicBool::new(false);
-        let previous = super::REQUEST_LOCALS.with_borrow_mut(|locals| {
-            std::mem::replace(&mut locals.vm_interrupt_addr, &vm_interrupt)
-        });
         let mut stats = super::IOProfilingStats::new(100);
         stats.next_sample = 8;
         assert!(!stats.should_collect(0));
+        assert_eq!(stats.next_sample, 8);
         assert!(!stats.should_collect(4));
+        assert_eq!(stats.next_sample, 4);
         assert!(stats.should_collect(4));
-        super::REQUEST_LOCALS.with_borrow_mut(|locals| locals.vm_interrupt_addr = previous);
+    }
+
+    #[test]
+    fn sampling_collects_when_crossing_interval_boundary() {
+        let mut stats = super::IOProfilingStats::new(100);
+        stats.next_sample = 8;
+        assert!(stats.should_collect(9));
+
+        stats.next_sample = 8;
+        assert!(stats.should_collect(u64::MAX));
     }
 
     #[test]

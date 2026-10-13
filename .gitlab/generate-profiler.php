@@ -347,10 +347,10 @@ foreach ($profiler_minor_major_targets as $version) {
         ARCH: arm64
   script:
     - switch-php nts # not compatible with debug
-    - cargo clippy --all-targets --no-deps --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample -- -D warnings -Aunknown-lints
+    - cargo clippy --all-targets --no-deps --no-default-features --features profiling,test,debug_stats,tracing,tracing-subscriber,trigger_time_sample -- -D warnings -Aunknown-lints
     - switch-php zts # not compatible with debug
     - touch profiling/build.rs # make sure the build helper runs after switch-php
-    - cargo clippy --all-targets --no-deps --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample -- -D warnings -Aunknown-lints
+    - cargo clippy --all-targets --no-deps --no-default-features --features profiling,test,debug_stats,tracing,tracing-subscriber,trigger_time_sample -- -D warnings -Aunknown-lints
 
 "Cargo test":
   stage: test
@@ -377,10 +377,10 @@ foreach ($profiler_minor_major_targets as $version) {
        - ARCH: *arch_targets
   script:
     - switch-php nts
-    - cargo test --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample
+    - cargo test --no-default-features --features profiling,test,debug_stats,tracing,tracing-subscriber,trigger_time_sample
     - touch profiling/build.rs # make sure the build helper runs after switch-php
     - switch-php zts
-    - cargo test --no-default-features --features profiling,test,debug_stats,stack_walking_tests,tracing,tracing-subscriber,trigger_time_sample
+    - cargo test --no-default-features --features profiling,test,debug_stats,tracing,tracing-subscriber,trigger_time_sample
 
 "PHP language tests":
   stage: test

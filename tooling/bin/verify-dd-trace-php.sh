@@ -36,10 +36,6 @@ if [ "$system_name" = "Linux" ] ; then
         >&2 echo "ERROR: expected 'ddtrace-extension-linux.sym' to exist"
         exit 1
     fi
-    if [ ! -f "components-rs/libdatadog-php-linux.sym" ] ; then
-        >&2 echo "ERROR: expected 'components-rs/libdatadog-php-linux.sym' to exist"
-        exit 1
-    fi
 fi
 # }}}
 
@@ -72,7 +68,6 @@ elif [ "$system_name" = "Linux" ] ; then
     cat ddtrace-extension.sym ddtrace-extension-linux.sym \
         components-rs/libdatadog-php.sym \
         components-rs/libdatadog-php-unix.sym \
-        components-rs/libdatadog-php-linux.sym \
         | sort > "$expected_symbols"
 else
     cat ddtrace-extension.sym components-rs/libdatadog-php.sym \
@@ -91,7 +86,6 @@ if [ "$system_name" = "Linux" ] ; then
     cat ddtrace-extension.sym ddtrace-extension-linux.sym \
         components-rs/libdatadog-php.sym \
         components-rs/libdatadog-php-unix.sym \
-        components-rs/libdatadog-php-linux.sym \
         | sort > "$required_platform_symbols"
     comm -23 "$required_platform_symbols" "$actual_defined_symbols" > "$missing_platform_symbols"
     rm "$required_platform_symbols"
