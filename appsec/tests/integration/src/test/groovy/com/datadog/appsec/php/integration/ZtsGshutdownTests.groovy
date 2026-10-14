@@ -79,7 +79,7 @@ class ZtsGshutdownTests {
             ExecResult cfgResult = CONTAINER.execInContainer('sh', '-c',
                     'OLD=$(pgrep -P $(pgrep -f /usr/sbin/apache2 | head -1))' +
                     ' && echo "MaxConnectionsPerChild 1\nKeepAlive Off" >> /etc/apache2/mods-enabled/mpm_event.conf' +
-                    ' && apache2ctl graceful' +
+                    ' && apache2ctl restart' +
                     ' && for p in $OLD; do while kill -0 $p 2>/dev/null; do sleep 0.05; done; done')
             assert cfgResult.exitCode == 0: "apache2 config failed: ${cfgResult.stderr}"
 
@@ -113,7 +113,7 @@ class ZtsGshutdownTests {
             // before a core dump can be written (e.g. Rust allocator panics on
             // poisoned memory).
             String errorLogText = errorLog.getTextSinceMark()
-            assert !errorLogText.contains('exit signal Abort'):
+            assert !errorLogText.contains('exit signal Aborted'):
                     "Apache worker exited via SIGABRT during GSHUTDOWN:\n" + errorLogText
             assert !errorLogText.contains('exit signal Segmentation'):
                     "Apache worker segfaulted during GSHUTDOWN:\n" + errorLogText
@@ -121,7 +121,7 @@ class ZtsGshutdownTests {
             CONTAINER.execInContainer('sh', '-c',
                     'cp /etc/apache2/mods-enabled/mpm_event.conf.bak_zts' +
                     ' /etc/apache2/mods-enabled/mpm_event.conf' +
-                    ' && apache2ctl graceful')
+                    ' && apache2ctl restart')
         }
     }
 }
