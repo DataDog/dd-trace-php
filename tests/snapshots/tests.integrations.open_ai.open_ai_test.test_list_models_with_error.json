@@ -37,9 +37,12 @@
        "span_id": 2,
        "parent_id": 1,
        "type": "http",
+       "error": 1,
        "meta": {
          "component": "psr18",
          "env": "test",
+         "error.message": "HTTP 401: Unauthorized",
+         "error.type": "http_error",
          "http.method": "GET",
          "http.status_code": "401",
          "http.url": "https://api.openai.com/v1/models?foo=bar",

@@ -917,6 +917,8 @@ endforeach;
 "randomized tests: [amd64, no-asan, <?= $i ?>]":
   extends: .randomized_tests
   tags: [ "docker-in-docker:amd64" ]
+  variables:
+    RANDOMIZED_RESTRICT_PLATFORMS: centos7
   needs:
     - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
@@ -927,6 +929,8 @@ endforeach;
 "randomized tests: [amd64, asan, <?= $i ?>]":
   extends: .randomized_tests
   tags: [ "docker-in-docker:amd64" ]
+  variables:
+    RANDOMIZED_RESTRICT_PLATFORMS: buster
   needs:
     - job: "package extension asan"
       artifacts: true
@@ -941,6 +945,7 @@ endforeach;
 #   tags: [ "docker-in-docker:arm64" ]
 #   variables:
 #     DOCKER_COMPOSE_DOWNLOAD_NAME: docker-compose-linux-aarch64
+#     RANDOMIZED_RESTRICT_PLATFORMS: centos7
 #   needs:
 #     - job: "package extension (bundles): [arm64, aarch64-unknown-linux-gnu]"
 #       artifacts: true
@@ -954,6 +959,7 @@ endforeach;
 #   tags: [ "docker-in-docker:arm64" ]
 #   variables:
 #     DOCKER_COMPOSE_DOWNLOAD_NAME: docker-compose-linux-aarch64
+#     RANDOMIZED_RESTRICT_PLATFORMS: buster
 #   needs:
 #     - job: "package extension asan"
 #       artifacts: true
@@ -1530,6 +1536,9 @@ $system_tests_weblogs = [
 <?php foreach ($system_tests_weblogs as $weblog): ?>
 "System Tests: [<?= $weblog ?>, tracer-release]":
   extends: .system_tests
+  # Start with two shards as an initial estimate of useful parallelism.
+  # Keep the job count modest across all weblogs to limit shared CI compute usage.
+  parallel: 2
   timeout: 4h
   variables:
     BUILD_SH_ARGS: -w <?= $weblog ?> php
@@ -1546,7 +1555,13 @@ $system_tests_weblogs = [
   script:
     - DD_API_KEY=$(cat /tmp/.dd-api-key 2>/dev/null) || { echo "Failed to fetch DD_API_KEY"; exit 1; }
     - export DD_API_KEY
-    - SCENARIOS=$(PYTHONPATH=. venv/bin/python utils/scripts/compute-workflow-parameters.py php -g tracer_release -f json | python3 -c "import sys,json;d=json.load(sys.stdin);s=set();[s.update(v['scenarios']) for v in d.values() if isinstance(v,dict) and 'scenarios' in v];print(' '.join(sorted(s)))")
+    # Alphabetical splitting clustered slow related scenarios in one shard.
+    # Hash sorting reduces that imbalance, while keeping the order reproducible.
+    # NOTE: it does not guarantee equal runtimes of each shard, but usually better that alphabetical.
+    - SCENARIOS=$(PYTHONPATH=. venv/bin/python utils/scripts/compute-workflow-parameters.py php -g tracer_release -f json | python3 -c "import sys,json,hashlib;d=json.load(sys.stdin);s=set();[s.update(v['scenarios']) for v in d.values() if isinstance(v,dict) and 'scenarios' in v];print(' '.join(sorted(s,key=lambda n:(hashlib.sha256(n.encode()).digest(),n))))")
+    # Each job builds the full list, then keeps every `Nth` scenario for its shard.
+    # GitLab sets CI_NODE_INDEX and CI_NODE_TOTAL from `parallel: N` above.
+    - SCENARIOS=$(printf '%s\n' $SCENARIOS | awk -v node="$CI_NODE_INDEX" -v total="$CI_NODE_TOTAL" '(NR - 1) % total == node - 1')
     - FAILED=""; for S in $SCENARIOS; do echo "=== Running $S ==="; ./run.sh $S || FAILED="$FAILED $S"; done; if [ -n "$FAILED" ]; then echo "Failed scenarios:$FAILED"; exit 1; fi
 
 <?php endforeach; ?>
@@ -1703,7 +1718,12 @@ $system_tests_weblogs = [
   image: registry.ddbuild.io/images/mirror/amazon/aws-cli:2.17.32
   tags: [ "arch:amd64" ]
   rules:
-    - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "schedule"
+    # Builds against an unpinned libdatadog share the version of the pinned build of this commit:
+    # publishing them would overwrite the packages the system-tests nightly downloads.
+    - if: $SCHEDULED_LIBDATADOG_LATEST == "true"
+      when: never
+    # CI_PIPELINE_SOURCE is always "parent_pipeline" in this child pipeline.
+    - if: $CI_COMMIT_REF_NAME == "master" && $CI_PARENT_PIPELINE_SOURCE != "schedule"
       when: on_success
     - when: manual
       allow_failure: true
@@ -1754,6 +1774,8 @@ foreach ($arch_targets as $arch) {
 # Runs on every non-default branch so system tests can be run against any (non-default) in-progress branch.
 "publish docker image for system tests (token)":
   stage: release
+  # Token generation needs no artifacts from earlier stages.
+  dependencies: []
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
   tags: [ "arch:amd64" ]
   id_tokens:

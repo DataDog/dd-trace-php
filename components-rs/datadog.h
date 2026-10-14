@@ -239,7 +239,6 @@ void ddog_log_debugger_datum(const struct ddog_DebuggerPayload *payload);
 ddog_MaybeError ddog_send_debugger_diagnostics(const struct ddog_RemoteConfigState *remote_config_state,
                                                struct ddog_SidecarTransport **transport,
                                                const struct ddog_InstanceId *instance_id,
-                                               ddog_QueueId queue_id,
                                                const struct ddog_Probe *probe,
                                                uint64_t timestamp);
 
@@ -287,12 +286,19 @@ void datadog_sidecar_set_reconnect_fn(struct ddog_SidecarTransport **transport,
 void datadog_sidecar_clear_reconnect_fn(struct ddog_SidecarTransport **transport);
 
 /**
- * Retire mappings from a previous namespace so subsequent reads reopen them.
+ * Retire mappings from a previous namespace so subsequent reads reopen them. To be called on
+ * every (re)connected transport: the connection may be to a new sidecar. Reconnects are rare,
+ * so the process-wide caches are simply reopened by every thread.
  */
 void ddog_sidecar_reconnect_readers(const struct ddog_ShmCacheMap *telemetry,
                                     struct ddog_RemoteConfigState *remote_config,
                                     const struct ddog_AgentInfoReader *agent_info,
                                     const ddog_AgentRemoteConfigReader *agent_config);
+
+/**
+ * The fd of the transport's current connection; it changes on reconnect.
+ */
+int32_t ddog_sidecar_transport_raw_fd(struct ddog_SidecarTransport *const *transport);
 
 bool ddog_shm_limiter_inc(const struct ddog_MaybeShmLimiter *limiter, uint32_t limit);
 
@@ -380,8 +386,6 @@ struct ddog_OwnedShmSpanInput *ddog_span_concentrator_add_php_span(const struct 
                                                                    const struct ddog_PhpSpanStats *span);
 
 bool ddtrace_detect_composer_installed_json(struct ddog_SidecarTransport **transport,
-                                            const struct ddog_InstanceId *instance_id,
-                                            const ddog_QueueId *queue_id,
                                             ddog_CharSlice path);
 
 struct ddog_SidecarActionsBuffer *ddog_sidecar_telemetry_buffer_alloc(void);
@@ -413,9 +417,15 @@ void ddog_sidecar_telemetry_enqueueConfig_buffer(struct ddog_SidecarActionsBuffe
                                                  ddog_CharSlice config_id);
 
 ddog_MaybeError ddog_sidecar_telemetry_buffer_flush(struct ddog_SidecarTransport **transport,
-                                                    const struct ddog_InstanceId *instance_id,
-                                                    const ddog_QueueId *queue_id,
                                                     struct ddog_SidecarActionsBuffer *buffer);
+
+/**
+ * Flushes the buffer for the given service and env instead of the current application.
+ */
+ddog_MaybeError ddog_sidecar_telemetry_buffer_flush_for_service(struct ddog_SidecarTransport **transport,
+                                                                ddog_CharSlice service,
+                                                                ddog_CharSlice env,
+                                                                struct ddog_SidecarActionsBuffer *buffer);
 
 ddog_MaybeError ddog_sidecar_telemetry_register_metric(struct ddog_SidecarTransport **transport,
                                                        ddog_CharSlice metric_name,
@@ -440,8 +450,6 @@ bool ddog_sidecar_telemetry_config_sent(struct ddog_ShmCacheMap *cache,
                                         ddog_CharSlice env);
 
 ddog_MaybeError ddog_sidecar_telemetry_filter_flush(struct ddog_SidecarTransport **transport,
-                                                    const struct ddog_InstanceId *instance_id,
-                                                    const ddog_QueueId *queue_id,
                                                     struct ddog_SidecarActionsBuffer *buffer,
                                                     struct ddog_ShmCacheMap *cache,
                                                     ddog_CharSlice service,

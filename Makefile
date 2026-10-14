@@ -64,8 +64,7 @@ TEST_FILES = $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.
 SIDECAR_RUST_FILES = appsec/recommended.json $(shell find sidecar appsec/helper-rust appsec/third_party/libddwaf-rust \( -type l -o -type f \) \( -path "*/src*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -name '*.c' \) -not -path "*/target/*" -not -path "*/.git/*")
 RUST_SYMBOL_FILES = $(addprefix $(BUILD_DIR)/, \
 	components-rs/libdatadog-php.sym \
-	components-rs/libdatadog-php-unix.sym \
-	components-rs/libdatadog-php-linux.sym)
+	components-rs/libdatadog-php-unix.sym)
 RUST_FILES = $(BUILD_DIR)/Cargo.toml $(BUILD_DIR)/Cargo.lock $(RUST_SYMBOL_FILES) $(shell find components-rs profiling -name '*.c' -o -name '*.h' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find tracer -name '*.rs' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog \( -type l -o -type f \) \( -name '*.rs' -o -path '*/src*' -o -path '*/examples*' -o -name 'Cargo.toml' \) -not -path '*/target/*' -not -path '*/.git/*') $(SIDECAR_RUST_FILES)
 ALL_OBJECT_FILES = $(C_FILES) $(RUST_FILES) $(BUILD_DIR)/Makefile
 TEST_OPCACHE_FILES = $(shell find tests/opcache -name '*.php*' -o -name '.gitkeep' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )

@@ -35,6 +35,9 @@ for ($i = 0; $i < 300; ++$i) {
         foreach (file(__DIR__ . '/process-tags-telemetry.out') as $l) {
             if ($l && $l[0] == '{') {
                 $json = json_decode($l, true);
+                if (!is_array($json)) {
+                    continue; // the msgpack trace payload is appended to this file too and can contain "\n{" bytes
+                }
                 var_dump($json["application"]["process_tags"]);
                 break 2;
             }

@@ -139,24 +139,34 @@ final class PhpFpm implements Sapi
         $this->process = new Process($processCmd);
         $this->process->start();
 
+        // php-fpm only binds its socket after module startup (all MINITs), which can take seconds on a loaded CI pod
         if (!$this->waitUntilServerRunning()) {
-            error_log("[php-fpm] Server never came up...");
-            return;
+            $message = sprintf(
+                "[php-fpm] Server never came up (%s)...\nstdout: %s\nstderr: %s",
+                $this->process->isRunning() ? 'still running' : 'exit code ' . $this->process->getExitCode(),
+                $this->process->getOutput(),
+                $this->process->getErrorOutput()
+            );
+            error_log($message);
+            throw new \RuntimeException($message);
         }
         error_log("[php-fpm] Server is up and responding...");
     }
 
-    public function waitUntilServerRunning()
+    public function waitUntilServerRunning($timeout = 30)
     {
-        //Let's wait until PHP-FPM is accepting connections
-        for ($try = 0; $try < 40; $try++) {
+        $deadline = microtime(true) + $timeout;
+        do {
             $socket = @fsockopen($this->host, $this->port);
             if ($socket !== false) {
                 fclose($socket);
                 return true;
             }
+            if (!$this->process->isRunning()) {
+                return false;
+            }
             usleep(50000);
-        }
+        } while (microtime(true) < $deadline);
 
         return false;
     }

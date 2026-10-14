@@ -88,6 +88,9 @@ namespace
             foreach (file(__DIR__ . '/metrics-spans_created-telemetry.out') as $l) {
                 if ($l && $l[0] == '{') {
                     $json = json_decode($l, true);
+                    if (!is_array($json)) {
+                        continue; // the msgpack trace payload is appended to this file too and can contain "\n{" bytes
+                    }
                     if (($json["application"]["language_version"] ?? "") == "SIDECAR") {
                         continue;
                     }

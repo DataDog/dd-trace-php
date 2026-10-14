@@ -322,13 +322,12 @@ final class CurlIntegration extends Integration
 
         $span->peerServiceSources = HttpClientIntegrationHelper::PEER_SERVICE_SOURCES;
 
-        addSpanDataTagFromCurlInfo($span, $info, Tag::HTTP_STATUS_CODE, 'http_code');
-
         // Mark as an error if needed based on configuration
-        if (isset($info['http_code']) && !empty($info['http_code'])) {
-            $statusCode = (int)$info['http_code'];
-            HttpClientIntegrationHelper::setClientError($span, $statusCode);
+        if (!empty($info['http_code'])) {
+            HttpClientIntegrationHelper::setClientError($span, (int)$info['http_code']);
         }
+
+        addSpanDataTagFromCurlInfo($span, $info, Tag::HTTP_STATUS_CODE, 'http_code');
 
         addSpanDataTagFromCurlInfo($span, $info, 'network.client.ip', 'local_ip');
         addSpanDataTagFromCurlInfo($span, $info, 'network.client.port', 'local_port');

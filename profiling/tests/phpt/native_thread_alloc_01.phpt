@@ -5,6 +5,9 @@ Execute a PHP closure that allocates on a native thread, join it, then call the
 same closure on the main thread. PHP runtime cache slots populated by the
 background thread must remain valid after its Rust TLS has been destroyed.
 Disable the stack limit because the callback does not use the main thread's stack.
+Use CGI because the profiler disables runtime caching under CLI, which would
+otherwise bypass the cache-lifetime behavior this test covers.
+--CGI--
 --SKIPIF--
 <?php
 if (!extension_loaded('datadog-profiling'))

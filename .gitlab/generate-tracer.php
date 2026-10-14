@@ -205,7 +205,7 @@ windows_test_c_job("windows test_c: zts", "zts", [
 "macos test_c":
   stage: test
   tags: ["macos:tart"]
-  image: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/ci-platform-machine-images/tart-vm:shared-sonoma-latest"
+  image: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/ci-platform-machine-images/tart-vm:shared-sequoia-latest"
   variables:
     PHP_MACOS_VERSION: "8.5.9"
     PHP_INSTALL_DIR: "/tmp/php-macos-${PHP_MACOS_VERSION}"
@@ -695,15 +695,10 @@ foreach ($all_minor_major_targets as $major_minor):
     KUBERNETES_HELPER_MEMORY_REQUEST: 1Gi
     KUBERNETES_HELPER_MEMORY_LIMIT: 1Gi
     KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
-<?php if (version_compare($major_minor, "7.2", ">=")): /* too expensive */ ?>
+<?php if (!in_array($major_minor, ["7.4", "8.5"], true)): /* Limit telemetry overhead to two versions with parallel test runners. */ ?>
     DD_INSTRUMENTATION_TELEMETRY_ENABLED: 0
 <?php endif; ?>
-<?php if (version_compare($major_minor, "7.2", "<")): ?>
-  # PHP lt 7.2 have telemetry enabled, hit too many job timeouts at 40 mins.
-  timeout: 48m
-<?php else: ?>
   timeout: 40m
-<?php endif; ?>
   retry:
     max: 2
     when:
@@ -718,6 +713,8 @@ foreach ($all_minor_major_targets as $major_minor):
   script:
     - make install_all
     - export XFAIL_LIST="dockerfiles/ci/xfail_tests/${PHP_MAJOR_MINOR}.list"
+    - export DD_SERVICE=php-language-tests
+    - export DD_VERSION="$(php -n -r 'echo PHP_VERSION;')"
     - .gitlab/run_php_language_tests.sh
 <?php after_script("/usr/local/src/php"); ?>
 <?php

@@ -21,13 +21,7 @@ bool ddtrace_ffe_record_flag_evaluation(zend_string *flag_key, zend_string *vari
     zend_string *allocation_key, zend_string *targeting_key, HashTable *attributes,
     zend_string *error_type, bool runtime_default_used, bool observe_full_evaluation_data) {
     if (!get_DD_FLAGGING_EVALUATION_COUNTS_ENABLED() || !flag_key || !ZSTR_LEN(flag_key)
-        || !DATADOG_G(sidecar) || !datadog_sidecar_instance_id || !DATADOG_G(sidecar_queue_id)) {
-        return false;
-    }
-
-    // Admission must precede telemetry snapshot work. Neither this check nor
-    // submission waits for capacity or reconnects the transport on evaluation.
-    if (ddog_sidecar_check_ffe_submission(DATADOG_G(sidecar)) != DDOG_FFE_SUBMISSION_STATUS_READY) {
+        || !DATADOG_G(sidecar) || !DATADOG_G(request_initialized)) {
         return false;
     }
 
@@ -98,8 +92,8 @@ bool ddtrace_ffe_record_flag_evaluation(zend_string *flag_key, zend_string *vari
         .version = dd_zend_string_to_CharSlice(get_DD_VERSION()),
     };
     ddog_FfeSubmissionStatus status = ddog_sidecar_try_submit_ffe_flag_evaluation(
-        DATADOG_G(sidecar), datadog_sidecar_instance_id, &DATADOG_G(sidecar_queue_id),
-        &context, &event, (ddog_Slice_FfeScalarAttribute) {.ptr = scalars, .len = count}, &snapshot);
+        DATADOG_G(sidecar), &context, &event,
+        (ddog_Slice_FfeScalarAttribute) {.ptr = scalars, .len = count}, &snapshot);
     for (size_t i = 0; i < count; ++i) {
         if (owned_keys[i]) {
             zend_string_release(owned_keys[i]);
@@ -181,8 +175,15 @@ bool ddtrace_ffe_record_evaluation_metric(
     dd_ffe_metric *metric = &buffer[DDTRACE_G(ffe_metric_buffer_len)++];
     metric->flag_key = zend_string_copy(flag_key);
     metric->variant = variant ? zend_string_copy(variant) : ZSTR_EMPTY_ALLOC();
-    metric->reason = reason ? zend_string_init(reason, strlen(reason), 0) : ZSTR_EMPTY_ALLOC();
-    metric->error_type = error_type ? zend_string_init(error_type, strlen(error_type), 0) : ZSTR_EMPTY_ALLOC();
+    // Not as conditional expressions: MSVC computes their strlen() before checking for NULL.
+    metric->reason = ZSTR_EMPTY_ALLOC();
+    if (reason) {
+        metric->reason = zend_string_init(reason, strlen(reason), 0);
+    }
+    metric->error_type = ZSTR_EMPTY_ALLOC();
+    if (error_type) {
+        metric->error_type = zend_string_init(error_type, strlen(error_type), 0);
+    }
     metric->allocation_key = allocation_key ? zend_string_copy(allocation_key) : ZSTR_EMPTY_ALLOC();
 
     return true;
@@ -196,7 +197,7 @@ bool ddtrace_ffe_flush_evaluation_metrics(void) {
         return false;
     }
 
-    if (!DATADOG_G(sidecar) || !datadog_sidecar_instance_id || !DATADOG_G(sidecar_queue_id)) {
+    if (!DATADOG_G(sidecar) || !DATADOG_G(request_initialized)) {
         dd_ffe_clear_evaluation_metrics();
         return false;
     }
@@ -226,8 +227,6 @@ bool ddtrace_ffe_flush_evaluation_metrics(void) {
         "Failed sending FFE metrics batch to sidecar",
         ddog_sidecar_send_ffe_evaluation_metrics(
             &DATADOG_G(sidecar),
-            datadog_sidecar_instance_id,
-            &DATADOG_G(sidecar_queue_id),
             &context,
             metric_slice));
 
@@ -308,7 +307,7 @@ bool ddtrace_ffe_flush_exposures(void) {
         return false;
     }
 
-    if (!DATADOG_G(sidecar) || !datadog_sidecar_instance_id || !DATADOG_G(sidecar_queue_id)) {
+    if (!DATADOG_G(sidecar) || !DATADOG_G(request_initialized)) {
         dd_ffe_clear_exposures();
         return false;
     }
@@ -341,8 +340,6 @@ bool ddtrace_ffe_flush_exposures(void) {
         "Failed sending FFE exposure batch to sidecar",
         ddog_sidecar_send_ffe_exposure_batch(
             &DATADOG_G(sidecar),
-            datadog_sidecar_instance_id,
-            &DATADOG_G(sidecar_queue_id),
             &context,
             exposure_slice));
 

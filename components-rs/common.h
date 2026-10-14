@@ -466,6 +466,7 @@ typedef enum ddog_RemoteConfigProduct {
   DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGING,
   DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGING_SYMBOL_DB,
   DDOG_REMOTE_CONFIG_PRODUCT_DEBUG,
+  DDOG_REMOTE_CONFIG_PRODUCT_APM_PROFILING,
 } ddog_RemoteConfigProduct;
 
 typedef enum ddog_SpanProbeTarget {
@@ -510,8 +511,10 @@ typedef struct ddog_SidecarActionsBuffer ddog_SidecarActionsBuffer;
  * `SidecarTransport` wraps a [`SidecarSender`] with transparent reconnection support.
  *
  * This transport is used for communication between different parts of the sidecar service.
- * Most operations block; the FFE check/try-submit functions explicitly do not
- * wait for the sender lock, capacity, or reconnection.
+ * It is owned by a single client thread: the sidecar binds state to the connection,
+ * so it must not be shared between threads which process requests concurrently.
+ * Ordinary operations may block and reconnect. FFE submission bypasses reconnection
+ * and never waits for transport capacity or delivery; platform synchronization may wait.
  */
 typedef struct ddog_SidecarTransport ddog_SidecarTransport;
 
@@ -754,12 +757,6 @@ typedef struct ddog_Vec_DebuggerPayload {
   uintptr_t len;
   uintptr_t capacity;
 } ddog_Vec_DebuggerPayload;
-
-/**
- * `QueueId` is a struct that represents a unique identifier for a queue.
- * It contains a single field, `inner`, which is a 64-bit unsigned integer.
- */
-typedef uint64_t ddog_QueueId;
 
 /**
  * A (key, value) pair for peer-service tags, borrowed from PHP/concentrator memory.
@@ -1222,55 +1219,30 @@ typedef enum ddog_EvpTransportMode {
 } ddog_EvpTransportMode;
 
 /**
- * A successful readiness check reserves nothing; submission rechecks admission.
- * Count a rejected observation once, not once for each check. These outcomes
- * are not metric names and must not be reported through the rejected EVP path.
+ * Local submission outcomes, not metric names or delivery guarantees.
+ * Do not report a rejected observation recursively through the EVP path.
  */
 typedef enum ddog_FfeSubmissionStatus {
-  /**
-   * Advisory only; no snapshot or message has been accepted.
-   */
-  DDOG_FFE_SUBMISSION_STATUS_READY,
   /**
    * Accepted by the local transport, not necessarily delivered to the sidecar or intake.
    */
   DDOG_FFE_SUBMISSION_STATUS_ACCEPTED,
   /**
-   * Absent, closed, or poisoned transport. Recovery belongs to ordinary lifecycle code.
+   * Absent, closed, or failed transport. Recovery belongs to lifecycle code.
    */
   DDOG_FFE_SUBMISSION_STATUS_UNAVAILABLE,
   /**
-   * Another caller owns the sender; no waiting was attempted.
-   */
-  DDOG_FFE_SUBMISSION_STATUS_BUSY,
-  /**
-   * Shared outstanding-message ceiling reached before snapshot construction.
-   */
-  DDOG_FFE_SUBMISSION_STATUS_QUEUE_FULL,
-  /**
-   * Rejected by the shared low-priority shedding policy before snapshot construction.
-   */
-  DDOG_FFE_SUBMISSION_STATUS_LOAD_SHED,
-  /**
-   * Required priority messages could not be sent first.
-   */
-  DDOG_FFE_SUBMISSION_STATUS_PRIORITY_PENDING,
-  /**
-   * The observation could not be accepted immediately after admission.
+   * Rejected by shared load shedding, pending configuration, or socket backpressure.
    */
   DDOG_FFE_SUBMISSION_STATUS_WOULD_BLOCK,
   /**
-   * Invalid required input or a request other than one FFE observation.
+   * Invalid required input for the single-observation interface.
    */
   DDOG_FFE_SUBMISSION_STATUS_INVALID_INPUT,
   /**
-   * Exceeds the existing IPC packet ceiling; the connection remains usable.
+   * The observation still exceeds a packet limit after any reduced-event retry.
    */
   DDOG_FFE_SUBMISSION_STATUS_PAYLOAD_TOO_LARGE,
-  /**
-   * Request encoding failed before any bytes were sent.
-   */
-  DDOG_FFE_SUBMISSION_STATUS_ENCODING_ERROR,
 } ddog_FfeSubmissionStatus;
 
 typedef struct ddog_AgentRemoteConfigReader ddog_AgentRemoteConfigReader;
@@ -1299,7 +1271,7 @@ typedef struct ddog_PlatformHandle_File ddog_PlatformHandle_File;
  * Opaque registration for a Windows remote configuration callback.
  *
  * Create it with `ddog_sidecar_remote_config_notification_new`, pass it to
- * `ddog_sidecar_session_set_config`, and release it with
+ * `ddog_sidecar_set_connection_config`, and release it with
  * `ddog_sidecar_remote_config_notification_drop`.
  */
 typedef struct ddog_RemoteConfigNotification ddog_RemoteConfigNotification;
@@ -1475,7 +1447,6 @@ typedef struct ddog_Vec_TraceBytes ddog_TracesBytes;
 typedef struct ddog_SenderParameters {
   struct ddog_TracerHeaderTags tracer_headers_tags;
   struct ddog_SidecarTransport *transport;
-  struct ddog_InstanceId *instance_id;
   uintptr_t limit;
   int64_t n_requests;
   int64_t buffer_size;
@@ -1595,7 +1566,7 @@ typedef enum ddog_crasht_OpTypes {
 } ddog_crasht_OpTypes;
 
 /**
- * See https://man7.org/linux/man-pages/man2/sigaction.2.html
+ * See <https://man7.org/linux/man-pages/man2/sigaction.2.html>
  * MUST REMAIN IN SYNC WITH THE ENUM IN emit_sigcodes.c
  */
 typedef enum ddog_crasht_SiCodes {
@@ -1629,7 +1600,7 @@ typedef enum ddog_crasht_SiCodes {
 } ddog_crasht_SiCodes;
 
 /**
- * See https://man7.org/linux/man-pages/man7/signal.7.html
+ * See <https://man7.org/linux/man-pages/man7/signal.7.html>
  */
 typedef enum ddog_crasht_SignalNames {
   DDOG_CRASHT_SIGNAL_NAMES_SIGHUP,
@@ -1838,7 +1809,7 @@ typedef struct ddog_crasht_Handle_StackTrace {
 
 /**
  * A generic result type for when an operation may fail,
- * or may return <T> in case of success.
+ * or may return `<T>` in case of success.
  */
 typedef enum ddog_crasht_Result_Usize_Tag {
   DDOG_CRASHT_RESULT_USIZE_OK_USIZE,
@@ -1892,7 +1863,7 @@ typedef struct  ddog_crasht_CrashInfoBuilder_NewResult {
 
 /**
  * A generic result type for when an operation may fail,
- * or may return <T> in case of success.
+ * or may return `<T>` in case of success.
  */
 typedef enum ddog_crasht_Result_HandleCrashInfo_Tag {
   DDOG_CRASHT_RESULT_HANDLE_CRASH_INFO_OK_HANDLE_CRASH_INFO,
@@ -2129,7 +2100,7 @@ typedef struct ddog_TracerMemfdHandle {
 
 /**
  * A generic result type for when an operation may fail,
- * or may return <T> in case of success.
+ * or may return `<T>` in case of success.
  */
 typedef enum ddog_Result_TracerMemfdHandle_Tag {
   DDOG_RESULT_TRACER_MEMFD_HANDLE_OK_TRACER_MEMFD_HANDLE,
@@ -2369,6 +2340,25 @@ struct ddog_VoidResult ddog_mutable_metadata_set_runtime_id(const struct ddog_Mu
 DDOG_CHECK_RETURN
 struct ddog_VoidResult ddog_mutable_metadata_set_process_tags(const struct ddog_MutableMetadataHandle *handle,
                                                               ddog_CharSlice process_tags);
+
+/**
+ * Atomically replaces runtime identity and instrumentation session ancestry.
+ * Empty session strings omit the corresponding headers, overriding static configuration.
+ * Strings are copied before returning; process tags are preserved.
+ *
+ * For a fork child, call after all native workers and sends have paused and before
+ * `ddog_shared_runtime_after_fork_child`. This does not reset pending data or sequences.
+ *
+ * # Safety
+ *
+ * `handle` must be valid and all slices must remain valid for the duration of the call.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_mutable_metadata_set_identity(const struct ddog_MutableMetadataHandle *handle,
+                                                          ddog_CharSlice runtime_id,
+                                                          ddog_CharSlice session_id,
+                                                          ddog_CharSlice root_session_id,
+                                                          ddog_CharSlice parent_session_id);
 
 struct ddog_Option_U32 ddog_Option_U32_some(uint32_t v);
 

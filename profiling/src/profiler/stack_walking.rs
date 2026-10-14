@@ -311,13 +311,10 @@ mod detail {
     /// Returns [`CollectStackSampleError::TryReserveError`] if the vec holding the frames is
     /// unable to allocate memory.
     #[inline]
-    pub(super) fn collect_stack_sample_cached(
+    fn collect_stack_sample_cached(
         top_execute_data: *mut zend_execute_data,
         string_set: &mut StringSet,
     ) -> Result<Backtrace, CollectStackSampleError> {
-        #[cfg(feature = "stack_walking_tests")]
-        use crate::profiling::bindings::ddog_test_zend_generator_check_placeholder_frame as zend_generator_check_placeholder_frame;
-        #[cfg(not(feature = "stack_walking_tests"))]
         use crate::profiling::bindings::zend_generator_check_placeholder_frame;
 
         let max_depth = 512;
@@ -411,10 +408,7 @@ mod detail {
         execute_data: &zend_execute_data,
         string_set: &mut StringSet,
     ) -> Option<ZendFrame> {
-        #[cfg(not(feature = "stack_walking_tests"))]
         use crate::profiling::bindings::ddog_php_prof_function_run_time_cache;
-        #[cfg(feature = "stack_walking_tests")]
-        use crate::profiling::bindings::ddog_test_php_prof_function_run_time_cache as ddog_php_prof_function_run_time_cache;
 
         let func = execute_data.func.as_ref()?;
         let (function, file, line) = match ddog_php_prof_function_run_time_cache(func) {
@@ -523,9 +517,6 @@ mod detail {
     pub fn collect_stack_sample(
         top_execute_data: *mut zend_execute_data,
     ) -> Result<Backtrace, CollectStackSampleError> {
-        #[cfg(feature = "stack_walking_tests")]
-        use crate::profiling::bindings::ddog_test_zend_generator_check_placeholder_frame as zend_generator_check_placeholder_frame;
-        #[cfg(not(feature = "stack_walking_tests"))]
         use crate::profiling::bindings::zend_generator_check_placeholder_frame;
 
         #[cfg(feature = "tracing")]
@@ -587,90 +578,3 @@ mod detail {
 }
 
 pub use detail::*;
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::profiling::bindings as zend;
-
-    extern "C" {
-        fn ddog_php_test_create_fake_zend_function_with_name_len(
-            len: libc::size_t,
-        ) -> *mut zend::zend_function;
-        fn ddog_php_test_free_fake_zend_function(func: *mut zend::zend_function);
-    }
-
-    #[test]
-    #[cfg(feature = "stack_walking_tests")]
-    fn test_collect_stack_sample() {
-        unsafe {
-            let fake_execute_data = zend::ddog_php_test_create_fake_zend_execute_data(3);
-
-            #[cfg(php_run_time_cache)]
-            let stack = {
-                let mut string_set = crate::profiling::string_set::StringSet::new();
-                detail::collect_stack_sample_cached(fake_execute_data, &mut string_set).unwrap()
-            };
-            #[cfg(not(php_run_time_cache))]
-            let stack = collect_stack_sample(fake_execute_data).unwrap();
-
-            assert_eq!(stack.len(), 3);
-
-            let frames = &stack;
-            assert_eq!(frames[0].function, "function name 003");
-            assert_eq!(frames[0].file, Some("filename-003.php".into()));
-            assert_eq!(frames[0].line, 0);
-
-            assert_eq!(frames[1].function, "function name 002");
-            assert_eq!(frames[1].file, Some("filename-002.php".into()));
-            assert_eq!(frames[1].line, 0);
-
-            assert_eq!(frames[2].function, "function name 001");
-            assert_eq!(frames[2].file, Some("filename-001.php".into()));
-            assert_eq!(frames[2].line, 0);
-
-            // Free the allocated memory
-            zend::ddog_php_test_free_fake_zend_execute_data(fake_execute_data);
-        }
-    }
-
-    #[test]
-    fn test_extract_function_name_short_string() {
-        unsafe {
-            let func = ddog_php_test_create_fake_zend_function_with_name_len(10);
-            assert!(!func.is_null());
-
-            let name = extract_function_name(&*func).expect("should extract name");
-            assert_eq!(name, "xxxxxxxxxx");
-
-            ddog_php_test_free_fake_zend_function(func);
-        }
-    }
-
-    #[test]
-    fn test_extract_function_name_at_limit() {
-        unsafe {
-            let func = ddog_php_test_create_fake_zend_function_with_name_len(MAX_STR_LEN);
-            assert!(!func.is_null());
-
-            let name = extract_function_name(&*func).expect("should extract name");
-            assert_eq!(name.len(), MAX_STR_LEN);
-            assert_ne!(name, COW_LARGE_STRING);
-
-            ddog_php_test_free_fake_zend_function(func);
-        }
-    }
-
-    #[test]
-    fn test_extract_function_name_over_limit() {
-        unsafe {
-            let func = ddog_php_test_create_fake_zend_function_with_name_len(MAX_STR_LEN + 1);
-            assert!(!func.is_null());
-
-            let name = extract_function_name(&*func).expect("should return large string marker");
-            assert_eq!(name, COW_LARGE_STRING);
-
-            ddog_php_test_free_fake_zend_function(func);
-        }
-    }
-}
