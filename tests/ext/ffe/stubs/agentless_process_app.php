@@ -16,7 +16,15 @@ if ($scenario === 'isolation') {
 }
 
 if ($scenario === 'restart') {
-    if ($first !== 'blue') throw new RuntimeException('initial fetch failed');
+    // Establish a last-good snapshot before testing its survival. Instrumented
+    // subprocess startup may exceed the first-use budget and legitimately
+    // return the default; initialization timing is covered by recovery/shutdown.
+    $readyDeadline = microtime(true) + ($instrumented ? 20 : 5);
+    while ($first !== 'blue' && microtime(true) < $readyDeadline) {
+        usleep(20000);
+        $first = $client->getStringValue('flag', 'fallback');
+    }
+    if ($first !== 'blue') throw new RuntimeException('initial configuration unavailable: ' . json_encode(\DDTrace\Internal\ffe_provider_state()));
     echo "fixture_restart_ready\n";
     $retained = false;
     $deadline = microtime(true) + 12;
