@@ -21,6 +21,7 @@ $running = true;
 $start = microtime(true);
 $readyAt = null;
 $shutdownStart = null;
+$restarted = false;
 try {
     do {
         $stdout .= ffeTestProcessRead($pipes[1]);
@@ -32,11 +33,77 @@ try {
             $exitCode = $status['exitcode'];
             break;
         }
+        if ($scenario === 'restart' && !$restarted && strpos($stdout, "fixture_restart_ready\n") !== false) {
+            // Kill only this child's per-process sidecar: match its unique
+            // listening socket, then find the process that owns that socket.
+            $socketInode = null;
+            foreach (file('/proc/net/unix') as $row) {
+                $columns = preg_split('/\s+/', trim($row));
+                if (isset($columns[7]) && $columns[3] === '00010000'
+                    && strpos($columns[7], '@libdatadog/') === 0
+                    && substr($columns[7], -strlen('.' . $status['pid'] . '.sock')) === '.' . $status['pid'] . '.sock') {
+                    $socketInode = $columns[6];
+                    break;
+                }
+            }
+            if ($socketInode === null) throw new RuntimeException('cannot locate the dedicated sidecar socket');
+            foreach (glob('/proc/[0-9]*', GLOB_ONLYDIR) as $directory) {
+                if (@fileowner($directory) !== posix_geteuid()) continue;
+                foreach (glob($directory . '/fd/*') as $descriptor) {
+                    if (@readlink($descriptor) !== 'socket:[' . $socketInode . ']') continue;
+                    $sidecarPid = (int)basename($directory);
+                    if ($sidecarPid === $status['pid'] || $sidecarPid === getmypid()) {
+                        throw new RuntimeException('sidecar listener is in a PHP application process');
+                    }
+                    if (!posix_kill($sidecarPid, SIGKILL)) throw new RuntimeException('cannot stop dedicated sidecar');
+                    $restarted = true;
+                    break 2;
+                }
+            }
+            if (!$restarted) throw new RuntimeException('cannot find the dedicated sidecar owner');
+        }
         $connection = @stream_socket_accept($server, 0.1);
         if (!$connection) continue;
         stream_set_timeout($connection, 1);
         while (($line = fgets($connection)) !== false && trim($line) !== '') {}
         $requests++;
+        if ($scenario === 'isolation') {
+            // The server holds the response while we inspect the live client
+            // connection. A background thread still belongs to the PHP PID.
+            $peer = stream_socket_get_name($connection, true);
+            $clientPort = strtoupper(sprintf('%04X', substr(strrchr($peer, ':'), 1)));
+            $serverPort = strtoupper(sprintf('%04X', substr(strrchr($address, ':'), 1)));
+            $inode = null;
+            foreach (file('/proc/' . $status['pid'] . '/net/tcp') as $row) {
+                $columns = preg_split('/\s+/', trim($row));
+                if (isset($columns[9]) && $columns[1] === '0100007F:' . $clientPort
+                    && $columns[2] === '0100007F:' . $serverPort) {
+                    $inode = $columns[9];
+                    break;
+                }
+            }
+            if ($inode === null) throw new RuntimeException('cannot locate the live CDN socket');
+            $descriptors = glob('/proc/' . $status['pid'] . '/fd/*');
+            if (!$descriptors) throw new RuntimeException('cannot inspect the PHP descriptors');
+            foreach ($descriptors as $descriptor) {
+                if (@readlink($descriptor) === 'socket:[' . $inode . ']') {
+                    throw new RuntimeException('CDN request originated in the PHP application process');
+                }
+            }
+        }
+        if ($scenario === 'restart' && $restarted) {
+            // Keep the replacement response pending until PHP has observed
+            // stale readiness while still evaluating the last good snapshot.
+            $staleDeadline = microtime(true) + 5;
+            do {
+                $stdout .= ffeTestProcessRead($pipes[1]);
+                if (strpos($stdout, "last_configuration_retained\n") !== false) break;
+                usleep(10000);
+            } while (microtime(true) < $staleDeadline);
+            if (strpos($stdout, "last_configuration_retained\n") === false) {
+                throw new RuntimeException('sidecar loss did not preserve stale configuration');
+            }
+        }
         if ($scenario === 'shutdown') {
             $heldConnections[] = $connection;
             if ($shutdownStart === null) {
@@ -65,7 +132,7 @@ try {
         } else {
             $stdout .= ffeTestProcessRead($pipes[1]);
             $forked = strpos($stdout, 'parent_forked') !== false && strpos($stdout, 'child_forked') !== false;
-            $value = $scenario === 'fork' && $forked ? 'green' : 'blue';
+            $value = ($scenario === 'fork' && $forked) || ($scenario === 'restart' && $restarted) ? 'green' : 'blue';
             $code = '200 OK';
             $configuration = array(
                 'createdAt' => '2026-05-22T00:00:00Z', 'environment' => array('name' => 'test'),
@@ -93,10 +160,11 @@ try {
         throw new RuntimeException('shutdown waited on HTTP timeout');
     }
     // Fork output is intentionally concurrent; compare the complete set.
-    $lines = explode("\n", trim(str_replace("fixture_child_ready\n", '', $stdout)));
+    $lines = explode("\n", trim(str_replace(array("fixture_child_ready\n", "fixture_restart_ready\n"), '', $stdout)));
     sort($lines);
     echo implode("\n", $lines), "\n";
     if ($scenario === 'shutdown') echo "shutdown_cancelled_inflight_request\n";
+    if ($scenario === 'isolation') echo "cdn_request_outside_php\n";
 } finally {
     if ($running) proc_terminate($process);
     if (is_resource($pipes[0])) fclose($pipes[0]);

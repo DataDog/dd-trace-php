@@ -47,6 +47,8 @@ pub struct FfeSettingsInput<'a> {
     pub site: CharSlice<'a>,
     pub api_key: CharSlice<'a>,
     pub environment: CharSlice<'a>,
+    pub sidecar_subprocess_enabled: bool,
+    pub sidecar_self_telemetry: bool,
     pub thread_cleanup: Option<extern "C" fn(*mut c_void)>,
 }
 
@@ -124,7 +126,16 @@ pub extern "C" fn ddog_ffe_configure(input: &FfeSettingsInput<'_>) -> FfeRuntime
                 settings.request_timeout,
             );
             worker_config.thread_cleanup = input.thread_cleanup;
-            state.worker = Some(AgentlessWorker::new(worker_config));
+            worker_config.sidecar_self_telemetry = input.sidecar_self_telemetry;
+            if input.sidecar_subprocess_enabled {
+                state.worker = Some(AgentlessWorker::new(worker_config));
+            } else {
+                log::log(
+                    Log::Warn,
+                    "Feature Flags CDN configuration requires sidecar subprocess mode",
+                );
+                set_delivery_state(DeliveryState::PermanentError);
+            }
         }
     }
     state.config = FfeRuntimeConfig {
@@ -271,6 +282,8 @@ mod tests {
             site: CharSlice::from(""),
             api_key: CharSlice::from(""),
             environment: CharSlice::from(""),
+            sidecar_subprocess_enabled: true,
+            sidecar_self_telemetry: false,
             thread_cleanup: None,
         };
         assert!(ddog_ffe_configure(&input).endpoint_valid);

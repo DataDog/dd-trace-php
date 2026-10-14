@@ -28,9 +28,11 @@ $cases = array(
     'explicit_remote_config' => array('1', 'remote_config', '0', true, 'native_remote_config'),
     'offline' => array('1', 'offline', '1', false, 'native_disabled'),
     'invalid' => array('1', 'unknown', '1', false, 'native_disabled'),
+    'thread_mode' => array('1', 'agentless', '0', true, 'native_agentless'),
 );
 $keys = array('DD_FEATURE_FLAGS_ENABLED', 'DD_FEATURE_FLAGS_CONFIGURATION_SOURCE', 'DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED');
 foreach ($cases as $name => $case) {
+    $environment['DD_TRACE_SIDECAR_CONNECTION_MODE'] = $name === 'thread_mode' ? 'thread' : 'auto';
     foreach ($keys as $i => $key) {
         unset($environment[$key]);
         if ($case[$i] !== null) $environment[$key] = $case[$i];
@@ -75,3 +77,4 @@ legacy_remote_config=ok
 explicit_remote_config=ok
 offline=ok
 invalid=ok
+thread_mode=ok

@@ -486,6 +486,7 @@ typedef enum ddog_RemoteConfigProduct {
   DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGING,
   DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGING_SYMBOL_DB,
   DDOG_REMOTE_CONFIG_PRODUCT_DEBUG,
+  DDOG_REMOTE_CONFIG_PRODUCT_APM_PROFILING,
 } ddog_RemoteConfigProduct;
 
 typedef enum ddog_SpanProbeTarget {
@@ -593,6 +594,8 @@ typedef struct ddog_FfeSettingsInput {
   ddog_CharSlice site;
   ddog_CharSlice api_key;
   ddog_CharSlice environment;
+  bool sidecar_subprocess_enabled;
+  bool sidecar_self_telemetry;
   void (*thread_cleanup)(void*);
 } ddog_FfeSettingsInput;
 
@@ -1253,6 +1256,15 @@ typedef enum ddog_DynamicInstrumentationConfigState {
   DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_NOT_SET,
 } ddog_DynamicInstrumentationConfigState;
 
+/**
+ * Controls whether an EVP client stays fixed to the Agent or opts into local
+ * discovery and direct-intake fallback.
+ */
+typedef enum ddog_EvpTransportMode {
+  DDOG_EVP_TRANSPORT_MODE_AGENT_ONLY,
+  DDOG_EVP_TRANSPORT_MODE_PREFER_LOCAL_THEN_DIRECT,
+} ddog_EvpTransportMode;
+
 typedef struct ddog_AgentRemoteConfigReader ddog_AgentRemoteConfigReader;
 
 typedef struct ddog_AgentRemoteConfigWriter_ShmHandle ddog_AgentRemoteConfigWriter_ShmHandle;
@@ -1314,12 +1326,29 @@ typedef struct ddog_TracerHeaderTags {
   bool client_computed_stats;
 } ddog_TracerHeaderTags;
 
+/**
+ * Logical tracer identity attached to EVP requests.
+ *
+ * Both fields must be non-empty, valid HTTP header values no longer than 256
+ * bytes. This identifies the producing SDK, not the sidecar transport.
+ */
+typedef struct ddog_EvpProducerIdentity {
+  ddog_CharSlice origin;
+  ddog_CharSlice version;
+} ddog_EvpProducerIdentity;
+
+/**
+ * C representation of the context attached to Feature Flags telemetry.
+ */
 typedef struct ddog_FfeTelemetryContext {
   ddog_CharSlice service;
   ddog_CharSlice env;
   ddog_CharSlice version;
 } ddog_FfeTelemetryContext;
 
+/**
+ * C representation of a Feature Flags exposure event.
+ */
 typedef struct ddog_FfeExposure {
   uint64_t timestamp_ms;
   ddog_CharSlice flag_key;
@@ -1348,6 +1377,9 @@ typedef struct ddog_Slice_FfeExposure {
    */
   uintptr_t len;
 } ddog_Slice_FfeExposure;
+/**
+ * C representation of a Feature Flags evaluation event.
+ */
 typedef struct ddog_FfeFlagEvaluation {
   int64_t timestamp_ms;
   ddog_CharSlice flag_key;
@@ -1386,6 +1418,9 @@ typedef struct ddog_Slice_FfeFlagEvaluation {
    */
   uintptr_t len;
 } ddog_Slice_FfeFlagEvaluation;
+/**
+ * C representation of a Feature Flags evaluation metric.
+ */
 typedef struct ddog_FfeEvaluationMetric {
   ddog_CharSlice flag_key;
   ddog_CharSlice variant;

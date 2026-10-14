@@ -9,19 +9,46 @@ $start = microtime(true);
 $first = $client->getStringValue('flag', 'fallback');
 $elapsed = microtime(true) - $start;
 
+if ($scenario === 'isolation') {
+    if ($first !== 'blue') throw new RuntimeException('configuration did not reach the PHP evaluator');
+    echo "cdn_configuration_evaluated\n";
+    exit;
+}
+
+if ($scenario === 'restart') {
+    if ($first !== 'blue') throw new RuntimeException('initial fetch failed');
+    echo "fixture_restart_ready\n";
+    $retained = false;
+    $deadline = microtime(true) + 12;
+    do {
+        $value = $client->getStringValue('flag', 'fallback');
+        $state = \DDTrace\Internal\ffe_provider_state();
+        if (!$retained && $value === 'blue' && $state['reason'] === 'stale') {
+            $retained = true;
+            echo "last_configuration_retained\n";
+        }
+        if ($value === 'green' && $state['ready']) break;
+        if ($value !== 'blue') throw new RuntimeException('sidecar restart lost configuration');
+        usleep(20000);
+    } while (microtime(true) < $deadline);
+    if (!$retained || $value !== 'green') throw new RuntimeException('sidecar restart did not recover');
+    echo "sidecar_restarted_and_refreshed\n";
+    exit;
+}
+
 if ($scenario === 'fork') {
     if ($first !== 'blue') throw new RuntimeException('initial fetch failed');
     $version = \DDTrace\ffe_config_version();
     $pid = pcntl_fork();
     if ($pid < 0) throw new RuntimeException('fork failed');
     // The HTTP fixture only serves green after this marker. Both copies must
-    // fetch a new configuration after the split to observe it.
+    // read a new configuration after the split to observe it.
     echo $pid === 0 ? "child_forked\n" : "parent_forked\n";
     $deadline = microtime(true) + 7;
     $value = $first;
     do {
         // Merely evaluating would invoke first-use activation again and hide
-        // a broken fork callback. Require the background poller to publish a
+        // a broken fork callback. Require the background reader to publish a
         // new snapshot before another evaluation is allowed to run.
         $currentVersion = \DDTrace\ffe_config_version();
         if ($currentVersion !== $version) {

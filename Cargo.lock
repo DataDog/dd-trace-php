@@ -804,6 +804,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b63caa9aa9397e2d9480a9b13673856c78d8ac123288526c37d7839f2a86990"
 
 [[package]]
+name = "colored"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "117725a109d387c937a1533ce01b450cbde6b88abceea8473c4d7a85853cda3c"
+dependencies = [
+ "lazy_static",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
 name = "combine"
 version = "4.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1201,7 +1211,6 @@ version = "0.0.1"
 dependencies = [
  "anyhow",
  "arc-swap",
- "base64 0.22.1",
  "bincode",
  "bindgen",
  "cbindgen 0.27.0",
@@ -1216,13 +1225,8 @@ dependencies = [
  "ddtrace-sidecar",
  "dynasmrt",
  "env_logger",
- "fastrand",
- "flate2",
- "futures-util",
  "hashbrown 0.15.2",
  "http 1.4.2",
- "http-body-util",
- "hyper",
  "itertools 0.11.0",
  "lazy_static",
  "libc",
@@ -1249,7 +1253,6 @@ dependencies = [
  "log",
  "mach2",
  "paste",
- "percent-encoding",
  "rand 0.9.4",
  "rand_distr",
  "regex",
@@ -1268,7 +1271,6 @@ dependencies = [
  "tracing",
  "tracing-core",
  "tracing-subscriber",
- "url",
  "uuid",
  "zwohash",
 ]
@@ -1334,6 +1336,8 @@ dependencies = [
 name = "datadog-sidecar-ffi"
 version = "0.0.1"
 dependencies = [
+ "build_common",
+ "cc",
  "datadog-sidecar",
  "http 1.4.2",
  "libc",
@@ -1351,6 +1355,8 @@ dependencies = [
  "libdd-trace-utils",
  "rmp-serde",
  "serde_json",
+ "tempfile",
+ "tools",
  "tracing",
 ]
 
@@ -2976,12 +2982,18 @@ dependencies = [
 name = "libdd-ffe"
 version = "2.0.0"
 dependencies = [
+ "base64 0.22.1",
  "bincode",
  "chrono",
  "derive_more",
+ "fastrand",
  "faststr",
+ "flate2",
+ "futures-util",
  "http 1.4.2",
+ "http-body-util",
  "httpmock",
+ "hyper",
  "libdd-capabilities",
  "libdd-capabilities-impl",
  "libdd-common",
@@ -2990,6 +3002,7 @@ dependencies = [
  "log",
  "lru",
  "md5",
+ "percent-encoding",
  "prost",
  "pyo3",
  "semver",
@@ -3000,6 +3013,8 @@ dependencies = [
  "strum_macros",
  "thiserror 2.0.18",
  "tokio",
+ "tokio-util",
+ "url",
 ]
 
 [[package]]
@@ -3399,6 +3414,7 @@ dependencies = [
  "flate2",
  "futures",
  "getrandom 0.2.15",
+ "hashbrown 0.17.1",
  "hex",
  "http 1.4.2",
  "http-body",
@@ -4545,6 +4561,15 @@ name = "quick-error"
 version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a1d01941d82fa2ab50be1e79e6714289dd7cde78eba4c074bc5a4374f650dfe0"
+
+[[package]]
+name = "quick-xml"
+version = "0.37.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "331e97a1af0bf59823e6eadffe373d7b27f485be8748f71471c662c1f269b7fb"
+dependencies = [
+ "memchr",
+]
 
 [[package]]
 name = "quote"
@@ -6081,6 +6106,20 @@ dependencies = [
  "bytes",
  "prost",
  "tonic",
+]
+
+[[package]]
+name = "tools"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "cargo_metadata",
+ "clap",
+ "colored",
+ "libdd-common",
+ "quick-xml",
+ "toml",
+ "wait-timeout",
 ]
 
 [[package]]

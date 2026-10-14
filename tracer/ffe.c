@@ -17,6 +17,10 @@ ZEND_EXTERN_MODULE_GLOBALS(datadog);
 #define DD_FFE_EXPOSURE_BUFFER_LIMIT 1000
 
 ddog_FfeRuntimeConfig ddtrace_ffe_configure(void) {
+#ifdef _WIN32
+    // CDN can own a subprocess connection even when other products are disabled.
+    DDOG_PHP_FUNCTION = (const uint8_t *)zend_hash_func;
+#endif
     const ddog_FfeSettingsInput settings = {
         .enabled = get_global_DD_FEATURE_FLAGS_ENABLED(),
         .enabled_set = zai_config_memoized_entries[DATADOG_CONFIG_DD_FEATURE_FLAGS_ENABLED].name_index != ZAI_CONFIG_ORIGIN_DEFAULT,
@@ -31,6 +35,8 @@ ddog_FfeRuntimeConfig ddtrace_ffe_configure(void) {
         .site = dd_zend_string_to_CharSlice(get_global_DD_SITE()),
         .api_key = dd_zend_string_to_CharSlice(get_global_DD_API_KEY()),
         .environment = dd_zend_string_to_CharSlice(get_global_DD_ENV()),
+        .sidecar_subprocess_enabled = get_global_DD_TRACE_SIDECAR_CONNECTION_MODE() != DD_TRACE_SIDECAR_CONNECTION_MODE_THREAD,
+        .sidecar_self_telemetry = get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED(),
 #ifdef CXA_THREAD_ATEXIT_WRAPPER
         .thread_cleanup = dd_run_rust_thread_destructors,
 #endif

@@ -1,24 +1,22 @@
 // Copyright 2026-Present Datadog, Inc. https://www.datadoghq.com/
 // SPDX-License-Identifier: Apache-2.0
 
-mod poller;
-mod transport;
-
-use self::poller::{GlobalConfigurationSink, PollState, Poller};
-use self::transport::HyperTransport;
 use super::settings::AgentlessEndpoint;
+use super::{ddog_ffe_has_config, set_delivery_state, store_config, DeliveryState};
 use crate::log::{self, Log};
-use std::ffi::c_void;
-use std::sync::Arc;
+use datadog_ffe::cdn::CdnConfig;
+use datadog_ffe::rules_based::{Configuration, UniversalFlagConfig};
+use datadog_sidecar::service::blocking::{ping, subscribe_cdn_configuration};
+use datadog_sidecar::shm_remote_config::cdn::{CdnDeliveryState, CdnReader};
+use std::ffi::{c_void, CString};
 use std::thread::JoinHandle;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio_util::sync::CancellationToken;
 
 #[derive(Clone)]
 pub(crate) struct AgentlessWorkerConfig {
-    endpoint: AgentlessEndpoint,
-    poll_interval: Duration,
-    request_timeout: Duration,
+    subscription: CdnConfig,
+    pub(crate) sidecar_self_telemetry: bool,
     pub(crate) thread_cleanup: Option<extern "C" fn(*mut c_void)>,
 }
 
@@ -29,10 +27,15 @@ impl AgentlessWorkerConfig {
         request_timeout: Duration,
     ) -> Self {
         Self {
-            endpoint,
-            poll_interval,
-            request_timeout,
+            subscription: CdnConfig {
+                endpoint,
+                poll_interval,
+                request_timeout,
+                language: "php".to_owned(),
+                version: include_str!("../../VERSION").trim().to_owned(),
+            },
             thread_cleanup: None,
+            sidecar_self_telemetry: false,
         }
     }
 }
@@ -60,10 +63,9 @@ pub(crate) enum WorkerStartError {
     ThreadUnavailable,
 }
 
-/// Owns the poll thread and makes its lifecycle explicit around `fork`.
+/// Owns a local IPC/shared-memory reader. CDN HTTP runs in the sidecar subprocess.
 pub(crate) struct AgentlessWorker {
     config: AgentlessWorkerConfig,
-    state: Arc<PollState>,
     running: Option<RunningWorker>,
     restart_after_fork: bool,
     permanently_stopped: bool,
@@ -73,7 +75,6 @@ impl AgentlessWorker {
     pub(crate) fn new(config: AgentlessWorkerConfig) -> Self {
         Self {
             config,
-            state: Arc::new(PollState::default()),
             running: None,
             restart_after_fork: false,
             permanently_stopped: false,
@@ -81,8 +82,7 @@ impl AgentlessWorker {
     }
 
     pub(crate) fn start(&mut self) -> Result<bool, WorkerStartError> {
-        // A runtime creation failure must not leave a finished thread looking
-        // like an active poller forever. The next ordinary evaluation may retry.
+        // A reader that exits unexpectedly must not suppress later retries.
         if self
             .running
             .as_ref()
@@ -97,38 +97,29 @@ impl AgentlessWorker {
         let cancellation = CancellationToken::new();
         let thread_cancellation = cancellation.clone();
         let config = self.config.clone();
-        let state = Arc::clone(&self.state);
         let log_dispatch = tracing::dispatcher::get_default(Clone::clone);
         let thread = std::thread::Builder::new()
             .name("ddtrace-ffe-agentless".to_owned())
             .spawn(move || {
                 let _thread_cleanup = ThreadCleanup(config.thread_cleanup);
                 let _log_guard = tracing::dispatcher::set_default(&log_dispatch);
-                let runtime = match tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                {
-                    Ok(runtime) => runtime,
-                    Err(_) => {
-                        log::log(
-                            Log::Warn,
-                            "Feature Flags agentless runtime could not be created",
-                        );
-                        return;
+                let mut warned = false;
+                while !thread_cancellation.is_cancelled() {
+                    if read_configuration(&config, &thread_cancellation).is_err() {
+                        set_delivery_state(if ddog_ffe_has_config() {
+                            DeliveryState::Stale
+                        } else {
+                            DeliveryState::Starting
+                        });
+                        if !warned {
+                            log::log(Log::Warn, "Feature Flags CDN sidecar is unavailable; retaining the last configuration");
+                            warned = true;
+                        }
                     }
-                };
-
-                runtime.block_on(async move {
-                    let mut poller = Poller::new(
-                        config.endpoint,
-                        config.poll_interval,
-                        config.request_timeout,
-                        HyperTransport::new(),
-                        GlobalConfigurationSink,
-                        state,
-                    );
-                    poller.run(thread_cancellation).await;
-                });
+                    if !thread_cancellation.is_cancelled() {
+                        std::thread::park_timeout(Duration::from_secs(1));
+                    }
+                }
             })
             .map_err(|_| WorkerStartError::ThreadUnavailable)?;
 
@@ -156,12 +147,7 @@ impl AgentlessWorker {
     pub(crate) fn reset_after_fork_child(&mut self) -> Result<(), WorkerStartError> {
         // `prepare_for_fork` joined the only worker before the process split,
         // so no synchronization primitive can be inherited while held.
-        self.state.reset_warnings();
         self.restart_after_fork()
-    }
-
-    pub(crate) fn poll_count(&self) -> u64 {
-        self.state.poll_count()
     }
 
     fn restart_after_fork(&mut self) -> Result<(), WorkerStartError> {
@@ -175,9 +161,56 @@ impl AgentlessWorker {
     fn stop_running(&mut self) {
         if let Some(running) = self.running.take() {
             running.cancellation.cancel();
+            running.thread.thread().unpark();
             let _ = running.thread.join();
         }
     }
+}
+
+/// Establish an independently owned connection so request/thread teardown does
+/// not invalidate the process-wide CDN subscription. Always use subprocess
+/// startup: a connection failure must never move HTTP into the PHP process.
+fn read_configuration(
+    config: &AgentlessWorkerConfig,
+    cancellation: &CancellationToken,
+) -> anyhow::Result<()> {
+    if cancellation.is_cancelled() {
+        return Ok(());
+    }
+    let mut sidecar = datadog_sidecar::config::FromEnv::config();
+    sidecar.self_telemetry = config.sidecar_self_telemetry;
+    let mut transport = crate::sidecar::run_sidecar(sidecar)?;
+    transport.set_read_timeout(Some(Duration::from_millis(200)))?;
+    transport.set_write_timeout(Some(Duration::from_millis(200)))?;
+    let path = subscribe_cdn_configuration(&mut transport, Some(config.subscription.clone()))?
+        .ok_or_else(|| anyhow::anyhow!("CDN subscription unavailable"))?;
+    let mut reader = CdnReader::new(&CString::new(path)?);
+    let mut revision = 0;
+    let mut heartbeat = Instant::now();
+    while !cancellation.is_cancelled() {
+        if let Some(snapshot) = reader.read()? {
+            if snapshot.revision != revision && !snapshot.configuration.is_empty() {
+                let config = UniversalFlagConfig::from_json(snapshot.configuration)?;
+                store_config(Configuration::from_server_response(config));
+                revision = snapshot.revision;
+            }
+            set_delivery_state(match snapshot.state {
+                CdnDeliveryState::Ready if ddog_ffe_has_config() => DeliveryState::Ready,
+                CdnDeliveryState::Stale | CdnDeliveryState::Stopped if ddog_ffe_has_config() => {
+                    DeliveryState::Stale
+                }
+                _ => DeliveryState::Starting,
+            });
+        }
+        // Detect a dead sidecar even when the last shared-memory snapshot is
+        // unchanged. A fresh connection obtains a fresh subscription and name.
+        if heartbeat.elapsed() >= Duration::from_secs(1) {
+            ping(&mut transport)?;
+            heartbeat = Instant::now();
+        }
+        reader.wait_for_change(Duration::from_millis(50));
+    }
+    Ok(())
 }
 
 impl Drop for AgentlessWorker {
@@ -192,7 +225,7 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     #[test]
-    fn worker_cleanup_runs_on_its_thread_after_runtime_shutdown() {
+    fn worker_cleanup_runs_on_its_thread_after_reader_shutdown() {
         static CLEANUPS: AtomicUsize = AtomicUsize::new(0);
         extern "C" fn cleanup(_: *mut c_void) {
             // Runtime and tracing guards must have exited before TLS is drained.
@@ -223,8 +256,7 @@ mod tests {
             Duration::from_secs(30),
             Duration::from_secs(30),
         ));
-        // Model the worker returning before polling (for example when Tokio
-        // cannot allocate its runtime). Its handle must not suppress retries.
+        // Model a reader returning unexpectedly. Its handle must not suppress retries.
         let thread = std::thread::spawn(|| {});
         while !thread.is_finished() {
             std::thread::yield_now();

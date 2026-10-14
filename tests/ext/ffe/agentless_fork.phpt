@@ -1,5 +1,5 @@
 --TEST--
-FFE agentless fork restarts independent parent and child configuration pollers
+FFE agentless fork restarts parent and child shared-memory configuration readers
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID < 70200) die('skip: TEST_PHP_EXTRA_ARGS requires PHP 7.2+');
