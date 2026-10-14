@@ -27,12 +27,6 @@ $profiler_minor_major_targets = array_values(array_filter($all_minor_major_targe
 // sidecar uid verify) run on it. Bump to "8.6" at PHP 8.6 GA.
 $latest_ga_minor_major = "8.5";
 
-// Newest PHP that packages.sury.org ships with our API number. On 2026-10-05 Sury only had
-// php8.6 8.6.0~beta3 (API older than 20260924), so "verify debian" cannot load our 8.6 build.
-// Lift once Sury ships >= 8.6.0RC2: curl -fsSL https://packages.sury.org/php/dists/bookworm/main/binary-amd64/Packages.gz | gunzip | grep -A3 '^Package: php8.6-fpm$'
-$sury_max_version = "8.5";
-$sury_minor_major_targets = array_values(array_filter($all_minor_major_targets, function($v) use ($sury_max_version) { return version_compare($v, $sury_max_version, "<="); }));
-
 // In GitLab CI we use k8s and have to bind to `127.0.0.1`
 $service_bind_address = "0.0.0.0";
 

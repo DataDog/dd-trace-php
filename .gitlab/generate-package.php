@@ -1259,7 +1259,7 @@ endforeach;
     INSTALL_MODE: sury
   parallel:
     matrix:
-      - PHP_VERSION: <?= json_encode($sury_minor_major_targets), "\n" ?>
+      - PHP_VERSION: <?= json_encode($all_minor_major_targets), "\n" ?>
         INSTALL_TYPE: *verify_install_types
         IMAGE:
           - "debian:bullseye-slim"
