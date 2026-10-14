@@ -405,6 +405,9 @@ void ddtrace_mshutdown() {
     if (get_global_DD_TRACE_FORCE_FLUSH_ON_SHUTDOWN() && DATADOG_G(sidecar)) {
         ddog_sidecar_flush(&DATADOG_G(sidecar), (ddog_SidecarFlushOptions){.traces_and_stats = true, .telemetry = true});
     }
+    if (get_global_DD_TRACE_FORCE_FLUSH_ON_SHUTDOWN()) {
+        ddtrace_ffe_flush_flag_evaluations();
+    }
 
     ddtrace_telemetry_flush_bgs_metrics_final();
 
@@ -724,6 +727,8 @@ void ddtrace_internal_handle_postfork(void) {
 }
 
 void ddtrace_internal_handle_fork() {
+    // The parent owns its already-recorded losses; the child starts fresh.
+    memset(&DDTRACE_G(ffe_submission_drops), 0, sizeof(DDTRACE_G(ffe_submission_drops)));
 #ifdef __linux__
     ddtrace_otel_detach();
     ddtrace_otel_tid_fork_handler();

@@ -1,6 +1,11 @@
 <?php
 require_once __DIR__ . '/ffe_process.inc';
 putenv('PHP_FFE_WIRE_OPENFEATURE=' . ($openFeature ? '1' : '0'));
+// The PHP connector forwards this setting to the sidecar subprocess.
+putenv('DD_TRACE_LOG_LEVEL=trace');
+$diagnosticLog = tempnam(sys_get_temp_dir(), 'php-ffe-diagnostics-');
+if ($diagnosticLog === false) throw new RuntimeException('cannot create diagnostic log');
+putenv('DD_TRACE_LOG_FILE=' . $diagnosticLog);
 $listener = stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
 if (!$listener) {
     throw new RuntimeException($error);
@@ -86,6 +91,9 @@ try {
             $protectedBytesAbsent = $protectedBytesAbsent
                 && strpos($capture[3], 'ffe-protected-pii-canary@example.test') === false
                 && strpos($capture[3], 'ffe-context-pii-canary@example.test') === false;
+            if (strpos($capture[3], 'ffe-error-pii-canary@example.test') !== false) {
+                throw new RuntimeException('raw error text reached the payload');
+            }
             $context = $payload['context'];
             ksort($context);
             if ($context !== array('env' => 'test', 'service' => 'php-ffe-wire', 'version' => 'wire-version')) {
@@ -126,11 +134,43 @@ try {
         && !isset($rows['missing']['targeting_key']) && $rows['missing']['evaluation_count'] === 1
         && !isset($rows['malformed']['targeting_key']) && $rows['malformed']['evaluation_count'] === 1
         && $rows['empty']['targeting_key'] === '' && $rows['empty']['evaluation_count'] === 1);
+    $bounded = $rows['bounded']['context']['evaluation'];
+    echo 'first_256_inspected=';
+    var_dump(count($bounded) === 255 && !isset($bounded['rejected'])
+        && !isset($bounded['beyond-limit']) && $bounded['field-1'] === 1 && $bounded['field-255'] === 255);
+    $unicode = $rows['unicode']['context']['evaluation'];
+    $expected = array(str_repeat('é', 256) => str_repeat('😀', 256),
+        'bool' => false, 'integer' => -42, 'float' => 1.5,
+        0 => 'zero-key', -1 => 'negative-key', 'empty' => '');
+    ksort($unicode); ksort($expected);
+    echo 'unicode_and_scalar_boundaries='; var_dump($unicode === $expected);
+    echo 'owned_snapshot=';
+    var_dump($rows['snapshot']['context']['evaluation'] === array('value' => 'before-submission'));
+    echo 'invalid_context_keeps_observation=';
+    var_dump($rows['all-invalid']['evaluation_count'] === 1 && $rows['all-invalid']['variant']['key'] === 'blue'
+        && $rows['all-invalid']['targeting_key'] === 'subject' && !isset($rows['all-invalid']['context']['evaluation']));
+    echo 'recovered_connection_preserves_privacy=';
+    var_dump($rows['recovered']['evaluation_count'] === 1
+        && $rows['recovered']['targeting_key'] === 'sha256_2234a4963a43ffe952df4e09b1fd0d36f8b49216e5cba4182ae4d01e67cf112a'
+        && !isset($rows['recovered']['context']['evaluation']));
+    echo 'consented_identity_and_safe_error=';
+    var_dump($rows['consented-canary']['targeting_key'] === 'ffe-consented-pii-canary@example.test'
+        && $rows['consented-canary']['context']['evaluation']['email'] === 'ffe-consented-context-canary@example.test'
+        && $rows['consented-canary']['error']['message'] === 'GENERAL');
+    $diagnostics = file_get_contents($diagnosticLog) . $stderr;
+    echo 'diagnostics_exercised='; var_dump(strpos($diagnostics, 'FfeFlagEvaluationEvent') !== false);
+    echo 'diagnostics_pii_absent=';
+    var_dump(strpos($diagnostics, 'ffe-protected-pii-canary@example.test') === false
+        && strpos($diagnostics, 'ffe-context-pii-canary@example.test') === false
+        && strpos($diagnostics, 'ffe-consented-pii-canary@example.test') === false
+        && strpos($diagnostics, 'ffe-consented-context-canary@example.test') === false
+        && strpos($diagnostics, 'ffe-error-pii-canary@example.test') === false);
 } finally {
     if ($exitedAt === null) proc_terminate($process);
     fclose($pipes[1]);
     fclose($pipes[2]);
     proc_close($process);
     fclose($listener);
+    @unlink($diagnosticLog);
 }
 ?>

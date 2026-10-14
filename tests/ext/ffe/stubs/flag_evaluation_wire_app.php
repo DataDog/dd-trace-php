@@ -64,6 +64,46 @@ foreach (array(1700000000123, 1700000000456) as $timestamp) {
         'timestamped', 'blue', 'allocation', null, array(), null, false, false, $timestamp
     );
 }
+// Exercise the PHP/native snapshot boundary directly: the public evaluator
+// already filters non-scalars before this boundary, but internal calls must
+// still omit unsafe fields without losing the observation or invoking objects.
+class FfeUnserializableContext {
+    public function __toString() { throw new RuntimeException('must not convert context'); }
+}
+$bounded = array('rejected' => str_repeat('x', 257));
+for ($i = 1; $i < 256; ++$i) $bounded['field-' . $i] = $i;
+$bounded['beyond-limit'] = 'must-not-be-inspected';
+$unicode = array(
+    str_repeat('é', 256) => str_repeat('😀', 256),
+    str_repeat('é', 257) => 'overlong-key',
+    'overlong-value' => str_repeat('😀', 257),
+    'invalid-value' => "bad-\xff", "bad-\xff" => 'invalid-key',
+    'nan' => NAN, 'infinity' => INF,
+    'object' => new FfeUnserializableContext(), 'nested' => array('ignored'),
+    'bool' => false, 'integer' => -42, 'float' => 1.5,
+    0 => 'zero-key', -1 => 'negative-key', 'empty' => '',
+);
+$original = 'before-submission';
+$snapshot = array('value' => &$original);
+foreach (array('bounded' => $bounded, 'unicode' => $unicode, 'snapshot' => $snapshot,
+    'all-invalid' => array('bad' => NAN, 'object' => new FfeUnserializableContext())) as $flag => $attributes) {
+    if (!\DDTrace\Internal\record_ffe_flag_evaluation(
+        $flag, 'blue', 'allocation', 'subject', $attributes, null, false, true, 1700000000123
+    )) throw new RuntimeException('context observation rejected');
+}
+$original = 'after-submission';
+\DDTrace\Internal\record_ffe_flag_evaluation(
+    'consented-canary', 'blue', null, 'ffe-consented-pii-canary@example.test',
+    array('email' => 'ffe-consented-context-canary@example.test'),
+    'ffe-error-pii-canary@example.test', false, true, 1700000000123
+);
+// Follow the existing broken-pipe telemetry test: a normal shared-sender
+// operation notices the broken connection and replays its configuration.
+dd_trace_internal_fn('break_sidecar_connection');
+dd_trace_internal_fn('stats_sidecar');
+if (!\DDTrace\Internal\record_ffe_flag_evaluation(
+    'recovered', 'blue', null, $protectedKey, $protectedAttributes, null, false, false, 1700000000123
+)) throw new RuntimeException('submission after shared-sender recovery rejected');
 // Give the ordinary sidecar coalescer time to send while the parent captures.
 // Shutdown delivery has its own lifecycle tests; this tests the live writer.
 usleep(1000000);

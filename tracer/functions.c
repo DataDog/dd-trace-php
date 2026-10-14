@@ -2141,6 +2141,7 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             if (DATADOG_G(sidecar)) {
                 datadog_ffi_try("Failed synchronously flushing traces", ddog_sidecar_flush(&DATADOG_G(sidecar), (ddog_SidecarFlushOptions){.traces_and_stats = true}));
             }
+            ddtrace_ffe_flush_flag_evaluations();
             RETVAL_TRUE;
 #ifndef _WIN32
         } else if (FUNCTION_NAME_MATCHES("init_and_start_writer")) {
@@ -2353,6 +2354,7 @@ PHP_FUNCTION(dd_trace_synchronous_flush) {
     if (DATADOG_G(sidecar)) {
         datadog_ffi_try("Failed synchronously flushing traces", ddog_sidecar_flush(&DATADOG_G(sidecar), (ddog_SidecarFlushOptions){.traces_and_stats = true}));
     }
+    ddtrace_ffe_flush_flag_evaluations();
     RETURN_NULL();
 }
 
