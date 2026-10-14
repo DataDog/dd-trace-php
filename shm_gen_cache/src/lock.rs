@@ -3,6 +3,7 @@
 use core::marker::PhantomData;
 
 use crate::cache::Cache;
+use crate::cache::promotion::PromotionSampler;
 use crate::config::Params;
 use crate::error::Error;
 use crate::occupancy::OccupancyMode;
@@ -24,6 +25,7 @@ pub struct ParticipantLock<'m, P: Params> {
     /// This registration's process-local view of the current arena's load
     /// (zero-sized in exact mode).
     estimator: <P::Occupancy as OccupancyMode>::Estimator,
+    promotion_sampler: PromotionSampler,
     _not_send: PhantomData<*mut ()>,
 }
 
@@ -34,11 +36,13 @@ impl<'m, P: Params> ParticipantLock<'m, P> {
     #[inline]
     pub(crate) unsafe fn new(cache: Cache<'m, P>, slot_index: u32) -> Self {
         let hp = cache.params().hot();
+        let slot = cache.participant(&hp, slot_index);
         ParticipantLock {
             cache,
-            slot: cache.participant(&hp, slot_index),
+            slot,
             slot_index,
             estimator: Default::default(),
+            promotion_sampler: PromotionSampler::new(slot.registration_id::<P::Pid>()),
             _not_send: PhantomData,
         }
     }
@@ -111,6 +115,7 @@ impl<'m, P: Params> ParticipantLock<'m, P> {
                 output_words,
                 capacity,
                 &mut self.estimator,
+                &mut self.promotion_sampler,
             )
         }
     }

@@ -1,7 +1,7 @@
 //! The cache: shared layout, initialisation and
 //! registration. Lookup, store and rotation live in the submodules.
 //!
-//! Shared layout (layout version 11; fully determined by the configuration
+//! Shared layout (layout version 12; fully determined by the configuration
 //! and the architecture's cache-line size):
 //!
 //! ```text
@@ -15,6 +15,7 @@
 //! The third arena is the one the next rotation reuses.
 
 mod lookup;
+pub(crate) mod promotion;
 pub(crate) mod rotation;
 mod store;
 
@@ -47,7 +48,7 @@ const MAGIC_INITIALIZED: u64 = u64::from_le_bytes(*b"SCCACHE\0");
 
 /// The mapping header. The plain fields record the layout version and the
 /// configuration; they are written once, before the mapping is published,
-/// and are part of layout version 11, although the cache code never reads
+/// and are part of layout version 12, although the cache code never reads
 /// them back.
 #[cfg_attr(target_arch = "aarch64", repr(C, align(128)))]
 #[cfg_attr(not(target_arch = "aarch64"), repr(C, align(64)))]
@@ -242,6 +243,7 @@ impl<'m, P: Params> Cache<'m, P> {
             arena
                 .ctl()
                 .store(CtlWord::new(epoch, epoch == 0, 0).0, Relaxed);
+            arena.promotion_ready_epoch().store(0, Relaxed);
             if !<P::Occupancy as OccupancyMode>::ESTIMATES {
                 arena.exact_occupancy().store(0, Relaxed);
             }

@@ -30,7 +30,7 @@
 //! V2, which lookups would no longer probe first. A promotion is published
 //! only in the epoch its lookup probed first, so this one is dropped.
 //! `promotion_keeps_newer_stale_epoch_insert` covers a newer insert that
-//! lands in the previous epoch, which promotion still shadows.
+//! lands in the previous epoch, which promotion readiness protects.
 //!
 //! # Checked after the joins
 //!

@@ -3,6 +3,7 @@
 //!
 //! ```text
 //! +0                    control line: ctl word (epoch:32 | sealed:1 | bump:31)
+//! +8                    promotion-ready epoch (full 64-bit generation)
 //! +CL (exact mode)      occupancy line: AtomicU32 entry count
 //! +arena_header_size    index: bucket_count x u64 {epoch stamp:32, ref:32}
 //! +records_offset       record area: record_area_size bytes, 8-aligned
@@ -29,11 +30,14 @@ use crate::util::CACHE_LINE;
 pub(crate) use probe::{ProbeError, probe};
 pub(crate) use put::{PutStatus, table_put};
 
-/// The arena header's first line: the control word alone.
+/// The arena header's first line: control and promotion readiness.
 #[cfg_attr(target_arch = "aarch64", repr(C, align(128)))]
 #[cfg_attr(not(target_arch = "aarch64"), repr(C, align(64)))]
 pub(crate) struct ArenaCtlLine {
     pub(crate) ctl: AtomicU64,
+    /// Last sealed generation whose index writers have all finished.
+    /// Never reset on reuse: readers require an exact full-epoch match.
+    pub(crate) promotion_ready_epoch: AtomicU64,
 }
 
 /// The exact-mode header's second line: the entry counter alone.
@@ -78,6 +82,19 @@ impl<'m> ArenaView<'m> {
     pub(crate) fn ctl(self) -> &'m AtomicU64 {
         // SAFETY: the control line starts the arena.
         unsafe { &self.base.cast::<ArenaCtlLine>().as_ref().ctl }
+    }
+
+    /// The last generation certified safe as a promotion source.
+    #[inline(always)]
+    pub(crate) fn promotion_ready_epoch(self) -> &'m AtomicU64 {
+        // SAFETY: the control line starts the arena.
+        unsafe {
+            &self
+                .base
+                .cast::<ArenaCtlLine>()
+                .as_ref()
+                .promotion_ready_epoch
+        }
     }
 
     /// The exact occupancy counter. Only exists in exact mode.

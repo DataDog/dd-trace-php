@@ -1,8 +1,6 @@
-//! A lookup's promotion of an old value can shadow a newer insert of the
-//! same key that landed in the previous epoch. This program pins down that
-//! behaviour: after `insert(K, V1)` and then `insert(K, V2)` by one thread,
-//! a later lookup may read V1, if a rotation overtook the second insert and
-//! a concurrent lookup promoted V1.
+//! A promotion must not shadow a newer insert of the same key that landed
+//! in the previous epoch. A concurrent lookup may read the old value, but
+//! a lookup after the successful insert must read the new one.
 //!
 //! The record area holds two records. Setup inserts K -> V1 at epoch 2.
 //! Then, with no ordering constraints:
@@ -12,7 +10,7 @@
 //!   an epoch-2 pin does not block;
 //! * lookup L looks K up once.
 //!
-//! The interleaving that yields V1:
+//! The stale-promotion interleaving that readiness must prevent:
 //!
 //! ```text
 //! writer W               rotator R            lookup L
@@ -27,9 +25,9 @@
 //!                                             promote V1 into arena 3
 //! ```
 //!
-//! Lookups probe epoch 3 first, so the promoted V1 shadows V2. Unlike the
-//! rotation in `promotion_keeps_newer_insert`, publishing only in the epoch
-//! the lookup probed first does not prevent it: V2 is in the previous one.
+//! Lookups probe epoch 3 first, so promoting V1 would shadow V2. Promotion
+//! must acquire readiness before reading its source: learning that W has
+//! finished after copying V1 is insufficient without reprobing arena 2.
 //!
 //! # Checked after the joins
 //!
@@ -38,12 +36,12 @@
 //!   it); R's rotation succeeded, or found that W had rotated first;
 //! * L saw exactly V1 or V2;
 //! * epoch 3, no rotation owner, all participants unpinned;
-//! * a final lookup returns exactly V1 or V2, and V1 if W's insert failed.
+//! * a final lookup returns V2 if W's insert succeeded, otherwise V1.
 //!
 //! # Witnesses
 //!
-//! * `FINAL_V1`: W's insert succeeded, yet the final lookup reads V1 (the
-//!   shadowing above);
+//! * `STALE_HIT_NOT_PROMOTED`: L read V1, but after W's successful insert
+//!   the final lookup reads V2;
 //! * `FINAL_V2`: the final lookup reads V2.
 //!
 //! No `assume` is used.
@@ -170,8 +168,12 @@ extern "C" fn main() -> i32 {
     let last = observe(&mut p1);
     check!(matches!(last, Outcome::V1 | Outcome::V2));
     check!(inserted.is_ok() || last == Outcome::V1);
+    check!(inserted.is_err() || last == Outcome::V2);
 
-    witness!("FINAL_V1", inserted.is_ok() && last == Outcome::V1);
+    witness!(
+        "STALE_HIT_NOT_PROMOTED",
+        inserted.is_ok() && observed == Outcome::V1 && last == Outcome::V2
+    );
     witness!("FINAL_V2", last == Outcome::V2);
     0
 }

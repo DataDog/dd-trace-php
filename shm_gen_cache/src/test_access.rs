@@ -58,6 +58,12 @@ pub fn arena_ctl_word<'m, P: Params>(cache: Cache<'m, P>, index: u64) -> &'m Ato
     cache.arena(&hp, index).ctl()
 }
 
+/// Arena `index`'s last certified promotion-source epoch.
+pub fn promotion_ready_epoch<P: Params>(cache: Cache<'_, P>, index: u64, order: Ordering) -> u64 {
+    let hp = cache.params().hot();
+    cache.arena(&hp, index).promotion_ready_epoch().load(order)
+}
+
 /// Arena `index`'s exact occupancy counter (exact mode only).
 pub fn arena_exact_occupancy<'m, P: Params>(cache: Cache<'m, P>, index: u64) -> &'m AtomicU32 {
     assert!(!<P::Occupancy as OccupancyMode>::ESTIMATES);
@@ -252,7 +258,7 @@ pub fn probe<P: Params>(
     let hp = cache.params().hot();
     // SAFETY: output holds at least align8(capacity) bytes.
     unsafe {
-        crate::arena::probe(
+        crate::arena::probe::<false>(
             cache.arena_of(&hp, epoch),
             &hp,
             hash,
@@ -262,6 +268,8 @@ pub fn probe<P: Params>(
             capacity,
             cache.global_epoch(),
         )
+        // A successful probe validated the stored key length against key.
+        .map(|hit| RecordLengths::new(key.len() as u32, hit.value_len))
     }
 }
 

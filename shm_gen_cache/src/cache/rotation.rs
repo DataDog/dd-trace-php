@@ -1,6 +1,7 @@
 //! Rotation and rotation ownership.
 
-use core::sync::atomic::Ordering::{AcqRel, Acquire, Relaxed, Release};
+use core::sync::atomic::Ordering::{AcqRel, Acquire, Relaxed, Release, SeqCst};
+use core::sync::atomic::fence;
 
 use super::{ARENA_COUNT, Cache};
 use crate::arena::ctl::CtlWord;
@@ -64,8 +65,9 @@ impl<'m, P: Params> Cache<'m, P> {
     ///
     /// The caller must have read `e` from the epoch with an acquire load
     /// (W1) and then executed a `SeqCst` fence (W3), as `reserve()` does
-    /// before every call: the pin scan (R3) has no fence of its own and
-    /// relies on the caller's W3 (see docs/invariants.html, PN3 and EP3).
+    /// before every call, ordering the reuse pin scan (R3). The post-seal
+    /// fence additionally lets that scan certify promotion readiness for
+    /// the just-sealed generation, without waiting for its writers.
     pub(crate) fn rotate(
         self,
         slot: &ParticipantSlot,
@@ -123,9 +125,11 @@ impl<'m, P: Params> Cache<'m, P> {
             }
         }
 
-        // No fence of its own before the scan: the caller's W3 is the
-        // store-buffering partner of every writer's W3, so the scan reads
-        // each writer's pin or a later value (docs/invariants.html, PN3).
+        // The seal must precede this fence to certify the just-sealed e,
+        // not only the old generation whose storage is being reused. An
+        // accepted e writer's pin or a later value must appear in the scan.
+        fence(SeqCst);
+        let mut promotion_ready = true;
         for i in 0..hp.participant_capacity {
             let participant = self.participant(hp, i);
             let mut wait = BoundedWait::new();
@@ -137,6 +141,11 @@ impl<'m, P: Params> Cache<'m, P> {
                 // pause.
                 let word = participant.pinned_epoch.load(Acquire);
                 let pinned_epoch = word & !ROTATION_WAITING;
+                if pinned_epoch == e {
+                    // Never wait for or reap writers in the newly sealed
+                    // generation. Promotions will occasionally recheck.
+                    promotion_ready = false;
+                }
                 if pinned_epoch == UNPINNED || e < pinned_epoch.wrapping_add(2) {
                     break;
                 }
@@ -169,6 +178,9 @@ impl<'m, P: Params> Cache<'m, P> {
                 };
                 return Err(error);
             }
+        }
+        if promotion_ready {
+            self.mark_promotion_ready(hp, e);
         }
         // R4: arena reuse resets only the control word (and the exact
         // counter); the index and records are rejected by their stamps

@@ -25,6 +25,17 @@ pub enum ProbeError {
 /// Slots scanned before testing whether the probe chain has ended.
 const GROUP_SIZE: u32 = 8;
 
+/// A validated hit. Its key length already matched the supplied key; only
+/// the value length and the pre-probe readiness certificate need returning.
+/// Keeping the payload compact leaves room for the error tag in one word.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) struct ProbeHit {
+    pub(crate) value_len: u32,
+    pub(crate) promotion_ready: bool,
+}
+
+const _: () = assert!(core::mem::size_of::<Result<ProbeHit, ProbeError>>() == 8);
+
 /// Looks `key` up in the incarnation `epoch` of `arena`, copying a match
 /// directly into `output`, then validates that none of the reads came from
 /// a recycled incarnation.
@@ -34,17 +45,21 @@ const GROUP_SIZE: u32 = 8;
 /// It must not overlap `key`. A failed validation can leave output modified;
 /// only success is usable.
 ///
-/// Always inlined into its two call sites in lookup. Out of line, each call
+/// With `CAPTURE_READY`, acquire the source's readiness before its index
+/// reads and return whether it certifies this exact epoch. Without it, the
+/// returned readiness flag is false and no readiness word is read.
+///
+/// Always inlined into lookup's initial probes. Out of line, each call
 /// would pass arguments on the stack, save callee-saved registers and return
-/// the result through memory, and a miss in the current arena would pay that
-/// twice and redo the hash mix and the key tail setup. Inlined, the second
-/// probe reuses them.
+/// the result, and a miss in the current arena would pay that twice and
+/// redo the hash mix and the key tail setup. Inlined, the second probe
+/// reuses them. The rare readiness recheck probes in its own helper.
 ///
 /// # Safety
 /// `output` must be valid for writes of `align8(output_capacity)` bytes.
 #[inline(always)]
 #[allow(clippy::too_many_arguments)]
-pub(crate) unsafe fn probe(
+pub(crate) unsafe fn probe<const CAPTURE_READY: bool>(
     arena: ArenaView<'_>,
     hp: &HotParams,
     hash: u64,
@@ -53,7 +68,10 @@ pub(crate) unsafe fn probe(
     output: *mut u64,
     output_capacity: usize,
     global_epoch: &AtomicU64,
-) -> Result<RecordLengths, ProbeError> {
+) -> Result<ProbeHit, ProbeError> {
+    // A certificate learned after reading the source cannot justify
+    // promoting that copy: the completed writers may have replaced it.
+    let ready = CAPTURE_READY && arena.promotion_ready_epoch().load(Acquire) == epoch;
     let codec = RefCodec::new(hp);
     let mask = hp.bucket_mask;
     let ras = hp.record_area_size;
@@ -187,7 +205,10 @@ pub(crate) unsafe fn probe(
             if !fits {
                 return Err(ProbeError::InsufficientCapacity);
             }
-            return Ok(lengths);
+            return Ok(ProbeHit {
+                value_len,
+                promotion_ready: ready,
+            });
         }
 
         // Sequential continuation after a rejected candidate.
