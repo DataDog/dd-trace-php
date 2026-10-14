@@ -1683,10 +1683,6 @@ endforeach;
     PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
     APT_CACHE: $CI_PROJECT_DIR/.cache/apt
     DOCKER_DEFAULT_PLATFORM: linux/amd64
-    # Override these to point at a fork/branch of system-tests (e.g. while a fix there
-    # is pending review/merge) without needing to touch this file.
-    SYSTEM_TESTS_REPO: "https://github.com/DataDog/system-tests.git"
-    SYSTEM_TESTS_REF: "main"
     # TODO DD_API_KEY; SYSTEM_TESTS_AWS_ACCESS_KEY_ID; SYSTEM_TESTS_AWS_SECRET_ACCESS_KEY
   needs:
     - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
@@ -1716,7 +1712,7 @@ endforeach;
       pip install -U pip virtualenv
 <?php dockerhub_login() ?>
     - /tmp/vault kv get --format=json "kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key" 2>/dev/null | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['data']['key'])" > /tmp/.dd-api-key 2>/dev/null || true
-    - git clone --branch "$SYSTEM_TESTS_REF" --depth 1 "$SYSTEM_TESTS_REPO" system-tests
+    - git clone https://github.com/DataDog/system-tests.git
     - mv packages/{datadog-setup.php,dd-library-php-*x86_64-linux-gnu.tar.gz} system-tests/binaries
     - cd system-tests
     - ./build.sh $BUILD_SH_ARGS
