@@ -120,6 +120,7 @@ test_uninstall.sh \
 test_upgrade_from_legacy.sh \
 test_upgrade_from_php_installer.sh \
 test_upgrade_preserves_legacy_profiling.sh \
+test_upgrade_preserves_recent_profiling.sh \
 	: global_test_dependencies
 	@echo "################### $(@) ###################"
 	$(INSTALLER_DOCKER_RUN) php:7.4-cli sh dockerfiles/verify_packages/installer/$(@)
