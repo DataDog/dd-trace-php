@@ -1125,13 +1125,6 @@ mod timed {
                 .unwrap_or_else(|poisoned| poisoned.into_inner())
         }
 
-        #[test]
-        fn reports_mechanism() {
-            let m = monitor::current();
-            assert_ne!(m, Mechanism::Unknown);
-            std::eprintln!("wait mechanism: {m:?}");
-        }
-
         /// Writes the word after `delay`, from another thread, while this one
         /// waits, then wakes blocked waiters if `wake`. Returns how long the
         /// wait took and how long it lasted after the write, as an error if
@@ -1245,6 +1238,9 @@ mod timed {
         #[test]
         fn unwritten_wait_exhausts_budget() {
             let _serial = timing_test();
+            let m = monitor::current();
+            assert_ne!(m, Mechanism::Unknown);
+            std::eprintln!("wait mechanism: {m:?}");
             let line = Line(AtomicU64::new(0));
             let mut wait = BoundedWait::new();
             let start = Instant::now();

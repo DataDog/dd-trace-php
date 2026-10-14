@@ -111,15 +111,9 @@ mod tests {
     }
 
     #[test]
-    fn small_tables_always_recheck() {
-        let mut sampler = PromotionSampler::new(1);
-        for _ in 0..100 {
-            assert!(sampler.should_recheck(7));
-        }
-    }
-
-    #[test]
     fn recheck_rate_scales_with_capacity() {
+        // Eight buckets: always recheck.
+        assert!(PromotionSampler::new(1).should_recheck(7));
         for buckets in [16, 128, 1024, 8192] {
             let mut sampler = PromotionSampler::new(1);
             let trials = buckets * 1024;

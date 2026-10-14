@@ -73,8 +73,10 @@ fn tolerate_timeout_status(status: Status) {
     }
 }
 
+/// Expected mapping sizes of a few configurations per architecture (aarch64
+/// has 128-byte lines, x86-64 64-byte); they are fixed by layout version 12.
 #[test]
-fn static_config_mapping_size_follows_the_layout() {
+fn mapping_sizes_and_occupancy_modes() {
     let d = Small::DERIVED;
     let cl = shm_gen_cache::CACHE_LINE;
     // Exact mode: two header lines per arena.
@@ -82,24 +84,6 @@ fn static_config_mapping_size_follows_the_layout() {
     assert_eq!(d.mapping_size(), cl * (1 + 8) + 3 * arena);
     assert!(!d.estimates_occupancy());
     // The bench configuration: 112.5 MiB on x86-64 (64-byte lines).
-    let bench = Config {
-        participant_capacity: 128,
-        bucket_count: 65536,
-        max_key_size: 64,
-        max_value_size: 512,
-        record_area_size: 65536 * (8 + 8 + 64 + 512),
-        max_occupancy: 65536 * 7 / 10,
-        ..Config::DEFAULT
-    }
-    .resolve()
-    .unwrap();
-    assert!(bench.estimates_occupancy());
-}
-
-/// Expected mapping sizes of a few configurations per architecture (aarch64
-/// has 128-byte lines, x86-64 64-byte); they are fixed by layout version 12.
-#[test]
-fn mapping_sizes_per_architecture() {
     let bench = Config {
         participant_capacity: 128,
         bucket_count: 65536,
@@ -126,6 +110,7 @@ fn mapping_sizes_per_architecture() {
         max_value_size: 100,
         ..Config::DEFAULT
     };
+    assert!(bench.resolve().unwrap().estimates_occupancy());
     let sizes: Vec<usize> = [bench, tiny, Config::DEFAULT, estimated]
         .iter()
         .map(|c| c.resolve().unwrap().mapping_size())

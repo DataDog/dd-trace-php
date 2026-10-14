@@ -202,21 +202,6 @@ mod tests {
         assert_eq!(WindowsGetPid::is_live(0x8000_0000), Ok(true));
     }
 
-    #[test]
-    fn running_thread_is_live() {
-        let (report, identity_rx) = mpsc::channel();
-        let (release, release_rx) = mpsc::channel::<()>();
-        let worker = thread::spawn(move || {
-            report.send(identity()).unwrap();
-            let _ = release_rx.recv();
-        });
-        let (tid, start) = identity_rx.recv().unwrap();
-        assert_eq!(WindowsGetPid::is_live_since(tid, start), Ok(true));
-        assert_eq!(WindowsGetPid::is_live(tid), Ok(true));
-        drop(release);
-        worker.join().unwrap();
-    }
-
     /// Joining closes the last handle, and the thread object is deleted
     /// once the exited thread's own reference goes too (asynchronously):
     /// OpenThread then fails with ERROR_INVALID_PARAMETER.
@@ -256,6 +241,8 @@ mod tests {
             let _ = release_rx.recv();
         });
         let (tid, start) = identity_rx.recv().unwrap();
+        assert_eq!(WindowsGetPid::is_live_since(tid, start), Ok(true));
+        assert_eq!(WindowsGetPid::is_live(tid), Ok(true));
         let kept = open(tid);
         drop(release);
         worker.join().unwrap();
