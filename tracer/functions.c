@@ -3120,6 +3120,11 @@ PHP_FUNCTION(DDTrace_curl_multi_exec_get_request_spans) {
         ZVAL_NEW_EMPTY_REF(return_value);
         ZVAL_EMPTY_ARRAY(Z_REFVAL_P(return_value));
     }
+
+#if PHP_VERSION_ID >= 80600
+    // By-reference internal functions must unwrap the reference when the call result is a TMP
+    zend_return_unwrap_ref(execute_data, return_value);
+#endif
 }
 
 PHP_FUNCTION(DDTrace_resource_weak_store) {
