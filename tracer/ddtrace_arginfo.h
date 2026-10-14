@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: fabc819a43be4dc1ce12f823113a9dd3d48af7cd */
+ * Stub hash: 4725b7bd60526a5eeb72ca5e58dbd828c002876a */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -256,7 +256,7 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_DDTrace_Internal_flush_ffe_evaluation_metrics arginfo_DDTrace_are_endpoints_collected
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_record_ffe_flag_evaluation, 0, 8, _IS_BOOL, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_record_ffe_flag_evaluation, 0, 9, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, flagKey, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, variant, IS_STRING, 1)
 	ZEND_ARG_TYPE_INFO(0, allocationKey, IS_STRING, 1)
@@ -265,6 +265,8 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_record_ffe_flag
 	ZEND_ARG_TYPE_INFO(0, errorType, IS_STRING, 1)
 	ZEND_ARG_TYPE_INFO(0, runtimeDefaultUsed, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, observeFullEvaluationData, _IS_BOOL, 0)
+	ZEND_ARG_TYPE_INFO(0, evaluationTimestampMs, IS_LONG, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, targetingKeyInvalid, _IS_BOOL, 0, "false")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_datadog_appsec_v2_track_user_login_success, 0, 1, IS_VOID, 0)

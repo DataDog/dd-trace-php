@@ -37,8 +37,10 @@ final class NativeEvaluator implements Evaluator
         $expectedType,
         $defaultValue,
         $targetingKey = null,
-        array $attributes = array()
+        array $attributes = array(),
+        $targetingKeyInvalid = false
     ) {
+        $evaluationTimestampMs = (int) (microtime(true) * 1000);
         $normalizedAttributes = $this->normalizeAttributes($attributes);
         $rawResult = \DDTrace\ffe_evaluate(
             $flagKey,
@@ -54,9 +56,9 @@ final class NativeEvaluator implements Evaluator
 
         $details = $this->mapper->map($rawResult, $expectedType, $defaultValue);
 
-        // Both public APIs use this final mapped outcome. EVP counts are
+        // Both public APIs use this final mapped outcome. EVP reporting is
         // independent of OpenFeature's metric hook and the OTLP kill switch.
-        $this->recordFlagEvaluation($flagKey, $targetingKey, $normalizedAttributes, $rawResult, $details);
+        $this->recordFlagEvaluation($flagKey, $targetingKey, $normalizedAttributes, $rawResult, $details, $evaluationTimestampMs, $targetingKeyInvalid);
 
         // APM feature-flag span enrichment. This is the single choke point both
         // the native Client and the OpenFeature DataDogProvider evaluate through,
@@ -69,7 +71,7 @@ final class NativeEvaluator implements Evaluator
         return $details;
     }
 
-    private function recordFlagEvaluation($flagKey, $targetingKey, array $attributes, $rawResult, $details)
+    private function recordFlagEvaluation($flagKey, $targetingKey, array $attributes, $rawResult, $details, $evaluationTimestampMs, $targetingKeyInvalid)
     {
         if (!function_exists('DDTrace\\Internal\\record_ffe_flag_evaluation')) {
             return;
@@ -83,11 +85,13 @@ final class NativeEvaluator implements Evaluator
                 $flagKey,
                 $details->getVariant(),
                 isset($exposure['allocationKey']) ? $exposure['allocationKey'] : null,
-                $targetingKey,
+                $targetingKeyInvalid ? null : $targetingKey,
                 $attributes,
                 $details->getErrorCode(),
                 $details->getVariant() === null && !isset($exposure['serialId']),
-                $consent
+                $consent,
+                $evaluationTimestampMs,
+                $targetingKeyInvalid
             );
         } catch (\Throwable $ignored) {
             // Best-effort telemetry must not change a flag's evaluation result.

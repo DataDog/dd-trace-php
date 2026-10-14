@@ -28,7 +28,7 @@ spl_autoload_register(function ($class) use ($srcRoot) {
 
 $calls = array();
 \DDTrace\install_hook('DDTrace\\Internal\\record_ffe_flag_evaluation', function ($hook) use (&$calls) {
-    $calls[] = $hook->args;
+    $calls[] = array_slice($hook->args, 0, 8);
 });
 $config = array(
     'createdAt' => '2026-05-22T00:00:00Z',

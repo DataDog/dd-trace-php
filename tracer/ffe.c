@@ -19,7 +19,8 @@ ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
 bool ddtrace_ffe_record_flag_evaluation(zend_string *flag_key, zend_string *variant,
     zend_string *allocation_key, zend_string *targeting_key, HashTable *attributes,
-    zend_string *error_type, bool runtime_default_used, bool observe_full_evaluation_data) {
+    zend_string *error_type, bool runtime_default_used, bool observe_full_evaluation_data,
+    int64_t evaluation_timestamp_ms, bool targeting_key_invalid) {
     if (!get_DD_FLAGGING_EVALUATION_COUNTS_ENABLED() || !flag_key || !ZSTR_LEN(flag_key)
         || !DATADOG_G(sidecar) || !DATADOG_G(request_initialized)) {
         return false;
@@ -28,7 +29,7 @@ bool ddtrace_ffe_record_flag_evaluation(zend_string *flag_key, zend_string *vari
     ddog_FfeScalarAttribute scalars[DD_FFE_CONTEXT_FIELD_LIMIT] = {0};
     zend_string *owned_keys[DD_FFE_CONTEXT_FIELD_LIMIT] = {0};
     size_t count = 0;
-    ddog_FfeSnapshotState snapshot = {0};
+    ddog_FfeSnapshotState snapshot = {.targeting_key_invalid = targeting_key_invalid};
     // Protected observations never walk or serialize their context.
     if (observe_full_evaluation_data) {
         snapshot.context_truncated = zend_hash_num_elements(attributes) > DD_FFE_CONTEXT_FIELD_LIMIT;
@@ -72,11 +73,10 @@ bool ddtrace_ffe_record_flag_evaluation(zend_string *flag_key, zend_string *vari
         } ZEND_HASH_FOREACH_END();
     }
 
-    int64_t timestamp = (int64_t) (ddtrace_nanoseconds_realtime() / 1000000);
     ddog_FfeFlagEvaluation event = {
-        .timestamp_ms = timestamp,
-        .first_evaluation_ms = timestamp,
-        .last_evaluation_ms = timestamp,
+        .timestamp_ms = evaluation_timestamp_ms,
+        .first_evaluation_ms = evaluation_timestamp_ms,
+        .last_evaluation_ms = evaluation_timestamp_ms,
         .evaluation_count = 1,
         .flag_key = dd_zend_string_to_CharSlice(flag_key),
         .variant = dd_zend_string_to_CharSlice(variant),

@@ -11,12 +11,12 @@ $config = array(
     'observeFullEvaluationData' => true,
     'flags' => array(),
 );
-foreach (array('consented', 'protected') as $key) {
+foreach (array('consented', 'protected', 'coerced', 'empty', 'missing', 'malformed') as $key) {
     $config['flags'][$key] = array(
         'key' => $key, 'enabled' => true, 'variationType' => 'STRING',
         'variations' => array('blue' => array('key' => 'blue', 'value' => 'blue')),
         'allocations' => array(array(
-            'key' => 'allocation', 'rules' => array(), 'doLog' => true,
+            'key' => 'allocation', 'rules' => array(), 'doLog' => in_array($key, array('consented', 'protected'), true),
             'splits' => array(array('variationKey' => 'blue', 'serialId' => 0, 'shards' => array())),
         )),
     );
@@ -39,11 +39,31 @@ for ($i = 0; $i < 2; ++$i) {
 }
 $config['observeFullEvaluationData'] = false;
 \DDTrace\Testing\ffe_load_config(json_encode($config));
+$protectedKey = 'ffe-protected-pii-canary@example.test';
+$protectedAttributes = array('email' => 'ffe-context-pii-canary@example.test');
+$context = array('targetingKey' => $protectedKey, 'attributes' => $protectedAttributes);
+if (getenv('PHP_FFE_WIRE_OPENFEATURE') === '1') {
+    $context = new \OpenFeature\implementation\flags\EvaluationContext($protectedKey,
+        new \OpenFeature\implementation\flags\Attributes($protectedAttributes));
+}
 if ($client->getStringValue('protected', 'fallback', $context) !== 'blue') {
     throw new RuntimeException('assignment failed');
 }
 echo 'exposure_flush=', json_encode(\DDTrace\Testing\flush_ffe_exposures()), "\n";
 echo "evaluated\n";
+$nativeClient = new \DDTrace\FeatureFlags\Client();
+foreach (array('coerced' => 123, 'empty' => '', 'missing' => null, 'malformed' => "bad-\xff") as $flag => $key) {
+    if ($nativeClient->getStringValue($flag, 'fallback', array('targetingKey' => $key)) !== 'blue') {
+        throw new RuntimeException('identity handling changed assignment');
+    }
+}
+// Fixed timestamps prove that submission preserves the evaluation time rather
+// than reading the clock again when the C bridge or sidecar handles the event.
+foreach (array(1700000000123, 1700000000456) as $timestamp) {
+    \DDTrace\Internal\record_ffe_flag_evaluation(
+        'timestamped', 'blue', 'allocation', null, array(), null, false, false, $timestamp
+    );
+}
 // Give the ordinary sidecar coalescer time to send while the parent captures.
 // Shutdown delivery has its own lifecycle tests; this tests the live writer.
 usleep(1000000);

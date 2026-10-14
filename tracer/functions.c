@@ -2938,7 +2938,9 @@ PHP_FUNCTION(DDTrace_Internal_record_ffe_flag_evaluation) {
     zend_string *flag_key, *variant = NULL, *allocation_key = NULL, *targeting_key = NULL, *error_type = NULL;
     HashTable *attributes;
     zend_bool runtime_default_used, observe_full_evaluation_data;
-    ZEND_PARSE_PARAMETERS_START(8, 8)
+    zend_long evaluation_timestamp_ms;
+    zend_bool targeting_key_invalid = false;
+    ZEND_PARSE_PARAMETERS_START(9, 10)
         Z_PARAM_STR(flag_key)
         Z_PARAM_STR_OR_NULL(variant)
         Z_PARAM_STR_OR_NULL(allocation_key)
@@ -2947,9 +2949,13 @@ PHP_FUNCTION(DDTrace_Internal_record_ffe_flag_evaluation) {
         Z_PARAM_STR_OR_NULL(error_type)
         Z_PARAM_BOOL(runtime_default_used)
         Z_PARAM_BOOL(observe_full_evaluation_data)
+        Z_PARAM_LONG(evaluation_timestamp_ms)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_BOOL(targeting_key_invalid)
     ZEND_PARSE_PARAMETERS_END();
     RETURN_BOOL(ddtrace_ffe_record_flag_evaluation(flag_key, variant, allocation_key,
-        targeting_key, attributes, error_type, runtime_default_used, observe_full_evaluation_data));
+        targeting_key, attributes, error_type, runtime_default_used, observe_full_evaluation_data,
+        evaluation_timestamp_ms, targeting_key_invalid));
 }
 
 /* {{{ proto array generate_distributed_tracing_headers() */

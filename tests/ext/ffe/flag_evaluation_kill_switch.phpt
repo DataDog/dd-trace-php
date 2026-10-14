@@ -6,7 +6,7 @@ DD_METRICS_OTEL_ENABLED=true
 --FILE--
 <?php
 var_dump(\DDTrace\Internal\record_ffe_flag_evaluation(
-    'flag', 'blue', 'allocation', 'subject', array('plan' => 'pro'), null, false, true
+    'flag', 'blue', 'allocation', 'subject', array('plan' => 'pro'), null, false, true, 1700000000123
 ));
 var_dump(\DDTrace\Internal\record_ffe_evaluation_metric(
     'flag', 'blue', 'SPLIT', null, 'allocation'

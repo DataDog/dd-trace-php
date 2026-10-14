@@ -33,5 +33,8 @@ consented_context=array(1) {
   string(3) "pro"
 }
 protected_count=int(1)
-protected_subject=string(71) "sha256_a9491f4c1bf7b0cffbadcba2db8f028e4b3f2867cb59e1f3a0bc1968f3c51242"
+protected_subject=string(71) "sha256_2234a4963a43ffe952df4e09b1fd0d36f8b49216e5cba4182ae4d01e67cf112a"
 protected_context_absent=bool(true)
+protected_raw_bytes_absent=bool(true)
+evaluation_times_preserved=bool(true)
+identity_omissions_preserve_evaluations=bool(true)

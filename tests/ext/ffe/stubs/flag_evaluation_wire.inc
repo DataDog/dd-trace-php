@@ -54,7 +54,7 @@ try {
             $body .= $chunk;
         }
         if (strpos($requestLine, '/evp_proxy/v2/api/v2/') !== false) {
-            $captures[] = array($requestLine, $headers, json_decode($body, true));
+            $captures[] = array($requestLine, $headers, json_decode($body, true), $body);
             $lastCaptureAt = microtime(true);
         }
         $response = '{}';
@@ -72,6 +72,7 @@ try {
     $rows = array();
     $exposureCount = 0;
     $identity = true;
+    $protectedBytesAbsent = true;
     foreach ($captures as $capture) {
         list($request, $headers, $payload) = $capture;
         $identity = $identity && !isset($headers['dd-api-key'])
@@ -82,6 +83,9 @@ try {
                 array('dd-evp-origin' => true, 'dd-evp-origin-version' => true))), "\n";
         }
         if (strpos($request, '/flagevaluation ') !== false) {
+            $protectedBytesAbsent = $protectedBytesAbsent
+                && strpos($capture[3], 'ffe-protected-pii-canary@example.test') === false
+                && strpos($capture[3], 'ffe-context-pii-canary@example.test') === false;
             $context = $payload['context'];
             ksort($context);
             if ($context !== array('env' => 'test', 'service' => 'php-ffe-wire', 'version' => 'wire-version')) {
@@ -91,6 +95,9 @@ try {
                 $key = $row['flag']['key'];
                 if (isset($rows[$key])) {
                     $rows[$key]['evaluation_count'] += $row['evaluation_count'];
+                    $rows[$key]['timestamp'] = max($rows[$key]['timestamp'], $row['timestamp']);
+                    $rows[$key]['first_evaluation'] = min($rows[$key]['first_evaluation'], $row['first_evaluation']);
+                    $rows[$key]['last_evaluation'] = max($rows[$key]['last_evaluation'], $row['last_evaluation']);
                 } else {
                     $rows[$key] = $row;
                 }
@@ -108,6 +115,17 @@ try {
     echo 'protected_count='; var_dump($rows['protected']['evaluation_count']);
     echo 'protected_subject='; var_dump($rows['protected']['targeting_key']);
     echo 'protected_context_absent='; var_dump(!isset($rows['protected']['context']['evaluation']));
+    echo 'protected_raw_bytes_absent='; var_dump($protectedBytesAbsent);
+    echo 'evaluation_times_preserved=';
+    var_dump($rows['timestamped']['evaluation_count'] === 2
+        && $rows['timestamped']['timestamp'] === 1700000000456
+        && $rows['timestamped']['first_evaluation'] === 1700000000123
+        && $rows['timestamped']['last_evaluation'] === 1700000000456);
+    echo 'identity_omissions_preserve_evaluations=';
+    var_dump(!isset($rows['coerced']['targeting_key']) && $rows['coerced']['evaluation_count'] === 1
+        && !isset($rows['missing']['targeting_key']) && $rows['missing']['evaluation_count'] === 1
+        && !isset($rows['malformed']['targeting_key']) && $rows['malformed']['evaluation_count'] === 1
+        && $rows['empty']['targeting_key'] === '' && $rows['empty']['evaluation_count'] === 1);
 } finally {
     if ($exitedAt === null) proc_terminate($process);
     fclose($pipes[1]);
