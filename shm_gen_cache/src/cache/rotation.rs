@@ -63,11 +63,9 @@ impl<'m, P: Params> Cache<'m, P> {
     /// the epoch first. On any error after acquiring ownership the current
     /// arena stays sealed and a later rotator repeats the scan.
     ///
-    /// The caller must have read `e` from the epoch with an acquire load
-    /// (W1) and then executed a `SeqCst` fence (W3), as `reserve()` does
-    /// before every call, ordering the reuse pin scan (R3). The post-seal
-    /// fence additionally lets that scan certify promotion readiness for
-    /// the just-sealed generation, without waiting for its writers.
+    /// The post-seal fence orders the pin scan (R3) by itself, both for the
+    /// arena about to be reused and to certify promotion readiness for the
+    /// just-sealed generation, without waiting for its writers.
     pub(crate) fn rotate(
         self,
         slot: &ParticipantSlot,
