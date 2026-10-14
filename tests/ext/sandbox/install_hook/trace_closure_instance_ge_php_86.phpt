@@ -1,10 +1,11 @@
 --TEST--
 HOOK_INSTANCE covers every evaluation of a closure shared by PHP 8.6+
 --DESCRIPTION--
-Since PHP 8.6, a static closure without captured state is created once per declaration site,
-and a first-class callable of a function once per function, then kept until request end.
-An instance hook on such a closure therefore covers every evaluation, even after all
-references were dropped. Non-static and capturing closures keep per-instance hooks.
+Since PHP 8.6, a static closure without captured state declared in a function is created
+once per declaration site, and a first-class callable of a function once per function, then
+kept until request end. An instance hook on such a closure therefore covers every evaluation,
+even after all references were dropped. Non-static and capturing closures keep per-instance
+hooks.
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 80600) die('skip: closure caching is PHP 8.6+'); ?>
 --INI--

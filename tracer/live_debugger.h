@@ -17,6 +17,9 @@ static inline void ddtrace_snapshot_redacted_name(ddog_CaptureValue *capture_val
     }
 }
 
+// Internal function arg_info names are zend_strings since PHP 8.6
+ddog_CharSlice ddtrace_internal_arg_name(const zend_function *func, uint32_t arg);
+
 static inline ddog_CharSlice ddtrace_capture_bound_charslice(ddog_CharSlice slice, uint32_t max_length) {
     if (slice.len > max_length) {
         slice.len = max_length;

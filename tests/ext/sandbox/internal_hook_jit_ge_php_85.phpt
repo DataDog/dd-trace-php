@@ -4,7 +4,6 @@ Test internal functions are hooked within JIT
 <?php if (PHP_VERSION_ID < 80500) die('skip: PHP 8.5+ variant (built-in OPcache) of internal_hook_jit.phpt'); ?>
 <?php if (!extension_loaded('curl')) die('skip: curl extension required'); ?>
 <?php if (!getenv('HTTPBIN_HOSTNAME')) die('skip: HTTPBIN_HOSTNAME env var required'); ?>
-<?php if (PHP_VERSION_ID < 80000) die('skip: JIT is only on PHP 8'); ?>
 --INI--
 opcache.enable = 1
 opcache.enable_cli = 1

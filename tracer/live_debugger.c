@@ -289,6 +289,15 @@ static ddog_CharSlice dd_persist_str_eval_arena(struct eval_ctx *eval_ctx, zend_
     return dd_zend_string_to_CharSlice(Z_STR(zv));
 }
 
+ddog_CharSlice ddtrace_internal_arg_name(const zend_function *func, uint32_t arg) {
+#if PHP_VERSION_ID < 80600
+    const char *name = func->internal_function.arg_info[arg].name;
+    return (ddog_CharSlice){ .len = strlen(name), .ptr = name };
+#else
+    return dd_zend_string_to_CharSlice(func->internal_function.arg_info[arg].name);
+#endif
+}
+
 // Accounts for bytes about to be added to the current snapshot; aborts the capture once it grew too large.
 void ddtrace_increase_capture_size(size_t bytes) {
     DDTRACE_G(debugger_capture_arena).captured_size += bytes;
@@ -636,12 +645,7 @@ static void dd_log_probe_capture_snapshot(ddog_DebuggerCapture *capture, dd_log_
             if (UNEXPECTED(DDTRACE_G(debugger_capture_timed_out))) {
                 break;
             }
-#if PHP_VERSION_ID < 80600
-            const char *name = EX(func)->internal_function.arg_info[i].name;
-            ddog_CharSlice name_slice = { .len = strlen(name), .ptr = name };
-#else
-            ddog_CharSlice name_slice = dd_zend_string_to_CharSlice(EX(func)->internal_function.arg_info[i].name);
-#endif
+            ddog_CharSlice name_slice = ddtrace_internal_arg_name(EX(func), i);
             struct ddog_CaptureValue capture_value = {0};
             ddtrace_snapshot_redacted_name(&capture_value, name_slice);
             ddtrace_create_capture_value(EX_VAR_NUM(i), &capture_value, capture_config, capture_config->max_reference_depth);
@@ -1226,12 +1230,8 @@ static const void *dd_eval_fetch_identifier(void *ctx, const ddog_CharSlice *nam
             // zend_rebuild_symbol_table() skips internal frames, so match the argument names directly
             int call_args = MIN(EX_NUM_ARGS(), EX(func)->common.num_args);
             for (int i = 0; i < call_args; ++i) {
-#if PHP_VERSION_ID < 80600
-                const char *argname = EX(func)->internal_function.arg_info[i].name;
-                if (zend_binary_strcmp(argname, strlen(argname), name->ptr, name->len) == 0) {
-#else
-                if (zend_string_equals_cstr(EX(func)->internal_function.arg_info[i].name, name->ptr, name->len)) {
-#endif
+                ddog_CharSlice argname = ddtrace_internal_arg_name(EX(func), i);
+                if (zend_binary_strcmp(argname.ptr, argname.len, name->ptr, name->len) == 0) {
                     return EX_VAR_NUM(i);
                 }
             }

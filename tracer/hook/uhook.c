@@ -1049,6 +1049,10 @@ ZEND_METHOD(DDTrace_HookData, overrideReturnValue) {
 
     zval_ptr_dtor(hookData->retval_ptr);
     ZVAL_COPY(hookData->retval_ptr, retval);
+#if PHP_VERSION_ID >= 80600
+    // Redo the by-ref unwrap into a TMP: internal functions did it before the end hook
+    zend_return_unwrap_ref(hookData->execute_data, hookData->retval_ptr);
+#endif
 
     RETURN_TRUE;
 }

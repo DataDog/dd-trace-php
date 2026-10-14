@@ -4,8 +4,8 @@ Instance-hooked closures that outlive RSHUTDOWN are freed safely
 These closures are only freed in shutdown_executor: one through a static property, and on
 PHP 8.6+ the cached static closure also through the engine's lambda cache. The Closure
 free_obj wrapper then looks up uhook_closure_hooks, which must still be alive (it is only
-destroyed in post_deactivate). A lookup on a destroyed table fails under ASAN or the
-debug HashTable consistency checks.
+destroyed in post_deactivate). Destroying it in RSHUTDOWN instead fails this test with a
+heap-use-after-free under ASAN and a leak report on debug builds.
 --INI--
 datadog.trace.generate_root_span=0
 --FILE--
