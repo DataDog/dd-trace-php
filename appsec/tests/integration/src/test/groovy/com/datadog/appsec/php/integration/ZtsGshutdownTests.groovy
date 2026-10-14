@@ -113,7 +113,7 @@ class ZtsGshutdownTests {
             // before a core dump can be written (e.g. Rust allocator panics on
             // poisoned memory).
             String errorLogText = errorLog.getTextSinceMark()
-            assert !errorLogText.contains('exit signal Aborted'):
+            assert !errorLogText.contains('exit signal Abort'):
                     "Apache worker exited via SIGABRT during GSHUTDOWN:\n" + errorLogText
             assert !errorLogText.contains('exit signal Segmentation'):
                     "Apache worker segfaulted during GSHUTDOWN:\n" + errorLogText

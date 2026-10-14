@@ -237,12 +237,13 @@ tasks.register('buildApache2Mod-8.5-release-zts-musl', Exec) {
     inputs.file file('src/docker/apache2-mod-zts-musl/Dockerfile')
     inputs.file file('src/docker/apache2-mod-zts-musl/php.conf')
     inputs.file file('src/docker/apache2-mod-zts-musl/start.sh')
+    inputs.file file('src/docker/apache2-mod/event-sigterm-startup.patch')
     outputs.upToDateWhen imageUpToDate(inputs, image)
 
     commandLine(*dockerBuildCommand, *dockerMirrorArgs,
             '-t', image,
             '-f', 'src/docker/apache2-mod-zts-musl/Dockerfile',
-            'src/docker/apache2-mod-zts-musl')
+            'src/docker')
 }
 
 tasks.register('buildPhpBuildonlyRustImage', Exec) {
