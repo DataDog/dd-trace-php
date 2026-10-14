@@ -2,13 +2,77 @@ name: Profiling ASAN/UBSAN Tests
 
 on:
   pull_request:
+  # Seed a default-branch cache that subsequent PRs can restore.
+  push:
+    branches: [master]
 
 permissions:
   contents: read
 
+env:
+  # Keep producer and consumers identical: paths also determine cache version.
+  CARGO_DEPENDENCY_CACHE_PATHS: |
+    /rust/cargo/registry/index/
+    /rust/cargo/registry/cache/
+    /rust/cargo/registry/src/
+    /rust/cargo/git/db/
+    /rust/cargo/git/checkouts/
+
 jobs:
+  cargo-deps:
+    name: Prepare Cargo dependencies
+    runs-on: ubuntu-8-core-latest
+    env:
+      CARGO_HOME: /rust/cargo
+      RUSTUP_HOME: /rust/rustup
+    container:
+      image: datadog/dd-trace-ci:php-8.5_bookworm-11
+      options: --user root
+    outputs:
+      cache-key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          submodules: true
+
+      - name: Restore Cargo dependencies
+        id: cargo-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.CARGO_DEPENDENCY_CACHE_PATHS }}
+          # Sources are shared across PHP versions, architectures and sanitizers.
+          # Include the toolchain for std's dependencies and the fetch recipe.
+          key: ${{ runner.os }}-profiler-cargo-deps-v1-${{ hashFiles('**/Cargo.lock', '**/Cargo.toml', 'rust-toolchain.toml', '.github/workflows/prof_asan.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-profiler-cargo-deps-v1-
+
+      - name: Fetch Cargo dependencies
+        if: steps.cargo-cache.outputs.cache-hit != 'true'
+        run: |
+          set -eux
+          # Do not filter the workspace fetch by target: custom cfgs such as
+          # tokio_unstable activate additional dependencies during the build.
+          cargo fetch --locked
+          # ASAN rebuilds std; fetch its dependencies for both Linux targets.
+          RUSTC_BOOTSTRAP=1 RUSTFLAGS='--cfg tokio_unstable' \
+            cargo fetch --locked -Zbuild-std=std,panic_abort \
+              --target aarch64-unknown-linux-gnu \
+              --target x86_64-unknown-linux-gnu
+
+      - name: Save Cargo dependencies
+        if: steps.cargo-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.CARGO_DEPENDENCY_CACHE_PATHS }}
+          key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
+
   prof-asan:
     name: PHP ${{ matrix.php-version }} ${{ matrix.php-build }} (${{ matrix.runner }})
+    needs: cargo-deps
+    # master only prepares the cache; keep the test matrices PR-only.
+    if: github.event_name == 'pull_request'
     runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
@@ -19,6 +83,9 @@ jobs:
       CARGO_HOME: /rust/cargo
       RUSTUP_HOME: /rust/rustup
       CARGO_TARGET_DIR: /tmp/build-cargo
+      # Applies to nested Cargo commands too. The copied workspace may update
+      # its lockfile, so use offline rather than frozen.
+      CARGO_NET_OFFLINE: 'true'
     container:
       image: datadog/dd-trace-ci:php-${{matrix.php-version}}_bookworm-11
       # https://docs.github.com/en/actions/creating-actions/dockerfile-support-for-github-actions#user
@@ -31,16 +98,12 @@ jobs:
           fetch-depth: 1
           submodules: true
 
-      - name: Cache Cargo dependencies
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - name: Restore prepared Cargo dependencies
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: |
-            /rust/cargo/registry/index/
-            /rust/cargo/registry/cache/
-            /rust/cargo/registry/src/
-            /rust/cargo/git/db/
-            /rust/cargo/git/checkouts/
-          key: ${{ runner.os }}-${{ runner.arch }}-cargo-deps-asan-${{ hashFiles('**/Cargo.lock') }}
+          path: ${{ env.CARGO_DEPENDENCY_CACHE_PATHS }}
+          key: ${{ needs.cargo-deps.outputs.cache-key }}
+          fail-on-cache-miss: true
 
       - name: Cache Cargo target
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -57,7 +120,7 @@ jobs:
           export LDFLAGS='-fsanitize=address -shared-libasan'
           # Uses the stable toolchain from rust-toolchain.toml; see the
           # compile_profiler_asan target for the Rust sanitizer setup.
-          make compile_profiler_asan
+          make -j$(nproc) compile_profiler_asan
           cp -v tmp/build_profiler_asan/modules/datadog-profiling.so "$(php-config --extension-dir)/datadog-profiling.so"
 
       - name: Run phpt tests
@@ -73,6 +136,8 @@ jobs:
 
   prof-ubsan:
     name: PHP 8.5 ${{ matrix.php-build }} UBSAN (${{ matrix.runner }})
+    needs: cargo-deps
+    if: github.event_name == 'pull_request'
     runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
@@ -82,6 +147,7 @@ jobs:
       CARGO_HOME: /rust/cargo
       RUSTUP_HOME: /rust/rustup
       CARGO_TARGET_DIR: /tmp/build-cargo
+      CARGO_NET_OFFLINE: 'true'
       UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
     container:
       image: datadog/dd-trace-ci:php-8.5_bookworm-11
@@ -94,16 +160,12 @@ jobs:
           fetch-depth: 1
           submodules: true
 
-      - name: Cache Cargo dependencies
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - name: Restore prepared Cargo dependencies
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: |
-            /rust/cargo/registry/index/
-            /rust/cargo/registry/cache/
-            /rust/cargo/registry/src/
-            /rust/cargo/git/db/
-            /rust/cargo/git/checkouts/
-          key: ${{ runner.os }}-${{ runner.arch }}-cargo-deps-c-ubsan-${{ hashFiles('**/Cargo.lock') }}
+          path: ${{ env.CARGO_DEPENDENCY_CACHE_PATHS }}
+          key: ${{ needs.cargo-deps.outputs.cache-key }}
+          fail-on-cache-miss: true
 
       - name: Cache Cargo target
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -120,7 +182,7 @@ jobs:
           export CFLAGS='-fsanitize=undefined,local-bounds -fno-sanitize-recover=all -fno-omit-frame-pointer'
           export LDFLAGS='-fsanitize=undefined,local-bounds -fno-sanitize-recover=all'
           export RUSTFLAGS='-C link-arg=-fsanitize=undefined,local-bounds -C link-arg=-fno-sanitize-recover=all'
-          make compile_profiler
+          make -j$(nproc) compile_profiler
           cp -v tmp/build_profiler/modules/datadog-profiling.so "$(php-config --extension-dir)/datadog-profiling.so"
 
       - name: Run phpt tests
