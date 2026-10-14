@@ -37,8 +37,8 @@ for attempt in 1 2 3 4; do
 
     case "$status" in
         # DNS/proxy resolution, connection, partial transfer, timeout, empty
-        # response, and send/receive failures can be transient for a download.
-        5|6|7|18|28|52|55|56) ;;
+        # response, send/receive, and HTTP/2 framing/stream failures can be transient.
+        5|6|7|16|18|28|52|55|56|92) ;;
         22)
             case "$http_status" in
                 408|429|500|502|503|504) ;;
