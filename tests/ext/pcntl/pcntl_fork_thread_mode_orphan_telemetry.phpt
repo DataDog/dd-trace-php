@@ -7,10 +7,11 @@ Thread mode: a fork child orphaned by its parent's exit replays its application 
 <?php if (getenv('USE_ZEND_ALLOC') === '0' && !getenv('SKIP_ASAN')) die('skip: valgrind incompatible with thread mode sidecar'); ?>
 <?php if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support {PWD}"); ?>
 <?php
-// Remove stale records before the FILE process starts, including records from a reused PID.
+// Remove completed stale records before FILE starts, including records from a reused PID.
 // Doing this in FILE could erase the current parent's only readiness request.
-foreach (glob(__DIR__ . '/pcntl_fork_thread_mode_orphan-telemetry/telemetry-*') as $file) {
-    // The SKIPIF listener may already be renaming its own temporary request files.
+// Leave .json.tmp files alone: the SKIPIF listener may still be writing or renaming them.
+// Later SKIPIF records cannot match FILE's parent PID or the child's unique integration name.
+foreach (glob(__DIR__ . '/tmp/pcntl_fork_thread_mode_orphan-telemetry/telemetry-*.json') as $file) {
     if (!@unlink($file) && file_exists($file)) {
         die("Failed to remove stale telemetry record: $file");
     }
@@ -24,7 +25,7 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
 LSAN_OPTIONS=detect_leaks=0
 --INI--
-datadog.trace.agent_url="file://{PWD}/pcntl_fork_thread_mode_orphan-telemetry/"
+datadog.trace.agent_url="file://{PWD}/tmp/pcntl_fork_thread_mode_orphan-telemetry/"
 --FILE--
 <?php
 
@@ -32,7 +33,7 @@ $parent = getmypid();
 // Complete the parent's first request before forking, so the child cannot inherit an
 // in-progress initialization of the entity-ID request headers. This test exercises
 // reconnecting after an established listener exits, not racing its startup.
-$parentRequests = __DIR__ . '/pcntl_fork_thread_mode_orphan-telemetry/telemetry-*-' . $parent . '-*.json';
+$parentRequests = __DIR__ . '/tmp/pcntl_fork_thread_mode_orphan-telemetry/telemetry-*-' . $parent . '-*.json';
 for ($i = 0; $i < 100 && !glob($parentRequests); ++$i) {
     ("us" . "leep")(100000);
 }
@@ -113,7 +114,7 @@ dd_trace_internal_fn("finalize_telemetry");
 // Each request is renamed from .json.tmp to .json once complete, so ignore temporary files.
 for ($i = 0; $i < 300; ++$i) {
     ("us" . "leep")(100000);
-    foreach (glob(__DIR__ . '/pcntl_fork_thread_mode_orphan-telemetry/telemetry-*.json') as $file) {
+    foreach (glob(__DIR__ . '/tmp/pcntl_fork_thread_mode_orphan-telemetry/telemetry-*.json') as $file) {
         $json = json_decode(file_get_contents($file), true);
         if (!isset($json["request_type"])) {
             continue;
@@ -144,7 +145,7 @@ bool(true)
 --CLEAN--
 <?php
 
-foreach (glob(__DIR__ . '/pcntl_fork_thread_mode_orphan-telemetry/telemetry-*') as $file) {
+foreach (glob(__DIR__ . '/tmp/pcntl_fork_thread_mode_orphan-telemetry/telemetry-*') as $file) {
     @unlink($file);
 }
-@rmdir(__DIR__ . '/pcntl_fork_thread_mode_orphan-telemetry');
+@rmdir(__DIR__ . '/tmp/pcntl_fork_thread_mode_orphan-telemetry');
