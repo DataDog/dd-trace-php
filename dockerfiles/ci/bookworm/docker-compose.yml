@@ -26,8 +26,8 @@ services:
         <<: *build-base
         BUILD_BASE: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:bookworm-$BOOKWORM_CURRENT_VERSION
         phpVersion: "8.6"
-        phpTarGzUrl: https://downloads.php.net/~mbeccati/php-8.6.0RC2.tar.gz
-        phpSha256Hash: "05377bdce249ca54e5c25af53f11662170440fdd8840b23b6d4886a8bccf0f30"
+        phpTarGzUrl: https://downloads.php.net/~svpernova09/php-8.6.0RC3.tar.gz
+        phpSha256Hash: "a40085cef8bfb560ed3649cd83879e768ab22fe4cee467aa56b1b795c92e057d"
 
   php-8.5:
     image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.5_bookworm-$BOOKWORM_NEXT_VERSION
