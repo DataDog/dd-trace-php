@@ -11,6 +11,8 @@ foreach (array('false', 'true') as $sidecarTraceSender) {
         $process = ffeTestProcess(__DIR__ . '/flag_evaluation_flush_app.php', $pipes);
         $stdout = $stderr = '';
         $exitCode = null;
+        $exitedAt = null;
+        $lastCaptureAt = 0;
         $blocked = $released = false;
         $counts = array();
         try {
@@ -18,11 +20,16 @@ foreach (array('false', 'true') as $sidecarTraceSender) {
             do {
                 $stdout .= ffeTestProcessRead($pipes[1]);
                 $stderr .= ffeTestProcessRead($pipes[2]);
-                $status = proc_get_status($process);
-                if (!$status['running']) {
-                    $exitCode = $status['exitcode'];
-                    break;
+                if ($exitedAt === null) {
+                    $status = proc_get_status($process);
+                    if (!$status['running']) {
+                        $exitCode = $status['exitcode'];
+                        $exitedAt = microtime(true);
+                    }
                 }
+                // The sidecar can outlive PHP. Keep capturing until it is quiet
+                // so a late duplicate cannot hide behind the parent's exit.
+                if ($exitedAt !== null && microtime(true) - max($exitedAt, $lastCaptureAt) > 0.5) break;
                 $connection = @stream_socket_accept($listener, 0.1);
                 if (!$connection) continue;
                 stream_set_timeout($connection, 2);
@@ -38,6 +45,7 @@ foreach (array('false', 'true') as $sidecarTraceSender) {
                     $body .= $chunk;
                 }
                 if (strpos($request, '/flagevaluation ') !== false) {
+                    $lastCaptureAt = microtime(true);
                     $payload = json_decode($body, true);
                     foreach ($payload['flagEvaluations'] as $row) {
                         $key = $row['flag']['key'];
@@ -57,7 +65,10 @@ foreach (array('false', 'true') as $sidecarTraceSender) {
                         $status = proc_get_status($process);
                         if (strpos($stdout, 'returned') !== false || !$status['running']) {
                             $blocked = false;
-                            if (!$status['running']) $exitCode = $status['exitcode'];
+                            if (!$status['running']) {
+                                $exitCode = $status['exitcode'];
+                                $exitedAt = microtime(true);
+                            }
                             break;
                         }
                         usleep(1000);
@@ -65,7 +76,6 @@ foreach (array('false', 'true') as $sidecarTraceSender) {
                 }
                 fwrite($connection, "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}");
                 fclose($connection);
-                if ($exitCode !== null) break;
             } while (microtime(true) < $deadline);
             $stdout .= ffeTestProcessRead($pipes[1]);
             $stderr .= ffeTestProcessRead($pipes[2]);
