@@ -113,6 +113,9 @@ final class NativeEvaluator implements Evaluator
         }
         $warningMessage = $providerState['mode'] === 'native_agentless'
             ? self::AGENTLESS_WARNING_MESSAGE : self::WARNING_MESSAGE;
+        if (!empty($providerState['errorMessage'])) {
+            $warningMessage = $providerState['errorMessage'];
+        }
 
         if (is_array($rawResult)) {
             if (isset($rawResult['provider_state']) && is_array($rawResult['provider_state'])) {

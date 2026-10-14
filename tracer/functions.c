@@ -2948,9 +2948,16 @@ PHP_FUNCTION(DDTrace_Internal_ffe_provider_state) {
         ? "native_agentless" : config.source == DDOG_FFE_CONFIGURATION_SOURCE_REMOTE_CONFIG
         ? "native_remote_config" : "native_disabled";
     add_assoc_string(return_value, "mode", (char *) mode);
-    add_assoc_string(return_value, "reason", !config.enabled ? "disabled"
-        : has_config ? (ddog_ffe_delivery_state() == DDOG_DELIVERY_STATE_STALE ? "stale" : "ready")
-        : "configuration_missing");
+    ddog_CharSlice failure_reason = ddog_ffe_initialization_error_reason();
+    ddog_CharSlice failure_message = ddog_ffe_initialization_error_message();
+    if (!has_config && failure_reason.len) {
+        add_assoc_stringl(return_value, "reason", (char *)failure_reason.ptr, failure_reason.len);
+        add_assoc_stringl(return_value, "errorMessage", (char *)failure_message.ptr, failure_message.len);
+    } else {
+        add_assoc_string(return_value, "reason", !config.enabled ? "disabled"
+            : has_config ? (ddog_ffe_delivery_state() == DDOG_DELIVERY_STATE_STALE ? "stale" : "ready")
+            : "configuration_missing");
+    }
 }
 
 

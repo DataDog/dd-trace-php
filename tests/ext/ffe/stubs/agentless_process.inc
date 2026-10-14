@@ -2,7 +2,7 @@
 require_once __DIR__ . '/ffe_process.inc';
 $instrumented = getenv('USE_ZEND_ALLOC') === '0';
 // Keep the no-renewal assertion decisive: ten renewed 2s waits exceed 3s.
-if ($instrumented && $scenario !== 'fork') {
+if ($instrumented && in_array($scenario, array('recovery', 'shutdown'), true)) {
     putenv('DD_EXPERIMENTAL_FLAGGING_PROVIDER_INITIALIZATION_TIMEOUT_MS=2000');
 }
 putenv('PHP_FFE_PROCESS_SCENARIO=' . $scenario);

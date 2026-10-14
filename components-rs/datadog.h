@@ -163,6 +163,13 @@ struct ddog_FfeRuntimeConfig ddog_ffe_configure(const struct ddog_FfeSettingsInp
 struct ddog_FfeRuntimeConfig ddog_ffe_runtime_config(void);
 
 /**
+ * Static, redacted configuration failure. Empty when initialization can retry.
+ */
+ddog_CharSlice ddog_ffe_initialization_error_reason(void);
+
+ddog_CharSlice ddog_ffe_initialization_error_message(void);
+
+/**
  * First-use compatibility path for PHP providers without an initialize API.
  * Concurrent first callers share one deadline; later calls never renew it.
  */

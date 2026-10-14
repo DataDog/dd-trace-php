@@ -219,6 +219,7 @@ hex = { version = "0.4", default-features = false }
 http = { version = "1.1", default-features = false }
 http-body = { version = "1", default-features = false }
 http-body-util = { version = "0.1", default-features = false }
+httpdate = { version = "1.0", default-features = false }
 # allow(workspace-deps-features): httpmock 0.8.0-alpha.1 does not compile
 # without the `cookies` feature: its own `readers.rs` calls `req.cookies()`
 # unconditionally while that method is gated behind `cookies`. Keep it as a

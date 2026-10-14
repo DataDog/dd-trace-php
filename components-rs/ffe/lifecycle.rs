@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::agentless::{AgentlessWorker, AgentlessWorkerConfig};
-use super::settings::{ConfigurationSource, FeatureFlagsSettings, SettingsInput, SourceInput};
+use super::settings::{
+    ConfigurationSource, DisableReason, EndpointError, FeatureFlagsSettings, SettingsInput,
+    SettingsIssue, SourceInput,
+};
 use super::{ddog_ffe_has_config, set_delivery_state, DeliveryState};
 use crate::log::{self, Log};
 use arc_swap::ArcSwap;
@@ -59,6 +62,62 @@ struct Lifecycle {
     worker: Option<AgentlessWorker>,
     initialization_deadline: Option<Instant>,
     stopped: bool,
+    failure: Option<InitializationFailure>,
+    diagnostics_reported: bool,
+}
+
+#[derive(Clone, Copy)]
+enum InitializationFailure {
+    InvalidSource,
+    Endpoint(EndpointError),
+    SidecarMode,
+}
+
+impl InitializationFailure {
+    fn reason(self) -> &'static str {
+        match self {
+            Self::InvalidSource => "invalid_source",
+            Self::Endpoint(EndpointError::MissingApiKey) => "missing_api_key",
+            Self::Endpoint(EndpointError::InvalidSite) => "invalid_site",
+            Self::Endpoint(_) => "invalid_endpoint",
+            Self::SidecarMode => "unsupported_sidecar_mode",
+        }
+    }
+
+    fn message(self) -> &'static str {
+        match self {
+            Self::InvalidSource => "Feature Flags configuration source is invalid; use agentless, remote_config or offline",
+            Self::Endpoint(EndpointError::MissingApiKey) => "Feature Flags CDN configuration requires DD_API_KEY for the managed endpoint",
+            Self::Endpoint(EndpointError::InvalidSite) => "Feature Flags CDN configuration requires a valid DD_SITE hostname",
+            Self::Endpoint(_) => "Feature Flags CDN base URL must be an absolute HTTP or HTTPS URL without whitespace or a fragment",
+            Self::SidecarMode => "Feature Flags CDN configuration requires sidecar subprocess mode",
+        }
+    }
+}
+
+impl Lifecycle {
+    fn report_diagnostics(&mut self) {
+        if self.diagnostics_reported {
+            return;
+        }
+        self.diagnostics_reported = true;
+        if let Some(settings) = &self.settings {
+            if settings.resolution.legacy_key_decided {
+                log::log(Log::Warn, "DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED is deprecated; use DD_FEATURE_FLAGS_ENABLED and DD_FEATURE_FLAGS_CONFIGURATION_SOURCE");
+            }
+            for issue in &settings.issues {
+                let message = match issue {
+                    SettingsIssue::PollInterval => "Invalid DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS; using 30 seconds (valid range: 1-3600)",
+                    SettingsIssue::RequestTimeout => "Invalid DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS; using 5 seconds (valid range: 1-300)",
+                    SettingsIssue::InitializationTimeout => "Invalid DD_EXPERIMENTAL_FLAGGING_PROVIDER_INITIALIZATION_TIMEOUT_MS; using 10000 milliseconds (valid range: 1-2147483647)",
+                };
+                log::log(Log::Warn, message);
+            }
+        }
+        if let Some(failure) = self.failure {
+            log::log(Log::Warn, failure.message());
+        }
+    }
 }
 
 static LIFECYCLE: LazyLock<Mutex<Lifecycle>> = LazyLock::new(|| Mutex::new(Lifecycle::default()));
@@ -116,24 +175,30 @@ pub extern "C" fn ddog_ffe_configure(input: &FfeSettingsInput<'_>) -> FfeRuntime
         }
     };
     super::use_agentless_config(source == FfeConfigurationSource::Agentless);
+    if settings.resolution.disable_reason == Some(DisableReason::InvalidSource) {
+        state.failure = Some(InitializationFailure::InvalidSource);
+    }
     let mut endpoint_valid = false;
     if settings.resolution.enabled && source == FfeConfigurationSource::Agentless {
-        if let Ok(endpoint) = settings.agentless_endpoint() {
-            endpoint_valid = true;
-            let mut worker_config = AgentlessWorkerConfig::new(
-                endpoint,
-                settings.poll_interval,
-                settings.request_timeout,
-            );
-            worker_config.thread_cleanup = input.thread_cleanup;
-            worker_config.sidecar_self_telemetry = input.sidecar_self_telemetry;
-            if input.sidecar_subprocess_enabled {
-                state.worker = Some(AgentlessWorker::new(worker_config));
-            } else {
-                log::log(
-                    Log::Warn,
-                    "Feature Flags CDN configuration requires sidecar subprocess mode",
+        match settings.agentless_endpoint() {
+            Ok(endpoint) => {
+                endpoint_valid = true;
+                let mut worker_config = AgentlessWorkerConfig::new(
+                    endpoint,
+                    settings.poll_interval,
+                    settings.request_timeout,
                 );
+                worker_config.thread_cleanup = input.thread_cleanup;
+                worker_config.sidecar_self_telemetry = input.sidecar_self_telemetry;
+                if input.sidecar_subprocess_enabled {
+                    state.worker = Some(AgentlessWorker::new(worker_config));
+                } else {
+                    state.failure = Some(InitializationFailure::SidecarMode);
+                    set_delivery_state(DeliveryState::PermanentError);
+                }
+            }
+            Err(error) => {
+                state.failure = Some(InitializationFailure::Endpoint(error));
                 set_delivery_state(DeliveryState::PermanentError);
             }
         }
@@ -152,12 +217,30 @@ pub extern "C" fn ddog_ffe_runtime_config() -> FfeRuntimeConfig {
     lifecycle().config
 }
 
+/// Static, redacted configuration failure. Empty when initialization can retry.
+#[no_mangle]
+pub extern "C" fn ddog_ffe_initialization_error_reason() -> CharSlice<'static> {
+    lifecycle()
+        .failure
+        .map_or("", InitializationFailure::reason)
+        .into()
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_ffe_initialization_error_message() -> CharSlice<'static> {
+    lifecycle()
+        .failure
+        .map_or("", InitializationFailure::message)
+        .into()
+}
+
 /// First-use compatibility path for PHP providers without an initialize API.
 /// Concurrent first callers share one deadline; later calls never renew it.
 #[no_mangle]
 pub extern "C" fn ddog_ffe_ensure_initialized() {
     let deadline = {
         let mut state = lifecycle();
+        state.report_diagnostics();
         if state.stopped || !state.config.enabled {
             return;
         }

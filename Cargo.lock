@@ -2992,6 +2992,7 @@ dependencies = [
  "futures-util",
  "http 1.4.2",
  "http-body-util",
+ "httpdate",
  "httpmock",
  "hyper",
  "libdd-capabilities",
