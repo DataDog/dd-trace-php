@@ -4,7 +4,7 @@ import SgcProofs.Slot
 /-!
 # The takeover handoff, from SL1 and A3
 
-OW1. `OwnerProtocol.takeover` was a hypothesis of OW2. This file derives
+OW1. OW2 takes `OwnerProtocol.takeover` as a hypothesis. This file derives
 it from slot serialisation (SL1: `SlotProtocol.serial`, `ender_before`) and
 from what `reap_owner()` observed in the owner's slot before the takeover
 CAS O3 (code fact F6). Nothing here needs O3 to be an acquire.

@@ -20,8 +20,8 @@ events that wrote them:
 * `check_exact`: with that, the readers' bound `len >
   ras.wrapping_sub(off).wrapping_sub(8)` does not wrap, and is the bound
   `Bounds.lean` assumes. It is modelled in `u32` as at `put.rs:131`;
-  `probe.rs:148` subtracts the 8 in `u64`, which agrees once nothing
-  wraps;
+  `probe.rs:166` subtracts the 8 in `u64`, which agrees once
+  nothing wraps;
 * `reader_in_bounds` (BD2): whatever the header and lengths
   loads (D4, D5) return, a reader that passed its checks addresses only
   words of the record area.

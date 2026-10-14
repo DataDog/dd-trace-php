@@ -6,8 +6,9 @@ import SgcProofs.Lookup
 A store attempt is either an insert, which stores the caller's key and
 value, or a promotion: `lookup()` hit in the previous generation and calls
 `store()` with the caller's key and the words the hit copied into the
-output buffer (`lookup.rs:85-125`). `ValueProtocol` says this of the
-abstract key and value an attempt stores, `attKey` and `attVal`.
+output buffer (`lookup.rs:96-168`). `ValueProtocol` says this of the
+abstract key and value an attempt stores, `attKey` and `attVal`, and names
+the hit a promotion copies by its I1, `src`.
 
 * `promo_earlier`: a promotion stores the key and value of an attempt of a
   strictly earlier epoch. The hit's record loads read the stores of an
@@ -17,6 +18,11 @@ abstract key and value an attempt stores, `attKey` and `attVal`.
   caller passed to `insert()`, by induction on the epoch.
 * `published_provenance` (HT3, as `docs/invariants.html` states it): every
   publication pairs its key with such a value.
+
+HT3 needs no readiness: the promoted hit may be the reprobe's, which is still
+a validated hit of the previous generation, sequenced after V1 and after a
+miss in V1's arena. Which hits may be promoted at all is
+`PromotionProtocol` (`Promotion.lean`).
 
 The model has no well-foundedness of `hb` (only of `mo`), so the induction
 is not along `hb` but on the epoch, which the code's
@@ -38,7 +44,7 @@ structure ValueProtocol (X : Execution Ev Loc) {C : CacheProtocol X} {A : ArenaP
   attVal : Ev → Nat
   /-- `inserted k v`: some caller passed `k` and `v` to `insert()`. -/
   inserted : Nat → Nat → Prop
-  /-- The attempt is a promotion (`lookup.rs:114-124`). -/
+  /-- The attempt is a promotion (`lookup.rs:157-169`). -/
   isPromo : Ev → Prop
   /-- An insert stores the caller's key and value (`store.rs:96-104`,
   `152-155`). -/
@@ -47,13 +53,23 @@ structure ValueProtocol (X : Execution Ev Loc) {C : CacheProtocol X} {A : ArenaP
   of `table_put()`). -/
   pub_key : ∀ {x i w}, (I.isPubCas x ∨ I.isPubStore x) → C.isAttempt i w →
     (C.pins i).inAttempt w x → I.pubKey x = attKey w
+  /-- `src w`: the I1 of the hit whose copy the promotion attempt `w`
+  publishes. A promotion copies exactly one hit: `lookup()` holds a single
+  `hit`, the result of its probe, which `reprobe_for_promotion()` may
+  replace before the `if promote` branch, and that branch calls `store()`
+  once, with the copy of that `hit`. Its value for an attempt that is not a
+  promotion is irrelevant. -/
+  src : Ev → Ev
   /-- Code fact F10. A promotion follows a lookup hit `H` in the previous generation: it
   probed one epoch less than V1 read, after missing in V1's arena
-  (`lookup.rs:85-99`, `114`); the promotion passes V1's epoch as `only_epoch`
-  (`lookup.rs:123`), so it pins nothing else (`store.rs:269-272`). If the
+  (`lookup.rs:96-113`, `157`), either in `lookup()`'s own probe of that
+  arena or in the reprobe after a readiness recheck (`lookup.rs:124-148`,
+  `182-209`), both sequenced after V1; the promotion passes V1's epoch as
+  `only_epoch` (`lookup.rs:168`), so it pins nothing else
+  (`store.rs:269-272`). If the
   hit's loads read the stores of an attempt `w0`, then `w0` was for the
   caller's key (`key_matches()`) and the promotion stores `w0`'s value: the
-  value words the hit copied (`probe.rs:167-179`, `lookup.rs:119-123`,
+  value words the hit copied (`probe.rs:185-197`, `lookup.rs:164-168`,
   `store.rs:69-73`). That last item is sequential. -/
   promo_src : ∀ {i w}, C.isAttempt i w → isPromo w →
     ∃ H : Hit I, X.rval H.v1 = H.e + 1 ∧ C.attEpoch w = X.rval H.v1 ∧

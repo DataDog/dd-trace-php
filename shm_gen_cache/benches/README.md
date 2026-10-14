@@ -164,3 +164,22 @@ So the crate measured ~5% slower than the C++ implementation on Linux and
 parity with the C API (one call per operation), except `lookup_miss`, 7-9%
 faster on Linux. Those runs were not pinned; their 4- and 8-thread
 insert-heavy scenarios were bimodal run to run.
+
+## Promotion readiness (2026-10-14)
+
+Promotion is gated on a readiness certificate (`docs/invariants.html`,
+section 3.1). Measured with `ab_bins.py` against the same code without
+the gate, full suite, 5 rounds, on the Linux VM above with
+THP:
+
+| API | ALL | mixed | lookup_hit | lookup_miss | insert_new |
+|---|---|---|---|---|---|
+| Rust | **1.009** | 1.014 | 1.006 | 1.007 | 0.992 |
+| C | **1.006** | 1.003 | 1.004 | 1.021 | 1.007 |
+
+No scenario is slower beyond noise. The hit rate is unchanged except in
+`mixed/1Mi/s0.8` at 4 and 8 threads, the most insert-heavy scenario, where
+it is 0.25 to 0.4 percentage points lower (41.8% to 41.6% and 41.4%):
+a rotation certifies the sealed generation only when no other slot is still
+pinned to it, and uncertified hits are promoted only when the sampled
+recheck succeeds.

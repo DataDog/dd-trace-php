@@ -12,10 +12,12 @@ events:
 * tenure `A1` rechecks epoch 2, seals, publishes 3 and releases;
 * tenure `A2` rechecks epoch 3, seals, publishes 4 and releases;
 * tenure `B` rechecks epoch 4, makes a `SeqCst` fence `Fo` under
-  ownership and scans the writer's pin. This is a variant of the code's
-  shape: `pin_visibility_closed` shows that a fence under ownership would
-  serve, while `CacheWitness.lean` witnesses the code's own shape, the
-  rotator's W3 before it acquires ownership.
+  ownership and scans the writer's pin. This is the code's shape for the
+  reuse scan: `Fo` stands for R1F, the fence `rotate_owned()` makes under
+  ownership right after its seal loop (`rotation.rs`, line 131). `B`'s own
+  seal is not modelled; `pin_visibility_closed` needs only that the fence
+  is under ownership. `CacheWitness.lean` witnesses the same shape inside
+  the whole cache.
 
 Every relation agrees with one total order of the events (`rank`): it is a
 sequentially consistent run. Initialisation is thread 0, sequenced before

@@ -386,12 +386,16 @@ def pins : PinProtocol X slot where
   clear_loc := fun h => by obtain ⟨rfl, rfl⟩ := h; rfl
   clear_isRel := fun h => by obtain ⟨rfl, rfl⟩ := h; rfl
   att_act := fun h he _ => by obtain ⟨rfl, rfl⟩ := h; exact att_act_raw _ he
-  pin_next := fun {a w N} h hact hN hsb => by
+  pass_quiet := fun {a w u N} h hu hact hN hsb hNu => by
     obtain ⟨rfl, rfl⟩ := h
+    obtain ⟨-, rfl⟩ := hu
     rcases hN with ⟨_, _, rfl⟩ | ⟨_, _, rfl⟩ | ⟨_, _, rfl⟩
     · exact absurd hsb (by decide : ¬ sbP W2 W2)
-    · exact ⟨W7, ⟨rfl, rfl⟩, Or.inl rfl⟩
+    · exact absurd hNu (by decide : ¬ sbP W7 W7)
     · exact absurd hact (by decide : ¬ actP c0 P6)
+  pass_exit := fun {a w N} h _ _ _ => by
+    obtain ⟨rfl, rfl⟩ := h
+    exact ⟨W7, ⟨rfl, rfl⟩, (by decide : actP c0 W7)⟩
 
 /-! ## The owner word and its takeover -/
 
@@ -416,7 +420,8 @@ theorem acq_facts : ∀ a : E, isAcqCasP a →
   intro a; cases a <;> decide
 
 /-- Only `A1`, which reads the initialisation, is an acquire: the takeover
-`T` reads `A1` and is release-only, like O3 in the code (`rotation.rs`). -/
+`T` reads `A1` and is release-only, like O3 in the code
+(`rotation.rs:333-335`, `acquire_rotation()`). -/
 theorem acq_of_noncas : ∀ a w : E, isAcqCasP a → rfP w a → ¬ isAcqCasP w → acqB a = true := by
   intro a w; cases a <;> cases w <;> decide
 

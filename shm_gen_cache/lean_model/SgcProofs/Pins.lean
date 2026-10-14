@@ -10,6 +10,10 @@ which stands in for a dead registrant's W7), and by rotations that flag a
 blocking pin (the announce R3A, inside R3's wait loop: a relaxed
 read-modify-write that keeps the pinned epoch).
 
+* `pin_next` (code fact F1): after W2, the registrant's next write to its
+  pin is the W7 of the same pass. It is derived from two finer code facts,
+  `pass_quiet` (no pin write strictly inside a pass) and `pass_exit` (the
+  pass has run its W7 before the registrant writes its pin again), and A2;
 * `nonAnn_facts`, `nonAnn_serial`, `head`, `acquire_sees` (PN1): the
   non-announce writes are release writes and serial, and an acquire load
   that reads a non-announce write `N`, an announce over it, or anything
@@ -21,7 +25,9 @@ read-modify-write that keeps the pinned epoch).
   comes next;
 * `quiescence_core`, `quiescence` (QU1, one scan load): if a scan load of
   the rotation that reuses the attempt's arena passes, everything the
-  attempt did happens before it, and so before the reset R4.
+  attempt did happens before it, and so before the reset R4. RD1
+  (`ReadinessProtocol.cert_sound` in `Promotion.lean`) reuses `quiescence`
+  with "returns a pinned epoch other than `e`" as the scan's test.
 -/
 
 namespace Sgc
@@ -74,13 +80,45 @@ structure PinProtocol (X : Execution Ev Loc) {Lv : Liveness X} (S : SlotProtocol
   /-- What an attempt does from W2 to W7 is done by its registrant. -/
   att_act : ∀ {c w e}, w2Of c w → (e = w ∨ X.sb w e) →
     (∀ u, unpinOf w u → (e = u ∨ X.sb e u)) → S.act c e
-  /-- Code fact F1, the code's structure: after W2, the registrant's next
-  write to its pin is the unpin W7 of the same attempt (every exit of
-  `reserve()` and `store()` included). RB5, that every return leaves the
-  slot unpinned, is not formalised beyond this field. -/
-  pin_next : ∀ {c w N}, w2Of c w → S.act c N →
+  /-- **Code fact F1, quiet pass.** Strictly between a W2 and the unpin W7
+  that ends its pass, the registrant makes no write to its pin. The only
+  writes to `pinned_epoch` are W2 (`store.rs:272`, `reserve()`), W7
+  (`ParticipantSlot::unpin()`, `participant.rs:164-168`), the clear P6
+  (`ParticipantSlot::steal()`, `participant.rs:338`), the announce R3A
+  (`rotation.rs:157-162`) and the initialisation; and none of the code
+  between W2 and W7 calls the first three: in `reserve()`, W3, B0, the
+  occupancy check, H1, B1 and H2 (`store.rs:273-346`); in `store()`, after
+  `reserve()` returned `Some`, W4, W5 and `publish()` (I0, the key check,
+  I2, W6; `store.rs:147-171`). -/
+  pass_quiet : ∀ {c w u N}, w2Of c w → unpinOf w u → S.act c N →
     ((∃ c', w2Of c' N) ∨ (∃ w', unpinOf w' N) ∨ (∃ c', clearOf c' N)) →
-    X.sb w N → ∃ u, unpinOf w u ∧ (N = u ∨ X.sb u N)
+    X.sb w N → X.sb N u → False
+  /-- **Code fact F1, exits.** If the registrant writes its pin again after a
+  W2, the pass of that W2 has run its W7. Every exit after W2 runs it first:
+
+  1. `reserve()` returns `Some` from H1 (`store.rs:308`) or after B1
+     (`store.rs:342`), pinned; `store()` then reaches `slot.unpin()`
+     (`store.rs:175`) with no exit in between: the `?` of `store.rs:143`
+     and the `else` of `store.rs:144-146` act only on the other results of
+     `reserve()`, and `publish()` returns a `PutStatus`;
+  2. every other path out of the `'attempt` block (`store.rs:300`, `312`,
+     a failed B1) reaches `slot.unpin()` at `store.rs:352` before the
+     promotion's `Ok(None)` (`store.rs:353-355`), `rotate()` or the next
+     pass's W2 (`store.rs:356-359`);
+  3. the promotion exit `store.rs:269-271` precedes W2, and so is no exit
+     of a pass; the `FullRejected` drop (`store.rs:195-197`) and every exit
+     of `store()`'s `match` follow the W7 of case 1.
+
+  The clear P6 of a stealing registration precedes all of its passes: it
+  is made inside `steal()`, before that call returns (`participant.rs:338`).
+
+  The event model has no events for returns or loop back-edges, so the
+  case analysis above is checked by reading, not stated per exit. RB5,
+  that every return leaves the slot unpinned, is not formalised beyond
+  this field. -/
+  pass_exit : ∀ {c w N}, w2Of c w → S.act c N →
+    ((∃ c', w2Of c' N) ∨ (∃ w', unpinOf w' N) ∨ (∃ c', clearOf c' N)) →
+    X.sb w N → ∃ u, unpinOf w u ∧ S.act c u
 
 namespace PinProtocol
 
@@ -93,6 +131,19 @@ abbrev nonAnn (N : Ev) : Prop :=
 /-- `inAttempt w e`: the attempt pinned by `w` performs `e`, from W2 to W7. -/
 def inAttempt (w e : Ev) : Prop :=
   (e = w ∨ X.sb w e) ∧ ∀ u, P.unpinOf w u → (e = u ∨ X.sb e u)
+
+/-- **F1, pin discipline.** After W2, the registrant's next write to its pin
+is the W7 of the same pass: a later write `N` of the registration is that W7
+or comes after it. `pass_exit` gives the W7, which `N` does not precede
+(`pass_quiet`); the two are `sb`-ordered (A2, `act_total`). -/
+theorem pin_next {c w N : Ev} (hw2 : P.w2Of c w) (hact : S.act c N) (hN : P.nonAnn N)
+    (hsb : X.sb w N) : ∃ u, P.unpinOf w u ∧ (N = u ∨ X.sb u N) := by
+  obtain ⟨u, hu, hactu⟩ := P.pass_exit hw2 hact hN hsb
+  refine ⟨u, hu, ?_⟩
+  rcases S.act_total hact hactu with heq | hNu | huN
+  · exact Or.inl heq
+  · exact (P.pass_quiet hw2 hu hact hN hsb hNu).elim
+  · exact Or.inr huN
 
 /-- A non-announce write is a release write made on behalf of a claim. -/
 theorem nonAnn_facts {N : Ev} (h : P.nonAnn N) :

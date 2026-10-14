@@ -12,10 +12,9 @@ Proved here:
 
 * `reset_before_w1` (EP4): the reset of an incarnation happens before the
   W1 of every insert that reads its epoch;
-* `seal_before_fence` (EP3, the form the code uses): the seal of
-  incarnation `e` happens before every fence that follows an acquire load
-  of the epoch returning `e + 2`, so before the W3 of the rotator's own last
-  reservation pass, which is the fence of its pin scan;
+* `seal_before_fence1` (EP3(iv)): the seal of incarnation `e` happens
+  before every event sequenced after an acquire load of the epoch that
+  returns `e + 1`, so before the C2 and C3 of a readiness recheck;
 * `attempt_before_reset`, `attempt_before_resets` (QU1): everything a
   store attempt for epoch `e` does from W2 to W7 happens before the reset
   made by any tenure that rechecks `e + 2` or more (`publisher_exists`,
@@ -64,15 +63,15 @@ structure CacheProtocol (X : Execution Ev Loc) where
     ∃ w, X.rf w Z ∧ R.stamp (X.wval Z) = R.stamp (X.wval w)
   /-- R3: before R4 a tenure scans every slot's pin with an acquire load that
   passes: it returns no pin, or a pin less than two epochs old. The scan
-  follows a `SeqCst` fence `f`, the caller's W3, which follows the caller's
-  acquire load W1 `q1` of the epoch, which returned the value R0 rechecks
-  (code fact F2: `reserve()` runs W1 and W3 before every `rotate(e)`, with
-  the `e` its W1 read, and `test_access::rotate` does the same).
-  `rotate()` has no fence of its own, and nothing here asks `f` to be
-  under ownership. -/
+  follows R1F, a `SeqCst` fence `f` that the tenure makes under ownership
+  (`rotation.rs`, `rotate_owned()`: the fence at 131,
+  the scan loads at 142, the pass test at 149, R4 at 190-195). In the code
+  `f` also follows the tenure's own seal or its load of a sealed control
+  word, and every load is tested; QU1 needs only one passing load per slot
+  after a fence under ownership, so the field asks no more
+  (`ReadinessProtocol` states the rest where RD1 needs it). -/
   scan : ∀ {B w4 qB}, R.r4Of B w4 → R.r0Of B qB →
-    ∃ f q1 s, X.isScFence f ∧ X.rf s q1 ∧ X.isAcq q1 ∧ X.loc q1 = some R.ep ∧
-      X.rval q1 = X.rval qB ∧ X.sb q1 f ∧
+    ∃ f, X.isScFence f ∧ R.toOwnerProtocol.under B f ∧
       ∀ i, ∃ Sc p, X.rf p Sc ∧ X.loc Sc = some (pins i).pin ∧ X.isAcq Sc ∧
         X.sb f Sc ∧ X.sb Sc w4 ∧
         ((pins i).pinVal (X.rval Sc) = 0 ∨ X.rval qB < (pins i).pinVal (X.rval Sc) + 2)
@@ -118,54 +117,39 @@ theorem reset_before_w1 {A p w4 q1 : Ev} (h5 : C.R.r5Of A p) (h4 : C.R.r4Of A w4
   subst this
   exact hb_trans (hb_of_sb hsb) (hb_of_sw (sw.relAcq (C.r5_isRel h5) (rs.refl p) hrf hacq))
 
-/-- **EP3, the W3 form.** The seal of incarnation `e` happens before every
-fence that follows an acquire load of the epoch returning `e + 2`: so the
-rotator's own W3, after the W1 of the pass whose `e + 2` it passes to
-`rotate()`, serves as the fence of the pin scan. The chain is
-`Z(e) hb R5(e + 1) hb R5(e + 2) sw W1 sb W3`. -/
-theorem seal_before_fence (hc : X.Consistent) {q1 s f : Ev} {e : Nat}
-    (hrf : X.rf s q1) (hacq : X.isAcq q1) (hl : X.loc q1 = some C.R.ep)
-    (hv : X.rval q1 = e + 2) (he : 2 ≤ e) (hf : X.sb q1 f) :
+/-- **EP3(iv).** The seal of incarnation `e` happens before every event
+sequenced after an acquire load of the epoch that returns `e + 1`: that load
+read the R5 of a tenure that rechecked `e`, which published after the seal
+(EP3(i)). The readiness recheck's C1 (`promotion.rs`,
+`recheck_promotion_ready()`, line 56) is such a load, and its fence C2
+follows it. -/
+theorem seal_before_fence1 (hc : X.Consistent) {q s f : Ev} {e : Nat}
+    (hrf : X.rf s q) (hacq : X.isAcq q) (hl : X.loc q = some C.R.ep)
+    (hv : X.rval q = e + 1) (he : 2 ≤ e) (hf : X.sb q f) :
     ∃ A Z, C.R.sealOf A Z ∧ C.R.stamp (X.wval Z) = e ∧ X.hb Z f := by
-  -- `q1` read `e + 2`, written by the R5 `s` of a tenure `A2` ...
   have ⟨hsW, _, hls, _⟩ := hc.rf_wf hrf
-  have hvs : X.wval s = e + 2 := by rw [← hc.rf_val hrf, hv]
-  rcases C.R.ep_writes hsW (hls.trans hl) with hinit | ⟨A2, h52⟩
+  have hvs : X.wval s = e + 1 := by rw [← hc.rf_val hrf, hv]
+  rcases C.R.ep_writes hsW (hls.trans hl) with hinit | ⟨A1, h51⟩
   · subst hinit; rw [C.R.epInit_val] at hvs; omega
-  obtain ⟨q2, hq2, _, hval2⟩ := C.R.r5_r0 h52
-  have hrq2 : X.rval q2 = e + 1 := by omega
-  -- ... whose R0 read `e + 1`, written by the R5 `w1` of a tenure `A1` ...
-  obtain ⟨w1, hw1⟩ := C.R.r0_reads hq2
-  have ⟨hw1W, _, hl1, _⟩ := hc.rf_wf hw1
-  have hv1 : X.wval w1 = e + 1 := by rw [← hc.rf_val hw1, hrq2]
-  rcases C.R.ep_writes hw1W (hl1.trans (C.R.r0_loc hq2)) with hinit | ⟨A1, h51⟩
-  · subst hinit; rw [C.R.epInit_val] at hv1; omega
-  obtain ⟨q1', hq1', _, hval1⟩ := C.R.r5_r0 h51
-  have hrq1 : X.rval q1' = e := by omega
-  -- ... which published after the seal of incarnation `e`.
-  obtain ⟨Bz, Z, hZ, hstZ, hZw1⟩ := C.R.seal_before_publish hc h51 hq1'
-  have h12 : X.mo A1 A2 := C.R.tenure_lt_of_r0_lt hc hq1' hq2 (by omega)
-  have s₁ : X.hb w1 A2 :=
-    C.R.toOwnerProtocol.tenure_serial hc A2 (C.R.r5_acq h52) A1 (C.R.r5_acq h51) h12 w1
-      (C.R.r5_under h51)
-  have s₂ : X.hb Z s := hb_sbr (hb_trans hZw1 s₁) (C.R.r5_under h52).1
-  have s₃ : X.hb s q1 := hb_of_sw (sw.relAcq (C.r5_isRel h52) (rs.refl s) hrf hacq)
-  exact ⟨Bz, Z, hZ, hstZ.trans hrq1, hb_trans (hb_trans s₂ s₃) (hb_of_sb hf)⟩
+  obtain ⟨q1, hq1, _, hval1⟩ := C.R.r5_r0 h51
+  obtain ⟨Bz, Z, hZ, hstZ, hZs⟩ := C.R.seal_before_publish hc h51 hq1
+  have hs : X.hb s q := hb_of_sw (sw.relAcq (C.r5_isRel h51) (rs.refl s) hrf hacq)
+  exact ⟨Bz, Z, hZ, by omega, hb_trans (hb_trans hZs hs) (hb_of_sb hf)⟩
 
 /-- **QU1**, for the tenure that rechecks exactly `e + 2`: its scan load of
-the attempt's slot reads W2 or later (PN3, with the fence of
-`seal_before_fence`) and passed. -/
+the attempt's slot reads W2 or later (PN3, with that tenure's R1F as the
+fence, which follows the seal by EP3(iii), `seal_before_scan`) and passed. -/
 theorem attempt_before_reset (hc : X.Consistent) {i : C.ι} {w B w4 qB a : Ev}
     (hw : C.isAttempt i w) (h4 : C.R.r4Of B w4) (hqB : C.R.r0Of B qB)
     (hv : X.rval qB = C.attEpoch w + 2) (ha : (C.pins i).inAttempt w a) : X.hb a w4 := by
-  obtain ⟨f, q1, s, hf, hrf, hacq, hl, hq1v, hq1f, hscan⟩ := C.scan h4 hqB
+  obtain ⟨f, hf, hfB, hscan⟩ := C.scan h4 hqB
   obtain ⟨Sc, p, hpS, hSl, hSacq, hfS, hS4, hpass⟩ := hscan i
   obtain ⟨c, hw2⟩ := C.att_w2 hw
   obtain ⟨fw, l, u, hfw, hwf, hfl, hul, hll, hst, huns⟩ := C.att_b0 hw
   have he := C.att_ge hc hw
   have hne : (C.pins i).pinVal (X.rval Sc) ≠ C.attEpoch w := by
     rcases hpass with h | h <;> omega
-  have hseal := C.seal_before_fence hc hrf hacq hl (hq1v.trans hv) he hq1f
+  have hseal := C.R.seal_before_scan hc hqB hv he hfB
   exact hb_trans
     ((C.pins i).quiescence hc C.R hfw hf hwf hfl hul hll hst huns hseal hfS hpS hw2
       (C.att_pin hw) hSl hSacq hne ha)

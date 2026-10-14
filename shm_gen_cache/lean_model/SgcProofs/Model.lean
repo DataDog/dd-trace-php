@@ -20,9 +20,14 @@ than what the proofs need:
 * a read-modify-write is a single event that both reads and writes, so
   RC11's `rmw` relation becomes the two axioms `rmw_mo` and `atomicity`.
 
+The readiness, freshness and read-after-insert proofs (`Promotion.lean`,
+`Recency.lean`) add no axiom: they use REL-ACQ with release sequences of
+RMWs, FENCE-FENCE, the fence part of `psc` (SC-4.4), and the coherence rules
+derived below.
+
 No Mathlib: the file depends on core Lean only. Transitive closures are core's
-`Relation.TransGen`, the definition Mathlib builds on, so its lemmas apply if
-Mathlib is added later.
+`Relation.TransGen`, the definition Mathlib builds on, so its lemmas apply
+under Mathlib too.
 -/
 
 namespace Sgc

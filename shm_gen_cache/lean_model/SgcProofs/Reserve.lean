@@ -89,7 +89,7 @@ structure ReserveProtocol (X : Execution Ev Loc) (C : CacheProtocol X) where
   /-- The bytes a store attempt reserves, `record_size(len)`
   (`store.rs:262`). -/
   need : Ev → Nat
-  /-- The bytes a B1 adds to the bump (`store.rs:319-323`). -/
+  /-- The bytes a B1 adds to the bump (`store.rs:321-325`). -/
   claim : Ev → Nat
   /-- The slots, each listed once: `participant_capacity` of them. -/
   slots : List C.ι
@@ -103,19 +103,20 @@ structure ReserveProtocol (X : Execution Ev Loc) (C : CacheProtocol X) where
   (`store.rs:138`, `262`; `records.rs:45-47`, `75-78`). The `u32`
   arithmetic of `payload_size()` does not wrap: keys and values are at most
   `max_key_size` and `max_value_size` (`store.rs:90-95`; a promotion's key
-  `lookup.rs:45`, its value `lookup.rs:111`), and the largest record is at
-  most the record area, below `2^31` (`config.rs:116`, `123-133`). -/
+  `lookup.rs:56`, its value `lookup.rs:154`), and the
+  largest record is at most the record area, below `2^31` (`config.rs:116`,
+  `123-133`). -/
   need_lens : ∀ {i w}, C.isAttempt i w →
     need w = 8 + (8 + (keyLen (lens w) + 7) / 8 * 8 + valLen (lens w) + 7) / 8 * 8
   /-- `insert()` rejects larger keys and values (`store.rs:90-95`), and a
-  promotion bounds its key (`lookup.rs:45`) and its value (`lookup.rs:111`):
+  promotion bounds its key (`lookup.rs:56`) and its value (`lookup.rs:154`):
   every record is at most `max_record_size`. -/
   need_le : ∀ {i w}, C.isAttempt i w → need w ≤ maxClaim
   chunk_le : chunk ≤ maxClaim
   /-- A5: `reservation_adds_fit_bump()` (`config.rs:241-256`). -/
   a5 : cap + slots.length * maxClaim < bumpLimit
   /-- An event belongs to at most one store attempt: an attempt is one pass
-  of the loop of one `store()` call (`store.rs:139-204`, `263-358`), calls
+  of the loop of one `store()` call (`store.rs:139-204`, `263-360`), calls
   do not nest, and a registration acts on one thread (A2). -/
   att_unique : ∀ {i j w w' x}, C.isAttempt i w → C.isAttempt j w' →
     (C.pins i).inAttempt w x → (C.pins j).inAttempt w' x → i = j ∧ w = w'
@@ -123,26 +124,26 @@ structure ReserveProtocol (X : Execution Ev Loc) (C : CacheProtocol X) where
   (`store.rs:272`), and each slot has its own (`participant.rs:134`). -/
   att_slot : ∀ {i j w}, C.isAttempt i w → C.isAttempt j w → i = j
   -- The bump.
-  /-- `initialize()` stores a zero bump (`cache/mod.rs:244`). -/
+  /-- `initialize()` stores a zero bump (`cache/mod.rs:245`). -/
   ctlInit_bump : ∀ {x}, C.R.isCtlInit x → bump (X.wval x) = 0
-  /-- R4 stores a zero bump (`rotation.rs:179-181`). -/
+  /-- R4 stores a zero bump (`rotation.rs:193-195`). -/
   r4_bump : ∀ {A x}, C.R.r4Of A x → bump (X.wval x) = 0
   /-- R1 sets the sealed bit and keeps the bump (`rotation.rs:115-120`). -/
   seal_bump : ∀ {A Z}, C.R.sealOf A Z → ∃ w, X.rf w Z ∧ bump (X.wval Z) = bump (X.wval w)
   /-- B1 adds its claim to the bump; the carry out of bit 63 is discarded
-  (`store.rs:325-329`, `ctl.rs:6-8`). -/
+  (`store.rs:327-331`, `ctl.rs:6-8`). -/
   b1_bump : ∀ {b}, C.R.isB1 b → bump (X.wval b) = (bump (X.rval b) + claim b) % bumpLimit
   /-- B1 is made by a store attempt: after a precheck that saw its
-  incarnation unsealed (`store.rs:286-329`). -/
+  incarnation unsealed (`store.rs:286-331`). -/
   b1_att : ∀ {b}, C.R.isB1 b → ∃ i w, C.isAttempt i w ∧ (C.pins i).inAttempt w b
   /-- An attempt makes at most one B1: it returns or unpins after it
-  (`store.rs:330-350`). -/
+  (`store.rs:332-352`). -/
   b1_unique : ∀ {i w b b'}, C.isAttempt i w → (C.pins i).inAttempt w b →
     (C.pins i).inAttempt w b' → C.R.isB1 b → C.R.isB1 b' → b = b'
   /-- The precheck B0 before B1, after W2: a load of the epoch's control word
   that returned an unsealed value with room for the record; the claim is a
   chunk when the record is smaller and a chunk fits, the record otherwise
-  (`store.rs:272`, `286-311`, `319-323`). -/
+  (`store.rs:272`, `286-313`, `321-325`). -/
   b1_b0 : ∀ {i w b}, C.isAttempt i w → (C.pins i).inAttempt w b → C.R.isB1 b →
     ∃ l u, X.sb w l ∧ X.sb l b ∧ X.rf u l ∧ X.loc l = some (C.R.ctlLoc (C.attEpoch w)) ∧
       ¬ C.R.isSealed (X.wval u) ∧ bump (X.wval u) + need w ≤ cap ∧
@@ -174,7 +175,7 @@ structure ReserveProtocol (X : Execution Ev Loc) (C : CacheProtocol X) where
     ∃ x, resetOf i c x ∧ X.isW x ∧ X.loc x = some (ceLoc i)
   /-- `chunkOf i w b xe xc xn`: attempt `w`, whose B1 `b` succeeded with a
   claim larger than its record, stores the chunk (H2): epoch, cursor past the
-  record, and end clipped to the area (`store.rs:330-338`). -/
+  record, and end clipped to the area (`store.rs:332-340`). -/
   chunkOf : C.ι → Ev → Ev → Ev → Ev → Ev → Prop
   chunk_b1 : ∀ {i w b xe xc xn}, chunkOf i w b xe xc xn →
     C.isAttempt i w ∧ (C.pins i).inAttempt w b ∧ C.R.isB1 b ∧
@@ -192,7 +193,7 @@ structure ReserveProtocol (X : Execution Ev Loc) (C : CacheProtocol X) where
   /-- `useOf i w le lc ln s`: attempt `w` reserves from its slot's chunk (H1). It
   loads the epoch, the cursor and the end, finds the epoch its own and
   `end - cursor`, in wrapping `u32` arithmetic, at least its record, and
-  stores the cursor advanced by the record (`store.rs:301-306`). -/
+  stores the cursor advanced by the record (`store.rs:303-308`). -/
   useOf : C.ι → Ev → Ev → Ev → Ev → Ev → Prop
   use_ev : ∀ {i w le lc ln s}, useOf i w le lc ln s →
     C.isAttempt i w ∧ X.sb w le ∧ X.sb w lc ∧ X.sb w ln ∧ X.sb w s ∧ X.sb lc s ∧
@@ -203,11 +204,11 @@ structure ReserveProtocol (X : Execution Ev Loc) (C : CacheProtocol X) where
       (∃ x, X.rf x le) ∧ (∃ x, X.rf x lc) ∧ (∃ x, X.rf x ln) ∧
       X.rval le = C.attEpoch w ∧ need w ≤ (X.rval ln + wordLimit - X.rval lc) % wordLimit ∧
       X.wval s = (X.rval lc + need w) % wordLimit
-  /-- A chunk reservation returns before B1 (`store.rs:306`). -/
+  /-- A chunk reservation returns before B1 (`store.rs:308`). -/
   use_no_b1 : ∀ {i w le lc ln s b}, useOf i w le lc ln s → (C.pins i).inAttempt w b →
     ¬ C.R.isB1 b
   /-- An attempt reserves from its chunk at most once: the chunk branch
-  returns (`store.rs:301-306`). -/
+  returns (`store.rs:303-308`). -/
   use_unique : ∀ {i w le lc ln s le' lc' ln' s'}, useOf i w le lc ln s →
     useOf i w le' lc' ln' s' → le = le' ∧ lc = lc' ∧ ln = ln' ∧ s = s'
   /-- Only these write `chunk_epoch`, ... -/
@@ -228,12 +229,12 @@ structure ReserveProtocol (X : Execution Ev Loc) (C : CacheProtocol X) where
   /-- The arena of a record word, named by its control word. -/
   recArena : Loc → Loc
   /-- A record word is the word at its byte offset of its arena's record
-  area (`ArenaView::word`, `arena/mod.rs:108-117`; `words_at`, `121-129`). -/
+  area (`ArenaView::word`, `arena/mod.rs:125-134`; `words_at`, `138-146`). -/
   rec_ext : ∀ {l l'}, isRecord l → isRecord l' → recArena l = recArena l' →
     recOff l = recOff l' → l = l'
   /-- An attempt stores record words only inside the bytes it reserved: at
   the offset B1 returned when it won, or at the cursor it loaded
-  (`store.rs:142-158`, `301-306`, `330-340`). -/
+  (`store.rs:142-158`, `303-308`, `332-342`). -/
   rec_in_res : ∀ {i w x l}, C.isAttempt i w → (C.pins i).inAttempt w x → X.isW x →
     X.loc x = some l → isRecord l →
     ∃ r, ((∃ b, (C.pins i).inAttempt w b ∧ C.R.isB1 b ∧
@@ -302,7 +303,7 @@ namespace ReserveProtocol
 
 variable {X : Execution Ev Loc} {C : CacheProtocol X} (Rv : ReserveProtocol X C)
 
-/-- The success test of B1 (`store.rs:330`); the stamp half holds by
+/-- The success test of B1 (`store.rs:332`); the stamp half holds by
 `b1_lands`. -/
 def wins (w b : Ev) : Prop :=
   ¬ C.R.isSealed (X.rval b) ∧ Rv.bump (X.rval b) + Rv.need w ≤ Rv.cap

@@ -11,18 +11,26 @@ Events, with the labels of `docs/invariants.html`:
 * `W2`: the writer's pin store; `W3`: its `SeqCst` fence; `B0`: its relaxed
   load of the control word, which saw the arena unsealed;
 * `Z`: the seal of that arena incarnation (R1), a write to the control word;
-* `f`: a `SeqCst` fence on the rotator's side; `Sc`: one of its scan loads
-  (R3) of the writer's pin. In the code `f` is the W3 of the rotator's own
-  last reservation pass, from the `reserve()` that called `rotate()`:
-  `rotate()` has no fence of its own.
+* `f`: a `SeqCst` fence on the scanner's side; `Sc`: one of its scan loads
+  of the writer's pin. In the code there are three instances: `f` is the
+  R1F of the tenure that reuses the arena, with `Sc` its R3 load (the reuse
+  scan, QU1); the R1F of a tenure that just sealed the writer's
+  incarnation, with `Sc` its R3 load (the readiness scan, RD1); or the C2
+  of a readiness recheck, with `Sc` a C3 load (RD1). R1F is the
+  `fence(SeqCst)` that `rotate_owned()` makes right after its seal loop
+  (`rotation.rs`, line 131), C2 the one in `recheck_promotion_ready()`
+  (`promotion.rs`, line 59). The W3 of the caller's last reservation pass
+  before `rotate()` also qualifies, but no proof relies on it.
 
 Hypotheses and where they come from:
 
-* `W2 sb W3 sb B0` and `f sb Sc` are program order (`store.rs`, and the
-  caller's W3 before `rotate()`);
+* `W2 sb W3 sb B0` and `f sb Sc` are program order (`store.rs`, and
+  `rotate_owned()` or `recheck_promotion_ready()`);
 * `B0` read a write `u` that precedes `Z` in the control word's `mo`: EP2,
   the shape of the control word;
-* `Z hb f`: EP3 (`CacheProtocol.seal_before_fence`).
+* `Z hb f`: EP3, in the form for each instance
+  (`RotationProtocol.seal_before_scan`, `seal_before_tenure_fence` and
+  `CacheProtocol.seal_before_fence1`).
 
 Nothing is assumed about the orderings of `W2`, `B0` or `Sc`: the result
 needs only the two `SeqCst` fences.

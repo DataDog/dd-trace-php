@@ -1,27 +1,32 @@
 import SgcProofs.Ranked
-import SgcProofs.Provenance
+import SgcProofs.Promotion
 import SgcProofs.Access
 
 /-!
 # A witness for the cache, the arena, the index, the reservations and the values
 
 `CacheProtocol`, `ArenaProtocol`, `IndexProtocol`, `ReserveProtocol`,
-`ValueProtocol` and `Hit` are long lists of hypotheses. This file shows
-they hold at once by building one consistent execution of 120 events: two
-writers three epochs apart on one arena, the three rotations between them,
-a lookup hit, a lookup that hits in the previous generation and promotes the
-record into the next arena, and a second attempt of the later epoch that
-cuts its record from the chunk its first attempt claimed and replaces an
-index entry. Writer `a` stores key 1 with an 8-byte value (32-byte records:
-header, lengths, key word, value word); writer `b` stores key 2 with an
-empty value (16-byte records: header and lengths).
+`ValueProtocol`, `ReadinessProtocol`, `PromotionProtocol` and `Hit` are long
+lists of hypotheses. This file shows they hold at once by building one
+consistent execution of 126 events: two writers three epochs apart on one
+arena, the three rotations between them (one of which certifies its
+just-sealed epoch), a lookup hit, a lookup that finds the previous
+generation not yet certified, certifies it with a readiness recheck,
+reprobes it and promotes the record into the next arena, and a second
+attempt of the later epoch that cuts its record from the chunk its first
+attempt claimed and replaces an index entry. Writer `a` stores key 1 with
+an 8-byte value (32-byte records: header, lengths, key word, value word);
+writer `b` stores key 2 with an empty value (16-byte records: header and
+lengths).
 
 * Thread 0 initialises: the owner word, the epoch (2), three control words
   (`c2` serves epochs 2 and 5 and starts as `(2, unsealed)`, the others as
-  `(0, sealed)`; `c0` serves epoch 3), the slot's state, start-time and pin
-  words, the record words `rcd` and `rc2` (bytes 0 and 8 of `c2`'s record
-  area; `rcA` and `rcB`, bytes 16 and 24, and `c0`'s `rc3` to `rc3d` are
-  never initialised), the index slots `idx` (of `c2`'s arena) and `idx3`
+  `(0, sealed)`; `c0` serves epoch 3), the readiness words of `c0`'s and
+  `c2`'s arenas (`rdy0`, `rdy2`, both 0; `c1`'s, `rdy1`, is never
+  initialised), the slot's state, start-time and pin words, the record
+  words `rcd` and `rc2` (bytes 0 and 8 of `c2`'s record area; `rcA` and
+  `rcB`, bytes 16 and 24, and `c0`'s `rc3` to `rc3d` are never
+  initialised), the index slots `idx` (of `c2`'s arena) and `idx3`
   (of `c0`'s), and the slot's chunk words `ce`, `cc` and `cn`.
 * Thread 1, writer `a`, claims the slot (`aC`, `aT`, the chunk reset `aHe`,
   `aHc`, `aHn`, then `aG`), loads epoch 2 (`aQ`), pins it (`aW`), fences
@@ -29,25 +34,33 @@ empty value (16-byte records: header and lengths).
   (`aB`), stores the lengths, key and value words and then the header
   (`aRl`, `aRk`, `aRv`, `aR`), publishes it with a CAS on the index slot
   (`aI`) and unpins (`aU`).
-* Threads 2, 3 and 4 are the rotations `t1`, `t2`, `t3`. Each first does
-  what the caller's last reservation pass does before `rotate(e)`: an
-  acquire load of the epoch `e` (`W`, its W1) and a `SeqCst` fence (`F`, its
-  W3; the rest of that pass is not modelled). Then it acquires the owner word
-  (`A`, O2), rechecks the epoch (`q`, R0), seals `ctlLoc e` (`Z`, R1), scans
-  the pin (`S`, R3) with no fence of its own, resets `ctlLoc (e + 1)` (`R`,
-  R4), publishes `e + 1` (`P`, R5) and releases (`O`, O4). `t1` runs while writer `a` is still
-  pinned and its scan passes on the live pin of the current epoch; `t3`
-  rechecks 4 and resets `c2` for epoch 5.
-* Thread 1 then looks its key up after `t1` (`hitA`): it loads epoch 3
-  (`aV1`), misses in `c0`'s arena (not modelled) and probes the previous
-  one: it loads `idx` (`aJ`, writer `a`'s entry), fences (`aJF`), loads the
-  header, the lengths, the key word and the value word (`aY`, `aYl`, `aYk`,
-  `aYv`), fences (`aD`) and reloads epoch 3 (`aV2`), which passes. It
-  promotes the hit: it loads epoch 3 (`aQ3`), pins it (`aW3`), fences
-  (`aF3`), loads `c0` as `t1` reset it (`aL3`), reserves 32 bytes there
-  (`aB3`), stores the record in `rc3` to `rc3d` (`aR3l`, `aR3k`, `aR3v`,
-  `aR3`), publishes it with a CAS on `idx3` (`aI3`), unpins (`aU3`) and
-  frees the slot (`aX`). `t2` seals `c0` over that reservation, and its
+* Threads 2, 3 and 4 are the rotations `t1`, `t2`, `t3`. Each acquires the
+  owner word (`A`, O2), rechecks the epoch (`q`, R0), seals `ctlLoc e`
+  (`Z`, R1), fences under ownership (`F`, R1F), scans the pin (`S`, R3),
+  resets `ctlLoc (e + 1)` (`R`, R4), publishes `e + 1` (`P`, R5) and
+  releases (`O`, O4). `t1` runs while writer `a` is still pinned: its scan
+  passes on the live pin of the current epoch 2, which also keeps it from
+  certifying 2. `t2`'s scan sees no pin of 3, so it certifies 3 with a
+  `fetch_max` on `c0`'s readiness word (`t2C`, R3C). `t3` rechecks 4 and
+  resets `c2` for epoch 5; the certificate for 4 that its scan would allow
+  is not modelled.
+* Thread 1 then looks its key up after `t1`: it loads epoch 3 (`aV1`) and
+  misses in `c0`'s arena: the probe's home index load reads the zero fill
+  of `idx3`, whose stamp is not 3 (`aI1c`, the probe's only load). Before
+  probing the previous arena, it acquire-loads `c2`'s readiness word, which
+  still reads 0, so epoch 2 is not certified (`aC0`, C0). Its first probe of
+  the previous arena, which hits writer `a`'s record unpromotably, is not
+  modelled. Its readiness recheck loads epoch 3 with acquire (`aC1`, C1),
+  fences (`aC2`, C2), finds the pin unpinned (`aC3`, C3) and certifies 2
+  (`aC4`, C4, a `fetch_max` on `c2`'s readiness word, made unpinned). The
+  reprobe of the previous arena (`hitA`) loads `idx` (`aJ`, writer `a`'s
+  entry), fences (`aJF`), loads the header, the lengths, the key word and
+  the value word (`aY`, `aYl`, `aYk`, `aYv`), fences (`aD`) and reloads
+  epoch 3 (`aV2`), which passes. It promotes the hit: it loads epoch 3
+  (`aQ3`), pins it (`aW3`), fences (`aF3`), loads `c0` as `t1` reset it
+  (`aL3`), reserves 32 bytes there (`aB3`), stores the record in `rc3` to
+  `rc3d` (`aR3l`, `aR3k`, `aR3v`, `aR3`), publishes it with a CAS on `idx3`
+  (`aI3`), unpins (`aU3`) and frees the slot (`aX`). `t2` seals `c0` over that reservation, and its
   scan and `t3`'s read `aU3`.
 * Thread 5, writer `b`, claims the freed slot (resetting the chunk words),
   loads epoch 5, pins it, loads `c2` as `t3` reset it, claims a 32-byte
@@ -69,14 +82,16 @@ Event names are mnemonic: in a writer's events `Q` is W1, `W` the pin W2,
 and W5, `I`/`S` the publication I2, `U` the unpin W7, `C`/`G`/`X` P1/P2/P3;
 `He`, `Hc`, `Hn` the chunk reset H0, `Ke`, `Kc`, `Kn` the chunk claim H2,
 `Le`, `Lc`, `Ln`, `Mc` the chunk cut H1; `bJ` is I0 and `bK`, `bKl` the key
-check's D4 and D5. In a lookup, `V1`/`V`/`V2` are V1 and V2, `J`/`I` the
-index load I1, `JF`/`F` I1F, `Y...` the record loads D4 and D5, and `D` the
-fence D6.
+check's D4 and D5. In a lookup, `V1`/`V`/`V2` are V1 and V2, `J`/`I`/`I1c`
+the index load I1, `JF`/`F` I1F, `Y...` the record loads D4 and D5, `D` the
+fence D6, and `C0` to `C4` the readiness load and recheck. In a rotation,
+`F` is R1F and `t2C` is R3C.
 
 Every relation agrees with one total order (`rank`), so the execution is
 consistent by `Ranked`. The main theorems of `Cache.lean`, `Reserve.lean`,
-`Lookup.lean`, `Provenance.lean` and `Access.lean` are instantiated on it at
-the end.
+`Lookup.lean`, `Provenance.lean`, `Promotion.lean` and `Access.lean` are
+instantiated on it at the end; `RecencyWitness.lean` adds insert operations
+and thread 1's lookup as a `LookupRun`.
 -/
 
 namespace Sgc
@@ -86,13 +101,13 @@ open Execution
 
 inductive E
   | iOwn | iEp | iC0 | iC1 | iC2 | iSt | iT | iPin | iRec | iRec2 | iIdx | iCE | iCC | iCN
-  | iIdx3
+  | iIdx3 | iRdy0 | iRdy2
   | aC | aT | aHe | aHc | aHn | aG | aQ | aW | aF | aL | aB | aRl | aRk | aRv | aR | aI
-  | t1W | t1F | t1A | t1q | t1Z | t1S | t1R | t1P | t1O
-  | aU | aV1 | aJ | aJF | aY | aYl | aYk | aYv | aD | aV2 | aQ3 | aW3 | aF3 | aL3 | aB3
-  | aR3l | aR3k | aR3v | aR3 | aI3 | aU3 | aX
-  | t2W | t2F | t2A | t2q | t2Z | t2S | t2R | t2P | t2O
-  | t3W | t3F | t3A | t3q | t3Z | t3S | t3R | t3P | t3O
+  | t1A | t1q | t1Z | t1F | t1S | t1R | t1P | t1O
+  | aU | aV1 | aI1c | aC0 | aC1 | aC2 | aC3 | aC4 | aJ | aJF | aY | aYl | aYk | aYv | aD | aV2
+  | aQ3 | aW3 | aF3 | aL3 | aB3 | aR3l | aR3k | aR3v | aR3 | aI3 | aU3 | aX
+  | t2A | t2q | t2Z | t2F | t2S | t2C | t2R | t2P | t2O
+  | t3A | t3q | t3Z | t3F | t3S | t3R | t3P | t3O
   | bC | bT | bHe | bHc | bHn | bG | bQ | bW | bF | bL | bB | bKe | bKc | bKn | bRl | bR | bI
   | bU
   | kV1 | kI | kF | kY | kYl | kD | kV
@@ -101,7 +116,7 @@ inductive E
 
 inductive Word
   | own | ep | c0 | c1 | c2 | st | tdis | pin | rcd | rc2 | idx | ce | cc | cn | rc3 | idx3
-  | rcA | rcB | rc3b | rc3c | rc3d
+  | rcA | rcB | rc3b | rc3c | rc3d | rdy0 | rdy1 | rdy2
   deriving DecidableEq
 
 open E
@@ -109,53 +124,53 @@ open E
 def rank : E → Nat
   | iOwn => 0 | iEp => 1 | iC0 => 2 | iC1 => 3 | iC2 => 4 | iSt => 5 | iT => 6 | iPin => 7
   | iRec => 8 | iRec2 => 9 | iIdx => 10 | iCE => 11 | iCC => 12 | iCN => 13 | iIdx3 => 14
-  | aC => 15 | aT => 16 | aHe => 17 | aHc => 18 | aHn => 19 | aG => 20 | aQ => 21 | aW => 22
-  | aF => 23 | aL => 24 | aB => 25 | aRl => 26 | aRk => 27 | aRv => 28 | aR => 29 | aI => 30
-  | t1W => 31 | t1F => 32 | t1A => 33 | t1q => 34 | t1Z => 35 | t1S => 36 | t1R => 37
-  | t1P => 38 | t1O => 39 | aU => 40 | aV1 => 41 | aJ => 42 | aJF => 43 | aY => 44 | aYl => 45
-  | aYk => 46 | aYv => 47 | aD => 48 | aV2 => 49 | aQ3 => 50 | aW3 => 51 | aF3 => 52
-  | aL3 => 53 | aB3 => 54 | aR3l => 55 | aR3k => 56 | aR3v => 57 | aR3 => 58 | aI3 => 59
-  | aU3 => 60 | aX => 61 | t2W => 62 | t2F => 63 | t2A => 64 | t2q => 65 | t2Z => 66
-  | t2S => 67 | t2R => 68 | t2P => 69 | t2O => 70 | t3W => 71 | t3F => 72 | t3A => 73
-  | t3q => 74 | t3Z => 75 | t3S => 76 | t3R => 77 | t3P => 78 | t3O => 79 | bC => 80 | bT => 81
-  | bHe => 82 | bHc => 83 | bHn => 84 | bG => 85 | bQ => 86 | bW => 87 | bF => 88 | bL => 89
-  | bB => 90 | bKe => 91 | bKc => 92 | bKn => 93 | bRl => 94 | bR => 95 | bI => 96 | bU => 97
-  | kV1 => 98 | kI => 99 | kF => 100 | kY => 101 | kYl => 102 | kD => 103 | kV => 104
-  | bQ2 => 105 | bW2 => 106 | bF2 => 107 | bL2 => 108 | bLe => 109 | bLc => 110 | bLn => 111
-  | bMc => 112 | bR2l => 113 | bR2 => 114 | bJ => 115 | bK => 116 | bKl => 117 | bS => 118
-  | bU2 => 119
+  | iRdy0 => 15 | iRdy2 => 16 | aC => 17 | aT => 18 | aHe => 19 | aHc => 20 | aHn => 21 | aG => 22
+  | aQ => 23 | aW => 24 | aF => 25 | aL => 26 | aB => 27 | aRl => 28 | aRk => 29 | aRv => 30
+  | aR => 31 | aI => 32 | t1A => 33 | t1q => 34 | t1Z => 35 | t1F => 36 | t1S => 37 | t1R => 38
+  | t1P => 39 | t1O => 40 | aU => 41 | aV1 => 42 | aI1c => 43 | aC0 => 44 | aC1 => 45 | aC2 => 46
+  | aC3 => 47 | aC4 => 48 | aJ => 49 | aJF => 50 | aY => 51 | aYl => 52 | aYk => 53 | aYv => 54
+  | aD => 55 | aV2 => 56 | aQ3 => 57 | aW3 => 58 | aF3 => 59 | aL3 => 60 | aB3 => 61 | aR3l => 62
+  | aR3k => 63 | aR3v => 64 | aR3 => 65 | aI3 => 66 | aU3 => 67 | aX => 68 | t2A => 69 | t2q => 70
+  | t2Z => 71 | t2F => 72 | t2S => 73 | t2C => 74 | t2R => 75 | t2P => 76 | t2O => 77 | t3A => 78
+  | t3q => 79 | t3Z => 80 | t3F => 81 | t3S => 82 | t3R => 83 | t3P => 84 | t3O => 85 | bC => 86
+  | bT => 87 | bHe => 88 | bHc => 89 | bHn => 90 | bG => 91 | bQ => 92 | bW => 93 | bF => 94
+  | bL => 95 | bB => 96 | bKe => 97 | bKc => 98 | bKn => 99 | bRl => 100 | bR => 101 | bI => 102
+  | bU => 103 | kV1 => 104 | kI => 105 | kF => 106 | kY => 107 | kYl => 108 | kD => 109 | kV => 110
+  | bQ2 => 111 | bW2 => 112 | bF2 => 113 | bL2 => 114 | bLe => 115 | bLc => 116 | bLn => 117
+  | bMc => 118 | bR2l => 119 | bR2 => 120 | bJ => 121 | bK => 122 | bKl => 123 | bS => 124
+  | bU2 => 125
 
 /-- The inverse of `rank`, to show it injective without a quadratic case
 split. -/
 def ofRank : Nat → E
   | 0 => iOwn | 1 => iEp | 2 => iC0 | 3 => iC1 | 4 => iC2 | 5 => iSt | 6 => iT | 7 => iPin
   | 8 => iRec | 9 => iRec2 | 10 => iIdx | 11 => iCE | 12 => iCC | 13 => iCN | 14 => iIdx3
-  | 15 => aC | 16 => aT | 17 => aHe | 18 => aHc | 19 => aHn | 20 => aG | 21 => aQ | 22 => aW
-  | 23 => aF | 24 => aL | 25 => aB | 26 => aRl | 27 => aRk | 28 => aRv | 29 => aR | 30 => aI
-  | 31 => t1W | 32 => t1F | 33 => t1A | 34 => t1q | 35 => t1Z | 36 => t1S | 37 => t1R
-  | 38 => t1P | 39 => t1O | 40 => aU | 41 => aV1 | 42 => aJ | 43 => aJF | 44 => aY | 45 => aYl
-  | 46 => aYk | 47 => aYv | 48 => aD | 49 => aV2 | 50 => aQ3 | 51 => aW3 | 52 => aF3
-  | 53 => aL3 | 54 => aB3 | 55 => aR3l | 56 => aR3k | 57 => aR3v | 58 => aR3 | 59 => aI3
-  | 60 => aU3 | 61 => aX | 62 => t2W | 63 => t2F | 64 => t2A | 65 => t2q | 66 => t2Z
-  | 67 => t2S | 68 => t2R | 69 => t2P | 70 => t2O | 71 => t3W | 72 => t3F | 73 => t3A
-  | 74 => t3q | 75 => t3Z | 76 => t3S | 77 => t3R | 78 => t3P | 79 => t3O | 80 => bC | 81 => bT
-  | 82 => bHe | 83 => bHc | 84 => bHn | 85 => bG | 86 => bQ | 87 => bW | 88 => bF | 89 => bL
-  | 90 => bB | 91 => bKe | 92 => bKc | 93 => bKn | 94 => bRl | 95 => bR | 96 => bI | 97 => bU
-  | 98 => kV1 | 99 => kI | 100 => kF | 101 => kY | 102 => kYl | 103 => kD | 104 => kV
-  | 105 => bQ2 | 106 => bW2 | 107 => bF2 | 108 => bL2 | 109 => bLe | 110 => bLc | 111 => bLn
-  | 112 => bMc | 113 => bR2l | 114 => bR2 | 115 => bJ | 116 => bK | 117 => bKl | 118 => bS
+  | 15 => iRdy0 | 16 => iRdy2 | 17 => aC | 18 => aT | 19 => aHe | 20 => aHc | 21 => aHn | 22 => aG
+  | 23 => aQ | 24 => aW | 25 => aF | 26 => aL | 27 => aB | 28 => aRl | 29 => aRk | 30 => aRv
+  | 31 => aR | 32 => aI | 33 => t1A | 34 => t1q | 35 => t1Z | 36 => t1F | 37 => t1S | 38 => t1R
+  | 39 => t1P | 40 => t1O | 41 => aU | 42 => aV1 | 43 => aI1c | 44 => aC0 | 45 => aC1 | 46 => aC2
+  | 47 => aC3 | 48 => aC4 | 49 => aJ | 50 => aJF | 51 => aY | 52 => aYl | 53 => aYk | 54 => aYv
+  | 55 => aD | 56 => aV2 | 57 => aQ3 | 58 => aW3 | 59 => aF3 | 60 => aL3 | 61 => aB3 | 62 => aR3l
+  | 63 => aR3k | 64 => aR3v | 65 => aR3 | 66 => aI3 | 67 => aU3 | 68 => aX | 69 => t2A | 70 => t2q
+  | 71 => t2Z | 72 => t2F | 73 => t2S | 74 => t2C | 75 => t2R | 76 => t2P | 77 => t2O | 78 => t3A
+  | 79 => t3q | 80 => t3Z | 81 => t3F | 82 => t3S | 83 => t3R | 84 => t3P | 85 => t3O | 86 => bC
+  | 87 => bT | 88 => bHe | 89 => bHc | 90 => bHn | 91 => bG | 92 => bQ | 93 => bW | 94 => bF
+  | 95 => bL | 96 => bB | 97 => bKe | 98 => bKc | 99 => bKn | 100 => bRl | 101 => bR | 102 => bI
+  | 103 => bU | 104 => kV1 | 105 => kI | 106 => kF | 107 => kY | 108 => kYl | 109 => kD | 110 => kV
+  | 111 => bQ2 | 112 => bW2 | 113 => bF2 | 114 => bL2 | 115 => bLe | 116 => bLc | 117 => bLn
+  | 118 => bMc | 119 => bR2l | 120 => bR2 | 121 => bJ | 122 => bK | 123 => bKl | 124 => bS
   | _ => bU2
 
 /-- Thread of an event; 0 is initialisation. -/
 def thr : E → Nat
   | iOwn | iEp | iC0 | iC1 | iC2 | iSt | iT | iPin | iRec | iRec2 | iIdx | iCE | iCC | iCN => 0
-  | iIdx3 => 0
+  | iIdx3 | iRdy0 | iRdy2 => 0
   | aC | aT | aHe | aHc | aHn | aG | aQ | aW | aF | aL | aB | aRl | aRk | aRv | aR | aI => 1
-  | aU | aX | aV1 | aJ | aJF | aY | aYl | aYk | aYv | aD | aV2 | aQ3 | aW3 | aF3 | aL3 => 1
-  | aB3 | aR3l | aR3k | aR3v | aR3 | aI3 | aU3 => 1
-  | t1W | t1F | t1A | t1q | t1Z | t1S | t1R | t1P | t1O => 2
-  | t2W | t2F | t2A | t2q | t2Z | t2S | t2R | t2P | t2O => 3
-  | t3W | t3F | t3A | t3q | t3Z | t3S | t3R | t3P | t3O => 4
+  | aU | aX | aV1 | aI1c | aJ | aJF | aY | aYl | aYk | aYv | aD | aV2 | aQ3 | aW3 | aF3 | aL3 => 1
+  | aB3 | aR3l | aR3k | aR3v | aR3 | aI3 | aU3 | aC0 | aC1 | aC2 | aC3 | aC4 => 1
+  | t1F | t1A | t1q | t1Z | t1S | t1R | t1P | t1O => 2
+  | t2F | t2A | t2q | t2Z | t2S | t2C | t2R | t2P | t2O => 3
+  | t3F | t3A | t3q | t3Z | t3S | t3R | t3P | t3O => 4
   | bC | bT | bHe | bHc | bHn | bG | bQ | bW | bF | bL | bB | bKe | bKc | bKn | bRl | bR => 5
   | bI | bU => 5
   | bQ2 | bW2 | bF2 | bL2 | bLe | bLc | bLn | bMc | bR2l | bR2 | bJ | bK | bKl | bS | bU2 => 5
@@ -164,14 +179,13 @@ def thr : E → Nat
 def locOf : E → Option Word
   | iOwn | t1A | t1O | t2A | t2O | t3A | t3O => some Word.own
   | iEp | aQ | t1q | t1P | t2q | t2P | t3q | t3P | bQ | kV | bQ2 => some Word.ep
-  | t1W | t2W | t3W => some Word.ep
-  | aV1 | aV2 | aQ3 | kV1 => some Word.ep
+  | aV1 | aV2 | aQ3 | kV1 | aC1 => some Word.ep
   | iC0 | t1R | t2Z | aL3 | aB3 => some Word.c0
   | iC1 | t2R | t3Z => some Word.c1
   | iC2 | aL | aB | t1Z | t3R | bL | bB | bL2 => some Word.c2
   | iSt | aC | aG | aX | bC | bG => some Word.st
   | iT | aT | bT => some Word.tdis
-  | iPin | aW | aU | t1S | t2S | t3S | bW | bU | bW2 | bU2 | aW3 | aU3 => some Word.pin
+  | iPin | aW | aU | t1S | t2S | t3S | bW | bU | bW2 | bU2 | aW3 | aU3 | aC3 => some Word.pin
   | iRec | aR | bR | kY | aY | bK => some Word.rcd
   | iRec2 | aRl | aYl | bRl | kYl | bKl => some Word.rc2
   | aRk | aYk | bR2 => some Word.rcA
@@ -181,16 +195,19 @@ def locOf : E → Option Word
   | aR3l => some Word.rc3b
   | aR3k => some Word.rc3c
   | aR3v => some Word.rc3d
-  | iIdx3 | aI3 => some Word.idx3
+  | iIdx3 | aI3 | aI1c => some Word.idx3
   | iCE | aHe | bHe | bKe | bLe => some Word.ce
   | iCC | aHc | bHc | bKc | bLc | bMc => some Word.cc
   | iCN | aHn | bHn | bKn | bLn => some Word.cn
-  | aF | t1F | t2F | t3F | bF | kF | kD | bF2 | aJF | aD | aF3 => none
+  | iRdy0 | t2C => some Word.rdy0
+  | iRdy2 | aC0 | aC4 => some Word.rdy2
+  | aF | t1F | t2F | t3F | bF | kF | kD | bF2 | aJF | aD | aF3 | aC2 => none
 
 def isWB : E → Bool
   | iOwn | iEp | iC0 | iC1 | iC2 | iSt | iT | iPin | iRec | iRec2 | iIdx | iCE | iCC | iCN => true
   | aC | aT | aHe | aHc | aHn | aG | aW | aB | aRl | aRk | aRv | aR | aI | aU | aX => true
   | iIdx3 | aW3 | aB3 | aR3l | aR3k | aR3v | aR3 | aI3 | aU3 => true
+  | iRdy0 | iRdy2 | aC4 | t2C => true
   | t1A | t1Z | t1R | t1P | t1O => true
   | t2A | t2Z | t2R | t2P | t2O => true
   | t3A | t3Z | t3R | t3P | t3O => true
@@ -200,10 +217,11 @@ def isWB : E → Bool
 
 def isRB : E → Bool
   | aC | aG | aQ | aL | aB | aI | aX => true
-  | aV1 | aJ | aY | aYl | aYk | aYv | aV2 | aQ3 | aL3 | aB3 | aI3 => true
-  | t1W | t1A | t1q | t1Z | t1S => true
-  | t2W | t2A | t2q | t2Z | t2S => true
-  | t3W | t3A | t3q | t3Z | t3S => true
+  | aV1 | aJ | aY | aYl | aYk | aYv | aV2 | aQ3 | aL3 | aB3 | aI3 | aI1c => true
+  | aC0 | aC1 | aC3 | aC4 => true
+  | t1A | t1q | t1Z | t1S => true
+  | t2A | t2q | t2Z | t2S | t2C => true
+  | t3A | t3q | t3Z | t3S => true
   | bC | bG | bQ | bL | bB | bI => true
   | kV1 | kI | kY | kYl | kV => true
   | bQ2 | bL2 | bLe | bLc | bLn | bJ | bK | bKl => true
@@ -213,12 +231,13 @@ def isRB : E → Bool
 def src : E → Option E
   | aC => some iSt | aG => some aC | aQ => some iEp | aL => some iC2
   | aB => some iC2 | aI => some iIdx | aX => some aG
-  | t1W => some iEp | t2W => some t1P | t3W => some t2P
   | t1A => some iOwn | t1q => some iEp | t1Z => some aB | t1S => some aW
+  | aI1c => some iIdx3
   | aV1 => some t1P | aJ => some aI | aY => some aR | aV2 => some t1P | aQ3 => some t1P
   | aYl => some aRl | aYk => some aRk | aYv => some aRv
+  | aC0 => some iRdy2 | aC1 => some t1P | aC3 => some aU | aC4 => some iRdy2
   | aL3 => some t1R | aB3 => some t1R | aI3 => some iIdx3
-  | t2A => some t1O | t2q => some t1P | t2Z => some aB3 | t2S => some aU3
+  | t2A => some t1O | t2q => some t1P | t2Z => some aB3 | t2S => some aU3 | t2C => some iRdy0
   | t3A => some t2O | t3q => some t2P | t3Z => some t2R | t3S => some aU3
   | bC => some aX | bG => some bC | bQ => some t3P | bL => some t3R
   | bB => some t3R | bI => some aI
@@ -238,6 +257,7 @@ def wv : E → Nat
   | iC0 => 1 | iC1 => 1 | iC2 => 4
   | aB => 3204 | t1Z => 3205 | t1R => 6 | t2Z => 3207 | t2R => 8 | t3Z => 9 | t3R => 10
   | aB3 => 3206 | bB => 3210
+  | aC4 => 2 | t2C => 3
   | bKe => 5 | bKc => 16 | bKn => 32 | bMc => 32
   | aT => 10 | bT => 50
   | aW => 2 | bW => 5 | bW2 => 5 | aW3 => 3
@@ -253,21 +273,20 @@ def rv (e : E) : Nat :=
   | none => 0
 
 def relB : E → Bool
-  | aG | aW | aI | aU | aX | aW3 | aI3 | aU3 => true
+  | aG | aW | aI | aU | aX | aW3 | aI3 | aU3 | aC4 | t2C => true
   | t1A | t1P | t1O | t2A | t2P | t2O | t3A | t3P | t3O => true
   | bG | bW | bI | bU | bW2 | bS | bU2 => true
   | _ => false
 
 def acqB : E → Bool
-  | aC | aQ | bC | bQ | bQ2 | bJ | aQ3 => true
+  | aC | aQ | bC | bQ | bQ2 | bJ | aQ3 | aC0 | aC1 | aC3 => true
   | t1A | t1q | t1S | t2A | t2q | t2S | t3A | t3q | t3S => true
-  | t1W | t2W | t3W => true
   | _ => false
 
-/-- The `SeqCst` fences: W3 of each writer's pass, and of each rotator's last
-pass before it rotates. `rotate()` makes no fence of its own. -/
+/-- The `SeqCst` fences: W3 of each writer's pass, R1F of each rotation
+(after its seal, under ownership), and the recheck's C2. -/
 def scFB : E → Bool
-  | aF | t1F | t2F | t3F | bF | bF2 | aF3 => true
+  | aF | t1F | t2F | t3F | bF | bF2 | aF3 | aC2 => true
   | _ => false
 
 /-- The lookups' acquire fences: I1F and D6. -/
@@ -594,15 +613,19 @@ def pinsP : PinProtocol X slotP where
   clear_loc := fun h => h.elim
   clear_isRel := fun h => h.elim
   att_act := fun {c w e} h he _ => by obtain ⟨hw, rfl⟩ := h; exact att_act_raw w e hw he
-  pin_next := fun {c w N} h hact hN hsb => by
+  pass_quiet := fun {c w u N} h hu _ hN hsb hNu => by
     obtain ⟨hw, rfl⟩ := h
-    refine ⟨unpinF w, ⟨hw, rfl⟩, ?_⟩
+    obtain ⟨-, rfl⟩ := hu
     rcases hN with ⟨c', hN', -⟩ | ⟨w', hw', rfl⟩ | ⟨_, h⟩
     · rcases hN' with rfl | rfl | rfl | rfl <;> rcases hw with rfl | rfl | rfl | rfl <;>
-        first | decide | exact absurd hsb (by decide) | exact absurd hact (by decide)
+        first | exact absurd hsb (by decide) | exact absurd hNu (by decide)
     · rcases hw' with rfl | rfl | rfl | rfl <;> rcases hw with rfl | rfl | rfl | rfl <;>
-        first | decide | exact absurd hsb (by decide) | exact absurd hact (by decide)
+        first | exact absurd hsb (by decide) | exact absurd hNu (by decide)
     · exact h.elim
+  pass_exit := fun {c w N} h _ _ _ => by
+    obtain ⟨hw, rfl⟩ := h
+    exact ⟨_, ⟨hw, rfl⟩, att_act_raw w _ hw
+      (Or.inr (by rcases hw with rfl | rfl | rfl | rfl <;> decide))⟩
 
 /-- Building `inAttempt` from two decidable facts. -/
 theorem inAtt_mk {w e : E} (h₁ : e = w ∨ sbP w e)
@@ -877,11 +900,11 @@ def cache : CacheProtocol X where
     obtain ⟨hB, rfl⟩ := h4
     obtain ⟨-, rfl⟩ := hq
     rcases hB with rfl | rfl | rfl
-    · exact ⟨t1F, t1W, _, rfl, rfl, rfl, rfl, rfl, by decide,
+    · exact ⟨t1F, rfl, under_of (by decide),
         fun _ => ⟨t1S, aW, rfl, rfl, rfl, by decide, by decide, by decide⟩⟩
-    · exact ⟨t2F, t2W, _, rfl, rfl, rfl, rfl, rfl, by decide,
+    · exact ⟨t2F, rfl, under_of (by decide),
         fun _ => ⟨t2S, aU3, rfl, rfl, rfl, by decide, by decide, by decide⟩⟩
-    · exact ⟨t3F, t3W, _, rfl, rfl, rfl, rfl, rfl, by decide,
+    · exact ⟨t3F, rfl, under_of (by decide),
         fun _ => ⟨t3S, aU3, rfl, rfl, rfl, by decide, by decide, by decide⟩⟩
   isAttempt := fun _ w => isAttP w
   attEpoch := wv
@@ -1463,6 +1486,7 @@ def value : ValueProtocol X index where
   attVal := fun w => if w = aW ∨ w = aW3 then 42 else 0
   inserted := fun k v => (k = 1 ∧ v = 42) ∨ (k = 2 ∧ v = 0)
   isPromo := fun w => w = aW3
+  src := fun _ => aJ
   ins_val := fun {i w} hw hp => by
     rcases hw with rfl | rfl | rfl | rfl
     · exact Or.inl ⟨rfl, rfl⟩
@@ -1480,6 +1504,76 @@ def value : ValueProtocol X index where
     rcases hw0 with rfl | rfl | rfl | rfl
     · exact ⟨rfl, rfl⟩
     all_goals exact absurd hd (by decide)
+
+/-! ## Readiness: `t2`'s R3C and the recheck's C4 -/
+
+abbrev isCertP (c : E) : Prop := c = t2C ∨ c = aC4
+
+/-- The readiness word of the arena of epoch `n`, as `ctlLocF`. -/
+def rdyLocF (n : Nat) : Word :=
+  if n % 3 = 0 then Word.rdy0 else if n % 3 = 1 then Word.rdy1 else Word.rdy2
+
+theorem rdyLoc_cases (n : Nat) :
+    rdyLocF n = Word.rdy0 ∨ rdyLocF n = Word.rdy1 ∨ rdyLocF n = Word.rdy2 := by
+  unfold rdyLocF
+  split
+  · exact Or.inl rfl
+  · split
+    · exact Or.inr (Or.inl rfl)
+    · exact Or.inr (Or.inr rfl)
+
+/-- `t2C` certifies 3 on `c0`'s readiness word (R3C); `aC4` certifies 2 on
+`c2`'s (C4). Both read 0. -/
+def readiness : ReadinessProtocol X cache where
+  rdyLoc := rdyLocF
+  isRdyInit := fun e => e = iRdy0 ∨ e = iRdy2
+  isCert := isCertP
+  certArg := wv
+  rdyInit_val := fun {i} h => by rcases h with rfl | rfl <;> rfl
+  rdy_writes := fun {e n} hw hl => by
+    cases e <;> first
+      | exact Or.inl (Or.inl rfl)
+      | exact Or.inl (Or.inr rfl)
+      | exact Or.inr (Or.inl rfl)
+      | exact Or.inr (Or.inr rfl)
+      | exact absurd hw (by decide)
+      | (rcases rdyLoc_cases n with h | h | h <;> rw [h] at hl <;> exact absurd hl (by decide))
+  cert_w := fun {c} h => by rcases h with rfl | rfl <;> rfl
+  cert_loc := fun {c} h => by rcases h with rfl | rfl <;> rfl
+  cert_rel := fun {c} h => by rcases h with rfl | rfl <;> rfl
+  cert_rmw := fun {c} h => by
+    rcases h with rfl | rfl
+    · exact ⟨iRdy0, rfl, rfl⟩
+    · exact ⟨iRdy2, rfl, rfl⟩
+  cert_src := fun {c} h => by
+    rcases h with rfl | rfl
+    · -- R3C: `t2` sealed 3 itself, fenced, and its scan read `aU3`.
+      exact Or.inl ⟨t2A, t2q, t2F, ⟨Or.inr (Or.inl rfl), rfl⟩, rfl, rfl, under_of (by decide),
+        by decide, fun {Z} hZ => by obtain ⟨-, rfl⟩ := hZ; decide,
+        Or.inl ⟨t2Z, ⟨Or.inr (Or.inl rfl), rfl⟩⟩,
+        fun i => by cases i; exact ⟨t2S, aU3, rfl, rfl, rfl, by decide, by decide, by decide⟩⟩
+    · -- C4: C1 read 3 from `t1`'s R5, C2 fenced, C3 read `aU`.
+      exact Or.inr ⟨aC1, t1P, aC2, rfl, rfl, rfl, rfl, by decide, rfl, by decide,
+        fun i => by cases i; exact ⟨aC3, aU, rfl, rfl, rfl, by decide, by decide, by decide⟩⟩
+
+/-- Writer `a`'s promotion copies the reprobe's hit `hitA`, which follows
+the recheck's certificate `aC4`. -/
+theorem hitA_promo : PromoHit value readiness aW3 hitA := by
+  refine ⟨⟨rfl, rfl, fun j w0 hw0 hread => ?_⟩, Or.inr ⟨aC4, Or.inr rfl, rfl, by decide⟩, rfl⟩
+  have hd := inAtt_dec hw0 (hread aY (Or.inl rfl) aR rfl)
+  rcases hw0 with rfl | rfl | rfl | rfl
+  · exact ⟨rfl, rfl⟩
+  all_goals exact absurd hd (by decide)
+
+/-- The promotion follows `hitA` and publishes with a CAS (`aI3`). -/
+theorem promotion : PromotionProtocol X value readiness where
+  promo_ready := fun {i w} _ hp => by subst hp; exact ⟨hitA, hitA_promo⟩
+  promo_cas := fun {i w x} _ hp hx hxk => by
+    subst hp
+    have hd := inAtt_dec (Or.inr (Or.inr (Or.inr rfl))) hx
+    rcases hxk with h | rfl
+    · exact h
+    · exact absurd hd (by decide)
 
 /-! ## The theorems on this execution -/
 
@@ -1533,13 +1627,12 @@ theorem witness_seal_before_reset : ∃ B Z, cache.R.sealOf B Z ∧
   cache.R.seal_before_reset consistent (A := t3A) ⟨Or.inr (Or.inr rfl), rfl⟩
     ⟨Or.inr (Or.inr rfl), rfl⟩ ⟨Or.inr (Or.inr rfl), rfl⟩
 
-/-- EP3, the W3 form: the seal of epoch 2 (by the first rotation) happens
-before the fence of the third rotator, which follows its W1 reading epoch 4
-and precedes its pin scan; no fence under ownership is involved. -/
-theorem witness_seal_before_fence : ∃ A Z, cache.R.sealOf A Z ∧
+/-- EP3(iii): the seal of epoch 2 happens before the R1F of the rotation
+that rechecks epoch 4, the fence of its reuse scan. -/
+theorem witness_seal_before_scan : ∃ A Z, cache.R.sealOf A Z ∧
     cache.R.stamp (X.wval Z) = 2 ∧ X.hb Z t3F :=
-  cache.seal_before_fence consistent (q1 := t3W) (s := t2P) (e := 2) rfl rfl rfl rfl
-    (by decide) (by decide)
+  cache.R.seal_before_scan consistent (B := t3A) (qB := t3q) ⟨Or.inr (Or.inr rfl), rfl⟩
+    rfl (by decide) (under_of (by decide))
 
 /-- SP2: writer `b`'s B1 does not carry out of the bump field. -/
 theorem witness_no_wrap : reserve.bump (X.rval bB) + reserve.claim bB < bumpLimit :=
@@ -1666,6 +1759,44 @@ theorem witness_reader_in_bounds :
       index.entryOff (X.rval kI) + 16 + (0 + 7) / 8 * 8 + 0 + 8 ≤ reserve.cap :=
   index.reader_in_bounds consistent (x := bI) (l := Word.idx) (len := 16) (kl := 0) (vl := 8)
     (pos := 0) rfl rfl (Or.inl rfl) (by decide) (by decide) (by decide) (by decide) rfl
+
+/-- RD1 for R3C: everything the promotion's attempt does, its publication
+`aI3` included, happens before `t2`'s certificate for epoch 3. -/
+theorem witness_cert_sound_rotation : X.hb aI3 t2C :=
+  readiness.cert_sound consistent (i := ()) (w := aW3) (Or.inl rfl)
+    (Or.inr (Or.inr (Or.inr rfl))) rfl (inAtt_mk (by decide) (by decide))
+
+/-- RD1 for C4: writer `a`'s publication in epoch 2 happens before the
+recheck's certificate for epoch 2. -/
+theorem witness_cert_sound_recheck : X.hb aI aC4 :=
+  readiness.cert_sound consistent (i := ()) (w := aW) (Or.inr rfl) (Or.inl rfl) rfl
+    (inAtt_mk (by decide) (by decide))
+
+/-- FR1: writer `a`'s publication in epoch 2 happens before the reprobe's
+index load. -/
+theorem witness_promo_source_after : X.hb aI aJ :=
+  PromotionProtocol.promo_source_after consistent hitA_promo (j := ()) (w' := aW)
+    (Or.inl rfl) rfl (inAtt_mk (by decide) (by decide))
+
+/-- FR2: the promoted entry is writer `a`'s publication of key 1 in epoch
+2, the promotion stores its value, and every publication of key 1 in epoch 2
+is that entry or precedes it in its slot. -/
+theorem witness_promo_fresh : ∃ j w0, cache.isAttempt j w0 ∧ (cache.pins j).inAttempt w0 aI ∧
+    (index.isPubCas aI ∨ index.isPubStore aI) ∧ cache.attEpoch w0 = 2 ∧
+    index.pubKey aI = value.attKey aW3 ∧ value.attVal aW3 = value.attVal w0 ∧
+    ∀ {y l k w'}, (index.isPubCas y ∨ index.isPubStore y) → X.isW y → X.loc y = some l →
+      cache.isAttempt k w' → (cache.pins k).inAttempt w' y → cache.attEpoch w' = 2 →
+      index.pubKey y = index.pubKey aI → l = Word.idx ∧ (y = aI ∨ X.mo y aI) :=
+  PromotionProtocol.promo_fresh consistent hitA_promo
+
+/-- F9 with RB4(d): the promotion's CAS in `idx3` is preceded there by no
+write of any attempt of epoch 3. -/
+theorem witness_promo_first : ∀ {j : cache.ι} {w' y : E}, cache.isAttempt j w' →
+    (cache.pins j).inAttempt w' y → X.isW y → X.loc y = some Word.idx3 →
+    cache.attEpoch w' = 3 → ¬ X.mo y aI3 := fun hw' hy hyW hyl hE =>
+  promotion.promo_first consistent (i := ()) (Or.inr (Or.inr (Or.inr rfl))) rfl
+    (inAtt_mk (by decide) (by decide)) (Or.inl (Or.inr (Or.inr rfl))) rfl rfl
+    hw' hy hyW hyl hE
 
 end CacheWitness
 end Sgc

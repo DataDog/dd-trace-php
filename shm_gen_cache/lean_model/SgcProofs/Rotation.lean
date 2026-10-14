@@ -25,19 +25,24 @@ Proved here for every consistent execution:
   values along the modification order, so each value is written once, and
   a tenure that rechecked a smaller epoch is an earlier tenure
   (`CacheProtocol.publisher_exists` adds that no value is skipped);
-* `seal_persists`, `sealed_has_seal` (EP2): once an incarnation is sealed,
-  every later control-word value with its stamp is sealed, and every sealed
-  value has a seal. A load that saw the incarnation unsealed therefore read
-  a write older than the seal;
-* `seal_before_under`, `seal_before_publish`, `seal_before_reset`,
-  `seal_before_scan` (EP3): a tenure that publishes the next epoch does
-  so, and resets the next arena, after the current incarnation's seal; and
-  the tenure two epochs later acts under ownership after it. The form the
-  code uses, for the W3 of the rotator's own last reservation pass, is
-  `CacheProtocol.seal_before_fence`;
+* `seal_persists`, `sealed_has_seal`, `sealed_from_seal` (EP2): once an
+  incarnation is sealed, every later control-word value with its stamp is
+  sealed, and every sealed value with a non-zero stamp is a seal or lies
+  after one in `mo` (EP2(ii) in its ordered form). A load that saw the
+  incarnation unsealed therefore read a write older than the seal;
+* `seal_before_under`, `seal_before_publish`, `seal_before_reset` (EP3(i)):
+  a tenure that publishes the next epoch does so, and resets the next
+  arena, after the current incarnation's seal;
+* `seal_before_tenure_fence` (EP3(ii)): every tenure that leaves the seal
+  loop, whether or not it publishes, does so after the seal of the
+  incarnation it rechecked, so its R1F follows that seal. This is the fence
+  of its readiness scan (`ReadinessProtocol`);
+* `seal_before_scan` (EP3(iii)): the tenure two epochs later acts under
+  ownership after the seal; its R1F is the fence of the reuse scan
+  (`CacheProtocol.scan`). `CacheProtocol.seal_before_fence1` is EP3(iv);
 * `pin_visibility_of_seal`: PN3 from a seal that happens before the fence;
-  `pin_visibility_closed`: the same for a variant in which the fence is
-  made under the ownership of the tenure two epochs later.
+  `pin_visibility_closed`: the same for the code's reuse scan, whose fence
+  R1F the tenure two epochs later makes under ownership.
 -/
 
 namespace Sgc
@@ -276,26 +281,42 @@ theorem seal_persists (hc : X.Consistent) {A Z : Ev} (hZ : P.sealOf A Z) (w : Ev
         (P.tenure_lt_of_r0_lt hc hq hqz (by omega)) (P.r4_under h4) (P.seal_under hZ)
     exact hc.mo_irrefl _ (hc.mo_trans hZw (coh_ww_at hc hwW hlw hZW hlZ hb₁))
 
-/-- A sealed control-word value with a non-zero stamp was sealed by some
-tenure's R1 with that stamp. -/
-theorem sealed_has_seal (hc : X.Consistent) (w : Ev) :
+/-- **EP2(ii), ordered.** A sealed control-word value with a non-zero stamp
+is a seal R1 with that stamp, or lies after one in `mo` on the same word:
+the walk back along `mo` crosses only B1s, which keep the stamp and the bit,
+and ends at a seal, since R4 writes unsealed and a sealed initial value has
+stamp 0. -/
+theorem sealed_from_seal (hc : X.Consistent) (w : Ev) :
     X.isW w → (∃ n, X.loc w = some (P.ctlLoc n)) → P.isSealed (X.wval w) →
     P.stamp (X.wval w) ≠ 0 →
-    ∃ A Z, P.sealOf A Z ∧ P.stamp (X.wval Z) = P.stamp (X.wval w) := by
+    ∃ A Z, P.sealOf A Z ∧ P.stamp (X.wval Z) = P.stamp (X.wval w) ∧ (Z = w ∨ X.mo Z w) := by
   refine hc.mo_wellFounded.induction
     (C := fun w => X.isW w → (∃ n, X.loc w = some (P.ctlLoc n)) →
       P.isSealed (X.wval w) → P.stamp (X.wval w) ≠ 0 →
-      ∃ A Z, P.sealOf A Z ∧ P.stamp (X.wval Z) = P.stamp (X.wval w)) w ?_
+      ∃ A Z, P.sealOf A Z ∧ P.stamp (X.wval Z) = P.stamp (X.wval w) ∧ (Z = w ∨ X.mo Z w)) w ?_
   intro w ih hwW ⟨n, hlw⟩ hse hne
   rcases P.ctl_writes hwW hlw with hinit | hb1 | ⟨A', hs⟩ | ⟨A', h4⟩
   · exact absurd (P.ctlInit_val hinit hse) hne
   · obtain ⟨w', hrf, hst', hse'⟩ := P.b1_rmw hb1
     have ⟨hw'W, _, hlw', _⟩ := hc.rf_wf hrf
-    obtain ⟨A, Z, hZ, hstZ⟩ :=
-      ih w' (hc.rmw_mo hrf hwW) hw'W ⟨n, hlw'.trans hlw⟩ (hse'.mp hse) (by rw [← hst']; exact hne)
-    exact ⟨A, Z, hZ, hstZ.trans hst'.symm⟩
-  · exact ⟨A', w, hs, rfl⟩
+    have hw'w := hc.rmw_mo hrf hwW
+    obtain ⟨A, Z, hZ, hstZ, hZw'⟩ :=
+      ih w' hw'w hw'W ⟨n, hlw'.trans hlw⟩ (hse'.mp hse) (by rw [← hst']; exact hne)
+    refine ⟨A, Z, hZ, hstZ.trans hst'.symm, Or.inr ?_⟩
+    rcases hZw' with h | h
+    · rw [h]; exact hw'w
+    · exact hc.mo_trans h hw'w
+  · exact ⟨A', w, hs, rfl, Or.inl rfl⟩
   · exact absurd hse (P.r4_unsealed h4)
+
+/-- **EP2(ii).** A sealed control-word value with a non-zero stamp was sealed
+by some tenure's R1 with that stamp. -/
+theorem sealed_has_seal (hc : X.Consistent) (w : Ev)
+    (hwW : X.isW w) (hl : ∃ n, X.loc w = some (P.ctlLoc n)) (hse : P.isSealed (X.wval w))
+    (hne : P.stamp (X.wval w) ≠ 0) :
+    ∃ A Z, P.sealOf A Z ∧ P.stamp (X.wval Z) = P.stamp (X.wval w) :=
+  let ⟨A, Z, hZ, hst, _⟩ := P.sealed_from_seal hc w hwW hl hse hne
+  ⟨A, Z, hZ, hst⟩
 
 /-- **EP3, the general form.** An event `f` that a publishing tenure
 performs under ownership, after its own seal if it sealed, happens after the
@@ -328,6 +349,57 @@ theorem seal_before_under (hc : X.Consistent) {A p q f : Ev}
       have := P.r0_after_r5 hc h5 hqB h
       omega
 
+/-- **EP3(ii).** Every tenure that leaves the seal loop does so after the
+seal `Z(e)` of the incarnation `e` it rechecked, whether or not it then
+publishes; so an event `f` it performs under ownership after the loop, R1F
+in the code, happens after `Z(e)`.
+
+The loop (`rotation.rs`, `rotate_owned()`, lines 97-124) exits in one of
+two ways (`hexit`): its own R1 succeeded, or a load `l` of the control word
+under ownership (the initial load or a failed CAS) returned
+`(stamp e, sealed)`. `hself` says its own seal, if any, is
+sequenced before `f`; that `l` also precedes `f` is not needed. By EP2(ii),
+ordered, the value `l` read is `Z(e)` or
+later; `Z(e)`'s tenure is this one, an earlier one (OW2), or a later one,
+whose seal would follow `l` (OW2) and so could not be read by it (COH-RW).
+Unlike `seal_before_under`, no publication R5 is needed. -/
+theorem seal_before_tenure_fence (hc : X.Consistent) {A q f : Ev}
+    (hq : P.r0Of A q) (hf : P.toOwnerProtocol.under A f)
+    (hself : ∀ {Z}, P.sealOf A Z → X.sb Z f)
+    (hexit : (∃ Z, P.sealOf A Z) ∨
+      ∃ l u, P.toOwnerProtocol.under A l ∧ X.rf u l ∧
+        X.loc l = some (P.ctlLoc (X.rval q)) ∧ P.stamp (X.wval u) = X.rval q ∧
+        P.isSealed (X.wval u)) :
+    ∃ B Z, P.sealOf B Z ∧ P.stamp (X.wval Z) = X.rval q ∧ X.hb Z f := by
+  rcases hexit with ⟨Z, hZ⟩ | ⟨l, u, hl, hul, hll, hst, hse⟩
+  · -- The tenure sealed the arena itself.
+    obtain ⟨q', hq', hst', _⟩ := P.seal_r0 hZ
+    have := P.r0_unique hq hq'
+    subst this
+    exact ⟨A, Z, hZ, hst', hb_of_sb (hself hZ)⟩
+  · -- It loaded a sealed value: `Z` is that value or precedes it in `mo`.
+    have ⟨huW, _, hlu, _⟩ := hc.rf_wf hul
+    obtain ⟨B, Z, hZ, hstZ, hZu⟩ :=
+      P.sealed_from_seal hc u huW ⟨_, hlu.trans hll⟩ hse
+        (by rw [hst]; have := P.r0_ge hc hq; omega)
+    refine ⟨B, Z, hZ, hstZ.trans hst, ?_⟩
+    rcases P.toOwnerProtocol.tenure_total hc (P.seal_acq hZ) (P.r0_acq hq) with heq | h | h
+    · subst heq; exact hb_of_sb (hself hZ)
+    · exact P.toOwnerProtocol.tenures_ordered hc (P.seal_acq hZ) (P.r0_acq hq) h
+        (P.seal_under hZ) hf
+    · -- A later tenure's seal follows `l`, which then read an earlier write.
+      exfalso
+      have hlZ : X.loc Z = X.loc l := by
+        rcases hZu with heq | hm
+        · rw [heq]; exact hlu
+        · exact (hc.mo_wf hm).2.2.1.trans hlu
+      have hm := coh_rw hc (P.seal_w hZ) hlZ
+        (P.toOwnerProtocol.tenures_ordered hc (P.r0_acq hq) (P.seal_acq hZ) h hl
+          (P.seal_under hZ)) hul
+      rcases hZu with heq | hm'
+      · rw [heq] at hm; exact hc.mo_irrefl _ hm
+      · exact hc.mo_irrefl _ (hc.mo_trans hm hm')
+
 /-- **EP3, R5.** A tenure that publishes the epoch does so after the seal
 of the incarnation it rechecked. -/
 theorem seal_before_publish (hc : X.Consistent) {A p q : Ev}
@@ -342,10 +414,10 @@ theorem seal_before_reset (hc : X.Consistent) {A p q w : Ev}
     ∃ B Z, P.sealOf B Z ∧ P.stamp (X.wval Z) = X.rval q ∧ X.hb Z w :=
   P.seal_before_under hc h5 hq (P.r4_under h4) (fun hZ => P.seal_before_r4 hZ h4)
 
-/-- The seal of incarnation `e` happens before everything the tenure that
-rechecks `e + 2` does under ownership. So a `SeqCst` fence under that
-ownership would serve as the fence `f` of PN3. The code makes no such
-fence; it relies on the caller's W3 (`CacheProtocol.seal_before_fence`). -/
+/-- **EP3(iii).** The seal of incarnation `e` happens before everything the
+tenure that rechecks `e + 2` does under ownership. In particular it happens
+before that tenure's R1F (`rotation.rs`, `rotate_owned()`, line 131), the
+fence of its reuse scan (`CacheProtocol.scan`). -/
 theorem seal_before_scan (hc : X.Consistent) {B qB f : Ev} {e : Nat}
     (hqB : P.r0Of B qB) (hv : X.rval qB = e + 2) (he : 2 ≤ e)
     (hf : P.toOwnerProtocol.under B f) :
@@ -402,13 +474,12 @@ theorem pin_visibility_of_seal (hc : X.Consistent)
     · exact absurd (P.seal_persists hc hZ u h (hstamp.trans hstZ.symm)) hunsealed
   exact pin_visibility hc hW3 hf h_W2_W3 h_W3_B0 h_u_B0 h_u_Z hZf h_f_Sc h_p_Sc
 
-/-- **PN3 with OW2 and EP1 to EP3 discharged, for a fence under ownership.**
+/-- **PN3 with OW2 and EP1 to EP3 discharged, for the reuse scan.**
 A writer pinned for epoch `e` whose control-word load `B0` saw `(stamp e,
 unsealed)` is seen by every scan load `Sc` that follows a `SeqCst` fence `f`
 made under the ownership of the tenure that rechecks `e + 2`: `Sc` reads no
-pin older than `W2`. This covers a variant with a fence under ownership;
-the code's own fence, the caller's W3, is covered by
-`CacheProtocol.seal_before_fence` with `pin_visibility_of_seal`. -/
+pin older than `W2`. This is the code's shape: `f` is that tenure's R1F
+(`rotation.rs`, `rotate_owned()`, line 131). -/
 theorem pin_visibility_closed (hc : X.Consistent)
     {W2 W3 B0 f Sc u p B qB : Ev} {e : Nat}
     (hW3 : X.isScFence W3) (hf : X.isScFence f)

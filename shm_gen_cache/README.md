@@ -32,11 +32,17 @@ is reused as the new current arena. An entry therefore lives for two generations
 unless it is used: a lookup that hits in the previous generation copies
 (*promotes*) the entry into the current one, so entries that keep being read
 survive rotations indefinitely. The result is an approximation of LRU eviction
-with no per-entry bookkeeping.
+with no per-entry bookkeeping. A promotion copies only from a generation
+whose writers are known to have finished: the rotation that sealed it
+certified it, or a sampled recheck certifies it and the lookup then reads
+the entry again. A hit in a generation not yet certified is returned but not
+promoted.
 
 ### Lookup
 
-A lookup writes nothing to shared memory (except when it promotes). It probes
+A lookup writes nothing to shared memory, except when it promotes, or when a
+readiness recheck certifies the previous generation (a `fetch_max` on that
+arena's readiness word). It probes
 the current arena and then the previous one. The probe starts at the key's home
 bucket and scans the index in groups of eight entries; an entry is a candidate
 only if its epoch stamp and a few bits of the hash match, so most non-matching
@@ -65,8 +71,12 @@ lands in a newer generation than its lookup probed, where it could shadow a
 newer value of the key. Occupancy is either an exact shared counter or, for
 large tables, a per-participant statistical estimate that avoids a contended
 counter. One participant becomes the rotation owner, seals the current arena
-against new reservations, waits until no participant is still pinned to the
-arena about to be reused, resets that arena, and publishes the next epoch.
+against new reservations, fences, and scans the participants' pins: it waits
+until no participant is still pinned to the arena about to be reused, and,
+if no participant is pinned to the generation it has just sealed, certifies
+that generation as a promotion source. It neither waits for nor reaps the
+writers of the sealed generation. It then resets the arena to be reused and
+publishes the next epoch.
 Reuse does not clear the old index or records: every index entry and record
 carries a 32-bit epoch stamp, and stale ones are rejected because their stamp
 no longer matches.
@@ -102,7 +112,7 @@ reuse* is rotation reinitialising an old arena.
   survive until its stamp comes round again after 2^32 rotations (epoch ABA
   problem).
 - All processes sharing a mapping must use the same shared layout
-  (currently version 11); different versions are not compatible. Every
+  (currently version 12); different versions are not compatible. Every
   handle on a mapping must also use the parameters it was initialised with:
   `Cache::from_raw` does not check them against the header.
 - A registration is used by one thread at a time, never from a signal
@@ -119,12 +129,28 @@ backend and the C++20 memory model:
   one) stored for that key: never a torn, mixed or recycled value;
 - every shared access stays inside the mapping, whatever it read;
 - an arena is reused only after every insert still writing to it has
-  finished or was reaped, and rotations run one at a time.
+  finished or was reaped, and rotations run one at a time;
+- promotions cannot resurrect a superseded insert. A lookup whose final
+  attempt starts after insert I returned successfully may miss; any hit
+  originates in I or a same-key insert later than or concurrent with I,
+  never one that returned before I was called, regardless of promotions
+  or rotations. If the lookup's last attempt also reads the
+  insert's epoch or the next one, and reads nothing from a reuse of the
+  insert's arena, it does not miss: it returns a hit or an error
+  (`InsufficientCapacity`, `Corrupt`), never "not found";
+- an insert that returns an error other than `Corrupt` is invisible: no
+  lookup returns its value, directly or through promotions. It is not
+  undone: its rotations may evict the key's older value, so a later lookup
+  need not return the previous one. `Corrupt` is outside this guarantee.
 
-Recency is not guaranteed: a lookup may miss a key inserted concurrently,
-and a promotion racing an insert into the previous generation can
-republish the older value (see `promotion_keeps_newer_stale_epoch_insert`
-under `verification/`).
+Recency is guaranteed only that far. The order is happens-before (the
+same thread, or synchronised threads), not wall-clock time. A lookup
+concurrent with an insert may return an older value; inserts of one key
+that are not ordered may land in either order; a failed insert only hides
+its own value (above); and a lookup can miss a key whose generation was
+rotated out.
+`promotion_keeps_newer_stale_epoch_insert` under `verification/` checks the
+race in which a promotion would republish an older value.
 
 ## Use from C
 
@@ -398,7 +424,7 @@ off, its condition is not evaluated.
 ## Tests
 
 ```sh
-cargo test -p shm_gen_cache            # smoke tests (Rust and C API), fork test
+cargo test -p shm_gen_cache   # unit tests, smoke tests (Rust and C API), fork test
 cargo test -p shm_gen_cache --release
 ```
 

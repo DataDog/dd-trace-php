@@ -352,7 +352,8 @@ def pins : PinProtocol X slot where
   clear_loc := fun h => by obtain ⟨rfl, rfl⟩ := h; rfl
   clear_isRel := fun h => by obtain ⟨rfl, rfl⟩ := h; rfl
   att_act := fun h he _ => by obtain ⟨rfl, rfl⟩ := h; exact att_act_raw _ he
-  pin_next := fun h hact _ hsb => by
+  pass_quiet := fun _ hu _ _ _ _ => hu.elim
+  pass_exit := fun h hact _ hsb => by
     obtain ⟨rfl, rfl⟩ := h
     exact (no_later_pin_write _ hact hsb).elim
 

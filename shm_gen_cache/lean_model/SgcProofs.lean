@@ -13,9 +13,14 @@ import SgcProofs.Cache
 import SgcProofs.Reserve
 import SgcProofs.Lookup
 import SgcProofs.Provenance
+import SgcProofs.Promotion
+import SgcProofs.Recency
 import SgcProofs.Access
 import SgcProofs.Bounds
 import SgcProofs.TakeoverWitness
 import SgcProofs.CacheWitness
 import SgcProofs.TakeoverFreeWitness
 import SgcProofs.InitStealWitness
+import SgcProofs.CertWitness
+import SgcProofs.RecencyWitness
+import SgcProofs.RegressionWitness

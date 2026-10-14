@@ -15,9 +15,10 @@ holder did under ownership happens before the CAS. This is OW1;
 `Takeover.lean` derives it from slot serialisation (SL1), the liveness
 backend (A3) and what `reap_owner()` observed (code fact F6).
 
-O3 is a release CAS, not an acquire (`rotation.rs`, success ordering
-`Release`): `acq_isAcq` asks acquire only of a CAS that reads the
-initialisation or an O4, so no proof uses an acquire half of O3.
+O3 is a release CAS, not an acquire (`rotation.rs:333-335`,
+`acquire_rotation()`, success ordering `Release`): `acq_isAcq` asks
+acquire only of a CAS that reads the initialisation or an O4, so no proof
+uses an acquire half of O3.
 
 From it this file proves, for every consistent execution:
 
@@ -59,9 +60,9 @@ structure OwnerEvents (X : Execution Ev Loc) where
   /-- An O2, a CAS that reads the initialisation or a release (O4), has
   acquire ordering, to synchronise with that release. A takeover O3 reads
   an acquiring CAS and need not be an acquire: the code makes it `Release`
-  (`rotation.rs`), and its handoff (OW1) comes from O1's acquire, from
-  `reap_owner()`'s acquire reads of the slot and from A3. The takeover
-  witnesses make their O3 release-only. -/
+  (`rotation.rs:333-335`, `acquire_rotation()`), and its handoff (OW1)
+  comes from O1's acquire, from `reap_owner()`'s acquire reads of the slot
+  and from A3. The takeover witnesses make their O3 release-only. -/
   acq_isAcq : ∀ {A w}, isAcqCas A → X.rf w A → ¬ isAcqCas w → X.isAcq A
   /-- Every acquiring CAS (O2, O3) has release ordering: later O1 loads and
   takeovers import from it. -/

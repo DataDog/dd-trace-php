@@ -40,6 +40,9 @@ index slot, which its CAS or store I2 is predicated on, is I0.
   the entry's attempt. So `entry_has_key()` compares against the key that
   attempt stored; what is left assumed (`KeyCheck`) is sequential: what the
   check concludes from the values it loaded.
+* `cas_first` (RB4(d)): a CAS publication of an incarnation is
+  preceded in its slot's `mo` by no write of that incarnation, so every
+  later publication of the incarnation there is a store;
 * `key_of_earlier`, `slot_key_fixed` (RB4, one key per slot): the entries
   that attempts of one epoch publish in an index slot all carry the same
   key.
@@ -48,10 +51,19 @@ index slot, which its CAS or store I2 is predicated on, is I0.
   slot, and every slot the writer passed on its way there held an entry of
   that epoch for another key.
 
-RB3 and RB4 are recency properties: safety does not need them (`probe()`
-re-checks the key). They are the only users of I0's acquire.
+RB3 and RB4 are not needed by the safety guarantees G1 to G3 (`probe()`
+re-checks the key), but G4, promotion freshness, needs them: without them a
+key could have a second slot in one incarnation, and the `mo`-last write in
+a hit's slot would not be the key's last publication (`promo_fresh` in
+`Promotion.lean`). Read-after-insert (`Recency.lean`) also needs RB4(c)
+and RB4(d): `chain_no_gap`'s `skipped` for a probe that would otherwise
+miss, and `cas_first` to show that a later publication in the slot is an
+insert's store. They are the only users of I0's acquire.
 
-Neither proof uses the epoch stamp of a record header (`probe.rs:142`,
+`hit_entry` and `hit_v2_bound` export the part of HT2 that identifies the
+followed entry and bounds V2 by its epoch plus one.
+
+Neither proof uses the epoch stamp of a record header (`probe.rs:160`,
 `put.rs:129`): the entry's stamp, A6 and V2 already pin the record's
 incarnation, so A6 is needed for index entries and lookups in progress
 only, not for headers.
@@ -203,13 +215,13 @@ variable {X : Execution Ev Loc} {C : CacheProtocol X} (Rv : ReserveProtocol X C)
 
 /-- `RecLoads a off L`: each load in `L` addresses, in `u32` arithmetic, a
 word of the record at byte offset `off` of the record area of arena `a`:
-the header (`off`: `probe.rs:141`, `put.rs:125`), the lengths word
-(`off + 8`: `probe.rs:152-153`, `put.rs:135`), or a word whose position
+the header (`off`: `probe.rs:159`, `put.rs:125`), the lengths word
+(`off + 8`: `probe.rs:170-171`, `put.rs:135`), or a word whose position
 depends on a load `Ln` of that lengths word in `L`: a key word below the key
 length `Ln` returned (`off + 16 + p`: `key_matches()`, `records.rs:92-114`,
-called at `probe.rs:163` and `put.rs:146` once that length is the caller's,
-`probe.rs:158`, `put.rs:136`), or a value word below its value length
-(`off + 16 + align8(key_len) + p`: D5, `probe.rs:169-178`). This is what
+called at `probe.rs:181` and `put.rs:146` once that length is the caller's,
+`probe.rs:176`, `put.rs:136`), or a value word below its value length
+(`off + 16 + align8(key_len) + p`: D5, `probe.rs:187-196`). This is what
 `probe()` and `entry_has_key()` load from a record, whatever the values. -/
 def RecLoads (a : Loc) (off : Nat) (L : Ev → Prop) : Prop :=
   ∀ Y, L Y → ∃ l, X.loc Y = some l ∧ Rv.isRecord l ∧ Rv.recArena l = a ∧
@@ -304,7 +316,7 @@ structure IndexProtocol (X : Execution Ev Loc) {C : CacheProtocol X}
   cap_aligned : Rv.cap % 8 = 0
   /-- **A6, lifetime** (environmental; the code does not check it): no index
   entry, the zero fill included, survives in its slot until its 32-bit stamp
-  recurs (crate README, "Limits"; `probe.rs:120-123`). As a reader observes
+  recurs (crate README, "Limits"; `probe.rs:138-141`). As a reader observes
   it: an index load that happens after an epoch load returning `n` reads an
   entry stamped by an epoch above `n - 2^32`, the zero fill counting as
   epoch 0. -/
@@ -490,6 +502,47 @@ theorem keyCheck_holds (hc : X.Consistent) {i j : C.ι} {w w' l0 z : Ev} {l : Lo
   exact A.pinned_read hc Rv hw (hload Y hY).2 hw' hsY hsYW hsYl hYl (I.record_arena hrec') hrec'
     hE h₁ hv
 
+/-- **RB4(d), a CAS comes first.** A CAS publication `x` of an attempt of
+epoch `E`, in slot `l`, is preceded in `mo` by no write of an attempt of
+epoch `E`, in particular by no publication of `E`. The CAS read its
+immediate `mo`-predecessor (RMW): not the zero fill, which nothing of `E`
+precedes (A1); not a write of `E`, since the CAS expects a non-current entry
+(F8, `cas_noncurrent`); not a write of a later incarnation, which `x` would
+precede (QU2(a)); and not one of an earlier incarnation, which would follow
+the write of `E` (QU2(a)). A promotion publishes only by CAS
+(`PromotionProtocol.promo_cas`), so once an entry of `E` is in a slot, every
+later publication of `E` there is an insert's store. -/
+theorem cas_first (hc : X.Consistent) {x y : Ev} {l : Loc} {i j : C.ι} {w w' : Ev}
+    (hl : A.isArena l) (hcas : I.isPubCas x) (hxW : X.isW x) (hxl : X.loc x = some l)
+    (hw : C.isAttempt i w) (hx : (C.pins i).inAttempt w x)
+    (hyW : X.isW y) (hyl : X.loc y = some l)
+    (hw' : C.isAttempt j w') (hy : (C.pins j).inAttempt w' y)
+    (hE : C.attEpoch w' = C.attEpoch w) : ¬ X.mo y x := by
+  intro hyx
+  obtain ⟨r, hrx⟩ := I.cas_reads hcas
+  have ⟨hrW, _, hlr, hsr⟩ := hc.rf_wf hrx
+  have hrl : X.loc r = some l := hlr.trans hxl
+  have hyr : y = r ∨ X.mo y r := rmw_pred_ge hc hrx hyW (hyl.trans hrl.symm) hyx
+  rcases A.aw_owner hrW hrl hl with hinit | ⟨k, wr, hwr, hr⟩
+  · rcases hyr with heq | hm
+    · exact A.arenaInit_not_att (heq ▸ hinit) hw' hy
+    · exact not_mo_first hc hrW (A.arenaInit_first hinit) hm
+  · rcases A.same_arena hrl hxl hl hrW hxW hwr hr hw hx with heq | h | h
+    · exact I.cas_noncurrent hc hcas hw hx hrx hwr hr heq
+    · -- `r` is older than this epoch, yet at or after `y`.
+      rcases hyr with heq | hm
+      · have := A.owner_epoch hw' hy hwr (heq ▸ hr)
+        omega
+      · exact hc.mo_irrefl _
+          (hc.mo_trans hm
+            (C.arena_writes_ordered hc hwr hw' (by omega) hr hy hrW hyW
+              (hrl.trans hyl.symm) hsr))
+    · -- `r` is from a later incarnation, yet before `x`.
+      exact hc.mo_irrefl _
+        (hc.mo_trans (hc.rmw_mo hrx hxW)
+          (C.arena_writes_ordered hc hw hwr h hx hr hxW hrW (hxl.trans hrl.symm)
+            (some_ne_none hxl)))
+
 /-- **RB4, one key per slot.** In one index slot, a publication by an attempt carries the
 same key as every earlier publication by an attempt of the same epoch. -/
 theorem key_of_earlier (hc : X.Consistent) {l : Loc} (hl : A.isArena l) (x : Ev) :
@@ -509,30 +562,7 @@ theorem key_of_earlier (hc : X.Consistent) {l : Loc} (hl : A.isArena l) (x : Ev)
   have hyl : X.loc y = some l := hly.trans hxl
   rcases hxk with hcas | hstore
   · -- A CAS over a non-current entry: no earlier publication of this epoch exists.
-    exfalso
-    obtain ⟨r, hrx⟩ := I.cas_reads hcas
-    have ⟨hrW, _, hlr, hsr⟩ := hc.rf_wf hrx
-    have hrl : X.loc r = some l := hlr.trans hxl
-    have hyr : y = r ∨ X.mo y r := rmw_pred_ge hc hrx hyW (hyl.trans hrl.symm) hyx
-    rcases A.aw_owner hrW hrl hl with hinit | ⟨k, wr, hwr, hr⟩
-    · rcases hyr with heq | hm
-      · exact A.arenaInit_not_att (heq ▸ hinit) hw' hy
-      · exact not_mo_first hc hrW (A.arenaInit_first hinit) hm
-    · rcases A.same_arena hrl hxl hl hrW hxW hwr hr hw hx with heq | h | h
-      · exact I.cas_noncurrent hc hcas hw hx hrx hwr hr heq
-      · -- `r` is older than this epoch, yet at or after `y`.
-        rcases hyr with heq | hm
-        · have := A.owner_epoch hw' hy hwr (heq ▸ hr)
-          omega
-        · exact hc.mo_irrefl _
-            (hc.mo_trans hm
-              (C.arena_writes_ordered hc hwr hw' (by omega) hr hy hrW hyW
-                (hrl.trans hyl.symm) hsr))
-      · -- `r` is from a later incarnation, yet before `x`.
-        exact hc.mo_irrefl _
-          (hc.mo_trans (hc.rmw_mo hrx hxW)
-            (C.arena_writes_ordered hc hw hwr h hx hr hxW hrW (hxl.trans hrl.symm)
-              (some_ne_none hxl)))
+    exact (I.cas_first hc hl hcas hxW hxl hw hx hyW hyl hw' hy hE hyx).elim
   · -- A store over an entry `z` it loaded, with the same key (RB3).
     obtain ⟨l0, z, hzl0, hacq, hl0x, hl0w, hl0l, hst, hchk⟩ := I.store_src hstore hw hx hxl
     have hli := I.pub_slot (Or.inr hstore) hw hx hxl
@@ -641,31 +671,35 @@ end IndexProtocol
 and `probe.rs`). -/
 structure Hit {X : Execution Ev Loc} {C : CacheProtocol X} {A : ArenaProtocol X C}
     {Rv : ReserveProtocol X C} (I : IndexProtocol X A Rv) where
-  /-- V1, the lookup's epoch load (`lookup.rs:66`), and the write it read. -/
+  /-- V1, the lookup's epoch load (`lookup.rs:77`), and the write it read. -/
   v1 : Ev
   s1 : Ev
   v1_rf : X.rf s1 v1
   v1_loc : X.loc v1 = some C.R.ep
   /-- The epoch probed: V1's, in its arena, or one less, in the previous
-  arena (`lookup.rs:69-99`). -/
+  arena (`lookup.rs:80-113`), or the out-of-line reprobe of the previous
+  arena after a readiness recheck (`reprobe_for_promotion()`,
+  `lookup.rs:182-209`). -/
   e : Nat
   e_def : X.rval v1 = e ∨ X.rval v1 = e + 1
-  /-- I1, the index load whose entry the probe validated (`probe.rs:81`,
-  `199` or `248`), the slot it loaded and the write it read. -/
+  /-- I1, the index load whose entry the probe validated (`probe.rs:99`,
+  `220` or `269`), the slot it loaded and the write it read. -/
   i1 : Ev
   slot : Loc
   x2 : Ev
   i1_loc : X.loc i1 = some slot
   slot_index : I.isIndex slot
   i1_rf : X.rf x2 i1
-  /-- `probe()` is inlined into `lookup()` after V1 (`lookup.rs:66-99`). -/
+  /-- The probe is sequenced after V1: the first two are inlined into
+  `lookup()` (`lookup.rs:77-113`), and the reprobe runs out of line on the
+  same thread, after them (`lookup.rs:127-136`, `182-209`). -/
   v1_i1 : X.sb v1 i1
-  /-- The entry has the probe's stamp, `epoch as u32` (`probe.rs:60`): a
-  candidate matches `wanted` in the stamp bits (`probe.rs:77`, `83`, `250`),
-  and the sequential scan checks the stamp (`probe.rs:200`). -/
+  /-- The entry has the probe's stamp, `epoch as u32` (`probe.rs:78`): a
+  candidate matches `wanted` in the stamp bits (`probe.rs:95`, `101`, `271`),
+  and the sequential scan checks the stamp (`probe.rs:221`). -/
   i1_stamp : entryStamp (X.rval i1) = e % wordLimit
-  /-- I1F (`probe.rs:133`) and D6 (`probe.rs:181`), acquire fences, and V2,
-  the epoch reload after D6 (`probe.rs:182`). -/
+  /-- I1F (`probe.rs:151`) and D6 (`probe.rs:199`), acquire fences, and V2,
+  the epoch reload after D6 (`probe.rs:200`). -/
   i1f : Ev
   d6 : Ev
   v2 : Ev
@@ -678,13 +712,13 @@ structure Hit {X : Execution Ev Loc} {C : CacheProtocol X} {A : ArenaProtocol X 
   v2_rf : X.rf s2 v2
   v2_loc : X.loc v2 = some C.R.ep
   /-- V2 passed: `age_of(v2, stamp) <= 1`, in wrapping `u32` arithmetic
-  (`probe.rs:182-186`, `util.rs:42-44`). -/
+  (`probe.rs:200-204`, `util.rs:42-44`). -/
   v2_pass : (X.rval v2 % wordLimit + wordLimit - e % wordLimit) % wordLimit ≤ 1
   /-- The record loads between I1F and D6: the header D4, and the payload
   loads D5, the lengths, the key words and the value words
-  (`probe.rs:141-178`), at the offset the
-  entry encodes (`probe.rs:134`), in the slot's arena (one `ArenaView`
-  serves both, `probe.rs:81`, `141`). -/
+  (`probe.rs:159-196`), at the offset the
+  entry encodes (`probe.rs:152`), in the slot's arena (one `ArenaView`
+  serves both, `probe.rs:99`, `159`). -/
   loads : Ev → Prop
   loads_rec : Rv.RecLoads (I.arenaOf slot) (I.entryOff (X.rval i1)) loads
   loads_sb : ∀ Y, loads Y → X.sb i1f Y ∧ X.sb Y d6
@@ -698,23 +732,19 @@ namespace IndexProtocol
 variable {X : Execution Ev Loc} {C : CacheProtocol X} {A : ArenaProtocol X C}
   {Rv : ReserveProtocol X C} (I : IndexProtocol X A Rv)
 
-/-- **HT2, hit integrity.** A hit followed the publication of an attempt
-`w` of the epoch it probed, and every record load of the hit read a store
-of `w`.
+/-- **HT2, the entry.** A hit followed the publication of an attempt `w`
+of the epoch it probed, and its epoch reload V2 returned at most that epoch
+plus one.
 
-Step 1: the entry is a publication (the zero fill's stamp 0 recurs only at
-epoch `2^32`); its epoch has the probe's stamp, is not `2^32` or more
-older (A6, `entry_life`), and is at most V2's (HT1, `recycled_caught`),
-which is less than `2^32` past the probe's (A6, `life`); so it is the
-probe's, and
-V2's `u32` check bounds V2 by that epoch plus one. Step 4: the loads address
-`w`'s record (`record_loads_read`, F11). Steps 2 and 3: each reads `w`'s
-store (`hit_load`: I2 release and I1F acquire, then SP5, QU2(a) and HT1).
-Among index facts it rests on IX1 only. -/
-theorem hit_integrity (hc : X.Consistent) (H : Hit I) :
+The entry is a publication (the zero fill's stamp 0 recurs only at epoch
+`2^32`); its epoch has the probe's stamp, is not `2^32` or more older (A6,
+`entry_life`), and is at most V2's (HT1, `recycled_caught`), which is less
+than `2^32` past the probe's (A6, `life`); so it is the probe's, and V2's
+`u32` check bounds V2 by that epoch plus one. -/
+theorem hit_entry (hc : X.Consistent) (H : Hit I) :
     ∃ i w, C.isAttempt i w ∧ (C.pins i).inAttempt w H.x2 ∧
       (I.isPubCas H.x2 ∨ I.isPubStore H.x2) ∧ C.attEpoch w = H.e ∧
-      ∀ Y, H.loads Y → ∀ z, X.rf z Y → (C.pins i).inAttempt w z := by
+      X.rval H.v2 ≤ H.e + 1 := by
   have ⟨hx2W, _, hlx2, _⟩ := hc.rf_wf H.i1_rf
   have hx2l : X.loc H.x2 = some H.slot := hlx2.trans H.i1_loc
   have hlife := I.entry_life H.v1_rf H.v1_loc (hb_of_sb H.v1_i1) H.i1_rf H.i1_loc H.slot_index
@@ -737,15 +767,39 @@ theorem hit_integrity (hc : X.Consistent) (H : Hit I) :
         H.d6_acq H.d6_v2 H.v2_rf H.v2_loc
     have h₃ := H.life
     have hE : C.attEpoch w = H.e := by unfold wordLimit at *; omega
-    have hpass : X.rval H.v2 ≤ C.attEpoch w + 1 := by
+    have hpass : X.rval H.v2 ≤ H.e + 1 := by
       have := H.v2_pass; unfold wordLimit at *; omega
-    refine ⟨i, w, hw, hx, hxk, hE, ?_⟩
-    have hrec := H.loads_rec
-    rw [(I.pub_slot hxk hw hx hx2l).2, hc.rf_val H.i1_rf] at hrec
-    refine I.record_loads_read hc hxk hw hx hrec fun Y sY l hY hsY hsYW hsYl hYl hr hsb v hv => ?_
-    have ⟨hfY, hYd⟩ := H.loads_sb Y hY
-    exact A.hit_load hc Rv hw (I.pub_rel hxk) H.i1_rf H.i1_i1f H.i1f_acq hfY hYd H.d6_acq
-      H.d6_v2 H.v2_rf H.v2_loc hpass hsY hsYW hsYl hYl (I.record_arena hr) hr hsb hv
+    exact ⟨i, w, hw, hx, hxk, hE, hpass⟩
+
+/-- **HT2, the V2 bound.** A hit's epoch reload V2 returned at most the
+probed epoch plus one. -/
+theorem hit_v2_bound (hc : X.Consistent) (H : Hit I) : X.rval H.v2 ≤ H.e + 1 :=
+  let ⟨_, _, _, _, _, _, h⟩ := I.hit_entry hc H
+  h
+
+/-- **HT2, hit integrity.** A hit followed the publication of an attempt
+`w` of the epoch it probed, and every record load of the hit read a store
+of `w`.
+
+Step 1 is `hit_entry`. Step 4: the loads address `w`'s record
+(`record_loads_read`, F11). Steps 2 and 3: each reads `w`'s store
+(`hit_load`: I2 release and I1F acquire, then SP5, QU2(a) and HT1).
+Among index facts it rests on IX1 only. -/
+theorem hit_integrity (hc : X.Consistent) (H : Hit I) :
+    ∃ i w, C.isAttempt i w ∧ (C.pins i).inAttempt w H.x2 ∧
+      (I.isPubCas H.x2 ∨ I.isPubStore H.x2) ∧ C.attEpoch w = H.e ∧
+      ∀ Y, H.loads Y → ∀ z, X.rf z Y → (C.pins i).inAttempt w z := by
+  obtain ⟨i, w, hw, hx, hxk, hE, hv2⟩ := I.hit_entry hc H
+  have ⟨_, _, hlx2, _⟩ := hc.rf_wf H.i1_rf
+  have hx2l : X.loc H.x2 = some H.slot := hlx2.trans H.i1_loc
+  have hpass : X.rval H.v2 ≤ C.attEpoch w + 1 := by rw [hE]; exact hv2
+  refine ⟨i, w, hw, hx, hxk, hE, ?_⟩
+  have hrec := H.loads_rec
+  rw [(I.pub_slot hxk hw hx hx2l).2, hc.rf_val H.i1_rf] at hrec
+  refine I.record_loads_read hc hxk hw hx hrec fun Y sY l hY hsY hsYW hsYl hYl hr hsb v hv => ?_
+  have ⟨hfY, hYd⟩ := H.loads_sb Y hY
+  exact A.hit_load hc Rv hw (I.pub_rel hxk) H.i1_rf H.i1_i1f H.i1f_acq hfY hYd H.d6_acq
+    H.d6_v2 H.v2_rf H.v2_loc hpass hsY hsYW hsYl hYl (I.record_arena hr) hr hsb hv
 
 end IndexProtocol
 end Execution

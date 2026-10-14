@@ -290,7 +290,8 @@ theorem acq_facts : ∀ a : E, isAcqCasP a →
   intro a; cases a <;> decide
 
 /-- Only `A1`, which reads the initialisation, is an acquire: the takeover
-`T` reads `A1` and is release-only, like O3 in the code (`rotation.rs`). -/
+`T` reads `A1` and is release-only, like O3 in the code
+(`rotation.rs:333-335`, `acquire_rotation()`). -/
 theorem acq_of_noncas : ∀ a w : E, isAcqCasP a → rfP w a → ¬ isAcqCasP w → acqB a = true := by
   intro a w; cases a <;> cases w <;> decide
 
