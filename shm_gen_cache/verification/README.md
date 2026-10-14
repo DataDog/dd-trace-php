@@ -110,10 +110,16 @@ In detail:
 * Test hooks: the `GetPid` methods `reservation_epoch_hook` (after W1 in
   `reserve()`), `reservation_retry_hook` (before abandoning a reservation
   attempt to rotate and retry), `after_epoch_publication` (in `rotate()`
-  right after R5, before ownership is released) and
-  `after_record_publication` (in `store()` after W6, before the unpin, W7).
-  They are called only under feature `verify`, default to empty inline
-  functions, and only the liveness policy of the test that needs one
+  right after R5, before ownership is released),
+  `after_record_publication` (in `store()` after W6, before the unpin, W7)
+  and `promotion_hook` (in `lookup()` once it has decided to promote a
+  previous-generation hit, before the promotion's `store()`; it says
+  whether the readiness certificate loaded before the probe allowed the
+  promotion, or the sampled recheck and the fresh probe after it did, which
+  no public result tells apart). The `verify` build also keeps that
+  decision in a local for the hook; no shared-memory access is added or
+  moved. They are called only under feature `verify`, default to empty
+  inline functions, and only the liveness policy of the test that needs one
   overrides it; every other test and every ordinary build is unaffected.
   Their per-test semantics must be explained atop the test that uses them.
 
@@ -312,10 +318,10 @@ it has decoders that perform exactly the loads they name and no more:
 * `distinct_bucket_hashes::<N>(bucket_count)`: `N` hashes with pairwise
   distinct home buckets (const fn).
 * `rotate`, `acquire_rotation`, `probe`: the real internal operations, for
-  staging states. `rotate` first does what `reserve()` does before every
-  production rotation, an acquire load of the epoch (W1, which must return
-  the epoch it is asked to rotate from) and a `SeqCst` fence (W3): the
-  rotation's pin scan relies on the caller's fence.
+  staging states.
+* `promotion_ready_epoch(cache, i, order)`: one load of arena `i`'s
+  promotion-readiness word (the last epoch certified as a promotion
+  source).
 * `stage_interrupted_reap(cache, slot, pid, start, crash)`: the state a slot
   reaper leaves when it dies at `crash` (a `ReapCrash`) in its steal of a
   dead claim, which no thread can be stopped at.
@@ -391,33 +397,33 @@ and blocked waiters poll too.
 | same_key_collision | 2160 / 1500 |
 | concurrent_read_write | 60 / 76 |
 | promotion_races_insertion | 21 / 12 |
-| full_table_insert_retries | 300 / 248 |
-| promotion_keeps_newer_insert | 19 / 0 |
-| promotion_keeps_newer_stale_epoch_insert | 1025 / 518 |
-| competing_rotations | 16904 / 0 |
-| recycled_arena_visibility | 3 / 0 |
-| lookup_during_reuse | 124 / 28 |
+| full_table_insert_retries | 216 / 182 |
+| promotion_keeps_newer_insert | 40 / 0 |
+| promotion_keeps_newer_stale_epoch_insert | 2036 / 1106 |
+| competing_rotations | 13768 / 0 |
+| recycled_arena_visibility | 4 / 0 |
+| lookup_during_reuse | 582 / 67 |
 | internal_probe_copy_during_reuse | 20 / 0 |
-| public_lookup_capacity_during_reuse | 11 / 2 |
-| published_insert_skips_busy_rotation | 24 / 784 |
-| reserved_insert_survives_occupancy | 144 / 288 |
+| public_lookup_capacity_during_reuse | 13 / 2 |
+| published_insert_skips_busy_rotation | 16 / 552 |
+| reserved_insert_survives_occupancy | 96 / 210 |
 | reserved_insert_blocks_reuse | 13 / 0 |
 | reaping_preserves_live_reservation | 13 / 0 |
-| chunked_insert_blocks_reuse | 96376 / 35332 |
-| chunk_claim_clipped_at_capacity | 6088 / 0 |
-| rotation_reaping_races_registration | 12352 / 4484 |
-| competing_dead_rotation_takeovers | 96056 / 0 |
+| chunked_insert_blocks_reuse | 29724 / 20530 |
+| chunk_claim_clipped_at_capacity | 5648 / 0 |
+| rotation_reaping_races_registration | 8800 / 3254 |
+| competing_dead_rotation_takeovers | 72292 / 0 |
 | competing_registrars_preserve_winner | 80 / 0 |
-| dead_owner_epoch_publication_preserves_reservation | 24 / 984 |
+| dead_owner_epoch_publication_preserves_reservation | 20 / 828 |
 | dead_rotation_owner_reaping_races_takeover | 43 / 0 |
-| live_rotation_owner_identity_handoff | 51552 / 0 |
-| owner_slot_reaping_preserves_epoch_publication | 5472 / 0 |
-| slot_reaping_imports_dead_writer_records | 97 / 12 |
+| live_rotation_owner_identity_handoff | 42000 / 0 |
+| owner_slot_reaping_preserves_epoch_publication | 4592 / 0 |
+| slot_reaping_imports_dead_writer_records | 49 / 11 |
 | slot_reaping_resets_reservation_chunk | 1 / 0 |
 | reaper_dies_mid_reap | 1 / 0 |
 | rotation_owner_reaper_dies_mid_reap | 9 / 0 |
 | competing_reapers_of_dead_owner_slot | 312 / 0 |
-| owner_wait_misses_reacquired_release | 303920 / 4604 |
+| owner_wait_misses_reacquired_release | 112864 / 3594 |
 | reaping_wakes_blocked_rotation | 79 / 31 |
 | reaping_dead_reaper_wakes_blocked_rotation | 79 / 31 |
 | reaping_dead_registered_reaper_wakes_blocked_rotation | 79 / 31 |

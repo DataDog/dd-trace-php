@@ -11,17 +11,23 @@ use crate::config::Params;
 use crate::error::Error;
 use crate::occupancy::OccupancyMode;
 use crate::participant::ParticipantSlot;
+#[cfg(feature = "verify")]
+use crate::pid::GetPid;
 
 impl<P: Params> Cache<'_, P> {
     /// Looks `key` up, copying a hit's value into `output` and returning its
     /// length; `Ok(None)` is a miss. A hit in the previous generation is
-    /// promoted only after its generation's writers have finished, unless
-    /// the epoch moved on or the current arena has no room; see store().
-    /// Readiness scans never wait or reap. A promotion never rotates before
-    /// it publishes, but can trigger normal maintenance afterwards. Its
-    /// only error is [`Error::Corrupt`], returned although `output` already
-    /// holds the value. So is a hit longer than the configured maximum
-    /// value, which no conforming writer produces.
+    /// promoted only if that generation is certified as finished: by the
+    /// certificate read before the probe, or by a sampled recheck followed
+    /// by a fresh probe, whose result replaces the hit (and can be a miss,
+    /// a retry or [`Error::InsufficientCapacity`]). Otherwise the hit is
+    /// returned unpromoted; no promotion is deferred. A promotion is also
+    /// dropped if the epoch moved on or the current arena has no room; see
+    /// store(). Readiness checks never wait or reap. A promotion never
+    /// rotates before it publishes, but can trigger normal maintenance
+    /// afterwards. Its only error is [`Error::Corrupt`], returned although
+    /// `output` already holds the value. So is a hit longer than the
+    /// configured maximum value, which no conforming writer produces.
     ///
     /// `output` holds `output_words` words, of which the first
     /// `output_capacity` bytes are the logical capacity; whole words are
@@ -113,6 +119,8 @@ impl<P: Params> Cache<'_, P> {
                 Err(ProbeError::Miss) => return Ok(None),
             };
             let mut promote = hit.promotion_ready;
+            #[cfg(feature = "verify")]
+            let via_certificate = promote;
             if not_in_cur_arena && !promote {
                 // A scan that certifies the source only orders later reads.
                 // The helper copies it again before we may promote it.
@@ -147,6 +155,8 @@ impl<P: Params> Cache<'_, P> {
                 return Err(Error::Corrupt);
             }
             if promote {
+                #[cfg(feature = "verify")]
+                <P::Pid as GetPid>::promotion_hook(slot, via_certificate);
                 // Promotion may rotate/reuse the source arena. Use only the
                 // caller's key and the validated copy, never shared record
                 // bytes. Retain its padded word representation so the final

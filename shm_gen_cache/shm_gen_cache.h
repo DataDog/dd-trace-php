@@ -278,8 +278,13 @@ void ddog_sgc_participant_unregister(struct ddog_sgc_Participant *participant);
  * `key_len == 0`.
  * `out_words` contents are unspecified unless `OK`; `*value_len` is written
  * only on `OK`. A hit in the previous generation is promoted (inserted into
- * the current one, unless that would need a rotation first); the only
- * promotion error, returned instead of `OK`, is `CORRUPT`.
+ * the current one) only once that generation is certified ready: by the
+ * certificate of the rotation that sealed it, or by a sampled nonblocking
+ * recheck followed by a fresh probe, whose result (possibly `MISS` or
+ * `INSUFFICIENT_CAPACITY`) replaces the hit. Otherwise the hit is returned
+ * without being promoted. A promotion is also skipped if the generation
+ * moved on or it would need a rotation first. Readiness checks never wait;
+ * the only promotion error, returned instead of `OK`, is `CORRUPT`.
  *
  * # Safety
  * `participant` must be a live handle used on its registering thread;

@@ -41,7 +41,7 @@
 //!
 //! # Witnesses
 //!
-//! * `STALE_HIT_NOT_PROMOTED`: L saw V1, and its promotion found the current
+//! * `PROMOTION_DROPPED_ARENA_FULL`: L saw V1, and its promotion found the current
 //!   arena full (`reservation_retry_hook`, called only for L's slot). The
 //!   hook adds no synchronisation: L's slot address is written before the
 //!   spawns, and the flag only by L and read by main after the joins.
@@ -147,7 +147,7 @@ extern "C" fn main() -> i32 {
     check!(last == Outcome::V2, "the newer insert reads back");
 
     witness!(
-        "STALE_HIT_NOT_PROMOTED",
+        "PROMOTION_DROPPED_ARENA_FULL",
         observed == Outcome::V1 && promotion_found_full
     );
     witness!(

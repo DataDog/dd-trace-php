@@ -272,10 +272,12 @@ impl<P: Params> Cache<'_, P> {
             slot.pinned_epoch.store(e, Release); // W2: pin
 
             // W3. It does two things (docs/invariants.html, PN3, HT1):
-            // 1. It is the store-buffering partner of the W3 that precedes
-            //    the pin scan (R3) of the rotation that reuses this arena, so
-            //    the scan sees this pin even for a write into an existing
-            //    chunk, which makes no RMW on the control word.
+            // 1. It is the store-buffering partner of the post-seal fence
+            //    (R1F) that precedes the pin scans (R3) of the rotation that
+            //    seals this arena (readiness) and of the one that reuses it,
+            //    and of a readiness recheck's fence (C2), so those scans see
+            //    this pin even for a write into an existing chunk, which
+            //    makes no RMW on the control word.
             // 2. As a release fence, it synchronises with the acquire fence
             //    D6 of a lookup whose loads read this attempt's stores, so
             //    V2 sees this epoch and rejects a copy from a recycled arena.

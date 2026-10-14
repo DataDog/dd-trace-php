@@ -42,7 +42,19 @@
 //!
 //! * `STALE_HIT_NOT_PROMOTED`: L read V1, but after W's successful insert
 //!   the final lookup reads V2;
-//! * `FINAL_V2`: the final lookup reads V2.
+//! * `FINAL_V2`: the final lookup reads V2;
+//! * `PROMOTED_VIA_CERTIFICATE`: L promoted its previous-generation hit
+//!   because the readiness certificate it loaded before probing arena 2
+//!   (C0) already held epoch 2: R's scan saw no pin of epoch 2;
+//! * `PROMOTED_VIA_RECHECK`: L promoted because its sampled readiness
+//!   recheck certified epoch 2 and the fresh probe that followed hit: C0
+//!   did not certify epoch 2 (R's scan saw W pinned to it).
+//!
+//! The last two read which path L took from `promotion_hook`, called only
+//! for L's slot. The hook adds no synchronisation: L's slot address is
+//! written before the spawns, and the path only by L and read by main
+//! after the joins. The table has 8 buckets, so every unready hit samples
+//! a recheck.
 //!
 //! No `assume` is used.
 
@@ -56,12 +68,12 @@ use shm_gen_cache::test_access::{
     RotationPolicy, global_epoch, pinned_epoch, rotate, rotation_owner,
 };
 use shm_gen_cache::{
-    Cache, CacheStorage, Error, NoopGetPid, ParticipantLock, StaticParams, output_buffer,
-    static_config,
+    Cache, CacheStorage, Error, GetPid, NoopGetPid, ParticipantLock, ParticipantSlot, StaticParams,
+    output_buffer, static_config,
 };
 
 static_config! {
-    struct Cfg: NoopGetPid {
+    struct Cfg: LookupHooks {
         participant_capacity: 3,
         bucket_count: 8,
         max_key_size: 1,
@@ -129,6 +141,7 @@ extern "C" fn main() -> i32 {
     let mut p2 = check_ok!(cache.register_participant());
     let p3 = check_ok!(cache.register_participant());
     check_ok!(p1.insert(HASH, KEY, V1));
+    LookupHooks::watch(p2.slot());
     check!(global_epoch(cache).load(Relaxed) == FIRST_EPOCH);
 
     let mut writer = Writer {
@@ -153,6 +166,7 @@ extern "C" fn main() -> i32 {
         tl.join();
     });
     let (inserted, rotated, observed) = (writer.result, rotator.result, reader.observed);
+    let promotion = LookupHooks::reader_promotion();
 
     check!(matches!(
         inserted,
@@ -175,6 +189,11 @@ extern "C" fn main() -> i32 {
         inserted.is_ok() && observed == Outcome::V1 && last == Outcome::V2
     );
     witness!("FINAL_V2", last == Outcome::V2);
+    witness!(
+        "PROMOTED_VIA_CERTIFICATE",
+        promotion == Promotion::Certificate
+    );
+    witness!("PROMOTED_VIA_RECHECK", promotion == Promotion::Recheck);
     0
 }
 
@@ -193,5 +212,67 @@ fn observe(participant: &mut Participant) -> Outcome {
         Outcome::V2
     } else {
         Outcome::Other
+    }
+}
+
+/// How L's lookup came to promote its hit, if it did.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Promotion {
+    None,
+    Certificate,
+    Recheck,
+}
+
+/// `NoopGetPid` plus a promotion hook for L's slot (see the module
+/// documentation).
+#[derive(Clone, Copy, Debug, Default)]
+struct LookupHooks;
+
+/// L's slot; written by main before any spawn, then only read.
+static mut READER_SLOT: *const ParticipantSlot = core::ptr::null();
+/// Written only by L; read by main after joining L.
+static mut READER_PROMOTION: Promotion = Promotion::None;
+
+impl LookupHooks {
+    fn watch(slot: &'static ParticipantSlot) {
+        // SAFETY: no other thread exists yet.
+        unsafe { READER_SLOT = slot };
+    }
+
+    fn reader_promotion() -> Promotion {
+        // SAFETY: L, its only writer, has been joined.
+        unsafe { READER_PROMOTION }
+    }
+
+    fn is_reader(slot: &ParticipantSlot) -> bool {
+        // SAFETY: written before the workers were spawned.
+        core::ptr::eq(slot, unsafe { READER_SLOT })
+    }
+}
+
+impl GetPid for LookupHooks {
+    fn get_pid() -> u32 {
+        NoopGetPid::get_pid()
+    }
+    fn get_start_time() -> u64 {
+        NoopGetPid::get_start_time()
+    }
+    fn is_live(pid: u32) -> Result<bool, Error> {
+        NoopGetPid::is_live(pid)
+    }
+    fn is_live_since(pid: u32, start_time: u64) -> Result<bool, Error> {
+        NoopGetPid::is_live_since(pid, start_time)
+    }
+
+    fn promotion_hook(slot: &ParticipantSlot, via_certificate: bool) {
+        if Self::is_reader(slot) {
+            let promotion = if via_certificate {
+                Promotion::Certificate
+            } else {
+                Promotion::Recheck
+            };
+            // SAFETY: only L reaches this write.
+            unsafe { READER_PROMOTION = promotion };
+        }
     }
 }

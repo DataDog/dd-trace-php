@@ -187,7 +187,7 @@ impl WatchedWord<'_> {
 /// (`MonitoredYielding`). With `sgc_genmc_short_waits`, waits stop after two
 /// calls of stage 1. With `sgc_genmc_futex_model` instead, they have no spin
 /// stage and block at once in a model of the futex without a timeout
-/// ([`futex_model`]).
+/// (`futex_model`).
 pub(crate) struct BoundedWait {
     stages: Strategy,
 }

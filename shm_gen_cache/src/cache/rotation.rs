@@ -56,16 +56,15 @@ impl<'m, P: Params> Cache<'m, P> {
     /// Moves the cache from epoch `e` to `e + 1`, as the participant in slot
     /// `slot_index` (which must be unpinned).
     ///
-    /// Seals the current arena, waits for every writer still pinned to the
-    /// arena about to be reused (or reaps its dead slot), resets that
-    /// arena's control word (and exact counter) and publishes the next
-    /// epoch. [`Error::ConcurrentOperation`] means another rotation moved
-    /// the epoch first. On any error after acquiring ownership the current
+    /// Seals the current arena, fences (R1F), waits for every writer still
+    /// pinned to the arena about to be reused (or reaps its dead slot),
+    /// certifies the just-sealed generation `e` as a promotion source if
+    /// the same scan saw no pin of `e` (R3C; pins of `e` are neither
+    /// awaited nor reaped), resets the reused arena's control word (and
+    /// exact counter) and publishes the next epoch.
+    /// [`Error::ConcurrentOperation`] means another rotation moved the
+    /// epoch first. On any error after acquiring ownership the current
     /// arena stays sealed and a later rotator repeats the scan.
-    ///
-    /// The post-seal fence orders the pin scan (R3) by itself, both for the
-    /// arena about to be reused and to certify promotion readiness for the
-    /// just-sealed generation, without waiting for its writers.
     pub(crate) fn rotate(
         self,
         slot: &ParticipantSlot,
@@ -103,15 +102,16 @@ impl<'m, P: Params> Cache<'m, P> {
                 // A prior tenure sealed it (Z(e)), then died or returned an
                 // error. The ownership handoff, including a takeover through
                 // reap_owner(), makes that seal happen-before this tenure's
-                // R5 despite this relaxed load (docs/invariants.html, OW1,
-                // OW2, EP3).
+                // R1F and R5 despite this relaxed load (docs/invariants.html,
+                // OW1, OW2, EP3).
                 break;
             }
             // R1: seal the current arena, keeping its stamp and bump.
-            // Relaxed: what matters is that the seal happens-before the W3
-            // of the rotator that later reuses this arena, which this
-            // tenure's R5 and the ownership handoffs provide whatever the
-            // seal's own ordering (docs/invariants.html, EP2, EP3).
+            // Relaxed: what matters is that the seal happens-before this
+            // tenure's own R1F (for the readiness scan) and the R1F of the
+            // rotator that later reuses this arena, which program order and
+            // the ownership handoffs provide whatever the seal's own
+            // ordering (docs/invariants.html, EP2, EP3).
             match cur_arena.ctl().compare_exchange(
                 cur_ctl,
                 cur_ctl | CtlWord::SEALED,
@@ -123,9 +123,11 @@ impl<'m, P: Params> Cache<'m, P> {
             }
         }
 
-        // The seal must precede this fence to certify the just-sealed e,
-        // not only the old generation whose storage is being reused. An
-        // accepted e writer's pin or a later value must appear in the scan.
+        // R1F. The seal happens-before it, so it is the store-buffering
+        // partner of every writer's W3 for both scans below: the reuse
+        // scan of the arena about to be reused, and the readiness scan of
+        // the just-sealed e, in which an accepted e writer's pin or a
+        // later value must appear (docs/invariants.html, PN3, QU1, RD1).
         fence(SeqCst);
         let mut promotion_ready = true;
         for i in 0..hp.participant_capacity {
@@ -177,6 +179,8 @@ impl<'m, P: Params> Cache<'m, P> {
                 return Err(error);
             }
         }
+        // R3C: no slot was pinned to e, so every writer of e has finished
+        // (docs/invariants.html, RD1).
         if promotion_ready {
             self.mark_promotion_ready(hp, e);
         }

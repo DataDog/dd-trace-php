@@ -4,9 +4,10 @@
 //! A writer consuming a chunk it already owns (H1) performs no reservation
 //! RMW (B1): only its control-word precheck (B0) and its W3 fence relate
 //! its pin to the seal. The writer's W3 precedes, in the seq_cst order,
-//! the reusing rotator's own W3 in `reserve()`, which comes before its pin
-//! scan (`rotate()` has no fence of its own), so the scan sees the pin
-//! (store buffering; docs/invariants.html, PN3). Two symmetric public
+//! the reusing rotator's post-seal fence (R1F) in `rotate()`, which comes
+//! before its pin scan, so the scan sees the pin (store buffering;
+//! docs/invariants.html, PN3). The rotator's own W3 in `reserve()` would
+//! also do, but is not needed. Two symmetric public
 //! inserters contend for rotation while the writer finishes its record in
 //! the original arena.
 //!

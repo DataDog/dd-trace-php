@@ -1,5 +1,5 @@
-//! One arena: control word, optional exact occupancy
-//! counter, open-addressing index and bump-allocated record area.
+//! One arena: control word, promotion-readiness word, optional exact
+//! occupancy counter, open-addressing index and bump-allocated record area.
 //!
 //! ```text
 //! +0                    control line: ctl word (epoch:32 | sealed:1 | bump:31)

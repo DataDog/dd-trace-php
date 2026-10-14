@@ -16,12 +16,14 @@
 //!
 //! One mapping holds a header, `participant_capacity` participant slots and
 //! three arenas. `global_epoch % 3` selects the current arena; lookups probe
-//! it and then the previous generation, promoting hits found there. Inserts
-//! pin their participant to the epoch, reserve record bytes (from a private
-//! chunk or with one shared `fetch_add`), write the record, publish an index
-//! entry and unpin. A rotation seals the current arena, waits for writers
-//! pinned to the arena about to be reused (or reaps their dead slots), resets
-//! that arena's control word and publishes the next epoch. Arena reuse does
+//! it and then the previous generation, promoting hits found there once
+//! that generation is certified as finished. Inserts pin their participant
+//! to the epoch, reserve record bytes (from a private chunk or with one
+//! shared `fetch_add`), write the record, publish an index entry and unpin.
+//! A rotation seals the current arena, waits for writers pinned to the arena
+//! about to be reused (or reaps their dead slots), certifies the sealed
+//! generation if none of its writers is still pinned, resets the reused
+//! arena's control word and publishes the next epoch. Arena reuse does
 //! not clear the index or the records: stale ones are rejected by their
 //! 32-bit epoch stamps.
 //!
@@ -30,7 +32,7 @@
 //!
 //! Build variants, see `verification/README.md`:
 //! * feature `verify`: verification build: production assertions off, test
-//!   hooks and [`test_access`] enabled. Never enable it in production
+//!   hooks and `test_access` enabled. Never enable it in production
 //!   artifacts;
 //! * `--cfg sgc_genmc`: bitcode for GenMC (requires feature `verify`);
 //! * `--cfg sgc_genmc_short_waits`: shortens the bounded rotation waits to
