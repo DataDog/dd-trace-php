@@ -49,6 +49,7 @@
 #endif
 #include "distributed_tracing_headers.h"
 #include "engine_hooks.h"
+#include "data_streams.h"
 #include "ffe.h"
 #include "handlers_internal.h"
 #include "inferred_proxy_headers.h"
@@ -580,6 +581,7 @@ static void dd_clean_globals(void) {
     }
 
     ddtrace_internal_handlers_rshutdown();
+    ddtrace_dsm_rshutdown();
 #ifndef _WIN32
     ddtrace_dogstatsd_client_rshutdown();
 #endif

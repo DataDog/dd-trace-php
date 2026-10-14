@@ -132,6 +132,40 @@ void ddog_add_zstr_span_meta_struct_CharSlice(ddog_SpanBytes *ptr,
                                               struct _zend_string *key,
                                               ddog_CharSlice val);
 
+/**
+ * Drop cached tables so the next point for each key goes through IPC.
+ */
+void ddog_dsm_tables_clear(void);
+
+/**
+ * Forget the request's pathway. Called at request shutdown.
+ */
+void ddog_dsm_reset_pathway(void);
+
+/**
+ * Set a checkpoint on the request's pathway and record its stats point.
+ *
+ * `edge_tags` are `key:value` strings, at most `MAX_EDGE_TAGS` of which are kept; their order
+ * does not matter. `carrier` is the `dd-pathway-ctx-base64` value the message arrived with, or
+ * empty. The context to hand on with the message is written to `out` as base64, and its length
+ * returned; `out` must hold `DSM_CONTEXT_MAX_LEN` bytes.
+ *
+ * The stats point is only recorded once the agent has said it accepts DSM stats; the pathway
+ * is tracked, and the context returned, either way.
+ *
+ * # Safety
+ * `transport` must be null or point to an exclusively borrowed `SidecarTransport`.
+ * `edge_tags` must point to `edge_tag_count` valid slices, and `out` to `out_cap` bytes.
+ */
+uintptr_t ddog_dsm_set_checkpoint(struct ddog_SidecarTransport *transport,
+                                  const struct ddog_DsmIdentity *identity,
+                                  const ddog_CharSlice *edge_tags,
+                                  uintptr_t edge_tag_count,
+                                  ddog_CharSlice carrier,
+                                  int64_t payload_size_bytes,
+                                  uint8_t *out,
+                                  uintptr_t out_cap);
+
 bool ddog_ffe_load_config(ddog_CharSlice json);
 
 bool ddog_ffe_has_config(void);

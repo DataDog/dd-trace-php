@@ -16,6 +16,7 @@ use std::ffi::c_char;
 use std::ffi::CString;
 
 fn info_to_concentrator_config(info: &AgentInfoStruct) {
+    crate::data_streams::apply_agent_endpoints(info.endpoints.as_deref());
     apply_concentrator_config(
         info.peer_tags.as_deref().unwrap_or(&[]).to_owned(),
         info.span_kinds_stats_computed

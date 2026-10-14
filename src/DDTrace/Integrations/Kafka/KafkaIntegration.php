@@ -13,6 +13,9 @@ class KafkaIntegration extends Integration
 {
     const NAME = 'kafka';
 
+    // Header carrying the Data Streams Monitoring pathway context.
+    const DSM_CONTEXT_HEADER = 'dd-pathway-ctx-base64';
+
     const METADATA_MAPPING = [
         'metadata.broker.list' => Tag::KAFKA_HOST_LIST,
         'group.id' => Tag::KAFKA_GROUP_ID,
@@ -54,8 +57,23 @@ class KafkaIntegration extends Integration
         $conf = ObjectKVStore::get($producerTopic, 'conf');
         self::addProducerSpanMetadata($span, $conf, $hook->args);
 
-        if (\ddtrace_config_distributed_tracing_enabled()) {
+        $headers = [];
+        $inject = \ddtrace_config_distributed_tracing_enabled();
+        if ($inject) {
             $headers = \DDTrace\generate_distributed_tracing_headers();
+        }
+        if (\dd_trace_env_config('DD_DATA_STREAMS_ENABLED')) {
+            $context = \DDTrace\Internal\dsm_set_checkpoint([
+                'direction:out',
+                'topic:' . $producerTopic->getName(),
+                'type:kafka',
+            ]);
+            if ($context !== null) {
+                $headers[self::DSM_CONTEXT_HEADER] = $context;
+                $inject = true;
+            }
+        }
+        if ($inject) {
             $hook->args = self::injectHeadersIntoArgs($hook->args, $headers);
             $hook->overrideArguments($hook->args);
         }
@@ -139,6 +157,10 @@ class KafkaIntegration extends Integration
 
                     $hook->data['span'] = $span;
                     KafkaIntegration::setupKafkaConsumeSpan($hook, $hook->instance);
+                    if ($message && $message->err === RD_KAFKA_RESP_ERR_NO_ERROR
+                            && \dd_trace_env_config('DD_DATA_STREAMS_ENABLED')) {
+                        KafkaIntegration::setDataStreamsConsumeCheckpoint($message, $hook->instance);
+                    }
                     \DDTrace\collect_code_origins(1);
                     \DDTrace\close_span();
                 }
@@ -153,6 +175,19 @@ class KafkaIntegration extends Integration
 
         $conf = ObjectKVStore::get($consumer, 'conf');
         self::addMetadataToSpan($span, $conf);
+    }
+
+    public static function setDataStreamsConsumeCheckpoint(\RdKafka\Message $message, $consumer)
+    {
+        $edgeTags = ['direction:in'];
+        $conf = ObjectKVStore::get($consumer, 'conf');
+        if (isset($conf['group.id'])) {
+            $edgeTags[] = 'group:' . $conf['group.id'];
+        }
+        $edgeTags[] = 'topic:' . $message->topic_name;
+        $edgeTags[] = 'type:kafka';
+
+        \DDTrace\Internal\dsm_set_checkpoint($edgeTags, $message->headers[self::DSM_CONTEXT_HEADER] ?? null);
     }
 
     private static function addMetadataToSpan($span, $conf)
