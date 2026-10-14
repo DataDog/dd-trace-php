@@ -1718,7 +1718,12 @@ $system_tests_weblogs = [
   image: registry.ddbuild.io/images/mirror/amazon/aws-cli:2.17.32
   tags: [ "arch:amd64" ]
   rules:
-    - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "schedule"
+    # Builds against an unpinned libdatadog share the version of the pinned build of this commit:
+    # publishing them would overwrite the packages the system-tests nightly downloads.
+    - if: $SCHEDULED_LIBDATADOG_LATEST == "true"
+      when: never
+    # CI_PIPELINE_SOURCE is always "parent_pipeline" in this child pipeline.
+    - if: $CI_COMMIT_REF_NAME == "master" && $CI_PARENT_PIPELINE_SOURCE != "schedule"
       when: on_success
     - when: manual
       allow_failure: true
