@@ -292,10 +292,33 @@ ddog_MaybeError ddog_sidecar_send_debugger_datum(struct ddog_SidecarTransport **
                                                  struct ddog_DebuggerPayload *payload);
 
 /**
- * Send structured FFE exposure events to the sidecar. The sidecar owns
- * deduplication, JSON serialization, and Agent EVP delivery. This function is
- * caller-driven; shared libdatadog evaluator calls do not log unless an SDK
- * explicitly sends this action.
+ * Configure one shared EVP intake target in this connection's sidecar session.
+ * `AgentOnly` preserves the historical fixed EVP v2 route.
+ * `PreferLocalThenDirect` explicitly opts the client into local discovery and
+ * authenticated direct fallback.
+ *
+ * Call after setting the connection configuration. Other intake targets are
+ * unaffected. Identical configuration preserves routing and deduplication
+ * state; changed configuration replaces this target's transport. The client
+ * retains the latest configuration per target across sidecar reconnects and
+ * forks. Each new connection or forked instance starts with fresh route state.
+ *
+ * # Safety
+ * `direct_endpoint` must be null or point to a valid `Endpoint`, and all
+ * string slices must remain valid for the duration of this call.
+ */
+ddog_MaybeError ddog_sidecar_session_set_evp_transport(struct ddog_SidecarTransport **transport,
+                                                       enum ddog_EvpTransportMode mode,
+                                                       const struct ddog_Endpoint *agent_endpoint,
+                                                       const struct ddog_Endpoint *direct_endpoint,
+                                                       ddog_CharSlice intake_subdomain,
+                                                       const struct ddog_EvpProducerIdentity *producer);
+
+/**
+ * Send structured Feature Flags exposure events to the sidecar. The sidecar owns
+ * route selection, deduplication, JSON serialization, and EVP delivery. This
+ * function is caller-driven; shared libdatadog evaluator calls do not log unless
+ * an SDK explicitly sends this action.
  *
  * # Safety
  * `context` and every element in `exposures` must contain valid UTF-8
@@ -306,9 +329,10 @@ ddog_MaybeError ddog_sidecar_send_ffe_exposure_batch(struct ddog_SidecarTranspor
                                                      struct ddog_Slice_FfeExposure exposures);
 
 /**
- * Send structured FFE flag evaluation events to the sidecar. The sidecar owns
- * JSON serialization and Agent EVP delivery. This function is caller-driven;
- * callers must aggregate and bound event cardinality before passing a batch.
+ * Send structured Feature Flags evaluation events to the sidecar. The sidecar owns
+ * route selection, JSON serialization, and EVP delivery. This function is
+ * caller-driven; callers must aggregate and bound event cardinality before passing
+ * a batch.
  *
  * # Safety
  * All slices must reference valid memory under the CharSlice contract. Context
@@ -322,7 +346,7 @@ ddog_MaybeError ddog_sidecar_send_ffe_flag_evaluation_batch(struct ddog_SidecarT
                                                             struct ddog_Slice_FfeFlagEvaluation flag_evaluations);
 
 /**
- * Send structured FFE evaluation metric events to the sidecar. The sidecar
+ * Send structured Feature Flags evaluation metric events to the sidecar. The sidecar
  * owns aggregation, OTLP/protobuf serialization, and OTLP HTTP delivery. This
  * function is caller-driven so SDKs with existing host-language hooks can
  * safely coexist until they explicitly migrate.

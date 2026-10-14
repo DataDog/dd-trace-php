@@ -23,7 +23,7 @@ static bool dd_load_kafka_integration(void) {
     return dd_ext_kafka_loaded &&
            get_DD_TRACE_ENABLED() &&
            get_DD_TRACE_KAFKA_ENABLED() &&
-           get_DD_DISTRIBUTED_TRACING() &&
+           (get_DD_DISTRIBUTED_TRACING() || get_DD_DATA_STREAMS_ENABLED()) &&
            rdkafka_version_supported();
 }
 

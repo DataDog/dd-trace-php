@@ -320,6 +320,10 @@ const ddog_Vec_Tag *datadog_process_tags_get_vec(void) {
     return &empty_vec;
 }
 
+zend_string *datadog_process_tags_get_container_tags_hash(void) {
+    return datadog_process_tags_enabled() ? atomic_load(&process_tags.container_tags_hash) : NULL;
+}
+
 zend_string *datadog_process_tags_get_base_hash(void) {
     return (datadog_process_tags_enabled() && process_tags.base_hash) ? process_tags.base_hash : NULL;
 }

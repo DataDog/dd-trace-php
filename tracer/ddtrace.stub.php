@@ -1093,6 +1093,20 @@ namespace DDTrace\Internal {
      */
     function flush_ffe_evaluation_metrics(): bool {}
 
+    /**
+     * Set a Data Streams Monitoring checkpoint, for an integration to call where a message
+     * enters or leaves the service.
+     *
+     * @internal
+     *
+     * @param string[] $edgeTags "key:value" tags of the edge, e.g. "direction:out", "topic:orders",
+     *                           "type:kafka"
+     * @param string|null $context the "dd-pathway-ctx-base64" value the message arrived with
+     * @return string|null the "dd-pathway-ctx-base64" value to send on with the message, or null
+     *                     if Data Streams Monitoring is disabled
+     */
+    function dsm_set_checkpoint(array $edgeTags, ?string $context = null): ?string {}
+
 }
 
 namespace datadog\appsec\v2 {
