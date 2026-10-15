@@ -85,30 +85,33 @@ The framework tests need a `.deb` containing `.so` variants for the PHP
 version(s) used by the test containers. The wordpress test uses PHP 7.0 (API
 20151012).
 
-`build-tracing.sh` produces both `.a` archives and standalone `.so` files. For
-local builds, the standalone `.so` files can be used directly — no separate
-sidecar build or link step needed. See also
-[compile-artifacts.md](compile-artifacts.md) and
-[packaging-oci.md](packaging-oci.md).
+Use self-contained `extensions_*` binaries, not the slim `standalone_*`
+DSOs that require the SSI common-runtime preload. The following amd64
+fixture builds PHP 7.0 NTS only; it is not a complete release bundle. For
+PHP 7.1+, use the combined release recipe in
+[building-locally.md](building-locally.md#for-release--packaging--system-tests-centos-7).
 
-**Step 1 — Compile tracing extension for PHP 7.0 (~49s):**
+**Step 1 — Compile the PHP 7.0 NTS self-contained extension:**
 
 ```bash
 cd ~/repos/dd-trace-php
-git submodule update --init libdatadog
+git submodule update --init --recursive
 
 .claude/ci/dockerh --cache compile-tracing-7.0-gnu \
     --overlayfs --root \
     datadog/dd-trace-ci:php-7.0_centos-7 \
-    -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
-    -e CI_COMMIT_BRANCH=local-build \
-    -- bash -c \
-    'PHP_VERSION=7.0 bash .gitlab/build-tracing.sh'
+    -- bash -c '
+      set -e
+      switch-php 7.0
+      make -s xlang-lto
+      mkdir -p extensions_x86_64
+      cp tmp/release-variants/x86_64/php-7.0/nts/combined/ddtrace.so \
+         extensions_x86_64/ddtrace-20151012.so
+    '
 ```
 
-Produces `.a` archives in `extensions_x86_64/` and standalone `.so` files in
-`standalone_x86_64/`, both in overlayfs volume `dd-ci-compile-tracing-7.0-gnu`.
-Repeat with different `PHP_VERSION` and `--cache` for other versions.
+The output is in overlayfs volume `dd-ci-compile-tracing-7.0-gnu`.
+PHP 7.0 stays tracer-only despite the internal `combined/` output name.
 
 **Step 2 — Package into .deb (~5s):**
 
@@ -118,7 +121,9 @@ Repeat with different `PHP_VERSION` and `--cache` for other versions.
     datadog/dd-trace-ci:php-8.1_centos-7 \
     -v dd-ci-compile-tracing-7.0-gnu:/cache-tracing:ro \
     -- bash -c '
-      cp /cache-tracing/upper/standalone_x86_64/*.so \
+      set -e
+      mkdir -p extensions_x86_64
+      cp /cache-tracing/upper/extensions_x86_64/*.so \
          extensions_x86_64/
       make .deb.x86_64
     '
@@ -242,8 +247,9 @@ tooling/bin/download-artifacts --preset extension-amd64-musl \
   -o /tmp/ci-artifacts-musl
 ```
 
-The combined tarballs are the large files (~900MB gnu, ~700MB musl) whose
-names do NOT contain a PHP API number.
+Use the per-architecture bundles whose names do NOT contain a PHP API
+number (`dd-library-php-<version>-x86_64-linux-{gnu,musl}.tar.gz`). These
+contain all packaged PHP ABIs; per-API tarballs are not a replacement.
 
 **Option B -- From local builds:**
 
@@ -257,10 +263,13 @@ TRIPLET=x86_64-alpine-linux-musl \
   bash tooling/bin/generate-final-artifact.sh "$(cat VERSION)" build/packages .
 ```
 
-The script needs compiled extensions in `extensions_x86_64/`,
-`combined-ddtrace/`, `appsec_x86_64/`, and `src/`. If built via
-`dockerh --overlayfs`, extract from volumes first (see
-[compile-artifacts.md](compile-artifacts.md)).
+Run from the repository root. The script needs self-contained extensions
+in `extensions_x86_64/` (combined tracer+profiling for PHP 7.1+, tracer-only
+for PHP 7.0), `appsec_x86_64/`, `src/`, AppSec rules, and profiling licenses.
+It does not consume `ssi_*` or a separate profiler tree. If built via
+`dockerh --overlayfs`, extract from volumes first. See
+[building-locally.md](building-locally.md#release-package-assembly) for
+the complete input matrix and filenames.
 
 ##### Step 2: Determine the version
 

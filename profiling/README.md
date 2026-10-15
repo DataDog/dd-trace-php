@@ -36,13 +36,27 @@ the process.
 
 ## Compiling
 
-From the repository root, run `phpize`, then select one profiler build:
+Select matching `php`, `phpize`, and `php-config` executables on `PATH`, then
+initialize the submodules with `git submodule update --init --recursive`.
+Run the appropriate Make target from the repository root:
 
-- Standalone `datadog-profiling.so`: `./configure --disable-ddtrace-tracer --enable-ddtrace-profiling`
-- Combined tracer and profiler `ddtrace.so`: `./configure --enable-ddtrace-tracer --enable-ddtrace-profiling`
+| Product | Command | Loadable extension |
+|---------|---------|--------------------|
+| Combined tracer and profiler | `make compile_combined` | `tmp/build_combined/modules/ddtrace.so` |
+| Standalone profiler | `make compile_profiler` | `tmp/build_profiler/modules/datadog-profiling.so` |
 
-Run `make` after configuring. Both modes invoke the root Cargo package and its
-profiler build helper, which is how the profiler adapts to various PHP versions.
+These targets run phpize/configure/Make in isolated source copies. **Do not run
+`phpize`/`configure` directly in the Git checkout root:** configure overwrites
+the tracked Makefile. Manual phpize builds need a separate source/build copy.
+Both modes invoke the root Cargo package and its profiler build helper, which
+is how the profiler adapts to various PHP versions.
+
+The combined product is shipped in release packages. Standalone profiling
+remains supported and is built and tested by CI, but is not shipped. Do not
+load standalone profiling alongside `ddtrace.so`; co-loading is rejected.
+The targets above are development builds, not the Linux release ThinLTO
+recipes; see [release builds](../.claude/ci/building-locally.md#for-release--packaging--system-tests-centos-7).
+
 Standalone profiling defaults on when its module is explicitly loaded; combined
 `ddtrace.so` defaults profiling off and is enabled with `DD_PROFILING_ENABLED=1`.
 A direct `cargo build` does not produce a supported PHP extension artifact.
@@ -72,14 +86,17 @@ engine-dependent behavior are tested inside PHP using the PHPT and
 [correctness tests](tests/correctness).
 
 To inspect a standalone profiler, run
-`/path/to/php -d extension=modules/datadog-profiling.so --ri datadog-profiling`.
-For a combined build, load `modules/ddtrace.so` and inspect `--ri ddtrace`; it
-registers only the `ddtrace` module and Zend extension identities.
+`php -n -d extension=tmp/build_profiler/modules/datadog-profiling.so --ri datadog-profiling`.
+For a combined build, run
+`php -n -d extension=tmp/build_combined/modules/ddtrace.so --ri ddtrace`; it
+registers only the `ddtrace` module and Zend extension identities. `-n` avoids
+automatically loading another installed tracer or profiler from INI files.
 
 The following command will help you run the [PHPT tests](tests/phpt):
 
 ```sh
-/path/to/php /path/to/run-tests.php -d extension=modules/datadog-profiling.so -n profiling/tests/phpt
+php -n /path/to/run-tests.php -n -p "$(command -v php)" \
+  -d extension="$(pwd)/tmp/build_profiler/modules/datadog-profiling.so" profiling/tests/phpt
 ```
 
 For profiler-focused testing of a combined artifact, disable the other runtime
@@ -89,7 +106,8 @@ products while leaving common configuration active:
 DD_TRACE_ENABLED=0 \
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0 \
 DD_REMOTE_CONFIG_ENABLED=0 \
-/path/to/php /path/to/run-tests.php -d extension=modules/ddtrace.so -n profiling/tests/phpt
+php -n /path/to/run-tests.php -n -p "$(command -v php)" \
+  -d extension="$(pwd)/tmp/build_combined/modules/ddtrace.so" profiling/tests/phpt
 ```
 
 The `run-tests.php` version has to match the PHP version used to run the tests.
@@ -97,8 +115,12 @@ The `run-tests.php` version has to match the PHP version used to run the tests.
 ## Benchmarks
 
 The PHP timeline and exception workloads use `sirun` to compare profiling
-disabled, profiling enabled, and profiling with timeline enabled. From the
-repository root:
+disabled, profiling enabled, and profiling with timeline enabled. Their
+definitions load the standalone development artifact, not a combined release
+build. Use PHP configuration that does not auto-load another tracer/profiler.
+Cargo features are fixed at configure time: if `tmp/build_profiler/` already
+exists with different features, remove that generated build directory before
+changing `PROFILER_FEATURES`. From the repository root:
 
 ```sh
 make compile_profiler PROFILER_FEATURES=trigger_time_sample
@@ -114,6 +136,6 @@ The timeline workload needs `trigger_time_sample` to collect samples explicitly.
 #### Can't find the profiler library on macOS
 
 Only the phpize/configure/Make output is a supported loadable extension. A
-standalone build produces `modules/datadog-profiling.so`; a combined build
-produces `modules/ddtrace.so`. Do not load or copy Cargo's intermediate cdylib
-from the target directory.
+standalone Make build produces `tmp/build_profiler/modules/datadog-profiling.so`;
+a combined Make build produces `tmp/build_combined/modules/ddtrace.so`.
+Do not load or copy Cargo's intermediate cdylib from the target directory.
