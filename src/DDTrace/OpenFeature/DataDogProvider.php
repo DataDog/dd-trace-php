@@ -9,6 +9,7 @@ use DDTrace\FeatureFlags\EvaluationErrorCode;
 use DDTrace\FeatureFlags\EvaluationReason;
 use DDTrace\FeatureFlags\EvaluationType;
 use DDTrace\FeatureFlags\Internal\Evaluator;
+use DDTrace\FeatureFlags\Internal\EvaluationTelemetry;
 use DDTrace\FeatureFlags\Internal\Metric\EvaluationMetric;
 use DDTrace\FeatureFlags\Internal\Metric\EvaluationMetricRecorder;
 use DDTrace\FeatureFlags\Internal\NativeEvaluator;
@@ -34,12 +35,20 @@ final class DataDogProvider extends AbstractProvider
     private LoggerInterface $datadogLogger;
     private bool $warnedAboutRuntimeNotReady = false;
     private EvaluationMetricRecorder $metricRecorder;
+    private bool $enableEvaluationTelemetryOptOutParameter;
 
-    public function __construct(?LoggerInterface $logger = null)
-    {
+    /**
+     * When enabled, boolean true in dd_evaluation_telemetry_opt_out suppresses
+     * evaluation metrics and automatic span annotations. Exposures are unchanged.
+     */
+    public function __construct(
+        ?LoggerInterface $logger = null,
+        bool $enableEvaluationTelemetryOptOutParameter = false
+    ) {
         // Native evaluation metrics are disabled here because OpenFeature owns
         // the final provider outcome, including OF-level type mismatch mapping.
-        $this->evaluator = NativeEvaluator::create(false);
+        $this->evaluator = NativeEvaluator::create(false, $enableEvaluationTelemetryOptOutParameter);
+        $this->enableEvaluationTelemetryOptOutParameter = $enableEvaluationTelemetryOptOutParameter;
         $this->datadogLogger = new NonThrowingLogger($logger ?: GlobalLogger::get());
         $this->metricRecorder = EvaluationMetricRecorder::createDefault();
     }
@@ -50,9 +59,10 @@ final class DataDogProvider extends AbstractProvider
     public static function createWithDependencies(
         ?Evaluator $evaluator = null,
         ?LoggerInterface $logger = null,
-        $metricRecorder = null
+        $metricRecorder = null,
+        bool $enableEvaluationTelemetryOptOutParameter = false
     ): self {
-        $provider = new self($logger);
+        $provider = new self($logger, $enableEvaluationTelemetryOptOutParameter);
         if ($evaluator !== null) {
             $provider->evaluator = $evaluator;
         }
@@ -113,12 +123,18 @@ final class DataDogProvider extends AbstractProvider
         ?EvaluationContext $context
     ): ResolutionDetailsInterface {
         $normalizedContext = $this->normalizeContext($context);
+        $recordTelemetry = EvaluationTelemetry::shouldRecord(
+            $this->enableEvaluationTelemetryOptOutParameter,
+            $normalizedContext['attributes'] ?? []
+        );
         $details = $this->evaluate($flagKey, $expectedType, $defaultValue, $normalizedContext);
         $this->warnIfRuntimeNotReady($details);
         // The PHP OpenFeature SDK does not pass ResolutionDetails to finally
         // hooks, so PHP records metrics here after native evaluation has the
         // final provider result.
-        $this->recordEvaluationMetric($flagKey, $details);
+        if ($recordTelemetry) {
+            $this->recordEvaluationMetric($flagKey, $details);
+        }
         // APM span enrichment is recorded inside NativeEvaluator::evaluate()
         // (the shared choke point), so there is nothing to do here.
 

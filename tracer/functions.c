@@ -2084,6 +2084,11 @@ PHP_FUNCTION(dd_trace_internal_fn) {
                 datadog_metric_add_point(Z_STR_P(metric_name), zval_get_double(metric_value), Z_STR_P(tags));
                 RETVAL_TRUE;
             }
+        } else if (params_count == 0 && FUNCTION_NAME_MATCHES("ffe_buffer_counts")) {
+            // Read-only test observation: do not flush queues or expose subject data.
+            array_init(return_value);
+            add_assoc_long(return_value, "evaluation_metrics", (zend_long) DDTRACE_G(ffe_metric_buffer_len));
+            add_assoc_long(return_value, "exposures", (zend_long) DDTRACE_G(ffe_exposure_buffer_len));
         } else if (FUNCTION_NAME_MATCHES("dump_sidecar")) {
             if (!DATADOG_G(sidecar)) {
                 RETURN_FALSE;

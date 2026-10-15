@@ -32,6 +32,30 @@ For more information about configuring and instrumenting **ddtrace**, view the [
 
 The **ddtrace** package provides an [OpenTracing-compatible tracer](https://docs.datadoghq.com/tracing/custom_instrumentation/php/?tab=tracingfunctioncalls#opentracing).
 
+### OpenFeature evaluation telemetry opt-out
+
+The Datadog OpenFeature provider can suppress evaluation telemetry for individual subjects. This option is disabled by default.
+Enable the provider option, then set `dd_evaluation_telemetry_opt_out` to boolean `true` in the evaluation context:
+
+```php
+use DDTrace\OpenFeature\DataDogProvider;
+use OpenFeature\implementation\flags\Attributes;
+use OpenFeature\implementation\flags\EvaluationContext;
+use OpenFeature\OpenFeatureAPI;
+
+$api = OpenFeatureAPI::getInstance();
+$api->setProvider(new DataDogProvider(enableEvaluationTelemetryOptOutParameter: true));
+$context = new EvaluationContext('subject-123', new Attributes([
+    'dd_evaluation_telemetry_opt_out' => true,
+]));
+$value = $api->getClient()->getBooleanValue('checkout-redesign', false, $context);
+```
+
+Only boolean `true` suppresses new evaluation metrics and automatic flag span annotations. Strings such as `"true"` do not suppress telemetry.
+The provider reads the final merged context after OpenFeature `before` hooks.
+Flag results, experiment exposures, custom hooks, unrelated telemetry, and previously queued data remain unchanged.
+This option does not disable experiment participation or exposure logging. The native `DDTrace\FeatureFlags\Client` API remains unchanged.
+
 ## Contributing
 
 Before contributing to this open source project, read our [CONTRIBUTING.md](CONTRIBUTING.md).
