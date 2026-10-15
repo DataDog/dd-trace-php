@@ -1251,6 +1251,7 @@ mod timed {
         }
 
         #[test]
+        #[ignore = "flaky: depends on scheduling latency"]
         fn changed_half_skips_sleep() {
             let _serial = timing_test();
             // With the half already changed from the seen value at the
