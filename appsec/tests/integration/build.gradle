@@ -576,17 +576,6 @@ def buildTracerSsiTask = { String version, String variant ->
                         grep -qx libdatadog_php.so
                     cp "\$TRACER" /tracer-ssi/ddtrace.so
 
-                    # NOTE: libdatadog_php.so now comes prebuilt from buildPortableLibdatadogPhp
-                    # (see that task below), which runs in the php-buildonly-rust image -- a
-                    # PHP-version-independent Rust build environment with no real PHP dev headers.
-                    # components-rs/config_codegen.rs (which preprocesses ext/configuration.h and
-                    # therefore needs real PHP headers via DDTRACE_PHP_INCLUDES) runs unconditionally
-                    # from components-rs/build.rs, so this task is expected to break once
-                    # config_codegen.rs exists in this tree -- needs a deliberate fix (e.g. a
-                    # reference/synthetic PHP header set for preprocessing only, or excluding this
-                    # portable build from needing generated config accessors) rather than just
-                    # exporting DDTRACE_PHP_INCLUDES, since there is no single PHP version's real
-                    # headers to point it at here.
                     cp /portable-rust/libdatadog_php.so \\
                         /tracer-ssi/libdatadog_php.so
 
@@ -1189,8 +1178,9 @@ cd /project
 export CARGO_TARGET_DIR=/helper-rust-build/cargo-target
 '''
 
-def portableLibdatadogPhpFeatureArgs = useHelperRustCoverage ?
-        '--features helper-rust-coverage' : ''
+// The shared runtime is PHP-ABI-independent; profiling is built per PHP SDK.
+def portableLibdatadogPhpFeatureArgs = '--no-default-features --features ' +
+        (useHelperRustCoverage ? 'tracer-runtime,helper-rust-coverage' : 'tracer-runtime')
 // Backtraces need unwind tables panic=abort and only 1.92.0 enables them by default
 // We're not there yet
 // See https://github.com/rust-lang/rust/commit/fe66eaa67acc47525db6f13cf97d54780d87b805
@@ -1201,20 +1191,14 @@ if (useHelperRustCoverage) {
 }
 def portableLibdatadogPhpBuildMode = useHelperRustCoverage ?
         'helper-rust-coverage' : 'default'
-// FIXME(combined-extension merge): this build has no real PHP dev headers (see
-// php-buildonly-rust/Dockerfile), but components-rs/build.rs unconditionally calls
-// config_codegen::build(), which preprocesses ext/configuration.h and needs
-// DDTRACE_PHP_INCLUDES pointing at a real PHP include dir. Needs a deliberate fix,
-// not a quick env var -- there is no single PHP version's headers to use here since
-// this artifact is intentionally built once and shared across all PHP versions.
 def portableLibdatadogPhpCommand = '''
         RUST_TARGET="$(uname -m)-unknown-linux-musl"
         export CARGO_TARGET_DIR=/portable-rust/cargo-target
 
         cd /project
-        RUSTFLAGS='@RUSTFLAGS@' \
+        CARGO_FEATURES='@FEATURE_ARGS@' RUSTFLAGS='@RUSTFLAGS@' \
             SHARED=1 PROFILE=tracer-release host_os=linux-musl \
-            ./compile_rust.sh @FEATURE_ARGS@ \
+            ./compile_rust.sh \
                 --package datadog-php \
                 --package php_sidecar_mockgen \
                 -Z build-std=std,panic_abort \
@@ -1258,7 +1242,6 @@ def buildPortableLibdatadogPhp = buildRunInDockerTask(
                         '../../../compile_rust.sh',
                         '../../../rust-toolchain.toml',
                         '../../../VERSION',
-                        '../../../profiling/build.rs',
                         '../../recommended.json',
                 ],
         ],
@@ -1283,6 +1266,7 @@ def buildPortableLibdatadogPhp = buildRunInDockerTask(
 )
 buildPortableLibdatadogPhp.configure {
     inputs.property 'useHelperRustCoverage', useHelperRustCoverage
+    inputs.property 'cargoFeatures', portableLibdatadogPhpFeatureArgs
 }
 
 buildRunInDockerTask(

@@ -1,3 +1,4 @@
+#[cfg(feature = "profiling")]
 #[path = "../profiling/build.rs"]
 mod profiling_build;
 
@@ -58,7 +59,6 @@ fn main() {
         println!("cargo:rustc-cdylib-link-arg=-Wl,-soname,libdatadog_php.so");
     }
 
-    if std::env::var_os("CARGO_FEATURE_PROFILING").is_some() {
-        profiling_build::build();
-    }
+    #[cfg(feature = "profiling")]
+    profiling_build::build();
 }
