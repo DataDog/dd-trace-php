@@ -391,8 +391,13 @@ void ddtrace_mshutdown() {
 
     ddtrace_integrations_mshutdown();
 
+    ddog_SidecarFlushOptions flush_options = {
+        .traces_and_stats = true, .telemetry = true, .flag_evaluations = true
+    };
 #ifndef _WIN32
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+        flush_options.traces_and_stats = false;
+        flush_options.telemetry = false;
         ddtrace_coms_mshutdown();
         if (ddtrace_coms_flush_shutdown_writer_synchronous()) {
             ddtrace_coms_curl_shutdown();
@@ -400,13 +405,10 @@ void ddtrace_mshutdown() {
              * it is safe to free the cached proxy env strings for ASan. */
             ddtrace_coms_mshutdown_proxy_env();
         }
-    } else /* ! part of the if outside the ifdef */
+    }
 #endif
     if (get_global_DD_TRACE_FORCE_FLUSH_ON_SHUTDOWN() && DATADOG_G(sidecar)) {
-        ddog_sidecar_flush(&DATADOG_G(sidecar), (ddog_SidecarFlushOptions){.traces_and_stats = true, .telemetry = true});
-    }
-    if (get_global_DD_TRACE_FORCE_FLUSH_ON_SHUTDOWN()) {
-        ddtrace_ffe_flush_flag_evaluations();
+        ddog_sidecar_flush(&DATADOG_G(sidecar), flush_options);
     }
 
     ddtrace_telemetry_flush_bgs_metrics_final();

@@ -2128,20 +2128,21 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             }
         } else if (FUNCTION_NAME_MATCHES("synchronous_flush")) {
             uint32_t timeout = 1000;
+            ddog_SidecarFlushOptions flush_options = {.traces_and_stats = true, .flag_evaluations = true};
             if (params_count == 1) {
                 timeout = Z_LVAL_P(ZVAL_VARARG_PARAM(params, 0));
             }
 #ifndef _WIN32
             if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+                flush_options.traces_and_stats = false;
                 if (dd_rinit_once_done) {
                     ddtrace_coms_synchronous_flush(timeout);
                 }
-            } else
+            }
 #endif
             if (DATADOG_G(sidecar)) {
-                datadog_ffi_try("Failed synchronously flushing traces", ddog_sidecar_flush(&DATADOG_G(sidecar), (ddog_SidecarFlushOptions){.traces_and_stats = true}));
+                datadog_ffi_try("Failed synchronously flushing traces and flag evaluations", ddog_sidecar_flush(&DATADOG_G(sidecar), flush_options));
             }
-            ddtrace_ffe_flush_flag_evaluations();
             RETVAL_TRUE;
 #ifndef _WIN32
         } else if (FUNCTION_NAME_MATCHES("init_and_start_writer")) {
@@ -2344,17 +2345,20 @@ PHP_FUNCTION(dd_trace_synchronous_flush) {
         RETURN_NULL();
     }
 
+    // FFE's coalescer is shared: evaluations may have come from another PHP
+    // thread even when this thread has never submitted one.
+    ddog_SidecarFlushOptions flush_options = {.traces_and_stats = true, .flag_evaluations = true};
 #ifndef _WIN32
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+        flush_options.traces_and_stats = false;
         if (dd_rinit_once_done) {
             ddtrace_coms_synchronous_flush(timeout);
         }
-    } else
+    }
 #endif
     if (DATADOG_G(sidecar)) {
-        datadog_ffi_try("Failed synchronously flushing traces", ddog_sidecar_flush(&DATADOG_G(sidecar), (ddog_SidecarFlushOptions){.traces_and_stats = true}));
+        datadog_ffi_try("Failed synchronously flushing traces and flag evaluations", ddog_sidecar_flush(&DATADOG_G(sidecar), flush_options));
     }
-    ddtrace_ffe_flush_flag_evaluations();
     RETURN_NULL();
 }
 

@@ -8,7 +8,7 @@ foreach (array('false', 'true') as $sidecarTraceSender) {
         $listener = stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
         if (!$listener) throw new RuntimeException($error);
         putenv('DD_TRACE_AGENT_URL=http://' . stream_socket_get_name($listener, false));
-        $process = ffeTestProcess(__DIR__ . '/flag_evaluation_flush_app.php', $pipes);
+        $process = ffeTestProcess($flushApp ?? __DIR__ . '/flag_evaluation_flush_app.php', $pipes);
         $stdout = $stderr = '';
         $exitCode = null;
         $exitedAt = null;

@@ -108,23 +108,10 @@ bool ddtrace_ffe_record_flag_evaluation(zend_string *flag_key, zend_string *vari
         }
     }
     if (status == DDOG_FFE_SUBMISSION_STATUS_ACCEPTED) {
-        DDTRACE_G(ffe_evaluations_pending_flush) = true;
         return true;
     }
     ddtrace_telemetry_count_ffe_rejection(status);
     return false;
-}
-
-void ddtrace_ffe_flush_flag_evaluations(void) {
-    if (!DDTRACE_G(ffe_evaluations_pending_flush) || !DATADOG_G(sidecar)) {
-        return;
-    }
-    // No extra flush IPC for applications that have not submitted evaluations.
-    // The sidecar may already have sent them on its timer; this also waits for
-    // any in-flight send. Delivery remains best-effort under its normal timeout.
-    DDTRACE_G(ffe_evaluations_pending_flush) = false;
-    datadog_ffi_try("Failed flushing flag evaluations",
-        ddog_sidecar_flush(&DATADOG_G(sidecar), (ddog_SidecarFlushOptions){.flag_evaluations = true}));
 }
 
 typedef struct {

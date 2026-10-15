@@ -121,7 +121,6 @@ typedef struct {
     void *ffe_metric_buffer;
     size_t ffe_metric_buffer_len;
     size_t ffe_metric_buffer_cap;
-    bool ffe_evaluations_pending_flush;
     struct {
         uint64_t unavailable;
         uint64_t queue_overflow;
