@@ -10,7 +10,9 @@ datadog.metrics_otel_enabled=1
 datadog.experimental_flagging_provider_span_enrichment_enabled=1
 --FILE--
 <?php
-require __DIR__ . '/vendor/autoload.php';
+$loader = require __DIR__ . '/vendor/autoload.php';
+// PHPUnit's PHPT subprocess does not inherit the native autoloader's sources path.
+$loader->addPsr4('DDTrace\\', [__DIR__ . '/../../src/DDTrace', __DIR__ . '/../../src/api']);
 
 use DDTrace\Log\NullLogger;
 use DDTrace\OpenFeature\DataDogProvider;

@@ -1,6 +1,8 @@
 <?php
 
-require __DIR__ . '/vendor/autoload.php';
+$loader = require __DIR__ . '/vendor/autoload.php';
+// PHPUnit's PHPT subprocess does not inherit the native autoloader's sources path.
+$loader->addPsr4('DDTrace\\', [__DIR__ . '/../../src/DDTrace', __DIR__ . '/../../src/api']);
 
 use DDTrace\FeatureFlags\SpanEnrichmentAccumulator;
 use DDTrace\FeatureFlags\SpanEnrichmentRegistry;
