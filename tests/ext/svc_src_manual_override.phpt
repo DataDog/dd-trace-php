@@ -17,7 +17,7 @@ $child->service = 'overridden';
 \DDTrace\close_span();
 
 $byName = [];
-foreach (dd_trace_serialize_closed_spans() as $s) { $byName[$s['name']] = $s; }
+foreach (dd_trace_serialize_closed_spans()['chunks'][0]['spans'] as $s) { $byName[$s['name']] = $s; }
 echo "root svc_src: " . ($byName['root']['attributes']['_dd.svc_src'] ?? '(unset)') . "\n";
 echo "child svc_src: " . ($byName['child']['attributes']['_dd.svc_src'] ?? '(unset)') . "\n";
 ?>

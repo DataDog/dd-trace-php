@@ -75,14 +75,7 @@ abstract class CLITestCase extends IntegrationTestCase
     public function getAgentRequestFromCommand($arguments = '', $overrideEnvs = [])
     {
         $this->executeCommand($arguments, $overrideEnvs);
-        // retrieveDumpedTraceData()'s v0.4/v0.7-only filter misses a v1-sidecar trace
-        // (/v1.0/traces) and falls through to this runner's own command_execution span.
-        $isTraceRequest = function ($request) {
-            $uri = $request['uri'] ?? '';
-            return strpos($uri, '/v0.4/traces') === 0
-                || strpos($uri, '/v0.7/traces') === 0
-                || strpos($uri, '/v1.0/traces') === 0;
-        };
+        $isTraceRequest = $this->untilFirstTraceRequest();
         foreach ($this->retrieveDumpedData($isTraceRequest) as $request) {
             if ($isTraceRequest($request)) {
                 return $request;
@@ -117,10 +110,6 @@ abstract class CLITestCase extends IntegrationTestCase
         if (!isset($request['body'])) {
             return [];
         }
-        $traces = json_decode($request['body'], true);
-        if (isset($traces['chunks'])) {
-            $traces = array_map(function($chunk) { return $chunk["spans"]; }, $traces["chunks"]);
-        }
-        return $traces;
+        return $this->parseRawDumpedTraces(json_decode($request['body'], true));
     }
 }

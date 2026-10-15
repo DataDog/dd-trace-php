@@ -1,5 +1,5 @@
 --TEST--
-Test ddtrace_root_span_add_tag
+Test root_span_add_attribute
 --INI--
 extension=ddtrace.so
 datadog.appsec.log_file=/tmp/php_appsec_test.log
@@ -36,8 +36,8 @@ $helper = Helper::createInitedRun([
 var_dump(rinit());
 $helper->get_commands();
 
-var_dump(\datadog\appsec\testing\root_span_add_tag("ddappsec", "true"));
-var_dump(\datadog\appsec\testing\root_span_add_tag("ddappsec", "true"));
+var_dump(\datadog\appsec\testing\root_span_add_attribute("ddappsec", "true"));
+var_dump(\datadog\appsec\testing\root_span_add_attribute("ddappsec", "true"));
 
 var_dump(ddtrace_rshutdown());
 dd_trace_internal_fn('synchronous_flush');
@@ -63,7 +63,7 @@ Array
     [_dd.p.dm] => -0
     [_dd.p.tid] => %s
     [_dd.sdk.otlp_export] => false
-    [component] => cgi-fcgi
+    [component] => web
     [ddappsec] => true
     [env] => staging
     [http.method] => GET

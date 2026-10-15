@@ -36,15 +36,15 @@ static void ddtrace_trace_source_add_propagated_tag(zend_string *encoded) {
     zend_string_release(encoded);
 }
 
-static void ddtrace_add_trace_source_to_meta(zend_string *encoded, zend_array *meta)
+static void ddtrace_add_trace_source_to_attributes(zend_string *encoded, zend_array *attributes)
 {
-    if (!meta || !encoded) {
+    if (!attributes || !encoded) {
         return;
     }
 
     zval trace_source_zv;
     ZVAL_STR(&trace_source_zv, zend_string_copy(encoded));
-    zend_hash_str_update(meta, ZEND_STRL(DD_P_TS_KEY), &trace_source_zv);
+    zend_hash_str_update(attributes, ZEND_STRL(DD_P_TS_KEY), &trace_source_zv);
 }
 
 void ddtrace_trace_source_set_asm_source() {
@@ -56,22 +56,22 @@ void ddtrace_trace_source_set_asm_source() {
         return;
     }
 
-    zend_array *meta = ddtrace_property_array(&root_span->property_attributes);
-    if (!meta) {
+    zend_array *attributes = ddtrace_property_array(&root_span->property_attributes);
+    if (!attributes) {
         return;
     }
 
     zend_string *encoded = ddtrace_trace_source_get_encoded(TRACE_SOURCE_ASM);
-    ddtrace_add_trace_source_to_meta(encoded, meta);
+    ddtrace_add_trace_source_to_attributes(encoded, attributes);
     ddtrace_trace_source_add_propagated_tag(encoded);
 }
 
-bool ddtrace_trace_source_is_meta_asm_sourced(zend_array *meta) {
-    if (!meta) {
+bool ddtrace_trace_source_is_asm_sourced(zend_array *attributes) {
+    if (!attributes) {
         return false;
     }
 
-    zval *trace_source_zv = zend_hash_str_find(meta, ZEND_STRL(DD_P_TS_KEY));
+    zval *trace_source_zv = zend_hash_str_find(attributes, ZEND_STRL(DD_P_TS_KEY));
     if (!trace_source_zv || Z_TYPE_P(trace_source_zv) != IS_STRING) {
         return false;
     }

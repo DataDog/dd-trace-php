@@ -15,8 +15,8 @@ foreach (['-4', '934086a686-4', '-12', '-abc', '4-', '-'] as $dm) {
         'x-datadog-tags' => "_dd.p.dm=$dm",
     ]);
     DDTrace\close_span();
-    $span = dd_trace_serialize_closed_spans()[0];
-    echo json_encode($dm), " => ", $span['sampling_mechanism'] ?? 'unset', "\n";
+    $chunk = dd_trace_serialize_closed_spans()['chunks'][0];
+    echo json_encode($dm), " => ", $chunk['sampling_mechanism'] ?? 'unset', "\n";
 }
 
 ?>

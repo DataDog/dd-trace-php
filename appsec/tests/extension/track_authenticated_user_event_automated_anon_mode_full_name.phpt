@@ -8,7 +8,7 @@ DD_APPSEC_AUTO_USER_INSTRUMENTATION_MODE=anonymization
 --FILE--
 <?php
 
-use function datadog\appsec\testing\root_span_get_meta;
+use function datadog\appsec\testing\root_span_get_attributes;
 use function datadog\appsec\internal\track_authenticated_user_event_automated;
 
 include __DIR__ . '/inc/ddtrace_version.php';
@@ -20,15 +20,18 @@ track_authenticated_user_event_automated(
     "automatedID"
 );
 
-echo "root_span_get_meta():\n";
-print_r(root_span_get_meta());
+echo "root_span_get_attributes():\n";
+$attributes = root_span_get_attributes();
+ksort($attributes);
+print_r($attributes);
 ?>
 --EXPECTF--
-root_span_get_meta():
+root_span_get_attributes():
 Array
 (
+    [_dd.appsec.user.collection_mode] => anonymization
+    [_dd.appsec.usr.id] => anon_b3ddafd7029d645b44fb990eea55b003
+    [process_id] => %d
     [runtime-id] => %s
     [usr.id] => anon_b3ddafd7029d645b44fb990eea55b003
-    [_dd.appsec.usr.id] => anon_b3ddafd7029d645b44fb990eea55b003
-    [_dd.appsec.user.collection_mode] => anonymization
 )

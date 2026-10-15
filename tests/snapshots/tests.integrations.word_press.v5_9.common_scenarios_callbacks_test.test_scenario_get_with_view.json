@@ -1937,8 +1937,10 @@
              "parent_id": 102,
              "type": "web",
              "meta": {
-               "component": "wordpress",
-               "wordpress.post.id": "5"
+               "component": "wordpress"
+             },
+             "metrics": {
+               "wordpress.post.id": 5
              }
            },
               {

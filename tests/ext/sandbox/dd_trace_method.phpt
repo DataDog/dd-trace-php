@@ -104,11 +104,7 @@ array(3) {
 ---
 array(3) {
   [0]=>
-  array(12) {
-    ["trace_id"]=>
-    string(%d) "%d"
-    ["trace_id_high"]=>
-    string(16) "%s"
+  array(8) {
     ["span_id"]=>
     string(%d) "%d"
     ["start"]=>
@@ -123,10 +119,6 @@ array(3) {
     string(10) "FooService"
     ["type"]=>
     string(7) "FooType"
-    ["sampling_priority"]=>
-    int(1)
-    ["sampling_mechanism"]=>
-    int(0)
     ["attributes"]=>
     array(13) {
       ["runtime-id"]=>
@@ -158,9 +150,7 @@ array(3) {
     }
   }
   [1]=>
-  array(10) {
-    ["trace_id"]=>
-    string(%d) "%d"
+  array(9) {
     ["span_id"]=>
     string(%d) "%d"
     ["parent_id"]=>
@@ -188,11 +178,7 @@ array(3) {
     }
   }
   [2]=>
-  array(12) {
-    ["trace_id"]=>
-    string(%d) "%d"
-    ["trace_id_high"]=>
-    string(16) "%s"
+  array(8) {
     ["span_id"]=>
     string(%d) "%d"
     ["start"]=>
@@ -207,16 +193,12 @@ array(3) {
     string(19) "dd_trace_method.php"
     ["type"]=>
     string(3) "cli"
-    ["sampling_priority"]=>
-    int(1)
-    ["sampling_mechanism"]=>
-    int(0)
     ["attributes"]=>
     array(6) {
       ["runtime-id"]=>
       string(36) "%s"
       ["process_id"]=>
-      float(%f)
+      int(%d)
       ["_dd.agent_psr"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>

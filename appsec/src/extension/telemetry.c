@@ -24,8 +24,6 @@ static zend_string *_api_sec_request_schema_zstr;
 static zend_string *_api_sec_request_no_schema_zstr;
 static zend_string *_api_sec_missing_route_zstr;
 
-static zend_string *_component_literal_zstr;
-
 static THREAD_LOCAL_ON_ZTS zend_string *nullable _cached_waf_version;
 static THREAD_LOCAL_ON_ZTS zend_string *nullable _cached_event_rules_version;
 static THREAD_LOCAL_ON_ZTS bool _schema_extracted;
@@ -61,8 +59,6 @@ void dd_telemetry_startup(void)
         zend_string_init_interned(LSTRARG("api_security.request.no_schema"), 1);
     _api_sec_missing_route_zstr =
         zend_string_init_interned(LSTRARG("api_security.missing_route"), 1);
-    _component_literal_zstr =
-        zend_string_init_interned(LSTRARG("component"), 1);
 }
 
 void dd_telemetry_tshutdown(void)
@@ -172,7 +168,7 @@ void dd_telemetry_add_api_security_request(
 }
 
 #define DD_UNKNOWN_FRAMEWORK "unknown"
-// Builds the framework tag out of the root span's component tag, which is what
+// Builds the framework tag out of the root span's $component, which is what
 // the framework integrations set (e.g. laravel, symfony, wordpress). Per
 // RFC-1012, the name is normalized by lowercasing it and replacing spaces with
 // underscores.
@@ -181,15 +177,11 @@ static zend_string *nonnull _framework_tag(zend_object *nullable root_span)
     const char *framework = DD_UNKNOWN_FRAMEWORK;
     size_t framework_len = LSTRLEN(DD_UNKNOWN_FRAMEWORK);
 
-    zval *nullable meta = root_span ? dd_trace_span_get_meta(root_span) : NULL;
-    if (meta != NULL && Z_TYPE_P(meta) == IS_ARRAY) {
-        zval *nullable component =
-            zend_hash_find_ex(Z_ARRVAL_P(meta), _component_literal_zstr, true);
-        if (component != NULL && Z_TYPE_P(component) == IS_STRING &&
-            Z_STRLEN_P(component) > 0) {
-            framework = Z_STRVAL_P(component);
-            framework_len = Z_STRLEN_P(component);
-        }
+    zend_string *nullable component =
+        root_span ? dd_trace_span_get_component(root_span) : NULL;
+    if (component != NULL && ZSTR_LEN(component) > 0) {
+        framework = ZSTR_VAL(component);
+        framework_len = ZSTR_LEN(component);
     }
 
     zend_string *tags_zstr =

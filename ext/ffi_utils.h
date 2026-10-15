@@ -18,7 +18,7 @@ static inline const char *dd_CharSlice_ptr(ddog_CharSlice slice) {
 }
 
 static inline zend_string *dd_CharSlice_to_zend_string(ddog_CharSlice slice) {
-    return zend_string_init(dd_CharSlice_ptr(slice), slice.len, 0);
+    return slice.len ? zend_string_init(slice.ptr, slice.len, 0) : ZSTR_EMPTY_ALLOC();
 }
 
 static inline bool datadog_ffi_try(const char *msg, ddog_MaybeError maybe_error) {

@@ -46,7 +46,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoClient.__construct', 'mongo', 'mongodb', '__construct')
-                ->withExactTags([
+                ->withExactAttributes([
                     'mongodb.server' => 'mongodb://mongodb-integration:27017',
                     'mongodb.db' => self::DATABASE,
                     Tag::COMPONENT => 'mongo',
@@ -76,7 +76,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoClient.__construct', 'mongo', 'mongodb', '__construct')
-                ->withExactTags([
+                ->withExactAttributes([
                     'mongodb.server' => 'mongodb://?:?@mongodb-integration:27017',
                     'mongodb.db' => self::DATABASE,
                     Tag::COMPONENT => 'mongo',
@@ -106,7 +106,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoClient.__construct', 'mongo', 'mongodb', '__construct')
-                ->withExactTags([
+                ->withExactAttributes([
                     'mongodb.server' => 'mongodb://mongodb-integration:27017/' . self::DATABASE,
                     'mongodb.db' => self::DATABASE,
                     Tag::COMPONENT => 'mongo',
@@ -124,7 +124,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoClient.selectCollection', 'mongo', 'mongodb', 'selectCollection')
-                ->withExactTags([
+                ->withExactAttributes([
                     'mongodb.collection' => 'foo_collection',
                     'mongodb.db' => self::DATABASE,
                     Tag::COMPONENT => 'mongo',
@@ -142,7 +142,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoClient.selectDB', 'mongo', 'mongodb', 'selectDB')
-                ->withExactTags([
+                ->withExactAttributes([
                     'mongodb.db' => self::DATABASE,
                     Tag::COMPONENT => 'mongo',
                     '_dd.svc_src' => 'mongo',
@@ -159,7 +159,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoClient.setReadPreference', 'mongo', 'mongodb', 'setReadPreference')
-                ->withExactTags([
+                ->withExactAttributes([
                     'mongodb.read_preference' => MongoClient::RP_NEAREST,
                     Tag::COMPONENT => 'mongo',
                     '_dd.svc_src' => 'mongo',
@@ -176,7 +176,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoClient.setWriteConcern', 'mongo', 'mongodb', 'setWriteConcern')
-                ->withExactTags([
+                ->withExactAttributes([
                     Tag::COMPONENT => 'mongo',
                     '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
@@ -195,7 +195,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoClient.' . $method, 'mongo', 'mongodb', $method)
-                ->withExactTags([
+                ->withExactAttributes([
                     Tag::COMPONENT => 'mongo',
                     '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
@@ -226,9 +226,9 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoDB.command', 'mongo', 'mongodb', 'command')
-                ->withExactTags([
+                ->withExactAttributes([
                     'mongodb.query' => '{"age":{"$gte":18}}',
-                    'mongodb.timeout' => '500',
+                    'mongodb.timeout' => 500,
                     Tag::COMPONENT => 'mongo',
                     '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
@@ -244,7 +244,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoDB.createDBRef', 'mongo', 'mongodb', 'createDBRef')
-                ->withExactTags([
+                ->withExactAttributes([
                     'mongodb.collection' => 'foo_collection',
                     'mongodb.bson.id' => '47cc67093475061e3d9536d2',
                     Tag::COMPONENT => 'mongo',
@@ -262,7 +262,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoDB.createCollection', 'mongo', 'mongodb', 'createCollection')
-                ->withExactTags([
+                ->withExactAttributes([
                     'mongodb.collection' => 'foo_collection',
                     Tag::COMPONENT => 'mongo',
                     '_dd.svc_src' => 'mongo',
@@ -279,7 +279,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoDB.execute', 'mongo', 'mongodb', 'execute')
-                ->withExactTags([
+                ->withExactAttributes([
                     Tag::COMPONENT => 'mongo',
                     '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
@@ -298,7 +298,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoDB.getDBRef', 'mongo', 'mongodb', 'getDBRef')
-                ->withExactTags([
+                ->withExactAttributes([
                     'mongodb.collection' => 'foo_collection',
                     Tag::COMPONENT => 'mongo',
                     '_dd.svc_src' => 'mongo',
@@ -315,7 +315,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoDB.selectCollection', 'mongo', 'mongodb', 'selectCollection')
-                ->withExactTags([
+                ->withExactAttributes([
                     'mongodb.collection' => 'foo_collection',
                     Tag::COMPONENT => 'mongo',
                     '_dd.svc_src' => 'mongo',
@@ -332,8 +332,8 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoDB.setProfilingLevel', 'mongo', 'mongodb', 'setProfilingLevel')
-                ->withExactTags([
-                    'mongodb.profiling_level' => '2',
+                ->withExactAttributes([
+                    'mongodb.profiling_level' => 2,
                     Tag::COMPONENT => 'mongo',
                     '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
@@ -349,7 +349,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoDB.setReadPreference', 'mongo', 'mongodb', 'setReadPreference')
-                ->withExactTags([
+                ->withExactAttributes([
                     'mongodb.read_preference' => MongoClient::RP_NEAREST,
                     Tag::COMPONENT => 'mongo',
                     '_dd.svc_src' => 'mongo',
@@ -366,7 +366,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoDB.setWriteConcern', 'mongo', 'mongodb', 'setWriteConcern')
-                ->withExactTags([
+                ->withExactAttributes([
                     Tag::COMPONENT => 'mongo',
                     '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
@@ -385,7 +385,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoDB.' . $method, 'mongo', 'mongodb', $method)
-                ->withExactTags([
+                ->withExactAttributes([
                     Tag::COMPONENT => 'mongo',
                     '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
@@ -418,7 +418,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoCollection.__construct', 'mongo', 'mongodb', '__construct')
-                ->withExactTags([
+                ->withExactAttributes([
                     'mongodb.db' => self::DATABASE,
                     'mongodb.collection' => 'foo_collection',
                     Tag::COMPONENT => 'mongo',
@@ -436,7 +436,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoCollection.aggregate', 'mongo', 'mongodb', 'aggregate')
-                ->withExactTags([
+                ->withExactAttributes([
                     Tag::COMPONENT => 'mongo',
                     '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
@@ -466,7 +466,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoCollection.batchInsert', 'mongo', 'mongodb', 'batchInsert')
-                ->withExactTags([
+                ->withExactAttributes([
                     Tag::COMPONENT => 'mongo',
                     '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
@@ -482,7 +482,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoCollection.count', 'mongo', 'mongodb', 'count')
-                ->withExactTags([
+                ->withExactAttributes([
                     'mongodb.query' => '{"title":"Foo"}',
                     Tag::COMPONENT => 'mongo',
                     '_dd.svc_src' => 'mongo',
@@ -499,7 +499,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoCollection.createDBRef', 'mongo', 'mongodb', 'createDBRef')
-                ->withExactTags([
+                ->withExactAttributes([
                     'mongodb.bson.id' => '47cc67093475061e3d9536d2',
                     'mongodb.collection' => 'foo_collection',
                     Tag::COMPONENT => 'mongo',
@@ -517,7 +517,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoCollection.createIndex', 'mongo', 'mongodb', 'createIndex')
-                ->withExactTags([
+                ->withExactAttributes([
                     Tag::COMPONENT => 'mongo',
                     '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
@@ -533,7 +533,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoCollection.deleteIndex', 'mongo', 'mongodb', 'deleteIndex')
-                ->withExactTags([
+                ->withExactAttributes([
                     Tag::COMPONENT => 'mongo',
                     '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
@@ -549,7 +549,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoCollection.distinct', 'mongo', 'mongodb', 'distinct')
-                ->withExactTags([
+                ->withExactAttributes([
                     'mongodb.query' => '{"foo":"bar"}',
                     Tag::COMPONENT => 'mongo',
                     '_dd.svc_src' => 'mongo',
@@ -566,7 +566,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoCollection.find', 'mongo', 'mongodb', 'find')
-                ->withExactTags([
+                ->withExactAttributes([
                     'mongodb.query' => '{"foo":"bar"}',
                     Tag::COMPONENT => 'mongo',
                     '_dd.svc_src' => 'mongo',
@@ -588,7 +588,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoCollection.findAndModify', 'mongo', 'mongodb', 'findAndModify')
-                ->withExactTags([
+                ->withExactAttributes([
                     'mongodb.query' => '{"foo":"bar"}',
                     Tag::COMPONENT => 'mongo',
                     '_dd.svc_src' => 'mongo',
@@ -605,7 +605,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoCollection.findOne', 'mongo', 'mongodb', 'findOne')
-                ->withExactTags([
+                ->withExactAttributes([
                     'mongodb.query' => '{"foo":"bar"}',
                     Tag::COMPONENT => 'mongo',
                     '_dd.svc_src' => 'mongo',
@@ -625,7 +625,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoCollection.getDBRef', 'mongo', 'mongodb', 'getDBRef')
-                ->withExactTags([
+                ->withExactAttributes([
                     'mongodb.bson.id' => '47cc67093475061e3d9536d2',
                     'mongodb.collection' => 'foo_collection',
                     Tag::COMPONENT => 'mongo',
@@ -647,7 +647,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoCollection.group', 'mongo', 'mongodb', 'group')
-                ->withExactTags([
+                ->withExactAttributes([
                     Tag::COMPONENT => 'mongo',
                     '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
@@ -663,7 +663,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoCollection.insert', 'mongo', 'mongodb', 'insert')
-                ->withExactTags([
+                ->withExactAttributes([
                     Tag::COMPONENT => 'mongo',
                     '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
@@ -684,7 +684,7 @@ class MongoTest extends IntegrationTestCase
                 'mongodb',
                 'parallelCollectionScan'
             )
-            ->withExactTags([
+            ->withExactAttributes([
                 Tag::COMPONENT => 'mongo',
                 '_dd.svc_src' => 'mongo',
                 Tag::DB_SYSTEM => 'mongodb',
@@ -700,7 +700,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoCollection.remove', 'mongo', 'mongodb', 'remove')
-                ->withExactTags([
+                ->withExactAttributes([
                     'mongodb.query' => '{"foo":"bar"}',
                     Tag::COMPONENT => 'mongo',
                     '_dd.svc_src' => 'mongo',
@@ -717,7 +717,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoCollection.save', 'mongo', 'mongodb', 'save')
-                ->withExactTags([
+                ->withExactAttributes([
                     Tag::COMPONENT => 'mongo',
                     '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
@@ -733,7 +733,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoCollection.setReadPreference', 'mongo', 'mongodb', 'setReadPreference')
-                ->withExactTags([
+                ->withExactAttributes([
                     'mongodb.read_preference' => MongoClient::RP_NEAREST,
                     Tag::COMPONENT => 'mongo',
                     '_dd.svc_src' => 'mongo',
@@ -750,7 +750,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoCollection.setWriteConcern', 'mongo', 'mongodb', 'setWriteConcern')
-                ->withExactTags([
+                ->withExactAttributes([
                     Tag::COMPONENT => 'mongo',
                     '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
@@ -769,7 +769,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoCollection.update', 'mongo', 'mongodb', 'update')
-                ->withExactTags([
+                ->withExactAttributes([
                     'mongodb.query' => '{"foo":"bar"}',
                     Tag::COMPONENT => 'mongo',
                     '_dd.svc_src' => 'mongo',
@@ -789,7 +789,7 @@ class MongoTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoCollection.' . $method, 'mongo', 'mongodb', $method)
-                ->withExactTags([
+                ->withExactAttributes([
                     Tag::COMPONENT => 'mongo',
                     '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',

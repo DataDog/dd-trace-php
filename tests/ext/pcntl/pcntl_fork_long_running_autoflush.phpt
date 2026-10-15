@@ -33,7 +33,7 @@ function long_running_entry_point()
         // Main
     } else if ($forkPid === 0) {
         // Child
-        if (ddtrace_config_trace_enabled()) {
+        if (\dd_trace_env_config('DD_TRACE_ENABLED')) {
             echo "child is enabled\n";
         }
         call_httpbin();
@@ -44,7 +44,7 @@ function long_running_entry_point()
     }
     call_httpbin();
     pcntl_waitpid($forkPid, $status);
-    if (ddtrace_config_trace_enabled()) {
+    if (\dd_trace_env_config('DD_TRACE_ENABLED')) {
         echo "parent is enabled\n";
     }
 }

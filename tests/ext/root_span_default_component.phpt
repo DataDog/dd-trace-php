@@ -1,5 +1,5 @@
 --TEST--
-Web entrypoint root spans default component to the SAPI name
+Web entrypoint root spans default component to "web"
 --ENV--
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
@@ -9,9 +9,8 @@ foo=bar
 <?php
 DDTrace\start_span();
 DDTrace\close_span();
-$spans = dd_trace_serialize_closed_spans();
-var_dump(PHP_SAPI, $spans[0]["component"]);
+$spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
+var_dump($spans[0]["component"]);
 ?>
 --EXPECT--
-string(8) "cgi-fcgi"
-string(8) "cgi-fcgi"
+string(3) "web"

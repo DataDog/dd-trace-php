@@ -9,7 +9,7 @@ DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING_ENABLED=0
 --FILE--
 <?php
 
-use function datadog\appsec\testing\root_span_get_meta;
+use function datadog\appsec\testing\root_span_get_attributes;
 use function datadog\appsec\internal\track_authenticated_user_event_automated;
 
 include __DIR__ . '/inc/ddtrace_version.php';
@@ -21,12 +21,15 @@ track_authenticated_user_event_automated(
     "automatedID"
 );
 
-echo "root_span_get_meta():\n";
-print_r(root_span_get_meta());
+echo "root_span_get_attributes():\n";
+$attributes = root_span_get_attributes();
+ksort($attributes);
+print_r($attributes);
 ?>
 --EXPECTF--
-root_span_get_meta():
+root_span_get_attributes():
 Array
 (
+    [process_id] => %d
     [runtime-id] => %s
 )

@@ -16,7 +16,13 @@ var_dump(DDTrace\start_span()->meta);
 
 ?>
 --EXPECTF--
-array(1) {
+array(4) {
   ["runtime-id"]=>
   string(36) "%s"
+  ["service.name"]=>
+  string(27) "baggage_span_tags_empty.php"
+  ["operation.name"]=>
+  string(27) "baggage_span_tags_empty.php"
+  ["span.type"]=>
+  string(3) "cli"
 }

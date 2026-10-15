@@ -17,7 +17,7 @@ $s->service = "web";
 $s->meta["span.kind"] = "server"; // meta only, no $s->kind property
 \DDTrace\close_span();
 
-$spans = dd_trace_serialize_closed_spans();
+$spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
 $root = $spans[0];
 // server == OTEL SpanKind 2; promoted from meta fallback (dd_span_kind_meta_to_otel). The serializer
 // consumes meta["span.kind"] once promoted, so the introspection (pre-encode builder) view no longer

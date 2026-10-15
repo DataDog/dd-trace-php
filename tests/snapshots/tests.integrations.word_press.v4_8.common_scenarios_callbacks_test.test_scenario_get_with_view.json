@@ -1096,8 +1096,10 @@
              "parent_id": 42,
              "type": "web",
              "meta": {
-               "component": "wordpress",
-               "wordpress.post.id": "2"
+               "component": "wordpress"
+             },
+             "metrics": {
+               "wordpress.post.id": 2
              }
            },
         {

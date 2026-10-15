@@ -1,16 +1,19 @@
 <?php
 
 /**
- * Decoder for the v1 (`/v1.0/traces`) msgpack wire, normalizing it back to the v0.4-shaped
- * `{"chunks":[{"spans":[...]}]}` view the PHPUnit tests read (TracerTestTrait::parseRawDumpedTraces07).
+ * Decoder for the v1 (`/v1.0/traces`) msgpack wire into a JSON view of the same payload.
  *
- * The v1 wire (libdatadog `libdd-trace-utils/src/msgpack_{encoder,decoder}/v1/`) differs from v0.4 in
- * three ways this decoder undoes:
+ * The view keeps the v1 structure and field names (libdatadog `libdd-trace-utils/src/span/v1/`):
+ * payload fields and `attributes`, `chunks` with their own fields (trace_id, priority, origin,
+ * sampling_mechanism, dropped_trace, attributes), and spans with their native fields. Only the wire
+ * encoding is undone:
  *   - Map keys are integer proto field numbers, not strings.
  *   - Strings use a streaming intern table: an inline msgpack `str` (also appended to the table) or a
  *     `uint` index into it (index 0 == empty string).
  *   - `attributes` values are AnyValue-typed [type_uint8, value]:
- *     String(1)/Bool(2)/Double(3)/Int64(4)/Bytes(5)/Array(6)/KeyValueList(7).
+ *     String(1)/Bool(2)/Double(3)/Int64(4)/Bytes(5)/Array(6)/KeyValueList(7); the view keeps the
+ *     typed value (Bytes become `{"bytes": base64}`).
+ * Ids: span_id/parent_id are decimal strings; 128-bit trace ids are 32 hex digits, link span ids 16.
  */
 class V1TraceDecoder
 {
@@ -21,6 +24,8 @@ class V1TraceDecoder
     private $table = [''];
 
     // Integer map keys, kept in sync with the libdatadog v1 encoder/decoder.
+    const PAYLOAD_FIELDS = [2 => 'container_id', 3 => 'language_name', 4 => 'language_version',
+        5 => 'tracer_version', 6 => 'runtime_id', 7 => 'env', 8 => 'hostname', 9 => 'app_version'];
     const TRACE_ATTRIBUTES = 10, TRACE_CHUNKS = 11;
     const CHUNK_PRIORITY = 1, CHUNK_ORIGIN = 2, CHUNK_ATTRIBUTES = 3, CHUNK_SPANS = 4,
           CHUNK_DROPPED_TRACE = 5, CHUNK_TRACE_ID = 6, CHUNK_SAMPLING_MECHANISM = 7;
@@ -39,267 +44,94 @@ class V1TraceDecoder
         $this->len = strlen($buf);
     }
 
-    /** Decodes the whole payload into the v0.4-shaped `{"chunks":[...]}` PHP array. */
+    /** Decodes the whole payload into its JSON view. */
     public function decode()
     {
-        $chunks = [];
-        $payloadAttributes = [];
+        $payload = [];
         $mapLen = $this->readMapLen();
         for ($i = 0; $i < $mapLen; $i++) {
             $key = $this->readUint();
+            if (isset(self::PAYLOAD_FIELDS[$key])) {
+                $payload[self::PAYLOAD_FIELDS[$key]] = $this->readInterned();
+                continue;
+            }
             switch ($key) {
                 case self::TRACE_CHUNKS:
+                    $payload['chunks'] = [];
                     $count = $this->readArrayLen();
                     for ($c = 0; $c < $count; $c++) {
-                        $chunks[] = $this->decodeChunk();
+                        $payload['chunks'][] = $this->decodeChunk();
                     }
                     break;
                 case self::TRACE_ATTRIBUTES:
-                    // Payload-level attributes (e.g. _dd.apm_mode) are not part of the per-span view,
-                    // except process tags, which v0.4 carries on each trace's first span.
-                    $payloadAttributes = $this->readAttributesMap();
+                    $payload['attributes'] = $this->readAttributesMap();
                     break;
                 default:
-                    // container_id/language/version/runtime_id/env/hostname/app_version and any
-                    // future/unknown key: interned string or arbitrary value, skip it.
                     $this->skipValue();
                     break;
             }
         }
-        if (isset($payloadAttributes['_dd.tags.process'])) {
-            foreach ($chunks as &$chunk) {
-                if (!empty($chunk['spans'])) {
-                    $chunk['spans'][0]['meta']['_dd.tags.process'] = $payloadAttributes['_dd.tags.process'];
-                }
-            }
-            unset($chunk);
-        }
-        return ['chunks' => $chunks];
+        return $payload;
     }
 
     private function decodeChunk()
     {
-        $traceIdBytes = null;
-        $origin = null;
-        $priority = null;
-        $samplingMechanism = null;
-        $spans = [];
-
+        $chunk = [];
         $mapLen = $this->readMapLen();
         for ($i = 0; $i < $mapLen; $i++) {
             $key = $this->readUint();
             switch ($key) {
-                case self::CHUNK_TRACE_ID:
-                    $traceIdBytes = $this->readBin();
-                    break;
+                case self::CHUNK_TRACE_ID:           $chunk['trace_id'] = bin2hex($this->readBin()); break;
+                case self::CHUNK_PRIORITY:           $chunk['priority'] = $this->readInt(); break;
+                case self::CHUNK_ORIGIN:             $chunk['origin'] = $this->readInterned(); break;
+                case self::CHUNK_SAMPLING_MECHANISM: $chunk['sampling_mechanism'] = $this->readUint(); break;
+                case self::CHUNK_DROPPED_TRACE:      $chunk['dropped_trace'] = $this->readBool(); break;
+                case self::CHUNK_ATTRIBUTES:         $chunk['attributes'] = $this->readAttributesMap(); break;
                 case self::CHUNK_SPANS:
+                    $chunk['spans'] = [];
                     $count = $this->readArrayLen();
                     for ($s = 0; $s < $count; $s++) {
-                        $spans[] = $this->decodeSpan();
+                        $chunk['spans'][] = $this->decodeSpan();
                     }
-                    break;
-                case self::CHUNK_ORIGIN:
-                    $origin = $this->readInterned();
-                    break;
-                case self::CHUNK_PRIORITY:
-                    $priority = $this->readInt();
-                    break;
-                case self::CHUNK_SAMPLING_MECHANISM:
-                    $samplingMechanism = $this->readUint();
-                    break;
-                case self::CHUNK_ATTRIBUTES:
-                    // Chunk-level attributes have no per-span v0.4 home; drain them.
-                    $this->readAttributesMap();
-                    break;
-                case self::CHUNK_DROPPED_TRACE:
-                    $this->readBool();
                     break;
                 default:
                     $this->skipValue();
                     break;
             }
         }
-
-        // Reconstruct the 128-bit trace id. The low 64 bits go on every span; the high 64 bits, when
-        // non-zero, become meta['_dd.p.tid'] (hex) on the local-root span, mirroring the v0.4 wire.
-        $traceIdLow = "0";
-        $traceIdTidHex = null;
-        if ($traceIdBytes !== null && strlen($traceIdBytes) === 16) {
-            $high = substr($traceIdBytes, 0, 8);
-            $low = substr($traceIdBytes, 8, 8);
-            $traceIdLow = $this->bytesToDecimal($low);
-            if ($high !== "\0\0\0\0\0\0\0\0") {
-                $traceIdTidHex = bin2hex($high);
-            }
-        }
-
-        foreach ($spans as &$span) {
-            $span['trace_id'] = $traceIdLow;
-        }
-        unset($span);
-
-        // Place the chunk-level, root-scoped propagation fields on the local-root span (the span with
-        // no parent, else the one flagged _dd.top_level, else the first span) — the v0.4 layout.
-        if (!empty($spans)) {
-            $rootIdx = $this->findRootSpanIndex($spans);
-            if ($traceIdTidHex !== null) {
-                $spans[$rootIdx]['meta']['_dd.p.tid'] = $traceIdTidHex;
-            }
-            if ($origin !== null) {
-                $spans[$rootIdx]['meta']['_dd.origin'] = $origin;
-            }
-            if ($samplingMechanism !== null) {
-                // v0.4 stores the decision maker as "-<mechanism>".
-                $spans[$rootIdx]['meta']['_dd.p.dm'] = "-" . $samplingMechanism;
-            }
-            if ($priority !== null) {
-                $spans[$rootIdx]['metrics']['_sampling_priority_v1'] = $priority;
-            }
-        }
-
-        // Drop empty meta/metrics/meta_struct so json_encode matches the v0.4 shape (absent, not {}).
-        foreach ($spans as &$span) {
-            foreach (['meta', 'metrics', 'meta_struct'] as $k) {
-                if (isset($span[$k]) && count($span[$k]) === 0) {
-                    unset($span[$k]);
-                }
-            }
-        }
-        unset($span);
-
-        return ['spans' => $spans];
-    }
-
-    private function findRootSpanIndex(array $spans)
-    {
-        foreach ($spans as $idx => $span) {
-            if (!isset($span['parent_id']) || $span['parent_id'] === "0") {
-                return $idx;
-            }
-        }
-        foreach ($spans as $idx => $span) {
-            if (isset($span['metrics']['_dd.top_level']) && (float)$span['metrics']['_dd.top_level'] == 1.0) {
-                return $idx;
-            }
-        }
-        return 0;
+        return $chunk;
     }
 
     private function decodeSpan()
     {
-        $span = [
-            'trace_id' => "0",
-            'span_id' => "0",
-            'parent_id' => "0",
-            'name' => "",
-            'resource' => "",
-            'service' => "",
-            'error' => 0,
-            'meta' => [],
-            'metrics' => [],
-        ];
-        $metaStruct = [];
-        $kind = null;
-        $links = null;
-        $events = null;
-
+        $span = [];
         $mapLen = $this->readMapLen();
         for ($i = 0; $i < $mapLen; $i++) {
             $key = $this->readUint();
             switch ($key) {
-                case self::SPAN_SERVICE:  $span['service'] = $this->readInterned(); break;
-                case self::SPAN_NAME:     $span['name'] = $this->readInterned(); break;
-                case self::SPAN_RESOURCE: $span['resource'] = $this->readInterned(); break;
-                case self::SPAN_SPAN_ID:  $span['span_id'] = (string)$this->readUint(); break;
-                case self::SPAN_PARENT_ID:$span['parent_id'] = (string)$this->readUint(); break;
-                case self::SPAN_START:    $span['start'] = $this->readUint(); break;
-                case self::SPAN_DURATION: $span['duration'] = $this->readUint(); break;
-                case self::SPAN_ERROR:    $span['error'] = $this->readBool() ? 1 : 0; break;
-                case self::SPAN_TYPE:     $span['type'] = $this->readInterned(); break;
-                case self::SPAN_ATTRIBUTES:
-                    $this->readSpanAttributes($span['meta'], $span['metrics'], $metaStruct);
-                    break;
-                case self::SPAN_LINKS:    $links = $this->readSpanLinks(); break;
-                case self::SPAN_EVENTS:   $events = $this->readSpanEvents(); break;
-                case self::SPAN_ENV:      $span['meta']['env'] = $this->readInterned(); break;
-                case self::SPAN_VERSION:  $span['meta']['version'] = $this->readInterned(); break;
-                case self::SPAN_COMPONENT:$span['meta']['component'] = $this->readInterned(); break;
-                case self::SPAN_KIND:     $kind = $this->readUint(); break;
-                default:                  $this->skipValue(); break;
+                case self::SPAN_SERVICE:   $span['service'] = $this->readInterned(); break;
+                case self::SPAN_NAME:      $span['name'] = $this->readInterned(); break;
+                case self::SPAN_RESOURCE:  $span['resource'] = $this->readInterned(); break;
+                case self::SPAN_TYPE:      $span['type'] = $this->readInterned(); break;
+                case self::SPAN_SPAN_ID:   $span['span_id'] = (string)$this->readUint(); break;
+                case self::SPAN_PARENT_ID: $span['parent_id'] = (string)$this->readUint(); break;
+                case self::SPAN_START:     $span['start'] = $this->readInt(); break;
+                case self::SPAN_DURATION:  $span['duration'] = $this->readInt(); break;
+                case self::SPAN_ERROR:     $span['error'] = $this->readBool(); break;
+                case self::SPAN_ENV:       $span['env'] = $this->readInterned(); break;
+                case self::SPAN_VERSION:   $span['version'] = $this->readInterned(); break;
+                case self::SPAN_COMPONENT: $span['component'] = $this->readInterned(); break;
+                case self::SPAN_KIND:      $span['span_kind'] = $this->readUint(); break;
+                case self::SPAN_ATTRIBUTES:$span['attributes'] = $this->readAttributesMap(); break;
+                case self::SPAN_LINKS:     $span['span_links'] = $this->readSpanLinks(); break;
+                case self::SPAN_EVENTS:    $span['span_events'] = $this->readSpanEvents(); break;
+                default:                   $this->skipValue(); break;
             }
         }
-
-        // span.kind (uint) -> meta['span.kind'], as the v0.4 downgrade does; Unspecified (0, or the
-        // field absent) leaves no meta entry.
-        if ($kind !== null) {
-            $kindStr = $this->spanKindToStr($kind);
-            if ($kindStr !== null) {
-                $span['meta']['span.kind'] = $kindStr;
-            }
-        }
-
-        if ($links !== null && !empty($links)) {
-            $span['meta']['_dd.span_links'] = json_encode($links, JSON_UNESCAPED_SLASHES);
-        }
-        if ($events !== null && !empty($events)) {
-            $span['meta']['events'] = json_encode($events, JSON_UNESCAPED_SLASHES);
-        }
-
-        if (!empty($metaStruct)) {
-            $span['meta_struct'] = $metaStruct;
-        }
-
         return $span;
     }
 
-    private function spanKindToStr($kind)
-    {
-        switch ($kind) {
-            case 1: return "internal";
-            case 2: return "server";
-            case 3: return "client";
-            case 4: return "producer";
-            case 5: return "consumer";
-            // 0 (Unspecified): no v0.4 meta entry.
-            default: return null;
-        }
-    }
-
-    /** Splits the unified v1 attributes map into v0.4 meta (String), metrics (Int/Double) and
-     *  meta_struct (Bytes). Bool/Array/KeyValueList (not emitted by the PHP tracer) fall back to a
-     *  JSON string in meta so nothing is silently dropped. */
-    private function readSpanAttributes(&$meta, &$metrics, &$metaStruct)
-    {
-        $n = $this->readArrayLen();
-        if ($n % 3 !== 0) {
-            throw new \RuntimeException("v1 attributes flat array length $n is not a multiple of 3");
-        }
-        $entries = intdiv($n, 3);
-        for ($i = 0; $i < $entries; $i++) {
-            $key = $this->readInterned();
-            list($type, $value) = $this->readTypedValue();
-            switch ($type) {
-                case self::ANY_STRING:
-                    $meta[$key] = $value;
-                    break;
-                case self::ANY_INT64:
-                case self::ANY_DOUBLE:
-                    $metrics[$key] = $value;
-                    break;
-                case self::ANY_BYTES:
-                    $metaStruct[$key] = $value;
-                    break;
-                case self::ANY_BOOL:
-                case self::ANY_ARRAY:
-                case self::ANY_KEY_VALUE_LIST:
-                default:
-                    $meta[$key] = is_scalar($value) ? (string)$value : json_encode($value, JSON_UNESCAPED_SLASHES);
-                    break;
-            }
-        }
-    }
-
-    /** Reads a v1 attributes map into a plain associative array (used for link/event attributes). */
+    /** Reads a v1 attributes map into an associative array of typed values. */
     private function readAttributesMap()
     {
         $out = [];
@@ -310,22 +142,21 @@ class V1TraceDecoder
         $entries = intdiv($n, 3);
         for ($i = 0; $i < $entries; $i++) {
             $key = $this->readInterned();
-            list(, $value) = $this->readTypedValue();
-            $out[$key] = $value;
+            $out[$key] = $this->readTypedValue();
         }
         return $out;
     }
 
-    /** Reads `[type_uint8, value]`, returning [$type, $phpValue]. */
+    /** Reads `[type_uint8, value]` into its PHP value. */
     private function readTypedValue()
     {
         $type = $this->readUint();
         switch ($type) {
-            case self::ANY_STRING: return [$type, $this->readInterned()];
-            case self::ANY_BOOL:   return [$type, $this->readBool()];
-            case self::ANY_DOUBLE: return [$type, $this->readDouble()];
-            case self::ANY_INT64:  return [$type, $this->readInt()];
-            case self::ANY_BYTES:  return [$type, $this->readBin()];
+            case self::ANY_STRING: return $this->readInterned();
+            case self::ANY_BOOL:   return $this->readBool();
+            case self::ANY_DOUBLE: return $this->readDouble();
+            case self::ANY_INT64:  return $this->readInt();
+            case self::ANY_BYTES:  return ['bytes' => base64_encode($this->readBin())];
             case self::ANY_ARRAY:
                 $n = $this->readArrayLen();
                 if ($n % 2 !== 0) {
@@ -333,69 +164,41 @@ class V1TraceDecoder
                 }
                 $items = [];
                 for ($i = 0, $c = intdiv($n, 2); $i < $c; $i++) {
-                    list(, $v) = $this->readTypedValue();
-                    $items[] = $v;
+                    $items[] = $this->readTypedValue();
                 }
-                return [$type, $items];
+                return $items;
             case self::ANY_KEY_VALUE_LIST:
-                return [$type, $this->readAttributesMap()];
+                return (object)$this->readAttributesMap();
             default:
                 throw new \RuntimeException("Unknown v1 AnyValue type discriminant: $type");
         }
     }
 
-    /** Native v1 span links -> the v0.4 `_dd.span_links` JSON element shape (trace_id 32-hex,
-     *  span_id 16-hex, trace_state, attributes). */
     private function readSpanLinks()
     {
         $out = [];
         $count = $this->readArrayLen();
         for ($i = 0; $i < $count; $i++) {
             $link = [];
-            $traceIdHex = str_repeat("0", 32);
-            $spanIdHex = str_repeat("0", 16);
-            $traceState = "";
-            $attributes = [];
             $mapLen = $this->readMapLen();
             for ($j = 0; $j < $mapLen; $j++) {
                 $key = $this->readUint();
                 switch ($key) {
-                    case self::LINK_TRACE_ID:
-                        $b = $this->readBin();
-                        $traceIdHex = str_pad(bin2hex($b), 32, "0", STR_PAD_LEFT);
-                        break;
+                    case self::LINK_TRACE_ID:    $link['trace_id'] = bin2hex($this->readBin()); break;
                     case self::LINK_SPAN_ID:
-                        $spanIdHex = str_pad(dechex_gmp($this->readUint()), 16, "0", STR_PAD_LEFT);
+                        $link['span_id'] = str_pad(dechex_gmp($this->readUint()), 16, "0", STR_PAD_LEFT);
                         break;
-                    case self::LINK_ATTRIBUTES:
-                        $attributes = $this->readAttributesMap();
-                        break;
-                    case self::LINK_TRACE_STATE:
-                        $traceState = $this->readInterned();
-                        break;
-                    case self::LINK_FLAGS:
-                        $this->readUint();
-                        break;
-                    default:
-                        $this->skipValue();
-                        break;
+                    case self::LINK_ATTRIBUTES:  $link['attributes'] = $this->readAttributesMap(); break;
+                    case self::LINK_TRACE_STATE: $link['tracestate'] = $this->readInterned(); break;
+                    case self::LINK_FLAGS:       $link['flags'] = $this->readUint(); break;
+                    default:                     $this->skipValue(); break;
                 }
-            }
-            $link['trace_id'] = $traceIdHex;
-            $link['span_id'] = $spanIdHex;
-            if ($traceState !== "") {
-                $link['trace_state'] = $traceState;
-            }
-            if (!empty($attributes)) {
-                $link['attributes'] = $attributes;
             }
             $out[] = $link;
         }
         return $out;
     }
 
-    /** Native v1 span events -> the v0.4 `events` JSON element shape (name, time_unix_nano,
-     *  attributes). */
     private function readSpanEvents()
     {
         $out = [];
@@ -593,11 +396,6 @@ class V1TraceDecoder
             return $v;
         }
         return $this->gmpToScalar(gmp_import($bytes, 1, GMP_MSW_FIRST | GMP_BIG_ENDIAN));
-    }
-
-    private function bytesToDecimal($bytes)
-    {
-        return gmp_strval(gmp_import($bytes, 1, GMP_MSW_FIRST | GMP_BIG_ENDIAN));
     }
 
     private function gmpToScalar($g)

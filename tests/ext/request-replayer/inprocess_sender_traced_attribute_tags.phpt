@@ -1,5 +1,5 @@
 --TEST--
-#[DDTrace\Trace] tags keep their meta strings on the v0.4 wire (array leaves included)
+The in-process sender writes deprecated #[DDTrace\Trace] tags as v0.4 meta strings (array leaves included)
 --SKIPIF--
 <?php
 if (strncasecmp(PHP_OS, "WIN", 3) == 0) die('skip: the in-process sender is not available on Windows');
@@ -10,7 +10,7 @@ include __DIR__ . '/../includes/skipif_no_dev_env.inc';
 // so the reader never observes the default v1-advertising /info.
 $ctx = stream_context_create(['http' => [
     'method' => 'PUT',
-    'header' => ["Content-Type: application/json", "X-Datadog-Test-Session-Token: traced_attribute_tags_v04"],
+    'header' => ["Content-Type: application/json", "X-Datadog-Test-Session-Token: inprocess_sender_traced_attribute_tags"],
     'content' => json_encode(["endpoints" => ["/v0.4/traces", "/v0.6/stats", "/v0.7/config"], "client_drop_p0s" => false, "version" => "7.66.0"]),
 ]]);
 if (@file_get_contents("http://request-replayer/set-agent-info", false, $ctx) === false) {
@@ -26,7 +26,8 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
 DD_TRACE_SIDECAR_TRACE_SENDER=0
 --INI--
-datadog.trace.agent_test_session_token=traced_attribute_tags_v04
+error_reporting=E_ALL
+datadog.trace.agent_test_session_token=inprocess_sender_traced_attribute_tags
 --FILE--
 <?php
 include __DIR__ . '/../includes/request_replayer.inc';
@@ -61,6 +62,7 @@ foreach (json_decode($req["body"], true)[0] as $span) {
 }
 ?>
 --EXPECTF--
+Deprecated: DDTrace\Trace: $tags is deprecated, use $attributes instead in %s on line %d
 [ddtrace] [info] [%d] Flushing %d v0.4 trace(s) to send-queue for http://request-replayer:80
 meta.arr.0='1'
 meta.arr.1='true'

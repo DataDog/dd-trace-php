@@ -165,9 +165,9 @@ void ddtrace_build_span_link_from_result(ddtrace_distributed_tracing_result *res
     ZVAL_STR(&link->property_span_id, ddtrace_span_id_as_hex_string(result->parent_id));
 
     array_init(&link->property_attributes);
-    zend_hash_copy(Z_ARR(link->property_attributes), &result->meta_tags, (copy_ctor_func_t)zval_add_ref);
+    zend_hash_copy(Z_ARR(link->property_attributes), &result->attributes, (copy_ctor_func_t)zval_add_ref);
 
-    zend_string *propagated_tags = ddtrace_format_propagated_tags(&result->propagated_tags, &result->meta_tags);
+    zend_string *propagated_tags = ddtrace_format_propagated_tags(&result->propagated_tags, &result->attributes);
     zend_string *full_tracestate = ddtrace_format_tracestate(result->tracestate, 0, result->origin, result->priority_sampling, propagated_tags, &result->tracestate_unknown_dd_keys, &result->otel_sampling);
     full_tracestate = ddtrace_otel_sampling_limit_tracestate(full_tracestate);
     if (propagated_tags) {
@@ -195,8 +195,8 @@ ZEND_METHOD(DDTrace_SpanLink, fromHeaders) {
     ddtrace_build_span_link_from_result(&result, link);
 
     // The span link took its own references (zval_add_ref) on the copied values, so destroy
-    // meta_tags normally to release the references it still owns.
-    zend_hash_destroy(&result.meta_tags);
+    // attributes normally to release the references it still owns.
+    zend_hash_destroy(&result.attributes);
     zend_hash_destroy(&result.propagated_tags);
     zend_hash_destroy(&result.tracestate_unknown_dd_keys);
     zend_hash_destroy(&result.baggage);
@@ -291,7 +291,6 @@ static zend_object *ddtrace_span_stack_create(zend_class_entry *class_type) {
 #if PHP_VERSION_ID < 80000
     // Not handled in arginfo on these old versions
     array_init(&stack->property_span_creation_observers);
-    array_init(&stack->property_attributes);
 #endif
     return &stack->std;
 }
@@ -458,10 +457,10 @@ static zval *ddtrace_span_data_readonly(zend_object *object, zend_string *member
             }
         }
         if (Z_TYPE_P(value) == IS_STRING && !zend_is_identical(&span->property_service, value)) {
-            zend_array *meta = ddtrace_property_array(&span->property_attributes);
+            zend_array *attributes = ddtrace_property_array(&span->property_attributes);
             zval val;
             ZVAL_NEW_STR(&val, zend_string_init("m", 1, 0));
-            zend_hash_str_update(meta, ZEND_STRL("_dd.svc_src"), &val);
+            zend_hash_str_update(attributes, ZEND_STRL("_dd.svc_src"), &val);
         }
     }
 
@@ -1130,7 +1129,10 @@ PHP_FUNCTION(dd_trace_serialize_closed_spans) {
     }
 
     if (!get_DD_TRACE_ENABLED()) {
+        zval chunks;
+        array_init(&chunks);
         array_init(return_value);
+        add_assoc_zval(return_value, "chunks", &chunks);
         return;
     }
 
@@ -1143,24 +1145,9 @@ PHP_FUNCTION(dd_trace_serialize_closed_spans) {
 
     ddtrace_serialize_closed_spans_with_cycle(ctx, false);
 
-    zval traces_zv = dd_serialize_rust_to_zval(ctx->builder);
+    zval payload_zv = dd_serialize_rust_to_zval(ctx->builder);
     ddog_v1_free_builder(ctx->builder);
-
-    if (zend_hash_num_elements(Z_ARR(traces_zv)) == 1) {
-        ZVAL_COPY(return_value, zend_hash_get_current_data(Z_ARR(traces_zv)));
-    } else {
-        array_init(return_value);
-        zval *spans;
-        ZEND_HASH_FOREACH_VAL(Z_ARR(traces_zv), spans) {
-            zval *span;
-            ZEND_HASH_FOREACH_VAL(Z_ARR_P(spans), span) {
-                Z_ADDREF_P(span);
-                zend_hash_next_index_insert_new(Z_ARR_P(return_value), span);
-            } ZEND_HASH_FOREACH_END();
-        } ZEND_HASH_FOREACH_END();
-    }
-
-    zval_ptr_dtor(&traces_zv);
+    ZVAL_COPY_VALUE(return_value, &payload_zv);
 
     ddtrace_free_span_stacks(false);
     ddtrace_init_span_stacks();
@@ -1329,6 +1316,48 @@ PHP_FUNCTION(DDTrace_Testing_normalize_tag_value) {
     } else {
         RETURN_EMPTY_STRING();
     }
+}
+
+PHP_FUNCTION(DDTrace_Testing_serialize_closed_spans_v04) {
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    zval view, payloads;
+    array_init(&payloads);
+    array_init(return_value);
+
+    if (!get_DD_TRACE_ENABLED()) {
+        zval chunks;
+        array_init(&chunks);
+        array_init(&view);
+        add_assoc_zval(&view, "chunks", &chunks);
+        add_next_index_zval(return_value, &view);
+        add_next_index_zval(return_value, &payloads);
+        return;
+    }
+
+    ddtrace_mark_all_span_stacks_flushable();
+
+    ddtrace_serialize_ctx serialize_ctx = {.builder = ddog_v1_new_builder(), .chunk = DD_CHUNK_NONE};
+    ddtrace_serialize_closed_spans_with_cycle(&serialize_ctx, false);
+
+    view = dd_serialize_rust_to_zval(serialize_ctx.builder);
+    add_next_index_zval(return_value, &view);
+
+    // The in-process sender's downgrade and per-trace framing (auto_flush.c); consumes the builder.
+    ddog_TracesBytes *v04_traces = ddog_downgrade_v1_builder_to_v04_traces(serialize_ctx.builder);
+    size_t trace_count = ddog_get_traces_size(v04_traces);
+    for (size_t i = 0; i < trace_count; i++) {
+        ddog_CharSlice payload = ddog_serialize_trace_into_charslice(ddog_get_trace(v04_traces, i));
+        if (payload.len > 0) {
+            add_next_index_stringl(&payloads, payload.ptr, payload.len);
+        }
+        ddog_free_charslice(payload);
+    }
+    ddog_free_traces(v04_traces);
+    add_next_index_zval(return_value, &payloads);
+
+    ddtrace_free_span_stacks(false);
+    ddtrace_init_span_stacks();
 }
 
 PHP_FUNCTION(DDTrace_Internal_add_span_flag) {
@@ -2584,17 +2613,17 @@ PHP_FUNCTION(DDTrace_set_distributed_tracing_context) {
     }
 
     if (tags) {
-        zend_array *root_meta = &DDTRACE_G(root_span_tags_preset);
+        zend_array *root_attributes = &DDTRACE_G(root_span_tags_preset);
         zend_array *propagated_tags = &DDTRACE_G(propagated_root_span_tags);
         if (root_span) {
-            root_meta = ddtrace_property_array(&root_span->property_attributes);
+            root_attributes = ddtrace_property_array(&root_span->property_attributes);
             propagated_tags = ddtrace_property_array(&root_span->property_propagated_tags);
         }
 
         if (Z_TYPE_P(tags) == IS_STRING) {
-            ddtrace_add_tracer_tags_from_header(Z_STR_P(tags), root_meta, propagated_tags);
+            ddtrace_add_tracer_tags_from_header(Z_STR_P(tags), root_attributes, propagated_tags);
         } else if (Z_TYPE_P(tags) == IS_ARRAY) {
-            ddtrace_add_tracer_tags_from_array(Z_ARR_P(tags), root_meta, propagated_tags);
+            ddtrace_add_tracer_tags_from_array(Z_ARR_P(tags), root_attributes, propagated_tags);
         }
     }
 

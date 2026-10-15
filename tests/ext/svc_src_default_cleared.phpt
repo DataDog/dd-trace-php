@@ -16,7 +16,7 @@ $child->name = 'child';
 \DDTrace\close_span();
 
 $byName = [];
-foreach (dd_trace_serialize_closed_spans() as $s) { $byName[$s['name']] = $s; }
+foreach (dd_trace_serialize_closed_spans()['chunks'][0]['spans'] as $s) { $byName[$s['name']] = $s; }
 echo "root service: " . $byName['root']['service'] . "\n";
 echo "child service: " . $byName['child']['service'] . "\n";
 echo "root svc_src: " . ($byName['root']['attributes']['_dd.svc_src'] ?? '(unset)') . "\n";

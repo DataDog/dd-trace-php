@@ -15,7 +15,7 @@ $s->attributes = [
 ];
 \DDTrace\close_span();
 
-$attrs = dd_trace_serialize_closed_spans()[0]['attributes'];
+$attrs = dd_trace_serialize_closed_spans()['chunks'][0]['spans'][0]['attributes'];
 foreach (['', 'empty', 'nested', 'list'] as $key) {
     echo var_export($key, true), ' => ', json_encode(isset($attrs[$key]) ? $attrs[$key] : null), "\n";
 }

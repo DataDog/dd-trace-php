@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\Laravel;
 use DDTrace\HookData;
 use DDTrace\Integrations\Lumen\LumenIntegration;
 use DDTrace\SpanData;
+use DDTrace\SpanKind;
 use DDTrace\Integrations\Integration;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -55,19 +56,19 @@ class LaravelIntegration extends Integration
                 $span->service = self::getServiceName();
                 Integration::tagFrameworkServiceSource($span, LaravelIntegration::NAME);
                 $span->resource = 'Illuminate\Foundation\Application@handle';
-                $span->meta[Tag::COMPONENT] = self::NAME;
+                $span->component = self::NAME;
 
                 $rootSpan = \DDTrace\root_span();
 
                 // Overwriting the default web integration
                 $rootSpan->name = 'laravel.request';
                 if (\method_exists($response, 'getStatusCode')) {
-                    $rootSpan->attributes[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
+                    $rootSpan->attributes[Tag::HTTP_STATUS_CODE] = (string)$response->getStatusCode();
                 }
                 $rootSpan->service = self::getServiceName();
                 Integration::tagFrameworkServiceSource($rootSpan, LaravelIntegration::NAME);
-                $rootSpan->attributes[Tag::SPAN_KIND] = 'server';
-                $rootSpan->meta[Tag::COMPONENT] = self::NAME;
+                $rootSpan->spanKind = SpanKind::SERVER;
+                $rootSpan->component = self::NAME;
             }
         );
 
@@ -75,7 +76,7 @@ class LaravelIntegration extends Integration
             'Illuminate\Contracts\Foundation\Application',
             'bootstrapWith',
             static function ($app) {
-                self::$serviceName = ddtrace_config_app_name();
+                self::$serviceName = \dd_trace_env_config('DD_SERVICE');
                 if (self::$serviceName == "" && file_exists($app->environmentPath() . '/' . $app->environmentFile())) {
                     $app->make('Illuminate\Foundation\Bootstrap\LoadEnvironmentVariables')->bootstrap($app);
                     $configPath = realpath($app->configPath());
@@ -122,14 +123,14 @@ class LaravelIntegration extends Integration
                     }
                 }
 
-                $rootSpan->meta['laravel.route.name'] = $routeName;
-                $rootSpan->meta['laravel.route.action'] = $route->getActionName();
+                $rootSpan->attributes['laravel.route.name'] = $routeName;
+                $rootSpan->attributes['laravel.route.action'] = $route->getActionName();
 
                 if (!Integration::hasTag($rootSpan, Tag::HTTP_URL)) {
                     $rootSpan->attributes[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($request->fullUrl());
                 }
                 if (\method_exists($route, 'uri')) {
-                    $rootSpan->meta[Tag::HTTP_ROUTE] = $route->uri();
+                    $rootSpan->attributes[Tag::HTTP_ROUTE] = $route->uri();
                 }
                 if (\method_exists($route, 'parameters') && function_exists('\datadog\appsec\push_addresses')) {
                     $parameters = $route->parameters();
@@ -138,7 +139,7 @@ class LaravelIntegration extends Integration
                     }
                 }
                 $rootSpan->attributes[Tag::HTTP_METHOD] = $request->method();
-                $rootSpan->attributes[Tag::SPAN_KIND] = 'server';
+                $rootSpan->spanKind = SpanKind::SERVER;
 
                 if (!\DDTrace\are_endpoints_collected()) {
                     $routeCollection = $This->getRoutes();
@@ -163,7 +164,7 @@ class LaravelIntegration extends Integration
                 $span->service = LaravelIntegration::getServiceName();
                 Integration::tagFrameworkServiceSource($span, LaravelIntegration::NAME);
                 $span->resource = $this->uri;
-                $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
+                $span->component = LaravelIntegration::NAME;
             }
         );
 
@@ -195,7 +196,7 @@ class LaravelIntegration extends Integration
                     $span->service = self::getServiceName();
                     Integration::tagFrameworkServiceSource($span, LaravelIntegration::NAME);
                     $span->resource = $args[0];
-                    $span->meta[Tag::COMPONENT] = self::NAME;
+                    $span->component = self::NAME;
 
                     //New user created, assume sign up
                     if ($span->resource == 'eloquent.created: User') {
@@ -235,7 +236,7 @@ class LaravelIntegration extends Integration
                     $span->service = self::getServiceName();
                     Integration::tagFrameworkServiceSource($span, LaravelIntegration::NAME);
                     $span->resource = is_object($args[0]) ? get_class($args[0]) : $args[0];
-                    $span->meta[Tag::COMPONENT] = self::NAME;
+                    $span->component = self::NAME;
                 },
                 'recurse' => true,
             ]
@@ -247,7 +248,7 @@ class LaravelIntegration extends Integration
             $span->service = LaravelIntegration::getServiceName();
             Integration::tagFrameworkServiceSource($span, LaravelIntegration::NAME);
             $span->resource = $this->view;
-            $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
+            $span->component = LaravelIntegration::NAME;
         });
 
         \DDTrace\trace_method(
@@ -259,7 +260,7 @@ class LaravelIntegration extends Integration
                 // This is used by both laravel and lumen. For consistency we rename it for lumen traces as otherwise
                 // users would see a span changing name as they upgrade to the new version.
                 $span->name = self::isLumen($rootSpan) ? 'lumen.view' : 'laravel.view';
-                $span->meta[Tag::COMPONENT] = $span->name === 'laravel.view'
+                $span->component = $span->name === 'laravel.view'
                     ? self::NAME
                     : LumenIntegration::NAME;
                 $span->type = Type::WEB_SERVLET;
@@ -282,7 +283,7 @@ class LaravelIntegration extends Integration
                 $span->service = $serviceName;
                 Integration::tagFrameworkServiceSource($span, LaravelIntegration::NAME);
                 $span->resource = 'Illuminate\Foundation\ProviderRepository::load';
-                $span->meta[Tag::COMPONENT] = self::NAME;
+                $span->component = self::NAME;
 
                 Integration::handleOrphan($span);
 
@@ -303,8 +304,8 @@ class LaravelIntegration extends Integration
 
                 $rootSpan->name = 'laravel.artisan';
                 $rootSpan->resource = !empty($_SERVER['argv'][1]) ? 'artisan ' . $_SERVER['argv'][1] : 'artisan';
-                unset($rootSpan->attributes[Tag::SPAN_KIND]);
-                $rootSpan->meta[Tag::COMPONENT] = self::NAME;
+                $rootSpan->spanKind = SpanKind::UNSPECIFIED;
+                $rootSpan->component = self::NAME;
             }
         );
 
@@ -643,7 +644,7 @@ class LaravelIntegration extends Integration
         if (!empty(self::$serviceName)) {
             return self::$serviceName;
         }
-        self::$serviceName = \ddtrace_config_app_name();
+        self::$serviceName = \dd_trace_env_config('DD_SERVICE');
         try {
             if (empty(self::$serviceName) && is_callable('config')) {
                 self::$serviceName = config('app.name');

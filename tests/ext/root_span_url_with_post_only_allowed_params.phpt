@@ -13,7 +13,7 @@ username=should_redact&foo[bar]=should_not_redact&foo[baz]=should_redact&bar[foo
 <?php
 DDTrace\start_span();
 DDTrace\close_span();
-$spans = dd_trace_serialize_closed_spans();
+$spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
 var_dump($spans[0]['attributes']['http.request.post.username']);
 var_dump($spans[0]['attributes']['http.request.post.foo.bar']);
 var_dump($spans[0]['attributes']['http.request.post.foo.baz']);

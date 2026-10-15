@@ -295,7 +295,7 @@ services:
 
 
   windows-request-replayer:
-    image: datadog/dd-trace-ci:php-request-replayer-3.0_windows
+    image: datadog/dd-trace-ci:php-request-replayer-5.0_windows
     ports:
       - "8766:80"
     networks:

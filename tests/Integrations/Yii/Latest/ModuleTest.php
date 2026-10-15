@@ -37,7 +37,7 @@ class ModuleTest extends WebFrameworkTestCase
                     'yii2_test_app',
                     Type::WEB_SERVLET,
                     'GET /forum/?/?/?'
-                )->withExactTags([
+                )->withExactAttributes([
                     Tag::HTTP_METHOD => 'GET',
                     Tag::HTTP_URL => 'http://localhost/forum/new-york/new-york/manhattan?key=value&<redacted>',
                     Tag::HTTP_STATUS_CODE => '200',
@@ -52,7 +52,7 @@ class ModuleTest extends WebFrameworkTestCase
                         'yii2_test_app',
                         Type::WEB_SERVLET,
                         'yii\web\Application.run'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         Tag::COMPONENT => "yii",
                     ])->withChildren([
                         SpanAssertion::build(
@@ -60,7 +60,7 @@ class ModuleTest extends WebFrameworkTestCase
                             'yii2_test_app',
                             Type::WEB_SERVLET,
                             'forum/module/view'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             Tag::COMPONENT => "yii",
                         ])->withChildren([
                             SpanAssertion::build(
@@ -68,7 +68,7 @@ class ModuleTest extends WebFrameworkTestCase
                                 'yii2_test_app',
                                 Type::WEB_SERVLET,
                                 'view'
-                            )->withExactTags([
+                            )->withExactAttributes([
                                 Tag::COMPONENT => "yii",
                             ])
                         ])

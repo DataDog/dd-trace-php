@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\CakePHP;
 use DDTrace\Integrations\CakePHP\V2\CakePHPIntegrationLoader as CakePHPIntegrationLoaderV2;
 use DDTrace\Integrations\CakePHP\V3\CakePHPIntegrationLoader as CakePHPIntegrationLoaderV3;
 use DDTrace\Integrations\Integration;
+use DDTrace\SpanKind;
 use DDTrace\Tag;
 
 class CakePHPIntegration extends Integration
@@ -26,7 +27,7 @@ class CakePHPIntegration extends Integration
                 return;
             }
 
-            self::$appName = \ddtrace_config_app_name(CakePHPIntegration::NAME);
+            self::$appName = \dd_trace_env_config('DD_SERVICE') ?: CakePHPIntegration::NAME;
             $rootSpan->service = self::$appName;
             Integration::tagFrameworkServiceSource($rootSpan, CakePHPIntegration::NAME);
             if ('cli' === PHP_SAPI) {
@@ -36,9 +37,9 @@ class CakePHPIntegration extends Integration
                     : 'cake_console';
             } else {
                 $rootSpan->name = 'cakephp.request';
-                $rootSpan->attributes[Tag::SPAN_KIND] = 'server';
+                $rootSpan->spanKind = SpanKind::SERVER;
             }
-            $rootSpan->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
+            $rootSpan->component = CakePHPIntegration::NAME;
         };
 
         self::$handleExceptionFn = static function ($This, $scope, $args) {
@@ -51,7 +52,7 @@ class CakePHPIntegration extends Integration
         self::$setStatusCodeFn =  static function ($This, $scope, $args, $retval) {
             $rootSpan = \DDTrace\root_span();
             if ($rootSpan) {
-                $rootSpan->attributes[Tag::HTTP_STATUS_CODE] = $retval;
+                $rootSpan->attributes[Tag::HTTP_STATUS_CODE] = (string)$retval;
             }
         };
 
@@ -62,7 +63,7 @@ class CakePHPIntegration extends Integration
 
             $rootSpan = \DDTrace\root_span();
             if ($rootSpan !== null) {
-                $rootSpan->meta[Tag::HTTP_ROUTE] = $app->template;
+                $rootSpan->attributes[Tag::HTTP_ROUTE] = $app->template;
             }
         };
 

@@ -63,29 +63,28 @@ trait SpanAssertionTrait
      */
     public function assertError(array $span, $message, array $expectedStackLinesGroups)
     {
-        $this->assertSame(1, $span['error']);
+        $this->assertTrue($span['error']);
 
-        // Normalize the V1 introspection shape (attributes) and the flat v0.4 wire to a meta view.
-        list($meta,) = SpanChecker::extractMetaMetrics($span);
+        $attributes = SpanChecker::attributeView($span);
 
         // message assertion supports '*' wildcard but DOES NOT enforce order.
         $messagePartsByWildcard = \explode('*', $message);
         foreach ($messagePartsByWildcard as $messagePart) {
             $this->assertNotSame(
                 false,
-                \strpos($meta[Tag::ERROR_MSG], $messagePart),
-                \sprintf('Message "%s" does not contain "%s"', $meta[Tag::ERROR_MSG], $message)
+                \strpos($attributes[Tag::ERROR_MSG], $messagePart),
+                \sprintf('Message "%s" does not contain "%s"', $attributes[Tag::ERROR_MSG], $message)
             );
         }
 
-        $stackGroups = \explode('stack groups separator', $meta['error.stack']);
+        $stackGroups = \explode('stack groups separator', $attributes['error.stack']);
         if (count($stackGroups) !== count($expectedStackLinesGroups)) {
             $this->fail(
                 \sprintf(
                     'Found %d stack groups, expected %d: %s',
                     count($stackGroups),
                     count($expectedStackLinesGroups),
-                    $meta['error.stack']
+                    $attributes['error.stack']
                 )
             );
         }

@@ -26,7 +26,7 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
     bool success = true;
 
     // Serialization fills the native V1 builder directly (no v0.4 intermediate). The sidecar
-    // negotiates V1-vs-v0.4; the in-process (<=8.2) sender downgrades to v0.4 at flush time.
+    // negotiates V1-vs-v0.4; the in-process sender (DD_TRACE_SIDECAR_TRACE_SENDER=0) downgrades to v0.4 at flush time.
     ddtrace_serialize_ctx serialize_ctx = {
         .builder = ddog_v1_new_builder(),
         .chunk = DD_CHUNK_NONE,
@@ -48,7 +48,7 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
         return SUCCESS;
     }
 
-    // Spans are built into the builder, not the (empty) V0.4 traces, so gate on the chunk count.
+    // Gate on the builder's chunk count.
     size_t payload_count = ddog_v1_get_chunk_count(ctx->builder);
     if (!payload_count) {
         ddog_v1_free_builder(ctx->builder);
@@ -95,8 +95,8 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
         }
     } else {
 #ifndef _WIN32
-        // Removable v0.4 bolt-on: the in-process (<=8.2) background sender's array-of-1 framing can't
-        // parse a native V1 payload (one msgpack MAP), so it downgrades to v0.4 traces. Delete to revert.
+        // In-process sender (DD_TRACE_SIDECAR_TRACE_SENDER=0): its array-of-1 framing can't
+        // parse a native V1 payload (one msgpack MAP), so it downgrades to v0.4 traces.
         // Consumes ctx->builder; returns a v0.4 collection to free below.
         ddog_TracesBytes *v04_traces = ddog_downgrade_v1_builder_to_v04_traces(ctx->builder);
         size_t trace_count = ddog_get_traces_size(v04_traces);

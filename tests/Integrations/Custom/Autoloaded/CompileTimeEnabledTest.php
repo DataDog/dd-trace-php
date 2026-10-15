@@ -46,8 +46,8 @@ final class CompileTimeEnabledTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
-        self::assertTrue(isset($traces[0][0]['metrics']['php.compilation.total_time_ms']));
-        self::assertTrue(isset($traces[0][0]['metrics']['php.memory.peak_usage_bytes']));
-        self::assertTrue(isset($traces[0][0]['metrics']['php.memory.peak_real_usage_bytes']));
+        self::assertTrue(isset($traces[0]['spans'][0]['attributes']['php.compilation.total_time_ms']));
+        self::assertTrue(isset($traces[0]['spans'][0]['attributes']['php.memory.peak_usage_bytes']));
+        self::assertTrue(isset($traces[0]['spans'][0]['attributes']['php.memory.peak_real_usage_bytes']));
     }
 }

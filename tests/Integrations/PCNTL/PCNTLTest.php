@@ -76,9 +76,9 @@ final class PCNTLTest extends IntegrationTestCase
                 SpanAssertion::exists('synthetic.php'),
             ]);
 
-            $childSpan = $requests[0][0];
-            $parentSpan = $requests[1][1];
-            $this->assertSame($childSpan["trace_id"], $parentSpan["trace_id"]);
+            $childSpan = $requests[0]['spans'][0];
+            $parentSpan = $requests[1]['spans'][1];
+            $this->assertSame($requests[0]["trace_id"], $requests[1]["trace_id"]);
             $this->assertSame($childSpan["parent_id"], $parentSpan["span_id"]);
         } catch (\Exception $e) {
             echo "Raw requests:\n";
@@ -274,7 +274,7 @@ final class PCNTLTest extends IntegrationTestCase
         // Individual root spans must be their own traces! No merging allowed.
         $this->assertCount(9, $requests);
 
-        usort($requests, function ($a, $b) { return $a[0]["resource"] <=> $b[0]["resource"]; });
+        usort($requests, function ($a, $b) { return $a["spans"][0]["resource"] <=> $b["spans"][0]["resource"]; });
 
         for ($i = 0; $i < 3; ++$i) {
             $this->assertFlameGraph([$requests[$i]], [

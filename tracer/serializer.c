@@ -285,26 +285,26 @@ static zend_string *dd_fatal_error_stack(void) {
     return error_stack;
 }
 
-static int dd_fatal_error_to_meta(zend_array *meta, dd_error_info error) {
+static int dd_fatal_error_to_attributes(zend_array *attributes, dd_error_info error) {
     if (error.type) {
         zval tmp = ddtrace_zval_zstr(zend_string_copy(error.type));
-        zend_symtable_str_update(meta, ZEND_STRL("error.type"), &tmp);
+        zend_symtable_str_update(attributes, ZEND_STRL("error.type"), &tmp);
     }
 
     if (error.msg) {
         zval tmp = ddtrace_zval_zstr(zend_string_copy(error.msg));
-        zend_symtable_str_update(meta, ZEND_STRL("error.message"), &tmp);
+        zend_symtable_str_update(attributes, ZEND_STRL("error.message"), &tmp);
     }
 
     if (error.stack) {
         zval tmp = ddtrace_zval_zstr(zend_string_copy(error.stack));
-        zend_symtable_str_update(meta, ZEND_STRL("error.stack"), &tmp);
+        zend_symtable_str_update(attributes, ZEND_STRL("error.stack"), &tmp);
     }
 
     return error.type && error.msg ? SUCCESS : FAILURE;
 }
 
-static void dd_add_header_to_meta(zend_array *meta, const char *type, zend_string *lowerheader,
+static void dd_add_header_to_attributes(zend_array *attributes, const char *type, zend_string *lowerheader,
                                   zend_string *headerval) {
     zval *header_config = zend_hash_find(get_DD_TRACE_HEADER_TAGS(), lowerheader);
     if (header_config != NULL && Z_TYPE_P(header_config) == IS_STRING) {
@@ -322,19 +322,19 @@ static void dd_add_header_to_meta(zend_array *meta, const char *type, zend_strin
         }
         zval headerzv;
         ZVAL_STR_COPY(&headerzv, headerval);
-        zend_hash_update(meta, headertag, &headerzv);
+        zend_hash_update(attributes, headertag, &headerzv);
         zend_string_release(headertag);
     }
 }
 
-void dd_span_attr_str(ddog_SpanNode *span, const char *key, const char *val) {
+void dd_span_attr_str(ddog_SpanBytes *span, const char *key, const char *val) {
     ddog_attributes_add_lit(ddog_span_get_attributes(span), key, (ddog_CharSlice){ .ptr = val, .len = strlen(val) });
 }
-void dd_span_attr_zstr(ddog_SpanNode *span, const char *key, zend_string *val) {
+void dd_span_attr_zstr(ddog_SpanBytes *span, const char *key, zend_string *val) {
     ddog_attributes_add_lit(ddog_span_get_attributes(span), key, dd_zend_string_to_CharSlice(val));
 }
 
-static void dd_add_header_to_rust_span(ddog_SpanNode *span, const char *type, zend_string *lowerheader,
+static void dd_add_header_to_rust_span(ddog_SpanBytes *span, const char *type, zend_string *lowerheader,
                                        zend_string *headerval) {
     zval *header_config = zend_hash_find(get_DD_TRACE_HEADER_TAGS(), lowerheader);
     if (header_config != NULL && Z_TYPE_P(header_config) == IS_STRING) {
@@ -368,15 +368,15 @@ static void normalize_with_underscores(zend_string *str) {
     }
 }
 
-static void dd_add_post_fields_to_meta(zend_array *meta, const char *type, zend_string *postkey, zend_string *postval) {
+static void dd_add_post_fields_to_attributes(zend_array *attributes, const char *type, zend_string *postkey, zend_string *postval) {
     zend_string *posttag = zend_strpprintf(0, "http.%s.post.%s", type, ZSTR_VAL(postkey));
     zval postzv;
     ZVAL_STR_COPY(&postzv, postval);
-    zend_hash_update(meta, posttag, &postzv);
+    zend_hash_update(attributes, posttag, &postzv);
     zend_string_release(posttag);
 }
 
-static void dd_add_post_fields_to_meta_recursive(zend_array *meta, const char *type, zend_string *postkey,
+static void dd_add_post_fields_to_attributes_recursive(zend_array *attributes, const char *type, zend_string *postkey,
                                                  zval *postval, zend_array* post_whitelist,
                                                  bool is_prefixed) {
     if (Z_TYPE_P(postval) == IS_ARRAY) {
@@ -389,12 +389,12 @@ static void dd_add_post_fields_to_meta_recursive(zend_array *meta, const char *t
                 zend_string *copy_key = zend_string_dup(key, 0);
                 normalize_with_underscores(copy_key);
                 if (ZSTR_LEN(postkey) == 0) {
-                    dd_add_post_fields_to_meta_recursive(meta, type, copy_key, val, post_whitelist,
+                    dd_add_post_fields_to_attributes_recursive(attributes, type, copy_key, val, post_whitelist,
                                                          is_prefixed || zend_hash_exists(post_whitelist, copy_key));
                 } else {
                     // If the current postkey is not the empty string, we want to add a '.' to the beginning of the key
                     zend_string *newkey = zend_strpprintf(0, "%s.%s", ZSTR_VAL(postkey), ZSTR_VAL(copy_key));
-                    dd_add_post_fields_to_meta_recursive(meta, type, newkey, val, post_whitelist,
+                    dd_add_post_fields_to_attributes_recursive(attributes, type, newkey, val, post_whitelist,
                                                          is_prefixed || zend_hash_exists(post_whitelist, newkey));
                     zend_string_release(newkey);
                 }
@@ -402,7 +402,7 @@ static void dd_add_post_fields_to_meta_recursive(zend_array *meta, const char *t
             } else {
                 // Use numeric index if there isn't a string key
                 zend_string *newkey = zend_strpprintf(0, "%s." ZEND_LONG_FMT, ZSTR_VAL(postkey), index);
-                dd_add_post_fields_to_meta_recursive(meta, type, newkey, val, post_whitelist,
+                dd_add_post_fields_to_attributes_recursive(attributes, type, newkey, val, post_whitelist,
                                                      is_prefixed || zend_hash_exists(post_whitelist, newkey));
                 zend_string_release(newkey);
             }
@@ -410,9 +410,9 @@ static void dd_add_post_fields_to_meta_recursive(zend_array *meta, const char *t
         ZEND_HASH_FOREACH_END();
     } else {
         if (is_prefixed) { // The postkey is in the whitelist or is prefixed by a key in the whitelist
-            // we want to add it to the meta as is
+            // we want to add it to the attributes as is
             zend_string *ztr_postval = zval_get_string(postval);
-            dd_add_post_fields_to_meta(meta, type, postkey, ztr_postval);
+            dd_add_post_fields_to_attributes(attributes, type, postkey, ztr_postval);
             zend_string_release(ztr_postval);
         } else if (post_whitelist) {
             zend_string *str;
@@ -427,42 +427,40 @@ static void dd_add_post_fields_to_meta_recursive(zend_array *meta, const char *t
                 // Match it with the regex to redact if needed
                 if (zai_match_regex(get_DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP(), postvalconcat)) {
                     zend_string *replacement = zend_string_init(ZEND_STRL("<redacted>"), 0);
-                    dd_add_post_fields_to_meta(meta, type, postkey, replacement);
+                    dd_add_post_fields_to_attributes(attributes, type, postkey, replacement);
                     zend_string_release(replacement);
                 } else {
-                    dd_add_post_fields_to_meta(meta, type, postkey, postvalstr);
+                    dd_add_post_fields_to_attributes(attributes, type, postkey, postvalstr);
                 }
                 zend_string_release(postvalconcat);
             } else { // No wildcard and the postkey isn't in the whitelist
                 // Always use "<redacted>" as the value
                 zend_string *replacement = zend_string_init(ZEND_STRL("<redacted>"), 0);
-                dd_add_post_fields_to_meta(meta, type, postkey, replacement);
+                dd_add_post_fields_to_attributes(attributes, type, postkey, replacement);
                 zend_string_release(replacement);
             }
         } else { // No whitelist, so we always use "<redacted>" as the value
             zend_string *replacement = zend_string_init(ZEND_STRL("<redacted>"), 0);
-            dd_add_post_fields_to_meta(meta, type, postkey, replacement);
+            dd_add_post_fields_to_attributes(attributes, type, postkey, replacement);
             zend_string_release(replacement);
         }
     }
 }
 
 void ddtrace_set_global_span_properties(ddtrace_span_data *span) {
-    zend_array *meta = ddtrace_property_array(&span->property_attributes);
+    zend_array *attributes = ddtrace_property_array(&span->property_attributes);
     zend_array *global_tags = get_DD_TAGS();
     zend_string *global_key;
     zval *global_val;
-    zval *prop_env = &span->property_env;
-    zval *prop_version = &span->property_version;
 
+    // DD_TAGS env/version are the root's property fallback (ddtrace_set_root_span_properties).
     ZEND_HASH_FOREACH_STR_KEY_VAL(global_tags, global_key, global_val) {
-        if ((zend_string_equals_literal(global_key, "env") && Z_TYPE_P(prop_env) == IS_STRING && Z_STRLEN_P(prop_env) > 0) ||
-            (zend_string_equals_literal(global_key, "version") && Z_TYPE_P(prop_version) == IS_STRING && Z_STRLEN_P(prop_version) > 0) ||
+        if (zend_string_equals_literal(global_key, "env") || zend_string_equals_literal(global_key, "version") ||
             zend_string_equals_literal(global_key, "service")) {
             continue;
         }
 
-        if (zend_hash_add(meta, global_key, global_val)) {
+        if (zend_hash_add(attributes, global_key, global_val)) {
             Z_TRY_ADDREF_P(global_val);
         }
     }
@@ -471,7 +469,7 @@ void ddtrace_set_global_span_properties(ddtrace_span_data *span) {
     zend_string *tag_key;
     zval *tag_value;
     ZEND_HASH_FOREACH_STR_KEY_VAL(DDTRACE_G(additional_global_tags), tag_key, tag_value) {
-        if (zend_hash_add(meta, tag_key, tag_value)) {
+        if (zend_hash_add(attributes, tag_key, tag_value)) {
             Z_TRY_ADDREF_P(tag_value);
         }
     }
@@ -582,7 +580,7 @@ static zend_string *dd_get_referrer_host(zend_array *_server) {
     return ZSTR_EMPTY_ALLOC();
 }
 
-static bool dd_set_mapped_peer_service(ddog_SpanNode *span, zend_string *peer_service) {
+static bool dd_set_mapped_peer_service(ddog_SpanBytes *span, zend_string *peer_service) {
     zend_array *peer_service_mapping = get_DD_TRACE_PEER_SERVICE_MAPPING();
     if (zend_hash_num_elements(peer_service_mapping) == 0 || !peer_service) {
         return false;
@@ -648,20 +646,15 @@ static void dd_set_entrypoint_root_span_props(struct superglob_equiv *data, ddtr
         zend_hash_str_add_new(attributes, ZEND_STRL("http.method"), &http_method);
 
         // Mark HTTP server entry spans with span.kind=server for client-side stats aggregation.
-        // Written as a tag add-if-absent (not via the property) so a userland/OTel value wins.
-        zval span_kind_server;
-        ZVAL_STRING(&span_kind_server, "server");
-        if (!zend_hash_str_add(attributes, ZEND_STRL("span.kind"), &span_kind_server)) {
-            zval_ptr_dtor(&span_kind_server);
+        if (zval_get_long(&span->property_span_kind) == DDTRACE_SPAN_KIND_UNSPECIFIED) {
+            ZVAL_LONG(&span->property_span_kind, DDTRACE_SPAN_KIND_SERVER);
         }
 
-        // Default component to the SAPI (the server integration layer), add-if-absent so frameworks override it.
-        if (strcmp(sapi_module.name, "cli") != 0) {
-            zval component;
-            ZVAL_STRING(&component, sapi_module.name);
-            if (!zend_hash_str_add(attributes, ZEND_STRL("component"), &component)) {
-                zval_ptr_dtor(&component);
-            }
+        // Default component of web root spans; frameworks override it.
+        zval *component = &span->property_component;
+        if (strcmp(sapi_module.name, "cli") != 0 && Z_TYPE_P(component) == IS_STRING && !Z_STRLEN_P(component)) {
+            zval_ptr_dtor(component);
+            ZVAL_STRING(component, "web");
         }
 
         if (get_DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED()) {
@@ -725,7 +718,7 @@ static void dd_set_entrypoint_root_span_props(struct superglob_equiv *data, ddtr
                     }
                 }
 
-                dd_add_header_to_meta(attributes, "request", lowerheader, Z_STR_P(headerval));
+                dd_add_header_to_attributes(attributes, "request", lowerheader, Z_STR_P(headerval));
                 zend_string_release(lowerheader);
             }
         }
@@ -736,7 +729,7 @@ static void dd_set_entrypoint_root_span_props(struct superglob_equiv *data, ddtr
         zval post_zv;
         ZVAL_ARR(&post_zv, data->post);
         zend_string *empty = ZSTR_EMPTY_ALLOC();
-        dd_add_post_fields_to_meta_recursive(attributes, "request", empty, &post_zv, get_DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED(), false);
+        dd_add_post_fields_to_attributes_recursive(attributes, "request", empty, &post_zv, get_DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED(), false);
         zend_string_release(empty);
     }
 }
@@ -753,36 +746,20 @@ void ddtrace_inherit_span_properties(ddtrace_span_data *span, ddtrace_span_data 
     zval_ptr_dtor(prop_baggage);
     ZVAL_COPY_DEREF(prop_baggage, prop_parent_baggage);
 
-    zval *parent_svc_src = ddtrace_span_find_tag(parent, ZEND_STRL("_dd.svc_src"));
+    zval *parent_svc_src = zend_hash_str_find(ddtrace_property_array(&parent->property_attributes), ZEND_STRL("_dd.svc_src"));
     if (parent_svc_src) {
-        zend_array *child_meta = ddtrace_property_array(&span->property_attributes);
+        zend_array *child_attributes = ddtrace_property_array(&span->property_attributes);
         Z_TRY_ADDREF_P(parent_svc_src);
-        zend_hash_str_update(child_meta, ZEND_STRL("_dd.svc_src"), parent_svc_src);
+        zend_hash_str_update(child_attributes, ZEND_STRL("_dd.svc_src"), parent_svc_src);
     }
 
     zval *prop_version = &span->property_version;
     zval_ptr_dtor(prop_version);
-    zval *version;
-    if ((version = ddtrace_span_find_tag(parent, ZEND_STRL("version")))) {
-        zval old = *version;
-        datadog_convert_to_string(version, version);
-        zval_ptr_dtor(&old);
-    } else {
-        version = &parent->property_version;
-    }
-    ZVAL_COPY_DEREF(prop_version, version);
+    ZVAL_COPY_DEREF(prop_version, &parent->property_version);
 
     zval *prop_env = &span->property_env;
     zval_ptr_dtor(prop_env);
-    zval *env;
-    if ((env = ddtrace_span_find_tag(parent, ZEND_STRL("env")))) {
-        zval old = *env;
-        datadog_convert_to_string(env, env);
-        zval_ptr_dtor(&old);
-    } else {
-        env = &parent->property_env;
-    }
-    ZVAL_COPY_DEREF(prop_env, env);
+    ZVAL_COPY_DEREF(prop_env, &parent->property_env);
 }
 
 zend_string *ddtrace_active_service_name(void) {
@@ -835,29 +812,6 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
         dd_set_entrypoint_root_span_props(&data, span);
     }
 
-    if (get_DD_TRACE_REPORT_HOSTNAME()) {
-        if (ZSTR_LEN(get_DD_HOSTNAME())) {
-            zval hostname_zv;
-            ZVAL_STR_COPY(&hostname_zv, get_DD_HOSTNAME());
-            zend_hash_str_update(attributes, ZEND_STRL("_dd.hostname"), &hostname_zv);
-        } else {
-
-#ifndef HOST_NAME_MAX
-#define HOST_NAME_MAX 255
-#endif
-
-            zend_string *hostname = zend_string_alloc(HOST_NAME_MAX, 0);
-            if (gethostname(ZSTR_VAL(hostname), HOST_NAME_MAX + 1)) {
-                zend_string_release(hostname);
-            } else {
-                hostname = zend_string_truncate(hostname, strlen(ZSTR_VAL(hostname)), 0);
-                zval hostname_zv;
-                ZVAL_STR(&hostname_zv, hostname);
-                zend_hash_str_update(attributes, ZEND_STRL("_dd.hostname"), &hostname_zv);
-            }
-        }
-    }
-
     ddtrace_root_span_data *parent_root = span->stack->parent_stack->root_span;
     if (parent_root) {
         ddtrace_inherit_span_properties(&span->span, &parent_root->span);
@@ -883,16 +837,25 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
         ZVAL_STR_COPY(prop_service, ZSTR_LEN(get_DD_SERVICE()) ? get_DD_SERVICE() : Z_STR_P(prop_name));
 
 
+        // DD_VERSION/DD_ENV, else the DD_TAGS version/env.
         zend_string *version = get_DD_VERSION();
+        zval *version_tag = zend_hash_str_find(get_DD_TAGS(), ZEND_STRL("version"));
         if (ZSTR_LEN(version) > 0) {  // non-empty
             zval_ptr_dtor(prop_version);
             ZVAL_STR_COPY(prop_version, version);
+        } else if (version_tag && Z_TYPE_P(version_tag) == IS_STRING) {
+            zval_ptr_dtor(prop_version);
+            ZVAL_COPY(prop_version, version_tag);
         }
 
         zend_string *env = get_DD_ENV();
+        zval *env_tag = zend_hash_str_find(get_DD_TAGS(), ZEND_STRL("env"));
         if (ZSTR_LEN(env) > 0) {  // non-empty
             zval_ptr_dtor(prop_env);
             ZVAL_STR_COPY(prop_env, env);
+        } else if (env_tag && Z_TYPE_P(env_tag) == IS_STRING) {
+            zval_ptr_dtor(prop_env);
+            ZVAL_COPY(prop_env, env_tag);
         }
 
         if (DDTRACE_G(dd_origin)) {
@@ -931,7 +894,7 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
     }
 
     zval pid;
-    ZVAL_DOUBLE(&pid, (double)getpid());
+    ZVAL_LONG(&pid, (zend_long)getpid());
     zend_hash_str_update(attributes, ZEND_STRL("process_id"), &pid);
 }
 
@@ -1003,15 +966,14 @@ static inline bool dd_native_is_hidden_member(zend_string *str_key) {
 //
 // One emitter fills every attribute map (span, link, event, nested map): scalars keep their PHP type,
 // arrays/objects nest as a List/KeyValue (objects as a map of their public properties), and a
-// reference cycle becomes the "" leaf. The top-level flags keep each node's v0.4-parity differences.
+// reference cycle becomes the "*RECURSION*" leaf, as in var_dump. The top-level flags set each node's form.
 #define DD_ATTR_TOP (1 << 0)                    // top-level entry: empty keys are skipped
 #define DD_ATTR_NULL_AS_STRING (1 << 1)         // null is the "null" string (links, events), not skipped
-#define DD_ATTR_EMPTY_ARRAY_AS_STRING (1 << 2)  // an empty array is the "" tag (spans: no v0.4 form)
-#define DD_ATTR_SCALARS_AS_STRINGS (1 << 3)     // scalars are strings (links)
+#define DD_ATTR_EMPTY_ARRAY_AS_STRING (1 << 2)  // an empty array is the "" tag (spans)
 
 #define DD_ATTR_SPAN (DD_ATTR_TOP | DD_ATTR_EMPTY_ARRAY_AS_STRING)
 #define DD_ATTR_EVENT (DD_ATTR_TOP | DD_ATTR_NULL_AS_STRING)
-#define DD_ATTR_LINK (DD_ATTR_TOP | DD_ATTR_NULL_AS_STRING | DD_ATTR_SCALARS_AS_STRINGS)
+#define DD_ATTR_LINK (DD_ATTR_TOP | DD_ATTR_NULL_AS_STRING)
 
 static void dd_attr_emit(ddog_Attributes *dest, ddog_CharSlice key, zend_string *zkey, zval *value, int flags);
 static void dd_attr_emit_list(ddog_AttrList *dest, zval *value);
@@ -1050,11 +1012,6 @@ static ddog_AttrMap *dd_attr_build_map(zval *value) {
     return map;
 }
 
-// String form of a scalar leaf (null -> "null").
-static zend_string *dd_native_typed_str(zval *value) {
-    return datadog_convert_to_str(value);
-}
-
 // Emits one list element, preserving the PHP scalar type (nested nulls are skipped).
 static void dd_attr_emit_list(ddog_AttrList *dest, zval *value) {
     ZVAL_DEREF(value);
@@ -1062,7 +1019,7 @@ static void dd_attr_emit_list(ddog_AttrList *dest, zval *value) {
         case IS_ARRAY:
         case IS_OBJECT:
             if (Z_IS_RECURSIVE_P(value)) {
-                ddog_attr_list_push_str(dest, DDOG_CHARSLICE_C(""));
+                ddog_attr_list_push_str(dest, DDOG_CHARSLICE_C("*RECURSION*"));
             } else if (dd_native_is_list(value)) {
                 ddog_attr_list_push_list(dest, dd_attr_build_list(value));
             } else {
@@ -1076,7 +1033,7 @@ static void dd_attr_emit_list(ddog_AttrList *dest, zval *value) {
         case IS_LONG:   ddog_attr_list_push_int(dest, Z_LVAL_P(value)); break;
         case IS_DOUBLE: ddog_attr_list_push_double(dest, Z_DVAL_P(value)); break;
         default: {
-            zend_string *str = dd_native_typed_str(value);
+            zend_string *str = datadog_convert_to_str(value);
             ddog_attr_list_push_str(dest, dd_zend_string_to_CharSlice(str));
             zend_string_release(str);
             break;
@@ -1084,58 +1041,18 @@ static void dd_attr_emit_list(ddog_AttrList *dest, zval *value) {
     }
 }
 
-// ParseBool returns the boolean value represented by the string.
-// It accepts 1, t, T, TRUE, true, True, 0, f, F, FALSE, false, False.
-// Any other value returns -1.
-static zend_always_inline double strconv_parse_bool(zend_string *str) {
-    // See Go's strconv.ParseBool
-    // https://cs.opensource.google/go/go/+/refs/tags/go1.21.5:src/strconv/atob.go;drc=1f137052e4a20dbd302f947b1cf34cdf4b427d65;l=10
-    size_t len = ZSTR_LEN(str);
-    if (len == 0) {
-        return -1;
-    }
-
-    char *s = ZSTR_VAL(str);
-    switch (len) {
-        case 1:
-            switch (s[0]) {
-                case '1':
-                case 't':
-                case 'T':
-                    return 1;
-                case '0':
-                case 'f':
-                case 'F':
-                    return 0;
-            }
-            break;
-        case 4:
-            if (strcmp(s, "TRUE") == 0 || strcmp(s, "True") == 0 || strcmp(s, "true") == 0) {
-                return 1;
-            }
-            break;
-        case 5:
-            if (strcmp(s, "FALSE") == 0 || strcmp(s, "False") == 0 || strcmp(s, "false") == 0) {
-                return 0;
-            }
-            break;
-    }
-
-    return -1;
-}
-
 // Emits `value` under `key` into `dest`; `zkey`, when given, is `key` as a zend_string (zero-copy).
 static void dd_attr_emit(ddog_Attributes *dest, ddog_CharSlice key, zend_string *zkey, zval *value, int flags) {
     if ((flags & DD_ATTR_TOP) && !key.len) {
         return;
     }
-    bool as_string = flags & DD_ATTR_SCALARS_AS_STRINGS;
     ZVAL_DEREF(value);
     switch (Z_TYPE_P(value)) {
         case IS_ARRAY:
         case IS_OBJECT:
-            if (Z_IS_RECURSIVE_P(value)
-                || ((flags & DD_ATTR_EMPTY_ARRAY_AS_STRING) && Z_TYPE_P(value) == IS_ARRAY && !zend_hash_num_elements(Z_ARR_P(value)))) {
+            if (Z_IS_RECURSIVE_P(value)) {
+                ddog_attributes_add_str(dest, key, DDOG_CHARSLICE_C("*RECURSION*"));
+            } else if ((flags & DD_ATTR_EMPTY_ARRAY_AS_STRING) && Z_TYPE_P(value) == IS_ARRAY && !zend_hash_num_elements(Z_ARR_P(value))) {
                 ddog_attributes_add_str(dest, key, DDOG_CHARSLICE_C(""));
             } else if (dd_native_is_list(value)) {
                 ddog_attributes_add_list(dest, key, dd_attr_build_list(value));
@@ -1150,29 +1067,20 @@ static void dd_attr_emit(ddog_Attributes *dest, ddog_CharSlice key, zend_string 
             break;
         case IS_TRUE:
         case IS_FALSE:
-            if (!as_string) {
-                ddog_attributes_add_bool(dest, key, Z_TYPE_P(value) == IS_TRUE);
-                return;
-            }
-            break;
+            ddog_attributes_add_bool(dest, key, Z_TYPE_P(value) == IS_TRUE);
+            return;
         case IS_LONG:
-            if (!as_string) {
-                ddog_attributes_add_int(dest, key, Z_LVAL_P(value));
-                return;
-            }
-            break;
+            ddog_attributes_add_int(dest, key, Z_LVAL_P(value));
+            return;
         case IS_DOUBLE:
-            if (!as_string) {
-                if (zkey) {
-                    ddog_attributes_add_double_zstr(dest, zkey, Z_DVAL_P(value));
-                } else {
-                    ddog_attributes_add_double(dest, key, Z_DVAL_P(value));
-                }
-                return;
+            if (zkey) {
+                ddog_attributes_add_double_zstr(dest, zkey, Z_DVAL_P(value));
+            } else {
+                ddog_attributes_add_double(dest, key, Z_DVAL_P(value));
             }
-            break;
+            return;
     }
-    zend_string *str = dd_native_typed_str(value);
+    zend_string *str = datadog_convert_to_str(value);
     if (zkey) {
         ddog_attributes_add_zstr(dest, zkey, str);
     } else {
@@ -1181,9 +1089,8 @@ static void dd_attr_emit(ddog_Attributes *dest, ddog_CharSlice key, zend_string 
     zend_string_release(str);
 }
 
-// Emit each SpanLink into the V1 builder span, reading from the PHP link objects (scalar attributes
-// are strings; dropped_attributes_count has no PHP-side source).
-static void dd_span_links_to_rust(zend_array *links, ddog_SpanNode *span) {
+// Emit each SpanLink into the V1 builder span. V1 links carry no dropped_attributes_count.
+static void dd_span_links_to_rust(zend_array *links, ddog_SpanBytes *span) {
     zval *val;
     ZEND_HASH_FOREACH_VAL(links, val) {
         ZVAL_DEREF(val);
@@ -1222,7 +1129,7 @@ static void dd_span_links_to_rust(zend_array *links, ddog_SpanNode *span) {
 
 // Emit each SpanEvent into the V1 builder span, dispatching attributes by type. ExceptionSpanEvent
 // flattens exception.message/type/stacktrace as string attributes.
-static void dd_span_events_to_rust(zend_array *events, ddog_SpanNode *span) {
+static void dd_span_events_to_rust(zend_array *events, ddog_SpanBytes *span) {
     zval *val;
     ZEND_HASH_FOREACH_VAL(events, val) {
         ZVAL_DEREF(val);
@@ -1276,7 +1183,7 @@ static void dd_span_events_to_rust(zend_array *events, ddog_SpanNode *span) {
 }
 
 // Value stored through the $meta/$metrics views: meta leaves become strings, metric leaves doubles,
-// and empty or recursive arrays/objects the ""/0.0 placeholder, so the v0.4 wire keeps the old form.
+// empty arrays/objects the ""/0.0 placeholder and reference cycles "*RECURSION*"/0.0.
 void ddtrace_normalize_tag_value(zval *dst, zval *value, bool metric) {
     ZVAL_DEREF(value);
     if (Z_TYPE_P(value) == IS_ARRAY || Z_TYPE_P(value) == IS_OBJECT) {
@@ -1307,9 +1214,12 @@ void ddtrace_normalize_tag_value(zval *dst, zval *value, bool metric) {
             dd_native_release_props(arr, release);
             return;
         }
+        bool recursive = Z_IS_RECURSIVE_P(value);
         dd_native_release_props(arr, release);
         if (metric) {
             ZVAL_DOUBLE(dst, 0.0);
+        } else if (recursive) {
+            ZVAL_STRINGL(dst, "*RECURSION*", sizeof("*RECURSION*") - 1);
         } else {
             ZVAL_EMPTY_STRING(dst);
         }
@@ -1320,7 +1230,7 @@ void ddtrace_normalize_tag_value(zval *dst, zval *value, bool metric) {
     }
 }
 
-static void dd_serialize_array_meta_struct_recursively(ddog_SpanNode *target, zend_string *str, zval *value) {
+static void dd_serialize_array_meta_struct_recursively(ddog_SpanBytes *target, zend_string *str, zval *value) {
     char *data;
     size_t size;
 
@@ -1502,50 +1412,39 @@ static bool dd_is_http_error(int status) {
     return false;
 }
 
-static void dd_set_http_error(ddtrace_span_data *span, int status, bool ignore_error) {
+static void dd_set_http_error(zend_array *attributes, int status, bool ignore_error) {
     if (status) {
-        zend_array *attributes = ddtrace_property_array(&span->property_attributes);
         zend_string *status_str = zend_long_to_str((long)status);
         zval status_zv;
         ZVAL_STR(&status_zv, status_str);
         zend_hash_str_update(attributes, ZEND_STRL("http.status_code"), &status_zv);
 
         // Only check status codes if not ignoring errors
-        if (!ignore_error && dd_is_http_error(status) && !ddtrace_span_find_tag(span, ZEND_STRL("error.type"))) {
-            zval zv;
-            ZVAL_STR(&zv, zend_string_init(ZEND_STRL("HttpError"), 0));
-            zend_hash_str_add_new(attributes, ZEND_STRL("error.type"), &zv);
+        if (!ignore_error && dd_is_http_error(status)) {
+            zval zv = {0}, *value;
+            if ((value = zend_hash_str_add(attributes, ZEND_STRL("error.type"), &zv))) {
+                ZVAL_STR(value, zend_string_init(ZEND_STRL("HttpError"), 0));
+            }
         }
     }
 }
 
-static void dd_set_entrypoint_root_span_props_end(ddtrace_span_data *span, int status, struct iter *headers, bool ignore_error) {
-    dd_set_http_error(span, status, ignore_error);
+static void dd_set_entrypoint_root_span_props_end(zend_array *attributes, int status, struct iter *headers, bool ignore_error) {
+    dd_set_http_error(attributes, status, ignore_error);
 
-    zend_array *attributes = ddtrace_property_array(&span->property_attributes);
     for (zend_string *lowerheader, *headerval; headers->next(headers, &lowerheader, &headerval);) {
-        dd_add_header_to_meta(attributes, "response", lowerheader, headerval);
+        dd_add_header_to_attributes(attributes, "response", lowerheader, headerval);
         zend_string_release(lowerheader);
         zend_string_release(headerval);
     }
 }
 
-static void dd_set_entrypoint_root_rust_span_props_end(ddog_SpanNode *span, struct iter *headers) {
+static void dd_set_entrypoint_root_rust_span_props_end(ddog_SpanBytes *span, struct iter *headers) {
     for (zend_string *lowerheader, *headerval; headers->next(headers, &lowerheader, &headerval);) {
         dd_add_header_to_rust_span(span, "response", lowerheader, headerval);
         zend_string_release(lowerheader);
         zend_string_release(headerval);
     }
-}
-
-// $ignoreError, or the deprecated "error.ignored" tag of a span not yet serialized (serialized spans
-// have it folded into the property, see ddtrace_precompute_span).
-static bool dd_span_ignores_error(ddtrace_span_data *span) {
-    if (zend_is_true(&span->property_ignore_error)) {
-        return true;
-    }
-    zval *attr = ddtrace_span_find_tag(span, ZEND_STRL("error.ignored"));
-    return attr && zend_is_true(attr);
 }
 
 static bool should_track_error(zend_object *exception, ddtrace_span_data *span) {
@@ -1556,10 +1455,10 @@ static bool should_track_error(zend_object *exception, ddtrace_span_data *span) 
     zval *zv;
 
     // Check if error should be ignored or tracking is disabled
-    if (dd_span_ignores_error(span)) {
+    if (zend_is_true(&span->property_ignore_error)) {
         return false;
     }
-    if ((zv = ddtrace_span_find_tag(span, ZEND_STRL("track_error"))) && !zend_is_true(zv)) {
+    if ((zv = zend_hash_str_find(ddtrace_property_array(&span->property_attributes), ZEND_STRL("track_error"))) && !zend_is_true(zv)) {
         return false;
     }
     return true;
@@ -1604,14 +1503,23 @@ void ddtrace_shutdown_span_sampling_limiter(void) {
     zend_hash_destroy(&dd_span_sampling_limiters);
 }
 
-// DD_ENV/DD_VERSION win, else the root's env/version (DD_TAGS fallback); the hostname is _dd.hostname's.
-static void dd_set_payload_fields(ddog_TracerPayloadV1Builder *builder, ddtrace_span_precomputed *pre, zend_array *attributes, zval *git_metadata) {
+#ifndef HOST_NAME_MAX
+#define HOST_NAME_MAX 255
+#endif
+
+// DD_ENV/DD_VERSION win, else the root's env/version.
+static void dd_set_payload_fields(ddog_TracerPayloadBytes *builder, ddtrace_span_precomputed *pre, zval *git_metadata) {
     zend_string *env = ZSTR_LEN(get_DD_ENV()) ? get_DD_ENV() : pre->env;
     zend_string *version = ZSTR_LEN(get_DD_VERSION()) ? get_DD_VERSION() : pre->version;
     ddog_CharSlice hostname = DDOG_CHARSLICE_C("");
-    zval *hostname_zv = zend_hash_str_find(attributes, ZEND_STRL("_dd.hostname"));
-    if (get_DD_TRACE_REPORT_HOSTNAME() && hostname_zv && Z_TYPE_P(hostname_zv) == IS_STRING) {
-        hostname = dd_zend_string_to_CharSlice(Z_STR_P(hostname_zv));
+    char hostname_buf[HOST_NAME_MAX + 1];
+    if (get_DD_TRACE_REPORT_HOSTNAME()) {
+        if (ZSTR_LEN(get_DD_HOSTNAME())) {
+            hostname = dd_zend_string_to_CharSlice(get_DD_HOSTNAME());
+        } else if (!gethostname(hostname_buf, sizeof(hostname_buf))) {
+            hostname_buf[HOST_NAME_MAX] = '\0';
+            hostname = (ddog_CharSlice){ .ptr = hostname_buf, .len = strlen(hostname_buf) };
+        }
     }
     ddog_set_payload_metadata(builder,
                               env ? dd_zend_string_to_CharSlice(env) : DDOG_CHARSLICE_C(""),
@@ -1631,23 +1539,8 @@ static void dd_set_payload_fields(ddog_TracerPayloadV1Builder *builder, ddtrace_
     }
 }
 
-ddog_SpanNode *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtrace_serialize_ctx *ctx, bool p0_trace) {
+ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtrace_serialize_ctx *ctx, bool p0_trace) {
     zend_array *attributes = ddtrace_property_array(&span->property_attributes);
-
-    // http.status_code is a string tag on the wire; a numeric one (e.g. OTel's metric) is converted.
-    zval *attr_status_code = zend_hash_str_find(attributes, ZEND_STRL("http.status_code"));
-    if (attr_status_code && Z_TYPE_P(attr_status_code) != IS_STRING) {
-        zval status_code_as_string;
-        datadog_convert_to_string(&status_code_as_string, attr_status_code);
-        zend_hash_str_update(attributes, ZEND_STRL("http.status_code"), &status_code_as_string);
-    }
-    zval *attr_response_status_code = zend_hash_str_find(attributes, ZEND_STRL("http.response.status_code"));
-    if (attr_response_status_code && Z_TYPE_P(attr_response_status_code) != IS_STRING) {
-        zval status_code_as_string;
-        datadog_convert_to_string(&status_code_as_string, attr_response_status_code);
-        zend_hash_str_update(attributes, ZEND_STRL("http.status_code"), &status_code_as_string);
-        zend_hash_str_del(attributes, ZEND_STRL("http.response.status_code"));
-    }
 
     ddtrace_span_precomputed pre;
     ddtrace_precompute_span(span, &pre);
@@ -1672,7 +1565,7 @@ ddog_SpanNode *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtr
         if (datadog_active_sapi == DATADOG_PHP_SAPI_FRANKENPHP && !status) {
             status = pre.has_exception ? 500 : 200;
         }
-        dd_set_http_error(span, status, pre.ignore_error);
+        dd_set_http_error(attributes, status, pre.ignore_error);
     }
 
     ddtrace_span_data *inferred_span = NULL;
@@ -1846,16 +1739,15 @@ ddog_SpanNode *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtr
         // dropped_trace is reserved for the agent; the chunk priority carries the sampling decision.
         ctx->chunk = ddog_new_chunk(ctx->builder, span->root->trace_id.high, span->root->trace_id.low);
     }
-    bool is_first_span = ddog_chunk_span_count(ctx->chunk) == 0;
-    ddog_SpanNode *rspan = ddog_new_span(ctx->chunk);
+    uintptr_t rspan_index = ddog_chunk_span_count(ctx->chunk);
+    bool is_first_span = rspan_index == 0;
+    ddog_SpanBytes *rspan = ddog_new_span(ctx->chunk);
     ddog_Attributes *rattrs = ddog_span_get_attributes(rspan);
 
     ddog_span_set_id(rspan, span->span_id);
 
-    uint64_t parent_id_set = 0;
-    bool has_parent_id = false;
     if (inferred_span) {
-        parent_id_set = inferred_span->span_id; has_parent_id = true;
+        ddog_span_set_parent_id(rspan, inferred_span->span_id);
     } else if (span->parent) { // handle dropped spans
         ddtrace_span_data *parent = SPANDATA(span->parent);
         // Ensure the parent id is the root span if everything else was dropped
@@ -1863,15 +1755,12 @@ ddog_SpanNode *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtr
             parent = SPANDATA(parent->parent);
         }
         if (parent) {
-            parent_id_set = parent->span_id; has_parent_id = true;
+            ddog_span_set_parent_id(rspan, parent->span_id);
         }
     } else if (is_root_span) {
-        parent_id_set = ROOTSPANDATA(&span->std)->parent_id; has_parent_id = true;
+        ddog_span_set_parent_id(rspan, ROOTSPANDATA(&span->std)->parent_id);
     } else if (is_inferred_span) {
-        parent_id_set = span->root->parent_id; has_parent_id = true;
-    }
-    if (has_parent_id) {
-        ddog_span_set_parent_id(rspan, parent_id_set);
+        ddog_span_set_parent_id(rspan, span->root->parent_id);
     }
 
     ddog_span_set_start(rspan, span->start);
@@ -1881,7 +1770,6 @@ ddog_SpanNode *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtr
     if (is_first_span && !ctx->process_tags_set) {
         ctx->process_tags_set = true;
         ddog_Attributes *payload_attrs = ddog_payload_get_attributes(ctx->builder);
-        // v0.4 downgrade puts this on each chunk's first span, as the pre-V1 serializer did.
         ddog_attributes_add_lit(payload_attrs, "_dd.sdk.otlp_export", DDOG_CHARSLICE_C("false"));
         zend_string *process_tags = datadog_process_tags_get_serialized();
         if (ZSTR_LEN(process_tags)) {
@@ -1892,7 +1780,7 @@ ddog_SpanNode *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtr
             if (dd_service && ZSTR_LEN(dd_service)) {
                 svc_tag_appendix = ",svc.user:true";
             } else {
-                if (!ddtrace_span_find_tag(&span->root->span, ZEND_STRL("_dd.svc_src"))) {
+                if (!zend_hash_str_find(ddtrace_property_array(&span->root->property_attributes), ZEND_STRL("_dd.svc_src"))) {
                     zend_string *root_svc = datadog_convert_to_str(&span->root->property_service);
                     if (ZSTR_LEN(root_svc)) {
                         normalized_default = ddog_normalize_process_tag_value(dd_zend_string_to_CharSlice(root_svc));
@@ -1927,46 +1815,20 @@ ddog_SpanNode *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtr
     if (pre.name) {
         ddog_set_span_name_zstr(rspan, pre.name);
     }
-    if (pre.name_from_meta) {
-        zend_hash_str_del(attributes, ZEND_STRL("operation.name"));
-    }
 
     // SpanData::$resource defaults to SpanData::$name
     if (pre.resource) {
         ddog_set_span_resource_zstr(rspan, pre.resource);
-    }
-    if (pre.resource_from_meta) {
-        zend_hash_str_del(attributes, ZEND_STRL("resource.name"));
     }
 
     // TODO: SpanData::$service defaults to parent SpanData::$service or DD_SERVICE if root span
     if (pre.service) {
         ddog_set_span_service_zstr(rspan, pre.service);
     }
-    if (pre.service_from_meta) {
-        zend_hash_str_del(attributes, ZEND_STRL("service.name"));
-    }
 
     // SpanData::$type is optional and defaults to 'custom' at the Agent level
     if (pre.type) {
         ddog_set_span_type_zstr(rspan, pre.type);
-    }
-    if (pre.type_from_meta) {
-        zend_hash_str_del(attributes, ZEND_STRL("span.type"));
-    }
-
-    // analytics.event maps to _dd1.sr.eausr (a valid value wins over a set _dd1.sr.eausr).
-    zval *analytics_event = zend_hash_str_find(attributes, ZEND_STRL("analytics.event"));
-    if (analytics_event) {
-        ZVAL_DEREF(analytics_event);
-        double parsed_analytics_event = Z_TYPE_P(analytics_event) == IS_STRING
-            ? strconv_parse_bool(Z_STR_P(analytics_event))
-            : zval_get_double(analytics_event);
-        if (Z_TYPE_P(analytics_event) != IS_STRING || parsed_analytics_event >= 0) {
-            zend_hash_str_del(attributes, ZEND_STRL("_dd1.sr.eausr"));
-            ddog_attributes_add_double_lit(rattrs, "_dd1.sr.eausr", parsed_analytics_event);
-        }
-        zend_hash_str_del(attributes, ZEND_STRL("analytics.event"));
     }
 
     if (span_sampling_applied) {
@@ -1977,9 +1839,6 @@ ddog_SpanNode *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtr
         }
     }
 
-    // Promote span/chunk fields up front (their tags are deleted below). env/version are property-first
-    // with a tag fallback: DD_TAGS "env"/"version" are plain tags when DD_ENV/DD_VERSION are unset.
-    // pre.env/pre.version already carry that fallback.
     if (pre.env) {
         ddog_set_span_env(rspan, dd_zend_string_to_CharSlice(pre.env));
     }
@@ -1991,25 +1850,10 @@ ddog_SpanNode *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtr
     ZVAL_DEREF(component_prop);
     if (Z_TYPE_P(component_prop) == IS_STRING && Z_STRLEN_P(component_prop) > 0) {
         ddog_set_span_component(rspan, dd_zend_string_to_CharSlice(Z_STR_P(component_prop)));
-    } else {
-        zval *component_meta = zend_hash_str_find(attributes, ZEND_STRL("component"));
-        if (component_meta && Z_TYPE_P(component_meta) == IS_STRING) {
-            ddog_set_span_component(rspan, dd_zend_string_to_CharSlice(Z_STR_P(component_meta)));
-        }
     }
 
-    zval *span_kind_prop = &span->property_span_kind;
-    ZVAL_DEREF(span_kind_prop);
-    // Non-canonical span.kind strings (e.g. "process") leave the kind unspecified;
-    // keep them as a plain attribute instead of deleting below.
-    bool span_kind_is_canonical = true;
-    if (Z_TYPE_P(span_kind_prop) == IS_LONG && Z_LVAL_P(span_kind_prop) >= 1 && Z_LVAL_P(span_kind_prop) <= 5) {
-        ddog_set_span_kind(rspan, (uint32_t)Z_LVAL_P(span_kind_prop));
-    } else {
-        zval *span_kind_meta = zend_hash_str_find(attributes, ZEND_STRL("span.kind"));
-        if (span_kind_meta && Z_TYPE_P(span_kind_meta) == IS_STRING) {
-            span_kind_is_canonical = ddog_set_span_kind_str(rspan, dd_zend_string_to_CharSlice(Z_STR_P(span_kind_meta)));
-        }
+    if (ddtrace_span_kind_str(pre.span_kind)) {
+        ddog_set_span_kind(rspan, (uint32_t)pre.span_kind);
     }
 
     // _dd.origin is property-sourced; the chunk carries it (never a span attribute).
@@ -2018,14 +1862,14 @@ ddog_SpanNode *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtr
         ddog_set_chunk_origin(ctx->chunk, dd_zend_string_to_CharSlice(Z_STR_P(origin)));
     }
 
-    {
+    if (is_root_span || is_inferred_span) {
         // _dd.p.dm is "-N" (legacy "<hash>-N"): the mechanism is the digits after the last '-'.
         // Unparseable values leave the chunk field unset rather than claiming mechanism 0.
-        zval *dm_meta = zend_hash_str_find(attributes, ZEND_STRL("_dd.p.dm"));
-        if (dm_meta && Z_TYPE_P(dm_meta) == IS_STRING) {
-            const char *dash = zend_memrchr(Z_STRVAL_P(dm_meta), '-', Z_STRLEN_P(dm_meta));
-            const char *p = dash ? dash + 1 : Z_STRVAL_P(dm_meta);
-            const char *end = Z_STRVAL_P(dm_meta) + Z_STRLEN_P(dm_meta);
+        zval *dm = zend_hash_str_find(attributes, ZEND_STRL("_dd.p.dm"));
+        if (dm && Z_TYPE_P(dm) == IS_STRING) {
+            const char *dash = zend_memrchr(Z_STRVAL_P(dm), '-', Z_STRLEN_P(dm));
+            const char *p = dash ? dash + 1 : Z_STRVAL_P(dm);
+            const char *end = Z_STRVAL_P(dm) + Z_STRLEN_P(dm);
             uint64_t mech = 0;
             bool valid = p < end;
             for (; valid && p < end; p++) {
@@ -2035,20 +1879,10 @@ ddog_SpanNode *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtr
                 ddog_set_chunk_sampling_mechanism(ctx->chunk, (uint32_t)mech);
             }
         }
-        // Delete promoted keys so the copy loop only carries plain attributes.
-        zend_hash_str_del(attributes, ZEND_STRL("env"));
-        zend_hash_str_del(attributes, ZEND_STRL("version"));
-        zend_hash_str_del(attributes, ZEND_STRL("component"));
-        if (span_kind_is_canonical) {
-            zend_hash_str_del(attributes, ZEND_STRL("span.kind"));
-        }
-        zend_hash_str_del(attributes, ZEND_STRL("_dd.origin"));
         zend_hash_str_del(attributes, ZEND_STRL("_dd.p.dm"));
-        // _sampling_priority_v1 becomes the chunk sampling priority below.
-        zend_hash_str_del(attributes, ZEND_STRL("_sampling_priority_v1"));
     }
 
-    // $attributes is the single tag store ($meta/$metrics are views onto it).
+    // $meta/$metrics are views onto $attributes, so this emits them too.
     zend_string *attr_str_key;
     zval *attr_val;
     ZEND_HASH_FOREACH_STR_KEY_VAL_IND(attributes, attr_str_key, attr_val) {
@@ -2063,11 +1897,10 @@ ddog_SpanNode *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtr
         if (is_root_span) {
             exception_type = Z_PROP_FLAG_P(exception_zv) == 2 ? DD_EXCEPTION_CAUGHT : DD_EXCEPTION_UNCAUGHT;
         }
-        ddtrace_exception_to_meta(Z_OBJ_P(exception_zv), pre.service ? pre.service : ZSTR_EMPTY_ALLOC(), span->start, rspan, exception_type);
+        ddtrace_exception_to_attributes(Z_OBJ_P(exception_zv), pre.service ? pre.service : ZSTR_EMPTY_ALLOC(), span->start, rspan, exception_type);
     }
 
-    // Links/events are emitted natively from the PHP span (the _dd.span_links/events meta keys are
-    // never produced on the V1 path).
+    // Links/events are emitted natively from the PHP span.
     zend_array *span_links = ddtrace_property_array(&span->property_links);
     if (zend_hash_num_elements(span_links) > 0) {
         dd_span_links_to_rust(span_links, rspan);
@@ -2078,33 +1911,17 @@ ddog_SpanNode *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtr
         dd_span_events_to_rust(span_events, rspan);
     }
 
-    zval *git_metadata = &span->root->property_git_metadata;
-    // Payload env/app_version/hostname/git come from the payload's first root span, as the v0.4 agent read them.
+    // Payload env/app_version/git come from the payload's first root span.
     if (is_root_span && !ctx->payload_fields_set) {
         ctx->payload_fields_set = true;
-        dd_set_payload_fields(ctx->builder, &pre, attributes, git_metadata);
-    }
-    if (git_metadata && Z_TYPE_P(git_metadata) == IS_OBJECT) {
-        datadog_git_metadata *metadata = (datadog_git_metadata *)Z_OBJ_P(git_metadata);
-        if (is_root_span) {
-            if (Z_TYPE(metadata->property_commit) == IS_STRING) {
-                zend_string *commit_sha = datadog_convert_to_str(&metadata->property_commit);
-                dd_span_attr_zstr(rspan, "_dd.git.commit.sha", commit_sha);
-                zend_string_release(commit_sha);
-            }
-            if (Z_TYPE(metadata->property_repository) == IS_STRING) {
-                zend_string *repository_url = datadog_convert_to_str(&metadata->property_repository);
-                dd_span_attr_zstr(rspan, "_dd.git.repository_url", repository_url);
-                zend_string_release(repository_url);
-            }
-        }
+        dd_set_payload_fields(ctx->builder, &pre, &span->root->property_git_metadata);
     }
 
     if (get_DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED()) {
         zend_array *peer_service_sources = ddtrace_property_array(&span->property_peer_service_sources);
         zval *peer_service_tag = zend_hash_str_find(attributes, ZEND_STRL("peer.service"));
         if (peer_service_tag && Z_TYPE_P(peer_service_tag) == IS_STRING) {
-            dd_span_attr_str(rspan, "_dd.peer.service.source", "peer.service");
+            ddog_attributes_add_lit(rattrs, "_dd.peer.service.source", DDOG_CHARSLICE_C("peer.service"));
             dd_set_mapped_peer_service(rspan, Z_STR_P(peer_service_tag));
         } else if (zend_hash_num_elements(peer_service_sources) > 0) {
             zval *tag;
@@ -2112,10 +1929,10 @@ ddog_SpanNode *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtr
                 if (Z_TYPE_P(tag) == IS_STRING) {
                     zval *found_peer_service = zend_hash_find(attributes, Z_STR_P(tag));
                     if (found_peer_service && Z_TYPE_P(found_peer_service) == IS_STRING) {
-                        dd_span_attr_zstr(rspan, "_dd.peer.service.source", Z_STR_P(tag));
+                        ddog_attributes_add_lit(rattrs, "_dd.peer.service.source", dd_zend_string_to_CharSlice(Z_STR_P(tag)));
                         zend_string *peer = zval_get_string(found_peer_service);
                         if (!dd_set_mapped_peer_service(rspan, peer)) {
-                            dd_span_attr_zstr(rspan, "peer.service", peer);
+                            ddog_attributes_add_lit(rattrs, "peer.service", dd_zend_string_to_CharSlice(peer));
                         }
                         zend_string_release(peer);
                         break;
@@ -2141,7 +1958,7 @@ ddog_SpanNode *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtr
             do {
                 should_track = should_track_error(exception, current);
                 if (!should_track) {
-                    dd_span_attr_str(rspan, "track_error", "false");
+                    ddog_attributes_add_lit(rattrs, "track_error", DDOG_CHARSLICE_C("false"));
                     break;
                 }
                 current = current->parent ? SPANDATA(current->parent) : NULL;
@@ -2160,7 +1977,7 @@ ddog_SpanNode *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtr
         ZVAL_COPY(&prop_root_service_as_string, new_root_name);
     }
     if (!is_inferred_span && !zend_string_equals_ci(Z_STR(prop_service_as_string), Z_STR(prop_root_service_as_string))) {
-        dd_span_attr_zstr(rspan, "_dd.base_service", Z_STR_P(&prop_root_service_as_string));
+        ddog_attributes_add_lit(rattrs, "_dd.base_service", dd_zend_string_to_CharSlice(Z_STR_P(&prop_root_service_as_string)));
     }
     zend_string_release(Z_STR(prop_root_service_as_string));
     zend_string_release(Z_STR(prop_service_as_string));
@@ -2174,7 +1991,7 @@ ddog_SpanNode *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtr
     if ((is_root_span && !inferred_span) || is_inferred_span) {
         if (Z_TYPE_P(&span->root->property_sampling_priority) != IS_UNDEF) {
             long sampling_priority = zval_get_long(&span->root->property_sampling_priority);
-            if (!get_global_DD_APM_TRACING_ENABLED() && !ddtrace_trace_source_is_meta_asm_sourced(attributes)) {
+            if (!get_global_DD_APM_TRACING_ENABLED() && !ddtrace_trace_source_is_asm_sourced(attributes)) {
                 sampling_priority = MIN(PRIORITY_SAMPLING_AUTO_KEEP, sampling_priority);
             }
             ddog_set_chunk_sampling_priority(ctx->chunk, (int32_t)sampling_priority);
@@ -2214,9 +2031,10 @@ ddog_SpanNode *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtr
         }
     }
 
-    ddog_SpanNode *inferred = inferred_span ? ddtrace_serialize_span_to_rust_span(inferred_span, ctx, p0_trace) : NULL;
-    // A dropped inferred span returns NULL; skip the transfers then. Node pointers stay valid across
-    // sibling pushes, so rspan is still usable after the inferred span was added to the chunk.
+    ddog_SpanBytes *inferred = inferred_span ? ddtrace_serialize_span_to_rust_span(inferred_span, ctx, p0_trace) : NULL;
+    // The inferred span was pushed into the same chunk, which may have moved rspan (rattrs is stale too).
+    rspan = ddog_v1_get_span(ctx->chunk, rspan_index);
+    // A dropped inferred span returns NULL; skip the transfers then.
     if (inferred) {
         ddog_transfer_span_attr(rspan, inferred, "_dd.agent_psr", true);
         ddog_transfer_span_attr(rspan, inferred, "_dd.rule_psr", true);
@@ -2226,7 +2044,6 @@ ddog_SpanNode *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtr
         ddog_transfer_span_attr(rspan, inferred, "error.type", false);
         ddog_transfer_span_attr(rspan, inferred, "error.stack", false);
         ddog_transfer_span_attr(rspan, inferred, "track_error", false);
-        ddog_transfer_span_attr(rspan, inferred, "_dd.p.dm", true);
         ddog_transfer_span_attr(rspan, inferred, "_dd.p.ksr", false);
         ddog_transfer_span_attr(rspan, inferred, "_dd.svc_src", false);
         ddog_transfer_span_attr(rspan, inferred, DD_TAG_HTTP_REQH_ENDPOINT_SCAN, false);
@@ -2323,155 +2140,137 @@ static void dd_add_assoc_nonempty(zval *parent, const char *key, zval *arr) {
     }
 }
 
-// Introspection reader for the native V1 builder: promoted and chunk-level fields are surfaced
-// directly, the unified typed attribute map under "attributes", and links/events natively.
-zval dd_serialize_rust_to_zval(ddog_TracerPayloadV1Builder *b) {
-    // The payload's process tags and OTLP export marker show on each chunk's first span, as on the v0.4 wire.
-    const ddog_AttrValue *process_tags_value = ddog_v1_attributes_get(ddog_payload_get_attributes(b), DDOG_CHARSLICE_C("_dd.tags.process"));
-    ddog_CharSlice process_tags = process_tags_value ? ddog_v1_value_str(process_tags_value) : (ddog_CharSlice){0};
-    const ddog_AttrValue *otlp_export_value = ddog_v1_attributes_get(ddog_payload_get_attributes(b), DDOG_CHARSLICE_C("_dd.sdk.otlp_export"));
-    ddog_CharSlice otlp_export = otlp_export_value ? ddog_v1_value_str(otlp_export_value) : (ddog_CharSlice){0};
-    zval traces_zv;
-    array_init(&traces_zv);
+// Adds a non-empty string field under `key`.
+static void dd_add_assoc_charslice(zval *parent, const char *key, ddog_CharSlice value) {
+    if (value.len) {
+        add_assoc_str(parent, key, dd_CharSlice_to_zend_string(value));
+    }
+}
 
-    size_t chunk_count;
-    ddog_ChunkNode *const *chunks = ddog_v1_get_chunks(b, &chunk_count);
-    for (size_t c = 0; c < chunk_count; c++) {
-        const ddog_ChunkNode *chunk = chunks[c];
-        zval trace_zv;
-        array_init(&trace_zv);
-
-        uint64_t tid_high = ddog_v1_get_chunk_trace_id_high(chunk);
-        uint64_t tid_low = ddog_v1_get_chunk_trace_id_low(chunk);
-        // Chunk-level fields go on the chunk's local root only, the same span the v0.4 wire picks.
-        const ddog_SpanNode *root = ddog_v1_get_chunk_root_span(chunk);
-        int32_t chunk_priority;
-        bool has_priority = ddog_v1_get_chunk_sampling_priority(chunk, &chunk_priority);
-        uint32_t chunk_mechanism;
-        bool has_mechanism = ddog_v1_get_chunk_sampling_mechanism(chunk, &chunk_mechanism);
-        ddog_CharSlice chunk_origin = ddog_v1_get_chunk_origin(chunk);
-
-        size_t span_count;
-        ddog_SpanNode *const *spans = ddog_v1_get_spans(chunk, &span_count);
-        for (size_t j = 0; j < span_count; j++) {
-            ddog_SpanNode *span = spans[j];
-            bool is_root = span == root;
-            zval span_zv;
-            array_init(&span_zv);
-
-            add_assoc_str(&span_zv, KEY_TRACE_ID, ddtrace_span_id_as_string(tid_low));
-            if (tid_high && is_root) {
-                add_assoc_str(&span_zv, "trace_id_high", ddtrace_span_id_as_hex_string(tid_high));
-            }
-            add_assoc_str(&span_zv, KEY_SPAN_ID, ddtrace_span_id_as_string(ddog_v1_get_span_id(span)));
-            uint64_t parent_id = ddog_v1_get_span_parent_id(span);
-            if (parent_id) {
-                add_assoc_str(&span_zv, KEY_PARENT_ID, ddtrace_span_id_as_string(parent_id));
-            }
-            add_assoc_long(&span_zv, "start", ddog_v1_get_span_start(span));
-            add_assoc_long(&span_zv, "duration", ddog_v1_get_span_duration(span));
-            add_assoc_str(&span_zv, "name", dd_CharSlice_to_zend_string(ddog_v1_get_span_name(span)));
-            add_assoc_str(&span_zv, "resource", dd_CharSlice_to_zend_string(ddog_v1_get_span_resource(span)));
-            add_assoc_str(&span_zv, "service", dd_CharSlice_to_zend_string(ddog_v1_get_span_service(span)));
-            add_assoc_str(&span_zv, "type", dd_CharSlice_to_zend_string(ddog_v1_get_span_type(span)));
-            if (ddog_v1_get_span_error(span)) {
-                add_assoc_long(&span_zv, "error", 1);
-            }
-
-#define DD_ZVAL_PROMOTED(field, getter)                                                    \
-    do {                                                                                      \
-        ddog_CharSlice _v = getter(span);                                                     \
-        if (_v.len) add_assoc_str(&span_zv, field, dd_CharSlice_to_zend_string(_v));          \
-    } while (0)
-            DD_ZVAL_PROMOTED("env", ddog_v1_get_span_env);
-            DD_ZVAL_PROMOTED("version", ddog_v1_get_span_version);
-            DD_ZVAL_PROMOTED("component", ddog_v1_get_span_component);
-#undef DD_ZVAL_PROMOTED
-            uint32_t span_kind = ddog_v1_get_span_kind(span);
-            if (span_kind) {
-                add_assoc_long(&span_zv, "span_kind", span_kind);
-            }
-            if (has_priority && is_root) {
-                add_assoc_long(&span_zv, "sampling_priority", chunk_priority);
-            }
-            if (has_mechanism && is_root) {
-                add_assoc_long(&span_zv, "sampling_mechanism", chunk_mechanism);
-            }
-            if (chunk_origin.len && is_root) {
-                add_assoc_str(&span_zv, "origin", dd_CharSlice_to_zend_string(chunk_origin));
-            }
-
-            // Bytes-typed attributes are v0.4 meta_struct entries; surface them under
-            // "meta_struct" (as the v0.4 reader did), not mixed into the attribute map.
-            zval attrs_zv, meta_struct_zv;
-            array_init(&attrs_zv);
-            array_init(&meta_struct_zv);
-            if (j == 0 && process_tags.len) {
-                add_assoc_str(&attrs_zv, "_dd.tags.process", dd_CharSlice_to_zend_string(process_tags));
-            }
-            if (j == 0 && otlp_export.len) {
-                add_assoc_str(&attrs_zv, "_dd.sdk.otlp_export", dd_CharSlice_to_zend_string(otlp_export));
-            }
-            dd_attributes_to_zval(ddog_span_get_attributes(span), &attrs_zv, &meta_struct_zv);
-            dd_add_assoc_nonempty(&span_zv, "attributes", &attrs_zv);
-            dd_add_assoc_nonempty(&span_zv, "meta_struct", &meta_struct_zv);
-
-            size_t link_count;
-            ddog_SpanLinkBytes *const *links = ddog_v1_get_links(span, &link_count);
-            if (link_count > 0) {
-                zval links_zv;
-                array_init(&links_zv);
-                for (size_t l = 0; l < link_count; l++) {
-                    ddog_SpanLinkBytes *link = links[l];
-                    zval link_zv;
-                    array_init(&link_zv);
-                    add_assoc_str(&link_zv, KEY_TRACE_ID, ddtrace_span_id_as_string(ddog_v1_get_link_trace_id_low(link)));
-                    uint64_t link_tid_high = ddog_v1_get_link_trace_id_high(link);
-                    if (link_tid_high) {
-                        add_assoc_str(&link_zv, "trace_id_high", ddtrace_span_id_as_hex_string(link_tid_high));
-                    }
-                    add_assoc_str(&link_zv, KEY_SPAN_ID, ddtrace_span_id_as_string(ddog_v1_get_link_span_id(link)));
-                    ddog_CharSlice tracestate = ddog_v1_get_link_tracestate(link);
-                    if (tracestate.len) {
-                        add_assoc_str(&link_zv, "trace_state", dd_CharSlice_to_zend_string(tracestate));
-                    }
-                    add_assoc_long(&link_zv, "flags", ddog_v1_get_link_flags(link));
-                    zval lattrs_zv;
-                    array_init(&lattrs_zv);
-                    dd_attributes_to_zval(ddog_link_get_attributes(link), &lattrs_zv, NULL);
-                    dd_add_assoc_nonempty(&link_zv, "attributes", &lattrs_zv);
-                    zend_hash_next_index_insert_new(Z_ARR(links_zv), &link_zv);
-                }
-                add_assoc_zval(&span_zv, "span_links", &links_zv);
-            }
-
-            size_t event_count;
-            ddog_SpanEventBytes *const *events = ddog_v1_get_events(span, &event_count);
-            if (event_count > 0) {
-                zval events_zv;
-                array_init(&events_zv);
-                for (size_t e = 0; e < event_count; e++) {
-                    ddog_SpanEventBytes *event = events[e];
-                    zval event_zv;
-                    array_init(&event_zv);
-                    add_assoc_str(&event_zv, "name", dd_CharSlice_to_zend_string(ddog_v1_get_event_name(event)));
-                    add_assoc_long(&event_zv, "time_unix_nano", ddog_v1_get_event_time(event));
-                    zval eattrs_zv;
-                    array_init(&eattrs_zv);
-                    dd_attributes_to_zval(ddog_event_get_attributes(event), &eattrs_zv, NULL);
-                    dd_add_assoc_nonempty(&event_zv, "attributes", &eattrs_zv);
-                    zend_hash_next_index_insert_new(Z_ARR(events_zv), &event_zv);
-                }
-                add_assoc_zval(&span_zv, "span_events", &events_zv);
-            }
-
-            zend_hash_next_index_insert_new(Z_ARR_P(&trace_zv), &span_zv);
-        }
-
-        zend_hash_next_index_insert_new(Z_ARR_P(&traces_zv), &trace_zv);
+static void dd_span_to_zval(ddog_SpanBytes *span, zval *span_zv) {
+    array_init(span_zv);
+    add_assoc_str(span_zv, KEY_SPAN_ID, ddtrace_span_id_as_string(ddog_v1_get_span_id(span)));
+    uint64_t parent_id = ddog_v1_get_span_parent_id(span);
+    if (parent_id) {
+        add_assoc_str(span_zv, KEY_PARENT_ID, ddtrace_span_id_as_string(parent_id));
+    }
+    add_assoc_long(span_zv, "start", ddog_v1_get_span_start(span));
+    add_assoc_long(span_zv, "duration", ddog_v1_get_span_duration(span));
+    add_assoc_str(span_zv, "name", dd_CharSlice_to_zend_string(ddog_v1_get_span_name(span)));
+    add_assoc_str(span_zv, "resource", dd_CharSlice_to_zend_string(ddog_v1_get_span_resource(span)));
+    add_assoc_str(span_zv, "service", dd_CharSlice_to_zend_string(ddog_v1_get_span_service(span)));
+    add_assoc_str(span_zv, "type", dd_CharSlice_to_zend_string(ddog_v1_get_span_type(span)));
+    if (ddog_v1_get_span_error(span)) {
+        add_assoc_bool(span_zv, "error", true);
+    }
+    dd_add_assoc_charslice(span_zv, "env", ddog_v1_get_span_env(span));
+    dd_add_assoc_charslice(span_zv, "version", ddog_v1_get_span_version(span));
+    dd_add_assoc_charslice(span_zv, "component", ddog_v1_get_span_component(span));
+    uint32_t span_kind = ddog_v1_get_span_kind(span);
+    if (span_kind) {
+        add_assoc_long(span_zv, "span_kind", span_kind);
     }
 
-    return traces_zv;
+    // Bytes-typed attributes go under "meta_struct" (as on SpanData), not in the attribute map.
+    zval attrs_zv, meta_struct_zv;
+    array_init(&attrs_zv);
+    array_init(&meta_struct_zv);
+    dd_attributes_to_zval(ddog_span_get_attributes(span), &attrs_zv, &meta_struct_zv);
+    dd_add_assoc_nonempty(span_zv, "attributes", &attrs_zv);
+    dd_add_assoc_nonempty(span_zv, "meta_struct", &meta_struct_zv);
+
+    size_t link_count = ddog_v1_get_link_count(span);
+    if (link_count > 0) {
+        zval links_zv;
+        array_init(&links_zv);
+        for (size_t l = 0; l < link_count; l++) {
+            ddog_SpanLinkBytes *link = ddog_v1_get_link(span, l);
+            zval link_zv;
+            array_init(&link_zv);
+            datadog_trace_id link_tid = {.low = ddog_v1_get_link_trace_id_low(link), .high = ddog_v1_get_link_trace_id_high(link)};
+            add_assoc_str(&link_zv, KEY_TRACE_ID, datadog_trace_id_as_hex_string(link_tid));
+            add_assoc_str(&link_zv, KEY_SPAN_ID, ddtrace_span_id_as_hex_string(ddog_v1_get_link_span_id(link)));
+            dd_add_assoc_charslice(&link_zv, "tracestate", ddog_v1_get_link_tracestate(link));
+            zval lattrs_zv;
+            array_init(&lattrs_zv);
+            dd_attributes_to_zval(ddog_link_get_attributes(link), &lattrs_zv, NULL);
+            dd_add_assoc_nonempty(&link_zv, "attributes", &lattrs_zv);
+            zend_hash_next_index_insert_new(Z_ARR(links_zv), &link_zv);
+        }
+        add_assoc_zval(span_zv, "span_links", &links_zv);
+    }
+
+    size_t event_count = ddog_v1_get_event_count(span);
+    if (event_count > 0) {
+        zval events_zv;
+        array_init(&events_zv);
+        for (size_t e = 0; e < event_count; e++) {
+            ddog_SpanEventBytes *event = ddog_v1_get_event(span, e);
+            zval event_zv;
+            array_init(&event_zv);
+            add_assoc_str(&event_zv, "name", dd_CharSlice_to_zend_string(ddog_v1_get_event_name(event)));
+            add_assoc_long(&event_zv, "time_unix_nano", ddog_v1_get_event_time(event));
+            zval eattrs_zv;
+            array_init(&eattrs_zv);
+            dd_attributes_to_zval(ddog_event_get_attributes(event), &eattrs_zv, NULL);
+            dd_add_assoc_nonempty(&event_zv, "attributes", &eattrs_zv);
+            zend_hash_next_index_insert_new(Z_ARR(events_zv), &event_zv);
+        }
+        add_assoc_zval(span_zv, "span_events", &events_zv);
+    }
+}
+
+// Introspection view of the V1 payload: payload fields, then its chunks with their own fields and
+// spans, named as on the V1 wire (the request-replayer's JSON view has the same shape).
+zval dd_serialize_rust_to_zval(ddog_TracerPayloadBytes *b) {
+    zval payload_zv;
+    array_init(&payload_zv);
+    dd_add_assoc_charslice(&payload_zv, "env", ddog_v1_get_payload_env(b));
+    dd_add_assoc_charslice(&payload_zv, "hostname", ddog_v1_get_payload_hostname(b));
+    dd_add_assoc_charslice(&payload_zv, "app_version", ddog_v1_get_payload_app_version(b));
+    zval payload_attrs_zv;
+    array_init(&payload_attrs_zv);
+    dd_attributes_to_zval(ddog_payload_get_attributes(b), &payload_attrs_zv, NULL);
+    dd_add_assoc_nonempty(&payload_zv, "attributes", &payload_attrs_zv);
+
+    zval chunks_zv;
+    array_init(&chunks_zv);
+    size_t chunk_count = ddog_v1_get_chunk_count(b);
+    for (size_t c = 0; c < chunk_count; c++) {
+        ddog_TraceChunkBytes *chunk = ddog_v1_get_chunk(b, c);
+        zval chunk_zv;
+        array_init(&chunk_zv);
+
+        datadog_trace_id tid = {.low = ddog_v1_get_chunk_trace_id_low(chunk), .high = ddog_v1_get_chunk_trace_id_high(chunk)};
+        add_assoc_str(&chunk_zv, KEY_TRACE_ID, datadog_trace_id_as_hex_string(tid));
+        int32_t priority;
+        if (ddog_v1_get_chunk_sampling_priority(chunk, &priority)) {
+            add_assoc_long(&chunk_zv, "priority", priority);
+        }
+        dd_add_assoc_charslice(&chunk_zv, "origin", ddog_v1_get_chunk_origin(chunk));
+        uint32_t mechanism;
+        if (ddog_v1_get_chunk_sampling_mechanism(chunk, &mechanism)) {
+            add_assoc_long(&chunk_zv, "sampling_mechanism", mechanism);
+        }
+        zval chunk_attrs_zv;
+        array_init(&chunk_attrs_zv);
+        dd_attributes_to_zval(ddog_chunk_get_attributes(chunk), &chunk_attrs_zv, NULL);
+        dd_add_assoc_nonempty(&chunk_zv, "attributes", &chunk_attrs_zv);
+
+        zval spans_zv;
+        array_init(&spans_zv);
+        size_t span_count = ddog_chunk_span_count(chunk);
+        for (size_t j = 0; j < span_count; j++) {
+            zval span_zv;
+            dd_span_to_zval(ddog_v1_get_span(chunk, j), &span_zv);
+            zend_hash_next_index_insert_new(Z_ARR(spans_zv), &span_zv);
+        }
+        add_assoc_zval(&chunk_zv, "spans", &spans_zv);
+        zend_hash_next_index_insert_new(Z_ARR(chunks_zv), &chunk_zv);
+    }
+    add_assoc_zval(&payload_zv, "chunks", &chunks_zv);
+
+    return payload_zv;
 }
 
 static zend_string *dd_truncate_uncaught_exception(zend_string *msg) {
@@ -2504,7 +2303,7 @@ void ddtrace_save_active_error_to_metadata(void) {
             continue;
         }
 
-        dd_fatal_error_to_meta(ddtrace_property_array(&pspan->property_attributes), error);
+        dd_fatal_error_to_attributes(ddtrace_property_array(&pspan->property_attributes), error);
     }
     zend_string_release(error.type);
     zend_string_release(error.msg);
@@ -2600,7 +2399,7 @@ void ddtrace_error_cb(DDTRACE_ERROR_CB_PARAMETERS) {
                     continue;
                 }
 
-                dd_fatal_error_to_meta(ddtrace_property_array(&pspan->property_attributes), error);
+                dd_fatal_error_to_attributes(ddtrace_property_array(&pspan->property_attributes), error);
             }
             zend_string_release(error.type);
             zend_string_release(error.msg);
@@ -2639,8 +2438,9 @@ static zend_array *dd_ser_response_committed(ddtrace_user_req_listeners *self, z
     UNUSED(self, entity);
 
     ddtrace_root_span_data *root_span_data = ROOTSPANDATA(span);
+    zend_array *attributes = ddtrace_property_array(&root_span_data->property_attributes);
     struct iter *iter = dd_iterate_arr_arr_headers(headers);
-    dd_set_entrypoint_root_span_props_end(&root_span_data->span, status, iter, false);
+    dd_set_entrypoint_root_span_props_end(attributes, status, iter, false);
     efree(iter);
     return NULL;
 }

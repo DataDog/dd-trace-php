@@ -14,15 +14,19 @@ $emptyLogin = "";
   false
 );
 $root = \DDTrace\root_span();
-var_dump($root->meta);
+$attributes = $root->attributes;
+ksort($attributes);
+var_dump($attributes);
 
 ?>
 --EXPECTF--
-array(3) {
-  ["runtime-id"]=>
-  string(%d) %s
-  ["_dd.p.ts"]=>
-  string(2) "02"
+array(4) {
   ["_dd.p.dm"]=>
   string(2) "-5"
+  ["_dd.p.ts"]=>
+  string(2) "02"
+  ["process_id"]=>
+  int(%d)
+  ["runtime-id"]=>
+  string(%d) %s
 }

@@ -4,6 +4,7 @@ namespace DDTrace\Tests\Integrations\Laravel\V8_x;
 
 use DDTrace\Tag;
 use DDTrace\Tests\Common\SpanAssertion;
+use DDTrace\Tests\Common\SpanChecker;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
@@ -31,36 +32,6 @@ class QueueTest extends WebFrameworkTestCase
     {
         parent::ddSetUp();
         $this->resetQueue();
-    }
-
-    // Source: https://magp.ie/2015/09/30/convert-large-integer-to-hexadecimal-without-php-math-extension/
-    protected static function largeBaseConvert($numString, $fromBase, $toBase)
-    {
-        $chars = "0123456789abcdefghijklmnopqrstuvwxyz";
-        $toString = substr($chars, 0, $toBase);
-
-        $length = strlen($numString);
-        $result = '';
-        for ($i = 0; $i < $length; $i++) {
-            $number[$i] = strpos($chars, $numString[$i]);
-        }
-        do {
-            $divide = 0;
-            $newLen = 0;
-            for ($i = 0; $i < $length; $i++) {
-                $divide = $divide * $fromBase + $number[$i];
-                if ($divide >= $toBase) {
-                    $number[$newLen++] = (int)($divide / $toBase);
-                    $divide = $divide % $toBase;
-                } elseif ($newLen > 0) {
-                    $number[$newLen++] = 0;
-                }
-            }
-            $length = $newLen;
-            $result = $toString[$divide] . $result;
-        } while ($newLen != 0);
-
-        return $result;
     }
 
     protected function envsToCleanUpAtTearDown()
@@ -100,7 +71,7 @@ class QueueTest extends WebFrameworkTestCase
                 SpanAssertion::exists('laravel.request')
                     ->withChildren([
                         SpanAssertion::exists('laravel.action')
-                            ->withExactTags([
+                            ->withExactAttributes([
                                 Tag::COMPONENT => 'laravel',
                                 '_dd.svc_src' => 'laravel',
                             ])->withChildren([
@@ -133,47 +104,34 @@ class QueueTest extends WebFrameworkTestCase
                 ])
         ], false);
 
-        $processSpanFromArtisanTrace = array_filter($artisanTrace[0], function ($span) {
+        $processSpanFromArtisanTrace = array_filter($artisanTrace[0]['spans'], function ($span) {
             return $span['name'] === 'laravel.queue.process';
         });
         $processSpanFromArtisanTrace = array_values($processSpanFromArtisanTrace)[0];
 
-        // v0.4 carries native span_links (ids as decimal integers); render them as hex.
-        $spanLinks = $processSpanFromArtisanTrace['span_links'][0];
-        $toHex = function ($id) {
-            return str_pad(self::largeBaseConvert((string) $id, 10, 16), 16, '0', STR_PAD_LEFT);
-        };
-        $spanLinksTraceId = $toHex($spanLinks['trace_id_high'] ?? 0) . $toHex($spanLinks['trace_id']);
-        $spanLinksSpanId = $toHex($spanLinks['span_id']);
+        // The parsed traces carry span links with hex ids.
+        $spanLinksTraceId = $processSpanFromArtisanTrace['span_links'][0]['trace_id'];
+        $spanLinksSpanId = $processSpanFromArtisanTrace['span_links'][0]['span_id'];
 
-        $processSpanFromProcessTrace = array_filter($processTrace1[0], function ($span) {
+        $processSpanFromProcessTrace = array_filter($processTrace1[0]['spans'], function ($span) {
             return $span['name'] === 'laravel.queue.process';
         });
         $processSpanFromProcessTrace = array_values($processSpanFromProcessTrace)[0];
-        $processTraceId = $processSpanFromProcessTrace['trace_id'];
+        $processTraceId = $processTrace1[0]['trace_id'];
         $processSpanId = $processSpanFromProcessTrace['span_id'];
         $processParentId = $processSpanFromProcessTrace['parent_id'];
 
-        $tid = $processSpanFromProcessTrace["meta"]['_dd.p.tid'];
-        $hexProcessTraceId = str_pad(self::largeBaseConvert($processTraceId, 10, 16), 16, '0', STR_PAD_LEFT);
-        $hexProcessSpanId = str_pad(self::largeBaseConvert($processSpanId, 10, 16), 16, '0', STR_PAD_LEFT);
+        $hexProcessSpanId = SpanChecker::decimalToHex($processSpanId, 16);
 
-        print("spanLinksTraceId: " . $spanLinksTraceId . "\n");
-        print("tid: " . $tid . "\n");
-        print("hexProcessTraceId: " . $hexProcessTraceId . "\n");
-        print("hexProcessSpanId: " . $hexProcessSpanId . "\n");
-        print("processTraceId: " . $processTraceId . "\n");
-        print("processSpanId: " . $processSpanId . "\n");
-
-        $this->assertSame($spanLinksTraceId, $tid . $hexProcessTraceId);
+        $this->assertSame($spanLinksTraceId, $processTraceId);
         $this->assertSame($spanLinksSpanId, $hexProcessSpanId);
 
-        $pushSpanFromCreateTrace = array_filter($createTraces[0], function ($span) {
+        $pushSpanFromCreateTrace = array_filter($createTraces[0]['spans'], function ($span) {
             return $span['name'] === 'laravel.queue.push';
         });
         $pushSpanFromCreateTrace = array_values($pushSpanFromCreateTrace)[0];
 
-        $this->assertSame($pushSpanFromCreateTrace['trace_id'], $processTraceId);
+        $this->assertSame($createTraces[0]['trace_id'], $processTraceId);
         $this->assertSame($pushSpanFromCreateTrace['span_id'], $processParentId);
     }
 
@@ -197,7 +155,7 @@ class QueueTest extends WebFrameworkTestCase
                 SpanAssertion::exists('laravel.request')
                     ->withChildren([
                         SpanAssertion::exists('laravel.action')
-                            ->withExactTags([
+                            ->withExactAttributes([
                                 Tag::COMPONENT => 'laravel',
                                 '_dd.svc_src' => 'laravel',
                             ])->withChildren([
@@ -226,7 +184,7 @@ class QueueTest extends WebFrameworkTestCase
                             ->setError('Exception', 'Triggered Exception', true)
                             ->withChildren([
                                 $this->spanQueueAction('database', 'emails')
-                                    ->withExistingTagsNames([Tag::MQ_MESSAGE_ID])
+                                    ->withExistingAttributeNames([Tag::MQ_MESSAGE_ID])
                                     ->setError('Exception', 'Triggered Exception', true)
                             ])
                     ])
@@ -267,7 +225,7 @@ class QueueTest extends WebFrameworkTestCase
 
         // $workTraces should have 2 traces: One with 2 'laravel.queue.process' and the other with 1 'laravel.artisan'
         usort($workTraces, function ($a, $b) {
-            return $a[0]['start'] - $b[0]['start'];
+            return $a['spans'][0]['start'] - $b['spans'][0]['start'];
         });
         $artisanTrace = [$workTraces[0]];
         $processTrace1 = [$workTraces[1]];
@@ -309,26 +267,26 @@ class QueueTest extends WebFrameworkTestCase
                             $this->spanQueueBatchAdd()
                                 ->withChildren([
                                     $this->spanQueuePush('sync', 'default', 'Illuminate\Queue\SyncQueue')
-                                        ->withExistingTagsNames([Tag::LARAVELQ_BATCH_ID])
+                                        ->withExistingAttributeNames([Tag::LARAVELQ_BATCH_ID])
                                         ->withChildren([
                                             $this->spanEventJobProcessing(),
                                             $this->spanQueueFire('sync', 'sync', 'App\Jobs\SendVerificationEmail -> sync')
                                                 ->withChildren([
                                                     $this->spanQueueResolve('sync', 'sync', 'App\Jobs\SendVerificationEmail -> sync'),
                                                     $this->spanQueueAction('sync', 'sync')
-                                                        ->withExistingTagsNames([Tag::LARAVELQ_BATCH_ID])
+                                                        ->withExistingAttributeNames([Tag::LARAVELQ_BATCH_ID])
                                                 ]),
                                             $this->spanEventJobProcessed()
                                         ]),
                                     $this->spanQueuePush('sync', 'default', 'Illuminate\Queue\SyncQueue')
-                                        ->withExistingTagsNames([Tag::LARAVELQ_BATCH_ID])
+                                        ->withExistingAttributeNames([Tag::LARAVELQ_BATCH_ID])
                                         ->withChildren([
                                             $this->spanEventJobProcessing(),
                                             $this->spanQueueFire('sync', 'sync', 'App\Jobs\SendVerificationEmail -> sync')
                                                 ->withChildren([
                                                     $this->spanQueueResolve('sync', 'sync', 'App\Jobs\SendVerificationEmail -> sync'),
                                                     $this->spanQueueAction('sync', 'sync')
-                                                        ->withExistingTagsNames([Tag::LARAVELQ_BATCH_ID])
+                                                        ->withExistingAttributeNames([Tag::LARAVELQ_BATCH_ID])
                                                 ]),
                                             $this->spanEventJobProcessed()
                                         ])
@@ -357,7 +315,7 @@ class QueueTest extends WebFrameworkTestCase
             'laravel_queue_test',
             'web',
             'Illuminate\Queue\Events\JobProcessing'
-        )->withExistingTagsNames([
+        )->withExistingAttributeNames([
             Tag::COMPONENT,
             '_dd.svc_src',
         ]);
@@ -370,7 +328,7 @@ class QueueTest extends WebFrameworkTestCase
             'laravel_queue_test',
             'web',
             'Illuminate\Queue\Events\JobProcessed'
-        )->withExistingTagsNames([
+        )->withExistingAttributeNames([
             Tag::COMPONENT,
             '_dd.svc_src',
         ]);
@@ -419,7 +377,7 @@ class QueueTest extends WebFrameworkTestCase
             'laravel_queue_test',
             'queue',
             'App\Jobs\SendVerificationEmail@handle'
-        )->withExactTags(
+        )->withExactAttributes(
             $this->getCommonTags(null, $queue, $connection)
         );
     }
@@ -434,14 +392,14 @@ class QueueTest extends WebFrameworkTestCase
             'laravel_queue_test',
             'queue',
             $resourceDetails
-        )->withExactTags(
+        )->withExactAttributes(
             $this->getCommonTags('process', $queue, $connection)
         );
 
         if ($queue === 'sync') {
             return $span;
         } else {
-            return $span->withExistingTagsNames([
+            return $span->withExistingAttributeNames([
                 Tag::MQ_MESSAGE_ID
             ]);
         }
@@ -457,14 +415,14 @@ class QueueTest extends WebFrameworkTestCase
             'laravel_queue_test',
             'queue',
             $resourceDetails
-        )->withExactTags(
+        )->withExactAttributes(
             $this->getCommonTags('process', $queue, $connection)
         );
 
         if ($queue === 'sync') {
             return $span;
         } else {
-            return $span->withExistingTagsNames([
+            return $span->withExistingAttributeNames([
                 Tag::MQ_MESSAGE_ID
             ]);
         }
@@ -480,17 +438,16 @@ class QueueTest extends WebFrameworkTestCase
             'laravel_queue_test',
             'queue',
             $resourceDetails
-        )->withExactTags(
+        )->withExactAttributes(
             $this->getCommonTags('receive', $queue, $connection)
         );
 
         if ($queue === 'sync') {
             return $span;
         } else {
-            return $span->withExistingTagsNames([
+            return $span->withExistingAttributeNames([
                 Tag::MQ_MESSAGE_ID,
-                '_dd.span_links'
-            ]);
+            ])->withSpanLinks();
         }
     }
 
@@ -505,24 +462,23 @@ class QueueTest extends WebFrameworkTestCase
             'laravel_queue_test',
             'queue',
             $resourceDetails
-        )->withExactTags(
+        )->withExactAttributes(
             $this->getCommonTags('receive', $queue, $connection)
-        )->withExistingTagsNames([
+        )->withExistingAttributeNames([
             Tag::MQ_MESSAGE_ID,
-            '_dd.span_links'
-        ])->withChildren([
+        ])->withSpanLinks()->withChildren([
             $this->spanEventJobProcessing(),
             $this->spanQueueFire($connection, $queue, $resourceDetails)
                 ->withChildren([
                     $this->spanQueueResolve($connection, $queue, $resourceDetails),
                     ($isFromBatch
                         ? $this->spanQueueAction($connection, $queue, $resourceDetails)
-                            ->withExistingTagsNames([
+                            ->withExistingAttributeNames([
                                 Tag::LARAVELQ_BATCH_ID,
                                 Tag::MQ_MESSAGE_ID
                             ])
                         : $this->spanQueueAction($connection, $queue, $resourceDetails)
-                            ->withExistingTagsNames([
+                            ->withExistingAttributeNames([
                                 Tag::MQ_MESSAGE_ID
                             ])
                     )
@@ -541,7 +497,7 @@ class QueueTest extends WebFrameworkTestCase
             'laravel_queue_test',
             'queue',
             $resourceDetails
-        )->withExactTags(
+        )->withExactAttributes(
             $this->getCommonTags('send', $queue, $connection)
         );
     }
@@ -556,7 +512,7 @@ class QueueTest extends WebFrameworkTestCase
             'laravel_queue_test',
             'queue',
             $resourceDetails
-        )->withExactTags(
+        )->withExactAttributes(
             $this->getCommonTags('send', $queue, $connection)
         );
     }
@@ -571,7 +527,7 @@ class QueueTest extends WebFrameworkTestCase
             'laravel_queue_test',
             'queue',
             $resourceDetails
-        )->withExactTags(
+        )->withExactAttributes(
             $this->getCommonTags(null, $queue, $connection)
         );
     }
@@ -583,12 +539,12 @@ class QueueTest extends WebFrameworkTestCase
             'laravel_queue_test',
             'queue',
             'Illuminate\Bus\Batch'
-        )->withExactTags([
+        )->withExactAttributes([
             Tag::SPAN_KIND      => 'client',
             Tag::COMPONENT      => 'laravelqueue',
             '_dd.svc_src' => 'laravelqueue',
             Tag::MQ_OPERATION   => 'send'
-        ])->withExistingTagsNames([
+        ])->withExistingAttributeNames([
             Tag::LARAVELQ_BATCH_ID
         ]);
     }

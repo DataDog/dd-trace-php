@@ -7,7 +7,7 @@ DD_APPSEC_ENABLED=1
 --FILE--
 <?php
 
-use function datadog\appsec\testing\root_span_get_meta;
+use function datadog\appsec\testing\root_span_get_attributes;
 use function datadog\appsec\track_authenticated_user_event;
 
 include __DIR__ . '/inc/ddtrace_version.php';
@@ -20,17 +20,20 @@ track_authenticated_user_event("ID", [
     "email" => "noneofyour@business.com"
 ]);
 
-echo "root_span_get_meta():\n";
-print_r(root_span_get_meta());
+echo "root_span_get_attributes():\n";
+$attributes = root_span_get_attributes();
+ksort($attributes);
+print_r($attributes);
 ?>
 --EXPECTF--
-root_span_get_meta():
+root_span_get_attributes():
 Array
 (
-    [runtime-id] => %s
-    [usr.id] => ID
     [_dd.appsec.user.collection_mode] => sdk
-    [usr.value] => something
-    [usr.metadata] => some other metadata
+    [process_id] => %d
+    [runtime-id] => %s
     [usr.email] => noneofyour@business.com
+    [usr.id] => ID
+    [usr.metadata] => some other metadata
+    [usr.value] => something
 )

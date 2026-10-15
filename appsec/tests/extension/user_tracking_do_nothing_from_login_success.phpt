@@ -6,7 +6,7 @@ extension=ddtrace.so
 DD_APPSEC_ENABLED=1
 --FILE--
 <?php
-use function datadog\appsec\testing\root_span_get_meta;
+use function datadog\appsec\testing\root_span_get_attributes;
 use function datadog\appsec\track_user_login_success_event;
 use function datadog\appsec\testing\rinit;
 
@@ -34,8 +34,10 @@ $c = $helper->get_commands();
 echo "usr.id:\n";
 var_dump($c[0][1][0]['usr.id']);
 
-echo "root_span_get_meta():\n";
-print_r(root_span_get_meta());
+echo "root_span_get_attributes():\n";
+$attributes = root_span_get_attributes();
+ksort($attributes);
+print_r($attributes);
 
 $helper->finished_with_commands();
 ?>
@@ -43,18 +45,19 @@ $helper->finished_with_commands();
 Deprecated: Function datadog\appsec\track_user_login_success_event() is deprecated in %s on line %d
 usr.id:
 string(5) "Admin"
-root_span_get_meta():
+root_span_get_attributes():
 Array
 (
-    [runtime-id] => %s
-    [usr.id] => Admin
-    [appsec.events.users.login.success.usr.login] => Admin
     [_dd.appsec.events.users.login.success.sdk] => true
-    [appsec.events.users.login.success.value] => something
-    [appsec.events.users.login.success.metadata] => some other metadata
-    [appsec.events.users.login.success.email] => noneofyour@business.com
-    [appsec.events.users.login.success.track] => true
-    [server.business_logic.users.login.success] => null
-    [_dd.p.ts] => 02
     [_dd.p.dm] => -5
+    [_dd.p.ts] => 02
+    [appsec.events.users.login.success.email] => noneofyour@business.com
+    [appsec.events.users.login.success.metadata] => some other metadata
+    [appsec.events.users.login.success.track] => true
+    [appsec.events.users.login.success.usr.login] => Admin
+    [appsec.events.users.login.success.value] => something
+    [process_id] => %d
+    [runtime-id] => %s
+    [server.business_logic.users.login.success] => null
+    [usr.id] => Admin
 )

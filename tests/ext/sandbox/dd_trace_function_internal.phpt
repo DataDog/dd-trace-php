@@ -27,11 +27,7 @@ int(9)
 ---
 array(1) {
   [0]=>
-  array(12) {
-    ["trace_id"]=>
-    string(%d) "%d"
-    ["trace_id_high"]=>
-    string(16) "%s"
+  array(8) {
     ["span_id"]=>
     string(%d) "%d"
     ["start"]=>
@@ -46,16 +42,12 @@ array(1) {
     string(30) "dd_trace_function_internal.php"
     ["type"]=>
     string(3) "cli"
-    ["sampling_priority"]=>
-    int(1)
-    ["sampling_mechanism"]=>
-    int(0)
     ["attributes"]=>
     array(6) {
       ["runtime-id"]=>
       string(36) "%s"
       ["process_id"]=>
-      float(%f)
+      int(%d)
       ["_dd.agent_psr"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>

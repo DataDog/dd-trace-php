@@ -1257,7 +1257,6 @@ dependencies = [
  "rand_distr",
  "regex",
  "regex-automata",
- "rmpv",
  "rustc-hash",
  "serde",
  "serde_json",

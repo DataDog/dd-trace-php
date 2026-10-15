@@ -28,6 +28,7 @@
       "openai.response.categories.sexual/minors": "false",
       "openai.response.categories.violence": "true",
       "openai.response.categories.violence/graphic": "false",
+      "openai.response.id": "42",
       "openai.response.model": "gpt-3.5-turbo-instruct",
       "openai.user.api_key": "sk-...9d5d",
       "runtime-id": "87cccdb5-2d7c-453e-bc51-70997f55724c",
@@ -49,8 +50,7 @@
       "openai.response.category_scores.sexual/minors": 0.0038522258400917053,
       "openai.response.category_scores.violence": 0.9223177433013916,
       "openai.response.category_scores.violence/graphic": 0.036865197122097015,
-      "openai.response.flagged": 1,
-      "openai.response.id": 42
+      "openai.response.flagged": 1
     }
   },
      {

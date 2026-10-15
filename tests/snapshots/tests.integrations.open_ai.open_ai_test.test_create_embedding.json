@@ -17,6 +17,7 @@
       "openai.request.input": "The food was delicious and the waiter...",
       "openai.request.method": "POST",
       "openai.request.model": "text-similarity-babbage-001",
+      "openai.response.id": "42",
       "openai.response.model": "gpt-3.5-turbo-instruct",
       "openai.response.object": "list",
       "openai.user.api_key": "sk-...9d5d",
@@ -31,7 +32,6 @@
       "openai.response.embeddings.0.embedding_length": 3,
       "openai.response.embeddings.1.embedding_length": 3,
       "openai.response.embeddings_count": 2,
-      "openai.response.id": 42,
       "openai.response.usage.prompt_tokens": 8,
       "openai.response.usage.total_tokens": 8
     }

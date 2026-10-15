@@ -18,12 +18,18 @@ namespace DDTrace {
          * @param string $resource The resource to be assigned to the span.
          * @param string $type The type to be assigned to the span.
          * @param string $service The service to be assigned to the span. Defaults to default or inherited service name.
-         * @param array $tags The tags to be assigned to the span.
-         * @param bool|array $saveArgs Whether arguments shall be saved as tags on the span. True to save them all.
+         * @param array $tags Deprecated, use $attributes. The tags to be assigned to the span, as if written to
+         *                    SpanData::$meta.
+         * @param bool|array $saveArgs Whether arguments shall be saved as attributes on the span. True to save them all.
          *                               False to save none. An array with parameter names to save only select ones.
          * @param bool $saveReturn Whether to save return values (including yielded values on generators) on the span.
          * @param bool $recurse Whether recursive calls shall be traced.
          * @param bool $run_if_limited Whether the function shall be traced in limited mode. (E.g. when span limit exceeded)
+         * @param array $attributes The attributes to be merged into SpanData::$attributes as is. They are raw: keys
+         *                          like "component" or "span.kind" do not set the dedicated span fields, use the
+         *                          other parameters for these.
+         * @param int|null $kind The span kind, a DDTrace\SpanKind constant.
+         * @param string|null $component The component to be assigned to the span.
          */
         public function __construct(
             string $name = "",
@@ -36,7 +42,10 @@ namespace DDTrace {
                     bool $saveReturn = false,
             */
             bool   $recurse = true,
-            bool   $run_if_limited = false
+            bool   $run_if_limited = false,
+            array  $attributes = [],
+            ?int   $kind = null,
+            ?string $component = null
         ) {}
     }
 }

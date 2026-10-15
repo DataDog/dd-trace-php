@@ -19,7 +19,7 @@ $s->name = "http.request";
 $s->service = "web";
 \DDTrace\close_span();
 
-$spans = dd_trace_serialize_closed_spans();
+$spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
 $root = $spans[0];
 // env/version promoted from the DD_TAGS-sourced meta fallback; deleted from the unified
 // attributes map once promoted to the dedicated top-level fields.

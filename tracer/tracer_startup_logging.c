@@ -17,11 +17,9 @@
 void ddtrace_populate_startup_config(HashTable *ht) {
     // Cross-language tracer values
 
-    dd_add_assoc_bool(ht, ZEND_STRL("analytics_enabled"), get_DD_TRACE_ANALYTICS_ENABLED());
     dd_add_assoc_double(ht, ZEND_STRL("sample_rate"), get_DD_TRACE_SAMPLE_RATE());
     dd_add_assoc_array(ht, ZEND_STRL("sampling_rules"), dd_array_copy(get_DD_TRACE_SAMPLING_RULES()));
-    // TODO Add integration-specific config: integration_<integration>_analytics_enabled,
-    // integration_<integration>_sample_rate, integrations_loaded
+    // TODO Add integration-specific config: integrations_loaded
     dd_add_assoc_array(ht, ZEND_STRL("tags"), dd_array_copy(get_DD_TAGS()));
     dd_add_assoc_array(ht, ZEND_STRL("service_mapping"), dd_array_copy(get_DD_SERVICE_MAPPING()));
     // "log_injection_enabled" N/A for PHP

@@ -9,7 +9,7 @@ datadog.appsec.log_file=/tmp/php_appsec_test.log
 datadog.appsec.log_level=debug
 --FILE--
 <?php
-use function datadog\appsec\testing\{rinit,ddtrace_rshutdown,root_span_get_meta};
+use function datadog\appsec\testing\{rinit, ddtrace_rshutdown, root_span_get_attributes};
 
 include __DIR__ . '/inc/mock_helper.php';
 include __DIR__ . '/inc/ddtrace_version.php';
@@ -20,8 +20,8 @@ $helper = Helper::createInitedRun([
     response_list(response_request_init(['record', '[{"found":"attack"}]']))
 ], ['continuous' => true]);
 
-echo "root_span_get_meta (should fail: no root span):\n";
-var_dump(root_span_get_meta());
+echo "root_span_get_attributes (should fail: no root span):\n";
+var_dump(root_span_get_attributes());
 
 echo "rinit\n";
 var_dump(rinit());
@@ -45,7 +45,7 @@ $helper->finished_with_commands();
 
 ?>
 --EXPECTF--
-root_span_get_meta (should fail: no root span):
+root_span_get_attributes (should fail: no root span):
 NULL
 rinit
 bool(true)

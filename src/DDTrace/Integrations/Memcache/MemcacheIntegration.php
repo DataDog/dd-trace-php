@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\Memcache;
 use DDTrace\Integrations\DatabaseIntegrationHelper;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
+use DDTrace\SpanKind;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\Obfuscation;
@@ -72,9 +73,9 @@ class MemcacheIntegration extends Integration
         $memcache_cas = function (SpanData $span, $args) {
             MemcacheIntegration::setCommonData($span, 'cas');
             if (isset($args[4])) {
-                $span->meta['memcache.cas_token'] = $args[4];
+                $span->attributes['memcache.cas_token'] = $args[4];
             }
-            $span->meta['memcache.query'] = 'cas ?';
+            $span->attributes['memcache.query'] = 'cas ?';
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             MemcacheIntegration::setServerTags($span, $this);
         };
@@ -90,13 +91,13 @@ class MemcacheIntegration extends Integration
         $trace = function (SpanData $span, $args, $retval) use ($command) {
             MemcacheIntegration::setCommonData($span, $command);
             if ($command === 'get') {
-                $span->metrics[Tag::DB_ROW_COUNT] = empty($retval) ? 0 : 1;
+                $span->attributes[Tag::DB_ROW_COUNT] = empty($retval) ? 0 : 1;
             }
             if (!is_array($args[0])) {
                 MemcacheIntegration::setServerTags($span, $this);
                 $queryParams = dd_trace_env_config("DD_TRACE_MEMCACHED_OBFUSCATION") ?
                     Obfuscation::toObfuscatedString($args[0]) : $args[0];
-                $span->meta['memcache.query'] = $command . ' ' . $queryParams;
+                $span->attributes['memcache.query'] = $command . ' ' . $queryParams;
             }
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
         };
@@ -132,10 +133,10 @@ class MemcacheIntegration extends Integration
         $span->type = Type::MEMCACHED;
         Integration::handleInternalSpanServiceName($span, self::NAME);
         $span->resource = $command;
-        $span->meta['memcache.command'] = $command;
-        $span->meta[Tag::SPAN_KIND] = 'client';
-        $span->meta[Tag::COMPONENT] = self::NAME;
-        $span->meta[Tag::DB_SYSTEM] = 'memcached';
+        $span->attributes['memcache.command'] = $command;
+        $span->spanKind = SpanKind::CLIENT;
+        $span->component = self::NAME;
+        $span->attributes[Tag::DB_SYSTEM] = 'memcached';
     }
 
     /**
@@ -154,7 +155,7 @@ class MemcacheIntegration extends Integration
     public static function setServerTags(SpanData $span, \Memcache $memcache)
     {
         if ($server = ObjectKVStore::get($memcache, 'server')) {
-            list($span->meta[Tag::TARGET_HOST], $span->meta[Tag::TARGET_PORT]) = $server;
+            list($span->attributes[Tag::TARGET_HOST], $span->attributes[Tag::TARGET_PORT]) = $server;
         }
     }
 

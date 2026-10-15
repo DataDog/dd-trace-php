@@ -48,8 +48,7 @@ try {
     echo 'Caught exception: ' . $e->getMessage() . PHP_EOL;
 }
 
-// Find the request carrying our Foo.bar span (the wire may be v0.4 or v1 depending on which
-// protocol the sidecar has negotiated).
+// Find the request carrying our Foo.bar span (v0.4 or v1, whichever the sidecar negotiated).
 $replay = $rr->waitForRequest(function ($r) {
     if (strpos($r["uri"], "traces") === false) return false;
     $b = json_decode($r["body"], true);
@@ -59,18 +58,16 @@ $replay = $rr->waitForRequest(function ($r) {
 $root = json_decode($replay["body"], true);
 $spans = $root["chunks"][0]["spans"] ?? $root[0];
 $span = $spans[0];
-var_dump($span['meta']['error.message']);
-var_dump($span['meta']['error.type']);
-var_dump($span['meta']['error.stack']);
-// Span links are carried natively (numeric ids) on the v0.4 downgrade wire and as the
-// _dd.span_links meta JSON (zero-padded hex ids) on the v1 wire. Both encode the same 128-bit
-// trace id (hex 0x42) and span id (0x6); normalise to "<trace_id_hex>:<span_id_hex>".
-if (isset($span['span_links'])) {
-    $link = $span['span_links'][0];
-    printf("link=%x:%x\n", $link['trace_id'], $link['span_id']);
+// v1 spans carry typed attributes and hex link ids; v0.4 spans meta and decimal link ids.
+$attributes = $span['attributes'] ?? $span['meta'];
+var_dump($attributes['error.message']);
+var_dump($attributes['error.type']);
+var_dump($attributes['error.stack']);
+$link = $span['span_links'][0];
+if (isset($span['attributes'])) {
+    printf("link=%x:%x\n", hexdec(substr($link['trace_id'], 16)), hexdec($link['span_id']));
 } else {
-    $link = json_decode($span['meta']['_dd.span_links'], true)[0];
-    printf("link=%x:%x\n", hexdec($link['trace_id']), hexdec($link['span_id']));
+    printf("link=%x:%x\n", $link['trace_id'], $link['span_id']);
 }
 ?>
 --EXPECTF--

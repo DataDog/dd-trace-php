@@ -65,7 +65,7 @@ abstract class Integration implements \DDTrace\Integration
         $rootSpan = null;
         if ($flatServiceNames) {
             $rootSpan = \DDTrace\root_span();
-            $service = $rootSpan ? $rootSpan->service : \ddtrace_config_app_name($fallbackName);
+            $service = $rootSpan ? $rootSpan->service : (\dd_trace_env_config('DD_SERVICE') ?: $fallbackName);
         } else {
             $service = $fallbackName;
         }
@@ -109,7 +109,7 @@ abstract class Integration implements \DDTrace\Integration
             $span->service = $service ?? $component;
             $span->attributes['_dd.svc_src'] = $component;
         }
-        $span->meta[Tag::COMPONENT] = $component;
+        $span->component = $component;
     }
 
     public static function handleOrphan(SpanData $span)

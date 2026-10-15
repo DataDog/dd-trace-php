@@ -12,4 +12,10 @@ function foo() {
 foo();
 passthru('echo using passthru');
 
-print_r(\dd_trace_serialize_closed_spans());
+$spans = array_merge([], ...array_column(\dd_trace_serialize_closed_spans()['chunks'], 'spans'));
+foreach ($spans as &$span) {
+    if (isset($span['attributes'])) {
+        ksort($span['attributes']);
+    }
+}
+print_r($spans);

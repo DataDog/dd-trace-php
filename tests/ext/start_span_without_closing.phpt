@@ -30,11 +30,7 @@ var_dump(dd_clean_spans());
 [ddtrace] [warning] [%d] Found unfinished span while automatically closing spans with name 'my precious span'
 array(1) {
   [0]=>
-  array(12) {
-    ["trace_id"]=>
-    string(%d) "%d"
-    ["trace_id_high"]=>
-    string(16) "%s"
+  array(8) {
     ["span_id"]=>
     string(%d) "%d"
     ["start"]=>
@@ -49,16 +45,12 @@ array(1) {
     string(30) "start_span_without_closing.php"
     ["type"]=>
     string(3) "cli"
-    ["sampling_priority"]=>
-    int(1)
-    ["sampling_mechanism"]=>
-    int(0)
     ["attributes"]=>
     array(6) {
       ["runtime-id"]=>
       string(36) "%s"
       ["process_id"]=>
-      float(%f)
+      int(%d)
       ["_dd.agent_psr"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>

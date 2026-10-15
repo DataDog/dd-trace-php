@@ -4,23 +4,25 @@ namespace DDTrace\OpenTelemetry;
 
 use DDTrace\SpanData;
 use DDTrace\Tag;
+use DDTrace\Util\SpanKindNames;
 
 // Operation Name Conventions
 class Convention
 {
     public static function defaultOperationName(SpanData $span): string
     {
-        $meta = $span->attributes + $span->meta;
-        $spanKind = $meta[Tag::SPAN_KIND] ?? null;
+        $attributes = $span->attributes;
+        // A non-canonical span.kind stays a plain attribute
+        $spanKind = SpanKindNames::NAMES[$span->spanKind] ?? $attributes[Tag::SPAN_KIND] ?? null;
 
         switch (true) {
-            case isset($meta['http.request.method']) && $spanKind === Tag::SPAN_KIND_VALUE_SERVER: // HTTP Server
+            case isset($attributes['http.request.method']) && $spanKind === Tag::SPAN_KIND_VALUE_SERVER: // HTTP Server
                 return 'http.server.request';
-            case isset($meta['http.request.method']) && $spanKind === Tag::SPAN_KIND_VALUE_CLIENT: // HTTP Client
+            case isset($attributes['http.request.method']) && $spanKind === Tag::SPAN_KIND_VALUE_CLIENT: // HTTP Client
                 return 'http.client.request';
-            case isset($meta['db.system']) && $spanKind === Tag::SPAN_KIND_VALUE_CLIENT: // Database
-                return strtolower($meta['db.system']) . '.query';
-            case isset($meta['messaging.system'], $meta['messaging.operation'])
+            case isset($attributes['db.system']) && $spanKind === Tag::SPAN_KIND_VALUE_CLIENT: // Database
+                return strtolower($attributes['db.system']) . '.query';
+            case isset($attributes['messaging.system'], $attributes['messaging.operation'])
                 && (in_array(
                     $spanKind, [
                         Tag::SPAN_KIND_VALUE_CONSUMER,
@@ -29,27 +31,27 @@ class Convention
                         Tag::SPAN_KIND_VALUE_CLIENT
                     ]
                 )):
-                return strtolower($meta['messaging.system']) . '.' . strtolower($meta['messaging.operation']);
-            case isset($meta['rpc.system']) && $meta['rpc.system'] === 'aws-api'
+                return strtolower($attributes['messaging.system']) . '.' . strtolower($attributes['messaging.operation']);
+            case isset($attributes['rpc.system']) && $attributes['rpc.system'] === 'aws-api'
                 && $spanKind === Tag::SPAN_KIND_VALUE_CLIENT: // AWS Client
-                return isset($meta['rpc.service'])
-                    ? 'aws.' . strtolower($meta['rpc.service']) . '.request'
+                return isset($attributes['rpc.service'])
+                    ? 'aws.' . strtolower($attributes['rpc.service']) . '.request'
                     : 'aws.client.request';
-            case isset($meta['rpc.system']) && $spanKind === Tag::SPAN_KIND_VALUE_CLIENT: // RPC Client
-                return strtolower($meta['rpc.system']) . '.client.request';
-            case isset($meta['rpc.system']) && $spanKind === Tag::SPAN_KIND_VALUE_SERVER: // RPC Server
-                return strtolower($meta['rpc.system']) . '.server.request';
-            case isset($meta['faas.trigger']) && $spanKind === Tag::SPAN_KIND_VALUE_SERVER: // FaaS Server
-                return strtolower($meta['faas.trigger']) . '.invoke';
-            case isset($meta['faas.invoked_provider'], $meta['faas.invoked_name'])
+            case isset($attributes['rpc.system']) && $spanKind === Tag::SPAN_KIND_VALUE_CLIENT: // RPC Client
+                return strtolower($attributes['rpc.system']) . '.client.request';
+            case isset($attributes['rpc.system']) && $spanKind === Tag::SPAN_KIND_VALUE_SERVER: // RPC Server
+                return strtolower($attributes['rpc.system']) . '.server.request';
+            case isset($attributes['faas.trigger']) && $spanKind === Tag::SPAN_KIND_VALUE_SERVER: // FaaS Server
+                return strtolower($attributes['faas.trigger']) . '.invoke';
+            case isset($attributes['faas.invoked_provider'], $attributes['faas.invoked_name'])
                 && $spanKind === Tag::SPAN_KIND_VALUE_CLIENT: // FaaS Client
-                return strtolower($meta['faas.invoked_provider']) . '.' . strtolower($meta['faas.invoked_name']) . '.invoke';
-            case isset($meta['graphql.operation.type']):
+                return strtolower($attributes['faas.invoked_provider']) . '.' . strtolower($attributes['faas.invoked_name']) . '.invoke';
+            case isset($attributes['graphql.operation.type']):
                 return 'graphql.server.request';
             case $spanKind === Tag::SPAN_KIND_VALUE_SERVER: // Generic
             case $spanKind === Tag::SPAN_KIND_VALUE_CLIENT:
-                return isset($meta['network.protocol.name'])
-                    ? strtolower($meta['network.protocol.name']) . ".$spanKind.request"
+                return isset($attributes['network.protocol.name'])
+                    ? strtolower($attributes['network.protocol.name']) . ".$spanKind.request"
                     : "$spanKind.request";
             case !empty($spanKind):
                 return $spanKind;
