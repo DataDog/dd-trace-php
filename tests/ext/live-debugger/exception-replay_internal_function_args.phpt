@@ -17,13 +17,14 @@ zend.exception_ignore_args=0
 
 require __DIR__ . "/live_debugger.inc";
 
-function divide($a, $b) {
-    return intdiv($a, $b);
+// random_int's parameter names ($min, $max) are the same on PHP 7.0-8.6.
+function draw($a, $b) {
+    return random_int($a, $b);
 }
 
 try {
-    divide(7, 0);
-} catch (DivisionByZeroError $e) {
+    draw(7, 0);
+} catch (Error $e) { // Error on 7.x, ValueError on 8.x
     $span = \DDTrace\start_span();
     $span->exception = $e;
     \DDTrace\close_span();
@@ -35,7 +36,7 @@ $log = json_decode($log["body"], true);
 
 foreach ($log as $entry) {
     $snapshot = $entry["debugger"]["snapshot"];
-    if (($snapshot["probe"]["location"]["method"] ?? null) === "intdiv") {
+    if (($snapshot["probe"]["location"]["method"] ?? null) === "random_int") {
         $args = $snapshot["captures"]["return"]["arguments"];
         ksort($args);
         var_dump($args);
@@ -48,20 +49,20 @@ foreach ($log as $entry) {
 require __DIR__ . "/live_debugger.inc";
 reset_request_replayer();
 ?>
---EXPECTF--
+--EXPECT--
 array(2) {
-  ["%r(num1|dividend)%r"]=>
-  array(2) {
-    ["type"]=>
-    string(3) "int"
-    ["value"]=>
-    string(1) "7"
-  }
-  ["%r(num2|divisor)%r"]=>
+  ["max"]=>
   array(2) {
     ["type"]=>
     string(3) "int"
     ["value"]=>
     string(1) "0"
+  }
+  ["min"]=>
+  array(2) {
+    ["type"]=>
+    string(3) "int"
+    ["value"]=>
+    string(1) "7"
   }
 }
