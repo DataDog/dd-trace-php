@@ -40,11 +40,14 @@ final class DataDogProvider extends AbstractProvider
     /**
      * When enabled, boolean true in dd_evaluation_telemetry_opt_out suppresses
      * evaluation metrics and automatic span annotations. Exposures are unchanged.
+     * Null uses tracer configuration at construction. Explicit true or false overrides it.
      */
     public function __construct(
         ?LoggerInterface $logger = null,
-        bool $enableEvaluationTelemetryOptOutParameter = false
+        ?bool $enableEvaluationTelemetryOptOutParameter = null
     ) {
+        $enableEvaluationTelemetryOptOutParameter = $enableEvaluationTelemetryOptOutParameter
+            ?? (\dd_trace_env_config('DD_FEATURE_FLAGS_EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED') === true);
         // Native evaluation metrics are disabled here because OpenFeature owns
         // the final provider outcome, including OF-level type mismatch mapping.
         $this->evaluator = NativeEvaluator::create(false, $enableEvaluationTelemetryOptOutParameter);
@@ -60,7 +63,7 @@ final class DataDogProvider extends AbstractProvider
         ?Evaluator $evaluator = null,
         ?LoggerInterface $logger = null,
         $metricRecorder = null,
-        bool $enableEvaluationTelemetryOptOutParameter = false
+        ?bool $enableEvaluationTelemetryOptOutParameter = null
     ): self {
         $provider = new self($logger, $enableEvaluationTelemetryOptOutParameter);
         if ($evaluator !== null) {

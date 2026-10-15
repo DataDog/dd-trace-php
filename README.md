@@ -56,6 +56,17 @@ The provider reads the final merged context after OpenFeature `before` hooks.
 Flag results, experiment exposures, custom hooks, unrelated telemetry, and previously queued data remain unchanged.
 This option does not disable experiment participation or exposure logging. The native `DDTrace\FeatureFlags\Client` API remains unchanged.
 
+To enable support through the environment, set this variable before PHP starts:
+
+```sh
+export DD_FEATURE_FLAGS_EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED=true
+```
+
+Then construct `new DataDogProvider()` without the option. The provider captures tracer configuration when it is constructed.
+An explicit `true` or `false` constructor option overrides the environment. Omitted or `null` options use tracer configuration.
+Unset or invalid environment values default to disabled. The equivalent PHP INI option is `datadog.feature_flags_evaluation_telemetry_per_subject_opt_out_enabled`.
+Environment activation only enables support for the subject attribute. Subjects without typed boolean `true` continue to record evaluation telemetry.
+
 ## Contributing
 
 Before contributing to this open source project, read our [CONTRIBUTING.md](CONTRIBUTING.md).
