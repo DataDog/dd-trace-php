@@ -186,6 +186,20 @@ static void dd_sidecar_on_connect(ddog_SidecarTransport **transport) {
     }
 }
 
+#ifdef DDTRACE
+static void dd_sidecar_configure_ffe_transport(ddog_SidecarTransport **transport) {
+    // Both FFE writers share this target. Replace it when the test token changes
+    // so new observations use the new session and queued ones keep the old one.
+    const ddog_EvpProducerIdentity ffe_producer = {
+        .origin = DDOG_CHARSLICE_C("dd-trace-php"),
+        .version = DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION),
+    };
+    datadog_ffi_try("Failed configuring PHP FFE EVP transport",
+        ddog_sidecar_session_set_evp_transport(transport, DDOG_EVP_TRANSPORT_MODE_AGENT_ONLY,
+            datadog_endpoint, NULL, DDOG_CHARSLICE_C("event-platform-intake"), &ffe_producer));
+}
+#endif
+
 // Sends the identity and configuration. Needed once per transport: the transport replays them after reconnects.
 static void dd_sidecar_configure(ddog_SidecarTransport **transport) {
 #ifdef _WIN32
@@ -252,16 +266,10 @@ static void dd_sidecar_configure(ddog_SidecarTransport **transport) {
     }
 
 #ifdef DDTRACE
-    // Both FFE writers belong to the PHP tracer. Configure their shared target
-    // during ordinary connection setup, including reconnect and fork recovery.
+    // Configure during ordinary connection setup, including fork recovery.
+    // The transport replays its configuration after reconnects.
     // Remote Config keeps the fixed Agent EVP v2 route.
-    const ddog_EvpProducerIdentity ffe_producer = {
-        .origin = DDOG_CHARSLICE_C("dd-trace-php"),
-        .version = DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION),
-    };
-    datadog_ffi_try("Failed configuring PHP FFE EVP transport",
-        ddog_sidecar_session_set_evp_transport(transport, DDOG_EVP_TRANSPORT_MODE_AGENT_ONLY,
-            datadog_endpoint, NULL, DDOG_CHARSLICE_C("event-platform-intake"), &ffe_producer));
+    dd_sidecar_configure_ffe_transport(transport);
 #endif
 
     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
@@ -1038,6 +1046,11 @@ bool datadog_alter_test_session_token(zval *old_value, zval *new_value, zend_str
     if (DATADOG_G(sidecar)) {
         datadog_ffi_try("Failed updating test session token",
                         ddog_sidecar_set_test_session_token(&DATADOG_G(sidecar), dd_zend_string_to_CharSlice(Z_STR_P(new_value))));
+#ifdef DDTRACE
+        if (token_changed) {
+            dd_sidecar_configure_ffe_transport(&DATADOG_G(sidecar));
+        }
+#endif
     }
 #if !defined(_WIN32) && defined(DDTRACE)
     ddtrace_coms_set_test_session_token(Z_STRVAL_P(new_value), Z_STRLEN_P(new_value));

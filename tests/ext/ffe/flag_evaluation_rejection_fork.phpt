@@ -48,6 +48,9 @@ pcntl_waitpid($pid, $status);
 if (!pcntl_wifexited($status) || pcntl_wexitstatus($status) !== 0) {
     throw new RuntimeException('child failed');
 }
+// The pcntl integration starts a new root span for the fork. Restore the
+// parent's named telemetry application before draining its rejection counters.
+setApplication($parentService);
 dd_trace_internal_fn('finalize_telemetry');
 
 // Separate applications expose inherited counters instead of letting a stopped

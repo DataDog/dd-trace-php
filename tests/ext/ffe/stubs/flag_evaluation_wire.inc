@@ -142,7 +142,8 @@ try {
     $expected = array(str_repeat('é', 256) => str_repeat('😀', 256),
         'bool' => false, 'integer' => -42, 'float' => 1.5,
         0 => 'zero-key', -1 => 'negative-key', 'empty' => '');
-    ksort($unicode); ksort($expected);
+    ksort($unicode, SORT_STRING);
+    ksort($expected, SORT_STRING);
     echo 'unicode_and_scalar_boundaries='; var_dump($unicode === $expected);
     echo 'owned_snapshot=';
     var_dump($rows['snapshot']['context']['evaluation'] === array('value' => 'before-submission'));
