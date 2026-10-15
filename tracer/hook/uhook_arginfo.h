@@ -1,5 +1,7 @@
-/* This is a generated file, edit the .stub.php file instead.
+/* This is a generated file, edit uhook.stub.php instead.
  * Stub hash: 27176438d997b2f7e883e8e6a265b82eae65139f */
+
+#include "zend_constants.h"
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_install_hook, 0, 1, IS_LONG, 0)
 	ZEND_ARG_OBJ_TYPE_MASK(0, target, Closure|Generator, MAY_BE_STRING|MAY_BE_CALLABLE, NULL)

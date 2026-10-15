@@ -48,7 +48,7 @@ function decodeDogStatsDMetrics($metrics)
     return $decodedMetrics;
 }
 
-// v1 (`/v1.0/traces`) msgpack decoder, normalizing to the v0.4 per-span view.
+// v1 (`/v1.0/traces`) msgpack decoder, producing a JSON view of the v1 payload.
 require __DIR__ . '/msgpack_v1_decoder.php';
 
 $uri = explode("?", $_SERVER['REQUEST_URI'])[0];
@@ -415,9 +415,9 @@ switch ($uri) {
                 || (isset($headers['content-type']) && $headers['content-type'] === 'application/msgpack');
             if ($isMsgpack && substr($uri, -strlen('/v1.0/traces')) === '/v1.0/traces') {
                 // v1 (`/v1.0/traces`) wire: integer keys, streaming string table, typed AnyValue.
-                // Normalize it back to the canonical v0.4 per-span view the PHPUnit tests read.
+                // Store a JSON view of it; keep float zero fractions so typed values survive.
                 $decoder = new V1TraceDecoder($raw);
-                $body = json_encode($decoder->decode());
+                $body = json_encode($decoder->decode(), JSON_PRESERVE_ZERO_FRACTION);
             } elseif ($isMsgpack) {
                 // We unpack in two phases:
                 //  1) using UnpackOptions::BIGINT_AS_GMP and only asserting that trace_id, span_id and parent_id are either

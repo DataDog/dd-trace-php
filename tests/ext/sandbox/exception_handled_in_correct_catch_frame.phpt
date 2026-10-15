@@ -71,7 +71,7 @@ array_map(function($span) {
         echo ' (' . $span['attributes']['error.message'] . ')';
     }
     echo PHP_EOL;
-}, dd_trace_serialize_closed_spans());
+}, dd_trace_serialize_closed_spans()['chunks'][0]['spans']);
 ?>
 --EXPECTF--
 Exception was handled by level1(): Oops!

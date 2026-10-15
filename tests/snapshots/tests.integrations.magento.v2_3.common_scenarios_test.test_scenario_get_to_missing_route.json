@@ -14,7 +14,6 @@
       "http.status_code": "404",
       "http.url": "http://localhost/does_not_exist?key=value&<redacted>",
       "magento.area": "frontend",
-      "magento.cached": "false",
       "magento.frontname": "does_not_exist",
       "magento.pathinfo": "cms/noroute/index",
       "magento.route": "cms",
@@ -23,7 +22,8 @@
     },
     "metrics": {
       "_dd.top_level": 1.0,
-      "_sampling_priority_v1": 1.0
+      "_sampling_priority_v1": 1.0,
+      "magento.cached": 0
     }
   },
      {
@@ -1767,11 +1767,13 @@
              "meta": {
                "component": "magento",
                "magento.block.area": "frontend",
-               "magento.block.cache_lifetime": "3600",
                "magento.block.class": "Magento\\Theme\\Block\\Html\\Footer",
                "magento.block.module": "Magento_Theme",
                "magento.block.name": "absolute_footer",
                "magento.block.template": "Magento_Theme::html/absolute_footer.phtml"
+             },
+             "metrics": {
+               "magento.block.cache_lifetime": 3600
              }
            },
            {
@@ -1785,11 +1787,13 @@
              "meta": {
                "component": "magento",
                "magento.block.area": "frontend",
-               "magento.block.cache_lifetime": "3600",
                "magento.block.class": "Magento\\Theme\\Block\\Html\\Footer",
                "magento.block.module": "Magento_Theme",
                "magento.block.name": "copyright",
                "magento.block.template": "Magento_Theme::html/copyright.phtml"
+             },
+             "metrics": {
+               "magento.block.cache_lifetime": 3600
              }
            },
         {

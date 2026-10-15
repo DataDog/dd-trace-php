@@ -21,7 +21,7 @@ DDTrace\close_span();
 DDTrace\close_span();
 
 // Get the spans and verify both
-$spans = dd_trace_serialize_closed_spans();
+$spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
 if (count($spans) >= 2) {
     var_dump([
         'span1' => [

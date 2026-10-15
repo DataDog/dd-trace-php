@@ -244,9 +244,8 @@ ddtrace_inferred_span_data *ddtrace_open_inferred_span(ddtrace_inferred_proxy_re
         zend_hash_str_update(attributes, ZEND_STRL("stage"), &zv);
     }
 
-    ZVAL_DOUBLE(&zv, 1);
+    ZVAL_LONG(&zv, 1);
     zend_hash_str_update(attributes, ZEND_STRL("_dd.inferred_span"), &zv);
-    // Set on the property; the serializer mirrors it into meta["component"] at serialization time.
     zval_ptr_dtor(&span->property_component);
     ZVAL_STRING(&span->property_component, (char *)proxy_info->component);
     ZVAL_STR(&span->property_type, zend_string_init(ZEND_STRL("web"), 0));
@@ -549,10 +548,10 @@ ddtrace_span_data *ddtrace_alloc_execute_data_span_ex(zend_ulong index, zend_exe
                 zend_string_release(basename);
             }
 
-            zend_array *meta = ddtrace_property_array(&span->property_attributes);
+            zend_array *attributes = ddtrace_property_array(&span->property_attributes);
             zval location;
             ZVAL_STR(&location, zend_strpprintf(0, "%s:%d", ZSTR_VAL(EX(func)->op_array.filename), EX(func)->op_array.opcodes->lineno));
-            zend_hash_str_add_new(meta, ZEND_STRL("closure.declaration"), &location);
+            zend_hash_str_add_new(attributes, ZEND_STRL("closure.declaration"), &location);
         } else if (EX(func) && EX(func)->common.function_name) {
             zval_ptr_dtor(prop_name);
 
@@ -829,7 +828,7 @@ static void dd_mark_closed_spans_flushable(ddtrace_span_stack *stack) {
                 // This might get updated later with SpanStacks, but at that point it will be orphan spans. That's intentional.
                 if (!get_global_DD_APM_TRACING_ENABLED()) {
                     // Increment limiter, then force sampling priority if not an asm event
-                    if (!ddtrace_standalone_limiter_allow() && !root_span->asm_event_emitted && !ddtrace_trace_source_is_meta_asm_sourced(ddtrace_property_array(&stack->root_span->property_attributes))) {
+                    if (!ddtrace_standalone_limiter_allow() && !root_span->asm_event_emitted && !ddtrace_trace_source_is_asm_sourced(ddtrace_property_array(&stack->root_span->property_attributes))) {
                         zval priority;
                         ZVAL_LONG(&priority, PRIORITY_SAMPLING_AUTO_REJECT);
                         datadog_assign_variable(&root_span->property_sampling_priority, &priority);
@@ -984,7 +983,7 @@ void ddtrace_close_top_span_without_stack_swap(ddtrace_span_data *span) {
     }
 
     // Telemetry: increment the spans_created counter
-    // Must be done at closing because we need to read the "component" span's meta which is not available at creation
+    // Must be done at closing because the component property is not set yet at creation
     ddtrace_telemetry_inc_spans_created(span);
 
     ddtrace_span_stack *stack = span->stack;
@@ -1166,7 +1165,7 @@ void ddtrace_serialize_closed_spans(ddtrace_serialize_ctx *ctx, bool fast_shutdo
                 next_stack = stack->next;
             }
             if (ctx) {
-                ctx->chunk = DD_CHUNK_NONE;  // one V1 chunk per V0.4 trace
+                ctx->chunk = DD_CHUNK_NONE;  // one chunk per trace
             }
             bool sampling_decided = false;
             bool p0_trace = false;
@@ -1262,21 +1261,15 @@ void ddtrace_populate_span_data(ddtrace_span_data *span, zend_string **service, 
         *service = zend_string_init(ZEND_STRL("unnamed-php-service"), 0);
     }
 
-    zval *prop_env = ddtrace_span_find_tag(span, ZEND_STRL("env"));
-    if (!prop_env) {
-        prop_env = &span->property_env;
-    }
+    zval *prop_env = &span->property_env;
     if (Z_TYPE_P(prop_env) == IS_STRING && Z_STRLEN_P(prop_env) > 0) {
         *env = zend_string_copy(Z_STR_P(prop_env));
     } else {
         *env = NULL;
     }
 
-    zval *prop_version = ddtrace_span_find_tag(span, ZEND_STRL("version"));
-    if (!prop_version) {
-        prop_version = &span->property_version;
-    }
-    if (prop_version && Z_TYPE_P(prop_version) == IS_STRING && Z_STRLEN_P(prop_version) > 0) {
+    zval *prop_version = &span->property_version;
+    if (Z_TYPE_P(prop_version) == IS_STRING && Z_STRLEN_P(prop_version) > 0) {
         *version = zend_string_copy(Z_STR_P(prop_version));
     } else {
         *version = NULL;

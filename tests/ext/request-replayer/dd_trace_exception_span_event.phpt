@@ -1,7 +1,10 @@
 --TEST--
 DDTrace\ExceptionSpanEvent serialization with overridden attributes
 --SKIPIF--
-<?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
+<?php
+if (strncasecmp(PHP_OS, "WIN", 3) == 0) die('skip: the in-process sender is not available on Windows');
+include __DIR__ . '/../includes/skipif_no_dev_env.inc';
+?>
 --ENV--
 DD_AGENT_HOST=request-replayer
 DD_TRACE_AGENT_PORT=80
@@ -47,36 +50,17 @@ try {
 
 $replay = $rr->waitForDataAndReplay();
 $root = json_decode($replay["body"], true);
-$spans = $root["chunks"][0]["spans"] ?? $root[0];
-$span = $spans[0];
+$span = $root[0][0];
 
-// This test pins the in-process sender (v0.4-only): events are legacy `events` meta JSON, no
-// `span_events` field. Handle both shapes anyway; ddAnyValueToPhp() unwraps the v1 AnyValue form.
-function ddAnyValueToPhp($v) {
-    if (!is_array($v) || !array_key_exists('type', $v)) {
-        return $v; // already a plain value (legacy `events` meta JSON)
-    }
-    switch ($v['type']) {
-        case 0: return $v['string_value'];
-        case 1: return $v['bool_value'];
-        case 2: return $v['int_value'];
-        case 3: return $v['double_value'];
-        case 4: return array_map('ddAnyValueToPhp', $v['array_value']['values']);
-        default: return $v;
-    }
-}
-if (isset($span['span_events'])) {
-    $event = $span['span_events'][0];
-} else {
-    $event = json_decode($span['meta']['events'], true)[0];
-}
+// The in-process sender (v0.4-only) writes span events as legacy `events` meta JSON.
+$event = json_decode($span['meta']['events'], true)[0];
 $attrs = $event['attributes'];
 var_dump($event['name']);
 // The user-provided "exception.message" overrides the exception's own message (builder last-write-wins).
-var_dump(ddAnyValueToPhp($attrs['exception.message']));
-var_dump(ddAnyValueToPhp($attrs['exception.type']));
-var_dump(ddAnyValueToPhp($attrs['custom.attribute']));
-var_dump(ddAnyValueToPhp($attrs['exception.stacktrace']));
+var_dump($attrs['exception.message']);
+var_dump($attrs['exception.type']);
+var_dump($attrs['custom.attribute']);
+var_dump($attrs['exception.stacktrace']);
 ?>
 --EXPECTF--
 Caught exception: Exception in method

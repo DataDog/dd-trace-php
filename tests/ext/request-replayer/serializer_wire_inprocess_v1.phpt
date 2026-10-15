@@ -2,7 +2,7 @@
 In-process sender ignores a v1-capable agent and still serializes the v0.4 wire (/v0.4/traces)
 --DESCRIPTION--
 Locks the in-process sender -> v0.4 wire mapping even when the agent advertises /v1.0/traces. The
-in-process (<=8.2 / DD_TRACE_SIDECAR_TRACE_SENDER=0) sender ALWAYS downgrades the native V1 builder
+in-process (DD_TRACE_SIDECAR_TRACE_SENDER=0) sender ALWAYS downgrades the native V1 builder
 to v0.4 and posts each trace to /v0.4/traces; a native V1 payload is a single msgpack MAP that the
 background sender's array-of-1 framing (comms_php.c mpack_expect_array_match) cannot parse, so the
 in-process path never uses /v1.0/traces regardless of agent capability.
@@ -40,7 +40,7 @@ dd_trace_internal_fn("synchronous_flush");
 
 $req = $rr->waitForRequest(function ($r) { return strpos($r["uri"], "traces") !== false; });
 $root = json_decode($req["body"], true);
-$spans = $root["chunks"][0]["spans"] ?? $root[0];
+$spans = $root[0];
 echo "uri=" . $req["uri"] . "\n";
 echo "has_chunks=" . (isset($root['chunks']) ? "yes" : "no") . "\n";
 echo "span_name=" . $spans[0]["name"] . "\n";

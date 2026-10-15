@@ -25,10 +25,10 @@ class CommonScenariosTest extends \DDTrace\Tests\Integrations\CLI\Laravel\V9_X\C
                 'artisan_test_app',
                 'cli',
                 'artisan foo:error'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::COMPONENT => 'laravel',
                 '_dd.svc_src' => 'laravel',
-            ])->withExistingTagsNames([
+            ])->withExistingAttributeNames([
                 Tag::ERROR_MSG,
                 'error.stack'
             ])->withChildren([

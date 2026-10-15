@@ -43,7 +43,6 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
 --EXPECTF--
 [
     {
-        "trace_id": "13930160852258120406",
         "span_id": "13930160852258120406",
         "parent_id": "11788048577503494824",
         "start": 120000000,
@@ -54,7 +53,7 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
         "type": "web",
         "env": "local-prod",
         "version": "1.0",
-        "component": "cgi-fcgi",
+        "component": "web",
         "span_kind": 2,
         "attributes": {
             "runtime-id": "%s",
@@ -69,8 +68,6 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
         }
     },
     {
-        "trace_id": "13930160852258120406",
-        "trace_id_high": "%s",
         "span_id": "11788048577503494824",
         "start": 100000000,
         "duration": %d,
@@ -81,8 +78,6 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
         "env": "local-prod",
         "version": "1.0",
         "component": "aws-apigateway",
-        "sampling_priority": 1,
-        "sampling_mechanism": 0,
         "attributes": {
             "http.method": "GET",
             "stage": "aws-prod",
@@ -92,7 +87,6 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
         }
     },
     {
-        "trace_id": "13930160852258120406",
         "span_id": "13874630024467741450",
         "parent_id": "13930160852258120406",
         "start": 130000000,

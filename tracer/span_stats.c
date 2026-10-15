@@ -39,27 +39,15 @@ static const size_t GRPC_META_KEY_LENS[] = {
 // agent, which is larger and must be scanned in full.
 #define DDTRACE_MAX_PEER_TAGS 32
 
-static zval *dd_pre_find_tag(const ddtrace_span_precomputed *pre, const char *key, size_t len) {
-    return zend_hash_str_find(pre->attributes, key, len);
-}
-
 void ddtrace_precompute_span(ddtrace_span_data *span, ddtrace_span_precomputed *pre) {
     pre->attributes = ddtrace_property_array(&span->property_attributes);
 
-    // Service: "service.name" tag override then span property, then apply DD_SERVICE_MAPPING.
-    zval *service_name_meta = dd_pre_find_tag(pre, ZEND_STRL("service.name"));
-    pre->service_from_meta = (service_name_meta != NULL);
+    // Service: span property, then apply DD_SERVICE_MAPPING.
     pre->service = NULL;
-    if (service_name_meta) {
-        pre->service = datadog_convert_to_str(service_name_meta);
-    } else {
-        zval *prop_service = &span->property_service;
-        ZVAL_DEREF(prop_service);
-        if (Z_TYPE_P(prop_service) > IS_NULL) {
-            pre->service = datadog_convert_to_str(prop_service);
-        }
-    }
-    if (pre->service) {
+    zval *prop_service = &span->property_service;
+    ZVAL_DEREF(prop_service);
+    if (Z_TYPE_P(prop_service) > IS_NULL) {
+        pre->service = datadog_convert_to_str(prop_service);
         zval *mapped = zend_hash_find(get_DD_SERVICE_MAPPING(), pre->service);
         if (mapped) {
             zend_string_release(pre->service);
@@ -67,123 +55,66 @@ void ddtrace_precompute_span(ddtrace_span_data *span, ddtrace_span_precomputed *
         }
     }
 
-    // Name: "operation.name" tag (lowercased!) or span property.
-    zval *operation_name = dd_pre_find_tag(pre, ZEND_STRL("operation.name"));
     pre->name = NULL;
-    if (operation_name && Z_TYPE_P(operation_name) == IS_STRING) {
-        pre->name = zend_string_tolower(Z_STR_P(operation_name));
-        pre->name_from_meta = true;
-    } else {
-        zval *prop_name = &span->property_name;
-        ZVAL_DEREF(prop_name);
-        if (Z_TYPE_P(prop_name) > IS_NULL) {
-            pre->name = datadog_convert_to_str(prop_name);
-        }
-        pre->name_from_meta = false;
+    zval *prop_name = &span->property_name;
+    ZVAL_DEREF(prop_name);
+    if (Z_TYPE_P(prop_name) > IS_NULL) {
+        pre->name = datadog_convert_to_str(prop_name);
     }
 
-    // Resource: "resource.name" tag or span property, falling back to name.
-    zval *resource_name = dd_pre_find_tag(pre, ZEND_STRL("resource.name"));
-    pre->resource_from_meta = (resource_name != NULL);
+    // Resource: span property, falling back to name.
     pre->resource = NULL;
-    if (resource_name) {
-        pre->resource = datadog_convert_to_str(resource_name);
-    } else {
-        zval *prop_resource = &span->property_resource;
-        ZVAL_DEREF(prop_resource);
-        if (Z_TYPE_P(prop_resource) > IS_FALSE &&
-            (Z_TYPE_P(prop_resource) != IS_STRING || Z_STRLEN_P(prop_resource) > 0)) {
-            pre->resource = datadog_convert_to_str(prop_resource);
-        }
+    zval *prop_resource = &span->property_resource;
+    ZVAL_DEREF(prop_resource);
+    if (Z_TYPE_P(prop_resource) > IS_FALSE &&
+        (Z_TYPE_P(prop_resource) != IS_STRING || Z_STRLEN_P(prop_resource) > 0)) {
+        pre->resource = datadog_convert_to_str(prop_resource);
     }
     if (!pre->resource && pre->name) {
         pre->resource = zend_string_copy(pre->name);
     }
 
-    // Type: "span.type" tag or span property.
-    zval *span_type = dd_pre_find_tag(pre, ZEND_STRL("span.type"));
-    pre->type_from_meta = (span_type != NULL);
     pre->type = NULL;
-    zval *prop_type = span_type ? span_type : &span->property_type;
+    zval *prop_type = &span->property_type;
     ZVAL_DEREF(prop_type);
     if (Z_TYPE_P(prop_type) > IS_NULL) {
         pre->type = datadog_convert_to_str(prop_type);
     }
 
-    // Env: property first, then the "env" tag fallback (matching serializer.c promotion). Without the
-    // fallback, DD_TAGS "env" (DD_ENV unset) would bucket stats by empty env vs the trace's.
     pre->env = NULL;
     zval *prop_env = &span->property_env;
     ZVAL_DEREF(prop_env);
-    if (Z_TYPE_P(prop_env) > IS_NULL) {
-        zend_string *str = datadog_convert_to_str(prop_env);
-        if (ZSTR_LEN(str) > 0) {
-            pre->env = str;
-        } else {
-            zend_string_release(str);
-        }
-    }
-    if (!pre->env) {
-        zval *env_meta = dd_pre_find_tag(pre, ZEND_STRL("env"));
-        if (env_meta && Z_TYPE_P(env_meta) == IS_STRING) {
-            pre->env = zend_string_copy(Z_STR_P(env_meta));
-        }
+    if (Z_TYPE_P(prop_env) == IS_STRING && Z_STRLEN_P(prop_env) > 0) {
+        pre->env = zend_string_copy(Z_STR_P(prop_env));
     }
 
-    // Version: span property first, then the "version" tag fallback (same rationale).
     pre->version = NULL;
     zval *prop_version = &span->property_version;
     ZVAL_DEREF(prop_version);
-    if (Z_TYPE_P(prop_version) > IS_NULL) {
-        zend_string *str = datadog_convert_to_str(prop_version);
-        if (ZSTR_LEN(str) > 0) {
-            pre->version = str;
-        } else {
-            zend_string_release(str);
-        }
-    }
-    if (!pre->version) {
-        zval *version_meta = dd_pre_find_tag(pre, ZEND_STRL("version"));
-        if (version_meta && Z_TYPE_P(version_meta) == IS_STRING) {
-            pre->version = zend_string_copy(Z_STR_P(version_meta));
-        }
+    if (Z_TYPE_P(prop_version) == IS_STRING && Z_STRLEN_P(prop_version) > 0) {
+        pre->version = zend_string_copy(Z_STR_P(prop_version));
     }
 
     // has_exception: used by dd_compute_span_is_error() for exception-based error detection.
     zval *exception_zv = &span->property_exception;
     pre->has_exception = Z_TYPE_P(exception_zv) == IS_OBJECT &&
                          instanceof_function(Z_OBJCE_P(exception_zv), zend_ce_throwable);
-
-    // $ignoreError, or the deprecated "error.ignored" tag, which can only turn it on. The tag is folded into
-    // the property and dropped, so it is never emitted and should_track_error's ancestor walk still sees it.
-    zval *error_ignored = zend_hash_str_find(pre->attributes, ZEND_STRL("error.ignored"));
-    if (error_ignored) {
-        if (zend_is_true(error_ignored)) {
-            zval *ignore_error = &span->property_ignore_error;
-            ZVAL_DEREF(ignore_error);
-            zval_ptr_dtor(ignore_error);
-            ZVAL_TRUE(ignore_error);
-        }
-        zend_hash_str_del(pre->attributes, ZEND_STRL("error.ignored"));
-    }
     pre->ignore_error = zend_is_true(&span->property_ignore_error);
 
     // Stats eligibility fields — fetched once here to avoid duplicate lookups in the two
     // call sites (ddtrace_span_concentrator_feed_cb and ddtrace_feed_span_to_concentrator).
     pre->has_top_level = ddtrace_span_is_entrypoint_root(span) || (span->std.ce == ddtrace_ce_root_span_data && ROOTSPANDATA(&span->std)->parent_id == 0) || (span->parent && !zend_is_identical(&span->property_service, &span->parent->property_service));
-    zval *is_measured = dd_pre_find_tag(pre, ZEND_STRL("_dd.measured"));
+    zval *is_measured = zend_hash_str_find(pre->attributes, ZEND_STRL("_dd.measured"));
     pre->is_measured = is_measured && zval_get_double(is_measured) != 0.0;
     pre->is_partial_snapshot = false;
-    zval *span_kind_zv = dd_pre_find_tag(pre, ZEND_STRL("span.kind"));
-    // Owned copy: the serializer deletes the "span.kind" tag up front, so pre must not borrow it.
-    pre->span_kind = (span_kind_zv && Z_TYPE_P(span_kind_zv) == IS_STRING) ? zend_string_copy(Z_STR_P(span_kind_zv)) : NULL;
+    pre->span_kind = zval_get_long(&span->property_span_kind);
 }
 
 bool dd_compute_span_is_error(const ddtrace_span_precomputed *pre) {
     if (pre->ignore_error) {
         return false;
     }
-    if (dd_pre_find_tag(pre, ZEND_STRL("error.message")) || dd_pre_find_tag(pre, ZEND_STRL("error.type"))) {
+    if (zend_hash_str_find(pre->attributes, ZEND_STRL("error.message")) || zend_hash_str_find(pre->attributes, ZEND_STRL("error.type"))) {
         return true;
     }
     return pre->has_exception;
@@ -207,9 +138,6 @@ void ddtrace_free_span_precomputed(ddtrace_span_precomputed *pre) {
     }
     if (pre->version) {
         zend_string_release(pre->version);
-    }
-    if (pre->span_kind) {
-        zend_string_release(pre->span_kind);
     }
 }
 
@@ -237,22 +165,22 @@ static ddog_PhpSpanStats ddtrace_build_span_stats_core(
 
     // HTTP and gRPC fields only appear on service entry spans, which are always stats-eligible.
     // They are fetched here (after the eligibility check) rather than in ddtrace_precompute_span.
-    zval *http_status_str_zv = dd_pre_find_tag(pre, ZEND_STRL("http.status_code"));
+    zval *http_status_str_zv = zend_hash_str_find(pre->attributes, ZEND_STRL("http.status_code"));
     ddog_CharSlice http_status_str_slice = http_status_str_zv && Z_TYPE_P(http_status_str_zv) == IS_STRING
         ? dd_zend_string_to_CharSlice(Z_STR_P(http_status_str_zv))
         : DDOG_CHARSLICE_C("");
 
-    zval *http_method_zv = dd_pre_find_tag(pre, ZEND_STRL("http.method"));
+    zval *http_method_zv = zend_hash_str_find(pre->attributes, ZEND_STRL("http.method"));
     ddog_CharSlice http_method_slice = http_method_zv && Z_TYPE_P(http_method_zv) == IS_STRING
         ? dd_zend_string_to_CharSlice(Z_STR_P(http_method_zv))
         : DDOG_CHARSLICE_C("");
 
-    zval *http_endpoint_zv = dd_pre_find_tag(pre, ZEND_STRL("http.endpoint"));
+    zval *http_endpoint_zv = zend_hash_str_find(pre->attributes, ZEND_STRL("http.endpoint"));
     ddog_CharSlice http_endpoint_slice = http_endpoint_zv && Z_TYPE_P(http_endpoint_zv) == IS_STRING
         ? dd_zend_string_to_CharSlice(Z_STR_P(http_endpoint_zv))
         : DDOG_CHARSLICE_C("");
 
-    zval *http_route_zv = dd_pre_find_tag(pre, ZEND_STRL("http.route"));
+    zval *http_route_zv = zend_hash_str_find(pre->attributes, ZEND_STRL("http.route"));
     ddog_CharSlice http_route_slice = http_route_zv && Z_TYPE_P(http_route_zv) == IS_STRING
         ? dd_zend_string_to_CharSlice(Z_STR_P(http_route_zv))
         : DDOG_CHARSLICE_C("");
@@ -263,7 +191,7 @@ static ddog_PhpSpanStats ddtrace_build_span_stats_core(
         ? dd_zend_string_to_CharSlice(Z_STR_P(origin_zv))
         : DDOG_CHARSLICE_C("");
 
-    zval *service_source_zv = dd_pre_find_tag(pre, ZEND_STRL("_dd.svc_src"));
+    zval *service_source_zv = zend_hash_str_find(pre->attributes, ZEND_STRL("_dd.svc_src"));
     ddog_CharSlice service_source_slice = service_source_zv && Z_TYPE_P(service_source_zv) == IS_STRING
         ? dd_zend_string_to_CharSlice(Z_STR_P(service_source_zv))
         : DDOG_CHARSLICE_C("");
@@ -319,7 +247,12 @@ static ddog_OwnedShmSpanInput *ddtrace_span_concentrator_feed_cb(const ddog_Span
     ddtrace_span_data *span = data->span;
     const ddtrace_span_precomputed *pre = data->pre;
 
-    ddog_CharSlice span_kind_slice = dd_zend_string_to_CharSlice(pre->span_kind);
+    // No ternary here: MSVC 2017 (PHP 7.x on Windows) dropped its NULL branch and ran strlen(NULL).
+    const char *span_kind = ddtrace_span_kind_str(pre->span_kind);
+    if (!span_kind) {
+        span_kind = "";
+    }
+    ddog_CharSlice span_kind_slice = { .ptr = span_kind, .len = strlen(span_kind) };
 
     if (!ddog_span_concentrator_is_eligible(c, pre->has_top_level, pre->is_measured, span_kind_slice, pre->is_partial_snapshot)) {
         return NULL;
@@ -334,13 +267,13 @@ static ddog_OwnedShmSpanInput *ddtrace_span_concentrator_feed_cb(const ddog_Span
     ddog_PhpPeerTag peer_tags[DDTRACE_MAX_PEER_TAGS];
     size_t actual_peer_tags = 0;
 
-    if (pre->span_kind && (zend_string_equals_literal(pre->span_kind, "client") || zend_string_equals_literal(pre->span_kind, "producer") || zend_string_equals_literal(pre->span_kind, "consumer"))) {
+    if (pre->span_kind == DDTRACE_SPAN_KIND_CLIENT || pre->span_kind == DDTRACE_SPAN_KIND_PRODUCER || pre->span_kind == DDTRACE_SPAN_KIND_CONSUMER) {
         size_t peer_tag_keys_count = 0;
         const ddog_CharSlice *peer_tag_keys = ddog_span_concentrator_peer_tag_keys(c, &peer_tag_keys_count);
         if (peer_tag_keys_count > 0 && peer_tag_keys) {
             for (size_t i = 0; i < peer_tag_keys_count && actual_peer_tags < DDTRACE_MAX_PEER_TAGS; i++) {
                 const ddog_CharSlice *k = &peer_tag_keys[i];
-                zval *val = dd_pre_find_tag(pre, k->ptr, k->len);
+                zval *val = zend_hash_str_find(pre->attributes, k->ptr, k->len);
                 if (val && Z_TYPE_P(val) == IS_STRING) {
                     peer_tags[actual_peer_tags].key   = *k;
                     peer_tags[actual_peer_tags].value = dd_zend_string_to_CharSlice(Z_STR_P(val));
@@ -348,10 +281,10 @@ static ddog_OwnedShmSpanInput *ddtrace_span_concentrator_feed_cb(const ddog_Span
                 }
             }
         }
-    } else if (!pre->span_kind || !zend_string_equals_literal(pre->span_kind, "server")) {
+    } else if (pre->span_kind != DDTRACE_SPAN_KIND_SERVER) {
         // internal or no span.kind: use _dd.base_service only if it marks a service override
         static const ddog_CharSlice BASE_SERVICE_KEY = DDOG_CHARSLICE_C_BARE("_dd.base_service");
-        zval *base_svc_zv = dd_pre_find_tag(pre, ZEND_STRL("_dd.base_service"));
+        zval *base_svc_zv = zend_hash_str_find(pre->attributes, ZEND_STRL("_dd.base_service"));
         if (base_svc_zv && Z_TYPE_P(base_svc_zv) == IS_STRING) {
             peer_tags[0].key   = BASE_SERVICE_KEY;
             peer_tags[0].value = dd_zend_string_to_CharSlice(Z_STR_P(base_svc_zv));
@@ -375,11 +308,6 @@ void ddtrace_feed_span_to_concentrator(ddtrace_span_data *span, const ddtrace_sp
         version_zstr = Z_STR_P(root_version_zv);
     } else {
         version_zstr = get_DD_VERSION();
-        // When DD_VERSION is unset, DD_TAGS "version" lives only in meta (deleted during promotion),
-        // so fall back to pre->version to keep stats bucketed by the trace's version.
-        if (ZSTR_LEN(version_zstr) == 0 && pre->version) {
-            version_zstr = pre->version;
-        }
     }
     ddog_CharSlice version_slice = dd_zend_string_to_CharSlice(version_zstr);
     // Use the process-level DD_SERVICE as the concentrator key so all spans from this PHP

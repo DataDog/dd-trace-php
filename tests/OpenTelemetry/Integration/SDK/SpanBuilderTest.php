@@ -276,6 +276,45 @@ class SpanBuilderTest extends MockeryTestCase
         $this->assertNull($attributes->get('nil'));
     }
 
+    public static function propertyAttributes(): array
+    {
+        return [
+            'resource.name' => ['resource.name', 'my-resource'],
+            'operation.name' => ['operation.name', 'my.operation'],
+            'span.type' => ['span.type', 'web'],
+            'component' => ['component', 'my-component'],
+            'span.kind' => ['span.kind', 'producer'],
+        ];
+    }
+
+    /**
+     * @dataProvider propertyAttributes
+     */
+    public function test_property_attribute_is_readable(string $key, string $value): void
+    {
+        /** @var Span $span */
+        $span = $this->tracer->spanBuilder(self::SPAN_NAME)->startSpan();
+        $span->setAttribute($key, $value);
+
+        $this->assertSame($value, $span->getAttribute($key));
+        $this->assertSame($value, $span->toSpanData()->getAttributes()->get($key));
+
+        $span->end();
+    }
+
+    public function test_property_attributes_are_not_exposed_unless_set(): void
+    {
+        /** @var Span $span */
+        $span = $this->tracer->spanBuilder(self::SPAN_NAME)->startSpan();
+        $span->end();
+
+        $attributes = $span->toSpanData()->getAttributes();
+        $this->assertFalse($attributes->has('operation.name'));
+        $this->assertFalse($attributes->has('resource.name'));
+        $this->assertFalse($attributes->has('span.type'));
+        $this->assertNull($span->getAttribute('operation.name'));
+    }
+
     /**
      * @group trace-compliance
      */

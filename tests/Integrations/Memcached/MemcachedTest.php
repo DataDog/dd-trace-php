@@ -17,7 +17,7 @@ final class MemcachedTest extends IntegrationTestCase
     private $client;
 
     private static $host = 'memcached-integration';
-    private static $port = '11211';
+    private static $port = 11211;
 
     protected function ddSetUp()
     {
@@ -53,7 +53,7 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.add', 'memcached', 'memcached', 'add')
-                ->withExactTags(array_merge(self::baseTags(), [
+                ->withExactAttributes(array_merge(self::baseTags(), [
                     'memcached.query' => 'add ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'add',
                     Tag::SPAN_KIND => 'client',
@@ -68,7 +68,7 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.addByKey', 'memcached', 'memcached', 'addByKey')
-                ->withExactTags(array_merge(self::baseTags(), [
+                ->withExactAttributes(array_merge(self::baseTags(), [
                     'memcached.query' => 'addByKey ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'addByKey',
                     'memcached.server_key' => 'my_server',
@@ -90,12 +90,12 @@ final class MemcachedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.append', 'memcached', 'memcached', 'append')
                 ->setError()
-                ->withExactTags(array_merge(self::baseTags(), [
+                ->withExactAttributes(array_merge(self::baseTags(), [
                     'memcached.query' => 'append ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'append',
                     Tag::SPAN_KIND => 'client',
                 ]))
-                ->withExistingTagsNames([Tag::ERROR_MSG, 'error.type', 'error.stack']),
+                ->withExistingAttributeNames([Tag::ERROR_MSG, 'error.type', 'error.stack']),
         ]);
     }
 
@@ -107,7 +107,7 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.append', 'memcached', 'memcached', 'append')
-                ->withExactTags(array_merge(self::baseTags(), [
+                ->withExactAttributes(array_merge(self::baseTags(), [
                     'memcached.query' => 'append ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'append',
                     Tag::SPAN_KIND => 'client',
@@ -128,13 +128,13 @@ final class MemcachedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.appendByKey', 'memcached', 'memcached', 'appendByKey')
                 ->setError()
-                ->withExactTags(array_merge(self::baseTags(), [
+                ->withExactAttributes(array_merge(self::baseTags(), [
                     'memcached.query' => 'appendByKey ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'appendByKey',
                     'memcached.server_key' => 'my_server',
                     Tag::SPAN_KIND => 'client',
                 ]))
-                ->withExistingTagsNames([Tag::ERROR_MSG, 'error.type', 'error.stack']),
+                ->withExistingAttributeNames([Tag::ERROR_MSG, 'error.type', 'error.stack']),
         ]);
     }
 
@@ -147,7 +147,7 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.appendByKey', 'memcached', 'memcached', 'appendByKey')
-                ->withExactTags(array_merge(self::baseTags(), [
+                ->withExactAttributes(array_merge(self::baseTags(), [
                     'memcached.query' => 'appendByKey ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'appendByKey',
                     'memcached.server_key' => 'my_server',
@@ -171,7 +171,7 @@ final class MemcachedTest extends IntegrationTestCase
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::exists('Memcached.get'),
             SpanAssertion::build('Memcached.delete', 'memcached', 'memcached', 'delete')
-                ->withExactTags(array_merge(self::baseTags(), [
+                ->withExactAttributes(array_merge(self::baseTags(), [
                     'memcached.query' => 'delete ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'delete',
                     Tag::SPAN_KIND => 'client',
@@ -195,7 +195,7 @@ final class MemcachedTest extends IntegrationTestCase
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::exists('Memcached.getByKey'),
             SpanAssertion::build('Memcached.deleteByKey', 'memcached', 'memcached', 'deleteByKey')
-                ->withExactTags(array_merge(self::baseTags(), [
+                ->withExactAttributes(array_merge(self::baseTags(), [
                     'memcached.query' => 'deleteByKey ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'deleteByKey',
                     'memcached.server_key' => 'my_server',
@@ -248,7 +248,7 @@ final class MemcachedTest extends IntegrationTestCase
             SpanAssertion::exists('Memcached.get'),
             SpanAssertion::exists('Memcached.get'),
             SpanAssertion::build('Memcached.deleteMulti', 'memcached', 'memcached', 'deleteMulti')
-                ->withExactTags(array_merge($this->baseTags(), [
+                ->withExactAttributes(array_merge($this->baseTags(), [
                     'memcached.query' => 'deleteMulti ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
                     'memcached.command' => 'deleteMulti',
                 ])),
@@ -277,7 +277,7 @@ final class MemcachedTest extends IntegrationTestCase
             SpanAssertion::exists('Memcached.getByKey'),
             SpanAssertion::exists('Memcached.getByKey'),
             SpanAssertion::build('Memcached.deleteMultiByKey', 'memcached', 'memcached', 'deleteMultiByKey')
-                ->withExactTags(array_merge(self::baseTags(), [
+                ->withExactAttributes(array_merge(self::baseTags(), [
                     'memcached.query' => 'deleteMultiByKey ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
                     'memcached.command' => 'deleteMultiByKey',
                     'memcached.server_key' => 'my_server',
@@ -306,14 +306,14 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.decrement', 'memcached', 'memcached', 'decrement')
-                ->withExactTags(array_merge(self::baseTags(), [
+                ->withExactAttributes(array_merge(self::baseTags(), [
                     'memcached.query' => 'decrement ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'decrement',
                     Tag::SPAN_KIND => 'client',
                 ])),
             SpanAssertion::exists('Memcached.get'),
             SpanAssertion::build('Memcached.decrement', 'memcached', 'memcached', 'decrement')
-                ->withExactTags(array_merge(self::baseTags(), [
+                ->withExactAttributes(array_merge(self::baseTags(), [
                     'memcached.query' => 'decrement ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'decrement',
                     Tag::SPAN_KIND => 'client',
@@ -337,7 +337,7 @@ final class MemcachedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::build('Memcached.decrement', 'memcached', 'memcached', 'decrement')
-                ->withExactTags(array_merge(self::baseTags(), [
+                ->withExactAttributes(array_merge(self::baseTags(), [
                     'memcached.query' => 'decrement ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'decrement',
                     Tag::SPAN_KIND => 'client',
@@ -360,7 +360,7 @@ final class MemcachedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::build('Memcached.decrementByKey', 'memcached', 'memcached', 'decrementByKey')
-                ->withExactTags(array_merge(self::baseTags(), [
+                ->withExactAttributes(array_merge(self::baseTags(), [
                     'memcached.query' => 'decrementByKey ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'decrementByKey',
                     'memcached.server_key' => 'my_server',
@@ -386,14 +386,14 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.increment', 'memcached', 'memcached', 'increment')
-                ->withExactTags(array_merge(self::baseTags(), [
+                ->withExactAttributes(array_merge(self::baseTags(), [
                     'memcached.query' => 'increment ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'increment',
                     Tag::SPAN_KIND => 'client',
                 ])),
             SpanAssertion::exists('Memcached.get'),
             SpanAssertion::build('Memcached.increment', 'memcached', 'memcached', 'increment')
-                ->withExactTags(array_merge(self::baseTags(), [
+                ->withExactAttributes(array_merge(self::baseTags(), [
                     'memcached.query' => 'increment ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'increment',
                     Tag::SPAN_KIND => 'client',
@@ -416,7 +416,7 @@ final class MemcachedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::build('Memcached.increment', 'memcached', 'memcached', 'increment')
-                ->withExactTags(array_merge(self::baseTags(), [
+                ->withExactAttributes(array_merge(self::baseTags(), [
                     'memcached.query' => 'increment ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'increment',
                     Tag::SPAN_KIND => 'client',
@@ -438,7 +438,7 @@ final class MemcachedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::build('Memcached.incrementByKey', 'memcached', 'memcached', 'incrementByKey')
-                ->withExactTags(array_merge(self::baseTags(), [
+                ->withExactAttributes(array_merge(self::baseTags(), [
                     'memcached.query' => 'incrementByKey ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'incrementByKey',
                     'memcached.server_key' => 'my_server',
@@ -463,7 +463,7 @@ final class MemcachedTest extends IntegrationTestCase
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::exists('Memcached.get'),
             SpanAssertion::build('Memcached.flush', 'memcached', 'memcached', 'flush')
-                ->withExactTags(array_merge($this->baseTags(), [
+                ->withExactAttributes(array_merge($this->baseTags(), [
                     'memcached.command' => 'flush',
                 ])),
             SpanAssertion::exists('Memcached.get'),
@@ -480,15 +480,14 @@ final class MemcachedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::build('Memcached.get', 'memcached', 'memcached', 'get')
-                ->withExactTags(array_merge(self::baseTags(), [
+                ->withExactAttributes(array_merge(self::baseTags(), [
                     'memcached.query' => 'get ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'get',
                     Tag::SPAN_KIND => 'client',
-                ]))->withExactMetrics([
+                ]))->withExactAttributes([
                     Tag::DB_ROW_COUNT => 1,
                     '_dd.agent_psr' => 1.0,
-                    '_sampling_priority_v1' => 1.0,
-                ]),
+                ])->samplingPriority(1),
         ]);
     }
 
@@ -502,15 +501,14 @@ final class MemcachedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::build('Memcached.get', 'memcached', 'memcached', 'get')
-                ->withExactTags(array_merge(self::baseTags(), [
+                ->withExactAttributes(array_merge(self::baseTags(), [
                     'memcached.query' => 'get ' . Obfuscation::toObfuscatedString('missing_key'),
                     'memcached.command' => 'get',
                     Tag::SPAN_KIND => 'client',
-                ]))->withExactMetrics([
+                ]))->withExactAttributes([
                     Tag::DB_ROW_COUNT => 0,
                     '_dd.agent_psr' => 1.0,
-                    '_sampling_priority_v1' => 1.0,
-                ]),
+                ])->samplingPriority(1),
         ]);
     }
 
@@ -526,14 +524,13 @@ final class MemcachedTest extends IntegrationTestCase
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::build('Memcached.getMulti', 'memcached', 'memcached', 'getMulti')
-                ->withExactTags(array_merge($this->baseTags(), [
+                ->withExactAttributes(array_merge($this->baseTags(), [
                     'memcached.query' => 'getMulti ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
                     'memcached.command' => 'getMulti',
-                ]))->withExactMetrics([
+                ]))->withExactAttributes([
                     Tag::DB_ROW_COUNT => 2,
                     '_dd.agent_psr' => 1.0,
-                    '_sampling_priority_v1' => 1.0,
-                ]),
+                ])->samplingPriority(1),
         ]);
     }
 
@@ -550,14 +547,13 @@ final class MemcachedTest extends IntegrationTestCase
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::build('Memcached.getMulti', 'memcached', 'memcached', 'getMulti')
-                ->withExactTags(array_merge($this->baseTags(), [
+                ->withExactAttributes(array_merge($this->baseTags(), [
                     'memcached.query' => 'getMulti key1,key2',
                     'memcached.command' => 'getMulti',
-                ]))->withExactMetrics([
+                ]))->withExactAttributes([
                     Tag::DB_ROW_COUNT => 2,
                     '_dd.agent_psr' => 1.0,
-                    '_sampling_priority_v1' => 1.0,
-                ]),
+                ])->samplingPriority(1),
         ]);
     }
 
@@ -573,14 +569,13 @@ final class MemcachedTest extends IntegrationTestCase
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::build('Memcached.getMulti', 'memcached', 'memcached', 'getMulti')
-                ->withExactTags(array_merge($this->baseTags(), [
+                ->withExactAttributes(array_merge($this->baseTags(), [
                     'memcached.query' => 'getMulti ' . Obfuscation::toObfuscatedString(['key1', 'missing_key'], ','),
                     'memcached.command' => 'getMulti',
-                ]))->withExactMetrics([
+                ]))->withExactAttributes([
                     Tag::DB_ROW_COUNT => 1,
                     '_dd.agent_psr' => 1.0,
-                    '_sampling_priority_v1' => 1.0,
-                ]),
+                ])->samplingPriority(1),
         ]);
     }
 
@@ -591,14 +586,13 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.getMulti', 'memcached', 'memcached', 'getMulti')
-                ->withExactTags(array_merge($this->baseTags(), [
+                ->withExactAttributes(array_merge($this->baseTags(), [
                     'memcached.query' => 'getMulti ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
                     'memcached.command' => 'getMulti',
-                ]))->withExactMetrics([
+                ]))->withExactAttributes([
                     Tag::DB_ROW_COUNT => 0,
                     '_dd.agent_psr' => 1.0,
-                    '_sampling_priority_v1' => 1.0,
-                ]),
+                ])->samplingPriority(1),
         ]);
     }
 
@@ -611,16 +605,15 @@ final class MemcachedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::build('Memcached.getByKey', 'memcached', 'memcached', 'getByKey')
-                ->withExactTags(array_merge(self::baseTags(), [
+                ->withExactAttributes(array_merge(self::baseTags(), [
                     'memcached.query' => 'getByKey ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'getByKey',
                     'memcached.server_key' => 'my_server',
                     Tag::SPAN_KIND => 'client',
-                ]))->withExactMetrics([
+                ]))->withExactAttributes([
                     Tag::DB_ROW_COUNT => 1,
                     '_dd.agent_psr' => 1.0,
-                    '_sampling_priority_v1' => 1.0,
-                ]),
+                ])->samplingPriority(1),
         ]);
     }
 
@@ -639,16 +632,15 @@ final class MemcachedTest extends IntegrationTestCase
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::build('Memcached.getMultiByKey', 'memcached', 'memcached', 'getMultiByKey')
-                ->withExactTags(array_merge(self::baseTags(), [
+                ->withExactAttributes(array_merge(self::baseTags(), [
                     'memcached.query' => 'getMultiByKey ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
                     'memcached.command' => 'getMultiByKey',
                     'memcached.server_key' => 'my_server',
                     Tag::SPAN_KIND => 'client',
-                ]))->withExactMetrics([
+                ]))->withExactAttributes([
                     Tag::DB_ROW_COUNT => 2,
                     '_dd.agent_psr' => 1.0,
-                    '_sampling_priority_v1' => 1.0,
-                ]),
+                ])->samplingPriority(1),
         ]);
     }
 
@@ -663,7 +655,7 @@ final class MemcachedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::build('Memcached.replace', 'memcached', 'memcached', 'replace')
-                ->withExactTags(array_merge(self::baseTags(), [
+                ->withExactAttributes(array_merge(self::baseTags(), [
                     'memcached.query' => 'replace ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'replace',
                     Tag::SPAN_KIND => 'client',
@@ -683,7 +675,7 @@ final class MemcachedTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::build('Memcached.replaceByKey', 'memcached', 'memcached', 'replaceByKey')
-                ->withExactTags(array_merge(self::baseTags(), [
+                ->withExactAttributes(array_merge(self::baseTags(), [
                     'memcached.query' => 'replaceByKey ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'replaceByKey',
                     'memcached.server_key' => 'my_server',
@@ -700,7 +692,7 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.set', 'memcached', 'memcached', 'set')
-                ->withExactTags(array_merge(self::baseTags(), [
+                ->withExactAttributes(array_merge(self::baseTags(), [
                     'memcached.query' => 'set ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'set',
                     Tag::SPAN_KIND => 'client',
@@ -715,7 +707,7 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.setByKey', 'memcached', 'memcached', 'setByKey')
-                ->withExactTags(array_merge(self::baseTags(), [
+                ->withExactAttributes(array_merge(self::baseTags(), [
                     'memcached.query' => 'setByKey ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'setByKey',
                     'memcached.server_key' => 'my_server',
@@ -733,7 +725,7 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.setMulti', 'memcached', 'memcached', 'setMulti')
-                ->withExactTags(array_merge($this->baseTags(), [
+                ->withExactAttributes(array_merge($this->baseTags(), [
                     'memcached.query' => 'setMulti ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
                     'memcached.command' => 'setMulti',
                 ])),
@@ -753,7 +745,7 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.setMultiByKey', 'memcached', 'memcached', 'setMultiByKey')
-                ->withExactTags(array_merge(self::baseTags(), [
+                ->withExactAttributes(array_merge(self::baseTags(), [
                     'memcached.query' => 'setMultiByKey ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
                     'memcached.command' => 'setMultiByKey',
                     'memcached.server_key' => 'my_server',
@@ -770,7 +762,7 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.touch', 'memcached', 'memcached', 'touch')
-                ->withExactTags(array_merge(self::baseTags(), [
+                ->withExactAttributes(array_merge(self::baseTags(), [
                     'memcached.query' => 'touch ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'touch',
                     Tag::SPAN_KIND => 'client',
@@ -785,7 +777,7 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.touchByKey', 'memcached', 'memcached', 'touchByKey')
-                ->withExactTags(array_merge(self::baseTags(), [
+                ->withExactAttributes(array_merge(self::baseTags(), [
                     'memcached.query' => 'touchByKey ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'touchByKey',
                     'memcached.server_key' => 'my_server',
@@ -804,12 +796,12 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.cas', 'memcached', 'memcached', 'cas')
-                ->withExactTags(array_merge(self::baseTags(), [
+                ->withExactAttributes(array_merge(self::baseTags(), [
                     'memcached.query' => 'cas ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'cas',
                     Tag::SPAN_KIND => 'client',
                 ]))
-                ->withExistingTagsNames(['memcached.cas_token']),
+                ->withExistingAttributeNames(['memcached.cas_token']),
         ]);
     }
 
@@ -823,13 +815,13 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.casByKey', 'memcached', 'memcached', 'casByKey')
-                ->withExactTags(array_merge(self::baseTags(), [
+                ->withExactAttributes(array_merge(self::baseTags(), [
                     'memcached.query' => 'casByKey ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'casByKey',
                     'memcached.server_key' => 'my_server',
                     Tag::SPAN_KIND => 'client',
                 ]))
-                ->withExistingTagsNames(['memcached.cas_token']),
+                ->withExistingAttributeNames(['memcached.cas_token']),
         ]);
     }
 
@@ -857,7 +849,7 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.add', 'memcached', 'memcached', 'add')
-                ->withExactTags(array_merge(self::baseTags(true), [
+                ->withExactAttributes(array_merge(self::baseTags(true), [
                     'memcached.query' => 'add ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'add',
                     Tag::SPAN_KIND => 'client',
@@ -874,7 +866,7 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.addByKey', 'memcached', 'memcached', 'addByKey')
-                ->withExactTags(array_merge(self::baseTags(true), [
+                ->withExactAttributes(array_merge(self::baseTags(true), [
                     'memcached.query' => 'addByKey ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'addByKey',
                     'memcached.server_key' => 'my_server',
@@ -897,14 +889,13 @@ final class MemcachedTest extends IntegrationTestCase
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::build('Memcached.getMulti', 'memcached', 'memcached', 'getMulti')
-                ->withExactTags(array_merge($this->baseTags(true), [
+                ->withExactAttributes(array_merge($this->baseTags(true), [
                     'memcached.query' => 'getMulti ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
                     'memcached.command' => 'getMulti',
-                ]))->withExactMetrics([
+                ]))->withExactAttributes([
                     Tag::DB_ROW_COUNT => 2,
                     '_dd.agent_psr' => 1.0,
-                    '_sampling_priority_v1' => 1.0,
-                ]),
+                ])->samplingPriority(1),
         ]);
     }
 
@@ -925,16 +916,15 @@ final class MemcachedTest extends IntegrationTestCase
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::exists('Memcached.addByKey'),
             SpanAssertion::build('Memcached.getMultiByKey', 'memcached', 'memcached', 'getMultiByKey')
-                ->withExactTags(array_merge(self::baseTags(true), [
+                ->withExactAttributes(array_merge(self::baseTags(true), [
                     'memcached.query' => 'getMultiByKey ' . Obfuscation::toObfuscatedString(['key1', 'key2'], ','),
                     'memcached.command' => 'getMultiByKey',
                     'memcached.server_key' => 'my_server',
                     Tag::SPAN_KIND => 'client',
-                ]))->withExactMetrics([
+                ]))->withExactAttributes([
                     Tag::DB_ROW_COUNT => 2,
                     '_dd.agent_psr' => 1.0,
-                    '_sampling_priority_v1' => 1.0,
-                ]),
+                ])->samplingPriority(1),
         ]);
     }
 
@@ -955,7 +945,7 @@ final class MemcachedTest extends IntegrationTestCase
             SpanAssertion::exists('Memcached.add'),
             SpanAssertion::exists('Memcached.get'),
             SpanAssertion::build('Memcached.flush', 'memcached', 'memcached', 'flush')
-                ->withExactTags(array_merge(self::baseTags(true), [
+                ->withExactAttributes(array_merge(self::baseTags(true), [
                     'memcached.command' => 'flush',
                     Tag::SPAN_KIND => 'client',
                 ])),
@@ -976,12 +966,12 @@ final class MemcachedTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.cas', 'memcached', 'memcached', 'cas')
-                ->withExactTags(array_merge(self::baseTags(true), [
+                ->withExactAttributes(array_merge(self::baseTags(true), [
                     'memcached.query' => 'cas ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'cas',
                     Tag::SPAN_KIND => 'client',
                 ]))
-                ->withExistingTagsNames(['memcached.cas_token']),
+                ->withExistingAttributeNames(['memcached.cas_token']),
         ]);
     }
 
@@ -1020,7 +1010,7 @@ final class MemcachedTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.add', 'configured_service', 'memcached', 'add')
-                ->withExactTags(array_merge(self::baseTags(false, null), [
+                ->withExactAttributes(array_merge(self::baseTags(false, null), [
                     'memcached.query' => 'add ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'add',
                     Tag::SPAN_KIND => 'client',

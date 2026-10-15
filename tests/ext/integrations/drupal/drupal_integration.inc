@@ -30,11 +30,11 @@ spl_autoload_register(function ($class) use ($root) {
 });
 
 // The hook budget is per target, so $probeTargets needs an entry per install site.
-function dd_drupal_render_report(array $spans, array $probeTargets)
+function dd_drupal_render_report(array $payload, array $probeTargets)
 {
     $tags = [];
     $engines = [];
-    foreach ($spans as $span) {
+    foreach (array_merge([], ...array_column($payload['chunks'], 'spans')) as $span) {
         if ($span['name'] !== 'drupal.theme.render') {
             continue;
         }

@@ -59,7 +59,6 @@ if ($percentageDifference > 0.01) { // 0.01% difference for the sake of the test
 --EXPECTF--
 [
     {
-        "trace_id": "13930160852258120406",
         "span_id": "13930160852258120406",
         "parent_id": "11788048577503494824",
         "start": %d,
@@ -70,7 +69,7 @@ if ($percentageDifference > 0.01) { // 0.01% difference for the sake of the test
         "type": "web",
         "env": "local-prod",
         "version": "1.0",
-        "component": "cgi-fcgi",
+        "component": "web",
         "span_kind": 2,
         "attributes": {
             "runtime-id": "%s",
@@ -85,8 +84,6 @@ if ($percentageDifference > 0.01) { // 0.01% difference for the sake of the test
         }
     },
     {
-        "trace_id": "13930160852258120406",
-        "trace_id_high": "%s",
         "span_id": "11788048577503494824",
         "start": 1742285908783000000,
         "duration": %d,
@@ -97,8 +94,6 @@ if ($percentageDifference > 0.01) { // 0.01% difference for the sake of the test
         "env": "local-prod",
         "version": "1.0",
         "component": "aws-apigateway",
-        "sampling_priority": 1,
-        "sampling_mechanism": 0,
         "attributes": {
             "http.method": "GET",
             "http.url": "example.com\/test",
@@ -109,7 +104,6 @@ if ($percentageDifference > 0.01) { // 0.01% difference for the sake of the test
         }
     },
     {
-        "trace_id": "13930160852258120406",
         "span_id": "13874630024467741450",
         "parent_id": "13930160852258120406",
         "start": %d,

@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\Kafka;
 
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
+use DDTrace\SpanKind;
 use DDTrace\SpanLink;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -46,15 +47,15 @@ class KafkaIntegration extends Integration
     public static function setupKafkaProduceSpan(HookData $hook, \RdKafka\ProducerTopic $producerTopic)
     {
         $span = $hook->span();
-        self::setupCommonSpanMetadata($span, Tag::KAFKA_PRODUCE, Tag::SPAN_KIND_VALUE_PRODUCER, Tag::MQ_OPERATION_SEND);
+        self::setupCommonSpanMetadata($span, Tag::KAFKA_PRODUCE, SpanKind::PRODUCER, Tag::MQ_OPERATION_SEND);
 
-        $span->meta[Tag::MQ_DESTINATION] = $producerTopic->getName();
-        $span->meta[Tag::MQ_DESTINATION_KIND] = Type::QUEUE;
+        $span->attributes[Tag::MQ_DESTINATION] = $producerTopic->getName();
+        $span->attributes[Tag::MQ_DESTINATION_KIND] = Type::QUEUE;
 
         $conf = ObjectKVStore::get($producerTopic, 'conf');
         self::addProducerSpanMetadata($span, $conf, $hook->args);
 
-        if (\ddtrace_config_distributed_tracing_enabled()) {
+        if (\dd_trace_env_config('DD_DISTRIBUTED_TRACING')) {
             $headers = \DDTrace\generate_distributed_tracing_headers();
             $hook->args = self::injectHeadersIntoArgs($hook->args, $headers);
             $hook->overrideArguments($hook->args);
@@ -64,10 +65,10 @@ class KafkaIntegration extends Integration
     public static function addProducerSpanMetadata($span, $conf, $args)
     {
         self::addMetadataToSpan($span, $conf);
-        $span->metrics[Tag::KAFKA_PARTITION] = $args[0];
-        $span->metrics[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = strlen($args[2]);
+        $span->attributes[Tag::KAFKA_PARTITION] = $args[0];
+        $span->attributes[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = strlen($args[2]);
         if (isset($args[3])) {
-            $span->meta[Tag::KAFKA_MESSAGE_KEY] = $args[3];
+            $span->attributes[Tag::KAFKA_MESSAGE_KEY] = $args[3];
         }
     }
 
@@ -124,17 +125,17 @@ class KafkaIntegration extends Integration
                             $span = \DDTrace\start_span($hook->data['start']);
                         }
 
-                        $span->meta[Tag::MQ_DESTINATION] = $message->topic_name;
-                        $span->meta[Tag::MQ_DESTINATION_KIND] = Type::QUEUE;
-                        $span->metrics[Tag::KAFKA_PARTITION] = $message->partition;
-                        $span->metrics[Tag::KAFKA_MESSAGE_OFFSET] = $message->offset;
-                        $span->metrics[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = strlen($message->payload ?? '');
+                        $span->attributes[Tag::MQ_DESTINATION] = $message->topic_name;
+                        $span->attributes[Tag::MQ_DESTINATION_KIND] = Type::QUEUE;
+                        $span->attributes[Tag::KAFKA_PARTITION] = $message->partition;
+                        $span->attributes[Tag::KAFKA_MESSAGE_OFFSET] = $message->offset;
+                        $span->attributes[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = strlen($message->payload ?? '');
                     } else {
                         $span = \DDTrace\start_span($hook->data['start']);
                     }
 
                     if (!$message || $message->payload === null || $message->err === RD_KAFKA_RESP_ERR__PARTITION_EOF) {
-                        $span->meta[Tag::KAFKA_TOMBSTONE] = true;
+                        $span->attributes[Tag::KAFKA_TOMBSTONE] = true;
                     }
 
                     $hook->data['span'] = $span;
@@ -149,7 +150,7 @@ class KafkaIntegration extends Integration
     public static function setupKafkaConsumeSpan(HookData $hook, $consumer)
     {
         $span = $hook->data['span'];
-        self::setupCommonSpanMetadata($span, Tag::KAFKA_CONSUME, Tag::SPAN_KIND_VALUE_CONSUMER, Tag::MQ_OPERATION_RECEIVE);
+        self::setupCommonSpanMetadata($span, Tag::KAFKA_CONSUME, SpanKind::CONSUMER, Tag::MQ_OPERATION_RECEIVE);
 
         $conf = ObjectKVStore::get($consumer, 'conf');
         self::addMetadataToSpan($span, $conf);
@@ -159,19 +160,19 @@ class KafkaIntegration extends Integration
     {
         foreach (self::METADATA_MAPPING as $configKey => $tagKey) {
             if (isset($conf[$configKey])) {
-                $span->meta[$tagKey] = $conf[$configKey];
+                $span->attributes[$tagKey] = $conf[$configKey];
             }
         }
     }
 
-    public static function setupCommonSpanMetadata($span, string $name, string $spanKind, string $operation)
+    public static function setupCommonSpanMetadata($span, string $name, int $spanKind, string $operation)
     {
         $span->name = $name;
         $span->type = Type::QUEUE;
-        $span->meta[Tag::SPAN_KIND] = $spanKind;
-        $span->meta[Tag::COMPONENT] = self::NAME;
-        $span->meta[Tag::MQ_SYSTEM] = self::NAME;
-        $span->meta[Tag::MQ_OPERATION] = $operation;
+        $span->spanKind = $spanKind;
+        $span->component = self::NAME;
+        $span->attributes[Tag::MQ_SYSTEM] = self::NAME;
+        $span->attributes[Tag::MQ_OPERATION] = $operation;
     }
 
     private static function installConfigurationHooks()

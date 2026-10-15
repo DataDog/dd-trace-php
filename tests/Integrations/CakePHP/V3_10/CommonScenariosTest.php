@@ -52,7 +52,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'cakephp_test_app',
                         'web',
                         'GET SimpleController@index'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         'cakephp.route.controller' => 'Simple',
                         'cakephp.route.action' => 'index',
                         'http.method' => 'GET',
@@ -67,7 +67,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'cakephp_test_app',
                             'web',
                             'Controller.invokeAction'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             Tag::COMPONENT => 'cakephp',
                         ])
                     ]),
@@ -78,7 +78,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'cakephp_test_app',
                         'web',
                         'GET Simple_viewController@index'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         'cakephp.route.controller' => 'Simple_view',
                         'cakephp.route.action' => 'index',
                         'http.method' => 'GET',
@@ -93,7 +93,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'cakephp_test_app',
                             'web',
                             'Controller.invokeAction'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             Tag::COMPONENT => 'cakephp',
                         ]),
                         SpanAssertion::build(
@@ -101,7 +101,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'cakephp_test_app',
                             'web',
                             'Simple_view/index.ctp'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             'cakephp.view' => 'Simple_view/index.ctp',
                             Tag::COMPONENT => 'cakephp',
                         ]),
@@ -113,7 +113,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'cakephp_test_app',
                         'web',
                         'GET ErrorController@index'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         'cakephp.route.controller' => 'Error',
                         'cakephp.route.action' => 'index',
                         'http.method' => 'GET',
@@ -122,7 +122,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.route' => '/{controller}',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'cakephp',
-                    ])->withExistingTagsNames([
+                    ])->withExistingAttributeNames([
                         'error.stack'
                     ])->setError(
                         'Exception',
@@ -133,9 +133,9 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'cakephp_test_app',
                             'web',
                             'Controller.invokeAction'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             Tag::COMPONENT => 'cakephp',
-                        ])->withExistingTagsNames([
+                        ])->withExistingAttributeNames([
                             'error.stack',
                         ])->setError('Exception', 'Foo error'),
                         SpanAssertion::build(
@@ -143,7 +143,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'cakephp_test_app',
                             'web',
                             'Error/index.ctp'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             'cakephp.view' => 'Error/index.ctp',
                             Tag::COMPONENT => 'cakephp',
                         ]),
@@ -155,7 +155,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'cakephp_test_app',
                         'web',
                         'GET ParameterizedController@customAction'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         'cakephp.route.controller' => 'Parameterized',
                         'cakephp.route.action' => 'customAction',
                         'http.method' => 'GET',
@@ -170,7 +170,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'cakephp_test_app',
                             'web',
                             'Controller.invokeAction'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             Tag::COMPONENT => 'cakephp',
                         ])
                     ]),

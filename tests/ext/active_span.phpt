@@ -28,7 +28,7 @@ var_dump(DDTrace\active_span() == DDTrace\active_span());
 Hello, Datadog.
 greet tracer.
 bool(true)
-object(DDTrace\RootSpanData)#%d (30) {
+object(DDTrace\RootSpanData)#%d (28) {
   ["name"]=>
   string(15) "active_span.php"
   ["resource"]=>
@@ -41,14 +41,20 @@ object(DDTrace\RootSpanData)#%d (30) {
   ["type"]=>
   string(3) "cli"
   ["meta"]=>
-  array(1) {
+  array(4) {
     ["runtime-id"]=>
     string(36) "%s"
+    ["service.name"]=>
+    string(15) "active_span.php"
+    ["operation.name"]=>
+    string(15) "active_span.php"
+    ["span.type"]=>
+    string(3) "cli"
   }
   ["metrics"]=>
   array(1) {
     ["process_id"]=>
-    float(%f)
+    int(%d)
   }
   ["exception"]=>
   NULL
@@ -66,9 +72,9 @@ object(DDTrace\RootSpanData)#%d (30) {
   ["parent"]=>
   NULL
   ["stack"]=>
-  object(DDTrace\SpanStack)#%d (4) {
+  object(DDTrace\SpanStack)#%d (3) {
     ["parent"]=>
-    object(DDTrace\SpanStack)#%d (4) {
+    object(DDTrace\SpanStack)#%d (3) {
       ["parent"]=>
       NULL
       ["active"]=>
@@ -76,16 +82,10 @@ object(DDTrace\RootSpanData)#%d (30) {
       ["spanCreationObservers"]=>
       array(0) {
       }
-      ["attributes"]=>
-      array(0) {
-      }
     }
     ["active"]=>
     *RECURSION*
     ["spanCreationObservers"]=>
-    array(0) {
-    }
-    ["attributes"]=>
     array(0) {
     }
   }
@@ -108,7 +108,7 @@ object(DDTrace\RootSpanData)#%d (30) {
     ["runtime-id"]=>
     string(36) "%s"
     ["process_id"]=>
-    float(%f)
+    int(%d)
   }
   ["ignoreError"]=>
   bool(false)%r(\s*\["origin"\]=>\s+uninitialized\(string\))?%r
@@ -116,9 +116,7 @@ object(DDTrace\RootSpanData)#%d (30) {
   array(0) {
   }
   ["samplingPriority"]=>
-  int(1073741824)
-  ["samplingMechanism"]=>
-  int(0)%r(\s*\["propagatedSamplingPriority"\]=>\s+uninitialized\(int\)\s*\["tracestate"\]=>\s+uninitialized\(string\))?%r
+  int(1073741824)%r(\s*\["propagatedSamplingPriority"\]=>\s+uninitialized\(int\)\s*\["tracestate"\]=>\s+uninitialized\(string\))?%r
   ["tracestateTags"]=>
   array(0) {
   }%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
@@ -128,7 +126,5 @@ object(DDTrace\RootSpanData)#%d (30) {
   NULL
   ["inferredSpan"]=>
   NULL
-  ["hostname"]=>
-  string(0) ""
 }
 bool(true)

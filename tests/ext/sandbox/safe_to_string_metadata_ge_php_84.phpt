@@ -89,7 +89,7 @@ arg.0: array(2) {
   [0]=>
   string(9) "recursive"
   [1]=>
-  string(0) ""
+  string(11) "*RECURSION*"
 }
 
 string(16) "already a string"

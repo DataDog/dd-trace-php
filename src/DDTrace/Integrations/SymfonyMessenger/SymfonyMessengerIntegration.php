@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\SymfonyMessenger;
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
+use DDTrace\SpanKind;
 use DDTrace\Tag;
 use DDTrace\Util\ObjectKVStore;
 use Symfony\Component\Messenger\Bridge\AmazonSqs\Transport\AmazonSqsReceivedStamp;
@@ -56,7 +57,7 @@ class SymfonyMessengerIntegration extends Integration
                 /** @var \Symfony\Component\Messenger\Envelope $envelope */
                 $envelope = $hook->args[0];
 
-                if (\ddtrace_config_distributed_tracing_enabled()) {
+                if (\dd_trace_env_config('DD_DISTRIBUTED_TRACING')) {
                     $tracingHeaders = \DDTrace\generate_distributed_tracing_headers();
                     $datadogHeaders = ['datadog' => $tracingHeaders];
                     $hook->overrideArguments([
@@ -228,12 +229,12 @@ class SymfonyMessengerIntegration extends Integration
         }
 
         $span->name = $name;
-        $span->service = \ddtrace_config_app_name('symfony');
+        $span->service = \dd_trace_env_config('DD_SERVICE') ?: 'symfony';
         Integration::tagFrameworkServiceSource($span, 'symfony');
         $span->type = 'queue';
-        $span->meta[Tag::MQ_SYSTEM] = 'symfony';
-        $span->meta[Tag::MQ_DESTINATION_KIND] = 'queue';
-        $span->meta[Tag::COMPONENT] = self::NAME;
+        $span->attributes[Tag::MQ_SYSTEM] = 'symfony';
+        $span->attributes[Tag::MQ_DESTINATION_KIND] = 'queue';
+        $span->component = self::NAME;
     }
 
     public static function resolveMetadataFromEnvelope(
@@ -285,9 +286,8 @@ class SymfonyMessengerIntegration extends Integration
             'messaging.symfony.redelivered_at' => $redeliveryStamp ? $redeliveryStamp->getRedeliveredAt()->format('Y-m-d\TH:i:sP') : null,
             'messaging.symfony.sender' => $senderClass,
             Tag::MQ_DESTINATION => $transportName,
-            Tag::MQ_MESSAGE_ID => $transportMessageId,
+            Tag::MQ_MESSAGE_ID => $transportMessageId === null ? null : (string)$transportMessageId,
             Tag::MQ_OPERATION => $operation,
-            Tag::SPAN_KIND => self::determineSpanKind($operation),
         ];
 
         $metrics = [
@@ -308,39 +308,42 @@ class SymfonyMessengerIntegration extends Integration
             }
         }
         $span->resource = $resource;
-        $span->meta = \array_merge($span->meta, \array_filter($metadata));
-        $span->metrics = \array_merge($span->metrics, \array_filter($metrics));
+        $span->attributes = \array_merge($span->attributes, \array_filter($metadata), \array_filter($metrics));
+        $spanKind = self::determineSpanKind($operation);
+        if ($spanKind) {
+            $span->spanKind = $spanKind;
+        }
     }
 
     public static function tryResolveMetadataFromMessage(SpanData $span, $message, $resource, $transportName, $operation) {
         if ($message) {
             $messageName = \get_class($message);
             $resource = $resource ?? $messageName;
-            $span->meta['messaging.symfony.message'] = $messageName;
+            $span->attributes['messaging.symfony.message'] = $messageName;
         }
 
         if ($resource) {
             $span->resource = $resource;
         }
         if ($transportName) {
-            $span->meta[Tag::MQ_DESTINATION] = $transportName;
+            $span->attributes[Tag::MQ_DESTINATION] = $transportName;
         }
         if ($operation) {
-            $span->meta[Tag::MQ_OPERATION] = $operation;
+            $span->attributes[Tag::MQ_OPERATION] = $operation;
         }
 
         $spanKind = self::determineSpanKind($operation);
         if ($spanKind) {
-            $span->meta[Tag::SPAN_KIND] = $spanKind;
+            $span->spanKind = $spanKind;
         }
     }
 
     public static function determineSpanKind($operation) {
         switch ($operation) {
             case 'receive':
-                return Tag::SPAN_KIND_VALUE_CONSUMER;
+                return SpanKind::CONSUMER;
             case 'send':
-                return Tag::SPAN_KIND_VALUE_PRODUCER;
+                return SpanKind::PRODUCER;
             default:
                 return null; // Internal operation is implicit
         }

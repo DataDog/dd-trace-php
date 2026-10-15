@@ -6,6 +6,7 @@ use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
 use DDTrace\Propagator;
 use DDTrace\SpanData;
+use DDTrace\SpanKind;
 use DDTrace\SpanLink;
 use DDTrace\Tag;
 use DDTrace\Util\ObjectKVStore;
@@ -168,10 +169,10 @@ class LaravelQueueIntegration extends Integration
                         $span->service = LaravelQueueIntegration::getServiceName();
                         Integration::tagFrameworkServiceSource($span, LaravelQueueIntegration::NAME);
                         $span->resource = $class . '@' . $method;
-                        $span->meta[Tag::COMPONENT] = LaravelQueueIntegration::NAME;
+                        $span->component = LaravelQueueIntegration::NAME;
 
                         if (isset($this->batchId)) { // Uses the Batchable trait; Laravel 8
-                            $span->meta[Tag::LARAVELQ_BATCH_ID] = $this->batchId ?? null;
+                            $span->attributes[Tag::LARAVELQ_BATCH_ID] = $this->batchId ?? null;
                         }
 
                         if (isset($this->job)) {
@@ -277,7 +278,7 @@ class LaravelQueueIntegration extends Integration
                     get_class($this)
                 );
                 if ($retval) {
-                    $span->meta[Tag::LARAVELQ_BATCH_ID] = $retval->id;
+                    $span->attributes[Tag::LARAVELQ_BATCH_ID] = $retval->id;
                 }
             }
         );
@@ -298,17 +299,17 @@ class LaravelQueueIntegration extends Integration
         $span->service = self::getServiceName();
         Integration::tagFrameworkServiceSource($span, LaravelQueueIntegration::NAME);
         $span->type = 'queue';
-        $span->meta[Tag::SPAN_KIND] = 'client';
-        $span->meta[Tag::COMPONENT] = self::NAME;
+        $span->spanKind = SpanKind::CLIENT;
+        $span->component = self::NAME;
 
         if ($operation) {
-            $span->meta[Tag::MQ_OPERATION] = $operation;
+            $span->attributes[Tag::MQ_OPERATION] = $operation;
         }
 
         if ($job instanceof Job) {
             $jobName = $job->resolveName();
-            $span->meta = array_merge(
-                $span->meta,
+            $span->attributes = array_merge(
+                $span->attributes,
                 self::getMetadataFromJob($job)
             );
             $queue = $queue ?? $job->getQueue();
@@ -317,11 +318,11 @@ class LaravelQueueIntegration extends Integration
             $connectionName = $job->connection ?? config('queue.default');
             $queue = $queue ?? ($job->queue ?? (config("queue.connections.$connectionName.queue") ?? 'default'));
 
-            $span->meta[Tag::LARAVELQ_NAME] = $jobName;
-            $span->meta[Tag::LARAVELQ_CONNECTION] = $connectionName;
-            $span->meta[Tag::MQ_DESTINATION] = $queue;
-            $span->meta = array_merge(
-                $span->meta,
+            $span->attributes[Tag::LARAVELQ_NAME] = $jobName;
+            $span->attributes[Tag::LARAVELQ_CONNECTION] = $connectionName;
+            $span->attributes[Tag::MQ_DESTINATION] = $queue;
+            $span->attributes = array_merge(
+                $span->attributes,
                 self::getMetadataFromObject($job)
             );
         } else {
@@ -348,7 +349,7 @@ class LaravelQueueIntegration extends Integration
             Tag::LARAVELQ_TIMEOUT => $job->timeout(),
             Tag::LARAVELQ_NAME => $job->resolveName(),
             Tag::MQ_SYSTEM => 'laravel',
-            Tag::MQ_MESSAGE_ID => $job->getJobId(),
+            Tag::MQ_MESSAGE_ID => (string)$job->getJobId(),
             Tag::MQ_DESTINATION => $job->getQueue(),
             Tag::MQ_DESTINATION_KIND => 'queue',
         ];
@@ -380,7 +381,7 @@ class LaravelQueueIntegration extends Integration
 
     public static function injectContext(array $payload)
     {
-        if (!\ddtrace_config_distributed_tracing_enabled()) {
+        if (!\dd_trace_env_config('DD_DISTRIBUTED_TRACING')) {
             return $payload;
         }
 
@@ -401,7 +402,7 @@ class LaravelQueueIntegration extends Integration
         if (!empty(self::$serviceName)) {
             return self::$serviceName;
         }
-        self::$serviceName = \ddtrace_config_app_name();
+        self::$serviceName = \dd_trace_env_config('DD_SERVICE');
         try {
             if (empty(self::$serviceName) && is_callable('config')) {
                 self::$serviceName = config('app.name');

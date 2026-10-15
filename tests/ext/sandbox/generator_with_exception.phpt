@@ -44,7 +44,7 @@ array_map(function($span) {
     echo isset($span['resource']) ? ', ' . $span['resource'] : '';
     echo isset($span['attributes']['error.message']) ? ', ' . $span['attributes']['error.message'] : '';
     echo PHP_EOL;
-}, dd_trace_serialize_closed_spans());
+}, dd_trace_serialize_closed_spans()['chunks'][0]['spans']);
 ?>
 --EXPECTF--
 0

@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\ZendFramework;
 use DDTrace\Tag;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
+use DDTrace\SpanKind;
 use DDTrace\Util\Runtime;
 use Zend_Controller_Front;
 
@@ -43,20 +44,20 @@ class ZendFrameworkIntegration extends Integration
                     $rootSpan->name = self::getOperationName();
                     // For backward compatibility with the legacy API we are not using the integration
                     // name 'zendframework', we are instead using the 'zf1' prefix.
-                    $rootSpan->service = \ddtrace_config_app_name('zf1');
+                    $rootSpan->service = \dd_trace_env_config('DD_SERVICE') ?: 'zf1';
                     Integration::tagFrameworkServiceSource($rootSpan, 'zf1');
                     $controller = $request->getControllerName();
                     $action = $request->getActionName();
                     $route = Zend_Controller_Front::getInstance()->getRouter()->getCurrentRouteName();
-                    $rootSpan->meta['zf1.controller'] = $controller;
-                    $rootSpan->meta['zf1.action'] = $action;
-                    $rootSpan->meta['zf1.route_name'] = $route;
+                    $rootSpan->attributes['zf1.controller'] = $controller;
+                    $rootSpan->attributes['zf1.action'] = $action;
+                    $rootSpan->attributes['zf1.route_name'] = $route;
                     if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
                         $rootSpan->resource = $controller . '@' . $action . ' ' . $route;
                     }
                     $rootSpan->attributes[Tag::HTTP_METHOD] = $request->getMethod();
-                    $rootSpan->attributes[Tag::SPAN_KIND] = 'server';
-                    $rootSpan->meta[Tag::COMPONENT] = self::NAME;
+                    $rootSpan->spanKind = SpanKind::SERVER;
+                    $rootSpan->component = self::NAME;
 
                     if (!Integration::hasTag($rootSpan, Tag::HTTP_URL)) {
                         $rootSpan->attributes[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(

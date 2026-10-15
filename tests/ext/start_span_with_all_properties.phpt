@@ -58,11 +58,7 @@ bool(true)
 float(2000000000)
 array(2) {
   [0]=>
-  array(12) {
-    ["trace_id"]=>
-    string(%d) "%d"
-    ["trace_id_high"]=>
-    string(16) "%s"
+  array(8) {
     ["span_id"]=>
     string(%d) "%d"
     ["start"]=>
@@ -77,16 +73,12 @@ array(2) {
     string(34) "start_span_with_all_properties.php"
     ["type"]=>
     string(3) "cli"
-    ["sampling_priority"]=>
-    int(1)
-    ["sampling_mechanism"]=>
-    int(0)
     ["attributes"]=>
     array(6) {
       ["runtime-id"]=>
       string(36) "%s"
       ["process_id"]=>
-      float(%f)
+      int(%d)
       ["_dd.agent_psr"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
@@ -98,11 +90,7 @@ array(2) {
     }
   }
   [1]=>
-  array(12) {
-    ["trace_id"]=>
-    string(%d) "%d"
-    ["trace_id_high"]=>
-    string(16) "%s"
+  array(8) {
     ["span_id"]=>
     string(%d) "%d"
     ["start"]=>
@@ -117,10 +105,6 @@ array(2) {
     string(4) "test"
     ["type"]=>
     string(6) "runner"
-    ["sampling_priority"]=>
-    int(1)
-    ["sampling_mechanism"]=>
-    int(0)
     ["attributes"]=>
     array(9) {
       ["runtime-id"]=>

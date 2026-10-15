@@ -44,7 +44,7 @@ dd_trace_internal_fn("synchronous_flush");
 
 $req = $rr->waitForRequest(function ($r) { return strpos($r["uri"], "traces") !== false; });
 $root = json_decode($req["body"], true);
-$spans = $root["chunks"][0]["spans"] ?? $root[0];
+$spans = $root[0];
 echo "uri=" . $req["uri"] . "\n";
 echo "has_chunks=" . (isset($root['chunks']) ? "yes" : "no") . "\n";
 echo "span_name=" . $spans[0]["name"] . "\n";

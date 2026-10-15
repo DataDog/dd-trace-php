@@ -14,7 +14,6 @@
       "http.status_code": "200",
       "http.url": "http://localhost/datadog/simple/index?key=value&<redacted>",
       "magento.area": "frontend",
-      "magento.cached": "false",
       "magento.frontname": "datadog",
       "magento.pathinfo": "datadog/simple/index",
       "magento.route": "datadog",
@@ -23,7 +22,8 @@
     },
     "metrics": {
       "_dd.top_level": 1.0,
-      "_sampling_priority_v1": 1.0
+      "_sampling_priority_v1": 1.0,
+      "magento.cached": 0
     }
   },
      {

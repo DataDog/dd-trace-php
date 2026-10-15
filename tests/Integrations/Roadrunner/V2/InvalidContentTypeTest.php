@@ -35,10 +35,10 @@ class InvalidContentTypeTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
-        $trace = $traces[0][0];
-        $this->assertSame("POST", $trace["meta"]["http.method"]);
-        $this->assertArrayNotHasKey("http.request.post.password", $trace["meta"]);
-        $this->assertArrayNotHasKey("http.request.post.username", $trace["meta"]);
-        $this->assertArrayNotHasKey("http.request.post.foo.bar", $trace["meta"]);
+        $trace = $traces[0]['spans'][0];
+        $this->assertSame("POST", $trace["attributes"]["http.method"]);
+        $this->assertArrayNotHasKey("http.request.post.password", $trace["attributes"]);
+        $this->assertArrayNotHasKey("http.request.post.username", $trace["attributes"]);
+        $this->assertArrayNotHasKey("http.request.post.foo.bar", $trace["attributes"]);
     }
 }

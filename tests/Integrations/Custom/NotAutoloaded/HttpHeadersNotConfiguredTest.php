@@ -42,12 +42,12 @@ final class HttpHeadersNotConfiguredTest extends WebFrameworkTestCase
                     'my-service',
                     'web',
                     'GET /'
-                )->withExactTags([
+                )->withExactAttributes([
                     'http.method' => 'GET',
                     'http.url' => 'http://localhost/',
-                    'http.status_code' => 200,
+                    'http.status_code' => '200',
                     'span.kind' => 'server',
-                    'component' => \DDTrace\Tests\WebServer::defaultSapiName(),
+                    'component' => 'web',
                 ]),
             ]
         );

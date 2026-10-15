@@ -19,7 +19,7 @@ function test_endpoint($path) {
 
     DDTrace\close_span();
 
-    $spans = dd_trace_serialize_closed_spans();
+    $spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
     if (count($spans) > 0) {
         $span_data = $spans[0];
         echo "Path: $path\n";
@@ -90,7 +90,7 @@ function test_endpoint_with_route($path, $route) {
 
     DDTrace\close_span();
 
-    $spans = dd_trace_serialize_closed_spans();
+    $spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
     if (count($spans) > 0) {
         $span_data = $spans[0];
         echo "Path: $path, Route: $route\n";

@@ -47,7 +47,7 @@ DDTrace\trace_function('handleException', function(SpanData $s, $a, $retval) {
 
 echo main() . PHP_EOL;
 
-list($mainSpan, $handleSpan, $handleExceptionSpan) = dd_trace_serialize_closed_spans();
+list($mainSpan, $handleSpan, $handleExceptionSpan) = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
 
 echo $mainSpan['name'] . $mainSpan['resource'] . PHP_EOL;
 var_dump(isset($mainSpan['parent_id'])); // root span

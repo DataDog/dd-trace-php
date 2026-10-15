@@ -28,15 +28,14 @@ $root->name = 'keep.root';
 $root->attributes['http.status_code'] = new ChangeSamplingDuringSerialization();
 DDTrace\close_span();
 
-foreach (dd_trace_serialize_closed_spans() as $span) {
+$chunk = dd_trace_serialize_closed_spans()['chunks'][0];
+foreach ($chunk['spans'] as $span) {
     echo $span['name'], "\n";
     if (isset($span['attributes']['_dd.span_sampling.mechanism'])) {
         echo 'single span: ', $span['attributes']['_dd.span_sampling.mechanism'], "\n";
     }
-    if (isset($span['sampling_priority'])) {
-        echo 'trace priority: ', $span['sampling_priority'], "\n";
-    }
 }
+echo 'trace priority: ', $chunk['priority'], "\n";
 
 ?>
 --EXPECT--

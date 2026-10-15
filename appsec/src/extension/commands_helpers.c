@@ -689,8 +689,8 @@ void dd_command_process_meta(mpack_node_t root, zend_object *nonnull span)
         const char *val_str = mpack_node_str(value);
         size_t val_len = mpack_node_strlen(value);
 
-        bool res =
-            dd_trace_span_add_tag_str(span, key_str, key_len, val_str, val_len);
+        bool res = dd_trace_span_add_attribute_str(
+            span, key_str, key_len, val_str, val_len);
 
         if (!res) {
             mlog(dd_log_warning, "Failed to add tag %.*s", (int)key_len,
@@ -712,8 +712,8 @@ void dd_command_process_meta(mpack_node_t root, zend_object *nonnull span)
 
 bool dd_command_process_metrics(mpack_node_t root, zend_object *nonnull span)
 {
-    zval *metrics_zv = dd_trace_span_get_metrics(span);
-    if (metrics_zv == NULL) {
+    zval *attributes = dd_trace_span_get_attributes(span);
+    if (attributes == NULL) {
         return false;
     }
 
@@ -761,7 +761,7 @@ bool dd_command_process_metrics(mpack_node_t root, zend_object *nonnull span)
         mlog(dd_log_debug, "Adding to root span the metric '%.*s'",
             (int)key_len, key_str);
 
-        zval *res = zend_hash_add(Z_ARRVAL_P(metrics_zv), ztag, &zv);
+        zval *res = zend_hash_add(Z_ARRVAL_P(attributes), ztag, &zv);
         zend_string_release(ztag);
 
         if (res == NULL) {

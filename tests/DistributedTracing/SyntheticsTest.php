@@ -3,6 +3,7 @@
 namespace DDTrace\Tests\DistributedTracing;
 
 use DDTrace\Tests\Common\SpanAssertion;
+use DDTrace\Tests\Common\SpanChecker;
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 
@@ -49,17 +50,14 @@ class SyntheticsTest extends WebFrameworkTestCase
                 'web.request',
                 'web',
                 'GET /index.php'
-            )->withExactTags([
+            )->withExactAttributes([
                 'http.method' => 'GET',
                 'http.url' => 'http://localhost/index.php',
                 'http.status_code' => '200',
                 'span.kind' => 'server',
-                'component' => \DDTrace\Tests\WebServer::defaultSapiName(),
-                '_dd.origin' => 'synthetics-browser',
-            ])->withExactMetrics([
-                '_sampling_priority_v1' => 1,
-            ])
+                'component' => 'web',
+            ])->origin('synthetics-browser')->samplingPriority(1)
         );
-        $this->assertSame('123456', $traces[0][0]['trace_id']);
+        $this->assertSame('123456', SpanChecker::traceIdLow($traces[0]));
     }
 }

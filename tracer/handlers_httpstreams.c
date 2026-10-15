@@ -69,16 +69,15 @@ static php_stream *dd_stream_opener(
         if (span) {
             ddtrace_set_global_span_properties(span);
 
-            zend_array *meta = ddtrace_property_array(&span->property_attributes);
+            zend_array *attributes = ddtrace_property_array(&span->property_attributes);
             zval zv;
 
-            // Set on the properties; the serializer mirrors them into meta at serialization time.
             zval_ptr_dtor(&span->property_component);
             ZVAL_STRING(&span->property_component, "php.stream");
-            ZVAL_LONG(&span->property_span_kind, 3 /* DDTrace\SpanKind::CLIENT */);
+            ZVAL_LONG(&span->property_span_kind, DDTRACE_SPAN_KIND_CLIENT);
 
             ZVAL_STRING(&zv, filename);
-            zend_hash_str_update(meta, ZEND_STRL("http.url"), &zv);
+            zend_hash_str_update(attributes, ZEND_STRL("http.url"), &zv);
 
             // Stream context options store HTTP wrapper options under the "http" subarray, e.g.
             // stream_context_create(['http' => ['method' => 'GET', ...]]).
@@ -93,7 +92,7 @@ static php_stream *dd_stream_opener(
                     // to avoid leaving span attributes with a dangling zend_string once the options array is destroyed.
                     zval method_copy;
                     ZVAL_COPY(&method_copy, method_zv);
-                    zend_hash_str_update(meta, ZEND_STRL("http.method"), &method_copy);
+                    zend_hash_str_update(attributes, ZEND_STRL("http.method"), &method_copy);
                 }
             }
 
@@ -103,7 +102,7 @@ static php_stream *dd_stream_opener(
                 const char *host_end = strchr(host_start, '/');
                 size_t host_len = host_end ? (size_t)(host_end - host_start) : strlen(host_start);
                 ZVAL_STRINGL(&zv, host_start, host_len);
-                zend_hash_str_update(meta, ZEND_STRL("network.destination.name"), &zv);
+                zend_hash_str_update(attributes, ZEND_STRL("network.destination.name"), &zv);
             }
         }
     }

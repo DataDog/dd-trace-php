@@ -52,11 +52,7 @@ var_dump($spans[2]['name'], $spans[2]['span_links']);
 
 ?>
 --EXPECTF--
-array(11) {
-  ["trace_id"]=>
-  string(20) "13930160852258120406"
-  ["trace_id_high"]=>
-  string(16) "%s"
+array(9) {
   ["span_id"]=>
   string(19) "2513787319205155662"
   ["parent_id"]=>
@@ -76,54 +72,38 @@ array(11) {
   ["span_links"]=>
   array(2) {
     [0]=>
-    array(4) {
+    array(2) {
       ["trace_id"]=>
-      string(20) "13930160852258120406"
-      ["trace_id_high"]=>
-      string(16) "%s"
+      string(%d) "%s"
       ["span_id"]=>
-      string(20) "11788048577503494824"
-      ["flags"]=>
-      int(0)
+      string(16) "%s"
     }
     [1]=>
-    array(4) {
+    array(2) {
       ["trace_id"]=>
-      string(20) "13930160852258120406"
-      ["trace_id_high"]=>
-      string(16) "%s"
+      string(%d) "%s"
       ["span_id"]=>
-      string(20) "13874630024467741450"
-      ["flags"]=>
-      int(0)
+      string(16) "%s"
     }
   }
 }
 string(3) "bar"
 array(1) {
   [0]=>
-  array(4) {
+  array(2) {
     ["trace_id"]=>
-    string(20) "13930160852258120406"
-    ["trace_id_high"]=>
-    string(16) "%s"
+    string(%d) "%s"
     ["span_id"]=>
-    string(20) "13874630024467741450"
-    ["flags"]=>
-    int(0)
+    string(16) "%s"
   }
 }
 string(3) "foo"
 array(1) {
   [0]=>
-  array(4) {
+  array(2) {
     ["trace_id"]=>
-    string(20) "13930160852258120406"
-    ["trace_id_high"]=>
-    string(16) "%s"
+    string(%d) "%s"
     ["span_id"]=>
-    string(20) "11788048577503494824"
-    ["flags"]=>
-    int(0)
+    string(16) "%s"
   }
 }

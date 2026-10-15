@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\Roadrunner;
 
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
+use DDTrace\SpanKind;
 use DDTrace\Tag;
 use DDTrace\Type;
 use function DDTrace\UserRequest\notify_commit;
@@ -120,7 +121,7 @@ class RoadrunnerIntegration extends Integration
         ini_set("datadog.trace.auto_flush_enabled", 1);
         ini_set("datadog.trace.generate_root_span", 0);
 
-        $service = \ddtrace_config_app_name('roadrunner');
+        $service = \dd_trace_env_config('DD_SERVICE') ?: 'roadrunner';
 
         $suppressResponse = null;
         $recCall = 0;
@@ -150,8 +151,8 @@ class RoadrunnerIntegration extends Integration
                 Integration::tagFrameworkServiceSource($activeSpan, 'roadrunner');
                 $activeSpan->name = "web.request";
                 $activeSpan->type = Type::WEB_SERVLET;
-                $activeSpan->meta[Tag::COMPONENT] = RoadrunnerIntegration::NAME;
-                $activeSpan->attributes[Tag::SPAN_KIND] = 'server';
+                $activeSpan->component = RoadrunnerIntegration::NAME;
+                $activeSpan->spanKind = SpanKind::SERVER;
                 if ($hook->exception) {
                     $activeSpan->exception = $hook->exception;
                     \DDTrace\close_span();
@@ -243,7 +244,7 @@ class RoadrunnerIntegration extends Integration
             /** @var int $status */
             $status = $hook->args[0];
 
-            $activeSpan->meta[Tag::COMPONENT] = RoadrunnerIntegration::NAME;
+            $activeSpan->component = RoadrunnerIntegration::NAME;
             if ($hook->exception && empty($activeSpan->exception)) {
                 $activeSpan->exception = $hook->exception;
             } elseif ($status >= 500 && $ex = \DDTrace\find_active_exception()) {

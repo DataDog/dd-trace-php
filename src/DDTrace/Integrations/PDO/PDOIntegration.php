@@ -6,6 +6,7 @@ use DDTrace\HookData;
 use DDTrace\Integrations\DatabaseIntegrationHelper;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
+use DDTrace\SpanKind;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\ObjectKVStore;
@@ -79,7 +80,7 @@ class PDOIntegration extends Integration
         }, static function (HookData $hook) {
             $span = $hook->span();
             if (is_numeric($hook->returned)) {
-                $span->metrics[Tag::DB_ROW_COUNT] = $hook->returned;
+                $span->attributes[Tag::DB_ROW_COUNT] = $hook->returned;
             }
             PDOIntegration::detectError($hook->instance, $span);
         });
@@ -104,7 +105,7 @@ class PDOIntegration extends Integration
             $span = $hook->span();
             $instance = $hook->instance;
             if ($hook->returned instanceof \PDOStatement) {
-                $span->metrics[Tag::DB_ROW_COUNT] = $hook->returned->rowCount();
+                $span->attributes[Tag::DB_ROW_COUNT] = $hook->returned->rowCount();
                 ObjectKVStore::propagate($instance, $hook->returned, PDOIntegration::CONNECTION_TAGS_KEY);
             }
             PDOIntegration::detectError($instance, $span);
@@ -158,7 +159,7 @@ class PDOIntegration extends Integration
                 $span->resource = $instance->queryString;
                 if ($hook->returned === true) {
                     try {
-                        $span->metrics[Tag::DB_ROW_COUNT] = $instance->rowCount();
+                        $span->attributes[Tag::DB_ROW_COUNT] = $instance->rowCount();
                     } catch (\Exception $e) {
                         // Ignore exception thrown by rowCount() method.
                         // Drupal PDOStatement::rowCount() method throws an exception if the query is not a SELECT.
@@ -196,17 +197,17 @@ class PDOIntegration extends Integration
             return;
         }
         $errorInfo = $pdoOrStatement->errorInfo();
-        $span->meta[Tag::ERROR_MSG] = 'SQL error: ' . $errorCode . '. Driver error: ' . $errorInfo[1];
+        $span->attributes[Tag::ERROR_MSG] = 'SQL error: ' . $errorCode . '. Driver error: ' . $errorInfo[1];
 
         // Driver-specific error message will be in the rest of the array
         // The spec suggests the error message to be at pos 2 only,
         // ODBC: the SQLSTATE in [3] (but e.g. SQLServer doc states that the array can contain monre than 3 elements)
         // DBLIB: [3] an OSerror (int), [4] a severity and optionally a string representation of the OSerror in [5]
         if (count($errorInfo) > 2) {
-            $span->meta[Tag::ERROR_MSG] .= '. Driver-specific error data: ' . implode('. ', array_slice($errorInfo, 2));
+            $span->attributes[Tag::ERROR_MSG] .= '. Driver-specific error data: ' . implode('. ', array_slice($errorInfo, 2));
         }
 
-        $span->meta[Tag::ERROR_TYPE] = get_class($pdoOrStatement) . ' error';
+        $span->attributes[Tag::ERROR_TYPE] = get_class($pdoOrStatement) . ' error';
     }
 
     const DSN_REGEX = <<<'REGEX'
@@ -255,7 +256,7 @@ REGEX;
                 $tags[Tag::TARGET_HOST] = $host;
             }
             if ($port !== "") {
-                $tags[Tag::TARGET_PORT] = $port;
+                $tags[Tag::TARGET_PORT] = (int)$port;
             }
             if ($driver !== "") {
                 $tags[Tag::DB_SYSTEM] = strtolower($driver);
@@ -311,8 +312,8 @@ REGEX;
 
         $span->type = Type::SQL;
         $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-        $span->meta[Tag::SPAN_KIND] = 'client';
-        $span->meta[Tag::COMPONENT] = self::NAME;
+        $span->spanKind = SpanKind::CLIENT;
+        $span->component = self::NAME;
         if (\dd_trace_env_config("DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE") &&
                 isset($storedConnectionInfo[Tag::TARGET_HOST])
         ) {
@@ -325,7 +326,7 @@ REGEX;
         }
 
         foreach ($storedConnectionInfo as $tag => $value) {
-            $span->meta[$tag] = $value;
+            $span->attributes[$tag] = $value;
         }
     }
 

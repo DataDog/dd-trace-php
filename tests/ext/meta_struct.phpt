@@ -18,7 +18,7 @@ $span->meta_struct["foo"] = "bar";
 $span->meta_struct["john"] = ["Doe"];
 DDTrace\close_span();
 
-$spans = dd_trace_serialize_closed_spans();
+$spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
 
 foreach ($spans as $span)
 {

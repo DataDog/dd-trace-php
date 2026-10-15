@@ -260,12 +260,14 @@
                   "component": "laravelqueue",
                   "messaging.destination": "sync",
                   "messaging.destination_kind": "queue",
-                  "messaging.laravel.attempts": "1",
                   "messaging.laravel.connection": "sync",
                   "messaging.laravel.name": "App\\Events\\NoopEvent",
                   "messaging.operation": "process",
                   "messaging.system": "laravel",
                   "span.kind": "client"
+                },
+                "metrics": {
+                  "messaging.laravel.attempts": 1
                 }
               },
                  {
@@ -280,12 +282,14 @@
                      "component": "laravelqueue",
                      "messaging.destination": "sync",
                      "messaging.destination_kind": "queue",
-                     "messaging.laravel.attempts": "1",
                      "messaging.laravel.connection": "sync",
                      "messaging.laravel.name": "App\\Events\\NoopEvent",
                      "messaging.operation": "process",
                      "messaging.system": "laravel",
                      "span.kind": "client"
+                   },
+                   "metrics": {
+                     "messaging.laravel.attempts": 1
                    }
                  },
                  {

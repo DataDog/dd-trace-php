@@ -10,6 +10,7 @@ DD_TRACE_SPANS_LIMIT=20
 DD_TRACE_LOG_LEVEL=error
 --FILE--
 <?php
+include __DIR__ . '/../../sandbox/dd_dumper.inc';
 $port = getenv('HTTPBIN_PORT') ?: '80';
 $url = 'http://' . getenv('HTTPBIN_HOSTNAME') . ':' . $port . '/';
 
@@ -28,7 +29,7 @@ for ($i = 0; $i < $iterations; $i++) {
     curl_multi_close($mh);
 }
 
-$spans = dd_trace_serialize_closed_spans();
+$spans = dd_clean_spans();
 $multiCount = 0;
 foreach ($spans as $span) {
     if (($span['name'] ?? '') === 'curl_multi_exec') {

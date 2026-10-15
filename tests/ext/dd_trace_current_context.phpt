@@ -3,6 +3,8 @@ Test the output of \DDTrace\current_context
 --ENV--
 DD_VERSION=1.2.3
 DD_ENV=dd-trace-test
+--INI--
+error_reporting=E_ALL
 --FILE--
 <?php
 $context = \DDTrace\current_context();
@@ -26,6 +28,7 @@ if (strcmp($context['env'], getenv("DD_ENV")) !== 0) {
 
 ?>
 --EXPECTF--
+Deprecated: Function DDTrace\current_context() is deprecated in %s on line %d
 array(5) {
   ["trace_id"]=>
   string(%d) "%d"
@@ -39,3 +42,5 @@ array(5) {
   array(0) {
   }
 }
+
+Deprecated: Function DDTrace\trace_id() is deprecated in %s on line %d

@@ -27,7 +27,7 @@ if (!isset($_SERVER[0])) {
 
 DDTrace\start_span();
 DDTrace\close_span();
-var_dump(dd_trace_serialize_closed_spans()[0]["attributes"]["http.request.headers.0"]);
+var_dump(dd_trace_serialize_closed_spans()['chunks'][0]['spans'][0]["attributes"]["http.request.headers.0"]);
 
 ?>
 --EXPECT--

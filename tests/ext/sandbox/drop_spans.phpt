@@ -31,7 +31,7 @@ new DateTime('2019-09-10'); // Should drop
 
 array_map(function($span) {
     echo $span['name'] . PHP_EOL;
-}, dd_trace_serialize_closed_spans());
+}, dd_trace_serialize_closed_spans()['chunks'][0]['spans']);
 ?>
 --EXPECT--
 Traced array_sum

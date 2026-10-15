@@ -11,8 +11,6 @@ if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: The pecl run-tests path is n
 ?>
 --FILE--
 <?php
-include __DIR__ . '/../../../sandbox/dd_dumper.inc';
-
 require __DIR__ . '/../../../includes/git_functions.inc';
 
 ini_set('datadog.trace.git_metadata_enabled', 1);
@@ -27,16 +25,12 @@ function makeRequest() {
     \DDTrace\close_span();
     \DDTrace\close_span();
 
-    $closedSpans = dd_clean_spans();
-    $rootMeta = $closedSpans[0]['attributes'];
-    var_dump($rootMeta);
+    var_dump(dd_trace_serialize_closed_spans()['attributes']);
 
     \DDTrace\start_span();
     \DDTrace\close_span();
 
-    $closedRoot = dd_clean_spans();
-    $rootMeta2 = $closedRoot[0]['attributes'];
-    var_dump($rootMeta2);
+    var_dump(dd_trace_serialize_closed_spans()['attributes']);
 }
 
 makeRequest();
@@ -55,67 +49,35 @@ function rm_rf($dir) {
 rm_rf(__DIR__ . '/.git');
 ?>
 --EXPECTF--
-array(7) {
-  ["runtime-id"]=>
+array(3) {
+  ["_dd.sdk.otlp_export"]=>
+  string(5) "false"
+  ["_dd.tags.process"]=>
   string(%d) "%s"
-  ["process_id"]=>
-  float(%f)
-  ["_dd.agent_psr"]=>
-  float(1)
   ["_dd.git.repository_url"]=>
   string(32) "https://github.com/user/repo_new"
-  ["php.compilation.total_time_ms"]=>
-  float(%f)
-  ["php.memory.peak_usage_bytes"]=>
-  float(%f)
-  ["php.memory.peak_real_usage_bytes"]=>
-  float(%f)
 }
-array(7) {
-  ["runtime-id"]=>
+array(3) {
+  ["_dd.sdk.otlp_export"]=>
+  string(5) "false"
+  ["_dd.tags.process"]=>
   string(%d) "%s"
-  ["process_id"]=>
-  float(%f)
-  ["_dd.agent_psr"]=>
-  float(1)
   ["_dd.git.repository_url"]=>
   string(32) "https://github.com/user/repo_new"
-  ["php.compilation.total_time_ms"]=>
-  float(%f)
-  ["php.memory.peak_usage_bytes"]=>
-  float(%f)
-  ["php.memory.peak_real_usage_bytes"]=>
-  float(%f)
 }
-array(7) {
-  ["runtime-id"]=>
+array(3) {
+  ["_dd.sdk.otlp_export"]=>
+  string(5) "false"
+  ["_dd.tags.process"]=>
   string(%d) "%s"
-  ["process_id"]=>
-  float(%f)
-  ["_dd.agent_psr"]=>
-  float(1)
   ["_dd.git.repository_url"]=>
   string(32) "https://github.com/user/repo_new"
-  ["php.compilation.total_time_ms"]=>
-  float(%f)
-  ["php.memory.peak_usage_bytes"]=>
-  float(%f)
-  ["php.memory.peak_real_usage_bytes"]=>
-  float(%f)
 }
-array(7) {
-  ["runtime-id"]=>
+array(3) {
+  ["_dd.sdk.otlp_export"]=>
+  string(5) "false"
+  ["_dd.tags.process"]=>
   string(%d) "%s"
-  ["process_id"]=>
-  float(%f)
-  ["_dd.agent_psr"]=>
-  float(1)
   ["_dd.git.repository_url"]=>
   string(32) "https://github.com/user/repo_new"
-  ["php.compilation.total_time_ms"]=>
-  float(%f)
-  ["php.memory.peak_usage_bytes"]=>
-  float(%f)
-  ["php.memory.peak_real_usage_bytes"]=>
-  float(%f)
 }

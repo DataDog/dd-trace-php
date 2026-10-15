@@ -6,6 +6,7 @@ DD_TRACE_SPANS_LIMIT=5
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
+include 'dd_dumper.inc';
 function myFunc1($foo) {
     return $foo;
 }
@@ -35,7 +36,7 @@ myFunc2(true);
 
 array_map(function($span) {
     echo $span['name'] . PHP_EOL;
-}, dd_trace_serialize_closed_spans());
+}, dd_clean_spans());
 ?>
 --EXPECT--
 bool(false)

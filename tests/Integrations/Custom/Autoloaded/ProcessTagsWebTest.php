@@ -34,11 +34,10 @@ class ProcessTagsWebTest extends WebFrameworkTestCase
         });
 
         $this->assertCount(1, $traces);
-        $rootSpan = $traces[0][0];
 
         // Verify _dd.tags.process exists
-        $this->assertArrayHasKey('_dd.tags.process', $rootSpan['meta']);
-        $processTags = $rootSpan['meta']['_dd.tags.process'];
+        $this->assertArrayHasKey('_dd.tags.process', $this->dumpedPayload['attributes']);
+        $processTags = $this->dumpedPayload['attributes']['_dd.tags.process'];
 
         // Parse the process tags
         $tags = [];
@@ -75,17 +74,17 @@ class ProcessTagsWebTest extends WebFrameworkTestCase
      */
     public function testSvcTagDoesNotLeakBetweenRequests()
     {
-        $tracesUser = $this->tracesFromWebRequest(function () {
+        $this->tracesFromWebRequest(function () {
             return $this->call(new RequestSpec(__FUNCTION__ . '_user', 'GET', '/set_service', []));
         });
-        $userTags = $tracesUser[0][0]['meta']['_dd.tags.process'];
+        $userTags = $this->dumpedPayload['attributes']['_dd.tags.process'];
         $this->assertStringContains('svc.user:true', $userTags);
         $this->assertStringNotContains('svc.auto:', $userTags);
 
-        $tracesAuto = $this->tracesFromWebRequest(function () {
+        $this->tracesFromWebRequest(function () {
             return $this->call(new RequestSpec(__FUNCTION__ . '_auto', 'GET', '/simple', []));
         });
-        $autoTags = $tracesAuto[0][0]['meta']['_dd.tags.process'];
+        $autoTags = $this->dumpedPayload['attributes']['_dd.tags.process'];
         $this->assertStringNotContains('svc.user', $autoTags);
         $this->assertStringContains('svc.auto:', $autoTags);
     }

@@ -38,7 +38,7 @@ class LazyLoadingIntegrationsFromYiiTest extends WebFrameworkTestCase
                     'yii2_test_app',
                     Type::WEB_SERVLET,
                     'GET /site/index'
-                )->withExactTags([
+                )->withExactAttributes([
                     Tag::HTTP_METHOD => 'GET',
                     Tag::HTTP_URL => 'http://localhost/site/index',
                     Tag::HTTP_STATUS_CODE => '200',
@@ -53,7 +53,7 @@ class LazyLoadingIntegrationsFromYiiTest extends WebFrameworkTestCase
                         'yii2_test_app',
                         Type::WEB_SERVLET,
                         'yii\web\Application.run'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         Tag::COMPONENT => "yii",
                     ])->withChildren([
                         SpanAssertion::build(
@@ -61,7 +61,7 @@ class LazyLoadingIntegrationsFromYiiTest extends WebFrameworkTestCase
                             'yii2_test_app',
                             Type::WEB_SERVLET,
                             'index'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             Tag::COMPONENT => "yii",
                         ])->withChildren([
                             SpanAssertion::build(
@@ -69,7 +69,7 @@ class LazyLoadingIntegrationsFromYiiTest extends WebFrameworkTestCase
                                 'yii2_test_app',
                                 Type::WEB_SERVLET,
                                 'index'
-                            )->withExactTags([
+                            )->withExactAttributes([
                                 Tag::COMPONENT => "yii",
                             ]),
                         ]),

@@ -58,10 +58,10 @@ class CommonScenariosTest extends WebFrameworkTestCase
     {
         $until = function ($request) {
             $body = $request["body"] ?? [];
-            $traces = empty($body) ? [[]] : json_decode($body, true);
+            $traces = empty($body) ? [] : $this->parseRawDumpedTraces(json_decode($body, true));
 
             foreach ($traces as $trace) {
-                foreach ($trace as $span) {
+                foreach ($trace['spans'] as $span) {
                     if ($span
                         && isset($span["name"])
                         && $span["name"] === "laravel.request"
@@ -86,7 +86,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
         $webRequestTrace = null;
         foreach ($traces as $trace) {
-            if ($trace[0]["name"] === "laravel.request" && str_contains($trace[0]["resource"], 'App\\Http\\Controllers')) {
+            if ($trace["spans"][0]["name"] === "laravel.request" && str_contains($trace["spans"][0]["resource"], 'App\\Http\\Controllers')) {
                 $webRequestTrace = $trace;
                 break;
             }
@@ -98,7 +98,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'swoole_test_app',
                 'web',
                 'App\Http\Controllers\CommonSpecsController@simple simple_route'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::HTTP_METHOD => 'GET',
                 Tag::HTTP_URL => 'http://localhost/simple?key=value&<redacted>',
                 Tag::HTTP_ROUTE => 'simple',
@@ -108,7 +108,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'laravel.route.name' => 'simple_route',
                 'laravel.route.action' => 'App\Http\Controllers\CommonSpecsController@simple',
             ])->withChildren([
-                SpanAssertion::build('laravel.action', 'swoole_test_app', 'web', 'simple')->withExactTags([
+                SpanAssertion::build('laravel.action', 'swoole_test_app', 'web', 'simple')->withExactAttributes([
                     Tag::COMPONENT => 'laravel',
                 ]),
                 SpanAssertion::exists('laravel.event.handle', null, null, 'swoole_test_app'),
@@ -130,10 +130,10 @@ class CommonScenariosTest extends WebFrameworkTestCase
     {
         $until = function ($request) {
             $body = $request["body"] ?? [];
-            $traces = empty($body) ? [[]] : json_decode($body, true);
+            $traces = empty($body) ? [] : $this->parseRawDumpedTraces(json_decode($body, true));
 
             foreach ($traces as $trace) {
-                foreach ($trace as $span) {
+                foreach ($trace['spans'] as $span) {
                     if ($span
                         && isset($span["name"])
                         && $span["name"] === "laravel.request"
@@ -158,7 +158,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
         $webRequestTrace = null;
         foreach ($traces as $trace) {
-            if ($trace[0]["name"] === "laravel.request" && str_contains($trace[0]["resource"], 'App\\Http\\Controllers')) {
+            if ($trace["spans"][0]["name"] === "laravel.request" && str_contains($trace["spans"][0]["resource"], 'App\\Http\\Controllers')) {
                 $webRequestTrace = $trace;
                 break;
             }
@@ -170,7 +170,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'swoole_test_app',
                 'web',
                 'App\Http\Controllers\CommonSpecsController@simple_view simple_view'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::HTTP_METHOD => 'GET',
                 Tag::HTTP_URL => 'http://localhost/simple_view?key=value&<redacted>',
                 Tag::HTTP_ROUTE => 'simple_view',
@@ -180,7 +180,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'laravel.route.name' => 'unnamed_route',
                 'laravel.route.action' => 'App\Http\Controllers\CommonSpecsController@simple_view',
             ])->withChildren([
-                SpanAssertion::build('laravel.action', 'swoole_test_app', 'web', 'simple_view')->withExactTags([
+                SpanAssertion::build('laravel.action', 'swoole_test_app', 'web', 'simple_view')->withExactAttributes([
                     Tag::COMPONENT => 'laravel',
                 ]),
                 SpanAssertion::build(
@@ -188,7 +188,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     'swoole_test_app',
                     'web',
                     'simple_view'
-                )->withExactTags([
+                )->withExactAttributes([
                     Tag::COMPONENT => 'laravel',
                 ])->withChildren([
                     SpanAssertion::build(
@@ -196,7 +196,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'swoole_test_app',
                         'web',
                         '*/resources/views/simple_view.blade.php'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         Tag::COMPONENT => 'laravel',
                     ])
                 ]),
@@ -219,10 +219,10 @@ class CommonScenariosTest extends WebFrameworkTestCase
     {
         $until = function ($request) {
             $body = $request["body"] ?? [];
-            $traces = empty($body) ? [[]] : json_decode($body, true);
+            $traces = empty($body) ? [] : $this->parseRawDumpedTraces(json_decode($body, true));
 
             foreach ($traces as $trace) {
-                foreach ($trace as $span) {
+                foreach ($trace['spans'] as $span) {
                     if ($span
                         && isset($span["name"])
                         && $span["name"] === "laravel.request"
@@ -247,7 +247,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
         $webRequestTrace = null;
         foreach ($traces as $trace) {
-            if ($trace[0]["name"] === "laravel.request" && str_contains($trace[0]["resource"], 'App\\Http\\Controllers')) {
+            if ($trace["spans"][0]["name"] === "laravel.request" && str_contains($trace["spans"][0]["resource"], 'App\\Http\\Controllers')) {
                 $webRequestTrace = $trace;
                 break;
             }
@@ -259,7 +259,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'swoole_test_app',
                 'web',
                 'App\Http\Controllers\CommonSpecsController@error error'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::HTTP_METHOD => 'GET',
                 Tag::HTTP_URL => 'http://localhost/error?key=value&<redacted>',
                 Tag::HTTP_ROUTE => 'error',
@@ -269,7 +269,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'laravel.route.name' => 'unnamed_route',
                 'laravel.route.action' => 'App\Http\Controllers\CommonSpecsController@error',
             ])->setError('Exception', 'Controller error', true)->withChildren([
-                SpanAssertion::build('laravel.action', 'swoole_test_app', 'web', 'error')->withExactTags([
+                SpanAssertion::build('laravel.action', 'swoole_test_app', 'web', 'error')->withExactAttributes([
                     Tag::COMPONENT => 'laravel',
                 ])->setError('Exception', 'Controller error', true),
                 SpanAssertion::exists('laravel.event.handle', null, null, 'swoole_test_app'),
@@ -290,10 +290,10 @@ class CommonScenariosTest extends WebFrameworkTestCase
     {
         $until = function ($request) {
             $body = $request["body"] ?? [];
-            $traces = empty($body) ? [[]] : json_decode($body, true);
+            $traces = empty($body) ? [] : $this->parseRawDumpedTraces(json_decode($body, true));
 
             foreach ($traces as $trace) {
-                foreach ($trace as $span) {
+                foreach ($trace['spans'] as $span) {
                     if ($span && isset($span["name"]) && $span["name"] === "laravel.request" && $span["resource"] === 'GET /does_not_exist') {
                         return true;
                     }
@@ -314,7 +314,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
         $webRequestTrace = null;
         foreach ($traces as $trace) {
-            if ($trace[0]["name"] === "laravel.request") {
+            if ($trace["spans"][0]["name"] === "laravel.request") {
                 $webRequestTrace = $trace;
                 break;
             }
@@ -326,7 +326,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'swoole_test_app',
                 'web',
                 'GET /does_not_exist'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::HTTP_METHOD => 'GET',
                 Tag::HTTP_URL => 'http://localhost/does_not_exist?key=value&<redacted>',
                 Tag::HTTP_STATUS_CODE => '404',
@@ -338,7 +338,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     'swoole_test_app',
                     'web',
                     'errors::404'
-                )->withExactTags([
+                )->withExactAttributes([
                     Tag::COMPONENT => 'laravel',
                 ])->withChildren([
                     SpanAssertion::build(
@@ -346,7 +346,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'swoole_test_app',
                         'web',
                         '*/views/404.blade.php'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         Tag::COMPONENT => 'laravel',
                     ])
                 ]),

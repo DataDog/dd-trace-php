@@ -28,10 +28,6 @@ var_dump(dd_clean_spans());
 array(2) {
   [0]=>
   array(%d) {
-    ["trace_id"]=>
-    string(%d) "%s"
-    ["trace_id_high"]=>
-    string(16) "%s"
     ["span_id"]=>
     string(%d) "%s"
     ["start"]=>
@@ -50,16 +46,12 @@ array(2) {
     string(8) "env_test"
     ["version"]=>
     string(5) "5.2.0"
-    ["sampling_priority"]=>
-    int(1)
-    ["sampling_mechanism"]=>
-    int(0)
     ["attributes"]=>
     array(%d) {
       ["runtime-id"]=>
       string(36) "%s"
       ["process_id"]=>
-      float(%f)
+      int(%d)
       ["_dd.agent_psr"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
@@ -72,10 +64,6 @@ array(2) {
   }
   [1]=>
   array(%d) {
-    ["trace_id"]=>
-    string(%d) "%s"
-    ["trace_id_high"]=>
-    string(16) "%s"
     ["span_id"]=>
     string(%d) "%s"
     ["start"]=>
@@ -92,16 +80,12 @@ array(2) {
     string(3) "cli"
     ["env"]=>
     string(8) "env_test"
-    ["sampling_priority"]=>
-    int(1)
-    ["sampling_mechanism"]=>
-    int(0)
     ["attributes"]=>
     array(%d) {
       ["runtime-id"]=>
       string(36) "%s"
       ["process_id"]=>
-      float(%f)
+      int(%d)
       ["_dd.svc_src"]=>
       string(1) "m"
       ["_dd.agent_psr"]=>
