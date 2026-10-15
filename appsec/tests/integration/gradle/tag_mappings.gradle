@@ -139,5 +139,17 @@ ext.tag_mappings = [
     'apache2-mod-php-8.4-release': 'sha256:60745a2d74600d7901155841727458511867fce4535595af164e865753e50414',
     'php-7.0-release': 'sha256:b4617fd67d0fdf83a2843ae098907fcad8599bd69389175f509ecb911b03969c',
     'php-8.5-release': 'sha256:fdf589363d2d618b5a07638d7e23ff2c05173eb24e237fe86953ef4237135139',
+    'php-8.6-release': 'sha256:78667deae04771afad8613f12b6374bf6d9ce55487660ddee01811c42a06b8ea',
+    'php-8.6-debug': 'sha256:657a62307467c5e36751cae953263c064ff8511cffe88dae394db7ba5ac14a42',
+    'php-8.6-release-zts': 'sha256:fda95645505e35f542430ff544789d96f91d13e9984e421116ee0ccc5d64c30d',
+    'apache2-mod-php-8.6-release': 'sha256:8c28adda75eeb68ab74683045a32ffb66ca6276bd6b5bfa573b0bb967f1aeb8d',
+    'apache2-mod-php-8.6-debug': 'sha256:14d065b3ebd326d35f9de3a004e9736c5dd488e4ee4b7e0309da663f005b17da',
+    'apache2-mod-php-8.6-release-zts': 'sha256:605fcfb37e50818782c379e3e91a652641f47dcd68f8e326296e9400109f3253',
+    'apache2-fpm-php-8.6-release': 'sha256:d4ac6472e8bb6f4090748370444d17a4062306e84cbd3ff7cd49d73456cf98e3',
+    'apache2-fpm-php-8.6-debug': 'sha256:21c8b62a024df32ead4e9a4f24b3bcb43af144e55ce3947f300826a9ac98610e',
+    'apache2-fpm-php-8.6-release-zts': 'sha256:8a9d65ad6d9641313e4f64d825ea94c937aa3a573ad061ad20308687265b8349',
+    'nginx-fpm-php-8.6-release': 'sha256:9a0d1b1208e024cb1a96e45c64415482ee1dc1a65996f34bad799eb47b8d8602',
+    'nginx-fpm-php-8.6-debug': 'sha256:6dea7e492c46fb84b17d442be61e668958bad3d28bf50fd0abef6369c7b66821',
+    'nginx-fpm-php-8.6-release-zts': 'sha256:d33d6be187b38bbde71650a629b0fc92afa3cabbf2bce228058818f1e6b19250',
     'php-7.1-release-zts': 'sha256:a5da58b043f461a40c0bc7c15cb631481293dc5b047a9f228dd57a3f6fb5cd4c'
 ]
