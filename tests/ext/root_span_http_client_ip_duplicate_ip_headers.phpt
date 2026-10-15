@@ -16,7 +16,7 @@ DD_TRACE_CLIENT_IP_ENABLED=true
 <?php
 DDTrace\start_span();
 DDTrace\close_span(0);
-$span = dd_trace_serialize_closed_spans();
+$span = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
 var_dump(isset($span[0]["attributes"]['http.request.headers.x-forwarded-for']));
 var_dump(isset($span[0]["attributes"]['http.request.headers.x-real-ip']));
 var_dump(isset($span[0]["attributes"]['http.request.headers.x-forwarded']));

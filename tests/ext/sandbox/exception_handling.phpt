@@ -25,7 +25,7 @@ DDTrace\trace_function("inner", function ($span) {
 try {
     outer();
 } catch (Exception $e) {
-    $stack = dd_trace_serialize_closed_spans();
+    $stack = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
     echo "Stack size: ", count($stack), "\n";
 
     $span = $stack[0];

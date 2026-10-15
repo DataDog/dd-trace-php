@@ -9,8 +9,6 @@ $logs = dd_get_startup_logs(['-ddatadog.trace.sources_path='], ['DD_TRACE_DEBUG'
 
 // Ignore any Agent connection errors for now
 unset($logs['agent_error']);
-// Ignore sidecar config as it depends on specific versions of PHP for now
-unset($logs['sidecar_trace_sender']);
 
 dd_dump_startup_logs($logs);
 ?>
@@ -28,7 +26,6 @@ service: null
 enabled_cli: %s
 agent_url: "%s"
 debug: true
-analytics_enabled: false
 sample_rate: -1
 sampling_rules: []
 tags: []
@@ -51,6 +48,7 @@ report_hostname_on_root_span: false
 traced_internal_functions: null
 enabled_from_env: true
 opcache.file_cache: null
+sidecar_trace_sender: true
 dynamic_instrumentation_enabled: false
 exception_replay_enabled: false
 otlp_traces_export_enabled: false

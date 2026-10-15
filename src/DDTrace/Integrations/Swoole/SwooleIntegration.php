@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\Swoole;
 
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
+use DDTrace\SpanKind;
 use DDTrace\SpanStack;
 use DDTrace\Tag;
 use DDTrace\Type;
@@ -28,11 +29,11 @@ class SwooleIntegration extends Integration
             static function (HookData $hook) use ($server, $scheme) {
                 $rootSpan = $hook->span(new SpanStack());
                 $rootSpan->name = "web.request";
-                $rootSpan->service = \ddtrace_config_app_name('swoole');
+                $rootSpan->service = \dd_trace_env_config('DD_SERVICE') ?: 'swoole';
                 Integration::tagFrameworkServiceSource($rootSpan, self::NAME);
                 $rootSpan->type = Type::WEB_SERVLET;
-                $rootSpan->meta[Tag::COMPONENT] = self::NAME;
-                $rootSpan->attributes[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_SERVER;
+                $rootSpan->component = self::NAME;
+                $rootSpan->spanKind = SpanKind::SERVER;
 
                 $args = $hook->args;
                 /** @var Request $request */
@@ -53,7 +54,7 @@ class SwooleIntegration extends Integration
 
                 if (\dd_trace_env_config("DD_TRACE_CLIENT_IP_ENABLED")) {
                     $res = extract_ip_from_headers($headers + ['REMOTE_ADDR' => $request->server['remote_addr']]);
-                    $rootSpan->meta += $res;
+                    $rootSpan->attributes += $res;
                 }
 
                 if (isset($headers["user-agent"])) {
@@ -77,7 +78,7 @@ class SwooleIntegration extends Integration
                 if (!empty($postFields)) {
                     $postFields = Normalizer::sanitizePostFields($postFields);
                     foreach ($postFields as $key => $value) {
-                        $rootSpan->meta["http.request.post.$key"] = $value;
+                        $rootSpan->attributes["http.request.post.$key"] = $value;
                     }
                 }
 
@@ -164,8 +165,7 @@ class SwooleIntegration extends Integration
                 // Note: The response's body can be retrieved here, from the args
 
                 if (!$rootSpan->exception
-                    && ((int)($rootSpan->attributes[Tag::HTTP_STATUS_CODE]
-                        ?? $rootSpan->meta[Tag::HTTP_STATUS_CODE] ?? 0)) >= 500
+                    && (int)($rootSpan->attributes[Tag::HTTP_STATUS_CODE] ?? 0) >= 500
                     && $ex = \DDTrace\find_active_exception()
                 ) {
                     $rootSpan->exception = $ex;
@@ -199,7 +199,7 @@ class SwooleIntegration extends Integration
             static function ($response, $scope, $args) {
                 $rootSpan = \DDTrace\root_span();
                 if ($rootSpan && \count($args) > 0) {
-                    $rootSpan->attributes[Tag::HTTP_STATUS_CODE] = $args[0];
+                    $rootSpan->attributes[Tag::HTTP_STATUS_CODE] = (string)$args[0];
                 }
             }
         );

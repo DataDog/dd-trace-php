@@ -12,7 +12,7 @@ use DDTrace\OpenTelemetry\Detectors\DetectorHelper;
         if ($rootSpan) {
             $attributes['service.name'] = $rootSpan->service;
         } else {
-            $appName = \ddtrace_config_app_name();
+            $appName = \dd_trace_env_config('DD_SERVICE');
             if ($appName === '') {
                 return;
             }

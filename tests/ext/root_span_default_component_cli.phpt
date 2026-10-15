@@ -7,8 +7,8 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 <?php
 DDTrace\start_span();
 DDTrace\close_span();
-$spans = dd_trace_serialize_closed_spans();
-var_dump(isset($spans[0]["component"]), isset($spans[0]["meta"]["component"]));
+$spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
+var_dump(isset($spans[0]["component"]), isset($spans[0]["attributes"]["component"]));
 ?>
 --EXPECT--
 bool(false)

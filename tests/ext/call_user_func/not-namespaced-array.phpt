@@ -4,11 +4,11 @@ Test that call_user_func_array can trace in global scope
 <?php
 
 namespace {
-    dd_trace_method('DatadogTest\\Class1', 'method1', function () {
+    \DDTrace\trace_method('DatadogTest\\Class1', 'method1', function () {
         echo "DatadogTest\\Class1::method1 instrumented\n";
     });
 
-    dd_trace_function('DatadogTest\\function1', function () {
+    \DDTrace\trace_function('DatadogTest\\function1', function () {
         echo "DatadogTest\\function1 instrumented\n";
     });
 }

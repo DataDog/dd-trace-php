@@ -94,16 +94,15 @@ static int dd_php_stdiop_close_wrapper(php_stream *stream, int close_handle) {
 
     ddtrace_span_data *span_data = OBJ_SPANDATA(Z_OBJ_P(span_data_zv));
 
-    zend_array *meta = ddtrace_property_array(&span_data->property_attributes);
+    zend_array *attributes = ddtrace_property_array(&span_data->property_attributes);
     if (ret == -1) {
         zval zv;
         ZVAL_INTERNED_STR(&zv, pclose_minus_one_zstr);
-        zend_hash_update(meta, error_message_zstr, &zv);
+        zend_hash_update(attributes, error_message_zstr, &zv);
     } else {
-        // A string, as the tag was when it lived in meta.
         zval zexit;
-        ZVAL_STR(&zexit, zend_long_to_str(ret));
-        zend_hash_update(meta, cmd_exit_code_zstr, &zexit);
+        ZVAL_LONG(&zexit, ret);
+        zend_hash_update(attributes, cmd_exit_code_zstr, &zexit);
     }
 
     dd_trace_stop_span_time(span_data);
@@ -138,7 +137,7 @@ static void dd_waitpid(ddtrace_span_data *span_data, dd_proc_span *proc) {
         // already closed
         return;
     }
-    zend_array *meta = ddtrace_property_array(&span_data->property_attributes);
+    zend_array *attributes = ddtrace_property_array(&span_data->property_attributes);
 
     int wstatus;
     bool exited = false;
@@ -177,17 +176,17 @@ static void dd_waitpid(ddtrace_span_data *span_data, dd_proc_span *proc) {
         // that's how PHP does it in the return value of proc_open
         zval has_signalled_zv;
         ZVAL_INTERNED_STR(&has_signalled_zv, has_signalled_zstr);
-        zend_hash_update(meta, error_message_zstr, &has_signalled_zv);
+        zend_hash_update(attributes, error_message_zstr, &has_signalled_zv);
         exited = true;
     }  // else !FG(pclose_wait) and it hasn't finished
 #endif
 
     if (exited) {
         zval zexit;
-        ZVAL_STR(&zexit, zend_long_to_str(wstatus));
+        ZVAL_LONG(&zexit, wstatus);
 
         // set tag 'cmd.exit_code'
-        zend_hash_update(meta, cmd_exit_code_zstr, &zexit);
+        zend_hash_update(attributes, cmd_exit_code_zstr, &zexit);
     }
 }
 

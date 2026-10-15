@@ -8,7 +8,7 @@ var_dump($root->meta);
 
 ?>
 --EXPECTF--
-array(5) {
+array(8) {
   ["runtime-id"]=>
   string(36) "%s"
   ["usr.id"]=>
@@ -19,4 +19,10 @@ array(5) {
   string(4) "none"
   ["usr.permissions"]=>
   string(3) "777"
+  ["service.name"]=>
+  string(46) "set_user_with_propagation_override_default.php"
+  ["operation.name"]=>
+  string(46) "set_user_with_propagation_override_default.php"
+  ["span.type"]=>
+  string(3) "cli"
 }

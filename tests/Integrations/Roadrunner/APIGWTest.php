@@ -37,50 +37,56 @@ class APIGWTest extends WebFrameworkTestCase
             'DD_VERSION' => '1.0',
             'DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED' => 'true',
             'DD_TRACE_HEADER_TAGS' => 'x-dd-proxy-domain-name,x-dd-proxy,x-dd-proxy-httpmethod,x-dd-proxy-path,x-dd-proxy-request-time-ms,x-dd-proxy-stage',
+            'DD_TRACE_AGENT_PROTOCOL_VERSION' => '0.4',
         ]);
+    }
+
+    public static function isApigwTrace($trace)
+    {
+        return \in_array('aws.apigateway', array_column($trace['spans'], 'name'), true);
     }
 
     public function testInferredProxy()
     {
-        $traces = $this->tracesFromWebRequest(function () {
-            $this->call(
-                GetSpec::create(
-                    'A simple GET request returning a string',
-                    '/simple?key=value&pwd=should_redact',
-                    [
-                        'x-dd-proxy: aws-apigateway',
-                        'x-dd-proxy-request-time-ms: 1739261376000',
-                        'x-dd-proxy-path: /test',
-                        'x-dd-proxy-httpmethod: GET',
-                        'x-dd-proxy-domain-name: example.com',
-                        'x-dd-proxy-stage: aws-prod',
-                    ]
-                )
-            );
-        });
-
-        $this->snapshotFromTraces($traces);
+        $this->snapshotFromTraces(function () {
+            return $this->tracesFromWebRequest(function () {
+                $this->call(
+                    GetSpec::create(
+                        'A simple GET request returning a string',
+                        '/simple?key=value&pwd=should_redact',
+                        [
+                            'x-dd-proxy: aws-apigateway',
+                            'x-dd-proxy-request-time-ms: 1739261376000',
+                            'x-dd-proxy-path: /test',
+                            'x-dd-proxy-httpmethod: GET',
+                            'x-dd-proxy-domain-name: example.com',
+                            'x-dd-proxy-stage: aws-prod',
+                        ]
+                    )
+                );
+            });
+        }, null, null, [self::class, 'isApigwTrace']);
     }
 
     public function testInferredProxyException()
     {
-        $traces = $this->tracesFromWebRequest(function () {
-            $this->call(
-                GetSpec::create(
-                    'A GET throwing an exception',
-                    '/error?key=value&pwd=should_redact',
-                    [
-                        'x-dd-proxy: aws-apigateway',
-                        'x-dd-proxy-request-time-ms: 1739261376000',
-                        'x-dd-proxy-path: /test',
-                        'x-dd-proxy-httpmethod: GET',
-                        'x-dd-proxy-domain-name: example.com',
-                        'x-dd-proxy-stage: aws-prod',
-                    ]
-                )
-            );
-        });
-
-        $this->snapshotFromTraces($traces);
+        $this->snapshotFromTraces(function () {
+            return $this->tracesFromWebRequest(function () {
+                $this->call(
+                    GetSpec::create(
+                        'A GET throwing an exception',
+                        '/error?key=value&pwd=should_redact',
+                        [
+                            'x-dd-proxy: aws-apigateway',
+                            'x-dd-proxy-request-time-ms: 1739261376000',
+                            'x-dd-proxy-path: /test',
+                            'x-dd-proxy-httpmethod: GET',
+                            'x-dd-proxy-domain-name: example.com',
+                            'x-dd-proxy-stage: aws-prod',
+                        ]
+                    )
+                );
+            });
+        }, null, null, [self::class, 'isApigwTrace']);
     }
 }

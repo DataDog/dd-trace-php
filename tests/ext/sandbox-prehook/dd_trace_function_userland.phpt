@@ -28,7 +28,7 @@ echo PHP_EOL;
 
 array_map(function($span) {
     echo $span['name'], PHP_EOL;
-}, dd_trace_serialize_closed_spans());
+}, dd_trace_serialize_closed_spans()['chunks'][0]['spans']);
 ?>
 --EXPECT--
 bool(true)

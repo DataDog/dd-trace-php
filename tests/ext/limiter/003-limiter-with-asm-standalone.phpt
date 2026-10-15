@@ -10,7 +10,7 @@ DD_TRACE_SAMPLE_RATE=1
 DD_APM_TRACING_ENABLED=0
 --FILE--
 <?php
-$spans = [];
+$chunks = [];
 $sampled = 0;
 $loopBreak = 1000;
 
@@ -18,11 +18,11 @@ while (true) {
     \DDTrace\start_span();
     \DDTrace\close_span();
 
-    $spans = array_merge($spans, \dd_trace_serialize_closed_spans());
+    $chunks = array_merge($chunks, \dd_trace_serialize_closed_spans()['chunks']);
     $sampled = 0;
 
-    foreach ($spans as $span) {
-        if (isset($span["sampling_priority"])) {
+    foreach ($chunks as $chunk) {
+        if (isset($chunk["priority"])) {
             $sampled++;
         }
     }
@@ -37,7 +37,7 @@ while (true) {
     }
 }
 
-var_dump(count($spans));
+var_dump(count($chunks));
 ?>
 --EXPECT--
 int(21)

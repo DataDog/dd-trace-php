@@ -112,65 +112,63 @@ CONFIG
     {
         $this->generateInvalidFakeGitFolder();
 
-        $trace1 = $this->tracesFromWebRequest(function () {
+        $this->tracesFromWebRequest(function () {
             $spec = GetSpec::create('Source Code Integration test', '/simple');
             $this->call($spec);
         });
+        $payload1Attributes = $this->dumpedPayload['attributes'] ?? [];
 
         system("rm -rf " . self::GIT_DIR);
         $this->generateFullFakeGitFolder();
 
-        $trace2 = $this->tracesFromWebRequest(function () {
+        $this->tracesFromWebRequest(function () {
             $spec = GetSpec::create('Source Code Integration test', '/simple');
             $this->call($spec);
         });
+        $payload2Attributes = $this->dumpedPayload['attributes'];
 
-        $trace1Meta = $trace1[0][0]['meta'];
-        $trace2Meta = $trace2[0][0]['meta'];
+        $this->assertArrayNotHasKey('_dd.git.commit.sha', $payload1Attributes);
+        $this->assertEquals('https://github.com/user/repo_new', $payload1Attributes['_dd.git.repository_url']);
 
-        $this->assertArrayNotHasKey('_dd.git.commit.sha', $trace1Meta);
-        $this->assertEquals('https://github.com/user/repo_new', $trace1Meta['_dd.git.repository_url']);
-
-        $this->assertEquals('123456', $trace2Meta['_dd.git.commit.sha']);
-        $this->assertEquals('https://github.com/user/repo_new', $trace2Meta['_dd.git.repository_url']);
+        $this->assertEquals('123456', $payload2Attributes['_dd.git.commit.sha']);
+        $this->assertEquals('https://github.com/user/repo_new', $payload2Attributes['_dd.git.repository_url']);
     }
 
     public function testSourceCodeIntegration()
     {
-        $traces = $this->tracesFromWebRequest(function () {
+        $this->tracesFromWebRequest(function () {
             $spec = GetSpec::create('Source Code Integration test', '/simple');
             $this->call($spec);
         });
 
-        $rootSpanMeta = $traces[0][0]['meta'];
+        $payloadAttributes = $this->dumpedPayload['attributes'];
 
         $gitCommitSha = trim(shell_exec('git rev-parse HEAD'));
         $gitRepositoryURL = preg_replace('((?<=//)[^@]+@)', '', trim(shell_exec('git config --get remote.origin.url')));
 
-        $this->assertEquals($gitCommitSha, $rootSpanMeta['_dd.git.commit.sha']);
-        $this->assertEquals($gitRepositoryURL, $rootSpanMeta['_dd.git.repository_url']);
+        $this->assertEquals($gitCommitSha, $payloadAttributes['_dd.git.commit.sha']);
+        $this->assertEquals($gitRepositoryURL, $payloadAttributes['_dd.git.repository_url']);
     }
 
     public function testSourceCodeIntegrationChangeCommitSha()
     {
         $this->generateFullFakeGitFolder();
 
-        $trace1 = $this->tracesFromWebRequest(function () {
+        $this->tracesFromWebRequest(function () {
             $spec = GetSpec::create('Source Code Integration test', '/simple');
             $this->call($spec);
         });
+        $payload1Attributes = $this->dumpedPayload['attributes'];
 
         $this->changeRefsHeadsMaster('abc123def456');
 
-        $trace2 = $this->tracesFromWebRequest(function () {
+        $this->tracesFromWebRequest(function () {
             $spec = GetSpec::create('Source Code Integration test', '/simple');
             $this->call($spec);
         });
+        $payload2Attributes = $this->dumpedPayload['attributes'];
 
-        $trace1Meta = $trace1[0][0]['meta'];
-        $trace2Meta = $trace2[0][0]['meta'];
-
-        $this->assertEquals('123456', $trace1Meta['_dd.git.commit.sha']);
-        $this->assertEquals('abc123def456', $trace2Meta['_dd.git.commit.sha']);
+        $this->assertEquals('123456', $payload1Attributes['_dd.git.commit.sha']);
+        $this->assertEquals('abc123def456', $payload2Attributes['_dd.git.commit.sha']);
     }
 }

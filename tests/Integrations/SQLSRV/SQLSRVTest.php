@@ -6,13 +6,14 @@ use DDTrace\Integrations\SQLSRV\SQLSRVIntegration;
 use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
+use DDTrace\Tests\Common\SpanChecker;
 use function DDTrace\close_span;
 use function DDTrace\start_trace_span;
 
 class SQLSRVTest extends IntegrationTestCase
 {
     private static $host = 'sqlsrv-integration';
-    private static $port = '1433';
+    private static $port = 1433;
     private static $db = 'master';
     private static $user = 'sa';
     private static $password = 'Password12!';
@@ -114,7 +115,7 @@ class SQLSRVTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('sqlsrv_connect', 'sqlsrv', 'sql', 'sqlsrv_connect')
-                ->withExactTags(self::baseTags())
+                ->withExactAttributes(self::baseTags())
         ]);
     }
 
@@ -143,12 +144,10 @@ class SQLSRVTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('sqlsrv_connect'),
             SpanAssertion::build('sqlsrv_query', 'sqlsrv', 'sql', $query)
-                ->withExactTags(self::baseTags($query))
-                ->withExactMetrics([
-                    Tag::DB_ROW_COUNT => 1.0,
+                ->withExactAttributes(self::baseTags($query), [
+                    Tag::DB_ROW_COUNT => 1,
                     '_dd.agent_psr' => 1.0,
-                    '_sampling_priority_v1' => 1.0,
-                ])
+                ])->samplingPriority(1)
         ]);
     }
 
@@ -166,12 +165,10 @@ class SQLSRVTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('sqlsrv_connect'),
             SpanAssertion::build('sqlsrv_query', 'sqlsrv', 'sql', $query)
-                ->withExactTags(self::baseTags($query, true))
-                ->withExactMetrics([
-                    Tag::DB_ROW_COUNT => 1.0,
+                ->withExactAttributes(self::baseTags($query, true), [
+                    Tag::DB_ROW_COUNT => 1,
                     '_dd.agent_psr' => 1.0,
-                    '_sampling_priority_v1' => 1.0,
-                ])
+                ])->samplingPriority(1)
         ]);
     }
 
@@ -188,14 +185,13 @@ class SQLSRVTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('sqlsrv_connect'),
             SpanAssertion::build('sqlsrv_query', 'sqlsrv', 'sql', $query)
-                ->withExactTags(self::baseTags($query))
+                ->withExactAttributes(self::baseTags($query))
                 ->setError(
                     'SQLSRV error',
                     self::getArchitecture() === 'x86_64' ? SQLSRVTest::ERROR_QUERY_17 : SQLSRVTest::ERROR_QUERY_18
-                )->withExactMetrics([
+                )->withExactAttributes([
                     '_dd.agent_psr' => 1.0,
-                    '_sampling_priority_v1' => 1.0,
-                ])
+                ])->samplingPriority(1)
         ]);
     }
 
@@ -214,14 +210,13 @@ class SQLSRVTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('sqlsrv_connect'),
             SpanAssertion::build('sqlsrv_query', 'sqlsrv', 'sql', $query)
-                ->withExactTags(self::baseTags($query, true))
+                ->withExactAttributes(self::baseTags($query, true))
                 ->setError(
                     'SQLSRV error',
                     self::getArchitecture() === 'x86_64' ? SQLSRVTest::ERROR_QUERY_17 : SQLSRVTest::ERROR_QUERY_18
-                )->withExactMetrics([
+                )->withExactAttributes([
                     '_dd.agent_psr' => 1.0,
-                    '_sampling_priority_v1' => 1.0,
-                ])
+                ])->samplingPriority(1)
         ]);
     }
 
@@ -240,14 +235,12 @@ class SQLSRVTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('sqlsrv_connect'),
             SpanAssertion::build('sqlsrv_query', 'sqlsrv', 'sql', $query)
-                ->withExactTags(self::baseTags($query))
-                ->withExactMetrics([
-                    Tag::DB_ROW_COUNT => 1.0,
+                ->withExactAttributes(self::baseTags($query), [
+                    Tag::DB_ROW_COUNT => 1,
                     '_dd.agent_psr' => 1.0,
-                    '_sampling_priority_v1' => 1.0,
-                ]),
+                ])->samplingPriority(1),
             SpanAssertion::build('sqlsrv_commit', 'sqlsrv', 'sql', 'sqlsrv_commit')
-                ->withExactTags(self::baseTags())
+                ->withExactAttributes(self::baseTags())
         ]);
     }
 
@@ -264,14 +257,12 @@ class SQLSRVTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('sqlsrv_connect'),
             SpanAssertion::build('sqlsrv_prepare', 'sqlsrv', 'sql', $query)
-                ->withExactTags(self::baseTags($query)),
+                ->withExactAttributes(self::baseTags($query)),
             SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
-                ->withExactTags(self::baseTags($query))
-                ->withExactMetrics([
-                    Tag::DB_ROW_COUNT => 1.0,
+                ->withExactAttributes(self::baseTags($query), [
+                    Tag::DB_ROW_COUNT => 1,
                     '_dd.agent_psr' => 1.0,
-                    '_sampling_priority_v1' => 1.0,
-                ])
+                ])->samplingPriority(1)
         ]);
     }
 
@@ -290,14 +281,12 @@ class SQLSRVTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('sqlsrv_connect'),
             SpanAssertion::build('sqlsrv_prepare', 'sqlsrv', 'sql', $query)
-                ->withExactTags(self::baseTags($query)),
+                ->withExactAttributes(self::baseTags($query)),
             SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
-                ->withExactTags(self::baseTags($query, true))
-                ->withExactMetrics([
-                    Tag::DB_ROW_COUNT => 1.0,
+                ->withExactAttributes(self::baseTags($query, true), [
+                    Tag::DB_ROW_COUNT => 1,
                     '_dd.agent_psr' => 1.0,
-                    '_sampling_priority_v1' => 1.0,
-                ])
+                ])->samplingPriority(1)
         ]);
     }
 
@@ -318,11 +307,9 @@ class SQLSRVTest extends IntegrationTestCase
                 ->setError(
                     'SQLSRV error',
                     self::getArchitecture() === 'x86_64' ? SQLSRVTest::ERROR_QUERY_17 : SQLSRVTest::ERROR_QUERY_18
-                )->withExactTags(self::baseTags($query))
-                ->withExactMetrics([
+                )->withExactAttributes(self::baseTags($query), [
                     '_dd.agent_psr' => 1.0,
-                    '_sampling_priority_v1' => 1.0,
-                ])
+                ])->samplingPriority(1)
         ]);
     }
 
@@ -345,11 +332,9 @@ class SQLSRVTest extends IntegrationTestCase
                 ->setError(
                     'SQLSRV error',
                     self::getArchitecture() === 'x86_64' ? SQLSRVTest::ERROR_QUERY_17 : SQLSRVTest::ERROR_QUERY_18
-                )->withExactTags(self::baseTags($query, true))
-                ->withExactMetrics([
+                )->withExactAttributes(self::baseTags($query, true), [
                     '_dd.agent_psr' => 1.0,
-                    '_sampling_priority_v1' => 1.0,
-                ])
+                ])->samplingPriority(1)
         ]);
     }
 
@@ -370,7 +355,7 @@ class SQLSRVTest extends IntegrationTestCase
         });
 
         // Get the raw spans
-        $spans = $traces[0];
+        $spans = (new SpanChecker())->flattenTraces($traces);
 
         // Find prepare and execute spans
         $connectSpan = null;
@@ -461,7 +446,7 @@ class SQLSRVTest extends IntegrationTestCase
                 ->setError(
                     'SQLSRV error',
                     self::getArchitecture() === 'x86_64' ? SQLSRVTest::ERROR_QUERY_17 : SQLSRVTest::ERROR_QUERY_18
-                )->withExactTags(self::baseTags($query)),
+                )->withExactAttributes(self::baseTags($query)),
             SpanAssertion::exists('sqlsrv_commit')
         ]);
     }
@@ -521,14 +506,12 @@ class SQLSRVTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('sqlsrv_connect'),
             SpanAssertion::build('sqlsrv_prepare', 'sqlsrv', 'sql', $query)
-                ->withExactTags(self::baseTags($query)),
+                ->withExactAttributes(self::baseTags($query)),
             SpanAssertion::build('sqlsrv_execute', 'sqlsrv', 'sql', $query)
-                ->withExactTags(self::baseTags($query))
-                ->withExactMetrics([
-                    Tag::DB_ROW_COUNT => 1.0,
+                ->withExactAttributes(self::baseTags($query), [
+                    Tag::DB_ROW_COUNT => 1,
                     '_dd.agent_psr' => 1.0,
-                    '_sampling_priority_v1' => 1.0,
-                ])
+                ])->samplingPriority(1)
         ], true, false);
     }
 
@@ -549,13 +532,20 @@ class SQLSRVTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('sqlsrv_connect'),
             SpanAssertion::build('sqlsrv_query', 'configured_service', 'sql', $query)
-                ->withExactTags(self::baseTags($query, false, null))
-                ->withExactMetrics([
-                    Tag::DB_ROW_COUNT => 1.0,
+                ->withExactAttributes(self::baseTags($query, false, null), [
+                    Tag::DB_ROW_COUNT => 1,
                     '_dd.agent_psr' => 1.0,
-                    '_sampling_priority_v1' => 1.0,
-                ])
+                ])->samplingPriority(1)
         ]);
+    }
+
+    public function testConnectionMetadataPort()
+    {
+        $withoutPort = SQLSRVIntegration::extractConnectionMetadata(['host\\inst', []]);
+        $this->assertArrayNotHasKey(Tag::TARGET_PORT, $withoutPort);
+
+        $withPort = SQLSRVIntegration::extractConnectionMetadata(['host, 1433', []]);
+        $this->assertSame(1433, $withPort[Tag::TARGET_PORT]);
     }
 
     private function createConnection()

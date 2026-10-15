@@ -24,7 +24,7 @@ ZEND_EXTERN_MODULE_GLOBALS(datadog);
 static const char *ddtrace_root_tag_value(const void *ctx, const char *key, uintptr_t key_len, uintptr_t *out_len) {
     ddtrace_span_data *root = (ddtrace_span_data *)ctx;
 
-    // Check well-known span struct properties first (not in meta).
+    // Check well-known span struct properties first (not in attributes).
 #define CHECK_PROP(name_lit, prop)                                              \
     if (key_len == sizeof(name_lit) - 1                                         \
         && memcmp(key, name_lit, sizeof(name_lit) - 1) == 0) {                  \
@@ -43,6 +43,23 @@ static const char *ddtrace_root_tag_value(const void *ctx, const char *key, uint
     CHECK_PROP("service",  property_service)
     CHECK_PROP("resource", property_resource)
 #undef CHECK_PROP
+
+    // The component and span.kind tags are properties too, when set.
+    if (key_len == sizeof("component") - 1 && memcmp(key, "component", sizeof("component") - 1) == 0) {
+        zval *component = &root->property_component;
+        ZVAL_DEREF(component);
+        if (Z_TYPE_P(component) == IS_STRING && Z_STRLEN_P(component)) {
+            *out_len = Z_STRLEN_P(component);
+            return Z_STRVAL_P(component);
+        }
+    }
+    if (key_len == sizeof("span.kind") - 1 && memcmp(key, "span.kind", sizeof("span.kind") - 1) == 0) {
+        const char *kind = ddtrace_span_kind_str(zval_get_long(&root->property_span_kind));
+        if (kind) {
+            *out_len = strlen(kind);
+            return kind;
+        }
+    }
 
     // Attributes: string tags as-is, numbers as stringified floats, bools as on the v0.4 wire.
     zval *attr = zend_hash_str_find(ddtrace_property_array(&root->property_attributes), key, key_len);
@@ -67,7 +84,6 @@ static const char *ddtrace_root_tag_value(const void *ctx, const char *key, uint
             }
         }
     }
-
 
     // Meta struct: key-presence only (value is unrepresentable as a string).
     zend_array *meta_struct = ddtrace_property_array(&root->property_meta_struct);

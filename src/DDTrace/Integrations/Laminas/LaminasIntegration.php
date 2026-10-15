@@ -6,6 +6,7 @@ use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
 use DDTrace\Integrations\Logs\LogsIntegration;
 use DDTrace\SpanData;
+use DDTrace\SpanKind;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\Normalizer;
@@ -175,10 +176,10 @@ class LaminasIntegration extends Integration
 
                 $rootSpan = root_span();
                 $rootSpan->name = 'laminas.request';
-                $rootSpan->service = \ddtrace_config_app_name('laminas');
+                $rootSpan->service = \dd_trace_env_config('DD_SERVICE') ?: 'laminas';
                 Integration::tagFrameworkServiceSource($rootSpan, 'laminas');
-                $rootSpan->attributes[Tag::SPAN_KIND] = 'server';
-                $rootSpan->meta[Tag::COMPONENT] = self::NAME;
+                $rootSpan->spanKind = SpanKind::SERVER;
+                $rootSpan->component = self::NAME;
             }
         );
 
@@ -217,7 +218,7 @@ class LaminasIntegration extends Integration
             'run',
             [
                 'prehook' => static function (SpanData $span) {
-                    $service = \ddtrace_config_app_name('laminas');
+                    $service = \dd_trace_env_config('DD_SERVICE') ?: 'laminas';
                     $span->name = 'laminas.application.run';
                     $span->type = Type::WEB_SERVLET;
                     Integration::setComponentMetadata($span, 'laminas', $service);
@@ -232,14 +233,14 @@ class LaminasIntegration extends Integration
             function (SpanData $span, $args, $retval) {
                 $span->name = 'laminas.route.match';
                 $span->resource = \get_class($this) . '@match';
-                $span->meta[Tag::COMPONENT] = 'laminas';
+                $span->component = 'laminas';
 
                 /** @var RequestInterface $request */
                 $request = $args[0];
 
                 $rootSpan = root_span();
                 $rootSpan->attributes[Tag::HTTP_METHOD] = $request->getMethod();
-                $rootSpan->meta[Tag::HTTP_VERSION] = $request->getVersion();
+                $rootSpan->attributes[Tag::HTTP_VERSION] = $request->getVersion();
                 $rootSpan->attributes[Tag::HTTP_URL] = Normalizer::urlSanitize($request->getUriString());
 
                 $routeMatch = $retval;
@@ -260,7 +261,7 @@ class LaminasIntegration extends Integration
                         static function (SpanData $span) use ($controller, $action) {
                             $span->name = 'laminas.controller.action';
                             $span->resource = "$controller@{$action}Action";
-                            $span->meta[Tag::COMPONENT] = 'laminas';
+                            $span->component = 'laminas';
                         }
                     );
                 }
@@ -268,8 +269,8 @@ class LaminasIntegration extends Integration
                 if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
                     $rootSpan->resource = "$controller@$action $routeName";
                 }
-                $rootSpan->meta['laminas.route.name'] = $routeName;
-                $rootSpan->meta['laminas.route.action'] = "$controller@$action";
+                $rootSpan->attributes['laminas.route.name'] = $routeName;
+                $rootSpan->attributes['laminas.route.action'] = "$controller@$action";
 
                 $isTopLevelRouterMatch = $this instanceof \Laminas\Router\Http\TreeRouteStack
                     && !($this instanceof \Laminas\Router\Http\Part);
@@ -281,7 +282,7 @@ class LaminasIntegration extends Integration
                 ) {
                     $httpRoute = LaminasIntegration::httpRouteTemplateFromNamedRouteStack($this, (string) $routeName);
                     if ($httpRoute !== null && $httpRoute !== '') {
-                        $rootSpan->meta[Tag::HTTP_ROUTE] = $httpRoute;
+                        $rootSpan->attributes[Tag::HTTP_ROUTE] = $httpRoute;
                     }
                 }
 
@@ -354,7 +355,7 @@ class LaminasIntegration extends Integration
             function (SpanData $span) {
                 $span->name = 'laminas.controller.dispatch';
                 $span->resource = \get_class($this);
-                $span->meta[Tag::COMPONENT] = 'laminas';
+                $span->component = 'laminas';
             }
         );
 
@@ -384,10 +385,10 @@ class LaminasIntegration extends Integration
             'completeRequest',
             static function (SpanData $span, $args) {
                 $span->name = 'laminas.application.completeRequest';
-                $span->service = \ddtrace_config_app_name('laminas');
+                $span->service = \dd_trace_env_config('DD_SERVICE') ?: 'laminas';
                 Integration::tagFrameworkServiceSource($span, 'laminas');
                 $span->type = Type::WEB_SERVLET;
-                $span->meta[Tag::COMPONENT] = 'laminas';
+                $span->component = 'laminas';
 
                 /** @var MvcEvent $event */
                 $event = $args[0];
@@ -407,10 +408,10 @@ class LaminasIntegration extends Integration
             [
                 'prehook' => static function (SpanData $span, $args) {
                     $span->name = 'laminas.templating.render';
-                    $span->service = \ddtrace_config_app_name('laminas');
+                    $span->service = \dd_trace_env_config('DD_SERVICE') ?: 'laminas';
                     Integration::tagFrameworkServiceSource($span, 'laminas');
                     $span->type = Type::WEB_SERVLET;
-                    $span->meta[Tag::COMPONENT] = 'laminas';
+                    $span->component = 'laminas';
 
                     $nameOrModel = $args[0];
                     if (is_string($nameOrModel)) {
@@ -428,10 +429,10 @@ class LaminasIntegration extends Integration
             'render',
             static function (SpanData $span) {
                 $span->name = 'laminas.view.render';
-                $span->service = \ddtrace_config_app_name('laminas');
+                $span->service = \dd_trace_env_config('DD_SERVICE') ?: 'laminas';
                 Integration::tagFrameworkServiceSource($span, 'laminas');
                 $span->type = Type::WEB_SERVLET;
-                $span->meta[Tag::COMPONENT] = 'laminas';
+                $span->component = 'laminas';
             }
         );
 
@@ -440,10 +441,10 @@ class LaminasIntegration extends Integration
             'serialize',
             function (SpanData $span) {
                 $span->name = 'laminas.view.model.serialize';
-                $span->service = \ddtrace_config_app_name('laminas');
+                $span->service = \dd_trace_env_config('DD_SERVICE') ?: 'laminas';
                 Integration::tagFrameworkServiceSource($span, 'laminas');
                 $span->resource = \get_class($this);
-                $span->meta[Tag::COMPONENT] = 'laminas';
+                $span->component = 'laminas';
             }
         );
 
@@ -452,11 +453,11 @@ class LaminasIntegration extends Integration
             'render',
             function (SpanData $span, $args) {
                 $span->name = 'laminas.view.http.renderer';
-                $span->service = \ddtrace_config_app_name('laminas');
+                $span->service = \dd_trace_env_config('DD_SERVICE') ?: 'laminas';
                 Integration::tagFrameworkServiceSource($span, 'laminas');
                 $span->type = Type::WEB_SERVLET;
                 $span->resource = \get_class($this) . '@render';
-                $span->meta[Tag::COMPONENT] = 'laminas';
+                $span->component = 'laminas';
 
                 /** @var MvcEvent $event */
                 $event = $args[0];
@@ -473,11 +474,11 @@ class LaminasIntegration extends Integration
             'render',
             function (SpanData $span, $args) {
                 $span->name = 'laminas.view.console.renderer';
-                $span->service = \ddtrace_config_app_name('laminas');
+                $span->service = \dd_trace_env_config('DD_SERVICE') ?: 'laminas';
                 Integration::tagFrameworkServiceSource($span, 'laminas');
                 $span->type = Type::WEB_SERVLET;
                 $span->resource = \get_class($this) . '@render';
-                $span->meta[Tag::COMPONENT] = 'laminas';
+                $span->component = 'laminas';
 
                 /** @var MvcEvent $event */
                 $event = $args[0];
@@ -495,10 +496,10 @@ class LaminasIntegration extends Integration
             'setError',
             static function (SpanData $span, $args, $retval) {
                 $span->name = 'laminas.mvcEvent.setError';
-                $span->service = \ddtrace_config_app_name('laminas');
+                $span->service = \dd_trace_env_config('DD_SERVICE') ?: 'laminas';
                 Integration::tagFrameworkServiceSource($span, 'laminas');
                 $span->type = Type::WEB_SERVLET;
-                $span->meta[Tag::COMPONENT] = 'laminas';
+                $span->component = 'laminas';
 
                 /** @var MvcEvent $event */
                 $event = $retval;
@@ -522,10 +523,10 @@ class LaminasIntegration extends Integration
             'get',
             static function (SpanData $span, $args) {
                 $span->name = 'laminas.controller.pluginManager.get';
-                $span->service = \ddtrace_config_app_name('laminas');
+                $span->service = \dd_trace_env_config('DD_SERVICE') ?: 'laminas';
                 Integration::tagFrameworkServiceSource($span, 'laminas');
                 $span->resource = $args[0];
-                $span->meta[Tag::COMPONENT] = 'laminas';
+                $span->component = 'laminas';
             }
         );
 
@@ -563,8 +564,8 @@ class LaminasIntegration extends Integration
                 $routeName = $event->getRouteMatch()->getMatchedRouteName();
 
                 $rootSpan->resource = "$controller@$eventName $routeName";
-                $rootSpan->meta['laminas.route.name'] = $routeName;
-                $rootSpan->meta['laminas.route.action'] = $controller . '@' . $eventName;
+                $rootSpan->attributes['laminas.route.name'] = $routeName;
+                $rootSpan->attributes['laminas.route.action'] = $controller . '@' . $eventName;
 
                 if (isset($eventName, self::$EVENT_TYPES)) {
                     install_hook(
@@ -573,7 +574,7 @@ class LaminasIntegration extends Integration
                             $span = $hook->span();
                             $span->name = 'laminas.controller.action';
                             $span->resource = "$controller@$eventName";
-                            $span->meta[Tag::COMPONENT] = 'laminas';
+                            $span->component = 'laminas';
                             remove_hook($hook->id);
                         }
                     );
@@ -602,9 +603,9 @@ class LaminasIntegration extends Integration
                     ObjectKVStore::put($hook->instance, 'backtrace', $backtrace);
 
                     if ($activeSpan !== null && !Integration::hasTag($activeSpan, Tag::ERROR_TYPE)) {
-                        $activeSpan->meta[Tag::ERROR_TYPE] = 'ApiProblem';
-                        $activeSpan->meta[Tag::ERROR_MSG] = $detail;
-                        $activeSpan->meta[Tag::ERROR_STACK] = $backtrace;
+                        $activeSpan->attributes[Tag::ERROR_TYPE] = 'ApiProblem';
+                        $activeSpan->attributes[Tag::ERROR_MSG] = $detail;
+                        $activeSpan->attributes[Tag::ERROR_STACK] = $backtrace;
                     }
                 } // There shouldn't be any other case, per the ApiProblem spec
             }
@@ -635,12 +636,12 @@ class LaminasIntegration extends Integration
                         $rootSpan->exception = $detail;
                     } elseif (is_string($detail)) {
                         $title = $apiProblem->title; // __get
-                        $rootSpan->meta[Tag::ERROR_TYPE] = $title ?: 'ApiProblem';
-                        $rootSpan->meta[Tag::ERROR_MSG] = $detail;
+                        $rootSpan->attributes[Tag::ERROR_TYPE] = $title ?: 'ApiProblem';
+                        $rootSpan->attributes[Tag::ERROR_MSG] = $detail;
 
                         $backtrace = ObjectKVStore::get($apiProblem, 'backtrace');
                         if ($backtrace !== null) {
-                            $rootSpan->meta[Tag::ERROR_STACK] = $backtrace;
+                            $rootSpan->attributes[Tag::ERROR_STACK] = $backtrace;
                         }
                     } // There shouldn't be any other case, per the ApiProblem spec
                 }

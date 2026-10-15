@@ -22,7 +22,7 @@ DD_TRACE_DEBUG_PRNG_SEED=42
 <?php
 DDTrace\start_span();
 DDTrace\close_span();
-$spans = dd_trace_serialize_closed_spans();
+$spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
 
 // The PHP service-entry span has a parent_id pointing to the inferred span;
 // the inferred span itself has no parent_id (it is the trace root).

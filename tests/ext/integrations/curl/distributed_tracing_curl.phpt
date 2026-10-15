@@ -42,7 +42,7 @@ dt_dump_headers_from_httpbin($headers, [
     'tracestate',
 ]);
 
-$spans = dd_trace_serialize_closed_spans();
+$spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
 var_dump($headers['x-datadog-parent-id'] === (string) $spans[0]['span_id']);
 // @: span ids above PHP_INT_MAX make hexdec() emit a precision-loss Notice on 8.6+
 var_dump(abs(@hexdec($headers['x-b3-spanid']) - $spans[0]['span_id']) < (1 << 13));

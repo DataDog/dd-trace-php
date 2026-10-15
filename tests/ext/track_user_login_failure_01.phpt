@@ -14,7 +14,7 @@ var_dump($root->meta);
 
 ?>
 --EXPECTF--
-array(7) {
+array(10) {
   ["runtime-id"]=>
   string(%d) %s
   ["appsec.events.users.login.failure.usr.login"]=>
@@ -29,4 +29,10 @@ array(7) {
   string(%d) "metavalue"
   ["appsec.events.users.login.failure.metakey2"]=>
   string(%d) "metavalue02"
+  ["service.name"]=>
+  string(31) "track_user_login_failure_01.php"
+  ["operation.name"]=>
+  string(31) "track_user_login_failure_01.php"
+  ["span.type"]=>
+  string(3) "cli"
 }

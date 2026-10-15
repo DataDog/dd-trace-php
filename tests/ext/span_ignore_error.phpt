@@ -19,7 +19,7 @@ function run($label, $ignore) {
     $root->exception = $e;
     $ignore($root);
     \DDTrace\close_span();
-    foreach (dd_trace_serialize_closed_spans() as $span) {
+    foreach (dd_trace_serialize_closed_spans()['chunks'][0]['spans'] as $span) {
         $attrs = isset($span['attributes']) ? $span['attributes'] : [];
         $errorTags = array_filter(array_keys($attrs), function ($k) { return strpos($k, 'error') === 0; });
         sort($errorTags);
@@ -35,7 +35,7 @@ run('property', function ($root) { $root->ignoreError = true; });
 run('deprecated tag', function ($root) { $root->meta['error.ignored'] = 1; });
 run('deprecated falsy tag cannot unset the property', function ($root) { $root->ignoreError = true; $root->meta['error.ignored'] = 0; });
 run('deprecated falsy tag alone', function ($root) { $root->meta['error.ignored'] = 0; });
-run('falsy attributes tag does not mask a truthy meta tag', function ($root) { $root->attributes['error.ignored'] = 0; $root->meta['error.ignored'] = 1; });
+run('an error.ignored attribute is a plain attribute', function ($root) { $root->attributes['error.ignored'] = true; });
 ?>
 --EXPECT--
 bool(false)
@@ -59,7 +59,7 @@ deprecated falsy tag alone
   root: error=1 error tags=[error.message,error.stack,error.type] track_error=-
   child: error=1 error tags=[error.message,error.stack,error.type] track_error=-
   root ignoreError after flush: false
-falsy attributes tag does not mask a truthy meta tag
-  root: error=0 error tags=[] track_error=-
-  child: error=1 error tags=[error.message,error.stack,error.type] track_error=false
-  root ignoreError after flush: true
+an error.ignored attribute is a plain attribute
+  root: error=1 error tags=[error.ignored,error.message,error.stack,error.type] track_error=-
+  child: error=1 error tags=[error.message,error.stack,error.type] track_error=-
+  root ignoreError after flush: false

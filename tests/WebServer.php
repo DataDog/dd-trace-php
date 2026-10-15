@@ -120,12 +120,6 @@ final class WebServer
         $this->ddprofServiceName = $ddprofServiceName;
     }
 
-    // SAPI name of the default web server, which the tracer reports as the root span's default component.
-    public static function defaultSapiName()
-    {
-        return \getenv('DD_TRACE_TEST_SAPI') ?: 'cli-server';
-    }
-
     public function setRoadrunner($version)
     {
         $this->roadrunnerVersion = $version;

@@ -73,7 +73,7 @@ $s2->name = 's2';
 $s2->meta['team'] = 'b';
 \DDTrace\close_span();
 \DDTrace\close_span();
-foreach (dd_trace_serialize_closed_spans() as $serialized) {
+foreach (dd_trace_serialize_closed_spans()['chunks'][0]['spans'] as $serialized) {
     if (in_array($serialized['name'], ['s1', 's2'])) {
         echo $serialized['name'], ': team=', $serialized['attributes']['team'] ?? 'unset', ' region=', $serialized['attributes']['region'], "\n";
     }
@@ -116,17 +116,23 @@ array(3) {
   string(0) ""
 }
 -- whole-array assignment replaces the bucket
-array(1) {
+array(3) {
   ["only"]=>
   string(4) "this"
+  ["service.name"]=>
+  string(23) "span_data_meta_view.php"
+  ["span.type"]=>
+  string(3) "cli"
 }
 float(3)
 bool(false)
 -- iteration and the view object
 only=this
 k2=v2
+service.name=span_data_meta_view.php
+span.type=cli
 string(20) "DDTrace\SpanTagsView"
-int(2)
+int(4)
 bool(true)
 bool(true)
 bool(true)

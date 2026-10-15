@@ -1,7 +1,7 @@
 <?php
 
 $rootSpan = \DDTrace\root_span();
-$rootSpan->meta["http.route"] = $_GET["route"] ?: "/foo/bar";
+$rootSpan->attributes["http.route"] = $_GET["route"] ?: "/foo/bar";
 
 header("Content-Type: application/json");
 

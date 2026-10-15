@@ -103,7 +103,7 @@ class SpanProcessorTest extends BaseTestCase
             $span->end();
         });
 
-        $span = $traces[0][0];
+        $span = $traces[0]['spans'][0];
         $this->assertSame('overwritten', $span['resource']);
     }
 

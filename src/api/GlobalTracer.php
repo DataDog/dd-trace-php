@@ -9,8 +9,8 @@ namespace DDTrace;
 
 use DDTrace\Contracts\Tracer as TracerInterface;
 
-/*
- * @deprecated This class is deprecated, you should use the Otel or the extension API instead.
+/**
+ * @deprecated This class is deprecated, you should use the OpenTelemetry or the extension API instead.
  */
 final class GlobalTracer
 {

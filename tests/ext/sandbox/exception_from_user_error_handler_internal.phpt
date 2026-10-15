@@ -17,7 +17,7 @@ DDTrace\trace_function('chmod', function() {});
 try {
     var_dump(chmod('php://foo', 0644));
 } catch (Exception $e) {
-    $spans = dd_trace_serialize_closed_spans();
+    $spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
     echo 'Spans count: ' . count($spans) . PHP_EOL;
 
     $span = $spans[0];

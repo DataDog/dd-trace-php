@@ -23,11 +23,7 @@ var_dump(dd_clean_spans());
 --EXPECTF--
 array(1) {
   [0]=>
-  array(11) {
-    ["trace_id"]=>
-    string(%d) "%d"
-    ["trace_id_high"]=>
-    string(16) "%s"
+  array(9) {
     ["span_id"]=>
     string(%d) "%d"
     ["parent_id"]=>

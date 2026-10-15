@@ -14,7 +14,7 @@ METHOD=POST
 <?php
 DDTrace\start_span();
 DDTrace\close_span();
-$spans = dd_trace_serialize_closed_spans();
+$spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
 $postKeys = array_filter(array_keys($spans[0]['attributes']), function ($key) {
     return strpos($key, 'http.request.post') === 0;
 });

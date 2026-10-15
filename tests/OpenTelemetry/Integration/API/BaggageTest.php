@@ -6,6 +6,7 @@ use DDTrace\Tag;
 use DDTrace\Tests\Common\BaseTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
 use DDTrace\Tests\Common\SpanAssertionTrait;
+use DDTrace\Tests\Common\SpanChecker;
 use DDTrace\Tests\Common\TracerTestTrait;
 use OpenTelemetry\API\Baggage\Baggage;
 use OpenTelemetry\API\Baggage\Propagation\BaggagePropagator;
@@ -92,7 +93,7 @@ final class BaggageTest extends BaseTestCase
             $parentSpan->end();
         });
 
-        list($parent, $child) = $traces[0];
+        list($parent, $child) = (new SpanChecker())->flattenTraces($traces);
         $this->assertSame(2, $parent['span_kind']); // span_kind enum: Server=2
         $this->assertSame('GET', $parent['attributes']['http.method']);
         $this->assertSame('/parent', $parent['attributes']['http.uri']);

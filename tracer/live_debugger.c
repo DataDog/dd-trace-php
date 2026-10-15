@@ -544,7 +544,7 @@ static void dd_span_decoration_apply(dd_probe_def *def, zend_execute_data *execu
     if (def->probe.probe.span_decoration.target == DDOG_SPAN_PROBE_TARGET_ROOT) {
         span = &span->stack->root_span->span;
     }
-    zend_array *meta = ddtrace_property_array(&span->property_attributes);
+    zend_array *attributes = ddtrace_property_array(&span->property_attributes);
 
     bool condition_result = true;
     const ddog_ProbeCondition *const *condition = def->probe.probe.span_decoration.conditions;
@@ -567,11 +567,11 @@ static void dd_span_decoration_apply(dd_probe_def *def, zend_execute_data *execu
             ddog_Vec_SnapshotEvaluationError *error;
             ddog_CaptureConfiguration config_defaults = ddog_capture_defaults();
             ZVAL_STR(&zv, dd_eval_string(spanTag->tag.value, &config_defaults, execute_data, retval, &error));
-            zend_hash_str_update(meta, spanTag->tag.name.ptr, spanTag->tag.name.len, &zv);
+            zend_hash_str_update(attributes, spanTag->tag.name.ptr, spanTag->tag.name.len, &zv);
 
             zend_string *tag = zend_strpprintf(0, "_dd.di.%.*s.probe_id", (int)spanTag->tag.name.len, spanTag->tag.name.ptr);
             ZVAL_STR_COPY(&zv, def->probe_id);
-            zend_hash_update(meta, tag, &zv);
+            zend_hash_update(attributes, tag, &zv);
             zend_string_release(tag);
 
             if (error) {
@@ -579,7 +579,7 @@ static void dd_span_decoration_apply(dd_probe_def *def, zend_execute_data *execu
 
                 tag = zend_strpprintf(0, "_dd.di.%.*s.evaluation_error", (int)spanTag->tag.name.len, spanTag->tag.name.ptr);
                 ZVAL_STR(&zv, dd_CharSlice_to_zend_string(msg));
-                zend_hash_update(meta, tag, &zv);
+                zend_hash_update(attributes, tag, &zv);
                 zend_string_release(tag);
 
                 ddog_evaluation_error_drop(error);

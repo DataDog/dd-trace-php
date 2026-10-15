@@ -33,7 +33,7 @@ class Tracer
             if (strlen($valuesString) > 0) {
                 $valuesStrings[] = $valuesString;
             }
-        }, dd_trace_serialize_closed_spans());
+        }, dd_trace_serialize_closed_spans()['chunks'][0]['spans']);
 
         // Reporting
         $output = '[ddtrace] [info] Flushing tracer...' . PHP_EOL;

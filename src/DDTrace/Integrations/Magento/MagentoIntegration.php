@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\Magento;
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
+use DDTrace\SpanKind;
 use DDTrace\Tag;
 use DDTrace\Type;
 use Magento\Framework\Interception\InterceptorInterface;
@@ -35,8 +36,8 @@ class MagentoIntegration extends Integration
     {
         $span->name = $name;
         $span->type = Type::WEB_SERVLET;
-        $span->service = \ddtrace_config_app_name('magento');
-        $span->meta[Tag::COMPONENT] = 'magento';
+        $span->service = \dd_trace_env_config('DD_SERVICE') ?: 'magento';
+        $span->component = 'magento';
         $span->resource = $resource ?? $span->resource;
     }
 
@@ -73,13 +74,13 @@ class MagentoIntegration extends Integration
                 self::setCommonSpanInfo($span, 'magento.area.get');
 
                 $frontName = $args[0];
-                $span->meta['magento.area'] = root_span()->meta['magento.area'] = $area;
+                $span->attributes['magento.area'] = root_span()->attributes['magento.area'] = $area;
 
                 if (empty($frontName)) {
                     $span->resource = $area;
                 } else {
                     $span->resource = "$frontName:$area";
-                    $span->meta['magento.frontname'] = $frontName;
+                    $span->attributes['magento.frontname'] = $frontName;
                 }
             }
         );
@@ -92,11 +93,11 @@ class MagentoIntegration extends Integration
             static function ($staticResource, $scope, $args, $retval) {
                 $rootSpan = root_span();
                 if ($rootSpan !== null) {
-                    $rootSpan->meta['magento.static.path'] = $args[0];
-                    $rootSpan->meta['magento.static.area'] = $retval['area'];
-                    $rootSpan->meta['magento.static.theme'] = $retval['theme'];
-                    $rootSpan->meta['magento.static.locale'] = $retval['locale'];
-                    $rootSpan->meta['magento.static.file'] = $retval['file'];
+                    $rootSpan->attributes['magento.static.path'] = $args[0];
+                    $rootSpan->attributes['magento.static.area'] = $retval['area'];
+                    $rootSpan->attributes['magento.static.theme'] = $retval['theme'];
+                    $rootSpan->attributes['magento.static.locale'] = $retval['locale'];
+                    $rootSpan->attributes['magento.static.file'] = $retval['file'];
                 }
             }
         );
@@ -108,7 +109,7 @@ class MagentoIntegration extends Integration
             static function ($media, $scope, $args) {
                 $rootSpan = root_span();
                 if ($rootSpan !== null) {
-                    $rootSpan->meta['magento.media.file'] = $args[6];
+                    $rootSpan->attributes['magento.media.file'] = $args[6];
                 }
             }
         );
@@ -119,7 +120,7 @@ class MagentoIntegration extends Integration
             static function (SpanData $span, $args) {
                 $originalImageName = $args[0];
                 self::setCommonSpanInfo($span, 'magento.media.resize', $originalImageName);
-                root_span()->meta['magento.media.name'] = $originalImageName;
+                root_span()->attributes['magento.media.name'] = $originalImageName;
             }
         );
 
@@ -129,7 +130,7 @@ class MagentoIntegration extends Integration
             'find',
             static function (SpanData $span, $args) {
                 self::setCommonSpanInfo($span, 'magento.console.find', $args[0]);
-                $span->meta['magento.console.command'] = root_span()->resource = $args[0];
+                $span->attributes['magento.console.command'] = root_span()->resource = $args[0];
             }
         );
 
@@ -140,15 +141,15 @@ class MagentoIntegration extends Integration
                 self::setCommonSpanInfo($span, 'magento.cron.run');
 
                 // _runJob($scheduledTime, $currentTime, $jobConfig, $schedule, $groupId)
-                $span->meta['magento.cron.scheduled_time'] = $args[0];
-                $span->meta['magento.cron.current_time'] = $args[1];
-                $span->meta['magento.cron.group_id'] = $args[4];
+                $span->attributes['magento.cron.scheduled_time'] = $args[0];
+                $span->attributes['magento.cron.current_time'] = $args[1];
+                $span->attributes['magento.cron.group_id'] = $args[4];
 
                 $jobConfig = $args[2];
                 if (isset($jobConfig['instance'], $jobConfig['method'])) {
                     $span->resource = $jobConfig['instance'] . '::' . $jobConfig['method'];
-                    $span->meta['magento.cron.class'] = $jobConfig['instance'];
-                    $span->meta['magento.cron.method'] = $jobConfig['method'];
+                    $span->attributes['magento.cron.class'] = $jobConfig['instance'];
+                    $span->attributes['magento.cron.method'] = $jobConfig['method'];
                 }
             }
         );
@@ -171,10 +172,10 @@ class MagentoIntegration extends Integration
 
                 $rootSpan = root_span();
                 MagentoIntegration::setCommonSpanInfo($rootSpan, 'magento.request', $resource);
-                $rootSpan->attributes[Tag::SPAN_KIND] = 'server';
+                $rootSpan->spanKind = SpanKind::SERVER;
 
-                if (!$fullPageCached && isset($rootSpan->meta['magento.pathinfo'])) {
-                    $rootSpan->resource = $rootSpan->meta['magento.pathinfo'];
+                if (!$fullPageCached && isset($rootSpan->attributes['magento.pathinfo'])) {
+                    $rootSpan->resource = $rootSpan->attributes['magento.pathinfo'];
                 }
             }
         );
@@ -193,7 +194,7 @@ class MagentoIntegration extends Integration
 
                 $rootSpan = root_span();
                 $fullActionName = $request->getFullActionName('/');
-                $span->resource = $rootSpan->meta['magento.pathinfo'] = $fullActionName;
+                $span->resource = $rootSpan->attributes['magento.pathinfo'] = $fullActionName;
 
                 $isViewRequest = $retval // If an exception is thrown, retval will be null and get_class will fail
                     ? self::getRealClass($retval) === 'Magento\Framework\View\Result\Page'
@@ -202,11 +203,11 @@ class MagentoIntegration extends Integration
                     $rootSpan->resource = $fullActionName;
                 }
 
-                $span->meta['magento.module'] = $request->getModuleName();
-                $span->meta['magento.controller'] = $request->getControllerName();
-                $span->meta['magento.action'] = $request->getActionName();
-                $span->meta['magento.frontname'] = $rootSpan->meta['magento.frontname'] = $request->getFrontName();
-                $span->meta['magento.route'] = $rootSpan->meta['magento.route'] = $request->getRouteName();
+                $span->attributes['magento.module'] = $request->getModuleName();
+                $span->attributes['magento.controller'] = $request->getControllerName();
+                $span->attributes['magento.action'] = $request->getActionName();
+                $span->attributes['magento.frontname'] = $rootSpan->attributes['magento.frontname'] = $request->getFrontName();
+                $span->attributes['magento.route'] = $rootSpan->attributes['magento.route'] = $request->getRouteName();
             }
         );
 
@@ -226,8 +227,7 @@ class MagentoIntegration extends Integration
             static function ($kernel, $scope, $args, $retval) {
                 $rootSpan = root_span();
                 if ($rootSpan !== null) {
-                    $rootSpan->meta['magento.cached'] = $retval instanceof \Magento\Framework\App\Response\Http
-                        ? "true" : "false";
+                    $rootSpan->attributes['magento.cached'] = $retval instanceof \Magento\Framework\App\Response\Http;
                 }
             }
         );
@@ -291,22 +291,22 @@ class MagentoIntegration extends Integration
                 $meta = array_filter($meta, static function ($value) {
                     return $value !== null;
                 });
-                $span->meta = array_merge($span->meta, $meta);
+                $span->attributes = array_merge($span->attributes, $meta);
 
                 if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")
                     && $module !== null && $controller !== null && $action !== null
                 ) {
-                    $span->resource = root_span()->meta['magento.pathinfo'] = "$module/$controller/$action";
+                    $span->resource = root_span()->attributes['magento.pathinfo'] = "$module/$controller/$action";
                 }
 
                 if ($routeName !== null) {
-                    root_span()->meta['magento.route'] = $meta['magento.router.route'];
+                    root_span()->attributes['magento.route'] = $meta['magento.router.route'];
                 }
 
                 if (method_exists($request, 'getFrontName')) {
                     $frontName = $request->getFrontName();
                     if ($frontName !== null) {
-                        $span->meta['magento.router.frontname'] = root_span()->meta['magento.frontname'] = $frontName;
+                        $span->attributes['magento.router.frontname'] = root_span()->attributes['magento.frontname'] = $frontName;
                     }
                 }
             }
@@ -323,7 +323,7 @@ class MagentoIntegration extends Integration
                 );
 
                 if ($action) {
-                    $span->meta['magento.action'] = MagentoIntegration::getRealClass($action);
+                    $span->attributes['magento.action'] = MagentoIntegration::getRealClass($action);
                 }
             }
         );
@@ -340,11 +340,11 @@ class MagentoIntegration extends Integration
                 $pathInfo = $request->getPathInfo();
 
                 if ($alias !== null) {
-                    $span->meta['magento.urlrewrite.alias'] = $alias;
+                    $span->attributes['magento.urlrewrite.alias'] = $alias;
                 }
 
                 if ($pathInfo !== null) {
-                    $span->meta['magento.urlrewrite.path'] = $pathInfo;
+                    $span->attributes['magento.urlrewrite.path'] = $pathInfo;
                 }
             }
         );
@@ -358,8 +358,8 @@ class MagentoIntegration extends Integration
                 'prehook' => function (SpanData $span, $args) {
                     $span->name = 'magento.plugin.call';
                     $span->type = Type::WEB_SERVLET;
-                    $span->service = \ddtrace_config_app_name('magento');
-                    $span->meta[Tag::COMPONENT] = 'magento';
+                    $span->service = \dd_trace_env_config('DD_SERVICE') ?: 'magento';
+                    $span->component = 'magento';
 
                     $method = $args[0];
                     $span->resource = $method . ' (plugin)';
@@ -369,7 +369,7 @@ class MagentoIntegration extends Integration
 
                     $pluginList = ObjectManager::getInstance()->get(PluginListInterface::class);
                     $type = get_parent_class($this);
-                    $span->meta['magento.plugin.type'] = $type;
+                    $span->attributes['magento.plugin.type'] = $type;
                     $capMethod = ucfirst($method);
                     // Install hooks
                     if (isset($pluginInfo[\Magento\Framework\Interception\DefinitionInterface::LISTENER_BEFORE])) {
@@ -386,11 +386,11 @@ class MagentoIntegration extends Integration
                                         $span = $hook->span();
                                         $span->name = 'magento.plugin.before';
                                         $span->type = Type::WEB_SERVLET;
-                                        $span->service = \ddtrace_config_app_name('magento');
-                                        $span->meta[Tag::COMPONENT] = 'magento';
+                                        $span->service = \dd_trace_env_config('DD_SERVICE') ?: 'magento';
+                                        $span->component = 'magento';
                                         $span->resource = "$pluginInstance::$pluginMethod";
 
-                                        $span->meta['magento.plugin.code'] = $code;
+                                        $span->attributes['magento.plugin.code'] = $code;
 
                                         remove_hook($hook->id);
                                     }
@@ -416,11 +416,11 @@ class MagentoIntegration extends Integration
                                     $span = $hook->span();
                                     $span->name = 'magento.plugin.around';
                                     $span->type = Type::WEB_SERVLET;
-                                    $span->service = \ddtrace_config_app_name('magento');
-                                    $span->meta[Tag::COMPONENT] = 'magento';
+                                    $span->service = \dd_trace_env_config('DD_SERVICE') ?: 'magento';
+                                    $span->component = 'magento';
                                     $span->resource = "$pluginInstance::$pluginMethod";
 
-                                    $span->meta['magento.plugin.code'] = $code;
+                                    $span->attributes['magento.plugin.code'] = $code;
 
                                     remove_hook($hook->id);
                                 }
@@ -435,8 +435,8 @@ class MagentoIntegration extends Integration
                                 $span = $hook->span();
                                 $span->name = 'magento.plugin.original';
                                 $span->type = Type::WEB_SERVLET;
-                                $span->service = \ddtrace_config_app_name('magento');
-                                $span->meta[Tag::COMPONENT] = 'magento';
+                                $span->service = \dd_trace_env_config('DD_SERVICE') ?: 'magento';
+                                $span->component = 'magento';
                                 $span->resource = "$type::$method";
 
                                 remove_hook($hook->id);
@@ -461,11 +461,11 @@ class MagentoIntegration extends Integration
                                         $span = $hook->span();
                                         $span->name = 'magento.plugin.after';
                                         $span->type = Type::WEB_SERVLET;
-                                        $span->service = \ddtrace_config_app_name('magento');
-                                        $span->meta[Tag::COMPONENT] = 'magento';
+                                        $span->service = \dd_trace_env_config('DD_SERVICE') ?: 'magento';
+                                        $span->component = 'magento';
                                         $span->resource = "$pluginInstance::$pluginMethod";
 
-                                        $span->meta['magento.plugin.code'] = $code;
+                                        $span->attributes['magento.plugin.code'] = $code;
 
                                         remove_hook($hook->id);
                                     }
@@ -506,11 +506,11 @@ class MagentoIntegration extends Integration
                     $template = $this;
 
                     $templateFile = $template->getTemplate();
-                    $span->meta['magento.template'] = $span->resource = $templateFile;
+                    $span->attributes['magento.template'] = $span->resource = $templateFile;
 
                     $module = $template->getModuleName();
-                    $span->meta['magento.module'] = $module ?: substr($templateFile, 0, strpos($templateFile, '::'));
-                    $span->meta['magento.area'] = $template->getArea();
+                    $span->attributes['magento.module'] = $module ?: substr($templateFile, 0, strpos($templateFile, '::'));
+                    $span->attributes['magento.area'] = $template->getArea();
                 }
             ]
         );
@@ -523,7 +523,7 @@ class MagentoIntegration extends Integration
                 $imageId = $args[1];
 
                 self::setCommonSpanInfo($span, 'magento.image.get', $product->getName());
-                $span->meta['magento.image.id'] = $imageId;
+                $span->attributes['magento.image.id'] = $imageId;
             }
         );
 
@@ -554,10 +554,10 @@ class MagentoIntegration extends Integration
                 if ($block instanceof \Magento\Framework\View\Element\Template) {
                     $template = $block->getTemplate();
                     if ($template !== null) {
-                        $span->meta['magento.block.template'] = $template;
+                        $span->attributes['magento.block.template'] = $template;
                         $moduleName = $moduleName ?: substr($template, 0, strpos($template, '::'));
                     }
-                    $span->meta['magento.block.area'] = $block->getArea();
+                    $span->attributes['magento.block.area'] = $block->getArea();
                 }
 
                 $moduleName = empty($moduleName) ? '<core>' : $moduleName;
@@ -565,16 +565,16 @@ class MagentoIntegration extends Integration
                 $blockName = $block->getNameInLayout();
                 $span->resource = "{$moduleName}:{$blockName}";
 
-                $span->meta['magento.block.module'] = $moduleName;
-                $span->meta['magento.block.name'] = $blockName;
+                $span->attributes['magento.block.module'] = $moduleName;
+                $span->attributes['magento.block.name'] = $blockName;
 
                 $cacheLifetime = $block->getCacheLifetime();
                 if ($cacheLifetime !== null) {
-                    $span->meta['magento.block.cache_lifetime'] = $cacheLifetime;
+                    $span->attributes['magento.block.cache_lifetime'] = (int)$cacheLifetime;
                 }
 
                 $class = MagentoIntegration::getRealClass($block);
-                $span->meta['magento.block.class'] = $class;
+                $span->attributes['magento.block.class'] = $class;
 
                 // For Legacy, see Magento\Widget\Model\Widget\Instance::generateLayoutUpdateXml
                 if (strlen($blockName) === 32
@@ -635,7 +635,7 @@ class MagentoIntegration extends Integration
 
                     /** @var \Magento\Framework\Event\Observer $observer */
                     $observer = $args[0];
-                    $span->meta['magento.event.name'] = $observer->getEvent()->getName();
+                    $span->attributes['magento.event.name'] = $observer->getEvent()->getName();
                 } else {
                     // If this is an instance of \Magento\PageCache\Observer\ProcessLayoutRenderElement, then return false
                     // to prevent the original execute method from being traced.
@@ -653,15 +653,15 @@ class MagentoIntegration extends Integration
                 /** @var \Magento\Sales\Api\Data\OrderInterface $order */
                 $order = $args[0];
 
-                $span->meta['magento.order.item_count'] = $order->getTotalItemCount() ?? $order->getTotalQtyOrdered();
-                $span->meta['magento.order.customer_id'] = $order->getCustomerId();
-                $span->meta['magento.order.total'] = $order->getGrandTotal();
-                $span->meta['magento.order.total_base'] = $order->getBaseGrandTotal();
-                $span->meta['magento.order.id'] = $order->getRealOrderId();
-                $span->meta['magento.order.currency'] = $order->getOrderCurrencyCode();
+                $span->attributes['magento.order.item_count'] = $order->getTotalItemCount() ?? $order->getTotalQtyOrdered();
+                $span->attributes['magento.order.customer_id'] = $order->getCustomerId();
+                $span->attributes['magento.order.total'] = $order->getGrandTotal();
+                $span->attributes['magento.order.total_base'] = $order->getBaseGrandTotal();
+                $span->attributes['magento.order.id'] = $order->getRealOrderId();
+                $span->attributes['magento.order.currency'] = $order->getOrderCurrencyCode();
                 if (($address = $order->getShippingAddress()) !== null) {
-                    $span->meta['magento.order.shipping_city'] = $address->getCity();
-                    $span->meta['magento.order.shipping_country'] = $address->getCountryId();
+                    $span->attributes['magento.order.shipping_city'] = $address->getCity();
+                    $span->attributes['magento.order.shipping_country'] = $address->getCountryId();
                 }
 
                 $i = 0;
@@ -670,10 +670,10 @@ class MagentoIntegration extends Integration
                     // Indexes do not necessarily increment by 1 per item
                     // It depends on their initial cart position
                     if ($item->getPrice()) {
-                        $span->meta["magento.order.items.$i.sku"] = $item->getSku();
-                        $span->meta["magento.order.items.$i.name"] = $item->getName();
-                        $span->meta["magento.order.items.$i.price"] = $item->getPrice();
-                        $span->meta["magento.order.items.$i.qty"] = $item->getQtyOrdered();
+                        $span->attributes["magento.order.items.$i.sku"] = $item->getSku();
+                        $span->attributes["magento.order.items.$i.name"] = $item->getName();
+                        $span->attributes["magento.order.items.$i.price"] = $item->getPrice();
+                        $span->attributes["magento.order.items.$i.qty"] = $item->getQtyOrdered();
                     }
                     $i++;
                 }
@@ -689,8 +689,8 @@ class MagentoIntegration extends Integration
                 /** @var Magento\Sales\Model\Order $order */
                 $order = $args[0];
 
-                $span->meta['magento.email.address'] = $order->getCustomerEmail();;
-                $span->meta['magento.email.order_id'] = $order->getRealOrderId();
+                $span->attributes['magento.email.address'] = $order->getCustomerEmail();;
+                $span->attributes['magento.email.order_id'] = $order->getRealOrderId();
             }
         );
 

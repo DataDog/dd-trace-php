@@ -69,7 +69,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 '__construct'
-            )->withExactTags([Tag::COMPONENT => 'elasticsearch', '_dd.svc_src' => 'elasticsearch'])
+            )->withExactAttributes([Tag::COMPONENT => 'elasticsearch', '_dd.svc_src' => 'elasticsearch'])
         ]);
     }
 
@@ -86,7 +86,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 'count'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'elasticsearch',
                 '_dd.svc_src' => 'elasticsearch',
@@ -126,7 +126,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 'delete index:my_index7 type:my_type'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'elasticsearch',
                 '_dd.svc_src' => 'elasticsearch',
@@ -166,7 +166,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 'exists index:my_index7 type:my_type'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'elasticsearch',
                 '_dd.svc_src' => 'elasticsearch',
@@ -214,7 +214,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 'explain index:my_index7 type:my_type'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'elasticsearch',
                 '_dd.svc_src' => 'elasticsearch',
@@ -258,7 +258,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 'get index:my_index7 type:my_type'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'elasticsearch',
                 '_dd.svc_src' => 'elasticsearch',
@@ -294,7 +294,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 'index index:my_index7 type:my_type'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'elasticsearch',
                 '_dd.svc_src' => 'elasticsearch',
@@ -432,7 +432,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                     'elasticsearch',
                     'elasticsearch',
                     'scroll'
-                )->withExactTags([
+                )->withExactAttributes([
                     Tag::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'elasticsearch',
                     '_dd.svc_src' => 'elasticsearch',
@@ -447,7 +447,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                     'elasticsearch',
                     'elasticsearch',
                     'scroll'
-                )->withExactTags([
+                )->withExactAttributes([
                     Tag::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'elasticsearch',
                     '_dd.svc_src' => 'elasticsearch',
@@ -488,7 +488,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 'search index:' . 'my_index7'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'elasticsearch',
                 '_dd.svc_src' => 'elasticsearch',
@@ -538,7 +538,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                         'elasticsearch',
                         'elasticsearch',
                         'performRequest'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         'elasticsearch.url' => '/my_index7/_search',
                         'elasticsearch.method' => \PHP_VERSION_ID >= 70300 ? 'POST' : 'GET',
                         'elasticsearch.params' => '[]',
@@ -585,7 +585,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 'update index:my_index7 type:my_type'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'elasticsearch',
                 '_dd.svc_src' => 'elasticsearch',

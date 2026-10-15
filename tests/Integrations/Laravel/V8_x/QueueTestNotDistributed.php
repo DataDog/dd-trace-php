@@ -37,7 +37,7 @@ class QueueTestNotDistributed extends WebFrameworkTestCase
     {
         $retArr = [];
         foreach ($arr as $val) {
-            if (isset($val[0]['trace_id'])) {
+            if (isset($val['spans'])) {
                 $retArr[] = [$val];
             } else {
                 $retArr = array_merge($retArr, self::flattenArray($val));
@@ -134,7 +134,7 @@ class QueueTestNotDistributed extends WebFrameworkTestCase
             'laravel_queue_test',
             'queue',
             'App\Jobs\SendVerificationEmail@handle'
-        )->withExactTags(
+        )->withExactAttributes(
             $this->getCommonTags(null, $queue, $connection)
         );
     }
@@ -149,14 +149,14 @@ class QueueTestNotDistributed extends WebFrameworkTestCase
             'laravel_queue_test',
             'queue',
             $resourceDetails
-        )->withExactTags(
+        )->withExactAttributes(
             $this->getCommonTags('process', $queue, $connection)
         );
 
         if ($queue === 'sync') {
             return $span;
         } else {
-            return $span->withExistingTagsNames([
+            return $span->withExistingAttributeNames([
                 Tag::MQ_MESSAGE_ID
             ]);
         }
@@ -172,14 +172,14 @@ class QueueTestNotDistributed extends WebFrameworkTestCase
             'laravel_queue_test',
             'queue',
             $resourceDetails
-        )->withExactTags(
+        )->withExactAttributes(
             $this->getCommonTags('process', $queue, $connection)
         );
 
         if ($queue === 'sync') {
             return $span;
         } else {
-            return $span->withExistingTagsNames([
+            return $span->withExistingAttributeNames([
                 Tag::MQ_MESSAGE_ID
             ]);
         }
@@ -195,17 +195,16 @@ class QueueTestNotDistributed extends WebFrameworkTestCase
             'laravel_queue_test',
             'queue',
             $resourceDetails
-        )->withExactTags(
+        )->withExactAttributes(
             $this->getCommonTags('receive', $queue, $connection)
         );
 
         if ($queue === 'sync') {
             return $span;
         } else {
-            return $span->withExistingTagsNames([
+            return $span->withExistingAttributeNames([
                 Tag::MQ_MESSAGE_ID,
-                '_dd.span_links'
-            ]);
+            ])->withSpanLinks();
         }
     }
 }

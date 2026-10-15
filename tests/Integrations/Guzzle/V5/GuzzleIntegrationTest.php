@@ -3,6 +3,7 @@
 namespace DDTrace\Tests\Integrations\Guzzle\V5;
 
 use DDTrace\Sampling\PrioritySampling;
+use DDTrace\Tests\Common\SpanChecker;
 use DDTrace\Tracer;
 use DDTrace\Tag;
 use GuzzleHttp\Client;
@@ -15,7 +16,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 function find_span_name(array $trace, $name)
 {
-    foreach ($trace as $span) {
+    foreach ($trace['spans'] as $span) {
         if ($span['name'] == $name) {
             return $span;
         }
@@ -63,7 +64,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => strtoupper($method),
                     'http.url' => 'http://example.com/?foo=secret',
                     'http.status_code' => '200',
@@ -96,7 +97,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => 'PUT',
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
@@ -115,7 +116,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => 'GET',
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
@@ -135,7 +136,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => 'GET',
                     'http.url' => 'http://?:?@example.com',
                     'http.status_code' => '200',
@@ -169,7 +170,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         });
 
         // trace is: custom
-        self::assertSame($traces[0][0]['trace_id'], $found['headers']['X-Datadog-Trace-Id']);
+        self::assertSame(SpanChecker::traceIdLow($traces[0]), $found['headers']['X-Datadog-Trace-Id']);
 
         // Find either the guzzle or curl span; prefer the latter
         $guzzleSpan = find_span_name($traces[0], 'GuzzleHttp\\Client.send');
@@ -238,13 +239,12 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                 ])
         );
 
-        $rootSpan = $traces[0][0];
         self::assertSame(
-            (float) $rootSpan['metrics']['_sampling_priority_v1'],
+            (float) $traces[0]['priority'],
             (float) $headers1['headers']['X-Datadog-Sampling-Priority']
         );
         self::assertSame(
-            (float) $rootSpan['metrics']['_sampling_priority_v1'],
+            (float) $traces[0]['priority'],
             (float) $headers2['headers']['X-Datadog-Sampling-Priority']
         );
 
@@ -253,18 +253,18 @@ class GuzzleIntegrationTest extends IntegrationTestCase
          * without an event loop.
          * @see https://github.com/guzzle/guzzle/issues/1439
          */
-        self::assertDistributedTracingSpan($traces[0][6], $headers1['headers']);
-        self::assertDistributedTracingSpan($traces[0][4], $headers2['headers']);
+        self::assertDistributedTracingSpan($traces[0], 6, $headers1['headers']);
+        self::assertDistributedTracingSpan($traces[0], 4, $headers2['headers']);
     }
 
-    private static function assertDistributedTracingSpan($span, $headers)
+    private static function assertDistributedTracingSpan($chunk, $spanIdx, $headers)
     {
         self::assertSame(
-            $span['span_id'],
+            $chunk['spans'][$spanIdx]['span_id'],
             $headers['X-Datadog-Parent-Id']
         );
         self::assertSame(
-            $span['trace_id'],
+            SpanChecker::traceIdLow($chunk),
             $headers['X-Datadog-Trace-Id']
         );
         self::assertSame('preserved_value', $headers['Honored']);
@@ -303,11 +303,11 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             $span->finish();
         });
 
-        self::assertEquals(1, sizeof($traces[0]));
+        self::assertEquals(1, sizeof($traces[0]['spans']));
 
         // trace is: custom
-        self::assertSame($traces[0][0]['trace_id'], $found['headers']['X-Datadog-Trace-Id']);
-        self::assertSame($traces[0][0]['span_id'], $found['headers']['X-Datadog-Parent-Id']);
+        self::assertSame(SpanChecker::traceIdLow($traces[0]), $found['headers']['X-Datadog-Trace-Id']);
+        self::assertSame($traces[0]['spans'][0]['span_id'], $found['headers']['X-Datadog-Parent-Id']);
 
         self::assertSame('1', $found['headers']['X-Datadog-Sampling-Priority']);
         // existing headers are honored
@@ -323,7 +323,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('GuzzleHttp\Client.send', 'host-example.com', 'http', 'send')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => 'GET',
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
@@ -344,7 +344,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::build('GuzzleHttp\Client.send', 'host-example.com', 'http', 'send')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => 'GET',
                     'http.url' => 'http://?:?@example.com',
                     'http.status_code' => '200',
@@ -372,10 +372,10 @@ class GuzzleIntegrationTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /guzzle_in_web_request.php')
-                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code', 'span.kind', 'component'])
+                ->withExistingAttributeNames(['http.method', 'http.url', 'http.status_code', 'span.kind', 'component'])
                 ->withChildren([
                     SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
-                        ->withExactTags([
+                        ->withExactAttributes([
                             'http.method' => 'GET',
                             'http.url' => self::URL . '/status/200',
                             'http.status_code' => '200',
@@ -402,7 +402,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
         SpanAssertion::build('GuzzleHttp\Client.send', 'guzzle', 'http', 'send')
-            ->withExactTags([
+            ->withExactAttributes([
                 'http.method' => 'PUT',
                 'http.url' => 'http://example.com',
                 'http.status_code' => '200',

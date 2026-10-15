@@ -31,7 +31,7 @@ class ConsoleCommandTest extends IntegrationTestCase
                 SpanAssertion::build('console', 'console', 'cli', 'console')
                     ->withChildren([
                         SpanAssertion::build('symfony.console.command.run', 'symfony', 'cli', 'about')
-                            ->withExactTags([
+                            ->withExactAttributes([
                                 'symfony.console.command.class' => 'Symfony\Bundle\FrameworkBundle\Command\AboutCommand',
                                 Tag::COMPONENT => 'symfony',
                                 '_dd.svc_src' => 'symfony',

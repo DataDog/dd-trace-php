@@ -37,8 +37,6 @@ static bool is_filesystem_enabled() { return get_DD_TRACE_FILESYSTEM_ENABLED() &
         .name_lcase = (lcname),                                        \
         .name_len = sizeof(lcname) - 1,                                \
         .is_enabled = is_enabled_func,                                 \
-        .is_analytics_enabled = get_DD_TRACE_##id##_ANALYTICS_ENABLED, \
-        .get_sample_rate = get_DD_TRACE_##id##_ANALYTICS_SAMPLE_RATE,  \
         .aux = {0},                                                    \
     },
 ddtrace_integration ddtrace_integrations[] = {DD_INTEGRATIONS};

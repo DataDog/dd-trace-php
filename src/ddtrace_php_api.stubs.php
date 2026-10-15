@@ -1677,6 +1677,9 @@ namespace DDTrace {
          */
         const HTTP_HEADERS = 'http_headers';
     }
+    /**
+     * @deprecated This class is deprecated, you should use the OpenTelemetry or the extension API instead.
+     */
     final class GlobalTracer
     {
         /**

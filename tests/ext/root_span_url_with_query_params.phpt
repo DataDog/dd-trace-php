@@ -18,7 +18,7 @@ some=query&param&eters
 <?php
 DDTrace\start_span();
 DDTrace\close_span();
-$spans = dd_trace_serialize_closed_spans();
+$spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
 var_dump($spans[0]['resource']);
 var_dump($spans[0]['attributes']["http.url"]);
 ?>

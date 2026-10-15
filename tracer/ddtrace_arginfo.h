@@ -1,5 +1,5 @@
 /* This is a generated file, edit ddtrace.stub.php instead.
- * Stub hash: 23d2bb07685bac15d155f07bf7379c13b8d91721 */
+ * Stub hash: 5a45c3a714b5411e4167d3fac5da8311493fd21c */
 
 #include "zend_constants.h"
 
@@ -233,6 +233,8 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Testing_normalize_tag_va
 	ZEND_ARG_TYPE_INFO(0, value, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
+#define arginfo_DDTrace_Testing_serialize_closed_spans_v04 arginfo_DDTrace_current_context
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_add_span_flag, 0, 2, IS_VOID, 0)
 	ZEND_ARG_OBJ_INFO(0, span, DDTrace\\SpanData, 0)
 	ZEND_ARG_TYPE_INFO(0, flag, IS_LONG, 0)
@@ -441,6 +443,7 @@ ZEND_FUNCTION(DDTrace_Testing_flush_ffe_exposures);
 ZEND_FUNCTION(DDTrace_Testing_trigger_error);
 ZEND_FUNCTION(DDTrace_Testing_emit_asm_event);
 ZEND_FUNCTION(DDTrace_Testing_normalize_tag_value);
+ZEND_FUNCTION(DDTrace_Testing_serialize_closed_spans_v04);
 ZEND_FUNCTION(DDTrace_Internal_add_span_flag);
 ZEND_FUNCTION(DDTrace_Internal_handle_fork);
 ZEND_FUNCTION(DDTrace_Internal_record_ffe_evaluation_metric);
@@ -540,6 +543,7 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Testing", "trigger_error"), zif_DDTrace_Testing_trigger_error, arginfo_DDTrace_Testing_trigger_error, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Testing", "emit_asm_event"), zif_DDTrace_Testing_emit_asm_event, arginfo_DDTrace_Testing_emit_asm_event, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Testing", "normalize_tag_value"), zif_DDTrace_Testing_normalize_tag_value, arginfo_DDTrace_Testing_normalize_tag_value, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Testing", "serialize_closed_spans_v04"), zif_DDTrace_Testing_serialize_closed_spans_v04, arginfo_DDTrace_Testing_serialize_closed_spans_v04, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "add_span_flag"), zif_DDTrace_Internal_add_span_flag, arginfo_DDTrace_Internal_add_span_flag, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "handle_fork"), zif_DDTrace_Internal_handle_fork, arginfo_DDTrace_Internal_handle_fork, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "record_ffe_evaluation_metric"), zif_DDTrace_Internal_record_ffe_evaluation_metric, arginfo_DDTrace_Internal_record_ffe_evaluation_metric, 0, NULL, NULL)
@@ -821,37 +825,37 @@ static zend_class_entry *register_class_DDTrace_SpanKind(void)
 	class_entry = zend_register_internal_class_with_flags(&ce, NULL, 0);
 
 	zval const_UNSPECIFIED_value;
-	ZVAL_LONG(&const_UNSPECIFIED_value, 0);
+	ZVAL_LONG(&const_UNSPECIFIED_value, DDTRACE_SPAN_KIND_UNSPECIFIED);
 	zend_string *const_UNSPECIFIED_name = zend_string_init_interned("UNSPECIFIED", sizeof("UNSPECIFIED") - 1, true);
 	zend_declare_class_constant_ex(class_entry, const_UNSPECIFIED_name, &const_UNSPECIFIED_value, ZEND_ACC_PUBLIC, NULL);
 	zend_string_release_ex(const_UNSPECIFIED_name, true);
 
 	zval const_INTERNAL_value;
-	ZVAL_LONG(&const_INTERNAL_value, 1);
+	ZVAL_LONG(&const_INTERNAL_value, DDTRACE_SPAN_KIND_INTERNAL);
 	zend_string *const_INTERNAL_name = zend_string_init_interned("INTERNAL", sizeof("INTERNAL") - 1, true);
 	zend_declare_class_constant_ex(class_entry, const_INTERNAL_name, &const_INTERNAL_value, ZEND_ACC_PUBLIC, NULL);
 	zend_string_release_ex(const_INTERNAL_name, true);
 
 	zval const_SERVER_value;
-	ZVAL_LONG(&const_SERVER_value, 2);
+	ZVAL_LONG(&const_SERVER_value, DDTRACE_SPAN_KIND_SERVER);
 	zend_string *const_SERVER_name = zend_string_init_interned("SERVER", sizeof("SERVER") - 1, true);
 	zend_declare_class_constant_ex(class_entry, const_SERVER_name, &const_SERVER_value, ZEND_ACC_PUBLIC, NULL);
 	zend_string_release_ex(const_SERVER_name, true);
 
 	zval const_CLIENT_value;
-	ZVAL_LONG(&const_CLIENT_value, 3);
+	ZVAL_LONG(&const_CLIENT_value, DDTRACE_SPAN_KIND_CLIENT);
 	zend_string *const_CLIENT_name = zend_string_init_interned("CLIENT", sizeof("CLIENT") - 1, true);
 	zend_declare_class_constant_ex(class_entry, const_CLIENT_name, &const_CLIENT_value, ZEND_ACC_PUBLIC, NULL);
 	zend_string_release_ex(const_CLIENT_name, true);
 
 	zval const_PRODUCER_value;
-	ZVAL_LONG(&const_PRODUCER_value, 4);
+	ZVAL_LONG(&const_PRODUCER_value, DDTRACE_SPAN_KIND_PRODUCER);
 	zend_string *const_PRODUCER_name = zend_string_init_interned("PRODUCER", sizeof("PRODUCER") - 1, true);
 	zend_declare_class_constant_ex(class_entry, const_PRODUCER_name, &const_PRODUCER_value, ZEND_ACC_PUBLIC, NULL);
 	zend_string_release_ex(const_PRODUCER_name, true);
 
 	zval const_CONSUMER_value;
-	ZVAL_LONG(&const_CONSUMER_value, 5);
+	ZVAL_LONG(&const_CONSUMER_value, DDTRACE_SPAN_KIND_CONSUMER);
 	zend_string *const_CONSUMER_name = zend_string_init_interned("CONSUMER", sizeof("CONSUMER") - 1, true);
 	zend_declare_class_constant_ex(class_entry, const_CONSUMER_name, &const_CONSUMER_value, ZEND_ACC_PUBLIC, NULL);
 	zend_string_release_ex(const_CONSUMER_name, true);
@@ -1031,12 +1035,6 @@ static zend_class_entry *register_class_DDTrace_RootSpanData(zend_class_entry *c
 	zend_declare_typed_property(class_entry, property_samplingPriority_name, &property_samplingPriority_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
 	zend_string_release_ex(property_samplingPriority_name, true);
 
-	zval property_samplingMechanism_default_value;
-	ZVAL_LONG(&property_samplingMechanism_default_value, 0);
-	zend_string *property_samplingMechanism_name = zend_string_init("samplingMechanism", sizeof("samplingMechanism") - 1, true);
-	zend_declare_typed_property(class_entry, property_samplingMechanism_name, &property_samplingMechanism_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
-	zend_string_release_ex(property_samplingMechanism_name, true);
-
 	zval property_propagatedSamplingPriority_default_value;
 	ZVAL_UNDEF(&property_propagatedSamplingPriority_default_value);
 	zend_string *property_propagatedSamplingPriority_name = zend_string_init("propagatedSamplingPriority", sizeof("propagatedSamplingPriority") - 1, true);
@@ -1081,12 +1079,6 @@ static zend_class_entry *register_class_DDTrace_RootSpanData(zend_class_entry *c
 	zend_declare_typed_property(class_entry, property_inferredSpan_name, &property_inferredSpan_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_CLASS(property_inferredSpan_class_DDTrace_InferredSpanData, 0, MAY_BE_NULL));
 	zend_string_release_ex(property_inferredSpan_name, true);
 
-	zval property_hostname_default_value;
-	ZVAL_EMPTY_STRING(&property_hostname_default_value);
-	zend_string *property_hostname_name = zend_string_init("hostname", sizeof("hostname") - 1, true);
-	zend_declare_typed_property(class_entry, property_hostname_name, &property_hostname_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING));
-	zend_string_release_ex(property_hostname_name, true);
-
 	return class_entry;
 }
 
@@ -1114,12 +1106,6 @@ static zend_class_entry *register_class_DDTrace_SpanStack(void)
 	zend_string *property_spanCreationObservers_name = zend_string_init("spanCreationObservers", sizeof("spanCreationObservers") - 1, true);
 	zend_declare_typed_property(class_entry, property_spanCreationObservers_name, &property_spanCreationObservers_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
 	zend_string_release_ex(property_spanCreationObservers_name, true);
-
-	zval property_attributes_default_value;
-	ZVAL_EMPTY_ARRAY(&property_attributes_default_value);
-	zend_string *property_attributes_name = zend_string_init("attributes", sizeof("attributes") - 1, true);
-	zend_declare_typed_property(class_entry, property_attributes_name, &property_attributes_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
-	zend_string_release_ex(property_attributes_name, true);
 
 	return class_entry;
 }

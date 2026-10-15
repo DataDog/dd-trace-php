@@ -11,7 +11,7 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 include __DIR__ . '/sandbox/dd_dumper.inc';
 
 class Foo {
-    #[DDTrace\Trace(name: "simplename", resource: "rsrc", type: "typeee", service: "test", tags: ["a" => "b", "data" => "dog", 1 => "ignored"])]
+    #[DDTrace\Trace(name: "simplename", resource: "rsrc", type: "typeee", service: "test", attributes: ["a" => "b", "data" => "dog", 1 => "ignored"])]
     static function simple($arg) {}
 /*
     #[DDTrace\Trace(saveArgs: ["foo"])]
