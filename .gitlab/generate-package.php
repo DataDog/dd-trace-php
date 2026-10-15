@@ -362,7 +362,7 @@ if ($suffix == "-alpine") {
 <?php
  }
 ?>
-    - .gitlab/build-appsec.sh <?= $suffix ?>
+    - .gitlab/build-appsec.sh <?= $suffix ?> || exit $?
 
   artifacts:
     paths:
