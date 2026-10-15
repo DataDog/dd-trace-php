@@ -25,7 +25,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 #[cfg(php_shared_build)]
-fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
+pub(crate) fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
     #[cfg(target_os = "linux")]
     if std::env::var_os("DD_SIDECAR_DISABLE_DIRECT_EXEC")
         .map(|s| s.is_empty())
@@ -40,7 +40,7 @@ fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
 }
 
 #[cfg(not(any(windows, php_shared_build)))]
-fn run_sidecar(cfg: config::Config) -> anyhow::Result<SidecarTransport> {
+pub(crate) fn run_sidecar(cfg: config::Config) -> anyhow::Result<SidecarTransport> {
     ddtrace_sidecar::start_or_connect_to_sidecar(cfg)
 }
 
@@ -49,7 +49,7 @@ fn run_sidecar(cfg: config::Config) -> anyhow::Result<SidecarTransport> {
 pub static mut DDOG_PHP_FUNCTION: *const u8 = std::ptr::null();
 
 #[cfg(windows)]
-fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
+pub(crate) fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
     let php_dll = get_trampoline_target_data(unsafe { DDOG_PHP_FUNCTION })?;
     cfg.library_dependencies
         .push(LibDependency::Path(php_dll.into()));

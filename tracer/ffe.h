@@ -5,6 +5,9 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <zend.h>
+#include <components-rs/common.h>
+
+ddog_FfeRuntimeConfig ddtrace_ffe_configure(void);
 
 bool ddtrace_ffe_record_evaluation_metric(zend_string *flag_key, zend_string *variant, const char *reason, const char *error_type, zend_string *allocation_key);
 bool ddtrace_ffe_flush_evaluation_metrics(void);

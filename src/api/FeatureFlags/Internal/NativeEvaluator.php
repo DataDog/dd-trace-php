@@ -8,6 +8,7 @@ use DDTrace\FeatureFlags\SpanEnrichmentRegistry;
 final class NativeEvaluator implements Evaluator
 {
     const WARNING_MESSAGE = 'Datadog-backed PHP feature flag evaluation has no Remote Configuration data loaded for this request. Returning default values.';
+    const AGENTLESS_WARNING_MESSAGE = 'Datadog-backed PHP feature flag evaluation has no agentless configuration loaded. Returning default values.';
 
     private $mapper;
     private $recordMetrics;
@@ -107,6 +108,14 @@ final class NativeEvaluator implements Evaluator
             'mode' => 'native_remote_config',
             'reason' => $hasConfig ? 'ready' : 'configuration_missing',
         );
+        if (function_exists('DDTrace\\Internal\\ffe_provider_state')) {
+            $providerState = array_merge($providerState, \DDTrace\Internal\ffe_provider_state());
+        }
+        $warningMessage = $providerState['mode'] === 'native_agentless'
+            ? self::AGENTLESS_WARNING_MESSAGE : self::WARNING_MESSAGE;
+        if (!empty($providerState['errorMessage'])) {
+            $warningMessage = $providerState['errorMessage'];
+        }
 
         if (is_array($rawResult)) {
             if (isset($rawResult['provider_state']) && is_array($rawResult['provider_state'])) {
@@ -114,7 +123,7 @@ final class NativeEvaluator implements Evaluator
             }
 
             if (!$hasConfig) {
-                $rawResult['error_message'] = self::WARNING_MESSAGE;
+                $rawResult['error_message'] = $warningMessage;
             }
 
             $rawResult['provider_state'] = $providerState;
@@ -129,7 +138,7 @@ final class NativeEvaluator implements Evaluator
         }
 
         if (!$hasConfig) {
-            $rawResult->errorMessage = self::WARNING_MESSAGE;
+            $rawResult->errorMessage = $warningMessage;
         }
 
         $rawResult->providerState = $providerState;

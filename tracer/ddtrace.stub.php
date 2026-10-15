@@ -1093,6 +1093,8 @@ namespace DDTrace\Internal {
      */
     function flush_ffe_evaluation_metrics(): bool {}
 
+    function ffe_provider_state(): array {}
+
 }
 
 namespace datadog\appsec\v2 {
