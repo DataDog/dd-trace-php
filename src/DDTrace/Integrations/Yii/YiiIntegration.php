@@ -4,6 +4,7 @@ namespace DDTrace\Integrations\Yii;
 
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
+use DDTrace\SpanKind;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\Versions;
@@ -28,8 +29,8 @@ class YiiIntegration extends Integration
             static function () {
                 $rootSpan = \DDTrace\root_span();
                 if ($rootSpan !== null) {
-                    $rootSpan->meta[Tag::COMPONENT] = self::NAME;
-                    $rootSpan->attributes[Tag::SPAN_KIND] = 'server';
+                    $rootSpan->component = self::NAME;
+                    $rootSpan->spanKind = SpanKind::SERVER;
                 }
             }
         );
@@ -40,8 +41,8 @@ class YiiIntegration extends Integration
             function (SpanData $span) {
                 $span->name = $span->resource = \get_class($this) . '.run';
                 $span->type = Type::WEB_SERVLET;
-                $span->service = \ddtrace_config_app_name(YiiIntegration::NAME);
-                $span->meta[Tag::COMPONENT] = YiiIntegration::NAME;
+                $span->service = \dd_trace_env_config('DD_SERVICE') ?: YiiIntegration::NAME;
+                $span->component = YiiIntegration::NAME;
             }
         );
 
@@ -68,9 +69,9 @@ class YiiIntegration extends Integration
             function (SpanData $span, $args) {
                 $span->name = \get_class($this) . '.runAction';
                 $span->type = Type::WEB_SERVLET;
-                $span->service = \ddtrace_config_app_name(YiiIntegration::NAME);
+                $span->service = \dd_trace_env_config('DD_SERVICE') ?: YiiIntegration::NAME;
                 $span->resource = YiiIntegration::extractResourceNameFromRunAction($args) ?: $span->name;
-                $span->meta[Tag::COMPONENT] = YiiIntegration::NAME;
+                $span->component = YiiIntegration::NAME;
             }
         );
 
@@ -80,26 +81,26 @@ class YiiIntegration extends Integration
             function (SpanData $span, $args) use (&$firstController) {
                 $span->name = \get_class($this) . '.runAction';
                 $span->type = Type::WEB_SERVLET;
-                $span->service = \ddtrace_config_app_name(YiiIntegration::NAME);
+                $span->service = \dd_trace_env_config('DD_SERVICE') ?: YiiIntegration::NAME;
                 $span->resource = YiiIntegration::extractResourceNameFromRunAction($args) ?: $span->name;
-                $span->meta[Tag::COMPONENT] = YiiIntegration::NAME;
+                $span->component = YiiIntegration::NAME;
 
                 $rootSpan = \DDTrace\root_span();
 
                 if (
                     $firstController === $this
-                    && empty($rootSpan->meta['app.endpoint'])
+                    && empty($rootSpan->attributes['app.endpoint'])
                     && isset($this->action->actionMethod)
                 ) {
                     $controller = \get_class($this);
                     $endpoint = "{$controller}::{$this->action->actionMethod}";
-                    $rootSpan->meta["app.endpoint"] = $endpoint;
+                    $rootSpan->attributes["app.endpoint"] = $endpoint;
 
                     $rootSpan->attributes[Tag::HTTP_URL] =
                     \DDTrace\Util\Normalizer::urlSanitize(Url::base(true) . Url::current());
                 }
 
-                if (empty($rootSpan->meta['app.route.path'])) {
+                if (empty($rootSpan->attributes['app.route.path'])) {
                     $placeholder = '__dd_route_param';
 
                     // When controllers are directly set in the app,
@@ -145,8 +146,8 @@ class YiiIntegration extends Integration
                         true
                     );
 
-                    $rootSpan->meta['app.route.path'] = $routePath;
-                    $rootSpan->meta[Tag::HTTP_ROUTE] = $routePath;
+                    $rootSpan->attributes['app.route.path'] = $routePath;
+                    $rootSpan->attributes[Tag::HTTP_ROUTE] = $routePath;
 
                     if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
                         $resourceName = \str_replace(
@@ -166,9 +167,9 @@ class YiiIntegration extends Integration
             function (SpanData $span, $args) {
                 $span->name = \get_class($this) . '.renderFile';
                 $span->type = Type::WEB_SERVLET;
-                $span->service = \ddtrace_config_app_name(YiiIntegration::NAME);
+                $span->service = \dd_trace_env_config('DD_SERVICE') ?: YiiIntegration::NAME;
                 $span->resource = isset($args[0]) && \is_string($args[0]) ? $args[0] : $span->name;
-                $span->meta[Tag::COMPONENT] = YiiIntegration::NAME;
+                $span->component = YiiIntegration::NAME;
             }
         );
 

@@ -8,8 +8,8 @@
     "parent_id": 0,
     "type": "queue",
     "meta": {
-      "_dd.p.dm": "0",
-      "_dd.span_links": "[{\"trace_id\":\"0000000000000000c151df7d6ee5e2d6\",\"span_id\":\"c151df7d6ee5e2d6\",\"trace_state\":\"dd=t.dm:-0,ot=rv:ea5f0f7db45435;th:0\",\"attributes\":{\"_dd.p.dm\":\"-0\"}}]",
+      "_dd.p.dm": "-0",
+      "_dd.sdk.otlp_export": "false",
       "component": "kafka",
       "messaging.destination": "test-lowlevel",
       "messaging.destination_kind": "queue",
@@ -18,17 +18,28 @@
       "messaging.kafka.group_id": "consumer-lowlevel",
       "messaging.operation": "receive",
       "messaging.system": "kafka",
-      "runtime-id": "cb546b0e-9a6f-450b-8bf2-359f968d021f",
+      "runtime-id": "f311028f-7a98-47ca-9436-bec6441ffc16",
       "span.kind": "consumer"
     },
     "metrics": {
-      "_dd.agent_psr": 1,
-      "_dd.top_level": 1,
-      "_sampling_priority_v1": 1,
-      "messaging.kafka.message_offset": 10,
-      "messaging.kafka.partition": 0,
-      "messaging.message_payload_size_bytes": 11
-    }
+      "_dd.agent_psr": 1.0,
+      "_dd.top_level": 1.0,
+      "_sampling_priority_v1": 1.0,
+      "messaging.kafka.message_offset": 4.0,
+      "messaging.kafka.partition": 0.0,
+      "messaging.message_payload_size_bytes": 11.0
+    },
+    "span_links": [
+      {
+        "trace_id": 0,
+        "trace_id_high": 0,
+        "span_id": 1,
+        "attributes": {
+          "_dd.p.dm": "-0"
+        },
+        "tracestate": "dd=t.dm:-0,ot=rv:ea5f0f7db45435;th:0"
+      }
+    ]
   }],
 [
   {
@@ -40,7 +51,8 @@
     "parent_id": 0,
     "type": "queue",
     "meta": {
-      "_dd.p.dm": "0",
+      "_dd.p.dm": "-0",
+      "_dd.sdk.otlp_export": "false",
       "component": "kafka",
       "messaging.destination": "test-lowlevel",
       "messaging.destination_kind": "queue",
@@ -50,16 +62,16 @@
       "messaging.kafka.tombstone": "true",
       "messaging.operation": "receive",
       "messaging.system": "kafka",
-      "runtime-id": "cb546b0e-9a6f-450b-8bf2-359f968d021f",
+      "runtime-id": "f311028f-7a98-47ca-9436-bec6441ffc16",
       "span.kind": "consumer"
     },
     "metrics": {
-      "_dd.agent_psr": 1,
-      "_dd.top_level": 1,
-      "_sampling_priority_v1": 1,
-      "messaging.kafka.message_offset": 11,
-      "messaging.kafka.partition": 0,
-      "messaging.message_payload_size_bytes": 76
+      "_dd.agent_psr": 1.0,
+      "_dd.top_level": 1.0,
+      "_sampling_priority_v1": 1.0,
+      "messaging.kafka.message_offset": 5.0,
+      "messaging.kafka.partition": 0.0,
+      "messaging.message_payload_size_bytes": 76.0
     }
   }],
 [
@@ -72,7 +84,8 @@
     "parent_id": 0,
     "type": "queue",
     "meta": {
-      "_dd.p.dm": "0",
+      "_dd.p.dm": "-0",
+      "_dd.sdk.otlp_export": "false",
       "component": "kafka",
       "messaging.kafka.bootstrap.servers": "kafka-integration:9092",
       "messaging.kafka.client_id": "rdkafka",
@@ -80,12 +93,12 @@
       "messaging.kafka.tombstone": "true",
       "messaging.operation": "receive",
       "messaging.system": "kafka",
-      "runtime-id": "cb546b0e-9a6f-450b-8bf2-359f968d021f",
+      "runtime-id": "f311028f-7a98-47ca-9436-bec6441ffc16",
       "span.kind": "consumer"
     },
     "metrics": {
-      "_dd.agent_psr": 1,
-      "_dd.top_level": 1,
-      "_sampling_priority_v1": 1
+      "_dd.agent_psr": 1.0,
+      "_dd.top_level": 1.0,
+      "_sampling_priority_v1": 1.0
     }
   }]]

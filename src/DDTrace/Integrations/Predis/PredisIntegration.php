@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\Predis;
 use DDTrace\Integrations\DatabaseIntegrationHelper;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
+use DDTrace\SpanKind;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\ObjectKVStore;
@@ -72,10 +73,10 @@ class PredisIntegration extends Integration
             $command = $args[0];
             $arguments = $command->getArguments();
             array_unshift($arguments, $command->getId());
-            $span->meta['redis.args_length'] = count($arguments);
+            $span->attributes['redis.args_length'] = count($arguments);
             $query = PredisIntegration::formatArguments($arguments);
             $span->resource = $query;
-            $span->meta['redis.raw_command'] = $query;
+            $span->attributes['redis.raw_command'] = $query;
         });
 
         \DDTrace\trace_method('Predis\Client', 'executeRaw', function (SpanData $span, $args) {
@@ -95,8 +96,8 @@ class PredisIntegration extends Integration
             $arguments = $args[0];
             $query = PredisIntegration::formatArguments($arguments);
             $span->resource = $query;
-            $span->meta['redis.args_length'] = count($arguments);
-            $span->meta['redis.raw_command'] = $query;
+            $span->attributes['redis.args_length'] = count($arguments);
+            $span->attributes['redis.raw_command'] = $query;
         });
 
         \DDTrace\trace_method(
@@ -114,7 +115,7 @@ class PredisIntegration extends Integration
                         return;
                     }
                     $commands = $args[1];
-                    $span->meta['redis.pipeline_length'] = count($commands);
+                    $span->attributes['redis.pipeline_length'] = count($commands);
                 },
             ]
         );
@@ -236,17 +237,17 @@ class PredisIntegration extends Integration
     {
         $service = ObjectKVStore::get($predis->getConnection(), 'service');
         if ($service) {
-            $span->meta[Tag::SERVICE_NAME] = $service;
+            $span->service = $service;
         } else {
             Integration::handleInternalSpanServiceName($span, self::DEFAULT_SERVICE_NAME);
         }
-        $span->meta[Tag::SPAN_KIND] = 'client';
-        $span->meta[Tag::COMPONENT] = self::NAME;
-        $span->meta[Tag::DB_SYSTEM] = self::SYSTEM;
+        $span->spanKind = SpanKind::CLIENT;
+        $span->component = self::NAME;
+        $span->attributes[Tag::DB_SYSTEM] = self::SYSTEM;
         $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
 
         foreach (ObjectKVStore::get($predis->getConnection(), 'connection_meta', []) as $tag => $value) {
-            $span->meta[$tag] = $value;
+            $span->attributes[$tag] = $value;
         }
     }
 

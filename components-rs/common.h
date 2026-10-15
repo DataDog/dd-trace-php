@@ -1239,11 +1239,15 @@ typedef struct ddog_ContextKey {
   enum ddog_MetricType _1;
 } ddog_ContextKey;
 
+typedef struct ddog_TracerPayloadBytes ddog_TracerPayloadBytes;
+typedef struct ddog_TraceChunkBytes ddog_TraceChunkBytes;
 typedef struct ddog_SpanBytes ddog_SpanBytes;
 typedef struct ddog_SpanLinkBytes ddog_SpanLinkBytes;
 typedef struct ddog_SpanEventBytes ddog_SpanEventBytes;
 typedef struct ddog_AttributeAnyValueBytes ddog_AttributeAnyValueBytes;
 typedef struct ddog_AttributeArrayValueBytes ddog_AttributeArrayValueBytes;
+typedef struct ddog_Attributes ddog_Attributes;
+typedef struct ddog_AttrValue ddog_AttrValue;
 
 
 /**
@@ -1323,23 +1327,6 @@ typedef struct ddog_AttrList ddog_AttrList;
 typedef struct ddog_AttrMap ddog_AttrMap;
 
 /**
- * Opaque handle to one attribute value inside an [`Attributes`] map or a list.
- */
-typedef struct ddog_AttrValue ddog_AttrValue;
-
-/**
- * Opaque handle to an attribute map: the payload's, a chunk's, span's, link's or event's
- * (`ddog_*_get_attributes`), or an owned nested map's ([`ddog_attr_map_get_attributes`]).
- */
-typedef struct ddog_Attributes ddog_Attributes;
-
-/**
- * A chunk node in the builder: its own heap allocation, so a `*mut ChunkNode` handed to C stays
- * valid across sibling chunk pushes. Its spans live as separate `Box` allocations.
- */
-typedef struct ddog_ChunkNode ddog_ChunkNode;
-
-/**
  * Fundamental configuration of the RC client, which always must be set.
  */
 typedef struct ddog_ConfigInvariants ddog_ConfigInvariants;
@@ -1372,19 +1359,6 @@ typedef struct ddog_RemoteConfigReader ddog_RemoteConfigReader;
 typedef struct ddog_RuntimeMetadata ddog_RuntimeMetadata;
 
 typedef struct ddog_ShmHandle ddog_ShmHandle;
-
-/**
- * A span node in the builder: its own heap allocation, so a held `*mut SpanNode` stays valid
- * across sibling span pushes into the same chunk (the inferred-span case). Links/events are
- * likewise separate `Box` allocations.
- */
-typedef struct ddog_SpanNode ddog_SpanNode;
-
-/**
- * Builds a native V1 [`TracerPayloadBytes`] holding readable strings. Each node is its own heap
- * allocation (see the module docs); the builder owns the top-level chunk pointers.
- */
-typedef struct ddog_TracerPayloadV1Builder ddog_TracerPayloadV1Builder;
 
 typedef struct ddog_NativeFile {
   struct ddog_PlatformHandle_File *handle;

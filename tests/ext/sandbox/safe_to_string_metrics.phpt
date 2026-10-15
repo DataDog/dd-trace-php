@@ -31,7 +31,7 @@ $allTheTypes[0][1] = &$allTheTypes[0];
 
 call_user_func_array('metrics_to_string', $allTheTypes);
 
-list($span) = dd_trace_serialize_closed_spans();
+list($span) = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
 $last = -1;
 foreach ($span['attributes'] as $key => $value) {
     if (strpos($key, 'arg.') !== 0) {

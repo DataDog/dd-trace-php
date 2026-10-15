@@ -31,7 +31,7 @@ class CommonScenariosTest extends CLITestCase
                 'cake_console_test_app',
                 'cli',
                 'cake_console'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::COMPONENT => 'cakephp',
             ])
         ]);
@@ -47,7 +47,7 @@ class CommonScenariosTest extends CLITestCase
                 'cake_console_test_app',
                 'cli',
                 'cake_console routes'
-            )->withExactTags([
+            )->withExactAttributes([
                 Tag::COMPONENT => 'cakephp',
             ])
         ]);

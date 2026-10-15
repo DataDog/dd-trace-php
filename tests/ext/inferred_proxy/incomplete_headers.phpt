@@ -36,8 +36,6 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
 --EXPECTF--
 [
     {
-        "trace_id": "13930160852258120406",
-        "trace_id_high": "%s",
         "span_id": "13930160852258120406",
         "start": 120000000,
         "duration": %d,
@@ -47,10 +45,8 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
         "type": "web",
         "env": "local-prod",
         "version": "1.0",
-        "component": "cgi-fcgi",
+        "component": "web",
         "span_kind": 2,
-        "sampling_priority": 1,
-        "sampling_mechanism": 0,
         "attributes": {
             "runtime-id": "%s",
             "http.url": "http:\/\/localhost:8888\/foo",
@@ -58,7 +54,7 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
             "process_id": %d,
             "_dd.code_origin.type": "entry",
             "_dd.code_origin.frames.0.file": "%sincomplete_headers.php",
-            "_dd.code_origin.frames.0.line": "1",
+            "_dd.code_origin.frames.0.line": 1,
             "_dd.agent_psr": 1,
             "http.status_code": "200",
             "php.compilation.total_time_ms": %f,
@@ -67,7 +63,6 @@ echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
         }
     },
     {
-        "trace_id": "13930160852258120406",
         "span_id": "11788048577503494824",
         "parent_id": "13930160852258120406",
         "start": 130000000,

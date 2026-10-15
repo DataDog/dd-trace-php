@@ -6,7 +6,7 @@ extension=ddtrace.so
 DD_APPSEC_ENABLED=1
 --FILE--
 <?php
-use function datadog\appsec\testing\root_span_get_meta;
+use function datadog\appsec\testing\root_span_get_attributes;
 use function datadog\appsec\testing\rinit;
 
 include __DIR__ . '/inc/mock_helper.php';
@@ -31,23 +31,26 @@ $helper->get_commands(); // Ignore
 
 $c = $helper->get_commands();
 
-echo "root_span_get_meta():\n";
-print_r(root_span_get_meta());
+echo "root_span_get_attributes():\n";
+$attributes = root_span_get_attributes();
+ksort($attributes);
+print_r($attributes);
 
 $helper->finished_with_commands();
 ?>
 --EXPECTF--
-root_span_get_meta():
+root_span_get_attributes():
 Array
 (
-    [runtime-id] => %s
-    [appsec.events.users.login.failure.usr.login] => some login
-    [appsec.events.users.login.failure.usr.exists] => false
-    [appsec.events.users.login.failure.track] => true
     [_dd.appsec.events.users.login.failure.sdk] => true
-    [appsec.events.users.login.failure.value] => something
-    [appsec.events.users.login.failure.metadata] => some other metadata
-    [appsec.events.users.login.failure.email] => noneofyour@business.com
-    [_dd.p.ts] => 02
     [_dd.p.dm] => -5
+    [_dd.p.ts] => 02
+    [appsec.events.users.login.failure.email] => noneofyour@business.com
+    [appsec.events.users.login.failure.metadata] => some other metadata
+    [appsec.events.users.login.failure.track] => true
+    [appsec.events.users.login.failure.usr.exists] => false
+    [appsec.events.users.login.failure.usr.login] => some login
+    [appsec.events.users.login.failure.value] => something
+    [process_id] => %d
+    [runtime-id] => %s
 )

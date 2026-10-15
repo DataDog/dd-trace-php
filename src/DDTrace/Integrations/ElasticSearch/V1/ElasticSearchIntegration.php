@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\ElasticSearch\V1;
 use DDTrace\Integrations\ElasticSearch\ElasticSearchCommon;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
+use DDTrace\SpanKind;
 use DDTrace\Tag;
 use DDTrace\Type;
 
@@ -38,7 +39,7 @@ class ElasticSearchIntegration extends Integration
                 Integration::handleInternalSpanServiceName($span, ElasticSearchIntegration::NAME);
                 $span->type = Type::ELASTICSEARCH;
                 $span->resource = "__construct";
-                $span->meta[Tag::COMPONENT] = ElasticSearchIntegration::NAME;
+                $span->component = ElasticSearchIntegration::NAME;
             }
         ]);
 
@@ -100,17 +101,17 @@ class ElasticSearchIntegration extends Integration
             $span->resource = 'performRequest';
             Integration::handleInternalSpanServiceName($span, ElasticSearchIntegration::NAME);
             $span->type = Type::ELASTICSEARCH;
-            $span->meta[Tag::SPAN_KIND] = 'client';
-            $span->meta[Tag::COMPONENT] = ElasticSearchIntegration::NAME;
+            $span->spanKind = SpanKind::CLIENT;
+            $span->component = ElasticSearchIntegration::NAME;
 
             try {
-                $span->meta[Tag::ELASTICSEARCH_URL] = $this->getURI();
-                $span->meta[Tag::ELASTICSEARCH_METHOD] = $this->getMethod();
+                $span->attributes[Tag::ELASTICSEARCH_URL] = $this->getURI();
+                $span->attributes[Tag::ELASTICSEARCH_METHOD] = $this->getMethod();
                 if (is_array($this->params)) {
-                    $span->meta[Tag::ELASTICSEARCH_PARAMS] = json_encode($this->params);
+                    $span->attributes[Tag::ELASTICSEARCH_PARAMS] = json_encode($this->params);
                 }
                 if ($this->getMethod() === 'GET' && $body = $this->getBody()) {
-                    $span->meta[Tag::ELASTICSEARCH_BODY] = json_encode($body);
+                    $span->attributes[Tag::ELASTICSEARCH_BODY] = json_encode($body);
                 }
             } catch (\Exception $ex) {
             }
@@ -120,15 +121,15 @@ class ElasticSearchIntegration extends Integration
             $span->resource = 'performRequest';
             Integration::handleInternalSpanServiceName($span, self::NAME);
             $span->type = Type::ELASTICSEARCH;
-            $span->meta[Tag::SPAN_KIND] = 'client';
-            $span->meta[Tag::COMPONENT] = self::NAME;
+            $span->spanKind = SpanKind::CLIENT;
+            $span->component = self::NAME;
 
-            $span->meta[Tag::ELASTICSEARCH_URL] = $args[1];
-            $span->meta[Tag::ELASTICSEARCH_METHOD] = $args[0];
-            $span->meta[Tag::ELASTICSEARCH_PARAMS] = json_encode($args[2]);
+            $span->attributes[Tag::ELASTICSEARCH_URL] = $args[1];
+            $span->attributes[Tag::ELASTICSEARCH_METHOD] = $args[0];
+            $span->attributes[Tag::ELASTICSEARCH_PARAMS] = json_encode($args[2]);
             $recordBody = $args[0] === 'GET' || preg_match("(/_m?search.*$)", $args[1]);
             if ($recordBody && null !== $body = $args[3]) {
-                $span->meta[Tag::ELASTICSEARCH_BODY] = json_encode($body);
+                $span->attributes[Tag::ELASTICSEARCH_BODY] = json_encode($body);
             }
         });
 
@@ -154,11 +155,11 @@ class ElasticSearchIntegration extends Integration
                 'prehook' => static function (SpanData $span, $args) use ($name) {
                     $span->name = "Elasticsearch.Client.$name";
 
-                    $span->meta[Tag::SPAN_KIND] = 'client';
+                    $span->spanKind = SpanKind::CLIENT;
                     Integration::handleInternalSpanServiceName($span, self::NAME);
                     $span->type = Type::ELASTICSEARCH;
                     $span->resource = ElasticSearchCommon::buildResourceName($name, isset($args[0]) ? $args[0] : []);
-                    $span->meta[Tag::COMPONENT] = self::NAME;
+                    $span->component = self::NAME;
                 }
             ]
         );
@@ -176,7 +177,7 @@ class ElasticSearchIntegration extends Integration
             $span->resource = $operationName;
             Integration::handleInternalSpanServiceName($span, self::NAME);
             $span->type = Type::ELASTICSEARCH;
-            $span->meta[Tag::COMPONENT] = self::NAME;
+            $span->component = self::NAME;
         });
     }
 
@@ -198,7 +199,7 @@ class ElasticSearchIntegration extends Integration
             $span->resource = ElasticSearchCommon::buildResourceName($name, $params);
             Integration::handleInternalSpanServiceName($span, self::NAME);
             $span->type = Type::ELASTICSEARCH;
-            $span->meta[Tag::COMPONENT] = self::NAME;
+            $span->component = self::NAME;
         });
     }
 }

@@ -17,6 +17,7 @@
       "openai.request.fine_tune_id": "curie:ft-acmeco-2021-03-03-21-44-20",
       "openai.request.method": "DELETE",
       "openai.response.deleted": "true",
+      "openai.response.id": "42",
       "openai.response.model": "gpt-3.5-turbo-instruct",
       "openai.response.object": "model",
       "openai.user.api_key": "sk-...9d5d",
@@ -27,8 +28,7 @@
     "metrics": {
       "_dd.agent_psr": 1,
       "_dd.measured": 1,
-      "_sampling_priority_v1": 1,
-      "openai.response.id": 42
+      "_sampling_priority_v1": 1
     }
   },
      {

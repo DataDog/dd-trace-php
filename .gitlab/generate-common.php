@@ -213,10 +213,10 @@ foreach ($arch_targets as $arch_target) {
 ?>
 
 .services:
-  test-agent:
-    name: registry.ddbuild.io/images/mirror/dd-apm-test-agent/ddapm-test-agent:v1.22.1
+  test-agent: &test_agent_service
+    name: registry.ddbuild.io/images/mirror/dd-apm-test-agent/ddapm-test-agent:v1.67.0
     alias: test-agent
-    variables:
+    variables: &test_agent_variables
       LOG_LEVEL: DEBUG
       TRACE_LANGUAGE: php
       DD_TRACE_AGENT_URL: http://request-replayer:80
@@ -235,6 +235,13 @@ foreach ($arch_targets as $arch_target) {
       KUBERNETES_SERVICE_CPU_LIMIT: 2
       KUBERNETES_SERVICE_MEMORY_REQUEST: 1Gi
       KUBERNETES_SERVICE_MEMORY_LIMIT: 1Gi
+
+  # For jobs without a request-replayer: the test agent forwards /info to DD_TRACE_AGENT_URL and fails it if that host is missing.
+  test-agent-standalone:
+    <<: *test_agent_service
+    variables:
+      <<: *test_agent_variables
+      DD_TRACE_AGENT_URL: ""
 
   request-replayer:
     name: registry.ddbuild.io/ci/dd-trace-php/request-replayer:5.0

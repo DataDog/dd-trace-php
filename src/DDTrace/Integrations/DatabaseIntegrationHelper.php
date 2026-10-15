@@ -44,16 +44,16 @@ class DatabaseIntegrationHelper
             }
 
             $span = $hook->span();
-            $targetHost = $span->meta[Tag::TARGET_HOST] ?? '';
-            $dbName = $span->meta[Tag::DB_NAME] ?? $span->meta[Tag::DB_INSTANCE] ?? '';
-            $peerService = $span->meta['peer.service'] ?? '';
+            $targetHost = $span->attributes[Tag::TARGET_HOST] ?? '';
+            $dbName = $span->attributes[Tag::DB_NAME] ?? $span->attributes[Tag::DB_INSTANCE] ?? '';
+            $peerService = $span->attributes['peer.service'] ?? '';
 
             // Inject base hash into span tags if enabled
             if (\dd_trace_env_config("DD_DBM_INJECT_SQL_BASEHASH")
                 || $propagationMode == \DDTrace\DBM_PROPAGATION_DYNAMIC_SERVICE) {
                 $baseHash = \DDTrace\System\process_tags_base_hash();
                 if ($baseHash !== null) {
-                    $span->meta[Tag::PROPAGATED_HASH] = $baseHash;
+                    $span->attributes[Tag::PROPAGATED_HASH] = $baseHash;
                 }
             }
 
@@ -71,7 +71,7 @@ class DatabaseIntegrationHelper
             $hook->args[$argNum] = $query;
             $hook->overrideArguments($hook->args);
             if ($propagationMode == \DDTrace\DBM_PROPAGATION_FULL) {
-                $hook->span()->meta["_dd.dbm_trace_injected"] = "true";
+                $hook->span()->attributes["_dd.dbm_trace_injected"] = "true";
             }
         }
     }
@@ -98,7 +98,7 @@ class DatabaseIntegrationHelper
             $tags["dddbs"] = $databaseService;
         }
 
-        $env = $rootSpan->attributes["env"] ?? $rootSpan->meta["env"] ?? $rootSpan->env ?? "";
+        $env = $rootSpan->env ?? "";
         if ($env == "") {
             $env = ini_get("datadog.env");
         }
@@ -116,7 +116,7 @@ class DatabaseIntegrationHelper
 
         $service = $rootSpan->service ?? "";
         if ($service == "") {
-            $service = ddtrace_config_app_name();
+            $service = \dd_trace_env_config('DD_SERVICE');
         }
         if ($service != "") {
             $mapping = dd_trace_env_config('DD_SERVICE_MAPPING');
@@ -126,7 +126,7 @@ class DatabaseIntegrationHelper
             $tags["ddps"] = $service;
         }
 
-        $version = $rootSpan->attributes["version"] ?? $rootSpan->meta["version"] ?? $rootSpan->version ?? "";
+        $version = $rootSpan->version ?? "";
         if ($version == "") {
             $version = ini_get("datadog.version");
         }

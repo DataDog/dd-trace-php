@@ -8,7 +8,7 @@ SERVER_NAME=localhost:8888
 DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
-use function datadog\appsec\testing\{rinit,rshutdown,ddtrace_rshutdown,root_span_get_meta,root_span_get_metrics,root_span_add_tag};
+use function datadog\appsec\testing\{rinit, rshutdown, ddtrace_rshutdown, root_span_add_attribute};
 include __DIR__ . '/inc/ddtrace_version.php';
 
 ddtrace_version_at_least('0.79.0');
@@ -24,9 +24,9 @@ echo "rinit\n";
 var_dump(rinit());
 $helper->get_commands(); //ignore
 
-var_dump(root_span_add_tag("before", "root_span"));
+var_dump(root_span_add_attribute("before", "root_span"));
 DDTrace\start_span();
-var_dump(root_span_add_tag("after", "root_span"));
+var_dump(root_span_add_attribute("after", "root_span"));
 
 DDTrace\close_span(0);
 

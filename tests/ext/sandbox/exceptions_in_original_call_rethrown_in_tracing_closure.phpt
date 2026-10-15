@@ -25,7 +25,7 @@ array_map(function($span) {
         $span['name'],
         $span['attributes']['error.message']
     );
-}, dd_trace_serialize_closed_spans());
+}, dd_trace_serialize_closed_spans()['chunks'][0]['spans']);
 ?>
 --EXPECTF--
 a()

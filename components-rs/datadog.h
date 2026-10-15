@@ -149,62 +149,23 @@ void ddog_init_span_func(void (*free_func)(ddog_OwnedZendString),
                          void (*addref_func)(struct _zend_string*),
                          ddog_OwnedZendString (*init_func)(ddog_CharSlice));
 
-/**
- * # Safety
- * `span` must be a live span node pointer from `ddog_new_span` (every `*_zstr` span setter).
- */
-void ddog_set_span_service_zstr(ddog_SpanNode *span, struct _zend_string *str);
+void ddog_set_span_service_zstr(ddog_SpanBytes *span, struct _zend_string *str);
 
-/**
- * # Safety
- * See [`ddog_set_span_service_zstr`].
- */
-void ddog_set_span_name_zstr(ddog_SpanNode *span, struct _zend_string *str);
+void ddog_set_span_name_zstr(ddog_SpanBytes *span, struct _zend_string *str);
 
-/**
- * # Safety
- * See [`ddog_set_span_service_zstr`].
- */
-void ddog_set_span_resource_zstr(ddog_SpanNode *span, struct _zend_string *str);
+void ddog_set_span_resource_zstr(ddog_SpanBytes *span, struct _zend_string *str);
 
-/**
- * # Safety
- * See [`ddog_set_span_service_zstr`].
- */
-void ddog_set_span_type_zstr(ddog_SpanNode *span, struct _zend_string *str);
-
-/**
- * String attribute under a static C literal key.
- *
- * # Safety
- * `attrs` must be a live `Attributes` handle and `key` a static NUL-terminated string (applies
- * to every attribute adder below).
- */
-void ddog_attributes_add_lit(ddog_Attributes *attrs, const char *key, ddog_CharSlice value);
+void ddog_set_span_type_zstr(ddog_SpanBytes *span, struct _zend_string *str);
 
 /**
  * String attribute sharing both zend strings (zero-copy).
- *
- * # Safety
- * See [`ddog_attributes_add_lit`].
  */
 void ddog_attributes_add_zstr(ddog_Attributes *attrs,
                               struct _zend_string *key,
                               struct _zend_string *value);
 
 /**
- * Double attribute under a static C literal key.
- *
- * # Safety
- * See [`ddog_attributes_add_lit`].
- */
-void ddog_attributes_add_double_lit(ddog_Attributes *attrs, const char *key, double value);
-
-/**
  * Double attribute under a shared zend string key (zero-copy).
- *
- * # Safety
- * See [`ddog_attributes_add_lit`].
  */
 void ddog_attributes_add_double_zstr(ddog_Attributes *attrs,
                                      struct _zend_string *key,

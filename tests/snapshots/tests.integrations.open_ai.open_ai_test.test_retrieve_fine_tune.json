@@ -18,6 +18,7 @@
       "openai.request.fine_tune_id": "ftjob-AF1WoRqd3aJAHsqc9NY7iL8F",
       "openai.request.method": "GET",
       "openai.response.fine_tuned_model": "ft:gpt-3.5-turbo-0613:jwe-dev::7qnxQ0sQ",
+      "openai.response.id": "42",
       "openai.response.model": "gpt-3.5-turbo-instruct",
       "openai.response.object": "fine_tuning.job",
       "openai.response.status": "succeeded",
@@ -31,7 +32,6 @@
       "_dd.measured": 1,
       "_sampling_priority_v1": 1,
       "openai.response.created_at": 1614807352,
-      "openai.response.id": 42,
       "openai.response.result_files_count": 1
     }
   },

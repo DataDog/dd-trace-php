@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace OpenTelemetry\Context;
 
 use DDTrace\SpanData;
-use DDTrace\Tag;
+use DDTrace\SpanKind;
 use DDTrace\Util\ObjectKVStore;
 use OpenTelemetry\API\Trace as API;
 use OpenTelemetry\API\Baggage\Baggage;
@@ -144,18 +144,18 @@ final class Context implements ContextInterface
         self::deactivateEndedParents($currentSpan->parent);
     }
 
-    private static function convertDDSpanKindToOtel(string $spanKind)
+    private static function convertDDSpanKindToOtel(int $spanKind)
     {
         switch ($spanKind) {
-            case Tag::SPAN_KIND_VALUE_CLIENT:
+            case SpanKind::CLIENT:
                 return API\SpanKind::KIND_CLIENT;
-            case Tag::SPAN_KIND_VALUE_SERVER:
+            case SpanKind::SERVER:
                 return API\SpanKind::KIND_SERVER;
-            case Tag::SPAN_KIND_VALUE_PRODUCER:
+            case SpanKind::PRODUCER:
                 return API\SpanKind::KIND_PRODUCER;
-            case Tag::SPAN_KIND_VALUE_CONSUMER:
+            case SpanKind::CONSUMER:
                 return API\SpanKind::KIND_CONSUMER;
-            case Tag::SPAN_KIND_VALUE_INTERNAL:
+            case SpanKind::INTERNAL:
             default:
                 return API\SpanKind::KIND_INTERNAL;
         }
@@ -211,11 +211,7 @@ final class Context implements ContextInterface
             $currentSpan,
             API\SpanContext::create($currentTraceId, $currentSpanId, $traceFlags, $traceState), // $context
             self::getDDInstrumentationScope(), // $instrumentationScope
-            isset($currentSpan->attributes[Tag::SPAN_KIND]) || isset($currentSpan->meta[Tag::SPAN_KIND])
-                ? self::convertDDSpanKindToOtel(
-                    $currentSpan->attributes[Tag::SPAN_KIND] ?? $currentSpan->meta[Tag::SPAN_KIND]
-                )
-                : API\SpanKind::KIND_INTERNAL, // $kind
+            self::convertDDSpanKindToOtel($currentSpan->spanKind), // $kind
             API\Span::fromContext($parentContext), // $parentSpan (TODO: Handle null parent span) ?
             $parentContext, // $parentContext
             NoopSpanProcessor::getInstance(), // $spanProcessor

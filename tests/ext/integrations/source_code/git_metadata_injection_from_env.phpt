@@ -8,7 +8,6 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
-include __DIR__ . '/../../sandbox/dd_dumper.inc';
 
 ini_set('datadog.trace.git_metadata_enabled', 1);
 
@@ -18,74 +17,86 @@ $internalSpan = \DDTrace\start_span();
 \DDTrace\close_span();
 \DDTrace\close_span();
 
-var_dump(dd_clean_spans());
+var_dump(dd_trace_serialize_closed_spans());
 
 ?>
 --EXPECTF--
 array(2) {
-  [0]=>
-  array(12) {
-    ["trace_id"]=>
-    string(%d) "%d"
-    ["trace_id_high"]=>
-    string(16) "%s"
-    ["span_id"]=>
-    string(%d) "%d"
-    ["start"]=>
-    int(%d)
-    ["duration"]=>
-    int(%d)
-    ["name"]=>
-    string(35) "git_metadata_injection_from_env.php"
-    ["resource"]=>
-    string(35) "git_metadata_injection_from_env.php"
-    ["service"]=>
-    string(35) "git_metadata_injection_from_env.php"
-    ["type"]=>
-    string(3) "cli"
-    ["sampling_priority"]=>
-    int(1)
-    ["sampling_mechanism"]=>
-    int(0)
-    ["attributes"]=>
-    array(8) {
-      ["runtime-id"]=>
-      string(%d) "%s"
-      ["process_id"]=>
-      float(%f)
-      ["_dd.agent_psr"]=>
-      float(1)
-      ["_dd.git.commit.sha"]=>
-      string(6) "123456"
-      ["_dd.git.repository_url"]=>
-      string(24) "github.com/user/env_repo"
-      ["php.compilation.total_time_ms"]=>
-      float(%f)
-      ["php.memory.peak_usage_bytes"]=>
-      float(%f)
-      ["php.memory.peak_real_usage_bytes"]=>
-      float(%f)
-    }
+  ["attributes"]=>
+  array(4) {
+    ["_dd.sdk.otlp_export"]=>
+    string(5) "false"
+    ["_dd.tags.process"]=>
+    string(%d) "%s"
+    ["_dd.git.commit.sha"]=>
+    string(6) "123456"
+    ["_dd.git.repository_url"]=>
+    string(24) "github.com/user/env_repo"
   }
-  [1]=>
-  array(9) {
-    ["trace_id"]=>
-    string(%d) "%d"
-    ["span_id"]=>
-    string(%d) "%d"
-    ["parent_id"]=>
-    string(%d) "%d"
-    ["start"]=>
-    int(%d)
-    ["duration"]=>
-    int(%d)
-    ["name"]=>
-    string(0) ""
-    ["resource"]=>
-    string(0) ""
-    ["service"]=>
-    string(35) "git_metadata_injection_from_env.php"
-    ["type"]=>
-    string(3) "cli"
+  ["chunks"]=>
+  array(1) {
+    [0]=>
+    array(4) {
+      ["trace_id"]=>
+      string(%d) "%s"
+      ["priority"]=>
+      int(1)
+      ["sampling_mechanism"]=>
+      int(0)
+      ["spans"]=>
+      array(2) {
+        [0]=>
+        array(8) {
+          ["span_id"]=>
+          string(%d) "%d"
+          ["start"]=>
+          int(%d)
+          ["duration"]=>
+          int(%d)
+          ["name"]=>
+          string(35) "git_metadata_injection_from_env.php"
+          ["resource"]=>
+          string(35) "git_metadata_injection_from_env.php"
+          ["service"]=>
+          string(35) "git_metadata_injection_from_env.php"
+          ["type"]=>
+          string(3) "cli"
+          ["attributes"]=>
+          array(6) {
+            ["runtime-id"]=>
+            string(%d) "%s"
+            ["process_id"]=>
+            int(%d)
+            ["_dd.agent_psr"]=>
+            float(1)
+            ["php.compilation.total_time_ms"]=>
+            float(%f)
+            ["php.memory.peak_usage_bytes"]=>
+            float(%f)
+            ["php.memory.peak_real_usage_bytes"]=>
+            float(%f)
+          }
+        }
+        [1]=>
+        array(8) {
+          ["span_id"]=>
+          string(%d) "%d"
+          ["parent_id"]=>
+          string(%d) "%d"
+          ["start"]=>
+          int(%d)
+          ["duration"]=>
+          int(%d)
+          ["name"]=>
+          string(0) ""
+          ["resource"]=>
+          string(0) ""
+          ["service"]=>
+          string(35) "git_metadata_injection_from_env.php"
+          ["type"]=>
+          string(3) "cli"
+        }
+      }
+    }
   }
 }

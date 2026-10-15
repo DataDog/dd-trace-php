@@ -37,7 +37,7 @@ class EloquentTest extends WebFrameworkTestCase
             'laravel',
             'sql',
             'User'
-        )->withExactTags([
+        )->withExactAttributes([
             TAG::SPAN_KIND => 'client',
             Tag::COMPONENT => 'eloquent',
             '_dd.svc_src' => 'laravel',
@@ -56,7 +56,7 @@ class EloquentTest extends WebFrameworkTestCase
             'laravel',
             'sql',
             'select * from `users`'
-        )->withExactTags([
+        )->withExactAttributes([
             TAG::SPAN_KIND => 'client',
             'sql.query' => 'select * from `users`',
             Tag::COMPONENT => 'eloquent',
@@ -76,7 +76,7 @@ class EloquentTest extends WebFrameworkTestCase
             'laravel',
             'sql',
             'User'
-        )->withExactTags([
+        )->withExactAttributes([
             TAG::SPAN_KIND => 'client',
             Tag::COMPONENT => 'eloquent',
             '_dd.svc_src' => 'laravel',
@@ -96,7 +96,7 @@ class EloquentTest extends WebFrameworkTestCase
             'laravel',
             'sql',
             'User'
-        )->withExactTags([
+        )->withExactAttributes([
             TAG::SPAN_KIND => 'client',
             Tag::COMPONENT => 'eloquent',
             '_dd.svc_src' => 'laravel',
@@ -116,7 +116,7 @@ class EloquentTest extends WebFrameworkTestCase
             'laravel',
             'sql',
             'User'
-        )->withExactTags([
+        )->withExactAttributes([
             TAG::SPAN_KIND => 'client',
             Tag::COMPONENT => 'eloquent',
             '_dd.svc_src' => 'laravel',

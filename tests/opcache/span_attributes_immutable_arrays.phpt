@@ -29,7 +29,7 @@ $span->links[] = $link;
 $span->events[] = new SpanEvent('evt', ['list' => ['x', 'y'], 'map' => ['n' => [3]]], 1);
 \DDTrace\close_span();
 
-$spans = dd_trace_serialize_closed_spans();
+$spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
 echo json_encode([
     $spans[0]['attributes']['flat'],
     $spans[0]['attributes']['nested'],

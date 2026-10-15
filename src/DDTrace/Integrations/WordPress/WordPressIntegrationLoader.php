@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\WordPress;
 use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
+use DDTrace\SpanKind;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\Normalizer;
@@ -122,8 +123,8 @@ class WordPressIntegrationLoader
         $span->name = $name;
         $span->resource = $resource ?: $name;
         $span->type = Type::WEB_SERVLET;
-        $span->service = \ddtrace_config_app_name(WordPressIntegration::NAME);
-        $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
+        $span->service = \dd_trace_env_config('DD_SERVICE') ?: WordPressIntegration::NAME;
+        $span->component = WordPressIntegration::NAME;
     }
 
     public static function getInterestingActions()
@@ -205,9 +206,9 @@ class WordPressIntegrationLoader
             $rootSpan = \DDTrace\root_span();
             if ($rootSpan) {
                 $rootSpan->name = 'wordpress.request';
-                $rootSpan->service = \ddtrace_config_app_name(WordPressIntegration::NAME);;
-                $rootSpan->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
-                $rootSpan->attributes[Tag::SPAN_KIND] = 'server';
+                $rootSpan->service = \dd_trace_env_config('DD_SERVICE') ?: WordPressIntegration::NAME;;
+                $rootSpan->component = WordPressIntegration::NAME;
+                $rootSpan->spanKind = SpanKind::SERVER;
                 if ('cli' !== PHP_SAPI) {
                     $normalizedPath = Normalizer::uriNormalizeincomingPath($_SERVER['REQUEST_URI']);
                     $rootSpan->resource = $_SERVER['REQUEST_METHOD'] . ' ' . $normalizedPath;
@@ -254,7 +255,7 @@ class WordPressIntegrationLoader
                                     'load_theme',
                                     "$themeName (theme)"
                                 );
-                                $span->meta['wordpress.theme'] = $themeName;
+                                $span->attributes['wordpress.theme'] = $themeName;
 
                                 remove_hook($hook->id);
                             }
@@ -384,7 +385,7 @@ class WordPressIntegrationLoader
                 );
 
                 if (isset($this->name)) {
-                    $span->meta['wordpress.widget'] = $this->name;
+                    $span->attributes['wordpress.widget'] = $this->name;
                 }
             });
         });
@@ -419,9 +420,9 @@ class WordPressIntegrationLoader
 
             $templateFile = $args[0];
             if ($plugin = self::extractPluginNameFromFile($templateFile)) {
-                $span->meta['wordpress.plugin'] = $plugin;
+                $span->attributes['wordpress.plugin'] = $plugin;
             } elseif ($theme = self::extractThemeNameFromFile($templateFile)) {
-                $span->meta['wordpress.theme'] = $theme;
+                $span->attributes['wordpress.theme'] = $theme;
             }
 
             if (substr($templateFile, -4) === '.php') {
@@ -429,7 +430,7 @@ class WordPressIntegrationLoader
                 $templatePart = end($templatePart);
                 $templatePart = substr($templatePart, 0, -4);
                 $span->resource = "$templatePart (template)";
-                $span->meta['wordpress.template_part'] = $templatePart;
+                $span->attributes['wordpress.template_part'] = $templatePart;
             }
         });
 
@@ -438,7 +439,7 @@ class WordPressIntegrationLoader
 
             $postID = get_the_ID();
             if ($postID) {
-                $span->meta['wordpress.post.id'] = $postID;
+                $span->attributes['wordpress.post.id'] = $postID;
             }
         });
 
@@ -454,7 +455,7 @@ class WordPressIntegrationLoader
             self::setCommonTags($span, 'the_post_thumbnail');
 
             if (isset($args[0]) && is_string($args[0])) {
-                $span->meta['wordpress.post.thumbnail_size'] = $args[0];
+                $span->attributes['wordpress.post.thumbnail_size'] = $args[0];
             }
         });
 
@@ -487,7 +488,7 @@ class WordPressIntegrationLoader
                         "$blockName (block)"
                     );
 
-                    $span->meta['wordpress.block.name'] = $blockName;
+                    $span->attributes['wordpress.block.name'] = $blockName;
 
                     $attrs = $block->attributes;
                     foreach ($attrs as $attr => $value) {
@@ -495,9 +496,9 @@ class WordPressIntegrationLoader
                         if (empty($value)) {
                             continue;
                         } elseif (is_string($value) || is_int($value) || is_bool($value)) {
-                            $span->meta["wordpress.block.attr.$attr"] = $value;
+                            $span->attributes["wordpress.block.attr.$attr"] = $value;
                         } elseif (is_array($value)) {
-                            $span->meta["wordpress.block.attr.$attr"] = json_encode($value);
+                            $span->attributes["wordpress.block.attr.$attr"] = json_encode($value);
                         }
                         // Note: Purposefully ignoring objects because of the unpredictability nature of their
                         // __toString() implementation, if any. In reality, there shouldn't be any objects in
@@ -509,9 +510,9 @@ class WordPressIntegrationLoader
                     if ($namespaceName !== 'core') {
                         $themeName = wp_get_theme()->get('Name');
                         if (strtolower($namespaceName) === strtolower($themeName)) {
-                            $span->meta['wordpress.theme'] = $themeName;
+                            $span->attributes['wordpress.theme'] = $themeName;
                         } else {
-                            $span->meta['wordpress.plugin'] = $namespaceName;
+                            $span->attributes['wordpress.plugin'] = $namespaceName;
                         }
                     }
 
@@ -528,7 +529,7 @@ class WordPressIntegrationLoader
             );
 
             if (isset($args[0]) && is_string($args[0])) {
-                $span->meta['wordpress.template_part'] = $args[0];
+                $span->attributes['wordpress.template_part'] = $args[0];
             }
         });
 
@@ -541,11 +542,11 @@ class WordPressIntegrationLoader
 
             $themeName = self::extractThemeNameFromFile($path);
             if ($themeName) {
-                $span->meta['wordpress.theme'] = $themeName;
+                $span->attributes['wordpress.theme'] = $themeName;
             }
 
             if (isset($args[0]) && is_string($args[0])) {
-                $span->meta['wordpress.template_type'] = $args[0];
+                $span->attributes['wordpress.template_type'] = $args[0];
             }
         });
 
@@ -588,11 +589,11 @@ class WordPressIntegrationLoader
                         }
 
                         $span->resource = "$hookName (hook)";
-                        $span->meta['wordpress.hook'] = $hookName;
+                        $span->attributes['wordpress.hook'] = $hookName;
 
                         if (isset($actionHookToPlugin[$hookName])) { // Don't waste time if it gave null before
                             if ($actionHookToPlugin[$hookName]) {
-                                $span->meta['wordpress.plugin'] = $actionHookToPlugin[$hookName];
+                                $span->attributes['wordpress.plugin'] = $actionHookToPlugin[$hookName];
                             }
                         } else {
                             $file = $hook->getSourceFile();
@@ -603,7 +604,7 @@ class WordPressIntegrationLoader
                                     $actionHookToPlugin
                                 )
                             ) {
-                                $span->meta['wordpress.plugin'] = $plugin;
+                                $span->attributes['wordpress.plugin'] = $plugin;
                             } elseif (
                                 $theme = self::extractAndSaveThemeNameFromSpan(
                                     $file,
@@ -611,7 +612,7 @@ class WordPressIntegrationLoader
                                     $actionHookToTheme
                                 )
                             ) {
-                                $span->meta['wordpress.theme'] = $theme;
+                                $span->attributes['wordpress.theme'] = $theme;
                             }
                         }
                     }
@@ -655,7 +656,7 @@ class WordPressIntegrationLoader
                                     'load_plugin',
                                     "$pluginName (plugin)"
                                 );
-                                $span->meta['wordpress.plugin'] = $pluginName;
+                                $span->attributes['wordpress.plugin'] = $pluginName;
                             },
                             static function ($hook) use (&$plugins) {
                                 $top = \array_pop($plugins);
@@ -703,16 +704,16 @@ class WordPressIntegrationLoader
                                     'callback',
                                     $callbackName . ' (callback)'
                                 );
-                                $span->meta['wordpress.callback'] = $callbackName;
-                                $span->meta['wordpress.hook'] = $action;
+                                $span->attributes['wordpress.callback'] = $callbackName;
+                                $span->attributes['wordpress.hook'] = $action;
 
                                 $file = $hook->getSourceFile();
                                 if ($plugin = self::extractPluginNameFromFile($file)) {
-                                    $span->meta['wordpress.plugin'] = $plugin;
+                                    $span->attributes['wordpress.plugin'] = $plugin;
                                 } elseif ($themeName = self::extractThemeNameFromFile($file)) {
-                                    $span->meta['wordpress.theme'] = $themeName;
+                                    $span->attributes['wordpress.theme'] = $themeName;
                                 } elseif ($pluginName) {
-                                    $span->meta['wordpress.plugin'] = $pluginName;
+                                    $span->attributes['wordpress.plugin'] = $pluginName;
                                 }
 
                                 remove_hook($hook->id);
@@ -730,7 +731,7 @@ class WordPressIntegrationLoader
                 function_exists('is_404') && is_404() === false) {
                 $rootSpan = \DDTrace\root_span();
                 if (\property_exists($This, 'matched_rule')) {
-                    $rootSpan->meta[Tag::HTTP_ROUTE] = $This->matched_rule;
+                    $rootSpan->attributes[Tag::HTTP_ROUTE] = $This->matched_rule;
                 }
             }
         });

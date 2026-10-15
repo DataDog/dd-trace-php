@@ -5,6 +5,7 @@ namespace DDTrace\Integrations\Memcached;
 use DDTrace\Integrations\DatabaseIntegrationHelper;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
+use DDTrace\SpanKind;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\Obfuscation;
@@ -76,17 +77,17 @@ class MemcachedIntegration extends Integration
 
         \DDTrace\trace_method('Memcached', 'cas', function (SpanData $span, $args) {
             MemcachedIntegration::setCommonData($span, 'cas');
-            $span->meta['memcached.cas_token'] = $args[0];
-            $span->meta['memcached.query'] = 'cas ?';
+            $span->attributes['memcached.cas_token'] = $args[0];
+            $span->attributes['memcached.query'] = 'cas ?';
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             MemcachedIntegration::setServerTags($span, $this);
         });
 
         \DDTrace\trace_method('Memcached', 'casByKey', function (SpanData $span, $args) {
             MemcachedIntegration::setCommonData($span, 'casByKey');
-            $span->meta['memcached.cas_token'] = $args[0];
-            $span->meta['memcached.query'] = 'casByKey ?';
-            $span->meta['memcached.server_key'] = $args[1];
+            $span->attributes['memcached.cas_token'] = $args[0];
+            $span->attributes['memcached.query'] = 'casByKey ?';
+            $span->attributes['memcached.server_key'] = $args[1];
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
 
             MemcachedIntegration::setServerTags($span, $this);
@@ -103,11 +104,11 @@ class MemcachedIntegration extends Integration
             function (SpanData $span, $args, $retval) use ($command) {
                 MemcachedIntegration::setCommonData($span, $command);
                 if ($command === 'get') {
-                    $span->metrics[Tag::DB_ROW_COUNT] = empty($retval) ? 0 : 1;
+                    $span->attributes[Tag::DB_ROW_COUNT] = empty($retval) ? 0 : 1;
                 }
                 if (!is_array($args[0])) {
                     MemcachedIntegration::setServerTags($span, $this);
-                    $span->meta['memcached.query'] = $command . ' ' . MemcachedIntegration::obfuscateIfNeeded($args[0]);
+                    $span->attributes['memcached.query'] = $command . ' ' . MemcachedIntegration::obfuscateIfNeeded($args[0]);
                 }
                 $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
 
@@ -123,12 +124,12 @@ class MemcachedIntegration extends Integration
             function (SpanData $span, $args, $retval) use ($command) {
                 MemcachedIntegration::setCommonData($span, $command);
                 if ($command === 'getByKey') {
-                    $span->metrics[Tag::DB_ROW_COUNT] = empty($retval) ? 0 : 1;
+                    $span->attributes[Tag::DB_ROW_COUNT] = empty($retval) ? 0 : 1;
                 }
                 if (!is_array($args[0])) {
                     MemcachedIntegration::setServerTags($span, $this);
-                    $span->meta['memcached.query'] = $command . ' ' . MemcachedIntegration::obfuscateIfNeeded($args[0]);
-                    $span->meta['memcached.server_key'] = $args[0];
+                    $span->attributes['memcached.query'] = $command . ' ' . MemcachedIntegration::obfuscateIfNeeded($args[0]);
+                    $span->attributes['memcached.server_key'] = $args[0];
                 }
                 $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
 
@@ -144,10 +145,10 @@ class MemcachedIntegration extends Integration
             function (SpanData $span, $args, $retval) use ($command) {
                 MemcachedIntegration::setCommonData($span, $command);
                 if ($command === 'getMulti') {
-                    $span->metrics[Tag::DB_ROW_COUNT] = isset($retval) ? (is_array($retval) ? count($retval) : 1) : 0;
+                    $span->attributes[Tag::DB_ROW_COUNT] = isset($retval) ? (is_array($retval) ? count($retval) : 1) : 0;
                 }
                 MemcachedIntegration::setServerTags($span, $this);
-                $span->meta['memcached.query'] = $command . ' ' . MemcachedIntegration::obfuscateIfNeeded($args[0], ',');
+                $span->attributes['memcached.query'] = $command . ' ' . MemcachedIntegration::obfuscateIfNeeded($args[0], ',');
                 $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             }
         );
@@ -161,12 +162,12 @@ class MemcachedIntegration extends Integration
             function (SpanData $span, $args, $retval) use ($command) {
                 MemcachedIntegration::setCommonData($span, $command);
                 if ($command === 'getMultiByKey') {
-                    $span->metrics[Tag::DB_ROW_COUNT] = isset($retval) ? (is_array($retval) ? count($retval) : 1) : 0;
+                    $span->attributes[Tag::DB_ROW_COUNT] = isset($retval) ? (is_array($retval) ? count($retval) : 1) : 0;
                 }
-                $span->meta['memcached.server_key'] = $args[0];
+                $span->attributes['memcached.server_key'] = $args[0];
                 MemcachedIntegration::setServerTags($span, $this);
                 $query = "$command " . MemcachedIntegration::obfuscateIfNeeded($args[1], ',');
-                $span->meta['memcached.query'] = $query;
+                $span->attributes['memcached.query'] = $query;
                 $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             }
         );
@@ -185,10 +186,10 @@ class MemcachedIntegration extends Integration
         $span->service = 'memcached';
         Integration::handleInternalSpanServiceName($span, self::NAME);
         $span->resource = $command;
-        $span->meta['memcached.command'] = $command;
-        $span->meta[Tag::SPAN_KIND] = 'client';
-        $span->meta[Tag::COMPONENT] = self::NAME;
-        $span->meta[Tag::DB_SYSTEM] = self::NAME;
+        $span->attributes['memcached.command'] = $command;
+        $span->spanKind = SpanKind::CLIENT;
+        $span->component = self::NAME;
+        $span->attributes[Tag::DB_SYSTEM] = self::NAME;
     }
 
     /**
@@ -212,8 +213,8 @@ class MemcachedIntegration extends Integration
          * top one to keep memory overhead low.
          */
         if (isset($servers[0]['host'], $servers[0]['port'])) {
-            $span->meta[Tag::TARGET_HOST] = $servers[0]['host'];
-            $span->meta[Tag::TARGET_PORT] = $servers[0]['port'];
+            $span->attributes[Tag::TARGET_HOST] = $servers[0]['host'];
+            $span->attributes[Tag::TARGET_PORT] = $servers[0]['port'];
         }
     }
 

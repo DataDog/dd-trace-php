@@ -18,7 +18,7 @@ $span->meta["env"] = "goodenv";
 
 \DDTrace\close_span();
 
-$span = dd_trace_serialize_closed_spans()[1];
+$span = dd_trace_serialize_closed_spans()['chunks'][0]['spans'][1];
 var_dump([
     "env" => $span["env"],
     "version" => $span["version"],

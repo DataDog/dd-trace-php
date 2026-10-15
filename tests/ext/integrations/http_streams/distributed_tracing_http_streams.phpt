@@ -42,7 +42,7 @@ dt_dump_headers_from_httpbin($headers, [
 ]);
 
 echo "\n=== Span ===\n";
-$spans = dd_trace_serialize_closed_spans();
+$spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
 $span = $spans[1];
 
 echo "name: " . $span['name'] . "\n";

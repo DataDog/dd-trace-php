@@ -23,11 +23,7 @@ var_dump(dd_clean_spans());
 HOOK METHOD arg
 array(1) {
   [0]=>
-  array(10) {
-    ["trace_id"]=>
-    string(%d) "%d"
-    ["trace_id_high"]=>
-    string(16) "%s"
+  array(8) {
     ["span_id"]=>
     string(%d) "%d"
     ["parent_id"]=>

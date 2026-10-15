@@ -10,6 +10,7 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 use DDTrace\Tests\Frameworks\Util\Request\RequestSpec;
 use DDTrace\Tests\WebServer;
 use DDTrace\Tracer;
+use DDTrace\Util\SpanKindNames;
 use Exception;
 use PHPUnit\Framework\TestCase;
 
@@ -19,6 +20,12 @@ trait TracerTestTrait
     protected static $testAgentUrl = 'http://test-agent:9126';
 
     protected static $webserverPort = 6666 + GLOBAL_PORT_OFFSET;
+
+    /** @var array The payload fields (without chunks) of the trace dumps parsed since the last dumper reset */
+    protected $dumpedPayload = [];
+
+    /** Payload attributes that the v0.4 wire carries on spans instead (see libdatadog's v0.4 downgrade). */
+    private static $v04PayloadAttributes = ['_dd.tags.process', '_dd.sdk.otlp_export', '_dd.git.commit.sha', '_dd.git.repository_url'];
 
     public function resetTracer($tracer = null, $config = [])
     {
@@ -66,10 +73,7 @@ trait TracerTestTrait
         }
         $fn($tracer);
 
-        $traces = $this->flushAndGetTraces();
-        if (!empty($traces)) {
-            $this->sendTracesToTestAgent($traces);
-        }
+        $traces = $this->flushAndSendTracesToTestAgent();
 
         self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT');
         self::putEnv('DD_TRACE_AGENT_RETRIES');
@@ -77,29 +81,28 @@ trait TracerTestTrait
         return $traces;
     }
 
-    public function sendTracesToTestAgent($traces)
+    /**
+     * Like flushAndGetTraces(), and also sends the closed spans to the test agent, as the v0.4 msgpack
+     * payloads that the in-process sender's downgrade produces.
+     */
+    protected function flushAndSendTracesToTestAgent()
     {
-        // flushAndGetTraces() returns the V1 introspection shape (attributes + promoted keys).
-        // The test agent negotiates the v0.4 wire, so convert each span to the flat shape it
-        // expects (and that the stored snapshots were captured in) before sending. Native
-        // span_links become the legacy `_dd.span_links` meta JSON: the test agent rejects the list.
-        foreach ($traces as &$trace) {
-            foreach ($trace as &$span) {
-                $span = SpanChecker::spanLinksToLegacyMeta(SpanChecker::spanToWireShape($span));
-            }
-            unset($span);
+        list($payload, $v04Payloads) = \DDTrace\Testing\serialize_closed_spans_v04();
+        foreach ($v04Payloads as $v04Payload) {
+            $this->sendTracesToTestAgent($v04Payload);
         }
-        unset($trace);
+        return $payload['chunks'];
+    }
 
-        // The data to be sent in the POST request
-        $data_json = json_encode($traces);
-
+    /** @param string $v04Payload A v0.4 msgpack payload with a single trace */
+    public function sendTracesToTestAgent($v04Payload)
+    {
         // The headers to be included in the request
         $headers = array(
-            'Content-Type: application/json',
+            'Content-Type: application/msgpack',
             'Datadog-Meta-Lang: php',
             'X-Datadog-Agent-Proxy-Disabled: true',
-            'X-Datadog-Trace-Count: ' . count($traces),
+            'X-Datadog-Trace-Count: 1',
             'X-Datadog-Test-Session-Token: ' . ini_get("datadog.trace.agent_test_session_token"),
         );
 
@@ -115,7 +118,7 @@ trait TracerTestTrait
         // Set the cURL options
         curl_setopt($curl, CURLOPT_URL, 'http://test-agent:9126/v0.4/traces'); // The URL to send the request to
         curl_setopt($curl, CURLOPT_POST, true); // Use POST method
-        curl_setopt($curl, CURLOPT_POSTFIELDS, $data_json); // Set the POST data
+        curl_setopt($curl, CURLOPT_POSTFIELDS, $v04Payload); // Set the POST data
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, true); // Return the response instead of outputting it
         curl_setopt($curl, CURLOPT_HTTPHEADER, $headers); // Set the headers
 
@@ -323,6 +326,7 @@ trait TracerTestTrait
      */
     public function resetRequestDumper()
     {
+        $this->dumpedPayload = [];
         $curl = curl_init(self::$agentRequestDumperUrl . '/clear-dumped-data');
         curl_setopt($curl, CURLOPT_HTTPHEADER, ['x-datadog-test-session-token: ' . ini_get("datadog.trace.agent_test_session_token")]);
         self::curlWithoutSpan($curl);
@@ -360,36 +364,117 @@ trait TracerTestTrait
         return $this->parseTracesFromDumpedData($until);
     }
 
-    private function parseRawDumpedTraces($rawTraces)
+    /**
+     * Parses a dumped trace payload into the chunks of the V1 view (as dd_trace_serialize_closed_spans()
+     * returns them), whatever the wire: the replayer's JSON view of the v1 payload, or a v0.4 (list of
+     * traces) / v0.7 (chunks of v0.4 spans) payload.
+     */
+    protected function parseRawDumpedTraces($rawTraces)
     {
-        // error_log('RawTraces: ' . print_r($rawTraces, 1));
+        $chunks = [];
+        if (!$rawTraces || isset($rawTraces[0])) {
+            $chunks = array_map([$this, 'fromV04Trace'], $rawTraces ?: []);
+        } elseif (isset($rawTraces['chunks'])) {
+            $payload = $rawTraces;
+            unset($payload['chunks']);
+            $this->dumpedPayload = array_replace_recursive($this->dumpedPayload, $payload);
+            foreach ($rawTraces['chunks'] as $chunk) {
+                $spans = $chunk['spans'] ?? [];
+                $chunks[] = isset($spans[0]['trace_id']) ? $this->fromV04Trace($spans) : $chunk;
+            }
+        }
+        foreach ($chunks as &$chunk) {
+            if (trim($chunk['trace_id'] ?? '', '0') === '') {
+                TestCase::fail('Chunk has zero trace_id');
+            }
+            $chunk['spans'] = $this->parseRawDumpedSpans($chunk['spans'] ?? []);
+        }
+        unset($chunk);
+        return $chunks;
+    }
 
-        if (empty($rawTraces['chunks'])) {
-            return $this->parseRawDumpedTraces04($rawTraces);
+    /**
+     * A v0.4 trace as a V1 chunk: the trace-level tags v0.4 keeps on spans become chunk fields, and
+     * the payload-level ones go to $dumpedPayload.
+     */
+    private function fromV04Trace(array $spans)
+    {
+        $chunk = [];
+        $traceIdHigh = 0;
+        foreach ($spans as &$span) {
+            $meta = $span['meta'] ?? [];
+            $metrics = $span['metrics'] ?? [];
+            foreach (self::$v04PayloadAttributes as $key) {
+                if (isset($meta[$key])) {
+                    $this->dumpedPayload['attributes'][$key] = $meta[$key];
+                    unset($span['meta'][$key]);
+                }
+            }
+            if (isset($meta['_dd.hostname'])) {
+                $this->dumpedPayload['hostname'] = $meta['_dd.hostname'];
+                unset($span['meta']['_dd.hostname']);
+            }
+            if (isset($meta['_dd.p.tid'])) {
+                $traceIdHigh = $meta['_dd.p.tid'];
+            }
+            if (isset($metrics['_sampling_priority_v1'])) {
+                $chunk['priority'] = (int)$metrics['_sampling_priority_v1'];
+            }
+            if (isset($meta['_dd.origin'])) {
+                $chunk['origin'] = $meta['_dd.origin'];
+            }
+            if (isset($meta['_dd.p.dm'])) {
+                // "-N" (legacy "<hash>-N"): the digits after the last '-'.
+                $chunk['sampling_mechanism'] = (int)substr(strrchr('-' . $meta['_dd.p.dm'], '-'), 1);
+            }
+        }
+        unset($span);
+        $traceIdLow = isset($spans[0]['trace_id']) ? SpanChecker::decimalToHex($spans[0]['trace_id'], 16) : '';
+        $chunk = ['trace_id' => str_pad($traceIdHigh, 16, '0', STR_PAD_LEFT) . $traceIdLow] + $chunk;
+        $chunk['spans'] = array_map([$this, 'fromV04Span'], $spans);
+        return $chunk;
+    }
+
+    /**
+     * A v0.4 span in the V1 view shape. The fields v0.4 keeps in meta/metrics move back to the span,
+     * links get hex ids. Attribute values stay in their (lossy) v0.4 form, so the span is marked for
+     * SpanChecker to compare expectations in that form too.
+     */
+    private function fromV04Span(array $span)
+    {
+        $attributes = ($span['meta'] ?? []) + ($span['metrics'] ?? []);
+        unset($span['meta'], $span['metrics'], $span['trace_id']);
+        unset($attributes['_dd.origin'], $attributes['_dd.p.tid'], $attributes['_dd.p.dm'], $attributes['_sampling_priority_v1']);
+        foreach (['env', 'version', 'component'] as $field) {
+            if (isset($attributes[$field])) {
+                $span[$field] = $attributes[$field];
+                unset($attributes[$field]);
+            }
+        }
+        $kind = array_search($attributes['span.kind'] ?? null, SpanKindNames::NAMES, true);
+        if ($kind !== false) {
+            $span['span_kind'] = $kind;
+            unset($attributes['span.kind']);
+        }
+        if (!empty($span['error'])) {
+            $span['error'] = true;
         } else {
-            return $this->parseRawDumpedTraces07($rawTraces);
+            unset($span['error']);
         }
-    }
-
-    private function parseRawDumpedTraces04($rawTraces)
-    {
-        $traces = [];
-
-        foreach ($rawTraces as $spansInTrace) {
-            $traces[] = $this->parseRawDumpedSpans($spansInTrace);
+        if (isset($attributes['events']) && is_array($events = json_decode($attributes['events'], true))) {
+            $span['span_events'] = $events;
+            unset($attributes['events']);
         }
-
-        return $traces;
-    }
-
-    private function parseRawDumpedTraces07($rawTraces)
-    {
-        $traces = [];
-
-        foreach ($rawTraces['chunks'] as $chunk) {
-            $traces[] = $this->parseRawDumpedSpans($chunk['spans']);
+        $links = $span['span_links'] ?? [];
+        unset($span['span_links']);
+        foreach ($links as $link) {
+            $span['span_links'][] = SpanChecker::hexSpanLink($link) + array_intersect_key($link, ['attributes' => 1]);
         }
-        return $traces;
+        if ($attributes) {
+            $span['attributes'] = $attributes;
+        }
+        $span['_wire'] = 'v0.4';
+        return $span;
     }
 
     private function parseRawDumpedSpans($rawSpans)
@@ -398,11 +483,6 @@ trait TracerTestTrait
         foreach ($rawSpans as $rawSpan) {
             if (empty($rawSpan['resource'])) {
                 TestCase::fail(sprintf("Span '%s' has empty resource name", $rawSpan['name']));
-                return;
-            }
-
-            if ($rawSpan['trace_id'] == "0") {
-                TestCase::fail(sprintf("Span '%s' has zero trace_id", $rawSpan['name']));
                 return;
             }
 
@@ -452,7 +532,7 @@ trait TracerTestTrait
         // Ensure stable sorting; sort order isn't guaranteed with sidecar trace sender
         // Sorting by end of root span
         usort($dumps, function ($a, $b) {
-            return $a[0]["start"] + $a[0]["duration"] <=> $b[0]["start"] + $b[0]["duration"];
+            return $a['spans'][0]["start"] + $a['spans'][0]["duration"] <=> $b['spans'][0]["start"] + $b['spans'][0]["duration"];
         });
 
         return $dumps;
@@ -548,9 +628,15 @@ trait TracerTestTrait
     {
         return array_values(array_filter($this->retrieveDumpedData($until, $throw), function ($request) {
             // Only return actual trace requests, filtering out telemetry, remote config, etc.
-            $uri = $request["uri"] ?? "";
-            return strpos($uri, "/v0.4/traces") === 0 || strpos($uri, "/v0.7/traces") === 0;
+            return self::isTraceUri($request["uri"] ?? "");
         }));
+    }
+
+    private static function isTraceUri($uri)
+    {
+        return strpos($uri, "/v0.4/traces") === 0
+            || strpos($uri, "/v0.7/traces") === 0
+            || strpos($uri, "/v1.0/traces") === 0;
     }
 
     function untilNumberOfTraces($number) {
@@ -563,9 +649,7 @@ trait TracerTestTrait
 
     function untilFirstTraceRequest() {
         return function ($request) {
-            return (strpos($request["uri"] ?? "", "/v0.4/traces") === 0)
-                || (strpos($request["uri"] ?? "", "/v0.7/traces") === 0)
-            ;
+            return self::isTraceUri($request["uri"] ?? "");
         };
     }
 
@@ -579,9 +663,7 @@ trait TracerTestTrait
 
     function untilSpan(SpanAssertion $assertion) {
         return function ($request) use ($assertion) {
-            $uri = $request["uri"] ?? "";
-            $isTrace = strpos($uri, "/v0.4/traces") === 0 || strpos($uri, "/v0.7/traces") === 0;
-            if (!$isTrace || !isset($request['body'])) {
+            if (!self::isTraceUri($request["uri"] ?? "") || !isset($request['body'])) {
                 return false;
             }
             $traces = $this->parseRawDumpedTraces(json_decode($request['body'], true));
@@ -665,8 +747,7 @@ trait TracerTestTrait
      */
     protected function flushAndGetTraces()
     {
-        $traces = \dd_trace_serialize_closed_spans();
-        return $traces ? [$traces] : [];
+        return \dd_trace_serialize_closed_spans()['chunks'];
     }
 
     /**

@@ -2,7 +2,8 @@
 
 namespace DDTrace\Tests\Common;
 
-use DDTrace\Tag;
+use DDTrace\Util\BaseConverter;
+use DDTrace\Util\SpanKindNames;
 use PHPUnit\Framework\TestCase;
 
 function array_filter_by_key($fn, array $input)
@@ -21,6 +22,9 @@ function array_filter_by_key($fn, array $input)
  */
 final class SpanChecker
 {
+    /** @var array The chunk fields of each flattened span's chunk, by span id */
+    private $chunkFields = [];
+
     /**
      * Asserts a flame graph with parent child relations.
      *
@@ -63,162 +67,98 @@ final class SpanChecker
         return self::dumpSpansGraph($actualGraph);
     }
 
-    /**
-     * Derives the legacy flat `meta` (string tags) and `metrics` (numeric tags) views from a span.
-     *
-     * The V1 introspection shape (`dd_trace_serialize_closed_spans()`) merges the old string `meta`
-     * and numeric `metrics` maps into a single typed `attributes` map, and promotes some keys to
-     * top-level span fields. The v0.4 agent wire (parsed from the request replayer) keeps the old
-     * flat `meta`/`metrics`. Tests assert against the legacy model, so normalize both shapes to it.
-     *
-     * Reconstruction is the exact inverse of the reshape, so the derived `meta`/`metrics` match what
-     * master's introspection returned for the same span.
-     *
-     * @return array{0: array, 1: array} `[$meta, $metrics]`
-     */
-    public static function extractMetaMetrics(array $span)
-    {
-        // Old flat shape (v0.4 wire): already split into meta/metrics.
-        if (\array_key_exists('meta', $span) || \array_key_exists('metrics', $span)) {
-            return [
-                isset($span['meta']) ? $span['meta'] : [],
-                isset($span['metrics']) ? $span['metrics'] : [],
-            ];
-        }
+    /** Test-side mapping: expectations name these span properties by their legacy tag key, as $span->meta does. */
+    const PROPERTY_KEYS = ['env' => 'env', 'version' => 'version', 'component' => 'component', 'span.kind' => 'span_kind'];
 
-        // New V1 introspection shape: split attributes back by type and restore promoted keys.
-        $meta = [];
-        $metrics = [];
-        foreach (isset($span['attributes']) ? $span['attributes'] : [] as $key => $value) {
-            if (\is_int($value) || \is_float($value)) {
-                $metrics[$key] = $value;
-            } else {
-                // Strings and nested array/map attributes belong to the meta view.
-                $meta[$key] = $value;
+    /** Attributes not compared unless an assertion names them: sampler and runtime bookkeeping. */
+    const IGNORED_UNLESS_EXPECTED = [
+        '_dd.agent_psr', '_dd.rule_psr', '_dd.limit_psr', '_dd.p.ksr', '_dd.top_level', '_top_level',
+        'runtime-id', 'http.client_ip', 'php.compilation.total_time_ms',
+        'php.memory.peak_usage_bytes', 'php.memory.peak_real_usage_bytes',
+    ];
+
+    /**
+     * The typed attributes of a span, plus the span properties that the legacy tag API exposes under
+     * a tag name (env, version, component and span.kind), so assertions can name them as attributes.
+     * With $strict, a property key written as a raw attribute fails; a non-canonical span.kind has no
+     * property, so it stays a valid attribute.
+     */
+    public static function attributeView(array $span, $strict = true)
+    {
+        $attributes = isset($span['attributes']) ? $span['attributes'] : [];
+        foreach (self::PROPERTY_KEYS as $key => $field) {
+            if ($strict && \array_key_exists($key, $attributes)
+                && ($field !== 'span_kind' || \in_array($attributes[$key], SpanKindNames::NAMES, true))) {
+                TestCase::fail(\sprintf(
+                    "'%s' must be set through the span property, not as a raw attribute: %s",
+                    $key,
+                    print_r($span, true)
+                ));
+            }
+            $value = isset($span[$field]) ? $span[$field] : '';
+            if ($field === 'span_kind') {
+                $value = isset(SpanKindNames::NAMES[$value]) ? SpanKindNames::NAMES[$value] : '';
+            }
+            if ($value !== '') {
+                $attributes[$key] = $value;
             }
         }
-        // Promoted string keys move back into meta under their original tag names.
-        if (isset($span['env'])) {
-            $meta['env'] = $span['env'];
-        }
-        if (isset($span['version'])) {
-            $meta['version'] = $span['version'];
-        }
-        if (isset($span['component'])) {
-            $meta['component'] = $span['component'];
-        }
-        // span_kind is an int enum, ALWAYS present; 1 (Internal) is the default and was not emitted
-        // as a `span.kind` meta tag in the old shape, so only restore the explicit kinds (2-5).
-        if (isset($span['span_kind'])) {
-            $kinds = [2 => 'server', 3 => 'client', 4 => 'producer', 5 => 'consumer'];
-            if (isset($kinds[$span['span_kind']])) {
-                $meta['span.kind'] = $kinds[$span['span_kind']];
-            }
-        }
-        // Chunk-level keys: introspection only emits these on the chunk's local root (as the wire).
-        if (isset($span['origin'])) {
-            $meta['_dd.origin'] = $span['origin'];
-        }
-        if (isset($span['trace_id_high'])) {
-            $meta['_dd.p.tid'] = $span['trace_id_high'];
-        }
-        // sampling_mechanism is the unsigned _dd.p.dm value (sign is always '-').
-        if (isset($span['sampling_mechanism'])) {
-            $meta['_dd.p.dm'] = '-' . $span['sampling_mechanism'];
-        }
-        // sampling_priority (int) was the numeric _sampling_priority_v1 metric.
-        if (isset($span['sampling_priority'])) {
-            $metrics['_sampling_priority_v1'] = (float) $span['sampling_priority'];
-        }
-        return [$meta, $metrics];
+        return $attributes;
     }
 
     /**
-     * Converts a V1 introspection span into the flat v0.4 shape the test agent expects, so
-     * introspection traces (from `flushAndGetTraces()`) can be sent to the agent for snapshotting.
-     * Old flat spans are returned unchanged.
+     * Typed attributes in the v0.4 wire's form, as libdatadog's v0.4 downgrade writes them: lists and maps
+     * flatten into dotted keys and bools become "true"/"false". Spans from that wire compare loosely.
      */
-    public static function spanToWireShape(array $span)
+    private static function toV04Attributes(array $attributes)
     {
-        if (\array_key_exists('meta', $span) || \array_key_exists('metrics', $span)) {
-            return $span;
+        $out = [];
+        foreach ($attributes as $key => $value) {
+            self::flattenV04((string)$key, $value, $out);
         }
-        list($meta, $metrics) = self::extractMetaMetrics($span);
-        unset(
-            $span['attributes'],
-            $span['span_kind'],
-            $span['env'],
-            $span['version'],
-            $span['component'],
-            $span['origin'],
-            $span['trace_id_high'],
-            $span['sampling_priority'],
-            $span['sampling_mechanism']
-        );
-        if ($meta) {
-            $span['meta'] = $meta;
+        return $out;
+    }
+
+    private static function flattenV04($key, $value, array &$out)
+    {
+        if (\is_array($value)) {
+            foreach ($value as $member => $item) {
+                self::flattenV04("$key.$member", $item, $out);
+            }
+        } else {
+            $out[$key] = \is_bool($value) ? ($value ? 'true' : 'false') : $value;
         }
-        if ($metrics) {
-            $span['metrics'] = $metrics;
-        }
-        return $span;
     }
 
     /**
-     * Moves native `span_links` (v0.4 downgrade wire, or V1 introspection) into the legacy
-     * `meta['_dd.span_links']` JSON string that the test agent accepts and that the stored
-     * snapshots were captured with. The test agent cannot decode a native `span_links` list.
+     * A span link's ids as hex (32-digit trace_id, 16-digit span_id) plus its trace state, from the
+     * v0.4 shape (decimal ids, trace_id_high).
      */
-    public static function spanLinksToLegacyMeta(array $span)
+    public static function hexSpanLink(array $link)
     {
-        if (empty($span['span_links'])) {
-            unset($span['span_links']);
-            return $span;
+        $high = isset($link['trace_id_high']) ? $link['trace_id_high'] : 0;
+        $hex = [
+            'trace_id' => self::decimalToHex($high, 16) . self::decimalToHex($link['trace_id'], 16),
+            'span_id' => self::decimalToHex($link['span_id'], 16),
+        ];
+        foreach (['trace_state', 'tracestate'] as $key) {
+            if (!empty($link[$key])) {
+                $hex['tracestate'] = $link[$key];
+            }
         }
-        $links = [];
-        foreach ($span['span_links'] as $link) {
-            $high = isset($link['trace_id_high']) ? $link['trace_id_high'] : 0;
-            // Introspection renders the high half as 16 hex digits, the wire as a decimal integer.
-            $highHex = \is_string($high) && \strlen($high) === 16 ? $high : self::decimalToHex($high, 16);
-            $legacy = [
-                'trace_id' => $highHex . self::decimalToHex($link['trace_id'], 16),
-                'span_id' => self::decimalToHex($link['span_id'], 16),
-            ];
-            if (!empty($link['trace_state'])) {
-                $legacy['trace_state'] = $link['trace_state'];
-            } elseif (!empty($link['tracestate'])) {
-                $legacy['trace_state'] = $link['tracestate'];
-            }
-            if (!empty($link['attributes'])) {
-                $legacy['attributes'] = $link['attributes'];
-            }
-            if (!empty($link['flags'])) {
-                $legacy['flags'] = $link['flags'];
-            }
-            $links[] = $legacy;
-        }
-        unset($span['span_links']);
-        $span['meta']['_dd.span_links'] = json_encode($links);
-        return $span;
+        return $hex;
+    }
+
+    /** The low 64 bits of a chunk's trace_id in decimal, as x-datadog-trace-id carries it. */
+    public static function traceIdLow(array $chunk)
+    {
+        return BaseConverter::convert(substr($chunk['trace_id'], 16), 16, 10);
     }
 
     /** Decimal (int or numeric string, possibly above PHP_INT_MAX) to zero-padded lowercase hex. */
-    private static function decimalToHex($decimal, $width)
+    public static function decimalToHex($decimal, $width)
     {
-        $digits = (string)$decimal;
-        $hex = '';
-        while ($digits !== '' && $digits !== '0') {
-            $quotient = '';
-            $carry = 0;
-            foreach (str_split($digits) as $d) {
-                $carry = $carry * 10 + (int)$d;
-                $quotient .= intdiv($carry, 16);
-                $carry %= 16;
-            }
-            $hex = dechex($carry) . $hex;
-            $digits = ltrim($quotient, '0');
-        }
-        return str_pad($hex, $width, '0', STR_PAD_LEFT);
+        return str_pad(BaseConverter::convert((string)$decimal, 10, 16), $width, '0', STR_PAD_LEFT);
     }
 
     public static function dumpSpansGraph(array $spansGraph, int $indent = 0)
@@ -243,20 +183,13 @@ final class SpanChecker
                 $out .= ' (' . implode(', ', $values) . ')';
             }
             $out .= "\n";
-            list($dumpMeta, $dumpMetrics) = self::extractMetaMetrics($span);
-            unset($dumpMeta['_dd.p.dm']);
-            unset($dumpMeta['_dd.p.tid']);
-            unset($dumpMeta['_dd.sdk.otlp_export']);
-            unset($dumpMeta['http.client_ip']);
-            foreach ($dumpMeta as $k => $v) {
-                $out .= str_repeat(' ', $indent) . '  ' . $k . ' => ' . (is_scalar($v) ? $v : json_encode($v)) . "\n";
+            $dumpAttributes = self::attributeView($span, false);
+            foreach (['http.client_ip', 'process_id',
+                'php.compilation.total_time_ms', 'php.memory.peak_usage_bytes', 'php.memory.peak_real_usage_bytes'] as $key) {
+                unset($dumpAttributes[$key]);
             }
-            unset($dumpMetrics['php.compilation.total_time_ms']);
-            unset($dumpMetrics['php.memory.peak_usage_bytes']);
-            unset($dumpMetrics['php.memory.peak_real_usage_bytes']);
-            unset($dumpMetrics['process_id']);
-            foreach ($dumpMetrics as $k => $v) {
-                $out .= str_repeat(' ', $indent) . '  ' . $k . ' => ' . (is_scalar($v) ? $v : json_encode($v)) . "\n";
+            foreach ($dumpAttributes as $k => $v) {
+                $out .= str_repeat(' ', $indent) . '  ' . $k . ' => ' . (is_scalar($v) ? var_export($v, true) : json_encode($v)) . "\n";
             }
             $out .= self::dumpSpansGraph($node['children'], $indent + 2);
         }
@@ -543,19 +476,21 @@ final class SpanChecker
     {
         TestCase::assertNotNull($span, 'Expected span was not found \'' . $exp->getOperationName() . '\'.');
 
-        list($spanMeta, $spanMetrics) = self::extractMetaMetrics($span);
+        $attributes = self::attributeView($span);
+        // A span parsed from the v0.4 wire only carries the v0.4 form of its attributes.
+        $isV04 = isset($span['_wire']);
 
         $namePrefix = $exp->getOperationName() . ': ';
 
         // Checking status code here because this can be tested also when we want to check only for existence
         if ($exp->getStatusCode() !== SpanAssertion::NOT_TESTED) {
             $actualStatusCode
-                = isset($spanMeta['http.status_code']) ? $spanMeta['http.status_code'] : '';
+                = isset($attributes['http.status_code']) ? $attributes['http.status_code'] : '';
             $expectedStatusCode = strval($exp->getStatusCode());
             if ($actualStatusCode !== $expectedStatusCode) {
                 TestCase::assertSame(
                     $exp->getStatusCode(),
-                    isset($spanMeta['http.status_code']) ? $spanMeta['http.status_code'] : '',
+                    $actualStatusCode,
                     $namePrefix . "Wrong value for 'status code'. "
                         . "Expected: $expectedStatusCode. Actual: $actualStatusCode"
                         . print_r($span, true)
@@ -578,7 +513,7 @@ final class SpanChecker
         if ($exp->hasError() !== SpanAssertion::NOT_TESTED) {
             TestCase::assertSame(
                 $exp->hasError(),
-                isset($span['error']) && 1 === $span['error'],
+                !empty($span['error']),
                 $namePrefix . "Wrong value for 'error': " . print_r($span, true)
             );
         }
@@ -598,151 +533,106 @@ final class SpanChecker
                 . print_r($span, true)
             );
         }
+        foreach ($exp->getExactChunkFields() as $field => $value) {
+            $chunk = isset($this->chunkFields[$span['span_id']]) ? $this->chunkFields[$span['span_id']] : [];
+            TestCase::assertSame(
+                $value,
+                isset($chunk[$field]) ? $chunk[$field] : null,
+                $namePrefix . "Wrong value for chunk field '$field' " . print_r($chunk, true)
+            );
+        }
 
-        foreach ($exp->getExistingTagNames(true) as $key) {
-            if ($key === '_dd.span_links') {
-                // Links live in the top-level native span_links (V1 introspection / dd_trace_serialize_closed_spans)
-                // OR the legacy '_dd.span_links' meta tag (v0.4 wire). Accept either so both paths pass.
-                TestCase::assertTrue(
-                    !empty($span['span_links']) || isset($spanMeta['_dd.span_links']),
-                    $exp->getOperationName() . ": expected span links but neither top-level span_links nor meta['_dd.span_links'] is present"
+        // A list or map attribute only has dotted keys on the v0.4 wire.
+        $isOrUnder = function ($key, $name) {
+            return $key === $name || strpos($key, "$name.") === 0;
+        };
+        $assertExisting = function ($names) use ($attributes, $isOrUnder, $namePrefix) {
+            foreach ($names as $name) {
+                TestCase::assertNotEmpty(
+                    array_filter_by_key(function ($key) use ($name, $isOrUnder) {
+                        return $isOrUnder($key, $name);
+                    }, $attributes),
+                    $namePrefix . "Expected attribute $name not found"
                 );
-            } else {
-                TestCase::assertArrayHasKey($key, $spanMeta);
             }
+        };
+        $assertExisting($exp->getExistingAttributeNames(true));
+        if ($exp->hasSpanLinks()) {
+            TestCase::assertNotEmpty($span['span_links'] ?? null, $namePrefix . 'Expected span links');
         }
 
         if ($exp->isOnlyCheckExistence()) {
             return;
         }
 
-        if ($exp->getExactTags() !== SpanAssertion::NOT_TESTED) {
-            $filtered = [];
-            foreach ($spanMeta as $key => $value) {
-                if (!in_array($key, $exp->getExistingTagNames())) {
-                    $filtered[$key] = $value;
+        if ($exp->getExactAttributes() !== SpanAssertion::NOT_TESTED) {
+            $assertExisting($exp->getExistingAttributeNames(isset($span['parent_id'])));
+            $expected = $isV04 ? self::toV04Attributes($exp->getExactAttributes()) : $exp->getExactAttributes();
+            $filtered = array_filter_by_key(function ($key) use ($exp, $expected, $isOrUnder) {
+                if (\array_key_exists($key, $expected)) {
+                    return true;
+                }
+                foreach ($exp->getExistingAttributeNames() as $name) {
+                    if ($isOrUnder($key, $name)) {
+                        return false;
+                    }
+                }
+                return true;
+            }, $attributes);
+            foreach ($exp->getSkippedAttributePatterns() as $pattern) {
+                $filtered = array_filter_by_key(function ($key) use ($pattern) {
+                    // keep if it *doesn't* match
+                    return !\preg_match($pattern, $key);
+                }, $filtered);
+            }
+            foreach (self::IGNORED_UNLESS_EXPECTED as $key) {
+                if (!\array_key_exists($key, $expected)) {
+                    unset($filtered[$key]);
                 }
             }
-
-            $skipPatterns = $exp->getSkippedTagPatterns();
-            $out = $filtered;
-            foreach ($skipPatterns as $pattern) {
-                $out = array_filter_by_key(
-                    function ($key) use ($pattern) {
-                        // keep if it *doesn't* match
-                        return !\preg_match($pattern, $key);
-                    },
-                    $out
-                );
-            }
-
-            $filtered = $out;
-            $expectedTags = $exp->getExactTags();
-            // Ignore _dd.p.dm unless explicitly tested
-            if (!isset($expectedTags['_dd.p.dm'])) {
-                unset($filtered['_dd.p.dm']);
-            }
-            // Ignore _dd.p.ksr unless explicitly tested
-            if (!isset($expectedTags['_dd.p.ksr'])) {
-                unset($filtered['_dd.p.ksr']);
-            }
-            // Ignore _dd.p.tid unless explicitly tested
-            if (!isset($expectedTags['_dd.p.tid'])) {
-                unset($filtered['_dd.p.tid']);
-            }
-            // Ignore runtime-id unless explicitly tested
-            if (!isset($expectedTags['runtime-id'])) {
-                unset($filtered['runtime-id']);
-            }
-            // Ignore _dd.sdk.otlp_export unless explicitly tested
-            if (!isset($expectedTags['_dd.sdk.otlp_export'])) {
-                unset($filtered['_dd.sdk.otlp_export']);
-            }
-            // http.client_ip is present depending on target SAPI and not helpful here to test
-            if (!isset($expectedTags['http.client_ip'])) {
-                unset($filtered['http.client_ip']);
-            }
-            if (!isset($expectedTags['_dd.code_origin.type'])) {
+            if (!isset($expected['_dd.code_origin.type'])) {
                 foreach ($filtered as $key => $value) {
                     if (strpos($key, '_dd.code_origin.') === 0) {
                         unset($filtered[$key]);
                     }
                 }
             }
-            foreach ($expectedTags as $tagName => $tagValue) {
+            foreach ($expected as $name => $value) {
                 TestCase::assertArrayHasKey(
-                    $tagName,
+                    $name,
                     $filtered,
-                    $namePrefix . 'Expected tag name ' . $tagName . ' not found'
+                    $namePrefix . 'Expected attribute ' . $name . ' not found'
                 );
-                if (!isset($filtered[$tagName])) {
-                    continue;
-                }
-                if (is_string($tagValue)) {
+                if (is_string($value)) {
+                    TestCase::assertTrue(
+                        is_string($filtered[$name]),
+                        $namePrefix . "Expected a string for '$name', got " . var_export($filtered[$name], true)
+                    );
                     TestCase::assertStringMatchesFormat(
-                        $tagValue,
-                        $filtered[$tagName],
-                        $namePrefix . "Expected tag format for '$tagName' does not match actual value"
+                        $value,
+                        $filtered[$name],
+                        $namePrefix . "Expected format for '$name' does not match actual value"
+                    );
+                } elseif ($isV04) {
+                    TestCase::assertEquals(
+                        $value,
+                        $filtered[$name],
+                        $namePrefix . "Exp. value for '$name' does not match actual | "
+                            . var_export($value, true) . ' != ' . var_export($filtered[$name], true)
                     );
                 } else {
-                    $actual = $filtered[$tagName];
-                    TestCase::assertEquals(
-                        $tagValue,
-                        $actual,
-                        $namePrefix . "Exp. value for '$tagName' does not match actual | '$tagValue' != '$actual'"
+                    TestCase::assertSame(
+                        $value,
+                        $filtered[$name],
+                        $namePrefix . "Exp. value for '$name' does not match actual | "
+                            . var_export($value, true) . ' !== ' . var_export($filtered[$name], true)
                     );
                 }
-                unset($filtered[$tagName]);
+                unset($filtered[$name]);
             }
             TestCase::assertEmpty(
                 $filtered,
-                $namePrefix . "Unexpected extra values for 'tags':\n" . print_r($filtered, true)
-            );
-            foreach ($exp->getExistingTagNames(isset($span['parent_id'])) as $tagName) {
-                if ($tagName === Tag::PID) {
-                    TestCase::assertArrayHasKey($tagName, $spanMetrics);
-                    unset($spanMetrics[Tag::PID]);
-                } elseif ($tagName === '_dd.span_links') {
-                    // Links: top-level native span_links (introspection) OR legacy _dd.span_links meta (v0.4 wire).
-                    TestCase::assertTrue(
-                        !empty($span['span_links']) || isset($spanMeta['_dd.span_links']),
-                        $exp->getOperationName() . ": expected span links but neither top-level span_links nor meta['_dd.span_links'] is present"
-                    );
-                } else {
-                    TestCase::assertArrayHasKey($tagName, $spanMeta);
-                }
-            }
-        }
-        $metrics = $exp->getExactMetrics();
-        if ($metrics !== SpanAssertion::NOT_TESTED) {
-            // Ignore compilation-time metric unless explicitly tested
-            if (!isset($metrics['php.compilation.total_time_ms'])) {
-                unset($spanMetrics['php.compilation.total_time_ms']);
-            }
-            if (!isset($metrics['php.memory.peak_usage_bytes'])) {
-                unset($spanMetrics['php.memory.peak_usage_bytes']);
-            }
-            if (!isset($metrics['php.memory.peak_real_usage_bytes'])) {
-                unset($spanMetrics['php.memory.peak_real_usage_bytes']);
-            }
-            if (isset($metrics['process_id'])) {
-                unset($metrics['process_id']);
-            }
-            if (isset($spanMetrics["process_id"])) {
-                unset($spanMetrics['process_id']);
-            }
-            if (isset($spanMetrics["_top_level"])) {
-                // Set by sidecar only
-                unset($spanMetrics['_top_level']);
-            }
-            if (!isset($metrics['_dd.top_level'])) {
-                // Set by the sidecar on the V1 path unless explicitly tested
-                unset($spanMetrics['_dd.top_level']);
-            }
-            TestCase::assertEquals(
-                $metrics,
-                $spanMetrics,
-                $namePrefix . "Wrong value for 'metrics' " . print_r($span, true)
+                $namePrefix . "Unexpected extra attributes:\n" . var_export($filtered, true)
             );
         }
         if ($exp->getType() != SpanAssertion::NOT_TESTED) {
@@ -778,9 +668,12 @@ final class SpanChecker
                     $index
                 ));
             }
-            array_walk($trace, function (array $span) use (&$result) {
+            $chunkFields = $trace;
+            unset($chunkFields['spans']);
+            foreach ($trace['spans'] ?? [] as $span) {
+                $this->chunkFields[$span['span_id']] = $chunkFields;
                 $result[] = $span;
-            });
+            }
         }
 
         return $result;

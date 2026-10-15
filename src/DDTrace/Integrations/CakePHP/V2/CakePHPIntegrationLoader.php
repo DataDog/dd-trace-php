@@ -47,10 +47,10 @@ class CakePHPIntegrationLoader
                     $rootSpan->attributes[Tag::HTTP_URL] = Router::url($request->here, true)
                         . Normalizer::sanitizedQueryString();
                 }
-                $rootSpan->meta['cakephp.route.controller'] = $request->params['controller'];
-                $rootSpan->meta['cakephp.route.action'] = $request->params['action'];
+                $rootSpan->attributes['cakephp.route.controller'] = $request->params['controller'];
+                $rootSpan->attributes['cakephp.route.action'] = $request->params['action'];
                 if (isset($request->params['plugin'])) {
-                    $rootSpan->meta['cakephp.plugin'] = $request->params['plugin'];
+                    $rootSpan->attributes['cakephp.plugin'] = $request->params['plugin'];
                 }
             }
         );
@@ -81,7 +81,7 @@ class CakePHPIntegrationLoader
             $span->type = Type::WEB_SERVLET;
             $file = $this->viewPath . '/' . $this->view . $this->ext;
             $span->resource = $file;
-            $span->meta = ['cakephp.view' => $file];
+            $span->attributes['cakephp.view'] = $file;
             Integration::setComponentMetadata($span, CakePHPIntegration::NAME, CakePHPIntegration::$appName);
         });
 

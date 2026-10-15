@@ -7,12 +7,12 @@ int ddtrace_serialize_simple_array(zval *trace, zval *retval);
 int ddtrace_serialize_simple_array_into_c_string(zval *trace, char **data_p, size_t *size_p);
 
 // Returns the span's V1 builder node, or NULL when the span was dropped.
-ddog_SpanNode *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtrace_serialize_ctx *ctx, bool p0_trace);
-zval dd_serialize_rust_to_zval(struct ddog_TracerPayloadV1Builder *builder);
+ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddtrace_serialize_ctx *ctx, bool p0_trace);
+zval dd_serialize_rust_to_zval(struct ddog_TracerPayloadBytes *builder);
 
 // String span attribute setters shared with exception_serialize.c.
-void dd_span_attr_str(ddog_SpanNode *span, const char *key, const char *val);
-void dd_span_attr_zstr(ddog_SpanNode *span, const char *key, zend_string *val);
+void dd_span_attr_str(ddog_SpanBytes *span, const char *key, const char *val);
+void dd_span_attr_zstr(ddog_SpanBytes *span, const char *key, zend_string *val);
 
 // Normalizes a value written through SpanData::$meta (strings) or $metrics (doubles) into `dst`.
 void ddtrace_normalize_tag_value(zval *dst, zval *value, bool metric);

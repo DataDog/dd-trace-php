@@ -16,11 +16,11 @@ class DatadogSubscriberWithoutReturnTypes implements \MongoDB\Driver\Monitoring\
             }
 
             if (self::$useDeprecatedMethods) {
-                $span->meta['out.host'] = $event->getServer()->getHost();
-                $span->meta['out.port'] = $event->getServer()->getPort();
+                $span->attributes['out.host'] = $event->getServer()->getHost();
+                $span->attributes['out.port'] = $event->getServer()->getPort();
             } else {
-                $span->meta['out.host'] = $event->getHost();
-                $span->meta['out.port'] = $event->getPort();
+                $span->attributes['out.host'] = $event->getHost();
+                $span->attributes['out.port'] = $event->getPort();
             }
         }
     }

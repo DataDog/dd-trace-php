@@ -77,8 +77,8 @@ final class SidecarThreadModeRootTest extends WebFrameworkTestCase
         });
 
         $this->assertNotEmpty($traces, 'No traces received — worker likely failed to access SHM after fchown()');
-        $this->assertSame('web.request', $traces[0][0]['name']);
-        $this->assertSame('sidecar-thread-mode-root-test', $traces[0][0]['service']);
+        $this->assertSame('web.request', $traces[0]['spans'][0]['name']);
+        $this->assertSame('sidecar-thread-mode-root-test', $traces[0]['spans'][0]['service']);
     }
 
     /**

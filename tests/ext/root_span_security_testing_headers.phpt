@@ -10,7 +10,7 @@ HTTP_X_DATADOG_SECURITY_TEST=security-test-uuid
 <?php
 DDTrace\start_span();
 DDTrace\close_span(0);
-$spans = dd_trace_serialize_closed_spans();
+$spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
 var_dump($spans[0]['attributes']['http.request.headers.x-datadog-endpoint-scan']);
 var_dump($spans[0]['attributes']['http.request.headers.x-datadog-security-test']);
 ?>

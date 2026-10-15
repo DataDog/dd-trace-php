@@ -56,7 +56,7 @@ $allTheTypes[0][1] = &$allTheTypes[0];
 
 call_user_func_array('meta_to_string', $allTheTypes);
 
-list($span) = dd_trace_serialize_closed_spans();
+list($span) = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
 unset($span['attributes']['process_id'], $span['attributes']['_dd.tags.process'], $span['attributes']['_dd.sdk.otlp_export']);
 $last = -1;
 foreach ($span['attributes'] as $key => $value) {
@@ -85,7 +85,7 @@ arg.0: array(2) {
   [0]=>
   string(9) "recursive"
   [1]=>
-  string(0) ""
+  string(11) "*RECURSION*"
 }
 
 string(16) "already a string"

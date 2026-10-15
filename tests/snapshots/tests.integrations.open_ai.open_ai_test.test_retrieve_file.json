@@ -17,6 +17,7 @@
       "openai.request.file_id": "file-XjGxS3KTG0uNmNOK362iJua3",
       "openai.request.method": "GET",
       "openai.response.filename": "mydata.jsonl",
+      "openai.response.id": "42",
       "openai.response.model": "gpt-3.5-turbo-instruct",
       "openai.response.object": "file",
       "openai.response.purpose": "fine-tune",
@@ -31,8 +32,7 @@
       "_dd.measured": 1,
       "_sampling_priority_v1": 1,
       "openai.response.bytes": 140,
-      "openai.response.created_at": 1613779121,
-      "openai.response.id": 42
+      "openai.response.created_at": 1613779121
     }
   },
      {

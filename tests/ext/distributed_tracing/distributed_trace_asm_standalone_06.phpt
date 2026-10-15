@@ -23,14 +23,14 @@ $root3= DDTrace\start_trace_span();
 $root3->name = 'root3';
 DDTrace\close_span();
 
-$traces = dd_trace_serialize_closed_spans();
+$chunks = dd_trace_serialize_closed_spans()['chunks'];
 
-var_dump($traces[0]['name']);
-var_dump(isset($traces[0]['attributes']['_dd.p.ts']));
-var_dump($traces[1]['name']);
-var_dump($traces[1]['attributes']['_dd.p.ts']);
-var_dump($traces[2]['name']);
-var_dump($traces[2]['attributes']['_dd.p.ts']);
+var_dump($chunks[0]['spans'][0]['name']);
+var_dump(isset($chunks[0]['spans'][0]['attributes']['_dd.p.ts']));
+var_dump($chunks[1]['spans'][0]['name']);
+var_dump($chunks[1]['spans'][0]['attributes']['_dd.p.ts']);
+var_dump($chunks[2]['spans'][0]['name']);
+var_dump($chunks[2]['spans'][0]['attributes']['_dd.p.ts']);
 
 ?>
 --EXPECTF--

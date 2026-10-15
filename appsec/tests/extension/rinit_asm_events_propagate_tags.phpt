@@ -12,7 +12,7 @@ HTTP_X_DATADOG_ORIGIN=datadog
 HTTP_X_DATADOG_TAGS=_dd.p.custom_tag=inherited,_dd.p.second_tag=bar
 --FILE--
 <?php
-use function datadog\appsec\testing\{rinit,rshutdown,ddtrace_rshutdown,root_span_get_meta};
+use function datadog\appsec\testing\{rinit, rshutdown, ddtrace_rshutdown, root_span_get_attributes};
 include __DIR__ . '/inc/ddtrace_version.php';
 
 ddtrace_version_at_least('0.79.0');
@@ -36,9 +36,9 @@ echo "rinit\n";
 var_dump(rinit());
 $helper->get_commands(); //ignore
 
-$context = DDTrace\current_context();
+$root = DDTrace\root_span();
 echo "ASM is enabled on _dd.p.ts propagated tags? ";
-echo isset($context['distributed_tracing_propagated_tags']['_dd.p.ts']) && $context['distributed_tracing_propagated_tags']['_dd.p.ts'] === "02" ? "Yes": "No";
+echo array_key_exists('_dd.p.ts', $root->propagatedTags) && ($root->attributes['_dd.p.ts'] ?? null) === "02" ? "Yes": "No";
 echo PHP_EOL;
 
 echo "rshutdown\n";

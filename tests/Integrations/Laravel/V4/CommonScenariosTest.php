@@ -50,7 +50,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
             [
                 'A simple GET request returning a string' => [
                     SpanAssertion::build('laravel.request', 'laravel', 'web', 'HomeController@simple simple_route')
-                        ->withExactTags([
+                        ->withExactAttributes([
                             'laravel.route.name' => 'simple_route',
                             'laravel.route.action' => 'HomeController@simple',
                             'http.method' => 'GET',
@@ -67,7 +67,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             SpanAssertion::exists('laravel.application.handle')
                                 ->withChildren([
                                     SpanAssertion::build('laravel.action', 'laravel', 'web', 'simple')
-                                        ->withExactTags([
+                                        ->withExactAttributes([
                                             'some.key1' => 'value',
                                             'some.key2' => 'value2',
                                             Tag::COMPONENT => 'laravel',
@@ -111,7 +111,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                         ]),
                                     SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
                                     SpanAssertion::build('laravel.view.render', 'laravel', 'web', 'simple_view')
-                                        ->withExactTags([
+                                        ->withExactAttributes([
                                             'some.key1' => 'value',
                                             'some.key2' => 'value2',
                                             Tag::COMPONENT => 'laravel',
@@ -142,7 +142,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 ],
                 'A GET request with an exception' => [
                     SpanAssertion::build('laravel.request', 'laravel', 'web', 'HomeController@error error')
-                        ->withExactTags([
+                        ->withExactAttributes([
                             'laravel.route.name' => 'error',
                             'laravel.route.action' => 'HomeController@error',
                             'http.method' => 'GET',
@@ -158,13 +158,13 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             SpanAssertion::exists('laravel.application.handle')
                                 ->withChildren([
                                     SpanAssertion::build('laravel.action', 'laravel', 'web', 'error')
-                                        ->withExactTags([
+                                        ->withExactAttributes([
                                             'some.key1' => 'value',
                                             'some.key2' => 'value2',
                                             Tag::COMPONENT => 'laravel',
                                             '_dd.svc_src' => 'laravel',
                                         ])
-                                        ->withExistingTagsNames(['error.stack'])
+                                        ->withExistingAttributeNames(['error.stack'])
                                         ->setError('Exception', 'Controller error'),
                                     SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
                                     SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
@@ -192,7 +192,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 ],
                 'A GET request to a dynamic route returning a string' => [
                     SpanAssertion::build('laravel.request', 'laravel', 'web', 'HomeController@dynamicRoute dynamic_route/{param01}/static/{param02?}')
-                        ->withExactTags([
+                        ->withExactAttributes([
                             'laravel.route.name' => 'unnamed_route',
                             'laravel.route.action' => 'HomeController@dynamicRoute',
                             'http.method' => 'GET',
@@ -209,7 +209,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             SpanAssertion::exists('laravel.application.handle')
                                 ->withChildren([
                                     SpanAssertion::build('laravel.action', 'laravel', 'web', 'dynamic_route/{param01}/static/{param02?}')
-                                        ->withExactTags([
+                                        ->withExactAttributes([
                                             'some.key1' => 'value',
                                             'some.key2' => 'value2',
                                             Tag::COMPONENT => 'laravel',

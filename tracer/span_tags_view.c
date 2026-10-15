@@ -10,6 +10,7 @@
 
 #include "ddtrace.h"
 #include "serializer.h"
+#include <ext/string_utils.h>
 
 zend_class_entry *ddtrace_ce_span_tags_view;
 static zend_object_handlers dd_span_tags_view_handlers;
@@ -65,8 +66,161 @@ static inline zend_array *dd_tags_attrs_read(ddtrace_span_data *span) {
     return Z_TYPE_P(attrs) == IS_ARRAY ? Z_ARR_P(attrs) : NULL;
 }
 
-static void dd_tags_snapshot(zend_array *attrs, bool metrics, zval *rv) {
+// Legacy $meta keys aliasing a span property.
+enum dd_tags_special {
+    DD_TAGS_PLAIN,
+    DD_TAGS_SERVICE,
+    DD_TAGS_RESOURCE,
+    DD_TAGS_NAME,
+    DD_TAGS_TYPE,
+    DD_TAGS_ENV,
+    DD_TAGS_VERSION,
+    DD_TAGS_COMPONENT,
+    DD_TAGS_SPAN_KIND,
+    DD_TAGS_IGNORE_ERROR,
+};
+
+static enum dd_tags_special dd_tags_special_of(zend_string *key) {
+    switch (ZSTR_LEN(key)) {
+        case 3: return zend_string_equals_literal(key, "env") ? DD_TAGS_ENV : DD_TAGS_PLAIN;
+        case 7: return zend_string_equals_literal(key, "version") ? DD_TAGS_VERSION : DD_TAGS_PLAIN;
+        case 9:
+            if (zend_string_equals_literal(key, "component")) {
+                return DD_TAGS_COMPONENT;
+            }
+            if (zend_string_equals_literal(key, "span.type")) {
+                return DD_TAGS_TYPE;
+            }
+            return zend_string_equals_literal(key, "span.kind") ? DD_TAGS_SPAN_KIND : DD_TAGS_PLAIN;
+        case 12: return zend_string_equals_literal(key, "service.name") ? DD_TAGS_SERVICE : DD_TAGS_PLAIN;
+        case 13:
+            if (zend_string_equals_literal(key, "resource.name")) {
+                return DD_TAGS_RESOURCE;
+            }
+            return zend_string_equals_literal(key, "error.ignored") ? DD_TAGS_IGNORE_ERROR : DD_TAGS_PLAIN;
+        case 14: return zend_string_equals_literal(key, "operation.name") ? DD_TAGS_NAME : DD_TAGS_PLAIN;
+        default: return DD_TAGS_PLAIN;
+    }
+}
+
+static zval *dd_tags_special_prop(ddtrace_span_data *span, enum dd_tags_special special) {
+    zval *prop;
+    switch (special) {
+        case DD_TAGS_SERVICE: prop = &span->property_service; break;
+        case DD_TAGS_RESOURCE: prop = &span->property_resource; break;
+        case DD_TAGS_NAME: prop = &span->property_name; break;
+        case DD_TAGS_TYPE: prop = &span->property_type; break;
+        case DD_TAGS_ENV: prop = &span->property_env; break;
+        case DD_TAGS_VERSION: prop = &span->property_version; break;
+        case DD_TAGS_COMPONENT: prop = &span->property_component; break;
+        case DD_TAGS_SPAN_KIND: prop = &span->property_span_kind; break;
+        default: prop = &span->property_ignore_error; break;
+    }
+    ZVAL_DEREF(prop);
+    return prop;
+}
+
+static zend_long dd_tags_span_kind_of(zval *value) {
+    ZVAL_DEREF(value);
+    if (Z_TYPE_P(value) == IS_STRING) {
+        for (zend_long kind = DDTRACE_SPAN_KIND_INTERNAL; kind <= DDTRACE_SPAN_KIND_CONSUMER; ++kind) {
+            if (zend_string_equals_cstr(Z_STR_P(value), ddtrace_span_kind_str(kind), strlen(ddtrace_span_kind_str(kind)))) {
+                return kind;
+            }
+        }
+    }
+    return DDTRACE_SPAN_KIND_UNSPECIFIED;
+}
+
+// Sets the property aliased by `special`; false for a non-canonical span.kind, which is stored as an attribute.
+static bool dd_tags_special_write(ddtrace_span_data *span, enum dd_tags_special special, zval *value) {
+    zval *prop = dd_tags_special_prop(span, special);
+    if (special == DD_TAGS_SPAN_KIND) {
+        // The latest write wins: a canonical kind replaces a non-canonical span.kind attribute and vice versa.
+        zend_long kind = dd_tags_span_kind_of(value);
+        zval_ptr_dtor(prop);
+        ZVAL_LONG(prop, kind);
+        if (!kind) {
+            return false;
+        }
+        zend_hash_str_del(ddtrace_property_array(&span->property_attributes), ZEND_STRL("span.kind"));
+    } else if (special == DD_TAGS_IGNORE_ERROR) {
+        // Deprecated: can only turn $ignoreError on.
+        if (zend_is_true(value)) {
+            zval_ptr_dtor(prop);
+            ZVAL_TRUE(prop);
+        }
+    } else {
+        ZVAL_DEREF(value);
+        zend_string *str = special == DD_TAGS_NAME && Z_TYPE_P(value) == IS_STRING
+            ? zend_string_tolower(Z_STR_P(value)) : datadog_convert_to_str(value);
+        zval_ptr_dtor(prop);
+        ZVAL_STR(prop, str);
+    }
+    return true;
+}
+
+// The $meta read of the property aliased by `special`; false while it holds its empty default.
+static bool dd_tags_special_read(ddtrace_span_data *span, enum dd_tags_special special, zval *rv) {
+    zval *prop = dd_tags_special_prop(span, special);
+    if (special == DD_TAGS_SPAN_KIND) {
+        const char *kind = ddtrace_span_kind_str(zval_get_long(prop));
+        if (kind) {
+            ZVAL_STRING(rv, kind);
+        }
+        return kind != NULL;
+    }
+    if (special == DD_TAGS_IGNORE_ERROR) {
+        if (zend_is_true(prop)) {
+            ZVAL_STRINGL(rv, "true", 4);
+            return true;
+        }
+        return false;
+    }
+    if (Z_TYPE_P(prop) == IS_STRING && Z_STRLEN_P(prop)) {
+        ZVAL_COPY(rv, prop);
+        return true;
+    }
+    return false;
+}
+
+static void dd_tags_special_reset(ddtrace_span_data *span, enum dd_tags_special special) {
+    zval *prop = dd_tags_special_prop(span, special);
+    zval_ptr_dtor(prop);
+    if (special == DD_TAGS_SPAN_KIND) {
+        ZVAL_LONG(prop, DDTRACE_SPAN_KIND_UNSPECIFIED);
+    } else if (special == DD_TAGS_IGNORE_ERROR) {
+        ZVAL_FALSE(prop);
+    } else {
+        ZVAL_EMPTY_STRING(prop);
+    }
+}
+
+void ddtrace_span_write_meta(ddtrace_span_data *span, zend_string *key, zval *value, bool metric) {
+    enum dd_tags_special special = dd_tags_special_of(key);
+    if (special != DD_TAGS_PLAIN && dd_tags_special_write(span, special, value)) {
+        return;
+    }
+    zval normalized;
+    ddtrace_normalize_tag_value(&normalized, value, metric);
+    zend_symtable_update(ddtrace_property_array(&span->property_attributes), key, &normalized);
+}
+
+static const char *const dd_tags_special_keys[] = {
+    [DD_TAGS_SERVICE] = "service.name",
+    [DD_TAGS_RESOURCE] = "resource.name",
+    [DD_TAGS_NAME] = "operation.name",
+    [DD_TAGS_TYPE] = "span.type",
+    [DD_TAGS_ENV] = "env",
+    [DD_TAGS_VERSION] = "version",
+    [DD_TAGS_COMPONENT] = "component",
+    [DD_TAGS_SPAN_KIND] = "span.kind",
+    [DD_TAGS_IGNORE_ERROR] = "error.ignored",
+};
+
+static void dd_tags_snapshot(ddtrace_span_data *span, bool metrics, zval *rv) {
     array_init(rv);
+    zend_array *attrs = dd_tags_attrs_read(span);
     if (!attrs) {
         return;
     }
@@ -84,21 +238,63 @@ static void dd_tags_snapshot(zend_array *attrs, bool metrics, zval *rv) {
             }
         }
     } ZEND_HASH_FOREACH_END();
+    if (!metrics) {
+        // $meta also lists the aliased properties, which win over same-named attributes.
+        for (enum dd_tags_special special = DD_TAGS_SERVICE; special <= DD_TAGS_IGNORE_ERROR; ++special) {
+            zval prop;
+            if (dd_tags_special_read(span, special, &prop)) {
+                zend_hash_str_update(Z_ARR_P(rv), dd_tags_special_keys[special], strlen(dd_tags_special_keys[special]), &prop);
+            }
+        }
+    }
 }
 
-static zend_long dd_tags_count(zend_array *attrs, bool metrics) {
+static zend_long dd_tags_count(ddtrace_span_data *span, bool metrics) {
     zend_long count = 0;
-    if (attrs) {
-        zval *val;
-        ZEND_HASH_FOREACH_VAL_IND(attrs, val) {
-            count += dd_tags_in_bucket(val, metrics);
-        } ZEND_HASH_FOREACH_END();
+    zend_array *attrs = dd_tags_attrs_read(span);
+    if (!attrs) {
+        return 0;
+    }
+    zval *val;
+    ZEND_HASH_FOREACH_VAL_IND(attrs, val) {
+        count += dd_tags_in_bucket(val, metrics);
+    } ZEND_HASH_FOREACH_END();
+    if (!metrics) {
+        for (enum dd_tags_special special = DD_TAGS_SERVICE; special <= DD_TAGS_IGNORE_ERROR; ++special) {
+            zval prop;
+            if (dd_tags_special_read(span, special, &prop)) {
+                zval *dup = zend_hash_str_find(attrs, dd_tags_special_keys[special], strlen(dd_tags_special_keys[special]));
+                count += !dup || !dd_tags_in_bucket(dup, false);
+                zval_ptr_dtor(&prop);
+            }
+        }
     }
     return count;
 }
 
+// Whether `value` is what a $meta read of the legacy `key` returns: the property, else a same-named attribute.
+static bool dd_tags_special_unchanged(ddtrace_span_data *span, enum dd_tags_special special, zend_string *key, zval *value) {
+    ZVAL_DEREF(value);
+    if (Z_TYPE_P(value) != IS_STRING) {
+        return false;
+    }
+    zval current;
+    if (dd_tags_special_read(span, special, &current)) {
+        bool unchanged = zend_string_equals(Z_STR(current), Z_STR_P(value));
+        zval_ptr_dtor(&current);
+        return unchanged;
+    }
+    zval *attr = zend_hash_find(ddtrace_property_array(&span->property_attributes), key);
+    if (!attr) {
+        return false;
+    }
+    ZVAL_DEREF(attr);
+    return Z_TYPE_P(attr) == IS_STRING && zend_string_equals(Z_STR_P(attr), Z_STR_P(value));
+}
+
 // Replaces the bucket's entries of $attributes with `values` (normalized), or just clears it.
-// Keys kept by `values` are updated in place so that they keep their position.
+// Keys kept by `values` are updated in place so that they keep their position. Unchanged legacy keys are
+// skipped, so that `$span->meta += [...]` neither rewrites (e.g. lowercases) nor promotes the aliased values.
 static void dd_tags_replace_bucket(ddtrace_span_data *span, bool metrics, zend_array *values) {
     zend_array *attrs = ddtrace_property_array(&span->property_attributes);
     zend_ulong h;
@@ -117,11 +313,14 @@ static void dd_tags_replace_bucket(ddtrace_span_data *span, bool metrics, zend_a
 
     if (values) {
         ZEND_HASH_FOREACH_KEY_VAL_IND(values, h, key, val) {
-            zval normalized;
-            ddtrace_normalize_tag_value(&normalized, val, metrics);
             if (key) {
-                zend_hash_update(attrs, key, &normalized);
+                enum dd_tags_special special = metrics ? DD_TAGS_PLAIN : dd_tags_special_of(key);
+                if (special == DD_TAGS_PLAIN || !dd_tags_special_unchanged(span, special, key, val)) {
+                    ddtrace_span_write_meta(span, key, val, metrics);
+                }
             } else {
+                zval normalized;
+                ddtrace_normalize_tag_value(&normalized, val, metrics);
                 zend_hash_index_update(attrs, h, &normalized);
             }
         } ZEND_HASH_FOREACH_END();
@@ -144,6 +343,12 @@ static zval *dd_tags_find(dd_span_tags_view *view, zval *offset, zend_string **k
     return val;
 }
 
+// Only $meta aliases span properties: their values are strings.
+static bool dd_tags_view_special_read(dd_span_tags_view *view, zend_string *key, zval *rv) {
+    enum dd_tags_special special = dd_tags_special_of(key);
+    return view->span && !view->metrics && special != DD_TAGS_PLAIN && dd_tags_special_read(view->span, special, rv);
+}
+
 static zval *dd_tags_view_read(dd_span_tags_view *view, zval *offset, int type, zval *rv) {
     if (!offset) {
         zend_throw_error(NULL, "Cannot read an appended element of SpanData::$%s", view->metrics ? "metrics" : "meta");
@@ -151,7 +356,9 @@ static zval *dd_tags_view_read(dd_span_tags_view *view, zval *offset, int type, 
     }
     zend_string *key;
     zval *val = dd_tags_find(view, offset, &key);
-    if (val) {
+    if (!EG(exception) && dd_tags_view_special_read(view, key, rv)) {
+        // a legacy key aliasing a span property
+    } else if (val) {
         ZVAL_COPY_DEREF(rv, val);
     } else {
         if (type == BP_VAR_R && !EG(exception)) {
@@ -178,22 +385,33 @@ static void dd_tags_view_write(dd_span_tags_view *view, zval *offset, zval *valu
     ZVAL_DEREF(offset);
     zend_string *key = zval_get_string(offset);
     if (!EG(exception)) {
-        zval normalized;
-        ddtrace_normalize_tag_value(&normalized, value, view->metrics);
-        zend_symtable_update(ddtrace_property_array(&view->span->property_attributes), key, &normalized);
+        ddtrace_span_write_meta(view->span, key, value, view->metrics);
     }
     zend_string_release(key);
 }
 
 static bool dd_tags_view_has(dd_span_tags_view *view, zval *offset, int check_empty) {
-    zval *val = dd_tags_find(view, offset, NULL);
-    return val && (check_empty ? zend_is_true(val) : 1);
+    zend_string *key;
+    zval *val = dd_tags_find(view, offset, &key), special;
+    bool has = val && (check_empty ? zend_is_true(val) : 1);
+    if (!EG(exception) && dd_tags_view_special_read(view, key, &special)) {
+        has = check_empty ? zend_is_true(&special) : 1;
+        zval_ptr_dtor(&special);
+    }
+    zend_string_release(key);
+    return has;
 }
 
 static void dd_tags_view_unset(dd_span_tags_view *view, zval *offset) {
     zend_string *key;
     if (dd_tags_find(view, offset, &key)) {
         zend_symtable_del(ddtrace_property_array(&view->span->property_attributes), key);
+    }
+    if (view->span && !view->metrics && !EG(exception)) {
+        enum dd_tags_special special = dd_tags_special_of(key);
+        if (special != DD_TAGS_PLAIN) {
+            dd_tags_special_reset(view->span, special);
+        }
     }
     zend_string_release(key);
 }
@@ -255,14 +473,14 @@ static zend_result dd_tags_view_count_elements(DD_OBJ_ARG, zend_long *count) {
 static int dd_tags_view_count_elements(DD_OBJ_ARG, zend_long *count) {
 #endif
     dd_span_tags_view *view = dd_tags_view_from_obj(DD_OBJ);
-    *count = dd_tags_count(dd_tags_attrs_read(view->span), view->metrics);
+    *count = dd_tags_count(view->span, view->metrics);
     return SUCCESS;
 }
 
 static zend_array *dd_tags_view_snapshot_ht(zend_object *obj) {
     dd_span_tags_view *view = dd_tags_view_from_obj(obj);
     zval snapshot;
-    dd_tags_snapshot(dd_tags_attrs_read(view->span), view->metrics, &snapshot);
+    dd_tags_snapshot(view->span, view->metrics, &snapshot);
     return Z_ARR(snapshot);
 }
 
@@ -319,7 +537,7 @@ PHP_METHOD(DDTrace_SpanTagsView, count) {
         return;
     }
     dd_span_tags_view *view = DD_THIS_VIEW;
-    RETURN_LONG(dd_tags_count(dd_tags_attrs_read(view->span), view->metrics));
+    RETURN_LONG(dd_tags_count(view->span, view->metrics));
 }
 
 PHP_METHOD(DDTrace_SpanTagsView, getIterator) {
@@ -413,7 +631,7 @@ static zval *dd_span_read_property(DD_OBJ_ARG, DD_MEMBER_ARG, int type, void **c
     }
     ddtrace_span_data *span = OBJ_SPANDATA(DD_OBJ);
     if (type == BP_VAR_R || type == BP_VAR_IS) {
-        dd_tags_snapshot(dd_tags_attrs_read(span), bucket, rv);
+        dd_tags_snapshot(span, bucket, rv);
     } else {
         ZVAL_OBJ(rv, dd_span_tags_view_get(span, bucket));
     }
@@ -434,7 +652,7 @@ static int dd_span_has_property(DD_OBJ_ARG, DD_MEMBER_ARG, int has_set_exists, v
         return std_object_handlers.has_property(object, member, has_set_exists, cache_slot);
     }
     if (has_set_exists == 1) {  // empty()
-        return dd_tags_count(dd_tags_attrs_read(OBJ_SPANDATA(DD_OBJ)), bucket) > 0;
+        return dd_tags_count(OBJ_SPANDATA(DD_OBJ), bucket) > 0;
     }
     return 1;
 }
@@ -480,7 +698,7 @@ static zend_array *dd_span_properties_with_tags(zend_object *obj, zend_array *pr
         int bucket = key ? dd_tags_bucket_of(key) : -1;
         zval copy;
         if (bucket >= 0) {
-            dd_tags_snapshot(dd_tags_attrs_read(OBJ_SPANDATA(obj)), bucket, &copy);
+            dd_tags_snapshot(OBJ_SPANDATA(obj), bucket, &copy);
         } else {
             ZVAL_COPY(&copy, val);
         }

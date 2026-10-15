@@ -1,5 +1,5 @@
 --TEST--
-v0.4 native span_links and legacy events JSON print floats like json_encode and objects as property maps
+v0.4 native span_links and legacy events JSON carry typed floats and objects as property maps
 --SKIPIF--
 <?php
 if (strncasecmp(PHP_OS, "WIN", 3) == 0) die('skip: the in-process sender is not available on Windows');
@@ -49,17 +49,13 @@ dd_trace_internal_fn("synchronous_flush");
 $req = $rr->waitForRequest(function ($r) { return strpos($r["uri"], "traces") !== false; });
 $span = json_decode($req["body"], true)[0][0];
 $meta = $span["meta"];
-$expected = json_encode($floats);
-echo $expected, "\n";
-// Native links carry nested values as a JSON string, events as raw JSON: both must print json_encode's floats.
-var_dump(!isset($meta["_dd.span_links"]) && $span["span_links"][0]["attributes"]["floats"] === $expected);
-var_dump(strpos($meta["events"], '"floats":' . $expected) !== false);
-var_dump(strpos($meta["events"], '"f":1.0e+20') !== false);
+// Native links carry nested values as a JSON string, events as raw JSON: both decode to the floats.
+var_dump(!isset($meta["_dd.span_links"]) && json_decode($span["span_links"][0]["attributes"]["floats"], true) == $floats);
 $attrs = json_decode($meta["events"], true)[0]["attributes"];
+var_dump($attrs["floats"] == $floats, $attrs["f"] == 1e20);
 var_dump($attrs["obj"], $attrs["nested"]);
 ?>
 --EXPECT--
-[1.0e+20,1.0e-5,0.1,1.5,1.0e+17,1.2345678901234568e+17,-0,3]
 bool(true)
 bool(true)
 bool(true)

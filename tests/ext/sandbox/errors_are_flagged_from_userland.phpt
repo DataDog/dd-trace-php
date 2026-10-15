@@ -27,11 +27,7 @@ var_dump(dd_clean_spans());
 testErrorFromUserland()
 array(1) {
   [0]=>
-  array(13) {
-    ["trace_id"]=>
-    string(%d) "%d"
-    ["trace_id_high"]=>
-    string(16) "%s"
+  array(9) {
     ["span_id"]=>
     string(%d) "%d"
     ["start"]=>
@@ -47,17 +43,13 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["error"]=>
-    int(1)
-    ["sampling_priority"]=>
-    int(1)
-    ["sampling_mechanism"]=>
-    int(0)
+    bool(true)
     ["attributes"]=>
     array(7) {
       ["runtime-id"]=>
       string(36) "%s"
       ["process_id"]=>
-      float(%f)
+      int(%d)
       ["error.message"]=>
       string(9) "Foo error"
       ["_dd.agent_psr"]=>

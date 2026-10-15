@@ -33,7 +33,6 @@ DD_TRACE_DEBUG_PRNG_SEED=42
 foo=bar
 --FILE--
 <?php
-include __DIR__ . '/../sandbox/dd_dumper.inc';
 
 $parent = \DDTrace\start_span(0.120);
 $span = \DDTrace\start_span(0.130);
@@ -44,71 +43,81 @@ $span->name = "child";
 \DDTrace\close_span();
 \DDTrace\close_span();
 
-echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
+echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
 ?>
 --EXPECTF--
-[
-    {
-        "trace_id": "1",
-        "span_id": "13930160852258120406",
-        "parent_id": "11788048577503494824",
-        "start": 120000000,
-        "duration": %d,
-        "name": "web.request",
-        "resource": "GET \/foo",
-        "service": "aws-server",
-        "type": "web",
-        "env": "local-prod",
-        "version": "1.0",
-        "component": "cgi-fcgi",
-        "span_kind": 2,
-        "attributes": {
-            "runtime-id": "%s",
-            "http.url": "http:\/\/localhost:8888\/foo",
-            "http.method": "GET",
-            "process_id": %d,
-            "foo": "bar",
-            "http.status_code": "200",
-            "php.compilation.total_time_ms": %f,
-            "php.memory.peak_usage_bytes": %d,
-            "php.memory.peak_real_usage_bytes": %d
-        }
+{
+    "env": "local-prod",
+    "app_version": "1.0",
+    "attributes": {
+        "_dd.sdk.otlp_export": "false",
+        "_dd.tags.process": "%s"
     },
-    {
-        "trace_id": "1",
-        "span_id": "11788048577503494824",
-        "parent_id": "2",
-        "start": 100000000,
-        "duration": %d,
-        "name": "aws.apigateway",
-        "resource": "GET \/test",
-        "service": "example.com",
-        "type": "web",
-        "env": "local-prod",
-        "version": "1.0",
-        "component": "aws-apigateway",
-        "sampling_priority": 2,
-        "sampling_mechanism": 0,
-        "origin": "rum",
-        "attributes": {
-            "http.method": "GET",
-            "http.url": "example.com\/test",
-            "stage": "aws-prod",
-            "_dd.inferred_span": 1,
-            "http.status_code": "200"
+    "chunks": [
+        {
+            "trace_id": "%s",
+            "priority": 2,
+            "origin": "rum",
+            "sampling_mechanism": 0,
+            "spans": [
+                {
+                    "span_id": "13930160852258120406",
+                    "parent_id": "11788048577503494824",
+                    "start": 120000000,
+                    "duration": %d,
+                    "name": "web.request",
+                    "resource": "GET \/foo",
+                    "service": "aws-server",
+                    "type": "web",
+                    "env": "local-prod",
+                    "version": "1.0",
+                    "component": "web",
+                    "span_kind": 2,
+                    "attributes": {
+                        "runtime-id": "%s",
+                        "http.url": "http:\/\/localhost:8888\/foo",
+                        "http.method": "GET",
+                        "process_id": %d,
+                        "foo": "bar",
+                        "http.status_code": "200",
+                        "php.compilation.total_time_ms": %f,
+                        "php.memory.peak_usage_bytes": %d,
+                        "php.memory.peak_real_usage_bytes": %d
+                    }
+                },
+                {
+                    "span_id": "11788048577503494824",
+                    "parent_id": "2",
+                    "start": 100000000,
+                    "duration": %d,
+                    "name": "aws.apigateway",
+                    "resource": "GET \/test",
+                    "service": "example.com",
+                    "type": "web",
+                    "env": "local-prod",
+                    "version": "1.0",
+                    "component": "aws-apigateway",
+                    "attributes": {
+                        "http.method": "GET",
+                        "http.url": "example.com\/test",
+                        "stage": "aws-prod",
+                        "_dd.inferred_span": 1,
+                        "http.status_code": "200"
+                    }
+                },
+                {
+                    "span_id": "13874630024467741450",
+                    "parent_id": "13930160852258120406",
+                    "start": 130000000,
+                    "duration": %d,
+                    "name": "child",
+                    "resource": "child",
+                    "service": "aws-server",
+                    "type": "web",
+                    "env": "local-prod",
+                    "version": "1.0"
+                }
+            ]
         }
-    },
-    {
-        "trace_id": "1",
-        "span_id": "13874630024467741450",
-        "parent_id": "13930160852258120406",
-        "start": 130000000,
-        "duration": %d,
-        "name": "child",
-        "resource": "child",
-        "service": "aws-server",
-        "type": "web",
-        "env": "local-prod",
-        "version": "1.0"
-    }
-]
+    ]
+}

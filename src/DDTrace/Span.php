@@ -7,7 +7,6 @@ use DDTrace\Exceptions\InvalidSpanArgument;
 use DDTrace\Log\LoggingTrait;
 use DDTrace\SpanContext as SpanContext;
 use DDTrace\Http\Urls;
-use DDTrace\Processing\TraceAnalyticsProcessor;
 use Exception;
 use InvalidArgumentException;
 use Throwable;
@@ -146,7 +145,7 @@ class Span extends DataSpan
             }
 
             if ($key === Tag::ERROR_MSG) {
-                $this->internalSpan->attributes[$key] = (string)$value;
+                $this->internalSpan->attributes[$key] = $value;
                 $this->setError(true);
                 return;
             }
@@ -176,7 +175,7 @@ class Span extends DataSpan
                 return;
             }
 
-            if ($key === Tag::HTTP_URL) {
+            if ($key === Tag::HTTP_URL && $value !== null) {
                 $value = Urls::sanitize((string)$value);
             }
 
@@ -198,7 +197,11 @@ class Span extends DataSpan
             }
         }
 
-        $this->internalSpan->attributes[$key] = (string)$value;
+        if ($value === null) {
+            unset($this->internalSpan->meta[$key]);
+            return;
+        }
+        $this->internalSpan->meta[$key] = $value;
     }
 
     /**
@@ -240,12 +243,14 @@ class Span extends DataSpan
     public function setMetric($key, $value)
     {
         if ($key === Tag::ANALYTICS_KEY) {
-            TraceAnalyticsProcessor::normalizeAnalyticsValue($this->internalSpan->metrics, $value);
-            return;
+            return; // App Analytics is deprecated and a no-op
         }
 
-        // As a double, which is what the metrics bucket held on the wire.
-        $this->internalSpan->attributes[$key] = is_array($value) ? $value : (float)$value;
+        if ($value === null) {
+            unset($this->internalSpan->metrics[$key]);
+            return;
+        }
+        $this->internalSpan->metrics[$key] = $value;
     }
 
     /**
@@ -378,7 +383,7 @@ class Span extends DataSpan
                 // messages, and logging multiple messages is not prohibited by the OpenTracing spec:
                 // https://opentracing.io/docs/overview/tags-logs-baggage/#logs
                 // We want to deprecate this behavior and change it. In the meantime we apply this workaround.
-                $this->internalSpan->attributes[Tag::ERROR_MSG] = (string)$value;
+                $this->internalSpan->attributes[Tag::ERROR_MSG] = $value;
             } elseif ($key === Tag::LOG_STACK) {
                 $this->setTag(Tag::ERROR_STACK, $value);
             }

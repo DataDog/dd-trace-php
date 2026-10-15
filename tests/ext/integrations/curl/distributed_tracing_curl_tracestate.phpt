@@ -34,7 +34,7 @@ dt_dump_headers_from_httpbin($headers, [
     'tracestate',
 ]);
 
-$spans = dd_trace_serialize_closed_spans();
+$spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'] ?? [];
 var_dump(isset($spans[0]["attributes"]["_dd.propagation_error"]));
 
 echo 'Done.' . PHP_EOL;

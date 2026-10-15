@@ -265,12 +265,45 @@ final class SpanTest extends BaseTestCase
         $this->assertFalse($span->hasTag('other'));
     }
 
+    public function testNullTagRemovesIt()
+    {
+        $span = $this->createSpan();
+        $span->setTag(self::TAG_KEY, self::TAG_VALUE);
+        $span->setTag(Tag::HTTP_URL, 'https://example.com/');
+        $span->setTag(self::TAG_KEY, null);
+        $span->setTag(Tag::HTTP_URL, null);
+        $span->setTag('never_set', null);
+
+        $this->assertFalse($span->hasTag(self::TAG_KEY));
+        $this->assertFalse($span->hasTag(Tag::HTTP_URL));
+        $this->assertFalse($span->hasTag('never_set'));
+    }
+
+    public function testBoolTagIsSentAsString()
+    {
+        $span = $this->createSpan();
+        $span->setTag('yes', true);
+        $span->setTag('no', false);
+
+        $this->assertSame('true', $span->getTag('yes'));
+        $this->assertSame('false', $span->getTag('no'));
+    }
+
     public function testMetricsSetGet()
     {
         $span = $this->createSpan();
         $span->setMetric('exists', 1.0);
 
         $this->assertSame(1.0, $span->getMetrics()['exists']);
+    }
+
+    public function testNullMetricRemovesIt()
+    {
+        $span = $this->createSpan();
+        $span->setMetric('exists', 1.0);
+        $span->setMetric('exists', null);
+
+        $this->assertArrayNotHasKey('exists', $span->getMetrics());
     }
 
     public function testTraceAnalyticsByTagIsDeprecatedNoOp()

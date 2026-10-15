@@ -1,5 +1,5 @@
 --TEST--
-_dd.sdk.otlp_export marker is set to "false" on the first span of each trace chunk only
+_dd.sdk.otlp_export marker is set to "false" on the payload, not on spans
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_AUTO_FLUSH_ENABLED=0
@@ -14,19 +14,21 @@ for ($i = 0; $i < 2; $i++) {
     \DDTrace\close_span();
 }
 
-$seen = [];
-foreach (dd_trace_serialize_closed_spans() as $span) {
-    $first = !isset($seen[$span['trace_id']]);
-    $seen[$span['trace_id']] = true;
-    echo ($first ? "first" : "other"), ": ", var_export($span['attributes']['_dd.sdk.otlp_export'] ?? null, true), "\n";
+$payload = dd_trace_serialize_closed_spans();
+echo "payload: ", var_export($payload['attributes']['_dd.sdk.otlp_export'] ?? null, true), "\n";
+foreach ($payload['chunks'] as $chunk) {
+    foreach ($chunk['spans'] as $span) {
+        echo $span['name'], ": ", var_export($span['attributes']['_dd.sdk.otlp_export'] ?? null, true), "\n";
+    }
 }
-echo count($seen), " chunks\n";
+echo count($payload['chunks']), " chunks\n";
 ?>
 --EXPECT--
-first: 'false'
-other: NULL
-other: NULL
-first: 'false'
-other: NULL
-other: NULL
+payload: 'false'
+root_1: NULL
+child_1: NULL
+grandchild_1: NULL
+root_0: NULL
+child_0: NULL
+grandchild_0: NULL
 2 chunks

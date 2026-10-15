@@ -14,7 +14,7 @@ foo=bar
 <?php
 DDTrace\start_span();
 DDTrace\close_span();
-$spans = dd_trace_serialize_closed_spans();
+$spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
 var_dump($spans[0]['attributes']['http.referrer_hostname'] ?? 'NOT SET');
 ?>
 --EXPECT--

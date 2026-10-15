@@ -15,7 +15,7 @@ key1=val1&token=a0b21ce2-006f-4cc6-95d5-d7b550698482&key2=val2&password=somethin
 <?php
 DDTrace\start_span();
 DDTrace\close_span();
-$spans = dd_trace_serialize_closed_spans();
+$spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
 var_dump($spans[0]['attributes']["http.url"]);
 ?>
 --EXPECT--

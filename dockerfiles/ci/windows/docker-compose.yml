@@ -173,7 +173,7 @@ services:
         phpSha256Hash: 8b2777c741e83f188d3ca6d8e98ece7264acafee86787298fae57e05d0dddc78
 
   request-replayer:
-    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-request-replayer-3.0_windows
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-request-replayer-5.0_windows
     build:
       platforms:
         - windows/amd64

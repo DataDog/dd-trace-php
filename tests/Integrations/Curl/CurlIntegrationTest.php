@@ -6,6 +6,7 @@ use DDTrace\Tag;
 use DDTrace\Sampling\PrioritySampling;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
+use DDTrace\Tests\Common\SpanChecker;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 
 class PrivateCallbackRequest
@@ -84,7 +85,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('curl_exec', 'curl', 'http', 'http://' . HTTPBIN_INTEGRATION . '/status/?')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
                     'span.kind' => 'client',
@@ -92,8 +93,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     Tag::COMPONENT => 'curl',
                     '_dd.svc_src' => 'curl',
                 ])
-                ->withExistingTagsNames(self::commonCurlInfoTags())
-                ->skipTagsLike('/^curl\..*/'),
+                ->withExistingAttributeNames(self::commonCurlInfoTags())
+                ->skipAttributesLike('/^curl\..*/'),
         ]);
     }
 
@@ -110,7 +111,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('curl_exec', 'curl', 'http', 'http://' . HTTPBIN_INTEGRATION . '/status/?')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
                     'span.kind' => 'client',
@@ -118,8 +119,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     Tag::COMPONENT => 'curl',
                     '_dd.svc_src' => 'curl',
                 ])
-                ->withExistingTagsNames(self::commonCurlInfoTags())
-                ->skipTagsLike('/^curl\..*/'),
+                ->withExistingAttributeNames(self::commonCurlInfoTags())
+                ->skipAttributesLike('/^curl\..*/'),
         ]);
     }
 
@@ -136,7 +137,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('curl_exec', 'curl', 'http', 'http://?:?@' . HTTPBIN_INTEGRATION . '/basic-auth/my_user/my_password')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.url' => 'http://?:?@' . HTTPBIN_INTEGRATION . '/basic-auth/my_user/my_password',
                     'http.status_code' => '200',
                     'span.kind' => 'client',
@@ -144,8 +145,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     Tag::COMPONENT => 'curl',
                     '_dd.svc_src' => 'curl',
                 ])
-                ->withExistingTagsNames(self::commonCurlInfoTags())
-                ->skipTagsLike('/^curl\..*/'),
+                ->withExistingAttributeNames(self::commonCurlInfoTags())
+                ->skipAttributesLike('/^curl\..*/'),
         ]);
     }
 
@@ -163,7 +164,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('curl_exec', 'curl', 'http', 'http://' . HTTPBIN_INTEGRATION . '/basic-auth/my_user/my_password')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.url' => self::URL . '/basic-auth/my_user/my_password',
                     'http.status_code' => '200',
                     'span.kind' => 'client',
@@ -171,8 +172,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     Tag::COMPONENT => 'curl',
                     '_dd.svc_src' => 'curl',
                 ])
-                ->withExistingTagsNames(self::commonCurlInfoTags())
-                ->skipTagsLike('/^curl\..*/'),
+                ->withExistingAttributeNames(self::commonCurlInfoTags())
+                ->skipAttributesLike('/^curl\..*/'),
         ]);
     }
 
@@ -192,10 +193,10 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /curl_in_web_request.php')
-                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code', 'span.kind', 'component'])
+                ->withExistingAttributeNames(['http.method', 'http.url', 'http.status_code', 'span.kind', 'component'])
                 ->withChildren([
                     SpanAssertion::build('curl_exec', 'curl', 'http', 'http://' . HTTPBIN_INTEGRATION . '/status/?')
-                        ->withExactTags([
+                        ->withExactAttributes([
                             'http.url' => self::URL . '/status/200',
                             'http.status_code' => '200',
                             'span.kind' => 'client',
@@ -204,8 +205,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                             '_dd.svc_src' => 'curl',
                             '_dd.base_service' => 'top_level_app',
                         ])
-                        ->withExistingTagsNames(self::commonCurlInfoTags())
-                        ->skipTagsLike('/^curl\..*/'),
+                        ->withExistingAttributeNames(self::commonCurlInfoTags())
+                        ->skipAttributesLike('/^curl\..*/'),
                 ]),
         ]);
     }
@@ -220,7 +221,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('curl_exec', 'curl', 'http', 'http://' . HTTPBIN_INTEGRATION . '/status/?')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
                     'span.kind' => 'client',
@@ -228,8 +229,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     Tag::COMPONENT => 'curl',
                     '_dd.svc_src' => 'curl',
                 ])
-                ->withExistingTagsNames(self::commonCurlInfoTags())
-                ->skipTagsLike('/^curl\..*/'),
+                ->withExistingAttributeNames(self::commonCurlInfoTags())
+                ->skipAttributesLike('/^curl\..*/'),
         ]);
     }
 
@@ -246,7 +247,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::build('curl_exec', 'curl', 'http', 'http://' . HTTPBIN_INTEGRATION . '/status/?')
                 ->setError('http_error', 'HTTP 404 Error')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.url' => self::URL . '/status/404',
                     'http.status_code' => '404',
                     'span.kind' => 'client',
@@ -254,8 +255,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     Tag::COMPONENT => 'curl',
                     '_dd.svc_src' => 'curl',
                 ])
-                ->withExistingTagsNames(self::commonCurlInfoTags())
-                ->skipTagsLike('/^curl\..*/'),
+                ->withExistingAttributeNames(self::commonCurlInfoTags())
+                ->skipAttributesLike('/^curl\..*/'),
         ]);
     }
 
@@ -271,7 +272,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('curl_exec', 'curl', 'http', 'http://10.255.255.1/')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.url' => 'http://10.255.255.1/',
                     'http.status_code' => '0',
                     'span.kind' => 'client',
@@ -279,10 +280,10 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     Tag::COMPONENT => 'curl',
                     '_dd.svc_src' => 'curl',
                 ])
-                ->withExistingTagsNames([Tag::ERROR_MSG])
-                ->withExistingTagsNames([Tag::ERROR_STACK])
-                ->withExistingTagsNames(self::commonCurlInfoTags())
-                ->skipTagsLike('/^curl\..*/')
+                ->withExistingAttributeNames([Tag::ERROR_MSG])
+                ->withExistingAttributeNames([Tag::ERROR_STACK])
+                ->withExistingAttributeNames(self::commonCurlInfoTags())
+                ->skipAttributesLike('/^curl\..*/')
                 ->setError('curl error'),
         ]);
     }
@@ -299,7 +300,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('curl_exec', 'curl', 'http', 'http://10.255.255.1/')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.url' => 'http://10.255.255.1/',
                     'http.status_code' => '0',
                     'span.kind' => 'client',
@@ -307,10 +308,10 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     Tag::COMPONENT => 'curl',
                     '_dd.svc_src' => 'curl',
                 ])
-                ->withExistingTagsNames([Tag::ERROR_MSG])
-                ->withExistingTagsNames([Tag::ERROR_STACK])
-                ->withExistingTagsNames(self::commonCurlInfoTags())
-                ->skipTagsLike('/^curl\..*/')
+                ->withExistingAttributeNames([Tag::ERROR_MSG])
+                ->withExistingAttributeNames([Tag::ERROR_STACK])
+                ->withExistingAttributeNames(self::commonCurlInfoTags())
+                ->skipAttributesLike('/^curl\..*/')
                 ->setError('curl error'),
         ]);
     }
@@ -327,7 +328,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('curl_exec', 'curl', 'http', 'http://__i_am_not_real__.invalid/')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.url' => 'http://__i_am_not_real__.invalid/',
                     'http.status_code' => '0',
                     'span.kind' => 'client',
@@ -335,8 +336,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     Tag::COMPONENT => 'curl',
                     '_dd.svc_src' => 'curl',
                 ])
-                ->withExistingTagsNames(self::commonCurlInfoTags())
-                ->skipTagsLike('/^curl\..*/')
+                ->withExistingAttributeNames(self::commonCurlInfoTags())
+                ->skipAttributesLike('/^curl\..*/')
                 ->setError('curl error', 'Could not resolve host: __i_am_not_real__.invalid', true),
         ]);
     }
@@ -365,7 +366,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
         );
 
         $this->assertSame('foo_origin', $found['headers']['X-Datadog-Origin']);
-        $this->assertSame('foo_origin', $traces[0][0]['meta']['_dd.origin']);
+        $this->assertSame('foo_origin', $traces[0]['origin']);
     }
 
     public function testDistributedTracingIsPropagatedOnCopiedHandle()
@@ -389,9 +390,9 @@ final class CurlIntegrationTest extends IntegrationTestCase
         );
 
         // trace is: custom
-        $this->assertSame($traces[0][0]['trace_id'], $found['headers']['X-Datadog-Trace-Id']);
+        $this->assertSame(SpanChecker::traceIdLow($traces[0]), $found['headers']['X-Datadog-Trace-Id']);
         // parent is: curl_exec
-        $this->assertSame($traces[0][1]['span_id'], $found['headers']['X-Datadog-Parent-Id']);
+        $this->assertSame($traces[0]['spans'][1]['span_id'], $found['headers']['X-Datadog-Parent-Id']);
         $this->assertSame('1', $found['headers']['X-Datadog-Sampling-Priority']);
         // existing headers are honored
         $this->assertSame('preserved_value', $found['headers']['Honored']);
@@ -450,12 +451,12 @@ final class CurlIntegrationTest extends IntegrationTestCase
         // existing headers are honored
         $this->assertSame('preserved_value', $found['headers']['Honored']);
 
-        $this->assertEquals(1, sizeof($traces[0]));
+        $this->assertEquals(1, sizeof($traces[0]['spans']));
 
         // trace is: custom
-        $this->assertSame($traces[0][0]['trace_id'], $found['headers']['X-Datadog-Trace-Id']);
+        $this->assertSame(SpanChecker::traceIdLow($traces[0]), $found['headers']['X-Datadog-Trace-Id']);
         // parent is: custom
-        $this->assertSame($traces[0][0]['span_id'], $found['headers']['X-Datadog-Parent-Id']);
+        $this->assertSame($traces[0]['spans'][0]['span_id'], $found['headers']['X-Datadog-Parent-Id']);
     }
 
     public function testAppendHostnameToServiceName()
@@ -477,7 +478,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 'http',
                 'http://' . HTTPBIN_INTEGRATION . '/status/?'
             )
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
                     'span.kind' => 'client',
@@ -485,8 +486,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     Tag::COMPONENT => 'curl',
                     '_dd.svc_src' => 'opt.http_client_split_by_domain',
                 ])
-                ->withExistingTagsNames(self::commonCurlInfoTags())
-                ->skipTagsLike('/^curl\..*/'),
+                ->withExistingAttributeNames(self::commonCurlInfoTags())
+                ->skipAttributesLike('/^curl\..*/'),
         ]);
     }
 
@@ -509,7 +510,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                 'http',
                 'http://?:?@' . HTTPBIN_INTEGRATION . '/status/?'
             )
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.url' => 'http://?:?@' . HTTPBIN_INTEGRATION . '/status/200',
                     'http.status_code' => '200',
                     'span.kind' => 'client',
@@ -517,8 +518,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     Tag::COMPONENT => 'curl',
                     '_dd.svc_src' => 'opt.http_client_split_by_domain',
                 ])
-                ->withExistingTagsNames(self::commonCurlInfoTags())
-                ->skipTagsLike('/^curl\..*/'),
+                ->withExistingAttributeNames(self::commonCurlInfoTags())
+                ->skipAttributesLike('/^curl\..*/'),
         ]);
     }
 
@@ -575,34 +576,36 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('curl_multi_exec', 'curl', 'http', 'curl_multi_exec')
-                ->withExactTags([
+                ->withExactAttributes([
                     Tag::COMPONENT => 'curl',
                     '_dd.svc_src' => 'curl',
                 ])->withChildren([
                     SpanAssertion::build('curl_exec', 'curl', 'http', 'http://' . HTTPBIN_INTEGRATION . '/status/?')
-                        ->withExactTags([
+                        ->withExactAttributes([
                             'http.url' => self::URL . '/status/200',
                             'http.status_code' => '200',
                             'span.kind' => 'client',
                             'network.destination.name' => HTTPBIN_SERVICE_HOST,
                             Tag::COMPONENT => 'curl',
                             '_dd.svc_src' => 'curl',
+                            '_dd.measured' => 1,
                         ])
-                        ->withExistingTagsNames(($withRootSpan ? [-1 => "_dd.base_service"] : []) + self::commonCurlInfoTags())
-                        ->skipTagsLike('/^curl\..*/'),
+                        ->withExistingAttributeNames(($withRootSpan ? [-1 => "_dd.base_service"] : []) + self::commonCurlInfoTags())
+                        ->skipAttributesLike('/^curl\..*/'),
                     SpanAssertion::build('curl_exec', 'curl', 'http', 'http://__i_am_not_real__.invalid/')
-                        ->withExactTags([
+                        ->withExactAttributes([
                             'http.url' => 'http://__i_am_not_real__.invalid/',
                             'http.status_code' => '0',
                             'span.kind' => 'client',
                             'network.destination.name' => '__i_am_not_real__.invalid',
                             Tag::COMPONENT => 'curl',
                             '_dd.svc_src' => 'curl',
+                            '_dd.measured' => 1,
                         ])
-                        ->withExistingTagsNames(($withRootSpan ? [-1 => "_dd.base_service"] : []) + self::commonCurlInfoTags())
-                        ->skipTagsLike('/^curl\..*/')
+                        ->withExistingAttributeNames(($withRootSpan ? [-1 => "_dd.base_service"] : []) + self::commonCurlInfoTags())
+                        ->skipAttributesLike('/^curl\..*/')
                         ->setError('curl error', "Couldn't resolve host name", true),
-                ])->withExistingTagsNames($withRootSpan ? ["_dd.base_service"] : []),
+                ])->withExistingAttributeNames($withRootSpan ? ["_dd.base_service"] : []),
         ]);
     }
 
@@ -627,7 +630,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('curl_exec', 'curl', 'http', 'http://' . HTTPBIN_INTEGRATION . '/status/?')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
                     'span.kind' => 'client',
@@ -637,8 +640,8 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     'peer.service' => HTTPBIN_SERVICE_HOST,
                     '_dd.peer.service.source' => 'network.destination.name',
                 ])
-                ->withExistingTagsNames(self::commonCurlInfoTags())
-                ->skipTagsLike('/^curl\..*/'),
+                ->withExistingAttributeNames(self::commonCurlInfoTags())
+                ->skipAttributesLike('/^curl\..*/'),
         ]);
     }
 
@@ -660,15 +663,15 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('curl_exec', 'configured_service', 'http', 'http://' . HTTPBIN_INTEGRATION . '/status/?')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.url' => self::URL . '/status/200',
                     'http.status_code' => '200',
                     'span.kind' => 'client',
                     'network.destination.name' => HTTPBIN_SERVICE_HOST,
                     Tag::COMPONENT => 'curl',
                 ])
-                ->withExistingTagsNames(self::commonCurlInfoTags())
-                ->skipTagsLike('/^curl\..*/'),
+                ->withExistingAttributeNames(self::commonCurlInfoTags())
+                ->skipAttributesLike('/^curl\..*/'),
         ], false);
     }
 }

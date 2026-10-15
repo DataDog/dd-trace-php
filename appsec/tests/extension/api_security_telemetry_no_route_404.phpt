@@ -37,7 +37,7 @@ $helper->get_commands(); // ignore
 // an endpoint that does not exist has no route to speak of; it must not be
 // counted as a missing route
 $rootSpan = root_span();
-$rootSpan->meta["http.method"] = "GET";
+$rootSpan->attributes["http.method"] = "GET";
 
 var_dump(rshutdown());
 $helper->get_commands(); // ignore
