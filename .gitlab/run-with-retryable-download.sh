@@ -25,15 +25,16 @@ if grep -Eq "$github_server_error|$transport_error" "$build_log"; then
     exit 75
 fi
 
-# CMake reports libcurl's partial-file error as status_code 18. Only match it
-# inside an HTTP(S) download failure block; unrelated errors retain their code.
+# CMake reports libcurl's partial-file and receive errors as status_code 18
+# and 56. Only match inside HTTP(S) download failure blocks; unrelated errors
+# retain their code.
 if awk '
     /^[[:space:]]*error: downloading / { http_download = /https?:\/\//; next }
     /--- LOG END ---/ { http_download = 0 }
-    http_download && /^[[:space:]]*status_code:[[:space:]]*18[[:space:]]*$/ { retry = 1 }
+    http_download && /^[[:space:]]*status_code:[[:space:]]*(18|56)[[:space:]]*$/ { retry = 1 }
     END { exit !retry }
 ' "$build_log"; then
-    echo "Transient partial CMake download; exiting 75 for GitLab retry." >&2
+    echo "Transient CMake download transfer failure; exiting 75 for GitLab retry." >&2
     exit 75
 fi
 
