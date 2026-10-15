@@ -26,14 +26,14 @@ class Tracer
             if (!empty($values)) {
                 $valuesString .= ' (' . implode(', ', $values) . ')';
             }
-            if (isset($span['meta']['error.message'])) {
-                $valuesString .= ' (error: ' . $span['meta']['error.message'] . ')';
+            if (isset($span['attributes']['error.message'])) {
+                $valuesString .= ' (error: ' . $span['attributes']['error.message'] . ')';
             }
             $valuesString .= PHP_EOL;
             if (strlen($valuesString) > 0) {
                 $valuesStrings[] = $valuesString;
             }
-        }, dd_trace_serialize_closed_spans());
+        }, dd_trace_serialize_closed_spans()['chunks'][0]['spans']);
 
         // Reporting
         $output = '[ddtrace] [info] Flushing tracer...' . PHP_EOL;

@@ -46,22 +46,23 @@ class LogsIntegration extends Integration
             '%dd.span_id%'  => 'dd.span_id="' . ($spanIdSubstitute ?? dd_trace_peek_span_id()) . '"',
         ];
 
-        $appName = ddtrace_config_app_name();
+        $appName = \dd_trace_env_config('DD_SERVICE');
         if ($appName) {
             $placeholders['%dd.service%'] = 'dd.service="' . $appName . '"';
         } else {
             $placeholders['%dd.service%'] = '';
         }
 
-        $currentContext = \DDTrace\current_context();
-        if ($currentContext['version']) {
-            $placeholders['%dd.version%'] = 'dd.version="' . $currentContext['version'] . '"';
+        $version = \dd_trace_env_config('DD_VERSION');
+        if ($version) {
+            $placeholders['%dd.version%'] = 'dd.version="' . $version . '"';
         } else {
             $placeholders['%dd.version%'] = '';
         }
 
-        if ($currentContext['env']) {
-            $placeholders['%dd.env%'] = 'dd.env="' . $currentContext['env'] . '"';
+        $env = \dd_trace_env_config('DD_ENV');
+        if ($env) {
+            $placeholders['%dd.env%'] = 'dd.env="' . $env . '"';
         } else {
             $placeholders['%dd.env%'] = '';
         }
@@ -131,18 +132,19 @@ class LogsIntegration extends Integration
             $context['dd.span_id'] = $spanIdSubstitute ?? dd_trace_peek_span_id();
         }
 
-        $service = ddtrace_config_app_name();
+        $service = \dd_trace_env_config('DD_SERVICE');
         if ($service && !isset($context['dd.service'])) {
             $context['dd.service'] = $service;
         }
 
-        $currentContext = \DDTrace\current_context();
-        if ($currentContext['version'] && !isset($context['dd.version'])) {
-            $context['dd.version'] = $currentContext['version'];
+        $version = \dd_trace_env_config('DD_VERSION');
+        if ($version && !isset($context['dd.version'])) {
+            $context['dd.version'] = $version;
         }
 
-        if ($currentContext['env'] && !isset($context['dd.env'])) {
-            $context['dd.env'] = $currentContext['env'];
+        $env = \dd_trace_env_config('DD_ENV');
+        if ($env && !isset($context['dd.env'])) {
+            $context['dd.env'] = $env;
         }
 
         return $context;

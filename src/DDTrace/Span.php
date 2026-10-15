@@ -7,7 +7,6 @@ use DDTrace\Exceptions\InvalidSpanArgument;
 use DDTrace\Log\LoggingTrait;
 use DDTrace\SpanContext as SpanContext;
 use DDTrace\Http\Urls;
-use DDTrace\Processing\TraceAnalyticsProcessor;
 use Exception;
 use InvalidArgumentException;
 use Throwable;
@@ -146,7 +145,7 @@ class Span extends DataSpan
             }
 
             if ($key === Tag::ERROR_MSG) {
-                $this->internalSpan->meta[$key] = (string)$value;
+                $this->internalSpan->attributes[$key] = $value;
                 $this->setError(true);
                 return;
             }
@@ -176,14 +175,14 @@ class Span extends DataSpan
                 return;
             }
 
-            if ($key === Tag::HTTP_URL) {
+            if ($key === Tag::HTTP_URL && $value !== null) {
                 $value = Urls::sanitize((string)$value);
             }
 
             if ($key === Tag::HTTP_STATUS_CODE && $value >= 500) {
                 $this->hasError = true;
-                if (!isset($this->internalSpan->meta[Tag::ERROR_TYPE])) {
-                    $this->internalSpan->meta[Tag::ERROR_TYPE] = 'Internal Server Error';
+                if (!isset($this->internalSpan->attributes[Tag::ERROR_TYPE])) {
+                    $this->internalSpan->attributes[Tag::ERROR_TYPE] = 'Internal Server Error';
                 }
             }
 
@@ -198,7 +197,11 @@ class Span extends DataSpan
             }
         }
 
-        $this->internalSpan->meta[$key] = (string)$value;
+        if ($value === null) {
+            unset($this->internalSpan->meta[$key]);
+            return;
+        }
+        $this->internalSpan->meta[$key] = $value;
     }
 
     /**
@@ -240,10 +243,13 @@ class Span extends DataSpan
     public function setMetric($key, $value)
     {
         if ($key === Tag::ANALYTICS_KEY) {
-            TraceAnalyticsProcessor::normalizeAnalyticsValue($this->internalSpan->metrics, $value);
-            return;
+            return; // App Analytics is deprecated and a no-op
         }
 
+        if ($value === null) {
+            unset($this->internalSpan->metrics[$key]);
+            return;
+        }
         $this->internalSpan->metrics[$key] = $value;
     }
 
@@ -275,9 +281,9 @@ class Span extends DataSpan
     {
         if (($error instanceof Exception) || ($error instanceof Throwable)) {
             $this->hasError = true;
-            $this->internalSpan->meta[Tag::ERROR_MSG] = $error->getMessage();
-            $this->internalSpan->meta[Tag::ERROR_TYPE] = get_class($error);
-            $this->internalSpan->meta[Tag::ERROR_STACK] = $error->getTraceAsString();
+            $this->internalSpan->attributes[Tag::ERROR_MSG] = $error->getMessage();
+            $this->internalSpan->attributes[Tag::ERROR_TYPE] = get_class($error);
+            $this->internalSpan->attributes[Tag::ERROR_STACK] = $error->getTraceAsString();
             return;
         }
 
@@ -300,8 +306,8 @@ class Span extends DataSpan
     public function setRawError($message, $type)
     {
         $this->hasError = true;
-        $this->internalSpan->meta[Tag::ERROR_MSG] = $message;
-        $this->internalSpan->meta[Tag::ERROR_TYPE] = $type;
+        $this->internalSpan->attributes[Tag::ERROR_MSG] = $message;
+        $this->internalSpan->attributes[Tag::ERROR_TYPE] = $type;
     }
 
     public function hasError()
@@ -377,7 +383,7 @@ class Span extends DataSpan
                 // messages, and logging multiple messages is not prohibited by the OpenTracing spec:
                 // https://opentracing.io/docs/overview/tags-logs-baggage/#logs
                 // We want to deprecate this behavior and change it. In the meantime we apply this workaround.
-                $this->internalSpan->meta[Tag::ERROR_MSG] = (string)$value;
+                $this->internalSpan->attributes[Tag::ERROR_MSG] = $value;
             } elseif ($key === Tag::LOG_STACK) {
                 $this->setTag(Tag::ERROR_STACK, $value);
             }

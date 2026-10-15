@@ -44,7 +44,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'frankenphp',
                         'web',
                         'GET /simple'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost/simple?key=value&<redacted>',
                         'http.status_code' => '200',
@@ -59,7 +59,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'frankenphp',
                         'web',
                         'GET /error'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost/error?key=value&<redacted>',
                         'http.status_code' => '500',

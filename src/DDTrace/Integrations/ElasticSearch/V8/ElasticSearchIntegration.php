@@ -6,6 +6,7 @@ use DDTrace\HookData;
 use DDTrace\Integrations\ElasticSearch\ElasticSearchCommon;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
+use DDTrace\SpanKind;
 use DDTrace\Tag;
 use DDTrace\Type;
 
@@ -60,7 +61,7 @@ class ElasticSearchIntegration extends Integration
                 Integration::handleInternalSpanServiceName($span, self::NAME);
                 $span->type = Type::ELASTICSEARCH;
                 $span->resource = "__construct";
-                $span->meta[Tag::COMPONENT] = self::NAME;
+                $span->component = self::NAME;
             }
         ]);
 
@@ -82,7 +83,7 @@ class ElasticSearchIntegration extends Integration
             $span->resource = 'performRequest';
             Integration::handleInternalSpanServiceName($span, self::NAME);
             $span->type = Type::ELASTICSEARCH;
-            $span->meta[Tag::COMPONENT] = self::NAME;
+            $span->component = self::NAME;
 
             /** @var Psr\Http\Message\RequestInterface $request */
             $request = $args[0];
@@ -90,17 +91,17 @@ class ElasticSearchIntegration extends Integration
             try {
                 $uri = $request->getUri();
                 $query = $uri->getQuery();
-                $span->meta[Tag::ELASTICSEARCH_URL] = (string)$uri->withQuery("");
-                $span->meta[Tag::ELASTICSEARCH_METHOD] = $request->getMethod();
-                $span->meta[Tag::SPAN_KIND] = 'client';
+                $span->attributes[Tag::ELASTICSEARCH_URL] = (string)$uri->withQuery("");
+                $span->attributes[Tag::ELASTICSEARCH_METHOD] = $request->getMethod();
+                $span->spanKind = SpanKind::CLIENT;
                 if ($query) {
                     parse_str($query, $queryParts);
-                    $span->meta[Tag::ELASTICSEARCH_PARAMS] = json_encode($queryParts);
+                    $span->attributes[Tag::ELASTICSEARCH_PARAMS] = json_encode($queryParts);
                 }
                 if (self::$logNextBody && ($body = $request->getBody()) && $body->isSeekable()) {
                     $pos = $body->tell();
                     $body->seek(0);
-                    $span->meta[Tag::ELASTICSEARCH_BODY] = $body->getContents();
+                    $span->attributes[Tag::ELASTICSEARCH_BODY] = $body->getContents();
                     $body->seek($pos);
                 }
             } catch (\Exception $ex) {
@@ -132,15 +133,14 @@ class ElasticSearchIntegration extends Integration
                     $span->name = "Elasticsearch.Client.$name";
 
                     if ($isTraceAnalyticsCandidate) {
-                        self::addTraceAnalyticsIfEnabled($span);
                         self::$logNextBody = true;
                     }
 
-                    $span->meta[Tag::SPAN_KIND] = 'client';
+                    $span->spanKind = SpanKind::CLIENT;
                     Integration::handleInternalSpanServiceName($span, self::NAME);
                     $span->type = Type::ELASTICSEARCH;
                     $span->resource = ElasticSearchCommon::buildResourceName($name, isset($args[0]) ? $args[0] : []);
-                    $span->meta[Tag::COMPONENT] = self::NAME;
+                    $span->component = self::NAME;
                 },
                 'posthook' => static function () {
                     self::$logNextBody = false;
@@ -161,7 +161,7 @@ class ElasticSearchIntegration extends Integration
             $span->resource = $operationName;
             Integration::handleInternalSpanServiceName($span, self::NAME);
             $span->type = Type::ELASTICSEARCH;
-            $span->meta[Tag::COMPONENT] = self::NAME;
+            $span->component = self::NAME;
         });
     }
 
@@ -183,7 +183,7 @@ class ElasticSearchIntegration extends Integration
             $span->resource = ElasticSearchCommon::buildResourceName($name, $params);
             Integration::handleInternalSpanServiceName($span, self::NAME);
             $span->type = Type::ELASTICSEARCH;
-            $span->meta[Tag::COMPONENT] = self::NAME;
+            $span->component = self::NAME;
         });
     }
 }

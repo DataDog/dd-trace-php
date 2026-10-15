@@ -8,7 +8,7 @@ datadog.appsec.log_level=debug
 DD_APPSEC_ENABLED=1
 --FILE--
 <?php
-use function datadog\appsec\testing\root_span_get_meta;
+use function datadog\appsec\testing\root_span_get_attributes;
 use function datadog\appsec\track_custom_event;
 include __DIR__ . '/inc/ddtrace_version.php';
 

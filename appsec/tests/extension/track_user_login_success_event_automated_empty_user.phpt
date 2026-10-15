@@ -8,7 +8,7 @@ datadog.appsec.log_level=debug
 DD_APPSEC_ENABLED=1
 --FILE--
 <?php
-use function datadog\appsec\testing\root_span_get_meta;
+use function datadog\appsec\testing\root_span_get_attributes;
 use function datadog\appsec\internal\track_user_login_success_event_automated;
 include __DIR__ . '/inc/ddtrace_version.php';
 
@@ -21,19 +21,22 @@ track_user_login_success_event_automated('test', "login", "",
     "email" => "noneofyour@business.com"
 ]);
 
-echo "root_span_get_meta():\n";
-print_r(root_span_get_meta());
+echo "root_span_get_attributes():\n";
+$attributes = root_span_get_attributes();
+ksort($attributes);
+print_r($attributes);
 ?>
 --EXPECTF--
-root_span_get_meta():
+root_span_get_attributes():
 Array
 (
-    [runtime-id] => %s
     [_dd.appsec.events.users.login.success.auto.mode] => identification
-    [appsec.events.users.login.success.usr.login] => login
     [_dd.appsec.usr.login] => login
-    [appsec.events.users.login.success.track] => true
-    [server.business_logic.users.login.success] => null
-    [_dd.p.ts] => 02
     [_dd.p.dm] => -5
+    [_dd.p.ts] => 02
+    [appsec.events.users.login.success.track] => true
+    [appsec.events.users.login.success.usr.login] => login
+    [process_id] => %d
+    [runtime-id] => %s
+    [server.business_logic.users.login.success] => null
 )

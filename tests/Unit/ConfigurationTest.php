@@ -34,7 +34,6 @@ EOD;
         self::putenv('DD_SERVICE_MAPPING');
         self::putenv('DD_SERVICE');
         self::putenv('DD_TAGS');
-        self::putenv('DD_TRACE_ANALYTICS_ENABLED');
         self::putenv('DD_TRACE_DEBUG');
         self::putenv('DD_TRACE_ENABLED');
         self::putenv('DD_TRACE_PDO_ENABLED');
@@ -48,13 +47,13 @@ EOD;
 
     public function testTracerEnabledByDefault()
     {
-        $this->assertTrue(\ddtrace_config_trace_enabled());
+        $this->assertTrue(\dd_trace_env_config('DD_TRACE_ENABLED'));
     }
 
     public function testTracerDisabled()
     {
         $this->putEnvAndReloadConfig(['DD_TRACE_ENABLED=false']);
-        $this->assertFalse(\ddtrace_config_trace_enabled());
+        $this->assertFalse(\dd_trace_env_config('DD_TRACE_ENABLED'));
     }
 
     public function testDebugModeDisabledByDefault()
@@ -70,13 +69,13 @@ EOD;
 
     public function testDistributedTracingEnabledByDefault()
     {
-        $this->assertTrue(\ddtrace_config_distributed_tracing_enabled());
+        $this->assertTrue(\dd_trace_env_config('DD_DISTRIBUTED_TRACING'));
     }
 
     public function testDistributedTracingDisabled()
     {
         $this->putEnvAndReloadConfig(['DD_DISTRIBUTED_TRACING=false']);
-        $this->assertFalse(\ddtrace_config_distributed_tracing_enabled());
+        $this->assertFalse(\dd_trace_env_config('DD_DISTRIBUTED_TRACING'));
     }
 
     public function testAllIntegrationsEnabledByDefault()
@@ -117,47 +116,6 @@ EOD;
         self::assertTrue(\ddtrace_config_integration_enabled('foo_invalid'));
     }
 
-    public function testAllIntegrationsAnalyticsEnabledToggleConfig()
-    {
-        $integrations = self::getIntegrationsUpper();
-        foreach ($integrations as $integration) {
-            $this->putEnvAndReloadConfig(["DD_TRACE_{$integration}_ANALYTICS_ENABLED=true"]);
-
-            $lower = strtolower($integration);
-            self::assertTrue(
-                \DDTrace\Config\integration_analytics_enabled($lower),
-                "App analytics for '{$lower}' was expected to be enabled." . self::INTEGRATION_ERROR
-            );
-
-            // Reset
-            self::putenv("DD_TRACE_{$integration}_ANALYTICS_ENABLED");
-        }
-
-        // Make sure we're not testing the default fallback
-        self::assertFalse(\DDTrace\Config\integration_analytics_enabled('foo_invalid'));
-    }
-
-    public function testAllIntegrationsAnalyticsSampleRateConfig()
-    {
-        $integrations = self::getIntegrationsUpper();
-        foreach ($integrations as $integration) {
-            $this->putEnvAndReloadConfig(["DD_TRACE_{$integration}_ANALYTICS_SAMPLE_RATE=0.42"]);
-
-            $lower = strtolower($integration);
-            self::assertSame(
-                0.42,
-                \DDTrace\Config\integration_analytics_sample_rate($lower),
-                "Invalid app analytics sample rate for '{$lower}'." . self::INTEGRATION_ERROR
-            );
-
-            // Reset
-            self::putenv("DD_TRACE_{$integration}_ANALYTICS_SAMPLE_RATE");
-        }
-
-        // Make sure we're not testing the default fallback
-        self::assertSame(\DDTrace\Config\integration_analytics_sample_rate('foo_invalid'), 1.0);
-    }
-
     private static function getIntegrationsUpper()
     {
         $dirs = glob(__DIR__ . '/../../src/DDTrace/Integrations/*', GLOB_ONLYDIR);
@@ -169,10 +127,10 @@ EOD;
     public function testServiceName()
     {
         ini_set("datadog.service", "");
-        $this->assertSame('__default__', \ddtrace_config_app_name('__default__'));
+        $this->assertSame('__default__', (\dd_trace_env_config('DD_SERVICE') ?: '__default__'));
 
         $this->putEnvAndReloadConfig(['DD_SERVICE=my_app']);
-        $this->assertSame('my_app', \ddtrace_config_app_name('__default__'));
+        $this->assertSame('my_app', (\dd_trace_env_config('DD_SERVICE') ?: '__default__'));
     }
 
     /**

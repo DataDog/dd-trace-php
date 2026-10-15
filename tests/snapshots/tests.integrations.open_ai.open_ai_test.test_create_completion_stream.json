@@ -17,6 +17,7 @@
       "openai.request.method": "POST",
       "openai.request.model": "gpt-3.5-turbo-instruct",
       "openai.request.prompt": "hi",
+      "openai.response.id": "42",
       "openai.response.model": "gpt-3.5-turbo-instruct",
       "openai.user.api_key": "sk-...9d5d",
       "runtime-id": "87cccdb5-2d7c-453e-bc51-70997f55724c",
@@ -30,7 +31,6 @@
       "openai.request.prompt_tokens_estimated": 1,
       "openai.request.streamed": 1,
       "openai.response.completion_tokens_estimated": 1,
-      "openai.response.id": 42,
       "openai.response.usage.completion_tokens": 7,
       "openai.response.usage.prompt_tokens": 0,
       "openai.response.usage.total_tokens": 7

@@ -43,10 +43,10 @@ zend_object *nullable dd_trace_get_active_root_span(void);
 
 // increases the refcount of tag, but not value (like zval_hash_add)
 // however, it destroy value if the operation fails (unlike zval_hash_add)
-bool dd_trace_span_add_tag(
+bool dd_trace_span_add_attribute(
     zend_object *nonnull zobj, zend_string *nonnull tag, zval *nonnull value);
 
-bool dd_trace_span_add_tag_str(zend_object *nonnull zobj,
+bool dd_trace_span_add_attribute_str(zend_object *nonnull zobj,
     const char *nonnull tag, size_t tag_len, const char *nonnull value,
     size_t value_len);
 
@@ -55,11 +55,12 @@ void dd_trace_close_all_spans_and_flush(void);
 
 void dd_trace_emit_asm_event(void);
 
-// Provides the array zval representing $root_span->meta, if any.
+// Provides the array zval representing $root_span->attributes, if any.
 // It is ready for modification, with refcount == 1
-zval *nullable dd_trace_span_get_meta(zend_object *nonnull);
-zval *nullable dd_trace_span_get_metrics(zend_object *nonnull);
+zval *nullable dd_trace_span_get_attributes(zend_object *nonnull);
 zval *nullable dd_trace_span_get_meta_struct(zend_object *nonnull);
+// Provides $root_span->component (borrowed), if it is a string
+zend_string *nullable dd_trace_span_get_component(zend_object *nonnull);
 void dd_trace_span_add_propagated_tags(
     zend_string *nonnull key, zval *nonnull value);
 

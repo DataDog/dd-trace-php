@@ -35,9 +35,9 @@ var_dump(rinit());
 $helper->get_commands(); // ignore
 
 $rootSpan = root_span();
-$rootSpan->meta["http.method"] = "GET";
-$rootSpan->meta["http.route"] = "/foo/bar";
-$rootSpan->meta["component"] = "symfony";
+$rootSpan->attributes["http.method"] = "GET";
+$rootSpan->attributes["http.route"] = "/foo/bar";
+$rootSpan->component = "symfony";
 
 var_dump(rshutdown());
 $helper->get_commands(); // ignore

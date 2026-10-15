@@ -8,6 +8,7 @@ use DDTrace\Integrations\HttpClientIntegrationHelper;
 use DDTrace\Integrations\Integration;
 use DDTrace\RootSpanData;
 use DDTrace\SpanData;
+use DDTrace\SpanKind;
 use DDTrace\SpanLink;
 use DDTrace\SpanStack;
 use DDTrace\Tag;
@@ -45,14 +46,6 @@ class RatchetIntegration extends Integration
     const NAME = 'ratchet';
 
     /**
-     * {@inheritdoc}
-     */
-    public static function requiresExplicitTraceAnalyticsEnabling(): bool
-    {
-        return false;
-    }
-
-    /**
      * @return int
      */
     public static function init(): int
@@ -70,15 +63,15 @@ class RatchetIntegration extends Integration
             $span->type = Type::HTTP_CLIENT;
             Integration::handleInternalSpanServiceName($span, self::NAME);
             $span->peerServiceSources = HttpClientIntegrationHelper::PEER_SERVICE_SOURCES;
-            $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
-            $span->meta[Tag::COMPONENT] = self::NAME;
-            $span->meta[Tag::HTTP_METHOD] = "GET";
-            $span->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($url);
-            $span->meta[Tag::NETWORK_DESTINATION_NAME] = Urls::hostname($url);
+            $span->spanKind = SpanKind::CLIENT;
+            $span->component = self::NAME;
+            $span->attributes[Tag::HTTP_METHOD] = "GET";
+            $span->attributes[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($url);
+            $span->attributes[Tag::NETWORK_DESTINATION_NAME] = Urls::hostname($url);
             \DDTrace\collect_code_origins(1);
             if (\dd_trace_env_config("DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN")) {
                 $span->service = Urls::hostnameForTag($url);
-                $span->meta['_dd.svc_src'] = 'opt.http_client_split_by_domain';
+                $span->attributes['_dd.svc_src'] = 'opt.http_client_split_by_domain';
             }
         }, static function (HookData $hook) {
             $span = $hook->data;
@@ -91,8 +84,8 @@ class RatchetIntegration extends Integration
                     ObjectKVStore::put($websocket, "handshake", $span);
                     ObjectKVStore::put($websocket, "handshake_root", $rootSpan);
 
-                    $span->meta[Tag::HTTP_STATUS_CODE] = $websocket->response->getStatusCode();
-                    $span->meta["http.upgraded"] = '1';
+                    $span->attributes[Tag::HTTP_STATUS_CODE] = (string)$websocket->response->getStatusCode();
+                    $span->attributes["http.upgraded"] = true;
 
                     $stackBefore = active_stack();
                     switch_stack($span);
@@ -104,9 +97,9 @@ class RatchetIntegration extends Integration
                         // has the http status line as message
                         $parts = explode(" ", $exception->getMessage());
                         if (count($parts) == 3 && is_numeric($parts[1])) {
-                            $span->meta[Tag::HTTP_STATUS_CODE] = (int)$parts[1];
+                            $span->attributes[Tag::HTTP_STATUS_CODE] = (string)(int)$parts[1];
                         } else {
-                            $span->meta[Tag::HTTP_STATUS_CODE] = 101;
+                            $span->attributes[Tag::HTTP_STATUS_CODE] = '101';
                         }
                     }
                     $span->exception = $exception;
@@ -177,13 +170,12 @@ class RatchetIntegration extends Integration
             $pseudoglobals['_FILES'] = [];
 
             $activeSpan = $hook->span(new SpanStack);
-            $activeSpan->service = \ddtrace_config_app_name('ratchet');
+            $activeSpan->service = \dd_trace_env_config('DD_SERVICE') ?: 'ratchet';
             Integration::tagFrameworkServiceSource($activeSpan, 'ratchet');
             $activeSpan->name = "web.request";
             $activeSpan->type = Type::WEB_SERVLET;
-            $activeSpan->meta[Tag::COMPONENT] = self::NAME;
-            $activeSpan->meta[Tag::SPAN_KIND] = 'server';
-            RatchetIntegration::addTraceAnalyticsIfEnabled($activeSpan);
+            $activeSpan->component = self::NAME;
+            $activeSpan->spanKind = SpanKind::SERVER;
 
             ObjectKVStore::put($parentConn, "handshake", $activeSpan);
 
@@ -201,7 +193,7 @@ class RatchetIntegration extends Integration
 
         \DDTrace\install_hook(CloseResponseTrait::class . "::close", static function (HookData $hook) {
             if ($rootSpan = \DDTrace\root_span()) {
-                $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $hook->args[1] ?? 400;
+                $rootSpan->attributes[Tag::HTTP_STATUS_CODE] = (string)($hook->args[1] ?? 400);
                 notify_commit($rootSpan, 400, []);
             }
         });
@@ -211,7 +203,7 @@ class RatchetIntegration extends Integration
                 /** @var ResponseInterface $response */
                 $response = $hook->returned;
                 if ($response->getStatusCode() === 101) {
-                    $span->meta["http.upgraded"] = '1';
+                    $span->attributes["http.upgraded"] = true;
                 }
                 notify_commit($span, $response->getStatusCode(), $response->getHeaders());
             }
@@ -262,26 +254,28 @@ class RatchetIntegration extends Integration
                     $span = $hook->span($rootTrace ? new SpanStack : null);
                     $span->type = Type::WEBSOCKET;
                     $span->service = $handshake->service;
-                    if (isset($handshake->meta['_dd.svc_src'])) {
-                        $span->meta['_dd.svc_src'] = $handshake->meta['_dd.svc_src'];
+                    $handshakeServiceSource = $handshake->attributes['_dd.svc_src'] ?? null;
+                    if ($handshakeServiceSource !== null) {
+                        $span->attributes['_dd.svc_src'] = $handshakeServiceSource;
                     }
                     $resourceParts = explode(" ", $handshake->resource, 2);
                     $span->resource = "websocket " . end($resourceParts);
-                    $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CONSUMER;
-                    $span->meta[Tag::COMPONENT] = RatchetIntegration::NAME;
+                    $span->spanKind = SpanKind::CONSUMER;
+                    $span->component = RatchetIntegration::NAME;
                     if ($rootTrace && \dd_trace_env_config("DD_TRACE_WEBSOCKET_MESSAGES_INHERIT_SAMPLING")) {
                         $span->samplingPriority = $rootSpan->samplingPriority;
                         if (isset($rootSpan->origin)) {
                             $span->origin = $rootSpan->origin;
                         }
-                        $span->metrics["_dd.dm.inherited"] = 1;
+                        $span->attributes["_dd.dm.inherited"] = 1;
                         if (!isset($rootSpan->parentId)) {
-                            $span->meta["_dd.dm.service"] = $rootSpan->service;
-                            $span->meta["_dd.dm.resource"] = $rootSpan->resource;
+                            $span->attributes["_dd.dm.service"] = $rootSpan->service;
+                            $span->attributes["_dd.dm.resource"] = $rootSpan->resource;
                         }
                         foreach ($rootSpan->propagatedTags as $key => $_) {
-                            if (isset($rootSpan->meta[$key])) {
-                                $span->meta[$key] = $rootSpan->meta[$key];
+                            $value = $rootSpan->attributes[$key] ?? null;
+                            if ($value !== null) {
+                                $span->attributes[$key] = $value;
                             }
                         }
                         $span->baggage = $rootSpan->baggage;
@@ -291,18 +285,18 @@ class RatchetIntegration extends Integration
                         $span->name = "websocket.close";
                         $closePayload = $message->getPayload();
                         if (\strlen($closePayload) >= 2) {
-                            $span->meta["websocket.close.code"] = unpack("n", $closePayload)[1];
+                            $span->attributes["websocket.close.code"] = unpack("n", $closePayload)[1];
                             if (\strlen($closePayload) > 2) {
-                                $span->meta["websocket.close.reason"] = substr($closePayload, 2);
+                                $span->attributes["websocket.close.reason"] = substr($closePayload, 2);
                             }
                         }
                     } else {
                         $span->name = "websocket.receive";
-                        $span->meta["websocket.message.type"] = $message->isBinary() ? "binary" : "text";
+                        $span->attributes["websocket.message.type"] = $message->isBinary() ? "binary" : "text";
                     }
 
                     if ($isServer) {
-                        unset($span->meta["closure.declaration"]);
+                        unset($span->attributes["closure.declaration"]);
                     }
 
                     RatchetIntegration::addLink($span, $handshake, true, $isServer, $frameNum++);
@@ -312,8 +306,8 @@ class RatchetIntegration extends Integration
             \DDTrace\install_hook($onMessage, $hookFn(false), static function (HookData $hook) {
                 $span = $hook->span();
                 $message = $hook->args[0];
-                $span->metrics["websocket.message.length"] = $message->getPayloadLength();
-                $span->metrics["websocket.message.frames"] = $message->count();
+                $span->attributes["websocket.message.length"] = $message->getPayloadLength();
+                $span->attributes["websocket.message.frames"] = $message->count();
             }, \DDTrace\HOOK_INSTANCE);
 
             \DDTrace\install_hook($onControl, $hookFn(true), null, \DDTrace\HOOK_INSTANCE);
@@ -361,12 +355,12 @@ class RatchetIntegration extends Integration
             $span->type = Type::WEBSOCKET;
             $resourceParts = explode(" ", $handshake->resource, 2);
             $span->resource = "websocket " . end($resourceParts);
-            $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_PRODUCER;
-            $span->meta[Tag::COMPONENT] = RatchetIntegration::NAME;
+            $span->spanKind = SpanKind::PRODUCER;
+            $span->component = RatchetIntegration::NAME;
             $span->name = "websocket.close";
-            $span->meta["websocket.close.code"] = $code;
+            $span->attributes["websocket.close.code"] = $code;
             if ($reason != "") {
-                $span->meta["websocket.close.reason"] = $reason;
+                $span->attributes["websocket.close.reason"] = $reason;
             }
             $frameNum = ObjectKVStore::get($handshake, "frameNum");
             RatchetIntegration::addLink($span, $handshake, false, false, $frameNum);
@@ -392,7 +386,7 @@ class RatchetIntegration extends Integration
                 }
                 if ($opcode === Frame::OP_CONTINUE) {
                     if (null !== $sendSpan = ObjectKVStore::get($handshakeContainer, "lastSendSpan")) {
-                        ++$sendSpan->metrics["websocket.message.frames"];
+                        ++$sendSpan->attributes["websocket.message.frames"];
                     }
                     return;
                 }
@@ -406,21 +400,21 @@ class RatchetIntegration extends Integration
         $span->type = Type::WEBSOCKET;
         $resourceParts = explode(" ", $handshake->resource, 2);
         $span->resource = "websocket " . end($resourceParts);
-        $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_PRODUCER;
-        $span->meta[Tag::COMPONENT] = self::NAME;
+        $span->spanKind = SpanKind::PRODUCER;
+        $span->component = self::NAME;
         if ($opcode === Frame::OP_CLOSE) {
             $span->name = "websocket.close";
             if (\strlen($closePayload) >= 2) {
-                $span->meta["websocket.close.code"] = unpack("n", $closePayload)[1];
+                $span->attributes["websocket.close.code"] = unpack("n", $closePayload)[1];
                 if (\strlen($closePayload) > 2) {
-                    $span->meta["websocket.close.reason"] = substr($closePayload, 2);
+                    $span->attributes["websocket.close.reason"] = substr($closePayload, 2);
                 }
             }
         } else {
             $span->name = "websocket.send";
-            $span->meta["websocket.message.type"] = $opcode === Frame::OP_BINARY ? "binary" : "text";
-            $span->metrics["websocket.message.length"] = $msgLen;
-            $span->metrics["websocket.message.frames"] = 1;
+            $span->attributes["websocket.message.type"] = $opcode === Frame::OP_BINARY ? "binary" : "text";
+            $span->attributes["websocket.message.length"] = $msgLen;
+            $span->attributes["websocket.message.frames"] = 1;
             ObjectKVStore::put($handshakeContainer, "lastSendSpan", $span);
         }
         $frameNum = ObjectKVStore::get($handshake, "frameNum");

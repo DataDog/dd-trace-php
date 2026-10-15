@@ -42,7 +42,7 @@ DDTrace\trace_function('flushTracer', function () {
     echo 'Flushing...' . PHP_EOL;
     array_map(function($span) {
         echo $span['name'] . PHP_EOL;
-    }, dd_trace_serialize_closed_spans());
+    }, dd_trace_serialize_closed_spans()['chunks'][0]['spans']);
     // Trigger a fatal error (hit the memory limit)
     $a = str_repeat('.', 1024 * 1024 * 3); // 3MB
     echo 'You should not see this.' . PHP_EOL;

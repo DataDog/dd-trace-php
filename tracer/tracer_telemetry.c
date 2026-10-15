@@ -145,14 +145,12 @@ void ddtrace_telemetry_notify_integration_version(const char *name, size_t name_
 }
 
 void ddtrace_telemetry_inc_spans_created(ddtrace_span_data *span) {
-    zval *component = NULL;
-    if (Z_TYPE(span->property_meta) == IS_ARRAY) {
-        component = zend_hash_str_find(Z_ARRVAL(span->property_meta), ZEND_STRL("component"));
-    }
+    zval *component_prop = &span->property_component;
+    ZVAL_DEREF(component_prop);
 
     zend_string *integration = NULL;
-    if (component && Z_TYPE_P(component) == IS_STRING) {
-        integration = zend_string_copy(Z_STR_P(component));
+    if (Z_TYPE_P(component_prop) == IS_STRING && Z_STRLEN_P(component_prop) > 0) {
+        integration = zend_string_copy(Z_STR_P(component_prop));
     } else if (span->flags & DDTRACE_SPAN_FLAG_OPENTELEMETRY) {
         integration = zend_string_init(ZEND_STRL("otel"), 0);
     } else if (span->flags & DDTRACE_SPAN_FLAG_OPENTRACING) {

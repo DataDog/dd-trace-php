@@ -13,23 +13,27 @@ ddtrace_version_at_least('0.85.0');
   false
 );
 $root = \DDTrace\root_span();
-var_dump($root->meta);
+$attributes = $root->attributes;
+ksort($attributes);
+var_dump($attributes);
 
 ?>
 --EXPECTF--
-array(7) {
-  ["runtime-id"]=>
-  string(%d) %s
-  ["appsec.events.users.login.failure.usr.login"]=>
-  string(%d) "login"
-  ["appsec.events.users.login.failure.usr.exists"]=>
-  string(%d) "false"
-  ["appsec.events.users.login.failure.track"]=>
-  string(%d) "true"
+array(8) {
   ["_dd.appsec.events.users.login.failure.sdk"]=>
   string(%d) "true"
-  ["_dd.p.ts"]=>
-  string(2) "02"
   ["_dd.p.dm"]=>
   string(2) "-5"
+  ["_dd.p.ts"]=>
+  string(2) "02"
+  ["appsec.events.users.login.failure.track"]=>
+  string(%d) "true"
+  ["appsec.events.users.login.failure.usr.exists"]=>
+  string(%d) "false"
+  ["appsec.events.users.login.failure.usr.login"]=>
+  string(%d) "login"
+  ["process_id"]=>
+  int(%d)
+  ["runtime-id"]=>
+  string(%d) %s
 }

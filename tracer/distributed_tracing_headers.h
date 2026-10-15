@@ -15,7 +15,7 @@ typedef struct {
     HashTable baggage;
     HashTable tracestate_unknown_dd_keys;
     HashTable propagated_tags;
-    HashTable meta_tags;
+    HashTable attributes;
     int priority_sampling;
     uint8_t trace_flags;
     enum dd_sampling_mechanism sampling_mechanism;

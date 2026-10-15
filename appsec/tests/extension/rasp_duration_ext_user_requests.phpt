@@ -46,11 +46,11 @@ for ($i = 0; $i < NUM_CALLS; $i++) {
 
 notify_commit($span1, 200, array());
 
-// Get metrics for first request
-$metrics1 = $span1->metrics ?? [];
-echo "First request has duration_ext: " . (isset($metrics1['_dd.appsec.rasp.duration_ext']) ? "yes" : "no") . "\n";
-if (isset($metrics1['_dd.appsec.rasp.duration_ext'])) {
-    $duration1 = $metrics1['_dd.appsec.rasp.duration_ext'];
+// Get attributes for first request
+$attributes1 = $span1->attributes;
+echo "First request has duration_ext: " . (isset($attributes1['_dd.appsec.rasp.duration_ext']) ? "yes" : "no") . "\n";
+if (isset($attributes1['_dd.appsec.rasp.duration_ext'])) {
+    $duration1 = $attributes1['_dd.appsec.rasp.duration_ext'];
     echo "First request duration_ext is positive: " . ($duration1 > 0 ? "yes" : "no") . "\n";
 }
 
@@ -64,11 +64,11 @@ push_addresses(["server.request.body" => "test3"], "lfi");
 
 notify_commit($span2, 200, array());
 
-// Get metrics for second request
-$metrics2 = $span2->metrics ?? [];
-echo "Second request has duration_ext: " . (isset($metrics2['_dd.appsec.rasp.duration_ext']) ? "yes" : "no") . "\n";
-if (isset($metrics2['_dd.appsec.rasp.duration_ext'])) {
-    $duration2 = $metrics2['_dd.appsec.rasp.duration_ext'];
+// Get attributes for second request
+$attributes2 = $span2->attributes;
+echo "Second request has duration_ext: " . (isset($attributes2['_dd.appsec.rasp.duration_ext']) ? "yes" : "no") . "\n";
+if (isset($attributes2['_dd.appsec.rasp.duration_ext'])) {
+    $duration2 = $attributes2['_dd.appsec.rasp.duration_ext'];
     echo "Second request duration_ext is positive: " . ($duration2 > 0 ? "yes" : "no") . "\n";
 }
 

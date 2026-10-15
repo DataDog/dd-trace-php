@@ -39,7 +39,7 @@ class DeprecatedResourceNameTest extends WebFrameworkTestCase
                     'web',
                     'GET simple_route'
                 )
-                    ->withExactTags([
+                    ->withExactAttributes([
                         'lumen.route.name' => 'simple_route',
                         'lumen.route.action' => 'App\Http\Controllers\ExampleController@simple',
                         'http.method' => 'GET',
@@ -55,7 +55,7 @@ class DeprecatedResourceNameTest extends WebFrameworkTestCase
                             'lumen',
                             'web',
                             'simple_route'
-                        )->withExactTags([
+                        )->withExactAttributes([
                             'lumen.route.action' => 'App\Http\Controllers\ExampleController@simple',
                             Tag::COMPONENT => 'lumen',
                             '_dd.svc_src' => 'lumen',

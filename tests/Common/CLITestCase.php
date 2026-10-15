@@ -75,9 +75,9 @@ abstract class CLITestCase extends IntegrationTestCase
     public function getAgentRequestFromCommand($arguments = '', $overrideEnvs = [])
     {
         $this->executeCommand($arguments, $overrideEnvs);
-        foreach ($this->retrieveDumpedTraceData() as $request) {
-            $uri = $request['uri'] ?? '';
-            if (strpos($uri, '/v0.4/traces') === 0 || strpos($uri, '/v0.7/traces') === 0) {
+        $isTraceRequest = $this->untilFirstTraceRequest();
+        foreach ($this->retrieveDumpedData($isTraceRequest) as $request) {
+            if ($isTraceRequest($request)) {
                 return $request;
             }
         }
@@ -110,10 +110,6 @@ abstract class CLITestCase extends IntegrationTestCase
         if (!isset($request['body'])) {
             return [];
         }
-        $traces = json_decode($request['body'], true);
-        if (isset($traces['chunks'])) {
-            $traces = array_map(function($chunk) { return $chunk["spans"]; }, $traces["chunks"]);
-        }
-        return $traces;
+        return $this->parseRawDumpedTraces(json_decode($request['body'], true));
     }
 }

@@ -13,10 +13,10 @@ foo[baz]=bar&foo[bar][key]=baz&foo[bar][baz]=quz
 <?php
 DDTrace\start_span();
 DDTrace\close_span();
-$spans = dd_trace_serialize_closed_spans();
-var_dump($spans[0]['meta']['http.request.post.foo.baz']);
-var_dump($spans[0]['meta']['http.request.post.foo.bar.key']);
-var_dump($spans[0]['meta']['http.request.post.foo.bar.baz']);
+$spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
+var_dump($spans[0]['attributes']['http.request.post.foo.baz']);
+var_dump($spans[0]['attributes']['http.request.post.foo.bar.key']);
+var_dump($spans[0]['attributes']['http.request.post.foo.bar.baz']);
 ?>
 --EXPECT--
 string(3) "bar"

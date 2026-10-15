@@ -41,14 +41,14 @@ class SecurityTestingHeadersTest extends WebFrameworkTestCase
             $this->call($spec);
         });
 
-        $span = $traces[0][0];
+        $span = $traces[0]['spans'][0];
         $this->assertSame(
             'endpoint-scan-uuid',
-            $span['meta']['http.request.headers.x-datadog-endpoint-scan']
+            $span['attributes']['http.request.headers.x-datadog-endpoint-scan']
         );
         $this->assertSame(
             'security-test-uuid',
-            $span['meta']['http.request.headers.x-datadog-security-test']
+            $span['attributes']['http.request.headers.x-datadog-security-test']
         );
     }
 
@@ -58,14 +58,14 @@ class SecurityTestingHeadersTest extends WebFrameworkTestCase
             $this->call(GetSpec::create('request', '/'));
         });
 
-        $span = $traces[0][0];
+        $span = $traces[0]['spans'][0];
         $this->assertArrayNotHasKey(
             'http.request.headers.x-datadog-endpoint-scan',
-            $span['meta']
+            $span['attributes']
         );
         $this->assertArrayNotHasKey(
             'http.request.headers.x-datadog-security-test',
-            $span['meta']
+            $span['attributes']
         );
     }
 }

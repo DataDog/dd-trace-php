@@ -36,7 +36,7 @@ class NoCIControllertTest extends WebFrameworkTestCase
                     'codeigniter_test_app',
                     'web',
                     'GET /health_check/ping'
-                )->withExactTags([
+                )->withExactAttributes([
                     Tag::HTTP_METHOD => 'GET',
                     Tag::HTTP_URL => 'http://localhost/health_check/ping',
                     Tag::HTTP_STATUS_CODE => '200',
@@ -49,7 +49,7 @@ class NoCIControllertTest extends WebFrameworkTestCase
                         'codeigniter_test_app',
                         Type::WEB_SERVLET,
                         'Health_check.ping'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         Tag::COMPONENT => 'codeigniter',
                     ])
                 ]),

@@ -25,14 +25,14 @@ namespace DDTrace\Test
     {
         static function init(): int
         {
-            dd_trace_method("Test", "create_span_from_anomymous_source", function() {
+            \DDTrace\trace_method("Test", "create_span_from_anomymous_source", function() {
             });
 
-            dd_trace_method("Test", "create_span_from_named_integration", function(\DDTrace\SpanData $span, array $args) {
+            \DDTrace\trace_method("Test", "create_span_from_named_integration", function(\DDTrace\SpanData $span, array $args) {
                 $span->meta['component'] = $args[0];
             });
 
-            dd_trace_method("Test", "create_span_with_flag", function(\DDTrace\SpanData $span, array $args) {
+            \DDTrace\trace_method("Test", "create_span_with_flag", function(\DDTrace\SpanData $span, array $args) {
                 \DDTrace\Internal\add_span_flag($span, $args[0]);
             });
 

@@ -6,6 +6,8 @@ HTTP_X_B3_SPANID=10
 HTTP_X_B3_SAMPLED=1
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_PROPAGATION_STYLE_EXTRACT=B3
+--INI--
+error_reporting=E_ALL
 --FILE--
 <?php
 
@@ -18,6 +20,7 @@ DDTrace\close_span();
 
 ?>
 --EXPECTF--
+Deprecated: Function DDTrace\current_context() is deprecated in %s on line %d
 string(2) "16"
 string(2) "66"
 int(1)

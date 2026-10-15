@@ -18,14 +18,14 @@ require __DIR__ . "/live_debugger.inc";
 reset_request_replayer();
 
 function &foo($arg) {
-    $meta = &\DDTrace\active_span()->meta;
+    $meta = &\DDTrace\active_span()->attributes;
     unset($meta["runtime-id"]);
     return $meta;
 }
 
 function &root($arg) {
-    $meta = &\DDTrace\root_span()->meta;
-    unset($meta["runtime-id"]);
+    $meta = &\DDTrace\root_span()->attributes;
+    unset($meta["runtime-id"], $meta["process_id"]);
     return $arg;
 }
 
@@ -48,13 +48,13 @@ await_probe_installation(function() {
 
 \DDTrace\start_span();
 var_dump(foo(["foo" => (object)["var" => 1, "val" => "test"], "val" => 123]));
-\DDTrace\active_span()->meta = [];
+\DDTrace\active_span()->attributes = [];
 $meta = foo(["foo" => (object)["var" => 2]]);
 ksort($meta);
 var_dump($meta);
 
 root(1);
-var_dump(\DDTrace\root_span()->meta);
+var_dump(\DDTrace\root_span()->attributes);
 
 $dlr = new DebuggerLogReplayer;
 $log = $dlr->waitForDebuggerDataAndReplay();

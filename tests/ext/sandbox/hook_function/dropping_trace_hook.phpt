@@ -13,7 +13,7 @@ DDTrace\trace_function("a", function() { }); // first function, creates span
 DDTrace\trace_function("a", function() { return false; });
 
 a();
-var_dump(count(dd_trace_serialize_closed_spans()));
+var_dump(count(dd_trace_serialize_closed_spans()['chunks'][0]['spans'] ?? []));
 DDTrace\start_span();
 
 dd_untrace("a");
@@ -21,7 +21,7 @@ DDTrace\trace_function("a", function() { }); // first function, creates span
 DDTrace\trace_function("a", ["prehook" => function() { return false; }]);
 
 a();
-var_dump(count(dd_trace_serialize_closed_spans()));
+var_dump(count(dd_trace_serialize_closed_spans()['chunks'][0]['spans'] ?? []));
 DDTrace\start_span();
 
 dd_untrace("a");
@@ -29,7 +29,7 @@ DDTrace\trace_function("a", function() { return false; }); // first function, cr
 DDTrace\trace_function("a", function() { });
 
 a();
-var_dump(count(dd_trace_serialize_closed_spans()));
+var_dump(count(dd_trace_serialize_closed_spans()['chunks'][0]['spans'] ?? []));
 DDTrace\start_span();
 
 // Note that in this case we have a prehook as first function. A prehook returning false will drop an existing span, but not affect future spans.
@@ -38,7 +38,7 @@ DDTrace\trace_function("a", ["prehook" => function() { return false; }]); // fir
 DDTrace\trace_function("a", function() { });
 
 a();
-var_dump(count(dd_trace_serialize_closed_spans()));
+var_dump(count(dd_trace_serialize_closed_spans()['chunks'][0]['spans'] ?? []));
 
 ?>
 --EXPECT--

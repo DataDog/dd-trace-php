@@ -7,7 +7,7 @@ DD_APPSEC_ENABLED=1
 DD_APPSEC_AUTO_USER_INSTRUMENTATION_MODE=invalid
 --FILE--
 <?php
-use function datadog\appsec\testing\root_span_get_meta;
+use function datadog\appsec\testing\root_span_get_attributes;
 use function datadog\appsec\internal\track_user_login_success_event_automated;
 include __DIR__ . '/inc/ddtrace_version.php';
 
@@ -20,13 +20,16 @@ track_user_login_success_event_automated('test', "login", "automatedID",
     "email" => "noneofyour@business.com"
 ]);
 
-echo "root_span_get_meta():\n";
-print_r(root_span_get_meta());
+echo "root_span_get_attributes():\n";
+$attributes = root_span_get_attributes();
+ksort($attributes);
+print_r($attributes);
 ?>
 --EXPECTF--
 %AWarning:%a[ddappsec] Unknown user collection mode: invalid%a
-root_span_get_meta():
+root_span_get_attributes():
 Array
 (
+    [process_id] => %d
     [runtime-id] => %s
 )

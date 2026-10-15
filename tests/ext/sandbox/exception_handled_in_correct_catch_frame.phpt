@@ -67,11 +67,11 @@ array_map(function($span) {
     if (isset($span['resource'])) {
         echo '-' . $span['resource'];
     }
-    if (isset($span['meta']['error.message'])) {
-        echo ' (' . $span['meta']['error.message'] . ')';
+    if (isset($span['attributes']['error.message'])) {
+        echo ' (' . $span['attributes']['error.message'] . ')';
     }
     echo PHP_EOL;
-}, dd_trace_serialize_closed_spans());
+}, dd_trace_serialize_closed_spans()['chunks'][0]['spans']);
 ?>
 --EXPECTF--
 Exception was handled by level1(): Oops!

@@ -6,7 +6,7 @@ datadog.appsec.enabled=1
 datadog.appsec.log_file=/tmp/php_appsec_test.log
 --FILE--
 <?php
-use function datadog\appsec\testing\{rinit,rshutdown, root_span_get_metrics};
+use function datadog\appsec\testing\{rinit, rshutdown, root_span_get_attributes};
 
 include __DIR__ . '/inc/mock_helper.php';
 
@@ -17,16 +17,20 @@ $helper = Helper::createInitedRun([
 var_dump(rinit());
 var_dump(rshutdown());
 
-echo "root_span_get_metrics():\n";
-print_r(root_span_get_metrics());
+echo "root_span_get_attributes():\n";
+$attributes = root_span_get_attributes();
+ksort($attributes);
+print_r($attributes);
 ?>
 --EXPECTF--
 bool(true)
 bool(true)
-root_span_get_metrics():
+root_span_get_attributes():
 Array
 (
-    [%s] => %d
     [_dd.appsec.enabled] => 1
     [_dd.appsec.waf.duration_ext] => %f
+    [_dd.runtime_family] => php
+    [process_id] => %d
+    [runtime-id] => %s
 )

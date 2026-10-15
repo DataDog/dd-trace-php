@@ -11,6 +11,7 @@ use DDTrace\ExceptionSpanEvent;
 use DDTrace\Tag;
 use DDTrace\OpenTelemetry\Convention;
 use DDTrace\Util\ObjectKVStore;
+use DDTrace\Util\SpanKindNames;
 use OpenTelemetry\API\Trace as API;
 use OpenTelemetry\SDK\Trace\LinkInterface;
 use OpenTelemetry\API\Trace\SpanContextInterface;
@@ -28,6 +29,14 @@ use function DDTrace\Internal\add_span_flag;
 
 final class Span extends API\Span implements ReadWriteSpanInterface
 {
+    /** Attributes stored on a SpanData string property rather than in $attributes. */
+    private const PROPERTY_ATTRIBUTES = [
+        'resource.name' => 'resource',
+        'operation.name' => 'name',
+        'span.type' => 'type',
+        Tag::COMPONENT => 'component',
+    ];
+
     private SpanData $span;
 
     /** @readonly */
@@ -180,6 +189,11 @@ final class Span extends API\Span implements ReadWriteSpanInterface
             $isRemapped
         );
 
+        // operation.name wins over the default operation name set by the constructor
+        if (isset($attributes['operation.name'])) {
+            self::_setAttribute($span, 'operation.name', $attributes['operation.name']);
+        }
+
         ObjectKVStore::put($span, 'otel_span', $OTelSpan);
 
         // Call onStart here to ensure the span is fully initialized.
@@ -233,7 +247,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
                 $this->getName(),
                 $this->links,
                 $this->events,
-                Attributes::create(array_merge($this->span->meta, $this->span->metrics)),
+                Attributes::create($this->getAttributes()),
                 $this->totalRecordedEvents,
                 $this->totalRecordedLinks,
                 StatusData::create($this->status->getCode(), $this->status->getDescription()),
@@ -246,7 +260,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
                 $this->getName(),
                 $this->links,
                 $this->events,
-                Attributes::create(array_merge($this->span->meta, $this->span->metrics)),
+                Attributes::create($this->getAttributes()),
                 $this->totalRecordedEvents,
                 StatusData::create($this->status->getCode(), $this->status->getDescription()),
                 $hasEnded ? $this->span->getStartTime() + $this->span->getDuration() : 0,
@@ -276,7 +290,33 @@ final class Span extends API\Span implements ReadWriteSpanInterface
      */
     public function getAttribute(string $key): mixed
     {
-        return $this->span->meta[$key] ?? ($this->span->metrics[$key] ?? null);
+        return $this->propertyAttribute($key) ?? $this->span->attributes[$key] ?? null;
+    }
+
+    /** $attributes overlaid with the attributes stored on span properties by _setAttribute. */
+    private function getAttributes(): array
+    {
+        $attributes = $this->span->attributes;
+        foreach ([...\array_keys(self::PROPERTY_ATTRIBUTES), Tag::SPAN_KIND] as $key) {
+            if (($value = $this->propertyAttribute($key)) !== null) {
+                $attributes[$key] = $value;
+            }
+        }
+        return $attributes;
+    }
+
+    /** The attribute _setAttribute stored on a span property, or null. */
+    private function propertyAttribute(string $key): ?string
+    {
+        if ($key === Tag::SPAN_KIND) {
+            return SpanKindNames::NAMES[$this->span->spanKind] ?? null;
+        }
+        if (!isset(self::PROPERTY_ATTRIBUTES[$key])) {
+            return null;
+        }
+        $value = $this->span->{self::PROPERTY_ATTRIBUTES[$key]} ?? '';
+        // Only component is a tag on every span; the other properties show when set through setAttribute.
+        return $value !== '' && ($key === Tag::COMPONENT || ObjectKVStore::get($this->span, $key)) ? $value : null;
     }
 
     public function getStartEpochNanos(): int
@@ -305,19 +345,35 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     private static function _setAttribute(SpanData $span, string $key, $value): void
     {
         if ($value === null) {
-            unset($span->meta[$key]);
-            unset($span->metrics[$key]);
+            unset($span->attributes[$key]);
+            if ($key === Tag::COMPONENT) {
+                $span->component = '';
+            } elseif (isset(self::PROPERTY_ATTRIBUTES[$key])) {
+                ObjectKVStore::put($span, $key, false);
+            } elseif ($key === Tag::SPAN_KIND) {
+                $span->spanKind = \DDTrace\SpanKind::UNSPECIFIED;
+            }
         } elseif ($key[0] === '_' && \strncmp($key, '_dd.p.', 6) === 0) {
             $distributedKey = \substr($key, 6); // strlen('_dd.p.') === 6
             \DDTrace\add_distributed_tag($distributedKey, $value);
-        } elseif (\is_float($value)
-            || \is_int($value)
-            || (\is_array($value) && \count($value) > 0 && \is_numeric($value[0]))) { // Note: Assumes attribute with primitive, homogeneous array values
-            $span->metrics[$key] = $value;
         } elseif ($key === 'service.name') {
             $span->service = $value;
+        } elseif (isset(self::PROPERTY_ATTRIBUTES[$key]) && \is_scalar($value)) {
+            $value = (string)$value;
+            $span->{self::PROPERTY_ATTRIBUTES[$key]} = $key === 'operation.name' ? \strtolower($value) : $value;
+            ObjectKVStore::put($span, $key, true);
+        } elseif ($key === Tag::SPAN_KIND && ($kind = \array_search($value, SpanKindNames::NAMES, true)) !== false) {
+            $span->spanKind = $kind;
+        } elseif ($key === 'http.response.status_code' && !\is_string($value)) {
+            // OTel's numeric status code becomes the (string) http.status_code and wins over it in any order
+            $span->attributes[Tag::HTTP_STATUS_CODE] = (string)$value;
+            ObjectKVStore::put($span, 'http.response.status_code', true);
+        } elseif ($key === Tag::HTTP_STATUS_CODE) {
+            if (!ObjectKVStore::get($span, 'http.response.status_code')) {
+                $span->attributes[Tag::HTTP_STATUS_CODE] = (string)$value;
+            }
         } else {
-            $span->meta[$key] = $value;
+            $span->attributes[$key] = $value;
         }
     }
 
@@ -445,11 +501,11 @@ final class Span extends API\Span implements ReadWriteSpanInterface
         }
 
         if ($this->status->getCode() === API\StatusCode::STATUS_UNSET && $code === API\StatusCode::STATUS_ERROR) {
-            $this->span->meta[Tag::ERROR_MSG] = $description;
+            $this->span->attributes[Tag::ERROR_MSG] = $description;
         } elseif ($this->status->getCode() === API\StatusCode::STATUS_ERROR && $code === API\StatusCode::STATUS_OK) {
-            unset($this->span->meta[Tag::ERROR_MSG]);
-            unset($this->span->meta[Tag::ERROR_TYPE]);
-            unset($this->span->meta[Tag::ERROR_STACK]);
+            unset($this->span->attributes[Tag::ERROR_MSG]);
+            unset($this->span->attributes[Tag::ERROR_TYPE]);
+            unset($this->span->attributes[Tag::ERROR_STACK]);
         }
 
         $this->status = StatusData::create($code, $description);
@@ -541,7 +597,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     private function updateSpanEvents()
     {
         $datadogSpanEvents = $this->span->events;
-        $this->span->meta["events"] = count($this->events);
+        $this->span->attributes["events"] = count($this->events);
 
         $otel = [];
         foreach ($datadogSpanEvents as $datadogSpanEvent) {

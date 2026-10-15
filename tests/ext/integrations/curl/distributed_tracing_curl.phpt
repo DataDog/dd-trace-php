@@ -42,12 +42,12 @@ dt_dump_headers_from_httpbin($headers, [
     'tracestate',
 ]);
 
-$spans = dd_trace_serialize_closed_spans();
+$spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
 var_dump($headers['x-datadog-parent-id'] === (string) $spans[0]['span_id']);
 var_dump(abs(hexdec($headers['x-b3-spanid']) - $spans[0]['span_id']) < (1 << 13));
 var_dump(abs(hexdec($headers['x-b3-traceid']) - $headers['x-datadog-trace-id']) < (1 << 13));
 var_dump($headers['b3'] == "{$headers['x-b3-traceid']}-{$headers['x-b3-spanid']}-1");
-var_dump($spans[0]["meta"]["_dd.propagation_error"]);
+var_dump($spans[0]["attributes"]["_dd.propagation_error"]);
 
 echo 'Done.' . PHP_EOL;
 

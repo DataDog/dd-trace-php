@@ -5,7 +5,7 @@
 use DDTrace\SpanData;
 
 register_shutdown_function(function () {
-    $spans = dd_trace_serialize_closed_spans();
+    $spans = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
     array_map(
         function($span) {
             echo $span['name'], PHP_EOL;

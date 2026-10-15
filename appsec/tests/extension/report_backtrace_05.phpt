@@ -37,7 +37,7 @@ one("foo");
 
 DDTrace\close_span(0);
 
-$span = dd_trace_serialize_closed_spans();
+$span = dd_trace_serialize_closed_spans()['chunks'][0]['spans'];
 $meta_struct = $span[0]["meta_struct"];
 
 var_dump(decode_msgpack($meta_struct["_dd.stack"]));

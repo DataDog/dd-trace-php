@@ -32,7 +32,7 @@ class PipelineTracingTest extends WebFrameworkTestCase
                         'laravel_test_app',
                         'web',
                         'Tests\Integration\DummyPipe::someHandler'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         Tag::COMPONENT => 'laravel',
                         '_dd.svc_src' => 'laravel',
                     ]),
@@ -56,7 +56,7 @@ class PipelineTracingTest extends WebFrameworkTestCase
                         'laravel_test_app',
                         'web',
                         'Tests\Integration\DummyPipe::someHandler'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         Tag::COMPONENT => 'laravel',
                         '_dd.svc_src' => 'laravel',
                     ]),
@@ -65,7 +65,7 @@ class PipelineTracingTest extends WebFrameworkTestCase
                         'laravel_test_app',
                         'web',
                         'Tests\Integration\DummyPipe::someHandler'
-                    )->withExactTags([
+                    )->withExactAttributes([
                         Tag::COMPONENT => 'laravel',
                         '_dd.svc_src' => 'laravel',
                     ]),

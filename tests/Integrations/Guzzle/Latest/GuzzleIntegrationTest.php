@@ -19,7 +19,7 @@ class GuzzleIntegrationTest extends \DDTrace\Tests\Integrations\Guzzle\V6\Guzzle
         });
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('Psr\Http\Client\ClientInterface.sendRequest', 'phpunit', 'http', 'sendRequest')
-                ->withExactTags([
+                ->withExactAttributes([
                     'http.method' => 'PUT',
                     'http.url' => 'http://example.com',
                     'http.status_code' => '200',
@@ -29,7 +29,7 @@ class GuzzleIntegrationTest extends \DDTrace\Tests\Integrations\Guzzle\V6\Guzzle
                 ])
                 ->withChildren([
                     SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
-                        ->withExactTags([
+                        ->withExactAttributes([
                             'http.method' => 'PUT',
                             'http.url' => 'http://example.com',
                             'http.status_code' => '200',
@@ -89,35 +89,35 @@ class GuzzleIntegrationTest extends \DDTrace\Tests\Integrations\Guzzle\V6\Guzzle
             'metrics.php.memory.peak_real_usage_bytes',
             'meta.error.stack',
             'meta._dd.p.tid',
-            'meta.curl.appconnect_time_us',
+            'metrics.curl.appconnect_time_us',
             'meta.curl.cainfo',
             'meta.curl.capath',
-            'meta.curl.connect_time',
-            'meta.curl.connect_time_us',
-            'meta.curl.download_content_length',
+            'metrics.curl.connect_time',
+            'metrics.curl.connect_time_us',
+            'metrics.curl.download_content_length',
             'meta.curl.effective_method', // PHP 8.2+ only
-            'meta.curl.filetime',
-            'meta.curl.header_size',
-            'meta.curl.namelookup_time',
-            'meta.curl.namelookup_time_us',
-            'meta.curl.pretransfer_time',
-            'meta.curl.pretransfer_time_us',
-            'meta.curl.redirect_time',
-            'meta.curl.redirect_time_us',
-            'meta.curl.request_size',
-            'meta.curl.speed_download',
-            'meta.curl.speed_upload',
-            'meta.curl.starttransfer_time',
-            'meta.curl.starttransfer_time_us',
-            'meta.curl.total_time',
-            'meta.curl.total_time_us',
-            'meta.curl.upload_content_length',
-            'meta.network.bytes_read',
-            'meta.network.bytes_written',
+            'metrics.curl.filetime',
+            'metrics.curl.header_size',
+            'metrics.curl.namelookup_time',
+            'metrics.curl.namelookup_time_us',
+            'metrics.curl.pretransfer_time',
+            'metrics.curl.pretransfer_time_us',
+            'metrics.curl.redirect_time',
+            'metrics.curl.redirect_time_us',
+            'metrics.curl.request_size',
+            'metrics.curl.speed_download',
+            'metrics.curl.speed_upload',
+            'metrics.curl.starttransfer_time',
+            'metrics.curl.starttransfer_time_us',
+            'metrics.curl.total_time',
+            'metrics.curl.total_time_us',
+            'metrics.curl.upload_content_length',
+            'metrics.network.bytes_read',
+            'metrics.network.bytes_written',
             'meta.network.client.ip',
-            'meta.network.client.port',
+            'metrics.network.client.port',
             'meta.network.destination.ip',
-            'meta.network.destination.port',
+            'metrics.network.destination.port',
             'meta._dd.base_service',
         ]);
     }

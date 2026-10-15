@@ -11,23 +11,27 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
-void ddtrace_clean_tracer_tags(zend_array *root_meta, zend_array *propagated_tags) {
+void ddtrace_drop_propagated_tags(zend_array *root_attributes, zend_array *propagated_tags) {
     zend_string *tagname;
     ZEND_HASH_FOREACH_STR_KEY(propagated_tags, tagname) {
-        zend_hash_del(root_meta, tagname);
+        zend_hash_del(root_attributes, tagname);
     } ZEND_HASH_FOREACH_END();
+}
+
+void ddtrace_clean_tracer_tags(zend_array *root_attributes, zend_array *propagated_tags) {
+    ddtrace_drop_propagated_tags(root_attributes, propagated_tags);
     zend_hash_clean(propagated_tags);
 }
 
-void ddtrace_add_tracer_tags_from_header(zend_string *headerstr, zend_array *root_meta, zend_array *propagated_tags) {
-    ddtrace_clean_tracer_tags(root_meta, propagated_tags);
+void ddtrace_add_tracer_tags_from_header(zend_string *headerstr, zend_array *root_attributes, zend_array *propagated_tags) {
+    ddtrace_clean_tracer_tags(root_attributes, propagated_tags);
 
     char *header = ZSTR_VAL(headerstr), *headerend = header + ZSTR_LEN(headerstr);
 
     if (ZSTR_LEN(headerstr) > 512) {
         zval error_zv;
         ZVAL_STRING(&error_zv, "extract_max_size");
-        zend_hash_str_update(root_meta, ZEND_STRL("_dd.propagation_error"), &error_zv);
+        zend_hash_str_update(root_attributes, ZEND_STRL("_dd.propagation_error"), &error_zv);
         return;
     }
 
@@ -46,7 +50,7 @@ void ddtrace_add_tracer_tags_from_header(zend_string *headerstr, zend_array *roo
                 strncmp(ZSTR_VAL(tag_name), "_dd.p.", sizeof("_dd.p.") - 1) == 0) {
                 zval zv;
                 ZVAL_STRINGL(&zv, valuestart, header - valuestart);
-                zend_hash_update(root_meta, tag_name, &zv);
+                zend_hash_update(root_attributes, tag_name, &zv);
                 zend_hash_add_empty_element(propagated_tags, tag_name);
             }
             zend_string_release(tag_name);
@@ -59,13 +63,13 @@ void ddtrace_add_tracer_tags_from_header(zend_string *headerstr, zend_array *roo
 
             zval error_zv;
             ZVAL_STRING(&error_zv, "decoding_error");
-            zend_hash_str_update(root_meta, ZEND_STRL("_dd.propagation_error"), &error_zv);
+            zend_hash_str_update(root_attributes, ZEND_STRL("_dd.propagation_error"), &error_zv);
         }
     }
 }
 
-void ddtrace_add_tracer_tags_from_array(zend_array *array, zend_array *root_meta, zend_array *propagated_tags) {
-    ddtrace_clean_tracer_tags(root_meta, propagated_tags);
+void ddtrace_add_tracer_tags_from_array(zend_array *array, zend_array *root_attributes, zend_array *propagated_tags) {
+    ddtrace_clean_tracer_tags(root_attributes, propagated_tags);
 
     zend_string *tagname;
     zval *tag;
@@ -73,7 +77,7 @@ void ddtrace_add_tracer_tags_from_array(zend_array *array, zend_array *root_meta
         if (tagname) {
             zval tagstr;
             datadog_convert_to_string(&tagstr, tag);
-            zend_hash_update(root_meta, tagname, &tagstr);
+            zend_hash_update(root_attributes, tagname, &tagstr);
             zend_hash_add_empty_element(propagated_tags, tagname);
         }
     }
@@ -90,14 +94,15 @@ static zend_array *ddtrace_get_propagated() {
     return propagated;
 }
 
-static zend_array *ddtrace_get_root_meta() {
-    zend_array *root_meta = &DDTRACE_G(root_span_tags_preset);
+// Propagated tag values live in the root span's $attributes (the preset before a root exists).
+static zend_array *ddtrace_get_root_attributes() {
+    zend_array *root_attributes = &DDTRACE_G(root_span_tags_preset);
     ddtrace_root_span_data *root_span = DDTRACE_G(active_stack)->root_span;
     if (root_span) {
-        root_meta = ddtrace_property_array(&root_span->property_meta);
+        root_attributes = ddtrace_property_array(&root_span->property_attributes);
     }
 
-    return root_meta;
+    return root_attributes;
 }
 
 zval *ddtrace_propagated_tags_get_tag(const char *tag) {
@@ -105,24 +110,24 @@ zval *ddtrace_propagated_tags_get_tag(const char *tag) {
         return NULL;
     }
     zend_array *propagated = ddtrace_get_propagated();
-    zend_array *root_meta = ddtrace_get_root_meta();
+    zend_array *root_attributes = ddtrace_get_root_attributes();
     size_t tag_len = strlen(tag);
 
     if (!zend_hash_str_find(propagated, tag, tag_len)) {
         return NULL;
     }
 
-    return zend_hash_str_find(root_meta, tag, tag_len);
+    return zend_hash_str_find(root_attributes, tag, tag_len);
 }
 
 void ddtrace_get_propagated_tags(zend_array *tags) {
     zend_array *propagated = ddtrace_get_propagated();
-    zend_array *root_meta = ddtrace_get_root_meta();
+    zend_array *root_attributes = ddtrace_get_root_attributes();
 
     zend_string *tagname;
     ZEND_HASH_FOREACH_STR_KEY(propagated, tagname) {
         zval *tag;
-        if ((tag = zend_hash_find(root_meta, tagname))) {
+        if ((tag = zend_hash_find(root_attributes, tagname))) {
             Z_TRY_ADDREF_P(tag);
             zend_hash_update(tags, tagname, tag);
         }
@@ -132,9 +137,9 @@ void ddtrace_get_propagated_tags(zend_array *tags) {
 
 zend_string *ddtrace_format_root_propagated_tags(void) {
     zend_array *propagated = ddtrace_get_propagated();
-    zend_array *root_meta = ddtrace_get_root_meta();
+    zend_array *root_attributes = ddtrace_get_root_attributes();
 
-    return ddtrace_format_propagated_tags(propagated, root_meta);
+    return ddtrace_format_propagated_tags(propagated, root_attributes);
 }
 
 zend_string *ddtrace_format_propagated_tags(zend_array *propagated, zend_array *tags) {
@@ -209,11 +214,11 @@ zend_string *ddtrace_format_propagated_tags(zend_array *propagated, zend_array *
 
 void ddtrace_add_propagated_tag(zend_string *key, zval *value) {
     zend_array *propagated = ddtrace_get_propagated();
-    zend_array *root_meta = ddtrace_get_root_meta();
+    zend_array *root_attributes = ddtrace_get_root_attributes();
 
     zval tagstr;
     datadog_convert_to_string(&tagstr, value);
-    zend_hash_update(root_meta, key, &tagstr);
+    zend_hash_update(root_attributes, key, &tagstr);
     zend_hash_add_empty_element(propagated, key);
 }
 
