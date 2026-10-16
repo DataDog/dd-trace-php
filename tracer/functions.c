@@ -1739,6 +1739,59 @@ static void ddtrace_ffe_record_evaluation_metric_result(
     ddtrace_ffe_record_evaluation_metric(flag_key, variant, reason_name, error_name, allocation_key);
 }
 
+static const char *ddtrace_ffe_type_name(int32_t type_id) {
+    switch (type_id) {
+        case DDTRACE_FFE_TYPE_STRING:
+            return "string";
+        case DDTRACE_FFE_TYPE_INT:
+            return "integer";
+        case DDTRACE_FFE_TYPE_FLOAT:
+            return "float";
+        case DDTRACE_FFE_TYPE_BOOL:
+            return "boolean";
+        case DDTRACE_FFE_TYPE_OBJECT:
+            return "object";
+        default:
+            return "unknown";
+    }
+}
+
+// Per-evaluation details are trace level: DD_TRACE_DEBUG stays sparse.
+// Flag keys and variant keys are identifiers; values, targeting keys and
+// attributes can contain customer data and are never logged. JSON keeps
+// control characters in identifiers from splitting the log line.
+static void ddtrace_ffe_log_evaluation(zend_string *flag_key, int32_t type_id, zend_string *variant, int32_t reason, int32_t error_code, bool do_log) {
+    if (!ddog_shall_log(DDOG_LOG_TRACE)) {
+        return;
+    }
+
+    const char *error_name = ddtrace_ffe_error_name(error_code);
+    zval details;
+    array_init(&details);
+    add_assoc_str(&details, "flagKey", zend_string_copy(flag_key));
+    add_assoc_string(&details, "valueType", (char *) ddtrace_ffe_type_name(type_id));
+    add_assoc_string(&details, "reason", (char *) ddtrace_ffe_reason_name(ddtrace_ffe_effective_reason(reason, error_code)));
+    if (variant) {
+        add_assoc_str(&details, "variant", zend_string_copy(variant));
+    } else {
+        add_assoc_null(&details, "variant");
+    }
+    if (error_name) {
+        add_assoc_string(&details, "errorCode", (char *) error_name);
+    } else {
+        add_assoc_null(&details, "errorCode");
+    }
+    add_assoc_long(&details, "configVersion", (zend_long) ddog_ffe_config_version());
+    add_assoc_bool(&details, "doLog", do_log);
+
+    smart_str buf = {0};
+    zai_json_encode(&buf, &details, 0);
+    smart_str_0(&buf);
+    LOG(TRACE, "Feature Flags: evaluated %s", buf.s ? ZSTR_VAL(buf.s) : "{}");
+    smart_str_free(&buf);
+    zval_ptr_dtor(&details);
+}
+
 static zend_string *ddtrace_ffe_attributes_json(zval *attrs_zv) {
     smart_str buf = {0};
     zai_json_encode(&buf, attrs_zv, 0);
@@ -1898,7 +1951,7 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     }
 
     if (!result.valid) {
-        LOG(DEBUG, "Feature Flags: exposure suppressed; invalid evaluation result");
+        LOG(TRACE, "Feature Flags: evaluation rejected; flag key is not valid UTF-8 or the value type is unknown");
         if (record_metric) {
             ddtrace_ffe_record_evaluation_metric(flag_key, NULL, "ERROR", "PROVIDER_NOT_READY", NULL);
         }
@@ -1930,10 +1983,9 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
             result.has_serial_id
         );
         zend_string_release(subject_attributes_json);
-    } else {
-        LOG(DEBUG, "Feature Flags: exposure suppressed; %s",
-            !result.do_log ? "evaluation did not request exposure logging" : "missing allocation or variant");
     }
+
+    ddtrace_ffe_log_evaluation(flag_key, type_id, variant, result.reason, result.error_code, result.do_log);
 
     object_init_ex(return_value, ddtrace_ce_ffe_result);
     ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("valueJson"), value_json);

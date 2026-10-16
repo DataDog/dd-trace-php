@@ -14,44 +14,6 @@ use PHPUnit\Framework\TestCase;
 
 final class ClientTest extends TestCase
 {
-    /** @dataProvider debugLevelProvider */
-    public function testDebugLevelIsCheckedOnlyAtConstruction($enabled)
-    {
-        $logger = $this->createMock(LoggerInterface::class);
-        $logger->expects($this->once())->method('isLevelActive')->with('debug')->willReturn($enabled);
-        if (!$enabled) {
-            $logger->expects($this->never())->method('debug');
-        }
-        $client = $this->clientForEvaluator(new UnavailableEvaluator(), $logger);
-        for ($i = 0; $i < 3; $i++) {
-            $this->assertFalse($client->getBooleanValue('missing', false));
-        }
-    }
-
-    public function debugLevelProvider()
-    {
-        return array(array(false), array(true));
-    }
-
-    public function testDebugLoggingIncludesSuccessfulAndFallbackEvaluations()
-    {
-        $evaluator = new ClientTestEvaluator();
-        $evaluator->setSuccess('flag', 'secret-value', EvaluationReason::SPLIT, 'on');
-        $logger = new RecordingLogger();
-        $client = $this->clientForEvaluator($evaluator, $logger);
-        $this->assertSame('secret-value', $client->getStringValue('flag', 'secret-default', array(
-            'targetingKey' => 'secret-user', 'attributes' => array('email' => 'secret-email'),
-        )));
-        $this->assertFalse($client->getBooleanValue('missing', false));
-        $logs = $logger->evaluations;
-        $this->assertCount(2, $logs);
-        $this->assertSame('flag', $logs[0]['flagKey']);
-        $this->assertSame('SPLIT', $logs[0]['reason']);
-        $this->assertSame('on', $logs[0]['variant']);
-        $this->assertSame('PROVIDER_NOT_READY', $logs[1]['errorCode']);
-        $this->assertFalse(strpos(json_encode($logs), 'secret'));
-    }
-
     public function testValueMethodsReturnEvaluatedValues()
     {
         $evaluator = new ClientTestEvaluator();
@@ -289,13 +251,9 @@ final class ClientTestEvaluator implements Evaluator
 final class RecordingLogger implements LoggerInterface
 {
     private $warnings = array();
-    public $evaluations = array();
 
     public function debug($message, array $context = array())
     {
-        if ($message === 'Feature Flags: evaluated {details}') {
-            $this->evaluations[] = json_decode($context['details'], true);
-        }
     }
 
     public function warning($message, array $context = array())
@@ -324,7 +282,6 @@ final class ThrowingLogger implements LoggerInterface
 
     public function debug($message, array $context = array())
     {
-        throw new \ErrorException($message);
     }
 
     public function warning($message, array $context = array())
