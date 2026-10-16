@@ -51,6 +51,14 @@ the tracked Makefile. Manual phpize builds need a separate source/build copy.
 Both modes invoke the root Cargo package and its profiler build helper, which
 is how the profiler adapts to various PHP versions.
 
+SSI release builds compile the PHP-ABI archive and `datadog-php-common` in one
+Cargo invocation. Common owns profile construction, sample aggregation, compression,
+destruction and export behind a private Rust ABI. Capture, the collector and upload
+threads, queues and fork coordination remain in the extension. An owning profile
+wrapper forwards cleanup to common even when a queued upload is discarded. PHP 7.0 builds only the C tracer
+and common, never the PHP profiler. The same common DSO serves all PHP ABIs within
+an architecture/libc family; CI compares complete rebuilt DSOs before packaging.
+
 The combined product is shipped in release packages. Standalone profiling
 remains supported and is built and tested by CI, but is not shipped. Do not
 load standalone profiling alongside `ddtrace.so`; co-loading is rejected.
@@ -78,7 +86,7 @@ PHP toolchain supplied explicitly:
 
 ```sh
 DDTRACE_PHP_INCLUDES="$(php-config --includes)" \
-cargo test --no-default-features --features profiling
+cargo test --no-default-features --features profiling,profiling-runtime
 ```
 
 These tests do not substitute for the PHP engine. Stack walking and other
