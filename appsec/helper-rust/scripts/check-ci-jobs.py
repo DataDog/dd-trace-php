@@ -41,8 +41,8 @@ ARTIFACT_JOBS: dict[str, str] = {
     "ssi-aarch64":          "package loader: [arm64]",
     "extension-amd64-gnu":  "package extension: [amd64, x86_64-unknown-linux-gnu]",
     "extension-aarch64-gnu": "package extension: [arm64, aarch64-unknown-linux-gnu]",
-    "extension-amd64-musl": "package extension: [amd64, x86_64-alpine-linux-musl]",
-    "extension-aarch64-musl": "package extension: [arm64, aarch64-alpine-linux-musl]",
+    "extension-amd64-musl": "package extension (bundles): [amd64, x86_64-alpine-linux-musl]",
+    "extension-aarch64-musl": "package extension (bundles): [arm64, aarch64-alpine-linux-musl]",
     "extension-windows":    "package extension windows",
     "extension-asan":       "package extension asan",
 }

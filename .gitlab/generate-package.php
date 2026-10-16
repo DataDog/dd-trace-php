@@ -50,24 +50,20 @@ $build_platforms = [
 /**
  * Names of the packaging jobs of a build platform.
  *
- * The linux-gnu platforms are split into one job per native installer format
- * (.rpm/.deb/.tar.gz, keyed by make target), the combined bundle
- * (dd-library-php-<v>-<arch>-linux-gnu.tar.gz) and the per-PHP-API bundles; keeping
+ * Each platform is split into one job per native installer format
+ * (.rpm/.deb/.tar.gz/.apk, keyed by make target), the combined bundle
+ * (dd-library-php-<v>-<arch>-<libc>.tar.gz) and the per-PHP-API bundles; keeping
  * them together overflows the project's max_artifacts_size, and most consumers
- * only need one of them. The musl platforms remain a single job.
+ * only need one of them.
  *
  * $kind is "installers", "bundles" (the combined bundle), "per-api bundles" or "all".
  */
 function package_extension_jobs(array $platform, string $kind = "all"): array
 {
-    if ($platform['host_os'] !== "linux-gnu") {
-        return ["package extension: [{$platform['arch']}, {$platform['triplet']}]"];
-    }
-
     $jobs = [];
     if ($kind === "all" || $kind === "installers") {
         foreach ($platform['targets'] as $target) {
-            // .rpm.x86_64 -> rpm, .tar.gz.aarch64 -> tar.gz
+            // .rpm.x86_64 -> rpm, .tar.gz.aarch64 -> tar.gz, .apk.x86_64 -> apk
             $format = preg_replace('(^\.(.+)\.[^.]+$)', '$1', $target);
             $jobs[$target] = "package extension ($format): [{$platform['arch']}, {$platform['triplet']}]";
         }
@@ -670,12 +666,9 @@ $package_extension_needs = function (array $platform, bool $bundle_inputs = true
 };
 
 foreach ($build_platforms as $platform) {
-    // The linux-gnu platforms produce the native installers (.rpm/.deb/.tar.gz,
-    // one file bundling every extension) and the "final artifact" bundles. Each
-    // is built by its own job (the steps share no state), so that consumers
-    // download only the file they install. The musl platforms stay in a single job.
-    if ($platform['host_os'] === 'linux-gnu') {
-        foreach (package_extension_jobs($platform, "installers") as $target => $job) {
+    // Each native installer (.rpm/.deb/.tar.gz or .apk) and bundle kind gets its own job (the
+    // steps share no state), so consumers download only the file they install.
+    foreach (package_extension_jobs($platform, "installers") as $target => $job) {
 ?>
 "<?= $job ?>":
   extends: .package_extension_base
@@ -687,12 +680,12 @@ foreach ($build_platforms as $platform) {
 
     - mv build/packages/ packages/
 <?php
-            $package_extension_needs($platform, false);
-        }
+        $package_extension_needs($platform, false);
+    }
 ?>
 
 <?php
-        foreach (["bundles" => "combined", "per-api bundles" => "per-api"] as $job_kind => $bundles) {
+    foreach (["bundles" => "combined", "per-api bundles" => "per-api"] as $job_kind => $bundles) {
 ?>
 "package extension (<?= $job_kind ?>): [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
   extends: .package_extension_base
@@ -701,21 +694,6 @@ foreach ($build_platforms as $platform) {
     TRIPLET: "<?= $platform['triplet'] ?>"
     DDTRACE_MAKE_BUNDLES: "<?= $bundles ?>"
   script:
-    - ./tooling/bin/generate-final-artifact.sh $(<VERSION) "build/packages" "${CI_PROJECT_DIR}"
-    - mv build/packages/ packages/
-<?php
-            $package_extension_needs($platform);
-        }
-    } else {
-?>
-"package extension: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
-  extends: .package_extension_base
-  variables:
-    ARCH: "<?= $platform['arch'] ?>"
-    TRIPLET: "<?= $platform['triplet'] ?>"
-  script:
-    - make -j 4 <?= implode(' ', $platform['targets']) ?>
-
     - ./tooling/bin/generate-final-artifact.sh $(<VERSION) "build/packages" "${CI_PROJECT_DIR}"
     - mv build/packages/ packages/
 <?php
@@ -834,7 +812,7 @@ endforeach;
     matrix:
       - PHP_VERSION: <?= json_encode($profiler_minor_major_targets), "\n" ?>
   needs:
-    - job: "package extension: [amd64, x86_64-alpine-linux-musl]"
+    - job: "package extension (bundles): [amd64, x86_64-alpine-linux-musl]"
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
@@ -852,7 +830,7 @@ endforeach;
   image: registry.ddbuild.io/images/mirror/dunglas/frankenphp:php<?= FRANKENPHP_ALPINE_PHP_VERSION ?>-alpine
   tags: [ "arch:arm64" ]
   needs:
-    - job: "package extension: [arm64, aarch64-alpine-linux-musl]"
+    - job: "package extension (bundles): [arm64, aarch64-alpine-linux-musl]"
       artifacts: true
     - job: "prepare code"
       artifacts: true
@@ -997,9 +975,11 @@ endforeach;
     # datadog-setup.php fetches a per-PHP-API bundle when it targets one PHP; the containers run on this amd64 host.
     - job: "package extension (per-api bundles): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
-    - job: "package extension: [amd64, x86_64-alpine-linux-musl]"
+    - job: "package extension (bundles): [amd64, x86_64-alpine-linux-musl]"
       artifacts: true
-    - job: "package extension: [arm64, aarch64-alpine-linux-musl]"
+    - job: "package extension (bundles): [arm64, aarch64-alpine-linux-musl]"
+      artifacts: true
+    - job: "package extension (per-api bundles): [amd64, x86_64-alpine-linux-musl]"
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
@@ -1151,7 +1131,7 @@ endforeach;
     - ./dockerfiles/verify_packages/verify.sh
 
 
-"verify alpine":
+.verify_alpine:
   extends: .verify_job
   variables:
     VERIFY_APACHE: "no"
@@ -1163,29 +1143,38 @@ endforeach;
           - alpine:3.9
           - alpine:3.11
           - alpine:3.15
-        INSTALL_TYPE: &verify_install_types
-        - php_installer
-        - native_package
       - INSTALL_PACKAGES: php php-fpm php-json
         IMAGE:
           - alpine:3.15
           - alpine:3.16
           - alpine:3.21
           - alpine:3.24
-        INSTALL_TYPE: *verify_install_types
       - IMAGE: <?= json_encode(array_map(function ($v) { return "php:$v-fpm-alpine"; }, $all_minor_major_targets)), "\n" ?>
-        INSTALL_TYPE: *verify_install_types
-  needs:
-    - job: "package extension: [amd64, x86_64-alpine-linux-musl]"
-      artifacts: true
-    - job: datadog-setup.php
-      artifacts: true
   before_script: &verify_alpine_before_script
 <?php dockerhub_login() ?>
     - mkdir build
     - mv packages build
     - apk add --no-cache ca-certificates || exit 75 # see https://support.circleci.com/hc/en-us/articles/360016505753-Resolve-Certificate-Signed-By-Unknown-Authority-error-in-Alpine-images?flash_digest=39b76521a337cecacac0cc10cb28f3747bb5fc6a
     - apk add curl ${INSTALL_PACKAGES:-} || exit 75
+
+# Split by INSTALL_TYPE so each half downloads only the package it installs.
+"verify alpine: native_package":
+  extends: .verify_alpine
+  variables:
+    INSTALL_TYPE: native_package
+  needs:
+    - job: "package extension (apk): [amd64, x86_64-alpine-linux-musl]"
+      artifacts: true
+
+"verify alpine: php_installer":
+  extends: .verify_alpine
+  variables:
+    INSTALL_TYPE: php_installer
+  needs:
+    - job: "package extension (bundles): [amd64, x86_64-alpine-linux-musl]"
+      artifacts: true
+    - job: datadog-setup.php
+      artifacts: true
 
 .verify_centos:
   extends: .verify_job
@@ -1349,7 +1338,7 @@ endforeach;
     KUBERNETES_MEMORY_REQUEST: 2Gi
     KUBERNETES_MEMORY_LIMIT: 4Gi
   needs:
-    - job: "package extension: [amd64, x86_64-alpine-linux-musl]"
+    - job: "package extension (apk): [amd64, x86_64-alpine-linux-musl]"
       artifacts: true
   before_script: *verify_alpine_before_script
   script:
