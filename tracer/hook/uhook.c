@@ -75,7 +75,7 @@ typedef struct {
 static zend_object_handlers dd_hook_data_handlers;
 
 static inline dd_hook_data *dd_hook_data_from_obj(zend_object *obj) {
-    return (dd_hook_data *)((char *)obj - XtOffsetOf(dd_hook_data, std));
+    return (dd_hook_data *)((char *)obj - offsetof(dd_hook_data, std));
 }
 
 #define EXCEPTION_OVERRIDE_CLEAR ((zend_object *)0x1)
@@ -127,7 +127,7 @@ void dd_uhook_callback_apply_scope(dd_uhook_callback *cb, zend_class_entry *scop
 
 
 static zend_object *dd_hook_data_create(zend_class_entry *class_type) {
-    dd_hook_data *hook_data = ecalloc(1, XtOffsetOf(dd_hook_data, std) + sizeof(zend_object) + zend_object_properties_size(class_type));
+    dd_hook_data *hook_data = ecalloc(1, offsetof(dd_hook_data, std) + sizeof(zend_object) + zend_object_properties_size(class_type));
     zend_object_std_init(&hook_data->std, class_type);
     object_properties_init(&hook_data->std, class_type);
     hook_data->std.handlers = &dd_hook_data_handlers;
@@ -1049,6 +1049,10 @@ ZEND_METHOD(DDTrace_HookData, overrideReturnValue) {
 
     zval_ptr_dtor(hookData->retval_ptr);
     ZVAL_COPY(hookData->retval_ptr, retval);
+#if PHP_VERSION_ID >= 80600
+    // Redo the by-ref unwrap into a TMP: internal functions did it before the end hook
+    zend_return_unwrap_ref(hookData->execute_data, hookData->retval_ptr);
+#endif
 
     RETURN_TRUE;
 }
@@ -1182,7 +1186,7 @@ void zai_uhook_minit(int module_number) {
     ddtrace_hook_data_ce = register_class_DDTrace_HookData();
     ddtrace_hook_data_ce->create_object = dd_hook_data_create;
     dd_hook_data_handlers = *zend_get_std_object_handlers();
-    dd_hook_data_handlers.offset = XtOffsetOf(dd_hook_data, std);
+    dd_hook_data_handlers.offset = offsetof(dd_hook_data, std);
 #if PHP_VERSION_ID >= 80000
     ddtrace_hook_data_returned_prop_info = zend_hash_str_find_ptr(&ddtrace_hook_data_ce->properties_info, ZEND_STRL("returned"));
 #endif

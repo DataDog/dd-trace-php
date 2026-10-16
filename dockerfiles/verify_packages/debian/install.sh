@@ -49,7 +49,8 @@ elif [ "${INSTALL_MODE}" = "sury" ]; then
         libapache2-mod-php${PHP_VERSION}
         WWW_CONF=/etc/php/${PHP_VERSION}/fpm/pool.d/www.conf
         PHP_FPM_BIN=php-fpm${PHP_VERSION}
-    if [ "${PHP_VERSION}" != "8.5" ]; then
+    # opcache is built into PHP 8.5+, there is no php8.x-opcache package
+    if dpkg --compare-versions "${PHP_VERSION}" lt 8.5; then
         retry_or_tempfail apt-get install -y \
             php${PHP_VERSION}-opcache
     fi

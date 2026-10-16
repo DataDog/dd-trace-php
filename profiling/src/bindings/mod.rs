@@ -15,6 +15,10 @@ extern "C" {
     pub static ddog_php_prof_functions: *const zend_function_entry;
 }
 
+// PHP 8.6 turned the ZEND_*_FUNCTION macros into enumerators of a C23_ENUM.
+#[cfg(php_function_type_enum)]
+pub const ZEND_INTERNAL_FUNCTION: u8 = zend_function_type_ZEND_INTERNAL_FUNCTION;
+
 pub type VmInterruptFn = unsafe extern "C" fn(execute_data: *mut zend_execute_data);
 
 pub type VmGcCollectCyclesFn = unsafe extern "C" fn() -> i32;

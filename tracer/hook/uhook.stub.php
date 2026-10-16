@@ -124,6 +124,9 @@ namespace DDTrace {
 
     /**
      * Only hooks the specific instance of the Closure, i.e. independent instantiations of the same Closure are not hooked.
+     * Since PHP 8.6, the engine reuses one Closure for static closures without captured state declared in a function, and
+     * for first-class callables of functions like foo(...). An instance hook on them covers every evaluation until request
+     * end, and repeated installs stack.
      *
      * @var int
      * @cvalue HOOK_INSTANCE

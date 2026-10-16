@@ -162,8 +162,8 @@ static void _dd_mpack_write_array(
             if (key_s) {
                 dd_mpack_write_zstr(w, key_s);
             } else {
-                char buf[ZEND_LTOA_BUF_LEN];
-                ZEND_LTOA((zend_long)key_i, buf, sizeof(buf));
+                char buf[MAX_LENGTH_OF_LONG + 1];
+                snprintf(buf, sizeof(buf), ZEND_LONG_FMT, (zend_long)key_i);
                 mpack_write(w, buf);
             }
             _mpack_write_zval(w, val, depth);
@@ -230,8 +230,8 @@ static void _mpack_write_array_lim(mpack_writer_t *nonnull w,
             if (key_s) {
                 dd_mpack_write_zstr_lim(w, key_s, limits->max_string_length);
             } else {
-                char buf[ZEND_LTOA_BUF_LEN];
-                ZEND_LTOA((zend_long)key_i, buf, sizeof(buf));
+                char buf[MAX_LENGTH_OF_LONG + 1];
+                snprintf(buf, sizeof(buf), ZEND_LONG_FMT, (zend_long)key_i);
                 mpack_write(w, buf);
             }
             dd_mpack_write_zval_lim(w, val, limits);
@@ -600,7 +600,7 @@ static bool parse_element(
             // Ignore clang because key is a string here
             // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
             zend_hash_add_new(Z_ARRVAL_P(output), Z_STR(key), &value);
-            zval_dtor(&key);
+            zval_ptr_dtor_nogc(&key);
         }
         mpack_done_map(reader);
         break;
