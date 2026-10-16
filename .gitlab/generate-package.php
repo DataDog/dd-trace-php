@@ -402,10 +402,8 @@ foreach ($build_platforms as $platform) {
 ?>
   artifacts:
     paths:
-      - "extensions_*"
+      # Its only consumer, package loader, reads only the standalone builds (generate-ssi-package.sh).
       - "standalone_*"
-      - "ddtrace_*-fat.ldflags"
-      - "ddtrace_*-fat.sym"
 <?php
 endforeach;
 ?>
@@ -722,7 +720,9 @@ foreach ($windows_minor_major_targets as $major_minor) {
 }
 ?>
 
-"package extension asan":
+<?php foreach ($asan_build_platforms as $platform): ?>
+# Only the combined bundle, one job per arch: its sole consumer (randomized tests) installs nothing else.
+"package extension asan: [<?= $platform['arch'] ?>]":
   extends: .package_extension_base
   script:
     - ./tooling/bin/generate-final-artifact.sh $(<VERSION) "build/packages" "${CI_PROJECT_DIR}"
@@ -730,19 +730,16 @@ foreach ($windows_minor_major_targets as $major_minor) {
   needs:
     - job: "prepare code"
       artifacts: true
-<?php
-foreach ($asan_build_platforms as $platform) {
-    foreach ($asan_minor_major_targets as $major_minor) {
-        $abi_no = $php_versions_to_abi[$major_minor];
-?>
+<?php foreach ($asan_minor_major_targets as $major_minor): ?>
     - job: "compile tracing extension asan: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
-<?php
-    }
-}
-?>
+<?php endforeach; ?>
   variables:
     DDTRACE_MAKE_PACKAGES_ASAN: 1
+    TRIPLET: "<?= $platform['triplet'] ?>"
+    DDTRACE_MAKE_BUNDLES: "combined"
+
+<?php endforeach; ?>
 
 <?php foreach ($arch_targets as $arch): ?>
 "package loader: [<?= $arch ?>]":
@@ -930,7 +927,7 @@ endforeach;
   variables:
     RANDOMIZED_RESTRICT_PLATFORMS: buster
   needs:
-    - job: "package extension asan"
+    - job: "package extension asan: [amd64]"
       artifacts: true
 
 <?php endforeach; ?>
@@ -959,7 +956,7 @@ endforeach;
 #     DOCKER_COMPOSE_DOWNLOAD_NAME: docker-compose-linux-aarch64
 #     RANDOMIZED_RESTRICT_PLATFORMS: buster
 #   needs:
-#     - job: "package extension asan"
+#     - job: "package extension asan: [arm64]"
 #       artifacts: true
 <?php endforeach; ?>
 

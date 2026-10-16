@@ -44,7 +44,7 @@ ARTIFACT_JOBS: dict[str, str] = {
     "extension-amd64-musl": "package extension (bundles): [amd64, x86_64-alpine-linux-musl]",
     "extension-aarch64-musl": "package extension (bundles): [arm64, aarch64-alpine-linux-musl]",
     "extension-windows":    "package extension windows",
-    "extension-asan":       "package extension asan",
+    "extension-asan":       "package extension asan: [amd64]",
 }
 
 
