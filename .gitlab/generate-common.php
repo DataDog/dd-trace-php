@@ -61,19 +61,24 @@ function windows_git_setup() {
     }
     Pop-Location
     $remaining = Get-ChildItem -Path . -Force -ErrorAction SilentlyContinue
-    if ($remaining) { Write-Host "WARNING: could not remove: $($remaining.Name -join ', ')" }
+    # git init would reuse leftovers (a clone used to refuse them): retry instead.
+    if ($remaining) { Write-Host "ERROR: could not remove: $($remaining.Name -join ', '); exiting 75 so GitLab auto-retries."; exit 75 }
     Write-Host "Cleanup complete."
 
     # PS 5.1 ignores $PSNativeCommandUseErrorActionPreference — use $LASTEXITCODE checks instead.
     $ErrorActionPreference = 'Stop'
 
-    # Manual git clone with proper config
-    Write-Host "Cloning repository..."
+    # Fetch the pipeline commit by SHA: once the branch moves on, a --branch clone no longer contains it.
+    Write-Host "Fetching $env:CI_COMMIT_SHA..."
     git config --global core.longpaths true
     git config --global core.symlinks true
-    git clone --branch $env:CI_COMMIT_REF_NAME $env:CI_REPOSITORY_URL .
+    git init -q .
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    git remote add origin $env:CI_REPOSITORY_URL
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    git fetch --depth 50 origin $env:CI_COMMIT_SHA
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "ERROR: git clone failed (likely transient network); exiting 75 so GitLab auto-retries. Remaining workspace contents:"
+        Write-Host "ERROR: git fetch failed (likely transient network); exiting 75 so GitLab auto-retries. Remaining workspace contents:"
         Get-ChildItem -Force | Select-Object Name
         exit 75
     }
