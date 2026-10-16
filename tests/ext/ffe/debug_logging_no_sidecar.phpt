@@ -7,7 +7,7 @@ datadog.trace.enabled=0
 datadog.trace.sidecar_trace_sender=0
 datadog.instrumentation_telemetry_enabled=0
 datadog.trace.log_file={PWD}/debug_logging_no_sidecar.log
-datadog.trace.log_level=debug
+datadog.trace.log_level="debug,ddtrace=trace"
 --FILE--
 <?php
 require __DIR__ . '/logging.inc';
@@ -30,7 +30,7 @@ var_dump(DDTrace\Testing\flush_ffe_exposures());
 var_dump(DDTrace\Testing\flush_ffe_exposures());
 $log = read_log_snapshot(__DIR__ . '/debug_logging_no_sidecar.log');
 var_dump(substr_count($log, 'Feature Flags: dropping 1 exposure(s); sidecar or request is not initialized'));
-var_dump(strpos($log, 'handed off to sidecar') === false);
+var_dump(strpos($log, 'Feature Flags: handed off ') === false);
 ?>
 --EXPECT--
 bool(false)
