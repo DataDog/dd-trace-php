@@ -50,12 +50,13 @@ $build_platforms = [
 /**
  * Names of the packaging jobs of a build platform.
  *
- * The linux-gnu platforms are split into two jobs: one building the native
- * installers (.rpm/.deb/.tar.gz) and one building the final per-PHP-API
- * bundles; keeping them together overflows the project's max_artifacts_size.
- * The musl platforms only build .apk and remain a single job.
+ * The linux-gnu platforms are split into three jobs: the native installers
+ * (.rpm/.deb/.tar.gz), the combined bundle (dd-library-php-<v>-<arch>-linux-gnu.tar.gz)
+ * and the per-PHP-API bundles; keeping them together overflows the project's
+ * max_artifacts_size, and most consumers only need one of them.
+ * The musl platforms remain a single job.
  *
- * $kind is "installers", "bundles" or "all".
+ * $kind is "installers", "bundles" (the combined bundle), "per-api bundles" or "all".
  */
 function package_extension_jobs(array $platform, string $kind = "all"): array
 {
@@ -64,11 +65,10 @@ function package_extension_jobs(array $platform, string $kind = "all"): array
     }
 
     $jobs = [];
-    if ($kind === "all" || $kind === "installers") {
-        $jobs[] = "package extension (installers): [{$platform['arch']}, {$platform['triplet']}]";
-    }
-    if ($kind === "all" || $kind === "bundles") {
-        $jobs[] = "package extension (bundles): [{$platform['arch']}, {$platform['triplet']}]";
+    foreach (["installers", "bundles", "per-api bundles"] as $job_kind) {
+        if ($kind === "all" || $kind === $job_kind) {
+            $jobs[] = "package extension ($job_kind): [{$platform['arch']}, {$platform['triplet']}]";
+        }
     }
     return $jobs;
 }
@@ -684,16 +684,21 @@ foreach ($build_platforms as $platform) {
         $package_extension_needs($platform, false);
 ?>
 
-"package extension (bundles): [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
+<?php
+        foreach (["bundles" => "combined", "per-api bundles" => "per-api"] as $job_kind => $bundles) {
+?>
+"package extension (<?= $job_kind ?>): [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
   extends: .package_extension_base
   variables:
     ARCH: "<?= $platform['arch'] ?>"
     TRIPLET: "<?= $platform['triplet'] ?>"
+    DDTRACE_MAKE_BUNDLES: "<?= $bundles ?>"
   script:
     - ./tooling/bin/generate-final-artifact.sh $(<VERSION) "build/packages" "${CI_PROJECT_DIR}"
     - mv build/packages/ packages/
 <?php
-        $package_extension_needs($platform);
+            $package_extension_needs($platform);
+        }
     } else {
 ?>
 "package extension: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
@@ -981,6 +986,9 @@ endforeach;
     - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
     - job: "package extension (bundles): [arm64, aarch64-unknown-linux-gnu]"
+      artifacts: true
+    # datadog-setup.php fetches a per-PHP-API bundle when it targets one PHP; the containers run on this amd64 host.
+    - job: "package extension (per-api bundles): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
     - job: "package extension: [amd64, x86_64-alpine-linux-musl]"
       artifacts: true

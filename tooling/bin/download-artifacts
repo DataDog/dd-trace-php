@@ -32,9 +32,9 @@ const PRESET_JOBS = [
     'ssi-amd64'              => 'package loader: [amd64]',
     'ssi-aarch64'            => 'package loader: [arm64]',
     'extension-amd64-gnu-installers'    => 'package extension (installers): [amd64, x86_64-unknown-linux-gnu]',
-    'extension-amd64-gnu-bundles'       => 'package extension (bundles): [amd64, x86_64-unknown-linux-gnu]',
+    'extension-amd64-gnu-bundles'       => ['package extension (bundles): [amd64, x86_64-unknown-linux-gnu]', 'package extension (per-api bundles): [amd64, x86_64-unknown-linux-gnu]'],
     'extension-aarch64-gnu-installers'  => 'package extension (installers): [arm64, aarch64-unknown-linux-gnu]',
-    'extension-aarch64-gnu-bundles'     => 'package extension (bundles): [arm64, aarch64-unknown-linux-gnu]',
+    'extension-aarch64-gnu-bundles'     => ['package extension (bundles): [arm64, aarch64-unknown-linux-gnu]', 'package extension (per-api bundles): [arm64, aarch64-unknown-linux-gnu]'],
     'extension-amd64-musl'   => 'package extension: [amd64, x86_64-alpine-linux-musl]',
     'extension-aarch64-musl' => 'package extension: [arm64, aarch64-alpine-linux-musl]',
     'extension-windows'      => 'package extension windows',
@@ -715,8 +715,8 @@ function main(array $argv) {
         echo "Available preset keys:\n";
         $jobs = PRESET_JOBS;
         ksort($jobs);
-        foreach ($jobs as $key => $jobName) {
-            printf("  %-30s -> %s\n", $key, $jobName);
+        foreach ($jobs as $key => $jobNames) {
+            printf("  %-30s -> %s\n", $key, implode(', ', (array) $jobNames));
         }
         return;
     }
@@ -773,16 +773,18 @@ function main(array $argv) {
                 fwrite(STDERR, "Error: unknown preset '$key'. Available: " . implode(', ', $available) . "\n");
                 exit(1);
             }
-            $name = PRESET_JOBS[$key];
-            $matches = array_values(array_filter($allJobs, function ($j) use ($name) {
-                return (isset($j['name']) ? $j['name'] : '') === $name;
-            }));
-            if (count($matches) === 0) {
-                fwrite(STDERR, "Warning: preset '$key' (job '$name') not found\n");
-                continue;
+            // A preset may span several jobs when one deliverable set is split across jobs.
+            foreach ((array) PRESET_JOBS[$key] as $name) {
+                $matches = array_values(array_filter($allJobs, function ($j) use ($name) {
+                    return (isset($j['name']) ? $j['name'] : '') === $name;
+                }));
+                if (count($matches) === 0) {
+                    fwrite(STDERR, "Warning: preset '$key' (job '$name') not found\n");
+                    continue;
+                }
+                usort($matches, function ($a, $b) { return $b['id'] <=> $a['id']; });
+                $targets[] = array('job_id' => $matches[0]['id'], 'name' => $name);
             }
-            usort($matches, function ($a, $b) { return $b['id'] <=> $a['id']; });
-            $targets[] = array('job_id' => $matches[0]['id'], 'name' => $name);
         }
     } elseif ($args['job_name'] !== null) {
         $pattern = $args['job_name'];
