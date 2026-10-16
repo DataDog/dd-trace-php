@@ -897,7 +897,7 @@ endforeach;
 <?php dockerhub_login() ?>
     - .gitlab/run-with-retryable-download.sh apt-get update
     - .gitlab/run-with-retryable-download.sh apt install -y php git make curl
-    - curl -L --fail --retry 5 --retry-delay 2 --retry-connrefused ${GITHUB_RELEASES_MIRROR}/docker/compose/releases/download/v2.36.0/${DOCKER_COMPOSE_DOWNLOAD_NAME} -o /usr/local/bin/docker-compose
+    - .gitlab/download-file.sh "${GITHUB_RELEASES_MIRROR}/docker/compose/releases/download/v2.36.0/${DOCKER_COMPOSE_DOWNLOAD_NAME}" /usr/local/bin/docker-compose
     - chmod +x /usr/local/bin/docker-compose
     - mv packages/* .
     - docker network create randomized_tests_baseservices
@@ -1100,7 +1100,7 @@ endforeach;
 <?php dockerhub_login() ?>
     - apt-get update
     - apt install -y make curl
-    - curl -L --fail --retry 5 --retry-delay 2 --retry-connrefused ${GITHUB_RELEASES_MIRROR}/docker/compose/releases/download/v2.36.0/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
+    - .gitlab/download-file.sh "${GITHUB_RELEASES_MIRROR}/docker/compose/releases/download/v2.36.0/docker-compose-linux-x86_64" /usr/local/bin/docker-compose
     - chmod +x /usr/local/bin/docker-compose
     - mkdir build
     - mv packages build
@@ -1448,7 +1448,7 @@ endforeach;
       apt-get update -o dir::state::lists="$APT_CACHE/lists"
       apt-get install -y --no-install-recommends -o dir::state::lists="$APT_CACHE/lists" -o dir::cache::archives="$APT_CACHE/archives" ca-certificates curl git build-essential
       mkdir -p /etc/apt/keyrings
-      curl -fsSL --retry 5 --retry-delay 2 --retry-connrefused https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+      .gitlab/download-file.sh https://download.docker.com/linux/debian/gpg /etc/apt/keyrings/docker.asc || exit $?
       echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list
       apt-get update -o dir::state::lists="$APT_CACHE/lists"
       apt-get install -y --no-install-recommends -o dir::state::lists="$APT_CACHE/lists" -o dir::cache::archives="$APT_CACHE/archives" docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
@@ -1830,6 +1830,8 @@ foreach ($arch_targets as $arch) {
         "https://api.github.com/repos/DataDog/dd-trace-php/pulls?head=DataDog:${CI_COMMIT_BRANCH}&state=open")
     if [ "${STATUS}" != "200" ]; then
       echo "ERROR: failed to check for an open PR on branch ${CI_COMMIT_BRANCH} (HTTP ${STATUS}):"; cat /tmp/pulls.json
+      # 000 (no response after curl's retries) and 5xx are transient: exit 75 for GitLab's job retry
+      case "${STATUS}" in 000|5??) exit 75 ;; esac
       exit 1
     fi
     PR_COUNT=$(jq 'length' /tmp/pulls.json)

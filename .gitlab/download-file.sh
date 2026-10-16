@@ -35,24 +35,26 @@ for attempt in 1 2 3 4; do
         exit $?
     fi
 
-    case "$status" in
-        # DNS/proxy resolution, connection, partial transfer, timeout, empty
-        # response, send/receive, and HTTP/2 framing/stream failures can be transient.
-        5|6|7|16|18|28|52|55|56|92) ;;
-        22)
-            case "$http_status" in
-                408|429|500|502|503|504) ;;
+    # Judge HTTP errors by their status, not curl's code: curl 8.7.1 reports
+    # --fail errors over HTTP/2 as 56 (receive error) instead of 22.
+    case "$http_status" in
+        408|429|500|502|503|504) ;;
+        4??|5??) exit "$status" ;;
+        *)
+            case "$status" in
+                # DNS/proxy resolution, connection, partial transfer, timeout, empty
+                # response, send/receive, and HTTP/2 framing/stream failures can be transient.
+                5|6|7|16|18|28|52|55|56|92) ;;
+                35)
+                    # SSL-connect errors are not all transient. Retry the observed peer
+                    # reset, but preserve other TLS failures instead of retrying blindly.
+                    if ! grep -Fq 'Connection reset by peer' "$curl_log"; then
+                        exit "$status"
+                    fi
+                    ;;
                 *) exit "$status" ;;
             esac
             ;;
-        35)
-            # SSL-connect errors are not all transient. Retry the observed peer
-            # reset, but preserve other TLS failures instead of retrying blindly.
-            if ! grep -Fq 'Connection reset by peer' "$curl_log"; then
-                exit "$status"
-            fi
-            ;;
-        *) exit "$status" ;;
     esac
 
     if [ "$attempt" -eq 4 ]; then
