@@ -14,7 +14,7 @@ FRANKENPHP_SRC_DIR=/usr/local/src/frankenphp
 rm -rf $FRANKENPHP_SRC_DIR
 mkdir -p $FRANKENPHP_SRC_DIR
 
-curl -fLo /tmp/frankenphp.tar.gz ${frankenphpTarGzUrl}
+curl -fL --retry 5 --retry-delay 2 --retry-connrefused -o /tmp/frankenphp.tar.gz ${frankenphpTarGzUrl}
 tar xf /tmp/frankenphp.tar.gz -C ${FRANKENPHP_SRC_DIR} --strip-components=1
 rm -f /tmp/frankenphp.tar.gz
 

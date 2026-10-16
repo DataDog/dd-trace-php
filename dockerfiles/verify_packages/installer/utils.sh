@@ -205,7 +205,7 @@ assert_world_readable_tree() {
 
 install_legacy_ddtrace() (
     version=$1
-    curl -L --output "/tmp/legacy-${version}.tar.gz" \
+    curl -fL --retry 5 --retry-delay 2 --output "/tmp/legacy-${version}.tar.gz" \
         "${github_releases_base_url}/DataDog/dd-trace-php/releases/download/${version}/datadog-php-tracer-${version}.x86_64.tar.gz"
     tar -xf  "/tmp/legacy-${version}.tar.gz" -C /
     /opt/datadog-php/bin/post-install.sh
@@ -237,7 +237,7 @@ fetch_setup_for_version() (
 
     mkdir -vp "${destdir?}"
     cd "${destdir}"
-    curl -OL "${github_releases_base_url}/DataDog/dd-trace-php/releases/download/${version}/datadog-setup.php"
+    curl -fOL --retry 5 --retry-delay 2 "${github_releases_base_url}/DataDog/dd-trace-php/releases/download/${version}/datadog-setup.php"
     cd -
 )
 

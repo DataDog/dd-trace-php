@@ -129,14 +129,14 @@ echo "FPM master: pid ${FPM_MASTER_PID}, uid ${master_uid}"
     "master uid is ${master_uid}"
 
 # ------------------------------------------------------------- a) request ----
-curl -s -L request-replayer/clear-dumped-data > /dev/null
-curl -s -L -X POST request-replayer/set-agent-info \
+curl -fsSL --retry 5 --retry-delay 2 request-replayer/clear-dumped-data > /dev/null
+curl -fsSL --retry 5 --retry-delay 2 -X POST request-replayer/set-agent-info \
     -d '{"endpoints":["/v0.4/traces"],"client_drop_p0s":true,"version":"7.99.0"}' > /dev/null
 
 nginx -c /tmp/nginx-thread-verify.conf
 sleep 1
 
-OUTPUT=$(curl -s -L "127.0.0.1:${NGINX_PORT}/index.php")
+OUTPUT=$(curl -fsSL --retry 5 --retry-delay 2 "127.0.0.1:${NGINX_PORT}/index.php")
 [ "${OUTPUT}" = "hi" ] || fail "expected request output 'hi', got '${OUTPUT}'"
 echo "a) request served correctly"
 
@@ -144,7 +144,7 @@ echo "a) request served correctly"
 # to publish the agent's response into shared memory.
 sleep 3
 
-TRACES=$(curl -s -L request-replayer/replay)
+TRACES=$(curl -fsSL --retry 5 --retry-delay 2 request-replayer/replay)
 if [ "${TRACES#*trace_id}" = "${TRACES}" ]; then
     fail "the trace did not reach the agent" "request replayer returned: ${TRACES}"
 fi
@@ -266,11 +266,11 @@ rm -rf "${SECRET_DIR}"
 # listener). It must not disturb legitimate SHM, logging or trace delivery: serve another
 # request and confirm its trace still reaches the agent and the shared memory is still worker
 # owned - the "post-attack healthy request" check.
-curl -s -L request-replayer/clear-dumped-data > /dev/null
-OUTPUT2=$(curl -s -L "127.0.0.1:${NGINX_PORT}/index.php")
+curl -fsSL --retry 5 --retry-delay 2 request-replayer/clear-dumped-data > /dev/null
+OUTPUT2=$(curl -fsSL --retry 5 --retry-delay 2 "127.0.0.1:${NGINX_PORT}/index.php")
 [ "${OUTPUT2}" = "hi" ] || fail "post-policy request output was '${OUTPUT2}', expected 'hi'"
 sleep 3
-TRACES2=$(curl -s -L request-replayer/replay)
+TRACES2=$(curl -fsSL --retry 5 --retry-delay 2 request-replayer/replay)
 if [ "${TRACES2#*trace_id}" = "${TRACES2}" ]; then
     fail "the post-policy trace did not reach the agent" "request replayer returned: ${TRACES2}"
 fi
