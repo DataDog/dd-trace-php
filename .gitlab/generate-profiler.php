@@ -426,16 +426,14 @@ foreach ($profiler_minor_major_targets as $version) {
     # Start with combined: its larger feature set warms more of the shared dependencies.
     - export RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }--cfg php_shared_build" # matches SHARED=1 for loadable artifacts
     - export DDTRACE_PHP_INCLUDES="$(php-config --includes)"
-    - cargo clippy --package datadog-php --lib --no-deps --no-default-features --features tracer,tracer-runtime,profiling-embedded -- -D warnings -Aunknown-lints # non-SSI combined
-    - cargo clippy --package datadog-php --lib --no-deps --no-default-features --features tracer-runtime -- -D warnings -Aunknown-lints # SSI common library
-    - cargo clippy --package datadog-php --lib --no-deps --no-default-features --features profiling-embedded -- -D warnings -Aunknown-lints # SSI PHP-ABI archive
+    - cargo clippy --package datadog-php --lib --no-deps --no-default-features --features tracer,tracer-runtime,profiling-embedded,profiling-runtime -- -D warnings -Aunknown-lints # non-SSI combined
+    - cargo clippy --package datadog-php --package datadog-php-common --lib --no-deps --no-default-features --features datadog-php/profiling-embedded,datadog-php-common/tracer-runtime,datadog-php-common/profiling-runtime,datadog-php-common/profiling-dependencies -- -D warnings -Aunknown-lints # paired SSI targets
     - cargo clippy --package datadog-php --lib --no-deps --no-default-features --features profiling-standalone -- -D warnings -Aunknown-lints # standalone profiler
     - switch-php zts # not compatible with debug
     - touch profiling/build.rs # make sure the build helper runs after switch-php
     - export DDTRACE_PHP_INCLUDES="$(php-config --includes)"
-    - cargo clippy --package datadog-php --lib --no-deps --no-default-features --features tracer,tracer-runtime,profiling-embedded -- -D warnings -Aunknown-lints # non-SSI combined
-    - cargo clippy --package datadog-php --lib --no-deps --no-default-features --features tracer-runtime -- -D warnings -Aunknown-lints # SSI common library
-    - cargo clippy --package datadog-php --lib --no-deps --no-default-features --features profiling-embedded -- -D warnings -Aunknown-lints # SSI PHP-ABI archive
+    - cargo clippy --package datadog-php --lib --no-deps --no-default-features --features tracer,tracer-runtime,profiling-embedded,profiling-runtime -- -D warnings -Aunknown-lints # non-SSI combined
+    - cargo clippy --package datadog-php --package datadog-php-common --lib --no-deps --no-default-features --features datadog-php/profiling-embedded,datadog-php-common/tracer-runtime,datadog-php-common/profiling-runtime,datadog-php-common/profiling-dependencies -- -D warnings -Aunknown-lints # paired SSI targets
     - cargo clippy --package datadog-php --lib --no-deps --no-default-features --features profiling-standalone -- -D warnings -Aunknown-lints # standalone profiler
 
 "Cargo test":
@@ -463,10 +461,10 @@ foreach ($profiler_minor_major_targets as $version) {
        - ARCH: *arch_targets
   script:
     - switch-php nts
-    - DDTRACE_PHP_INCLUDES="$(php-config --includes)" cargo test --no-default-features --features profiling,test,debug_stats,tracing,tracing-subscriber,trigger_time_sample
+    - DDTRACE_PHP_INCLUDES="$(php-config --includes)" cargo test --no-default-features --features profiling,profiling-runtime,test,debug_stats,tracing,tracing-subscriber,trigger_time_sample
     - switch-php zts
     - touch profiling/build.rs # make sure the build helper runs after switch-php
-    - DDTRACE_PHP_INCLUDES="$(php-config --includes)" cargo test --no-default-features --features profiling,test,debug_stats,tracing,tracing-subscriber,trigger_time_sample
+    - DDTRACE_PHP_INCLUDES="$(php-config --includes)" cargo test --no-default-features --features profiling,profiling-runtime,test,debug_stats,tracing,tracing-subscriber,trigger_time_sample
 
 "PHP language tests":
   stage: test

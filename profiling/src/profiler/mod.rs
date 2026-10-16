@@ -20,6 +20,7 @@ use crate::profiling::exception::EXCEPTION_PROFILING_INTERVAL;
 use crate::profiling::module_globals::ProfilerGlobals;
 use crate::profiling::profile_tags::{ProfileTagSegment, ProfileTags};
 use crate::profiling::{Clocks, RequestLocals, CLOCKS, GLOBAL_TAGS};
+use crate::profiling_export::Profile;
 use chrono::Utc;
 use core::mem::forget;
 use core::{ptr, str};
@@ -30,7 +31,6 @@ use libdd_profiling::api::{
     Function, Label as ApiLabel, Location, Period, Sample, SampleType as ApiSampleType,
     UpscalingInfo, ValueType as ApiValueType,
 };
-use libdd_profiling::internal::Profile as InternalProfile;
 use log::{debug, info, trace, warn};
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHasher};
 use std::borrow::Cow;
@@ -396,7 +396,7 @@ impl TimeCollector {
     /// This should be called before exporting profiles to ensure heap-live data is included.
     fn collect_batched_heap_live_samples(
         &self,
-        profiles: &mut FxHashMap<Arc<ProfileIndex>, InternalProfile>,
+        profiles: &mut FxHashMap<Arc<ProfileIndex>, Profile>,
         started_at: &WallTime,
     ) {
         let tracker_len = self.live_heap_tracker_count.load(Ordering::Relaxed);
@@ -441,7 +441,7 @@ impl TimeCollector {
 
     fn flush_profiles(
         &self,
-        profiles: &mut FxHashMap<Arc<ProfileIndex>, InternalProfile>,
+        profiles: &mut FxHashMap<Arc<ProfileIndex>, Profile>,
         last_export: &WallTime,
         final_flush: bool,
     ) -> WallTime {
@@ -484,7 +484,7 @@ impl TimeCollector {
     /// makes sense to use an older time than now because if the profiler was
     /// running 4 seconds ago and we're only creating a profile now, that means
     /// we didn't collect any samples during that 4 seconds.
-    fn create_profile(message: &SampleMessage, started_at: SystemTime) -> InternalProfile {
+    fn create_profile(message: &SampleMessage, started_at: SystemTime) -> Profile {
         let sample_types: Vec<ApiSampleType> = message
             .key
             .sample_types
@@ -556,15 +556,15 @@ impl TimeCollector {
         let exception_samples_offset = get_offset(ApiSampleType::ExceptionSamples);
 
         let period = WALL_TIME_PERIOD.as_nanos();
-        let mut profile = InternalProfile::try_new(
+        let mut profile = Profile::try_new(
             &sample_types,
             Some(Period {
                 sample_type: ApiSampleType::WallTime,
                 value: period.min(i64::MAX as u128) as i64,
             }),
+            started_at,
         )
-        .expect("failed to create a new InternalProfile object");
-        let _ = profile.set_start_time(started_at);
+        .expect("failed to create a new profile");
 
         if let (Some(alloc_size_offset), Some(alloc_samples_offset)) =
             (alloc_size_offset, alloc_samples_offset)
@@ -610,7 +610,7 @@ impl TimeCollector {
         ))]
         {
             let add_io_upscaling_rule =
-                |profile: &mut InternalProfile,
+                |profile: &mut Profile,
                  sum_value_offset: Option<usize>,
                  count_value_offset: Option<usize>,
                  sampling_distance: u64,
@@ -718,7 +718,7 @@ impl TimeCollector {
 
     fn handle_resource_message(
         message: LocalRootSpanResourceMessage,
-        profiles: &mut FxHashMap<Arc<ProfileIndex>, InternalProfile>,
+        profiles: &mut FxHashMap<Arc<ProfileIndex>, Profile>,
     ) {
         trace!(
             "Received Endpoint Profiling message for span id {}.",
@@ -727,10 +727,10 @@ impl TimeCollector {
 
         let local_root_span_id = message.local_root_span_id;
         for (_, profile) in profiles.iter_mut() {
-            let endpoint = Cow::Borrowed(message.resource.as_str());
+            let endpoint = message.resource.as_str();
             // In libdatadog v9, these endpoint operations won't fail. It may
             // in newer versions, which is why it's fallible now.
-            if let Err(err) = profile.add_endpoint(local_root_span_id, endpoint.clone()) {
+            if let Err(err) = profile.add_endpoint(local_root_span_id, endpoint) {
                 warn!("failed to add endpoint info to local root span {local_root_span_id}: {err}");
             }
             if let Err(err) = profile.add_endpoint_count(endpoint, 1) {
@@ -743,7 +743,7 @@ impl TimeCollector {
 
     fn handle_sample_message(
         message: SampleMessage,
-        profiles: &mut FxHashMap<Arc<ProfileIndex>, InternalProfile>,
+        profiles: &mut FxHashMap<Arc<ProfileIndex>, Profile>,
         started_at: &WallTime,
     ) {
         if message.key.sample_types.is_empty() {
@@ -754,7 +754,7 @@ impl TimeCollector {
             return;
         }
 
-        let profile: &mut InternalProfile = if let Some(value) = profiles.get_mut(&message.key) {
+        let profile = if let Some(value) = profiles.get_mut(&message.key) {
             value
         } else {
             profiles.insert(
@@ -803,7 +803,7 @@ impl TimeCollector {
 
     pub fn run(self) {
         let mut last_wall_export = WallTime::now();
-        let mut profiles: FxHashMap<Arc<ProfileIndex>, InternalProfile> =
+        let mut profiles: FxHashMap<Arc<ProfileIndex>, Profile> =
             FxHashMap::with_capacity_and_hasher(1, FxBuildHasher);
 
         debug!(
@@ -885,7 +885,7 @@ impl TimeCollector {
 
 pub struct UploadRequest {
     index: Arc<ProfileIndex>,
-    profile: InternalProfile,
+    profile: Profile,
     end_time: SystemTime,
     duration: Option<Duration>,
 }
@@ -2207,7 +2207,7 @@ mod tests {
             [ApiSampleType::AllocSamples, ApiSampleType::AllocSize],
             [ApiSampleType::HeapLiveSamples, ApiSampleType::HeapLiveSize],
         ] {
-            let mut profile = InternalProfile::try_new(&sample_types, None).unwrap();
+            let mut profile = Profile::try_new(&sample_types, None, SystemTime::now()).unwrap();
             // Two requests in the 80-byte bin combine; the 96-byte bin stays separate.
             for raw_size in [65, 79, 81] {
                 let size = i64::try_from(allocation_size(raw_size, PAGE_SIZE).unwrap()).unwrap();
