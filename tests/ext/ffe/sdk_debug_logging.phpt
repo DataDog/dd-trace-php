@@ -7,6 +7,8 @@ error_log={PWD}/sdk_debug_logging.log
 datadog.trace.generate_root_span=0
 --FILE--
 <?php
+require __DIR__ . '/logging.inc';
+
 $root = getenv('TEST_PHP_SRCDIR') ?: dirname(__DIR__, 3);
 $srcRoot = rtrim((string) ini_get('datadog.trace.sources_path'), '/');
 if ($srcRoot === '' || !is_dir($srcRoot . '/api')) {
@@ -35,7 +37,7 @@ var_dump($client->getBooleanValue('missing', true, array('targetingKey' => 'secr
 DDTrace\Testing\ffe_load_config('{"createdAt":"2024-01-01T00:00:00Z","environment":{"name":"test"},"flags":{}}');
 var_dump($client->getBooleanValue('missing', false));
 $file = __DIR__ . '/sdk_debug_logging.log';
-$logs = file_get_contents($file);
+$logs = read_log_snapshot($file);
 foreach (array(
     'Feature Flags: flagging provider is disabled, so no flag configuration will be received and default values are returned; set DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED=true at startup (environment or php.ini) and restart',
     'Feature Flags: provider created; native evaluator is available',
@@ -54,15 +56,15 @@ var_dump(strpos($logs, 'enabled; starting remote_config') === false);
 
 // A new client can immediately use configuration already loaded in this thread.
 $cachedClient = new DDTrace\FeatureFlags\Client();
-var_dump(substr_count(file_get_contents($file), 'Feature Flags: provider ready; Remote Configuration is available') === 2);
+var_dump(substr_count(read_log_snapshot($file), 'Feature Flags: provider ready; Remote Configuration is available') === 2);
 
 // Default logging follows the existing DD_TRACE_DEBUG switch.
 ini_set('datadog.trace.debug', '0');
 DDTrace\Log\Logger::reset();
-$before = substr_count(file_get_contents($file), 'Feature Flags:');
+$before = substr_count(read_log_snapshot($file), 'Feature Flags:');
 $quietClient = new DDTrace\FeatureFlags\Client();
 var_dump($quietClient->getBooleanValue('missing', true));
-var_dump(substr_count(file_get_contents($file), 'Feature Flags:') === $before);
+var_dump(substr_count(read_log_snapshot($file), 'Feature Flags:') === $before);
 ?>
 --EXPECT--
 bool(true)

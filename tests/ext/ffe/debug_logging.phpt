@@ -7,6 +7,8 @@ datadog.trace.generate_root_span=0
 datadog.experimental_flagging_provider_enabled=1
 --FILE--
 <?php
+require __DIR__ . '/logging.inc';
+
 // This request-local value must not change the startup subscription diagnostic.
 ini_set('datadog.experimental_flagging_provider_enabled', '0');
 $config = json_encode(array(
@@ -35,7 +37,7 @@ var_dump(DDTrace\Testing\flush_ffe_exposures());
 var_dump(DDTrace\Testing\flush_ffe_exposures()); // empty buffer is silent
 
 $file = __DIR__ . '/debug_logging.log';
-$logs = file_get_contents($file);
+$logs = read_log_snapshot($file);
 foreach (array(
     'Feature Flags: enabled; starting remote_config configuration source',
     'Feature Flags: configuration applied successfully (1 flag(s), env="test", version=',
@@ -52,12 +54,12 @@ var_dump(strpos($logs, 'secret-') === false);
 
 // Changing the existing log level must suppress all native debug diagnostics.
 ini_set('datadog.trace.log_level', 'error');
-$before = substr_count(file_get_contents($file), 'Feature Flags:');
+$before = substr_count(read_log_snapshot($file), 'Feature Flags:');
 DDTrace\Testing\ffe_load_config($config);
 DDTrace\Testing\ffe_load_config('invalid');
 DDTrace\ffe_evaluate('flag', DDTrace\FFE_STRING, null, array());
 DDTrace\Testing\flush_ffe_exposures();
-var_dump(substr_count(file_get_contents($file), 'Feature Flags:') === $before);
+var_dump(substr_count(read_log_snapshot($file), 'Feature Flags:') === $before);
 ?>
 --EXPECT--
 bool(true)
