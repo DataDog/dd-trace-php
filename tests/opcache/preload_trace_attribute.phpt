@@ -21,6 +21,7 @@ var_dump(class_exists('Datadog\PreloadedTraced', false));
 Datadog\PreloadedTraced::method();
 Datadog\PreloadedTraced::method();
 Datadog\preloaded_function();
+Datadog\preloaded_unresolvable();
 
 // A class linked during the request which uses a preloaded trait
 final class TraitUser
@@ -40,6 +41,7 @@ bool(true)
 method: preloaded.method rsrc preloaded
 method: preloaded.method rsrc preloaded
 function: preloaded.function
+unresolvable: preloaded.unresolvable (no resource)
 trait: preloaded.trait
 trait: preloaded.trait
 preloaded.function
@@ -47,3 +49,4 @@ preloaded.method
 preloaded.method
 preloaded.trait
 preloaded.trait
+preloaded.unresolvable

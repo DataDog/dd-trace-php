@@ -28,3 +28,10 @@ function preloaded_function()
 {
     echo "function: ", \DDTrace\active_span()->name, "\n";
 }
+
+#[\DDTrace\Trace(name: "preloaded.unresolvable", resource: \Not\Loaded::RESOURCE)]
+function preloaded_unresolvable()
+{
+    // The resource argument cannot be evaluated during request startup, so it is skipped
+    echo "unresolvable: ", \DDTrace\active_span()->name, " ", \DDTrace\active_span()->resource ?: "(no resource)", "\n";
+}

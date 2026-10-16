@@ -96,16 +96,8 @@ static void zai_hook_on_update_empty(zend_function *func, bool remove, zend_obse
 void (*zai_hook_on_update)(zend_function *func, bool remove, zend_observer_fcall_end_handler *next_end_handler) = zai_hook_on_update_empty;
 void zai_hook_on_function_resolve_empty(zend_function *func) { (void)func; }
 void (*zai_hook_on_function_resolve)(zend_function *func) = zai_hook_on_function_resolve_empty;
-
-// zai_hook_preloaded_attributed is a set of install addresses of preloaded user functions which carry attributes
-// Preloaded classes are linked before the first request, so they never pass zai_hook_resolve_class() and their
-// zai_hook_on_function_resolve() runs on their first call in each request instead, see zai_hook_resolve_preloaded()
-static HashTable zai_hook_preloaded_attributed;
-// zai_hook_preloaded_resolved is the set of preloaded functions already resolved in this request
-ZEND_TLS HashTable zai_hook_preloaded_resolved;
-// zai_hook_preloaded_resolving is the function whose observer handlers are being initialized right now
-// The engine installs the handlers returned from that initialization itself, so its hooks must not update them in place
-ZEND_TLS zend_function *zai_hook_preloaded_resolving;
+static void zai_hook_on_preloaded_function_empty(zend_function *func) { (void)func; }
+void (*zai_hook_on_preloaded_function)(zend_function *func) = zai_hook_on_preloaded_function_empty;
 #endif
 
 #if PHP_VERSION_ID < 70200
@@ -454,10 +446,10 @@ static inline zai_hooks_entry *zai_hook_resolved_ensure_hooks_entry(zend_functio
 #if PHP_VERSION_ID >= 80000
 #if PHP_VERSION_ID < 80200
         (void)ce;
-        if (resolved->type == ZEND_USER_FUNCTION && resolved != zai_hook_preloaded_resolving)
+        if (resolved->type == ZEND_USER_FUNCTION)
 #else
         zai_hook_handle_internal_duplicate_function(hooks, ce, resolved);
-        if (!hooks->internal_duplicate && resolved != zai_hook_preloaded_resolving)
+        if (!hooks->internal_duplicate)
 #endif
         {
             zai_hook_on_update(resolved, false, NULL);
@@ -1182,9 +1174,6 @@ bool zai_hook_minit(void) {
     zend_hash_init(&zai_hook_static_inheritors, 8, NULL, zai_hook_static_inheritors_destroy, 1);
     zend_hash_init(&zai_hook_static, 8, NULL, zai_hook_static_destroy, 1);
     zai_hook_static.nNextFreeElement = 1;
-#if PHP_VERSION_ID >= 80000
-    zend_hash_init(&zai_hook_preloaded_attributed, 8, NULL, NULL, 1);
-#endif
     return true;
 }
 
@@ -1199,18 +1188,11 @@ static void zai_hook_init_hashtables() {
     zend_hash_init(&zai_hook_tls->request_functions, 8, NULL, zai_hook_hash_destroy, 0);
     zend_hash_init(&zai_hook_tls->request_classes, 8, NULL, zai_hook_hash_destroy, 0);
     zend_hash_init(&zai_hook_resolved, 8, NULL, NULL, 0);
-#if PHP_VERSION_ID >= 80000
-    zend_hash_init(&zai_hook_preloaded_resolved, 8, NULL, NULL, 0);
-#endif
 }
 
 bool zai_hook_rinit(void) {
     zai_hook_init_hashtables();
     zend_hash_init(&zai_function_location_map, 8, NULL, zai_function_location_destroy, 0);
-#if PHP_VERSION_ID >= 80000
-    // A bailout while resolving a preloaded function skips restoring this
-    zai_hook_preloaded_resolving = NULL;
-#endif
 
     // reserve low hook ids for static hooks
     zai_hook_tls->id = (zend_ulong)zai_hook_static.nNextFreeElement;
@@ -1239,14 +1221,6 @@ bool zai_hook_rinit(void) {
     return true;
 }
 
-#if PHP_VERSION_ID >= 80000
-static void zai_hook_remember_preloaded(zend_function *function) {
-    if (function->type == ZEND_USER_FUNCTION && function->common.attributes) {
-        zend_hash_index_add_empty_element(&zai_hook_preloaded_attributed, zai_hook_install_address(function));
-    }
-}
-#endif
-
 void zai_hook_post_startup(void) {
     zend_class_entry *ce;
     ZEND_HASH_FOREACH_PTR(CG(class_table), ce) {
@@ -1258,11 +1232,12 @@ void zai_hook_post_startup(void) {
             zai_hook_register_all_inheritors(ce, true);
 
 #if PHP_VERSION_ID >= 80000
+            // Preloaded classes are linked before the first request and never pass zai_hook_resolve_class()
             if (ce->type == ZEND_USER_CLASS) {
                 zend_function *function;
                 ZEND_HASH_FOREACH_PTR(&ce->function_table, function) {
                     if (function->common.scope == ce) {
-                        zai_hook_remember_preloaded(function);
+                        zai_hook_on_preloaded_function(function);
                     }
                 } ZEND_HASH_FOREACH_END();
             }
@@ -1273,30 +1248,12 @@ void zai_hook_post_startup(void) {
 #if PHP_VERSION_ID >= 80000
     zend_function *function;
     ZEND_HASH_FOREACH_PTR(CG(function_table), function) {
-        zai_hook_remember_preloaded(function);
+        if (function->type == ZEND_USER_FUNCTION) {
+            zai_hook_on_preloaded_function(function);
+        }
     } ZEND_HASH_FOREACH_END();
 #endif
 }
-
-#if PHP_VERSION_ID >= 80000
-void zai_hook_resolve_preloaded(zend_function *function) {
-    if (EXPECTED(zend_hash_num_elements(&zai_hook_preloaded_attributed) == 0) || function->type != ZEND_USER_FUNCTION) {
-        return;
-    }
-
-    zai_install_address addr = zai_hook_install_address(function);
-    if (!zend_hash_index_exists(&zai_hook_preloaded_attributed, addr)
-        || !zend_hash_index_add_empty_element(&zai_hook_preloaded_resolved, addr)) {
-        return;
-    }
-
-    // Resolving may autoload and so initialize other functions, hence restore rather than reset
-    zend_function *previous = zai_hook_preloaded_resolving;
-    zai_hook_preloaded_resolving = function;
-    zai_hook_on_function_resolve(function);
-    zai_hook_preloaded_resolving = previous;
-}
-#endif
 
 void zai_hook_activate(void) {
     zend_ulong current_hook_id = zai_hook_tls->id;
@@ -1331,9 +1288,6 @@ void zai_hook_rshutdown(void) {
         zend_hash_destroy(&zai_hook_tls->request_classes);
         zend_hash_destroy(&zai_hook_tls->request_files.hooks);
         zend_hash_destroy(&zai_function_location_map);
-#if PHP_VERSION_ID >= 80000
-        zend_hash_destroy(&zai_hook_preloaded_resolved);
-#endif
     }
 }
 
@@ -1345,16 +1299,13 @@ void zai_hook_gshutdown(void) {
 void zai_hook_mshutdown(void) {
     zend_hash_destroy(&zai_hook_static);
     zend_hash_destroy(&zai_hook_static_inheritors);
-#if PHP_VERSION_ID >= 80000
-    zend_hash_destroy(&zai_hook_preloaded_attributed);
-#endif
 } /* }}} */
 
 /* {{{ */
 zend_long zai_hook_install_resolved_generator(zend_function *function,
         zai_hook_begin begin, zai_hook_generator_resume resumption, zai_hook_generator_yield yield, zai_hook_end end,
         zai_hook_aux aux, size_t dynamic) {
-    if (!PG(modules_activated)) {
+    if (!PG(modules_activated) && !PG(during_request_startup)) {
         /* not allowed: can only do resolved install during request */
         return -1;
     }

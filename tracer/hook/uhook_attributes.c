@@ -431,8 +431,40 @@ void dd_uhook_on_function_resolve(zend_function *func) {
     }
 }
 
+// Preloaded functions carrying the attribute; they are linked before the first request, so they are hooked on each activation
+static zend_function **dd_uhook_preloaded_functions;
+static uint32_t dd_uhook_preloaded_count;
+
+static void dd_uhook_on_preloaded_function(zend_function *func) {
+    if (zend_get_attribute(func->common.attributes, dd_hook_attribute_lcname)) {
+        dd_uhook_preloaded_functions = perealloc(dd_uhook_preloaded_functions, sizeof(zend_function *) * (dd_uhook_preloaded_count + 1), 1);
+        dd_uhook_preloaded_functions[dd_uhook_preloaded_count++] = func;
+    }
+}
+
+void zai_uhook_attributes_activate(void) {
+    if (!dd_uhook_preloaded_count) {
+        return;
+    }
+
+    // Without any frame, exceptions thrown while evaluating arguments are promoted to fatal errors; a frame without func keeps them pending
+    zend_execute_data dummy_frame = { .prev_execute_data = EG(current_execute_data) };
+    EG(current_execute_data) = &dummy_frame;
+
+    for (uint32_t i = 0; i < dd_uhook_preloaded_count; ++i) {
+        dd_uhook_on_function_resolve(dd_uhook_preloaded_functions[i]);
+        // No autoloader is registered yet: arguments referencing unknown classes fail to evaluate and are skipped
+        if (UNEXPECTED(EG(exception))) {
+            zend_clear_exception();
+        }
+    }
+
+    EG(current_execute_data) = dummy_frame.prev_execute_data;
+}
+
 void zai_uhook_attributes_minit(void) {
     zai_hook_on_function_resolve = dd_uhook_on_function_resolve;
+    zai_hook_on_preloaded_function = dd_uhook_on_preloaded_function;
 
     ddtrace_hook_attribute_ce = register_class_DDTrace_Trace();
 #if PHP_VERSION_ID >= 80200
@@ -443,6 +475,9 @@ void zai_uhook_attributes_minit(void) {
 
 void zai_uhook_attributes_mshutdown(void) {
     zend_string_release(dd_hook_attribute_lcname);
+    if (dd_uhook_preloaded_functions) {
+        pefree(dd_uhook_preloaded_functions, 1);
+    }
 }
 
 ZEND_METHOD(DDTrace_Trace, __construct) {
