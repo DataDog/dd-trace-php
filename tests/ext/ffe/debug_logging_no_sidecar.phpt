@@ -10,6 +10,8 @@ datadog.trace.log_file={PWD}/debug_logging_no_sidecar.log
 datadog.trace.log_level=debug
 --FILE--
 <?php
+require __DIR__ . '/logging.inc';
+
 DDTrace\Testing\ffe_load_config(json_encode(array(
     'createdAt' => '2024-01-01T00:00:00Z',
     'environment' => array('name' => 'test'),
@@ -26,7 +28,7 @@ DDTrace\Testing\ffe_load_config(json_encode(array(
 DDTrace\ffe_evaluate('flag', DDTrace\FFE_BOOL, null, array());
 var_dump(DDTrace\Testing\flush_ffe_exposures());
 var_dump(DDTrace\Testing\flush_ffe_exposures());
-$log = file_get_contents(__DIR__ . '/debug_logging_no_sidecar.log');
+$log = read_log_snapshot(__DIR__ . '/debug_logging_no_sidecar.log');
 var_dump(substr_count($log, 'Feature Flags: dropping 1 exposure(s); sidecar or request is not initialized'));
 var_dump(strpos($log, 'handed off to sidecar') === false);
 ?>

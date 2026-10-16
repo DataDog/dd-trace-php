@@ -8,7 +8,9 @@ datadog.experimental_flagging_provider_enabled=1
 datadog.remote_config_enabled=0
 --FILE--
 <?php
-$logs = file_get_contents(__DIR__ . '/debug_logging_rc_disabled.log');
+require __DIR__ . '/logging.inc';
+
+$logs = read_log_snapshot(__DIR__ . '/debug_logging_rc_disabled.log');
 var_dump(strpos($logs, 'Feature Flags: configuration subscription disabled; set DD_REMOTE_CONFIG_ENABLED=true at startup') !== false);
 var_dump(strpos($logs, 'Feature Flags: enabled; starting remote_config') === false);
 ?>

@@ -9,7 +9,9 @@ datadog.remote_config_enabled=1
 datadog.trace.agentless=1
 --FILE--
 <?php
-$logs = file_get_contents(__DIR__ . '/debug_logging_agentless.log');
+require __DIR__ . '/logging.inc';
+
+$logs = read_log_snapshot(__DIR__ . '/debug_logging_agentless.log');
 var_dump(strpos($logs, 'Feature Flags: configuration subscription disabled; DD_TRACE_AGENTLESS=true at startup disables Agent Remote Configuration') !== false);
 var_dump(strpos($logs, 'Feature Flags: enabled; starting remote_config') === false);
 ?>
