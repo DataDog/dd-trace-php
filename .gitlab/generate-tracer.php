@@ -205,6 +205,10 @@ windows_test_c_job("windows test_c: zts", "zts", [
 "macos test_c":
   stage: test
   tags: ["macos:tart"]
+  # Builds the extension from source: of the compile stage it only needs the generated bridge files.
+  needs:
+    - job: "Prepare code"
+      artifacts: true
   image: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/ci-platform-machine-images/tart-vm:shared-sequoia-latest"
   variables:
     PHP_MACOS_VERSION: "8.5.9"
@@ -758,6 +762,8 @@ $services["pdo"] = "mysql";
 $services["kafka"] = ["kafka", "zookeeper"];  // Overwrite auto-generated entry
 
 $jobs = [];
+// Every .cli_integration_test job writes a tested_versions_*.json; "aggregate tested versions" reads only those.
+$tested_versions_jobs = [];
 preg_match_all('(^TEST_(?<type>INTEGRATIONS|WEB)_(?<major>\d+)(?<minor>\d)[^\n]+(?<targets>.*?)^(?!\t))ms', file_get_contents(__DIR__ . "/../Makefile"), $matches, PREG_SET_ORDER);
 foreach ($matches as $m) {
     $major_minor = "{$m["major"]}.{$m["minor"]}";
@@ -779,7 +785,8 @@ foreach ($jobs as $type => $type_jobs):
             }
             foreach ($sapis as $sapi):
 ?>
-"<?= $target ?>: [<?= $major_minor, $sapi ? ", $sapi" : "" ?>]":
+<?php $tested_versions_jobs[] = "$target: [$major_minor" . ($sapi ? ", $sapi" : "") . "]"; ?>
+"<?= end($tested_versions_jobs) ?>":
   extends: .cli_integration_test
   stage: "<?= $type ?> test"
   needs:
@@ -855,7 +862,8 @@ endforeach;
 foreach ($all_minor_major_targets as $major_minor):
     foreach (["test_auto_instrumentation", "test_composer", "test_integration"] as $test):
 ?>
-"<?= $test ?>: [<?= $major_minor ?>]":
+<?php $tested_versions_jobs[] = "$test: [$major_minor]"; ?>
+"<?= end($tested_versions_jobs) ?>":
   extends: .cli_integration_test
   needs:
     - job: "compile extension: debug"
@@ -878,7 +886,8 @@ foreach ($all_minor_major_targets as $major_minor):
 ?>
 
 <?php foreach(["cli-server", "cgi-fcgi"] as $sapi): ?>
-"test_distributed_tracing: [<?= $major_minor ?>, <?= $sapi ?>]":
+<?php $tested_versions_jobs[] = "test_distributed_tracing: [$major_minor, $sapi]"; ?>
+"<?= end($tested_versions_jobs) ?>":
   extends: .cli_integration_test
   needs:
     - job: "compile extension: debug"
@@ -956,6 +965,11 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
   tags: [ "arch:amd64" ]
   when: always
+  # Without this list the job downloads every earlier job's artifacts, including ~200 that write no tested_versions_*.json.
+  dependencies:
+<?php foreach ($tested_versions_jobs as $job): ?>
+    - "<?= $job ?>"
+<?php endforeach; ?>
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
       aud: dd-octo-sts
