@@ -4,10 +4,10 @@ use crate::profiling::profiler::{
     DDPROF_UPLOAD_CPU_TIME_NS, STACK_WALK_COUNT, STACK_WALK_CPU_TIME_NS,
 };
 use crate::profiling::{PROFILER_NAME_STR, PROFILER_VERSION_STR};
+use crate::profiling_export::{self, Upload};
 use chrono::{DateTime, Utc};
 use cpu_time::ThreadTime;
 use crossbeam_channel::{select, Receiver};
-use libdd_common::Endpoint;
 use log::{debug, info, warn};
 use serde_json::json;
 use std::sync::{Arc, Barrier};
@@ -100,36 +100,30 @@ impl Uploader {
         last_cpu: &mut Option<ThreadTime>,
     ) -> anyhow::Result<u16> {
         let tags = message.index.tags.try_materialize()?;
-        let profile = message.profile;
+        let endpoint = match &self.endpoint {
+            AgentEndpoint::Uri(uri) => profiling_export::AgentEndpoint::Uri(uri.to_string()),
+            AgentEndpoint::Socket(path) => {
+                profiling_export::AgentEndpoint::Socket(path.to_path_buf())
+            }
+        };
 
-        let agent_endpoint = &self.endpoint;
-        let endpoint = Endpoint::try_from(agent_endpoint)?;
-        let mut exporter = libdd_profiling::exporter::ProfileExporter::new(
-            PROFILER_NAME_STR,
-            PROFILER_VERSION_STR,
-            "php",
-            tags,
-            endpoint,
-        )?;
-
-        let serialized =
-            profile.serialize_into_compressed_pprof(Some(message.end_time), message.duration)?;
-
-        // Capture CPU time up to this point. Note: metadata generation, exporter
-        // building, and HTTP request time will be attributed to the next profile.
+        // Snapshot counters before entering the runtime. Encoding/compression,
+        // metadata construction and HTTP CPU time are reported by the next upload.
         update_cpu_time_counter(last_cpu, &DDPROF_UPLOAD_CPU_TIME_NS);
 
-        debug!("Sending profile to: {agent_endpoint}");
-        let status = exporter.send_blocking(
-            serialized,
-            &[],
-            &[],
-            Self::create_internal_metadata(),
-            self.create_profiler_info(),
-            self.process_tags.as_deref(),
-            None,
-        )?;
-        Ok(status.as_u16())
+        debug!("Sending profile to: {}", self.endpoint);
+        profiling_export::serialize_and_upload(Upload {
+            profile: message.profile,
+            end_time: message.end_time,
+            duration: message.duration,
+            endpoint,
+            library_name: PROFILER_NAME_STR,
+            library_version: PROFILER_VERSION_STR,
+            tags,
+            internal_metadata: Self::create_internal_metadata(),
+            info: self.create_profiler_info(),
+            process_tags: self.process_tags.clone(),
+        })
     }
 
     pub fn run(self) {
@@ -155,10 +149,10 @@ impl Uploader {
                         match pprof_filename {
                             Some(filename) => {
                                 let filename_prefix = filename.as_str();
-                                let r = request.profile.serialize_into_compressed_pprof(None, None).unwrap();
+                                let buffer = profiling_export::serialize(request.profile).unwrap();
                                 i += 1;
                                 let name = format!("{filename_prefix}.{i}.zst");
-                                std::fs::write(&name, r.buffer).expect("write to succeed");
+                                std::fs::write(&name, buffer).expect("write to succeed");
                                 info!("Successfully wrote profile to {name}");
                             },
                             None => match self.upload(request, &mut last_cpu) {

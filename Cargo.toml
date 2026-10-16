@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "components-rs/php_sidecar_mockgen",
+  "components-rs/ssi-common",
   "sidecar",
   "appsec/helper-rust",
 ]
@@ -68,15 +69,21 @@ libddwaf-source-static = ["tracer-runtime", "ddtrace-sidecar/libddwaf-source-sta
 # OTel process/thread context is used by both profiler integrations and the
 # tracer, but is not part of the basic profiler implementation.
 otel-context = ["dep:libdd-library-config", "dep:libdd-trace-protobuf"]
-profiling = [
+profiling = ["profiling-dependencies", "io_profiling"]
+# Resolve the same dependency features for SSI common even when the selected
+# PHP ABI has no profiler (PHP 7.0). This does not enable PHP code or codegen.
+profiling-dependencies = [
   "dep:bindgen", "dep:cc",
   "dep:cpu-time", "dep:crossbeam-channel", "dep:dashmap", "dep:dynasmrt",
   "dep:libdd-alloc", "dep:libdd-profiling", "dep:mach2", "dep:rand", "dep:rand_distr",
   "dep:rustc-hash", "dep:thiserror", "dep:chrono", "dep:env_logger",
-  "io_profiling"
 ]
+# PHP-independent profile storage, aggregation, encoding and HTTP export.
+# SSI selects this only in common;
+# the PHP-ABI archive imports its private Rust ABI through profiling.
+profiling-runtime = ["dep:libdd-profiling"]
 profiling-embedded = ["profiling", "otel-context", "tracer"]
-profiling-standalone = ["profiling", "otel-context", "runtime"]
+profiling-standalone = ["profiling", "profiling-runtime", "otel-context", "runtime"]
 debug_stats = ["profiling"]
 io_profiling = ["profiling"]
 test = ["profiling"]

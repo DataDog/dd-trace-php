@@ -461,7 +461,7 @@ build-tracer-profiler:
 build-ssi-common:
 	./tooling/bin/build-xlang-lto ssi-common "$(VARIANTS_DIR)/ssi"
 
-build-ssi-ddtrace: build-ssi-common
+build-ssi-ddtrace:
 	./tooling/bin/build-xlang-lto ssi-combined "$(VARIANTS_DIR)/ssi"
 
 install_combined: compile_combined

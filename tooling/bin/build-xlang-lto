@@ -88,6 +88,7 @@ if [[ "$php_version" == 7.0 ]]; then
     case "$artifact_mode" in
         combined) artifact_mode=tracer-only ;;
         ssi-common) ;; # Shared implementation is not PHP-ABI-specific.
+        ssi-combined) artifact_mode=ssi-tracer-only ;;
         *) fail 'PHP 7.0 has no profiler' ;;
     esac
 fi
@@ -173,7 +174,12 @@ mkdir -p "$artifacts"
 artifacts="$(cd "$artifacts" && pwd)"
 # The release script copies sources into /tmp; keep the target outside that
 # copy. A caller may mount a persistent cache and set an absolute path here.
-export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$root/tmp/xlang-cargo-target/${arch_dir}php-$php_version$cache_variant-$lto_mode}"
+default_target="$root/tmp/xlang-cargo-target/${arch_dir}php-$php_version$cache_variant-$lto_mode"
+if [[ "$artifact_mode" == ssi-* ]]; then
+    # Common must have the same embedded source/output paths across PHP ABIs.
+    default_target="$root/tmp/ssi-rust-target"
+fi
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$default_target}"
 [[ "$CARGO_TARGET_DIR" == /* ]] || fail 'CARGO_TARGET_DIR must be absolute'
 mkdir -p "$CARGO_TARGET_DIR"
 echo "PHP $php_version $build_variant $lto_mode: Cargo target cache $CARGO_TARGET_DIR" >&2
@@ -230,15 +236,18 @@ case "$artifact_mode" in
         ./tooling/bin/build-ssi-common "$artifacts/libdatadog_php.so"
         ;;
     ssi-combined)
-        [[ -s "$artifacts/libdatadog_php.so" ]] ||
-            fail 'build ssi-common into the same directory first'
-        # Rust code that depends on the selected PHP ABI is a private input to
-        # the combined extension, not a separately selectable SSI product.
+        # One Cargo invocation builds both roots with shared dependency features.
         abi_archive="$CARGO_TARGET_DIR/ssi-php-abi/php-$php_version/$build_variant/ddtrace-php-abi.a"
-        ./tooling/bin/build-ddtrace-php-abi-archive "$abi_archive"
+        ./tooling/bin/build-ddtrace-php-abi-archive "$abi_archive" "$artifacts/libdatadog_php.so"
         SSI_COMMON_LIBRARY="$artifacts/libdatadog_php.so" \
             SSI_EXTENSION_ARCHIVE="$abi_archive" \
             .gitlab/build-profiler.sh "$artifacts" active ssi-combined ddtrace.so
+        ;;
+    ssi-tracer-only)
+        # PHP 7.0 has no PHP-facing Rust archive or profiler hooks.
+        ./tooling/bin/build-ssi-common "$artifacts/libdatadog_php.so"
+        SSI_COMMON_LIBRARY="$artifacts/libdatadog_php.so" \
+            .gitlab/build-profiler.sh "$artifacts" active ssi-tracer-only ddtrace.so
         ;;
     standalone)
         .gitlab/build-profiler.sh "$artifacts" active standalone datadog-profiling.so
@@ -261,7 +270,12 @@ fi
 extension_name=ddtrace
 [[ "$artifact_mode" == standalone ]] && extension_name=datadog-profiling
 php_command=(php)
-if [[ "$artifact_mode" == ssi-combined ]]; then
+if [[ "$artifact_mode" == ssi-combined || "$artifact_mode" == ssi-tracer-only ]]; then
+    dynamic="$(objdump -p "$artifacts/ddtrace.so")"
+    if awk '$1 == "RPATH" || $1 == "RUNPATH" || ($1 == "NEEDED" && $2 == "libdatadog_php.so") { bad = 1 }
+        END { exit !bad }' <<< "$dynamic"; then
+        fail 'SSI must use loader preload, without a common DT_NEEDED or runpath'
+    fi
     # Smoke-test with the common DSO preloaded, as the SSI loader will do.
     php_command=(env "LD_PRELOAD=$artifacts/libdatadog_php.so${LD_PRELOAD:+:$LD_PRELOAD}" php)
 fi
