@@ -1920,7 +1920,8 @@ foreach ($arch_targets as $arch) {
   image: registry.ddbuild.io/images/base/gbi-ubuntu_2404:release
   tags: [ "arch:amd64" ]
   rules:
-    - if: $NIGHTLY_BUILD
+    # NIGHTLY_BUILD is non-empty outside the rel-env nightly, so a bare `if: $NIGHTLY_BUILD` matched every pipeline.
+    - if: $NIGHTLY_BUILD == "true"
       when: on_success
     - if: $CI_COMMIT_REF_NAME =~ /^ddtrace-/
       when: on_success
