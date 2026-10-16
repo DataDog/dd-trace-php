@@ -118,10 +118,11 @@ register_shutdown_function(function () use ($_libdatadog_sha) {
         return;
     }
 
+    // `|| exit $?` keeps git's 128 (retried) on the centos-7 images, where bash 4.2 turns an errexit status into 1.
     $step  = <<<STEP
     - git config --global --add safe.directory "\${CI_PROJECT_DIR}/libdatadog"
-    - (cd libdatadog; git fetch --depth=1 origin "$_libdatadog_sha" 2>/dev/null || git fetch origin "$_libdatadog_sha" 2>&1)
-    - (cd libdatadog; git checkout FETCH_HEAD)
+    - (cd libdatadog && { git fetch --depth=1 origin "$_libdatadog_sha" 2>/dev/null || git fetch origin "$_libdatadog_sha" 2>&1; }) || exit \$?
+    - (cd libdatadog && git checkout FETCH_HEAD) || exit \$?
 STEP;
 
     // Scripts whose presence in a job block means the job compiles Rust from libdatadog.

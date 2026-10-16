@@ -1125,7 +1125,8 @@ endforeach;
     DD_TRACE_AGENT_PORT: 80
     DD_TRACE_AGENT_FLUSH_INTERVAL: 1000
   script:
-    - ./dockerfiles/verify_packages/verify.sh
+    # `|| exit $?` keeps install.sh's exit 75 on centos:7, where bash 4.2 turns an errexit status into 1.
+    - ./dockerfiles/verify_packages/verify.sh || exit $?
 
 
 "verify alpine":
