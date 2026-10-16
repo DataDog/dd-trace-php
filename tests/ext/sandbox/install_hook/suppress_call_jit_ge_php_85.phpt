@@ -5,6 +5,7 @@ suppressCall() works with JIT
 if (PHP_VERSION_ID < 80500) die('skip: PHP 8.5+ variant (built-in OPcache) of suppress_call_jit.phpt');
 if (getenv('PHP_PEAR_RUNTESTS') === '1') die('skip: pecl run-tests does not support XFAIL');
 if (ZEND_VM_KIND === 'ZEND_VM_KIND_TAILCALL') die('xfail TAILCALL VM: the tracing JIT trace counter helper resumes without servicing vm_interrupt (php-src ext/opcache/jit/zend_jit_vm_helpers.c, zend_jit_trace_counter_helper)');
+if (ini_get('opcache.jit') === false) die('skip: OPcache built without JIT');
 ?>
 --INI--
 opcache.enable=1

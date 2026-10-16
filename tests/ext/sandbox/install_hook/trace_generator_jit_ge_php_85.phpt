@@ -2,6 +2,7 @@
 generator hooking works with JIT
 --SKIPIF--
 <?php if (PHP_VERSION_ID < 80500) die('skip: PHP 8.5+ variant (built-in OPcache) of trace_generator_jit.phpt'); ?>
+<?php if (ini_get('opcache.jit') === false) die('skip: OPcache built without JIT'); ?>
 --INI--
 opcache.enable=1
 opcache.enable_cli = 1
