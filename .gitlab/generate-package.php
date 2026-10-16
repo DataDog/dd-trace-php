@@ -161,6 +161,11 @@ configure_system_tests:
     ALLOW_MULTIPLE_CHILD_LEVELS: "false"
 
 package-oci:
+  # Linux only: prepare-oci-package.sh exits at once for other OSes, after downloading both loaders.
+  parallel:
+    matrix:
+      - OS: [ linux ]
+        ARCH: [ amd64, arm64 ]
   needs:
 <?php
 foreach ($arch_targets as $arch) {
