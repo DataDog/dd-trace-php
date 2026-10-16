@@ -4,6 +4,7 @@
 #include "span.h"
 #include <components-rs/common.h>
 #include <components-rs/sidecar.h>
+#include <components/log/log.h>
 #include <ext/configuration.h>
 #include <ext/datadog.h>
 #include <ext/ffi_utils.h>
@@ -168,6 +169,7 @@ static void dd_ffe_clear_exposures(void) {
     DDTRACE_G(ffe_exposure_buffer) = NULL;
     DDTRACE_G(ffe_exposure_buffer_len) = 0;
     DDTRACE_G(ffe_exposure_buffer_cap) = 0;
+    DDTRACE_G(ffe_exposures_dropped) = 0;
 }
 
 void ddtrace_ffe_record_exposure(
@@ -180,10 +182,13 @@ void ddtrace_ffe_record_exposure(
     bool has_serial_id
 ) {
     if (ZSTR_LEN(flag_key) == 0 || ZSTR_LEN(variant) == 0) {
+        LOG(TRACE, "Feature Flags: exposure suppressed; missing flag key or variant");
         return;
     }
 
     if (DDTRACE_G(ffe_exposure_buffer_len) >= DD_FFE_EXPOSURE_BUFFER_LIMIT) {
+        // Reported once per flush rather than per dropped exposure.
+        DDTRACE_G(ffe_exposures_dropped)++;
         return;
     }
 
@@ -221,7 +226,13 @@ bool ddtrace_ffe_flush_exposures(void) {
         return false;
     }
 
+    if (DDTRACE_G(ffe_exposures_dropped)) {
+        LOG(DEBUG, "Feature Flags: dropped %zu exposure(s); buffer limit reached (%d)",
+            DDTRACE_G(ffe_exposures_dropped), DD_FFE_EXPOSURE_BUFFER_LIMIT);
+    }
+
     if (!DATADOG_G(sidecar) || !DATADOG_G(request_initialized)) {
+        LOG(DEBUG, "Feature Flags: dropping %zu exposure(s); sidecar or request is not initialized", exposure_count);
         dd_ffe_clear_exposures();
         return false;
     }
@@ -256,6 +267,12 @@ bool ddtrace_ffe_flush_exposures(void) {
             &DATADOG_G(sidecar),
             &context,
             exposure_slice));
+
+    // A successful IPC handoff is not confirmation of delivery to intake.
+    // datadog_ffi_try already logs failures.
+    if (flushed) {
+        LOG(TRACE, "Feature Flags: handed off %zu exposure(s) to sidecar", exposure_count);
+    }
 
     efree(ffi_exposures);
     dd_ffe_clear_exposures();
