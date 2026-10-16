@@ -298,7 +298,7 @@ windows_test_c_job("windows test_c: zts", "zts", [
 "Prepare code":
   stage: compile
   # Same image as the package "prepare code": composer and unzip are baked in, so no apt or getcomposer.org fetch.
-  image: registry.ddbuild.io/images/mirror/composer:2
+  image: registry.ddbuild.io/images/mirror/composer:2.10.3@sha256:af98f42dfff7c68ba8d53c2164fd9fde1087b7d449514baa38c418b1f6bc4bac
   tags: [ "arch:amd64" ]
   needs: []
   variables:
