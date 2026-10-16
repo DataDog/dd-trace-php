@@ -4,7 +4,11 @@ FFE fork children report only their own rejected observations
 <?php
 if (!extension_loaded('pcntl')) die('skip: pcntl extension required');
 if (getenv('PHP_PEAR_RUNTESTS') === '1') die('skip: pecl run-tests does not support {PWD}');
-require __DIR__ . '/../includes/clear_skipif_telemetry.inc';
+// Completed records are safe to remove; the SKIPIF sidecar may still be
+// publishing .json.tmp files. FILE filters records by its own process IDs.
+foreach (glob(__DIR__ . '/tmp/ffe-rejection-fork/telemetry-*.json') as $file) {
+    if (!@unlink($file) && file_exists($file)) die('cannot remove stale telemetry');
+}
 ?>
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
@@ -15,7 +19,7 @@ DD_METRICS_OTEL_ENABLED=0
 DD_TRACE_SIDECAR_CONNECTION_MODE=subprocess
 DD_TRACE_LOG_LEVEL=off
 --INI--
-datadog.trace.agent_url="file://{PWD}/ffe-rejection-fork.out"
+datadog.trace.agent_url="file://{PWD}/tmp/ffe-rejection-fork/"
 --FILE--
 <?php
 function setApplication($service) {
@@ -56,14 +60,16 @@ dd_trace_internal_fn('finalize_telemetry');
 // Separate applications expose inherited counters instead of letting a stopped
 // telemetry worker silently discard the child's data. Wait for both to finish.
 $services = array($parentService => 'parent', 'ffe-rejection-child-' . $pid => 'child');
-$path = __DIR__ . '/ffe-rejection-fork.out';
+$path = __DIR__ . '/tmp/ffe-rejection-fork/telemetry-*.json';
 $deadline = microtime(true) + 30;
 do {
     usleep(10000);
     $counts = array('parent' => 0, 'child' => 0);
     $closed = array();
-    foreach (is_file($path) ? file($path) : array() as $line) {
-        $envelope = json_decode($line, true);
+    // Directory capture publishes complete requests atomically and avoids
+    // inheriting the single-file recorder's locked mutex across a fork.
+    foreach (glob($path) as $file) {
+        $envelope = json_decode(file_get_contents($file), true);
         $service = $envelope['application']['service_name'] ?? '';
         if (!isset($services[$service])) continue;
         $batch = $envelope['request_type'] === 'message-batch' ? $envelope['payload'] : array($envelope);
@@ -88,4 +94,7 @@ completed=bool(true)
 drop_counts={"parent":2,"child":1}
 --CLEAN--
 <?php
-@unlink(__DIR__ . '/ffe-rejection-fork.out');
+foreach (glob(__DIR__ . '/tmp/ffe-rejection-fork/telemetry-*') as $file) {
+    @unlink($file);
+}
+@rmdir(__DIR__ . '/tmp/ffe-rejection-fork');

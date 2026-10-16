@@ -16,7 +16,10 @@ foreach (array('false', 'true') as $sidecarTraceSender) {
         $blocked = $released = false;
         $counts = array();
         try {
-            $deadline = microtime(true) + 15;
+            // Valgrind also instruments the child, including startup and
+            // shutdown. Keep the HTTP barrier below unchanged; only allow
+            // more time for the instrumented process to finish.
+            $deadline = microtime(true) + (getenv('USE_ZEND_ALLOC') === '0' ? 60 : 15);
             do {
                 $stdout .= ffeTestProcessRead($pipes[1]);
                 $stderr .= ffeTestProcessRead($pipes[2]);

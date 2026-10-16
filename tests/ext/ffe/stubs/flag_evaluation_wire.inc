@@ -158,14 +158,25 @@ try {
     var_dump($rows['consented-canary']['targeting_key'] === 'ffe-consented-pii-canary@example.test'
         && $rows['consented-canary']['context']['evaluation']['email'] === 'ffe-consented-context-canary@example.test'
         && $rows['consented-canary']['error']['message'] === 'GENERAL');
-    $diagnostics = file_get_contents($diagnosticLog) . $stderr;
-    echo 'diagnostics_exercised='; var_dump(strpos($diagnostics, 'FfeFlagEvaluationEvent') !== false);
-    echo 'diagnostics_pii_absent=';
-    var_dump(strpos($diagnostics, 'ffe-protected-pii-canary@example.test') === false
-        && strpos($diagnostics, 'ffe-context-pii-canary@example.test') === false
-        && strpos($diagnostics, 'ffe-consented-pii-canary@example.test') === false
-        && strpos($diagnostics, 'ffe-consented-context-canary@example.test') === false
-        && strpos($diagnostics, 'ffe-error-pii-canary@example.test') === false);
+    // TRACE logs can be large in CI. Inspect every byte without loading the
+    // entire log (and a second concatenated copy) into the PHP process.
+    $diagnostics = fopen($diagnosticLog, 'r');
+    if ($diagnostics === false) throw new RuntimeException('cannot open diagnostic log');
+    try {
+        echo 'diagnostics_exercised=';
+        var_dump(ffeTestStreamContains($diagnostics, 'FfeFlagEvaluationEvent')
+            || strpos($stderr, 'FfeFlagEvaluationEvent') !== false);
+        $piiAbsent = true;
+        foreach (array('ffe-protected-pii-canary@example.test', 'ffe-context-pii-canary@example.test',
+            'ffe-consented-pii-canary@example.test', 'ffe-consented-context-canary@example.test',
+            'ffe-error-pii-canary@example.test') as $canary) {
+            $piiAbsent = $piiAbsent && !ffeTestStreamContains($diagnostics, $canary)
+                && strpos($stderr, $canary) === false;
+        }
+        echo 'diagnostics_pii_absent='; var_dump($piiAbsent);
+    } finally {
+        fclose($diagnostics);
+    }
 } finally {
     if ($exitedAt === null) proc_terminate($process);
     fclose($pipes[1]);

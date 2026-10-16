@@ -58,7 +58,8 @@ $stdout = $stderr = '';
 $exitCode = $exitedAt = null;
 $counts = array();
 try {
-    $deadline = microtime(true) + 15;
+    // Include instrumented child startup/shutdown, not just the HTTP flush.
+    $deadline = microtime(true) + (getenv('USE_ZEND_ALLOC') === '0' ? 60 : 15);
     do {
         $stdout .= ffeTestProcessRead($pipes[1]);
         $stderr .= ffeTestProcessRead($pipes[2]);
