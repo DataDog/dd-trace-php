@@ -477,6 +477,8 @@ void zai_uhook_attributes_mshutdown(void) {
     zend_string_release(dd_hook_attribute_lcname);
     if (dd_uhook_preloaded_functions) {
         pefree(dd_uhook_preloaded_functions, 1);
+        dd_uhook_preloaded_functions = NULL;
+        dd_uhook_preloaded_count = 0;
     }
 }
 
