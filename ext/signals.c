@@ -71,7 +71,7 @@ static void dd_sigsegv_handler(int sig) {
         DATADOG_G(backtrace_handler_already_run) = true;
         datadog_signal_safe_logf("[crash] Segmentation fault encountered");
 
-#if HAVE_SIGACTION && defined(DDTRACE)
+#if HAVE_SIGACTION && defined(TRACER)
         bool health_metrics_enabled = get_DD_TRACE_HEALTH_METRICS_ENABLED();
         if (health_metrics_enabled) {
             // TODO: emit in sidecar
@@ -491,31 +491,3 @@ void datadog_signals_mshutdown(void) {
 void datadog_signals_first_rinit(void) {}
 void datadog_signals_mshutdown(void) {}
 #endif
-
-// This allows us to include the executing php binary and extensions themselves in the core dump too
-void datadog_set_coredumpfilter(void) {
-    FILE *fp = fopen("/proc/self/coredump_filter", "r+");
-    if (!fp) {
-        return;
-    }
-
-    // reading from that file returns a hex number, but to write it, it needs to be prefixed 0x, otherwise it's interpreted as octal
-    char buf[10];
-    if (fread(buf + 2, 8, 1, fp) != 8) {
-        fclose(fp);
-        return;
-    }
-
-    buf[0] = '0';
-    buf[1] = 'x';
-    // From core(5) man page:
-    // bit 0  Dump anonymous private mappings.
-    // bit 1  Dump anonymous shared mappings.
-    // bit 2  Dump file-backed private mappings.
-    // bit 3  Dump file-backed shared mappings.
-    buf[9] = 'f';
-
-    fseek(fp, 0, SEEK_SET);
-    fwrite(buf, 10, 1, fp);
-    fclose(fp);
-}

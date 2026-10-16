@@ -17,7 +17,6 @@
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
 // These globals are set by the SSI loader
-DATADOG_PUBLIC bool datadog_loaded_by_ssi = false;
 DATADOG_PUBLIC bool datadog_ssi_forced_injection_enabled = false;
 
 static void dd_commit_metrics(void);
@@ -46,7 +45,7 @@ void datadog_telemetry_rshutdown(void) {
 
 // Register in the sidecar services not bound to the request lifetime
 void datadog_telemetry_register_services(ddog_SidecarTransport **sidecar) {
-#ifdef DDTRACE
+#ifdef TRACER
     ddtrace_telemetry_register_services(sidecar);
 #endif
 }
@@ -71,7 +70,7 @@ void datadog_telemetry_finalize() {
 
     ddog_SidecarActionsBuffer *buffer = datadog_telemetry_buffer();
 
-#ifdef DDTRACE
+#ifdef TRACER
     // Must be called before clearing telemetry_buffer so ddtrace_telemetry_finalize
     // uses the same buffer (via datadog_telemetry_buffer()) that we'll flush below.
     ddtrace_telemetry_finalize();

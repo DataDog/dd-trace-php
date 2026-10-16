@@ -12,9 +12,6 @@ assertNotContains($output, 'ddappsec');
 $output = runCLI('-v', true);
 assertContains($output, 'with ddtrace v');
 assertContains($output, 'with dd_library_loader v');
-if ('7.0' !== php_minor_version()) {
-    assertContains($output, 'with datadog-profiling v');
-}
 assertContains($output, 'with ddappsec v');
 
 $output = runCLI('-m', false);
@@ -26,7 +23,4 @@ assertNotContains($output, 'ddappsec');
 $output = runCLI('-m', true);
 assertContains($output, 'ddtrace');
 assertContains($output, 'dd_library_loader');
-if ('7.0' !== php_minor_version()) {
-    assertContains($output, 'datadog-profiling');
-}
 assertContains($output, 'ddappsec');

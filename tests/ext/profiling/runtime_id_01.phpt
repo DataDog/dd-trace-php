@@ -4,8 +4,8 @@ runtime-id exists in meta when profiling is enabled
 DD_PROFILING_ENABLED=true
 --SKIPIF--
 <?php
-if (!extension_loaded('datadog-profiling'))
-    echo("skip: requires profiling");
+if (ini_get('datadog.profiling.enabled') === false)
+    echo("skip: requires profiling support");
 ?>
 --FILE--
 <?php

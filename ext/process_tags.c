@@ -40,7 +40,9 @@ typedef struct {
     zend_string *serialized;
     _Atomic(zend_string *) base_hash;
     _Atomic(zend_string *) container_tags_hash;
+#ifdef SIDECAR
     ddog_Vec_Tag vec;
+#endif
 } process_tags_t;
 
 static process_tags_t process_tags = {0};
@@ -60,9 +62,11 @@ static void clear_process_tags(void) {
         zend_string_release(process_tags.serialized);
     }
 
+#ifdef SIDECAR
     if (process_tags.vec.ptr) {
         ddog_Vec_Tag_drop(process_tags.vec);
     }
+#endif
 
     if (process_tags.base_hash) {
         zend_string_release(process_tags.base_hash);
@@ -264,6 +268,7 @@ static void serialize_process_tags(void) {
 
     smart_str_free(&buf);
 
+#ifdef SIDECAR
     process_tags.vec = ddog_Vec_Tag_new();
     for (size_t i = 0; i < process_tags.count; i++) {
         const char* key = process_tags.tag_list[i].key;
@@ -274,6 +279,7 @@ static void serialize_process_tags(void) {
             (ddog_CharSlice) {.ptr = value, .len = strlen(value)}
         ));
     }
+#endif
 
     recompute_base_hash();
 }
@@ -308,6 +314,7 @@ zend_string *datadog_process_tags_get_serialized(void) {
     return (datadog_process_tags_enabled() && process_tags.serialized) ? process_tags.serialized : ZSTR_EMPTY_ALLOC();
 }
 
+#ifdef SIDECAR
 const ddog_Vec_Tag *datadog_process_tags_get_vec(void) {
     if (datadog_process_tags_enabled() && process_tags.vec.ptr) {
         return &process_tags.vec;
@@ -319,6 +326,7 @@ const ddog_Vec_Tag *datadog_process_tags_get_vec(void) {
     }
     return &empty_vec;
 }
+#endif
 
 zend_string *datadog_process_tags_get_base_hash(void) {
     return (datadog_process_tags_enabled() && process_tags.base_hash) ? process_tags.base_hash : NULL;

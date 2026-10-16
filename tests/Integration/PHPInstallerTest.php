@@ -58,6 +58,42 @@ final class PHPInstallerTest extends BaseTestCase
         $this->assertFalse(\is_truthy('dIsAbLeD'));
     }
 
+    /**
+     * @dataProvider legacyProfilingConfigurations
+     */
+    public function testLegacyProfilingNeedsEnabling($contents, $expected)
+    {
+        $this->assertSame($expected, \legacy_profiler_needs_enabling($contents));
+    }
+
+    public function legacyProfilingConfigurations()
+    {
+        return [
+            'active extension, commented default' => [
+                "extension = datadog-profiling.so\n;datadog.profiling.enabled = 1\n", true,
+            ],
+            'active zend extension' => [
+                "zend_extension = /opt/datadog/datadog-profiling.so\n", true,
+            ],
+            'quoted Windows extension' => [
+                'extension = "C:\\Datadog\\php_datadog-profiling.dll"', true,
+            ],
+            'commented extension' => [";extension = datadog-profiling.so\n", false],
+            'commented extension after a newline' => ["\n ; extension = datadog-profiling.so\n", false],
+            'profiler mentioned only in a comment' => [
+                "extension = ddtrace.so ; replaces datadog-profiling.so\n", false,
+            ],
+            'explicitly disabled' => [
+                "extension = datadog-profiling.so\ndatadog.profiling.enabled = Off\n", false,
+            ],
+            'explicitly enabled' => [
+                "extension = datadog-profiling.so\ndatadog.profiling.enabled = On\n", false,
+            ],
+            'already combined' => ["extension = ddtrace.so\n", false],
+            'empty configuration' => ['', false],
+        ];
+    }
+
     public function testBuildCommandNamesMatrix()
     {
         $names = \build_known_command_names_matrix();
