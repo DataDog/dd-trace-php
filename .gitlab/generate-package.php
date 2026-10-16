@@ -1164,7 +1164,7 @@ endforeach;
     - apk add --no-cache ca-certificates || exit 75 # see https://support.circleci.com/hc/en-us/articles/360016505753-Resolve-Certificate-Signed-By-Unknown-Authority-error-in-Alpine-images?flash_digest=39b76521a337cecacac0cc10cb28f3747bb5fc6a
     - apk add curl ${INSTALL_PACKAGES:-} || exit 75
 
-"verify centos":
+.verify_centos:
   extends: .verify_job
   variables:
     IMAGE: centos:7
@@ -1180,14 +1180,6 @@ endforeach;
           - 81
           - 82
           - 83
-        INSTALL_TYPE: *verify_install_types
-  needs:
-    - job: "package extension (installers): [amd64, x86_64-unknown-linux-gnu]"
-      artifacts: true
-    - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
-      artifacts: true
-    - job: datadog-setup.php
-      artifacts: true
   before_script:
 <?php dockerhub_login() ?>
     - mkdir build
@@ -1211,25 +1203,36 @@ endforeach;
         fi
       done
 
-"verify debian":
+# Split by INSTALL_TYPE so each half downloads only the package it installs.
+"verify centos: native_package":
+  extends: .verify_centos
+  variables:
+    INSTALL_TYPE: native_package
+  needs:
+    - job: "package extension (installers): [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+
+"verify centos: php_installer":
+  extends: .verify_centos
+  variables:
+    INSTALL_TYPE: php_installer
+  needs:
+    - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+    - job: datadog-setup.php
+      artifacts: true
+
+.verify_debian:
   extends: .verify_job
   variables:
     INSTALL_MODE: sury
   parallel:
     matrix:
       - PHP_VERSION: <?= json_encode($all_minor_major_targets), "\n" ?>
-        INSTALL_TYPE: *verify_install_types
         IMAGE:
           - "debian:bullseye-slim"
           - "debian:bookworm-slim"
           - "debian:trixie-slim"
-  needs: &verify_debian_needs
-    - job: "package extension (installers): [amd64, x86_64-unknown-linux-gnu]"
-      artifacts: true
-    - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
-      artifacts: true
-    - job: datadog-setup.php
-      artifacts: true
   before_script: &verify_debian_before_script
 <?php dockerhub_login() ?>
     - mkdir build
@@ -1257,6 +1260,25 @@ endforeach;
       fi
     - apt-get install -y curl || exit 75
 
+# Split by INSTALL_TYPE so each half downloads only the package it installs.
+"verify debian: native_package":
+  extends: .verify_debian
+  variables:
+    INSTALL_TYPE: native_package
+  needs: &verify_debian_native_needs
+    - job: "package extension (installers): [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+
+"verify debian: php_installer":
+  extends: .verify_debian
+  variables:
+    INSTALL_TYPE: php_installer
+  needs:
+    - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+    - job: datadog-setup.php
+      artifacts: true
+
 # Thread-mode sidecar under a privilege-dropping PHP-FPM: root master, www-data pool workers.
 # One combination only - this verifies runtime behaviour of the sidecar's privilege drop, not
 # packaging, so it does not need the install-type/image matrix the other verify jobs carry.
@@ -1269,7 +1291,7 @@ endforeach;
     IMAGE: "debian:bookworm-slim"
   script:
     - ./dockerfiles/verify_packages/verify_fpm_thread_sidecar_uid.sh
-  needs: *verify_debian_needs
+  needs: *verify_debian_native_needs
   before_script: *verify_debian_before_script
 
 <?php foreach ([["8.1", "arm64", "aarch64"], ["7.0", "amd64", "x86_64"]] as [$major_minor, $arch, $pkgprefix]): ?>
