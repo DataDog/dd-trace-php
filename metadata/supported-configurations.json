@@ -364,7 +364,7 @@
     ],
     "DD_ENTITY_ID": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "string",
         "default": ""
       }
