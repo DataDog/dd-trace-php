@@ -697,6 +697,8 @@ static zend_observer_fcall_handlers zai_interceptor_observer_fcall_init(zend_exe
     }
 #endif
 
+    zai_hook_resolve_preloaded(func);
+
     if (UNEXPECTED(zai_interceptor_shall_install_handlers(func))) {
         return zai_interceptor_determine_handlers(func);
     }

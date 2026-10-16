@@ -416,7 +416,8 @@ void dd_uhook_on_function_resolve(zend_function *func) {
             } else if (zend_string_equals_literal(name, "tags") && Z_TYPE(value) == IS_ARRAY) {
                 if (!def->tags) {
                     def->tags = Z_ARR(value);
-                    GC_ADDREF(def->tags);
+                    // tags may be an immutable array in opcache's shared memory, e.g. a preloaded class constant
+                    GC_TRY_ADDREF(def->tags);
                 }
             }
 
