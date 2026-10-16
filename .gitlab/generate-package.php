@@ -1774,8 +1774,12 @@ foreach ($arch_targets as $arch) {
 # Runs on every non-default branch so system tests can be run against any (non-default) in-progress branch.
 "publish docker image for system tests (token)":
   stage: release
-  # Token generation needs no artifacts from earlier stages.
-  dependencies: []
+  # Mint the token as soon as the bundles the next job publishes exist, without waiting for earlier stages; no downloads.
+  needs:
+    - job: "package extension (bundles): [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: false
+    - job: "package extension (bundles): [arm64, aarch64-unknown-linux-gnu]"
+      artifacts: false
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
   tags: [ "arch:amd64" ]
   id_tokens:
@@ -1784,7 +1788,7 @@ foreach ($arch_targets as $arch) {
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       when: never
-    - when: always
+    - when: on_success
   allow_failure: true
   variables:
     GIT_STRATEGY: none
@@ -1805,7 +1809,7 @@ foreach ($arch_targets as $arch) {
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       when: never
-    - when: always
+    - when: on_success
   needs:
     - job: "publish docker image for system tests (token)"
       artifacts: true
