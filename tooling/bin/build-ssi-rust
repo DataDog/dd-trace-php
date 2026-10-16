@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Build common and, on supported PHP versions, its paired PHP-ABI archive.
+set -euo pipefail
+[[ $# -ge 1 && $# -le 2 ]] || {
+    echo 'usage: build-ssi-rust /absolute/libdatadog_php.so [/absolute/php-abi.a]' >&2
+    exit 1
+}
+root=$(cd "$(dirname "$0")/../.." && pwd)
+cd "$root"
+common=$1
+archive=${2:-}
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$root/tmp/ssi-rust-target}"
+[[ "$common" == /* && ( -z "$archive" || "$archive" == /* ) && "$CARGO_TARGET_DIR" == /* ]] || {
+    echo 'SSI output and Cargo target paths must be absolute' >&2
+    exit 1
+}
+if [[ -n ${SSI_COMMON_REFERENCE:-} ]]; then
+    [[ -s "$SSI_COMMON_REFERENCE" && ! "$common" -ef "$SSI_COMMON_REFERENCE" ]] || {
+        echo 'SSI_COMMON_REFERENCE must be an existing, separate reference DSO' >&2
+        exit 1
+    }
+fi
+export CARGO_FEATURES='--no-default-features -p datadog-php-common --features datadog-php-common/tracer-runtime,datadog-php-common/profiling-runtime,datadog-php-common/profiling-dependencies'
+if [[ -n "$archive" ]]; then
+    : "${PHP_VERSION:?The release image must supply PHP_VERSION}"
+    [[ "$(php -n -r 'echo PHP_MAJOR_VERSION, ".", PHP_MINOR_VERSION;')" == "$PHP_VERSION" &&
+       "$(php -n -r 'echo (int) (PHP_VERSION_ID >= 70100 && !PHP_DEBUG);')" == 1 ]] || {
+        echo 'the SSI PHP-ABI archive requires a matching non-debug PHP >= 7.1' >&2
+        exit 1
+    }
+    export DDTRACE_PHP_INCLUDES="$(php-config --includes)"
+    CARGO_FEATURES+=' -p datadog-php --features datadog-php/profiling-embedded'
+fi
+export SHARED=1 PROFILE=tracer-release host_os="${HOST_OS:-linux-gnu}"
+./compile_rust.sh --locked --quiet ${DDTRACE_PROFILING_CARGO_BUILD_FLAGS:-} \
+    ${DDTRACE_PROFILING_TARGET:+--target "$DDTRACE_PROFILING_TARGET"}
+libdir="$CARGO_TARGET_DIR${DDTRACE_PROFILING_TARGET:+/$DDTRACE_PROFILING_TARGET}/tracer-release"
+mkdir -p "$(dirname "$common")"
+cp "$libdir/libdatadog_php_common.so" "$common"
+objcopy --compress-debug-sections "$common"
+if [[ -n ${SSI_COMMON_REFERENCE:-} ]]; then
+    # Compare the complete DSO, including debug information and embedded helpers.
+    # A mismatch must not be hidden by shipping the independently built reference.
+    cmp "$SSI_COMMON_REFERENCE" "$common" || {
+        echo "SSI common differs from $SSI_COMMON_REFERENCE (retained $common)" >&2
+        sha256sum "$SSI_COMMON_REFERENCE" "$common" >&2
+        exit 1
+    }
+fi
+if [[ -n "$archive" ]]; then
+    mkdir -p "$(dirname "$archive")"
+    cp "$libdir/libdatadog_php.a" "$archive"
+fi
+echo "SSI common library: $common"
