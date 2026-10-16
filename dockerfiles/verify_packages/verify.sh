@@ -9,7 +9,7 @@ wait_for_trace() {
     attempt=1
     while [ "$attempt" -le 10 ]; do
         sleep 1
-        TRACE_REPLAY=$(curl -s -L request-replayer/replay)
+        TRACE_REPLAY=$(curl -fsSL --retry 5 --retry-delay 2 request-replayer/replay || true)
         if [ "${TRACE_REPLAY#*trace_id}" != "$TRACE_REPLAY" ]; then
             return 0
         fi
@@ -37,7 +37,7 @@ echo "<?php echo 'hi'; ?>" > /var/www/html/index.php
 echo "##########################################################################"
 echo "CLI verification"
 
-curl -s -L request-replayer/clear-dumped-data
+curl -fsSL --retry 5 --retry-delay 2 request-replayer/clear-dumped-data
 
 # We attempt in this order the following binary names:
 #    1. php
@@ -74,10 +74,10 @@ echo "##########################################################################
 echo "##########################################################################"
 echo "PHP-FPM/NGINX verification"
 
-curl -s -L request-replayer/clear-dumped-data
+curl -fsSL --retry 5 --retry-delay 2 request-replayer/clear-dumped-data
 
 # Request output
-NGINX_OUTPUT=$(curl -s -L localhost:8080)
+NGINX_OUTPUT=$(curl -fsSL --retry 5 --retry-delay 2 localhost:8080)
 if [ "${NGINX_OUTPUT}" != "hi" ]; then
     echo "Error: expected request output is 'hi'. Actual:\n${NGINX_OUTPUT}"
     exit 1
@@ -102,10 +102,10 @@ echo "##########################################################################
 echo "APACHE verification"
 
 if [ "${VERIFY_APACHE:-yes}" != "no" ]; then
-    curl -s -L request-replayer/clear-dumped-data
+    curl -fsSL --retry 5 --retry-delay 2 request-replayer/clear-dumped-data
 
     # Request output
-    APACHE_OUTPUT=$(curl -s -L localhost:8081/index.php)
+    APACHE_OUTPUT=$(curl -fsSL --retry 5 --retry-delay 2 localhost:8081/index.php)
     if [ "${APACHE_OUTPUT}" != "hi" ]; then
         echo "Error: expected request output is 'hi'. Actual:\n${APACHE_OUTPUT}"
         exit 1

@@ -106,7 +106,7 @@ final class RoadrunnerServer implements Sapi
             . "roadrunner-$version-linux-$target.tar.gz";
         $binary = __DIR__ . "/rr-$version-$target";
 
-        exec("curl -L " . escapeshellarg($url)
+        exec("curl -fL --retry 5 --retry-delay 2 " . escapeshellarg($url)
             . " | tar xz -O -f - roadrunner-$version-linux-$target/rr > " . escapeshellarg($binary)
             . "; chmod +x " . escapeshellarg($binary));
     }

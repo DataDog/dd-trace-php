@@ -4,6 +4,7 @@ Always-loaded shared config (imported into context):
 
 @.claude/general.md
 @.claude/project/index.md
+@AGENTS.md
 
 On-demand reference (read when reproducing CI jobs), not auto-loaded:
 [.claude/ci/index.md](.claude/ci/index.md).

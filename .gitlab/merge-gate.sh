@@ -10,26 +10,28 @@ set -uo pipefail
 _vault_jwt() {
   local audience="$1"
   if [ -n "${VAULT_ADDR:-}" ]; then
-    curl -sf -H "X-Vault-Request: true" \
+    curl -sf --retry 5 --retry-delay 2 --retry-connrefused -H "X-Vault-Request: true" \
       "${VAULT_ADDR}/v1/identity/oidc/token/${audience}" | jq -r '.data.token' 2>/dev/null && return 0
   fi
   if [ -n "${DD_DATACENTER:-}" ]; then
-    curl -sf -H "X-Vault-Request: true" \
+    curl -sf --retry 5 --retry-delay 2 --retry-connrefused -H "X-Vault-Request: true" \
       "https://vault.${DD_DATACENTER}/v1/identity/oidc/token/${audience}" | jq -r '.data.token' 2>/dev/null && return 0
   fi
   return 1
 }
 BTI_JWT=$(_vault_jwt sdm) || { echo "ERROR: could not obtain a BTI JWT" >&2; exit 1; }
-GITLAB_TOKEN=$(curl -sf -H "Authorization: Bearer ${BTI_JWT}" \
+GITLAB_TOKEN=$(curl -sf --retry 5 --retry-delay 2 --retry-connrefused -H "Authorization: Bearer ${BTI_JWT}" \
   "https://bti-ci-api.us1.ddbuild.io/internal/ci/gitlab/token?owner=DataDog&repository=dd-trace-php" \
-  | jq -r '.token')
+  | jq -er '.token') || { echo "ERROR: could not obtain a GitLab token" >&2; exit 1; }
 GITLAB_API="https://gitlab.ddbuild.io/api/v4"
 AUTH="PRIVATE-TOKEN: ${GITLAB_TOKEN}"
 
 # Pipelines to inspect: this parent pipeline + every triggered child.
 pipelines=("${CI_PIPELINE_ID}")
-bridges=$(curl -sf -H "${AUTH}" \
-  "${GITLAB_API}/projects/${CI_PROJECT_ID}/pipelines/${CI_PIPELINE_ID}/bridges?per_page=100" || echo "[]")
+# API errors fail the gate: treating them as "no failed jobs" would let a broken pipeline through.
+bridges=$(curl -sf --retry 5 --retry-delay 2 --retry-connrefused -H "${AUTH}" \
+  "${GITLAB_API}/projects/${CI_PROJECT_ID}/pipelines/${CI_PIPELINE_ID}/bridges?per_page=100") \
+  || { echo "ERROR: could not list child pipelines" >&2; exit 1; }
 while read -r child; do
   [ -n "${child}" ] && pipelines+=("${child}")
 done < <(echo "${bridges}" | jq -r '.[] | select(.downstream_pipeline != null) | .downstream_pipeline.id')
@@ -40,8 +42,9 @@ done < <(echo "${bridges}" | jq -r '.[] | select(.downstream_pipeline != null) |
 : > allowed_failures.txt
 for pid in "${pipelines[@]}"; do
   for page in 1 2 3 4 5; do
-    data=$(curl -g -sf -H "${AUTH}" \
-      "${GITLAB_API}/projects/${CI_PROJECT_ID}/pipelines/${pid}/jobs?scope[]=failed&per_page=100&page=${page}" || echo "[]")
+    data=$(curl -g -sf --retry 5 --retry-delay 2 --retry-connrefused -H "${AUTH}" \
+      "${GITLAB_API}/projects/${CI_PROJECT_ID}/pipelines/${pid}/jobs?scope[]=failed&per_page=100&page=${page}") \
+      || { echo "ERROR: could not list failed jobs of pipeline ${pid}" >&2; exit 1; }
     echo "${data}" | jq -r '.[] | select(.status == "failed" and .allow_failure != true) | .name' >> failed_jobs.txt
     echo "${data}" | jq -r '.[] | select(.status == "failed" and .allow_failure == true) | .name' >> allowed_failures.txt
     [ "$(echo "${data}" | jq 'length')" -lt 100 ] && break

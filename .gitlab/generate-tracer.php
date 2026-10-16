@@ -221,7 +221,7 @@ windows_test_c_job("windows test_c: zts", "zts", [
     - unset DD_SERVICE DD_ENV DD_TAGS DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED DD_AGENT_HOST DD_TRACE_AGENT_PORT DD_DOGSTATSD_PORT
     - brew install pkg-config openssl re2c bison libxml2 oniguruma libzip libsodium php
     - mkdir -p /tmp/php-build "${CI_PROJECT_DIR}/artifacts/tests"
-    - curl -fL "https://github.com/php/php-src/archive/refs/tags/php-${PHP_MACOS_VERSION}.tar.gz" | tar xz -C /tmp/php-build
+    - curl -fL --retry 5 --retry-delay 2 --retry-connrefused "https://github.com/php/php-src/archive/refs/tags/php-${PHP_MACOS_VERSION}.tar.gz" | tar xz -C /tmp/php-build
     - cd "/tmp/php-build/php-src-php-${PHP_MACOS_VERSION}"
     - ./buildconf --force
     - |
