@@ -4,6 +4,7 @@
 #include "span.h"
 #include <components-rs/common.h>
 #include <components-rs/sidecar.h>
+#include <components/log/log.h>
 #include <ext/configuration.h>
 #include <ext/datadog.h>
 #include <ext/ffi_utils.h>
@@ -180,10 +181,12 @@ void ddtrace_ffe_record_exposure(
     bool has_serial_id
 ) {
     if (ZSTR_LEN(flag_key) == 0 || ZSTR_LEN(variant) == 0) {
+        LOG(DEBUG, "Feature Flags: exposure suppressed; missing flag key or variant");
         return;
     }
 
     if (DDTRACE_G(ffe_exposure_buffer_len) >= DD_FFE_EXPOSURE_BUFFER_LIMIT) {
+        LOG(DEBUG, "Feature Flags: exposure dropped; buffer limit reached (%d)", DD_FFE_EXPOSURE_BUFFER_LIMIT);
         return;
     }
 
@@ -211,6 +214,7 @@ void ddtrace_ffe_record_exposure(
     exposure->variant = zend_string_copy(variant);
     exposure->serial_id = serial_id;
     exposure->has_serial_id = has_serial_id;
+    LOG(DEBUG, "Feature Flags: exposure queued (buffered=%zu)", DDTRACE_G(ffe_exposure_buffer_len));
 }
 
 bool ddtrace_ffe_flush_exposures(void) {
@@ -222,6 +226,7 @@ bool ddtrace_ffe_flush_exposures(void) {
     }
 
     if (!DATADOG_G(sidecar) || !DATADOG_G(request_initialized)) {
+        LOG(DEBUG, "Feature Flags: dropping %zu exposure(s); sidecar or request is not initialized", exposure_count);
         dd_ffe_clear_exposures();
         return false;
     }
@@ -250,12 +255,17 @@ bool ddtrace_ffe_flush_exposures(void) {
         .len = exposure_count,
     };
 
+    LOG(DEBUG, "Feature Flags: flushing %zu exposure(s) to sidecar", exposure_count);
     bool flushed = datadog_ffi_try(
         "Failed sending FFE exposure batch to sidecar",
         ddog_sidecar_send_ffe_exposure_batch(
             &DATADOG_G(sidecar),
             &context,
             exposure_slice));
+
+    // A successful IPC handoff is not confirmation of delivery to intake.
+    LOG(DEBUG, "Feature Flags: exposure flush %s (%zu exposure(s))",
+        flushed ? "handed off to sidecar" : "failed; batch dropped", exposure_count);
 
     efree(ffi_exposures);
     dd_ffe_clear_exposures();

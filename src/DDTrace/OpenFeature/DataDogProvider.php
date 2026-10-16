@@ -9,6 +9,7 @@ use DDTrace\FeatureFlags\EvaluationErrorCode;
 use DDTrace\FeatureFlags\EvaluationReason;
 use DDTrace\FeatureFlags\EvaluationType;
 use DDTrace\FeatureFlags\Internal\Evaluator;
+use DDTrace\FeatureFlags\Internal\DebugLogger;
 use DDTrace\FeatureFlags\Internal\Metric\EvaluationMetric;
 use DDTrace\FeatureFlags\Internal\Metric\EvaluationMetricRecorder;
 use DDTrace\FeatureFlags\Internal\NativeEvaluator;
@@ -34,14 +35,20 @@ final class DataDogProvider extends AbstractProvider
     private LoggerInterface $datadogLogger;
     private bool $warnedAboutRuntimeNotReady = false;
     private EvaluationMetricRecorder $metricRecorder;
+    private ?DebugLogger $debugLogger;
 
     public function __construct(?LoggerInterface $logger = null)
     {
         // Native evaluation metrics are disabled here because OpenFeature owns
         // the final provider outcome, including OF-level type mismatch mapping.
         $this->evaluator = NativeEvaluator::create(false);
-        $this->datadogLogger = new NonThrowingLogger($logger ?: GlobalLogger::get());
+        $logger = $logger ?: GlobalLogger::get();
+        $this->datadogLogger = $logger instanceof NonThrowingLogger ? $logger : new NonThrowingLogger($logger);
         $this->metricRecorder = EvaluationMetricRecorder::createDefault();
+        $this->debugLogger = DebugLogger::create($this->datadogLogger);
+        if ($this->debugLogger !== null) {
+            $this->debugLogger->initialize();
+        }
     }
 
     /**
@@ -115,6 +122,9 @@ final class DataDogProvider extends AbstractProvider
         $normalizedContext = $this->normalizeContext($context);
         $details = $this->evaluate($flagKey, $expectedType, $defaultValue, $normalizedContext);
         $this->warnIfRuntimeNotReady($details);
+        if ($this->debugLogger !== null) {
+            $this->debugLogger->evaluation($flagKey, $details);
+        }
         // The PHP OpenFeature SDK does not pass ResolutionDetails to finally
         // hooks, so PHP records metrics here after native evaluation has the
         // final provider result.

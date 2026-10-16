@@ -3,6 +3,7 @@
 namespace DDTrace\FeatureFlags;
 
 use DDTrace\FeatureFlags\Internal\NativeEvaluator;
+use DDTrace\FeatureFlags\Internal\DebugLogger;
 use DDTrace\Log\Logger as GlobalLogger;
 use DDTrace\Log\LoggerInterface;
 use DDTrace\Log\NonThrowingLogger;
@@ -13,6 +14,7 @@ final class Client
     /** @var LoggerInterface */
     private $logger;
     private $warnedAboutRuntimeNotReady = false;
+    private $debugLogger;
 
     public function __construct($logger = null)
     {
@@ -21,7 +23,12 @@ final class Client
         }
 
         $this->evaluator = NativeEvaluator::create();
-        $this->logger = new NonThrowingLogger($logger ?: GlobalLogger::get());
+        $logger = $logger ?: GlobalLogger::get();
+        $this->logger = $logger instanceof NonThrowingLogger ? $logger : new NonThrowingLogger($logger);
+        $this->debugLogger = DebugLogger::create($this->logger);
+        if ($this->debugLogger !== null) {
+            $this->debugLogger->initialize();
+        }
     }
 
     /**
@@ -118,6 +125,9 @@ final class Client
         );
 
         $this->warnIfRuntimeNotReady($details);
+        if ($this->debugLogger !== null) {
+            $this->debugLogger->evaluation($flagKey, $details);
+        }
 
         return $details;
     }

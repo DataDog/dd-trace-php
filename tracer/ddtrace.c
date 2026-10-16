@@ -698,6 +698,15 @@ bool datadog_alter_dd_trace_disabled_config(zval *old_value, zval *new_value, ze
 bool ddtrace_update_remote_config_flags(ddog_RemoteConfigFlags *flags) {
     flags->ffe_enabled = get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED();
     flags->live_debugging_enabled = get_global_DD_DYNAMIC_INSTRUMENTATION_ENABLED();
+    if (flags->ffe_enabled) {
+        if (get_global_DD_TRACE_AGENTLESS()) {
+            LOG(DEBUG, "Feature Flags: configuration subscription disabled; DD_TRACE_AGENTLESS=true at startup disables Agent Remote Configuration");
+        } else if (!get_global_DD_REMOTE_CONFIG_ENABLED()) {
+            LOG(DEBUG, "Feature Flags: configuration subscription disabled; set DD_REMOTE_CONFIG_ENABLED=true at startup");
+        } else {
+            LOG(DEBUG, "Feature Flags: enabled; starting remote_config configuration source (Agent Remote Configuration)");
+        }
+    }
     return get_global_DD_TRACE_SIDECAR_TRACE_SENDER()
         || get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()
         || get_global_DD_METRICS_OTEL_ENABLED();

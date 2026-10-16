@@ -136,6 +136,7 @@ function require_feature_flag_api($root)
         'ResultMapper',
         'UnavailableEvaluator',
         'NativeEvaluator',
+        'DebugLogger',
     ) as $classFile) {
         require_once $internalRoot . '/' . $classFile . '.php';
     }

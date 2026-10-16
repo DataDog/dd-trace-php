@@ -477,15 +477,20 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                             }
                         }
                         RemoteConfigProduct::FfeFlags => {
-                            debug!("Received FFE flags configuration");
+                            debug!("Feature Flags: remote_config configuration received");
                             if let Some(ufc) = data.downcast::<UniversalFlagConfig>() {
-                                if let Ok(ufc_owned) =
-                                    UniversalFlagConfig::from_json(ufc.to_json().to_vec())
-                                {
-                                    crate::ffe::store_config(Configuration::from_server_response(
-                                        ufc_owned,
-                                    ));
+                                match UniversalFlagConfig::from_json(ufc.to_json().to_vec()) {
+                                    Ok(ufc_owned) => {
+                                        crate::ffe::store_config(
+                                            Configuration::from_server_response(ufc_owned),
+                                        );
+                                    }
+                                    Err(_) => {
+                                        debug!("Feature Flags: remote_config configuration rejected; invalid flag configuration, retaining previous configuration");
+                                    }
                                 }
+                            } else {
+                                debug!("Feature Flags: remote_config configuration rejected; unexpected configuration type");
                             }
                         }
                         _ => {}
@@ -523,8 +528,11 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                     }
                 }
                 RemoteConfigProduct::FfeFlags => {
-                    debug!("FFE flags configuration removed");
                     crate::ffe::clear_config();
+                    debug!(
+                        "Feature Flags: remote_config configuration removed (version={})",
+                        crate::ffe::ddog_ffe_config_version()
+                    );
                 }
                 _ => (),
             },
