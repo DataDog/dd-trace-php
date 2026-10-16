@@ -46,6 +46,7 @@ if [[ -n ${SSI_COMMON_REFERENCE:-} ]]; then
         sha256sum "$SSI_COMMON_REFERENCE" "$common" >&2
         exit 1
     }
+    echo "SSI common byte-identical to canonical reference: $common == $SSI_COMMON_REFERENCE"
 fi
 if [[ -n "$archive" ]]; then
     mkdir -p "$(dirname "$archive")"
