@@ -23,42 +23,6 @@ use PHPUnit\Framework\TestCase;
 
 final class DataDogProviderTest extends TestCase
 {
-    /** @dataProvider debugLevelProvider */
-    public function testDebugLevelIsCheckedOnlyAtConstruction(bool $enabled): void
-    {
-        $logger = $this->createMock(LoggerInterface::class);
-        $logger->expects($this->once())->method('isLevelActive')->with(LogLevel::DEBUG)->willReturn($enabled);
-        if (!$enabled) {
-            $logger->expects($this->never())->method('debug');
-        }
-        $provider = $this->providerForEvaluator(new UnavailableEvaluator(), $logger);
-        for ($i = 0; $i < 3; $i++) {
-            self::assertFalse($provider->resolveBooleanValue('missing', false)->getValue());
-        }
-    }
-
-    public function debugLevelProvider(): array
-    {
-        return [[false], [true]];
-    }
-
-    public function testDebugLoggingIncludesFinalProviderOutcomes(): void
-    {
-        $evaluator = new OpenFeatureTestEvaluator();
-        $evaluator->setSuccess('flag', 'secret-value', EvaluationReason::TARGETING_MATCH, 'on');
-        $logger = new OpenFeatureRecordingLogger();
-        $client = $this->openFeatureClientFor($this->providerForEvaluator($evaluator, $logger));
-        self::assertSame('secret-value', $client->getStringValue('flag', 'secret-default'));
-        self::assertSame(42, $client->getIntegerValue('flag', 42));
-        self::assertFalse($client->getBooleanValue('missing', false));
-        self::assertCount(3, $logger->evaluations);
-        self::assertSame('TARGETING_MATCH', $logger->evaluations[0]['reason']);
-        self::assertSame('on', $logger->evaluations[0]['variant']);
-        self::assertSame('TYPE_MISMATCH', $logger->evaluations[1]['errorCode']);
-        self::assertSame('PROVIDER_NOT_READY', $logger->evaluations[2]['errorCode']);
-        self::assertStringNotContainsString('secret', json_encode($logger->evaluations));
-    }
-
     public function testProviderMetadataNamesDatadogProvider(): void
     {
         $provider = new DataDogProvider();
@@ -365,15 +329,11 @@ final class OpenFeatureTestEvaluator implements Evaluator
 
 final class OpenFeatureRecordingLogger implements LoggerInterface
 {
-    public array $evaluations = [];
     /** @var string[] */
     private array $warnings = [];
 
     public function debug($message, array $context = [])
     {
-        if ($message === 'Feature Flags: evaluated {details}') {
-            $this->evaluations[] = json_decode($context['details'], true);
-        }
     }
 
     public function warning($message, array $context = [])
@@ -405,7 +365,6 @@ final class OpenFeatureThrowingLogger implements LoggerInterface
 
     public function debug($message, array $context = [])
     {
-        throw new \ErrorException($message);
     }
 
     public function warning($message, array $context = [])

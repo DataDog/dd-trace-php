@@ -265,6 +265,7 @@ static void dd_ffe_clear_exposures(void) {
     DDTRACE_G(ffe_exposure_buffer) = NULL;
     DDTRACE_G(ffe_exposure_buffer_len) = 0;
     DDTRACE_G(ffe_exposure_buffer_cap) = 0;
+    DDTRACE_G(ffe_exposures_dropped) = 0;
 }
 
 void ddtrace_ffe_record_exposure(
@@ -277,12 +278,13 @@ void ddtrace_ffe_record_exposure(
     bool has_serial_id
 ) {
     if (ZSTR_LEN(flag_key) == 0 || ZSTR_LEN(variant) == 0) {
-        LOG(DEBUG, "Feature Flags: exposure suppressed; missing flag key or variant");
+        LOG(TRACE, "Feature Flags: exposure suppressed; missing flag key or variant");
         return;
     }
 
     if (DDTRACE_G(ffe_exposure_buffer_len) >= DD_FFE_EXPOSURE_BUFFER_LIMIT) {
-        LOG(DEBUG, "Feature Flags: exposure dropped; buffer limit reached (%d)", DD_FFE_EXPOSURE_BUFFER_LIMIT);
+        // Reported once per flush rather than per dropped exposure.
+        DDTRACE_G(ffe_exposures_dropped)++;
         return;
     }
 
@@ -310,7 +312,6 @@ void ddtrace_ffe_record_exposure(
     exposure->variant = zend_string_copy(variant);
     exposure->serial_id = serial_id;
     exposure->has_serial_id = has_serial_id;
-    LOG(DEBUG, "Feature Flags: exposure queued (buffered=%zu)", DDTRACE_G(ffe_exposure_buffer_len));
 }
 
 bool ddtrace_ffe_flush_exposures(void) {
@@ -319,6 +320,11 @@ bool ddtrace_ffe_flush_exposures(void) {
 
     if (exposure_count == 0 || !buffer) {
         return false;
+    }
+
+    if (DDTRACE_G(ffe_exposures_dropped)) {
+        LOG(DEBUG, "Feature Flags: dropped %zu exposure(s); buffer limit reached (%d)",
+            DDTRACE_G(ffe_exposures_dropped), DD_FFE_EXPOSURE_BUFFER_LIMIT);
     }
 
     if (!DATADOG_G(sidecar) || !DATADOG_G(request_initialized)) {
@@ -351,7 +357,6 @@ bool ddtrace_ffe_flush_exposures(void) {
         .len = exposure_count,
     };
 
-    LOG(DEBUG, "Feature Flags: flushing %zu exposure(s) to sidecar", exposure_count);
     bool flushed = datadog_ffi_try(
         "Failed sending FFE exposure batch to sidecar",
         ddog_sidecar_send_ffe_exposure_batch(
@@ -360,8 +365,10 @@ bool ddtrace_ffe_flush_exposures(void) {
             exposure_slice));
 
     // A successful IPC handoff is not confirmation of delivery to intake.
-    LOG(DEBUG, "Feature Flags: exposure flush %s (%zu exposure(s))",
-        flushed ? "handed off to sidecar" : "failed; batch dropped", exposure_count);
+    // datadog_ffi_try already logs failures.
+    if (flushed) {
+        LOG(TRACE, "Feature Flags: handed off %zu exposure(s) to sidecar", exposure_count);
+    }
 
     efree(ffi_exposures);
     dd_ffe_clear_exposures();

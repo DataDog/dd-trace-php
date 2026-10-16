@@ -2,7 +2,7 @@
 FFE debug logs describe configuration and exposure outcomes without customer data
 --INI--
 datadog.trace.log_file={PWD}/debug_logging.log
-datadog.trace.log_level=debug
+datadog.trace.log_level="debug,ddtrace=trace"
 datadog.trace.generate_root_span=0
 datadog.experimental_flagging_provider_enabled=1
 --FILE--
@@ -42,11 +42,10 @@ foreach (array(
     'Feature Flags: enabled; starting remote_config configuration source',
     'Feature Flags: configuration applied successfully (1 flag(s), env="test", version=',
     'Feature Flags: configuration rejected; invalid flag configuration, retaining previous configuration',
-    'Feature Flags: exposure queued (buffered=1000)',
-    'Feature Flags: exposure dropped; buffer limit reached (1000)',
-    'Feature Flags: exposure suppressed; evaluation did not request exposure logging',
-    'Feature Flags: flushing 1000 exposure(s) to sidecar',
-    'Feature Flags: exposure flush handed off to sidecar (1000 exposure(s))',
+    'Feature Flags: evaluated {"flagKey":"flag","valueType":"string","reason":"STATIC","variant":"on","errorCode":null,"configVersion":1,"doLog":true}',
+    'Feature Flags: evaluated {"flagKey":"missing","valueType":"string","reason":"ERROR","variant":null,"errorCode":"FLAG_NOT_FOUND","configVersion":1,"doLog":false}',
+    'Feature Flags: dropped 1 exposure(s); buffer limit reached (1000)',
+    'Feature Flags: handed off 1000 exposure(s) to sidecar',
 ) as $message) {
     echo $message . ': ' . (strpos($logs, $message) !== false ? 'yes' : 'NO') . "\n";
 }
@@ -70,11 +69,10 @@ bool(false)
 Feature Flags: enabled; starting remote_config configuration source: yes
 Feature Flags: configuration applied successfully (1 flag(s), env="test", version=: yes
 Feature Flags: configuration rejected; invalid flag configuration, retaining previous configuration: yes
-Feature Flags: exposure queued (buffered=1000): yes
-Feature Flags: exposure dropped; buffer limit reached (1000): yes
-Feature Flags: exposure suppressed; evaluation did not request exposure logging: yes
-Feature Flags: flushing 1000 exposure(s) to sidecar: yes
-Feature Flags: exposure flush handed off to sidecar (1000 exposure(s)): yes
+Feature Flags: evaluated {"flagKey":"flag","valueType":"string","reason":"STATIC","variant":"on","errorCode":null,"configVersion":1,"doLog":true}: yes
+Feature Flags: evaluated {"flagKey":"missing","valueType":"string","reason":"ERROR","variant":null,"errorCode":"FLAG_NOT_FOUND","configVersion":1,"doLog":false}: yes
+Feature Flags: dropped 1 exposure(s); buffer limit reached (1000): yes
+Feature Flags: handed off 1000 exposure(s) to sidecar: yes
 bool(true)
 bool(true)
 --CLEAN--

@@ -9,7 +9,6 @@ use DDTrace\FeatureFlags\EvaluationErrorCode;
 use DDTrace\FeatureFlags\EvaluationReason;
 use DDTrace\FeatureFlags\EvaluationType;
 use DDTrace\FeatureFlags\Internal\Evaluator;
-use DDTrace\FeatureFlags\Internal\DebugLogger;
 use DDTrace\FeatureFlags\Internal\Metric\EvaluationMetric;
 use DDTrace\FeatureFlags\Internal\Metric\EvaluationMetricRecorder;
 use DDTrace\FeatureFlags\Internal\NativeEvaluator;
@@ -37,7 +36,6 @@ final class DataDogProvider extends AbstractProvider
     private EvaluationMetricRecorder $metricRecorder;
     private object $mainObservationScope;
     private \WeakMap $fiberObservationScopes;
-    private ?DebugLogger $debugLogger;
 
     public function __construct(?LoggerInterface $logger = null)
     {
@@ -53,13 +51,8 @@ final class DataDogProvider extends AbstractProvider
                 NativeEvaluator::submitFlagEvaluation($observation);
             }
         });
-        $logger = $logger ?: GlobalLogger::get();
-        $this->datadogLogger = $logger instanceof NonThrowingLogger ? $logger : new NonThrowingLogger($logger);
+        $this->datadogLogger = new NonThrowingLogger($logger ?: GlobalLogger::get());
         $this->metricRecorder = EvaluationMetricRecorder::createDefault();
-        $this->debugLogger = DebugLogger::create($this->datadogLogger);
-        if ($this->debugLogger !== null) {
-            $this->debugLogger->initialize();
-        }
     }
 
     public function getHooks(): array
@@ -170,9 +163,6 @@ final class DataDogProvider extends AbstractProvider
         $normalizedContext = $this->normalizeContext($context);
         $details = $this->evaluate($flagKey, $expectedType, $defaultValue, $normalizedContext);
         $this->warnIfRuntimeNotReady($details);
-        if ($this->debugLogger !== null) {
-            $this->debugLogger->evaluation($flagKey, $details);
-        }
         // The PHP OpenFeature SDK does not pass ResolutionDetails to finally
         // hooks, so PHP records metrics here after native evaluation has the
         // final provider result.

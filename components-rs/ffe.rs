@@ -172,6 +172,7 @@ pub extern "C" fn ddog_ffe_evaluate(
 
     let attributes = parse_attributes(attributes, attributes_count);
     let context = EvaluationContext::new(targeting_key, Arc::new(attributes));
+    let expects_object = matches!(expected_type, ExpectedFlagType::Object);
 
     FFE_STATE.with(|state| {
         let state = state.borrow();
@@ -183,13 +184,31 @@ pub extern "C" fn ddog_ffe_evaluate(
             ffe::now(),
         );
 
-        let mut result = result_from_assignment(assignment);
+        // The PHP SDK returns object flags as arrays, so reject scalar JSON
+        // before recording logs, metrics and exposures. Error observations still
+        // capture the consent setting from the same configuration.
+        let mut result = if expects_object
+            && assignment
+                .as_ref()
+                .is_ok_and(|assignment| !is_json_container(&assignment.value))
+        {
+            error_result(ERROR_TYPE_MISMATCH, REASON_ERROR)
+        } else {
+            result_from_assignment(assignment)
+        };
         result.observe_full_evaluation_data = state
             .config
             .as_ref()
             .is_some_and(Configuration::observe_full_evaluation_data);
         result
     })
+}
+
+fn is_json_container(value: &AssignmentValue) -> bool {
+    match value {
+        AssignmentValue::Json { value, .. } => value.is_object() || value.is_array(),
+        _ => false,
+    }
 }
 
 fn parse_attributes(
@@ -271,19 +290,23 @@ fn result_from_assignment(assignment: Result<ffe::Assignment, EvaluationError>) 
                 _ => (ERROR_GENERAL, REASON_ERROR),
             };
 
-            FfeResult {
-                value_json: Some("null".into()),
-                variant: None,
-                allocation_key: None,
-                reason,
-                error_code,
-                serial_id: 0,
-                has_serial_id: false,
-                do_log: false,
-                observe_full_evaluation_data: false,
-                valid: true,
-            }
+            error_result(error_code, reason)
         }
+    }
+}
+
+fn error_result(error_code: i32, reason: i32) -> FfeResult {
+    FfeResult {
+        value_json: Some("null".into()),
+        variant: None,
+        allocation_key: None,
+        reason,
+        error_code,
+        serial_id: 0,
+        has_serial_id: false,
+        do_log: false,
+        observe_full_evaluation_data: false,
+        valid: true,
     }
 }
 
@@ -455,6 +478,64 @@ mod tests {
             std::str::from_utf8(result.value_json.as_ref().unwrap().as_ref()).unwrap(),
             r#""empty-targeting-key""#
         );
+        clear_config();
+    }
+
+    fn json_flag_config(value: &str) -> CString {
+        CString::new(format!(
+            r#"{{
+                "createdAt": "2026-05-22T00:00:00.000Z",
+                "format": "SERVER",
+                "environment": {{"name": "Test"}},
+                "flags": {{
+                    "json.flag": {{
+                        "key": "json.flag",
+                        "enabled": true,
+                        "variationType": "JSON",
+                        "variations": {{"on": {{"key": "on", "value": {value}}}}},
+                        "allocations": [{{
+                            "key": "alloc",
+                            "rules": [],
+                            "splits": [{{"variationKey": "on", "shards": []}}],
+                            "doLog": true
+                        }}]
+                    }}
+                }}
+            }}"#
+        ))
+        .expect("test fixture is valid cstring")
+    }
+
+    fn evaluate_json_flag(value: &str) -> FfeResult {
+        assert!(ddog_ffe_load_config(char_slice(&json_flag_config(value))));
+        let flag_key = CString::new("json.flag").expect("test flag key is valid cstring");
+        ddog_ffe_evaluate(
+            char_slice(&flag_key),
+            TYPE_OBJECT,
+            CharSlice::from("user"),
+            std::ptr::null(),
+            0,
+        )
+    }
+
+    #[test]
+    fn scalar_json_object_flags_are_type_mismatches() {
+        setup_zend_string_functions();
+        clear_config();
+        for value in ["42", r#""text""#, "null"] {
+            let result = evaluate_json_flag(value);
+            assert!(result.valid, "{value}");
+            assert_eq!(result.reason, REASON_ERROR, "{value}");
+            assert_eq!(result.error_code, ERROR_TYPE_MISMATCH, "{value}");
+            assert!(result.variant.is_none(), "{value}");
+            assert!(!result.do_log, "{value}: no exposure for a rejected value");
+        }
+        for value in [r#"{"a": 1}"#, "[1, 2]"] {
+            let result = evaluate_json_flag(value);
+            assert_eq!(result.error_code, ERROR_NONE, "{value}");
+            assert_eq!(result.reason, REASON_STATIC, "{value}");
+            assert!(result.do_log, "{value}");
+        }
         clear_config();
     }
 
