@@ -375,6 +375,9 @@ typedef enum ddog_MetricNamespace {
   DDOG_METRIC_NAMESPACE_RUM,
   DDOG_METRIC_NAMESPACE_APPSEC,
   DDOG_METRIC_NAMESPACE_IDE_PLUGINS,
+  /**
+   * Superseded by [`MetricNamespace::Debugger`]. Kept so existing FFI discriminants stay stable.
+   */
   DDOG_METRIC_NAMESPACE_LIVE_DEBUGGER,
   DDOG_METRIC_NAMESPACE_IAST,
   DDOG_METRIC_NAMESPACE_GENERAL,
@@ -385,6 +388,7 @@ typedef enum ddog_MetricNamespace {
   DDOG_METRIC_NAMESPACE_MLOBS,
   DDOG_METRIC_NAMESPACE_DDTRACEAPI,
   DDOG_METRIC_NAMESPACE_AI_GUARD,
+  DDOG_METRIC_NAMESPACE_DEBUGGER,
 } ddog_MetricNamespace;
 
 typedef enum ddog_MetricType {

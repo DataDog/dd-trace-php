@@ -5,9 +5,9 @@ include "generate-common.php";
 $ecrLoginSnippet = <<<'EOT'
     - |
       if [ "${ARCH}" = "amd64" ]; then
-        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+        .gitlab/download-file.sh "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" "awscliv2.zip" || exit $?
       else
-        curl "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o "awscliv2.zip"
+        .gitlab/download-file.sh "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" "awscliv2.zip" || exit $?
       fi
       unzip awscliv2.zip > /dev/null
       ./aws/install
