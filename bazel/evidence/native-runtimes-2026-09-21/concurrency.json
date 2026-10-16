@@ -1,0 +1,28 @@
+[
+  {
+    "targets": [
+      "//bazel/dependencies/llvm_runtimes:x86_64_glibc_native_core"
+    ],
+    "arch": "amd64",
+    "mode": "forced",
+    "source_digest": "af795763840d502ecf2d45feb38944744bf4e60add91bd2f1a9bc34256de57eb",
+    "comparison_flags": [
+      "--repository_cache=/home/bits/.cache/dd-php-bazel-combined-downloads",
+      "--repository_contents_cache=/home/bits/.cache/dd-php-bazel-repo-contents",
+      "--distdir=/tmp/native-runtime-distdir",
+      "--lockfile_mode=update"
+    ],
+    "samples": {
+      "10": 3,
+      "25": 3,
+      "50": 3
+    },
+    "medians": {
+      "10": 47.35466852388345,
+      "25": 46.371355936164036,
+      "50": 44.75074046291411
+    },
+    "selected_jobs": 25,
+    "comparison_complete": true
+  }
+]

@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "repository": "https://dl-cdn.alpinelinux.org/alpine/v3.22/main",
+  "targets": {
+    "amd64": {
+      "apk_arch": "x86_64",
+      "packages": [
+        ["brotli-libs", "1.1.0-r2", "a693524543421b3a90f163ccb48d5ad0f5fd773b5c3b640acc461eace2cb01b6"],
+        ["c-ares", "1.34.8-r0", "1397ec9682ff6153e5d037965c76408e570ae6535ce479cc2af37436fdea52ce"],
+        ["ca-certificates-bundle", "20260611-r0", "a18fd1bd8bea03966ee5719aa61e44d9a810db2c8b6641b45f92b30e860f0927"],
+        ["curl-dev", "8.14.1-r3", "2922cd9dd20896827929d2ff6685a00f497f385346fd489ed8184ef719bccd40"],
+        ["libcrypto3", "3.5.8-r0", "1d111bc0ad6380fdda22e6513941dc2e7988d6b1621d535bed6b3fa5ef086fae"],
+        ["libcurl", "8.14.1-r3", "249e5a3a50558cdb3ce1bab1619b15d88243a628d878700c8d05878c2e71ed71"],
+        ["libidn2", "2.3.7-r0", "515cfe061176c7456ea3548651d0014084d77dd3774b78e2c944404ae75a41ff"],
+        ["libpsl", "0.21.5-r3", "1e79da4fa1364b7153b8950a363a6de0bef1d1b48d46fcb3b850cd4f233727b2"],
+        ["libssl3", "3.5.8-r0", "e8d3ea5e9750cb1f4c4b459d172630925fe6bc13c113c590ac36c78013821e62"],
+        ["libunistring", "1.3-r0", "989640e58f7646c0495c3950df36eb7b4df152d8150c2c888f8ab954fed8c908"],
+        ["nghttp2-libs", "1.69.0-r0", "d6ee515d30d703e94b55ef9c0a02aea053313f654acbd2c655d18e3907ecb66a"],
+        ["zlib", "1.3.2-r0", "1f3d5f463f490dad3a68097376711bfe5e8156e9e8daff3070513aa4378cdeca"],
+        ["zstd-libs", "1.5.7-r0", "1bdd6e57cfbfbfd6e8481cad37ddd5d199950715bec1879b3afb600272dbb09e"]
+      ]
+    },
+    "arm64": {
+      "apk_arch": "aarch64",
+      "packages": [
+        ["brotli-libs", "1.1.0-r2", "b05f9d2839bb89f28325890ffbd7d94025af6b301344ae0255f08617a6036c65"],
+        ["c-ares", "1.34.8-r0", "e293f056615fff3cf6050a423c090179daf48516317912daf1e133a1095a2f65"],
+        ["ca-certificates-bundle", "20260611-r0", "ae45c92eba28db3434058980c40930d3653663e5251cb04c9fd49a94ca00c93b"],
+        ["curl-dev", "8.14.1-r3", "642ee16d1a3561be1d432660e83599166bf87c1b57d8c2bd5d00dc1c45b66bad"],
+        ["libcrypto3", "3.5.8-r0", "094c5816644ade889f74387e8d91aad89dc9a05eda150494e3f91b80ffc15460"],
+        ["libcurl", "8.14.1-r3", "a811d6f0370383461ed4993434f84b812f29a48009332f517d8a373613797532"],
+        ["libidn2", "2.3.7-r0", "9ddc248988707da96752077d05bacbda751d46cc1f7aa1460b3a40c4fbf66a6e"],
+        ["libpsl", "0.21.5-r3", "b9f7270cb2980876f57360f38ca11093aefaf7f5eb4b777dfbc4e5738449e438"],
+        ["libssl3", "3.5.8-r0", "2b175c982f9ff9a80fc88fa587f6db0ae1c58eef4b3f7fe69e8f066be9ff1090"],
+        ["libunistring", "1.3-r0", "6b6631284b25fa28bb9e63f9d423145e96d0f7aeb55a592f5cd5d54fb39380f7"],
+        ["nghttp2-libs", "1.69.0-r0", "19db967a36f1e041e96240484d94063354f5c837e36d50daa017c2e96393a5e7"],
+        ["zlib", "1.3.2-r0", "7a39a917e4dab3c7a45537210ee5b5f17bf75f5e7777809a20cddd0afe074187"],
+        ["zstd-libs", "1.5.7-r0", "a0e92d2225941a514eb0b2325b137fe6444ef9171627aae8129b74a6ad934ac4"]
+      ]
+    }
+  }
+}

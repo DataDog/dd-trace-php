@@ -1,0 +1,12 @@
+diff --git a/src/lib.rs b/src/lib.rs
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -8,7 +8,7 @@
+ use std::ptr::null;
+ use std::slice;
+ 
+-include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
++include!(env!("LIBDDWAF_BINDINGS"));
+ 
+ #[cfg(all(
+     target_arch = "x86_64",

@@ -1,0 +1,45 @@
+{
+  "all8": [
+    {
+      "variant": "_x86_64_glibc_nts",
+      "files": 51,
+      "archive_sha256": "34f4818edd4c39e5ac1c13b30ab2d01e65ee9837ad3b1c384897e41aa2afef76"
+    },
+    {
+      "variant": "_x86_64_glibc_zts",
+      "files": 51,
+      "archive_sha256": "572ed3856fa15b019c3b5ab935548a03837ebb9cf5dca074e96b7b34133c2a89"
+    },
+    {
+      "variant": "_x86_64_musl_nts",
+      "files": 51,
+      "archive_sha256": "d28659dedd49a0e95726b2aa7a743b8855a09e68195c9c779f63c53d5bee5a90"
+    },
+    {
+      "variant": "_x86_64_musl_zts",
+      "files": 51,
+      "archive_sha256": "9b762215e2aaa48a8d65fc8f0bc7e9028fdf97c7cf65f2ed963b0b9f70c32509"
+    },
+    {
+      "variant": "_aarch64_glibc_nts",
+      "files": 51,
+      "archive_sha256": "3e3ee99a9f3561bee1f4b85e7e90ff24b372600bf8b770ec3a70c75511e6e386"
+    },
+    {
+      "variant": "_aarch64_glibc_zts",
+      "files": 51,
+      "archive_sha256": "c100ae4568ead89c22af63fdb92ed1e5767bd00108f8ba3fcf3fce90868e6e6f"
+    },
+    {
+      "variant": "_aarch64_musl_nts",
+      "files": 51,
+      "archive_sha256": "17a45d6222d76942925534dbb3e03ba826e098bb3ee6d60809d7fc033c5c9e26"
+    },
+    {
+      "variant": "_aarch64_musl_zts",
+      "files": 51,
+      "archive_sha256": "5a49bf28f87605738d0af406c5438a78bb10c7364f075701071656a9aae46c20"
+    }
+  ],
+  "independent_root_files_compared": 102
+}

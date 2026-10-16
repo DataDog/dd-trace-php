@@ -1,0 +1,216 @@
+diff --git a/rs/extensions.bzl b/rs/extensions.bzl
+index cf5ec18a2..4f57b1588 100644
+--- a/rs/extensions.bzl
++++ b/rs/extensions.bzl
+@@ -356,14 +356,21 @@ crate.annotation(
+             rustc_env = annotation.rustc_env,
+             rustc_flags = annotation.rustc_flags,
+             rustc_flags_select = annotation.rustc_flags_select,
++            exec_rustc_flags = annotation.exec_rustc_flags,
++            target_rustc_flags = annotation.target_rustc_flags,
+             data = annotation.data,
+             deps = annotation.deps,
++            exec_deps = annotation.exec_deps,
++            target_deps = annotation.target_deps,
+             crate_tags = annotation.tags,
+             deps_select = _select(feature_resolutions.deps),
+             link_deps = annotation.link_deps,
+             aliases = feature_resolutions.aliases,
+             crate_features = annotation.crate_features,
+             crate_features_select = _select(feature_resolutions.features_enabled),
++            exec_crate_features = annotation.exec_crate_features,
++            target_crate_features = annotation.target_crate_features,
++            use_exec_crate_features = annotation.use_exec_crate_features,
+             use_legacy_rules_rust_platforms = use_legacy_rules_rust_platforms,
+         )
+ 
+@@ -977,6 +984,27 @@ _ANNOTATION_COMMON_ATTRS = {
+     "repositories": attr.string_list(
+         doc = "Repository names specified by crate.from_cargo(name=...). Defaults to all repositories.",
+     ),
++    "exec_crate_features": attr.string_list(
++        doc = "The exact feature set for this crate when it is compiled in an execution configuration.",
++    ),
++    "exec_deps": attr.label_list(
++        doc = "The exact normal dependencies for this crate in an execution configuration.",
++    ),
++    "exec_rustc_flags": attr.string_list(
++        doc = "The exact rustc flags for this crate in an execution configuration.",
++    ),
++    "target_deps": attr.label_list(
++        doc = "The exact normal dependencies for this crate in a target configuration.",
++    ),
++    "target_crate_features": attr.string_list(
++        doc = "The exact feature set for this crate when it is compiled in a target configuration.",
++    ),
++    "target_rustc_flags": attr.string_list(
++        doc = "The exact rustc flags for this crate in a target configuration.",
++    ),
++    "use_exec_crate_features": attr.bool(
++        doc = "Select exact target_crate_features and exec_crate_features, including when either set is empty.",
++    ),
+ }
+ 
+ _ANNOTATION_SELECTABLE_ATTRS = {
+diff --git a/rs/private/annotations.bzl b/rs/private/annotations.bzl
+index 15f522b29..dbc93c97f 100644
+--- a/rs/private/annotations.bzl
++++ b/rs/private/annotations.bzl
+@@ -16,10 +16,17 @@ def _crate_annotation(
+         build_script_tags = [],
+         data = [],
+         deps = [],
++        exec_deps = [],
++        exec_rustc_flags = [],
++        target_deps = [],
++        target_rustc_flags = [],
+         link_deps = [],
+         tags = [],
+         crate_features = [],
+         crate_features_select = {},
++        exec_crate_features = [],
++        target_crate_features = [],
++        use_exec_crate_features = False,
+         gen_binaries = [],
+         extra_aliased_targets = {},
+         rustc_env = {},
+@@ -46,10 +53,17 @@ def _crate_annotation(
+         build_script_tags = build_script_tags,
+         data = data,
+         deps = deps,
++        exec_deps = exec_deps,
++        exec_rustc_flags = exec_rustc_flags,
++        target_deps = target_deps,
++        target_rustc_flags = target_rustc_flags,
+         link_deps = link_deps,
+         tags = tags,
+         crate_features = crate_features,
+         crate_features_select = crate_features_select,
++        exec_crate_features = exec_crate_features,
++        target_crate_features = target_crate_features,
++        use_exec_crate_features = use_exec_crate_features,
+         gen_binaries = gen_binaries,
+         extra_aliased_targets = extra_aliased_targets,
+         rustc_env = rustc_env,
+diff --git a/rs/private/repository_utils.bzl b/rs/private/repository_utils.bzl
+index a90500092..e407fbc75 100644
+--- a/rs/private/repository_utils.bzl
++++ b/rs/private/repository_utils.bzl
+@@ -6,6 +6,8 @@ load(":semver.bzl", "parse_full_version")
+ _label_list_dict = getattr(attr, "label_list_dict", attr.string_list_dict)
+ 
+ def _platform(triple, use_legacy_rules_rust_platforms):
++    if triple.startswith("@") or triple.startswith("//"):
++        return triple
+     if use_legacy_rules_rust_platforms:
+         return "@rules_rust//rust/platform:" + triple.replace("-musl", "-gnu").replace("-gnullvm", "-msvc")
+     return "@rules_rs//rs/platforms/config:" + triple
+@@ -17,7 +19,7 @@ def _format_branches(branches):
+         ",\n        ".join(['"%s": %s' % branch for branch in branches])
+     )
+ 
+-def render_select(non_platform_items, platform_items, use_legacy_rules_rust_platforms):
++def render_select(non_platform_items, platform_items, use_legacy_rules_rust_platforms, preserve_platforms = []):
+     non_platform_items = [str(item) for item in non_platform_items]
+     platform_items = {
+         platform: [str(item) for item in items]
+@@ -26,6 +28,9 @@ def render_select(non_platform_items, platform_items, use_legacy_rules_rust_plat
+     common_items, branches = compute_select(non_platform_items, platform_items)
+     common_items = list(common_items)
+ 
++    for platform in preserve_platforms:
++        branches.setdefault(platform, [])
++
+     if not branches:
+         return common_items, ""
+ 
+@@ -212,16 +217,54 @@ _RUST_CRATE_MACRO_CALL = """{indent}rust_crate(
+ def render_rust_crate_call(attr, values, bazel_metadata = {}, extra_deps = "", indent = "", skip_deps_verification = False):
+     # We keep conditional_crate_features unrendered here because it must be treated specially for build scripts.
+     # See `rs/private/rust_crate.bzl` for details.
++    crate_features_select = dict(attr.crate_features_select)
++    exec_configurations = []
++    if getattr(attr, "use_exec_crate_features", False):
++        for target_configuration in attr.crate_features_select:
++            crate_features_select[target_configuration] = getattr(attr, "target_crate_features", [])
++        exec_configurations = [
++            "@@//bazel/platforms:rust_exec_aarch64_linux_gnu",
++            "@@//bazel/platforms:rust_exec_x86_64_linux_gnu",
++        ]
++        for exec_configuration in exec_configurations:
++            crate_features_select[exec_configuration] = getattr(attr, "exec_crate_features", [])
+     crate_features, conditional_crate_features = compute_select(
+         _exclude_deps_from_features(attr.crate_features),
+-        {platform: _exclude_deps_from_features(features) for platform, features in attr.crate_features_select.items()},
++        {platform: _exclude_deps_from_features(features) for platform, features in crate_features_select.items()},
+     )
++    # Keep an explicit exec branch even when its delta is empty. GNU exec
++    # platforms also satisfy their target-triple config_setting; the more
++    # specialized exec branch must win rather than falling through to it.
++    for exec_configuration in exec_configurations:
++        conditional_crate_features.setdefault(exec_configuration, [])
+     use_legacy_rules_rust_platforms = attr.use_legacy_rules_rust_platforms
+     build_deps, conditional_build_deps = render_select(attr.build_script_deps, attr.build_script_deps_select, use_legacy_rules_rust_platforms)
+     build_script_data, conditional_build_script_data = render_select(attr.build_script_data, attr.build_script_data_select, use_legacy_rules_rust_platforms)
+     build_script_tools, conditional_build_script_tools = render_select(attr.build_script_tools, attr.build_script_tools_select, use_legacy_rules_rust_platforms)
+-    rustc_flags, conditional_rustc_flags = render_select(attr.rustc_flags, attr.rustc_flags_select, use_legacy_rules_rust_platforms)
+-    deps, conditional_deps = render_select(attr.deps + bazel_metadata.get("deps", []), attr.deps_select, use_legacy_rules_rust_platforms)
++    rustc_flags_select = dict(attr.rustc_flags_select)
++    if getattr(attr, "use_exec_crate_features", False):
++        for target_configuration in attr.crate_features_select:
++            rustc_flags_select[target_configuration] = getattr(attr, "target_rustc_flags", [])
++        for exec_configuration in exec_configurations:
++            rustc_flags_select[exec_configuration] = getattr(attr, "exec_rustc_flags", [])
++    rustc_flags, conditional_rustc_flags = render_select(
++        attr.rustc_flags,
++        rustc_flags_select,
++        use_legacy_rules_rust_platforms,
++        preserve_platforms = exec_configurations,
++    )
++    deps_select = dict(attr.deps_select)
++    if getattr(attr, "use_exec_crate_features", False):
++        for target_configuration in attr.deps_select:
++            deps_select[target_configuration] = getattr(attr, "target_deps", [])
++        for exec_configuration in exec_configurations:
++            deps_select[exec_configuration] = getattr(attr, "exec_deps", [])
++    deps, conditional_deps = render_select(
++        attr.deps + bazel_metadata.get("deps", []),
++        deps_select,
++        use_legacy_rules_rust_platforms,
++        preserve_platforms = exec_configurations,
++    )
+     build_script_env_files = getattr(attr, "build_script_env_files", []) + ["cargo_toml_env_vars.env"]
+     link_deps = getattr(attr, "link_deps", [])
+ 
+@@ -327,11 +370,18 @@ rust_crate_attrs = {
+     "crate_tags": attr.string_list(),
+     "data": attr.label_list(),
+     "deps": attr.label_list(),
++    "exec_deps": attr.label_list(),
++    "exec_rustc_flags": attr.string_list(),
+     "deps_select": _label_list_dict(),
+     "link_deps": attr.string_list(),
++    "target_deps": attr.label_list(),
++    "target_rustc_flags": attr.string_list(),
+     "aliases": attr.string_dict(),
+     "crate_features": attr.string_list(),
+     "crate_features_select": attr.string_list_dict(),
++    "exec_crate_features": attr.string_list(),
++    "target_crate_features": attr.string_list(),
++    "use_exec_crate_features": attr.bool(),
+     "use_legacy_rules_rust_platforms": attr.bool(),
+ }
+ 
+diff --git a/rs/private/rust_crate.bzl b/rs/private/rust_crate.bzl
+index be13805f5..63249b444 100644
+--- a/rs/private/rust_crate.bzl
++++ b/rs/private/rust_crate.bzl
+@@ -10,6 +10,8 @@ load("//rs:rust_library.bzl", "rust_library")
+ load("//rs:rust_proc_macro.bzl", "rust_proc_macro")
+ 
+ def _platform(triple, use_legacy_rules_rust_platforms):
++    if triple.startswith("@") or triple.startswith("//"):
++        return triple
+     if use_legacy_rules_rust_platforms:
+         return "@rules_rust//rust/platform:" + triple.replace("-musl", "-gnu").replace("-gnullvm", "-msvc")
+     return "@rules_rs//rs/platforms/config:" + triple

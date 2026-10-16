@@ -1,0 +1,13 @@
+{
+  "changed_workspace_files": [
+    ".bazelrc",
+    "bazel/dependencies/llvm_runtimes/README.md",
+    "bazel/dependencies/llvm_runtimes/generate_manifest.py",
+    "bazel/dependencies/llvm_runtimes/manifests/aarch64_glibc.bzl",
+    "bazel/dependencies/llvm_runtimes/manifests/x86_64_glibc.bzl",
+    "bazel/dependencies/llvm_runtimes/native.bzl",
+    "tools/bazel/benchmark-runtimes.py",
+    "tools/bazel/runtime-log-metrics.py"
+  ],
+  "changed_action_inputs": []
+}

@@ -1,0 +1,1232 @@
+[
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-c-edit-j50-20260921T212118.066088Z/actions.json",
+    "bytes": 99198436,
+    "sha256": "fbeffba2723bef03edf3e3334f3d42d92e8e1cfb85fa09d66bbf0c80ff82808a"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-c-edit-j50-20260921T212118.066088Z/aquery.log",
+    "bytes": 4106,
+    "sha256": "c5e0a3304b640b6763733a7ce1056ef869e63d26ea4163c56c3e84189c29cc81"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-c-edit-j50-20260921T212118.066088Z/build.log",
+    "bytes": 177436,
+    "sha256": "c871dabadef11529884f241952944f42a6440f90dbc0042dfa222743f5fb81e4"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-c-edit-j50-20260921T212118.066088Z/command.json",
+    "bytes": 1204,
+    "sha256": "ee2e9cbda59680d9f8905a2d8b49f154305c6081e5c7b9a2dd051d71848e6f16"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-c-edit-j50-20260921T212118.066088Z/events.jsonl",
+    "bytes": 490025,
+    "sha256": "ec220999746a4c4fb05680d55aeb4bf6bccbf9c9972aacd248205bcd2719cb27"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-c-edit-j50-20260921T212118.066088Z/execution.pb.zstd",
+    "bytes": 1902654,
+    "sha256": "deea6f33ffd508f0d5d398258afebd9e827e4c8ed6e9f87b1ee7c390828a9352"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-c-edit-j50-20260921T212118.066088Z/prepare.log",
+    "bytes": 4073,
+    "sha256": "d4732bab848c4f5acef35a701eaa36339e98675e06cc3fe7b614a6899a5af56b"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-c-edit-j50-20260921T212118.066088Z/profile.json.gz",
+    "bytes": 10782833,
+    "sha256": "8b7da6052d3b3054f229aff64cd7f7dac4f57cd5190e3815b5ae1a06677a2b68"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-c-edit-j50-20260921T212118.066088Z/remote-grpc.pb",
+    "bytes": 6881583,
+    "sha256": "05e463666547cea4b584c0fc9250ecdca6d1f03efce93652020b2203a6f17b97"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-c-edit-j50-20260921T212118.066088Z/result.json",
+    "bytes": 17850,
+    "sha256": "e102db4885eb170f12524789121f285ff0d7d2667fdbc0e683813acc154aa8cf"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-c-edit-j50-20260921T212118.066088Z/sources.json",
+    "bytes": 12554042,
+    "sha256": "43f3af74364f6105bc8fadfba626a367e9813b5b97390305dedc1bb1f51b7445"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-c-edit-j50-20260921T212118.066088Z/warmup.log",
+    "bytes": 31332,
+    "sha256": "015fefc490afa1ea93d847c42708ceb9e3c783a470272b20bd12792aed3988b3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-c-edit-j50-20260921T212118.066088Z/workspace.diff",
+    "bytes": 77827,
+    "sha256": "55f034839e36c6b6bdb04ef2d7edc83ffce7e28413ad60a86e46a8869dfe118f"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-cached-j50-20260921T200739.502318Z/actions.json",
+    "bytes": 99198436,
+    "sha256": "c836158dec4da8ae0cb5b6e207522f9b815afe2b15624a8844e832c77681e834"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-cached-j50-20260921T200739.502318Z/aquery.log",
+    "bytes": 4106,
+    "sha256": "88108b1a29d605068d90d8d0493b0b3358e0cd0cd8b15c150b52cec803a9e9b7"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-cached-j50-20260921T200739.502318Z/build.log",
+    "bytes": 3369509,
+    "sha256": "0ec610ee248a3e1ad7d6e51eb3f5fbd32e2db15b11cf15eb99d9c9558f413b86"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-cached-j50-20260921T200739.502318Z/command.json",
+    "bytes": 1229,
+    "sha256": "5ec07fed9310df7f10d71570dc8f7361f0e8a96121d1ab39055cad1723ee5590"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-cached-j50-20260921T200739.502318Z/events.jsonl",
+    "bytes": 3913089,
+    "sha256": "5e62bddba4fd4c6632dbc23faa468ac461c515b9acade4a51da88c8fe5de5368"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-cached-j50-20260921T200739.502318Z/execution.pb.zstd",
+    "bytes": 7308805,
+    "sha256": "3f3c4cc40e1910b9cacbab904a902bede08ca428cba9dc660d5bc2a3a796a5c3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-cached-j50-20260921T200739.502318Z/prepare.log",
+    "bytes": 6433,
+    "sha256": "2fdceb8e973431d6324c8c0aae9fac41b5362027cfc4a1cf48d97a7f1fad12a6"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-cached-j50-20260921T200739.502318Z/profile.json.gz",
+    "bytes": 49955020,
+    "sha256": "958fd9ce0ae3e5b3c14b49ec2306a7a60cc2e87c5a651eaeb398c14e5afa703a"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-cached-j50-20260921T200739.502318Z/remote-grpc.pb",
+    "bytes": 26258349,
+    "sha256": "4ede6af7dfaa43bb4d14c9d94b5c8ce8f456f5e98915f454efc4eff77a00fb41"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-cached-j50-20260921T200739.502318Z/result.json",
+    "bytes": 23833,
+    "sha256": "e2f2316a1f4a2cf9d67ec70ad61fdf81e5d659e75c475dfbe682cce55a2b105c"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-cached-j50-20260921T200739.502318Z/sources.json",
+    "bytes": 12554042,
+    "sha256": "33c780420a107744ad00d0f6a9f1082b0a16fddc8aefa4d9cb76be9b1f0456a3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-cached-j50-20260921T200739.502318Z/workspace.diff",
+    "bytes": 77529,
+    "sha256": "6e8d5ee417e1b6da578171a4bfa686e6754153f1298577d51a38b79d1229d1b3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T201453.304521Z/actions.json",
+    "bytes": 3979288,
+    "sha256": "c6a18e920ea52237b42dcd6ea0551603cfa264c391061499f617424cd2aa8e4f"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T201453.304521Z/aquery.log",
+    "bytes": 4551,
+    "sha256": "0b5754e66a01a256ef127f61769fb168d584b84c99a02558c1e9789c04fbd496"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T201453.304521Z/build.log",
+    "bytes": 19221,
+    "sha256": "1197e54f3f446636d08f69385b6e375c764a244fb68de0e14e8c940e620a43a4"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T201453.304521Z/command.json",
+    "bytes": 1243,
+    "sha256": "0e1660c4b1323bbd72f01989052f423550c75327aa490d649d0ff1ccb0cd585a"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T201453.304521Z/events.jsonl",
+    "bytes": 1087941,
+    "sha256": "94002dbc6c743428bb154a938e107196f3445e5639da1a059813d8ce647d3e09"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T201453.304521Z/execution.pb.zstd",
+    "bytes": 1034559,
+    "sha256": "861f907e6111c4acb18faad2c2b04af16ddcc3655a55d438b6fd6bc20844a374"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T201453.304521Z/prepare.log",
+    "bytes": 5107,
+    "sha256": "ccc454c2f223d92d2f9d3c0c5e6c1f06e37b175a81cd362dc205a8eefededa12"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T201453.304521Z/profile.json.gz",
+    "bytes": 5612479,
+    "sha256": "fa14c084a9414f883cfd2797c6d3ccc662f2d532d8ea079250bd1e22ef5e4132"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T201453.304521Z/remote-grpc.pb",
+    "bytes": 2076084,
+    "sha256": "ab495c4f5df24b3f446fccd4d1723b7f63acfc6e11c38154f9b6d77c380b6db1"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T201453.304521Z/result.json",
+    "bytes": 21674,
+    "sha256": "7b63dabc42bcab16a20db2a0f09cea88f4e5705ab9d27d5fd5fecd69d90ea8bc"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T201453.304521Z/sources.json",
+    "bytes": 12554042,
+    "sha256": "33c780420a107744ad00d0f6a9f1082b0a16fddc8aefa4d9cb76be9b1f0456a3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T201453.304521Z/workspace.diff",
+    "bytes": 77529,
+    "sha256": "6e8d5ee417e1b6da578171a4bfa686e6754153f1298577d51a38b79d1229d1b3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T202207.245954Z/actions.json",
+    "bytes": 3979288,
+    "sha256": "1a129ffb69a9172089b400233330b3603118ca945501455e79980be1813b81ad"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T202207.245954Z/aquery.log",
+    "bytes": 4551,
+    "sha256": "9c0f2edd2e00596c9f90f589e740b491880b1ef857e9de064289e38356ce7ba4"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T202207.245954Z/build.log",
+    "bytes": 13786,
+    "sha256": "75a17148fa45abb7d899f192ad63e0444dff2a31d8b580884e8d19d3260ae455"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T202207.245954Z/command.json",
+    "bytes": 1243,
+    "sha256": "f5e7164ccfe0b0179066a322ed16f9da53859cd263b47fe547deb7ba7ee8d3ef"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T202207.245954Z/events.jsonl",
+    "bytes": 1081776,
+    "sha256": "ee7d42ec655f2e1b4c5a991be6e110b685a5baa3aa027aa99a4068e335cc06fa"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T202207.245954Z/execution.pb.zstd",
+    "bytes": 946447,
+    "sha256": "60f7bc5deffe9460f9c0c3be49abf6f33ba70988b434462e73b6385be09151b3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T202207.245954Z/prepare.log",
+    "bytes": 5107,
+    "sha256": "eac3a84705df1350fc5d4611fcfce29fea9d44f0dd4d5497bab80d9c6f2b6144"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T202207.245954Z/profile.json.gz",
+    "bytes": 5589060,
+    "sha256": "1c2c0cd230b6adea4a42f27ff1211068a35db9a0fc880027e90c563233697b15"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T202207.245954Z/remote-grpc.pb",
+    "bytes": 2045804,
+    "sha256": "c5edf02abc64152297e435fdeacb651e3737b16fdcd9293b4fc2540087e38375"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T202207.245954Z/result.json",
+    "bytes": 21594,
+    "sha256": "5e9f61d129554ab91d83d669a84e1817eaf92d72f3578245e3ed77fe28878173"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T202207.245954Z/sources.json",
+    "bytes": 12554042,
+    "sha256": "33c780420a107744ad00d0f6a9f1082b0a16fddc8aefa4d9cb76be9b1f0456a3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T202207.245954Z/workspace.diff",
+    "bytes": 77529,
+    "sha256": "6e8d5ee417e1b6da578171a4bfa686e6754153f1298577d51a38b79d1229d1b3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T202443.995851Z/actions.json",
+    "bytes": 3979288,
+    "sha256": "abf8572b10554d572c2b589692397cbac939bdbda99b125c9d549cf1a294f6b6"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T202443.995851Z/aquery.log",
+    "bytes": 4551,
+    "sha256": "66e075cc0c09ec1607980eea1a2e60e63f088acc63078036bdebce05afba3d17"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T202443.995851Z/build.log",
+    "bytes": 13927,
+    "sha256": "b7e3c41e678fd087084c4342df4f75e215f9a633ad310723c3fc11dcf29ef556"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T202443.995851Z/command.json",
+    "bytes": 1243,
+    "sha256": "f8bbea150f13d3a88ce26b0dc081eb4a2acf4a57bd4506b6ac422e3621ca8a81"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T202443.995851Z/events.jsonl",
+    "bytes": 1083155,
+    "sha256": "cd73ac33660beeb95a403d27dbf2249ef4867f8bcf248e00439fa44a469482d9"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T202443.995851Z/execution.pb.zstd",
+    "bytes": 947931,
+    "sha256": "2e2cb09cecbd8e6cdd175571140cd096a58b8d757efb44109578f1c69e09cbe9"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T202443.995851Z/prepare.log",
+    "bytes": 5107,
+    "sha256": "c7242729ebee42a860cbd1b7d09750ee251c93088cf09a75cd3fb911ed590d45"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T202443.995851Z/profile.json.gz",
+    "bytes": 5605459,
+    "sha256": "22a51ce9f51b0f69681affb3e7a43474e57dcecdd1812b2d4260d4f443d50994"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T202443.995851Z/remote-grpc.pb",
+    "bytes": 2044729,
+    "sha256": "a1c5a9b8a5db13ac341b9ed9f30fec39b3c34ef89964c669d8920d124b3b9f7b"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T202443.995851Z/result.json",
+    "bytes": 21112,
+    "sha256": "db618b1cbab11e2a1c68ac3358aa9fd1e93390f5bdfc4a26fed6a6aecaf119f1"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T202443.995851Z/sources.json",
+    "bytes": 12554042,
+    "sha256": "33c780420a107744ad00d0f6a9f1082b0a16fddc8aefa4d9cb76be9b1f0456a3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j10-20260921T202443.995851Z/workspace.diff",
+    "bytes": 77529,
+    "sha256": "6e8d5ee417e1b6da578171a4bfa686e6754153f1298577d51a38b79d1229d1b3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T201641.402550Z/actions.json",
+    "bytes": 3979288,
+    "sha256": "8a42a8172a9a65e7279c6c8d8f14284673b9abd86565192202ce91e418c402a9"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T201641.402550Z/aquery.log",
+    "bytes": 4551,
+    "sha256": "73aed51ab0fa8691a8ed72466f2c94aa6ebb0dcb45798f9638cc0cb7d51edee4"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T201641.402550Z/build.log",
+    "bytes": 16973,
+    "sha256": "faa646c2f1d94df78a80da1c0452bbb2643f48dd67bc3c627dff8d5194a02adf"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T201641.402550Z/command.json",
+    "bytes": 1243,
+    "sha256": "114d2c54b1b944151b9b79d542812a31ed671258be52c6b5c64fbaefb168a779"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T201641.402550Z/events.jsonl",
+    "bytes": 1086337,
+    "sha256": "c34f6d83f520d4c2c051ea585a1a0015ad66b4b07ebbe0e1f86431d44406b220"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T201641.402550Z/execution.pb.zstd",
+    "bytes": 949602,
+    "sha256": "1bff2484021285115d247008d781c39b388dbdfbe9ceb9f48cbfa01a31b8efa4"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T201641.402550Z/prepare.log",
+    "bytes": 5107,
+    "sha256": "1c1cb0232364a78e8e05f9f7eec9c4d17cc3a82d97fad0253a76c72250efa9d2"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T201641.402550Z/profile.json.gz",
+    "bytes": 5974989,
+    "sha256": "07dc524f73bcc3c7695d5faf5aac70c0ab8c884ccec9e800266fed2bde1929c9"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T201641.402550Z/remote-grpc.pb",
+    "bytes": 2040955,
+    "sha256": "8d54231e6c7e7a469ba6a0263d6480d67f2855d3973ae1344f8ee28b719527d6"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T201641.402550Z/result.json",
+    "bytes": 21117,
+    "sha256": "0ace60d7f78936a867c97ed169ce1c65439bfc0c2d79ad7b1cdd470ed4cc2840"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T201641.402550Z/sources.json",
+    "bytes": 12554042,
+    "sha256": "33c780420a107744ad00d0f6a9f1082b0a16fddc8aefa4d9cb76be9b1f0456a3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T201641.402550Z/workspace.diff",
+    "bytes": 77529,
+    "sha256": "6e8d5ee417e1b6da578171a4bfa686e6754153f1298577d51a38b79d1229d1b3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T201936.728663Z/actions.json",
+    "bytes": 3979288,
+    "sha256": "dd71e6ca571e269baaaaad6699604bcc238ad822e2e91c8003ac8d02ca95387c"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T201936.728663Z/aquery.log",
+    "bytes": 4551,
+    "sha256": "112eef01736740ad67608594bc3c5b882a489c75222bf90b2268d6b0d3b5d326"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T201936.728663Z/build.log",
+    "bytes": 12808,
+    "sha256": "02038d107cef316cc9344fda2af474c0e475aeaeb447736f3a403a5de46a3914"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T201936.728663Z/command.json",
+    "bytes": 1243,
+    "sha256": "8648bdecb19dd4e5885b6edfe92fce911063fa64aa4818766834009aa41df240"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T201936.728663Z/events.jsonl",
+    "bytes": 1082088,
+    "sha256": "7a56b9b3736731d94f1281d68027536ca73909f14d3f1f8cbc21ed6f5bf45c4b"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T201936.728663Z/execution.pb.zstd",
+    "bytes": 950463,
+    "sha256": "98759e3472e4b72a77c05c71136dcae4cd1f8ab2b6f0249d6e5c8b924d8b8b21"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T201936.728663Z/prepare.log",
+    "bytes": 5107,
+    "sha256": "fae7b3b5f8cc9f1dbb27dbde7daace523bce9f0d6b1f5e2aff8f7151b2833b4e"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T201936.728663Z/profile.json.gz",
+    "bytes": 5812826,
+    "sha256": "8c111ab9c9526f792086edc6ab235f4a6d2312ee1a05fae0d9d83ee00e1ce323"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T201936.728663Z/remote-grpc.pb",
+    "bytes": 2056778,
+    "sha256": "8dbce32c3fdd0366a4768e07ca47abea80fd19bee92062b6304a0bba7150f7e8"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T201936.728663Z/result.json",
+    "bytes": 21174,
+    "sha256": "6a2521af7ccff9a0ab909abbcd8b6c0e06ab2c4088c4d47c402b8e776421be27"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T201936.728663Z/sources.json",
+    "bytes": 12554042,
+    "sha256": "33c780420a107744ad00d0f6a9f1082b0a16fddc8aefa4d9cb76be9b1f0456a3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T201936.728663Z/workspace.diff",
+    "bytes": 77529,
+    "sha256": "6e8d5ee417e1b6da578171a4bfa686e6754153f1298577d51a38b79d1229d1b3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T202604.415042Z/actions.json",
+    "bytes": 3979288,
+    "sha256": "1c96bd7801e9c3d5aba2b20bf24e2d76318b9a2a9ba0508d52eb8d6b3c0656a3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T202604.415042Z/aquery.log",
+    "bytes": 4551,
+    "sha256": "5a3fd75be2dc7a4f3f39975cf2b4f5a62a6c509aeb50ceb1af4c1870c9011339"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T202604.415042Z/build.log",
+    "bytes": 13668,
+    "sha256": "eec1eecbc1539171d2b1b06fa723b3201d8093b23938b11f53e299a22b0ff8d0"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T202604.415042Z/command.json",
+    "bytes": 1243,
+    "sha256": "f17b918ac240a8b375a337f37a912e7fad8ba7abf82b2f00d91282d23fba1167"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T202604.415042Z/events.jsonl",
+    "bytes": 1083234,
+    "sha256": "f2a0cb5a84d93fc4cfd5c62b39751a57d5e4eb03f0d05a6fdc39c620fb373baa"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T202604.415042Z/execution.pb.zstd",
+    "bytes": 952307,
+    "sha256": "bc21fd808b9c9a8b04fa8c0a7a3af81b5067debe7c9e4184756a5162aa4625bc"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T202604.415042Z/prepare.log",
+    "bytes": 5107,
+    "sha256": "6df9751caa916b2705482ad3be207f2eb35b8ce32af4ccd483bdf881e95d119e"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T202604.415042Z/profile.json.gz",
+    "bytes": 5848734,
+    "sha256": "00c3140a1c048a721eefc4aa31cad86ad91bb3cee7e5b130b063250403b22ef5"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T202604.415042Z/remote-grpc.pb",
+    "bytes": 2050565,
+    "sha256": "ad717133d00746490ed9273d69668e844ec66189b95c561522cefbe0ea544af4"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T202604.415042Z/result.json",
+    "bytes": 21626,
+    "sha256": "bc967d69247d12f87872a7d0a8779c2e323622b4a6f0e8b469314c07f8ba9801"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T202604.415042Z/sources.json",
+    "bytes": 12554042,
+    "sha256": "33c780420a107744ad00d0f6a9f1082b0a16fddc8aefa4d9cb76be9b1f0456a3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j25-20260921T202604.415042Z/workspace.diff",
+    "bytes": 77529,
+    "sha256": "6e8d5ee417e1b6da578171a4bfa686e6754153f1298577d51a38b79d1229d1b3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T183732.680191Z/actions.json",
+    "bytes": 99198436,
+    "sha256": "d488fd706972cc674ebec5bcb11bca7269f949c7adc7846d68bded2fa215ae35"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T183732.680191Z/aquery.log",
+    "bytes": 4912,
+    "sha256": "6ccab613fdc88382277e733a8d4dbe1e0224c3b7c9ded409b93bc0705d931f62"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T183732.680191Z/build.log",
+    "bytes": 84649,
+    "sha256": "dac5f507008607a126a8055934ac0122465e7412baf84d42af2a5862a6a803b2"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T183732.680191Z/command.json",
+    "bytes": 1229,
+    "sha256": "41e92312840156e1e3611bae8adf12b6ef4dd6b825da0996426ed98f83040d4f"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T183732.680191Z/events.jsonl",
+    "bytes": 263310,
+    "sha256": "db63ef18aaae90dc2d589c7e75df6cb7ae338972ef74cf3c2cb00c478c4ed188"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T183732.680191Z/execution.pb.zstd",
+    "bytes": 1955872,
+    "sha256": "41d3bbf19cd9707949a83f5035e76551c6839c2007d3b930547ef9469c40eb12"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T183732.680191Z/prepare.log",
+    "bytes": 7095,
+    "sha256": "d33f855271a449cbd4fc3558172ee881f4f587f34acb063a9bc36317ffe479f9"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T183732.680191Z/profile.json.gz",
+    "bytes": 80880065,
+    "sha256": "64aefc8be3d6860cd07c5348b499c9fa99c7a9aa078ea1b28ce3488370da6bc0"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T183732.680191Z/remote-grpc.pb",
+    "bytes": 7795826,
+    "sha256": "d5264745cec20be620f8750f7f09ae260b36de7dd5996cd9c976082bcbb45a7a"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T183732.680191Z/result.json",
+    "bytes": 27329,
+    "sha256": "f837e7570c45d57cda22a00bad5d67c56820ef5b9663d875527bbd903c51e5b7"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T183732.680191Z/sources.json",
+    "bytes": 12553929,
+    "sha256": "7668cd4e6c8b21e7abcb34fc28e46e091f6d157a74ca44b94dfe049539bcfa27"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T183732.680191Z/workspace.diff",
+    "bytes": 75266,
+    "sha256": "87ac7df002b68c41cbd1f66061c6dfa6630f71424724f01b446a0485d511039b"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T184730.856279Z/actions.json",
+    "bytes": 99198436,
+    "sha256": "47eba28557ea74496eb907feb1b4b4063190dd2d32f4db57ca8898ad7d266d59"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T184730.856279Z/aquery.log",
+    "bytes": 4681,
+    "sha256": "4a4522b281e89f184f7e5bb317392327db07ba2673f18b2dbb1b9b65e60bfa11"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T184730.856279Z/build.log",
+    "bytes": 3791784,
+    "sha256": "80f35b25588037617e10b40cda74f4e4f81f7f89152387645c1beabfe02d8be8"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T184730.856279Z/command.json",
+    "bytes": 1229,
+    "sha256": "a9b945de3060aaecc417d3c4a8c4b35f8ce949e5349732ead98bf1ff52e1e823"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T184730.856279Z/events.jsonl",
+    "bytes": 4341901,
+    "sha256": "45eecaf4b56cc8341ea7fbd1149b89b464e375a6b5266e68c25437f7c6615379"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T184730.856279Z/execution.pb.zstd",
+    "bytes": 7644810,
+    "sha256": "381f3d6e6abfb4e4e2df98eb31664263b16eb46447695a1a5ec6e015d9fe9aa4"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T184730.856279Z/prepare.log",
+    "bytes": 8186,
+    "sha256": "cd4126f98d633c3166ebf93195e4276a86b5e9a400f3da3275bc4de51c524cf9"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T184730.856279Z/profile.json.gz",
+    "bytes": 96733000,
+    "sha256": "10ae46d33199bb8e9fa193338c3a52f2aeef2bba5d45740269710701a0b438ab"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T184730.856279Z/remote-grpc.pb",
+    "bytes": 77400388,
+    "sha256": "470d7b89a1d770a42a506da63b357647fd53507dd97ee1d2ec60efc622d95851"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T184730.856279Z/result.json",
+    "bytes": 24848,
+    "sha256": "2e1fef0d47369c56f22d258a8c816d1e5c0941edf4ed0bd94584c28215f7c1c7"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T184730.856279Z/sources.json",
+    "bytes": 12554042,
+    "sha256": "33c780420a107744ad00d0f6a9f1082b0a16fddc8aefa4d9cb76be9b1f0456a3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T184730.856279Z/workspace.diff",
+    "bytes": 77529,
+    "sha256": "6e8d5ee417e1b6da578171a4bfa686e6754153f1298577d51a38b79d1229d1b3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T201818.830571Z/actions.json",
+    "bytes": 3979288,
+    "sha256": "31109d5ab4a0c1e20906f3c2583c75eaeb52b4d681f2378508236f64fcb3169e"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T201818.830571Z/aquery.log",
+    "bytes": 4551,
+    "sha256": "cbb557ee937d0a0c10cedab7a4fb58cb0cccc49bf76764951e21adc98a4db01b"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T201818.830571Z/build.log",
+    "bytes": 13478,
+    "sha256": "1b055d43f8ad81d63c90e3328ec067a9420edf5dcd380d07ada8241c7d2cc9f3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T201818.830571Z/command.json",
+    "bytes": 1243,
+    "sha256": "53da769755c188b8c318ab070e099e03795b923d95cb8babb77ca7cde054f80d"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T201818.830571Z/events.jsonl",
+    "bytes": 1082767,
+    "sha256": "7ad5e8f797a57328f2b27187ba1591bd7699083c652617d3e6c99e4ded5082dc"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T201818.830571Z/execution.pb.zstd",
+    "bytes": 1014599,
+    "sha256": "77e8b448a11037a5a77f3262bc416e1ad0cbd1037e8c9381cba6a540e0c99d09"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T201818.830571Z/prepare.log",
+    "bytes": 5107,
+    "sha256": "f923c419c355b7472c57c62faf8be7ed70ae63dfbef27b7fcf6eafee31147b49"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T201818.830571Z/profile.json.gz",
+    "bytes": 5908386,
+    "sha256": "931744cce862a28dd2227080bc0890b27e3e95570242d1dcacd97d527b4a6182"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T201818.830571Z/remote-grpc.pb",
+    "bytes": 2059119,
+    "sha256": "f8306737870f194c6f78477a7a2ebc7e4c9b48fe7d80334a85b496910dc773f3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T201818.830571Z/result.json",
+    "bytes": 21197,
+    "sha256": "622fc8b3582b2b22950e19424afb55f0691cce537999d32034bfbba3c374a216"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T201818.830571Z/sources.json",
+    "bytes": 12554042,
+    "sha256": "33c780420a107744ad00d0f6a9f1082b0a16fddc8aefa4d9cb76be9b1f0456a3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T201818.830571Z/workspace.diff",
+    "bytes": 77529,
+    "sha256": "6e8d5ee417e1b6da578171a4bfa686e6754153f1298577d51a38b79d1229d1b3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T202050.008758Z/actions.json",
+    "bytes": 3979288,
+    "sha256": "b9b9915274720ca7e647e8f04e754b925e6db2933d637531a2b81aaaa7ee22a3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T202050.008758Z/aquery.log",
+    "bytes": 4551,
+    "sha256": "8a3c9cd738ba4e3a8809742687a5b04aca51b993712ea373103bb9b540216d10"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T202050.008758Z/build.log",
+    "bytes": 13370,
+    "sha256": "2de92e0f4e535a6c45d4f450b1b1062356201514c687ee92046427d599100e4d"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T202050.008758Z/command.json",
+    "bytes": 1243,
+    "sha256": "ce2f5cf95d579024e0ea97beb27669cb8444ec78593e06a5371b1f72876b231d"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T202050.008758Z/events.jsonl",
+    "bytes": 1082592,
+    "sha256": "57e373fc28da67ef3ef087f2ebd8de62fe37b93b07e57cdc18a26ba47fdbab66"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T202050.008758Z/execution.pb.zstd",
+    "bytes": 1015512,
+    "sha256": "c9abf088a11abbf914cd841acf4848487340a42ed3a59558a50281965640aa1b"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T202050.008758Z/prepare.log",
+    "bytes": 5107,
+    "sha256": "b33c42450e22750ea60e2c0ae71fae7a97f22c7a860b0e5edd735896e521aa26"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T202050.008758Z/profile.json.gz",
+    "bytes": 6046048,
+    "sha256": "aed4f0d0b258c83ec4d610a5b44dba8bb481329926365e634cbcef7a9aac5f7b"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T202050.008758Z/remote-grpc.pb",
+    "bytes": 2058050,
+    "sha256": "00c87122f62aefcdd6c6875d48e89fd70b30846a6fa52a16a82d8412117e345c"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T202050.008758Z/result.json",
+    "bytes": 21113,
+    "sha256": "bfdeed5ff0c59884ab729ca28bf6c0971a52f1a5b21c37f679aba89311b002bf"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T202050.008758Z/sources.json",
+    "bytes": 12554042,
+    "sha256": "33c780420a107744ad00d0f6a9f1082b0a16fddc8aefa4d9cb76be9b1f0456a3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T202050.008758Z/workspace.diff",
+    "bytes": 77529,
+    "sha256": "6e8d5ee417e1b6da578171a4bfa686e6754153f1298577d51a38b79d1229d1b3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T202325.399915Z/actions.json",
+    "bytes": 3979288,
+    "sha256": "a9d0b1417503f2bf82b6b240f19fb48f1573049b0f9a191241f5cd57cb837b5d"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T202325.399915Z/aquery.log",
+    "bytes": 4551,
+    "sha256": "8849d085b62a38b0ecd1bc946339a9031a412d640a496b21a01188db0d5a2197"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T202325.399915Z/build.log",
+    "bytes": 13732,
+    "sha256": "230e6533bd8d5debdbdecd8ee645c853fe0efd00240d1994b8ff949bc5a3fd2a"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T202325.399915Z/command.json",
+    "bytes": 1243,
+    "sha256": "d853be0d890730ccf657e535cb4ece76558781da499efb81ba8a23d6d593dd96"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T202325.399915Z/events.jsonl",
+    "bytes": 1082727,
+    "sha256": "de60087cb3e44c968a1da0035a4202b1ff0b4028a80e6aa85f4d45da7b7f904b"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T202325.399915Z/execution.pb.zstd",
+    "bytes": 1014329,
+    "sha256": "545b946120353d92e2fde771ef20586a5ad50704b500ec460cd56be3e1c60d74"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T202325.399915Z/prepare.log",
+    "bytes": 5001,
+    "sha256": "629fce46eec5a9370c0c33678c332528e0bea4a10ed119c642fbd681f141ffeb"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T202325.399915Z/profile.json.gz",
+    "bytes": 5936545,
+    "sha256": "9be2d5ab95827bbd16aca33a38c75f8e13e91456f1b6d1400ec42dad3d1fdb74"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T202325.399915Z/remote-grpc.pb",
+    "bytes": 2056022,
+    "sha256": "33f0e97e4800e18a64e363a3b068649802cfb690550a0c9764d20c68f059f22d"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T202325.399915Z/result.json",
+    "bytes": 21634,
+    "sha256": "189c8b8a4c5e34d05d0d21b865c69ae32634f7866b6f30e1852b4df4e094252b"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T202325.399915Z/sources.json",
+    "bytes": 12554042,
+    "sha256": "33c780420a107744ad00d0f6a9f1082b0a16fddc8aefa4d9cb76be9b1f0456a3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-forced-j50-20260921T202325.399915Z/workspace.diff",
+    "bytes": 77529,
+    "sha256": "6e8d5ee417e1b6da578171a4bfa686e6754153f1298577d51a38b79d1229d1b3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-noop-j50-20260921T201213.716043Z/actions.json",
+    "bytes": 99198436,
+    "sha256": "fbeffba2723bef03edf3e3334f3d42d92e8e1cfb85fa09d66bbf0c80ff82808a"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-noop-j50-20260921T201213.716043Z/aquery.log",
+    "bytes": 4106,
+    "sha256": "a4fd053fd8985913ab1c4d6faca874d8ddd900407051d12236ece9ac235861e4"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-noop-j50-20260921T201213.716043Z/build.log",
+    "bytes": 31395,
+    "sha256": "c5aa164adf398f88a107ac23016e86ddee26bdc0d7e9d6d6cfb6547627971ed7"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-noop-j50-20260921T201213.716043Z/command.json",
+    "bytes": 1196,
+    "sha256": "2097eaeeea3b465133ef6dcaecd94d76fac7125e84b85071d43fa8ed029f2a01"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-noop-j50-20260921T201213.716043Z/events.jsonl",
+    "bytes": 336320,
+    "sha256": "448338c6873b37ba10db5eabff33c360b075ad695d6c57ef4c68a638d7e2a3dd"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-noop-j50-20260921T201213.716043Z/execution.pb.zstd",
+    "bytes": 66,
+    "sha256": "782440fdf6db1bf67bab21a71d0613f89b1b1d00360418e8718a9cdde8f0376e"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-noop-j50-20260921T201213.716043Z/prepare.log",
+    "bytes": 6408,
+    "sha256": "b92af2fcf8b7154a74ce1bcc0ca765c838b812f182166833c7343d56475a9f51"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-noop-j50-20260921T201213.716043Z/profile.json.gz",
+    "bytes": 9215487,
+    "sha256": "d83e2a7dfe8281553f8e5aba2bdf0f357f719983b6a17ea70217df2c6d91d343"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-noop-j50-20260921T201213.716043Z/remote-grpc.pb",
+    "bytes": 296,
+    "sha256": "b37247cac38032b4c0575877e58e14959669436b25bd0d678eeb8c7cc22536e7"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-noop-j50-20260921T201213.716043Z/result.json",
+    "bytes": 13750,
+    "sha256": "ec798e16fe3b3e451d60e061c391200657308fab0e319f0381c9892c015ce114"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-noop-j50-20260921T201213.716043Z/sources.json",
+    "bytes": 12554042,
+    "sha256": "33c780420a107744ad00d0f6a9f1082b0a16fddc8aefa4d9cb76be9b1f0456a3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-noop-j50-20260921T201213.716043Z/warmup.log",
+    "bytes": 3367068,
+    "sha256": "924b1c821639c59c82c04f07b887eda559ec44b4d6d46e9488b1bec688f27444"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-noop-j50-20260921T201213.716043Z/workspace.diff",
+    "bytes": 77529,
+    "sha256": "6e8d5ee417e1b6da578171a4bfa686e6754153f1298577d51a38b79d1229d1b3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-rust-edit-j50-20260921T215729.475596Z/actions.json",
+    "bytes": 99198436,
+    "sha256": "fbeffba2723bef03edf3e3334f3d42d92e8e1cfb85fa09d66bbf0c80ff82808a"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-rust-edit-j50-20260921T215729.475596Z/aquery.log",
+    "bytes": 4106,
+    "sha256": "56cdf158ac1702ca1d68088b8334dc0b51517f1cafbdba461153a56072bda9a5"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-rust-edit-j50-20260921T215729.475596Z/build.log",
+    "bytes": 32428,
+    "sha256": "cf6520c8d3d831920147b144fc4a495a3e5345c0af644d91968fe2536cc18825"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-rust-edit-j50-20260921T215729.475596Z/command.json",
+    "bytes": 1216,
+    "sha256": "277d4cf3d71c32439185c396b97d4f002c964a0b35be5c87d521e8e24e1fabb9"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-rust-edit-j50-20260921T215729.475596Z/events.jsonl",
+    "bytes": 339221,
+    "sha256": "f5c67865b71dba5284cb17ac8690912c71840884ca84bf3404d0892effc8b6a2"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-rust-edit-j50-20260921T215729.475596Z/execution.pb.zstd",
+    "bytes": 400777,
+    "sha256": "bcab985ef829fc53c88961dbcf7809aebfe10e3bc97b9d3feb96fb1baa4ac385"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-rust-edit-j50-20260921T215729.475596Z/prepare.log",
+    "bytes": 4073,
+    "sha256": "56264fc685b6dc82ab8dbefc724752aa5ef4f7df5b778a3aa167a516cf573628"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-rust-edit-j50-20260921T215729.475596Z/profile.json.gz",
+    "bytes": 9458810,
+    "sha256": "87b4683c0f9b39ec08e0d39440e9f2867d1ebee6c6c1298b309938d34e93274c"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-rust-edit-j50-20260921T215729.475596Z/remote-grpc.pb",
+    "bytes": 514228,
+    "sha256": "02a9dd8a23e7c2abd28e2ac1b1d6e97d44ca2fa675db265727e45894d924a83e"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-rust-edit-j50-20260921T215729.475596Z/result.json",
+    "bytes": 16270,
+    "sha256": "16a788af9eb4d7f2cf326bb15f34284e49c01ef5551c912dd9b5bf1640903085"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-rust-edit-j50-20260921T215729.475596Z/sources.json",
+    "bytes": 12554042,
+    "sha256": "5a272b7c6570120c1d7cc80ded1777337bc2d1c863def5609dcd96c9aaed5da0"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-rust-edit-j50-20260921T215729.475596Z/warmup.log",
+    "bytes": 63548,
+    "sha256": "aa06a9849c936ef98613ffc5a4bade33c2db38f91a66467df503b6c51c35e215"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/amd64-rust-edit-j50-20260921T215729.475596Z/workspace.diff",
+    "bytes": 77889,
+    "sha256": "60b3cb164b828f5217e46a55c04aee5fe96bb8413b6d6e3a5e662de2360c80af"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-c-edit-j50-20260921T220200.045655Z/actions.json",
+    "bytes": 100276976,
+    "sha256": "7b6a38852b05410626e74e0dd1f913e15610a66c42c0444025b0c1581fd6adb9"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-c-edit-j50-20260921T220200.045655Z/aquery.log",
+    "bytes": 4106,
+    "sha256": "2634cf8b0d8340c0d00e76215acaef0cedb642047611e626a5fb3429afba3f9d"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-c-edit-j50-20260921T220200.045655Z/build.log",
+    "bytes": 214639,
+    "sha256": "f0f6f02977e25d669dd0dd67f0cb8b7cc22d9ef0c05cfffa7f05db69eb9d69bd"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-c-edit-j50-20260921T220200.045655Z/command.json",
+    "bytes": 1204,
+    "sha256": "32bf458abed3932e70f3fdca05469bf40a56db50e3aadc7189515d02687319f1"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-c-edit-j50-20260921T220200.045655Z/events.jsonl",
+    "bytes": 528749,
+    "sha256": "b9deb9e900153f37b8271918fe4f1107c70a7fd3a65c79f27e48000e7269dd12"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-c-edit-j50-20260921T220200.045655Z/execution.pb.zstd",
+    "bytes": 1920162,
+    "sha256": "a043795124eaddcc8e271f740e6065d4a7776c3fca6238af5437a088b99d1037"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-c-edit-j50-20260921T220200.045655Z/prepare.log",
+    "bytes": 4073,
+    "sha256": "40599698e4d77156645b05e960d344b4873a8143fe912f0f72547936434f2ef0"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-c-edit-j50-20260921T220200.045655Z/profile.json.gz",
+    "bytes": 10642623,
+    "sha256": "78132ddfc11d9c04087f049cf0e666c2d2467a18dfc1e9ca47bf4872a8d9c085"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-c-edit-j50-20260921T220200.045655Z/remote-grpc.pb",
+    "bytes": 6961447,
+    "sha256": "fb6cb6fb70904904c4746cba1f790db6f8f0190a909dc13b06856f218d0de48a"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-c-edit-j50-20260921T220200.045655Z/result.json",
+    "bytes": 17774,
+    "sha256": "d78bc9894d707f06dfe849bf1c40e0a0db87f494c99cbea4ae630af5f0d2ecaa"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-c-edit-j50-20260921T220200.045655Z/sources.json",
+    "bytes": 12554042,
+    "sha256": "730a086900bfa419e8edd2dd133f2ce5fa313eb9fd8cb704142de22400645485"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-c-edit-j50-20260921T220200.045655Z/warmup.log",
+    "bytes": 31333,
+    "sha256": "f1af19acb72e884f62461eec34325f20d712f1c630bec313ffffd7b75cef16c4"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-c-edit-j50-20260921T220200.045655Z/workspace.diff",
+    "bytes": 77827,
+    "sha256": "bdaeb2958720c6d66a559633906eaf5c2115597f736319b4975166b6a9678ffe"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-cached-j50-20260921T211350.111953Z/actions.json",
+    "bytes": 100276976,
+    "sha256": "cd6c638669ae5bce0d8ce5245af4a343962261b05af17d8a2b46eb330de3927e"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-cached-j50-20260921T211350.111953Z/aquery.log",
+    "bytes": 4106,
+    "sha256": "74b752ce81863bdefb0026f559ef9bba4efd0868fee4c13cdf8e23096a50d2bd"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-cached-j50-20260921T211350.111953Z/build.log",
+    "bytes": 4796906,
+    "sha256": "940c46fee4ffb446dda7106686cc85d23a93f60d2c3332af913bef84891a694c"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-cached-j50-20260921T211350.111953Z/command.json",
+    "bytes": 1229,
+    "sha256": "c86341071b3caa80b22995b3d42f976ba6c9aff976657f001ec4ff9ba0a23d56"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-cached-j50-20260921T211350.111953Z/events.jsonl",
+    "bytes": 5434758,
+    "sha256": "d7972185e15c222daa3d01e8d255fc8138dbb0f3c738f35e8147bc14387b806a"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-cached-j50-20260921T211350.111953Z/execution.pb.zstd",
+    "bytes": 7520049,
+    "sha256": "7aaaaa99d906378ad9eeb420ee8c28a7ac92589ed70d170d9518f4748ffd7b1d"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-cached-j50-20260921T211350.111953Z/prepare.log",
+    "bytes": 6545,
+    "sha256": "72a19cb04a936f27225dad13588b4cb403aff2f3e492b986b162609083900c89"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-cached-j50-20260921T211350.111953Z/profile.json.gz",
+    "bytes": 47744953,
+    "sha256": "affae9e8e89c57e44bebf4dc4dcf774fa25e66df6719d9226d9e1fef767fc2aa"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-cached-j50-20260921T211350.111953Z/remote-grpc.pb",
+    "bytes": 26857672,
+    "sha256": "da05abaa998540a0bc6aebb9fb05a5635dc4c43952484559fbb4110cb6f95c3c"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-cached-j50-20260921T211350.111953Z/result.json",
+    "bytes": 24024,
+    "sha256": "97d64a3be38fbbac044698bfc530e4feb9dead962499ff7b533ed00035bfdff1"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-cached-j50-20260921T211350.111953Z/sources.json",
+    "bytes": 12554042,
+    "sha256": "33c780420a107744ad00d0f6a9f1082b0a16fddc8aefa4d9cb76be9b1f0456a3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-cached-j50-20260921T211350.111953Z/workspace.diff",
+    "bytes": 77529,
+    "sha256": "6e8d5ee417e1b6da578171a4bfa686e6754153f1298577d51a38b79d1229d1b3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-forced-j50-20260921T192126.057325Z/actions.json",
+    "bytes": 100276976,
+    "sha256": "4ce64fab8e310c75d491cbbeb8bda149a0f625a24e76cff0d362140625e4ac2e"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-forced-j50-20260921T192126.057325Z/aquery.log",
+    "bytes": 4544,
+    "sha256": "fbede01f94b0223dd7949a973d9be56eb0f3cd24b8dddd6f7c51602eddae95a4"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-forced-j50-20260921T192126.057325Z/build.log",
+    "bytes": 5374964,
+    "sha256": "71bfcc3f8605b00bcc3294778c40d3675bba02fdcbcc0714e3de69a71512b175"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-forced-j50-20260921T192126.057325Z/command.json",
+    "bytes": 1229,
+    "sha256": "eec6b45a1f07107441cee2146b76485a07954817b3068a917a89d9e0ea2d6612"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-forced-j50-20260921T192126.057325Z/events.jsonl",
+    "bytes": 6025904,
+    "sha256": "5728cef9f490a16a876d0465dffc630c0fef827c33522ee9d20c39cbf940073b"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-forced-j50-20260921T192126.057325Z/execution.pb.zstd",
+    "bytes": 7645018,
+    "sha256": "ef24b262e4a4f0b501abdf524ded025aa5ca402537ae5485a74d844274d8b6eb"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-forced-j50-20260921T192126.057325Z/prepare.log",
+    "bytes": 7963,
+    "sha256": "c4caf864470a0d0f024682b97d99e5a7ce18eca8d60a7b7339cb8e1d400bb48c"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-forced-j50-20260921T192126.057325Z/profile.json.gz",
+    "bytes": 78569749,
+    "sha256": "4126af29c3c294c1888281760e2b3eb8c0252573bde0b339a3978b77c863a0c1"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-forced-j50-20260921T192126.057325Z/remote-grpc.pb",
+    "bytes": 76654964,
+    "sha256": "0f818321bc00e037c29b1826ff673d9c78d800051cef02d33773a3b1309f5cdd"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-forced-j50-20260921T192126.057325Z/result.json",
+    "bytes": 24831,
+    "sha256": "497997f2488157558ce7f4dae51605f3e65f16cd2ed74b3c84f2f6bb74c89de6"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-forced-j50-20260921T192126.057325Z/sources.json",
+    "bytes": 12554042,
+    "sha256": "33c780420a107744ad00d0f6a9f1082b0a16fddc8aefa4d9cb76be9b1f0456a3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-forced-j50-20260921T192126.057325Z/workspace.diff",
+    "bytes": 77529,
+    "sha256": "6e8d5ee417e1b6da578171a4bfa686e6754153f1298577d51a38b79d1229d1b3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-noop-j50-20260921T211819.212336Z/actions.json",
+    "bytes": 100276976,
+    "sha256": "7b6a38852b05410626e74e0dd1f913e15610a66c42c0444025b0c1581fd6adb9"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-noop-j50-20260921T211819.212336Z/aquery.log",
+    "bytes": 4106,
+    "sha256": "843201df07def9ecbbb210404eac2e3f02dcfb7dda6736f142242bf3eb276da4"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-noop-j50-20260921T211819.212336Z/build.log",
+    "bytes": 31395,
+    "sha256": "37ba9017704740d1cb0579d8d53f4313ce4380cf411d5ac582f5d566f69e1780"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-noop-j50-20260921T211819.212336Z/command.json",
+    "bytes": 1196,
+    "sha256": "e96db6080bfffc8b32844d800c456955432d8fce0aa36ba7084301df6e3e9c9f"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-noop-j50-20260921T211819.212336Z/events.jsonl",
+    "bytes": 336343,
+    "sha256": "bf0cc81249ad343844e66d078d1d5baececf2b2adab1f90dc3ed9c0454e1cef7"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-noop-j50-20260921T211819.212336Z/execution.pb.zstd",
+    "bytes": 66,
+    "sha256": "1a3e57e1bde6894c4366181b33401dcd6f617d6e2e1cda3ceb4f757ee6a06d5d"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-noop-j50-20260921T211819.212336Z/prepare.log",
+    "bytes": 6408,
+    "sha256": "7890137274dadcefebbfcf895d97c3327256a6bc4e5d49f5b30457ab80a65fa8"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-noop-j50-20260921T211819.212336Z/profile.json.gz",
+    "bytes": 9035376,
+    "sha256": "ca9a6983ff90241abad53fad1d8d43ecd058ec42f647112efd2db5df751b3e0a"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-noop-j50-20260921T211819.212336Z/remote-grpc.pb",
+    "bytes": 296,
+    "sha256": "2a97c3a4bca163a9ea20b85d67eecacabd15a295bf28205ba13bba13a50d2b6b"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-noop-j50-20260921T211819.212336Z/result.json",
+    "bytes": 13752,
+    "sha256": "2a58b06a5c7c121bf4eee9c4e6905e4335bb0bf3f84eb7a0232362026dc50aa0"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-noop-j50-20260921T211819.212336Z/sources.json",
+    "bytes": 12554042,
+    "sha256": "33c780420a107744ad00d0f6a9f1082b0a16fddc8aefa4d9cb76be9b1f0456a3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-noop-j50-20260921T211819.212336Z/warmup.log",
+    "bytes": 4794703,
+    "sha256": "6c57af22b4a6820ea609331946b67b33b72ce01eed8b37edf7625db12467faac"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-noop-j50-20260921T211819.212336Z/workspace.diff",
+    "bytes": 77529,
+    "sha256": "6e8d5ee417e1b6da578171a4bfa686e6754153f1298577d51a38b79d1229d1b3"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-rust-edit-j50-20260921T225031.919876Z/actions.json",
+    "bytes": 100276976,
+    "sha256": "7b6a38852b05410626e74e0dd1f913e15610a66c42c0444025b0c1581fd6adb9"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-rust-edit-j50-20260921T225031.919876Z/aquery.log",
+    "bytes": 4106,
+    "sha256": "ff6b31036ed964458c10cb928d85e9770e06958f0b6f7e6675a6993a454a448b"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-rust-edit-j50-20260921T225031.919876Z/build.log",
+    "bytes": 32825,
+    "sha256": "97d325c3f892236d45066b0dc60760ea244674ebfe2fa48b8fb11bff35f6d150"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-rust-edit-j50-20260921T225031.919876Z/command.json",
+    "bytes": 1216,
+    "sha256": "d4e00d3d636445db7692d1e62511acb3ab344c3c2397b03969e6e86d3a6047d5"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-rust-edit-j50-20260921T225031.919876Z/events.jsonl",
+    "bytes": 339511,
+    "sha256": "51316e06a1b9967dfc5ea2ec4d59a80ba61355dd18b10e0a7ea62c2d4d898f71"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-rust-edit-j50-20260921T225031.919876Z/execution.pb.zstd",
+    "bytes": 389276,
+    "sha256": "dd8db3f95b2b24b55a0ec8445372ae7b894c1b2a3176846733168a8327ba219f"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-rust-edit-j50-20260921T225031.919876Z/prepare.log",
+    "bytes": 4073,
+    "sha256": "cbe58f5794e48faf56341adfdb4480ade26c3cd40bdf87685bc6dba76f15243f"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-rust-edit-j50-20260921T225031.919876Z/profile.json.gz",
+    "bytes": 9267445,
+    "sha256": "2cd1cff921a73ca340a71867245d42f1a38886222c2c37b3d232f060680513fc"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-rust-edit-j50-20260921T225031.919876Z/remote-grpc.pb",
+    "bytes": 494512,
+    "sha256": "ca1293ecbb2d6b5fa3d0c880c0abca6a83adac6ed7a72fd8f72f4ce68b0d07ca"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-rust-edit-j50-20260921T225031.919876Z/result.json",
+    "bytes": 16263,
+    "sha256": "25f04976a5288109cf3e7f4560b0d327e40a3a922e6cc312d96d9e51b2b2ce07"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-rust-edit-j50-20260921T225031.919876Z/sources.json",
+    "bytes": 12554042,
+    "sha256": "a98fb75cb643570d3d173443cf4fe3e85bc5c0c0371699facc86317be339f4e5"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-rust-edit-j50-20260921T225031.919876Z/warmup.log",
+    "bytes": 78000,
+    "sha256": "effc6ad80114c1ae58a4543be50b6c24835992aef3a1f6ce1f4e2743e822f733"
+  },
+  {
+    "path": "/home/bits/.cache/dd-native-runtime-bench/results/arm64-rust-edit-j50-20260921T225031.919876Z/workspace.diff",
+    "bytes": 77889,
+    "sha256": "523a5c94ce1f7cca161c496de6773aff11ce150bdddcab04fd30e6c1daee367a"
+  }
+]

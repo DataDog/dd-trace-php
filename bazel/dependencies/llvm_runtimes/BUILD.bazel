@@ -1,0 +1,244 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("//bazel/platforms:transitions.bzl", "configured_target")
+load(":native.bzl", "native_llvm_target_runtime")
+load(":runtime.bzl", "llvm_asan_native_probe_aarch64", "llvm_asan_native_probe_x86_64", "llvm_runtime_native_probe", "llvm_runtime_native_probe_x86_64", "llvm_target_runtime")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "build-builtins.sh",
+    "build-runtime.sh",
+    "run-asan-smoke.sh",
+    "repository.bzl",
+    "run-native-smoke.sh",
+    "runtime.bzl",
+    "sanitize-startup-objects.sh",
+    "sources.json",
+])
+
+llvm_target_runtime(
+    name = "x86_64_glibc_cmake",
+    compiler_rt = "@llvm_runtime_sources_20_1_4//:compiler_rt",
+    libc = "glibc",
+    libc_version = "2.17",
+    runtimes = "@llvm_runtime_sources_20_1_4//:runtimes",
+    source_root = "@llvm_runtime_sources_20_1_4//:root",
+    tags = ["manual"],
+    target_compatible_with = [
+        "//bazel/platforms:glibc",
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    target_triple = "x86_64-unknown-linux-gnu",
+)
+
+cc_binary(
+    name = "_asan_native_smoke_binary",
+    srcs = ["asan-smoke.c"],
+    features = [
+        "-hermetic_pie_executable",
+        "hermetic_nonpie_executable",
+    ],
+)
+
+llvm_asan_native_probe_x86_64(
+    name = "_x86_64_glibc_asan_native_probe",
+    binary = ":_asan_native_smoke_binary",
+    elf_architecture = "x86_64",
+    machine = "x86_64",
+    runtime = ":x86_64_glibc",
+)
+
+llvm_asan_native_probe_aarch64(
+    name = "_aarch64_glibc_asan_native_probe",
+    binary = ":_asan_native_smoke_binary",
+    elf_architecture = "aarch64",
+    machine = "aarch64",
+    runtime = ":aarch64_glibc",
+)
+
+configured_target(
+    name = "x86_64_glibc_asan_native_probe",
+    actual = ":_x86_64_glibc_asan_native_probe",
+    matrix_platform = "asan-linux-amd64-glibc",
+)
+
+configured_target(
+    name = "aarch64_glibc_asan_native_probe",
+    actual = ":_aarch64_glibc_asan_native_probe",
+    matrix_platform = "asan-linux-arm64-glibc",
+)
+
+llvm_target_runtime(
+    name = "x86_64_musl_cmake",
+    compiler_rt = "@llvm_runtime_sources_20_1_4//:compiler_rt",
+    libc = "musl",
+    libc_version = "1.2.5",
+    runtimes = "@llvm_runtime_sources_20_1_4//:runtimes",
+    source_root = "@llvm_runtime_sources_20_1_4//:root",
+    tags = ["manual"],
+    target_compatible_with = [
+        "//bazel/platforms:musl",
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    target_triple = "x86_64-unknown-linux-musl",
+)
+
+llvm_target_runtime(
+    name = "aarch64_glibc_cmake",
+    compiler_rt = "@llvm_runtime_sources_20_1_4//:compiler_rt",
+    libc = "glibc",
+    libc_version = "2.17",
+    runtimes = "@llvm_runtime_sources_20_1_4//:runtimes",
+    source_root = "@llvm_runtime_sources_20_1_4//:root",
+    tags = ["manual"],
+    target_compatible_with = [
+        "//bazel/platforms:glibc",
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+    target_triple = "aarch64-unknown-linux-gnu",
+)
+
+llvm_target_runtime(
+    name = "aarch64_musl_cmake",
+    compiler_rt = "@llvm_runtime_sources_20_1_4//:compiler_rt",
+    libc = "musl",
+    libc_version = "1.2.5",
+    runtimes = "@llvm_runtime_sources_20_1_4//:runtimes",
+    source_root = "@llvm_runtime_sources_20_1_4//:root",
+    tags = ["manual"],
+    target_compatible_with = [
+        "//bazel/platforms:musl",
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+    target_triple = "aarch64-unknown-linux-musl",
+)
+
+llvm_runtime_native_probe(
+    name = "_aarch64_glibc_native_probe",
+    runtime = ":aarch64_glibc_native_validation",
+)
+
+llvm_runtime_native_probe(
+    name = "_aarch64_musl_native_probe",
+    runtime = ":aarch64_musl_native_validation",
+)
+
+configured_target(
+    name = "aarch64_glibc_native_probe",
+    actual = ":_aarch64_glibc_native_probe",
+    matrix_platform = "linux-arm64-glibc",
+)
+
+configured_target(
+    name = "aarch64_musl_native_probe",
+    actual = ":_aarch64_musl_native_probe",
+    matrix_platform = "linux-arm64-musl",
+)
+
+configured_target(
+    name = "_all_aarch64_glibc",
+    actual = ":aarch64_glibc",
+    matrix_platform = "linux-arm64-glibc",
+)
+
+configured_target(
+    name = "_all_aarch64_musl",
+    actual = ":aarch64_musl",
+    matrix_platform = "linux-arm64-musl",
+)
+
+configured_target(
+    name = "_all_x86_64_glibc",
+    actual = ":x86_64_glibc",
+    matrix_platform = "linux-amd64-glibc",
+)
+
+configured_target(
+    name = "_all_x86_64_musl",
+    actual = ":x86_64_musl",
+    matrix_platform = "linux-amd64-musl",
+)
+
+filegroup(
+    name = "all",
+    srcs = [
+        ":_all_aarch64_glibc",
+        ":_all_aarch64_musl",
+        ":_all_x86_64_glibc",
+        ":_all_x86_64_musl",
+    ],
+)
+
+native_llvm_target_runtime(
+    name = "x86_64_glibc_native",
+    libc = "glibc",
+    target_triple = "x86_64-unknown-linux-gnu",
+    variant = "x86_64_glibc",
+)
+
+native_llvm_target_runtime(
+    name = "x86_64_musl_native",
+    libc = "musl",
+    target_triple = "x86_64-unknown-linux-musl",
+    variant = "x86_64_musl",
+)
+
+native_llvm_target_runtime(
+    name = "aarch64_glibc_native",
+    libc = "glibc",
+    target_triple = "aarch64-unknown-linux-gnu",
+    variant = "aarch64_glibc",
+)
+
+native_llvm_target_runtime(
+    name = "aarch64_musl_native",
+    libc = "musl",
+    target_triple = "aarch64-unknown-linux-musl",
+    variant = "aarch64_musl",
+)
+
+llvm_runtime_native_probe_x86_64(
+    name = "_x86_64_glibc_native_probe",
+    runtime = ":x86_64_glibc_native_validation",
+)
+
+llvm_runtime_native_probe_x86_64(
+    name = "_x86_64_musl_native_probe",
+    runtime = ":x86_64_musl_native_validation",
+)
+
+configured_target(
+    name = "x86_64_glibc_native_probe",
+    actual = ":_x86_64_glibc_native_probe",
+    matrix_platform = "linux-amd64-glibc",
+)
+
+configured_target(
+    name = "x86_64_musl_native_probe",
+    actual = ":_x86_64_musl_native_probe",
+    matrix_platform = "linux-amd64-musl",
+)
+
+alias(
+    name = "x86_64_glibc",
+    actual = ":x86_64_glibc_native",
+)
+
+alias(
+    name = "x86_64_musl",
+    actual = ":x86_64_musl_native",
+)
+
+alias(
+    name = "aarch64_glibc",
+    actual = ":aarch64_glibc_native",
+)
+
+alias(
+    name = "aarch64_musl",
+    actual = ":aarch64_musl_native",
+)

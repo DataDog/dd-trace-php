@@ -1,0 +1,11 @@
+diff --git a/crates/libddwaf-sys/src/lib.rs b/crates/libddwaf-sys/src/lib.rs
+--- a/crates/libddwaf-sys/src/lib.rs
++++ b/crates/libddwaf-sys/src/lib.rs
+@@ -8,5 +8,5 @@
+ use std::ptr::null;
+ use std::slice;
+ 
+-include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
++include!(env!("LIBDDWAF_BINDINGS"));
+ 
+ #[cfg(all(

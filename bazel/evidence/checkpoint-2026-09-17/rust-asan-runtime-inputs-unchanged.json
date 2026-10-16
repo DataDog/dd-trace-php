@@ -1,0 +1,20 @@
+{
+  "reference_manifest": "/tmp/dd-asan-runtime-final-processwrapper-sources.json",
+  "reference_module_sha256": "6da94362f90f05a10fc518170abe714de25933c2f4bf20a9ebf9f1bb418ca8a7",
+  "checkpoint_module_sha256": "471b636abe70b2f0e865dfb12e253b07f8ffd8d778514fb0805e7025d70c9378",
+  "module_difference": "MODULE.bazel includes later reviewed Rust profiler declarations and source-built nightly standard-library support, and the checkpoint removes the pending ring ASan annotation. The ring annotation affects Rust crate generation and is outside the LLVM ASan runtime action inputs.",
+  "unchanged_runtime_inputs": {
+    ".bazelrc": "da158dc0fa13b167f56810a7577ccc1a6c286458904f942c9acf5bcbf5d86c37",
+    "MODULE.bazel.lock": "ed092eb3fd08d20e42a7aefe4cd614504ce10bcd2b3010ca4e62ca8a2669d758",
+    "bazel/dependencies/llvm_runtimes/BUILD.bazel": "eb5c233119fc00255aa02c4ed7cd4d03c5b2f4a115774634ae7f7b8ef6225283",
+    "bazel/dependencies/llvm_runtimes/runtime.bzl": "9680d2005500c74925b9d3717d975ee202b923e624b82eac32175b88df9e51ba",
+    "bazel/dependencies/llvm_runtimes/build-builtins.sh": "12dfd39a445ca41a2cd6c11e5af48cf2f2a4436119ce8c2e449d8beaff3af620",
+    "bazel/dependencies/llvm_runtimes/build-runtime.sh": "0f06f2526c90be37d5c88f0c04c7c785c56d7a09c31798974eb3d7f2965683e2",
+    "bazel/dependencies/llvm_runtimes/sanitize-startup-objects.sh": "83b817a4be55dee49938ed8f324ec6cda5a523e9a02486868c6cc5888796b5ac",
+    "bazel/dependencies/llvm_runtimes/asan-smoke.c": "6e5c295c0e18f3e6d17dfbf4998e82ea75f61ae687295f76e861fa7986d248e1",
+    "bazel/dependencies/llvm_runtimes/run-asan-smoke.sh": "a43f107930c743033c6d30d31ec3409849d5bd3a90a34e5769a80ba0111e0894",
+    "bazel/toolchains/hermetic_cc_toolchain.bzl": "541e9c1b3f4bc5479feaa9081bce289d65b838eafdc4de6bd496f112942fe15a",
+    "bazel/platforms/transitions.bzl": "b7c7b5a33eadeb779e70a5408b9ef570992da085292d6b23704224397027726a"
+  },
+  "all_non_module_reference_inputs_match": true
+}

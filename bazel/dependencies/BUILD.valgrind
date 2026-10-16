@@ -1,0 +1,12 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+# `make install` places include/valgrind.h at valgrind/valgrind.h.  Model that
+# installed include path directly without configuring or executing Valgrind.
+cc_library(
+    name = "headers",
+    hdrs = ["include/valgrind.h"],
+    include_prefix = "valgrind",
+    strip_include_prefix = "include",
+)

@@ -1,0 +1,43 @@
+{
+  "checks": [
+    {
+      "name": "matrix-valid",
+      "command": "tools/bazel/check-matrix.sh /tmp/dd-checkpoint-provider-review/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-fastbuild/bin/bazel/php/matrix.json",
+      "exit_code": 0,
+      "log": "matrix-valid.log",
+      "log_sha256": "51aa6f6229e3b9e2cb124b5fd20e6dfffe813f14e2d3ac89b1968685e06fde53"
+    },
+    {
+      "name": "matrix-rejections",
+      "command": "tools/bazel/test-matrix-validation.sh tools/bazel/check-matrix.sh /tmp/dd-checkpoint-provider-review/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-fastbuild/bin/bazel/php/matrix.json",
+      "exit_code": 0,
+      "log": "matrix-rejections.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "sdk_manifest": {
+    "path": "/tmp/dd-checkpoint-provider-review/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-fastbuild/bin/bazel/php/matrix.json",
+    "sha256": "5ca28e0526b7c17e88ec3a61875103b5f68df196cca41bc9c802369ba3fcb7e3"
+  },
+  "product_manifest": {
+    "path": "/tmp/dd-checkpoint-provider-review/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-fastbuild/bin/bazel/php/product_matrix.json",
+    "sha256": "02cc37a8b721e810fed5c6bc56d975e025b06aa2063734b9840e18a7ce0ed5b5",
+    "rows": 226,
+    "unique_role_bindings": {
+      "build_artifact_roles": 2028,
+      "validation_bundle_artifact_roles": 3128,
+      "asan_runtime_build_artifact_roles": 8,
+      "asan_runtime_validation_artifact_roles": 24
+    },
+    "classification": "analysis only; complete product artifacts remain unfinished"
+  },
+  "build": {
+    "command": "BB_DISABLE_SIDECAR=1 PATH=\"$PWD/build/bin:$PATH\" build/bin/bb --batch --output_user_root=/tmp/dd-checkpoint-provider-review build //bazel/php:matrix //bazel/php:product_matrix --repository_cache=/home/bits/.cache/dd-php-bazel-combined-downloads --repository_contents_cache=/home/bits/.cache/dd-php-bazel-repo-contents --repository_disable_download --lockfile_mode=error --remote_cache= --remote_executor= --bes_backend= --bes_results_url=",
+    "exit_code": 0,
+    "log": "matrix-build.log"
+  },
+  "historical_manifest_comparison": {
+    "review": "/tmp/dd-product-role-binding-root-review.json",
+    "sha256_match": true
+  }
+}

@@ -1,0 +1,18 @@
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+load(":exec_probe.bzl", "exec_probe")
+
+package(default_visibility = ["//visibility:public"])
+
+# Compiling this no_std rlib resolves and executes the selected Rust toolchain
+# without introducing a linker or host-libc dependency into the bootstrap gate.
+rust_library(
+    name = "rust_toolchain_probe",
+    srcs = ["rust_toolchain_probe.rs"],
+    crate_name = "ddtrace_bazel_rust_toolchain_probe",
+    edition = "2021",
+)
+
+exec_probe(
+    name = "exec_rust_toolchain_probe",
+    payload = ":rust_toolchain_probe",
+)

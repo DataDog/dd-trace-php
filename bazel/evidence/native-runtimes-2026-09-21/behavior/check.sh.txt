@@ -1,0 +1,6 @@
+set -eu
+actual=$("./$1" uname -m)
+[ "$actual" = "$2" ]
+"./$3"
+"./$4"
+printf 'architecture=%s\ncmake=pass\nnative=pass\n' "$actual" > "$5"

@@ -1,0 +1,35 @@
+load(":defs.bzl", "loader_matrix", "loader_stage")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "generate-loader-version-header.sh",
+    "native-smoke.sh",
+    "split-debug-elf.sh",
+    "verify-debuglink.py",
+    "verify-loader-elf.sh",
+    "write-loader-metadata.sh",
+])
+
+loader_matrix()
+
+# These narrow package gates cover every real loader architecture/libc output.
+# They do not claim the complete SSI payload, which also needs tracer,
+# profiler, AppSec, common files, and per-API layouts.
+loader_stage("loader_stage_amd64_glibc", "amd64_glibc", "linux-gnu")
+
+loader_stage("loader_stage_arm64_glibc", "arm64_glibc", "linux-gnu")
+
+loader_stage("loader_stage_amd64_musl", "amd64_musl", "linux-musl")
+
+loader_stage("loader_stage_arm64_musl", "arm64_musl", "linux-musl")
+
+filegroup(
+    name = "loader_stage_all",
+    srcs = [
+        ":loader_stage_amd64_glibc",
+        ":loader_stage_amd64_musl",
+        ":loader_stage_arm64_glibc",
+        ":loader_stage_arm64_musl",
+    ],
+)

@@ -1,0 +1,62 @@
+load("@rules_python//python:defs.bzl", "py_test")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "assemble-ssi-payload.sh",
+    "arch_probe.sh",
+    "arm-exec-closure-probe.sh",
+    "bundle-cmake.sh",
+    "check-generation-lock.sh",
+    "check-matrix.sh",
+    "deterministic-tar.sh",
+    "materialize-php-sdk.sh",
+    "test-matrix-validation.sh",
+    "test-ssi-payload.sh",
+    "toolchain_probe.sh",
+    "validate-built-php-artifacts.sh",
+    "validate-php-sdk-metadata.py",
+    "write-php-sdk-inventory.sh",
+])
+
+filegroup(
+    name = "arch_probe",
+    srcs = ["arch_probe.sh"],
+)
+
+filegroup(
+    name = "arm-exec-closure-probe",
+    srcs = ["arm-exec-closure-probe.sh"],
+)
+
+filegroup(
+    name = "bundle-cmake",
+    srcs = ["bundle-cmake.sh"],
+)
+
+filegroup(
+    name = "materialize_php_sdk",
+    srcs = ["materialize-php-sdk.sh"],
+)
+
+filegroup(
+    name = "validate_php_sdk_metadata",
+    srcs = ["validate-php-sdk-metadata.py"],
+)
+
+filegroup(
+    name = "write_php_sdk_inventory",
+    srcs = ["write-php-sdk-inventory.sh"],
+)
+
+py_test(
+    name = "validate_php_sdk_metadata_test",
+    srcs = ["validate_php_sdk_metadata_test.py"],
+    data = [":validate_php_sdk_metadata"],
+    python_version = "PY3",
+)
+
+filegroup(
+    name = "toolchain_probe",
+    srcs = ["toolchain_probe.sh"],
+)

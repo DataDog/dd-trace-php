@@ -1,0 +1,29 @@
+[
+  {
+    "pid": "480184",
+    "backend_flags": [
+      "--remote_cache=",
+      "--remote_executor=",
+      "--bes_backend=",
+      "--bes_results_url="
+    ]
+  },
+  {
+    "pid": "480217",
+    "backend_flags": [
+      "--remote_cache=",
+      "--remote_executor=",
+      "--bes_backend=",
+      "--bes_results_url="
+    ]
+  },
+  {
+    "pid": "480243",
+    "backend_flags": [
+      "--remote_cache=",
+      "--remote_executor=",
+      "--bes_backend=",
+      "--bes_results_url="
+    ]
+  }
+]

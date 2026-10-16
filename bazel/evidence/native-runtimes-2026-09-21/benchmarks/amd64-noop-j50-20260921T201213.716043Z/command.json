@@ -1,0 +1,21 @@
+[
+  "/home/bits/.cache/bazelisk/downloads/sha256/7668a95db1250f12c40407251e4e203b4ec8bf39bc495d2f485b2d8c99048694/bin/bazel",
+  "--output_base=/home/bits/.cache/dd-native-runtime-bench/outputs/amd64-iteration",
+  "build",
+  "--config=remote-hermetic-amd64",
+  "--jobs=50",
+  "--build_tag_filters=",
+  "--bes_backend=",
+  "--bes_results_url=",
+  "--repository_cache=/home/bits/.cache/dd-php-bazel-combined-downloads",
+  "--repository_contents_cache=/home/bits/.cache/dd-php-bazel-repo-contents",
+  "--distdir=/tmp/native-runtime-distdir",
+  "--lockfile_mode=update",
+  "--repository_disable_download",
+  "--config=rbe-cached",
+  "--profile=/home/bits/.cache/dd-native-runtime-bench/results/amd64-noop-j50-20260921T201213.716043Z/profile.json.gz",
+  "--execution_log_compact_file=/home/bits/.cache/dd-native-runtime-bench/results/amd64-noop-j50-20260921T201213.716043Z/execution.pb.zstd",
+  "--build_event_json_file=/home/bits/.cache/dd-native-runtime-bench/results/amd64-noop-j50-20260921T201213.716043Z/events.jsonl",
+  "--remote_grpc_log=/home/bits/.cache/dd-native-runtime-bench/results/amd64-noop-j50-20260921T201213.716043Z/remote-grpc.pb",
+  "//bazel/products/tracer:ddtrace_fat_amd64_all"
+]

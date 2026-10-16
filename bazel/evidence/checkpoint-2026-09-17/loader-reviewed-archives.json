@@ -1,0 +1,18 @@
+{
+  "loader_stage_amd64_glibc.tar.gz": {
+    "sha256": "9c1e1c3b60c40f6991d57a40ac03204058f6f4c1ea9d014b0f81cc42e7be874e",
+    "matches_reviewed": true
+  },
+  "loader_stage_amd64_musl.tar.gz": {
+    "sha256": "174a50fb25b39105b3ffc02bc9e978ca7667dbd964f20db94dd9ba8c05d3ba29",
+    "matches_reviewed": true
+  },
+  "loader_stage_arm64_glibc.tar.gz": {
+    "sha256": "ced7da7c6b87c8045d5383873a3975e7ce4b40238872f86f59563fd16a642d5f",
+    "matches_reviewed": true
+  },
+  "loader_stage_arm64_musl.tar.gz": {
+    "sha256": "6460068e4053f46fe142f20708115c2ffe2157046e1f3076717424b46a610d25",
+    "matches_reviewed": true
+  }
+}

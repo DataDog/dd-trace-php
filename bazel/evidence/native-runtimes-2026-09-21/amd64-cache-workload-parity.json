@@ -1,0 +1,11 @@
+{
+  "before_actions": 27242,
+  "after_actions": 27242,
+  "remote_workload_identical": true,
+  "declared_input_groups_identical": true,
+  "root_dependent_action_key_changes": {
+    "SourceSymlinkManifest": 1745,
+    "SymlinkTree": 1745
+  },
+  "explanation": "SourceSymlinkManifest and SymlinkTree encode client output-root paths. All other action keys and all declared input groups are identical between forced and fresh-client cache runs."
+}

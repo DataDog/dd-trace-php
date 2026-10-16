@@ -13,6 +13,7 @@ if [ -d '/opt/rh/devtoolset-7' ] ; then
     set -eo pipefail
 fi
 set -u
+source .gitlab/legacy-measure.sh
 
 suffix="${1:-}"
 catch_warnings="${2:-1}"
@@ -29,7 +30,13 @@ fi
 
 # Build nts extension
 switch-php "${PHP_VERSION}"
-make clean && make -j "${MAKE_JOBS}" static
+if [[ -n "${BAZEL_LEGACY_MEASURE_DIR:-}" ]]; then
+  printf 'sdk_version=%s\nsdk_abi=%s\n' \
+    "$(php -r 'echo PHP_VERSION;')" \
+    "$(php -i | awk '/^PHP Extension => / {print $4; exit}')" \
+    >> "${BAZEL_LEGACY_MEASURE_DIR}/metadata.txt"
+fi
+make clean && measure_legacy tracer "${TRIPLET:-local}-${PHP_VERSION}-nts" make -j "${MAKE_JOBS}" static
 objcopy --compress-debug-sections tmp/build_extension/modules/ddtrace.so "standalone_$(uname -m)/ddtrace-${PHP_API}${suffix}.so"
 cp -v tmp/build_extension/modules/ddtrace.a "extensions_$(uname -m)/ddtrace-${PHP_API}${suffix}.a"
 if [ "${PHP_VERSION}" = "7.0" ]; then
@@ -42,7 +49,7 @@ fi
 if [ "${suffix}" != "-alpine" ]; then
   # Build debug extension
   switch-php "${PHP_VERSION}-debug"
-  make clean && make -j "${MAKE_JOBS}" static
+  make clean && measure_legacy tracer "${TRIPLET:-local}-${PHP_VERSION}-debug" make -j "${MAKE_JOBS}" static
   objcopy --compress-debug-sections tmp/build_extension/modules/ddtrace.so "standalone_$(uname -m)/ddtrace-${PHP_API}${suffix}-debug.so"
   cp -v tmp/build_extension/modules/ddtrace.a "extensions_$(uname -m)/ddtrace-${PHP_API}${suffix}-debug.a"
 fi
@@ -50,6 +57,6 @@ fi
 # Build zts extension
 switch-php "${PHP_VERSION}-zts"
 rm -r tmp/build_extension
-make clean && make -j "${MAKE_JOBS}" static
+make clean && measure_legacy tracer "${TRIPLET:-local}-${PHP_VERSION}-zts" make -j "${MAKE_JOBS}" static
 objcopy --compress-debug-sections tmp/build_extension/modules/ddtrace.so "standalone_$(uname -m)/ddtrace-${PHP_API}${suffix}-zts.so"
 cp -v tmp/build_extension/modules/ddtrace.a "extensions_$(uname -m)/ddtrace-${PHP_API}${suffix}-zts.a"

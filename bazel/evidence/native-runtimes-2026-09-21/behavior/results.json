@@ -1,0 +1,14 @@
+[
+  {
+    "variant": "aarch64_glibc",
+    "marker": "/home/bits/.cache/dd-native-runtime-behavior/execroot/_main/bazel-out/k8-fastbuild/bin/aarch64_glibc.passed",
+    "sha256": "05460a47b297ba8b2f67c75769d9591093812241713b668b610ef04e0e9cc910",
+    "status": "pass"
+  },
+  {
+    "variant": "aarch64_musl",
+    "marker": "/home/bits/.cache/dd-native-runtime-behavior/execroot/_main/bazel-out/k8-fastbuild/bin/aarch64_musl.passed",
+    "sha256": "05460a47b297ba8b2f67c75769d9591093812241713b668b610ef04e0e9cc910",
+    "status": "pass"
+  }
+]

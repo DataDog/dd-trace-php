@@ -1,0 +1,32 @@
+package(default_visibility = ["//visibility:public"])
+
+exports_files(glob(["bin/*", "lib/**", "include/**", "share/clang/*"], allow_empty = True))
+
+filegroup(name = "all", srcs = glob(["**"]))
+filegroup(name = "clang", srcs = ["bin/clang", "bin/clang++", "bin/clang-cpp"])
+filegroup(name = "ld", srcs = ["bin/ld.lld", "bin/ld64.lld"] + glob(["bin/wasm-ld"], allow_empty = True))
+filegroup(name = "include", srcs = glob(["include/**/c++/**", "lib/clang/*/include/**"]))
+filegroup(name = "all_includes", srcs = glob(["include/**"], allow_empty = True))
+filegroup(name = "cxx_builtin_include", srcs = ["include/c++", "lib/clang/20/include"])
+filegroup(name = "extra_config_site", srcs = glob(["include/*/c++/v1/__config_site"], allow_empty = True))
+filegroup(name = "bin", srcs = glob(["bin/**"]))
+filegroup(
+    name = "lib",
+    srcs = ["lib/clang/20/lib"] + glob(["lib/**/libc++*.a", "lib/**/libunwind.a"]),
+)
+filegroup(name = "lib_legacy", srcs = glob(["lib/clang/20/lib/**", "lib/**/libc++*.a", "lib/**/libunwind.a"]),)
+filegroup(name = "ar", srcs = ["bin/llvm-ar"])
+filegroup(name = "as", srcs = ["bin/clang", "bin/llvm-as"])
+filegroup(name = "nm", srcs = ["bin/llvm-nm"])
+filegroup(name = "objcopy", srcs = ["bin/llvm-objcopy"])
+filegroup(name = "objdump", srcs = ["bin/llvm-objdump"])
+filegroup(name = "profdata", srcs = ["bin/llvm-profdata"])
+filegroup(name = "dwp", srcs = ["bin/llvm-dwp"])
+filegroup(name = "ranlib", srcs = ["bin/llvm-ranlib"])
+filegroup(name = "readelf", srcs = ["bin/llvm-readelf"])
+filegroup(name = "strip", srcs = ["bin/llvm-strip"])
+filegroup(name = "symbolizer", srcs = ["bin/llvm-symbolizer"])
+filegroup(name = "clang-tidy", srcs = ["bin/clang-tidy"])
+filegroup(name = "clang-format", srcs = ["bin/clang-format"])
+filegroup(name = "git-clang-format", srcs = ["bin/git-clang-format"])
+filegroup(name = "libclang", srcs = glob(["lib/libclang.so", "lib/libclang.dylib"], allow_empty = True))
