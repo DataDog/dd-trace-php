@@ -654,7 +654,7 @@ EOT
     fi
     if test "$PHP_DDTRACE_PROFILING" != "no"; then
       if test "$PHP_DDTRACE_TRACER" != "no"; then
-        ddtrace_profiler_feature=profiling-embedded
+        ddtrace_profiler_feature=profiling-embedded,profiling-runtime
       else
         dnl Standalone needs logging and UTF-8 validation, but no sidecar or
         dnl tracer services. The profiler reads OTel context; it does not publish it.

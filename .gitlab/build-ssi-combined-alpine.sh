@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Alpine SSI ddtrace is combined, but imports common symbols from the
-# separately built libdatadog_php.so. Its Rust archive is a private linker input.
+# Build each Alpine SSI extension with its matching common DSO. PHP 7.0 is
+# tracer-only; supported PHP versions also build a private PHP-ABI Rust archive.
 set -euo pipefail
 shopt -s expand_aliases
 source "${BASH_ENV}"
@@ -9,8 +9,6 @@ source "${BASH_ENV}"
 output_dir=$(cd "$1" && pwd)
 php_api=$2
 root=$(cd "$(dirname "$0")/.." && pwd)
-common_library="$output_dir/libdatadog_php.so"
-[[ -s "$common_library" ]] || { echo "missing SSI common library: $common_library" >&2; exit 1; }
 
 for variant in nts zts; do
     if [[ $variant == nts ]]; then
@@ -20,7 +18,8 @@ for variant in nts zts; do
         switch-php "$PHP_VERSION-zts"
         suffix=-alpine-zts
     fi
-    export CARGO_TARGET_DIR="$root/tmp/ssi-alpine-php-${PHP_VERSION}-${variant}"
+    # Keep the Cargo target path identical across PHP versions and ABIs.
+    export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$root/tmp/ssi-rust-target}"
     # Build the private PHP-ABI archive and C extension together with ThinLTO.
     # The helper also restores weak PHP imports and load-tests with the common
     # DSO preloaded, without adding a DT_NEEDED edge.

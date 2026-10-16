@@ -1,0 +1,127 @@
+# SSI's PHP-independent output is a separate Cargo package so selecting it
+# alongside datadog-php/profiling-embedded cannot enable runtime code in the
+# PHP-ABI archive. Both packages reuse the implementation sources.
+[package]
+name = "datadog-php-common"
+version.workspace = true
+edition = "2021"
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+build = "../build.rs"
+
+[lib]
+# Match the PHP-ABI target, including rlib: Cargo changes dependency LTO
+# planning when a graph gains an rlib root, even with identical RUSTFLAGS.
+crate-type = ["staticlib", "cdylib", "rlib"]
+path = "../lib.rs"
+bench = false
+
+[lints.rust]
+# Shared sources gate PHP code on this feature, which this package cannot enable.
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(php_shared_build)', 'cfg(feature, values("profiling"))'] }
+
+[features]
+default = ["tracer-runtime", "profiling-runtime", "profiling-dependencies"]
+# Keep these capabilities and dependency declarations aligned with the root
+# package. profiling-dependencies fixes feature resolution across all PHP ABIs;
+# this package deliberately has no profiling (PHP capture/codegen) feature.
+runtime = [
+  "dep:arc-swap", "dep:tracing-core", "dep:libdd-common-ffi",
+  "dep:libdd-library-config-ffi",
+]
+sidecar = [
+  "runtime", "dep:datadog-sidecar", "dep:datadog-sidecar-ffi",
+  "dep:spawn_worker", "dep:libdd-ipc", "dep:libdd-crashtracker",
+  "dep:libdd-crashtracker-ffi",
+  # sidecar.rs uses libdd-telemetry-ffi::try_c even without tracer-runtime.
+  "dep:libdd-telemetry-ffi",
+]
+tracer-runtime = [
+  "sidecar", "otel-context", "appsec", "dep:ddtrace-sidecar",
+  "dep:libdd-telemetry", "dep:zwohash", "dep:hashbrown",
+  "dep:bincode", "dep:const-str", "dep:libdd-trace-utils",
+  "dep:libdd-trace-stats", "dep:libdd-tinybytes", "dep:libdd-remote-config",
+  "dep:libdd-live-debugger", "dep:libdd-live-debugger-ffi",
+  "dep:libdd-data-pipeline", "dep:datadog-ffe", "dep:itertools",
+  "dep:regex", "dep:regex-automata", "dep:serde",
+]
+otel-context = ["dep:libdd-library-config", "dep:libdd-trace-protobuf"]
+appsec = ["dep:quick-xml", "dep:libdd-common-ffi", "dep:serde"]
+profiling-dependencies = [
+  "dep:bindgen", "dep:cc",
+  "dep:cpu-time", "dep:crossbeam-channel", "dep:dashmap", "dep:dynasmrt",
+  "dep:libdd-alloc", "dep:libdd-profiling", "dep:mach2", "dep:rand", "dep:rand_distr",
+  "dep:rustc-hash", "dep:thiserror", "dep:chrono", "dep:env_logger",
+]
+profiling-runtime = ["dep:libdd-profiling"]
+
+[dependencies]
+libdd-common = { path = "../../libdatadog/libdd-common", features = ["cgroup_testing"] }
+libdd-common-ffi = { path = "../../libdatadog/libdd-common-ffi", default-features = false, features = ["std"], optional = true }
+libdd-telemetry = { path = "../../libdatadog/libdd-telemetry", optional = true }
+libdd-telemetry-ffi = { path = "../../libdatadog/libdd-telemetry-ffi", default-features = false, optional = true }
+libdd-live-debugger = { path = "../../libdatadog/libdd-live-debugger", optional = true }
+libdd-live-debugger-ffi = { path = "../../libdatadog/libdd-live-debugger-ffi", default-features = false, optional = true }
+libdd-ipc = { path = "../../libdatadog/libdd-ipc", optional = true }
+datadog-ffe = { package = "libdd-ffe", path = "../../libdatadog/libdd-ffe", optional = true }
+libdd-remote-config = { path = "../../libdatadog/libdd-remote-config", optional = true }
+datadog-sidecar = { path = "../../libdatadog/datadog-sidecar", optional = true }
+datadog-sidecar-ffi = { path = "../../libdatadog/datadog-sidecar-ffi", optional = true }
+libdd-data-pipeline = { path = "../../libdatadog/libdd-data-pipeline", optional = true }
+libdd-tinybytes = { path = "../../libdatadog/libdd-tinybytes", optional = true }
+libdd-trace-utils = { path = "../../libdatadog/libdd-trace-utils", optional = true }
+libdd-trace-stats = { path = "../../libdatadog/libdd-trace-stats", optional = true }
+libdd-trace-protobuf = { path = "../../libdatadog/libdd-trace-protobuf", optional = true }
+libdd-crashtracker = { path = "../../libdatadog/libdd-crashtracker", default-features = false, features = ["collector"], optional = true }
+libdd-crashtracker-ffi = { path = "../../libdatadog/libdd-crashtracker-ffi", default-features = false, features = ["collector"], optional = true }
+libdd-library-config-ffi = { path = "../../libdatadog/libdd-library-config-ffi", default-features = false, features = ["std"], optional = true }
+spawn_worker = { path = "../../libdatadog/spawn_worker", optional = true }
+anyhow = "1.0"
+arc-swap = { workspace = true, optional = true }
+quick-xml = { workspace = true, optional = true }
+const-str = { version = "0.5.6", optional = true }
+itertools = { version = "0.11.0", optional = true }
+serde = { version = "1.0.196", optional = true }
+lazy_static = "1.4"
+log = { version = "0.4.20", features = ["max_level_trace", "release_max_level_trace"] }
+env_logger = { version = "0.11", optional = true }
+zwohash = { version = "0.1.2", optional = true }
+uuid = { version = "1.0", features = ["v4"] }
+tracing = { version = "0.1", default-features = false, features = ["std", "attributes"] }
+tracing-core = { version = "0.1.32", optional = true }
+tracing-subscriber = { version = "0.3", default-features = false, features = ["std", "fmt", "env-filter", "smallvec"] }
+serde_json = "1.0.113"
+regex = { version = "1.10.5", optional = true }
+regex-automata = { version = "0.4.5", optional = true }
+http = "1.4"
+libc = "0.2"
+bincode = { version = "1.3.3", optional = true }
+hashbrown = { version = "0.15", optional = true }
+chrono = { version = "0.4", optional = true }
+cpu-time = { version = "1.0", optional = true }
+crossbeam-channel = { version = "0.5", default-features = false, features = ["std"], optional = true }
+dashmap = { version = "6.2.1", optional = true }
+dynasmrt = { version = "5.0.0", optional = true }
+libdd-alloc = { path = "../../libdatadog/libdd-alloc", optional = true }
+libdd-profiling = { path = "../../libdatadog/libdd-profiling", optional = true }
+rand = { version = "0.9.4", optional = true }
+rand_distr = { version = "0.5.1", optional = true }
+rustc-hash = { version = "2.1.3", optional = true }
+thiserror = { version = "2", optional = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libdd-library-config = { path = "../../libdatadog/libdd-library-config", default-features = false, features = ["otel-thread-ctx", "process-context-reader"], optional = true }
+
+# ddtrace-sidecar only adds the AppSec backend registration around libdatadog's daemon entrypoint,
+# which is a Unix-only concern. On Windows `run_sidecar` uses `datadog_sidecar` directly instead.
+[target.'cfg(unix)'.dependencies]
+ddtrace-sidecar = { path = "../../sidecar", optional = true }
+
+[target.'cfg(target_vendor = "apple")'.dependencies]
+mach2 = { version = "0.6.0", optional = true }
+
+[build-dependencies]
+cbindgen = "0.27"
+bindgen = { version = "0.72.1", optional = true }
+cc = { version = "1.0", optional = true }
