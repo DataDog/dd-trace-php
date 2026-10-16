@@ -618,9 +618,9 @@ foreach ($build_platforms as $platform) {
       - "packages/"
 
 <?php
-// The needs: graph is identical for every "package extension" job of a given
-// platform, whether it builds the native installers or the final bundles.
-$package_extension_needs = function (array $platform) use ($php_versions_to_abi, $profiler_minor_major_targets) {
+// needs: of a platform's "package extension" jobs. Native installers (FPM_FILES) hold only the
+// linked tracer; $bundle_inputs adds the appsec and profiler extensions the bundles need.
+$package_extension_needs = function (array $platform, bool $bundle_inputs = true) use ($php_versions_to_abi, $profiler_minor_major_targets) {
 ?>
   needs:
     - job: "prepare code"
@@ -630,11 +630,14 @@ $package_extension_needs = function (array $platform) use ($php_versions_to_abi,
     - job: "link tracing extension: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
 
-    # Compile tracing sidecar
+    # Compile tracing sidecar: linked into the tracer already, no packaging step reads it
     - job: "compile tracing sidecar: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
-      artifacts: true
+      artifacts: false
 
 <?php
+    if (!$bundle_inputs) {
+        return;
+    }
     foreach ($php_versions_to_abi as $major_minor => $abi_no) {
 ?>
     # Compile appsec extension
@@ -673,7 +676,7 @@ foreach ($build_platforms as $platform) {
 
     - mv build/packages/ packages/
 <?php
-        $package_extension_needs($platform);
+        $package_extension_needs($platform, false);
 ?>
 
 "package extension (bundles): [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
