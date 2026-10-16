@@ -194,7 +194,8 @@ stages:
         TERM=dumb ./gradlew loadCaches --info
       fi
 
-      TERM=dumb ./gradlew $targets --info -Pbuildscan --scan -PcheckCoreDumps
+      # Gradle forwards the appsec CMake output: a Depot 503 in its FetchContent exits 75, which is retried.
+      TERM=dumb ../../../.gitlab/run-with-retryable-download.sh ./gradlew $targets --info -Pbuildscan --scan -PcheckCoreDumps || exit $?
       TERM=dumb ./gradlew saveCaches --info
   after_script:
     - mkdir -p "${CI_PROJECT_DIR}/artifacts"
@@ -389,8 +390,9 @@ stages:
       # rebuilds keep working.
       docker run --rm -v php-portable-libdatadog-php:/vol alpine \
         rm -rf /vol/cargo-target
-      TERM=dumb ./gradlew test8.3-release-ssi test8.4-release-zts-ssi \
-        --info -Pbuildscan --scan -PcheckCoreDumps -PuseHelperRustCoverage
+      # Gradle forwards the appsec CMake output: a Depot 503 in its FetchContent exits 75, which is retried.
+      TERM=dumb ../../../.gitlab/run-with-retryable-download.sh ./gradlew test8.3-release-ssi test8.4-release-zts-ssi \
+        --info -Pbuildscan --scan -PcheckCoreDumps -PuseHelperRustCoverage || exit $?
       TERM=dumb ./gradlew saveCaches --info
     - |
       cd "$CI_PROJECT_DIR"
