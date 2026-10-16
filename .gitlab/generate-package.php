@@ -182,12 +182,10 @@ requirements_json_test:
 # dd-trace-php release packaging
 "prepare code":
   stage: prepare
-  image: registry.ddbuild.io/images/mirror/composer:2
+  image: registry.ddbuild.io/images/mirror/composer:2.10.3@sha256:af98f42dfff7c68ba8d53c2164fd9fde1087b7d449514baa38c418b1f6bc4bac
   tags: [ "arch:amd64" ]
   script:
     - ./.gitlab/append-build-id.sh
-    # Upgrading composer
-    - composer self-update --no-interaction
     # Installing dependencies with composer
     - |
       export COMPOSER_MEMORY_LIMIT=-1 # disable composer memory limit completely
@@ -1125,7 +1123,8 @@ endforeach;
     DD_TRACE_AGENT_PORT: 80
     DD_TRACE_AGENT_FLUSH_INTERVAL: 1000
   script:
-    - ./dockerfiles/verify_packages/verify.sh
+    # `|| exit $?` keeps install.sh's exit 75 on centos:7, where bash 4.2 turns an errexit status into 1.
+    - ./dockerfiles/verify_packages/verify.sh || exit $?
 
 
 "verify alpine":
@@ -1244,7 +1243,8 @@ endforeach;
                -e 's|http://deb.debian.org/debian|http://snapshot.debian.org/archive/debian/20260901T000000Z|g' /etc/apt/sources.list
         echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid-until
       fi
-    - apt-get update || exit 75
+    # Bound apt: a stalled deb.debian.org fetch otherwise hangs until the 1 h job timeout; 75 is retried.
+    - timeout 300 apt-get -o Acquire::http::Timeout=30 -o Acquire::Retries=3 update || exit 75
     - |
       # apt-get update still exits 0 when the rewrite silently no-ops, so assert on the URIs apt would actually fetch from.
       if [ "$(. /etc/os-release; echo $VERSION_CODENAME)" = "bullseye" ]; then
@@ -1255,7 +1255,7 @@ endforeach;
         if [ -z "$uris" ]; then echo "FAIL: could not resolve any apt URIs"; exit 1; fi
         if [ -n "$bad" ]; then echo "FAIL: bullseye apt sources not pinned; apt would still fetch from: $bad"; exit 1; fi
       fi
-    - apt-get install -y curl || exit 75
+    - timeout 300 apt-get -o Acquire::http::Timeout=30 -o Acquire::Retries=3 install -y curl || exit 75
 
 # Thread-mode sidecar under a privilege-dropping PHP-FPM: root master, www-data pool workers.
 # One combination only - this verifies runtime behaviour of the sidecar's privilege drop, not
