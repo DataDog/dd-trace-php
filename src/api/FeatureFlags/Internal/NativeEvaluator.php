@@ -51,7 +51,12 @@ final class NativeEvaluator implements Evaluator
             $rawResult = $this->withProviderState($rawResult);
         }
 
-        $details = $this->mapper->map($rawResult, $expectedType, $defaultValue);
+        $details = $this->mapper->map(
+            $rawResult,
+            $expectedType,
+            $defaultValue,
+            SpanEnrichmentRegistry::gateEnabled()
+        );
 
         // APM feature-flag span enrichment. This is the single choke point both
         // the native Client and the OpenFeature DataDogProvider evaluate through,
