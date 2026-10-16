@@ -50,11 +50,11 @@ $build_platforms = [
 /**
  * Names of the packaging jobs of a build platform.
  *
- * The linux-gnu platforms are split into three jobs: the native installers
- * (.rpm/.deb/.tar.gz), the combined bundle (dd-library-php-<v>-<arch>-linux-gnu.tar.gz)
- * and the per-PHP-API bundles; keeping them together overflows the project's
- * max_artifacts_size, and most consumers only need one of them.
- * The musl platforms remain a single job.
+ * The linux-gnu platforms are split into one job per native installer format
+ * (.rpm/.deb/.tar.gz, keyed by make target), the combined bundle
+ * (dd-library-php-<v>-<arch>-linux-gnu.tar.gz) and the per-PHP-API bundles; keeping
+ * them together overflows the project's max_artifacts_size, and most consumers
+ * only need one of them. The musl platforms remain a single job.
  *
  * $kind is "installers", "bundles" (the combined bundle), "per-api bundles" or "all".
  */
@@ -65,7 +65,14 @@ function package_extension_jobs(array $platform, string $kind = "all"): array
     }
 
     $jobs = [];
-    foreach (["installers", "bundles", "per-api bundles"] as $job_kind) {
+    if ($kind === "all" || $kind === "installers") {
+        foreach ($platform['targets'] as $target) {
+            // .rpm.x86_64 -> rpm, .tar.gz.aarch64 -> tar.gz
+            $format = preg_replace('(^\.(.+)\.[^.]+$)', '$1', $target);
+            $jobs[$target] = "package extension ($format): [{$platform['arch']}, {$platform['triplet']}]";
+        }
+    }
+    foreach (["bundles", "per-api bundles"] as $job_kind) {
         if ($kind === "all" || $kind === $job_kind) {
             $jobs[] = "package extension ($job_kind): [{$platform['arch']}, {$platform['triplet']}]";
         }
@@ -663,25 +670,25 @@ $package_extension_needs = function (array $platform, bool $bundle_inputs = true
 };
 
 foreach ($build_platforms as $platform) {
-    // The linux-gnu platforms produce both the native installers (.rpm/.deb/
-    // .tar.gz, one file bundling every extension) and the per-PHP-API "final
-    // artifact" bundles. Together those artifacts blow past the project's
-    // max_artifacts_size, so they are built by two independent jobs (the two
-    // steps share no state). The musl platforms only build .apk and stay in a
-    // single job.
+    // The linux-gnu platforms produce the native installers (.rpm/.deb/.tar.gz,
+    // one file bundling every extension) and the "final artifact" bundles. Each
+    // is built by its own job (the steps share no state), so that consumers
+    // download only the file they install. The musl platforms stay in a single job.
     if ($platform['host_os'] === 'linux-gnu') {
+        foreach (package_extension_jobs($platform, "installers") as $target => $job) {
 ?>
-"package extension (installers): [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
+"<?= $job ?>":
   extends: .package_extension_base
   variables:
     ARCH: "<?= $platform['arch'] ?>"
     TRIPLET: "<?= $platform['triplet'] ?>"
   script:
-    - make -j 4 <?= implode(' ', $platform['targets']) ?>
+    - make -j 4 <?= $target ?>
 
     - mv build/packages/ packages/
 <?php
-        $package_extension_needs($platform, false);
+            $package_extension_needs($platform, false);
+        }
 ?>
 
 <?php
@@ -1088,7 +1095,7 @@ endforeach;
     KUBERNETES_MEMORY_REQUEST: 2Gi
     KUBERNETES_MEMORY_LIMIT: 4Gi
   needs:
-    - job: "package extension (installers): [amd64, x86_64-unknown-linux-gnu]"
+    - job: "package extension (deb): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
   parallel:
     matrix:
@@ -1225,7 +1232,7 @@ endforeach;
   variables:
     INSTALL_TYPE: native_package
   needs:
-    - job: "package extension (installers): [amd64, x86_64-unknown-linux-gnu]"
+    - job: "package extension (rpm): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
 
 "verify centos: php_installer":
@@ -1282,7 +1289,7 @@ endforeach;
   variables:
     INSTALL_TYPE: native_package
   needs: &verify_debian_native_needs
-    - job: "package extension (installers): [amd64, x86_64-unknown-linux-gnu]"
+    - job: "package extension (deb): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
 
 "verify debian: php_installer":
@@ -1321,7 +1328,7 @@ endforeach;
     KUBERNETES_MEMORY_LIMIT: 4Gi
     PHP_VERSION: "<?= $major_minor ?>"
   needs:
-    - job: "package extension (installers): [<?= $arch ?>, <?= $pkgprefix ?>-unknown-linux-gnu]"
+    - job: "package extension (tar.gz): [<?= $arch ?>, <?= $pkgprefix ?>-unknown-linux-gnu]"
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
@@ -1430,7 +1437,7 @@ endforeach;
     _DD_DEBUG_SIDECAR_LOG_LEVEL: trace
     _DD_DEBUG_SIDECAR_LOG_METHOD: "file://${CI_PROJECT_DIR}/artifacts/sidecar.log"
   needs:
-    - job: "package extension (installers): [amd64, x86_64-unknown-linux-gnu]"
+    - job: "package extension (deb): [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
   services:
     - !reference [.services, request-replayer]
