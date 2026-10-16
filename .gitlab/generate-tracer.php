@@ -842,6 +842,13 @@ foreach ($services as $part => $service) {
     KUBERNETES_MEMORY_REQUEST: 6Gi
     KUBERNETES_MEMORY_LIMIT: 6Gi
 <?php endif; ?>
+<?php if ($target === "test_integrations_frankenphp"): ?>
+  script:
+    # Build FrankenPHP as its own step, in the proxy-free env the harness gave it: from inside PHPUnit its exit 75 is lost.
+    - unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy
+    - tooling/bin/install-frankenphp.sh || exit $?
+    - !reference [.cli_integration_test, script]
+<?php endif; ?>
 
 <?php
             endforeach;
