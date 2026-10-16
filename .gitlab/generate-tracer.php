@@ -205,6 +205,10 @@ windows_test_c_job("windows test_c: zts", "zts", [
 "macos test_c":
   stage: test
   tags: ["macos:tart"]
+  # Builds the extension from source: of the compile stage it only needs the generated bridge files.
+  needs:
+    - job: "Prepare code"
+      artifacts: true
   image: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/ci-platform-machine-images/tart-vm:shared-sequoia-latest"
   variables:
     PHP_MACOS_VERSION: "8.5.9"
