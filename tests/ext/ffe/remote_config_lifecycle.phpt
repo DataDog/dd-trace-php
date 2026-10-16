@@ -2,6 +2,9 @@
 FFE Remote Config loads and removes UFC config
 --SKIPIF--
 <?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
+--INI--
+datadog.trace.log_file={PWD}/remote_config_lifecycle.log
+datadog.trace.log_level=debug
 --ENV--
 DD_AGENT_HOST=request-replayer
 DD_TRACE_AGENT_PORT=80
@@ -73,11 +76,16 @@ del_rc_file($path);
 show('removed', wait_for_ffe_config(false));
 show('has_config_after_remove', \DDTrace\ffe_has_config());
 show('version_increased', \DDTrace\ffe_config_version() > $version);
+$logs = file_get_contents(__DIR__ . '/remote_config_lifecycle.log');
+show('received_logged', strpos($logs, 'Feature Flags: remote_config configuration received') !== false);
+show('applied_logged', strpos($logs, 'Feature Flags: configuration applied successfully (1 flag(s)') !== false);
+show('removed_logged', strpos($logs, 'Feature Flags: remote_config configuration removed (version=') !== false);
 ?>
 --CLEAN--
 <?php
 require __DIR__ . "/../remote_config/remote_config.inc";
 reset_request_replayer();
+@unlink(__DIR__ . '/remote_config_lifecycle.log');
 ?>
 --EXPECT--
 before=false
@@ -87,3 +95,6 @@ success={"valueJson":"\"blue\"","variant":"blue","allocationKey":"alloc-string",
 removed=true
 has_config_after_remove=false
 version_increased=true
+received_logged=true
+applied_logged=true
+removed_logged=true

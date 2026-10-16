@@ -7,6 +7,7 @@ use libdd_common_ffi::slice::{AsBytes, CharSlice};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::Arc;
+use tracing::debug;
 
 struct FfeState {
     config: Option<Configuration>,
@@ -25,6 +26,15 @@ pub fn store_config(config: Configuration) {
         let mut state = state.borrow_mut();
         state.config = Some(config);
         state.version = state.version.wrapping_add(1);
+        if let Some(config) = &state.config {
+            debug!(
+                "Feature Flags: configuration applied successfully ({} flag(s), env={:?}, version={}, created_at={})",
+                config.flag_keys().count(),
+                config.environment(),
+                state.version,
+                config.created_at(),
+            );
+        }
     });
 }
 
@@ -52,7 +62,12 @@ pub extern "C" fn ddog_ffe_load_config(json: CharSlice<'_>) -> bool {
             store_config(Configuration::from_server_response(ufc));
             true
         }
-        Err(_) => false,
+        Err(_) => {
+            // Parser errors may contain flag values. Never include raw input or
+            // parser error strings in customer diagnostics.
+            debug!("Feature Flags: configuration rejected; invalid flag configuration, retaining previous configuration");
+            false
+        }
     }
 }
 

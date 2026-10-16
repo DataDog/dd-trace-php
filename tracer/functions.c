@@ -1823,6 +1823,10 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
         Z_PARAM_BOOL(record_metric)
     ZEND_PARSE_PARAMETERS_END();
 
+    if (!get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()) {
+        LOG_ONCE(DEBUG, "Feature Flags: flagging provider is disabled, so no flag configuration will be received and default values are returned; set DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED=true at startup (environment or php.ini) and restart");
+    }
+
     type_id = (int32_t) type_id_zl;
     attributes = Z_ARRVAL_P(attrs_zv);
     attrs_count = zend_hash_num_elements(attributes);
@@ -1897,6 +1901,7 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     }
 
     if (!result.valid) {
+        LOG(DEBUG, "Feature Flags: exposure suppressed; invalid evaluation result");
         if (record_metric) {
             ddtrace_ffe_record_evaluation_metric(flag_key, NULL, "ERROR", "PROVIDER_NOT_READY", NULL);
         }
@@ -1928,6 +1933,9 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
             result.has_serial_id
         );
         zend_string_release(subject_attributes_json);
+    } else {
+        LOG(DEBUG, "Feature Flags: exposure suppressed; %s",
+            !result.do_log ? "evaluation did not request exposure logging" : "missing allocation or variant");
     }
 
     object_init_ex(return_value, ddtrace_ce_ffe_result);
