@@ -71,6 +71,11 @@ if [[ -n "${PHP_MAJOR_MINOR}" && $(version $PHP_MAJOR_MINOR) -ge $(version 7.4) 
   extra_args="-j$(nproc)"
 fi
 
+# PHP < 8.2 already hides progress when -g filters the displayed results.
+if [[ -n "${PHP_MAJOR_MINOR}" && $(version $PHP_MAJOR_MINOR) -ge $(version 8.2) ]]; then
+  extra_args="$extra_args --no-progress"
+fi
+
 # Automatic retries for selected flaky functions are available since PHP 8.1.
 if [[ -n "${PHP_MAJOR_MINOR}" && $(version $PHP_MAJOR_MINOR) -ge $(version 8.1) ]]; then
   sed -i "/flaky_functions = /a 'socket_create','stream_context_create'," run-tests.php
@@ -79,6 +84,6 @@ fi
 php run-tests.php -q \
   -p /usr/local/bin/php \
   --show-diff \
-  -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP \
+  -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK \
   -d datadog.trace.sources_path=/home/circleci/datadog/src \
   $extra_args
