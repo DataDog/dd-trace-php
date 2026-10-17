@@ -200,7 +200,7 @@ final class ClientTestEvaluator implements Evaluator
         return $this;
     }
 
-    public function evaluate($flagKey, $expectedType, $defaultValue, $targetingKey = null, array $attributes = array())
+    public function evaluate($flagKey, $expectedType, $defaultValue, $targetingKey = null, array $attributes = array(), $targetingKeyInvalid = false)
     {
         $this->calls[] = array(
             'flagKey' => $flagKey,
