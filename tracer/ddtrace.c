@@ -408,7 +408,7 @@ void ddtrace_mshutdown() {
     }
 #endif
     if (get_global_DD_TRACE_FORCE_FLUSH_ON_SHUTDOWN() && DATADOG_G(sidecar)) {
-        ddog_sidecar_flush(&DATADOG_G(sidecar), flush_options);
+        ddog_MaybeError_drop(ddog_sidecar_flush(&DATADOG_G(sidecar), flush_options));
     }
 
     ddtrace_telemetry_flush_bgs_metrics_final();
