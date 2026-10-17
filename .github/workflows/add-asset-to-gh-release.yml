@@ -4,16 +4,26 @@ on:
   workflow_dispatch:
     inputs:
       packagesUrl:
-        description: 'URL for `packages.tar.gz` to add to release'
+        description: "URL for `packages.tar.gz` to add to release"
         required: true
       releaseVersion:
-        description: 'Version to add the assets to'
+        description: "Version to add the assets to"
         required: true
 
 jobs:
   add-assets-to-release:
     runs-on: ubuntu-8-core-latest
+    permissions:
+      contents: write
+      id-token: write
     steps:
+      - name: Get GitHub Token via dd-octo-sts
+        id: generate-token
+        uses: DataDog/dd-octo-sts-action@96a25462dbcb10ebf0bfd6e2ccc917d2ab235b9a # v1.0.4
+        with:
+          scope: DataDog/dd-trace-php
+          policy: self.add-asset-to-gh-release
+
       - run: |
           curl -L -o packages.tar.gz $PACKAGES_URL
           tar -xvzf packages.tar.gz
@@ -22,4 +32,4 @@ jobs:
         env:
           PACKAGES_URL: ${{ inputs.packagesUrl }}
           RELEASE: ${{ inputs.releaseVersion }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
