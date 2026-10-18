@@ -53,8 +53,12 @@ $value = $api->getClient()->getBooleanValue('checkout-redesign', false, $context
 
 Only boolean `true` suppresses new evaluation metrics and automatic flag span annotations. Strings such as `"true"` do not suppress telemetry.
 The provider reads the final merged context after OpenFeature `before` hooks.
-Flag results, experiment exposures, custom hooks, unrelated telemetry, and previously queued data remain unchanged.
+Telemetry suppression preserves flag evaluation, experiment exposures, custom hooks, unrelated telemetry, and previously queued data.
 This option does not disable experiment participation or exposure logging. The native `DDTrace\FeatureFlags\Client` API remains unchanged.
+
+The attribute remains available to targeting rules and normal exposure subject attributes, regardless of activation.
+It follows the same scalar attribute normalization and exposure handling as other context attributes.
+A targeting rule can change the assignment when this attribute changes. Telemetry suppression does not change that targeting behavior.
 
 To enable support through the environment, set this variable before PHP starts:
 

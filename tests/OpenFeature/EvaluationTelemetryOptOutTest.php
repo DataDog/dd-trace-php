@@ -116,6 +116,26 @@ final class EvaluationTelemetryOptOutTest extends TestCase
         ];
     }
 
+    /** @dataProvider decisions */
+    public function testOptOutAttributeUsesNormalTargetingAndExposureAdmission(bool $enabled, array $attributes, bool $suppressed): void
+    {
+        $client = $this->client($enabled);
+        $context = new EvaluationContext('same-subject', new Attributes($attributes));
+        $details = $client->getStringDetails('attribute-targeting.flag', 'runtime-default', $context);
+        $value = $attributes[self::KEY] ?? null;
+        // ONE_OF uses the evaluator's normal string matching for boolean and string values.
+        $matched = $value === true || $value === 'true';
+
+        self::assertSame($matched ? 'attribute-matched' : 'attribute-not-matched', $details->getValue());
+        self::assertSame($matched ? 'matched' : 'fallback', $details->getVariant());
+        self::assertSame($matched ? 'TARGETING_MATCH' : 'STATIC', $details->getReason());
+        self::assertNull($details->getError());
+        self::assertSame($attributes, $context->getAttributes()->toArray());
+        $this->assertDelta($suppressed ? 0 : 1, 1);
+        $this->assertSpanIds($suppressed ? [] : [$matched ? 301 : 302]);
+        self::assertSame('retained', \DDTrace\root_span()->meta['customer.tag']);
+    }
+
     public function testDefaultConstructorAndNativeClientKeepExistingBehavior(): void
     {
         $this->api->setProvider(new DataDogProvider());
@@ -361,6 +381,26 @@ final class EvaluationTelemetryOptOutTest extends TestCase
                     ]]],
                 ],
             ]],
+        ];
+        $flags['attribute-targeting.flag'] = [
+            'key' => 'attribute-targeting.flag', 'enabled' => true, 'variationType' => 'STRING',
+            'variations' => [
+                'matched' => ['key' => 'matched', 'value' => 'attribute-matched'],
+                'fallback' => ['key' => 'fallback', 'value' => 'attribute-not-matched'],
+            ],
+            'allocations' => [
+                [
+                    'key' => 'attribute-match', 'doLog' => true,
+                    'rules' => [['conditions' => [[
+                        'attribute' => self::KEY, 'operator' => 'ONE_OF', 'value' => ['true'],
+                    ]]]],
+                    'splits' => [['variationKey' => 'matched', 'serialId' => 301, 'shards' => []]],
+                ],
+                [
+                    'key' => 'attribute-fallback', 'rules' => [], 'doLog' => true,
+                    'splits' => [['variationKey' => 'fallback', 'serialId' => 302, 'shards' => []]],
+                ],
+            ],
         ];
         return json_encode(['createdAt' => '2026-01-01T00:00:00Z', 'environment' => ['name' => 'test'], 'flags' => $flags]);
     }
