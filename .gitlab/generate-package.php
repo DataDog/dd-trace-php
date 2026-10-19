@@ -178,6 +178,12 @@ requirements_json_test:
     REQUIREMENTS_BLOCK_JSON_PATH: "loader/packaging/block_tests.json"
     REQUIREMENTS_ALLOW_JSON_PATH: "loader/packaging/allow_tests.json"
 
+# One-pipeline bookkeeping job: its script is `exit 0`, so skip the clone and the packaging image.
+finished:
+  image: registry.ddbuild.io/images/mirror/alpine:3.20
+  variables:
+    GIT_STRATEGY: none
+
 
 # dd-trace-php release packaging
 "prepare code":

@@ -61,6 +61,9 @@ generate-templates:
   artifacts:
     paths:
       - .gitlab/*-gen.yml
+      # merge-gate runs these without a checkout.
+      - .gitlab/merge-gate.sh
+      - .gitlab/flaky-jobs.txt
     reports:
       dotenv: libdatadog.env
 
@@ -132,11 +135,13 @@ merge-gate:
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
   tags: [ "arch:amd64" ]
   when: always
+  # No clone: merge-gate.sh and flaky-jobs.txt come from this commit's generate-templates artifacts.
+  dependencies: [ generate-templates ]
   variables:
-    GIT_SUBMODULE_STRATEGY: none
-    GIT_DEPTH: "1"
+    GIT_STRATEGY: none
   script:
-    - .gitlab/merge-gate.sh
+    - test -f .gitlab/merge-gate.sh || { echo "generate-templates artifacts missing (expired after 14 days?)"; exit 1; }
+    - bash .gitlab/merge-gate.sh
 
 package-trigger:
   stage: build
