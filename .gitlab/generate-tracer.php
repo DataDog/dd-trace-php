@@ -768,6 +768,10 @@ foreach ($jobs as $type => $type_jobs):
             if ($target == "test_web_custom" && in_array("cli-server", $sapis)) {
                 $sapis[] = "fpm-fcgi";
             }
+            // Octane starts its own Swoole server before DD_TRACE_TEST_SAPI is read (tests/WebServer.php), so one cell is enough.
+            if (str_contains($target, "laravel_octane")) {
+                $sapis = ["cli-server"];
+            }
             foreach ($sapis as $sapi):
 ?>
 "<?= $target ?>: [<?= $major_minor, $sapi ? ", $sapi" : "" ?>]":
