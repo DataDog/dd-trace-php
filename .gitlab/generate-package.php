@@ -186,6 +186,13 @@ requirements_json_test:
   tags: [ "arch:amd64" ]
   script:
     - ./.gitlab/append-build-id.sh
+    - |
+      SYSTEM_TESTS_SHA=$(git ls-remote https://github.com/DataDog/system-tests.git refs/heads/main | awk 'NR == 1 { print $1 }')
+      if ! printf '%s\n' "$SYSTEM_TESTS_SHA" | grep -Eq '^[0-9a-f]{40}$'; then
+        echo "Failed to resolve a valid system-tests commit: $SYSTEM_TESTS_SHA"
+        exit 1
+      fi
+      printf 'SYSTEM_TESTS_SHA=%s\n' "$SYSTEM_TESTS_SHA" > system-tests.env
     # Installing dependencies with composer
     - |
       export COMPOSER_MEMORY_LIMIT=-1 # disable composer memory limit completely
@@ -198,6 +205,8 @@ requirements_json_test:
     paths:
       - VERSION
       - ./src/bridge/_generated*.php
+    reports:
+      dotenv: system-tests.env
 
 <?php
 foreach ($build_platforms as $platform) {
@@ -1458,7 +1467,16 @@ endforeach;
       pip install -U pip virtualenv
 <?php dockerhub_login() ?>
     - /tmp/vault kv get --format=json "kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key" 2>/dev/null | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['data']['key'])" > /tmp/.dd-api-key 2>/dev/null || true
-    - git clone https://github.com/DataDog/system-tests.git
+    # SYSTEM_TESTS_SHA (prepare code's dotenv) is system-tests main resolved once, so all jobs and shards run the same scenario list.
+    - |
+      if ! printf '%s\n' "${SYSTEM_TESTS_SHA:-}" | grep -Eq '^[0-9a-f]{40}$'; then
+        echo "Missing or invalid SYSTEM_TESTS_SHA: ${SYSTEM_TESTS_SHA:-}"
+        exit 1
+      fi
+      git init -q system-tests
+      git -C system-tests fetch --quiet --depth 1 https://github.com/DataDog/system-tests.git "$SYSTEM_TESTS_SHA"
+      git -C system-tests checkout --quiet --detach "$SYSTEM_TESTS_SHA"
+      test "$(git -C system-tests rev-parse HEAD)" = "$SYSTEM_TESTS_SHA"
     - mv packages/{datadog-setup.php,dd-library-php-*x86_64-linux-gnu.tar.gz} system-tests/binaries
     - cd system-tests
     - ./build.sh $BUILD_SH_ARGS
