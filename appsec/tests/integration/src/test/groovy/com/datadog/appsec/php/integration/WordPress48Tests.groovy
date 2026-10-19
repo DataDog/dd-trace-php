@@ -35,8 +35,11 @@ class WordPress48Tests extends AbstractWordPressAppsecTests {
     private static Network network = Network.newNetwork()
 
     @Container
+    // mysql:5.7 (not 8.0): PHP 7.0's mysqli does not support MySQL 8's default
+    // caching_sha2_password auth plugin (added in PHP 7.4). 5.7 defaults to
+    // mysql_native_password, which every mysqli version understands.
     private static MySQLContainer MYSQL = new MySQLContainer(
-            DockerImageName.parse("${System.getProperty('DOCKER_MIRROR') ?: 'docker.io'}/library/mysql:8.0")
+            DockerImageName.parse("${System.getProperty('DOCKER_MIRROR') ?: 'docker.io'}/library/mysql:5.7")
                     .asCompatibleSubstituteFor('mysql'))
             .withDatabaseName('wp48')
             .withUsername('test')
