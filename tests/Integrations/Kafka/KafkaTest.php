@@ -61,7 +61,7 @@ class KafkaTest extends IntegrationTestCase
         $this->inCli(__DIR__ . '/scripts/producerv.php', $env, [], 'test-dsm', true);
         list(, $output) = $this->inCli(__DIR__ . '/scripts/consumer-dsm.php', $env, [], 'test-dsm', true);
 
-        $this->assertMatchesRegularExpression('/^dsm-context: (\\S+)$/m', $output);
+        $this->assertRegularExpression('/^dsm-context: (\\S+)$/m', $output);
         preg_match('/^dsm-context: (\\S+)$/m', $output, $matches);
         $bytes = base64_decode($matches[1], true);
         $this->assertNotFalse($bytes);
