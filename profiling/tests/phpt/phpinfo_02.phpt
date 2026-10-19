@@ -6,14 +6,19 @@ test verifies that certain information is present.
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID >= 80208 || PHP_VERSION_ID >= 80121 && PHP_VERSION_ID < 80200)
-    echo "skip: PHP Version >= 8.1.21 and >= 8.2.8 have a fix for this";
+    die("skip: PHP Version >= 8.1.21 and >= 8.2.8 have a fix for this");
 if (PHP_VERSION_ID < 80000)
-    echo "skip: JIT requires PHP >= 8.0", PHP_EOL;
+    die("skip: JIT requires PHP >= 8.0" . PHP_EOL);
 if (!(extension_loaded('datadog-profiling') || ini_get('datadog.profiling.enabled') !== false))
-    echo "skip: test requires datadog-profiling", PHP_EOL;
+    die("skip: test requires datadog-profiling" . PHP_EOL);
 $arch = php_uname('m');
 if (PHP_VERSION_ID < 80100 && in_array($arch, ['aarch64', 'arm64']))
-    echo "skip: JIT not available on aarch64 on PHP 8.0", PHP_EOL;
+    die("skip: JIT not available on aarch64 on PHP 8.0" . PHP_EOL);
+
+if (PHP_ZTS && PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80200
+    && php_uname('m') === 'x86_64' && file_exists('/lib/ld-musl-x86_64.so.1')) {
+    echo "xfail PHP 8.0/8.1 lack the musl JIT TLS fix https://github.com/php/php-src/pull/13329", PHP_EOL;
+}
 ?>
 --ENV--
 DD_PROFILING_ENABLED=yes

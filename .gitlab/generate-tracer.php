@@ -299,15 +299,14 @@ windows_test_c_job("windows test_c: zts", "zts", [
 
 "Prepare code":
   stage: compile
-  image: registry.ddbuild.io/images/mirror/php:8.2-cli
+  # Same image as the package "prepare code": composer and unzip are baked in, so no apt or getcomposer.org fetch.
+  image: registry.ddbuild.io/images/mirror/composer:2.10.3@sha256:af98f42dfff7c68ba8d53c2164fd9fde1087b7d449514baa38c418b1f6bc4bac
   tags: [ "arch:amd64" ]
   needs: []
   variables:
     KUBERNETES_CPU_REQUEST: 1
     KUBERNETES_MEMORY_REQUEST: 2Gi
   before_script:
-    - apt update && apt install -y unzip
-    - php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" && php composer-setup.php && mv composer.phar /usr/local/bin/composer
     - composer update --no-interaction
   script:
     - make generate
@@ -844,6 +843,13 @@ foreach ($services as $part => $service) {
 <?php if (preg_match("(test_web_laravel_octane)", $target)): ?>
     KUBERNETES_MEMORY_REQUEST: 6Gi
     KUBERNETES_MEMORY_LIMIT: 6Gi
+<?php endif; ?>
+<?php if ($target === "test_integrations_frankenphp"): ?>
+  script:
+    # Build FrankenPHP as its own step, in the proxy-free env the harness gave it: from inside PHPUnit its exit 75 is lost.
+    - unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy
+    - tooling/bin/install-frankenphp.sh || exit $?
+    - !reference [.cli_integration_test, script]
 <?php endif; ?>
 
 <?php

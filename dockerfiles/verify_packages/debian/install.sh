@@ -19,9 +19,12 @@ retry_or_tempfail() {
     done
 }
 
+# Bound apt: a stalled mirror fetch otherwise hangs until the 1 h job timeout.
+apt_get() { timeout 300 apt-get -o Acquire::http::Timeout=30 -o Acquire::Retries=3 "$@"; }
+
 # Common installations
-retry_or_tempfail apt-get update
-retry_or_tempfail apt-get install -y \
+retry_or_tempfail apt_get update
+retry_or_tempfail apt_get install -y \
     apt-transport-https \
     lsb-release \
     ca-certificates \
@@ -37,12 +40,12 @@ sed -i 's/*:80/127.0.0.1:8081/' /etc/apache2/sites-enabled/000-default.conf
 
 # Installing php
 if [ "${INSTALL_MODE}" = "native" ]; then
-    retry_or_tempfail apt-get install -y ${PHP_PACKAGE}
+    retry_or_tempfail apt_get install -y ${PHP_PACKAGE}
 elif [ "${INSTALL_MODE}" = "sury" ]; then
     retry_or_tempfail curl -sSfL -o /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
     sh -c 'echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list'
-    retry_or_tempfail apt-get update
-    retry_or_tempfail apt-get install -y \
+    retry_or_tempfail apt_get update
+    retry_or_tempfail apt_get install -y \
         php${PHP_VERSION}-cli \
         php${PHP_VERSION}-curl \
         php${PHP_VERSION}-fpm \
@@ -50,7 +53,7 @@ elif [ "${INSTALL_MODE}" = "sury" ]; then
         WWW_CONF=/etc/php/${PHP_VERSION}/fpm/pool.d/www.conf
         PHP_FPM_BIN=php-fpm${PHP_VERSION}
     if [ "${PHP_VERSION}" != "8.5" ]; then
-        retry_or_tempfail apt-get install -y \
+        retry_or_tempfail apt_get install -y \
             php${PHP_VERSION}-opcache
     fi
 else

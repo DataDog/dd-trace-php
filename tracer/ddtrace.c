@@ -526,6 +526,8 @@ void ddtrace_rinit_early(void) {
         zai_hook_activate();
 #if PHP_VERSION_ID < 80000
         ddtrace_autoload_rinit();
+#else
+        zai_uhook_attributes_activate();
 #endif
     }
 }

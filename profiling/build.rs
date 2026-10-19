@@ -47,6 +47,8 @@ pub fn build() {
     generate_bindings(&php_includes, fibers, zend_error_observer);
     build_zend_php_ffis(
         &php_includes,
+        &php_include_root,
+        vernum,
         post_startup_cb,
         preload,
         run_time_cache,
@@ -97,6 +99,8 @@ fn macro_value<'a>(contents: &'a str, name: &str) -> Option<&'a str> {
 #[allow(clippy::too_many_arguments)]
 fn build_zend_php_ffis(
     php_includes: &str,
+    php_include_root: &Path,
+    vernum: u64,
     post_startup_cb: bool,
     preload: bool,
     run_time_cache: bool,
@@ -128,13 +132,20 @@ fn build_zend_php_ffis(
         .define("CFG_TRIGGER_TIME_SAMPLE", trigger_time_sample)
         .define("CFG_ZEND_ERROR_OBSERVER", zend_error_observer)
         .define("PROFILING", None)
-        .includes([Path::new("ext")])
-        .includes(
-            str::replace(php_includes, "-I", "")
-                .split(' ')
-                .map(Path::new)
-                .chain([Path::new("zend_abstract_interface")])
-                .chain([Path::new(".")]),
+        .includes(["ext", "zend_abstract_interface", "."])
+        // PHP < 7.4 has a noisy offsetof fallback. Make's INCLUDES also
+        // contains project paths, so treat only the PHP SDK as system headers.
+        .flags(
+            php_includes
+                .split_whitespace()
+                .map(|include| match include.strip_prefix("-I") {
+                    Some(path)
+                        if vernum < 70400 && Path::new(path).starts_with(php_include_root) =>
+                    {
+                        format!("-isystem{path}")
+                    }
+                    _ => include.to_owned(),
+                }),
         )
         .flag_if_supported("-std=gnu11")
         .flag_if_supported("-std=gnu17");
