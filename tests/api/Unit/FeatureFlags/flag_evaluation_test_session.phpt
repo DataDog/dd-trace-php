@@ -2,9 +2,7 @@
 FFE writers follow a changed test-session token without rerouting earlier evaluations
 --SKIPIF--
 <?php
-if (PHP_VERSION_ID < 70200) die('skip: TEST_PHP_EXTRA_ARGS requires PHP 7.2+');
 if (!function_exists('proc_open') || !function_exists('stream_socket_server')) die('skip: process and stream sockets required');
-if (!getenv('TEST_PHP_EXECUTABLE')) die('skip: TEST_PHP_EXECUTABLE required');
 ?>
 --ENV--
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
@@ -16,43 +14,13 @@ DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED=true
 DD_SERVICE=php-ffe-test-session
 --FILE--
 <?php
-require __DIR__ . '/stubs/ffe_process.inc';
-if (getenv('PHP_FFE_TEST_SESSION_CHILD') === '1') {
-    require __DIR__ . '/stubs/ffe_api_bootstrap.inc';
-    $config = array(
-        'createdAt' => '2026-05-22T00:00:00Z',
-        'environment' => array('name' => 'test'),
-        'observeFullEvaluationData' => false,
-        'flags' => array('flag' => array(
-            'key' => 'flag', 'enabled' => true, 'variationType' => 'STRING',
-            'variations' => array('blue' => array('key' => 'blue', 'value' => 'blue')),
-            'allocations' => array(array(
-                'key' => 'allocation', 'rules' => array(), 'doLog' => true,
-                'splits' => array(array('variationKey' => 'blue', 'serialId' => 0, 'shards' => array())),
-            )),
-        )),
-    );
-    if (!\DDTrace\Testing\ffe_load_config(json_encode($config))) throw new RuntimeException('configuration rejected');
-    $client = new \DDTrace\FeatureFlags\Client();
-    foreach (array('session-a', 'session-b') as $token) {
-        ini_set('datadog.trace.agent_test_session_token', $token);
-        if ($client->getStringValue('flag', 'fallback', array('targetingKey' => 'subject')) !== 'blue') {
-            throw new RuntimeException('assignment changed');
-        }
-        // Hand off exposures before switching sessions. Flagevaluations may
-        // still be queued and must retain their original destination.
-        if (!\DDTrace\Testing\flush_ffe_exposures()) throw new RuntimeException('exposure flush rejected');
-    }
-    dd_trace_synchronous_flush(5000);
-    exit(0);
-}
+require __DIR__ . '/../../../ext/ffe/stubs/ffe_process.inc';
 
 $listener = stream_socket_server('tcp://127.0.0.1:0', $errno, $error);
 if (!$listener) throw new RuntimeException($error);
 putenv('DD_TRACE_AGENT_URL=http://' . stream_socket_get_name($listener, false));
 putenv('DD_TRACE_AGENT_TEST_SESSION_TOKEN=session-a');
-putenv('PHP_FFE_TEST_SESSION_CHILD=1');
-$process = ffeTestProcess(__FILE__, $pipes);
+$process = ffeTestProcess(__DIR__ . '/../../../Common/FeatureFlags/flag_evaluation_test_session_app.php', $pipes);
 fclose($pipes[0]);
 $stdout = $stderr = '';
 $exitCode = $exitedAt = null;

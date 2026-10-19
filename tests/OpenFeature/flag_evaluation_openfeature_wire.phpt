@@ -3,9 +3,8 @@ FFE OpenFeature evaluation counts and deduplicated exposures reach Agent EVP wit
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID < 80000) die('skip: OpenFeature requires PHP 8+');
-if (!is_file(getenv('TEST_PHP_SRCDIR') . '/tests/OpenFeature/vendor/autoload.php')) die('skip: OpenFeature test dependencies required');
+if (!is_file(__DIR__ . '/vendor/autoload.php')) die('skip: OpenFeature test dependencies required');
 if (!function_exists('proc_open') || !function_exists('stream_socket_server')) die('skip: process and stream sockets required');
-if (!getenv('TEST_PHP_EXECUTABLE')) die('skip: TEST_PHP_EXECUTABLE required');
 ?>
 --ENV--
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
@@ -21,7 +20,7 @@ DD_API_KEY=local-test-key-must-not-reach-agent
 --FILE--
 <?php
 $openFeature = true;
-require __DIR__ . '/stubs/flag_evaluation_wire.inc';
+require __DIR__ . '/../Common/FeatureFlags/flag_evaluation_wire.inc';
 ?>
 --EXPECT--
 service=php-ffe-wire

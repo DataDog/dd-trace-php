@@ -396,8 +396,6 @@ void ddtrace_mshutdown() {
     };
 #ifndef _WIN32
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
-        flush_options.traces_and_stats = false;
-        flush_options.telemetry = false;
         ddtrace_coms_mshutdown();
         if (ddtrace_coms_flush_shutdown_writer_synchronous()) {
             ddtrace_coms_curl_shutdown();

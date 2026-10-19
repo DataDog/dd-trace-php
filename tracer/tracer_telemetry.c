@@ -77,29 +77,25 @@ void ddtrace_telemetry_count_ffe_rejection(ddog_FfeSubmissionStatus status) {
     if (!get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         return;
     }
-    uint64_t *count;
     switch (status) {
         case DDOG_FFE_SUBMISSION_STATUS_UNAVAILABLE:
-            count = &DDTRACE_G(ffe_submission_drops.unavailable);
+            ++DDTRACE_G(ffe_submission_drops.unavailable);
             break;
         case DDOG_FFE_SUBMISSION_STATUS_WOULD_BLOCK:
             // Shared load shedding, pending configuration, or socket pressure.
             // Conversion already happened, so this is not pre_queue_overflow.
-            count = &DDTRACE_G(ffe_submission_drops.queue_overflow);
+            ++DDTRACE_G(ffe_submission_drops.queue_overflow);
             break;
         case DDOG_FFE_SUBMISSION_STATUS_INVALID_INPUT:
             // Required metadata cannot be encoded; optional field loss is
             // reported independently by the native sidecar, not as a row drop.
-            count = &DDTRACE_G(ffe_submission_drops.serialization_error);
+            ++DDTRACE_G(ffe_submission_drops.serialization_error);
             break;
         case DDOG_FFE_SUBMISSION_STATUS_PAYLOAD_TOO_LARGE:
-            count = &DDTRACE_G(ffe_submission_drops.payload_limit);
+            ++DDTRACE_G(ffe_submission_drops.payload_limit);
             break;
         default:
             return;
-    }
-    if (*count < UINT64_MAX) {
-        ++*count;
     }
 }
 

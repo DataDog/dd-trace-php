@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/ffe_process.inc';
+require_once dirname(__DIR__, 2) . '/ext/ffe/stubs/ffe_process.inc';
 putenv('PHP_FFE_WIRE_OPENFEATURE=' . ($openFeature ? '1' : '0'));
 // The PHP connector forwards this setting to the sidecar subprocess.
 putenv('DD_TRACE_LOG_LEVEL=trace');

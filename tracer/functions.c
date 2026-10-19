@@ -2134,7 +2134,6 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             }
 #ifndef _WIN32
             if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
-                flush_options.traces_and_stats = false;
                 if (dd_rinit_once_done) {
                     ddtrace_coms_synchronous_flush(timeout);
                 }
@@ -2350,7 +2349,6 @@ PHP_FUNCTION(dd_trace_synchronous_flush) {
     ddog_SidecarFlushOptions flush_options = {.traces_and_stats = true, .flag_evaluations = true};
 #ifndef _WIN32
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
-        flush_options.traces_and_stats = false;
         if (dd_rinit_once_done) {
             ddtrace_coms_synchronous_flush(timeout);
         }

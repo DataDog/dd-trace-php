@@ -10,13 +10,8 @@ if (getenv('USE_ZEND_ALLOC') === '0' && !getenv('SKIP_ASAN')) {
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
-$root = getenv('TEST_PHP_SRCDIR');
-if (!is_string($root) || $root === '') {
-    $root = dirname(dirname(dirname(__DIR__)));
-}
+require __DIR__ . '/../../../Common/FeatureFlags/ffe_api_bootstrap.inc';
 $fixtureRoot = $root . '/tests/FeatureFlags/ffe-system-test-data';
-
-require_feature_flag_api($root);
 
 final class FfeFixtureLogger implements \DDTrace\Log\LoggerInterface
 {
@@ -88,60 +83,6 @@ foreach ($failures as $failure) {
 show('fixture_files', count($caseFiles));
 show('cases', $caseCount);
 show('failures', count($failures));
-
-function require_feature_flag_api($root)
-{
-    // A PECL install puts src/ at php_dir/datadog_trace/src, apart from the tests under test_dir. php_dir is on the
-    // include_path; sources_path would point there too, but pecl run-tests in CI blanks it.
-    $srcRoot = rtrim((string) ini_get('datadog.trace.sources_path'), '/');
-    if ($srcRoot === '' || !is_dir($srcRoot . '/api')) {
-        $srcRoot = $root . '/src';
-    }
-    if (!is_dir($srcRoot . '/api')) {
-        $installed = stream_resolve_include_path('datadog_trace/src/api/Log/LoggerInterface.php');
-        if ($installed !== false) {
-            $srcRoot = dirname(dirname(dirname($installed)));
-        }
-    }
-
-    $logRoot = $srcRoot . '/api/Log';
-    foreach (array(
-        'LoggerInterface',
-        'LogLevel',
-        'AbstractLogger',
-        'NullLogger',
-        'InterpolateTrait',
-        'ErrorLogLogger',
-        'Logger',
-        'NonThrowingLogger',
-    ) as $classFile) {
-        require_once $logRoot . '/' . $classFile . '.php';
-    }
-
-    $apiRoot = $srcRoot . '/api/FeatureFlags';
-    foreach (array(
-        'EvaluationType',
-        'EvaluationReason',
-        'EvaluationErrorCode',
-        'EvaluationDetails',
-        'SpanEnrichmentAccumulator',
-        'SpanEnrichmentRegistry',
-    ) as $classFile) {
-        require_once $apiRoot . '/' . $classFile . '.php';
-    }
-
-    $internalRoot = $apiRoot . '/Internal';
-    foreach (array(
-        'Evaluator',
-        'ResultMapper',
-        'UnavailableEvaluator',
-        'NativeEvaluator',
-    ) as $classFile) {
-        require_once $internalRoot . '/' . $classFile . '.php';
-    }
-
-    require_once $apiRoot . '/Client.php';
-}
 
 function run_fixture_case($client, $fileName, $index, array $case, array &$failures)
 {

@@ -3,7 +3,7 @@ FFE OpenFeature observations match terminal hook outcomes and preserve evaluatio
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID < 80000) die('skip: OpenFeature requires PHP 8+');
-if (!is_file(getenv('TEST_PHP_SRCDIR') . '/tests/OpenFeature/vendor/autoload.php')) die('skip: OpenFeature test dependencies required');
+if (!is_file(__DIR__ . '/vendor/autoload.php')) die('skip: OpenFeature test dependencies required');
 ?>
 --ENV--
 DD_METRICS_OTEL_ENABLED=0
@@ -13,7 +13,7 @@ DD_REMOTE_CONFIG_ENABLED=0
 DD_TRACE_AGENT_URL=http://127.0.0.1:9
 --FILE--
 <?php
-require __DIR__ . '/stubs/flag_evaluation_openfeature.inc';
+require __DIR__ . '/../Common/FeatureFlags/flag_evaluation_openfeature.inc';
 foreach (array('success', 'before-error', 'after-error', 'provider-error', 'error-hook-error', 'finally-error') as $case) {
     \DDTrace\Testing\ffe_load_config(ffeOutcomeConfig());
     $ffeRecords = array();

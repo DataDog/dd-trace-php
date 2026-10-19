@@ -10,7 +10,7 @@ function ffeTestProcess($script, &$pipes, $environment = null)
     register_shutdown_function(function () use ($logs) {
         foreach ($logs as $log) @unlink($log);
     });
-    $command = (PHP_OS === 'WINNT' ? '' : 'exec ') . escapeshellarg(getenv('TEST_PHP_EXECUTABLE'))
+    $command = (PHP_OS === 'WINNT' ? '' : 'exec ') . escapeshellarg(getenv('TEST_PHP_EXECUTABLE') ?: PHP_BINARY)
         . ' ' . getenv('TEST_PHP_EXTRA_ARGS') . ' ' . escapeshellarg($script);
     // Avoid cmd.exe stripping the executable's quotes on older Windows PHP.
     $process = proc_open($command, array(array('pipe', 'r'), array('file', $logs[0], 'w'), array('file', $logs[1], 'w')),

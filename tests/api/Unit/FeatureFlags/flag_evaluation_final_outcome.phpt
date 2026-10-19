@@ -5,26 +5,7 @@ DD_METRICS_OTEL_ENABLED=false
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
-$root = getenv('TEST_PHP_SRCDIR') ?: dirname(dirname(dirname(__DIR__)));
-$srcRoot = rtrim((string) ini_get('datadog.trace.sources_path'), '/');
-if ($srcRoot === '' || !is_dir($srcRoot . '/api')) {
-    $srcRoot = $root . '/src';
-}
-if (!is_dir($srcRoot . '/api')) {
-    // PECL stores PHP sources separately from tests and adds php_dir to include_path.
-    $installed = stream_resolve_include_path('datadog_trace/src/api/Log/LoggerInterface.php');
-    if ($installed !== false) {
-        $srcRoot = dirname(dirname(dirname($installed)));
-    }
-}
-spl_autoload_register(function ($class) use ($srcRoot) {
-    if (strpos($class, 'DDTrace\\') === 0) {
-        $path = $srcRoot . '/api/' . str_replace('\\', '/', substr($class, 8)) . '.php';
-        if (is_file($path)) {
-            require_once $path;
-        }
-    }
-});
+require __DIR__ . '/../../../Common/FeatureFlags/ffe_api_bootstrap.inc';
 
 $calls = array();
 \DDTrace\install_hook('DDTrace\\Internal\\record_ffe_flag_evaluation', function ($hook) use (&$calls) {

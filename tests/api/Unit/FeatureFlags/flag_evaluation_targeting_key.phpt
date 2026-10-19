@@ -5,7 +5,7 @@ DD_METRICS_OTEL_ENABLED=false
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
-require __DIR__ . '/stubs/ffe_api_bootstrap.inc';
+require __DIR__ . '/../../../Common/FeatureFlags/ffe_api_bootstrap.inc';
 class FfeTargetingSubject {
     public $conversions = 0;
     public function __toString() {

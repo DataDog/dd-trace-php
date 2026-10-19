@@ -76,9 +76,6 @@ final class NativeEvaluator implements Evaluator
 
     private function recordFlagEvaluation($flagKey, $targetingKey, array $attributes, $rawResult, $details, $evaluationTimestampMs, $targetingKeyInvalid)
     {
-        if (!function_exists('DDTrace\\Internal\\record_ffe_flag_evaluation')) {
-            return;
-        }
         try {
             $exposure = $details->getExposureData();
             $consent = is_object($rawResult)
@@ -114,9 +111,6 @@ final class NativeEvaluator implements Evaluator
     /** @internal Shared submission for immediate native and finalized OpenFeature observations. */
     public static function submitFlagEvaluation(array $observation)
     {
-        if (!function_exists('DDTrace\\Internal\\record_ffe_flag_evaluation')) {
-            return false;
-        }
         try {
             return \DDTrace\Internal\record_ffe_flag_evaluation(...$observation);
         } catch (\Throwable $ignored) {
