@@ -44,19 +44,16 @@ matrix expansions `System Tests: [php-fpm-8.5]: [TESTSUITE]`.
 
 CWS needs the kernel filesystems and the PID namespace of the Kata guest, and
 the DIND service only sees its own. Jobs that extend the hidden
-`.cws_guest_kernel_mounts` template:
-
-- run on `docker-in-docker:amd64-cws`, a pool of the kata-qemu DIND runners
-  that mounts the guest's `/proc`, `/sys/fs/cgroup` and
-  `/sys/kernel/{debug,tracing,security}` under `/vm-host` in the job's
-  containers. On Kata these host paths are the guest VM's, not the node's.
-- set `SYSTEM_TESTS_CWS_GUEST_KERNEL_MOUNTS=v1`, which makes system-tests mount these into
-  the Agent and wait for the CWS self test before starting the weblog. Only
-  `THREAD_CONTEXT_SHARING` reads it.
+`.cws_guest_kernel_mounts` template run on `docker-in-docker:amd64-cws`, a
+pool of the kata-qemu DIND runners that mounts the guest's `/proc`,
+`/sys/fs/cgroup` and `/sys/kernel/{debug,tracing,security}` under `/vm-host`
+in the job's containers. On Kata these host paths are the guest VM's, not the
+node's. `THREAD_CONTEXT_SHARING` detects `/vm-host`, mounts these into the
+Agent and waits for the CWS self test before starting the weblog.
 
 The tracer-release jobs extend the template, because their `tracer_release`
-group includes `THREAD_CONTEXT_SHARING`. The variable has no effect on the
-other scenarios. The canary job runs only that test, with `-F` because
+group includes `THREAD_CONTEXT_SHARING`. The other scenarios ignore
+`/vm-host`. The canary job runs only that test, with `-F` because
 system-tests marks it xfail for the Agent (APPSEC-70532). Lifting that xfail
 is done in system-tests, not here.
 
@@ -269,10 +266,8 @@ Logs are written to `logs_<scenario>/` (or `logs/` for default) and
   `docker run --rm -v $(pwd):/s alpine rm -rf /s/logs /s/logs_*`
 
 - **CWS guest kernel mounts cannot be reproduced locally.** They need the
-  `docker-in-docker:amd64-cws` runners. On any other runner `/vm-host` does not
-  exist, and with `SYSTEM_TESTS_CWS_GUEST_KERNEL_MOUNTS=v1`
-  `THREAD_CONTEXT_SHARING` fails before the Agent starts. Locally, leave the
-  variable unset.
+  `docker-in-docker:amd64-cws` runners. Elsewhere `/vm-host` does not exist,
+  and `THREAD_CONTEXT_SHARING` uses the default topology.
 
 - **Run the orchestrator on the host, not in a container.** Volume mount
   paths in `run.sh` resolve on the Docker host. If you run the orchestrator
