@@ -68,8 +68,6 @@ the scripts they call, and test harnesses that download tools):
 
 - Use `curl -fsSL --retry 5 --retry-delay 2`. Add `--retry-connrefused`
   except on CentOS 7 (curl 7.29, e.g. `dockerfiles/verify_packages/`).
-- Let curl failures stop the job (`set -e`, `pipefail`). Never default a
-  failed API call (`|| echo "[]"`).
 - In GitLab jobs with the repo checked out, download files with
   `.gitlab/download-file.sh URL DEST`: it retries transient errors, then
   exits 75.
