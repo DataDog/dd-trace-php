@@ -1559,7 +1559,8 @@ $system_tests_weblogs = [
     # Alphabetical splitting clustered slow related scenarios in one shard.
     # Hash sorting reduces that imbalance, while keeping the order reproducible.
     # NOTE: it does not guarantee equal runtimes of each shard, but usually better that alphabetical.
-    - SCENARIOS=$(PYTHONPATH=. venv/bin/python utils/scripts/compute-workflow-parameters.py php -g tracer_release -f json | python3 -c "import sys,json,hashlib;d=json.load(sys.stdin);s=set();[s.update(v['scenarios']) for v in d.values() if isinstance(v,dict) and 'scenarios' in v];print(' '.join(sorted(s,key=lambda n:(hashlib.sha256(n.encode()).digest(),n))))")
+    # PARAMETRIC is weblog-independent: it runs once, in "System Tests: [parametric]".
+    - SCENARIOS=$(PYTHONPATH=. venv/bin/python utils/scripts/compute-workflow-parameters.py php -g tracer_release --excluded-scenarios PARAMETRIC -f json | python3 -c "import sys,json,hashlib;d=json.load(sys.stdin);s=set();[s.update(v['scenarios']) for v in d.values() if isinstance(v,dict) and 'scenarios' in v];print(' '.join(sorted(s,key=lambda n:(hashlib.sha256(n.encode()).digest(),n))))")
     # Each job builds the full list, then keeps every `Nth` scenario for its shard.
     # GitLab sets CI_NODE_INDEX and CI_NODE_TOTAL from `parallel: N` above.
     - SCENARIOS=$(printf '%s\n' $SCENARIOS | awk -v node="$CI_NODE_INDEX" -v total="$CI_NODE_TOTAL" '(NR - 1) % total == node - 1')
