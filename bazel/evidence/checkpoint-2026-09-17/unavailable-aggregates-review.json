@@ -1,0 +1,8 @@
+{
+  "command": "BB_DISABLE_SIDECAR=1 PATH=\"$PWD/build/bin:$PATH\" build/bin/bb --batch --output_user_root=/tmp/dd-checkpoint-provider-review build //:extensions_all //:bundles_all //:build_all --keep_going --repository_cache=/home/bits/.cache/dd-php-bazel-combined-downloads --repository_contents_cache=/home/bits/.cache/dd-php-bazel-repo-contents --repository_disable_download --lockfile_mode=error --remote_cache= --remote_executor= --bes_backend= --bes_results_url=",
+  "exit_code": 1,
+  "expected_exit_code": 1,
+  "assertion": "All three targets fail explicitly with is not available",
+  "log": "unavailable-aggregates.log",
+  "log_sha256": "18c690fde4a2c4759cb9a0f5385d881b1d2a64b674ab86dc6b4e1a868e800ef4"
+}

@@ -1,0 +1,170 @@
+load(":bootstrap.bzl", "bootstrap_toolchains")
+load(":defs.bzl", "hermetic_tools", "target_sysroot")
+load(":hermetic_cc_toolchain.bzl", "hermetic_cc_matrix")
+
+package(default_visibility = ["//visibility:public"])
+
+toolchain_type(name = "hermetic_tools_type")
+
+toolchain_type(name = "sysroot_type")
+
+toolchain_type(name = "bootstrap_tools_type")
+
+bootstrap_toolchains()
+
+exports_files([
+    "BUILD.llvm_dist",
+    "defs.bzl",
+])
+
+hermetic_tools(
+    name = "exec_tools_x86_64",
+    ar = "//bazel/dependencies/exec_tools:llvm-ar",
+    bin_anchor = "//bazel/dependencies/exec_tools:env",
+    busybox = "@exec_tools_alpine322_x86_64//:root/bin/busybox.static",
+    clang = "//bazel/dependencies/exec_tools:clang",
+    clangxx = "//bazel/dependencies/exec_tools:clang++",
+    cmake = "//bazel/dependencies/exec_tools:cmake",
+    compiler_files = [
+        "@exec_runtime_debian12_x86_64//:all",
+        "@llvm_20_1_4_dist_x86_64//:ar",
+        "@llvm_20_1_4_dist_x86_64//:clang",
+        "@llvm_20_1_4_dist_x86_64//:cxx_builtin_include",
+        "@llvm_20_1_4_dist_x86_64//:ld",
+        "@llvm_20_1_4_dist_x86_64//:lib",
+        "@llvm_20_1_4_dist_x86_64//:nm",
+        "@llvm_20_1_4_dist_x86_64//:objcopy",
+        "@llvm_20_1_4_dist_x86_64//:objdump",
+        "@llvm_20_1_4_dist_x86_64//:ranlib",
+        "@llvm_20_1_4_dist_x86_64//:strip",
+    ],
+    compiler_loader = "@exec_runtime_debian12_x86_64//:loader",
+    exec_triple = "x86_64-unknown-linux-gnu",
+    gzip = "//bazel/dependencies/exec_tools:gzip",
+    lld = "//bazel/dependencies/exec_tools:ld.lld",
+    llvm_anchor = "@llvm_20_1_4_dist_x86_64//:bin/clang",
+    loader = "@exec_tools_alpine322_x86_64//:musl/lib/ld-musl-x86_64.so.1",
+    make = "//bazel/dependencies/exec_tools:make",
+    nm = "//bazel/dependencies/exec_tools:llvm-nm",
+    objcopy = "//bazel/dependencies/exec_tools:llvm-objcopy",
+    objdump = "//bazel/dependencies/exec_tools:llvm-objdump",
+    patch = "//bazel/dependencies/exec_tools:patch",
+    ranlib = "//bazel/dependencies/exec_tools:llvm-ranlib",
+    shell = "//bazel/dependencies/exec_tools:sh",
+    strip = "//bazel/dependencies/exec_tools:llvm-strip",
+    tar = "//bazel/dependencies/exec_tools:tar",
+    tools = [
+        "//bazel/dependencies/exec_tools:launchers_all",
+        "@exec_tools_alpine322_x86_64//:all",
+    ],
+    usr_bin_anchor = "//bazel/dependencies/exec_tools:make",
+)
+
+toolchain(
+    name = "exec_tools_x86_64_toolchain",
+    exec_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    toolchain = ":exec_tools_x86_64",
+    toolchain_type = ":hermetic_tools_type",
+)
+
+hermetic_tools(
+    name = "exec_tools_aarch64",
+    ar = "//bazel/dependencies/exec_tools:llvm-ar",
+    bin_anchor = "//bazel/dependencies/exec_tools:env",
+    busybox = "@exec_tools_alpine322_aarch64//:root/bin/busybox.static",
+    clang = "//bazel/dependencies/exec_tools:clang",
+    clangxx = "//bazel/dependencies/exec_tools:clang++",
+    cmake = "//bazel/dependencies/exec_tools:cmake",
+    compiler_files = [
+        "@exec_runtime_debian12_aarch64//:all",
+        "@llvm_20_1_4_dist_aarch64//:ar",
+        "@llvm_20_1_4_dist_aarch64//:clang",
+        "@llvm_20_1_4_dist_aarch64//:cxx_builtin_include",
+        "@llvm_20_1_4_dist_aarch64//:ld",
+        "@llvm_20_1_4_dist_aarch64//:lib",
+        "@llvm_20_1_4_dist_aarch64//:nm",
+        "@llvm_20_1_4_dist_aarch64//:objcopy",
+        "@llvm_20_1_4_dist_aarch64//:objdump",
+        "@llvm_20_1_4_dist_aarch64//:ranlib",
+        "@llvm_20_1_4_dist_aarch64//:strip",
+    ],
+    compiler_loader = "@exec_runtime_debian12_aarch64//:loader",
+    exec_triple = "aarch64-unknown-linux-gnu",
+    gzip = "//bazel/dependencies/exec_tools:gzip",
+    lld = "//bazel/dependencies/exec_tools:ld.lld",
+    llvm_anchor = "@llvm_20_1_4_dist_aarch64//:bin/clang",
+    loader = "@exec_tools_alpine322_aarch64//:musl/lib/ld-musl-aarch64.so.1",
+    make = "//bazel/dependencies/exec_tools:make",
+    nm = "//bazel/dependencies/exec_tools:llvm-nm",
+    objcopy = "//bazel/dependencies/exec_tools:llvm-objcopy",
+    objdump = "//bazel/dependencies/exec_tools:llvm-objdump",
+    patch = "//bazel/dependencies/exec_tools:patch",
+    ranlib = "//bazel/dependencies/exec_tools:llvm-ranlib",
+    shell = "//bazel/dependencies/exec_tools:sh",
+    strip = "//bazel/dependencies/exec_tools:llvm-strip",
+    tar = "//bazel/dependencies/exec_tools:tar",
+    tools = [
+        "//bazel/dependencies/exec_tools:launchers_all",
+        "@exec_tools_alpine322_aarch64//:all",
+    ],
+    usr_bin_anchor = "//bazel/dependencies/exec_tools:make",
+)
+
+toolchain(
+    name = "exec_tools_aarch64_toolchain",
+    exec_compatible_with = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+    toolchain = ":exec_tools_aarch64",
+    toolchain_type = ":hermetic_tools_type",
+)
+
+target_sysroot(
+    name = "centos7_x86_64",
+    arch_constraint = "@platforms//cpu:x86_64",
+    dynamic_linker = "/lib64/ld-linux-x86-64.so.2",
+    libc = "glibc",
+    libc_constraint = "//bazel/platforms:glibc",
+    repository = "sysroot_centos7_x86_64",
+    triple = "x86_64-unknown-linux-gnu",
+    version = "2.17",
+)
+
+target_sysroot(
+    name = "centos7_aarch64",
+    arch_constraint = "@platforms//cpu:aarch64",
+    dynamic_linker = "/lib/ld-linux-aarch64.so.1",
+    libc = "glibc",
+    libc_constraint = "//bazel/platforms:glibc",
+    repository = "sysroot_centos7_aarch64",
+    triple = "aarch64-unknown-linux-gnu",
+    version = "2.17",
+)
+
+target_sysroot(
+    name = "alpine322_x86_64",
+    arch_constraint = "@platforms//cpu:x86_64",
+    dynamic_linker = "/lib/ld-musl-x86_64.so.1",
+    libc = "musl",
+    libc_constraint = "//bazel/platforms:musl",
+    repository = "sysroot_alpine322_x86_64",
+    triple = "x86_64-unknown-linux-musl",
+    version = "1.2.5",
+)
+
+target_sysroot(
+    name = "alpine322_aarch64",
+    arch_constraint = "@platforms//cpu:aarch64",
+    dynamic_linker = "/lib/ld-musl-aarch64.so.1",
+    libc = "musl",
+    libc_constraint = "//bazel/platforms:musl",
+    repository = "sysroot_alpine322_aarch64",
+    triple = "aarch64-unknown-linux-musl",
+    version = "1.2.5",
+)
+
+hermetic_cc_matrix()

@@ -1,0 +1,17 @@
+{
+  "status": "pass",
+  "runs": [
+    {
+      "log": "native-product-config-query.log",
+      "runtime_configurations": [
+        "//bazel/dependencies/llvm_runtimes:x86_64_glibc_native_core (1c100ff)"
+      ]
+    },
+    {
+      "log": "native-baseline-config-query.log",
+      "runtime_configurations": [
+        "//bazel/dependencies/llvm_runtimes:x86_64_glibc_native_core (1c100ff)"
+      ]
+    }
+  ]
+}

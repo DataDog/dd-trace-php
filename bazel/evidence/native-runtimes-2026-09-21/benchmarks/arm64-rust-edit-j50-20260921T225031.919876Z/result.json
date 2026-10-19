@@ -1,0 +1,566 @@
+{
+  "aquery_exit_code": 0,
+  "arch": "arm64",
+  "build_metrics": {
+    "actionSummary": {
+      "actionCacheStatistics": {
+        "hits": 582,
+        "missDetails": [
+          {},
+          {
+            "reason": "DIFFERENT_DEPS"
+          },
+          {
+            "reason": "DIFFERENT_ENVIRONMENT"
+          },
+          {
+            "reason": "DIFFERENT_FILES"
+          },
+          {
+            "reason": "CORRUPTED_CACHE_ENTRY"
+          },
+          {
+            "reason": "NOT_CACHED"
+          },
+          {
+            "count": 1,
+            "reason": "UNCONDITIONAL_EXECUTION"
+          },
+          {
+            "count": 2,
+            "reason": "DIGEST_MISMATCH"
+          }
+        ],
+        "misses": 3,
+        "saveTimeInMs": "32",
+        "sizeInBytes": "9497449"
+      },
+      "actionData": [
+        {
+          "actionsCreated": "1118",
+          "actionsExecuted": "2",
+          "firstStartedMs": "1790031048431",
+          "lastEndedMs": "1790031372707",
+          "mnemonic": "Rustc"
+        },
+        {
+          "actionsCreated": "1",
+          "actionsExecuted": "1",
+          "firstStartedMs": "1790031048087",
+          "lastEndedMs": "1790031048090",
+          "mnemonic": "BazelWorkspaceStatusAction"
+        },
+        {
+          "actionsCreated": "108",
+          "mnemonic": "CcStrip"
+        },
+        {
+          "actionsCreated": "101",
+          "mnemonic": "ValidateDdtraceFatElf"
+        },
+        {
+          "actionsCreated": "2",
+          "mnemonic": "GenerateTracerVersionHeader"
+        },
+        {
+          "actionsCreated": "6",
+          "mnemonic": "BundleHermeticCMake"
+        },
+        {
+          "actionsCreated": "6",
+          "mnemonic": "CompileHermeticExecLauncher"
+        },
+        {
+          "actionsCreated": "101",
+          "mnemonic": "PhpSdkMaterialize"
+        },
+        {
+          "actionsCreated": "2",
+          "mnemonic": "BuildGnuLibunwind"
+        },
+        {
+          "actionsCreated": "476",
+          "mnemonic": "LlvmRuntimeCompile"
+        },
+        {
+          "actionsCreated": "2",
+          "mnemonic": "ValidateTargetCurlSdk"
+        },
+        {
+          "actionsCreated": "258",
+          "mnemonic": "LlvmRuntimeAssemble"
+        },
+        {
+          "actionsCreated": "2",
+          "mnemonic": "Llvm20RustBindgen"
+        },
+        {
+          "actionsCreated": "1374",
+          "mnemonic": "ExecutableSymlink"
+        },
+        {
+          "actionsCreated": "4",
+          "mnemonic": "LlvmRuntimeTree"
+        },
+        {
+          "actionsCreated": "101",
+          "mnemonic": "SplitDdtraceDebug"
+        },
+        {
+          "actionsCreated": "22",
+          "mnemonic": "TranslateBuildInfo"
+        },
+        {
+          "actionsCreated": "37",
+          "mnemonic": "CompileHermeticRustExecWrapper"
+        },
+        {
+          "actionsCreated": "1745",
+          "mnemonic": "RepoMappingManifest"
+        },
+        {
+          "actionsCreated": "816",
+          "mnemonic": "FileWrite"
+        }
+      ],
+      "actionsExecuted": "3",
+      "runnerCount": [
+        {
+          "count": 3,
+          "name": "total"
+        },
+        {
+          "count": 1,
+          "name": "internal"
+        },
+        {
+          "count": 2,
+          "execKind": "Remote",
+          "name": "remote"
+        }
+      ]
+    },
+    "artifactMetrics": {
+      "outputArtifactsFromActionCache": {
+        "count": 582,
+        "sizeInBytes": "94392912"
+      },
+      "outputArtifactsSeen": {
+        "count": 586,
+        "sizeInBytes": "546967531"
+      },
+      "sourceArtifactsRead": {
+        "count": 1,
+        "sizeInBytes": "20649"
+      },
+      "topLevelArtifacts": {}
+    },
+    "buildGraphMetrics": {
+      "builtValues": [
+        {
+          "count": "6",
+          "skyfunctionName": "ARTIFACT_NESTED_SET"
+        },
+        {
+          "count": "1",
+          "skyfunctionName": "ARTIFACT"
+        },
+        {
+          "count": "1",
+          "skyfunctionName": "ACTION_EXECUTION"
+        },
+        {
+          "count": "1",
+          "skyfunctionName": "BUILD_DRIVER"
+        },
+        {
+          "count": "1",
+          "skyfunctionName": "FILE"
+        }
+      ],
+      "changedValues": [
+        {
+          "count": "1",
+          "skyfunctionName": "ERROR_TRANSIENCE"
+        },
+        {
+          "count": "1",
+          "skyfunctionName": "FILE_STATE"
+        },
+        {
+          "count": "570",
+          "skyfunctionName": "ACTION_EXECUTION"
+        },
+        {
+          "count": "1",
+          "skyfunctionName": "PRECOMPUTED"
+        }
+      ],
+      "cleanedValues": [
+        {
+          "count": "584",
+          "skyfunctionName": "ACTION_EXECUTION"
+        }
+      ],
+      "dirtiedValues": [
+        {
+          "count": "4328",
+          "skyfunctionName": "ARTIFACT_NESTED_SET"
+        },
+        {
+          "count": "282",
+          "skyfunctionName": "ARTIFACT"
+        },
+        {
+          "count": "11344",
+          "skyfunctionName": "ACTION_EXECUTION"
+        },
+        {
+          "count": "1",
+          "skyfunctionName": "BUILD_DRIVER"
+        },
+        {
+          "count": "1",
+          "skyfunctionName": "FILE"
+        },
+        {
+          "count": "1",
+          "skyfunctionName": "TARGET_COMPLETION"
+        }
+      ],
+      "evaluatedValues": [
+        {
+          "count": "6",
+          "skyfunctionName": "ARTIFACT_NESTED_SET"
+        },
+        {
+          "count": "1",
+          "skyfunctionName": "ARTIFACT"
+        },
+        {
+          "count": "595",
+          "skyfunctionName": "ACTION_EXECUTION"
+        },
+        {
+          "count": "2",
+          "skyfunctionName": "BUILD_DRIVER"
+        },
+        {
+          "count": "1",
+          "skyfunctionName": "FILE"
+        }
+      ],
+      "postInvocationSkyframeNodeCount": 484725
+    },
+    "cumulativeMetrics": {
+      "numAnalyses": 11,
+      "numBuilds": 6
+    },
+    "dynamicExecutionMetrics": {},
+    "memoryMetrics": {
+      "garbageMetrics": [
+        {
+          "garbageCollected": "4865392640",
+          "type": "G1 Eden Space"
+        },
+        {
+          "garbageCollected": "33887136",
+          "type": "G1 Survivor Space"
+        }
+      ]
+    },
+    "packageMetrics": {},
+    "remoteAnalysisCacheStatistics": {},
+    "targetMetrics": {},
+    "timingMetrics": {
+      "actionsExecutionStartInMs": "955",
+      "analysisPhaseTimeInMs": "72",
+      "cpuTimeInMs": "35960",
+      "criticalPathTime": "324.276953068s",
+      "executionPhaseTimeInMs": "324578",
+      "wallTimeInMs": "325589"
+    },
+    "workerPoolMetrics": {}
+  },
+  "comparison_flags": [
+    "--repository_cache=/home/bits/.cache/dd-php-bazel-combined-downloads",
+    "--repository_contents_cache=/home/bits/.cache/dd-php-bazel-repo-contents",
+    "--distdir=/tmp/native-runtime-distdir",
+    "--lockfile_mode=update"
+  ],
+  "effective_flags": {
+    "cmdLine": [
+      "--enable_bzlmod",
+      "--enable_platform_specific_config",
+      "--announce_rc",
+      "--incompatible_strict_action_env",
+      "--noexperimental_collect_system_network_usage",
+      "--host_platform=@platforms//host:host",
+      "--build_tag_filters=-manual",
+      "--test_tag_filters=-manual",
+      "--config=remote-hermetic-arm64",
+      "--config=remote-hermetic",
+      "--config=local-hermetic",
+      "--incompatible_strict_action_env",
+      "--spawn_strategy=linux-sandbox",
+      "--strategy=Genrule=linux-sandbox",
+      "--remote_cache=",
+      "--remote_executor=",
+      "--nosandbox_default_allow_network",
+      "--experimental_use_hermetic_linux_sandbox",
+      "--action_env=LANG=C.UTF-8",
+      "--action_env=LC_ALL=C.UTF-8",
+      "--action_env=TZ=UTC",
+      "--action_env=SOURCE_DATE_EPOCH=0",
+      "--action_env=ZERO_AR_DATE=1",
+      "--repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1",
+      "--nostamp",
+      "--spawn_strategy=remote",
+      "--strategy=Genrule=remote",
+      "--remote_cache=grpcs://buildbarn-frontend.us1.ddbuild.staging.dog:443",
+      "--remote_executor=grpcs://buildbarn-frontend.us1.ddbuild.staging.dog:443",
+      "--remote_instance_name=ci/shared",
+      "--remote_timeout=600",
+      "--remote_upload_local_results",
+      "--remote_cache_compression",
+      "--remote_accept_cached",
+      "--jobs=50",
+      "--host_platform=//bazel/platforms:linux_arm64_exec",
+      "--extra_execution_platforms=//bazel/platforms:linux_arm64_exec",
+      "--jobs=50",
+      "--build_tag_filters=",
+      "--bes_backend=",
+      "--bes_results_url=",
+      "--repository_cache=/home/bits/.cache/dd-php-bazel-combined-downloads",
+      "--repo_contents_cache=/home/bits/.cache/dd-php-bazel-repo-contents",
+      "--distdir=/tmp/native-runtime-distdir",
+      "--lockfile_mode=update",
+      "--repository_disable_download",
+      "--config=rbe-cached",
+      "--config=rbe-benchmark",
+      "--remote_download_outputs=minimal",
+      "--record_full_profiler_data",
+      "--noslim_profile",
+      "--generate_json_trace_profile=yes",
+      "--experimental_profile_additional_tasks=remote_queue",
+      "--experimental_profile_additional_tasks=remote_process_time",
+      "--experimental_profile_additional_tasks=upload_time",
+      "--experimental_profile_additional_tasks=remote_download",
+      "--experimental_profile_additional_tasks=remote_network",
+      "--experimental_profile_include_target_label",
+      "--experimental_profile_include_primary_output",
+      "--remote_accept_cached",
+      "--profile=/home/bits/.cache/dd-native-runtime-bench/results/arm64-rust-edit-j50-20260921T225031.919876Z/profile.json.gz",
+      "--execution_log_compact_file=/home/bits/.cache/dd-native-runtime-bench/results/arm64-rust-edit-j50-20260921T225031.919876Z/execution.pb.zstd",
+      "--build_event_json_file=/home/bits/.cache/dd-native-runtime-bench/results/arm64-rust-edit-j50-20260921T225031.919876Z/events.jsonl",
+      "--remote_grpc_log=/home/bits/.cache/dd-native-runtime-bench/results/arm64-rust-edit-j50-20260921T225031.919876Z/remote-grpc.pb"
+    ],
+    "explicitCmdLine": [
+      "--config=remote-hermetic-arm64",
+      "--jobs=50",
+      "--build_tag_filters=",
+      "--bes_backend=",
+      "--bes_results_url=",
+      "--repository_cache=/home/bits/.cache/dd-php-bazel-combined-downloads",
+      "--repo_contents_cache=/home/bits/.cache/dd-php-bazel-repo-contents",
+      "--distdir=/tmp/native-runtime-distdir",
+      "--lockfile_mode=update",
+      "--repository_disable_download",
+      "--config=rbe-cached",
+      "--profile=/home/bits/.cache/dd-native-runtime-bench/results/arm64-rust-edit-j50-20260921T225031.919876Z/profile.json.gz",
+      "--execution_log_compact_file=/home/bits/.cache/dd-native-runtime-bench/results/arm64-rust-edit-j50-20260921T225031.919876Z/execution.pb.zstd",
+      "--build_event_json_file=/home/bits/.cache/dd-native-runtime-bench/results/arm64-rust-edit-j50-20260921T225031.919876Z/events.jsonl",
+      "--remote_grpc_log=/home/bits/.cache/dd-native-runtime-bench/results/arm64-rust-edit-j50-20260921T225031.919876Z/remote-grpc.pb"
+    ],
+    "explicitStartupOptions": [
+      "--output_base=/home/bits/.cache/dd-native-runtime-bench/outputs/arm64-iteration"
+    ],
+    "invocationPolicy": {},
+    "startupOptions": [
+      "--max_idle_secs=10800",
+      "--noshutdown_on_low_sys_mem",
+      "--connect_timeout_secs=30",
+      "--output_user_root=/home/bits/.cache/bazel/_bazel_bits",
+      "--output_base=/home/bits/.cache/dd-native-runtime-bench/outputs/arm64-iteration",
+      "--failure_detail_out=/home/bits/.cache/dd-native-runtime-bench/outputs/arm64-iteration/failure_detail.rawproto",
+      "--idle_server_tasks",
+      "--write_command_log",
+      "--nofatal_event_bus_exceptions",
+      "--nowindows_enable_symlinks",
+      "--noclient_debug"
+    ]
+  },
+  "elapsed_seconds": 345.18211337411776,
+  "execution": {
+    "aggregate_seconds": {
+      "execution": 320.353,
+      "fetch": 0.0,
+      "network": 2.433,
+      "parse": 0.125,
+      "process_outputs": 1.249,
+      "queue": 161.56,
+      "retry": 0.0,
+      "setup": 0.845,
+      "total": 487.354,
+      "upload": 0.573
+    },
+    "cache_hits": {},
+    "executed": {
+      "Rustc": 2
+    },
+    "logical_input_bytes": 7077964168,
+    "mnemonics": {
+      "Rustc": 2
+    },
+    "runners": {
+      "remote": 2
+    }
+  },
+  "exit_code": 0,
+  "jobs": 50,
+  "mode": "rust-edit",
+  "output_base": "/home/bits/.cache/dd-native-runtime-bench/outputs/arm64-iteration",
+  "profile_categories": {
+    "Remote execution file fetching": {
+      "aggregate_seconds": 0.845,
+      "events": 2
+    },
+    "Remote execution process wall time": {
+      "aggregate_seconds": 320.355,
+      "events": 2
+    },
+    "Remote execution queuing time": {
+      "aggregate_seconds": 161.56,
+      "events": 1
+    },
+    "Remote execution setup": {
+      "aggregate_seconds": 0.001007,
+      "events": 3
+    },
+    "Remote execution upload time": {
+      "aggregate_seconds": 3.9938770000000003,
+      "events": 6
+    },
+    "Starlark builtin function call": {
+      "aggregate_seconds": 0.0006510000000000005,
+      "events": 776
+    },
+    "Starlark user function call": {
+      "aggregate_seconds": 0.0047500000000000086,
+      "events": 3118
+    },
+    "VFS delete": {
+      "aggregate_seconds": 0.04460499999999999,
+      "events": 113
+    },
+    "VFS md5": {
+      "aggregate_seconds": 0.00028399999999999996,
+      "events": 2
+    },
+    "VFS open": {
+      "aggregate_seconds": 0.011158000000000001,
+      "events": 138
+    },
+    "VFS read": {
+      "aggregate_seconds": 0.0006230000000000003,
+      "events": 270
+    },
+    "VFS readdir": {
+      "aggregate_seconds": 0.9195610000000048,
+      "events": 12097
+    },
+    "VFS readlink": {
+      "aggregate_seconds": 0.16536300000001325,
+      "events": 17270
+    },
+    "VFS stat": {
+      "aggregate_seconds": 3.06760199999483,
+      "events": 365791
+    },
+    "VFS write": {
+      "aggregate_seconds": 0.014378999999999711,
+      "events": 1197
+    },
+    "action dependency checking": {
+      "aggregate_seconds": 0.3876970000000002,
+      "events": 1170
+    },
+    "action processing": {
+      "aggregate_seconds": 487.410934,
+      "events": 3
+    },
+    "bazel module processing": {
+      "aggregate_seconds": 0.007974,
+      "events": 3
+    },
+    "blocked on repo contents cache GC": {
+      "aggregate_seconds": 0.000167,
+      "events": 1
+    },
+    "build phase marker": {
+      "aggregate_seconds": 0.249,
+      "events": 1
+    },
+    "complete action execution": {
+      "aggregate_seconds": 0.000896,
+      "events": 3
+    },
+    "critical path": {
+      "aggregate_seconds": 0.003887,
+      "events": 1
+    },
+    "critical path component": {
+      "aggregate_seconds": 324.276952,
+      "events": 3
+    },
+    "gc notification": {
+      "aggregate_seconds": 0.425,
+      "events": 3
+    },
+    "general information": {
+      "aggregate_seconds": 1799.650120999999,
+      "events": 2969
+    },
+    "logging spawn": {
+      "aggregate_seconds": 0.7369379999999898,
+      "events": 26632
+    },
+    "remote action cache check": {
+      "aggregate_seconds": 0.264783,
+      "events": 2
+    },
+    "remote action execution": {
+      "aggregate_seconds": 484.219328,
+      "events": 4
+    },
+    "remote output download": {
+      "aggregate_seconds": 0.0009359999999999999,
+      "events": 4
+    },
+    "skyframe evaluator": {
+      "aggregate_seconds": 324.65054,
+      "events": 1
+    },
+    "skyfunction": {
+      "aggregate_seconds": 487.90189100000003,
+      "events": 605
+    }
+  },
+  "source_digest": "9016256a9fbe3e5257bb5005af32a5e515b0aa6ddc1d79d8ebd013fe999c2b03",
+  "source_snapshot_stable": true,
+  "targets": [
+    "//bazel/products/tracer:ddtrace_fat_arm64_all"
+  ],
+  "transfers": {
+    "bytestream_downloaded_bytes": 0,
+    "bytestream_uploaded_bytes": 10225,
+    "rpc_calls": {
+      "build.bazel.remote.execution.v2.ActionCache/GetActionResult": 2,
+      "build.bazel.remote.execution.v2.Capabilities/GetCapabilities": 1,
+      "build.bazel.remote.execution.v2.ContentAddressableStorage/FindMissingBlobs": 20,
+      "build.bazel.remote.execution.v2.Execution/Execute": 2,
+      "google.bytestream.ByteStream/Write": 6
+    },
+    "scope": "ByteStream payloads, including retries; excluding RPC framing and inline results"
+  }
+}

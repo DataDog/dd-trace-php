@@ -1,0 +1,58 @@
+[
+  {
+    "native": "/home/bits/.cache/dd-native-runtime-repro/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-opt-ST-9a8755a540d3/bin/bazel/dependencies/llvm_runtimes/aarch64_musl_native_core.build/runtimes/lib/libc++.a",
+    "reference": "/home/bits/.cache/dd-php-amd64-all-output/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-fastbuild-ST-5c2d628c1b9c/bin/bazel/dependencies/llvm_runtimes/aarch64_musl.runtime/lib/libc++.a",
+    "symbol_entries": 3796,
+    "native_sha256": "bc80e4bc34e137da5a890517ec844136088a6c3067ab3f0b56467d80eb2f5595",
+    "reference_sha256": "bc80e4bc34e137da5a890517ec844136088a6c3067ab3f0b56467d80eb2f5595",
+    "parity": "pass"
+  },
+  {
+    "native": "/home/bits/.cache/dd-native-runtime-repro/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-opt-ST-9a8755a540d3/bin/bazel/dependencies/llvm_runtimes/aarch64_musl_native_core.build/runtimes/lib/libc++.so.1.0",
+    "reference": "/home/bits/.cache/dd-php-amd64-all-output/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-fastbuild-ST-5c2d628c1b9c/bin/bazel/dependencies/llvm_runtimes/aarch64_musl.runtime/lib/libc++.so.1.0",
+    "symbol_entries": 2197,
+    "native_sha256": "c762534630e24564a0d19be1cb50643005e39c6356a755c2bdfc362f6b5701ef",
+    "reference_sha256": "c762534630e24564a0d19be1cb50643005e39c6356a755c2bdfc362f6b5701ef",
+    "parity": "pass"
+  },
+  {
+    "native": "/home/bits/.cache/dd-native-runtime-repro/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-opt-ST-9a8755a540d3/bin/bazel/dependencies/llvm_runtimes/aarch64_musl_native_core.build/runtimes/lib/libc++abi.a",
+    "reference": "/home/bits/.cache/dd-php-amd64-all-output/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-fastbuild-ST-5c2d628c1b9c/bin/bazel/dependencies/llvm_runtimes/aarch64_musl.runtime/lib/libc++abi.a",
+    "symbol_entries": 626,
+    "native_sha256": "ca7ca65acf5e06f70e6f1eaec56297034ec0e7e3df35a17590b62a517c234d80",
+    "reference_sha256": "746e4a9b582bc24170deaff2eeec75bf940fcc093a3e18719851a51f5db5e756",
+    "parity": "pass"
+  },
+  {
+    "native": "/home/bits/.cache/dd-native-runtime-repro/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-opt-ST-9a8755a540d3/bin/bazel/dependencies/llvm_runtimes/aarch64_musl_native_core.build/runtimes/lib/libc++abi.so.1.0",
+    "reference": "/home/bits/.cache/dd-php-amd64-all-output/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-fastbuild-ST-5c2d628c1b9c/bin/bazel/dependencies/llvm_runtimes/aarch64_musl.runtime/lib/libc++abi.so.1.0",
+    "symbol_entries": 407,
+    "native_sha256": "e5ea3ba19ead0007f35c1020ba427447a56ffd30f034e6832ccb3c21deac3540",
+    "reference_sha256": "39aedf9b0c1b5248f581837a727bd9637c49777ecebe12fd1fb62c63bd4b564d",
+    "parity": "pass"
+  },
+  {
+    "native": "/home/bits/.cache/dd-native-runtime-repro/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-opt-ST-9a8755a540d3/bin/bazel/dependencies/llvm_runtimes/aarch64_musl_native_core.build/runtimes/lib/libunwind.a",
+    "reference": "/home/bits/.cache/dd-php-amd64-all-output/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-fastbuild-ST-5c2d628c1b9c/bin/bazel/dependencies/llvm_runtimes/aarch64_musl.runtime/lib/libunwind.a",
+    "symbol_entries": 155,
+    "native_sha256": "3036c4315c18a5e38858a7a28932d5edfa58c74f10662015414e77230246bb8f",
+    "reference_sha256": "20c427af386bbbdd1d34610701883aa773c809bf1c1a2e0fb151729c2a23803d",
+    "parity": "pass"
+  },
+  {
+    "native": "/home/bits/.cache/dd-native-runtime-repro/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-opt-ST-9a8755a540d3/bin/bazel/dependencies/llvm_runtimes/aarch64_musl_native_core.build/runtimes/lib/libunwind.so.1.0",
+    "reference": "/home/bits/.cache/dd-php-amd64-all-output/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-fastbuild-ST-5c2d628c1b9c/bin/bazel/dependencies/llvm_runtimes/aarch64_musl.runtime/lib/libunwind.so.1.0",
+    "symbol_entries": 58,
+    "native_sha256": "52822a57304140f7b6e069397f780ed2fa76ddb2b8ea7e7b21e8e1be1945c980",
+    "reference_sha256": "e5bfb16c21831e745d4226de735228b3a1821299280ad4bf27d2de32380ba1f1",
+    "parity": "pass"
+  },
+  {
+    "native": "/home/bits/.cache/dd-native-runtime-repro/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-opt-ST-9a8755a540d3/bin/bazel/dependencies/llvm_runtimes/aarch64_musl_native_core.build/builtins/compiler-rt/lib/linux/libclang_rt.builtins-aarch64.a",
+    "reference": "/home/bits/.cache/dd-php-amd64-all-output/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-fastbuild-ST-5c2d628c1b9c/bin/bazel/dependencies/llvm_runtimes/aarch64_musl.runtime/lib/linux/libclang_rt.builtins-aarch64.a",
+    "symbol_entries": 533,
+    "native_sha256": "643139791ead28ef48eaeeec40649ece8de9dde29984a704cdab6e0f693bb49b",
+    "reference_sha256": "afda83cb9560597100de7ba7639ca60171af9b75b1743a8555f3ab2ca25952e0",
+    "parity": "pass"
+  }
+]

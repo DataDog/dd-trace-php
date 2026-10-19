@@ -1,0 +1,1117 @@
+[
+  {
+    "repo": "php_sdk_alpine322_7_0_amd64_nts",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_0_amd64_nts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_0_amd64_nts/normalized/sdk/include/php/Zend/zend.h:342:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_0_amd64_nts/normalized/sdk/include/php/Zend/zend_operators.h:119:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  119 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_0_amd64_nts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_0_amd64_nts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_alpine322_x86_64/usr/include/stdint.h:46:21: note: expanded from macro 'INT64_MAX'\n   46 | #define INT64_MAX  (0x7fffffffffffffff)\n      |                     ^~~~~~~~~~~~~~~~~~\n1 warning generated.\n"
+  },
+  {
+    "repo": "php_sdk_alpine322_7_0_amd64_zts",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_0_amd64_zts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_0_amd64_zts/normalized/sdk/include/php/Zend/zend.h:342:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_0_amd64_zts/normalized/sdk/include/php/Zend/zend_operators.h:119:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  119 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_0_amd64_zts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_0_amd64_zts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_alpine322_x86_64/usr/include/stdint.h:46:21: note: expanded from macro 'INT64_MAX'\n   46 | #define INT64_MAX  (0x7fffffffffffffff)\n      |                     ^~~~~~~~~~~~~~~~~~\n1 warning generated.\n"
+  },
+  {
+    "repo": "php_sdk_alpine322_7_0_arm64_nts",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_0_arm64_nts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_0_arm64_nts/normalized/sdk/include/php/Zend/zend.h:342:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_0_arm64_nts/normalized/sdk/include/php/Zend/zend_operators.h:119:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  119 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_0_arm64_nts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_0_arm64_nts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_alpine322_aarch64/usr/include/stdint.h:46:21: note: expanded from macro 'INT64_MAX'\n   46 | #define INT64_MAX  (0x7fffffffffffffff)\n      |                     ^~~~~~~~~~~~~~~~~~\n1 warning generated.\n"
+  },
+  {
+    "repo": "php_sdk_alpine322_7_0_arm64_zts",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_0_arm64_zts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_0_arm64_zts/normalized/sdk/include/php/Zend/zend.h:342:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_0_arm64_zts/normalized/sdk/include/php/Zend/zend_operators.h:119:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  119 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_0_arm64_zts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_0_arm64_zts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_alpine322_aarch64/usr/include/stdint.h:46:21: note: expanded from macro 'INT64_MAX'\n   46 | #define INT64_MAX  (0x7fffffffffffffff)\n      |                     ^~~~~~~~~~~~~~~~~~\n1 warning generated.\n"
+  },
+  {
+    "repo": "php_sdk_alpine322_7_1_amd64_nts",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_amd64_nts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_amd64_nts/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_amd64_nts/normalized/sdk/include/php/Zend/zend_operators.h:119:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  119 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_amd64_nts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_amd64_nts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_alpine322_x86_64/usr/include/stdint.h:46:21: note: expanded from macro 'INT64_MAX'\n   46 | #define INT64_MAX  (0x7fffffffffffffff)\n      |                     ^~~~~~~~~~~~~~~~~~\nIn file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_amd64_nts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_amd64_nts/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_amd64_nts/normalized/sdk/include/php/Zend/zend_operators.h:130:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  130 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_amd64_nts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_amd64_nts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_alpine322_x86_64/usr/include/stdint.h:46:21: note: expanded from macro 'INT64_MAX'\n   46 | #define INT64_MAX  (0x7fffffffffffffff)\n      |                     ^~~~~~~~~~~~~~~~~~\n2 warnings generated.\n"
+  },
+  {
+    "repo": "php_sdk_alpine322_7_1_amd64_zts",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_amd64_zts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_amd64_zts/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_amd64_zts/normalized/sdk/include/php/Zend/zend_operators.h:119:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  119 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_amd64_zts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_amd64_zts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_alpine322_x86_64/usr/include/stdint.h:46:21: note: expanded from macro 'INT64_MAX'\n   46 | #define INT64_MAX  (0x7fffffffffffffff)\n      |                     ^~~~~~~~~~~~~~~~~~\nIn file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_amd64_zts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_amd64_zts/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_amd64_zts/normalized/sdk/include/php/Zend/zend_operators.h:130:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  130 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_amd64_zts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_amd64_zts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_alpine322_x86_64/usr/include/stdint.h:46:21: note: expanded from macro 'INT64_MAX'\n   46 | #define INT64_MAX  (0x7fffffffffffffff)\n      |                     ^~~~~~~~~~~~~~~~~~\n2 warnings generated.\n"
+  },
+  {
+    "repo": "php_sdk_alpine322_7_1_arm64_nts",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_arm64_nts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_arm64_nts/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_arm64_nts/normalized/sdk/include/php/Zend/zend_operators.h:119:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  119 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_arm64_nts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_arm64_nts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_alpine322_aarch64/usr/include/stdint.h:46:21: note: expanded from macro 'INT64_MAX'\n   46 | #define INT64_MAX  (0x7fffffffffffffff)\n      |                     ^~~~~~~~~~~~~~~~~~\nIn file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_arm64_nts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_arm64_nts/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_arm64_nts/normalized/sdk/include/php/Zend/zend_operators.h:130:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  130 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_arm64_nts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_arm64_nts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_alpine322_aarch64/usr/include/stdint.h:46:21: note: expanded from macro 'INT64_MAX'\n   46 | #define INT64_MAX  (0x7fffffffffffffff)\n      |                     ^~~~~~~~~~~~~~~~~~\n2 warnings generated.\n"
+  },
+  {
+    "repo": "php_sdk_alpine322_7_1_arm64_zts",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_arm64_zts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_arm64_zts/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_arm64_zts/normalized/sdk/include/php/Zend/zend_operators.h:119:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  119 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_arm64_zts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_arm64_zts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_alpine322_aarch64/usr/include/stdint.h:46:21: note: expanded from macro 'INT64_MAX'\n   46 | #define INT64_MAX  (0x7fffffffffffffff)\n      |                     ^~~~~~~~~~~~~~~~~~\nIn file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_arm64_zts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_arm64_zts/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_arm64_zts/normalized/sdk/include/php/Zend/zend_operators.h:130:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  130 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_arm64_zts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_alpine322_7_1_arm64_zts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_alpine322_aarch64/usr/include/stdint.h:46:21: note: expanded from macro 'INT64_MAX'\n   46 | #define INT64_MAX  (0x7fffffffffffffff)\n      |                     ^~~~~~~~~~~~~~~~~~\n2 warnings generated.\n"
+  },
+  {
+    "repo": "php_sdk_alpine322_7_2_amd64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_7_2_amd64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_7_2_arm64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_7_2_arm64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_7_3_amd64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_7_3_amd64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_7_3_arm64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_7_3_arm64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_7_4_amd64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_7_4_amd64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_7_4_arm64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_7_4_arm64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_8_0_amd64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_8_0_amd64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_8_0_arm64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_8_0_arm64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_8_1_amd64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_8_1_amd64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_8_1_arm64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_8_1_arm64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_8_2_amd64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_8_2_amd64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_8_2_arm64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_8_2_arm64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_8_3_amd64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_8_3_amd64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_8_3_arm64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_8_3_arm64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_8_4_amd64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_8_4_amd64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_8_4_arm64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_8_4_arm64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_8_5_amd64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_8_5_amd64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_8_5_arm64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine322_8_5_arm64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine_legacy_8_0_amd64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine_legacy_8_0_amd64_debug_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_alpine_legacy_8_0_amd64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_7_0_amd64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_7_0_amd64_debug_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_7_0_amd64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_7_0_amd64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_7_0_arm64_debug",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_0_arm64_debug/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_0_arm64_debug/normalized/sdk/include/php/Zend/zend.h:342:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_0_arm64_debug/normalized/sdk/include/php/Zend/zend_operators.h:119:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  119 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_0_arm64_debug/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_0_arm64_debug/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:145:24: note: expanded from macro '__INT64_C'\n  145 | #  define __INT64_C(c)  c ## L\n      |                         ^~~~~~\n<scratch space>:35:1: note: expanded from here\n   35 | 9223372036854775807L\n      | ^~~~~~~~~~~~~~~~~~~~\n1 warning generated.\n"
+  },
+  {
+    "repo": "php_sdk_bookworm_7_0_arm64_debug_zts",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_0_arm64_debug_zts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_0_arm64_debug_zts/normalized/sdk/include/php/Zend/zend.h:342:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_0_arm64_debug_zts/normalized/sdk/include/php/Zend/zend_operators.h:119:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  119 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_0_arm64_debug_zts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_0_arm64_debug_zts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:145:24: note: expanded from macro '__INT64_C'\n  145 | #  define __INT64_C(c)  c ## L\n      |                         ^~~~~~\n<scratch space>:35:1: note: expanded from here\n   35 | 9223372036854775807L\n      | ^~~~~~~~~~~~~~~~~~~~\n1 warning generated.\n"
+  },
+  {
+    "repo": "php_sdk_bookworm_7_0_arm64_nts",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_0_arm64_nts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_0_arm64_nts/normalized/sdk/include/php/Zend/zend.h:342:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_0_arm64_nts/normalized/sdk/include/php/Zend/zend_operators.h:119:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  119 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_0_arm64_nts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_0_arm64_nts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:145:24: note: expanded from macro '__INT64_C'\n  145 | #  define __INT64_C(c)  c ## L\n      |                         ^~~~~~\n<scratch space>:82:1: note: expanded from here\n   82 | 9223372036854775807L\n      | ^~~~~~~~~~~~~~~~~~~~\n1 warning generated.\n"
+  },
+  {
+    "repo": "php_sdk_bookworm_7_0_arm64_zts",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_0_arm64_zts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_0_arm64_zts/normalized/sdk/include/php/Zend/zend.h:342:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_0_arm64_zts/normalized/sdk/include/php/Zend/zend_operators.h:119:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  119 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_0_arm64_zts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_0_arm64_zts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:145:24: note: expanded from macro '__INT64_C'\n  145 | #  define __INT64_C(c)  c ## L\n      |                         ^~~~~~\n<scratch space>:84:1: note: expanded from here\n   84 | 9223372036854775807L\n      | ^~~~~~~~~~~~~~~~~~~~\n1 warning generated.\n"
+  },
+  {
+    "repo": "php_sdk_bookworm_7_1_amd64_debug",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_amd64_debug/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_amd64_debug/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_amd64_debug/normalized/sdk/include/php/Zend/zend_operators.h:130:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  130 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_amd64_debug/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_amd64_debug/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_x86_64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_x86_64/usr/include/stdint.h:145:24: note: expanded from macro '__INT64_C'\n  145 | #  define __INT64_C(c)  c ## L\n      |                         ^~~~~~\n<scratch space>:36:1: note: expanded from here\n   36 | 9223372036854775807L\n      | ^~~~~~~~~~~~~~~~~~~~\n1 warning generated.\n"
+  },
+  {
+    "repo": "php_sdk_bookworm_7_1_amd64_debug_zts",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_amd64_debug_zts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_amd64_debug_zts/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_amd64_debug_zts/normalized/sdk/include/php/Zend/zend_operators.h:130:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  130 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_amd64_debug_zts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_amd64_debug_zts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_x86_64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_x86_64/usr/include/stdint.h:145:24: note: expanded from macro '__INT64_C'\n  145 | #  define __INT64_C(c)  c ## L\n      |                         ^~~~~~\n<scratch space>:35:1: note: expanded from here\n   35 | 9223372036854775807L\n      | ^~~~~~~~~~~~~~~~~~~~\n1 warning generated.\n"
+  },
+  {
+    "repo": "php_sdk_bookworm_7_1_amd64_nts",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_amd64_nts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_amd64_nts/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_amd64_nts/normalized/sdk/include/php/Zend/zend_operators.h:130:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  130 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_amd64_nts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_amd64_nts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_x86_64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_x86_64/usr/include/stdint.h:145:24: note: expanded from macro '__INT64_C'\n  145 | #  define __INT64_C(c)  c ## L\n      |                         ^~~~~~\n<scratch space>:85:1: note: expanded from here\n   85 | 9223372036854775807L\n      | ^~~~~~~~~~~~~~~~~~~~\n1 warning generated.\n"
+  },
+  {
+    "repo": "php_sdk_bookworm_7_1_amd64_zts",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_amd64_zts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_amd64_zts/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_amd64_zts/normalized/sdk/include/php/Zend/zend_operators.h:130:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  130 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_amd64_zts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_amd64_zts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_x86_64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_x86_64/usr/include/stdint.h:145:24: note: expanded from macro '__INT64_C'\n  145 | #  define __INT64_C(c)  c ## L\n      |                         ^~~~~~\n<scratch space>:84:1: note: expanded from here\n   84 | 9223372036854775807L\n      | ^~~~~~~~~~~~~~~~~~~~\n1 warning generated.\n"
+  },
+  {
+    "repo": "php_sdk_bookworm_7_1_arm64_debug",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_debug/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_debug/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_debug/normalized/sdk/include/php/Zend/zend_operators.h:119:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  119 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_debug/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_debug/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:145:24: note: expanded from macro '__INT64_C'\n  145 | #  define __INT64_C(c)  c ## L\n      |                         ^~~~~~\n<scratch space>:38:1: note: expanded from here\n   38 | 9223372036854775807L\n      | ^~~~~~~~~~~~~~~~~~~~\nIn file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_debug/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_debug/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_debug/normalized/sdk/include/php/Zend/zend_operators.h:130:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  130 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_debug/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_debug/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_mas"
+  },
+  {
+    "repo": "php_sdk_bookworm_7_1_arm64_debug_zts",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_debug_zts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_debug_zts/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_debug_zts/normalized/sdk/include/php/Zend/zend_operators.h:119:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  119 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_debug_zts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_debug_zts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:145:24: note: expanded from macro '__INT64_C'\n  145 | #  define __INT64_C(c)  c ## L\n      |                         ^~~~~~\n<scratch space>:35:1: note: expanded from here\n   35 | 9223372036854775807L\n      | ^~~~~~~~~~~~~~~~~~~~\nIn file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_debug_zts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_debug_zts/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_debug_zts/normalized/sdk/include/php/Zend/zend_operators.h:130:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  130 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_debug_zts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_debug_zts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bi"
+  },
+  {
+    "repo": "php_sdk_bookworm_7_1_arm64_nts",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_nts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_nts/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_nts/normalized/sdk/include/php/Zend/zend_operators.h:119:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  119 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_nts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_nts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:145:24: note: expanded from macro '__INT64_C'\n  145 | #  define __INT64_C(c)  c ## L\n      |                         ^~~~~~\n<scratch space>:87:1: note: expanded from here\n   87 | 9223372036854775807L\n      | ^~~~~~~~~~~~~~~~~~~~\nIn file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_nts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_nts/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_nts/normalized/sdk/include/php/Zend/zend_operators.h:130:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  130 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_nts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_nts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exeprimen"
+  },
+  {
+    "repo": "php_sdk_bookworm_7_1_arm64_zts",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_zts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_zts/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_zts/normalized/sdk/include/php/Zend/zend_operators.h:119:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  119 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_zts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_zts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:145:24: note: expanded from macro '__INT64_C'\n  145 | #  define __INT64_C(c)  c ## L\n      |                         ^~~~~~\n<scratch space>:84:1: note: expanded from here\n   84 | 9223372036854775807L\n      | ^~~~~~~~~~~~~~~~~~~~\nIn file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_zts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_zts/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_zts/normalized/sdk/include/php/Zend/zend_operators.h:130:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  130 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_zts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_bookworm_7_1_arm64_zts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exeprimen"
+  },
+  {
+    "repo": "php_sdk_bookworm_7_2_amd64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_7_2_amd64_debug_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_7_2_amd64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_7_2_amd64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_7_2_arm64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_7_2_arm64_debug_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_7_2_arm64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_7_2_arm64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_7_3_amd64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_7_3_amd64_debug_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_7_3_amd64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_7_3_amd64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_7_3_arm64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_7_3_arm64_debug_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_7_3_arm64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_7_3_arm64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_7_4_amd64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_7_4_amd64_debug_zts_asan",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_7_4_amd64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_7_4_amd64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_7_4_arm64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_7_4_arm64_debug_zts_asan",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_7_4_arm64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_7_4_arm64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_0_amd64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_0_amd64_debug_zts_asan",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_0_amd64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_0_amd64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_0_arm64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_0_arm64_debug_zts_asan",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_0_arm64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_0_arm64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_1_amd64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_1_amd64_debug_zts_asan",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_1_amd64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_1_amd64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_1_arm64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_1_arm64_debug_zts_asan",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_1_arm64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_1_arm64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_2_amd64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_2_amd64_debug_zts_asan",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_2_amd64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_2_amd64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_2_arm64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_2_arm64_debug_zts_asan",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_2_arm64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_2_arm64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_3_amd64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_3_amd64_debug_zts_asan",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_3_amd64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_3_amd64_nts_asan",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_3_amd64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_3_arm64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_3_arm64_debug_zts_asan",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_3_arm64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_3_arm64_nts_asan",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_3_arm64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_4_amd64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_4_amd64_debug_zts_asan",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_4_amd64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_4_amd64_nts_asan",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_4_amd64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_4_arm64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_4_arm64_debug_zts_asan",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_4_arm64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_4_arm64_nts_asan",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_4_arm64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_5_amd64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_5_amd64_debug_zts_asan",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_5_amd64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_5_amd64_nts_asan",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_5_amd64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_5_arm64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_5_arm64_debug_zts_asan",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_5_arm64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_5_arm64_nts_asan",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_8_5_arm64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_shared_7_4_amd64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_shared_7_4_amd64_debug_zts_asan",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_shared_7_4_amd64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_shared_7_4_amd64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_shared_7_4_arm64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_shared_7_4_arm64_debug_zts_asan",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_shared_7_4_arm64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_shared_7_4_arm64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_shared_8_0_amd64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_shared_8_0_amd64_debug_zts_asan",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_shared_8_0_amd64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_shared_8_0_amd64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_shared_8_0_arm64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_shared_8_0_arm64_debug_zts_asan",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_shared_8_0_arm64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_bookworm_shared_8_0_arm64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_7_0_amd64_debug",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_0_amd64_debug/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_0_amd64_debug/normalized/sdk/include/php/Zend/zend.h:342:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_0_amd64_debug/normalized/sdk/include/php/Zend/zend_operators.h:119:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  119 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_0_amd64_debug/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_0_amd64_debug/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_x86_64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_x86_64/usr/include/stdint.h:145:24: note: expanded from macro '__INT64_C'\n  145 | #  define __INT64_C(c)  c ## L\n      |                         ^~~~~~\n<scratch space>:34:1: note: expanded from here\n   34 | 9223372036854775807L\n      | ^~~~~~~~~~~~~~~~~~~~\n1 warning generated.\n"
+  },
+  {
+    "repo": "php_sdk_centos7_7_0_amd64_nts",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_0_amd64_nts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_0_amd64_nts/normalized/sdk/include/php/Zend/zend.h:342:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_0_amd64_nts/normalized/sdk/include/php/Zend/zend_operators.h:119:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  119 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_0_amd64_nts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_0_amd64_nts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_x86_64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_x86_64/usr/include/stdint.h:145:24: note: expanded from macro '__INT64_C'\n  145 | #  define __INT64_C(c)  c ## L\n      |                         ^~~~~~\n<scratch space>:82:1: note: expanded from here\n   82 | 9223372036854775807L\n      | ^~~~~~~~~~~~~~~~~~~~\n1 warning generated.\n"
+  },
+  {
+    "repo": "php_sdk_centos7_7_0_amd64_zts",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_0_amd64_zts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_0_amd64_zts/normalized/sdk/include/php/Zend/zend.h:342:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_0_amd64_zts/normalized/sdk/include/php/Zend/zend_operators.h:119:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  119 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_0_amd64_zts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_0_amd64_zts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_x86_64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_x86_64/usr/include/stdint.h:145:24: note: expanded from macro '__INT64_C'\n  145 | #  define __INT64_C(c)  c ## L\n      |                         ^~~~~~\n<scratch space>:84:1: note: expanded from here\n   84 | 9223372036854775807L\n      | ^~~~~~~~~~~~~~~~~~~~\n1 warning generated.\n"
+  },
+  {
+    "repo": "php_sdk_centos7_7_0_arm64_debug",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_0_arm64_debug/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_0_arm64_debug/normalized/sdk/include/php/Zend/zend.h:342:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_0_arm64_debug/normalized/sdk/include/php/Zend/zend_operators.h:119:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  119 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_0_arm64_debug/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_0_arm64_debug/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:145:24: note: expanded from macro '__INT64_C'\n  145 | #  define __INT64_C(c)  c ## L\n      |                         ^~~~~~\n<scratch space>:34:1: note: expanded from here\n   34 | 9223372036854775807L\n      | ^~~~~~~~~~~~~~~~~~~~\n1 warning generated.\n"
+  },
+  {
+    "repo": "php_sdk_centos7_7_0_arm64_nts",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_0_arm64_nts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_0_arm64_nts/normalized/sdk/include/php/Zend/zend.h:342:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_0_arm64_nts/normalized/sdk/include/php/Zend/zend_operators.h:119:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  119 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_0_arm64_nts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_0_arm64_nts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:145:24: note: expanded from macro '__INT64_C'\n  145 | #  define __INT64_C(c)  c ## L\n      |                         ^~~~~~\n<scratch space>:82:1: note: expanded from here\n   82 | 9223372036854775807L\n      | ^~~~~~~~~~~~~~~~~~~~\n1 warning generated.\n"
+  },
+  {
+    "repo": "php_sdk_centos7_7_0_arm64_zts",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_0_arm64_zts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_0_arm64_zts/normalized/sdk/include/php/Zend/zend.h:342:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_0_arm64_zts/normalized/sdk/include/php/Zend/zend_operators.h:119:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  119 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_0_arm64_zts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_0_arm64_zts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:145:24: note: expanded from macro '__INT64_C'\n  145 | #  define __INT64_C(c)  c ## L\n      |                         ^~~~~~\n<scratch space>:84:1: note: expanded from here\n   84 | 9223372036854775807L\n      | ^~~~~~~~~~~~~~~~~~~~\n1 warning generated.\n"
+  },
+  {
+    "repo": "php_sdk_centos7_7_1_amd64_debug",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_amd64_debug/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_amd64_debug/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_amd64_debug/normalized/sdk/include/php/Zend/zend_operators.h:119:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  119 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_amd64_debug/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_amd64_debug/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_x86_64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_x86_64/usr/include/stdint.h:145:24: note: expanded from macro '__INT64_C'\n  145 | #  define __INT64_C(c)  c ## L\n      |                         ^~~~~~\n<scratch space>:35:1: note: expanded from here\n   35 | 9223372036854775807L\n      | ^~~~~~~~~~~~~~~~~~~~\nIn file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_amd64_debug/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_amd64_debug/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_amd64_debug/normalized/sdk/include/php/Zend/zend_operators.h:130:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  130 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_amd64_debug/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_amd64_debug/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_x86_64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-ex"
+  },
+  {
+    "repo": "php_sdk_centos7_7_1_amd64_nts",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_amd64_nts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_amd64_nts/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_amd64_nts/normalized/sdk/include/php/Zend/zend_operators.h:119:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  119 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_amd64_nts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_amd64_nts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_x86_64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_x86_64/usr/include/stdint.h:145:24: note: expanded from macro '__INT64_C'\n  145 | #  define __INT64_C(c)  c ## L\n      |                         ^~~~~~\n<scratch space>:85:1: note: expanded from here\n   85 | 9223372036854775807L\n      | ^~~~~~~~~~~~~~~~~~~~\nIn file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_amd64_nts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_amd64_nts/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_amd64_nts/normalized/sdk/include/php/Zend/zend_operators.h:130:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  130 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_amd64_nts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_amd64_nts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_x86_64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysro"
+  },
+  {
+    "repo": "php_sdk_centos7_7_1_amd64_zts",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_amd64_zts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_amd64_zts/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_amd64_zts/normalized/sdk/include/php/Zend/zend_operators.h:119:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  119 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_amd64_zts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_amd64_zts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_x86_64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_x86_64/usr/include/stdint.h:145:24: note: expanded from macro '__INT64_C'\n  145 | #  define __INT64_C(c)  c ## L\n      |                         ^~~~~~\n<scratch space>:84:1: note: expanded from here\n   84 | 9223372036854775807L\n      | ^~~~~~~~~~~~~~~~~~~~\nIn file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_amd64_zts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_amd64_zts/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_amd64_zts/normalized/sdk/include/php/Zend/zend_operators.h:130:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  130 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_amd64_zts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_amd64_zts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_x86_64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysro"
+  },
+  {
+    "repo": "php_sdk_centos7_7_1_arm64_debug",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_arm64_debug/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_arm64_debug/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_arm64_debug/normalized/sdk/include/php/Zend/zend_operators.h:119:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  119 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_arm64_debug/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_arm64_debug/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:145:24: note: expanded from macro '__INT64_C'\n  145 | #  define __INT64_C(c)  c ## L\n      |                         ^~~~~~\n<scratch space>:37:1: note: expanded from here\n   37 | 9223372036854775807L\n      | ^~~~~~~~~~~~~~~~~~~~\nIn file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_arm64_debug/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_arm64_debug/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_arm64_debug/normalized/sdk/include/php/Zend/zend_operators.h:130:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  130 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_arm64_debug/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_arm64_debug/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel"
+  },
+  {
+    "repo": "php_sdk_centos7_7_1_arm64_nts",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_arm64_nts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_arm64_nts/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_arm64_nts/normalized/sdk/include/php/Zend/zend_operators.h:119:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  119 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_arm64_nts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_arm64_nts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:145:24: note: expanded from macro '__INT64_C'\n  145 | #  define __INT64_C(c)  c ## L\n      |                         ^~~~~~\n<scratch space>:87:1: note: expanded from here\n   87 | 9223372036854775807L\n      | ^~~~~~~~~~~~~~~~~~~~\nIn file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_arm64_nts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_arm64_nts/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_arm64_nts/normalized/sdk/include/php/Zend/zend_operators.h:130:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  130 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_arm64_nts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_arm64_nts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sy"
+  },
+  {
+    "repo": "php_sdk_centos7_7_1_arm64_zts",
+    "status": 0,
+    "diagnostic": "In file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_arm64_zts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_arm64_zts/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_arm64_zts/normalized/sdk/include/php/Zend/zend_operators.h:119:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  119 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_arm64_zts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_arm64_zts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:145:24: note: expanded from macro '__INT64_C'\n  145 | #  define __INT64_C(c)  c ## L\n      |                         ^~~~~~\n<scratch space>:84:1: note: expanded from here\n   84 | 9223372036854775807L\n      | ^~~~~~~~~~~~~~~~~~~~\nIn file included from <stdin>:1:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_arm64_zts/normalized/sdk/include/php/main/php.h:35:\nIn file included from /home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_arm64_zts/normalized/sdk/include/php/Zend/zend.h:324:\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_arm64_zts/normalized/sdk/include/php/Zend/zend_operators.h:130:14: warning: implicit conversion from 'long' to 'double' changes value from 9223372036854775807 to 9223372036854775808 [-Wimplicit-const-int-float-conversion]\n  130 |         } else if (!ZEND_DOUBLE_FITS_LONG(d)) {\n      |                     ^~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_arm64_zts/normalized/sdk/include/php/Zend/zend_operators.h:100:45: note: expanded from macro 'ZEND_DOUBLE_FITS_LONG'\n  100 | #       define ZEND_DOUBLE_FITS_LONG(d) (!((d) >= ZEND_LONG_MAX || (d) < ZEND_LONG_MIN))\n      |                                                ~~ ^~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-oci-output/749ddb48996553dfa59620c83818c70a/external/+php_oci_imports+php_sdk_centos7_7_1_arm64_zts/normalized/sdk/include/php/Zend/zend_long.h:37:24: note: expanded from macro 'ZEND_LONG_MAX'\n   37 | # define ZEND_LONG_MAX INT64_MAX\n      |                        ^~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sysroots-runtime-output/749ddb48996553dfa59620c83818c70a/external/+sysroots+sysroot_centos7_aarch64/usr/include/stdint.h:163:22: note: expanded from macro 'INT64_MAX'\n  163 | # define INT64_MAX              (__INT64_C(9223372036854775807))\n      |                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n/home/bits/Documents/work/dd-trace-php/pawel_massive-bazel-exepriment/build/sy"
+  },
+  {
+    "repo": "php_sdk_centos7_7_2_amd64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_7_2_amd64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_7_2_amd64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_7_2_arm64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_7_2_arm64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_7_2_arm64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_7_3_amd64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_7_3_amd64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_7_3_amd64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_7_3_arm64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_7_3_arm64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_7_3_arm64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_7_4_amd64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_7_4_amd64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_7_4_amd64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_7_4_arm64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_7_4_arm64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_7_4_arm64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_0_amd64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_0_amd64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_0_amd64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_0_arm64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_0_arm64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_0_arm64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_1_amd64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_1_amd64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_1_amd64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_1_arm64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_1_arm64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_1_arm64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_2_amd64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_2_amd64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_2_amd64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_2_arm64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_2_arm64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_2_arm64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_3_amd64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_3_amd64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_3_amd64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_3_arm64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_3_arm64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_3_arm64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_4_amd64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_4_amd64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_4_amd64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_4_arm64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_4_arm64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_4_arm64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_5_amd64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_5_amd64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_5_amd64_zts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_5_arm64_debug",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_5_arm64_nts",
+    "status": 0,
+    "diagnostic": ""
+  },
+  {
+    "repo": "php_sdk_centos7_8_5_arm64_zts",
+    "status": 0,
+    "diagnostic": ""
+  }
+]

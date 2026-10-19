@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "source_hashes": "packaging-source-hashes.txt",
+  "environment": {
+    "repository_cache": "/home/bits/.cache/dd-php-bazel-combined-downloads",
+    "repository_contents_cache": "/home/bits/.cache/dd-php-bazel-repo-contents",
+    "repository_disable_download": true,
+    "lockfile_mode": "error",
+    "execution_strategy": "processwrapper-sandbox",
+    "remote_cache": "",
+    "remote_executor": "",
+    "bes_backend": "",
+    "bes_results_url": ""
+  },
+  "checks": [
+    {
+      "command": "python3 bazel/php/validate_product_manifest_test.py",
+      "exit_code": 0,
+      "log": "product-manifest-validator.log"
+    },
+    {
+      "command": "tools/bazel/test-ssi-payload.sh tools/bazel/assemble-ssi-payload.sh tools/bazel/deterministic-tar.sh tar",
+      "exit_code": 0,
+      "log": "ssi-payload-fixture.log"
+    },
+    {
+      "command": "bb --batch --output_user_root=/tmp/dd-checkpoint-packaging-edge aquery mnemonic('AssembleSsiPayload', //bazel/packaging:fixture_projected_payload) --build_tag_filters= --config=local-hermetic --spawn_strategy=processwrapper-sandbox --strategy=Genrule=processwrapper-sandbox --noexperimental_use_hermetic_linux_sandbox --remote_cache= --remote_executor= --bes_backend= --bes_results_url= --repository_cache=/home/bits/.cache/dd-php-bazel-combined-downloads --repository_contents_cache=/home/bits/.cache/dd-php-bazel-repo-contents --repository_disable_download --lockfile_mode=error --host_platform=//bazel/platforms:linux_amd64_exec --extra_execution_platforms=//bazel/platforms:linux_amd64_exec --include_artifacts --output=text",
+      "exit_code": 0,
+      "action_key": "42967ef2223a6a6c0ffafedfa8147bacda560796fdc87934e0719cdef7094cc9",
+      "assertion": "Inputs include bazel-out/k8-fastbuild/bin/bazel/packaging/artifact_contract_fixture.validated."
+    },
+    {
+      "command": "bb --batch --output_user_root=/tmp/dd-checkpoint-packaging-fixture build //bazel/packaging:fixture_projected_payload --build_tag_filters= --config=local-hermetic --spawn_strategy=processwrapper-sandbox --strategy=Genrule=processwrapper-sandbox --noexperimental_use_hermetic_linux_sandbox --remote_cache= --remote_executor= --bes_backend= --bes_results_url= --repository_cache=/home/bits/.cache/dd-php-bazel-combined-downloads --repository_contents_cache=/home/bits/.cache/dd-php-bazel-repo-contents --repository_disable_download --lockfile_mode=error --host_platform=//bazel/platforms:linux_amd64_exec --extra_execution_platforms=//bazel/platforms:linux_amd64_exec",
+      "exit_code": 0,
+      "assertion": "Projected payload completed with 122 local processes, including four processwrapper-sandbox actions.",
+      "outputs": {
+        "fixture/projected.bin": "58eaf5a78d580f5dbd49d31a5b733094169b31bfdf49055b74bcac2877d8f58c",
+        "version": "9bcabf25f744a3543916ed2e20639c11f2ef81d4206b8633e600661799a301ab"
+      },
+      "log": "packaging-projected-payload.log"
+    },
+    {
+      "command": "bb --batch build //bazel/packaging:artifact_contract_binary //bazel/packaging:fixture_manifest_product_binary --build_tag_filters=",
+      "exit_code": 0
+    },
+    {
+      "command": "bb --batch build //bazel/packaging:artifact_contract_wrong_scope --build_tag_filters=",
+      "exit_code": 1,
+      "assertion": "Expected loader scope mismatch during analysis."
+    },
+    {
+      "command": "bb --batch build //bazel/packaging:artifact_contract_absent_role --build_tag_filters=",
+      "exit_code": 1,
+      "assertion": "Expected missing archive role during analysis."
+    }
+  ]
+}

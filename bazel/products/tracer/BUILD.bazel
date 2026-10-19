@@ -1,0 +1,16 @@
+load("//bazel/products/tracer/fat:product.bzl", "ddtrace_fat_matrix")
+load(":defs.bzl", "tracer_c_matrix")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "generate-version-header.sh",
+    "target-config-probe.c",
+    "validate-coms-archive.sh",
+    "validate-full-archive.sh",
+    "weaken-php-symbols.sh",
+])
+
+tracer_c_matrix()
+
+ddtrace_fat_matrix()

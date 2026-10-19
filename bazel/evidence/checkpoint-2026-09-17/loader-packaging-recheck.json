@@ -1,0 +1,264 @@
+{
+  "archives": {
+    "loader_stage_amd64_glibc.tar.gz": {
+      "archive_matches_reviewed": true,
+      "archive_sha256": "9c1e1c3b60c40f6991d57a40ac03204058f6f4c1ea9d014b0f81cc42e7be874e",
+      "expected_archive_sha256": "9c1e1c3b60c40f6991d57a40ac03204058f6f4c1ea9d014b0f81cc42e7be874e",
+      "input_sha256": {
+        "dd_library_loader.ini": "6278e8fa65e43041c4d537580b884d8f1b54fc589e74e562eec5d37f2843a398",
+        "dd_library_loader.so": "5183efe6e801b6a35a26da0f600183a8bb1246c6b430346dda38513a67e44397",
+        "dd_library_loader.so.debug": "3f531fc4da43edde36141e0c101463a65b324c4a8c90b2508d1e002769e8c7ae",
+        "metadata.json": "8c9b644db1cbb88ed751f688ee5ac586976c2bf305079b28e7cead30cd07bbfb",
+        "version": "2dc30a5c0f4087900d4a0780f6bc627b83300594dd020fb566313aaa4577e9c7"
+      },
+      "members": [
+        {
+          "mode": "0o755",
+          "name": "dd-library-php-loader-stage/.",
+          "sha256": null
+        },
+        {
+          "mode": "0o755",
+          "name": "dd-library-php-loader-stage/./linux-gnu",
+          "sha256": null
+        },
+        {
+          "mode": "0o755",
+          "name": "dd-library-php-loader-stage/./linux-gnu/loader",
+          "sha256": null
+        },
+        {
+          "mode": "0o644",
+          "name": "dd-library-php-loader-stage/./linux-gnu/loader/dd_library_loader.ini",
+          "sha256": "6278e8fa65e43041c4d537580b884d8f1b54fc589e74e562eec5d37f2843a398"
+        },
+        {
+          "mode": "0o755",
+          "name": "dd-library-php-loader-stage/./linux-gnu/loader/dd_library_loader.so",
+          "sha256": "5183efe6e801b6a35a26da0f600183a8bb1246c6b430346dda38513a67e44397"
+        },
+        {
+          "mode": "0o644",
+          "name": "dd-library-php-loader-stage/./linux-gnu/loader/dd_library_loader.so.debug",
+          "sha256": "3f531fc4da43edde36141e0c101463a65b324c4a8c90b2508d1e002769e8c7ae"
+        },
+        {
+          "mode": "0o644",
+          "name": "dd-library-php-loader-stage/./linux-gnu/loader/metadata.json",
+          "sha256": "8c9b644db1cbb88ed751f688ee5ac586976c2bf305079b28e7cead30cd07bbfb"
+        },
+        {
+          "mode": "0o644",
+          "name": "dd-library-php-loader-stage/./version",
+          "sha256": "2dc30a5c0f4087900d4a0780f6bc627b83300594dd020fb566313aaa4577e9c7"
+        }
+      ],
+      "members_match_reviewed": true,
+      "reviewed_input_source": "/tmp/dd-loader-elf-audit.5bPZmJ/dd-library-php-loader-stage"
+    },
+    "loader_stage_amd64_musl.tar.gz": {
+      "archive_matches_reviewed": true,
+      "archive_sha256": "174a50fb25b39105b3ffc02bc9e978ca7667dbd964f20db94dd9ba8c05d3ba29",
+      "expected_archive_sha256": "174a50fb25b39105b3ffc02bc9e978ca7667dbd964f20db94dd9ba8c05d3ba29",
+      "input_sha256": {
+        "dd_library_loader.ini": "c2ccb29b2b8752375d5603b75a7e91978bfff5fcc4445abf8549ae6621ec8058",
+        "dd_library_loader.so": "28c46e923d8fb62b2dfcbfd3dd8a5ff4dc450d8dc3138cea7ce3586405ac359c",
+        "dd_library_loader.so.debug": "47ab82e353b7f54b97ae37ac85c946adedf735db2f166b2e1f58e94d387ba254",
+        "metadata.json": "8dbca9fb12384a06689470edea74182227233f0a00424082389276a5ffcb64c2",
+        "version": "2dc30a5c0f4087900d4a0780f6bc627b83300594dd020fb566313aaa4577e9c7"
+      },
+      "members": [
+        {
+          "mode": "0o755",
+          "name": "dd-library-php-loader-stage/.",
+          "sha256": null
+        },
+        {
+          "mode": "0o755",
+          "name": "dd-library-php-loader-stage/./linux-musl",
+          "sha256": null
+        },
+        {
+          "mode": "0o755",
+          "name": "dd-library-php-loader-stage/./linux-musl/loader",
+          "sha256": null
+        },
+        {
+          "mode": "0o644",
+          "name": "dd-library-php-loader-stage/./linux-musl/loader/dd_library_loader.ini",
+          "sha256": "c2ccb29b2b8752375d5603b75a7e91978bfff5fcc4445abf8549ae6621ec8058"
+        },
+        {
+          "mode": "0o755",
+          "name": "dd-library-php-loader-stage/./linux-musl/loader/dd_library_loader.so",
+          "sha256": "28c46e923d8fb62b2dfcbfd3dd8a5ff4dc450d8dc3138cea7ce3586405ac359c"
+        },
+        {
+          "mode": "0o644",
+          "name": "dd-library-php-loader-stage/./linux-musl/loader/dd_library_loader.so.debug",
+          "sha256": "47ab82e353b7f54b97ae37ac85c946adedf735db2f166b2e1f58e94d387ba254"
+        },
+        {
+          "mode": "0o644",
+          "name": "dd-library-php-loader-stage/./linux-musl/loader/metadata.json",
+          "sha256": "8dbca9fb12384a06689470edea74182227233f0a00424082389276a5ffcb64c2"
+        },
+        {
+          "mode": "0o644",
+          "name": "dd-library-php-loader-stage/./version",
+          "sha256": "2dc30a5c0f4087900d4a0780f6bc627b83300594dd020fb566313aaa4577e9c7"
+        }
+      ],
+      "members_match_reviewed": true,
+      "reviewed_input_source": "/tmp/dd-loader-elf-audit.kuCbUk/dd-library-php-loader-stage"
+    },
+    "loader_stage_arm64_glibc.tar.gz": {
+      "archive_matches_reviewed": true,
+      "archive_sha256": "ced7da7c6b87c8045d5383873a3975e7ce4b40238872f86f59563fd16a642d5f",
+      "expected_archive_sha256": "ced7da7c6b87c8045d5383873a3975e7ce4b40238872f86f59563fd16a642d5f",
+      "input_sha256": {
+        "dd_library_loader.ini": "6278e8fa65e43041c4d537580b884d8f1b54fc589e74e562eec5d37f2843a398",
+        "dd_library_loader.so": "bdaa30c92435135c8710dc112162b140f63bd8068346ec3eb471e8616708148e",
+        "dd_library_loader.so.debug": "7752a0fdc35743ed69481e737a4e033a2166dc126df7335fe0f70668c749fa89",
+        "metadata.json": "5627f37ce4b9412e96d9a923169fe7592b997b7ec4a9c08760a65f102387d16c",
+        "version": "2dc30a5c0f4087900d4a0780f6bc627b83300594dd020fb566313aaa4577e9c7"
+      },
+      "members": [
+        {
+          "mode": "0o755",
+          "name": "dd-library-php-loader-stage/.",
+          "sha256": null
+        },
+        {
+          "mode": "0o755",
+          "name": "dd-library-php-loader-stage/./linux-gnu",
+          "sha256": null
+        },
+        {
+          "mode": "0o755",
+          "name": "dd-library-php-loader-stage/./linux-gnu/loader",
+          "sha256": null
+        },
+        {
+          "mode": "0o644",
+          "name": "dd-library-php-loader-stage/./linux-gnu/loader/dd_library_loader.ini",
+          "sha256": "6278e8fa65e43041c4d537580b884d8f1b54fc589e74e562eec5d37f2843a398"
+        },
+        {
+          "mode": "0o755",
+          "name": "dd-library-php-loader-stage/./linux-gnu/loader/dd_library_loader.so",
+          "sha256": "bdaa30c92435135c8710dc112162b140f63bd8068346ec3eb471e8616708148e"
+        },
+        {
+          "mode": "0o644",
+          "name": "dd-library-php-loader-stage/./linux-gnu/loader/dd_library_loader.so.debug",
+          "sha256": "7752a0fdc35743ed69481e737a4e033a2166dc126df7335fe0f70668c749fa89"
+        },
+        {
+          "mode": "0o644",
+          "name": "dd-library-php-loader-stage/./linux-gnu/loader/metadata.json",
+          "sha256": "5627f37ce4b9412e96d9a923169fe7592b997b7ec4a9c08760a65f102387d16c"
+        },
+        {
+          "mode": "0o644",
+          "name": "dd-library-php-loader-stage/./version",
+          "sha256": "2dc30a5c0f4087900d4a0780f6bc627b83300594dd020fb566313aaa4577e9c7"
+        }
+      ],
+      "members_match_reviewed": true,
+      "reviewed_input_source": "/tmp/dd-loader-elf-audit.U2txIJ/dd-library-php-loader-stage"
+    },
+    "loader_stage_arm64_musl.tar.gz": {
+      "archive_matches_reviewed": true,
+      "archive_sha256": "6460068e4053f46fe142f20708115c2ffe2157046e1f3076717424b46a610d25",
+      "expected_archive_sha256": "6460068e4053f46fe142f20708115c2ffe2157046e1f3076717424b46a610d25",
+      "input_sha256": {
+        "dd_library_loader.ini": "c2ccb29b2b8752375d5603b75a7e91978bfff5fcc4445abf8549ae6621ec8058",
+        "dd_library_loader.so": "0725e95951cb4cd0ae25e07039c1116e4f132727d605164d65c4627309a03ba6",
+        "dd_library_loader.so.debug": "4c75e1f12bd359345d9322569b31ffad97d2e237f3ddfdac235d3478b360147a",
+        "metadata.json": "c00176d0dd330c130a50ac6781edf2ce19bee19966232445830545ba4772e6dc",
+        "version": "2dc30a5c0f4087900d4a0780f6bc627b83300594dd020fb566313aaa4577e9c7"
+      },
+      "members": [
+        {
+          "mode": "0o755",
+          "name": "dd-library-php-loader-stage/.",
+          "sha256": null
+        },
+        {
+          "mode": "0o755",
+          "name": "dd-library-php-loader-stage/./linux-musl",
+          "sha256": null
+        },
+        {
+          "mode": "0o755",
+          "name": "dd-library-php-loader-stage/./linux-musl/loader",
+          "sha256": null
+        },
+        {
+          "mode": "0o644",
+          "name": "dd-library-php-loader-stage/./linux-musl/loader/dd_library_loader.ini",
+          "sha256": "c2ccb29b2b8752375d5603b75a7e91978bfff5fcc4445abf8549ae6621ec8058"
+        },
+        {
+          "mode": "0o755",
+          "name": "dd-library-php-loader-stage/./linux-musl/loader/dd_library_loader.so",
+          "sha256": "0725e95951cb4cd0ae25e07039c1116e4f132727d605164d65c4627309a03ba6"
+        },
+        {
+          "mode": "0o644",
+          "name": "dd-library-php-loader-stage/./linux-musl/loader/dd_library_loader.so.debug",
+          "sha256": "4c75e1f12bd359345d9322569b31ffad97d2e237f3ddfdac235d3478b360147a"
+        },
+        {
+          "mode": "0o644",
+          "name": "dd-library-php-loader-stage/./linux-musl/loader/metadata.json",
+          "sha256": "c00176d0dd330c130a50ac6781edf2ce19bee19966232445830545ba4772e6dc"
+        },
+        {
+          "mode": "0o644",
+          "name": "dd-library-php-loader-stage/./version",
+          "sha256": "2dc30a5c0f4087900d4a0780f6bc627b83300594dd020fb566313aaa4577e9c7"
+        }
+      ],
+      "members_match_reviewed": true,
+      "reviewed_input_source": "/tmp/dd-loader-elf-audit.BcyfCU/dd-library-php-loader-stage"
+    }
+  },
+  "classification": "local native packaging-script reassembly; loader producers are reused reviewed cross-built artifacts",
+  "commands": {
+    "command_exit": "0",
+    "log": "/tmp/dd-loader-packaging-final-review-20260917/run.log",
+    "log_sha256": "7f82c807c61809f16fd0588d08c10f2439ec484046dedd5622116842320071d6",
+    "script": "/tmp/dd-loader-packaging-final-review-20260917/run.sh",
+    "script_sha256": "8a95990dae366fecead17035c207da7a8f81b37730aeddda2166f3abc18f3f61"
+  },
+  "current_packaging_tools": {
+    "assemble_ssi_payload": {
+      "path": "tools/bazel/assemble-ssi-payload.sh",
+      "sha256": "9bbe62902a1df40778ad79711acfb4a9a3067286d4ba7f2d0456b63bde40ad6d"
+    },
+    "deterministic_tar": {
+      "path": "tools/bazel/deterministic-tar.sh",
+      "sha256": "8bfcdb007c0c10420e76be88bfce1aea2b8df544e4cb7dbf1e6300558eca0d12"
+    },
+    "gzip": {
+      "path": "build/sol-full-output/b954cc910a69d598fa2d07102528c35f/external/+execution_tools+exec_tools_alpine322_x86_64/root/bin/gzip",
+      "sha256": "a49f7dc7befea93730405d2ce8f9f786206df376c838c78c6fe602e7a2355855",
+      "version": "gzip 1.14"
+    },
+    "tar": {
+      "path": "build/sol-full-output/b954cc910a69d598fa2d07102528c35f/external/+execution_tools+exec_tools_alpine322_x86_64/root/bin/tar",
+      "sha256": "0ad9032630b79f4a0ae89433241f0d9c13013b8e69cae4a6c384e2903d1bd6f7",
+      "version": "GNU tar 1.35"
+    }
+  },
+  "exit_code": 0,
+  "result": "pass",
+  "reused_producer_provenance": {
+    "historical_determinism": "/tmp/dd-loader-all-determinism-root-review.json",
+    "reviewed_archives": "/tmp/dd-original-loader-packages-matched-review.json",
+    "reviewed_members": "/tmp/dd-loader-package-fixed-root-review.json",
+    "scope": "four narrow loader packages; no complete SSI claim"
+  }
+}

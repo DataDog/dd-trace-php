@@ -192,6 +192,7 @@ mod frameless {
                 {
                     // We need labels on aarch64 as immediates cannot be more than 16 bits
                     dynasm!(assembler
+                        ; .arch aarch64
                         ; stp x29, x30, [sp, -16]! // save link register and allow clobber of x29
                         ; mov x29, sp // store stack pointer
                         ; ldr x16, >orig_label
@@ -205,6 +206,7 @@ mod frameless {
                 }
                 #[cfg(target_arch = "x86_64")]
                 dynasm!(assembler
+                    ; .arch x64
                     ; push rbp  // align stack
                     ; mov rax, QWORD *orig as i64
                     ; call rax
@@ -215,6 +217,7 @@ mod frameless {
             }
             #[cfg(target_arch = "aarch64")]
             dynasm!(assembler
+                ; .arch aarch64
                 ; .align 8
                 ; interrupt_label: ; .i64 interrupt_addr as i64 );
 

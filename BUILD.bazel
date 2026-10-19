@@ -1,0 +1,337 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("//bazel/rust:defs.bzl", "ddtrace_rust_targets")
+load("//bazel/stages:unavailable.bzl", "unavailable_stage")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "appsec/helper-rust/Cargo.toml",
+    "Cargo.lock",
+    "Cargo.toml",
+    "components-rs/libdatadog-php-linux.sym",
+    "components-rs/libdatadog-php-unix.sym",
+    "components-rs/libdatadog-php.sym",
+    "components-rs/php_sidecar_mockgen/Cargo.toml",
+    "ddtrace-extension-linux.sym",
+    "ddtrace-extension.sym",
+    "sidecar/Cargo.toml",
+    "VERSION",
+    "cbindgen.toml",
+    "loader/compat_php.c",
+    "loader/compat_php.h",
+    "loader/dd_library_loader.c",
+    "loader/dd_library_loader_module.c",
+    "loader/php_dd_library_loader.h",
+    "tracer/coms.c",
+])
+
+ddtrace_rust_targets()
+
+cc_library(
+    name = "tracer_native_headers",
+    hdrs = glob([
+        "components/**/*.h",
+        "components-rs/**/*.h",
+        "ext/**/*.h",
+        "src/dogstatsd/**/*.h",
+        "tracer/**/*.h",
+        "zend_abstract_interface/**/*.h",
+    ]),
+    includes = [
+        "src/dogstatsd",
+        "tracer/vendor",
+        "zend_abstract_interface",
+    ],
+    strip_include_prefix = "/",
+)
+
+# Linux tracer sources shared by every supported PHP 7/8 source selection in
+# config.m4. Version-specific additions are assembled below so a target cannot
+# accidentally compile the PHP 8 interceptor against PHP 7 headers.
+filegroup(
+    name = "tracer_common_sources",
+    srcs = [
+        "components/log/log.c",
+        "components/sapi/sapi.c",
+        "components/string_view/string_view.c",
+        "ext/agent_info.c",
+        "ext/compat_getrandom.c",
+        "ext/configuration.c",
+        "ext/crashtracking_frames.c",
+        "ext/datadog.c",
+        "ext/endpoints.c",
+        "ext/excluded_modules.c",
+        "ext/git.c",
+        "ext/handlers_api.c",
+        "ext/handlers_pcntl.c",
+        "ext/handlers_signal.c",
+        "ext/logging.c",
+        "ext/otel_config.c",
+        "ext/phpinfo.c",
+        "ext/process_tags.c",
+        "ext/remote_config.c",
+        "ext/sidecar.c",
+        "ext/signals.c",
+        "ext/startup_logging.c",
+        "ext/string_utils.c",
+        "ext/target_metadata.c",
+        "ext/telemetry.c",
+        "ext/threads.c",
+        "src/dogstatsd/client.c",
+        "tracer/asm_event.c",
+        "tracer/auto_flush.c",
+        "tracer/autoload_php_files.c",
+        "tracer/code_origins.c",
+        "tracer/collect_backtrace.c",
+        "tracer/comms_php.c",
+        "tracer/coms.c",
+        "tracer/ddtrace.c",
+        "tracer/distributed_tracing_headers.c",
+        "tracer/dogstatsd_client.c",
+        "tracer/endpoint_guessing.c",
+        "tracer/engine_api.c",
+        "tracer/engine_hooks.c",
+        "tracer/exception_serialize.c",
+        "tracer/ffe.c",
+        "tracer/functions.c",
+        "tracer/git_metadata.c",
+        "tracer/handlers_exception.c",
+        "tracer/handlers_httpstreams.c",
+        "tracer/handlers_internal.c",
+        "tracer/handlers_kafka.c",
+        "tracer/hook/uhook.c",
+        "tracer/hook/uhook_legacy.c",
+        "tracer/inferred_proxy_headers.c",
+        "tracer/integrations/exec_integration.c",
+        "tracer/integrations/integrations.c",
+        "tracer/ip_extraction.c",
+        "tracer/limiter/limiter.c",
+        "tracer/live_debugger.c",
+        "tracer/memory_limit.c",
+        "tracer/otel_context.c",
+        "tracer/priority_sampling/priority_sampling.c",
+        "tracer/profiling.c",
+        "tracer/random.c",
+        "tracer/rule_matching.c",
+        "tracer/serializer.c",
+        "tracer/span.c",
+        "tracer/span_stats.c",
+        "tracer/standalone_limiter.c",
+        "tracer/trace_filter.c",
+        "tracer/trace_source.c",
+        "tracer/tracer_otel_config.c",
+        "tracer/tracer_startup_logging.c",
+        "tracer/tracer_tag_propagation/tracer_tag_propagation.c",
+        "tracer/tracer_telemetry.c",
+        "tracer/user_request.c",
+        "tracer/vendor/mpack/mpack.c",
+        "tracer/vendor/mt19937/mt19937-64.c",
+        "tracer/weak_resources.c",
+        "zend_abstract_interface/config/config.c",
+        "zend_abstract_interface/config/config_decode.c",
+        "zend_abstract_interface/config/config_ini.c",
+        "zend_abstract_interface/config/config_runtime.c",
+        "zend_abstract_interface/config/config_stable_file.c",
+        "zend_abstract_interface/env/env.c",
+        "zend_abstract_interface/exceptions/exceptions.c",
+        "zend_abstract_interface/headers/headers.c",
+        "zend_abstract_interface/hook/hook.c",
+        "zend_abstract_interface/json/json.c",
+        "zend_abstract_interface/sandbox/call.c",
+        "zend_abstract_interface/uri_normalization/uri_normalization.c",
+        "zend_abstract_interface/zai_string/string.c",
+    ],
+)
+
+# PHP 7.0-7.2 include the bundled hrtime compatibility implementation.
+filegroup(
+    name = "tracer_php70_sources",
+    srcs = [
+        "ext/zend_hrtime.c",
+        "tracer/handlers_curl_php7.c",
+        "zend_abstract_interface/interceptor/php7/interceptor.c",
+        "zend_abstract_interface/interceptor/php7/resolver.c",
+        "zend_abstract_interface/sandbox/php7/sandbox.c",
+        ":tracer_common_sources",
+    ],
+)
+
+filegroup(
+    name = "tracer_php71_sources",
+    srcs = [":tracer_php70_sources"],
+)
+
+filegroup(
+    name = "tracer_php72_sources",
+    srcs = [":tracer_php70_sources"],
+)
+
+# PHP 7.3-7.4 use the PHP 7 ZAI sources without zend_hrtime.c.
+filegroup(
+    name = "tracer_php73_sources",
+    srcs = [
+        "tracer/handlers_curl_php7.c",
+        "zend_abstract_interface/interceptor/php7/interceptor.c",
+        "zend_abstract_interface/interceptor/php7/resolver.c",
+        "zend_abstract_interface/sandbox/php7/sandbox.c",
+        ":tracer_common_sources",
+    ],
+)
+
+filegroup(
+    name = "tracer_php74_sources",
+    srcs = [":tracer_php73_sources"],
+)
+
+filegroup(
+    name = "tracer_php80_sources",
+    srcs = [
+        "ext/patch_zend_call_known_function.c",
+        "tracer/handlers_curl.c",
+        "tracer/hook/uhook_attributes.c",
+        "tracer/hook/uhook_otel.c",
+        "tracer/weakrefs.c",
+        "zend_abstract_interface/interceptor/php8/interceptor.c",
+        "zend_abstract_interface/interceptor/php8/resolver_pre-8_2.c",
+        "zend_abstract_interface/jit_utils/jit_blacklist.c",
+        "zend_abstract_interface/sandbox/php8/sandbox.c",
+        ":tracer_common_sources",
+    ],
+)
+
+filegroup(
+    name = "tracer_php81_sources",
+    srcs = [
+        "tracer/handlers_fiber.c",
+        ":tracer_php80_sources",
+    ],
+)
+
+# PHP 8.2 through PHP 8.5 share the same source selection. Keep separate
+# public groups so each configured archive records its intended PHP minor.
+filegroup(
+    name = "tracer_php82plus_sources",
+    srcs = [
+        "tracer/handlers_curl.c",
+        "tracer/handlers_fiber.c",
+        "tracer/hook/uhook_attributes.c",
+        "tracer/hook/uhook_otel.c",
+        "zend_abstract_interface/interceptor/php8/interceptor.c",
+        "zend_abstract_interface/interceptor/php8/resolver.c",
+        "zend_abstract_interface/jit_utils/jit_blacklist.c",
+        "zend_abstract_interface/sandbox/php8/sandbox.c",
+        ":tracer_common_sources",
+    ],
+)
+
+filegroup(
+    name = "tracer_php82_sources",
+    srcs = [":tracer_php82plus_sources"],
+)
+
+filegroup(
+    name = "tracer_php83_sources",
+    srcs = [":tracer_php82plus_sources"],
+)
+
+filegroup(
+    name = "tracer_php84_sources",
+    srcs = [":tracer_php82plus_sources"],
+)
+
+filegroup(
+    name = "tracer_php85_sources",
+    srcs = [":tracer_php82plus_sources"],
+)
+
+filegroup(
+    name = "stage1",
+    srcs = [
+        "//bazel/php:matrix.json",
+        "//bazel/probes:exec_rust_toolchain_probe",
+        "//bazel/stages:bootstrap_manifest",
+    ],
+)
+
+filegroup(
+    name = "php_all",
+    srcs = ["//bazel/php:php_all"],
+)
+
+unavailable_stage(
+    name = "extensions_all",
+    reason = "the full tracer, profiler, AppSec, and helper product set is unfinished",
+)
+
+unavailable_stage(
+    name = "bundles_all",
+    reason = "complete deterministic product and SSI bundles are unfinished",
+)
+
+unavailable_stage(
+    name = "build_all",
+    reason = "full-matrix product and bundle acceptance is unfinished",
+)
+
+exports_files([
+    "src/DDTrace/OpenFeature/DataDogProvider.php",
+    "src/DDTrace/OpenTelemetry/CachedInstrumentation.php",
+    "src/DDTrace/OpenTelemetry/CompositeResolver.php",
+    "src/DDTrace/OpenTelemetry/Configuration.php",
+    "src/DDTrace/OpenTelemetry/Context.php",
+    "src/DDTrace/OpenTelemetry/Convention.php",
+    "src/DDTrace/OpenTelemetry/Detectors/DetectorHelper.php",
+    "src/DDTrace/OpenTelemetry/Detectors/Environment.php",
+    "src/DDTrace/OpenTelemetry/Detectors/Host.php",
+    "src/DDTrace/OpenTelemetry/Detectors/Service.php",
+    "src/DDTrace/OpenTelemetry/OtlpHooks.php",
+    "src/DDTrace/OpenTelemetry/Span.php",
+    "src/DDTrace/OpenTelemetry/SpanBuilder.php",
+    "src/DDTrace/OpenTelemetry/SpanContext.php",
+    "src/DDTrace/Processing/TraceAnalyticsProcessor.php",
+    "src/DDTrace/Propagator.php",
+    "src/DDTrace/Propagators/TextMap.php",
+    "src/DDTrace/Scope.php",
+    "src/DDTrace/ScopeManager.php",
+    "src/DDTrace/Span.php",
+    "src/DDTrace/SpanContext.php",
+    "src/DDTrace/Time.php",
+    "src/DDTrace/Tracer.php",
+    "src/DDTrace/Transport/Internal.php",
+    "src/api/Contracts/Scope.php",
+    "src/api/Contracts/ScopeManager.php",
+    "src/api/Contracts/Span.php",
+    "src/api/Contracts/SpanContext.php",
+    "src/api/Contracts/Tracer.php",
+    "src/api/Data/Span.php",
+    "src/api/Data/SpanContext.php",
+    "src/api/Exceptions/InvalidReferenceArgument.php",
+    "src/api/Exceptions/InvalidReferencesSet.php",
+    "src/api/Exceptions/InvalidSpanArgument.php",
+    "src/api/Exceptions/InvalidSpanOption.php",
+    "src/api/Exceptions/UnsupportedFormat.php",
+    "src/api/Format.php",
+    "src/api/GlobalTracer.php",
+    "src/api/Http/Urls.php",
+    "src/api/Log/AbstractLogger.php",
+    "src/api/Log/DatadogLogger.php",
+    "src/api/Log/ErrorLogLogger.php",
+    "src/api/Log/InterpolateTrait.php",
+    "src/api/Log/LogLevel.php",
+    "src/api/Log/Logger.php",
+    "src/api/Log/LoggerInterface.php",
+    "src/api/Log/LoggingTrait.php",
+    "src/api/Log/NonThrowingLogger.php",
+    "src/api/Log/NullLogger.php",
+    "src/api/Obfuscation/WildcardToRegex.php",
+    "src/api/Reference.php",
+    "src/api/Sampling/PrioritySampling.php",
+    "src/api/StartSpanOptions.php",
+    "src/api/Tag.php",
+    "src/api/Transport.php",
+    "src/api/Type.php",
+    "src/bridge/_files_api.php",
+    "src/bridge/_files_openfeature.php",
+    "src/bridge/_files_opentelemetry.php",
+    "src/bridge/_files_tracer.php",
+])

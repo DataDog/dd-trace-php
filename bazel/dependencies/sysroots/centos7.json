@@ -1,0 +1,195 @@
+{
+  "schema_version": 1,
+  "sysroots": [
+    {
+      "target": {
+        "arch": "amd64",
+        "libc": "glibc",
+        "libc_version": "2.17",
+        "target_triple": "x86_64-unknown-linux-gnu",
+        "dynamic_linker": "/lib64/ld-linux-x86-64.so.2"
+      },
+      "packages": [
+        {
+          "name": "glibc-2.17-326.el7_9.3.x86_64",
+          "urls": [
+            "https://vault.centos.org/7.9.2009/updates/x86_64/Packages/glibc-2.17-326.el7_9.3.x86_64.rpm"
+          ],
+          "sha256": "d2c498e78241cc2d36124d37d4771f877da25de95d6a31c1ad42e1287fdda746"
+        },
+        {
+          "name": "glibc-common-2.17-326.el7_9.3.x86_64",
+          "urls": [
+            "https://vault.centos.org/7.9.2009/updates/x86_64/Packages/glibc-common-2.17-326.el7_9.3.x86_64.rpm"
+          ],
+          "sha256": "9d6c8bed9c4d8626f8fd6586301ec93617410de9408cd2b65fef37c2cea142c9"
+        },
+        {
+          "name": "glibc-devel-2.17-326.el7_9.3.x86_64",
+          "urls": [
+            "https://vault.centos.org/7.9.2009/updates/x86_64/Packages/glibc-devel-2.17-326.el7_9.3.x86_64.rpm"
+          ],
+          "sha256": "9c54883a611d1da210a5b0909cd7fd415b6c99473614fab81bae9df9cf8c6be2"
+        },
+        {
+          "name": "glibc-headers-2.17-326.el7_9.3.x86_64",
+          "urls": [
+            "https://vault.centos.org/7.9.2009/updates/x86_64/Packages/glibc-headers-2.17-326.el7_9.3.x86_64.rpm"
+          ],
+          "sha256": "91de6d1a2c900bf6a030d637e635ba8bed416176970159ef63c61ba70f93a275"
+        },
+        {
+          "name": "glibc-static-2.17-326.el7_9.3.x86_64",
+          "urls": [
+            "https://vault.centos.org/7.9.2009/updates/x86_64/Packages/glibc-static-2.17-326.el7_9.3.x86_64.rpm"
+          ],
+          "sha256": "df21a3fb768e603f322d9c16831a48f1a953dcc954f4b9b79e30a3e77107cd77"
+        },
+        {
+          "name": "kernel-headers-3.10.0-1160.119.1.el7.x86_64",
+          "urls": [
+            "https://vault.centos.org/7.9.2009/updates/x86_64/Packages/kernel-headers-3.10.0-1160.119.1.el7.x86_64.rpm"
+          ],
+          "sha256": "d81c62d59566998fb91a334f86a794e936a86dbd458bf3633b8ab3f2d471e581"
+        },
+        {
+          "name": "libgcc-4.8.5-44.el7.x86_64",
+          "urls": [
+            "https://vault.centos.org/7.9.2009/os/x86_64/Packages/libgcc-4.8.5-44.el7.x86_64.rpm"
+          ],
+          "sha256": "cb1967fba485ad3da345e33018c0e8b367359f251c6b1a8847a4976579d74ffa"
+        },
+        {
+          "name": "libstdc++-4.8.5-44.el7.x86_64",
+          "urls": [
+            "https://vault.centos.org/7.9.2009/os/x86_64/Packages/libstdc++-4.8.5-44.el7.x86_64.rpm"
+          ],
+          "sha256": "e2b6a7f6eadfbc9473638713cc816b4a19e4be6d4774d6ca91ad9bc79a3b07d2"
+        },
+        {
+          "name": "libstdc++-devel-4.8.5-44.el7.x86_64",
+          "urls": [
+            "https://vault.centos.org/7.9.2009/os/x86_64/Packages/libstdc++-devel-4.8.5-44.el7.x86_64.rpm"
+          ],
+          "sha256": "2878f5901d523cf9fbd486d1e805c4cea1c050c50688268fe10e23d266e89cb0"
+        },
+        {
+          "name": "nspr-4.35.0-1.el7_9.x86_64",
+          "urls": [
+            "https://vault.centos.org/7.9.2009/updates/x86_64/Packages/nspr-4.35.0-1.el7_9.x86_64.rpm"
+          ],
+          "sha256": "2d2d708e0066e80880184f19ceae8aceb4c6fdafaa3674831f96b0d35d4f1fd9"
+        },
+        {
+          "name": "nss-softokn-freebl-3.90.0-6.el7_9.x86_64",
+          "urls": [
+            "https://vault.centos.org/7.9.2009/updates/x86_64/Packages/nss-softokn-freebl-3.90.0-6.el7_9.x86_64.rpm"
+          ],
+          "sha256": "4499296b0da4f8a6353fc0b32880c2dd463d4a440d98446b29fd4d12a5a2ed28"
+        },
+        {
+          "name": "nss-util-3.90.0-1.el7_9.x86_64",
+          "urls": [
+            "https://vault.centos.org/7.9.2009/updates/x86_64/Packages/nss-util-3.90.0-1.el7_9.x86_64.rpm"
+          ],
+          "sha256": "f6b2698566260a93a03d412c81d071599637c1e75b05da8cabdcc3de0e4591ea"
+        }
+      ]
+    },
+    {
+      "target": {
+        "arch": "arm64",
+        "libc": "glibc",
+        "libc_version": "2.17",
+        "target_triple": "aarch64-unknown-linux-gnu",
+        "dynamic_linker": "/lib/ld-linux-aarch64.so.1"
+      },
+      "packages": [
+        {
+          "name": "glibc-2.17-326.el7_9.3.aarch64",
+          "urls": [
+            "https://vault.centos.org/altarch/7.9.2009/updates/aarch64/Packages/glibc-2.17-326.el7_9.3.aarch64.rpm"
+          ],
+          "sha256": "98d52e08fed74855f8bec16abd64c6bc50554bb0efe175e7f3c490c9f24de00a"
+        },
+        {
+          "name": "glibc-common-2.17-326.el7_9.3.aarch64",
+          "urls": [
+            "https://vault.centos.org/altarch/7.9.2009/updates/aarch64/Packages/glibc-common-2.17-326.el7_9.3.aarch64.rpm"
+          ],
+          "sha256": "3c12731f4df467aaf8e63f4ebb9bafdaffa51ca8ac89f076719fe11057776f4d"
+        },
+        {
+          "name": "glibc-devel-2.17-326.el7_9.3.aarch64",
+          "urls": [
+            "https://vault.centos.org/altarch/7.9.2009/updates/aarch64/Packages/glibc-devel-2.17-326.el7_9.3.aarch64.rpm"
+          ],
+          "sha256": "884cb8c9aae5d2943dfa8fdb48a9afe7de1cbd171c7738605dcf4196c3e8b24d"
+        },
+        {
+          "name": "glibc-headers-2.17-326.el7_9.3.aarch64",
+          "urls": [
+            "https://vault.centos.org/altarch/7.9.2009/updates/aarch64/Packages/glibc-headers-2.17-326.el7_9.3.aarch64.rpm"
+          ],
+          "sha256": "299b2ec1e39fc560ef7123d4ed705f906d6ad4c604e2a6fa8b0dc7eadba789df"
+        },
+        {
+          "name": "glibc-static-2.17-326.el7_9.3.aarch64",
+          "urls": [
+            "https://vault.centos.org/altarch/7.9.2009/updates/aarch64/Packages/glibc-static-2.17-326.el7_9.3.aarch64.rpm"
+          ],
+          "sha256": "3945fe93c62570fd0de46222870b02ac89b403c2c132c27a4968854a5b5f0700"
+        },
+        {
+          "name": "kernel-headers-4.18.0-348.20.1.el7.aarch64",
+          "urls": [
+            "https://vault.centos.org/altarch/7.9.2009/updates/aarch64/Packages/kernel-headers-4.18.0-348.20.1.el7.aarch64.rpm"
+          ],
+          "sha256": "f22a6a3ede39bb2f3ee9523559c1d7cef563d21ef190a8aaf0aae0428824ce6c"
+        },
+        {
+          "name": "libgcc-4.8.5-44.el7.aarch64",
+          "urls": [
+            "https://vault.centos.org/altarch/7.9.2009/os/aarch64/Packages/libgcc-4.8.5-44.el7.aarch64.rpm"
+          ],
+          "sha256": "4f44c5be70ed9d8d74c2a616cde92a842b15eefaccd766959e5fbd7fbe965d2d"
+        },
+        {
+          "name": "libstdc++-4.8.5-44.el7.aarch64",
+          "urls": [
+            "https://vault.centos.org/altarch/7.9.2009/os/aarch64/Packages/libstdc++-4.8.5-44.el7.aarch64.rpm"
+          ],
+          "sha256": "8eedde26d573e858d6d2dbaac68d22451d015a13baeb52404a5724206fba278b"
+        },
+        {
+          "name": "libstdc++-devel-4.8.5-44.el7.aarch64",
+          "urls": [
+            "https://vault.centos.org/altarch/7.9.2009/os/aarch64/Packages/libstdc++-devel-4.8.5-44.el7.aarch64.rpm"
+          ],
+          "sha256": "55ca7605e2b7707c48ab3788ce08427c1f7b253f8d3926eb0d78e50a5789ddeb"
+        },
+        {
+          "name": "nspr-4.35.0-1.el7_9.aarch64",
+          "urls": [
+            "https://vault.centos.org/altarch/7.9.2009/updates/aarch64/Packages/nspr-4.35.0-1.el7_9.aarch64.rpm"
+          ],
+          "sha256": "9f550ed6ab13b34368c4436f0626b6e415ae66e048d7ab9feb339ae65d9c8f86"
+        },
+        {
+          "name": "nss-softokn-freebl-3.90.0-6.el7_9.aarch64",
+          "urls": [
+            "https://vault.centos.org/altarch/7.9.2009/updates/aarch64/Packages/nss-softokn-freebl-3.90.0-6.el7_9.aarch64.rpm"
+          ],
+          "sha256": "72b124870cb5fdab444b17d2701240476ff0e3ff9ffbc39326126f0e82d80f09"
+        },
+        {
+          "name": "nss-util-3.90.0-1.el7_9.aarch64",
+          "urls": [
+            "https://vault.centos.org/altarch/7.9.2009/updates/aarch64/Packages/nss-util-3.90.0-1.el7_9.aarch64.rpm"
+          ],
+          "sha256": "c6c1e6ec9aaf18a631d395a2654eaf8c41043764bd2bd7e60be7aede3630857c"
+        }
+      ]
+    }
+  ]
+}

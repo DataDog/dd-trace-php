@@ -1,0 +1,58 @@
+{
+  "command": "/home/bits/.cache/bazelisk/downloads/sha256/60ff9efcb285dd951ed2f675e7cc8c2608be09a00d3bcff35bea2e783eef8049/bin/bazel --batch --output_user_root=/home/bits/.cache/dd-php-rust-original-output build --config=local-hermetic --spawn_strategy=processwrapper-sandbox --strategy=Genrule=processwrapper-sandbox --noexperimental_use_hermetic_linux_sandbox --remote_cache= --remote_executor= --bes_backend= --bes_results_url= --repository_cache=/home/bits/.cache/dd-php-bazel-combined-downloads //:rust_profiler_php71_amd64_glibc_nts //:rust_profiler_php71_amd64_glibc_debug_zts //:rust_profiler_php85_arm64_glibc_nts //:rust_profiler_php85_amd64_musl_nts",
+  "wrapper": "script -q -e -c COMMAND /tmp/dd-checkpoint-rust-profiler-recheck.log",
+  "exit_code": 0,
+  "completion": "Build completed successfully, 1476 total actions",
+  "elapsed_seconds": 1213.011,
+  "execution": "local processwrapper-sandbox; remote cache, remote executor, and BES disabled",
+  "log": "build/checkpoint-archives/rust-profiler-recheck.log",
+  "log_sha256": "db6c935702f41b4791c04600e9e94b9faa1fca14b409155e9b988645a125291f",
+  "sources": {
+    "MODULE.bazel": "471b636abe70b2f0e865dfb12e253b07f8ffd8d778514fb0805e7025d70c9378",
+    "MODULE.bazel.lock": "ed092eb3fd08d20e42a7aefe4cd614504ce10bcd2b3010ca4e62ca8a2669d758",
+    "bazel/rust tree": "2d0d6cb7a8c59528eab38d4230c94949f782df1018ae0e418c3c348c0a2642d7",
+    "bazel/rust/profiler_matrix.bzl": "095f442bb26de9d58f2c35937036f8b1820facf145be4ee4fbda9e6164746239",
+    "bazel/rust/profiler_product.bzl": "e476b4e7ab2648351530c85bab60c6a50c6d7bc4e7ace1539632a46212d7fd2c",
+    "bazel/rust/profiler_native.bzl": "da161cb92e20b6e0a645f3d0e0ddfb2098eef9979695d22e458cd6525105bc6a",
+    "profiling/src/wall_time.rs": "59c5110ed3baa66785503d805624dde358231357b18db5e19bf3d2ab62658bd9"
+  },
+  "scope": "Static profiler archives only. Shared profiler products and native runtime loading remain unfinished.",
+  "archives": {
+    "/home/bits/.cache/dd-php-rust-original-output/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-opt-ST-4bda7c29d287/bin/lib_rust_profiler_php71_amd64_glibc_nts_configured.a": {
+      "sha256": "986ee76b80cb99aa17f7a72bb251f5d5b81f8d5819d332accfe5a68303931986",
+      "size": 65425740,
+      "archive_members": 511,
+      "ELF_object_machine_counts": {
+        "62": 511
+      },
+      "non_ELF_object_members": []
+    },
+    "/home/bits/.cache/dd-php-rust-original-output/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-opt-ST-4bda7c29d287/bin/lib_rust_profiler_php71_amd64_glibc_debug_zts_configured.a": {
+      "sha256": "d6924b9310eb2ec08b19c8760c378607102b75cb045ea8b27ddc20c418cc0fa8",
+      "size": 65620992,
+      "archive_members": 511,
+      "ELF_object_machine_counts": {
+        "62": 511
+      },
+      "non_ELF_object_members": []
+    },
+    "/home/bits/.cache/dd-php-rust-original-output/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-opt-ST-ae812d52da2a/bin/lib_rust_profiler_php85_arm64_glibc_nts_configured.a": {
+      "sha256": "7f54bbd9f4528f40871b18ef07903de666bd7bf9aba3eeadc04d506d76259482",
+      "size": 71304976,
+      "archive_members": 613,
+      "ELF_object_machine_counts": {
+        "183": 613
+      },
+      "non_ELF_object_members": []
+    },
+    "/home/bits/.cache/dd-php-rust-original-output/1cd47a7d98cd6a0b69107a6e1d9b301e/execroot/_main/bazel-out/k8-opt-ST-d53550d347dd/bin/lib_rust_profiler_php85_amd64_musl_nts_configured.a": {
+      "sha256": "83ccd4ca411f7ec5299f41476badfba40ef409afedeae75728d7cad9e5d76966",
+      "size": 65864924,
+      "archive_members": 511,
+      "ELF_object_machine_counts": {
+        "62": 511
+      },
+      "non_ELF_object_members": []
+    }
+  }
+}
