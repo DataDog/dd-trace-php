@@ -251,9 +251,11 @@ foreach ($build_platforms as $platform) {
 
 foreach ($build_platforms as $platform) {
     foreach ($profiler_minor_major_targets as $major_minor) {
-        $abi_no = $php_versions_to_abi[$major_minor]
+        $abi_no = $php_versions_to_abi[$major_minor];
+        // NTS and ZTS are independent builds, so they run as two parallel jobs.
+        foreach (["nts", "zts"] as $flavour) {
 ?>
-"compile profiler extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
+"compile profiler extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>, <?= $flavour ?>]":
   stage: profiler
   image: "<?= sprintf($platform['image_template'], $major_minor) ?>"
   tags: [ "arch:$ARCH" ]
@@ -272,8 +274,7 @@ foreach ($build_platforms as $platform) {
     KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
   script:
-    - .gitlab/build-profiler.sh "datadog-profiling/${TRIPLET}/lib/php/${ABI_NO}" "nts"
-    - .gitlab/build-profiler.sh "datadog-profiling/${TRIPLET}/lib/php/${ABI_NO}" "zts"
+    - .gitlab/build-profiler.sh "datadog-profiling/${TRIPLET}/lib/php/${ABI_NO}" "<?= $flavour ?>"
   cache:
     - key:
         prefix: cargo-cache-${TRIPLET}
@@ -287,9 +288,39 @@ foreach ($build_platforms as $platform) {
       - "datadog-profiling"
 
 <?php
+        }
     }
 }
 ?>
+
+<?php foreach ($arch_targets as $arch): ?>
+# Keeps package loader under the 50-needs limit now that each profiler build is two jobs.
+"aggregate profiler extension: [<?= $arch ?>]":
+  stage: profiler
+  image: registry.ddbuild.io/images/mirror/alpine:3.20
+  tags: [ "arch:amd64" ]
+  script: ls ./
+  variables:
+    GIT_STRATEGY: none
+  needs:
+<?php
+    foreach ($build_platforms as $platform):
+        if ($platform["arch"] == $arch):
+            foreach ($profiler_minor_major_targets as $major_minor):
+                foreach (["nts", "zts"] as $flavour):
+?>
+    - job: "compile profiler extension: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>, <?= $flavour ?>]"
+      artifacts: true
+<?php
+                endforeach;
+            endforeach;
+        endif;
+    endforeach;
+?>
+  artifacts:
+    paths:
+      - "datadog-profiling"
+<?php endforeach; ?>
 
 
 <?php
@@ -661,7 +692,9 @@ $package_extension_needs = function (array $platform) use ($php_versions_to_abi,
     foreach ($profiler_minor_major_targets as $major_minor) {
 ?>
     # Profiler extension
-    - job: "compile profiler extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+    - job: "compile profiler extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>, nts]"
+      artifacts: true
+    - job: "compile profiler extension: [<?= $major_minor ?>, <?= $platform['arch'] ?>, <?= $platform['triplet'] ?>, zts]"
       artifacts: true
 <?php
     }
@@ -777,6 +810,8 @@ foreach ($asan_build_platforms as $platform) {
       artifacts: true
     - job: "aggregate tracing extension: [<?= $arch ?>]"
       artifacts: true
+    - job: "aggregate profiler extension: [<?= $arch ?>]"
+      artifacts: true
 <?php
     foreach ($build_platforms as $platform):
         if ($platform["arch"] == $arch):
@@ -787,15 +822,6 @@ foreach ($asan_build_platforms as $platform) {
             foreach ($all_minor_major_targets as $major_minor):
 ?>
     - job: "compile appsec extension: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>]"
-      artifacts: true
-<?php
-            endforeach;
-?>
-
-<?php
-            foreach ($profiler_minor_major_targets as $major_minor):
-?>
-    - job: "compile profiler extension: [<?= $major_minor ?>, <?= $arch ?>, <?= $platform['triplet'] ?>]"
       artifacts: true
 <?php
             endforeach;
