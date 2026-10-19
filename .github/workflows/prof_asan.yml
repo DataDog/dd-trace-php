@@ -115,6 +115,7 @@ jobs:
         run: |
           set -eux
           switch-php ${{ matrix.php-build }}
+          php -r 'exit((int) ((bool) PHP_ZTS !== ${{ contains(matrix.php-build, 'zts') }}));' || { echo 'ERROR expected ${{ matrix.php-build }} PHP'; exit 1; }
           export CC=clang-21
           export CFLAGS='-fsanitize=address -fsanitize-address-use-after-scope -fno-omit-frame-pointer'
           export LDFLAGS='-fsanitize=address -shared-libasan'
@@ -127,6 +128,7 @@ jobs:
         run: |
           set -eux
           switch-php ${{ matrix.php-build }}
+          php -r 'exit((int) ((bool) PHP_ZTS !== ${{ contains(matrix.php-build, 'zts') }}));' || { echo 'ERROR expected ${{ matrix.php-build }} PHP'; exit 1; }
           cd profiling/tests
           cp -v $(php-config --prefix)/lib/php/build/run-tests.php .
           export DD_PROFILING_OUTPUT_PPROF=/tmp/pprof
@@ -177,6 +179,7 @@ jobs:
         run: |
           set -eux
           switch-php ${{ matrix.php-build }}
+          php -r 'exit((int) ((bool) PHP_ZTS !== ${{ contains(matrix.php-build, 'zts') }}));' || { echo 'ERROR expected ${{ matrix.php-build }} PHP'; exit 1; }
           export CC=clang-21
           export CXX=clang++-21
           export CFLAGS='-fsanitize=undefined,local-bounds -fno-sanitize-recover=all -fno-omit-frame-pointer'
@@ -189,6 +192,7 @@ jobs:
         run: |
           set -eux
           switch-php ${{ matrix.php-build }}
+          php -r 'exit((int) ((bool) PHP_ZTS !== ${{ contains(matrix.php-build, 'zts') }}));' || { echo 'ERROR expected ${{ matrix.php-build }} PHP'; exit 1; }
           cd profiling/tests
           cp -v $(php-config --prefix)/lib/php/build/run-tests.php .
           export DD_PROFILING_OUTPUT_PPROF=/tmp/pprof
