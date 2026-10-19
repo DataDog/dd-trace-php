@@ -1588,8 +1588,7 @@ foreach ($system_tests_durations as $scenario => $seconds) {
       when: on_success
     - if: $CI_PIPELINE_SOURCE == "schedule"
       when: on_success
-    - when: manual
-      allow_failure: true
+    - when: on_success
   script:
     - DD_API_KEY=$(cat /tmp/.dd-api-key 2>/dev/null) || { echo "Failed to fetch DD_API_KEY"; exit 1; }
     - export DD_API_KEY
