@@ -87,14 +87,6 @@ stages:
     export out_dir="modules/${PHP_MAJOR_MINOR}-${SWITCH_PHP_VERSION}-${host_os}-${ARCH}/"
     mkdir -p "${out_dir}"
     mv "tmp/build_extension/modules/ddtrace.so" "${out_dir}"
-  cache:
-    - key:
-        prefix: $CI_JOB_NAME
-        files:
-          - Cargo.lock
-          - Cargo.toml
-      paths:
-        - /rust/cargo/
   artifacts:
     paths:
       - "VERSION"

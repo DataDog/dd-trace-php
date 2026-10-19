@@ -216,40 +216,6 @@ finished:
 
 <?php
 foreach ($build_platforms as $platform) {
-    $image = sprintf($platform['image_template'], "8.1");
-?>
-"cache cargo deps: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]":
-  stage: prepare
-  image: $IMAGE
-  tags: [ "arch:$ARCH" ]
-  variables:
-    TRIPLET: "<?= $platform['triplet'] ?>"
-    IMAGE: "<?= $image ?>"
-    ARCH: "<?= $platform['arch'] ?>"
-  script: |
-    if [ -e "${CARGO_HOME}/.package-cache" ] ; then
-        echo "WARNING: .package-cache was part of the cache and shouldn't be!"
-        rm -vf "${CARGO_HOME}/.package-cache"
-    fi
-
-    mkdir -p "${CARGO_HOME}"
-    cargo fetch -v --target "${TRIPLET}"
-    chmod -R 777 "${CARGO_HOME}"
-
-    # ensure the .package-cache isn't there
-    rm -vf "${CARGO_HOME}/.package-cache"
-  cache:
-    - key:
-        prefix: cargo-cache-${TRIPLET}
-        files:
-          - Cargo.lock
-      paths:
-        - "${CARGO_HOME}"
-
-<?php
-}
-
-foreach ($build_platforms as $platform) {
     foreach ($profiler_minor_major_targets as $major_minor) {
         $abi_no = $php_versions_to_abi[$major_minor];
         // NTS and ZTS are independent builds, so they run as two parallel jobs.
@@ -262,8 +228,6 @@ foreach ($build_platforms as $platform) {
   needs:
     - job: "prepare code"
       artifacts: true
-    - job: "cache cargo deps: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
-      artifacts: true
   variables:
     TRIPLET: "<?= $platform['triplet'] ?>"
     ARCH: "<?= $platform['arch'] ?>"
@@ -275,14 +239,6 @@ foreach ($build_platforms as $platform) {
     KUBERNETES_MEMORY_LIMIT: 8Gi
   script:
     - .gitlab/build-profiler.sh "datadog-profiling/${TRIPLET}/lib/php/${ABI_NO}" "<?= $flavour ?>"
-  cache:
-    - key:
-        prefix: cargo-cache-${TRIPLET}
-        files:
-          - Cargo.lock
-      paths:
-        - "${CARGO_HOME}"
-      policy: pull  # `Cache Cargo Deps` is used to update/push the cache
   artifacts:
     paths:
       - "datadog-profiling"
@@ -458,8 +414,6 @@ foreach ($build_platforms as $platform) {
   needs:
     - job: "prepare code"
       artifacts: true
-    - job: "cache cargo deps: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
-      artifacts: true
   variables:
     IMAGE: "<?= $image ?>"
     TRIPLET: "<?= $platform['triplet'] ?>"
@@ -477,14 +431,6 @@ foreach ($build_platforms as $platform) {
   script:
     - echo "" >> "$BASH_ENV"
     - ./.gitlab/build-sidecar.sh "<?= $suffix ?>"
-  cache:
-    - key:
-        prefix: cargo-cache-${TRIPLET}
-        files:
-          - Cargo.lock
-      paths:
-        - "${CARGO_HOME}"
-      policy: pull  # `cache cargo deps` is used to update/push the cache
   artifacts:
     paths:
       - "libdatadog_php_*.*"
