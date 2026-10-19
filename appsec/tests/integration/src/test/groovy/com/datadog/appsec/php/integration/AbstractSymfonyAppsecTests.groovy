@@ -48,9 +48,6 @@ abstract class AbstractSymfonyAppsecTests {
     /** Status code the fixture returns after a failed form_login. */
     int expectedLoginFailureStatus() { 302 }
 
-    /** Status code the fixture returns after a successful signup. */
-    int expectedSignupStatus() { 302 }
-
     /**
      * Routes that must appear in the endpoints telemetry. Entries are
      * {@code [path, method, resourceName]} triples; operation name is
@@ -159,7 +156,7 @@ abstract class AbstractSymfonyAppsecTests {
                 .header('Content-Type', 'application/x-www-form-urlencoded')
                 .POST(HttpRequest.BodyPublishers.ofString(body)).build()
         def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
-            assert resp.statusCode() == expectedSignupStatus()
+            assert resp.statusCode() == 302
         }
         Span span = trace.first()
         assert span.meta."usr.id" != ""
