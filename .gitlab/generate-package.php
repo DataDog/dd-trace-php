@@ -1551,13 +1551,31 @@ $system_tests_weblogs = [
     "php-fpm-7.0", "php-fpm-7.1", "php-fpm-7.2", "php-fpm-7.3", "php-fpm-7.4",
     "php-fpm-8.0", "php-fpm-8.1", "php-fpm-8.2", "php-fpm-8.5",
 ];
+
+// Pack the tracer-release scenarios longest-first into the least-loaded shard, from measured durations
+// (refresh them with .gitlab/refresh-system-tests-durations.py). Every weblog takes ~the same time per scenario.
+$system_tests_shard_count = 4;
+$system_tests_durations = json_decode(file_get_contents(__DIR__ . "/system-tests-durations.json"), true)["scenarios"];
+arsort($system_tests_durations);
+$system_tests_shards = array_fill(0, $system_tests_shard_count, []);
+$system_tests_shard_load = array_fill(0, $system_tests_shard_count, 0);
+foreach ($system_tests_durations as $scenario => $seconds) {
+    $shard = array_search(min($system_tests_shard_load), $system_tests_shard_load);
+    $system_tests_shards[$shard][] = $scenario;
+    $system_tests_shard_load[$shard] += $seconds;
+}
 ?>
+.system_tests_tracer_release_shards:
+  variables:
+<?php foreach ($system_tests_shards as $shard => $scenarios): ?>
+    # ~<?= round($system_tests_shard_load[$shard] / 60) ?> min of scenarios
+    SHARD_<?= $shard + 1 ?>_SCENARIOS: "<?= implode(" ", $scenarios) ?>"
+<?php endforeach; ?>
+
 <?php foreach ($system_tests_weblogs as $weblog): ?>
 "System Tests: [<?= $weblog ?>, tracer-release]":
-  extends: .system_tests
-  # Start with two shards as an initial estimate of useful parallelism.
-  # Keep the job count modest across all weblogs to limit shared CI compute usage.
-  parallel: 2
+  extends: [ .system_tests, .system_tests_tracer_release_shards ]
+  parallel: <?= $system_tests_shard_count, "\n" ?>
   timeout: 4h
   variables:
     BUILD_SH_ARGS: -w <?= $weblog ?> php
@@ -1574,14 +1592,12 @@ $system_tests_weblogs = [
   script:
     - DD_API_KEY=$(cat /tmp/.dd-api-key 2>/dev/null) || { echo "Failed to fetch DD_API_KEY"; exit 1; }
     - export DD_API_KEY
-    # Alphabetical splitting clustered slow related scenarios in one shard.
-    # Hash sorting reduces that imbalance, while keeping the order reproducible.
-    # NOTE: it does not guarantee equal runtimes of each shard, but usually better that alphabetical.
     # PARAMETRIC is weblog-independent: it runs once, in "System Tests: [parametric]".
     - SCENARIOS=$(PYTHONPATH=. venv/bin/python utils/scripts/compute-workflow-parameters.py php -g tracer_release --excluded-scenarios PARAMETRIC -f json | python3 -c "import sys,json,hashlib;d=json.load(sys.stdin);s=set();[s.update(v['scenarios']) for v in d.values() if isinstance(v,dict) and 'scenarios' in v];print(' '.join(sorted(s,key=lambda n:(hashlib.sha256(n.encode()).digest(),n))))")
-    # Each job builds the full list, then keeps every `Nth` scenario for its shard.
-    # GitLab sets CI_NODE_INDEX and CI_NODE_TOTAL from `parallel: N` above.
-    - SCENARIOS=$(printf '%s\n' $SCENARIOS | awk -v node="$CI_NODE_INDEX" -v total="$CI_NODE_TOTAL" '(NR - 1) % total == node - 1')
+    - test -n "$SCENARIOS" || { echo "system-tests returned no tracer-release scenarios"; exit 1; }
+    # Run this shard's packed scenarios that system-tests still lists, plus every CI_NODE_TOTAL-th (hash order) of those the durations file lacks.
+    - SCENARIOS=$(echo $SCENARIOS | python3 -c "import os,sys;n=int(os.environ['CI_NODE_TOTAL']);k=int(os.environ['CI_NODE_INDEX']);p=[os.environ.get(f'SHARD_{i}_SCENARIOS','').split() for i in range(1,n+1)];known={s for x in p for s in x};a=sys.stdin.read().split();print(' '.join([s for s in a if s in p[k-1]]+[s for s in a if s not in known][k-1::n]))")
+    - echo "Shard $CI_NODE_INDEX/$CI_NODE_TOTAL scenarios:" $SCENARIOS
     - FAILED=""; for S in $SCENARIOS; do echo "=== Running $S ==="; ./run.sh $S || FAILED="$FAILED $S"; done; if [ -n "$FAILED" ]; then echo "Failed scenarios:$FAILED"; exit 1; fi
 
 <?php endforeach; ?>
