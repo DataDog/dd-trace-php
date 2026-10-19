@@ -7,8 +7,7 @@ DD_AGENT_HOST=request-replayer
 DD_TRACE_AGENT_PORT=80
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=0.1
---INI--
-datadog.trace.agent_test_session_token=live-debugger/remove_shared_probe_id
+DD_TRACE_AGENT_TEST_SESSION_TOKEN=live-debugger/remove_shared_probe_id
 --FILE--
 <?php
 
@@ -58,6 +57,11 @@ for ($i = 0; $i < 300; $i++) {
 // No hook must remain: an orphaned one would read freed memory here.
 var_dump(foo());
 
+?>
+--CLEAN--
+<?php
+require __DIR__ . "/live_debugger.inc";
+reset_request_replayer();
 ?>
 --EXPECT--
 string(7) "removed"

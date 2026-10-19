@@ -17,6 +17,11 @@ require __DIR__ . "/live_debugger.inc";
 
 reset_request_replayer();
 
+// Logs go to v2/input until the sidecar knows the agent lacks it; it knows once the info is visible here.
+if (!dd_trace_internal_fn("await_agent_info")) {
+    echo "The agent info was not received\n";
+}
+
 function &foo($arg) {
     $meta = &\DDTrace\active_span()->meta;
     unset($meta["runtime-id"]);
