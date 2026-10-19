@@ -65,7 +65,7 @@ if ! command -v vault > /dev/null 2>&1; then
   vault_path="/tmp/vault"
   vault_zip="${vault_path}.zip"
 
-  if ! curl -L --fail --retry 5 --retry-delay 2 --retry-connrefused "https://releases.hashicorp.com/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_linux_${vault_arch}.zip" \
+  if ! curl -L --fail --retry 5 --retry-delay 2 --retry-connrefused "https://depot-read-api-bzl.us1.ddbuild.io/releases.hashicorp.com/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_linux_${vault_arch}.zip" \
       --output "${vault_zip}"; then
     echo "Warning: Failed to download Vault. Skipping Docker Hub authentication." >&2
     exit 0
