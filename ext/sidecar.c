@@ -126,7 +126,7 @@ static void dd_sidecar_arm_signal_transport(ddog_SidecarTransport *owner, ddog_S
         ddog_SignalFlush *flush = NULL;
         if (!datadog_ffi_try("Failed preparing sidecar signal flush",
                              ddog_sidecar_prepare_signal_flush(
-                                 connection, (ddog_SidecarFlushOptions){.traces_and_stats = true}, &flush))) {
+                                 connection, (ddog_SidecarFlushOptions){.traces_and_stats = true, .flag_evaluations = true}, &flush))) {
             // Clears the stale flush while still the owner, then lets a later RINIT retry.
             datadog_signals_set_sidecar_flush(NULL, true);
             atomic_store(&dd_sidecar_signal_owner, 0);

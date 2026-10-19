@@ -29,6 +29,12 @@ switch (getenv('PHP_FFE_FLUSH_MODE')) {
         break;
     case 'shutdown':
         exit(0);
+    case 'sigterm':
+    case 'sigint':
+        posix_kill(getmypid(), getenv('PHP_FFE_FLUSH_MODE') === 'sigterm' ? SIGTERM : SIGINT);
+        // The signal-flush worker owns termination. Do not fall through to
+        // normal PHP shutdown, which would hide a missing signal flush.
+        while (true) usleep(1000);
 }
 if (isset($pid)) {
     pcntl_waitpid($pid, $status);

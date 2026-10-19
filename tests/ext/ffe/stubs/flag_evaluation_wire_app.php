@@ -11,7 +11,7 @@ $config = array(
     'observeFullEvaluationData' => true,
     'flags' => array(),
 );
-foreach (array('consented', 'protected', 'coerced', 'empty', 'missing', 'malformed') as $key) {
+foreach (array('consented', 'protected', 'coerced', 'empty', 'missing', 'malformed', 'hook-after-error') as $key) {
     $config['flags'][$key] = array(
         'key' => $key, 'enabled' => true, 'variationType' => 'STRING',
         'variations' => array('blue' => array('key' => 'blue', 'value' => 'blue')),
@@ -25,7 +25,7 @@ foreach (array('consented', 'protected', 'coerced', 'empty', 'missing', 'malform
 $client = new \DDTrace\FeatureFlags\Client();
 $context = array('targetingKey' => 'subject', 'attributes' => array('plan' => 'pro'));
 if (getenv('PHP_FFE_WIRE_OPENFEATURE') === '1') {
-    require $root . '/tests/OpenFeature/vendor/autoload.php';
+    require __DIR__ . '/flag_evaluation_openfeature.inc';
     $api = \OpenFeature\OpenFeatureAPI::getInstance();
     $api->setProvider(new \DDTrace\OpenFeature\DataDogProvider());
     $client = $api->getClient('php-ffe-wire');
@@ -48,6 +48,22 @@ if (getenv('PHP_FFE_WIRE_OPENFEATURE') === '1') {
 }
 if ($client->getStringValue('protected', 'fallback', $context) !== 'blue') {
     throw new RuntimeException('assignment failed');
+}
+if (getenv('PHP_FFE_WIRE_OPENFEATURE') === '1') {
+    $hook = new FfeOutcomeHook();
+    $hook->onBefore = function ($context) {
+        if ($context->getFlagKey() === 'hook-before-error') throw new RuntimeException('ffe-error-pii-canary@example.test');
+        return null;
+    };
+    $hook->onAfter = function ($context) {
+        if ($context->getFlagKey() === 'hook-after-error') throw new RuntimeException('ffe-error-pii-canary@example.test');
+    };
+    $client->addHooks($hook);
+    foreach (array('hook-before-error', 'hook-after-error') as $flag) {
+        if ($client->getStringValue($flag, 'fallback', $context) !== 'fallback') {
+            throw new RuntimeException('hook failure did not return default');
+        }
+    }
 }
 echo 'exposure_flush=', json_encode(\DDTrace\Testing\flush_ffe_exposures()), "\n";
 echo "evaluated\n";

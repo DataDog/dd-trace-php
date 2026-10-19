@@ -158,6 +158,18 @@ try {
     var_dump($rows['consented-canary']['targeting_key'] === 'ffe-consented-pii-canary@example.test'
         && $rows['consented-canary']['context']['evaluation']['email'] === 'ffe-consented-context-canary@example.test'
         && $rows['consented-canary']['error']['message'] === 'GENERAL');
+    if ($openFeature) {
+        $terminalErrors = true;
+        foreach (array('hook-before-error', 'hook-after-error') as $flag) {
+            $row = $rows[$flag];
+            $terminalErrors = $terminalErrors && $row['evaluation_count'] === 1
+                && !isset($row['variant']) && !isset($row['allocation'])
+                && $row['runtime_default_used'] === true && $row['error']['message'] === 'GENERAL'
+                && $row['targeting_key'] === 'sha256_2234a4963a43ffe952df4e09b1fd0d36f8b49216e5cba4182ae4d01e67cf112a'
+                && !isset($row['context']['evaluation']);
+        }
+        echo 'terminal_hook_errors='; var_dump($terminalErrors);
+    }
     // TRACE logs can be large in CI. Inspect every byte without loading the
     // entire log (and a second concatenated copy) into the PHP process.
     $diagnostics = fopen($diagnosticLog, 'r');

@@ -86,7 +86,8 @@ foreach (array('false', 'true') as $sidecarTraceSender) {
             $expected = $mode === 'fork' ? array('flush-child' => 1, 'flush-flag' => 1) : array('flush-flag' => 1);
             ksort($counts);
             echo $sidecarTraceSender, '/', $mode, ': ';
-            var_dump($counts === $expected && $blocked && ($mode === 'shutdown' || strpos($stdout, 'returned') !== false));
+            $terminates = in_array($mode, array('shutdown', 'sigterm', 'sigint'), true);
+            var_dump($counts === $expected && $blocked && ($terminates || strpos($stdout, 'returned') !== false));
         } finally {
             if ($exitCode === null) proc_terminate($process);
             foreach ($pipes as $pipe) fclose($pipe);

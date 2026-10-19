@@ -95,8 +95,8 @@ bool ddtrace_ffe_record_flag_evaluation(zend_string *flag_key, zend_string *vari
         .observe_full_evaluation_data = observe_full_evaluation_data,
     };
     ddog_FfeTelemetryContext context = {
-        .service = dd_zend_string_to_CharSlice(get_DD_SERVICE()),
-        .env = dd_zend_string_to_CharSlice(get_DD_ENV()),
+        .service = dd_zend_string_to_CharSlice(DATADOG_G(last_service_name)),
+        .env = dd_zend_string_to_CharSlice(DATADOG_G(last_env_name)),
         .version = dd_zend_string_to_CharSlice(get_DD_VERSION()),
     };
     ddog_FfeSubmissionStatus status = ddog_sidecar_try_submit_ffe_flag_evaluation(
