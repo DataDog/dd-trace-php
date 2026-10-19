@@ -93,6 +93,7 @@ final class WebServer
     ];
 
     private $errorLogSize = 0;
+    private $errorLogInode = 0;
 
     /**
      * Persisted apache instance for the lifetime of the testsuite - we use reload instead of restart to apply changes.
@@ -184,6 +185,7 @@ final class WebServer
         }
 
         $this->errorLogSize = (int)@filesize($this->defaultInis['error_log']);
+        $this->errorLogInode = (int)@fileinode($this->defaultInis['error_log']);
 
         if ($this->roadrunnerVersion) {
             $this->sapi = new RoadrunnerServer(
@@ -358,7 +360,30 @@ final class WebServer
      */
     public function checkErrors()
     {
-        $diff = @file_get_contents($this->defaultInis['error_log'], false, null, $this->errorLogSize);
+        $errorLog = $this->defaultInis['error_log'];
+
+        // Only inspect log entries written since the previous check. Without
+        // advancing the offset, one transient error is reported again by every
+        // retry and every subsequent test that shares this web server.
+        clearstatcache(true, $errorLog);
+        $currentSize = (int) @filesize($errorLog);
+        $currentInode = (int) @fileinode($errorLog);
+        if ($currentSize < $this->errorLogSize || $currentInode !== $this->errorLogInode) {
+            // The log may have been truncated, rotated, or replaced while the
+            // server was running. Comparing the inode detects a replacement that
+            // has already grown to at least the previous offset, which a size-only
+            // check would miss. Start reading from the beginning of the new file.
+            $this->errorLogSize = 0;
+        }
+        $this->errorLogInode = $currentInode;
+
+        $diff = @file_get_contents($errorLog, false, null, $this->errorLogSize);
+        if ($diff === false) {
+            $diff = "";
+        } else {
+            $this->errorLogSize += strlen($diff);
+        }
+
         $out = "";
         foreach (explode("\n", $diff) as $line) {
             // Ignore sidecar retry errors for known-invalid test hostnames — these are

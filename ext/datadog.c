@@ -160,6 +160,12 @@ static void dd_activate_once(void) {
         datadog_generate_runtime_id();
     }
 
+    // Before the first sidecar connection, so that every connection is configured with them. The
+    // script path is already known at activation.
+    if (datadog_disable != 1 && get_global_DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED()) {
+        datadog_process_tags_first_rinit();
+    }
+
     // must run before the first zai_hook_activate as tracer telemetry setup installs a global hook
     if (!datadog_disable) {
         // Only set up the sidecar when it's actually needed (appsec, telemetry, trace sender, or OTLP metrics).
@@ -179,7 +185,12 @@ static pthread_once_t dd_activate_once_control = PTHREAD_ONCE_INIT;
 static bool dd_is_cli_autodisabled(const char *arg) {
     const char *slashend = strrchr(arg, '/');
     const char *backslashend = strrchr(arg, '\\');
-    arg = MAX(MAX(slashend, backslashend) + 1, arg);
+    if (slashend) {
+        arg = slashend + 1;
+    }
+    if (backslashend && (!slashend || backslashend > slashend)) {
+        arg = backslashend + 1;
+    }
     return strcmp(arg, "composer") == 0 || strcmp(arg, "composer.phar") == 0;
 }
 
@@ -272,7 +283,6 @@ static PHP_GINIT_FUNCTION(datadog) {
 #if ZTS
     datadog_thread_ginit();
 #endif
-    datadog_globals->sidecar_universal_service_tags_mutex = tsrm_mutex_alloc();
     zend_hash_init(&datadog_globals->git_metadata, 8, unused, (dtor_func_t)datadog_git_metadata_dtor, 1);
 
 #ifdef DDTRACE
@@ -377,8 +387,6 @@ static PHP_GSHUTDOWN_FUNCTION(datadog) {
 
     // Drop the per-thread sidecar transport (thread-lifetime, one per thread).
     datadog_sidecar_gshutdown(datadog_globals);
-
-    tsrm_mutex_free(datadog_globals->sidecar_universal_service_tags_mutex);
 
 #ifdef CXA_THREAD_ATEXIT_WRAPPER
     // FrankenPHP calls `ts_free_thread()` in rshutdown
@@ -559,11 +567,6 @@ static void dd_rinit_once(void) {
         return;
     }
 
-    // Collect process tags now that script path is available
-    if (get_global_DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED()) {
-        datadog_process_tags_first_rinit();
-        datadog_sidecar_update_process_tags();
-    }
 #ifdef __linux__
     zend_string *process_tags = datadog_process_tags_get_serialized();
     datadog_publish_otel_process_context(dd_zend_string_to_CharSlice(process_tags));
@@ -694,10 +697,6 @@ static PHP_RSHUTDOWN_FUNCTION(datadog) {
     if (DATADOG_G(last_env_name)) {
         zend_string_release(DATADOG_G(last_env_name));
         DATADOG_G(last_env_name) = NULL;
-    }
-    if (DATADOG_G(last_version)) {
-        zend_string_release(DATADOG_G(last_version));
-        DATADOG_G(last_version) = NULL;
     }
 
     return SUCCESS;

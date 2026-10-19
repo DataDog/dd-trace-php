@@ -191,7 +191,6 @@ void ddtrace_activate_once(void) {
                 // Set the default to 5000 so that BGS does not flush too often. The sidecar can flush more often, but the BGS is per process. Keep it higher to avoid too much load on the agent.
                 zai_config_change_default_ini(DATADOG_CONFIG_DD_TRACE_AGENT_FLUSH_INTERVAL, (zai_str) ZAI_STR_FROM_CSTR("5000"));
             }
-            ddtrace_telemetry_bgs_init();
             ddtrace_coms_minit(get_global_DD_TRACE_AGENT_STACK_INITIAL_SIZE(),
                                get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE(),
                                get_global_DD_TRACE_AGENT_STACK_BACKLOG());
@@ -397,10 +396,10 @@ void ddtrace_mshutdown() {
         ddtrace_coms_mshutdown();
         if (ddtrace_coms_flush_shutdown_writer_synchronous()) {
             ddtrace_coms_curl_shutdown();
+            /* All writer threads and curl handles are gone at this point, so
+             * it is safe to free the cached proxy env strings for ASan. */
+            ddtrace_coms_mshutdown_proxy_env();
         }
-        /* All writer threads and curl handles are gone at this point, so
-         * it is safe to free the cached proxy env strings for ASan. */
-        ddtrace_coms_mshutdown_proxy_env();
     } else /* ! part of the if outside the ifdef */
 #endif
     if (get_global_DD_TRACE_FORCE_FLUSH_ON_SHUTDOWN() && DATADOG_G(sidecar)) {
@@ -527,6 +526,8 @@ void ddtrace_rinit_early(void) {
         zai_hook_activate();
 #if PHP_VERSION_ID < 80000
         ddtrace_autoload_rinit();
+#else
+        zai_uhook_attributes_activate();
 #endif
     }
 }

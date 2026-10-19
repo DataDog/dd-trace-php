@@ -7,7 +7,9 @@
 // whole crate is compiled away there.
 #![cfg(unix)]
 
-use datadog_sidecar::appsec::{AppSecBackend, AppSecFuture, AppSecMessageResponse};
+use datadog_sidecar::appsec::{
+    AppSecBackend, AppSecConnection, AppSecFuture, AppSecMessageResponse,
+};
 use datadog_sidecar::config::AppSecConfig;
 use datadog_sidecar::config::Config;
 use datadog_sidecar::service::blocking::SidecarTransport;
@@ -27,6 +29,16 @@ pub fn start_or_connect_to_sidecar(config: Config) -> anyhow::Result<SidecarTran
 /// subprocess-mode sidecars call it again from their entrypoint.
 pub fn register_appsec_backend() {
     datadog_sidecar::appsec::register_backend_factory(create_backend);
+}
+
+/// Discard the parent's sidecar state before reconnecting.
+///
+/// # Safety
+/// Call in the child after fork, before starting threads. Inherited sidecar tasks
+/// and references to their state must not be used afterward.
+pub unsafe fn after_fork() -> std::io::Result<()> {
+    unsafe { ddappsec_helper::after_fork() };
+    unsafe { datadog_sidecar::setup::MasterListener::clear_inherited_state() }
 }
 
 #[no_mangle]
@@ -55,21 +67,20 @@ fn create_backend(
     ))
 }
 
-fn send_message<'a>(
-    session_id: &'a str,
-    client_id: u64,
+fn send_message(
+    connection: &mut AppSecConnection,
     data: Vec<u8>,
-) -> AppSecFuture<'a, AppSecMessageResponse> {
+    client_init: bool,
+) -> AppSecFuture<'_, AppSecMessageResponse> {
     Box::pin(async move {
-        let response = ddappsec_helper::on_message(session_id.as_bytes(), client_id, data).await;
+        let response = ddappsec_helper::on_message(connection, data, client_init).await;
         AppSecMessageResponse {
-            client_id: response.client_id,
             data: response.data,
             disconnect: response.disconnect,
         }
     })
 }
 
-fn disconnect(session_id: &str, client_id: u64) {
-    ddappsec_helper::on_disconnect(session_id.as_bytes(), client_id);
+fn disconnect(connection: &mut AppSecConnection) {
+    ddappsec_helper::on_disconnect(connection);
 }

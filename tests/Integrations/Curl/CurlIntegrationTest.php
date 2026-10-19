@@ -246,6 +246,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('curl_exec', 'curl', 'http', 'http://' . HTTPBIN_INTEGRATION . '/status/?')
+                ->setError('http_error', 'HTTP 404 Error')
                 ->withExactTags([
                     'http.url' => self::URL . '/status/404',
                     'http.status_code' => '404',

@@ -634,6 +634,8 @@ static void zai_interceptor_generator_dtor_wrapper(zend_object *object) {
             if (!Z_ISUNDEF(generator->retval)) {
                 ZVAL_COPY_VALUE(&retval, &generator->retval);
             }
+            // A suspended generator's old caller may already have returned.
+            execute_data->prev_execute_data = EG(current_execute_data);
             zai_hook_finish(execute_data, &retval, &gen_memory->frame.hook_data);
         }
         zai_hook_memory_table_del(execute_data);

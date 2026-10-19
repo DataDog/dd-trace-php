@@ -9,7 +9,6 @@ struct _zend_string;
 #include "telemetry.h"
 #include "sidecar.h"
 
-
 extern void (*ddog_log_callback)(ddog_CharSlice);
 
 /**
@@ -240,7 +239,6 @@ void ddog_log_debugger_datum(const struct ddog_DebuggerPayload *payload);
 ddog_MaybeError ddog_send_debugger_diagnostics(const struct ddog_RemoteConfigState *remote_config_state,
                                                struct ddog_SidecarTransport **transport,
                                                const struct ddog_InstanceId *instance_id,
-                                               ddog_QueueId queue_id,
                                                const struct ddog_Probe *probe,
                                                uint64_t timestamp);
 
@@ -256,6 +254,13 @@ void ddog_sidecar_enable_appsec(ddog_CharSlice log_file_path, ddog_CharSlice log
  * registered in the listener's process.
  */
 ddog_MaybeError ddog_sidecar_connect_master_php(void);
+
+/**
+ * # Safety
+ * Call in the child after fork, before starting threads. Inherited sidecar tasks
+ * and references to their state must not be used afterward.
+ */
+ddog_MaybeError ddog_sidecar_handle_fork_php(void);
 
 /**
  * Ensures the connected sidecar's AppSec backend is started using the
@@ -279,6 +284,21 @@ void datadog_sidecar_set_reconnect_fn(struct ddog_SidecarTransport **transport,
                                       struct ddog_SidecarTransport *(*factory)(void));
 
 void datadog_sidecar_clear_reconnect_fn(struct ddog_SidecarTransport **transport);
+
+/**
+ * Retire mappings from a previous namespace so subsequent reads reopen them. To be called on
+ * every (re)connected transport: the connection may be to a new sidecar. Reconnects are rare,
+ * so the process-wide caches are simply reopened by every thread.
+ */
+void ddog_sidecar_reconnect_readers(const struct ddog_ShmCacheMap *telemetry,
+                                    struct ddog_RemoteConfigState *remote_config,
+                                    const struct ddog_AgentInfoReader *agent_info,
+                                    const ddog_AgentRemoteConfigReader *agent_config);
+
+/**
+ * The fd of the transport's current connection; it changes on reconnect.
+ */
+int32_t ddog_sidecar_transport_raw_fd(struct ddog_SidecarTransport *const *transport);
 
 bool ddog_shm_limiter_inc(const struct ddog_MaybeShmLimiter *limiter, uint32_t limit);
 
@@ -366,8 +386,6 @@ struct ddog_OwnedShmSpanInput *ddog_span_concentrator_add_php_span(const struct 
                                                                    const struct ddog_PhpSpanStats *span);
 
 bool ddtrace_detect_composer_installed_json(struct ddog_SidecarTransport **transport,
-                                            const struct ddog_InstanceId *instance_id,
-                                            const ddog_QueueId *queue_id,
                                             ddog_CharSlice path);
 
 struct ddog_SidecarActionsBuffer *ddog_sidecar_telemetry_buffer_alloc(void);
@@ -399,9 +417,15 @@ void ddog_sidecar_telemetry_enqueueConfig_buffer(struct ddog_SidecarActionsBuffe
                                                  ddog_CharSlice config_id);
 
 ddog_MaybeError ddog_sidecar_telemetry_buffer_flush(struct ddog_SidecarTransport **transport,
-                                                    const struct ddog_InstanceId *instance_id,
-                                                    const ddog_QueueId *queue_id,
                                                     struct ddog_SidecarActionsBuffer *buffer);
+
+/**
+ * Flushes the buffer for the given service and env instead of the current application.
+ */
+ddog_MaybeError ddog_sidecar_telemetry_buffer_flush_for_service(struct ddog_SidecarTransport **transport,
+                                                                ddog_CharSlice service,
+                                                                ddog_CharSlice env,
+                                                                struct ddog_SidecarActionsBuffer *buffer);
 
 ddog_MaybeError ddog_sidecar_telemetry_register_metric(struct ddog_SidecarTransport **transport,
                                                        ddog_CharSlice metric_name,
@@ -417,23 +441,21 @@ void ddog_sidecar_telemetry_add_integration_log_buffer(enum ddog_Log category,
                                                        struct ddog_SidecarActionsBuffer *buffer,
                                                        ddog_CharSlice log);
 
-ddog_ShmCacheMap *ddog_sidecar_telemetry_cache_new(void);
+struct ddog_ShmCacheMap *ddog_sidecar_telemetry_cache_new(void);
 
-void ddog_sidecar_telemetry_cache_drop(ddog_ShmCacheMap*);
+void ddog_sidecar_telemetry_cache_drop(struct ddog_ShmCacheMap*);
 
-bool ddog_sidecar_telemetry_config_sent(ddog_ShmCacheMap *cache,
+bool ddog_sidecar_telemetry_config_sent(struct ddog_ShmCacheMap *cache,
                                         ddog_CharSlice service,
                                         ddog_CharSlice env);
 
 ddog_MaybeError ddog_sidecar_telemetry_filter_flush(struct ddog_SidecarTransport **transport,
-                                                    const struct ddog_InstanceId *instance_id,
-                                                    const ddog_QueueId *queue_id,
                                                     struct ddog_SidecarActionsBuffer *buffer,
-                                                    ddog_ShmCacheMap *cache,
+                                                    struct ddog_ShmCacheMap *cache,
                                                     ddog_CharSlice service,
                                                     ddog_CharSlice env);
 
-bool ddog_sidecar_telemetry_are_endpoints_collected(ddog_ShmCacheMap *cache,
+bool ddog_sidecar_telemetry_are_endpoints_collected(struct ddog_ShmCacheMap *cache,
                                                     ddog_CharSlice service,
                                                     ddog_CharSlice env);
 
