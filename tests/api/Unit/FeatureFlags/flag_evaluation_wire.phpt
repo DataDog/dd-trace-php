@@ -21,8 +21,9 @@ $openFeature = false;
 require __DIR__ . '/../../../Common/FeatureFlags/flag_evaluation_wire.inc';
 ?>
 --EXPECT--
-service=php-ffe-wire
+exposure_service=php-ffe-wire
 identity=bool(true)
+evaluation_application_identity_absent=bool(true)
 exposures=int(2)
 consented_count=int(2)
 consented_subject=string(7) "subject"

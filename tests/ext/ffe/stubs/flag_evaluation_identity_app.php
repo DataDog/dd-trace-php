@@ -3,6 +3,7 @@ foreach (array('default', 'configured') as $flag) {
     if ($flag === 'configured') {
         ini_set('datadog.service', 'changed-service');
         ini_set('datadog.env', 'changed-env');
+        ini_set('datadog.version', 'changed-version');
     }
     if (!\DDTrace\Internal\record_ffe_flag_evaluation(
         $flag, 'blue', null, null, array(), null, false, false, 1700000000123
