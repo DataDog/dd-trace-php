@@ -1581,10 +1581,12 @@ foreach ($system_tests_durations as $scenario => $seconds) {
 <?php endforeach; ?>
 "System Tests: [parametric]":
   extends: .system_tests
+  # pytest-split (in system-tests' requirements) gives each job half of the tests, as system-tests' own CI does.
+  parallel: 2
   variables:
     BUILD_SH_ARGS: "-i runner"
   script:
-    - ./run.sh PARAMETRIC
+    - ./run.sh PARAMETRIC --splits=$CI_NODE_TOTAL --group=$CI_NODE_INDEX
 
 <?php foreach ($arch_targets as $arch): ?>
 "Loader test on <?= $arch ?> libc":
