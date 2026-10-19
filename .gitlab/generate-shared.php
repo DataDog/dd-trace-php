@@ -104,6 +104,18 @@ stages:
     - if: $CI_COMMIT_BRANCH == "master"
       interruptible: false
     - when: on_success
+  variables:
+    # lld 16-22 writes out of bounds when the CPU set widens mid-link (llvm/llvm-project#208959). Pinned CPUs remove
+    # that trigger, so clang, lld and rustc stay on one LLVM. Pinning needs Guaranteed QoS: request == limit everywhere.
+    KUBERNETES_CPU_REQUEST: 8
+    KUBERNETES_CPU_LIMIT: 8
+    KUBERNETES_MEMORY_REQUEST: 6Gi
+    KUBERNETES_MEMORY_LIMIT: 6Gi
+    KUBERNETES_HELPER_CPU_REQUEST: 1
+    KUBERNETES_HELPER_CPU_LIMIT: 1
+    KUBERNETES_HELPER_MEMORY_REQUEST: 1Gi
+    KUBERNETES_HELPER_MEMORY_LIMIT: 1Gi
+    KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
   after_script:
     - mkdir -p tmp/artifacts
     - cp tmp/build*/Testing/Temporary/LastTest.log tmp/artifacts/LastTest.log
