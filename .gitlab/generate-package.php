@@ -819,6 +819,7 @@ endforeach;
     - job: datadog-setup.php
       artifacts: true
   before_script:
+    - php -r 'exit((int) PHP_ZTS);' || { echo 'ERROR expected NTS PHP'; exit 1; }
     - installable_bundle=$(find packages -maxdepth 1 -name 'dd-library-php-*-x86_64-linux-musl.tar.gz')
     - php datadog-setup.php --file "${installable_bundle}" --php-bin php --enable-profiling
     - phpize # run phpize just to get run-tests.php
