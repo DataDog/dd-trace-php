@@ -42,6 +42,20 @@ if (PHP_VERSION_ID >= 80300 && is_file($hard_timeout_test)) {
     }
 }
 
+$phar_gzip_test = 'ext/phar/tests/phar_gzip.phpt';
+if (PHP_VERSION_ID < 70400 && is_file($phar_gzip_test)) {
+    // Backport the flaky mtime check removal: https://github.com/php/php-src/commit/228388447509107d61cb253acb614d8d3e5efabf
+    $mtime_check = <<<'MTIME_CHECK'
+$a = stat($pname . '/test');
+$b = stat($pname2 . '/test');
+if ($a['mtime'] != $b['mtime']) {
+	echo "timestamp changed, was $a[mtime], now $b[mtime]!\n";
+}
+MTIME_CHECK;
+    $contents = file_get_contents($phar_gzip_test);
+    file_put_contents($phar_gzip_test, str_replace($mtime_check . "\n", '', $contents));
+}
+
 foreach (explode("\0", trim(shell_exec("find . -type f -name '*.phpt' -print0"))) as $f) {
     $c = file_get_contents($f);
     $n = preg_replace(["/\)#[0-9]+ \(/", "/[0-9]+ is not a valid/"], [")#%d (", "%d is not a valid"], $c);
@@ -57,6 +71,11 @@ if [[ -n "${PHP_MAJOR_MINOR}" && $(version $PHP_MAJOR_MINOR) -ge $(version 7.4) 
   extra_args="-j$(nproc)"
 fi
 
+# PHP < 8.2 already hides progress when -g filters the displayed results.
+if [[ -n "${PHP_MAJOR_MINOR}" && $(version $PHP_MAJOR_MINOR) -ge $(version 8.2) ]]; then
+  extra_args="$extra_args --no-progress"
+fi
+
 # Automatic retries for selected flaky functions are available since PHP 8.1.
 if [[ -n "${PHP_MAJOR_MINOR}" && $(version $PHP_MAJOR_MINOR) -ge $(version 8.1) ]]; then
   sed -i "/flaky_functions = /a 'socket_create','stream_context_create'," run-tests.php
@@ -65,6 +84,6 @@ fi
 php run-tests.php -q \
   -p /usr/local/bin/php \
   --show-diff \
-  -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP \
+  -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK \
   -d datadog.trace.sources_path=/home/circleci/datadog/src \
   $extra_args

@@ -20,19 +20,6 @@ ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
 zend_long dd_composer_hook_id;
 
-static ddog_QueueId dd_bgs_queue_id;
-
-// Whether the sidecar has been told about the BGS application.  Process-wide, like the
-// application itself: it is keyed by (session id, runtime id, queue id), all three of which are
-// process-wide (ext/sidecar.c), so a single announcement over any thread's connection is visible
-// to every other thread's flush.  A reconnect clears it (ddtrace_telemetry_register_services) and
-// the next finalize announces it again, over whichever connection gets there first.
-// uint64_t rather than bool because the Windows atomics polyfill only has 64-bit intrinsics
-// (components/atomic_win32_polyfill.h).
-static _Atomic(uint64_t) dd_bgs_application_registered = 0;
-
-static void dd_bgs_register_application(void);
-
 const char *ddtrace_telemetry_redact_file(const char *file) {
 #ifdef _WIN32
 #define SEPARATOR_CHAR "\\"
@@ -76,7 +63,7 @@ static bool dd_check_for_composer_autoloader(zend_ulong invocation, zend_execute
 
     ddog_CharSlice composer_path = dd_zend_string_to_CharSlice(execute_data->func->op_array.filename);
     if (!DATADOG_G(sidecar) // if sidecar connection was broken, let's skip immediately
-        || ddtrace_detect_composer_installed_json(&DATADOG_G(sidecar), datadog_sidecar_instance_id, &DATADOG_G(sidecar_queue_id), composer_path)) {
+        || ddtrace_detect_composer_installed_json(&DATADOG_G(sidecar), composer_path)) {
         zai_hook_remove((zai_str)ZAI_STR_EMPTY, (zai_str)ZAI_STR_EMPTY, dd_composer_hook_id);
     }
     return true;
@@ -121,7 +108,6 @@ void ddtrace_telemetry_finalize(void) {
     ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.malformed"), DDTRACE_G(baggage_malformed_count), DDOG_CHARSLICE_C("header_style:baggage"));
 
     // Flush any accumulated BGS (background sender) metrics if enough time has passed.
-    dd_bgs_register_application();
     ddtrace_telemetry_flush_bgs_metrics_if_due(DATADOG_GLOBALS_PTR());
 }
 
@@ -144,38 +130,6 @@ void ddtrace_telemetry_register_services(ddog_SidecarTransport **sidecar) {
     ddog_sidecar_telemetry_register_metric(sidecar, DDOG_CHARSLICE_C("trace_api.requests"), DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_TRACERS);
     ddog_sidecar_telemetry_register_metric(sidecar, DDOG_CHARSLICE_C("trace_api.responses"), DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_TRACERS);
     ddog_sidecar_telemetry_register_metric(sidecar, DDOG_CHARSLICE_C("trace_api.errors"), DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_TRACERS);
-
-    // this function is in fact a sidecar post-connect callback,
-    // so the application has been forgotten
-    atomic_store(&dd_bgs_application_registered, 0);
-}
-
-// must be called before dd_bgs_register_application()
-void ddtrace_telemetry_bgs_init(void) {
-    dd_bgs_queue_id = ddog_sidecar_queueId_generate();
-}
-
-// Gives the BGS queue an application, without which the sidecar has no service/env to attribute
-// its metrics to and drops them ("No application found").  The service/env pair is synthetic and
-// fixed: these counters describe the sender, not the application being traced, and this is the
-// pair they have always been reported under (up to 1.10.0), so existing queries keep working.
-static void dd_bgs_register_application(void) {
-    if (!dd_bgs_queue_id || !DATADOG_G(sidecar) || atomic_load(&dd_bgs_application_registered)) {
-        return;
-    }
-
-    // Only consider it registered if the sidecar took it.  Flushing against an application that
-    // does not exist is not merely a no-op: the flush drains the counters with atomic_exchange()
-    // before handing them over, so every subsequent interval would zero them and throw them away.
-    atomic_store(&dd_bgs_application_registered,
-        datadog_ffi_try("Failed registering background sender application",
-                        ddog_sidecar_set_universal_service_tags(&DATADOG_G(sidecar), datadog_sidecar_instance_id, &dd_bgs_queue_id,
-                                                                DDOG_CHARSLICE_C("background_sender-php-service"),
-                                                                DDOG_CHARSLICE_C("none"),
-                                                                DDOG_CHARSLICE_C(""), // no app version, as before
-                                                                &DATADOG_G(active_global_tags),
-                                                                DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_DISABLED,
-                                                                UINT64_MAX)));
 }
 
 void ddtrace_telemetry_notify_integration(const char *name, size_t name_len) {
@@ -255,10 +209,6 @@ void ddtrace_telemetry_flush_bgs_metrics_if_due(zend_datadog_globals *datadog_gl
     if (!datadog_globals->sidecar || !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         return;
     }
-    if (!atomic_load(&dd_bgs_application_registered)) {
-        // The sidecar would have nowhere to file these metrics; keep accumulating instead.
-        return;
-    }
 
     // Rate-limit: flush at most once per agent flush interval.
     uint64_t now_ns = ddtrace_nanoseconds_realtime();
@@ -306,12 +256,15 @@ void ddtrace_telemetry_flush_bgs_metrics_if_due(zend_datadog_globals *datadog_gl
         ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.errors"), v, DDOG_CHARSLICE_C("type:status_code"));
     }
 
+    // The service/env pair is synthetic and fixed: these counters describe the sender, not the application being traced
     datadog_ffi_try("Failed flushing background sender metrics",
-                    ddog_sidecar_telemetry_buffer_flush(&datadog_globals->sidecar, datadog_sidecar_instance_id, &dd_bgs_queue_id, buffer));
+                    ddog_sidecar_telemetry_buffer_flush_for_service(&datadog_globals->sidecar,
+                                                                    DDOG_CHARSLICE_C("background_sender-php-service"),
+                                                                    DDOG_CHARSLICE_C("none"), buffer));
 }
 
 void ddtrace_telemetry_flush_bgs_metrics_final(void) {
-    if (!atomic_load(&dd_bgs_application_registered) || !DATADOG_G(sidecar) || !datadog_sidecar_instance_id) {
+    if (!DATADOG_G(sidecar)) {
         return;
     }
 
@@ -320,11 +273,4 @@ void ddtrace_telemetry_flush_bgs_metrics_final(void) {
     // CAS inside still prevents a concurrent double-flush.
     atomic_store(&bgs_metrics_last_flush_ns, 0);
     ddtrace_telemetry_flush_bgs_metrics_if_due(DATADOG_GLOBALS_PTR());
-
-    if (!atomic_exchange(&dd_bgs_application_registered, 0)) {
-        return;
-    }
-
-    datadog_ffi_try("Failed removing background sender application",
-                    ddog_sidecar_application_remove(&DATADOG_G(sidecar), datadog_sidecar_instance_id, &dd_bgs_queue_id));
 }

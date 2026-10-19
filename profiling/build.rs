@@ -50,6 +50,7 @@ pub fn build() {
     generate_bindings(php_config_includes, fibers, zend_error_observer);
     build_zend_php_ffis(
         php_config_includes,
+        vernum,
         post_startup_cb,
         preload,
         run_time_cache,
@@ -106,6 +107,7 @@ const ZAI_H_FILES: &[&str] = &[
 #[allow(clippy::too_many_arguments)]
 fn build_zend_php_ffis(
     php_config_includes: &str,
+    vernum: u64,
     post_startup_cb: bool,
     preload: bool,
     run_time_cache: bool,
@@ -155,12 +157,8 @@ fn build_zend_php_ffis(
     let trigger_time_sample = if trigger_time_sample { "1" } else { "0" };
     let zend_error_observer = if zend_error_observer { "1" } else { "0" };
 
-    #[cfg(feature = "stack_walking_tests")]
-    let stack_walking_tests = "1";
-
-    #[cfg(not(feature = "stack_walking_tests"))]
-    let stack_walking_tests = "0";
-
+    // PHP 7.4 includes <stddef.h>, avoiding the noisy offsetof fallback.
+    let php_include_flag = if vernum < 70400 { "-isystem" } else { "-I" };
     let mut build = cc::Build::new();
     build
         .files(files.into_iter().chain(zai_c_files))
@@ -169,16 +167,13 @@ fn build_zend_php_ffis(
         .define("CFG_FIBERS", fibers)
         .define("CFG_FRAMELESS", frameless)
         .define("CFG_RUN_TIME_CACHE", run_time_cache)
-        .define("CFG_STACK_WALKING_TESTS", stack_walking_tests)
         .define("CFG_TRIGGER_TIME_SAMPLE", trigger_time_sample)
         .define("CFG_ZEND_ERROR_OBSERVER", zend_error_observer)
-        .includes([Path::new("ext")])
-        .includes(
-            str::replace(php_config_includes, "-I", "")
-                .split(' ')
-                .map(Path::new)
-                .chain([Path::new("zend_abstract_interface")])
-                .chain([Path::new(".")]),
+        .includes(["ext", "zend_abstract_interface", "."])
+        .flags(
+            php_config_includes
+                .split_whitespace()
+                .map(|include| include.replacen("-I", php_include_flag, 1)),
         )
         .flag_if_supported("-std=gnu11")
         .flag_if_supported("-std=gnu17");
@@ -575,11 +570,14 @@ fn apple_linker_flags() {
         "_zend_accel_schedule_restart_hook",
         "_zend_alter_ini_entry_ex",
         "_zend_ce_throwable",
+        "_zend_call_function",
+        "_zend_call_stack_init",
         "_zend_compile_file",
         "_zend_compile_string",
         "_zend_empty_string",
         "_zend_extensions",
         "_zend_flf_functions",
+        "_zend_fcall_info_init",
         "_zend_flf_handlers",
         "_zend_gc_get_status",
         "_zend_generator_check_placeholder_frame",
@@ -613,6 +611,7 @@ fn apple_linker_flags() {
         "_zend_mm_shutdown",
         "_zend_new_interned_string",
         "_zend_observer_error_register",
+        "_zend_parse_parameters",
         "_zend_post_startup_cb",
         "_zend_register_extension",
         "_zend_register_ini_entries",
@@ -652,6 +651,8 @@ fn apple_linker_flags() {
         "_executor_globals_offset",
         "_sapi_globals_offset",
         // Zend parameter error (may appear with certain PHP versions/features)
+        "_zend_wrong_parameter_error",
+        "_zend_wrong_parameters_count_error",
         "_zend_wrong_parameters_none_error",
     ];
 

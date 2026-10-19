@@ -17,18 +17,50 @@ class GuzzleIntegration extends Integration
 
     public static function handlePromiseResponse($response, SpanData $span)
     {
-        if ($response->getState() === \GuzzleHttp\Promise\PromiseInterface::FULFILLED) {
+        /** @var \GuzzleHttp\Promise\PromiseInterface $response */
+        $state = $response->getState();
+        if ($state === \GuzzleHttp\Promise\PromiseInterface::FULFILLED) {
             $fulfilledResponse = $response->wait();
             if ($fulfilledResponse instanceof \Psr\Http\Message\ResponseInterface) {
-                $span->meta[Tag::HTTP_STATUS_CODE] = $fulfilledResponse->getStatusCode();
+                self::setStatusCode($span, $fulfilledResponse);
+            }
+        } elseif ($state === \GuzzleHttp\Promise\PromiseInterface::REJECTED) {
+            try {
+                $response->wait();
+            } catch (\Throwable $e) {
+                self::handleRequestException($span, $e);
             }
         } else {
-            /** @var \GuzzleHttp\Promise\PromiseInterface $response */
-            $response->then(static function (\Psr\Http\Message\ResponseInterface $response) use ($span) {
-                $statusCode = $response->getStatusCode();
-                $span->meta[Tag::HTTP_STATUS_CODE] = $statusCode;
-                HttpClientIntegrationHelper::setClientError($span, $statusCode, $response->getReasonPhrase());
-            });
+            $response->then(
+                static function ($response) use ($span) {
+                    if ($response instanceof \Psr\Http\Message\ResponseInterface) {
+                        self::setStatusCode($span, $response);
+                    }
+                },
+                // With http_errors enabled (the default), non-2xx responses reject the promise with a RequestException
+                static function ($reason) use ($span) {
+                    self::handleRequestException($span, $reason);
+                }
+            );
+        }
+    }
+
+    /**
+     * @param \Psr\Http\Message\ResponseInterface|\GuzzleHttp\Message\ResponseInterface $response
+     */
+    public static function setStatusCode(SpanData $span, $response, $setClientError = true)
+    {
+        $statusCode = $response->getStatusCode();
+        $span->meta[Tag::HTTP_STATUS_CODE] = $statusCode;
+        if ($setClientError) {
+            HttpClientIntegrationHelper::setClientError($span, $statusCode, $response->getReasonPhrase());
+        }
+    }
+
+    public static function handleRequestException(SpanData $span, $exception, $setClientError = true)
+    {
+        if ($exception instanceof \GuzzleHttp\Exception\RequestException && $exception->hasResponse()) {
+            self::setStatusCode($span, $exception->getResponse(), $setClientError);
         }
     }
 
@@ -94,7 +126,7 @@ class GuzzleIntegration extends Integration
         \DDTrace\trace_method(
             'GuzzleHttp\Client',
             'send',
-            static function (SpanData $span, $args, $retval) {
+            static function (SpanData $span, $args, $retval, $exception) {
                 $span->resource = 'send';
                 $span->name = 'GuzzleHttp\Client.send';
                 Integration::handleInternalSpanServiceName($span, self::NAME);
@@ -115,19 +147,17 @@ class GuzzleIntegration extends Integration
 
                 if (isset($retval)) {
                     $response = $retval;
-                    if (\is_a($response, 'GuzzleHttp\Message\ResponseInterface')) {
-                        /** @var \GuzzleHttp\Message\ResponseInterface $response */
-                        $statusCode = $response->getStatusCode();
-                        $span->meta[Tag::HTTP_STATUS_CODE] = $statusCode;
-                        HttpClientIntegrationHelper::setClientError($span, $statusCode, $response->getReasonPhrase());
-                    } elseif (\is_a($response, 'Psr\Http\Message\ResponseInterface')) {
-                        /** @var \Psr\Http\Message\ResponseInterface $response */
-                        $statusCode = $response->getStatusCode();
-                        $span->meta[Tag::HTTP_STATUS_CODE] = $statusCode;
-                        HttpClientIntegrationHelper::setClientError($span, $statusCode, $response->getReasonPhrase());
+                    if (
+                        \is_a($response, 'GuzzleHttp\Message\ResponseInterface')
+                        || \is_a($response, 'Psr\Http\Message\ResponseInterface')
+                    ) {
+                        self::setStatusCode($span, $response);
                     } elseif (\is_a($response, 'GuzzleHttp\Promise\PromiseInterface')) {
                         self::handlePromiseResponse($response, $span);
                     }
+                } elseif (isset($exception)) {
+                    // The exception itself already flags the span as errored
+                    self::handleRequestException($span, $exception, false);
                 }
             }
         );

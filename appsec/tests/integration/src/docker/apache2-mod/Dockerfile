@@ -6,6 +6,22 @@ RUN apt-get update && apt-get install -y \
     apache2 \
     && rm -rf /var/lib/apt/lists/*
 
+# Rebuild the event MPM from the installed package's source with
+# event-sigterm-startup.patch, which fixes children aborting with heap
+# corruption when SIGTERMed during startup (ungraceful restarts).
+ADD apache2-mod/event-sigterm-startup.patch /tmp/
+RUN sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/debian.sources && \
+    apt-get update && \
+    mkdir /tmp/apache2-src && cd /tmp/apache2-src && \
+    apt-get source apache2="$(dpkg-query -W -f='${source:Version}' apache2-bin)" && \
+    cd apache2-*/ && \
+    patch -p1 < /tmp/event-sigterm-startup.patch && \
+    apxs -c -I server -I server/mpm/event -o mod_mpm_event.la server/mpm/event/event.c && \
+    install -m 644 .libs/mod_mpm_event.so /usr/lib/apache2/modules/mod_mpm_event.so && \
+    cd / && rm -rf /tmp/apache2-src /tmp/event-sigterm-startup.patch && \
+    sed -i 's/^Types: deb deb-src$/Types: deb/' /etc/apt/sources.list.d/debian.sources && \
+    rm -rf /var/lib/apt/lists/*
+
 RUN usermod -a -G linux_users www-data
 
 RUN rm -rf /var/www/html
