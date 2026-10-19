@@ -1576,7 +1576,8 @@ foreach ($system_tests_durations as $scenario => $seconds) {
 "System Tests: [<?= $weblog ?>, tracer-release]":
   extends: [ .system_tests, .system_tests_tracer_release_shards ]
   parallel: <?= $system_tests_shard_count, "\n" ?>
-  timeout: 4h
+  # ~2x the expected worst shard (~52 min), so a hung DinD job is retried sooner.
+  timeout: 1h 45m
   variables:
     BUILD_SH_ARGS: -w <?= $weblog ?> php
     # Expand the DinD loopback volume to avoid running out of disk space.
