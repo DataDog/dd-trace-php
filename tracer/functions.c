@@ -2965,6 +2965,18 @@ PHP_FUNCTION(DDTrace_Internal_dsm_track_backlog) {
     ddtrace_dsm_track_backlog(tags, offset);
 }
 
+PHP_FUNCTION(DDTrace_Internal_dsm_push_pathway) {
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    ddtrace_dsm_push_pathway();
+}
+
+PHP_FUNCTION(DDTrace_Internal_dsm_pop_pathway) {
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    ddtrace_dsm_pop_pathway();
+}
+
 /* {{{ proto array generate_distributed_tracing_headers() */
 PHP_FUNCTION(DDTrace_generate_distributed_tracing_headers) {
     zend_array *inject = NULL;

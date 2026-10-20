@@ -27,6 +27,13 @@ zend_string *ddtrace_dsm_set_checkpoint(zend_array *edge_tags, zend_string *carr
  */
 void ddtrace_dsm_track_backlog(zend_array *tags, zend_long offset);
 
+/**
+ * Set the request's pathway aside and start a fresh one, for an integration to call before it
+ * hands a message to a callback; pop it again once the callback returns.
+ */
+void ddtrace_dsm_push_pathway(void);
+void ddtrace_dsm_pop_pathway(void);
+
 // Forget the request's pathway.
 void ddtrace_dsm_rshutdown(void);
 

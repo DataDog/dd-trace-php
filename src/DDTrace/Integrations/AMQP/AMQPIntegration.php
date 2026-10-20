@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations\AMQP;
 
+use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
 use DDTrace\Propagator;
 use DDTrace\SpanData;
@@ -20,6 +21,10 @@ class AMQPIntegration extends Integration
 {
     const NAME = 'amqp';
     const SYSTEM = 'rabbitmq';
+
+    // Header carrying the Data Streams Monitoring pathway context.
+    const DSM_CONTEXT_HEADER = 'dd-pathway-ctx-base64';
+
     public static $protocolVersion = "";
 
     // Source: https://magp.ie/2015/09/30/convert-large-integer-to-hexadecimal-without-php-math-extension/
@@ -131,6 +136,9 @@ class AMQPIntegration extends Integration
                     $message = $args[0];
                     if (!is_null($message)) {
                         self::injectContext($message);
+                        if (\dd_trace_env_config('DD_DATA_STREAMS_ENABLED')) {
+                            self::setDataStreamsProduceCheckpoint($message, $args[1] ?? '', $args[2] ?? '');
+                        }
                     }
                 },
                 'posthook' => static function (SpanData $span, $args, $exception) {
@@ -217,6 +225,36 @@ class AMQPIntegration extends Integration
                     $exception
                 );
                 $span->meta[Tag::MQ_OPERATION] = 'send';
+            }
+        );
+
+        // A delivery names its consumer, but not the queue that consumer reads, and basic_deliver
+        // only reads the consumer off the wire right before calling back. So the consume
+        // checkpoint is set by wrapping the callback, which knows the queue it was registered for
+        // and runs before any of the application's code for the message.
+        \DDTrace\install_hook(
+            'PhpAmqpLib\Channel\AMQPChannel::basic_consume',
+            static function (HookData $hook) {
+                if (!\dd_trace_env_config('DD_DATA_STREAMS_ENABLED')
+                        || !isset($hook->args[6]) || !is_callable($hook->args[6])) {
+                    return;
+                }
+                $queue = (string)($hook->args[0] ?? '');
+                $callback = $hook->args[6];
+                $hook->args[6] = static function ($message) use ($queue, $callback) {
+                    // Each message gets its own pathway, so what the callback produces links to
+                    // this message only, and nothing after the callback links to it.
+                    \DDTrace\Internal\dsm_push_pathway();
+                    try {
+                        if ($message instanceof AMQPMessage) {
+                            self::setDataStreamsConsumeCheckpoint($message, $queue);
+                        }
+                        return call_user_func($callback, $message);
+                    } finally {
+                        \DDTrace\Internal\dsm_pop_pathway();
+                    }
+                };
+                $hook->overrideArguments($hook->args);
             }
         );
 
@@ -453,6 +491,12 @@ class AMQPIntegration extends Integration
                             $span->links[] = $spanLinkInstance;
                         }
                     }
+
+                    // The application handles the message after basic_get returns, so the
+                    // checkpoint stays the request's pathway until the next one.
+                    if (\dd_trace_env_config('DD_DATA_STREAMS_ENABLED')) {
+                        self::setDataStreamsConsumeCheckpoint($message, (string)$queue);
+                    }
                 }
             }
         );
@@ -563,5 +607,74 @@ class AMQPIntegration extends Integration
         }
 
         return false;
+    }
+
+    /**
+     * Set the Data Streams Monitoring checkpoint of a publish, and send its pathway context with
+     * the message. As in the Java tracer, a publish to the default exchange is on the edge of the
+     * queue its routing key names; any other is on the edge of its exchange.
+     */
+    public static function setDataStreamsProduceCheckpoint(AMQPMessage $message, $exchange, $routingKey)
+    {
+        $exchange = (string)$exchange;
+        $routingKey = (string)$routingKey;
+        if ($exchange === '' && $routingKey !== '') {
+            $edgeTags = ['direction:out', 'topic:' . $routingKey, 'type:rabbitmq'];
+        } else {
+            $edgeTags = [
+                'direction:out',
+                'exchange:' . $exchange,
+                'has_routing_key:' . ($routingKey === '' ? 'false' : 'true'),
+                'type:rabbitmq',
+            ];
+        }
+
+        $context = \DDTrace\Internal\dsm_set_checkpoint($edgeTags);
+        if ($context !== null) {
+            self::setDataStreamsContextHeader($message, $context);
+        }
+    }
+
+    /**
+     * Set the Data Streams Monitoring checkpoint of a message consumed from $queue, continuing the
+     * pathway context it arrived with, if any.
+     */
+    public static function setDataStreamsConsumeCheckpoint(AMQPMessage $message, string $queue)
+    {
+        \DDTrace\Internal\dsm_set_checkpoint(
+            ['direction:in', 'topic:' . $queue, 'type:rabbitmq'],
+            self::getDataStreamsContextHeader($message)
+        );
+    }
+
+    public static function getDataStreamsContextHeader(AMQPMessage $message)
+    {
+        if (!$message->has('application_headers')) {
+            return null;
+        }
+        $headers = $message->get('application_headers');
+        if (!$headers instanceof AMQPTable) {
+            return null;
+        }
+        $context = $headers->getNativeData()[self::DSM_CONTEXT_HEADER] ?? null;
+        return is_string($context) ? $context : null;
+    }
+
+    public static function setDataStreamsContextHeader(AMQPMessage $message, string $context)
+    {
+        if ($message->has('application_headers')) {
+            $headers = $message->get('application_headers');
+            if (!$headers instanceof AMQPTable) {
+                return;
+            }
+            // Set the one entry on a copy: rebuilding the table from its native data would
+            // change the AMQP types of the application's own entries (e.g. byte arrays become
+            // strings), and the application may reuse the table for other messages.
+            $headers = clone $headers;
+        } else {
+            $headers = new AMQPTable();
+        }
+        $headers->set(self::DSM_CONTEXT_HEADER, $context, AMQPTable::T_STRING_LONG);
+        $message->set('application_headers', $headers);
     }
 }
