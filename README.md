@@ -32,6 +32,49 @@ For more information about configuring and instrumenting **ddtrace**, view the [
 
 The **ddtrace** package provides an [OpenTracing-compatible tracer](https://docs.datadoghq.com/tracing/custom_instrumentation/php/?tab=tracingfunctioncalls#opentracing).
 
+### Per-subject experimentation opt-out
+
+Enable immediate exclusion through SDK configuration:
+
+```sh
+export DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE=immediate
+```
+
+Pass the customer's stored opt-out time in each subject's evaluation context:
+
+```php
+use DDTrace\OpenFeature\DataDogProvider;
+use OpenFeature\implementation\flags\Attributes;
+use OpenFeature\implementation\flags\EvaluationContext;
+use OpenFeature\OpenFeatureAPI;
+
+$api = OpenFeatureAPI::getInstance();
+$api->setProvider(new DataDogProvider());
+$attributes = [];
+if ($athlete->experimentationOptOutAt !== null) {
+    $attributes['dd_experimentation_opt_out_at'] =
+        $athlete->experimentationOptOutAt->format(DATE_RFC3339);
+}
+$enabled = $api->getClient()->getBooleanValue(
+    'new-route-planner',
+    false,
+    new EvaluationContext($athlete->id, new Attributes($attributes))
+);
+```
+
+The default mode is `disabled`. An explicit constructor setting overrides the environment:
+`new DataDogProvider(null, ExperimentationOptOutMode::DISABLED)`, using
+`DDTrace\FeatureFlags\ExperimentationOptOutMode`.
+The native `DDTrace\FeatureFlags\Client` accepts the same second constructor argument.
+Configuration is resolved once when the client or provider is constructed.
+
+In immediate mode, a valid RFC3339 timestamp skips allocations that record experiment exposures.
+Evaluation continues through ordinary feature allocations. If none match, the SDK returns the application default.
+A future timestamp also takes effect immediately. It does not schedule exclusion.
+Omit the attribute to retain normal participation. Null, non-string, empty, and malformed values return
+the application default with `INVALID_CONTEXT`.
+Unsupported configuration values fail construction. Evaluation telemetry remains independent.
+
 ## Contributing
 
 Before contributing to this open source project, read our [CONTRIBUTING.md](CONTRIBUTING.md).

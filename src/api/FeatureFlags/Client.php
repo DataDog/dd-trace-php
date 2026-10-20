@@ -14,13 +14,13 @@ final class Client
     private $logger;
     private $warnedAboutRuntimeNotReady = false;
 
-    public function __construct($logger = null)
+    public function __construct($logger = null, $experimentationOptOutMode = null)
     {
         if ($logger !== null && !$logger instanceof LoggerInterface) {
             throw new \InvalidArgumentException('Expected a LoggerInterface instance');
         }
 
-        $this->evaluator = NativeEvaluator::create();
+        $this->evaluator = NativeEvaluator::create(true, $experimentationOptOutMode);
         $this->logger = new NonThrowingLogger($logger ?: GlobalLogger::get());
     }
 
@@ -132,6 +132,10 @@ final class Client
         $attributes = array();
         if (isset($context['attributes']) && is_array($context['attributes'])) {
             foreach ($context['attributes'] as $key => $value) {
+                if ($key === 'dd_experimentation_opt_out_at') {
+                    $attributes[$key] = $value;
+                    continue;
+                }
                 if (is_bool($value) || is_int($value) || is_float($value) || is_string($value)) {
                     $attributes[(string) $key] = $value;
                 }

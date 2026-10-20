@@ -110,6 +110,19 @@ final class ClientTest extends TestCase
         $this->assertSame(array($details->getErrorMessage()), $logger->warnings());
     }
 
+    public function testInvalidOptOutAttributeIsNotDroppedDuringNormalization()
+    {
+        $evaluator = new ClientTestEvaluator();
+        $evaluator->setSuccess('flag.context', 'on');
+        $client = $this->clientForEvaluator($evaluator);
+        $client->getStringValue('flag.context', 'off', array(
+            'attributes' => array('dd_experimentation_opt_out_at' => null),
+        ));
+        $calls = $evaluator->getCalls();
+        $this->assertArrayHasKey('dd_experimentation_opt_out_at', $calls[0]['attributes']);
+        $this->assertNull($calls[0]['attributes']['dd_experimentation_opt_out_at']);
+    }
+
     public function testWarningIsEmittedOncePerClientNotOncePerEvaluation()
     {
         $logger = new RecordingLogger();

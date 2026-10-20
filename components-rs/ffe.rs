@@ -1,7 +1,7 @@
 use crate::bytes::MaybeOwnedZendString;
 use datadog_ffe::rules_based::{
     self as ffe, AssignmentReason, AssignmentValue, Attribute, Configuration, EvaluationContext,
-    EvaluationError, ExpectedFlagType, Str, UniversalFlagConfig,
+    EvaluationError, EvaluationOptions, ExpectedFlagType, Str, UniversalFlagConfig,
 };
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
 use std::cell::RefCell;
@@ -77,6 +77,7 @@ const ERROR_NONE: i32 = 0;
 const ERROR_TYPE_MISMATCH: i32 = 1;
 const ERROR_CONFIG_PARSE: i32 = 2;
 const ERROR_FLAG_UNRECOGNIZED: i32 = 3;
+const ERROR_INVALID_CONTEXT: i32 = 5;
 const ERROR_CONFIG_MISSING: i32 = 6;
 const ERROR_GENERAL: i32 = 7;
 
@@ -125,6 +126,7 @@ pub extern "C" fn ddog_ffe_evaluate(
     targeting_key: CharSlice<'_>,
     attributes: *const FfeAttribute<'_>,
     attributes_count: usize,
+    experimentation_opt_out_immediate: bool,
 ) -> FfeResult {
     if flag_key.as_raw_parts().0.is_null() {
         return invalid_result();
@@ -158,13 +160,21 @@ pub extern "C" fn ddog_ffe_evaluate(
 
     FFE_STATE.with(|state| {
         let state = state.borrow();
-        let assignment = ffe::get_assignment(
-            state.config.as_ref(),
-            flag_key,
-            &context,
-            expected_type,
-            ffe::now(),
-        );
+        let assignment = state
+            .config
+            .as_ref()
+            .ok_or(EvaluationError::ConfigurationMissing)
+            .and_then(|config| {
+                config.eval_flag_with_options(
+                    flag_key,
+                    &context,
+                    expected_type,
+                    ffe::now(),
+                    EvaluationOptions {
+                        experimentation_opt_out_immediate,
+                    },
+                )
+            });
 
         result_from_assignment(assignment)
     })
@@ -237,6 +247,7 @@ fn result_from_assignment(assignment: Result<ffe::Assignment, EvaluationError>) 
         Err(error) => {
             let (error_code, reason) = match &error {
                 EvaluationError::TypeMismatch { .. } => (ERROR_TYPE_MISMATCH, REASON_ERROR),
+                EvaluationError::InvalidContext => (ERROR_INVALID_CONTEXT, REASON_ERROR),
                 EvaluationError::ConfigurationParseError => (ERROR_CONFIG_PARSE, REASON_ERROR),
                 EvaluationError::FlagConfigurationInvalid => (ERROR_CONFIG_PARSE, REASON_ERROR),
                 EvaluationError::ConfigurationMissing => (ERROR_CONFIG_MISSING, REASON_ERROR),
@@ -420,6 +431,7 @@ mod tests {
             CharSlice::from(""),
             std::ptr::null(),
             0,
+            false,
         );
 
         assert!(result.valid);
@@ -430,6 +442,59 @@ mod tests {
             std::str::from_utf8(result.value_json.as_ref().unwrap().as_ref()).unwrap(),
             r#""empty-targeting-key""#
         );
+        clear_config();
+    }
+
+    #[test]
+    fn immediate_opt_out_skips_logging_and_rejects_invalid_context() {
+        setup_zend_string_functions();
+        clear_config();
+        assert!(ddog_ffe_load_config(CharSlice::from(
+            EMPTY_TARGETING_KEY_CONFIG
+        )));
+        let attr = FfeAttribute {
+            key: CharSlice::from("dd_experimentation_opt_out_at"),
+            value_type: ATTR_TYPE_STRING,
+            string_value: CharSlice::from("2099-01-01T00:00:00Z"),
+            number_value: 0.0,
+            bool_value: false,
+        };
+        let result = ddog_ffe_evaluate(
+            CharSlice::from("empty.targeting.shard.flag"),
+            TYPE_STRING,
+            CharSlice::from(""),
+            &attr,
+            1,
+            true,
+        );
+        assert!(result.valid);
+        assert_eq!(result.reason, REASON_DEFAULT);
+        assert_eq!(result.error_code, ERROR_NONE);
+        assert!(!result.do_log);
+        let invalid = FfeAttribute {
+            value_type: ATTR_TYPE_BOOL,
+            ..attr
+        };
+        let result = ddog_ffe_evaluate(
+            CharSlice::from("empty.targeting.shard.flag"),
+            TYPE_STRING,
+            CharSlice::from(""),
+            &invalid,
+            1,
+            true,
+        );
+        assert_eq!(result.error_code, ERROR_INVALID_CONTEXT);
+        assert!(!result.do_log);
+        let result = ddog_ffe_evaluate(
+            CharSlice::from("empty.targeting.shard.flag"),
+            TYPE_STRING,
+            CharSlice::from(""),
+            &invalid,
+            1,
+            false,
+        );
+        assert_eq!(result.error_code, ERROR_NONE);
+        assert!(result.do_log);
         clear_config();
     }
 

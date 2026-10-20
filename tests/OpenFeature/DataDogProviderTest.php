@@ -113,6 +113,33 @@ final class DataDogProviderTest extends TestCase
         self::assertSame([$details->getError()->getResolutionErrorMessage()], $logger->warnings());
     }
 
+    public function testInvalidOptOutValueIsNotDroppedFromContext(): void
+    {
+        $evaluator = new OpenFeatureTestEvaluator();
+        $evaluator->setInvalidContext('feature');
+        $provider = $this->providerForEvaluator($evaluator);
+        $details = $provider->resolveStringValue('feature', 'fallback', new EvaluationContext(
+            'subject',
+            new Attributes(['dd_experimentation_opt_out_at' => null])
+        ));
+
+        self::assertSame(
+            ['dd_experimentation_opt_out_at' => null],
+            $evaluator->getCalls()[0]['attributes']
+        );
+        self::assertSame('fallback', $details->getValue());
+        self::assertSame(
+            ErrorCode::INVALID_CONTEXT()->getValue(),
+            $details->getError()->getResolutionErrorCode()->getValue()
+        );
+    }
+
+    public function testUnsupportedOptOutModeFailsDuringConstruction(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new DataDogProvider(null, 'future');
+    }
+
     public function testProviderWarningIsEmittedOncePerProvider(): void
     {
         $logger = new OpenFeatureRecordingLogger();
@@ -246,6 +273,20 @@ final class OpenFeatureTestEvaluator implements Evaluator
             null,
             EvaluationErrorCode::FLAG_NOT_FOUND,
             'Feature flag "' . $flagKey . '" was not found'
+        );
+
+        return $this;
+    }
+
+    public function setInvalidContext(string $flagKey): self
+    {
+        $this->details[$flagKey] = new EvaluationDetails(
+            'fallback',
+            EvaluationType::STRING,
+            EvaluationReason::ERROR,
+            null,
+            EvaluationErrorCode::INVALID_CONTEXT,
+            'dd_experimentation_opt_out_at must be an RFC3339 timestamp string'
         );
 
         return $this;

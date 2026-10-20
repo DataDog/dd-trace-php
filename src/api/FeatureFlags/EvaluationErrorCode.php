@@ -9,6 +9,7 @@ final class EvaluationErrorCode
     const TYPE_MISMATCH = 'TYPE_MISMATCH';
     const GENERAL = 'GENERAL';
     const PROVIDER_NOT_READY = 'PROVIDER_NOT_READY';
+    const INVALID_CONTEXT = 'INVALID_CONTEXT';
 
     private static $valid = array(
         self::FLAG_NOT_FOUND => true,
@@ -16,6 +17,7 @@ final class EvaluationErrorCode
         self::TYPE_MISMATCH => true,
         self::GENERAL => true,
         self::PROVIDER_NOT_READY => true,
+        self::INVALID_CONTEXT => true,
     );
 
     private function __construct()

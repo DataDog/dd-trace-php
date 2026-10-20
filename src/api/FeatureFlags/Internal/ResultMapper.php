@@ -20,6 +20,7 @@ final class ResultMapper
     const BRIDGE_ERROR_TYPE_MISMATCH = 1;
     const BRIDGE_ERROR_CONFIG_PARSE = 2;
     const BRIDGE_ERROR_FLAG_UNRECOGNIZED = 3;
+    const BRIDGE_ERROR_INVALID_CONTEXT = 5;
     const BRIDGE_ERROR_CONFIG_MISSING = 6;
     const BRIDGE_ERROR_GENERAL = 7;
 
@@ -233,6 +234,8 @@ final class ResultMapper
                 return EvaluationErrorCode::FLAG_NOT_FOUND;
             case self::BRIDGE_ERROR_CONFIG_MISSING:
                 return EvaluationErrorCode::PROVIDER_NOT_READY;
+            case self::BRIDGE_ERROR_INVALID_CONTEXT:
+                return EvaluationErrorCode::INVALID_CONTEXT;
             case self::BRIDGE_ERROR_GENERAL:
             default:
                 return EvaluationErrorCode::GENERAL;

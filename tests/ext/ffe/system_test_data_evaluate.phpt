@@ -60,9 +60,11 @@ if (count($caseFiles) === 0) {
     throw new \RuntimeException('no evaluation-case fixture files found under ' . $fixtureRoot);
 }
 
-$client = new \DDTrace\FeatureFlags\Client(new FfeFixtureLogger());
+$client = new \DDTrace\FeatureFlags\Client(new FfeFixtureLogger(), 'disabled');
+$immediateClient = new \DDTrace\FeatureFlags\Client(new FfeFixtureLogger(), 'immediate');
 
 $caseCount = 0;
+$immediateCaseCount = 0;
 $failures = array();
 foreach ($caseFiles as $caseFile) {
     $cases = decode_json_file($caseFile);
@@ -75,6 +77,11 @@ foreach ($caseFiles as $caseFile) {
         $caseCount++;
         try {
             run_fixture_case($client, basename($caseFile), $index, $case, $failures);
+            if (isset($case['capabilities']['experimentationOptOutImmediate'])) {
+                $immediateCaseCount++;
+                $case['result'] = $case['capabilities']['experimentationOptOutImmediate'];
+                run_fixture_case($immediateClient, basename($caseFile), $index, $case, $failures, true);
+            }
         } catch (\Throwable $exception) {
             $failures[] = basename($caseFile) . '#' . $index . ': ' . $exception->getMessage();
         }
@@ -87,6 +94,7 @@ foreach ($failures as $failure) {
 
 show('fixture_files', count($caseFiles));
 show('cases', $caseCount);
+show('immediate_cases', $immediateCaseCount);
 show('failures', count($failures));
 
 function require_feature_flag_api($root)
@@ -123,6 +131,7 @@ function require_feature_flag_api($root)
         'EvaluationType',
         'EvaluationReason',
         'EvaluationErrorCode',
+        'ExperimentationOptOutMode',
         'EvaluationDetails',
         'SpanEnrichmentAccumulator',
         'SpanEnrichmentRegistry',
@@ -143,7 +152,7 @@ function require_feature_flag_api($root)
     require_once $apiRoot . '/Client.php';
 }
 
-function run_fixture_case($client, $fileName, $index, array $case, array &$failures)
+function run_fixture_case($client, $fileName, $index, array $case, array &$failures, $checkDetails = false)
 {
     foreach (array('flag', 'variationType', 'defaultValue', 'targetingKey', 'attributes', 'result') as $requiredKey) {
         if (!array_key_exists($requiredKey, $case)) {
@@ -184,6 +193,14 @@ function run_fixture_case($client, $fileName, $index, array $case, array &$failu
         $failures[] = $fileName . '#' . $index
             . ': value got=' . encode_value($details->getValue())
             . ' want=' . encode_value($case['result']['value']);
+    }
+    if ($checkDetails) {
+        if ($details->getReason() !== $case['result']['reason']) {
+            $failures[] = $fileName . '#' . $index . ': unexpected immediate reason ' . $details->getReason();
+        }
+        if ($details->getErrorCode() !== ($case['result']['errorCode'] ?? null)) {
+            $failures[] = $fileName . '#' . $index . ': unexpected immediate error ' . $details->getErrorCode();
+        }
     }
 }
 
@@ -290,4 +307,5 @@ function show($label, $value)
 config_loaded=true
 fixture_files=%d
 cases=%d
+immediate_cases=18
 failures=0

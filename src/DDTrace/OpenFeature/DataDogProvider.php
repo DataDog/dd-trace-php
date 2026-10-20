@@ -35,11 +35,11 @@ final class DataDogProvider extends AbstractProvider
     private bool $warnedAboutRuntimeNotReady = false;
     private EvaluationMetricRecorder $metricRecorder;
 
-    public function __construct(?LoggerInterface $logger = null)
+    public function __construct(?LoggerInterface $logger = null, ?string $experimentationOptOutMode = null)
     {
         // Native evaluation metrics are disabled here because OpenFeature owns
         // the final provider outcome, including OF-level type mismatch mapping.
-        $this->evaluator = NativeEvaluator::create(false);
+        $this->evaluator = NativeEvaluator::create(false, $experimentationOptOutMode);
         $this->datadogLogger = new NonThrowingLogger($logger ?: GlobalLogger::get());
         $this->metricRecorder = EvaluationMetricRecorder::createDefault();
     }
@@ -204,6 +204,10 @@ final class DataDogProvider extends AbstractProvider
 
         $attributes = [];
         foreach ($context->getAttributes()->toArray() as $key => $value) {
+            if ($key === 'dd_experimentation_opt_out_at') {
+                $attributes[$key] = $value;
+                continue;
+            }
             if (is_bool($value) || is_int($value) || is_float($value) || is_string($value)) {
                 $attributes[(string) $key] = $value;
             }
@@ -254,6 +258,7 @@ final class DataDogProvider extends AbstractProvider
             EvaluationErrorCode::FLAG_NOT_FOUND => ErrorCode::FLAG_NOT_FOUND(),
             EvaluationErrorCode::PARSE_ERROR => ErrorCode::PARSE_ERROR(),
             EvaluationErrorCode::TYPE_MISMATCH => ErrorCode::TYPE_MISMATCH(),
+            EvaluationErrorCode::INVALID_CONTEXT => ErrorCode::INVALID_CONTEXT(),
             default => ErrorCode::GENERAL(),
         };
     }

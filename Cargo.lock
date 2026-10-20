@@ -3392,6 +3392,7 @@ dependencies = [
 name = "libdd-trace-utils"
 version = "14.0.0"
 dependencies = [
+ "allocator-api2",
  "anyhow",
  "base64 0.22.1",
  "bolero",
