@@ -136,7 +136,12 @@ class BaggagePropagatorTest extends BaseTestCase
             'key - only spaces' => ['    =value1', Baggage::getEmpty()],
             'key - inner spaces' => ['k ey=value1', Baggage::getEmpty()],
             'key - invalid character' => ['ke?y=value1', Baggage::getEmpty()],
-            'key - invalid =' => ['ke%3Dy=value1', Baggage::getEmpty()],
+            // Per the W3C Baggage spec, keys are HTTP tokens (RFC 7230) — `%` is a
+            // valid tchar and no percent-decoding is applied to keys. So the literal
+            // key `ke%3Dy` is syntactically valid even though it URL-decodes to
+            // `ke=y`. open-telemetry/opentelemetry-php corrected this parsing in a
+            // recent release; the previous "invalid" expectation was over-strict.
+            'key - percent-encoded content' => ['ke%3Dy=value1', Baggage::getBuilder()->set('ke%3Dy', 'value1')->build()],
             'key - multiple invalid' => ['ke<y=value1, ;sss,key=value;meta1=value1;meta2=value2,ke(y=value;meta=val ', Baggage::getBuilder()->set('key', 'value', new Metadata('meta1=value1;meta2=value2'))->build()],
 
             'value - leading spaces' => ['key=  value1', Baggage::getBuilder()->set('key', 'value1')->build()],
