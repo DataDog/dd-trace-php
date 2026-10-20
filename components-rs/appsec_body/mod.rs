@@ -15,6 +15,7 @@ use std::mem::ManuallyDrop;
 
 mod json;
 mod xml;
+mod xml_dtd;
 
 /// Written as a single byte.
 #[repr(C)]
